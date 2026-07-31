@@ -71,22 +71,8 @@ struct Env {
     int boundary_reached;
     int owns_levels;
     int tick;
-    unsigned char* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
     unsigned int rng;
 };
-
-static inline void sync_agent_buffers(Grid* env) {
-    if (env->agents[0].observations == NULL) {
-        return;
-    }
-    env->observations = (obs_t*)env->agents[0].observations;
-    env->actions = env->agents[0].actions;
-    env->rewards = env->agents[0].rewards;
-    env->terminals = env->agents[0].terminals;
-}
 
 bool in_bounds(State* s, int y, int c) {
     return (y >= 0 && y <= s->height && c >= 0 && c <= s->width);
@@ -97,15 +83,15 @@ int maze_offset(int y, int x) {
 }
 
 void add_log(Grid* env, int idx) {
-    env->log.perf += env->rewards[idx];
-    env->log.score += env->rewards[idx];
-    env->log.episode_return += env->rewards[idx];
+    env->log.perf += env->agents[0].rewards[idx];
+    env->log.score += env->agents[0].rewards[idx];
+    env->log.episode_return += env->agents[0].rewards[idx];
     env->log.episode_length += env->tick;
     env->log.n += 1.0;
 }
  
 void compute_observations(Grid* env) {
-    memset(env->observations, 0, WINDOW*WINDOW*env->num_agents);
+    memset(((obs_t*)env->agents[0].observations), 0, WINDOW*WINDOW*env->num_agents);
     State* s = &env->state;
     for (int agent_idx = 0; agent_idx < env->num_agents; agent_idx++) {
         int x = s->x;
@@ -137,21 +123,18 @@ void compute_observations(Grid* env) {
                 int c_idx = c - x + VISION;
                 int obs_adr = obs_offset + r_idx*WINDOW + c_idx;
                 int adr = maze_offset(r, c);
-                env->observations[obs_adr] = s->maze[adr];
+                ((obs_t*)env->agents[0].observations)[obs_adr] = s->maze[adr];
             }
         }
     }
 }
 
 void puf_reset(Env* env) {
-    sync_agent_buffers(env);
-    env->tick = 0;
+env->tick = 0;
     int idx = rand_r(&env->rng) % env->num_levels;
     env->state = env->levels[idx];
     compute_observations(env);
 }
-
-#define c_reset puf_reset
 
 int move_to(Grid* env, int agent_idx, float y, float x) {
     if (!in_bounds(&env->state, y, x)) {
@@ -164,8 +147,8 @@ int move_to(Grid* env, int agent_idx, float y, float x) {
     if (dest == WALL) {
         return 1;
     } else if (dest == GOAL) {
-        env->rewards[agent_idx] = 1.0;
-        env->terminals[agent_idx] = 1.0f;
+        env->agents[0].rewards[agent_idx] = 1.0;
+        env->agents[0].terminals[agent_idx] = 1.0f;
         add_log(env, agent_idx);
     }
 
@@ -178,14 +161,13 @@ int move_to(Grid* env, int agent_idx, float y, float x) {
 }
  
 void puf_step(Env* env) {
-    sync_agent_buffers(env);
-    env->terminals[0] = 0.0f;
-    env->rewards[0] = 0.0f;
+env->agents[0].terminals[0] = 0.0f;
+    env->agents[0].rewards[0] = 0.0f;
 
     State* s = &env->state;
     env->tick++;
 
-    int atn = env->actions[0];
+    int atn = env->agents[0].actions[0];
     int direction = s->direction;
     if (atn != ATN_PASS) {
         direction = atn;
@@ -211,19 +193,17 @@ void puf_step(Env* env) {
     compute_observations(env);
 
     if (env->tick >= 2*s->width*s->height) {
-        env->terminals[0] = 1.0f;
+        env->agents[0].terminals[0] = 1.0f;
         add_log(env, 0);
     }
 
-    if (env->terminals[0]) {
+    if (env->agents[0].terminals[0]) {
         puf_reset(env);
         int idx = rand_r(&env->rng) % env->num_levels;
         env->state = env->levels[idx];
         compute_observations(env);
     }
 }
-
-#define c_step puf_step
 
 Renderer* init_renderer(int cell_size, int width, int height) {
     Renderer* renderer = (Renderer*)calloc(1, sizeof(Renderer));
@@ -260,8 +240,6 @@ void puf_close(Env* env) {
         env->levels = NULL;
     }
 }
-
-#define c_close puf_close
 
 void puf_render(Env* env) {
     float overlay = 0.0;
@@ -326,8 +304,6 @@ void puf_render(Env* env) {
 
     EndDrawing();
 }
-
-#define c_render puf_render
 
 void generate_growing_tree_maze(unsigned char* maze,
         int width, int height, int max_size, float difficulty, int seed) {
@@ -486,8 +462,8 @@ State* make_maze_levels(int num_maps, int map_size) {
 }
 
 void puf_init(Env* env, Dict* kwargs) {
-    int num_maps = (int)dict_get(kwargs, "num_maps");
-    int map_size = (int)dict_get(kwargs, "map_size");
+    int num_maps = dict_get(kwargs, "num_maps");
+    int map_size = dict_get(kwargs, "map_size");
     env->num_levels = num_maps;
     env->num_agents = 1;
     env->levels = make_maze_levels(num_maps, map_size);
@@ -496,22 +472,22 @@ void puf_init(Env* env, Dict* kwargs) {
     env->agents[0].policy = 0;
 }
 
-Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_counts,
+Env* my_vec_init(int* num_envs_out, int* env_starts, int* env_counts,
                  Dict* vec_kwargs, Dict* env_kwargs) {
-    int total_agents = (int)dict_get(vec_kwargs, "total_agents");
-    int num_buffers = (int)dict_get(vec_kwargs, "num_buffers");
-    int agents_per_buffer = total_agents / num_buffers;
+    int total_agents = dict_get(vec_kwargs, "total_agents");
+    int num_buffers = dict_get(vec_kwargs, "num_buffers");
+    int agents_per_buf = total_agents / num_buffers;
     int num_envs = total_agents;
 
-    int num_maps = (int)dict_get(env_kwargs, "num_maps");
-    int map_size = (int)dict_get(env_kwargs, "map_size");
+    int num_maps = dict_get(env_kwargs, "num_maps");
+    int map_size = dict_get(env_kwargs, "map_size");
     State* levels = make_maze_levels(num_maps, map_size);
 
     Env* envs = (Env*)calloc(num_envs, sizeof(Env));
     int buf = 0;
     int buf_agents = 0;
-    buffer_env_starts[0] = 0;
-    buffer_env_counts[0] = 0;
+    env_starts[0] = 0;
+    env_counts[0] = 0;
 
     unsigned int env_rng = 42;
     for (int i = 0; i < num_envs; i++) {
@@ -524,11 +500,11 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
         env->agents[0].policy = 0;
 
         buf_agents += env->num_agents;
-        buffer_env_counts[buf]++;
-        if (buf_agents >= agents_per_buffer && buf < num_buffers - 1) {
+        env_counts[buf]++;
+        if (buf_agents >= agents_per_buf && buf < num_buffers - 1) {
             buf++;
-            buffer_env_starts[buf] = i + 1;
-            buffer_env_counts[buf] = 0;
+            env_starts[buf] = i + 1;
+            env_counts[buf] = 0;
             buf_agents = 0;
         }
     }

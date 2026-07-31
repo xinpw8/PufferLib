@@ -1,15 +1,15 @@
 // NMMO3 CUDA encoder: multihot, GEMM conv, embedding, concat, projection
-// Included by src/ocean.cu — requires precision_t, PrecisionTensor, Allocator, puf_mm, etc.
+// Included by src/ocean.cu — requires precision_t, Prec, Allocator, puf_mm, etc.
 
 struct ConvWeights {
-    PrecisionTensor w, b;
+    Prec w, b;
     int IC, OC, K, S, IH, IW, OH, OW;
     bool relu;
 };
 
 struct ConvActivations {
-    PrecisionTensor out, grad, saved_input;
-    PrecisionTensor wgrad, bgrad;
+    Prec out, grad, saved_input;
+    Prec wgrad, bgrad;
 };
 
 static void conv_init(ConvWeights* cw, int IC, int OC, int K, int S,
@@ -33,7 +33,7 @@ static void conv_reg_params(ConvWeights* cw, Allocator* alloc) {
 }
 
 static void conv_init_weights(ConvWeights* cw, uint64_t* seed, cudaStream_t stream) {
-    PrecisionTensor wt = {.data = cw->w.data, .shape = {cw->OC, cw->IC * cw->K * cw->K}};
+    Prec wt = {.data = cw->w.data, .shape = {cw->OC, cw->IC * cw->K * cw->K}};
     puf_kaiming_init(&wt, 1.0f, (*seed)++, stream);
     cudaMemsetAsync(cw->b.data, 0, numel(cw->b.shape) * sizeof(precision_t), stream);
 }
@@ -598,7 +598,7 @@ __global__ void rows_to_nchw_kernel(
 // col_buf: pre-allocated (max_B * OH * OW, IC * K * K)
 // mm_buf:  pre-allocated (max_B * OH * OW, OC)  — row-major (spatial-first)
 static void gemm_conv_forward(
-    PrecisionTensor* weight, PrecisionTensor* bias,
+    Prec* weight, Prec* bias,
     precision_t* input, precision_t* output,
     precision_t* col_buf, precision_t* mm_buf,
     int B, int IC, int IH, int IW, int OC, int K, int S, int OH, int OW,
@@ -614,8 +614,8 @@ static void gemm_conv_forward(
         input, col_buf, B, IC, IH, IW, K, S, OH, OW);
 
     // matmul: col (B*OH*OW, IC*K*K) @ W^T (IC*K*K, OC) = mm_buf (B*OH*OW, OC)
-    PrecisionTensor col_t = {.data = col_buf, .shape = {col_rows, col_cols}};
-    PrecisionTensor mm_t  = {.data = mm_buf,  .shape = {col_rows, OC}};
+    Prec col_t = {.data = col_buf, .shape = {col_rows, col_cols}};
+    Prec mm_t  = {.data = mm_buf,  .shape = {col_rows, OC}};
     puf_mm(&col_t, weight, &mm_t, stream);
 
     // transpose (B*OH*OW, OC) -> (B, OC, OH, OW) NCHW + bias + relu
@@ -632,7 +632,7 @@ static void gemm_conv_forward(
 }
 
 static void gemm_conv_forward_fast(
-    PrecisionTensor* weight, PrecisionTensor* bias,
+    Prec* weight, Prec* bias,
     precision_t* input, precision_t* output,
     precision_t* col_buf, precision_t* mm_buf,
     int B, const Im2ColFastMods& m, bool relu, cudaStream_t stream
@@ -645,8 +645,8 @@ static void gemm_conv_forward_fast(
         input, col_buf, B, m.IC, m.IH, m.IW, m.K, m.S, m.OH, m.OW,
         m.dm_col_w, m.dm_oh_ow, m.dm_ow, m.dm_kk, m.dm_k, m.total_no_batch);
 
-    PrecisionTensor col_t = {.data = col_buf, .shape = {col_rows, m.col_cols}};
-    PrecisionTensor mm_t  = {.data = mm_buf,  .shape = {col_rows, m.OC}};
+    Prec col_t = {.data = col_buf, .shape = {col_rows, m.col_cols}};
+    Prec mm_t  = {.data = mm_buf,  .shape = {col_rows, m.OC}};
     puf_mm(&col_t, weight, &mm_t, stream);
 
     rows_to_nchw_kernel_fused<<<grid_size(total_out), BLOCK_SIZE, 0, stream>>>(
@@ -658,7 +658,7 @@ static void gemm_conv_forward_fast(
 // grad_output is NCHW (B, OC, OH, OW). saved_input is NCHW.
 // Caller handles relu backward and bias grad.
 static void gemm_conv_backward(
-    PrecisionTensor* weight,
+    Prec* weight,
     precision_t* saved_input, precision_t* grad_output,
     precision_t* wgrad, precision_t* input_grad,
     precision_t* col_buf, precision_t* mm_buf,
@@ -680,9 +680,9 @@ static void gemm_conv_backward(
         saved_input, col_buf, B, IC, IH, IW, K, S, OH, OW);
 
     // Weight grad: mm_buf^T (OC, B*OH*OW) @ col_buf (B*OH*OW, IC*K*K) = wgrad (OC, IC*K*K)
-    PrecisionTensor mm_t  = {.data = mm_buf,  .shape = {col_rows, OC}};
-    PrecisionTensor col_t = {.data = col_buf, .shape = {col_rows, col_cols}};
-    PrecisionTensor wg_t  = {.data = wgrad,   .shape = {OC, col_cols}};
+    Prec mm_t  = {.data = mm_buf,  .shape = {col_rows, OC}};
+    Prec col_t = {.data = col_buf, .shape = {col_rows, col_cols}};
+    Prec wg_t  = {.data = wgrad,   .shape = {OC, col_cols}};
     puf_mm_tn(&mm_t, &col_t, &wg_t, stream);
 
     // Input grad (optional): mm_buf (B*OH*OW, OC) @ weight (OC, IC*K*K) = col_grad (B*OH*OW, IC*K*K)
@@ -694,7 +694,7 @@ static void gemm_conv_backward(
 }
 
 static void gemm_conv_backward_fast(
-    PrecisionTensor* weight,
+    Prec* weight,
     precision_t* saved_input, precision_t* grad_output,
     precision_t* wgrad, precision_t* input_grad,
     precision_t* col_buf, precision_t* mm_buf,
@@ -711,9 +711,9 @@ static void gemm_conv_backward_fast(
         saved_input, col_buf, B, m.IC, m.IH, m.IW, m.K, m.S, m.OH, m.OW,
         m.dm_col_w, m.dm_oh_ow, m.dm_ow, m.dm_kk, m.dm_k, m.total_no_batch);
 
-    PrecisionTensor mm_t  = {.data = mm_buf,  .shape = {col_rows, m.OC}};
-    PrecisionTensor col_t = {.data = col_buf, .shape = {col_rows, m.col_cols}};
-    PrecisionTensor wg_t  = {.data = wgrad,   .shape = {m.OC, m.col_cols}};
+    Prec mm_t  = {.data = mm_buf,  .shape = {col_rows, m.OC}};
+    Prec col_t = {.data = col_buf, .shape = {col_rows, m.col_cols}};
+    Prec wg_t  = {.data = wgrad,   .shape = {m.OC, m.col_cols}};
     puf_mm_tn(&mm_t, &col_t, &wg_t, stream);
 
     if (input_grad) {
@@ -728,16 +728,16 @@ static void gemm_conv_backward_fast(
 
 struct NMMO3EncoderWeights {
     ConvWeights conv1, conv2;
-    PrecisionTensor embed_w, proj_w, proj_b;
+    Prec embed_w, proj_w, proj_b;
     int obs_size, hidden;
 };
 
 struct NMMO3EncoderActivations {
     ConvActivations conv1, conv2;
-    PrecisionTensor col1, mm1, col2, mm2;  // im2col + matmul scratch buffers
-    PrecisionTensor multihot, embed_out, concat, out, saved_obs;
-    PrecisionTensor embed_wgrad, proj_wgrad, proj_bgrad;
-    FloatTensor embed_wgrad_f;  // float accumulation buffer for scatter-add
+    Prec col1, mm1, col2, mm2;  // im2col + matmul scratch buffers
+    Prec multihot, embed_out, concat, out, saved_obs;
+    Prec embed_wgrad, proj_wgrad, proj_bgrad;
+    Float embed_wgrad_f;  // float accumulation buffer for scatter-add
 };
 
 static NMMO3EncoderWeights* nmmo3_encoder_create(int obs_size, int hidden) {
@@ -750,7 +750,7 @@ static NMMO3EncoderWeights* nmmo3_encoder_create(int obs_size, int hidden) {
 
 // ---- NMMO3 encoder interface ----
 
-static PrecisionTensor nmmo3_encoder_forward(void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
+static Prec nmmo3_encoder_forward(void* w, void* activations, Prec input, cudaStream_t stream) {
     NMMO3EncoderWeights* ew = (NMMO3EncoderWeights*)w;
     NMMO3EncoderActivations* a = (NMMO3EncoderActivations*)activations;
     int B = input.shape[0];
@@ -785,7 +785,7 @@ static PrecisionTensor nmmo3_encoder_forward(void* w, void* activations, Precisi
     return a->out;
 }
 
-static void nmmo3_encoder_backward(void* w, void* activations, PrecisionTensor grad, cudaStream_t stream) {
+static void nmmo3_encoder_backward(void* w, void* activations, Prec grad, cudaStream_t stream) {
     NMMO3EncoderWeights* ew = (NMMO3EncoderWeights*)w;
     NMMO3EncoderActivations* a = (NMMO3EncoderActivations*)activations;
     int B = grad.shape[0], H = ew->hidden;
@@ -796,7 +796,7 @@ static void nmmo3_encoder_backward(void* w, void* activations, PrecisionTensor g
         a->proj_bgrad.data, grad.data, B, H);
     puf_mm_tn(&grad, &a->concat, &a->proj_wgrad, stream);
 
-    PrecisionTensor grad_concat = {.data = a->concat.data, .shape = {B, N3_CONCAT}};
+    Prec grad_concat = {.data = a->concat.data, .shape = {B, N3_CONCAT}};
     puf_mm_nn(&grad, &ew->proj_w, &grad_concat, stream);
 
     n3_concat_backward_conv_kernel<<<grid_size(B * N3_CONV_FLAT), BLOCK_SIZE, 0, stream>>>(
@@ -830,8 +830,8 @@ static void nmmo3_encoder_init_weights(void* w, uint64_t* seed, cudaStream_t str
     NMMO3EncoderWeights* ew = (NMMO3EncoderWeights*)w;
     conv_init_weights(&ew->conv1, seed, stream);
     conv_init_weights(&ew->conv2, seed, stream);
-    auto init2d = [&](PrecisionTensor& t, int rows, int cols, float gain) {
-        PrecisionTensor wt = {.data = t.data, .shape = {rows, cols}};
+    auto init2d = [&](Prec& t, int rows, int cols, float gain) {
+        Prec wt = {.data = t.data, .shape = {rows, cols}};
         puf_kaiming_init(&wt, gain, (*seed)++, stream);
     };
     puf_normal_init(&ew->embed_w, 1.0f, (*seed)++, stream);

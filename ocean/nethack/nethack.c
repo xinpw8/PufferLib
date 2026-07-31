@@ -11,7 +11,7 @@
 #include "../../src/puffercpu.h"
 #include "glyph_map.h"
 
-// single-agent env, reset immediately (training's c_reset is lazy)
+// single-agent env, reset immediately (training's puf_reset is lazy)
 static void env_open(Nethack* env) {
     memset(env, 0, sizeof(*env));
     env->num_agents = 1;
@@ -26,7 +26,7 @@ static void env_open(Nethack* env) {
 }
 
 static void env_close(Nethack* env) {
-    c_close(env);
+    puf_close(env);
     free(env->observations); free(env->actions); free(env->rewards); free(env->terminals);
     free(env->action_mask);
 }
@@ -604,9 +604,9 @@ static void demo_step_once(NethackNet* net, Nethack* env, float* acts_f,
     nethack_net_forward(net, env->observations);
     for (int i = 0; i < DEMO_OD; i++)
         if (!env->action_mask[i]) net->logits[i] = -1e9f;
-    softmax_multidiscrete(net->md, net->logits, acts_f);
+    multidiscrete(net->md, net->logits, acts_f, 0);
     for (int h = 0; h < DEMO_NUM_HEADS; h++) env->actions[h] = acts_f[h];
-    c_step(env);
+    puf_step(env);
     if (env->terminals[0] > 0.5f) {
         float d = env->log.max_depth - *ep_depth;
         float x = env->log.max_xp_level - *ep_xp;
@@ -624,7 +624,7 @@ static void demo_step_once(NethackNet* net, Nethack* env, float* acts_f,
 }
 
 static void demo_render(Nethack* env, int rate_hz, long steps) {
-    c_render(env);
+    puf_render(env);
     printf("steps %ld  |  SPACE step/hold 5Hz  |  Shift+SPACE (or S) 20Hz  |  q quit",
            steps);
     if (rate_hz > 0) printf("  |  running %d Hz", rate_hz);
@@ -751,7 +751,7 @@ static void run_demo_auto(long max_steps, int frame_ms) {
         demo_step_once(net, &env, acts_f, &ep_score, &ep_len,
                        &ep_depth, &ep_xp, &ep_gt);
         if (frame_ms > 0) {
-            c_render(&env);
+            puf_render(&env);
             usleep(frame_ms * 1000);
         }
     }

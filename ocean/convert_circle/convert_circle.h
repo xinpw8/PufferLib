@@ -1,26 +1,37 @@
-/* ConvertCircle: a sample multiagent env about puffers eating stars.
- * Use this as a tutorial and template for your own multiagent envs.
- * We suggest starting with the Squared env for a simpler intro.
- * Star PufferLib on GitHub to support. It really, really helps!
+/* ConvertCircle: multiagent env about puffers eating stars on a circle.
+ * Similar to Convert; factories placed on a circle (optionally equidistant).
  */
 
 #include "raylib.h"
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "pufferenv.h"
 
-typedef struct {
+// OBS: 2*num_resources (nearest factory offsets) + 4 (heading,reward,x,y) + num_resources (item one-hot)
+// With num_resources=8 (config): 3*8+4 = 28
+#define ACT_SIZES {9, 5}
+#define OBS_SIZE 28
+#define NUM_ATNS 2
+#define MAX_AGENTS 1024
+#define MAX_RESOURCES 16
+
+typedef float obs_t;
+
+struct Log {
   float perf;
   float score;
   float episode_return;
   float episode_length;
   float n;
-} Log;
+};
 
 typedef struct {
   Texture2D sprites;
 } Client;
 
+// Game entity (was Agent; renamed to avoid conflict with pufferenv Agent)
 typedef struct {
   float x;
   float y;
@@ -28,7 +39,7 @@ typedef struct {
   float speed;
   int item;
   int episode_length;
-} Agent;
+} Entity;
 
 typedef struct {
   float x;
@@ -37,43 +48,46 @@ typedef struct {
   int item;
 } Factory;
 
-typedef struct {
+struct Env {
   Log log;
   Client *client;
-  Agent *agents;
+  Agent agents[MAX_AGENTS];
+  Entity *entities;
   Factory *factories;
-  float *observations;
-  int *actions;
-  float *rewards;
-  unsigned char *terminals;
+  int num_agents;
+  int tag;
+  int boundary_reached;
   int width;
   int height;
-  int num_agents;
   int num_factories;
   int num_resources;
   int equidistant;
   int radius;
-} ConvertCircle;
+  unsigned int rng;
+};
+typedef Env ConvertCircle;
 
 static inline float random_float(float low, float high) {
   return low + (high - low) * ((float)rand() / (float)RAND_MAX);
 }
 
 void init(ConvertCircle *env) {
-  env->agents = calloc(env->num_agents, sizeof(Agent));
-  env->factories = calloc(env->num_factories, sizeof(Factory));
-}
-
-int compare_floats(const void *a, const void *b) {
-  return (*(float *)a - *(float *)b) > 0;
+  env->entities = (Entity *)calloc(env->num_agents, sizeof(Entity));
+  env->factories = (Factory *)calloc(env->num_factories, sizeof(Factory));
 }
 
 void compute_observations(ConvertCircle *env) {
-  int obs_idx = 0;
   for (int a = 0; a < env->num_agents; a++) {
-    Agent *agent = &env->agents[a];
-    float dists[env->num_resources];
-    for (int i = 0; i < env->num_resources; i++) {
+    Entity *agent = &env->entities[a];
+    obs_t *obs = (obs_t *)env->agents[a].observations;
+    if (obs == NULL)
+      continue;
+    int obs_idx = 0;
+    float dists[MAX_RESOURCES];
+    int nr = env->num_resources;
+    if (nr > MAX_RESOURCES)
+      nr = MAX_RESOURCES;
+    for (int i = 0; i < nr; i++) {
       dists[i] = 999999;
     }
     for (int f = 0; f < env->num_factories; f++) {
@@ -82,29 +96,30 @@ void compute_observations(ConvertCircle *env) {
       float dy = factory->y - agent->y;
       float dd = dx * dx + dy * dy;
       int type = f % env->num_resources;
-      if (dd < dists[type]) {
+      if (type < nr && dd < dists[type]) {
         dists[type] = dd;
-        env->observations[obs_idx + 2 * type] = dx / env->width;
-        env->observations[obs_idx + 2 * type + 1] = dy / env->height;
+        obs[obs_idx + 2 * type] = dx / env->width;
+        obs[obs_idx + 2 * type + 1] = dy / env->height;
       }
     }
     obs_idx += 2 * env->num_resources;
-    env->observations[obs_idx++] = agent->heading / (2 * PI);
-    env->observations[obs_idx++] = env->rewards[a];
-    env->observations[obs_idx++] = agent->x / env->width;
-    env->observations[obs_idx++] = agent->y / env->height;
-    memset(&env->observations[obs_idx], 0, env->num_resources * sizeof(float));
-    env->observations[obs_idx + agent->item] = 1.0f;
-    obs_idx += env->num_resources;
+    obs[obs_idx++] = agent->heading / (2 * PI);
+    obs[obs_idx++] = env->agents[a].rewards != NULL ? env->agents[a].rewards[0] : 0;
+    obs[obs_idx++] = agent->x / env->width;
+    obs[obs_idx++] = agent->y / env->height;
+    memset(&obs[obs_idx], 0, env->num_resources * sizeof(float));
+    if (agent->item >= 0 && agent->item < env->num_resources) {
+      obs[obs_idx + agent->item] = 1.0f;
+    }
   }
 }
 
-void c_reset(ConvertCircle *env) {
+void puf_reset(ConvertCircle *env) {
   for (int i = 0; i < env->num_agents; i++) {
-    env->agents[i].x = env->width / 2.0f + random_float(-10.0f, 10.0f);
-    env->agents[i].y = env->height / 2.0f + random_float(-10.0f, 10.0f);
-    env->agents[i].item = rand() % env->num_resources;
-    env->agents[i].episode_length = 0;
+    env->entities[i].x = env->width / 2.0f + random_float(-10.0f, 10.0f);
+    env->entities[i].y = env->height / 2.0f + random_float(-10.0f, 10.0f);
+    env->entities[i].item = rand() % env->num_resources;
+    env->entities[i].episode_length = 0;
   }
   float angle;
   float delta_angle = 2.0f * PI / env->num_factories;
@@ -131,18 +146,23 @@ float clip(float val, float min, float max) {
   return val;
 }
 
-void c_step(ConvertCircle *env) {
+void puf_step(ConvertCircle *env) {
   for (int i = 0; i < env->num_agents; i++) {
-    env->terminals[i] = 0;
-    env->rewards[i] = 0;
-    Agent *agent = &env->agents[i];
+    if (env->agents[i].terminals != NULL)
+      env->agents[i].terminals[0] = 0;
+    if (env->agents[i].rewards != NULL)
+      env->agents[i].rewards[0] = 0;
+    Entity *agent = &env->entities[i];
+    float *actions = env->agents[i].actions;
     agent->episode_length += 1;
 
-    agent->heading += ((float)env->actions[2 * i] - 4.0f) / 12.0f;
-    agent->heading = clip(agent->heading, 0, 2 * PI);
+    if (actions != NULL) {
+      agent->heading += (actions[0] - 4.0f) / 12.0f;
+      agent->heading = clip(agent->heading, 0, 2 * PI);
 
-    agent->speed += 1.0f * ((float)env->actions[2 * i + 1] - 2.0f);
-    agent->speed = clip(agent->speed, -20.0f, 20.0f);
+      agent->speed += 1.0f * (actions[1] - 2.0f);
+      agent->speed = clip(agent->speed, -20.0f, 20.0f);
+    }
 
     agent->x += agent->speed * cosf(agent->heading);
     agent->x = clip(agent->x, 16, env->width - 16);
@@ -151,15 +171,15 @@ void c_step(ConvertCircle *env) {
     agent->y = clip(agent->y, 16, env->height - 16);
 
     if (rand() % env->num_agents == 0) {
-      env->agents[i].x = env->width / 2.0f + random_float(-10.0f, 10.0f);
-      env->agents[i].y = env->height / 2.0f + random_float(-10.0f, 10.0f);
+      env->entities[i].x = env->width / 2.0f + random_float(-10.0f, 10.0f);
+      env->entities[i].y = env->height / 2.0f + random_float(-10.0f, 10.0f);
     }
 
     for (int f = 0; f < env->num_factories; f++) {
       Factory *factory = &env->factories[f];
       float dx = (factory->x - agent->x);
       float dy = (factory->y - agent->y);
-      float dist = sqrt(dx * dx + dy * dy);
+      float dist = sqrtf(dx * dx + dy * dy);
       if (dist > 32) {
         continue;
       }
@@ -169,7 +189,8 @@ void c_step(ConvertCircle *env) {
         env->log.score += 1.0f;
         env->log.episode_length += agent->episode_length;
         env->log.n++;
-        env->rewards[i] = 1.0f;
+        if (env->agents[i].rewards != NULL)
+          env->agents[i].rewards[0] = 1.0f;
         agent->episode_length = 0;
       }
     }
@@ -191,7 +212,7 @@ void c_step(ConvertCircle *env) {
   compute_observations(env);
 }
 
-void c_render(ConvertCircle *env) {
+void puf_render(ConvertCircle *env) {
   if (env->client == NULL) {
     InitWindow(env->width, env->height, "PufferLib ConvertCircle");
     SetTargetFPS(30);
@@ -210,7 +231,7 @@ void c_render(ConvertCircle *env) {
     Factory *factory = &env->factories[f];
     DrawTexturePro(env->client->sprites,
                    (Rectangle){
-                       64 * factory->item,
+                       64.0f * factory->item,
                        512,
                        64,
                        64,
@@ -220,7 +241,7 @@ void c_render(ConvertCircle *env) {
   }
 
   for (int i = 0; i < env->num_agents; i++) {
-    Agent *agent = &env->agents[i];
+    Entity *agent = &env->entities[i];
     float heading = agent->heading;
     int y = 576;
     if (heading < PI / 2 || heading > 3 * PI / 2) {
@@ -228,8 +249,8 @@ void c_render(ConvertCircle *env) {
     }
     DrawTexturePro(env->client->sprites,
                    (Rectangle){
-                       32 * agent->item,
-                       y,
+                       32.0f * agent->item,
+                       (float)y,
                        32,
                        32,
                    },
@@ -240,13 +261,49 @@ void c_render(ConvertCircle *env) {
   EndDrawing();
 }
 
-void c_close(ConvertCircle *env) {
-  free(env->agents);
+void puf_close(ConvertCircle *env) {
+  free(env->entities);
   free(env->factories);
   if (env->client != NULL) {
     Client *client = env->client;
     UnloadTexture(client->sprites);
     CloseWindow();
     free(client);
+    env->client = NULL;
   }
 }
+
+void puf_init(Env *env, Dict *kwargs) {
+  env->num_agents = dict_get(kwargs, "num_agents");
+  env->width = dict_get(kwargs, "width");
+  env->height = dict_get(kwargs, "height");
+  env->num_factories = dict_get(kwargs, "num_factories");
+  env->num_resources = dict_get(kwargs, "num_resources");
+  env->equidistant = dict_get(kwargs, "equidistant");
+  env->radius = dict_get(kwargs, "radius");
+  if (env->num_agents > MAX_AGENTS) {
+    fprintf(stderr, "convert_circle: num_agents %d > MAX_AGENTS %d\n",
+            env->num_agents, MAX_AGENTS);
+    exit(1);
+  }
+  // OBS_SIZE assumes 3*num_resources+4 == 28 (num_resources=8)
+  if (3 * env->num_resources + 4 != OBS_SIZE) {
+    fprintf(stderr,
+            "convert_circle: num_resources=%d implies obs size %d, but OBS_SIZE=%d\n",
+            env->num_resources, 3 * env->num_resources + 4, OBS_SIZE);
+    exit(1);
+  }
+  for (int i = 0; i < env->num_agents; i++) {
+    env->agents[i].policy = 0;
+    env->agents[i].action_mask = NULL;
+  }
+  init(env);
+}
+
+void puf_log(Log *log, Dict *out) {
+  dict_set(out, "perf", log->perf);
+  dict_set(out, "score", log->score);
+  dict_set(out, "episode_return", log->episode_return);
+  dict_set(out, "episode_length", log->episode_length);
+}
+

@@ -937,48 +937,48 @@ __global__ void nh_count_pad_kernel(int* __restrict__ counts, int B) {
 // ---- Nethack encoder structs ----
 
 struct NethackEncoderWeights {
-    PrecisionTensor embed_w, ekind_w, esub_w, loc_w, loc_b;
-    PrecisionTensor glb1_w, glb1_xy, glb1_b, glb2_w, glb2_b;
-    PrecisionTensor inv1_w, inv1_b, inv1s_w, inv2_w, inv2_b;
-    PrecisionTensor bl_w, bl_b, proj_w, proj_b;
-    PrecisionTensor msg_w;                 // trigram embedding table (NH_MSG_VOCAB, NH_MSG_HID)
+    Prec embed_w, ekind_w, esub_w, loc_w, loc_b;
+    Prec glb1_w, glb1_xy, glb1_b, glb2_w, glb2_b;
+    Prec inv1_w, inv1_b, inv1s_w, inv2_w, inv2_b;
+    Prec bl_w, bl_b, proj_w, proj_b;
+    Prec msg_w;                 // trigram embedding table (NH_MSG_VOCAB, NH_MSG_HID)
     int obs_size, hidden;
 };
 
 struct NethackEncoderActivations {
-    FloatTensor glyph_idx, crop_glyph;     // decoded grid + crop glyph ids
-    PrecisionTensor e_eff;                 // materialized E_res + E_kind + E_sub
-    PrecisionTensor x_local;               // crop embeds (grad aliases it)
-    PrecisionTensor w_perm, glyph_T;       // fused embed+flatten+glb1 table
-    PrecisionTensor t16;                   // relu'd patch tokens (dt16 overwrites)
-    PrecisionTensor dxy;                   // per-token hero offsets (w_xy wgrad)
-    IntTensor tok_argmax;                  // winning token per (sample, out dim)
-    FloatTensor inv_idx;                   // inventory slot glyph ids
-    PrecisionTensor inv_sfeat;             // per-slot state features (B, 55*NH_SFEAT)
-    PrecisionTensor inv_T, inv_out;        // fused inv table + relu'd flat slots
-    PrecisionTensor inv_pool;              // pooled 128-dim trunk summary
-    IntTensor inv_amax;                    // winning slot per (sample, pool dim)
-    PrecisionTensor loc_out, glb_out;
-    PrecisionTensor bl_feats, bl_out;
-    FloatTensor msg_ids;                   // per-position trigram bucket ids (-1 pad)
-    PrecisionTensor msg_out;               // normalized trigram-bag summary (B, NH_MSG_HID)
-    PrecisionTensor concat, out;
-    PrecisionTensor loc_grad, glb_grad, inv_grad, bl_grad;   // contiguous concat slices
-    PrecisionTensor inv_pool_grad;         // pooled-summary slice of concat grad
-    PrecisionTensor dT, dw_perm;           // dT table + permuted glb1 wgrad
-    PrecisionTensor dTinv, dE_tmp;         // inv-table grad + its dE staging
-    LongTensor dT_i, dTinv_i;              // fixed-point dT scatter staging
-    LongTensor dE_i;                       // fixed-point local embed-grad staging
-    LongTensor dw2_acc;                    // fixed-point glb2 wgrad staging
-    LongTensor dw2i_acc;                   // fixed-point inv2 wgrad staging
-    LongTensor dmsg_acc;                   // fixed-point trigram-table wgrad staging
-    LongTensor bias_acc;                   // fixed-point bias grads: proj | loc | glb2 | bl | glb1 | inv1 | inv2
-    IntTensor sort_local, sort_grid;       // counts | hot_map | hot_list | hot_n
-    PrecisionTensor embed_wgrad, ekind_wgrad, esub_wgrad, loc_wgrad, loc_bgrad;
-    PrecisionTensor glb1_wgrad, glb1_xygrad, glb1_bgrad, glb2_wgrad, glb2_bgrad;
-    PrecisionTensor inv1_wgrad, inv1_bgrad, inv1s_wgrad, inv2_wgrad, inv2_bgrad;
-    PrecisionTensor bl_wgrad, bl_bgrad, proj_wgrad, proj_bgrad;
-    PrecisionTensor msg_wgrad;
+    Float glyph_idx, crop_glyph;     // decoded grid + crop glyph ids
+    Prec e_eff;                 // materialized E_res + E_kind + E_sub
+    Prec x_local;               // crop embeds (grad aliases it)
+    Prec w_perm, glyph_T;       // fused embed+flatten+glb1 table
+    Prec t16;                   // relu'd patch tokens (dt16 overwrites)
+    Prec dxy;                   // per-token hero offsets (w_xy wgrad)
+    Int tok_argmax;                  // winning token per (sample, out dim)
+    Float inv_idx;                   // inventory slot glyph ids
+    Prec inv_sfeat;             // per-slot state features (B, 55*NH_SFEAT)
+    Prec inv_T, inv_out;        // fused inv table + relu'd flat slots
+    Prec inv_pool;              // pooled 128-dim trunk summary
+    Int inv_amax;                    // winning slot per (sample, pool dim)
+    Prec loc_out, glb_out;
+    Prec bl_feats, bl_out;
+    Float msg_ids;                   // per-position trigram bucket ids (-1 pad)
+    Prec msg_out;               // normalized trigram-bag summary (B, NH_MSG_HID)
+    Prec concat, out;
+    Prec loc_grad, glb_grad, inv_grad, bl_grad;   // contiguous concat slices
+    Prec inv_pool_grad;         // pooled-summary slice of concat grad
+    Prec dT, dw_perm;           // dT table + permuted glb1 wgrad
+    Prec dTinv, dE_tmp;         // inv-table grad + its dE staging
+    Long dT_i, dTinv_i;              // fixed-point dT scatter staging
+    Long dE_i;                       // fixed-point local embed-grad staging
+    Long dw2_acc;                    // fixed-point glb2 wgrad staging
+    Long dw2i_acc;                   // fixed-point inv2 wgrad staging
+    Long dmsg_acc;                   // fixed-point trigram-table wgrad staging
+    Long bias_acc;                   // fixed-point bias grads: proj | loc | glb2 | bl | glb1 | inv1 | inv2
+    Int sort_local, sort_grid;       // counts | hot_map | hot_list | hot_n
+    Prec embed_wgrad, ekind_wgrad, esub_wgrad, loc_wgrad, loc_bgrad;
+    Prec glb1_wgrad, glb1_xygrad, glb1_bgrad, glb2_wgrad, glb2_bgrad;
+    Prec inv1_wgrad, inv1_bgrad, inv1s_wgrad, inv2_wgrad, inv2_bgrad;
+    Prec bl_wgrad, bl_bgrad, proj_wgrad, proj_bgrad;
+    Prec msg_wgrad;
 };
 
 static NethackEncoderWeights* nethack_encoder_create(int obs_size, int hidden) {
@@ -1003,12 +1003,12 @@ static NethackEncoderWeights* nethack_encoder_create(int obs_size, int hidden) {
 // registration (cudagraph-safe); train vs rollout resolved by batch size.
 struct NethackDecoderActivations;
 // encoder acts register immediately before their partner decoder acts inside
-// each policy_reg_* call; the decoder captures this at its own reg time, so
+// each arch_reg_* call; the decoder captures this at its own reg time, so
 // every rollout buffer's decoder reads its own buffer's inv_out.
-static NethackEncoderActivations* nh_enc_last = nullptr;
-static PrecisionTensor* nh_ptr_keygrad = nullptr;   // train decoder's (B_TT, NH_INV_FLAT)
+static NethackEncoderActivations* nh_enc_last = NULL;
+static Prec* nh_ptr_keygrad = NULL;   // train decoder's (B_TT, NH_INV_FLAT)
 
-static PrecisionTensor nethack_encoder_forward(void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
+static Prec nethack_encoder_forward(void* w, void* activations, Prec input, cudaStream_t stream) {
     NethackEncoderWeights* ew = (NethackEncoderWeights*)w;
     NethackEncoderActivations* a = (NethackEncoderActivations*)activations;
     int B = input.shape[0];
@@ -1067,7 +1067,7 @@ static PrecisionTensor nethack_encoder_forward(void* w, void* activations, Preci
     return a->out;
 }
 
-static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor grad, cudaStream_t stream) {
+static void nethack_encoder_backward(void* w, void* activations, Prec grad, cudaStream_t stream) {
     NethackEncoderWeights* ew = (NethackEncoderWeights*)w;
     NethackEncoderActivations* a = (NethackEncoderActivations*)activations;
     int B = grad.shape[0], H = ew->hidden;
@@ -1079,7 +1079,7 @@ static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor
         grad.data, a->out.data, bacc, (int64_t)B * H, H);
     puf_mm_tn(&grad, &a->concat, &a->proj_wgrad, stream);
 
-    PrecisionTensor grad_concat = {.data = a->concat.data, .shape = {B, NH_CONCAT}};
+    Prec grad_concat = {.data = a->concat.data, .shape = {B, NH_CONCAT}};
     puf_mm_nn(&grad, &ew->proj_w, &grad_concat, stream);
 
     // Local view: wgrad against saved x_local, then the input grad overwrites
@@ -1088,9 +1088,9 @@ static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor
         a->loc_grad.data, grad_concat.data, B, NH_CONCAT, 0, NH_LOC_HID);
     nh_relu_bias_bwd_kernel<<<nh_colsum_grid((int64_t)B * NH_LOC_HID, NH_LOC_HID), BLOCK_SIZE, NH_LOC_HID * sizeof(long long), stream>>>(
         a->loc_grad.data, a->loc_out.data, bacc + H, (int64_t)B * NH_LOC_HID, NH_LOC_HID);
-    PrecisionTensor locg = {.data = a->loc_grad.data, .shape = {B, NH_LOC_HID}};
+    Prec locg = {.data = a->loc_grad.data, .shape = {B, NH_LOC_HID}};
     puf_mm_tn(&locg, &a->x_local, &a->loc_wgrad, stream);
-    PrecisionTensor dx_local = {.data = a->x_local.data, .shape = {B, NH_LOC_IN}};
+    Prec dx_local = {.data = a->x_local.data, .shape = {B, NH_LOC_IN}};
     puf_mm_nn(&locg, &ew->loc_w, &dx_local, stream);
 
     // Global view: relu mask + b2 grad, then the fused max backward (dW2 via
@@ -1108,8 +1108,8 @@ static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor
     nh_col_sum_kernel<<<nh_colsum_grid((int64_t)B * NH_TOK * NH_P1, NH_P1), BLOCK_SIZE, NH_P1 * sizeof(long long), stream>>>(
         bacc + H + NH_LOC_HID + NH_GLB_HID + NH_BL_HID, a->t16.data, (int64_t)B * NH_TOK * NH_P1, NH_P1);
     // (dx,dy) weight slice: dW_xy = dt16^T @ dxy (tall-K, 16x2 output)
-    PrecisionTensor dt16v = {.data = a->t16.data, .shape = {B * NH_TOK, NH_P1}};
-    PrecisionTensor dxyv  = {.data = a->dxy.data, .shape = {B * NH_TOK, 2}};
+    Prec dt16v = {.data = a->t16.data, .shape = {B * NH_TOK, NH_P1}};
+    Prec dxyv  = {.data = a->dxy.data, .shape = {B * NH_TOK, 2}};
     puf_mm_tn(&dt16v, &dxyv, &a->glb1_xygrad, stream);
 
     // Inventory branch: slice the pooled-summary grad, relu-mask it (inv2
@@ -1130,15 +1130,15 @@ static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor
         a->inv2_wgrad.data, (long long*)a->dw2i_acc.data, NH_INV_POOL * NH_INV_HID);
     // pointer-decoder key grads: second consumer of inv_out, summed before
     // the relu mask (both paths read the post-relu slot vectors)
-    if (nh_ptr_keygrad != nullptr)
+    if (nh_ptr_keygrad != NULL)
         nh_add_inplace_kernel<<<grid_size(B * NH_INV_FLAT), BLOCK_SIZE, 0, stream>>>(
             a->inv_grad.data, nh_ptr_keygrad->data, B * NH_INV_FLAT);
     nh_relu_bias_bwd_kernel<<<nh_colsum_grid((int64_t)B * NH_INV_FLAT, NH_INV_HID), BLOCK_SIZE, NH_INV_HID * sizeof(long long), stream>>>(
         a->inv_grad.data, a->inv_out.data, bacc + H + NH_LOC_HID + NH_GLB_HID + NH_BL_HID + NH_P1,
         (int64_t)B * NH_INV_FLAT, NH_INV_HID);
     // state-path weight grad: dW_s = dslot^T @ sfeat over the B*55 slot rows
-    PrecisionTensor dsflat = {.data = a->inv_grad.data, .shape = {B * NH_INV, NH_INV_HID}};
-    PrecisionTensor sfflat = {.data = a->inv_sfeat.data, .shape = {B * NH_INV, NH_SFEAT}};
+    Prec dsflat = {.data = a->inv_grad.data, .shape = {B * NH_INV, NH_INV_HID}};
+    Prec sfflat = {.data = a->inv_sfeat.data, .shape = {B * NH_INV, NH_SFEAT}};
     puf_mm_tn(&dsflat, &sfflat, &a->inv1s_wgrad, stream);
     cudaMemsetAsync(a->dTinv_i.data, 0, (size_t)NH_GLYPH_VOCAB * NH_INV_HID * sizeof(long long), stream);
     nh_dTinv_scatter_kernel<<<grid_size((int64_t)B * NH_INV_FLAT), BLOCK_SIZE, 0, stream>>>(
@@ -1152,7 +1152,7 @@ static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor
         a->bl_grad.data, grad_concat.data, B, NH_CONCAT, NH_LOC_HID + NH_GLB_HID + NH_INV_POOL, NH_BL_HID);
     nh_relu_bias_bwd_kernel<<<nh_colsum_grid((int64_t)B * NH_BL_HID, NH_BL_HID), BLOCK_SIZE, NH_BL_HID * sizeof(long long), stream>>>(
         a->bl_grad.data, a->bl_out.data, bacc + H + NH_LOC_HID + NH_GLB_HID, (int64_t)B * NH_BL_HID, NH_BL_HID);
-    PrecisionTensor blg = {.data = a->bl_grad.data, .shape = {B, NH_BL_HID}};
+    Prec blg = {.data = a->bl_grad.data, .shape = {B, NH_BL_HID}};
     puf_mm_tn(&blg, &a->bl_feats, &a->bl_wgrad, stream);
 
     // Message branch: scatter (1/sqrt(count+1))*dout into the trigram embedding
@@ -1480,30 +1480,30 @@ struct NethackDecoderWeights {
     // weights to DecoderWeights to read .continuous / .logstd when deciding
     // discrete-vs-continuous sampling (pufferlib.cu sample + train sites).
     // weight_unused is never registered; logstd stays null; continuous false.
-    PrecisionTensor weight_unused, logstd;
+    Prec weight_unused, logstd;
     int hidden_dim, output_dim;
     bool continuous;
     // pointer-head weights (v3: per-verb queries, shared cosine keys)
-    PrecisionTensor lin_w;   // (NH_DEC_PAD rows, hidden); first NH_DEC_LIN used
-    PrecisionTensor q_w;     // (NH_QDIM, hidden) stacked per-head query projections
-    PrecisionTensor k_w;     // (NH_INV_HID, NH_INV_HID) key projection over inv features
-    PrecisionTensor tau;     // (NH_TAU_PAD,) learnable LOG temperatures, first NH_HEADS live
+    Prec lin_w;   // (NH_DEC_PAD rows, hidden); first NH_DEC_LIN used
+    Prec q_w;     // (NH_QDIM, hidden) stacked per-head query projections
+    Prec k_w;     // (NH_INV_HID, NH_INV_HID) key projection over inv features
+    Prec tau;     // (NH_TAU_PAD,) learnable LOG temperatures, first NH_HEADS live
 };
 
 struct NethackDecoderActivations {
     NethackEncoderActivations* enc;          // partner encoder acts (keys source)
-    PrecisionTensor out;                     // (B, NH_DEC_OD+1)
-    PrecisionTensor tmp, q;                  // (B, NH_DEC_PAD), (B, NH_QDIM)
-    PrecisionTensor saved_input, grad_input, grad_input2;
-    PrecisionTensor grad_out;                // assembled logits+value grad
-    PrecisionTensor dtmp, dq;
-    PrecisionTensor keygrad;                 // (B, NH_INV_FLAT) -> encoder inv slice
-    PrecisionTensor kmat;                    // (B, NH_INV_FLAT) projected keys
-    PrecisionTensor kn, qn;                  // key norms (B, NH_INV), query norms (B, NH_HEADS)
-    PrecisionTensor slot_logits;             // (B, NH_SLOT_OD) tau_h * cos
-    PrecisionTensor dkmat;                   // backward scratch
-    LongTensor tau_acc;                      // fixed-point dtau staging (NH_TAU_PAD,)
-    PrecisionTensor lin_wgrad, q_wgrad, k_wgrad, tau_grad;
+    Prec out;                     // (B, NH_DEC_OD+1)
+    Prec tmp, q;                  // (B, NH_DEC_PAD), (B, NH_QDIM)
+    Prec saved_input, grad_input, grad_input2;
+    Prec grad_out;                // assembled logits+value grad
+    Prec dtmp, dq;
+    Prec keygrad;                 // (B, NH_INV_FLAT) -> encoder inv slice
+    Prec kmat;                    // (B, NH_INV_FLAT) projected keys
+    Prec kn, qn;                  // key norms (B, NH_INV), query norms (B, NH_HEADS)
+    Prec slot_logits;             // (B, NH_SLOT_OD) tau_h * cos
+    Prec dkmat;                   // backward scratch
+    Long tau_acc;                      // fixed-point dtau staging (NH_TAU_PAD,)
+    Prec lin_wgrad, q_wgrad, k_wgrad, tau_grad;
 };
 
 __global__ void nh_dec_assemble_kernel(precision_t* __restrict__ out,
@@ -1627,7 +1627,7 @@ __global__ void nh_ptr3_dkmat_kernel(precision_t* __restrict__ dkmat,
     dkmat[idx] = from_float(acc / knv);
 }
 
-static PrecisionTensor nethack_decoder_forward(void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
+static Prec nethack_decoder_forward(void* w, void* activations, Prec input, cudaStream_t stream) {
     NethackDecoderWeights* dw = (NethackDecoderWeights*)w;
     NethackDecoderActivations* a = (NethackDecoderActivations*)activations;
     int B = input.shape[0];
@@ -1635,8 +1635,8 @@ static PrecisionTensor nethack_decoder_forward(void* w, void* activations, Preci
     if (a->saved_input.data) puf_copy(&a->saved_input, &input, stream);
     puf_mm(&input, &dw->lin_w, &a->tmp, stream);
     puf_mm(&input, &dw->q_w, &a->q, stream);
-    PrecisionTensor sflat = {.data = ea->inv_out.data, .shape = {B * NH_INV, NH_INV_HID}};
-    PrecisionTensor kflat = {.data = a->kmat.data, .shape = {B * NH_INV, NH_INV_HID}};
+    Prec sflat = {.data = ea->inv_out.data, .shape = {B * NH_INV, NH_INV_HID}};
+    Prec kflat = {.data = a->kmat.data, .shape = {B * NH_INV, NH_INV_HID}};
     puf_mm(&sflat, &dw->k_w, &kflat, stream);
     nh_ptr_rownorm_kernel<<<grid_size(B * NH_HEADS), BLOCK_SIZE, 0, stream>>>(
         a->qn.data, a->q.data, B * NH_HEADS);
@@ -1649,8 +1649,8 @@ static PrecisionTensor nethack_decoder_forward(void* w, void* activations, Preci
     return a->out;
 }
 
-static PrecisionTensor nethack_decoder_backward(void* w, void* activations,
-    FloatTensor grad_logits, FloatTensor grad_logstd, FloatTensor grad_value, cudaStream_t stream) {
+static Prec nethack_decoder_backward(void* w, void* activations,
+    Float grad_logits, Float grad_logstd, Float grad_value, cudaStream_t stream) {
     (void)grad_logstd;
     NethackDecoderWeights* dw = (NethackDecoderWeights*)w;
     NethackDecoderActivations* a = (NethackDecoderActivations*)activations;
@@ -1670,9 +1670,9 @@ static PrecisionTensor nethack_decoder_backward(void* w, void* activations,
         a->dkmat.data, a->grad_out.data, a->out.data, a->q.data, a->qn.data,
         a->kmat.data, a->kn.data, dw->tau.data, B);
     // dK = dkmat^T @ s ; keygrad (ds, into the encoder inv slice) = dkmat @ K
-    PrecisionTensor dkflat = {.data = a->dkmat.data, .shape = {B * NH_INV, NH_INV_HID}};
-    PrecisionTensor sflat = {.data = ea->inv_out.data, .shape = {B * NH_INV, NH_INV_HID}};
-    PrecisionTensor kgflat = {.data = a->keygrad.data, .shape = {B * NH_INV, NH_INV_HID}};
+    Prec dkflat = {.data = a->dkmat.data, .shape = {B * NH_INV, NH_INV_HID}};
+    Prec sflat = {.data = ea->inv_out.data, .shape = {B * NH_INV, NH_INV_HID}};
+    Prec kgflat = {.data = a->keygrad.data, .shape = {B * NH_INV, NH_INV_HID}};
     puf_mm_tn(&dkflat, &sflat, &a->k_wgrad, stream);
     puf_mm_nn(&dkflat, &dw->k_w, &kgflat, stream);
     puf_mm_tn(&a->dtmp, &a->saved_input, &a->lin_wgrad, stream);

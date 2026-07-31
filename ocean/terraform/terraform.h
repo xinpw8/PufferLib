@@ -8,8 +8,13 @@
 #include <float.h>
 #include <time.h>
 #include "raylib.h"
+#include "pufferenv.h"
 #include "simplex.h"
+#define float3 rl_float3
+#define double3 rl_double3
 #include "raymath.h"
+#undef float3
+#undef double3
 #include "rlgl.h"
 
 #if defined(PLATFORM_DESKTOP)
@@ -40,6 +45,13 @@ const unsigned char TARGET = 2;
 #define VISION 5
 #define OBSERVATION_SIZE (2*VISION + 1)
 #define TOTAL_OBS (OBSERVATION_SIZE*OBSERVATION_SIZE + 4)
+#define ACT_SIZES {5, 5, 3}
+#define OBS_SIZE 319
+#define NUM_ATNS 3
+#define MAX_AGENTS 16
+
+typedef Env Terraform;
+typedef float obs_t;
 #define DOZER_STEP_HEIGHT 5.0f 
 typedef struct Log Log;
 struct Log {
@@ -68,17 +80,16 @@ typedef struct Dozer {
 } Dozer;
  
 typedef struct Client Client;
-typedef struct Terraform {
+struct Env {
     Log log;
     Log* agent_logs;
     Client* client;
     Dozer* dozers;
-    float* observations;
-    float* actions;
-    float* rewards;
+    Agent agents[MAX_AGENTS];
     float* returns;
-    float* terminals;
     int num_agents;
+    int tag;
+    int boundary_reached;
     int size;
     int tick;
     float* orig_map;
@@ -101,7 +112,7 @@ typedef struct Terraform {
     float* quadrant_volume_deltas;
     float* quadrant_centroids;
     unsigned int rng;
-} Terraform;
+};
 
 float randf(unsigned int* rng, float min, float max) {
     return min + (max - min)*(float)rand_r(rng)/(float)RAND_MAX;
@@ -209,20 +220,20 @@ void assign_quadrant_centroids(Terraform* env) {
 }
 
 void init(Terraform* env) {
-    env->orig_map = calloc(env->size*env->size, sizeof(float));
-    env->map = calloc(env->size*env->size, sizeof(float));
-    env->target_map = calloc(env->size*env->size, sizeof(float));
-    env->grid_indices = calloc(env->size*env->size, sizeof(int));
+    env->orig_map = (float*)calloc(env->size*env->size, sizeof(float));
+    env->map = (float*)calloc(env->size*env->size, sizeof(float));
+    env->target_map = (float*)calloc(env->size*env->size, sizeof(float));
+    env->grid_indices = (int*)calloc(env->size*env->size, sizeof(int));
     assign_grid_indices(env);
-    env->quadrant_centroids = calloc(env->num_quadrants*2, sizeof(float));
+    env->quadrant_centroids = (float*)calloc(env->num_quadrants*2, sizeof(float));
     assign_quadrant_centroids(env);
-    env->quadrant_deltas = calloc(env->num_quadrants, sizeof(float));
-    env->complete_quadrants = calloc(env->num_quadrants, sizeof(int));
-    env->in_progress_quadrants = calloc(env->num_quadrants*(env->num_agents+1), sizeof(int));
-    env->current_quadrant_deltas = calloc(env->num_quadrants, sizeof(float));
-    env->quadrant_volume_deltas = calloc(env->num_quadrants, sizeof(float));
-    env->volume_deltas = calloc(env->num_quadrants, sizeof(float));
-    env->agent_logs = calloc(env->num_agents, sizeof(Log));
+    env->quadrant_deltas = (float*)calloc(env->num_quadrants, sizeof(float));
+    env->complete_quadrants = (int*)calloc(env->num_quadrants, sizeof(int));
+    env->in_progress_quadrants = (int*)calloc(env->num_quadrants*(env->num_agents+1), sizeof(int));
+    env->current_quadrant_deltas = (float*)calloc(env->num_quadrants, sizeof(float));
+    env->quadrant_volume_deltas = (float*)calloc(env->num_quadrants, sizeof(float));
+    env->volume_deltas = (float*)calloc(env->num_quadrants, sizeof(float));
+    env->agent_logs = (Log*)calloc(env->num_agents, sizeof(Log));
     // for (int i = 0; i < env->size*env->size; i++) {
     //     env->target_map[i] = 1;  // Initialize all to empty
     // }
@@ -255,9 +266,9 @@ void init(Terraform* env) {
             }
         }
     } 
-    env->dozers = calloc(env->num_agents, sizeof(Dozer));
+    env->dozers = (Dozer*)calloc(env->num_agents, sizeof(Dozer));
     for (int i = 0; i < env->num_agents; i++) {
-        env->dozers[i].load_indices = calloc((2*SCOOP_SIZE + 1)*(2*SCOOP_SIZE + 1), sizeof(int));
+        env->dozers[i].load_indices = (int*)calloc((2*SCOOP_SIZE + 1)*(2*SCOOP_SIZE + 1), sizeof(int));
         for (int j = 0; j < (2*SCOOP_SIZE + 1)*(2*SCOOP_SIZE + 1); j++) {
             env->dozers[i].load_indices[j] = -1;
         }
@@ -270,9 +281,9 @@ void init(Terraform* env) {
     int offset_y2 = rand_r(&env->rng) % 10000;
     perlin_noise(env->orig_map, env->size, env->size, 1.0/(env->size / 4.0), 8, offset_x1, offset_y1, MAX_DIRT_HEIGHT+20);
     // perlin_noise(env->target_map, env->size, env->size, 1.0/(env->size / 4.0), 8, offset_x2, offset_y2, MAX_DIRT_HEIGHT+55);
-    env->returns = calloc(env->num_agents, sizeof(float));
+    env->returns = (float*)calloc(env->num_agents, sizeof(float));
     calculate_total_delta(env);
-    env->stuck_count = calloc(env->num_agents, sizeof(int));
+    env->stuck_count = (int*)calloc(env->num_agents, sizeof(int));
     env->tick = rand_r(&env->rng) % 512;
     env->quadrants_solved = 0.0f;
 }
@@ -309,12 +320,11 @@ void add_log(Terraform* env, Log* agent_log) {
 
 void compute_all_observations(Terraform* env) {
     int dialate = 1;
-    int max_obs = 319;
-    float (*observations)[max_obs] = (float(*)[max_obs])env->observations; 
     int channel_diff_offset = (2*VISION+1)*(2*VISION+1);
     for (int i = 0; i < env->num_agents; i++) {
         int obs_idx = 0;
-        float* obs = &observations[i][obs_idx];
+        float* obs = (float*)env->agents[i].observations;
+        memset(obs, 0, OBS_SIZE * sizeof(float));
         int x_offset = env->dozers[i].x - dialate*VISION;
         int y_offset = env->dozers[i].y - dialate*VISION;
         for (int y = 0; y < 2 * dialate * VISION + 1; y += dialate) {  // ROW loop (Y-axis)
@@ -367,9 +377,8 @@ void compute_all_observations(Terraform* env) {
     }
 }
 
-void c_reset(Terraform* env) {
+void puf_reset(Terraform* env) {
     memcpy(env->map, env->orig_map, env->size*env->size*sizeof(float));
-    memset(env->observations, 0, env->num_agents*319*sizeof(float));
     memset(env->returns, 0, env->num_agents*sizeof(float));
     env->tick = 0;
     env->current_total_delta = env->initial_total_delta;
@@ -455,7 +464,7 @@ void c_reset(Terraform* env) {
 }
 
 void illegal_action(Terraform* env, int agent_idx) {
-    env->rewards[agent_idx] += -0.05f;
+    env->agents[agent_idx].rewards[0] += -0.05f;
     env->returns[agent_idx] += -0.05f;
     env->agent_logs[agent_idx].episode_return += -0.05f;
 }
@@ -482,7 +491,7 @@ float scoop_dirt(Terraform* env, float x, float y, int bucket_atn, int agent_idx
         }
         // if it aint broken dont fix it penalty
         // if (env->complete_quadrants[env->grid_indices[scoop_idx]]) {
-        //     env->rewards[agent_idx] += (-1.0f / (SCOOP_SIZE*2 + 1));
+        //     env->agents[agent_idx].rewards[0] += (-1.0f / (SCOOP_SIZE*2 + 1));
         //     env->returns[agent_idx] += (-1.0f / (SCOOP_SIZE*2 + 1));
         //     env->agent_logs[agent_idx].episode_return += (-1.0f / (SCOOP_SIZE*2 + 1));
         //     env->complete_quadrants[env->grid_indices[scoop_idx]] = 0;
@@ -517,7 +526,7 @@ float scoop_dirt(Terraform* env, float x, float y, int bucket_atn, int agent_idx
         }
         // if it aint broken dont fix it penalty
         // if (env->complete_quadrants[env->grid_indices[scoop_idx]]) {
-        //     env->rewards[agent_idx] += (-1.0f / (SCOOP_SIZE*2 + 1));
+        //     env->agents[agent_idx].rewards[0] += (-1.0f / (SCOOP_SIZE*2 + 1));
         //     env->returns[agent_idx] += (-1.0f / (SCOOP_SIZE*2 + 1));
         //     env->agent_logs[agent_idx].episode_return += (-1.0f / (SCOOP_SIZE*2 + 1));
         //     env->complete_quadrants[env->grid_indices[scoop_idx]] = 0;
@@ -549,12 +558,12 @@ float scoop_dirt(Terraform* env, float x, float y, int bucket_atn, int agent_idx
     return reward;
 }
 
-void c_step(Terraform* env) {
+void puf_step(Terraform* env) {
     env->tick += 1;
     if ((env->reset_frequency && env->tick % env->reset_frequency == 0) || env->current_total_delta < 0.01f) {
         if(env->current_total_delta < 0.01f) {
             for (int i = 0; i < env->num_agents; i++) {
-                env->rewards[i] = 1.0f;
+                env->agents[i].rewards[0] = 1.0f;
                 env->returns[i] = 1.0f;
                 env->agent_logs[i].episode_return += 1.0f;
             }
@@ -565,17 +574,18 @@ void c_step(Terraform* env) {
             env->agent_logs[i].perf = env->delta_progress;
             add_log(env, &env->agent_logs[i]);
         }
-        c_reset(env);
+        puf_reset(env);
         return;
     }
 
-    memset(env->terminals, 0, env->num_agents*sizeof(float));
-    memset(env->rewards, 0, env->num_agents*sizeof(float));
-    float (*actions)[3] = (float(*)[3])env->actions;
+    for (int i = 0; i < env->num_agents; i++) {
+        env->agents[i].terminals[0] = 0;
+        env->agents[i].rewards[0] = 0;
+    }
     for (int i = 0; i < env->num_agents; i++) {
         env->agent_logs[i].episode_length = env->tick;
         Dozer* dozer = &env->dozers[i];
-        float* atn = actions[i];
+        float* atn = env->agents[i].actions;
         float accel = (atn[0] - 2.0) / 2.0; // Discrete(5) -> [-1, 1]
         float steer = (atn[1] - 2.0) / 10.0; // Discrete(5) -> [-0.2, 0.2]
         int bucket_atn = (int)atn[2];
@@ -597,7 +607,7 @@ void c_step(Terraform* env) {
                 
             }
         }
-        env->rewards[i] += total_change;
+        env->agents[i].rewards[0] += total_change;
         env->returns[i] += total_change;
         env->agent_logs[i].episode_return += total_change;
 
@@ -694,7 +704,7 @@ void c_step(Terraform* env) {
     //int action = env->actions[0];
 }
 
-void c_close(Terraform* env) {
+void puf_close(Terraform* env) {
     free_initialized(env);
 }
 
@@ -881,7 +891,7 @@ Client* make_client(Terraform* env) {
     client->shader_terrain_loc = GetShaderLocation(client->target_shader, "terrain");
     SetShaderValueTexture(client->target_shader, client->shader_terrain_loc, client->shader_terrain);
 
-    client->shader_terrain_data = calloc(4*env->size*env->size, sizeof(unsigned char));
+    client->shader_terrain_data = (unsigned char*)calloc(4*env->size*env->size, sizeof(unsigned char));
 
     int shader_width_loc = GetShaderLocation(client->target_shader, "width");
     SetShaderValue(client->target_shader, shader_width_loc, &env->size, SHADER_UNIFORM_INT);
@@ -972,7 +982,7 @@ void handle_camera_controls(Client* client) {
     }
 }
 
-void c_render(Terraform* env) {
+void puf_render(Terraform* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
         env->client->mesh = create_heightmap_mesh(env->map, (Vector3){env->size, 1, env->size});
@@ -1074,12 +1084,13 @@ void c_render(Terraform* env) {
                     float obs_y = y_offset + y;
                     Color clr = PUFF_WHITE;
                     int idx = y*(2*VISION+1) + x;
-                    int obs_idx = 319*i + 121 + idx;
-                    if(env->observations[obs_idx] == 1.0f) {
+                    int obs_idx = 121 + idx;
+                    float* aobs = (float*)env->agents[i].observations;
+                    if(aobs[obs_idx] == 1.0f) {
                         clr = GREEN;
-                    } else if(env->observations[obs_idx] == 0.66f) {
+                    } else if(aobs[obs_idx] == 0.66f) {
                         clr = PUFF_RED;
-                    } else if(env->observations[obs_idx] == 0.33f) {
+                    } else if(aobs[obs_idx] == 0.33f) {
                         clr = YELLOW;
                     }
                     for(int j = 0; j < (2*SCOOP_SIZE + 1)*(2*SCOOP_SIZE + 1); j++) {
@@ -1125,3 +1136,28 @@ void c_render(Terraform* env) {
     DrawFPS(10, 10);
     EndDrawing();
 }
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = dict_get(kwargs, "num_agents");
+    env->size = dict_get(kwargs, "size");
+    env->reset_frequency = dict_get(kwargs, "reset_frequency");
+    env->reward_scale = dict_get(kwargs, "reward_scale");
+    if (env->num_agents > MAX_AGENTS) {
+        fprintf(stderr, "terraform: num_agents too large\n");
+        exit(1);
+    }
+    for (int i = 0; i < env->num_agents; i++) {
+        env->agents[i].policy = 0;
+        env->agents[i].action_mask = NULL;
+    }
+    init(env);
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "quadrant_progress", log->quadrant_progress);
+}
+

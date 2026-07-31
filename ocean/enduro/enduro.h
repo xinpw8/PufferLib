@@ -10,6 +10,16 @@
 #include <string.h>
 #include <float.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {9}
+#define OBS_SIZE 68
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 
 // Constant defs
 #define MAX_ENEMIES 10
@@ -62,7 +72,6 @@ static const float BACKGROUND_TRANSITION_TIMES[] = {
 #define WIGGLE_AMPLITUDE 10.0f // Maximum 'bump-in' offset in pixels
 #define WIGGLE_SPEED 10.1f // Speed at which the wiggle moves down the screen
 #define WIGGLE_LENGTH 26.0f // Vertical length of the wiggle effect
-
 
 // Rendering constants
 #define SCORE_DIGITS 5
@@ -175,15 +184,13 @@ typedef struct GameState {
 } GameState;
 
 typedef struct Client Client;
-typedef struct Enduro Enduro;
 // Game environment struct
-typedef struct Enduro {
+struct Env {
     Client* client;
     Log log;
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
     int num_agents;
     size_t obs_size;
     int num_envs;
@@ -284,7 +291,8 @@ typedef struct Enduro {
     int continuous;
 
     int seed;
-} Enduro;
+};
+typedef Env Enduro;
 
 // Action enumeration
 typedef enum {
@@ -487,14 +495,14 @@ void allocate(Enduro* env);
 void init(Enduro* env);
 void free_allocated(Enduro* env);
 void reset_round(Enduro* env);
-void c_reset(Enduro* env);
+void puf_reset(Enduro* env);
 unsigned char check_collision(Enduro* env, Car* car);
 int get_player_lane(Enduro* env);
 float get_car_scale(float y);
 void add_enemy_car(Enduro* env);
 void update_time_of_day(Enduro* env);
 void accelerate(Enduro* env);
-void c_step(Enduro* env);
+void puf_step(Enduro* env);
 void update_road_curve(Enduro* env);
 float quadratic_bezier(float bottom_x, float control_x, float top_x, float t);
 float road_edge_x(Enduro* env, float y, float offset, unsigned char left);
@@ -516,7 +524,7 @@ void renderScoreboard(GameState* gameState);
 void updateMountains(GameState* gameState);
 void renderMountains(GameState* gameState);
 void updateVictoryEffects(GameState* gameState);
-void c_render(Enduro* env);
+void puf_render(Enduro* env);
 void cleanup(GameState* gameState);
 
 // Function definitions //
@@ -709,20 +717,23 @@ void init(Enduro* env) {
 }
 
 void allocate(Enduro* env) {
-    env->observations = (float*)calloc(env->obs_size, sizeof(float));
-    env->actions = (float*)calloc(1, sizeof(float));
-    env->rewards = (float*)calloc(1, sizeof(float));
-    env->terminals = (float*)calloc(1, sizeof(float));
+    env->agents[0].observations = (obs_t*)calloc(env->obs_size, sizeof(obs_t));
+    env->agents[0].actions = (float*)calloc(1, sizeof(float));
+    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    env->num_agents = 1;
 }
 
 void free_allocated(Enduro* env) {
-    free(env->observations);
-    free(env->actions);
-    free(env->rewards);
-    free(env->terminals);
+    free(env->agents[0].observations);
+    free(env->agents[0].actions);
+    free(env->agents[0].rewards);
+    free(env->agents[0].terminals);
 }
 
-void c_close(Enduro* env) {
+void puf_close(Enduro* env) {
 }
 
 // Called when a day is failed by player
@@ -803,7 +814,7 @@ void reset_round(Enduro* env) {
     }
 
     // Reset rewards and logs
-    env->rewards[0] = 0.0f;
+    env->agents[0].rewards[0] = 0.0f;
     env->tracking_episode_return = 0.0f;
     env->tracking_episode_length = 0.0f;
     env->tracking_score = 0.0f;
@@ -826,12 +837,12 @@ void reset_round(Enduro* env) {
 
     // Reset flags and transient states
     env->dayCompleted = 0;
-    env->terminals[0] = 0;
-    env->rewards[0] = 0.0f;
+    env->agents[0].terminals[0] = 0;
+    env->agents[0].rewards[0] = 0.0f;
 }
 
 // Reset all init vars; only called once after init
-void c_reset(Enduro* env) {
+void puf_reset(Enduro* env) {
     // No random after first reset
     int reset_seed = (env->reset_count == 0) ? xorshift32(&env->rng_state) : 0;
     env->rng_state = reset_seed;
@@ -1023,13 +1034,13 @@ void accelerate(Enduro* env) {
     clamp_speed(env);
 }
 
-void c_step(Enduro* env) {  
-    env->rewards[0] = 0.0f;
+void puf_step(Enduro* env) {  
+    env->agents[0].rewards[0] = 0.0f;
     env->elapsedTimeEnv += (1.0f / TARGET_FPS);
     update_time_of_day(env);
     update_road_curve(env);
     env->tracking_episode_length += 1;
-    env->terminals[0] = 0;
+    env->agents[0].terminals[0] = 0;
     env->road_scroll_offset += env->speed;
 
     // Update enemy car positions
@@ -1058,7 +1069,7 @@ void c_step(Enduro* env) {
 
     // Player movement logic == action space (Discrete[9])
     if (env->collision_cooldown_car_vs_car <= 0 && env->collision_cooldown_car_vs_road <= 0) {
-        int act = env->actions[0];
+        int act = env->agents[0].actions[0];
         movement_amount = (((env->speed - env->min_speed) / (env->max_speed - env->min_speed)) + 0.3f); // Magic number
         switch (act) {
             case ACTION_NOOP:
@@ -1166,7 +1177,7 @@ void c_step(Enduro* env) {
     // Give a reward if the player's lane is empty in front
     float reward_amount = 0.05f; // Empty lane reward
     if (is_lane_empty[env->lane]) {
-        env->rewards[0] += reward_amount;
+        env->agents[0].rewards[0] += reward_amount;
     }
 
     // Road curve/vanishing point movement logic
@@ -1216,7 +1227,7 @@ void c_step(Enduro* env) {
     // Check for and handle collisions between player and road edges
     if (env->player_x <= road_left || env->player_x >= road_right) {
         env->tracking_collisions_player_vs_road++;
-        env->rewards[0] -= 0.5f;
+        env->agents[0].rewards[0] -= 0.5f;
         env->speed = fmaxf((env->speed - 1.25f), MIN_SPEED);
         env->collision_cooldown_car_vs_road = CRASH_NOOP_DURATION_CAR_VS_ROAD;
         env->drift_direction = 0; // Reset drift direction, has priority over car collisions
@@ -1284,7 +1295,7 @@ void c_step(Enduro* env) {
             }
             if (!car->passed) {
                 env->tracking_passed_cars += 1;
-                env->rewards[0] += 1.0f; // Car passed reward
+                env->agents[0].rewards[0] += 1.0f; // Car passed reward
                 env->car_passed_no_crash_active = 1; // Stepwise rewards activated
                 env->step_rew_car_passed_no_crash += 0.001f; // Stepwise reward
             }
@@ -1297,7 +1308,7 @@ void c_step(Enduro* env) {
             } else {
                 env->carsToPass += 1;
                 env->tracking_passed_by_enemy += 1.0f;
-                env->rewards[0] -= 0.1f;
+                env->agents[0].rewards[0] -= 0.1f;
             }
         }
 
@@ -1308,7 +1319,7 @@ void c_step(Enduro* env) {
         // Check for and handle collisions between player and enemy cars
         if (env->collision_cooldown_car_vs_car <= 0 && check_collision(env, car)) {
             env->tracking_collisions_player_vs_car++;
-            env->rewards[0] -= 0.5f;
+            env->agents[0].rewards[0] -= 0.5f;
             env->speed = 1 + MIN_SPEED;
             env->collision_cooldown_car_vs_car = CRASH_NOOP_DURATION_CAR_VS_CAR;
             env->drift_direction = 0; // Reset drift direction
@@ -1398,7 +1409,7 @@ void c_step(Enduro* env) {
         if (env->dayCompleted) {
             env->tracking_days_completed += 1;
             env->day += 1;
-            env->rewards[0] += 1.0f;
+            env->agents[0].rewards[0] += 1.0f;
             env->carsToPass = 300; // Always 300 after the first day
             env->dayCompleted = false;
             add_log(env);
@@ -1406,7 +1417,7 @@ void c_step(Enduro* env) {
         } else {
             // Player failed to pass required cars, soft-reset environment
             env->tracking_days_failed += 1.0f;
-            env->terminals[0] = true;
+            env->agents[0].terminals[0] = true;
             add_log(env);
             compute_observations(env); // Call compute_observations before reset to log
             reset_round(env); // Reset round == soft reset
@@ -1417,14 +1428,14 @@ void c_step(Enduro* env) {
     // Reward each step after a car is passed until a collision occurs. 
     // Then, no rewards per step until next car is passed.
     if (env->car_passed_no_crash_active) {
-        env->rewards[0] += env->step_rew_car_passed_no_crash;
+        env->agents[0].rewards[0] += env->step_rew_car_passed_no_crash;
     }
 
-    env->rewards[0] += env->crashed_penalty;
+    env->agents[0].rewards[0] += env->crashed_penalty;
     env->tracking_crashed_penalty = env->crashed_penalty;
     env->tracking_step_rew_car_passed_no_crash = env->step_rew_car_passed_no_crash;
-    env->tracking_reward = env->rewards[0];
-    env->tracking_episode_return = env->rewards[0];
+    env->tracking_reward = env->agents[0].rewards[0];
+    env->tracking_episode_return = env->agents[0].rewards[0];
     env->tick++;
 
     float normalizedSpeed = fminf(fmaxf(env->speed, 1.0f), 2.0f);
@@ -1438,7 +1449,7 @@ void c_step(Enduro* env) {
 }
 
 void compute_observations(Enduro* env) {
-    float* obs = env->observations;
+    obs_t* obs = ((obs_t*)env->agents[0].observations);
     int obs_index = 0;
 
     // Most obs normalized to [0, 1]
@@ -2095,7 +2106,7 @@ void renderMountains(GameState* gameState) {
     EndScissorMode();
 }
 
-void c_render(Enduro* env) {
+void puf_render(Enduro* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
@@ -2250,3 +2261,35 @@ void c_render(Enduro* env) {
 
     EndDrawing();
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "reward", log->reward);
+    dict_set(out, "step_rew_car_passed_no_crash", log->step_rew_car_passed_no_crash);
+    dict_set(out, "crashed_penalty", log->crashed_penalty);
+    dict_set(out, "passed_cars", log->passed_cars);
+    dict_set(out, "passed_by_enemy", log->passed_by_enemy);
+    dict_set(out, "cars_to_pass", log->cars_to_pass);
+    dict_set(out, "days_completed", log->days_completed);
+    dict_set(out, "days_failed", log->days_failed);
+    dict_set(out, "collisions_player_vs_car", log->collisions_player_vs_car);
+    dict_set(out, "collisions_player_vs_road", log->collisions_player_vs_road);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->width = dict_get(kwargs, "width");
+    env->height = dict_get(kwargs, "height");
+    env->car_width = dict_get(kwargs, "car_width");
+    env->car_height = dict_get(kwargs, "car_height");
+    env->max_enemies = dict_get(kwargs, "max_enemies");
+    env->continuous = dict_get(kwargs, "continuous");
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    init(env);
+}
+

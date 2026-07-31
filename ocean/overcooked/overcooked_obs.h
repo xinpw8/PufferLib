@@ -7,7 +7,7 @@
 #include "overcooked_types.h"
 #include "overcooked_items.h"
 
-static Item* find_nearest_plated_soup(Overcooked* env, Agent* agent, float* dx, float* dy) {
+static Item* find_nearest_plated_soup(Overcooked* env, Chef* agent, float* dx, float* dy) {
     *dx = 0.0f;
     *dy = 0.0f;
 
@@ -29,7 +29,7 @@ static Item* find_nearest_plated_soup(Overcooked* env, Agent* agent, float* dx, 
     return nearest;
 }
 
-static void find_nearest_item_by_type(Overcooked* env, Agent* agent,
+static void find_nearest_item_by_type(Overcooked* env, Chef* agent,
                                        int item_type, float* dx, float* dy) {
     *dx = 0.0f;
     *dy = 0.0f;
@@ -51,7 +51,7 @@ static void find_nearest_item_by_type(Overcooked* env, Agent* agent,
 }
 
 // Cached version: iterate over precomputed tile positions instead of scanning grid
-static void compute_tile_proximity_cached(Overcooked* env, Agent* agent,
+static void compute_tile_proximity_cached(Overcooked* env, Chef* agent,
                                           int* positions, int count,
                                           float* dx, float* dy) {
     *dx = 0.0f;
@@ -110,8 +110,8 @@ static void compute_observations(Overcooked* env) {
     // Proximity: onion box, plate box, plated soup, serving, empty counter, pot, pickable onion, pickable plate
 
     for (int agent_idx = 0; agent_idx < env->num_agents; agent_idx++) {
-        Agent* agent = &env->agents[agent_idx];
-        float* obs = &env->observations[agent_idx * env->observation_size];
+        Chef* agent = &env->chefs[agent_idx];
+        float* obs = (float*)env->agents[agent_idx].observations;
         int obs_idx = 0;
 
         memset(obs, 0, env->observation_size * sizeof(float));
@@ -268,7 +268,7 @@ static void compute_observations(Overcooked* env) {
         // Find teammate (other agent)
         int teammate_idx = (agent_idx == 0) ? 1 : 0;
         if (teammate_idx < env->num_agents) {
-            Agent* teammate = &env->agents[teammate_idx];
+            Chef* teammate = &env->chefs[teammate_idx];
             obs[obs_idx++] = (teammate->x - agent->x) / (float)env->width;
             obs[obs_idx++] = (teammate->y - agent->y) / (float)env->height;
         } else {
@@ -282,7 +282,7 @@ static void compute_observations(Overcooked* env) {
         obs[obs_idx++] = agent->y / (float)env->height;
 
         // === REWARD (1 dim) ===
-        obs[obs_idx++] = env->rewards[agent_idx];
+        obs[obs_idx++] = env->agents[agent_idx].rewards[0];
 
         // Total should be 43 dims (38 player features + 2 teammate relative position + 2 absolute position + 1 reward)
         // Debug check removed - was only useful on first step

@@ -7,7 +7,6 @@
  * Otherwise the argument is treated as an explicit path to a bin file.
  */
 
-#define BOXOBAN_MAPS_IMPLEMENTATION
 #include <time.h>
 #include "boxoban.h"
 
@@ -76,14 +75,14 @@ int demo(int argc, char** argv) {
     };
 
     size_t obs_count = 4u * (size_t)env.size * (size_t)env.size;
-    env.observations = calloc(obs_count, sizeof(unsigned char));
-    env.actions = calloc(1, sizeof(int));
-    env.rewards = calloc(1, sizeof(float));
-    env.terminals = calloc(1, sizeof(unsigned char));
+    env.agents[0].observations = calloc(obs_count, sizeof(unsigned char));
+    env.agents[0].actions = calloc(1, sizeof(int));
+    env.agents[0].rewards = calloc(1, sizeof(float));
+    env.agents[0].terminals = calloc(1, sizeof(unsigned char));
 
     init(&env);
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_LEFT_SHIFT) || IsKeyPressed(KEY_RIGHT_SHIFT)) {
             TraceLog(LOG_INFO, "Shift key pressed");
@@ -98,26 +97,26 @@ int demo(int argc, char** argv) {
             if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) new_action = RIGHT;
 
             if (new_action >= 0) {
-                env.actions[0] = new_action;
-                c_step(&env);
+                env.agents[0].actions[0] = new_action;
+                puf_step(&env);
                 stepped = true;
             }
         } else {
-            env.actions[0] = rand() % 5;
-            c_step(&env);
+            env.agents[0].actions[0] = rand() % 5;
+            puf_step(&env);
             stepped = true;
         }
 
         if (!stepped) {
             // Manual mode with no direction: stay paused
         }
-        c_render(&env);
+        puf_render(&env);
     }
-    free(env.observations);
-    free(env.actions);
-    free(env.rewards);
-    free(env.terminals);
-    c_close(&env);
+    free(env.agents[0].observations);
+    free(env.agents[0].actions);
+    free(env.agents[0].rewards);
+    free(env.agents[0].terminals);
+    puf_close(&env);
     return 0;
 }
 
@@ -156,33 +155,33 @@ void test_performance(int argc, char** argv, int timeout) {
     };
 
     size_t obs_count = 4u * (size_t)env.size * (size_t)env.size;
-    env.observations = calloc(obs_count, sizeof(unsigned char));
-    env.actions = calloc(1, sizeof(int));
-    env.rewards = calloc(1, sizeof(float));
-    env.terminals = calloc(1, sizeof(unsigned char));
+    env.agents[0].observations = calloc(obs_count, sizeof(unsigned char));
+    env.agents[0].actions = calloc(1, sizeof(int));
+    env.agents[0].rewards = calloc(1, sizeof(float));
+    env.agents[0].terminals = calloc(1, sizeof(unsigned char));
 
     printf("Initializing...\n");
     init(&env);
     printf("Resetting...\n");
-    c_reset(&env);
+    puf_reset(&env);
     printf("Starting test...\n");
 
     int start = time(NULL);
     int num_steps = 0;
     while (time(NULL) - start < timeout) {
-        env.actions[0] = rand() % 5;
-        c_step(&env);
+        env.agents[0].actions[0] = rand() % 5;
+        puf_step(&env);
         num_steps++;
     }
 
     int end = time(NULL);
     float sps = num_steps / (end - start);
     printf("Test Environment SPS: %f\n", sps);
-    free(env.observations);
-    free(env.actions);
-    free(env.rewards);
-    free(env.terminals);
-    c_close(&env);
+    free(env.agents[0].observations);
+    free(env.agents[0].actions);
+    free(env.agents[0].rewards);
+    free(env.agents[0].terminals);
+    puf_close(&env);
 }
 
 int main(int argc, char** argv) {

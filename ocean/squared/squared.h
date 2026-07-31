@@ -7,6 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {5}
+#define OBS_SIZE 121
+#define NUM_ATNS 1
+typedef unsigned char obs_t;
 
 const unsigned char NOOP = 0;
 const unsigned char DOWN = 1;
@@ -19,43 +25,43 @@ const unsigned char AGENT = 1;
 const unsigned char TARGET = 2;
 
 // Required struct. Only use floats!
-typedef struct {
+struct Log {
     float perf; // Recommended 0-1 normalized single real number perf metric
     float score; // Recommended unnormalized single real number perf metric
     float episode_return; // Recommended metric: sum of agent rewards over episode
     float episode_length; // Recommended metric: number of steps of agent episode
     // Any extra fields you add here may be exported in binding.c
     float n; // Required as the last field
-} Log;
+};
 
 // Required that you have some struct for your env
-typedef struct {
+struct Env {
     Log log; // Required field. Env binding code uses this to aggregate logs
-    unsigned char* observations; // Required. You can use any obs type, but make sure it matches in Python!
-    float* actions; // Required
-    float* rewards; // Required
-    float* terminals; // Required
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
     int num_agents;
     int size;
     int tick;
     int r;
     int c;
     unsigned int rng;
-} Squared;
+};
+typedef Env Squared;
 
 void add_log(Squared* env) {
-    env->log.perf += (env->rewards[0] > 0) ? 1 : 0;
-    env->log.score += env->rewards[0];
+    env->log.perf += (env->agents[0].rewards[0] > 0) ? 1 : 0;
+    env->log.score += env->agents[0].rewards[0];
     env->log.episode_length += env->tick;
-    env->log.episode_return += env->rewards[0];
+    env->log.episode_return += env->agents[0].rewards[0];
     env->log.n++;
 }
 
 // Required function
-void c_reset(Squared* env) {
+void puf_reset(Squared* env) {
     int tiles = env->size*env->size;
-    memset(env->observations, 0, tiles*sizeof(unsigned char));
-    env->observations[tiles/2] = AGENT;
+    memset(((obs_t*)env->agents[0].observations), 0, tiles*sizeof(obs_t));
+    ((obs_t*)env->agents[0].observations)[tiles/2] = AGENT;
     env->r = env->size/2;
     env->c = env->size/2;
     env->tick = 0;
@@ -63,18 +69,18 @@ void c_reset(Squared* env) {
     do {
         target_idx = rand_r(&env->rng) % tiles;
     } while (target_idx == tiles/2);
-    env->observations[target_idx] = TARGET;
+    ((obs_t*)env->agents[0].observations)[target_idx] = TARGET;
 }
 
 // Required function
-void c_step(Squared* env) {
+void puf_step(Squared* env) {
     env->tick += 1;
 
-    int action = (int)env->actions[0];
-    env->terminals[0] = 0;
-    env->rewards[0] = 0;
+    int action = (int)env->agents[0].actions[0];
+    env->agents[0].terminals[0] = 0;
+    env->agents[0].rewards[0] = 0;
 
-    env->observations[env->r*env->size + env->c] = EMPTY;
+    ((obs_t*)env->agents[0].observations)[env->r*env->size + env->c] = EMPTY;
 
     if (action == DOWN) {
         env->r += 1;
@@ -91,27 +97,27 @@ void c_step(Squared* env) {
             || env->c < 0
             || env->r >= env->size
             || env->c >= env->size) {
-        env->terminals[0] = 1;
-        env->rewards[0] = -1.0;
+        env->agents[0].terminals[0] = 1;
+        env->agents[0].rewards[0] = -1.0;
         add_log(env);
-        c_reset(env);
+        puf_reset(env);
         return;
     }
 
     int pos = env->r*env->size + env->c;
-    if (env->observations[pos] == TARGET) {
-        env->terminals[0] = 1;
-        env->rewards[0] = 1.0;
+    if (((obs_t*)env->agents[0].observations)[pos] == TARGET) {
+        env->agents[0].terminals[0] = 1;
+        env->agents[0].rewards[0] = 1.0;
         add_log(env);
-        c_reset(env);
+        puf_reset(env);
         return;
     }
 
-    env->observations[pos] = AGENT;
+    ((obs_t*)env->agents[0].observations)[pos] = AGENT;
 }
 
 // Required function. Should handle creating the client on first call
-void c_render(Squared* env) {
+void puf_render(Squared* env) {
     if (!IsWindowReady()) {
         InitWindow(64*env->size, 64*env->size, "PufferLib Squared");
         SetTargetFPS(5);
@@ -128,7 +134,7 @@ void c_render(Squared* env) {
     int px = 64;
     for (int i = 0; i < env->size; i++) {
         for (int j = 0; j < env->size; j++) {
-            int tex = env->observations[i*env->size + j];
+            int tex = ((obs_t*)env->agents[0].observations)[i*env->size + j];
             if (tex == EMPTY) {
                 continue;
             }
@@ -141,9 +147,25 @@ void c_render(Squared* env) {
 }
 
 // Required function. Should clean up anything you allocated
-// Do not free env->observations, actions, rewards, terminals
-void c_close(Squared* env) {
+// Do not free ((obs_t*)env->agents[0].observations), actions, rewards, terminals
+void puf_close(Squared* env) {
     if (IsWindowReady()) {
         CloseWindow();
     }
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->size = dict_get(kwargs, "size");
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+}
+

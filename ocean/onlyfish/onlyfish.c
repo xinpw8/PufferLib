@@ -67,20 +67,20 @@ int main() {
     };
     init(&env);
 
-    env.observations = calloc(env.num_agents * num_obs, sizeof(float));
-    env.actions = calloc(2 * env.num_agents, sizeof(int));
-    env.rewards = calloc(env.num_agents, sizeof(float));
-    env.terminals = calloc(env.num_agents, sizeof(unsigned char));
+    env.agents[0].observations = calloc(env.num_agents * num_obs, sizeof(float));
+    env.agents[0].actions = calloc(2 * env.num_agents, sizeof(int));
+    env.agents[0].rewards = calloc(env.num_agents, sizeof(float));
+    env.agents[0].terminals = calloc(env.num_agents, sizeof(unsigned char));
 
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
 
     while (!WindowShouldClose()) {
         for (int i = 0; i < num_agents; i++) {
-            forward_linearlstm(nets[i], env.observations + i * num_obs, env.actions + 2 * i);
+            forward_linearlstm(nets[i], env.agents[0].observations + i * num_obs, env.agents[0].actions + 2 * i);
         }
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
     }
 
     for (int i = 0; i < num_agents; i++) {
@@ -89,9 +89,9 @@ int main() {
     }
     free(nets);
     free(names);
-    free(env.observations);
-    free(env.actions);
-    free(env.rewards);
-    free(env.terminals);
-    c_close(&env);
+    free(env.agents[0].observations);
+    free(env.agents[0].actions);
+    free(env.agents[0].rewards);
+    free(env.agents[0].terminals);
+    puf_close(&env);
 }

@@ -17,8 +17,8 @@ typedef struct {
 void emscriptenStep(void* e) {
     WebRenderArgs* args = (WebRenderArgs*)e;
     forward_puffernet(args->net, args->env->observations, args->env->actions);
-    c_step(args->env);
-    c_render(args->env);
+    puf_step(args->env);
+    puf_render(args->env);
 }
 #endif
 
@@ -50,7 +50,7 @@ int main() {
 
     env->task->init(env);
 
-    c_reset(env);
+    puf_reset(env);
 
     Weights* weights = load_weights("resources/drone/drone_weights.bin");
     int logit_sizes[4] = {1, 1, 1, 1};
@@ -60,16 +60,16 @@ int main() {
     WebRenderArgs args = {.env = env, .net = net};
     emscripten_set_main_loop_arg(emscriptenStep, &args, 0, true);
 #else
-    c_render(env);
+    puf_render(env);
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
         forward_puffernet(net, env->observations, env->actions);
-        c_step(env);
-        c_render(env);
+        puf_step(env);
+        puf_render(env);
     }
 
-    c_close(env);
+    puf_close(env);
     free_puffernet(net);
     free(weights);
     free(env->observations);

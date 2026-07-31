@@ -46,10 +46,6 @@ typedef Env Nethack;
 struct Env {
     Log log;
     Agent agents[1];
-    unsigned char* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
     unsigned char* action_mask;
     int num_agents;
     int pending_reset;   // NLE's coroutine must reset on a stepping thread
@@ -149,7 +145,7 @@ static void nethack_init_settings(Nethack* env) {
 
 void init(Nethack* env) {
     env->seed = 0xCAFEBEEFUL + (unsigned long)env->rng;   // rng = env index
-    // nle_start deferred to first c_reset
+    // nle_start deferred to first puf_reset
     nethack_init_settings(env);
 }
 
@@ -218,8 +214,8 @@ static void nethack_compute_mask(Nethack* env) {
 // observations
 
 static void nethack_pack_obs(Nethack* env) {
-    memcpy(env->observations + NETHACK_OFF_GLYPHS, env->glyphs, sizeof(env->glyphs));
-    unsigned char* bl = env->observations + NETHACK_OFF_BLSTATS;
+    memcpy(((obs_t*)env->agents[0].observations) + NETHACK_OFF_GLYPHS, env->glyphs, sizeof(env->glyphs));
+    unsigned char* bl = ((obs_t*)env->agents[0].observations) + NETHACK_OFF_BLSTATS;
     for (int i = 0; i < NLE_BLSTATS_SIZE; i++) {
         uint32_t v = (uint32_t)(int32_t)env->blstats[i];
         bl[4*i + 0] = (unsigned char)(v & 0xffu);
@@ -236,7 +232,7 @@ static void nethack_pack_obs(Nethack* env) {
         if (oc >= NETHACK_NUM_OCLASSES) break;   // padded tail
         extra[2 + oc]++;
     }
-    unsigned char* ex = env->observations + NETHACK_OFF_EXTRA;
+    unsigned char* ex = ((obs_t*)env->agents[0].observations) + NETHACK_OFF_EXTRA;
     for (int i = 0; i < NETHACK_EXTRA_INTS; i++) {
         uint32_t v = (uint32_t)extra[i];
         ex[4*i + 0] = (unsigned char)(v & 0xffu);
@@ -245,7 +241,7 @@ static void nethack_pack_obs(Nethack* env) {
         ex[4*i + 3] = (unsigned char)((v >> 24) & 0xffu);
     }
     // slot glyphs
-    unsigned char* iv = env->observations + NETHACK_OFF_INV;
+    unsigned char* iv = ((obs_t*)env->agents[0].observations) + NETHACK_OFF_INV;
     for (int i = 0; i < NETHACK_INV_SLOTS; i++) {
         uint16_t g = env->inv_oclasses[i] < NETHACK_NUM_OCLASSES
                    ? (uint16_t)env->inv_glyphs[i] : (uint16_t)NETHACK_PAD_GLYPH;
@@ -253,9 +249,9 @@ static void nethack_pack_obs(Nethack* env) {
         iv[2*i + 1] = (unsigned char)((g >> 8) & 0xffu);
     }
     // item state
-    memcpy(env->observations + NETHACK_OFF_INVST, env->inv_state, sizeof(env->inv_state));
+    memcpy(((obs_t*)env->agents[0].observations) + NETHACK_OFF_INVST, env->inv_state, sizeof(env->inv_state));
     // topline
-    unsigned char* mv = env->observations + NETHACK_OFF_MSG;
+    unsigned char* mv = ((obs_t*)env->agents[0].observations) + NETHACK_OFF_MSG;
     size_t mlen = strnlen((const char*)env->message, NETHACK_MSG_LEN);
     memcpy(mv, env->message, mlen);
     if (mlen < (size_t)NETHACK_MSG_LEN) memset(mv + mlen, 0, NETHACK_MSG_LEN - mlen);
@@ -354,7 +350,7 @@ static void nethack_do_reset(Nethack* env) {
     nethack_pack_obs(env);
 }
 
-void c_reset(Nethack* env) {
+void puf_reset(Nethack* env) {
     env->pending_reset = 1;
 }
 
@@ -574,16 +570,16 @@ static void nethack_execute(Nethack* env, int verb, int slot, int dirkey, int* b
     }
 }
 
-void c_step(Nethack* env) {
+void puf_step(Nethack* env) {
     if (env->pending_reset) {
         env->pending_reset = 0;
         nethack_do_reset(env);
     }
 
-    int verb = (int)env->actions[0];
+    int verb = (int)env->agents[0].actions[0];
     int head = NETHACK_VERBS[verb].head;
-    int slot = (head >= 0) ? (int)env->actions[1 + head] : 0;
-    int dirkey = NETHACK_DIR_KEYS[(int)env->actions[13]];
+    int slot = (head >= 0) ? (int)env->agents[0].actions[1 + head] : 0;
+    int dirkey = NETHACK_DIR_KEYS[(int)env->agents[0].actions[13]];
 
     long time_before = env->blstats[NLE_BL_TIME];
     int bad_pick = 0;
@@ -599,11 +595,11 @@ void c_step(Nethack* env) {
     env->stats.length++;
 
     float reward = nethack_reward(env, illegal);
-    env->rewards[0] = reward;
+    env->agents[0].rewards[0] = reward;
     env->stats.ret += reward;
 
     int done = env->obs.done || env->stats.length >= NETHACK_MAX_EPISODE_STEPS;
-    env->terminals[0] = done ? 1.0f : 0.0f;   // truncation reported as terminal too
+    env->agents[0].terminals[0] = done ? 1.0f : 0.0f;   // truncation reported as terminal too
     if (done) {
         nethack_add_log(env, env->obs.done ? env->obs.how_done : -1);
         // eager same-thread reset: the terminal step returns the fresh obs
@@ -613,7 +609,7 @@ void c_step(Nethack* env) {
     }
 }
 
-void c_close(Nethack* env) {
+void puf_close(Nethack* env) {
     if (env->ctx != NULL) {
         nle_end(env->ctx);
         env->ctx = NULL;
@@ -622,7 +618,7 @@ void c_close(Nethack* env) {
     env->vardir[0] = '\0';
 }
 
-void c_render(Nethack* env) {
+void puf_render(Nethack* env) {
     printf("\x1b[H\x1b[2J");
     for (int r = 0; r < NH_ROWS; r++) {
         for (int c = 0; c < NH_COLS; c++) {
@@ -640,10 +636,7 @@ void c_render(Nethack* env) {
 }
 
 static void nethack_sync_buffers(Nethack* env) {
-    env->observations = (unsigned char*)env->agents[0].observations;
-    env->actions = env->agents[0].actions;
-    env->rewards = env->agents[0].rewards;
-    env->terminals = env->agents[0].terminals;
+    env->agents[0].observations = (unsigned char*)env->agents[0].observations;
     env->action_mask = env->agents[0].action_mask;
 }
 
@@ -664,19 +657,6 @@ void puf_init(Env* env, Dict* kwargs) {
     env->heal_coef = dict_get(kwargs, "heal_coef");
     env->status_coef = dict_get(kwargs, "status_coef");
 }
-
-void puf_reset(Env* env) {
-    nethack_sync_buffers(env);
-    c_reset(env);
-}
-
-void puf_step(Env* env) {
-    nethack_sync_buffers(env);
-    c_step(env);
-}
-
-void puf_close(Env* env) { c_close(env); }
-void puf_render(Env* env) { c_render(env); }
 
 // Export order: outcomes first (score/depth/reaches/deaths), then action
 // stats, then per-step diagnostics. Dict insertion order is what the

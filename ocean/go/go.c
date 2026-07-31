@@ -26,21 +26,21 @@ void demo(int grid_size) {
     int obs_size = grid_size * grid_size * 4 + 2;
     PufferNet* net = make_puffernet(weights, 1, obs_size, 512, 1, logit_sizes, 1);
     allocate(&env);
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
 
     int tick = 0;
     while (!WindowShouldClose()) {
         if(tick % 3 == 0) {
             tick = 0;
-            int human_action = env.actions[0];
-            forward_puffernet(net, env.observations, env.actions);
+            int human_action = env.agents[0].actions[0];
+            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                env.actions[0] = human_action;
+                env.agents[0].actions[0] = human_action;
             }
-            c_step(&env);
+            puf_step(&env);
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                env.actions[0] = -1;
+                env.agents[0].actions[0] = -1;
             }
         }
         tick++;
@@ -64,7 +64,7 @@ void demo(int grid_size) {
                 if (cellX >= 0 && cellX <= env.grid_size && cellY >= 0 && cellY <= env.grid_size) {
                     // Calculate the point index (1-19) based on the click position
                     int pointIndex = cellY * (env.grid_size) + cellX + 1;
-                    env.actions[0] = (unsigned short)pointIndex;
+                    env.agents[0].actions[0] = (unsigned short)pointIndex;
                 }
             // Check if pass button is clicked
                 int passButtonX = env.width - 300;
@@ -74,11 +74,11 @@ void demo(int grid_size) {
 
                 if (mousePos.x >= passButtonX && mousePos.x <= passButtonX + passButtonWidth &&
                     mousePos.y >= passButtonY && mousePos.y <= passButtonY + passButtonHeight) {
-                    env.actions[0] = 0; // Send action 0 for pass
+                    env.agents[0].actions[0] = 0; // Send action 0 for pass
                 }
             }
         }
-        c_render(&env);
+        puf_render(&env);
     }
     free_puffernet(net);
     free(weights);

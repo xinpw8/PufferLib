@@ -37,16 +37,16 @@ int demo() {
     Client* client = make_client(&env);
     unsigned int seed = 12345;
     srand(seed);
-    c_reset(&env);
+    puf_reset(&env);
     int running = 1;
     while (running) {
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
             get_input(&env);  // Human input
         } else {
-            forward_linearlstm(net, env.observations, env.actions);  // AI input
+            forward_linearlstm(net, env.agents[0].observations, env.agents[0].actions);  // AI input
         }
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
         if (WindowShouldClose() || env.game_over) {
             running = 0;
         }
@@ -65,12 +65,12 @@ void perftest(float test_time) {
     allocate(&env, env.num_obs);
     unsigned int seed = 12345;
     srand(seed);
-    c_reset(&env);
+    puf_reset(&env);
     int start = time(NULL);
     int steps = 0;
     while (time(NULL) - start < test_time) {
-        env.actions[0] = rand() % ACTIONS_SIZE;  // Random actions
-        c_step(&env);
+        env.agents[0].actions[0] = rand() % ACTIONS_SIZE;  // Random actions
+        puf_step(&env);
         steps++;
     }
     int end = time(NULL);

@@ -9,7 +9,12 @@
 #include "drone.h"
 #include "dronelib.h"
 #include "raylib.h"
+// Avoid CUDA float3 conflict with raymath
+#define float3 rl_float3
+#define double3 rl_double3
 #include "raymath.h"
+#undef float3
+#undef double3
 
 #define R (Color){255, 0, 0, 255}
 #define W (Color){255, 255, 255, 255}
@@ -253,7 +258,7 @@ Client* make_client(DroneEnv* env) {
         trail->index = 0;
         trail->count = 0;
         for (int j = 0; j < TRAIL_LENGTH; j++) {
-            trail->pos[j] = env->agents[i].state.pos;
+            trail->pos[j] = env->drones[i].state.pos;
         }
     }
 
@@ -411,7 +416,7 @@ void DrawDronePrimitive(Client* client, Drone* agent, float* actions, Color body
     }
 }
 
-void c_render(DroneEnv* env) {
+void puf_render(DroneEnv* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
 
@@ -422,7 +427,7 @@ void c_render(DroneEnv* env) {
     }
 
     if (WindowShouldClose() || IsKeyDown(KEY_ESCAPE)) {
-        c_close(env);
+        puf_close(env);
         exit(0);
     }
 
@@ -430,7 +435,7 @@ void c_render(DroneEnv* env) {
     float dt = GetFrameTime();
 
     // Get selected drone position for camera
-    Vec3 drone_pos = env->agents[client->selected_drone].state.pos;
+    Vec3 drone_pos = env->drones[client->selected_drone].state.pos;
 
     // Calculate min zoom based on render mode and hover_dist
     float min_zoom = (client->render_mode == 2)   ? MINIMAL_SPHERE_SIZE
@@ -489,14 +494,14 @@ void c_render(DroneEnv* env) {
 
     // Update trails
     for (int i = 0; i < env->num_agents; i++) {
-        Drone* agent = &env->agents[i];
+        Drone* agent = &env->drones[i];
         Trail* trail = &client->trails[i];
         trail->pos[trail->index] = agent->state.pos;
         trail->index = (trail->index + 1) % TRAIL_LENGTH;
         if (trail->count < TRAIL_LENGTH) {
             trail->count++;
         }
-        if (env->terminals[i]) {
+        if (env->agents[i].terminals[0]) {
             trail->index = 0;
             trail->count = 0;
         }
@@ -511,7 +516,7 @@ void c_render(DroneEnv* env) {
 
     // Draw drones
     for (int i = 0; i < env->num_agents; i++) {
-        Drone* agent = &env->agents[i];
+        Drone* agent = &env->drones[i];
         bool is_selected = (i == client->selected_drone);
         Color body_color = (inspect_mode && is_selected) ? PUFF_GREEN : COLORS[i % 64];
 
@@ -526,7 +531,7 @@ void c_render(DroneEnv* env) {
         } else if (client->use_3d_model && client->model_loaded) {
             DrawDroneModel(client, agent, i, dt, body_color);
         } else {
-            DrawDronePrimitive(client, agent, &env->actions[4 * i], body_color);
+            DrawDronePrimitive(client, agent, env->agents[i].actions, body_color);
         }
 
         // Velocity vector
@@ -581,7 +586,7 @@ void c_render(DroneEnv* env) {
         }
 
         for (int i = 0; i < env->num_agents; i++) {
-            Vec3 t = env->agents[i].target->pos;
+            Vec3 t = env->drones[i].target->pos;
             bool is_selected = (i == client->selected_drone);
             float size = is_selected ? target_size * 1.1f : target_size;
             DrawSphere((Vector3){t.x, t.y, t.z}, size,
@@ -618,7 +623,7 @@ void c_render(DroneEnv* env) {
     // Inspect mode stats
     if (inspect_mode) {
         int idx = client->selected_drone;
-        Drone* agent = &env->agents[idx];
+        Drone* agent = &env->drones[idx];
 
         DrawText(TextFormat("Drone: %d / %d (A/D to switch)", idx, env->num_agents - 1), 10, y, 20,
                  PUFF_GREEN);

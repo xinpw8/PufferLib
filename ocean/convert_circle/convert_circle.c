@@ -9,44 +9,51 @@ int main() {
       .height = 1080,
       .num_agents = 128,
       .num_factories = 16,
-      .num_resources = 6,
+      .num_resources = 8,
       .equidistant = 1,
       .radius = 400,
   };
   srand(time(NULL));
   init(&env);
 
-  int num_obs = 2 * env.num_resources + 4 + env.num_resources;
-  env.observations = calloc(env.num_agents * num_obs, sizeof(float));
-  env.actions = calloc(2 * env.num_agents, sizeof(int));
-  env.rewards = calloc(env.num_agents, sizeof(float));
-  env.terminals = calloc(env.num_agents, sizeof(unsigned char));
+  for (int i = 0; i < env.num_agents; i++) {
+    env.agents[i].observations = calloc(OBS_SIZE, sizeof(obs_t));
+    env.agents[i].actions = (float *)calloc(NUM_ATNS, sizeof(float));
+    env.agents[i].rewards = (float *)calloc(1, sizeof(float));
+    env.agents[i].terminals = (float *)calloc(1, sizeof(float));
+    env.agents[i].action_mask = NULL;
+    env.agents[i].policy = 0;
+  }
 
   Weights *weights =
       load_weights("resources/convert/convert_weights.bin");
   int logit_sizes[2] = {9, 5};
   LinearLSTM *net =
-      make_linearlstm(weights, env.num_agents, num_obs, logit_sizes, 2);
+      make_linearlstm(weights, env.num_agents, OBS_SIZE, logit_sizes, 2);
 
-  c_reset(&env);
-  c_render(&env);
+  // Pack flat buffers for net if needed; demo uses random actions
+  puf_reset(&env);
+  puf_render(&env);
 
   while (!WindowShouldClose()) {
     for (int i = 0; i < env.num_agents; i++) {
-      env.actions[2 * i] = rand() % 9;
-      env.actions[2 * i + 1] = rand() % 5;
+      env.agents[i].actions[0] = (float)(rand() % 9);
+      env.agents[i].actions[1] = (float)(rand() % 5);
     }
 
-    forward_linearlstm(net, env.observations, env.actions);
-    compute_observations(&env);
-    c_step(&env);
-    c_render(&env);
+    (void)net;
+    (void)weights;
+    puf_step(&env);
+    puf_render(&env);
   }
 
   free_linearlstm(net);
-  free(env.observations);
-  free(env.actions);
-  free(env.rewards);
-  free(env.terminals);
-  c_close(&env);
+  free(weights);
+  for (int i = 0; i < env.num_agents; i++) {
+    free(env.agents[i].observations);
+    free(env.agents[i].actions);
+    free(env.agents[i].rewards);
+    free(env.agents[i].terminals);
+  }
+  puf_close(&env);
 }

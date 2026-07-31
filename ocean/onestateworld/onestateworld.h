@@ -4,12 +4,18 @@
 #include <math.h>
 #include <time.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {2}
+#define OBS_SIZE 1
+#define NUM_ATNS 1
+typedef unsigned char obs_t;
 
 // Marsaglia polar method from https://en.wikipedia.org/wiki/Marsaglia_polar_method
-double gaussian_sample(double mean, double variance) {
+static double gaussian_sample(double mean, double variance) {
     static int hasSpare = 0;
     static double spare;
-    
+
     if (hasSpare) {
         hasSpare = 0;
         return mean + sqrt(variance) * spare;
@@ -18,8 +24,8 @@ double gaussian_sample(double mean, double variance) {
     hasSpare = 1;
     double u, v, s;
     do {
-        u = (rand() / ((double) RAND_MAX)) * 2.0 - 1.0;
-        v = (rand() / ((double) RAND_MAX)) * 2.0 - 1.0;
+        u = (rand() / ((double)RAND_MAX)) * 2.0 - 1.0;
+        v = (rand() / ((double)RAND_MAX)) * 2.0 - 1.0;
         s = u * u + v * v;
     } while (s >= 1 || s == 0);
 
@@ -31,99 +37,78 @@ double gaussian_sample(double mean, double variance) {
 const unsigned char LEFT = 0;
 const unsigned char RIGHT = 1;
 
-typedef struct {
-    float perf; // Recommended 0-1 normalized single real number perf metric
-    float score; // Recommended unnormalized single real number perf metric
-    float episode_return; // Recommended metric: sum of agent rewards over episode
-    float episode_length; // Recommended metric: number of steps of agent episode
-    // Any extra fields you add here may be exported to Python in binding.c
-    float n; // Required as the last field 
-} Log;
+struct Log {
+    float perf;
+    float score;
+    float episode_return;
+    float episode_length;
+    float n;
+};
 
-// Required that you have some struct for your env
-// Recommended that you name it the same as the env file
-typedef struct {
-    Log log; // Required field. Env binding code uses this to aggregate logs
-    unsigned char* observations; // Required. You can use any obs type, but make sure it matches in Python!
-    int* actions; // Required. int* for discrete/multidiscrete, float* for box
-    float* rewards; // Required
-    unsigned char* terminals; // Required. We don't yet have truncations as standard yet
+struct Env {
+    Log log;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
+    int num_agents;
     int tick;
-
     float var_right;
     float mean_right;
     float mean_left;
-
-    Texture2D puffer; 
-
-} World;
-
-World* allocate_World(World *env) {
-    env->observations = calloc(1, sizeof(unsigned char));
-    env->actions = calloc(1, sizeof(float));
-    env->rewards = calloc(1, sizeof(float));
-    env->terminals = calloc(1, sizeof(unsigned char));
-    return env;
-}
+    Texture2D puffer;
+    unsigned int rng;
+};
+typedef Env World;
 
 void free_allocated(World* env) {
-    free(env->observations);
-    free(env->actions);
-    free(env->rewards);
-    free(env->terminals);
-    free(env);
+    free(env->agents[0].observations);
+    free(env->agents[0].actions);
+    free(env->agents[0].rewards);
+    free(env->agents[0].terminals);
 }
 
 void add_log(World* env) {
-    env->log.perf += env->rewards[0];
-    env->log.score += env->rewards[0];
+    env->log.perf += env->agents[0].rewards[0];
+    env->log.score += env->agents[0].rewards[0];
     env->log.episode_length += env->tick;
-    env->log.episode_return += env->rewards[0];
+    env->log.episode_return += env->agents[0].rewards[0];
     env->log.n++;
 }
 
-// Required function
-void c_reset(World* env) {
-    env->observations[0] = 0;
+void puf_reset(World* env) {
+    ((obs_t*)env->agents[0].observations)[0] = 0;
     env->tick = 0;
-    srand(time(NULL)); 
 }
 
-// Required function
-void c_step(World* env) {
+void puf_step(World* env) {
     env->tick += 1;
+    env->agents[0].terminals[0] = 0;
+    env->agents[0].rewards[0] = 0;
 
-    // Clear previous buffers
-    env->terminals[0] = 0;
-    env->rewards[0] = 0;
+    int action = (int)env->agents[0].actions[0];
 
-    int action = env->actions[0];
-
-    // Tanh here because of pufferlib clamping 
     if (action == LEFT) {
-        env->rewards[0] = tanh(gaussian_sample(env->mean_left, 0));
+        env->agents[0].rewards[0] = (float)tanh(gaussian_sample(env->mean_left, 0));
     } else {
-        env->rewards[0] = tanh(gaussian_sample(env->mean_right, env->var_right));
+        env->agents[0].rewards[0] = (float)tanh(gaussian_sample(env->mean_right, env->var_right));
     }
 
     if (env->tick >= 1000) {
-        env->terminals[0] = 1;
+        env->agents[0].terminals[0] = 1;
         add_log(env);
-        c_reset(env);
+        puf_reset(env);
     }
 }
 
-// Required function. Should handle creating the client on first call
-void c_render(World* env) {
+void puf_render(World* env) {
     int px = 64;
 
     if (!IsWindowReady()) {
-        InitWindow(px*5, px*5, "PufferLib OneStateWorld");
+        InitWindow(px * 5, px * 5, "PufferLib OneStateWorld");
         SetTargetFPS(1);
         env->puffer = LoadTexture("resources/shared/puffers_128.png");
     }
 
-    // Standard across our envs so exiting is always the same
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
@@ -131,31 +116,42 @@ void c_render(World* env) {
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});
 
-    // Draw the puffer for fun 
     Color color = (Color){255, 255, 255, 255};
     Rectangle source_rect = (Rectangle){0, 0, 128, 128};
-    Rectangle dest_rect = (Rectangle){2*px, 2*px, px, px};        
-    DrawTexturePro(env->puffer, source_rect, dest_rect,
-                (Vector2){0, 0}, 0, color);
+    Rectangle dest_rect = (Rectangle){(float)(2 * px), (float)(2 * px), (float)px, (float)px};
+    DrawTexturePro(env->puffer, source_rect, dest_rect, (Vector2){0, 0}, 0, color);
 
-    // Print the action taken either on left or right, with the reward received
-    if (env->actions[0] == LEFT) {
-            char score_text[32];
-            snprintf(score_text, sizeof(score_text), "R: %.4f", env->rewards[0]);
-            DrawText(score_text, 0, 2.5*px, 28, (Color){255, 255, 255, 255});
+    char score_text[32];
+    snprintf(score_text, sizeof(score_text), "R: %.4f", env->agents[0].rewards[0]);
+    if ((int)env->agents[0].actions[0] == LEFT) {
+        DrawText(score_text, 0, (int)(2.5 * px), 28, (Color){255, 255, 255, 255});
     } else {
-            char score_text[32];
-            snprintf(score_text, sizeof(score_text), "R: %.4f", env->rewards[0]);
-            DrawText(score_text, 3*px, 2.5*px, 28, (Color){255, 255, 255, 255});
+        DrawText(score_text, 3 * px, (int)(2.5 * px), 28, (Color){255, 255, 255, 255});
     }
 
     EndDrawing();
 }
 
-// Required function. Should clean up anything you allocated
-// Do not free env->observations, actions, rewards, terminals
-void c_close(World* env) {
+void puf_close(World* env) {
+    (void)env;
     if (IsWindowReady()) {
         CloseWindow();
     }
 }
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->var_right = dict_get(kwargs, "var_right");
+    env->mean_right = dict_get(kwargs, "mean_right");
+    env->mean_left = dict_get(kwargs, "mean_left");
+    env->agents[0].policy = 0;
+    env->agents[0].action_mask = NULL;
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+}
+

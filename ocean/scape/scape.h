@@ -10,6 +10,14 @@
 #include <stdio.h>
 #include "raylib.h"
 #include "rlgl.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {9, 5}
+#define OBS_SIZE 28
+#define NUM_ATNS 2
+
+typedef Env Scape;
+typedef float obs_t;
 
 static float offset_x = -6.5f;
 static float offset_z = 12.5f;
@@ -17,14 +25,14 @@ static float offset_z = 12.5f;
 static Vector3 scene_pos = (Vector3){-6.5, -2.5, 60.5};
 
 // Required struct. Only use floats!
-typedef struct {
+struct Log {
     float perf; // Recommended 0-1 normalized single real number perf metric
     float score; // Recommended unnormalized single real number perf metric
     float episode_return; // Recommended metric: sum of agent rewards over episode
     float episode_length; // Recommended metric: number of steps of agent episode
     // Any extra fields you add here may be exported to Python in binding.c
     float n; // Required as the last field 
-} Log;
+};
 
 typedef struct {
     Texture2D puffer;
@@ -50,20 +58,20 @@ typedef struct {
 
 // Required that you have some struct for your env
 // Recommended that you name it the same as the env file
-typedef struct {
-    Log log; // Required field. Env binding code uses this to aggregate logs
+struct Env {
+    Log log;
     Client* client;
+    Agent agents[1];
     Entity* entities;
     Goal* goals;
-    float* observations; // Required. You can use any obs type, but make sure it matches in Python!
-    double* actions; // Required. double* for discrete/multidiscrete, float* for box
-    float* rewards; // Required
-    float* terminals; // Required. We don't yet have truncations as standard yet
     int width;
     int height;
     int num_agents;
     int num_npcs;
-} Scape;
+    int tag;
+    int boundary_reached;
+    unsigned int rng;
+};
 
 Vector3 to_world(Vector2 pos) {
     return (Vector3){
@@ -155,13 +163,13 @@ void move_npc(Scape* env, int idx) {
 }
 
 /* Recommended to have an init function of some kind if you allocate 
- * extra memory. This should be freed by c_close. Don't forget to call
+ * extra memory. This should be freed by puf_close. Don't forget to call
  * this in binding.c!
  */
 void init(Scape* env) {
     env->num_agents = 1;
     env->num_npcs = 6;
-    env->entities = calloc(env->num_agents + env->num_npcs, sizeof(Entity));
+    env->entities = (Entity*)calloc(env->num_agents + env->num_npcs, sizeof(Entity));
 }
 
 /* Recommended to have an observation function of some kind because
@@ -173,7 +181,7 @@ void compute_observations(Scape* env) {
 }
 
 // Required function
-void c_reset(Scape* env) {
+void puf_reset(Scape* env) {
     env->entities[0].x = 28;
     env->entities[0].dest_x = 28;
     env->entities[0].y = 17;
@@ -232,7 +240,7 @@ void c_reset(Scape* env) {
 }
 
 // Required function
-void c_step(Scape* env) {
+void puf_step(Scape* env) {
     move_agent(env);
 
     // Set npc target to player pos
@@ -355,9 +363,8 @@ void draw_tile(Client* client, Vector2 hovered_tile) {
     DrawLineEx(s10, s01, 2.0f, RED);
 }
 
-
 // Required function. Should handle creating the client on first call
-void c_render(Scape* env) {
+void puf_render(Scape* env) {
     Client* client = env->client;
     if (client == NULL) {
         InitWindow(env->width, env->height, "PufferLib Scape");
@@ -454,8 +461,8 @@ void c_render(Scape* env) {
 }
 
 // Required function. Should clean up anything you allocated
-// Do not free env->observations, actions, rewards, terminals
-void c_close(Scape* env) {
+// Do not free ((obs_t*)env->agents[0].observations), actions, rewards, terminals
+void puf_close(Scape* env) {
     free(env->entities);
     if (env->client != NULL) {
         Client* client = env->client;
@@ -464,3 +471,21 @@ void c_close(Scape* env) {
         free(client);
     }
 }
+
+void puf_init(Env* env, Dict* kwargs) {
+    (void)kwargs;
+    env->width = 1080;
+    env->height = 720;
+    env->num_agents = 1;
+    env->agents[0].policy = 0;
+    env->agents[0].action_mask = NULL;
+    init(env);
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+}
+

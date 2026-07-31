@@ -36,7 +36,7 @@ void demo() {
 
     env.client = make_client(&env);
 
-    c_reset(&env);
+    puf_reset(&env);
     int frame = 0;
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
@@ -45,22 +45,22 @@ void demo() {
             if(env.continuous) {
                 float move = GetMouseWheelMove();
                 float clamped_wheel = fmaxf(-1.0f, fminf(1.0f, move));
-                env.actions[0] = clamped_wheel;
+                env.agents[0].actions[0] = clamped_wheel;
             } else {
-                env.actions[0] = 1.0;                                               // Straight
-                if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.actions[0] = 0.0; // Left
-                if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[0] = 2.0; // Right
+                env.agents[0].actions[0] = 1.0;                                               // Straight
+                if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.agents[0].actions[0] = 0.0; // Left
+                if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.agents[0].actions[0] = 2.0; // Right
             }
         } else if (frame % 4 == 0) {
             // Apply frameskip outside the env for smoother rendering
-            int* actions = (int*)env.actions;
-            forward_linearlstm(net, env.observations, actions);
-            env.actions[0] = actions[0];
+            int* actions = (int*)env.agents[0].actions;
+            forward_linearlstm(net, env.agents[0].observations, actions);
+            env.agents[0].actions[0] = actions[0];
         }
 
         frame = (frame + 1) % 4;
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
     }
     free_linearlstm(net);
     free(weights);

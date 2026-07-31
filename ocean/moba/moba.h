@@ -8,13 +8,21 @@
 #include "game_map.h"
 
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {7, 7, 3, 2, 2, 2}
+#define OBS_SIZE 510
+#define NUM_ATNS 6
+#define MAX_MOBA_AGENTS 10
+
+typedef Env MOBA;
+typedef unsigned char obs_t;
 
 #if defined(PLATFORM_DESKTOP)
     #define GLSL_VERSION 330
 #else
     #define GLSL_VERSION 100
 #endif
-
 
 #define NUM_PLAYERS 10
 #define NUM_CREEPS 100
@@ -72,7 +80,6 @@ const float WAYPOINTS[][20][2] = {{{96.26153846153846, 14.04615384615385}, {93.6
 const int WAYPOINTS_N[6] = {14, 10, 13, 9, 9, 12};
 
 #define LOG_BUFFER_SIZE 1024
-
 
 typedef struct PlayerLog PlayerLog;
 struct PlayerLog {
@@ -153,8 +160,6 @@ struct Log {
     float n;
 };
 
-
-typedef struct MOBA MOBA;
 typedef struct GameRenderer GameRenderer;
 typedef struct Entity Entity;
 typedef int (*skill)(MOBA*, Entity*, Entity*);
@@ -321,8 +326,8 @@ int bfs(Map *map, unsigned char *flat_paths, int* flat_buffer, int dest_r, int d
 
 unsigned char* precompute_pathing(Map* map){
     int N = map->width;
-    unsigned char* paths = calloc(N*N*N*N, 1);
-    int* buffer = calloc(3*8*N*N, sizeof(int));
+    unsigned char* paths = (unsigned char*)calloc(N*N*N*N, 1);
+    int* buffer = (int*)calloc(3*8*N*N, sizeof(int));
     for (int r = 0; r < N; r++) {
         for (int c = 0; c < N; c++) {
             for (int rr = 0; rr < N; rr++) {
@@ -338,8 +343,9 @@ unsigned char* precompute_pathing(Map* map){
     return paths;
 }
 
-struct MOBA {
+struct Env {
     GameRenderer* client;
+    Agent agents[MAX_MOBA_AGENTS];
     int vision_range;
     float agent_speed;
     bool script_opponents;
@@ -352,12 +358,9 @@ struct MOBA {
     unsigned char* orig_grid;
     unsigned char* ai_paths;
     int* ai_path_buffer;
-    unsigned char* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
-    unsigned char* truncations;
     int num_agents;
+    int tag;
+    int boundary_reached;
     Entity* entities;
     Reward* reward_components;
     Log log;
@@ -377,7 +380,8 @@ struct MOBA {
     Entity* scanned_targets[256][121];
     skill skills[10][3];
 
-    CachedRNG *rng;
+    CachedRNG *path_rng;
+    unsigned int rng;
 };
 
 void add_log(MOBA* env, int radiant_victory, int dire_victory) {
@@ -435,40 +439,36 @@ void add_log(MOBA* env, int radiant_victory, int dire_victory) {
     log->radiant_support_usage_e = radiant_support->usage_e;
 }
  
-void c_close(MOBA* env) {
+void puf_close(MOBA* env) {
     free(env->entities);
     free(env->reward_components);
     free(env->map->grid);
     free(env->map->pids);
     free(env->map);
     free(env->orig_grid);
-    free(env->rng->rng);
-    free(env->rng);
+    free(env->path_rng->rng);
+    free(env->path_rng);
     free(env->ai_path_buffer);
 }
 
 void free_allocated_moba(MOBA* env) {
-    free(env->rewards);
     free(env->ai_paths);
-    free(env->observations);
-    free(env->actions);
-    free(env->terminals);
-    free(env->truncations);
-    c_close(env);
+    puf_close(env);
 }
 
 void compute_observations(MOBA* env) {
     int agents = (env->script_opponents) ? NUM_PLAYERS/2 : NUM_PLAYERS;
-    memset(env->observations, 0, agents*(11*11*4 + 26)*sizeof(unsigned char));
+    // per-agent obs zeroed below
 
     int vis = env->vision_range;
     Map* map = env->map;
 
-    unsigned char (*observations)[11*11*4 + 26] = (unsigned char(*)[11*11*4 + 26])env->observations;
+    // per-agent observations
     for (int pid = 0; pid < agents; pid++) {
         // Does this copy?
-        unsigned char* obs_map = &observations[pid][0];
-        unsigned char* obs_extra = &observations[pid][11*11*4];
+        unsigned char* obs_map = (unsigned char*)env->agents[pid].observations;
+        if (obs_map) memset(obs_map, 0, OBS_SIZE);
+        unsigned char* obs_extra = obs_map + 11*11*4;
 
         Entity* player = &env->entities[pid];
         Reward* reward = &env->reward_components[pid];
@@ -619,8 +619,8 @@ int move_towards(MOBA* env, Entity* entity, int y_dst, int x_dst, float speed) {
     if (move_to(env->map, entity, y_dst, x_dst) == 0)
         return 0;
 
-    float jitter_x = fast_rng(env->rng);
-    float jitter_y = fast_rng(env->rng);
+    float jitter_x = fast_rng(env->path_rng);
+    float jitter_y = fast_rng(env->path_rng);
     return move_to(env->map, entity, entity->y + jitter_y, entity->x + jitter_x);
 }
 
@@ -1425,7 +1425,6 @@ void step_towers(MOBA* env) {
             tower->health = tower->max_health;
         */
 
-
         update_cooldowns(tower);
         if (tower->basic_attack_timer > 0)
             continue;
@@ -1500,21 +1499,20 @@ void step_players(MOBA* env) {
             }
             */
         } else {
-            float (*actions)[6] = (float(*)[6])env->actions;
-            //float vel_y = (actions[pid][0] > 0) ? 1 : -1;
-            //float vel_x = (actions[pid][1] > 0) ? 1 : -1;
-            float vel_y = (actions[pid][0] - 3.0f) / 3.0f;
-            float vel_x = (actions[pid][1] - 3.0f) / 3.0f;
+                        //float vel_y = (env->agents[pid].actions[0] > 0) ? 1 : -1;
+            //float vel_x = (env->agents[pid].actions[1] > 0) ? 1 : -1;
+            float vel_y = (env->agents[pid].actions[0] - 3.0f) / 3.0f;
+            float vel_x = (env->agents[pid].actions[1] - 3.0f) / 3.0f;
             float mag = sqrtf(vel_y*vel_y + vel_x*vel_x);
             if (mag > 1) {
                 vel_y /= mag;
                 vel_x /= mag;
             }
 
-            int attack_target = (int)actions[pid][2];
-            bool use_q = (int)actions[pid][3];
-            bool use_w = (int)actions[pid][4];
-            bool use_e = (int)actions[pid][5];
+            int attack_target = (int)env->agents[pid].actions[2];
+            bool use_q = (int)env->agents[pid].actions[3];
+            bool use_w = (int)env->agents[pid].actions[4];
+            bool use_e = (int)env->agents[pid].actions[5];
 
             if (attack_target == 1 || attack_target == 0) {
                 // Scan everything
@@ -1559,7 +1557,7 @@ void step_players(MOBA* env) {
         env->player_logs[pid].episode_return += sum_reward;
 
         if (!env->script_opponents || pid < 5) {
-            env->rewards[pid] = sum_reward;
+            env->agents[pid].rewards[0] = sum_reward;
         }
     }
 }
@@ -1575,7 +1573,7 @@ unsigned char* read_file(char* filename) {
     fseek(file, 0, SEEK_END);
     size_t file_bytes = ftell(file);
     fseek(file, 0, SEEK_SET);
-    array = calloc(file_bytes, sizeof(unsigned char));
+    array = (unsigned char*)calloc(file_bytes, sizeof(unsigned char));
     if (array == NULL) {
         perror("Memory allocation failed");
         fclose(file);
@@ -1599,12 +1597,12 @@ void init_moba(MOBA* env, unsigned char* game_map_npy) {
     env->radiant_victories = 0;
     env->dire_victories = 0;
 
-    env->entities = calloc(NUM_ENTITIES, sizeof(Entity));
-    env->reward_components = calloc(NUM_PLAYERS, sizeof(Reward));
+    env->entities = (Entity*)calloc(NUM_ENTITIES, sizeof(Entity));
+    env->reward_components = (Reward*)calloc(NUM_PLAYERS, sizeof(Reward));
 
     env->map = (Map*)calloc(1, sizeof(Map));
-    env->map->grid = calloc(128*128, sizeof(unsigned char));
-    env->orig_grid = calloc(128*128, sizeof(unsigned char));
+    env->map->grid = (unsigned char*)calloc(128*128, sizeof(unsigned char));
+    env->orig_grid = (unsigned char*)calloc(128*128, sizeof(unsigned char));
     memcpy(env->map->grid, game_map_npy, 128*128);
     memcpy(env->orig_grid, game_map_npy, 128*128);
     if (env->map->grid == NULL) {
@@ -1613,7 +1611,7 @@ void init_moba(MOBA* env, unsigned char* game_map_npy) {
     }
     env->map->width = 128;
     env->map->height = 128;
-    env->map->pids = calloc(128*128, sizeof(int));
+    env->map->pids = (int*)calloc(128*128, sizeof(int));
     for (int i = 0; i < 128*128; i++)
         env->map->pids[i] = -1;
 
@@ -1623,12 +1621,12 @@ void init_moba(MOBA* env, unsigned char* game_map_npy) {
         env->scanned_targets[i][1] = NULL;
     }
 
-    env->rng = (CachedRNG*)calloc(1, sizeof(CachedRNG));
-    env->rng->rng_n = 10000;
-    env->rng->rng_idx = 0;
-    env->rng->rng = calloc(env->rng->rng_n, sizeof(float));
-    for (int i = 0; i < env->rng->rng_n; i++)
-        env->rng->rng[i] = -1+2*((float)rand())/(float)RAND_MAX;
+    env->path_rng = (CachedRNG*)calloc(1, sizeof(CachedRNG));
+    env->path_rng->rng_n = 10000;
+    env->path_rng->rng_idx = 0;
+    env->path_rng->rng = (float*)calloc(env->path_rng->rng_n, sizeof(float));
+    for (int i = 0; i < env->path_rng->rng_n; i++)
+        env->path_rng->rng[i] = -1+2*((float)rand())/(float)RAND_MAX;
 
     // Initialize Players
     Entity *player;
@@ -1798,14 +1796,10 @@ void init_moba(MOBA* env, unsigned char* game_map_npy) {
 MOBA* allocate_moba(MOBA* env) {
     // TODO: Don't hardcode sizes
     int agents = (env->script_opponents) ? NUM_PLAYERS/2 : NUM_PLAYERS;
-    env->observations = calloc(agents*(11*11*4 + 26), sizeof(unsigned char));
-    env->actions = calloc(agents*6, sizeof(float));
-    env->rewards = calloc(agents, sizeof(float));
-    env->terminals = calloc(agents, sizeof(float));
-    env->truncations = calloc(agents, sizeof(unsigned char));
+    /* truncations removed */
 
-    env->ai_path_buffer = calloc(3*8*128*128, sizeof(int));
-    env->ai_paths = calloc(128*128*128*128, sizeof(unsigned char));
+    env->ai_path_buffer = (int*)calloc(3*8*128*128, sizeof(int));
+    env->ai_paths = (unsigned char*)calloc(128*128*128*128, sizeof(unsigned char));
     for (int i = 0; i < 128*128*128*128; i++) {
         env->ai_paths[i] = 255;
     }
@@ -1814,7 +1808,7 @@ MOBA* allocate_moba(MOBA* env) {
     return env;
 }
  
-void c_reset(MOBA* env) {
+void puf_reset(MOBA* env) {
     //map->pids[:] = -1
     //randomize_tower_hp(env);
     
@@ -1884,7 +1878,7 @@ void c_reset(MOBA* env) {
     compute_observations(env);
 }
 
-void c_step(MOBA* env) {
+void puf_step(MOBA* env) {
     for (int pid = 0; pid < NUM_ENTITIES; pid++) {
         Entity* entity = &env->entities[pid];
         entity->target_pid = -1;
@@ -1962,7 +1956,7 @@ void c_step(MOBA* env) {
     if (do_reset) {
         env->should_reset = false;
         add_log(env, radiant_victory, dire_victory);
-        c_reset(env);
+        puf_reset(env);
     }
     compute_observations(env);
 }
@@ -2156,7 +2150,7 @@ void draw_bars(Entity* entity, int x, int y, int width, int height, bool draw_te
     }
 }
 
-int c_render(MOBA* env) {
+void puf_render(MOBA* env) {
     if (env->client == NULL) {
         env->client = init_game_renderer(32, 41, 23);
     }
@@ -2199,16 +2193,15 @@ int c_render(MOBA* env) {
 
     int human = renderer->human_player;
     bool HUMAN_CONTROL = IsKeyDown(KEY_LEFT_SHIFT);
-    float (*actions)[6] = (float(*)[6])env->actions;
-
+    
     // Clears so as to not let the nn spam actions
     if (HUMAN_CONTROL && frame % 12 == 0) {
-        actions[human][0] = 0.0;
-        actions[human][1] = 0.0;
-        actions[human][2] = 0.0;
-        actions[human][3] = 0.0;
-        actions[human][4] = 0.0;
-        actions[human][5] = 0.0;
+        env->agents[human].actions[0] = 0.0;
+        env->agents[human].actions[1] = 0.0;
+        env->agents[human].actions[2] = 0.0;
+        env->agents[human].actions[3] = 0.0;
+        env->agents[human].actions[4] = 0.0;
+        env->agents[human].actions[5] = 0.0;
     }
 
     // TODO: better way to null clicks?
@@ -2225,8 +2218,8 @@ int c_render(MOBA* env) {
         }
 
         if (HUMAN_CONTROL) {
-            actions[human][0] = 300.0*dy;
-            actions[human][1] = 300.0*dx;
+            env->agents[human].actions[0] = 300.0*dy;
+            env->agents[human].actions[1] = 300.0*dx;
         }
     }
     if (IsKeyDown(KEY_ESCAPE)) {
@@ -2234,16 +2227,16 @@ int c_render(MOBA* env) {
     }
     if (HUMAN_CONTROL) {
         if (IsKeyDown(KEY_Q) || IsKeyPressed(KEY_Q)) {
-            actions[human][3] = 1.0;
+            env->agents[human].actions[3] = 1.0;
         }
         if (IsKeyDown(KEY_W) || IsKeyPressed(KEY_W)) {
-            actions[human][4] = 1.0;
+            env->agents[human].actions[4] = 1.0;
         }
         if (IsKeyDown(KEY_E) || IsKeyPressed(KEY_E)) {
-            actions[human][5] = 1.0;
+            env->agents[human].actions[5] = 1.0;
         }
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            actions[human][2] = 2.0; // Target heroes
+            env->agents[human].actions[2] = 2.0; // Target heroes
         }
     }
     // Num keys toggle selected player
@@ -2418,9 +2411,9 @@ int c_render(MOBA* env) {
     Color off_color = (Color){255, 255, 255, 255};
     Color on_color = (player->team == 0) ? (Color){0, 255, 255, 255} : (Color){255, 0, 0, 255};
 
-    Color q_color = (actions[human][3]) ? on_color : off_color;
-    Color w_color = (actions[human][4]) ? on_color : off_color;
-    Color e_color = (actions[human][5]) ? on_color : off_color;
+    Color q_color = (env->agents[human].actions[3]) ? on_color : off_color;
+    Color w_color = (env->agents[human].actions[4]) ? on_color : off_color;
+    Color e_color = (env->agents[human].actions[5]) ? on_color : off_color;
 
     int q_cd = player->q_timer;
     int w_cd = player->w_timer;
@@ -2437,8 +2430,7 @@ int c_render(MOBA* env) {
     if (renderer->frame % FRAMES == 0) {
         renderer->frame = 0;
     }
-    return 0;
-}
+    }
 
 void close_game_renderer(GameRenderer* renderer) {
     UnloadImage(renderer->shader_background);
@@ -2448,4 +2440,50 @@ void close_game_renderer(GameRenderer* renderer) {
     free(renderer);
 }
 
+#ifndef GAME_MAP_INCLUDED
+#define GAME_MAP_INCLUDED
+#include "game_map.h"
+#endif
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->vision_range = dict_get(kwargs, "vision_range");
+    env->agent_speed = dict_get(kwargs, "agent_speed");
+    env->reward_death = dict_get(kwargs, "reward_death");
+    env->reward_xp = dict_get(kwargs, "reward_xp");
+    env->reward_distance = dict_get(kwargs, "reward_distance");
+    env->reward_tower = dict_get(kwargs, "reward_tower");
+    env->script_opponents = dict_get(kwargs, "script_opponents");
+    env->num_agents = env->script_opponents ? 5 : 10;
+    if (env->num_agents > MAX_MOBA_AGENTS) {
+        fprintf(stderr, "moba: too many agents\n");
+        exit(1);
+    }
+    // Shared path cache is large; allocate once per env for standalone puf path.
+    // (vec path previously shared one across envs — optional optimization later.)
+    if (env->ai_paths == NULL) {
+        env->ai_paths = (unsigned char*)calloc(128ull*128*128*128, sizeof(unsigned char));
+        for (size_t i = 0; i < 128ull*128*128*128; i++) env->ai_paths[i] = 255;
+    }
+    if (env->ai_path_buffer == NULL) {
+        env->ai_path_buffer = (int*)calloc(3*8*128*128, sizeof(int));
+    }
+    for (int i = 0; i < env->num_agents; i++) {
+        env->agents[i].policy = 0;
+        env->agents[i].action_mask = NULL;
+    }
+    init_moba(env, game_map_npy);
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "radiant_victory", log->radiant_victory);
+    dict_set(out, "dire_victory", log->dire_victory);
+    dict_set(out, "radiant_level", log->radiant_level);
+    dict_set(out, "dire_level", log->dire_level);
+    dict_set(out, "radiant_towers_alive", log->radiant_towers_alive);
+    dict_set(out, "dire_towers_alive", log->dire_towers_alive);
+}
 

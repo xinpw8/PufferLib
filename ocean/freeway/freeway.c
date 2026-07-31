@@ -27,15 +27,15 @@ void demo() {
 
     env.client = make_client(&env);
 
-    c_reset(&env);
+    puf_reset(&env);
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
-        forward_puffernet(net, env.observations, env.actions);
+        forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
         env.human_actions[0] = 0;
         if (IsKeyDown(KEY_UP)  || IsKeyDown(KEY_W)) env.human_actions[0] = 1;
         if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) env.human_actions[0] = 2;
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
     }
     free_puffernet(net);
     free(weights);

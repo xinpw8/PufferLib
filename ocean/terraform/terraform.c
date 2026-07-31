@@ -26,26 +26,26 @@ void demo() {
     Terraform env = {.size = 64, .num_agents = 1, .reset_frequency = 8192, .reward_scale = 0.04f};
     allocate(&env);
 
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
     while (!WindowShouldClose()) {
-        forward_puffernet(net, env.observations, env.actions);
+        forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
         
         if(IsKeyDown(KEY_LEFT_SHIFT)) {
             // When shift is held, stop the dozer
-            env.actions[0] = 2;  // Stop vertical movement
-            env.actions[1] = 2;  // Stop horizontal movement
-            env.actions[2] = 0;  // no scoop or drop
+            env.agents[0].actions[0] = 2;  // Stop vertical movement
+            env.agents[0].actions[1] = 2;  // Stop horizontal movement
+            env.agents[0].actions[2] = 0;  // no scoop or drop
             // Override with keyboard controls if keys are pressed
-            if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) env.actions[0] = 4;
-            if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) env.actions[0] = 0;
-            if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) env.actions[1] = 0;
-            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[1] = 4;
-            if (IsKeyPressed(KEY_SPACE)) env.actions[2] = 1;
-            if (IsKeyPressed(KEY_ENTER)) env.actions[2] = 2;
+            if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) env.agents[0].actions[0] = 4;
+            if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) env.agents[0].actions[0] = 0;
+            if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) env.agents[0].actions[1] = 0;
+            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.agents[0].actions[1] = 4;
+            if (IsKeyPressed(KEY_SPACE)) env.agents[0].actions[2] = 1;
+            if (IsKeyPressed(KEY_ENTER)) env.agents[0].actions[2] = 2;
         }
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
     }
     free_allocated(&env);
     close_client(env.client);

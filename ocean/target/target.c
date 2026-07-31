@@ -28,12 +28,12 @@ void demo() {
         .goals = goals,
     };
 
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
     while (!WindowShouldClose()) {
-        forward_puffernet(net, env.observations, env.actions);
-        c_step(&env);
-        c_render(&env);
+        forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
+        puf_step(&env);
+        puf_render(&env);
     }
     free_puffernet(net);
     free(weights);

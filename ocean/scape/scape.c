@@ -18,32 +18,32 @@ int main() {
     init(&env);
 
     // Allocate these manually since they aren't being passed from Python
-    env.observations = calloc(env.num_agents*num_obs, sizeof(float));
-    env.actions = calloc(env.num_agents, sizeof(double));
-    env.rewards = calloc(env.num_agents, sizeof(float));
-    env.terminals = calloc(env.num_agents, sizeof(double));
+    env.agents[0].observations = calloc(env.num_agents*num_obs, sizeof(float));
+    env.agents[0].actions = calloc(env.num_agents, sizeof(double));
+    env.agents[0].rewards = calloc(env.num_agents, sizeof(float));
+    env.agents[0].terminals = calloc(env.num_agents, sizeof(double));
 
     // Always call reset and render first
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
 
     // while(True) will break web builds
     while (!WindowShouldClose()) {
         for (int i=0; i<env.num_agents; i++) {
-            env.actions[i] = rand() % 9;
+            env.agents[0].actions[i] = rand() % 9;
         }
 
-        c_step(&env);
+        puf_step(&env);
         for (int frame=0; frame<36; frame++) {
-            c_render(&env);
+            puf_render(&env);
         }
     }
 
     // Try to clean up after yourself
-    free(env.observations);
-    free(env.actions);
-    free(env.rewards);
-    free(env.terminals);
-    c_close(&env);
+    free(env.agents[0].observations);
+    free(env.agents[0].actions);
+    free(env.agents[0].rewards);
+    free(env.agents[0].terminals);
+    puf_close(&env);
 }
 

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "raylib.h"
+#include "pufferenv.h"
 
 #define DP_OBS_SIZE 8
 #define DP_ACTIONS 3
@@ -16,7 +17,16 @@
 #define DP_HEIGHT 420
 #define DP_SCALE 65.0f
 
-typedef struct Log {
+#define ACT_SIZES {DP_ACTIONS}
+#define OBS_SIZE DP_OBS_SIZE
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
+
+struct Log {
     float perf;
     float score;
     float episode_return;
@@ -25,16 +35,15 @@ typedef struct Log {
     float max_steps_termination;
     float hold_time;
     float n;
-} Log;
+};
 
-typedef struct DoublePendulum {
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
+struct Env {
     int num_agents;
     unsigned int rng;
     Log log;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
 
     float x;
     float x_dot;
@@ -55,7 +64,8 @@ typedef struct DoublePendulum {
     float gravity;
     float force_mag;
     float dt;
-} DoublePendulum;
+};
+typedef Env DoublePendulum;
 
 const Color PUFF_RED = (Color){187, 0, 0, 255};
 const Color PUFF_CYAN = (Color){0, 187, 187, 255};
@@ -75,14 +85,14 @@ static inline float wrap_pi(float x) {
 }
 
 void compute_observations(DoublePendulum* env) {
-    env->observations[0] = env->x / DP_X_THRESHOLD;
-    env->observations[1] = env->x_dot / 5.0f;
-    env->observations[2] = sinf(env->theta1);
-    env->observations[3] = cosf(env->theta1);
-    env->observations[4] = env->theta1_dot / 8.0f;
-    env->observations[5] = sinf(env->theta2);
-    env->observations[6] = cosf(env->theta2);
-    env->observations[7] = env->theta2_dot / 8.0f;
+    ((obs_t*)env->agents[0].observations)[0] = env->x / DP_X_THRESHOLD;
+    ((obs_t*)env->agents[0].observations)[1] = env->x_dot / 5.0f;
+    ((obs_t*)env->agents[0].observations)[2] = sinf(env->theta1);
+    ((obs_t*)env->agents[0].observations)[3] = cosf(env->theta1);
+    ((obs_t*)env->agents[0].observations)[4] = env->theta1_dot / 8.0f;
+    ((obs_t*)env->agents[0].observations)[5] = sinf(env->theta2);
+    ((obs_t*)env->agents[0].observations)[6] = cosf(env->theta2);
+    ((obs_t*)env->agents[0].observations)[7] = env->theta2_dot / 8.0f;
 }
 
 void add_log(DoublePendulum* env, bool x_done, bool timeout) {
@@ -101,7 +111,7 @@ void init(DoublePendulum* env) {
     env->num_agents = 1;
 }
 
-void c_reset(DoublePendulum* env) {
+void puf_reset(DoublePendulum* env) {
     env->x = dp_randf(env, -0.04f, 0.04f);
     env->x_dot = dp_randf(env, -0.04f, 0.04f);
     env->theta1 = M_PI + dp_randf(env, -0.08f, 0.08f);
@@ -112,8 +122,8 @@ void c_reset(DoublePendulum* env) {
     env->episode_return = 0.0f;
     env->upright_steps = 0;
     env->max_upright_steps = 0;
-    env->rewards[0] = 0.0f;
-    env->terminals[0] = 0.0f;
+    env->agents[0].rewards[0] = 0.0f;
+    env->agents[0].terminals[0] = 0.0f;
     compute_observations(env);
 }
 
@@ -218,8 +228,8 @@ float upright_reward(DoublePendulum* env, float force) {
     return fminf(fmaxf(reward, 0.0f), 1.5f);
 }
 
-void c_step(DoublePendulum* env) {
-    float a = env->actions[0];
+void puf_step(DoublePendulum* env) {
+    float a = env->agents[0].actions[0];
     if (!isfinite(a)) a = 1.0f;
     int action = (int)a;
     if ((unsigned)action >= DP_ACTIONS) action = 1;
@@ -236,19 +246,19 @@ void c_step(DoublePendulum* env) {
     bool x_done = env->x < -DP_X_THRESHOLD || env->x > DP_X_THRESHOLD;
     bool timeout = env->tick >= DP_MAX_STEPS;
     bool done = invalid || x_done || timeout;
-    env->rewards[0] = upright_reward(env, force);
-    env->episode_return += env->rewards[0];
-    env->terminals[0] = (invalid || x_done) ? 1.0f : 0.0f;
+    env->agents[0].rewards[0] = upright_reward(env, force);
+    env->episode_return += env->agents[0].rewards[0];
+    env->agents[0].terminals[0] = (invalid || x_done) ? 1.0f : 0.0f;
 
     if (done) {
         add_log(env, invalid || x_done, timeout);
-        c_reset(env);
+        puf_reset(env);
         return;
     }
     compute_observations(env);
 }
 
-void c_render(DoublePendulum* env) {
+void puf_render(DoublePendulum* env) {
     if (!IsWindowReady()) {
         InitWindow(DP_WIDTH, DP_HEIGHT, "PufferLib Double Pendulum");
         SetTargetFPS(30);
@@ -285,8 +295,36 @@ void c_render(DoublePendulum* env) {
     EndDrawing();
 }
 
-void c_close(DoublePendulum* env) {
+void puf_close(DoublePendulum* env) {
     if (IsWindowReady()) {
         CloseWindow();
     }
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "score", log->score);
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "x_threshold_termination", log->x_threshold_termination);
+    dict_set(out, "max_steps_termination", log->max_steps_termination);
+    dict_set(out, "hold_time", log->hold_time);
+    dict_set(out, "n", log->n);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->cart_mass = dict_get(kwargs, "cart_mass");
+    env->link1_mass = dict_get(kwargs, "link1_mass");
+    env->link2_mass = dict_get(kwargs, "link2_mass");
+    env->link1_length = dict_get(kwargs, "link1_length");
+    env->link2_length = dict_get(kwargs, "link2_length");
+    env->gravity = dict_get(kwargs, "gravity");
+    env->force_mag = dict_get(kwargs, "force_mag");
+    env->dt = dict_get(kwargs, "dt");
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    init(env);
+}
+

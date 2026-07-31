@@ -3,6 +3,15 @@
 #include <string.h>
 #include <math.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {3}
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 
 #define MAX_OBSTACLES 9
 #define OBS_SIZE (5 + 3 * 9)
@@ -24,13 +33,13 @@
 #define JUMP 1
 #define CROUCH 2
 
-typedef struct {
+struct Log {
     float perf;
     float score;
     float episode_length;
     float episode_return;
     float n;
-} Log;
+};
 
 typedef struct {
     Texture2D dinosaur_up;
@@ -48,7 +57,7 @@ typedef struct {
     float width;
     float height;
     float x_offset;
-} Agent;
+} DinoAgent;
 
 enum ObstacleType {
     CACTUS,
@@ -63,18 +72,17 @@ typedef struct{
     enum ObstacleType type;
 } Obstacle;
 
-typedef struct {
+struct Env {
     /* Mandatory */
     Log log;
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
     unsigned int rng;
     int num_agents;
     /* Not customizable */
     Client* client;
-    Agent* agent;
+    DinoAgent* agent;
     Obstacle* obstacles;
     int num_obstacles;
     int speed;
@@ -90,7 +98,8 @@ typedef struct {
     int spawn_rate_min;
     int spawn_rate_max;
     int rate_increment_rate;
-} Dinosaur;
+};
+typedef Env Dinosaur;
 
 Client* make_client(Dinosaur* env){
     Client* client = (Client*)calloc(1, sizeof(Client));
@@ -106,10 +115,14 @@ Client* make_client(Dinosaur* env){
 }
 
 void allocate(Dinosaur* env) {
-	env->observations = (float *)calloc(OBS_SIZE, sizeof(float));
-	env->actions = (float *)calloc(1, sizeof(float));
-	env->rewards = (float *)calloc(1, sizeof(float));
-	env->terminals = (float *)calloc(1, sizeof(float));
+	env->agents[0].observations = (obs_t*)calloc(OBS_SIZE, sizeof(obs_t));
+	env->agents[0].actions = (float *)calloc(1, sizeof(float));
+	env->agents[0].rewards = (float *)calloc(1, sizeof(float));
+	env->agents[0].terminals = (float *)calloc(1, sizeof(float));
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    env->num_agents = 1;
+
 }
 
 void c_init(Dinosaur* env){
@@ -119,7 +132,7 @@ void c_init(Dinosaur* env){
     env->spawn_ticks = 0;
     env->max_obstacles = MAX_OBSTACLES;
 
-    env->agent = calloc(1, sizeof(Agent));
+    env->agent = (DinoAgent*)calloc(1, sizeof(DinoAgent));
     env->agent->x = 0.0f + 2.0f * PLAYER_WIDTH;
     env->agent->y = 0;
     env->agent->jump_strength = PLAYER_JUMP;
@@ -132,29 +145,29 @@ void c_init(Dinosaur* env){
 void compute_observations(Dinosaur* env) {
     int obs_idx = 0;
 
-    memset(env->observations, 0, OBS_SIZE * sizeof(float));
+    memset(((obs_t*)env->agents[0].observations), 0, OBS_SIZE * sizeof(float));
 
-    env->observations[obs_idx++] = env->agent->y / (pow(env->agent->jump_strength, 2) / (2 * env->gravity));
-    env->observations[obs_idx++] = env->agent->width / (PLAYER_WIDTH * 2.0f);
-    env->observations[obs_idx++] = env->agent->height / (float) PLAYER_HEIGHT;
-    env->observations[obs_idx++] = (float) env->speed / 10.0f;
-    env->observations[obs_idx++] = env->agent->ticks/100.0f;
+    ((obs_t*)env->agents[0].observations)[obs_idx++] = env->agent->y / (pow(env->agent->jump_strength, 2) / (2 * env->gravity));
+    ((obs_t*)env->agents[0].observations)[obs_idx++] = env->agent->width / (PLAYER_WIDTH * 2.0f);
+    ((obs_t*)env->agents[0].observations)[obs_idx++] = env->agent->height / (float) PLAYER_HEIGHT;
+    ((obs_t*)env->agents[0].observations)[obs_idx++] = (float) env->speed / 10.0f;
+    ((obs_t*)env->agents[0].observations)[obs_idx++] = env->agent->ticks/100.0f;
 
     for(int o = 0; o < env->max_obstacles; o++){
         if (o < env->num_obstacles) {
             Obstacle* obstacle = &env->obstacles[o];
-            env->observations[obs_idx++] = obstacle->type == CACTUS ? 0.0f : 1.0f;
-            env->observations[obs_idx++] = ((obstacle->x - env->agent->x) / env->width);
-            env->observations[obs_idx++] = obstacle->y/(env->height / 2.0f);
+            ((obs_t*)env->agents[0].observations)[obs_idx++] = obstacle->type == CACTUS ? 0.0f : 1.0f;
+            ((obs_t*)env->agents[0].observations)[obs_idx++] = ((obstacle->x - env->agent->x) / env->width);
+            ((obs_t*)env->agents[0].observations)[obs_idx++] = obstacle->y/(env->height / 2.0f);
         } else {
-            env->observations[obs_idx++] = -1.0f;
-            env->observations[obs_idx++] = 0.0f;
-            env->observations[obs_idx++] = 0.0f;
+            ((obs_t*)env->agents[0].observations)[obs_idx++] = -1.0f;
+            ((obs_t*)env->agents[0].observations)[obs_idx++] = 0.0f;
+            ((obs_t*)env->agents[0].observations)[obs_idx++] = 0.0f;
         }
     }
 }
 
-void c_reset(Dinosaur* env){
+void puf_reset(Dinosaur* env){
     env->speed = env->speed_init;
     env->spawn_rate = 1;
     env->spawn_ticks = 0;
@@ -173,7 +186,7 @@ void c_reset(Dinosaur* env){
 }
 
 void process_input(Dinosaur* env){
-    int action = (int)env->actions[0];
+    int action = (int)env->agents[0].actions[0];
     switch(action){
         case NOOP:
             env->agent->y_velocity = -env->agent->jump_strength;
@@ -224,15 +237,15 @@ void process_obstacle_collisions(Dinosaur* env){
         bool colliding_y = ((agent_y_max <= obstacle_y_max && agent_y_max >= obstacle_y_min) || (agent_y_min <= obstacle_y_max && agent_y_min >= obstacle_y_min));
         
         if(colliding_x && colliding_y){
-            *env->terminals = 1.0f;
-            *env->rewards -= 1.0f;
+            *env->agents[0].terminals = 1.0f;
+            *env->agents[0].rewards -= 1.0f;
 
             env->log.episode_return += env->agent->ticks / 100.0f - 1.0f;
             env->log.episode_length += env->agent->ticks;
             env->log.score += env->agent->ticks / 100.0f - 1.0f;
             env->log.perf += env->agent->ticks / 100.0f - 1.0f;
             env->log.n += 1;
-            c_reset(env);
+            puf_reset(env);
             return;
         }
 
@@ -242,7 +255,7 @@ void process_obstacle_collisions(Dinosaur* env){
                 env->obstacles[j] = env->obstacles[j+1];
             }
             env->num_obstacles--;
-            env->obstacles = realloc(env->obstacles, env->num_obstacles * sizeof(Obstacle));
+            env->obstacles = (Obstacle*)realloc(env->obstacles, env->num_obstacles * sizeof(Obstacle));
             o--;
         }
     }
@@ -263,7 +276,7 @@ void process_obstacle_spawns(Dinosaur* env){
 
             for(int i  = 0; i < spawn_rng; i++){
                 env->num_obstacles++;
-                env->obstacles = realloc(env->obstacles, env->num_obstacles * sizeof(Obstacle));
+                env->obstacles = (Obstacle*)realloc(env->obstacles, env->num_obstacles * sizeof(Obstacle));
                 env->obstacles[env->num_obstacles-1] = (Obstacle) {
                     .x = env->width + i * (CACTUS_WIDTH + 10.0f),
                     .y = 0,
@@ -274,7 +287,7 @@ void process_obstacle_spawns(Dinosaur* env){
             }
         } else if (env->num_obstacles <= env->max_obstacles){
             env->num_obstacles++;
-            env->obstacles = realloc(env->obstacles, env->num_obstacles * sizeof(Obstacle));
+            env->obstacles = (Obstacle*)realloc(env->obstacles, env->num_obstacles * sizeof(Obstacle));
             env->obstacles[env->num_obstacles-1] = (Obstacle) {
                 .x = env->width + BIRD_WIDTH + 10.0f,
                 .y = BIRD_Y,
@@ -289,11 +302,11 @@ void process_obstacle_spawns(Dinosaur* env){
     }
 }
 
-void c_step(Dinosaur* env){
+void puf_step(Dinosaur* env){
     env->agent->ticks += 1;
     env->spawn_ticks += 1;
-    *env->rewards += 0.01f;
-    *env->terminals = 0.0f;
+    *env->agents[0].rewards += 0.01f;
+    *env->agents[0].terminals = 0.0f;
 
     process_input(env);
     process_gravity(env);
@@ -307,7 +320,7 @@ void c_step(Dinosaur* env){
     compute_observations(env);
 }
 
-void c_render(Dinosaur* env){
+void puf_render(Dinosaur* env){
     if(env->client == NULL) {
         env->client = make_client(env);
     }
@@ -341,7 +354,7 @@ void c_render(Dinosaur* env){
     }
 
     Texture2D tex;
-    int action = (int)env->actions[0];
+    int action = (int)env->agents[0].actions[0];
     switch(action){
         case NOOP:
         case JUMP:
@@ -368,7 +381,7 @@ void c_render(Dinosaur* env){
     EndDrawing();
 }
 
-void c_close(Dinosaur* env){
+void puf_close(Dinosaur* env){
     free(env->agent);
     free(env->obstacles);
     if(env->client != NULL){
@@ -379,3 +392,26 @@ void c_close(Dinosaur* env){
         free(env->client);
     }
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->width = dict_get(kwargs, "width");
+    env->height = dict_get(kwargs, "height");
+    env->speed_init = dict_get(kwargs, "speed_init");
+    env->speed_max = dict_get(kwargs, "speed_max");
+    env->spawn_rate_min = dict_get(kwargs, "spawn_rate_min");
+    env->spawn_rate_max = dict_get(kwargs, "spawn_rate_max");
+    env->rate_increment_rate = dict_get(kwargs, "rate_increment_rate");
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    c_init(env);
+}
+

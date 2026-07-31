@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
            num_envs, threads, compute, bandwidth);
 
     unsigned char* observations = (unsigned char*)calloc(num_envs*bandwidth, sizeof(unsigned char));
-    double* actions = (double*)calloc(num_envs, sizeof(double));
+    float* actions = (float*)calloc(num_envs, sizeof(float));
     float* rewards = (float*)calloc(num_envs, sizeof(float));
     float* terminals = (float*)calloc(num_envs, sizeof(float));
 
@@ -37,11 +37,16 @@ int main(int argc, char** argv) {
     for (int i = 0; i < num_envs; i++) {
         envs[i].bandwidth = bandwidth;
         envs[i].compute = compute;
+        envs[i].num_agents = 1;
         envs[i].observations = observations + i * bandwidth;
         envs[i].actions = actions + i;
         envs[i].rewards = rewards + i;
         envs[i].terminals = terminals + i;
-        c_reset(&envs[i]);
+        envs[i].agents[0].observations = envs[i].observations;
+        envs[i].agents[0].actions = envs[i].actions;
+        envs[i].agents[0].rewards = envs[i].rewards;
+        envs[i].agents[0].terminals = envs[i].terminals;
+        puf_reset(&envs[i]);
     }
 
     // Warmup
@@ -49,11 +54,11 @@ int main(int argc, char** argv) {
         if (threads > 0) {
             #pragma omp parallel for schedule(static)
             for (int i = 0; i < num_envs; i++) {
-                c_step(&envs[i]);
+                puf_step(&envs[i]);
             }
         } else {
             for (int i = 0; i < num_envs; i++) {
-                c_step(&envs[i]);
+                puf_step(&envs[i]);
             }
         }
     }
@@ -64,11 +69,11 @@ int main(int argc, char** argv) {
         if (threads > 0) {
             #pragma omp parallel for schedule(static)
             for (int i = 0; i < num_envs; i++) {
-                c_step(&envs[i]);
+                puf_step(&envs[i]);
             }
         } else {
             for (int i = 0; i < num_envs; i++) {
-                c_step(&envs[i]);
+                puf_step(&envs[i]);
             }
         }
         num_steps += num_envs;

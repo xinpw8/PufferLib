@@ -2,6 +2,16 @@
 #include <math.h>
 #include "raylib.h"
 #include <stdio.h>
+#include "pufferenv.h"
+
+#define ACT_SIZES {14}
+#define OBS_SIZE 114
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 
 #define SELECT_CARD_1 0
 #define SELECT_CARD_2 1
@@ -37,14 +47,12 @@ struct Log {
 };
 
 typedef struct Client Client;
-typedef struct CTripleTriad CTripleTriad;
-struct CTripleTriad {
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
+struct Env {
     int num_agents;
     Log log;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
     int card_width;
     int card_height;
     float* board_x;
@@ -67,6 +75,7 @@ struct CTripleTriad {
     Client* client;
     unsigned int rng;
 };
+typedef Env CTripleTriad;
 
 void add_log(CTripleTriad* env) {
     env->log.perf += env->perf;
@@ -173,14 +182,18 @@ void init_ctripletriad(CTripleTriad* env) {
 }
 
 void allocate_ctripletriad(CTripleTriad* env) {
-    env->actions = (float*)calloc(1, sizeof(float));
-    env->observations = (float*)calloc(env->width*env->height, sizeof(float));
-    env->terminals = (float*)calloc(1, sizeof(float));
-    env->rewards = (float*)calloc(1, sizeof(float));
+    env->agents[0].actions = (float*)calloc(1, sizeof(float));
+    env->agents[0].observations = (obs_t*)calloc(env->width*env->height, sizeof(obs_t));
+    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
+    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
     init_ctripletriad(env);
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    env->num_agents = 1;
+
 }
 
-void c_close(CTripleTriad* env) {
+void puf_close(CTripleTriad* env) {
     free(env->board_x);
     free(env->board_y);
     for(int i=0; i< 2; i++) {
@@ -209,38 +222,38 @@ void c_close(CTripleTriad* env) {
 }
 
 void free_allocated_ctripletriad(CTripleTriad* env) {
-    free(env->actions);
-    free(env->observations);
-    free(env->terminals);
-    free(env->rewards);
-    c_close(env);
+    free(env->agents[0].actions);
+    free(env->agents[0].observations);
+    free(env->agents[0].terminals);
+    free(env->agents[0].rewards);
+    puf_close(env);
 }
 
 void compute_observations(CTripleTriad* env) {
     int idx=0;
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-            env->observations[idx] = env->board_states[i][j];
+            ((obs_t*)env->agents[0].observations)[idx] = env->board_states[i][j];
             idx++;
         }
     }
     for (int i = 0; i < 15; i++) {
-        env->observations[idx] = env->action_masks[i];
+        ((obs_t*)env->agents[0].observations)[idx] = env->action_masks[i];
         idx++;
     }
 
     for (int i = 0; i < 2; i++) {
-        env->observations[idx] = env->card_selected[i];
+        ((obs_t*)env->agents[0].observations)[idx] = env->card_selected[i];
         idx++;
     }
     for (int i = 0; i < 2; i++) {
-        env->observations[idx] = env->score[i];
+        ((obs_t*)env->agents[0].observations)[idx] = env->score[i];
         idx++;
     }
     for (int i=0;i<3;i++) {
         for (int j=0;j<3;j++) {
             for (int k=0;k<4;k++) {
-                env->observations[idx] = env->board_card_values[i][j][k];
+                ((obs_t*)env->agents[0].observations)[idx] = env->board_card_values[i][j][k];
                 idx++;
             }
         }
@@ -248,20 +261,20 @@ void compute_observations(CTripleTriad* env) {
     for (int i=0;i<2;i++){
         for (int j=0;j<5;j++) {
             for (int k=0;k<4;k++) {
-                env->observations[idx] = env->cards_in_hand[i][j][k];
+                ((obs_t*)env->agents[0].observations)[idx] = env->cards_in_hand[i][j][k];
                 idx++;
             }
         }
     }
     for (int i=0;i<2;i++) {
         for (int j=0;j<5;j++) {
-            env->observations[idx] = env->card_locations[i][j];
+            ((obs_t*)env->agents[0].observations)[idx] = env->card_locations[i][j];
             idx++;
         }
     }
 }
 
-void c_reset(CTripleTriad* env) {
+void puf_reset(CTripleTriad* env) {
     env->game_over = 0;
     for(int i=0; i< 2; i++) {
         for(int j=0; j< 5; j++) {
@@ -296,7 +309,7 @@ void c_reset(CTripleTriad* env) {
     for(int i=0; i< 2; i++) {
         env->score[i] = 5;
     }
-    env->terminals[0] = 0;
+    env->agents[0].terminals[0] = 0;
     compute_observations(env);
     env->tick = 0;
     env->episode_length = 0;
@@ -352,13 +365,13 @@ void check_win_condition(CTripleTriad* env, int player) {
     if (count == 9) {
         // add a draw condition and winner value is 0
         if (env->score[0] == env->score[1]) {
-            env->terminals[0] = 1;
-            env->rewards[0] = 0.0;
+            env->agents[0].terminals[0] = 1;
+            env->agents[0].rewards[0] = 0.0;
             env->game_over = 1;
         } else {
             int winner = env->score[0] > env->score[1] ? 1 : -1;
-            env->terminals[0] = 1;
-            env->rewards[0] = winner; // 1 for player win, -1 for opponent win
+            env->agents[0].terminals[0] = 1;
+            env->agents[0].rewards[0] = winner; // 1 for player win, -1 for opponent win
             env->episode_return += winner;
             env->game_over = 1;
         }
@@ -459,29 +472,29 @@ void check_card_conversions(CTripleTriad* env, int card_placement, int player) {
     }
 }
 
-void c_step(CTripleTriad* env) {
+void puf_step(CTripleTriad* env) {
     env->episode_length += 1;
-    env->rewards[0] = 0.0;
-    int action = env->actions[0];
+    env->agents[0].rewards[0] = 0.0;
+    int action = env->agents[0].actions[0];
 
     if (env->episode_length >= MAX_EPISODE_LENGTH) {
         env->game_over = 1;
         env->episode_return -= 1.0;
-        env->rewards[0] -= 1.0;
+        env->agents[0].rewards[0] -= 1.0;
     }
 
     // reset the game if game over
     if (env->game_over == 1) {
         env->perf = (env->score[0] > env->score[1]) ? 1.0 : 0.0;
         add_log(env);
-        c_reset(env);
+        puf_reset(env);
         return;
     }
     // select a card if the card is in the range of 1-5 and the card is not placed
     if (action >= SELECT_CARD_1 && action <= SELECT_CARD_5 ) {
         // Prevent model from just swapping between selected cards to avoid playing
         env->episode_return -= 0.1;
-        env->rewards[0] -= 0.1;
+        env->agents[0].rewards[0] -= 0.1;
 
         int card_selected = action + 1;
         
@@ -503,15 +516,15 @@ void c_step(CTripleTriad* env) {
                 card_placed = true;
             } else {
                 env->episode_return -= 0.1;
-                env->rewards[0] -= 0.1;
+                env->agents[0].rewards[0] -= 0.1;
             }
         } else {
             env->episode_return -= 0.1;
-            env->rewards[0] -= 0.1;
+            env->agents[0].rewards[0] -= 0.1;
         }
 
         // opponent turn 
-        if (env->terminals[0] == 0 && card_placed == true ) {
+        if (env->agents[0].terminals[0] == 0 && card_placed == true ) {
             int bot_card_selected = get_bot_card_selection(env);
             if(bot_card_selected > 0) {
                 select_card(env,bot_card_selected, -1);
@@ -525,7 +538,7 @@ void c_step(CTripleTriad* env) {
             
         }
     }
-    if (env->terminals[0] == 1) {
+    if (env->agents[0].terminals[0] == 1) {
         env->game_over=1;
     }
     compute_observations(env);
@@ -548,7 +561,7 @@ Client* make_client(int width, int height) {
     return client;
 }
 
-void c_render(CTripleTriad* env) {
+void puf_render(CTripleTriad* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
@@ -653,3 +666,24 @@ void close_client(Client* client) {
     CloseWindow();
     free(client);
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->width = dict_get(kwargs, "width");
+    env->height = dict_get(kwargs, "height");
+    env->card_width = dict_get(kwargs, "card_width");
+    env->card_height = dict_get(kwargs, "card_height");
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    init_ctripletriad(env);
+}
+

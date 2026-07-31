@@ -879,7 +879,7 @@ void allocate_mmo(MMO* env) {
     init(env);
 }
 
-void c_close(MMO* env) {
+void puf_close(MMO* env) {
     free(env->counts);
     free(env->terrain);
     free(env->rendered);
@@ -901,16 +901,7 @@ void free_allocated_mmo(MMO* env) {
     free(env->enemies);
     free(env->actions);
     free(env->agents);
-    c_close(env);
-}
-
-void puf_close(Env* env) {
-    free(env->returns);
-    free(env->reward_struct);
-    free(env->players);
-    free(env->enemies);
-    free(env->agents);
-    c_close(env);
+    puf_close(env);
 }
 
 bool is_buy(int mode) {
@@ -1929,8 +1920,6 @@ void puf_reset(Env* env) {
     compute_all_obs(env);
 }
 
-#define c_reset puf_reset
-
 void puf_step(Env* env) {
     sync_mmo_agent_buffers(env);
 
@@ -2225,8 +2214,6 @@ void puf_step(Env* env) {
     }
 }
 
-#define c_step puf_step
-
 #define FRAME_RATE 60
 #define TICK_FRAMES 36
 #define DELAY_FRAMES 24
@@ -2308,6 +2295,7 @@ struct Client {
     int my_player;
     int start_time;
     int frame;
+    int last_action;
 };
 
 #define TILE_SPRING_GRASS 0
@@ -3211,7 +3199,7 @@ void process_command_input(Client* client, MMO* env) {
     DrawText(text, 10, 10, 20, BLACK);
 }
 
-int c_render(MMO* env) {
+void puf_render(MMO* env) {
     if (env->client == NULL) {
         // Must reset before making client
         env->client = make_client(env);
@@ -3264,9 +3252,6 @@ int c_render(MMO* env) {
     if (client->frame >= 36) {
         client->frame = 0;
     }
-    return action;
+    client->last_action = action;
 }
 
-void puf_render(Env* env) {
-    c_render(env);
-}

@@ -379,7 +379,7 @@ int boxoban_set_map_path(const char *path) {
         return 0;
     }
 
-    char* copied = malloc(strlen(path) + 1);
+    char* copied = (char*)malloc(strlen(path) + 1);
     if (copied == NULL) {
         return -1;
     }
@@ -439,7 +439,7 @@ void ensure_map_loaded(void) {
     }
     PUZZLE_COUNT = MAP_FILESIZE / PUZZLE_SIZE;
 
-    MAP_BASE = mmap(NULL, MAP_FILESIZE, PROT_READ, MAP_PRIVATE, fd, 0);
+    MAP_BASE = (uint8_t*)mmap(NULL, MAP_FILESIZE, PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
 
     if (MAP_BASE == MAP_FAILED) {

@@ -81,7 +81,7 @@
      CloseWindow();
  }
  
- void c_render(Overcooked* env) {
+ void puf_render(Overcooked* env) {
      if (env->client == NULL) {
          int window_width = env->width * env->grid_size + 350;
          int window_height = env->height * env->grid_size + 80;
@@ -305,7 +305,7 @@
      }
  
      for (int agent_idx = 0; agent_idx < env->num_agents; agent_idx++) {
-         Agent* agent = &env->agents[agent_idx];
+         Chef* agent = &env->chefs[agent_idx];
          Texture2D* chef_texture = NULL;
  
          if (agent->held_item == NO_ITEM) {
@@ -408,7 +408,7 @@
      int obs_panel_y = grid_offset_y;
  
      if (env->num_agents > 0) {
-         float* obs = &env->observations[0];
+         float* obs = (float*)env->agents[0].observations;
  
          DrawText("=== OBSERVATION ARRAY (43 dims) ===", obs_panel_x, obs_panel_y, 11, BLACK);
          obs_panel_y += 18;

@@ -3,6 +3,16 @@
 #include <math.h>
 #include <time.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {TOTAL_CELLS}
+#define OBS_SIZE TOTAL_CELLS
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 
 #define GRID_SIZE 5
 #define TOTAL_CELLS (GRID_SIZE * GRID_SIZE)
@@ -10,13 +20,13 @@
 #define NOOP -1.0f
 #define ATTEMPTS_PER_EPISODE 3
 
-typedef struct {
+struct Log {
     float perf;
     float score;
     float episode_return;
     float episode_length;
     float n;
-} Log;
+};
 
 typedef struct {
     Texture2D puffer;
@@ -27,12 +37,11 @@ typedef struct {
     bool show_flash;    
 } Client;
 
-typedef struct {
+struct Env {
     Log log;
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
     int num_agents;
     unsigned int rng;
     int mole_r;
@@ -40,27 +49,28 @@ typedef struct {
     int hits;
     int tick;
     Client* client;
-} Whackamole;
+};
+typedef Env Whackamole;
 
 void add_log(Whackamole* env) {
-    env->log.perf += (env->rewards[0] > 0) ? 1.0f : 0.0f;
-    env->log.score += env->rewards[0];
+    env->log.perf += (env->agents[0].rewards[0] > 0) ? 1.0f : 0.0f;
+    env->log.score += env->agents[0].rewards[0];
     env->log.episode_length += env->tick;
-    env->log.episode_return += env->rewards[0];
+    env->log.episode_return += env->agents[0].rewards[0];
     env->log.n += 1.0f;
 }
 
-void c_reset(Whackamole* env) {
-    memset(env->observations, 0, sizeof(float) * TOTAL_CELLS);
+void puf_reset(Whackamole* env) {
+    memset(((obs_t*)env->agents[0].observations), 0, sizeof(float) * TOTAL_CELLS);
     
     int mole_idx = rand_r(&env->rng) % TOTAL_CELLS;
-    env->observations[mole_idx] = 1.0f;
+    ((obs_t*)env->agents[0].observations)[mole_idx] = 1.0f;
     env->mole_r = mole_idx / GRID_SIZE;
     env->mole_c = mole_idx % GRID_SIZE;
     
     env->tick = 0;
-    env->rewards[0] = 0.0f;
-    env->terminals[0] = 0.0f;
+    env->agents[0].rewards[0] = 0.0f;
+    env->agents[0].terminals[0] = 0.0f;
     
     if (env->client != NULL) {
         env->client->show_flash = false;
@@ -68,10 +78,10 @@ void c_reset(Whackamole* env) {
     }
 }
 
-void c_step(Whackamole* env) {
+void puf_step(Whackamole* env) {
     env->tick += 1;
     
-    int action = (int)env->actions[0];
+    int action = (int)env->agents[0].actions[0];
     int mole_idx = env->mole_r * GRID_SIZE + env->mole_c;
     
     if (env->client != NULL) {
@@ -79,9 +89,9 @@ void c_step(Whackamole* env) {
     }
     
     if (action == (int)NOOP || action < 0 || action >= TOTAL_CELLS) {
-        env->rewards[0] = 0.0f;
+        env->agents[0].rewards[0] = 0.0f;
     } else if (action == mole_idx) {
-        env->rewards[0] = 1.0f;
+        env->agents[0].rewards[0] = 1.0f;
         env->hits += 1;
         // Flash GREEN for hit
         if (env->client != NULL) {
@@ -95,7 +105,7 @@ void c_step(Whackamole* env) {
         int action_r = action / GRID_SIZE;
         int action_c = action % GRID_SIZE;
         int dist = abs(action_r - env->mole_r) + abs(action_c - env->mole_c);
-        env->rewards[0] = fmaxf(0.0f, 1.0f - dist * 0.25f);
+        env->agents[0].rewards[0] = fmaxf(0.0f, 1.0f - dist * 0.25f);
         // Flash RED for miss
         if (env->client != NULL) {
             env->client->flash_color = (Color){255, 0, 0, 180};
@@ -107,21 +117,21 @@ void c_step(Whackamole* env) {
     }
     
     if (env->tick >= ATTEMPTS_PER_EPISODE) {
-        env->terminals[0] = 1.0f;
+        env->agents[0].terminals[0] = 1.0f;
         add_log(env);
-        c_reset(env);
+        puf_reset(env);
     } else {
-        env->terminals[0] = 0.0f;
+        env->agents[0].terminals[0] = 0.0f;
         // Move puffre for next attempt
         int new_idx = rand_r(&env->rng) % TOTAL_CELLS;
-        env->observations[mole_idx] = 0.0f;
-        env->observations[new_idx] = 1.0f;
+        ((obs_t*)env->agents[0].observations)[mole_idx] = 0.0f;
+        ((obs_t*)env->agents[0].observations)[new_idx] = 1.0f;
         env->mole_r = new_idx / GRID_SIZE;
         env->mole_c = new_idx % GRID_SIZE;
     }
 }
 
-void c_render(Whackamole* env) {
+void puf_render(Whackamole* env) {
     if (!IsWindowReady()) {
         InitWindow(CELL_SIZE * GRID_SIZE, CELL_SIZE * GRID_SIZE, "PufferLib WhacKe-a-PUFFER");
         SetTargetFPS(60);
@@ -183,7 +193,7 @@ void c_render(Whackamole* env) {
     EndDrawing();
 }
 
-void c_close(Whackamole* env) {
+void puf_close(Whackamole* env) {
     if (env->client != NULL) {
         if (env->client->puffer.id > 0) {
             UnloadTexture(env->client->puffer);
@@ -195,3 +205,21 @@ void c_close(Whackamole* env) {
         CloseWindow();
     }
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    (void)kwargs;
+    env->num_agents = 1;
+    env->hits = 0;
+    env->tick = 0;
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+}
+

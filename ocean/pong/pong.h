@@ -2,6 +2,16 @@
 #include <stdbool.h>
 #include <math.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {3}
+#define OBS_SIZE 8
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 
 typedef struct Log Log;
 struct Log {
@@ -13,15 +23,13 @@ struct Log {
 };
 
 typedef struct Client Client;
-typedef struct Pong Pong;
-struct Pong {
+struct Env {
     Client* client;
     Log log;
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
+    Agent agents[1];
     int num_agents;
+    int tag;
+    int boundary_reached;
     float paddle_yl;
     float paddle_yr;
     float ball_x;
@@ -52,36 +60,37 @@ struct Pong {
     int continuous;
     unsigned int rng;
 };
+typedef Env Pong;
 
 void init(Pong* env) {
-    // logging
     env->tick = 0;
     env->n_bounces = 0;
     env->win = 0;
-
-    // precompute
     env->min_paddle_y = -env->paddle_height / 2;
-    env->max_paddle_y = env->height - env->paddle_height/2;
-    
+    env->max_paddle_y = env->height - env->paddle_height / 2;
     env->paddle_dir = 0;
 }
 
 void allocate(Pong* env) {
     init(env);
-    env->observations = (float*)calloc(8, sizeof(float));
-    env->actions = (float*)calloc(1, sizeof(float));
-    env->rewards = (float*)calloc(1, sizeof(float));
-    env->terminals = (float*)calloc(1, sizeof(float));
+    env->agents[0].observations = (obs_t*)calloc(OBS_SIZE, sizeof(obs_t));
+    env->agents[0].actions = (float*)calloc(NUM_ATNS, sizeof(float));
+    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    env->num_agents = 1;
 }
 
 void free_allocated(Pong* env) {
-    free(env->observations);
-    free(env->actions);
-    free(env->rewards);
-    free(env->terminals);
+    free(env->agents[0].observations);
+    free(env->agents[0].actions);
+    free(env->agents[0].rewards);
+    free(env->agents[0].terminals);
 }
 
-void c_close(Pong* env) {
+void puf_close(Pong* env) {
+    (void)env;
 }
 
 void add_log(Pong* env) {
@@ -94,14 +103,15 @@ void add_log(Pong* env) {
 }
 
 void compute_observations(Pong* env) {
-    env->observations[0] = (env->paddle_yl - env->min_paddle_y) / (env->max_paddle_y - env->min_paddle_y);
-    env->observations[1] = (env->paddle_yr - env->min_paddle_y) / (env->max_paddle_y - env->min_paddle_y);
-    env->observations[2] = env->ball_x / env->width;
-    env->observations[3] = env->ball_y / env->height;
-    env->observations[4] = (env->ball_vx + env->ball_initial_speed_x) / (2 * env->ball_initial_speed_x);
-    env->observations[5] = (env->ball_vy + env->ball_max_speed_y) / (2 * env->ball_max_speed_y);
-    env->observations[6] = env->score_l / env->max_score;
-    env->observations[7] = env->score_r / env->max_score;
+    obs_t* obs = (obs_t*)env->agents[0].observations;
+    obs[0] = (env->paddle_yl - env->min_paddle_y) / (env->max_paddle_y - env->min_paddle_y);
+    obs[1] = (env->paddle_yr - env->min_paddle_y) / (env->max_paddle_y - env->min_paddle_y);
+    obs[2] = env->ball_x / env->width;
+    obs[3] = env->ball_y / env->height;
+    obs[4] = (env->ball_vx + env->ball_initial_speed_x) / (2 * env->ball_initial_speed_x);
+    obs[5] = (env->ball_vy + env->ball_max_speed_y) / (2 * env->ball_max_speed_y);
+    obs[6] = env->score_l / env->max_score;
+    obs[7] = env->score_r / env->max_score;
 }
 
 void reset_round(Pong* env) {
@@ -115,71 +125,65 @@ void reset_round(Pong* env) {
     env->n_bounces = 0;
 }
 
-void c_reset(Pong* env) {
+void puf_reset(Pong* env) {
     reset_round(env);
     env->score_l = 0;
     env->score_r = 0;
     compute_observations(env);
 }
 
-void c_step(Pong* env) {
+void puf_step(Pong* env) {
     env->tick += 1;
-    env->rewards[0] = 0;
-    env->terminals[0] = 0;
-    // move ego paddle
+    env->agents[0].rewards[0] = 0;
+    env->agents[0].terminals[0] = 0;
+    float* actions = env->agents[0].actions;
+    float* rewards = env->agents[0].rewards;
+    float* terminals = env->agents[0].terminals;
+
     if (env->continuous) {
-        env->paddle_dir = env->actions[0];
+        env->paddle_dir = actions[0];
     } else {
-        float act = env->actions[0];
+        float act = actions[0];
         env->paddle_dir = 0;
-        if (act == 0.0) { // still
+        if (act == 0.0) {
             env->paddle_dir = 0;
-        } else if (act == 1.0) { // up
+        } else if (act == 1.0) {
             env->paddle_dir = 1;
-        } else if (act == 2.0) { // down
+        } else if (act == 2.0) {
             env->paddle_dir = -1;
         }
     }
 
     for (int i = 0; i < env->frameskip; i++) {
         env->paddle_yr += env->paddle_speed * env->paddle_dir;
-        
-        // move opponent paddle
+
         float opp_paddle_delta = env->ball_y - (env->paddle_yl + env->paddle_height / 2);
         opp_paddle_delta = fminf(fmaxf(opp_paddle_delta, -env->paddle_speed), env->paddle_speed);
         env->paddle_yl += opp_paddle_delta;
 
-        // clip paddles
-        env->paddle_yr = fminf(fmaxf(
-            env->paddle_yr, env->min_paddle_y), env->max_paddle_y);
-        env->paddle_yl = fminf(fmaxf(
-            env->paddle_yl, env->min_paddle_y), env->max_paddle_y);
+        env->paddle_yr = fminf(fmaxf(env->paddle_yr, env->min_paddle_y), env->max_paddle_y);
+        env->paddle_yl = fminf(fmaxf(env->paddle_yl, env->min_paddle_y), env->max_paddle_y);
 
-        // move ball
         env->ball_x += env->ball_vx;
         env->ball_y += env->ball_vy;
 
-        // handle collision with top & bottom walls
         if (env->ball_y < 0 || env->ball_y + env->ball_height > env->height) {
             env->ball_vy = -env->ball_vy;
         }
 
-        // handle collision on left
         if (env->ball_x < 0) {
-            if (env->ball_y + env->ball_height > env->paddle_yl && \
+            if (env->ball_y + env->ball_height > env->paddle_yl &&
                 env->ball_y < env->paddle_yl + env->paddle_height) {
-                // collision with paddle
                 env->ball_vx = -env->ball_vx;
                 env->n_bounces += 1;
             } else {
-                // collision with wall: WIN
                 env->win = 1;
                 env->score_r += 1;
-                env->rewards[0] = 1; // agent wins
+                rewards[0] = 1;
                 if (env->score_r == env->max_score) {
-                    env->terminals[0] = 1;
+                    terminals[0] = 1;
                     add_log(env);
-                    c_reset(env);
+                    puf_reset(env);
                     return;
                 } else {
                     reset_round(env);
@@ -189,28 +193,24 @@ void c_step(Pong* env) {
             }
         }
 
-        // handle collision on right (TODO duplicated code)
         if (env->ball_x + env->ball_width > env->width) {
-            if (env->ball_y + env->ball_height > env->paddle_yr && \
+            if (env->ball_y + env->ball_height > env->paddle_yr &&
                 env->ball_y < env->paddle_yr + env->paddle_height) {
-                // collision with paddle
                 env->ball_vx = -env->ball_vx;
                 env->n_bounces += 1;
-                // ball speed change
                 env->ball_vy += env->ball_speed_y_increment * env->paddle_dir;
                 env->ball_vy = fminf(fmaxf(env->ball_vy, -env->ball_max_speed_y), env->ball_max_speed_y);
-                if (fabsf(env->ball_vy) < 0.01) { // we dont want a horizontal ball
+                if (fabsf(env->ball_vy) < 0.01) {
                     env->ball_vy = env->ball_speed_y_increment;
                 }
             } else {
-                // collision with wall: LOSE
                 env->win = 0;
                 env->score_l += 1;
-                env->rewards[0] = -1.0;
+                rewards[0] = -1.0;
                 if (env->score_l == env->max_score) {
-                    env->terminals[0] = 1;
+                    terminals[0] = 1;
                     add_log(env);
-                    c_reset(env);
+                    puf_reset(env);
                     return;
                 } else {
                     reset_round(env);
@@ -219,7 +219,6 @@ void c_step(Pong* env) {
                 }
             }
 
-            // clip ball
             env->ball_x = fminf(fmaxf(env->ball_x, 0), env->width - env->ball_width);
             env->ball_y = fminf(fmaxf(env->ball_y, 0), env->height - env->ball_height);
         }
@@ -250,12 +249,12 @@ Client* make_client(Pong* env) {
     client->paddle_height = env->paddle_height;
     client->ball_width = env->ball_width;
     client->ball_height = env->ball_height;
-    client->x_pad = 3*client->paddle_width;
+    client->x_pad = 3 * client->paddle_width;
     client->paddle_left_color = (Color){255, 0, 0, 255};
     client->paddle_right_color = (Color){0, 255, 255, 255};
     client->ball_color = (Color){255, 255, 255, 255};
 
-    InitWindow(env->width + 2*client->x_pad, env->height, "PufferLib Pong");
+    InitWindow(env->width + 2 * client->x_pad, env->height, "PufferLib Pong");
     SetTargetFPS(60 / env->frameskip);
 
     client->ball = LoadTexture("resources/shared/puffers_128.png");
@@ -267,7 +266,7 @@ void close_client(Client* client) {
     free(client);
 }
 
-void c_render(Pong* env) {
+void puf_render(Pong* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
@@ -280,7 +279,6 @@ void c_render(Pong* env) {
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});
 
-    // Draw left paddle
     DrawRectangle(
         client->x_pad - client->paddle_width,
         client->height - env->paddle_yl - client->paddle_height,
@@ -289,7 +287,6 @@ void c_render(Pong* env) {
         client->paddle_left_color
     );
 
-    // Draw right paddle
     DrawRectangle(
         client->width + client->x_pad,
         client->height - env->paddle_yr - client->paddle_height,
@@ -298,7 +295,6 @@ void c_render(Pong* env) {
         client->paddle_right_color
     );
 
-    // Draw ball
     DrawTexturePro(
         client->ball,
         (Rectangle){
@@ -316,9 +312,6 @@ void c_render(Pong* env) {
         WHITE
     );
 
-    //DrawFPS(10, 10);
-
-    // Draw scores
     DrawText(
         TextFormat("%i", env->score_l),
         client->width / 2 + client->x_pad - 50 - MeasureText(TextFormat("%i", env->score_l), 30) / 2,
@@ -331,4 +324,31 @@ void c_render(Pong* env) {
     );
 
     EndDrawing();
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->width = dict_get(kwargs, "width");
+    env->height = dict_get(kwargs, "height");
+    env->paddle_width = dict_get(kwargs, "paddle_width");
+    env->paddle_height = dict_get(kwargs, "paddle_height");
+    env->ball_width = dict_get(kwargs, "ball_width");
+    env->ball_height = dict_get(kwargs, "ball_height");
+    env->paddle_speed = dict_get(kwargs, "paddle_speed");
+    env->ball_initial_speed_x = dict_get(kwargs, "ball_initial_speed_x");
+    env->ball_initial_speed_y = dict_get(kwargs, "ball_initial_speed_y");
+    env->ball_max_speed_y = dict_get(kwargs, "ball_max_speed_y");
+    env->ball_speed_y_increment = dict_get(kwargs, "ball_speed_y_increment");
+    env->max_score = dict_get(kwargs, "max_score");
+    env->frameskip = dict_get(kwargs, "frameskip");
+    env->continuous = dict_get(kwargs, "continuous");
+    env->agents[0].policy = 0;
+    init(env);
 }

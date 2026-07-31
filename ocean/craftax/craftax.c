@@ -33,13 +33,13 @@ int main(int argc, char** argv) {
     env.rng = (uint32_t)seed;
 
     // Minimal buffers for a single agent
-    env.observations = calloc(CRAFTAX_OBS_SIZE, sizeof(float));
-    env.actions = calloc(1, sizeof(float));
-    env.rewards = calloc(1, sizeof(float));
-    env.terminals = calloc(1, sizeof(float));
+    env.agents[0].observations = calloc(CRAFTAX_OBS_SIZE, sizeof(float));
+    env.agents[0].actions = calloc(1, sizeof(float));
+    env.agents[0].rewards = calloc(1, sizeof(float));
+    env.agents[0].terminals = calloc(1, sizeof(float));
 
     c_init(&env);
-    c_reset(&env);
+    puf_reset(&env);
 
     uint32_t action_rng = (uint32_t)(seed ^ 0x9E3779B9u);
     bool human_control = false;
@@ -57,20 +57,20 @@ int main(int argc, char** argv) {
             if (IsKeyPressed(KEY_S) || IsKeyPressed(KEY_DOWN))  human_action = CRAFTAX_ACTION_DOWN;
             if (IsKeyPressed(KEY_SPACE)) human_action = CRAFTAX_ACTION_DO;
             if (IsKeyPressed(KEY_Z)) human_action = CRAFTAX_ACTION_SLEEP;
-            env.actions[0] = (float)human_action;
-            if (human_action != CRAFTAX_ACTION_NOOP || IsKeyPressed(KEY_PERIOD)) c_step(&env);
+            env.agents[0].actions[0] = (float)human_action;
+            if (human_action != CRAFTAX_ACTION_NOOP || IsKeyPressed(KEY_PERIOD)) puf_step(&env);
         } else {
-            env.actions[0] = (float)(xorshift32(&action_rng) % CRAFTAX_NUM_ACTIONS);
-            c_step(&env);
+            env.agents[0].actions[0] = (float)(xorshift32(&action_rng) % CRAFTAX_NUM_ACTIONS);
+            puf_step(&env);
         }
 
-        c_render(&env);
+        puf_render(&env);
     }
 
-    c_close(&env);
-    free(env.observations);
-    free(env.actions);
-    free(env.rewards);
-    free(env.terminals);
+    puf_close(&env);
+    free(env.agents[0].observations);
+    free(env.agents[0].actions);
+    free(env.agents[0].rewards);
+    free(env.agents[0].terminals);
     return 0;
 }
