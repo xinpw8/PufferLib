@@ -3,6 +3,7 @@ c_*.c
 pufferlib/extensions.c
 pufferlib/puffernet.c
 logs/
+ocean/osrs/data/
 
 # Build dir
 build/
@@ -172,3 +173,8 @@ pufferlib/ocean/impulse_wars/benchmark/
 resources/drive/data/*
 resources/drive/binaries/*
 
+
+# Local refactor baselines (not for commit)
+.refactor-snapshots/
+
+vendor/fast-nle/

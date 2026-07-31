@@ -1,0 +1,182 @@
+{
+  "format": "puffer-osrs-asset-manifest-v1",
+  "asset_version": "osrs-assets-v22",
+  "archive": {
+    "name": "osrs-assets-v22.tar.gz",
+    "url": "https://github.com/valtterivalo/PufferLib/releases/download/osrs-assets-v22/osrs-assets-v22.tar.gz",
+    "sha256": "48c6c0c0ebbb6454b00732977f987267797ad70cf1ad7ee8e0f0781014bb6c12",
+    "strip_components": 1
+  },
+  "required_groups": [
+    {
+      "name": "core",
+      "files": [
+        "equipment.models",
+        "equipment.anims",
+        "equipment.atlas",
+        "equipment.tanim",
+        "projectiles.models",
+        "projectiles.atlas",
+        "projectiles.anims",
+        "spotanims.bin",
+        "fonts/runescape.ttf",
+        "fonts/runescape_small.ttf",
+        "ui/interfaces.bin",
+        "ui/interface_manifest.json"
+      ]
+    },
+    {
+      "name": "inferno",
+      "files": [
+        "inferno.models",
+        "inferno.anims",
+        "inferno.terrain",
+        "inferno.objects",
+        "inferno.atlas",
+        "inferno_zuk.objects",
+        "inferno.cmap",
+        "inferno_npcs.models",
+        "inferno_npcs.anims",
+        "inferno_npcs.atlas"
+      ]
+    },
+    {
+      "name": "zulrah",
+      "files": [
+        "zulrah.models",
+        "zulrah.anims",
+        "zulrah.terrain",
+        "zulrah.objects",
+        "zulrah.atlas",
+        "zulrah.cmap"
+      ]
+    },
+    {
+      "name": "colosseum",
+      "files": [
+        "colosseum.terrain",
+        "colosseum.objects",
+        "colosseum.atlas",
+        "colosseum.cmap",
+        "colosseum_npcs.models",
+        "colosseum_npcs.anims",
+        "colosseum_npcs.atlas",
+        "sprites/colosseum/modifiers/5534.png",
+        "sprites/colosseum/modifiers/5535.png",
+        "sprites/colosseum/modifiers/5536.png",
+        "sprites/colosseum/modifiers/5537.png",
+        "sprites/colosseum/modifiers/5538.png",
+        "sprites/colosseum/modifiers/5539.png",
+        "sprites/colosseum/modifiers/5540.png",
+        "sprites/colosseum/modifiers/5541.png",
+        "sprites/colosseum/modifiers/5542.png",
+        "sprites/colosseum/modifiers/5543.png",
+        "sprites/colosseum/modifiers/5544.png",
+        "sprites/colosseum/modifiers/5545.png",
+        "sprites/colosseum/modifiers/5546.png",
+        "sprites/colosseum/modifiers/5547.png",
+        "sprites/colosseum/modifiers/5549.png",
+        "sprites/colosseum/modifiers/5550.png",
+        "sprites/colosseum/modifiers/5551.png",
+        "sprites/colosseum/modifiers/5552.png",
+        "sprites/colosseum/modifiers/5553.png",
+        "sprites/colosseum/modifiers/5554.png",
+        "sprites/colosseum/modifiers/5556.png",
+        "sprites/colosseum/modifiers/5558.png",
+        "sprites/colosseum/modifiers/5559.png",
+        "sprites/colosseum/modifiers/5562.png",
+        "sprites/colosseum/modifiers/5564.png",
+        "sprites/colosseum/modifiers/5565.png",
+        "sprites/colosseum/modifiers/5566.png",
+        "sprites/colosseum/modifiers/5567.png",
+        "sprites/colosseum/modifiers/5568.png",
+        "sprites/colosseum/modifiers/5569.png",
+        "sprites/colosseum/modifiers/5571.png",
+        "sprites/colosseum/modifiers/5573.png",
+        "sprites/colosseum/modifiers/5574.png",
+        "sprites/colosseum/modifiers/5577.png"
+      ]
+    },
+    {
+      "name": "gui",
+      "files": [
+        "sprites/gui/compass.png",
+        "sprites/gui/side_panel_bg.png",
+        "sprites/gui/orb_frame.png",
+        "sprites/gui/headicons_prayer_0.png",
+        "sprites/gui/hitmarks_0.png",
+        "sprites/gui/cross_yellow_1.png",
+        "sprites/gui/side_icon_inventory.png",
+        "sprites/gui/tradebacking_dark.png",
+        "sprites/gui/osrs_stretch_side_topbottom_0.png",
+        "sprites/gui/wornicons_11.png",
+        "sprites/gui/skill_icon_23.png",
+        "sprites/gui/prayeron_24.png",
+        "sprites/gui/magicon_47.png",
+        "sprites/gui/standard_spell_on_79.png",
+        "sprites/gui/minimap_alpha_mask.png",
+        "sprites/gui/prayerglow_0.png"
+      ]
+    },
+    {
+      "name": "items",
+      "files": [
+        "sprites/items/30070.png",
+        "sprites/items/28945.png",
+        "sprites/items/27641.png",
+        "sprites/items/item_stack_variants.tsv"
+      ]
+    },
+    {
+      "name": "headers",
+      "files": [
+        "item_models.h",
+        "player_models.h",
+        "npc_models.h",
+        "npc_models_inferno.h",
+        "npc_models_zulrah.h",
+        "npc_models_colosseum.h"
+      ]
+    },
+    {
+      "name": "combat_visuals",
+      "files": [
+        "projectiles.models",
+        "projectiles.atlas",
+        "projectiles.anims",
+        "spotanims.bin",
+        "equipment.anims",
+        "inferno.anims",
+        "zulrah.anims"
+      ]
+    },
+    {
+      "name": "wilderness",
+      "files": [
+        "wilderness.cmap",
+        "wilderness.terrain",
+        "wilderness.objects",
+        "wilderness.atlas"
+      ]
+    },
+    {
+      "name": "pvp",
+      "files": [
+        "equipment.models",
+        "equipment.anims",
+        "equipment.atlas",
+        "equipment.tanim",
+        "projectiles.models",
+        "projectiles.atlas",
+        "projectiles.anims",
+        "spotanims.bin",
+        "ui/interfaces.bin",
+        "ui/interface_manifest.json",
+        "wilderness.cmap",
+        "wilderness.terrain",
+        "wilderness.objects",
+        "wilderness.atlas"
+      ]
+    }
+  ]
+}
