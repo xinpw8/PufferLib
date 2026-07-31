@@ -1075,7 +1075,7 @@ void muon_step(Muon* m, Float weights, Prec grads,
 struct TrainGraph {
     Prec mb_state;       // (layers, B, hidden)
     Prec mb_obs;         // (B, T, input_size)
-    Prec mb_actions;     // (B, T, num_atns)
+    Float mb_actions;    // (B, T, num_atns) float32: large discrete IDs
     Prec mb_logprobs;    // (B, T)
     Prec mb_terminals;   // (B, T), resets recurrent state before timestep t
     Prec mb_advantages;  // ...
@@ -1410,7 +1410,7 @@ constexpr int PPO_MAX_HEAD_A = ppo_max_head_classes();
 struct PPOGraphArgs {
     precision_t* out_ratio;
     precision_t* out_newvalue;
-    const precision_t* actions;
+    const float* actions;
     const precision_t* old_logprobs;
     const precision_t* advantages;
     const precision_t* prio;
@@ -1572,18 +1572,18 @@ __global__ void ppo_loss_compute(
                 c_mean[h] = safe_continuous_mean(a.logits, logits_base + h);
                 c_logstd[h] = safe_continuous_logstd(a.logstd, h);
                 c_action[h] = finite_or_clamp(
-                    to_float(g.actions[nt * a.num_atns + h]), -1.0e6f, 1.0e6f);
+                    g.actions[nt * a.num_atns + h], -1.0e6f, 1.0e6f);
                 float lp, ent;
                 ppo_continuous_head(c_mean[h], c_logstd[h], c_action[h], &lp, &ent);
                 total_log_prob += lp;
                 total_entropy += ent;
             }
         } else {
-            int verb = (int)to_float(g.actions[nt * a.num_atns]);
+            int verb = (int)g.actions[nt * a.num_atns];
             int logits_offset = 0;
             for (int h = 0; h < a.num_atns; ++h) {
                 int A = a.act_sizes[h];
-                int act = (int)to_float(g.actions[nt * a.num_atns + h]);
+                int act = (int)g.actions[nt * a.num_atns + h];
                 head_act[h] = act;
                 head_used[h] = (a.head_consume == NULL || h == 0)
                     ? 1 : (int)a.head_consume[verb * a.hc_stride + h];

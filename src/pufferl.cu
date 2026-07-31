@@ -351,7 +351,7 @@ typedef struct ObsTensor {
 struct RolloutBuf {
     Prec observations;  // (horizon, agents, input_size)
     Prec initial_states;
-    Prec actions;       // (horizon, agents, num_atns)
+    Float actions;      // (horizon, agents, num_atns) float32: large discrete IDs
     Prec values;        // (horizon, agents)
     Prec logprobs;      // ...
     Prec rewards;
@@ -376,19 +376,30 @@ void register_rollout_buffers(RolloutBuf* bufs, Allocator* alloc,
     bufs->ratio        = {.shape = {T, B}};
     bufs->importance   = {.shape = {T, B}};
     bufs->action_mask  = {.shape = {T, B, mask_size}};
-    Prec* fields[] = {
-        &bufs->observations, &bufs->actions, &bufs->values, &bufs->logprobs,
+    Prec* prec_fields[] = {
+        &bufs->observations, &bufs->values, &bufs->logprobs,
         &bufs->rewards, &bufs->terminals, &bufs->ratio, &bufs->importance,
         &bufs->action_mask,
     };
-    for (int i = 0; i < (int)(sizeof(fields) / sizeof(fields[0])); i++) {
-        alloc_register(alloc, fields[i]);
+    for (int i = 0; i < (int)(sizeof(prec_fields) / sizeof(prec_fields[0])); i++) {
+        alloc_register(alloc, prec_fields[i]);
     }
+    alloc_register(alloc, &bufs->actions);
 }
 
 // Rank-2 or rank-3 time-major tensor. F==0 means rank-2 (zero-terminated shape);
 // stride still multiplies by max(F, 1).
 Prec puf_time_view(Prec p, int start_t, int T) {
+    long B = p.shape[1];
+    long F = p.shape[2];
+    long stride_f = F > 1 ? F : 1;
+    return {
+        .data = p.data + (long)start_t * B * stride_f,
+        .shape = {T, B, F},
+    };
+}
+
+Float puf_time_view(Float p, int start_t, int T) {
     long B = p.shape[1];
     long F = p.shape[2];
     long stride_f = F > 1 ? F : 1;
@@ -590,7 +601,8 @@ __global__ void sample_logits(
         Prec dec_out,              // (B, logits_dim + 1)
         Prec logstd,           // (1, od) continuous only; .data null if discrete
         int* act_sizes,            // (NUM_ATNS,)
-        precision_t* actions,                 // (B, num_atns)
+        float* actions,                       // (B, num_atns) float32 rollout store
+        float* env_actions,                   // (B, num_atns) env dispatch
         precision_t* logprobs,                // (B,)
         precision_t* value_out,               // (B,)
         curandStatePhilox4_32_10_t* rng_states,
@@ -621,12 +633,15 @@ __global__ void sample_logits(
             float std = expf(log_std);
             float action = finite_or_clamp(
                 mean + std * curand_normal(&state), -1.0e6f, 1.0e6f);
-            // Round-trip so logprob matches stored precision_t action (bf16).
+            // Preserve reduced-precision continuous semantics for logprob.
             precision_t stored_p = from_float(action);
+            float stored = to_float(stored_p);
             float lp, ent;
-            ppo_continuous_head(mean, log_std, to_float(stored_p), &lp, &ent);
+            ppo_continuous_head(mean, log_std, stored, &lp, &ent);
             total_log_prob += lp;
-            actions[idx * num_atns + h] = stored_p;
+            int aidx = idx * num_atns + h;
+            actions[aidx] = stored;
+            env_actions[aidx] = stored;
         }
     } else {
         int logits_offset = 0;
@@ -647,9 +662,13 @@ __global__ void sample_logits(
                     break;
                 }
             }
-            actions[idx * num_atns + h] = from_float((float)sampled);
+            // Float32 preserves large categorical IDs that BF16 cannot represent.
+            int aidx = idx * num_atns + h;
+            float action = (float)sampled;
+            actions[aidx] = action;
+            env_actions[aidx] = action;
             // consumed-head gating: only heads the sampled verb uses count
-            int verb = (int)to_float(actions[idx * num_atns]);
+            int verb = (int)actions[idx * num_atns];
             int used = (head_consume == NULL || h == 0)
                 ? 1 : (int)head_consume[verb * hc_stride + h];
             if (used) {
@@ -723,6 +742,16 @@ __global__ void zero_term_state(Prec state, Float terminals,
 // Select time t, then agents [start, start+count). Rank-2 has F==0 (zero-term shape);
 // stride uses max(F, 1). Out shape {count, F} keeps ndim 1 when F==0.
 Prec puf_slice(Prec p, int t, int start, int count) {
+    long B = p.shape[1];
+    long F = p.shape[2];
+    long stride_f = F > 1 ? F : 1;
+    return {
+        .data = p.data + (long)(t * B + start) * stride_f,
+        .shape = {count, F},
+    };
+}
+
+Float puf_slice(Float p, int t, int start, int count) {
     long B = p.shape[1];
     long F = p.shape[2];
     long stride_f = F > 1 ? F : 1;
@@ -809,7 +838,7 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
 
         int sub = start + off;
         Prec obs_b  = puf_slice(rollouts.observations, t, sub, n);
-        Prec act_b  = puf_slice(rollouts.actions,      t, sub, n);
+        Float act_b = puf_slice(rollouts.actions,      t, sub, n);
         Prec lp_b   = puf_slice(rollouts.logprobs,     t, sub, n);
         Prec val_b  = puf_slice(rollouts.values,       t, sub, n);
         Prec mask_b = puf_slice(rollouts.action_mask,  t, sub, n);
@@ -839,13 +868,10 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
         const signed char* hc_dev_s = get_head_consume_dev(&hc_stride_s);
         sample_logits<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(
             dec, p_logstd, pufferl->act_sizes,
-            act_b.data, lp_b.data, val_b.data,
+            act_b.data, env->actions.data + (long)sub * act_cols,
+            lp_b.data, val_b.data,
             pufferl->rng_states[buf] + off,
             mask_b.data, mask_stride, hc_dev_s, hc_stride_s);
-
-        cast<<<grid_size(numel(act_b.shape)), BLOCK_SIZE, 0, stream>>>(
-                env->actions.data + (long)sub * act_cols,
-                act_b.data, numel(act_b.shape));
     }
 
     if (hypers->cudagraphs) {
@@ -1369,8 +1395,8 @@ __global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
 }
 
 // Transpose dims 0,1: [A, B, C] -> [B, A, C]. For 2D, pass C=1.
-__global__ void transpose_102(precision_t* dst,
-        precision_t* src, int A, int B, int C) {
+template <typename T>
+__global__ void transpose_102(T* dst, const T* src, int A, int B, int C) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int total = A * B * C;
     if (idx >= total) {
@@ -1531,11 +1557,13 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
     long* train_rng_offset = pufferl->rng_offset + hypers->num_buffers;
     int total_minibatches = hypers->replay_ratio * batch_size / hypers->minibatch_size;
     // Row strides for select_copy: fixed train-buffer layout (agent-major).
+    // Actions are float32 (large discrete IDs); other fields use train precision.
     int pe = (int)sizeof(precision_t);
+    int fe = (int)sizeof(float);
     int obs_rb = (numel(rollouts->observations.shape)
         / rollouts->observations.shape[0]) * pe;
     int act_rb = (numel(rollouts->actions.shape)
-        / rollouts->actions.shape[0]) * pe;
+        / rollouts->actions.shape[0]) * fe;
     int lp_rb = (numel(rollouts->logprobs.shape)
         / rollouts->logprobs.shape[0]) * pe;
     int term_rb = (numel(rollouts->terminals.shape)
