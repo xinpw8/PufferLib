@@ -1382,6 +1382,19 @@ static const signed char* get_head_consume_dev(int* stride) {
     return g_hc_dev;
 }
 
+// Verb-eps exploration floor (experimental, Nethack only): head 0 is sampled
+// and trained as the mixture (1-eps)*softmax + eps*uniform(legal), annealed
+// per the train.verb_eps_* keys. Must init before CUDA graph capture
+// (cudaMalloc is illegal mid-capture; the pointer bakes into captured
+// kernels); the annealed value is memcpy'd each rollout.
+static float* g_veps_dev = NULL;
+void init_verb_eps(float base) {
+    if (base > 0.0f && g_veps_dev == NULL) {
+        cudaMalloc(&g_veps_dev, sizeof(float));
+        cudaMemcpy(g_veps_dev, &base, sizeof(float), cudaMemcpyHostToDevice);
+    }
+}
+
 constexpr int PPO_THREADS = 256;
 
 // Per-env from ENV_HEADER (ocean/<env>/<env>.h).
@@ -1431,6 +1444,7 @@ struct PPOKernelArgs {
     const precision_t* action_mask; // (N, T, A_total); always present
     const signed char* head_consume; // (nverbs, num_atns) or NULL
     int hc_stride;
+    const float* verb_eps;          // device scalar, NULL = floor off
     int num_atns;
     float clip_coef, vf_clip_coef, vf_coef;
     const float* ent_coef;  // device ptr — host by-value bakes into CUDA graphs
@@ -1559,6 +1573,7 @@ __global__ void ppo_loss_compute(
 
         float total_log_prob = 0.0f;
         float total_entropy = 0.0f;
+        float verb_mix_scale = 1.0f;  // d log pi'(a) / d log-softmax path scale for head 0
         // Stash across policy fwd → d_new_logp → bwd (need total logp before head grads).
         float head_logsumexp[NUM_ATNS];
         float head_entropy[NUM_ATNS];
@@ -1598,8 +1613,24 @@ __global__ void ppo_loss_compute(
                 }
                 head_logsumexp[h] = lse;
                 head_entropy[h] = ent;
+                float lp = cache[act] - lse;
+                // verb-eps floor
+                // (1-eps)*softmax + eps*uniform(legal); entropy stays on softmax
+                if (h == 0 && a.verb_eps != NULL) {
+                    float eps = *a.verb_eps;
+                    if (eps > 0.0f) {
+                        int K = 0;
+                        for (int j = 0; j < A; ++j)
+                            if (to_float(a.action_mask[at_base + logits_offset + j]) != 0.0f) K++;
+                        if (K == 0) K = A;
+                        float p_act = __expf(lp);
+                        float p_mix = (1.0f - eps) * p_act + eps / (float)K;
+                        verb_mix_scale = (1.0f - eps) * p_act / p_mix;
+                        lp = __logf(p_mix);
+                    }
+                }
                 if (head_used[h]) {
-                    total_log_prob += cache[act] - lse;
+                    total_log_prob += lp;
                     total_entropy += ent;
                 }
                 logits_offset += A;
@@ -1646,11 +1677,14 @@ __global__ void ppo_loss_compute(
                 float ent = head_entropy[h];
                 int act = head_act[h];
                 float* cache = logit_cache[h];
+                // head 0 under the eps-mixture: pg gradient flows through the
+                // softmax path scaled by (1-eps)p/p_mix
+                float d_lp_h = (h == 0) ? d_new_logp * verb_mix_scale : d_new_logp;
                 for (int j = 0; j < A; ++j) {
                     float logp = cache[j] - lse;
                     float p = __expf(logp);
                     a.grad_logits[at_base + logits_offset + j] =
-                        ((j == act ? 1.0f : 0.0f) - p) * d_new_logp
+                        ((j == act ? 1.0f : 0.0f) - p) * d_lp_h
                         + d_entropy_term * p * (-ent - logp);
                 }
                 logits_offset += A;
@@ -1799,6 +1833,7 @@ void ppo_loss_fwd_bwd(
         .action_mask = graph.mb_action_mask.data,
         .head_consume = hc_dev_l,
         .hc_stride = hc_stride_l,
+        .verb_eps = g_veps_dev,
         .num_atns = NUM_ATNS,
         .clip_coef = clip_coef, .vf_clip_coef = vf_clip_coef,
         .vf_coef = vf_coef, .ent_coef = ent_coef,

@@ -79,9 +79,11 @@ static const signed char nh_obj_armcat[NH_NUM_OBJECTS] = {
 // nle_obs.misc[] prompt-state flags
 enum { NETHACK_MISC_YN = 0, NETHACK_MISC_GETLIN = 1, NETHACK_MISC_XWAIT = 2 };
 
-// action space: verb head (22) + 12 item-slot heads (55) + direction head (8)
+// action space: verb head (22) + 12 item-slot heads (55) + 6 per-verb
+// direction heads (8 each: MOVE RUN KICK THROW ZAP APPLY)
 #define NETHACK_NUM_ACTIONS 22
 #define NETHACK_NUM_DIRS    8
+#define NETHACK_DIR_HEADS   6
 static const int NETHACK_DIR_KEYS[NETHACK_NUM_DIRS] =
     {'k','j','h','l','y','u','b','n'};   // N S W E NW NE SW SE
 static const int NETHACK_DIR_DX[NETHACK_NUM_DIRS] = { 0, 0,-1, 1,-1, 1,-1, 1};
@@ -128,9 +130,22 @@ enum {
     NETHACK_ACT_DROP     = 21,
 };
 
+// dir-head index (0..NETHACK_DIR_HEADS-1) for verbs that take a direction
+static inline int nethack_dir_head(int verb) {
+    switch (verb) {
+        case NETHACK_ACT_MOVE:  return 0;
+        case NETHACK_ACT_RUN:   return 1;
+        case NETHACK_ACT_KICK:  return 2;
+        case NETHACK_ACT_THROW: return 3;
+        case NETHACK_ACT_ZAP:   return 4;
+        case NETHACK_ACT_APPLY: return 5;
+    }
+    return -1;
+}
+
 // !status_updates skips the status renderer + recalc_mapseen (~25% of engine)
 #define NETHACK_DEFAULT_OPTIONS \
-    "name:Agent-val-dwa-law-fem," \
+    "name:Agent-mon-hum-neu-mal," \
     "autopickup,color,disclose:+i +a +v +g +c +o," \
     "mention_walls,nobones,nocmdassist,nolegacy,nosparkle," \
     "pickup_burden:unencumbered,pickup_types:$[%!)/," \
@@ -147,37 +162,54 @@ typedef struct {
 } Verb;
 
 static const Verb NETHACK_VERBS[NETHACK_NUM_ACTIONS] = {
-    {-1},
-    {-1},
-    {-1},
-    {-1},
-    {-1},
-    {-1},
-    {-1},
-    {0,  1u<<3, UNWORN_ONLY},
-    {1,  1u<<7, WORN_ANY},
-    {2,  1u<<8, WORN_ANY},
-    {-1},
-    {3,  1u<<2, WORN_ANY},
-    {4,  1u<<11, WORN_ANY},
-    {-1},
-    {-1},
-    {5,  1u<<3, WORN_ONLY},
-    {6,  (1u<<4)|(1u<<5), UNWORN_ONLY},
-    {7,  (1u<<4)|(1u<<5), WORN_ONLY},
-    {8,  1u<<2, WORN_ANY},
-    {9,  1u<<6, WORN_ANY},
-    {10, (1u<<9)|(1u<<10), WORN_ANY},
-    {11, 0x3FFFFu, UNWORN_ONLY},
+    {-1}   /* MOVE */,
+    {-1}   /* RUN */,
+    {-1}   /* DOWN */,
+    {-1}   /* UP */,
+    {-1}   /* KICK */,
+    {-1}   /* SEARCH */,
+    {-1}   /* ELBERETH */,
+    {0,  1u<<3, UNWORN_ONLY}   /* WEAR */,
+    {1,  1u<<7, WORN_ANY}   /* EAT */,
+    {2,  1u<<8, WORN_ANY}   /* QUAFF */,
+    {-1}   /* PRAY */,
+    {3,  1u<<2, WORN_ANY}   /* THROW */,
+    {4,  1u<<11, WORN_ANY}   /* ZAP */,
+    {-1}   /* SEARCH20 */,
+    {-1}   /* PICKUP */,
+    {5,  1u<<3, WORN_ONLY}   /* TAKEOFF */,
+    {6,  (1u<<4)|(1u<<5), UNWORN_ONLY}   /* PUTON */,
+    {7,  (1u<<4)|(1u<<5), WORN_ONLY}   /* REMOVE */,
+    {8,  1u<<2, WORN_ANY}   /* WIELD */,
+    {9,  1u<<6, WORN_ANY}   /* APPLY */,
+    {10, (1u<<9)|(1u<<10), WORN_ANY}   /* READ */,
+    {11, 0x3FFFFu, UNWORN_ONLY}   /* DROP */
 };
 
 // wandb key per verb success counter (NULL = not logged)
 static const char* NETHACK_VERB_STAT[NETHACK_NUM_ACTIONS] = {
-    NULL, NULL, NULL, NULL, NULL,
-    "searches", "engraves", "wears", "eats", "quaffs",
-    "prayers", "throws", "zaps", "search20", "pickups",
-    "takeoffs", "putons", "removes", "wields", "applies",
-    "reads", "drops",
+    NULL   /* MOVE */,
+    NULL   /* RUN */,
+    NULL   /* DOWN */,
+    NULL   /* UP */,
+    NULL   /* KICK */,
+    "searches"   /* SEARCH */,
+    "engraves"   /* ELBERETH */,
+    "wears"   /* WEAR */,
+    "eats"   /* EAT */,
+    "quaffs"   /* QUAFF */,
+    "prayers"   /* PRAY */,
+    "throws"   /* THROW */,
+    "zaps"   /* ZAP */,
+    "search20"   /* SEARCH20 */,
+    "pickups"   /* PICKUP */,
+    "takeoffs"   /* TAKEOFF */,
+    "putons"   /* PUTON */,
+    "removes"   /* REMOVE */,
+    "wields"   /* WIELD */,
+    "applies"   /* APPLY */,
+    "reads"   /* READ */,
+    "drops"   /* DROP */
 };
 
 typedef struct Log {
@@ -190,6 +222,7 @@ typedef struct Log {
     float illegal_actions;    // steps that hit a sub-prompt we ESC'd
     float new_tiles;
     float max_depth;          // deepest level reached (depth under-reports at death)
+    float floors;             // unique (dnum, dlevel) floors visited
     float enhances;           // #enhance presses (skill advancement claims)
     float floor_eats;         // eats that accepted a floor "eat it?" offer
     float prayers_low_hp;     // prayers at <=25% max HP (looser than real trouble)
@@ -243,6 +276,8 @@ typedef struct Stats {
     long damage;
     long ac_sum;            // sum of AC over living steps; mean = ac_sum/length
     int max_depth;
+    int floors;               // unique (dnum, dlevel) count
+    unsigned long long floors_bits[16];   // dnum 0..15, bit dlevel-1
     int max_xp;
     unsigned areas;         // NETHACK_AREA_* bits
     float ret;

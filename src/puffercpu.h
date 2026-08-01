@@ -228,14 +228,22 @@ void _multidiscrete(float* input, float* output, int batch_size, int logit_sizes
                     }
                 }
             } else {
+                // max-subtraction: confident policies exceed expf's ~88 overflow
+                // threshold; without it every overflowed head samples index 0
+                float max_logit = input[in_adr];
+                for (int i = 1; i < n; i++) {
+                    if (input[in_adr + i] > max_logit) {
+                        max_logit = input[in_adr + i];
+                    }
+                }
                 float logit_exp_sum = 0.0f;
                 for (int i = 0; i < n; i++) {
-                    logit_exp_sum += expf(input[in_adr + i]);
+                    logit_exp_sum += expf(input[in_adr + i] - max_logit);
                 }
                 float prob = rand() / (float)RAND_MAX;
                 float logit_prob = 0.0f;
                 for (int i = 0; i < n; i++) {
-                    logit_prob += expf(input[in_adr + i]) / logit_exp_sum;
+                    logit_prob += expf(input[in_adr + i] - max_logit) / logit_exp_sum;
                     if (prob < logit_prob) {
                         output[out_adr] = (float)i;
                         break;

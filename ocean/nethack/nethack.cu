@@ -1463,11 +1463,12 @@ static void create_nethack_encoder(Encoder* enc) {
 // every item use trains the same projections.
 
 static constexpr int NH_DIRS    = 8;
+static constexpr int NH_DIRHEADS = 6;                                // move|run|kick|throw|zap|apply
 static constexpr int NH_HEADS   = 12;                                // wear|eat|quaff|throw|zap|takeoff|puton|remove|wield|apply|read|drop
 static constexpr int NH_SLOT_OD = NH_HEADS * NH_INV;                 // 660 slot logits
-static constexpr int NH_DEC_OD  = NH_ACTIONS + NH_SLOT_OD + NH_DIRS; // 690 logits
-static constexpr int NH_DEC_LIN = NH_ACTIONS + NH_DIRS + 1;          // 31 verb|dir|value rows
-static constexpr int NH_DEC_PAD = 32;                                // lin rows padded to mult of 8 (cublasLt alignment)
+static constexpr int NH_DEC_OD  = NH_ACTIONS + NH_SLOT_OD + NH_DIRHEADS * NH_DIRS; // 730 logits
+static constexpr int NH_DEC_LIN = NH_ACTIONS + NH_DIRHEADS * NH_DIRS + 1;          // 71 verb|dirs|value rows
+static constexpr int NH_DEC_PAD = 72;                                // lin rows padded to mult of 8 (cublasLt alignment)
 static constexpr int NH_QDIM    = NH_HEADS * NH_INV_HID;             // stacked queries
 // tau is padded to 8 entries (first NH_HEADS live): checkpoints are saved
 // compactly and the puffernet loader assumes every tensor is a multiple of

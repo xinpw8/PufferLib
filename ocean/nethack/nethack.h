@@ -34,12 +34,13 @@ extern void       nle_end(nle_ctx_t*);
 #include "netlib.h"
 
 #define OBS_SIZE NETHACK_OBS_SIZE
-#define NUM_ATNS 14
+#define NUM_ATNS 19
 #define ACT_SIZES {NETHACK_NUM_ACTIONS, \
     NETHACK_INV_SLOTS, NETHACK_INV_SLOTS, NETHACK_INV_SLOTS, NETHACK_INV_SLOTS, \
     NETHACK_INV_SLOTS, NETHACK_INV_SLOTS, NETHACK_INV_SLOTS, NETHACK_INV_SLOTS, \
     NETHACK_INV_SLOTS, NETHACK_INV_SLOTS, NETHACK_INV_SLOTS, NETHACK_INV_SLOTS, \
-    NETHACK_NUM_DIRS}
+    NETHACK_NUM_DIRS, NETHACK_NUM_DIRS, NETHACK_NUM_DIRS, \
+    NETHACK_NUM_DIRS, NETHACK_NUM_DIRS, NETHACK_NUM_DIRS}
 typedef unsigned char obs_t;
 
 typedef Env Nethack;
@@ -85,11 +86,11 @@ struct Env {
     int prev_depth;
     long prev_ac;
     int prev_bad_cond;
-
     // reward coefs
     float gold_coef;
     float exp_coef;
     float descent_coef;
+    float floor_coef;
     float xp_coef;
     float scout_coef;
     float hp_coef;
@@ -108,9 +109,15 @@ struct Env {
 
 // init
 
+// demo-only obs planes; NULL in training (fills skipped)
+static unsigned char* nethack_color_sink;
+static unsigned char* nethack_invstr_sink;
+
 static void nethack_bind_obs(Nethack* env) {
     nle_obs* o = &env->obs;
     memset(o, 0, sizeof(*o));
+    o->colors   = nethack_color_sink;
+    o->inv_strs = nethack_invstr_sink;
     o->glyphs   = env->glyphs;
     o->blstats  = env->blstats;
     o->chars    = env->chars;
@@ -145,6 +152,8 @@ static void nethack_init_settings(Nethack* env) {
 
 void init(Nethack* env) {
     env->seed = 0xCAFEBEEFUL + (unsigned long)env->rng;   // rng = env index
+    // opt into consumed-head gating (env_head_consume_map below); =0 still disables
+    setenv("PUFFER_HEAD_GATING", "1", 0);
     // nle_start deferred to first puf_reset
     nethack_init_settings(env);
 }
@@ -157,6 +166,20 @@ static int nethack_slot_usable(const Nethack* env, const Verb* verb, int i) {
     if (verb->wornreq == WORN_ONLY) return worn;
     if (verb->wornreq == UNWORN_ONLY) return !worn;
     return 1;
+}
+
+// visible target (monster/detected/warning glyph) on the ray within 8 tiles
+static int nethack_ray_target(Nethack* env, int dx, int dy) {
+    long hx = env->blstats[NLE_BL_X], hy = env->blstats[NLE_BL_Y];
+    for (int k = 1; k <= 8; k++) {
+        long x = hx + dx * k, y = hy + dy * k;
+        if (x < 0 || x >= NH_COLS || y < 0 || y >= NH_ROWS) return 0;
+        int gl = env->glyphs[y * NH_COLS + x];
+        if ((gl >= 0 && gl < NETHACK_NUMMONS)
+            || (gl >= 762 && gl < 1144)
+            || (gl >= 5589 && gl < 5595)) return 1;
+    }
+    return 0;
 }
 
 static void nethack_compute_mask(Nethack* env) {
@@ -197,7 +220,7 @@ static void nethack_compute_mask(Nethack* env) {
         if (!floor_food) mask[a] = 0;
     }
 
-    // directions
+    // per-verb dir rows: wall legality; THROW/ZAP use target rays (all-1 fallback)
     unsigned char* dirs = mask + NETHACK_NUM_ACTIONS + 12 * NETHACK_INV_SLOTS;
     memset(dirs, 1, NETHACK_NUM_DIRS);
     int legal_dirs = 0;
@@ -209,6 +232,18 @@ static void nethack_compute_mask(Nethack* env) {
         else legal_dirs++;
     }
     if (!legal_dirs) memset(dirs, 1, NETHACK_NUM_DIRS);
+    for (int h = 1; h < NETHACK_DIR_HEADS; h++)
+        memcpy(dirs + h * NETHACK_NUM_DIRS, dirs, NETHACK_NUM_DIRS);
+    static const int ray_verbs[2] = {NETHACK_ACT_THROW, NETHACK_ACT_ZAP};
+    for (int v = 0; v < 2; v++) {
+        unsigned char* vdirs = dirs + nethack_dir_head(ray_verbs[v]) * NETHACK_NUM_DIRS;
+        int any = 0;
+        for (int d = 0; d < NETHACK_NUM_DIRS; d++) {
+            vdirs[d] = nethack_ray_target(env, NETHACK_DIR_DX[d], NETHACK_DIR_DY[d]);
+            any |= vdirs[d];
+        }
+        if (!any) memset(vdirs, 1, NETHACK_NUM_DIRS);
+    }
 }
 
 // observations
@@ -264,46 +299,46 @@ static void nethack_pack_obs(Nethack* env) {
 static void nethack_add_log(Nethack* env, int how) {   // how: nle how_done, -1 = truncated
     for (int v = 0; v < NETHACK_NUM_ACTIONS; v++)
         env->log.verb_uses[v] += (float)env->stats.verb_uses[v];
-    env->log.perf            += (float)env->prev_score;
-    env->log.score           += (float)env->prev_score;
-    env->log.valid_moves     += (float)env->stats.valid_moves;
+    env->log.perf += (float)env->prev_score;
+    env->log.score += (float)env->prev_score;
+    env->log.valid_moves += (float)env->stats.valid_moves;
     env->log.illegal_actions += (float)env->stats.illegal_actions;
-    env->log.new_tiles       += (float)env->stats.new_tiles;
-    env->log.max_depth       += (float)env->stats.max_depth;
-    env->log.enhances        += (float)env->stats.enhances;
-    env->log.prayers_low_hp  += (float)env->stats.prayers_low_hp;
+    env->log.new_tiles += (float)env->stats.new_tiles;
+    env->log.max_depth += (float)env->stats.max_depth;
+    env->log.floors += (float)env->stats.floors;
+    env->log.enhances += (float)env->stats.enhances;
+    env->log.prayers_low_hp += (float)env->stats.prayers_low_hp;
     env->log.prayers_starving += (float)env->stats.prayers_starving;
-    env->log.floor_eats      += (float)env->stats.floor_eats;
-    env->log.damage_taken    += (float)env->stats.damage;
+    env->log.floor_eats += (float)env->stats.floor_eats;
+    env->log.damage_taken += (float)env->stats.damage;
     env->log.ac += env->stats.length > 0
         ? (float)env->stats.ac_sum / (float)env->stats.length : 0.0f;
     env->log.min_ac += (float)env->stats.min_ac;
-    env->log.armor_swaps  += (float)env->stats.armor_swaps;
+    env->log.armor_swaps += (float)env->stats.armor_swaps;
     env->log.heal_hp += (float)env->stats.heal_hp;
-    env->log.cures   += (float)env->stats.cures;
+    env->log.cures += (float)env->stats.cures;
     env->log.burdened_frac += env->stats.length > 0
         ? (float)env->stats.burdened_steps / (float)env->stats.length : 0.0f;
-    env->log.game_time       += (float)env->prev_time;
-    env->log.max_xp_level    += (float)env->stats.max_xp;
-    env->log.episode_return  += env->stats.ret;
-    env->log.episode_length  += env->stats.length;
-    if (how == -1)     env->log.truncated      += 1.0f;
-    else if (how == 0) env->log.death_combat   += 1.0f;
-    else if (how == 3) env->log.death_starved  += 1.0f;
+    env->log.game_time += (float)env->prev_time;
+    env->log.max_xp_level += (float)env->stats.max_xp;
+    env->log.episode_return += env->stats.ret;
+    env->log.episode_length += env->stats.length;
+    if (how == -1) env->log.truncated += 1.0f;
+    else if (how == 0) env->log.death_combat += 1.0f;
+    else if (how == 3) env->log.death_starved += 1.0f;
     else if (how == NLE_HOW_WRATH) env->log.death_smited += 1.0f;
-    else               env->log.death_other    += 1.0f;
-    // combat anatomy
+    else env->log.death_other += 1.0f;
     if (how == 0) {
-        env->log.death_mon_level    += (float)env->internal[NETHACK_INTERNAL_KILLER_MLEV];
+        env->log.death_mon_level += (float)env->internal[NETHACK_INTERNAL_KILLER_MLEV];
         env->log.death_adj_monsters += (float)env->stats.last_adj;
-        env->log.death_maxhp        += (float)env->stats.last_maxhp;
+        env->log.death_maxhp += (float)env->stats.last_maxhp;
     }
-    env->log.reach_mines      += (env->stats.areas & NETHACK_AREA_MINES)      ? 1.0f : 0.0f;
-    env->log.reach_minetown   += (env->stats.areas & NETHACK_AREA_MINETOWN)   ? 1.0f : 0.0f;
+    env->log.reach_mines += (env->stats.areas & NETHACK_AREA_MINES) ? 1.0f : 0.0f;
+    env->log.reach_minetown += (env->stats.areas & NETHACK_AREA_MINETOWN) ? 1.0f : 0.0f;
     env->log.reach_deep_mines += (env->stats.areas & NETHACK_AREA_DEEP_MINES) ? 1.0f : 0.0f;
-    env->log.reach_main_d5    += (env->stats.areas & NETHACK_AREA_MAIN_D5)    ? 1.0f : 0.0f;
-    env->log.reach_sokoban    += (env->stats.areas & NETHACK_AREA_SOKOBAN)    ? 1.0f : 0.0f;
-    env->log.n               += 1.0f;
+    env->log.reach_main_d5 += (env->stats.areas & NETHACK_AREA_MAIN_D5) ? 1.0f : 0.0f;
+    env->log.reach_sokoban += (env->stats.areas & NETHACK_AREA_SOKOBAN) ? 1.0f : 0.0f;
+    env->log.n += 1.0f;
 }
 
 // reset
@@ -420,7 +455,16 @@ static float nethack_reward(Nethack* env, int illegal) {
     r += env->gold_coef * (float)(g - env->prev_gold);
     env->prev_gold = g;
 
-    // descent, max-depth only
+    // descent_coef pays per max-depth delta, floor_coef per new (dnum, dlevel) floor
+    { long dn = env->blstats[NLE_BL_DNUM], dl = env->blstats[NLE_BL_DLEVEL];
+      if (dn >= 0 && dn < 16 && dl >= 1 && dl <= 64) {
+          unsigned long long fb = 1ULL << (dl - 1);
+          if (!(env->stats.floors_bits[dn] & fb)) {
+              env->stats.floors_bits[dn] |= fb;
+              env->stats.floors++;
+              r += env->floor_coef;
+          }
+      } }
     if (depth > env->stats.max_depth) {
         r += env->descent_coef * (float)(depth - env->stats.max_depth);
         env->stats.max_depth = depth;
@@ -506,10 +550,9 @@ static void nethack_execute(Nethack* env, int verb, int slot, int dirkey, int* b
         break;
     case NETHACK_ACT_SEARCH20:
         st->verb_uses[verb]++;
+        nethack_send_key(env, '2');
+        nethack_send_key(env, '0');
         nethack_send_key(env, 's');
-        //nethack_send_key(env, '2');
-        //if (!env->obs.done) nethack_send_key(env, '0');
-        //if (!env->obs.done) nethack_send_key(env, 's');
         break;
     case NETHACK_ACT_PICKUP:
         st->verb_uses[verb]++;
@@ -570,7 +613,13 @@ static void nethack_execute(Nethack* env, int verb, int slot, int dirkey, int* b
     }
 }
 
+// compute_mask writes through this flat alias of agents[0].action_mask
+static void nethack_sync_buffers(Nethack* env) {
+    env->action_mask = env->agents[0].action_mask;
+}
+
 void puf_step(Nethack* env) {
+    nethack_sync_buffers(env);   // agent pointers are re-dealt between epochs
     if (env->pending_reset) {
         env->pending_reset = 0;
         nethack_do_reset(env);
@@ -579,7 +628,8 @@ void puf_step(Nethack* env) {
     int verb = (int)env->agents[0].actions[0];
     int head = NETHACK_VERBS[verb].head;
     int slot = (head >= 0) ? (int)env->agents[0].actions[1 + head] : 0;
-    int dirkey = NETHACK_DIR_KEYS[(int)env->agents[0].actions[13]];
+    int dh = nethack_dir_head(verb);
+    int dirkey = NETHACK_DIR_KEYS[dh >= 0 ? (int)env->agents[0].actions[13 + dh] : 0];
 
     long time_before = env->blstats[NLE_BL_TIME];
     int bad_pick = 0;
@@ -635,11 +685,6 @@ void puf_render(Nethack* env) {
     fflush(stdout);
 }
 
-static void nethack_sync_buffers(Nethack* env) {
-    env->agents[0].observations = (unsigned char*)env->agents[0].observations;
-    env->action_mask = env->agents[0].action_mask;
-}
-
 void puf_init(Env* env, Dict* kwargs) {
     env->num_agents = 1;
     env->agents[0].policy = 0;
@@ -647,6 +692,7 @@ void puf_init(Env* env, Dict* kwargs) {
     env->gold_coef = dict_get(kwargs, "gold_coef");
     env->exp_coef = dict_get(kwargs, "exp_coef");
     env->descent_coef = dict_get(kwargs, "descent_coef");
+    env->floor_coef = dict_get(kwargs, "floor_coef");
     env->scout_coef = dict_get(kwargs, "scout_coef");
     env->xp_coef = dict_get(kwargs, "xp_coef");
     env->hp_coef = dict_get(kwargs, "hp_coef");
@@ -699,12 +745,14 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "cures", log->cures);
     dict_set(out, "game_time", log->game_time);
     dict_set(out, "max_xp_level", log->max_xp_level);
+    dict_set(out, "floors", log->floors);
     dict_set(out, "truncated", log->truncated);
 }
 
 // Per-(verb,head) consumption map for PPO consumed-head gating (weak symbol
-// read by src/algo.cu / src/pufferl.cu). heads: [0]=verb, [1..12]=slot heads 0..11,
-// [13]=direction. A head is "consumed" iff the sampled verb actually uses it.
+// read by src/algo.cu). heads: [0]=verb, [1..12]=slot heads 0..11,
+// [13..18]=per-verb dir heads. A head is "consumed" iff the sampled verb
+// actually uses it.
 #define PUFFER_PROVIDES_HEAD_CONSUME_MAP 1
 const signed char* env_head_consume_map(int* n_verbs, int* n_atns) {
     static signed char map[NETHACK_NUM_ACTIONS * NUM_ATNS];
@@ -716,10 +764,8 @@ const signed char* env_head_consume_map(int* n_verbs, int* n_atns) {
             row[0] = 1;                                   // verb head: always
             int sh = NETHACK_VERBS[v].head;               // slot head 0..11 or -1
             if (sh >= 0) row[1 + sh] = 1;
-            if (v == NETHACK_ACT_MOVE || v == NETHACK_ACT_RUN
-                || v == NETHACK_ACT_KICK || v == NETHACK_ACT_THROW
-                || v == NETHACK_ACT_ZAP || v == NETHACK_ACT_APPLY)
-                row[NUM_ATNS - 1] = 1;                    // direction head
+            int dh = nethack_dir_head(v);
+            if (dh >= 0) row[13 + dh] = 1;
         }
         built = 1;
     }
