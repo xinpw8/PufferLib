@@ -38,7 +38,7 @@ static void env_close(Nethack* env) {
 // weight order matches param registration: encoder, decoder, mingru
 #define DEMO_VOCAB   5977
 #define DEMO_EMBED   32
-#define DEMO_BL_FEAT (25 + 7 + 13 + NETHACK_NUM_ACTIONS + NETHACK_NUM_OCLASSES + 2 + 8 + 2)
+#define DEMO_BL_FEAT (25 + 7 + 13 + NETHACK_NUM_ACTIONS + NETHACK_NUM_OCLASSES + 2 + 8 + 2 + 2)
 #define DEMO_INV_HID 16   // 16-dim slot rep: pool bottleneck + decoder key (unified)
 #define DEMO_INV_FLAT (NETHACK_INV_SLOTS * DEMO_INV_HID)
 #define DEMO_INV_POOL 128
@@ -343,6 +343,8 @@ static int nethack_net_forward(NethackNet* net, const unsigned char* obs) {   //
     int engr = demo_i32(ex);
     f[j++] = engr >= 1 ? 1.f : 0.f;   // any engraving underfoot
     f[j++] = engr >= 2 ? 1.f : 0.f;   // active Elbereth
+    f[j++] = (float)demo_i32(ex + 4*NETHACK_EXTRA_SHOP);           // in shop
+    f[j++] = (float)demo_i32(ex + 4*(NETHACK_EXTRA_SHOP+1)) * 0.01f; // affordability
     for (int k = 0; k < DEMO_BL_FEAT; k++) f[k] = fminf(fmaxf(f[k], -1.f), 1.f);
 
     float* blout = net->concat + DEMO_LOC_HID + DEMO_GLB_HID + DEMO_INV_POOL;
