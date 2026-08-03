@@ -88,6 +88,7 @@ struct Env {
     long prev_time;
     int prev_depth;
     int prev_bad_cond;
+    unsigned prev_floor;       // dnum << 8 | dlevel at last reward; guards path attribution
     // reward coefs
     float gold_coef;
     float exp_coef;
@@ -399,6 +400,9 @@ static void nethack_do_reset(Nethack* env) {
     env->prev_bad_cond = __builtin_popcount((unsigned)env->blstats[NLE_BL_CONDITION] & NETHACK_COND_BAD);
     env->prev_time = env->blstats[NLE_BL_TIME];
     env->prev_action = -1;
+    { short scratch[2 * NETHACK_PATH_MAX];   // discard boot-walk residue
+      nle_path_drain(env->ctx, scratch, NETHACK_PATH_MAX); }
+    env->prev_floor = (unsigned)(env->blstats[NLE_BL_DNUM] << 8 | env->blstats[NLE_BL_DLEVEL]);
     env->enh_ready = 0;
     memset(&env->stats, 0, sizeof(env->stats));
     env->stats.max_depth = env->prev_depth;
@@ -555,12 +559,17 @@ static float nethack_reward(Nethack* env, int illegal) {
     // inside one nle_step and turns corners, so drain the engine's path
     // rather than crediting only where the hero stopped.
     { long dn = env->blstats[NLE_BL_DNUM], dl = env->blstats[NLE_BL_DLEVEL];
+      unsigned floor = (unsigned)(dn << 8 | dl);
       short path[2 * NETHACK_PATH_MAX];
       int n = nle_path_drain(env->ctx, path, NETHACK_PATH_MAX);
+      // a mid-step level change (trapdoor, hole) leaves path coords from the
+      // OLD floor; attributing them here would mark and pay the wrong tiles
+      if (floor != env->prev_floor) n = 0;
+      env->prev_floor = floor;
       int fresh = 0;
       for (int i = 0; i < n; i++)
           fresh += nethack_first_visit(env, dn, dl, path[2 * i], path[2 * i + 1]);
-      // no move recorded (non-move verbs, or a step that never left the tile)
+      // no usable path (non-move verbs, never left the tile, or floor change)
       if (!n) fresh += nethack_first_visit(env, dn, dl,
                   env->blstats[NLE_BL_X], env->blstats[NLE_BL_Y]);
       if (fresh) {
