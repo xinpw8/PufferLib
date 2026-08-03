@@ -122,9 +122,6 @@ __global__ void matern32lin_k_kernel(const float *__restrict__ X1,
         float diff = (xr - xc) * inv_ells[k];
         r2 += diff * diff;
     }
-    if (r2 < 0.0) {
-        r2 = 0.0;
-    }
     float u = sqrt(3.0) * sqrt(r2);
     float val = sigma_f * (dot + offset + (1.0 + u) * exp(-u));
     if (diag_noise != 0.0 && row == col) {
@@ -173,9 +170,6 @@ __global__ void matern32lin_mll_grad_fuse(const float *__restrict__ X,
             dot += xr * xc;
             float t = (xr - xc) * inv_ells[k];
             r2 += t * t;
-        }
-        if (r2 < 0.0f) {
-            r2 = 0.0f;
         }
         float u = sqrtf(3.0f) * sqrtf(r2);
         float e = expf(-u);
@@ -595,8 +589,7 @@ ProteinSweep *protein_sweep_create(ProteinSweep init) {
 
 static float logit_transform(float value) {
     value = fmaxf(1e-9f, fminf(1.0f - 1e-9f, value));
-    float logit = logf(value / (1.0f - value));
-    return fmaxf(-5.0f, fminf(100.0f, logit));
+    return fmaxf(-5.0f, logf(value / (1.0f - value)));
 }
 
 void protein_sweep_observe(ProteinSweep *sw, const float *norm_params,
@@ -658,19 +651,21 @@ void protein_sweep_observe(ProteinSweep *sw, const float *norm_params,
 }
 
 int protein_sweep_should_stop(const ProteinSweep *sw, float score, float cost) {
-    float threshold = -FLT_MAX;
-    if (sw->cm_fitted) {
-        float min_allowed = sw->cm_upper * 0.3f + 10.0f;
-        if (cost < min_allowed) {
-            threshold = -FLT_MAX;
-        } else if (cost > PROTEIN_THRESHOLD_COST_CAP * sw->cm_upper) {
-            threshold = PROTEIN_THRESHOLD_FALLBACK * sw->cm_max_score;
-        } else {
-            threshold = sw->cm_A + sw->cm_B * logf(cost);
-        }
-    }
     if (sw->use_logit) {
         score = logit_transform(score);
+    }
+    if (!sw->cm_fitted) {
+        return 0;
+    }
+    float min_allowed = sw->cm_upper * 0.3f + 10.0f;
+    if (cost < min_allowed) {
+        return 0;
+    }
+    float threshold;
+    if (cost > PROTEIN_THRESHOLD_COST_CAP * sw->cm_upper) {
+        threshold = PROTEIN_THRESHOLD_FALLBACK * sw->cm_max_score;
+    } else {
+        threshold = sw->cm_A + sw->cm_B * logf(cost);
     }
     return score < threshold;
 }
@@ -771,10 +766,10 @@ static void kd_remove_near(const KDTree *t, int node, const float *q, float r,
         return;
     }
     float dv = q[nd->split_dim] - nd->split_val;
-    if (nd->left >= 0 && dv <= r) {
+    if (dv <= r) {
         kd_remove_near(t, nd->left, q, r, r2, self, keep);
     }
-    if (nd->right >= 0 && dv >= -r) {
+    if (dv >= -r) {
         kd_remove_near(t, nd->right, q, r, r2, self, keep);
     }
 }
