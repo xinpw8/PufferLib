@@ -29,6 +29,7 @@ extern nle_ctx_t* nle_obs_refresh(nle_ctx_t*, nle_obs*);
 extern int        nle_path_drain(nle_ctx_t*, short*, int);
 extern long       nle_shop_price(nle_ctx_t*);
 extern int        nle_terrain_underfoot(nle_ctx_t*);
+extern int        nle_inside_shop(nle_ctx_t*);
 extern void       nle_end(nle_ctx_t*);
 #ifdef __cplusplus
 }
@@ -273,8 +274,8 @@ static void nethack_pack_obs(Nethack* env) {
         extra[2 + oc]++;
     }
     { long sp = nle_shop_price(env->ctx);
-      extra[NETHACK_EXTRA_SHOP] = (sp >= 0);
-      // gold/price as a percent, capped at 100 (0 = nothing to buy here)
+      extra[NETHACK_EXTRA_SHOP] = nle_inside_shop(env->ctx);
+      // gold/price as a percent, capped at 100 (0 = no purchase available here)
       long g = env->blstats[NLE_BL_GOLD];
       extra[NETHACK_EXTRA_SHOP + 1] = (sp > 0)
           ? (int32_t)(g >= sp ? 100 : (g * 100) / sp) : 0; }
@@ -617,12 +618,12 @@ static void nethack_execute(Nethack* env, int verb, int slot, int dirkey, int* b
         nethack_send_key(env, 's');
         break;
     case NETHACK_ACT_PICKUP: {
-        int in_shop = nle_shop_price(env->ctx) >= 0;
+        int purchase = nle_shop_price(env->ctx) > 0;   // 0 = own/no-charge pile, nothing to pay
         st->verb_uses[verb]++;
         nethack_send_key(env, ',');
         nethack_answer_menu(env);
         // shop pickup bills you; settle it now (the mask guarantees we can)
-        if (in_shop && !env->obs.done) {
+        if (purchase && !env->obs.done) {
             nethack_send_key(env, 'p');
             st->buys++;
         }
