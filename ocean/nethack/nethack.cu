@@ -47,9 +47,10 @@ static constexpr int NH_HOT_G = 10;                // hot-glyph dT smem slots (1
 static constexpr int NH_BL_RAW = 27;               // NLE_BLSTATS_SIZE
 static constexpr int NH_BL_HUNGER = 21, NH_BL_CONDITION = 25;
 static constexpr int NH_BL_HP = 10, NH_BL_ENE = 14;  // hp/hpmax at 10/11, ene/enemax at 14/15
-static constexpr int NH_ACTIONS = 22;              // NETHACK_NUM_ACTIONS
+static constexpr int NH_ACTIONS = 23;              // NETHACK_NUM_ACTIONS
 static constexpr int NH_OCLASSES = 18;             // MAXOCLASSES
-static constexpr int NH_EX_RAW = 2 + NH_OCLASSES;  // NETHACK_EXTRA_INTS
+static constexpr int NH_EXTRA_SHOP = 2 + NH_OCLASSES;   // extra[] index of the shop pair
+static constexpr int NH_EX_RAW = 2 + NH_OCLASSES + 2;  // NETHACK_EXTRA_INTS
 // blstats feature map (cumulative offsets; each block documented at its
 // kernel branch). hp/ene fracs are the danger ratios the linear bl_w can't
 // synthesize from separate cur/max scalars; dnum is one-hot because dungeon
@@ -61,7 +62,8 @@ static constexpr int NH_F_INV    = NH_F_PREV + NH_ACTIONS;      // inv class cou
 static constexpr int NH_F_FRAC   = NH_F_INV + NH_OCLASSES;      // hp_frac, ene_frac
 static constexpr int NH_F_DNUM   = NH_F_FRAC + 2;               // 8-way one-hot
 static constexpr int NH_F_ENGR   = NH_F_DNUM + 8;               // engraving bits
-static constexpr int NH_BL_FEAT  = NH_F_ENGR + 2;
+static constexpr int NH_F_SHOP   = NH_F_ENGR + 2;             // in-shop, affordability
+static constexpr int NH_BL_FEAT  = NH_F_SHOP + 2;
 static constexpr int NH_BL_DNUM = 23;
 static constexpr int NH_BL_HID = 64;
 // Inventory entity branch: 55 slot glyphs, each embed -> shared 32->32
@@ -449,10 +451,14 @@ __global__ void nh_blstats_kernel(
         } else if (j < NH_F_ENGR) {
             int v = nh_bl_read_i32(src + 4*NH_BL_DNUM);
             f = (j - NH_F_DNUM == max(0, min(v, 7))) ? 1.0f : 0.0f;
-        } else {
+        } else if (j < NH_F_SHOP) {
             // underfoot engraving from ex[0]: any engraving, active Elbereth
             int v = nh_bl_read_i32(ex);
             f = (j == NH_F_ENGR) ? (v >= 1 ? 1.0f : 0.0f) : (v >= 2 ? 1.0f : 0.0f);
+        } else {
+            // standing on shop goods, and gold/price capped at 1
+            int v = nh_bl_read_i32(ex + 4*(NH_EXTRA_SHOP + (j - NH_F_SHOP)));
+            f = (j == NH_F_SHOP) ? (float)v : (float)v * 0.01f;
         }
         // strict [-1,1]: bounds deep-play excursions (AC -15 -> -1.5, hp 300 ->
         // 1.5, stacked inv counts) — validated neutral-now, deep-safe (n=4)

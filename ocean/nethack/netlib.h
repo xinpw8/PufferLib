@@ -43,6 +43,38 @@ static const signed char nh_obj_armcat[NH_NUM_OBJECTS] = {
 #define NETHACK_CROP_GRID  (NETHACK_CROP * NETHACK_CROP)
 #define NETHACK_PAD_GLYPH  5976
 
+// object-type -> base cost in zorkmids, same otyp indexing as nh_obj_armcat
+// (gen_obj_cost, NetHack 3.6.6). Telemetry only: glyphs are post-shuffle,
+// so for shuffled classes this is the appearance's cost, not the item's.
+static const short nh_obj_cost[NH_NUM_OBJECTS] = {
+  0,2,2,2,5,4,2,2,5,20,3,3,3,3,40,3,5,4,4,4,
+  40,4,6,4,4,2,100,8,40,10,10,10,10,15,75,10,10,15,50,80,
+  500,300,10,6,5,6,10,10,7,5,50,5,5,7,7,8,5,10,5,3,
+  3,5,4,4,4,60,60,60,60,20,40,8,10,20,1,80,1,8,10,50,
+  50,50,1200,1200,900,900,900,1200,900,900,900,700,700,500,500,500,700,500,500,500,
+  600,820,400,80,90,240,240,75,75,45,15,100,80,5,10,3,2,2,60,40,
+  50,50,50,50,40,50,60,60,50,3,7,7,7,10,10,50,8,50,50,50,
+  8,16,12,50,50,50,8,8,30,30,100,150,150,150,150,100,200,200,100,100,
+  200,100,150,300,100,150,200,150,150,200,200,200,300,300,300,150,150,100,150,150,
+  150,150,150,150,150,150,150,0,30000,8,16,42,2,100,100,100,10,20,10,10,
+  20,12,10,50,200,10,60,80,20,50,150,20,75,30,30,20,80,50,180,60,
+  10,10,12,36,15,50,50,50,50,50,50,15,25,25,50,50,100,5000,5000,15,
+  5,9,5,5,105,1,6,6,6,6,6,6,7,9,7,10,9,7,7,7,
+  17,15,10,10,7,15,45,35,45,25,20,5,300,100,100,150,300,200,200,100,
+  150,50,100,100,300,200,150,150,150,100,200,200,50,50,50,250,250,100,80,100,
+  100,100,80,60,200,200,300,50,100,100,100,20,100,200,100,200,300,300,300,100,
+  100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,60,
+  500,200,400,400,100,700,100,100,100,100,100,200,200,200,200,200,200,200,300,300,
+  300,300,300,300,400,300,400,400,400,300,500,300,600,600,600,600,700,100,100,300,
+  0,20,10000,100,150,150,200,500,100,150,150,150,150,150,200,200,200,150,150,150,
+  150,150,175,175,175,500,175,150,150,150,1,4500,4000,3500,3250,3000,2500,2500,2000,1500,
+  1500,1000,900,850,800,700,700,600,500,400,200,200,300,0,0,0,0,0,0,0,
+  0,0,60,1,45,1,0,0,0,10,0,0,0,
+};
+
+#define NETHACK_PATH_MAX     128    // engine records up to 128 hero tiles/step
+#define NETHACK_GLYPH_ALTAR  2386   // GLYPH_CMAP_OFF + S_altar
+
 // corpse glyphs: [GLYPH_BODY_OFF, +NUMMONS), display.h
 #define NETHACK_GLYPH_BODY_OFF 1144
 #define NETHACK_NUMMONS        381
@@ -52,7 +84,10 @@ static const signed char nh_obj_armcat[NH_NUM_OBJECTS] = {
 #define NETHACK_OFF_GLYPHS  0
 #define NETHACK_OFF_BLSTATS (NH_GRID * 2)
 #define NETHACK_OFF_EXTRA   (NETHACK_OFF_BLSTATS + NLE_BLSTATS_SIZE * 4)
-#define NETHACK_EXTRA_INTS  (2 + NETHACK_NUM_OCLASSES)
+// [0] engraving, [1] prev_action, [2..] per-class inv counts,
+// then in-shop bit and affordability percent
+#define NETHACK_EXTRA_INTS  (2 + NETHACK_NUM_OCLASSES + 2)
+#define NETHACK_EXTRA_SHOP  (2 + NETHACK_NUM_OCLASSES)
 // inventory: 55 slot glyphs (slot heads index these), then 8 gated int8
 // state fields per slot [buc, spe, quan, ero1, ero2, flags, typeknown, rsvd]
 #define NETHACK_INV_SLOTS   NLE_INVENTORY_SIZE
@@ -67,7 +102,7 @@ static const signed char nh_obj_armcat[NH_NUM_OBJECTS] = {
 
 #define NETHACK_MAX_EPISODE_STEPS 10000
 #define NETHACK_AUTODISMISS_MAX   64   // cap on prompt-dismiss keystrokes per step
-#define NETHACK_MAX_DEPTH         64   // scout bitmaps tracked per episode
+#define NETHACK_MAX_DEPTH         64   // scout bitmaps: max distinct (dnum, dlevel) floors per episode
 
 // Stats.areas bits; logged as reach_* proportions
 #define NETHACK_AREA_MINES      1u   // Gnomish Mines (dnum 2)
@@ -81,7 +116,7 @@ enum { NETHACK_MISC_YN = 0, NETHACK_MISC_GETLIN = 1, NETHACK_MISC_XWAIT = 2 };
 
 // action space: verb head (22) + 12 item-slot heads (55) + 6 per-verb
 // direction heads (8 each: MOVE RUN KICK THROW ZAP APPLY)
-#define NETHACK_NUM_ACTIONS 22
+#define NETHACK_NUM_ACTIONS 23
 #define NETHACK_NUM_DIRS    8
 #define NETHACK_DIR_HEADS   6
 static const int NETHACK_DIR_KEYS[NETHACK_NUM_DIRS] =
@@ -128,6 +163,7 @@ enum {
     NETHACK_ACT_APPLY    = 19,
     NETHACK_ACT_READ     = 20,
     NETHACK_ACT_DROP     = 21,
+    NETHACK_ACT_ALTAR_ID = 22,   // bulk BUC-identify on an altar
 };
 
 // dir-head index (0..NETHACK_DIR_HEADS-1) for verbs that take a direction
@@ -183,13 +219,14 @@ static const Verb NETHACK_VERBS[NETHACK_NUM_ACTIONS] = {
     {8,  1u<<2, WORN_ANY}   /* WIELD */,
     {9,  1u<<6, WORN_ANY}   /* APPLY */,
     {10, (1u<<9)|(1u<<10), WORN_ANY}   /* READ */,
-    {11, 0x3FFFFu, UNWORN_ONLY}   /* DROP */
+    {11, 0x3FFFFu, UNWORN_ONLY}   /* DROP */,
+    {-1}   /* ALTAR_ID */
 };
 
 // wandb key per verb success counter (NULL = not logged)
 static const char* NETHACK_VERB_STAT[NETHACK_NUM_ACTIONS] = {
     NULL   /* MOVE */,
-    NULL   /* RUN */,
+    "runs"   /* RUN */,
     NULL   /* DOWN */,
     NULL   /* UP */,
     NULL   /* KICK */,
@@ -209,7 +246,8 @@ static const char* NETHACK_VERB_STAT[NETHACK_NUM_ACTIONS] = {
     "wields"   /* WIELD */,
     "applies"   /* APPLY */,
     "reads"   /* READ */,
-    "drops"   /* DROP */
+    "drops"   /* DROP */,
+    "altar_ids"   /* ALTAR_ID */
 };
 
 typedef struct Log {
@@ -225,6 +263,15 @@ typedef struct Log {
     float floors;             // unique (dnum, dlevel) floors visited
     float enhances;           // #enhance presses (skill advancement claims)
     float floor_eats;         // eats that accepted a floor "eat it?" offer
+    float sells;              // shop sale offers accepted (deliberate drop in a shop)
+    float buys;               // shop pickups paid for
+    float sale_gold;          // gold received from those sales
+    float drop_value;         // base-cost value of everything dropped this episode
+    float trouble_frac;       // fraction of steps in prayer-fixable trouble
+    float prayers_fed;
+    float altar_steps;
+    float wear_blind;
+    float cursed_worn_frac;
     float prayers_low_hp;     // prayers at <=25% max HP (looser than real trouble)
     float prayers_starving;   // prayers at hunger >= Weak: TROUBLE_STARVING, prayer feeds you
     // rest/retreat/burden diagnostics (log-only)
@@ -247,6 +294,7 @@ typedef struct Log {
     float death_adj_monsters; // hostile monsters adjacent on the last obs before death
     float death_maxhp;        // max HP at death (progression measure)
     float truncated;          // hit NETHACK_MAX_EPISODE_STEPS
+    float r_raw[6], r_clip[6], r_death;   // reward decomposition ledgers
     // 0/1 per episode; the logged mean is the proportion
     float reach_mines;
     float reach_minetown;
@@ -273,6 +321,16 @@ typedef struct Stats {
     long prayers_low_hp;
     long prayers_starving;
     long floor_eats;
+    long sells;
+    long buys;
+    long sale_gold;
+    long drop_value;
+    long trouble_steps;       // steps at Weak+ hunger or hp <= maxhp/7
+    long prayers_fed;         // prayers that improved the hunger state
+    long altar_steps;
+    long wear_blind;          // WEAR of an item whose BUC was unknown
+    long cursed_worn_steps;   // steps wearing a known-cursed item
+    int  last_hunger;
     long damage;
     long ac_sum;            // sum of AC over living steps; mean = ac_sum/length
     int max_depth;
@@ -281,7 +339,13 @@ typedef struct Stats {
     int max_xp;
     unsigned areas;         // NETHACK_AREA_* bits
     float ret;
+    // per-term reward ledgers: raw sum, and clip-attributed (each step's
+    // terms scaled by clamp(sum)/sum, mirroring the trainer's [-1,1] clamp)
+    float r_raw[6], r_clip[6];   // exp gold descent floor xp scout
+    float r_death;
     int length;
     // per-level first-visit bitmaps; branch levels sharing a depth share one
     unsigned char visited[NETHACK_MAX_DEPTH][(NH_GRID + 7) / 8];
+    unsigned short visited_key[NETHACK_MAX_DEPTH];   // dnum << 8 | dlevel per slot
+    int n_visited_floors;
 } Stats;

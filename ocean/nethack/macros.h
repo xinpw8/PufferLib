@@ -26,6 +26,17 @@ static int nethack_msg_contains(const Nethack* env, const char* needle) {
     return strstr(buf, needle) != NULL;
 }
 
+// first integer after `needle`, 0 if absent ("<Shk> offers [only] N gold ...")
+static long nethack_msg_number_after(const Nethack* env, const char* needle) {
+    char buf[NLE_MESSAGE_SIZE + 1];
+    memcpy(buf, env->message, NLE_MESSAGE_SIZE);
+    buf[NLE_MESSAGE_SIZE] = '\0';
+    const char* p = strstr(buf, needle);
+    if (!p) return 0;
+    while (*p && (*p < '0' || *p > '9')) p++;
+    return strtol(p, NULL, 10);
+}
+
 // parse a getobj bracket list ("[b-d f or ?*]") into cand[]; returns count
 static int nethack_parse_candidates(const Nethack* env, char* cand, int cap) {
     const unsigned char* m = env->message;
@@ -93,6 +104,13 @@ static int nethack_handle_prompts(Nethack* env) {
         int commit = yn && nethack_msg_contains(env, "[yn")
                         && !nethack_msg_contains(env, "no return")
                         && !nethack_msg_contains(env, "eally attack");
+        // shopkeeper's "<Shk> offers N gold pieces for your X.  Sell it?" is
+        // ynaq-rendered, so commit already accepts it — count the conversion
+        if (commit && nethack_msg_contains(env, "gold piece")
+                   && nethack_msg_contains(env, "Sell")) {
+            env->stats.sells++;
+            env->stats.sale_gold += nethack_msg_number_after(env, "offers");
+        }
         env->obs.action = ring ? 'r' : (commit ? 'y' : 27);
         env->ctx = nle_step(env->ctx, &env->obs);
     }

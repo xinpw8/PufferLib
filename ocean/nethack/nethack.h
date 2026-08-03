@@ -26,6 +26,9 @@ extern "C" {
 extern nle_ctx_t* nle_start(nle_obs*, FILE*, nle_settings*);
 extern nle_ctx_t* nle_step(nle_ctx_t*, nle_obs*);
 extern nle_ctx_t* nle_obs_refresh(nle_ctx_t*, nle_obs*);
+extern int        nle_path_drain(nle_ctx_t*, short*, int);
+extern long       nle_shop_price(nle_ctx_t*);
+extern int        nle_terrain_underfoot(nle_ctx_t*);
 extern void       nle_end(nle_ctx_t*);
 #ifdef __cplusplus
 }
@@ -81,10 +84,8 @@ struct Env {
     long prev_gold;
     long start_gold;
     long prev_hp;
-    long prev_hunger;
     long prev_time;
     int prev_depth;
-    long prev_ac;
     int prev_bad_cond;
     // reward coefs
     float gold_coef;
@@ -93,13 +94,7 @@ struct Env {
     float floor_coef;
     float xp_coef;
     float scout_coef;
-    float hp_coef;
-    float hunger_coef;
-    float illegal_penalty;
     float death_penalty;
-    float ac_coef;
-    float heal_coef;
-    float status_coef;
 
     unsigned int rng;    // required by vecenv.h
     unsigned long seed;  // advanced each reset
@@ -195,12 +190,22 @@ static void nethack_compute_mask(Nethack* env) {
     int on_corpse = (underfoot >= NETHACK_GLYPH_BODY_OFF
                      && underfoot < NETHACK_GLYPH_BODY_OFF + NETHACK_NUMMONS);
 
-    if (underfoot != NETHACK_GLYPH_DNSTAIR && underfoot != NETHACK_GLYPH_DNLADDER)
+    // terrain, not the map glyph: an object on the tile occludes the stairs
+    // (underfoot_glyphs shows the top item), which used to mask DOWN off and
+    // strand the agent on a littered staircase
+    int terrain = nle_terrain_underfoot(env->ctx);
+    if (terrain != NETHACK_GLYPH_DNSTAIR && terrain != NETHACK_GLYPH_DNLADDER)
         mask[NETHACK_ACT_DOWN] = 0;
-    if (underfoot != NETHACK_GLYPH_UPSTAIR && underfoot != NETHACK_GLYPH_UPLADDER)
+    if (terrain != NETHACK_GLYPH_UPSTAIR && terrain != NETHACK_GLYPH_UPLADDER)
         mask[NETHACK_ACT_UP] = 0;
     if (env->blstats[NLE_BL_DEPTH] <= 1) mask[NETHACK_ACT_UP] = 0;   // declined exit
     if (!on_object && !on_corpse) mask[NETHACK_ACT_PICKUP] = 0;
+    if (terrain != NETHACK_GLYPH_ALTAR) mask[NETHACK_ACT_ALTAR_ID] = 0;
+    // shop goods we can't pay for: picking them up incurs a bill the agent
+    // has no way to settle, so gate on affordability (price is quoted to the
+    // player on arrival, so this is public information)
+    long shop_price = nle_shop_price(env->ctx);
+    if (shop_price > env->blstats[NLE_BL_GOLD]) mask[NETHACK_ACT_PICKUP] = 0;
 
     // item slot heads
     for (int a = 0; a < NETHACK_NUM_ACTIONS; a++) {
@@ -267,6 +272,12 @@ static void nethack_pack_obs(Nethack* env) {
         if (oc >= NETHACK_NUM_OCLASSES) break;   // padded tail
         extra[2 + oc]++;
     }
+    { long sp = nle_shop_price(env->ctx);
+      extra[NETHACK_EXTRA_SHOP] = (sp >= 0);
+      // gold/price as a percent, capped at 100 (0 = nothing to buy here)
+      long g = env->blstats[NLE_BL_GOLD];
+      extra[NETHACK_EXTRA_SHOP + 1] = (sp > 0)
+          ? (int32_t)(g >= sp ? 100 : (g * 100) / sp) : 0; }
     unsigned char* ex = ((obs_t*)env->agents[0].observations) + NETHACK_OFF_EXTRA;
     for (int i = 0; i < NETHACK_EXTRA_INTS; i++) {
         uint32_t v = (uint32_t)extra[i];
@@ -306,10 +317,24 @@ static void nethack_add_log(Nethack* env, int how) {   // how: nle how_done, -1 
     env->log.new_tiles += (float)env->stats.new_tiles;
     env->log.max_depth += (float)env->stats.max_depth;
     env->log.floors += (float)env->stats.floors;
+    for (int i = 0; i < 6; i++) {
+        env->log.r_raw[i] += env->stats.r_raw[i];
+        env->log.r_clip[i] += env->stats.r_clip[i];
+    }
+    env->log.r_death += env->stats.r_death;
     env->log.enhances += (float)env->stats.enhances;
     env->log.prayers_low_hp += (float)env->stats.prayers_low_hp;
     env->log.prayers_starving += (float)env->stats.prayers_starving;
     env->log.floor_eats += (float)env->stats.floor_eats;
+    env->log.sells += (float)env->stats.sells;
+    env->log.buys += (float)env->stats.buys;
+    env->log.sale_gold += (float)env->stats.sale_gold;
+    env->log.drop_value += (float)env->stats.drop_value;
+    env->log.trouble_frac += (float)env->stats.trouble_steps / (float)env->stats.length;
+    env->log.prayers_fed += (float)env->stats.prayers_fed;
+    env->log.altar_steps += (float)env->stats.altar_steps;
+    env->log.wear_blind += (float)env->stats.wear_blind;
+    env->log.cursed_worn_frac += (float)env->stats.cursed_worn_steps / (float)env->stats.length;
     env->log.damage_taken += (float)env->stats.damage;
     env->log.ac += env->stats.length > 0
         ? (float)env->stats.ac_sum / (float)env->stats.length : 0.0f;
@@ -369,11 +394,7 @@ static void nethack_do_reset(Nethack* env) {
     env->start_gold = env->blstats[NLE_BL_GOLD];
     env->prev_gold = 0;   // clamped net gold
     env->prev_hp = env->blstats[NLE_BL_HP];
-    env->prev_hunger = env->blstats[NLE_BL_HUNGER];
-    if (env->prev_hunger < 1) env->prev_hunger = 1;
-    else if (env->prev_hunger > 6) env->prev_hunger = 6;
     env->prev_depth = (int)env->blstats[NLE_BL_DEPTH];
-    env->prev_ac = env->blstats[NLE_BL_AC];
     env->prev_bad_cond = __builtin_popcount((unsigned)env->blstats[NLE_BL_CONDITION] & NETHACK_COND_BAD);
     env->prev_time = env->blstats[NLE_BL_TIME];
     env->prev_action = -1;
@@ -407,6 +428,23 @@ static void nethack_update_stats(Nethack* env) {
     if (hp < env->prev_hp) env->stats.damage += env->prev_hp - hp;
     if (env->blstats[NLE_BL_CAP] > 0) env->stats.burdened_steps++;
 
+    // prayer demand vs supply: "trouble" is roughly what pray.c will fix
+    long hunger = env->blstats[NLE_BL_HUNGER], maxhp = env->blstats[NLE_BL_HPMAX];
+    if (hunger >= NETHACK_HUNGER_WEAK || (maxhp > 0 && hp * 7 <= maxhp))
+        env->stats.trouble_steps++;
+    if (env->prev_action == NETHACK_ACT_PRAY && hunger < env->stats.last_hunger)
+        env->stats.prayers_fed++;
+    env->stats.last_hunger = (int)hunger;
+
+    for (int i = 0; i < NETHACK_INV_SLOTS; i++) {
+        const signed char* s = &env->inv_state[i * NLE_INV_STATE_FIELDS];
+        if ((s[5] & 1) && s[0] == 1) { env->stats.cursed_worn_steps++; break; }
+    }
+
+    // altar exposure: terrain, so loot on the altar doesn't hide it
+    if (nle_terrain_underfoot(env->ctx) == NETHACK_GLYPH_ALTAR)
+        env->stats.altar_steps++;
+
     // death anatomy, read back at death
     env->stats.last_maxhp = env->blstats[NLE_BL_HPMAX];
     long hx = env->blstats[NLE_BL_X], hy = env->blstats[NLE_BL_Y];
@@ -426,9 +464,20 @@ static void nethack_update_stats(Nethack* env) {
     env->prev_depth = depth;
 }
 
-static int nethack_first_visit(Nethack* env, int depth, long px, long py) {
+// bitmaps are keyed by (dnum, dlevel), slots allocated on first entry to a
+// floor; depth-only keying aliased branches (mines tiles vs main at same depth)
+static int nethack_first_visit(Nethack* env, long dn, long dl, long px, long py) {
     if (px < 0 || px >= NH_COLS || py < 0 || py >= NH_ROWS) return 0;
-    int d = depth < 1 ? 0 : (depth > NETHACK_MAX_DEPTH ? NETHACK_MAX_DEPTH - 1 : depth - 1);
+    if (dn < 0 || dn > 15 || dl < 1 || dl > 64) return 0;
+    unsigned short key = (unsigned short)(dn << 8 | dl);
+    int d = -1;
+    for (int i = 0; i < env->stats.n_visited_floors; i++)
+        if (env->stats.visited_key[i] == key) { d = i; break; }
+    if (d < 0) {
+        if (env->stats.n_visited_floors >= NETHACK_MAX_DEPTH) return 0;
+        d = env->stats.n_visited_floors++;
+        env->stats.visited_key[d] = key;
+    }
     int bit = (int)py * NH_COLS + (int)px;
     unsigned char mask = (unsigned char)(1 << (bit & 7));
     if (env->stats.visited[d][bit >> 3] & mask) return 0;
@@ -438,21 +487,26 @@ static int nethack_first_visit(Nethack* env, int depth, long px, long py) {
 
 static float nethack_reward(Nethack* env, int illegal) {
     // death payout
-    if (env->obs.done)
-        return env->death_penalty - env->hp_coef * (float)env->prev_hp;
+    if (env->obs.done) {
+        env->stats.r_death += env->death_penalty;
+        return env->death_penalty;
+    }
     nethack_update_stats(env);
 
     int depth = (int)env->blstats[NLE_BL_DEPTH];
 
+    // per-term ledger: t[0..5] = exp gold descent floor xp scout
+    float t[6] = {0};
+
     // exp, gains only
     long exp = env->blstats[NLE_BL_EXP];
-    float r = exp > env->prev_exp ? env->exp_coef * (float)(exp - env->prev_exp) : 0.0f;
+    if (exp > env->prev_exp) t[0] = env->exp_coef * (float)(exp - env->prev_exp);
     env->prev_exp = exp;
 
     // gold, net of start
     long g = env->blstats[NLE_BL_GOLD] - env->start_gold;
     if (g < 0) g = 0;
-    r += env->gold_coef * (float)(g - env->prev_gold);
+    t[1] = env->gold_coef * (float)(g - env->prev_gold);
     env->prev_gold = g;
 
     // descent_coef pays per max-depth delta, floor_coef per new (dnum, dlevel) floor
@@ -462,60 +516,67 @@ static float nethack_reward(Nethack* env, int illegal) {
           if (!(env->stats.floors_bits[dn] & fb)) {
               env->stats.floors_bits[dn] |= fb;
               env->stats.floors++;
-              r += env->floor_coef;
+              t[3] = env->floor_coef;
           }
       } }
     if (depth > env->stats.max_depth) {
-        r += env->descent_coef * (float)(depth - env->stats.max_depth);
+        t[2] = env->descent_coef * (float)(depth - env->stats.max_depth);
         env->stats.max_depth = depth;
     }
+    // additions in the pre-ledger order (bit-exact float sums)
+    float r = t[0];
+    r += t[1];
+    r += t[3];
+    r += t[2];
 
-    // hp potential
+    // heal/ac/cure stats (no reward; body-state shaping pruned 2026-08)
     long hp = env->blstats[NLE_BL_HP];
     long hp_delta = hp - env->prev_hp;
-    r += env->hp_coef * (float)hp_delta;
-    // gain-only heal credit
     if (hp_delta > 0 && (env->prev_action == NETHACK_ACT_QUAFF
-                      || env->prev_action == NETHACK_ACT_PRAY)) {
-        r += env->heal_coef * (float)hp_delta;
+                      || env->prev_action == NETHACK_ACT_PRAY))
         env->stats.heal_hp += hp_delta;
-    }
     env->prev_hp = hp;
-
-    // ac potential
     long ac = env->blstats[NLE_BL_AC];
-    r += env->ac_coef * (float)(env->prev_ac - ac);
-    env->prev_ac = ac;
     env->stats.ac_sum += ac;
     if ((int)ac < env->stats.min_ac) env->stats.min_ac = (int)ac;
-
-    // status potential
     int bad_cond = __builtin_popcount((unsigned)env->blstats[NLE_BL_CONDITION] & NETHACK_COND_BAD);
-    r += env->status_coef * (float)(env->prev_bad_cond - bad_cond);
     if (bad_cond < env->prev_bad_cond) env->stats.cures += env->prev_bad_cond - bad_cond;
     env->prev_bad_cond = bad_cond;
-
-    // hunger potential
-    long hunger = env->blstats[NLE_BL_HUNGER];
-    if (hunger < 1) hunger = 1;
-    else if (hunger > 6) hunger = 6;
-    r += env->hunger_coef * (float)(env->prev_hunger - hunger);
-    env->prev_hunger = hunger;
 
     // xp level, max only
     int xp = (int)env->blstats[NLE_BL_XP];
     if (xp > env->stats.max_xp) {
-        r += env->xp_coef * (float)(xp - env->stats.max_xp);
+        t[4] = env->xp_coef * (float)(xp - env->stats.max_xp);
         env->stats.max_xp = xp;
     }
 
-    // scout
-    if (nethack_first_visit(env, depth, env->blstats[NLE_BL_X], env->blstats[NLE_BL_Y])) {
-        r += env->scout_coef;
-        env->stats.new_tiles++;
-    }
+    // scout: pay every tile walked this step. A rush resolves many moves
+    // inside one nle_step and turns corners, so drain the engine's path
+    // rather than crediting only where the hero stopped.
+    { long dn = env->blstats[NLE_BL_DNUM], dl = env->blstats[NLE_BL_DLEVEL];
+      short path[2 * NETHACK_PATH_MAX];
+      int n = nle_path_drain(env->ctx, path, NETHACK_PATH_MAX);
+      int fresh = 0;
+      for (int i = 0; i < n; i++)
+          fresh += nethack_first_visit(env, dn, dl, path[2 * i], path[2 * i + 1]);
+      // no move recorded (non-move verbs, or a step that never left the tile)
+      if (!n) fresh += nethack_first_visit(env, dn, dl,
+                  env->blstats[NLE_BL_X], env->blstats[NLE_BL_Y]);
+      if (fresh) {
+          t[5] = env->scout_coef * (float)fresh;
+          env->stats.new_tiles += fresh;
+      } }
+    r += t[4];
+    r += t[5];
 
-    if (illegal) r += env->illegal_penalty;
+    // ledger: raw, plus clip-attributed (terms scaled by clamp(r)/r; the
+    // trainer clamps rewards to [-1,1] before training)
+    float rc = r < -1.0f ? -1.0f : r > 1.0f ? 1.0f : r;
+    float scale = r != 0.0f ? rc / r : 0.0f;
+    for (int i = 0; i < 6; i++) {
+        env->stats.r_raw[i] += t[i];
+        env->stats.r_clip[i] += t[i] * scale;
+    }
     return r;
 }
 
@@ -528,6 +589,7 @@ static void nethack_execute(Nethack* env, int verb, int slot, int dirkey, int* b
         nethack_send_key(env, dirkey);
         break;
     case NETHACK_ACT_RUN:
+        st->verb_uses[verb]++;
         nethack_send_key(env, dirkey - 32);   // uppercase = run
         break;
     case NETHACK_ACT_DOWN:
@@ -554,21 +616,30 @@ static void nethack_execute(Nethack* env, int verb, int slot, int dirkey, int* b
         nethack_send_key(env, '0');
         nethack_send_key(env, 's');
         break;
-    case NETHACK_ACT_PICKUP:
+    case NETHACK_ACT_PICKUP: {
+        int in_shop = nle_shop_price(env->ctx) >= 0;
         st->verb_uses[verb]++;
         nethack_send_key(env, ',');
         nethack_answer_menu(env);
-        break;
+        // shop pickup bills you; settle it now (the mask guarantees we can)
+        if (in_shop && !env->obs.done) {
+            nethack_send_key(env, 'p');
+            st->buys++;
+        }
+        break; }
     case NETHACK_ACT_PRAY:
         if (4 * env->blstats[NLE_BL_HP] <= env->blstats[NLE_BL_HPMAX]) st->prayers_low_hp++;
         if (env->blstats[NLE_BL_HUNGER] >= NETHACK_HUNGER_WEAK) st->prayers_starving++;
         st->verb_uses[verb]++;
         nethack_send_key(env, 0x80 | 'p');
         break;
-    case NETHACK_ACT_WEAR:
+    case NETHACK_ACT_WEAR: {
+        // wearing with BUC unknown is exactly what an altar drop would prevent
+        int blind = env->inv_state[slot * NLE_INV_STATE_FIELDS] == 0;
         nethack_wear_takeoff_conflict(env, slot);
-        nethack_item_use(env, 'W', "want to wear", NULL, slot, &st->verb_uses[verb], bad_pick);
-        break;
+        if (nethack_item_use(env, 'W', "want to wear", NULL, slot,
+                &st->verb_uses[verb], bad_pick) && blind) st->wear_blind++;
+        break; }
     case NETHACK_ACT_EAT:
         nethack_item_use(env, 'e', "want to eat", "eat it", slot, &st->verb_uses[verb], bad_pick);
         break;
@@ -607,9 +678,30 @@ static void nethack_execute(Nethack* env, int verb, int slot, int dirkey, int* b
         if (nethack_item_use(env, 'r', "read", NULL, slot, &st->verb_uses[verb], bad_pick))
             nethack_answer_menu(env);
         break;
-    case NETHACK_ACT_DROP:
-        nethack_item_use(env, 'd', "drop", NULL, slot, &st->verb_uses[verb], bad_pick);
-        break;
+    case NETHACK_ACT_ALTAR_ID: {
+        // each drop onto an altar flashes the item's curse state (sets bknown),
+        // so dump everything still unknown and take it straight back
+        st->verb_uses[verb]++;
+        for (int i = 0; i < NETHACK_INV_SLOTS && env->inv_letters[i] && !env->obs.done; i++) {
+            if (env->inv_oclasses[i] >= NETHACK_NUM_OCLASSES) break;
+            if (env->inv_oclasses[i] == 12) continue;   // gold: no flash
+            const signed char* st8 = &env->inv_state[i * NLE_INV_STATE_FIELDS];
+            if (st8[0] != 0 || (st8[5] & 1)) continue;  // BUC known, or worn
+            nethack_item_use(env, 'd', "drop", NULL, i, NULL, NULL);
+        }
+        if (!env->obs.done) {
+            nethack_send_key(env, ',');
+            nethack_answer_menu(env);
+        }
+        break; }
+    case NETHACK_ACT_DROP: {
+        // value of the discard stream = sellable stock the agent gives up for free
+        int otyp = env->inv_glyphs[slot] - NH_GLYPH_OBJ_OFF;
+        long quan = env->inv_state[slot * NLE_INV_STATE_FIELDS + 2];
+        if (nethack_item_use(env, 'd', "drop", NULL, slot, &st->verb_uses[verb], bad_pick)
+                && otyp >= 0 && otyp < NH_NUM_OBJECTS)
+            st->drop_value += nh_obj_cost[otyp] * (quan > 0 ? quan : 1);
+        break; }
     }
 }
 
@@ -695,13 +787,7 @@ void puf_init(Env* env, Dict* kwargs) {
     env->floor_coef = dict_get(kwargs, "floor_coef");
     env->scout_coef = dict_get(kwargs, "scout_coef");
     env->xp_coef = dict_get(kwargs, "xp_coef");
-    env->hp_coef = dict_get(kwargs, "hp_coef");
-    env->hunger_coef = dict_get(kwargs, "hunger_coef");
-    env->illegal_penalty = dict_get(kwargs, "illegal_penalty");
     env->death_penalty = dict_get(kwargs, "death_penalty");
-    env->ac_coef = dict_get(kwargs, "ac_coef");
-    env->heal_coef = dict_get(kwargs, "heal_coef");
-    env->status_coef = dict_get(kwargs, "status_coef");
 }
 
 // Export order: outcomes first (score/depth/reaches/deaths), then action
@@ -719,6 +805,15 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "reach_deep_mines", log->reach_deep_mines);
     dict_set(out, "reach_main_d5", log->reach_main_d5);
     dict_set(out, "reach_sokoban", log->reach_sokoban);
+    dict_set(out, "sells", log->sells);
+    dict_set(out, "buys", log->buys);
+    dict_set(out, "sale_gold", log->sale_gold);
+    dict_set(out, "drop_value", log->drop_value);
+    dict_set(out, "trouble_frac", log->trouble_frac);
+    dict_set(out, "prayers_fed", log->prayers_fed);
+    dict_set(out, "altar_steps", log->altar_steps);
+    dict_set(out, "wear_blind", log->wear_blind);
+    dict_set(out, "cursed_worn_frac", log->cursed_worn_frac);
     dict_set(out, "death_combat", log->death_combat);
     dict_set(out, "death_starved", log->death_starved);
     dict_set(out, "death_smited", log->death_smited);
@@ -746,6 +841,15 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "game_time", log->game_time);
     dict_set(out, "max_xp_level", log->max_xp_level);
     dict_set(out, "floors", log->floors);
+    { static const char* rn[6] = {"exp","gold","descent","floor","xp","scout"};
+      char key[32];
+      for (int i = 0; i < 6; i++) {
+          snprintf(key, sizeof(key), "r_raw/%s", rn[i]);
+          dict_set(out, key, log->r_raw[i]);
+          snprintf(key, sizeof(key), "r_clip/%s", rn[i]);
+          dict_set(out, key, log->r_clip[i]);
+      }
+      dict_set(out, "r_raw/death", log->r_death); }
     dict_set(out, "truncated", log->truncated);
 }
 

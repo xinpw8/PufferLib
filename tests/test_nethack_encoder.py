@@ -123,11 +123,13 @@ def make_obs(B, obs_size, grid, max_glyph_used):
         rng.integers(0, 3, size=(B, 1)),      # engraving state 0/1/2
         rng.integers(-1, 14, size=(B, 1)),
         rng.integers(0, 6, size=(B, 18)),
+        rng.integers(0, 2, size=(B, 1)),      # in-shop bit
+        rng.integers(0, 101, size=(B, 1)),    # affordability percent
     ], axis=1).astype(np.int64).astype(np.uint32)
     for k in range(4):
-        obs[:, bl_off + k::4][:, 27:47] = ((ex >> (8 * k)) & 0xFF).astype(np.float32)
+        obs[:, bl_off + k::4][:, 27:49] = ((ex >> (8 * k)) & 0xFF).astype(np.float32)
     # inventory entities @ +47*4: 55 slot glyphs int16 LE, tail padded (5976)
-    inv_off = bl_off + 47 * 4
+    inv_off = bl_off + 49 * 4
     inv = rng.integers(0, max_glyph_used, size=(B, 55)).astype(np.int32)
     inv[:, ::2] = rng.integers(1906, 2359, size=(B, 28))  # object glyphs: armcat coverage
     n_items = rng.integers(3, 12, size=B)
@@ -268,7 +270,7 @@ def torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, H):
     t128 = t16 @ g2_w.T
     glb = torch.relu(t128.max(dim=1).values + g2_b)
     # blstats features
-    f = np.zeros((B, 97), dtype=np.float64)
+    f = np.zeros((B, lib.nh_bl_feat()), dtype=np.float64)
     j = 0
     for i in range(27):
         if i in (21, 25):
@@ -297,6 +299,9 @@ def torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, H):
     # underfoot engraving bits: any-engraving, active-Elbereth
     f[:, j] = (ex_vals[:, 0] >= 1); j += 1
     f[:, j] = (ex_vals[:, 0] >= 2); j += 1
+    # shop: standing on goods, and gold/price capped at 1
+    f[:, j] = ex_vals[:, 20]; j += 1
+    f[:, j] = ex_vals[:, 21] * 0.01; j += 1
     f = np.clip(f, -1.0, 1.0)   # strict clamp, mirrors the kernel
     fb = torch.tensor(f)
     blh = torch.relu(fb @ bl_w.T + bl_b)
