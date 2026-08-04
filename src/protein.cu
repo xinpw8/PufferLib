@@ -193,10 +193,11 @@ typedef struct {
     int lwork;
     int *d_info;
     float raw_noise;
+    float mean;
     cublasHandle_t cublas;
     cusolverDnHandle_t cusolver;
     GPKernel *kernel;
-    float *d_inv_ells, *d_diag, *d_Kinv, *d_partials, *d_Ks;
+    float *d_inv_ells, *d_diag, *d_Kinv, *d_partials, *d_Ks, *d_ones;
     float *h_kg, *h_diag, *h_partials;
 } GaussianProcess;
 
@@ -234,6 +235,7 @@ static void gp_init(GaussianProcess *gp, int dim, int cap, int pred_m, float noi
     k->raw_params[OFF_IDX(n_params)] = inv_softplus(1.0f);
     gp->kernel = k;
     gp->raw_noise = inv_softplus(noise);
+    gp->mean = 0.0f;
     cudaMalloc(&gp->d_X, cap * dim * sizeof(float));
     cudaMalloc(&gp->d_y, cap * sizeof(float));
     cudaMalloc(&gp->d_L, cap * cap * sizeof(float));
@@ -245,6 +247,9 @@ static void gp_init(GaussianProcess *gp, int dim, int cap, int pred_m, float noi
     cudaMalloc(&gp->d_partials, nblocks * nsum * sizeof(float));
     // Dominant device buffer: cap × acq_cap floats (×2 GPs)
     assert(cudaMalloc(&gp->d_Ks, cap * pred_m * sizeof(float)) == cudaSuccess);
+    cudaMalloc(&gp->d_ones, sizeof(float));
+    float one = 1.0f;
+    cudaMemcpy(gp->d_ones, &one, sizeof(float), cudaMemcpyHostToDevice);
     gp->h_kg = (float *)malloc(n_params * sizeof(float));
     gp->h_diag = (float *)malloc(cap * sizeof(float));
     gp->h_partials = (float *)malloc(nblocks * nsum * sizeof(float));
@@ -277,8 +282,11 @@ static int gp_recompute(GaussianProcess *gp, cudaStream_t stream) {
     if (info != 0) {
         return -2;
     }
+    // alpha = K^{-1}(y - mean)
     cudaMemcpyAsync(gp->d_alpha, gp->d_y, n * sizeof(float), cudaMemcpyDeviceToDevice, stream);
     cublasSetStream(gp->cublas, stream);
+    float neg_mean = -gp->mean;
+    cublasSaxpy(gp->cublas, n, &neg_mean, gp->d_ones, 0, gp->d_alpha, 1);
     cublasStrsv(gp->cublas, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT,
         n, gp->d_L, n, gp->d_alpha, 1);
     cublasStrsv(gp->cublas, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT,
@@ -294,6 +302,7 @@ static void gp_predict(GaussianProcess *gp, const float *d_Xte, float *d_means, 
     matern32lin_build_K(gp, gp->d_X, d_Xte, n, m, 0.0f, gp->d_Ks, stream);
     cublasSgemv(gp->cublas, CUBLAS_OP_T, n, m, &one, gp->d_Ks, n, gp->d_alpha, 1,
         &zero, d_means, 1);
+    cublasSaxpy(gp->cublas, m, &gp->mean, gp->d_ones, 0, d_means, 1);
 }
 
 // Train kernel hyperparameters with Adam (score GP and cost GP).
@@ -310,7 +319,7 @@ static float gp_train(GaussianProcess *gp, float *opt_m, float *opt_v,
     }
 
     int n_kp = gp->kernel->n_params;
-    int n_opt = n_kp + 1;
+    int n_opt = n_kp + 2;
     int d = gp->dim;
     int nsum = d + 2;
     float loss = 0.0f;
@@ -324,8 +333,10 @@ static float gp_train(GaussianProcess *gp, float *opt_m, float *opt_v,
         const GPKernel *k = gp->kernel;
         int np = k->n_params;
         cublasSetStream(gp->cublas, stream);
-        float data_fit;
+        float data_fit, sum_alpha;
         cublasSdot(gp->cublas, n, gp->d_y, 1, gp->d_alpha, 1, &data_fit);
+        cublasSdot(gp->cublas, n, gp->d_alpha, 1, gp->d_ones, 0, &sum_alpha);
+        data_fit -= gp->mean * sum_alpha;
         gp_k_extract_diag<<<(n + BLOCK_SIZE - 1) / BLOCK_SIZE,
             BLOCK_SIZE, 0, stream>>>(gp->d_L, gp->d_diag, n);
         cudaMemcpyAsync(gp->h_diag, gp->d_diag, n * sizeof(float),
@@ -392,8 +403,16 @@ static float gp_train(GaussianProcess *gp, float *opt_m, float *opt_v,
         (*opt_t)++;
         float bc1 = 1.0f - powf(beta1, (*opt_t));
         float bc2 = 1.0f - powf(beta2, (*opt_t));
+        float d_mean = sum_alpha / n;
         for (int i = 0; i < n_opt; i++) {
-            float g = (i < n_kp) ? -gp->h_kg[i] : -d_noise - np_grad;
+            float g;
+            if (i < n_kp) {
+                g = -gp->h_kg[i];
+            } else if (i == n_kp) {
+                g = -d_noise - np_grad;
+            } else {
+                g = -d_mean;
+            }
             opt_m[i] = beta1 * opt_m[i] + (1.0f - beta1) * g;
             opt_v[i] = beta2 * opt_v[i] + (1.0f - beta2) * g * g;
             float m_hat = opt_m[i] / bc1;
@@ -402,8 +421,10 @@ static float gp_train(GaussianProcess *gp, float *opt_m, float *opt_v,
             float step = lr * m_hat / (sqrtf(opt_vmax[i]) + 1e-8f);
             if (i < n_kp) {
                 gp->kernel->raw_params[i] -= step;
-            } else {
+            } else if (i == n_kp) {
                 gp->raw_noise -= step;
+            } else {
+                gp->mean -= step;
             }
         }
     }
@@ -562,7 +583,7 @@ ProteinSweep *protein_sweep_create(ProteinSweep init) {
     sw->clf_w = (float *)calloc(dim, sizeof(float));
     gp_init(&sw->gp_score, dim, sw->gp_max_obs, acq_cap, 0.01f);
     gp_init(&sw->gp_cost, dim, sw->gp_max_obs, acq_cap, 0.01f);
-    sw->n_opt = sw->gp_score.kernel->n_params + 1;
+    sw->n_opt = sw->gp_score.kernel->n_params + 2;
     sw->opt_m = (float *)calloc(6 * sw->n_opt, sizeof(float));
 
     curandCreateGeneratorHost(&sw->sobol, CURAND_RNG_QUASI_SCRAMBLED_SOBOL32);
