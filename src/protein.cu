@@ -658,6 +658,14 @@ void protein_sweep_observe(ProteinSweep *sw, const float *norm_params,
     }
 }
 
+// Random phase is gated on suggestions made this process, not observations
+// held. Without this, a resumed sweep re-draws Sobol samples it already has.
+void protein_sweep_skip_random(ProteinSweep *sw) {
+    if (sw->suggestion_idx < sw->num_random_samples) {
+        sw->suggestion_idx = sw->num_random_samples;
+    }
+}
+
 int protein_sweep_should_stop(const ProteinSweep *sw, float score, float cost) {
     float threshold = -FLT_MAX;
     if (sw->cm_fitted) {
