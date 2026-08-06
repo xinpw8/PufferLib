@@ -7,15 +7,11 @@ static void col_write_mask_ctx(EncounterState* state, EncounterContext* context,
     int offset = 0;
 
     int frozen = s->modifiers.draft_pending && !s->modifiers.draft_free_movement;
-    mask[offset++] = 1.0f;
-    for (int d = 1; d < ENCOUNTER_MOVE_ACTIONS; d++) {
-        int nx = s->player.x + ENCOUNTER_MOVE_TARGET_DX[d];
-        int ny = s->player.y + ENCOUNTER_MOVE_TARGET_DY[d];
-        mask[offset++] = (!frozen && col_player_walkable(s, nx, ny)) ? 1.0f : 0.0f;
+    for (int primary_action = 0;
+            primary_action < COLO_PRIMARY_DIM;
+            primary_action++) {
+        mask[offset++] = col_primary_action_valid(s, primary_action) ? 1.0f : 0.0f;
     }
-
-    for (int n = 0; n < COLO_OBS_NPCS; n++)
-        mask[offset++] = (!frozen && col_obs_slot_is_targetable(s, n)) ? 1.0f : 0.0f;
 
     mask[offset++] = 1.0f;
     mask[offset++] = s->player.prayer != PRAYER_NONE ? 1.0f : 0.0f;

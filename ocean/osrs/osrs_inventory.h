@@ -12,8 +12,10 @@
 
 typedef struct {
     uint8_t item_idx;
+    uint8_t binary_padding0;
     uint16_t raw_osrs_id;
     uint8_t dose;
+    uint8_t binary_padding1;
 } OsrsInventoryCell;
 
 typedef struct {

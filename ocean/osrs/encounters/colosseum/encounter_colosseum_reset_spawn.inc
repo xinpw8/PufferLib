@@ -11,6 +11,7 @@ static int col_npc_effective_size(const ColoNPC* npc) {
 }
 
 static void col_stamp_npc_collision_footprint(ColosseumState* s, int x, int y, int size, uint8_t v) {
+    s->log.npc_stamp_tiles += (float)(size * size);
     for (int dx = 0; dx < size; dx++) {
         for (int dy = 0; dy < size; dy++) {
             int gx, gy;
@@ -20,11 +21,21 @@ static void col_stamp_npc_collision_footprint(ColosseumState* s, int x, int y, i
     }
 }
 
+static int col_npc_blocks_other_npcs(const ColosseumState* s, ColoNpcType type) {
+    return !(type == COLO_MINOTAUR && col_mod_active(s, COLO_MOD_RED_FLAG));
+}
+
+static void col_stamp_npc_collision(ColosseumState* s, const ColoNPC* npc, uint8_t v) {
+    if (!col_npc_blocks_other_npcs(s, npc->type)) return;
+    col_stamp_npc_collision_footprint(
+        s, npc->x, npc->y, col_npc_effective_size(npc), v);
+}
+
 static void col_rebuild_player_collision_flags(ColosseumState* s) {
-    memset(s->player_collision_flags, 0, sizeof(s->player_collision_flags));
-    int gx, gy;
-    if (col_grid_index(s->player.x, s->player.y, &gx, &gy))
-        s->player_collision_flags[gx][gy] = 1;
+    if (!col_grid_index(s->player.x, s->player.y, &s->player_grid_x, &s->player_grid_y)) {
+        s->player_grid_x = -1;
+        s->player_grid_y = -1;
+    }
 }
 
 static int col_find_free_npc(ColosseumState* s) {
@@ -50,11 +61,18 @@ static void col_record_score_spawn(ColosseumState* s, ColoNpcType type) {
 static void col_deactivate_npc(ColosseumState* s, int idx) {
     ColoNPC* npc = &s->npcs[idx];
 
-    if (!col_type_is_hazard_entity(npc->type) && !col_type_is_warbander(npc->type)) {
-        int size = col_npc_effective_size(npc);
-        col_stamp_npc_collision_footprint(s, npc->x, npc->y, size, 0);
-    }
+    if (!col_type_is_hazard_entity(npc->type) && !col_type_is_warbander(npc->type))
+        col_stamp_npc_collision(s, npc, 0);
     npc->active = 0;
+    /* The per-tick reset skips inactive slots, so a slot leaving play clears its own tick
+     * flags once here instead of every tick forever. */
+    npc->attacked_this_tick = 0;
+    npc->attack_style_this_tick = ATTACK_STYLE_NONE;
+    npc->moved_this_tick = 0;
+    npc->moved_last_tick = 0;
+    npc->hit_landed_this_tick = 0;
+    npc->hit_damage = 0;
+    npc->hit_was_successful_this_tick = 0;
 }
 
 static void col_roll_manticore_orb_cycle(ColosseumState* s, AttackStyle out[3]) {
@@ -115,7 +133,7 @@ static void col_init_npc(ColosseumState* s, int idx, ColoNpcType type, int x, in
 
     if (!col_type_is_hazard_entity(type) && !col_type_is_warbander(type) &&
             col_npc_effective_size(npc) > 0)
-        col_stamp_npc_collision_footprint(s, x, y, col_npc_effective_size(npc), 1);
+        col_stamp_npc_collision(s, npc, 1);
 }
 
 static int col_spawn_npc_at(ColosseumState* s, ColoNpcType type, int x, int y) {
@@ -420,6 +438,7 @@ static void col_sync_consumable_counters_from_inventory(ColosseumState* s) {
                 break;
             case OSRS_CONSUMABLE_SUPER_RESTORE:
             case OSRS_CONSUMABLE_SANFEW:
+            case OSRS_CONSUMABLE_PRAYER_RESTORE:
                 restore_doses += cell->dose;
                 break;
             case OSRS_CONSUMABLE_SUPER_COMBAT:
@@ -442,6 +461,11 @@ static void col_sync_consumable_counters_from_inventory(ColosseumState* s) {
             case OSRS_CONSUMABLE_SHARK_FOOD:
             case OSRS_CONSUMABLE_KARAMBWAN:
                 break;
+            case OSRS_CONSUMABLE_BASTION:
+            case OSRS_CONSUMABLE_STAMINA:
+                fprintf(stderr, "colosseum: consumable kind %d not in colosseum kits\n",
+                    (int)resolution.consumable_kind);
+                abort();
         }
     }
     s->player.brew_doses = brew_doses;
@@ -450,17 +474,6 @@ static void col_sync_consumable_counters_from_inventory(ColosseumState* s) {
     s->player.ranged_potion_doses = ranged_doses;
     s->player.antivenom_doses = antivenom_doses;
     s->surge_doses = surge_doses;
-}
-
-static void col_strip_brews_from_inventory(ColosseumState* s) {
-    for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++) {
-        ColoInvCell* cell = &s->inventory_cells[i];
-        if (cell->dose == 0) continue;
-        OsrsInventoryClickResolution resolution =
-            osrs_inventory_cell_click_interpret(cell, OSRS_CLICK_TICK_FIRST);
-        if (resolution.consumable_kind == OSRS_CONSUMABLE_BREW)
-            *cell = osrs_inventory_cell_empty();
-    }
 }
 
 static void col_reset_ctx(EncounterState* state, EncounterContext* context, uint32_t seed) {
@@ -480,13 +493,16 @@ static void col_reset_ctx(EncounterState* state, EncounterContext* context, uint
     s->player_dest_x = -1;
     s->player_dest_y = -1;
     s->last_hit_by_type = -1;
+    s->last_damage_source = -1;
+    s->last_doom_damage_source = -1;
+    s->sol.boss_idx = -1;
     s->min_sol_hp_seen = COLO_SOL_HP_MAX;
 
     s->active_player_damage_received_scale = ctx->config.player_damage_received_scale;
     for (int i = 0; i < COLO_OBS_NPCS; i++) s->current_obs_slots[i] = -1;
 
     s->player.entity_type = ENTITY_PLAYER;
-    encounter_init_maxed_player_combat_stats(&s->player, 99);
+    encounter_init_maxed_player_combat_stats(&s->player, COLO_PLAYER_PRAYER_LEVEL);
     osrs_item_effect_state_init(&s->player.item_effect_state);
 
     s->weapon_set = COLO_GEAR_MELEE;
@@ -513,7 +529,6 @@ static void col_reset_ctx(EncounterState* state, EncounterContext* context, uint
     memset(s->player.inventory, ITEM_NONE, sizeof(s->player.inventory));
     memset(s->player.num_items_in_slot, 0, sizeof(s->player.num_items_in_slot));
     col_seed_inventory_cells_from_gameplay_loadout(s);
-    if (ctx->config.remove_brews) col_strip_brews_from_inventory(s);
 
     const ColoSupplyLoadout* supplies = &COLO_SUPPLY_LOADOUTS[s->active_loadout_profile];
     s->full_supplies = *supplies;

@@ -7,6 +7,11 @@
 
 #include "pufferenv.h"
 
+/* Before the encounter header, so the COLO_PROFILE_MARK sites inside it compile in.
+ * Every mark is a branch on a static int and does no work until
+ * PUFFER_COLOSSEUM_PROFILE is set, so the training path pays a predictable branch. */
+#include "colosseum_profile.h"
+
 #define Log OsrsSharedLog
 #include "../osrs/encounters/encounter_colosseum.h"
 #undef Log
@@ -19,6 +24,7 @@ typedef float obs_t;
 #define COLO_ENV_STATE(env) ((EncounterState*)&(env)->state)
 #define COLO_ENV_CONTEXT(env) ((EncounterContext*)&(env)->context)
 #define COLO_MAX_CURRICULUM_TIERS 8
+#define COLO_DPT_SAMPLE_INTERVAL 64
 
 struct Log {
     float episode_return;
@@ -26,6 +32,8 @@ struct Log {
     float damage_dealt;
     float damage_received;
     float wins;
+    float deaths;
+    float timeouts;
     float wave;
     float npc_kills;
     float prayer_correct;
@@ -42,7 +50,12 @@ struct Log {
     float offpray_damage_by_type[COLO_NUM_NPC_TYPES];
     float total_damage_by_type[COLO_NUM_NPC_TYPES];
     float death_by_type[COLO_NUM_NPC_TYPES];
+    float npc_attack_death_by_type[COLO_NUM_NPC_TYPES];
     float typeless_damage_by_type[COLO_NUM_NPC_TYPES];
+    float sol_damage_by_source[COLO_NUM_SOL_DAMAGE_SOURCES];
+    float javelin_damage_by_source[COLO_NUM_JAVELIN_DAMAGE_SOURCES];
+    float death_by_source[COLO_NUM_DAMAGE_SOURCES];
+    float doom_death_by_source[COLO_NUM_DAMAGE_SOURCES];
     float death_fatal_damage;
     float offpray_damage_conflict;
     float offpray_damage_solo;
@@ -53,6 +66,28 @@ struct Log {
     float death_dmg_self;
     float death_heal_remaining;
     float farm_damage;
+    float reward_steps;
+    float reward_clamped_steps;
+    float reward_clamp_loss;
+    float reward_raw_peak;
+    float clamp_loss_wave_clear;
+    float clamp_loss_win;
+    float rew_damage;
+    float rew_boss_phase;
+    float rew_wave_clear;
+    float rew_win;
+    float rew_death;
+    float rew_timeout;
+    float avoid_total;
+    float avoid_achieved;
+    float avoid_missed;
+    float avoid_impossible;
+    float dmg_unprayable;
+    float inv_memo_hits;
+    float inv_memo_misses;
+    float npc_blocked_calls;
+    float npc_blocked_tiles;
+    float npc_stamp_tiles;
     float n;
 };
 
@@ -69,6 +104,7 @@ struct Env {
     int config_start_wave;
     int acts_staging[COLO_NUM_ACTION_HEADS];
     uint64_t damage_scale_anneal_step;
+    uint64_t dpt_sample_step;
     float max_episode_depth_seen;
 };
 
@@ -129,8 +165,16 @@ static void col_assign_curriculum_wave(Env* env, Dict* kwargs) {
     float fracs[COLO_MAX_CURRICULUM_TIERS];
     int num_tiers = 0;
     for (int i = 0; i < num_tiers_config; i++) {
-        int wave = (int)dict_get(kwargs, wave_keys[i]);
-        float frac = (float)dict_get(kwargs, frac_keys[i]);
+        DictItem* wave_item = dict_find(kwargs, wave_keys[i]);
+        DictItem* frac_item = dict_find(kwargs, frac_keys[i]);
+        if (!wave_item || !frac_item) {
+            fprintf(stderr,
+                "colosseum: curriculum_num_tiers=%d requires %s and %s, which are not set\n",
+                num_tiers_config, wave_keys[i], frac_keys[i]);
+            abort();
+        }
+        int wave = (int)wave_item->value;
+        float frac = (float)frac_item->value;
         if (frac > 0.0f) {
             waves[num_tiers] = wave;
             fracs[num_tiers] = frac;
@@ -140,6 +184,16 @@ static void col_assign_curriculum_wave(Env* env, Dict* kwargs) {
 
     if (classic_curriculum_mode == 0 || num_tiers == 0) {
         return;
+    }
+    float total_frac = 0.0f;
+    for (int t = 0; t < num_tiers; t++) {
+        total_frac += fracs[t];
+    }
+    if (total_frac > 0.9f) {
+        float rescale = 0.9f / total_frac;
+        for (int t = 0; t < num_tiers; t++) {
+            fracs[t] *= rescale;
+        }
     }
     float draw = col_curriculum_uniform(env->rng);
     float cumulative = 0.0f;
@@ -187,8 +241,6 @@ void puf_init(Env* env, Dict* kwargs) {
         "timeout_penalty",
         "boss_damage_reward_coeff",
         "boss_phase_bonus",
-        "argmax_gear_reward_coeff",
-        "offensive_boost_reward_coeff",
         "beginner_loadout_fraction",
         "late_start_supply_fraction_per_wave",
         "prayer_switch_fail_prob",
@@ -205,16 +257,10 @@ void puf_init(Env* env, Dict* kwargs) {
         "farm_safe_damage_cap",
         "farm_cap_waves",
         "loadout_profile_mode",
-        "step_out_forecast_obs_enabled",
-        "threat_field_obs_enabled",
-        "forecast_horizon",
         "mask_inventory_heads",
-        "prayer_oracle_mode",
         "late_start_state_mode",
         "bis_gear_oracle_mode",
-        "invuln_mode",
         "episode_max_ticks_override",
-        "remove_brews",
         "damage_scale_anneal_ticks",
     };
     for (size_t k = 0; k < sizeof(int_keys) / sizeof(*int_keys); k++) {
@@ -235,6 +281,11 @@ void puf_reset(Env* env) {
 }
 
 void puf_step(Env* env) {
+#ifdef COLO_PROFILE_ENABLED
+    int col_prof_enabled = COLO_PROFILE_ENABLED();
+    double col_prof_step_t0 = col_prof_enabled ? COLO_PROFILE_NOW_MS() : 0.0;
+    double col_prof_t0 = col_prof_step_t0;
+#endif
     Agent* agent = &env->agents[0];
     for (int i = 0; i < NUM_ATNS; i++) {
         env->acts_staging[i] = (int)agent->actions[i];
@@ -250,17 +301,37 @@ void puf_step(Env* env) {
             anneal_start + (1.0f - anneal_start) * frac;
     }
 
+#ifdef COLO_PROFILE_ENABLED
+    COLO_PROFILE_MARK(COLO_PROF_C_ACTIONS);
+#endif
+
     ENCOUNTER_COLOSSEUM.step(COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), env->acts_staging);
+#ifdef COLO_PROFILE_ENABLED
+    COLO_PROFILE_MARK(COLO_PROF_C_ENCOUNTER_STEP);
+#endif
 
     float* obs = (float*)agent->observations;
     ENCOUNTER_COLOSSEUM.write_obs(COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), obs);
+#ifdef COLO_PROFILE_ENABLED
+    COLO_PROFILE_MARK(COLO_PROF_C_WRITE_OBS);
+#endif
     col_write_action_mask_bytes(env, agent->action_mask);
+#ifdef COLO_PROFILE_ENABLED
+    COLO_PROFILE_MARK(COLO_PROF_C_WRITE_MASK);
+#endif
 
     agent->rewards[0] = ENCOUNTER_COLOSSEUM.get_reward(COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env));
     int is_terminal = ENCOUNTER_COLOSSEUM.is_terminal(COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env));
     agent->terminals[0] = (float)is_terminal;
+#ifdef COLO_PROFILE_ENABLED
+    COLO_PROFILE_MARK(COLO_PROF_C_REWARD_TERMINAL);
+#endif
 
-    if (env->state.start_wave == env->config_start_wave) {
+    /* Both readings run the best-gear oracle, which is the single most expensive thing
+     * left in the env step. They are means over millions of steps, so a 1-in-N sample is
+     * just as precise and costs N times less. */
+    if (env->state.start_wave == env->config_start_wave &&
+            (env->dpt_sample_step++ % COLO_DPT_SAMPLE_INTERVAL) == 0) {
         col_log_dpt_sample(
             &env->log.current_set_argmax_dpt_hit,
             &env->log.current_set_argmax_dpt_n,
@@ -269,6 +340,9 @@ void puf_step(Env* env) {
             &env->log.attacked_argmax_set_hit,
             &env->log.attacked_argmax_set_n,
             col_attacked_with_argmax_set(&env->state));
+#ifdef COLO_PROFILE_ENABLED
+        COLO_PROFILE_MARK(COLO_PROF_C_LOG_DPT);
+#endif
     }
 
     if (is_terminal) {
@@ -284,6 +358,8 @@ void puf_step(Env* env) {
             env->log.episode_return += clog->episode_return;
             env->log.episode_length += (float)clog->episode_length;
             env->log.wins += (float)clog->win;
+            env->log.deaths += (float)clog->died;
+            env->log.timeouts += (float)clog->timed_out;
             env->log.wave += (float)clog->wave_reached;
             env->log.damage_dealt += clog->total_damage_dealt;
             env->log.damage_received += clog->total_damage_received;
@@ -298,7 +374,23 @@ void puf_step(Env* env) {
                 env->log.offpray_damage_by_type[t] += clog->offpray_damage_by_type[t];
                 env->log.total_damage_by_type[t] += clog->total_damage_by_type[t];
                 env->log.death_by_type[t] += clog->death_by_type[t];
+                env->log.npc_attack_death_by_type[t] +=
+                    clog->npc_attack_death_by_type[t];
                 env->log.typeless_damage_by_type[t] += clog->typeless_damage_by_type[t];
+            }
+            for (int source = 0; source < COLO_NUM_SOL_DAMAGE_SOURCES; source++)
+                env->log.sol_damage_by_source[source] +=
+                    clog->sol_damage_by_source[source];
+            for (int source = 0;
+                    source < COLO_NUM_JAVELIN_DAMAGE_SOURCES;
+                    source++)
+                env->log.javelin_damage_by_source[source] +=
+                    clog->javelin_damage_by_source[source];
+            for (int source = 0; source < COLO_NUM_DAMAGE_SOURCES; source++) {
+                env->log.death_by_source[source] +=
+                    clog->death_by_source[source];
+                env->log.doom_death_by_source[source] +=
+                    clog->doom_death_by_source[source];
             }
             env->log.death_fatal_damage += clog->death_fatal_damage;
             env->log.offpray_damage_conflict += clog->offpray_damage_conflict;
@@ -310,12 +402,85 @@ void puf_step(Env* env) {
             env->log.death_dmg_self += clog->death_dmg_self;
             env->log.death_heal_remaining += clog->death_heal_remaining;
             env->log.farm_damage += clog->farm_damage;
+            env->log.reward_steps += clog->reward_steps;
+            env->log.reward_clamped_steps += clog->reward_clamped_steps;
+            env->log.reward_clamp_loss += clog->reward_clamp_loss;
+            env->log.clamp_loss_wave_clear += clog->clamp_loss_wave_clear;
+            env->log.clamp_loss_win += clog->clamp_loss_win;
+            env->log.reward_raw_peak += clog->reward_raw_peak;
+            env->log.rew_damage += clog->rew_damage;
+            env->log.rew_boss_phase += clog->rew_boss_phase;
+            env->log.rew_wave_clear += clog->rew_wave_clear;
+            env->log.rew_win += clog->rew_win;
+            env->log.rew_death += clog->rew_death;
+            env->log.rew_timeout += clog->rew_timeout;
+            env->log.avoid_total += clog->avoid_total;
+            env->log.avoid_achieved += clog->avoid_achieved;
+            env->log.avoid_missed += clog->avoid_missed;
+            env->log.avoid_impossible += clog->avoid_impossible;
+            env->log.dmg_unprayable += clog->dmg_unprayable;
+            env->log.inv_memo_hits += clog->inv_memo_hits;
+            env->log.inv_memo_misses += clog->inv_memo_misses;
+            env->log.npc_blocked_calls += clog->npc_blocked_calls;
+            env->log.npc_blocked_tiles += clog->npc_blocked_tiles;
+            env->log.npc_stamp_tiles += clog->npc_stamp_tiles;
         }
+#ifdef COLO_PROFILE_ENABLED
+        COLO_PROFILE_MARK(COLO_PROF_C_TERMINAL_LOG);
+#endif
         ENCOUNTER_COLOSSEUM.reset(COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), 0);
         ENCOUNTER_COLOSSEUM.write_obs(COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), obs);
         col_write_action_mask_bytes(env, agent->action_mask);
+#ifdef COLO_PROFILE_ENABLED
+        COLO_PROFILE_MARK(COLO_PROF_C_RESET);
+#endif
     }
+#ifdef COLO_PROFILE_ENABLED
+    if (col_prof_enabled)
+        COLO_PROFILE_ADD(COLO_PROF_C_STEP_TOTAL, COLO_PROFILE_NOW_MS() - col_prof_step_t0);
+        COLO_PROFILE_ADD(COLO_PROF_ENV_STEPS, 1.0);
+#endif
 }
+
+#ifdef COLO_PROFILE_ENABLED
+/* best_gear_* accumulate event counts, not milliseconds, so a %-of-step column on them
+ * is meaningless. */
+static int col_profile_slot_is_counter(int slot) {
+    return slot == COLO_PROF_ENV_STEPS ||
+        slot == COLO_PROF_BEST_GEAR_REQUESTS ||
+        slot == COLO_PROF_BEST_GEAR_HITS ||
+        slot == COLO_PROF_BEST_GEAR_BUILDS;
+}
+
+#define PUF_ENV_PROFILE_REPORT puf_env_profile_report
+void puf_env_profile_report(void) {
+    int n = colosseum_env_profile_count();
+    if (n <= 0) return;
+
+    double v[COLO_PROF_COUNT];
+    for (int i = 0; i < n; i++) v[i] = colosseum_env_profile_read_reset_ms(i);
+    double total = v[COLO_PROF_C_STEP_TOTAL];
+    if (total <= 0.0) return;
+
+    /* Absolute ns per env step is the number worth judging: a share only says how a slot
+     * compares to its siblings, never whether the work itself is justified. */
+    double steps = v[COLO_PROF_ENV_STEPS];
+    if (steps <= 0.0) return;
+    printf("\nenv profile: %.0f env-steps, %.0f ns/env-step total\n",
+        steps, total * 1e6 / steps);
+    printf("  %-24s %12s %8s\n", "", "ns/env-step", "share");
+    for (int i = 0; i < n; i++) {
+        if (v[i] <= 0.0 || col_profile_slot_is_counter(i)) continue;
+        printf("  %-24s %12.1f %7.1f%%\n",
+            colosseum_env_profile_name(i), v[i] * 1e6 / steps, 100.0 * v[i] / total);
+    }
+    for (int i = 0; i < n; i++) {
+        if (v[i] <= 0.0 || !col_profile_slot_is_counter(i)) continue;
+        printf("  %-24s %10.0f  (count)\n", colosseum_env_profile_name(i), v[i]);
+    }
+    fflush(stdout);
+}
+#endif
 
 void puf_render(Env* env) {
     (void)env;
@@ -331,6 +496,8 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "damage_dealt", log->damage_dealt);
     dict_set(out, "damage_received", log->damage_received);
     dict_set(out, "wins", log->wins);
+    dict_set(out, "deaths", log->deaths);
+    dict_set(out, "timeouts", log->timeouts);
     dict_set(out, "wave", log->wave);
     dict_set(out, "npc_kills", log->npc_kills);
 
@@ -341,6 +508,32 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "sol_min_hp", log->sol_min_hp);
     dict_set(out, "max_depth_reached", log->max_depth_reached);
+    dict_set(out, "avoid_total", log->avoid_total);
+    dict_set(out, "avoid_achieved", log->avoid_achieved);
+    dict_set(out, "avoid_missed", log->avoid_missed);
+    dict_set(out, "avoid_impossible", log->avoid_impossible);
+    float inv_lookups = log->inv_memo_hits + log->inv_memo_misses;
+    dict_set(out, "inv_memo_hit_rate", inv_lookups > 0.0f
+        ? log->inv_memo_hits / inv_lookups : 0.0f);
+    dict_set(out, "inv_memo_misses", log->inv_memo_misses);
+    dict_set(out, "npc_blocked_tiles", log->npc_blocked_tiles);
+    dict_set(out, "npc_stamp_tiles", log->npc_stamp_tiles);
+
+    /* Ahead of the per-type breakdowns on purpose: the dashboard renders only the first
+     * PUF_DASH_MAX_USER_ROWS*2 keys, and how much reward the [-1,1] clamp discards is a
+     * health check on the whole reward design, not a per-NPC detail. */
+    dict_set(out, "reward_clamp_frac", log->reward_steps > 0.0f
+        ? log->reward_clamped_steps / log->reward_steps : 0.0f);
+    dict_set(out, "reward_clamp_loss", log->reward_clamp_loss);
+    dict_set(out, "reward_raw_peak", log->reward_raw_peak);
+    dict_set(out, "clamp_loss_wave_clear", log->clamp_loss_wave_clear);
+    dict_set(out, "clamp_loss_win", log->clamp_loss_win);
+    dict_set(out, "rew_damage", log->rew_damage);
+    dict_set(out, "rew_boss_phase", log->rew_boss_phase);
+    dict_set(out, "rew_wave_clear", log->rew_wave_clear);
+    dict_set(out, "rew_win", log->rew_win);
+    dict_set(out, "rew_death", log->rew_death);
+    dict_set(out, "rew_timeout", log->rew_timeout);
     dict_set(out, "current_set_is_argmax_dpt_for_target",
         log->current_set_argmax_dpt_n > 0.0f
             ? log->current_set_argmax_dpt_hit / log->current_set_argmax_dpt_n : 0.0f);
@@ -380,6 +573,26 @@ void puf_log(Log* log, Dict* out) {
     for (int t = 0; t < COLO_NUM_NPC_TYPES; t++) {
         dict_set(out, DEATH_BY_KEYS[t], log->death_by_type[t]);
     }
+    static const char* const NPC_ATTACK_DEATH_BY_KEYS[COLO_NUM_NPC_TYPES] = {
+        "npc_attack_death_by_berserker",
+        "npc_attack_death_by_archer",
+        "npc_attack_death_by_seer",
+        "npc_attack_death_by_serpent",
+        "npc_attack_death_by_jaguar",
+        "npc_attack_death_by_javelin",
+        "npc_attack_death_by_shockwave",
+        "npc_attack_death_by_minotaur",
+        "npc_attack_death_by_manticore",
+        "npc_attack_death_by_sol",
+        "npc_attack_death_by_totem",
+        "npc_attack_death_by_bee",
+    };
+    for (int t = 0; t < COLO_NUM_NPC_TYPES; t++) {
+        dict_set(
+            out,
+            NPC_ATTACK_DEATH_BY_KEYS[t],
+            log->npc_attack_death_by_type[t]);
+    }
     dict_set(out, "death_fatal_damage", log->death_fatal_damage);
     dict_set(out, "offpray_dmg_conflict", log->offpray_damage_conflict);
     dict_set(out, "offpray_dmg_solo", log->offpray_damage_solo);
@@ -392,6 +605,87 @@ void puf_log(Log* log, Dict* out) {
         "typeless_dmg_sol", "typeless_dmg_totem", "typeless_dmg_bee"};
     for (int t = 0; t < COLO_NUM_NPC_TYPES; t++) {
         dict_set(out, TYPELESS_DMG_KEYS[t], log->typeless_damage_by_type[t]);
+    }
+    static const char* const SOL_DAMAGE_SOURCE_KEYS[COLO_NUM_SOL_DAMAGE_SOURCES] = {
+        "sol_dmg_spear_1",
+        "sol_dmg_spear_2",
+        "sol_dmg_shield_1",
+        "sol_dmg_shield_2",
+        "sol_dmg_triple_parry",
+        "sol_dmg_grapple",
+        "sol_dmg_crystal_laser",
+        "sol_dmg_molten_sand",
+    };
+    for (int source = 0; source < COLO_NUM_SOL_DAMAGE_SOURCES; source++)
+        dict_set(
+            out,
+            SOL_DAMAGE_SOURCE_KEYS[source],
+            log->sol_damage_by_source[source]);
+    static const char* const JAVELIN_DAMAGE_SOURCE_KEYS[
+        COLO_NUM_JAVELIN_DAMAGE_SOURCES
+    ] = {
+        "javelin_dmg_basic_ranged",
+        "javelin_dmg_skyfall",
+        "javelin_dmg_reentry_pool",
+        "javelin_dmg_reentry_volatility_pool",
+    };
+    for (int source = 0;
+            source < COLO_NUM_JAVELIN_DAMAGE_SOURCES;
+            source++)
+        dict_set(
+            out,
+            JAVELIN_DAMAGE_SOURCE_KEYS[source],
+            log->javelin_damage_by_source[source]);
+    static const char* const DEATH_SOURCE_KEYS[COLO_NUM_DAMAGE_SOURCES] = {
+        "death_source_npc_attack",
+        "death_source_javelin_basic_ranged",
+        "death_source_manticore_venom",
+        "death_source_bee_poison",
+        "death_source_bee_contact",
+        "death_source_javelin_skyfall",
+        "death_source_reentry_pool",
+        "death_source_volatility_explosion",
+        "death_source_volatility_pool",
+        "death_source_reentry_volatility_pool",
+        "death_source_solarflare",
+        "death_source_self",
+        "death_source_sol_spear_1",
+        "death_source_sol_spear_2",
+        "death_source_sol_shield_1",
+        "death_source_sol_shield_2",
+        "death_source_sol_triple_parry",
+        "death_source_sol_grapple",
+        "death_source_sol_crystal_laser",
+        "death_source_sol_molten_sand",
+    };
+    static const char* const DOOM_DEATH_SOURCE_KEYS[COLO_NUM_DAMAGE_SOURCES] = {
+        "doom_death_source_npc_attack",
+        "doom_death_source_javelin_basic_ranged",
+        "doom_death_source_manticore_venom",
+        "doom_death_source_bee_poison",
+        "doom_death_source_bee_contact",
+        "doom_death_source_javelin_skyfall",
+        "doom_death_source_reentry_pool",
+        "doom_death_source_volatility_explosion",
+        "doom_death_source_volatility_pool",
+        "doom_death_source_reentry_volatility_pool",
+        "doom_death_source_solarflare",
+        "doom_death_source_self",
+        "doom_death_source_sol_spear_1",
+        "doom_death_source_sol_spear_2",
+        "doom_death_source_sol_shield_1",
+        "doom_death_source_sol_shield_2",
+        "doom_death_source_sol_triple_parry",
+        "doom_death_source_sol_grapple",
+        "doom_death_source_sol_crystal_laser",
+        "doom_death_source_sol_molten_sand",
+    };
+    for (int source = 0; source < COLO_NUM_DAMAGE_SOURCES; source++) {
+        dict_set(out, DEATH_SOURCE_KEYS[source], log->death_by_source[source]);
+        dict_set(
+            out,
+            DOOM_DEATH_SOURCE_KEYS[source],
+            log->doom_death_by_source[source]);
     }
     dict_set(out, "death_dmg_unprayable", log->death_dmg_unprayable);
     dict_set(out, "death_dmg_offpray", log->death_dmg_offpray);

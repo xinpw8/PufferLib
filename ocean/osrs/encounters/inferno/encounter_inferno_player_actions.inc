@@ -1,26 +1,32 @@
 #line 3605 "encounter_inferno.h"
-#define INF_HEAD_MOVE      0
-#define INF_HEAD_PRAYER    1
-#define INF_HEAD_TARGET    2
-#define INF_HEAD_GEAR      3
-#define INF_HEAD_EAT       4
-#define INF_HEAD_POTION    5
-#define INF_HEAD_SPELL     6
-#define INF_HEAD_SPEC      7
-#define INF_HEAD_OFFENSIVE 8
+#define INF_HEAD_MOVE       0
+#define INF_HEAD_PRAYER     1
+#define INF_HEAD_TARGET     2
+#define INF_HEAD_EQUIP_BASE 3
+#define INF_HEAD_EQUIP_SLOT(slot) (INF_HEAD_EQUIP_BASE + (slot))
+#define INF_HEAD_EAT        (INF_HEAD_EQUIP_BASE + NUM_GEAR_SLOTS)
+#define INF_HEAD_DRINK      (INF_HEAD_EAT + 1)
+#define INF_HEAD_SPELL      (INF_HEAD_DRINK + 1)
+#define INF_HEAD_SPEC       (INF_HEAD_SPELL + 1)
+#define INF_HEAD_OFFENSIVE  (INF_HEAD_SPEC + 1)
+#define INF_INV_CLICK_HEADS (NUM_GEAR_SLOTS + 2)
+#define INF_INV_CLICK_DIM   (OSRS_INVENTORY_SIZE + 1)
+#define INF_SPEC_DIM        3
 #define INF_ACTION_DIMS_INIT { \
     ENCOUNTER_MOVE_ACTIONS, \
     ENCOUNTER_OVERHEAD_DIM_PVE_REDEMPTION, \
     INF_OBS_NPCS+1, \
-    4, \
-    2, \
-    4, \
+    INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, \
+    INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, \
+    INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, \
+    INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, \
+    INF_INV_CLICK_DIM, \
     3, \
-    2, \
+    INF_SPEC_DIM, \
     ENCOUNTER_OFFENSIVE_DIM \
 }
 static const int INF_ACTION_DIMS[INF_NUM_ACTION_HEADS] = INF_ACTION_DIMS_INIT;
-#define INF_ACTION_MASK_SIZE (ENCOUNTER_MOVE_ACTIONS + ENCOUNTER_OVERHEAD_DIM_PVE_REDEMPTION + INF_OBS_NPCS+1 + 4 + 2 + 4 + 3 + 2 + ENCOUNTER_OFFENSIVE_DIM)
+#define INF_ACTION_MASK_SIZE (ENCOUNTER_MOVE_ACTIONS + ENCOUNTER_OVERHEAD_DIM_PVE_REDEMPTION + INF_OBS_NPCS+1 + INF_INV_CLICK_HEADS*INF_INV_CLICK_DIM + 3 + INF_SPEC_DIM + ENCOUNTER_OFFENSIVE_DIM)
 #define INF_OVERHEAD_SET_REFRESH_REDEMPTION ENCOUNTER_OVERHEAD_SET_REFRESH_SMITE
 
 static int inf_action_head_mask_offset(int head) {
@@ -187,182 +193,16 @@ static void inf_apply_npc_death(InfernoState* s, int npc_idx) {
 static void inf_apply_blood_barrage_heal_damage(InfernoState* s, int damage) {
     if (damage <= 0) return;
     int hp_before = s->player.current_hitpoints;
-    s->player.current_hitpoints += damage / 4;
+    s->player.current_hitpoints += damage * BLOOD_BARRAGE_HEAL_PERCENT / 100;
     if (s->player.current_hitpoints > s->player.base_hitpoints)
         s->player.current_hitpoints = s->player.base_hitpoints;
     s->tick_scratch.blood_heal += s->player.current_hitpoints - hp_before;
-}
-
-typedef struct {
-    int target_slot;
-    int gear;
-    int overhead_style;
-    int offensive;
-} InfOraclePick;
-
-static int inf_oracle_trigger_active(const InfernoState* s, int mode) {
-    int zuk_idx = inf_find_live_zuk_idx(s);
-    if (zuk_idx < 0) return 0;
-    int zuk_hp = s->npcs[zuk_idx].hp;
-    if (mode == 1 || mode == 2 || mode == 8) return zuk_hp <= 300;
-    if (mode == 3) return zuk_hp <= 240;
-    if (mode >= 4 && mode <= 7) return s->zuk.jad_spawned || zuk_hp <= 600;
-    if (mode == 9 || mode == 10 || mode == 11)
-        return s->zuk.healer_spawned && s->total_zuk_healer_tags < 4;
-    return 0;
-}
-
-static InfOraclePick inf_oracle_pick_full(const InfernoState* s, int mode) {
-    InfOraclePick pick = { -1, -1, ATTACK_STYLE_NONE, OFFENSIVE_PRAYER_NONE };
-    if (mode <= 0 || !inf_oracle_trigger_active(s, mode)) return pick;
-
-    if (mode == 9) {
-        for (int o = 33; o < 37; o++) {
-            int n = s->current_obs_slots[o];
-            if (n < 0 || n >= INF_MAX_NPCS) continue;
-            const InfNPC* npc = &s->npcs[n];
-            if (!npc->active || npc->death_ticks != 0 ||
-                    npc->type != INF_NPC_HEALER_ZUK)
-                continue;
-            if (npc->aggro_target >= 0 && npc->aggro_target < INF_MAX_NPCS &&
-                    s->npcs[npc->aggro_target].active &&
-                    s->npcs[npc->aggro_target].type == INF_NPC_ZUK) {
-                pick.target_slot = o;
-                return pick;
-            }
-        }
-        return pick;
-    }
-
-    if (mode == 10 || mode == 11) {
-        if (!inf_player_behind_zuk_shield_now(s)) return pick;
-        if (mode == 11 && s->player.attack_timer != 0) return pick;
-
-        for (int o = 33; o < 37; o++) {
-            int n = s->current_obs_slots[o];
-            if (!inf_is_untagged_live_zuk_healer_slot(s, n))
-                continue;
-            if (inf_player_can_attack_npc_from_current_tile(s, n)) {
-                pick.target_slot = o;
-                return pick;
-            }
-        }
-        return pick;
-    }
-
-    for (int o = 22; o < 25; o++) {
-        int n = s->current_obs_slots[o];
-        if (n >= 0 && n < INF_MAX_NPCS &&
-            s->npcs[n].active && s->npcs[n].death_ticks == 0 &&
-            s->npcs[n].type == INF_NPC_JAD) {
-            pick.target_slot = o;
-            pick.gear = INF_GEAR_LONG_RANGE;
-            pick.offensive = OFFENSIVE_PRAYER_RIGOUR;
-            AttackStyle jas = inf_npc_jad_const(&s->npcs[n])->attack_style;
-            if (jas == ATTACK_STYLE_RANGED) pick.overhead_style = ATTACK_STYLE_RANGED;
-            else if (jas == ATTACK_STYLE_MAGIC) pick.overhead_style = ATTACK_STYLE_MAGIC;
-            return pick;
-        }
-    }
-    if (mode == 1) return pick;
-
-    for (int o = 33; o < 37; o++) {
-        int n = s->current_obs_slots[o];
-        if (n >= 0 && n < INF_MAX_NPCS &&
-            s->npcs[n].active && s->npcs[n].death_ticks == 0 &&
-            s->npcs[n].type == INF_NPC_HEALER_ZUK) {
-            pick.target_slot = o;
-            pick.gear = INF_GEAR_BP;
-            pick.offensive = OFFENSIVE_PRAYER_RIGOUR;
-            pick.overhead_style = ATTACK_STYLE_MAGIC;
-            return pick;
-        }
-    }
-
-    for (int o = 0; o < 22; o++) {
-        int n = s->current_obs_slots[o];
-        if (n < 0 || n >= INF_MAX_NPCS) continue;
-        if (!s->npcs[n].active || s->npcs[n].death_ticks != 0) continue;
-        int t = s->npcs[n].type;
-        if (t == INF_NPC_ZUK || t == INF_NPC_ZUK_SHIELD ||
-            t == INF_NPC_JAD ||
-            t == INF_NPC_HEALER_ZUK || t == INF_NPC_HEALER_JAD)
-            continue;
-        pick.target_slot = o;
-        pick.offensive = OFFENSIVE_PRAYER_RIGOUR;
-        if (t == INF_NPC_MAGER) {
-            pick.gear = INF_GEAR_LONG_RANGE;
-            pick.overhead_style = ATTACK_STYLE_MAGIC;
-        } else if (t == INF_NPC_RANGER) {
-            pick.gear = INF_GEAR_LONG_RANGE;
-            pick.overhead_style = ATTACK_STYLE_RANGED;
-        } else if (t == INF_NPC_MELEER) {
-            pick.gear = INF_GEAR_BP;
-            pick.overhead_style = ATTACK_STYLE_MELEE;
-        } else {
-            pick.gear = INF_GEAR_BP;
-        }
-        return pick;
-    }
-
-    return pick;
-}
-
-static int inf_oracle_overrides_target(int mode) {
-    return mode >= 1 && mode <= 11;
-}
-
-static int inf_oracle_overrides_gear_offensive(int mode) {
-    return mode == 6 || mode == 7 || mode == 8;
-}
-
-static int inf_oracle_overrides_overhead(int mode) {
-    return mode == 5 || mode == 7 || mode == 8;
-}
-
-static int inf_oracle_overhead_action_for(int wanted_style) {
-    if (wanted_style == ATTACK_STYLE_RANGED) return ENCOUNTER_OVERHEAD_SET_REFRESH_RANGED;
-    if (wanted_style == ATTACK_STYLE_MAGIC) return ENCOUNTER_OVERHEAD_SET_REFRESH_MAGIC;
-    if (wanted_style == ATTACK_STYLE_MELEE) return ENCOUNTER_OVERHEAD_SET_REFRESH_MELEE;
-    return ENCOUNTER_OVERHEAD_NO_CHANGE;
-}
-
-static int inf_oracle_offensive_action_for(int wanted_offensive) {
-    if (wanted_offensive == OFFENSIVE_PRAYER_RIGOUR) {
-        return ENCOUNTER_OFFENSIVE_SET_REFRESH_RIGOUR;
-    }
-    if (wanted_offensive == OFFENSIVE_PRAYER_PIETY) {
-        return ENCOUNTER_OFFENSIVE_SET_REFRESH_PIETY;
-    }
-    if (wanted_offensive == OFFENSIVE_PRAYER_AUGURY) {
-        return ENCOUNTER_OFFENSIVE_SET_REFRESH_AUGURY;
-    }
-    return ENCOUNTER_OFFENSIVE_NO_CHANGE;
-}
-
-static int inf_oracle_gear_action_for(const InfernoState* s, int wanted_gear) {
-    if (wanted_gear < 0) return 0;
-    if ((int)s->weapon_set == wanted_gear) return 0;
-    return wanted_gear + 1;
 }
 
 static void inf_player_pretick(InfernoState* s, InfernoContext* ctx, const int* actions) {
     OffensivePrayer prev_offensive = s->player.offensive_prayer;
     int prayer_act = inf_canonical_overhead_action(actions[INF_HEAD_PRAYER]);
     int offensive_act = actions[INF_HEAD_OFFENSIVE];
-    if (ctx->config.oracle_mode > 0) {
-        InfOraclePick pick = inf_oracle_pick_full(s, ctx->config.oracle_mode);
-        if (pick.target_slot >= 0) {
-            if (inf_oracle_overrides_overhead(ctx->config.oracle_mode) &&
-                pick.overhead_style != ATTACK_STYLE_NONE) {
-                prayer_act = inf_oracle_overhead_action_for(pick.overhead_style);
-            }
-            if (inf_oracle_overrides_gear_offensive(ctx->config.oracle_mode) &&
-                pick.offensive != OFFENSIVE_PRAYER_NONE) {
-                offensive_act = inf_oracle_offensive_action_for(pick.offensive);
-            }
-        }
-    }
     if (encounter_apply_overhead_action(&s->player.prayer, prayer_act)) {
         s->player.prayer_just_activated = 1;
     }
@@ -378,12 +218,6 @@ static void inf_player_pretick(InfernoState* s, InfernoContext* ctx, const int* 
     }
 }
 
-static FightStyle inf_default_fight_style_for_style(AttackStyle style) {
-    if (style == ATTACK_STYLE_MAGIC) return FIGHT_STYLE_AUTOCAST;
-    if (style == ATTACK_STYLE_RANGED) return FIGHT_STYLE_RAPID;
-    return FIGHT_STYLE_ACCURATE;
-}
-
 static void inf_note_human_weapon_set(InfernoState* s) {
     uint8_t weapon = s->player.equipped[GEAR_SLOT_WEAPON];
     const uint8_t* const* loadouts =
@@ -394,6 +228,69 @@ static void inf_note_human_weapon_set(InfernoState* s) {
             return;
         }
     }
+}
+
+static void inf_sync_consumable_counters_from_cells(InfernoState* s) {
+    Player* p = &s->player;
+    p->brew_doses = 0;
+    p->restore_doses = 0;
+    p->bastion_doses = 0;
+    p->stamina_doses = 0;
+    for (int i = 0; i < OSRS_INVENTORY_SIZE; i++) {
+        const OsrsInventoryCell* cell = &s->inventory_cells[i];
+        if (cell->raw_osrs_id == 0) continue;
+        OsrsConsumableClick click =
+            osrs_consumable_click_lookup_raw_osrs_id(cell->raw_osrs_id);
+        switch (click.consumable_kind) {
+            case OSRS_CONSUMABLE_BREW:          p->brew_doses += cell->dose; break;
+            case OSRS_CONSUMABLE_SUPER_RESTORE: p->restore_doses += cell->dose; break;
+            case OSRS_CONSUMABLE_BASTION:       p->bastion_doses += cell->dose; break;
+            case OSRS_CONSUMABLE_STAMINA:       p->stamina_doses += cell->dose; break;
+            default: break;
+        }
+    }
+}
+
+static void inf_apply_drink_one_dose_effect(void* ctx, OsrsConsumableKind kind) {
+    InfernoState* s = (InfernoState*)ctx;
+    switch (kind) {
+        case OSRS_CONSUMABLE_BREW:
+            encounter_apply_brew_heal(&s->player, INF_BREW_HEAL);
+            s->tick_scratch.brewed = 1;
+            encounter_apply_consumable_stat_effect(
+                &s->player, ENCOUNTER_CONSUMABLE_STAT_EFFECT_BREW_DRAIN);
+            break;
+        case OSRS_CONSUMABLE_SUPER_RESTORE:
+            encounter_add_prayer_restore(&s->player, INF_RESTORE_AMOUNT);
+            encounter_apply_consumable_stat_effect(
+                &s->player, ENCOUNTER_CONSUMABLE_STAT_EFFECT_RESTORE);
+            encounter_cap_prayer_restore(&s->player);
+            break;
+        case OSRS_CONSUMABLE_BASTION:
+            encounter_bastion_boost(&s->player);
+            break;
+        case OSRS_CONSUMABLE_STAMINA:
+            s->stamina_active_ticks = 200;
+            break;
+        default:
+            fprintf(stderr, "inferno: consumable kind %d not in inferno kit\n", (int)kind);
+            abort();
+    }
+    encounter_recompute_loadout_max_hits(s->loadout_stats, INF_NUM_WEAPON_SETS, &s->player);
+    inf_refresh_live_stats(s);
+}
+
+static void inf_apply_eat_cell(InfernoState* s, int cell_idx, OsrsConsumableKind kind) {
+    FoodType food;
+    switch (kind) {
+        case OSRS_CONSUMABLE_SHARK_FOOD: food = FOOD_SHARK; break;
+        case OSRS_CONSUMABLE_KARAMBWAN:  food = FOOD_KARAMBWAN; break;
+        default:
+            fprintf(stderr, "inferno: consumable kind %d is not food\n", (int)kind);
+            abort();
+    }
+    osrs_player_eat_food_effects(&s->player, food);
+    osrs_inventory_cell_consume_eat(&s->inventory_cells[cell_idx]);
 }
 
 static void inf_apply_human_player_commands_ctx(InfernoState* s, InfernoContext* ctx) {
@@ -414,7 +311,7 @@ static void inf_apply_human_player_commands_ctx(InfernoState* s, InfernoContext*
                                 ? FIGHT_STYLE_DEFENSIVE_AUTOCAST
                                 : FIGHT_STYLE_AUTOCAST;
                         } else {
-                            s->player.fight_style = inf_default_fight_style_for_style(style);
+                            s->player.fight_style = inf_live_fight_style_for(style);
                         }
                         inf_note_human_weapon_set(s);
                     }
@@ -466,38 +363,6 @@ static void inf_tick_player_ctx(
 
     if (ctx->human_command_mode) {
         inf_apply_human_player_commands_ctx(s, ctx);
-    } else {
-        int gear_act = actions[INF_HEAD_GEAR];
-        if (inf_oracle_overrides_gear_offensive(ctx->config.oracle_mode)) {
-            InfOraclePick pick = inf_oracle_pick_full(s, ctx->config.oracle_mode);
-            if (pick.target_slot >= 0 && pick.gear >= 0) {
-                gear_act = inf_oracle_gear_action_for(s, pick.gear);
-            }
-        }
-        if (gear_act >= 1) s->total_gear_switches++;
-        if (gear_act >= 1 && gear_act <= 3) {
-            InfWeaponSet new_set = (InfWeaponSet)(gear_act - 1);
-            s->weapon_set = new_set;
-            GearSet gs = (new_set == INF_GEAR_MAGE) ? GEAR_MAGE : GEAR_RANGED;
-            const uint8_t* const* loadouts =
-                inf_loadouts_for_profile(s->active_loadout_profile);
-            encounter_apply_loadout(&s->player, loadouts[new_set], gs);
-        }
-        {
-            const uint8_t* const* loadouts =
-                inf_loadouts_for_profile(s->active_loadout_profile);
-            uint8_t current_weapon = s->player.equipped[GEAR_SLOT_WEAPON];
-            if (current_weapon != loadouts[s->weapon_set][GEAR_SLOT_WEAPON]) {
-                for (int g = 0; g < INF_NUM_WEAPON_SETS; g++) {
-                    if (loadouts[g][GEAR_SLOT_WEAPON] == current_weapon) {
-                        s->weapon_set = (InfWeaponSet)g;
-                        GearSet gs = (g == INF_GEAR_MAGE) ? GEAR_MAGE : GEAR_RANGED;
-                        encounter_apply_loadout(&s->player, loadouts[g], gs);
-                        break;
-                    }
-                }
-            }
-        }
     }
 
     int manual_spell = inf_spell_action_to_spell(actions[INF_HEAD_SPELL]);
@@ -505,7 +370,9 @@ static void inf_tick_player_ctx(
     osrs_tick_special_regen(&s->player);
 
     if (actions[INF_HEAD_SPEC] == 1)
-        osrs_spec_toggle(&s->player.spec_armed);
+        s->player.spec_armed = 1;
+    else if (actions[INF_HEAD_SPEC] == 2)
+        s->player.spec_armed = 0;
 
     if (s->tick > 0 && s->tick % 60 == 0) {
         int* stats[] = { &s->player.current_ranged, &s->player.current_magic,
@@ -516,6 +383,7 @@ static void inf_tick_player_ctx(
             else if (*stats[si] < 99) (*stats[si])++;
         }
         encounter_recompute_loadout_max_hits(s->loadout_stats, INF_NUM_WEAPON_SETS, &s->player);
+        inf_refresh_live_stats(s);
         if (ctx->human_command_mode)
             inf_refresh_human_loadout_stats(s);
     }
@@ -523,52 +391,57 @@ static void inf_tick_player_ctx(
     if (s->player.potion_timer > 0) s->player.potion_timer--;
     if (s->stamina_active_ticks > 0) s->stamina_active_ticks--;
 
-    int eat_act = actions[INF_HEAD_EAT];
-    if (eat_act == 1 && s->player.brew_doses > 0 && s->player.potion_timer == 0
-        && s->player.current_hitpoints < s->player.base_hitpoints) {
-        encounter_apply_brew_heal_and_timer(&s->player, INF_BREW_HEAL);
-        s->tick_scratch.brewed = 1;
-        encounter_apply_consumable_stat_effect(
-            &s->player, ENCOUNTER_CONSUMABLE_STAT_EFFECT_BREW_DRAIN);
-        encounter_recompute_loadout_max_hits(s->loadout_stats, INF_NUM_WEAPON_SETS, &s->player);
-        if (ctx->human_command_mode)
-            inf_refresh_human_loadout_stats(s);
+    if (!ctx->human_command_mode) {
+        OsrsInventoryClickActions clicks;
+        for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
+            clicks.equip_by_slot[slot] = actions[INF_HEAD_EQUIP_SLOT(slot)];
+        clicks.eat = actions[INF_HEAD_EAT];
+        clicks.drink = actions[INF_HEAD_DRINK];
+        OsrsInventoryTickIntent intent =
+            osrs_resolve_inventory_tick_intent(&s->player, s->inventory_cells, &clicks);
+        if (intent.eat_cell >= 0)
+            osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_EAT);
+        if (intent.drink_cell >= 0)
+            osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_DRINK);
+        for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
+            if (intent.equip_cell_by_slot[slot] >= 0) {
+                osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_EQUIP);
+                break;
+            }
+        }
+        OsrsInventoryApplyStep click_step;
+        while (osrs_inventory_intent_next(&intent, &click_step)) {
+            switch (click_step.kind) {
+                case OSRS_INVENTORY_APPLY_EQUIP:
+                    if (osrs_equip_from_cell(
+                            &s->player, s->inventory_cells, click_step.cell_idx) >= 0) {
+                        s->total_gear_switches++;
+                        inf_note_human_weapon_set(s);
+                        inf_refresh_live_stats(s);
+                    }
+                    break;
+                case OSRS_INVENTORY_APPLY_EAT:
+                    inf_apply_eat_cell(
+                        s, click_step.cell_idx, click_step.resolution.consumable_kind);
+                    break;
+                case OSRS_INVENTORY_APPLY_DRINK: {
+                    OsrsInventoryDrinkConsumeResult drink =
+                        osrs_inventory_cell_consume_drink_one_dose(
+                            &s->inventory_cells[click_step.cell_idx],
+                            click_step.resolution,
+                            &s->player.potion_timer,
+                            inf_apply_drink_one_dose_effect, s);
+                    if (drink.consumed)
+                        inf_sync_consumable_counters_from_cells(s);
+                    break;
+                }
+            }
+        }
     }
-
-    int pot_act = actions[INF_HEAD_POTION];
-    if (pot_act == 1 && s->player.restore_doses > 0 && s->player.potion_timer == 0) {
-        encounter_add_prayer_restore(&s->player, INF_RESTORE_AMOUNT);
-        encounter_cap_prayer_restore(&s->player);
-        encounter_apply_consumable_stat_effect(
-            &s->player, ENCOUNTER_CONSUMABLE_STAT_EFFECT_RESTORE);
-        encounter_finish_potion_dose(&s->player, &s->player.restore_doses);
-        encounter_recompute_loadout_max_hits(s->loadout_stats, INF_NUM_WEAPON_SETS, &s->player);
-        if (ctx->human_command_mode)
-            inf_refresh_human_loadout_stats(s);
-    } else if (pot_act == 2 && s->player.bastion_doses > 0 && s->player.potion_timer == 0) {
-        encounter_bastion_boost(&s->player);
-        encounter_finish_potion_dose(&s->player, &s->player.bastion_doses);
-        encounter_recompute_loadout_max_hits(s->loadout_stats, INF_NUM_WEAPON_SETS, &s->player);
-        if (ctx->human_command_mode)
-            inf_refresh_human_loadout_stats(s);
-    } else if (pot_act == 3 && s->player.stamina_doses > 0 && s->player.potion_timer == 0) {
-        s->stamina_active_ticks = 200;
-        s->player.stamina_doses--;
-        s->player.potion_timer = 3;
-    }
-
-    if (eat_act > 0)
-        osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_EAT);
-    if (pot_act > 0)
-        osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_DRINK);
 
     inf_refresh_current_obs_slots_ctx(s, ctx);
 
     int target = actions[INF_HEAD_TARGET];
-    if (inf_oracle_overrides_target(ctx->config.oracle_mode)) {
-        InfOraclePick pick = inf_oracle_pick_full(s, ctx->config.oracle_mode);
-        if (pick.target_slot >= 0) target = pick.target_slot + 1;
-    }
     int has_new_target = 0;
     if (target > 0 && target <= INF_OBS_NPCS) {
         int obs_idx = target - 1;
@@ -613,15 +486,6 @@ static void inf_tick_player_ctx(
             has_new_target = 1;
         }
     }
-    if ((ctx->config.oracle_mode == 10 || ctx->config.oracle_mode == 11) &&
-            osrs_interaction_active(&s->interaction) &&
-            inf_is_untagged_live_zuk_healer_slot(s, s->interaction.target_slot) &&
-            (!inf_player_behind_zuk_shield_now(s) ||
-                !inf_player_can_attack_npc_from_current_tile(
-                    s, s->interaction.target_slot) ||
-                (ctx->config.oracle_mode == 11 && s->player.attack_timer != 0))) {
-        osrs_interaction_clear(&s->interaction);
-    }
     if (ctx->config.zuk_safe_untagged_healer_target_mask &&
             osrs_interaction_active(&s->interaction) &&
             !inf_untagged_zuk_healer_target_is_safe_now(
@@ -638,8 +502,6 @@ static void inf_tick_player_ctx(
         osrs_interaction_clear(&s->interaction);
     }
     int has_explicit_move = (actions[INF_HEAD_MOVE] > 0 || s->player_dest_x >= 0);
-    if (!has_new_target && has_explicit_move)
-        osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_MOVE);
     if (osrs_interaction_active(&s->interaction)) {
         int target_slot = s->interaction.target_slot;
         int target_can_manual_phantom =
@@ -659,13 +521,19 @@ static void inf_tick_player_ctx(
             s->tick_at_first_zuk_healer_target = s->tick;
     }
 
-    OsrsPlayerMoveKind move_kind = OSRS_PLAYER_MOVE_NONE;
+    int claimed_target_standing =
+        has_new_target && osrs_interaction_active(&s->interaction);
+    OsrsPlayerCommand command = { .kind = OSRS_PLAYER_CMD_NONE };
     int move_act = actions[INF_HEAD_MOVE];
-    if (has_explicit_move && !osrs_interaction_active(&s->interaction)) {
-        if (s->player_dest_x >= 0)
-            move_kind = OSRS_PLAYER_MOVE_DESTINATION;
-        else if (move_act > 0 && move_act < ENCOUNTER_MOVE_ACTIONS)
-            move_kind = OSRS_PLAYER_MOVE_ACTION;
+    if (!claimed_target_standing && has_explicit_move) {
+        if (s->player_dest_x >= 0) {
+            command.kind = OSRS_PLAYER_CMD_MOVE;
+            command.move_kind = OSRS_PLAYER_MOVE_DESTINATION;
+        } else if (move_act > 0 && move_act < ENCOUNTER_MOVE_ACTIONS) {
+            command.kind = OSRS_PLAYER_CMD_MOVE;
+            command.move_kind = OSRS_PLAYER_MOVE_ACTION;
+            command.move_action = move_act;
+        }
     }
     InfWalkCtx wc = { s, ctx };
     InfPlayerStepTargetCtx target_ctx = {
@@ -679,8 +547,7 @@ static void inf_tick_player_ctx(
         .interaction = &s->interaction,
         .target_lookup = inf_lookup_player_attack_target,
         .target_ctx = &target_ctx,
-        .move_kind = move_kind,
-        .move_action = move_act,
+        .command = command,
         .dest_x = &s->player_dest_x,
         .dest_y = &s->player_dest_y,
         .arena = {

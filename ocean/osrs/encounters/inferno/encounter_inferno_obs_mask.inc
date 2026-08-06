@@ -349,42 +349,34 @@ static void inf_write_obs_ctx(
         int has_timer = (type != INF_NPC_NIBBLER && type != INF_NPC_HEALER_JAD && type != INF_NPC_ZUK_SHIELD);
         int has_meleer_dig = (type == INF_NPC_MELEER);
 
-        int num_features = 12;
-        if (has_timer) num_features += 1;
-        if (has_style) num_features += 3;
-        if (has_los) num_features += 1;
-        if (has_scan) num_features += 3;
-        if (has_target_category) num_features += 4;
-        num_features += 1;
-        num_features += 6;
-        if (has_meleer_dig) num_features += 3;
-
         if (n >= 0) {
             InfNPC* npc = &s->npcs[n];
+            for (int ty = 0; ty < INF_NPC_TYPE_ONEHOT; ty++)
+                obs[i++] = (ty == type) ? 1.0f : 0.0f;
             obs[i++] = (float)npc->hp / (float)npc->max_hp;
             obs[i++] = (float)(npc->x - px) / (float)INF_ARENA_WIDTH;
             obs[i++] = (float)(npc->y - py) / (float)INF_ARENA_HEIGHT;
             obs[i++] = inf_obs_norm_npc_size(npc->size);
-            if (has_timer) obs[i++] = (float)npc->attack_timer / 10.0f;
+            obs[i++] = has_timer ? (float)npc->attack_timer / 10.0f : 0.0f;
 
             if (has_style) {
                 int style = (npc->type == INF_NPC_JAD) ? inf_npc_jad(npc)->attack_style : npc->attack_style;
                 obs[i++] = (style == ATTACK_STYLE_MELEE) ? 1.0f : 0.0f;
                 obs[i++] = (style == ATTACK_STYLE_RANGED) ? 1.0f : 0.0f;
                 obs[i++] = (style == ATTACK_STYLE_MAGIC) ? 1.0f : 0.0f;
+            } else {
+                obs[i++] = 0.0f; obs[i++] = 0.0f; obs[i++] = 0.0f;
             }
 
-            if (has_los) obs[i++] = inf_npc_has_los(s, n) ? 1.0f : 0.0f;
+            obs[i++] = (has_los && inf_npc_has_los(s, n)) ? 1.0f : 0.0f;
 
-            if (has_scan) {
-                if (npc->blob_scanned_prayer >= 0) {
-                    OverheadPrayer scanned = (OverheadPrayer)npc->blob_scanned_prayer;
-                    obs[i++] = (scanned == PRAYER_PROTECT_MAGIC) ? 1.0f : 0.0f;
-                    obs[i++] = (scanned == PRAYER_PROTECT_RANGED) ? 1.0f : 0.0f;
-                    obs[i++] = (scanned != PRAYER_PROTECT_MAGIC && scanned != PRAYER_PROTECT_RANGED) ? 1.0f : 0.0f;
-                } else {
-                    obs[i++] = 0.0f; obs[i++] = 0.0f; obs[i++] = 0.0f;
-                }
+            if (has_scan && npc->blob_scanned_prayer >= 0) {
+                OverheadPrayer scanned = (OverheadPrayer)npc->blob_scanned_prayer;
+                obs[i++] = (scanned == PRAYER_PROTECT_MAGIC) ? 1.0f : 0.0f;
+                obs[i++] = (scanned == PRAYER_PROTECT_RANGED) ? 1.0f : 0.0f;
+                obs[i++] = (scanned != PRAYER_PROTECT_MAGIC && scanned != PRAYER_PROTECT_RANGED) ? 1.0f : 0.0f;
+            } else {
+                obs[i++] = 0.0f; obs[i++] = 0.0f; obs[i++] = 0.0f;
             }
 
             obs[i++] = (float)inf_barrage_total_target_count(s, n) /
@@ -418,6 +410,8 @@ static void inf_write_obs_ctx(
                 obs[i++] = (category == INF_TARGET_CATEGORY_ZUK) ? 1.0f : 0.0f;
                 obs[i++] = (category == INF_TARGET_CATEGORY_SHIELD) ? 1.0f : 0.0f;
                 obs[i++] = (category == INF_TARGET_CATEGORY_OTHER_NPC) ? 1.0f : 0.0f;
+            } else {
+                obs[i++] = 0.0f; obs[i++] = 0.0f; obs[i++] = 0.0f; obs[i++] = 0.0f;
             }
             obs[i++] = (osrs_interaction_active(&s->interaction) && s->interaction.target_slot == n) ? 1.0f : 0.0f;
             obs[i++] = inf_npc_is_phantom_barrage_targetable_now(s, ctx, n) ? 1.0f : 0.0f;
@@ -427,9 +421,11 @@ static void inf_write_obs_ctx(
                 obs[i++] = no_los;
                 obs[i++] = (float)npc->dig_freeze_timer / 6.0f;
                 obs[i++] = (float)npc->dig_attack_delay / 6.0f;
+            } else {
+                obs[i++] = 0.0f; obs[i++] = 0.0f; obs[i++] = 0.0f;
             }
         } else {
-            for (int j = 0; j < num_features; j++) obs[i++] = 0.0f;
+            for (int j = 0; j < INF_NPC_SLOT_FEATURES; j++) obs[i++] = 0.0f;
         }
     }
 #ifdef INF_PROFILE_ENABLED
@@ -437,11 +433,9 @@ static void inf_write_obs_ctx(
 #endif
 
     {
-        int expected_npc_end = INF_PLAYER_OBS_SIZE + INF_PILLAR_OBS_SIZE +
-            INF_TOTAL_NPC_OBS_SIZE;
-        if (i != expected_npc_end) {
+        if (i != INF_OBS_AFTER_NPCS) {
             fprintf(stderr, "FATAL: obs misaligned after NPC section: i=%d expected=%d\n",
-                    i, expected_npc_end);
+                    i, INF_OBS_AFTER_NPCS);
             abort();
         }
     }
@@ -486,11 +480,9 @@ static void inf_write_obs_ctx(
 #endif
 
     {
-        int expected_forecast_end = INF_PLAYER_OBS_SIZE + INF_PILLAR_OBS_SIZE +
-            INF_TOTAL_NPC_OBS_SIZE + INF_STEP_OUT_FORECAST_OBS_SIZE;
-        if (i != expected_forecast_end) {
+        if (i != INF_OBS_AFTER_FORECAST) {
             fprintf(stderr, "FATAL: obs misaligned after step-out forecast: i=%d expected=%d\n",
-                    i, expected_forecast_end);
+                    i, INF_OBS_AFTER_FORECAST);
             abort();
         }
     }
@@ -510,6 +502,12 @@ static void inf_write_obs_ctx(
 #ifdef INF_PROFILE_ENABLED
     INF_PROFILE_MARK(INF_PROF_OBS_PENDING_HITS);
 #endif
+
+    if (i != INF_OBS_AFTER_PENDING_HITS) {
+        fprintf(stderr, "FATAL: obs misaligned after pending hits: i=%d expected=%d\n",
+                i, INF_OBS_AFTER_PENDING_HITS);
+        abort();
+    }
 
     int used_sparks[INF_MAX_PENDING_SPARKS] = {0};
     for (int slot = 0; slot < INF_SPARK_OBS_SLOTS; slot++) {
@@ -541,6 +539,31 @@ static void inf_write_obs_ctx(
 #ifdef INF_PROFILE_ENABLED
     INF_PROFILE_MARK(INF_PROF_OBS_SPARKS);
 #endif
+
+    if (i != INF_OBS_AFTER_SPARKS) {
+        fprintf(stderr, "FATAL: obs misaligned before inventory block: i=%d expected=%d\n",
+                i, INF_OBS_AFTER_SPARKS);
+        abort();
+    }
+
+    {
+        static const float inf_zero_post_use_deltas[6] = {0};
+        for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
+            const OsrsInventoryCell* cell = &s->inventory_cells[c];
+            int is_equipped = osrs_inventory_cell_holds_equipped_item(
+                &s->player, s->inventory_cells, c);
+            osrs_write_inventory_cell_affordance_features(
+                &obs[i], cell->item_idx, cell->raw_osrs_id, cell->dose,
+                is_equipped, inf_zero_post_use_deltas,
+                s->player.base_hitpoints, s->player.base_prayer,
+                s->player.base_ranged);
+            i += OSRS_INVENTORY_CELL_OBS_FEATURES;
+        }
+        for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
+            osrs_write_equipped_self_features(&obs[i], s->player.equipped[slot]);
+            i += OSRS_EQUIPPED_SELF_OBS_FEATURES;
+        }
+    }
 
     if (i != INF_NUM_OBS) {
         fprintf(stderr, "BUG: inf_write_obs wrote %d features, expected %d\n", i, INF_NUM_OBS);
@@ -590,6 +613,27 @@ static int inf_is_human_targetable_npc_slot(EncounterState* state, int npc_slot)
         state, (EncounterContext*)inf_legacy_context(), npc_slot);
 }
 
+static int inf_drink_has_effect(const InfernoState* s, OsrsConsumableKind kind) {
+    const Player* p = &s->player;
+    switch (kind) {
+        case OSRS_CONSUMABLE_BREW:
+            return p->current_hitpoints < p->base_hitpoints;
+        case OSRS_CONSUMABLE_SUPER_RESTORE: {
+            int pray_missing = p->base_prayer - p->current_prayer;
+            int stats_drained = p->current_attack < 99 || p->current_strength < 99 ||
+                                p->current_defence < 99 || p->current_ranged < 99 ||
+                                p->current_magic < 99;
+            return stats_drained || pray_missing >= (INF_RESTORE_AMOUNT + 1) / 2;
+        }
+        case OSRS_CONSUMABLE_BASTION:
+            return p->current_ranged >= 99 && p->current_ranged <= 105;
+        case OSRS_CONSUMABLE_STAMINA:
+            return s->stamina_active_ticks == 0;
+        default:
+            return 0;
+    }
+}
+
 static void inf_write_mask_ctx(
     EncounterState* state,
     EncounterContext* context,
@@ -600,7 +644,7 @@ static void inf_write_mask_ctx(
     inf_refresh_current_obs_slots_ctx(s, ctx);
     int offset = 0;
     if (s->total_action_mask_checks == 0) {
-        for (int h = 0; h < 9; h++) {
+        for (int h = 0; h < INF_NUM_ACTION_HEADS; h++) {
             if (s->min_valid_action_count_by_head[h] == 0)
                 s->min_valid_action_count_by_head[h] = 1000000;
         }
@@ -642,45 +686,58 @@ static void inf_write_mask_ctx(
         mask[offset++] = is_targetable ? 1.0f : 0.0f;
     }
 
-    mask[offset++] = 1.0f;
-    mask[offset++] = (s->weapon_set != INF_GEAR_MAGE) ? 1.0f : 0.0f;
-    mask[offset++] = (s->weapon_set != INF_GEAR_LONG_RANGE) ? 1.0f : 0.0f;
-    mask[offset++] = (s->weapon_set != INF_GEAR_BP) ? 1.0f : 0.0f;
-
-    mask[offset++] = 1.0f;
-    mask[offset++] = (s->player.brew_doses > 0 &&
-                      s->player.potion_timer == 0 &&
-                      s->player.current_hitpoints < s->player.base_hitpoints)
-                     ? 1.0f : 0.0f;
-
-    mask[offset++] = 1.0f;
     {
-        int pray_missing = s->player.base_prayer - s->player.current_prayer;
-        int stats_drained = s->player.current_attack < 99 || s->player.current_strength < 99 ||
-                            s->player.current_defence < 99 || s->player.current_ranged < 99 ||
-                            s->player.current_magic < 99;
-        int pray_worth = pray_missing >= (INF_RESTORE_AMOUNT + 1) / 2;
-        mask[offset++] = (s->player.restore_doses > 0 &&
-                          s->player.potion_timer == 0 &&
-                          (stats_drained || pray_worth))
-                         ? 1.0f : 0.0f;
+        int cell_equip_slot[OSRS_INVENTORY_SIZE];
+        int cell_can_eat[OSRS_INVENTORY_SIZE];
+        int cell_can_drink[OSRS_INVENTORY_SIZE];
+        for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
+            cell_equip_slot[c] = -1;
+            cell_can_eat[c] = 0;
+            cell_can_drink[c] = 0;
+            const OsrsInventoryCell* cell = &s->inventory_cells[c];
+            OsrsInventoryClickResolution resolution =
+                osrs_inventory_cell_click_interpret(cell, OSRS_CLICK_TICK_FIRST);
+            switch (resolution.click_action) {
+                case OSRS_CLICK_EQUIP:
+                    if (osrs_can_equip_from_cell(&s->player, s->inventory_cells, c))
+                        cell_equip_slot[c] = osrs_item_gear_slot(cell->item_idx);
+                    break;
+                case OSRS_CLICK_EAT:
+                    cell_can_eat[c] = osrs_can_eat_consumable_kind(
+                        &s->player, resolution.consumable_kind);
+                    break;
+                case OSRS_CLICK_DRINK:
+                    cell_can_drink[c] = cell->dose > 0 &&
+                        s->player.potion_timer == 0 &&
+                        inf_drink_has_effect(s, resolution.consumable_kind);
+                    break;
+                case OSRS_CLICK_NONE:
+                    break;
+            }
+        }
+        for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
+            mask[offset++] = 1.0f;
+            for (int c = 0; c < OSRS_INVENTORY_SIZE; c++)
+                mask[offset++] = cell_equip_slot[c] == slot ? 1.0f : 0.0f;
+        }
+        mask[offset++] = 1.0f;
+        for (int c = 0; c < OSRS_INVENTORY_SIZE; c++)
+            mask[offset++] = cell_can_eat[c] ? 1.0f : 0.0f;
+        mask[offset++] = 1.0f;
+        for (int c = 0; c < OSRS_INVENTORY_SIZE; c++)
+            mask[offset++] = cell_can_drink[c] ? 1.0f : 0.0f;
     }
-    mask[offset++] = (s->player.bastion_doses > 0 && s->player.potion_timer == 0 &&
-                      s->player.current_ranged >= 99 && s->player.current_ranged <= 105)
-                     ? 1.0f : 0.0f;
-    mask[offset++] = (s->player.stamina_doses > 0 &&
-                      s->player.potion_timer == 0 &&
-                      s->stamina_active_ticks == 0)
-                     ? 1.0f : 0.0f;
 
     mask[offset++] = 1.0f;
     mask[offset++] = s->player.current_magic >= BLOOD_BARRAGE_LEVEL ? 1.0f : 0.0f;
     mask[offset++] = s->player.current_magic >= ICE_BARRAGE_LEVEL ? 1.0f : 0.0f;
 
     mask[offset++] = 1.0f;
-    mask[offset++] = (s->weapon_set == INF_GEAR_BP &&
+    mask[offset++] = (!s->player.spec_armed &&
+                      s->player.equipped[GEAR_SLOT_WEAPON] == ITEM_TOXIC_BLOWPIPE &&
                       s->player.special_energy >= BLOWPIPE_SPEC_COST)
                      ? 1.0f : 0.0f;
+    mask[offset++] = s->player.spec_armed ? 1.0f : 0.0f;
 
     mask[offset++] = 1.0f;
     mask[offset++] = s->player.offensive_prayer != OFFENSIVE_PRAYER_NONE ? 1.0f : 0.0f;

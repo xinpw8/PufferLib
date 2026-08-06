@@ -16,10 +16,26 @@ static AttackStyle inf_player_equipped_attack_style(const InfernoState* s) {
 
 static void inf_refresh_human_loadout_stats(InfernoState* s) {
     AttackStyle style = inf_player_equipped_attack_style(s);
-    int spell_base_damage = (style == ATTACK_STYLE_MAGIC) ? 30 : 0;
+    int spell_base_damage = (style == ATTACK_STYLE_MAGIC)
+        ? inf_player_magic_base_damage(&s->player) : 0;
     encounter_compute_player_equipped_stats(
         &s->player, style, s->player.fight_style, spell_base_damage,
         &s->human_loadout_stats);
+}
+
+static FightStyle inf_live_fight_style_for(AttackStyle style) {
+    if (style == ATTACK_STYLE_MAGIC) return FIGHT_STYLE_AUTOCAST;
+    if (style == ATTACK_STYLE_RANGED) return FIGHT_STYLE_RAPID;
+    return FIGHT_STYLE_ACCURATE;
+}
+
+static void inf_refresh_live_stats(InfernoState* s) {
+    AttackStyle style = inf_player_equipped_attack_style(s);
+    int spell_base_damage = (style == ATTACK_STYLE_MAGIC)
+        ? inf_player_magic_base_damage(&s->player) : 0;
+    encounter_compute_player_equipped_stats(
+        &s->player, style, inf_live_fight_style_for(style), spell_base_damage,
+        &s->live_stats);
 }
 
 static const EncounterLoadoutStats* inf_current_loadout_stats(
@@ -30,7 +46,7 @@ static const EncounterLoadoutStats* inf_current_loadout_stats(
         inf_refresh_human_loadout_stats(s);
         return &s->human_loadout_stats;
     }
-    return &s->loadout_stats[s->weapon_set];
+    return &s->live_stats;
 }
 
 static int inf_player_weapon_is(const InfernoState* s, uint8_t item) {
@@ -46,10 +62,6 @@ typedef struct {
     uint8_t weapon;
 } InfPlayerAttack;
 
-static int inf_is_barrage_spell(int spell) {
-    return spell == ENCOUNTER_SPELL_BLOOD || spell == ENCOUNTER_SPELL_ICE;
-}
-
 static int inf_spell_magic_level_requirement(int spell) {
     if (spell == ENCOUNTER_SPELL_ICE) return ICE_BARRAGE_LEVEL;
     if (spell == ENCOUNTER_SPELL_BLOOD) return BLOOD_BARRAGE_LEVEL;
@@ -61,20 +73,6 @@ static int inf_spell_action_to_spell(int action_spell) {
     if (action_spell == 1) return ENCOUNTER_SPELL_BLOOD;
     if (action_spell == 2) return ENCOUNTER_SPELL_ICE;
     return ENCOUNTER_SPELL_NONE;
-}
-
-static int inf_spell_base_damage(int spell) {
-    if (!inf_is_barrage_spell(spell)) {
-        fprintf(stderr, "BUG: invalid Inferno spell %d\n", spell);
-        abort();
-    }
-    return 30;
-}
-
-static int inf_player_autocast_spell(const Player* p) {
-    return p->autocast_spell == ENCOUNTER_SPELL_ICE
-        ? ENCOUNTER_SPELL_ICE
-        : ENCOUNTER_SPELL_BLOOD;
 }
 
 static FightStyle inf_player_spell_fight_style(const Player* p) {
@@ -99,8 +97,7 @@ static void inf_compute_manual_spell_stats(
         inf_player_spell_fight_style(&s->player),
         inf_spell_base_damage(spell),
         out);
-    out->attack_speed = 5;
-    out->attack_range = 10;
+    inf_apply_spell_cast_stats(out);
 }
 
 static int inf_resolve_player_attack_ctx(
@@ -137,8 +134,7 @@ static int inf_resolve_player_attack_ctx(
 
     out->spell = autocast_spell;
     out->is_barrage = 1;
-    out->stats.attack_speed = 5;
-    out->stats.attack_range = 10;
+    inf_apply_spell_cast_stats(&out->stats);
     return 1;
 }
 
@@ -221,7 +217,7 @@ static int inf_player_can_attack_npc_from_current_tile(
     const InfNPC* npc = &s->npcs[npc_idx];
     if (!npc->active || npc->death_ticks != 0 || npc->hp <= 0) return 0;
 
-    const EncounterLoadoutStats* ls = &s->loadout_stats[s->weapon_set];
+    const EncounterLoadoutStats* ls = &s->live_stats;
     OsrsLosQuery los_query = inf_player_los_query(s);
     return encounter_player_can_attack(
         s->player.x,
@@ -707,16 +703,18 @@ static void inf_npc_attack_ctx(InfernoState* s, InfernoContext* ctx, int idx) {
         } else {
             int max_hit = osrs_npc_magic_max_hit(stats->magic_base_dmg, stats->magic_dmg_pct);
             int dmg = encounter_rand_int(&s->rng_state, max_hit + 1);
+            EncounterProjectileTiming zuk_timing =
+                inf_npc_projectile_timing(npc->type, ATTACK_STYLE_MAGIC, dist);
             inf_queue_player_pending_hit(s, idx, npc->type, (EncounterPendingHit){
-                .damage = dmg,
-                .ticks_remaining = 3,
+                .ticks_remaining = (int8_t)zuk_timing.damage_delay_ticks,
                 .attack_style = ATTACK_STYLE_NONE,
                 .check_prayer = 0,
                 .prayer_check_delay = 0,
                 .spell_type = 0,
-                .source_npc_type = npc->type,
+                .source_npc_type = (int8_t)npc->type,
                 .hit_success = 1,
                 .elysian_reduced = 0,
+                .damage = (int16_t)dmg,
             });
             s->last_hit_by_type = INF_NPC_ZUK;
             npc->attacked_this_tick = 1;
@@ -835,19 +833,19 @@ static void inf_npc_attack_ctx(InfernoState* s, InfernoContext* ctx, int idx) {
         EncounterPendingHit hit;
         if (is_jad) {
             hit = (EncounterPendingHit){
-                .damage = dmg,
-                .ticks_remaining = hit_delay,
-                .attack_style = actual_style,
+                .ticks_remaining = (int8_t)hit_delay,
+                .attack_style = (int8_t)actual_style,
                 .check_prayer = 1,
                 .prayer_check_delay = INF_JAD_PROJECTILE_DELAY + 1,
                 .spell_type = ENCOUNTER_SPELL_NONE,
-                .source_npc_type = npc->type,
-                .hit_success = accuracy_hit,
+                .source_npc_type = (int8_t)npc->type,
+                .hit_success = (int8_t)accuracy_hit,
                 .elysian_reduced = 0,
+                .damage = (int16_t)dmg,
             };
         } else {
             hit = encounter_pending_hit_resolved_at_throw(
-                dmg, hit_delay - 1, actual_style, s->player.prayer,
+                dmg, hit_delay, actual_style, s->player.prayer,
                 npc->type, 0 , accuracy_hit, NULL);
         }
         inf_queue_player_pending_hit(s, idx, npc->type, hit);

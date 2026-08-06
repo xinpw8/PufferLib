@@ -350,7 +350,9 @@ static inline PathResult pathfind_step_arena(
     }
 
     while (1) {
+        if (!BFS_VISITED(cur_x, cur_y)) break;
         int v = BFS_VIA(cur_x, cur_y);
+        if (v == VIA_NONE || v == VIA_START) break;
         int prev_x = cur_x, prev_y = cur_y;
         if (v & VIA_W) prev_x++; else if (v & VIA_E) prev_x--;
         if (v & VIA_S) prev_y++; else if (v & VIA_N) prev_y--;
@@ -360,8 +362,8 @@ static inline PathResult pathfind_step_arena(
             result.next_dy = cur_y - local_src_y;
             return result;
         }
+        if (prev_x < 0 || prev_x >= arena_w || prev_y < 0 || prev_y >= arena_h) break;
         cur_x = prev_x; cur_y = prev_y;
-        if (BFS_VIA(cur_x, cur_y) == VIA_NONE || BFS_VIA(cur_x, cur_y) == VIA_START) break;
     }
 
     return result;

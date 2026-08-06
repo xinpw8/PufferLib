@@ -70,24 +70,68 @@ static void col_step_out_forecast_landing_selftest(void) {
         ENCOUNTER_MOVE_ACTIONS);
 }
 
+static void col_static_los_table_selftest(void) {
+    col_build_static_arena();
+    for (int x0 = COLO_ARENA_MIN_X; x0 <= COLO_ARENA_MAX_X; x0++) {
+        for (int y0 = COLO_ARENA_MIN_Y; y0 <= COLO_ARENA_MAX_Y; y0++) {
+            for (int x1 = COLO_ARENA_MIN_X; x1 <= COLO_ARENA_MAX_X; x1++) {
+                for (int y1 = COLO_ARENA_MIN_Y; y1 <= COLO_ARENA_MAX_Y; y1++) {
+                    int table = col_static_los_get(x0, y0, x1, y1);
+                    int slow = col_tiles_have_los_reference_slowpath(x0, y0, x1, y1);
+                    if (table != slow) {
+                        fprintf(stderr,
+                            "colosseum LoS table mismatch (%d,%d)->(%d,%d): table=%d slow=%d\n",
+                            x0, y0, x1, y1, table, slow);
+                        abort();
+                    }
+                }
+            }
+        }
+    }
+    printf("colosseum LoS table selftest PASS: %u pairs\n",
+        (unsigned)COLO_STATIC_LOS_TABLE_BITS);
+}
+
+static void col_static_footprint_table_selftest(void) {
+    col_build_static_arena();
+    int checks = 0;
+    int min_x = COLO_STATIC_FOOTPRINT_MIN_X - COLO_STATIC_FOOTPRINT_MAX_SIZE;
+    int min_y = COLO_STATIC_FOOTPRINT_MIN_Y - COLO_STATIC_FOOTPRINT_MAX_SIZE;
+    int max_x = COLO_STATIC_FOOTPRINT_MAX_X + COLO_STATIC_FOOTPRINT_MAX_SIZE;
+    int max_y = COLO_STATIC_FOOTPRINT_MAX_Y + COLO_STATIC_FOOTPRINT_MAX_SIZE;
+    for (int size = 1; size <= COLO_STATIC_FOOTPRINT_MAX_SIZE; size++) {
+        for (int x = min_x; x <= max_x; x++) {
+            for (int y = min_y; y <= max_y; y++) {
+                int table = col_static_footprint_blocked_lookup(x, y, size);
+                int slow = col_static_footprint_blocked_reference_slowpath(x, y, size);
+                if (table != slow) {
+                    fprintf(stderr,
+                        "colosseum footprint table mismatch (%d,%d) size=%d: table=%d slow=%d\n",
+                        x, y, size, table, slow);
+                    abort();
+                }
+                checks++;
+            }
+        }
+    }
+    printf("colosseum footprint table selftest PASS: %d checks\n", checks);
+}
+
 #define col_init_context_typed(ctx_ptr) do { \
     col_init_context_typed(ctx_ptr); \
     (ctx_ptr)->config.late_start_state_mode = 0; \
 } while (0)
 
 #define EXACT_MAGIC "COLOEXACTv1"
-#define EXACT_VERSION 2u
+#define EXACT_VERSION 5u
 #define EXACT_CHUNK_BYTES 65536
 
 typedef struct {
     char magic[16];
     uint32_t version;
     uint32_t state_size;
-    uint32_t forecast_size;
-    uint32_t forecast_obs_size;
     uint32_t obs_size;
     uint32_t action_mask_size;
-    uint32_t action_features;
     uint32_t record_count;
 } ColoExactFileHeader;
 
@@ -101,10 +145,7 @@ typedef struct {
     uint32_t state_size;
     uint32_t obs_size;
     uint32_t action_mask_size;
-    uint32_t forecast_size;
     uint64_t state_hash;
-    uint64_t forecast_hash;
-    uint64_t forecast_obs_hash;
     uint64_t obs_hash;
     uint64_t action_mask_hash;
     float reward;
@@ -167,11 +208,8 @@ static void exact_writer_open(ColoExactWriter* writer, const char* path) {
     memcpy(header.magic, EXACT_MAGIC, sizeof(EXACT_MAGIC));
     header.version = EXACT_VERSION;
     header.state_size = (uint32_t)sizeof(ColosseumState);
-    header.forecast_size = (uint32_t)sizeof(ColoStepOutForecast);
-    header.forecast_obs_size = COLO_STEP_OUT_FORECAST_OBS_SIZE;
     header.obs_size = COLO_NUM_OBS;
     header.action_mask_size = COLO_ACTION_MASK_SIZE;
-    header.action_features = COLO_STEP_OUT_FORECAST_ACTION_FEATURES;
     exact_write_all(writer->file, &header, sizeof(header));
 }
 
@@ -180,11 +218,8 @@ static void exact_writer_close(ColoExactWriter* writer) {
     memcpy(header.magic, EXACT_MAGIC, sizeof(EXACT_MAGIC));
     header.version = EXACT_VERSION;
     header.state_size = (uint32_t)sizeof(ColosseumState);
-    header.forecast_size = (uint32_t)sizeof(ColoStepOutForecast);
-    header.forecast_obs_size = COLO_STEP_OUT_FORECAST_OBS_SIZE;
     header.obs_size = COLO_NUM_OBS;
     header.action_mask_size = COLO_ACTION_MASK_SIZE;
-    header.action_features = COLO_STEP_OUT_FORECAST_ACTION_FEATURES;
     header.record_count = writer->record_count;
     if (fseek(writer->file, 0, SEEK_SET) != 0) {
         perror("seek colosseum exact fixture");
@@ -205,18 +240,9 @@ static void exact_capture(
     ColosseumState* s,
     ColosseumContext* ctx
 ) {
-    ColoStepOutForecast forecast;
-    float forecast_obs[COLO_STEP_OUT_FORECAST_OBS_SIZE];
     float obs[COLO_NUM_OBS];
     float action_mask[COLO_ACTION_MASK_SIZE];
 
-    ColoForecastObsSummary summaries[ENCOUNTER_MOVE_ACTIONS];
-    col_build_step_out_forecast_horizon_mode_summary(
-        s, &forecast, summaries, COLO_STEP_OUT_FORECAST_HORIZON,
-        ctx->config.forecast_run_tile_mode);
-    int fi = col_write_step_out_forecast_obs_summary(
-        &forecast, summaries, COLO_STEP_OUT_FORECAST_HORIZON, forecast_obs, 0);
-    assert(fi == COLO_STEP_OUT_FORECAST_OBS_SIZE);
     col_write_obs_ctx((EncounterState*)s, (EncounterContext*)ctx, obs);
     col_write_mask_ctx((EncounterState*)s, (EncounterContext*)ctx, action_mask);
 
@@ -231,17 +257,12 @@ static void exact_capture(
     record.state_size = (uint32_t)sizeof(*s);
     record.obs_size = COLO_NUM_OBS;
     record.action_mask_size = COLO_ACTION_MASK_SIZE;
-    record.forecast_size = (uint32_t)sizeof(forecast);
     record.state_hash = exact_hash_bytes(s, sizeof(*s));
-    record.forecast_hash = exact_hash_bytes(&forecast, sizeof(forecast));
-    record.forecast_obs_hash = exact_hash_bytes(forecast_obs, sizeof(forecast_obs));
     record.obs_hash = exact_hash_bytes(obs, sizeof(obs));
     record.action_mask_hash = exact_hash_bytes(action_mask, sizeof(action_mask));
     record.reward = col_get_reward_ctx((EncounterState*)s, (EncounterContext*)ctx);
 
     exact_write_all(writer->file, &record, sizeof(record));
-    exact_write_all(writer->file, &forecast, sizeof(forecast));
-    exact_write_all(writer->file, forecast_obs, sizeof(forecast_obs));
     exact_write_all(writer->file, obs, sizeof(obs));
     exact_write_all(writer->file, action_mask, sizeof(action_mask));
     exact_write_all(writer->file, s, sizeof(*s));
@@ -282,7 +303,6 @@ static void exact_init_state(
 ) {
     col_init_context_typed(ctx);
     ctx->config.start_wave = start_wave;
-    ctx->config.step_out_forecast_obs_enabled = 1;
     memset(s, 0, sizeof(*s));
     col_reset_ctx((EncounterState*)s, (EncounterContext*)ctx, seed);
 }
@@ -318,6 +338,178 @@ static void exact_prepare_custom(
     s->player.x = player_x;
     s->player.y = player_y;
     exact_refresh_geometry(s, ctx);
+}
+
+typedef struct {
+    ColoWalkCtx walk;
+    int blocker_count;
+    int blocker_x[16];
+    int blocker_y[16];
+} ExactAttackRouteContext;
+
+static int exact_attack_route_walkable(void* ctx, int x, int y) {
+    ExactAttackRouteContext* route_ctx = (ExactAttackRouteContext*)ctx;
+    return col_tile_walkable(&route_ctx->walk, x, y);
+}
+
+static int exact_attack_route_blocked(void* ctx, int abs_x, int abs_y) {
+    ExactAttackRouteContext* route_ctx = (ExactAttackRouteContext*)ctx;
+    if (col_pathfind_blocked(&route_ctx->walk, abs_x, abs_y)) return 1;
+    int x = abs_x - route_ctx->walk.ctx->world_offset_x;
+    int y = abs_y - route_ctx->walk.ctx->world_offset_y;
+    for (int i = 0; i < route_ctx->blocker_count; i++) {
+        if (route_ctx->blocker_x[i] == x &&
+                route_ctx->blocker_y[i] == y) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static EncounterAttackRouteLanding exact_attack_route_runtime_landing(
+    const ColosseumState* s,
+    const ColosseumContext* ctx,
+    ExactAttackRouteContext* route_ctx,
+    int target_x,
+    int target_y,
+    int target_size,
+    int attack_range,
+    const OsrsLosQuery* los_query
+) {
+    Player player = s->player;
+    encounter_chase_attack_target(
+        &player,
+        target_x,
+        target_y,
+        target_size,
+        attack_range,
+        ctx->collision_map,
+        ctx->world_offset_x,
+        ctx->world_offset_y,
+        exact_attack_route_walkable,
+        route_ctx,
+        exact_attack_route_blocked,
+        route_ctx,
+        los_query,
+        COLO_ARENA_MIN_X,
+        COLO_ARENA_MIN_Y,
+        COLO_ARENA_WIDTH,
+        COLO_ARENA_HEIGHT);
+    return (EncounterAttackRouteLanding){
+        .land_x = player.x,
+        .land_y = player.y,
+    };
+}
+
+static int exact_attack_route_property_scenario(
+    const char* scenario,
+    ColosseumState* s,
+    ColosseumContext* ctx,
+    ExactAttackRouteContext* route_ctx
+) {
+    EncounterArenaAttackRouteField field;
+    encounter_build_arena_attack_route_field(
+        &field,
+        ctx->collision_map,
+        ctx->world_offset_x,
+        ctx->world_offset_y,
+        s->player.x,
+        s->player.y,
+        exact_attack_route_walkable,
+        route_ctx,
+        exact_attack_route_blocked,
+        route_ctx,
+        COLO_ARENA_MIN_X,
+        COLO_ARENA_MIN_Y,
+        COLO_ARENA_WIDTH,
+        COLO_ARENA_HEIGHT);
+    OsrsLosQuery los_query = col_player_los_query(s);
+    static const int target_sizes[] = {1, 2, 5};
+    static const int attack_ranges[] = {1, 3, 6, 10};
+    int checks = 0;
+
+    for (int target_y = COLO_ARENA_MIN_Y - 1;
+            target_y <= COLO_ARENA_MAX_Y + 1;
+            target_y += 5) {
+        for (int target_x = COLO_ARENA_MIN_X - 1;
+                target_x <= COLO_ARENA_MAX_X + 1;
+                target_x += 4) {
+            for (size_t size_idx = 0;
+                    size_idx < sizeof(target_sizes) / sizeof(target_sizes[0]);
+                    size_idx++) {
+                for (size_t range_idx = 0;
+                        range_idx < sizeof(attack_ranges) / sizeof(attack_ranges[0]);
+                        range_idx++) {
+                    int target_size = target_sizes[size_idx];
+                    int attack_range = attack_ranges[range_idx];
+                    EncounterAttackRouteLanding expected =
+                        exact_attack_route_runtime_landing(
+                            s, ctx, route_ctx,
+                            target_x, target_y, target_size, attack_range,
+                            &los_query);
+                    EncounterAttackRouteLanding actual =
+                        encounter_arena_attack_route_landing(
+                            &field,
+                            target_x, target_y, target_size, attack_range,
+                            &los_query);
+                    if (actual.land_x != expected.land_x ||
+                            actual.land_y != expected.land_y) {
+                        fprintf(stderr,
+                            "attack route mismatch scenario=%s player=(%d,%d) target=(%d,%d,%d) range=%d field=(%d,%d) runtime=(%d,%d)\n",
+                            scenario,
+                            s->player.x,
+                            s->player.y,
+                            target_x,
+                            target_y,
+                            target_size,
+                            attack_range,
+                            actual.land_x,
+                            actual.land_y,
+                            expected.land_x,
+                            expected.land_y);
+                        abort();
+                    }
+                    checks++;
+                }
+            }
+        }
+    }
+    return checks;
+}
+
+static void exact_attack_route_property_selftest(void) {
+    ColosseumState s;
+    ColosseumContext ctx;
+    exact_prepare_custom(&s, &ctx, 0xA771u, 16, 16);
+    ExactAttackRouteContext route_ctx = {
+        .walk = {&s, &ctx},
+    };
+    int checks = exact_attack_route_property_scenario(
+        "open-arena", &s, &ctx, &route_ctx);
+
+    route_ctx.blocker_count = 8;
+    int blocker_x[] = {14, 15, 16, 17, 18, 17, 16, 15};
+    int blocker_y[] = {16, 15, 14, 15, 16, 17, 18, 17};
+    memcpy(route_ctx.blocker_x, blocker_x, sizeof(blocker_x));
+    memcpy(route_ctx.blocker_y, blocker_y, sizeof(blocker_y));
+    checks += exact_attack_route_property_scenario(
+        "dynamic-blockers", &s, &ctx, &route_ctx);
+
+    route_ctx.blocker_count = 0;
+    s.wave = COLO_WAVE_BOSS;
+    s.sol.started = 1;
+    s.sol.boss_arena_min_x = COLO_BOSS_ARENA_MIN_X;
+    s.sol.boss_arena_min_y = COLO_BOSS_ARENA_MIN_Y;
+    s.sol.boss_arena_max_x = COLO_BOSS_ARENA_MAX_X;
+    s.sol.boss_arena_max_y = COLO_BOSS_ARENA_MAX_Y;
+    s.player.x = COLO_BOSS_ARENA_MIN_X + 1;
+    s.player.y = COLO_BOSS_ARENA_MIN_Y + 1;
+    exact_refresh_geometry(&s, &ctx);
+    checks += exact_attack_route_property_scenario(
+        "sol-clamp", &s, &ctx, &route_ctx);
+    printf(
+        "colosseum attack route property selftest PASS: %d target queries across 3 fields\n",
+        checks);
 }
 
 static void exact_run_steps(
@@ -548,17 +740,23 @@ static int exact_compare_files(const char* expected_path, const char* actual_pat
 }
 
 int main(int argc, char** argv) {
+    if (argc == 2 && strcmp(argv[1], "--attack-route-selftest") == 0) {
+        exact_attack_route_property_selftest();
+        return 0;
+    }
     if (argc != 3 ||
             (strcmp(argv[1], "--write-golden") != 0 &&
              strcmp(argv[1], "--compare") != 0)) {
         fprintf(stderr,
-            "usage: %s --write-golden DIR | --compare DIR\n", argv[0]);
+            "usage: %s --attack-route-selftest | --write-golden DIR | --compare DIR\n",
+            argv[0]);
         return 2;
     }
 
     col_static_los_table_selftest();
     col_static_footprint_table_selftest();
     col_step_out_forecast_landing_selftest();
+    exact_attack_route_property_selftest();
 
     char fixture_path[1024];
     char current_path[1024];

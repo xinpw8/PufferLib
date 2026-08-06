@@ -25,12 +25,6 @@ static void col_put_int_ctx(
     else if (strcmp(key, "curriculum_agent") == 0)
         ctx->config.curriculum_agent =
             encounter_require_binary_config("colosseum", key, value);
-    else if (strcmp(key, "step_out_forecast_obs_enabled") == 0)
-        ctx->config.step_out_forecast_obs_enabled =
-            encounter_require_binary_config("colosseum", key, value);
-    else if (strcmp(key, "threat_field_obs_enabled") == 0)
-        ctx->config.threat_field_obs_enabled =
-            encounter_require_binary_config("colosseum", key, value);
     else if (strcmp(key, "mask_inventory_heads") == 0)
         ctx->config.mask_inventory_heads =
             encounter_require_binary_config("colosseum", key, value);
@@ -45,12 +39,6 @@ static void col_put_int_ctx(
         }
         ctx->config.farm_cap_waves = value;
     }
-    else if (strcmp(key, "action_debug_log") == 0)
-        ctx->config.action_debug_log =
-            encounter_require_binary_config("colosseum", key, value);
-    else if (strcmp(key, "prayer_oracle_mode") == 0)
-        ctx->config.prayer_oracle_mode =
-            encounter_require_binary_config("colosseum", key, value);
     else if (strcmp(key, "late_start_state_mode") == 0) {
         if (value < 0 || value > 2) {
             fprintf(stderr, "colosseum: late_start_state_mode must be 0..2, got %d\n",
@@ -62,9 +50,6 @@ static void col_put_int_ctx(
     else if (strcmp(key, "bis_gear_oracle_mode") == 0)
         ctx->config.bis_gear_oracle_mode =
             encounter_require_binary_config("colosseum", key, value);
-    else if (strcmp(key, "invuln_mode") == 0)
-        ctx->config.invuln_mode =
-            encounter_require_binary_config("colosseum", key, value);
     else if (strcmp(key, "episode_max_ticks_override") == 0) {
         if (value < 0) {
             fprintf(stderr, "colosseum: episode_max_ticks_override must be >= 0, got %d\n",
@@ -73,9 +58,6 @@ static void col_put_int_ctx(
         }
         ctx->config.episode_max_ticks_override = value;
     }
-    else if (strcmp(key, "remove_brews") == 0)
-        ctx->config.remove_brews =
-            encounter_require_binary_config("colosseum", key, value);
     else if (strcmp(key, "damage_scale_anneal_ticks") == 0) {
         if (value < 0) {
             fprintf(stderr, "colosseum: damage_scale_anneal_ticks must be >= 0, got %d\n",
@@ -83,22 +65,6 @@ static void col_put_int_ctx(
             abort();
         }
         ctx->config.damage_scale_anneal_ticks = value;
-    }
-    else if (strcmp(key, "forecast_horizon") == 0) {
-        if (value < 1 || value > COLO_STEP_OUT_FORECAST_HORIZON) {
-            fprintf(stderr, "colosseum: forecast_horizon must be 1..%d, got %d\n",
-                COLO_STEP_OUT_FORECAST_HORIZON, value);
-            abort();
-        }
-        ctx->config.forecast_horizon = value;
-    }
-    else if (strcmp(key, "forecast_run_tile_mode") == 0) {
-        if (value < 0 || value > COLO_FORECAST_RUN_TILE_STATIC_THREAT) {
-            fprintf(stderr, "colosseum: forecast_run_tile_mode must be 0..%d, got %d\n",
-                COLO_FORECAST_RUN_TILE_STATIC_THREAT, value);
-            abort();
-        }
-        ctx->config.forecast_run_tile_mode = value;
     }
     else if (strcmp(key, "loadout_profile_mode") == 0) {
         if (value < 0 || value > COLO_LOADOUT_PROFILE_MODE_MIXED) {
@@ -133,20 +99,6 @@ static void col_put_float_ctx(
     else if (strcmp(key, "wave_clear_bonus") == 0) ctx->config.wave_clear_bonus = value;
     else if (strcmp(key, "boss_phase_bonus") == 0) ctx->config.boss_phase_bonus = value;
     else if (strcmp(key, "win_bonus") == 0) ctx->config.win_bonus = value;
-    else if (strcmp(key, "prayer_correct_reward") == 0)
-        ctx->config.prayer_correct_reward = value;
-    else if (strcmp(key, "offpray_damage_penalty_coeff") == 0)
-        ctx->config.offpray_damage_penalty_coeff = value;
-    else if (strcmp(key, "multistyle_exposure_penalty_coeff") == 0)
-        ctx->config.multistyle_exposure_penalty_coeff = value;
-    else if (strcmp(key, "argmax_gear_reward_coeff") == 0)
-        ctx->config.argmax_gear_reward_coeff = value;
-    else if (strcmp(key, "offensive_boost_reward_coeff") == 0)
-        ctx->config.offensive_boost_reward_coeff = value;
-    else if (strcmp(key, "stall_penalty_coeff") == 0)
-        ctx->config.stall_penalty_coeff = value;
-    else if (strcmp(key, "avoided_damage_coeff") == 0)
-        ctx->config.avoided_damage_coeff = value;
     else if (strcmp(key, "death_penalty_coeff") == 0) ctx->config.death_penalty_coeff = value;
     else if (strcmp(key, "timeout_penalty") == 0) ctx->config.timeout_penalty = value;
     else if (strcmp(key, "beginner_loadout_fraction") == 0) {
@@ -215,7 +167,11 @@ static void* col_get_log_ctx(EncounterState* state, EncounterContext* context) {
     s->log.episode_length = s->tick;
     s->log.wave_reached = s->wave;
     s->log.win = (s->episode_over && s->winner == COLO_OUTCOME_PLAYER_WON) ? 1 : 0;
-    s->log.died = (s->episode_over && s->winner == COLO_OUTCOME_PLAYER_DIED) ? 1 : 0;
+    /* the tick cap reports PLAYER_DIED so training keeps timeout-as-terminal, but a
+       truncation has no killer and no damage source, so it must not count as a death. */
+    s->log.timed_out = (s->episode_over && s->time_limit_truncated) ? 1 : 0;
+    s->log.died = (s->episode_over && s->winner == COLO_OUTCOME_PLAYER_DIED
+                   && !s->time_limit_truncated) ? 1 : 0;
     s->log.boss_phase_reached = s->sol.phase;
     s->log.active_tier_sum = col_modifier_active_tier_sum(s);
     return &s->log;
@@ -1033,17 +989,9 @@ static void col_translate_human_commands_ctx(
             case HUMAN_COMMAND_SPEC_TOGGLE:
                 actions[COLO_HEAD_SPEC] = 1;
                 break;
-            case HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK: {
-                int action_head =
-                    col_queue_inventory_click_action(s, actions, cmd->inventory_slot);
-                if (ctx->config.action_debug_log) {
-                    fprintf(stderr,
-                        "colo_action tick=%d human_inventory_click slot=%d head=%d action=%d\n",
-                        s->tick, cmd->inventory_slot, action_head,
-                        action_head >= 0 ? actions[action_head] : 0);
-                }
+            case HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK:
+                col_queue_inventory_click_action(s, actions, cmd->inventory_slot);
                 break;
-            }
             case HUMAN_COMMAND_ITEM_ON_ITEM:
                 osrs_inventory_swap_cells(
                     s->inventory_cells, cmd->inventory_slot, cmd->target_inventory_slot);
@@ -1083,7 +1031,7 @@ static void col_step_human_commands_ctx(
 }
 
 #define COLO_SNAPSHOT_MAGIC 0xC010C001u
-#define COLO_SNAPSHOT_VERSION 20u
+#define COLO_SNAPSHOT_VERSION 22u
 
 typedef struct {
     uint32_t magic;
@@ -1173,10 +1121,6 @@ static const EncounterDef ENCOUNTER_COLOSSEUM = {
     .snapshot_size = col_snapshot_size_ctx,
     .snapshot = col_snapshot_ctx,
     .restore = col_restore_ctx,
-
-    .cell_key_size = NULL,
-    .write_cell_key = NULL,
-    .progress_score = NULL,
 
     .write_obs = col_write_obs_ctx,
     .write_mask = col_write_mask_ctx,

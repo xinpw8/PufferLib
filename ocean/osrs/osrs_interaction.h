@@ -47,10 +47,6 @@ static inline int osrs_interaction_check_interrupt(OsrsInteraction* ix, int acti
     }
 }
 
-static inline void osrs_spec_toggle(int* spec_armed) {
-    *spec_armed = !(*spec_armed);
-}
-
 static inline void osrs_spec_disarm(int* spec_armed) {
     *spec_armed = 0;
 }

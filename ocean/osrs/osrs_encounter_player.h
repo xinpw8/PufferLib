@@ -10,10 +10,27 @@ typedef enum {
     OSRS_PLAYER_MOVE_DESTINATION,
 } OsrsPlayerMoveKind;
 
+/**
+ * One click per tick. The engine cannot both start an attack and walk somewhere
+ * else on the same tick: a ground click cancels the entity interaction, an entity
+ * click cancels the walk. TARGET and MOVE are therefore mutually exclusive by
+ * construction rather than by caller discipline.
+ *
+ * A walk already in flight is state, not a command. It continues under CMD_NONE
+ * and is cancelled by either new command.
+ */
 typedef enum {
-    OSRS_PLAYER_TARGET_MOVE_CHASE = 0,
-    OSRS_PLAYER_TARGET_MOVE_EXPLICIT_FIRST,
-} OsrsPlayerTargetMovePolicy;
+    OSRS_PLAYER_CMD_NONE = 0,
+    OSRS_PLAYER_CMD_TARGET,
+    OSRS_PLAYER_CMD_MOVE,
+} OsrsPlayerCommandKind;
+
+typedef struct {
+    OsrsPlayerCommandKind kind;
+    int target_slot;
+    OsrsPlayerMoveKind move_kind;
+    int move_action;
+} OsrsPlayerCommand;
 
 typedef struct {
     const CollisionMap* collision_map;
@@ -48,11 +65,7 @@ typedef struct {
     OsrsInteraction* interaction;
     OsrsAttackTargetLookupFn target_lookup;
     void* target_ctx;
-    int has_new_target;
-    int new_target_slot;
-    OsrsPlayerMoveKind move_kind;
-    OsrsPlayerTargetMovePolicy target_move_policy;
-    int move_action;
+    OsrsPlayerCommand command;
     int* dest_x;
     int* dest_y;
     int blocked_ticks;
@@ -73,8 +86,9 @@ static inline void osrs_player_step_require_input(const OsrsPlayerStepInput* inp
         fprintf(stderr, "osrs player step input is missing required fields\n");
         abort();
     }
-    if ((input->move_kind == OSRS_PLAYER_MOVE_DESTINATION ||
-            input->move_kind == OSRS_PLAYER_MOVE_ACTION) &&
+    if (input->command.kind == OSRS_PLAYER_CMD_MOVE &&
+            (input->command.move_kind == OSRS_PLAYER_MOVE_DESTINATION ||
+             input->command.move_kind == OSRS_PLAYER_MOVE_ACTION) &&
             (!input->dest_x || !input->dest_y)) {
         fprintf(stderr, "osrs player step move input is missing destination storage\n");
         abort();
@@ -105,21 +119,23 @@ static inline int osrs_player_step_can_attack_target(
 }
 
 static inline int osrs_player_step_apply_explicit_move(
-    const OsrsPlayerStepInput* input
+    const OsrsPlayerStepInput* input,
+    OsrsPlayerMoveKind move_kind
 ) {
     Player* player = input->player;
-    if (input->move_kind == OSRS_PLAYER_MOVE_ACTION) {
-        if (input->move_action <= 0 || input->move_action >= ENCOUNTER_MOVE_ACTIONS)
+    if (move_kind == OSRS_PLAYER_MOVE_ACTION) {
+        int move_action = input->command.move_action;
+        if (move_action <= 0 || move_action >= ENCOUNTER_MOVE_ACTIONS)
             return 0;
         return encounter_move_to_target(
             player,
-            ENCOUNTER_MOVE_TARGET_DX[input->move_action],
-            ENCOUNTER_MOVE_TARGET_DY[input->move_action],
+            ENCOUNTER_MOVE_TARGET_DX[move_action],
+            ENCOUNTER_MOVE_TARGET_DY[move_action],
             input->arena.is_walkable,
             input->arena.walkable_ctx);
     }
 
-    if (input->move_kind != OSRS_PLAYER_MOVE_DESTINATION)
+    if (move_kind != OSRS_PLAYER_MOVE_DESTINATION)
         return 0;
     return encounter_move_toward_dest(
         player,
@@ -179,14 +195,17 @@ static inline OsrsPlayerStepResult osrs_encounter_player_step(
         return result;
     }
 
-    if (input->has_new_target) {
+    if (input->command.kind == OSRS_PLAYER_CMD_TARGET) {
         OsrsAttackTarget target;
-        if (osrs_player_step_lookup_target(input, input->new_target_slot, &target)) {
-            osrs_interaction_set(interaction, input->new_target_slot);
+        if (osrs_player_step_lookup_target(input, input->command.target_slot, &target)) {
+            osrs_interaction_set(interaction, input->command.target_slot);
         } else {
             osrs_interaction_clear(interaction);
         }
-    } else if (input->move_kind != OSRS_PLAYER_MOVE_NONE) {
+        /* an entity click cancels any walk already in flight */
+        if (input->dest_x) *input->dest_x = -1;
+        if (input->dest_y) *input->dest_y = -1;
+    } else if (input->command.kind == OSRS_PLAYER_CMD_MOVE) {
         osrs_interaction_check_interrupt(interaction, OSRS_IACT_MOVE);
     }
 
@@ -200,10 +219,13 @@ static inline OsrsPlayerStepResult osrs_encounter_player_step(
         }
     }
 
-    if (input->move_kind != OSRS_PLAYER_MOVE_NONE &&
-            (!osrs_interaction_active(interaction) ||
-             input->target_move_policy == OSRS_PLAYER_TARGET_MOVE_EXPLICIT_FIRST)) {
-        result.moved = osrs_player_step_apply_explicit_move(input) > 0;
+    /* an active interaction always chases. the only way to walk elsewhere is a
+       MOVE command, and that cleared the interaction above, so the two are
+       mutually exclusive by construction rather than by a tie-break policy. */
+    if (input->command.kind == OSRS_PLAYER_CMD_MOVE &&
+            !osrs_interaction_active(interaction)) {
+        result.moved =
+            osrs_player_step_apply_explicit_move(input, input->command.move_kind) > 0;
         result.explicit_moved = result.moved;
     } else if (osrs_interaction_active(interaction) && has_target) {
         result.moved = osrs_player_step_chase_target(input, &target) > 0;

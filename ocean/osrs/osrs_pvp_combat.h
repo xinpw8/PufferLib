@@ -340,10 +340,10 @@ static inline int get_blood_base_hit(int current_magic) {
 }
 
 static inline int get_blood_heal_percent(int current_magic) {
-    if (current_magic >= BLOOD_BARRAGE_LEVEL) return 25;
-    if (current_magic >= BLOOD_BLITZ_LEVEL) return 20;
-    if (current_magic >= BLOOD_BURST_LEVEL) return 15;
-    return 10;
+    if (current_magic >= BLOOD_BARRAGE_LEVEL) return BLOOD_BARRAGE_HEAL_PERCENT;
+    if (current_magic >= BLOOD_BLITZ_LEVEL) return BLOOD_BLITZ_HEAL_PERCENT;
+    if (current_magic >= BLOOD_BURST_LEVEL) return BLOOD_BURST_HEAL_PERCENT;
+    return BLOOD_RUSH_HEAL_PERCENT;
 }
 
 /* pvp hit delays historically excluded the +1 attacker-is-player tick, so every

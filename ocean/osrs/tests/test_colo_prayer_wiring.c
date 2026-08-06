@@ -48,7 +48,6 @@ static void run_test(const char* label, PrayerPolicy policy, int start_wave, int
     ctx.config.start_wave = start_wave;
     ctx.config.loadout_profile_mode = COLO_LOADOUT_PROFILE_MODE_MIXED;
     ctx.config.beginner_loadout_fraction = 0.5f;
-    ctx.config.step_out_forecast_obs_enabled = 1;
 
     static float obs[COLO_NUM_OBS];
     ColosseumState s;

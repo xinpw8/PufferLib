@@ -5,6 +5,7 @@
 #include "../osrs_encounter_player.h"
 #include "../osrs_encounter_visual_events.h"
 #include "../osrs_interaction.h"
+#include "../osrs_inventory_actions.h"
 #include "../osrs_types.h"
 #include "../osrs_items.h"
 #include "../osrs_combat.h"
@@ -102,32 +103,36 @@ static const int ZUL_POSITIONS[ZUL_NUM_POSITIONS][2] = {
 #define ZUL_PLAYER_RESTORE_DOSES 8
 #define ZUL_MAX_TICKS         600
 
-#define ZUL_NUM_OBS           123
-#define ZUL_NUM_ACTION_HEADS  7
+#define ZUL_NUM_SCALAR_OBS    118
+#define ZUL_NUM_OBS           (ZUL_NUM_SCALAR_OBS + \
+    OSRS_INVENTORY_SIZE * OSRS_INVENTORY_CELL_OBS_FEATURES + \
+    NUM_GEAR_SLOTS * OSRS_EQUIPPED_SELF_OBS_FEATURES)
+#define ZUL_NUM_ACTION_HEADS  (2 + NUM_GEAR_SLOTS + 2 + 2)
+
+#define ZUL_OBS_NPC_SLOTS (1 + ZUL_MAX_SNAKELINGS)
 
 #define ZUL_MOVE_DIM      ENCOUNTER_MOVE_ACTIONS
-#define ZUL_ATTACK_DIM    3
+#define ZUL_PRIMARY_DIM   (ZUL_MOVE_DIM + ZUL_OBS_NPC_SLOTS)
 #define ZUL_PRAYER_DIM    ENCOUNTER_OVERHEAD_DIM_PVE
 #define ZUL_OFFENSIVE_DIM ENCOUNTER_OFFENSIVE_DIM
-#define ZUL_FOOD_DIM      3
-#define ZUL_POTION_DIM    3
-#define ZUL_SPEC_DIM      2
+#define ZUL_INV_CLICK_HEADS (NUM_GEAR_SLOTS + 2)
+#define ZUL_INV_CLICK_DIM (OSRS_INVENTORY_SIZE + 1)
+#define ZUL_SPEC_DIM      3
 
-#define ZUL_ACTION_MASK_SIZE (ZUL_MOVE_DIM + ZUL_ATTACK_DIM + ZUL_PRAYER_DIM + \
-    ZUL_FOOD_DIM + ZUL_POTION_DIM + ZUL_SPEC_DIM + ZUL_OFFENSIVE_DIM)
+#define ZUL_ACTION_MASK_SIZE (ZUL_PRIMARY_DIM + ZUL_PRAYER_DIM + \
+    ZUL_INV_CLICK_HEADS * ZUL_INV_CLICK_DIM + ZUL_SPEC_DIM + ZUL_OFFENSIVE_DIM)
 
-#define ZUL_HEAD_MOVE       0
-#define ZUL_HEAD_ATTACK     1
-#define ZUL_HEAD_PRAYER     2
-#define ZUL_HEAD_FOOD       3
-#define ZUL_HEAD_POTION     4
-#define ZUL_HEAD_SPEC       5
-#define ZUL_HEAD_OFFENSIVE  6
+#define ZUL_HEAD_PRIMARY    0
+#define ZUL_HEAD_PRAYER     1
+#define ZUL_HEAD_EQUIP_BASE 2
+#define ZUL_HEAD_EQUIP_SLOT(slot) (ZUL_HEAD_EQUIP_BASE + (slot))
+#define ZUL_HEAD_EAT        (ZUL_HEAD_EQUIP_BASE + NUM_GEAR_SLOTS)
+#define ZUL_HEAD_DRINK      (ZUL_HEAD_EAT + 1)
+#define ZUL_HEAD_SPEC       (ZUL_HEAD_DRINK + 1)
+#define ZUL_HEAD_OFFENSIVE  (ZUL_HEAD_SPEC + 1)
 
+#define ZUL_PRIMARY_ATTACK_BASE ZUL_MOVE_DIM
 #define ZUL_MOVE_STAY 0
-#define ZUL_ATK_NONE  0
-#define ZUL_ATK_MAGE  1
-#define ZUL_ATK_RANGE 2
 
 typedef enum {
     ZUL_FORM_GREEN = 0,
@@ -140,11 +145,6 @@ static const int ZUL_FORM_MONSTER_IDX[] = {
     [ZUL_FORM_RED]   = MON_ZULRAH_RED,
     [ZUL_FORM_BLUE]  = MON_ZULRAH_BLUE,
 };
-
-typedef enum {
-    ZUL_GEAR_MAGE = 0,
-    ZUL_GEAR_RANGE,
-} ZulrahGearStyle;
 
 typedef enum {
     ZA_END = 0,
@@ -287,10 +287,20 @@ static const int ZUL_ROT_LENGTHS[ZUL_NUM_ROTATIONS] = { 11, 11, 12, 13 };
 #undef ZA
 #undef ZE
 
-static const int ZUL_ACTION_HEAD_DIMS[ZUL_NUM_ACTION_HEADS] = {
-    ZUL_MOVE_DIM, ZUL_ATTACK_DIM, ZUL_PRAYER_DIM,
-    ZUL_FOOD_DIM, ZUL_POTION_DIM, ZUL_SPEC_DIM, ZUL_OFFENSIVE_DIM,
-};
+#define ZUL_ACTION_DIMS_INIT { \
+    ZUL_PRIMARY_DIM, \
+    ZUL_PRAYER_DIM, \
+    ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, \
+    ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, \
+    ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, \
+    ZUL_INV_CLICK_DIM, \
+    ZUL_INV_CLICK_DIM, \
+    ZUL_SPEC_DIM, \
+    ZUL_OFFENSIVE_DIM \
+}
+static const int ZUL_ACTION_HEAD_DIMS[ZUL_NUM_ACTION_HEADS] = ZUL_ACTION_DIMS_INIT;
+static_assert(ZUL_HEAD_OFFENSIVE == ZUL_NUM_ACTION_HEADS - 1,
+    "OFFENSIVE must be the last zulrah action head");
 
 #define ZUL_NUM_GEAR_TIERS 3
 #define ZUL_GEAR_TIER_FIXED 0
@@ -414,6 +424,10 @@ typedef struct {
     int melee_target_x, melee_target_y;
     int melee_pending;
     int melee_stare_timer;
+    OverheadPrayer melee_prayer_at_calc;
+
+    EncounterPendingHitQueue player_pending_hits;
+    EncounterPendingHitQueue zulrah_pending_hits;
 
     int phase_timer;
     int surface_timer;
@@ -428,7 +442,7 @@ typedef struct {
     ZulrahPendingCloud pending_clouds[ZUL_MAX_PENDING_CLOUDS];
     ZulrahSnakeling snakelings[ZUL_MAX_SNAKELINGS];
 
-    ZulrahGearStyle player_gear;
+    OsrsInventoryCell inventory_cells[OSRS_INVENTORY_SIZE];
     OsrsInteraction interaction;
     int player_dest_x, player_dest_y;
     int player_dest_explicit;
@@ -446,10 +460,9 @@ typedef struct {
     float gear_tier_weights[ZUL_NUM_GEAR_TIERS];
     ZulrahRewardConfig reward_config;
 
-    EncounterLoadoutStats mage_stats;
-    EncounterLoadoutStats range_stats;
+    EncounterLoadoutStats live_stats;
+    int live_stats_dirty;
     int human_command_mode;
-    EncounterLoadoutStats human_loadout_stats;
     const HumanCommand* human_commands;
     int human_command_count;
 
@@ -598,7 +611,7 @@ static void zul_update_npc_anim_lifetime(ZulrahState* s) {
         s->zulrah_anim_event_tick = -1;
 }
 
-static const EncounterLoadoutStats* zul_current_loadout_stats(ZulrahState* s, int is_mage);
+static const EncounterLoadoutStats* zul_live_stats(ZulrahState* s);
 
 static int zul_lookup_player_attack_target(
     void* ctx,
@@ -606,15 +619,27 @@ static int zul_lookup_player_attack_target(
     OsrsAttackTarget* out
 ) {
     ZulrahState* s = (ZulrahState*)ctx;
-    if (target_slot != 0 || !s->zulrah_visible || s->is_diving)
-        return 0;
-    const EncounterLoadoutStats* ls = zul_current_loadout_stats(
-        s, s->player_gear == ZUL_GEAR_MAGE);
+    const EncounterLoadoutStats* ls = zul_live_stats(s);
+    if (target_slot == 0) {
+        if (!s->zulrah_visible || s->is_diving) return 0;
+        *out = (OsrsAttackTarget){
+            .slot = 0,
+            .x = s->zulrah.x,
+            .y = s->zulrah.y,
+            .size = ZUL_NPC_SIZE,
+            .attack_range = ls->attack_range,
+        };
+        return 1;
+    }
+    int snakeling_idx = target_slot - 1;
+    if (snakeling_idx < 0 || snakeling_idx >= ZUL_MAX_SNAKELINGS) return 0;
+    const ZulrahSnakeling* sn = &s->snakelings[snakeling_idx];
+    if (!sn->active) return 0;
     *out = (OsrsAttackTarget){
-        .slot = 0,
-        .x = s->zulrah.x,
-        .y = s->zulrah.y,
-        .size = ZUL_NPC_SIZE,
+        .slot = target_slot,
+        .x = sn->entity.x,
+        .y = sn->entity.y,
+        .size = 1,
         .attack_range = ls->attack_range,
     };
     return 1;
@@ -860,6 +885,31 @@ static inline int zul_cap_damage(ZulrahState* s, int damage) {
     return damage;
 }
 
+static void zul_apply_recoil(ZulrahState* s, int damage, AttackStyle style,
+                             Player* attacker) {
+    osrs_ensure_player_equipment(&s->player);
+    DamageResult damage_result = osrs_apply_passive_damage_pipeline(
+        damage,
+        style,
+        s->player.prayer,
+         0,
+         0,
+         0,
+        &s->player.equipment_effect_profile,
+        &s->player.item_effect_state,
+        &s->rng_state
+    );
+    if (damage_result.recoil_damage > 0) {
+        int recoil = damage_result.recoil_damage;
+        if (s->player.equipment_effect_profile.recoil_source == OSRS_RECOIL_SOURCE_RING_OF_RECOIL &&
+            recoil > s->player.item_effect_state.recoil_charges) {
+            recoil = s->player.item_effect_state.recoil_charges;
+        }
+        encounter_damage_player(attacker, recoil, NULL);
+        osrs_consume_recoil_charges(&s->player, recoil);
+    }
+}
+
 static void zul_apply_player_damage(ZulrahState* s, int damage, AttackStyle style,
                                     Player* attacker) {
     if (damage <= 0) return;
@@ -867,27 +917,61 @@ static void zul_apply_player_damage(ZulrahState* s, int damage, AttackStyle styl
     s->total_damage_received += damage;
     s->player.hit_style = style;
 
-    if (attacker) {
-        osrs_ensure_player_equipment(&s->player);
-        DamageResult damage_result = osrs_apply_passive_damage_pipeline(
-            damage,
-            style,
-            s->player.prayer,
-             0,
-             0,
-             0,
-            &s->player.equipment_effect_profile,
-            &s->player.item_effect_state,
-            &s->rng_state
-        );
-        if (damage_result.recoil_damage > 0) {
-            int recoil = damage_result.recoil_damage;
-            if (s->player.equipment_effect_profile.recoil_source == OSRS_RECOIL_SOURCE_RING_OF_RECOIL &&
-                recoil > s->player.item_effect_state.recoil_charges) {
-                recoil = s->player.item_effect_state.recoil_charges;
-            }
-            encounter_damage_player(attacker, recoil, NULL);
-            osrs_consume_recoil_charges(&s->player, recoil);
+    if (attacker) zul_apply_recoil(s, damage, style, attacker);
+}
+
+/** Landing-side accounting for one player->Zulrah hit; returns 1 when it landed
+    this tick. Shared by the instant (delay 0) and queued paths. */
+static int zul_land_zulrah_hit(ZulrahState* s, EncounterPendingHit* ph) {
+    int landed = 0;
+    int hit_damage = 0;
+    float dealt = 0.0f;
+    if (!encounter_resolve_npc_pending_hit(
+            ph, &s->zulrah.current_hitpoints, &landed, &hit_damage,
+            NULL, NULL, &dealt))
+        return 0;
+    s->damage_dealt_this_tick += dealt;
+    s->total_damage_dealt += dealt;
+    s->zulrah.hit_landed_this_tick = 1;
+    s->zulrah.hit_damage = hit_damage;
+    s->zulrah.hit_was_successful = hit_damage > 0;
+    return 1;
+}
+
+static void zul_queue_zulrah_hit(ZulrahState* s, int damage, AttackStyle style,
+                                 int is_special) {
+    int distance = encounter_projectile_distance(
+        s->player.x, s->player.y, 1,
+        s->zulrah.x, s->zulrah.y, ZUL_NPC_SIZE,
+        ENCOUNTER_PROJECTILE_DISTANCE_CLOSEST_TILE);
+    int delay = zul_player_projectile_timing(
+        style, s->player.equipped[GEAR_SLOT_WEAPON], is_special, distance)
+        .damage_delay_ticks;
+
+    EncounterPendingHit hit = {
+        .active = 1,
+        .ticks_remaining = (int8_t)delay,
+        .attack_style = (int8_t)style,
+        .check_prayer = 0,
+        .spell_type = ENCOUNTER_SPELL_NONE,
+        .source_npc_slot = -1,
+        .damage = (int16_t)damage,
+    };
+    if (delay <= 0) {
+        zul_land_zulrah_hit(s, &hit);
+        return;
+    }
+    encounter_pending_hit_queue_push(
+        &s->zulrah_pending_hits, hit, "zulrah-npc", s->tick, -1, 0);
+}
+
+static void zul_resolve_zulrah_pending_hits(ZulrahState* s) {
+    for (int i = 0; i < s->zulrah_pending_hits.count; i++) {
+        EncounterPendingHit* ph = &s->zulrah_pending_hits.hits[i];
+        zul_land_zulrah_hit(s, ph);
+        if (!ph->active) {
+            encounter_pending_hit_queue_remove(&s->zulrah_pending_hits, i, "zulrah-npc");
+            i--;
         }
     }
 }
@@ -901,8 +985,7 @@ static void zul_try_envenom(ZulrahState* s) {
 }
 
 static int zul_player_def_roll(ZulrahState* s, int attack_style) {
-    const EncounterLoadoutStats* ls = zul_current_loadout_stats(
-        s, s->player_gear == ZUL_GEAR_MAGE);
+    const EncounterLoadoutStats* ls = zul_live_stats(s);
     int roll = encounter_player_def_roll_from_loadout(
         99, 99,
         ls->def_stab, ls->def_slash, ls->def_crush, ls->def_magic, ls->def_ranged,
@@ -928,33 +1011,69 @@ static void zul_record_attack(ZulrahState* s, int src_x, int src_y,
     s->attack_events[i].damage = damage;
 }
 
+/** Queues one Zulrah->player hit. Protect-prayer and damage freeze on THIS tick
+    (the calculation tick); only the application waits out the hit delay. */
+static int zul_queue_player_hit(ZulrahState* s, int raw_damage, AttackStyle style,
+                                int accuracy_hit) {
+    int distance = encounter_projectile_distance(
+        s->zulrah.x, s->zulrah.y, ZUL_NPC_SIZE,
+        s->player.x, s->player.y, 1,
+        ENCOUNTER_PROJECTILE_DISTANCE_CLOSEST_TILE);
+    int delay = encounter_projectile_base_hit_delay(
+        distance, 0, encounter_projectile_delay_kind_for_style(style));
+
+    int prayed = 0;
+    EncounterPendingHit hit = encounter_pending_hit_resolved_at_throw(
+        raw_damage, delay, style, s->player.prayer,
+        s->zulrah.npc_def_id, -1, accuracy_hit, &prayed);
+    encounter_pending_hit_queue_push(
+        &s->player_pending_hits, hit, "zulrah-player", s->tick, -1, style);
+    return prayed ? 0 : raw_damage;
+}
+
+static void zul_player_hit_landed(
+    void* user, const EncounterPendingHit* hit, int damage_after_prayer,
+    int damage_applied, int prayer_was_correct, int prayer_was_checked
+) {
+    (void)damage_applied;
+    (void)prayer_was_correct;
+    (void)prayer_was_checked;
+    ZulrahState* s = (ZulrahState*)user;
+    if (damage_after_prayer <= 0) return;
+    s->total_damage_received += damage_after_prayer;
+    s->player.hit_style = (AttackStyle)hit->attack_style;
+    zul_apply_recoil(s, damage_after_prayer, (AttackStyle)hit->attack_style,
+                     &s->zulrah);
+}
+
+static void zul_resolve_player_pending_hits(ZulrahState* s) {
+    encounter_resolve_player_pending_hits_observed(
+        &s->player_pending_hits, &s->player, s->player.prayer,
+        &s->damage_received_this_tick, NULL, NULL,
+        zul_player_hit_landed, s);
+}
+
 static void zul_attack_ranged(ZulrahState* s) {
     const MonsterStats* m = &MONSTER_DATABASE[MON_ZULRAH_GREEN];
     int npc_att_roll = osrs_npc_attack_roll(m->range_level, m->range_att_bonus);
-    int dmg = 0;
+    int def_roll = zul_player_def_roll(s, ATTACK_STYLE_RANGED);
     int did_hit = 0;
-    if (encounter_prayer_correct_for_style(s->player.prayer, ATTACK_STYLE_RANGED)) {
-        int def_roll = zul_player_def_roll(s, ATTACK_STYLE_RANGED);
-        did_hit = encounter_roll_hit_chance(&s->rng_state, npc_att_roll, def_roll);
-    } else {
-        int def_roll = zul_player_def_roll(s, ATTACK_STYLE_RANGED);
-        if (encounter_roll_hit_chance(&s->rng_state, npc_att_roll, def_roll)) {
-            did_hit = 1;
-            dmg = encounter_rand_int(&s->rng_state, m->max_hit + 1);
-            zul_apply_player_damage(s, dmg, ATTACK_STYLE_RANGED, &s->zulrah);
-        }
-    }
+    int raw = encounter_npc_roll_attack_ex(
+        npc_att_roll, def_roll, m->max_hit, 0, &s->rng_state, &did_hit);
+    int dmg = zul_queue_player_hit(s, raw, ATTACK_STYLE_RANGED, did_hit);
     if (did_hit) zul_try_envenom(s);
     zul_record_attack(s, s->zulrah.x, s->zulrah.y,
                       s->player.x, s->player.y, 0, dmg);
 }
 
 static void zul_attack_magic(ZulrahState* s) {
-    int dmg = 0;
-    if (!encounter_prayer_correct_for_style(s->player.prayer, ATTACK_STYLE_MAGIC)) {
-        dmg = encounter_rand_int(&s->rng_state, MONSTER_DATABASE[MON_ZULRAH_BLUE].max_hit + 1);
-        zul_apply_player_damage(s, dmg, ATTACK_STYLE_MAGIC, &s->zulrah);
-    }
+    const MonsterStats* m = &MONSTER_DATABASE[MON_ZULRAH_BLUE];
+    int npc_att_roll = osrs_npc_attack_roll(m->magic_level, m->magic_att_bonus);
+    int def_roll = zul_player_def_roll(s, ATTACK_STYLE_MAGIC);
+    int did_hit = 0;
+    int raw = encounter_npc_roll_attack_ex(
+        npc_att_roll, def_roll, m->max_hit, 0, &s->rng_state, &did_hit);
+    int dmg = zul_queue_player_hit(s, raw, ATTACK_STYLE_MAGIC, did_hit);
     zul_try_envenom(s);
     zul_record_attack(s, s->zulrah.x, s->zulrah.y,
                       s->player.x, s->player.y, 1, dmg);
@@ -978,6 +1097,7 @@ static void zul_melee_start(ZulrahState* s) {
     s->melee_target_y = s->player.y;
     s->melee_pending = 1;
     s->melee_stare_timer = ZUL_MELEE_STARE_TICKS;
+    s->melee_prayer_at_calc = s->player.prayer;
 }
 
 static void zul_melee_hit(ZulrahState* s) {
@@ -985,7 +1105,7 @@ static void zul_melee_hit(ZulrahState* s) {
     int dmg = 0;
     if (s->player.x == s->melee_target_x && s->player.y == s->melee_target_y
         && !zul_on_pillar_safespot(s->player.x, s->player.y)) {
-        if (!encounter_prayer_correct_for_style(s->player.prayer, ATTACK_STYLE_MELEE)) {
+        if (!encounter_prayer_correct_for_style(s->melee_prayer_at_calc, ATTACK_STYLE_MELEE)) {
             dmg = 20 + encounter_rand_int(&s->rng_state, 11);
             zul_apply_player_damage(s, dmg, ATTACK_STYLE_MELEE, &s->zulrah);
             s->player_stunned_ticks = ZUL_MELEE_STUN_TICKS;
@@ -1020,37 +1140,24 @@ static AttackStyle zul_player_equipped_attack_style(const ZulrahState* s) {
     return ATTACK_STYLE_RANGED;
 }
 
-static void zul_refresh_human_loadout_stats(ZulrahState* s) {
-    AttackStyle style = zul_player_equipped_attack_style(s);
-    FightStyle fight_style = s->player.fight_style;
-    int spell_base_damage = (style == ATTACK_STYLE_MAGIC) ? 30 : 0;
-    encounter_compute_player_equipped_stats(
-        &s->player, style, fight_style, spell_base_damage,
-        &s->human_loadout_stats);
+static void zul_mark_live_stats_dirty(ZulrahState* s) {
+    s->live_stats_dirty = 1;
 }
 
-static void zul_refresh_cached_loadout_stats(ZulrahState* s) {
-    int prayer_active = s->player.offensive_prayer != OFFENSIVE_PRAYER_NONE;
-    if (s->mage_stats.style == ATTACK_STYLE_MAGIC) {
-        encounter_update_loadout_level(&s->mage_stats,
-            prayer_active ? OFFENSIVE_PRAYER_AUGURY : OFFENSIVE_PRAYER_NONE,
-            s->player.current_magic, s->player.current_magic);
-    }
-    if (s->range_stats.style == ATTACK_STYLE_RANGED) {
-        encounter_update_loadout_level(&s->range_stats,
-            prayer_active ? OFFENSIVE_PRAYER_RIGOUR : OFFENSIVE_PRAYER_NONE,
-            s->player.current_ranged, s->player.current_ranged);
-    }
-    if (s->human_command_mode)
-        zul_refresh_human_loadout_stats(s);
-}
 
-static const EncounterLoadoutStats* zul_current_loadout_stats(ZulrahState* s, int is_mage) {
-    if (s->human_command_mode) {
-        zul_refresh_human_loadout_stats(s);
-        return &s->human_loadout_stats;
+
+static const EncounterLoadoutStats* zul_live_stats(ZulrahState* s) {
+    if (s->live_stats_dirty) {
+        AttackStyle style = zul_player_equipped_attack_style(s);
+        FightStyle fight_style = s->human_command_mode
+            ? s->player.fight_style
+            : (style == ATTACK_STYLE_RANGED ? FIGHT_STYLE_RAPID : FIGHT_STYLE_ACCURATE);
+        int spell_base_damage = (style == ATTACK_STYLE_MAGIC) ? 30 : 0;
+        encounter_compute_player_equipped_stats(
+            &s->player, style, fight_style, spell_base_damage, &s->live_stats);
+        s->live_stats_dirty = 0;
     }
-    return is_mage ? &s->mage_stats : &s->range_stats;
+    return &s->live_stats;
 }
 
 static int zul_player_can_attack_zulrah(
@@ -1087,26 +1194,23 @@ static int zul_player_attack_hits(
         : encounter_roll_hit_chance(&s->rng_state, att_roll, def_roll);
 }
 
-static void zul_player_attack(ZulrahState* s, int is_mage) {
+static void zul_player_attack(ZulrahState* s) {
     if (!s->zulrah_visible || s->is_diving) return;
     if (s->player.attack_timer > 0) return;
     if (s->player_stunned_ticks > 0) return;
 
-    const EncounterLoadoutStats* ls = zul_current_loadout_stats(s, is_mage);
+    const EncounterLoadoutStats* ls = zul_live_stats(s);
     if (!zul_player_can_attack_zulrah(s, ls)) return;
 
-    int gear_ok = s->human_command_mode
-        ? ((is_mage && ls->style == ATTACK_STYLE_MAGIC) ||
-           (!is_mage && ls->style == ATTACK_STYLE_RANGED))
-        : ((is_mage && s->player_gear == ZUL_GEAR_MAGE) ||
-           (!is_mage && s->player_gear == ZUL_GEAR_RANGE));
+    AttackStyle style = zul_player_equipped_attack_style(s);
+    int is_mage = (style == ATTACK_STYLE_MAGIC);
     const MonsterStats* monster = &MONSTER_DATABASE[ZUL_FORM_MONSTER_IDX[s->current_form]];
     OsrsMagicAttackKind magic_kind = is_mage ? OSRS_MAGIC_ATTACK_POWERED_STAFF : OSRS_MAGIC_ATTACK_NONE;
     OsrsPreparedAttackEffects attack_effects = osrs_prepare_attack_effects(
         &s->player.equipment_effect_profile,
         &s->player.item_effect_state,
         s->player.equipped[GEAR_SLOT_WEAPON],
-        is_mage ? ATTACK_STYLE_MAGIC : ATTACK_STYLE_RANGED,
+        style,
         magic_kind,
         (OsrsTargetRef){ .kind = OSRS_TARGET_NPC, .id = 0 },
         1,
@@ -1119,22 +1223,20 @@ static void zul_player_attack(ZulrahState* s, int is_mage) {
         s->player.base_hitpoints
     );
     s->player.attack_timer = ls->attack_speed;
-    if (!gear_ok) return;
 
     int dmg = 0;
     int hit = zul_player_attack_hits(s, is_mage, &attack_effects);
     if (hit) {
         dmg = encounter_rand_int(&s->rng_state, attack_effects.max_hit + 1);
         dmg = zul_cap_damage(s, dmg);
-        encounter_damage_player(&s->zulrah, dmg, &s->damage_dealt_this_tick);
-        s->total_damage_dealt += dmg;
     }
+    zul_queue_zulrah_hit(s, dmg, style, 0);
     {
         OsrsPostAttackEffects post_effects = osrs_finalize_attack_effects(
             &s->player.equipment_effect_profile,
             &s->player.item_effect_state,
             s->player.equipped[GEAR_SLOT_WEAPON],
-            is_mage ? ATTACK_STYLE_MAGIC : ATTACK_STYLE_RANGED,
+            style,
             magic_kind,
             (OsrsTargetRef){ .kind = OSRS_TARGET_NPC, .id = 0 },
             1,
@@ -1150,14 +1252,10 @@ static void zul_player_attack(ZulrahState* s, int is_mage) {
         }
     }
     s->player.just_attacked = 1;
-    s->player.last_attack_style = is_mage ? ATTACK_STYLE_MAGIC : ATTACK_STYLE_RANGED;
-    s->player.attack_style_this_tick = is_mage ? ATTACK_STYLE_MAGIC : ATTACK_STYLE_RANGED;
+    s->player.last_attack_style = style;
+    s->player.attack_style_this_tick = style;
     zul_record_player_attack_visual(
         s, s->player.attack_style_this_tick, dmg, 0);
-
-    s->zulrah.hit_landed_this_tick = 1;
-    s->zulrah.hit_damage = dmg;
-    s->zulrah.hit_was_successful = (dmg > 0);
 }
 
 static void zul_player_spec(ZulrahState* s) {
@@ -1165,15 +1263,12 @@ static void zul_player_spec(ZulrahState* s) {
     if (s->player.attack_timer > 0) return;
     if (s->player_stunned_ticks > 0) return;
 
-    int is_mage = (s->player_gear == ZUL_GEAR_MAGE);
-    const EncounterLoadoutStats* ls = zul_current_loadout_stats(s, is_mage);
+    AttackStyle style = zul_player_equipped_attack_style(s);
+    int is_mage = (style == ATTACK_STYLE_MAGIC);
+    const EncounterLoadoutStats* ls = zul_live_stats(s);
     if (!zul_player_can_attack_zulrah(s, ls)) return;
 
-    int weapon = s->human_command_mode
-        ? s->player.equipped[GEAR_SLOT_WEAPON]
-        : (is_mage
-            ? ZUL_MAGE_LOADOUT[s->gear_tier][GEAR_SLOT_WEAPON]
-            : ZUL_RANGE_LOADOUT[s->gear_tier][GEAR_SLOT_WEAPON]);
+    int weapon = s->player.equipped[GEAR_SLOT_WEAPON];
 
     int cost = osrs_spec_cost(weapon);
     if (cost == 0) return;
@@ -1189,7 +1284,7 @@ static void zul_player_spec(ZulrahState* s) {
     s->player.special_energy -= sr.spec_cost;
     s->player.just_attacked = 1;
     s->player.used_special_this_tick = 1;
-    s->player.last_attack_style = is_mage ? ATTACK_STYLE_MAGIC : ATTACK_STYLE_RANGED;
+    s->player.last_attack_style = style;
     s->player.attack_style_this_tick = s->player.last_attack_style;
     s->player.attack_timer = sr.attack_speed_override ? sr.attack_speed_override : ls->attack_speed;
     zul_record_player_attack_visual(s, s->player.attack_style_this_tick, 0, 1);
@@ -1197,7 +1292,7 @@ static void zul_player_spec(ZulrahState* s) {
     int total_dmg = 0;
     for (int i = 0; i < sr.num_hits; i++) {
         int dmg = zul_cap_damage(s, sr.damage[i]);
-        encounter_damage_player(&s->zulrah, dmg, NULL);
+        zul_queue_zulrah_hit(s, dmg, style, 1);
         total_dmg += dmg;
     }
 
@@ -1209,12 +1304,7 @@ static void zul_player_spec(ZulrahState* s) {
 
     s->magic_def_drain += sr.magic_def_drain;
 
-    s->damage_dealt_this_tick += total_dmg;
-    s->total_damage_dealt += total_dmg;
     s->player_attack_dmg = total_dmg;
-    s->zulrah.hit_landed_this_tick = 1;
-    s->zulrah.hit_damage = total_dmg;
-    s->zulrah.hit_was_successful = (total_dmg > 0);
 }
 
 static void zul_pick_snakeling_pos(ZulrahState* s, int* ox, int* oy) {
@@ -1649,6 +1739,89 @@ static void zul_phase_tick(ZulrahState* s) {
     }
 }
 
+static void zul_apply_eat_cell(ZulrahState* s, int cell_idx, OsrsConsumableKind kind) {
+    FoodType type;
+    switch (kind) {
+        case OSRS_CONSUMABLE_SHARK_FOOD: type = FOOD_SHARK; break;
+        case OSRS_CONSUMABLE_KARAMBWAN: type = FOOD_KARAMBWAN; break;
+        default:
+            fprintf(stderr, "zulrah eat: unsupported consumable kind %d\n", (int)kind);
+            abort();
+    }
+    OsrsPlayerEatResult r = osrs_player_eat_food_effects(&s->player, type);
+    if (r.consumed) osrs_inventory_cell_consume_eat(&s->inventory_cells[cell_idx]);
+}
+
+static void zul_apply_drink_one_dose_effect(void* ctx, OsrsConsumableKind kind) {
+    ZulrahState* s = (ZulrahState*)ctx;
+    switch (kind) {
+        case OSRS_CONSUMABLE_PRAYER_RESTORE:
+            encounter_add_prayer_restore(
+                &s->player, osrs_prayer_potion_restore_amount(s->player.base_prayer));
+            encounter_cap_prayer_restore(&s->player);
+            return;
+        case OSRS_CONSUMABLE_ANTIVENOM_PLUS:
+            s->venom_counter = 0;
+            s->venom_timer = 0;
+            s->antivenom_timer = ZUL_ANTIVENOM_DURATION;
+            return;
+        default:
+            break;
+    }
+    fprintf(stderr, "zulrah drink: unsupported consumable kind %d\n", (int)kind);
+    abort();
+}
+
+static int zul_drink_has_effect(const ZulrahState* s, OsrsConsumableKind kind) {
+    switch (kind) {
+        case OSRS_CONSUMABLE_PRAYER_RESTORE:
+            return s->player.current_prayer < s->player.base_prayer;
+        case OSRS_CONSUMABLE_ANTIVENOM_PLUS:
+            return s->antivenom_timer == 0;
+        default:
+            break;
+    }
+    fprintf(stderr, "zulrah drink mask: unsupported consumable kind %d\n", (int)kind);
+    abort();
+}
+
+static void zul_apply_drink_cell(
+    ZulrahState* s, int cell_idx, OsrsInventoryClickResolution resolution
+) {
+    (void)osrs_inventory_cell_consume_drink_one_dose(
+        &s->inventory_cells[cell_idx], resolution, &s->player.potion_timer,
+        zul_apply_drink_one_dose_effect, s);
+}
+
+static void zul_player_attack_snakeling(ZulrahState* s, int snakeling_idx) {
+    if (snakeling_idx < 0 || snakeling_idx >= ZUL_MAX_SNAKELINGS) return;
+    ZulrahSnakeling* sn = &s->snakelings[snakeling_idx];
+    if (!sn->active) return;
+
+    const EncounterLoadoutStats* ls = zul_live_stats(s);
+    if (!encounter_player_can_attack(
+            s->player.x, s->player.y,
+            sn->entity.x, sn->entity.y, 1,
+            ls->attack_range, osrs_los_open_query())) return;
+
+    AttackStyle style = zul_player_equipped_attack_style(s);
+    s->player.attack_timer = ls->attack_speed;
+    s->player.just_attacked = 1;
+    s->player.last_attack_style = style;
+
+    const MonsterStats* m = &MONSTER_DATABASE[sn->is_magic
+        ? MON_ZULRAH_SNAKELING_MAGIC : MON_ZULRAH_SNAKELING_MELEE];
+    int def_bonus = style == ATTACK_STYLE_MAGIC ? m->magic_def : m->ranged_def;
+    int def_roll = (m->def_level + 8) * (def_bonus + 64);
+    if (def_roll < 0) def_roll = 0;
+    int att_roll = osrs_player_att_roll(ls->eff_level, ls->attack_bonus);
+    if (!encounter_roll_hit_chance(&s->rng_state, att_roll, def_roll)) return;
+
+    int dmg = encounter_rand_int(&s->rng_state, ls->max_hit + 1);
+    encounter_damage_player(&sn->entity, dmg, &s->damage_dealt_this_tick);
+    if (sn->entity.current_hitpoints <= 0) sn->active = 0;
+}
+
 static void zul_process_prayer(ZulrahState* s, int overhead_action, int offensive_action) {
     if (encounter_apply_overhead_action(&s->player.prayer, overhead_action)) {
         s->player.prayer_just_activated = 1;
@@ -1658,60 +1831,11 @@ static void zul_process_prayer(ZulrahState* s, int overhead_action, int offensiv
         s->player.offensive_prayer_just_activated = 1;
     }
     if (s->player.offensive_prayer != prev_offensive)
-        zul_refresh_cached_loadout_stats(s);
+        zul_mark_live_stats_dirty(s);
 }
 
-static void zul_process_food(ZulrahState* s, int a) {
-    if (a == 0) return;
-    FoodType type;
-    switch (a) {
-        case 1:
-            type = FOOD_SHARK;
-            break;
-        case 2:
-            type = FOOD_KARAMBWAN;
-            break;
-        default:
-            fprintf(stderr, "unsupported Zulrah food action: %d\n", a);
-            abort();
-    }
 
-    osrs_player_eat_food_type(&s->player, type);
-}
 
-static void zul_process_potion(ZulrahState* s, int a) {
-    if (a == 0) return;
-    if (a == 1) {
-        if (s->player.prayer_pot_doses <= 0) return;
-        DrinkResult r = osrs_drink_potion(POTION_PRAYER_RESTORE, s->player.current_prayer,
-                                           s->player.base_prayer, s->player.potion_timer);
-        if (!r.consumed) return;
-        s->player.prayer_pot_doses--;
-        s->player.potion_timer = 3;
-        s->player.current_prayer += r.prayer_restored;
-        if (s->player.current_prayer > s->player.base_prayer)
-            s->player.current_prayer = s->player.base_prayer;
-    } else if (a == 2) {
-        if (s->player.antivenom_doses <= 0) return;
-        DrinkResult r = osrs_drink_potion(POTION_ANTIVENOM_PLUS, 0, 0, s->player.potion_timer);
-        if (!r.consumed) return;
-        s->player.antivenom_doses--;
-        s->player.potion_timer = 3;
-        s->venom_counter = 0;
-        s->venom_timer = 0;
-        s->antivenom_timer = r.antivenom_ticks;
-    }
-}
-
-static void zul_process_gear(ZulrahState* s, int atk) {
-    if (atk == ZUL_ATK_MAGE && s->player_gear != ZUL_GEAR_MAGE) {
-        s->player_gear = ZUL_GEAR_MAGE;
-        encounter_apply_loadout(&s->player, ZUL_MAGE_LOADOUT[s->gear_tier], GEAR_MAGE);
-    } else if (atk == ZUL_ATK_RANGE && s->player_gear != ZUL_GEAR_RANGE) {
-        s->player_gear = ZUL_GEAR_RANGE;
-        encounter_apply_loadout(&s->player, ZUL_RANGE_LOADOUT[s->gear_tier], GEAR_RANGED);
-    }
-}
 
 static FightStyle zul_default_fight_style_for_style(AttackStyle style) {
     if (style == ATTACK_STYLE_MAGIC) return FIGHT_STYLE_ACCURATE;
@@ -1719,10 +1843,6 @@ static FightStyle zul_default_fight_style_for_style(AttackStyle style) {
     return FIGHT_STYLE_ACCURATE;
 }
 
-static void zul_sync_human_gear_style(ZulrahState* s) {
-    AttackStyle style = zul_player_equipped_attack_style(s);
-    s->player_gear = (style == ATTACK_STYLE_MAGIC) ? ZUL_GEAR_MAGE : ZUL_GEAR_RANGE;
-}
 
 static void zul_apply_human_player_commands(ZulrahState* s) {
     int did_change_stats = 0;
@@ -1737,7 +1857,6 @@ static void zul_apply_human_player_commands(ZulrahState* s) {
                     if (cmd->gear_slot == GEAR_SLOT_WEAPON) {
                         AttackStyle style = zul_player_equipped_attack_style(s);
                         s->player.fight_style = zul_default_fight_style_for_style(style);
-                        zul_sync_human_gear_style(s);
                     }
                 }
             }
@@ -1750,7 +1869,7 @@ static void zul_apply_human_player_commands(ZulrahState* s) {
         }
     }
     if (did_change_stats)
-        zul_refresh_human_loadout_stats(s);
+        zul_mark_live_stats_dirty(s);
 }
 
 static void zul_write_obs(EncounterState* state, EncounterContext* context, float* obs) {
@@ -1764,13 +1883,8 @@ static void zul_write_obs(EncounterState* state, EncounterContext* context, floa
     obs[i++] = (float)s->player.x / ZUL_ARENA_SIZE;
     obs[i++] = (float)s->player.y / ZUL_ARENA_SIZE;
     obs[i++] = (float)s->player.attack_timer / 5.0f;
-    obs[i++] = (float)s->player.food_count / ZUL_PLAYER_FOOD;
-    obs[i++] = (float)s->player.karambwan_count / ZUL_PLAYER_KARAMBWAN;
-    obs[i++] = (float)s->player.prayer_pot_doses / ZUL_PLAYER_RESTORE_DOSES;
     obs[i++] = (float)s->player.food_timer / 3.0f;
     obs[i++] = (float)s->player.potion_timer / 3.0f;
-    obs[i++] = (s->player_gear == ZUL_GEAR_MAGE) ? 1.0f : 0.0f;
-    obs[i++] = (s->player_gear == ZUL_GEAR_RANGE) ? 1.0f : 0.0f;
     obs[i++] = (s->player.prayer == PRAYER_PROTECT_MAGIC) ? 1.0f : 0.0f;
     obs[i++] = (s->player.prayer == PRAYER_PROTECT_RANGED) ? 1.0f : 0.0f;
     obs[i++] = (s->player.prayer == PRAYER_PROTECT_MELEE) ? 1.0f : 0.0f;
@@ -1864,6 +1978,25 @@ static void zul_write_obs(EncounterState* state, EncounterContext* context, floa
     for (int m = 0; m < ZUL_MOVE_DIM; m++)
         obs[i++] = zul_move_action_cloud_unsafe(s, m) ? 1.0f : 0.0f;
 
+    static const float ZUL_ZERO_POST_USE_DELTAS[6] = {0};
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        osrs_write_inventory_cell_affordance_features(
+            &obs[i],
+            s->inventory_cells[cell].item_idx,
+            s->inventory_cells[cell].raw_osrs_id,
+            s->inventory_cells[cell].dose,
+            osrs_inventory_cell_holds_equipped_item(&s->player, s->inventory_cells, cell),
+            ZUL_ZERO_POST_USE_DELTAS,
+            s->player.base_hitpoints,
+            s->player.base_prayer,
+            s->player.base_attack);
+        i += OSRS_INVENTORY_CELL_OBS_FEATURES;
+    }
+    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
+        osrs_write_equipped_self_features(&obs[i], s->player.equipped[slot]);
+        i += OSRS_EQUIPPED_SELF_OBS_FEATURES;
+    }
+
     if (i != ZUL_NUM_OBS) {
         fprintf(stderr, "zulrah obs size mismatch: wrote %d expected %d\n", i, ZUL_NUM_OBS);
         abort();
@@ -1887,14 +2020,10 @@ static void zul_write_mask(EncounterState* state, EncounterContext* context, flo
         }
         off++;
     }
-    for (int a = 0; a < ZUL_ATTACK_DIM; a++) {
-        const EncounterLoadoutStats* attack_stats =
-            a == ZUL_ATK_MAGE ? &s->mage_stats :
-            (a == ZUL_ATK_RANGE ? &s->range_stats : NULL);
-        if (a > 0 && (!s->zulrah_visible || s->is_diving ||
-                s->player.attack_timer > 0 || s->player_stunned_ticks > 0 ||
-                !zul_player_can_attack_zulrah(s, attack_stats)))
-            mask[off] = 0.0f;
+    mask[off] = s->zulrah_visible && !s->is_diving ? 1.0f : 0.0f;
+    off++;
+    for (int n = 0; n < ZUL_MAX_SNAKELINGS; n++) {
+        mask[off] = s->snakelings[n].active ? 1.0f : 0.0f;
         off++;
     }
     for (int p = 0; p < ZUL_PRAYER_DIM; p++) {
@@ -1904,32 +2033,60 @@ static void zul_write_mask(EncounterState* state, EncounterContext* context, flo
             mask[off] = 0.0f;
         off++;
     }
+    int cell_equip_slot[OSRS_INVENTORY_SIZE];
+    int cell_can_eat[OSRS_INVENTORY_SIZE];
+    int cell_can_drink[OSRS_INVENTORY_SIZE];
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        cell_equip_slot[cell] = -1;
+        cell_can_eat[cell] = 0;
+        cell_can_drink[cell] = 0;
+        OsrsInventoryClickResolution r = osrs_inventory_cell_click_interpret(
+            &s->inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
+        if (r.click_action == OSRS_CLICK_EQUIP) {
+            if (osrs_can_equip_from_cell(&s->player, s->inventory_cells, cell))
+                cell_equip_slot[cell] =
+                    osrs_item_gear_slot(s->inventory_cells[cell].item_idx);
+        } else if (r.click_action == OSRS_CLICK_EAT) {
+            cell_can_eat[cell] =
+                osrs_can_eat_consumable_kind(&s->player, r.consumable_kind);
+        } else if (r.click_action == OSRS_CLICK_DRINK) {
+            cell_can_drink[cell] = s->inventory_cells[cell].dose > 0 &&
+                s->player.potion_timer == 0 &&
+                zul_drink_has_effect(s, r.consumable_kind);
+        }
+    }
+    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
+        mask[off] = 1.0f;
+        off++;
+        for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+            mask[off] = cell_equip_slot[cell] == slot ? 1.0f : 0.0f;
+            off++;
+        }
+    }
+    mask[off] = 1.0f;
     off++;
-    if (!osrs_player_can_eat_food_type(&s->player, FOOD_SHARK) ||
-        osrs_player_food_wasted_hp(&s->player, FOOD_SHARK) > 0)
-        mask[off] = 0.0f;
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        mask[off] = cell_can_eat[cell] ? 1.0f : 0.0f;
+        off++;
+    }
+    mask[off] = 1.0f;
     off++;
-    if (!osrs_player_can_eat_food_type(&s->player, FOOD_KARAMBWAN) ||
-        osrs_player_food_wasted_hp(&s->player, FOOD_KARAMBWAN) > 0)
-        mask[off] = 0.0f;
-    off++;
-    off++;
-    if (s->player.prayer_pot_doses <= 0 || s->player.potion_timer > 0 ||
-        s->player.current_prayer >= s->player.base_prayer)
-        mask[off] = 0.0f;
-    off++;
-    if (s->player.antivenom_doses <= 0 || s->player.potion_timer > 0 ||
-        s->antivenom_timer > 0)
-        mask[off] = 0.0f;
-    off++;
-    off++;
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        mask[off] = cell_can_drink[cell] ? 1.0f : 0.0f;
+        off++;
+    }
     {
         int weapon = s->player.equipped[GEAR_SLOT_WEAPON];
-        int spec_cost = osrs_spec_cost(weapon);
-        if (spec_cost <= 0)
-            mask[off] = 0.0f;
+        int weapon_spec_cost = osrs_spec_cost(weapon);
+        mask[off] = 1.0f;
+        off++;
+        mask[off] = weapon_spec_cost > 0 &&
+            (s->player.special_energy >= weapon_spec_cost || s->player.spec_armed)
+            ? 1.0f : 0.0f;
+        off++;
+        mask[off] = s->player.spec_armed ? 1.0f : 0.0f;
+        off++;
     }
-    off++;
     for (int o = 0; o < ZUL_OFFENSIVE_DIM; o++) {
         if (o == ENCOUNTER_OFFENSIVE_OFF &&
                 s->player.offensive_prayer == OFFENSIVE_PRAYER_NONE)
@@ -1937,6 +2094,11 @@ static void zul_write_mask(EncounterState* state, EncounterContext* context, flo
         if (o >= ENCOUNTER_OFFENSIVE_SET_REFRESH_PIETY && s->player.current_prayer <= 0)
             mask[off] = 0.0f;
         off++;
+    }
+    if (off != ZUL_ACTION_MASK_SIZE) {
+        fprintf(stderr, "zulrah mask size mismatch: wrote %d expected %d\n",
+            off, ZUL_ACTION_MASK_SIZE);
+        abort();
     }
 }
 
@@ -2004,6 +2166,30 @@ static float zul_current_kill_progress(const ZulrahState* s) {
     return 1.0f - (float)s->zulrah.current_hitpoints / (float)max_hp;
 }
 
+typedef struct {
+    float win;
+    float score;
+} ZulEpisodeOutcome;
+
+static ZulEpisodeOutcome zul_episode_outcome(const ZulrahState* s) {
+    float kills = (float)s->kills_this_episode;
+    float win = (s->episode_mode == ZUL_EPISODE_TRIP)
+        ? kills
+        : ((s->winner == ZUL_OUTCOME_PLAYER_WON) ? 1.0f : 0.0f);
+    float partial = (s->episode_mode == ZUL_EPISODE_TRIP)
+        ? zul_current_kill_progress(s)
+        : 0.0f;
+    float speed_bonus = (s->episode_mode == ZUL_EPISODE_TRIP)
+        ? s->score_speed_bonus_sum
+        : (win > 0.0f
+            ? zul_score_speed_bonus_for_duration(s->tick)
+            : 0.0f);
+    return (ZulEpisodeOutcome){
+        .win = win,
+        .score = win + partial + speed_bonus,
+    };
+}
+
 static void zul_clear_active_kill(ZulrahState* s) {
     memset(s->clouds, 0, sizeof(s->clouds));
     memset(s->pending_clouds, 0, sizeof(s->pending_clouds));
@@ -2012,6 +2198,8 @@ static void zul_clear_active_kill(ZulrahState* s) {
     s->cloud_event_count = 0;
     s->melee_pending = 0;
     s->melee_stare_timer = 0;
+    encounter_pending_hit_queue_clear(&s->player_pending_hits);
+    encounter_pending_hit_queue_clear(&s->zulrah_pending_hits);
     s->phase_timer = 0;
     s->surface_timer = 0;
     s->is_diving = 0;
@@ -2094,6 +2282,33 @@ static void zul_record_episode_timeout(ZulrahState* s) {
     }
 }
 
+static void zul_seed_inventory_cells(ZulrahState* s) {
+    for (int i = 0; i < OSRS_INVENTORY_SIZE; i++)
+        s->inventory_cells[i] = osrs_inventory_cell_empty();
+    int cell = 0;
+    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
+        uint8_t item = ZUL_RANGE_LOADOUT[s->gear_tier][slot];
+        if (item == ITEM_NONE || item == s->player.equipped[slot]) continue;
+        s->inventory_cells[cell++] = osrs_inventory_cell_from_item(item);
+    }
+    static const struct { uint16_t raw_osrs_id; int count; } ZUL_TRIP_CONSUMABLES[] = {
+        {385, ZUL_PLAYER_FOOD},
+        {3144, ZUL_PLAYER_KARAMBWAN},
+        {2434, ZUL_PLAYER_RESTORE_DOSES / 4},
+        {12913, ZUL_ANTIVENOM_DOSES / 4},
+    };
+    for (size_t k = 0; k < sizeof(ZUL_TRIP_CONSUMABLES) / sizeof(*ZUL_TRIP_CONSUMABLES); k++) {
+        for (int n = 0; n < ZUL_TRIP_CONSUMABLES[k].count; n++) {
+            if (cell >= OSRS_INVENTORY_SIZE) {
+                fprintf(stderr, "zulrah trip inventory overflows %d cells\n", OSRS_INVENTORY_SIZE);
+                abort();
+            }
+            s->inventory_cells[cell++] = osrs_inventory_cell_from_raw_osrs_id(
+                ZUL_TRIP_CONSUMABLES[k].raw_osrs_id);
+        }
+    }
+}
+
 static void zul_reset(EncounterState* state, EncounterContext* context, uint32_t seed) {
     (void)context;
     ZulrahState* s = (ZulrahState*)state;
@@ -2128,11 +2343,7 @@ static void zul_reset(EncounterState* state, EncounterContext* context, uint32_t
     encounter_init_maxed_player_combat_stats(&s->player, ZUL_PLAYER_PRAYER);
     s->player.x = ZUL_PLAYER_START_X;
     s->player.y = ZUL_PLAYER_START_Y;
-    s->player.food_count = ZUL_PLAYER_FOOD;
-    s->player.karambwan_count = ZUL_PLAYER_KARAMBWAN;
-    s->player.prayer_pot_doses = ZUL_PLAYER_RESTORE_DOSES;
     s->player.special_energy = 100;
-    s->player.antivenom_doses = ZUL_ANTIVENOM_DOSES;
     osrs_item_effect_state_init(&s->player.item_effect_state);
     if (s->gear_tier == 2) {
         s->player.saturated_heart_count = 1;
@@ -2145,24 +2356,16 @@ static void zul_reset(EncounterState* state, EncounterContext* context, uint32_t
     }
     osrs_interaction_init(&s->interaction);
     s->player.spec_armed = 0;
-    s->player_gear = ZUL_GEAR_MAGE;
     encounter_apply_loadout(&s->player, ZUL_MAGE_LOADOUT[s->gear_tier], GEAR_MAGE);
     zul_populate_player_inventory(&s->player, s->gear_tier);
-    OffensivePrayer mage_prayer = (s->gear_tier >= 1) ? OFFENSIVE_PRAYER_AUGURY : OFFENSIVE_PRAYER_NONE;
-    OffensivePrayer range_prayer = (s->gear_tier >= 1) ? OFFENSIVE_PRAYER_RIGOUR : OFFENSIVE_PRAYER_NONE;
-    s->player.offensive_prayer = mage_prayer;
-    encounter_compute_loadout_stats(ZUL_MAGE_LOADOUT[s->gear_tier], ATTACK_STYLE_MAGIC,
-        mage_prayer, s->player.current_magic, FIGHT_STYLE_ACCURATE, 30, &s->mage_stats);
-    encounter_compute_loadout_stats(ZUL_RANGE_LOADOUT[s->gear_tier], ATTACK_STYLE_RANGED,
-        range_prayer, s->player.current_ranged, FIGHT_STYLE_RAPID, 0, &s->range_stats);
+    zul_seed_inventory_cells(s);
+    s->player.offensive_prayer =
+        (s->gear_tier >= 1) ? OFFENSIVE_PRAYER_AUGURY : OFFENSIVE_PRAYER_NONE;
+    zul_mark_live_stats_dirty(s);
     zul_start_active_kill(s);
 }
 
-static void zul_step(EncounterState* state, EncounterContext* context, const int* actions) {
-    (void)context;
-    ZulrahState* s = (ZulrahState*)state;
-    if (s->episode_over) return;
-
+static void zul_step_tick(ZulrahState* s, const int* actions) {
     s->reward = 0.0f;
     s->damage_dealt_this_tick = 0.0f;
     s->damage_received_this_tick = 0.0f;
@@ -2193,7 +2396,7 @@ static void zul_step(EncounterState* state, EncounterContext* context, const int
             s->zulrah.npc_visible = 0;
             zul_finish_boss_death(s);
         }
-        goto finish;
+        return;
     }
 
     zul_update_npc_anim_lifetime(s);
@@ -2207,11 +2410,23 @@ static void zul_step(EncounterState* state, EncounterContext* context, const int
     if (s->tick > 0 && s->tick % 60 == 0)
         stats_changed |= encounter_decay_player_combat_stats_toward_base(&s->player);
     if (stats_changed)
-        zul_refresh_cached_loadout_stats(s);
+        zul_mark_live_stats_dirty(s);
+
+    zul_resolve_zulrah_pending_hits(s);
+    zul_resolve_player_pending_hits(s);
 
     if (s->melee_pending) {
         s->melee_stare_timer--;
         if (s->melee_stare_timer <= 0) zul_melee_hit(s);
+    }
+
+    if (s->zulrah_visible && s->zulrah.current_hitpoints <= 0) {
+        zul_record_boss_kill(s);
+        return;
+    }
+    if (s->player.current_hitpoints <= 0) {
+        zul_record_player_loss(s);
+        return;
     }
 
     zul_process_prayer(s, actions[ZUL_HEAD_PRAYER], actions[ZUL_HEAD_OFFENSIVE]);
@@ -2219,56 +2434,78 @@ static void zul_step(EncounterState* state, EncounterContext* context, const int
     if (s->human_command_mode)
         zul_apply_human_player_commands(s);
 
-    if (actions[ZUL_HEAD_SPEC] == 1) {
-        osrs_spec_toggle(&s->player.spec_armed);
+    int spec_act = actions[ZUL_HEAD_SPEC];
+    int spec_cost = osrs_spec_cost(s->player.equipped[GEAR_SLOT_WEAPON]);
+    if (spec_act == 1 && spec_cost > 0 && s->player.special_energy >= spec_cost) {
+        s->player.spec_armed = 1;
+    } else if (spec_act == 2) {
+        s->player.spec_armed = 0;
     }
 
-    if (actions[ZUL_HEAD_FOOD] > 0)
-        osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_EAT);
-    if (actions[ZUL_HEAD_POTION] > 0)
-        osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_DRINK);
-    zul_process_food(s, actions[ZUL_HEAD_FOOD]);
-    zul_process_potion(s, actions[ZUL_HEAD_POTION]);
-
-    int atk_action = actions[ZUL_HEAD_ATTACK];
-    if (!s->human_command_mode) {
-        if ((atk_action == ZUL_ATK_MAGE && s->player_gear != ZUL_GEAR_MAGE) ||
-            (atk_action == ZUL_ATK_RANGE && s->player_gear != ZUL_GEAR_RANGE)) {
+    {
+        OsrsInventoryClickActions clicks;
+        for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
+            clicks.equip_by_slot[slot] = actions[ZUL_HEAD_EQUIP_SLOT(slot)];
+        clicks.eat = actions[ZUL_HEAD_EAT];
+        clicks.drink = actions[ZUL_HEAD_DRINK];
+        OsrsInventoryTickIntent intent =
+            osrs_resolve_inventory_tick_intent(&s->player, s->inventory_cells, &clicks);
+        if (osrs_inventory_tick_intent_has_effect(&intent))
             osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_EQUIP);
+        OsrsInventoryApplyStep click_step;
+        while (osrs_inventory_intent_next(&intent, &click_step)) {
+            switch (click_step.kind) {
+                case OSRS_INVENTORY_APPLY_EQUIP:
+                    if (osrs_equip_from_cell(
+                            &s->player, s->inventory_cells, click_step.cell_idx) >= 0)
+                        zul_mark_live_stats_dirty(s);
+                    break;
+                case OSRS_INVENTORY_APPLY_EAT:
+                    zul_apply_eat_cell(
+                        s, click_step.cell_idx, click_step.resolution.consumable_kind);
+                    break;
+                case OSRS_INVENTORY_APPLY_DRINK:
+                    zul_apply_drink_cell(s, click_step.cell_idx, click_step.resolution);
+                    break;
+            }
         }
-        zul_process_gear(s, atk_action);
     }
 
+    int primary = actions[ZUL_HEAD_PRIMARY];
     int has_new_target = 0;
-    if (atk_action == ZUL_ATK_MAGE || atk_action == ZUL_ATK_RANGE) {
+    int new_target_slot = 0;
+    if (primary >= ZUL_PRIMARY_ATTACK_BASE && primary < ZUL_PRIMARY_DIM) {
         has_new_target = 1;
+        new_target_slot = primary - ZUL_PRIMARY_ATTACK_BASE;
     }
 
-    OsrsPlayerMoveKind move_kind = OSRS_PLAYER_MOVE_NONE;
-    if (s->player_dest_explicit) {
+    OsrsPlayerCommand command = { .kind = OSRS_PLAYER_CMD_NONE };
+    if (has_new_target) {
+        command.kind = OSRS_PLAYER_CMD_TARGET;
+        command.target_slot = new_target_slot;
         s->player_dest_explicit = 0;
-        move_kind = OSRS_PLAYER_MOVE_DESTINATION;
+        s->player_dest_x = -1;
+        s->player_dest_y = -1;
+    } else if (s->player_dest_explicit) {
+        s->player_dest_explicit = 0;
+        command.kind = OSRS_PLAYER_CMD_MOVE;
+        command.move_kind = OSRS_PLAYER_MOVE_DESTINATION;
+    } else if (primary > 0 && primary < ZUL_MOVE_DIM) {
+        s->player_dest_x = s->player.x + ENCOUNTER_MOVE_TARGET_DX[primary];
+        s->player_dest_y = s->player.y + ENCOUNTER_MOVE_TARGET_DY[primary];
+        command.kind = OSRS_PLAYER_CMD_MOVE;
+        command.move_kind = OSRS_PLAYER_MOVE_DESTINATION;
     } else {
-        int m = actions[ZUL_HEAD_MOVE];
-        if (m > 0 && m < ZUL_MOVE_DIM) {
-            s->player_dest_x = s->player.x + ENCOUNTER_MOVE_TARGET_DX[m];
-            s->player_dest_y = s->player.y + ENCOUNTER_MOVE_TARGET_DY[m];
-            move_kind = OSRS_PLAYER_MOVE_DESTINATION;
-        } else {
-            s->player_dest_x = -1;
-            s->player_dest_y = -1;
-        }
+        s->player_dest_x = -1;
+        s->player_dest_y = -1;
     }
 
-    OsrsPlayerStepResult step_result = osrs_encounter_player_step(&(OsrsPlayerStepInput){
+    OsrsPlayerStepInput step_input = {
         .player = &s->player,
         .interaction = &s->interaction,
         .target_lookup = zul_lookup_player_attack_target,
         .target_ctx = s,
-        .has_new_target = has_new_target,
-        .new_target_slot = 0,
-        .move_kind = move_kind,
-        .target_move_policy = OSRS_PLAYER_TARGET_MOVE_EXPLICIT_FIRST,
+        .command = command,
         .dest_x = &s->player_dest_x,
         .dest_y = &s->player_dest_y,
         .blocked_ticks = s->player_stunned_ticks,
@@ -2284,7 +2521,8 @@ static void zul_step(EncounterState* state, EncounterContext* context, const int
             .arena_w = ZUL_ARENA_SIZE,
             .arena_h = ZUL_ARENA_SIZE,
         },
-    });
+    };
+    OsrsPlayerStepResult step_result = osrs_encounter_player_step(&step_input);
     s->player_moved_this_tick = step_result.moved;
     s->player_chased_target_this_tick = step_result.chased_target;
 
@@ -2295,28 +2533,33 @@ static void zul_step(EncounterState* state, EncounterContext* context, const int
     }
 
     if (osrs_interaction_active(&s->interaction) &&
-        s->player.attack_timer == 0 && s->zulrah_visible && !s->is_diving &&
-        s->player_stunned_ticks == 0) {
-
-        if (s->player.spec_armed && s->player.special_energy >= osrs_spec_cost(s->player.equipped[GEAR_SLOT_WEAPON])) {
-            zul_player_spec(s);
-            osrs_spec_disarm(&s->player.spec_armed);
+        s->player.attack_timer == 0 && s->player_stunned_ticks == 0) {
+        int target = s->interaction.target_slot;
+        if (target == 0) {
+            if (s->zulrah_visible && !s->is_diving) {
+                if (s->player.spec_armed && s->player.special_energy >=
+                        osrs_spec_cost(s->player.equipped[GEAR_SLOT_WEAPON])) {
+                    zul_player_spec(s);
+                    osrs_spec_disarm(&s->player.spec_armed);
+                } else {
+                    zul_player_attack(s);
+                }
+            }
         } else {
-            if (s->player_gear == ZUL_GEAR_MAGE) zul_player_attack(s, 1);
-            else zul_player_attack(s, 0);
+            zul_player_attack_snakeling(s, target - 1);
         }
     }
 
     if (s->zulrah_visible && s->zulrah.current_hitpoints <= 0) {
         zul_record_boss_kill(s);
-        goto finish;
+        return;
     }
 
     zul_pending_cloud_tick(s);
     zul_cloud_tick(s);
     if (s->player.current_hitpoints <= 0) {
         zul_record_player_loss(s);
-        goto finish;
+        return;
     }
 
     zul_phase_tick(s);
@@ -2331,19 +2574,53 @@ static void zul_step(EncounterState* state, EncounterContext* context, const int
     encounter_drain_all_prayers(
         &s->player, encounter_player_prayer_bonus(&s->player));
     if (s->player.offensive_prayer != prev_off_drain)
-        zul_refresh_cached_loadout_stats(s);
+        zul_mark_live_stats_dirty(s);
 
     if (s->player.current_hitpoints <= 0) {
         zul_record_player_loss(s);
-        goto finish;
+        return;
     }
     if (s->tick >= ZUL_MAX_TICKS) {
         zul_record_episode_timeout(s);
-        goto finish;
+        return;
     }
-finish:
+}
+
+static void zul_step(EncounterState* state, EncounterContext* context, const int* actions) {
+    (void)context;
+    ZulrahState* s = (ZulrahState*)state;
+    if (s->episode_over) return;
+    zul_step_tick(s, actions);
     s->reward = zul_compute_reward(s);
     s->episode_return += s->reward;
+}
+
+static int zul_first_cell_with_kind(
+    const ZulrahState* s, OsrsClickAction click, OsrsConsumableKind kind
+) {
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        OsrsInventoryClickResolution r = osrs_inventory_cell_click_interpret(
+            &s->inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
+        if (r.click_action == click && r.consumable_kind == kind) return cell;
+    }
+    return -1;
+}
+
+static int zul_cell_with_item(const ZulrahState* s, uint8_t item_idx) {
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++)
+        if (s->inventory_cells[cell].item_idx == item_idx) return cell;
+    return -1;
+}
+
+static void zul_heuristic_gear_swap(
+    const ZulrahState* s, int* actions, const uint8_t* loadout
+) {
+    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
+        uint8_t want = loadout[slot];
+        if (want == ITEM_NONE || s->player.equipped[slot] == want) continue;
+        int cell = zul_cell_with_item(s, want);
+        if (cell >= 0) actions[ZUL_HEAD_EQUIP_SLOT(slot)] = cell + 1;
+    }
 }
 
 static void zul_heuristic_actions(ZulrahState* s, int* actions) {
@@ -2380,24 +2657,33 @@ static void zul_heuristic_actions(ZulrahState* s, int* actions) {
         }
     }
 
-    if (s->player.potion_timer <= 0 && s->player.antivenom_doses > 0 &&
-        s->antivenom_timer <= 5) {
-        actions[ZUL_HEAD_POTION] = 2;
-        return;
+    if (s->player.potion_timer <= 0 && s->antivenom_timer <= 5) {
+        int cell = zul_first_cell_with_kind(
+            s, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_ANTIVENOM_PLUS);
+        if (cell >= 0) {
+            actions[ZUL_HEAD_DRINK] = cell + 1;
+            return;
+        }
     }
 
-    if (hp < 60 && s->player.food_timer <= 0 && s->player.food_count > 0 &&
+    if (hp < 60 && s->player.food_timer <= 0 &&
         hp <= s->player.base_hitpoints - osrs_food_heal_amount(FOOD_SHARK)) {
-        actions[ZUL_HEAD_FOOD] = 1;
+        int cell = zul_first_cell_with_kind(
+            s, OSRS_CLICK_EAT, OSRS_CONSUMABLE_SHARK_FOOD);
+        if (cell >= 0) actions[ZUL_HEAD_EAT] = cell + 1;
     }
-    else if (hp < 40 && s->player.food_timer <= 0 && s->player.karambwan_count > 0 &&
+    else if (hp < 40 && s->player.karambwan_timer <= 0 &&
              hp <= s->player.base_hitpoints - osrs_food_heal_amount(FOOD_KARAMBWAN)) {
-        actions[ZUL_HEAD_FOOD] = 2;
+        int cell = zul_first_cell_with_kind(
+            s, OSRS_CLICK_EAT, OSRS_CONSUMABLE_KARAMBWAN);
+        if (cell >= 0) actions[ZUL_HEAD_EAT] = cell + 1;
     }
 
     if (s->player.current_prayer < 30 && s->player.potion_timer <= 0 &&
-        s->player.prayer_pot_doses > 0 && s->player.current_prayer < s->player.base_prayer) {
-        actions[ZUL_HEAD_POTION] = 1;
+        s->player.current_prayer < s->player.base_prayer) {
+        int cell = zul_first_cell_with_kind(
+            s, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_PRAYER_RESTORE);
+        if (cell >= 0) actions[ZUL_HEAD_DRINK] = cell + 1;
     }
 
     {
@@ -2415,14 +2701,20 @@ static void zul_heuristic_actions(ZulrahState* s, int* actions) {
     }
 
     if (s->zulrah_visible && !s->is_diving) {
-        if (s->current_form == ZUL_FORM_BLUE) {
-            actions[ZUL_HEAD_ATTACK] = ZUL_ATK_RANGE;
-            int spec_cost = osrs_spec_cost(ZUL_RANGE_LOADOUT[s->gear_tier][GEAR_SLOT_WEAPON]);
-            if (spec_cost > 0 && s->player.special_energy >= spec_cost && !s->player.spec_armed) {
-                actions[ZUL_HEAD_SPEC] = 1;
-            }
+        AttackStyle want_style = s->current_form == ZUL_FORM_BLUE
+            ? ATTACK_STYLE_RANGED : ATTACK_STYLE_MAGIC;
+        const uint8_t* want_loadout = s->current_form == ZUL_FORM_BLUE
+            ? ZUL_RANGE_LOADOUT[s->gear_tier] : ZUL_MAGE_LOADOUT[s->gear_tier];
+        if (zul_player_equipped_attack_style(s) != want_style) {
+            zul_heuristic_gear_swap(s, actions, want_loadout);
         } else {
-            actions[ZUL_HEAD_ATTACK] = ZUL_ATK_MAGE;
+            actions[ZUL_HEAD_PRIMARY] = ZUL_PRIMARY_ATTACK_BASE;
+            if (want_style == ATTACK_STYLE_RANGED) {
+                int spec_cost = osrs_spec_cost(s->player.equipped[GEAR_SLOT_WEAPON]);
+                if (spec_cost > 0 && s->player.special_energy >= spec_cost &&
+                        !s->player.spec_armed)
+                    actions[ZUL_HEAD_SPEC] = 1;
+            }
         }
     }
 }
@@ -2605,18 +2897,8 @@ static void* zul_get_log(EncounterState* state, EncounterContext* context) {
         s->log.episode_return += s->episode_return;
         s->log.episode_length += (float)s->tick;
         float kills = (float)s->kills_this_episode;
-        float win = (s->episode_mode == ZUL_EPISODE_TRIP)
-            ? kills
-            : ((s->winner == ZUL_OUTCOME_PLAYER_WON) ? 1.0f : 0.0f);
-        float partial = (s->episode_mode == ZUL_EPISODE_TRIP)
-            ? zul_current_kill_progress(s)
-            : 0.0f;
-        float speed_bonus = (s->episode_mode == ZUL_EPISODE_TRIP)
-            ? s->score_speed_bonus_sum
-            : (win > 0.0f
-                ? zul_score_speed_bonus_for_duration(s->tick)
-                : 0.0f);
-        s->log.wins += win;
+        ZulEpisodeOutcome outcome = zul_episode_outcome(s);
+        s->log.wins += outcome.win;
         s->log.zulrah_kills += kills;
         s->log.damage_dealt += s->total_damage_dealt;
         s->log.damage_received += s->total_damage_received;
@@ -2633,8 +2915,8 @@ static void* zul_get_log(EncounterState* state, EncounterContext* context) {
             abort();
         }
         s->log.zulrah_tier_n[tier] += 1.0f;
-        s->log.zulrah_tier_wins[tier] += win;
-        s->log.zulrah_tier_score_sum[tier] += win + partial + speed_bonus;
+        s->log.zulrah_tier_wins[tier] += outcome.win;
+        s->log.zulrah_tier_score_sum[tier] += outcome.score;
         s->log.zulrah_tier_damage_received[tier] += s->total_damage_received;
         s->log.zulrah_tier_episode_length[tier] += (float)s->tick;
         s->log.zulrah_tier_cloud_occupancy_ticks[tier] +=
@@ -2674,7 +2956,7 @@ static void zul_emit_player_projectile_profile(
     int p_start_delay = s->player_attack_timing.visual_start_delay_ticks * 30;
     int visual_damage = sequence_index == sequence_count - 1 ? damage : 0;
 
-    (void)osrs_emit_combat_projectile_profile_player_to_npc(ov, profile, &(OsrsCombatProjectileEmitSpec){
+    OsrsCombatProjectileEmitSpec emit_spec = {
         .src_x = s->player.x,
         .src_y = s->player.y,
         .dst_x = s->zulrah.x,
@@ -2690,7 +2972,8 @@ static void zul_emit_player_projectile_profile(
         .fallback_end_h = fallback_end_h,
         .curve = 16,
         .splash_gfx_id = GFX_SPLASH,
-    });
+    };
+    (void)osrs_emit_combat_projectile_profile_player_to_npc(ov, profile, &emit_spec);
 }
 
 static void zul_emit_player_attack_projectiles(ZulrahState* s, EncounterOverlay* ov) {
@@ -2768,7 +3051,7 @@ static void zul_render_post_tick(EncounterState* state, EncounterContext* contex
     ov->projectile_count = 0;
     for (int i = 0; i < s->attack_event_count; i++) {
         if (s->attack_events[i].style == 4) {
-            int pi = osrs_emit_projectile_with_spec(ov, &(OsrsProjectileEventSpec){
+            OsrsProjectileEventSpec spawn_spec = {
                 .src_x = s->attack_events[i].src_x,
                 .src_y = s->attack_events[i].src_y,
                 .dst_x = s->attack_events[i].dst_x,
@@ -2784,7 +3067,8 @@ static void zul_render_post_tick(EncounterState* state, EncounterContext* contex
                 .dst_size = 1,
                 .model_id = GFX_SNAKELING_SPAWN_MODEL,
                 .anim_id = GFX_SNAKELING_SPAWN_ANIM,
-            }, 0);
+            };
+            int pi = osrs_emit_projectile_with_spec(ov, &spawn_spec, 0);
             encounter_set_projectile_source_npc_slot(ov, pi, 0);
         } else if (s->attack_events[i].style == 2) {
             continue;
@@ -2793,7 +3077,7 @@ static void zul_render_post_tick(EncounterState* state, EncounterContext* contex
                 ? GFX_RANGED_PROJ_MODEL : GFX_MAGIC_PROJ_MODEL;
             int zul_proj_anim = (s->attack_events[i].style == 0)
                 ? GFX_RANGED_PROJ_ANIM : GFX_MAGIC_PROJ_ANIM;
-            (void)osrs_emit_projectile_npc_to_player(ov, &(OsrsProjectileEventSpec){
+            OsrsProjectileEventSpec attack_spec = {
                 .src_x = s->attack_events[i].src_x,
                 .src_y = s->attack_events[i].src_y,
                 .dst_x = s->attack_events[i].dst_x,
@@ -2809,11 +3093,12 @@ static void zul_render_post_tick(EncounterState* state, EncounterContext* contex
                 .dst_size = 1,
                 .model_id = zul_proj_model,
                 .anim_id = zul_proj_anim,
-            }, 0);
+            };
+            (void)osrs_emit_projectile_npc_to_player(ov, &attack_spec, 0);
         }
     }
     for (int i = 0; i < s->cloud_event_count; i++) {
-        int pi = osrs_emit_projectile_with_spec(ov, &(OsrsProjectileEventSpec){
+        OsrsProjectileEventSpec cloud_spec = {
             .src_x = s->cloud_events[i].src_x,
             .src_y = s->cloud_events[i].src_y,
             .dst_x = s->cloud_events[i].dst_x,
@@ -2829,7 +3114,8 @@ static void zul_render_post_tick(EncounterState* state, EncounterContext* contex
             .dst_size = 1,
             .model_id = GFX_CLOUD_PROJ_MODEL,
             .anim_id = GFX_CLOUD_PROJ_ANIM,
-        }, 0);
+        };
+        int pi = osrs_emit_projectile_with_spec(ov, &cloud_spec, 0);
         encounter_set_projectile_source_npc_slot(ov, pi, 0);
     }
     zul_emit_player_attack_projectiles(s, ov);
@@ -2839,43 +3125,25 @@ static int zul_get_winner(EncounterState* state, EncounterContext* context) {
     return ((ZulrahState*)state)->winner;
 }
 
-static int zul_attack_action_for_weapon(uint8_t weapon) {
-    AttackStyle style = (AttackStyle)get_item_attack_style(weapon);
-    return (style == ATTACK_STYLE_MAGIC) ? ZUL_ATK_MAGE : ZUL_ATK_RANGE;
-}
-
 static void zul_translate_human_commands(HumanInput* hi, int* actions, ZulrahState* s) {
     for (int h = 0; h < ZUL_NUM_ACTION_HEADS; h++) actions[h] = 0;
 
-    uint8_t queued_weapon = s->player.equipped[GEAR_SLOT_WEAPON];
     int path_command_seen = 0;
     for (int i = 0; i < hi->commands.count; i++) {
         const HumanCommand* cmd = &hi->commands.items[i];
-        if (cmd->kind == HUMAN_COMMAND_EQUIP_INVENTORY_ITEM &&
-            cmd->gear_slot == GEAR_SLOT_WEAPON &&
-            cmd->item_db_idx >= 0 && cmd->item_db_idx < NUM_ITEMS) {
-            queued_weapon = (uint8_t)cmd->item_db_idx;
-        }
-
         switch (cmd->kind) {
             case HUMAN_COMMAND_WALK:
                 path_command_seen = 1;
                 s->player_dest_x = cmd->world_x;
                 s->player_dest_y = cmd->world_y;
                 s->player_dest_explicit = 1;
-                actions[ZUL_HEAD_ATTACK] = ZUL_ATK_NONE;
+                actions[ZUL_HEAD_PRIMARY] = 0;
                 osrs_interaction_clear(&s->interaction);
                 break;
             case HUMAN_COMMAND_ATTACK_NPC:
-                path_command_seen = 1;
-                actions[ZUL_HEAD_ATTACK] = zul_attack_action_for_weapon(queued_weapon);
-                s->player_dest_x = -1;
-                s->player_dest_y = -1;
-                s->player_dest_explicit = 0;
-                break;
             case HUMAN_COMMAND_SPELL_TARGET:
                 path_command_seen = 1;
-                actions[ZUL_HEAD_ATTACK] = ZUL_ATK_MAGE;
+                actions[ZUL_HEAD_PRIMARY] = ZUL_PRIMARY_ATTACK_BASE;
                 s->player_dest_x = -1;
                 s->player_dest_y = -1;
                 s->player_dest_explicit = 0;
@@ -2886,17 +3154,26 @@ static void zul_translate_human_commands(HumanInput* hi, int* actions, ZulrahSta
             case HUMAN_COMMAND_OFFENSIVE_PRAYER:
                 actions[ZUL_HEAD_OFFENSIVE] = cmd->offensive_prayer;
                 break;
-            case HUMAN_COMMAND_EAT:
-                actions[ZUL_HEAD_FOOD] = cmd->food == 1 ? 2 : 1;
+            case HUMAN_COMMAND_EAT: {
+                int cell = zul_first_cell_with_kind(s, OSRS_CLICK_EAT,
+                    cmd->food == 1 ? OSRS_CONSUMABLE_KARAMBWAN : OSRS_CONSUMABLE_SHARK_FOOD);
+                if (cell >= 0) actions[ZUL_HEAD_EAT] = cell + 1;
                 break;
-            case HUMAN_COMMAND_DRINK:
-                if (cmd->potion == POTION_BREW) actions[ZUL_HEAD_FOOD] = 1;
-                else if (cmd->potion == POTION_RESTORE ||
-                         cmd->potion == POTION_PRAYER_POT) actions[ZUL_HEAD_POTION] = 1;
-                else if (cmd->potion == POTION_ANTIVENOM) actions[ZUL_HEAD_POTION] = 2;
+            }
+            case HUMAN_COMMAND_DRINK: {
+                OsrsConsumableKind kind = OSRS_CONSUMABLE_NONE;
+                if (cmd->potion == POTION_RESTORE || cmd->potion == POTION_PRAYER_POT)
+                    kind = OSRS_CONSUMABLE_PRAYER_RESTORE;
+                else if (cmd->potion == POTION_ANTIVENOM)
+                    kind = OSRS_CONSUMABLE_ANTIVENOM_PLUS;
+                if (kind != OSRS_CONSUMABLE_NONE) {
+                    int cell = zul_first_cell_with_kind(s, OSRS_CLICK_DRINK, kind);
+                    if (cell >= 0) actions[ZUL_HEAD_DRINK] = cell + 1;
+                }
                 break;
+            }
             case HUMAN_COMMAND_SPEC_TOGGLE:
-                actions[ZUL_HEAD_SPEC] = 1;
+                actions[ZUL_HEAD_SPEC] = s->player.spec_armed ? 2 : 1;
                 break;
             case HUMAN_COMMAND_EQUIP_INVENTORY_ITEM:
             case HUMAN_COMMAND_FIGHT_STYLE:
@@ -2914,7 +3191,7 @@ static void zul_translate_human_commands(HumanInput* hi, int* actions, ZulrahSta
         s->player_dest_x = hi->pending_move_x;
         s->player_dest_y = hi->pending_move_y;
         s->player_dest_explicit = 1;
-        actions[ZUL_HEAD_ATTACK] = ZUL_ATK_NONE;
+        actions[ZUL_HEAD_PRIMARY] = 0;
         osrs_interaction_clear(&s->interaction);
     }
 }
@@ -2925,8 +3202,7 @@ static void zul_step_human_commands(EncounterState* state, EncounterContext* con
     s->human_command_mode = 1;
     s->human_commands = hi->commands.items;
     s->human_command_count = hi->commands.count;
-    zul_sync_human_gear_style(s);
-    zul_refresh_human_loadout_stats(s);
+    zul_mark_live_stats_dirty(s);
     zul_translate_human_commands(hi, actions, s);
     zul_step(state, context, actions);
     s->human_commands = NULL;
@@ -2949,6 +3225,7 @@ static void zul_destroy_context(EncounterContext* context) {
 static void zul_init_state_ctx(EncounterState* state, EncounterContext* context) {
     (void)context;
     memset(state, 0, sizeof(ZulrahState));
+    ((ZulrahState*)state)->reward_config = zul_default_reward_config();
 }
 
 static const EncounterDef ENCOUNTER_ZULRAH = {
@@ -2981,7 +3258,7 @@ static const EncounterDef ENCOUNTER_ZULRAH = {
     .arena_base_y = 0,
     .arena_width = ZUL_ARENA_SIZE,
     .arena_height = ZUL_ARENA_SIZE,
-    .head_move = ZUL_HEAD_MOVE,
+    .head_move = ZUL_HEAD_PRIMARY,
     .head_prayer = ZUL_HEAD_PRAYER,
     .head_target = -1,
 

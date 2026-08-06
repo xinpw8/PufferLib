@@ -151,25 +151,68 @@ static void col_log_prayer_event(ColosseumState* s, int npc_type, int prayed, in
     else s->log.offpray_damage_by_type[npc_type] += (float)dmg;
 }
 
-static inline void col_damage_player_from(
+static inline int col_damage_player_from(
     ColosseumState* s, int dmg, int npc_type, ColoDamageChannel channel
 ) {
     dmg = col_scale_incoming_damage(s, dmg);
-    float before = s->tick_scratch.damage_received;
-    encounter_damage_player(&s->player, dmg, &s->tick_scratch.damage_received);
-    float applied = s->tick_scratch.damage_received - before;
+    int hitpoints_before = s->player.current_hitpoints;
+    encounter_damage_player(&s->player, dmg, NULL);
+    int applied = hitpoints_before - s->player.current_hitpoints;
+    s->tick_scratch.damage_received += (float)applied;
     switch (channel) {
         case COLO_DMG_OFFPRAY:
-            s->tick_scratch.landed_offpray_damage += applied;
+            s->tick_scratch.landed_offpray_damage += (float)applied;
             break;
         case COLO_DMG_UNPRAYABLE:
-            s->tick_scratch.landed_unprayable_damage += applied;
-            if (applied > 0.0f && npc_type >= 0 && npc_type < COLO_NUM_NPC_TYPES)
-                s->log.typeless_damage_by_type[npc_type] += applied;
+            s->tick_scratch.landed_unprayable_damage += (float)applied;
+            if (applied > 0 && npc_type >= 0 && npc_type < COLO_NUM_NPC_TYPES)
+                s->log.typeless_damage_by_type[npc_type] += (float)applied;
             break;
     }
-    if (dmg > 0 && npc_type >= 0 && npc_type < COLO_NUM_NPC_TYPES)
-        s->log.total_damage_by_type[npc_type] += (float)dmg;
+    if (applied > 0 && npc_type >= 0 && npc_type < COLO_NUM_NPC_TYPES)
+        s->log.total_damage_by_type[npc_type] += (float)applied;
+    return applied;
+}
+
+static inline int col_damage_player_from_sol(
+    ColosseumState* s, int dmg, ColoSolDamageSource source
+) {
+    assert(source >= 0 && source < COLO_NUM_SOL_DAMAGE_SOURCES);
+    ColoDamageChannel channel = source == COLO_SOL_DAMAGE_TRIPLE_PARRY
+        ? COLO_DMG_OFFPRAY
+        : COLO_DMG_UNPRAYABLE;
+    int hitpoints_before = s->player.current_hitpoints;
+    int applied =
+        col_damage_player_from(s, dmg, COLO_SOL_HEREDIT, channel);
+    s->log.sol_damage_by_source[source] +=
+        (float)(hitpoints_before - s->player.current_hitpoints);
+    return applied;
+}
+
+static ColoDamageSource col_damage_source_from_sol(
+    ColoSolDamageSource source
+) {
+    switch (source) {
+        case COLO_SOL_DAMAGE_SPEAR_1:
+            return COLO_DAMAGE_SOL_SPEAR_1;
+        case COLO_SOL_DAMAGE_SPEAR_2:
+            return COLO_DAMAGE_SOL_SPEAR_2;
+        case COLO_SOL_DAMAGE_SHIELD_1:
+            return COLO_DAMAGE_SOL_SHIELD_1;
+        case COLO_SOL_DAMAGE_SHIELD_2:
+            return COLO_DAMAGE_SOL_SHIELD_2;
+        case COLO_SOL_DAMAGE_TRIPLE_PARRY:
+            return COLO_DAMAGE_SOL_TRIPLE_PARRY;
+        case COLO_SOL_DAMAGE_GRAPPLE:
+            return COLO_DAMAGE_SOL_GRAPPLE;
+        case COLO_SOL_DAMAGE_CRYSTAL_LASER:
+            return COLO_DAMAGE_SOL_CRYSTAL_LASER;
+        case COLO_SOL_DAMAGE_MOLTEN_SAND:
+            return COLO_DAMAGE_SOL_MOLTEN_SAND;
+        case COLO_NUM_SOL_DAMAGE_SOURCES:
+            break;
+    }
+    abort();
 }
 
 typedef struct {
@@ -178,23 +221,39 @@ typedef struct {
 } ColPendingHitObserverContext;
 
 static void col_pending_hit_prayer_observer(
-    void* user, const EncounterPendingHit* hit, int dmg, int prayed, int checked) {
+    void* user, const EncounterPendingHit* hit, int dmg, int applied,
+    int prayed, int checked
+) {
     ColPendingHitObserverContext* observer_ctx = (ColPendingHitObserverContext*)user;
     ColosseumState* s = observer_ctx->state;
     ColosseumContext* ctx = observer_ctx->context;
     col_render_hit_events_add(
         &ctx->player_render_hit_count, ctx->player_render_hit_damage, dmg);
-    if (dmg > 0 && hit->source_npc_type >= 0 && hit->source_npc_type < COLO_NUM_NPC_TYPES) {
-        s->log.total_damage_by_type[hit->source_npc_type] += (float)dmg;
+    if (applied > 0 &&
+            hit->source_npc_type >= 0 &&
+            hit->source_npc_type < COLO_NUM_NPC_TYPES) {
+        s->log.total_damage_by_type[hit->source_npc_type] += (float)applied;
 
         s->last_hit_by_type = hit->source_npc_type;
+        if (hit->source_npc_type == COLO_JAVELIN_COLOSSUS) {
+            s->log.javelin_damage_by_source[COLO_JAVELIN_DAMAGE_BASIC_RANGED] +=
+                (float)applied;
+        }
+        ColoDamageSource source =
+            hit->source_npc_type == COLO_JAVELIN_COLOSSUS
+                ? COLO_DAMAGE_JAVELIN_BASIC_RANGED
+                : COLO_DAMAGE_NPC_ATTACK;
+        s->last_damage_source = source;
+        col_mod_add_doom_stack(s, source);
     }
 
     col_apply_echo_boots_recoil(s, ctx, hit->source_npc_slot, dmg);
 
-    if (dmg > 0) {
-        if (checked && prayed) s->tick_scratch.landed_prayed_damage += (float)dmg;
-        else s->tick_scratch.landed_offpray_damage += (float)dmg;
+    if (applied > 0) {
+        if (checked && prayed)
+            s->tick_scratch.landed_prayed_damage += (float)applied;
+        else
+            s->tick_scratch.landed_offpray_damage += (float)applied;
     }
     if (!checked && hit->source_npc_type == COLO_MANTICORE) {
         if (hit->hit_success) col_mod_manticore_apply_venom(s, hit->hit_success);
@@ -208,26 +267,25 @@ static void col_pending_hit_prayer_observer(
 
 static void col_resolve_player_pending_hits_ctx(ColosseumState* s, ColosseumContext* ctx) {
     int prayer_correct = 0;
-    int off_prayer = 0;
-    float dmg_received = 0.0f;
+    float damage_received = 0.0f;
     ColPendingHitObserverContext observer_ctx = {
         .state = s,
         .context = ctx,
     };
     encounter_resolve_player_pending_hits_observed(
         &s->player_pending_hits, &s->player, s->player.prayer,
-        &dmg_received, &prayer_correct, &off_prayer,
+        &damage_received, &prayer_correct, NULL,
         col_pending_hit_prayer_observer, &observer_ctx);
-    s->tick_scratch.damage_received += dmg_received;
+    int applied = (int)damage_received;
+    s->tick_scratch.damage_received += damage_received;
     s->tick_scratch.prayer_correct += prayer_correct;
 
     int blas = col_mod_tier(s, COLO_MOD_BLASPHEMY);
-    if (blas > 0 && dmg_received > 0.0f && s->player.current_prayer > 0) {
-        int drain = ((int)dmg_received * COLO_BLASPHEMY_DRAIN_PCT[blas]) / 100;
+    if (blas > 0 && applied > 0 && s->player.current_prayer > 0) {
+        int drain = (applied * COLO_BLASPHEMY_DRAIN_PCT[blas]) / 100;
         s->player.current_prayer -= drain;
         if (s->player.current_prayer < 0) s->player.current_prayer = 0;
     }
-    if (col_mod_active(s, COLO_MOD_DOOM)) s->doom_stacks += off_prayer;
 }
 
 static void col_resolve_player_pending_hits(ColosseumState* s) {
@@ -325,14 +383,14 @@ static void col_apply_instant_melee_hit(
     if (!prayed) s->tick_scratch.offpray_damage_this_tick += (float)dmg;
     col_log_prayer_event(s, npc_type, prayed, dmg);
 
-    col_apply_echo_boots_recoil(s, ctx, attacker_slot, dmg);
-    col_damage_player_from(s, dmg, npc_type, COLO_DMG_OFFPRAY);
-
-    int applied = col_scale_incoming_damage(s, dmg);
+    int applied =
+        col_damage_player_from(s, dmg, npc_type, COLO_DMG_OFFPRAY);
     if (applied > 0) {
-        col_mod_on_player_damaged(s, applied);
+        col_mod_on_player_damaged(
+            s, applied, COLO_DAMAGE_NPC_ATTACK);
         s->last_hit_by_type = npc_type;
     }
+    col_apply_echo_boots_recoil(s, ctx, attacker_slot, dmg);
 }
 
 static void col_npc_melee_attack(
@@ -417,10 +475,15 @@ static void col_npc_resolve_javelin_skyfall(
     jv->skyfall_pending = 0;
     int on_tile = (s->player.x == jv->skyfall_tile_x && s->player.y == jv->skyfall_tile_y);
     int dmg = on_tile ? jv->skyfall_damage : 0;
-    col_damage_player_from(s, dmg, npc->type, COLO_DMG_UNPRAYABLE);
-    if (dmg > 0) {
+    int hitpoints_before = s->player.current_hitpoints;
+    int applied =
+        col_damage_player_from(s, dmg, npc->type, COLO_DMG_UNPRAYABLE);
+    s->log.javelin_damage_by_source[COLO_JAVELIN_DAMAGE_SKYFALL] +=
+        (float)(hitpoints_before - s->player.current_hitpoints);
+    if (applied > 0) {
         s->last_hit_by_type = npc->type;
-        col_mod_on_player_damaged(s, dmg);
+        col_mod_on_player_damaged(
+            s, applied, COLO_DAMAGE_JAVELIN_SKYFALL);
     }
     col_mod_reentry_on_skyfall(s, jv->skyfall_tile_x, jv->skyfall_tile_y);
 }
@@ -448,7 +511,8 @@ static int col_manticore_orb_max_hit(AttackStyle style) {
 
 static void col_npc_manticore_fire_orb(ColosseumState* s, int idx, const ColoNpcStats* stats) {
 #ifdef COLO_PROFILE_ENABLED
-    int col_prof_enabled = COLO_PROFILE_ENABLED();
+    int col_prof_enabled =
+        COLO_PROFILE_ENABLED() && !s->profiling_suppressed;
     double col_prof_t0 = col_prof_enabled ? COLO_PROFILE_NOW_MS() : 0.0;
 #endif
     ColoNPC* npc = &s->npcs[idx];
@@ -592,7 +656,8 @@ static int col_warband_melee_adjacent(const ColosseumState* s, const ColoNPC* np
 
 static void col_warband_attack_phase(ColosseumState* s, ColosseumContext* ctx) {
 #ifdef COLO_PROFILE_ENABLED
-    int col_prof_enabled = COLO_PROFILE_ENABLED();
+    int col_prof_enabled =
+        COLO_PROFILE_ENABLED() && !s->profiling_suppressed;
     double col_prof_t0 = col_prof_enabled ? COLO_PROFILE_NOW_MS() : 0.0;
 #endif
     if (s->warband_cycle_anchor < 0) {
@@ -633,6 +698,7 @@ static void col_live_threat_style_counts(
     for (int n = 0; n < COLO_MAX_NPCS; n++) {
         const ColoNPC* npc = &s->npcs[n];
         if (!col_npc_is_live_enemy(npc)) continue;
+        if (npc->type == COLO_SOL_HEREDIT) continue;
         const ColoNpcStats* ns = &COLO_NPC_STATS[npc->type];
         if (ns->attack_range < 1) continue;
         int dist = col_npc_dist_to_player(s, npc);
@@ -650,65 +716,14 @@ static void col_live_threat_style_counts(
     }
 }
 
-static AttackStyle col_oracle_incoming_style(const ColosseumState* s, const ColoNPC* npc) {
-    if (!col_npc_is_live_enemy(npc)) return ATTACK_STYLE_NONE;
-    if (npc->stun_timer > 0 || npc->frozen_ticks > 0) return ATTACK_STYLE_NONE;
-    const ColoNpcStats* st = &COLO_NPC_STATS[npc->type];
-
-    if (col_type_is_warbander(npc->type)) {
-        if (s->warband_cycle_anchor < 0) return ATTACK_STYLE_NONE;
-        int phase = (s->tick - s->warband_cycle_anchor + COLO_WARBAND_CYCLE_TICKS)
-                    % COLO_WARBAND_CYCLE_TICKS;
-        if (phase != col_warband_window_offset(npc->type)) return ATTACK_STYLE_NONE;
-        if (!col_warband_melee_adjacent(s, npc)) return ATTACK_STYLE_NONE;
-        return st->default_style;
-    }
-
-    if (npc->type == COLO_MANTICORE) {
-        const ColoManticoreState* mc = &npc->type_state.manticore;
-        if (mc->cycle_step > 0) return mc->orb_style[mc->cycle_step];
-        if (npc->attack_timer > 1) return ATTACK_STYLE_NONE;
-        int d = col_npc_dist_to_player(s, npc);
-        if (d < 1 || d > st->attack_range) return ATTACK_STYLE_NONE;
-        if (!col_npc_has_los_to_player(s, npc)) return ATTACK_STYLE_NONE;
-        return mc->fixed_orb_style[0];
-    }
-
-    if (npc->type == COLO_MINOTAUR) {
-        if (npc->attack_timer > 1) return ATTACK_STYLE_NONE;
-        return (col_npc_dist_to_player(s, npc) == 1) ? ATTACK_STYLE_MELEE : ATTACK_STYLE_NONE;
-    }
-
-    if (npc->attack_timer > 1) return ATTACK_STYLE_NONE;
-    if (st->attack_range > 1) {
-        int d = col_npc_dist_to_player(s, npc);
-        if (d < 1 || d > st->attack_range) return ATTACK_STYLE_NONE;
-        if (!col_npc_has_los_to_player(s, npc)) return ATTACK_STYLE_NONE;
-        return st->default_style;
-    }
-    return col_npc_melee_adjacent_to_player(s, npc) ? ATTACK_STYLE_MELEE : ATTACK_STYLE_NONE;
-}
-
-static void col_apply_prayer_oracle(ColosseumState* s) {
-    int magic = 0, melee = 0, ranged = 0;
-    for (int i = 0; i < COLO_MAX_NPCS; i++) {
-        AttackStyle style = col_oracle_incoming_style(s, &s->npcs[i]);
-        if (style == ATTACK_STYLE_MAGIC) magic = 1;
-        else if (style == ATTACK_STYLE_MELEE) melee = 1;
-        else if (style == ATTACK_STYLE_RANGED) ranged = 1;
-    }
-    if (magic) s->player.prayer = PRAYER_PROTECT_MAGIC;
-    else if (melee) s->player.prayer = PRAYER_PROTECT_MELEE;
-    else if (ranged) s->player.prayer = PRAYER_PROTECT_RANGED;
-}
-
 static void col_tick_npcs_ctx(ColosseumState* s, ColosseumContext* ctx) {
 #ifdef COLO_PROFILE_ENABLED
-    int col_prof_enabled = COLO_PROFILE_ENABLED();
+    int col_prof_enabled =
+        COLO_PROFILE_ENABLED() && !s->profiling_suppressed;
     double col_prof_total_t0 = col_prof_enabled ? COLO_PROFILE_NOW_MS() : 0.0;
     double col_prof_t0 = col_prof_total_t0;
 #endif
-    col_sol_boss_tick(s, ctx);
+    col_sol_boss_tick(s);
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_STEP_SOL_BOSS);
 #endif

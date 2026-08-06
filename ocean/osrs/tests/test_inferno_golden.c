@@ -42,6 +42,7 @@ static uint64_t run_episode(int start_wave, uint32_t seed, int max_ticks) {
     InfernoState* s = (InfernoState*)state;
 
     static float obs[INF_NUM_OBS];
+    static float mask[INF_ACTION_MASK_SIZE];
     int actions[INF_NUM_ACTION_HEADS];
 
     uint64_t arng = ((uint64_t)seed << 20) ^ (uint64_t)(start_wave + 1) ^ 0xD1B54A32D192ED03ULL;
@@ -56,9 +57,13 @@ static uint64_t run_episode(int start_wave, uint32_t seed, int max_ticks) {
 
         inf_step(state, actions);
         inf_write_obs(state, obs);
+        inf_write_mask(state, mask);
 
         for (int i = 0; i < INF_NUM_OBS; i++) {
             h = fnv_f32(h, obs[i]);
+        }
+        for (int i = 0; i < INF_ACTION_MASK_SIZE; i++) {
+            h = fnv_f32(h, mask[i]);
         }
         h = fnv_f32(h, s->reward);
         h = fnv_i32(h, s->wave);
@@ -101,22 +106,21 @@ static const GoldenConfig CONFIGS[] = {
 #define EPISODE_TICKS 2000
 
 static const uint64_t BASELINE[NUM_CONFIGS] = {
-
-    0x9d8970300cea947aULL,
-    0xefeefc062898de1bULL,
-    0x300b40b9b6c32f47ULL,
-    0xf600c7a9f79479faULL,
-    0x267ab0fac9ad5b27ULL,
-    0x999a41e1a0916ab9ULL,
-    0x2ddb91b645db1e75ULL,
-    0xd2a1416c4b53157fULL,
-    0x84a2ab3540f37ac8ULL,
-    0xb98928c437e48005ULL,
-    0x3e5a885e173d4674ULL,
-    0xd6577872951242fdULL,
-    0xc5af52a73611f3f6ULL,
-    0x7a84c874f2b7c5ceULL,
-    0x28c4ccc92a588192ULL,
+    0x2d6c652157e87d57ULL,  /* wave1_a */
+    0x84a62101fb408366ULL,  /* wave1_b */
+    0x12c1265c673b0418ULL,  /* wave1_c */
+    0x045770f82fdf144fULL,  /* meleer_a */
+    0x33cdc2618bb61ef1ULL,  /* meleer_b */
+    0xd853cb4e587c1a74ULL,  /* ranger_a */
+    0xf8048ba7439ccafcULL,  /* ranger_b */
+    0x462c210eda8590ecULL,  /* mager_a */
+    0xa569619024c1f9fdULL,  /* mager_b */
+    0x2a78f20fa4e0e699ULL,  /* jad_a */
+    0x5aa060baae4b5f73ULL,  /* jad_b */
+    0x107f3a8080b123b5ULL,  /* jad_c */
+    0xadcc53c5a3d6444fULL,  /* zuk_a */
+    0xdba6ec9381f73491ULL,  /* zuk_b */
+    0xb97088c0a1fd42a3ULL,  /* zuk_c */
 };
 
 int main(int argc, char** argv) {

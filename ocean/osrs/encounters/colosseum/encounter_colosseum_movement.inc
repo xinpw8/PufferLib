@@ -37,6 +37,8 @@ static int col_npc_has_los_to_player(const ColosseumState* s, const ColoNPC* npc
 
 static int col_npc_blocked_ignore_player(void* ctx, int x, int y, int size) {
     ColosseumState* s = (ColosseumState*)ctx;
+    s->log.npc_blocked_calls += 1.0f;
+    s->log.npc_blocked_tiles += (float)(size * size);
     if (col_static_footprint_blocked_lookup(x, y, size)) return 1;
     int sol_clamp_active = col_sol_clamp_active(s);
     for (int dx = 0; dx < size; dx++) {
@@ -57,7 +59,7 @@ static int col_npc_blocked(void* ctx, int x, int y, int size) {
         for (int dy = 0; dy < size; dy++) {
             int gx, gy;
             if (!col_grid_index(x + dx, y + dy, &gx, &gy)) return 1;
-            if (s->player_collision_flags[gx][gy]) return 1;
+            if (gx == s->player_grid_x && gy == s->player_grid_y) return 1;
         }
     }
     return 0;
@@ -141,18 +143,6 @@ static int col_npc_path_blocked(void* ctx, int x, int y) {
 static OSRS_THREAD_LOCAL uint64_t col_warband_bfs_memo_key[COL_WARBAND_BFS_MEMO_SIZE];
 static OSRS_THREAD_LOCAL uint8_t col_warband_bfs_memo_result[COL_WARBAND_BFS_MEMO_SIZE];
 
-#ifdef COLO_BFS_INSTR
-static long col_warband_bfs_memo_instr_hits;
-static long col_warband_bfs_memo_instr_misses;
-static int col_warband_bfs_memo_instr_registered;
-static void col_warband_bfs_memo_instr_report(void) {
-    long total = col_warband_bfs_memo_instr_hits + col_warband_bfs_memo_instr_misses;
-    fprintf(stderr, "COLO_BFS_INSTR: memo hits=%ld misses=%ld (%.1f%% hit)\n",
-        col_warband_bfs_memo_instr_hits, col_warband_bfs_memo_instr_misses,
-        total ? 100.0 * col_warband_bfs_memo_instr_hits / total : 0.0);
-}
-#endif
-
 static uint64_t col_warband_bfs_memo_pack(
     const ColosseumState* s, int x, int y, int tx, int ty) {
     uint64_t key = 1;
@@ -211,18 +201,9 @@ static int col_npc_path_step_with_ctx(ColoNpcPathCtx* pc, int* x, int* y, int tx
     uint64_t memo_key = 0;
     uint32_t memo_slot = 0;
     if (memoable) {
-#ifdef COLO_BFS_INSTR
-        if (!col_warband_bfs_memo_instr_registered) {
-            col_warband_bfs_memo_instr_registered = 1;
-            atexit(col_warband_bfs_memo_instr_report);
-        }
-#endif
         memo_key = col_warband_bfs_memo_pack(pc->s, *x, *y, tx, ty);
         memo_slot = col_warband_bfs_memo_slot(memo_key);
         if (col_warband_bfs_memo_key[memo_slot] == memo_key) {
-#ifdef COLO_BFS_INSTR
-            col_warband_bfs_memo_instr_hits++;
-#endif
             uint8_t r = col_warband_bfs_memo_result[memo_slot];
             int found = r & 1;
             int next_dx = (int)((r >> 1) & 3) - 1;
@@ -232,12 +213,10 @@ static int col_npc_path_step_with_ctx(ColoNpcPathCtx* pc, int* x, int* y, int tx
             *y += next_dy;
             return 1;
         }
-#ifdef COLO_BFS_INSTR
-        col_warband_bfs_memo_instr_misses++;
-#endif
     }
 #ifdef COLO_PROFILE_ENABLED
-    int col_prof_enabled = COLO_PROFILE_ENABLED();
+    int col_prof_enabled =
+        COLO_PROFILE_ENABLED() && !pc->s->profiling_suppressed;
     double col_prof_t0 = col_prof_enabled ? COLO_PROFILE_NOW_MS() : 0.0;
 #endif
     PathResult pr = pathfind_step_arena(NULL, 0, *x, *y, tx, ty,
@@ -322,23 +301,26 @@ static void col_npc_move_ctx(ColosseumState* s, ColosseumContext* ctx, int idx) 
     npc->target_x = tx;
     npc->target_y = ty;
 
-    col_stamp_npc_collision_footprint(s, npc->x, npc->y, size, 0);
-    ColoNpcMoveCtx move_ctx = { s, idx };
-
+    /* Both hold paths decide from footprint geometry and the static LOS table, neither of
+     * which reads npc_collision_flags, so they are checked before the clear. An NPC that was
+     * never going to move now touches the grid zero times instead of erasing and redrawing
+     * its own footprint. Measured before this: 27.9 stamp writes per tick against 7.0 blocked
+     * probes, with most NPCs holding most ticks behind the attack_timer gate. */
     int is_ranged = st->attack_range > 1;
     if (is_ranged) {
         int dist = encounter_dist_to_npc(s->player.x, s->player.y, npc->x, npc->y, size);
         if (dist >= 1 && dist <= st->attack_range && col_npc_has_los_to_player(s, npc)) {
-            col_stamp_npc_collision_footprint(s, npc->x, npc->y, size, 1);
             npc->moved_this_tick = 0;
             return;
         }
     }
     if (npc->attack_timer > st->attack_speed) {
-        col_stamp_npc_collision_footprint(s, npc->x, npc->y, size, 1);
         npc->moved_this_tick = 0;
         return;
     }
+
+    col_stamp_npc_collision(s, npc, 0);
+    ColoNpcMoveCtx move_ctx = { s, idx };
 
     int moved;
     if (npc->type == COLO_MINOTAUR && col_mod_active(s, COLO_MOD_RED_FLAG)) {
@@ -355,6 +337,6 @@ static void col_npc_move_ctx(ColosseumState* s, ColosseumContext* ctx, int idx) 
             col_npc_move_blocked_ignore_player, &move_ctx,
             col_npc_move_overlap_hold, &s->rng_state);
     }
-    col_stamp_npc_collision_footprint(s, npc->x, npc->y, size, 1);
+    col_stamp_npc_collision(s, npc, 1);
     npc->moved_this_tick = moved ? 1 : 0;
 }

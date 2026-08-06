@@ -1,4 +1,30 @@
 #line 862 "encounter_inferno.h"
+static inline int inf_is_barrage_spell(int spell) {
+    return spell == ENCOUNTER_SPELL_BLOOD || spell == ENCOUNTER_SPELL_ICE;
+}
+
+static inline int inf_spell_base_damage(int spell) {
+    if (spell == ENCOUNTER_SPELL_ICE) return ICE_BARRAGE_MAX_HIT;
+    if (spell == ENCOUNTER_SPELL_BLOOD) return BLOOD_BARRAGE_MAX_HIT;
+    fprintf(stderr, "BUG: invalid Inferno spell %d\n", spell);
+    abort();
+}
+
+static inline int inf_player_autocast_spell(const Player* p) {
+    return p->autocast_spell == ENCOUNTER_SPELL_ICE
+        ? ENCOUNTER_SPELL_ICE
+        : ENCOUNTER_SPELL_BLOOD;
+}
+
+static inline int inf_player_magic_base_damage(const Player* p) {
+    return inf_spell_base_damage(inf_player_autocast_spell(p));
+}
+
+static inline void inf_apply_spell_cast_stats(EncounterLoadoutStats* out) {
+    out->attack_speed = COMBAT_SPELL_CAST_SPEED;
+    out->attack_range = COMBAT_SPELL_ATTACK_RANGE;
+}
+
 static EncounterPendingHit* inf_queue_npc_pending_hit(
     InfernoState* s,
     int npc_idx,
@@ -24,13 +50,13 @@ static EncounterPendingHit* inf_queue_npc_pending_hit(
     }
 
     EncounterPendingHit hit = {
-        .damage = damage,
-        .ticks_remaining = ticks_remaining,
-        .attack_style = attack_style,
+        .ticks_remaining = (int8_t)ticks_remaining,
+        .attack_style = (int8_t)attack_style,
         .check_prayer = 0,
-        .spell_type = spell_type,
-        .hit_success = hit_success,
+        .spell_type = (int8_t)spell_type,
+        .hit_success = (int8_t)hit_success,
         .elysian_reduced = 0,
+        .damage = (int16_t)damage,
     };
     return encounter_pending_hit_queue_push(
         &npc->pending_hits, hit, "inferno npc", s->tick, npc_idx, npc->type);
@@ -42,7 +68,7 @@ static EncounterPendingHit* inf_queue_player_pending_hit(
     int npc_type,
     EncounterPendingHit hit
 ) {
-    hit.source_npc_slot = npc_idx;
+    hit.source_npc_slot = (int8_t)npc_idx;
     return encounter_pending_hit_queue_push(
         &s->player_pending_hits, hit, "inferno player", s->tick, npc_idx, npc_type);
 }
@@ -746,7 +772,6 @@ static InfConfig inf_default_config(void) {
         .zuk_healer_reward_mode = INF_ZUK_HEALER_REWARD_MODE_BASELINE,
         .post_jad_zuk_multiplier = 1.0f,
         .jad_alive_zuk_multiplier = 1.0f,
-        .oracle_mode = 0,
         .shield_tag_reward_coeff = 0.0f,
         .joseph_reward_mode = INF_JOSEPH_REWARD_MODE_OFF,
     };

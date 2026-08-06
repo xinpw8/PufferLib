@@ -295,15 +295,15 @@ static const EncounterDef ENCOUNTER_NH_PVP = {
     .put_float = nh_pvp_put_float,
     .put_ptr = nh_pvp_put_ptr,
 
-    .render_post_tick = NULL,
-    .get_log = nh_pvp_get_log,
-    .get_tick = nh_pvp_get_tick,
-    .get_winner = nh_pvp_get_winner,
-
     .translate_human_input = NULL,
     .head_move = -1,
     .head_prayer = -1,
     .head_target = -1,
+
+    .render_post_tick = NULL,
+    .get_log = nh_pvp_get_log,
+    .get_tick = nh_pvp_get_tick,
+    .get_winner = nh_pvp_get_winner,
 };
 
 __attribute__((constructor))

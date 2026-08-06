@@ -66,8 +66,6 @@ static uint64_t run_episode(const GoldenConfig* cfg, int max_ticks) {
 
     col_init_context_typed(&ctx);
     ctx.config.start_wave = cfg->public_start_wave - 1;
-    ctx.config.step_out_forecast_obs_enabled = 1;
-    ctx.config.forecast_horizon = 4;
 
     memset(&s, 0, sizeof(s));
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, cfg->env_seed);
@@ -183,19 +181,23 @@ static const GoldenConfig CONFIGS[] = {
 #define NUM_CONFIGS ((int)(sizeof(CONFIGS) / sizeof(CONFIGS[0])))
 #define EPISODE_TICKS 4000
 
+/* Re-seeded for the inventory observation recut: 15 floats per cell became an item code plus
+ * is_equipped and hp_heal, obs 1258 -> 922. All twelve moved because the hash folds obs
+ * floats and every episode carries 28 inventory cells from tick zero. probe_colo_sim_invariant
+ * stayed 12/12 across the change, which is the proof no simulated tick moved. */
 static const uint64_t BASELINE[NUM_CONFIGS] = {
-    0x6b648dbd26450b82ULL,
-    0xd25dd5f73aea2df6ULL,
-    0x137d8011443b61f8ULL,
-    0xeb82de91da34947dULL,
-    0xf10a60721a18d0ecULL,
-    0xef3182c4eebbaeb5ULL,
-    0x63f92c48e77deeecULL,
-    0x4e15c78ede861b01ULL,
-    0x4b420b3e18d846ebULL,
-    0x054f146530962087ULL,
-    0x4b5835b98fc7d4b0ULL,
-    0xae22f0ac054585aaULL,
+    0xd2c17aa73e2a0b43ULL,
+    0x872cf27641f8df3cULL,
+    0x50498ba64b2aa646ULL,
+    0xbb24e8e6cb69976dULL,
+    0xaa9e6568f552204eULL,
+    0xa526657dbf0b7a2fULL,
+    0xd8369f4857156246ULL,
+    0x2bf1b1a8ae9ec50bULL,
+    0x57ae207dc177c45bULL,
+    0x44c0ae98c7ab041eULL,
+    0x2c7389fc883943a0ULL,
+    0x4f5a9f22f5ecfd4dULL,
 };
 
 int main(int argc, char** argv) {

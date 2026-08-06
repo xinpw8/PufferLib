@@ -1,11 +1,81 @@
 #line 1436 "encounter_inferno.h"
+static void inf_sync_consumable_counters_from_cells(InfernoState* s);
+static void inf_refresh_live_stats(InfernoState* s);
+
 static InfSupplyDoses inf_full_starting_supplies(void) {
     return (InfSupplyDoses){
         .brew_doses = 24,
-        .restore_doses = 40,
+        .restore_doses = 36,
         .bastion_doses = 16,
         .stamina_doses = 4,
     };
+}
+
+static uint16_t inf_potion_raw_id_for_dose(OsrsConsumableKind kind, int dose) {
+    int n = (int)(sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY) /
+        sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY[0]));
+    for (int i = 0; i < n; i++) {
+        const OsrsConsumableClick* row = &OSRS_CONSUMABLE_CLICK_REGISTRY[i];
+        if (row->consumable_kind == kind && row->dose_count == dose)
+            return row->raw_osrs_id;
+    }
+    fprintf(stderr, "inferno: no registry row for kind %d dose %d\n", (int)kind, dose);
+    abort();
+}
+
+static void inf_seed_potion_cells(
+    InfernoState* s,
+    int* next_cell,
+    OsrsConsumableKind kind,
+    int doses
+) {
+    while (doses > 0) {
+        int dose = doses >= 4 ? 4 : doses;
+        if (*next_cell >= OSRS_INVENTORY_SIZE) {
+            fprintf(stderr, "inferno: inventory kit overflows %d cells\n",
+                OSRS_INVENTORY_SIZE);
+            abort();
+        }
+        s->inventory_cells[(*next_cell)++] = osrs_inventory_cell_from_raw_osrs_id(
+            inf_potion_raw_id_for_dose(kind, dose));
+        doses -= dose;
+    }
+}
+
+static void inf_seed_inventory_cells(InfernoState* s) {
+    for (int i = 0; i < OSRS_INVENTORY_SIZE; i++)
+        s->inventory_cells[i] = osrs_inventory_cell_empty();
+
+    int cell = 0;
+    const uint8_t* const* loadouts =
+        inf_loadouts_for_profile(s->active_loadout_profile);
+    for (int g = 0; g < INF_NUM_WEAPON_SETS; g++) {
+        for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
+            uint8_t item = loadouts[g][slot];
+            if (item == ITEM_NONE) continue;
+            if (s->player.equipped[slot] == item) continue;
+            int duplicate = 0;
+            for (int c = 0; c < cell; c++) {
+                if (s->inventory_cells[c].item_idx == item) {
+                    duplicate = 1;
+                    break;
+                }
+            }
+            if (duplicate) continue;
+            if (cell >= OSRS_INVENTORY_SIZE) {
+                fprintf(stderr, "inferno: gear kit overflows %d cells\n",
+                    OSRS_INVENTORY_SIZE);
+                abort();
+            }
+            s->inventory_cells[cell++] = osrs_inventory_cell_from_item(item);
+        }
+    }
+
+    inf_seed_potion_cells(s, &cell, OSRS_CONSUMABLE_BREW, s->player.brew_doses);
+    inf_seed_potion_cells(s, &cell, OSRS_CONSUMABLE_SUPER_RESTORE,
+        s->player.restore_doses);
+    inf_seed_potion_cells(s, &cell, OSRS_CONSUMABLE_BASTION, s->player.bastion_doses);
+    inf_seed_potion_cells(s, &cell, OSRS_CONSUMABLE_STAMINA, s->player.stamina_doses);
 }
 
 static const InfSupplyProfileAnchor INF_SUPPLY_PROFILE_ANCHORS[] = {
@@ -305,7 +375,7 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     s->total_zuk_healer_out_of_range_ticks = 0;
     s->total_zuk_healer_attackable_ticks = 0;
     s->total_action_mask_checks = 0;
-    for (int h = 0; h < 9; h++) {
+    for (int h = 0; h < INF_NUM_ACTION_HEADS; h++) {
         s->zero_valid_action_head_count[h] = 0;
         s->min_valid_action_count_by_head[h] = 1000000;
     }
@@ -337,6 +407,8 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     s->player.bastion_doses = start_supplies.bastion_doses;
     s->player.stamina_doses = start_supplies.stamina_doses;
     inf_apply_curriculum_supply_variation(s, ctx, full_supplies);
+    inf_seed_inventory_cells(s);
+    inf_sync_consumable_counters_from_cells(s);
     s->stamina_active_ticks = 0;
     s->player.prayer = PRAYER_NONE;
     s->player.autocast_enabled = 1;
@@ -349,11 +421,13 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     s->last_hit_by_type = -1;
 
     encounter_compute_loadout_stats(loadouts[INF_GEAR_MAGE], ATTACK_STYLE_MAGIC,
-        OFFENSIVE_PRAYER_NONE, 99, FIGHT_STYLE_AUTOCAST, 30, &s->loadout_stats[INF_GEAR_MAGE]);
+        OFFENSIVE_PRAYER_NONE, 99, FIGHT_STYLE_AUTOCAST,
+        inf_player_magic_base_damage(&s->player), &s->loadout_stats[INF_GEAR_MAGE]);
     encounter_compute_loadout_stats(loadouts[INF_GEAR_LONG_RANGE], ATTACK_STYLE_RANGED,
         OFFENSIVE_PRAYER_NONE, 99, FIGHT_STYLE_RAPID, 0, &s->loadout_stats[INF_GEAR_LONG_RANGE]);
     encounter_compute_loadout_stats(loadouts[INF_GEAR_BP], ATTACK_STYLE_RANGED,
         OFFENSIVE_PRAYER_NONE, 99, FIGHT_STYLE_RAPID, 0, &s->loadout_stats[INF_GEAR_BP]);
+    inf_refresh_live_stats(s);
 
     int effective_start = inf_runtime_wave_from_start_wave(s->start_wave);
     int is_zuk_wave = (effective_start >= INF_WAVE_ZUK);

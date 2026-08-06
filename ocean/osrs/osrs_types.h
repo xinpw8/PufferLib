@@ -47,6 +47,16 @@
 #define BLOOD_BLITZ_MAX_HIT 25
 #define BLOOD_BARRAGE_MAX_HIT 29
 
+/** Percent of damage dealt that a blood spell heals the caster. */
+#define BLOOD_RUSH_HEAL_PERCENT 10
+#define BLOOD_BURST_HEAL_PERCENT 15
+#define BLOOD_BLITZ_HEAL_PERCENT 20
+#define BLOOD_BARRAGE_HEAL_PERCENT 25
+
+/** Ticks between casts, and tile range, for a combat spell cast from a staff. */
+#define COMBAT_SPELL_CAST_SPEED 5
+#define COMBAT_SPELL_ATTACK_RANGE 10
+
 #define NUM_GEAR_SLOTS 11
 
 #define NUM_ACTION_HEADS 9
@@ -704,32 +714,9 @@ typedef struct Log {
     float post_healer_set_pressure_normal_sum;
     float action_mask_checks_normal_sum;
 
-    float hist_score_bank[8];
-    float hist_n_bank[8];
-
-    float colo_pray_faced_by_type[12];
-    float colo_pray_correct_by_type[12];
-    float colo_offpray_damage_by_type[12];
-    float colo_total_damage_by_type[12];
-
-    float colo_death_by_type[12];
-    float colo_death_fatal_damage;
-
-    float colo_offpray_damage_conflict;
-    float colo_offpray_damage_solo;
-    float colo_death_on_conflict_tick;
-
-    float colo_death_dmg_unprayable;
-    float colo_death_dmg_offpray;
-    float colo_death_dmg_prayed;
-    float colo_death_dmg_self;
-    float colo_death_heal_remaining;
-    float colo_farm_damage;
-    float colo_typeless_damage_by_type[12];
-    float colo_outcome_score;
-    float colo_min_sol_hp;
-
-    float colo_max_depth_reached;
+    float inf_death_wave_hist[6];
+    float inf_death_brew_doses_hist[6];
+    float inf_death_restore_doses_hist[6];
 } Log;
 
 typedef struct {

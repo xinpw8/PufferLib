@@ -249,6 +249,23 @@ static int col_sol_aoe_tile_is_hazard(const SolHereditState* sol, int x, int y) 
     return 0;
 }
 
+static ColoSolDamageSource col_sol_aoe_damage_source(ColoSolAoeAttack attack) {
+    switch (attack) {
+        case COLO_SOL_AOE_SPEAR1:
+            return COLO_SOL_DAMAGE_SPEAR_1;
+        case COLO_SOL_AOE_SPEAR2:
+            return COLO_SOL_DAMAGE_SPEAR_2;
+        case COLO_SOL_AOE_SHIELD1:
+            return COLO_SOL_DAMAGE_SHIELD_1;
+        case COLO_SOL_AOE_SHIELD2:
+            return COLO_SOL_DAMAGE_SHIELD_2;
+        case COLO_SOL_AOE_NONE:
+            break;
+    }
+    fprintf(stderr, "invalid Sol AOE damage source %d\n", (int)attack);
+    abort();
+}
+
 static void col_sol_cast_aoe(ColosseumState* s, int idx, int kind, int variant) {
     SolHereditState* sol = &s->sol;
     const ColoNPC* boss = &s->npcs[idx];
@@ -276,9 +293,14 @@ static void col_sol_tick_aoe(ColosseumState* s) {
         col_sol_aoe_tile_is_hazard(sol, s->player.x, s->player.y)) {
         int dmg = COLO_SOL_SLAM_MIN_HIT
             + encounter_rand_int(&s->rng_state, COLO_SOL_SLAM_RAND);
-        col_damage_player_from(s, dmg, COLO_SOL_HEREDIT, COLO_DMG_UNPRAYABLE);
-        s->last_hit_by_type = COLO_SOL_HEREDIT;
-        col_mod_on_player_damaged(s, dmg);
+        ColoSolDamageSource source =
+            col_sol_aoe_damage_source(sol->aoe_attack);
+        int applied = col_damage_player_from_sol(s, dmg, source);
+        if (applied > 0) {
+            s->last_hit_by_type = COLO_SOL_HEREDIT;
+            col_mod_on_player_damaged(
+                s, applied, col_damage_source_from_sol(source));
+        }
     }
     if (sol->aoe_age >= COLO_SOL_AOE_LIFETIME) sol->aoe_attack = COLO_SOL_AOE_NONE;
 }
@@ -313,10 +335,14 @@ static void col_sol_crystal_patrol(
     }
 }
 
-static int col_sol_crystal_in_line(const ColosseumState* s, const ColoSolCrystal* c) {
+static int col_sol_crystal_hits_tile(const ColoSolCrystal* c, int x, int y) {
     if (c->edge == COLO_SOL_EDGE_NORTH || c->edge == COLO_SOL_EDGE_SOUTH)
-        return s->player.x == c->x;
-    return s->player.y == c->y;
+        return x == c->x;
+    return y == c->y;
+}
+
+static int col_sol_crystal_in_line(const ColosseumState* s, const ColoSolCrystal* c) {
+    return col_sol_crystal_hits_tile(c, s->player.x, s->player.y);
 }
 
 static void col_sol_spawn_crystal(ColosseumState* s) {
@@ -374,9 +400,13 @@ static void col_sol_tick_crystals(ColosseumState* s) {
                 col_sol_crystal_in_line(s, c)) {
             int dmg = COLO_SOL_LASER_MIN_HIT
                 + encounter_rand_int(&s->rng_state, COLO_SOL_LASER_RAND);
-            col_damage_player_from(s, dmg, COLO_SOL_HEREDIT, COLO_DMG_UNPRAYABLE);
-            s->last_hit_by_type = COLO_SOL_HEREDIT;
-            col_mod_on_player_damaged(s, dmg);
+            int applied = col_damage_player_from_sol(
+                s, dmg, COLO_SOL_DAMAGE_CRYSTAL_LASER);
+            if (applied > 0) {
+                s->last_hit_by_type = COLO_SOL_HEREDIT;
+                col_mod_on_player_damaged(
+                    s, applied, COLO_DAMAGE_SOL_CRYSTAL_LASER);
+            }
         }
 
         c->move_timer--;
@@ -384,11 +414,16 @@ static void col_sol_tick_crystals(ColosseumState* s) {
     }
 }
 
+static int col_sol_molten_sand_at(const SolHereditState* sol, int x, int y) {
+    for (int i = 0; i < sol->hazard_tile_count; i++)
+        if (sol->hazard_tile_x[i] == x && sol->hazard_tile_y[i] == y) return 1;
+    return 0;
+}
+
 static void col_sol_add_pool(ColosseumState* s, int x, int y) {
     if (col_static_blocked(x, y)) return;
     SolHereditState* sol = &s->sol;
-    for (int i = 0; i < sol->hazard_tile_count; i++)
-        if (sol->hazard_tile_x[i] == x && sol->hazard_tile_y[i] == y) return;
+    if (col_sol_molten_sand_at(sol, x, y)) return;
     int slot = sol->hazard_tile_count < COLO_SOL_HAZARD_TILES_MAX
         ? sol->hazard_tile_count++
         : encounter_rand_int(&s->rng_state, COLO_SOL_HAZARD_TILES_MAX);
@@ -475,15 +510,16 @@ static void col_sol_tick_molten(ColosseumState* s) {
         sol->beams[b].active = 0;
     }
 
-    for (int i = 0; i < sol->hazard_tile_count; i++) {
-        if (s->player.x != sol->hazard_tile_x[i] || s->player.y != sol->hazard_tile_y[i])
-            continue;
+    if (col_sol_molten_sand_at(sol, s->player.x, s->player.y)) {
         int dmg = COLO_MOLTEN_SAND_MIN_HIT
             + encounter_rand_int(&s->rng_state, COLO_MOLTEN_SAND_RAND);
-        col_damage_player_from(s, dmg, COLO_SOL_HEREDIT, COLO_DMG_UNPRAYABLE);
-        s->last_hit_by_type = COLO_SOL_HEREDIT;
-        col_mod_on_player_damaged(s, dmg);
-        break;
+        int applied =
+            col_damage_player_from_sol(s, dmg, COLO_SOL_DAMAGE_MOLTEN_SAND);
+        if (applied > 0) {
+            s->last_hit_by_type = COLO_SOL_HEREDIT;
+            col_mod_on_player_damaged(
+                s, applied, COLO_DAMAGE_SOL_MOLTEN_SAND);
+        }
     }
 }
 
@@ -532,9 +568,13 @@ static void col_sol_tick_triple_parry(ColosseumState* s) {
             s->tick_scratch.prayer_correct++;
         } else {
             s->tick_scratch.offpray_damage_this_tick += (float)sol->parry_damage[h];
-            col_damage_player_from(s, sol->parry_damage[h], COLO_SOL_HEREDIT, COLO_DMG_OFFPRAY);
-            s->last_hit_by_type = COLO_SOL_HEREDIT;
-            col_mod_on_player_damaged(s, sol->parry_damage[h]);
+            int applied = col_damage_player_from_sol(
+                s, sol->parry_damage[h], COLO_SOL_DAMAGE_TRIPLE_PARRY);
+            if (applied > 0) {
+                s->last_hit_by_type = COLO_SOL_HEREDIT;
+                col_mod_on_player_damaged(
+                    s, applied, COLO_DAMAGE_SOL_TRIPLE_PARRY);
+            }
         }
         col_log_prayer_event(s, COLO_SOL_HEREDIT, blocked, blocked ? 0 : sol->parry_damage[h]);
         s->player.prayer = PRAYER_NONE;
@@ -575,9 +615,13 @@ static void col_sol_tick_grapple(ColosseumState* s) {
     if (sol->grapple_timer == 0 && !sol->grapple_resolved) {
         int dmg = COLO_SOL_SLAM_MIN_HIT
             + encounter_rand_int(&s->rng_state, COLO_SOL_SLAM_RAND);
-        col_damage_player_from(s, dmg, COLO_SOL_HEREDIT, COLO_DMG_UNPRAYABLE);
-        s->last_hit_by_type = COLO_SOL_HEREDIT;
-        col_mod_on_player_damaged(s, dmg);
+        int applied =
+            col_damage_player_from_sol(s, dmg, COLO_SOL_DAMAGE_GRAPPLE);
+        if (applied > 0) {
+            s->last_hit_by_type = COLO_SOL_HEREDIT;
+            col_mod_on_player_damaged(
+                s, applied, COLO_DAMAGE_SOL_GRAPPLE);
+        }
         sol->grapple_active = 0;
         sol->grapple_resolved = 1;
         sol->grapple_outcome = COLO_GRAPPLE_OUTCOME_FAILED;
@@ -603,8 +647,7 @@ static void col_sol_enter_phase(ColosseumState* s, int new_phase) {
     if (new_phase > s->log.boss_phase_reached) s->log.boss_phase_reached = new_phase;
 }
 
-static void col_sol_boss_tick(ColosseumState* s, ColosseumContext* ctx) {
-    (void)ctx;
+static void col_sol_boss_tick(ColosseumState* s) {
     SolHereditState* sol = &s->sol;
     if (s->wave != COLO_WAVE_BOSS || !sol->started) return;
 

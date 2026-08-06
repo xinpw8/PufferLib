@@ -134,6 +134,14 @@ static void inferno_apply_curriculum(Env* env, Dict* kwargs) {
     if (num_tiers == 0)
         return;
 
+    if (total_frac > 0.9f) {
+        float rescale = 0.9f / total_frac;
+        for (int t = 0; t < num_tiers; t++) {
+            fracs[t] *= rescale;
+        }
+        total_frac = 0.9f;
+    }
+
     float u = (float)inf_lowbias32(inf_lowbias32((uint32_t)env->rng) ^ 0x9e3779b9U)
         / 4294967296.0f;
     float cursor = 1.0f - total_frac;
@@ -207,7 +215,6 @@ void puf_init(Env* env, Dict* kwargs) {
 
     inferno_env_put_float(env, "late_start_supply_profile_scale",
         (float)dict_get(kwargs, "late_start_supply_profile_scale"));
-    inferno_env_put_int(env, "oracle_mode", (int)dict_get(kwargs, "oracle_mode"));
     inferno_env_put_int(env, "terminal_penalty_enabled",
         (int)dict_get(kwargs, "terminal_penalty_enabled"));
 
@@ -300,6 +307,18 @@ void puf_step(Env* env) {
         env->log.hp_restored += s->total_hp_restored;
         env->log.wins += (s->winner == INF_OUTCOME_PLAYER_WON) ? 1.0f : 0.0f;
         env->log.wave += (float)s->wave;
+        if (s->winner != INF_OUTCOME_PLAYER_WON) {
+            int death_bucket = (s->wave < 62) ? 0
+                : (s->wave == 62) ? 1
+                : (s->wave <= 65) ? 2
+                : (s->wave == 66) ? 3
+                : (s->wave == 67) ? 4 : 5;
+            env->log.inf_death_wave_hist[death_bucket] += 1.0f;
+            env->log.inf_death_brew_doses_hist[death_bucket] +=
+                (float)s->player.brew_doses;
+            env->log.inf_death_restore_doses_hist[death_bucket] +=
+                (float)s->player.restore_doses;
+        }
         env->log.prayer_correct += (float)s->total_prayer_correct;
         env->log.prayer_total += (float)s->total_npc_attacks;
         env->log.offensive_prayer_attacks +=
@@ -460,6 +479,22 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "damage_per_100_ticks", damage_per_tick * 100.0f);
     dict_set(out, "wins", log->wins);
     dict_set(out, "wave", log->wave);
+    {
+        static const char* death_wave_keys[6] = {
+            "death_wave_pre63", "death_wave_63", "death_wave_64_66",
+            "death_wave_67_jad", "death_wave_68_triplejad", "death_wave_69_zuk"};
+        static const char* death_brew_keys[6] = {
+            "death_brews_pre63", "death_brews_63", "death_brews_64_66",
+            "death_brews_67_jad", "death_brews_68_triplejad", "death_brews_69_zuk"};
+        static const char* death_restore_keys[6] = {
+            "death_restores_pre63", "death_restores_63", "death_restores_64_66",
+            "death_restores_67_jad", "death_restores_68_triplejad", "death_restores_69_zuk"};
+        for (int i = 0; i < 6; i++) {
+            dict_set(out, death_wave_keys[i], log->inf_death_wave_hist[i]);
+            dict_set(out, death_brew_keys[i], log->inf_death_brew_doses_hist[i]);
+            dict_set(out, death_restore_keys[i], log->inf_death_restore_doses_hist[i]);
+        }
+    }
     dict_set(out, "idle_ticks", log->idle_ticks);
     inferno_log_idle_metric(
         out,

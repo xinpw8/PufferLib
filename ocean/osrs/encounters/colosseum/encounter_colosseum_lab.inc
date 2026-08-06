@@ -248,14 +248,12 @@ static void col_lab_apply_command(ColosseumState* s, const ColosseumLabCommand* 
                 col_lab_abort("cannot move inactive npc slot %d", move->slot);
             if (!col_lab_in_arena(move->x, move->y))
                 col_lab_abort("npc tile out of arena: (%d,%d)", move->x, move->y);
-            int size = col_npc_effective_size(&s->npcs[move->slot]);
-            col_stamp_npc_collision_footprint(s, s->npcs[move->slot].x,
-                s->npcs[move->slot].y, size, 0);
+            col_stamp_npc_collision(s, &s->npcs[move->slot], 0);
             s->npcs[move->slot].x = move->x;
             s->npcs[move->slot].y = move->y;
             s->npcs[move->slot].target_x = move->x;
             s->npcs[move->slot].target_y = move->y;
-            col_stamp_npc_collision_footprint(s, move->x, move->y, size, 1);
+            col_stamp_npc_collision(s, &s->npcs[move->slot], 1);
             col_lab_clear_transient(s);
             col_lab_refresh_geometry(s);
             return;

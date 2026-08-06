@@ -1,7 +1,9 @@
 #line 5216 "encounter_inferno.h"
 #define INF_PLAYER_OBS_SIZE 75
 #define INF_PILLAR_OBS_SIZE (INF_NUM_PILLARS * 5)
-#define INF_BASE_NPC_OBS_SIZE 896
+#define INF_NPC_TYPE_ONEHOT 14
+#define INF_NPC_SLOT_FEATURES (INF_NPC_TYPE_ONEHOT + 34)
+#define INF_BASE_NPC_OBS_SIZE (INF_OBS_NPCS * INF_NPC_SLOT_FEATURES)
 #define INF_TOTAL_NPC_OBS_SIZE INF_BASE_NPC_OBS_SIZE
 #define INF_STEP_OUT_FORECAST_HORIZON 4
 #define INF_STEP_OUT_FORECAST_ACTION_FEATURES 8
@@ -11,7 +13,19 @@
 #define INF_FEATURES_PER_SPARK 7
 #define INF_PENDING_HIT_OBS_SIZE (INF_FEATURES_PER_HIT * ENCOUNTER_MAX_PENDING_HITS)
 #define INF_PENDING_SPARK_OBS_SIZE (INF_FEATURES_PER_SPARK * INF_SPARK_OBS_SLOTS)
-#define INF_NUM_OBS (INF_PLAYER_OBS_SIZE + INF_PILLAR_OBS_SIZE + INF_TOTAL_NPC_OBS_SIZE + INF_STEP_OUT_FORECAST_OBS_SIZE + INF_PENDING_HIT_OBS_SIZE + INF_PENDING_SPARK_OBS_SIZE)
+#define INF_INVENTORY_OBS_SIZE (OSRS_INVENTORY_SIZE * OSRS_INVENTORY_CELL_OBS_FEATURES)
+#define INF_EQUIPPED_OBS_SIZE (NUM_GEAR_SLOTS * OSRS_EQUIPPED_SELF_OBS_FEATURES)
+#define INF_OBS_AFTER_PLAYER        INF_PLAYER_OBS_SIZE
+#define INF_OBS_AFTER_PILLARS       (INF_OBS_AFTER_PLAYER + INF_PILLAR_OBS_SIZE)
+#define INF_OBS_AFTER_NPCS          (INF_OBS_AFTER_PILLARS + INF_TOTAL_NPC_OBS_SIZE)
+#define INF_OBS_AFTER_FORECAST      (INF_OBS_AFTER_NPCS + INF_STEP_OUT_FORECAST_OBS_SIZE)
+#define INF_OBS_AFTER_PENDING_HITS  (INF_OBS_AFTER_FORECAST + INF_PENDING_HIT_OBS_SIZE)
+#define INF_OBS_AFTER_SPARKS        (INF_OBS_AFTER_PENDING_HITS + INF_PENDING_SPARK_OBS_SIZE)
+#define INF_OBS_AFTER_INVENTORY     (INF_OBS_AFTER_SPARKS + INF_INVENTORY_OBS_SIZE)
+#define INF_NUM_OBS                 (INF_OBS_AFTER_INVENTORY + INF_EQUIPPED_OBS_SIZE)
+
+static_assert(INF_NPC_TYPE_ONEHOT == INF_NUM_NPC_TYPES,
+    "the per-NPC obs one-hot is the NPC type one-hot; a new NPC type must widen it");
 
 typedef struct {
     int melee_count;
@@ -421,49 +435,6 @@ static void inf_restore_step_out_forecast_action_state(
     inf_restore_step_out_forecast_player_collision_flags(
         sim, prev_player_x, prev_player_y);
 }
-
-#ifdef INF_POISON_FORECAST
-static void inf_poison_step_out_forecast_restore_source(
-    InfernoState* restore_source,
-    const InfernoState* s,
-    const int slots[INF_MAX_NPCS],
-    int slot_count
-) {
-    memset(restore_source, 0xAA, sizeof(*restore_source));
-    for (int slot_idx = 0; slot_idx < slot_count; slot_idx++) {
-        int i = slots[slot_idx];
-        restore_source->npcs[i] = s->npcs[i];
-    }
-    restore_source->rng_state = s->rng_state;
-    memcpy(
-        restore_source->npc_collision_flags,
-        s->npc_collision_flags,
-        sizeof(restore_source->npc_collision_flags));
-}
-
-static void inf_poison_step_out_forecast_check_player_flags(
-    const InfernoState* sim,
-    const InfernoState* s,
-    const Player* moved
-) {
-    InfernoState oracle = *s;
-    memset(
-        oracle.player_collision_flags,
-        0xAA,
-        sizeof(oracle.player_collision_flags));
-    oracle.player.x = moved->x;
-    oracle.player.y = moved->y;
-    oracle.player.is_running = moved->is_running;
-    inf_rebuild_player_collision_flags(&oracle);
-    if (memcmp(
-            sim->player_collision_flags,
-            oracle.player_collision_flags,
-            sizeof(sim->player_collision_flags)) != 0) {
-        fprintf(stderr, "inferno forecast player collision restore mismatch\n");
-        abort();
-    }
-}
-#endif
 
 static void inf_step_out_forecast_finalize_action(
     InfStepOutForecastAction* action
@@ -1170,13 +1141,6 @@ static void inf_build_step_out_forecast_exact_ctx(
             INF_PROFILE_NOW_MS() - base_copy_t0);
     }
 #endif
-    const InfernoState* restore_source = s;
-#ifdef INF_POISON_FORECAST
-    InfernoState poison_restore_source;
-    inf_poison_step_out_forecast_restore_source(
-        &poison_restore_source, s, forecast_slots, forecast_slot_count);
-    restore_source = &poison_restore_source;
-#endif
     for (int action_idx = 0; action_idx < ENCOUNTER_MOVE_ACTIONS; action_idx++) {
         InfStepOutForecastAction* action = &out->actions[action_idx];
 #ifdef INF_PROFILE_ENABLED
@@ -1214,10 +1178,7 @@ static void inf_build_step_out_forecast_exact_ctx(
         double state_copy_t0 = inf_prof_enabled ? INF_PROFILE_NOW_MS() : 0.0;
 #endif
         inf_restore_step_out_forecast_action_state(
-            &sim, restore_source, forecast_slots, forecast_slot_count, &moved);
-#ifdef INF_POISON_FORECAST
-        inf_poison_step_out_forecast_check_player_flags(&sim, s, &moved);
-#endif
+            &sim, s, forecast_slots, forecast_slot_count, &moved);
 #ifdef INF_PROFILE_ENABLED
         if (inf_prof_enabled) {
             INF_PROFILE_ADD(

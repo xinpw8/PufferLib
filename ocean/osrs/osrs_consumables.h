@@ -58,6 +58,10 @@ static inline int osrs_saturated_heart_magic_boost(int base_magic) {
     return 4 + base_magic / 10;
 }
 
+static inline int osrs_prayer_potion_restore_amount(int level) {
+    return 7 + level / 4;
+}
+
 static inline int osrs_super_restore_amount(int level) {
     return 8 + level / 4;
 }
@@ -112,7 +116,7 @@ static inline DrinkResult osrs_drink_potion(PotionType type, int current_prayer,
         case POTION_PRAYER_RESTORE:
             if (current_prayer >= prayer_level) return r;
             r.consumed = 1;
-            r.prayer_restored = 7 + prayer_level / 4;
+            r.prayer_restored = osrs_prayer_potion_restore_amount(prayer_level);
             break;
         case POTION_SUPER_RESTORE:
             if (current_prayer >= prayer_level) return r;

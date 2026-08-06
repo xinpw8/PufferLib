@@ -1,6 +1,6 @@
 #line 76 "encounter_colosseum.h"
 
-static float col_compute_reward_ctx(ColosseumState* s, const ColosseumContext* ctx);
+static void col_accumulate_tick_stats(ColosseumState* s, const ColosseumContext* ctx);
 static void col_spawn_wave(ColosseumState* s);
 static void col_tick_npcs_ctx(ColosseumState* s, ColosseumContext* ctx);
 static void col_tick_player_ctx(
@@ -13,7 +13,7 @@ static void col_resolve_player_pending_hits(ColosseumState* s);
 static void col_rebuild_player_collision_flags(ColosseumState* s);
 static void col_refresh_current_obs_slots_ctx(ColosseumState* s, const ColosseumContext* ctx);
 
-static void col_sol_boss_tick(ColosseumState* s, ColosseumContext* ctx);
+static void col_sol_boss_tick(ColosseumState* s);
 static void col_sol_begin_boss_arena(ColosseumState* s);
 static int col_sol_clamp_active(const ColosseumState* s);
 static int col_in_boss_arena(const ColosseumState* s, int x, int y);
@@ -239,12 +239,12 @@ static void col_queue_npc_pending_hit(
     ColoNPC* npc = &s->npcs[npc_slot];
     EncounterPendingHit hit = {
         .active = 1,
-        .damage = damage,
-        .ticks_remaining = ticks,
-        .attack_style = style,
+        .ticks_remaining = (int8_t)ticks,
+        .attack_style = (int8_t)style,
         .check_prayer = 0,
-        .spell_type = spell_type,
+        .spell_type = (int8_t)spell_type,
         .source_npc_slot = -1,
+        .damage = (int16_t)damage,
     };
     encounter_pending_hit_queue_push(
         &npc->pending_hits, hit, "colosseum-npc", s->tick, npc_slot, npc->type);
@@ -259,19 +259,10 @@ static inline int col_scale_incoming_damage(const ColosseumState* s, int dmg) {
 }
 
 static void col_push_player_pending_hit(ColosseumState* s, EncounterPendingHit hit) {
-    hit.damage = col_scale_incoming_damage(s, hit.damage);
+    hit.damage = (int16_t)col_scale_incoming_damage(s, hit.damage);
     encounter_pending_hit_queue_push(
         &s->player_pending_hits, hit, "colosseum-player", s->tick,
         hit.source_npc_slot, hit.source_npc_type);
-}
-
-static int col_default_action_debug_log(void) {
-    const char* value = getenv("OSRS_COLOSSEUM_ACTION_LOG");
-    if (!value || value[0] == '\0') return 0;
-    if (strcmp(value, "1") == 0) return 1;
-    if (strcmp(value, "0") == 0) return 0;
-    fprintf(stderr, "OSRS_COLOSSEUM_ACTION_LOG must be 0 or 1, got %s\n", value);
-    abort();
 }
 
 static ColConfig col_default_config(void) {
@@ -282,24 +273,12 @@ static ColConfig col_default_config(void) {
         .wave_clear_bonus = 1.0f,
         .boss_phase_bonus = 0.0f,
         .win_bonus = 0.0f,
-        .prayer_correct_reward = 0.0f,
-        .offpray_damage_penalty_coeff = 0.0f,
-        .multistyle_exposure_penalty_coeff = 0.0f,
-        .argmax_gear_reward_coeff = 0.0f,
-        .offensive_boost_reward_coeff = 0.0f,
-        .stall_penalty_coeff = 0.0f,
         .farm_safe_damage_cap = 0,
         .farm_cap_waves = COLO_FARM_CAP_WAVES,
-        .avoided_damage_coeff = 0.0f,
         .death_penalty_coeff = 0.0f,
         .timeout_penalty = 0.0f,
         .curriculum_agent = 0,
-        .step_out_forecast_obs_enabled = 1,
-        .threat_field_obs_enabled = 1,
-        .forecast_horizon = COLO_STEP_OUT_FORECAST_HORIZON,
-        .forecast_run_tile_mode = COLO_FORECAST_RUN_TILE_FULL,
         .mask_inventory_heads = 0,
-        .action_debug_log = col_default_action_debug_log(),
         .late_start_state_mode = 2,
         .late_start_supply_fraction_per_wave = 0.07f,
         .prayer_switch_fail_prob = 0.0f,
@@ -324,11 +303,9 @@ static void col_destroy_context(EncounterContext* context) {
 
 static ColosseumContext* col_legacy_context(void) {
     static ColosseumContext ctx;
-    static Log log;
     static int initialized = 0;
     if (!initialized) {
         col_init_context_typed(&ctx);
-        ctx.log = &log;
         initialized = 1;
     }
     return &ctx;

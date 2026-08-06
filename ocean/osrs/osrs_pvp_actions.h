@@ -296,8 +296,14 @@ static void execute_switches(OsrsEnv* env, int agent_idx, int* actions) {
                            loadout_action == LOADOUT_SPEC_MAGIC ||
                            loadout_action == LOADOUT_GMAUL);
 
+    int attack_claims_tick = is_attack_action(combat_action);
+    if (attack_claims_tick) {
+        env->pvp_runtime.walk_dest_x[agent_idx] = -1;
+        env->pvp_runtime.walk_dest_y[agent_idx] = -1;
+    }
+
     int command_issued = 0;
-    if (!is_spec_loadout && head_move > 0 && head_move < MOVE_DIM) {
+    if (!is_spec_loadout && !attack_claims_tick && head_move > 0 && head_move < MOVE_DIM) {
         pvp_set_walk_dest_from_head_move(env, agent_idx, head_move);
         command_issued = 1;
     } else if (!is_spec_loadout && is_move_action(combat_action)) {

@@ -20,6 +20,7 @@ void puf_normal_init(Prec* dst, float std, ulong seed, cudaStream_t stream) {
 #include "../ocean/nmmo3/nmmo3.cu"
 #include "../ocean/minimal/minimal.cu"
 #include "../ocean/osrs_colosseum/osrs_colosseum.cu"
+#include "../ocean/osrs_inferno/osrs_inferno.cu"
 #ifdef PUFFER_NETHACK
 #include "../ocean/nethack/nethack.cu"
 #endif
@@ -42,6 +43,10 @@ static void create_custom_encoder(const char* env_name, Encoder* enc) {
     }
     if (strcmp(env_name, "osrs_colosseum") == 0) {
         create_osrs_colosseum_encoder(enc);
+        return;
+    }
+    if (strcmp(env_name, "osrs_inferno") == 0) {
+        create_osrs_inferno_encoder(enc);
         return;
     }
 }

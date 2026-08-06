@@ -775,6 +775,13 @@ static ColosseumState* render_colosseum_state_from_env(OsrsEnv* env) {
     return (ColosseumState*)env->encounter_state;
 }
 
+static ZulrahState* render_zulrah_state_from_env(OsrsEnv* env) {
+    if (!env || !env->encounter_def || !env->encounter_state) return NULL;
+    const EncounterDef* def = (const EncounterDef*)env->encounter_def;
+    if (strcmp(def->name, "zulrah") != 0) return NULL;
+    return (ZulrahState*)env->encounter_state;
+}
+
 static Color render_inferno_lab_forecast_color(
     const InfStepOutForecastAction* action
 ) {
@@ -6287,6 +6294,20 @@ void pvp_render(OsrsEnv* env) {
                         i < INV_GRID_SLOTS; i++)
                     rc->gui.display_inventory_osrs_ids[i] = live_kit[i];
                 rc->gui.display_inventory_count = COLO_INVENTORY_DISPLAY_SLOTS;
+            }
+            ZulrahState* zul_inv = render_zulrah_state_from_env(env);
+            if (zul_inv) {
+                for (int i = 0; i < OSRS_INVENTORY_SIZE && i < INV_GRID_SLOTS; i++)
+                    rc->gui.display_inventory_osrs_ids[i] =
+                        zul_inv->inventory_cells[i].raw_osrs_id;
+                rc->gui.display_inventory_count = OSRS_INVENTORY_SIZE;
+            }
+            InfernoState* inf_inv = render_inferno_state_from_env(env);
+            if (inf_inv) {
+                for (int i = 0; i < OSRS_INVENTORY_SIZE && i < INV_GRID_SLOTS; i++)
+                    rc->gui.display_inventory_osrs_ids[i] =
+                        inf_inv->inventory_cells[i].raw_osrs_id;
+                rc->gui.display_inventory_count = OSRS_INVENTORY_SIZE;
             }
         }
         if (gui_player) {
