@@ -44,9 +44,9 @@ typedef float obs_t;
 #define EATING_RADIUS_CM 2.0f
 #define BITING_RADIUS_CM 3.0f
 #define EATING_ANGLE (PI_F / 4.0f)
-#define EAT_REWARD 10.0f
-#define COLLISION_REWARD -0.5f
-#define BITTEN_REWARD -5.0f
+#define EAT_REWARD 1.0f
+#define COLLISION_REWARD -0.05f
+#define BITTEN_REWARD -0.5f
 #define MAX_PATCHES 90
 #define TRACE_LENGTH 128
 
@@ -563,14 +563,11 @@ void compute_observations(Wef* env) {
 }
 
 void puf_reset(Wef* env) {
-    // Sample arena size from configured min/max (set by puf_init / config)
-    env->arena_size_x = random_uniform(
-        env, env->min_arena_size_x, env->max_arena_size_x
-    );
-    env->arena_size_y = random_uniform(
-        env, env->min_arena_size_y, env->max_arena_size_y
-    );
-    // FOOD_RANDOM picks uniform or patchy for this episode only
+    // Sample arena size from configured min/max
+    env->arena_size_x = random_uniform(env, env->min_arena_size_x, env->max_arena_size_x);
+    env->arena_size_y = random_uniform(env, env->min_arena_size_y, env->max_arena_size_y);
+    
+    // Select food distribution mode; if random, choose uniform or patchy
     FoodDistribution mode = env->food_distribution;
     if (mode == FOOD_RANDOM) {
         mode = (FoodDistribution)(rand_r(&env->rng) % 2);
@@ -607,6 +604,7 @@ void puf_reset(Wef* env) {
         }
         agent.pos = pos;
         agent.orientation = random_uniform(env, -PI_F, PI_F);
+        // Agent's size determines its max linear/angular velocity (larger fish are faster)
         float size_mult = 1.0f + agent.size;
         agent.max_linear_velocity = (35.0f / SIMULATION_HZ) * size_mult;
         agent.max_angular_velocity = (3.6f / SIMULATION_HZ) * size_mult;
@@ -616,6 +614,7 @@ void puf_reset(Wef* env) {
         env->agents[i].terminals[0] = 0.0f;
     }
 
+    // Distribute food
     env->num_food = env->configured_num_food;
     if (mode == FOOD_UNIFORM) {
         for (int i = 0; i < env->num_food; i++) {
@@ -666,9 +665,7 @@ void puf_reset(Wef* env) {
     }
     // Ampullary baseline: unit intrinsic dipole at arena center
     Vec2 center = {env->arena_size_x * 0.5f, env->arena_size_y * 0.5f};
-    Dipole baseline_dip[1] = {{
-        to_m(center), (Vec2){INTRINSIC_MOMENT_C_M, 0.0f}
-    }};
+    Dipole baseline_dip[1] = {{to_m(center), (Vec2){INTRINSIC_MOMENT_C_M, 0.0f}}};
     for (int i = 0; i < NUM_AMPULLARY; i++) {
         Vec2 probe = {
             center.x + g_amp[i].p.x,
@@ -820,10 +817,8 @@ void puf_step(Wef* env) {
         env->log.episode_return += env->episode_return;
         env->log.score += (float)env->food_eaten;
         env->log.perf += (float)env->food_eaten / (float)env->num_food;
-        env->log.food_eaten_mean +=
-            (float)env->food_eaten / (float)env->num_agents;
-        env->log.eod_rate += (float)env->eod_agent_steps /
-            (float)(env->tick * env->num_agents);
+        env->log.food_eaten_mean +=(float)env->food_eaten / (float)env->num_agents;
+        env->log.eod_rate += (float)env->eod_agent_steps / (float)(env->tick * env->num_agents);
         env->log.collisions_fish += (float)env->collisions_fish;
         env->log.n += 1.0f;
         puf_reset(env);
@@ -852,7 +847,7 @@ void puf_render(Wef* env) {
         client->margin = 55;
         client->show_field = true;
         client->show_sensors = true;
-        InitWindow(client->window_width, client->window_height, "Electric fish");
+        InitWindow(client->window_width, client->window_height, "Weakly Electric fish");
         SetTargetFPS(60);
         env->client = client;
     }
@@ -1097,17 +1092,14 @@ void puf_init(Env* env, Dict* kwargs) {
     env->max_arena_size_y = (float)dict_get(kwargs, "max_arena_height");
     env->arena_size_x = env->min_arena_size_x;
     env->arena_size_y = env->min_arena_size_y;
-    env->food_distribution =
-        (FoodDistribution)(int)dict_get(kwargs, "food_distribution");
+    env->food_distribution = (FoodDistribution)(int)dict_get(kwargs, "food_distribution");
     env->configured_num_food = (int)dict_get(kwargs, "num_food");
     assert(env->configured_num_food > 0 && env->configured_num_food <= MAX_FOOD);
     env->patch_radius_cm = (float)dict_get(kwargs, "patch_radius");
     env->patch_radius_std_cm = (float)dict_get(kwargs, "patch_radius_std");
     env->patch_density = (float)dict_get(kwargs, "patch_density");
-    env->electric_field_radius_cm =
-        (float)dict_get(kwargs, "electric_field_radius");
-    env->reflection_wall_range_cm =
-        (float)dict_get(kwargs, "reflection_wall_range");
+    env->electric_field_radius_cm = (float)dict_get(kwargs, "electric_field_radius");
+    env->reflection_wall_range_cm = (float)dict_get(kwargs, "reflection_wall_range");
     env->field_fish_range_cm = (float)dict_get(kwargs, "field_fish_range");
     env->field_food_range_cm = (float)dict_get(kwargs, "field_food_range");
     env->episode_length = (int)dict_get(kwargs, "episode_length");
