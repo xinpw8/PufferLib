@@ -68,7 +68,9 @@ static void nethack_drain_prompts(Nethack* env) {
         if (nethack_msg_contains(env, "more confident in your")) env->enh_ready = 1;
         int yn = env->misc[NETHACK_MISC_YN];
         if (!yn && !env->misc[NETHACK_MISC_GETLIN] && !env->misc[NETHACK_MISC_XWAIT]) break;
-        env->obs.action = yn ? 27 : '\r';
+        // alternate return/ESC: getpos-class pickers eat '\r' silently and
+        // only ESC exits them (the t-frozen wedge class)
+        env->obs.action = yn ? 27 : (i & 1 ? 27 : '\r');
         env->ctx = nle_step(env->ctx, &env->obs);
     }
 }
@@ -94,6 +96,12 @@ static int nethack_handle_prompts(Nethack* env) {
     }
     for (int i = 0; i < NETHACK_AUTODISMISS_MAX && !env->obs.done; i++) {
         if (nethack_msg_contains(env, "more confident in your")) env->enh_ready = 1;
+        { // NH_PROMPTLOG: sampled trace of auto-answered prompts (waste hunt)
+          static int plog = -1;
+          if (plog < 0) plog = getenv("NH_PROMPTLOG") != NULL;
+          static unsigned pn;
+          if (plog && env->misc[NETHACK_MISC_YN] && (++pn % 23) == 0)
+              fprintf(stderr, "PROMPTLOG msg=%.60s\n", (const char*)env->message); }
         int yn = env->misc[NETHACK_MISC_YN];
         if (!yn && !env->misc[NETHACK_MISC_GETLIN] && !env->misc[NETHACK_MISC_XWAIT]
             && !nethack_msg_is_prompt(env)) break;
@@ -164,6 +172,13 @@ static int nethack_item_use(Nethack* env, int cmd, const char* gate,
             int ok = 0;
             for (int j = 0; j < n; j++)
                 if (cand[j] == want) { ok = 1; break; }
+            { // NH_ABORTLOG: diagnose slot-mask vs getobj-candidate disagreements
+              static int ablog = -1;
+              if (ablog < 0) ablog = getenv("NH_ABORTLOG") != NULL;
+              if (ablog && !ok)
+                  fprintf(stderr, "ABORTLOG cmd=%c want=%c cand=%.*s msg=%.70s\n",
+                          cmd, want ? want : '0', n, cand,
+                          (const char*)env->message); }
             nethack_send_key(env, ok ? want : 27);
             if (!ok) { if (bad_pick) *bad_pick = 1; return 0; }
             if (stat) (*stat)++;
@@ -218,6 +233,38 @@ static void nethack_do_elbereth(Nethack* env) {
     // the dust --More-- raises xwait ALONGSIDE the getlin — clear it before
     // typing; decline "add to current engraving?" so the fresh text replaces it
     const char* c = "Elbereth\r";
+    for (int i = 0; i < NETHACK_AUTODISMISS_MAX && !env->obs.done && *c; i++) {
+        if (env->misc[NETHACK_MISC_XWAIT]) env->obs.action = ' ';
+        else if (env->misc[NETHACK_MISC_YN]
+                 && nethack_msg_contains(env, "current engraving")) env->obs.action = 'n';
+        else if (env->misc[NETHACK_MISC_GETLIN]) env->obs.action = (unsigned char)*c++;
+        else break;
+        env->ctx = nle_step(env->ctx, &env->obs);
+    }
+}
+
+// engrave-test the first unidentified wand (E, wand letter, ride the
+// dialogue): fire/lightning/digging formally identify (+10 score), the rest
+// print their tell. Throwaway text 'x'; same prompt loop as Elbereth.
+static void nethack_do_engrave_id(Nethack* env) {
+    int slot = -1;
+    for (int i = 0; i < NETHACK_INV_SLOTS && env->inv_letters[i]; i++) {
+        if (env->inv_oclasses[i] != 11
+            || env->inv_state[i * NLE_INV_STATE_FIELDS + 6] != 0) continue;
+        int lb = nethack_letter_bit(env->inv_letters[i]);
+        if (lb >= 0 && (env->engid_tested & (1ULL << lb))) continue;
+        slot = i; break;
+    }
+    if (slot < 0) return;
+    { int lb = nethack_letter_bit(env->inv_letters[slot]);
+      if (lb >= 0) env->engid_tested |= 1ULL << lb; }
+    env->obs.action = 'E';
+    env->ctx = nle_step(env->ctx, &env->obs);
+    if (env->obs.done || !env->misc[NETHACK_MISC_YN]
+        || !nethack_msg_contains(env, "write with")) return;
+    env->obs.action = env->inv_letters[slot];
+    env->ctx = nle_step(env->ctx, &env->obs);
+    const char* c = "x\r";
     for (int i = 0; i < NETHACK_AUTODISMISS_MAX && !env->obs.done && *c; i++) {
         if (env->misc[NETHACK_MISC_XWAIT]) env->obs.action = ' ';
         else if (env->misc[NETHACK_MISC_YN]

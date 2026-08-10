@@ -86,15 +86,23 @@ static const short nh_obj_cost[NH_NUM_OBJECTS] = {
 #define NETHACK_OFF_EXTRA   (NETHACK_OFF_BLSTATS + NLE_BLSTATS_SIZE * 4)
 // [0] engraving, [1] prev_action, [2..] per-class inv counts,
 // then in-shop bit and affordability percent
-#define NETHACK_EXTRA_INTS  (2 + NETHACK_NUM_OCLASSES + 2)
+// then spell block: known count + 8 slot-faithful quads (id, level, fail%%,
+// retention turns; know 0 = forgotten, the re-read cue)
+// then encumbrance percent (100*carried/cap, UNCLIPPED past 100) + raw capacity
+#define NETHACK_SPELL_SLOTS 8
+#define NETHACK_EXTRA_INTS  (2 + NETHACK_NUM_OCLASSES + 2 + 1 + 4 * NETHACK_SPELL_SLOTS + 2)
 #define NETHACK_EXTRA_SHOP  (2 + NETHACK_NUM_OCLASSES)
+#define NETHACK_EXTRA_SPELL (NETHACK_EXTRA_SHOP + 2)
+#define NETHACK_EXTRA_WEIGHT (NETHACK_EXTRA_SPELL + 1 + 4 * NETHACK_SPELL_SLOTS)
 // inventory: 55 slot glyphs (slot heads index these), then 8 gated int8
 // state fields per slot [buc, spe, quan, ero1, ero2, flags, typeknown, rsvd]
 #define NETHACK_INV_SLOTS   NLE_INVENTORY_SIZE
 #define NETHACK_OFF_INV     (NETHACK_OFF_EXTRA + NETHACK_EXTRA_INTS * 4)
 #define NETHACK_OFF_INVST   (NETHACK_OFF_INV + NETHACK_INV_SLOTS * 2)
 // raw topline chars, null-padded; must match NH_MSG_LEN in ocean/nethack/nethack.cu
-#define NETHACK_OFF_MSG     (NETHACK_OFF_INVST + NETHACK_INV_SLOTS * NLE_INV_STATE_FIELDS)
+// discovered-type glyphs (true otyp once dknown && oc_name_known, else pad)
+#define NETHACK_OFF_INVTRUE (NETHACK_OFF_INVST + NETHACK_INV_SLOTS * NLE_INV_STATE_FIELDS)
+#define NETHACK_OFF_MSG     (NETHACK_OFF_INVTRUE + NETHACK_INV_SLOTS * 2)
 #define NETHACK_MSG_LEN     128
 #define NETHACK_OBS_SIZE    (NETHACK_OFF_MSG + NETHACK_MSG_LEN)
 #define NETHACK_INTERNAL_KILLER_MNUM 9 // killer monster index + 1 (0 = not a monster), death only
@@ -114,9 +122,9 @@ static const short nh_obj_cost[NH_NUM_OBJECTS] = {
 // nle_obs.misc[] prompt-state flags
 enum { NETHACK_MISC_YN = 0, NETHACK_MISC_GETLIN = 1, NETHACK_MISC_XWAIT = 2 };
 
-// action space: verb head (22) + 12 item-slot heads (55) + 6 per-verb
+// action space: verb head (25) + 12 item-slot heads (55) + 6 per-verb
 // direction heads (8 each: MOVE RUN KICK THROW ZAP APPLY)
-#define NETHACK_NUM_ACTIONS 23
+#define NETHACK_NUM_ACTIONS 26
 #define NETHACK_NUM_DIRS    8
 #define NETHACK_DIR_HEADS   6
 static const int NETHACK_DIR_KEYS[NETHACK_NUM_DIRS] =
@@ -164,10 +172,14 @@ enum {
     NETHACK_ACT_READ     = 20,
     NETHACK_ACT_DROP     = 21,
     NETHACK_ACT_ALTAR_ID = 22,   // bulk BUC-identify on an altar
+    NETHACK_ACT_TIP      = 23,   // empty a floor container (chest/box) underfoot
+    NETHACK_ACT_ENGRAVE_ID = 24, // engrave-test the first unidentified wand
+    NETHACK_ACT_CAST     = 25,   // cast the first known spell (fail%% is in the obs)
 };
 
 // dir-head index (0..NETHACK_DIR_HEADS-1) for verbs that take a direction
 static inline int nethack_dir_head(int verb) {
+    if (verb == NETHACK_ACT_CAST) return 4;   // ZAP's dir head + its hostile-ray mask
     switch (verb) {
         case NETHACK_ACT_MOVE:  return 0;
         case NETHACK_ACT_RUN:   return 1;
@@ -184,9 +196,16 @@ static inline int nethack_dir_head(int verb) {
     "name:Agent-mon-hum-neu-mal," \
     "autopickup,color,disclose:+i +a +v +g +c +o," \
     "mention_walls,nobones,nocmdassist,nolegacy,nosparkle," \
-    "pickup_burden:unencumbered,pickup_types:$[%!)/," \
+    "pickup_burden:unencumbered,pickup_types:$[%!)/(," \
     "runmode:teleport,showexp,showscore,time," \
     "!status_updates"
+
+// inventory letter -> bit index (a-z 0-25, A-Z 26-51), -1 for non-letters
+static inline int nethack_letter_bit(int c) {
+    if (c >= 'a' && c <= 'z') return c - 'a';
+    if (c >= 'A' && c <= 'Z') return 26 + c - 'A';
+    return -1;
+}
 
 // slot-head legality per verb (masking + decode; execution is nethack_execute)
 enum { WORN_ANY = 0, WORN_ONLY = 1, UNWORN_ONLY = 2 };
@@ -219,8 +238,11 @@ static const Verb NETHACK_VERBS[NETHACK_NUM_ACTIONS] = {
     {8,  1u<<2, WORN_ANY}   /* WIELD */,
     {9,  1u<<6, WORN_ANY}   /* APPLY */,
     {10, (1u<<9)|(1u<<10), WORN_ANY}   /* READ */,
-    {11, 0x3FFFFu, UNWORN_ONLY}   /* DROP */,
-    {-1}   /* ALTAR_ID */
+    {11, 0x3EFFFu, UNWORN_ONLY}   /* DROP (no COIN: drop-gold was a parser-vetoed no-op exploit, and real gold drops are score-negative) */,
+    {-1}   /* ALTAR_ID */,
+    {-1}   /* TIP */,
+    {-1}   /* ENGRAVE_ID */,
+    {-1}   /* CAST */
 };
 
 // wandb key per verb success counter (NULL = not logged)
@@ -247,7 +269,10 @@ static const char* NETHACK_VERB_STAT[NETHACK_NUM_ACTIONS] = {
     "applies"   /* APPLY */,
     "reads"   /* READ */,
     "drops"   /* DROP */,
-    "altar_ids"   /* ALTAR_ID */
+    "altar_ids"   /* ALTAR_ID */,
+    "tips"   /* TIP */,
+    "engrave_ids"   /* ENGRAVE_ID */,
+    "casts"   /* CAST */
 };
 
 typedef struct Log {
@@ -261,8 +286,12 @@ typedef struct Log {
     float new_tiles;
     float max_depth;          // deepest level reached (depth under-reports at death)
     float floors;             // unique (dnum, dlevel) floors visited
+    float reach_d10;          // episodes whose max_depth reached 10 (consistency metric)
+    float descend_blocked;    // steps where descend_gate masked an otherwise-legal DOWN
+    float scout_held;         // steps where scout_ready withheld a tile claim
     float enhances;           // #enhance presses (skill advancement claims)
     float floor_eats;         // eats that accepted a floor "eat it?" offer
+    float discoveries;        // object types discovered this episode (oc_name_known delta)
     float sells;              // shop sale offers accepted (deliberate drop in a shop)
     float buys;               // shop pickups paid for
     float sale_gold;          // gold received from those sales
@@ -290,11 +319,12 @@ typedef struct Log {
     float death_smited;       // god's wrath (NLE_HOW_WRATH), not a monster kill
     float death_other;
     // combat-death anatomy (0 for non-combat episodes; ~95% are combat)
+    float death_weak;         // died at Weak+ hunger (hunger-assisted combat marker)
     float death_mon_level;    // killer's monster level (vs max_xp_level = the mismatch)
     float death_adj_monsters; // hostile monsters adjacent on the last obs before death
     float death_maxhp;        // max HP at death (progression measure)
     float truncated;          // hit NETHACK_MAX_EPISODE_STEPS
-    float r_raw[6], r_clip[6], r_death;   // reward decomposition ledgers
+    float r_raw[9], r_clip[9], r_death;   // reward decomposition ledgers
     // 0/1 per episode; the logged mean is the proportion
     float reach_mines;
     float reach_minetown;
@@ -310,6 +340,8 @@ typedef struct Stats {
     long valid_moves;
     long illegal_actions;
     long new_tiles;
+    long descend_blocked;
+    long scout_held;
     long enhances;
     long armor_swaps;         // atomic WEAR that auto-took-off an occupant
     long burdened_steps;
@@ -318,6 +350,8 @@ typedef struct Stats {
     int  min_ac;              // best (lowest) AC reached this episode
     long last_maxhp;
     int  last_adj;       // hostile monsters adjacent, last obs
+    int  saw_stone;      // Stone condition bit observed this episode (anatomy probe)
+    int  waste[NETHACK_NUM_ACTIONS];   // steps that didn't advance the clock, by verb
     long prayers_low_hp;
     long prayers_starving;
     long floor_eats;
@@ -341,11 +375,14 @@ typedef struct Stats {
     float ret;
     // per-term reward ledgers: raw sum, and clip-attributed (each step's
     // terms scaled by clamp(sum)/sum, mirroring the trainer's [-1,1] clamp)
-    float r_raw[6], r_clip[6];   // exp gold descent floor xp scout
+    float r_raw[9], r_clip[9];   // exp gold descent floor xp scout ac heal occ
     float r_death;
     int length;
-    // per-level first-visit bitmaps; branch levels sharing a depth share one
-    unsigned char visited[NETHACK_MAX_DEPTH][(NH_GRID + 7) / 8];
+    // per-level, per-tile scout claim ledger: the xp level at which this tile
+    // was last claimed (0 = unclaimed). A byte, not a bit, so a tile can be
+    // claimed incrementally as the hero levels (see nethack_tile_claim).
+    // Branch levels sharing a depth share one slot.
+    unsigned char visited[NETHACK_MAX_DEPTH][NH_GRID];
     unsigned short visited_key[NETHACK_MAX_DEPTH];   // dnum << 8 | dlevel per slot
     int n_visited_floors;
 } Stats;

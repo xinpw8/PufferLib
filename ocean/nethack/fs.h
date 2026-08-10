@@ -121,7 +121,30 @@ static const char* nethack_rc_path(const char* default_options) {
         snprintf(tmp, sizeof(tmp), "%s.%p", p, (void*)&tmp);
         FILE* f = fopen(tmp, "w");
         if (f) {
-            fprintf(f, "OPTIONS=%s\n", default_options);
+            if (getenv("NH_ALLPICK")) {   // addition arm: autopickup ALL classes
+                char opts[1024];
+                snprintf(opts, sizeof(opts), "%s", default_options);
+                char* hit = strstr(opts, "pickup_types:$[%!)/(,");
+                if (hit) memmove(hit, hit + 21, strlen(hit + 21) + 1);
+                fprintf(f, "OPTIONS=%s\n", opts);
+            } else if (getenv("NH_ABL_TOOLPK")) {   // ablation: drop tools '(' from autopickup
+                char opts[1024];
+                snprintf(opts, sizeof(opts), "%s", default_options);
+                char* hit = strstr(opts, "$[%!)/(");
+                if (hit) memmove(hit + 6, hit + 7, strlen(hit + 7) + 1);
+                fprintf(f, "OPTIONS=%s\n", opts);
+            } else if (getenv("NH_SPELL_BOOKS")) {   // spell channel books arm: autopickup spellbooks '+'
+                char opts[1024];
+                snprintf(opts, sizeof(opts), "%s", default_options);
+                char* hit = strstr(opts, "$[%!)/(");
+                if (hit) {
+                    size_t tail = strlen(hit + 7);
+                    memmove(hit + 8, hit + 7, tail + 1);
+                    hit[7] = '+';
+                }
+                fprintf(f, "OPTIONS=%s\n", opts);
+            } else
+                fprintf(f, "OPTIONS=%s\n", default_options);
             // corpses are never AUTO-picked: acquiring one is a deliberate
             // PICKUP, and eating carried corpses stays policy-learnable
             fprintf(f, "AUTOPICKUP_EXCEPTION=\">corpse\"\n");

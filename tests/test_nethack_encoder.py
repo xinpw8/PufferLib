@@ -27,7 +27,7 @@ VP = ctypes.c_void_p
 WEIGHT_NAMES = [
     "embed_w", "ekind_w", "esub_w", "bl_w", "bl_b", "proj_w", "proj_b", "loc_w", "loc_b",
     "glb1_w", "glb1_xy", "glb1_b", "glb2_w", "glb2_b",
-    "inv1_w", "inv1_b", "inv1s_w", "inv2_w", "inv2_b", "msg_w",
+    "inv1_w", "inv1_b", "inv1s_w", "invt_w", "inv2_w", "inv2_b", "msg_w", "spk_w", "spk2_w", "spk2_b",
     "dec_lin_w", "dec_q_w", "dec_k_w", "dec_tau",
 ]
 
@@ -119,17 +119,29 @@ def make_obs(B, obs_size, grid, max_glyph_used):
     # extra stats @ +27*4: engraving state, prev action (-1..21 valid; sampled
     # -1..13 to preserve the original FD test batch — the higher onehot columns
     # are linear and covered by the analytic torch check), 18 class counts
+    spell_cols = []
+    for _ in range(8):
+        spell_cols += [
+            rng.integers(0, 500, size=(B, 1)),    # slot id (otyp; 0 = empty)
+            rng.integers(0, 8, size=(B, 1)),      # slot level
+            rng.integers(0, 101, size=(B, 1)),    # slot fail%
+            rng.integers(0, 20001, size=(B, 1)),  # slot retention turns
+        ]
     ex = np.concatenate([
         rng.integers(0, 3, size=(B, 1)),      # engraving state 0/1/2
         rng.integers(-1, 14, size=(B, 1)),
         rng.integers(0, 6, size=(B, 18)),
         rng.integers(0, 2, size=(B, 1)),      # in-shop bit
         rng.integers(0, 101, size=(B, 1)),    # affordability percent
+        rng.integers(0, 9, size=(B, 1)),      # known-spell count
+    ] + spell_cols + [
+        rng.integers(0, 320, size=(B, 1)),    # encumbrance percent (unclipped)
+        rng.integers(50, 1001, size=(B, 1)),  # carry capacity
     ], axis=1).astype(np.int64).astype(np.uint32)
     for k in range(4):
-        obs[:, bl_off + k::4][:, 27:49] = ((ex >> (8 * k)) & 0xFF).astype(np.float32)
-    # inventory entities @ +47*4: 55 slot glyphs int16 LE, tail padded (5976)
-    inv_off = bl_off + 49 * 4
+        obs[:, bl_off + k::4][:, 27:84] = ((ex >> (8 * k)) & 0xFF).astype(np.float32)
+    # inventory entities: 55 slot glyphs int16 LE, tail padded (5976)
+    inv_off = bl_off + 84 * 4
     inv = rng.integers(0, max_glyph_used, size=(B, 55)).astype(np.int32)
     inv[:, ::2] = rng.integers(1906, 2359, size=(B, 28))  # object glyphs: armcat coverage
     n_items = rng.integers(3, 12, size=B)
@@ -149,9 +161,19 @@ def make_obs(B, obs_size, grid, max_glyph_used):
     st[:, :, 5] = rng.integers(0, 128, size=(B, 55))
     st[:, :, 6] = rng.integers(0, 2, size=(B, 55))
     obs[:, st_off:st_off + 55 * 8] = (st.reshape(B, -1) & 0xFF).astype(np.float32)
+    # discovered-type glyphs @ +55*8: true otyp glyph on a random identified
+    # subset, pad (5976) elsewhere and past the item tail
+    itr_off = st_off + 55 * 8
+    itr = np.full((B, 55), 5976, dtype=np.int32)
+    known = rng.integers(0, 2, size=(B, 55)).astype(bool)
+    itr[known] = rng.integers(1906, 2359, size=int(known.sum())).astype(np.int32)
+    for b in range(B):
+        itr[b, n_items[b]:] = 5976
+    obs[:, itr_off + 0::2][:, :55] = (itr & 0xFF).astype(np.float32)
+    obs[:, itr_off + 1::2][:, :55] = ((itr >> 8) & 0xFF).astype(np.float32)
     # trigram message @ msg_off: raw topline chars (null-padded). Random
     # lowercase words so the char-trigram bag hits many buckets.
-    msg_off = st_off + 55 * 8
+    msg_off = itr_off + 55 * 2
     msg_len = obs_size - msg_off
     msg = np.zeros((B, msg_len), dtype=np.int64)
     alpha = np.frombuffer(b"abcdefghijklmnopqrstuvwxyz ", dtype=np.uint8).astype(np.int64)
@@ -159,7 +181,7 @@ def make_obs(B, obs_size, grid, max_glyph_used):
         ln = int(rng.integers(6, min(40, msg_len)))
         msg[b, :ln] = alpha[rng.integers(0, len(alpha), size=ln)]
     obs[:, msg_off:msg_off + msg_len] = msg.astype(np.float32)
-    return obs, glyphs, vals, ex.astype(np.int64).astype(np.int32), inv, st, msg
+    return obs, glyphs, vals, ex.astype(np.int64).astype(np.int32), inv, st, itr, msg
 
 
 def dev(nbytes):
@@ -206,7 +228,7 @@ def getw(lib, name, shape):
     return torch.tensor(a.astype(np.float64).reshape(shape), requires_grad=True)
 
 
-def torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, H):
+def torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, itr_vals, msg, H):
     """float64 torch replica of the encoder forward. Returns (out, invh, w)
     where invh is the (B,55,16) post-relu slot features (the decoder's keys)
     and w maps weight names to the torch leaf tensors."""
@@ -236,6 +258,7 @@ def torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, H):
     inv1_w = w["inv1_w"]  = getw(lib, "inv1_w", (16, 32))
     inv1_b = w["inv1_b"]  = getw(lib, "inv1_b", (16,))
     inv1s_w = w["inv1s_w"] = getw(lib, "inv1s_w", (16, 24))
+    invt_w = w["invt_w"] = getw(lib, "invt_w", (16, 32))
     inv2_w = w["inv2_w"]  = getw(lib, "inv2_w", (128, 16))
     inv2_b = w["inv2_b"]  = getw(lib, "inv2_b", (128,))
     bl_w   = w["bl_w"]    = getw(lib, "bl_w", (64, lib.nh_bl_feat()))
@@ -243,6 +266,9 @@ def torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, H):
     proj_w = w["proj_w"]  = getw(lib, "proj_w", (H, lib.nh_concat()))
     proj_b = w["proj_b"]  = getw(lib, "proj_b", (H,))
     msg_w  = w["msg_w"]   = getw(lib, "msg_w", (lib.nh_numel_msg_w() // 32, 32))
+    spk_w  = w["spk_w"]   = getw(lib, "spk_w", (16, 36))
+    spk2_w = w["spk2_w"]  = getw(lib, "spk2_w", (16, 16))
+    spk2_b = w["spk2_b"]  = getw(lib, "spk2_b", (16,))
 
     # local: crop glyph ids with pad off-map
     hx, hy = bl_vals[:, 0], bl_vals[:, 1]
@@ -302,6 +328,13 @@ def torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, H):
     # shop: standing on goods, and gold/price capped at 1
     f[:, j] = ex_vals[:, 20]; j += 1
     f[:, j] = ex_vals[:, 21] * 0.01; j += 1
+    # spell scalar, mirrors NH_F_SPELL: known count/8 only (per-slot content
+    # rides the spell-key path)
+    f[:, j] = ex_vals[:, 22] * 0.125; j += 1
+    # encumbrance pair, mirrors NH_F_WEIGHT: softsign(ratio-1), cap/1000
+    d = ex_vals[:, 55] * 0.01 - 1.0
+    f[:, j] = d / (1.0 + np.abs(d)); j += 1
+    f[:, j] = ex_vals[:, 56] * 0.001; j += 1
     f = np.clip(f, -1.0, 1.0)   # strict clamp, mirrors the kernel
     fb = torch.tensor(f)
     blh = torch.relu(fb @ bl_w.T + bl_b)
@@ -329,7 +362,11 @@ def torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, H):
     for c in range(7):
         sf[:, :, 17 + c] = (cat == c)
     xi = E[torch.tensor(inv_vals.astype(np.int64))]
-    invh = torch.relu(xi @ inv1_w.T + torch.tensor(sf) @ inv1s_w.T + inv1_b)  # (B,55,16)
+    # discovered-type channel: pad (5976) slots contribute hard zero
+    xt = E[torch.tensor(itr_vals.astype(np.int64))]
+    kt = torch.tensor((itr_vals != 5976).astype(np.float64))[:, :, None]
+    invh = torch.relu(xi @ inv1_w.T + kt * (xt @ invt_w.T)
+                      + torch.tensor(sf) @ inv1s_w.T + inv1_b)  # (B,55,16)
     invp = torch.relu((invh @ inv2_w.T).max(dim=1).values + inv2_b) # (B,128)
     # trigram message bag: hash char-trigrams (matching nh_msg_hash), sum the
     # embed rows, scale by 1/sqrt(count+1). Concatenated raw (no relu).
@@ -348,9 +385,27 @@ def torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, H):
         s = msg_w[torch.tensor(ids, dtype=torch.long)].sum(dim=0) if cnt else torch.zeros(32, dtype=torch.float64)
         rows.append(s / np.sqrt(cnt + 1))
     msg_sum = torch.stack(rows, dim=0)   # (B, 32); grad flows to msg_w
-    concat = torch.cat([loc, glb, invp, blh, fb, msg_sum], dim=1)
+    # spell-key path: per slot, key = spk_w . [e_eff(book glyph) | known,
+    # lev/7, fail/100, know/20000]; sum-pool feeds the trunk
+    spk_w = w["spk_w"]
+    spkeys = []
+    for s in range(8):
+        c = 23 + 4 * s
+        sid = torch.tensor(ex_vals[:, c].astype(np.int64))
+        sg = torch.clamp(sid + 1906, max=5975)
+        emb = torch.where((sid > 0)[:, None], E[sg], torch.zeros_like(E[sg]))
+        sc = torch.stack([
+            (sid > 0).double(),
+            torch.clamp(torch.tensor(ex_vals[:, c + 1]) * 0.142857, max=1.0),
+            torch.clamp(torch.tensor(ex_vals[:, c + 2]) * 0.01, max=1.0),
+            torch.clamp(torch.tensor(ex_vals[:, c + 3]) * 0.00005, max=1.0),
+        ], dim=1)
+        spkeys.append(torch.relu(torch.cat([emb, sc], dim=1) @ spk_w.T))  # (B,16)
+    sk = torch.stack(spkeys, dim=1)                            # (B,8,16)
+    spool = torch.relu((sk @ spk2_w.T).max(dim=1).values + spk2_b)
+    concat = torch.cat([loc, glb, invp, blh, fb, msg_sum, spool], dim=1)
     out = torch.relu(concat @ proj_w.T + proj_b)
-    return out, invh, w
+    return out, invh, w, torch.stack(spkeys, dim=1)
 
 
 def run(lib):
@@ -367,7 +422,7 @@ def run(lib):
     lib.nh_set_glb1_xy(wxy.ctypes.data_as(VP))
 
     max_glyph_used = 40  # keep embedding usage dense & checkable
-    obs, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg = make_obs(B, obs_size, grid, max_glyph_used)
+    obs, glyphs, bl_vals, ex_vals, inv_vals, st_vals, itr_vals, msg = make_obs(B, obs_size, grid, max_glyph_used)
     obs_d, _ = h2d(obs)
     out_d = dev(B * hidden * 4)
 
@@ -387,7 +442,7 @@ def run(lib):
 
     enc_names = ["ekind_w", "esub_w", "proj_w", "proj_b", "bl_w", "bl_b", "loc_w", "loc_b",
                  "glb1_w", "glb1_xy", "glb1_b", "glb2_w", "glb2_b",
-                 "inv1_w", "inv1_b", "inv1s_w", "inv2_w", "inv2_b", "embed_w", "msg_w"]
+                 "inv1_w", "inv1_b", "inv1s_w", "invt_w", "inv2_w", "inv2_b", "embed_w", "msg_w"]
 
     # Central finite differences of L = sum(out*g_out). The encoder ends in a
     # ReLU (and the blstats branch has its own), so a perturbation that flips a
@@ -403,7 +458,7 @@ def run(lib):
     # perturbations flip near-tied argmax winners under the kink detector's
     # radar and bias the quotient (worse at the 16-dim inv bottleneck, where
     # ties are denser). The exact float64 torch reference covers them.
-    fd_skip = {"glb1_w", "glb1_xy", "glb1_b", "inv2_w", "inv1_w", "inv1_b"}
+    fd_skip = {"glb1_w", "glb1_xy", "glb1_b", "inv2_w", "inv1_w", "inv1_b", "invt_w"}
     all_ok = True
     for name in enc_names:
         if name in fd_skip:
@@ -453,14 +508,14 @@ def run(lib):
     # Finite differences can't cleanly verify glb1/inv2 — shared max-pool
     # weights flip near-tied argmax winners below the kink detector's
     # threshold.
-    all_ok = torch_check(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, g_out, enc_names, hidden) and all_ok
-    all_ok = dec_check(lib, obs_d, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, B, hidden) and all_ok
+    all_ok = torch_check(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, itr_vals, msg, g_out, enc_names, hidden) and all_ok
+    all_ok = dec_check(lib, obs_d, glyphs, bl_vals, ex_vals, inv_vals, st_vals, itr_vals, msg, B, hidden) and all_ok
     return all_ok
 
 
-def torch_check(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, g_out, enc_names, H):
+def torch_check(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, itr_vals, msg, g_out, enc_names, H):
     import torch
-    out, _, w = torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, H)
+    out, _, w, _ = torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, itr_vals, msg, H)
     (out * torch.tensor(g_out.astype(np.float64))).sum().backward()
 
     ok = True
@@ -477,7 +532,7 @@ def torch_check(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, g_out, en
     return ok
 
 
-def dec_check(lib, obs_d, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, B, H):
+def dec_check(lib, obs_d, glyphs, bl_vals, ex_vals, inv_vals, st_vals, itr_vals, msg, B, H):
     """float64 torch replica of the 5-head pointer decoder: forward values,
     weight grads, keygrad (grad into the encoder's slot features) and
     grad_input (grad into the decoder's hidden-state input)."""
@@ -505,22 +560,29 @@ def dec_check(lib, obs_d, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, B, H
     # torch replica: hidden state and keys detached so grads are decoder-local,
     # matching what the CUDA decoder backward produces (the encoder chain gets
     # these via grad_input / keygrad separately).
-    h_full, invh, _ = torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, msg, H)
+    h_full, invh, _, spkeys = torch_encoder(lib, glyphs, bl_vals, ex_vals, inv_vals, st_vals, itr_vals, msg, H)
     h_in = h_full.detach().clone().requires_grad_(True)
     s_k = invh.detach().clone().requires_grad_(True)
+    sp_k = spkeys.detach().clone().requires_grad_(True)     # (B,8,16)
     lin_w = getw(lib, "dec_lin_w", (PAD, H))
-    q_w = getw(lib, "dec_q_w", (HEADS * 16, H))
+    q_w = getw(lib, "dec_q_w", ((HEADS + 1) * 16, H))
     k_w = getw(lib, "dec_k_w", (16, 16))
-    tau = getw(lib, "dec_tau", (16,))  # padded to 16; first HEADS live
+    tau = getw(lib, "dec_tau", (lib.nh_numel_dec_tau(),))  # padded; first HEADS live
 
-    tmp = h_in @ lin_w.T                                    # (B,PAD), rows N_ACT+N_DIRS+1 used
-    q = (h_in @ q_w.T).reshape(B, HEADS, 16)
+    tmp = h_in @ lin_w.T                                    # (B,PAD), rows N_ACT+48+1 used
+    qall = (h_in @ q_w.T).reshape(B, HEADS + 1, 16)
+    q = qall[:, :HEADS]
     kmat = s_k @ k_w.T                                      # (B,55,16)
     qn = q.norm(dim=2) + 1e-6
     kn = kmat.norm(dim=2) + 1e-6
     cos = torch.einsum('bhk,bik->bhi', q, kmat) / (qn[:, :, None] * kn[:, None, :])
     slot = torch.exp(tau[:HEADS])[None, :, None] * cos     # (B,HEADS,55) log-tau
-    out = torch.cat([tmp[:, :N_ACT], slot.reshape(B, HEADS * 55), tmp[:, N_ACT:N_ACT+N_DIRS+1]], dim=1)
+    # spell head: dot(q_spell, key_s) / 4 (dot-product pointer, no tau)
+    spell = torch.einsum('bk,bsk->bs', qall[:, HEADS], sp_k) * 0.25
+    N_DIRS_LIN = 48
+    out = torch.cat([tmp[:, :N_ACT], slot.reshape(B, HEADS * 55),
+                     tmp[:, N_ACT:N_ACT+N_DIRS_LIN], spell,
+                     tmp[:, N_ACT+N_DIRS_LIN:N_ACT+N_DIRS_LIN+1]], dim=1)
     (out * torch.tensor(g.astype(np.float64))).sum().backward()
 
     ok = True

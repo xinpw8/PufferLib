@@ -5,7 +5,7 @@
 
 #include "ini.h"
 
-#define PUF_TABLE_MAX_COLS 256
+#define PUF_TABLE_MAX_COLS 1024
 
 typedef struct {
     char name[64];

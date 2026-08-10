@@ -106,9 +106,13 @@ TENSOR_ACC(glb2_b,  glb2_b)
 TENSOR_ACC(inv1_w,  inv1_w)
 TENSOR_ACC(inv1_b,  inv1_b)
 TENSOR_ACC(inv1s_w, inv1s_w)
+TENSOR_ACC(invt_w,  invt_w)
 TENSOR_ACC(inv2_w,  inv2_w)
 TENSOR_ACC(inv2_b,  inv2_b)
 TENSOR_ACC(msg_w,   msg_w)
+TENSOR_ACC(spk_w,   spk_w)
+TENSOR_ACC(spk2_w,  spk2_w)
+TENSOR_ACC(spk2_b,  spk2_b)
 
 #define GRAD_ACC(name, field) \
     void nh_grad_##name(void* dst) { cudaMemcpy(dst, g_a->field.data, numel(g_a->field.shape) * sizeof(float), cudaMemcpyDeviceToDevice); }
@@ -129,9 +133,13 @@ GRAD_ACC(glb2_b,  glb2_bgrad)
 GRAD_ACC(inv1_w,  inv1_wgrad)
 GRAD_ACC(inv1_b,  inv1_bgrad)
 GRAD_ACC(inv1s_w, inv1s_wgrad)
+GRAD_ACC(invt_w,  invt_wgrad)
 GRAD_ACC(inv2_w,  inv2_wgrad)
 GRAD_ACC(inv2_b,  inv2_bgrad)
 GRAD_ACC(msg_w,   msg_wgrad)
+GRAD_ACC(spk_w,   spk_wgrad)
+GRAD_ACC(spk2_w,  spk2_wgrad)
+GRAD_ACC(spk2_b,  spk2_bgrad)
 
 // ---- pointer decoder (fed by the encoder's inv_out keys) ----
 // forward: encoder -> decoder directly (no mingru in the harness); the

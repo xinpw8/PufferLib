@@ -3116,6 +3116,13 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     }
 
     PuffeRL* pufferl = create_pufferl(ini, ctx);
+    { // warm-start: honor base.load_model_path for training (parity with eval_make)
+        char buf[4096];
+        const char* path = puf_checkpoint_path_key(ini, "load_model_path", buf, sizeof(buf));
+        if (path) {
+            pufferl_load_policy(pufferl, 0, path);
+        }
+    }
     Selfplay selfplay = {0};
     if (use_selfplay) {
         char initial_checkpoint[4096];
