@@ -39,6 +39,7 @@ extern int        nle_spellprot(nle_ctx_t*);
 extern void       nle_weight(nle_ctx_t*, int*, int*);
 extern int        nle_spells(nle_ctx_t*, short*, signed char*, signed char*, int);
 extern int        nle_spells2(nle_ctx_t*, short*, signed char*, signed char*, int*, int);
+extern int        nle_cast_blocked2(nle_ctx_t*);
 extern void       nle_end(nle_ctx_t*);
 #ifdef __cplusplus
 }
@@ -348,7 +349,12 @@ static void nethack_compute_mask(Nethack* env) {
           }
       }
       if (!any) sp[0] = 1;   // unconsumed head still needs a legal entry
-      if (env->mask_cast != 0.0f || !any || env->internal[7] <= 10)
+      // zero-turn refusal mirror (engine predicate: stun, chant, freehand,
+      // too-weak): a free refusal never advances the clock, so the condition
+      // causing it can never expire -- self-sealing wedge (census: ~9K
+      // frozen attempts). hunger stays mirrored via internal[7].
+      if (env->mask_cast != 0.0f || !any || env->internal[7] <= 10
+          || nle_cast_blocked2(env->ctx))
           mask[NETHACK_ACT_CAST] = 0;
     }
     // shop goods we can't pay for: picking them up incurs a bill the agent
@@ -458,6 +464,12 @@ static void nethack_compute_mask(Nethack* env) {
 
 // observations
 
+// gdb anchor for the stall watchdog (break nh_stall_mark, then step into
+// the wedged env's fiber to backtrace the modal)
+__attribute__((noinline)) static void nh_stall_mark(Nethack* env) {
+    __asm__ volatile("" : : "r"(env) : "memory");
+}
+
 static void nethack_pack_obs(Nethack* env) {
     memcpy(((obs_t*)env->agents[0].observations) + NETHACK_OFF_GLYPHS, env->glyphs, sizeof(env->glyphs));
     unsigned char* bl = ((obs_t*)env->agents[0].observations) + NETHACK_OFF_BLSTATS;
@@ -541,6 +553,7 @@ static void nethack_pack_obs(Nethack* env) {
       // turn while swallowing every action. At 96 frozen steps, fire an
       // ESC burst to exit the modal (ESC is a harmless no-op at the main
       // prompt, so wall-bump refusal loops are unaffected). NH_STALLLOG dumps.
+      // nh_stall_mark is a gdb anchor: break here, then step into the fiber.
       static int sl = -1;
       if (sl < 0) sl = getenv("NH_STALLLOG") != NULL;
       if (sl && env->message[0]) {
@@ -550,10 +563,10 @@ static void nethack_pack_obs(Nethack* env) {
       }
       long turn = env->blstats[NLE_BL_TIME];
       if (turn == env->stall_prev_turn && !env->obs.done) {
-          // burst only when a modal is actually indicated: behavioral
-          // free-action loops (misc all zero) are the policy's own business
-          if (++env->stall_ctr == 96
-              && (env->misc[0] || env->misc[1] || env->misc[2])) {
+          // unconditional: silent modals raise no misc flag (getpos class);
+          // for behavioral free-action loops the ESC burst is a no-op
+          if (++env->stall_ctr == 96) {
+              if (env->prev_action == NETHACK_ACT_CAST) nh_stall_mark(env);
               if (sl)
                   fprintf(stderr, "STALL env=%p t=%ld misc=%d,%d,%d "
                           "lastmsg=%.90s -> ESC burst\n", (void*)env, turn,
@@ -1167,16 +1180,22 @@ static void nethack_execute(Nethack* env, int verb, int slot, int dirkey, int* b
         { static int ctrace = -1;
           if (ctrace < 0) ctrace = getenv("NH_CASTTRACE") != NULL;
           nethack_send_key(env, 'Z');
-          if (ctrace && slot > 0)
-              fprintf(stderr, "CASTSTEP env=%p k=Z msg=%.80s\n", (void*)env, (const char*)env->message);
-          if (!env->obs.done) {
+          if (ctrace)
+              fprintf(stderr, "CASTSTEP env=%p k=Z misc=%d,%d,%d msg=%.80s\n", (void*)env,
+                      env->misc[0], env->misc[1], env->misc[2], (const char*)env->message);
+          // proceed only if the spell chooser menu actually opened (xwait):
+          // a zero-turn refusal (unmirrored rejectcasting case) leaves the
+          // main prompt, where 'a' would open an apply prompt instead
+          if (!env->obs.done && env->misc[NETHACK_MISC_XWAIT]) {
               nethack_send_key(env, 'a' + (slot >= 0 && slot < NETHACK_SPELL_SLOTS ? slot : 0));
-              if (ctrace && slot > 0)
-                  fprintf(stderr, "CASTSTEP env=%p k=%c msg=%.80s\n", (void*)env,
-                          'a' + slot, (const char*)env->message);
+              if (ctrace)
+                  fprintf(stderr, "CASTSTEP env=%p k=%c misc=%d,%d,%d msg=%.80s\n", (void*)env,
+                          'a' + slot, env->misc[0], env->misc[1], env->misc[2],
+                          (const char*)env->message);
               nethack_answer_direction(env, dirkey);
-              if (ctrace && slot > 0)
-                  fprintf(stderr, "CASTSTEP env=%p k=dir msg=%.80s\n", (void*)env,
+              if (ctrace)
+                  fprintf(stderr, "CASTSTEP env=%p k=dir misc=%d,%d,%d msg=%.80s\n", (void*)env,
+                          env->misc[0], env->misc[1], env->misc[2],
                           (const char*)env->message);
           } }
         if (castlog)
