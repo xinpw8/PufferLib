@@ -1,8 +1,8 @@
 # NetHack
 
 PufferLib environment for NetHack 3.6.6 over
-[fast-nle](https://github.com/FinlaySanders/fast-nle): 22-verb factored
-action space (verb, item slot, direction), legality masking,
+[fast-nle](https://github.com/FinlaySanders/fast-nle): 26-verb factored
+action space (verb, item slot, direction, spell slot), legality masking,
 decomposed-score reward, custom CUDA encoder/decoder (`ocean/nethack/nethack.cu`).
 
 ## Setup
@@ -39,11 +39,8 @@ Interactive controls (default when stdin is a TTY):
 | `Shift+Space` | hold advances at **20 Hz** (fallback: hold `S`) |
 | `q` / `Esc` | quit |
 
-Weight resolution: `NH_WEIGHTS` if set, else the highest-step checkpoint in
-the **most recently written** run under `checkpoints/nethack/`, else
-`resources/nethack/nethack_weights.bin`. (Global max-step is wrong after a
-role switch — a mature monk 2B run outranks a fresh valk 200M run.) Set
-`NH_SEED` to replay a seed.
+Weight resolution: `NH_WEIGHTS` if set, else the checked-in
+`resources/nethack/nethack_weights.bin`. Set `NH_SEED` to replay a seed.
 
 ```bash
 ./nethack 10000 0            # headless 10k steps (prints avg_score / avg_max_depth)

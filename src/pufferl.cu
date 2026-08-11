@@ -302,6 +302,9 @@ typedef struct {
     int num_layers;
     float lr;
     float min_lr_ratio;
+    float verb_eps;
+    float verb_eps_anneal_start;
+    float verb_eps_anneal_end;
     bool anneal_lr;
     float momentum;
     // Muon-Rel: per-mb post-Ortho lr *= √(1-β2^t)/(1-μ^t), t=mb+1 local to epoch.
@@ -636,7 +639,8 @@ __global__ void sample_logits(
         precision_t* action_mask,             // (B, A_total); always allocated
         int mask_stride,                      // 0 when unused
         const signed char* head_consume,      // (nverbs, num_atns) or NULL
-        int hc_stride) {
+        int hc_stride,
+        const float* verb_eps) {              // floor on head 0, NULL = off
     int B = dec_out.shape[0];
     int fused_cols = dec_out.shape[1];
     int num_atns = NUM_ATNS;
@@ -679,14 +683,33 @@ __global__ void sample_logits(
             float logsumexp = ppo_discrete_logsumexp(
                 logits, logits_base, logits_offset, A, action_mask, mask_base, cache);
 
+            float inv_K = 0.0f;
+            float eps = h == 0 ? verb_eps_load(verb_eps,
+                action_mask + mask_base + logits_offset, A, &inv_K) : 0.0f;
+
             float rand_val = curand_uniform(&state);
             float cumsum = 0.0f;
             int sampled = A - 1;
             for (int a = 0; a < A; a++) {
-                cumsum += expf(cache[a] - logsumexp);
+                if (eps > 0.0f)
+                    cumsum += verb_eps_mix(expf(cache[a] - logsumexp),
+                        action_mask[mask_base + logits_offset + a], eps, inv_K);
+                else
+                    cumsum += expf(cache[a] - logsumexp);
                 if (rand_val < cumsum) {
                     sampled = a;
                     break;
+                }
+            }
+            // CDF fall-through (float rounding) lands on A - 1, which may be
+            // masked; snap to the last legal action. A legitimate A - 1 pick
+            // is always legal, so the snap is an exact no-op for it.
+            if (sampled == A - 1) {
+                for (int a = A - 1; a >= 0; a--) {
+                    if (to_float(action_mask[mask_base + logits_offset + a]) != 0.0f) {
+                        sampled = a;
+                        break;
+                    }
                 }
             }
             // Float32 preserves large categorical IDs that BF16 cannot represent.
@@ -699,7 +722,10 @@ __global__ void sample_logits(
             int used = (head_consume == NULL || h == 0)
                 ? 1 : (int)head_consume[verb * hc_stride + h];
             if (used) {
-                total_log_prob += cache[sampled] - logsumexp;
+                if (eps > 0.0f)
+                    total_log_prob += verb_eps_logp(cache[sampled] - logsumexp, eps, inv_K);
+                else
+                    total_log_prob += cache[sampled] - logsumexp;
             }
             logits_offset += A;
         }
@@ -898,7 +924,8 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
             act_b.data, env->actions.data + (long)sub * act_cols,
             lp_b.data, val_b.data,
             pufferl->rng_states[buf] + off,
-            mask_b.data, mask_stride, hc_dev_s, hc_stride_s);
+            mask_b.data, mask_stride, hc_dev_s, hc_stride_s,
+            g_veps_dev);
     }
 
     if (hypers->cudagraphs) {
@@ -2268,6 +2295,9 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         .num_layers = puf_ini_get(ini, "policy", "num_layers"),
         .lr = puf_ini_get(ini, "train", "learning_rate"),
         .min_lr_ratio = puf_ini_get(ini, "train", "min_lr_ratio"),
+        .verb_eps = puf_ini_get(ini, "train", "verb_eps"),
+        .verb_eps_anneal_start = puf_ini_get(ini, "train", "verb_eps_anneal_start"),
+        .verb_eps_anneal_end = puf_ini_get(ini, "train", "verb_eps_anneal_end"),
         .anneal_lr = puf_ini_get(ini, "train", "anneal_lr") != 0,
         .momentum = puf_ini_get(ini, "train", "momentum"),
         .muon_rel = puf_ini_get(ini, "train", "muon_rel") != 0,
@@ -2569,6 +2599,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
 
     // Upload head-consume map before any stream capture (see init_head_consume_map).
     init_head_consume_map();
+    init_verb_eps(hypers.verb_eps);
 
     // CUDA graphs: allocate graph array only; capture on first real use.
     if (hypers.cudagraphs) {
@@ -2971,6 +3002,8 @@ static void log_history_bin_mean(PufLogHistory* h, const char* key,
 }
 
 double rollout_start(PuffeRL* p, int slot) {
+    verb_eps_update(p->hypers.verb_eps, p->hypers.verb_eps_anneal_start,
+        p->hypers.verb_eps_anneal_end, p->global_step, p->hypers.total_timesteps);
     p->write_slot = slot;
     if (p->hypers.async) {
         Prec* param = &p->policies[0].param;
@@ -3411,6 +3444,7 @@ static PuffeRL* eval_make(Ini* ini, TrainContext* ctx, int mode) {
         char buf[64];
         snprintf(buf, sizeof(buf), "%ld", eval_agents);
         puf_ini_put(ini, "vec.total_agents", buf);
+        puf_ini_put(ini, "train.verb_eps", "0");
     }
     if (match) {
         int h = puf_ini_get(ini, "policy", "hidden_size");
