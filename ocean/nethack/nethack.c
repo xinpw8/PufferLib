@@ -3,9 +3,6 @@
 #include <string.h>
 #include <termios.h>
 #include <sys/select.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <limits.h>
 #include <signal.h>
 #include "nethack.h"
 #include "../../src/puffercpu.h"
@@ -541,91 +538,11 @@ static double demo_now(void) {
     return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
 }
 
-// Weight resolution (eval the policy you just trained, not a stale fallback):
-//   1. NH_WEIGHTS if set
-//   2. Most recently written run under checkpoints/nethack/*/, highest-step
-//      .bin in that run (matches the intent of puffer eval --load-model-path=latest
-//      without being poisoned by an older multi-B-step run for a different role)
-//   3. resources/nethack/nethack_weights.bin (checked-in demo fallback only)
-// Global highest-step is wrong after a role switch (e.g. monk 2B vs valk 200M):
-// the bigger step number is a different character. Resources-first is worse:
-// a committed demo bin silently masks every local training run.
+// NH_WEIGHTS overrides the checked-in demo weights
 static const char* demo_find_weights(void) {
     const char* envw = getenv("NH_WEIGHTS");
     if (envw && envw[0]) return envw;
-
-    static const char* resources = "resources/nethack/nethack_weights.bin";
-    static char best_path[PATH_MAX];
-    best_path[0] = '\0';
-
-    // Pass 1: find the run directory with the newest .bin mtime.
-    char best_run[PATH_MAX];
-    best_run[0] = '\0';
-    time_t best_run_mt = 0;
-    DIR* root = opendir("checkpoints/nethack");
-    if (root) {
-        struct dirent* run;
-        while ((run = readdir(root)) != NULL) {
-            if (run->d_name[0] == '.') continue;
-            char rundir[PATH_MAX];
-            int n = snprintf(rundir, sizeof(rundir), "checkpoints/nethack/%s", run->d_name);
-            if (n < 0 || n >= (int)sizeof(rundir)) continue;
-            DIR* rd = opendir(rundir);
-            if (!rd) continue;
-            time_t run_mt = 0;
-            struct dirent* f;
-            while ((f = readdir(rd)) != NULL) {
-                size_t len = strlen(f->d_name);
-                if (len < 5 || strcmp(f->d_name + len - 4, ".bin") != 0) continue;
-                char path[PATH_MAX];
-                n = snprintf(path, sizeof(path), "%s/%s", rundir, f->d_name);
-                if (n < 0 || n >= (int)sizeof(path)) continue;
-                struct stat st;
-                if (stat(path, &st) != 0 || !S_ISREG(st.st_mode)) continue;
-                if (st.st_mtime >= run_mt) run_mt = st.st_mtime;
-            }
-            closedir(rd);
-            if (run_mt > best_run_mt) {
-                best_run_mt = run_mt;
-                snprintf(best_run, sizeof(best_run), "%s", rundir);
-            }
-        }
-        closedir(root);
-    }
-
-    // Pass 2: highest zero-padded step within that run.
-    if (best_run[0]) {
-        long long best_step = -1;
-        time_t best_mt = 0;
-        DIR* rd = opendir(best_run);
-        if (rd) {
-            struct dirent* f;
-            while ((f = readdir(rd)) != NULL) {
-                size_t len = strlen(f->d_name);
-                if (len < 5 || strcmp(f->d_name + len - 4, ".bin") != 0) continue;
-                char path[PATH_MAX];
-                int n = snprintf(path, sizeof(path), "%s/%s", best_run, f->d_name);
-                if (n < 0 || n >= (int)sizeof(path)) continue;
-                struct stat st;
-                if (stat(path, &st) != 0 || !S_ISREG(st.st_mode)) continue;
-                long long step = 0;
-                int digits = 0;
-                for (const char* p = f->d_name; *p >= '0' && *p <= '9'; p++) {
-                    step = step * 10 + (*p - '0');
-                    digits++;
-                }
-                if (digits == 0) step = (long long)st.st_mtime;
-                if (step > best_step || (step == best_step && st.st_mtime >= best_mt)) {
-                    best_step = step;
-                    best_mt = st.st_mtime;
-                    snprintf(best_path, sizeof(best_path), "%s", path);
-                }
-            }
-            closedir(rd);
-        }
-    }
-    if (best_path[0]) return best_path;
-    return resources;
+    return "resources/nethack/nethack_weights.bin";
 }
 
 // Drain stdin. Returns a bitset: bit0=space, bit1=shift+space/S, bit2=quit.
