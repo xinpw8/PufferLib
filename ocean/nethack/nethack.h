@@ -119,6 +119,8 @@ struct Env {
     float scout_ready; // 0 = off; else a tile pays pro-rata to xp level vs depth
     float ac_nospell; // unpaid fraction of protection-spell AC (1 = durable AC only)
     float death_penalty;
+    float mask_search20; // 1 removes SEARCH20 from the action space
+    float mask_run; // 1 removes RUN from the action space
 
     unsigned int rng; // required by vecenv.h
     unsigned long seed; // advanced each reset
@@ -254,6 +256,8 @@ static int nethack_ray_target(Nethack* env, int dx, int dy) {
 static void nethack_compute_mask(Nethack* env) {
     unsigned char* mask = env->action_mask;
     memset(mask, 1, NETHACK_NUM_ACTIONS);
+    if (env->mask_search20 != 0.0f) mask[NETHACK_ACT_SEARCH20] = 0;
+    if (env->mask_run != 0.0f) mask[NETHACK_ACT_RUN] = 0;
     if (env->blstats[NLE_BL_HUNGER] == 0) mask[NETHACK_ACT_EAT] = 0; // choke gate
 
     // underfoot
@@ -1001,6 +1005,8 @@ void puf_init(Env* env, Dict* kwargs) {
     env->ac_nospell = dict_get(kwargs, "ac_nospell");
     env->xp_coef = dict_get(kwargs, "xp_coef");
     env->death_penalty = dict_get(kwargs, "death_penalty");
+    env->mask_search20 = dict_get(kwargs, "mask_search20");
+    env->mask_run = dict_get(kwargs, "mask_run");
 }
 
 // Export order: outcomes first (score/depth/reaches/deaths), then action
