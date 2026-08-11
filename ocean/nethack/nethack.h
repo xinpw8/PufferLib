@@ -534,9 +534,9 @@ static void nethack_add_log(Nethack* env, int how) { // how: nle how_done, -1 = 
     env->log.new_tiles += (float)env->stats.new_tiles;
     env->log.max_depth += (float)env->stats.max_depth;
     env->log.floors += (float)env->stats.floors;
-    env->log.depth_ge_5 += env->stats.max_depth >= 5 ? 1.0f : 0.0f;
-    env->log.depth_ge_10 += env->stats.max_depth >= 10 ? 1.0f : 0.0f;
-    env->log.depth_ge_15 += env->stats.max_depth >= 15 ? 1.0f : 0.0f;
+    env->log.depth_5 += env->stats.max_depth >= 5 ? 1.0f : 0.0f;
+    env->log.depth_10 += env->stats.max_depth >= 10 ? 1.0f : 0.0f;
+    env->log.depth_15 += env->stats.max_depth >= 15 ? 1.0f : 0.0f;
     env->log.mines_depth += (float)__builtin_popcountll(env->stats.floors_bits[2]);
     env->log.sokoban_depth += (float)__builtin_popcountll(env->stats.floors_bits[4]);
     env->log.scout_held += (float)env->stats.scout_held;
@@ -1013,9 +1013,9 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "episode_length", log->episode_length);
     dict_set(out, "max_depth", log->max_depth);
     dict_set(out, "min_ac", log->min_ac);
-    dict_set(out, "depth_ge_5", log->depth_ge_5);
-    dict_set(out, "depth_ge_10", log->depth_ge_10);
-    dict_set(out, "depth_ge_15", log->depth_ge_15);
+    dict_set(out, "depth_5", log->depth_5);
+    dict_set(out, "depth_10", log->depth_10);
+    dict_set(out, "depth_15", log->depth_15);
     dict_set(out, "mines_depth", log->mines_depth);
     dict_set(out, "sokoban_depth", log->sokoban_depth);
     dict_set(out, "sells", log->sells);

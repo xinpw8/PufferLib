@@ -269,7 +269,7 @@ typedef struct Log {
     float new_tiles;
     float max_depth; // deepest level reached (depth under-reports at death)
     float floors; // unique (dnum, dlevel) floors visited
-    float depth_ge_5, depth_ge_10, depth_ge_15; // max_depth CDF points
+    float depth_5, depth_10, depth_15; // fraction of episodes with max_depth >= N
     float mines_depth; // unique Gnomish Mines floors visited (0 = never entered)
     float sokoban_depth; // unique Sokoban floors visited (4 = reached the top)
     float scout_held; // steps where scout_ready withheld a tile claim
