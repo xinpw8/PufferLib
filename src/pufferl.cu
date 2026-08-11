@@ -302,8 +302,8 @@ typedef struct {
     int num_layers;
     float lr;
     float min_lr_ratio;
-    float verb_eps;               // exploration floor on action head 0; 0 = off
-    float verb_eps_anneal_start;  // fraction of total_timesteps
+    float verb_eps;
+    float verb_eps_anneal_start;
     float verb_eps_anneal_end;
     bool anneal_lr;
     float momentum;
@@ -333,28 +333,6 @@ typedef struct {
     int num_threads;
     int seed;
 } Hypers;
-
-// Anneal schedule for the verb-eps floor (see algo.cu): constant to
-// verb_eps_anneal_start, linear to 0 at verb_eps_anneal_end.
-void verb_eps_update(Hypers* h, long global_step) {
-    float base = h->verb_eps;
-    if (base <= 0.0f) return;
-    float a = h->verb_eps_anneal_start;
-    if (a > 0.99f) a = 0.99f;
-    if (a < 0.0f) a = 0.0f;
-    float ae = h->verb_eps_anneal_end;
-    if (ae > 1.0f || ae <= 0.0f) ae = 1.0f;
-    if (ae < a + 0.01f) ae = a + 0.01f;
-    double frac = h->total_timesteps > 0
-        ? (double)global_step / (double)h->total_timesteps : 0.0;
-    // ae==1.0 path preserves the original fade-to-end arithmetic exactly
-    float eps = frac < a ? base
-              : ae >= 1.0f ? base * (float)fmax(0.0, (1.0 - frac) / (1.0 - a))
-              : frac >= ae ? 0.0f
-              : base * (float)((ae - frac) / (ae - a));
-    if (g_veps_dev != NULL)
-        cudaMemcpy(g_veps_dev, &eps, sizeof(float), cudaMemcpyHostToDevice);
-}
 
 // Rank / device context for one process in a multi-GPU train job.
 typedef struct {
@@ -678,40 +656,28 @@ __global__ void sample_logits(
             float logsumexp = ppo_discrete_logsumexp(
                 logits, logits_base, logits_offset, A, action_mask, mask_base, cache);
 
-            // verb-eps floor: sample the mixture (1-eps)*softmax +
-            // eps*uniform(legal) instead of the bare softmax (see algo.cu)
-            float eps = 0.0f;
             float inv_K = 0.0f;
-            if (h == 0 && verb_eps != NULL) {
-                eps = *verb_eps;
-                if (eps > 0.0f) {
-                    int K = 0;
-                    for (int a = 0; a < A; a++)
-                        if (to_float(action_mask[mask_base + logits_offset + a]) != 0.0f) K++;
-                    if (K == 0) K = A;
-                    inv_K = 1.0f / (float)K;
-                }
-            }
+            float eps = h == 0 ? verb_eps_load(verb_eps,
+                action_mask + mask_base + logits_offset, A, &inv_K) : 0.0f;
 
             float rand_val = curand_uniform(&state);
             float cumsum = 0.0f;
-            int sampled = -1;
+            int sampled = A - 1;
             for (int a = 0; a < A; a++) {
-                float prob = expf(cache[a] - logsumexp);
-                if (eps > 0.0f) {
-                    float legal =
-                        to_float(action_mask[mask_base + logits_offset + a]) != 0.0f ? 1.0f : 0.0f;
-                    prob = (1.0f - eps) * prob + eps * legal * inv_K;
-                }
-                cumsum += prob;
+                if (eps > 0.0f)
+                    cumsum += verb_eps_mix(expf(cache[a] - logsumexp),
+                        action_mask[mask_base + logits_offset + a], eps, inv_K);
+                else
+                    cumsum += expf(cache[a] - logsumexp);
                 if (rand_val < cumsum) {
                     sampled = a;
                     break;
                 }
             }
-            // Float rounding can leave cumsum < 1.0; fall back to last legal.
-            if (sampled < 0) {
-                sampled = A - 1;
+            // CDF fall-through (float rounding) lands on A - 1, which may be
+            // masked; snap to the last legal action. A legitimate A - 1 pick
+            // is always legal, so the snap is an exact no-op for it.
+            if (sampled == A - 1) {
                 for (int a = A - 1; a >= 0; a--) {
                     if (to_float(action_mask[mask_base + logits_offset + a]) != 0.0f) {
                         sampled = a;
@@ -729,10 +695,10 @@ __global__ void sample_logits(
             int used = (head_consume == NULL || h == 0)
                 ? 1 : (int)head_consume[verb * hc_stride + h];
             if (used) {
-                float log_prob = cache[sampled] - logsumexp;
                 if (eps > 0.0f)
-                    log_prob = logf((1.0f - eps) * expf(log_prob) + eps * inv_K);
-                total_log_prob += log_prob;
+                    total_log_prob += verb_eps_logp(cache[sampled] - logsumexp, eps, inv_K);
+                else
+                    total_log_prob += cache[sampled] - logsumexp;
             }
             logits_offset += A;
         }
@@ -2175,8 +2141,7 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     cudaMemcpy(pufferl->muon.lr, &hypers.lr, sizeof(float), cudaMemcpyHostToDevice);
     cudaMemset(pufferl->muon.mb.data, 0, numel(pufferl->muon.mb.shape) * sizeof(float));
 
-    // Upload head-consume map + verb-eps scalar before any stream capture
-    // (cudaMalloc is illegal during capture; pointers bake into graphs).
+    // Upload head-consume map before any stream capture (see init_head_consume_map).
     init_head_consume_map();
     init_verb_eps(hypers.verb_eps);
 
@@ -2581,7 +2546,8 @@ static void log_history_bin_mean(PufLogHistory* h, const char* key,
 }
 
 double rollout_start(PuffeRL* p, int slot) {
-    verb_eps_update(&p->hypers, p->global_step);
+    verb_eps_update(p->hypers.verb_eps, p->hypers.verb_eps_anneal_start,
+        p->hypers.verb_eps_anneal_end, p->global_step, p->hypers.total_timesteps);
     p->write_slot = slot;
     if (p->hypers.async) {
         Prec* param = &p->policies[0].param;
@@ -3022,7 +2988,7 @@ static PuffeRL* eval_make(Ini* ini, TrainContext* ctx, int mode) {
         char buf[64];
         snprintf(buf, sizeof(buf), "%ld", eval_agents);
         puf_ini_put(ini, "vec.total_agents", buf);
-        puf_ini_put(ini, "train.verb_eps", "0");  // eval is bare-policy
+        puf_ini_put(ini, "train.verb_eps", "0");
     }
     if (match) {
         int h = puf_ini_get(ini, "policy", "hidden_size");
@@ -3097,32 +3063,7 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
         mkdir_p(log_dir);
     }
 
-    // base.wandb: stream per-epoch metrics as JSON lines for external sinks
-    // (scripts/wandb_sync.py); config written up front so sinks can attach it
-    FILE* wandb_fp = NULL;
-    const char* wandb_opt = puf_ini_get_str(ini, "base", "wandb");
-    if (ctx->artifact_owner
-            && (wandb_opt[0] == 'T' || wandb_opt[0] == 't' || wandb_opt[0] == '1')) {
-        char path[4096];
-        snprintf(path, sizeof(path), "%s/%s.jsonl", log_dir, run_id);
-        wandb_fp = fopen(path, "w");
-        snprintf(path, sizeof(path), "%s/%s.ini", log_dir, run_id);
-        FILE* cfp = fopen(path, "w");
-        if (cfp) {
-            fprintf(cfp, "# PufferLib log v1\n");
-            puf_ini_write(cfp, ini);
-            fclose(cfp);
-        }
-    }
-
     PuffeRL* pufferl = create_pufferl(ini, ctx);
-    { // warm-start: honor base.load_model_path for training (parity with eval_make)
-        char buf[4096];
-        const char* path = puf_checkpoint_path_key(ini, "load_model_path", buf, sizeof(buf));
-        if (path) {
-            pufferl_load_policy(pufferl, 0, path);
-        }
-    }
     Selfplay selfplay = {0};
     if (use_selfplay) {
         char initial_checkpoint[4096];
@@ -3294,20 +3235,7 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
             continue;
         }
         puf_log_history_add(&log_history, &last_log);
-        if (wandb_fp) {
-            int first = 1;
-            fputc('{', wandb_fp);
-            for (int k = 0; k < last_log.size; k++) {
-                DictItem* it = &last_log.items[k];
-                if (it->str || it->values || !isfinite(it->value)) continue;
-                fprintf(wandb_fp, "%s\"%s\": %.17g", first ? "" : ", ", it->key, it->value);
-                first = 0;
-            }
-            fprintf(wandb_fp, "}\n");
-            fflush(wandb_fp);
-        }
     }
-    if (wandb_fp) fclose(wandb_fp);
 
     // TrainResult curve: bin-mean over log_history (same as artifact metrics).
     result.cost = dict_get(&last_log, "uptime");

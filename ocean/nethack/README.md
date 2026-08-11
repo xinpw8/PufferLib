@@ -1,8 +1,8 @@
 # NetHack
 
 PufferLib environment for NetHack 3.6.6 over
-[fast-nle](https://github.com/FinlaySanders/fast-nle): 22-verb factored
-action space (verb, item slot, direction), legality masking,
+[fast-nle](https://github.com/FinlaySanders/fast-nle): 26-verb factored
+action space (verb, item slot, direction, spell slot), legality masking,
 decomposed-score reward, custom CUDA encoder/decoder (`ocean/nethack/nethack.cu`).
 
 ## Setup

@@ -26,17 +26,6 @@ static int nethack_msg_contains(const Nethack* env, const char* needle) {
     return strstr(buf, needle) != NULL;
 }
 
-// first integer after `needle`, 0 if absent ("<Shk> offers [only] N gold ...")
-static long nethack_msg_number_after(const Nethack* env, const char* needle) {
-    char buf[NLE_MESSAGE_SIZE + 1];
-    memcpy(buf, env->message, NLE_MESSAGE_SIZE);
-    buf[NLE_MESSAGE_SIZE] = '\0';
-    const char* p = strstr(buf, needle);
-    if (!p) return 0;
-    while (*p && (*p < '0' || *p > '9')) p++;
-    return strtol(p, NULL, 10);
-}
-
 // parse a getobj bracket list ("[b-d f or ?*]") into cand[]; returns count
 static int nethack_parse_candidates(const Nethack* env, char* cand, int cap) {
     const unsigned char* m = env->message;
@@ -45,15 +34,15 @@ static int nethack_parse_candidates(const Nethack* env, char* cand, int cap) {
     int n = 0;
     for (i++; i < NLE_MESSAGE_SIZE && m[i] && n < cap; i++) {
         unsigned char c = m[i];
-        if (n == 0 && (c == '-' || c == ' ' || c == '$')) continue;   // leading "- " (allownone) / "$" (gold)
-        if (c == '-' && i + 1 < NLE_MESSAGE_SIZE) {       // compactified run
+        if (n == 0 && (c == '-' || c == ' ' || c == '$')) continue; // leading "- " (allownone) / "$" (gold)
+        if (c == '-' && i + 1 < NLE_MESSAGE_SIZE) { // compactified run
             for (char x = cand[n-1] + 1; x <= (char)m[i+1] && n < cap; x++)
                 cand[n++] = x;
             i++;
             continue;
         }
         if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) cand[n++] = (char)c;
-        else break;   // ' ' before "or ?*", ']', '#', ...: end of the letter list
+        else break; // ' ' before "or ?*", ']', '#', ...: end of the letter list
     }
     return n;
 }
@@ -96,29 +85,20 @@ static int nethack_handle_prompts(Nethack* env) {
     }
     for (int i = 0; i < NETHACK_AUTODISMISS_MAX && !env->obs.done; i++) {
         if (nethack_msg_contains(env, "more confident in your")) env->enh_ready = 1;
-        { // NH_PROMPTLOG: sampled trace of auto-answered prompts (waste hunt)
-          static int plog = -1;
-          if (plog < 0) plog = getenv("NH_PROMPTLOG") != NULL;
-          static unsigned pn;
-          if (plog && env->misc[NETHACK_MISC_YN] && (++pn % 23) == 0)
-              fprintf(stderr, "PROMPTLOG msg=%.60s\n", (const char*)env->message); }
         int yn = env->misc[NETHACK_MISC_YN];
         if (!yn && !env->misc[NETHACK_MISC_GETLIN] && !env->misc[NETHACK_MISC_XWAIT]
             && !nethack_msg_is_prompt(env)) break;
         int ring = yn && nethack_msg_contains(env, "ight or Left");
-        // commit 'y' ONLY to prompts rendering y/n choices ("[yn"): getobj also
-        // polls through yn_function but wants an item LETTER — an auto-'y'
-        // there reads as slot y and re-prompts forever (zero-turn loop)
+        // commit 'y' ONLY to rendered y/n choices ("[yn"): getobj also polls
+        // through yn_function but wants a LETTER — auto-'y' loops forever
         int commit = yn && nethack_msg_contains(env, "[yn")
                         && !nethack_msg_contains(env, "no return")
                         && !nethack_msg_contains(env, "eally attack");
         // shopkeeper's "<Shk> offers N gold pieces for your X.  Sell it?" is
         // ynaq-rendered, so commit already accepts it — count the conversion
         if (commit && nethack_msg_contains(env, "gold piece")
-                   && nethack_msg_contains(env, "Sell")) {
+                   && nethack_msg_contains(env, "Sell"))
             env->stats.sells++;
-            env->stats.sale_gold += nethack_msg_number_after(env, "offers");
-        }
         env->obs.action = ring ? 'r' : (commit ? 'y' : 27);
         env->ctx = nle_step(env->ctx, &env->obs);
     }
@@ -170,17 +150,16 @@ static int nethack_item_use(Nethack* env, int cmd, const char* gate,
             int n = nethack_parse_candidates(env, cand, (int)sizeof(cand));
             char want = (char)env->inv_letters[slot];
             int ok = 0;
-            for (int j = 0; j < n; j++)
-                if (cand[j] == want) { ok = 1; break; }
-            { // NH_ABORTLOG: diagnose slot-mask vs getobj-candidate disagreements
-              static int ablog = -1;
-              if (ablog < 0) ablog = getenv("NH_ABORTLOG") != NULL;
-              if (ablog && !ok)
-                  fprintf(stderr, "ABORTLOG cmd=%c want=%c cand=%.*s msg=%.70s\n",
-                          cmd, want ? want : '0', n, cand,
-                          (const char*)env->message); }
+            for (int j = 0; j < n; j++) {
+                if (cand[j] != want) continue;
+                ok = 1;
+                break;
+            }
             nethack_send_key(env, ok ? want : 27);
-            if (!ok) { if (bad_pick) *bad_pick = 1; return 0; }
+            if (!ok) {
+                if (bad_pick) *bad_pick = 1;
+                return 0;
+            }
             if (stat) (*stat)++;
             return 1;
         }
@@ -201,7 +180,6 @@ static void nethack_wear_takeoff_conflict(Nethack* env, int slot) {
         int cat_i = (gi >= 0 && gi < NH_NUM_OBJECTS) ? nh_obj_armcat[gi] : -1;
         if (cat_i == cat_new && i != slot) {
             nethack_item_use(env, 'T', "take off", NULL, i, NULL, NULL);
-            env->stats.armor_swaps++;
             return;
         }
     }
@@ -253,11 +231,12 @@ static void nethack_do_engrave_id(Nethack* env) {
             || env->inv_state[i * NLE_INV_STATE_FIELDS + 6] != 0) continue;
         int lb = nethack_letter_bit(env->inv_letters[i]);
         if (lb >= 0 && (env->engid_tested & (1ULL << lb))) continue;
-        slot = i; break;
+        slot = i;
+        break;
     }
     if (slot < 0) return;
-    { int lb = nethack_letter_bit(env->inv_letters[slot]);
-      if (lb >= 0) env->engid_tested |= 1ULL << lb; }
+    int lb = nethack_letter_bit(env->inv_letters[slot]);
+    if (lb >= 0) env->engid_tested |= 1ULL << lb;
     env->obs.action = 'E';
     env->ctx = nle_step(env->ctx, &env->obs);
     if (env->obs.done || !env->misc[NETHACK_MISC_YN]
@@ -289,9 +268,8 @@ static void nethack_auto_enhance(Nethack* env) {
     if (!env->obs.done && nethack_msg_contains(env, "# ")) {
         for (const char* c = "enhance\r"; !env->obs.done && *c; c++)
             nethack_send_key(env, (unsigned char)*c);
-        if (!env->obs.done && env->misc[NETHACK_MISC_XWAIT]) {
+        if (!env->obs.done && env->misc[NETHACK_MISC_XWAIT])
             nethack_send_key(env, 'a');
-        }
     }
     nethack_drain_prompts(env);
     if (!env->obs.done) nle_obs_refresh(env->ctx, &env->obs);

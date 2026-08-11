@@ -19,7 +19,7 @@ static void nethack_touch(const char* path) {
 }
 
 static void nethack_rm_rf(const char* path, int depth) {
-    if (depth > 3) return;   // vardir trees are at most base/env/save/files
+    if (depth > 3) return; // vardir trees are at most base/env/save/files
     DIR* d = opendir(path);
     if (d) {
         struct dirent* e;
@@ -82,7 +82,7 @@ static int nethack_make_vardir(const char* source_hackdir, char* out_buf, size_t
 
     // fail fast on a dangling nhdat symlink: symlink(2) would succeed and the
     // error surface later as a cryptic init_dungeons panic
-    char resolved[4096];   // realpath(3) requires a PATH_MAX buffer
+    char resolved[4096]; // realpath(3) requires a PATH_MAX buffer
     if (realpath(src, resolved) == NULL || access(resolved, R_OK) != 0) {
         fprintf(stderr,
                 "nethack: NETHACKDIR misconfigured — no readable nhdat at %s (%s).\n"
@@ -121,40 +121,7 @@ static const char* nethack_rc_path(const char* default_options) {
         snprintf(tmp, sizeof(tmp), "%s.%p", p, (void*)&tmp);
         FILE* f = fopen(tmp, "w");
         if (f) {
-            if (getenv("NH_ALLPICK")) {   // addition arm: autopickup ALL classes
-                char opts[1024];
-                snprintf(opts, sizeof(opts), "%s", default_options);
-                char* hit = strstr(opts, "pickup_types:$[%!)/(,");
-                if (hit) memmove(hit, hit + 21, strlen(hit + 21) + 1);
-                fprintf(f, "OPTIONS=%s\n", opts);
-            } else if (getenv("NH_ABL_TOOLPK")) {   // ablation: drop tools '(' from autopickup
-                char opts[1024];
-                snprintf(opts, sizeof(opts), "%s", default_options);
-                char* hit = strstr(opts, "$[%!)/(");
-                if (hit) memmove(hit + 6, hit + 7, strlen(hit + 7) + 1);
-                fprintf(f, "OPTIONS=%s\n", opts);
-            } else if (getenv("NH_PICKUP_SCROLLS")) {   // scroll acquisition arm: autopickup scrolls '?'
-                char opts[1024];
-                snprintf(opts, sizeof(opts), "%s", default_options);
-                char* hit = strstr(opts, "$[%!)/(");
-                if (hit) {
-                    size_t tail = strlen(hit + 7);
-                    memmove(hit + 8, hit + 7, tail + 1);
-                    hit[7] = '?';
-                }
-                fprintf(f, "OPTIONS=%s\n", opts);
-            } else if (getenv("NH_SPELL_BOOKS")) {   // spell channel books arm: autopickup spellbooks '+'
-                char opts[1024];
-                snprintf(opts, sizeof(opts), "%s", default_options);
-                char* hit = strstr(opts, "$[%!)/(");
-                if (hit) {
-                    size_t tail = strlen(hit + 7);
-                    memmove(hit + 8, hit + 7, tail + 1);
-                    hit[7] = '+';
-                }
-                fprintf(f, "OPTIONS=%s\n", opts);
-            } else
-                fprintf(f, "OPTIONS=%s\n", default_options);
+            fprintf(f, "OPTIONS=%s\n", default_options);
             // corpses are never AUTO-picked: acquiring one is a deliberate
             // PICKUP, and eating carried corpses stays policy-learnable
             fprintf(f, "AUTOPICKUP_EXCEPTION=\">corpse\"\n");

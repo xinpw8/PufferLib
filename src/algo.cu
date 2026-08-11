@@ -1382,29 +1382,75 @@ static const signed char* get_head_consume_dev(int* stride) {
     return g_hc_dev;
 }
 
-// Verb-eps exploration floor (experimental, Nethack only): head 0 is sampled
-// and trained as the mixture (1-eps)*softmax + eps*uniform(legal), annealed
-// per the train.verb_eps_* keys. Must init before CUDA graph capture
-// (cudaMalloc is illegal mid-capture; the pointer bakes into captured
-// kernels); the annealed value is memcpy'd each rollout.
+// Verb-eps exploration floor: head 0 is sampled and trained as the mixture
+// (1-eps)*softmax + eps*uniform(legal), annealed per the train.verb_eps_*
+// keys. Must init before CUDA graph capture (cudaMalloc is illegal
+// mid-capture; the pointer bakes into captured kernels); the annealed value
+// is memcpy'd each rollout.
 static float* g_veps_dev = NULL;
-// Verb-only entropy bonus (experimental, Nethack only): with the summed bonus,
-// cheap dir-head diffuseness substitutes for verb diversity under one scalar
-// coefficient. PUFFER_ENT_VERB_ONLY confines the bonus (loss term + gradient)
-// to head 0; reported loss/entropy stays the full sum for cross-run curves.
-static int ent_verb_only(void) {
-    static int v = -1;
-    if (v < 0) {
-        const char* e = getenv("PUFFER_ENT_VERB_ONLY");
-        v = (e && e[0] && e[0] != '0') ? 1 : 0;
-    }
-    return v;
-}
 void init_verb_eps(float base) {
     if (base > 0.0f && g_veps_dev == NULL) {
         cudaMalloc(&g_veps_dev, sizeof(float));
         cudaMemcpy(g_veps_dev, &base, sizeof(float), cudaMemcpyHostToDevice);
     }
+}
+
+// constant to verb_eps_anneal_start, then linear to 0 at verb_eps_anneal_end
+void verb_eps_update(float base, float start, float end, long step, long total) {
+    if (base <= 0.0f) return;
+    float a = start;
+    if (a > 0.99f) a = 0.99f;
+    if (a < 0.0f) a = 0.0f;
+    float ae = end;
+    if (ae > 1.0f || ae <= 0.0f) ae = 1.0f;
+    if (ae < a + 0.01f) ae = a + 0.01f;
+    double frac = total > 0 ? (double)step / (double)total : 0.0;
+    float eps = frac < a ? base
+              : frac >= ae ? 0.0f
+              : base * (float)((ae - frac) / (ae - a));
+    if (g_veps_dev != NULL)
+        cudaMemcpy(g_veps_dev, &eps, sizeof(float), cudaMemcpyHostToDevice);
+}
+
+// sampling-side mixture (see sample_logits); the training side is below
+__device__ inline float verb_eps_load(const float* verb_eps,
+        const precision_t* mask_row, int A, float* inv_K) {
+    *inv_K = 0.0f;
+    if (verb_eps == NULL) return 0.0f;
+    float eps = *verb_eps;
+    if (eps <= 0.0f) return 0.0f;
+    int K = 0;
+    for (int a = 0; a < A; a++)
+        if (to_float(mask_row[a]) != 0.0f) K++;
+    if (K == 0) K = A;
+    *inv_K = 1.0f / (float)K;
+    return eps;
+}
+
+__device__ inline float verb_eps_mix(float prob, precision_t mask, float eps, float inv_K) {
+    float legal = to_float(mask) != 0.0f ? 1.0f : 0.0f;
+    return (1.0f - eps) * prob + eps * legal * inv_K;
+}
+
+__device__ inline float verb_eps_logp(float log_prob, float eps, float inv_K) {
+    return logf((1.0f - eps) * expf(log_prob) + eps * inv_K);
+}
+
+// training-side mixture (see ppo_loss_compute): converts the chosen verb's
+// softmax logp to the mixture logp; *scale gets the head's gradient factor
+__device__ inline float verb_eps_train_logp(const float* verb_eps,
+        const precision_t* mask_row, int A, float lp, float* scale) {
+    if (verb_eps == NULL) return lp;
+    float eps = *verb_eps;
+    if (eps <= 0.0f) return lp;
+    int K = 0;
+    for (int j = 0; j < A; ++j)
+        if (to_float(mask_row[j]) != 0.0f) K++;
+    if (K == 0) K = A;
+    float p_act = __expf(lp);
+    float p_mix = (1.0f - eps) * p_act + eps / (float)K;
+    *scale = (1.0f - eps) * p_act / p_mix;
+    return __logf(p_mix);
 }
 
 constexpr int PPO_THREADS = 256;
@@ -1457,7 +1503,6 @@ struct PPOKernelArgs {
     const signed char* head_consume; // (nverbs, num_atns) or NULL
     int hc_stride;
     const float* verb_eps;          // device scalar, NULL = floor off
-    int ent_verb_only;              // 1 = entropy bonus on head 0 only
     int num_atns;
     float clip_coef, vf_clip_coef, vf_coef;
     const float* ent_coef;  // device ptr — host by-value bakes into CUDA graphs
@@ -1586,8 +1631,7 @@ __global__ void ppo_loss_compute(
 
         float total_log_prob = 0.0f;
         float total_entropy = 0.0f;
-        float bonus_entropy = 0.0f;   // the entropy the -ent_coef term actually pays on
-        float verb_mix_scale = 1.0f;  // d log pi'(a) / d log-softmax path scale for head 0
+        float verb_mix_scale = 1.0f;
         // Stash across policy fwd → d_new_logp → bwd (need total logp before head grads).
         float head_logsumexp[NUM_ATNS];
         float head_entropy[NUM_ATNS];
@@ -1606,7 +1650,6 @@ __global__ void ppo_loss_compute(
                 ppo_continuous_head(c_mean[h], c_logstd[h], c_action[h], &lp, &ent);
                 total_log_prob += lp;
                 total_entropy += ent;
-                bonus_entropy += ent;
             }
         } else {
             int verb = (int)g.actions[nt * a.num_atns];
@@ -1628,26 +1671,15 @@ __global__ void ppo_loss_compute(
                 }
                 head_logsumexp[h] = lse;
                 head_entropy[h] = ent;
-                float lp = cache[act] - lse;
-                // verb-eps floor
-                // (1-eps)*softmax + eps*uniform(legal); entropy stays on softmax
-                if (h == 0 && a.verb_eps != NULL) {
-                    float eps = *a.verb_eps;
-                    if (eps > 0.0f) {
-                        int K = 0;
-                        for (int j = 0; j < A; ++j)
-                            if (to_float(a.action_mask[at_base + logits_offset + j]) != 0.0f) K++;
-                        if (K == 0) K = A;
-                        float p_act = __expf(lp);
-                        float p_mix = (1.0f - eps) * p_act + eps / (float)K;
-                        verb_mix_scale = (1.0f - eps) * p_act / p_mix;
-                        lp = __logf(p_mix);
-                    }
-                }
                 if (head_used[h]) {
-                    total_log_prob += lp;
+                    // verb-eps floor; entropy stays on the bare softmax
+                    if (h == 0 && a.verb_eps != NULL)
+                        total_log_prob += verb_eps_train_logp(a.verb_eps,
+                            a.action_mask + at_base + logits_offset, A,
+                            cache[act] - lse, &verb_mix_scale);
+                    else
+                        total_log_prob += cache[act] - lse;
                     total_entropy += ent;
-                    if (h == 0 || !a.ent_verb_only) bonus_entropy += ent;
                 }
                 logits_offset += A;
             }
@@ -1693,23 +1725,23 @@ __global__ void ppo_loss_compute(
                 float ent = head_entropy[h];
                 int act = head_act[h];
                 float* cache = logit_cache[h];
-                // head 0 under the eps-mixture: pg gradient flows through the
-                // softmax path scaled by (1-eps)p/p_mix
-                float d_lp_h = (h == 0) ? d_new_logp * verb_mix_scale : d_new_logp;
-                float d_ent_h = (a.ent_verb_only && h != 0) ? 0.0f : d_entropy_term;
+                // verb-eps floor: head 0's gradient scales by (1-eps)p/p_mix
+                float d_logp_save = d_new_logp;
+                if (h == 0) d_new_logp *= verb_mix_scale;
                 for (int j = 0; j < A; ++j) {
                     float logp = cache[j] - lse;
                     float p = __expf(logp);
                     a.grad_logits[at_base + logits_offset + j] =
-                        ((j == act ? 1.0f : 0.0f) - p) * d_lp_h
-                        + d_ent_h * p * (-ent - logp);
+                        ((j == act ? 1.0f : 0.0f) - p) * d_new_logp
+                        + d_entropy_term * p * (-ent - logp);
                 }
+                d_new_logp = d_logp_save;
                 logits_offset += A;
             }
         }
 
         float thread_loss = (pg_loss + a.vf_coef * v_loss
-            - ent_coef * bonus_entropy) * inv_NT;
+            - ent_coef * total_entropy) * inv_NT;
 
         block_losses[LOSS_PG][tid] = pg_loss * inv_NT;
         block_losses[LOSS_VF][tid] = v_loss * inv_NT;
@@ -1851,7 +1883,6 @@ void ppo_loss_fwd_bwd(
         .head_consume = hc_dev_l,
         .hc_stride = hc_stride_l,
         .verb_eps = g_veps_dev,
-        .ent_verb_only = ent_verb_only(),
         .num_atns = NUM_ATNS,
         .clip_coef = clip_coef, .vf_clip_coef = vf_clip_coef,
         .vf_coef = vf_coef, .ent_coef = ent_coef,
