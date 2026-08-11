@@ -133,6 +133,16 @@ static const char* nethack_rc_path(const char* default_options) {
                 char* hit = strstr(opts, "$[%!)/(");
                 if (hit) memmove(hit + 6, hit + 7, strlen(hit + 7) + 1);
                 fprintf(f, "OPTIONS=%s\n", opts);
+            } else if (getenv("NH_PICKUP_SCROLLS")) {   // scroll acquisition arm: autopickup scrolls '?'
+                char opts[1024];
+                snprintf(opts, sizeof(opts), "%s", default_options);
+                char* hit = strstr(opts, "$[%!)/(");
+                if (hit) {
+                    size_t tail = strlen(hit + 7);
+                    memmove(hit + 8, hit + 7, tail + 1);
+                    hit[7] = '?';
+                }
+                fprintf(f, "OPTIONS=%s\n", opts);
             } else if (getenv("NH_SPELL_BOOKS")) {   // spell channel books arm: autopickup spellbooks '+'
                 char opts[1024];
                 snprintf(opts, sizeof(opts), "%s", default_options);

@@ -205,6 +205,41 @@ void init(Nethack* env) {
 
 static int nethack_slot_usable(const Nethack* env, const Verb* verb, int i) {
     if (!(verb->item_classes & (1u << env->inv_oclasses[i]))) return 0;
+    // READ hygiene: blind reading refuses for free (zero-turn), and re-reading
+    // a book whose spell is still fresh triggers the engine's "know it quite
+    // well already" prompt (spellknow > KEEN/10) -- with the drain committing
+    // 'y', that was a multi-turn re-study furnace (34.5K/44.8K early reads).
+    // Refresh reads at low retention stay legal: that's the re-read cue.
+    if (verb->item_classes == ((1u << 9) | (1u << 10))) {
+        if (env->blstats[NLE_BL_CONDITION] & 0x20L) return 0;
+        if (env->inv_oclasses[i] == 10
+            && env->inv_true[i] != NETHACK_PAD_GLYPH) {
+            // inv_glyphs is the shuffled APPEARANCE; only the discoveries
+            // channel names the spell, exactly when the agent could know it
+            int otyp = env->inv_true[i] - NH_GLYPH_OBJ_OFF;
+            for (int j = 0; j < NETHACK_SPELL_SLOTS; j++)
+                if (env->spell_ids[j] == otyp && env->spell_knows[j] > 2000)
+                    return 0;
+        }
+    }
+    // hygiene-v2 zero-turn mirrors:
+    // WIELD while the wielded weapon is known-cursed (welded): every wield,
+    // including the unwield toggle, refuses for free (wield.c:280) and a
+    // weld never expires. The revealing first attempt stays legal (BUC
+    // unknown), matching the engine's own bknown flow.
+    if (verb == &NETHACK_VERBS[NETHACK_ACT_WIELD]) {
+        for (int j = 0; j < NETHACK_INV_SLOTS && env->inv_letters[j]; j++)
+            if ((env->inv_state[j * NLE_INV_STATE_FIELDS + 5] & 2)
+                && env->inv_state[j * NLE_INV_STATE_FIELDS + 0] == 1)
+                return 0;
+    }
+    // TAKEOFF/REMOVE of known-cursed gear refuses free (do_wear.c:1605);
+    // the first attempt on unknown BUC consumes a move and reveals, so it
+    // stays legal
+    if ((verb == &NETHACK_VERBS[NETHACK_ACT_TAKEOFF]
+         || verb == &NETHACK_VERBS[NETHACK_ACT_REMOVE])
+        && env->inv_state[i * NLE_INV_STATE_FIELDS + 0] == 1)
+        return 0;
     int worn = env->inv_state[i * NLE_INV_STATE_FIELDS + 5] & 1;
     if (verb->wornreq == WORN_ONLY) return worn;
     if (verb->wornreq == UNWORN_ONLY) {
@@ -630,6 +665,8 @@ static void nethack_add_log(Nethack* env, int how) {   // how: nle how_done, -1 
     env->log.prayers_low_hp += (float)env->stats.prayers_low_hp;
     env->log.prayers_starving += (float)env->stats.prayers_starving;
     env->log.floor_eats += (float)env->stats.floor_eats;
+    env->log.reads_scroll += (float)env->stats.reads_scroll;
+    env->log.reads_book += (float)env->stats.reads_book;
     env->log.sells += (float)env->stats.sells;
     env->log.buys += (float)env->stats.buys;
     env->log.sale_gold += (float)env->stats.sale_gold;
@@ -660,6 +697,14 @@ static void nethack_add_log(Nethack* env, int how) {   // how: nle how_done, -1 
     else env->log.death_other += 1.0f;
     if (how >= 0 && env->stats.last_hunger >= NETHACK_HUNGER_WEAK)
         env->log.death_weak += 1.0f;
+    { // NH_FOODLOG=1: supply-vs-decision census for hunger-degraded deaths
+      static int fl = -1;
+      if (fl < 0) fl = getenv("NH_FOODLOG") != NULL;
+      if (fl && how >= 0)
+          fprintf(stderr, "FOODLOG how=%d hunger=%d food=%d books=%d dl=%ld score=%ld\n",
+                  how, env->stats.last_hunger, env->stats.last_food,
+                  env->stats.last_books,
+                  (long)env->stats.max_depth, env->prev_score); }
     if (how == 0) {
         env->log.death_mon_level += (float)env->internal[NETHACK_INTERNAL_KILLER_MLEV];
         env->log.death_adj_monsters += (float)env->stats.last_adj;
@@ -758,6 +803,13 @@ static void nethack_update_stats(Nethack* env) {
     if (env->prev_action == NETHACK_ACT_PRAY && hunger < env->stats.last_hunger)
         env->stats.prayers_fed++;
     env->stats.last_hunger = (int)hunger;
+    { int nf = 0, nb = 0;
+      for (int i = 0; i < NETHACK_INV_SLOTS && env->inv_letters[i]; i++) {
+          if (env->inv_oclasses[i] == 7) nf++;
+          else if (env->inv_oclasses[i] == 10) nb++;
+      }
+      env->stats.last_food = nf;
+      env->stats.last_books = nb; }
 
     for (int i = 0; i < NETHACK_INV_SLOTS; i++) {
         const signed char* s = &env->inv_state[i * NLE_INV_STATE_FIELDS];
@@ -1132,10 +1184,21 @@ static void nethack_execute(Nethack* env, int verb, int slot, int dirkey, int* b
                 (otyp == 234 /* PICK_AXE */ || otyp == 50 /* MATTOCK */) ? '>' : dirkey);
         }
         break;
-    case NETHACK_ACT_READ:
-        if (nethack_item_use(env, 'r', "read", NULL, slot, &st->verb_uses[verb], bad_pick))
+    case NETHACK_ACT_READ: {
+        int oc = env->inv_oclasses[slot];
+        if (nethack_item_use(env, 'r', "read", NULL, slot, &st->verb_uses[verb], bad_pick)) {
+            if (oc == 9) st->reads_scroll++;
+            else if (oc == 10) st->reads_book++;
             nethack_answer_menu(env);
-        break;
+            { // NH_READLOG=1: read-outcome census (refusal vs study vs effect)
+              static int rl = -1;
+              if (rl < 0) rl = getenv("NH_READLOG") != NULL;
+              if (rl)
+                  fprintf(stderr, "READLOG env=%p t=%ld oc=%d msg=%.90s\n",
+                          (void*)env, (long)env->blstats[NLE_BL_TIME], oc,
+                          (const char*)env->message); }
+        }
+        break; }
     case NETHACK_ACT_ALTAR_ID: {
         // each drop onto an altar flashes the item's curse state (sets bknown),
         // so dump everything still unknown and take it straight back
@@ -1412,6 +1475,8 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "new_tiles", log->new_tiles);
     dict_set(out, "enhances", log->enhances);
     dict_set(out, "floor_eats", log->floor_eats);
+    dict_set(out, "reads_scroll", log->reads_scroll);
+    dict_set(out, "reads_book", log->reads_book);
     dict_set(out, "prayers_low_hp", log->prayers_low_hp);
     dict_set(out, "prayers_starving", log->prayers_starving);
     dict_set(out, "burdened_frac", log->burdened_frac);

@@ -178,3 +178,15 @@ resources/drive/binaries/*
 .refactor-snapshots/
 
 vendor/fast-nle/
+
+# local experiment binaries and caches (nethack campaign)
+/puffer
+/puffer_*
+/nethack
+/nethack_depth
+/seethestars
+/build_cpu
+/cache_data
+/vendor/nle/
+resources/nethack/*.oldarch
+resources/constellation/experiments.ini

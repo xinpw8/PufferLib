@@ -291,6 +291,8 @@ typedef struct Log {
     float scout_held;         // steps where scout_ready withheld a tile claim
     float enhances;           // #enhance presses (skill advancement claims)
     float floor_eats;         // eats that accepted a floor "eat it?" offer
+    float reads_scroll;       // READ of a scroll-class slot
+    float reads_book;         // READ of a spellbook-class slot
     float discoveries;        // object types discovered this episode (oc_name_known delta)
     float sells;              // shop sale offers accepted (deliberate drop in a shop)
     float buys;               // shop pickups paid for
@@ -355,6 +357,8 @@ typedef struct Stats {
     long prayers_low_hp;
     long prayers_starving;
     long floor_eats;
+    long reads_scroll;
+    long reads_book;
     long sells;
     long buys;
     long sale_gold;
@@ -365,6 +369,8 @@ typedef struct Stats {
     long wear_blind;          // WEAR of an item whose BUC was unknown
     long cursed_worn_steps;   // steps wearing a known-cursed item
     int  last_hunger;
+    int  last_food;           // food-class inventory items at the last fill
+    int  last_books;          // spellbook-class inventory items at the last fill
     long damage;
     long ac_sum;            // sum of AC over living steps; mean = ac_sum/length
     int max_depth;
