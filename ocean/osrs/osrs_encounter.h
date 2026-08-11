@@ -23,6 +23,7 @@
 
 typedef struct EncounterState EncounterState;
 typedef struct EncounterContext EncounterContext;
+typedef struct EncounterArenaTopology EncounterArenaTopology;
 
 #define ENCOUNTER_RENDER_HITS_MAX 32
 

@@ -8,11 +8,25 @@
  * now routes through OsrsPlayerCommand.
  */
 
+#include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
+static size_t topology_allocation_count;
+static void* topology_counted_calloc(size_t count, size_t size);
+
+#define calloc topology_counted_calloc
 #include "ocean/osrs/osrs_encounter_player.h"
+#undef calloc
 
+static void* topology_counted_calloc(size_t count, size_t size) {
+    topology_allocation_count++;
+    return calloc(count, size);
+}
 static int tests_run = 0;
 static int tests_failed = 0;
 
@@ -528,7 +542,206 @@ static void test_attackable_target_skips_route_scan(void) {
 }
 
 
+typedef struct {
+    int origin_x;
+    int origin_y;
+    int width;
+    int height;
+    uint32_t flags[8][8];
+} TopologyTestGeometry;
+
+static uint32_t topology_test_flags(void* ctx, int x, int y) {
+    const TopologyTestGeometry* geometry = (const TopologyTestGeometry*)ctx;
+    int local_x = x - geometry->origin_x;
+    int local_y = y - geometry->origin_y;
+    if (local_x < 0 || local_x >= geometry->width ||
+            local_y < 0 || local_y >= geometry->height)
+        return COLLISION_BLOCKED | LOS_FULL_MASK;
+    return geometry->flags[local_x][local_y];
+}
+
+static EncounterArenaTopologyBuildSpec topology_test_spec(
+    TopologyTestGeometry* geometry,
+    uint64_t revision
+) {
+    return (EncounterArenaTopologyBuildSpec){
+        .origin_x = geometry->origin_x,
+        .origin_y = geometry->origin_y,
+        .width = geometry->width,
+        .height = geometry->height,
+        .max_footprint_size = ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE,
+        .revision = revision,
+        .tile_flags = topology_test_flags,
+        .tile_flags_ctx = geometry,
+    };
+}
+
+static int topology_test_aborts(void (*operation)(void)) {
+    fflush(NULL);
+    pid_t pid = fork();
+    if (pid == 0) {
+        operation();
+        _exit(0);
+    }
+    int status = 0;
+    if (pid < 0 || waitpid(pid, &status, 0) != pid) return 0;
+    return WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT;
+}
+
+static void topology_build_rejects_zero_width(void) {
+    TopologyTestGeometry geometry = {
+        .origin_x = 10,
+        .origin_y = 20,
+        .width = 0,
+        .height = 8,
+    };
+    EncounterArenaTopologyBuildSpec spec = topology_test_spec(&geometry, 1);
+    (void)encounter_arena_topology_build(&spec);
+}
+
+static void topology_build_rejects_oversized_height(void) {
+    TopologyTestGeometry geometry = {
+        .origin_x = 10,
+        .origin_y = 20,
+        .width = 8,
+        .height = ENCOUNTER_ARENA_TOPOLOGY_MAX_DIMENSION + 1,
+    };
+    EncounterArenaTopologyBuildSpec spec = topology_test_spec(&geometry, 1);
+    (void)encounter_arena_topology_build(&spec);
+}
+
+static void topology_build_rejects_origin_overflow(void) {
+    TopologyTestGeometry geometry = {
+        .origin_x = INT_MAX,
+        .origin_y = 20,
+        .width = 2,
+        .height = 8,
+    };
+    EncounterArenaTopologyBuildSpec spec = topology_test_spec(&geometry, 1);
+    (void)encounter_arena_topology_build(&spec);
+}
+
+static const EncounterArenaTopology* topology_stale_revision_target;
+
+static void topology_rejects_stale_revision(void) {
+    (void)encounter_arena_topology_require_revision(
+        topology_stale_revision_target,
+        topology_stale_revision_target->revision + 1);
+}
+
+static void test_arena_topology_bounds_collision_los_and_revision(void) {
+    TopologyTestGeometry geometry = {
+        .origin_x = 10,
+        .origin_y = 20,
+        .width = 8,
+        .height = 8,
+    };
+    geometry.flags[0][3] = COLLISION_BLOCKED;
+    geometry.flags[7][4] = COLLISION_BLOCKED;
+    geometry.flags[3][0] = COLLISION_BLOCKED;
+    geometry.flags[4][7] = COLLISION_BLOCKED;
+    geometry.flags[2][2] = COLLISION_WALL_EAST;
+    geometry.flags[3][2] = COLLISION_WALL_WEST;
+    geometry.flags[2][3] = COLLISION_BLOCKED;
+    geometry.flags[4][4] = LOS_FULL_MASK;
+
+    size_t allocations_before_build = topology_allocation_count;
+    EncounterArenaTopologyBuildSpec spec = topology_test_spec(&geometry, 41);
+    EncounterArenaTopology* topology = encounter_arena_topology_build(&spec);
+
+    CHECK("topology build uses one explicitly owned allocation",
+        topology_allocation_count == allocations_before_build + 1);
+    CHECK("topology stores validated arena identity",
+        topology->origin_x == 10 &&
+        topology->origin_y == 20 &&
+        topology->width == 8 &&
+        topology->height == 8 &&
+        topology->revision == 41);
+
+    encounter_arena_topology_finalize(topology);
+
+    CHECK("topology bounds include both arena corners",
+        encounter_arena_topology_contains(topology, 10, 20) &&
+        encounter_arena_topology_contains(topology, 17, 27));
+    CHECK("topology bounds reject every outside edge",
+        !encounter_arena_topology_contains(topology, 9, 20) &&
+        !encounter_arena_topology_contains(topology, 18, 20) &&
+        !encounter_arena_topology_contains(topology, 10, 19) &&
+        !encounter_arena_topology_contains(topology, 10, 28));
+    CHECK("static blocked queries read all four arena edges",
+        encounter_arena_topology_tile_blocked(topology, 10, 23) &&
+        encounter_arena_topology_tile_blocked(topology, 17, 24) &&
+        encounter_arena_topology_tile_blocked(topology, 13, 20) &&
+        encounter_arena_topology_tile_blocked(topology, 14, 27));
+    CHECK("static blocked queries treat outside bounds as blocked",
+        encounter_arena_topology_tile_blocked(topology, 9, 20) &&
+        encounter_arena_topology_tile_blocked(topology, 18, 20) &&
+        encounter_arena_topology_tile_blocked(topology, 10, 19) &&
+        encounter_arena_topology_tile_blocked(topology, 10, 28));
+
+    CHECK("cardinal traversal rejects reciprocal wall edge",
+        !encounter_arena_topology_step_allowed(topology, 12, 22, 1, 1, 0) &&
+        !encounter_arena_topology_step_allowed(topology, 13, 22, 1, -1, 0));
+    CHECK("diagonal traversal rejects blocked cardinal side",
+        !encounter_arena_topology_step_allowed(topology, 12, 22, 1, 1, 1));
+    CHECK("clear diagonal traversal remains allowed",
+        encounter_arena_topology_step_allowed(topology, 15, 21, 1, 1, 1));
+
+    int blocked_forward = encounter_arena_topology_los_clear(
+        topology, 11, 24, 1, 16, 24, 1, 10);
+    int blocked_reverse = encounter_arena_topology_los_clear(
+        topology, 16, 24, 1, 11, 24, 1, 10);
+    int clear_forward = encounter_arena_topology_los_clear(
+        topology, 11, 21, 1, 16, 21, 1, 10);
+    int clear_reverse = encounter_arena_topology_los_clear(
+        topology, 16, 21, 1, 11, 21, 1, 10);
+    CHECK("static LOS is symmetric through blocking geometry",
+        !blocked_forward && blocked_forward == blocked_reverse);
+    CHECK("static LOS is symmetric through open geometry",
+        clear_forward && clear_forward == clear_reverse);
+    CHECK("large-target LOS uses the closest occupied target tile",
+        encounter_arena_topology_los_clear(
+            topology, 11, 24, 1, 15, 23, 1, 10) &&
+        !encounter_arena_topology_los_clear(
+            topology, 11, 24, 1, 15, 23, 2, 10));
+
+    CHECK("matching topology revision returns the same immutable object",
+        encounter_arena_topology_require_revision(topology, 41) == topology);
+    topology_stale_revision_target = topology;
+    CHECK("stale topology revision aborts",
+        topology_test_aborts(topology_rejects_stale_revision));
+
+    static unsigned char snapshot[sizeof(EncounterArenaTopology)];
+    memcpy(snapshot, topology, sizeof(*topology));
+    size_t allocations_after_finalize = topology_allocation_count;
+    (void)encounter_arena_topology_contains(topology, 12, 21);
+    (void)encounter_arena_topology_tile_blocked(topology, 12, 21);
+    (void)encounter_arena_topology_footprint_blocked(topology, 12, 21, 2);
+    (void)encounter_arena_topology_step_allowed(topology, 15, 21, 1, 1, 1);
+    (void)encounter_arena_topology_los_clear(
+        topology, 11, 21, 1, 16, 21, 1, 10);
+    (void)encounter_arena_topology_require_revision(topology, 41);
+    CHECK("finalized topology queries do not allocate",
+        topology_allocation_count == allocations_after_finalize);
+    CHECK("finalized topology queries do not mutate",
+        memcmp(snapshot, topology, sizeof(*topology)) == 0);
+
+    free(topology);
+    topology_stale_revision_target = NULL;
+}
+
+static void test_arena_topology_rejects_invalid_bounds(void) {
+    CHECK("topology build rejects zero width",
+        topology_test_aborts(topology_build_rejects_zero_width));
+    CHECK("topology build rejects oversized height",
+        topology_test_aborts(topology_build_rejects_oversized_height));
+    CHECK("topology build rejects overflowing origin plus width",
+        topology_test_aborts(topology_build_rejects_origin_overflow));
+}
+
 int main(void) {
+    test_arena_topology_rejects_invalid_bounds();
+    test_arena_topology_bounds_collision_los_and_revision();
     test_same_target_selection_preserves_route();
     test_attack_route_field_stops_at_first_reachable_target_edge();
     test_unreachable_attack_route_field_exhausts_for_fallback();
