@@ -34,6 +34,11 @@ typedef float obs_t;
 #define INTRINSIC_MOMENT_C_M 1.11e-23f
 #define FOOD_INTRINSIC_MOMENT_C_M 1.11e-24f
 
+// Max speeds: 35 cm/s * 2, 3.6 rad/s * 4; then / SIMULATION_HZ.
+#define MAX_LINEAR_VELOCITY_CM_S 70.0f
+#define MAX_ANGULAR_VELOCITY_RAD_S 14.4f
+#define SIZE_SPEED_EXPONENT 1.0f
+
 // Sensors
 #define NUM_MORMYROMASTS 36
 #define NUM_AMPULLARY 24
@@ -50,11 +55,14 @@ typedef float obs_t;
 
 // Reward coefficients
 #define EAT_REWARD 1.0f
+#define PROXIMITY_SHAPING_REWARD 0.1f
 #define BITTEN_REWARD -0.5f
 #define BITE_REWARD -0.0001f
 #define COLLISION_REWARD -0.05f
+#define EFFORT_OVER_REWARD -0.01f
+#define PENALIZE_EFFORT_OVER_FRAC 0.5f
 
-#define TRACE_LENGTH 128
+#define TRACE_LENGTH 65
 
 #define EAT_COOLDOWN_STEPS 3
 #define BITE_COOLDOWN_STEPS 5
@@ -71,6 +79,24 @@ typedef float obs_t;
 #define WALL_BOTTOM 2
 #define WALL_TOP 3
 #define NUM_WALLS 4
+
+// Render palette
+#define WEF_COLOR_BG            ((Color){6, 24, 24, 255})
+#define WEF_COLOR_MIDGRAY       ((Color){120, 120, 120, 255})
+#define WEF_COLOR_PANEL         ((Color){10, 10, 10, 200})
+#define WEF_COLOR_TEXT          ((Color){240, 240, 240, 255})
+#define WEF_COLOR_FISH          ((Color){180, 150, 230, 255})
+#define WEF_COLOR_FISH_PULSE    ((Color){180, 150, 230, 140})
+#define WEF_COLOR_SENSOR        ((Color){184, 164, 224, 200})
+#define WEF_COLOR_FOOD          ((Color){0x7A, 0xEF, 0x9A, 200})  // lighter green
+#define WEF_COLOR_EOD_POS       ((Color){220, 60, 50, 255})
+#define WEF_COLOR_EOD_NEG       ((Color){60, 120, 255, 255})
+
+// Field arrows: yellow (min) → red (max) log gradient over WEF |E| in V/cm.
+#define WEF_FIELD_LOG_LO        (-7.0f)   // 1e-7 V/cm
+#define WEF_FIELD_LOG_HI        (-3.0f)   // 1e-3 V/cm
+#define WEF_COLOR_FIELD_WEAK    ((Color){255, 255, 40, 200})   // yellow (min |E|)
+#define WEF_COLOR_FIELD_STRONG  ((Color){230, 40, 30, 255})    // red (max |E|)
 
 typedef struct { float x, y; } Vec2;
 
@@ -618,9 +644,9 @@ void puf_reset(Wef* env) {
         agent.pos = pos;
         agent.orientation = random_uniform(env, -PI_F, PI_F);
         // Agent's size determines its max linear/angular velocity (larger fish are faster)
-        float size_mult = 1.0f + agent.size;
-        agent.max_linear_velocity = (35.0f / SIMULATION_HZ) * size_mult;
-        agent.max_angular_velocity = (3.6f / SIMULATION_HZ) * size_mult;
+        float size_mult = powf(1.0f + agent.size, SIZE_SPEED_EXPONENT);
+        agent.max_linear_velocity = (MAX_LINEAR_VELOCITY_CM_S / SIMULATION_HZ) * size_mult;
+        agent.max_angular_velocity = (MAX_ANGULAR_VELOCITY_RAD_S / SIMULATION_HZ) * size_mult;
         agent.emits_eod = true;
         env->fish[i] = agent;
         env->agents[i].rewards[0] = 0.0f;
@@ -723,6 +749,15 @@ void puf_step(Wef* env) {
         agent->last_action[3] = agent->bite_action ? 1.0f : 0.0f;
         env->eod_agent_steps += agent->emits_eod ? 1 : 0;
 
+        // Effort penalty
+        if (PENALIZE_EFFORT_OVER_FRAC < 1.0f) {
+            float move_over = fmaxf(0.0f, fabsf(move) - PENALIZE_EFFORT_OVER_FRAC);
+            float turn_over = fmaxf(0.0f, fabsf(turn) - PENALIZE_EFFORT_OVER_FRAC);
+            if (move_over > 0.0f || turn_over > 0.0f) {
+                env->agents[i].rewards[0] += EFFORT_OVER_REWARD * (move_over + turn_over);
+            }
+        }
+
         // Eat first active pellet in forward 45° cone within 2 cm
         if (!agent->bite_action && agent->eat_cooldown <= 0) {
             for (int f = 0; f < env->num_food; f++) {
@@ -785,6 +820,32 @@ void puf_step(Wef* env) {
         env->collisions_fish += collided ? 1 : 0;
         if (collided) {
             env->agents[i].rewards[0] += COLLISION_REWARD;
+        }
+
+        // Proximity shaping 
+        float nearest_food = INFINITY;
+        bool any_food = false;
+        for (int f = 0; f < env->num_food; f++) {
+            if (!env->food[f].active) {
+                continue;
+            }
+            any_food = true;
+            float dx = agent->pos.x - env->food[f].pos.x;
+            float dy = agent->pos.y - env->food[f].pos.y;
+            float d = sqrtf(dx * dx + dy * dy);
+            if (d < nearest_food) {
+                nearest_food = d;
+            }
+        }
+        if (any_food) {
+            if (agent->has_previous_food_distance) {
+                float arena_sum = env->arena_size_x + env->arena_size_y;
+                env->agents[i].rewards[0] += PROXIMITY_SHAPING_REWARD
+                    * (agent->previous_food_distance - nearest_food)
+                    / arena_sum;
+            }
+            agent->previous_food_distance = nearest_food;
+            agent->has_previous_food_distance = true;
         }
     }
 
@@ -858,6 +919,59 @@ Vector2 world_to_screen(const Wef* env, Vec2 p) {
     };
 }
 
+static Color wef_lerp_color(Color a, Color b, float t) {
+    t = clamp(t, 0.0f, 1.0f);
+    return (Color){
+        (unsigned char)((float)a.r + ((float)b.r - (float)a.r) * t),
+        (unsigned char)((float)a.g + ((float)b.g - (float)a.g) * t),
+        (unsigned char)((float)a.b + ((float)b.b - (float)a.b) * t),
+        (unsigned char)((float)a.a + ((float)b.a - (float)a.a) * t),
+    };
+}
+
+// Map |E| in V/m → color; colormap is defined in V/cm (yellow → red).
+static Color wef_color_from_field(float strength_vm) {
+    float strength_vcm = strength_vm * 0.01f;  // V/m → V/cm
+    float log_s = log10f(fmaxf(strength_vcm, 1e-20f));
+    float t = clamp(
+        (log_s - WEF_FIELD_LOG_LO) / (WEF_FIELD_LOG_HI - WEF_FIELD_LOG_LO),
+        0.0f,
+        1.0f
+    );
+    return wef_lerp_color(WEF_COLOR_FIELD_WEAK, WEF_COLOR_FIELD_STRONG, t);
+}
+
+// Unit-direction arrow in screen space.
+static void wef_draw_field_arrow(Vector2 base, float ux, float uy, float len, Color color) {
+    Vector2 tip = {base.x + ux * len, base.y + uy * len};
+    Vector2 wing = {base.x + ux * len * 0.75f, base.y + uy * len * 0.75f};
+    float nx = -uy * len * 0.15f;
+    float ny = ux * len * 0.15f;
+    DrawLineV(base, tip, color);
+    DrawLineV((Vector2){wing.x + nx, wing.y + ny}, tip, color);
+    DrawLineV((Vector2){wing.x - nx, wing.y - ny}, tip, color);
+}
+
+// Compact V/cm color bar for the WEF log range.
+static void wef_draw_field_colorbar(int win_w, int win_h) {
+    const int bar_h = 120;
+    const int bar_x0 = win_w - 18;
+    const int bar_x1 = win_w - 10;
+    const int bar_y1 = win_h - 14;
+    const int bar_y0 = bar_y1 - bar_h;
+    for (int i = 0; i < bar_h; i++) {
+        float t = (float)i / (float)(bar_h - 1);
+        float log_s = WEF_FIELD_LOG_LO + t * (WEF_FIELD_LOG_HI - WEF_FIELD_LOG_LO);
+        // Color map expects V/m; convert V/cm → V/m (*100).
+        Color c = wef_color_from_field(powf(10.0f, log_s) * 100.0f);
+        DrawLine(bar_x0, bar_y1 - i, bar_x1, bar_y1 - i, c);
+    }
+    DrawRectangleLines(bar_x0 - 1, bar_y0, bar_x1 - bar_x0 + 2, bar_h, WEF_COLOR_MIDGRAY);
+    DrawText("V/cm", win_w - 42, bar_y0 - 12, 10, WEF_COLOR_MIDGRAY);
+    DrawText("1e-3", win_w - 48, bar_y0 + 2, 10, WEF_COLOR_MIDGRAY);
+    DrawText("1e-7", win_w - 48, bar_y1 - 10, 10, WEF_COLOR_MIDGRAY);
+}
+
 void puf_render(Wef* env) {
     if (env->client == NULL) {
         Client* client = (Client*)calloc(1, sizeof(Client));
@@ -894,7 +1008,7 @@ void puf_render(Wef* env) {
     }
 
     BeginDrawing();
-    ClearBackground(WHITE);
+    ClearBackground(WEF_COLOR_BG);
 
     Vector2 arena_min = world_to_screen(env, (Vec2){0.0f, env->arena_size_y});
     Vector2 arena_max = world_to_screen(env, (Vec2){env->arena_size_x, 0.0f});
@@ -903,7 +1017,7 @@ void puf_render(Wef* env) {
             arena_min.x, arena_min.y,
             arena_max.x - arena_min.x, arena_max.y - arena_min.y
         },
-        WHITE
+        WEF_COLOR_BG
     );
 
     if (env->client->show_field) {
@@ -938,10 +1052,12 @@ void puf_render(Wef* env) {
             };
         }
 
-        const int columns = 25;
-        const int rows = 25;
+        // Local vector field around each fish (fixed-length arrows, strength → color).
+        const int columns = 36;
+        const int rows = 36;
         float radius_squared =
             env->electric_field_radius_cm * env->electric_field_radius_cm;
+        const float arrow_len = 10.0f;
         for (int row = 0; row < rows; row++) {
             for (int column = 0; column < columns; column++) {
                 Vec2 pos = {
@@ -972,26 +1088,25 @@ void puf_render(Wef* env) {
                 float fx = f1.x + f2.x;
                 float fy = f1.y + f2.y;
                 float strength = sqrtf(fx * fx + fy * fy);
-                if (strength <= 0.0f) {
+                if (strength <= 1e-20f) {
                     continue;
                 }
-                float log_strength = log10f(strength);
-                float t = clamp((log_strength + 8.0f) / 7.0f, 0.0f, 1.0f);
-                float arrow_length = 3.5f + 8.0f * t;
-                Vector2 start = world_to_screen(env, pos);
-                Vector2 end = {
-                    start.x + (fx / strength) * arrow_length,
-                    start.y - (fy / strength) * arrow_length,
+                // Screen-space unit direction
+                float ux = fx / strength;
+                float uy = -(fy / strength);
+                Vector2 base = world_to_screen(env, pos);
+                // Center arrow on sample point (vector-field look).
+                Vector2 mid = {
+                    base.x - ux * arrow_len * 0.5f,
+                    base.y - uy * arrow_len * 0.5f,
                 };
-                unsigned char shade = (unsigned char)(215.0f - 70.0f * t);
-                Color color = (Color){shade, shade, shade, 120};
-                DrawCircleV(start, 1.3f, color);
-                DrawLineEx(start, end, 0.9f, color);
+                wef_draw_field_arrow(
+                    mid, ux, uy, arrow_len, wef_color_from_field(strength)
+                );
             }
         }
     }
 
-    const Color color = {157, 122, 216, 255};
     for (int i = 0; i < env->num_agents; i++) {
         Trace* trace = &env->client->traces[i];
         for (int j = 0; j < trace->count - 1; j++) {
@@ -1004,7 +1119,7 @@ void puf_render(Wef* env) {
             DrawLineEx(
                 world_to_screen(env, trace->pos[current]),
                 world_to_screen(env, trace->pos[previous]),
-                2.0f, ColorAlpha(color, alpha)
+                2.0f, ColorAlpha(WEF_COLOR_FISH, alpha)
             );
         }
     }
@@ -1020,8 +1135,7 @@ void puf_render(Wef* env) {
         }
         Vector2 position = world_to_screen(env, env->food[i].pos);
         float radius = fmaxf(2.5f, FOOD_RADIUS_CM * scale);
-        // Food pellets
-        DrawCircleV(position, radius, (Color){0x00, 0x80, 0x00, 140});
+        DrawCircleV(position, radius, WEF_COLOR_FOOD);
     }
     for (int i = 0; i < env->num_agents; i++) {
         FishAgent* agent = &env->fish[i];
@@ -1032,23 +1146,23 @@ void puf_render(Wef* env) {
             float pulse = radius + 5.0f +
                 5.0f * sinf((float)env->tick * 0.18f);
             DrawCircleLines((int)center.x, (int)center.y, pulse,
-                (Color){color.r, color.g, color.b, 120});
+                WEF_COLOR_FISH_PULSE);
         }
 
         float heading_x = cosf(agent->orientation);
         float heading_y = -sinf(agent->orientation);
         DrawRing(center, radius - 1.5f, radius + 1.5f,
-            0.0f, 360.0f, 32, color);
+            0.0f, 360.0f, 32, WEF_COLOR_FISH);
         Vector2 nose = {
             center.x + heading_x * radius * 1.35f,
             center.y + heading_y * radius * 1.35f,
         };
-        DrawLineEx(center, nose, 3.0f, color);
+        DrawLineEx(center, nose, 3.0f, WEF_COLOR_FISH);
 
         Vector2 positive = world_to_screen(env, agent->eod_pos[0]);
         Vector2 negative = world_to_screen(env, agent->eod_pos[1]);
-        DrawCircleV(positive, 3.0f, RED);
-        DrawCircleV(negative, 3.0f, BLUE);
+        DrawCircleV(positive, 3.0f, WEF_COLOR_EOD_POS);
+        DrawCircleV(negative, 3.0f, WEF_COLOR_EOD_NEG);
 
         if (env->client->show_sensors) {
             for (int sensor_idx = 0; sensor_idx < NUM_KNOLLEN;
@@ -1056,12 +1170,13 @@ void puf_render(Wef* env) {
                 Sensor w = sensor_world(&g_knollen[sensor_idx], agent);
                 DrawCircleV(
                     world_to_screen(env, w.p),
-                    1.5f, (Color){184, 164, 224, 180}
+                    1.5f, WEF_COLOR_SENSOR
                 );
             }
         }
         DrawText(TextFormat("%d", i + 1),
-            (int)(center.x + radius + 4), (int)(center.y - radius), 16, BLACK);
+            (int)(center.x + radius + 4), (int)(center.y - radius), 16,
+            WEF_COLOR_TEXT);
     }
 
     DrawRectangleLinesEx(
@@ -1069,21 +1184,26 @@ void puf_render(Wef* env) {
             arena_min.x, arena_min.y,
             arena_max.x - arena_min.x, arena_max.y - arena_min.y
         },
-        3.0f, DARKGRAY
+        2.0f, WEF_COLOR_MIDGRAY
     );
-    DrawText("Weakly electric fish", 20, 14, 24, BLACK);
+    DrawText("Weakly electric fish", 20, 14, 24, WEF_COLOR_TEXT);
     int active_eods = 0;
     for (int i = 0; i < env->num_agents; i++) {
         active_eods += env->fish[i].emits_eod ? 1 : 0;
     }
     DrawText(TextFormat("step %d   active EODs %d/%d",
         env->tick, active_eods, env->num_agents),
-        env->client->window_width - 285, 18, 18, DARKGRAY);
+        env->client->window_width - 285, 18, 18, WEF_COLOR_MIDGRAY);
     DrawText(TextFormat("food %d/%d", env->food_eaten, env->num_food),
-        env->client->window_width - 145,
-        env->client->window_height - 32, 18, DARKGRAY);
+        20, env->client->window_height - 32, 18, WEF_COLOR_MIDGRAY);
     DrawText(TextFormat("field radius %.0f cm", env->electric_field_radius_cm),
-        430, env->client->window_height - 32, 18, DARKGRAY);
+        180, env->client->window_height - 32, 18, WEF_COLOR_MIDGRAY);
+
+    if (env->client->show_field) {
+        wef_draw_field_colorbar(
+            env->client->window_width, env->client->window_height
+        );
+    }
     EndDrawing();
 }
 
