@@ -1657,6 +1657,7 @@ static inline PathResult encounter_pathfind_arena_attack_approach(
 
     int selected_x = -1;
     int selected_y = -1;
+    int selected_is_goal = 0;
     int min_explored_x = local_src_x;
     int min_explored_y = local_src_y;
     int max_explored_x = local_src_x;
@@ -1685,6 +1686,7 @@ static inline PathResult encounter_pathfind_arena_attack_approach(
                         attack_range, los_query))) {
             selected_x = cur_x;
             selected_y = cur_y;
+            selected_is_goal = 1;
             break;
         }
 
@@ -1788,7 +1790,7 @@ static inline PathResult encounter_pathfind_arena_attack_approach(
         if (prev_x == local_src_x && prev_y == local_src_y) {
             result.next_dx = cur_x - local_src_x;
             result.next_dy = cur_y - local_src_y;
-            if (child_x != cur_x || child_y != cur_y) {
+            if (selected_is_goal) {
                 result.run_dx = child_x - cur_x;
                 result.run_dy = child_y - cur_y;
             }
