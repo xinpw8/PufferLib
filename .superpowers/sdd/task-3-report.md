@@ -12,7 +12,7 @@ The engine returns `EncounterRouteResult` with `ROUTE_REACHED_TARGET`, `ROUTE_RE
 
 Player chase state moved out of serialized `OsrsInteraction` state into actor-local `OsrsActorRouteCache`. Cache validation covers topology revision, blocker revision, source/current actor position, actor size, target position and size, attack range, movement mode, and route-cost policy. Restore/reset paths clear the context cache. `OsrsInteraction` retains its fixed 244-byte serialized route reserve, but raw base artifacts intentionally differ where the removed serialized cache had data. Forecast comparison validates each file's raw record hash before canonicalizing route storage.
 
-Equal-cost behavior remains explicit in `EncounterRouteCostPolicy`. Attack-chase OSRS order uses the packed source field. Colosseum NPC OSRS-aggro paths use the reverse field with preserved south-first edge ordering. `OSRS_PLAYER_MOVE_ACTION` uses the direct one-action policy. `OSRS_PLAYER_MOVE_DESTINATION` uses OSRS routing in Inferno, Colosseum, Zulrah, and NH PvP.
+Equal-cost behavior remains explicit in `EncounterRouteCostPolicy`. Attack-chase OSRS order uses the packed source field. Colosseum NPC OSRS-aggro paths use the reverse field with preserved south-first edge ordering. `OSRS_PLAYER_MOVE_ACTION` uses the direct one-action policy. `OSRS_PLAYER_MOVE_DESTINATION` uses the legacy south-first BFS policy in all four encounters. Attack-range overlap enters the same deterministic north-first escape path as cardinal-adjacency overlap.
 
 ## TDD evidence
 
@@ -48,15 +48,25 @@ route equivalence mismatch scenario=open-arena source=(0,13) target=(0,13,2) exp
 
 The exhaustive driver was corrected to exclude actor/target overlap. The production interaction layer handles overlap through its explicit escape contract rather than normal attack-chase routing.
 
-### GREEN
-
-Tagged outcomes, cache invalidation, direct movement, tie order, topology bounds, dynamic blockers, and actor-local reuse:
+The final overlap regression failed before the shared solver dispatched attack-range overlap to the escape path:
 
 ```text
-clang -std=c11 -O2 -I. ocean/osrs/tests/test_osrs_player_step.c -lm -o /tmp/test_osrs_player_step_task3 && /tmp/test_osrs_player_step_task3
+clang -std=c11 -O2 -I. ocean/osrs/tests/test_osrs_player_step.c -lm -o /tmp/task3_overlap_tie_red && /tmp/task3_overlap_tie_red
+FAIL: range overlap uses north-first deterministic escape
+74/75 tests passed
 ```
 
-Result: 73/73 passed.
+The symmetric-obstacle regression also distinguishes OSRS attack order from legacy south-first destination order and drives `osrs_player_step_apply_explicit_move` through the destination policy.
+
+### GREEN
+
+Tagged outcomes, cache invalidation, direct movement, attack-range overlap escape, symmetric-obstacle destination tie order, topology bounds, dynamic blockers, and actor-local reuse:
+
+```text
+clang -std=c11 -O2 -I. ocean/osrs/tests/test_osrs_player_step.c -lm -o /tmp/task3_destination_tie_green && /tmp/task3_destination_tie_green
+```
+
+Result: 76/76 passed.
 
 Shared NPC movement, footprint masks, diagonal edge clearance, overlap rewrite, melee policy, and current overlap:
 
@@ -183,12 +193,12 @@ BINARY --profile --encounter ENCOUNTER --profile-steps 100000 --policy-seed SEED
 
 | Encounter | Base SPS by seed 1..12 | Current SPS by seed 1..12 | Base GM | Current GM | Ratio GM |
 |---|---|---|---:|---:|---:|
-| Inferno | 722423, 774821, 776633, 793531, 785521, 799968, 761905, 773317, 781378, 791615, 784757, 772809 | 829187, 891234, 868523, 876939, 869664, 899159, 890076, 883556, 877093, 888976, 881073, 877332 | 776313 | 877566 | 1.1304x |
-| Colosseum | 412613, 411399, 418468, 408986, 412565, 419336, 419925, 410521, 412223, 413810, 413414, 411748 | 498925, 497033, 496966, 491809, 495818, 499266, 500726, 492795, 498962, 489615, 505953, 498507 | 413737 | 497180 | 1.2017x |
-| Zulrah | 345111, 352209, 344043, 345543, 346371, 344942, 341495, 348594, 360659, 345458, 345342, 351240 | 703438, 690322, 693577, 699364, 701095, 702134, 697024, 700535, 706869, 699658, 689422, 685594 | 347550 | 697392 | 2.0066x |
-| NH PvP | 557336, 553547, 514634, 508024, 524115, 511470, 526840, 516726, 519591, 513313, 519651, 527209 | 683289, 663724, 655768, 688848, 675489, 674832, 669456, 679768, 674132, 672278, 678178, 672839 | 524161 | 673999 | 1.2859x |
+| Inferno | 715533, 778610, 782075, 773880, 774833, 763091, 770297, 780482, 790451, 793796, 798869, 775958 | 823981, 877216, 891957, 881376, 876539, 879832, 892069, 879933, 878464, 887863, 884463, 905928 | 774547 | 879763 | 1.1358x |
+| Colosseum | 410523, 409539, 414233, 411516, 411634, 415806, 412797, 408617, 417805, 414190, 411997, 410698 | 495086, 489165, 495774, 493320, 499146, 495108, 489340, 492587, 491034, 491615, 503603, 503547 | 412438 | 494921 | 1.2000x |
+| Zulrah | 343538, 347723, 341180, 345094, 347872, 342274, 349550, 343881, 346293, 355130, 342277, 352433 | 714439, 724843, 710732, 709859, 701208, 706334, 713409, 724422, 711541, 702849, 694850, 726633 | 346413 | 711697 | 2.0545x |
+| NH PvP | 528933, 508037, 508001, 518092, 512665, 521387, 524002, 515876, 546269, 524706, 533072, 513215 | 660703, 660375, 654279, 666898, 660009, 660707, 661673, 665602, 657173, 656146, 666871, 655295 | 521079 | 660465 | 1.2675x |
 
-Aggregate geometric mean of the four encounter ratios: 1.3683x. No encounter regressed.
+Aggregate geometric mean of the four encounter ratios: 1.3726x. No encounter regressed.
 
 ## Changed files
 
@@ -246,6 +256,7 @@ Full `8fd9feb0fc5c19428751a16cc6b2b82aa2f9e731..HEAD` task delta:
 - Source/reverse fields validate topology revision, blocker identity/revision, source or target geometry, actor size, movement mode, and cost policy as applicable.
 - Dynamic blocker memoization distinguishes unknown, open, and blocked footprints and never mutates topology.
 - Fallback distance, FIFO/depth tie-breaking, first step, run step, and waypoint compression match the independent references across 46,978,755 exhaustive queries.
+- Attack-range overlap uses the deterministic escape contract before attack routing. A symmetric obstacle pins destination movement to legacy south-first equal-cost order while attack routing retains OSRS ordering.
 - Inferno and Colosseum canonical forecasts are byte-exact after clearing removed serialized route storage and route-profiling counters. Raw records first pass their own stored-hash integrity checks. Zulrah's six hashes remain exact. Snapshot state size and serialized interaction layout remain unchanged.
 - Production search finds no old route field or arena BFS symbol. The only legacy implementation is isolated in `ocean/osrs/tests/osrs_route_reference.h`.
 - Final `git diff --check` passed.

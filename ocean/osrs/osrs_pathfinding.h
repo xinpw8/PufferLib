@@ -1804,7 +1804,8 @@ static inline EncounterRouteResult encounter_route_solve(
     if (!encounter_route_input_valid(input)) return result;
     if (input->cost_policy == ENCOUNTER_ROUTE_COST_DIRECT)
         return encounter_route_greedy_direct(input);
-    if (input->target_kind == ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY &&
+    if ((input->target_kind == ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY ||
+         input->target_kind == ENCOUNTER_ROUTE_TARGET_ATTACK_RANGE) &&
             encounter_route_footprints_overlap(
                 input->source_x, input->source_y, input->actor_size,
                 input->target_x, input->target_y, input->target_size))

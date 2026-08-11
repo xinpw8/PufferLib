@@ -136,6 +136,7 @@ static OsrsEncounterArena step_arena(void) {
     arena.blockers.revision = 1;
     arena.movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN;
     arena.cost_policy = ENCOUNTER_ROUTE_COST_OSRS;
+    arena.destination_cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS;
     return arena;
 }
 static void test_ranged_chase_targets_nearest_attack_position(void) {
@@ -1100,6 +1101,71 @@ static void test_route_cost_order_is_deterministic(void) {
         route.distance == 2);
     free(topology);
 }
+static void test_attack_range_overlap_uses_deterministic_escape(void) {
+    RouteTestGeometry geometry = {0};
+    RouteTestBlockers blockers = {0};
+    EncounterArenaTopology* topology = route_test_topology(&geometry);
+    EncounterRouteInput input = route_test_input(topology, &blockers);
+    input.source_x = 2;
+    input.source_y = 2;
+    input.target_x = 2;
+    input.target_y = 2;
+    input.target_size = 2;
+    input.target_kind = ENCOUNTER_ROUTE_TARGET_ATTACK_RANGE;
+    input.attack_range = 4;
+    input.los_query = osrs_los_open_query();
+
+    EncounterRouteResult route = encounter_route_solve(&input);
+    CHECK("range overlap uses north-first deterministic escape",
+        route.outcome == ROUTE_REACHED_TARGET &&
+        route.first_dx == 0 && route.first_dy == -1 &&
+        route.destination_x == 2 && route.destination_y == 1);
+    free(topology);
+}
+
+static void test_destination_south_first_tie_order(void) {
+    RouteTestGeometry geometry = {0};
+    RouteTestBlockers blockers = {0};
+    blockers.blocked[3][3] = 1;
+    EncounterArenaTopology* topology = route_test_topology(&geometry);
+    EncounterRouteInput input = route_test_input(topology, &blockers);
+    input.source_x = 4;
+    input.source_y = 4;
+    input.target_x = 2;
+    input.target_y = 2;
+
+    input.cost_policy = ENCOUNTER_ROUTE_COST_OSRS;
+    EncounterRouteResult osrs = encounter_route_solve(&input);
+    input.cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS;
+    EncounterRouteResult destination = encounter_route_solve(&input);
+    CHECK("symmetric obstacle exposes distinct equal-cost orders",
+        osrs.outcome == ROUTE_REACHED_TARGET &&
+        destination.outcome == ROUTE_REACHED_TARGET &&
+        osrs.distance == destination.distance &&
+        osrs.first_dx == -1 && osrs.first_dy == 0 &&
+        destination.first_dx == 0 && destination.first_dy == -1);
+
+    Player player;
+    memset(&player, 0, sizeof(player));
+    player.x = 4;
+    player.y = 4;
+    int dest_x = 2;
+    int dest_y = 2;
+    OsrsPlayerStepInput step_input;
+    memset(&step_input, 0, sizeof(step_input));
+    step_input.player = &player;
+    step_input.dest_x = &dest_x;
+    step_input.dest_y = &dest_y;
+    step_input.arena = step_arena();
+    step_input.arena.topology = topology;
+    step_input.arena.blockers = input.blockers;
+    int steps = osrs_player_step_apply_explicit_move(
+        &step_input, OSRS_PLAYER_MOVE_DESTINATION);
+    CHECK("destination movement uses south-first equal-cost order",
+        steps == 2 && player.x == 4 && player.y == 2);
+    free(topology);
+}
+
 static void test_direct_route_policy_preserves_greedy_step_order(void) {
     RouteTestGeometry geometry = {0};
     RouteTestBlockers blockers = {0};
@@ -1126,6 +1192,8 @@ static void test_direct_route_policy_preserves_greedy_step_order(void) {
 int main(void) {
     test_tagged_route_outcomes_and_payload();
     test_route_cost_order_is_deterministic();
+    test_attack_range_overlap_uses_deterministic_escape();
+    test_destination_south_first_tie_order();
     test_direct_route_policy_preserves_greedy_step_order();
     test_arena_topology_rejects_invalid_bounds();
     test_arena_topology_extreme_origins_and_reader_bounds();

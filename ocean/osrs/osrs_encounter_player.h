@@ -37,6 +37,7 @@ typedef struct {
     EncounterRouteBlockers blockers;
     EncounterRouteMovementMode movement_mode;
     EncounterRouteCostPolicy cost_policy;
+    EncounterRouteCostPolicy destination_cost_policy;
     const CollisionMap* collision_map;
     int world_offset_x;
     int world_offset_y;
@@ -184,7 +185,7 @@ static inline int osrs_player_step_apply_explicit_move(
         .movement_mode = input->arena.movement_mode,
         .cost_policy = move_kind == OSRS_PLAYER_MOVE_ACTION
             ? ENCOUNTER_ROUTE_COST_DIRECT
-            : input->arena.cost_policy,
+            : input->arena.destination_cost_policy,
     };
     EncounterRouteResult route = encounter_route_solve(&route_input);
     return osrs_player_step_apply_route(player, &route);

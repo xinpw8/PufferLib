@@ -572,6 +572,7 @@ static void inf_tick_player_ctx(
             },
             .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
             .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
+            .destination_cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
             .collision_map = ctx->collision_map,
             .world_offset_x = ctx->world_offset_x,
             .world_offset_y = ctx->world_offset_y,

@@ -342,6 +342,7 @@ static inline OsrsEncounterArena pvp_build_arena(
     arena.blockers = (EncounterRouteBlockers){0};
     arena.movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN;
     arena.cost_policy = ENCOUNTER_ROUTE_COST_OSRS_TARGET_BFS;
+    arena.destination_cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS;
     arena.collision_map = (const CollisionMap*)env->collision_map;
     arena.world_offset_x = 0;
     arena.world_offset_y = 0;

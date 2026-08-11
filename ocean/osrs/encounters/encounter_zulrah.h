@@ -2612,6 +2612,7 @@ static void zul_step_tick(
             .blockers = {0},
             .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
             .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
+            .destination_cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
             .collision_map = (const CollisionMap*)s->collision_map,
             .world_offset_x = s->world_offset_x,
             .world_offset_y = s->world_offset_y,
