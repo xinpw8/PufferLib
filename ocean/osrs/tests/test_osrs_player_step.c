@@ -547,16 +547,19 @@ typedef struct {
     int origin_y;
     int width;
     int height;
+    int outside_reads;
     uint32_t flags[8][8];
 } TopologyTestGeometry;
 
 static uint32_t topology_test_flags(void* ctx, int x, int y) {
-    const TopologyTestGeometry* geometry = (const TopologyTestGeometry*)ctx;
-    int local_x = x - geometry->origin_x;
-    int local_y = y - geometry->origin_y;
+    TopologyTestGeometry* geometry = (TopologyTestGeometry*)ctx;
+    int64_t local_x = (int64_t)x - geometry->origin_x;
+    int64_t local_y = (int64_t)y - geometry->origin_y;
     if (local_x < 0 || local_x >= geometry->width ||
-            local_y < 0 || local_y >= geometry->height)
+            local_y < 0 || local_y >= geometry->height) {
+        geometry->outside_reads++;
         return COLLISION_BLOCKED | LOS_FULL_MASK;
+    }
     return geometry->flags[local_x][local_y];
 }
 
@@ -699,6 +702,22 @@ static void test_arena_topology_bounds_collision_los_and_revision(void) {
         !blocked_forward && blocked_forward == blocked_reverse);
     CHECK("static LOS is symmetric through open geometry",
         clear_forward && clear_forward == clear_reverse);
+    CHECK("blocked movement tile also blocks static LOS",
+        !encounter_arena_topology_los_clear(
+            topology, 11, 23, 1, 13, 23, 1, 10));
+    CHECK("LOS rejects overlapping footprints",
+        !encounter_arena_topology_los_clear(
+            topology, 11, 21, 1, 11, 21, 1, 10));
+    CHECK("range-one LOS accepts only cardinal adjacency",
+        encounter_arena_topology_los_clear(
+            topology, 11, 21, 1, 12, 21, 1, 1) &&
+        !encounter_arena_topology_los_clear(
+            topology, 11, 21, 1, 12, 22, 1, 1) &&
+        !encounter_arena_topology_los_clear(
+            topology, 11, 21, 1, 13, 21, 1, 1));
+    CHECK("ranged LOS rejects pairs outside attack range",
+        !encounter_arena_topology_los_clear(
+            topology, 11, 21, 1, 17, 21, 1, 5));
     CHECK("large-target LOS uses the closest occupied target tile",
         encounter_arena_topology_los_clear(
             topology, 11, 24, 1, 15, 23, 1, 10) &&
@@ -730,6 +749,53 @@ static void test_arena_topology_bounds_collision_los_and_revision(void) {
     topology_stale_revision_target = NULL;
 }
 
+static void test_arena_topology_extreme_origins_and_reader_bounds(void) {
+    TopologyTestGeometry geometry = {
+        .origin_x = INT_MAX,
+        .origin_y = INT_MIN,
+        .width = 1,
+        .height = 1,
+    };
+    EncounterArenaTopologyBuildSpec spec = topology_test_spec(&geometry, 52);
+    EncounterArenaTopology* topology = encounter_arena_topology_build(&spec);
+
+    CHECK("topology build never reads geometry outside arena bounds",
+        geometry.outside_reads == 0);
+
+    encounter_arena_topology_finalize(topology);
+    CHECK("INT_MAX width-one and INT_MIN height-one origin is contained",
+        encounter_arena_topology_contains(topology, INT_MAX, INT_MIN));
+    CHECK("extreme origin tile stays walkable",
+        !encounter_arena_topology_tile_blocked(
+            topology, INT_MAX, INT_MIN) &&
+        !encounter_arena_topology_footprint_blocked(
+            topology, INT_MAX, INT_MIN, 1));
+    CHECK("INT_MIN north edge queries stay out of bounds",
+        !encounter_arena_topology_contains(
+            topology, INT_MAX, INT_MIN + 1) &&
+        encounter_arena_topology_tile_blocked(
+            topology, INT_MAX, INT_MIN + 1) &&
+        encounter_arena_topology_footprint_blocked(
+            topology, INT_MAX, INT_MIN + 1, 1));
+    CHECK("INT_MAX west edge queries stay out of bounds",
+        !encounter_arena_topology_contains(
+            topology, INT_MAX - 1, INT_MIN) &&
+        encounter_arena_topology_footprint_blocked(
+            topology, INT_MAX - 1, INT_MIN, 1));
+    CHECK("all steps from extreme one-tile arena reject without reader access",
+        !encounter_arena_topology_step_allowed(
+            topology, INT_MAX, INT_MIN, 1, -1, 0) &&
+        !encounter_arena_topology_step_allowed(
+            topology, INT_MAX, INT_MIN, 1, 1, 0) &&
+        !encounter_arena_topology_step_allowed(
+            topology, INT_MAX, INT_MIN, 1, 0, -1) &&
+        !encounter_arena_topology_step_allowed(
+            topology, INT_MAX, INT_MIN, 1, 0, 1) &&
+        geometry.outside_reads == 0);
+
+    free(topology);
+}
+
 static void test_arena_topology_rejects_invalid_bounds(void) {
     CHECK("topology build rejects zero width",
         topology_test_aborts(topology_build_rejects_zero_width));
@@ -741,6 +807,7 @@ static void test_arena_topology_rejects_invalid_bounds(void) {
 
 int main(void) {
     test_arena_topology_rejects_invalid_bounds();
+    test_arena_topology_extreme_origins_and_reader_bounds();
     test_arena_topology_bounds_collision_los_and_revision();
     test_same_target_selection_preserves_route();
     test_attack_route_field_stops_at_first_reachable_target_edge();

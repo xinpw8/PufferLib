@@ -441,10 +441,7 @@ static int has_line_of_sight(
     int src_size,
     int range
 ) {
-    LOSBlockerFlagsContext ctx = {
-        .blockers = blockers,
-        .count = blocker_count,
-    };
+    LOSBlockerFlagsContext ctx = {blockers, blocker_count};
     return los_has_line_of_sight_with_flags(
         los_blocker_tile_flags, &ctx,
         x1, y1, x2, y2, src_size, range);
@@ -550,10 +547,10 @@ static inline int encounter_arena_topology_contains_raw(
     int x,
     int y
 ) {
-    return x >= topology->origin_x &&
-        x < topology->origin_x + topology->width &&
-        y >= topology->origin_y &&
-        y < topology->origin_y + topology->height;
+    int64_t local_x = (int64_t)x - topology->origin_x;
+    int64_t local_y = (int64_t)y - topology->origin_y;
+    return local_x >= 0 && local_x < topology->width &&
+        local_y >= 0 && local_y < topology->height;
 }
 
 static inline int encounter_arena_topology_index_raw(
@@ -561,8 +558,9 @@ static inline int encounter_arena_topology_index_raw(
     int x,
     int y
 ) {
-    return (x - topology->origin_x) * topology->height +
-        (y - topology->origin_y);
+    int64_t local_x = (int64_t)x - topology->origin_x;
+    int64_t local_y = (int64_t)y - topology->origin_y;
+    return (int)(local_x * topology->height + local_y);
 }
 
 static inline uint32_t encounter_arena_topology_build_flags(
@@ -580,12 +578,13 @@ static inline int encounter_arena_topology_footprint_blocked_raw(
     int y,
     int size
 ) {
-    if (x < topology->origin_x ||
-            y < topology->origin_y ||
-            x > topology->origin_x + topology->width - size ||
-            y > topology->origin_y + topology->height - size)
+    int64_t local_x = (int64_t)x - topology->origin_x;
+    int64_t local_y = (int64_t)y - topology->origin_y;
+    if (local_x < 0 || local_y < 0 ||
+            local_x + size > topology->width ||
+            local_y + size > topology->height)
         return 1;
-    int index = encounter_arena_topology_index_raw(topology, x, y);
+    int index = (int)(local_x * topology->height + local_y);
     return topology->footprint_blocked[size - 1][index] != 0;
 }
 
@@ -599,9 +598,20 @@ static inline int encounter_arena_topology_build_step_allowed(
     int dy
 ) {
     if (encounter_arena_topology_footprint_blocked_raw(
-            topology, x, y, size) ||
-            encounter_arena_topology_footprint_blocked_raw(
-                topology, x + dx, y + dy, size))
+            topology, x, y, size))
+        return 0;
+    int64_t destination_x = (int64_t)x + dx;
+    int64_t destination_y = (int64_t)y + dy;
+    int64_t destination_local_x = destination_x - topology->origin_x;
+    int64_t destination_local_y = destination_y - topology->origin_y;
+    if (destination_local_x < 0 || destination_local_y < 0 ||
+            destination_local_x + size > topology->width ||
+            destination_local_y + size > topology->height)
+        return 0;
+    int destination_x_int = (int)destination_x;
+    int destination_y_int = (int)destination_y;
+    if (encounter_arena_topology_footprint_blocked_raw(
+            topology, destination_x_int, destination_y_int, size))
         return 0;
 
     if (dx != 0) {
@@ -667,6 +677,7 @@ static uint32_t encounter_arena_topology_los_flags(
         return LOS_FULL_MASK;
     uint32_t flags = topology->static_collision_flags[
         encounter_arena_topology_index_raw(topology, x, y)];
+    if (flags & COLLISION_BLOCKED) return LOS_FULL_MASK;
     return flags &
         (LOS_FULL_MASK | LOS_EAST_MASK | LOS_WEST_MASK |
          LOS_NORTH_MASK | LOS_SOUTH_MASK);
@@ -942,35 +953,62 @@ static inline int encounter_arena_topology_los_clear(
         topology, actor_size);
     encounter_arena_topology_require_footprint_size(
         topology, target_size);
-    if (attack_range <= 1) return 1;
     if (encounter_arena_topology_footprint_blocked_raw(
             topology, actor_x, actor_y, actor_size) ||
             encounter_arena_topology_footprint_blocked_raw(
                 topology, target_x, target_y, target_size))
         return 0;
 
-    int actor_los_x = target_x;
-    if (actor_los_x < actor_x) actor_los_x = actor_x;
-    if (actor_los_x >= actor_x + actor_size)
-        actor_los_x = actor_x + actor_size - 1;
-    int actor_los_y = target_y;
-    if (actor_los_y < actor_y) actor_los_y = actor_y;
-    if (actor_los_y >= actor_y + actor_size)
-        actor_los_y = actor_y + actor_size - 1;
+    int64_t actor_max_x = (int64_t)actor_x + actor_size - 1;
+    int64_t actor_max_y = (int64_t)actor_y + actor_size - 1;
+    int64_t target_max_x = (int64_t)target_x + target_size - 1;
+    int64_t target_max_y = (int64_t)target_y + target_size - 1;
+    int overlap =
+        (int64_t)actor_x <= target_max_x &&
+        (int64_t)target_x <= actor_max_x &&
+        (int64_t)actor_y <= target_max_y &&
+        (int64_t)target_y <= actor_max_y;
+    if (overlap) return 0;
 
-    int target_los_x = actor_x;
+    if (attack_range == 1) {
+        int y_overlap =
+            (int64_t)actor_y <= target_max_y &&
+            (int64_t)target_y <= actor_max_y;
+        int x_overlap =
+            (int64_t)actor_x <= target_max_x &&
+            (int64_t)target_x <= actor_max_x;
+        return (actor_max_x + 1 == target_x && y_overlap) ||
+            (target_max_x + 1 == actor_x && y_overlap) ||
+            (actor_max_y + 1 == target_y && x_overlap) ||
+            (target_max_y + 1 == actor_y && x_overlap);
+    }
+
+    int64_t actor_los_x = target_x;
+    if (actor_los_x < actor_x) actor_los_x = actor_x;
+    if (actor_los_x > actor_max_x) actor_los_x = actor_max_x;
+    int64_t actor_los_y = target_y;
+    if (actor_los_y < actor_y) actor_los_y = actor_y;
+    if (actor_los_y > actor_max_y) actor_los_y = actor_max_y;
+
+    int64_t target_los_x = actor_x;
     if (target_los_x < target_x) target_los_x = target_x;
-    if (target_los_x >= target_x + target_size)
-        target_los_x = target_x + target_size - 1;
-    int target_los_y = actor_y;
+    if (target_los_x > target_max_x) target_los_x = target_max_x;
+    int64_t target_los_y = actor_y;
     if (target_los_y < target_y) target_los_y = target_y;
-    if (target_los_y >= target_y + target_size)
-        target_los_y = target_y + target_size - 1;
+    if (target_los_y > target_max_y) target_los_y = target_max_y;
+
+    int64_t dx = target_los_x - actor_los_x;
+    int64_t dy = target_los_y - actor_los_y;
+    int64_t abs_dx = dx < 0 ? -dx : dx;
+    int64_t abs_dy = dy < 0 ? -dy : dy;
+    if (attack_range > 0 &&
+            (abs_dx > attack_range || abs_dy > attack_range))
+        return 0;
 
     int actor_index = encounter_arena_topology_index_raw(
-        topology, actor_los_x, actor_los_y);
+        topology, (int)actor_los_x, (int)actor_los_y);
     int target_index = encounter_arena_topology_index_raw(
-        topology, target_los_x, target_los_y);
+        topology, (int)target_los_x, (int)target_los_y);
     size_t bit_index =
         (size_t)actor_index * (size_t)topology->tile_count +
         (size_t)target_index;
