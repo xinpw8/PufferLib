@@ -1078,6 +1078,7 @@ struct TrainGraph {
     Float mb_actions;    // (B, T, num_atns) float32: large discrete IDs
     Prec mb_logprobs;    // (B, T)
     Prec mb_terminals;   // (B, T), resets recurrent state before timestep t
+    Prec mb_rewards;     // (B, T) for per-mb GAE
     Prec mb_advantages;  // ...
     Prec mb_values;
     Prec mb_returns;
@@ -1085,6 +1086,9 @@ struct TrainGraph {
     Prec mb_newvalue;
     Prec mb_prio;        // (B,)
     Prec mb_action_mask; // (B, T, mask_size); always allocated
+    // Per-mb GAE scratch: ρ and backup V (not read by PPO loss).
+    Prec mb_imp;
+    Prec mb_gae_v;
 };
 
 void register_train_buffers(TrainGraph& bufs, Allocator* alloc,
@@ -1096,6 +1100,7 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc,
         .mb_actions =       {.shape = {B, T, num_atns}},
         .mb_logprobs =      {.shape = {B, T}},
         .mb_terminals =     {.shape = {B, T}},
+        .mb_rewards =       {.shape = {B, T}},
         .mb_advantages =    {.shape = {B, T}},
         .mb_values =        {.shape = {B, T}},
         .mb_returns =       {.shape = {B, T}},
@@ -1103,12 +1108,15 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc,
         .mb_newvalue =      {.shape = {B, T}},
         .mb_prio =          {.shape = {B}},
         .mb_action_mask =   {.shape = {B, T, mask_size}},
+        .mb_imp =           {.shape = {B, T}},
+        .mb_gae_v =         {.shape = {B, T}},
     };
     alloc_register(alloc, &bufs.mb_obs);
     alloc_register(alloc, &bufs.mb_state);
     alloc_register(alloc, &bufs.mb_actions);
     alloc_register(alloc, &bufs.mb_logprobs);
     alloc_register(alloc, &bufs.mb_terminals);
+    alloc_register(alloc, &bufs.mb_rewards);
     alloc_register(alloc, &bufs.mb_advantages);
     alloc_register(alloc, &bufs.mb_prio);
     alloc_register(alloc, &bufs.mb_values);
@@ -1116,6 +1124,8 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc,
     alloc_register(alloc, &bufs.mb_ratio);
     alloc_register(alloc, &bufs.mb_newvalue);
     alloc_register(alloc, &bufs.mb_action_mask);
+    alloc_register(alloc, &bufs.mb_imp);
+    alloc_register(alloc, &bufs.mb_gae_v);
 }
 
 // Prioritized replay over single-epoch data. These kernels are
@@ -1427,15 +1437,22 @@ struct PPOKernelArgs {
     const precision_t* values_pred;
     const float* adv_mean;
     const float* adv_var;
+    // Running reward mean/var [2]; scale PG A by 1/√var when reward_std_scale.
+    const float* reward_stats;
     const int* act_sizes;
     const precision_t* action_mask; // (N, T, A_total); always present
     const signed char* head_consume; // (nverbs, num_atns) or NULL
     int hc_stride;
     int num_atns;
     float clip_coef, vf_clip_coef, vf_coef;
+    float reward_scale_max;  // cap on 1/√var; 0 = uncapped
     const float* ent_coef;  // device ptr — host by-value bakes into CUDA graphs
     int T_seq, A_total, N;
     bool is_continuous;
+    // Batch mean/std whitening of A in PG. Off = raw A (PG scale tracks |A|).
+    bool normalize_advantages;
+    // Scale PG A by 1/√(EMA reward var). Not batch whitening.
+    bool reward_std_scale;
 };
 
 // adv_scratch layout: [var, mean, 2*PPO_VM_MAX_BLOCKS partials, flag-as-float-slot]
@@ -1542,8 +1559,20 @@ __global__ void ppo_loss_compute(
         float val_pred = to_float(a.values_pred[logits_base]);
         g.out_newvalue[nt] = from_float(val_pred);
 
-        float adv_std = sqrtf(a.adv_var[0]);
-        float adv_normalized = (adv - a.adv_mean[0]) / (adv_std + 1e-8f);
+        // Optional batch whitening of A. Raw A: PG scale tracks |A|.
+        float adv_for_pg = adv;
+        if (a.normalize_advantages) {
+            float adv_std = sqrtf(a.adv_var[0]);
+            adv_for_pg = (adv - a.adv_mean[0]) / (adv_std + 1e-8f);
+        }
+        // Running reward-std scale (5.0-simplecl): A *= 1/√var_run. Not batch.
+        if (a.reward_std_scale && a.reward_stats != NULL) {
+            float reward_scale = rsqrtf(fmaxf(a.reward_stats[1], 0.0f) + 1e-8f);
+            if (a.reward_scale_max > 0.0f) {
+                reward_scale = fminf(reward_scale, a.reward_scale_max);
+            }
+            adv_for_pg *= reward_scale;
+        }
         float ent_coef = *a.ent_coef;
         float d_entropy_term = inv_NT * (-ent_coef);
 
@@ -1612,15 +1641,16 @@ __global__ void ppo_loss_compute(
         float clip_lo = 1.0f - a.clip_coef;
         float clip_hi = 1.0f + a.clip_coef;
         float ratio_clipped = fmaxf(clip_lo, fminf(clip_hi, ratio));
-        float wa = -w * adv_normalized;
+        float wa = -w * adv_for_pg;
         float pg_loss1 = wa * ratio;
         float pg_loss2 = wa * ratio_clipped;
+        // Classic PPO: min(r·A, clip(r)·A)  ⇒  grad ∝ A * r (when unclipped)
         float pg_loss = fmaxf(pg_loss1, pg_loss2);
         float d_ratio = wa * inv_NT;
         if (pg_loss2 > pg_loss1 && (ratio <= clip_lo || ratio >= clip_hi)) {
             d_ratio = 0.0f;
         }
-        float d_new_logp = d_ratio * ratio;
+        float d_new_logp = d_ratio * ratio;  // ∝ A * r
 
         if (a.is_continuous) {
             for (int h = 0; h < a.num_atns; ++h) {
@@ -1757,6 +1787,10 @@ void ppo_loss_fwd_bwd(
         int* act_sizes, float* losses_acc,
         float clip_coef, float vf_clip_coef, float vf_coef, const float* ent_coef,
         PPOBufs& bufs, bool is_continuous,
+        bool normalize_advantages,
+        bool reward_std_scale,
+        float* reward_stats,
+        float reward_scale_max,
         cudaStream_t stream) {
     int N = dec_out.shape[0], T = dec_out.shape[1], fused_cols = dec_out.shape[2];
     int A_total = fused_cols - 1;  // last column is value
@@ -1764,12 +1798,14 @@ void ppo_loss_fwd_bwd(
 
     float* adv_var = bufs.adv_scratch;
     float* adv_mean = adv_var + 1;
-    float* adv_partials = adv_var + 2;
-    int* adv_flag = (int*)(adv_var + 2 + 2 * PPO_VM_MAX_BLOCKS);
-    int adv_n = (int)numel(graph.mb_advantages.shape);
-    int adv_blocks = min((adv_n + PPO_VM_THREADS - 1) / PPO_VM_THREADS, PPO_VM_MAX_BLOCKS);
-    ppo_adv_mean_var<<<adv_blocks, PPO_VM_THREADS, 0, stream>>>(
-        graph.mb_advantages.data, adv_partials, adv_var, adv_mean, adv_flag, adv_n);
+    if (normalize_advantages) {
+        float* adv_partials = adv_var + 2;
+        int* adv_flag = (int*)(adv_var + 2 + 2 * PPO_VM_MAX_BLOCKS);
+        int adv_n = (int)numel(graph.mb_advantages.shape);
+        int adv_blocks = min((adv_n + PPO_VM_THREADS - 1) / PPO_VM_THREADS, PPO_VM_MAX_BLOCKS);
+        ppo_adv_mean_var<<<adv_blocks, PPO_VM_THREADS, 0, stream>>>(
+            graph.mb_advantages.data, adv_partials, adv_var, adv_mean, adv_flag, adv_n);
+    }
 
     int ppo_grid = (total + PPO_THREADS - 1) / PPO_THREADS;
 
@@ -1795,15 +1831,20 @@ void ppo_loss_fwd_bwd(
         .values_pred = dec_out.data + A_total,
         .adv_mean = adv_mean,
         .adv_var = adv_var,
+        .reward_stats = reward_stats,
         .act_sizes = act_sizes,
         .action_mask = graph.mb_action_mask.data,
         .head_consume = hc_dev_l,
         .hc_stride = hc_stride_l,
         .num_atns = NUM_ATNS,
         .clip_coef = clip_coef, .vf_clip_coef = vf_clip_coef,
-        .vf_coef = vf_coef, .ent_coef = ent_coef,
+        .vf_coef = vf_coef,
+        .reward_scale_max = reward_scale_max,
+        .ent_coef = ent_coef,
         .T_seq = T, .A_total = A_total, .N = N,
         .is_continuous = is_continuous,
+        .normalize_advantages = normalize_advantages,
+        .reward_std_scale = reward_std_scale,
     };
     ppo_loss_compute<<<ppo_grid, PPO_THREADS, 0, stream>>>(
             bufs.ppo_partials.data, args, graph_args);
@@ -1838,6 +1879,8 @@ __device__ __forceinline__ void adv_st(precision_t* p, const float* o) {
     }
 }
 
+// GAE / full truncated IS (V-trace ρ/c): ρ̄ on δ, c̄ on λ product.
+// Same R_{t+1},D_{t+1} indexing as classic puffer_advantage.
 __global__ void puff_advantage(const precision_t* values,
         const precision_t* rewards, const precision_t* dones,
         const precision_t* importance, precision_t* advantages,
@@ -1859,13 +1902,13 @@ __global__ void puff_advantage(const precision_t* values,
         adv_ld(rewards + base, r);
         adv_ld(dones + base, d);
         adv_ld(importance + base, imp);
+        // Last index H-1 left 0. First seg starts at width-2.
         int i0 = (seg + 1 == horizon / ADV_VEC_WIDTH) ? ADV_VEC_WIDTH - 2 : ADV_VEC_WIDTH - 1;
-        // This is the simple puffer_advantage function. All the
-        // vec load/stores are minor perf optimizations
         #pragma unroll
         for (int i = i0; i >= 0; i--) {
             float nnt = 1.f - next_d;
-            float rho_t = fminf(imp[i], rho_clip), c_t = fminf(imp[i], c_clip);
+            float rho_t = fminf(imp[i], rho_clip);
+            float c_t = fminf(imp[i], c_clip);
             float delta = rho_t * (next_r + gamma * next_v * nnt - v[i]);
             lastlam = delta + gamma * lambda * c_t * lastlam * nnt;
             adv[i] = lastlam;
