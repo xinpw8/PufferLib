@@ -6,17 +6,30 @@ static int inf_healer_is_actively_healing(const InfernoState* s, const InfNPC* n
     return s->npcs[npc->aggro_target].active;
 }
 
-static int inf_npc_type_is_actively_healed(
-    const InfernoState* s,
-    InfNPCType target_type
-) {
+typedef struct {
+    int live_zuk_idx;
+    int jad_is_actively_healed;
+    int zuk_is_actively_healed;
+} InfRewardNpcSummary;
+
+static InfRewardNpcSummary inf_summarize_reward_npcs(const InfernoState* s) {
+    InfRewardNpcSummary summary = {.live_zuk_idx = -1};
     for (int i = 0; i < INF_MAX_NPCS; i++) {
-        const InfNPC* healer = &s->npcs[i];
-        if (!inf_healer_is_actively_healing(s, healer)) continue;
-        const InfNPC* target = &s->npcs[healer->aggro_target];
-        if (target->type == target_type) return 1;
+        const InfNPC* npc = &s->npcs[i];
+        if (summary.live_zuk_idx < 0 &&
+                npc->active && npc->type == INF_NPC_ZUK) {
+            summary.live_zuk_idx = i;
+        }
+        if (!inf_healer_is_actively_healing(s, npc)) continue;
+
+        InfNPCType target_type = s->npcs[npc->aggro_target].type;
+        if (target_type == INF_NPC_JAD) {
+            summary.jad_is_actively_healed = 1;
+        } else if (target_type == INF_NPC_ZUK) {
+            summary.zuk_is_actively_healed = 1;
+        }
     }
-    return 0;
+    return summary;
 }
 
 static int inf_count_untagged_zuk_healers(const InfernoState* s) {
@@ -61,9 +74,9 @@ typedef enum {
 static float inf_zuk_low_watermark_reward(
     InfernoState* s,
     const InfernoContext* ctx,
-    InfZukLowWatermarkMode mode
+    InfZukLowWatermarkMode mode,
+    int zuk_idx
 ) {
-    int zuk_idx = inf_find_live_zuk_idx(s);
     if (zuk_idx < 0) return 0.0f;
 
     float zuk_hp = (float)s->npcs[zuk_idx].hp;
@@ -169,17 +182,17 @@ static float inf_compute_reward_ctx(InfernoState* s, const InfernoContext* ctx) 
         return -ctx->config.death_penalty_coeff;
     }
 
-    int jad_is_actively_healed =
-        inf_npc_type_is_actively_healed(s, INF_NPC_JAD);
-    int zuk_is_actively_healed =
-        inf_npc_type_is_actively_healed(s, INF_NPC_ZUK);
+    InfRewardNpcSummary npc_summary = inf_summarize_reward_npcs(s);
+    int jad_is_actively_healed = npc_summary.jad_is_actively_healed;
+    int zuk_is_actively_healed = npc_summary.zuk_is_actively_healed;
     int healer_is_actively_healing =
         jad_is_actively_healed || zuk_is_actively_healed;
     int tags_first_gate = inf_zuk_healer_tags_first_reward_gate_active(s, ctx);
 
     if (ctx->config.joseph_reward_mode == INF_JOSEPH_REWARD_MODE_ON) {
         if (inf_is_final_wave(s))
-            inf_zuk_low_watermark_reward(s, ctx, INF_ZUK_LOWWATERMARK_TRACK_ONLY);
+            inf_zuk_low_watermark_reward(
+                s, ctx, INF_ZUK_LOWWATERMARK_TRACK_ONLY, npc_summary.live_zuk_idx);
         return inf_compute_joseph_reward(s, ctx, healer_is_actively_healing);
     }
 
@@ -187,7 +200,7 @@ static float inf_compute_reward_ctx(InfernoState* s, const InfernoContext* ctx) 
     if (inf_is_final_wave(s)) {
         if (tags_first_gate) {
             reward = inf_zuk_low_watermark_reward(
-                s, ctx, INF_ZUK_LOWWATERMARK_TRACK_ONLY);
+                s, ctx, INF_ZUK_LOWWATERMARK_TRACK_ONLY, npc_summary.live_zuk_idx);
             reward += ctx->config.tag_reward_coeff * (float)s->tick_scratch.healer_tags;
             reward += inf_zuk_healer_attack_shape_reward(s, ctx);
             return reward;
@@ -202,7 +215,8 @@ static float inf_compute_reward_ctx(InfernoState* s, const InfernoContext* ctx) 
         } else if (zuk_is_actively_healed) {
             watermark_mode = INF_ZUK_LOWWATERMARK_REWARD_BLOCKED_EXCEPT_THRESHOLD;
         }
-        reward = inf_zuk_low_watermark_reward(s, ctx, watermark_mode);
+        reward = inf_zuk_low_watermark_reward(
+            s, ctx, watermark_mode, npc_summary.live_zuk_idx);
         if (use_zuk_healer_phase_hp_delta) {
             reward += ctx->config.zuk_healer_phase_hp_delta_coeff *
                 (s->tick_scratch.damage_zuk - s->tick_scratch.hp_restored_zuk);
@@ -239,8 +253,8 @@ static float inf_compute_reward_ctx(InfernoState* s, const InfernoContext* ctx) 
     reward += ctx->config.zuk_safe_untagged_healer_target_bonus_coeff *
         (float)s->tick_scratch.zuk_safe_untagged_healer_targets;
 
-    int zuk_idx = inf_find_live_zuk_idx(s);
-    int zuk_hp_now = (zuk_idx >= 0) ? s->npcs[zuk_idx].hp : 1200;
+    int zuk_hp_now = npc_summary.live_zuk_idx >= 0 ?
+        s->npcs[npc_summary.live_zuk_idx].hp : 1200;
     int late_add_reward_active = s->zuk.jad_spawned || zuk_hp_now <= 600;
     if (late_add_reward_active) {
         float rewardable_jad_damage =
@@ -388,11 +402,34 @@ static void inf_update_healer_transition_stats(InfernoState* s) {
     }
 }
 
-static int inf_has_live_player_target(const InfernoState* s) {
+typedef struct {
+    int has_live_player_target;
+    int has_live_jad;
+    int has_live_zuk_healer;
+} InfIdleDiagnosticSummary;
+
+static InfIdleDiagnosticSummary inf_idle_diagnostic_summary(const InfernoState* s) {
+    InfIdleDiagnosticSummary summary = {0};
     for (int i = 0; i < INF_MAX_NPCS; i++) {
-        if (inf_npc_is_live_player_target(s, i)) return 1;
+        const InfNPC* npc = &s->npcs[i];
+        if (inf_npc_is_live_player_target(s, i))
+            summary.has_live_player_target = 1;
+        if (npc->active && npc->death_ticks == 0 && npc->hp > 0) {
+            if (npc->type == INF_NPC_JAD)
+                summary.has_live_jad = 1;
+            if (npc->type == INF_NPC_HEALER_ZUK)
+                summary.has_live_zuk_healer = 1;
+        }
+        if (summary.has_live_player_target &&
+                summary.has_live_jad &&
+                summary.has_live_zuk_healer)
+            break;
     }
-    return 0;
+    return summary;
+}
+
+static int inf_has_live_player_target(const InfernoState* s) {
+    return inf_idle_diagnostic_summary(s).has_live_player_target;
 }
 
 static int inf_has_attackable_player_target(const InfernoState* s) {
@@ -404,27 +441,24 @@ static int inf_has_attackable_player_target(const InfernoState* s) {
     return 0;
 }
 
-static int inf_has_live_npc_type(const InfernoState* s, InfNPCType type) {
-    for (int i = 0; i < INF_MAX_NPCS; i++) {
-        const InfNPC* npc = &s->npcs[i];
-        if (npc->active && npc->death_ticks == 0 && npc->hp > 0 &&
-                npc->type == type)
-            return 1;
-    }
-    return 0;
-}
-
-static InfIdleDiagnosticPhase inf_idle_diagnostic_phase(const InfernoState* s) {
+static InfIdleDiagnosticPhase inf_idle_diagnostic_phase_from_summary(
+    const InfernoState* s,
+    InfIdleDiagnosticSummary summary
+) {
     if (!inf_is_final_wave(s))
-        return inf_has_live_npc_type(s, INF_NPC_JAD)
-            ? INF_IDLE_PHASE_JAD : INF_IDLE_PHASE_SET;
-    if (inf_has_live_npc_type(s, INF_NPC_HEALER_ZUK))
+        return summary.has_live_jad ? INF_IDLE_PHASE_JAD : INF_IDLE_PHASE_SET;
+    if (summary.has_live_zuk_healer)
         return INF_IDLE_PHASE_ZUK_HEALERS;
-    if (inf_has_live_npc_type(s, INF_NPC_JAD))
+    if (summary.has_live_jad)
         return INF_IDLE_PHASE_ZUK_JAD;
     if (s->tick_at_all_zuk_healers_dead >= 0)
         return INF_IDLE_PHASE_ZUK_POST_HEALERS;
     return INF_IDLE_PHASE_ZUK_PRE_JAD;
+}
+
+static InfIdleDiagnosticPhase inf_idle_diagnostic_phase(const InfernoState* s) {
+    return inf_idle_diagnostic_phase_from_summary(
+        s, inf_idle_diagnostic_summary(s));
 }
 
 static int inf_player_has_immediate_threat(const InfernoState* s) {
@@ -443,6 +477,44 @@ static int inf_player_has_immediate_threat(const InfernoState* s) {
     return 0;
 }
 
+typedef struct {
+    int has_attackable_player_target;
+    int player_has_immediate_threat;
+} InfIdleMissedActionFacts;
+
+static InfIdleMissedActionFacts inf_idle_missed_action_facts(
+    const InfernoState* s
+) {
+    InfIdleMissedActionFacts facts = {
+        .player_has_immediate_threat = s->tick_scratch.attacks_fired > 0,
+    };
+    if (!facts.player_has_immediate_threat) {
+        for (int h = 0; h < s->player_pending_hits.count; h++) {
+            const EncounterPendingHit* ph = &s->player_pending_hits.hits[h];
+            if (ph->check_prayer && inf_pending_hit_obs_timer(ph) <= 1) {
+                facts.player_has_immediate_threat = 1;
+                break;
+            }
+        }
+    }
+    for (int i = 0; i < INF_MAX_NPCS; i++) {
+        if (!facts.has_attackable_player_target &&
+                inf_npc_is_live_player_target(s, i) &&
+                inf_player_can_attack_npc_from_current_tile(s, i))
+            facts.has_attackable_player_target = 1;
+        if (!facts.player_has_immediate_threat) {
+            const InfNPC* npc = &s->npcs[i];
+            InfNpcPlayerThreat threat = inf_npc_player_threat(s, npc);
+            if (threat.telegraph_style_mask && threat.can_attack_this_tick)
+                facts.player_has_immediate_threat = 1;
+        }
+        if (facts.has_attackable_player_target &&
+                facts.player_has_immediate_threat)
+            break;
+    }
+    return facts;
+}
+
 static int inf_progress_happened_this_tick(const InfernoState* s) {
     return s->tick_scratch.damage_dealt > 0.0f ||
         s->tick_scratch.healer_tags > 0 ||
@@ -456,14 +528,15 @@ static int inf_progress_happened_this_tick(const InfernoState* s) {
 static void inf_record_idle_diagnostics(
     InfernoState* s,
     int can_player_attack,
+    int has_live_player_target,
+    InfIdleDiagnosticPhase phase,
     int attack_ready_no_attack,
     int target_available_no_attack,
     int safe_attack_opportunity_missed
 ) {
-    if (!can_player_attack || !inf_has_live_player_target(s))
+    if (!can_player_attack || !has_live_player_target)
         return;
 
-    InfIdleDiagnosticPhase phase = inf_idle_diagnostic_phase(s);
     assert((int)phase >= 0 && (int)phase < OSRS_INFERNO_IDLE_PHASE_COUNT);
 
     if (attack_ready_no_attack) {
@@ -539,10 +612,13 @@ static void inf_step_ctx(EncounterState* state, EncounterContext* context, const
         s->winner = INF_OUTCOME_PLAYER_DIED;
         s->reward = inf_terminal_loss_reward(s, ctx);
         s->episode_return += s->reward;
+        inf_invalidate_current_obs_slots(s);
         return;
     }
 
     int can_player_attack = !in_wave_gap && !in_ready_gap;
+    InfIdleDiagnosticSummary idle_diagnostic_summary = {0};
+    InfIdleDiagnosticPhase idle_diagnostic_phase = INF_IDLE_PHASE_SET;
     int attack_ready_no_attack = 0;
     int target_available_no_attack = 0;
     int safe_attack_opportunity_missed = 0;
@@ -556,19 +632,28 @@ static void inf_step_ctx(EncounterState* state, EncounterContext* context, const
         inf_invalidate_los_cache(s);
     inf_resolve_jad_prayer_checks_after_player(s, ctx);
 
+    if (can_player_attack) {
+        idle_diagnostic_summary = inf_idle_diagnostic_summary(s);
+        idle_diagnostic_phase = inf_idle_diagnostic_phase_from_summary(
+            s, idle_diagnostic_summary);
+    }
+
     {
-        int has_alive_npc = can_player_attack && inf_has_live_player_target(s);
+        int has_alive_npc =
+            can_player_attack && idle_diagnostic_summary.has_live_player_target;
         if (has_alive_npc && s->player.attack_timer == 0 && !s->tick_scratch.player_attacked)
             s->ticks_without_action++;
         else
             s->ticks_without_action = 0;
         attack_ready_no_attack = s->ticks_without_action > 0;
         if (attack_ready_no_attack) {
-            int target_available = inf_has_live_player_target(s);
-            int attackable_target = inf_has_attackable_player_target(s);
-            target_available_no_attack = target_available;
+            InfIdleMissedActionFacts missed_action_facts =
+                inf_idle_missed_action_facts(s);
+            target_available_no_attack =
+                idle_diagnostic_summary.has_live_player_target;
             safe_attack_opportunity_missed =
-                attackable_target && !inf_player_has_immediate_threat(s);
+                missed_action_facts.has_attackable_player_target &&
+                !missed_action_facts.player_has_immediate_threat;
         }
     }
 
@@ -666,9 +751,12 @@ finish_step:
     inf_record_idle_diagnostics(
         s,
         can_player_attack,
+        idle_diagnostic_summary.has_live_player_target,
+        idle_diagnostic_phase,
         attack_ready_no_attack,
         target_available_no_attack,
         safe_attack_opportunity_missed);
+    inf_invalidate_current_obs_slots(s);
     s->episode_return += s->reward;
 }
 

@@ -354,7 +354,6 @@ static int exact_attack_route_walkable(void* ctx, int x, int y) {
 
 static int exact_attack_route_blocked(void* ctx, int abs_x, int abs_y) {
     ExactAttackRouteContext* route_ctx = (ExactAttackRouteContext*)ctx;
-    if (col_pathfind_blocked(&route_ctx->walk, abs_x, abs_y)) return 1;
     int x = abs_x - route_ctx->walk.ctx->world_offset_x;
     int y = abs_y - route_ctx->walk.ctx->world_offset_y;
     for (int i = 0; i < route_ctx->blocker_count; i++) {
@@ -407,22 +406,6 @@ static int exact_attack_route_property_scenario(
     ColosseumContext* ctx,
     ExactAttackRouteContext* route_ctx
 ) {
-    EncounterArenaAttackRouteField field;
-    encounter_build_arena_attack_route_field(
-        &field,
-        ctx->collision_map,
-        ctx->world_offset_x,
-        ctx->world_offset_y,
-        s->player.x,
-        s->player.y,
-        exact_attack_route_walkable,
-        route_ctx,
-        exact_attack_route_blocked,
-        route_ctx,
-        COLO_ARENA_MIN_X,
-        COLO_ARENA_MIN_Y,
-        COLO_ARENA_WIDTH,
-        COLO_ARENA_HEIGHT);
     OsrsLosQuery los_query = col_player_los_query(s);
     static const int target_sizes[] = {1, 2, 5};
     static const int attack_ranges[] = {1, 3, 6, 10};
@@ -437,10 +420,29 @@ static int exact_attack_route_property_scenario(
             for (size_t size_idx = 0;
                     size_idx < sizeof(target_sizes) / sizeof(target_sizes[0]);
                     size_idx++) {
+                int target_size = target_sizes[size_idx];
+                EncounterArenaAttackRouteField field;
+                encounter_build_arena_attack_route_field(
+                    &field,
+                    ctx->collision_map,
+                    ctx->world_offset_x,
+                    ctx->world_offset_y,
+                    s->player.x,
+                    s->player.y,
+                    target_x,
+                    target_y,
+                    target_size,
+                    exact_attack_route_walkable,
+                    route_ctx,
+                    exact_attack_route_blocked,
+                    route_ctx,
+                    COLO_ARENA_MIN_X,
+                    COLO_ARENA_MIN_Y,
+                    COLO_ARENA_WIDTH,
+                    COLO_ARENA_HEIGHT);
                 for (size_t range_idx = 0;
                         range_idx < sizeof(attack_ranges) / sizeof(attack_ranges[0]);
                         range_idx++) {
-                    int target_size = target_sizes[size_idx];
                     int attack_range = attack_ranges[range_idx];
                     EncounterAttackRouteLanding expected =
                         exact_attack_route_runtime_landing(

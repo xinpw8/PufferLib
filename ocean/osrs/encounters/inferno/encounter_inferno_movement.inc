@@ -37,14 +37,6 @@ typedef struct {
     const InfernoContext* ctx;
 } InfWalkCtx;
 
-static int inf_pathfind_blocked(void* data, int abs_x, int abs_y) {
-    InfWalkCtx* wc = (InfWalkCtx*)data;
-    InfernoState* s = wc->s;
-    const InfernoContext* ctx = wc->ctx;
-    int lx = abs_x - ctx->world_offset_x;
-    int ly = abs_y - ctx->world_offset_y;
-    return inf_blocked_by_pillar(s, lx, ly, 1);
-}
 
 static int inf_collision_flags_blocked(
     uint8_t flags[INF_ARENA_WIDTH][INF_ARENA_HEIGHT], int x, int y, int size

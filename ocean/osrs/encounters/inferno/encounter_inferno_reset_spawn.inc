@@ -375,13 +375,6 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     s->total_zuk_healer_out_of_range_ticks = 0;
     s->total_zuk_healer_attackable_ticks = 0;
     s->total_action_mask_checks = 0;
-    for (int h = 0; h < INF_NUM_ACTION_HEADS; h++) {
-        s->zero_valid_action_head_count[h] = 0;
-        s->min_valid_action_count_by_head[h] = 1000000;
-    }
-    s->target_head_valid_healer_count = 0;
-    s->target_head_valid_zuk_count = 0;
-    s->target_head_valid_set_count = 0;
 
     s->player.entity_type = ENTITY_PLAYER;
     encounter_init_maxed_player_combat_stats(&s->player, 99);

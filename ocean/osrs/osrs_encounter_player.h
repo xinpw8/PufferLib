@@ -115,6 +115,9 @@ static inline int osrs_player_step_can_attack_target(
         target->y,
         target->size,
         target->attack_range,
+        input->arena.collision_map,
+        input->arena.world_offset_x,
+        input->arena.world_offset_y,
         input->arena.los_query);
 }
 
@@ -154,28 +157,177 @@ static inline int osrs_player_step_apply_explicit_move(
         input->arena.arena_h);
 }
 
-static inline int osrs_player_step_chase_target(
+static inline int osrs_player_step_route_matches(
+    const OsrsInteractionRoute* route,
+    const Player* player,
+    const OsrsAttackTarget* target
+) {
+    return route->state != OSRS_INTERACTION_ROUTE_EMPTY &&
+        route->target_x == target->x &&
+        route->target_y == target->y &&
+        route->target_size == target->size &&
+        route->attack_range == target->attack_range &&
+        route->expected_player_x == player->x &&
+        route->expected_player_y == player->y;
+}
+
+static inline void osrs_player_step_build_attack_route(
     const OsrsPlayerStepInput* input,
     const OsrsAttackTarget* target
 ) {
-    return encounter_chase_attack_target(
-        input->player,
-        target->x,
-        target->y,
-        target->size,
-        target->attack_range,
+    OsrsInteractionRoute* route = &input->interaction->route;
+    route->target_x = target->x;
+    route->target_y = target->y;
+    route->target_size = target->size;
+    route->attack_range = target->attack_range;
+    route->expected_player_x = input->player->x;
+    route->planned_source_x = input->player->x;
+    route->planned_source_y = input->player->y;
+    route->expected_player_y = input->player->y;
+    route->waypoint_count = 0;
+    route->waypoint_index = 0;
+
+    EncounterArenaAttackRouteField field;
+    encounter_build_arena_attack_route_field(
+        &field,
         input->arena.collision_map,
         input->arena.world_offset_x,
         input->arena.world_offset_y,
+        input->player->x,
+        input->player->y,
+        target->x,
+        target->y,
+        target->size,
         input->arena.is_walkable,
         input->arena.walkable_ctx,
         input->arena.extra_blocked,
         input->arena.blocked_ctx,
-        input->arena.los_query,
         input->arena.arena_base_x,
         input->arena.arena_base_y,
         input->arena.arena_w,
         input->arena.arena_h);
+    EncounterAttackRouteLanding landing =
+        encounter_arena_attack_route_landing(
+            &field,
+            target->x,
+            target->y,
+            target->size,
+            target->attack_range,
+            input->arena.los_query);
+    route->waypoint_count = encounter_attack_route_compress_waypoints(
+        &field,
+        &landing,
+        route->waypoint_x,
+        route->waypoint_y);
+    route->state = route->waypoint_count > 0
+        ? OSRS_INTERACTION_ROUTE_READY
+        : OSRS_INTERACTION_ROUTE_FAILED;
+}
+
+static inline int osrs_player_step_route_next_traversable(
+    const OsrsPlayerStepInput* input
+) {
+    const OsrsInteractionRoute* route = &input->interaction->route;
+    if (route->state != OSRS_INTERACTION_ROUTE_READY ||
+            route->waypoint_index >= route->waypoint_count) {
+        return 0;
+    }
+    int waypoint_x = route->waypoint_x[route->waypoint_index];
+    int waypoint_y = route->waypoint_y[route->waypoint_index];
+    int dx = (waypoint_x > input->player->x) -
+        (waypoint_x < input->player->x);
+    int dy = (waypoint_y > input->player->y) -
+        (waypoint_y < input->player->y);
+    return encounter_attack_route_step_traversable(
+        input->arena.collision_map,
+        input->arena.world_offset_x,
+        input->arena.world_offset_y,
+        input->player->x,
+        input->player->y,
+        dx,
+        dy,
+        input->arena.is_walkable,
+        input->arena.walkable_ctx,
+        input->arena.extra_blocked,
+        input->arena.blocked_ctx);
+}
+
+static inline int osrs_player_step_chase_target(
+    const OsrsPlayerStepInput* input,
+    const OsrsAttackTarget* target
+) {
+    Player* player = input->player;
+    OsrsInteractionRoute* route = &input->interaction->route;
+    int distance = encounter_rect_distance(
+        player->x, player->y, 1,
+        target->x, target->y, target->size);
+    if (input->arena.arena_w <= 0 || distance == 0) {
+        osrs_interaction_route_clear(input->interaction);
+        return encounter_chase_attack_target(
+            player,
+            target->x,
+            target->y,
+            target->size,
+            target->attack_range,
+            input->arena.collision_map,
+            input->arena.world_offset_x,
+            input->arena.world_offset_y,
+            input->arena.is_walkable,
+            input->arena.walkable_ctx,
+            input->arena.extra_blocked,
+            input->arena.blocked_ctx,
+            input->arena.los_query,
+            input->arena.arena_base_x,
+            input->arena.arena_base_y,
+            input->arena.arena_w,
+            input->arena.arena_h);
+    }
+    if (osrs_player_step_can_attack_target(input, target)) {
+        osrs_interaction_route_clear(input->interaction);
+        return 0;
+    }
+
+    int remaining_waypoints = route->waypoint_count - route->waypoint_index;
+    int reroute = !osrs_player_step_route_matches(route, player, target) ||
+        route->state == OSRS_INTERACTION_ROUTE_FAILED ||
+        remaining_waypoints <= 1;
+    if (!reroute && !osrs_player_step_route_next_traversable(input))
+        reroute = 1;
+    if (reroute)
+        osrs_player_step_build_attack_route(input, target);
+    if (route->state != OSRS_INTERACTION_ROUTE_READY ||
+            !osrs_player_step_route_next_traversable(input)) {
+        route->expected_player_x = player->x;
+        route->expected_player_y = player->y;
+        return 0;
+    }
+
+    int steps = 0;
+    while (steps < 2 &&
+            route->waypoint_index < route->waypoint_count &&
+            !osrs_player_step_can_attack_target(input, target)) {
+        int waypoint_x = route->waypoint_x[route->waypoint_index];
+        int waypoint_y = route->waypoint_y[route->waypoint_index];
+        if (player->x == waypoint_x && player->y == waypoint_y) {
+            route->waypoint_index++;
+            continue;
+        }
+        if (!osrs_player_step_route_next_traversable(input)) {
+            osrs_interaction_route_clear(input->interaction);
+            break;
+        }
+        player->x += (waypoint_x > player->x) - (waypoint_x < player->x);
+        player->y += (waypoint_y > player->y) - (waypoint_y < player->y);
+        steps++;
+        if (player->x == waypoint_x && player->y == waypoint_y)
+            route->waypoint_index++;
+    }
+    player->is_running = steps == 2;
+    player->dest_x = player->x;
+    player->dest_y = player->y;
+    route->expected_player_x = player->x;
+    route->expected_player_y = player->y;
+    return steps > 0;
 }
 
 static inline OsrsPlayerStepResult osrs_encounter_player_step(

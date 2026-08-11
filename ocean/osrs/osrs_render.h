@@ -5216,6 +5216,7 @@ static void render_draw_3d_world(RenderClient* rc) {
                         debug_inferno_state->player.y,
                         npc->x, npc->y, npc->size,
                         ls->attack_range,
+                        NULL, 0, 0,
                         &los_query);
                     lc = can_atk ? GREEN : RED;
                 }
@@ -5379,7 +5380,9 @@ static void render_draw_overhead_status(RenderClient* rc, OsrsEnv* env) {
                     int can_atk = encounter_player_can_attack(
                         is->player.x, is->player.y,
                         npc->x, npc->y, npc->size,
-                        ls->attack_range, &los_query);
+                        ls->attack_range,
+                        NULL, 0, 0,
+                        &los_query);
                     const char* patk_txt = can_atk ? "P>NPC" : "P>NPC X";
                     Color patk_col = can_atk ? GREEN : RED;
                     int pw = MeasureText(patk_txt, fs);

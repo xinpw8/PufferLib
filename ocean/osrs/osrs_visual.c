@@ -423,6 +423,7 @@ static void run_profile(
     double elapsed = 0;
     int total_steps = 0;
     int enc_actions[64] = {0};
+    const int pin_inventory_actions = getenv("OSRS_PROFILE_PIN_INV") != NULL;
 
     while ((profile_steps > 0 && total_steps < profile_steps) ||
            (profile_steps <= 0 && elapsed < 10.0)) {
@@ -443,7 +444,7 @@ static void run_profile(
             for (int h = 0; h < edef->num_action_heads; h++) {
                 enc_actions[h] = rand() % edef->action_head_dims[h];
             }
-            if (getenv("OSRS_PROFILE_PIN_INV")) {
+            if (pin_inventory_actions) {
                 for (int h = 2; h < 15 && h < edef->num_action_heads; h++)
                     enc_actions[h] = 0;
             }

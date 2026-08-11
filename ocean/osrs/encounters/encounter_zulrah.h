@@ -1167,7 +1167,10 @@ static int zul_player_can_attack_zulrah(
     return encounter_player_can_attack(
         s->player.x, s->player.y,
         s->zulrah.x, s->zulrah.y, ZUL_NPC_SIZE,
-        loadout_stats->attack_range, osrs_los_open_query());
+        loadout_stats->attack_range,
+        (const CollisionMap*)s->collision_map,
+        s->world_offset_x, s->world_offset_y,
+        osrs_los_open_query());
 }
 
 static int zul_zulrah_def_roll(ZulrahState* s, int is_mage) {
@@ -1802,7 +1805,10 @@ static void zul_player_attack_snakeling(ZulrahState* s, int snakeling_idx) {
     if (!encounter_player_can_attack(
             s->player.x, s->player.y,
             sn->entity.x, sn->entity.y, 1,
-            ls->attack_range, osrs_los_open_query())) return;
+            ls->attack_range,
+            (const CollisionMap*)s->collision_map,
+            s->world_offset_x, s->world_offset_y,
+            osrs_los_open_query())) return;
 
     AttackStyle style = zul_player_equipped_attack_style(s);
     s->player.attack_timer = ls->attack_speed;

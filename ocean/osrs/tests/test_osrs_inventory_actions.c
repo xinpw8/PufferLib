@@ -144,9 +144,22 @@ static void run_drink_dose_check(void) {
         !osrs_inventory_tick_intent_has_effect(&intent));
 }
 
+static void test_weapon_ranges(void) {
+    const Item* dragon_dart = get_item(ITEM_DRAGON_DART);
+    ASSERT_INT_EQ("dragon dart weapon range", dragon_dart->attack_range, 3);
+
+    uint8_t unarmed_loadout[NUM_GEAR_SLOTS];
+    memset(unarmed_loadout, ITEM_NONE, sizeof(unarmed_loadout));
+    EquipmentBonuses unarmed = {0};
+    osrs_sum_equipment_bonuses(unarmed_loadout, &unarmed);
+    ASSERT_INT_EQ("unarmed attack speed", unarmed.attack_speed, 4);
+    ASSERT_INT_EQ("unarmed attack range", unarmed.attack_range, 1);
+}
+
 int main(void) {
     for (int trial = 0; trial < 500; trial++)
         run_equip_storm(trial);
     run_drink_dose_check();
+    test_weapon_ranges();
     return osrs_test_summary();
 }

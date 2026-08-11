@@ -1524,7 +1524,8 @@ static void test_idle_diagnostics_count_missed_attack_opportunities(void) {
     ASSERT_INT_EQ("no immediate threat",
         inf_player_has_immediate_threat(&state), 0);
 
-    inf_record_idle_diagnostics(&state, 1, 1, 1, 1);
+    inf_record_idle_diagnostics(
+        &state, 1, 1, INF_IDLE_PHASE_SET, 1, 1, 1);
 
     ASSERT_INT_EQ("attack ready no attack total",
         state.total_attack_ready_no_attack_ticks, 1);
@@ -2436,7 +2437,7 @@ static void test_player_movement_ignores_npc_collision_flags(void) {
         inf_legacy_context()->collision_map,
         inf_legacy_context()->world_offset_x,
         inf_legacy_context()->world_offset_y,
-        inf_tile_walkable, &walk_ctx, inf_pathfind_blocked, &walk_ctx,
+        inf_tile_walkable, &walk_ctx, NULL, NULL,
         INF_ARENA_MIN_X, INF_ARENA_MIN_Y, INF_ARENA_WIDTH, INF_ARENA_HEIGHT);
 
     ASSERT_INT_EQ("player runs through npc footprints", steps, 2);
@@ -2689,10 +2690,7 @@ static void chase_block_test_run_until_attackable(
     int target_x, int target_y, int target_size, int attack_range,
     const OsrsLosQuery* los_query
 ) {
-    for (int i = 0; i < 12 && !encounter_player_can_attack(
-            player->x, player->y,
-            target_x, target_y, target_size, attack_range,
-            los_query); i++) {
+    for (int i = 0; i < 12 && !encounter_player_can_attack(player->x, player->y, target_x, target_y, target_size, attack_range, NULL, 0, 0, los_query); i++) {
         int moved = encounter_chase_attack_target(
             player,
             target_x, target_y, target_size, attack_range,
@@ -2737,7 +2735,7 @@ static void test_attack_chase_uses_reachable_approach_tile(void) {
 
     chase_block_test_run_until_attackable(&player, &blocks, 5, 5, 1, 3, &los_query);
     ASSERT_INT_EQ("chase reaches a reachable attack tile",
-        encounter_player_can_attack(player.x, player.y, 5, 5, 1, 3, &los_query), 1);
+        encounter_player_can_attack(player.x, player.y, 5, 5, 1, 3, NULL, 0, 0, &los_query), 1);
 }
 
 static void test_attack_chase_routes_around_los_blocker_while_in_range(void) {
@@ -2756,7 +2754,7 @@ static void test_attack_chase_routes_around_los_blocker_while_in_range(void) {
     player.y = 0;
 
     ASSERT_INT_EQ("starting tile is range-valid but LOS-blocked",
-        encounter_player_can_attack(player.x, player.y, 5, 0, 1, 10, &los_query), 0);
+        encounter_player_can_attack(player.x, player.y, 5, 0, 1, 10, NULL, 0, 0, &los_query), 0);
 
     int moved = encounter_chase_attack_target(
         &player,
@@ -2772,7 +2770,7 @@ static void test_attack_chase_routes_around_los_blocker_while_in_range(void) {
         chase_block_test_has_block(&blocks, player.x, player.y), 0);
     chase_block_test_run_until_attackable(&player, &blocks, 5, 0, 1, 10, &los_query);
     ASSERT_INT_EQ("chase reaches a clear long-range attack tile",
-        encounter_player_can_attack(player.x, player.y, 5, 0, 1, 10, &los_query), 1);
+        encounter_player_can_attack(player.x, player.y, 5, 0, 1, 10, NULL, 0, 0, &los_query), 1);
 }
 
 static void test_attack_chase_routes_around_los_blocker_for_short_range(void) {
@@ -2804,7 +2802,7 @@ static void test_attack_chase_routes_around_los_blocker_for_short_range(void) {
         chase_block_test_has_block(&blocks, player.x, player.y), 0);
     chase_block_test_run_until_attackable(&player, &blocks, 5, 0, 1, 3, &los_query);
     ASSERT_INT_EQ("chase reaches a clear short-range attack tile",
-        encounter_player_can_attack(player.x, player.y, 5, 0, 1, 3, &los_query), 1);
+        encounter_player_can_attack(player.x, player.y, 5, 0, 1, 3, NULL, 0, 0, &los_query), 1);
 }
 
 static void test_melee_fallback_geometry(void) {
@@ -6677,6 +6675,7 @@ static void test_zuk_obs_tracks_shield_and_mager_aggro(void) {
     state.npcs[2].active = 0;
     state.zuk.shield_idx = -1;
     state.npcs[0].aggro_target = -1;
+    inf_invalidate_current_obs_slots(&state);
 
     memset(obs, 0, sizeof(obs));
     memset(mask, 0, sizeof(mask));
@@ -7058,14 +7057,19 @@ static void test_human_targeting_refreshes_stale_obs_slots(void) {
     for (int i = 0; i < INF_OBS_NPCS; i++) {
         state.current_obs_slots[i] = -1;
     }
+    inf_invalidate_current_obs_slots(&state);
 
     state.npcs[5] = make_test_npc(
         INF_NPC_RANGER, 24, 24, INF_NPC_STATS[INF_NPC_RANGER].size);
     state.npcs[5].active = 1;
     state.npcs[5].hp = state.npcs[5].max_hp = INF_NPC_STATS[INF_NPC_RANGER].hp;
 
+    ASSERT_INT_EQ("stale targetability slots start invalid",
+        state.current_obs_slots_valid, 0);
     ASSERT_INT_EQ("live ranger is targetable without prior obs write",
         inf_is_human_targetable_npc_slot((EncounterState*)&state, 5), 1);
+    ASSERT_INT_EQ("targetability refresh validates obs slots",
+        state.current_obs_slots_valid, 1);
 
     inf_refresh_current_obs_slots(&state);
     int ranger_slot = inf_find_target_obs_slot(&state, 5);
@@ -7077,7 +7081,12 @@ static void test_human_targeting_refreshes_stale_obs_slots(void) {
         int actions[INF_NUM_ACTION_HEADS];
         hi.pending_target_idx = 5;
         state.current_obs_slots[ranger_slot] = -1;
+        inf_invalidate_current_obs_slots(&state);
+        ASSERT_INT_EQ("pending target slots start invalid",
+            state.current_obs_slots_valid, 0);
         inf_translate_human_input(&hi, actions, (EncounterState*)&state);
+        ASSERT_INT_EQ("pending target refresh validates obs slots",
+            state.current_obs_slots_valid, 1);
         ASSERT_INT_EQ("pending human target refreshes obs slot",
             actions[INF_HEAD_TARGET], ranger_slot + 1);
     }
@@ -7088,7 +7097,12 @@ static void test_human_targeting_refreshes_stale_obs_slots(void) {
         human_input_init(&hi);
         human_input_queue_attack_npc(&hi, 5);
         state.current_obs_slots[ranger_slot] = -1;
+        inf_invalidate_current_obs_slots(&state);
+        ASSERT_INT_EQ("queued target slots start invalid",
+            state.current_obs_slots_valid, 0);
         inf_translate_human_commands(&hi, actions, &state);
+        ASSERT_INT_EQ("queued target refresh validates obs slots",
+            state.current_obs_slots_valid, 1);
         ASSERT_INT_EQ("queued human target refreshes obs slot",
             actions[INF_HEAD_TARGET], ranger_slot + 1);
         human_input_destroy(&hi);
@@ -8604,7 +8618,7 @@ static void test_inferno_binding_forwards_offensive_prayer_reward(void) {
         "config/osrs_inferno.ini",
         "[env]",
         "[vec]",
-        "offensive_prayer_reward_coeff = 0.0");
+        "offensive_prayer_reward_coeff = 0");
     ASSERT_SOURCE_BLOCK_CONTAINS(
         "offensive prayer sweep config",
         "config/osrs_inferno.ini",
@@ -8651,7 +8665,7 @@ static void test_inferno_binding_forwards_curriculum_supply_config(void) {
         "config/osrs_inferno.ini",
         "[env]",
         "[vec]",
-        "curriculum_supply_jitter_mode = 0");
+        "curriculum_supply_jitter_mode = 1");
     ASSERT_SOURCE_BLOCK_CONTAINS(
         "curriculum no-brew defaults off",
         "config/osrs_inferno.ini",

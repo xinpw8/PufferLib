@@ -1,16 +1,50 @@
 #ifndef OSRS_INTERACTION_H
 #define OSRS_INTERACTION_H
 
+#define OSRS_INTERACTION_ROUTE_MAX_WAYPOINTS 25
+
+typedef enum {
+    OSRS_INTERACTION_ROUTE_EMPTY = 0,
+    OSRS_INTERACTION_ROUTE_READY,
+    OSRS_INTERACTION_ROUTE_FAILED,
+} OsrsInteractionRouteState;
+
+typedef struct {
+    OsrsInteractionRouteState state;
+    int target_x;
+    int target_y;
+    int target_size;
+    int attack_range;
+    int planned_source_x;
+    int planned_source_y;
+    int expected_player_x;
+    int expected_player_y;
+    int waypoint_count;
+    int waypoint_index;
+    int waypoint_x[OSRS_INTERACTION_ROUTE_MAX_WAYPOINTS];
+    int waypoint_y[OSRS_INTERACTION_ROUTE_MAX_WAYPOINTS];
+} OsrsInteractionRoute;
+
 typedef struct {
     int target_slot;
+    OsrsInteractionRoute route;
 } OsrsInteraction;
 
+static inline void osrs_interaction_route_clear(OsrsInteraction* ix) {
+    ix->route.state = OSRS_INTERACTION_ROUTE_EMPTY;
+    ix->route.waypoint_count = 0;
+    ix->route.waypoint_index = 0;
+}
+
 static inline void osrs_interaction_set(OsrsInteraction* ix, int target_slot) {
+    if (ix->target_slot == target_slot) return;
     ix->target_slot = target_slot;
+    osrs_interaction_route_clear(ix);
 }
 
 static inline void osrs_interaction_clear(OsrsInteraction* ix) {
     ix->target_slot = -1;
+    osrs_interaction_route_clear(ix);
 }
 
 static inline int osrs_interaction_active(const OsrsInteraction* ix) {
@@ -19,6 +53,7 @@ static inline int osrs_interaction_active(const OsrsInteraction* ix) {
 
 static inline void osrs_interaction_init(OsrsInteraction* ix) {
     ix->target_slot = -1;
+    osrs_interaction_route_clear(ix);
 }
 
 #define OSRS_IACT_NONE     0

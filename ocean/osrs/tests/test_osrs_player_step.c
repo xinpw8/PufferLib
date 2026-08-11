@@ -30,10 +30,25 @@ typedef struct {
     OsrsAttackTarget target;
     int target_valid;
 } StepTargetCtx;
+typedef struct {
+    int calls;
+} StepWalkableCountCtx;
+
 
 static int step_tile_walkable(void* ctx, int x, int y) {
     (void)ctx;
     return x >= 0 && x < STEP_GRID && y >= 0 && y < STEP_GRID;
+}
+static int step_counted_tile_walkable(void* ctx, int x, int y) {
+    StepWalkableCountCtx* count = (StepWalkableCountCtx*)ctx;
+    count->calls++;
+    return x >= 0 && x < STEP_GRID && y >= 0 && y < STEP_GRID;
+}
+
+
+static int step_vertical_wall(void* ctx, int x, int y) {
+    (void)ctx;
+    return x == 5 && y <= 4;
 }
 
 static int step_lookup_target(void* ctx, int target_slot, OsrsAttackTarget* out) {
@@ -51,6 +66,103 @@ static OsrsEncounterArena step_arena(void) {
     arena.arena_w = STEP_GRID;
     arena.arena_h = STEP_GRID;
     return arena;
+}
+
+static void test_attack_route_rejects_cardinal_adjacency_through_wall(void) {
+    CollisionMap map;
+    CollisionRegion region;
+    collision_map_init(&map);
+    memset(&region, 0, sizeof(region));
+    collision_map_put(&map, collision_region_hash(9, 10), &region);
+    region.flags[0][9][10] = COLLISION_WALL_EAST;
+    region.flags[0][10][10] = COLLISION_WALL_WEST;
+
+    const OsrsLosQuery* los = osrs_los_open_query();
+    PathResult route = encounter_pathfind_arena_attack_approach(
+        &map, 0, 0,
+        9, 10,
+        10, 10, 1, 1,
+        step_tile_walkable, NULL,
+        NULL, NULL,
+        los,
+        0, 0, STEP_GRID, STEP_GRID);
+
+    CHECK("wall-adjacent route moves around the wall",
+        route.found && (route.next_dx != 0 || route.next_dy != 0));
+}
+
+static void test_attack_route_fallback_stays_within_ten_tiles(void) {
+    const OsrsLosQuery* los = osrs_los_open_query();
+    PathResult route = encounter_pathfind_arena_attack_approach(
+        NULL, 0, 0,
+        10, 10,
+        -20, 10, 1, 1,
+        step_tile_walkable, NULL,
+        NULL, NULL,
+        los,
+        0, 0, STEP_GRID, STEP_GRID);
+
+    CHECK("fallback outside the ten-tile target radius fails", !route.found);
+}
+
+static void test_attack_route_uses_rsmod_cardinal_first_order(void) {
+    PathResult route = encounter_pathfind_arena_attack_approach(
+        NULL, 0, 0,
+        10, 10,
+        8, 8, 1, 1,
+        step_tile_walkable, NULL,
+        NULL, NULL,
+        osrs_los_open_query(),
+        0, 0, STEP_GRID, STEP_GRID);
+
+    CHECK("RSMod route takes west before southwest",
+        route.found &&
+        route.next_dx == -1 && route.next_dy == 0 &&
+        route.run_dx == -1 && route.run_dy == -1);
+}
+
+static void test_melee_attack_does_not_cross_cardinal_wall(void) {
+    CollisionMap map;
+    CollisionRegion region;
+    collision_map_init(&map);
+    memset(&region, 0, sizeof(region));
+    collision_map_put(&map, collision_region_hash(9, 10), &region);
+    region.flags[0][9][10] = COLLISION_WALL_EAST;
+    region.flags[0][10][10] = COLLISION_WALL_WEST;
+
+    Player player;
+    memset(&player, 0, sizeof(player));
+    player.x = 9;
+    player.y = 10;
+
+    OsrsInteraction interaction;
+    osrs_interaction_init(&interaction);
+    osrs_interaction_set(&interaction, 3);
+
+    StepTargetCtx tctx = {
+        .target = { .slot = 3, .x = 10, .y = 10, .size = 1, .attack_range = 1 },
+        .target_valid = 1,
+    };
+    int dest_x = -1;
+    int dest_y = -1;
+    OsrsEncounterArena arena = step_arena();
+    arena.collision_map = &map;
+
+    OsrsPlayerStepInput input;
+    memset(&input, 0, sizeof(input));
+    input.player = &player;
+    input.interaction = &interaction;
+    input.target_lookup = step_lookup_target;
+    input.target_ctx = &tctx;
+    input.dest_x = &dest_x;
+    input.dest_y = &dest_y;
+    input.arena = arena;
+
+    OsrsPlayerStepResult result = osrs_encounter_player_step(&input);
+
+    CHECK("melee does not attack through cardinal wall",
+        !result.can_attack || player.x != 9 || player.y != 10);
+    CHECK("melee routes around cardinal wall", result.chased_target);
 }
 
 /* an entity click cancels a walk already in flight: the player closes on the
@@ -175,10 +287,227 @@ static void test_none_command_chases_active_interaction(void) {
     CHECK("no explicit move ran", r.explicit_moved == 0);
 }
 
+static void test_attack_route_persists_and_invalidates_canonically(void) {
+    Player player;
+    memset(&player, 0, sizeof(player));
+    player.x = 2;
+    player.y = 2;
+
+    OsrsInteraction interaction;
+    osrs_interaction_init(&interaction);
+    osrs_interaction_set(&interaction, 3);
+
+    StepTargetCtx target_ctx = {
+        .target = { .slot = 3, .x = 10, .y = 2, .size = 1, .attack_range = 1 },
+        .target_valid = 1,
+    };
+    int dest_x = -1;
+    int dest_y = -1;
+    OsrsEncounterArena arena = step_arena();
+    arena.extra_blocked = step_vertical_wall;
+
+    OsrsPlayerStepInput input;
+    memset(&input, 0, sizeof(input));
+    input.player = &player;
+    input.interaction = &interaction;
+    input.target_lookup = step_lookup_target;
+    input.target_ctx = &target_ctx;
+    input.dest_x = &dest_x;
+    input.dest_y = &dest_y;
+    input.arena = arena;
+
+    OsrsPlayerStepResult first = osrs_encounter_player_step(&input);
+    CHECK("obstacle chase builds a multi-checkpoint route",
+        first.chased_target && interaction.route.waypoint_count > 1);
+    CHECK("route records its original source",
+        interaction.route.planned_source_x == 2 &&
+        interaction.route.planned_source_y == 2);
+
+    osrs_encounter_player_step(&input);
+    CHECK("route persists while more than one checkpoint remains",
+        interaction.route.planned_source_x == 2 &&
+        interaction.route.planned_source_y == 2);
+
+    target_ctx.target.y = 3;
+    int moved_target_source_x = player.x;
+    int moved_target_source_y = player.y;
+    osrs_encounter_player_step(&input);
+    CHECK("target geometry change reroutes from the current tile",
+        interaction.route.target_y == 3 &&
+        interaction.route.planned_source_x == moved_target_source_x &&
+        interaction.route.planned_source_y == moved_target_source_y);
+
+    player.x = 1;
+    player.y = 10;
+    osrs_encounter_player_step(&input);
+    CHECK("player route divergence reroutes from the observed tile",
+        interaction.route.planned_source_x == 1 &&
+        interaction.route.planned_source_y == 10);
+}
+
+static void test_single_checkpoint_route_reroutes_each_tick(void) {
+    Player player;
+    memset(&player, 0, sizeof(player));
+    player.x = 2;
+    player.y = 2;
+
+    OsrsInteraction interaction;
+    osrs_interaction_init(&interaction);
+    osrs_interaction_set(&interaction, 3);
+
+    StepTargetCtx target_ctx = {
+        .target = { .slot = 3, .x = 12, .y = 2, .size = 1, .attack_range = 1 },
+        .target_valid = 1,
+    };
+    int dest_x = -1;
+    int dest_y = -1;
+    OsrsEncounterArena arena = step_arena();
+    OsrsPlayerStepInput input;
+    memset(&input, 0, sizeof(input));
+    input.player = &player;
+    input.interaction = &interaction;
+    input.target_lookup = step_lookup_target;
+    input.target_ctx = &target_ctx;
+    input.dest_x = &dest_x;
+    input.dest_y = &dest_y;
+    input.arena = arena;
+
+    osrs_encounter_player_step(&input);
+    CHECK("straight chase compresses to one checkpoint",
+        interaction.route.waypoint_count == 1 &&
+        interaction.route.planned_source_x == 2);
+    osrs_encounter_player_step(&input);
+    CHECK("one-checkpoint entity route reroutes from the current tile",
+        interaction.route.planned_source_x == 4 &&
+        interaction.route.planned_source_y == 2);
+}
+
+static void test_same_target_selection_preserves_route(void) {
+    OsrsInteraction interaction = {0};
+    osrs_interaction_init(&interaction);
+    osrs_interaction_set(&interaction, 3);
+    interaction.route.state = OSRS_INTERACTION_ROUTE_READY;
+    interaction.route.target_x = 12;
+    interaction.route.target_y = 7;
+    interaction.route.waypoint_count = 2;
+    interaction.route.waypoint_index = 1;
+    interaction.route.waypoint_x[1] = 11;
+    interaction.route.waypoint_y[1] = 7;
+
+    OsrsInteractionRoute preserved = interaction.route;
+    osrs_interaction_set(&interaction, 3);
+    CHECK("same target preserves its route",
+        memcmp(&interaction.route, &preserved, sizeof(preserved)) == 0);
+
+    osrs_interaction_set(&interaction, 4);
+    CHECK("different target clears the route",
+        interaction.target_slot == 4 &&
+        interaction.route.state == OSRS_INTERACTION_ROUTE_EMPTY &&
+        interaction.route.waypoint_count == 0 &&
+        interaction.route.waypoint_index == 0);
+}
+
+static void test_attack_route_field_stops_at_first_reachable_target_edge(void) {
+    EncounterArenaAttackRouteField field;
+    encounter_build_arena_attack_route_field(
+        &field,
+        NULL,
+        0,
+        0,
+        2,
+        2,
+        12,
+        2,
+        1,
+        step_tile_walkable,
+        NULL,
+        NULL,
+        NULL,
+        0,
+        0,
+        STEP_GRID,
+        STEP_GRID);
+
+    EncounterAttackRouteLanding landing = encounter_arena_attack_route_landing(
+        &field,
+        12,
+        2,
+        1,
+        1,
+        osrs_los_open_query());
+
+    CHECK("goal-directed field stops before exhausting the arena",
+        field.visited_count < STEP_GRID * STEP_GRID);
+    CHECK("goal-directed field keeps the first FIFO target edge",
+        landing.route_found && landing.route_x == 11 && landing.route_y == 2);
+}
+
+static void test_unreachable_attack_route_field_exhausts_for_fallback(void) {
+    EncounterArenaAttackRouteField field;
+    encounter_build_arena_attack_route_field(
+        &field,
+        NULL,
+        0,
+        0,
+        10,
+        10,
+        -20,
+        10,
+        1,
+        step_tile_walkable,
+        NULL,
+        NULL,
+        NULL,
+        0,
+        0,
+        STEP_GRID,
+        STEP_GRID);
+
+    CHECK("unreachable target exhausts the field for fallback",
+        field.visited_count == STEP_GRID * STEP_GRID);
+}
+
+static void test_attack_route_caches_walkability_per_tile(void) {
+    EncounterArenaAttackRouteField field;
+    StepWalkableCountCtx walkable_count = {0};
+    encounter_build_arena_attack_route_field(
+        &field,
+        NULL,
+        0,
+        0,
+        1,
+        1,
+        22,
+        22,
+        1,
+        step_counted_tile_walkable,
+        &walkable_count,
+        NULL,
+        NULL,
+        0,
+        0,
+        STEP_GRID,
+        STEP_GRID);
+
+    CHECK("route field checks each arena tile at most once",
+        walkable_count.calls <= STEP_GRID * STEP_GRID);
+}
+
+
 int main(void) {
+    test_same_target_selection_preserves_route();
+    test_attack_route_field_stops_at_first_reachable_target_edge();
+    test_unreachable_attack_route_field_exhausts_for_fallback();
+    test_attack_route_caches_walkability_per_tile();
     test_target_command_cancels_walk_in_flight();
     test_move_command_cancels_interaction();
     test_none_command_chases_active_interaction();
+    test_attack_route_rejects_cardinal_adjacency_through_wall();
+    test_attack_route_fallback_stays_within_ten_tiles();
+    test_attack_route_uses_rsmod_cardinal_first_order();
+    test_melee_attack_does_not_cross_cardinal_wall();
+    test_attack_route_persists_and_invalidates_canonically();
+    test_single_checkpoint_route_reroutes_each_tick();
 
     printf("\n%d/%d tests passed\n", tests_run - tests_failed, tests_run);
     return tests_failed == 0 ? 0 : 1;

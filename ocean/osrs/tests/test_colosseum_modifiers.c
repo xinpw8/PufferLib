@@ -2611,13 +2611,10 @@ static void test_player_walks_through_npc_footprint(void) {
     int npc_flag = col_grid_index(17, 16, &gx, &gy) && s.npc_collision_flags[gx][gy];
     int player_flag = col_grid_index(17, 16, &gx, &gy) &&
         gx == s.player_grid_x && gy == s.player_grid_y;
-    ColoWalkCtx wc = { .s = &s, .ctx = &ctx };
     CHECK("NPC footprint remains stamped for NPC systems", npc_flag != 0);
     CHECK("NPC footprint is not stamped as player collision", player_flag == 0);
     CHECK("player walkability ignores NPC footprint",
         col_player_walkable(&s, 17, 16) == 1);
-    CHECK("player pathfinding extra block ignores NPC footprint",
-        col_pathfind_blocked(&wc, 17 + ctx.world_offset_x, 16 + ctx.world_offset_y) == 0);
     int actions[COLO_NUM_ACTION_HEADS] = {0};
     actions[COLO_HEAD_PRIMARY] = forecast_move_action_for_delta(1, 0);
     step_and_observe(&s, &ctx, actions);
@@ -5227,8 +5224,8 @@ static void test_loadout_divine_potions_and_stat_drift(void) {
     s.divine_ranged_timer = 234;
     ColoSnapshot snap;
     col_snapshot_ctx((EncounterState*)&s, (EncounterContext*)&ctx, &snap);
-    CHECK("snapshot version is v22 for exact NPC death telemetry",
-        snap.version == COLO_SNAPSHOT_VERSION && COLO_SNAPSHOT_VERSION == 22u);
+    CHECK("snapshot version is v23 for interaction route state",
+        snap.version == COLO_SNAPSHOT_VERSION && COLO_SNAPSHOT_VERSION == 23u);
     ColosseumState restored;
     memset(&restored, 0, sizeof(restored));
     col_restore_ctx((EncounterState*)&restored, (EncounterContext*)&ctx, &snap, sizeof(snap));
@@ -6057,7 +6054,7 @@ static void test_combat_fidelity_contract_sizes(void) {
     CHECK("modifier block has 60 features", COLO_MODIFIER_OBS_SIZE == 60);
     CHECK("NPC slots carry a type code, not a type one-hot",
         COLO_FEATURES_PER_NPC == 23);
-    CHECK("snapshot version is v22", COLO_SNAPSHOT_VERSION == 22u);
+    CHECK("snapshot version is v23", COLO_SNAPSHOT_VERSION == 23u);
     CHECK("every active NPC gets an obs slot (no busy-wave drop)",
         COLO_OBS_NPCS == 24 && COLO_OBS_NPCS == COLO_MAX_NPCS);
     CHECK("PRIMARY head covers noop, movement, and NPC obs slots",
@@ -6725,7 +6722,7 @@ static void test_combat_fidelity_snapshot_roundtrip(void) {
 
     ColoSnapshot snap;
     col_snapshot_ctx((EncounterState*)&s, (EncounterContext*)&ctx, &snap);
-    CHECK("snapshot frame is v22", snap.version == 22u);
+    CHECK("snapshot frame is v23", snap.version == 23u);
 
     ColosseumState restored;
     memset(&restored, 0, sizeof(restored));
@@ -7065,11 +7062,13 @@ static void test_osrs_los_query_contracts(void) {
     printf("test_osrs_los_query_contracts\n");
     OsrsLosQuery open_query = osrs_los_open();
     CHECK("explicit open LoS permits a ranged attack",
-        encounter_player_can_attack(0, 0, 4, 0, 1, 10, &open_query) == 1);
+        encounter_player_can_attack(
+            0, 0, 4, 0, 1, 10, NULL, 0, 0, &open_query) == 1);
 
     OsrsLosQuery tile_query = osrs_los_tile(test_los_every_tile_blocked, NULL);
     CHECK("tile LoS refuses when every tile blocks",
-        encounter_player_can_attack(0, 0, 4, 0, 1, 10, &tile_query) == 0);
+        encounter_player_can_attack(
+            0, 0, 4, 0, 1, 10, NULL, 0, 0, &tile_query) == 0);
 }
 
 static void test_player_ranged_los_blocked_by_pillar(void) {
@@ -7096,7 +7095,9 @@ static void test_player_ranged_los_blocked_by_pillar(void) {
     CHECK("shared tile LoS blocks the same pillar line",
         encounter_player_can_attack(s.player.x, s.player.y,
             npc->x, npc->y, col_npc_effective_size(npc),
-            col_player_attack_range(&s), &los_query) == 0);
+            col_player_attack_range(&s),
+            ctx.collision_map, ctx.world_offset_x, ctx.world_offset_y,
+            &los_query) == 0);
 
     s.player.x = 13; s.player.y = 4;
     col_rebuild_player_collision_flags(&s);
@@ -7138,7 +7139,9 @@ static void test_player_chase_routes_around_pillar_for_los(void) {
     CHECK("start tile is range-valid and LoS-blocked",
         encounter_player_can_attack(s.player.x, s.player.y,
             npc->x, npc->y, col_npc_effective_size(npc),
-            attack_range, &los_query) == 0);
+            attack_range,
+            ctx.collision_map, ctx.world_offset_x, ctx.world_offset_y,
+            &los_query) == 0);
 
     int actions[COLO_NUM_ACTION_HEADS] = {0};
     int attacked_tick = -1;
@@ -8226,24 +8229,35 @@ static void test_melee_reach_cardinal_vs_diagonal(void) {
             CHECK("reach-1 helper rejects a diagonal corner",
                   encounter_entity_footprint_cardinal_adjacent(cx, cy, 1, tx, ty, tsize) == 0);
             CHECK("range-1 gate rejects a diagonal corner",
-                  encounter_player_can_attack(cx, cy, tx, ty, tsize, 1, open) == 0);
+                  encounter_player_can_attack(
+                      cx, cy, tx, ty, tsize, 1, NULL, 0, 0, open) == 0);
             CHECK("range-2 (halberd) gate allows a diagonal corner",
-                  encounter_player_can_attack(cx, cy, tx, ty, tsize, 2, open) == 1);
+                  encounter_player_can_attack(
+                      cx, cy, tx, ty, tsize, 2, NULL, 0, 0, open) == 1);
         }
 
         for (int k = 0; k < tsize; k++) {
             CHECK("range-1 gate allows a west cardinal-edge tile",
-                  encounter_player_can_attack(tx - 1, ty + k, tx, ty, tsize, 1, open) == 1);
+                  encounter_player_can_attack(
+                      tx - 1, ty + k, tx, ty, tsize, 1,
+                      NULL, 0, 0, open) == 1);
             CHECK("range-1 gate allows an east cardinal-edge tile",
-                  encounter_player_can_attack(tx + tsize, ty + k, tx, ty, tsize, 1, open) == 1);
+                  encounter_player_can_attack(
+                      tx + tsize, ty + k, tx, ty, tsize, 1,
+                      NULL, 0, 0, open) == 1);
             CHECK("range-1 gate allows a south cardinal-edge tile",
-                  encounter_player_can_attack(tx + k, ty - 1, tx, ty, tsize, 1, open) == 1);
+                  encounter_player_can_attack(
+                      tx + k, ty - 1, tx, ty, tsize, 1,
+                      NULL, 0, 0, open) == 1);
             CHECK("range-1 gate allows a north cardinal-edge tile",
-                  encounter_player_can_attack(tx + k, ty + tsize, tx, ty, tsize, 1, open) == 1);
+                  encounter_player_can_attack(
+                      tx + k, ty + tsize, tx, ty, tsize, 1,
+                      NULL, 0, 0, open) == 1);
         }
 
         CHECK("overlap is never meleeable",
-              encounter_player_can_attack(tx, ty, tx, ty, tsize, 1, open) == 0);
+              encounter_player_can_attack(
+                  tx, ty, tx, ty, tsize, 1, NULL, 0, 0, open) == 0);
     }
 }
 

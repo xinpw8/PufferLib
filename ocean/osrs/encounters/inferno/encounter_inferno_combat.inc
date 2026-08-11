@@ -226,6 +226,7 @@ static int inf_player_can_attack_npc_from_current_tile(
         npc->y,
         npc->size,
         ls->attack_range,
+        NULL, 0, 0,
         &los_query);
 }
 
@@ -285,6 +286,7 @@ static InfPlayerNpcLoadoutReach inf_player_loadout_reach_to_npc(
         npc->y,
         npc->size,
         ls->attack_range,
+        NULL, 0, 0,
         &los_query);
     return out;
 }
@@ -311,6 +313,7 @@ static int inf_player_can_phantom_barrage_npc(
         npc->y,
         npc->size,
         10,
+        NULL, 0, 0,
         &los_query);
 }
 

@@ -642,7 +642,9 @@ static int inf_mager_resurrect_ctx(InfernoState* s, InfernoContext* ctx, int idx
 static void inf_queue_zuk_healer_sparks(InfernoState* s, const InfNPC* npc);
 static void inf_resolve_pending_sparks(InfernoState* s);
 static void inf_rebuild_player_collision_flags(InfernoState* s);
+static void inf_invalidate_current_obs_slots(InfernoState* s);
 static void inf_refresh_current_obs_slots_ctx(InfernoState* s, const InfernoContext* ctx);
+static void inf_ensure_current_obs_slots_ctx(InfernoState* s, const InfernoContext* ctx);
 static void inf_refresh_current_obs_slots(InfernoState* s);
 
 static InfConfig inf_default_config(void) {

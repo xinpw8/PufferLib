@@ -592,6 +592,8 @@ typedef struct {
 static inline void osrs_sum_equipment_bonuses(const uint8_t loadout[NUM_GEAR_SLOTS],
                                                EquipmentBonuses* out) {
     memset(out, 0, sizeof(*out));
+    out->attack_speed = 4;
+    out->attack_range = 1;
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
         uint8_t idx = loadout[slot];
         if (idx == 255) continue;

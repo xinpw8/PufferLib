@@ -43,6 +43,17 @@ static int test_raw_consumable_classification(void) {
     return 0;
 }
 
+static int test_consumable_registry_index_covers_every_row(void) {
+    for (int i = 0; i < OSRS_CONSUMABLE_CLICK_REGISTRY_COUNT; i++) {
+        CHECK("registered raw id maps to its row",
+            osrs_consumable_click_registry_index(
+                OSRS_CONSUMABLE_CLICK_REGISTRY[i].raw_osrs_id) == i);
+    }
+    CHECK("unknown raw id has no row",
+        osrs_consumable_click_registry_index(9999) == -1);
+    return 0;
+}
+
 static int test_sara_brew_dose_variants(void) {
     OsrsConsumableClick brew4 =
         osrs_consumable_click_lookup_raw_osrs_id(6685);
@@ -345,6 +356,7 @@ int main(void) {
     if (test_item_index_classification()) return 1;
     if (test_raw_consumable_classification()) return 1;
     if (test_sara_brew_dose_variants()) return 1;
+    if (test_consumable_registry_index_covers_every_row()) return 1;
     if (test_dose_after_drink()) return 1;
     if (test_pure_click_interpreter()) return 1;
     if (test_cell_click_classification()) return 1;

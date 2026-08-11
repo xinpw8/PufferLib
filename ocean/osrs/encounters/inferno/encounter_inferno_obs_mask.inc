@@ -113,6 +113,9 @@ INF_OBS_SLOT_LAYOUT[INF_NUM_NPC_TYPES] = {
     { INF_NPC_ZUK, 1 },        { INF_NPC_ZUK_SHIELD, 1 },
     { INF_NPC_HEALER_JAD, 6 }, { INF_NPC_HEALER_ZUK, 4 },
 };
+static void inf_invalidate_current_obs_slots(InfernoState* s) {
+    s->current_obs_slots_valid = 0;
+}
 
 static void inf_refresh_current_obs_slots_ctx(InfernoState* s, const InfernoContext* ctx) {
     int obs_slots[INF_OBS_NPCS];
@@ -165,6 +168,15 @@ static void inf_refresh_current_obs_slots_ctx(InfernoState* s, const InfernoCont
 
     for (int slot = 0; slot < INF_OBS_NPCS; slot++)
         s->current_obs_slots[slot] = obs_slots[slot];
+    s->current_obs_slots_valid = 1;
+}
+
+static void inf_ensure_current_obs_slots_ctx(
+    InfernoState* s,
+    const InfernoContext* ctx
+) {
+    if (!s->current_obs_slots_valid)
+        inf_refresh_current_obs_slots_ctx(s, ctx);
 }
 
 static void inf_refresh_current_obs_slots(InfernoState* s) {
@@ -277,7 +289,7 @@ static void inf_write_obs_ctx(
     INF_PROFILE_MARK(INF_PROF_OBS_PREFIX);
 #endif
 
-    inf_refresh_current_obs_slots_ctx(s, ctx);
+    inf_ensure_current_obs_slots_ctx(s, ctx);
 #ifdef INF_PROFILE_ENABLED
     INF_PROFILE_MARK(INF_PROF_OBS_REFRESH_SLOTS);
 #endif
@@ -421,7 +433,7 @@ static int inf_is_human_targetable_npc_slot_ctx(
 ) {
     InfernoState* s = (InfernoState*)state;
     InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
-    inf_refresh_current_obs_slots_ctx(s, ctx);
+    inf_ensure_current_obs_slots_ctx(s, ctx);
     return inf_obs_slot_is_targetable(s, ctx, inf_find_target_obs_slot(s, npc_slot));
 }
 
@@ -450,6 +462,26 @@ static int inf_drink_has_effect(const InfernoState* s, OsrsConsumableKind kind) 
             return 0;
     }
 }
+static inline InfInventoryClickMemo* inf_inventory_click_memo(
+    InfernoState* s,
+    int cell_idx
+) {
+    const OsrsInventoryCell* cell = &s->inventory_cells[cell_idx];
+    InfInventoryClickMemo* memo = &s->inventory_click_memos[cell_idx];
+    if (memo->item_idx != cell->item_idx ||
+            memo->raw_osrs_id != cell->raw_osrs_id) {
+        OsrsInventoryClickResolution resolution =
+            osrs_inventory_cell_click_classify(cell);
+        *memo = (InfInventoryClickMemo){
+            .item_idx = cell->item_idx,
+            .raw_osrs_id = cell->raw_osrs_id,
+            .click_action = (uint8_t)resolution.click_action,
+            .consumable_kind = (uint8_t)resolution.consumable_kind,
+        };
+    }
+    return memo;
+}
+
 
 static void inf_write_mask_ctx(
     EncounterState* state,
@@ -458,14 +490,8 @@ static void inf_write_mask_ctx(
 ) {
     InfernoState* s = (InfernoState*)state;
     InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
-    inf_refresh_current_obs_slots_ctx(s, ctx);
+    inf_ensure_current_obs_slots_ctx(s, ctx);
     int offset = 0;
-    if (s->total_action_mask_checks == 0) {
-        for (int h = 0; h < INF_NUM_ACTION_HEADS; h++) {
-            if (s->min_valid_action_count_by_head[h] == 0)
-                s->min_valid_action_count_by_head[h] = 1000000;
-        }
-    }
 
     mask[offset++] = 1.0f;
     for (int d = 1; d < ENCOUNTER_MOVE_ACTIONS; d++) {
@@ -504,45 +530,51 @@ static void inf_write_mask_ctx(
     }
 
     {
-        int cell_equip_slot[OSRS_INVENTORY_SIZE];
-        int cell_can_eat[OSRS_INVENTORY_SIZE];
-        int cell_can_drink[OSRS_INVENTORY_SIZE];
+        int inventory_mask_offset = offset;
+        memset(&mask[inventory_mask_offset], 0,
+            sizeof(*mask) * INF_INV_CLICK_HEADS * INF_INV_CLICK_DIM);
+        for (int head = 0; head < INF_INV_CLICK_HEADS; head++)
+            mask[inventory_mask_offset + head * INF_INV_CLICK_DIM] = 1.0f;
+
         for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
-            cell_equip_slot[c] = -1;
-            cell_can_eat[c] = 0;
-            cell_can_drink[c] = 0;
             const OsrsInventoryCell* cell = &s->inventory_cells[c];
-            OsrsInventoryClickResolution resolution =
-                osrs_inventory_cell_click_classify(cell);
-            switch (resolution.click_action) {
-                case OSRS_CLICK_EQUIP:
-                    if (osrs_can_equip_from_cell(&s->player, s->inventory_cells, c))
-                        cell_equip_slot[c] = osrs_item_gear_slot(cell->item_idx);
+            const InfInventoryClickMemo* memo = inf_inventory_click_memo(s, c);
+            switch (memo->click_action) {
+                case OSRS_CLICK_EQUIP: {
+                    if (!osrs_can_equip_from_cell(&s->player, s->inventory_cells, c))
+                        break;
+                    int gear_slot = osrs_item_gear_slot(cell->item_idx);
+                    if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) {
+                        fprintf(stderr,
+                            "inferno: equippable inventory cell %d has invalid gear slot %d\n",
+                            c, gear_slot);
+                        abort();
+                    }
+                    mask[inventory_mask_offset + gear_slot * INF_INV_CLICK_DIM + c + 1] =
+                        1.0f;
                     break;
+                }
                 case OSRS_CLICK_EAT:
-                    cell_can_eat[c] = osrs_can_eat_consumable_kind(
-                        &s->player, resolution.consumable_kind);
+                    if (osrs_can_eat_consumable_kind(
+                            &s->player, (OsrsConsumableKind)memo->consumable_kind)) {
+                        mask[inventory_mask_offset +
+                            NUM_GEAR_SLOTS * INF_INV_CLICK_DIM + c + 1] = 1.0f;
+                    }
                     break;
                 case OSRS_CLICK_DRINK:
-                    cell_can_drink[c] = cell->dose > 0 &&
-                        s->player.potion_timer == 0 &&
-                        inf_drink_has_effect(s, resolution.consumable_kind);
+                    if (cell->dose > 0 &&
+                            s->player.potion_timer == 0 &&
+                            inf_drink_has_effect(
+                                s, (OsrsConsumableKind)memo->consumable_kind)) {
+                        mask[inventory_mask_offset +
+                            (NUM_GEAR_SLOTS + 1) * INF_INV_CLICK_DIM + c + 1] = 1.0f;
+                    }
                     break;
                 case OSRS_CLICK_NONE:
                     break;
             }
         }
-        for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-            mask[offset++] = 1.0f;
-            for (int c = 0; c < OSRS_INVENTORY_SIZE; c++)
-                mask[offset++] = cell_equip_slot[c] == slot ? 1.0f : 0.0f;
-        }
-        mask[offset++] = 1.0f;
-        for (int c = 0; c < OSRS_INVENTORY_SIZE; c++)
-            mask[offset++] = cell_can_eat[c] ? 1.0f : 0.0f;
-        mask[offset++] = 1.0f;
-        for (int c = 0; c < OSRS_INVENTORY_SIZE; c++)
-            mask[offset++] = cell_can_drink[c] ? 1.0f : 0.0f;
+        offset += INF_INV_CLICK_HEADS * INF_INV_CLICK_DIM;
     }
 
     mask[offset++] = 1.0f;
@@ -562,34 +594,6 @@ static void inf_write_mask_ctx(
     mask[offset++] = s->player.current_prayer > 0 ? 1.0f : 0.0f;
     mask[offset++] = s->player.current_prayer > 0 ? 1.0f : 0.0f;
 
-    int mask_offset = 0;
-    for (int h = 0; h < INF_NUM_ACTION_HEADS; h++) {
-        int valid = 0;
-        for (int a = 0; a < INF_ACTION_DIMS[h]; a++) {
-            if (mask[mask_offset + a] > 0.0f)
-                valid++;
-        }
-        if (valid == 0)
-            s->zero_valid_action_head_count[h]++;
-        if (valid < s->min_valid_action_count_by_head[h])
-            s->min_valid_action_count_by_head[h] = valid;
-        mask_offset += INF_ACTION_DIMS[h];
-    }
-    int target_offset = inf_action_head_mask_offset(INF_HEAD_TARGET) + 1;
-    for (int n = 0; n < INF_OBS_NPCS; n++) {
-        if (mask[target_offset + n] <= 0.0f)
-            continue;
-        int npc_idx = s->current_obs_slots[n];
-        if (npc_idx < 0 || npc_idx >= INF_MAX_NPCS)
-            continue;
-        int type = s->npcs[npc_idx].type;
-        if (type == INF_NPC_HEALER_ZUK)
-            s->target_head_valid_healer_count++;
-        else if (type == INF_NPC_ZUK)
-            s->target_head_valid_zuk_count++;
-        else if (type != INF_NPC_ZUK_SHIELD)
-            s->target_head_valid_set_count++;
-    }
     s->total_action_mask_checks++;
 }
 

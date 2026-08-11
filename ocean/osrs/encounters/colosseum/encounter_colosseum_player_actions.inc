@@ -513,14 +513,6 @@ static int col_tile_walkable(void* ctx, int x, int y) {
     return col_player_walkable(wc->s, x, y);
 }
 
-static int col_pathfind_blocked(void* ctx, int abs_x, int abs_y) {
-    ColoWalkCtx* wc = (ColoWalkCtx*)ctx;
-    int x = abs_x - wc->ctx->world_offset_x;
-    int y = abs_y - wc->ctx->world_offset_y;
-    if (col_static_blocked(x, y)) return 1;
-    if (col_sol_clamp_active(wc->s) && !col_in_boss_arena(wc->s, x, y)) return 1;
-    return 0;
-}
 
 static int col_npc_collision_flag_at(const ColosseumState* s, int x, int y) {
     int gx, gy;
@@ -1052,8 +1044,8 @@ static ColoPrimaryStepPlan col_primary_step_plan(
                 .world_offset_y = ctx->world_offset_y,
                 .is_walkable = col_tile_walkable,
                 .walkable_ctx = walk_ctx,
-                .extra_blocked = col_pathfind_blocked,
-                .blocked_ctx = walk_ctx,
+                .extra_blocked = NULL,
+                .blocked_ctx = NULL,
                 .los_query = los_query,
                 .arena_base_x = COLO_ARENA_MIN_X,
                 .arena_base_y = COLO_ARENA_MIN_Y,
@@ -1159,7 +1151,9 @@ static void col_tick_player_ctx(
             int player_range = col_player_attack_range(s);
             if (encounter_player_can_attack(s->player.x, s->player.y,
                     npc->x, npc->y, col_npc_effective_size(npc),
-                    player_range, &los_query)) {
+                    player_range,
+                    ctx->collision_map, ctx->world_offset_x, ctx->world_offset_y,
+                    &los_query)) {
 
                 int armed_kind = (!col_type_is_hazard_entity(npc->type) &&
                                   s->player.spec_armed)

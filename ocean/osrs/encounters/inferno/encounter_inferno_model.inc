@@ -744,6 +744,14 @@ typedef struct {
     int brewed;
     int blood_heal;
 } InfTickScratch;
+typedef struct {
+    uint8_t item_idx;
+    uint16_t raw_osrs_id;
+    uint8_t click_action;
+    uint8_t consumable_kind;
+} InfInventoryClickMemo;
+
+static_assert(sizeof(InfInventoryClickMemo) == 6, "Inferno inventory click memo size");
 
 typedef struct {
     Player player;
@@ -753,6 +761,7 @@ typedef struct {
     InfNPC npcs[INF_MAX_NPCS];
     uint32_t next_npc_render_id;
     int current_obs_slots[INF_OBS_NPCS];
+    uint8_t current_obs_slots_valid;
     InfPillar pillars[INF_NUM_PILLARS];
     InfZukState zuk;
 
@@ -848,6 +857,7 @@ typedef struct {
     InfLoadoutProfile active_loadout_profile;
     EncounterLoadoutStats loadout_stats[INF_NUM_WEAPON_SETS];
     OsrsInventoryCell inventory_cells[OSRS_INVENTORY_SIZE];
+    InfInventoryClickMemo inventory_click_memos[OSRS_INVENTORY_SIZE];
     EncounterLoadoutStats live_stats;
     EncounterLoadoutStats human_loadout_stats;
     int stamina_active_ticks;
@@ -895,11 +905,6 @@ typedef struct {
     int total_zuk_healer_out_of_range_ticks;
     int total_zuk_healer_attackable_ticks;
     int total_action_mask_checks;
-    int zero_valid_action_head_count[INF_NUM_ACTION_HEADS];
-    int min_valid_action_count_by_head[INF_NUM_ACTION_HEADS];
-    int target_head_valid_healer_count;
-    int target_head_valid_zuk_count;
-    int target_head_valid_set_count;
     int total_shield_tags;
     float total_hp_restored_jad;
     float total_hp_restored_zuk;

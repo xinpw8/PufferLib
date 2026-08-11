@@ -1,6 +1,7 @@
 #ifndef OSRS_INVENTORY_CLICKS_H
 #define OSRS_INVENTORY_CLICKS_H
 
+#include "osrs_item_effects.h"
 #include "osrs_inventory.h"
 #include "osrs_items.h"
 #include "osrs_consumables.h"
@@ -148,6 +149,67 @@ static const OsrsConsumableClick OSRS_CONSUMABLE_CLICK_REGISTRY[] = {
     {385, OSRS_CLICK_EAT, OSRS_CONSUMABLE_SHARK_FOOD, 0},
     {3144, OSRS_CLICK_EAT, OSRS_CONSUMABLE_KARAMBWAN, 0},
 };
+
+static inline int osrs_consumable_click_registry_index(uint16_t raw_osrs_id) {
+    switch (raw_osrs_id) {
+        case 6685: return 0;
+        case 6687: return 1;
+        case 6689: return 2;
+        case 6691: return 3;
+        case 3024: return 4;
+        case 3026: return 5;
+        case 3028: return 6;
+        case 3030: return 7;
+        case 10925: return 8;
+        case 10927: return 9;
+        case 10929: return 10;
+        case 10931: return 11;
+        case 12695: return 12;
+        case 12697: return 13;
+        case 12699: return 14;
+        case 12701: return 15;
+        case 23685: return 16;
+        case 23688: return 17;
+        case 23691: return 18;
+        case 23694: return 19;
+        case 2444: return 20;
+        case 169: return 21;
+        case 171: return 22;
+        case 173: return 23;
+        case 23733: return 24;
+        case 23736: return 25;
+        case 23739: return 26;
+        case 23742: return 27;
+        case 30875: return 28;
+        case 30878: return 29;
+        case 30881: return 30;
+        case 30884: return 31;
+        case 4417: return 32;
+        case 4419: return 33;
+        case 4421: return 34;
+        case 4423: return 35;
+        case 27641: return 36;
+        case 12913: return 37;
+        case 12915: return 38;
+        case 12917: return 39;
+        case 12919: return 40;
+        case 2434: return 41;
+        case 139: return 42;
+        case 141: return 43;
+        case 143: return 44;
+        case 22461: return 45;
+        case 22464: return 46;
+        case 22467: return 47;
+        case 22470: return 48;
+        case 12625: return 49;
+        case 12627: return 50;
+        case 12629: return 51;
+        case 12631: return 52;
+        case 385: return 53;
+        case 3144: return 54;
+        default: return -1;
+    }
+}
 
 static inline OsrsConsumableClick osrs_consumable_click_lookup_raw_osrs_id(
     uint16_t raw_osrs_id
@@ -455,16 +517,8 @@ static inline OsrsConsumableKind osrs_item_click_consumable_kind(uint8_t item_id
 static inline OsrsConsumableClick osrs_consumable_click_lookup_raw_osrs_id(
     uint16_t raw_osrs_id
 ) {
-    int count = (int)(
-        sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY) /
-        sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY[0])
-    );
-
-    for (int i = 0; i < count; i++) {
-        if (OSRS_CONSUMABLE_CLICK_REGISTRY[i].raw_osrs_id == raw_osrs_id) {
-            return OSRS_CONSUMABLE_CLICK_REGISTRY[i];
-        }
-    }
+    int index = osrs_consumable_click_registry_index(raw_osrs_id);
+    if (index >= 0) return OSRS_CONSUMABLE_CLICK_REGISTRY[index];
 
     return (OsrsConsumableClick){
         .raw_osrs_id = raw_osrs_id,
@@ -723,12 +777,10 @@ static inline int osrs_inventory_cell_obs_code(uint8_t item_idx, uint16_t raw_os
         return OSRS_INVENTORY_CELL_OBS_CODE_GEAR_BASE + item_idx;
     }
     if (raw_osrs_id == 0) return OSRS_INVENTORY_CELL_OBS_CODE_EMPTY;
-    for (int i = 0; i < OSRS_CONSUMABLE_CLICK_REGISTRY_COUNT; i++) {
-        if (OSRS_CONSUMABLE_CLICK_REGISTRY[i].raw_osrs_id == raw_osrs_id) {
-            return OSRS_INVENTORY_CELL_OBS_CODE_CONSUMABLE_BASE + i;
-        }
-    }
-    return OSRS_INVENTORY_CELL_OBS_CODE_INERT;
+    int index = osrs_consumable_click_registry_index(raw_osrs_id);
+    return index >= 0
+        ? OSRS_INVENTORY_CELL_OBS_CODE_CONSUMABLE_BASE + index
+        : OSRS_INVENTORY_CELL_OBS_CODE_INERT;
 }
 
 static inline OsrsInventoryCell osrs_inventory_cell_for_obs_code(int code) {

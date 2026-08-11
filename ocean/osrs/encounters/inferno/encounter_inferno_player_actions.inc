@@ -439,7 +439,7 @@ static void inf_tick_player_ctx(
         }
     }
 
-    inf_refresh_current_obs_slots_ctx(s, ctx);
+    inf_ensure_current_obs_slots_ctx(s, ctx);
 
     int target = actions[INF_HEAD_TARGET];
     int has_new_target = 0;
@@ -556,8 +556,8 @@ static void inf_tick_player_ctx(
             .world_offset_y = ctx->world_offset_y,
             .is_walkable = inf_tile_walkable,
             .walkable_ctx = &wc,
-            .extra_blocked = inf_pathfind_blocked,
-            .blocked_ctx = &wc,
+            .extra_blocked = NULL,
+            .blocked_ctx = NULL,
             .los_query = &los_query,
             .arena_base_x = INF_ARENA_MIN_X,
             .arena_base_y = INF_ARENA_MIN_Y,
@@ -582,7 +582,9 @@ static void inf_tick_player_ctx(
             int has_healer_attack = inf_resolve_player_attack_ctx(s, ctx, manual_spell, &healer_attack);
             if (has_healer_attack && encounter_player_can_attack(s->player.x, s->player.y,
                     target_npc->x, target_npc->y, target_npc->size,
-                    healer_attack.stats.attack_range, &los_query)) {
+                    healer_attack.stats.attack_range,
+                    ctx->collision_map, ctx->world_offset_x, ctx->world_offset_y,
+                    &los_query)) {
                 s->total_zuk_healer_attackable_ticks++;
             } else {
                 s->total_zuk_healer_out_of_range_ticks++;
@@ -606,7 +608,9 @@ static void inf_tick_player_ctx(
                 osrs_interaction_clear(&s->interaction);
             } else if (has_attack && encounter_player_can_attack(s->player.x, s->player.y,
                     target_npc->x, target_npc->y, target_npc->size,
-                    ls->attack_range, &los_query)) {
+                    ls->attack_range,
+                    ctx->collision_map, ctx->world_offset_x, ctx->world_offset_y,
+                    &los_query)) {
                 int is_blowpipe_spec_attack = weapon_is_blowpipe &&
                     s->player.spec_armed && s->player.special_energy >= BLOWPIPE_SPEC_COST;
                 EncounterProjectileDistanceMode distance_mode = is_magic_attack

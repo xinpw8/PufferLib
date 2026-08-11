@@ -617,7 +617,7 @@ static void inf_translate_human_input_ctx(
     encounter_translate_offensive_prayer(hi, actions, INF_HEAD_OFFENSIVE);
     InfernoState* s = (InfernoState*)state;
     InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
-    inf_refresh_current_obs_slots_ctx(s, ctx);
+    inf_ensure_current_obs_slots_ctx(s, ctx);
     if (hi->pending_target_idx >= 0) {
         int found_slot = inf_find_target_obs_slot(s, hi->pending_target_idx);
         if (inf_obs_slot_is_targetable(s, ctx, found_slot)) {
@@ -665,7 +665,7 @@ static void inf_translate_human_commands_ctx(
     InfernoContext* ctx
 ) {
     for (int h = 0; h < INF_NUM_ACTION_HEADS; h++) actions[h] = 0;
-    inf_refresh_current_obs_slots_ctx(s, ctx);
+    inf_ensure_current_obs_slots_ctx(s, ctx);
 
     for (int i = 0; i < hi->commands.count; i++) {
         const HumanCommand* cmd = &hi->commands.items[i];
@@ -762,7 +762,7 @@ static void inf_step_human_commands(EncounterState* state, HumanInput* hi) {
 }
 
 #define INF_SNAPSHOT_MAGIC 0x1FE00001u
-#define INF_SNAPSHOT_VERSION 18u
+#define INF_SNAPSHOT_VERSION 21u
 
 typedef struct {
     uint32_t magic;

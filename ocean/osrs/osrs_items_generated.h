@@ -1063,7 +1063,7 @@ static const Item ITEM_DATABASE[NUM_ITEMS] = {
     },
     [ITEM_DRAGON_DART] = {
         .item_id = 11230, .name = "Dragon dart", .slot = SLOT_WEAPON,
-        .attack_speed = 3, .attack_range = 0,
+        .attack_speed = 3, .attack_range = 3,
         .attack_stab = 0, .attack_slash = 0, .attack_crush = 0,
         .attack_magic = 0, .attack_ranged = 0,
         .defence_stab = 0, .defence_slash = 0, .defence_crush = 0,
