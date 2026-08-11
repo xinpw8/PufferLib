@@ -1,30 +1,30 @@
 #line 76 "encounter_colosseum.h"
 
 #define COLO_PLAYER_OBS_SIZE      36
-/* Each cell ships an item code plus the two features the item does not determine; the entity
- * encoder rebuilds the other twelve from COLO_ITEM_OBS_TABLE, exactly as it rebuilds the NPC
- * type one-hot from a code. Keeping the EXPANDED record identical to the old compact one
- * means the inventory branch weights keep their meaning across this recut. */
+/* Each cell ships an item code plus dynamic equipped and HP-heal fields. The entity encoder
+ * rebuilds the full compact record from OSRS_ITEM_OBS_TABLE, then overwrites those fields. */
 #define COLO_INVENTORY_CELL_OBS_FEATURES OSRS_INVENTORY_CELL_OBS_FEATURES_CODED
 #define COLO_INVENTORY_CELL_ENCODER_FEATURES OSRS_INVENTORY_CELL_OBS_FEATURES_COMPACT
 #define COLO_INVENTORY_OBS_SIZE \
     (COLO_INVENTORY_DISPLAY_SLOTS * COLO_INVENTORY_CELL_OBS_FEATURES)
-#define COLO_EQUIPPED_SELF_OBS_SIZE COLO_EQUIPPED_AGG_OBS_FEATURES
+#define COLO_EQUIPPED_SELF_OBS_SIZE OSRS_EQUIPMENT_EFFECT_AGGREGATE_FEATURES
 static_assert(COLO_INVENTORY_OBS_SIZE + COLO_EQUIPPED_SELF_OBS_SIZE ==
     COLO_INVENTORY_OBS_CACHE_FLOATS,
     "inventory obs cache float count must match the inventory+equipped block size");
-static_assert(COLO_ITEM_OBS_TABLE_ROWS == OSRS_INVENTORY_CELL_OBS_CODE_COUNT,
-    "regenerate osrs_colosseum_item_obs_table.inc: the cell code space changed");
-static_assert(COLO_ITEM_OBS_TABLE_COLS == COLO_INVENTORY_CELL_ENCODER_FEATURES,
-    "regenerate osrs_colosseum_item_obs_table.inc: the expanded record width changed");
-static_assert(COLO_ITEM_OBS_TABLE_BASE_PRAYER == COLO_PLAYER_PRAYER_LEVEL,
-    "regenerate osrs_colosseum_item_obs_table.inc: it bakes prayer_restore at this level");
-static_assert(COLO_ITEM_OBS_TABLE_BASE_LEVEL == MAXED_BASE_ATTACK,
-    "regenerate osrs_colosseum_item_obs_table.inc: it bakes offensive_boost at this level");
-static_assert(COLO_ITEM_OBS_OVERLAY_EQUIPPED == OSRS_INVENTORY_CELL_COMPACT_EQUIPPED &&
-    COLO_ITEM_OBS_OVERLAY_HP_HEAL == OSRS_INVENTORY_CELL_COMPACT_HP_HEAL,
-    "the gather adds the observed floats at these expanded slots; the table holds zero there");
-static_assert(COLO_ITEM_OBS_CODE_SCALE == OSRS_INVENTORY_CELL_OBS_CODE_SCALE,
+static_assert(OSRS_ITEM_OBS_TABLE_ROWS == OSRS_INVENTORY_CELL_OBS_CODE_COUNT,
+    "regenerate osrs_item_obs_table.inc: the cell code space changed");
+static_assert(OSRS_ITEM_OBS_TABLE_COLS == COLO_INVENTORY_CELL_ENCODER_FEATURES,
+    "regenerate osrs_item_obs_table.inc: the expanded record width changed");
+static_assert(OSRS_ITEM_OBS_TABLE_BASE_HITPOINTS == MAXED_BASE_HITPOINTS,
+    "regenerate osrs_item_obs_table.inc: it bakes hp_heal at this level");
+static_assert(OSRS_ITEM_OBS_TABLE_BASE_PRAYER == COLO_PLAYER_PRAYER_LEVEL,
+    "regenerate osrs_item_obs_table.inc: it bakes prayer_restore at this level");
+static_assert(OSRS_ITEM_OBS_TABLE_BASE_RANGED == MAXED_BASE_RANGED,
+    "regenerate osrs_item_obs_table.inc: it bakes offensive_boost at this level");
+static_assert(OSRS_ITEM_OBS_OVERLAY_EQUIPPED == OSRS_INVENTORY_CELL_COMPACT_EQUIPPED &&
+    OSRS_ITEM_OBS_OVERLAY_HP_HEAL == OSRS_INVENTORY_CELL_COMPACT_HP_HEAL,
+    "the gather overwrites the dynamic fields at these expanded slots");
+static_assert(OSRS_ITEM_OBS_CODE_SCALE == OSRS_INVENTORY_CELL_OBS_CODE_SCALE,
     "the gather multiplies the observed code back by this scale before indexing a row");
 #define COLO_NPC_CORE_FEATURES    11
 #define COLO_NPC_TELLS_FEATURES   10
@@ -1485,7 +1485,7 @@ static uint64_t col_inventory_obs_signature(const ColosseumState* s) {
         h = (h ^ packed) * 1099511628211ULL;
     }
     const int scalars[3] = {
-        s->player.base_hitpoints, s->player.base_prayer, s->player.base_attack,
+        s->player.base_hitpoints, s->player.base_prayer, s->player.base_ranged,
     };
     for (int k = 0; k < 3; k++)
         h = (h ^ (uint64_t)(uint32_t)scalars[k]) * 1099511628211ULL;
@@ -1500,21 +1500,8 @@ static uint64_t col_inventory_obs_signature(const ColosseumState* s) {
 static void col_write_equipped_effect_aggregate(
     ColosseumState* s, float* obs, int* pi
 ) {
-    int i = *pi;
-    const OsrsEquipmentEffectProfile* fx = col_live_effects(s);
-    float agg_eff4[4];
-    osrs_item_effect_class4(fx->effect_mask, agg_eff4);
-    obs[i++] = agg_eff4[0];
-    obs[i++] = agg_eff4[1];
-    obs[i++] = agg_eff4[2];
-    obs[i++] = agg_eff4[3];
-    obs[i++] = col_clamp01((float)fx->virtus_piece_count / 3.0f);
-    obs[i++] = col_clamp01((float)fx->dharok_piece_count / 4.0f);
-    obs[i++] = col_clamp01((float)fx->crystal_armour_points / 6.0f);
-    obs[i++] = fx->recoil_source != OSRS_RECOIL_SOURCE_NONE ? 1.0f : 0.0f;
-    obs[i++] = fx->spec_regen_mode == OSRS_SPEC_REGEN_MODE_LIGHTBEARER ? 1.0f : 0.0f;
-    obs[i++] = fx->shield_item != ITEM_NONE ? 1.0f : 0.0f;
-    *pi = i;
+    osrs_write_equipment_effect_aggregate(&obs[*pi], col_live_effects(s));
+    *pi += OSRS_EQUIPMENT_EFFECT_AGGREGATE_FEATURES;
 }
 
 /* Likewise gear-dependent: it asks whether the item in this cell is the one currently worn
@@ -1552,16 +1539,14 @@ static void col_write_inventory_and_equipped_obs(
     }
     s->log.inv_memo_misses += 1.0f;
 
-    /* prayer_restore and offensive_boost are baked into COLO_ITEM_OBS_TABLE at these levels.
-     * base_hitpoints is deliberately absent from that list: Frailty rewrites it, which is why
-     * hp_heal still rides the observation. Anything that starts moving the other two the same
-     * way has to ship them too, and must not discover that during a training run. */
-    if (s->player.base_prayer != COLO_ITEM_OBS_TABLE_BASE_PRAYER ||
-            s->player.base_attack != COLO_ITEM_OBS_TABLE_BASE_LEVEL) {
+    /* The generated table bakes base-99 item semantics. Colosseum overwrites HP heal because
+     * Frailty rewrites base hitpoints, while prayer and ranged stay fixed. */
+    if (s->player.base_prayer != OSRS_ITEM_OBS_TABLE_BASE_PRAYER ||
+            s->player.base_ranged != OSRS_ITEM_OBS_TABLE_BASE_RANGED) {
         fprintf(stderr,
-            "colosseum inventory obs: base prayer %d attack %d, item table baked %d/%d\n",
-            s->player.base_prayer, s->player.base_attack,
-            COLO_ITEM_OBS_TABLE_BASE_PRAYER, COLO_ITEM_OBS_TABLE_BASE_LEVEL);
+            "colosseum inventory obs: base prayer %d ranged %d, item table baked %d/%d\n",
+            s->player.base_prayer, s->player.base_ranged,
+            OSRS_ITEM_OBS_TABLE_BASE_PRAYER, OSRS_ITEM_OBS_TABLE_BASE_RANGED);
         abort();
     }
 
@@ -1575,7 +1560,7 @@ static void col_write_inventory_and_equipped_obs(
             osrs_inventory_cell_holds_equipped_item(&s->player, s->inventory_cells, cell_idx),
             s->player.base_hitpoints,
             s->player.base_prayer,
-            s->player.base_attack);
+            s->player.base_ranged);
         i += COLO_INVENTORY_CELL_OBS_FEATURES;
     }
     assert(i == COLO_OBS_AFTER_INVENTORY);

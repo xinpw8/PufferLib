@@ -650,9 +650,6 @@ typedef struct Log {
     float target_available_no_attack_ticks;
     float safe_attack_opportunity_missed_ticks;
     float progressless_ticks;
-    float npc_pressure_if_ready_count;
-    float npc_pressure_this_tick_count;
-    float npc_pressure_max_incoming_hit;
     float attack_ready_no_attack_ticks_by_phase[OSRS_INFERNO_IDLE_PHASE_COUNT];
     float target_available_no_attack_ticks_by_phase[OSRS_INFERNO_IDLE_PHASE_COUNT];
     float safe_attack_opportunity_missed_ticks_by_phase[OSRS_INFERNO_IDLE_PHASE_COUNT];

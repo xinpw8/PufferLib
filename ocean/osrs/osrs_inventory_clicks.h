@@ -231,22 +231,6 @@ static inline int osrs_consumable_offensive_boost_amount(OsrsConsumableKind k, i
     }
 }
 
-static inline void osrs_item_effect_class4(uint32_t effect_mask, float out[4]) {
-    uint32_t lifesteal = OSRS_ITEM_EFFECT_BLOOD_FURY | OSRS_ITEM_EFFECT_SANG_HEAL;
-    uint32_t damage_amp = OSRS_ITEM_EFFECT_TWISTED_BOW | OSRS_ITEM_EFFECT_FANG |
-        OSRS_ITEM_EFFECT_TUMEKENS_SHADOW | OSRS_ITEM_EFFECT_DHAROK_PIECE |
-        OSRS_ITEM_EFFECT_DRAGON_HUNTER_WAND | OSRS_ITEM_EFFECT_VENATOR_BOUNCE;
-    uint32_t defensive = OSRS_ITEM_EFFECT_ELYSIAN | OSRS_ITEM_EFFECT_CRYSTAL_ARMOUR |
-        OSRS_ITEM_EFFECT_RECOIL_RING | OSRS_ITEM_EFFECT_VENOM_IMMUNE |
-        OSRS_ITEM_EFFECT_ECHO_BOOTS | OSRS_ITEM_EFFECT_CONFLICTION |
-        OSRS_ITEM_EFFECT_VIRTUS_PIECE;
-    uint32_t util = OSRS_ITEM_EFFECT_LIGHTBEARER;
-    out[0] = (effect_mask & lifesteal)  ? 1.0f : 0.0f;
-    out[1] = (effect_mask & damage_amp) ? 1.0f : 0.0f;
-    out[2] = (effect_mask & defensive)  ? 1.0f : 0.0f;
-    out[3] = (effect_mask & util)       ? 1.0f : 0.0f;
-}
-
 static inline uint8_t osrs_item_index_for_raw_osrs_id(uint16_t raw_osrs_id) {
     for (int i = 0; i < NUM_ITEMS; i++) {
         if (ITEM_DATABASE[i].item_id == raw_osrs_id) return (uint8_t)i;
@@ -760,26 +744,21 @@ static inline OsrsInventoryCell osrs_inventory_cell_for_obs_code(int code) {
     };
 }
 
-/* The item-table row: the compact record with the two slots the observation supplies zeroed,
-   so a gather can add the observed values in without branching on the cell's kind. On a gear
-   cell the union slot holds effect_class4[2], which is an item fact and stays. */
+/* The generated item-table row: the full compact record at the table's fixed base stats.
+   Equipped is supplied by each observation and is the only zeroed slot. */
 static inline void osrs_write_inventory_cell_obs_table_row(
     float* out,
     int code,
     int base_hitpoints,
     int base_prayer,
-    int base_level
+    int base_ranged
 ) {
     OsrsInventoryCell cell = osrs_inventory_cell_for_obs_code(code);
     osrs_write_inventory_cell_affordance_features_compact(
         out, cell.item_idx, cell.raw_osrs_id, cell.dose, 0,
-        base_hitpoints, base_prayer, base_level);
+        base_hitpoints, base_prayer, base_ranged);
 
     out[OSRS_INVENTORY_CELL_COMPACT_EQUIPPED] = 0.0f;
-    if (out[OSRS_INVENTORY_CELL_COMPACT_IS_ARMOR] == 0.0f &&
-            out[OSRS_INVENTORY_CELL_COMPACT_IS_WEAPON] == 0.0f) {
-        out[OSRS_INVENTORY_CELL_COMPACT_HP_HEAL] = 0.0f;
-    }
 }
 
 /* The other half of the same record. Projecting both sides off one compact write is what
@@ -811,7 +790,7 @@ static inline void osrs_write_inventory_cell_obs_code_features(
         is_gear ? 0.0f : compact[OSRS_INVENTORY_CELL_COMPACT_HP_HEAL];
 }
 
-/* Inverse of the split above, and the exact arithmetic colo_ent_gather_inv performs. */
+/* Rebuilds the compact record, overwrites equipped, and overwrites HP-heal only for non-gear. */
 static inline void osrs_expand_inventory_cell_obs_code_features(
     float* out,
     const float* coded,
@@ -820,10 +799,14 @@ static inline void osrs_expand_inventory_cell_obs_code_features(
     for (int f = 0; f < OSRS_INVENTORY_CELL_OBS_FEATURES_COMPACT; f++) {
         out[f] = table_row[f];
     }
-    out[OSRS_INVENTORY_CELL_COMPACT_EQUIPPED] +=
+    int is_gear = table_row[OSRS_INVENTORY_CELL_COMPACT_IS_ARMOR] != 0.0f ||
+        table_row[OSRS_INVENTORY_CELL_COMPACT_IS_WEAPON] != 0.0f;
+    out[OSRS_INVENTORY_CELL_COMPACT_EQUIPPED] =
         coded[OSRS_INVENTORY_CELL_OBS_EQUIPPED];
-    out[OSRS_INVENTORY_CELL_COMPACT_HP_HEAL] +=
-        coded[OSRS_INVENTORY_CELL_OBS_HP_HEAL];
+    if (!is_gear) {
+        out[OSRS_INVENTORY_CELL_COMPACT_HP_HEAL] =
+            coded[OSRS_INVENTORY_CELL_OBS_HP_HEAL];
+    }
 }
 
 #endif

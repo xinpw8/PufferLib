@@ -47,20 +47,30 @@ _Static_assert(COLO_ENT_INF_INV_OBS_FEATS == COLO_INVENTORY_CELL_OBS_FEATURES,
 _Static_assert(COLO_ENT_INF_INV_FEATS == COLO_INVENTORY_CELL_ENCODER_FEATURES,
     "encoder inventory record is one item table row with the observed floats added in");
 
-_Static_assert(INF_ENT_FEATS == INF_NPC_SLOT_FEATURES,
-    "entity encoder per-NPC width must track the inferno observation layout");
+_Static_assert(INF_ENT_OBS_SIZE == INF_NUM_OBS,
+    "entity encoder global projection width must track the inferno observation layout");
+_Static_assert(INF_ENT_OBS_FEATS == INF_NPC_SLOT_FEATURES,
+    "entity encoder per-NPC observation width must track the inferno layout");
+_Static_assert(
+    INF_ENT_FEATS == INF_ENT_TYPE_ONEHOT + (INF_NPC_SLOT_FEATURES - 1),
+    "encoder record width is the obs record with the type code expanded to a one-hot");
 _Static_assert(INF_ENT_NUM_NPCS == INF_OBS_NPCS,
     "entity encoder NPC count must track the inferno observation layout");
 _Static_assert(INF_ENT_NPC_START == INF_OBS_AFTER_PILLARS,
     "entity encoder NPC block offset must track the inferno observation layout");
 _Static_assert(INF_ENT_TYPE_ONEHOT == INF_NUM_NPC_TYPES,
     "entity pool presence mask is the NPC type one-hot; a new NPC type must widen it");
+_Static_assert(INF_ENT_TYPE_CODE_SCALE == (int)INF_NPC_TYPE_CODE_SCALE,
+    "entity encoder NPC type decoder must track the inferno observation scale");
 _Static_assert(INF_ENT_INV_START == INF_OBS_AFTER_SPARKS,
     "entity encoder inventory block offset must track the inferno observation layout");
 _Static_assert(INF_ENT_INV_NUM_CELLS == OSRS_INVENTORY_SIZE,
     "entity encoder inventory cell count must track the inferno observation layout");
-_Static_assert(INF_ENT_INV_FEATS == OSRS_INVENTORY_CELL_OBS_FEATURES,
-    "entity encoder inventory cell width must track the inferno observation layout");
+_Static_assert(
+    INF_ENT_INV_NUM_CELLS * INF_ENT_INV_OBS_FEATS == INF_INVENTORY_OBS_SIZE,
+    "entity encoder inventory observation width must track the inferno layout");
+_Static_assert(INF_ENT_INV_FEATS == OSRS_INVENTORY_CELL_OBS_FEATURES_COMPACT,
+    "encoder inventory record must track the generated item table width");
 
 static void visual_require_gui_item_sprite(int raw_osrs_id, void* ctx) {
     gui_require_sprite_by_osrs_id((GuiState*)ctx, raw_osrs_id);

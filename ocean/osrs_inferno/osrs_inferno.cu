@@ -2,26 +2,62 @@
 // Included by src/ocean.cu — requires precision_t, Prec, Allocator, puf_mm, etc.
 // Shares ColosseumEntityEncoderWeights/Activations layout (same weight slots).
 
-static constexpr int INF_ENT_NPC_START   = 90;
-static constexpr int INF_ENT_NUM_NPCS    = 37;
-static constexpr int INF_ENT_FEATS       = 48;
-static constexpr int INF_ENT_TYPE_ONEHOT = 14;
-static constexpr int INF_ENT_NPC_BLOCK   = INF_ENT_NUM_NPCS * INF_ENT_FEATS;
-static constexpr int INF_ENT_INV_START     = 2450;
-static constexpr int INF_ENT_INV_NUM_CELLS = 28;
-static constexpr int INF_ENT_INV_FEATS     = 28;
-static constexpr int INF_ENT_INV_BLOCK     = INF_ENT_INV_NUM_CELLS * INF_ENT_INV_FEATS;
-static constexpr int INF_ENT_OBS_SIZE      = 3432;
+static constexpr int INF_ENT_NPC_START       = 54;
+static constexpr int INF_ENT_NUM_NPCS        = 14;
+static constexpr int INF_ENT_OBS_FEATS       = 13;
+static constexpr int INF_ENT_FEATS           = 26;
+static constexpr int INF_ENT_TYPE_ONEHOT     = 14;
+static constexpr int INF_ENT_TYPE_CODE_SCALE = 16;
+static constexpr int INF_ENT_NPC_BLOCK       = INF_ENT_NUM_NPCS * INF_ENT_FEATS;
+static constexpr int INF_ENT_INV_START       = 460;
+static constexpr int INF_ENT_INV_NUM_CELLS   = 28;
+static constexpr int INF_ENT_INV_OBS_FEATS   = 1;
+static constexpr int INF_ENT_INV_FEATS       = 15;
+static constexpr int INF_ENT_INV_BLOCK       = INF_ENT_INV_NUM_CELLS * INF_ENT_INV_FEATS;
+static constexpr int INF_ENT_OBS_SIZE        = 498;
 
-__global__ void inf_ent_gather(
-    precision_t* __restrict__ rec_flat, const precision_t* __restrict__ obs,
-    int B, int obs_size, int start, int block) {
+static_assert(INF_ENT_FEATS ==
+    INF_ENT_TYPE_ONEHOT + INF_ENT_OBS_FEATS - 1);
+static_assert(INF_ENT_INV_FEATS == OSRS_ITEM_OBS_TABLE_COLS);
+
+__global__ void inf_ent_gather_npcs(
+    precision_t* __restrict__ npc_flat, const precision_t* __restrict__ obs,
+    int B, int obs_size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int total = B * block;
+    int total = B * INF_ENT_NPC_BLOCK;
     if (idx >= total) return;
-    int b = idx / block;
-    int off = idx % block;
-    rec_flat[idx] = obs[(int64_t)b * obs_size + start + off];
+    int b = idx / INF_ENT_NPC_BLOCK;
+    int off = idx % INF_ENT_NPC_BLOCK;
+    int rec = off / INF_ENT_FEATS;
+    int f = off - rec * INF_ENT_FEATS;
+    const precision_t* src = obs + (int64_t)b * obs_size + INF_ENT_NPC_START
+        + rec * INF_ENT_OBS_FEATS;
+    if (f < INF_ENT_TYPE_ONEHOT) {
+        int code = (int)lrintf(
+            to_float(src[0]) * (float)INF_ENT_TYPE_CODE_SCALE);
+        assert(code >= 0 && code <= INF_ENT_TYPE_ONEHOT);
+        npc_flat[idx] = from_float(code == f + 1 ? 1.0f : 0.0f);
+    } else {
+        npc_flat[idx] = src[1 + f - INF_ENT_TYPE_ONEHOT];
+    }
+}
+
+__global__ void inf_ent_gather_inv(
+    precision_t* __restrict__ inv_flat, const precision_t* __restrict__ obs,
+    int B, int obs_size) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = B * INF_ENT_INV_BLOCK;
+    if (idx >= total) return;
+    int b = idx / INF_ENT_INV_BLOCK;
+    int off = idx % INF_ENT_INV_BLOCK;
+    int cell = off / INF_ENT_INV_FEATS;
+    int f = off - cell * INF_ENT_INV_FEATS;
+    const precision_t* src = obs + (int64_t)b * obs_size + INF_ENT_INV_START
+        + cell * INF_ENT_INV_OBS_FEATS;
+    int code = (int)lrintf(
+        to_float(src[0]) * (float)OSRS_ITEM_OBS_CODE_SCALE);
+    assert(code >= 0 && code < OSRS_ITEM_OBS_TABLE_ROWS);
+    inv_flat[idx] = from_float(OSRS_ITEM_OBS_TABLE_DEV[code][f]);
 }
 
 static Prec inf_entity_encoder_forward(void* w, void* activations, Prec input, cudaStream_t stream) {
@@ -35,8 +71,8 @@ static Prec inf_entity_encoder_forward(void* w, void* activations, Prec input, c
 
     puf_mm(&input, &ew->global_w, &a->out, stream);
 
-    inf_ent_gather<<<grid_size(B * INF_ENT_NPC_BLOCK), BLOCK_SIZE, 0, stream>>>(
-        a->npc_flat.data, input.data, B, ew->obs_size, INF_ENT_NPC_START, INF_ENT_NPC_BLOCK);
+    inf_ent_gather_npcs<<<grid_size(B * INF_ENT_NPC_BLOCK), BLOCK_SIZE, 0, stream>>>(
+        a->npc_flat.data, input.data, B, ew->obs_size);
     Prec npc2d = {.data = a->npc_flat.data, .shape = {NB, INF_ENT_FEATS}};
     puf_mm(&npc2d, &ew->entity_l1_w, &a->entity_z1, stream);
     colo_ent_launch_fused_fwd(
@@ -46,8 +82,8 @@ static Prec inf_entity_encoder_forward(void* w, void* activations, Prec input, c
         INF_ENT_TYPE_ONEHOT, stream);
 
     int IB = B * INF_ENT_INV_NUM_CELLS;
-    inf_ent_gather<<<grid_size(B * INF_ENT_INV_BLOCK), BLOCK_SIZE, 0, stream>>>(
-        a->inv_flat.data, input.data, B, ew->obs_size, INF_ENT_INV_START, INF_ENT_INV_BLOCK);
+    inf_ent_gather_inv<<<grid_size(B * INF_ENT_INV_BLOCK), BLOCK_SIZE, 0, stream>>>(
+        a->inv_flat.data, input.data, B, ew->obs_size);
     Prec inv2d = {.data = a->inv_flat.data, .shape = {IB, INF_ENT_INV_FEATS}};
     puf_mm(&inv2d, &ew->inv_l1_w, &a->inv_z1, stream);
     colo_ent_launch_fused_fwd(

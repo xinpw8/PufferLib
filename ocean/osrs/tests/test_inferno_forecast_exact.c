@@ -9,8 +9,8 @@
 
 #include "ocean/osrs/encounters/encounter_inferno.h"
 
-#define EXACT_MAGIC "INFEXACTv1"
-#define EXACT_VERSION 1u
+#define EXACT_MAGIC "INFEXACTv2"
+#define EXACT_VERSION 2u
 #define EXACT_CHUNK_BYTES 65536
 #define EXACT_ROLLOUT_STEPS 64
 #define EXACT_ENV_SEED 0x01FEC0DEu
@@ -21,9 +21,7 @@ typedef struct {
     uint32_t version;
     uint32_t state_size;
     uint32_t forecast_size;
-    uint32_t forecast_obs_size;
     uint32_t obs_size;
-    uint32_t action_features;
     uint32_t record_count;
 } InfExactFileHeader;
 
@@ -40,7 +38,6 @@ typedef struct {
     uint32_t forecast_size;
     uint64_t state_hash;
     uint64_t forecast_hash;
-    uint64_t forecast_obs_hash;
     uint64_t obs_hash;
     float reward;
 } InfExactRecordHeader;
@@ -103,9 +100,7 @@ static void exact_writer_open(InfExactWriter* writer, const char* path) {
     header.version = EXACT_VERSION;
     header.state_size = (uint32_t)sizeof(InfernoState);
     header.forecast_size = (uint32_t)sizeof(InfStepOutForecast);
-    header.forecast_obs_size = INF_STEP_OUT_FORECAST_OBS_SIZE;
     header.obs_size = INF_NUM_OBS;
-    header.action_features = INF_STEP_OUT_FORECAST_ACTION_FEATURES;
     exact_write_all(writer->file, &header, sizeof(header));
 }
 
@@ -115,9 +110,7 @@ static void exact_writer_close(InfExactWriter* writer) {
     header.version = EXACT_VERSION;
     header.state_size = (uint32_t)sizeof(InfernoState);
     header.forecast_size = (uint32_t)sizeof(InfStepOutForecast);
-    header.forecast_obs_size = INF_STEP_OUT_FORECAST_OBS_SIZE;
     header.obs_size = INF_NUM_OBS;
-    header.action_features = INF_STEP_OUT_FORECAST_ACTION_FEATURES;
     header.record_count = writer->record_count;
     if (fseek(writer->file, 0, SEEK_SET) != 0) {
         perror("seek inferno exact fixture");
@@ -140,14 +133,10 @@ static void exact_capture(
     InfernoContext* ctx
 ) {
     InfStepOutForecast forecast;
-    float forecast_obs[INF_STEP_OUT_FORECAST_OBS_SIZE];
     float obs[INF_NUM_OBS];
 
     inf_build_step_out_forecast_ctx(s, ctx, &forecast);
     inf_write_obs_ctx((EncounterState*)s, (EncounterContext*)ctx, obs);
-    int forecast_obs_offset =
-        INF_PLAYER_OBS_SIZE + INF_PILLAR_OBS_SIZE + INF_TOTAL_NPC_OBS_SIZE;
-    memcpy(forecast_obs, &obs[forecast_obs_offset], sizeof(forecast_obs));
 
     InfExactRecordHeader record = {0};
     record.scenario_id = scenario_id;
@@ -163,13 +152,11 @@ static void exact_capture(
     record.forecast_size = (uint32_t)sizeof(forecast);
     record.state_hash = exact_hash_bytes(s, sizeof(*s));
     record.forecast_hash = exact_hash_bytes(&forecast, sizeof(forecast));
-    record.forecast_obs_hash = exact_hash_bytes(forecast_obs, sizeof(forecast_obs));
     record.obs_hash = exact_hash_bytes(obs, sizeof(obs));
     record.reward = inf_get_reward_ctx((EncounterState*)s, (EncounterContext*)ctx);
 
     exact_write_all(writer->file, &record, sizeof(record));
     exact_write_all(writer->file, &forecast, sizeof(forecast));
-    exact_write_all(writer->file, forecast_obs, sizeof(forecast_obs));
     exact_write_all(writer->file, obs, sizeof(obs));
     exact_write_all(writer->file, s, sizeof(*s));
     writer->record_count++;
@@ -205,11 +192,6 @@ static void exact_init_state(
         (EncounterContext*)ctx,
         "start_wave",
         public_start_wave);
-    inf_put_int_ctx(
-        (EncounterState*)s,
-        (EncounterContext*)ctx,
-        "step_out_forecast_obs_mode",
-        INF_STEP_OUT_FORECAST_MODE_EXACT_ROLLOUT);
     inf_reset_ctx((EncounterState*)s, (EncounterContext*)ctx, seed);
 }
 

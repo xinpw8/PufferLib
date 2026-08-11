@@ -323,8 +323,8 @@ static const InfWaveDef INF_WAVES[INF_NUM_WAVES] = {
     #undef W
 };
 
-#define INF_MAX_NPCS      32
-#define INF_OBS_NPCS      37
+#define INF_MAX_NPCS      37
+#define INF_OBS_NPCS      14
 #define INF_START_READY_TICKS 6
 
 #define INF_MAX_DEAD_MOBS 16
@@ -610,13 +610,6 @@ enum {
 };
 
 enum {
-    INF_STEP_OUT_FORECAST_MODE_OFF = 0,
-    INF_STEP_OUT_FORECAST_MODE_EXACT_ROLLOUT = 1,
-    INF_STEP_OUT_FORECAST_MODE_FAST_STATIC_TILE = 2,
-    INF_STEP_OUT_FORECAST_MODE_FAST_READONLY_MOVE = 3,
-};
-
-enum {
     INF_CURRICULUM_SUPPLY_MODE_OFF = 0,
     INF_CURRICULUM_SUPPLY_MODE_ALL = 1,
     INF_CURRICULUM_SUPPLY_MODE_ZUK = 2,
@@ -671,8 +664,6 @@ typedef struct {
     float supply_milestone_restore_reward_coeff;
     float death_penalty_coeff;
     int terminal_penalty_enabled;
-    int step_out_forecast_obs_enabled;
-    int step_out_forecast_obs_mode;
     float phase_900_bonus;
     float phase_600_bonus;
     float phase_300_bonus;
@@ -835,11 +826,6 @@ typedef struct {
     int total_target_available_no_attack_ticks;
     int total_safe_attack_opportunity_missed_ticks;
     int total_progressless_ticks;
-    float total_npc_pressure_if_ready_count;
-    float total_npc_pressure_this_tick_count;
-    float total_npc_pressure_if_ready_max_hit;
-    float total_npc_pressure_this_tick_max_hit;
-    float max_npc_pressure_incoming_hit;
     int attack_ready_no_attack_ticks_by_phase[OSRS_INFERNO_IDLE_PHASE_COUNT];
     int target_available_no_attack_ticks_by_phase[OSRS_INFERNO_IDLE_PHASE_COUNT];
     int safe_attack_opportunity_missed_ticks_by_phase[OSRS_INFERNO_IDLE_PHASE_COUNT];

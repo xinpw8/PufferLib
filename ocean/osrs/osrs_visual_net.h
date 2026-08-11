@@ -1,6 +1,6 @@
 #pragma once
 
-#include "osrs_colosseum_item_obs_generated.h"
+#include "osrs_item_obs_generated.h"
 
 /* 5c puffercpu.h dropped _gelu. Keep a local twin so the viewer encoder stays
    bit-compatible with the CUDA GELU without carrying a core patch. */
@@ -21,33 +21,37 @@ static inline void osrs_visual_gelu(float* input, float* output, int size) {
 #define COLO_ENT_INF_INV_START      36
 #define COLO_ENT_INF_INV_NUM_CELLS  28
 #define COLO_ENT_INF_INV_FEATS      15
-/* obs carries an item CODE plus is_equipped and hp_heal; the encoder rebuilds the rest */
+/* obs carries an item code plus equipped and HP-heal; gear keeps the table's union slot */
 #define COLO_ENT_INF_INV_OBS_FEATS  3
 #define COLO_ENT_INF_INV_BOTTLENECK 16
 
-/* Host twin of COLO_ITEM_OBS_TABLE_DEV in src/ocean.cu. Separate names on purpose: both
-   land in one translation unit when the viewer is built, and a single guarded definition
-   would give the CUDA kernel a host array. */
-static const float COLO_ITEM_OBS_TABLE
-    [COLO_ITEM_OBS_TABLE_ROWS][COLO_ITEM_OBS_TABLE_COLS] = {
-#include "osrs_colosseum_item_obs_table.inc"
+/* Host twin of OSRS_ITEM_OBS_TABLE_DEV in src/ocean.cu. */
+static const float OSRS_ITEM_OBS_TABLE
+    [OSRS_ITEM_OBS_TABLE_ROWS][OSRS_ITEM_OBS_TABLE_COLS] = {
+#include "osrs_item_obs_table.inc"
 };
 
-#define INF_ENT_NPC_START   90
-#define INF_ENT_NUM_NPCS    37
-#define INF_ENT_FEATS       48
-#define INF_ENT_TYPE_ONEHOT 14
-#define INF_ENT_INV_START     2450
-#define INF_ENT_INV_NUM_CELLS 28
-#define INF_ENT_INV_FEATS     28
+#define INF_ENT_OBS_SIZE          498
+#define INF_ENT_NPC_START         54
+#define INF_ENT_NUM_NPCS          14
+#define INF_ENT_OBS_FEATS         13
+#define INF_ENT_FEATS             26
+#define INF_ENT_TYPE_ONEHOT       14
+#define INF_ENT_TYPE_CODE_SCALE   16
+#define INF_ENT_INV_START         460
+#define INF_ENT_INV_NUM_CELLS     28
+#define INF_ENT_INV_OBS_FEATS     1
+#define INF_ENT_INV_FEATS         15
 
-/* How the observation record becomes the encoder record. Every branch materialises the
-   expanded record first and then runs one dense dot, which is what the CUDA gathers do. */
 typedef enum {
-    ENTITY_RECORD_VERBATIM = 0,
-    ENTITY_RECORD_TYPE_ONEHOT,
+    ENTITY_RECORD_TYPE_ONEHOT = 0,
     ENTITY_RECORD_ITEM_TABLE,
 } EntityRecordExpansion;
+
+typedef enum {
+    ENTITY_ITEM_OVERLAYS_NONE = 0,
+    ENTITY_ITEM_OVERLAYS_EQUIPPED_HP_HEAL,
+} EntityItemOverlays;
 
 #define ENTITY_RECORD_MAX_FEATS 64
 
@@ -58,14 +62,17 @@ struct EntityPoolBranch {
     int feats;
     int obs_feats;
     int type_onehot;
+    int code_scale;
     int bottleneck;
-    int mask_prefix;
+    int active_width;
     EntityRecordExpansion expansion;
+    EntityItemOverlays item_overlays;
     float* l1_w;
     float* l2_w;
     float* z1;
     float* h1;
     float* e;
+    unsigned char* active;
 };
 
 typedef struct EntityEncoder EntityEncoder;
@@ -82,10 +89,26 @@ struct EntityEncoder {
 static void entity_pool_branch_init(
         EntityPoolBranch* branch, Weights* weights, int hidden_dim,
         int start, int num_recs, int feats, int obs_feats, int type_onehot,
-        int bottleneck, int mask_prefix, EntityRecordExpansion expansion) {
-    if (feats > ENTITY_RECORD_MAX_FEATS) {
-        fprintf(stderr, "entity pool branch: %d features exceeds the expansion scratch\n",
-            feats);
+        int code_scale, int bottleneck, int active_width,
+        EntityRecordExpansion expansion, EntityItemOverlays item_overlays) {
+    if (feats > ENTITY_RECORD_MAX_FEATS || start < 0 || num_recs <= 0 ||
+            obs_feats <= 0 || code_scale <= 0 || bottleneck <= 0 ||
+            active_width <= 0 || active_width > feats) {
+        fprintf(stderr, "entity pool branch: invalid shape or encoding contract\n");
+        abort();
+    }
+    if (expansion == ENTITY_RECORD_TYPE_ONEHOT &&
+            (type_onehot <= 0 || feats != type_onehot + obs_feats - 1 ||
+             item_overlays != ENTITY_ITEM_OVERLAYS_NONE)) {
+        fprintf(stderr, "entity pool branch: stale type-code expansion contract\n");
+        abort();
+    }
+    if (expansion == ENTITY_RECORD_ITEM_TABLE &&
+            (type_onehot != 0 || feats != OSRS_ITEM_OBS_TABLE_COLS ||
+             (item_overlays == ENTITY_ITEM_OVERLAYS_NONE && obs_feats != 1) ||
+             (item_overlays == ENTITY_ITEM_OVERLAYS_EQUIPPED_HP_HEAL &&
+              obs_feats != OSRS_INVENTORY_CELL_OBS_FEATURES_CODED))) {
+        fprintf(stderr, "entity pool branch: stale item-table expansion contract\n");
         abort();
     }
     branch->start = start;
@@ -93,14 +116,17 @@ static void entity_pool_branch_init(
     branch->feats = feats;
     branch->obs_feats = obs_feats;
     branch->type_onehot = type_onehot;
+    branch->code_scale = code_scale;
     branch->bottleneck = bottleneck;
-    branch->mask_prefix = mask_prefix;
+    branch->active_width = active_width;
     branch->expansion = expansion;
+    branch->item_overlays = item_overlays;
     branch->l1_w = get_weights_aligned(weights, bottleneck * feats);
     branch->l2_w = get_weights_aligned(weights, hidden_dim * bottleneck);
     branch->z1 = (float*)calloc((size_t)num_recs * bottleneck, sizeof(float));
     branch->h1 = (float*)calloc((size_t)num_recs * bottleneck, sizeof(float));
     branch->e = (float*)calloc((size_t)num_recs * hidden_dim, sizeof(float));
+    branch->active = (unsigned char*)calloc((size_t)num_recs, sizeof(unsigned char));
 }
 
 /* Weight reads are sequenced statements in reg_params order (src/ocean.cu):
@@ -125,14 +151,15 @@ EntityEncoder* make_colosseum_entity_encoder(
     entity_pool_branch_init(&layer->branches[0], weights, hidden_dim,
         COLO_ENT_INF_NPC_START, COLO_ENT_INF_NUM_NPCS,
         COLO_ENT_INF_FEATS, COLO_ENT_INF_OBS_FEATS, COLO_ENT_INF_TYPE_ONEHOT,
-        COLO_ENT_INF_BOTTLENECK, COLO_ENT_INF_TYPE_ONEHOT,
-        ENTITY_RECORD_TYPE_ONEHOT);
+        1, COLO_ENT_INF_BOTTLENECK, COLO_ENT_INF_TYPE_ONEHOT,
+        ENTITY_RECORD_TYPE_ONEHOT, ENTITY_ITEM_OVERLAYS_NONE);
     layer->num_branches = 1;
     if (mode >= 2) {
         entity_pool_branch_init(&layer->branches[1], weights, hidden_dim,
             COLO_ENT_INF_INV_START, COLO_ENT_INF_INV_NUM_CELLS,
             COLO_ENT_INF_INV_FEATS, COLO_ENT_INF_INV_OBS_FEATS, 0,
-            COLO_ENT_INF_INV_BOTTLENECK, 1, ENTITY_RECORD_ITEM_TABLE);
+            OSRS_ITEM_OBS_CODE_SCALE, COLO_ENT_INF_INV_BOTTLENECK, 1,
+            ENTITY_RECORD_ITEM_TABLE, ENTITY_ITEM_OVERLAYS_EQUIPPED_HP_HEAL);
         layer->num_branches = 2;
     }
     return layer;
@@ -140,31 +167,38 @@ EntityEncoder* make_colosseum_entity_encoder(
 
 EntityEncoder* make_inferno_entity_encoder(
         Weights* weights, int batch_size, int input_dim, int hidden_dim, int mode) {
+    if (input_dim != INF_ENT_OBS_SIZE) {
+        fprintf(stderr, "inferno entity encoder: input width %d != %d\n",
+            input_dim, INF_ENT_OBS_SIZE);
+        abort();
+    }
     EntityEncoder* layer = make_entity_encoder_global(
         weights, batch_size, input_dim, hidden_dim);
     entity_pool_branch_init(&layer->branches[0], weights, hidden_dim,
         INF_ENT_NPC_START, INF_ENT_NUM_NPCS,
-        INF_ENT_FEATS, INF_ENT_FEATS, 0,
-        COLO_ENT_INF_BOTTLENECK, INF_ENT_TYPE_ONEHOT, ENTITY_RECORD_VERBATIM);
+        INF_ENT_FEATS, INF_ENT_OBS_FEATS, INF_ENT_TYPE_ONEHOT,
+        INF_ENT_TYPE_CODE_SCALE, COLO_ENT_INF_BOTTLENECK, INF_ENT_TYPE_ONEHOT,
+        ENTITY_RECORD_TYPE_ONEHOT, ENTITY_ITEM_OVERLAYS_NONE);
     layer->num_branches = 1;
     if (mode >= 2) {
         entity_pool_branch_init(&layer->branches[1], weights, hidden_dim,
             INF_ENT_INV_START, INF_ENT_INV_NUM_CELLS,
-            INF_ENT_INV_FEATS, INF_ENT_INV_FEATS, 0,
-            COLO_ENT_INF_INV_BOTTLENECK, 1, ENTITY_RECORD_VERBATIM);
+            INF_ENT_INV_FEATS, INF_ENT_INV_OBS_FEATS, 0,
+            OSRS_ITEM_OBS_CODE_SCALE, COLO_ENT_INF_INV_BOTTLENECK, 1,
+            ENTITY_RECORD_ITEM_TABLE, ENTITY_ITEM_OVERLAYS_NONE);
         layer->num_branches = 2;
     }
     return layer;
 }
 
-/* Mirrors colo_ent_gather_npcs and colo_ent_gather_inv in src/ocean.cu. */
 static void entity_expand_record(const EntityPoolBranch* p, const float* rec, float* out) {
     switch (p->expansion) {
-        case ENTITY_RECORD_VERBATIM:
-            for (int i = 0; i < p->feats; i++) out[i] = rec[i];
-            return;
         case ENTITY_RECORD_TYPE_ONEHOT: {
-            int code = (int)lrintf(rec[0]);
+            int code = (int)lrintf(rec[0] * (float)p->code_scale);
+            if (code < 0 || code > p->type_onehot) {
+                fprintf(stderr, "entity pool branch: type code %d out of range\n", code);
+                abort();
+            }
             for (int i = 0; i < p->type_onehot; i++)
                 out[i] = (code == i + 1) ? 1.0f : 0.0f;
             for (int i = 0; i < p->feats - p->type_onehot; i++)
@@ -172,17 +206,24 @@ static void entity_expand_record(const EntityPoolBranch* p, const float* rec, fl
             return;
         }
         case ENTITY_RECORD_ITEM_TABLE: {
-            int code = (int)lrintf(rec[0] * (float)COLO_ITEM_OBS_CODE_SCALE);
-            if (code < 0 || code >= COLO_ITEM_OBS_TABLE_ROWS) {
+            int code = (int)lrintf(rec[0] * (float)p->code_scale);
+            if (code < 0 || code >= OSRS_ITEM_OBS_TABLE_ROWS) {
                 fprintf(stderr, "entity pool branch: item code %d out of table\n", code);
                 abort();
             }
-            for (int i = 0; i < p->feats; i++) out[i] = COLO_ITEM_OBS_TABLE[code][i];
-            out[COLO_ITEM_OBS_OVERLAY_EQUIPPED] += rec[1];
-            out[COLO_ITEM_OBS_OVERLAY_HP_HEAL] += rec[2];
+            for (int i = 0; i < p->feats; i++) out[i] = OSRS_ITEM_OBS_TABLE[code][i];
+            if (p->item_overlays == ENTITY_ITEM_OVERLAYS_EQUIPPED_HP_HEAL) {
+                int is_gear =
+                    OSRS_ITEM_OBS_TABLE[code][OSRS_INVENTORY_CELL_COMPACT_IS_ARMOR] != 0.0f ||
+                    OSRS_ITEM_OBS_TABLE[code][OSRS_INVENTORY_CELL_COMPACT_IS_WEAPON] != 0.0f;
+                out[OSRS_ITEM_OBS_OVERLAY_EQUIPPED] = rec[1];
+                if (!is_gear) out[OSRS_ITEM_OBS_OVERLAY_HP_HEAL] = rec[2];
+            }
             return;
         }
     }
+    fprintf(stderr, "entity pool branch: unknown record expansion\n");
+    abort();
 }
 
 void entity_encoder_forward(EntityEncoder* layer, float* observations) {
@@ -206,6 +247,9 @@ void entity_encoder_forward(EntityEncoder* layer, float* observations) {
                 float* rec = recs + n * p->obs_feats;
                 float* z1n = p->z1 + n * p->bottleneck;
                 entity_expand_record(p, rec, expanded);
+                float active_sum = 0.0f;
+                for (int i = 0; i < p->active_width; i++) active_sum += expanded[i];
+                p->active[n] = active_sum > 0.0f;
                 for (int k = 0; k < p->bottleneck; k++) {
                     const float* w = p->l1_w + k * p->feats;
                     float sum = 0.0f;
@@ -228,14 +272,7 @@ void entity_encoder_forward(EntityEncoder* layer, float* observations) {
                 float best = -INFINITY;
                 int best_n = -1;
                 for (int n = 0; n < p->num_recs; n++) {
-                    float* rec = recs + n * p->obs_feats;
-                    /* A coded record is live when its code is nonzero; a verbatim one
-                       when its presence prefix is. Both mirror the fused pool's mask. */
-                    float mask_sum = 0.0f;
-                    if (p->expansion != ENTITY_RECORD_VERBATIM)
-                        mask_sum = rec[0] > 0.0f ? 1.0f : 0.0f;
-                    else for (int t = 0; t < p->mask_prefix; t++) mask_sum += rec[t];
-                    if (mask_sum <= 0.0f) continue;
+                    if (!p->active[n]) continue;
                     float v = p->e[(size_t)n * H + o];
                     if (v > best) { best = v; best_n = n; }
                 }
@@ -250,6 +287,7 @@ void free_entity_encoder(EntityEncoder* layer) {
         free(layer->branches[br].z1);
         free(layer->branches[br].h1);
         free(layer->branches[br].e);
+        free(layer->branches[br].active);
     }
     free(layer);
 }

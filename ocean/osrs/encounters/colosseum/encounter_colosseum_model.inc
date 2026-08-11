@@ -1021,12 +1021,11 @@ typedef struct {
  * into EncounterLoadoutStats and the prefix emits attack_bonus, strength_bonus, max_hit,
  * attack_speed, attack_range, all five defence bonuses, eff_level and spell_base_damage.
  * Equipment EFFECTS were the one part with no aggregate in the observation. */
-#define COLO_EQUIPPED_AGG_OBS_FEATURES 10
 
 #define COLO_INVENTORY_OBS_CACHE_WAYS 8
 #define COLO_INVENTORY_OBS_CACHE_FLOATS \
     (OSRS_INVENTORY_SIZE * OSRS_INVENTORY_CELL_OBS_FEATURES_CODED + \
-     COLO_EQUIPPED_AGG_OBS_FEATURES)
+     OSRS_EQUIPMENT_EFFECT_AGGREGATE_FEATURES)
 
 typedef struct {
     ColoBestGear best_gear[COLO_BEST_GEAR_CACHE_WAYS][COLO_NUM_WEAPON_SETS][COLO_NUM_NPC_TYPES];

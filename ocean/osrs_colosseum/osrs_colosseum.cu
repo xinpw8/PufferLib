@@ -7,16 +7,8 @@
 // header reaches this TU, so drift is caught only by the _Static_asserts in
 // osrs_visual.c; update both when the layout changes.
 //
-// The one exception is the item table, which is generated precisely so it can cross this
-// boundary with no OSRS dependency. ENV_HEADER is included before this file and also pulls
-// the guarded header, so the rows live in a separate .inc and each side names its own
-// storage -- a single guarded definition would hand the host copy to the kernel.
-#include "../ocean/osrs/osrs_colosseum_item_obs_generated.h"
-__device__ static const float COLO_ITEM_OBS_TABLE_DEV
-    [COLO_ITEM_OBS_TABLE_ROWS][COLO_ITEM_OBS_TABLE_COLS] = {
-#include "../ocean/osrs/osrs_colosseum_item_obs_table.inc"
-};
 
+static constexpr int COLO_ENT_OBS_SIZE    = 934;
 static constexpr int COLO_ENT_NPC_START   = 130;
 static constexpr int COLO_ENT_NUM_NPCS    = 24;
 static constexpr int COLO_ENT_FEATS       = 34;
@@ -33,18 +25,17 @@ static constexpr int COLO_ENT_INV_START      = 36;
 static constexpr int COLO_ENT_INV_NUM_CELLS  = 28;
 static constexpr int COLO_ENT_INV_FEATS      = 15;
 static constexpr int COLO_ENT_INV_PRESENT    = 0;
+static constexpr int COLO_ENT_INV_IS_ARMOR   = 3;
+static constexpr int COLO_ENT_INV_IS_WEAPON  = 4;
 static constexpr int COLO_ENT_INV_BOTTLENECK = 16;
 static constexpr int COLO_ENT_INV_BLOCK      = COLO_ENT_INV_NUM_CELLS * COLO_ENT_INV_FEATS;
-// Each cell observes an item CODE plus the two features the item does not fix: whether it is
-// the piece currently worn in its slot, and how much it heals -- the latter divides by
-// base_hitpoints, which the Frailty modifier rewrites mid-episode. colo_ent_gather_inv
-// rebuilds the other twelve from the table and adds these two in, so the encoder record
-// keeps the width and meaning it had before the recut.
+// Each cell observes an item code plus the dynamic equipped and HP-heal fields.
+// colo_ent_gather_inv always overwrites equipped and overwrites HP-heal only for non-gear.
 static constexpr int COLO_ENT_INV_OBS_FEATS    = 3;
 static constexpr int COLO_ENT_INV_OBS_CODE     = 0;
 static constexpr int COLO_ENT_INV_OBS_EQUIPPED = 1;
 static constexpr int COLO_ENT_INV_OBS_HP_HEAL  = 2;
-static_assert(COLO_ENT_INV_FEATS == COLO_ITEM_OBS_TABLE_COLS,
+static_assert(COLO_ENT_INV_FEATS == OSRS_ITEM_OBS_TABLE_COLS,
     "encoder record width is one item table row");
 
 struct ColosseumEntityEncoderWeights {
@@ -122,13 +113,18 @@ __global__ void colo_ent_gather_inv(
     const precision_t* src = obs + (int64_t)b * obs_size + COLO_ENT_INV_START
         + cell * COLO_ENT_INV_OBS_FEATS;
     int code = (int)lrintf(
-        to_float(src[COLO_ENT_INV_OBS_CODE]) * (float)COLO_ITEM_OBS_CODE_SCALE);
-    assert(code >= 0 && code < COLO_ITEM_OBS_TABLE_ROWS);
-    float v = COLO_ITEM_OBS_TABLE_DEV[code][f];
-    if (f == COLO_ITEM_OBS_OVERLAY_EQUIPPED)
-        v += to_float(src[COLO_ENT_INV_OBS_EQUIPPED]);
-    if (f == COLO_ITEM_OBS_OVERLAY_HP_HEAL)
-        v += to_float(src[COLO_ENT_INV_OBS_HP_HEAL]);
+        to_float(src[COLO_ENT_INV_OBS_CODE]) * (float)OSRS_ITEM_OBS_CODE_SCALE);
+    assert(code >= 0 && code < OSRS_ITEM_OBS_TABLE_ROWS);
+    const float* table_row = OSRS_ITEM_OBS_TABLE_DEV[code];
+    float v = table_row[f];
+    if (f == OSRS_ITEM_OBS_OVERLAY_EQUIPPED)
+        v = to_float(src[COLO_ENT_INV_OBS_EQUIPPED]);
+    if (f == OSRS_ITEM_OBS_OVERLAY_HP_HEAL) {
+        int is_gear = table_row[COLO_ENT_INV_IS_ARMOR] != 0.0f ||
+            table_row[COLO_ENT_INV_IS_WEAPON] != 0.0f;
+        if (!is_gear)
+            v = to_float(src[COLO_ENT_INV_OBS_HP_HEAL]);
+    }
     inv_flat[idx] = from_float(v);
 }
 

@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <math.h>
 
+#include "ocean/osrs/osrs_item_obs_generated.h"
 #include "ocean/osrs/encounters/encounter_colosseum.h"
 
 #define col_init_context_typed(ctx_ptr) do { \
@@ -289,16 +290,14 @@ static void test_prepare_for_drink_kind(
     }
 }
 
-/* The committed table src/ocean.cu and the viewer both read. Kept here as a third,
-   independent copy so test_item_obs_table_is_current can diff it against a fresh build. */
 static const float TEST_ITEM_OBS_TABLE
-    [COLO_ITEM_OBS_TABLE_ROWS][COLO_ITEM_OBS_TABLE_COLS] = {
-#include "ocean/osrs/osrs_colosseum_item_obs_table.inc"
+    [OSRS_ITEM_OBS_TABLE_ROWS][OSRS_ITEM_OBS_TABLE_COLS] = {
+#include "ocean/osrs/osrs_item_obs_table.inc"
 };
 
 /* Exactly what colo_ent_gather_inv does: the observation names a table row and supplies the
-   two features the item does not fix. Every per-cell assertion below reads the result, so it
-   asserts against what the encoder actually sees rather than against the raw observation. */
+   two dynamic features. Every per-cell assertion below reads the result, so it asserts
+   against what the encoder actually sees rather than against the raw observation. */
 static void test_expand_inventory_cell(
     const float obs[COLO_NUM_OBS],
     int cell_idx,
@@ -307,7 +306,7 @@ static void test_expand_inventory_cell(
     const float* coded = &obs[COLO_OBS_AFTER_PLAYER +
         cell_idx * COLO_INVENTORY_CELL_OBS_FEATURES];
     int code = osrs_inventory_cell_obs_code_decode(coded[OSRS_INVENTORY_CELL_OBS_CODE]);
-    if (code < 0 || code >= COLO_ITEM_OBS_TABLE_ROWS) {
+    if (code < 0 || code >= OSRS_ITEM_OBS_TABLE_ROWS) {
         fprintf(stderr, "inventory cell %d observed item code %d\n", cell_idx, code);
         abort();
     }
@@ -6046,7 +6045,7 @@ static void test_combat_fidelity_contract_sizes(void) {
         COLO_INVENTORY_OBS_SIZE == 84);
     CHECK("the encoder still sees the 15-feature record, rebuilt from the item table",
         COLO_INVENTORY_CELL_ENCODER_FEATURES == 15 &&
-        COLO_ITEM_OBS_TABLE_COLS == 15);
+        OSRS_ITEM_OBS_TABLE_COLS == 15);
     /* spec_cost is 0 for everything without a special, so it doubles as the has-spec flag
      * while also telling the agent whether it can afford one. */
     CHECK("spec cost is exposed and normalised for a spec weapon",
@@ -8306,28 +8305,96 @@ static void test_item_obs_code_survives_bf16(void) {
         osrs_inventory_cell_obs_code_encode(OSRS_INVENTORY_CELL_OBS_CODE_COUNT - 1) <= 1.0f);
 }
 
-/* The table is generated and committed, so a checkout can hold a stale one and train on
-   silently wrong observations. Rebuild every row and diff it, float for float. */
-static void test_item_obs_table_is_current(void) {
-    printf("test_item_obs_table_is_current\n");
-    for (int code = 0; code < COLO_ITEM_OBS_TABLE_ROWS; code++) {
-        float row[COLO_ITEM_OBS_TABLE_COLS];
-        osrs_write_inventory_cell_obs_table_row(
-            row, code, MAXED_BASE_HITPOINTS,
-            COLO_ITEM_OBS_TABLE_BASE_PRAYER, COLO_ITEM_OBS_TABLE_BASE_LEVEL);
-        for (int f = 0; f < COLO_ITEM_OBS_TABLE_COLS; f++) {
+static void test_item_obs_table_matches_every_code_semantically(void) {
+    printf("test_item_obs_table_matches_every_code_semantically\n");
+    CHECK("generic item table has one row for every inventory item code",
+        OSRS_ITEM_OBS_TABLE_ROWS == OSRS_INVENTORY_CELL_OBS_CODE_COUNT);
+    CHECK("generic item rows contain the full 15-float compact record",
+        OSRS_ITEM_OBS_TABLE_COLS == 15);
+    CHECK("generic item rows bake hitpoints at 99",
+        OSRS_ITEM_OBS_TABLE_BASE_HITPOINTS == 99);
+    CHECK("generic item rows bake prayer at 99",
+        OSRS_ITEM_OBS_TABLE_BASE_PRAYER == 99);
+    CHECK("generic item rows bake ranged at 99",
+        OSRS_ITEM_OBS_TABLE_BASE_RANGED == 99);
+    CHECK("generic item code scale matches the inventory observation encoding",
+        OSRS_ITEM_OBS_CODE_SCALE == OSRS_INVENTORY_CELL_OBS_CODE_SCALE);
+    CHECK("generic equipped overlay targets the compact equipped feature",
+        OSRS_ITEM_OBS_OVERLAY_EQUIPPED == OSRS_INVENTORY_CELL_COMPACT_EQUIPPED);
+    CHECK("generic HP-heal overlay targets the compact HP-heal feature",
+        OSRS_ITEM_OBS_OVERLAY_HP_HEAL == OSRS_INVENTORY_CELL_COMPACT_HP_HEAL);
+
+    for (int code = 0; code < OSRS_ITEM_OBS_TABLE_ROWS; code++) {
+        OsrsInventoryCell cell = osrs_inventory_cell_for_obs_code(code);
+        float expected[OSRS_ITEM_OBS_TABLE_COLS];
+        osrs_write_inventory_cell_affordance_features_compact(
+            expected, cell.item_idx, cell.raw_osrs_id, cell.dose, 0,
+            OSRS_ITEM_OBS_TABLE_BASE_HITPOINTS,
+            OSRS_ITEM_OBS_TABLE_BASE_PRAYER,
+            OSRS_ITEM_OBS_TABLE_BASE_RANGED);
+        for (int feature = 0; feature < OSRS_ITEM_OBS_TABLE_COLS; feature++) {
             char label[160];
             snprintf(label, sizeof(label),
-                "item table row %d feature %d matches a fresh build "
-                "(rerun ocean/osrs/tools/gen_colosseum_item_obs_table.c)", code, f);
-            CHECK(label, row[f] == TEST_ITEM_OBS_TABLE[code][f]);
+                "generic item table code %d feature %d matches base-99 semantics",
+                code, feature);
+            CHECK(label, TEST_ITEM_OBS_TABLE[code][feature] == expected[feature]);
         }
     }
 }
 
-/* The recut is only legitimate if the encoder still sees the record it saw before. Drive a
-   live episode and compare the expanded record against the writer the observation used to
-   call, cell by cell and tick by tick, across a Frailty draft so base_hitpoints moves. */
+static void test_item_obs_empty_row_is_all_zero(void) {
+    printf("test_item_obs_empty_row_is_all_zero\n");
+    for (int feature = 0; feature < OSRS_ITEM_OBS_TABLE_COLS; feature++) {
+        char label[128];
+        snprintf(label, sizeof(label),
+            "empty item code feature %d is zero", feature);
+        CHECK(label,
+            TEST_ITEM_OBS_TABLE[OSRS_INVENTORY_CELL_OBS_CODE_EMPTY][feature] == 0.0f);
+    }
+}
+
+static void test_item_obs_table_bakes_consumable_hp_heal(void) {
+    printf("test_item_obs_table_bakes_consumable_hp_heal\n");
+    int shark_code = osrs_inventory_cell_obs_code(ITEM_NONE, 385);
+    OsrsInventoryCell shark = osrs_inventory_cell_for_obs_code(shark_code);
+    float expected[OSRS_ITEM_OBS_TABLE_COLS];
+    osrs_write_inventory_cell_affordance_features_compact(
+        expected, shark.item_idx, shark.raw_osrs_id, shark.dose, 0,
+        OSRS_ITEM_OBS_TABLE_BASE_HITPOINTS,
+        OSRS_ITEM_OBS_TABLE_BASE_PRAYER,
+        OSRS_ITEM_OBS_TABLE_BASE_RANGED);
+
+    CHECK("base-99 shark semantics contain a positive HP heal",
+        expected[OSRS_ITEM_OBS_OVERLAY_HP_HEAL] > 0.0f);
+    CHECK("generated shark row bakes its base-99 HP heal",
+        TEST_ITEM_OBS_TABLE[shark_code][OSRS_ITEM_OBS_OVERLAY_HP_HEAL] ==
+            expected[OSRS_ITEM_OBS_OVERLAY_HP_HEAL]);
+}
+
+static void test_colosseum_item_obs_overlay_overwrites_dynamic_features(void) {
+    printf("test_colosseum_item_obs_overlay_overwrites_dynamic_features\n");
+    float table_row[OSRS_ITEM_OBS_TABLE_COLS] = {0};
+    float coded[OSRS_INVENTORY_CELL_OBS_FEATURES_CODED] = {0};
+    float expanded[OSRS_ITEM_OBS_TABLE_COLS];
+
+    table_row[OSRS_ITEM_OBS_OVERLAY_EQUIPPED] = 0.25f;
+    table_row[OSRS_ITEM_OBS_OVERLAY_HP_HEAL] = 0.50f;
+    coded[OSRS_INVENTORY_CELL_OBS_EQUIPPED] = 1.0f;
+    coded[OSRS_INVENTORY_CELL_OBS_HP_HEAL] = 0.20f;
+
+    osrs_expand_inventory_cell_obs_code_features(expanded, coded, table_row);
+
+    CHECK("Colosseum equipped overlay overwrites the generated slot",
+        expanded[OSRS_ITEM_OBS_OVERLAY_EQUIPPED] ==
+            coded[OSRS_INVENTORY_CELL_OBS_EQUIPPED]);
+    CHECK("Colosseum HP-heal overlay overwrites the baked base-99 value",
+        expanded[OSRS_ITEM_OBS_OVERLAY_HP_HEAL] ==
+            coded[OSRS_INVENTORY_CELL_OBS_HP_HEAL]);
+}
+
+/* Drive a live episode and compare the expanded record against the compact semantic writer,
+   cell by cell and tick by tick, across a Frailty draft so dynamic HP-heal moves away from the
+   generated base-99 value. */
 static void test_inventory_obs_expansion_is_lossless(void) {
     printf("test_inventory_obs_expansion_is_lossless\n");
     ColosseumContext ctx;
@@ -8367,9 +8434,9 @@ static void test_inventory_obs_expansion_is_lossless(void) {
         }
     }
 
-    CHECK("expanded record equals the pre-recut compact record on every cell and tier",
+    CHECK("Colosseum overlay preserves exact compact semantics on every cell and Frailty tier",
         mismatches == 0);
-    CHECK("the sweep actually exercised hp_heal, the one feature the table cannot hold",
+    CHECK("the Frailty sweep exercised a dynamic HP-heal overwrite",
         hp_heal_seen > 0);
 }
 
@@ -8658,7 +8725,10 @@ int main(void) {
     test_best_gear_cache_signatures();
     test_farm_safe_damage_cap();
     test_item_obs_code_survives_bf16();
-    test_item_obs_table_is_current();
+    test_item_obs_table_matches_every_code_semantically();
+    test_item_obs_empty_row_is_all_zero();
+    test_item_obs_table_bakes_consumable_hp_heal();
+    test_colosseum_item_obs_overlay_overwrites_dynamic_features();
     test_inventory_obs_expansion_is_lossless();
     test_inventory_obs_memo();
 

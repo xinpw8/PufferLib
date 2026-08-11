@@ -64,6 +64,37 @@ static inline int osrs_effect_profile_has(
     return (profile->effect_mask & effect_mask) != 0;
 }
 
+#define OSRS_EQUIPMENT_EFFECT_AGGREGATE_FEATURES 10
+
+static inline void osrs_item_effect_class4(uint32_t effect_mask, float out[4]) {
+    uint32_t lifesteal = OSRS_ITEM_EFFECT_BLOOD_FURY | OSRS_ITEM_EFFECT_SANG_HEAL;
+    uint32_t damage_amp = OSRS_ITEM_EFFECT_TWISTED_BOW | OSRS_ITEM_EFFECT_FANG |
+        OSRS_ITEM_EFFECT_TUMEKENS_SHADOW | OSRS_ITEM_EFFECT_DHAROK_PIECE |
+        OSRS_ITEM_EFFECT_DRAGON_HUNTER_WAND | OSRS_ITEM_EFFECT_VENATOR_BOUNCE;
+    uint32_t defensive = OSRS_ITEM_EFFECT_ELYSIAN | OSRS_ITEM_EFFECT_CRYSTAL_ARMOUR |
+        OSRS_ITEM_EFFECT_RECOIL_RING | OSRS_ITEM_EFFECT_VENOM_IMMUNE |
+        OSRS_ITEM_EFFECT_ECHO_BOOTS | OSRS_ITEM_EFFECT_CONFLICTION |
+        OSRS_ITEM_EFFECT_VIRTUS_PIECE;
+    uint32_t util = OSRS_ITEM_EFFECT_LIGHTBEARER;
+    out[0] = (effect_mask & lifesteal)  ? 1.0f : 0.0f;
+    out[1] = (effect_mask & damage_amp) ? 1.0f : 0.0f;
+    out[2] = (effect_mask & defensive)  ? 1.0f : 0.0f;
+    out[3] = (effect_mask & util)       ? 1.0f : 0.0f;
+}
+
+static inline void osrs_write_equipment_effect_aggregate(
+    float* out,
+    const OsrsEquipmentEffectProfile* profile
+) {
+    osrs_item_effect_class4(profile->effect_mask, out);
+    out[4] = (float)profile->virtus_piece_count / 3.0f;
+    out[5] = (float)profile->dharok_piece_count / 4.0f;
+    out[6] = (float)profile->crystal_armour_points / 6.0f;
+    out[7] = profile->recoil_source != OSRS_RECOIL_SOURCE_NONE ? 1.0f : 0.0f;
+    out[8] = profile->spec_regen_mode == OSRS_SPEC_REGEN_MODE_LIGHTBEARER ? 1.0f : 0.0f;
+    out[9] = profile->shield_item != ITEM_NONE ? 1.0f : 0.0f;
+}
+
 static inline OsrsRecoilSource osrs_recoil_source_from_ring(uint8_t ring_item) {
     if (ring_item == ITEM_RING_OF_RECOIL) {
         return OSRS_RECOIL_SOURCE_RING_OF_RECOIL;

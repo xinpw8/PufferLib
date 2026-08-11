@@ -445,84 +445,6 @@ static inline int inf_npc_is_live_player_target(
         npc->type != INF_NPC_ZUK_SHIELD;
 }
 
-typedef struct {
-    int if_ready_total;
-    int if_ready_melee;
-    int if_ready_ranged;
-    int if_ready_magic;
-    int if_ready_max_hit;
-    int if_ready_sum_max_hit;
-    int this_tick_total;
-    int this_tick_melee;
-    int this_tick_ranged;
-    int this_tick_magic;
-    int this_tick_max_hit;
-    int this_tick_sum_max_hit;
-    int timer_lte_1;
-    int timer_lte_2;
-    int timer_lte_4;
-    int if_ready_style_count;
-    int this_tick_style_count;
-    int nearest_timer;
-} InfNpcPressureSummary;
-
-static inline int inf_npc_pressure_timer(const InfNPC* npc) {
-    return npc->attack_timer > 0 ? npc->attack_timer : 1;
-}
-
-static inline int inf_npc_attack_unblocked_for_pressure(const InfNPC* npc) {
-    return npc->stun_timer == 0 &&
-        npc->dig_freeze_timer == 0 &&
-        npc->dig_attack_delay == 0;
-}
-
-static inline InfNpcPressureSummary inf_npc_pressure_summary(
-    const InfernoState* s
-) {
-    InfNpcPressureSummary out = { .nearest_timer = 999 };
-    int if_ready_style_mask = 0;
-    int this_tick_style_mask = 0;
-
-    for (int i = 0; i < INF_MAX_NPCS; i++) {
-        const InfNPC* npc = &s->npcs[i];
-        InfNpcPlayerThreat threat = inf_npc_player_threat(s, npc);
-        if (!threat.can_attack_if_ready || !threat.style_mask)
-            continue;
-
-        const InfNPCStats* stats = &INF_NPC_STATS[npc->type];
-        int max_hit = inf_npc_style_mask_max_hit(stats, threat.style_mask);
-        out.if_ready_total++;
-        if (threat.style_mask & INF_STYLE_MASK_MELEE) out.if_ready_melee++;
-        if (threat.style_mask & INF_STYLE_MASK_RANGED) out.if_ready_ranged++;
-        if (threat.style_mask & INF_STYLE_MASK_MAGIC) out.if_ready_magic++;
-        if (max_hit > out.if_ready_max_hit) out.if_ready_max_hit = max_hit;
-        out.if_ready_sum_max_hit += max_hit;
-        if_ready_style_mask |= threat.style_mask;
-
-        if (inf_npc_attack_unblocked_for_pressure(npc)) {
-            int timer = inf_npc_pressure_timer(npc);
-            if (timer < out.nearest_timer) out.nearest_timer = timer;
-            if (timer <= 1) out.timer_lte_1++;
-            if (timer <= 2) out.timer_lte_2++;
-            if (timer <= 4) out.timer_lte_4++;
-        }
-
-        if (!threat.can_attack_this_tick)
-            continue;
-
-        out.this_tick_total++;
-        if (threat.style_mask & INF_STYLE_MASK_MELEE) out.this_tick_melee++;
-        if (threat.style_mask & INF_STYLE_MASK_RANGED) out.this_tick_ranged++;
-        if (threat.style_mask & INF_STYLE_MASK_MAGIC) out.this_tick_magic++;
-        if (max_hit > out.this_tick_max_hit) out.this_tick_max_hit = max_hit;
-        out.this_tick_sum_max_hit += max_hit;
-        this_tick_style_mask |= threat.style_mask;
-    }
-
-    out.if_ready_style_count = inf_style_count_from_mask(if_ready_style_mask);
-    out.this_tick_style_count = inf_style_count_from_mask(this_tick_style_mask);
-    return out;
-}
 
 static inline int inf_barrage_total_target_count(
     const InfernoState* s,
@@ -744,8 +666,6 @@ static InfConfig inf_default_config(void) {
         .supply_milestone_restore_reward_coeff = 0.0f,
         .death_penalty_coeff = 0.0f,
         .terminal_penalty_enabled = 0,
-        .step_out_forecast_obs_enabled = 1,
-        .step_out_forecast_obs_mode = INF_STEP_OUT_FORECAST_MODE_EXACT_ROLLOUT,
         .phase_900_bonus = 0.0f,
         .phase_600_bonus = 0.0f,
         .phase_300_bonus = 0.0f,

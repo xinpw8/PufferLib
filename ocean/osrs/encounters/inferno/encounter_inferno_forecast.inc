@@ -1,31 +1,5 @@
 #line 5216 "encounter_inferno.h"
-#define INF_PLAYER_OBS_SIZE 75
-#define INF_PILLAR_OBS_SIZE (INF_NUM_PILLARS * 5)
-#define INF_NPC_TYPE_ONEHOT 14
-#define INF_NPC_SLOT_FEATURES (INF_NPC_TYPE_ONEHOT + 34)
-#define INF_BASE_NPC_OBS_SIZE (INF_OBS_NPCS * INF_NPC_SLOT_FEATURES)
-#define INF_TOTAL_NPC_OBS_SIZE INF_BASE_NPC_OBS_SIZE
 #define INF_STEP_OUT_FORECAST_HORIZON 4
-#define INF_STEP_OUT_FORECAST_ACTION_FEATURES 8
-#define INF_STEP_OUT_FORECAST_OBS_SIZE (ENCOUNTER_MOVE_ACTIONS * INF_STEP_OUT_FORECAST_ACTION_FEATURES)
-#define INF_FEATURES_PER_HIT 5
-#define INF_SPARK_OBS_SLOTS INF_MAX_PENDING_SPARKS
-#define INF_FEATURES_PER_SPARK 7
-#define INF_PENDING_HIT_OBS_SIZE (INF_FEATURES_PER_HIT * ENCOUNTER_MAX_PENDING_HITS)
-#define INF_PENDING_SPARK_OBS_SIZE (INF_FEATURES_PER_SPARK * INF_SPARK_OBS_SLOTS)
-#define INF_INVENTORY_OBS_SIZE (OSRS_INVENTORY_SIZE * OSRS_INVENTORY_CELL_OBS_FEATURES)
-#define INF_EQUIPPED_OBS_SIZE (NUM_GEAR_SLOTS * OSRS_EQUIPPED_SELF_OBS_FEATURES)
-#define INF_OBS_AFTER_PLAYER        INF_PLAYER_OBS_SIZE
-#define INF_OBS_AFTER_PILLARS       (INF_OBS_AFTER_PLAYER + INF_PILLAR_OBS_SIZE)
-#define INF_OBS_AFTER_NPCS          (INF_OBS_AFTER_PILLARS + INF_TOTAL_NPC_OBS_SIZE)
-#define INF_OBS_AFTER_FORECAST      (INF_OBS_AFTER_NPCS + INF_STEP_OUT_FORECAST_OBS_SIZE)
-#define INF_OBS_AFTER_PENDING_HITS  (INF_OBS_AFTER_FORECAST + INF_PENDING_HIT_OBS_SIZE)
-#define INF_OBS_AFTER_SPARKS        (INF_OBS_AFTER_PENDING_HITS + INF_PENDING_SPARK_OBS_SIZE)
-#define INF_OBS_AFTER_INVENTORY     (INF_OBS_AFTER_SPARKS + INF_INVENTORY_OBS_SIZE)
-#define INF_NUM_OBS                 (INF_OBS_AFTER_INVENTORY + INF_EQUIPPED_OBS_SIZE)
-
-static_assert(INF_NPC_TYPE_ONEHOT == INF_NUM_NPC_TYPES,
-    "the per-NPC obs one-hot is the NPC type one-hot; a new NPC type must widen it");
 
 typedef struct {
     int melee_count;
@@ -1218,29 +1192,6 @@ static void inf_build_step_out_forecast_ctx(
     InfStepOutForecast* out
 ) {
     inf_build_step_out_forecast_exact_ctx(s, ctx, out);
-}
-
-static void inf_build_step_out_forecast_mode_ctx(
-    const InfernoState* s,
-    const InfernoContext* ctx,
-    InfStepOutForecast* out
-) {
-    switch (ctx->config.step_out_forecast_obs_mode) {
-        case INF_STEP_OUT_FORECAST_MODE_EXACT_ROLLOUT:
-            inf_build_step_out_forecast_exact_ctx(s, ctx, out);
-            return;
-        case INF_STEP_OUT_FORECAST_MODE_FAST_STATIC_TILE:
-            inf_build_step_out_forecast_fast_static_ctx(s, ctx, out);
-            return;
-        case INF_STEP_OUT_FORECAST_MODE_FAST_READONLY_MOVE:
-            inf_build_step_out_forecast_fast_readonly_ctx(s, ctx, out);
-            return;
-        default:
-            fprintf(stderr,
-                "inferno: step_out_forecast_obs_mode must be 1, 2, or 3 for forecast build, got %d\n",
-                ctx->config.step_out_forecast_obs_mode);
-            abort();
-    }
 }
 
 static int inf_step_out_forecast_action_dangerous(

@@ -1,4 +1,52 @@
 #line 6591 "encounter_inferno.h"
+#define INF_PLAYER_OBS_SIZE 45
+#define INF_PILLAR_FEATURES 3
+#define INF_PILLAR_OBS_SIZE (INF_NUM_PILLARS * INF_PILLAR_FEATURES)
+#define INF_NPC_SLOT_FEATURES 13
+#define INF_TOTAL_NPC_OBS_SIZE (INF_OBS_NPCS * INF_NPC_SLOT_FEATURES)
+#define INF_FEATURES_PER_HIT 3
+#define INF_SPARK_OBS_SLOTS INF_MAX_PENDING_SPARKS
+#define INF_FEATURES_PER_SPARK 4
+#define INF_PENDING_HIT_OBS_SIZE \
+    (ENCOUNTER_MAX_PENDING_HITS * INF_FEATURES_PER_HIT)
+#define INF_PENDING_SPARK_OBS_SIZE \
+    (INF_SPARK_OBS_SLOTS * INF_FEATURES_PER_SPARK)
+#define INF_INVENTORY_OBS_SIZE OSRS_INVENTORY_SIZE
+#define INF_EQUIPPED_OBS_SIZE OSRS_EQUIPMENT_EFFECT_AGGREGATE_FEATURES
+
+#define INF_OBS_AFTER_PLAYER INF_PLAYER_OBS_SIZE
+#define INF_OBS_AFTER_PILLARS (INF_OBS_AFTER_PLAYER + INF_PILLAR_OBS_SIZE)
+#define INF_OBS_AFTER_NPCS (INF_OBS_AFTER_PILLARS + INF_TOTAL_NPC_OBS_SIZE)
+#define INF_OBS_AFTER_PENDING_HITS \
+    (INF_OBS_AFTER_NPCS + INF_PENDING_HIT_OBS_SIZE)
+#define INF_OBS_AFTER_SPARKS \
+    (INF_OBS_AFTER_PENDING_HITS + INF_PENDING_SPARK_OBS_SIZE)
+#define INF_OBS_AFTER_INVENTORY \
+    (INF_OBS_AFTER_SPARKS + INF_INVENTORY_OBS_SIZE)
+#define INF_OBS_AFTER_EQUIPMENT \
+    (INF_OBS_AFTER_INVENTORY + INF_EQUIPPED_OBS_SIZE)
+#define INF_NUM_OBS INF_OBS_AFTER_EQUIPMENT
+
+static_assert(INF_OBS_AFTER_PLAYER == 45, "Inferno player observation boundary");
+static_assert(INF_OBS_AFTER_PILLARS == 54, "Inferno pillar observation boundary");
+static_assert(INF_OBS_AFTER_NPCS == 236, "Inferno NPC observation boundary");
+static_assert(INF_OBS_AFTER_PENDING_HITS == 332,
+    "Inferno pending-hit observation boundary");
+static_assert(INF_OBS_AFTER_SPARKS == 460, "Inferno spark observation boundary");
+static_assert(INF_OBS_AFTER_INVENTORY == 488,
+    "Inferno inventory observation boundary");
+static_assert(INF_OBS_AFTER_EQUIPMENT == 498,
+    "Inferno equipment observation boundary");
+static_assert(INF_NUM_OBS == 498, "Inferno observation width");
+
+#define INF_PROTECTION_PRAYER_CODE_SCALE 8.0f
+#define INF_OFFENSIVE_PRAYER_CODE_SCALE 4.0f
+#define INF_WAVE_PHASE_CODE_SCALE 8.0f
+#define INF_WEAPON_SET_CODE_SCALE 4.0f
+#define INF_NPC_TYPE_CODE_SCALE 16.0f
+#define INF_ATTACK_STYLE_CODE_SCALE 4.0f
+#define INF_TARGET_CATEGORY_CODE_SCALE 8.0f
+
 typedef enum {
     INF_TARGET_CATEGORY_NONE = 0,
     INF_TARGET_CATEGORY_PLAYER,
@@ -32,16 +80,6 @@ static int inf_wave_phase_index(int wave_idx) {
     return 5;
 }
 
-static int inf_npc_is_phantom_barrage_targetable_now(
-    InfernoState* s,
-    const InfernoContext* ctx,
-    int npc_idx
-) {
-    if (s->player.attack_timer != 0) return 0;
-    if (npc_idx < 0 || npc_idx >= INF_MAX_NPCS) return 0;
-    return s->npcs[npc_idx].death_ticks == 1 &&
-        inf_player_can_phantom_barrage_npc(s, ctx, npc_idx);
-}
 
 static int inf_pending_spark_obs_less(
     const InfernoState* s,
@@ -64,27 +102,6 @@ static int inf_pending_spark_obs_less(
     return ai < bi;
 }
 
-static inline float inf_obs_norm_count(int count) {
-    return (float)count / (float)INF_OBS_NPCS;
-}
-
-static inline float inf_obs_norm_damage_sum(int damage) {
-    float value = (float)damage / 300.0f;
-    return value > 1.0f ? 1.0f : value;
-}
-
-static inline float inf_obs_norm_range_deficit(int deficit) {
-    float value = (float)deficit / 15.0f;
-    return value > 1.0f ? 1.0f : value;
-}
-
-static inline float inf_obs_norm_npc_size(int size) {
-    return (float)size / 7.0f;
-}
-
-static inline float inf_obs_norm_pillar_size(const InfPillar* pillar) {
-    return pillar->active ? (float)INF_PILLAR_SIZE / 7.0f : 0.0f;
-}
 
 static const struct { InfNPCType type; int count; }
 INF_OBS_SLOT_LAYOUT[INF_NUM_NPC_TYPES] = {
@@ -99,45 +116,40 @@ INF_OBS_SLOT_LAYOUT[INF_NUM_NPC_TYPES] = {
 
 static void inf_refresh_current_obs_slots_ctx(InfernoState* s, const InfernoContext* ctx) {
     int obs_slots[INF_OBS_NPCS];
-    for (int j = 0; j < INF_OBS_NPCS; j++) obs_slots[j] = -1;
+    for (int slot = 0; slot < INF_OBS_NPCS; slot++) obs_slots[slot] = -1;
 
     int slot_counts[INF_NUM_NPC_TYPES] = {0};
-    int slot_offsets[INF_NUM_NPC_TYPES];
-    int slot_max[INF_NUM_NPC_TYPES];
+    int next_slot = 0;
 
-    int offset = 0;
-    for (int t = 0; t < INF_NUM_NPC_TYPES; t++) {
-        slot_offsets[INF_OBS_SLOT_LAYOUT[t].type] = offset;
-        slot_max[INF_OBS_SLOT_LAYOUT[t].type] = INF_OBS_SLOT_LAYOUT[t].count;
-        offset += INF_OBS_SLOT_LAYOUT[t].count;
-    }
+    for (int pass = 0; pass < 2; pass++) {
+        for (int layout_idx = 0; layout_idx < INF_NUM_NPC_TYPES; layout_idx++) {
+            InfNPCType type = INF_OBS_SLOT_LAYOUT[layout_idx].type;
+            int type_cap = INF_OBS_SLOT_LAYOUT[layout_idx].count;
 
-    for (int n = 0; n < INF_MAX_NPCS; n++) {
-        InfNPC* npc = &s->npcs[n];
-        if (npc->active && npc->death_ticks == 0) {
-            int t = npc->type;
-            if (slot_counts[t] < slot_max[t]) {
-                obs_slots[slot_offsets[t] + slot_counts[t]] = n;
-                slot_counts[t]++;
+            for (int npc_idx = 0; npc_idx < INF_MAX_NPCS; npc_idx++) {
+                InfNPC* npc = &s->npcs[npc_idx];
+                if (!npc->active || npc->type != type) continue;
+
+                int eligible = pass == 0
+                    ? npc->death_ticks == 0
+                    : npc->death_ticks > 0 &&
+                        inf_npc_is_phantom_barrage_obs_candidate(s, ctx, npc_idx);
+                if (!eligible || slot_counts[type] >= type_cap) continue;
+
+                if (next_slot >= INF_OBS_NPCS) {
+                    fprintf(stderr,
+                        "inferno: observation target capacity exceeded at %d slots\n",
+                        INF_OBS_NPCS);
+                    abort();
+                }
+                obs_slots[next_slot++] = npc_idx;
+                slot_counts[type]++;
             }
         }
     }
 
-    for (int n = 0; n < INF_MAX_NPCS; n++) {
-        InfNPC* npc = &s->npcs[n];
-        if (npc->active && npc->death_ticks > 0 &&
-                inf_npc_is_phantom_barrage_obs_candidate(s, ctx, n)) {
-            int t = npc->type;
-            if (slot_counts[t] < slot_max[t]) {
-                obs_slots[slot_offsets[t] + slot_counts[t]] = n;
-                slot_counts[t]++;
-            }
-        }
-    }
-
-    for (int j = 0; j < INF_OBS_NPCS; j++) {
-        s->current_obs_slots[j] = obs_slots[j];
-    }
+    for (int slot = 0; slot < INF_OBS_NPCS; slot++)
+        s->current_obs_slots[slot] = obs_slots[slot];
 }
 
 static void inf_refresh_current_obs_slots(InfernoState* s) {
@@ -157,418 +169,202 @@ static void inf_write_obs_ctx(
 #endif
     memset(obs, 0, INF_NUM_OBS * sizeof(float));
     int i = 0;
-    int px = s->player.x, py = s->player.y;
+    int px = s->player.x;
+    int py = s->player.y;
     const EncounterLoadoutStats* ls = inf_current_loadout_stats(s, ctx);
     InfSupplyDoses full_supplies = inf_full_starting_supplies();
 
+    int offensive_prayer_code = 0;
+    if (s->player.offensive_prayer == OFFENSIVE_PRAYER_PIETY)
+        offensive_prayer_code = 1;
+    else if (s->player.offensive_prayer == OFFENSIVE_PRAYER_RIGOUR)
+        offensive_prayer_code = 2;
+    else if (s->player.offensive_prayer == OFFENSIVE_PRAYER_AUGURY)
+        offensive_prayer_code = 3;
+
     obs[i++] = (float)s->player.current_hitpoints / 99.0f;
     obs[i++] = (float)(px - INF_ARENA_MIN_X) / (float)INF_ARENA_WIDTH;
-    obs[i++] = (float)(INF_ARENA_MAX_X - px) / (float)INF_ARENA_WIDTH;
     obs[i++] = (float)(py - INF_ARENA_MIN_Y) / (float)INF_ARENA_HEIGHT;
-    obs[i++] = (float)(INF_ARENA_MAX_Y - py) / (float)INF_ARENA_HEIGHT;
-    obs[i++] = (s->player.prayer == PRAYER_PROTECT_MELEE) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.prayer == PRAYER_PROTECT_RANGED) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.prayer == PRAYER_PROTECT_MAGIC) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.offensive_prayer == OFFENSIVE_PRAYER_PIETY) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.offensive_prayer == OFFENSIVE_PRAYER_RIGOUR) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.offensive_prayer == OFFENSIVE_PRAYER_AUGURY) ? 1.0f : 0.0f;
+    obs[i++] = (float)s->player.prayer / INF_PROTECTION_PRAYER_CODE_SCALE;
+    obs[i++] = (float)offensive_prayer_code / INF_OFFENSIVE_PRAYER_CODE_SCALE;
     obs[i++] = (float)s->player.brew_doses / (float)full_supplies.brew_doses;
     obs[i++] = (float)s->player.restore_doses / (float)full_supplies.restore_doses;
     obs[i++] = (float)s->player.current_prayer / 99.0f;
-    obs[i++] = (float)s->wave / (float)INF_NUM_WAVES;
-    {
-        int phase = inf_wave_phase_index(s->wave);
-        for (int p = 0; p < 6; p++)
-            obs[i++] = (p == phase) ? 1.0f : 0.0f;
-    }
-    obs[i++] = inf_zuk_attack_timer_obs(s);
-    obs[i++] = (s->weapon_set == INF_GEAR_MAGE) ? 1.0f : 0.0f;
-    obs[i++] = (s->weapon_set == INF_GEAR_LONG_RANGE) ? 1.0f : 0.0f;
-    obs[i++] = (s->weapon_set == INF_GEAR_BP) ? 1.0f : 0.0f;
     obs[i++] = (float)s->player.bastion_doses / (float)full_supplies.bastion_doses;
     obs[i++] = (float)s->player.stamina_doses / (float)full_supplies.stamina_doses;
-    obs[i++] = (s->stamina_active_ticks > 0) ? 1.0f : 0.0f;
+    obs[i++] = (float)s->wave / (float)INF_NUM_WAVES;
+    obs[i++] = (float)(inf_wave_phase_index(s->wave) + 1) /
+        INF_WAVE_PHASE_CODE_SCALE;
+    obs[i++] = inf_zuk_attack_timer_obs(s);
+    obs[i++] = (float)(s->weapon_set + 1) / INF_WEAPON_SET_CODE_SCALE;
+    obs[i++] = s->stamina_active_ticks > 0 ? 1.0f : 0.0f;
     obs[i++] = (float)s->player.potion_timer / 3.0f;
     obs[i++] = (float)s->player.attack_timer / 8.0f;
+    obs[i++] = osrs_interaction_active(&s->interaction) ? 1.0f : 0.0f;
+    obs[i++] = (float)s->dead_mob_count / (float)INF_MAX_DEAD_MOBS;
+    obs[i++] = (float)s->player.special_energy / 100.0f;
     obs[i++] = (float)s->player.current_defence / 99.0f;
     obs[i++] = (float)s->player.current_ranged / 99.0f;
     obs[i++] = (float)s->player.current_magic / 99.0f;
-    obs[i++] = osrs_interaction_active(&s->interaction) ? 1.0f : 0.0f;
     obs[i++] = (float)ls->attack_range / 15.0f;
-    obs[i++] = (float)s->dead_mob_count / (float)INF_MAX_DEAD_MOBS;
     obs[i++] = (float)ls->max_hit / 80.0f;
     obs[i++] = (float)ls->attack_speed / 6.0f;
     obs[i++] = (float)ls->def_stab / 300.0f;
+    obs[i++] = (float)ls->def_slash / 300.0f;
+    obs[i++] = (float)ls->def_crush / 300.0f;
     obs[i++] = (float)ls->def_magic / 300.0f;
     obs[i++] = (float)ls->def_ranged / 300.0f;
-    obs[i++] = (float)s->player.special_energy / 100.0f;
+    obs[i++] = (float)ls->eff_level / 165.0f;
+    obs[i++] = (float)ls->attack_bonus / 200.0f;
+    obs[i++] = (float)ls->strength_bonus / 160.0f;
+    obs[i++] = (float)osrs_spec_cost(
+        s->player.equipped[GEAR_SLOT_WEAPON]) / 100.0f;
+    obs[i++] = (float)ls->spell_base_damage / 40.0f;
 
-    {
-        int min_timer = 999;
-        int min_style = 0;
-        int has_melee_2 = 0, has_ranged_2 = 0, has_magic_2 = 0;
-
-        for (int h = 0; h < s->player_pending_hits.count; h++) {
-            EncounterPendingHit* ph = &s->player_pending_hits.hits[h];
-            if (ph->check_prayer) {
-                int t = inf_pending_hit_obs_timer(ph);
-                if (t < min_timer) {
-                    min_timer = t;
-                    min_style = ph->attack_style;
-                }
-                if (t <= 2) {
-                    if (ph->attack_style == ATTACK_STYLE_MELEE) has_melee_2 = 1;
-                    if (ph->attack_style == ATTACK_STYLE_RANGED) has_ranged_2 = 1;
-                    if (ph->attack_style == ATTACK_STYLE_MAGIC) has_magic_2 = 1;
-                }
-            }
+    if (s->wave == INF_WAVE_ZUK) {
+        int shield_idx = s->zuk.shield_idx;
+        int shield_active = shield_idx >= 0 &&
+            shield_idx < INF_MAX_NPCS && s->npcs[shield_idx].active;
+        obs[i++] = shield_active
+            ? (s->zuk.shield_freeze > 0 ? 0.0f : (float)s->zuk.shield_dir)
+            : 0.0f;
+        obs[i++] = shield_active ? (float)s->zuk.shield_freeze / 5.0f : 0.0f;
+        int behind_shield = 0;
+        float shield_offset = 0.0f;
+        if (shield_active) {
+            int shield_x = s->npcs[shield_idx].x;
+            int shield_size = INF_NPC_STATS[INF_NPC_ZUK_SHIELD].size;
+            int shield_center = shield_x + shield_size / 2;
+            shield_offset = (float)(px - shield_center) / 15.0f;
+            behind_shield =
+                px >= shield_x && px < shield_x + shield_size && py >= 41;
         }
-
-        for (int n = 0; n < INF_MAX_NPCS; n++) {
-            InfNPC* npc = &s->npcs[n];
-            if (!npc->active || npc->death_ticks > 0) continue;
-            InfNpcPlayerThreat threat = inf_npc_player_threat(s, npc);
-            int style_mask = threat.telegraph_style_mask;
-            if (!style_mask) continue;
-            if (npc->stun_timer > 0 ||
-                    npc->dig_freeze_timer > 0 ||
-                    npc->dig_attack_delay > 0)
-                continue;
-            int preview_style = inf_attack_style_obs_preview(style_mask);
-
-            int t = npc->attack_timer;
-            if (t == 0) t = 1;
-
-            if (t < min_timer) {
-                min_timer = t;
-                min_style = preview_style;
-            }
-            if (t <= 2) {
-                if (style_mask & INF_STYLE_MASK_MELEE) has_melee_2 = 1;
-                if (style_mask & INF_STYLE_MASK_RANGED) has_ranged_2 = 1;
-                if (style_mask & INF_STYLE_MASK_MAGIC) has_magic_2 = 1;
-            }
-        }
-
-        int conflict_count = has_melee_2 + has_ranged_2 + has_magic_2;
-        obs[i++] = (min_timer < 999) ? (float)min_timer / 10.0f : 1.0f;
-        obs[i++] = (min_style == ATTACK_STYLE_MELEE) ? 1.0f : 0.0f;
-        obs[i++] = (min_style == ATTACK_STYLE_RANGED) ? 1.0f : 0.0f;
-        obs[i++] = (min_style == ATTACK_STYLE_MAGIC) ? 1.0f : 0.0f;
-        obs[i++] = (float)conflict_count / 3.0f;
+        obs[i++] = behind_shield ? 1.0f : 0.0f;
+        obs[i++] = shield_offset;
+        obs[i++] = s->zuk.enraged ? 1.0f : 0.0f;
+        obs[i++] = (float)s->zuk.set_timer / 350.0f;
+        obs[i++] = s->zuk.timer_paused ? 1.0f : 0.0f;
+        obs[i++] = s->zuk.jad_spawned ? 1.0f : 0.0f;
+        obs[i++] = s->zuk.healer_spawned ? 1.0f : 0.0f;
+    } else {
+        i += 9;
     }
+    assert(i == INF_OBS_AFTER_PLAYER);
 
-    {
-        InfNpcPressureSummary pressure = inf_npc_pressure_summary(s);
-        obs[i++] = inf_obs_norm_count(pressure.if_ready_total);
-        obs[i++] = inf_obs_norm_count(pressure.if_ready_melee);
-        obs[i++] = inf_obs_norm_count(pressure.if_ready_ranged);
-        obs[i++] = inf_obs_norm_count(pressure.if_ready_magic);
-        obs[i++] = (float)pressure.if_ready_max_hit / 150.0f;
-        obs[i++] = inf_obs_norm_damage_sum(pressure.if_ready_sum_max_hit);
-        obs[i++] = inf_obs_norm_count(pressure.this_tick_total);
-        obs[i++] = inf_obs_norm_count(pressure.this_tick_melee);
-        obs[i++] = inf_obs_norm_count(pressure.this_tick_ranged);
-        obs[i++] = inf_obs_norm_count(pressure.this_tick_magic);
-        obs[i++] = (float)pressure.this_tick_max_hit / 150.0f;
-        obs[i++] = inf_obs_norm_damage_sum(pressure.this_tick_sum_max_hit);
-        obs[i++] = inf_obs_norm_count(pressure.timer_lte_1);
-        obs[i++] = inf_obs_norm_count(pressure.timer_lte_2);
-        obs[i++] = inf_obs_norm_count(pressure.timer_lte_4);
-        obs[i++] = (float)pressure.if_ready_style_count / 3.0f;
-        obs[i++] = (float)pressure.this_tick_style_count / 3.0f;
-        obs[i++] = (pressure.nearest_timer < 999)
-            ? (float)pressure.nearest_timer / 10.0f
-            : 1.0f;
+    for (int pillar_idx = 0; pillar_idx < INF_NUM_PILLARS; pillar_idx++) {
+        const InfPillar* pillar = &s->pillars[pillar_idx];
+        obs[i++] = (float)pillar->hp / (float)INF_PILLAR_HP;
+        obs[i++] = (float)(pillar->x - px) / (float)INF_ARENA_WIDTH;
+        obs[i++] = (float)(pillar->y - py) / (float)INF_ARENA_HEIGHT;
     }
-
-    {
-        int is_zuk = (s->wave == 68);
-        obs[i++] = is_zuk ? 1.0f : 0.0f;
-
-        if (is_zuk) {
-            int si = s->zuk.shield_idx;
-            int shield_active = (si >= 0 && s->npcs[si].active);
-
-            obs[i++] = shield_active
-                ? ((s->zuk.shield_freeze > 0) ? 0.0f : (float)s->zuk.shield_dir)
-                : 0.0f;
-            obs[i++] = shield_active ? (float)s->zuk.shield_freeze / 5.0f : 0.0f;
-            int behind = 0;
-            float shield_offset = 0.0f;
-            if (shield_active) {
-                int sx = s->npcs[si].x;
-                int sz = INF_NPC_STATS[INF_NPC_ZUK_SHIELD].size;
-                int shield_center = sx + sz / 2;
-                shield_offset = (float)(px - shield_center) / 15.0f;
-                behind = (px >= sx && px < sx + sz && py >= 41);
-            }
-            obs[i++] = behind ? 1.0f : 0.0f;
-            obs[i++] = shield_offset;
-            obs[i++] = s->zuk.enraged ? 1.0f : 0.0f;
-            obs[i++] = (float)s->zuk.set_timer / 350.0f;
-            obs[i++] = s->zuk.timer_paused ? 1.0f : 0.0f;
-            obs[i++] = s->zuk.jad_spawned ? 1.0f : 0.0f;
-            obs[i++] = s->zuk.healer_spawned ? 1.0f : 0.0f;
-        } else {
-            for (int z = 0; z < 9; z++) obs[i++] = 0.0f;
-        }
-    }
-
-    for (int p = 0; p < INF_NUM_PILLARS; p++) {
-        obs[i++] = s->pillars[p].active ? 1.0f : 0.0f;
-        obs[i++] = (float)s->pillars[p].hp / (float)INF_PILLAR_HP;
-        obs[i++] = (float)(s->pillars[p].x - px) / (float)INF_ARENA_WIDTH;
-        obs[i++] = (float)(s->pillars[p].y - py) / (float)INF_ARENA_HEIGHT;
-        obs[i++] = inf_obs_norm_pillar_size(&s->pillars[p]);
-    }
-
+    assert(i == INF_OBS_AFTER_PILLARS);
 #ifdef INF_PROFILE_ENABLED
     INF_PROFILE_MARK(INF_PROF_OBS_PREFIX);
 #endif
+
     inf_refresh_current_obs_slots_ctx(s, ctx);
 #ifdef INF_PROFILE_ENABLED
     INF_PROFILE_MARK(INF_PROF_OBS_REFRESH_SLOTS);
 #endif
 
-    int slot_types[INF_OBS_NPCS];
-    int st_idx = 0;
-    for (int t = 0; t < INF_NUM_NPC_TYPES; t++) {
-        for (int j = 0; j < INF_OBS_SLOT_LAYOUT[t].count; j++)
-            slot_types[st_idx++] = INF_OBS_SLOT_LAYOUT[t].type;
-    }
-
-    for (int k = 0; k < INF_OBS_NPCS; k++) {
-        int n = s->current_obs_slots[k];
-        int type = slot_types[k];
-
-        int has_style = (type == INF_NPC_BLOB || type == INF_NPC_JAD);
-        int has_scan = (type == INF_NPC_BLOB);
-        int has_los = (type != INF_NPC_NIBBLER && type != INF_NPC_MELEER && type != INF_NPC_HEALER_JAD && type != INF_NPC_ZUK_SHIELD);
-        int has_target_category = (type != INF_NPC_NIBBLER && type != INF_NPC_ZUK_SHIELD);
-        int has_timer = (type != INF_NPC_NIBBLER && type != INF_NPC_HEALER_JAD && type != INF_NPC_ZUK_SHIELD);
-        int has_meleer_dig = (type == INF_NPC_MELEER);
-
-        if (n >= 0) {
-            InfNPC* npc = &s->npcs[n];
-            for (int ty = 0; ty < INF_NPC_TYPE_ONEHOT; ty++)
-                obs[i++] = (ty == type) ? 1.0f : 0.0f;
-            obs[i++] = (float)npc->hp / (float)npc->max_hp;
-            obs[i++] = (float)(npc->x - px) / (float)INF_ARENA_WIDTH;
-            obs[i++] = (float)(npc->y - py) / (float)INF_ARENA_HEIGHT;
-            obs[i++] = inf_obs_norm_npc_size(npc->size);
-            obs[i++] = has_timer ? (float)npc->attack_timer / 10.0f : 0.0f;
-
-            if (has_style) {
-                int style = (npc->type == INF_NPC_JAD) ? inf_npc_jad(npc)->attack_style : npc->attack_style;
-                obs[i++] = (style == ATTACK_STYLE_MELEE) ? 1.0f : 0.0f;
-                obs[i++] = (style == ATTACK_STYLE_RANGED) ? 1.0f : 0.0f;
-                obs[i++] = (style == ATTACK_STYLE_MAGIC) ? 1.0f : 0.0f;
-            } else {
-                obs[i++] = 0.0f; obs[i++] = 0.0f; obs[i++] = 0.0f;
-            }
-
-            obs[i++] = (has_los && inf_npc_has_los(s, n)) ? 1.0f : 0.0f;
-
-            if (has_scan && npc->blob_scanned_prayer >= 0) {
-                OverheadPrayer scanned = (OverheadPrayer)npc->blob_scanned_prayer;
-                obs[i++] = (scanned == PRAYER_PROTECT_MAGIC) ? 1.0f : 0.0f;
-                obs[i++] = (scanned == PRAYER_PROTECT_RANGED) ? 1.0f : 0.0f;
-                obs[i++] = (scanned != PRAYER_PROTECT_MAGIC && scanned != PRAYER_PROTECT_RANGED) ? 1.0f : 0.0f;
-            } else {
-                obs[i++] = 0.0f; obs[i++] = 0.0f; obs[i++] = 0.0f;
-            }
-
-            obs[i++] = (float)inf_barrage_total_target_count(s, n) /
-                (float)BARRAGE_MAX_HITS;
-
-            {
-                InfNpcPlayerThreat threat = inf_npc_player_threat(s, npc);
-                obs[i++] = (float)threat.edge_distance / (float)INF_ARENA_HEIGHT;
-                obs[i++] = threat.can_attack_if_ready ? 1.0f : 0.0f;
-                obs[i++] = threat.can_attack_this_tick ? 1.0f : 0.0f;
-                obs[i++] = (float)npc->frozen_ticks / (float)BARRAGE_FREEZE_TICKS;
-                obs[i++] = inf_player_can_attack_npc_from_current_tile(s, n) ? 1.0f : 0.0f;
-                obs[i++] = inf_player_has_los_to_npc_from_current_tile(s, n) ? 1.0f : 0.0f;
-                InfPlayerNpcLoadoutReach mage =
-                    inf_player_loadout_reach_to_npc(s, n, INF_GEAR_MAGE);
-                InfPlayerNpcLoadoutReach long_range =
-                    inf_player_loadout_reach_to_npc(s, n, INF_GEAR_LONG_RANGE);
-                InfPlayerNpcLoadoutReach blowpipe =
-                    inf_player_loadout_reach_to_npc(s, n, INF_GEAR_BP);
-                obs[i++] = mage.can_attack_now ? 1.0f : 0.0f;
-                obs[i++] = long_range.can_attack_now ? 1.0f : 0.0f;
-                obs[i++] = blowpipe.can_attack_now ? 1.0f : 0.0f;
-                obs[i++] = inf_obs_norm_range_deficit(mage.range_deficit);
-                obs[i++] = inf_obs_norm_range_deficit(long_range.range_deficit);
-                obs[i++] = inf_obs_norm_range_deficit(blowpipe.range_deficit);
-            }
-
-            if (has_target_category) {
-                InfTargetCategory category = inf_npc_target_category(s, npc);
-                obs[i++] = (category == INF_TARGET_CATEGORY_PLAYER) ? 1.0f : 0.0f;
-                obs[i++] = (category == INF_TARGET_CATEGORY_ZUK) ? 1.0f : 0.0f;
-                obs[i++] = (category == INF_TARGET_CATEGORY_SHIELD) ? 1.0f : 0.0f;
-                obs[i++] = (category == INF_TARGET_CATEGORY_OTHER_NPC) ? 1.0f : 0.0f;
-            } else {
-                obs[i++] = 0.0f; obs[i++] = 0.0f; obs[i++] = 0.0f; obs[i++] = 0.0f;
-            }
-            obs[i++] = (osrs_interaction_active(&s->interaction) && s->interaction.target_slot == n) ? 1.0f : 0.0f;
-            obs[i++] = inf_npc_is_phantom_barrage_targetable_now(s, ctx, n) ? 1.0f : 0.0f;
-            if (has_meleer_dig) {
-                float no_los = (float)npc->no_los_ticks / 50.0f;
-                if (no_los > 1.0f) no_los = 1.0f;
-                obs[i++] = no_los;
-                obs[i++] = (float)npc->dig_freeze_timer / 6.0f;
-                obs[i++] = (float)npc->dig_attack_delay / 6.0f;
-            } else {
-                obs[i++] = 0.0f; obs[i++] = 0.0f; obs[i++] = 0.0f;
-            }
-        } else {
-            for (int j = 0; j < INF_NPC_SLOT_FEATURES; j++) obs[i++] = 0.0f;
+    for (int slot_idx = 0; slot_idx < INF_OBS_NPCS; slot_idx++) {
+        int npc_idx = s->current_obs_slots[slot_idx];
+        if (npc_idx < 0) {
+            i += INF_NPC_SLOT_FEATURES;
+            continue;
         }
+
+        InfNPC* npc = &s->npcs[npc_idx];
+        AttackStyle style = npc->type == INF_NPC_JAD
+            ? inf_npc_jad(npc)->attack_style
+            : (AttackStyle)npc->attack_style;
+        InfTargetCategory category = inf_npc_target_category(s, npc);
+        float no_los_ticks = 0.0f;
+        float dig_freeze_timer = 0.0f;
+        float dig_attack_delay = 0.0f;
+        if (npc->type == INF_NPC_MELEER) {
+            no_los_ticks = (float)npc->no_los_ticks / 50.0f;
+            if (no_los_ticks > 1.0f) no_los_ticks = 1.0f;
+            dig_freeze_timer = (float)npc->dig_freeze_timer / 6.0f;
+            dig_attack_delay = (float)npc->dig_attack_delay / 6.0f;
+        }
+
+        obs[i++] = (float)(npc->type + 1) / INF_NPC_TYPE_CODE_SCALE;
+        obs[i++] = npc->max_hp > 0
+            ? (float)npc->hp / (float)npc->max_hp
+            : 0.0f;
+        obs[i++] = (float)(npc->x - px) / (float)INF_ARENA_WIDTH;
+        obs[i++] = (float)(npc->y - py) / (float)INF_ARENA_HEIGHT;
+        obs[i++] = (float)npc->attack_timer / 10.0f;
+        obs[i++] = (float)style / INF_ATTACK_STYLE_CODE_SCALE;
+        obs[i++] = inf_npc_has_los(s, npc_idx) ? 1.0f : 0.0f;
+        obs[i++] = (float)npc->frozen_ticks / (float)BARRAGE_FREEZE_TICKS;
+        obs[i++] = (float)category / INF_TARGET_CATEGORY_CODE_SCALE;
+        obs[i++] = osrs_interaction_active(&s->interaction) &&
+            s->interaction.target_slot == npc_idx ? 1.0f : 0.0f;
+        obs[i++] = no_los_ticks;
+        obs[i++] = dig_freeze_timer;
+        obs[i++] = dig_attack_delay;
     }
+    assert(i == INF_OBS_AFTER_NPCS);
 #ifdef INF_PROFILE_ENABLED
     INF_PROFILE_MARK(INF_PROF_OBS_NPC_SLOTS);
 #endif
 
-    {
-        if (i != INF_OBS_AFTER_NPCS) {
-            fprintf(stderr, "FATAL: obs misaligned after NPC section: i=%d expected=%d\n",
-                    i, INF_OBS_AFTER_NPCS);
-            abort();
-        }
-    }
-
-    {
-        if (ctx->config.step_out_forecast_obs_mode != INF_STEP_OUT_FORECAST_MODE_OFF) {
-            InfStepOutForecast forecast;
-            inf_build_step_out_forecast_mode_ctx(s, ctx, &forecast);
-            for (int action_idx = 0; action_idx < ENCOUNTER_MOVE_ACTIONS; action_idx++) {
-                const InfStepOutForecastAction* action = &forecast.actions[action_idx];
-                int first_attack_tick = 0;
-                int first_style_mask = 0;
-                int max_hit = 0;
-                int ranger_mager_same_tick = 0;
-                for (int tick_idx = 0; tick_idx < INF_STEP_OUT_FORECAST_HORIZON; tick_idx++) {
-                    const InfStepOutForecastTick* tick = &action->ticks[tick_idx];
-                    int style_mask = inf_step_out_forecast_tick_style_mask(tick);
-                    if (first_attack_tick == 0 &&
-                            inf_step_out_forecast_tick_has_event(tick)) {
-                        first_attack_tick = tick_idx + 1;
-                        first_style_mask = style_mask;
-                    }
-                    if (tick->max_hit > max_hit) max_hit = tick->max_hit;
-                    if (tick->ranger_count > 0 && tick->mager_count > 0)
-                        ranger_mager_same_tick = 1;
-                }
-                obs[i++] = action->valid ? 1.0f : 0.0f;
-                obs[i++] = (float)first_attack_tick / (float)INF_STEP_OUT_FORECAST_HORIZON;
-                obs[i++] = (float)first_style_mask / 7.0f;
-                obs[i++] = (float)max_hit / 150.0f;
-                obs[i++] = action->same_tick_mixed_style_conflict ? 1.0f : 0.0f;
-                obs[i++] = ranger_mager_same_tick ? 1.0f : 0.0f;
-                obs[i++] = action->ranger_mager_offtick_opportunity ? 1.0f : 0.0f;
-                obs[i++] = action->melee_fallback_exposure ? 1.0f : 0.0f;
-            }
+    for (int hit_idx = 0; hit_idx < ENCOUNTER_MAX_PENDING_HITS; hit_idx++) {
+        if (hit_idx < s->player_pending_hits.count) {
+            EncounterPendingHit* hit = &s->player_pending_hits.hits[hit_idx];
+            obs[i++] = (float)hit->attack_style / INF_ATTACK_STYLE_CODE_SCALE;
+            obs[i++] = (float)inf_pending_hit_obs_timer(hit) / 10.0f;
+            obs[i++] = (float)hit->damage / 150.0f;
         } else {
-            i += INF_STEP_OUT_FORECAST_OBS_SIZE;
+            i += INF_FEATURES_PER_HIT;
         }
     }
-#ifdef INF_PROFILE_ENABLED
-    INF_PROFILE_MARK(INF_PROF_OBS_FORECAST);
-#endif
-
-    {
-        if (i != INF_OBS_AFTER_FORECAST) {
-            fprintf(stderr, "FATAL: obs misaligned after step-out forecast: i=%d expected=%d\n",
-                    i, INF_OBS_AFTER_FORECAST);
-            abort();
-        }
-    }
-
-    for (int h = 0; h < ENCOUNTER_MAX_PENDING_HITS; h++) {
-        if (h < s->player_pending_hits.count) {
-            EncounterPendingHit* ph = &s->player_pending_hits.hits[h];
-            obs[i++] = 1.0f;
-            obs[i++] = (ph->attack_style == ATTACK_STYLE_RANGED) ? 1.0f : 0.0f;
-            obs[i++] = (ph->attack_style == ATTACK_STYLE_MAGIC) ? 1.0f : 0.0f;
-            obs[i++] = (float)inf_pending_hit_obs_timer(ph) / 10.0f;
-            obs[i++] = (float)ph->damage / 150.0f;
-        } else {
-            for (int j = 0; j < INF_FEATURES_PER_HIT; j++) obs[i++] = 0.0f;
-        }
-    }
+    assert(i == INF_OBS_AFTER_PENDING_HITS);
 #ifdef INF_PROFILE_ENABLED
     INF_PROFILE_MARK(INF_PROF_OBS_PENDING_HITS);
 #endif
 
-    if (i != INF_OBS_AFTER_PENDING_HITS) {
-        fprintf(stderr, "FATAL: obs misaligned after pending hits: i=%d expected=%d\n",
-                i, INF_OBS_AFTER_PENDING_HITS);
-        abort();
-    }
-
     int used_sparks[INF_MAX_PENDING_SPARKS] = {0};
-    for (int slot = 0; slot < INF_SPARK_OBS_SLOTS; slot++) {
+    for (int slot_idx = 0; slot_idx < INF_SPARK_OBS_SLOTS; slot_idx++) {
         int best = -1;
-        for (int sp = 0; sp < INF_MAX_PENDING_SPARKS; sp++) {
-            if (used_sparks[sp] || !s->pending_sparks[sp].active) continue;
-            if (best < 0 ||
-                inf_pending_spark_obs_less(
-                    s, &s->pending_sparks[sp], sp,
-                    &s->pending_sparks[best], best)) {
-                best = sp;
-            }
+        for (int spark_idx = 0; spark_idx < INF_MAX_PENDING_SPARKS; spark_idx++) {
+            if (used_sparks[spark_idx] || !s->pending_sparks[spark_idx].active)
+                continue;
+            if (best < 0 || inf_pending_spark_obs_less(
+                    s, &s->pending_sparks[spark_idx], spark_idx,
+                    &s->pending_sparks[best], best))
+                best = spark_idx;
         }
 
-        if (best >= 0) {
-            const InfPendingSpark* spark = &s->pending_sparks[best];
-            used_sparks[best] = 1;
-            obs[i++] = 1.0f;
-            obs[i++] = (float)(spark->x - px) / (float)INF_ARENA_WIDTH;
-            obs[i++] = (float)(spark->y - py) / (float)INF_ARENA_HEIGHT;
-            obs[i++] = (float)(spark->src_x - px) / (float)INF_ARENA_WIDTH;
-            obs[i++] = (float)(spark->src_y - py) / (float)INF_ARENA_HEIGHT;
-            obs[i++] = (float)spark->ticks_remaining / 10.0f;
-            obs[i++] = (float)spark->damage / 10.0f;
-        } else {
-            for (int j = 0; j < INF_FEATURES_PER_SPARK; j++) obs[i++] = 0.0f;
+        if (best < 0) {
+            i += INF_FEATURES_PER_SPARK;
+            continue;
         }
+        const InfPendingSpark* spark = &s->pending_sparks[best];
+        used_sparks[best] = 1;
+        obs[i++] = (float)(spark->x - px) / (float)INF_ARENA_WIDTH;
+        obs[i++] = (float)(spark->y - py) / (float)INF_ARENA_HEIGHT;
+        obs[i++] = (float)spark->ticks_remaining / 10.0f;
+        obs[i++] = (float)spark->damage / 10.0f;
     }
+    assert(i == INF_OBS_AFTER_SPARKS);
 #ifdef INF_PROFILE_ENABLED
     INF_PROFILE_MARK(INF_PROF_OBS_SPARKS);
 #endif
 
-    if (i != INF_OBS_AFTER_SPARKS) {
-        fprintf(stderr, "FATAL: obs misaligned before inventory block: i=%d expected=%d\n",
-                i, INF_OBS_AFTER_SPARKS);
-        abort();
+    for (int cell_idx = 0; cell_idx < OSRS_INVENTORY_SIZE; cell_idx++) {
+        const OsrsInventoryCell* cell = &s->inventory_cells[cell_idx];
+        obs[i++] = osrs_inventory_cell_obs_code_encode(
+            osrs_inventory_cell_obs_code(cell->item_idx, cell->raw_osrs_id));
     }
+    assert(i == INF_OBS_AFTER_INVENTORY);
 
-    {
-        static const float inf_zero_post_use_deltas[6] = {0};
-        for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
-            const OsrsInventoryCell* cell = &s->inventory_cells[c];
-            int is_equipped = osrs_inventory_cell_holds_equipped_item(
-                &s->player, s->inventory_cells, c);
-            osrs_write_inventory_cell_affordance_features(
-                &obs[i], cell->item_idx, cell->raw_osrs_id, cell->dose,
-                is_equipped, inf_zero_post_use_deltas,
-                s->player.base_hitpoints, s->player.base_prayer,
-                s->player.base_ranged);
-            i += OSRS_INVENTORY_CELL_OBS_FEATURES;
-        }
-        for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-            osrs_write_equipped_self_features(&obs[i], s->player.equipped[slot]);
-            i += OSRS_EQUIPPED_SELF_OBS_FEATURES;
-        }
-    }
-
-    if (i != INF_NUM_OBS) {
-        fprintf(stderr, "BUG: inf_write_obs wrote %d features, expected %d\n", i, INF_NUM_OBS);
-        abort();
-    }
+    osrs_write_equipment_effect_aggregate(
+        &obs[i], &s->player.equipment_effect_profile);
+    i += OSRS_EQUIPMENT_EFFECT_AGGREGATE_FEATURES;
+    assert(i == INF_OBS_AFTER_EQUIPMENT);
 }
 
 static int inf_find_target_obs_slot(const InfernoState* s, int npc_slot) {

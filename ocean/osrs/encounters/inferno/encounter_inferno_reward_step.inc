@@ -604,22 +604,6 @@ static void inf_step_ctx(EncounterState* state, EncounterContext* context, const
     if (s->ticks_without_action > 0) s->total_idle_ticks++;
     s->total_brews_used += s->tick_scratch.brewed;
     s->total_blood_healed += s->tick_scratch.blood_heal;
-    {
-        InfNpcPressureSummary pressure = inf_npc_pressure_summary(s);
-        s->total_npc_pressure_if_ready_count +=
-            (float)pressure.if_ready_total;
-        s->total_npc_pressure_this_tick_count +=
-            (float)pressure.this_tick_total;
-        s->total_npc_pressure_if_ready_max_hit +=
-            (float)pressure.if_ready_max_hit;
-        s->total_npc_pressure_this_tick_max_hit +=
-            (float)pressure.this_tick_max_hit;
-        int max_incoming_hit = pressure.if_ready_max_hit >
-            pressure.this_tick_max_hit ? pressure.if_ready_max_hit :
-            pressure.this_tick_max_hit;
-        if ((float)max_incoming_hit > s->max_npc_pressure_incoming_hit)
-            s->max_npc_pressure_incoming_hit = (float)max_incoming_hit;
-    }
 
     if (can_player_attack && s->wave == 68) {
         s->total_zuk_ticks++;

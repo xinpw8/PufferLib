@@ -1,14 +1,4 @@
 #line 7460 "encounter_inferno.h"
-static void inf_require_valid_step_out_forecast_obs_mode(int value) {
-    if (value < INF_STEP_OUT_FORECAST_MODE_OFF ||
-            value > INF_STEP_OUT_FORECAST_MODE_FAST_READONLY_MOVE) {
-        fprintf(stderr,
-            "inferno: step_out_forecast_obs_mode must be in [0,3], got %d\n",
-            value);
-        abort();
-    }
-}
-
 static void inf_put_int_ctx(
     EncounterState* state,
     EncounterContext* context,
@@ -42,19 +32,6 @@ static void inf_put_int_ctx(
     else if (strcmp(key, "curriculum_no_brew_mode") == 0) {
         inf_require_valid_curriculum_supply_mode(key, value);
         ctx->config.curriculum_no_brew_mode = value;
-    }
-    else if (strcmp(key, "step_out_forecast_obs_enabled") == 0) {
-        int enabled = encounter_require_binary_config("inferno", key, value);
-        ctx->config.step_out_forecast_obs_enabled = enabled;
-        ctx->config.step_out_forecast_obs_mode = enabled ?
-            INF_STEP_OUT_FORECAST_MODE_EXACT_ROLLOUT :
-            INF_STEP_OUT_FORECAST_MODE_OFF;
-    }
-    else if (strcmp(key, "step_out_forecast_obs_mode") == 0) {
-        inf_require_valid_step_out_forecast_obs_mode(value);
-        ctx->config.step_out_forecast_obs_mode = value;
-        ctx->config.step_out_forecast_obs_enabled =
-            value != INF_STEP_OUT_FORECAST_MODE_OFF;
     }
     else if (strcmp(key, "loadout_profile_mode") == 0) {
         inf_require_valid_loadout_profile_mode(value);
@@ -248,12 +225,6 @@ static void* inf_get_log_ctx(EncounterState* state, EncounterContext* context) {
         ctx->log->safe_attack_opportunity_missed_ticks +=
             (float)s->total_safe_attack_opportunity_missed_ticks;
         ctx->log->progressless_ticks += (float)s->total_progressless_ticks;
-        ctx->log->npc_pressure_if_ready_count +=
-            s->total_npc_pressure_if_ready_count;
-        ctx->log->npc_pressure_this_tick_count +=
-            s->total_npc_pressure_this_tick_count;
-        ctx->log->npc_pressure_max_incoming_hit +=
-            s->max_npc_pressure_incoming_hit;
         for (int i = 0; i < OSRS_INFERNO_IDLE_PHASE_COUNT; i++) {
             ctx->log->attack_ready_no_attack_ticks_by_phase[i] +=
                 (float)s->attack_ready_no_attack_ticks_by_phase[i];
@@ -834,7 +805,6 @@ static uint64_t inf_config_fingerprint(const InfConfig* config) {
     INF_HASH_CONFIG_FIELD(config, &h, supply_milestone_restore_reward_coeff);
     INF_HASH_CONFIG_FIELD(config, &h, death_penalty_coeff);
     INF_HASH_CONFIG_FIELD(config, &h, terminal_penalty_enabled);
-    INF_HASH_CONFIG_FIELD(config, &h, step_out_forecast_obs_mode);
     INF_HASH_CONFIG_FIELD(config, &h, phase_900_bonus);
     INF_HASH_CONFIG_FIELD(config, &h, phase_600_bonus);
     INF_HASH_CONFIG_FIELD(config, &h, phase_300_bonus);

@@ -19,6 +19,12 @@ void puf_normal_init(Prec* dst, float std, ulong seed, cudaStream_t stream) {
 
 #include "../ocean/nmmo3/nmmo3.cu"
 #include "../ocean/minimal/minimal.cu"
+
+#include "../ocean/osrs/osrs_item_obs_generated.h"
+__device__ static const float OSRS_ITEM_OBS_TABLE_DEV
+    [OSRS_ITEM_OBS_TABLE_ROWS][OSRS_ITEM_OBS_TABLE_COLS] = {
+#include "../ocean/osrs/osrs_item_obs_table.inc"
+};
 #include "../ocean/osrs_colosseum/osrs_colosseum.cu"
 #include "../ocean/osrs_inferno/osrs_inferno.cu"
 #ifdef PUFFER_NETHACK

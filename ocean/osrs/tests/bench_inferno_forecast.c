@@ -16,9 +16,6 @@ static double now_seconds(void) {
 
 static void init_bench_state(InfernoState* state, int player_x, int player_y) {
     inf_legacy_context()->config = inf_default_config();
-    inf_legacy_context()->config.step_out_forecast_obs_enabled = 1;
-    inf_legacy_context()->config.step_out_forecast_obs_mode =
-        INF_STEP_OUT_FORECAST_MODE_EXACT_ROLLOUT;
     inf_build_npc_stats();
     memset(state, 0, sizeof(*state));
     memset(state->npc_los_cache, -1, sizeof(state->npc_los_cache));
@@ -81,20 +78,6 @@ static void init_dense_wave_state(InfernoState* state) {
     add_bench_npc(state, 8, INF_NPC_BAT, 18, 30, 3);
     add_bench_npc(state, 9, INF_NPC_BAT, 19, 30, 4);
     inf_rebuild_entity_collision_flags(state);
-}
-
-static void init_pillar_stack_no_forecast_state(InfernoState* state) {
-    init_pillar_stack_state(state);
-    inf_legacy_context()->config.step_out_forecast_obs_enabled = 0;
-    inf_legacy_context()->config.step_out_forecast_obs_mode =
-        INF_STEP_OUT_FORECAST_MODE_OFF;
-}
-
-static void init_dense_wave_no_forecast_state(InfernoState* state) {
-    init_dense_wave_state(state);
-    inf_legacy_context()->config.step_out_forecast_obs_enabled = 0;
-    inf_legacy_context()->config.step_out_forecast_obs_mode =
-        INF_STEP_OUT_FORECAST_MODE_OFF;
 }
 
 typedef void (*BenchInit)(InfernoState*);
@@ -303,7 +286,6 @@ static void report_sampled_forecast_diff(
 int main(void) {
     printf("sizeof(InfernoState) = %zu\n", sizeof(InfernoState));
     printf("INF_NUM_OBS = %d\n", INF_NUM_OBS);
-    printf("INF_STEP_OUT_FORECAST_OBS_SIZE = %d\n", INF_STEP_OUT_FORECAST_OBS_SIZE);
     run_bench("empty exact", init_empty_state, bench_forecast_exact, 200000);
     run_bench("empty static", init_empty_state, bench_forecast_fast_static, 200000);
     run_bench("empty readonly", init_empty_state, bench_forecast_fast_readonly, 200000);
@@ -317,7 +299,6 @@ int main(void) {
     run_bench("stack static", init_pillar_stack_state, bench_forecast_fast_static, 100000);
     run_bench("stack readonly", init_pillar_stack_state, bench_forecast_fast_readonly, 100000);
     run_bench("stack obs", init_pillar_stack_state, bench_obs, 100000);
-    run_bench("stack obs no forecast", init_pillar_stack_no_forecast_state, bench_obs, 100000);
     run_bench("stack mask", init_pillar_stack_state, bench_mask, 100000);
     report_forecast_diff("stack exact vs static",
         init_pillar_stack_state, inf_build_step_out_forecast_fast_static_ctx);
@@ -327,7 +308,6 @@ int main(void) {
     run_bench("dense static", init_dense_wave_state, bench_forecast_fast_static, 50000);
     run_bench("dense readonly", init_dense_wave_state, bench_forecast_fast_readonly, 50000);
     run_bench("dense obs", init_dense_wave_state, bench_obs, 50000);
-    run_bench("dense obs no forecast", init_dense_wave_no_forecast_state, bench_obs, 50000);
     run_bench("dense mask", init_dense_wave_state, bench_mask, 50000);
     report_forecast_diff("dense exact vs static",
         init_dense_wave_state, inf_build_step_out_forecast_fast_static_ctx);
@@ -336,7 +316,6 @@ int main(void) {
     run_fixed_bench("dense copy fixed", init_dense_wave_state, bench_copy_fixed, 50000);
     run_fixed_bench("dense step fixed", init_dense_wave_state, bench_step_fixed, 50000);
     run_fixed_bench("dense step+obs+mask", init_dense_wave_state, bench_step_obs_mask_fixed, 50000);
-    run_fixed_bench("step+obs+mask no fc", init_dense_wave_no_forecast_state, bench_step_obs_mask_fixed, 50000);
     report_sampled_forecast_diff("dense sampled static",
         init_dense_wave_state, inf_build_step_out_forecast_fast_static_ctx, 256);
     report_sampled_forecast_diff("dense sampled readonly",
