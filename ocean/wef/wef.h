@@ -34,20 +34,26 @@ typedef float obs_t;
 #define INTRINSIC_MOMENT_C_M 1.11e-23f
 #define FOOD_INTRINSIC_MOMENT_C_M 1.11e-24f
 
+// Sensors
 #define NUM_MORMYROMASTS 36
 #define NUM_AMPULLARY 24
 #define NUM_KNOLLEN 12
 #define MAX_AGENTS 4
+
 #define MAX_FOOD 64
 #define OBS_SIZE 110
 #define ACTION_SIZE 4
 #define EATING_RADIUS_CM 2.0f
 #define BITING_RADIUS_CM 3.0f
 #define EATING_ANGLE (PI_F / 4.0f)
-#define EAT_REWARD 1.0f
-#define COLLISION_REWARD -0.05f
-#define BITTEN_REWARD -0.5f
 #define MAX_PATCHES 90
+
+// Reward coefficients
+#define EAT_REWARD 1.0f
+#define BITTEN_REWARD -0.5f
+#define BITE_REWARD -0.0001f
+#define COLLISION_REWARD -0.05f
+
 #define TRACE_LENGTH 128
 
 #define EAT_COOLDOWN_STEPS 3
@@ -87,6 +93,8 @@ typedef struct FishAgent {
     bool emits_eod;
     bool bite_action;
     bool was_bitten;
+    bool has_previous_food_distance;
+    float previous_food_distance;
     float last_action[ACTION_SIZE];
     Vec2 eod_pos[2];
     float eod_charge[2];
@@ -171,6 +179,8 @@ struct Log {
     float food_eaten_mean;
     float eod_rate;
     float collisions_fish;
+    float bites;
+    float food_per_fish_area;
     float n;
 };
 
@@ -233,6 +243,8 @@ struct Env {
     int food_eaten;
     int eod_agent_steps;
     int collisions_fish;
+    int bites;
+    float food_per_fish_area;
     float episode_return;
     float amp_intrinsic_baseline[NUM_AMPULLARY];
     Client* client;
@@ -576,6 +588,7 @@ void puf_reset(Wef* env) {
     env->food_eaten = 0;
     env->eod_agent_steps = 0;
     env->collisions_fish = 0;
+    env->bites = 0;
     env->episode_return = 0.0f;
 
     // Spawn fish without body overlap; place sensors in local frame
@@ -677,6 +690,11 @@ void puf_reset(Wef* env) {
         );
         env->amp_intrinsic_baseline[i] = f.x * g_amp[i].n.x + f.y * g_amp[i].n.y;
     }
+    
+    // Record food density per fish area
+    float arena_area = env->arena_size_x * env->arena_size_y;
+    env->food_per_fish_area = (float)env->num_food / (arena_area * (float)env->num_agents);
+    
     compute_observations(env);
 }
 
@@ -750,7 +768,6 @@ void puf_step(Wef* env) {
         if (collided) {
             agent->pos = prev;
         }
-        Vec2 unclipped = agent->pos;
         agent->pos.x = clamp(
             agent->pos.x, BODY_RADIUS_CM,
             env->arena_size_x - BODY_RADIUS_CM
@@ -759,7 +776,6 @@ void puf_step(Wef* env) {
             agent->pos.y, BODY_RADIUS_CM,
             env->arena_size_y - BODY_RADIUS_CM
         );
-        bool hit_wall = agent->pos.x != unclipped.x || agent->pos.y != unclipped.y;
         float gx = agent->pos.x - prev.x;
         float gy = agent->pos.y - prev.y;
         float c = cosf(prev_ori);
@@ -767,7 +783,7 @@ void puf_step(Wef* env) {
         // rotate ground displacement into ego frame (angle -prev_ori)
         agent->disp_ego = (Vec2){c * gx + s * gy, -s * gx + c * gy};
         env->collisions_fish += collided ? 1 : 0;
-        if (collided || hit_wall) {
+        if (collided) {
             env->agents[i].rewards[0] += COLLISION_REWARD;
         }
     }
@@ -797,10 +813,11 @@ void puf_step(Wef* env) {
         }
         if (victim >= 0) {
             env->fish[victim].was_bitten = true;
-            float size_difference =
-                attacker->size - env->fish[victim].size;
-            env->agents[victim].rewards[0] +=
-                BITTEN_REWARD * (1.0f + fmaxf(0.0f, size_difference));
+            env->bites++;
+            // Reference: is_bitten * (1 + size_diff), size_diff ∈ [-1, 1] → factor ∈ [0, 2]
+            float size_difference = attacker->size - env->fish[victim].size;
+            env->agents[victim].rewards[0] += BITTEN_REWARD * (1.0f + size_difference);
+            env->agents[i].rewards[0] += BITE_REWARD;
         }
     }
 
@@ -815,11 +832,13 @@ void puf_step(Wef* env) {
     if (env->tick >= env->episode_length || env->food_eaten == env->num_food) {
         env->log.episode_length += (float)env->tick;
         env->log.episode_return += env->episode_return;
-        env->log.score += (float)env->food_eaten;
+        env->log.score += env->episode_return;
         env->log.perf += (float)env->food_eaten / (float)env->num_food;
         env->log.food_eaten_mean +=(float)env->food_eaten / (float)env->num_agents;
         env->log.eod_rate += (float)env->eod_agent_steps / (float)(env->tick * env->num_agents);
         env->log.collisions_fish += (float)env->collisions_fish;
+        env->log.bites += (float)env->bites;
+        env->log.food_per_fish_area += env->food_per_fish_area;
         env->log.n += 1.0f;
         puf_reset(env);
         for (int i = 0; i < env->num_agents; i++) {
@@ -958,16 +977,16 @@ void puf_render(Wef* env) {
                 }
                 float log_strength = log10f(strength);
                 float t = clamp((log_strength + 8.0f) / 7.0f, 0.0f, 1.0f);
-                float arrow_length = 4.0f + 10.0f * t;
+                float arrow_length = 3.5f + 8.0f * t;
                 Vector2 start = world_to_screen(env, pos);
                 Vector2 end = {
                     start.x + (fx / strength) * arrow_length,
                     start.y - (fy / strength) * arrow_length,
                 };
-                unsigned char shade = (unsigned char)(205.0f - 95.0f * t);
-                Color color = (Color){shade, shade, shade, 190};
-                DrawCircleV(start, 2.0f, color);
-                DrawLineEx(start, end, 1.2f, color);
+                unsigned char shade = (unsigned char)(215.0f - 70.0f * t);
+                Color color = (Color){shade, shade, shade, 120};
+                DrawCircleV(start, 1.3f, color);
+                DrawLineEx(start, end, 0.9f, color);
             }
         }
     }
@@ -1001,11 +1020,8 @@ void puf_render(Wef* env) {
         }
         Vector2 position = world_to_screen(env, env->food[i].pos);
         float radius = fmaxf(2.5f, FOOD_RADIUS_CM * scale);
-        DrawCircleV(position, radius, (Color){80, 220, 125, 255});
-        DrawCircleLines(
-            (int)position.x, (int)position.y, radius,
-            (Color){190, 255, 205, 255}
-        );
+        // Food pellets
+        DrawCircleV(position, radius, (Color){0x00, 0x80, 0x00, 140});
     }
     for (int i = 0; i < env->num_agents; i++) {
         FishAgent* agent = &env->fish[i];
@@ -1055,9 +1071,7 @@ void puf_render(Wef* env) {
         },
         3.0f, DARKGRAY
     );
-    DrawText("Electric fish", 20, 14, 24, BLACK);
-    DrawText("F: electric field   S: sensors   TAB: fullscreen",
-        20, env->client->window_height - 32, 18, DARKGRAY);
+    DrawText("Weakly electric fish", 20, 14, 24, BLACK);
     int active_eods = 0;
     for (int i = 0; i < env->num_agents; i++) {
         active_eods += env->fish[i].emits_eod ? 1 : 0;
@@ -1148,4 +1162,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "food_eaten_mean", log->food_eaten_mean);
     dict_set(out, "eod_rate", log->eod_rate);
     dict_set(out, "collisions_fish", log->collisions_fish);
+    dict_set(out, "bites", log->bites);
+    dict_set(out, "food_per_fish_area", log->food_per_fish_area);
 }
