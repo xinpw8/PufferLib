@@ -1057,7 +1057,6 @@ static ColoPrimaryStepPlan col_primary_step_plan(
                 },
                 .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
                 .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
-                .explicit_cost_policy = ENCOUNTER_ROUTE_COST_DIRECT,
                 .collision_map = ctx->collision_map,
                 .world_offset_x = ctx->world_offset_x,
                 .world_offset_y = ctx->world_offset_y,

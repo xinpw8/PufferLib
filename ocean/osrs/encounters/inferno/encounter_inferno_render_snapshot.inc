@@ -180,12 +180,10 @@ static void inf_put_ptr_ctx(
 ) {
     (void)state;
     InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
-    if (strcmp(key, "collision_map") == 0) {
-        inf_bind_route_topology(ctx, (const CollisionMap*)value);
+    if (strcmp(key, "collision_map") == 0)
         ctx->collision_map = (const CollisionMap*)value;
-    } else {
+    else
         encounter_abort_unknown_config("inferno", "ptr", key);
-    }
 }
 
 static int inf_get_tick_ctx(EncounterState* state, EncounterContext* context) {
@@ -953,6 +951,7 @@ static const EncounterDef ENCOUNTER_INFERNO = {
     .init_context = inf_init_context,
     .destroy_context = inf_destroy_context,
     .init_state = inf_init_state,
+    .finalize_context = inf_finalize_context,
 
     .create = inf_create,
     .destroy = inf_destroy,

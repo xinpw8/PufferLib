@@ -136,9 +136,53 @@ static OsrsEncounterArena step_arena(void) {
     arena.blockers.revision = 1;
     arena.movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN;
     arena.cost_policy = ENCOUNTER_ROUTE_COST_OSRS;
-    arena.explicit_cost_policy = ENCOUNTER_ROUTE_COST_DIRECT;
     return arena;
 }
+static void test_ranged_chase_targets_nearest_attack_position(void) {
+    Player player;
+    memset(&player, 0, sizeof(player));
+    player.x = 2;
+    player.y = 10;
+    OsrsInteraction interaction;
+    osrs_interaction_init(&interaction);
+    OsrsActorRouteCache route_cache = {0};
+    StepTargetCtx target_ctx = {
+        .target = {
+            .slot = 3,
+            .x = 10,
+            .y = 10,
+            .size = 1,
+            .attack_range = 4,
+        },
+        .target_valid = 1,
+    };
+    int dest_x = -1;
+    int dest_y = -1;
+    OsrsPlayerStepInput input;
+    memset(&input, 0, sizeof(input));
+    input.player = &player;
+    input.interaction = &interaction;
+    input.route_cache = &route_cache;
+    input.target_lookup = step_lookup_target;
+    input.target_ctx = &target_ctx;
+    input.command.kind = OSRS_PLAYER_CMD_TARGET;
+    input.command.target_slot = 3;
+    input.arena = step_arena();
+    input.arena.cost_policy = ENCOUNTER_ROUTE_COST_OSRS_TARGET_BFS;
+    input.dest_x = &dest_x;
+    input.dest_y = &dest_y;
+
+    OsrsPlayerStepResult result = osrs_encounter_player_step(&input);
+    CHECK("range-four chase moves two steps toward attack range",
+        result.chased_target && player.x == 4 && player.y == 10);
+    CHECK("range-four chase targets the nearest valid attack tile",
+        route_cache.waypoint_count == 1 &&
+        route_cache.waypoint_x[0] == 6 &&
+        route_cache.waypoint_y[0] == 10);
+    CHECK("range-four chase does not route to cardinal adjacency",
+        route_cache.waypoint_x[0] != 9);
+}
+
 
 static void test_attack_route_rejects_cardinal_adjacency_through_wall(void) {
     CollisionMap map;
@@ -329,6 +373,45 @@ static void test_move_command_cancels_interaction(void) {
     CHECK("explicit move ran", r.explicit_moved == 1);
     CHECK("player walked toward the clicked tile", player.y < 5);
 }
+static void test_destination_click_routes_around_wall(void) {
+    Player player;
+    memset(&player, 0, sizeof(player));
+    player.x = 2;
+    player.y = 2;
+    player.run_energy = 10000;
+
+    OsrsInteraction interaction;
+    OsrsActorRouteCache route_cache = {0};
+    osrs_interaction_init(&interaction);
+    StepTargetCtx target_ctx = {0};
+    int dest_x = 10;
+    int dest_y = 2;
+    OsrsEncounterArena arena = step_arena();
+    arena.blockers = (EncounterRouteBlockers){
+        .is_blocked = step_vertical_wall_route,
+        .revision = 2,
+    };
+
+    OsrsPlayerStepInput input;
+    memset(&input, 0, sizeof(input));
+    input.player = &player;
+    input.interaction = &interaction;
+    input.route_cache = &route_cache;
+    input.target_lookup = step_lookup_target;
+    input.target_ctx = &target_ctx;
+    input.dest_x = &dest_x;
+    input.dest_y = &dest_y;
+    input.command.kind = OSRS_PLAYER_CMD_MOVE;
+    input.command.move_kind = OSRS_PLAYER_MOVE_DESTINATION;
+    input.arena = arena;
+
+    for (int tick = 0; tick < 20 && dest_x >= 0; tick++) {
+        osrs_encounter_player_step(&input);
+    }
+    CHECK("destination click routes around a wall to the clicked tile",
+        player.x == 10 && player.y == 2 && dest_x == -1 && dest_y == -1);
+}
+
 
 /* no click: an active interaction keeps auto-chasing. */
 static void test_none_command_chases_active_interaction(void) {
@@ -1052,8 +1135,10 @@ int main(void) {
     test_unreachable_attack_route_field_exhausts_for_fallback();
     test_attack_route_caches_walkability_per_tile();
     test_attackable_target_skips_route_scan();
+    test_ranged_chase_targets_nearest_attack_position();
     test_target_command_cancels_walk_in_flight();
     test_move_command_cancels_interaction();
+    test_destination_click_routes_around_wall();
     test_none_command_chases_active_interaction();
     test_attack_route_rejects_cardinal_adjacency_through_wall();
     test_attack_route_fallback_stays_within_ten_tiles();

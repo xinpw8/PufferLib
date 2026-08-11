@@ -146,12 +146,10 @@ static void col_put_ptr_ctx(
 ) {
     (void)state;
     ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
-    if (strcmp(key, "collision_map") == 0) {
-        col_bind_route_topology(ctx, (const CollisionMap*)value);
+    if (strcmp(key, "collision_map") == 0)
         ctx->collision_map = (const CollisionMap*)value;
-    } else {
+    else
         encounter_abort_unknown_config("colosseum", "ptr", key);
-    }
 }
 
 static int col_get_tick_ctx(EncounterState* state, EncounterContext* context) {
@@ -1120,6 +1118,7 @@ static const EncounterDef ENCOUNTER_COLOSSEUM = {
     .init_context = col_init_context,
     .destroy_context = col_destroy_context,
     .init_state = col_init_state,
+    .finalize_context = col_finalize_context,
 
     .create = col_create,
     .destroy = col_destroy,

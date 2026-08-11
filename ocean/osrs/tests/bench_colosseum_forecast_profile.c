@@ -123,11 +123,11 @@ static void bench_trace_actions(
 
 static void bench_init_context(ColosseumContext* ctx, int start_wave) {
     col_init_context_typed(ctx);
-    col_bind_route_topology(ctx, NULL);
     ctx->config.start_wave = start_wave;
     ctx->config.step_out_forecast_obs_enabled = 1;
     ctx->config.forecast_horizon = COLO_STEP_OUT_FORECAST_HORIZON;
     ctx->config.forecast_run_tile_mode = COLO_FORECAST_RUN_TILE_FULL;
+    col_finalize_route_topology(ctx);
 }
 
 static void bench_capture_state(

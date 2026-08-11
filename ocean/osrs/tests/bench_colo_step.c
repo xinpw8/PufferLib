@@ -97,7 +97,7 @@ static Bench run_multi_sim_only(int num_envs, int steps_per_env) {
     uint64_t rng = 0xABCDEF01ULL;
     for (int e = 0; e < num_envs; e++) {
         col_init_context_typed(&ctxs[e]);
-        col_bind_route_topology(&ctxs[e], NULL);
+        col_finalize_route_topology(&ctxs[e]);
         col_reset_ctx((EncounterState*)&ss[e], (EncounterContext*)&ctxs[e], (uint32_t)(e + 1));
     }
     double t0 = now_ns();
@@ -130,7 +130,7 @@ static Bench run_multi(int num_envs, int steps_per_env) {
 
     for (int e = 0; e < num_envs; e++) {
         col_init_context_typed(&ctxs[e]);
-        col_bind_route_topology(&ctxs[e], NULL);
+        col_finalize_route_topology(&ctxs[e]);
         col_reset_ctx((EncounterState*)&ss[e], (EncounterContext*)&ctxs[e], (uint32_t)(e + 1));
     }
     for (int rep = 0; rep < 40; rep++) {
@@ -167,7 +167,7 @@ static Bench run(int warmup_steps, int measured_steps) {
     Bench b = {0};
 
     col_init_context_typed(&ctx);
-    col_bind_route_topology(&ctx, NULL);
+    col_finalize_route_topology(&ctx);
     memset(&s, 0, sizeof(s));
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 12345u);
     uint64_t rng = 0xBEEF1234ULL;

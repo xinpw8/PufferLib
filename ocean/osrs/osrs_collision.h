@@ -853,6 +853,40 @@ static inline void encounter_arena_topology_finalize(
         encounter_arena_topology_abort("double finalization", 1);
     topology->finalized = 1;
 }
+static inline void encounter_arena_topology_require_spec(
+    const EncounterArenaTopology* topology,
+    const EncounterArenaTopologyBuildSpec* spec,
+    const char* encounter_name
+) {
+    if (!topology || !topology->finalized)
+        encounter_arena_topology_abort("unfinalized spec validation", 0);
+    if (!spec ||
+            topology->origin_x != spec->origin_x ||
+            topology->origin_y != spec->origin_y ||
+            topology->width != spec->width ||
+            topology->height != spec->height ||
+            topology->max_footprint_size != spec->max_footprint_size ||
+            topology->revision != spec->revision) {
+        fprintf(stderr, "%s route topology spec changed\n", encounter_name);
+        abort();
+    }
+    for (int local_x = 0; local_x < topology->width; local_x++) {
+        for (int local_y = 0; local_y < topology->height; local_y++) {
+            int x = topology->origin_x + local_x;
+            int y = topology->origin_y + local_y;
+            int index = local_x * topology->height + local_y;
+            uint32_t flags = encounter_arena_topology_build_flags(spec, x, y);
+            if (topology->static_collision_flags[index] != flags) {
+                fprintf(stderr,
+                    "%s route topology contents changed at (%d,%d)\n",
+                    encounter_name,
+                    x,
+                    y);
+                abort();
+            }
+        }
+    }
+}
 
 static inline void encounter_arena_topology_require_finalized(
     const EncounterArenaTopology* topology

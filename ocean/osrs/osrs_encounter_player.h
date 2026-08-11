@@ -37,7 +37,6 @@ typedef struct {
     EncounterRouteBlockers blockers;
     EncounterRouteMovementMode movement_mode;
     EncounterRouteCostPolicy cost_policy;
-    EncounterRouteCostPolicy explicit_cost_policy;
     const CollisionMap* collision_map;
     int world_offset_x;
     int world_offset_y;
@@ -183,7 +182,9 @@ static inline int osrs_player_step_apply_explicit_move(
         .target_size = 1,
         .target_kind = ENCOUNTER_ROUTE_TARGET_TILE,
         .movement_mode = input->arena.movement_mode,
-        .cost_policy = input->arena.explicit_cost_policy,
+        .cost_policy = move_kind == OSRS_PLAYER_MOVE_ACTION
+            ? ENCOUNTER_ROUTE_COST_DIRECT
+            : input->arena.cost_policy,
     };
     EncounterRouteResult route = encounter_route_solve(&route_input);
     return osrs_player_step_apply_route(player, &route);
@@ -239,7 +240,12 @@ static inline void osrs_player_step_build_attack_route(
         .target_x = target->x,
         .target_y = target->y,
         .target_size = target->size,
-        .target_kind = ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY,
+        .target_kind = ENCOUNTER_ROUTE_TARGET_ATTACK_RANGE,
+        .attack_range = target->attack_range,
+        .collision_map = input->arena.collision_map,
+        .world_offset_x = input->arena.world_offset_x,
+        .world_offset_y = input->arena.world_offset_y,
+        .los_query = input->arena.los_query,
         .movement_mode = input->arena.movement_mode,
         .cost_policy = input->arena.cost_policy,
     };

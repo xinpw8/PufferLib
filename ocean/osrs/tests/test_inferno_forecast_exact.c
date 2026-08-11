@@ -199,15 +199,13 @@ static void exact_init_state(
     uint32_t seed
 ) {
     inf_init_context_typed(ctx);
-#ifdef OSRS_INTERACTION_SERIALIZED_ROUTE_BYTES
-    inf_bind_route_topology(ctx, NULL);
-#endif
     memset(s, 0, sizeof(*s));
     inf_put_int_ctx(
         (EncounterState*)s,
         (EncounterContext*)ctx,
         "start_wave",
         public_start_wave);
+    inf_finalize_route_topology(ctx);
     inf_reset_ctx((EncounterState*)s, (EncounterContext*)ctx, seed);
 }
 typedef struct {
@@ -323,6 +321,13 @@ static void exact_generate_fixture(const char* path) {
     exact_writer_close(&writer);
 }
 
+static void exact_read_all(FILE* file, void* data, size_t size) {
+    if (fread(data, 1, size, file) != size) {
+        fprintf(stderr, "truncated inferno exact fixture\n");
+        abort();
+    }
+}
+
 static int exact_compare_files(const char* expected_path, const char* actual_path) {
     FILE* expected = fopen(expected_path, "rb");
     if (!expected) {
@@ -335,37 +340,88 @@ static int exact_compare_files(const char* expected_path, const char* actual_pat
         abort();
     }
 
-    uint8_t expected_buf[EXACT_CHUNK_BYTES];
-    uint8_t actual_buf[EXACT_CHUNK_BYTES];
-    uint64_t offset = 0;
-    for (;;) {
-        size_t ne = fread(expected_buf, 1, sizeof(expected_buf), expected);
-        size_t na = fread(actual_buf, 1, sizeof(actual_buf), actual);
-        if (ne != na) {
-            printf("inferno exact mismatch: size differs at byte %llu\n",
-                (unsigned long long)offset);
+    InfExactFileHeader expected_file;
+    InfExactFileHeader actual_file;
+    exact_read_all(expected, &expected_file, sizeof(expected_file));
+    exact_read_all(actual, &actual_file, sizeof(actual_file));
+    if (memcmp(&expected_file, &actual_file, sizeof(expected_file)) != 0) {
+        printf("inferno exact mismatch: file header\n");
+        fclose(expected);
+        fclose(actual);
+        return 1;
+    }
+
+    for (uint32_t index = 0; index < expected_file.record_count; index++) {
+        InfExactRecordHeader expected_record;
+        InfExactRecordHeader actual_record;
+        InfStepOutForecast expected_forecast;
+        InfStepOutForecast actual_forecast;
+        float expected_obs[INF_NUM_OBS];
+        float actual_obs[INF_NUM_OBS];
+        InfernoState expected_state;
+        InfernoState actual_state;
+        exact_read_all(expected, &expected_record, sizeof(expected_record));
+        exact_read_all(actual, &actual_record, sizeof(actual_record));
+        exact_read_all(expected, &expected_forecast, sizeof(expected_forecast));
+        exact_read_all(actual, &actual_forecast, sizeof(actual_forecast));
+        exact_read_all(expected, expected_obs, sizeof(expected_obs));
+        exact_read_all(actual, actual_obs, sizeof(actual_obs));
+        exact_read_all(expected, &expected_state, sizeof(expected_state));
+        exact_read_all(actual, &actual_state, sizeof(actual_state));
+
+        if (exact_hash_bytes(&expected_state, sizeof(expected_state)) !=
+                    expected_record.state_hash ||
+                exact_hash_bytes(&actual_state, sizeof(actual_state)) !=
+                    actual_record.state_hash) {
+            printf("inferno exact fixture state hash mismatch at record %u\n", index);
             fclose(expected);
             fclose(actual);
             return 1;
         }
-        if (ne == 0) break;
-        if (memcmp(expected_buf, actual_buf, ne) != 0) {
-            for (size_t i = 0; i < ne; i++) {
-                if (expected_buf[i] == actual_buf[i]) continue;
-                printf("inferno exact mismatch at byte %llu: expected %u got %u\n",
-                    (unsigned long long)(offset + i),
-                    (unsigned)expected_buf[i],
-                    (unsigned)actual_buf[i]);
-                fclose(expected);
-                fclose(actual);
-                return 1;
+        exact_zero_serialized_route_storage(&expected_state);
+        exact_zero_serialized_route_storage(&actual_state);
+        expected_record.state_hash =
+            exact_hash_bytes(&expected_state, sizeof(expected_state));
+        actual_record.state_hash =
+            exact_hash_bytes(&actual_state, sizeof(actual_state));
+        if (memcmp(&expected_record, &actual_record, sizeof(expected_record)) != 0 ||
+                memcmp(&expected_forecast, &actual_forecast, sizeof(expected_forecast)) != 0 ||
+                memcmp(expected_obs, actual_obs, sizeof(expected_obs)) != 0 ||
+                memcmp(&expected_state, &actual_state, sizeof(expected_state)) != 0) {
+            printf(
+                "inferno exact mismatch at record %u scenario %u step %u\n",
+                index,
+                expected_record.scenario_id,
+                expected_record.step_index);
+            const uint8_t* expected_bytes = (const uint8_t*)&expected_state;
+            const uint8_t* actual_bytes = (const uint8_t*)&actual_state;
+            for (size_t byte = 0; byte < sizeof(expected_state); byte++) {
+                if (expected_bytes[byte] == actual_bytes[byte]) continue;
+                printf(
+                    "first state byte mismatch offset=%zu expected=%u actual=%u player expected=(%d,%d) actual=(%d,%d)\n",
+                    byte,
+                    (unsigned)expected_bytes[byte],
+                    (unsigned)actual_bytes[byte],
+                    expected_state.player.x,
+                    expected_state.player.y,
+                    actual_state.player.x,
+                    actual_state.player.y);
+                break;
             }
+            fclose(expected);
+            fclose(actual);
+            return 1;
         }
-        offset += (uint64_t)ne;
     }
 
+    int expected_tail = fgetc(expected);
+    int actual_tail = fgetc(actual);
     fclose(expected);
     fclose(actual);
+    if (expected_tail != EOF || actual_tail != EOF) {
+        printf("inferno exact mismatch: trailing data\n");
+        return 1;
+    }
     return 0;
 }
 

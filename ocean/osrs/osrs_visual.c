@@ -104,7 +104,7 @@ static void print_env_state(OsrsEnv* env) {
 
 static void run_random_episode(OsrsEnv* env, int verbose) {
     const EncounterArenaTopology* route_topology =
-        pvp_route_topology_setup((const CollisionMap*)env->collision_map);
+        pvp_route_topology_finalize((const CollisionMap*)env->collision_map);
     OsrsActorRouteCache route_cache[NUM_AGENTS] = {0};
     pvp_reset(env);
 
@@ -134,7 +134,7 @@ static void run_random_episode(OsrsEnv* env, int verbose) {
 
 static void benchmark(OsrsEnv* env, int num_steps) {
     const EncounterArenaTopology* route_topology =
-        pvp_route_topology_setup((const CollisionMap*)env->collision_map);
+        pvp_route_topology_finalize((const CollisionMap*)env->collision_map);
     OsrsActorRouteCache route_cache[NUM_AGENTS] = {0};
     printf("Benchmarking %d steps...\n", num_steps);
 
@@ -339,9 +339,9 @@ static VisualCollisionLoad visual_load_encounter_collision_map(
     }
     VisualCollisionLoad result = { NULL, offset_x, offset_y };
     if (cmap) {
-        edef->put_ptr(env->encounter_state, env->encounter_context, "collision_map", cmap);
         edef->put_int(env->encounter_state, env->encounter_context, "world_offset_x", offset_x);
         edef->put_int(env->encounter_state, env->encounter_context, "world_offset_y", offset_y);
+        edef->put_ptr(env->encounter_state, env->encounter_context, "collision_map", cmap);
         env->collision_map = cmap;
         result.cmap = cmap;
     }
@@ -358,6 +358,13 @@ static const EncounterDef* visual_open_encounter(OsrsEnv* env, const char* encou
     env->encounter_state = edef->create();
     env->encounter_context = visual_create_encounter_context(edef);
     return edef;
+}
+static void visual_finalize_encounter(
+    const EncounterDef* edef,
+    OsrsEnv* env
+) {
+    if (edef->finalize_context)
+        edef->finalize_context(env->encounter_state, env->encounter_context);
 }
 
 static void run_profile(
@@ -389,6 +396,7 @@ static void run_profile(
                 start_wave);
             fprintf(stderr, "start_wave: %d\n", start_wave);
         }
+        visual_finalize_encounter(edef, env);
         edef->reset(env->encounter_state, env->encounter_context, profile_seed);
     } else {
         env->pvp_runtime.use_c_opponent = 1;
@@ -400,7 +408,7 @@ static void run_profile(
     }
     const EncounterArenaTopology* direct_pvp_topology = encounter_name
         ? NULL
-        : pvp_route_topology_setup((const CollisionMap*)env->collision_map);
+        : pvp_route_topology_finalize((const CollisionMap*)env->collision_map);
     OsrsActorRouteCache direct_pvp_route_cache[NUM_AGENTS] = {0};
 
     const EncounterDef* profile_edef = (const EncounterDef*)env->encounter_def;
@@ -1210,6 +1218,7 @@ static void run_policy_profile(
             "start_wave", start_wave);
     edef->put_int(env->encounter_state, env->encounter_context,
         "loadout_profile_mode", loadout_mode);
+    visual_finalize_encounter(edef, env);
     edef->reset(env->encounter_state, env->encounter_context, policy_seed);
 
     VisualPolicy policy;
@@ -1623,6 +1632,7 @@ static void run_metrics(
     if (bis_oracle)
         edef->put_int(env->encounter_state, env->encounter_context,
                       "bis_gear_oracle_mode", 1);
+    visual_finalize_encounter(edef, env);
     edef->reset(env->encounter_state, env->encounter_context, policy_seed);
 
     VisualPolicy policy;
@@ -1954,6 +1964,7 @@ static void run_visual(
                 "start_wave",
                 start_wave);
         }
+        visual_finalize_encounter(edef, env);
         edef->reset(env->encounter_state, env->encounter_context, 0);
         fprintf(stderr, "encounter: %s (obs=%d, heads=%d)\n",
                 edef->name, edef->obs_size, edef->num_action_heads);
@@ -1979,7 +1990,7 @@ static void run_visual(
     RenderClient* rc = (RenderClient*)env->client;
     rc->route_topology =
         (!encounter_name || strcmp(encounter_name, "pvp") == 0)
-        ? pvp_route_topology_setup((const CollisionMap*)env->collision_map)
+        ? pvp_route_topology_finalize((const CollisionMap*)env->collision_map)
         : NULL;
     pvp_actor_route_caches_clear(rc->player_route_cache);
 #ifdef __EMSCRIPTEN__

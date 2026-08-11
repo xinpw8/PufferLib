@@ -72,6 +72,7 @@ static uint64_t run_episode(const GoldenConfig* cfg, int max_ticks, EpisodeStats
     ENCOUNTER_ZULRAH.init_context(context);
     ENCOUNTER_ZULRAH.init_state(state, context);
     apply_env_config(state, context, cfg);
+    ENCOUNTER_ZULRAH.finalize_context(state, context);
     ENCOUNTER_ZULRAH.reset(state, context, cfg->env_seed);
 
     uint64_t h = FNV_OFFSET;

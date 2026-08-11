@@ -290,9 +290,6 @@ static ColConfig col_default_config(void) {
 
 typedef struct {
     EncounterArenaTopology* topology;
-    const CollisionMap* collision_map;
-    int world_offset_x;
-    int world_offset_y;
 } ColRouteTopologyOwner;
 
 static ColRouteTopologyOwner col_route_topology_owner;
@@ -308,19 +305,10 @@ static uint32_t col_route_topology_flags(void* data, int x, int y) {
     return 0;
 }
 
-static void col_bind_route_topology(
-    ColosseumContext* ctx,
-    const CollisionMap* collision_map
-) {
-    if (col_route_topology_owner.topology) {
-        if (col_route_topology_owner.collision_map != collision_map ||
-                col_route_topology_owner.world_offset_x != ctx->world_offset_x ||
-                col_route_topology_owner.world_offset_y != ctx->world_offset_y) {
-            fprintf(stderr, "colosseum route topology geometry identity changed\n");
-            abort();
-        }
-        ctx->route_topology = col_route_topology_owner.topology;
-        return;
+static void col_finalize_route_topology(ColosseumContext* ctx) {
+    if (!ctx || ctx->route_topology) {
+        fprintf(stderr, "colosseum route topology finalized twice\n");
+        abort();
     }
     col_build_static_arena();
     EncounterArenaTopologyBuildSpec spec = {
@@ -333,13 +321,25 @@ static void col_bind_route_topology(
         .tile_flags = col_route_topology_flags,
         .tile_flags_ctx = NULL,
     };
-    col_route_topology_owner.topology =
-        encounter_arena_topology_build(&spec);
-    encounter_arena_topology_finalize(col_route_topology_owner.topology);
-    col_route_topology_owner.collision_map = collision_map;
-    col_route_topology_owner.world_offset_x = ctx->world_offset_x;
-    col_route_topology_owner.world_offset_y = ctx->world_offset_y;
+    if (!col_route_topology_owner.topology) {
+        col_route_topology_owner.topology =
+            encounter_arena_topology_build(&spec);
+        encounter_arena_topology_finalize(col_route_topology_owner.topology);
+    } else {
+        encounter_arena_topology_require_spec(
+            col_route_topology_owner.topology,
+            &spec,
+            "colosseum");
+    }
     ctx->route_topology = col_route_topology_owner.topology;
+}
+
+static void col_finalize_context(
+    EncounterState* state,
+    EncounterContext* context
+) {
+    (void)state;
+    col_finalize_route_topology((ColosseumContext*)context);
 }
 
 static void col_init_context_typed(ColosseumContext* ctx) {
@@ -360,7 +360,6 @@ static ColosseumContext* col_legacy_context(void) {
     static int initialized = 0;
     if (!initialized) {
         col_init_context_typed(&ctx);
-        col_bind_route_topology(&ctx, NULL);
         initialized = 1;
     }
     return &ctx;

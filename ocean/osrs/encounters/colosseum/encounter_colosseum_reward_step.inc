@@ -397,6 +397,7 @@ static ColoPrePlayerPhase col_advance_pre_player_phase_ctx(
 static void col_step_ctx(EncounterState* state, EncounterContext* context, const int* actions) {
     ColosseumState* s = (ColosseumState*)state;
     ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    encounter_arena_topology_require_finalized(ctx->route_topology);
     if (s->episode_over) return;
 #ifdef COLO_PROFILE_ENABLED
     int col_prof_enabled =

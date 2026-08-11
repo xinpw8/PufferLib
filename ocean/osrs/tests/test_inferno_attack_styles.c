@@ -8,7 +8,7 @@
 #include "ocean/osrs/tests/osrs_route_reference.h"
 #define inf_init_context_typed(ctx_ptr) do { \
     inf_init_context_typed(ctx_ptr); \
-    inf_bind_route_topology((ctx_ptr), NULL); \
+    inf_finalize_route_topology((ctx_ptr)); \
 } while (0)
 #include "ocean/osrs/osrs_anim.h"
 #include "ocean/osrs/osrs_effects.h"
@@ -9289,6 +9289,7 @@ static void test_compact_transient_inventory_equipment_semantics(void) {
 
 int main(void) {
     inf_build_npc_stats();
+    inf_finalize_route_topology(inf_legacy_context());
     test_compact_observation_layout_contract();
     test_compact_player_and_pillar_observation_semantics();
     test_compact_npc_observation_semantics();

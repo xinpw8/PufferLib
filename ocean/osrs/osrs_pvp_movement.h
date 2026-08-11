@@ -171,7 +171,6 @@ static int pvp_tile_walkable(void* ctx, int x, int y) {
 
 typedef struct {
     EncounterArenaTopology* topology;
-    const CollisionMap* collision_map;
 } PvpRouteTopologyOwner;
 
 static PvpRouteTopologyOwner pvp_route_topology_owner;
@@ -184,16 +183,9 @@ static uint32_t pvp_route_topology_flags(void* data, int x, int y) {
         : 0;
 }
 
-static const EncounterArenaTopology* pvp_route_topology_setup(
+static const EncounterArenaTopology* pvp_route_topology_finalize(
     const CollisionMap* collision_map
 ) {
-    if (pvp_route_topology_owner.topology) {
-        if (pvp_route_topology_owner.collision_map != collision_map) {
-            fprintf(stderr, "NH PvP route topology collision map changed\n");
-            abort();
-        }
-        return pvp_route_topology_owner.topology;
-    }
     EncounterArenaTopologyBuildSpec spec = {
         .origin_x = FIGHT_AREA_BASE_X,
         .origin_y = FIGHT_AREA_BASE_Y,
@@ -204,10 +196,16 @@ static const EncounterArenaTopology* pvp_route_topology_setup(
         .tile_flags = pvp_route_topology_flags,
         .tile_flags_ctx = (void*)collision_map,
     };
-    pvp_route_topology_owner.topology =
-        encounter_arena_topology_build(&spec);
-    encounter_arena_topology_finalize(pvp_route_topology_owner.topology);
-    pvp_route_topology_owner.collision_map = collision_map;
+    if (!pvp_route_topology_owner.topology) {
+        pvp_route_topology_owner.topology =
+            encounter_arena_topology_build(&spec);
+        encounter_arena_topology_finalize(pvp_route_topology_owner.topology);
+    } else {
+        encounter_arena_topology_require_spec(
+            pvp_route_topology_owner.topology,
+            &spec,
+            "nh_pvp");
+    }
     return pvp_route_topology_owner.topology;
 }
 
@@ -343,8 +341,7 @@ static inline OsrsEncounterArena pvp_build_arena(
     arena.topology = topology;
     arena.blockers = (EncounterRouteBlockers){0};
     arena.movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN;
-    arena.cost_policy = ENCOUNTER_ROUTE_COST_OSRS;
-    arena.explicit_cost_policy = ENCOUNTER_ROUTE_COST_DIRECT;
+    arena.cost_policy = ENCOUNTER_ROUTE_COST_OSRS_TARGET_BFS;
     arena.collision_map = (const CollisionMap*)env->collision_map;
     arena.world_offset_x = 0;
     arena.world_offset_y = 0;

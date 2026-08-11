@@ -29,6 +29,7 @@ static ZulrahState* fresh_state(uint32_t seed) {
     ENCOUNTER_ZULRAH.put_int(state, context, "gear_tier", 0);
     ENCOUNTER_ZULRAH.put_int(state, context, "gear_tier_mode", ZUL_GEAR_TIER_FIXED);
     ENCOUNTER_ZULRAH.put_int(state, context, "episode_mode", ZUL_EPISODE_SINGLE_KILL);
+    ENCOUNTER_ZULRAH.finalize_context(state, context);
     ENCOUNTER_ZULRAH.reset(state, context, seed);
     return &g_state;
 }

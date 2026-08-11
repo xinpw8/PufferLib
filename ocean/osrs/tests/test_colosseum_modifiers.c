@@ -9,7 +9,7 @@
 
 #define col_init_context_typed(ctx_ptr) do { \
     col_init_context_typed(ctx_ptr); \
-    col_bind_route_topology((ctx_ptr), NULL); \
+    col_finalize_route_topology((ctx_ptr)); \
     (ctx_ptr)->config.late_start_state_mode = 0; \
 } while (0)
 

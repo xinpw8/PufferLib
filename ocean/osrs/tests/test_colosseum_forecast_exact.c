@@ -50,6 +50,7 @@ static void col_step_out_forecast_landing_selftest(void) {
     ColosseumState s;
     col_init_context_typed(&ctx);
     memset(&s, 0, sizeof(s));
+    col_finalize_route_topology(&ctx);
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 0x51A7u);
     memset(s.npcs, 0, sizeof(s.npcs));
     memset(s.npc_collision_flags, 0, sizeof(s.npc_collision_flags));
@@ -244,6 +245,8 @@ static void exact_zero_serialized_route_storage(ColosseumState* state) {
     memset(&state->player.interaction.route, 0, sizeof(state->player.interaction.route));
     memset(&state->interaction.route, 0, sizeof(state->interaction.route));
 #endif
+    state->log.npc_blocked_calls = 0.0f;
+    state->log.npc_blocked_tiles = 0.0f;
 }
 
 static void exact_capture(
@@ -317,11 +320,9 @@ static void exact_init_state(
     uint32_t seed
 ) {
     col_init_context_typed(ctx);
-#ifdef OSRS_INTERACTION_SERIALIZED_ROUTE_BYTES
-    col_bind_route_topology(ctx, NULL);
-#endif
     ctx->config.start_wave = start_wave;
     memset(s, 0, sizeof(*s));
+    col_finalize_route_topology(ctx);
     col_reset_ctx((EncounterState*)s, (EncounterContext*)ctx, seed);
 }
 
@@ -868,6 +869,13 @@ static void exact_generate_fixture(const char* path) {
     exact_writer_close(&writer);
 }
 
+static void exact_read_all(FILE* file, void* data, size_t size) {
+    if (fread(data, 1, size, file) != size) {
+        fprintf(stderr, "truncated colosseum exact fixture\n");
+        abort();
+    }
+}
+
 static int exact_compare_files(const char* expected_path, const char* actual_path) {
     FILE* expected = fopen(expected_path, "rb");
     if (!expected) {
@@ -880,37 +888,96 @@ static int exact_compare_files(const char* expected_path, const char* actual_pat
         abort();
     }
 
-    uint8_t expected_buf[EXACT_CHUNK_BYTES];
-    uint8_t actual_buf[EXACT_CHUNK_BYTES];
-    uint64_t offset = 0;
-    for (;;) {
-        size_t ne = fread(expected_buf, 1, sizeof(expected_buf), expected);
-        size_t na = fread(actual_buf, 1, sizeof(actual_buf), actual);
-        if (ne != na) {
-            printf("colosseum exact mismatch: size differs at byte %llu\n",
-                (unsigned long long)offset);
+    ColoExactFileHeader expected_file;
+    ColoExactFileHeader actual_file;
+    exact_read_all(expected, &expected_file, sizeof(expected_file));
+    exact_read_all(actual, &actual_file, sizeof(actual_file));
+    if (memcmp(&expected_file, &actual_file, sizeof(expected_file)) != 0) {
+        printf("colosseum exact mismatch: file header\n");
+        fclose(expected);
+        fclose(actual);
+        return 1;
+    }
+
+    for (uint32_t index = 0; index < expected_file.record_count; index++) {
+        ColoExactRecordHeader expected_record;
+        ColoExactRecordHeader actual_record;
+        float expected_obs[COLO_NUM_OBS];
+        float actual_obs[COLO_NUM_OBS];
+        float expected_mask[COLO_ACTION_MASK_SIZE];
+        float actual_mask[COLO_ACTION_MASK_SIZE];
+        ColosseumState expected_state;
+        ColosseumState actual_state;
+        exact_read_all(expected, &expected_record, sizeof(expected_record));
+        exact_read_all(actual, &actual_record, sizeof(actual_record));
+        exact_read_all(expected, expected_obs, sizeof(expected_obs));
+        exact_read_all(actual, actual_obs, sizeof(actual_obs));
+        exact_read_all(expected, expected_mask, sizeof(expected_mask));
+        exact_read_all(actual, actual_mask, sizeof(actual_mask));
+        exact_read_all(expected, &expected_state, sizeof(expected_state));
+        exact_read_all(actual, &actual_state, sizeof(actual_state));
+
+        if (exact_hash_bytes(&expected_state, sizeof(expected_state)) !=
+                    expected_record.state_hash ||
+                exact_hash_bytes(&actual_state, sizeof(actual_state)) !=
+                    actual_record.state_hash) {
+            printf("colosseum exact fixture state hash mismatch at record %u\n", index);
             fclose(expected);
             fclose(actual);
             return 1;
         }
-        if (ne == 0) break;
-        if (memcmp(expected_buf, actual_buf, ne) != 0) {
-            for (size_t i = 0; i < ne; i++) {
-                if (expected_buf[i] == actual_buf[i]) continue;
-                printf("colosseum exact mismatch at byte %llu: expected %u got %u\n",
-                    (unsigned long long)(offset + i),
-                    (unsigned)expected_buf[i],
-                    (unsigned)actual_buf[i]);
-                fclose(expected);
-                fclose(actual);
-                return 1;
+        exact_zero_serialized_route_storage(&expected_state);
+        exact_zero_serialized_route_storage(&actual_state);
+        expected_record.state_hash =
+            exact_hash_bytes(&expected_state, sizeof(expected_state));
+        actual_record.state_hash =
+            exact_hash_bytes(&actual_state, sizeof(actual_state));
+        if (memcmp(&expected_record, &actual_record, sizeof(expected_record)) != 0 ||
+                memcmp(expected_obs, actual_obs, sizeof(expected_obs)) != 0 ||
+                memcmp(expected_mask, actual_mask, sizeof(expected_mask)) != 0 ||
+                memcmp(&expected_state, &actual_state, sizeof(expected_state)) != 0) {
+            printf(
+                "colosseum exact mismatch at record %u scenario %u step %u\n",
+                index,
+                expected_record.scenario_id,
+                expected_record.step_index);
+            printf(
+                "expected player=(%d,%d) dest=(%d,%d) target=%d actual player=(%d,%d) dest=(%d,%d) target=%d\n",
+                expected_state.player.x,
+                expected_state.player.y,
+                expected_state.player.dest_x,
+                expected_state.player.dest_y,
+                expected_state.player.interaction.target_slot,
+                actual_state.player.x,
+                actual_state.player.y,
+                actual_state.player.dest_x,
+                actual_state.player.dest_y,
+                actual_state.player.interaction.target_slot);
+            const uint8_t* expected_bytes = (const uint8_t*)&expected_state;
+            const uint8_t* actual_bytes = (const uint8_t*)&actual_state;
+            for (size_t byte = 0; byte < sizeof(expected_state); byte++) {
+                if (expected_bytes[byte] == actual_bytes[byte]) continue;
+                printf(
+                    "first state byte mismatch offset=%zu expected=%u actual=%u\n",
+                    byte,
+                    (unsigned)expected_bytes[byte],
+                    (unsigned)actual_bytes[byte]);
+                break;
             }
+            fclose(expected);
+            fclose(actual);
+            return 1;
         }
-        offset += (uint64_t)ne;
     }
 
+    int expected_tail = fgetc(expected);
+    int actual_tail = fgetc(actual);
     fclose(expected);
     fclose(actual);
+    if (expected_tail != EOF || actual_tail != EOF) {
+        printf("colosseum exact mismatch: trailing data\n");
+        return 1;
+    }
     return 0;
 }
 

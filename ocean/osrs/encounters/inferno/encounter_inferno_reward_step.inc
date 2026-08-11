@@ -560,6 +560,7 @@ static void inf_record_idle_diagnostics(
 static void inf_step_ctx(EncounterState* state, EncounterContext* context, const int* actions) {
     InfernoState* s = (InfernoState*)state;
     InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    encounter_arena_topology_require_finalized(ctx->route_topology);
     if (s->episode_over) return;
 
     s->reward = 0.0f;

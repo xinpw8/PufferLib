@@ -69,13 +69,25 @@ static void nh_pvp_init_context(EncounterContext* context) {
 static void nh_pvp_destroy_context(EncounterContext* context) {
     (void)context;
 }
+static void nh_pvp_finalize_context(
+    EncounterState* state,
+    EncounterContext* context
+) {
+    NhPvpState* s = (NhPvpState*)state;
+    NhPvpContext* ctx = (NhPvpContext*)context;
+    if (!ctx || ctx->route_topology) {
+        fprintf(stderr, "NH PvP route topology finalized twice\n");
+        abort();
+    }
+    ctx->route_topology = pvp_route_topology_finalize(
+        (const CollisionMap*)s->env.collision_map);
+}
+
 
 static void nh_pvp_reset(EncounterState* state, EncounterContext* context, uint32_t seed) {
     NhPvpState* s = (NhPvpState*)state;
     NhPvpContext* ctx = (NhPvpContext*)context;
-    if (!ctx->route_topology)
-        ctx->route_topology = pvp_route_topology_setup(
-            (const CollisionMap*)s->env.collision_map);
+    encounter_arena_topology_require_finalized(ctx->route_topology);
     if (seed != 0) {
         s->env.has_rng_seed = 1;
         s->env.rng_seed = seed;
@@ -87,6 +99,7 @@ static void nh_pvp_reset(EncounterState* state, EncounterContext* context, uint3
 static void nh_pvp_step(EncounterState* state, EncounterContext* context, const int* actions) {
     NhPvpContext* ctx = (NhPvpContext*)context;
     NhPvpState* s = (NhPvpState*)state;
+    encounter_arena_topology_require_finalized(ctx->route_topology);
     memcpy(s->env.ocean_io.agent_actions, actions, NUM_ACTION_HEADS * sizeof(int));
     pvp_step(&s->env, ctx->route_topology, ctx->player_route_cache);
 }
@@ -97,6 +110,7 @@ static void nh_pvp_step_human_commands(
     HumanInput* hi
 ) {
     NhPvpContext* ctx = (NhPvpContext*)context;
+    encounter_arena_topology_require_finalized(ctx->route_topology);
     NhPvpState* s = (NhPvpState*)state;
     int saved_use_c_opponent_p0 = s->env.pvp_runtime.use_c_opponent_p0;
     s->env.pvp_runtime.use_c_opponent_p0 = 0;
@@ -246,13 +260,10 @@ static void nh_pvp_put_ptr(
     const char* key,
     void* value
 ) {
+    (void)context;
     NhPvpState* s = (NhPvpState*)state;
-    if (strcmp(key, "collision_map") == 0) {
-        NhPvpContext* ctx = (NhPvpContext*)context;
+    if (strcmp(key, "collision_map") == 0)
         s->env.collision_map = value;
-        ctx->route_topology =
-            pvp_route_topology_setup((const CollisionMap*)value);
-    }
 }
 
 static void* nh_pvp_get_log(EncounterState* state, EncounterContext* context) {
@@ -283,6 +294,7 @@ static const EncounterDef ENCOUNTER_NH_PVP = {
     .context_size = sizeof(NhPvpContext),
     .init_context = nh_pvp_init_context,
     .destroy_context = nh_pvp_destroy_context,
+    .finalize_context = nh_pvp_finalize_context,
 
     .create = nh_pvp_create,
     .destroy = nh_pvp_destroy,
