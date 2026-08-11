@@ -1847,6 +1847,12 @@ static inline int encounter_chase_attack_target(
             arena_base_x, arena_base_y, arena_w, arena_h);
         return steps > 0 ? 1 : 0;
     }
+    if (encounter_player_can_attack(
+            p->x, p->y,
+            target_x, target_y, target_size, attack_range,
+            cmap, world_offset_x, world_offset_y,
+            los_query))
+        return 0;
 
 
     int cx, cy;

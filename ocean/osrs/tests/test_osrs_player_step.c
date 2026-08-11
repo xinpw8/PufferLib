@@ -493,12 +493,47 @@ static void test_attack_route_caches_walkability_per_tile(void) {
         walkable_count.calls <= STEP_GRID * STEP_GRID);
 }
 
+static void test_attackable_target_skips_route_scan(void) {
+    Player player;
+    memset(&player, 0, sizeof(player));
+    player.x = 10;
+    player.y = 10;
+    player.dest_x = 7;
+    player.dest_y = 8;
+    StepWalkableCountCtx walkable_count = {0};
+
+    int moved = encounter_chase_attack_target(
+        &player,
+        12,
+        10,
+        1,
+        2,
+        NULL,
+        0,
+        0,
+        step_counted_tile_walkable,
+        &walkable_count,
+        NULL,
+        NULL,
+        osrs_los_open_query(),
+        0,
+        0,
+        0,
+        0);
+
+    CHECK("attackable target does not move", moved == 0);
+    CHECK("attackable target skips walkability scan", walkable_count.calls == 0);
+    CHECK("attackable target preserves destination",
+        player.dest_x == 7 && player.dest_y == 8);
+}
+
 
 int main(void) {
     test_same_target_selection_preserves_route();
     test_attack_route_field_stops_at_first_reachable_target_edge();
     test_unreachable_attack_route_field_exhausts_for_fallback();
     test_attack_route_caches_walkability_per_tile();
+    test_attackable_target_skips_route_scan();
     test_target_command_cancels_walk_in_flight();
     test_move_command_cancels_interaction();
     test_none_command_chases_active_interaction();
