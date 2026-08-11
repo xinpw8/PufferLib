@@ -146,8 +146,12 @@ static void col_put_ptr_ctx(
 ) {
     (void)state;
     ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
-    if (strcmp(key, "collision_map") == 0) ctx->collision_map = (const CollisionMap*)value;
-    else encounter_abort_unknown_config("colosseum", "ptr", key);
+    if (strcmp(key, "collision_map") == 0) {
+        col_bind_route_topology(ctx, (const CollisionMap*)value);
+        ctx->collision_map = (const CollisionMap*)value;
+    } else {
+        encounter_abort_unknown_config("colosseum", "ptr", key);
+    }
 }
 
 static int col_get_tick_ctx(EncounterState* state, EncounterContext* context) {
@@ -1042,6 +1046,9 @@ typedef struct {
 } ColoSnapshot;
 
 static void col_refresh_after_state_load(ColosseumState* s, ColosseumContext* ctx) {
+    osrs_interaction_zero_serialized_route_padding(&s->player.interaction);
+    osrs_interaction_zero_serialized_route_padding(&s->interaction);
+    osrs_actor_route_cache_clear(&ctx->player_route_cache);
     col_build_npc_stats();
     col_mark_live_loadout_dirty(s);
     col_ensure_live_loadout_stats(s);
@@ -1063,6 +1070,8 @@ static void col_snapshot_ctx(EncounterState* state, EncounterContext* context, v
         sizeof(ColosseumState));
     encounter_snapshot_copy_state_to(
         snap, offsetof(ColoSnapshot, state), state, sizeof(ColosseumState));
+    osrs_interaction_zero_serialized_route_padding(&snap->state.player.interaction);
+    osrs_interaction_zero_serialized_route_padding(&snap->state.interaction);
 }
 
 static void col_restore_ctx(

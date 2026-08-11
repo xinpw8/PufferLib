@@ -161,6 +161,7 @@ void puf_init(Env* env, Dict* kwargs) {
     env->num_agents = 1;
     env->agents[0].policy = 0;
     ENCOUNTER_INFERNO.init_context(INF_ENV_CONTEXT(env));
+    inf_bind_route_topology(&env->context, NULL);
     ENCOUNTER_INFERNO.init_state(INF_ENV_STATE(env), INF_ENV_CONTEXT(env));
 
     uint32_t seed_offset = 0;

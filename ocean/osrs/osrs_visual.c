@@ -103,6 +103,9 @@ static void print_env_state(OsrsEnv* env) {
 }
 
 static void run_random_episode(OsrsEnv* env, int verbose) {
+    const EncounterArenaTopology* route_topology =
+        pvp_route_topology_setup((const CollisionMap*)env->collision_map);
+    OsrsActorRouteCache route_cache[NUM_AGENTS] = {0};
     pvp_reset(env);
 
     while (!env->episode_over) {
@@ -113,7 +116,7 @@ static void run_random_episode(OsrsEnv* env, int verbose) {
             }
         }
 
-        pvp_step(env);
+        pvp_step(env, route_topology, route_cache);
 
         if (verbose && env->tick % 50 == 0) {
             print_env_state(env);
@@ -130,6 +133,9 @@ static void run_random_episode(OsrsEnv* env, int verbose) {
 }
 
 static void benchmark(OsrsEnv* env, int num_steps) {
+    const EncounterArenaTopology* route_topology =
+        pvp_route_topology_setup((const CollisionMap*)env->collision_map);
+    OsrsActorRouteCache route_cache[NUM_AGENTS] = {0};
     printf("Benchmarking %d steps...\n", num_steps);
 
     clock_t start = clock();
@@ -138,6 +144,7 @@ static void benchmark(OsrsEnv* env, int num_steps) {
 
     while (total_steps < num_steps) {
         pvp_reset(env);
+        pvp_actor_route_caches_clear(route_cache);
         episodes++;
 
         while (!env->episode_over && total_steps < num_steps) {
@@ -148,7 +155,7 @@ static void benchmark(OsrsEnv* env, int num_steps) {
                 }
             }
 
-            pvp_step(env);
+            pvp_step(env, route_topology, route_cache);
             total_steps++;
         }
     }
@@ -357,8 +364,10 @@ static void run_profile(
     OsrsEnv* env,
     const char* encounter_name,
     int start_wave,
-    int profile_steps
+    int profile_steps,
+    uint32_t profile_seed
 ) {
+    srand(profile_seed);
     if (profile_steps > 0) {
         printf("Profiling %s for %d steps...\n",
             encounter_name ? encounter_name : "pvp",
@@ -380,13 +389,19 @@ static void run_profile(
                 start_wave);
             fprintf(stderr, "start_wave: %d\n", start_wave);
         }
-        edef->reset(env->encounter_state, env->encounter_context, 0);
+        edef->reset(env->encounter_state, env->encounter_context, profile_seed);
     } else {
         env->pvp_runtime.use_c_opponent = 1;
         env->pvp_runtime.opponent.type = OPP_IMPROVED;
+        env->has_rng_seed = 1;
+        env->rng_seed = profile_seed;
         env->is_lms = 1;
         pvp_reset(env);
     }
+    const EncounterArenaTopology* direct_pvp_topology = encounter_name
+        ? NULL
+        : pvp_route_topology_setup((const CollisionMap*)env->collision_map);
+    OsrsActorRouteCache direct_pvp_route_cache[NUM_AGENTS] = {0};
 
     const EncounterDef* profile_edef = (const EncounterDef*)env->encounter_def;
     float* encounter_obs = NULL;
@@ -536,9 +551,10 @@ static void run_profile(
                     actions[h] = rand() % ACTION_HEAD_DIMS[h];
                 }
             }
-            pvp_step(env);
+            pvp_step(env, direct_pvp_topology, direct_pvp_route_cache);
             if (env->episode_over) {
                 pvp_reset(env);
+                pvp_actor_route_caches_clear(direct_pvp_route_cache);
             }
         }
 
@@ -1550,7 +1566,7 @@ static void visual_frame(void* arg) {
                 }
             }
         }
-        pvp_step(env);
+        pvp_step(env, rc->route_topology, rc->player_route_cache);
 
         if (rc->human_input.enabled && rc->human_input.pending_move_x >= 0) {
             Player* p0 = &env->players[0];
@@ -1961,6 +1977,11 @@ static void run_visual(
 
     pvp_render(env);
     RenderClient* rc = (RenderClient*)env->client;
+    rc->route_topology =
+        (!encounter_name || strcmp(encounter_name, "pvp") == 0)
+        ? pvp_route_topology_setup((const CollisionMap*)env->collision_map)
+        : NULL;
+    pvp_actor_route_caches_clear(rc->player_route_cache);
 #ifdef __EMSCRIPTEN__
     if (!encounter_name || encounter_name_is_pvp(encounter_name)) {
         rc->ticks_per_second = 15.0f;
@@ -2329,7 +2350,8 @@ int main(int argc, char** argv) {
             run_policy_profile(&env, encounter_name, start_wave, profile_steps,
                 model_path, policy_mode, policy_seed, loadout_mode);
         } else {
-            run_profile(&env, encounter_name, start_wave, profile_steps);
+            run_profile(
+                &env, encounter_name, start_wave, profile_steps, policy_seed);
         }
 
         visual_free_env_buffers(&env);

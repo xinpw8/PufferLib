@@ -8,6 +8,7 @@
 #include <sys/types.h>
 
 #include "ocean/osrs/encounters/encounter_inferno.h"
+#include "ocean/osrs/tests/osrs_route_reference.h"
 
 #define EXACT_MAGIC "INFEXACTv2"
 #define EXACT_VERSION 2u
@@ -124,6 +125,16 @@ static void exact_writer_close(InfExactWriter* writer) {
     writer->file = NULL;
 }
 
+static void exact_zero_serialized_route_storage(InfernoState* state) {
+#ifdef OSRS_INTERACTION_SERIALIZED_ROUTE_BYTES
+    osrs_interaction_zero_serialized_route_padding(&state->player.interaction);
+    osrs_interaction_zero_serialized_route_padding(&state->interaction);
+#else
+    memset(&state->player.interaction.route, 0, sizeof(state->player.interaction.route));
+    memset(&state->interaction.route, 0, sizeof(state->interaction.route));
+#endif
+}
+
 static void exact_capture(
     InfExactWriter* writer,
     uint32_t scenario_id,
@@ -137,6 +148,8 @@ static void exact_capture(
 
     inf_build_step_out_forecast_ctx(s, ctx, &forecast);
     inf_write_obs_ctx((EncounterState*)s, (EncounterContext*)ctx, obs);
+    InfernoState canonical_state = *s;
+    exact_zero_serialized_route_storage(&canonical_state);
 
     InfExactRecordHeader record = {0};
     record.scenario_id = scenario_id;
@@ -150,7 +163,7 @@ static void exact_capture(
     record.state_size = (uint32_t)sizeof(*s);
     record.obs_size = INF_NUM_OBS;
     record.forecast_size = (uint32_t)sizeof(forecast);
-    record.state_hash = exact_hash_bytes(s, sizeof(*s));
+    record.state_hash = exact_hash_bytes(&canonical_state, sizeof(canonical_state));
     record.forecast_hash = exact_hash_bytes(&forecast, sizeof(forecast));
     record.obs_hash = exact_hash_bytes(obs, sizeof(obs));
     record.reward = inf_get_reward_ctx((EncounterState*)s, (EncounterContext*)ctx);
@@ -158,7 +171,7 @@ static void exact_capture(
     exact_write_all(writer->file, &record, sizeof(record));
     exact_write_all(writer->file, &forecast, sizeof(forecast));
     exact_write_all(writer->file, obs, sizeof(obs));
-    exact_write_all(writer->file, s, sizeof(*s));
+    exact_write_all(writer->file, &canonical_state, sizeof(canonical_state));
     writer->record_count++;
 }
 
@@ -186,6 +199,9 @@ static void exact_init_state(
     uint32_t seed
 ) {
     inf_init_context_typed(ctx);
+#ifdef OSRS_INTERACTION_SERIALIZED_ROUTE_BYTES
+    inf_bind_route_topology(ctx, NULL);
+#endif
     memset(s, 0, sizeof(*s));
     inf_put_int_ctx(
         (EncounterState*)s,
@@ -193,6 +209,85 @@ static void exact_init_state(
         "start_wave",
         public_start_wave);
     inf_reset_ctx((EncounterState*)s, (EncounterContext*)ctx, seed);
+}
+typedef struct {
+    InfernoState* state;
+    InfernoContext* context;
+} InfExactRouteContext;
+
+static int exact_inferno_route_blocked(
+    void* data,
+    int x,
+    int y,
+    int size
+) {
+    InfExactRouteContext* route_ctx = (InfExactRouteContext*)data;
+    return inf_blocked_by_pillar(route_ctx->state, x, y, size);
+}
+
+static int exact_inferno_can_attack(
+    void* data,
+    int player_x,
+    int player_y,
+    int target_x,
+    int target_y,
+    int target_size,
+    int attack_range
+) {
+    InfExactRouteContext* route_ctx = (InfExactRouteContext*)data;
+    OsrsLosQuery query = inf_player_los_query(route_ctx->state);
+    return encounter_player_can_attack(
+        player_x,
+        player_y,
+        target_x,
+        target_y,
+        target_size,
+        attack_range,
+        route_ctx->context->collision_map,
+        route_ctx->context->world_offset_x,
+        route_ctx->context->world_offset_y,
+        &query);
+}
+
+static void exact_inferno_route_equivalence(void) {
+    InfernoState state;
+    InfernoContext context;
+    exact_init_state(&state, &context, 1, EXACT_ENV_SEED);
+    InfExactRouteContext route_ctx = {
+        .state = &state,
+        .context = &context,
+    };
+    static const int attack_ranges[] = {1, 5, 10};
+    uint64_t checks = osrs_reference_route_exhaustive(
+        "all-pillars",
+        context.route_topology,
+        (EncounterRouteBlockers){
+            .is_blocked = exact_inferno_route_blocked,
+            .ctx = &route_ctx,
+            .revision = inf_player_route_blocker_revision(&state),
+        },
+        5,
+        attack_ranges,
+        3,
+        exact_inferno_can_attack,
+        &route_ctx);
+    state.pillars[1].active = 0;
+    checks += osrs_reference_route_exhaustive(
+        "middle-pillar-collapsed",
+        context.route_topology,
+        (EncounterRouteBlockers){
+            .is_blocked = exact_inferno_route_blocked,
+            .ctx = &route_ctx,
+            .revision = inf_player_route_blocker_revision(&state),
+        },
+        5,
+        attack_ranges,
+        3,
+        exact_inferno_can_attack,
+        &route_ctx);
+    printf(
+        "inferno exhaustive route equivalence PASS: %llu source-target-range queries across 2 blocker fields\n",
+        (unsigned long long)checks);
 }
 
 static void exact_run_wave_rollout(
@@ -275,11 +370,17 @@ static int exact_compare_files(const char* expected_path, const char* actual_pat
 }
 
 int main(int argc, char** argv) {
+    if (argc == 2 && strcmp(argv[1], "--attack-route-selftest") == 0) {
+        inf_build_npc_stats();
+        exact_inferno_route_equivalence();
+        return 0;
+    }
     if (argc != 3 ||
             (strcmp(argv[1], "--write-golden") != 0 &&
              strcmp(argv[1], "--compare") != 0)) {
         fprintf(stderr,
-            "usage: %s --write-golden DIR | --compare DIR\n", argv[0]);
+            "usage: %s --attack-route-selftest | --write-golden DIR | --compare DIR\n",
+            argv[0]);
         return 2;
     }
 

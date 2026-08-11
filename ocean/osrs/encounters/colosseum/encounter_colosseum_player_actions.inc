@@ -513,6 +513,15 @@ static int col_tile_walkable(void* ctx, int x, int y) {
     return col_player_walkable(wc->s, x, y);
 }
 
+static int col_player_route_blocked(void* data, int x, int y, int size) {
+    ColosseumState* state = (ColosseumState*)data;
+    if (!col_sol_clamp_active(state)) return 0;
+    for (int dx = 0; dx < size; dx++)
+        for (int dy = 0; dy < size; dy++)
+            if (!col_in_boss_arena(state, x + dx, y + dy)) return 1;
+    return 0;
+}
+
 
 static int col_npc_collision_flag_at(const ColosseumState* s, int x, int y) {
     int gx, gy;
@@ -1033,24 +1042,26 @@ static ColoPrimaryStepPlan col_primary_step_plan(
         .input = {
             .player = player,
             .interaction = interaction,
+            .route_cache = &ctx->player_route_cache,
             .target_lookup = col_lookup_player_attack_target,
             .target_ctx = s,
             .command = command,
             .dest_x = player_dest_x,
             .dest_y = player_dest_y,
             .arena = {
+                .topology = ctx->route_topology,
+                .blockers = {
+                    .is_blocked = col_player_route_blocked,
+                    .ctx = s,
+                    .revision = (uint64_t)col_sol_clamp_active(s) + 1,
+                },
+                .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+                .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
+                .explicit_cost_policy = ENCOUNTER_ROUTE_COST_DIRECT,
                 .collision_map = ctx->collision_map,
                 .world_offset_x = ctx->world_offset_x,
                 .world_offset_y = ctx->world_offset_y,
-                .is_walkable = col_tile_walkable,
-                .walkable_ctx = walk_ctx,
-                .extra_blocked = NULL,
-                .blocked_ctx = NULL,
                 .los_query = los_query,
-                .arena_base_x = COLO_ARENA_MIN_X,
-                .arena_base_y = COLO_ARENA_MIN_Y,
-                .arena_w = COLO_ARENA_WIDTH,
-                .arena_h = COLO_ARENA_HEIGHT,
             },
         },
         .move_action = move_action,

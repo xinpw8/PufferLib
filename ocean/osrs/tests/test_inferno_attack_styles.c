@@ -5,6 +5,11 @@
 #include <unistd.h>
 
 #include "ocean/osrs/encounters/encounter_inferno.h"
+#include "ocean/osrs/tests/osrs_route_reference.h"
+#define inf_init_context_typed(ctx_ptr) do { \
+    inf_init_context_typed(ctx_ptr); \
+    inf_bind_route_topology((ctx_ptr), NULL); \
+} while (0)
 #include "ocean/osrs/osrs_anim.h"
 #include "ocean/osrs/osrs_effects.h"
 #include "ocean/osrs/osrs_projectile_orientation.h"

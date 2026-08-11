@@ -698,6 +698,8 @@ typedef struct {
 typedef struct {
     InfConfig config;
     const CollisionMap* collision_map;
+    const EncounterArenaTopology* route_topology;
+    OsrsActorRouteCache player_route_cache;
     int world_offset_x;
     int world_offset_y;
     Log* log;
@@ -909,3 +911,4 @@ typedef struct {
     float total_hp_restored_jad;
     float total_hp_restored_zuk;
 } InfernoState;
+static_assert(sizeof(InfernoState) == 27300, "InfernoState serialized layout");

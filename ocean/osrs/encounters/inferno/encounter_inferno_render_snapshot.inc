@@ -180,8 +180,12 @@ static void inf_put_ptr_ctx(
 ) {
     (void)state;
     InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
-    if (strcmp(key, "collision_map") == 0) ctx->collision_map = (const CollisionMap*)value;
-    else encounter_abort_unknown_config("inferno", "ptr", key);
+    if (strcmp(key, "collision_map") == 0) {
+        inf_bind_route_topology(ctx, (const CollisionMap*)value);
+        ctx->collision_map = (const CollisionMap*)value;
+    } else {
+        encounter_abort_unknown_config("inferno", "ptr", key);
+    }
 }
 
 static int inf_get_tick_ctx(EncounterState* state, EncounterContext* context) {
@@ -839,6 +843,9 @@ static uint64_t inf_config_fingerprint(const InfConfig* config) {
 #undef INF_HASH_CONFIG_FIELD
 
 static void inf_refresh_after_state_load(InfernoState* s, InfernoContext* ctx) {
+    osrs_interaction_zero_serialized_route_padding(&s->player.interaction);
+    osrs_interaction_zero_serialized_route_padding(&s->interaction);
+    osrs_actor_route_cache_clear(&ctx->player_route_cache);
     inf_build_npc_stats();
     const uint8_t* const* loadouts =
         inf_loadouts_for_profile(s->active_loadout_profile);
@@ -880,6 +887,8 @@ static void inf_snapshot_ctx(EncounterState* state, EncounterContext* context, v
     snap->config_fingerprint = inf_config_fingerprint(&ctx->config);
     encounter_snapshot_copy_state_to(
         snap, offsetof(InfSnapshot, state), state, sizeof(InfernoState));
+    osrs_interaction_zero_serialized_route_padding(&snap->state.player.interaction);
+    osrs_interaction_zero_serialized_route_padding(&snap->state.interaction);
 }
 
 static void inf_snapshot(EncounterState* state, void* out) {

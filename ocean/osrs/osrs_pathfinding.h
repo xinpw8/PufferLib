@@ -20,6 +20,11 @@
 #define PATHFIND_MAX_QUEUE_ARENA (PATHFIND_ARENA_MAX * PATHFIND_ARENA_MAX)
 #define PATHFIND_MAX_FALLBACK_RADIUS 10
 
+#if defined(__GNUC__) || defined(__clang__)
+#define OSRS_ROUTE_NOINLINE __attribute__((noinline))
+#else
+#define OSRS_ROUTE_NOINLINE
+#endif
 #define VIA_NONE  0
 #define VIA_S     1
 #define VIA_W     2
@@ -31,343 +36,1507 @@
 #define VIA_NE    12
 #define VIA_START 99
 
+
+#define ENCOUNTER_ROUTE_MAX_WAYPOINTS 25
+
+typedef enum {
+    ROUTE_REACHED_TARGET = 0,
+    ROUTE_REACHED_FALLBACK,
+    ROUTE_UNREACHABLE,
+    ROUTE_INVALID_INPUT,
+} EncounterRouteOutcome;
+
+typedef enum {
+    ENCOUNTER_ROUTE_TARGET_TILE = 0,
+    ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY,
+} EncounterRouteTargetKind;
+
+typedef enum {
+    ENCOUNTER_ROUTE_MOVEMENT_WALK = 0,
+    ENCOUNTER_ROUTE_MOVEMENT_RUN,
+} EncounterRouteMovementMode;
+
+typedef enum {
+    ENCOUNTER_ROUTE_COST_OSRS = 0,
+    ENCOUNTER_ROUTE_COST_SOUTH_FIRST,
+    ENCOUNTER_ROUTE_COST_DIRECT,
+    ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
+    ENCOUNTER_ROUTE_COST_SOUTH_FIRST_REVERSE,
+} EncounterRouteCostPolicy;
+
+typedef int (*encounter_route_blocked_fn)(
+    void* ctx,
+    int x,
+    int y,
+    int size);
+
 typedef struct {
-    int found;
-    int next_dx;
-    int next_dy;
-    int dest_x;
-    int dest_y;
+    encounter_route_blocked_fn is_blocked;
+    void* ctx;
+    uint64_t revision;
+} EncounterRouteBlockers;
+
+typedef struct {
+    const EncounterArenaTopology* topology;
+    EncounterRouteBlockers blockers;
+    int source_x;
+    int source_y;
+    int actor_size;
+    int target_x;
+    int target_y;
+    int target_size;
+    EncounterRouteTargetKind target_kind;
+    EncounterRouteMovementMode movement_mode;
+    EncounterRouteCostPolicy cost_policy;
+} EncounterRouteInput;
+
+typedef struct {
+    EncounterRouteOutcome outcome;
+    int destination_x;
+    int destination_y;
+    int first_dx;
+    int first_dy;
     int run_dx;
     int run_dy;
-} PathResult;
+    uint16_t distance;
+    uint8_t waypoint_count;
+    int waypoint_x[ENCOUNTER_ROUTE_MAX_WAYPOINTS];
+    int waypoint_y[ENCOUNTER_ROUTE_MAX_WAYPOINTS];
+} EncounterRouteResult;
 
-typedef int (*pathfind_blocked_fn)(void* ctx, int abs_x, int abs_y);
+typedef struct {
+    const EncounterArenaTopology* topology;
+    void* blocker_ctx;
+    encounter_route_blocked_fn blocker;
+    uint64_t topology_revision;
+    uint64_t blocker_revision;
+    int source_x;
+    int source_y;
+    uint16_t visited_count;
+    uint16_t expanded_count;
+    uint16_t depth[ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
+    uint16_t queue[ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
+    int8_t via[ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
+    uint64_t visited[ENCOUNTER_ARENA_TOPOLOGY_MAX_DIMENSION];
+    uint64_t blocker_known[ENCOUNTER_ARENA_TOPOLOGY_MAX_DIMENSION];
+    uint64_t blocker_value[ENCOUNTER_ARENA_TOPOLOGY_MAX_DIMENSION];
+    uint8_t actor_size;
+    uint8_t movement_mode;
+    uint8_t cost_policy;
+    uint8_t valid;
+} EncounterSourceRouteField;
 
-static inline void pathfind_enqueue_or_abort(
-    int* queue_x, int* queue_y, int* tail, int capacity, int x, int y
-) {
-    if (*tail >= capacity) {
-        fprintf(stderr, "pathfind queue overflow: capacity=%d\n", capacity);
-        abort();
-    }
+typedef struct {
+    uint16_t depth[ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
+    uint8_t outcome;
+} EncounterReverseRouteField;
 
-    queue_x[*tail] = x;
-    queue_y[*tail] = y;
-    (*tail)++;
+typedef struct {
+    uint16_t generation[ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
+    uint16_t queue[ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
+    uint16_t depth[ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
+    int8_t via[ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
+    uint16_t blocker_generation[ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
+    uint8_t blocker_value[ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
+    uint16_t current_generation;
+    EncounterSourceRouteField source_field;
+    EncounterReverseRouteField reverse_field;
+} EncounterRouteScratch;
+
+static OSRS_THREAD_LOCAL EncounterRouteScratch encounter_route_scratch;
+
+static inline int encounter_route_abs(int value) {
+    return value < 0 ? -value : value;
 }
 
-static const int pathfind_dir_dx[8] = {0, -1, 0, 1, -1, -1, 1, 1};
-static const int pathfind_dir_dy[8] = {-1, 0, 1, 0, -1, 1, -1, 1};
-static const int pathfind_dir_via[8] = {
-    VIA_S, VIA_W, VIA_N, VIA_E, VIA_SW, VIA_NW, VIA_SE, VIA_NE
-};
+static inline int encounter_route_dynamic_blocked(
+    const EncounterRouteInput* input,
+    int x,
+    int y
+) {
+    return input->blockers.is_blocked &&
+        input->blockers.is_blocked(
+            input->blockers.ctx, x, y, input->actor_size);
+}
 
-static inline PathResult pathfind_step(const CollisionMap* map, int height,
-                                       int src_x, int src_y, int dest_x, int dest_y,
-                                       pathfind_blocked_fn extra_blocked, void* blocked_ctx) {
-    PathResult result = {0, 0, 0, dest_x, dest_y};
+static inline int encounter_route_step_allowed(
+    const EncounterRouteInput* input,
+    int x,
+    int y,
+    int dx,
+    int dy
+) {
+    if (!encounter_arena_topology_step_allowed(
+            input->topology, x, y, input->actor_size, dx, dy))
+        return 0;
+    if (encounter_route_dynamic_blocked(input, x + dx, y + dy))
+        return 0;
+    if (dx != 0 && dy != 0 &&
+            (encounter_route_dynamic_blocked(input, x + dx, y) ||
+             encounter_route_dynamic_blocked(input, x, y + dy)))
+        return 0;
+    return 1;
+}
+static inline int encounter_route_dynamic_blocked_cached(
+    const EncounterRouteInput* input,
+    EncounterRouteScratch* scratch,
+    uint16_t generation,
+    int x,
+    int y
+) {
+    if (!input->blockers.is_blocked) return 0;
+    if (!encounter_arena_topology_contains(input->topology, x, y))
+        return encounter_route_dynamic_blocked(input, x, y);
+    int index = encounter_arena_topology_index_raw(input->topology, x, y);
+    if (scratch->blocker_generation[index] != generation) {
+        scratch->blocker_generation[index] = generation;
+        scratch->blocker_value[index] =
+            (uint8_t)encounter_route_dynamic_blocked(input, x, y);
+    }
+    return scratch->blocker_value[index];
+}
 
-    if (src_x == dest_x && src_y == dest_y) {
-        result.found = 1;
-        return result;
+static inline int encounter_route_step_allowed_cached(
+    const EncounterRouteInput* input,
+    EncounterRouteScratch* scratch,
+    uint16_t generation,
+    int x,
+    int y,
+    int dx,
+    int dy
+) {
+    if (encounter_route_dynamic_blocked_cached(
+            input, scratch, generation, x + dx, y + dy))
+        return 0;
+    if (dx != 0 && dy != 0 &&
+            (encounter_route_dynamic_blocked_cached(
+                input, scratch, generation, x, y + dy) ||
+             encounter_route_dynamic_blocked_cached(
+                input, scratch, generation, x + dx, y)))
+        return 0;
+    if (!encounter_arena_topology_step_allowed(
+            input->topology, x, y, input->actor_size, dx, dy))
+        return 0;
+    return 1;
+}
+
+
+static inline int encounter_route_footprints_overlap(
+    int actor_x,
+    int actor_y,
+    int actor_size,
+    int target_x,
+    int target_y,
+    int target_size
+) {
+    return
+        actor_x < target_x + target_size &&
+        target_x < actor_x + actor_size &&
+        actor_y < target_y + target_size &&
+        target_y < actor_y + actor_size;
+}
+
+static inline int encounter_route_footprints_cardinal_adjacent(
+    int actor_x,
+    int actor_y,
+    int actor_size,
+    int target_x,
+    int target_y,
+    int target_size
+) {
+    int64_t actor_max_x = (int64_t)actor_x + actor_size - 1;
+    int64_t actor_max_y = (int64_t)actor_y + actor_size - 1;
+    int64_t target_max_x = (int64_t)target_x + target_size - 1;
+    int64_t target_max_y = (int64_t)target_y + target_size - 1;
+    int x_overlap =
+        (int64_t)actor_x <= target_max_x &&
+        (int64_t)target_x <= actor_max_x;
+    int y_overlap =
+        (int64_t)actor_y <= target_max_y &&
+        (int64_t)target_y <= actor_max_y;
+    return
+        (actor_max_x + 1 == target_x && y_overlap) ||
+        (target_max_x + 1 == actor_x && y_overlap) ||
+        (actor_max_y + 1 == target_y && x_overlap) ||
+        (target_max_y + 1 == actor_y && x_overlap);
+}
+
+static inline int encounter_route_cardinal_edge_open(
+    const EncounterRouteInput* input,
+    int actor_x,
+    int actor_y
+) {
+    const EncounterArenaTopology* topology = input->topology;
+    int actor_max_x = actor_x + input->actor_size - 1;
+    int actor_max_y = actor_y + input->actor_size - 1;
+    int target_max_x = input->target_x + input->target_size - 1;
+    int target_max_y = input->target_y + input->target_size - 1;
+    if (actor_max_x + 1 == input->target_x) {
+        int min_y = actor_y > input->target_y ? actor_y : input->target_y;
+        int max_y = actor_max_y < target_max_y ? actor_max_y : target_max_y;
+        for (int y = min_y; y <= max_y; y++) {
+            int index = encounter_arena_topology_index_raw(topology, actor_max_x, y);
+            if ((topology->static_collision_flags[index] & COLLISION_WALL_EAST) == 0)
+                return 1;
+        }
+        return 0;
+    }
+    if (target_max_x + 1 == actor_x) {
+        int min_y = actor_y > input->target_y ? actor_y : input->target_y;
+        int max_y = actor_max_y < target_max_y ? actor_max_y : target_max_y;
+        for (int y = min_y; y <= max_y; y++) {
+            int index = encounter_arena_topology_index_raw(topology, actor_x, y);
+            if ((topology->static_collision_flags[index] & COLLISION_WALL_WEST) == 0)
+                return 1;
+        }
+        return 0;
+    }
+    if (actor_max_y + 1 == input->target_y) {
+        int min_x = actor_x > input->target_x ? actor_x : input->target_x;
+        int max_x = actor_max_x < target_max_x ? actor_max_x : target_max_x;
+        for (int x = min_x; x <= max_x; x++) {
+            int index = encounter_arena_topology_index_raw(topology, x, actor_max_y);
+            if ((topology->static_collision_flags[index] & COLLISION_WALL_NORTH) == 0)
+                return 1;
+        }
+        return 0;
+    }
+    if (target_max_y + 1 == actor_y) {
+        int min_x = actor_x > input->target_x ? actor_x : input->target_x;
+        int max_x = actor_max_x < target_max_x ? actor_max_x : target_max_x;
+        for (int x = min_x; x <= max_x; x++) {
+            int index = encounter_arena_topology_index_raw(topology, x, actor_y);
+            if ((topology->static_collision_flags[index] & COLLISION_WALL_SOUTH) == 0)
+                return 1;
+        }
+        return 0;
+    }
+    return 0;
+}
+
+static inline int encounter_route_is_target(
+    const EncounterRouteInput* input,
+    int x,
+    int y
+) {
+    if (input->target_kind == ENCOUNTER_ROUTE_TARGET_TILE)
+        return x == input->target_x && y == input->target_y;
+    return encounter_route_footprints_cardinal_adjacent(
+            x, y, input->actor_size,
+            input->target_x, input->target_y, input->target_size) &&
+        encounter_route_cardinal_edge_open(input, x, y);
+}
+
+static inline int encounter_route_target_distance_squared(
+    const EncounterRouteInput* input,
+    int x,
+    int y
+) {
+    int64_t target_max_x = (int64_t)input->target_x + input->target_size - 1;
+    int64_t target_max_y = (int64_t)input->target_y + input->target_size - 1;
+    int64_t actor_max_x = (int64_t)x + input->actor_size - 1;
+    int64_t actor_max_y = (int64_t)y + input->actor_size - 1;
+    int64_t dx = 0;
+    int64_t dy = 0;
+    if (actor_max_x < input->target_x) dx = input->target_x - actor_max_x;
+    else if (target_max_x < x) dx = (int64_t)x - target_max_x;
+    if (actor_max_y < input->target_y) dy = input->target_y - actor_max_y;
+    else if (target_max_y < y) dy = (int64_t)y - target_max_y;
+    int64_t squared = dx * dx + dy * dy;
+    return squared > INT_MAX ? INT_MAX : (int)squared;
+}
+
+static inline int encounter_route_input_valid(
+    const EncounterRouteInput* input
+) {
+    if (!input || !input->topology || !input->topology->finalized) return 0;
+    if (input->actor_size < 1 ||
+            input->actor_size > input->topology->max_footprint_size ||
+            input->target_size < 1)
+        return 0;
+    if (input->target_kind < ENCOUNTER_ROUTE_TARGET_TILE ||
+            input->target_kind > ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY)
+        return 0;
+    if (input->movement_mode < ENCOUNTER_ROUTE_MOVEMENT_WALK ||
+            input->movement_mode > ENCOUNTER_ROUTE_MOVEMENT_RUN)
+        return 0;
+    if (input->cost_policy < ENCOUNTER_ROUTE_COST_OSRS ||
+            input->cost_policy > ENCOUNTER_ROUTE_COST_SOUTH_FIRST_REVERSE)
+        return 0;
+    if (input->blockers.is_blocked && input->blockers.revision == 0) return 0;
+    if (encounter_arena_topology_footprint_blocked(
+            input->topology,
+            input->source_x,
+            input->source_y,
+            input->actor_size))
+        return 0;
+    return 1;
+}
+
+static inline void encounter_route_parent(
+    const EncounterArenaTopology* topology,
+    int via,
+    int* x,
+    int* y
+) {
+    if (via == VIA_NONE || via == VIA_START) {
+        fprintf(stderr, "broken OSRS route parent at (%d,%d)\n", *x, *y);
+        abort();
+    }
+    if (via & VIA_W) (*x)++;
+    else if (via & VIA_E) (*x)--;
+    if (via & VIA_S) (*y)++;
+    else if (via & VIA_N) (*y)--;
+    if (*x < 0 || *x >= topology->width ||
+            *y < 0 || *y >= topology->height) {
+        fprintf(stderr, "OSRS route parent left topology\n");
+        abort();
+    }
+}
+
+static inline void encounter_route_build_result_path(
+    const EncounterRouteInput* input,
+    EncounterRouteResult* result,
+    int destination_x,
+    int destination_y,
+    uint16_t generation
+) {
+    EncounterRouteScratch* scratch = &encounter_route_scratch;
+    const EncounterArenaTopology* topology = input->topology;
+    int source_x = input->source_x - topology->origin_x;
+    int source_y = input->source_y - topology->origin_y;
+    int current_x = destination_x;
+    int current_y = destination_y;
+    int destination_index = current_x * topology->height + current_y;
+    uint16_t distance = scratch->depth[destination_index];
+    result->distance = distance;
+    result->destination_x = topology->origin_x + destination_x;
+    result->destination_y = topology->origin_y + destination_y;
+
+    int first_x = source_x;
+    int first_y = source_y;
+    int second_x = source_x;
+    int second_y = source_y;
+    int direction = -1;
+    while (current_x != source_x || current_y != source_y) {
+        int index = current_x * topology->height + current_y;
+        if (scratch->generation[index] != generation) {
+            fprintf(stderr, "OSRS route read unstamped parent\n");
+            abort();
+        }
+        uint16_t depth = scratch->depth[index];
+        if (depth == 1) {
+            first_x = current_x;
+            first_y = current_y;
+        } else if (depth == 2) {
+            second_x = current_x;
+            second_y = current_y;
+        }
+        int next_direction = scratch->via[index];
+        if (direction != next_direction) {
+            direction = next_direction;
+            int count = result->waypoint_count;
+            if (count == ENCOUNTER_ROUTE_MAX_WAYPOINTS) count--;
+            memmove(
+                &result->waypoint_x[1],
+                &result->waypoint_x[0],
+                (size_t)count * sizeof(result->waypoint_x[0]));
+            memmove(
+                &result->waypoint_y[1],
+                &result->waypoint_y[0],
+                (size_t)count * sizeof(result->waypoint_y[0]));
+            result->waypoint_x[0] = topology->origin_x + current_x;
+            result->waypoint_y[0] = topology->origin_y + current_y;
+            result->waypoint_count = (uint8_t)(count + 1);
+        }
+
+        encounter_route_parent(topology, next_direction, &current_x, &current_y);
+    }
+    if (distance == 0) return;
+    result->first_dx = first_x - source_x;
+    result->first_dy = first_y - source_y;
+    if (distance >= 2 &&
+            input->movement_mode == ENCOUNTER_ROUTE_MOVEMENT_RUN) {
+        result->run_dx = second_x - first_x;
+        result->run_dy = second_y - first_y;
+    }
+}
+static inline int encounter_route_destination_allowed(
+    const EncounterRouteInput* input,
+    int x,
+    int y
+) {
+    return
+        !encounter_arena_topology_footprint_blocked(
+            input->topology, x, y, input->actor_size) &&
+        !encounter_route_dynamic_blocked(input, x, y);
+}
+
+static inline void encounter_route_direct_parts(
+    const EncounterRouteInput* input,
+    int destination_x,
+    int destination_y,
+    int* cardinal_x,
+    int* cardinal_y,
+    int* cardinal_count,
+    int* diagonal_x,
+    int* diagonal_y,
+    int* diagonal_count
+) {
+    int dx = destination_x - input->source_x;
+    int dy = destination_y - input->source_y;
+    int abs_dx = encounter_route_abs(dx);
+    int abs_dy = encounter_route_abs(dy);
+    *diagonal_x = (dx > 0) - (dx < 0);
+    *diagonal_y = (dy > 0) - (dy < 0);
+    *cardinal_x = abs_dx > abs_dy ? *diagonal_x : 0;
+    *cardinal_y = abs_dy > abs_dx ? *diagonal_y : 0;
+    *cardinal_count = encounter_route_abs(abs_dx - abs_dy);
+    *diagonal_count = abs_dx < abs_dy ? abs_dx : abs_dy;
+}
+
+static inline int encounter_route_direction_rank(
+    const EncounterRouteInput* input,
+    int dx,
+    int dy
+) {
+    static const int osrs_dx[8] = {-1, 1, 0, 0, -1, 1, -1, 1};
+    static const int osrs_dy[8] = {0, 0, -1, 1, -1, -1, 1, 1};
+    static const int south_dx[8] = {0, -1, 0, 1, -1, -1, 1, 1};
+    static const int south_dy[8] = {-1, 0, 1, 0, -1, 1, -1, 1};
+    const int* rank_dx =
+        input->cost_policy == ENCOUNTER_ROUTE_COST_OSRS ? osrs_dx : south_dx;
+    const int* rank_dy =
+        input->cost_policy == ENCOUNTER_ROUTE_COST_OSRS ? osrs_dy : south_dy;
+    for (int rank = 0; rank < 8; rank++) {
+        if (rank_dx[rank] == dx && rank_dy[rank] == dy) return rank;
+    }
+    abort();
+}
+
+static inline int encounter_route_direct_candidate_before(
+    const EncounterRouteInput* input,
+    int candidate_x,
+    int candidate_y,
+    int selected_x,
+    int selected_y
+) {
+    if (selected_x == INT_MIN) return 1;
+    int candidate_cardinal_x, candidate_cardinal_y, candidate_cardinal_count;
+    int candidate_diagonal_x, candidate_diagonal_y, candidate_diagonal_count;
+    int selected_cardinal_x, selected_cardinal_y, selected_cardinal_count;
+    int selected_diagonal_x, selected_diagonal_y, selected_diagonal_count;
+    encounter_route_direct_parts(
+        input, candidate_x, candidate_y,
+        &candidate_cardinal_x, &candidate_cardinal_y,
+        &candidate_cardinal_count,
+        &candidate_diagonal_x, &candidate_diagonal_y,
+        &candidate_diagonal_count);
+    encounter_route_direct_parts(
+        input, selected_x, selected_y,
+        &selected_cardinal_x, &selected_cardinal_y,
+        &selected_cardinal_count,
+        &selected_diagonal_x, &selected_diagonal_y,
+        &selected_diagonal_count);
+    int candidate_distance = candidate_cardinal_count + candidate_diagonal_count;
+    int selected_distance = selected_cardinal_count + selected_diagonal_count;
+    if (candidate_distance != selected_distance)
+        return candidate_distance < selected_distance;
+    for (int step = 0; step < candidate_distance; step++) {
+        int candidate_rank = step < candidate_cardinal_count
+            ? encounter_route_direction_rank(
+                input, candidate_cardinal_x, candidate_cardinal_y)
+            : encounter_route_direction_rank(
+                input, candidate_diagonal_x, candidate_diagonal_y);
+        int selected_rank = step < selected_cardinal_count
+            ? encounter_route_direction_rank(
+                input, selected_cardinal_x, selected_cardinal_y)
+            : encounter_route_direction_rank(
+                input, selected_diagonal_x, selected_diagonal_y);
+        if (candidate_rank != selected_rank)
+            return candidate_rank < selected_rank;
+    }
+    return 0;
+}
+
+static inline int encounter_route_try_direct_destination(
+    const EncounterRouteInput* input,
+    int destination_x,
+    int destination_y,
+    EncounterRouteResult* result
+) {
+    int cardinal_x, cardinal_y, cardinal_count;
+    int diagonal_x, diagonal_y, diagonal_count;
+    encounter_route_direct_parts(
+        input, destination_x, destination_y,
+        &cardinal_x, &cardinal_y, &cardinal_count,
+        &diagonal_x, &diagonal_y, &diagonal_count);
+    int x = input->source_x;
+    int y = input->source_y;
+    for (int i = 0; i < cardinal_count; i++) {
+        if (!encounter_route_step_allowed(
+                input, x, y, cardinal_x, cardinal_y))
+            return 0;
+        x += cardinal_x;
+        y += cardinal_y;
+    }
+    for (int i = 0; i < diagonal_count; i++) {
+        if (!encounter_route_step_allowed(
+                input, x, y, diagonal_x, diagonal_y))
+            return 0;
+        x += diagonal_x;
+        y += diagonal_y;
+    }
+    result->outcome = ROUTE_REACHED_TARGET;
+    result->destination_x = destination_x;
+    result->destination_y = destination_y;
+    result->distance = (uint16_t)(cardinal_count + diagonal_count);
+    if (result->distance == 0) return 1;
+    result->first_dx = cardinal_count > 0 ? cardinal_x : diagonal_x;
+    result->first_dy = cardinal_count > 0 ? cardinal_y : diagonal_y;
+    if (result->distance >= 2 &&
+            input->movement_mode == ENCOUNTER_ROUTE_MOVEMENT_RUN) {
+        result->run_dx = cardinal_count >= 2 ? cardinal_x : diagonal_x;
+        result->run_dy = cardinal_count >= 2 ? cardinal_y : diagonal_y;
+    }
+    if (cardinal_count > 0 && diagonal_count > 0) {
+        result->waypoint_x[result->waypoint_count] =
+            input->source_x + cardinal_x * cardinal_count;
+        result->waypoint_y[result->waypoint_count] =
+            input->source_y + cardinal_y * cardinal_count;
+        result->waypoint_count++;
+    }
+    result->waypoint_x[result->waypoint_count] = destination_x;
+    result->waypoint_y[result->waypoint_count] = destination_y;
+    result->waypoint_count++;
+    return 1;
+}
+
+static inline int encounter_route_try_direct(
+    const EncounterRouteInput* input,
+    EncounterRouteResult* result
+) {
+    if (input->target_kind == ENCOUNTER_ROUTE_TARGET_TILE &&
+            input->target_size == 1) {
+        return encounter_route_try_direct_destination(
+            input, input->target_x, input->target_y, result);
+    }
+    if (input->target_kind != ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY ||
+            input->actor_size != 1)
+        return 0;
+    int selected_x = INT_MIN;
+    int selected_y = INT_MIN;
+    int target_max_x = input->target_x + input->target_size - 1;
+    int target_max_y = input->target_y + input->target_size - 1;
+    for (int y = input->target_y; y <= target_max_y; y++) {
+        int candidate_x[2] = {input->target_x - 1, target_max_x + 1};
+        for (int i = 0; i < 2; i++) {
+            if (!encounter_route_destination_allowed(
+                    input, candidate_x[i], y) ||
+                    !encounter_route_is_target(input, candidate_x[i], y))
+                continue;
+            if (encounter_route_direct_candidate_before(
+                    input, candidate_x[i], y, selected_x, selected_y)) {
+                selected_x = candidate_x[i];
+                selected_y = y;
+            }
+        }
+    }
+    for (int x = input->target_x; x <= target_max_x; x++) {
+        int candidate_y[2] = {input->target_y - 1, target_max_y + 1};
+        for (int i = 0; i < 2; i++) {
+            if (!encounter_route_destination_allowed(
+                    input, x, candidate_y[i]) ||
+                    !encounter_route_is_target(input, x, candidate_y[i]))
+                continue;
+            if (encounter_route_direct_candidate_before(
+                    input, x, candidate_y[i], selected_x, selected_y)) {
+                selected_x = x;
+                selected_y = candidate_y[i];
+            }
+        }
     }
 
-    int dist = abs(src_x - dest_x);
-    int dy_abs = abs(src_y - dest_y);
-    if (dy_abs > dist) dist = dy_abs;
-    if (dist > 64) {
+    if (selected_x == INT_MIN) return 0;
+    return encounter_route_try_direct_destination(
+        input, selected_x, selected_y, result);
+}
+static inline EncounterRouteResult encounter_route_greedy_direct(
+    const EncounterRouteInput* input
+) {
+    EncounterRouteResult result;
+    memset(&result, 0, sizeof(result));
+    result.outcome = ROUTE_UNREACHABLE;
+    if (input->target_kind != ENCOUNTER_ROUTE_TARGET_TILE)
         return result;
-    }
-
-    int origin_x = ((src_x >> 3) - 6) << 3;
-    int origin_y = ((src_y >> 3) - 6) << 3;
-
-    int local_src_x = src_x - origin_x;
-    int local_src_y = src_y - origin_y;
-    int local_dest_x = dest_x - origin_x;
-    int local_dest_y = dest_y - origin_y;
-
-    if (local_dest_x < 0 || local_dest_x >= PATHFIND_GRID_SIZE ||
-        local_dest_y < 0 || local_dest_y >= PATHFIND_GRID_SIZE) {
-        return result;
-    }
-
-    int via[PATHFIND_GRID_SIZE][PATHFIND_GRID_SIZE];
-    int cost[PATHFIND_GRID_SIZE][PATHFIND_GRID_SIZE];
-    memset(via, 0, sizeof(via));
-    memset(cost, 0, sizeof(cost));
-
-    int queue_x[PATHFIND_MAX_QUEUE_FULL];
-    int queue_y[PATHFIND_MAX_QUEUE_FULL];
-    int head = 0;
-    int tail = 0;
-
-    via[local_src_x][local_src_y] = VIA_START;
-    cost[local_src_x][local_src_y] = 1;
-    pathfind_enqueue_or_abort(
-        queue_x, queue_y, &tail, PATHFIND_MAX_QUEUE_FULL, local_src_x, local_src_y);
-
-    int found_path = 0;
-    int cur_x, cur_y;
-
-    while (head < tail) {
-        cur_x = queue_x[head];
-        cur_y = queue_y[head];
-        head++;
-
-        if (cur_x == local_dest_x && cur_y == local_dest_y) {
-            found_path = 1;
+    int x = input->source_x;
+    int y = input->source_y;
+    int max_steps =
+        input->movement_mode == ENCOUNTER_ROUTE_MOVEMENT_RUN ? 2 : 1;
+    for (int step = 0; step < max_steps; step++) {
+        if (x == input->target_x && y == input->target_y) break;
+        int dx = (input->target_x > x) - (input->target_x < x);
+        int dy = (input->target_y > y) - (input->target_y < y);
+        int moved_dx = 0;
+        int moved_dy = 0;
+        if (dx != 0 && dy != 0 &&
+                encounter_route_step_allowed(input, x, y, dx, dy)) {
+            moved_dx = dx;
+            moved_dy = dy;
+        } else if (dx != 0 &&
+                encounter_route_step_allowed(input, x, y, dx, 0)) {
+            moved_dx = dx;
+        } else if (dy != 0 &&
+                encounter_route_step_allowed(input, x, y, 0, dy)) {
+            moved_dy = dy;
+        } else {
             break;
         }
-
-        int abs_x = origin_x + cur_x;
-        int abs_y = origin_y + cur_y;
-        int next_cost = cost[cur_x][cur_y] + 1;
-
-        #define EB(ax, ay) (extra_blocked && extra_blocked(blocked_ctx, (ax), (ay)))
-
-        for (int i = 0; i < 8; i++) {
-            int dx = pathfind_dir_dx[i];
-            int dy = pathfind_dir_dy[i];
-            int next_x = cur_x + dx;
-            int next_y = cur_y + dy;
-            if (next_x < 0 || next_x >= PATHFIND_GRID_SIZE ||
-                next_y < 0 || next_y >= PATHFIND_GRID_SIZE)
-                continue;
-            if (via[next_x][next_y] != 0) continue;
-            if (!collision_traversable_step(map, height, abs_x, abs_y, dx, dy))
-                continue;
-            if (dx != 0 && dy != 0) {
-                if (!collision_traversable_step(map, height, abs_x, abs_y, 0, dy))
-                    continue;
-                if (!collision_traversable_step(map, height, abs_x, abs_y, dx, 0))
-                    continue;
-            }
-            if (EB(abs_x + dx, abs_y + dy)) continue;
-            if (dx != 0 && dy != 0) {
-                if (EB(abs_x, abs_y + dy)) continue;
-                if (EB(abs_x + dx, abs_y)) continue;
-            }
-            pathfind_enqueue_or_abort(
-                queue_x, queue_y, &tail, PATHFIND_MAX_QUEUE_FULL, next_x, next_y);
-            via[next_x][next_y] = pathfind_dir_via[i];
-            cost[next_x][next_y] = next_cost;
+        x += moved_dx;
+        y += moved_dy;
+        if (result.distance == 0) {
+            result.first_dx = moved_dx;
+            result.first_dy = moved_dy;
+        } else {
+            result.run_dx = moved_dx;
+            result.run_dy = moved_dy;
         }
-
-        #undef EB
+        result.distance++;
     }
-
-    if (!found_path) {
-        int best_manhattan = PATHFIND_GRID_SIZE * 2;
-        int best_cost = 999999;
-        int best_x = -1, best_y = -1;
-
-        for (int fx = 0; fx < PATHFIND_GRID_SIZE; fx++) {
-            for (int fy = 0; fy < PATHFIND_GRID_SIZE; fy++) {
-                if (cost[fx][fy] == 0) continue;
-
-                int ddx = fx - local_dest_x;
-                int ddy = fy - local_dest_y;
-                int manhattan = (ddx < 0 ? -ddx : ddx) + (ddy < 0 ? -ddy : ddy);
-
-                if (manhattan < best_manhattan ||
-                    (manhattan == best_manhattan && cost[fx][fy] < best_cost)) {
-                    best_manhattan = manhattan;
-                    best_cost = cost[fx][fy];
-                    best_x = fx;
-                    best_y = fy;
-                }
-            }
-        }
-
-        if (best_x == -1) {
-            return result;
-        }
-
-        cur_x = best_x;
-        cur_y = best_y;
-        found_path = 1;
-        result.dest_x = origin_x + best_x;
-        result.dest_y = origin_y + best_y;
+    result.destination_x = x;
+    result.destination_y = y;
+    if (result.distance > 0) {
+        result.waypoint_x[0] = x;
+        result.waypoint_y[0] = y;
+        result.waypoint_count = 1;
     }
-
-    while (1) {
-        int v = via[cur_x][cur_y];
-        int prev_x = cur_x;
-        int prev_y = cur_y;
-
-        if (v & VIA_W) prev_x++;
-        else if (v & VIA_E) prev_x--;
-
-        if (v & VIA_S) prev_y++;
-        else if (v & VIA_N) prev_y--;
-
-        if (prev_x == local_src_x && prev_y == local_src_y) {
-            result.found = 1;
-            result.next_dx = cur_x - local_src_x;
-            result.next_dy = cur_y - local_src_y;
-            return result;
-        }
-
-        cur_x = prev_x;
-        cur_y = prev_y;
-
-        if (via[cur_x][cur_y] == VIA_NONE || via[cur_x][cur_y] == VIA_START) {
-            break;
-        }
-    }
-
+    if (x == input->target_x && y == input->target_y)
+        result.outcome = ROUTE_REACHED_TARGET;
+    else if (result.distance > 0)
+        result.outcome = ROUTE_REACHED_FALLBACK;
     return result;
 }
 
-static inline PathResult pathfind_step_arena(
-    const CollisionMap* map, int height,
-    int src_x, int src_y, int dest_x, int dest_y,
-    pathfind_blocked_fn extra_blocked, void* blocked_ctx,
-    int arena_origin_x, int arena_origin_y, int arena_w, int arena_h
+static inline EncounterRouteResult encounter_route_solve(
+    const EncounterRouteInput* input);
+
+static inline EncounterRouteResult encounter_route_escape_overlap(
+    const EncounterRouteInput* input
 ) {
-    PathResult result = {0, 0, 0, dest_x, dest_y};
-
-    if (arena_w <= 0 || arena_w > PATHFIND_ARENA_MAX ||
-        arena_h <= 0 || arena_h > PATHFIND_ARENA_MAX) {
-        fprintf(stderr, "pathfind arena dimensions out of bounds: %dx%d\n", arena_w, arena_h);
-        abort();
+    EncounterRouteResult result;
+    memset(&result, 0, sizeof(result));
+    result.outcome = ROUTE_UNREACHABLE;
+    int max_radius = (input->target_size + 1) / 2 + 1;
+    int best_distance = INT_MAX;
+    int candidate_x = -1;
+    int candidate_y = -1;
+    for (int dy = -max_radius; dy <= max_radius; dy++) {
+        for (int dx = -max_radius; dx <= max_radius; dx++) {
+            if (dx == 0 && dy == 0) continue;
+            int x = input->source_x + dx;
+            int y = input->source_y + dy;
+            if (!encounter_route_destination_allowed(input, x, y)) continue;
+            if (encounter_route_footprints_overlap(
+                    x, y, input->actor_size,
+                    input->target_x, input->target_y, input->target_size))
+                continue;
+            int distance = dx * dx + dy * dy;
+            if (distance < best_distance) {
+                best_distance = distance;
+                candidate_x = x;
+                candidate_y = y;
+            }
+        }
     }
+    if (candidate_x < 0) return result;
 
-    if (src_x == dest_x && src_y == dest_y) {
-        result.found = 1;
-        return result;
+    EncounterRouteInput escape_input = *input;
+    escape_input.target_x = candidate_x;
+    escape_input.target_y = candidate_y;
+    escape_input.target_size = 1;
+    escape_input.target_kind = ENCOUNTER_ROUTE_TARGET_TILE;
+    escape_input.movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN;
+    escape_input.cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST;
+    EncounterRouteResult escape = encounter_route_solve(&escape_input);
+    if (escape.outcome == ROUTE_INVALID_INPUT ||
+            escape.outcome == ROUTE_UNREACHABLE)
+        return escape;
+    int landing_x = input->source_x + escape.first_dx + escape.run_dx;
+    int landing_y = input->source_y + escape.first_dy + escape.run_dy;
+
+    EncounterRouteInput landing_input = *input;
+    landing_input.target_x = landing_x;
+    landing_input.target_y = landing_y;
+    landing_input.target_size = 1;
+    landing_input.target_kind = ENCOUNTER_ROUTE_TARGET_TILE;
+    return encounter_route_solve(&landing_input);
+}
+
+static inline int encounter_route_reverse_seed(
+    const EncounterRouteInput* input,
+    EncounterRouteScratch* scratch,
+    EncounterReverseRouteField* field,
+    int x,
+    int y,
+    int* tail
+) {
+    if (!encounter_route_destination_allowed(input, x, y)) return 0;
+    const EncounterArenaTopology* topology = input->topology;
+    int local_x = x - topology->origin_x;
+    int local_y = y - topology->origin_y;
+    if (local_x < 0 || local_x >= topology->width ||
+            local_y < 0 || local_y >= topology->height)
+        return 0;
+    int index = local_x * topology->height + local_y;
+    if (field->depth[index] != UINT16_MAX) return 0;
+    field->depth[index] = 0;
+    scratch->queue[(*tail)++] =
+        (uint16_t)((local_x << 6) | local_y);
+    return 1;
+}
+
+static inline void encounter_route_reverse_seed_cardinal_edges(
+    const EncounterRouteInput* input,
+    EncounterRouteScratch* scratch,
+    EncounterReverseRouteField* field,
+    int require_target,
+    int* tail
+) {
+    int target_max_x = input->target_x + input->target_size - 1;
+    int target_max_y = input->target_y + input->target_size - 1;
+    int x_edges[2] = {
+        input->target_x - input->actor_size,
+        target_max_x + 1,
+    };
+    int y_edges[2] = {
+        input->target_y - input->actor_size,
+        target_max_y + 1,
+    };
+    for (int edge = 0; edge < 2; edge++) {
+        int x = x_edges[edge];
+        for (int y = input->target_y - input->actor_size + 1;
+                y <= target_max_y;
+                y++) {
+            if (require_target &&
+                    (!encounter_route_destination_allowed(input, x, y) ||
+                     !encounter_route_is_target(input, x, y)))
+                continue;
+            encounter_route_reverse_seed(
+                input, scratch, field, x, y, tail);
+        }
+        int y = y_edges[edge];
+        for (int x_scan = input->target_x - input->actor_size + 1;
+                x_scan <= target_max_x;
+                x_scan++) {
+            if (require_target &&
+                    (!encounter_route_destination_allowed(input, x_scan, y) ||
+                     !encounter_route_is_target(input, x_scan, y)))
+                continue;
+            encounter_route_reverse_seed(
+                input, scratch, field, x_scan, y, tail);
+        }
     }
+}
 
-    int local_src_x = src_x - arena_origin_x;
-    int local_src_y = src_y - arena_origin_y;
-    int local_dest_x = dest_x - arena_origin_x;
-    int local_dest_y = dest_y - arena_origin_y;
-
-    if (local_src_x < 0 || local_src_x >= arena_w ||
-        local_src_y < 0 || local_src_y >= arena_h ||
-        local_dest_x < 0 || local_dest_x >= arena_w ||
-        local_dest_y < 0 || local_dest_y >= arena_h) {
-        return result;
-    }
-
-    static OSRS_THREAD_LOCAL uint16_t bfs_gen[PATHFIND_ARENA_MAX][PATHFIND_ARENA_MAX];
-    static OSRS_THREAD_LOCAL int8_t   bfs_via[PATHFIND_ARENA_MAX][PATHFIND_ARENA_MAX];
-    static OSRS_THREAD_LOCAL int16_t  bfs_cost[PATHFIND_ARENA_MAX][PATHFIND_ARENA_MAX];
-    static OSRS_THREAD_LOCAL uint16_t bfs_gen_counter = 0;
-    bfs_gen_counter++;
-    if (bfs_gen_counter == 0) {
-        memset(bfs_gen, 0, sizeof(bfs_gen));
-        bfs_gen_counter = 1;
-    }
-    uint16_t gen = bfs_gen_counter;
-    #define BFS_VISITED(x, y) (bfs_gen[(x)][(y)] == gen)
-    #define BFS_VISIT(x, y, v, c) do { \
-        bfs_gen[(x)][(y)] = gen; bfs_via[(x)][(y)] = (v); bfs_cost[(x)][(y)] = (c); \
-    } while(0)
-    #define BFS_VIA(x, y)  bfs_via[(x)][(y)]
-    #define BFS_COST(x, y) bfs_cost[(x)][(y)]
-
-    int queue_x[PATHFIND_MAX_QUEUE_ARENA];
-    int queue_y[PATHFIND_MAX_QUEUE_ARENA];
-    int head = 0, tail = 0;
-
-    BFS_VISIT(local_src_x, local_src_y, VIA_START, 1);
-    pathfind_enqueue_or_abort(
-        queue_x, queue_y, &tail, PATHFIND_MAX_QUEUE_ARENA, local_src_x, local_src_y);
-
-    int found_path = 0;
-    int cur_x, cur_y;
-
-    while (head < tail) {
-        cur_x = queue_x[head];
-        cur_y = queue_y[head];
-        head++;
-
-        if (cur_x == local_dest_x && cur_y == local_dest_y) {
-            found_path = 1;
+static inline void encounter_route_reverse_build_result(
+    const EncounterRouteInput* input,
+    const EncounterReverseRouteField* field,
+    EncounterRouteResult* result
+) {
+    static const int8_t osrs_dx[8] = {-1, 1, 0, 0, -1, 1, -1, 1};
+    static const int8_t osrs_dy[8] = {0, 0, -1, 1, -1, -1, 1, 1};
+    static const int8_t south_dx[8] = {0, -1, 0, 1, -1, -1, 1, 1};
+    static const int8_t south_dy[8] = {-1, 0, 1, 0, -1, 1, -1, 1};
+    const int8_t* direction_dx =
+        input->cost_policy == ENCOUNTER_ROUTE_COST_OSRS ? osrs_dx : south_dx;
+    const int8_t* direction_dy =
+        input->cost_policy == ENCOUNTER_ROUTE_COST_OSRS ? osrs_dy : south_dy;
+    const EncounterArenaTopology* topology = input->topology;
+    int current_x = input->source_x;
+    int current_y = input->source_y;
+    int source_index =
+        (current_x - topology->origin_x) * topology->height +
+        current_y - topology->origin_y;
+    result->outcome = (EncounterRouteOutcome)field->outcome;
+    result->distance = field->depth[source_index];
+    int segment_dx = 0;
+    int segment_dy = 0;
+    int previous_x = current_x;
+    int previous_y = current_y;
+    for (uint16_t step = 0; step < result->distance; step++) {
+        int current_index =
+            (current_x - topology->origin_x) * topology->height +
+            current_y - topology->origin_y;
+        uint16_t depth = field->depth[current_index];
+        int next_x = current_x;
+        int next_y = current_y;
+        int next_dx = 0;
+        int next_dy = 0;
+        for (int direction = 0; direction < 8; direction++) {
+            int candidate_x = current_x + direction_dx[direction];
+            int candidate_y = current_y + direction_dy[direction];
+            if (!encounter_arena_topology_contains(
+                    topology, candidate_x, candidate_y))
+                continue;
+            int candidate_index =
+                (candidate_x - topology->origin_x) * topology->height +
+                candidate_y - topology->origin_y;
+            if (field->depth[candidate_index] == UINT16_MAX ||
+                    field->depth[candidate_index] + 1 != depth ||
+                    !encounter_route_step_allowed(
+                        input, current_x, current_y,
+                        direction_dx[direction], direction_dy[direction]))
+                continue;
+            next_x = candidate_x;
+            next_y = candidate_y;
+            next_dx = direction_dx[direction];
+            next_dy = direction_dy[direction];
             break;
         }
-
-        int abs_x = arena_origin_x + cur_x;
-        int abs_y = arena_origin_y + cur_y;
-        int next_cost = BFS_COST(cur_x, cur_y) + 1;
-
-        #define EB(ax, ay) (extra_blocked && extra_blocked(blocked_ctx, (ax), (ay)))
-
-        for (int i = 0; i < 8; i++) {
-            int dx = pathfind_dir_dx[i];
-            int dy = pathfind_dir_dy[i];
-            int next_x = cur_x + dx;
-            int next_y = cur_y + dy;
-            if (next_x < 0 || next_x >= arena_w ||
-                next_y < 0 || next_y >= arena_h)
-                continue;
-            if (BFS_VISITED(next_x, next_y)) continue;
-            if (!collision_traversable_step(map, height, abs_x, abs_y, dx, dy))
-                continue;
-            if (dx != 0 && dy != 0) {
-                if (!collision_traversable_step(map, height, abs_x, abs_y, 0, dy))
-                    continue;
-                if (!collision_traversable_step(map, height, abs_x, abs_y, dx, 0))
-                    continue;
-            }
-            if (EB(abs_x + dx, abs_y + dy)) continue;
-            if (dx != 0 && dy != 0) {
-                if (EB(abs_x, abs_y + dy)) continue;
-                if (EB(abs_x + dx, abs_y)) continue;
-            }
-            pathfind_enqueue_or_abort(
-                queue_x, queue_y, &tail, PATHFIND_MAX_QUEUE_ARENA, next_x, next_y);
-            BFS_VISIT(next_x, next_y, pathfind_dir_via[i], next_cost);
+        if (next_dx == 0 && next_dy == 0) {
+            fprintf(stderr, "broken OSRS reverse route\n");
+            abort();
         }
-
-        #undef EB
+        if (step == 0) {
+            result->first_dx = next_dx;
+            result->first_dy = next_dy;
+        } else if (step == 1 &&
+                input->movement_mode == ENCOUNTER_ROUTE_MOVEMENT_RUN) {
+            result->run_dx = next_dx;
+            result->run_dy = next_dy;
+        }
+        if (step > 0 && (next_dx != segment_dx || next_dy != segment_dy) &&
+                result->waypoint_count < ENCOUNTER_ROUTE_MAX_WAYPOINTS) {
+            result->waypoint_x[result->waypoint_count] = previous_x;
+            result->waypoint_y[result->waypoint_count] = previous_y;
+            result->waypoint_count++;
+        }
+        segment_dx = next_dx;
+        segment_dy = next_dy;
+        previous_x = next_x;
+        previous_y = next_y;
+        current_x = next_x;
+        current_y = next_y;
     }
+    result->destination_x = current_x;
+    result->destination_y = current_y;
+    if (result->distance > 0 &&
+            result->waypoint_count < ENCOUNTER_ROUTE_MAX_WAYPOINTS) {
+        result->waypoint_x[result->waypoint_count] = current_x;
+        result->waypoint_y[result->waypoint_count] = current_y;
+        result->waypoint_count++;
+    }
+}
 
-    if (!found_path) {
-        int best_manhattan = arena_w + arena_h;
-        int best_cost = 999999;
-        int best_x = -1, best_y = -1;
+static inline int encounter_route_try_reverse(
+    const EncounterRouteInput* input,
+    EncounterRouteResult* result
+) {
+    if (input->target_kind != ENCOUNTER_ROUTE_TARGET_TILE ||
+            input->cost_policy != ENCOUNTER_ROUTE_COST_SOUTH_FIRST_REVERSE)
+        return 0;
+    EncounterRouteScratch* scratch = &encounter_route_scratch;
+    EncounterReverseRouteField* field = &scratch->reverse_field;
+    const EncounterArenaTopology* topology = input->topology;
+    int source_local_x = input->source_x - topology->origin_x;
+    int source_local_y = input->source_y - topology->origin_y;
+    int source_index =
+        source_local_x * topology->height + source_local_y;
+    memset(field->depth, 0xff, sizeof(field->depth));
+    scratch->current_generation++;
+    if (scratch->current_generation == 0) {
+        memset(scratch->blocker_generation, 0,
+            sizeof(scratch->blocker_generation));
+        scratch->current_generation = 1;
+    }
+    uint16_t blocker_generation = scratch->current_generation;
+    int tail = 0;
+    field->outcome = ROUTE_REACHED_TARGET;
+    if (!encounter_route_reverse_seed(
+            input, scratch, field,
+            input->target_x, input->target_y, &tail)) {
+        encounter_route_reverse_seed_cardinal_edges(
+            input, scratch, field, 0, &tail);
+        field->outcome = ROUTE_REACHED_FALLBACK;
+    }
+    if (tail == 0) return 0;
+    int head = 0;
+    while (head < tail && field->depth[source_index] == UINT16_MAX) {
+        int current_packed = scratch->queue[head++];
+        int current_x = current_packed >> 6;
+        int current_y = current_packed & 63;
+        int current_index = current_x * topology->height + current_y;
+        int current_abs_x = topology->origin_x + current_x;
+        int current_abs_y = topology->origin_y + current_y;
+        uint16_t next_depth = (uint16_t)(field->depth[current_index] + 1);
+        static const int8_t dx[8] = {-1, 1, 0, 0, -1, 1, -1, 1};
+        static const int8_t dy[8] = {0, 0, -1, 1, -1, -1, 1, 1};
+        for (int direction = 0; direction < 8; direction++) {
+            int predecessor_x = current_x - dx[direction];
+            int predecessor_y = current_y - dy[direction];
+            if (predecessor_x < 0 || predecessor_x >= topology->width ||
+                    predecessor_y < 0 || predecessor_y >= topology->height)
+                continue;
+            int predecessor_index =
+                predecessor_x * topology->height + predecessor_y;
+            if (field->depth[predecessor_index] != UINT16_MAX)
+                continue;
+            int predecessor_abs_x = current_abs_x - dx[direction];
+            int predecessor_abs_y = current_abs_y - dy[direction];
+            if (!encounter_route_step_allowed_cached(
+                    input, scratch, blocker_generation,
+                    predecessor_abs_x, predecessor_abs_y,
+                    dx[direction], dy[direction]))
+                continue;
+            if (tail >= topology->tile_count) {
+                fprintf(stderr, "OSRS reverse route queue overflow: %d\n", tail);
+                abort();
+            }
+            field->depth[predecessor_index] = next_depth;
+            scratch->queue[tail++] =
+                (uint16_t)((predecessor_x << 6) | predecessor_y);
+        }
+    }
+    if (field->depth[source_index] == UINT16_MAX) return 0;
+    encounter_route_reverse_build_result(input, field, result);
+    return 1;
+}
+static inline int encounter_route_source_field_matches(
+    const EncounterSourceRouteField* field,
+    const EncounterRouteInput* input
+) {
+    return field->valid &&
+        field->topology == input->topology &&
+        field->blocker_ctx == input->blockers.ctx &&
+        field->blocker == input->blockers.is_blocked &&
+        field->topology_revision == input->topology->revision &&
+        field->blocker_revision == input->blockers.revision &&
+        field->source_x == input->source_x &&
+        field->source_y == input->source_y &&
+        field->actor_size == input->actor_size &&
+        field->movement_mode == input->movement_mode &&
+        field->cost_policy == input->cost_policy;
+}
 
-        for (int fx = 0; fx < arena_w; fx++) {
-            for (int fy = 0; fy < arena_h; fy++) {
-                if (!BFS_VISITED(fx, fy) || BFS_COST(fx, fy) == 0) continue;
-                int ddx = fx - local_dest_x, ddy = fy - local_dest_y;
-                int manhattan = (ddx < 0 ? -ddx : ddx) + (ddy < 0 ? -ddy : ddy);
-                if (manhattan < best_manhattan ||
-                    (manhattan == best_manhattan && BFS_COST(fx, fy) < best_cost)) {
-                    best_manhattan = manhattan;
-                    best_cost = BFS_COST(fx, fy);
-                    best_x = fx; best_y = fy;
+static inline void encounter_route_build_source_field(
+    const EncounterRouteInput* input,
+    EncounterSourceRouteField* field
+) {
+    const EncounterArenaTopology* topology = input->topology;
+    memset(field->visited, 0, sizeof(field->visited));
+    memset(field->blocker_known, 0, sizeof(field->blocker_known));
+    memset(field->blocker_value, 0, sizeof(field->blocker_value));
+    field->valid = 0;
+    int source_local_x = input->source_x - topology->origin_x;
+    int source_local_y = input->source_y - topology->origin_y;
+    int source_index =
+        source_local_x * topology->height + source_local_y;
+    field->depth[source_index] = 0;
+    field->visited[source_local_x] |= UINT64_C(1) << source_local_y;
+    field->via[source_index] = VIA_START;
+    field->queue[0] =
+        (uint16_t)((source_local_x << 6) | source_local_y);
+    field->topology = topology;
+    field->blocker_ctx = input->blockers.ctx;
+    field->blocker = input->blockers.is_blocked;
+    field->topology_revision = topology->revision;
+    field->blocker_revision = input->blockers.revision;
+    field->source_x = input->source_x;
+    field->source_y = input->source_y;
+    field->visited_count = 1;
+    field->expanded_count = 0;
+    field->actor_size = (uint8_t)input->actor_size;
+    field->movement_mode = (uint8_t)input->movement_mode;
+    field->cost_policy = (uint8_t)input->cost_policy;
+    field->valid = 1;
+}
+
+static OSRS_ROUTE_NOINLINE int encounter_route_expand_source_field(
+    const EncounterRouteInput* input,
+    EncounterSourceRouteField* field,
+    const uint64_t* target_edges
+) {
+    const EncounterArenaTopology* topology = input->topology;
+    for (int i = 0; i < field->visited_count; i++) {
+        int packed = field->queue[i];
+        int local_x = packed >> 6;
+        int local_y = packed & 63;
+        if (target_edges[local_x] & (UINT64_C(1) << local_y))
+            return local_x * topology->height + local_y;
+    }
+    static const int8_t direction_dx[8] = {-1, 1, 0, 0, -1, 1, -1, 1};
+    static const int8_t direction_dy[8] = {0, 0, -1, 1, -1, -1, 1, 1};
+    static const int8_t direction_via[8] = {
+        VIA_W, VIA_E, VIA_S, VIA_N, VIA_SW, VIA_SE, VIA_NW, VIA_NE
+    };
+    static const uint8_t direction_step_mask[8] = {
+        8, 16, 2, 64, 1, 4, 32, 128
+    };
+    const uint8_t* legal_step_masks =
+        topology->legal_step_masks[input->actor_size - 1];
+    while (field->expanded_count < field->visited_count) {
+        int current_packed = field->queue[field->expanded_count++];
+        int current_x = current_packed >> 6;
+        int current_y = current_packed & 63;
+        int current_index = current_x * topology->height + current_y;
+        int x = topology->origin_x + current_x;
+        int y = topology->origin_y + current_y;
+        uint16_t next_depth = (uint16_t)(field->depth[current_index] + 1);
+        int first_new = field->visited_count;
+        for (int direction = 0; direction < 8; direction++) {
+            int next_x = current_x + direction_dx[direction];
+            int next_y = current_y + direction_dy[direction];
+            if (next_x < 0 || next_x >= topology->width ||
+                    next_y < 0 || next_y >= topology->height)
+                continue;
+            uint64_t next_bit = UINT64_C(1) << next_y;
+            if (field->visited[next_x] & next_bit) continue;
+            int next_index = next_x * topology->height + next_y;
+            int dx = direction_dx[direction];
+            int dy = direction_dy[direction];
+            if (input->blockers.is_blocked) {
+                if ((field->blocker_known[next_x] & next_bit) == 0) {
+                    field->blocker_known[next_x] |= next_bit;
+                    if (input->blockers.is_blocked(
+                            input->blockers.ctx,
+                            topology->origin_x + next_x,
+                            topology->origin_y + next_y,
+                            input->actor_size))
+                        field->blocker_value[next_x] |= next_bit;
+                }
+                if (field->blocker_value[next_x] & next_bit) continue;
+                if (dx != 0 && dy != 0) {
+                    uint64_t side_bit = UINT64_C(1) << next_y;
+                    if ((field->blocker_known[current_x] & side_bit) == 0) {
+                        field->blocker_known[current_x] |= side_bit;
+                        if (input->blockers.is_blocked(
+                                input->blockers.ctx,
+                                x,
+                                topology->origin_y + next_y,
+                                input->actor_size))
+                            field->blocker_value[current_x] |= side_bit;
+                    }
+                    if (field->blocker_value[current_x] & side_bit) continue;
+                    side_bit = UINT64_C(1) << current_y;
+                    if ((field->blocker_known[next_x] & side_bit) == 0) {
+                        field->blocker_known[next_x] |= side_bit;
+                        if (input->blockers.is_blocked(
+                                input->blockers.ctx,
+                                topology->origin_x + next_x,
+                                y,
+                                input->actor_size))
+                            field->blocker_value[next_x] |= side_bit;
+                    }
+                    if (field->blocker_value[next_x] & side_bit) continue;
                 }
             }
+            if ((legal_step_masks[current_index] &
+                    direction_step_mask[direction]) == 0)
+                continue;
+            if (field->visited_count >= topology->tile_count) {
+                fprintf(stderr, "OSRS source field queue overflow: %u\n",
+                    field->visited_count);
+                abort();
+            }
+            field->visited[next_x] |= next_bit;
+            field->depth[next_index] = next_depth;
+            field->via[next_index] = direction_via[direction];
+            field->queue[field->visited_count++] =
+                (uint16_t)((next_x << 6) | next_y);
         }
+        for (int i = first_new; i < field->visited_count; i++) {
+            int packed = field->queue[i];
+            int local_x = packed >> 6;
+            int local_y = packed & 63;
+            if (target_edges[local_x] & (UINT64_C(1) << local_y))
+                return local_x * topology->height + local_y;
+        }
+    }
+    return -1;
+}
 
-        if (best_x == -1) return result;
-        cur_x = best_x; cur_y = best_y;
-        found_path = 1;
-        result.dest_x = arena_origin_x + best_x;
-        result.dest_y = arena_origin_y + best_y;
+static inline void encounter_route_build_source_field_result(
+    const EncounterRouteInput* input,
+    const EncounterSourceRouteField* field,
+    EncounterRouteResult* result,
+    int destination_x,
+    int destination_y
+) {
+    const EncounterArenaTopology* topology = input->topology;
+    int source_x = input->source_x - topology->origin_x;
+    int source_y = input->source_y - topology->origin_y;
+    int current_x = destination_x;
+    int current_y = destination_y;
+    int destination_index = current_x * topology->height + current_y;
+    uint16_t distance = field->depth[destination_index];
+    result->distance = distance;
+    result->destination_x = topology->origin_x + destination_x;
+    result->destination_y = topology->origin_y + destination_y;
+    int first_x = source_x;
+    int first_y = source_y;
+    int second_x = source_x;
+    int second_y = source_y;
+    int direction = -1;
+    while (current_x != source_x || current_y != source_y) {
+        int index = current_x * topology->height + current_y;
+        uint16_t depth = field->depth[index];
+        if (depth == 1) {
+            first_x = current_x;
+            first_y = current_y;
+        } else if (depth == 2) {
+            second_x = current_x;
+            second_y = current_y;
+        }
+        int next_direction = field->via[index];
+        if (direction != next_direction) {
+            direction = next_direction;
+            int count = result->waypoint_count;
+            if (count == ENCOUNTER_ROUTE_MAX_WAYPOINTS) count--;
+            memmove(
+                &result->waypoint_x[1],
+                &result->waypoint_x[0],
+                (size_t)count * sizeof(result->waypoint_x[0]));
+            memmove(
+                &result->waypoint_y[1],
+                &result->waypoint_y[0],
+                (size_t)count * sizeof(result->waypoint_y[0]));
+            result->waypoint_x[0] = topology->origin_x + current_x;
+            result->waypoint_y[0] = topology->origin_y + current_y;
+            result->waypoint_count = (uint8_t)(count + 1);
+        }
+        encounter_route_parent(topology, next_direction, &current_x, &current_y);
+    }
+    if (distance == 0) return;
+    result->first_dx = first_x - source_x;
+    result->first_dy = first_y - source_y;
+    if (distance >= 2 &&
+            input->movement_mode == ENCOUNTER_ROUTE_MOVEMENT_RUN) {
+        result->run_dx = second_x - first_x;
+        result->run_dy = second_y - first_y;
+    }
+}
+
+static inline int encounter_route_try_source_field(
+    const EncounterRouteInput* input,
+    EncounterRouteResult* result
+) {
+    if (input->target_kind != ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY ||
+            input->cost_policy != ENCOUNTER_ROUTE_COST_OSRS)
+        return 0;
+    EncounterRouteScratch* scratch = &encounter_route_scratch;
+    EncounterSourceRouteField* field = &scratch->source_field;
+    const EncounterArenaTopology* topology = input->topology;
+    if (!encounter_route_source_field_matches(field, input))
+        encounter_route_build_source_field(input, field);
+    uint64_t target_edges[ENCOUNTER_ARENA_TOPOLOGY_MAX_DIMENSION] = {0};
+    int target_max_x = input->target_x + input->target_size - 1;
+    int target_max_y = input->target_y + input->target_size - 1;
+    int x_edges[2] = {
+        input->target_x - input->actor_size,
+        target_max_x + 1,
+    };
+    int y_edges[2] = {
+        input->target_y - input->actor_size,
+        target_max_y + 1,
+    };
+    for (int edge = 0; edge < 2; edge++) {
+        int x = x_edges[edge];
+        for (int y = input->target_y - input->actor_size + 1;
+                y <= target_max_y;
+                y++) {
+            if (encounter_arena_topology_footprint_blocked(
+                    topology, x, y, input->actor_size) ||
+                    !encounter_route_is_target(input, x, y))
+                continue;
+            int local_x = x - topology->origin_x;
+            int local_y = y - topology->origin_y;
+            target_edges[local_x] |= UINT64_C(1) << local_y;
+        }
+        int y = y_edges[edge];
+        for (int x_scan = input->target_x - input->actor_size + 1;
+                x_scan <= target_max_x;
+                x_scan++) {
+            if (encounter_arena_topology_footprint_blocked(
+                    topology, x_scan, y, input->actor_size) ||
+                    !encounter_route_is_target(input, x_scan, y))
+                continue;
+            int local_x = x_scan - topology->origin_x;
+            int local_y = y - topology->origin_y;
+            target_edges[local_x] |= UINT64_C(1) << local_y;
+        }
+    }
+    int selected_index = encounter_route_expand_source_field(
+        input, field, target_edges);
+    if (selected_index >= 0) {
+        result->outcome = ROUTE_REACHED_TARGET;
+        encounter_route_build_source_field_result(
+            input, field, result,
+            selected_index / topology->height,
+            selected_index % topology->height);
+        return 1;
+    }
+    int best_distance = INT_MAX;
+    uint16_t best_depth = UINT16_MAX;
+    for (int local_x = 0; local_x < topology->width; local_x++) {
+        for (int local_y = 0; local_y < topology->height; local_y++) {
+            int index = local_x * topology->height + local_y;
+            if ((field->visited[local_x] &
+                    (UINT64_C(1) << local_y)) == 0)
+                continue;
+            int x = topology->origin_x + local_x;
+            int y = topology->origin_y + local_y;
+            int64_t min_target_x =
+                (int64_t)input->target_x - PATHFIND_MAX_FALLBACK_RADIUS;
+            int64_t max_target_x =
+                (int64_t)input->target_x + input->target_size - 1 +
+                PATHFIND_MAX_FALLBACK_RADIUS;
+            int64_t min_target_y =
+                (int64_t)input->target_y - PATHFIND_MAX_FALLBACK_RADIUS;
+            int64_t max_target_y =
+                (int64_t)input->target_y + input->target_size - 1 +
+                PATHFIND_MAX_FALLBACK_RADIUS;
+            if ((int64_t)x < min_target_x || (int64_t)x > max_target_x ||
+                    (int64_t)y < min_target_y || (int64_t)y > max_target_y)
+                continue;
+            int target_distance =
+                encounter_route_target_distance_squared(input, x, y);
+            uint16_t depth = field->depth[index];
+            if (target_distance < best_distance ||
+                    (target_distance == best_distance && depth < best_depth)) {
+                selected_index = index;
+                best_distance = target_distance;
+                best_depth = depth;
+            }
+        }
+    }
+    int source_index =
+        (input->source_x - topology->origin_x) * topology->height +
+        input->source_y - topology->origin_y;
+    if (selected_index < 0 ||
+            (selected_index == source_index &&
+             encounter_route_dynamic_blocked(
+                input, input->source_x, input->source_y))) {
+        result->outcome = ROUTE_UNREACHABLE;
+        return 1;
+    }
+    result->outcome = ROUTE_REACHED_FALLBACK;
+    encounter_route_build_source_field_result(
+        input, field, result,
+        selected_index / topology->height,
+        selected_index % topology->height);
+    return 1;
+}
+
+
+static inline EncounterRouteResult encounter_route_solve(
+    const EncounterRouteInput* input
+) {
+    EncounterRouteResult result;
+    memset(&result, 0, sizeof(result));
+    result.outcome = ROUTE_INVALID_INPUT;
+    if (!encounter_route_input_valid(input)) return result;
+    if (input->cost_policy == ENCOUNTER_ROUTE_COST_DIRECT)
+        return encounter_route_greedy_direct(input);
+    if (input->target_kind == ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY &&
+            encounter_route_footprints_overlap(
+                input->source_x, input->source_y, input->actor_size,
+                input->target_x, input->target_y, input->target_size))
+        return encounter_route_escape_overlap(input);
+    if (input->cost_policy != ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS &&
+            encounter_route_try_direct(input, &result))
+        return result;
+    if (encounter_route_try_source_field(input, &result)) return result;
+    if (encounter_route_try_reverse(input, &result)) return result;
+    const EncounterArenaTopology* topology = input->topology;
+    EncounterRouteScratch* scratch = &encounter_route_scratch;
+    scratch->current_generation++;
+    if (scratch->current_generation == 0) {
+        memset(scratch->generation, 0, sizeof(scratch->generation));
+        memset(scratch->blocker_generation, 0,
+            sizeof(scratch->blocker_generation));
+        scratch->current_generation = 1;
+    }
+    uint16_t generation = scratch->current_generation;
+    int source_local_x = input->source_x - topology->origin_x;
+    int source_local_y = input->source_y - topology->origin_y;
+    int source_index = source_local_x * topology->height + source_local_y;
+    scratch->generation[source_index] = generation;
+    scratch->depth[source_index] = 0;
+    scratch->via[source_index] = VIA_START;
+    scratch->queue[0] =
+        (uint16_t)((source_local_x << 6) | source_local_y);
+    int head = 0;
+    int tail = 1;
+    int selected_index = -1;
+
+    static const int8_t osrs_dx[8] = {-1, 1, 0, 0, -1, 1, -1, 1};
+    static const int8_t osrs_dy[8] = {0, 0, -1, 1, -1, -1, 1, 1};
+    static const int8_t osrs_via[8] = {
+        VIA_W, VIA_E, VIA_S, VIA_N, VIA_SW, VIA_SE, VIA_NW, VIA_NE
+    };
+    static const uint8_t osrs_step_mask[8] = {
+        8, 16, 2, 64, 1, 4, 32, 128
+    };
+    static const int8_t south_dx[8] = {0, -1, 0, 1, -1, -1, 1, 1};
+    static const int8_t south_dy[8] = {-1, 0, 1, 0, -1, 1, -1, 1};
+    static const int8_t south_via[8] = {
+        VIA_S, VIA_W, VIA_N, VIA_E, VIA_SW, VIA_NW, VIA_SE, VIA_NE
+    };
+    static const uint8_t south_step_mask[8] = {
+        2, 8, 64, 16, 1, 32, 4, 128
+    };
+    int osrs_cost = input->cost_policy == ENCOUNTER_ROUTE_COST_OSRS;
+    const int8_t* direction_dx = osrs_cost ? osrs_dx : south_dx;
+    const int8_t* direction_dy = osrs_cost ? osrs_dy : south_dy;
+    const int8_t* direction_via = osrs_cost ? osrs_via : south_via;
+    const uint8_t* direction_step_mask =
+        osrs_cost ? osrs_step_mask : south_step_mask;
+    const uint8_t* legal_step_masks =
+        topology->legal_step_masks[input->actor_size - 1];
+    while (head < tail) {
+        int current_packed = scratch->queue[head++];
+        int current_x = current_packed >> 6;
+        int current_y = current_packed & 63;
+        int current_index = current_x * topology->height + current_y;
+        int x = topology->origin_x + current_x;
+        int y = topology->origin_y + current_y;
+        int reached_target =
+            input->target_kind == ENCOUNTER_ROUTE_TARGET_TILE
+            ? x == input->target_x && y == input->target_y
+            : encounter_route_is_target(input, x, y);
+        if (reached_target) {
+            selected_index = current_index;
+            break;
+        }
+        uint16_t next_depth = (uint16_t)(scratch->depth[current_index] + 1);
+        for (int i = 0; i < 8; i++) {
+            int next_x = current_x + direction_dx[i];
+            int next_y = current_y + direction_dy[i];
+            if (next_x < 0 || next_x >= topology->width ||
+                    next_y < 0 || next_y >= topology->height)
+                continue;
+            int next_index = next_x * topology->height + next_y;
+            if (scratch->generation[next_index] == generation) continue;
+            int dx = direction_dx[i];
+            int dy = direction_dy[i];
+            if (input->blockers.is_blocked) {
+                if (scratch->blocker_generation[next_index] != generation) {
+                    scratch->blocker_generation[next_index] = generation;
+                    scratch->blocker_value[next_index] = (uint8_t)
+                        input->blockers.is_blocked(
+                            input->blockers.ctx,
+                            topology->origin_x + next_x,
+                            topology->origin_y + next_y,
+                            input->actor_size);
+                }
+                if (scratch->blocker_value[next_index]) continue;
+                if (dx != 0 && dy != 0) {
+                    int side_index =
+                        current_x * topology->height + next_y;
+                    if (scratch->blocker_generation[side_index] != generation) {
+                        scratch->blocker_generation[side_index] = generation;
+                        scratch->blocker_value[side_index] = (uint8_t)
+                            input->blockers.is_blocked(
+                                input->blockers.ctx,
+                                x,
+                                topology->origin_y + next_y,
+                                input->actor_size);
+                    }
+                    if (scratch->blocker_value[side_index]) continue;
+                    side_index = next_x * topology->height + current_y;
+                    if (scratch->blocker_generation[side_index] != generation) {
+                        scratch->blocker_generation[side_index] = generation;
+                        scratch->blocker_value[side_index] = (uint8_t)
+                            input->blockers.is_blocked(
+                                input->blockers.ctx,
+                                topology->origin_x + next_x,
+                                y,
+                                input->actor_size);
+                    }
+                    if (scratch->blocker_value[side_index]) continue;
+                }
+            }
+            if ((legal_step_masks[current_index] &
+                    direction_step_mask[i]) == 0)
+                continue;
+            if (tail >= topology->tile_count) {
+                fprintf(stderr, "OSRS route queue overflow: %d\n", tail);
+                abort();
+            }
+            scratch->generation[next_index] = generation;
+            scratch->depth[next_index] = next_depth;
+            scratch->via[next_index] = (int8_t)direction_via[i];
+            scratch->queue[tail++] =
+                (uint16_t)((next_x << 6) | next_y);
+        }
     }
 
-    while (1) {
-        if (!BFS_VISITED(cur_x, cur_y)) break;
-        int v = BFS_VIA(cur_x, cur_y);
-        if (v == VIA_NONE || v == VIA_START) break;
-        int prev_x = cur_x, prev_y = cur_y;
-        if (v & VIA_W) prev_x++; else if (v & VIA_E) prev_x--;
-        if (v & VIA_S) prev_y++; else if (v & VIA_N) prev_y--;
-        if (prev_x == local_src_x && prev_y == local_src_y) {
-            result.found = 1;
-            result.next_dx = cur_x - local_src_x;
-            result.next_dy = cur_y - local_src_y;
-            return result;
-        }
-        if (prev_x < 0 || prev_x >= arena_w || prev_y < 0 || prev_y >= arena_h) break;
-        cur_x = prev_x; cur_y = prev_y;
+    if (selected_index >= 0) {
+        result.outcome = ROUTE_REACHED_TARGET;
+        encounter_route_build_result_path(
+            input,
+            &result,
+            selected_index / topology->height,
+            selected_index % topology->height,
+            generation);
+        return result;
     }
-
+    int best_distance = INT_MAX;
+    uint16_t best_depth = UINT16_MAX;
+    for (int local_x = 0; local_x < topology->width; local_x++) {
+        for (int local_y = 0; local_y < topology->height; local_y++) {
+            int index = local_x * topology->height + local_y;
+            if (scratch->generation[index] != generation) continue;
+            int x = topology->origin_x + local_x;
+            int y = topology->origin_y + local_y;
+            if (input->cost_policy == ENCOUNTER_ROUTE_COST_OSRS) {
+                int64_t min_target_x =
+                    (int64_t)input->target_x - PATHFIND_MAX_FALLBACK_RADIUS;
+                int64_t max_target_x =
+                    (int64_t)input->target_x + input->target_size - 1 +
+                    PATHFIND_MAX_FALLBACK_RADIUS;
+                int64_t min_target_y =
+                    (int64_t)input->target_y - PATHFIND_MAX_FALLBACK_RADIUS;
+                int64_t max_target_y =
+                    (int64_t)input->target_y + input->target_size - 1 +
+                    PATHFIND_MAX_FALLBACK_RADIUS;
+                if ((int64_t)x < min_target_x || (int64_t)x > max_target_x ||
+                        (int64_t)y < min_target_y || (int64_t)y > max_target_y)
+                    continue;
+            }
+            int target_distance;
+            if (input->cost_policy == ENCOUNTER_ROUTE_COST_SOUTH_FIRST ||
+                    input->cost_policy == ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS) {
+                target_distance =
+                    encounter_route_abs(x - input->target_x) +
+                    encounter_route_abs(y - input->target_y);
+            } else {
+                target_distance =
+                    encounter_route_target_distance_squared(input, x, y);
+            }
+            uint16_t depth = scratch->depth[index];
+            if (target_distance < best_distance ||
+                    (target_distance == best_distance && depth < best_depth)) {
+                selected_index = index;
+                best_distance = target_distance;
+                best_depth = depth;
+            }
+        }
+    }
+    if (selected_index < 0 ||
+            (selected_index == source_index &&
+             encounter_route_dynamic_blocked(
+                input, input->source_x, input->source_y))) {
+        result.outcome = ROUTE_UNREACHABLE;
+        return result;
+    }
+    result.outcome = ROUTE_REACHED_FALLBACK;
+    encounter_route_build_result_path(
+        input,
+        &result,
+        selected_index / topology->height,
+        selected_index % topology->height,
+        generation);
     return result;
 }
 

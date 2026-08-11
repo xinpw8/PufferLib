@@ -1427,6 +1427,8 @@ typedef enum {
 typedef struct {
     ColConfig config;
     const CollisionMap* collision_map;
+    const EncounterArenaTopology* route_topology;
+    OsrsActorRouteCache player_route_cache;
     int world_offset_x;
     int world_offset_y;
     const HumanCommand* human_commands;
@@ -1687,6 +1689,7 @@ typedef struct {
     ColosseumLog log;
     ColoObsMemoCaches obs_memos;
 } ColosseumState;
+static_assert(sizeof(ColosseumState) == 29832, "ColosseumState serialized layout");
 
 typedef enum {
     COLO_DMG_OFFPRAY = 0,

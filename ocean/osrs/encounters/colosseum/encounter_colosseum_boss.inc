@@ -161,7 +161,7 @@ static void col_sol_tick_attack_engine(ColosseumState* s, int idx) {
         col_sol_fire_lasers(s);
 }
 
-static void col_sol_move(ColosseumState* s, int idx) {
+static void col_sol_move(ColosseumState* s, ColosseumContext* ctx, int idx) {
     SolHereditState* sol = &s->sol;
     ColoNPC* boss = &s->npcs[idx];
     boss->target_x = s->player.x;
@@ -171,7 +171,8 @@ static void col_sol_move(ColosseumState* s, int idx) {
     if (encounter_dist_to_npc(s->player.x, s->player.y, boss->x, boss->y, size) <= 1)
         return;
     col_stamp_npc_collision_footprint(s, boss->x, boss->y, size, 0);
-    int moved = col_npc_path_step(s, &boss->x, &boss->y, size,
+    int moved = col_npc_path_step(
+        s, ctx->route_topology, &boss->x, &boss->y, size,
         s->player.x - size / 2, s->player.y - size / 2);
     col_stamp_npc_collision_footprint(s, boss->x, boss->y, size, 1);
     boss->moved_this_tick = moved ? 1 : 0;
@@ -647,7 +648,7 @@ static void col_sol_enter_phase(ColosseumState* s, int new_phase) {
     if (new_phase > s->log.boss_phase_reached) s->log.boss_phase_reached = new_phase;
 }
 
-static void col_sol_boss_tick(ColosseumState* s) {
+static void col_sol_boss_tick(ColosseumState* s, ColosseumContext* ctx) {
     SolHereditState* sol = &s->sol;
     if (s->wave != COLO_WAVE_BOSS || !sol->started) return;
 
@@ -678,5 +679,5 @@ static void col_sol_boss_tick(ColosseumState* s) {
     col_sol_tick_grapple(s);
 
     col_sol_tick_attack_engine(s, idx);
-    col_sol_move(s, idx);
+    col_sol_move(s, ctx, idx);
 }

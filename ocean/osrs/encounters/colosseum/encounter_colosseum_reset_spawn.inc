@@ -480,6 +480,7 @@ static void col_reset_ctx(EncounterState* state, EncounterContext* context, uint
     col_build_npc_stats();
     ColosseumState* s = (ColosseumState*)state;
     ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    osrs_actor_route_cache_clear(&ctx->player_route_cache);
     int saved_start = ctx->config.start_wave;
     uint32_t saved_rng = s->rng_state;
     col_context_clear_render_events(ctx);

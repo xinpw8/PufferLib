@@ -458,7 +458,12 @@ static void execute_attack_movement(OsrsEnv* env, int agent_idx, int* actions) {
 
 /* runs after BOTH players' attack movement so range checks use final positions;
    checking ranges in the movement phase reintroduces the PID-dependent same-tile bug */
-static void execute_attack_combat(OsrsEnv* env, int agent_idx, int* actions) {
+static void execute_attack_combat(
+    OsrsEnv* env,
+    int agent_idx,
+    int* actions,
+    const EncounterArenaTopology* topology
+) {
     Player* p = &env->players[agent_idx];
     Player* t = &env->players[1 - agent_idx];
     const CollisionMap* cmap = (const CollisionMap*)env->collision_map;
@@ -570,7 +575,7 @@ static void execute_attack_combat(OsrsEnv* env, int agent_idx, int* actions) {
                     set_destination(p, adj_x, adj_y, cmap);
                 }
             } else {
-                move_toward_target(p, t, auto_walk_range, cmap);
+                move_toward_target(p, t, auto_walk_range, cmap, topology);
             }
         }
     }

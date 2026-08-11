@@ -1,6 +1,11 @@
 #ifndef OSRS_INTERACTION_H
 #define OSRS_INTERACTION_H
 
+#include <assert.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+
 #define OSRS_INTERACTION_ROUTE_MAX_WAYPOINTS 25
 
 typedef enum {
@@ -11,6 +16,11 @@ typedef enum {
 
 typedef struct {
     OsrsInteractionRouteState state;
+    uint64_t topology_revision;
+    uint64_t blocker_revision;
+    int actor_size;
+    uint8_t movement_mode;
+    uint8_t cost_policy;
     int target_x;
     int target_y;
     int target_size;
@@ -23,37 +33,47 @@ typedef struct {
     int waypoint_index;
     int waypoint_x[OSRS_INTERACTION_ROUTE_MAX_WAYPOINTS];
     int waypoint_y[OSRS_INTERACTION_ROUTE_MAX_WAYPOINTS];
-} OsrsInteractionRoute;
+} OsrsActorRouteCache;
+
+#define OSRS_INTERACTION_SERIALIZED_ROUTE_BYTES 244
 
 typedef struct {
     int target_slot;
-    OsrsInteractionRoute route;
+    uint8_t serialized_route_padding[OSRS_INTERACTION_SERIALIZED_ROUTE_BYTES];
 } OsrsInteraction;
 
-static inline void osrs_interaction_route_clear(OsrsInteraction* ix) {
-    ix->route.state = OSRS_INTERACTION_ROUTE_EMPTY;
-    ix->route.waypoint_count = 0;
-    ix->route.waypoint_index = 0;
+static_assert(sizeof(OsrsInteraction) == 248, "OsrsInteraction serialized layout");
+static_assert(offsetof(OsrsInteraction, target_slot) == 0, "OsrsInteraction target offset");
+static_assert(offsetof(OsrsInteraction, serialized_route_padding) == 4,
+    "OsrsInteraction reserved route offset");
+
+static inline void osrs_interaction_zero_serialized_route_padding(
+    OsrsInteraction* ix
+) {
+    memset(ix->serialized_route_padding, 0, sizeof(ix->serialized_route_padding));
+}
+
+static inline void osrs_actor_route_cache_clear(OsrsActorRouteCache* route) {
+    route->state = OSRS_INTERACTION_ROUTE_EMPTY;
+    route->waypoint_count = 0;
+    route->waypoint_index = 0;
 }
 
 static inline void osrs_interaction_set(OsrsInteraction* ix, int target_slot) {
     if (ix->target_slot == target_slot) return;
     ix->target_slot = target_slot;
-    osrs_interaction_route_clear(ix);
 }
 
 static inline void osrs_interaction_clear(OsrsInteraction* ix) {
     ix->target_slot = -1;
-    osrs_interaction_route_clear(ix);
 }
-
 static inline int osrs_interaction_active(const OsrsInteraction* ix) {
     return ix->target_slot >= 0;
 }
 
 static inline void osrs_interaction_init(OsrsInteraction* ix) {
     ix->target_slot = -1;
-    osrs_interaction_route_clear(ix);
+    osrs_interaction_zero_serialized_route_padding(ix);
 }
 
 #define OSRS_IACT_NONE     0

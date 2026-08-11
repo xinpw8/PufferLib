@@ -9,6 +9,7 @@
 
 #define col_init_context_typed(ctx_ptr) do { \
     col_init_context_typed(ctx_ptr); \
+    col_bind_route_topology((ctx_ptr), NULL); \
     (ctx_ptr)->config.late_start_state_mode = 0; \
 } while (0)
 
@@ -2828,8 +2829,8 @@ static uint64_t wb_trajectory_hash(ColosseumState* s, ColosseumContext* ctx,
     return h;
 }
 
-static void test_warband_bfs_memo_bit_identity(void) {
-    printf("test_warband_bfs_memo_bit_identity\n");
+static void test_warband_route_generation_bit_identity(void) {
+    printf("test_warband_route_generation_bit_identity\n");
     ColosseumContext ctx;
     col_init_context_typed(&ctx);
     ctx.config.start_wave = 0;
@@ -2839,17 +2840,15 @@ static void test_warband_bfs_memo_bit_identity(void) {
     int walk_south[COLO_NUM_ACTION_HEADS] = {0};
     walk_south[COLO_HEAD_PRIMARY] = 4;
 
-    memset(col_warband_bfs_memo_key, 0, sizeof(col_warband_bfs_memo_key));
-    uint64_t idle_cold = wb_trajectory_hash(&s, &ctx, 51, idle, 40);
-    uint64_t idle_warm = wb_trajectory_hash(&s, &ctx, 51, idle, 40);
-    CHECK("memo-served warband trajectory == fresh BFS (idle player)",
-        idle_warm == idle_cold);
+    uint64_t idle_first = wb_trajectory_hash(&s, &ctx, 51, idle, 40);
+    uint64_t idle_second = wb_trajectory_hash(&s, &ctx, 51, idle, 40);
+    CHECK("thread-local route generations preserve idle warband trajectory",
+        idle_second == idle_first);
 
-    uint64_t walk_polluted = wb_trajectory_hash(&s, &ctx, 53, walk_south, 40);
-    memset(col_warband_bfs_memo_key, 0, sizeof(col_warband_bfs_memo_key));
-    uint64_t walk_cold = wb_trajectory_hash(&s, &ctx, 53, walk_south, 40);
-    CHECK("polluted-table episode == its fresh-memo reference (walking player)",
-        walk_polluted == walk_cold);
+    uint64_t walk_first = wb_trajectory_hash(&s, &ctx, 53, walk_south, 40);
+    uint64_t walk_second = wb_trajectory_hash(&s, &ctx, 53, walk_south, 40);
+    CHECK("thread-local route generations preserve walking warband trajectory",
+        walk_second == walk_first);
 }
 
 static void test_warband_melee_distance_gate(void) {
@@ -8662,7 +8661,7 @@ int main(void) {
     test_warband_cycle_offsets();
     test_warband_move_skip();
     test_warband_melee_not_dodged_by_same_tick_step_out();
-    test_warband_bfs_memo_bit_identity();
+    test_warband_route_generation_bit_identity();
     test_warband_melee_distance_gate();
     test_warband_two_tick_stationary_gate();
     test_warband_formation_convergence();

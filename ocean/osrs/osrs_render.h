@@ -485,6 +485,8 @@ typedef struct RenderClient {
     int effect_anim_state_count;
 
     const CollisionMap* collision_map;
+    const EncounterArenaTopology* route_topology;
+    OsrsActorRouteCache player_route_cache[NUM_AGENTS];
     int collision_world_offset_x;
     int collision_world_offset_y;
 

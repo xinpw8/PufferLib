@@ -699,6 +699,70 @@ static InfConfig inf_default_config(void) {
     };
 }
 
+typedef struct {
+    EncounterArenaTopology* topology;
+    const CollisionMap* collision_map;
+    int world_offset_x;
+    int world_offset_y;
+} InfRouteTopologyOwner;
+
+typedef struct {
+    const CollisionMap* collision_map;
+    int world_offset_x;
+    int world_offset_y;
+} InfRouteTopologyBuildContext;
+
+static InfRouteTopologyOwner inf_route_topology_owner;
+
+static uint32_t inf_route_topology_flags(void* data, int x, int y) {
+    const InfRouteTopologyBuildContext* build =
+        (const InfRouteTopologyBuildContext*)data;
+    if (!build->collision_map) return 0;
+    return (uint32_t)collision_get_flags(
+        build->collision_map,
+        0,
+        x + build->world_offset_x,
+        y + build->world_offset_y);
+}
+
+static void inf_bind_route_topology(
+    InfernoContext* ctx,
+    const CollisionMap* collision_map
+) {
+    if (inf_route_topology_owner.topology) {
+        if (inf_route_topology_owner.collision_map != collision_map ||
+                inf_route_topology_owner.world_offset_x != ctx->world_offset_x ||
+                inf_route_topology_owner.world_offset_y != ctx->world_offset_y) {
+            fprintf(stderr, "inferno route topology geometry identity changed\n");
+            abort();
+        }
+        ctx->route_topology = inf_route_topology_owner.topology;
+        return;
+    }
+    InfRouteTopologyBuildContext build = {
+        collision_map,
+        ctx->world_offset_x,
+        ctx->world_offset_y,
+    };
+    EncounterArenaTopologyBuildSpec spec = {
+        .origin_x = INF_ARENA_MIN_X,
+        .origin_y = INF_ARENA_MIN_Y,
+        .width = INF_ARENA_WIDTH,
+        .height = INF_ARENA_HEIGHT,
+        .max_footprint_size = ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE,
+        .revision = UINT64_C(0x494e4645524e4f01),
+        .tile_flags = inf_route_topology_flags,
+        .tile_flags_ctx = &build,
+    };
+    inf_route_topology_owner.topology =
+        encounter_arena_topology_build(&spec);
+    encounter_arena_topology_finalize(inf_route_topology_owner.topology);
+    inf_route_topology_owner.collision_map = collision_map;
+    inf_route_topology_owner.world_offset_x = ctx->world_offset_x;
+    inf_route_topology_owner.world_offset_y = ctx->world_offset_y;
+    ctx->route_topology = inf_route_topology_owner.topology;
+}
+
 static void inf_init_context_typed(InfernoContext* ctx) {
     memset(ctx, 0, sizeof(*ctx));
     ctx->config = inf_default_config();
@@ -718,6 +782,7 @@ static InfernoContext* inf_legacy_context(void) {
     static int initialized = 0;
     if (!initialized) {
         inf_init_context_typed(&ctx);
+        inf_bind_route_topology(&ctx, NULL);
         ctx.log = &log;
         initialized = 1;
     }
@@ -739,7 +804,7 @@ static void inf_init_state(EncounterState* state, EncounterContext* context) {
 
 static EncounterState* inf_create(void) {
     InfernoState* s = (InfernoState*)calloc(1, sizeof(InfernoState));
-    inf_init_state_typed(s, inf_legacy_context());
+    inf_init_state_typed(s, NULL);
     return (EncounterState*)s;
 }
 

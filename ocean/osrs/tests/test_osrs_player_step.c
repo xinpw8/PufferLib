@@ -21,6 +21,7 @@ static void* topology_counted_calloc(size_t count, size_t size);
 
 #define calloc topology_counted_calloc
 #include "ocean/osrs/osrs_encounter_player.h"
+#include "ocean/osrs/tests/osrs_route_reference.h"
 #undef calloc
 
 static void* topology_counted_calloc(size_t count, size_t size) {
@@ -65,6 +66,61 @@ static int step_vertical_wall(void* ctx, int x, int y) {
     return x == 5 && y <= 4;
 }
 
+static int step_vertical_wall_route(void* ctx, int x, int y, int size) {
+    (void)size;
+    return step_vertical_wall(ctx, x, y);
+}
+
+static uint32_t step_open_flags(void* ctx, int x, int y) {
+    (void)ctx;
+    (void)x;
+    (void)y;
+    return 0;
+}
+
+static const EncounterArenaTopology* step_route_topology(void) {
+    static EncounterArenaTopology* topology;
+    if (!topology) {
+        EncounterArenaTopologyBuildSpec spec = {
+            .origin_x = 0,
+            .origin_y = 0,
+            .width = STEP_GRID,
+            .height = STEP_GRID,
+            .max_footprint_size = 2,
+            .revision = 19,
+            .tile_flags = step_open_flags,
+            .tile_flags_ctx = NULL,
+        };
+        topology = encounter_arena_topology_build(&spec);
+        encounter_arena_topology_finalize(topology);
+    }
+    return topology;
+}
+
+
+static uint32_t step_collision_flags(void* ctx, int x, int y) {
+    return (uint32_t)collision_get_flags((const CollisionMap*)ctx, 0, x, y);
+}
+
+static EncounterArenaTopology* step_collision_topology(
+    const CollisionMap* collision_map,
+    uint64_t revision
+) {
+    EncounterArenaTopologyBuildSpec spec = {
+        .origin_x = 0,
+        .origin_y = 0,
+        .width = STEP_GRID,
+        .height = STEP_GRID,
+        .max_footprint_size = 2,
+        .revision = revision,
+        .tile_flags = step_collision_flags,
+        .tile_flags_ctx = (void*)collision_map,
+    };
+    EncounterArenaTopology* topology = encounter_arena_topology_build(&spec);
+    encounter_arena_topology_finalize(topology);
+    return topology;
+}
+
 static int step_lookup_target(void* ctx, int target_slot, OsrsAttackTarget* out) {
     StepTargetCtx* c = (StepTargetCtx*)ctx;
     if (!c->target_valid || target_slot != c->target.slot) return 0;
@@ -75,10 +131,12 @@ static int step_lookup_target(void* ctx, int target_slot, OsrsAttackTarget* out)
 static OsrsEncounterArena step_arena(void) {
     OsrsEncounterArena arena;
     memset(&arena, 0, sizeof(arena));
-    arena.is_walkable = step_tile_walkable;
     arena.los_query = osrs_los_open_query();
-    arena.arena_w = STEP_GRID;
-    arena.arena_h = STEP_GRID;
+    arena.topology = step_route_topology();
+    arena.blockers.revision = 1;
+    arena.movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN;
+    arena.cost_policy = ENCOUNTER_ROUTE_COST_OSRS;
+    arena.explicit_cost_policy = ENCOUNTER_ROUTE_COST_DIRECT;
     return arena;
 }
 
@@ -150,6 +208,7 @@ static void test_melee_attack_does_not_cross_cardinal_wall(void) {
     player.y = 10;
 
     OsrsInteraction interaction;
+    OsrsActorRouteCache route_cache = {0};
     osrs_interaction_init(&interaction);
     osrs_interaction_set(&interaction, 3);
 
@@ -161,11 +220,15 @@ static void test_melee_attack_does_not_cross_cardinal_wall(void) {
     int dest_y = -1;
     OsrsEncounterArena arena = step_arena();
     arena.collision_map = &map;
+    EncounterArenaTopology* wall_topology =
+        step_collision_topology(&map, 20);
+    arena.topology = wall_topology;
 
     OsrsPlayerStepInput input;
     memset(&input, 0, sizeof(input));
     input.player = &player;
     input.interaction = &interaction;
+    input.route_cache = &route_cache;
     input.target_lookup = step_lookup_target;
     input.target_ctx = &tctx;
     input.dest_x = &dest_x;
@@ -177,6 +240,7 @@ static void test_melee_attack_does_not_cross_cardinal_wall(void) {
     CHECK("melee does not attack through cardinal wall",
         !result.can_attack || player.x != 9 || player.y != 10);
     CHECK("melee routes around cardinal wall", result.chased_target);
+    free(wall_topology);
 }
 
 /* an entity click cancels a walk already in flight: the player closes on the
@@ -192,6 +256,7 @@ static void test_target_command_cancels_walk_in_flight(void) {
     player.run_energy = 10000;
 
     OsrsInteraction interaction;
+    OsrsActorRouteCache route_cache = {0};
     osrs_interaction_init(&interaction);
 
     StepTargetCtx tctx = {
@@ -206,6 +271,7 @@ static void test_target_command_cancels_walk_in_flight(void) {
     memset(&input, 0, sizeof(input));
     input.player = &player;
     input.interaction = &interaction;
+    input.route_cache = &route_cache;
     input.target_lookup = step_lookup_target;
     input.target_ctx = &tctx;
     input.command.kind = OSRS_PLAYER_CMD_TARGET;
@@ -232,6 +298,7 @@ static void test_move_command_cancels_interaction(void) {
     player.run_energy = 10000;
 
     OsrsInteraction interaction;
+    OsrsActorRouteCache route_cache = {0};
     osrs_interaction_init(&interaction);
     osrs_interaction_set(&interaction, 3);
 
@@ -247,6 +314,7 @@ static void test_move_command_cancels_interaction(void) {
     memset(&input, 0, sizeof(input));
     input.player = &player;
     input.interaction = &interaction;
+    input.route_cache = &route_cache;
     input.target_lookup = step_lookup_target;
     input.target_ctx = &tctx;
     input.command.kind = OSRS_PLAYER_CMD_MOVE;
@@ -272,6 +340,7 @@ static void test_none_command_chases_active_interaction(void) {
     player.run_energy = 10000;
 
     OsrsInteraction interaction;
+    OsrsActorRouteCache route_cache = {0};
     osrs_interaction_init(&interaction);
     osrs_interaction_set(&interaction, 3);
 
@@ -287,6 +356,7 @@ static void test_none_command_chases_active_interaction(void) {
     memset(&input, 0, sizeof(input));
     input.player = &player;
     input.interaction = &interaction;
+    input.route_cache = &route_cache;
     input.target_lookup = step_lookup_target;
     input.target_ctx = &tctx;
     input.command.kind = OSRS_PLAYER_CMD_NONE;
@@ -308,6 +378,7 @@ static void test_attack_route_persists_and_invalidates_canonically(void) {
     player.y = 2;
 
     OsrsInteraction interaction;
+    OsrsActorRouteCache route_cache = {0};
     osrs_interaction_init(&interaction);
     osrs_interaction_set(&interaction, 3);
 
@@ -318,12 +389,14 @@ static void test_attack_route_persists_and_invalidates_canonically(void) {
     int dest_x = -1;
     int dest_y = -1;
     OsrsEncounterArena arena = step_arena();
-    arena.extra_blocked = step_vertical_wall;
+    arena.blockers.is_blocked = step_vertical_wall_route;
+    arena.blockers.revision = 7;
 
     OsrsPlayerStepInput input;
     memset(&input, 0, sizeof(input));
     input.player = &player;
     input.interaction = &interaction;
+    input.route_cache = &route_cache;
     input.target_lookup = step_lookup_target;
     input.target_ctx = &target_ctx;
     input.dest_x = &dest_x;
@@ -332,31 +405,39 @@ static void test_attack_route_persists_and_invalidates_canonically(void) {
 
     OsrsPlayerStepResult first = osrs_encounter_player_step(&input);
     CHECK("obstacle chase builds a multi-checkpoint route",
-        first.chased_target && interaction.route.waypoint_count > 1);
+        first.chased_target && route_cache.waypoint_count > 1);
     CHECK("route records its original source",
-        interaction.route.planned_source_x == 2 &&
-        interaction.route.planned_source_y == 2);
+        route_cache.planned_source_x == 2 &&
+        route_cache.planned_source_y == 2);
 
     osrs_encounter_player_step(&input);
     CHECK("route persists while more than one checkpoint remains",
-        interaction.route.planned_source_x == 2 &&
-        interaction.route.planned_source_y == 2);
+        route_cache.planned_source_x == 2 &&
+        route_cache.planned_source_y == 2);
+    int blocker_changed_source_x = player.x;
+    int blocker_changed_source_y = player.y;
+    input.arena.blockers.revision++;
+    osrs_encounter_player_step(&input);
+    CHECK("dynamic blocker revision invalidates actor-local route cache",
+        route_cache.blocker_revision == input.arena.blockers.revision &&
+        route_cache.planned_source_x == blocker_changed_source_x &&
+        route_cache.planned_source_y == blocker_changed_source_y);
 
     target_ctx.target.y = 3;
     int moved_target_source_x = player.x;
     int moved_target_source_y = player.y;
     osrs_encounter_player_step(&input);
     CHECK("target geometry change reroutes from the current tile",
-        interaction.route.target_y == 3 &&
-        interaction.route.planned_source_x == moved_target_source_x &&
-        interaction.route.planned_source_y == moved_target_source_y);
+        route_cache.target_y == 3 &&
+        route_cache.planned_source_x == moved_target_source_x &&
+        route_cache.planned_source_y == moved_target_source_y);
 
     player.x = 1;
     player.y = 10;
     osrs_encounter_player_step(&input);
     CHECK("player route divergence reroutes from the observed tile",
-        interaction.route.planned_source_x == 1 &&
-        interaction.route.planned_source_y == 10);
+        route_cache.planned_source_x == 1 &&
+        route_cache.planned_source_y == 10);
 }
 
 static void test_single_checkpoint_route_reroutes_each_tick(void) {
@@ -366,6 +447,7 @@ static void test_single_checkpoint_route_reroutes_each_tick(void) {
     player.y = 2;
 
     OsrsInteraction interaction;
+    OsrsActorRouteCache route_cache = {0};
     osrs_interaction_init(&interaction);
     osrs_interaction_set(&interaction, 3);
 
@@ -380,6 +462,7 @@ static void test_single_checkpoint_route_reroutes_each_tick(void) {
     memset(&input, 0, sizeof(input));
     input.player = &player;
     input.interaction = &interaction;
+    input.route_cache = &route_cache;
     input.target_lookup = step_lookup_target;
     input.target_ctx = &target_ctx;
     input.dest_x = &dest_x;
@@ -388,37 +471,33 @@ static void test_single_checkpoint_route_reroutes_each_tick(void) {
 
     osrs_encounter_player_step(&input);
     CHECK("straight chase compresses to one checkpoint",
-        interaction.route.waypoint_count == 1 &&
-        interaction.route.planned_source_x == 2);
+        route_cache.waypoint_count == 1 &&
+        route_cache.planned_source_x == 2);
     osrs_encounter_player_step(&input);
     CHECK("one-checkpoint entity route reroutes from the current tile",
-        interaction.route.planned_source_x == 4 &&
-        interaction.route.planned_source_y == 2);
+        route_cache.planned_source_x == 4 &&
+        route_cache.planned_source_y == 2);
 }
 
-static void test_same_target_selection_preserves_route(void) {
+static void test_target_selection_does_not_own_route_cache(void) {
     OsrsInteraction interaction = {0};
+    OsrsActorRouteCache route_cache = {
+        .state = OSRS_INTERACTION_ROUTE_READY,
+        .target_x = 12,
+        .target_y = 7,
+        .waypoint_count = 2,
+        .waypoint_index = 1,
+    };
+    route_cache.waypoint_x[1] = 11;
+    route_cache.waypoint_y[1] = 7;
     osrs_interaction_init(&interaction);
     osrs_interaction_set(&interaction, 3);
-    interaction.route.state = OSRS_INTERACTION_ROUTE_READY;
-    interaction.route.target_x = 12;
-    interaction.route.target_y = 7;
-    interaction.route.waypoint_count = 2;
-    interaction.route.waypoint_index = 1;
-    interaction.route.waypoint_x[1] = 11;
-    interaction.route.waypoint_y[1] = 7;
 
-    OsrsInteractionRoute preserved = interaction.route;
-    osrs_interaction_set(&interaction, 3);
-    CHECK("same target preserves its route",
-        memcmp(&interaction.route, &preserved, sizeof(preserved)) == 0);
-
+    OsrsActorRouteCache preserved = route_cache;
     osrs_interaction_set(&interaction, 4);
-    CHECK("different target clears the route",
+    CHECK("target selection leaves context-owned route cache unchanged",
         interaction.target_slot == 4 &&
-        interaction.route.state == OSRS_INTERACTION_ROUTE_EMPTY &&
-        interaction.route.waypoint_count == 0 &&
-        interaction.route.waypoint_index == 0);
+        memcmp(&route_cache, &preserved, sizeof(preserved)) == 0);
 }
 
 static void test_attack_route_field_stops_at_first_reachable_target_edge(void) {
@@ -805,11 +884,170 @@ static void test_arena_topology_rejects_invalid_bounds(void) {
         topology_test_aborts(topology_build_rejects_origin_overflow));
 }
 
+typedef struct {
+    uint32_t flags[8][8];
+} RouteTestGeometry;
+
+typedef struct {
+    uint8_t blocked[8][8];
+} RouteTestBlockers;
+
+static uint32_t route_test_flags(void* data, int x, int y) {
+    RouteTestGeometry* geometry = (RouteTestGeometry*)data;
+    if (x < 0 || x >= 8 || y < 0 || y >= 8)
+        return COLLISION_BLOCKED | LOS_FULL_MASK;
+    return geometry->flags[x][y];
+}
+
+static int route_test_blocked(void* data, int x, int y, int size) {
+    RouteTestBlockers* blockers = (RouteTestBlockers*)data;
+    for (int dx = 0; dx < size; dx++) {
+        for (int dy = 0; dy < size; dy++) {
+            int tile_x = x + dx;
+            int tile_y = y + dy;
+            if (tile_x < 0 || tile_x >= 8 || tile_y < 0 || tile_y >= 8)
+                return 1;
+            if (blockers->blocked[tile_x][tile_y]) return 1;
+        }
+    }
+    return 0;
+}
+
+static EncounterArenaTopology* route_test_topology(
+    RouteTestGeometry* geometry
+) {
+    EncounterArenaTopologyBuildSpec spec = {
+        .origin_x = 0,
+        .origin_y = 0,
+        .width = 8,
+        .height = 8,
+        .max_footprint_size = 2,
+        .revision = 71,
+        .tile_flags = route_test_flags,
+        .tile_flags_ctx = geometry,
+    };
+    EncounterArenaTopology* topology = encounter_arena_topology_build(&spec);
+    encounter_arena_topology_finalize(topology);
+    return topology;
+}
+
+static EncounterRouteInput route_test_input(
+    const EncounterArenaTopology* topology,
+    RouteTestBlockers* blockers
+) {
+    return (EncounterRouteInput){
+        .topology = topology,
+        .blockers = {
+            .is_blocked = route_test_blocked,
+            .ctx = blockers,
+            .revision = 1,
+        },
+        .source_x = 1,
+        .source_y = 1,
+        .actor_size = 1,
+        .target_x = 4,
+        .target_y = 1,
+        .target_size = 1,
+        .target_kind = ENCOUNTER_ROUTE_TARGET_TILE,
+        .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+        .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
+    };
+}
+
+static void test_tagged_route_outcomes_and_payload(void) {
+    RouteTestGeometry geometry = {0};
+    RouteTestBlockers blockers = {0};
+    EncounterArenaTopology* topology = route_test_topology(&geometry);
+    EncounterRouteInput input = route_test_input(topology, &blockers);
+
+    EncounterRouteResult reached = encounter_route_solve(&input);
+    CHECK("exact target returns tagged reached-target outcome",
+        reached.outcome == ROUTE_REACHED_TARGET);
+    CHECK("reached route pins destination, shortest distance, and run steps",
+        reached.destination_x == 4 && reached.destination_y == 1 &&
+        reached.distance == 3 &&
+        reached.first_dx == 1 && reached.first_dy == 0 &&
+        reached.run_dx == 1 && reached.run_dy == 0);
+    CHECK("straight route compresses to its exact waypoint",
+        reached.waypoint_count == 1 &&
+        reached.waypoint_x[0] == 4 && reached.waypoint_y[0] == 1);
+
+    for (int y = 0; y < 8; y++) blockers.blocked[3][y] = 1;
+    input.blockers.revision++;
+    EncounterRouteResult fallback = encounter_route_solve(&input);
+    CHECK("dynamic wall selects tagged fallback without topology mutation",
+        fallback.outcome == ROUTE_REACHED_FALLBACK &&
+        topology->revision == 71 &&
+        fallback.destination_x == 2 && fallback.destination_y == 1 &&
+        fallback.distance == 1);
+
+    memset(&blockers, 1, sizeof(blockers));
+    blockers.blocked[1][1] = 0;
+    input.blockers.revision++;
+    input.target_x = 20;
+    EncounterRouteResult unreachable = encounter_route_solve(&input);
+    CHECK("no target or fallback returns tagged unreachable",
+        unreachable.outcome == ROUTE_UNREACHABLE);
+
+    input.topology = NULL;
+    EncounterRouteResult invalid = encounter_route_solve(&input);
+    CHECK("bad route contract returns tagged invalid input",
+        invalid.outcome == ROUTE_INVALID_INPUT);
+    free(topology);
+}
+
+static void test_route_cost_order_is_deterministic(void) {
+    RouteTestGeometry geometry = {0};
+    RouteTestBlockers blockers = {0};
+    EncounterArenaTopology* topology = route_test_topology(&geometry);
+    EncounterRouteInput input = route_test_input(topology, &blockers);
+    input.source_x = 4;
+    input.source_y = 4;
+    input.target_x = 2;
+    input.target_y = 2;
+    input.target_kind = ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY;
+
+    EncounterRouteResult route = encounter_route_solve(&input);
+    CHECK("OSRS attack route takes west before southwest",
+        route.outcome == ROUTE_REACHED_TARGET &&
+        route.first_dx == -1 && route.first_dy == 0 &&
+        route.run_dx == -1 && route.run_dy == -1);
+    CHECK("attack route selects the first equal-cost FIFO target edge",
+        route.destination_x == 2 && route.destination_y == 3 &&
+        route.distance == 2);
+    free(topology);
+}
+static void test_direct_route_policy_preserves_greedy_step_order(void) {
+    RouteTestGeometry geometry = {0};
+    RouteTestBlockers blockers = {0};
+    EncounterArenaTopology* topology = route_test_topology(&geometry);
+    EncounterRouteInput input = route_test_input(topology, &blockers);
+    input.source_x = 1;
+    input.source_y = 1;
+    input.target_x = 4;
+    input.target_y = 4;
+    input.cost_policy = ENCOUNTER_ROUTE_COST_DIRECT;
+    blockers.blocked[2][2] = 1;
+
+    EncounterRouteResult route = encounter_route_solve(&input);
+    CHECK("direct route falls from blocked diagonal to x cardinal",
+        route.outcome == ROUTE_REACHED_FALLBACK &&
+        route.first_dx == 1 && route.first_dy == 0 &&
+        route.run_dx == 1 && route.run_dy == 0 &&
+        route.destination_x == 3 && route.destination_y == 1);
+    free(topology);
+}
+
+
+
 int main(void) {
+    test_tagged_route_outcomes_and_payload();
+    test_route_cost_order_is_deterministic();
+    test_direct_route_policy_preserves_greedy_step_order();
     test_arena_topology_rejects_invalid_bounds();
     test_arena_topology_extreme_origins_and_reader_bounds();
     test_arena_topology_bounds_collision_los_and_revision();
-    test_same_target_selection_preserves_route();
+    test_target_selection_does_not_own_route_cache();
     test_attack_route_field_stops_at_first_reachable_target_edge();
     test_unreachable_attack_route_field_exhausts_for_fallback();
     test_attack_route_caches_walkability_per_tile();

@@ -27,6 +27,11 @@
 #define ZUL_PLATFORM_MIN  5
 #define ZUL_PLATFORM_MAX  22
 
+
+typedef struct {
+    const EncounterArenaTopology* route_topology;
+    OsrsActorRouteCache player_route_cache;
+} ZulrahContext;
 #define ZUL_POS_NORTH   0
 #define ZUL_POS_SOUTH   1
 #define ZUL_POS_EAST    2
@@ -521,6 +526,7 @@ typedef struct {
 
     Log log;
 } ZulrahState;
+static_assert(sizeof(ZulrahState) == 12712, "ZulrahState serialized layout");
 
 static void zul_set_npc_anim_event(ZulrahState* s, int anim_id, int duration_ticks) {
     osrs_npc_primary_anim_event_set(
@@ -689,12 +695,75 @@ static inline int zul_on_platform(ZulrahState* s, int x, int y) {
     return collision_tile_walkable((const CollisionMap*)s->collision_map, 0, wx, wy);
 }
 
-#define zul_pathfind(s, sx, sy, dx, dy) \
-    encounter_pathfind((const CollisionMap*)(s)->collision_map, \
-        (s)->world_offset_x, (s)->world_offset_y, (sx), (sy), (dx), (dy), NULL, NULL)
 
-static int zul_tile_walkable(void* ctx, int x, int y) {
-    return zul_on_platform((ZulrahState*)ctx, x, y);
+
+
+typedef struct {
+    EncounterArenaTopology* topology;
+    const CollisionMap* collision_map;
+    int world_offset_x;
+    int world_offset_y;
+} ZulRouteTopologyOwner;
+
+typedef struct {
+    const CollisionMap* collision_map;
+    int world_offset_x;
+    int world_offset_y;
+} ZulRouteTopologyBuildContext;
+
+static ZulRouteTopologyOwner zul_route_topology_owner;
+
+static uint32_t zul_route_topology_flags(void* data, int x, int y) {
+    const ZulRouteTopologyBuildContext* build =
+        (const ZulRouteTopologyBuildContext*)data;
+    if (!build->collision_map)
+        return zul_on_platform_bounds(x, y)
+            ? 0
+            : COLLISION_BLOCKED | LOS_FULL_MASK;
+    return (uint32_t)collision_get_flags(
+        build->collision_map,
+        0,
+        x + build->world_offset_x,
+        y + build->world_offset_y);
+}
+
+static void zul_bind_route_topology(
+    ZulrahContext* ctx,
+    const ZulrahState* state,
+    const CollisionMap* collision_map
+) {
+    if (zul_route_topology_owner.topology) {
+        if (zul_route_topology_owner.collision_map != collision_map ||
+                zul_route_topology_owner.world_offset_x != state->world_offset_x ||
+                zul_route_topology_owner.world_offset_y != state->world_offset_y) {
+            fprintf(stderr, "zulrah route topology geometry identity changed\n");
+            abort();
+        }
+        ctx->route_topology = zul_route_topology_owner.topology;
+        return;
+    }
+    ZulRouteTopologyBuildContext build = {
+        collision_map,
+        state->world_offset_x,
+        state->world_offset_y,
+    };
+    EncounterArenaTopologyBuildSpec spec = {
+        .origin_x = 0,
+        .origin_y = 0,
+        .width = ZUL_ARENA_SIZE,
+        .height = ZUL_ARENA_SIZE,
+        .max_footprint_size = ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE,
+        .revision = UINT64_C(0x5a554c5241480001),
+        .tile_flags = zul_route_topology_flags,
+        .tile_flags_ctx = &build,
+    };
+    zul_route_topology_owner.topology =
+        encounter_arena_topology_build(&spec);
+    encounter_arena_topology_finalize(zul_route_topology_owner.topology);
+    zul_route_topology_owner.collision_map = collision_map;
+    zul_route_topology_owner.world_offset_x = state->world_offset_x;
+    zul_route_topology_owner.world_offset_y = state->world_offset_y;
+    ctx->route_topology = zul_route_topology_owner.topology;
 }
 
 static inline int zul_player_in_cloud(int cx, int cy, int px, int py) {
@@ -1360,7 +1429,10 @@ static void zul_spawn_snakeling(ZulrahState* s) {
     }
 }
 
-static void zul_snakeling_tick(ZulrahState* s) {
+static void zul_snakeling_tick(
+    ZulrahState* s,
+    const ZulrahContext* ctx
+) {
     for (int i = 0; i < ZUL_MAX_SNAKELINGS; i++) {
         ZulrahSnakeling* sn = &s->snakelings[i];
         if (!sn->active) continue;
@@ -1373,14 +1445,24 @@ static void zul_snakeling_tick(ZulrahState* s) {
         int ady = abs_int(sn->entity.y - s->player.y);
         int in_range = (adx <= 1 && ady <= 1);
         if (!in_range) {
-            PathResult pr = zul_pathfind(s, sn->entity.x, sn->entity.y,
-                                          s->player.x, s->player.y);
-            if (pr.found && (pr.next_dx != 0 || pr.next_dy != 0)) {
-                int nx = sn->entity.x + pr.next_dx;
-                int ny = sn->entity.y + pr.next_dy;
-                if (zul_on_platform(s, nx, ny)) {
-                    sn->entity.x = nx; sn->entity.y = ny;
-                }
+            EncounterRouteInput route_input = {
+                .topology = ctx->route_topology,
+                .blockers = {0},
+                .source_x = sn->entity.x,
+                .source_y = sn->entity.y,
+                .actor_size = 1,
+                .target_x = s->player.x,
+                .target_y = s->player.y,
+                .target_size = 1,
+                .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_WALK,
+                .cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST,
+            };
+            EncounterRouteResult route = encounter_route_solve(&route_input);
+            if (route.outcome != ROUTE_INVALID_INPUT &&
+                    route.outcome != ROUTE_UNREACHABLE &&
+                    (route.first_dx != 0 || route.first_dy != 0)) {
+                sn->entity.x += route.first_dx;
+                sn->entity.y += route.first_dy;
             }
         }
 
@@ -2316,7 +2398,8 @@ static void zul_seed_inventory_cells(ZulrahState* s) {
 }
 
 static void zul_reset(EncounterState* state, EncounterContext* context, uint32_t seed) {
-    (void)context;
+    ZulrahContext* ctx = (ZulrahContext*)context;
+    osrs_actor_route_cache_clear(&ctx->player_route_cache);
     ZulrahState* s = (ZulrahState*)state;
     Log saved_log = s->log;
     void* saved_cmap = s->collision_map;
@@ -2369,9 +2452,16 @@ static void zul_reset(EncounterState* state, EncounterContext* context, uint32_t
         (s->gear_tier >= 1) ? OFFENSIVE_PRAYER_AUGURY : OFFENSIVE_PRAYER_NONE;
     zul_mark_live_stats_dirty(s);
     zul_start_active_kill(s);
+    if (ctx && !ctx->route_topology)
+        zul_bind_route_topology(
+            ctx, s, (const CollisionMap*)s->collision_map);
 }
 
-static void zul_step_tick(ZulrahState* s, const int* actions) {
+static void zul_step_tick(
+    ZulrahState* s,
+    ZulrahContext* ctx,
+    const int* actions
+) {
     s->reward = 0.0f;
     s->damage_dealt_this_tick = 0.0f;
     s->damage_received_this_tick = 0.0f;
@@ -2509,6 +2599,7 @@ static void zul_step_tick(ZulrahState* s, const int* actions) {
     OsrsPlayerStepInput step_input = {
         .player = &s->player,
         .interaction = &s->interaction,
+        .route_cache = &ctx->player_route_cache,
         .target_lookup = zul_lookup_player_attack_target,
         .target_ctx = s,
         .command = command,
@@ -2516,16 +2607,15 @@ static void zul_step_tick(ZulrahState* s, const int* actions) {
         .dest_y = &s->player_dest_y,
         .blocked_ticks = s->player_stunned_ticks,
         .arena = {
+            .topology = ctx->route_topology,
+            .blockers = {0},
+            .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+            .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
+            .explicit_cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
             .collision_map = (const CollisionMap*)s->collision_map,
             .world_offset_x = s->world_offset_x,
             .world_offset_y = s->world_offset_y,
-            .is_walkable = zul_tile_walkable,
-            .walkable_ctx = s,
             .los_query = osrs_los_open_query(),
-            .arena_base_x = 0,
-            .arena_base_y = 0,
-            .arena_w = ZUL_ARENA_SIZE,
-            .arena_h = ZUL_ARENA_SIZE,
         },
     };
     OsrsPlayerStepResult step_result = osrs_encounter_player_step(&step_input);
@@ -2570,7 +2660,7 @@ static void zul_step_tick(ZulrahState* s, const int* actions) {
 
     zul_phase_tick(s);
 
-    zul_snakeling_tick(s);
+    zul_snakeling_tick(s, ctx);
 
     zul_thrall_tick(s);
 
@@ -2593,10 +2683,15 @@ static void zul_step_tick(ZulrahState* s, const int* actions) {
 }
 
 static void zul_step(EncounterState* state, EncounterContext* context, const int* actions) {
-    (void)context;
     ZulrahState* s = (ZulrahState*)state;
+    ZulrahContext* ctx = (ZulrahContext*)context;
+    static ZulrahContext legacy_ctx;
+    if (!ctx) ctx = &legacy_ctx;
+    if (!ctx->route_topology)
+        zul_bind_route_topology(
+            ctx, s, (const CollisionMap*)s->collision_map);
     if (s->episode_over) return;
-    zul_step_tick(s, actions);
+    zul_step_tick(s, ctx, actions);
     s->reward = zul_compute_reward(s);
     s->episode_return += s->reward;
 }
@@ -2890,10 +2985,15 @@ static void zul_put_float(EncounterState* st, EncounterContext* context, const c
     else encounter_abort_unknown_config("zulrah", "float", k);
 }
 static void zul_put_ptr(EncounterState* st, EncounterContext* context, const char* k, void* v) {
-    (void)context;
     ZulrahState* s = (ZulrahState*)st;
-    if (strcmp(k, "collision_map") == 0) s->collision_map = v;
-    else encounter_abort_unknown_config("zulrah", "ptr", k);
+    if (strcmp(k, "collision_map") == 0) {
+        ZulrahContext* ctx = (ZulrahContext*)context;
+        s->collision_map = v;
+        if (ctx)
+            zul_bind_route_topology(ctx, s, (const CollisionMap*)v);
+    } else {
+        encounter_abort_unknown_config("zulrah", "ptr", k);
+    }
 }
 
 static void* zul_get_log(EncounterState* state, EncounterContext* context) {
@@ -3216,12 +3316,8 @@ static void zul_step_human_commands(EncounterState* state, EncounterContext* con
     human_input_clear_pending(hi);
 }
 
-typedef struct {
-    int unused;
-} ZulrahContext;
-
 static void zul_init_context(EncounterContext* context) {
-    (void)context;
+    memset(context, 0, sizeof(ZulrahContext));
 }
 
 static void zul_destroy_context(EncounterContext* context) {

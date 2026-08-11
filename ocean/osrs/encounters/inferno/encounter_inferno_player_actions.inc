@@ -122,6 +122,18 @@ static int inf_tile_walkable(void* data, int x, int y) {
     return 1;
 }
 
+static int inf_player_route_blocked(void* data, int x, int y, int size) {
+    InfWalkCtx* walk = (InfWalkCtx*)data;
+    return inf_blocked_by_pillar(walk->s, x, y, size);
+}
+
+static uint64_t inf_player_route_blocker_revision(const InfernoState* s) {
+    uint64_t revision = 1;
+    for (int pillar = 0; pillar < INF_NUM_PILLARS; pillar++)
+        revision |= (uint64_t)(s->pillars[pillar].active != 0) << (pillar + 1);
+    return revision;
+}
+
 typedef struct {
     InfernoState* s;
     InfernoContext* ctx;
@@ -545,24 +557,26 @@ static void inf_tick_player_ctx(
     OsrsPlayerStepInput player_step_input = {
         .player = &s->player,
         .interaction = &s->interaction,
+        .route_cache = &ctx->player_route_cache,
         .target_lookup = inf_lookup_player_attack_target,
         .target_ctx = &target_ctx,
         .command = command,
         .dest_x = &s->player_dest_x,
         .dest_y = &s->player_dest_y,
         .arena = {
+            .topology = ctx->route_topology,
+            .blockers = {
+                .is_blocked = inf_player_route_blocked,
+                .ctx = &wc,
+                .revision = inf_player_route_blocker_revision(s),
+            },
+            .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+            .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
+            .explicit_cost_policy = ENCOUNTER_ROUTE_COST_DIRECT,
             .collision_map = ctx->collision_map,
             .world_offset_x = ctx->world_offset_x,
             .world_offset_y = ctx->world_offset_y,
-            .is_walkable = inf_tile_walkable,
-            .walkable_ctx = &wc,
-            .extra_blocked = NULL,
-            .blocked_ctx = NULL,
             .los_query = &los_query,
-            .arena_base_x = INF_ARENA_MIN_X,
-            .arena_base_y = INF_ARENA_MIN_Y,
-            .arena_w = INF_ARENA_WIDTH,
-            .arena_h = INF_ARENA_HEIGHT,
         },
     };
     (void)osrs_encounter_player_step(&player_step_input);

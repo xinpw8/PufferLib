@@ -358,7 +358,23 @@ static void pvp_resolve_same_tile(OsrsEnv* env, int first, int second) {
 
 /** One game tick: switches for both players, then movement, then attacks, then
     pending hits; an action submitted at tick N is visible in state at N+1. */
-void pvp_step(OsrsEnv* env) {
+static inline void pvp_actor_route_caches_clear(
+    OsrsActorRouteCache route_cache[NUM_AGENTS]
+) {
+    if (!route_cache) abort();
+    for (int i = 0; i < NUM_AGENTS; i++)
+        osrs_actor_route_cache_clear(&route_cache[i]);
+}
+
+void pvp_step(
+    OsrsEnv* env,
+    const EncounterArenaTopology* route_topology,
+    OsrsActorRouteCache route_cache[NUM_AGENTS]
+) {
+    if (!route_cache) {
+        fprintf(stderr, "PvP step missing actor route caches\n");
+        abort();
+    }
     memset(env->rewards, 0, NUM_AGENTS * sizeof(float));
     memset(env->terminals, 0, NUM_AGENTS);
 
@@ -464,8 +480,8 @@ void pvp_step(OsrsEnv* env) {
         if (pi->karambwan_timer > 0) pi->karambwan_timer--;
     }
 
-    pvp_step_player_movement(env, first);
-    pvp_step_player_movement(env, second);
+    pvp_step_player_movement(env, first, route_topology, &route_cache[first]);
+    pvp_step_player_movement(env, second, route_topology, &route_cache[second]);
 
     pvp_resolve_same_tile(env, first, second);
 
@@ -474,8 +490,8 @@ void pvp_step(OsrsEnv* env) {
 
     pvp_resolve_same_tile(env, first, second);
 
-    execute_attack_combat(env, first, agent_actions[first]);
-    execute_attack_combat(env, second, agent_actions[second]);
+    execute_attack_combat(env, first, agent_actions[first], route_topology);
+    execute_attack_combat(env, second, agent_actions[second], route_topology);
 
     pvp_resolve_same_tile(env, first, second);
 

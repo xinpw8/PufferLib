@@ -14,9 +14,11 @@ static const int NH_PVP_ACTION_DIMS[] = {
 typedef struct {
     OsrsEnv env;
 } NhPvpState;
+static_assert(sizeof(NhPvpState) == 7160, "NhPvpState serialized layout");
 
 typedef struct {
-    int unused;
+    const EncounterArenaTopology* route_topology;
+    OsrsActorRouteCache player_route_cache[NUM_AGENTS];
 } NhPvpContext;
 
 static void nh_pvp_translate_human_input(HumanInput* hi, int* actions, Player* agent, Player* target) {
@@ -61,7 +63,7 @@ static void nh_pvp_destroy(EncounterState* state) {
 }
 
 static void nh_pvp_init_context(EncounterContext* context) {
-    (void)context;
+    memset(context, 0, sizeof(NhPvpContext));
 }
 
 static void nh_pvp_destroy_context(EncounterContext* context) {
@@ -69,20 +71,24 @@ static void nh_pvp_destroy_context(EncounterContext* context) {
 }
 
 static void nh_pvp_reset(EncounterState* state, EncounterContext* context, uint32_t seed) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
+    NhPvpContext* ctx = (NhPvpContext*)context;
+    if (!ctx->route_topology)
+        ctx->route_topology = pvp_route_topology_setup(
+            (const CollisionMap*)s->env.collision_map);
     if (seed != 0) {
         s->env.has_rng_seed = 1;
         s->env.rng_seed = seed;
     }
+    pvp_actor_route_caches_clear(ctx->player_route_cache);
     pvp_reset(&s->env);
 }
 
 static void nh_pvp_step(EncounterState* state, EncounterContext* context, const int* actions) {
-    (void)context;
+    NhPvpContext* ctx = (NhPvpContext*)context;
     NhPvpState* s = (NhPvpState*)state;
     memcpy(s->env.ocean_io.agent_actions, actions, NUM_ACTION_HEADS * sizeof(int));
-    pvp_step(&s->env);
+    pvp_step(&s->env, ctx->route_topology, ctx->player_route_cache);
 }
 
 static void nh_pvp_step_human_commands(
@@ -90,7 +96,7 @@ static void nh_pvp_step_human_commands(
     EncounterContext* context,
     HumanInput* hi
 ) {
-    (void)context;
+    NhPvpContext* ctx = (NhPvpContext*)context;
     NhPvpState* s = (NhPvpState*)state;
     int saved_use_c_opponent_p0 = s->env.pvp_runtime.use_c_opponent_p0;
     s->env.pvp_runtime.use_c_opponent_p0 = 0;
@@ -103,7 +109,7 @@ static void nh_pvp_step_human_commands(
         s->env.ocean_io.agent_actions,
         &s->env.players[0],
         &s->env.players[1]);
-    pvp_step(&s->env);
+    pvp_step(&s->env, ctx->route_topology, ctx->player_route_cache);
     s->env.pvp_runtime.use_c_opponent_p0 = saved_use_c_opponent_p0;
     /* pending_move must survive until arrival so later ticks keep re-arming
        walk_dest for the same click */
@@ -240,10 +246,12 @@ static void nh_pvp_put_ptr(
     const char* key,
     void* value
 ) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     if (strcmp(key, "collision_map") == 0) {
+        NhPvpContext* ctx = (NhPvpContext*)context;
         s->env.collision_map = value;
+        ctx->route_topology =
+            pvp_route_topology_setup((const CollisionMap*)value);
     }
 }
 

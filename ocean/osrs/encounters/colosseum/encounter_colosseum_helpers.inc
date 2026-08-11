@@ -13,7 +13,7 @@ static void col_resolve_player_pending_hits(ColosseumState* s);
 static void col_rebuild_player_collision_flags(ColosseumState* s);
 static void col_refresh_current_obs_slots_ctx(ColosseumState* s, const ColosseumContext* ctx);
 
-static void col_sol_boss_tick(ColosseumState* s);
+static void col_sol_boss_tick(ColosseumState* s, ColosseumContext* ctx);
 static void col_sol_begin_boss_arena(ColosseumState* s);
 static int col_sol_clamp_active(const ColosseumState* s);
 static int col_in_boss_arena(const ColosseumState* s, int x, int y);
@@ -288,6 +288,60 @@ static ColConfig col_default_config(void) {
     };
 }
 
+typedef struct {
+    EncounterArenaTopology* topology;
+    const CollisionMap* collision_map;
+    int world_offset_x;
+    int world_offset_y;
+} ColRouteTopologyOwner;
+
+static ColRouteTopologyOwner col_route_topology_owner;
+
+static uint32_t col_route_topology_flags(void* data, int x, int y) {
+    (void)data;
+    int grid_x = x - COLO_ARENA_MIN_X;
+    int grid_y = y - COLO_ARENA_MIN_Y;
+    if (grid_x < 0 || grid_x >= COLO_ARENA_WIDTH ||
+            grid_y < 0 || grid_y >= COLO_ARENA_HEIGHT ||
+            COLO_STATIC_BLOCKED[grid_x][grid_y])
+        return COLLISION_BLOCKED | LOS_FULL_MASK;
+    return 0;
+}
+
+static void col_bind_route_topology(
+    ColosseumContext* ctx,
+    const CollisionMap* collision_map
+) {
+    if (col_route_topology_owner.topology) {
+        if (col_route_topology_owner.collision_map != collision_map ||
+                col_route_topology_owner.world_offset_x != ctx->world_offset_x ||
+                col_route_topology_owner.world_offset_y != ctx->world_offset_y) {
+            fprintf(stderr, "colosseum route topology geometry identity changed\n");
+            abort();
+        }
+        ctx->route_topology = col_route_topology_owner.topology;
+        return;
+    }
+    col_build_static_arena();
+    EncounterArenaTopologyBuildSpec spec = {
+        .origin_x = COLO_ARENA_MIN_X,
+        .origin_y = COLO_ARENA_MIN_Y,
+        .width = COLO_ARENA_WIDTH,
+        .height = COLO_ARENA_HEIGHT,
+        .max_footprint_size = ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE,
+        .revision = UINT64_C(0x434f4c4f53534501),
+        .tile_flags = col_route_topology_flags,
+        .tile_flags_ctx = NULL,
+    };
+    col_route_topology_owner.topology =
+        encounter_arena_topology_build(&spec);
+    encounter_arena_topology_finalize(col_route_topology_owner.topology);
+    col_route_topology_owner.collision_map = collision_map;
+    col_route_topology_owner.world_offset_x = ctx->world_offset_x;
+    col_route_topology_owner.world_offset_y = ctx->world_offset_y;
+    ctx->route_topology = col_route_topology_owner.topology;
+}
+
 static void col_init_context_typed(ColosseumContext* ctx) {
     memset(ctx, 0, sizeof(*ctx));
     ctx->config = col_default_config();
@@ -306,6 +360,7 @@ static ColosseumContext* col_legacy_context(void) {
     static int initialized = 0;
     if (!initialized) {
         col_init_context_typed(&ctx);
+        col_bind_route_topology(&ctx, NULL);
         initialized = 1;
     }
     return &ctx;
@@ -326,7 +381,7 @@ static void col_init_state(EncounterState* state, EncounterContext* context) {
 
 static EncounterState* col_create(void) {
     ColosseumState* s = (ColosseumState*)calloc(1, sizeof(ColosseumState));
-    col_init_state_typed(s, col_legacy_context());
+    col_init_state_typed(s, NULL);
     return (EncounterState*)s;
 }
 

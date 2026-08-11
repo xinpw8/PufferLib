@@ -84,28 +84,25 @@ static int col_npc_move_overlap_hold(void* ctx) {
 
 typedef struct {
     ColosseumState* s;
+    const EncounterArenaTopology* topology;
     int size;
-    uint16_t gen;
-
     int ignore_npcs;
 } ColoNpcPathCtx;
 
-typedef struct {
-    uint16_t blocked_gen[COLO_ARENA_WIDTH][COLO_ARENA_HEIGHT];
-    uint8_t blocked_value[COLO_ARENA_WIDTH][COLO_ARENA_HEIGHT];
-    uint16_t counter;
-} ColoNpcPathCache;
-
-static OSRS_THREAD_LOCAL ColoNpcPathCache col_npc_path_cache;
-
-static ColoNpcPathCtx col_npc_path_ctx_begin(ColosseumState* s, int size) {
-    col_npc_path_cache.counter++;
-    if (col_npc_path_cache.counter == 0) {
-        memset(col_npc_path_cache.blocked_gen, 0,
-            sizeof(col_npc_path_cache.blocked_gen));
-        col_npc_path_cache.counter = 1;
+static ColoNpcPathCtx col_npc_path_ctx_begin(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    int size
+) {
+    if (!topology) {
+        fprintf(stderr, "colosseum NPC route topology is not bound\n");
+        abort();
     }
-    return (ColoNpcPathCtx){ .s = s, .size = size, .gen = col_npc_path_cache.counter };
+    return (ColoNpcPathCtx){
+        .s = s,
+        .topology = topology,
+        .size = size,
+    };
 }
 
 static int col_npc_path_blocked_uncached(ColoNpcPathCtx* pc, int x, int y) {
@@ -125,120 +122,78 @@ static int col_npc_path_blocked_uncached(ColoNpcPathCtx* pc, int x, int y) {
     return col_npc_blocked_ignore_player(s, x, y, pc->size);
 }
 
-static int col_npc_path_blocked(void* ctx, int x, int y) {
+static int col_npc_path_blocked(void* ctx, int x, int y, int size) {
     ColoNpcPathCtx* pc = (ColoNpcPathCtx*)ctx;
-    int gx, gy;
-    if (!col_grid_index(x, y, &gx, &gy))
-        return col_npc_path_blocked_uncached(pc, x, y);
-    if (col_npc_path_cache.blocked_gen[gx][gy] != pc->gen) {
-        col_npc_path_cache.blocked_gen[gx][gy] = pc->gen;
-        col_npc_path_cache.blocked_value[gx][gy] =
-            (uint8_t)col_npc_path_blocked_uncached(pc, x, y);
+    if (size != pc->size) {
+        fprintf(stderr, "colosseum NPC route actor size changed\n");
+        abort();
     }
-    return col_npc_path_cache.blocked_value[gx][gy];
+    return col_npc_path_blocked_uncached(pc, x, y);
 }
 
-#define COL_WARBAND_BFS_MEMO_BITS 16
-#define COL_WARBAND_BFS_MEMO_SIZE (1 << COL_WARBAND_BFS_MEMO_BITS)
-static OSRS_THREAD_LOCAL uint64_t col_warband_bfs_memo_key[COL_WARBAND_BFS_MEMO_SIZE];
-static OSRS_THREAD_LOCAL uint8_t col_warband_bfs_memo_result[COL_WARBAND_BFS_MEMO_SIZE];
-
-static uint64_t col_warband_bfs_memo_pack(
-    const ColosseumState* s, int x, int y, int tx, int ty) {
-    uint64_t key = 1;
-    key = key << 6 | (uint64_t)x;
-    key = key << 6 | (uint64_t)y;
-    key = key << 6 | (uint64_t)tx;
-    key = key << 6 | (uint64_t)ty;
-    key = key << 6 | (uint64_t)s->player.x;
-    key = key << 6 | (uint64_t)s->player.y;
-    if (col_sol_clamp_active(s)) {
-        key = key << 1 | 1;
-        key = key << 6 | (uint64_t)s->sol.boss_arena_min_x;
-        key = key << 6 | (uint64_t)s->sol.boss_arena_max_x;
-        key = key << 6 | (uint64_t)s->sol.boss_arena_min_y;
-        key = key << 6 | (uint64_t)s->sol.boss_arena_max_y;
-    } else {
-        key <<= 1;
-    }
-    return key;
-}
-
-static uint32_t col_warband_bfs_memo_slot(uint64_t key) {
-    return (uint32_t)((key * 0x9E3779B97F4A7C15ULL) >> (64 - COL_WARBAND_BFS_MEMO_BITS));
-}
-
-static uint8_t col_warband_bfs_memo_encode(PathResult pr) {
-    return (uint8_t)((pr.found ? 1 : 0) |
-        (uint32_t)(pr.next_dx + 1) << 1 |
-        (uint32_t)(pr.next_dy + 1) << 3);
-}
-
-static int col_npc_path_step_with_ctx(ColoNpcPathCtx* pc, int* x, int* y, int tx, int ty) {
+static int col_npc_path_step_with_ctx(
+    ColoNpcPathCtx* pc,
+    int* x,
+    int* y,
+    int tx,
+    int ty
+) {
     if (tx < COLO_ARENA_MIN_X) tx = COLO_ARENA_MIN_X;
     if (tx > COLO_ARENA_MAX_X) tx = COLO_ARENA_MAX_X;
     if (ty < COLO_ARENA_MIN_Y) ty = COLO_ARENA_MIN_Y;
     if (ty > COLO_ARENA_MAX_Y) ty = COLO_ARENA_MAX_Y;
     if (*x == tx && *y == ty) return 0;
-    int direct_dx = (tx > *x) - (tx < *x);
-    int direct_dy = (ty > *y) - (ty < *y);
-    int direct_abs_dx = tx > *x ? tx - *x : *x - tx;
-    int direct_abs_dy = ty > *y ? ty - *y : *y - ty;
-    if (direct_abs_dx <= 1 && direct_abs_dy <= 1 &&
-            !col_npc_path_blocked(pc, tx, ty) &&
-            (direct_dx == 0 || direct_dy == 0 ||
-             (!col_npc_path_blocked(pc, *x + direct_dx, *y) &&
-              !col_npc_path_blocked(pc, *x, *y + direct_dy)))) {
-        *x = tx;
-        *y = ty;
-        return 1;
-    }
-    int memoable = pc->ignore_npcs && pc->size == 1 &&
-        *x >= COLO_ARENA_MIN_X && *x <= COLO_ARENA_MAX_X &&
-        *y >= COLO_ARENA_MIN_Y && *y <= COLO_ARENA_MAX_Y &&
-        pc->s->player.x >= COLO_ARENA_MIN_X && pc->s->player.x <= COLO_ARENA_MAX_X &&
-        pc->s->player.y >= COLO_ARENA_MIN_Y && pc->s->player.y <= COLO_ARENA_MAX_Y;
-    uint64_t memo_key = 0;
-    uint32_t memo_slot = 0;
-    if (memoable) {
-        memo_key = col_warband_bfs_memo_pack(pc->s, *x, *y, tx, ty);
-        memo_slot = col_warband_bfs_memo_slot(memo_key);
-        if (col_warband_bfs_memo_key[memo_slot] == memo_key) {
-            uint8_t r = col_warband_bfs_memo_result[memo_slot];
-            int found = r & 1;
-            int next_dx = (int)((r >> 1) & 3) - 1;
-            int next_dy = (int)((r >> 3) & 3) - 1;
-            if (!found || (next_dx == 0 && next_dy == 0)) return 0;
-            *x += next_dx;
-            *y += next_dy;
-            return 1;
-        }
-    }
 #ifdef COLO_PROFILE_ENABLED
     int col_prof_enabled =
         COLO_PROFILE_ENABLED() && !pc->s->profiling_suppressed;
     double col_prof_t0 = col_prof_enabled ? COLO_PROFILE_NOW_MS() : 0.0;
 #endif
-    PathResult pr = pathfind_step_arena(NULL, 0, *x, *y, tx, ty,
-        col_npc_path_blocked, pc,
-        COLO_ARENA_MIN_X, COLO_ARENA_MIN_Y, COLO_ARENA_WIDTH, COLO_ARENA_HEIGHT);
+    EncounterRouteInput input = {
+        .topology = pc->topology,
+        .blockers = {
+            .is_blocked = col_npc_path_blocked,
+            .ctx = pc,
+            .revision = 1,
+        },
+        .source_x = *x,
+        .source_y = *y,
+        .actor_size = pc->size,
+        .target_x = tx,
+        .target_y = ty,
+        .target_size = 1,
+        .target_kind = ENCOUNTER_ROUTE_TARGET_TILE,
+        .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_WALK,
+        .cost_policy = pc->ignore_npcs
+            ? ENCOUNTER_ROUTE_COST_SOUTH_FIRST_REVERSE
+            : ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
+    };
+    EncounterRouteResult route = encounter_route_solve(&input);
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_STEP_NPC_PATHFINDING);
 #endif
-    if (memoable) {
-        col_warband_bfs_memo_key[memo_slot] = memo_key;
-        col_warband_bfs_memo_result[memo_slot] = col_warband_bfs_memo_encode(pr);
+    if ((route.outcome != ROUTE_REACHED_TARGET &&
+            route.outcome != ROUTE_REACHED_FALLBACK) ||
+            route.distance == 0) {
+        return 0;
     }
-    if (!pr.found || (pr.next_dx == 0 && pr.next_dy == 0)) return 0;
-    *x += pr.next_dx;
-    *y += pr.next_dy;
+    *x += route.first_dx;
+    *y += route.first_dy;
     return 1;
 }
 
-static int col_npc_path_step(ColosseumState* s, int* x, int* y, int size, int tx, int ty) {
-    ColoNpcPathCtx pc = col_npc_path_ctx_begin(s, size);
+static int col_npc_path_step(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    int* x,
+    int* y,
+    int size,
+    int tx,
+    int ty
+) {
+    ColoNpcPathCtx pc = col_npc_path_ctx_begin(s, topology, size);
     return col_npc_path_step_with_ctx(&pc, x, y, tx, ty);
 }
+
 
 static void col_warband_pick_target(
     ColosseumState* s, ColoNpcPathCtx* pc, ColoNPC* npc, int* tx, int* ty) {
@@ -248,7 +203,7 @@ static void col_warband_pick_target(
     int fy = py + COLO_WARBAND_FORM_OFFSET[pref][1];
     *tx = fx;
     *ty = fy;
-    if (!col_npc_path_blocked(pc, fx, fy)) return;
+    if (!col_npc_path_blocked(pc, fx, fy, pc->size)) return;
 
     static const int ADJ[8][2] = {
         {0, 1}, {1, 0}, {-1, 0}, {0, -1},
@@ -256,7 +211,7 @@ static void col_warband_pick_target(
     int best_key = 1 << 30;
     for (int a = 0; a < 8; a++) {
         int x = px + ADJ[a][0], y = py + ADJ[a][1];
-        if (col_npc_path_blocked(pc, x, y)) continue;
+        if (col_npc_path_blocked(pc, x, y, pc->size)) continue;
         int dx = npc->x > x ? npc->x - x : x - npc->x;
         int dy = npc->y > y ? npc->y - y : y - npc->y;
         int cheb = dx > dy ? dx : dy;
@@ -265,12 +220,17 @@ static void col_warband_pick_target(
     }
 }
 
-static void col_warband_move(ColosseumState* s, int idx) {
+static void col_warband_move(
+    ColosseumState* s,
+    const ColosseumContext* ctx,
+    int idx
+) {
     ColoNPC* npc = &s->npcs[idx];
     npc->target_x = s->player.x;
     npc->target_y = s->player.y;
 
-    ColoNpcPathCtx pc = col_npc_path_ctx_begin(s, 1);
+    ColoNpcPathCtx pc =
+        col_npc_path_ctx_begin(s, ctx->route_topology, 1);
     pc.ignore_npcs = 1;
     int tx, ty;
     col_warband_pick_target(s, &pc, npc, &tx, &ty);
@@ -284,7 +244,10 @@ static void col_warband_move(ColosseumState* s, int idx) {
 }
 
 static void col_npc_move_ctx(ColosseumState* s, ColosseumContext* ctx, int idx) {
-    (void)ctx;
+    if (!ctx || !ctx->route_topology) {
+        fprintf(stderr, "colosseum route context is not bound\n");
+        abort();
+    }
     ColoNPC* npc = &s->npcs[idx];
     const ColoNpcStats* st = &COLO_NPC_STATS[npc->type];
     if (npc->type == COLO_SOL_HEREDIT) return;
@@ -292,7 +255,7 @@ static void col_npc_move_ctx(ColosseumState* s, ColosseumContext* ctx, int idx) 
     if (npc->stun_timer > 0 || npc->frozen_ticks > 0) return;
 
     if (col_type_is_warbander(npc->type)) {
-        col_warband_move(s, idx);
+        col_warband_move(s, ctx, idx);
         return;
     }
 
@@ -327,7 +290,9 @@ static void col_npc_move_ctx(ColosseumState* s, ColosseumContext* ctx, int idx) 
 
         moved = 0;
         if (encounter_dist_to_npc(tx, ty, npc->x, npc->y, size) > 1)
-            moved = col_npc_path_step(s, &npc->x, &npc->y, size, tx - 1, ty - 1);
+            moved = col_npc_path_step(
+                s, ctx->route_topology,
+                &npc->x, &npc->y, size, tx - 1, ty - 1);
     } else {
         EncounterNpcStepPolicy step_policy = is_ranged
             ? ENCOUNTER_NPC_STEP_OSRS_AGGRO_TARGET

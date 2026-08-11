@@ -169,33 +169,89 @@ static int pvp_tile_walkable(void* ctx, int x, int y) {
     return is_in_wilderness(x, y) && collision_tile_walkable(cmap, 0, x, y);
 }
 
+typedef struct {
+    EncounterArenaTopology* topology;
+    const CollisionMap* collision_map;
+} PvpRouteTopologyOwner;
+
+static PvpRouteTopologyOwner pvp_route_topology_owner;
+
+static uint32_t pvp_route_topology_flags(void* data, int x, int y) {
+    const CollisionMap* collision_map = (const CollisionMap*)data;
+    if (!is_in_wilderness(x, y)) return COLLISION_BLOCKED | LOS_FULL_MASK;
+    return collision_map
+        ? (uint32_t)collision_get_flags(collision_map, 0, x, y)
+        : 0;
+}
+
+static const EncounterArenaTopology* pvp_route_topology_setup(
+    const CollisionMap* collision_map
+) {
+    if (pvp_route_topology_owner.topology) {
+        if (pvp_route_topology_owner.collision_map != collision_map) {
+            fprintf(stderr, "NH PvP route topology collision map changed\n");
+            abort();
+        }
+        return pvp_route_topology_owner.topology;
+    }
+    EncounterArenaTopologyBuildSpec spec = {
+        .origin_x = FIGHT_AREA_BASE_X,
+        .origin_y = FIGHT_AREA_BASE_Y,
+        .width = FIGHT_AREA_WIDTH,
+        .height = FIGHT_AREA_HEIGHT,
+        .max_footprint_size = 1,
+        .revision = UINT64_C(0x4e48505650000001),
+        .tile_flags = pvp_route_topology_flags,
+        .tile_flags_ctx = (void*)collision_map,
+    };
+    pvp_route_topology_owner.topology =
+        encounter_arena_topology_build(&spec);
+    encounter_arena_topology_finalize(pvp_route_topology_owner.topology);
+    pvp_route_topology_owner.collision_map = collision_map;
+    return pvp_route_topology_owner.topology;
+}
+
+
 static void move_toward_target(
     Player* p,
     Player* target,
     int attack_range,
-    const CollisionMap* cmap
+    const CollisionMap* cmap,
+    const EncounterArenaTopology* topology
 ) {
     if (p->frozen_ticks > 0) {
         return;
     }
-    int moved = encounter_chase_attack_target(
-        p,
-        target->x,
-        target->y,
-        1,
-        attack_range,
-        cmap,
-        0,
-        0,
-        pvp_tile_walkable,
-        (void*)cmap,
-        NULL,
-        NULL,
-        osrs_los_open_query(),
-        0,
-        0,
-        0,
-        0);
+    EncounterRouteInput route_input = {
+        .topology = topology,
+        .blockers = {0},
+        .source_x = p->x,
+        .source_y = p->y,
+        .actor_size = 1,
+        .target_x = target->x,
+        .target_y = target->y,
+        .target_size = 1,
+        .target_kind = ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY,
+        .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+        .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
+    };
+    EncounterRouteResult route = encounter_route_solve(&route_input);
+    int moved = 0;
+    if (route.outcome == ROUTE_REACHED_TARGET ||
+            route.outcome == ROUTE_REACHED_FALLBACK) {
+        p->x += route.first_dx;
+        p->y += route.first_dy;
+        moved = route.first_dx != 0 || route.first_dy != 0;
+        if ((route.run_dx != 0 || route.run_dy != 0) &&
+                !encounter_player_can_attack(
+                    p->x, p->y,
+                    target->x, target->y, 1, attack_range,
+                    cmap, 0, 0, osrs_los_open_query())) {
+            p->x += route.run_dx;
+            p->y += route.run_dy;
+            moved = 1;
+        }
+    }
     p->is_moving = moved;
 }
 
@@ -279,24 +335,29 @@ static int pvp_lookup_attack_target(void* ctx, int target_slot, OsrsAttackTarget
     return 1;
 }
 
-static inline OsrsEncounterArena pvp_build_arena(OsrsEnv* env) {
+static inline OsrsEncounterArena pvp_build_arena(
+    OsrsEnv* env,
+    const EncounterArenaTopology* topology
+) {
     OsrsEncounterArena arena;
+    arena.topology = topology;
+    arena.blockers = (EncounterRouteBlockers){0};
+    arena.movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN;
+    arena.cost_policy = ENCOUNTER_ROUTE_COST_OSRS;
+    arena.explicit_cost_policy = ENCOUNTER_ROUTE_COST_DIRECT;
     arena.collision_map = (const CollisionMap*)env->collision_map;
     arena.world_offset_x = 0;
     arena.world_offset_y = 0;
-    arena.is_walkable = pvp_tile_walkable;
-    arena.walkable_ctx = (void*)arena.collision_map;
-    arena.extra_blocked = NULL;
-    arena.blocked_ctx = NULL;
     arena.los_query = osrs_los_open_query();
-    arena.arena_base_x = 0;
-    arena.arena_base_y = 0;
-    arena.arena_w = 0;
-    arena.arena_h = 0;
     return arena;
 }
 
-static inline OsrsPlayerStepResult pvp_step_player_movement(OsrsEnv* env, int agent_idx) {
+static inline OsrsPlayerStepResult pvp_step_player_movement(
+    OsrsEnv* env,
+    int agent_idx,
+    const EncounterArenaTopology* topology,
+    OsrsActorRouteCache* route_cache
+) {
     OsrsPlayerStepResult result = {.target_slot = -1};
     int* dest_x = &env->pvp_runtime.walk_dest_x[agent_idx];
     int* dest_y = &env->pvp_runtime.walk_dest_y[agent_idx];
@@ -304,10 +365,11 @@ static inline OsrsPlayerStepResult pvp_step_player_movement(OsrsEnv* env, int ag
     if (*dest_x < 0 || *dest_y < 0) return result;
 
     Player* p = &env->players[agent_idx];
-    OsrsEncounterArena arena = pvp_build_arena(env);
+    OsrsEncounterArena arena = pvp_build_arena(env, topology);
     OsrsPlayerStepInput input = {
         .player = p,
         .interaction = &p->interaction,
+        .route_cache = route_cache,
         .target_lookup = pvp_lookup_attack_target,
         .target_ctx = env,
         .command = {

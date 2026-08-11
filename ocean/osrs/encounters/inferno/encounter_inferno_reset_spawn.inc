@@ -347,6 +347,7 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     InfernoState* s = (InfernoState*)state;
     InfernoContext* ctx = (InfernoContext*)context;
     if (!ctx) ctx = inf_legacy_context();
+    osrs_actor_route_cache_clear(&ctx->player_route_cache);
     int saved_start = ctx->config.start_wave;
     uint32_t saved_rng = s->rng_state;
     memset(s, 0, sizeof(InfernoState));
