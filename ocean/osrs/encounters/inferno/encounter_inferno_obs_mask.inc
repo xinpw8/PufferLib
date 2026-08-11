@@ -128,12 +128,11 @@ static void inf_refresh_current_obs_slots_ctx(InfernoState* s, const InfernoCont
         type_cap[type] = INF_OBS_SLOT_LAYOUT[layout_idx].count;
         bucket_capacity += type_cap[type];
     }
-    assert(bucket_capacity <= INF_MAX_NPCS);
 
     int next_slot = 0;
     for (int pass = 0; pass < 2; pass++) {
         int pass_counts[INF_NUM_NPC_TYPES] = {0};
-        int pass_slots[INF_MAX_NPCS];
+        int pass_slots[bucket_capacity];
         for (int npc_idx = 0; npc_idx < INF_MAX_NPCS; npc_idx++) {
             InfNPC* npc = &s->npcs[npc_idx];
             if (!npc->active || npc->type < 0 || npc->type >= INF_NUM_NPC_TYPES)

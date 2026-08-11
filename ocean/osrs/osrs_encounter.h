@@ -1915,8 +1915,33 @@ static inline int encounter_chase_attack_target(
             break;
         int next_dx;
         int next_dy;
-        if (step == 1 && arena_w > 0 &&
-                (cached_run_dx != 0 || cached_run_dy != 0)) {
+        int use_cached_run = step == 1 && arena_w > 0 &&
+            (cached_run_dx != 0 || cached_run_dy != 0);
+        if (use_cached_run) {
+            int next_x = p->x + cached_run_dx;
+            int next_y = p->y + cached_run_dy;
+            if (!is_walkable(ctx, next_x, next_y) ||
+                    (extra_blocked && extra_blocked(
+                        blocked_ctx,
+                        next_x + world_offset_x,
+                        next_y + world_offset_y))) {
+                use_cached_run = 0;
+            } else if (cached_run_dx != 0 && cached_run_dy != 0 &&
+                    (!is_walkable(ctx, next_x, p->y) ||
+                     !is_walkable(ctx, p->x, next_y) ||
+                     (extra_blocked &&
+                        (extra_blocked(
+                            blocked_ctx,
+                            next_x + world_offset_x,
+                            p->y + world_offset_y) ||
+                         extra_blocked(
+                            blocked_ctx,
+                            p->x + world_offset_x,
+                            next_y + world_offset_y))))) {
+                use_cached_run = 0;
+            }
+        }
+        if (use_cached_run) {
             next_dx = cached_run_dx;
             next_dy = cached_run_dy;
         } else {
