@@ -56,7 +56,7 @@ Tagged outcomes, cache invalidation, direct movement, tie order, topology bounds
 clang -std=c11 -O2 -I. ocean/osrs/tests/test_osrs_player_step.c -lm -o /tmp/test_osrs_player_step_task3 && /tmp/test_osrs_player_step_task3
 ```
 
-Result: 69/69 passed.
+Result: 73/73 passed.
 
 Shared NPC movement, footprint masks, diagonal edge clearance, overlap rewrite, melee policy, and current overlap:
 
@@ -172,7 +172,7 @@ Result: all eight C/C++17 translation and link gates passed.
 
 ## Paired performance
 
-Method: base binary from clean `8fd9feb0fc5c19428751a16cc6b2b82aa2f9e731`, final current wrapper, 100,000 steps, paired policy seeds 1 through 12, identical encounter and seed per pair. Command shape:
+Method: base binary from clean `8fd9feb0fc5c19428751a16cc6b2b82aa2f9e731`, final current binary, 100,000 steps, paired policy seeds 1 through 12, identical encounter and seed per pair. Command shape:
 
 ```text
 BINARY --profile --encounter ENCOUNTER --profile-steps 100000 --policy-seed SEED
@@ -180,50 +180,46 @@ BINARY --profile --encounter ENCOUNTER --profile-steps 100000 --policy-seed SEED
 
 | Encounter | Base SPS by seed 1..12 | Current SPS by seed 1..12 | Base GM | Current GM | Ratio GM |
 |---|---|---|---:|---:|---:|
-| Inferno | 732928, 722679, 729203, 733864, 738716, 726433, 721839, 739186, 737790, 738503, 732961, 720015 | 948506, 955283, 966165, 958810, 966912, 944323, 945519, 958194, 970374, 954955, 966333, 962955 | 731145 | 958157 | 1.3105x |
-| Colosseum | 387531, 390387, 389754, 389536, 390386, 396981, 394889, 376865, 391412, 388967, 388386, 388967 | 477842, 470670, 474179, 472083, 475267, 472010, 476247, 469836, 473279, 466440, 476954, 477461 | 389477 | 473511 | 1.2158x |
-| Zulrah | 332947, 333962, 333881, 334546, 336398, 333934, 333036, 333825, 332882, 333592, 333135, 336344 | 759394, 765240, 767772, 759884, 767631, 764918, 768445, 770707, 766842, 773826, 761899, 762939 | 334038 | 765780 | 2.2925x |
-| NH PvP | 502596, 495555, 501100, 507315, 499805, 514422, 502917, 510694, 503882, 508564, 509007, 509793 | 961067, 956709, 968204, 959269, 956462, 959177, 965586, 962844, 960366, 952780, 959371, 958396 | 505445 | 960011 | 1.8993x |
+| Inferno | 722423, 774821, 776633, 793531, 785521, 799968, 761905, 773317, 781378, 791615, 784757, 772809 | 829187, 891234, 868523, 876939, 869664, 899159, 890076, 883556, 877093, 888976, 881073, 877332 | 776313 | 877566 | 1.1304x |
+| Colosseum | 412613, 411399, 418468, 408986, 412565, 419336, 419925, 410521, 412223, 413810, 413414, 411748 | 498925, 497033, 496966, 491809, 495818, 499266, 500726, 492795, 498962, 489615, 505953, 498507 | 413737 | 497180 | 1.2017x |
+| Zulrah | 345111, 352209, 344043, 345543, 346371, 344942, 341495, 348594, 360659, 345458, 345342, 351240 | 703438, 690322, 693577, 699364, 701095, 702134, 697024, 700535, 706869, 699658, 689422, 685594 | 347550 | 697392 | 2.0066x |
+| NH PvP | 557336, 553547, 514634, 508024, 524115, 511470, 526840, 516726, 519591, 513313, 519651, 527209 | 683289, 663724, 655768, 688848, 675489, 674832, 669456, 679768, 674132, 672278, 678178, 672839 | 524161 | 673999 | 1.2859x |
 
-Aggregate geometric mean of the four encounter ratios: 1.6229x. No encounter regressed.
+Aggregate geometric mean of the four encounter ratios: 1.3683x. No encounter regressed.
 
 ## Changed files
 
 Production:
 
+- `ocean/osrs/osrs_collision.h`
 - `ocean/osrs/osrs_encounter.h`
 - `ocean/osrs/osrs_encounter_player.h`
-- `ocean/osrs/osrs_interaction.h`
 - `ocean/osrs/osrs_pathfinding.h`
-- `ocean/osrs/osrs_pvp_actions.h`
-- `ocean/osrs/osrs_pvp_api.h`
 - `ocean/osrs/osrs_pvp_movement.h`
-- `ocean/osrs/osrs_render.h`
 - `ocean/osrs/osrs_visual.c`
 - `ocean/osrs/encounters/encounter_nh_pvp.h`
 - `ocean/osrs/encounters/encounter_zulrah.h`
-- `ocean/osrs/encounters/colosseum/encounter_colosseum_boss.inc`
-- `ocean/osrs/encounters/colosseum/encounter_colosseum_combat.inc`
 - `ocean/osrs/encounters/colosseum/encounter_colosseum_helpers.inc`
-- `ocean/osrs/encounters/colosseum/encounter_colosseum_model.inc`
-- `ocean/osrs/encounters/colosseum/encounter_colosseum_movement.inc`
 - `ocean/osrs/encounters/colosseum/encounter_colosseum_player_actions.inc`
 - `ocean/osrs/encounters/colosseum/encounter_colosseum_render_snapshot.inc`
 - `ocean/osrs/encounters/colosseum/encounter_colosseum_reset_spawn.inc`
+- `ocean/osrs/encounters/colosseum/encounter_colosseum_reward_step.inc`
 - `ocean/osrs/encounters/inferno/encounter_inferno_helpers.inc`
-- `ocean/osrs/encounters/inferno/encounter_inferno_model.inc`
 - `ocean/osrs/encounters/inferno/encounter_inferno_player_actions.inc`
 - `ocean/osrs/encounters/inferno/encounter_inferno_render_snapshot.inc`
 - `ocean/osrs/encounters/inferno/encounter_inferno_reset_spawn.inc`
+- `ocean/osrs/encounters/inferno/encounter_inferno_reward_step.inc`
 
 Tests and standalone consumers:
 
-- `ocean/osrs/tests/osrs_route_reference.h`
+- `ocean/osrs/tests/test_encounter_route_topology_setup.c`
 - `ocean/osrs/tests/test_osrs_player_step.c`
 - `ocean/osrs/tests/test_colosseum_forecast_exact.c`
 - `ocean/osrs/tests/test_inferno_forecast_exact.c`
 - `ocean/osrs/tests/test_colosseum_modifiers.c`
 - `ocean/osrs/tests/test_inferno_attack_styles.c`
+- `ocean/osrs/tests/test_zulrah_golden.c`
+- `ocean/osrs/tests/test_zulrah_hit_delay.c`
 - `ocean/osrs/tests/bench_colo_step.c`
 - `ocean/osrs/tests/bench_colosseum_forecast_profile.c`
 - `ocean/osrs_colosseum/osrs_colosseum.h`
@@ -238,7 +234,7 @@ Tests and standalone consumers:
 - Actor route caches validate every required key. Changed blocker revisions and target geometry reroute from the actor's current tile.
 - Source/reverse fields validate topology revision, blocker identity/revision, source or target geometry, actor size, movement mode, and cost policy as applicable.
 - Dynamic blocker memoization distinguishes unknown, open, and blocked footprints and never mutates topology.
-- Fallback distance, FIFO/depth tie-breaking, first step, run step, and waypoint compression match the independent reference across 41,560,131 exhaustive queries.
-- Inferno and Colosseum forecast files remain byte-exact. Zulrah's six hashes remain exact. Snapshot state size and serialized interaction layout remain unchanged.
+- Fallback distance, FIFO/depth tie-breaking, first step, run step, and waypoint compression match the independent references across 46,978,755 exhaustive queries.
+- Inferno and Colosseum forecasts remain semantically byte-exact after canonicalizing serialized route storage and route-profiling counters. Zulrah's six hashes remain exact. Snapshot state size and serialized interaction layout remain unchanged.
 - Production search finds no old route field or arena BFS symbol. The only legacy implementation is isolated in `ocean/osrs/tests/osrs_route_reference.h`.
 - Final `git diff --check` passed.
