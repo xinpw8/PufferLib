@@ -28,7 +28,7 @@ static void col_write_mask_ctx(EncounterState* state, EncounterContext* context,
         cell_can_eat[cell] = 0;
         cell_can_drink[cell] = 0;
         OsrsInventoryClickResolution r =
-            osrs_inventory_cell_click_interpret(&s->inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
+            osrs_inventory_cell_click_classify(&s->inventory_cells[cell]);
         if (r.click_action == OSRS_CLICK_EQUIP) {
             if (col_can_equip_from_cell(s, cell))
                 cell_equip_slot[cell] = osrs_item_gear_slot(s->inventory_cells[cell].item_idx);

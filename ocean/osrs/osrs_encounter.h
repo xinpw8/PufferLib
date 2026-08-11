@@ -1766,6 +1766,8 @@ static inline PathResult encounter_pathfind_arena_attack_approach(
 
     int cur_x = selected_x;
     int cur_y = selected_y;
+    int child_x = cur_x;
+    int child_y = cur_y;
     if (selected_x < 0) goto approach_done;
 
     result.found = 1;
@@ -1786,9 +1788,15 @@ static inline PathResult encounter_pathfind_arena_attack_approach(
         if (prev_x == local_src_x && prev_y == local_src_y) {
             result.next_dx = cur_x - local_src_x;
             result.next_dy = cur_y - local_src_y;
+            if (child_x != cur_x || child_y != cur_y) {
+                result.run_dx = child_x - cur_x;
+                result.run_dy = child_y - cur_y;
+            }
             goto approach_done;
         }
 
+        child_x = cur_x;
+        child_y = cur_y;
         cur_x = prev_x;
         cur_y = prev_y;
         if (APPROACH_VIA(cur_x, cur_y) == VIA_NONE ||
@@ -1895,26 +1903,42 @@ static inline int encounter_chase_attack_target(
         }
     }
 
+    int cached_run_dx = 0;
+    int cached_run_dy = 0;
     int steps = 0;
     for (int step = 0; step < 2; step++) {
         if (encounter_player_can_attack(p->x, p->y, target_x, target_y,
                                          target_size, attack_range,
                                          los_query))
             break;
-        PathResult pr = (arena_w > 0)
-            ? encounter_pathfind_arena_attack_approach(
-                cmap, world_offset_x, world_offset_y,
-                p->x, p->y,
-                target_x, target_y, target_size, attack_range,
-                is_walkable, ctx,
-                extra_blocked, blocked_ctx,
-                los_query,
-                arena_base_x, arena_base_y, arena_w, arena_h)
-            : encounter_pathfind(cmap, world_offset_x, world_offset_y,
-                p->x, p->y, cx, cy,
-                extra_blocked, blocked_ctx);
-        if (!pr.found || (pr.next_dx == 0 && pr.next_dy == 0)) break;
-        int nx = p->x + pr.next_dx, ny = p->y + pr.next_dy;
+        int next_dx;
+        int next_dy;
+        if (step == 1 && arena_w > 0 &&
+                (cached_run_dx != 0 || cached_run_dy != 0)) {
+            next_dx = cached_run_dx;
+            next_dy = cached_run_dy;
+        } else {
+            PathResult pr = (arena_w > 0)
+                ? encounter_pathfind_arena_attack_approach(
+                    cmap, world_offset_x, world_offset_y,
+                    p->x, p->y,
+                    target_x, target_y, target_size, attack_range,
+                    is_walkable, ctx,
+                    extra_blocked, blocked_ctx,
+                    los_query,
+                    arena_base_x, arena_base_y, arena_w, arena_h)
+                : encounter_pathfind(cmap, world_offset_x, world_offset_y,
+                    p->x, p->y, cx, cy,
+                    extra_blocked, blocked_ctx);
+            if (!pr.found || (pr.next_dx == 0 && pr.next_dy == 0)) break;
+            next_dx = pr.next_dx;
+            next_dy = pr.next_dy;
+            if (step == 0) {
+                cached_run_dx = pr.run_dx;
+                cached_run_dy = pr.run_dy;
+            }
+        }
+        int nx = p->x + next_dx, ny = p->y + next_dy;
         if (!is_walkable(ctx, nx, ny)) break;
         p->x = nx; p->y = ny;
         steps++;

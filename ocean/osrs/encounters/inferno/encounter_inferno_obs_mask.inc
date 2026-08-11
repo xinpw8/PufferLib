@@ -118,32 +118,48 @@ static void inf_refresh_current_obs_slots_ctx(InfernoState* s, const InfernoCont
     int obs_slots[INF_OBS_NPCS];
     for (int slot = 0; slot < INF_OBS_NPCS; slot++) obs_slots[slot] = -1;
 
+    int type_base[INF_NUM_NPC_TYPES] = {0};
+    int type_cap[INF_NUM_NPC_TYPES] = {0};
     int slot_counts[INF_NUM_NPC_TYPES] = {0};
-    int next_slot = 0;
+    int bucket_capacity = 0;
+    for (int layout_idx = 0; layout_idx < INF_NUM_NPC_TYPES; layout_idx++) {
+        InfNPCType type = INF_OBS_SLOT_LAYOUT[layout_idx].type;
+        type_base[type] = bucket_capacity;
+        type_cap[type] = INF_OBS_SLOT_LAYOUT[layout_idx].count;
+        bucket_capacity += type_cap[type];
+    }
+    assert(bucket_capacity <= INF_MAX_NPCS);
 
+    int next_slot = 0;
     for (int pass = 0; pass < 2; pass++) {
+        int pass_counts[INF_NUM_NPC_TYPES] = {0};
+        int pass_slots[INF_MAX_NPCS];
+        for (int npc_idx = 0; npc_idx < INF_MAX_NPCS; npc_idx++) {
+            InfNPC* npc = &s->npcs[npc_idx];
+            if (!npc->active || npc->type < 0 || npc->type >= INF_NUM_NPC_TYPES)
+                continue;
+
+            InfNPCType type = npc->type;
+            int eligible = pass == 0
+                ? npc->death_ticks == 0
+                : npc->death_ticks > 0 &&
+                    inf_npc_is_phantom_barrage_obs_candidate(s, ctx, npc_idx);
+            if (!eligible || slot_counts[type] >= type_cap[type]) continue;
+
+            pass_slots[type_base[type] + pass_counts[type]++] = npc_idx;
+            slot_counts[type]++;
+        }
+
         for (int layout_idx = 0; layout_idx < INF_NUM_NPC_TYPES; layout_idx++) {
             InfNPCType type = INF_OBS_SLOT_LAYOUT[layout_idx].type;
-            int type_cap = INF_OBS_SLOT_LAYOUT[layout_idx].count;
-
-            for (int npc_idx = 0; npc_idx < INF_MAX_NPCS; npc_idx++) {
-                InfNPC* npc = &s->npcs[npc_idx];
-                if (!npc->active || npc->type != type) continue;
-
-                int eligible = pass == 0
-                    ? npc->death_ticks == 0
-                    : npc->death_ticks > 0 &&
-                        inf_npc_is_phantom_barrage_obs_candidate(s, ctx, npc_idx);
-                if (!eligible || slot_counts[type] >= type_cap) continue;
-
+            for (int type_slot = 0; type_slot < pass_counts[type]; type_slot++) {
                 if (next_slot >= INF_OBS_NPCS) {
                     fprintf(stderr,
                         "inferno: observation target capacity exceeded at %d slots\n",
                         INF_OBS_NPCS);
                     abort();
                 }
-                obs_slots[next_slot++] = npc_idx;
-                slot_counts[type]++;
+                obs_slots[next_slot++] = pass_slots[type_base[type] + type_slot];
             }
         }
     }
@@ -326,24 +342,30 @@ static void inf_write_obs_ctx(
     INF_PROFILE_MARK(INF_PROF_OBS_PENDING_HITS);
 #endif
 
-    int used_sparks[INF_MAX_PENDING_SPARKS] = {0};
-    for (int slot_idx = 0; slot_idx < INF_SPARK_OBS_SLOTS; slot_idx++) {
-        int best = -1;
-        for (int spark_idx = 0; spark_idx < INF_MAX_PENDING_SPARKS; spark_idx++) {
-            if (used_sparks[spark_idx] || !s->pending_sparks[spark_idx].active)
-                continue;
-            if (best < 0 || inf_pending_spark_obs_less(
+    int spark_order[INF_MAX_PENDING_SPARKS];
+    int spark_count = 0;
+    for (int spark_idx = 0; spark_idx < INF_MAX_PENDING_SPARKS; spark_idx++) {
+        if (!s->pending_sparks[spark_idx].active) continue;
+        int order_idx = spark_count;
+        while (order_idx > 0) {
+            int previous_idx = spark_order[order_idx - 1];
+            if (!inf_pending_spark_obs_less(
                     s, &s->pending_sparks[spark_idx], spark_idx,
-                    &s->pending_sparks[best], best))
-                best = spark_idx;
+                    &s->pending_sparks[previous_idx], previous_idx))
+                break;
+            spark_order[order_idx] = previous_idx;
+            order_idx--;
         }
+        spark_order[order_idx] = spark_idx;
+        spark_count++;
+    }
 
-        if (best < 0) {
+    for (int slot_idx = 0; slot_idx < INF_SPARK_OBS_SLOTS; slot_idx++) {
+        if (slot_idx >= spark_count) {
             i += INF_FEATURES_PER_SPARK;
             continue;
         }
-        const InfPendingSpark* spark = &s->pending_sparks[best];
-        used_sparks[best] = 1;
+        const InfPendingSpark* spark = &s->pending_sparks[spark_order[slot_idx]];
         obs[i++] = (float)(spark->x - px) / (float)INF_ARENA_WIDTH;
         obs[i++] = (float)(spark->y - py) / (float)INF_ARENA_HEIGHT;
         obs[i++] = (float)spark->ticks_remaining / 10.0f;
@@ -492,7 +514,7 @@ static void inf_write_mask_ctx(
             cell_can_drink[c] = 0;
             const OsrsInventoryCell* cell = &s->inventory_cells[c];
             OsrsInventoryClickResolution resolution =
-                osrs_inventory_cell_click_interpret(cell, OSRS_CLICK_TICK_FIRST);
+                osrs_inventory_cell_click_classify(cell);
             switch (resolution.click_action) {
                 case OSRS_CLICK_EQUIP:
                     if (osrs_can_equip_from_cell(&s->player, s->inventory_cells, c))

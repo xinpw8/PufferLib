@@ -37,6 +37,8 @@ typedef struct {
     int next_dy;
     int dest_x;
     int dest_y;
+    int run_dx;
+    int run_dy;
 } PathResult;
 
 typedef int (*pathfind_blocked_fn)(void* ctx, int abs_x, int abs_y);

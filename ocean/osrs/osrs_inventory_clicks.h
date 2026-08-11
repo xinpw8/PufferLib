@@ -514,26 +514,10 @@ static inline uint16_t osrs_consumable_raw_osrs_id_after_drink(uint16_t raw_osrs
     return 0;
 }
 
-static inline OsrsInventoryClickResolution osrs_inventory_click_interpret(
+static inline OsrsInventoryClickResolution osrs_inventory_click_classify(
     uint8_t item_idx,
-    uint16_t raw_osrs_id,
-    OsrsClickTickMultiplicity tick_multiplicity
+    uint16_t raw_osrs_id
 ) {
-    OsrsInventoryClickResolution none_resolution = {
-        .click_action = OSRS_CLICK_NONE,
-        .consumable_kind = OSRS_CONSUMABLE_NONE,
-        .dose_count = 0,
-        .raw_osrs_id_after_drink = 0,
-    };
-    switch (tick_multiplicity) {
-        case OSRS_CLICK_TICK_DUPLICATE:
-            return none_resolution;
-        case OSRS_CLICK_TICK_FIRST:
-            break;
-        default:
-            osrs_inventory_clicks_trap();
-    }
-
     if (item_idx != ITEM_NONE) {
         OsrsClickAction action = osrs_item_click_action(item_idx);
         if (raw_osrs_id != 0 && raw_osrs_id != ITEM_DATABASE[item_idx].item_id) {
@@ -541,30 +525,54 @@ static inline OsrsInventoryClickResolution osrs_inventory_click_interpret(
         }
         return (OsrsInventoryClickResolution){
             .click_action = action,
-            .consumable_kind = OSRS_CONSUMABLE_NONE,
-            .dose_count = 0,
-            .raw_osrs_id_after_drink = 0,
         };
     }
 
     if (raw_osrs_id == 0) {
-        return none_resolution;
+        return (OsrsInventoryClickResolution){
+            .click_action = OSRS_CLICK_NONE,
+        };
     }
 
     OsrsConsumableClick consumable =
         osrs_consumable_click_lookup_raw_osrs_id(raw_osrs_id);
-    uint16_t after_drink = 0;
-    if (consumable.click_action == OSRS_CLICK_DRINK &&
-        consumable.dose_count > 0) {
-        after_drink = osrs_consumable_raw_osrs_id_after_drink(raw_osrs_id);
-    }
-
     return (OsrsInventoryClickResolution){
         .click_action = consumable.click_action,
         .consumable_kind = consumable.consumable_kind,
         .dose_count = consumable.dose_count,
-        .raw_osrs_id_after_drink = after_drink,
     };
+}
+
+static inline OsrsInventoryClickResolution osrs_inventory_click_interpret(
+    uint8_t item_idx,
+    uint16_t raw_osrs_id,
+    OsrsClickTickMultiplicity tick_multiplicity
+) {
+    switch (tick_multiplicity) {
+        case OSRS_CLICK_TICK_DUPLICATE:
+            return (OsrsInventoryClickResolution){
+                .click_action = OSRS_CLICK_NONE,
+            };
+        case OSRS_CLICK_TICK_FIRST:
+            break;
+        default:
+            osrs_inventory_clicks_trap();
+    }
+
+    OsrsInventoryClickResolution resolution =
+        osrs_inventory_click_classify(item_idx, raw_osrs_id);
+    if (resolution.click_action == OSRS_CLICK_DRINK &&
+            resolution.dose_count > 0) {
+        resolution.raw_osrs_id_after_drink =
+            osrs_consumable_raw_osrs_id_after_drink(raw_osrs_id);
+    }
+    return resolution;
+}
+
+static inline OsrsInventoryClickResolution osrs_inventory_cell_click_classify(
+    const OsrsInventoryCell* cell
+) {
+    return osrs_inventory_click_classify(cell->item_idx, cell->raw_osrs_id);
 }
 
 static inline OsrsInventoryClickResolution osrs_inventory_cell_click_interpret(

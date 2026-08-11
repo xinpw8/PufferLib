@@ -114,6 +114,20 @@ static int test_pure_click_interpreter(void) {
     return 0;
 }
 
+static int test_cell_click_classification(void) {
+    OsrsInventoryCell brew = osrs_inventory_cell_from_raw_osrs_id(6685);
+    OsrsInventoryClickResolution resolution =
+        osrs_inventory_cell_click_classify(&brew);
+    CHECK("brew classification resolves drink",
+          resolution.click_action == OSRS_CLICK_DRINK);
+    CHECK("brew classification preserves kind",
+          resolution.consumable_kind == OSRS_CONSUMABLE_BREW);
+    CHECK("brew classification preserves dose", resolution.dose_count == 4);
+    CHECK("classification skips post-drink mutation",
+          resolution.raw_osrs_id_after_drink == 0);
+    return 0;
+}
+
 static int test_cell_click_attributes_to_slot_item(void) {
     OsrsInventoryCell cells[OSRS_INVENTORY_SIZE];
     for (int i = 0; i < OSRS_INVENTORY_SIZE; i++)
@@ -333,6 +347,7 @@ int main(void) {
     if (test_sara_brew_dose_variants()) return 1;
     if (test_dose_after_drink()) return 1;
     if (test_pure_click_interpreter()) return 1;
+    if (test_cell_click_classification()) return 1;
     if (test_cell_click_attributes_to_slot_item()) return 1;
     if (test_cell_drink_decrements_one_dose()) return 1;
     if (test_shared_drink_consume_owns_timer_and_one_dose()) return 1;
