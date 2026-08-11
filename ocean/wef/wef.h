@@ -73,6 +73,14 @@ typedef float obs_t;
 #define MORMYROMAST_MAX_VM 5e-2f
 #define KNOLLEN_MIN_VM 2e-7f
 
+// Sensor interaction ranges in cm.
+// Food/prey and conspecifics (other agents) have separate cutoffs for morm & amp.
+#define MORM_FOOD_RANGE_CM 5.0f       // prey ≤ 5 cm
+#define MORM_AGENT_RANGE_CM 10.0f     // agents ≤ 10 cm
+#define AMP_FOOD_RANGE_CM 4.0f        // prey ≤ 4 cm
+#define AMP_AGENT_RANGE_CM 8.0f       // conspecifics ≤ 8 cm
+#define KNOLLEN_AGENT_RANGE_CM 100.0f // conspecific EOD ≤ 100 cm
+
 // Arena wall indices for first-order image charges.
 #define WALL_LEFT 0
 #define WALL_RIGHT 1
@@ -256,8 +264,6 @@ struct Env {
     float max_arena_size_y;
     float electric_field_radius_cm;
     float reflection_wall_range_cm;
-    float field_fish_range_cm;
-    float field_food_range_cm;
     FoodDistribution food_distribution;
     int configured_num_food;
     float patch_radius_cm;
@@ -282,14 +288,18 @@ float random_uniform(Wef* env, float low, float high) {
     return low + (high - low) * unit;
 }
 
-// Probe in cm. Sources (Mono/Dipole.p) already meters. wall_range_cm=0 → no images.
+// Probe in cm. Sources (Mono/Dipole.p) already meters.
+// Monos are always agent EODs → agent_range. Dipoles: first n_agent_dips are
+// agents, the rest food → agent_range / food_range (paper sensor cutoffs).
+// wall_range_cm=0 → no image charges.
 Vec2 measure_field(Env* env, Vec2 probe_cm, const Mono* mono, int n_mono,
-    const Dipole* dip, int n_dip, int n_agent_dipoles, float wall_range_cm) {
+    const Dipole* dip, int n_dip, int n_agent_dips,
+    float agent_range_cm, float food_range_cm, float wall_range_cm) {
     float pmx = probe_cm.x * CM_TO_M;
     float pmy = probe_cm.y * CM_TO_M;
-    float fish_r = env->field_fish_range_cm * CM_TO_M;
-    float food_r = env->field_food_range_cm * CM_TO_M;
-    float fish_range2 = fish_r * fish_r;
+    float agent_r = agent_range_cm * CM_TO_M;
+    float food_r = food_range_cm * CM_TO_M;
+    float agent_range2 = agent_r * agent_r;
     float food_range2 = food_r * food_r;
     float eps_m = FIELD_EPS_M;
     float field_x = 0.0f;
@@ -328,7 +338,8 @@ Vec2 measure_field(Env* env, Vec2 probe_cm, const Mono* mono, int n_mono,
         float sy = mono[i].p.y;
         float dx = pmx - sx;
         float dy = pmy - sy;
-        if (dx * dx + dy * dy > fish_range2) {
+        // EOD monos are always conspecific/agent sources.
+        if (dx * dx + dy * dy > agent_range2) {
             continue;
         }
         if (want_walls) {
@@ -343,7 +354,7 @@ Vec2 measure_field(Env* env, Vec2 probe_cm, const Mono* mono, int n_mono,
     for (int i = 0; i < n_dip; i++) {
         float sx = dip[i].p.x;
         float sy = dip[i].p.y;
-        float range2 = (i < n_agent_dipoles) ? fish_range2 : food_range2;
+        float range2 = (i < n_agent_dips) ? agent_range2 : food_range2;
         float dx = pmx - sx;
         float dy = pmy - sy;
         if (dx * dx + dy * dy > range2) {
@@ -436,8 +447,10 @@ void compute_observations(Wef* env) {
         float moment_x = 0.0f;
         float moment_y = 0.0f;
         if (!agent->emits_eod) {
+            // Induced by nearby EODs (conspecific EOD → body, morm agent range).
             Vec2 f = measure_field(
-                env, agent->pos, eod, n_eod, NULL, 0, 0, 0.0f
+                env, agent->pos, eod, n_eod, NULL, 0, 0,
+                MORM_AGENT_RANGE_CM, MORM_FOOD_RANGE_CM, 0.0f
             );
             moment_x = f.x * body_scale;
             moment_y = f.y * body_scale;
@@ -463,7 +476,8 @@ void compute_observations(Wef* env) {
             fc * FOOD_INTRINSIC_MOMENT_C_M,
         };
         Vec2 f = measure_field(
-            env, env->food[i].pos, eod, n_eod, NULL, 0, 0, 0.0f
+            env, env->food[i].pos, eod, n_eod, NULL, 0, 0,
+            MORM_AGENT_RANGE_CM, MORM_FOOD_RANGE_CM, 0.0f
         );
         env->food[i].induced_moment = (Vec2){f.x * food_scale, f.y * food_scale};
     }
@@ -503,11 +517,12 @@ void compute_observations(Wef* env) {
                 break;
             }
         }
-        // Mormyromasts: induced image field after direct-EOD subtraction.
+        // Mormyromasts: induced field.
         for (int sensor_idx = 0; sensor_idx < NUM_MORMYROMASTS; sensor_idx++) {
             Sensor w = sensor_world(&g_morm[sensor_idx], agent);
             Vec2 f = measure_field(
                 env, w.p, NULL, 0, induced, n_induced, env->num_agents,
+                MORM_AGENT_RANGE_CM, MORM_FOOD_RANGE_CM,
                 env->reflection_wall_range_cm
             );
             float reading = f.x * w.n.x + f.y * w.n.y;
@@ -519,11 +534,12 @@ void compute_observations(Wef* env) {
                 reading, MORMYROMAST_MIN_VM, MORMYROMAST_MAX_VM
             );
         }
-        // Ampullary: intrinsic sources with static self-field removed.
+        // Ampullary: intrinsic.
         for (int sensor_idx = 0; sensor_idx < NUM_AMPULLARY; sensor_idx++) {
             Sensor w = sensor_world(&g_amp[sensor_idx], agent);
             Vec2 f = measure_field(
                 env, w.p, NULL, 0, intrinsic, n_intrinsic, env->num_agents,
+                AMP_AGENT_RANGE_CM, AMP_FOOD_RANGE_CM,
                 env->reflection_wall_range_cm
             );
             float noise = cons_eod ? 0.5f : 0.05f;
@@ -534,7 +550,7 @@ void compute_observations(Wef* env) {
                 reading, AMPULLARY_MIN_VM, AMPULLARY_MAX_VM
             );
         }
-        // Knollenorgans: one directional 12-receptor block per conspecific.
+        // Knollenorgans: conspecific EOD only.
         int metadata_start = NUM_MORMYROMASTS + NUM_AMPULLARY + NUM_KNOLLEN * (MAX_AGENTS - 1);
         int cons_slot = 0;
         for (int other = 0; other < MAX_AGENTS; other++) {
@@ -557,7 +573,8 @@ void compute_observations(Wef* env) {
                         },
                     };
                     Vec2 f = measure_field(
-                        env, w.p, eod, 2, NULL, 0, 0, 0.0f
+                        env, w.p, eod, 2, NULL, 0, 0,
+                        KNOLLEN_AGENT_RANGE_CM, 0.0f, 0.0f
                     );
                     float raw = (f.x * w.n.x + f.y * w.n.y) *
                         random_uniform(env, 0.95f, 1.05f);
@@ -712,6 +729,7 @@ void puf_reset(Wef* env) {
         };
         Vec2 f = measure_field(
             env, probe, NULL, 0, baseline_dip, 1, 1,
+            AMP_AGENT_RANGE_CM, AMP_FOOD_RANGE_CM,
             env->reflection_wall_range_cm
         );
         env->amp_intrinsic_baseline[i] = f.x * g_amp[i].n.x + f.y * g_amp[i].n.y;
@@ -1077,12 +1095,15 @@ void puf_render(Wef* env) {
                     continue;
                 }
 
+                // Viz: knollen agent range for EODs; morm food range for food dips.
                 Vec2 f1 = measure_field(
                     env, pos, mono, n_mono, induced, n_ind, env->num_agents,
+                    KNOLLEN_AGENT_RANGE_CM, MORM_FOOD_RANGE_CM,
                     env->reflection_wall_range_cm
                 );
                 Vec2 f2 = measure_field(
                     env, pos, NULL, 0, intrinsic, n_intr, env->num_agents,
+                    KNOLLEN_AGENT_RANGE_CM, AMP_FOOD_RANGE_CM,
                     env->reflection_wall_range_cm
                 );
                 float fx = f1.x + f2.x;
@@ -1234,8 +1255,6 @@ void puf_init(Env* env, Dict* kwargs) {
     env->patch_density = (float)dict_get(kwargs, "patch_density");
     env->electric_field_radius_cm = (float)dict_get(kwargs, "electric_field_radius");
     env->reflection_wall_range_cm = (float)dict_get(kwargs, "reflection_wall_range");
-    env->field_fish_range_cm = (float)dict_get(kwargs, "field_fish_range");
-    env->field_food_range_cm = (float)dict_get(kwargs, "field_food_range");
     env->episode_length = (int)dict_get(kwargs, "episode_length");
     for (int i = 0; i < env->num_agents; i++) {
         env->agents[i].policy = 0;
