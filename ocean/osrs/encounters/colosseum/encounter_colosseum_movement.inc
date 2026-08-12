@@ -51,18 +51,18 @@ static int col_npc_has_los_to_player(
         0);
 }
 
-static int col_npc_blocked_ignore_player(
-    void* data,
+static inline int
+col_npc_blocked_ignore_player_assume_finalized_size_in_range(
+    ColoGeometryContext* geometry,
     int x,
     int y,
     int size
 ) {
-    ColoGeometryContext* geometry = (ColoGeometryContext*)data;
     ColosseumState* state = geometry->state;
     state->log.npc_blocked_calls += 1.0f;
     state->log.npc_blocked_tiles += (float)(size * size);
-    if (col_topology_footprint_blocked(
-            geometry->context, x, y, size))
+    if (encounter_arena_topology_footprint_blocked_assume_finalized_size_in_range(
+            geometry->context->route_topology, x, y, size))
         return 1;
     int sol_clamp_active = col_sol_clamp_active(state);
     for (int dx = 0; dx < size; dx++) {
@@ -78,6 +78,21 @@ static int col_npc_blocked_ignore_player(
     }
     return 0;
 }
+static int col_npc_blocked_ignore_player(
+    void* data,
+    int x,
+    int y,
+    int size
+) {
+    ColoGeometryContext* geometry = (ColoGeometryContext*)data;
+    const EncounterArenaTopology* topology =
+        geometry->context->route_topology;
+    encounter_arena_topology_require_finalized(topology);
+    encounter_arena_topology_require_footprint_size(topology, size);
+    return col_npc_blocked_ignore_player_assume_finalized_size_in_range(
+        geometry, x, y, size);
+}
+
 
 static int col_npc_blocked(void* data, int x, int y, int size) {
     ColoGeometryContext* geometry = (ColoGeometryContext*)data;
@@ -131,6 +146,8 @@ static ColoNpcPathCtx col_npc_path_ctx_begin(
     int size
 ) {
     encounter_arena_topology_require_finalized(context->route_topology);
+    encounter_arena_topology_require_footprint_size(
+        context->route_topology, size);
     return (ColoNpcPathCtx){
         .geometry = {
             .state = state,
@@ -150,8 +167,11 @@ static int col_npc_path_blocked_uncached(
             state->player.y >= y && state->player.y < y + path->size)
         return 1;
     if (path->ignore_npcs) {
-        if (col_topology_footprint_blocked(
-                path->geometry.context, x, y, path->size))
+        if (encounter_arena_topology_footprint_blocked_assume_finalized_size_in_range(
+                path->geometry.context->route_topology,
+                x,
+                y,
+                path->size))
             return 1;
         if (!col_sol_clamp_active(state)) return 0;
         for (int dx = 0; dx < path->size; dx++)
@@ -160,7 +180,7 @@ static int col_npc_path_blocked_uncached(
                     return 1;
         return 0;
     }
-    return col_npc_blocked_ignore_player(
+    return col_npc_blocked_ignore_player_assume_finalized_size_in_range(
         &path->geometry, x, y, path->size);
 }
 

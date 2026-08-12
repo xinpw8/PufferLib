@@ -1145,6 +1145,17 @@ static inline void encounter_arena_topology_require_footprint_size(
         encounter_arena_topology_abort("query footprint size", size);
 }
 
+static inline int
+encounter_arena_topology_footprint_blocked_assume_finalized_size_in_range(
+    const EncounterArenaTopology* topology,
+    int x,
+    int y,
+    int size
+) {
+    return encounter_arena_topology_footprint_blocked_raw(
+        topology, x, y, size);
+}
+
 static inline int encounter_arena_topology_footprint_blocked(
     const EncounterArenaTopology* topology,
     int x,
@@ -1153,8 +1164,9 @@ static inline int encounter_arena_topology_footprint_blocked(
 ) {
     encounter_arena_topology_require_finalized(topology);
     encounter_arena_topology_require_footprint_size(topology, size);
-    return encounter_arena_topology_footprint_blocked_raw(
-        topology, x, y, size);
+    return
+        encounter_arena_topology_footprint_blocked_assume_finalized_size_in_range(
+            topology, x, y, size);
 }
 
 static inline uint32_t encounter_arena_topology_nearby_unit_footprint_mask(
