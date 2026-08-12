@@ -161,9 +161,12 @@ static void inf_lab_clear_transient(InfernoState* s) {
     }
 }
 
-static void inf_lab_refresh_geometry(InfernoState* s) {
+static void inf_lab_refresh_geometry(
+    InfernoState* s,
+    const InfernoContext* ctx
+) {
     inf_rebuild_npc_collision_flags(s);
-    inf_refresh_current_obs_slots(s);
+    inf_refresh_current_obs_slots_ctx(s, ctx);
 }
 
 static void inf_lab_remove_all_npcs(InfernoState* s) {
@@ -171,10 +174,13 @@ static void inf_lab_remove_all_npcs(InfernoState* s) {
     s->dead_mob_count = 0;
 }
 
-static void inf_lab_clear_npcs(InfernoState* s) {
+static void inf_lab_clear_npcs(
+    InfernoState* s,
+    const InfernoContext* ctx
+) {
     inf_lab_remove_all_npcs(s);
     inf_lab_clear_transient(s);
-    inf_lab_refresh_geometry(s);
+    inf_lab_refresh_geometry(s, ctx);
 }
 
 static void inf_lab_apply_command_ctx(
@@ -198,7 +204,7 @@ static void inf_lab_apply_command_ctx(
             s->player.x = cmd->as.tile.x;
             s->player.y = cmd->as.tile.y;
             inf_lab_clear_transient(s);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
 
         case INF_LAB_COMMAND_SPAWN_NPC: {
@@ -228,7 +234,7 @@ static void inf_lab_apply_command_ctx(
                 s->npcs[spawn->slot].attack_timer = spawn->timer.value;
             }
             inf_lab_clear_transient(s);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -242,7 +248,7 @@ static void inf_lab_apply_command_ctx(
             s->npcs[move->slot].target_x = move->x;
             s->npcs[move->slot].target_y = move->y;
             inf_lab_clear_transient(s);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -251,7 +257,7 @@ static void inf_lab_apply_command_ctx(
             inf_lab_require_slot(slot);
             inf_deactivate_npc(s, slot);
             inf_lab_clear_transient(s);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -262,7 +268,7 @@ static void inf_lab_apply_command_ctx(
                 inf_lab_abort("cannot kill inactive npc slot %d", slot);
             s->npcs[slot].hp = 0;
             inf_apply_npc_death(s, slot);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -277,7 +283,7 @@ static void inf_lab_apply_command_ctx(
                 inf_lab_abort("npc hp %d exceeds max hp %d",
                     hp, s->npcs[slot].max_hp);
             s->npcs[slot].hp = hp;
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -289,7 +295,7 @@ static void inf_lab_apply_command_ctx(
                 inf_lab_abort("cannot set timer for inactive npc slot %d", slot);
             if (timer < 0) inf_lab_abort("npc timer must be nonnegative");
             s->npcs[slot].attack_timer = timer;
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -315,7 +321,7 @@ static void inf_lab_apply_command_ctx(
             }
             inf_reset_npc_player_los_frame(ctx);
             inf_lab_clear_transient(s);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -328,11 +334,11 @@ static void inf_lab_apply_command_ctx(
             s->wave_ready_delay = INF_START_READY_TICKS;
             inf_spawn_wave(s);
             inf_lab_clear_transient(s);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
 
         case INF_LAB_COMMAND_CLEAR_NPCS:
-            inf_lab_clear_npcs(s);
+            inf_lab_clear_npcs(s, ctx);
             return;
 
         case INF_LAB_COMMAND_STEP_TICKS: {
@@ -341,7 +347,7 @@ static void inf_lab_apply_command_ctx(
             int actions[INF_NUM_ACTION_HEADS] = {0};
             for (int t = 0; t < ticks; t++)
                 inf_step_ctx((EncounterState*)s, (EncounterContext*)ctx, actions);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
     }

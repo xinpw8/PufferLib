@@ -180,6 +180,45 @@ static void test_lab_spawn_wave_and_delete(void) {
     inf_destroy((EncounterState*)state);
 }
 
+static void test_lab_kill_refresh_uses_finalized_context(void) {
+    printf("--- inferno lab kill refresh uses finalized context ---\n");
+    InfernoState* state = make_lab_state();
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
+        .kind = INF_LAB_COMMAND_SET_PLAYER,
+        .as.tile = {.x = 20, .y = 40},
+    });
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
+        .kind = INF_LAB_COMMAND_SPAWN_NPC,
+        .as.spawn_npc = {
+            .slot = 0,
+            .type = INF_NPC_RANGER,
+            .x = 28,
+            .y = 40,
+            .hp = {.kind = INF_LAB_OPTIONAL_INT_SET, .value = 1},
+            .timer = {.kind = INF_LAB_OPTIONAL_INT_SET, .value = 0},
+        },
+    });
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
+        .kind = INF_LAB_COMMAND_KILL_NPC,
+        .as.npc_slot = {.slot = 0},
+    });
+    state->player.current_magic = 99;
+    state->player.equipped[GEAR_SLOT_WEAPON] = ITEM_KODAI_WAND;
+    state->npcs[0].death_ticks = 2;
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
+        .kind = INF_LAB_COMMAND_SET_NPC_TIMER,
+        .as.npc_timer = {.slot = 0, .timer = 0},
+    });
+    ASSERT_INT_EQ("dying ranger is phantom barrage eligible",
+        inf_player_can_phantom_barrage_npc(state, &lab_context, 0), 1);
+
+    ASSERT_INT_EQ("dying ranger reaches phantom window",
+        state->npcs[0].death_ticks, 2);
+    ASSERT_INT_EQ("dying ranger receives phantom obs slot",
+        inf_find_target_obs_slot(state, 0) >= 0, 1);
+    inf_destroy((EncounterState*)state);
+}
+
 static void test_lab_snapshot_restore_round_trip(void) {
     printf("--- inferno lab snapshot restore round trip ---\n");
 
@@ -278,6 +317,7 @@ int main(void) {
     test_lab_script_reaches_exact_forecast();
     test_lab_json_contains_state_and_forecast();
     test_lab_spawn_wave_and_delete();
+    test_lab_kill_refresh_uses_finalized_context();
     test_lab_snapshot_restore_round_trip();
 
     return osrs_test_summary();
