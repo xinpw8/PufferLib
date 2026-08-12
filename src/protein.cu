@@ -392,9 +392,8 @@ static float gp_train(GaussianProcess *gp, float *opt_m, float *opt_v,
         float ln_noise = logf(noise_val);
         float sig = softplus_grad(gp->raw_noise);
         float z = (ln_noise - NOISE_PRIOR_MU) / NOISE_PRIOR_SIGMA;
-        float np_grad = (-z / NOISE_PRIOR_SIGMA - 1.0f) * sig / noise_val + 1.0f - sig;
-        loss = -mll - (-0.5f * z * z - ln_noise - logf(NOISE_PRIOR_SIGMA)
-            - log1pf(expf(-gp->raw_noise)));
+        float np_grad = ((-z / NOISE_PRIOR_SIGMA - 1.0f) * sig / noise_val) / n;
+        loss = -mll - (-0.5f * z * z - ln_noise - logf(NOISE_PRIOR_SIGMA)) / n;
 
         (*opt_t)++;
         float bc1 = 1.0f - powf(beta1, (*opt_t));
