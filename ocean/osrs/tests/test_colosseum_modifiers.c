@@ -5654,8 +5654,8 @@ static void test_loadout_divine_potions_and_stat_drift(void) {
     s.divine_ranged_timer = 234;
     ColoSnapshot snap;
     col_snapshot_ctx((EncounterState*)&s, (EncounterContext*)&ctx, &snap);
-    CHECK("snapshot version is v24 for canonical inventory identity",
-        snap.version == COLO_SNAPSHOT_VERSION && COLO_SNAPSHOT_VERSION == 24u);
+    CHECK("snapshot version is v25 for the consolidated state layout",
+        snap.version == COLO_SNAPSHOT_VERSION && COLO_SNAPSHOT_VERSION == 25u);
     ColosseumState restored;
     memset(&restored, 0, sizeof(restored));
     col_restore_ctx((EncounterState*)&restored, (EncounterContext*)&ctx, &snap, sizeof(snap));
@@ -6486,7 +6486,7 @@ static void test_combat_fidelity_contract_sizes(void) {
     CHECK("modifier block has 60 features", COLO_MODIFIER_OBS_SIZE == 60);
     CHECK("NPC slots carry a type code, not a type one-hot",
         COLO_FEATURES_PER_NPC == 23);
-    CHECK("snapshot version is v24", COLO_SNAPSHOT_VERSION == 24u);
+    CHECK("snapshot version is v25", COLO_SNAPSHOT_VERSION == 25u);
     CHECK("every active NPC gets an obs slot (no busy-wave drop)",
         COLO_OBS_NPCS == 24 && COLO_OBS_NPCS == COLO_MAX_NPCS);
     CHECK("PRIMARY head covers noop, movement, and NPC obs slots",
@@ -7163,7 +7163,7 @@ static void test_combat_fidelity_snapshot_roundtrip(void) {
 
     ColoSnapshot snap;
     col_snapshot_ctx((EncounterState*)&s, (EncounterContext*)&ctx, &snap);
-    CHECK("snapshot frame is v24", snap.version == 24u);
+    CHECK("snapshot frame is v25", snap.version == 25u);
 
     ColosseumState restored;
     memset(&restored, 0, sizeof(restored));
@@ -9153,7 +9153,7 @@ static void test_colosseum_topology_lifecycle_contract(void) {
         "Colosseum query before topology finalize aborts",
         child_col_query_before_topology_finalize);
     assert_child_aborts(
-        "Colosseum previous inventory snapshot version aborts",
+        "Colosseum previous snapshot version aborts",
         child_col_restore_previous_inventory_snapshot);
 }
 

@@ -182,23 +182,22 @@ static const GoldenConfig CONFIGS[] = {
 #define NUM_CONFIGS ((int)(sizeof(CONFIGS) / sizeof(CONFIGS[0])))
 #define EPISODE_TICKS 4000
 
-/* Re-seeded for the inventory observation recut: 15 floats per cell became an item code plus
- * is_equipped and hp_heal, obs 1258 -> 922. All twelve moved because the hash folds obs
- * floats and every episode carries 28 inventory cells from tick zero. probe_colo_sim_invariant
- * stayed 12/12 across the change, which is the proof no simulated tick moved. */
+/* Re-seeded for the consolidated contract. Honest Sol laser observations change the
+ * observation width from 934 to 933. Manticore activation, automatic thralls, and
+ * corpse-timed Volatility intentionally change simulation timing. */
 static const uint64_t BASELINE[NUM_CONFIGS] = {
-    0xd2c17aa73e2a0b43ULL,
-    0x872cf27641f8df3cULL,
-    0x50498ba64b2aa646ULL,
-    0xbb24e8e6cb69976dULL,
-    0xaa9e6568f552204eULL,
-    0xa526657dbf0b7a2fULL,
-    0xd8369f4857156246ULL,
-    0x2bf1b1a8ae9ec50bULL,
-    0x57ae207dc177c45bULL,
-    0x44c0ae98c7ab041eULL,
-    0x2c7389fc883943a0ULL,
-    0x4f5a9f22f5ecfd4dULL,
+    0x1258544d5c658eddULL,
+    0x68e9ade887662e65ULL,
+    0x0c44516a8e72aeb4ULL,
+    0x88ac4636389bd581ULL,
+    0x6fbfce261a0dbee1ULL,
+    0xf43b72bd8e2c2c04ULL,
+    0x8332e858be3c913eULL,
+    0x1d431ebf29dc964dULL,
+    0x75f1c7b7cbb88fbbULL,
+    0x701b7d6256d72996ULL,
+    0xe5b310495bc052bcULL,
+    0x92baaf448c9bdf5cULL,
 };
 
 int main(int argc, char** argv) {

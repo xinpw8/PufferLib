@@ -76,22 +76,22 @@ typedef struct {
     uint64_t baseline;
 } SimConfig;
 
-/* Baselines are generated on the tree that contains the pathfinding and reservoir
- * determinism fixes. Regenerate with --print only when a SIMULATION change is
- * intended, never to make an observation edit pass. */
+/* Baselines pin the consolidated Manticore activation, automatic-thrall, and
+ * corpse-timed Volatility behavior. Regenerate with --print only for an intended
+ * simulation change, never to make an observation-only edit pass. */
 static SimConfig CONFIGS[] = {
-    {"w01",  1, 1001ULL, 0xC0FFEE01ULL, 0xe882cb88e9bfe571ULL},
-    {"w02",  2, 1002ULL, 0xC0FFEE02ULL, 0x2030dfc6f5128a4aULL},
-    {"w03",  3, 1003ULL, 0xC0FFEE03ULL, 0xb6340675ad060ccfULL},
-    {"w04",  4, 1004ULL, 0xC0FFEE04ULL, 0xda9cbc85c2b1ccceULL},
-    {"w05",  5, 1005ULL, 0xC0FFEE05ULL, 0xffe01df334b833dcULL},
-    {"w06",  6, 1006ULL, 0xC0FFEE06ULL, 0x91c31d65c5756157ULL},
-    {"w07",  7, 1007ULL, 0xC0FFEE07ULL, 0x3abedfcf6d66865bULL},
-    {"w08",  8, 1008ULL, 0xC0FFEE08ULL, 0x9c20637df795889bULL},
-    {"w09",  9, 1009ULL, 0xC0FFEE09ULL, 0xcbf92ffc1560faa7ULL},
-    {"w10", 10, 1010ULL, 0xC0FFEE10ULL, 0xabe0af7272270f17ULL},
-    {"w11", 11, 1011ULL, 0xC0FFEE11ULL, 0x4b7bd07c37349b9dULL},
-    {"w12", 12, 1012ULL, 0xC0FFEE12ULL, 0xaf6eddfc94e7f411ULL},
+    {"w01",  1, 1001ULL, 0xC0FFEE01ULL, 0xc53c6412d234f229ULL},
+    {"w02",  2, 1002ULL, 0xC0FFEE02ULL, 0x778581a45fed3ddeULL},
+    {"w03",  3, 1003ULL, 0xC0FFEE03ULL, 0xb70dc406e22b2c1aULL},
+    {"w04",  4, 1004ULL, 0xC0FFEE04ULL, 0x635935a5ab0ade49ULL},
+    {"w05",  5, 1005ULL, 0xC0FFEE05ULL, 0xb8bddb3cfb335938ULL},
+    {"w06",  6, 1006ULL, 0xC0FFEE06ULL, 0x39095d5c8accb6dbULL},
+    {"w07",  7, 1007ULL, 0xC0FFEE07ULL, 0x494c2434e8dd8c83ULL},
+    {"w08",  8, 1008ULL, 0xC0FFEE08ULL, 0x13ee63bf0f98b87bULL},
+    {"w09",  9, 1009ULL, 0xC0FFEE09ULL, 0xff48a1acf6a1c401ULL},
+    {"w10", 10, 1010ULL, 0xC0FFEE10ULL, 0xb2a8313066a5a4c6ULL},
+    {"w11", 11, 1011ULL, 0xC0FFEE11ULL, 0xbb81f53e0991c17aULL},
+    {"w12", 12, 1012ULL, 0xC0FFEE12ULL, 0x63fdfb9bd8aed92dULL},
 };
 
 static void fill_actions(
