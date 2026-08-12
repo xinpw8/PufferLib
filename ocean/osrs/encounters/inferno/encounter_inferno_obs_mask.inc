@@ -189,7 +189,7 @@ static void inf_write_obs_ctx(
     float* obs
 ) {
     InfernoState* s = (InfernoState*)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
 #ifdef INF_PROFILE_ENABLED
     int inf_prof_enabled = INF_PROFILE_ENABLED();
     double inf_prof_t0 = inf_prof_enabled ? INF_PROFILE_NOW_MS() : 0.0;
@@ -433,7 +433,7 @@ static int inf_is_human_targetable_npc_slot_ctx(
     int npc_slot
 ) {
     InfernoState* s = (InfernoState*)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     inf_ensure_current_obs_slots_ctx(s, ctx);
     return inf_obs_slot_is_targetable(s, ctx, inf_find_target_obs_slot(s, npc_slot));
 }
@@ -490,7 +490,7 @@ static void inf_write_mask_ctx(
     float* mask
 ) {
     InfernoState* s = (InfernoState*)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     inf_ensure_current_obs_slots_ctx(s, ctx);
     int offset = 0;
 
@@ -645,7 +645,7 @@ static void inf_fill_render_entities_ctx(
     int* count
 ) {
     InfernoState* s = (InfernoState*)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     int n = 0;
 
     {

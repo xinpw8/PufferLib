@@ -349,12 +349,6 @@ static void inf_lab_apply_command_ctx(
     inf_lab_abort("unknown command kind %d", cmd->kind);
 }
 
-static void inf_lab_apply_command(
-    InfernoState* s,
-    const InfernoLabCommand* cmd
-) {
-    inf_lab_apply_command_ctx(s, inf_legacy_context(), cmd);
-}
 
 static int inf_lab_nearest_pillar_idx(const InfernoState* s, int x, int y) {
     int best_idx = -1;
@@ -846,9 +840,6 @@ static char* inf_lab_alloc_json_ctx(
     return out.data;
 }
 
-static char* inf_lab_alloc_json(InfernoState* s) {
-    return inf_lab_alloc_json_ctx(s, inf_legacy_context());
-}
 
 static InfLabCommandKind inf_lab_command_kind_for(const char* command) {
     static const EncounterLabCommandAlias aliases[] = {
@@ -915,20 +906,4 @@ static InfLabLineResult inf_lab_apply_script_line_impl_ctx(
     inf_lab_apply_command_ctx(s, ctx, &cmd);
     free(lex.buffer);
     return INF_LAB_LINE_NONE;
-}
-
-static InfLabLineResult inf_lab_apply_script_line(
-    InfernoState* s, const char* line
-) {
-    return inf_lab_apply_script_line_impl_ctx(
-        s, inf_legacy_context(), line, NULL);
-}
-
-static InfLabLineResult inf_lab_apply_script_line_alloc_json(
-    InfernoState* s, const char* line, char** out_json
-) {
-    if (!out_json) inf_lab_abort("json output pointer is required");
-    *out_json = NULL;
-    return inf_lab_apply_script_line_impl_ctx(
-        s, inf_legacy_context(), line, out_json);
 }

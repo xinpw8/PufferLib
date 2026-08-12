@@ -346,7 +346,6 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     inf_build_npc_stats();
     InfernoState* s = (InfernoState*)state;
     InfernoContext* ctx = (InfernoContext*)context;
-    if (!ctx) ctx = inf_legacy_context();
     encounter_arena_topology_require_finalized(ctx->route_topology);
     osrs_actor_route_cache_clear(&ctx->player_route_cache);
     inf_reset_npc_player_los_frame(ctx);

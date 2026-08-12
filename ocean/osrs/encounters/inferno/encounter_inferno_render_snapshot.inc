@@ -6,7 +6,7 @@ static void inf_put_int_ctx(
     int value
 ) {
     InfernoState* s = (InfernoState*)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     if (strcmp(key, "start_wave") == 0) {
         inf_require_valid_public_wave(value);
         s->start_wave = value - 1;
@@ -79,7 +79,7 @@ static void inf_put_float_ctx(
     float value
 ) {
     (void)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     if (strcmp(key, "damage_reward_coeff") == 0) ctx->config.damage_reward_coeff = value;
     else if (strcmp(key, "offensive_prayer_reward_coeff") == 0) {
         inf_require_nonnegative_float_config(key, value);
@@ -179,7 +179,7 @@ static void inf_put_ptr_ctx(
     void* value
 ) {
     (void)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     if (strcmp(key, "collision_map") == 0)
         ctx->collision_map = (const CollisionMap*)value;
     else
@@ -198,7 +198,7 @@ static int inf_get_winner_ctx(EncounterState* state, EncounterContext* context) 
 
 static void* inf_get_log_ctx(EncounterState* state, EncounterContext* context) {
     InfernoState* s = (InfernoState*)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     if (s->episode_over && ctx->log) {
         ctx->log->episode_return += s->episode_return;
         ctx->log->episode_length += (float)s->tick;
@@ -618,7 +618,7 @@ static void inf_translate_human_input_ctx(
     actions[INF_HEAD_PRAYER] = inf_local_overhead_action(actions[INF_HEAD_PRAYER]);
     encounter_translate_offensive_prayer(hi, actions, INF_HEAD_OFFENSIVE);
     InfernoState* s = (InfernoState*)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     inf_ensure_current_obs_slots_ctx(s, ctx);
     if (hi->pending_target_idx >= 0) {
         int found_slot = inf_find_target_obs_slot(s, hi->pending_target_idx);
@@ -745,7 +745,7 @@ static void inf_step_human_commands_ctx(
     HumanInput* hi
 ) {
     InfernoState* s = (InfernoState*)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     int actions[INF_NUM_ACTION_HEADS];
     ctx->human_command_mode = 1;
     ctx->human_commands = hi->commands.items;
@@ -875,7 +875,7 @@ static size_t inf_snapshot_size(EncounterState* state) {
 }
 
 static void inf_snapshot_ctx(EncounterState* state, EncounterContext* context, void* out) {
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     InfSnapshot* snap = (InfSnapshot*)out;
     encounter_snapshot_write_frame(
         snap, sizeof(*snap), INF_SNAPSHOT_MAGIC, INF_SNAPSHOT_VERSION,
@@ -897,7 +897,7 @@ static void inf_restore_ctx(
     const void* data,
     size_t n
 ) {
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     const InfSnapshot* snap = (const InfSnapshot*)data;
     encounter_snapshot_validate_frame(
         "inf_restore", data, n, sizeof(InfSnapshot),
@@ -944,7 +944,7 @@ static int inf_apply_lab_command_ctx(
 ) {
     InfLabInvocation invocation = {
         .state = (InfernoState*)state,
-        .context = context ? (InfernoContext*)context : inf_legacy_context(),
+        .context = (InfernoContext*)context,
     };
     return encounter_apply_lab_command_dump_wrapper(
         &invocation,

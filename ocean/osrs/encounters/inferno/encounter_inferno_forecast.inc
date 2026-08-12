@@ -1184,10 +1184,3 @@ static void inf_compare_step_out_forecasts(
         }
     }
 }
-
-static void inf_build_step_out_forecast(
-    const InfernoState* s,
-    InfStepOutForecast* out
-) {
-    inf_build_step_out_forecast_ctx(s, inf_legacy_context(), out);
-}

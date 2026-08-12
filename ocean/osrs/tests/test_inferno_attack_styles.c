@@ -6,6 +6,9 @@
 
 #include "ocean/osrs/encounters/encounter_inferno.h"
 #include "ocean/osrs/tests/osrs_route_reference.h"
+static void inf_init_unfinalized_context(InfernoContext* ctx) {
+    inf_init_context_typed(ctx);
+}
 #define inf_init_context_typed(ctx_ptr) do { \
     inf_init_context_typed(ctx_ptr); \
     inf_finalize_route_topology((ctx_ptr)); \
@@ -3955,7 +3958,7 @@ static void test_step_out_forecast_matches_movement_head_destinations(void) {
     init_step_out_forecast_stack_state(&state, 29, 39);
 
     InfStepOutForecast forecast;
-    inf_build_step_out_forecast(&state, &forecast);
+    inf_build_step_out_forecast_ctx(&state, inf_legacy_context(), &forecast);
 
     for (int action = 0; action < ENCOUNTER_MOVE_ACTIONS; action++) {
         Player moved = state.player;
@@ -4085,7 +4088,7 @@ static void test_step_out_forecast_north_pillar_ranger_mager_order(void) {
     add_step_out_forecast_npc(&state, 1, INF_NPC_MAGER, 29, 30, 0);
 
     InfStepOutForecast forecast;
-    inf_build_step_out_forecast(&state, &forecast);
+    inf_build_step_out_forecast_ctx(&state, inf_legacy_context(), &forecast);
 
     const InfStepOutForecastAction* idle = &forecast.actions[0];
     ASSERT_INT_EQ("idle remains safe from ranged tick one",
@@ -4448,7 +4451,7 @@ static void test_step_out_forecast_south_pillar_ranger_mager_order(void) {
     add_step_out_forecast_npc(&state, 1, INF_NPC_MAGER, 22, 26, 0);
 
     InfStepOutForecast forecast;
-    inf_build_step_out_forecast(&state, &forecast);
+    inf_build_step_out_forecast_ctx(&state, inf_legacy_context(), &forecast);
 
     const InfStepOutForecastAction* run_west = &forecast.actions[11];
     assert_step_out_ranger_then_mager("south pillar run west", run_west, 20, 17);
@@ -4463,7 +4466,7 @@ static void test_step_out_forecast_west_pillar_ranger_mager_order(void) {
     add_step_out_forecast_npc(&state, 1, INF_NPC_MAGER, 16, 42, 0);
 
     InfStepOutForecast forecast;
-    inf_build_step_out_forecast(&state, &forecast);
+    inf_build_step_out_forecast_ctx(&state, inf_legacy_context(), &forecast);
 
     const InfStepOutForecastAction* walk_north = &forecast.actions[4];
     assert_step_out_ranger_then_mager("west pillar walk north", walk_north, 11, 28);
@@ -4482,7 +4485,7 @@ static void test_step_out_forecast_inactive_pillar_does_not_create_cover(void) {
         &state, 1, INF_NPC_MAGER, 29, 30, 0);
 
     InfStepOutForecast forecast;
-    inf_build_step_out_forecast(&state, &forecast);
+    inf_build_step_out_forecast_ctx(&state, inf_legacy_context(), &forecast);
 
     const InfStepOutForecastAction* idle = &forecast.actions[0];
     ASSERT_INT_EQ("inactive north pillar exposes ranger immediately",
@@ -5822,12 +5825,13 @@ static void test_npc_hit_lands_on_the_reference_tick(void) {
     for (size_t c = 0; c < sizeof(cases) / sizeof(cases[0]); c++) {
         InfernoState* s = (InfernoState*)inf_create();
         inf_reset((EncounterState*)s, 20260728u);
-        inf_lab_apply_command(s, &(InfernoLabCommand){ .kind = INF_LAB_COMMAND_CLEAR_NPCS });
-        inf_lab_apply_command(s, &(InfernoLabCommand){
+        inf_lab_apply_command_ctx(s, inf_legacy_context(),
+            &(InfernoLabCommand){ .kind = INF_LAB_COMMAND_CLEAR_NPCS });
+        inf_lab_apply_command_ctx(s, inf_legacy_context(), &(InfernoLabCommand){
             .kind = INF_LAB_COMMAND_SET_PLAYER,
             .as.tile = { .x = 24, .y = 24 },
         });
-        inf_lab_apply_command(s, &(InfernoLabCommand){
+        inf_lab_apply_command_ctx(s, inf_legacy_context(), &(InfernoLabCommand){
             .kind = INF_LAB_COMMAND_SPAWN_NPC,
             .as.spawn_npc = {
                 .slot = 0, .type = cases[c].type, .x = cases[c].x, .y = cases[c].y,
@@ -6454,7 +6458,7 @@ static void test_lab_dump_reports_npc_pending_hit_queue(void) {
     inf_queue_npc_pending_hit(
         &state, 0, 3, 17, ATTACK_STYLE_MAGIC, ENCOUNTER_SPELL_BLOOD, 1);
 
-    char* dump = inf_lab_alloc_json(&state);
+    char* dump = inf_lab_alloc_json_ctx(&state, inf_legacy_context());
     ASSERT_INT_EQ("lab dump includes pending count",
         strstr(dump, "\"pending_count\":1") != NULL, 1);
     ASSERT_INT_EQ("lab dump includes pending timer",
@@ -6900,6 +6904,31 @@ static void child_inf_restore_v1_snapshot(void) {
     inf_destroy(raw);
 }
 
+static void child_inf_reset_before_topology_finalize(void) {
+    InfernoContext ctx;
+    InfernoState state;
+    inf_init_unfinalized_context(&ctx);
+    inf_init_state_typed(&state, &ctx);
+    inf_reset_ctx((EncounterState*)&state, (EncounterContext*)&ctx, 1u);
+}
+
+static void child_inf_step_before_topology_finalize(void) {
+    InfernoContext ctx;
+    InfernoState state;
+    int actions[INF_NUM_ACTION_HEADS] = {0};
+    inf_init_unfinalized_context(&ctx);
+    inf_init_state_typed(&state, &ctx);
+    inf_step_ctx((EncounterState*)&state, (EncounterContext*)&ctx, actions);
+}
+
+static void child_inf_query_before_topology_finalize(void) {
+    InfernoContext ctx;
+    InfernoState state;
+    inf_init_unfinalized_context(&ctx);
+    inf_init_state_typed(&state, &ctx);
+    (void)inf_footprint_blocked_ctx(&state, &ctx, 20, 20, 1);
+}
+
 static void child_inf_restore_wrong_config_snapshot(void) {
     InfernoState state_a;
     InfernoState state_b;
@@ -6932,6 +6961,15 @@ static void test_fail_fast_boundaries(void) {
     assert_child_aborts("removed win bonus config aborts", child_inf_put_removed_win_bonus);
     assert_child_aborts("overlay projectile overflow aborts", child_encounter_emit_projectile_overflow);
     assert_child_aborts("inferno pending spark overflow aborts", child_inf_pending_spark_overflow);
+    assert_child_aborts(
+        "inferno reset before topology finalize aborts",
+        child_inf_reset_before_topology_finalize);
+    assert_child_aborts(
+        "inferno step before topology finalize aborts",
+        child_inf_step_before_topology_finalize);
+    assert_child_aborts(
+        "inferno query before topology finalize aborts",
+        child_inf_query_before_topology_finalize);
     assert_child_aborts("inferno v1 snapshot restore aborts", child_inf_restore_v1_snapshot);
     assert_child_aborts(
         "inferno wrong-config snapshot restore aborts",

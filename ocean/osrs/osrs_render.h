@@ -798,12 +798,26 @@ static Color render_inferno_lab_forecast_color(
     return (Color){ 60, 220, 80, 170 };
 }
 
-static void render_inferno_lab_draw_forecast_3d(RenderClient* rc) {
-    InfernoState* s = render_inferno_state_from_client(rc);
-    if (!s || !rc->lab_enabled || !rc->lab_show_forecast) return;
+static int render_inferno_lab_build_forecast(
+    RenderClient* rc,
+    const OsrsEnv* env,
+    InfStepOutForecast* forecast
+) {
+    InfernoState* state = render_inferno_state_from_client(rc);
+    if (!state || !rc->lab_enabled || !rc->lab_show_forecast) return 0;
 
+    const InfernoContext* ctx = (const InfernoContext*)env->encounter_context;
+    encounter_arena_topology_require_finalized(ctx->route_topology);
+    inf_build_step_out_forecast_ctx(state, ctx, forecast);
+    return 1;
+}
+
+static void render_inferno_lab_draw_forecast_3d(
+    RenderClient* rc,
+    const OsrsEnv* env
+) {
     InfStepOutForecast forecast;
-    inf_build_step_out_forecast(s, &forecast);
+    if (!render_inferno_lab_build_forecast(rc, env, &forecast)) return;
     int has_terrain = rc->terrain && rc->terrain->loaded;
     for (int action_idx = 0; action_idx < ENCOUNTER_MOVE_ACTIONS; action_idx++) {
         const InfStepOutForecastAction* action = &forecast.actions[action_idx];
@@ -4986,7 +5000,7 @@ static void render_draw_3d_world(RenderClient* rc, OsrsEnv* env) {
                 }
             }
         }
-        render_inferno_lab_draw_forecast_3d(rc);
+        render_inferno_lab_draw_forecast_3d(rc, env);
 
         #undef OV_GROUND
     }
