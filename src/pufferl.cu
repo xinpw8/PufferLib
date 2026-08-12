@@ -1129,6 +1129,7 @@ static void* vec_thread_main(void* arg) {
     int buf = a->buf;
     int* state = &vec->worker_state[buf];
     int horizon = pufferl->hypers.horizon;
+    cudaSetDevice(pufferl->hypers.gpu_id);
     cublas_init_handle();
     int apb = vec->agents_per_buf;
     int agent_start = buf * apb;

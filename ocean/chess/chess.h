@@ -8,6 +8,13 @@
 #include <time.h>
 #include <unistd.h> 
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {97}
+#define NUM_ATNS 1
+#define MY_VEC_INIT
+#define MY_VEC_CLOSE
+typedef uint8_t obs_t;
 
 typedef uint64_t Bitboard;
 typedef uint64_t Key;
@@ -347,8 +354,10 @@ enum {
     O_VALID_TO = 102,
     O_VALID_PROMOS = 134,
     O_PASS_VALID = 166,
-    OBS_SIZE = 167
+    CHESS_OBS_END = 167
 };
+
+#define OBS_SIZE 167
 
 #define CHESS_MAX_VALID_FROM 16
 #define CHESS_MAX_VALID_TO   32
@@ -371,7 +380,7 @@ enum {
 // Backward compat: with num_frozen_banks=1, tag=1 still means "play bank 0".
 #define CHESS_MAX_BANKS 8
 
-typedef struct {
+struct Log {
     float perf;
     float score;
     float draw_rate;
@@ -404,7 +413,7 @@ typedef struct {
     float games_as_white;
     float games_as_black;
     float maia_failures;
-} Log;
+};
 
 typedef struct {
     int cell_size;
@@ -421,18 +430,14 @@ typedef struct {
     uint8_t pliesFromNull;
 } UndoInfo;
 
-typedef struct {
+struct Env {
     Log log;
     Client* client;
-    uint8_t* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
-    unsigned char* action_mask;   // (97,) — NULL unless MY_ACTION_MASK is defined
+    Agent agents[2];
+    int tag;
+    int boundary_reached;
 
-    // Per-slot pointers used by the env body. Identity perm = same addresses as
-    // base+stride; non-identity perm = where this slot actually lives in vec
-    // global buffers. Populated by my_setup_perm.
+    // Per-slot pointers used by the env body. Synced from agents[] at step/reset.
     uint8_t* obs_ptr[2];
     unsigned char* action_mask_ptr[2];
     float* action_ptr[2];
@@ -487,8 +492,6 @@ typedef struct {
     // primary, slot 1 = frozen). boundary_reached set on game-end so Python can
     // detect when historical envs have all completed at least one game since
     // the last swap arm.
-    int tag;
-    int boundary_reached;
     // Selfplay only: slot_for_color[c] = which slot (0 or 1) plays color c.
     // Default (slot 0 = WHITE, slot 1 = BLACK); randomized per env to remove
     // white-bias when running matched policies in different slots.
@@ -528,7 +531,18 @@ typedef struct {
     // the training distribution. 0 = next c_step is the no-op phase, 1 = the
     // commit phase.
     int maia_phase;
-} Chess;
+};
+typedef Env Chess;
+
+static void chess_sync_agent_ptrs(Chess* env) {
+    for (int s = 0; s < env->num_agents; s++) {
+        env->obs_ptr[s] = (uint8_t*)env->agents[s].observations;
+        env->action_mask_ptr[s] = env->agents[s].action_mask;
+        env->action_ptr[s] = env->agents[s].actions;
+        env->reward_ptr[s] = env->agents[s].rewards;
+        env->terminal_ptr[s] = env->agents[s].terminals;
+    }
+}
 
 static inline Bitboard sq_bb(Square s) {
     return SquareBB[s];
@@ -1591,7 +1605,7 @@ void populate_observations(Chess* env) {
         // Single-agent modes: only the learner iter writes into the (single) mask.
         unsigned char* my_mask = NULL;
         bool fill_mask = false;
-        if (env->action_mask != NULL) {
+        if (env->agents[0].action_mask != NULL) {
             if (env->mode == CHESS_MODE_SELFPLAY) {
                 my_mask = env->action_mask_ptr[buffer_idx];
                 fill_mask = true;
@@ -2069,7 +2083,7 @@ static inline int apply_move_to_env(Chess* env, Move chosen, int* is_timeout) {
 static void position_to_fen(const Position* pos, char* out) {
     char* p = out;
     // Indexed by Piece enum: W_* are 1..6, B_* are 9..14. Gap at 7..8.
-    static const char pchars[16] = ".PNBRQK??pnbrqk?";
+    static const char pchars[] = ".PNBRQK??pnbrqk?";
     for (int rank = 7; rank >= 0; rank--) {
         int empty = 0;
         for (int file = 0; file < 8; file++) {
@@ -2289,7 +2303,8 @@ static Move maia_get_move(Chess* env) {
     }
 }
 
-void c_reset(Chess* env) {
+void puf_reset(Chess* env) {
+    chess_sync_agent_ptrs(env);
     env->tick = 0;
     env->chess_moves = 0;
     env->game_result = 0;
@@ -2338,7 +2353,8 @@ void c_reset(Chess* env) {
 
 }
 
-void c_step(Chess* env) {
+void puf_step(Chess* env) {
+    chess_sync_agent_ptrs(env);
     if (env->render_paused && env->client != NULL) {
         return;
     }
@@ -2675,7 +2691,7 @@ void c_step(Chess* env) {
                 env->pgn_game_number++;
                 export_pgn_append(env, env->pgn_filename, 1);
             }
-            c_reset(env);
+            puf_reset(env);
         }
     } else {
         if (env->mode == CHESS_MODE_SELFPLAY) {
@@ -2779,7 +2795,7 @@ static void init_chess_client(Chess* env, int cell_size) {
     if (env->mode == CHESS_MODE_SELFPLAY) env->log_pgn_choice_made = 0;
 }
 
-void c_render(Chess* env) {
+void puf_render(Chess* env) {
     const int cell_size = 64;
     const int board_size = 8 * cell_size;
     const int scoreboard_y = board_size + 10;
@@ -2873,7 +2889,7 @@ human_wait_retry:
                 export_pgn_append(env, filename, 0);
                 printf("Saved PGN to %s\n", filename);
             } else if (CheckCollisionPointRec(mouse, new_btn)) {
-                c_reset(env);
+                puf_reset(env);
             }
         }
     } else if (env->mode == CHESS_MODE_SELFPLAY && !env->log_pgn_choice_made) {
@@ -3122,7 +3138,7 @@ human_wait_retry:
                 if (speed_idx < NUM_SPEEDS - 1) { speed_idx++; SetTargetFPS(SPEED_FPS[speed_idx]); }
             }
             if ((env->mode == CHESS_MODE_HUMAN || env->mode == CHESS_MODE_HUMAN_RANDOM)
-                    && CheckCollisionPointRec(mouse, restart_btn)) c_reset(env);
+                    && CheckCollisionPointRec(mouse, restart_btn)) puf_reset(env);
         }
     }
     
@@ -3150,7 +3166,7 @@ human_wait_retry:
     }
 }
 
-void c_close(Chess* env) {
+void puf_close(Chess* env) {
     if (env->client != NULL) {
         if (env->client->use_unicode_pieces && env->client->piece_font.texture.id != 0) {
             UnloadFont(env->client->piece_font);
@@ -3164,4 +3180,197 @@ void c_close(Chess* env) {
     maia_close(env);
     env->fen_curriculum = NULL;
     env->num_fens = 0;
+}
+
+#define DEFAULT_STARTING_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+#define FEN_CURRICULUM_PATH "resources/chess/fens.txt"
+
+static char** SHARED_FEN_CURRICULUM = NULL;
+static int SHARED_NUM_FENS = 0;
+
+static char** load_fen_file(const char* path, int* num_fens_out) {
+    FILE* f = fopen(path, "r");
+    if (f == NULL) {
+        *num_fens_out = 0;
+        return NULL;
+    }
+
+    int num_fens = 0;
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {
+        if (line[0] != '#' && line[0] != '\n' && line[0] != '\r') {
+            num_fens++;
+        }
+    }
+    if (num_fens == 0) {
+        fclose(f);
+        *num_fens_out = 0;
+        return NULL;
+    }
+
+    char** fens = (char**)malloc(num_fens * sizeof(char*));
+    rewind(f);
+    int idx = 0;
+    while (fgets(line, sizeof(line), f) && idx < num_fens) {
+        if (line[0] != '#' && line[0] != '\n' && line[0] != '\r') {
+            size_t len = strlen(line);
+            while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')) {
+                line[--len] = '\0';
+            }
+            fens[idx++] = strdup(line);
+        }
+    }
+    fclose(f);
+    *num_fens_out = num_fens;
+    return fens;
+}
+
+static void apply_kwargs(Env* env, Dict* kwargs) {
+    env->max_moves = (int)dict_get(kwargs, "max_moves");
+    env->reward_draw = (float)dict_get(kwargs, "reward_draw");
+    env->reward_invalid_piece = (float)dict_get(kwargs, "reward_invalid_piece");
+    env->reward_invalid_move = (float)dict_get(kwargs, "reward_invalid_move");
+    env->reward_repetition = (float)dict_get(kwargs, "reward_repetition");
+    env->render_fps = (int)dict_get(kwargs, "render_fps");
+    env->mode = (int)dict_get(kwargs, "mode");
+    env->enable_50_move_rule = (int)dict_get(kwargs, "enable_50_move_rule");
+    env->enable_threefold_repetition = (int)dict_get(kwargs, "enable_threefold_repetition");
+    env->random_fen = (int)dict_get(kwargs, "random_fen");
+    env->fen_curric_pct = (float)dict_get(kwargs, "fen_curric_pct");
+
+    env->client = NULL;
+    env->legal_dirty = 1;
+    env->human_color = -1;
+    env->log_pgn = 0;
+    env->log_pgn_choice_made = 1;
+    env->pgn_filename[0] = '\0';
+    env->pgn_game_number = 0;
+    env->maia_pid = 0;
+    env->maia_stdin_fd = -1;
+    env->maia_stdout_fd = -1;
+    env->maia_phase = 0;
+    strcpy(env->starting_fen, DEFAULT_STARTING_FEN);
+    strcpy(env->last_result, "Game starting...");
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    apply_kwargs(env, kwargs);
+    env->num_agents = (env->mode == CHESS_MODE_SELFPLAY) ? 2 : 1;
+    env->learner_color = CHESS_WHITE;
+    env->slot_for_color[CHESS_WHITE] = 0;
+    env->slot_for_color[CHESS_BLACK] = 1;
+    env->fen_curriculum = NULL;
+    env->num_fens = 0;
+    for (int s = 0; s < env->num_agents; s++) {
+        env->agents[s].policy = 0;
+        env->agents[s].action_mask = NULL;
+    }
+    init_bitboards();
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "draw_rate", log->draw_rate);
+    dict_set(out, "timeout_rate", log->timeout_rate);
+    dict_set(out, "chess_moves", log->chess_moves);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "invalid_action_rate", log->invalid_action_rate);
+    dict_set(out, "slot_0_score", log->slot_0_score);
+    dict_set(out, "slot_1_score", log->slot_1_score);
+    dict_set(out, "hist_score", log->hist_score);
+    dict_set(out, "hist_n", log->hist_n);
+    dict_set(out, "hist_score_bank_0", log->hist_score_bank[0]);
+    dict_set(out, "hist_score_bank_1", log->hist_score_bank[1]);
+    dict_set(out, "hist_score_bank_2", log->hist_score_bank[2]);
+    dict_set(out, "hist_score_bank_3", log->hist_score_bank[3]);
+    dict_set(out, "hist_score_bank_4", log->hist_score_bank[4]);
+    dict_set(out, "hist_score_bank_5", log->hist_score_bank[5]);
+    dict_set(out, "hist_score_bank_6", log->hist_score_bank[6]);
+    dict_set(out, "hist_score_bank_7", log->hist_score_bank[7]);
+    dict_set(out, "hist_n_bank_0", log->hist_n_bank[0]);
+    dict_set(out, "hist_n_bank_1", log->hist_n_bank[1]);
+    dict_set(out, "hist_n_bank_2", log->hist_n_bank[2]);
+    dict_set(out, "hist_n_bank_3", log->hist_n_bank[3]);
+    dict_set(out, "hist_n_bank_4", log->hist_n_bank[4]);
+    dict_set(out, "hist_n_bank_5", log->hist_n_bank[5]);
+    dict_set(out, "hist_n_bank_6", log->hist_n_bank[6]);
+    dict_set(out, "hist_n_bank_7", log->hist_n_bank[7]);
+    dict_set(out, "wins_as_white", log->wins_as_white);
+    dict_set(out, "wins_as_black", log->wins_as_black);
+    dict_set(out, "games_as_white", log->games_as_white);
+    dict_set(out, "games_as_black", log->games_as_black);
+    dict_set(out, "maia_failures", log->maia_failures);
+}
+
+Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_counts,
+                 Dict* vec_kwargs, Dict* env_kwargs) {
+    int total_agents = (int)dict_get(vec_kwargs, "total_agents");
+    int num_buffers = (int)dict_get(vec_kwargs, "num_buffers");
+    int agents_per_buffer = total_agents / num_buffers;
+
+    float curric_pct = (float)dict_get(env_kwargs, "fen_curric_pct");
+    if (curric_pct > 0.0f && SHARED_FEN_CURRICULUM == NULL) {
+        SHARED_FEN_CURRICULUM = load_fen_file(FEN_CURRICULUM_PATH, &SHARED_NUM_FENS);
+        if (SHARED_FEN_CURRICULUM != NULL) {
+            printf("Loaded %d FENs from %s\n", SHARED_NUM_FENS, FEN_CURRICULUM_PATH);
+        }
+    }
+
+    int mode = (int)dict_get(env_kwargs, "mode");
+    int agents_per_env = (mode == CHESS_MODE_SELFPLAY) ? 2 : 1;
+    int num_envs = total_agents / agents_per_env;
+    Env* envs = (Env*)calloc(num_envs, sizeof(Env));
+    for (int i = 0; i < num_envs; i++) {
+        Env* env = &envs[i];
+        apply_kwargs(env, env_kwargs);
+        env->num_agents = agents_per_env;
+        env->rng = i;
+        env->learner_color = (agents_per_env == 1) ? (i % 2) : CHESS_WHITE;
+        if (agents_per_env == 2 && (i & 1)) {
+            env->slot_for_color[CHESS_WHITE] = 1;
+            env->slot_for_color[CHESS_BLACK] = 0;
+        } else {
+            env->slot_for_color[CHESS_WHITE] = 0;
+            env->slot_for_color[CHESS_BLACK] = 1;
+        }
+        env->fen_curriculum = SHARED_FEN_CURRICULUM;
+        env->num_fens = SHARED_NUM_FENS;
+        for (int s = 0; s < env->num_agents; s++) {
+            env->agents[s].policy = 0;
+            env->agents[s].action_mask = NULL;
+        }
+        init_bitboards();
+    }
+
+    int buf = 0;
+    int buf_agents = 0;
+    buffer_env_starts[0] = 0;
+    buffer_env_counts[0] = 0;
+    for (int i = 0; i < num_envs; i++) {
+        buf_agents += agents_per_env;
+        buffer_env_counts[buf]++;
+        if (buf_agents >= agents_per_buffer && buf < num_buffers - 1) {
+            buf++;
+            buffer_env_starts[buf] = i + 1;
+            buffer_env_counts[buf] = 0;
+            buf_agents = 0;
+        }
+    }
+
+    *num_envs_out = num_envs;
+    return envs;
+}
+
+void my_vec_close(Env* envs) {
+    (void)envs;
+    if (SHARED_FEN_CURRICULUM != NULL) {
+        for (int i = 0; i < SHARED_NUM_FENS; i++) {
+            free(SHARED_FEN_CURRICULUM[i]);
+        }
+        free(SHARED_FEN_CURRICULUM);
+        SHARED_FEN_CURRICULUM = NULL;
+        SHARED_NUM_FENS = 0;
+    }
 }

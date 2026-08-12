@@ -127,8 +127,9 @@ elif [ "$ENV" = "impulse_wars" ]; then
     fi
     BOX2D_URL="https://github.com/capnspacehook/box2d/releases/latest/download"
     download "$BOX2D_NAME" "$BOX2D_URL/$BOX2D_NAME.tar.gz"
-    INCLUDES+=(-I./$BOX2D_NAME/include -I./$BOX2D_NAME/src)
+    INCLUDES+=(-I./$BOX2D_NAME/include -I./$BOX2D_NAME/src -I./ocean/impulse_wars)
     LINK_ARCHIVES+=("./$BOX2D_NAME/libbox2d.a")
+    EXTRA_SRC="ocean/impulse_wars/impulse_wars_api.c"
 elif [ "$ENV" = "nethack" ]; then
     SRC_DIR="ocean/$ENV"
     EXTRA_CFLAGS+=(-DPUFFER_NETHACK)
@@ -303,7 +304,8 @@ if [ "$MODE" = "native" ]; then
 	    "${EXTRA_CFLAGS[@]}" \
 	    $PRECISION \
 	    src/pufferl.cu \
-        "$RAYLIB_A" \
+        $EXTRA_SRC \
+        "${LINK_ARCHIVES[@]}" \
         -L$CUDA_HOME/lib64 $NCCL_LFLAG \
         "${EXTRA_LDFLAGS[@]}" \
         -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand \

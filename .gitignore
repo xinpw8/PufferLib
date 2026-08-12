@@ -168,6 +168,10 @@ pufferlib/ocean/impulse_wars/*-release/
 pufferlib/ocean/impulse_wars/debug-*/
 pufferlib/ocean/impulse_wars/release-*/
 pufferlib/ocean/impulse_wars/benchmark/
+ocean/impulse_wars/include/
+
+# Generated antibody data
+ocean/antibody/generated/
 
 # Data
 resources/drive/data/*

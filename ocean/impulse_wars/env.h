@@ -18,11 +18,26 @@ double accumulator = 0.0;
 const uint8_t THREE_BIT_MASK = 0x7;
 const uint8_t FOUR_BIT_MASK = 0xf;
 
-// pufferlib compatibility
-#define c_step stepEnv
-#define c_reset resetEnv
-#define c_render setupRayClient
-#define c_close destroyEnv
+static inline uint8_t* iw_obs(iwEnv* e, uint8_t i) {
+    if (e->agents[i].observations) {
+        return (uint8_t*)e->agents[i].observations;
+    }
+    return e->observations + (size_t)i * e->obsBytes;
+}
+
+static inline float* iw_act(iwEnv* e, uint8_t i) {
+    if (e->agents[i].actions) {
+        return e->agents[i].actions;
+    }
+    return e->actions + (size_t)i * CONTINUOUS_ACTION_SIZE;
+}
+
+static inline float* iw_rew(iwEnv* e, uint8_t i) {
+    if (e->agents[i].rewards) {
+        return e->agents[i].rewards;
+    }
+    return &e->rewards[i];
+}
 
 // returns a cell index that is closest to pos that isn't cellIdx
 uint16_t findNearestCell(const iwEnv *e, const b2Vec2 pos, const uint16_t cellIdx) {
@@ -301,8 +316,11 @@ void computeObs(iwEnv *e) {
         }
 
         // compute discrete map observations
-        const uint16_t discreteObsStart = e->obsBytes * agentIdx;
-        memset(e->observations + discreteObsStart, 0x0, e->obsBytes);
+        uint8_t* packed = e->observations;
+        uint8_t* agentObs = iw_obs(e, agentIdx);
+        e->observations = agentObs;
+        const uint16_t discreteObsStart = 0;
+        memset(e->observations, 0x0, e->obsBytes);
         computeMapObs(e, agentIdx, discreteObsStart);
 
         // compute continuous observations
@@ -459,6 +477,7 @@ void computeObs(iwEnv *e) {
 
         ASSERTF(continuousObsOffset == ENEMY_DRONE_OBS_OFFSET + ((e->numDrones - 1) * ENEMY_DRONE_OBS_SIZE) + DRONE_OBS_SIZE, "offset: %d", continuousObsOffset);
         continuousObs[continuousObsOffset] = scaleValue(e->stepsLeft, e->totalSteps, true);
+        e->observations = packed;
     }
 }
 
@@ -531,6 +550,7 @@ iwEnv *initEnv(iwEnv *e, uint8_t numDrones, uint8_t numAgents, int8_t mapIdx, ui
 
     e->numDrones = numDrones;
     e->numAgents = numAgents;
+    e->num_agents = numAgents;
     e->teamsEnabled = enableTeams;
     e->numTeams = numDrones;
     if (e->teamsEnabled) {
@@ -621,7 +641,13 @@ void setRewards(iwEnv *e, float winReward, float selfKillPunishment, float enemy
 void clearEnv(iwEnv *e) {
     // rewards get cleared in stepEnv every step
     // memset(e->masks, 1, e->numAgents * sizeof(uint8_t));
-    memset(e->terminals, 0x0, e->numAgents * sizeof(uint8_t));
+    for (uint8_t i = 0; i < e->numAgents; i++) {
+        if (e->agents[i].terminals) {
+            e->agents[i].terminals[0] = 0;
+        } else if (e->terminals) {
+            e->terminals[i] = 0;
+        }
+    }
     memset(e->truncations, 0x0, e->numAgents * sizeof(uint8_t));
 
     e->episodeLength = 0;
@@ -666,7 +692,7 @@ void clearEnv(iwEnv *e) {
     cc_array_remove_all(e->dronePieces);
 }
 
-void destroyEnv(iwEnv *e) {
+void puf_close(iwEnv *e) {
     clearEnv(e);
 
     for (uint8_t i = 0; i < NUM_MAPS; i++) {
@@ -711,7 +737,7 @@ void destroyEnv(iwEnv *e) {
 #endif
 }
 
-void resetEnv(iwEnv *e) {
+void puf_reset(iwEnv *e) {
     clearEnv(e);
     setupEnv(e);
 }
@@ -792,7 +818,7 @@ const float REWARD_EPS = 1.0e-6f;
 
 void computeRewards(iwEnv *e, const bool roundOver, const int8_t winner, const int8_t winningTeam) {
     if (roundOver && winner != -1 && winner < e->numAgents) {
-        e->rewards[winner] += e->winReward;
+        iw_rew(e, winner)[0] += e->winReward;
     }
 
     for (uint8_t i = 0; i < e->numDrones; i++) {
@@ -808,7 +834,7 @@ void computeRewards(iwEnv *e, const bool roundOver, const int8_t winner, const i
             }
         }
         if (i < e->numAgents) {
-            e->rewards[i] += reward;
+            iw_rew(e, i)[0] += reward;
         }
         e->stats[i].returns += reward;
     }
@@ -821,23 +847,23 @@ static inline bool isActionNoop(const b2Vec2 action) {
 agentActions _computeActions(iwEnv *e, droneEntity *drone, const agentActions *manualActions) {
     agentActions actions = {0};
 
-    const uint8_t offset = drone->idx * CONTINUOUS_ACTION_SIZE;
+    const float* act = iw_act(e, drone->idx);
     if (manualActions == NULL) {
-        actions.move = (b2Vec2){.x = e->actions[offset + 0], .y = e->actions[offset + 1]};
-        actions.aim = (b2Vec2){.x = e->actions[offset + 2], .y = e->actions[offset + 3]};
+        actions.move = (b2Vec2){.x = act[0], .y = act[1]};
+        actions.aim = (b2Vec2){.x = act[2], .y = act[3]};
         if (e->continuousActions) {
             actions.move.x = tanhf(actions.move.x);
             actions.move.y = tanhf(actions.move.y);
             actions.aim.x = tanhf(actions.aim.x);
             actions.aim.y = tanhf(actions.aim.y);
         }
-        actions.chargingWeapon = e->actions[offset + 4] > 0.0f;
+        actions.chargingWeapon = act[4] > 0.0f;
         actions.shoot = actions.chargingWeapon;
         if (!actions.chargingWeapon && drone->chargingWeapon) {
             actions.shoot = true;
         }
-        actions.brake = e->actions[offset + 5] > 0.0f;
-        actions.chargingBurst = e->actions[offset + 6] > 0.0f;
+        actions.brake = act[5] > 0.0f;
+        actions.chargingBurst = act[6] > 0.0f;
     } else {
         actions.move = manualActions->move;
         actions.aim = manualActions->aim;
@@ -1036,10 +1062,10 @@ void addLog(iwEnv *e, Log *log) {
 }
 
 // TODO: 2nd agent doesn't seem to work right
-void stepEnv(iwEnv *e) {
+void puf_step(iwEnv *e) {
     if (e->needsReset) {
         DEBUG_LOG("Resetting environment");
-        resetEnv(e);
+        puf_reset(e);
 
 #ifdef __EMSCRIPTEN__
         lastFrameTime = emscripten_get_now();
@@ -1074,7 +1100,9 @@ void stepEnv(iwEnv *e) {
     }
 
     // reset reward buffer
-    memset(e->rewards, 0x0, e->numAgents * sizeof(float));
+    for (uint8_t i = 0; i < e->numAgents; i++) {
+        iw_rew(e, i)[0] = 0;
+    }
 
     for (int i = 0; i < e->frameSkip; i++) {
 #ifdef __EMSCRIPTEN__
@@ -1192,7 +1220,11 @@ void stepEnv(iwEnv *e) {
                     deadDrones++;
                     if (i < e->numAgents) {
                         if (drone->diedThisStep) {
-                            e->terminals[i] = 1;
+                            if (e->agents[i].terminals) {
+                                e->agents[i].terminals[0] = 1;
+                            } else if (e->terminals) {
+                                e->terminals[i] = 1;
+                            }
                         }
                         // else {
                         //     e->masks[i] = 0;
@@ -1231,7 +1263,13 @@ void stepEnv(iwEnv *e) {
                     memset(e->truncations, 1, e->numAgents * sizeof(uint8_t));
                 } else {
                     DEBUG_LOG("terminating episode");
-                    memset(e->terminals, 1, e->numAgents * sizeof(uint8_t));
+                    for (uint8_t t = 0; t < e->numAgents; t++) {
+                        if (e->agents[t].terminals) {
+                            e->agents[t].terminals[0] = 1;
+                        } else if (e->terminals) {
+                            e->terminals[t] = 1;
+                        }
+                    }
                 }
 
                 Log log = {0};
@@ -1270,7 +1308,7 @@ void stepEnv(iwEnv *e) {
 #ifndef NDEBUG
     bool gotReward = false;
     for (uint8_t i = 0; i < e->numDrones; i++) {
-        if (e->rewards[i] > REWARD_EPS || e->rewards[i] < -REWARD_EPS) {
+        if (iw_rew(e, i)[0] > REWARD_EPS || iw_rew(e, i)[0] < -REWARD_EPS) {
             gotReward = true;
             break;
         }
@@ -1278,7 +1316,7 @@ void stepEnv(iwEnv *e) {
     if (gotReward) {
         DEBUG_RAW_LOG("!!! rewards: [");
         for (uint8_t i = 0; i < e->numDrones; i++) {
-            const float reward = e->rewards[i];
+            const float reward = iw_rew(e, i)[0];
             DEBUG_RAW_LOGF("%f", reward);
             if (i < e->numDrones - 1) {
                 DEBUG_RAW_LOG(", ");
