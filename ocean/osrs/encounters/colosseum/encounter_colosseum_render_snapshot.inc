@@ -385,6 +385,10 @@ static void col_emit_manticore_orb_telegraphs(
 ) {
     const ColoManticoreState* mc = &npc->type_state.manticore;
     if (mc->cycle_step < 0) return;
+    if (mc->phase == COLO_MANTICORE_PHASE_CHARGING &&
+            npc->attack_timer >
+                COLO_MANTICORE_CHARGE_TICKS - COLO_MANTICORE_ARM_ANIMATION_TICKS)
+        return;
     if (mc->cycle_step >= 3) {
         fprintf(stderr, "colosseum: invalid manticore cycle_step %d\n", mc->cycle_step);
         abort();

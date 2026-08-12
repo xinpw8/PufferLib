@@ -291,9 +291,19 @@ static void col_write_style_onehot_melee_ranged_magic(AttackStyle style, float* 
     *idx = i;
 }
 
+static int col_manticore_orbs_visible(const ColoNPC* npc) {
+    const ColoManticoreState* mc = &npc->type_state.manticore;
+    if (mc->cycle_step < 0) return 0;
+    if (mc->phase != COLO_MANTICORE_PHASE_CHARGING) return 1;
+    return npc->attack_timer <=
+        COLO_MANTICORE_CHARGE_TICKS - COLO_MANTICORE_ARM_ANIMATION_TICKS;
+}
+
 static int col_manticore_next_orb_ticks(const ColoNPC* npc) {
     const ColoManticoreState* mc = &npc->type_state.manticore;
     if (mc->cycle_step > 0) return 1;
+    if (mc->phase == COLO_MANTICORE_PHASE_CHARGING)
+        return npc->attack_timer + 1;
     return npc->attack_timer == 0 ? 1 : npc->attack_timer;
 }
 
@@ -301,8 +311,7 @@ static ColoNpcNextPrayerObs col_visible_manticore_next_prayer(const ColoNPC* npc
     if (npc->type != COLO_MANTICORE) return col_npc_next_prayer_none();
     if (npc->stun_timer > 0 || npc->frozen_ticks > 0) return col_npc_next_prayer_none();
     const ColoManticoreState* mc = &npc->type_state.manticore;
-    int armed = mc->cycle_step >= 0 || mc->orb_style[0] != ATTACK_STYLE_NONE;
-    if (!armed) return col_npc_next_prayer_none();
+    if (!col_manticore_orbs_visible(npc)) return col_npc_next_prayer_none();
     int orb = mc->cycle_step >= 0 ? mc->cycle_step : 0;
     if (orb < 0 || orb >= 3) return col_npc_next_prayer_none();
     AttackStyle style = mc->orb_style[orb];
@@ -401,13 +410,13 @@ static void col_write_npc_tells(const ColosseumState* s, const ColoNPC* npc, flo
     switch (npc->type) {
         case COLO_MANTICORE: {
             const ColoManticoreState* mc = &npc->type_state.manticore;
-            int firing = mc->cycle_step >= 0;
-            int armed = firing || mc->orb_style[0] != ATTACK_STYLE_NONE;
-            if (armed) {
-                int start = firing ? mc->cycle_step : 0;
+            int barrage_started = mc->cycle_step > 0;
+            int visible = col_manticore_orbs_visible(npc);
+            if (visible) {
+                int start = mc->cycle_step;
                 int speed = COLO_NPC_STATS[npc->type].attack_speed;
 
-                tells[0] = firing ? 0.0f
+                tells[0] = barrage_started ? 0.0f
                     : col_clamp01((float)npc->attack_timer / (float)(speed > 0 ? speed : 1));
                 for (int slot = 0; slot < 3; slot++) {
                     int orb = start + slot;

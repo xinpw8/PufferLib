@@ -512,13 +512,22 @@ static void col_manticore_delay_ready_peers(
         if (i == idx) continue;
         ColoNPC* other = &s->npcs[i];
         if (!col_npc_is_live_target(other) || other->type != COLO_MANTICORE) continue;
-        if (other->attack_timer > 1) continue;
-        if (other->type_state.manticore.cycle_step > 0) continue;
+        ColoManticoreState* other_mc = colo_npc_manticore(other);
+        int initial_ready =
+            other_mc->phase == COLO_MANTICORE_PHASE_CHARGING &&
+            other->attack_timer == 0;
+        int repeat_ready =
+            other_mc->phase == COLO_MANTICORE_PHASE_REPEATING &&
+            other->attack_timer <= 1 &&
+            other_mc->cycle_step <= 0;
+        if (!initial_ready && !repeat_ready) continue;
         if (other->stun_timer > 0 || other->frozen_ticks > 0) continue;
         int dist = col_npc_dist_to_player(s, other);
         if (dist < 1 || dist > COLO_NPC_STATS[COLO_MANTICORE].attack_range) continue;
         if (!col_npc_has_los_to_player(s, ctx, other)) continue;
-        other->attack_timer = COLO_MANTICORE_STAGGER_TICKS + 1;
+        other->attack_timer = initial_ready
+            ? COLO_MANTICORE_STAGGER_TICKS
+            : COLO_MANTICORE_STAGGER_TICKS + 1;
     }
 }
 
@@ -587,6 +596,18 @@ static void col_npc_manticore_arm(ColosseumState* s, int idx) {
     mc->cycle_step = 0;
 }
 
+static int col_manticore_has_target(
+    const ColosseumState* s,
+    const ColosseumContext* ctx,
+    const ColoNPC* npc,
+    const ColoNpcStats* stats
+) {
+    int dist = col_npc_dist_to_player(s, npc);
+    return dist >= 1 &&
+           dist <= stats->attack_range &&
+           col_npc_has_los_to_player(s, ctx, npc);
+}
+
 static void col_npc_attack_manticore(
     ColosseumState* s,
     ColosseumContext* ctx,
@@ -596,6 +617,7 @@ static void col_npc_attack_manticore(
     ColoNPC* npc = &s->npcs[idx];
     ColoManticoreState* mc = colo_npc_manticore(npc);
     mc->cycle_step = 0;
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
     col_npc_manticore_fire_orb(s, idx, stats);
     col_manticore_delay_ready_peers(s, ctx, idx);
 }
@@ -608,8 +630,41 @@ static void col_npc_attack_ctx(ColosseumState* s, ColosseumContext* ctx, int idx
     if (npc->type == COLO_SOL_HEREDIT) return;
 
     if (col_type_is_warbander(npc->type)) return;
+    if (npc->type == COLO_MANTICORE) {
+        ColoManticoreState* mc = colo_npc_manticore(npc);
+        if (mc->phase == COLO_MANTICORE_PHASE_ACTIVATING) {
+            if (npc->attack_timer > 0) npc->attack_timer--;
+            if (npc->attack_timer > 0) return;
+            mc->phase = COLO_MANTICORE_PHASE_WAITING_FOR_TARGET;
+        }
+    }
+
 
     if (s->wave_attack_delay > 0) return;
+    if (npc->type == COLO_MANTICORE) {
+        ColoManticoreState* mc = colo_npc_manticore(npc);
+        if (mc->phase == COLO_MANTICORE_PHASE_WAITING_FOR_TARGET) {
+            if (npc->stun_timer > 0 || npc->frozen_ticks > 0) return;
+            if (!col_manticore_has_target(s, ctx, npc, stats)) return;
+            col_npc_manticore_arm(s, idx);
+            mc->phase = COLO_MANTICORE_PHASE_CHARGING;
+            npc->attack_timer = COLO_MANTICORE_CHARGE_TICKS;
+            ctx->manticore_charge_started[idx] = 1;
+            return;
+        }
+        if (mc->phase == COLO_MANTICORE_PHASE_CHARGING) {
+            if (npc->attack_timer > 0) {
+                npc->attack_timer--;
+                return;
+            }
+            if (npc->stun_timer > 0 || npc->frozen_ticks > 0) return;
+            if (!col_manticore_has_target(s, ctx, npc, stats)) return;
+            col_npc_attack_manticore(s, ctx, idx, stats);
+            return;
+        }
+        assert(mc->phase == COLO_MANTICORE_PHASE_REPEATING);
+    }
+
 
     if (npc->type == COLO_MANTICORE && npc->type_state.manticore.cycle_step > 0) {
         col_npc_manticore_advance_barrage(s, idx, stats);
@@ -620,9 +675,7 @@ static void col_npc_attack_ctx(ColosseumState* s, ColosseumContext* ctx, int idx
     if (npc->stun_timer > 0 || npc->frozen_ticks > 0) return;
 
     if (npc->type == COLO_MANTICORE) {
-        int mdist = col_npc_dist_to_player(s, npc);
-        if (mdist < 1 || mdist > stats->attack_range) return;
-        if (!col_npc_has_los_to_player(s, ctx, npc)) return;
+        if (!col_manticore_has_target(s, ctx, npc, stats)) return;
         int cycle_step_before_arm = npc->type_state.manticore.cycle_step;
         col_npc_manticore_arm(s, idx);
         if (cycle_step_before_arm < 0 &&

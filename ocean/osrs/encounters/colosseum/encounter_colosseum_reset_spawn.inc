@@ -124,7 +124,9 @@ static void col_init_npc(ColosseumState* s, int idx, ColoNpcType type, int x, in
     npc->min_hp_seen = st->hp;
     npc->size = st->size;
     npc->render_id = ++s->next_npc_render_id;
-    npc->attack_timer = st->attack_speed;
+    npc->attack_timer = type == COLO_MANTICORE
+        ? COLO_MANTICORE_ACTIVATION_TICKS
+        : st->attack_speed;
     npc->attack_style = st->default_style;
     npc->active = 1;
     npc->target_x = x;

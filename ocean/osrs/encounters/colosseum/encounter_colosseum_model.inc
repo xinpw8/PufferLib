@@ -764,7 +764,15 @@ typedef struct {
     int formation_dir;
 } ColoWarbandState;
 
+typedef enum {
+    COLO_MANTICORE_PHASE_ACTIVATING = 0,
+    COLO_MANTICORE_PHASE_WAITING_FOR_TARGET,
+    COLO_MANTICORE_PHASE_CHARGING,
+    COLO_MANTICORE_PHASE_REPEATING,
+} ColoManticorePhase;
+
 typedef struct {
+    ColoManticorePhase phase;
     int cycle_step;
     AttackStyle orb_style[3];
     AttackStyle fixed_orb_style[3];
@@ -844,6 +852,9 @@ static inline int col_warband_window_offset(ColoNpcType type) {
 #define COLO_JAVELIN_SKYFALL_MAX_HIT 40
 #define COLO_JAVELIN_SKYFALL_ANIM_ID 10893
 #define COLO_MANTICORE_STAGGER_TICKS 5
+#define COLO_MANTICORE_ACTIVATION_TICKS 7
+#define COLO_MANTICORE_CHARGE_TICKS 10
+#define COLO_MANTICORE_ARM_ANIMATION_TICKS 3
 
 #define COLO_MINOTAUR_HEAL_RANGE 7
 
@@ -860,6 +871,7 @@ static void colo_npc_init_type_state(ColoNPC* npc) {
             break;
         case COLO_MANTICORE:
             npc->type_state.manticore = (ColoManticoreState){
+                .phase = COLO_MANTICORE_PHASE_ACTIVATING,
                 .cycle_step = -1,
                 .orb_style = { ATTACK_STYLE_NONE, ATTACK_STYLE_NONE, ATTACK_STYLE_NONE },
                 .fixed_orb_style = { ATTACK_STYLE_NONE, ATTACK_STYLE_NONE, ATTACK_STYLE_NONE },
@@ -1567,7 +1579,7 @@ typedef struct {
     ColosseumLog log;
     ColoObsMemoCaches obs_memos;
 } ColosseumState;
-static_assert(sizeof(ColosseumState) == 29776, "ColosseumState serialized layout");
+static_assert(sizeof(ColosseumState) == 29872, "ColosseumState serialized layout");
 
 typedef enum {
     COLO_DMG_OFFPRAY = 0,

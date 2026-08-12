@@ -3233,6 +3233,165 @@ static void test_minotaur_heal_semantics(void) {
         s.log.pray_faced_by_type[COLO_MINOTAUR] > mino_faced_before);
 }
 
+static void test_manticore_initial_charge_timing_and_target_gate(void) {
+    printf("test_manticore_initial_charge_timing_and_target_gate\n");
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    ColosseumState s;
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 79);
+    geo_clear_npcs(&s);
+    s.wave_attack_delay = 0;
+    s.player.x = 17;
+    s.player.y = 16;
+    col_rebuild_player_collision_flags(&s);
+    col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
+    ColoNPC* npc = &s.npcs[0];
+    ColoManticoreState* mc = colo_npc_manticore(npc);
+
+    int inactive_for_six_ticks = 1;
+    for (int tick = 0; tick < 6; tick++) {
+        col_context_clear_render_events(&ctx);
+        npc->attacked_this_tick = 0;
+        col_npc_attack_ctx(&s, &ctx, 0);
+        if (ctx.manticore_charge_started[0] ||
+                mc->phase != COLO_MANTICORE_PHASE_ACTIVATING ||
+                mc->cycle_step >= 0 ||
+                npc->attacked_this_tick) {
+            inactive_for_six_ticks = 0;
+        }
+    }
+    CHECK("manticore remains inactive for six ticks after its spawn tick",
+        inactive_for_six_ticks);
+
+    col_context_clear_render_events(&ctx);
+    col_npc_attack_ctx(&s, &ctx, 0);
+    CHECK("manticore starts charging on the seventh spawn tick",
+        ctx.manticore_charge_started[0] &&
+        mc->phase == COLO_MANTICORE_PHASE_CHARGING &&
+        mc->cycle_step == 0 &&
+        npc->attacked_this_tick == 0);
+
+    EncounterOverlay ov;
+    memset(&ov, 0, sizeof(ov));
+    col_render_post_tick_ctx((EncounterState*)&s, (EncounterContext*)&ctx, &ov);
+    CHECK("charging starts before any orb telegraph is visible",
+        ov.floating_model_count == 0);
+    CHECK("hidden charging phase exposes no prayer oracle",
+        !col_visible_manticore_next_prayer(npc).active);
+
+    int no_fire_during_ten_charge_ticks = 1;
+    for (int tick = 1; tick <= COLO_MANTICORE_CHARGE_TICKS; tick++) {
+        col_context_clear_render_events(&ctx);
+        npc->attacked_this_tick = 0;
+        col_npc_attack_ctx(&s, &ctx, 0);
+        if (npc->attacked_this_tick ||
+                mc->phase != COLO_MANTICORE_PHASE_CHARGING ||
+                mc->cycle_step != 0)
+            no_fire_during_ten_charge_ticks = 0;
+        if (tick <= COLO_MANTICORE_ARM_ANIMATION_TICKS) {
+            memset(&ov, 0, sizeof(ov));
+            col_render_post_tick_ctx((EncounterState*)&s, (EncounterContext*)&ctx, &ov);
+            ColoNpcNextPrayerObs next_prayer =
+                col_visible_manticore_next_prayer(npc);
+            if (tick < COLO_MANTICORE_ARM_ANIMATION_TICKS) {
+                CHECK("orbs remain hidden during the three-tick arming animation",
+                    ov.floating_model_count == 0);
+                CHECK("hidden arming ticks expose no prayer oracle",
+                    !next_prayer.active);
+            } else {
+                CHECK("all three orbs appear when the arming animation completes",
+                    ov.floating_model_count == 3);
+                CHECK("revealed orb 0 exposes its style eight ticks before firing",
+                    next_prayer.active &&
+                    next_prayer.style == mc->orb_style[0] &&
+                    next_prayer.ticks == 8);
+            }
+        }
+    }
+    CHECK("manticore consumes ten full charge ticks before firing",
+        no_fire_during_ten_charge_ticks);
+
+    npc->attacked_this_tick = 0;
+    col_npc_attack_ctx(&s, &ctx, 0);
+    CHECK("manticore fires the first orb eleven ticks after charging starts",
+        npc->attacked_this_tick == 1 &&
+        mc->phase == COLO_MANTICORE_PHASE_REPEATING &&
+        mc->cycle_step == 1);
+
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 79);
+    geo_clear_npcs(&s);
+    s.wave_attack_delay = 0;
+    s.player.x = 33;
+    s.player.y = 24;
+    col_rebuild_player_collision_flags(&s);
+    col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
+    npc = &s.npcs[0];
+    mc = colo_npc_manticore(npc);
+    int stayed_unarmed_without_target = 1;
+    for (int tick = 0; tick < 20; tick++) {
+        col_context_clear_render_events(&ctx);
+        npc->attacked_this_tick = 0;
+        col_npc_attack_ctx(&s, &ctx, 0);
+        if (ctx.manticore_charge_started[0] ||
+                mc->phase == COLO_MANTICORE_PHASE_CHARGING ||
+                mc->cycle_step >= 0 ||
+                npc->attacked_this_tick) {
+            stayed_unarmed_without_target = 0;
+        }
+    }
+    CHECK("manticore waits without a target in line of sight and range",
+        stayed_unarmed_without_target &&
+        mc->phase == COLO_MANTICORE_PHASE_WAITING_FOR_TARGET);
+
+    s.player.x = 17;
+    s.player.y = 16;
+    col_rebuild_player_collision_flags(&s);
+    col_context_clear_render_events(&ctx);
+    col_npc_attack_ctx(&s, &ctx, 0);
+    CHECK("first valid target tick starts charging without firing",
+        ctx.manticore_charge_started[0] &&
+        mc->phase == COLO_MANTICORE_PHASE_CHARGING &&
+        mc->cycle_step == 0 &&
+        npc->attacked_this_tick == 0);
+
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 79);
+    geo_clear_npcs(&s);
+    s.wave_attack_delay = 0;
+    s.player.x = 5;
+    s.player.y = 9;
+    col_rebuild_player_collision_flags(&s);
+    col_init_npc(&s, 0, COLO_MANTICORE, 11, 8);
+    npc = &s.npcs[0];
+    mc = colo_npc_manticore(npc);
+    CHECK("blocked fixture remains inside Manticore attack range",
+        col_npc_dist_to_player(&s, npc) <=
+            COLO_NPC_STATS[COLO_MANTICORE].attack_range);
+    CHECK("pillar blocks the Manticore's first line of sight",
+        !col_npc_has_los_to_player(&s, &ctx, npc));
+    for (int tick = 0; tick < COLO_MANTICORE_ACTIVATION_TICKS; tick++) {
+        col_context_clear_render_events(&ctx);
+        col_npc_attack_ctx(&s, &ctx, 0);
+    }
+    CHECK("in-range Manticore waits while line of sight is blocked",
+        mc->phase == COLO_MANTICORE_PHASE_WAITING_FOR_TARGET &&
+        mc->cycle_step < 0 &&
+        !ctx.manticore_charge_started[0]);
+
+    s.player.x = 12;
+    s.player.y = 12;
+    col_rebuild_player_collision_flags(&s);
+    col_context_clear_render_events(&ctx);
+    col_npc_attack_ctx(&s, &ctx, 0);
+    CHECK("first unblocked in-range tick starts the Manticore charge",
+        ctx.manticore_charge_started[0] &&
+        mc->phase == COLO_MANTICORE_PHASE_CHARGING &&
+        mc->cycle_step == 0 &&
+        npc->attacked_this_tick == 0);
+}
+
 static void test_manticore_barrage_period(void) {
     printf("test_manticore_barrage_period\n");
     ColosseumContext ctx;
@@ -3247,6 +3406,7 @@ static void test_manticore_barrage_period(void) {
     s.npcs[0].attack_timer = 2;
 
     ColoManticoreState* mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
     int starts[8];
     int nstarts = 0;
     for (int t = 0; t < 36; t++) {
@@ -3275,6 +3435,7 @@ static void test_manticore_telegraph_during_windup(void) {
     col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
     s.npcs[0].attack_timer = 6;
     ColoManticoreState* mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
     CHECK("spawn rolls a hidden fixed cycle",
         mc->fixed_orb_style[0] != ATTACK_STYLE_NONE &&
         mc->fixed_orb_style[1] != ATTACK_STYLE_NONE &&
@@ -3309,6 +3470,7 @@ static void test_manticore_telegraph_during_windup(void) {
     col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
     s.npcs[0].attack_timer = 3;
     mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
     int orb0_blocked = 0;
     for (int t = 0; t < 12; t++) {
         if (mc->cycle_step == 0 && mc->orb_style[0] != ATTACK_STYLE_NONE) {
@@ -3432,6 +3594,7 @@ static void test_manticore_orb_same_tick_flick(void) {
     col_rebuild_player_collision_flags(&s);
     col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
     ColoManticoreState* mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
 
     int no_fire_damage = 1, prayed_one_tick = 1, prayer_counted = 0, any_queued = 0;
     for (int rep = 0; rep < 16; rep++) {
@@ -3484,6 +3647,7 @@ static void test_manticore_orb_same_tick_flick(void) {
     col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
     s.npcs[0].attack_timer = 4;
     mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
 
     int actions[COLO_NUM_ACTION_HEADS] = {0};
     int protected_ticks = 0, flicked_damage = 0;
@@ -3570,6 +3734,8 @@ static void test_manticore_shared_wave_cycle(void) {
     col_init_npc(&s, 1, COLO_MANTICORE, 18, 16);
     ColoManticoreState* amc = colo_npc_manticore(&s.npcs[0]);
     ColoManticoreState* bmc = colo_npc_manticore(&s.npcs[1]);
+    amc->phase = COLO_MANTICORE_PHASE_REPEATING;
+    bmc->phase = COLO_MANTICORE_PHASE_REPEATING;
     CHECK("manually-spawned peers also share the wave pattern",
         amc->fixed_orb_style[0] == bmc->fixed_orb_style[0] &&
         amc->fixed_orb_style[1] == bmc->fixed_orb_style[1] &&
@@ -3591,6 +3757,37 @@ static void test_manticore_shared_wave_cycle(void) {
     col_npc_attack_ctx(&s, &ctx, 1);
     CHECK("the delayed peer fires exactly 5 ticks after A's barrage started",
         bmc->cycle_step == 1);
+
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 89);
+    geo_clear_npcs(&s);
+    s.wave = 8;
+    s.player.x = 13;
+    s.player.y = 12;
+    col_rebuild_player_collision_flags(&s);
+    col_init_npc(&s, 0, COLO_MANTICORE, 12, 16);
+    col_init_npc(&s, 1, COLO_MANTICORE, 18, 16);
+    amc = colo_npc_manticore(&s.npcs[0]);
+    bmc = colo_npc_manticore(&s.npcs[1]);
+    col_npc_manticore_arm(&s, 0);
+    col_npc_manticore_arm(&s, 1);
+    amc->phase = COLO_MANTICORE_PHASE_CHARGING;
+    bmc->phase = COLO_MANTICORE_PHASE_CHARGING;
+    s.npcs[0].attack_timer = 0;
+    s.npcs[1].attack_timer = 0;
+    col_npc_attack_ctx(&s, &ctx, 0);
+    col_npc_attack_ctx(&s, &ctx, 1);
+    CHECK("a fully charged initial peer starts its five-tick delay",
+        amc->cycle_step == 1 &&
+        bmc->cycle_step == 0 &&
+        s.npcs[1].attack_timer == COLO_MANTICORE_STAGGER_TICKS - 1);
+    for (int tick = 1; tick < COLO_MANTICORE_STAGGER_TICKS; tick++)
+        col_npc_attack_ctx(&s, &ctx, 1);
+    CHECK("initial peer remains ready through the fourth delayed tick",
+        bmc->cycle_step == 0 && s.npcs[1].attack_timer == 0);
+    col_npc_attack_ctx(&s, &ctx, 1);
+    CHECK("initial peer fires on the fifth delayed tick",
+        bmc->cycle_step == 1);
 }
 
 static void test_manticore_stagger_overlap_fidelity(void) {
@@ -3611,6 +3808,8 @@ static void test_manticore_stagger_overlap_fidelity(void) {
     col_init_npc(&s, 1, COLO_MANTICORE, 18, 16);
     ColoManticoreState* amc = colo_npc_manticore(&s.npcs[0]);
     ColoManticoreState* bmc = colo_npc_manticore(&s.npcs[1]);
+    amc->phase = COLO_MANTICORE_PHASE_REPEATING;
+    bmc->phase = COLO_MANTICORE_PHASE_REPEATING;
     s.player.current_hitpoints = 99;
     s.npcs[0].attack_timer = 0;
     s.npcs[1].attack_timer = 2;
@@ -3634,6 +3833,8 @@ static void test_manticore_stagger_overlap_fidelity(void) {
     col_init_npc(&s, 1, COLO_MANTICORE, 11, 8);
     amc = colo_npc_manticore(&s.npcs[0]);
     bmc = colo_npc_manticore(&s.npcs[1]);
+    amc->phase = COLO_MANTICORE_PHASE_REPEATING;
+    bmc->phase = COLO_MANTICORE_PHASE_REPEATING;
     s.player.current_hitpoints = 99;
     s.npcs[0].attack_timer = 0;
     s.npcs[1].attack_timer = 0;
@@ -3665,6 +3866,8 @@ static void test_manticore_stagger_overlap_fidelity(void) {
     col_init_npc(&s, 1, COLO_MANTICORE, 18, 16);
     amc = colo_npc_manticore(&s.npcs[0]);
     bmc = colo_npc_manticore(&s.npcs[1]);
+    amc->phase = COLO_MANTICORE_PHASE_REPEATING;
+    bmc->phase = COLO_MANTICORE_PHASE_REPEATING;
     s.player.current_hitpoints = 99;
     s.npcs[0].attack_timer = 3;
     s.npcs[1].attack_timer = 3;
@@ -6979,6 +7182,7 @@ static void test_render_bridge_combat_visuals_and_loadout(void) {
     init_forecast_test_state(&s, &ctx, 503, 17, 16);
     col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
     ColoManticoreState* mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
     mc->fixed_orb_style[0] = ATTACK_STYLE_MAGIC;
     mc->fixed_orb_style[1] = ATTACK_STYLE_RANGED;
     mc->fixed_orb_style[2] = ATTACK_STYLE_MELEE;
@@ -7010,6 +7214,7 @@ static void test_render_bridge_combat_visuals_and_loadout(void) {
     init_forecast_test_state(&s, &ctx, 503, 17, 16);
     col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
     mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
     mc->fixed_orb_style[0] = ATTACK_STYLE_MELEE;
     mc->fixed_orb_style[1] = ATTACK_STYLE_RANGED;
     mc->fixed_orb_style[2] = ATTACK_STYLE_MAGIC;
@@ -8980,6 +9185,7 @@ int main(void) {
     test_warband_pillar_routefind_vs_shaman_safespot();
     test_red_flag_minotaur_routefind();
     test_minotaur_heal_semantics();
+    test_manticore_initial_charge_timing_and_target_gate();
     test_manticore_barrage_period();
     test_manticore_telegraph_during_windup();
     test_late_start_entry_state();
