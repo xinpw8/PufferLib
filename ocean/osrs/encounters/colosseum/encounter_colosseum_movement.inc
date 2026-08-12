@@ -1,134 +1,176 @@
 #line 76 "encounter_colosseum.h"
 
-static int col_player_walkable(void* ctx, int x, int y) {
-    ColosseumState* s = (ColosseumState*)ctx;
-    if (col_static_blocked(x, y)) return 0;
-    if (col_sol_clamp_active(s) && !col_in_boss_arena(s, x, y)) return 0;
+typedef struct {
+    ColosseumState* state;
+    const ColosseumContext* context;
+} ColoGeometryContext;
+
+static int col_player_walkable_ctx(
+    const ColosseumState* state,
+    const ColosseumContext* context,
+    int x,
+    int y
+) {
+    if (col_topology_tile_blocked(context, x, y)) return 0;
+    if (col_sol_clamp_active(state) && !col_in_boss_arena(state, x, y))
+        return 0;
     return 1;
 }
 
-static int col_los_tile_blocked(void* ctx, int x, int y) {
-    (void)ctx;
-    return col_static_blocked(x, y);
+static int col_player_walkable(void* data, int x, int y) {
+    const ColoGeometryContext* geometry =
+        (const ColoGeometryContext*)data;
+    return col_player_walkable_ctx(
+        geometry->state, geometry->context, x, y);
 }
 
-static int col_tiles_have_los(const ColosseumState* s, int x0, int y0, int x1, int y1) {
-    (void)s;
-    if (!COLO_STATIC_LOOKUP_TABLES_BUILT) col_build_static_arena();
-    if (col_static_los_endpoint_in_bounds(x0, y0) &&
-            col_static_los_endpoint_in_bounds(x1, y1))
-        return col_static_los_get(x0, y0, x1, y1);
-    return col_tiles_have_los_reference_slowpath(x0, y0, x1, y1);
+static int col_topology_los_tile_blocked(void* data, int x, int y) {
+    const ColosseumContext* context = (const ColosseumContext*)data;
+    return col_topology_tile_blocked(context, x, y);
 }
 
-static OsrsLosQuery col_player_los_query(ColosseumState* s) {
-    return osrs_los_tile(col_los_tile_blocked, s);
+static OsrsLosQuery col_player_los_query(const ColosseumContext* context) {
+    return osrs_los_tile(
+        col_topology_los_tile_blocked, (void*)context);
 }
 
-static int col_npc_has_los_to_player(const ColosseumState* s, const ColoNPC* npc) {
+static int col_npc_has_los_to_player(
+    const ColosseumState* state,
+    const ColosseumContext* context,
+    const ColoNPC* npc
+) {
     int size = npc->size > 0 ? npc->size : COLO_NPC_STATS[npc->type].size;
-    int sx = s->player.x, sy = s->player.y;
-    if (sx < npc->x) sx = npc->x;
-    if (sx > npc->x + size - 1) sx = npc->x + size - 1;
-    if (sy < npc->y) sy = npc->y;
-    if (sy > npc->y + size - 1) sy = npc->y + size - 1;
-    return col_tiles_have_los(s, sx, sy, s->player.x, s->player.y);
+    return col_topology_los_clear(
+        context,
+        npc->x,
+        npc->y,
+        size,
+        state->player.x,
+        state->player.y,
+        1,
+        0);
 }
 
-static int col_npc_blocked_ignore_player(void* ctx, int x, int y, int size) {
-    ColosseumState* s = (ColosseumState*)ctx;
-    s->log.npc_blocked_calls += 1.0f;
-    s->log.npc_blocked_tiles += (float)(size * size);
-    if (col_static_footprint_blocked_lookup(x, y, size)) return 1;
-    int sol_clamp_active = col_sol_clamp_active(s);
+static int col_npc_blocked_ignore_player(
+    void* data,
+    int x,
+    int y,
+    int size
+) {
+    ColoGeometryContext* geometry = (ColoGeometryContext*)data;
+    ColosseumState* state = geometry->state;
+    state->log.npc_blocked_calls += 1.0f;
+    state->log.npc_blocked_tiles += (float)(size * size);
+    if (col_topology_footprint_blocked(
+            geometry->context, x, y, size))
+        return 1;
+    int sol_clamp_active = col_sol_clamp_active(state);
     for (int dx = 0; dx < size; dx++) {
         for (int dy = 0; dy < size; dy++) {
-            if (sol_clamp_active && !col_in_boss_arena(s, x + dx, y + dy)) return 1;
-            int gx, gy;
-            if (!col_grid_index(x + dx, y + dy, &gx, &gy)) return 1;
-            if (s->npc_collision_flags[gx][gy]) return 1;
+            if (sol_clamp_active &&
+                    !col_in_boss_arena(state, x + dx, y + dy))
+                return 1;
+            int grid_x, grid_y;
+            if (!col_grid_index(x + dx, y + dy, &grid_x, &grid_y))
+                return 1;
+            if (state->npc_collision_flags[grid_x][grid_y]) return 1;
         }
     }
     return 0;
 }
 
-static int col_npc_blocked(void* ctx, int x, int y, int size) {
-    ColosseumState* s = (ColosseumState*)ctx;
-    if (col_npc_blocked_ignore_player(ctx, x, y, size)) return 1;
+static int col_npc_blocked(void* data, int x, int y, int size) {
+    ColoGeometryContext* geometry = (ColoGeometryContext*)data;
+    ColosseumState* state = geometry->state;
+    if (col_npc_blocked_ignore_player(data, x, y, size)) return 1;
     for (int dx = 0; dx < size; dx++) {
         for (int dy = 0; dy < size; dy++) {
-            int gx, gy;
-            if (!col_grid_index(x + dx, y + dy, &gx, &gy)) return 1;
-            if (gx == s->player_grid_x && gy == s->player_grid_y) return 1;
+            int grid_x, grid_y;
+            if (!col_grid_index(x + dx, y + dy, &grid_x, &grid_y))
+                return 1;
+            if (grid_x == state->player_grid_x &&
+                    grid_y == state->player_grid_y)
+                return 1;
         }
     }
     return 0;
 }
 
 typedef struct {
-    ColosseumState* s;
+    ColoGeometryContext geometry;
     int self_idx;
 } ColoNpcMoveCtx;
 
-static int col_npc_move_blocked_ignore_player(void* ctx, int x, int y, int size) {
-    ColoNpcMoveCtx* move_ctx = (ColoNpcMoveCtx*)ctx;
-    return col_npc_blocked_ignore_player(move_ctx->s, x, y, size);
+static int col_npc_move_blocked_ignore_player(
+    void* data,
+    int x,
+    int y,
+    int size
+) {
+    ColoNpcMoveCtx* move = (ColoNpcMoveCtx*)data;
+    return col_npc_blocked_ignore_player(
+        &move->geometry, x, y, size);
 }
 
-static int col_npc_move_overlap_hold(void* ctx) {
-    ColoNpcMoveCtx* move_ctx = (ColoNpcMoveCtx*)ctx;
-    ColosseumState* s = move_ctx->s;
-    return s->player_last_interaction_age == 0 &&
-           s->player_last_interaction_target_slot == move_ctx->self_idx;
+static int col_npc_move_overlap_hold(void* data) {
+    ColoNpcMoveCtx* move = (ColoNpcMoveCtx*)data;
+    ColosseumState* state = move->geometry.state;
+    return state->player_last_interaction_age == 0 &&
+        state->player_last_interaction_target_slot == move->self_idx;
 }
 
 typedef struct {
-    ColosseumState* s;
-    const EncounterArenaTopology* topology;
+    ColoGeometryContext geometry;
     int size;
     int ignore_npcs;
 } ColoNpcPathCtx;
 
 static ColoNpcPathCtx col_npc_path_ctx_begin(
-    ColosseumState* s,
-    const EncounterArenaTopology* topology,
+    ColosseumState* state,
+    const ColosseumContext* context,
     int size
 ) {
-    if (!topology) {
-        fprintf(stderr, "colosseum NPC route topology is not bound\n");
-        abort();
-    }
+    encounter_arena_topology_require_finalized(context->route_topology);
     return (ColoNpcPathCtx){
-        .s = s,
-        .topology = topology,
+        .geometry = {
+            .state = state,
+            .context = context,
+        },
         .size = size,
     };
 }
 
-static int col_npc_path_blocked_uncached(ColoNpcPathCtx* pc, int x, int y) {
-    ColosseumState* s = pc->s;
-    if (s->player.x >= x && s->player.x < x + pc->size &&
-        s->player.y >= y && s->player.y < y + pc->size) return 1;
-    if (pc->ignore_npcs) {
-        for (int dx = 0; dx < pc->size; dx++) {
-            for (int dy = 0; dy < pc->size; dy++) {
-                int tx = x + dx, ty = y + dy;
-                if (col_static_blocked(tx, ty)) return 1;
-                if (col_sol_clamp_active(s) && !col_in_boss_arena(s, tx, ty)) return 1;
-            }
-        }
+static int col_npc_path_blocked_uncached(
+    ColoNpcPathCtx* path,
+    int x,
+    int y
+) {
+    ColosseumState* state = path->geometry.state;
+    if (state->player.x >= x && state->player.x < x + path->size &&
+            state->player.y >= y && state->player.y < y + path->size)
+        return 1;
+    if (path->ignore_npcs) {
+        if (col_topology_footprint_blocked(
+                path->geometry.context, x, y, path->size))
+            return 1;
+        if (!col_sol_clamp_active(state)) return 0;
+        for (int dx = 0; dx < path->size; dx++)
+            for (int dy = 0; dy < path->size; dy++)
+                if (!col_in_boss_arena(state, x + dx, y + dy))
+                    return 1;
         return 0;
     }
-    return col_npc_blocked_ignore_player(s, x, y, pc->size);
+    return col_npc_blocked_ignore_player(
+        &path->geometry, x, y, path->size);
 }
 
-static int col_npc_path_blocked(void* ctx, int x, int y, int size) {
-    ColoNpcPathCtx* pc = (ColoNpcPathCtx*)ctx;
-    if (size != pc->size) {
+static int col_npc_path_blocked(void* data, int x, int y, int size) {
+    ColoNpcPathCtx* path = (ColoNpcPathCtx*)data;
+    if (size != path->size) {
         fprintf(stderr, "colosseum NPC route actor size changed\n");
         abort();
     }
-    return col_npc_path_blocked_uncached(pc, x, y);
+    return col_npc_path_blocked_uncached(path, x, y);
 }
 
 static int col_npc_path_step_with_ctx(
@@ -145,11 +187,12 @@ static int col_npc_path_step_with_ctx(
     if (*x == tx && *y == ty) return 0;
 #ifdef COLO_PROFILE_ENABLED
     int col_prof_enabled =
-        COLO_PROFILE_ENABLED() && !pc->s->profiling_suppressed;
+        COLO_PROFILE_ENABLED() &&
+        !pc->geometry.state->profiling_suppressed;
     double col_prof_t0 = col_prof_enabled ? COLO_PROFILE_NOW_MS() : 0.0;
 #endif
     EncounterRouteInput input = {
-        .topology = pc->topology,
+        .topology = pc->geometry.context->route_topology,
         .blockers = {
             .is_blocked = col_npc_path_blocked,
             .ctx = pc,
@@ -183,14 +226,14 @@ static int col_npc_path_step_with_ctx(
 
 static int col_npc_path_step(
     ColosseumState* s,
-    const EncounterArenaTopology* topology,
+    const ColosseumContext* context,
     int* x,
     int* y,
     int size,
     int tx,
     int ty
 ) {
-    ColoNpcPathCtx pc = col_npc_path_ctx_begin(s, topology, size);
+    ColoNpcPathCtx pc = col_npc_path_ctx_begin(s, context, size);
     return col_npc_path_step_with_ctx(&pc, x, y, tx, ty);
 }
 
@@ -229,8 +272,7 @@ static void col_warband_move(
     npc->target_x = s->player.x;
     npc->target_y = s->player.y;
 
-    ColoNpcPathCtx pc =
-        col_npc_path_ctx_begin(s, ctx->route_topology, 1);
+    ColoNpcPathCtx pc = col_npc_path_ctx_begin(s, ctx, 1);
     pc.ignore_npcs = 1;
     int tx, ty;
     col_warband_pick_target(s, &pc, npc, &tx, &ty);
@@ -272,7 +314,8 @@ static void col_npc_move_ctx(ColosseumState* s, ColosseumContext* ctx, int idx) 
     int is_ranged = st->attack_range > 1;
     if (is_ranged) {
         int dist = encounter_dist_to_npc(s->player.x, s->player.y, npc->x, npc->y, size);
-        if (dist >= 1 && dist <= st->attack_range && col_npc_has_los_to_player(s, npc)) {
+        if (dist >= 1 && dist <= st->attack_range &&
+                col_npc_has_los_to_player(s, ctx, npc)) {
             npc->moved_this_tick = 0;
             return;
         }
@@ -283,7 +326,13 @@ static void col_npc_move_ctx(ColosseumState* s, ColosseumContext* ctx, int idx) 
     }
 
     col_stamp_npc_collision(s, npc, 0);
-    ColoNpcMoveCtx move_ctx = { s, idx };
+    ColoNpcMoveCtx move_ctx = {
+        .geometry = {
+            .state = s,
+            .context = ctx,
+        },
+        .self_idx = idx,
+    };
 
     int moved;
     if (npc->type == COLO_MINOTAUR && col_mod_active(s, COLO_MOD_RED_FLAG)) {
@@ -291,8 +340,7 @@ static void col_npc_move_ctx(ColosseumState* s, ColosseumContext* ctx, int idx) 
         moved = 0;
         if (encounter_dist_to_npc(tx, ty, npc->x, npc->y, size) > 1)
             moved = col_npc_path_step(
-                s, ctx->route_topology,
-                &npc->x, &npc->y, size, tx - 1, ty - 1);
+                s, ctx, &npc->x, &npc->y, size, tx - 1, ty - 1);
     } else {
         EncounterNpcStepPolicy step_policy = is_ranged
             ? ENCOUNTER_NPC_STEP_OSRS_AGGRO_TARGET

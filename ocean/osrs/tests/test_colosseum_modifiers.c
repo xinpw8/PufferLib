@@ -3,9 +3,15 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include "ocean/osrs/osrs_item_obs_generated.h"
 #include "ocean/osrs/encounters/encounter_colosseum.h"
+static void col_init_unfinalized_context(ColosseumContext* ctx) {
+    col_init_context_typed(ctx);
+}
+
 
 #define col_init_context_typed(ctx_ptr) do { \
     col_init_context_typed(ctx_ptr); \
@@ -14,6 +20,26 @@
 } while (0)
 
 #include "ocean/osrs/tests/osrs_test_check.h"
+static void assert_child_aborts(const char* label, void (*fn)(void)) {
+    fflush(NULL);
+    pid_t pid = fork();
+    if (pid == 0) {
+        fn();
+        _exit(0);
+    }
+
+    int status = 0;
+    waitpid(pid, &status, 0);
+    tests_run++;
+    if (WIFSIGNALED(status) ||
+            (WIFEXITED(status) && WEXITSTATUS(status) != 0)) {
+        tests_passed++;
+    } else {
+        tests_failed++;
+        printf("  FAIL: %s - child returned successfully\n", label);
+    }
+}
+
 
 #define TEST_MOD_HAZARD_BASE (COLO_OBS_AFTER_NPCS + COLO_MODIFIER_FLAGS_OBS_SIZE)
 #define TEST_MOD_OBS_DOOM_LETHAL (TEST_MOD_HAZARD_BASE + 2)
@@ -103,12 +129,15 @@ static int first_live_score_enemy(const ColosseumState* s) {
     return -1;
 }
 
-static void kill_first_live_score_enemy(ColosseumState* s) {
+static void kill_first_live_score_enemy(
+    ColosseumState* s,
+    ColosseumContext* ctx
+) {
     int slot = first_live_score_enemy(s);
     CHECK("a live score enemy exists", slot >= 0);
     if (slot < 0) return;
     s->npcs[slot].hp = 0;
-    col_apply_npc_death(s, slot);
+    col_apply_npc_death(s, ctx, slot);
 }
 
 static float score_for_depth(float depth) {
@@ -116,8 +145,12 @@ static float score_for_depth(float depth) {
     return COLO_SCORE_LOSS_CEILING * ratio * ratio;
 }
 
-static void land_pending_player_hits(ColosseumState* s) {
-    for (int t = 0; t < 4; t++) col_resolve_player_projectiles_on_npcs(s);
+static void land_pending_player_hits(
+    ColosseumState* s,
+    ColosseumContext* ctx
+) {
+    for (int t = 0; t < 4; t++)
+        col_resolve_player_projectiles_on_npcs(s, ctx);
 }
 
 static void geo_clear_npcs(ColosseumState* s) {
@@ -759,7 +792,7 @@ static void test_draft_offer_and_select(void) {
     CHECK("selection logged", s.log.modifiers_picked == 1);
 
     s.wave = 1;
-    col_spawn_wave(&s);
+    col_spawn_wave(&s, &ctx);
     CHECK("modifier persists across waves", col_mod_active(&s, (ColoModifier)chosen));
 
     int rfdd_before_window = 0, rfdd_in_window = 0, boss_excluded_seen = 0;
@@ -932,7 +965,7 @@ static void test_quartet_extra_spawn(void) {
     memset(&base, 0, sizeof(base));
     col_reset_ctx((EncounterState*)&base, (EncounterContext*)&ctx, 5);
     base.wave = 0;
-    col_spawn_wave(&base);
+    col_spawn_wave(&base, &ctx);
     int base_count = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++) if (base.npcs[i].active) base_count++;
 
@@ -942,7 +975,7 @@ static void test_quartet_extra_spawn(void) {
     q.modifiers.active_mask |= (1u << COLO_MOD_QUARTET);
     q.modifiers.tier[COLO_MOD_QUARTET] = 1;
     q.wave = 0;
-    col_spawn_wave(&q);
+    col_spawn_wave(&q, &ctx);
     int q_count = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++) if (q.npcs[i].active) q_count++;
 
@@ -954,7 +987,7 @@ static void test_quartet_extra_spawn(void) {
     q12.modifiers.active_mask |= (1u << COLO_MOD_QUARTET);
     q12.modifiers.tier[COLO_MOD_QUARTET] = 1;
     q12.wave = COLO_WAVE_BOSS;
-    col_spawn_wave(&q12);
+    col_spawn_wave(&q12, &ctx);
     int sol = 0, warband = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++) {
         if (!q12.npcs[i].active) continue;
@@ -976,7 +1009,7 @@ static void test_bees_hazard(void) {
     s.modifiers.active_mask |= (1u << COLO_MOD_BEES);
     s.modifiers.tier[COLO_MOD_BEES] = 2;
     s.wave = 0;
-    col_spawn_wave(&s);
+    col_spawn_wave(&s, &ctx);
 
     int bee_npcs = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++)
@@ -1042,8 +1075,8 @@ static void test_bees_hazard(void) {
     s.player.y = bee_npc->y;
 
     int slot = s.bees[0].npc_slot;
-    col_player_attack_target(&s, slot);
-    land_pending_player_hits(&s);
+    col_player_attack_target_ctx(&s, &ctx, slot);
+    land_pending_player_hits(&s, &ctx);
     CHECK("a single hit kills the swarm", !s.npcs[slot].active);
     CHECK("the killed swarm enters its 50-tick respawn",
         s.bees[0].phase == COLO_HAZARD_RESPAWNING &&
@@ -1066,7 +1099,7 @@ static void test_bees_hazard(void) {
     sc.modifiers.active_mask |= (1u << COLO_MOD_BEES);
     sc.modifiers.tier[COLO_MOD_BEES] = 1;
     sc.wave = 0;
-    col_spawn_wave(&sc);
+    col_spawn_wave(&sc, &ctx);
     sc.wave_spawn_delay = 0;
     int live_bee = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++)
@@ -1102,16 +1135,16 @@ static void test_totem_lifecycle(void) {
 
     col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 12, 16);
     s.npcs[0].hp = 70;
-    col_mod_on_npc_hp_changed(&s, 0);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, 0);
     CHECK("no totem above 50% HP", s.totems[0].phase == COLO_HAZARD_NONE);
     s.npcs[0].hp = 60;
-    col_mod_on_npc_hp_changed(&s, 0);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, 0);
     CHECK("crossing <=50% spawns a totem", s.totems[0].phase == COLO_HAZARD_ALIVE);
     int tslot = s.totems[0].npc_slot;
     CHECK("the totem is a live 1-HP NPC beside its owner",
         tslot >= 0 && s.npcs[tslot].active &&
         s.npcs[tslot].type == COLO_HEALING_TOTEM && s.npcs[tslot].hp == 1);
-    col_mod_on_npc_hp_changed(&s, 0);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, 0);
     CHECK("no duplicate totem for the same owner", s.totems[0].phase == COLO_HAZARD_ALIVE);
 
     CHECK("the totem spawns on the owner's south-west tile",
@@ -1119,27 +1152,30 @@ static void test_totem_lifecycle(void) {
 
     int heal = s.npcs[0].max_hp * COLO_TOTEM_HEAL_PCT / 100;
     for (int t = 0; t < COLO_TOTEM_SPAWN_HEAL_DELAY + COLO_TOTEM_PROJECTILE_TICKS - 1; t++)
-        col_mod_tick_totems(&s);
+        col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("no heal lands before the spawn delay plus projectile flight",
         s.npcs[0].hp == 60);
-    col_mod_tick_totems(&s);
+    col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("the first heal restores 30% of the owner's max HP",
         s.npcs[0].hp == 60 + heal);
-    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL; t++) col_mod_tick_totems(&s);
+    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("heals land every 7 ticks and continue above 50%",
         s.npcs[0].hp == 60 + 2 * heal || s.npcs[0].hp == s.npcs[0].max_hp);
-    for (int t = 0; t < 4 * COLO_TOTEM_HEAL_INTERVAL; t++) col_mod_tick_totems(&s);
+    for (int t = 0; t < 4 * COLO_TOTEM_HEAL_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("the totem heals the owner back to full and then stops",
         s.npcs[0].hp == s.npcs[0].max_hp);
 
     s.npcs[0].hp = 50;
     for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL - COLO_TOTEM_PROJECTILE_TICKS; t++)
-        col_mod_tick_totems(&s);
+        col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("a heal projectile is in flight before it lands",
         s.totems[0].projectile_timer > 0 && s.npcs[0].hp == 50);
-    col_player_attack_target(&s, tslot);
-    land_pending_player_hits(&s);
-    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL; t++) col_mod_tick_totems(&s);
+    col_player_attack_target_ctx(&s, &ctx, tslot);
+    land_pending_player_hits(&s, &ctx);
+    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("destroying the totem cancels the in-flight heal",
         s.npcs[0].hp == 50 && s.totems[0].phase == COLO_HAZARD_RESPAWNING);
     s.totems[0].phase = COLO_HAZARD_ALIVE;
@@ -1147,15 +1183,16 @@ static void test_totem_lifecycle(void) {
     s.npcs[tslot].active = 1;
     s.npcs[tslot].hp = 1;
 
-    col_player_attack_target(&s, tslot);
-    land_pending_player_hits(&s);
+    col_player_attack_target_ctx(&s, &ctx, tslot);
+    land_pending_player_hits(&s, &ctx);
     CHECK("a single attack destroys the totem", !s.npcs[tslot].active);
     CHECK("destruction arms the 200-tick respawn",
         s.totems[0].phase == COLO_HAZARD_RESPAWNING &&
         s.totems[0].respawn_timer == COLO_TOTEM_RESPAWN_TICKS);
-    for (int t = 0; t < COLO_TOTEM_RESPAWN_TICKS - 1; t++) col_mod_tick_totems(&s);
+    for (int t = 0; t < COLO_TOTEM_RESPAWN_TICKS - 1; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("still down one tick early", s.totems[0].phase == COLO_HAZARD_RESPAWNING);
-    col_mod_tick_totems(&s);
+    col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("the totem respawns exactly 200 ticks after destruction",
         s.totems[0].phase == COLO_HAZARD_ALIVE &&
         s.npcs[s.totems[0].npc_slot].active &&
@@ -1163,19 +1200,19 @@ static void test_totem_lifecycle(void) {
 
     int tslot2 = s.totems[0].npc_slot;
     s.npcs[0].hp = 0;
-    col_apply_npc_death(&s, 0);
+    col_apply_npc_death(&s, &ctx, 0);
     CHECK("the owner's death despawns its totem",
         !s.npcs[tslot2].active && s.totems[0].phase == COLO_HAZARD_NONE);
 
     col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 12, 16);
     s.npcs[0].hp = 60;
-    col_mod_on_npc_hp_changed(&s, 0);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, 0);
     int tslot3 = s.totems[0].npc_slot;
-    col_player_attack_target(&s, tslot3);
-    land_pending_player_hits(&s);
+    col_player_attack_target_ctx(&s, &ctx, tslot3);
+    land_pending_player_hits(&s, &ctx);
     CHECK("second totem down and respawning", s.totems[0].phase == COLO_HAZARD_RESPAWNING);
     s.npcs[0].hp = 0;
-    col_apply_npc_death(&s, 0);
+    col_apply_npc_death(&s, &ctx, 0);
     CHECK("the owner's death cancels a pending totem respawn",
         s.totems[0].phase == COLO_HAZARD_NONE);
 
@@ -1196,10 +1233,10 @@ static void test_totemic_sol_wave12(void) {
     CHECK("Sol is live", sol >= 0);
 
     s.npcs[sol].hp = COLO_SOL_HP_MAX * 60 / 100;
-    col_mod_on_npc_hp_changed(&s, sol);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, sol);
     CHECK("no totem while Sol is above 50%", col_totem_for_owner(&s, sol) == NULL);
     s.npcs[sol].hp = COLO_SOL_HP_MAX / 2;
-    col_mod_on_npc_hp_changed(&s, sol);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, sol);
     ColoTotem* sol_totem = col_totem_for_owner(&s, sol);
     CHECK("Sol at 50% spawns a totem",
         sol_totem && sol_totem->phase == COLO_HAZARD_ALIVE);
@@ -1212,19 +1249,21 @@ static void test_totemic_sol_wave12(void) {
 
     int hp0 = s.npcs[sol].hp;
     for (int t = 0; t < COLO_TOTEM_SPAWN_HEAL_DELAY + COLO_TOTEM_PROJECTILE_TICKS - 1; t++)
-        col_mod_tick_totems(&s);
+        col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("no Sol heal before the spawn delay plus projectile flight",
         s.npcs[sol].hp == hp0);
-    col_mod_tick_totems(&s);
+    col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("the pulse heals Sol exactly 75", s.npcs[sol].hp == hp0 + COLO_TOTEM_SOL_HEAL);
-    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL; t++) col_mod_tick_totems(&s);
+    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("Sol keeps healing 75/7t even above 50% (until destroyed)",
         s.npcs[sol].hp == hp0 + 2 * COLO_TOTEM_SOL_HEAL);
 
-    col_player_attack_target(&s, tslot);
-    land_pending_player_hits(&s);
+    col_player_attack_target_ctx(&s, &ctx, tslot);
+    land_pending_player_hits(&s, &ctx);
     int hp1 = s.npcs[sol].hp;
-    for (int t = 0; t < 3 * COLO_TOTEM_HEAL_INTERVAL; t++) col_mod_tick_totems(&s);
+    for (int t = 0; t < 3 * COLO_TOTEM_HEAL_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
     sol_totem = col_totem_for_owner(&s, sol);
     CHECK("a destroyed totem stops the Sol heal (until the 200t respawn)",
         !s.npcs[tslot].active && s.npcs[sol].hp == hp1 &&
@@ -1260,7 +1299,7 @@ static void test_obs_signal_defects(void) {
 
     col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 13, 16);
     s.npcs[0].hp = 60;
-    col_mod_on_npc_hp_changed(&s, 0);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, 0);
     int tslot = col_totem_for_owner(&s, 0)->npc_slot;
     s.npcs[tslot].x = s.player.x + 1;
     s.npcs[tslot].y = s.player.y;
@@ -1303,7 +1342,7 @@ static void test_totem_heal_timing_obs(void) {
 
     col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 12, 16);
     s.npcs[0].hp = 60;
-    col_mod_on_npc_hp_changed(&s, 0);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, 0);
     int tslot = s.totems[0].npc_slot;
     CHECK("fixture: totem spawned", tslot >= 0);
 
@@ -1334,14 +1373,15 @@ static void test_totem_heal_timing_obs(void) {
     CHECK("the totem features cost no extra record width",
         COLO_FEATURES_PER_NPC == 23);
 
-    for (int t = 0; t < COLO_TOTEM_SPAWN_HEAL_DELAY; t++) col_mod_tick_totems(&s);
+    for (int t = 0; t < COLO_TOTEM_SPAWN_HEAL_DELAY; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
     CHECK("once launched the projectile is visible and the launch cue clears",
         s.totems[0].projectile_timer > 0 &&
         obs[flight_idx] > 0.0f && obs[launch_idx] == 0.0f);
 
     float flight_before = obs[flight_idx];
-    col_mod_tick_totems(&s);
+    col_mod_tick_totems(&s, ctx.route_topology);
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
     CHECK("the in-flight cue counts down toward the landing tick",
         obs[flight_idx] < flight_before && obs[flight_idx] > 0.0f);
@@ -1367,7 +1407,7 @@ static void test_totem_sol_obs_reports_stacking(void) {
     s.modifiers.tier[COLO_MOD_TOTEMIC] = 1;
     int sol = col_sol_find_idx(&s);
     s.npcs[sol].hp = COLO_SOL_HP_MAX / 2;
-    col_mod_on_npc_hp_changed(&s, sol);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, sol);
 
     static float obs[COLO_NUM_OBS];
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
@@ -1386,7 +1426,8 @@ static void test_totem_sol_obs_reports_stacking(void) {
         fabsf(obs[tbase + COLO_NPC_TELLS_OFFSET + 2] -
               (float)COLO_TOTEM_SOL_HEAL / (float)COLO_SOL_HP_MAX) < 1e-4f);
 
-    for (int t = 0; t < COLO_TOTEM_SOL_EXTRA_INTERVAL; t++) col_mod_tick_totems(&s);
+    for (int t = 0; t < COLO_TOTEM_SOL_EXTRA_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
     CHECK("a second stacked totem raises the observed live count",
         count_live_totems(&s) == 2 &&
@@ -1410,22 +1451,24 @@ static void test_totemic_sol_extra_totems_every_two_minutes(void) {
     CHECK("Sol is live", sol >= 0);
 
     s.npcs[sol].hp = COLO_SOL_HP_MAX / 2;
-    col_mod_on_npc_hp_changed(&s, sol);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, sol);
 
     int totems_after_first = count_live_totems(&s);
     CHECK("exactly one totem at the 50% trigger", totems_after_first == 1);
 
-    for (int t = 0; t < COLO_TOTEM_SOL_EXTRA_INTERVAL - 1; t++) col_mod_tick_totems(&s);
+    for (int t = 0; t < COLO_TOTEM_SOL_EXTRA_INTERVAL - 1; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("no extra totem one tick early", count_live_totems(&s) == 1);
-    col_mod_tick_totems(&s);
+    col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("a second totem spawns two minutes after the first",
         count_live_totems(&s) == 2);
 
-    for (int t = 0; t < COLO_TOTEM_SOL_EXTRA_INTERVAL; t++) col_mod_tick_totems(&s);
+    for (int t = 0; t < COLO_TOTEM_SOL_EXTRA_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("a third totem spawns two minutes later", count_live_totems(&s) == 3);
 
     s.npcs[sol].hp = 0;
-    col_apply_npc_death(&s, sol);
+    col_apply_npc_death(&s, &ctx, sol);
     CHECK("Sol's death despawns every totem it owned", count_live_totems(&s) == 0);
 }
 
@@ -1441,7 +1484,8 @@ static void test_reentry_sand_tiles(void) {
 
     s.modifiers.active_mask |= (1u << COLO_MOD_REENTRY);
     s.modifiers.tier[COLO_MOD_REENTRY] = 1;
-    col_mod_reentry_on_skyfall(&s, 20, 12);
+    col_mod_reentry_on_skyfall(
+        &s, ctx.route_topology, 20, 12);
     CHECK("T1 leaves one pool on the targeted tile",
         s.molten_count == 1 && s.molten_x[0] == 20 && s.molten_y[0] == 12);
     CHECK("the T1 pool is the stronger Reentry kind",
@@ -1470,7 +1514,8 @@ static void test_reentry_sand_tiles(void) {
     CHECK("T1 (temporary) clears at wave end", s.molten_count == 0);
 
     s.modifiers.tier[COLO_MOD_REENTRY] = 2;
-    col_mod_reentry_on_skyfall(&s, 20, 12);
+    col_mod_reentry_on_skyfall(
+        &s, ctx.route_topology, 20, 12);
     int has_target = 0, has_sw = 0, has_w = 0, all_reentry = 1;
     for (int i = 0; i < s.molten_count; i++) {
         if (s.molten_x[i] == 20 && s.molten_y[i] == 12) has_target = 1;
@@ -1486,7 +1531,8 @@ static void test_reentry_sand_tiles(void) {
 
     s.molten_count = 0;
     s.modifiers.tier[COLO_MOD_REENTRY] = 3;
-    col_mod_reentry_on_skyfall(&s, 20, 12);
+    col_mod_reentry_on_skyfall(
+        &s, ctx.route_topology, 20, 12);
     has_target = has_sw = has_w = 0;
     for (int i = 0; i < s.molten_count; i++) {
         if (s.molten_x[i] == 20 && s.molten_y[i] == 12) has_target = 1;
@@ -1503,7 +1549,8 @@ static void test_reentry_sand_tiles(void) {
     s.modifiers.active_mask |= (1u << COLO_MOD_VOLATILITY);
     s.modifiers.tier[COLO_MOD_VOLATILITY] = 3;
     s.player.x = 5; s.player.y = 18;
-    col_mod_volatility_on_death(&s, 20, 16, 1);
+    col_mod_volatility_on_death(
+        &s, ctx.route_topology, 20, 16, 1);
     CHECK("Volatility T3 leaves a Volatility pool at the centre",
         s.molten_count == 1 && s.molten_kind[0] == COLO_POOL_VOLATILITY);
     s.player.x = 20;
@@ -1521,7 +1568,8 @@ static void test_reentry_sand_tiles(void) {
         s.molten_count == 0);
 
     s.modifiers.tier[COLO_MOD_REENTRY] = 2;
-    col_mod_volatility_on_death(&s, 20, 16, 1);
+    col_mod_volatility_on_death(
+        &s, ctx.route_topology, 20, 16, 1);
     CHECK("Reentry II makes the Volatility III pool permanent",
         s.molten_count == 1 && s.molten_lifetime[0] == COLO_POOL_PERMANENT);
     col_modifiers_on_wave_spawn(&s);
@@ -1530,7 +1578,8 @@ static void test_reentry_sand_tiles(void) {
 
     s.molten_count = 0;
     s.modifiers.tier[COLO_MOD_REENTRY] = 3;
-    col_mod_volatility_on_death(&s, 20, 16, 1);
+    col_mod_volatility_on_death(
+        &s, ctx.route_topology, 20, 16, 1);
     CHECK("Reentry III also makes the Volatility III pool permanent",
         s.molten_count == 1 && s.molten_lifetime[0] == COLO_POOL_PERMANENT);
 }
@@ -1756,7 +1805,7 @@ static void test_mantimayhem_stress(void) {
     s.modifiers.active_mask |= (1u << COLO_MOD_MANTIMAYHEM);
     s.modifiers.tier[COLO_MOD_MANTIMAYHEM] = 2;
     s.wave = 8;
-    col_spawn_wave(&s);
+    col_spawn_wave(&s, &ctx);
 
     int manticores = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++)
@@ -1824,7 +1873,7 @@ static void test_solarflare_orb(void) {
     s.modifiers.active_mask |= (1u << COLO_MOD_SOLARFLARE);
     s.modifiers.tier[COLO_MOD_SOLARFLARE] = 2;
     s.wave = 0;
-    col_spawn_wave(&s);
+    col_spawn_wave(&s, &ctx);
     CHECK("Solarflare orb is active", s.solarflare.active);
 
     int geometry_ok = 1;
@@ -1842,7 +1891,7 @@ static void test_solarflare_orb(void) {
             int x, y;
             col_solarflare_tile(&s, p, step, &x, &y);
             if (!sf_tile_on_pillar_perimeter(p, x, y)) geometry_ok = 0;
-            if (col_static_blocked(x, y)) geometry_ok = 0;
+            if (col_topology_tile_blocked(&ctx, x, y)) geometry_ok = 0;
         }
         for (int c = 0; c < 4; c++) {
             int x, y;
@@ -1970,7 +2019,7 @@ static void test_volatility_explosion(void) {
     col_init_npc(&s, idx, COLO_FREMENNIK_BERSERKER, 18, 17);
     int hp_before = s.player.current_hitpoints;
     s.npcs[idx].hp = 0;
-    col_apply_npc_death(&s, idx);
+    col_apply_npc_death(&s, &ctx, idx);
     CHECK("Volatility explosion hits an adjacent player", s.player.current_hitpoints < hp_before);
 }
 
@@ -2143,7 +2192,7 @@ static void test_death_linger_wave_clear_and_render(void) {
         &s.npcs[idx].hp, &s.npcs[idx].hit_landed_this_tick,
         &s.npcs[idx].hit_damage, 1);
     s.npcs[idx].hit_was_successful_this_tick = dealt > 0;
-    col_apply_npc_death(&s, idx);
+    col_apply_npc_death(&s, &ctx, idx);
 
     int linger_ticks = col_npc_death_linger_ticks(COLO_FREMENNIK_BERSERKER);
     CHECK("lethal hit starts NPC death linger", s.npcs[idx].active &&
@@ -2172,12 +2221,16 @@ static void test_death_linger_wave_clear_and_render(void) {
 static void test_static_arena_mask(void) {
     printf("test_static_arena_mask\n");
     col_build_npc_stats();
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
 
     int gate_rows_ok = 1;
     for (int x = 0; x <= 33; x++) {
         int walkable = (x == 13 || x == 14 || x == 19 || x == 20);
-        if (col_static_blocked(x, 0) != !walkable) gate_rows_ok = 0;
-        if (col_static_blocked(x, 33) != !walkable) gate_rows_ok = 0;
+        if (col_topology_tile_blocked(&ctx, x, 0) != !walkable)
+            gate_rows_ok = 0;
+        if (col_topology_tile_blocked(&ctx, x, 33) != !walkable)
+            gate_rows_ok = 0;
     }
     CHECK("south+north inner rows walkable exactly at the gate flanks {13,14,19,20}",
         gate_rows_ok);
@@ -2185,27 +2238,38 @@ static void test_static_arena_mask(void) {
     int west_ok = 1;
     for (int y = 0; y <= 33; y++) {
         int walkable = (y == 13 || y == 14 || y == 19 || y == 20);
-        if (col_static_blocked(0, y) != !walkable) west_ok = 0;
+        if (col_topology_tile_blocked(&ctx, 0, y) != !walkable)
+            west_ok = 0;
     }
     CHECK("west col 0 open exactly at the entrance rows {13,14,19,20}", west_ok);
 
     int east_ok = 1;
     for (int y = 0; y <= 33; y++)
-        if (!col_static_blocked(33, y)) east_ok = 0;
+        if (!col_topology_tile_blocked(&ctx, 33, y)) east_ok = 0;
     CHECK("east col 33 fully walled", east_ok);
 
-    CHECK("row 3 west extent [0,5)", col_static_blocked(4, 3) && !col_static_blocked(5, 3));
-    CHECK("row 30 west extent [0,6)", col_static_blocked(5, 30) && !col_static_blocked(6, 30));
-    CHECK("row 29 east extent [29,34)", !col_static_blocked(28, 29) && col_static_blocked(29, 29));
+    CHECK("row 3 west extent [0,5)",
+        col_topology_tile_blocked(&ctx, 4, 3) &&
+        !col_topology_tile_blocked(&ctx, 5, 3));
+    CHECK("row 30 west extent [0,6)",
+        col_topology_tile_blocked(&ctx, 5, 30) &&
+        !col_topology_tile_blocked(&ctx, 6, 30));
+    CHECK("row 29 east extent [29,34)",
+        !col_topology_tile_blocked(&ctx, 28, 29) &&
+        col_topology_tile_blocked(&ctx, 29, 29));
 
     int pillars_ok = 1, rim_ok = 1;
     for (int p = 0; p < COLO_NUM_PILLARS; p++) {
         int px = COLO_PILLARS[p][0], py = COLO_PILLARS[p][1];
         for (int dx = 0; dx < 3; dx++)
             for (int dy = 0; dy < 3; dy++)
-                if (!col_static_blocked(px + dx, py + dy)) pillars_ok = 0;
-        if (col_static_blocked(px - 1, py + 1)) rim_ok = 0;
-        if (col_static_blocked(px + 3, py + 1)) rim_ok = 0;
+                if (!col_topology_tile_blocked(
+                        &ctx, px + dx, py + dy))
+                    pillars_ok = 0;
+        if (col_topology_tile_blocked(&ctx, px - 1, py + 1))
+            rim_ok = 0;
+        if (col_topology_tile_blocked(&ctx, px + 3, py + 1))
+            rim_ok = 0;
     }
     CHECK("all 36 pillar tiles blocked on every wave", pillars_ok);
     CHECK("tiles flanking each pillar stay walkable", rim_ok);
@@ -2214,18 +2278,25 @@ static void test_static_arena_mask(void) {
     for (int a = 0; a < COLO_NUM_SPAWN_ANCHORS; a++)
         for (int dx = 0; dx < COLO_SPAWN_ZONE_SIZE; dx++)
             for (int dy = 0; dy < COLO_SPAWN_ZONE_SIZE; dy++)
-                if (col_static_blocked(COLO_SPAWN_ANCHORS[a][0] + dx,
-                                       COLO_SPAWN_ANCHORS[a][1] + dy)) zones_ok = 0;
+                if (col_topology_tile_blocked(
+                        &ctx,
+                        COLO_SPAWN_ANCHORS[a][0] + dx,
+                        COLO_SPAWN_ANCHORS[a][1] + dy))
+                    zones_ok = 0;
     CHECK("every 3x3 spawn-anchor zone fully walkable on the static mask", zones_ok);
 
     CHECK("wave start (7,18) walkable",
-        !col_static_blocked(COLO_PLAYER_START_X, COLO_PLAYER_START_Y));
+        !col_topology_tile_blocked(
+            &ctx, COLO_PLAYER_START_X, COLO_PLAYER_START_Y));
     CHECK("boss start (16,10) walkable",
-        !col_static_blocked(COLO_BOSS_PLAYER_START_X, COLO_BOSS_PLAYER_START_Y));
+        !col_topology_tile_blocked(
+            &ctx, COLO_BOSS_PLAYER_START_X, COLO_BOSS_PLAYER_START_Y));
     int sol_ok = 1;
     for (int dx = 0; dx < 5; dx++)
         for (int dy = 0; dy < 5; dy++)
-            if (col_static_blocked(COLO_SOL_SPAWN_X + dx, COLO_SOL_SPAWN_Y + dy)) sol_ok = 0;
+            if (col_topology_tile_blocked(
+                    &ctx, COLO_SOL_SPAWN_X + dx, COLO_SOL_SPAWN_Y + dy))
+                sol_ok = 0;
     CHECK("Sol's 5x5 footprint at (16,19) unblocked", sol_ok);
 }
 
@@ -2238,16 +2309,22 @@ static void test_static_los_and_attack_gate(void) {
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 31);
     geo_clear_npcs(&s);
 
-    CHECK("SW pillar blocks a ray along row 9", !col_tiles_have_los(&s, 7, 9, 12, 9));
-    CHECK("pillar block is symmetric", !col_tiles_have_los(&s, 12, 9, 7, 9));
-    CHECK("ray one row north of the pillar is clear", col_tiles_have_los(&s, 7, 12, 12, 12));
-    CHECK("north gate doors block along the inner row", !col_tiles_have_los(&s, 14, 33, 19, 33));
-    CHECK("row 32 inside the north gate is clear", col_tiles_have_los(&s, 14, 32, 19, 32));
+    CHECK("SW pillar blocks a ray along row 9",
+        !col_topology_los_clear(&ctx, 7, 9, 1, 12, 9, 1, 0));
+    CHECK("pillar block is symmetric",
+        !col_topology_los_clear(&ctx, 12, 9, 1, 7, 9, 1, 0));
+    CHECK("ray one row north of the pillar is clear",
+        col_topology_los_clear(&ctx, 7, 12, 1, 12, 12, 1, 0));
+    CHECK("north gate doors block along the inner row",
+        !col_topology_los_clear(&ctx, 14, 33, 1, 19, 33, 1, 0));
+    CHECK("row 32 inside the north gate is clear",
+        col_topology_los_clear(&ctx, 14, 32, 1, 19, 32, 1, 0));
 
     s.player.x = 5; s.player.y = 9;
     col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 13, 9);
     s.npcs[0].attack_timer = 0;
-    CHECK("shaman behind the pillar has no LoS", !col_npc_has_los_to_player(&s, &s.npcs[0]));
+    CHECK("shaman behind the pillar has no LoS",
+        !col_npc_has_los_to_player(&s, &ctx, &s.npcs[0]));
     col_npc_attack_ctx(&s, &ctx, 0);
     CHECK("no-LoS shaman holds fire", s.npcs[0].attacked_this_tick == 0);
     col_npc_move_ctx(&s, &ctx, 0);
@@ -2257,7 +2334,8 @@ static void test_static_los_and_attack_gate(void) {
     s.player.x = 5; s.player.y = 12;
     col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 13, 12);
     s.npcs[0].attack_timer = 0;
-    CHECK("clear-row shaman has LoS", col_npc_has_los_to_player(&s, &s.npcs[0]));
+    CHECK("clear-row shaman has LoS",
+        col_npc_has_los_to_player(&s, &ctx, &s.npcs[0]));
     col_npc_attack_ctx(&s, &ctx, 0);
     CHECK("clear-row shaman attacks", s.npcs[0].attacked_this_tick == 1);
 }
@@ -2274,7 +2352,8 @@ static void test_spawn_anchor_exclusion(void) {
     geo_clear_npcs(&s);
     s.player.x = 5; s.player.y = 18;
     int cand[COLO_NUM_SPAWN_ANCHORS];
-    int n = col_spawn_anchor_candidates(&s, cand);
+    int n = col_spawn_anchor_candidates(
+        &s, ctx.route_topology, cand);
     CHECK("b5 spawn-fix tile leaves exactly 10 candidate anchors", n == 10);
     int suppressed_ok = 1;
     for (int i = 0; i < n; i++)
@@ -2286,7 +2365,7 @@ static void test_spawn_anchor_exclusion(void) {
     for (int rep = 0; rep < 30; rep++) {
         s.player.x = 5; s.player.y = 18;
         s.wave = 4;
-        col_spawn_wave(&s);
+        col_spawn_wave(&s, &ctx);
         int used[COLO_NUM_SPAWN_ANCHORS] = {0};
         int archer_x = -1, archer_y = -1;
         for (int i = 0; i < COLO_MAX_NPCS; i++) {
@@ -2299,7 +2378,9 @@ static void test_spawn_anchor_exclusion(void) {
             int size = col_npc_effective_size(npc);
             for (int dx = 0; dx < size; dx++)
                 for (int dy = 0; dy < size; dy++)
-                    if (col_static_blocked(npc->x + dx, npc->y + dy)) unblocked_ok = 0;
+                    if (col_topology_tile_blocked(
+                            &ctx, npc->x + dx, npc->y + dy))
+                        unblocked_ok = 0;
             if (col_type_is_warbander(npc->type)) {
 
                 if (npc->type == COLO_FREMENNIK_ARCHER) {
@@ -2346,7 +2427,7 @@ static void test_reinforcement_gates(void) {
         geo_clear_npcs(&s);
         s.player.x = 16;
         s.player.y = north ? 16 : 15;
-        col_spawn_reinforcements(&s);
+        col_spawn_reinforcements(&s, &ctx);
 
         int count = 0, in_gap_ok = 1, row_ok = 1;
         for (int i = 0; i < COLO_MAX_NPCS; i++) {
@@ -2361,7 +2442,9 @@ static void test_reinforcement_gates(void) {
                 row_ok = 0;
             for (int dx = 0; dx < size; dx++)
                 for (int dy = 0; dy < size; dy++)
-                    if (col_static_blocked(npc->x + dx, npc->y + dy)) row_ok = 0;
+                    if (col_topology_tile_blocked(
+                            &ctx, npc->x + dx, npc->y + dy))
+                        row_ok = 0;
         }
         CHECK("reinforcement set spawned (minotaur + shaman)", count == 2);
         CHECK("reinforcements land inside the gate gap x 15-18", in_gap_ok);
@@ -2417,7 +2500,7 @@ static void test_outcome_score_reinforcement_grows_denominator(void) {
     s.current_wave_fresh_damage = 0.3f * (float)pool_before;
     float score_before = col_episode_outcome_score(&s);
 
-    col_spawn_reinforcements(&s);
+    col_spawn_reinforcements(&s, &ctx);
     CHECK("reinforcements enter the score denominator", s.current_wave_total_killable == 9);
     CHECK("reinforcements grow the HP pool", s.current_wave_hp_pool > pool_before);
 
@@ -2448,7 +2531,7 @@ static void test_fresh_damage_not_farmable_via_healing(void) {
     col_rebuild_player_collision_flags(&s);
 
     col_queue_npc_pending_hit(&s, 0, 70, 1, ATTACK_STYLE_MELEE, ENCOUNTER_SPELL_NONE);
-    land_pending_player_hits(&s);
+    land_pending_player_hits(&s, &ctx);
     CHECK("first hit lands for 70", s.npcs[0].hp == 30);
     CHECK("fresh damage tracks the first hit",
         fabsf(s.current_wave_fresh_damage - 70.0f) < 0.001f);
@@ -2458,12 +2541,12 @@ static void test_fresh_damage_not_farmable_via_healing(void) {
     CHECK("healing does not touch min_hp_seen", s.npcs[0].min_hp_seen == 30);
 
     col_queue_npc_pending_hit(&s, 0, 30, 1, ATTACK_STYLE_MELEE, ENCOUNTER_SPELL_NONE);
-    land_pending_player_hits(&s);
+    land_pending_player_hits(&s, &ctx);
     CHECK("re-damaging restored HP credits no fresh damage",
         fabsf(s.current_wave_fresh_damage - 70.0f) < 0.001f);
 
     col_queue_npc_pending_hit(&s, 0, 20, 1, ATTACK_STYLE_MELEE, ENCOUNTER_SPELL_NONE);
-    land_pending_player_hits(&s);
+    land_pending_player_hits(&s, &ctx);
     CHECK("a new low credits only the fresh portion (20)",
         fabsf(s.current_wave_fresh_damage - 90.0f) < 0.001f);
     CHECK("min_hp_seen follows the deeper low", s.npcs[0].min_hp_seen == 10);
@@ -2481,7 +2564,8 @@ static void test_outcome_score_wave_clear_has_no_double_count(void) {
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 303);
     complete_open_draft(&s, &ctx, 1);
 
-    while (first_live_score_enemy(&s) >= 0) kill_first_live_score_enemy(&s);
+    while (first_live_score_enemy(&s) >= 0)
+        kill_first_live_score_enemy(&s, &ctx);
     s.log.waves_cleared = 1;
     CHECK("within-wave progress is zero after all wave enemies are killed",
         col_current_wave_score_progress(&s) == 0.0f);
@@ -2517,7 +2601,7 @@ static void test_roster_cap_nine(void) {
     s.modifiers.tier[COLO_MOD_QUARTET] = 1;
     s.modifiers.tier[COLO_MOD_DYNAMIC_DUO] = 1;
     s.wave = 7;
-    col_spawn_wave(&s);
+    col_spawn_wave(&s, &ctx);
     int count = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++) if (s.npcs[i].active) count++;
     CHECK("wave 8 + Quartet + Dynamic Duo spawns all 9 NPCs", count == 9);
@@ -2549,7 +2633,7 @@ static void test_wave12_quartet_and_win(void) {
         s.modifiers.active_mask |= (1u << COLO_MOD_QUARTET);
         s.modifiers.tier[COLO_MOD_QUARTET] = 1;
         s.wave = COLO_WAVE_BOSS;
-        col_spawn_wave(&s);
+        col_spawn_wave(&s, &ctx);
         s.wave_spawn_delay = 0;
 
         int wb = -1;
@@ -2559,7 +2643,8 @@ static void test_wave12_quartet_and_win(void) {
         int wx = s.npcs[wb].x, wy = s.npcs[wb].y;
         int cheb_dx = abs(wx - s.player.x), cheb_dy = abs(wy - s.player.y);
         if (wx < 9 || wx > 24 || wy < 9 || wy > 24) placement_ok = 0;
-        if (col_static_blocked(wx, wy)) placement_ok = 0;
+        if (col_topology_tile_blocked(&ctx, wx, wy))
+            placement_ok = 0;
         if ((cheb_dx > cheb_dy ? cheb_dx : cheb_dy) <= COLO_SPAWN_EXCLUSION_CHEB)
             placement_ok = 0;
 
@@ -2575,7 +2660,9 @@ static void test_wave12_quartet_and_win(void) {
                 int nx = cx + D[d][0], ny = cy + D[d][1];
                 if (nx == wx && ny == wy) { reached = 1; break; }
                 if (nx < 9 || nx > 24 || ny < 9 || ny > 24) continue;
-                if (seen[nx][ny] || col_static_blocked(nx, ny)) continue;
+                if (seen[nx][ny] ||
+                        col_topology_tile_blocked(&ctx, nx, ny))
+                    continue;
                 int gx, gy;
                 if (!col_grid_index(nx, ny, &gx, &gy)) continue;
                 if (s.npc_collision_flags[gx][gy]) continue;
@@ -2588,7 +2675,7 @@ static void test_wave12_quartet_and_win(void) {
         int sol = col_sol_find_idx(&s);
         if (sol < 0) { win_ok = 0; continue; }
         s.npcs[sol].hp = 0;
-        col_apply_npc_death(&s, sol);
+        col_apply_npc_death(&s, &ctx, sol);
         int idle[COLO_NUM_ACTION_HEADS] = {0};
         step_and_observe(&s, &ctx, idle);
         if (!(s.episode_over && s.winner == COLO_OUTCOME_PLAYER_WON)) win_ok = 0;
@@ -2615,7 +2702,7 @@ static void test_player_walks_through_npc_footprint(void) {
     CHECK("NPC footprint remains stamped for NPC systems", npc_flag != 0);
     CHECK("NPC footprint is not stamped as player collision", player_flag == 0);
     CHECK("player walkability ignores NPC footprint",
-        col_player_walkable(&s, 17, 16) == 1);
+        col_player_walkable_ctx(&s, &ctx, 17, 16) == 1);
     int actions[COLO_NUM_ACTION_HEADS] = {0};
     actions[COLO_HEAD_PRIMARY] = forecast_move_action_for_delta(1, 0);
     step_and_observe(&s, &ctx, actions);
@@ -2865,7 +2952,7 @@ static void test_warband_melee_distance_gate(void) {
 
     col_init_npc(&s, 0, COLO_FREMENNIK_ARCHER, 12, 18);
     CHECK("rig sanity: the ranged archer has clear LoS",
-        col_npc_has_los_to_player(&s, &s.npcs[0]));
+        col_npc_has_los_to_player(&s, &ctx, &s.npcs[0]));
     s.warband_cycle_anchor = s.tick - 3;
     col_warband_attack_phase(&s, &ctx);
     CHECK("archer at distance never attacks, even with LoS on its window",
@@ -2933,7 +3020,7 @@ static void test_warband_formation_convergence(void) {
             s.modifiers.active_mask |= (1u << COLO_MOD_QUARTET);
             s.modifiers.tier[COLO_MOD_QUARTET] = 1;
             s.wave = 0;
-            col_spawn_wave(&s);
+            col_spawn_wave(&s, &ctx);
         }
         wb_isolate_warband(&s);
 
@@ -3542,8 +3629,10 @@ static void test_manticore_stagger_overlap_fidelity(void) {
     s.player.current_hitpoints = 99;
     s.npcs[0].attack_timer = 0;
     s.npcs[1].attack_timer = 0;
-    CHECK("fixture: A sees the player", col_npc_has_los_to_player(&s, &s.npcs[0]));
-    CHECK("fixture: the pillar blocks B's LoS", !col_npc_has_los_to_player(&s, &s.npcs[1]));
+    CHECK("fixture: A sees the player",
+        col_npc_has_los_to_player(&s, &ctx, &s.npcs[0]));
+    CHECK("fixture: the pillar blocks B's LoS",
+        !col_npc_has_los_to_player(&s, &ctx, &s.npcs[1]));
     col_npc_attack_ctx(&s, &ctx, 0);
     col_npc_attack_ctx(&s, &ctx, 1);
     CHECK("a ready but LoS-blocked peer is not delayed at A's barrage start",
@@ -3551,7 +3640,7 @@ static void test_manticore_stagger_overlap_fidelity(void) {
     s.player.x = 12; s.player.y = 12;
     col_rebuild_player_collision_flags(&s);
     CHECK("fixture: B sees the player after the step",
-        col_npc_has_los_to_player(&s, &s.npcs[1]));
+        col_npc_has_los_to_player(&s, &ctx, &s.npcs[1]));
     col_npc_attack_ctx(&s, &ctx, 0);
     col_npc_attack_ctx(&s, &ctx, 1);
     CHECK("entering a second manticore's LoS mid-barrage eats the overlap",
@@ -3849,14 +3938,18 @@ static void sol_clear_beams_and_sand(ColosseumState* s) {
     s->sol.hazard_tile_count = 0;
 }
 
-static int sol_phase_sand_invariants_hold(const ColosseumState* s, int expected_count) {
+static int sol_phase_sand_invariants_hold(
+    const ColosseumState* s,
+    const ColosseumContext* ctx,
+    int expected_count
+) {
     if (s->sol.hazard_tile_count != expected_count) return 0;
     int player_tile_seen = 0;
     for (int i = 0; i < s->sol.hazard_tile_count; i++) {
         int x = s->sol.hazard_tile_x[i];
         int y = s->sol.hazard_tile_y[i];
         if (!col_in_boss_arena(s, x, y)) return 0;
-        if (col_static_blocked(x, y)) return 0;
+        if (col_topology_tile_blocked(ctx, x, y)) return 0;
         if (x == s->player.x && y == s->player.y) player_tile_seen = 1;
         for (int j = 0; j < i; j++)
             if (x == s->sol.hazard_tile_x[j] && y == s->sol.hazard_tile_y[j])
@@ -3900,7 +3993,8 @@ static void test_sol_generic_observation_signals_are_neutral(void) {
         obs[next_prayer_active_idx] == 0.0f);
 
     int magic, ranged, melee;
-    col_live_threat_style_counts(&s, &magic, &ranged, &melee);
+    col_live_threat_style_counts(
+        &s, &ctx, &magic, &ranged, &melee);
     CHECK("adjacent Sol contributes no prayable live threat style",
         magic == 0 && ranged == 0 && melee == 0);
     CHECK("the global style-count observation stays neutral for Sol",
@@ -4287,7 +4381,7 @@ static void test_sol_grapple_perfect_parry(void) {
 
     int max_hit = col_live_loadout_stats(&s)->max_hit;
     CHECK("rig sanity: the melee loadout has a positive max hit", max_hit > 0);
-    col_player_attack_target(&s, idx);
+    col_player_attack_target_ctx(&s, &ctx, idx);
     CHECK("the guaranteed max is consumed at no less than the loadout max hit",
         s.player_attack_dmg >= max_hit && s.sol.next_attack_guaranteed_max == 0 &&
         s.sol.guaranteed_max_ticks == 0);
@@ -4325,7 +4419,7 @@ static void test_sol_perfect_parry_forces_spec_attack(void) {
     s.player.spec_armed = 1;
     s.sol.next_attack_guaranteed_max = 1;
     s.sol.guaranteed_max_ticks = COLO_SOL_PERFECT_MAX_TICKS;
-    col_player_attack_target(&s, idx);
+    col_player_attack_target_ctx(&s, &ctx, idx);
 
     CHECK("perfect-parry claws uses the forced first-success best total",
         s.player_attack_dmg == expected_total &&
@@ -4490,13 +4584,13 @@ static void test_sol_crystal_lifecycle(void) {
 
     int accumulates = 1, edges_ok = 1;
     for (int p = 1; p <= 4; p++) {
-        col_sol_enter_phase(&s, p);
+        col_sol_enter_phase(&s, &ctx, p);
         if (s.sol.crystal_count != p) accumulates = 0;
         if (s.sol.crystals[p - 1].edge != p - 1) edges_ok = 0;
     }
     CHECK("one crystal spawns at each transition (4 by 25%)", accumulates);
     CHECK("crystals take their own edges in N/E/S/W order", edges_ok);
-    col_sol_enter_phase(&s, 5);
+    col_sol_enter_phase(&s, &ctx, 5);
     CHECK("the enrage transition adds no fifth crystal", s.sol.crystal_count == 4);
     s.sol.phase = 4;
     sol_clear_beams_and_sand(&s);
@@ -4613,7 +4707,8 @@ static void test_sol_aoe_reaction_window(void) {
     int safe_x = -1, safe_y = -1;
     for (int x = s.player.x - 3; x <= s.player.x + 3 && safe_x < 0; x++)
         for (int y = s.player.y - 3; y <= s.player.y + 3 && safe_x < 0; y++)
-            if (col_in_boss_arena(&s, x, y) && !col_static_blocked(x, y) &&
+            if (col_in_boss_arena(&s, x, y) &&
+                    !col_topology_tile_blocked(&ctx, x, y) &&
                     !col_sol_aoe_tile_is_hazard(&s.sol, x, y)) {
                 safe_x = x; safe_y = y;
             }
@@ -4664,10 +4759,11 @@ static void test_sol_phase_transition_sand_guarantees(void) {
         (void)idx;
         s.sol.attack_delay = 1000;
         sol_move_player(&s, 17, 14);
-        col_sol_enter_phase(&s, 1);
+        col_sol_enter_phase(&s, &ctx, 1);
         for (int t = 0; t < COLO_SOL_BEAM_TO_POOL_TICKS; t++)
-            col_sol_tick_molten(&s);
-        if (!sol_phase_sand_invariants_hold(&s, COLO_SOL_BEAM_COUNT)) {
+            col_sol_tick_molten(&s, &ctx);
+        if (!sol_phase_sand_invariants_hold(
+                &s, &ctx, COLO_SOL_BEAM_COUNT)) {
             seeded_ok = 0;
             break;
         }
@@ -4684,12 +4780,14 @@ static void test_sol_phase_transition_sand_guarantees(void) {
     sol_move_player(&s, corner_x, corner_y);
     CHECK("rig sanity: corner-edge player tile is walkable",
         col_in_boss_arena(&s, s.player.x, s.player.y) &&
-        !col_static_blocked(s.player.x, s.player.y));
-    col_sol_enter_phase(&s, 1);
+        !col_topology_tile_blocked(
+            &ctx, s.player.x, s.player.y));
+    col_sol_enter_phase(&s, &ctx, 1);
     for (int t = 0; t < COLO_SOL_BEAM_TO_POOL_TICKS; t++)
-        col_sol_tick_molten(&s);
+        col_sol_tick_molten(&s, &ctx);
     CHECK("corner-edge phase transition still places 6 in-arena sand tiles including player",
-        sol_phase_sand_invariants_hold(&s, COLO_SOL_BEAM_COUNT));
+        sol_phase_sand_invariants_hold(
+            &s, &ctx, COLO_SOL_BEAM_COUNT));
 }
 
 static void test_sol_beams_become_pools(void) {
@@ -4701,7 +4799,7 @@ static void test_sol_beams_become_pools(void) {
     s.sol.attack_delay = 1000;
     sol_move_player(&s, 17, 14);
 
-    col_sol_drop_beams(&s);
+    col_sol_drop_beams(&s, &ctx);
     int beams = sol_count_active_beams(&s);
     int in_box = 1;
     for (int b = 0; b < COLO_SOL_BEAM_MAX; b++) {
@@ -4709,7 +4807,9 @@ static void test_sol_beams_become_pools(void) {
         int dx = abs(s.sol.beams[b].x - s.player.x);
         int dy = abs(s.sol.beams[b].y - s.player.y);
         if (dx > COLO_SOL_BEAM_SPREAD || dy > COLO_SOL_BEAM_SPREAD) in_box = 0;
-        if (col_static_blocked(s.sol.beams[b].x, s.sol.beams[b].y)) in_box = 0;
+        if (col_topology_tile_blocked(
+                &ctx, s.sol.beams[b].x, s.sol.beams[b].y))
+            in_box = 0;
     }
     CHECK("6 beams drop inside the 9x9 around the player", beams == 6 && in_box);
 
@@ -4771,7 +4871,9 @@ static void test_sol_beam_strike_reaction_window(void) {
     int start_x = -1, start_y = -1;
     for (int x = 12; x <= 21 && start_x < 0; x++)
         for (int y = 12; y <= 21 && start_x < 0; y++) {
-            if (!col_in_boss_arena(&s, x, y) || col_static_blocked(x, y)) continue;
+            if (!col_in_boss_arena(&s, x, y) ||
+                    col_topology_tile_blocked(&ctx, x, y))
+                continue;
             int pooled = 0;
             for (int p = 0; p < s.sol.hazard_tile_count; p++)
                 if (s.sol.hazard_tile_x[p] == x && s.sol.hazard_tile_y[p] == y)
@@ -4786,7 +4888,9 @@ static void test_sol_beam_strike_reaction_window(void) {
     int safe_x = -1, safe_y = -1;
     for (int x = s.player.x - 2; x <= s.player.x + 2 && safe_x < 0; x++)
         for (int y = s.player.y - 2; y <= s.player.y + 2 && safe_x < 0; y++) {
-            if (!col_in_boss_arena(&s, x, y) || col_static_blocked(x, y)) continue;
+            if (!col_in_boss_arena(&s, x, y) ||
+                    col_topology_tile_blocked(&ctx, x, y))
+                continue;
             int marked = 0;
             for (int b = 0; b < COLO_SOL_BEAM_MAX; b++)
                 if (s.sol.beams[b].active && s.sol.beams[b].x == x &&
@@ -4823,7 +4927,9 @@ static void test_sol_enrage_sand_telegraphs(void) {
         pools_before >= 1 && sol_count_active_beams(&s) == 0);
 
     int before = s.sol.hazard_tile_count;
-    col_sol_add_pool(&s, s.sol.hazard_tile_x[0], s.sol.hazard_tile_y[0]);
+    col_sol_add_pool(
+        &s, &ctx,
+        s.sol.hazard_tile_x[0], s.sol.hazard_tile_y[0]);
     CHECK("re-covering a pooled tile has no additional effect",
         s.sol.hazard_tile_count == before);
 
@@ -5393,7 +5499,7 @@ static void test_loadout_spec_weapons(void) {
     s.player.spec_armed = 1;
     osrs_interaction_set(&s.interaction, 0);
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("claws spec drains 50 energy", s.player.special_energy == 50);
     CHECK("claws spec disarms after firing", s.player.spec_armed == 0);
     CHECK("claws spec queues the 4-splat cascade",
@@ -5408,13 +5514,13 @@ static void test_loadout_spec_weapons(void) {
     s.player.x = 10; s.player.y = 16;
     col_init_npc(&s, 0, COLO_SOL_HEREDIT, 11, 14);
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("scythe queues 3 splats into the 5x5 boss",
         s.npcs[0].pending_hits.count == 3);
     geo_clear_npcs(&s);
     col_init_npc(&s, 0, COLO_FREMENNIK_BERSERKER, 10, 17);
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("scythe queues 1 splat into a 1x1 warbander",
         s.npcs[0].pending_hits.count == 1);
 
@@ -5435,7 +5541,7 @@ static void test_loadout_spec_weapons(void) {
         arc_hits[1].npc_slot != arc_hits[2].npc_slot &&
         arc_hits[0].npc_slot != arc_hits[2].npc_slot);
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("scythe arc queues one hit per distinct arc target",
         s.npcs[0].pending_hits.count == 1 &&
         s.npcs[1].pending_hits.count == 1 &&
@@ -5453,7 +5559,7 @@ static void test_loadout_spec_weapons(void) {
     col_init_npc(&s, 1, COLO_HEALING_TOTEM, 15, 15);
     col_init_npc(&s, 2, COLO_FREMENNIK_ARCHER, 15, 17);
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("scythe arc skips incidental hazard entities",
         s.npcs[0].pending_hits.count == 1 &&
         s.npcs[1].pending_hits.count == 0 &&
@@ -5469,7 +5575,7 @@ static void test_loadout_spec_weapons(void) {
         col_init_npc(&s, 0, COLO_FREMENNIK_ARCHER, 15, 16);
         col_init_npc(&s, 1, COLO_FREMENNIK_BERSERKER, 15, 15);
         s.player.attack_timer = 0;
-        col_player_attack_target(&s, 0);
+        col_player_attack_target_ctx(&s, &ctx, 0);
         int scythe_max = col_live_loadout_stats(&s)->max_hit;
         if (s.npcs[0].pending_hits.count == 1 &&
                 s.npcs[1].pending_hits.count == 1 &&
@@ -5513,7 +5619,7 @@ static void test_loadout_spec_weapons(void) {
         s.player.spec_armed = 1;
         s.player.attack_timer = 0;
         s.npcs[0].hp = zerk->hp;
-        col_player_attack_target(&s, 0);
+        col_player_attack_target_ctx(&s, &ctx, 0);
         tries++;
     }
     CHECK("elder maul spec eventually lands", s.npcs[0].def_drained > 0);
@@ -5538,7 +5644,7 @@ static void test_loadout_spec_weapons(void) {
         s.player.spec_armed = 1;
         s.player.attack_timer = 0;
         s.npcs[0].hp = seer->hp;
-        col_player_attack_target(&s, 0);
+        col_player_attack_target_ctx(&s, &ctx, 0);
         if (s.player.current_hitpoints > 20) healed = 1;
         tries++;
     }
@@ -5856,12 +5962,14 @@ static void test_applied_damage_and_merged_pool_attribution(void) {
     init_forecast_test_state(&s, &ctx, 2328, 17, 16);
     col_mod_add_molten_pool(
         &s,
+        ctx.route_topology,
         s.player.x,
         s.player.y,
         COLO_POOL_REENTRY,
         COLO_POOL_PERMANENT);
     col_mod_add_molten_pool(
         &s,
+        ctx.route_topology,
         s.player.x,
         s.player.y,
         COLO_POOL_VOLATILITY,
@@ -6342,6 +6450,10 @@ static void test_red_flag_minotaur_not_solid_to_other_npcs(void) {
     ColosseumContext ctx;
     col_init_context_typed(&ctx);
     ColosseumState s;
+    ColoGeometryContext geometry = {
+        .state = &s,
+        .context = &ctx,
+    };
 
     memset(&s, 0, sizeof(s));
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 77);
@@ -6350,7 +6462,7 @@ static void test_red_flag_minotaur_not_solid_to_other_npcs(void) {
     col_init_npc(&s, 0, COLO_MINOTAUR, 14, 16);
     int size = col_npc_effective_size(&s.npcs[0]);
     CHECK("without Red Flag the minotaur blocks other NPCs",
-        col_npc_blocked_ignore_player(&s, 14, 16, size));
+        col_npc_blocked_ignore_player(&geometry, 14, 16, size));
 
     memset(&s, 0, sizeof(s));
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 77);
@@ -6360,16 +6472,16 @@ static void test_red_flag_minotaur_not_solid_to_other_npcs(void) {
     s.modifiers.tier[COLO_MOD_RED_FLAG] = 1;
     col_init_npc(&s, 0, COLO_MINOTAUR, 14, 16);
     CHECK("with Red Flag other NPCs can move into the minotaur's tiles",
-        !col_npc_blocked_ignore_player(&s, 14, 16, size));
+        !col_npc_blocked_ignore_player(&geometry, 14, 16, size));
 
     col_init_npc(&s, 1, COLO_SERPENT_SHAMAN, 20, 16);
     int shaman_size = col_npc_effective_size(&s.npcs[1]);
     CHECK("Red Flag does not make other NPC types passable",
-        col_npc_blocked_ignore_player(&s, 20, 16, shaman_size));
+        col_npc_blocked_ignore_player(&geometry, 20, 16, shaman_size));
 
     col_deactivate_npc(&s, 1);
     CHECK("deactivating a non-solid minotaur leaves no stale collision flags",
-        !col_npc_blocked_ignore_player(&s, 14, 16, size));
+        !col_npc_blocked_ignore_player(&geometry, 14, 16, size));
 }
 
 static void test_bee_contact_damage_band(void) {
@@ -6551,7 +6663,7 @@ static void test_thrall_regression(void) {
         s.npcs[slot].pending_hits.hits[0].attack_style == ATTACK_STYLE_MAGIC);
     float dmg_before = s.tick_scratch.damage_dealt;
     int npc_hp_before = s.npcs[slot].hp;
-    land_pending_player_hits(&s);
+    land_pending_player_hits(&s, &ctx);
     int thrall_dmg = npc_hp_before - s.npcs[slot].hp;
     CHECK("a single thrall hit lands player-credited damage in [0,3]",
         thrall_dmg >= 0 && thrall_dmg <= COLO_THRALL_MAX_HIT);
@@ -6605,7 +6717,7 @@ static void test_thrall_regression(void) {
     s.thrall_lifetime_left = 50;
     int sol_hp = s.npcs[sol_slot].hp;
     col_tick_player_ctx(&s, &ctx, idle, 1);
-    land_pending_player_hits(&s);
+    land_pending_player_hits(&s, &ctx);
     CHECK("thrall never damages Sol", s.npcs[sol_slot].hp == sol_hp);
 }
 
@@ -6623,7 +6735,7 @@ static void test_death_charge_regression(void) {
     CHECK("Death Charge arms a 100-tick window (decremented this tick)",
         s.death_charge_window_left == 99 && s.death_charge_cd == 0);
     s.npcs[slot].hp = 0;
-    col_apply_npc_death(&s, slot);
+    col_apply_npc_death(&s, &ctx, slot);
     CHECK("a player-credited kill in the window grants +15 spec",
         s.player.special_energy == 65);
     CHECK("the kill closes the window and starts the 100-tick cooldown",
@@ -6633,13 +6745,13 @@ static void test_death_charge_regression(void) {
     s.player.special_energy = 95;
     col_tick_player_ctx(&s, &ctx, cast_dc, 1);
     s.npcs[slot].hp = 0;
-    col_apply_npc_death(&s, slot);
+    col_apply_npc_death(&s, &ctx, slot);
     CHECK("Death Charge spec gain clamps at 100", s.player.special_energy == 100);
 
     slot = thrall_scenario(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 213);
     s.player.special_energy = 40;
     s.npcs[slot].hp = 0;
-    col_apply_npc_death(&s, slot);
+    col_apply_npc_death(&s, &ctx, slot);
     CHECK("a kill outside an armed window grants no spec and starts no cooldown",
         s.player.special_energy == 40 && s.death_charge_cd == 0);
 
@@ -6669,8 +6781,8 @@ static void test_death_charge_regression(void) {
     col_tick_player_ctx(&s, &ctx, cast_dc, 1);
     s.npcs[slot].hp = 0;
     s.npcs[slot_b].hp = 0;
-    col_apply_npc_death(&s, slot);
-    col_apply_npc_death(&s, slot_b);
+    col_apply_npc_death(&s, &ctx, slot);
+    col_apply_npc_death(&s, &ctx, slot_b);
     CHECK("two same-tick kills consume the charge exactly once (+15)",
         s.player.special_energy == 65 && s.death_charge_window_left == 0);
 
@@ -6689,7 +6801,7 @@ static void test_death_charge_regression(void) {
         if (s.npcs[slot].pending_hits.hits[h].active &&
                 s.npcs[slot].pending_hits.hits[h].source_npc_slot == -1)
             s.npcs[slot].pending_hits.hits[h].damage = 5;
-    land_pending_player_hits(&s);
+    land_pending_player_hits(&s, &ctx);
     CHECK("a thrall-credited kill procs Death Charge (+15)",
         s.npcs[slot].hp <= 0 && s.player.special_energy == spec_before + 15);
 
@@ -7087,10 +7199,13 @@ static void test_player_ranged_los_blocked_by_pillar(void) {
     col_init_npc(&s, 0, COLO_JAGUAR_WARRIOR, 13, 9);
     ColoNPC* npc = &s.npcs[0];
     CHECK("player + target tiles are clear of static blockers",
-        !col_static_blocked(5, 9) && !col_static_blocked(13, 9));
-    CHECK("pillar 0 sits on the line between them", col_static_blocked(9, 9));
-    CHECK("no LoS through the pillar", col_npc_has_los_to_player(&s, npc) == 0);
-    OsrsLosQuery los_query = col_player_los_query(&s);
+        !col_topology_tile_blocked(&ctx, 5, 9) &&
+        !col_topology_tile_blocked(&ctx, 13, 9));
+    CHECK("pillar 0 sits on the line between them",
+        col_topology_tile_blocked(&ctx, 9, 9));
+    CHECK("no LoS through the pillar",
+        col_npc_has_los_to_player(&s, &ctx, npc) == 0);
+    OsrsLosQuery los_query = col_player_los_query(&ctx);
     CHECK("shared tile LoS blocks the same pillar line",
         encounter_player_can_attack(s.player.x, s.player.y,
             npc->x, npc->y, col_npc_effective_size(npc),
@@ -7100,8 +7215,10 @@ static void test_player_ranged_los_blocked_by_pillar(void) {
 
     s.player.x = 13; s.player.y = 4;
     col_rebuild_player_collision_flags(&s);
-    CHECK("the clear column tile is walkable", !col_static_blocked(13, 4));
-    CHECK("LoS is clear down the column", col_npc_has_los_to_player(&s, npc) == 1);
+    CHECK("the clear column tile is walkable",
+        !col_topology_tile_blocked(&ctx, 13, 4));
+    CHECK("LoS is clear down the column",
+        col_npc_has_los_to_player(&s, &ctx, npc) == 1);
     int actions[COLO_NUM_ACTION_HEADS] = {0};
     osrs_interaction_set(&s.interaction, 0);
     s.player.attack_timer = 0;
@@ -7133,7 +7250,7 @@ static void test_player_chase_routes_around_pillar_for_los(void) {
     col_init_npc(&s, 0, COLO_JAGUAR_WARRIOR, 13, 9);
     col_rebuild_player_collision_flags(&s);
     ColoNPC* npc = &s.npcs[0];
-    OsrsLosQuery los_query = col_player_los_query(&s);
+    OsrsLosQuery los_query = col_player_los_query(&ctx);
     int attack_range = col_player_attack_range(&s);
     CHECK("start tile is range-valid and LoS-blocked",
         encounter_player_can_attack(s.player.x, s.player.y,
@@ -7161,7 +7278,7 @@ static void test_player_chase_routes_around_pillar_for_los(void) {
     CHECK("chase reaches LoS and fires within twelve ticks",
         attacked_tick >= 0);
     CHECK("attack fires from a LoS-valid tile",
-        col_npc_has_los_to_player(&s, npc) == 1 &&
+        col_npc_has_los_to_player(&s, &ctx, npc) == 1 &&
         encounter_rect_distance(s.player.x, s.player.y, 1,
             npc->x, npc->y, col_npc_effective_size(npc)) <= attack_range);
 }
@@ -7207,7 +7324,7 @@ static void test_colosseum_npc_movement_player_tile_guards(void) {
         encounter_dist_to_npc(s.player.x, s.player.y,
             s.npcs[0].x, s.npcs[0].y, col_npc_effective_size(&s.npcs[0])) <=
                 COLO_NPC_STATS[COLO_SERPENT_SHAMAN].attack_range &&
-        col_npc_has_los_to_player(&s, &s.npcs[0]));
+        col_npc_has_los_to_player(&s, &ctx, &s.npcs[0]));
 
     geo_clear_npcs(&s);
     s.player.x = 6;
@@ -7220,7 +7337,7 @@ static void test_colosseum_npc_movement_player_tile_guards(void) {
         encounter_dist_to_npc(s.player.x, s.player.y,
             s.npcs[0].x, s.npcs[0].y, col_npc_effective_size(&s.npcs[0])) <=
                 COLO_NPC_STATS[COLO_SERPENT_SHAMAN].attack_range &&
-        col_npc_has_los_to_player(&s, &s.npcs[0]));
+        col_npc_has_los_to_player(&s, &ctx, &s.npcs[0]));
     col_npc_move_ctx(&s, &ctx, 0);
     CHECK("ranged shaman range+LoS player one-step around pillar holds OSRS tile",
         s.npcs[0].x == shaman_x && s.npcs[0].y == shaman_y &&
@@ -7364,7 +7481,7 @@ static void test_player_melee_lands_at_delay_zero(void) {
     col_init_npc(&s, 0, COLO_JAGUAR_WARRIOR, 16, 16);
 
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("a melee swing queues at least one pending hit on the target",
         s.npcs[0].pending_hits.count >= 1);
     int all_delay_zero = s.npcs[0].pending_hits.count >= 1;
@@ -7376,13 +7493,13 @@ static void test_player_melee_lands_at_delay_zero(void) {
     int hp_before = s.npcs[0].hp;
     int resolved_same_pass = 1;
     for (int swing = 0; swing < 32 && s.npcs[0].hp == hp_before; swing++) {
-        col_resolve_player_projectiles_on_npcs(&s);
+        col_resolve_player_projectiles_on_npcs(&s, &ctx);
         if (s.npcs[0].pending_hits.count != 0) resolved_same_pass = 0;
         if (s.npcs[0].hp < hp_before) break;
         s.player.attack_timer = 0;
-        col_player_attack_target(&s, 0);
+        col_player_attack_target_ctx(&s, &ctx, 0);
     }
-    col_resolve_player_projectiles_on_npcs(&s);
+    col_resolve_player_projectiles_on_npcs(&s, &ctx);
     CHECK("a delay-0 melee hit lands on the first resolver pass",
         s.npcs[0].hp < hp_before && resolved_same_pass &&
         s.npcs[0].pending_hits.count == 0);
@@ -7396,7 +7513,7 @@ static void test_player_melee_lands_at_delay_zero(void) {
     col_rebuild_player_collision_flags(&r);
     col_init_npc(&r, 0, COLO_JAGUAR_WARRIOR, 16, 16);
     r.player.attack_timer = 0;
-    col_player_attack_target(&r, 0);
+    col_player_attack_target_ctx(&r, &ctx, 0);
     int ranged_delay_positive = r.npcs[0].pending_hits.count >= 1;
     for (int h = 0; h < r.npcs[0].pending_hits.count; h++)
         if (r.npcs[0].pending_hits.hits[h].ticks_remaining <= 0) ranged_delay_positive = 0;
@@ -8134,7 +8251,7 @@ static void test_stage3_t5_claws_click_spec_fires(void) {
         s.player.equipped[GEAR_SLOT_WEAPON] == ITEM_DRAGON_CLAWS);
     CHECK("T5 SPEC arms equipped claws", s.player.spec_armed == 1);
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("T5 claws special fires four splats",
         s.npcs[0].pending_hits.count == 4 && s.player.special_energy == 50);
 }
@@ -8552,7 +8669,7 @@ static void test_farm_safe_damage_cap(void) {
     ColosseumState s;
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 71);
 
-    col_spawn_reinforcements(&s);
+    col_spawn_reinforcements(&s, &ctx);
     int jaguar = -1;
     for (int i = 0; i < COLO_MAX_NPCS; i++)
         if (s.npcs[i].active && s.npcs[i].spawned_as_reinforcement) { jaguar = i; break; }
@@ -8597,7 +8714,54 @@ static void test_farm_safe_damage_cap(void) {
     ctx.config.farm_cap_waves = COLO_FARM_CAP_WAVES;
 }
 
+static void child_col_reset_without_context(void) {
+    ColosseumState state = {0};
+    col_reset_ctx((EncounterState*)&state, NULL, 1u);
+}
+
+static void child_col_reset_before_topology_finalize(void) {
+    ColosseumContext ctx;
+    ColosseumState state;
+    col_init_unfinalized_context(&ctx);
+    col_init_state_typed(&state, &ctx);
+    col_reset_ctx(
+        (EncounterState*)&state, (EncounterContext*)&ctx, 1u);
+}
+
+static void child_col_step_before_topology_finalize(void) {
+    ColosseumContext ctx;
+    ColosseumState state;
+    int actions[COLO_NUM_ACTION_HEADS] = {0};
+    col_init_unfinalized_context(&ctx);
+    col_init_state_typed(&state, &ctx);
+    col_step_ctx(
+        (EncounterState*)&state, (EncounterContext*)&ctx, actions);
+}
+
+static void child_col_query_before_topology_finalize(void) {
+    ColosseumContext ctx;
+    col_init_unfinalized_context(&ctx);
+    (void)col_topology_tile_blocked(&ctx, 10, 10);
+}
+
+static void test_colosseum_topology_lifecycle_contract(void) {
+    printf("test_colosseum_topology_lifecycle_contract\n");
+    assert_child_aborts(
+        "Colosseum reset rejects NULL context",
+        child_col_reset_without_context);
+    assert_child_aborts(
+        "Colosseum reset before topology finalize aborts",
+        child_col_reset_before_topology_finalize);
+    assert_child_aborts(
+        "Colosseum step before topology finalize aborts",
+        child_col_step_before_topology_finalize);
+    assert_child_aborts(
+        "Colosseum query before topology finalize aborts",
+        child_col_query_before_topology_finalize);
+}
+
 int main(void) {
+    test_colosseum_topology_lifecycle_contract();
     test_stage3_t1_inventory_ranged_weapon_swap();
     test_stage3_t1_inventory_weapon_slot_last_click_wins();
     test_stage3_t1_human_inventory_primary_click_uses_resolver();

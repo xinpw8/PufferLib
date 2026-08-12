@@ -12,24 +12,33 @@
 #include "ocean/osrs/tests/osrs_route_reference.h"
 #endif
 
-static void col_step_out_forecast_landing_selftest_one_state(ColosseumState* s) {
+static void col_step_out_forecast_landing_selftest_one_state(
+    ColosseumState* s,
+    ColosseumContext* ctx
+) {
     for (int x = COLO_ARENA_MIN_X - 2; x <= COLO_ARENA_MAX_X + 2; x++) {
         for (int y = COLO_ARENA_MIN_Y - 2; y <= COLO_ARENA_MAX_Y + 2; y++) {
             s->player.x = x;
             s->player.y = y;
             for (int action_idx = 0; action_idx < ENCOUNTER_MOVE_ACTIONS; action_idx++) {
-                int valid = col_step_out_forecast_action_valid(s, action_idx);
+                int valid =
+                    col_step_out_forecast_action_valid(s, ctx, action_idx);
                 Player moved = s->player;
+                ColoGeometryContext geometry = {
+                    .state = s,
+                    .context = ctx,
+                };
                 if (action_idx != 0) {
                     encounter_move_to_target(
                         &moved,
                         ENCOUNTER_MOVE_TARGET_DX[action_idx],
                         ENCOUNTER_MOVE_TARGET_DY[action_idx],
                         col_player_walkable,
-                        (void*)s);
+                        &geometry);
                 }
                 ColoForecastLanding landing =
-                    col_step_out_forecast_action_landing_ctx(s, action_idx);
+                    col_step_out_forecast_action_landing_ctx(
+                        s, ctx, action_idx);
                 if (landing.valid != valid ||
                         landing.land_x != moved.x ||
                         landing.land_y != moved.y) {
@@ -55,12 +64,12 @@ static void col_step_out_forecast_landing_selftest(void) {
     memset(s.npcs, 0, sizeof(s.npcs));
     memset(s.npc_collision_flags, 0, sizeof(s.npc_collision_flags));
     col_rebuild_player_collision_flags(&s);
-    col_step_out_forecast_landing_selftest_one_state(&s);
+    col_step_out_forecast_landing_selftest_one_state(&s, &ctx);
 
     col_spawn_npc_at(&s, COLO_SERPENT_SHAMAN, 12, 9);
     col_spawn_npc_at(&s, COLO_JAVELIN_COLOSSUS, 18, 18);
     col_rebuild_player_collision_flags(&s);
-    col_step_out_forecast_landing_selftest_one_state(&s);
+    col_step_out_forecast_landing_selftest_one_state(&s, &ctx);
 
     s.wave = COLO_WAVE_BOSS;
     s.sol.started = 1;
@@ -68,57 +77,231 @@ static void col_step_out_forecast_landing_selftest(void) {
     s.sol.boss_arena_min_y = COLO_BOSS_ARENA_MIN_Y;
     s.sol.boss_arena_max_x = COLO_BOSS_ARENA_MAX_X;
     s.sol.boss_arena_max_y = COLO_BOSS_ARENA_MAX_Y;
-    col_step_out_forecast_landing_selftest_one_state(&s);
+    col_step_out_forecast_landing_selftest_one_state(&s, &ctx);
 
     printf("colosseum landing helper selftest PASS: %d actions across 3 states\n",
         ENCOUNTER_MOVE_ACTIONS);
 }
 
+static int exact_static_tile_blocked_reference(int x, int y) {
+    if (x < COLO_ARENA_MIN_X || x > COLO_ARENA_MAX_X ||
+            y < COLO_ARENA_MIN_Y || y > COLO_ARENA_MAX_Y)
+        return 1;
+    for (int span = 0; span < COLO_WALL_SPANS_PER_ROW; span++) {
+        ColoWallSpan wall = COLO_WALL_SPANS[y][span];
+        if (x >= wall.lo && x < wall.hi) return 1;
+    }
+    for (int pillar = 0; pillar < COLO_NUM_PILLARS; pillar++) {
+        int pillar_x = COLO_PILLARS[pillar][0];
+        int pillar_y = COLO_PILLARS[pillar][1];
+        if (x >= pillar_x && x < pillar_x + COLO_PILLAR_SIZE &&
+                y >= pillar_y && y < pillar_y + COLO_PILLAR_SIZE)
+            return 1;
+    }
+    return 0;
+}
+
+static int exact_static_los_blocked(void* data, int x, int y) {
+    (void)data;
+    return exact_static_tile_blocked_reference(x, y);
+}
+
+static int exact_static_footprint_blocked_reference(int x, int y, int size) {
+    for (int dx = 0; dx < size; dx++)
+        for (int dy = 0; dy < size; dy++)
+            if (exact_static_tile_blocked_reference(x + dx, y + dy))
+                return 1;
+    return 0;
+}
+
 static void col_static_los_table_selftest(void) {
-    col_build_static_arena();
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    col_finalize_route_topology(&ctx);
+    OsrsLosQuery reference =
+        osrs_los_tile(exact_static_los_blocked, NULL);
+    int checks = 0;
     for (int x0 = COLO_ARENA_MIN_X; x0 <= COLO_ARENA_MAX_X; x0++) {
         for (int y0 = COLO_ARENA_MIN_Y; y0 <= COLO_ARENA_MAX_Y; y0++) {
             for (int x1 = COLO_ARENA_MIN_X; x1 <= COLO_ARENA_MAX_X; x1++) {
                 for (int y1 = COLO_ARENA_MIN_Y; y1 <= COLO_ARENA_MAX_Y; y1++) {
-                    int table = col_static_los_get(x0, y0, x1, y1);
-                    int slow = col_tiles_have_los_reference_slowpath(x0, y0, x1, y1);
-                    if (table != slow) {
+                    if (x0 == x1 && y0 == y1) continue;
+                    int topology = col_topology_los_clear(
+                        &ctx, x0, y0, 1, x1, y1, 1, 0);
+                    int slow =
+                        osrs_los_tile_ray_clear(&reference, x0, y0, x1, y1);
+                    if (topology != slow) {
                         fprintf(stderr,
-                            "colosseum LoS table mismatch (%d,%d)->(%d,%d): table=%d slow=%d\n",
-                            x0, y0, x1, y1, table, slow);
+                            "colosseum topology LoS mismatch (%d,%d)->(%d,%d): topology=%d reference=%d\n",
+                            x0, y0, x1, y1, topology, slow);
                         abort();
                     }
+                    checks++;
                 }
             }
         }
     }
-    printf("colosseum LoS table selftest PASS: %u pairs\n",
-        (unsigned)COLO_STATIC_LOS_TABLE_BITS);
+    printf("colosseum topology LoS parity PASS: %d directed pairs\n", checks);
+}
+static void col_static_los_endpoint_semantics_selftest(void) {
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    col_finalize_route_topology(&ctx);
+    OsrsLosQuery reference =
+        osrs_los_tile(exact_static_los_blocked, NULL);
+    uint64_t raw_clear[2][2] = {{0}};
+    uint64_t ranged_clear[2][2] = {{0}};
+    uint64_t total[2][2] = {{0}};
+
+    for (int source_x = COLO_ARENA_MIN_X;
+            source_x <= COLO_ARENA_MAX_X;
+            source_x++) {
+        for (int source_y = COLO_ARENA_MIN_Y;
+                source_y <= COLO_ARENA_MAX_Y;
+                source_y++) {
+            int source_blocked =
+                exact_static_tile_blocked_reference(source_x, source_y);
+            for (int target_x = COLO_ARENA_MIN_X;
+                    target_x <= COLO_ARENA_MAX_X;
+                    target_x++) {
+                for (int target_y = COLO_ARENA_MIN_Y;
+                        target_y <= COLO_ARENA_MAX_Y;
+                        target_y++) {
+                    int target_blocked =
+                        exact_static_tile_blocked_reference(
+                            target_x, target_y);
+                    int raw = osrs_los_tile_ray_clear(
+                        &reference,
+                        source_x,
+                        source_y,
+                        target_x,
+                        target_y);
+                    int topology_raw = col_topology_los_clear(
+                        &ctx,
+                        source_x,
+                        source_y,
+                        1,
+                        target_x,
+                        target_y,
+                        1,
+                        0);
+                    if (raw != topology_raw) {
+                        fprintf(stderr,
+                            "colosseum raw endpoint LoS mismatch (%d,%d)->(%d,%d): topology=%d reference=%d\n",
+                            source_x,
+                            source_y,
+                            target_x,
+                            target_y,
+                            topology_raw,
+                            raw);
+                        abort();
+                    }
+
+                    int range_one = osrs_los_clear(
+                        &reference,
+                        source_x,
+                        source_y,
+                        1,
+                        target_x,
+                        target_y,
+                        1,
+                        1);
+                    if (!range_one) {
+                        fprintf(stderr,
+                            "colosseum tile LoS range-one law changed (%d,%d)->(%d,%d)\n",
+                            source_x,
+                            source_y,
+                            target_x,
+                            target_y);
+                        abort();
+                    }
+
+                    int ranged = osrs_los_clear(
+                        &reference,
+                        source_x,
+                        source_y,
+                        1,
+                        target_x,
+                        target_y,
+                        1,
+                        COLO_ARENA_WIDTH);
+                    int topology_ranged = col_topology_los_clear(
+                        &ctx,
+                        target_x,
+                        target_y,
+                        1,
+                        source_x,
+                        source_y,
+                        1,
+                        0);
+                    if (ranged != topology_ranged) {
+                        fprintf(stderr,
+                            "colosseum ranged endpoint LoS mismatch actor=(%d,%d) target=(%d,%d): topology=%d reference=%d\n",
+                            source_x,
+                            source_y,
+                            target_x,
+                            target_y,
+                            topology_ranged,
+                            ranged);
+                        abort();
+                    }
+
+                    total[source_blocked][target_blocked]++;
+                    raw_clear[source_blocked][target_blocked] +=
+                        (uint64_t)raw;
+                    ranged_clear[source_blocked][target_blocked] +=
+                        (uint64_t)ranged;
+                }
+            }
+        }
+    }
+
+    printf(
+        "colosseum endpoint LoS parity PASS: raw clear/total OO=%llu/%llu OB=%llu/%llu BO=%llu/%llu BB=%llu/%llu; ranged OO=%llu OB=%llu BO=%llu BB=%llu; range-one=all-clear\n",
+        (unsigned long long)raw_clear[0][0],
+        (unsigned long long)total[0][0],
+        (unsigned long long)raw_clear[0][1],
+        (unsigned long long)total[0][1],
+        (unsigned long long)raw_clear[1][0],
+        (unsigned long long)total[1][0],
+        (unsigned long long)raw_clear[1][1],
+        (unsigned long long)total[1][1],
+        (unsigned long long)ranged_clear[0][0],
+        (unsigned long long)ranged_clear[0][1],
+        (unsigned long long)ranged_clear[1][0],
+        (unsigned long long)ranged_clear[1][1]);
 }
 
+
 static void col_static_footprint_table_selftest(void) {
-    col_build_static_arena();
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    col_finalize_route_topology(&ctx);
+    col_build_npc_stats();
+    int sizes[ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE + 1] = {0};
+    for (int type = 0; type < COLO_NUM_NPC_TYPES; type++)
+        sizes[COLO_NPC_STATS[type].size] = 1;
     int checks = 0;
-    int min_x = COLO_STATIC_FOOTPRINT_MIN_X - COLO_STATIC_FOOTPRINT_MAX_SIZE;
-    int min_y = COLO_STATIC_FOOTPRINT_MIN_Y - COLO_STATIC_FOOTPRINT_MAX_SIZE;
-    int max_x = COLO_STATIC_FOOTPRINT_MAX_X + COLO_STATIC_FOOTPRINT_MAX_SIZE;
-    int max_y = COLO_STATIC_FOOTPRINT_MAX_Y + COLO_STATIC_FOOTPRINT_MAX_SIZE;
-    for (int size = 1; size <= COLO_STATIC_FOOTPRINT_MAX_SIZE; size++) {
-        for (int x = min_x; x <= max_x; x++) {
-            for (int y = min_y; y <= max_y; y++) {
-                int table = col_static_footprint_blocked_lookup(x, y, size);
-                int slow = col_static_footprint_blocked_reference_slowpath(x, y, size);
-                if (table != slow) {
+    for (int size = 1; size <= ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE; size++) {
+        if (!sizes[size]) continue;
+        for (int x = COLO_ARENA_MIN_X - size; x <= COLO_ARENA_MAX_X + 1; x++) {
+            for (int y = COLO_ARENA_MIN_Y - size; y <= COLO_ARENA_MAX_Y + 1; y++) {
+                int topology =
+                    col_topology_footprint_blocked(&ctx, x, y, size);
+                int slow =
+                    exact_static_footprint_blocked_reference(x, y, size);
+                if (topology != slow) {
                     fprintf(stderr,
-                        "colosseum footprint table mismatch (%d,%d) size=%d: table=%d slow=%d\n",
-                        x, y, size, table, slow);
+                        "colosseum topology footprint mismatch (%d,%d) size=%d: topology=%d reference=%d\n",
+                        x, y, size, topology, slow);
                     abort();
                 }
                 checks++;
             }
         }
     }
-    printf("colosseum footprint table selftest PASS: %d checks\n", checks);
+    printf("colosseum topology footprint parity PASS: %d NPC-size checks\n",
+        checks);
 }
 
 #define col_init_context_typed(ctx_ptr) do { \
@@ -406,7 +589,8 @@ static int exact_attack_route_can_attack(
     int attack_range
 ) {
     ExactAttackRouteContext* route_ctx = (ExactAttackRouteContext*)data;
-    OsrsLosQuery query = col_player_los_query(route_ctx->walk.s);
+    OsrsLosQuery query =
+        col_player_los_query(route_ctx->walk.ctx);
     return encounter_player_can_attack(
         player_x,
         player_y,
@@ -523,7 +707,7 @@ static int exact_attack_route_property_scenario(
     ColosseumContext* ctx,
     ExactAttackRouteContext* route_ctx
 ) {
-    OsrsLosQuery los_query = col_player_los_query(s);
+    OsrsLosQuery los_query = col_player_los_query(ctx);
     static const int target_sizes[] = {1, 2, 5};
     static const int attack_ranges[] = {1, 3, 6, 10};
     int checks = 0;
@@ -634,7 +818,8 @@ static void exact_attack_route_property_selftest(void) {
         for (int y = s.sol.boss_arena_min_y;
                 y <= s.sol.boss_arena_max_y;
                 y++) {
-            if (!col_static_blocked(x, y)) {
+            if (!encounter_arena_topology_tile_blocked(
+                    ctx.route_topology, x, y)) {
                 s.player.x = x;
                 s.player.y = y;
                 break;
@@ -964,6 +1149,24 @@ static int exact_compare_files(const char* expected_path, const char* actual_pat
                     (unsigned)actual_bytes[byte]);
                 break;
             }
+            for (int obs = 0; obs < COLO_NUM_OBS; obs++) {
+                if (expected_obs[obs] == actual_obs[obs]) continue;
+                printf(
+                    "first obs mismatch index=%d expected=%g actual=%g\n",
+                    obs,
+                    (double)expected_obs[obs],
+                    (double)actual_obs[obs]);
+                break;
+            }
+            for (int mask = 0; mask < COLO_ACTION_MASK_SIZE; mask++) {
+                if (expected_mask[mask] == actual_mask[mask]) continue;
+                printf(
+                    "first mask mismatch index=%d expected=%g actual=%g\n",
+                    mask,
+                    (double)expected_mask[mask],
+                    (double)actual_mask[mask]);
+                break;
+            }
             fclose(expected);
             fclose(actual);
             return 1;
@@ -984,6 +1187,7 @@ static int exact_compare_files(const char* expected_path, const char* actual_pat
 int main(int argc, char** argv) {
 #ifdef OSRS_INTERACTION_SERIALIZED_ROUTE_BYTES
     if (argc == 2 && strcmp(argv[1], "--attack-route-selftest") == 0) {
+        col_static_los_endpoint_semantics_selftest();
         exact_attack_route_property_selftest();
         return 0;
     }
@@ -998,6 +1202,7 @@ int main(int argc, char** argv) {
     }
 
     col_static_los_table_selftest();
+    col_static_los_endpoint_semantics_selftest();
     col_static_footprint_table_selftest();
     col_step_out_forecast_landing_selftest();
 #ifdef OSRS_INTERACTION_SERIALIZED_ROUTE_BYTES

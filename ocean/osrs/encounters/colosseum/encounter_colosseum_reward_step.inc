@@ -335,7 +335,7 @@ static ColoPrePlayerPhase col_advance_pre_player_phase_ctx(
 
     if (phase.spawn_wave_now) {
         s->wave = s->wave_spawn_target;
-        col_spawn_wave(s);
+        col_spawn_wave(s, ctx);
     }
 
     phase.in_wave_gap =
@@ -365,7 +365,7 @@ static ColoPrePlayerPhase col_advance_pre_player_phase_ctx(
 #endif
         col_tick_npcs_ctx(s, ctx);
         if (s->wave_attack_delay == 0) col_warband_attack_phase(s, ctx);
-        col_modifiers_tick(s);
+        col_modifiers_tick(s, ctx->route_topology);
 
         if (s->surge_cooldown > 0) s->surge_cooldown--;
     }
@@ -396,7 +396,7 @@ static ColoPrePlayerPhase col_advance_pre_player_phase_ctx(
 
 static void col_step_ctx(EncounterState* state, EncounterContext* context, const int* actions) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     encounter_arena_topology_require_finalized(ctx->route_topology);
     if (s->episode_over) return;
 #ifdef COLO_PROFILE_ENABLED
@@ -458,7 +458,8 @@ static void col_step_ctx(EncounterState* state, EncounterContext* context, const
 
     if (!all_dead && s->reinforcement_timer > 0) {
         s->reinforcement_timer--;
-        if (s->reinforcement_timer == 0) col_spawn_reinforcements(s);
+        if (s->reinforcement_timer == 0)
+            col_spawn_reinforcements(s, ctx);
     }
 
     if (wave_cleared) {
@@ -498,8 +499,4 @@ finish_step:
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_STEP_WAVE_LOGIC);
 #endif
-}
-
-static void col_step(EncounterState* state, const int* actions) {
-    col_step_ctx(state, (EncounterContext*)col_legacy_context(), actions);
 }

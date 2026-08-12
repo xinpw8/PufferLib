@@ -54,6 +54,7 @@ static void run_pass(int workers, int late_start_mode, const int* actions) {
         col_init_context_typed(&g_envs[i].ctx);
         g_envs[i].ctx.config.start_wave = i % 12;
         g_envs[i].ctx.config.late_start_state_mode = late_start_mode;
+        col_finalize_route_topology(&g_envs[i].ctx);
         memset(&g_envs[i].state, 0, sizeof(ColosseumState));
         col_reset_ctx((EncounterState*)&g_envs[i].state,
             (EncounterContext*)&g_envs[i].ctx, 900u + (unsigned)i * 7u);

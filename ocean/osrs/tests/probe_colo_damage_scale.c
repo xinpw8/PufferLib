@@ -19,6 +19,7 @@ static int direct_hp_loss(uint32_t seed, int dmg, float scale) {
     static ColosseumContext ctx;
     static ColosseumState s;
     col_init_context_typed(&ctx);
+    col_finalize_route_topology(&ctx);
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, seed);
     s.active_player_damage_received_scale = scale;
     int hp0 = s.player.current_hitpoints;
@@ -30,6 +31,7 @@ static int queued_hp_loss(uint32_t seed, int dmg, float scale) {
     static ColosseumContext ctx;
     static ColosseumState s;
     col_init_context_typed(&ctx);
+    col_finalize_route_topology(&ctx);
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, seed);
     s.active_player_damage_received_scale = scale;
     int hp0 = s.player.current_hitpoints;
@@ -42,7 +44,7 @@ static int queued_hp_loss(uint32_t seed, int dmg, float scale) {
     col_push_player_pending_hit(&s, hit);
 
     s.tick++;
-    col_resolve_player_pending_hits(&s);
+    col_resolve_player_pending_hits_ctx(&s, &ctx);
     (void)landed_raw;
     return hp0 - s.player.current_hitpoints;
 }
@@ -51,6 +53,7 @@ static int doom_stacks_after_melee(uint32_t seed, int dmg, float scale) {
     static ColosseumContext ctx;
     static ColosseumState s;
     col_init_context_typed(&ctx);
+    col_finalize_route_topology(&ctx);
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, seed);
     s.active_player_damage_received_scale = scale;
     s.modifiers.active_mask |= (1u << COLO_MOD_DOOM);

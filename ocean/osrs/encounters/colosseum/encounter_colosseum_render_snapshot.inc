@@ -7,7 +7,7 @@ static void col_put_int_ctx(
     int value
 ) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     if (strcmp(key, "start_wave") == 0) {
         int internal = value - 1;
         if (internal < 0) internal = 0;
@@ -83,7 +83,7 @@ static void col_put_float_ctx(
     float value
 ) {
     (void)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     if (strcmp(key, "damage_reward_coeff") == 0) ctx->config.damage_reward_coeff = value;
     else if (strcmp(key, "late_start_supply_fraction_per_wave") == 0) {
         if (value < 0.0f || value > 0.125f) {
@@ -145,7 +145,7 @@ static void col_put_ptr_ctx(
     void* value
 ) {
     (void)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     if (strcmp(key, "collision_map") == 0)
         ctx->collision_map = (const CollisionMap*)value;
     else
@@ -694,7 +694,11 @@ static void col_emit_player_attack_projectiles(
         s, ctx, ov, base_profile, p_start_delay + p_duration, 30);
 }
 
-static void col_emit_thrall_projectile(ColosseumState* s, EncounterOverlay* ov) {
+static void col_emit_thrall_projectile(
+    ColosseumState* s,
+    const ColosseumContext* ctx,
+    EncounterOverlay* ov
+) {
     int slot = s->thrall_target_slot;
     if (!col_npc_is_thrall_target(s, slot))
         return;
@@ -702,7 +706,7 @@ static void col_emit_thrall_projectile(ColosseumState* s, EncounterOverlay* ov) 
     int target_size = col_npc_effective_size(target);
 
     int src_x, src_y;
-    col_thrall_render_tile(s, &src_x, &src_y);
+    col_thrall_render_tile(s, ctx, &src_x, &src_y);
 
     int dist = encounter_projectile_distance(
         src_x, src_y, 1, target->x, target->y, target_size,
@@ -812,7 +816,7 @@ static void col_render_post_tick_ctx(
     EncounterOverlay* ov
 ) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     ov->tile_shadow_count = 0;
     ov->floating_model_count = 0;
     ov->active_modifier_count = 0;
@@ -866,7 +870,7 @@ static void col_render_post_tick_ctx(
     col_emit_sol_hazard_vfx(s, ov);
     col_emit_player_attack_projectiles(s, ctx, ov);
     if (ctx->thrall_attacked_this_tick)
-        col_emit_thrall_projectile(s, ov);
+        col_emit_thrall_projectile(s, ctx, ov);
 }
 
 static void* col_get_player_for_input(void* state, int idx) {
@@ -885,7 +889,7 @@ static int col_is_human_targetable_npc_slot_ctx(
     int npc_slot
 ) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     col_refresh_current_obs_slots_ctx(s, ctx);
     int obs_slot = col_find_target_obs_slot(s, npc_slot);
     if (obs_slot < 0) return 0;
@@ -936,7 +940,7 @@ static void col_translate_human_input_ctx(
     encounter_translate_prayer(hi, actions, COLO_HEAD_PRAYER);
 
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     col_refresh_current_obs_slots_ctx(s, ctx);
 
     if (hi->pending_target_idx >= 0) {
@@ -1020,7 +1024,7 @@ static void col_step_human_commands_ctx(
     HumanInput* hi
 ) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     int actions[COLO_NUM_ACTION_HEADS];
     ctx->human_command_mode = 1;
     ctx->human_commands = hi->commands.items;
@@ -1078,7 +1082,7 @@ static void col_restore_ctx(
     const void* data,
     size_t n
 ) {
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     ColosseumState* dst = (ColosseumState*)state;
     encounter_snapshot_validate_frame(
         "col_restore", data, n, sizeof(ColoSnapshot),
@@ -1089,10 +1093,17 @@ static void col_restore_ctx(
     col_refresh_after_state_load(dst, ctx);
 }
 
+typedef struct {
+    ColosseumState* state;
+    ColosseumContext* context;
+} ColoLabInvocation;
+
 static int col_lab_apply_script_line_alloc_json_void(
-    void* state, const char* line, char** out_json
+    void* data, const char* line, char** out_json
 ) {
-    return col_lab_apply_script_line_alloc_json((ColosseumState*)state, line, out_json);
+    ColoLabInvocation* invocation = (ColoLabInvocation*)data;
+    return col_lab_apply_script_line_alloc_json(
+        invocation->state, invocation->context, line, out_json);
 }
 
 static int col_apply_lab_command_ctx(
@@ -1100,10 +1111,16 @@ static int col_apply_lab_command_ctx(
     EncounterContext* context,
     const char* line
 ) {
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
+    encounter_arena_topology_require_finalized(ctx->route_topology);
     col_context_clear_render_events(ctx);
+    ColoLabInvocation invocation = {
+        .state = (ColosseumState*)state,
+        .context = ctx,
+    };
     return encounter_apply_lab_command_dump_wrapper(
-        state, line, COLO_LAB_LINE_DUMP, col_lab_apply_script_line_alloc_json_void);
+        &invocation, line, COLO_LAB_LINE_DUMP,
+        col_lab_apply_script_line_alloc_json_void);
 }
 
 static const EncounterDef ENCOUNTER_COLOSSEUM = {

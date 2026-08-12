@@ -149,12 +149,23 @@ static int col_spawn_excluded_near_player(const ColosseumState* s, int x, int y,
         s->player.x, s->player.y, 1, x, y, size) <= COLO_SPAWN_EXCLUSION_CHEB;
 }
 
-static int col_spawn_footprint_free(const ColosseumState* s, int x, int y, int size) {
+static int col_spawn_footprint_free(
+    const ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    int x,
+    int y,
+    int size
+) {
+    if (encounter_arena_topology_footprint_blocked(
+            topology, x, y, size))
+        return 0;
     for (int dx = 0; dx < size; dx++) {
         for (int dy = 0; dy < size; dy++) {
-            int tx = x + dx, ty = y + dy;
-            if (col_static_blocked(tx, ty)) return 0;
-            if (col_sol_clamp_active(s) && !col_in_boss_arena(s, tx, ty)) return 0;
+            int tx = x + dx;
+            int ty = y + dy;
+            if (col_sol_clamp_active(s) &&
+                    !col_in_boss_arena(s, tx, ty))
+                return 0;
             int gx, gy;
             if (!col_grid_index(tx, ty, &gx, &gy)) return 0;
             if (s->npc_collision_flags[gx][gy]) return 0;
@@ -164,121 +175,215 @@ static int col_spawn_footprint_free(const ColosseumState* s, int x, int y, int s
     return 1;
 }
 
-static int col_spawn_anchor_candidates(const ColosseumState* s, int* out) {
+static int col_spawn_anchor_candidates(
+    const ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    int* out
+) {
     int n = 0;
     for (int a = 0; a < COLO_NUM_SPAWN_ANCHORS; a++) {
-        int ax = COLO_SPAWN_ANCHORS[a][0], ay = COLO_SPAWN_ANCHORS[a][1];
-        if (col_spawn_excluded_near_player(s, ax, ay, COLO_SPAWN_ZONE_SIZE)) continue;
-        if (!col_spawn_footprint_free(s, ax, ay, COLO_SPAWN_ZONE_SIZE)) continue;
+        int ax = COLO_SPAWN_ANCHORS[a][0];
+        int ay = COLO_SPAWN_ANCHORS[a][1];
+        if (col_spawn_excluded_near_player(
+                s, ax, ay, COLO_SPAWN_ZONE_SIZE))
+            continue;
+        if (!col_spawn_footprint_free(
+                s, topology, ax, ay, COLO_SPAWN_ZONE_SIZE))
+            continue;
         out[n++] = a;
     }
     return n;
 }
 
-static int col_warband_spawn_tile_ok(const ColosseumState* s, int x, int y) {
-    if (col_static_blocked(x, y)) return 0;
+static int col_warband_spawn_tile_ok(
+    const ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    int x,
+    int y
+) {
+    if (encounter_arena_topology_tile_blocked(topology, x, y)) return 0;
     if (col_sol_clamp_active(s) && !col_in_boss_arena(s, x, y)) return 0;
     return !(x == s->player.x && y == s->player.y);
 }
 
-static void col_draw_warband_box_tile(ColosseumState* s, int* ox, int* oy) {
+static void col_draw_warband_box_tile(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    int* out_x,
+    int* out_y
+) {
     int span_x = COLO_WARBAND_BOX_MAX_X - COLO_WARBAND_BOX_MIN_X + 1;
     int span_y = COLO_WARBAND_BOX_MAX_Y - COLO_WARBAND_BOX_MIN_Y + 1;
-    for (int t = 0; t < 32; t++) {
-        int x = COLO_WARBAND_BOX_MIN_X + encounter_rand_int(&s->rng_state, span_x);
-        int y = COLO_WARBAND_BOX_MIN_Y + encounter_rand_int(&s->rng_state, span_y);
-        if (col_warband_spawn_tile_ok(s, x, y)) { *ox = x; *oy = y; return; }
+    for (int attempt = 0; attempt < 32; attempt++) {
+        int x = COLO_WARBAND_BOX_MIN_X +
+            encounter_rand_int(&s->rng_state, span_x);
+        int y = COLO_WARBAND_BOX_MIN_Y +
+            encounter_rand_int(&s->rng_state, span_y);
+        if (col_warband_spawn_tile_ok(s, topology, x, y)) {
+            *out_x = x;
+            *out_y = y;
+            return;
+        }
     }
-    for (int y = COLO_WARBAND_BOX_MIN_Y; y <= COLO_WARBAND_BOX_MAX_Y; y++)
-        for (int x = COLO_WARBAND_BOX_MIN_X; x <= COLO_WARBAND_BOX_MAX_X; x++)
-            if (col_warband_spawn_tile_ok(s, x, y)) { *ox = x; *oy = y; return; }
+    for (int y = COLO_WARBAND_BOX_MIN_Y; y <= COLO_WARBAND_BOX_MAX_Y; y++) {
+        for (int x = COLO_WARBAND_BOX_MIN_X; x <= COLO_WARBAND_BOX_MAX_X; x++) {
+            if (!col_warband_spawn_tile_ok(s, topology, x, y)) continue;
+            *out_x = x;
+            *out_y = y;
+            return;
+        }
+    }
     assert(0 && "warband centre box full");
 }
 
 static void col_spawn_warbander_formation(
-    ColosseumState* s, ColoNpcType type, int ax, int ay,
-    int dx, int dy, int dir) {
-    int x = ax + dx, y = ay + dy;
-    if (!col_warband_spawn_tile_ok(s, x, y)) {
+    ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    ColoNpcType type,
+    int anchor_x,
+    int anchor_y,
+    int dx,
+    int dy,
+    int direction
+) {
+    int x = anchor_x + dx;
+    int y = anchor_y + dy;
+    if (!col_warband_spawn_tile_ok(s, topology, x, y)) {
         int found = 0;
-        for (int r = 1; r <= 3 && !found; r++) {
-            for (int oy = -r; oy <= r && !found; oy++) {
-                for (int ox = -r; ox <= r && !found; ox++) {
-                    if (ox > -r && ox < r && oy > -r && oy < r) continue;
-                    if (col_warband_spawn_tile_ok(s, x + ox, y + oy)) {
-                        x += ox; y += oy; found = 1;
+        for (int radius = 1; radius <= 3 && !found; radius++) {
+            for (int offset_y = -radius;
+                    offset_y <= radius && !found;
+                    offset_y++) {
+                for (int offset_x = -radius;
+                        offset_x <= radius && !found;
+                        offset_x++) {
+                    if (offset_x > -radius && offset_x < radius &&
+                            offset_y > -radius && offset_y < radius)
+                        continue;
+                    if (col_warband_spawn_tile_ok(
+                            s, topology, x + offset_x, y + offset_y)) {
+                        x += offset_x;
+                        y += offset_y;
+                        found = 1;
                     }
                 }
             }
         }
-        if (!found) col_draw_warband_box_tile(s, &x, &y);
+        if (!found)
+            col_draw_warband_box_tile(s, topology, &x, &y);
     }
     int slot = col_spawn_npc_at(s, type, x, y);
-    colo_npc_warband(&s->npcs[slot])->formation_dir = dir;
+    colo_npc_warband(&s->npcs[slot])->formation_dir = direction;
 }
 
-static void col_spawn_pair_adjacent(ColosseumState* s, ColoNpcType type, int px, int py) {
+static void col_spawn_pair_adjacent(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    ColoNpcType type,
+    int parent_x,
+    int parent_y
+) {
     int size = COLO_NPC_STATS[type].size;
-    const int off[8][2] = {
+    const int offsets[8][2] = {
         {size, 0}, {-size, 0}, {0, size}, {0, -size},
-        {size, size}, {-size, -size}, {size, -size}, {-size, size} };
-    for (int o = 0; o < 8; o++) {
-        int x = px + off[o][0], y = py + off[o][1];
-        if (!col_spawn_footprint_free(s, x, y, size)) continue;
+        {size, size}, {-size, -size}, {size, -size}, {-size, size},
+    };
+    for (int offset = 0; offset < 8; offset++) {
+        int x = parent_x + offsets[offset][0];
+        int y = parent_y + offsets[offset][1];
+        if (!col_spawn_footprint_free(s, topology, x, y, size)) continue;
         col_spawn_npc_at(s, type, x, y);
         return;
     }
-    for (int r = 1; r <= size + 2; r++) {
-        for (int dy = -r; dy <= r; dy++) {
-            for (int dx = -r; dx <= r; dx++) {
-                if (dx > -r && dx < r && dy > -r && dy < r) continue;
-                int x = px + dx, y = py + dy;
-                if (!col_spawn_footprint_free(s, x, y, size)) continue;
+    for (int radius = 1; radius <= size + 2; radius++) {
+        for (int dy = -radius; dy <= radius; dy++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                if (dx > -radius && dx < radius &&
+                        dy > -radius && dy < radius)
+                    continue;
+                int x = parent_x + dx;
+                int y = parent_y + dy;
+                if (!col_spawn_footprint_free(
+                        s, topology, x, y, size))
+                    continue;
                 col_spawn_npc_at(s, type, x, y);
                 return;
             }
         }
     }
-    int best = -1, best_dist = 1 << 30;
-    for (int a = 0; a < COLO_NUM_SPAWN_ANCHORS; a++) {
-        int ax = COLO_SPAWN_ANCHORS[a][0], ay = COLO_SPAWN_ANCHORS[a][1];
-        if (col_spawn_excluded_near_player(s, ax, ay, COLO_SPAWN_ZONE_SIZE)) continue;
-        if (!col_spawn_footprint_free(s, ax, ay, COLO_SPAWN_ZONE_SIZE)) continue;
-        int dx = ax > px ? ax - px : px - ax;
-        int dy = ay > py ? ay - py : py - ay;
-        int cheb = dx > dy ? dx : dy;
-        if (cheb < best_dist) { best_dist = cheb; best = a; }
-    }
-    assert(best >= 0 && "no spawn spot for the Dynamic Duo pair");
-    col_spawn_npc_at(s, type, COLO_SPAWN_ANCHORS[best][0], COLO_SPAWN_ANCHORS[best][1]);
-}
-
-static void col_spawn_quartet_boss_wave(ColosseumState* s, ColoNpcType type) {
-    int span = COLO_BOSS_ARENA_SIZE;
-    int qx = -1, qy = -1;
-    for (int t = 0; t < 64 && qx < 0; t++) {
-        int x = COLO_BOSS_ARENA_MIN_X + encounter_rand_int(&s->rng_state, span);
-        int y = COLO_BOSS_ARENA_MIN_Y + encounter_rand_int(&s->rng_state, span);
-        if (col_spawn_excluded_near_player(s, x, y, 1)) continue;
-        if (!col_spawn_footprint_free(s, x, y, 1)) continue;
-        qx = x; qy = y;
-    }
-    for (int y = COLO_BOSS_ARENA_MIN_Y; y <= COLO_BOSS_ARENA_MAX_Y && qx < 0; y++) {
-        for (int x = COLO_BOSS_ARENA_MIN_X; x <= COLO_BOSS_ARENA_MAX_X && qx < 0; x++) {
-            if (col_spawn_excluded_near_player(s, x, y, 1)) continue;
-            if (!col_spawn_footprint_free(s, x, y, 1)) continue;
-            qx = x; qy = y;
+    int best = -1;
+    int best_dist = 1 << 30;
+    for (int anchor = 0; anchor < COLO_NUM_SPAWN_ANCHORS; anchor++) {
+        int x = COLO_SPAWN_ANCHORS[anchor][0];
+        int y = COLO_SPAWN_ANCHORS[anchor][1];
+        if (col_spawn_excluded_near_player(
+                s, x, y, COLO_SPAWN_ZONE_SIZE))
+            continue;
+        if (!col_spawn_footprint_free(
+                s, topology, x, y, COLO_SPAWN_ZONE_SIZE))
+            continue;
+        int dx = x > parent_x ? x - parent_x : parent_x - x;
+        int dy = y > parent_y ? y - parent_y : parent_y - y;
+        int distance = dx > dy ? dx : dy;
+        if (distance < best_dist) {
+            best_dist = distance;
+            best = anchor;
         }
     }
-    assert(qx >= 0 && "no spawn tile for the wave-12 Quartet warbander");
-    int slot = col_spawn_npc_at(s, type, qx, qy);
-    colo_npc_warband(&s->npcs[slot])->formation_dir = COLO_WARBAND_FORM_SOUTH;
+    assert(best >= 0 && "no spawn spot for the Dynamic Duo pair");
+    col_spawn_npc_at(
+        s,
+        type,
+        COLO_SPAWN_ANCHORS[best][0],
+        COLO_SPAWN_ANCHORS[best][1]);
+}
+
+static void col_spawn_quartet_boss_wave(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    ColoNpcType type
+) {
+    int span = COLO_BOSS_ARENA_SIZE;
+    int quartet_x = -1;
+    int quartet_y = -1;
+    for (int attempt = 0; attempt < 64 && quartet_x < 0; attempt++) {
+        int x = COLO_BOSS_ARENA_MIN_X +
+            encounter_rand_int(&s->rng_state, span);
+        int y = COLO_BOSS_ARENA_MIN_Y +
+            encounter_rand_int(&s->rng_state, span);
+        if (col_spawn_excluded_near_player(s, x, y, 1)) continue;
+        if (!col_spawn_footprint_free(s, topology, x, y, 1)) continue;
+        quartet_x = x;
+        quartet_y = y;
+    }
+    for (int y = COLO_BOSS_ARENA_MIN_Y;
+            y <= COLO_BOSS_ARENA_MAX_Y && quartet_x < 0;
+            y++) {
+        for (int x = COLO_BOSS_ARENA_MIN_X;
+                x <= COLO_BOSS_ARENA_MAX_X && quartet_x < 0;
+                x++) {
+            if (col_spawn_excluded_near_player(s, x, y, 1)) continue;
+            if (!col_spawn_footprint_free(s, topology, x, y, 1)) continue;
+            quartet_x = x;
+            quartet_y = y;
+        }
+    }
+    assert(quartet_x >= 0 &&
+        "no spawn tile for the wave-12 Quartet warbander");
+    int slot = col_spawn_npc_at(s, type, quartet_x, quartet_y);
+    colo_npc_warband(&s->npcs[slot])->formation_dir =
+        COLO_WARBAND_FORM_SOUTH;
 }
 
 static const ColoNpcType COLO_WARBAND_TYPES[3] = {
     COLO_FREMENNIK_BERSERKER, COLO_FREMENNIK_ARCHER, COLO_FREMENNIK_SEER };
 
-static void col_spawn_wave(ColosseumState* s) {
+static void col_spawn_wave(
+    ColosseumState* s,
+    const ColosseumContext* context
+) {
+    const EncounterArenaTopology* topology = context->route_topology;
+    encounter_arena_topology_require_finalized(topology);
     col_reset_current_wave_score_progress(s);
 
     for (int i = 0; i < COLO_MAX_NPCS; i++) {
@@ -303,13 +408,14 @@ static void col_spawn_wave(ColosseumState* s) {
         }
         if (col_mod_active(s, COLO_MOD_QUARTET)) {
             ColoNpcType extra = COLO_WARBAND_TYPES[encounter_rand_int(&s->rng_state, 3)];
-            col_spawn_quartet_boss_wave(s, extra);
+            col_spawn_quartet_boss_wave(s, topology, extra);
         }
     } else {
         int archer_x = -1, archer_y = -1;
         for (int i = 0; i < def->count; i++) {
             if ((ColoNpcType)def->types[i] != COLO_FREMENNIK_ARCHER) continue;
-            col_draw_warband_box_tile(s, &archer_x, &archer_y);
+            col_draw_warband_box_tile(
+                s, topology, &archer_x, &archer_y);
             int slot = col_spawn_npc_at(s, COLO_FREMENNIK_ARCHER, archer_x, archer_y);
             colo_npc_warband(&s->npcs[slot])->formation_dir = COLO_WARBAND_FORM_WEST;
         }
@@ -318,15 +424,18 @@ static void col_spawn_wave(ColosseumState* s) {
             if (!col_type_is_warbander(type) || type == COLO_FREMENNIK_ARCHER) continue;
             assert(archer_x >= 0 && "warband def lists berserker/seer without an archer");
             if (type == COLO_FREMENNIK_SEER)
-                col_spawn_warbander_formation(s, type, archer_x, archer_y,
+                col_spawn_warbander_formation(
+                    s, topology, type, archer_x, archer_y,
                     2, 0, COLO_WARBAND_FORM_EAST);
             else
-                col_spawn_warbander_formation(s, type, archer_x, archer_y,
+                col_spawn_warbander_formation(
+                    s, topology, type, archer_x, archer_y,
                     1, 1, COLO_WARBAND_FORM_NORTH);
         }
 
         int candidates[COLO_NUM_SPAWN_ANCHORS];
-        int ncand = col_spawn_anchor_candidates(s, candidates);
+        int ncand =
+            col_spawn_anchor_candidates(s, topology, candidates);
         encounter_shuffle(candidates, ncand, &s->rng_state);
         int cursor = 0;
         for (int i = 0; i < def->count; i++) {
@@ -336,20 +445,26 @@ static void col_spawn_wave(ColosseumState* s) {
             while (cursor < ncand) {
                 int a = candidates[cursor++];
                 if (col_spawn_footprint_free(
-                        s, COLO_SPAWN_ANCHORS[a][0], COLO_SPAWN_ANCHORS[a][1],
-                        COLO_SPAWN_ZONE_SIZE)) { anchor = a; break; }
+                        s, topology,
+                        COLO_SPAWN_ANCHORS[a][0],
+                        COLO_SPAWN_ANCHORS[a][1],
+                        COLO_SPAWN_ZONE_SIZE)) {
+                    anchor = a;
+                    break;
+                }
             }
             assert(anchor >= 0 && "primary spawn ran out of anchor candidates");
             int ax = COLO_SPAWN_ANCHORS[anchor][0], ay = COLO_SPAWN_ANCHORS[anchor][1];
             col_spawn_npc_at(s, type, ax, ay);
             if (type == COLO_SHOCKWAVE_COLOSSUS && col_mod_active(s, COLO_MOD_DYNAMIC_DUO))
-                col_spawn_pair_adjacent(s, type, ax, ay);
+                col_spawn_pair_adjacent(s, topology, type, ax, ay);
         }
 
         if (col_mod_active(s, COLO_MOD_QUARTET)) {
             ColoNpcType extra = COLO_WARBAND_TYPES[encounter_rand_int(&s->rng_state, 3)];
             assert(archer_x >= 0 && "quartet without an archer spawn");
-            col_spawn_warbander_formation(s, extra, archer_x, archer_y,
+            col_spawn_warbander_formation(
+                s, topology, extra, archer_x, archer_y,
                 1, -1, COLO_WARBAND_FORM_SOUTH);
         }
     }
@@ -369,7 +484,12 @@ static void col_spawn_wave(ColosseumState* s) {
 
 #define COLO_REINFORCE_FIRED (-1)
 
-static void col_spawn_reinforcements(ColosseumState* s) {
+static void col_spawn_reinforcements(
+    ColosseumState* s,
+    const ColosseumContext* context
+) {
+    const EncounterArenaTopology* topology = context->route_topology;
+    encounter_arena_topology_require_finalized(topology);
     if (s->wave < 0 || s->wave >= COLO_NUM_WAVES) return;
     const ColoWaveDef* def = &COLO_WAVES[s->wave];
     if (def->reinforce_count <= 0) {
@@ -385,7 +505,11 @@ static void col_spawn_reinforcements(ColosseumState* s) {
         int y = north ? COLO_GATE_NORTH_SPAWN_ROW - (size - 1) : COLO_GATE_SOUTH_SPAWN_ROW;
         int x = base_x;
         for (int try_x = base_x; try_x + size - 1 <= COLO_GATE_MAX_X; try_x++) {
-            if (col_spawn_footprint_free(s, try_x, y, size)) { x = try_x; break; }
+            if (col_spawn_footprint_free(
+                    s, topology, try_x, y, size)) {
+                x = try_x;
+                break;
+            }
         }
         int slot = col_spawn_npc_at(s, type, x, y);
         s->npcs[slot].spawned_as_reinforcement = 1;
@@ -479,7 +603,7 @@ static void col_sync_consumable_counters_from_inventory(ColosseumState* s) {
 static void col_reset_ctx(EncounterState* state, EncounterContext* context, uint32_t seed) {
     col_build_npc_stats();
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     encounter_arena_topology_require_finalized(ctx->route_topology);
     osrs_actor_route_cache_clear(&ctx->player_route_cache);
     int saved_start = ctx->config.start_wave;
@@ -577,8 +701,4 @@ static void col_reset_ctx(EncounterState* state, EncounterContext* context, uint
     } else {
         s->wave_spawn_delay = col_wave_entry_delay_ticks(effective_start);
     }
-}
-
-static void col_reset(EncounterState* state, uint32_t seed) {
-    col_reset_ctx(state, (EncounterContext*)col_legacy_context(), seed);
 }

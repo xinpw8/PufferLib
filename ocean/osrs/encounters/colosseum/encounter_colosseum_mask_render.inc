@@ -1,8 +1,13 @@
 #line 76 "encounter_colosseum.h"
 
-static void col_write_mask_ctx(EncounterState* state, EncounterContext* context, float* mask) {
+static void col_write_mask_ctx(
+    EncounterState* state,
+    EncounterContext* context,
+    float* mask
+) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
+    encounter_arena_topology_require_finalized(ctx->route_topology);
     col_refresh_current_obs_slots_ctx(s, ctx);
     int offset = 0;
 
@@ -10,7 +15,8 @@ static void col_write_mask_ctx(EncounterState* state, EncounterContext* context,
     for (int primary_action = 0;
             primary_action < COLO_PRIMARY_DIM;
             primary_action++) {
-        mask[offset++] = col_primary_action_valid(s, primary_action) ? 1.0f : 0.0f;
+        mask[offset++] =
+            col_primary_action_valid(s, ctx, primary_action) ? 1.0f : 0.0f;
     }
 
     mask[offset++] = 1.0f;
@@ -167,16 +173,25 @@ static int col_npc_render_attack_anim_id(
     abort();
 }
 
-static void col_thrall_render_tile(const ColosseumState* s, int* out_x, int* out_y) {
+static void col_thrall_render_tile(
+    ColosseumState* s,
+    const ColosseumContext* ctx,
+    int* out_x,
+    int* out_y
+) {
     static const int RING[16][2] = {
         {0, 1}, {1, 0}, {-1, 0}, {0, -1},
         {1, 1}, {1, -1}, {-1, 1}, {-1, -1},
         {0, 2}, {2, 0}, {-2, 0}, {0, -2},
         {1, 2}, {2, 1}, {-1, 2}, {-2, 1} };
+    ColoGeometryContext geometry = {
+        .state = s,
+        .context = ctx,
+    };
     for (int a = 0; a < 16; a++) {
         int x = s->player.x + RING[a][0];
         int y = s->player.y + RING[a][1];
-        if (!col_npc_blocked((void*)s, x, y, 1)) {
+        if (!col_npc_blocked(&geometry, x, y, 1)) {
             *out_x = x;
             *out_y = y;
             return;
@@ -223,7 +238,7 @@ static void col_fill_render_entities_ctx(
     int max_entities,
     int* count
 ) {
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     ColosseumState* s = (ColosseumState*)state;
     const EncounterLoadoutStats* ls = col_live_loadout_stats(s);
     s->player.gui_max_hit = ls->max_hit;
@@ -306,7 +321,7 @@ static void col_fill_render_entities_ctx(
 
     if (s->thrall_active && n < max_entities) {
         int tx, ty;
-        col_thrall_render_tile(s, &tx, &ty);
+        col_thrall_render_tile(s, ctx, &tx, &ty);
         col_emit_decoration_entity(out, &n, max_entities,
             COLO_NPC_DEF_ID_THRALL, COLO_NPC_SLOT_THRALL, COLO_THRALL_RENDER_INSTANCE_ID,
             ctx->thrall_attacked_this_tick ? 11101 : -1, tx, ty, "Arceuus Thrall");

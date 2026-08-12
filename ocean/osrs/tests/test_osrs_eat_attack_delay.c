@@ -62,6 +62,7 @@ static void test_colosseum_charges_the_cooldown(void) {
     ColosseumContext ctx;
     static ColosseumState s;
     col_init_context_typed(&ctx);
+    col_finalize_route_topology(&ctx);
     memset(&s, 0, sizeof(s));
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 4242u);
 

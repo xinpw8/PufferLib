@@ -404,19 +404,29 @@ static void col_mod_tick_poison(ColosseumState* s) {
     }
 }
 
-static int col_hazard_tile_free(const ColosseumState* s, int x, int y) {
-    if (col_static_blocked(x, y)) return 0;
+static int col_hazard_tile_free(
+    const ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    int x,
+    int y
+) {
+    if (encounter_arena_topology_tile_blocked(topology, x, y)) return 0;
     if (col_sol_clamp_active(s) && !col_in_boss_arena(s, x, y)) return 0;
     return 1;
 }
 
 static int col_spawn_hazard_npc_beside(
-    ColosseumState* s, ColoNpcType type, const ColoNPC* owner
+    ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    ColoNpcType type,
+    const ColoNPC* owner
 ) {
     if (col_find_free_npc(s) < 0) return -1;
     int size = col_npc_effective_size(owner);
-    if (col_hazard_tile_free(s, owner->x - 1, owner->y - 1))
-        return col_spawn_npc_at(s, type, owner->x - 1, owner->y - 1);
+    if (col_hazard_tile_free(
+            s, topology, owner->x - 1, owner->y - 1))
+        return col_spawn_npc_at(
+            s, type, owner->x - 1, owner->y - 1);
 
     for (int ring = 0; ring < 2; ring++) {
         int lo_x = owner->x - 1 - ring, hi_x = owner->x + size + ring;
@@ -425,7 +435,7 @@ static int col_spawn_hazard_npc_beside(
             for (int x = lo_x; x <= hi_x; x++) {
                 int on_shell = (x == lo_x || x == hi_x || y == lo_y || y == hi_y);
                 if (!on_shell) continue;
-                if (!col_hazard_tile_free(s, x, y)) continue;
+                if (!col_hazard_tile_free(s, topology, x, y)) continue;
                 return col_spawn_npc_at(s, type, x, y);
             }
         }
@@ -502,9 +512,13 @@ static void col_mod_on_owner_death(ColosseumState* s, int owner_slot) {
     }
 }
 
-static void col_totem_place(ColosseumState* s, ColoTotem* tot) {
+static void col_totem_place(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    ColoTotem* tot
+) {
     int slot = col_spawn_hazard_npc_beside(
-        s, COLO_HEALING_TOTEM, &s->npcs[tot->owner_slot]);
+        s, topology, COLO_HEALING_TOTEM, &s->npcs[tot->owner_slot]);
     if (slot < 0) {
         tot->phase = COLO_HAZARD_RESPAWNING;
         tot->npc_slot = -1;
@@ -518,10 +532,14 @@ static void col_totem_place(ColosseumState* s, ColoTotem* tot) {
     tot->projectile_timer = 0;
 }
 
-static int col_totem_spawn_for_owner(ColosseumState* s, int owner_slot) {
+static int col_totem_spawn_for_owner(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    int owner_slot
+) {
     ColoTotem* tot = col_totem_alloc(s, owner_slot);
     if (!tot) return 0;
-    col_totem_place(s, tot);
+    col_totem_place(s, topology, tot);
     return 1;
 }
 
@@ -551,19 +569,26 @@ static int col_live_totem_count(const ColosseumState* s) {
     return n;
 }
 
-static void col_mod_on_npc_hp_changed(ColosseumState* s, int npc_slot) {
+static void col_mod_on_npc_hp_changed(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    int npc_slot
+) {
     if (!col_mod_active(s, COLO_MOD_TOTEMIC)) return;
     const ColoNPC* npc = &s->npcs[npc_slot];
     if (!npc->active || npc->hp <= 0 || npc->max_hp <= 0) return;
     if (col_type_is_hazard_entity(npc->type)) return;
     if (npc->hp * 2 > npc->max_hp) return;
     if (col_totem_for_owner(s, npc_slot)) return;
-    if (!col_totem_spawn_for_owner(s, npc_slot)) return;
+    if (!col_totem_spawn_for_owner(s, topology, npc_slot)) return;
     if (npc->type == COLO_SOL_HEREDIT)
         s->sol_totem_spawn_timer = COLO_TOTEM_SOL_EXTRA_INTERVAL;
 }
 
-static void col_mod_tick_sol_extra_totems(ColosseumState* s) {
+static void col_mod_tick_sol_extra_totems(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology
+) {
     if (s->sol_totem_spawn_timer <= 0) return;
     int sol_slot = col_find_sol_slot(s);
     if (sol_slot < 0) {
@@ -573,11 +598,14 @@ static void col_mod_tick_sol_extra_totems(ColosseumState* s) {
     s->sol_totem_spawn_timer--;
     if (s->sol_totem_spawn_timer > 0) return;
     s->sol_totem_spawn_timer = COLO_TOTEM_SOL_EXTRA_INTERVAL;
-    col_totem_spawn_for_owner(s, sol_slot);
+    col_totem_spawn_for_owner(s, topology, sol_slot);
 }
 
-static void col_mod_tick_totems(ColosseumState* s) {
-    col_mod_tick_sol_extra_totems(s);
+static void col_mod_tick_totems(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology
+) {
+    col_mod_tick_sol_extra_totems(s, topology);
 
     for (int t = 0; t < COLO_MAX_TOTEMS; t++) {
         ColoTotem* tot = &s->totems[t];
@@ -592,7 +620,8 @@ static void col_mod_tick_totems(ColosseumState* s) {
 
         if (tot->phase == COLO_HAZARD_RESPAWNING) {
             if (tot->respawn_timer > 0) tot->respawn_timer--;
-            if (tot->respawn_timer == 0) col_totem_place(s, tot);
+            if (tot->respawn_timer == 0)
+                col_totem_place(s, topology, tot);
             continue;
         }
 
@@ -634,16 +663,27 @@ static int col_mod_molten_pool_covered(const ColosseumState* s, int x, int y) {
     return 0;
 }
 
-static int col_mod_molten_pool_available(const ColosseumState* s, int x, int y) {
-    return !col_static_blocked(x, y) && !col_mod_molten_pool_covered(s, x, y);
+static int col_mod_molten_pool_available(
+    const ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    int x,
+    int y
+) {
+    return !encounter_arena_topology_tile_blocked(topology, x, y) &&
+        !col_mod_molten_pool_covered(s, x, y);
 }
 
-static ColoMoltenPoolTile col_mod_molten_pool_random_fallback(ColosseumState* s) {
+static ColoMoltenPoolTile col_mod_molten_pool_random_fallback(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology
+) {
     ColoMoltenPoolTile candidates[COLO_ARENA_TILE_COUNT];
     int count = 0;
     for (int x = COLO_ARENA_MIN_X; x <= COLO_ARENA_MAX_X; x++) {
         for (int y = COLO_ARENA_MIN_Y; y <= COLO_ARENA_MAX_Y; y++) {
-            if (!col_mod_molten_pool_available(s, x, y)) continue;
+            if (!col_mod_molten_pool_available(
+                    s, topology, x, y))
+                continue;
             candidates[count++] = (ColoMoltenPoolTile){ .x = x, .y = y };
         }
     }
@@ -653,22 +693,24 @@ static ColoMoltenPoolTile col_mod_molten_pool_random_fallback(ColosseumState* s)
 
 static ColoMoltenPoolTile col_mod_molten_pool_tile_or_fallback(
     ColosseumState* s,
+    const EncounterArenaTopology* topology,
     int x,
     int y
 ) {
-    if (col_mod_molten_pool_available(s, x, y))
+    if (col_mod_molten_pool_available(s, topology, x, y))
         return (ColoMoltenPoolTile){ .x = x, .y = y };
-    return col_mod_molten_pool_random_fallback(s);
+    return col_mod_molten_pool_random_fallback(s, topology);
 }
 
 static void col_mod_add_molten_pool(
     ColosseumState* s,
+    const EncounterArenaTopology* topology,
     int x,
     int y,
     ColoMoltenPoolKind kind,
     ColoMoltenPoolLifetime lifetime
 ) {
-    if (col_static_blocked(x, y)) return;
+    if (encounter_arena_topology_tile_blocked(topology, x, y)) return;
     for (int i = 0; i < s->molten_count; i++) {
         if (s->molten_x[i] != x || s->molten_y[i] != y) continue;
         s->molten_kind[i] |= kind;
@@ -756,20 +798,30 @@ static void col_mod_tick_molten_pools(ColosseumState* s) {
     }
 }
 
-static void col_mod_reentry_on_skyfall(ColosseumState* s, int tile_x, int tile_y) {
+static void col_mod_reentry_on_skyfall(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    int tile_x,
+    int tile_y
+) {
     int tier = col_mod_tier(s, COLO_MOD_REENTRY);
     if (tier == 0) return;
     ColoMoltenPoolLifetime lifetime = tier >= 2 ? COLO_POOL_PERMANENT : COLO_POOL_TEMPORARY;
-    col_mod_add_molten_pool(s, tile_x, tile_y, COLO_POOL_REENTRY, lifetime);
+    col_mod_add_molten_pool(
+        s, topology, tile_x, tile_y, COLO_POOL_REENTRY, lifetime);
     if (tier >= 2) {
         ColoMoltenPoolTile sw = col_mod_molten_pool_tile_or_fallback(
-            s, tile_x - 1, tile_y - 1);
-        col_mod_add_molten_pool(s, sw.x, sw.y, COLO_POOL_REENTRY, COLO_POOL_PERMANENT);
+            s, topology, tile_x - 1, tile_y - 1);
+        col_mod_add_molten_pool(
+            s, topology, sw.x, sw.y,
+            COLO_POOL_REENTRY, COLO_POOL_PERMANENT);
     }
     if (tier >= 3) {
         ColoMoltenPoolTile west = col_mod_molten_pool_tile_or_fallback(
-            s, tile_x - 1, tile_y);
-        col_mod_add_molten_pool(s, west.x, west.y, COLO_POOL_REENTRY, COLO_POOL_PERMANENT);
+            s, topology, tile_x - 1, tile_y);
+        col_mod_add_molten_pool(
+            s, topology, west.x, west.y,
+            COLO_POOL_REENTRY, COLO_POOL_PERMANENT);
     }
 }
 
@@ -804,7 +856,13 @@ static int col_volatility_player_in_blast(
         x, y, size, tier, s->player.x, s->player.y);
 }
 
-static void col_mod_volatility_on_death(ColosseumState* s, int x, int y, int size) {
+static void col_mod_volatility_on_death(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology,
+    int x,
+    int y,
+    int size
+) {
     int tier = col_mod_tier(s, COLO_MOD_VOLATILITY);
     if (tier == 0) return;
     if (col_volatility_player_in_blast(s, x, y, size, tier)) {
@@ -820,7 +878,8 @@ static void col_mod_volatility_on_death(ColosseumState* s, int x, int y, int siz
         ColoMoltenPoolLifetime lifetime = col_mod_tier(s, COLO_MOD_REENTRY) >= 2
             ? COLO_POOL_PERMANENT : COLO_POOL_TEMPORARY;
         col_mod_add_molten_pool(
-            s, x + size / 2, y + size / 2, COLO_POOL_VOLATILITY, lifetime);
+            s, topology, x + size / 2, y + size / 2,
+            COLO_POOL_VOLATILITY, lifetime);
     }
 }
 
@@ -1059,7 +1118,10 @@ static void col_mod_tick_solarflare(ColosseumState* s) {
     col_mod_apply_solarflare_contact(s, tier);
 }
 
-static void col_modifiers_tick(ColosseumState* s) {
+static void col_modifiers_tick(
+    ColosseumState* s,
+    const EncounterArenaTopology* topology
+) {
 #ifdef COLO_PROFILE_ENABLED
     int col_prof_enabled =
         COLO_PROFILE_ENABLED() && !s->profiling_suppressed;
@@ -1070,7 +1132,7 @@ static void col_modifiers_tick(ColosseumState* s) {
     col_mod_tick_molten_pools(s);
     col_mod_tick_venom(s);
     col_mod_tick_poison(s);
-    col_mod_tick_totems(s);
+    col_mod_tick_totems(s, topology);
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_STEP_MODIFIERS_HAZARDS);
 #endif

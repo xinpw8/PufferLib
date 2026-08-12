@@ -1,7 +1,10 @@
 #line 76 "encounter_colosseum.h"
 
 static void col_accumulate_tick_stats(ColosseumState* s, const ColosseumContext* ctx);
-static void col_spawn_wave(ColosseumState* s);
+static void col_spawn_wave(
+    ColosseumState* s,
+    const ColosseumContext* ctx
+);
 static void col_tick_npcs_ctx(ColosseumState* s, ColosseumContext* ctx);
 static void col_tick_player_ctx(
     ColosseumState* s, ColosseumContext* ctx, const int* actions, int can_attack);
@@ -9,7 +12,6 @@ static void col_player_pretick(ColosseumState* s, ColosseumContext* ctx, const i
 static void col_resolve_player_projectiles_on_npcs_ctx(
     ColosseumState* s, ColosseumContext* ctx);
 static void col_resolve_player_pending_hits_ctx(ColosseumState* s, ColosseumContext* ctx);
-static void col_resolve_player_pending_hits(ColosseumState* s);
 static void col_rebuild_player_collision_flags(ColosseumState* s);
 static void col_refresh_current_obs_slots_ctx(ColosseumState* s, const ColosseumContext* ctx);
 
@@ -287,6 +289,53 @@ static ColConfig col_default_config(void) {
         .damage_scale_anneal_ticks = 0,
     };
 }
+static ColosseumContext* col_require_context(EncounterContext* context) {
+    if (!context) {
+        fprintf(stderr, "colosseum context is required\n");
+        abort();
+    }
+    return (ColosseumContext*)context;
+}
+
+
+static int col_topology_tile_blocked(
+    const ColosseumContext* ctx,
+    int x,
+    int y
+) {
+    return encounter_arena_topology_tile_blocked(ctx->route_topology, x, y);
+}
+
+static int col_topology_footprint_blocked(
+    const ColosseumContext* ctx,
+    int x,
+    int y,
+    int size
+) {
+    return encounter_arena_topology_footprint_blocked(
+        ctx->route_topology, x, y, size);
+}
+
+static int col_topology_los_clear(
+    const ColosseumContext* ctx,
+    int actor_x,
+    int actor_y,
+    int actor_size,
+    int target_x,
+    int target_y,
+    int target_size,
+    int attack_range
+) {
+    return encounter_arena_topology_los_clear(
+        ctx->route_topology,
+        actor_x,
+        actor_y,
+        actor_size,
+        target_x,
+        target_y,
+        target_size,
+        attack_range);
+}
 
 typedef struct {
     EncounterArenaTopology* topology;
@@ -296,12 +345,22 @@ static ColRouteTopologyOwner col_route_topology_owner;
 
 static uint32_t col_route_topology_flags(void* data, int x, int y) {
     (void)data;
-    int grid_x = x - COLO_ARENA_MIN_X;
-    int grid_y = y - COLO_ARENA_MIN_Y;
-    if (grid_x < 0 || grid_x >= COLO_ARENA_WIDTH ||
-            grid_y < 0 || grid_y >= COLO_ARENA_HEIGHT ||
-            COLO_STATIC_BLOCKED[grid_x][grid_y])
+    if (x < COLO_ARENA_MIN_X || x > COLO_ARENA_MAX_X ||
+            y < COLO_ARENA_MIN_Y || y > COLO_ARENA_MAX_Y)
         return COLLISION_BLOCKED | LOS_FULL_MASK;
+    int row = y - COLO_ARENA_MIN_Y;
+    for (int span = 0; span < COLO_WALL_SPANS_PER_ROW; span++) {
+        ColoWallSpan wall = COLO_WALL_SPANS[row][span];
+        if (x >= wall.lo && x < wall.hi)
+            return COLLISION_BLOCKED | LOS_FULL_MASK;
+    }
+    for (int pillar = 0; pillar < COLO_NUM_PILLARS; pillar++) {
+        int pillar_x = COLO_PILLARS[pillar][0];
+        int pillar_y = COLO_PILLARS[pillar][1];
+        if (x >= pillar_x && x < pillar_x + COLO_PILLAR_SIZE &&
+                y >= pillar_y && y < pillar_y + COLO_PILLAR_SIZE)
+            return COLLISION_BLOCKED | LOS_FULL_MASK;
+    }
     return 0;
 }
 
@@ -310,7 +369,6 @@ static void col_finalize_route_topology(ColosseumContext* ctx) {
         fprintf(stderr, "colosseum route topology finalized twice\n");
         abort();
     }
-    col_build_static_arena();
     EncounterArenaTopologyBuildSpec spec = {
         .origin_x = COLO_ARENA_MIN_X,
         .origin_y = COLO_ARENA_MIN_Y,
@@ -320,6 +378,8 @@ static void col_finalize_route_topology(ColosseumContext* ctx) {
         .revision = UINT64_C(0x434f4c4f53534501),
         .tile_flags = col_route_topology_flags,
         .tile_flags_ctx = NULL,
+        .los_build_mode =
+            ENCOUNTER_ARENA_TOPOLOGY_LOS_BUILD_TILE_BLOCKED,
     };
     if (!col_route_topology_owner.topology) {
         col_route_topology_owner.topology =
@@ -339,7 +399,7 @@ static void col_finalize_context(
     EncounterContext* context
 ) {
     (void)state;
-    col_finalize_route_topology((ColosseumContext*)context);
+    col_finalize_route_topology(col_require_context(context));
 }
 
 static void col_init_context_typed(ColosseumContext* ctx) {
@@ -355,15 +415,6 @@ static void col_destroy_context(EncounterContext* context) {
     (void)context;
 }
 
-static ColosseumContext* col_legacy_context(void) {
-    static ColosseumContext ctx;
-    static int initialized = 0;
-    if (!initialized) {
-        col_init_context_typed(&ctx);
-        initialized = 1;
-    }
-    return &ctx;
-}
 
 static void col_init_state_typed(ColosseumState* s, ColosseumContext* ctx) {
     col_build_npc_stats();
@@ -375,7 +426,8 @@ static void col_init_state_typed(ColosseumState* s, ColosseumContext* ctx) {
 }
 
 static void col_init_state(EncounterState* state, EncounterContext* context) {
-    col_init_state_typed((ColosseumState*)state, (ColosseumContext*)context);
+    col_init_state_typed(
+        (ColosseumState*)state, col_require_context(context));
 }
 
 static EncounterState* col_create(void) {

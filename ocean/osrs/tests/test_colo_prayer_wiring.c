@@ -10,7 +10,10 @@
 
 typedef enum { POLICY_HOLD_MELEE, POLICY_OBS_TELEGRAPH } PrayerPolicy;
 
-static int telegraph_overhead(const ColosseumState* s) {
+static int telegraph_overhead(
+    const ColosseumState* s,
+    const ColosseumContext* ctx
+) {
     AttackStyle best_style = ATTACK_STYLE_NONE;
     int best_ticks = 1 << 30;
     for (int slot = 0; slot < COLO_OBS_NPCS; slot++) {
@@ -18,7 +21,8 @@ static int telegraph_overhead(const ColosseumState* s) {
         if (idx < 0 || idx >= COLO_MAX_NPCS) continue;
         const ColoNPC* npc = &s->npcs[idx];
         if (!col_npc_is_live_enemy(npc)) continue;
-        ColoNpcNextPrayerObs t = col_npc_next_prayer_obs(s, npc, idx);
+        ColoNpcNextPrayerObs t =
+            col_npc_next_prayer_obs(s, ctx, npc, idx);
         if (!t.active) continue;
         if (t.ticks < best_ticks) { best_ticks = t.ticks; best_style = t.style; }
     }
@@ -48,6 +52,7 @@ static void run_test(const char* label, PrayerPolicy policy, int start_wave, int
     ctx.config.start_wave = start_wave;
     ctx.config.loadout_profile_mode = COLO_LOADOUT_PROFILE_MODE_MIXED;
     ctx.config.beginner_loadout_fraction = 0.5f;
+    col_finalize_route_topology(&ctx);
 
     static float obs[COLO_NUM_OBS];
     ColosseumState s;
@@ -72,7 +77,7 @@ static void run_test(const char* label, PrayerPolicy policy, int start_wave, int
                 continue;
             }
             actions[COLO_HEAD_PRAYER] = (policy == POLICY_HOLD_MELEE)
-                ? COLO_OVERHEAD_MELEE : telegraph_overhead(&s);
+                ? COLO_OVERHEAD_MELEE : telegraph_overhead(&s, &ctx);
             actions[COLO_HEAD_OFFENSIVE] = ENCOUNTER_OFFENSIVE_SET_REFRESH_RIGOUR;
             actions[COLO_HEAD_PRIMARY] = nearest_target(&s);
 
@@ -80,7 +85,8 @@ static void run_test(const char* label, PrayerPolicy policy, int start_wave, int
             for (int n = 0; n < COLO_MAX_NPCS; n++) {
                 const ColoNPC* npc = &s.npcs[n];
                 if (!col_npc_is_live_enemy(npc)) continue;
-                ColoNpcNextPrayerObs t = col_npc_next_prayer_obs(&s, npc, n);
+                ColoNpcNextPrayerObs t =
+                    col_npc_next_prayer_obs(&s, &ctx, npc, n);
                 if (t.active && t.ticks <= 1) predicted[n] = t.style;
             }
 

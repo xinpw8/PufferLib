@@ -31,6 +31,7 @@ static void clear_npcs(ColosseumState* s) {
 static void init_state(ColosseumState* s, ColosseumContext* ctx, int px, int py) {
     col_init_context_typed(ctx);
     ctx->config.late_start_state_mode = 0;
+    col_finalize_route_topology(ctx);
     memset(s, 0, sizeof(*s));
     col_reset_ctx((EncounterState*)s, (EncounterContext*)ctx, 4141u);
     clear_npcs(s);
@@ -74,7 +75,7 @@ static QueuedSwing swing_at_offset(AttackStyle style, int offset) {
         npc->x, npc->y, col_npc_effective_size(npc),
         ENCOUNTER_PROJECTILE_DISTANCE_CLOSEST_TILE);
 
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
 
     QueuedSwing out = {
         .distance = distance,

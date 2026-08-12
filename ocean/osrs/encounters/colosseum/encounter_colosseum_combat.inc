@@ -1,6 +1,10 @@
 #line 76 "encounter_colosseum.h"
 
-static void col_apply_npc_death(ColosseumState* s, int idx) {
+static void col_apply_npc_death(
+    ColosseumState* s,
+    const ColosseumContext* ctx,
+    int idx
+) {
     ColoNPC* npc = &s->npcs[idx];
 
     if (col_type_is_hazard_entity(npc->type)) {
@@ -19,7 +23,9 @@ static void col_apply_npc_death(ColosseumState* s, int idx) {
         s->death_charge_cd = COLO_DEATH_CHARGE_CD;
     }
 
-    col_mod_volatility_on_death(s, npc->x, npc->y, col_npc_effective_size(npc));
+    col_mod_volatility_on_death(
+        s, ctx->route_topology,
+        npc->x, npc->y, col_npc_effective_size(npc));
     col_mod_on_owner_death(s, idx);
     if (!osrs_npc_death_linger_start(
             npc->hp, npc->active, &npc->death_ticks,
@@ -77,9 +83,10 @@ static void col_apply_echo_boots_recoil(
         s->current_wave_fresh_damage += fresh;
     }
     if (npc->hp <= 0) {
-        col_apply_npc_death(s, attacker_slot);
+        col_apply_npc_death(s, ctx, attacker_slot);
     } else {
-        col_mod_on_npc_hp_changed(s, attacker_slot);
+        col_mod_on_npc_hp_changed(
+            s, ctx->route_topology, attacker_slot);
     }
 }
 
@@ -120,10 +127,10 @@ static void col_resolve_player_projectiles_on_npcs_ctx(
                         s->current_wave_fresh_damage += fresh;
                 }
                 if (npc->hp <= 0) {
-                    col_apply_npc_death(s, i);
+                    col_apply_npc_death(s, ctx, i);
                     break;
                 }
-                col_mod_on_npc_hp_changed(s, i);
+                col_mod_on_npc_hp_changed(s, ctx->route_topology, i);
                 encounter_pending_hit_queue_remove(&npc->pending_hits, h, "colosseum-npc");
                 h--;
             }
@@ -131,8 +138,11 @@ static void col_resolve_player_projectiles_on_npcs_ctx(
     }
 }
 
-static void col_resolve_player_projectiles_on_npcs(ColosseumState* s) {
-    col_resolve_player_projectiles_on_npcs_ctx(s, col_legacy_context());
+static void col_resolve_player_projectiles_on_npcs(
+    ColosseumState* s,
+    ColosseumContext* ctx
+) {
+    col_resolve_player_projectiles_on_npcs_ctx(s, ctx);
 }
 
 static void col_tick_npc_death_lingers(ColosseumState* s) {
@@ -288,9 +298,6 @@ static void col_resolve_player_pending_hits_ctx(ColosseumState* s, ColosseumCont
     }
 }
 
-static void col_resolve_player_pending_hits(ColosseumState* s) {
-    col_resolve_player_pending_hits_ctx(s, col_legacy_context());
-}
 
 static int col_npc_dist_to_player(const ColosseumState* s, const ColoNPC* npc) {
     return encounter_dist_to_npc(
@@ -412,7 +419,11 @@ static void col_npc_attack_jaguar(
         col_npc_melee_attack(s, ctx, idx, stats, stats->max_hit);
 }
 
-static void col_npc_minotaur_heal_ally(ColosseumState* s, int idx) {
+static void col_npc_minotaur_heal_ally(
+    ColosseumState* s,
+    const ColosseumContext* ctx,
+    int idx
+) {
     ColoNPC* mino = &s->npcs[idx];
     int mcx = mino->x + 1, mcy = mino->y + 1;
     int best = -1;
@@ -427,7 +438,9 @@ static void col_npc_minotaur_heal_ally(ColosseumState* s, int idx) {
         int dx = ocx > mcx ? ocx - mcx : mcx - ocx;
         int dy = ocy > mcy ? ocy - mcy : mcy - ocy;
         if ((dx > dy ? dx : dy) > COLO_MINOTAUR_HEAL_RANGE) continue;
-        if (!col_tiles_have_los(s, mcx, mcy, ocx, ocy)) continue;
+        if (!col_topology_los_clear(
+                ctx, mcx, mcy, 1, ocx, ocy, 1, 0))
+            continue;
         if (best < 0 ||
             other->hp * s->npcs[best].max_hp < s->npcs[best].hp * other->max_hp)
             best = i;
@@ -485,10 +498,16 @@ static void col_npc_resolve_javelin_skyfall(
         col_mod_on_player_damaged(
             s, applied, COLO_DAMAGE_JAVELIN_SKYFALL);
     }
-    col_mod_reentry_on_skyfall(s, jv->skyfall_tile_x, jv->skyfall_tile_y);
+    col_mod_reentry_on_skyfall(
+        s, ctx->route_topology,
+        jv->skyfall_tile_x, jv->skyfall_tile_y);
 }
 
-static void col_manticore_delay_ready_peers(ColosseumState* s, int idx) {
+static void col_manticore_delay_ready_peers(
+    ColosseumState* s,
+    const ColosseumContext* ctx,
+    int idx
+) {
     for (int i = 0; i < COLO_MAX_NPCS; i++) {
         if (i == idx) continue;
         ColoNPC* other = &s->npcs[i];
@@ -498,7 +517,7 @@ static void col_manticore_delay_ready_peers(ColosseumState* s, int idx) {
         if (other->stun_timer > 0 || other->frozen_ticks > 0) continue;
         int dist = col_npc_dist_to_player(s, other);
         if (dist < 1 || dist > COLO_NPC_STATS[COLO_MANTICORE].attack_range) continue;
-        if (!col_npc_has_los_to_player(s, other)) continue;
+        if (!col_npc_has_los_to_player(s, ctx, other)) continue;
         other->attack_timer = COLO_MANTICORE_STAGGER_TICKS + 1;
     }
 }
@@ -568,12 +587,17 @@ static void col_npc_manticore_arm(ColosseumState* s, int idx) {
     mc->cycle_step = 0;
 }
 
-static void col_npc_attack_manticore(ColosseumState* s, int idx, const ColoNpcStats* stats) {
+static void col_npc_attack_manticore(
+    ColosseumState* s,
+    ColosseumContext* ctx,
+    int idx,
+    const ColoNpcStats* stats
+) {
     ColoNPC* npc = &s->npcs[idx];
     ColoManticoreState* mc = colo_npc_manticore(npc);
     mc->cycle_step = 0;
     col_npc_manticore_fire_orb(s, idx, stats);
-    col_manticore_delay_ready_peers(s, idx);
+    col_manticore_delay_ready_peers(s, ctx, idx);
 }
 
 static void col_npc_attack_ctx(ColosseumState* s, ColosseumContext* ctx, int idx) {
@@ -598,7 +622,7 @@ static void col_npc_attack_ctx(ColosseumState* s, ColosseumContext* ctx, int idx
     if (npc->type == COLO_MANTICORE) {
         int mdist = col_npc_dist_to_player(s, npc);
         if (mdist < 1 || mdist > stats->attack_range) return;
-        if (!col_npc_has_los_to_player(s, npc)) return;
+        if (!col_npc_has_los_to_player(s, ctx, npc)) return;
         int cycle_step_before_arm = npc->type_state.manticore.cycle_step;
         col_npc_manticore_arm(s, idx);
         if (cycle_step_before_arm < 0 &&
@@ -607,7 +631,7 @@ static void col_npc_attack_ctx(ColosseumState* s, ColosseumContext* ctx, int idx
             ctx->manticore_charge_started[idx] = 1;
         }
         if (npc->attack_timer > 0) return;
-        col_npc_attack_manticore(s, idx, stats);
+        col_npc_attack_manticore(s, ctx, idx, stats);
         return;
     }
 
@@ -618,14 +642,14 @@ static void col_npc_attack_ctx(ColosseumState* s, ColosseumContext* ctx, int idx
 
     if (npc->type == COLO_MINOTAUR) {
         if (dist == 1) col_npc_melee_attack(s, ctx, idx, stats, stats->max_hit);
-        else col_npc_minotaur_heal_ally(s, idx);
+        else col_npc_minotaur_heal_ally(s, ctx, idx);
         npc->attack_timer = stats->attack_speed;
         return;
     }
 
     if (stats->attack_range > 1) {
         if (dist < 1 || dist > stats->attack_range) return;
-        if (!col_npc_has_los_to_player(s, npc)) return;
+        if (!col_npc_has_los_to_player(s, ctx, npc)) return;
     } else {
 
         if (!col_npc_melee_adjacent_to_player(s, npc)) return;
@@ -690,7 +714,11 @@ static void col_warband_attack_phase(ColosseumState* s, ColosseumContext* ctx) {
 }
 
 static void col_live_threat_style_counts(
-    const ColosseumState* s, int* magic, int* ranged, int* melee
+    const ColosseumState* s,
+    const ColosseumContext* ctx,
+    int* magic,
+    int* ranged,
+    int* melee
 ) {
     *magic = 0;
     *ranged = 0;
@@ -703,7 +731,9 @@ static void col_live_threat_style_counts(
         if (ns->attack_range < 1) continue;
         int dist = col_npc_dist_to_player(s, npc);
         if (dist < 1 || dist > ns->attack_range) continue;
-        if (ns->attack_range > 1 && !col_npc_has_los_to_player(s, npc)) continue;
+        if (ns->attack_range > 1 &&
+                !col_npc_has_los_to_player(s, ctx, npc))
+            continue;
         AttackStyle style = ns->default_style;
         if (npc->type == COLO_MANTICORE) {
             const ColoManticoreState* mc = &npc->type_state.manticore;

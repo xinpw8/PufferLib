@@ -111,137 +111,8 @@ static const int COLO_PILLARS[COLO_NUM_PILLARS][2] = {
     {8, 8}, {23, 8}, {8, 23}, {23, 23},
 };
 
-static uint8_t COLO_STATIC_BLOCKED[COLO_ARENA_WIDTH][COLO_ARENA_HEIGHT];
-
 #define COLO_ARENA_TILE_COUNT (COLO_ARENA_WIDTH * COLO_ARENA_HEIGHT)
-#define COLO_STATIC_LOS_TABLE_BITS (COLO_ARENA_TILE_COUNT * COLO_ARENA_TILE_COUNT)
-#define COLO_STATIC_LOS_TABLE_WORDS ((COLO_STATIC_LOS_TABLE_BITS + 63) / 64)
-#define COLO_STATIC_FOOTPRINT_MAX_SIZE 5
-#define COLO_STATIC_FOOTPRINT_PAD (COLO_STATIC_FOOTPRINT_MAX_SIZE - 1)
-#define COLO_STATIC_FOOTPRINT_MIN_X (COLO_ARENA_MIN_X - COLO_STATIC_FOOTPRINT_PAD)
-#define COLO_STATIC_FOOTPRINT_MIN_Y (COLO_ARENA_MIN_Y - COLO_STATIC_FOOTPRINT_PAD)
-#define COLO_STATIC_FOOTPRINT_MAX_X (COLO_ARENA_MAX_X + 1)
-#define COLO_STATIC_FOOTPRINT_MAX_Y (COLO_ARENA_MAX_Y + 1)
-#define COLO_STATIC_FOOTPRINT_WIDTH \
-    (COLO_STATIC_FOOTPRINT_MAX_X - COLO_STATIC_FOOTPRINT_MIN_X + 1)
-#define COLO_STATIC_FOOTPRINT_HEIGHT \
-    (COLO_STATIC_FOOTPRINT_MAX_Y - COLO_STATIC_FOOTPRINT_MIN_Y + 1)
-static uint64_t COLO_STATIC_LOS_BITS[COLO_STATIC_LOS_TABLE_WORDS];
-static uint8_t COLO_STATIC_FOOTPRINT_BLOCKED[COLO_STATIC_FOOTPRINT_MAX_SIZE]
-    [COLO_STATIC_FOOTPRINT_WIDTH][COLO_STATIC_FOOTPRINT_HEIGHT];
-static int COLO_STATIC_LOOKUP_TABLES_BUILT = 0;
-static int COLO_STATIC_ARENA_BUILT = 0;
 static int COLO_NPC_STATS_BUILT = 0;
-
-static void col_build_static_lookup_tables_once(void);
-
-/* Derived purely from compile-time tables, so build it once. Rebuilding per reset
-   zeroed a grid that every other env thread paths against, which handed them an
-   arena with no walls for the width of the rebuild. puf_init runs serially, so the
-   single build lands before any worker thread exists. */
-static void col_build_static_arena(void) {
-    if (COLO_STATIC_ARENA_BUILT) return;
-    COLO_STATIC_ARENA_BUILT = 1;
-    memset(COLO_STATIC_BLOCKED, 0, sizeof(COLO_STATIC_BLOCKED));
-    for (int y = 0; y < COLO_ARENA_HEIGHT; y++) {
-        for (int sp = 0; sp < COLO_WALL_SPANS_PER_ROW; sp++) {
-            ColoWallSpan span = COLO_WALL_SPANS[y][sp];
-            for (int x = span.lo; x < span.hi; x++) COLO_STATIC_BLOCKED[x][y] = 1;
-        }
-    }
-    for (int p = 0; p < COLO_NUM_PILLARS; p++)
-        for (int dx = 0; dx < COLO_PILLAR_SIZE; dx++)
-            for (int dy = 0; dy < COLO_PILLAR_SIZE; dy++)
-                COLO_STATIC_BLOCKED[COLO_PILLARS[p][0] + dx][COLO_PILLARS[p][1] + dy] = 1;
-    col_build_static_lookup_tables_once();
-}
-
-static inline int col_static_blocked(int x, int y) {
-    if (x < COLO_ARENA_MIN_X || x > COLO_ARENA_MAX_X ||
-        y < COLO_ARENA_MIN_Y || y > COLO_ARENA_MAX_Y) return 1;
-    return COLO_STATIC_BLOCKED[x][y];
-}
-
-static inline int col_static_los_endpoint_in_bounds(int x, int y) {
-    return x >= COLO_ARENA_MIN_X && x <= COLO_ARENA_MAX_X &&
-           y >= COLO_ARENA_MIN_Y && y <= COLO_ARENA_MAX_Y;
-}
-
-static inline uint32_t col_static_los_index(int x0, int y0, int x1, int y1) {
-    uint32_t a = (uint32_t)((x0 - COLO_ARENA_MIN_X) * COLO_ARENA_HEIGHT +
-        (y0 - COLO_ARENA_MIN_Y));
-    uint32_t b = (uint32_t)((x1 - COLO_ARENA_MIN_X) * COLO_ARENA_HEIGHT +
-        (y1 - COLO_ARENA_MIN_Y));
-    return a * COLO_ARENA_TILE_COUNT + b;
-}
-
-static inline void col_static_los_set(uint32_t idx) {
-    COLO_STATIC_LOS_BITS[idx >> 6] |= 1ULL << (idx & 63);
-}
-
-static inline int col_static_los_get(int x0, int y0, int x1, int y1) {
-    uint32_t idx = col_static_los_index(x0, y0, x1, y1);
-    return (int)((COLO_STATIC_LOS_BITS[idx >> 6] >> (idx & 63)) & 1ULL);
-}
-
-static inline int col_static_footprint_anchor_in_table(int x, int y) {
-    return x >= COLO_STATIC_FOOTPRINT_MIN_X && x <= COLO_STATIC_FOOTPRINT_MAX_X &&
-           y >= COLO_STATIC_FOOTPRINT_MIN_Y && y <= COLO_STATIC_FOOTPRINT_MAX_Y;
-}
-
-static int col_static_footprint_blocked_reference_slowpath(int x, int y, int size) {
-    for (int dx = 0; dx < size; dx++) {
-        for (int dy = 0; dy < size; dy++) {
-            if (col_static_blocked(x + dx, y + dy)) return 1;
-        }
-    }
-    return 0;
-}
-
-static inline int col_static_footprint_blocked_lookup(int x, int y, int size) {
-    if (size < 1 || size > COLO_STATIC_FOOTPRINT_MAX_SIZE)
-        return col_static_footprint_blocked_reference_slowpath(x, y, size);
-    if (!COLO_STATIC_LOOKUP_TABLES_BUILT) col_build_static_arena();
-    if (!col_static_footprint_anchor_in_table(x, y)) return 1;
-    return COLO_STATIC_FOOTPRINT_BLOCKED[size - 1]
-        [x - COLO_STATIC_FOOTPRINT_MIN_X]
-        [y - COLO_STATIC_FOOTPRINT_MIN_Y];
-}
-
-static int col_los_tile_blocked_reference(void* ctx, int x, int y) {
-    (void)ctx;
-    return col_static_blocked(x, y);
-}
-
-static int col_tiles_have_los_reference_slowpath(int x0, int y0, int x1, int y1) {
-    OsrsLosQuery query = osrs_los_tile(col_los_tile_blocked_reference, NULL);
-    return osrs_los_tile_ray_clear(&query, x0, y0, x1, y1);
-}
-
-static void col_build_static_lookup_tables_once(void) {
-    if (COLO_STATIC_LOOKUP_TABLES_BUILT) return;
-    for (int x0 = COLO_ARENA_MIN_X; x0 <= COLO_ARENA_MAX_X; x0++) {
-        for (int y0 = COLO_ARENA_MIN_Y; y0 <= COLO_ARENA_MAX_Y; y0++) {
-            for (int x1 = COLO_ARENA_MIN_X; x1 <= COLO_ARENA_MAX_X; x1++) {
-                for (int y1 = COLO_ARENA_MIN_Y; y1 <= COLO_ARENA_MAX_Y; y1++) {
-                    if (col_tiles_have_los_reference_slowpath(x0, y0, x1, y1))
-                        col_static_los_set(col_static_los_index(x0, y0, x1, y1));
-                }
-            }
-        }
-    }
-    for (int size = 1; size <= COLO_STATIC_FOOTPRINT_MAX_SIZE; size++) {
-        for (int x = COLO_STATIC_FOOTPRINT_MIN_X; x <= COLO_STATIC_FOOTPRINT_MAX_X; x++) {
-            for (int y = COLO_STATIC_FOOTPRINT_MIN_Y; y <= COLO_STATIC_FOOTPRINT_MAX_Y; y++) {
-                COLO_STATIC_FOOTPRINT_BLOCKED[size - 1]
-                    [x - COLO_STATIC_FOOTPRINT_MIN_X]
-                    [y - COLO_STATIC_FOOTPRINT_MIN_Y] =
-                    (uint8_t)col_static_footprint_blocked_reference_slowpath(x, y, size);
-            }
-        }
-    }
-    COLO_STATIC_LOOKUP_TABLES_BUILT = 1;
-}
 
 #define COLO_NUM_SPAWN_ANCHORS 13
 #define COLO_SPAWN_ZONE_SIZE   3
@@ -457,7 +328,6 @@ static const ColoNpcOverlay COLO_NPC_OVERLAY[COLO_NUM_NPC_TYPES] = {
 static ColoNpcStats COLO_NPC_STATS[COLO_NUM_NPC_TYPES];
 
 static void col_build_npc_stats(void) {
-    col_build_static_arena();
     if (COLO_NPC_STATS_BUILT) return;
     COLO_NPC_STATS_BUILT = 1;
     for (int i = 0; i < COLO_NUM_NPC_TYPES; i++) {

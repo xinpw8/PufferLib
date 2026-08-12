@@ -510,7 +510,7 @@ typedef struct {
 
 static int col_tile_walkable(void* ctx, int x, int y) {
     ColoWalkCtx* wc = (ColoWalkCtx*)ctx;
-    return col_player_walkable(wc->s, x, y);
+    return col_player_walkable_ctx(wc->s, wc->ctx, x, y);
 }
 
 static int col_player_route_blocked(void* data, int x, int y, int size) {
@@ -984,9 +984,6 @@ static void col_player_attack_target_ctx(
     s->tick_scratch.attacks_fired++;
 }
 
-static void col_player_attack_target(ColosseumState* s, int npc_slot) {
-    col_player_attack_target_ctx(s, col_legacy_context(), npc_slot);
-}
 
 typedef struct {
     OsrsPlayerStepInput input;
@@ -1037,7 +1034,7 @@ static ColoPrimaryStepPlan col_primary_step_plan(
     }
 
     *walk_ctx = (ColoWalkCtx){s, ctx};
-    *los_query = col_player_los_query(s);
+    *los_query = col_player_los_query(ctx);
     return (ColoPrimaryStepPlan){
         .input = {
             .player = player,

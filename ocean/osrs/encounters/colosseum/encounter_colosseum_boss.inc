@@ -172,7 +172,7 @@ static void col_sol_move(ColosseumState* s, ColosseumContext* ctx, int idx) {
         return;
     col_stamp_npc_collision_footprint(s, boss->x, boss->y, size, 0);
     int moved = col_npc_path_step(
-        s, ctx->route_topology, &boss->x, &boss->y, size,
+        s, ctx, &boss->x, &boss->y, size,
         s->player.x - size / 2, s->player.y - size / 2);
     col_stamp_npc_collision_footprint(s, boss->x, boss->y, size, 1);
     boss->moved_this_tick = moved ? 1 : 0;
@@ -421,8 +421,13 @@ static int col_sol_molten_sand_at(const SolHereditState* sol, int x, int y) {
     return 0;
 }
 
-static void col_sol_add_pool(ColosseumState* s, int x, int y) {
-    if (col_static_blocked(x, y)) return;
+static void col_sol_add_pool(
+    ColosseumState* s,
+    const ColosseumContext* ctx,
+    int x,
+    int y
+) {
+    if (col_topology_tile_blocked(ctx, x, y)) return;
     SolHereditState* sol = &s->sol;
     if (col_sol_molten_sand_at(sol, x, y)) return;
     int slot = sol->hazard_tile_count < COLO_SOL_HAZARD_TILES_MAX
@@ -438,6 +443,7 @@ typedef struct {
 
 static int col_sol_sample_molten_candidates(
     ColosseumState* s,
+    const ColosseumContext* ctx,
     int spread,
     int count,
     int force_player_tile,
@@ -449,7 +455,7 @@ static int col_sol_sample_molten_candidates(
     for (int x = s->player.x - spread; x <= s->player.x + spread; x++) {
         for (int y = s->player.y - spread; y <= s->player.y + spread; y++) {
             if (!col_in_boss_arena(s, x, y)) continue;
-            if (col_static_blocked(x, y)) continue;
+            if (col_topology_tile_blocked(ctx, x, y)) continue;
             if (pool_count >= (int)(sizeof(pool) / sizeof(pool[0]))) break;
             if (x == s->player.x && y == s->player.y) player_idx = pool_count;
             pool[pool_count++] = (ColSolMoltenCandidate){ .x = x, .y = y };
@@ -482,22 +488,28 @@ static void col_sol_drop_beam_at(ColosseumState* s, int x, int y) {
     }
 }
 
-static void col_sol_drop_beams(ColosseumState* s) {
+static void col_sol_drop_beams(
+    ColosseumState* s,
+    const ColosseumContext* ctx
+) {
     ColSolMoltenCandidate tiles[COLO_SOL_BEAM_COUNT];
     int ntiles = col_sol_sample_molten_candidates(
-        s, COLO_SOL_BEAM_SPREAD, COLO_SOL_BEAM_COUNT, 1, tiles);
+        s, ctx, COLO_SOL_BEAM_SPREAD, COLO_SOL_BEAM_COUNT, 1, tiles);
     for (int n = 0; n < ntiles; n++)
         col_sol_drop_beam_at(s, tiles[n].x, tiles[n].y);
 }
 
-static void col_sol_tick_molten(ColosseumState* s) {
+static void col_sol_tick_molten(
+    ColosseumState* s,
+    const ColosseumContext* ctx
+) {
     SolHereditState* sol = &s->sol;
     if (sol->phase >= 5) {
         if (sol->enrage_pool_timer > 0) sol->enrage_pool_timer--;
         if (sol->enrage_pool_timer == 0) {
             ColSolMoltenCandidate tile[1];
             int ntiles = col_sol_sample_molten_candidates(
-                s, COLO_SOL_ENRAGE_POOL_SPREAD, 1, 0, tile);
+                s, ctx, COLO_SOL_ENRAGE_POOL_SPREAD, 1, 0, tile);
             if (ntiles > 0) col_sol_drop_beam_at(s, tile[0].x, tile[0].y);
             sol->enrage_pool_timer = COLO_SOL_MOLTEN_INTERVAL;
         }
@@ -507,7 +519,8 @@ static void col_sol_tick_molten(ColosseumState* s) {
         if (!sol->beams[b].active) continue;
         sol->beams[b].ticks_to_pool--;
         if (sol->beams[b].ticks_to_pool > 0) continue;
-        col_sol_add_pool(s, sol->beams[b].x, sol->beams[b].y);
+        col_sol_add_pool(
+            s, ctx, sol->beams[b].x, sol->beams[b].y);
         sol->beams[b].active = 0;
     }
 
@@ -630,17 +643,22 @@ static void col_sol_tick_grapple(ColosseumState* s) {
     }
 }
 
-static void col_sol_enter_phase(ColosseumState* s, int new_phase) {
+static void col_sol_enter_phase(
+    ColosseumState* s,
+    const ColosseumContext* ctx,
+    int new_phase
+) {
     SolHereditState* sol = &s->sol;
     sol->phase = new_phase;
-    col_sol_drop_beams(s);
+    col_sol_drop_beams(s, ctx);
     if (new_phase >= 1 && new_phase <= 4) col_sol_spawn_crystal(s);
     if (new_phase >= 5) sol->laser_cooldown = COLO_SOL_CRYSTAL_COOLDOWN_ENRAGE;
     if (new_phase >= 5) {
 
         ColSolMoltenCandidate tiles[COLO_SOL_ENRAGE_OPEN_POOLS];
         int ntiles = col_sol_sample_molten_candidates(
-            s, COLO_SOL_ENRAGE_POOL_SPREAD, COLO_SOL_ENRAGE_OPEN_POOLS, 0, tiles);
+            s, ctx, COLO_SOL_ENRAGE_POOL_SPREAD,
+            COLO_SOL_ENRAGE_OPEN_POOLS, 0, tiles);
         for (int p = 0; p < ntiles; p++)
             col_sol_drop_beam_at(s, tiles[p].x, tiles[p].y);
         sol->enrage_pool_timer = COLO_SOL_MOLTEN_INTERVAL;
@@ -661,7 +679,8 @@ static void col_sol_boss_tick(ColosseumState* s, ColosseumContext* ctx) {
 
     int target_phase = col_sol_phase_for_hp(s->npcs[idx].hp);
     if (target_phase > sol->phase) {
-        while (sol->phase < target_phase) col_sol_enter_phase(s, sol->phase + 1);
+        while (sol->phase < target_phase)
+            col_sol_enter_phase(s, ctx, sol->phase + 1);
         sol->immobile_ticks = COLO_SOL_TRANSITION_FREEZE;
         sol->force_spear = 1;
     }
@@ -674,7 +693,7 @@ static void col_sol_boss_tick(ColosseumState* s, ColosseumContext* ctx) {
 
     col_sol_tick_aoe(s);
     col_sol_tick_crystals(s);
-    col_sol_tick_molten(s);
+    col_sol_tick_molten(s, ctx);
     col_sol_tick_triple_parry(s);
     col_sol_tick_grapple(s);
 

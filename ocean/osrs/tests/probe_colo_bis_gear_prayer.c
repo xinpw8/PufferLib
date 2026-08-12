@@ -17,6 +17,7 @@ int main(void) {
         col_init_context_typed(&ctx);
         ctx.config.start_wave = 0;
         ctx.config.bis_gear_oracle_mode = 1;
+        col_finalize_route_topology(&ctx);
         memset(&s, 0, sizeof(s));
         col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, seed);
 

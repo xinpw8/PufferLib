@@ -12,6 +12,7 @@ static void loadout_reset(ColosseumState* s, ColosseumContext* ctx, int mode,
     col_init_context_typed(ctx);
     ctx->config.loadout_profile_mode = mode;
     ctx->config.beginner_loadout_fraction = frac;
+    col_finalize_route_topology(ctx);
     memset(s, 0, sizeof(*s));
     col_reset_ctx((EncounterState*)s, (EncounterContext*)ctx, seed);
 }

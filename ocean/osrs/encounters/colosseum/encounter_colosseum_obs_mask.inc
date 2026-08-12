@@ -312,6 +312,7 @@ static ColoNpcNextPrayerObs col_visible_manticore_next_prayer(const ColoNPC* npc
 
 static int col_npc_current_attack_geometry(
     const ColosseumState* s,
+    const ColosseumContext* ctx,
     const ColoNPC* npc,
     const ColoNpcStats* ns
 ) {
@@ -322,7 +323,7 @@ static int col_npc_current_attack_geometry(
     if (ns->attack_range > 1) {
         int dist = col_npc_dist_to_player(s, npc);
         if (dist < 1 || dist > ns->attack_range) return 0;
-        return col_npc_has_los_to_player(s, npc);
+        return col_npc_has_los_to_player(s, ctx, npc);
     }
     return col_npc_melee_adjacent_to_player(s, npc);
 }
@@ -340,6 +341,7 @@ static int col_warband_next_window_wait(const ColosseumState* s, const ColoNPC* 
 
 static ColoNpcNextPrayerObs col_deterministic_npc_next_prayer(
     const ColosseumState* s,
+    const ColosseumContext* ctx,
     const ColoNPC* npc,
     const ColoNpcStats* ns
 ) {
@@ -349,7 +351,8 @@ static ColoNpcNextPrayerObs col_deterministic_npc_next_prayer(
     if (npc->type == COLO_JAVELIN_COLOSSUS &&
             (npc->type_state.javelin.attack_count + 1) % 5 == 0)
         return col_npc_next_prayer_none();
-    if (!col_npc_current_attack_geometry(s, npc, ns)) return col_npc_next_prayer_none();
+    if (!col_npc_current_attack_geometry(s, ctx, npc, ns))
+        return col_npc_next_prayer_none();
     int ticks = npc->attack_timer == 0 ? 1 : npc->attack_timer;
     if (col_type_is_warbander(npc->type)) {
         if (s->warband_cycle_anchor < 0) return col_npc_next_prayer_none();
@@ -364,13 +367,15 @@ static ColoNpcNextPrayerObs col_deterministic_npc_next_prayer(
 
 static ColoNpcNextPrayerObs col_npc_next_prayer_obs(
     const ColosseumState* s,
+    const ColosseumContext* ctx,
     const ColoNPC* npc,
     int npc_slot
 ) {
     (void)npc_slot;
     ColoNpcNextPrayerObs manticore = col_visible_manticore_next_prayer(npc);
     if (manticore.active) return manticore;
-    return col_deterministic_npc_next_prayer(s, npc, &COLO_NPC_STATS[npc->type]);
+    return col_deterministic_npc_next_prayer(
+        s, ctx, npc, &COLO_NPC_STATS[npc->type]);
 }
 
 static const ColoBeeSwarm* col_obs_bee_state_for_npc_slot(
@@ -480,6 +485,7 @@ static void col_write_npc_tells(const ColosseumState* s, const ColoNPC* npc, flo
 
 static void col_write_npc_slot(
     const ColosseumState* s,
+    const ColosseumContext* ctx,
     const ColoNPC* npc,
     int npc_slot,
     const ColoVenatorPreviewTargets* venator_targets,
@@ -505,14 +511,15 @@ static void col_write_npc_slot(
     obs[i++] = (ns->attack_range > 0 && dist >= 1 && dist <= ns->attack_range)
         ? 1.0f : 0.0f;
 
-    ColoNpcNextPrayerObs next_prayer = col_npc_next_prayer_obs(s, npc, npc_slot);
+    ColoNpcNextPrayerObs next_prayer =
+        col_npc_next_prayer_obs(s, ctx, npc, npc_slot);
     obs[i++] = next_prayer.active ? 1.0f : 0.0f;
     *idx = i;
     col_write_style_onehot_melee_ranged_magic(
         next_prayer.active ? next_prayer.style : ATTACK_STYLE_NONE, obs, idx);
     i = *idx;
     obs[i++] = next_prayer.active ? col_clamp01((float)next_prayer.ticks / 10.0f) : 0.0f;
-    obs[i++] = col_npc_has_los_to_player(s, npc) ? 1.0f : 0.0f;
+    obs[i++] = col_npc_has_los_to_player(s, ctx, npc) ? 1.0f : 0.0f;
     assert(i - slot_base == COLO_NPC_TELLS_OFFSET);
     *idx = i;
     col_write_npc_tells(s, npc, obs, idx);
@@ -570,6 +577,7 @@ static int col_premove_molten_forecast_needed(
 
 static int col_build_post_premove_molten_forecast(
     const ColosseumState* s,
+    const ColosseumContext* ctx,
     ColosseumState* forecast
 ) {
     *forecast = *s;
@@ -582,7 +590,8 @@ static int col_build_post_premove_molten_forecast(
         const ColoJavelinState* jv = &npc->type_state.javelin;
         if (!jv->skyfall_pending || jv->skyfall_timer > 1) continue;
         col_mod_reentry_on_skyfall(
-            forecast, jv->skyfall_tile_x, jv->skyfall_tile_y);
+            forecast, ctx->route_topology,
+            jv->skyfall_tile_x, jv->skyfall_tile_y);
     }
 
     int burned = 0;
@@ -1004,10 +1013,16 @@ static void col_write_modifier_hazards(
     *idx = i;
 }
 
-static void col_write_threat_los_counts(const ColosseumState* s, float* obs, int* idx) {
+static void col_write_threat_los_counts(
+    const ColosseumState* s,
+    const ColosseumContext* ctx,
+    float* obs,
+    int* idx
+) {
     int i = *idx;
     int magic, ranged, melee;
-    col_live_threat_style_counts(s, &magic, &ranged, &melee);
+    col_live_threat_style_counts(
+        s, ctx, &magic, &ranged, &melee);
     obs[i++] = col_clamp01((float)magic / 4.0f);
     obs[i++] = col_clamp01((float)ranged / 4.0f);
     obs[i++] = col_clamp01((float)melee / 4.0f);
@@ -1578,9 +1593,14 @@ static void col_write_inventory_and_equipped_obs(
     *idx = i;
 }
 
-static void col_write_obs_ctx(EncounterState* state, EncounterContext* context, float* obs) {
+static void col_write_obs_ctx(
+    EncounterState* state,
+    EncounterContext* context,
+    float* obs
+) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
+    encounter_arena_topology_require_finalized(ctx->route_topology);
 #ifdef COLO_PROFILE_ENABLED
     int col_prof_enabled = COLO_PROFILE_ENABLED();
     double col_prof_t0 = col_prof_enabled ? COLO_PROFILE_NOW_MS() : 0.0;
@@ -1591,7 +1611,7 @@ static void col_write_obs_ctx(EncounterState* state, EncounterContext* context, 
     if (col_premove_molten_forecast_needed(s)) {
         premove_molten_burn =
             col_build_post_premove_molten_forecast(
-                s, &post_premove_molten);
+                s, ctx, &post_premove_molten);
     }
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_OBS_REFRESH_SLOTS);
@@ -1665,7 +1685,8 @@ static void col_write_obs_ctx(EncounterState* state, EncounterContext* context, 
             continue;
         }
         col_write_npc_slot(
-            s, &s->npcs[npc_idx], npc_idx, &venator_targets, obs, &i);
+            s, ctx, &s->npcs[npc_idx], npc_idx,
+            &venator_targets, obs, &i);
     }
     assert(i == COLO_OBS_AFTER_NPCS);
 #ifdef COLO_PROFILE_ENABLED
@@ -1724,7 +1745,7 @@ static void col_write_obs_ctx(EncounterState* state, EncounterContext* context, 
     COLO_PROFILE_MARK(COLO_PROF_OBS_PENDING_HITS);
 #endif
 
-    col_write_threat_los_counts(s, obs, &i);
+    col_write_threat_los_counts(s, ctx, obs, &i);
     assert(i == COLO_OBS_AFTER_THREAT_LOS);
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_OBS_THREAT_LOS);

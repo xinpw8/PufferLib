@@ -76,20 +76,25 @@ static ColoVolatilityBlastPreview col_soonest_queued_volatility_blast(
     return best;
 }
 
-static int col_step_out_forecast_action_valid(const ColosseumState* s, int action_idx) {
+static int col_step_out_forecast_action_valid(
+    const ColosseumState* s,
+    const ColosseumContext* ctx,
+    int action_idx
+) {
     if (action_idx == 0) return 1;
     if (s->modifiers.draft_pending) return 0;
     int nx = s->player.x + ENCOUNTER_MOVE_TARGET_DX[action_idx];
     int ny = s->player.y + ENCOUNTER_MOVE_TARGET_DY[action_idx];
-    return col_player_walkable((void*)s, nx, ny);
+    return col_player_walkable_ctx(s, ctx, nx, ny);
 }
 
 static ColoForecastLanding col_step_out_forecast_action_landing_ctx(
     const ColosseumState* s,
+    const ColosseumContext* ctx,
     int action_idx
 ) {
     ColoForecastLanding landing = {
-        .valid = col_step_out_forecast_action_valid(s, action_idx),
+        .valid = col_step_out_forecast_action_valid(s, ctx, action_idx),
         .land_x = s->player.x,
         .land_y = s->player.y,
     };
@@ -114,18 +119,23 @@ static ColoForecastLanding col_step_out_forecast_action_landing_ctx(
 
         int moved = 0;
         if (dx != 0 && dy != 0 &&
-                col_player_walkable((void*)s, landing.land_x + dx, landing.land_y + dy) &&
-                col_player_walkable((void*)s, landing.land_x + dx, landing.land_y) &&
-                col_player_walkable((void*)s, landing.land_x, landing.land_y + dy)) {
+                col_player_walkable_ctx(
+                    s, ctx, landing.land_x + dx, landing.land_y + dy) &&
+                col_player_walkable_ctx(
+                    s, ctx, landing.land_x + dx, landing.land_y) &&
+                col_player_walkable_ctx(
+                    s, ctx, landing.land_x, landing.land_y + dy)) {
             landing.land_x += dx;
             landing.land_y += dy;
             moved = 1;
         } else if (dx != 0 &&
-                col_player_walkable((void*)s, landing.land_x + dx, landing.land_y)) {
+                col_player_walkable_ctx(
+                    s, ctx, landing.land_x + dx, landing.land_y)) {
             landing.land_x += dx;
             moved = 1;
         } else if (dy != 0 &&
-                col_player_walkable((void*)s, landing.land_x, landing.land_y + dy)) {
+                col_player_walkable_ctx(
+                    s, ctx, landing.land_x, landing.land_y + dy)) {
             landing.land_y += dy;
             moved = 1;
         }
@@ -137,6 +147,7 @@ static ColoForecastLanding col_step_out_forecast_action_landing_ctx(
 
 static int col_primary_action_valid(
     const ColosseumState* s,
+    const ColosseumContext* ctx,
     int primary_action
 ) {
     if (primary_action < 0 || primary_action >= COLO_PRIMARY_DIM) {
@@ -148,7 +159,7 @@ static int col_primary_action_valid(
     if (primary_action < ENCOUNTER_MOVE_ACTIONS) {
         int nx = s->player.x + ENCOUNTER_MOVE_TARGET_DX[primary_action];
         int ny = s->player.y + ENCOUNTER_MOVE_TARGET_DY[primary_action];
-        return col_player_walkable((void*)s, nx, ny);
+        return col_player_walkable_ctx(s, ctx, nx, ny);
     }
 
     int obs_slot = col_primary_obs_slot_from_action(primary_action);

@@ -54,6 +54,7 @@ int main(void) {
     ColosseumContext ctx;
     col_init_context_typed(&ctx);
     ctx.config.start_wave = 0;
+    col_finalize_route_topology(&ctx);
 
     enum { N = 8 };
     uint64_t dig[N];

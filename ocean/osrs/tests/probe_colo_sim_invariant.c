@@ -177,6 +177,7 @@ static uint64_t run_episode(const SimConfig* cfg, int max_ticks) {
 
     col_init_context_typed(&ctx);
     ctx.config.start_wave = cfg->public_start_wave - 1;
+    col_finalize_route_topology(&ctx);
 
     memset(&s, 0, sizeof(s));
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, cfg->env_seed);

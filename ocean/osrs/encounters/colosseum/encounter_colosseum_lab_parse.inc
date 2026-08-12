@@ -424,7 +424,10 @@ static ColoLabCommandKind col_lab_command_kind_for(const char* command) {
 }
 
 static ColoLabLineResult col_lab_apply_script_line_alloc_json(
-    ColosseumState* s, const char* line, char** out_json
+    ColosseumState* s,
+    ColosseumContext* ctx,
+    const char* line,
+    char** out_json
 ) {
     if (!out_json) col_lab_abort("json output pointer is required");
     *out_json = NULL;
@@ -450,7 +453,7 @@ static ColoLabLineResult col_lab_apply_script_line_alloc_json(
     }
 
     ColosseumLabCommand cmd = col_lab_build_script_command(kind, &args, lex.command);
-    col_lab_apply_command(s, &cmd);
+    col_lab_apply_command(s, ctx, &cmd);
     free(lex.buffer);
     return COLO_LAB_LINE_NONE;
 }
