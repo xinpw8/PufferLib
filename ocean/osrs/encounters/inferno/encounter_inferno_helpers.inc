@@ -225,16 +225,6 @@ static int inf_npc_has_los_to_area_ctx(
         stats->attack_range);
 }
 
-static int inf_npc_has_los_to_area(
-    const InfernoState* s,
-    const InfNPC* npc,
-    int target_x,
-    int target_y,
-    int target_size
-) {
-    return inf_npc_has_los_to_area_ctx(
-        s, inf_legacy_context(), npc, target_x, target_y, target_size);
-}
 
 static int inf_npc_has_los_to_tile_ctx(
     const InfernoState* s,
@@ -247,15 +237,6 @@ static int inf_npc_has_los_to_tile_ctx(
         s, ctx, npc, target_x, target_y, 1);
 }
 
-static int inf_npc_has_los_to_tile(
-    const InfernoState* s,
-    const InfNPC* npc,
-    int target_x,
-    int target_y
-) {
-    return inf_npc_has_los_to_tile_ctx(
-        s, inf_legacy_context(), npc, target_x, target_y);
-}
 
 static int inf_npc_has_los_direct_ctx(
     const InfernoState* s,
@@ -268,10 +249,6 @@ static int inf_npc_has_los_direct_ctx(
         s, ctx, npc, target.x, target.y, target.size);
 }
 
-static int inf_npc_has_los_direct(const InfernoState* s, int npc_idx) {
-    return inf_npc_has_los_direct_ctx(
-        s, inf_legacy_context(), npc_idx);
-}
 
 static void inf_reset_npc_player_los_frame(InfernoContext* ctx) {
     memset(ctx->npc_player_los_frame, -1, sizeof(ctx->npc_player_los_frame));
@@ -295,9 +272,6 @@ static int inf_npc_has_los_ctx(
     return sampled >= 0 ? sampled : inf_npc_has_los_direct_ctx(s, ctx, npc_idx);
 }
 
-static int inf_npc_has_los(const InfernoState* s, int npc_idx) {
-    return inf_npc_has_los_ctx(s, inf_legacy_context(), npc_idx);
-}
 
 static inline int inf_is_final_wave(const InfernoState* s) {
     return s->wave == INF_NUM_WAVES - 1;
@@ -854,8 +828,10 @@ static uint32_t inf_route_topology_flags(void* data, int x, int y) {
 }
 
 static uint32_t inf_route_topology_los_flags(void* data, int x, int y) {
-    return inf_topology_collision_flags(
-        (const InfRouteTopologyBuildContext*)data, x, y);
+    (void)data;
+    (void)x;
+    (void)y;
+    return 0;
 }
 
 static void inf_finalize_route_topology(InfernoContext* ctx) {

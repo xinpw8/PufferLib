@@ -231,13 +231,6 @@ static int inf_player_can_attack_npc_from_current_tile_ctx(
         ls->attack_range);
 }
 
-static int inf_player_can_attack_npc_from_current_tile(
-    const InfernoState* s,
-    int npc_idx
-) {
-    return inf_player_can_attack_npc_from_current_tile_ctx(
-        s, inf_legacy_context(), npc_idx);
-}
 
 static int inf_player_has_los_to_npc_from_current_tile_ctx(
     const InfernoState* s,
@@ -263,13 +256,6 @@ static int inf_player_has_los_to_npc_from_current_tile_ctx(
         0);
 }
 
-static int inf_player_has_los_to_npc_from_current_tile(
-    const InfernoState* s,
-    int npc_idx
-) {
-    return inf_player_has_los_to_npc_from_current_tile_ctx(
-        s, inf_legacy_context(), npc_idx);
-}
 
 
 static int inf_player_can_phantom_barrage_npc(
@@ -518,6 +504,7 @@ static void inf_npc_attack_ctx(InfernoState* s, InfernoContext* ctx, int idx) {
                 s->pillars[p].hp -= dmg;
                 if (s->pillars[p].hp <= 0) {
                     s->pillars[p].active = 0;
+                    inf_reset_npc_player_los_frame(ctx);
                     s->tick_scratch.pillar_lost = p;
                     for (int n = 0; n < INF_MAX_NPCS; n++) {
                         if (!s->npcs[n].active) continue;

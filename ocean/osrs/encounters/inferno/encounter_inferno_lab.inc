@@ -124,10 +124,11 @@ static void inf_lab_require_type(int type) {
 
 static void inf_lab_require_player_tile(
     InfernoState* s,
+    const InfernoContext* ctx,
     int x,
     int y
 ) {
-    if (inf_footprint_blocked(s, x, y, 1))
+    if (inf_footprint_blocked_ctx(s, ctx, x, y, 1))
         inf_lab_abort("player tile is blocked: (%d,%d)", x, y);
 }
 
@@ -176,7 +177,11 @@ static void inf_lab_clear_npcs(InfernoState* s) {
     inf_lab_refresh_geometry(s);
 }
 
-static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd) {
+static void inf_lab_apply_command_ctx(
+    InfernoState* s,
+    InfernoContext* ctx,
+    const InfernoLabCommand* cmd
+) {
     if (!s || !cmd) inf_lab_abort("null command");
 
     switch (cmd->kind) {
@@ -184,11 +189,12 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
             return;
 
         case INF_LAB_COMMAND_RESET:
-            inf_reset((EncounterState*)s, cmd->as.reset.seed);
+            inf_reset_ctx(
+                (EncounterState*)s, (EncounterContext*)ctx, cmd->as.reset.seed);
             return;
 
         case INF_LAB_COMMAND_SET_PLAYER:
-            inf_lab_require_player_tile(s, cmd->as.tile.x, cmd->as.tile.y);
+            inf_lab_require_player_tile(s, ctx, cmd->as.tile.x, cmd->as.tile.y);
             s->player.x = cmd->as.tile.x;
             s->player.y = cmd->as.tile.y;
             inf_lab_clear_transient(s);
@@ -307,6 +313,7 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
             } else {
                 s->pillars[pillar->pillar_idx].hp = 0;
             }
+            inf_reset_npc_player_los_frame(ctx);
             inf_lab_clear_transient(s);
             inf_lab_refresh_geometry(s);
             return;
@@ -333,13 +340,20 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
             if (ticks < 0) inf_lab_abort("step_ticks must be nonnegative");
             int actions[INF_NUM_ACTION_HEADS] = {0};
             for (int t = 0; t < ticks; t++)
-                inf_step((EncounterState*)s, actions);
+                inf_step_ctx((EncounterState*)s, (EncounterContext*)ctx, actions);
             inf_lab_refresh_geometry(s);
             return;
         }
     }
 
     inf_lab_abort("unknown command kind %d", cmd->kind);
+}
+
+static void inf_lab_apply_command(
+    InfernoState* s,
+    const InfernoLabCommand* cmd
+) {
+    inf_lab_apply_command_ctx(s, inf_legacy_context(), cmd);
 }
 
 static int inf_lab_nearest_pillar_idx(const InfernoState* s, int x, int y) {
@@ -720,9 +734,13 @@ static int inf_lab_forecast_action_has_ranger_mager_same_tick(
     return 0;
 }
 
-static void inf_lab_append_forecast_json(InfernoState* s, InfLabString* out) {
+static void inf_lab_append_forecast_json(
+    InfernoState* s,
+    const InfernoContext* ctx,
+    InfLabString* out
+) {
     InfStepOutForecast forecast;
-    inf_build_step_out_forecast_ctx(s, inf_legacy_context(), &forecast);
+    inf_build_step_out_forecast_ctx(s, ctx, &forecast);
     encounter_lab_string_append(out, "\"forecast\":{\"horizon\":%d,\"actions\":[",
         INF_STEP_OUT_FORECAST_HORIZON);
     for (int action_idx = 0; action_idx < ENCOUNTER_MOVE_ACTIONS; action_idx++) {
@@ -750,14 +768,18 @@ static void inf_lab_append_forecast_json(InfernoState* s, InfLabString* out) {
     encounter_lab_string_append(out, "]}");
 }
 
-static void inf_lab_append_npcs_json(InfernoState* s, InfLabString* out) {
+static void inf_lab_append_npcs_json(
+    InfernoState* s,
+    const InfernoContext* ctx,
+    InfLabString* out
+) {
     encounter_lab_string_append(out, "\"npcs\":[");
     int emitted = 0;
     for (int i = 0; i < INF_MAX_NPCS; i++) {
         InfNPC* npc = &s->npcs[i];
         if (!npc->active) continue;
         if (emitted > 0) encounter_lab_string_append(out, ",");
-        int los = npc->death_ticks > 0 ? 0 : inf_npc_has_los(s, i);
+        int los = npc->death_ticks > 0 ? 0 : inf_npc_has_los_ctx(s, ctx, i);
         const EncounterPendingHit* pending =
             encounter_pending_hit_queue_earliest(&npc->pending_hits);
         int pending_ticks = pending ? pending->ticks_remaining : 0;
@@ -798,7 +820,10 @@ static void inf_lab_append_pillars_json(const InfernoState* s, InfLabString* out
     encounter_lab_string_append(out, "]");
 }
 
-static char* inf_lab_alloc_json(InfernoState* s) {
+static char* inf_lab_alloc_json_ctx(
+    InfernoState* s,
+    const InfernoContext* ctx
+) {
     InfLabString out;
     encounter_lab_string_init(&out, "inferno lab");
     encounter_lab_string_append(&out,
@@ -814,11 +839,15 @@ static char* inf_lab_alloc_json(InfernoState* s) {
         s->player_attack_dmg);
     inf_lab_append_pillars_json(s, &out);
     encounter_lab_string_append(&out, ",");
-    inf_lab_append_npcs_json(s, &out);
+    inf_lab_append_npcs_json(s, ctx, &out);
     encounter_lab_string_append(&out, ",");
-    inf_lab_append_forecast_json(s, &out);
+    inf_lab_append_forecast_json(s, ctx, &out);
     encounter_lab_string_append(&out, "}");
     return out.data;
+}
+
+static char* inf_lab_alloc_json(InfernoState* s) {
+    return inf_lab_alloc_json_ctx(s, inf_legacy_context());
 }
 
 static InfLabCommandKind inf_lab_command_kind_for(const char* command) {
@@ -845,8 +874,11 @@ static InfLabCommandKind inf_lab_command_kind_for(const char* command) {
         "inferno lab", command, aliases, sizeof(aliases) / sizeof(aliases[0]));
 }
 
-static InfLabLineResult inf_lab_apply_script_line_impl(
-    InfernoState* s, const char* line, char** out_json
+static InfLabLineResult inf_lab_apply_script_line_impl_ctx(
+    InfernoState* s,
+    InfernoContext* ctx,
+    const char* line,
+    char** out_json
 ) {
     EncounterLabLine lex = encounter_lab_line_begin("inferno lab", line);
     if (!lex.command) {
@@ -856,13 +888,13 @@ static InfLabLineResult inf_lab_apply_script_line_impl(
 
     if (strcmp(lex.command, "forecast") == 0) {
         InfStepOutForecast forecast;
-        inf_build_step_out_forecast_ctx(s, inf_legacy_context(), &forecast);
+        inf_build_step_out_forecast_ctx(s, ctx, &forecast);
         (void)forecast;
         free(lex.buffer);
         return INF_LAB_LINE_FORECAST;
     }
     if (strcmp(lex.command, "dump") == 0 || strcmp(lex.command, "dump_json") == 0) {
-        if (out_json) *out_json = inf_lab_alloc_json(s);
+        if (out_json) *out_json = inf_lab_alloc_json_ctx(s, ctx);
         free(lex.buffer);
         return INF_LAB_LINE_DUMP;
     }
@@ -880,7 +912,7 @@ static InfLabLineResult inf_lab_apply_script_line_impl(
     }
 
     InfernoLabCommand cmd = inf_lab_build_script_command(kind, &args, lex.command);
-    inf_lab_apply_command(s, &cmd);
+    inf_lab_apply_command_ctx(s, ctx, &cmd);
     free(lex.buffer);
     return INF_LAB_LINE_NONE;
 }
@@ -888,7 +920,8 @@ static InfLabLineResult inf_lab_apply_script_line_impl(
 static InfLabLineResult inf_lab_apply_script_line(
     InfernoState* s, const char* line
 ) {
-    return inf_lab_apply_script_line_impl(s, line, NULL);
+    return inf_lab_apply_script_line_impl_ctx(
+        s, inf_legacy_context(), line, NULL);
 }
 
 static InfLabLineResult inf_lab_apply_script_line_alloc_json(
@@ -896,5 +929,6 @@ static InfLabLineResult inf_lab_apply_script_line_alloc_json(
 ) {
     if (!out_json) inf_lab_abort("json output pointer is required");
     *out_json = NULL;
-    return inf_lab_apply_script_line_impl(s, line, out_json);
+    return inf_lab_apply_script_line_impl_ctx(
+        s, inf_legacy_context(), line, out_json);
 }

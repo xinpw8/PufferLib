@@ -1,13 +1,4 @@
 #line 2173 "encounter_inferno.h"
-static int inf_footprint_blocked(
-    const InfernoState* s,
-    int x,
-    int y,
-    int size
-) {
-    return inf_footprint_blocked_ctx(
-        s, inf_legacy_context(), x, y, size);
-}
 
 typedef struct {
     InfernoState* s;
@@ -86,13 +77,6 @@ static int inf_npc_overlap_hold(void* ctx) {
 
 static int inf_tile_walkable(void* ctx, int x, int y);
 
-static int inf_npc_environment_blocked(InfernoState* s, int x, int y, int size) {
-    return inf_npc_environment_blocked_ctx(s, inf_legacy_context(), x, y, size);
-}
-
-static int inf_npc_terrain_blocked(InfernoState* s, int x, int y, int size) {
-    return inf_npc_environment_blocked_ctx(s, inf_legacy_context(), x, y, size);
-}
 
 static void inf_npc_move_ctx(
     InfernoState* s,

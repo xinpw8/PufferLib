@@ -7,6 +7,7 @@
 #include "ocean/osrs/encounters/encounter_inferno.h"
 
 static volatile double bench_sink = 0.0;
+static InfernoContext bench_context;
 
 static double now_seconds(void) {
     struct timespec ts;
@@ -15,10 +16,8 @@ static double now_seconds(void) {
 }
 
 static void init_bench_state(InfernoState* state, int player_x, int player_y) {
-    inf_legacy_context()->config = inf_default_config();
     inf_build_npc_stats();
     memset(state, 0, sizeof(*state));
-    memset(state->npc_los_cache, -1, sizeof(state->npc_los_cache));
     state->rng_state = 20260516u;
     state->wave = 63;
     state->player.entity_type = ENTITY_PLAYER;
@@ -41,8 +40,6 @@ static void init_bench_state(InfernoState* state, int player_x, int player_y) {
         state->pillars[p].hp = INF_PILLAR_HP;
         state->pillars[p].active = 1;
     }
-    inf_rebuild_los(state);
-    inf_rebuild_player_collision_flags(state);
 }
 
 static void add_bench_npc(
@@ -62,7 +59,7 @@ static void init_pillar_stack_state(InfernoState* state) {
     init_bench_state(state, 29, 39);
     add_bench_npc(state, 0, INF_NPC_RANGER, 24, 31, 0);
     add_bench_npc(state, 1, INF_NPC_MAGER, 29, 30, 0);
-    inf_rebuild_entity_collision_flags(state);
+    inf_rebuild_npc_collision_flags(state);
 }
 
 static void init_dense_wave_state(InfernoState* state) {
@@ -77,7 +74,7 @@ static void init_dense_wave_state(InfernoState* state) {
     add_bench_npc(state, 7, INF_NPC_BLOB, 26, 35, 2);
     add_bench_npc(state, 8, INF_NPC_BAT, 18, 30, 3);
     add_bench_npc(state, 9, INF_NPC_BAT, 19, 30, 4);
-    inf_rebuild_entity_collision_flags(state);
+    inf_rebuild_npc_collision_flags(state);
 }
 
 typedef void (*BenchInit)(InfernoState*);
@@ -89,7 +86,7 @@ typedef void (*ForecastBuilder)(
 static void bench_forecast_exact(InfernoState* state, float* obs) {
     (void)obs;
     InfStepOutForecast forecast;
-    inf_build_step_out_forecast_exact_ctx(state, inf_legacy_context(), &forecast);
+    inf_build_step_out_forecast_exact_ctx(state, &bench_context, &forecast);
     bench_sink += forecast.actions[0].valid;
     bench_sink += forecast.actions[ENCOUNTER_MOVE_ACTIONS - 1].ticks[0].max_hit;
 }
@@ -98,7 +95,7 @@ static void bench_forecast_fast_static(InfernoState* state, float* obs) {
     (void)obs;
     InfStepOutForecast forecast;
     inf_build_step_out_forecast_fast_static_ctx(
-        state, inf_legacy_context(), &forecast);
+        state, &bench_context, &forecast);
     bench_sink += forecast.actions[0].valid;
     bench_sink += forecast.actions[ENCOUNTER_MOVE_ACTIONS - 1].ticks[0].max_hit;
 }
@@ -107,19 +104,21 @@ static void bench_forecast_fast_readonly(InfernoState* state, float* obs) {
     (void)obs;
     InfStepOutForecast forecast;
     inf_build_step_out_forecast_fast_readonly_ctx(
-        state, inf_legacy_context(), &forecast);
+        state, &bench_context, &forecast);
     bench_sink += forecast.actions[0].valid;
     bench_sink += forecast.actions[ENCOUNTER_MOVE_ACTIONS - 1].ticks[0].max_hit;
 }
 
 static void bench_obs(InfernoState* state, float* obs) {
-    inf_write_obs((EncounterState*)state, obs);
+    inf_write_obs_ctx(
+        (EncounterState*)state, (EncounterContext*)&bench_context, obs);
     bench_sink += obs[0];
     bench_sink += obs[INF_NUM_OBS - 1];
 }
 
 static void bench_mask(InfernoState* state, float* obs) {
-    inf_write_mask((EncounterState*)state, obs);
+    inf_write_mask_ctx(
+        (EncounterState*)state, (EncounterContext*)&bench_context, obs);
     bench_sink += obs[0];
     bench_sink += obs[INF_ACTION_MASK_SIZE - 1];
 }
@@ -136,7 +135,8 @@ static void bench_step_fixed(const InfernoState* template, float* obs) {
     InfernoState state;
     memcpy(&state, template, sizeof(state));
     int actions[INF_NUM_ACTION_HEADS] = {0};
-    inf_step((EncounterState*)&state, actions);
+    inf_step_ctx(
+        (EncounterState*)&state, (EncounterContext*)&bench_context, actions);
     bench_sink += state.player.current_hitpoints;
 }
 
@@ -144,9 +144,14 @@ static void bench_step_obs_mask_fixed(const InfernoState* template, float* obs) 
     InfernoState state;
     memcpy(&state, template, sizeof(state));
     int actions[INF_NUM_ACTION_HEADS] = {0};
-    inf_step((EncounterState*)&state, actions);
-    inf_write_obs((EncounterState*)&state, obs);
-    inf_write_mask((EncounterState*)&state, obs + INF_NUM_OBS);
+    inf_step_ctx(
+        (EncounterState*)&state, (EncounterContext*)&bench_context, actions);
+    inf_write_obs_ctx(
+        (EncounterState*)&state, (EncounterContext*)&bench_context, obs);
+    inf_write_mask_ctx(
+        (EncounterState*)&state,
+        (EncounterContext*)&bench_context,
+        obs + INF_NUM_OBS);
     bench_sink += state.player.current_hitpoints;
     bench_sink += obs[0];
 }
@@ -189,8 +194,8 @@ static void report_forecast_diff(
     InfStepOutForecast exact;
     InfStepOutForecast fast;
     InfStepOutForecastOracleDiff diff;
-    inf_build_step_out_forecast_exact_ctx(&state, inf_legacy_context(), &exact);
-    fast_builder(&state, inf_legacy_context(), &fast);
+    inf_build_step_out_forecast_exact_ctx(&state, &bench_context, &exact);
+    fast_builder(&state, &bench_context, &fast);
     inf_compare_step_out_forecasts(&exact, &fast, &diff);
     double fn_rate = diff.exact_dangerous_actions > 0 ?
         (double)diff.dangerous_false_negatives /
@@ -245,14 +250,17 @@ static void report_sampled_forecast_diff(
         InfStepOutForecast exact;
         InfStepOutForecast fast;
         InfStepOutForecastOracleDiff diff;
-        inf_build_step_out_forecast_exact_ctx(&state, inf_legacy_context(), &exact);
-        fast_builder(&state, inf_legacy_context(), &fast);
+        inf_build_step_out_forecast_exact_ctx(&state, &bench_context, &exact);
+        fast_builder(&state, &bench_context, &fast);
         inf_compare_step_out_forecasts(&exact, &fast, &diff);
         add_forecast_diff(&total, &diff);
 
         int actions[INF_NUM_ACTION_HEADS] = {0};
         actions[INF_HEAD_MOVE] = sample % ENCOUNTER_MOVE_ACTIONS;
-        inf_step((EncounterState*)&state, actions);
+        inf_step_ctx(
+            (EncounterState*)&state,
+            (EncounterContext*)&bench_context,
+            actions);
         if (state.episode_over) {
             init(&state);
             resets++;
@@ -284,6 +292,8 @@ static void report_sampled_forecast_diff(
 }
 
 int main(void) {
+    inf_init_context_typed(&bench_context);
+    inf_finalize_route_topology(&bench_context);
     printf("sizeof(InfernoState) = %zu\n", sizeof(InfernoState));
     printf("INF_NUM_OBS = %d\n", INF_NUM_OBS);
     run_bench("empty exact", init_empty_state, bench_forecast_exact, 200000);

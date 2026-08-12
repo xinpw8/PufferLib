@@ -4382,7 +4382,7 @@ static void render_player_composite(
         transform);
 }
 
-static void render_draw_3d_world(RenderClient* rc) {
+static void render_draw_3d_world(RenderClient* rc, OsrsEnv* env) {
     rlSetClipPlanes(0.5, 500.0);
 
     Camera3D cam = render_build_3d_camera(rc);
@@ -5171,7 +5171,7 @@ static void render_draw_3d_world(RenderClient* rc) {
         (Vector3){ fa_x, bh, fa_z + fa_h },
         (Vector3){ fa_x, bh, fa_z }, YELLOW);
 
-    InfernoState* debug_inferno_state = render_inferno_state_from_client(rc);
+    InfernoState* debug_inferno_state = render_inferno_state_from_env(env);
     if (rc->show_debug && rc->entity_count > 0) {
         int player_idx = rc->gui.gui_entity_idx;
         if (player_idx < 0 || player_idx >= rc->entity_count ||
@@ -5209,8 +5209,10 @@ static void render_draw_3d_world(RenderClient* rc) {
                     InfNPC* npc = &debug_inferno_state->npcs[slot];
                     if (!npc->active || npc->death_ticks > 0) continue;
                     int can_atk =
-                        inf_player_can_attack_npc_from_current_tile(
-                            debug_inferno_state, slot);
+                        inf_player_can_attack_npc_from_current_tile_ctx(
+                            debug_inferno_state,
+                            (const InfernoContext*)env->encounter_context,
+                            slot);
                     lc = can_atk ? GREEN : RED;
                 }
 
@@ -5247,7 +5249,7 @@ static void render_draw_3d_world(RenderClient* rc) {
 
 static void render_draw_overhead_status(RenderClient* rc, OsrsEnv* env) {
     Camera3D cam = render_build_3d_camera(rc);
-    InfernoState* debug_state = render_inferno_state_from_client(rc);
+    InfernoState* debug_state = render_inferno_state_from_env(env);
 
     static const int prayer_to_headicon[] = {
         -1,
@@ -5357,7 +5359,8 @@ static void render_draw_overhead_status(RenderClient* rc, OsrsEnv* env) {
                 }
 
                 if (npc->type != INF_NPC_NIBBLER) {
-                    int npc_los = inf_npc_has_los(is, slot);
+                    int npc_los = inf_npc_has_los_ctx(
+                        is, (const InfernoContext*)env->encounter_context, slot);
                     const char* los_txt = npc_los ? "NPC>P" : "NPC>P X";
                     Color los_col = npc_los ? GREEN : RED;
                     int lw = MeasureText(los_txt, fs);
@@ -5367,7 +5370,10 @@ static void render_draw_overhead_status(RenderClient* rc, OsrsEnv* env) {
 
                 {
                     int can_atk =
-                        inf_player_can_attack_npc_from_current_tile(is, slot);
+                        inf_player_can_attack_npc_from_current_tile_ctx(
+                            is,
+                            (const InfernoContext*)env->encounter_context,
+                            slot);
                     const char* patk_txt = can_atk ? "P>NPC" : "P>NPC X";
                     Color patk_col = can_atk ? GREEN : RED;
                     int pw = MeasureText(patk_txt, fs);
@@ -6158,7 +6164,7 @@ void pvp_render(OsrsEnv* env) {
     BeginDrawing();
     ClearBackground(COLOR_BG);
 
-    render_draw_3d_world(rc);
+    render_draw_3d_world(rc, env);
 
     render_draw_overhead_status(rc, env);
 

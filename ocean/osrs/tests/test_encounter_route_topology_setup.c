@@ -8,13 +8,16 @@
 #define TEST_MAP_PATH "ocean/osrs/data/inferno.cmap"
 #define TEST_OFFSET_X 2246
 #define TEST_OFFSET_Y 5315
-#define TEST_ORIGIN_X INF_ARENA_MIN_X
-#define TEST_ORIGIN_Y INF_ARENA_MIN_Y
-#define TEST_WIDTH INF_ARENA_WIDTH
-#define TEST_HEIGHT INF_ARENA_HEIGHT
+#define TEST_ORIGIN_X INF_TOPOLOGY_MIN_X
+#define TEST_ORIGIN_Y INF_TOPOLOGY_MIN_Y
+#define TEST_WIDTH INF_TOPOLOGY_WIDTH
+#define TEST_HEIGHT INF_TOPOLOGY_HEIGHT
 typedef InfernoContext TestContext;
 #define TEST_TOPOLOGY(ctx) ((ctx)->route_topology)
 static uint32_t expected_flags(const CollisionMap* map, int x, int y) {
+    if (x < INF_ARENA_MIN_X || x > INF_ARENA_MAX_X ||
+            y < INF_ARENA_MIN_Y || y > INF_ARENA_MAX_Y)
+        return COLLISION_BLOCKED;
     return (uint32_t)collision_get_flags(
         map, 0, x + TEST_OFFSET_X, y + TEST_OFFSET_Y);
 }
@@ -272,6 +275,39 @@ int main(void) {
             else open_tiles++;
         }
     }
+#if defined(TEST_ROUTE_TOPOLOGY_INFERNO)
+    if (first->static_los_mode != ENCOUNTER_ARENA_TOPOLOGY_LOS_OPEN) {
+        fprintf(stderr,
+            "inferno collision map incorrectly contributed static LOS blockers\n");
+        abort();
+    }
+    int blocked_x = -1;
+    int blocked_y = -1;
+    int open_x = -1;
+    int open_y = -1;
+    for (int x = TEST_ORIGIN_X; x < TEST_ORIGIN_X + TEST_WIDTH; x++) {
+        for (int y = TEST_ORIGIN_Y; y < TEST_ORIGIN_Y + TEST_HEIGHT; y++) {
+            int index = (x - TEST_ORIGIN_X) * TEST_HEIGHT +
+                (y - TEST_ORIGIN_Y);
+            if (first->static_blocked[index] && blocked_x < 0) {
+                blocked_x = x;
+                blocked_y = y;
+            } else if (!first->static_blocked[index] && open_x < 0) {
+                open_x = x;
+                open_y = y;
+            }
+        }
+    }
+    if (blocked_x < 0 || open_x < 0 ||
+            !encounter_arena_topology_los_clear(
+                first, blocked_x, blocked_y, 1, open_x, open_y, 1, 0) ||
+            !encounter_arena_topology_los_clear(
+                first, open_x, open_y, 1, blocked_x, blocked_y, 1, 0)) {
+        fprintf(stderr,
+            "inferno movement collision flags leaked into static LOS queries\n");
+        abort();
+    }
+#endif
 #if defined(TEST_ROUTE_TOPOLOGY_ZULRAH)
     if (open_tiles != 69 || blocked_tiles != 715) {
         fprintf(stderr, "zulrah topology count mismatch: %d open %d blocked\n",

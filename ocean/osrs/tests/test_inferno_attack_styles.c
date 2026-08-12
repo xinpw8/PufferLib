@@ -2607,11 +2607,17 @@ static void test_npc_terrain_blocks_full_footprint_lava_shelf(void) {
     state.wave = 68;
 
     ASSERT_INT_EQ("jad footprint y39 fits player arena",
-        inf_npc_terrain_blocked(&state, 24, 39, INF_NPC_STATS[INF_NPC_JAD].size), 0);
+        inf_npc_environment_blocked_ctx(
+            &state, inf_legacy_context(),
+            24, 39, INF_NPC_STATS[INF_NPC_JAD].size), 0);
     ASSERT_INT_EQ("jad footprint y40 enters lava shelf",
-        inf_npc_terrain_blocked(&state, 24, 40, INF_NPC_STATS[INF_NPC_JAD].size), 1);
+        inf_npc_environment_blocked_ctx(
+            &state, inf_legacy_context(),
+            24, 40, INF_NPC_STATS[INF_NPC_JAD].size), 1);
     ASSERT_INT_EQ("jad movement y40 is blocked",
-        inf_npc_environment_blocked(&state, 24, 40, INF_NPC_STATS[INF_NPC_JAD].size), 1);
+        inf_npc_environment_blocked_ctx(
+            &state, inf_legacy_context(),
+            24, 40, INF_NPC_STATS[INF_NPC_JAD].size), 1);
 }
 
 static void test_zuk_jad_healer_spawn_falls_back_to_passable_arena_tiles(void) {
@@ -2639,7 +2645,9 @@ static void test_zuk_jad_healer_spawn_falls_back_to_passable_arena_tiles(void) {
         ASSERT_INT_EQ("fallback healer y max", dy <= 10, 1);
         ASSERT_INT_EQ("fallback healer stays in arena", state.npcs[i].y <= INF_ARENA_MAX_Y, 1);
         ASSERT_INT_EQ("fallback healer terrain valid",
-            inf_npc_terrain_blocked(&state, state.npcs[i].x, state.npcs[i].y, 1), 0);
+            inf_npc_environment_blocked_ctx(
+                &state, inf_legacy_context(),
+                state.npcs[i].x, state.npcs[i].y, 1), 0);
         ASSERT_INT_EQ("fallback healer outside jad footprint",
             encounter_entity_footprints_overlap(
                 state.npcs[i].x, state.npcs[i].y, 1,
@@ -3987,7 +3995,8 @@ static void assert_inferno_npc_sw_origin_step(
     }
     add_step_out_forecast_npc(&state, 0, type, npc_x, npc_y, 0);
     ASSERT_INT_EQ("starting NPC has no LOS",
-        inf_npc_has_los_direct(&state, 0), 0);
+        inf_npc_has_los_direct_ctx(
+            &state, inf_legacy_context(), 0), 0);
 
     inf_npc_move(&state, 0);
 
@@ -4039,7 +4048,7 @@ static void assert_inferno_jal_npc_uses_edge_clearance(
     }
     add_step_out_forecast_npc(&state, 0, type, npc_x, npc_y, 0);
     ASSERT_INT_EQ("starting Jal NPC has no LOS",
-        inf_npc_has_los(&state, 0), 0);
+        inf_npc_has_los_ctx(&state, inf_legacy_context(), 0), 0);
 
     inf_npc_move(&state, 0);
 
@@ -4766,7 +4775,8 @@ static void assert_human_blowpipe_zuk_chase_endpoint(
     endpoint_state.npcs[0].attack_timer = 64;
 
     ASSERT_INT_EQ("Zuk blowpipe endpoint starts out of range",
-        inf_player_can_attack_npc_from_current_tile(&endpoint_state, 0), 0);
+        inf_player_can_attack_npc_from_current_tile_ctx(
+            &endpoint_state, inf_legacy_context(), 0), 0);
 
     HumanInput hi = make_human_input();
     human_input_queue_attack_npc(&hi, 0);
@@ -4783,7 +4793,8 @@ static void assert_human_blowpipe_zuk_chase_endpoint(
     ASSERT_INT_EQ("Zuk blowpipe endpoint y matches InfernoTrainer",
         endpoint_state.player.y, expected_y);
     ASSERT_INT_EQ("Zuk blowpipe endpoint remains out of range",
-        inf_player_can_attack_npc_from_current_tile(&endpoint_state, 0), 0);
+        inf_player_can_attack_npc_from_current_tile_ctx(
+            &endpoint_state, inf_legacy_context(), 0), 0);
     ASSERT_INT_EQ("Zuk blowpipe endpoint does not fire",
         endpoint_state.npcs[0].pending_hits.hits[0].active, 0);
     ASSERT_INT_EQ("Zuk blowpipe endpoint keeps interaction active",
@@ -4811,7 +4822,8 @@ static void test_human_blowpipe_click_chases_zuk_out_of_range(void) {
     edge_state.npcs[0].attack_timer = 64;
 
     ASSERT_INT_EQ("north-row Zuk click starts out of blowpipe range",
-        inf_player_can_attack_npc_from_current_tile(&edge_state, 0), 0);
+        inf_player_can_attack_npc_from_current_tile_ctx(
+            &edge_state, inf_legacy_context(), 0), 0);
 
     HumanInput edge_hi = make_human_input();
     human_input_queue_attack_npc(&edge_hi, 0);
@@ -4822,7 +4834,8 @@ static void test_human_blowpipe_click_chases_zuk_out_of_range(void) {
     ASSERT_INT_EQ("north-row Zuk click walks to max north row",
         edge_state.player.y, INF_ARENA_MAX_Y);
     ASSERT_INT_EQ("north-row Zuk click remains outside blowpipe range",
-        inf_player_can_attack_npc_from_current_tile(&edge_state, 0), 0);
+        inf_player_can_attack_npc_from_current_tile_ctx(
+            &edge_state, inf_legacy_context(), 0), 0);
     ASSERT_INT_EQ("north-row Zuk cooldown prevents immediate hit",
         edge_state.npcs[0].pending_hits.hits[0].active, 0);
     ASSERT_INT_EQ("north-row Zuk interaction remains active",
@@ -4838,7 +4851,8 @@ static void test_human_blowpipe_click_chases_zuk_out_of_range(void) {
     state.npcs[0].attack_timer = 64;
 
     ASSERT_INT_EQ("human Zuk click starts out of blowpipe range",
-        inf_player_can_attack_npc_from_current_tile(&state, 0), 0);
+        inf_player_can_attack_npc_from_current_tile_ctx(
+            &state, inf_legacy_context(), 0), 0);
 
     float obs[INF_NUM_OBS];
     inf_write_obs((EncounterState*)&state, obs);
@@ -4866,7 +4880,8 @@ static void test_human_blowpipe_click_chases_zuk_out_of_range(void) {
 
     ASSERT_INT_EQ("human Zuk click ends at max north row", state.player.y, INF_ARENA_MAX_Y);
     ASSERT_INT_EQ("human Zuk click never reaches blowpipe attack tile",
-        inf_player_can_attack_npc_from_current_tile(&state, 0), 0);
+        inf_player_can_attack_npc_from_current_tile_ctx(
+            &state, inf_legacy_context(), 0), 0);
     ASSERT_INT_EQ("human Zuk click does not fire unreachable blowpipe hit",
         state.npcs[0].pending_hits.hits[0].active, 0);
     ASSERT_INT_EQ("human Zuk click keeps interaction after chase",
@@ -4907,7 +4922,8 @@ static void test_zuk_healer_blowpipe_target_chases_out_of_range(void) {
     ASSERT_INT_EQ("healer target follows reference seek x", state.player.x, 23);
     ASSERT_INT_EQ("healer target follows reference seek y", state.player.y, 42);
     ASSERT_INT_EQ("healer target remains active while still out of range",
-        inf_player_can_attack_npc_from_current_tile(&state, 2), 0);
+        inf_player_can_attack_npc_from_current_tile_ctx(
+            &state, inf_legacy_context(), 2), 0);
     ASSERT_INT_EQ("cooldown prevents immediate healer hit",
         state.npcs[2].pending_hits.hits[0].active, 0);
     ASSERT_INT_EQ("attack timer decrements after healer chase",
@@ -4927,7 +4943,8 @@ static void test_zuk_healer_blowpipe_target_chases_out_of_range(void) {
     ASSERT_INT_EQ("healer target eventually fires after chase and cooldown",
         healer_hit_seen, 1);
     ASSERT_INT_EQ("healer target remains attackable after chase",
-        inf_player_can_attack_npc_from_current_tile(&state, 2), 1);
+        inf_player_can_attack_npc_from_current_tile_ctx(
+            &state, inf_legacy_context(), 2), 1);
 }
 
 static void test_render_facing_prefers_attack_target_while_chasing(void) {
@@ -6310,7 +6327,8 @@ static void test_barrage_pending_queue_handles_slow_hit_delay(void) {
     ASSERT_INT_EQ("ranger is attackable at closest-tile range ten", closest, 10);
     ASSERT_INT_EQ("barrage timing still sees target SW distance twelve", sw_tile, 12);
     ASSERT_INT_EQ("player can cast at closest-tile range ten",
-        inf_player_can_attack_npc_from_current_tile(&state, 0), 1);
+        inf_player_can_attack_npc_from_current_tile_ctx(
+            &state, inf_legacy_context(), 0), 1);
 
     tick_barrage_pending_queue_edge_state(&state);
     ASSERT_INT_EQ("first cast queues one hit",
@@ -9138,7 +9156,9 @@ static void test_compact_npc_observation_semantics(void) {
     ASSERT_FLOAT_NEAR("compact NPC attack style",
         obs[blob_start + 5], (float)ATTACK_STYLE_MAGIC / 4.0f, 1e-6f);
     ASSERT_FLOAT_NEAR("compact NPC LOS",
-        obs[blob_start + 6], (float)inf_npc_has_los(&state, 0), 1e-6f);
+        obs[blob_start + 6],
+        (float)inf_npc_has_los_ctx(&state, inf_legacy_context(), 0),
+        1e-6f);
     ASSERT_FLOAT_NEAR("compact NPC frozen timer",
         obs[blob_start + 7], 0.5f, 1e-6f);
     ASSERT_FLOAT_NEAR("compact NPC target category",
@@ -9465,6 +9485,42 @@ static void test_inferno_topology_geometry_parity(void) {
         1);
 }
 
+static void test_pillar_removal_resets_same_tick_los_frame(void) {
+    printf("--- inferno pillar removal resets same-tick LOS frame ---\n");
+
+    InfernoContext* ctx = inf_legacy_context();
+    InfernoState state = make_test_state(30, 40);
+    set_inferno_pillar_phase(&state, 1);
+    state.pillars[0].hp = 1;
+    state.npcs[0] = make_test_npc(
+        INF_NPC_NIBBLER,
+        state.pillars[0].x,
+        state.pillars[0].y,
+        1);
+    state.npcs[0].active = 1;
+    state.npcs[0].attack_timer = 0;
+
+    uint32_t seed = 1;
+    for (;;) {
+        uint32_t probe = seed;
+        if (encounter_rand_int(&probe, 5) > 0) break;
+        seed++;
+    }
+    state.rng_state = seed;
+    memset(ctx->npc_player_los_frame, 1, sizeof(ctx->npc_player_los_frame));
+
+    inf_npc_attack_ctx(&state, ctx, 0);
+
+    ASSERT_INT_EQ("nibbler removes one-hp pillar", state.pillars[0].active, 0);
+    int stale_entries = 0;
+    for (int npc_idx = 0; npc_idx < INF_MAX_NPCS; npc_idx++)
+        stale_entries += ctx->npc_player_los_frame[npc_idx] != -1;
+    ASSERT_INT_EQ(
+        "pillar removal clears every same-tick NPC LOS sample",
+        stale_entries,
+        0);
+}
+
 static void test_inferno_topology_observation_mask_identity(void) {
     printf("--- inferno topology observation and mask identity ---\n");
 
@@ -9560,6 +9616,7 @@ int main(void) {
     inf_build_npc_stats();
     inf_finalize_route_topology(inf_legacy_context());
     test_inferno_topology_geometry_parity();
+    test_pillar_removal_resets_same_tick_los_frame();
     test_inferno_topology_observation_mask_identity();
     test_compact_observation_layout_contract();
     test_compact_player_and_pillar_observation_semantics();

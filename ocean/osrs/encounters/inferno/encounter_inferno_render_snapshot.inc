@@ -922,10 +922,19 @@ static void inf_restore(EncounterState* state, const void* data, size_t n) {
     inf_restore_ctx(state, (EncounterContext*)inf_legacy_context(), data, n);
 }
 
+typedef struct {
+    InfernoState* state;
+    InfernoContext* context;
+} InfLabInvocation;
+
 static int inf_lab_apply_script_line_alloc_json_void(
-    void* state, const char* line, char** out_json
+    void* data, const char* line, char** out_json
 ) {
-    return inf_lab_apply_script_line_alloc_json((InfernoState*)state, line, out_json);
+    InfLabInvocation* invocation = (InfLabInvocation*)data;
+    if (!out_json) inf_lab_abort("json output pointer is required");
+    *out_json = NULL;
+    return inf_lab_apply_script_line_impl_ctx(
+        invocation->state, invocation->context, line, out_json);
 }
 
 static int inf_apply_lab_command_ctx(
@@ -933,9 +942,15 @@ static int inf_apply_lab_command_ctx(
     EncounterContext* context,
     const char* line
 ) {
-    (void)context;
+    InfLabInvocation invocation = {
+        .state = (InfernoState*)state,
+        .context = context ? (InfernoContext*)context : inf_legacy_context(),
+    };
     return encounter_apply_lab_command_dump_wrapper(
-        state, line, INF_LAB_LINE_DUMP, inf_lab_apply_script_line_alloc_json_void);
+        &invocation,
+        line,
+        INF_LAB_LINE_DUMP,
+        inf_lab_apply_script_line_alloc_json_void);
 }
 
 static const EncounterDef ENCOUNTER_INFERNO = {
