@@ -3,7 +3,7 @@
 static void col_accumulate_tick_stats(ColosseumState* s, const ColosseumContext* ctx);
 static void col_spawn_wave(
     ColosseumState* s,
-    const ColosseumContext* ctx
+    ColosseumContext* ctx
 );
 static void col_tick_npcs_ctx(ColosseumState* s, ColosseumContext* ctx);
 static void col_tick_player_ctx(
@@ -12,6 +12,8 @@ static void col_player_pretick(ColosseumState* s, ColosseumContext* ctx, const i
 static void col_resolve_player_projectiles_on_npcs_ctx(
     ColosseumState* s, ColosseumContext* ctx);
 static void col_resolve_player_pending_hits_ctx(ColosseumState* s, ColosseumContext* ctx);
+static void col_remove_npc_corpse(
+    ColosseumState* s, ColosseumContext* ctx, int npc_slot);
 static void col_rebuild_player_collision_flags(ColosseumState* s);
 static void col_refresh_current_obs_slots_ctx(ColosseumState* s, const ColosseumContext* ctx);
 

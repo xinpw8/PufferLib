@@ -382,7 +382,7 @@ static const ColoNpcType COLO_WARBAND_TYPES[3] = {
 
 static void col_spawn_wave(
     ColosseumState* s,
-    const ColosseumContext* context
+    ColosseumContext* context
 ) {
     const EncounterArenaTopology* topology = context->route_topology;
     encounter_arena_topology_require_finalized(topology);
@@ -391,7 +391,10 @@ static void col_spawn_wave(
     for (int i = 0; i < COLO_MAX_NPCS; i++) {
         if (!s->npcs[i].active) continue;
         if (s->npcs[i].type == COLO_BEE_SWARM) continue;
-        col_deactivate_npc(s, i);
+        if (s->npcs[i].death_ticks > 0)
+            col_remove_npc_corpse(s, context, i);
+        else
+            col_deactivate_npc(s, i);
     }
     memset(s->totems, 0, sizeof(s->totems));
     memset(s->npc_collision_flags, 0, sizeof(s->npc_collision_flags));

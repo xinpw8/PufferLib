@@ -2059,6 +2059,18 @@ static void test_volatility_explodes_on_corpse_removal(void) {
         col_volatility_explosion_gfx_id(COLO_SHOCKWAVE_COLOSSUS) == 2722 &&
         col_volatility_explosion_gfx_id(COLO_MINOTAUR) == 2723 &&
         col_volatility_explosion_gfx_id(COLO_SOL_HEREDIT) == 2724);
+
+    col_context_clear_render_events(&ctx);
+    geo_clear_npcs(&s);
+    s.player.current_hitpoints = 99;
+    col_init_npc(&s, idx, COLO_MINOTAUR, 20, 17);
+    s.npcs[idx].hp = 0;
+    col_apply_npc_death(&s, &ctx, idx);
+    s.wave = 1;
+    col_spawn_wave(&s, &ctx);
+    CHECK("wave spawn cleanup still removes a volatile corpse through its explosion",
+        s.player.current_hitpoints < 99 &&
+        ctx.volatility_explosion_count == 1);
 }
 
 static void test_modifier_hazard_obs_fixes(void) {
