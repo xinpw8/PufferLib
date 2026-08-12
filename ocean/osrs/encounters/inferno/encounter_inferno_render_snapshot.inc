@@ -574,11 +574,12 @@ static void* inf_get_player_for_input(void* state, int idx) {
 static int inf_first_cell_with_kind(const InfernoState* s, OsrsConsumableKind kind) {
     for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
         const OsrsInventoryCell* cell = &s->inventory_cells[c];
-        if (cell->raw_osrs_id == 0) continue;
-        OsrsConsumableClick click =
-            osrs_consumable_click_lookup_raw_osrs_id(cell->raw_osrs_id);
-        if (click.consumable_kind != kind) continue;
-        if (click.click_action == OSRS_CLICK_DRINK && cell->dose == 0) continue;
+        const OsrsItemContentMetadata* metadata =
+            osrs_inventory_cell_metadata(cell);
+        if (metadata->raw_osrs_id == 0) continue;
+        if ((OsrsConsumableKind)metadata->consumable_kind != kind) continue;
+        if (metadata->click_action == OSRS_CLICK_DRINK &&
+                metadata->dose_count == 0) continue;
         return c;
     }
     return -1;
@@ -597,7 +598,8 @@ static void inf_translate_gear_swap(const InfernoState* s, int* actions, InfWeap
         uint8_t item = want_loadout[slot];
         if (item == ITEM_NONE || s->player.equipped[slot] == item) continue;
         for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
-            if (s->inventory_cells[c].item_idx == item) {
+            if (osrs_inventory_cell_item_index(
+                    &s->inventory_cells[c]) == item) {
                 actions[INF_HEAD_EQUIP_SLOT(slot)] = c + 1;
                 break;
             }
@@ -764,7 +766,7 @@ static void inf_step_human_commands(EncounterState* state, HumanInput* hi) {
 }
 
 #define INF_SNAPSHOT_MAGIC 0x1FE00001u
-#define INF_SNAPSHOT_VERSION 21u
+#define INF_SNAPSHOT_VERSION 22u
 
 typedef struct {
     uint32_t magic;

@@ -58,8 +58,9 @@ static int scripted_first_modifier(const ColosseumState* s) {
 static int scripted_heal_cell(const ColosseumState* s) {
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++) {
         const ColoInvCell* cell = &s->inventory_cells[i];
-        OsrsInventoryClickResolution r = osrs_inventory_click_interpret(
-            cell->item_idx, cell->raw_osrs_id, OSRS_CLICK_TICK_FIRST);
+        OsrsInventoryClickResolution r =
+            osrs_inventory_cell_click_interpret(
+                cell, OSRS_CLICK_TICK_FIRST);
         if ((r.consumable_kind == OSRS_CONSUMABLE_BREW ||
                 r.consumable_kind == OSRS_CONSUMABLE_GUTHIX_REST ||
                 r.consumable_kind == OSRS_CONSUMABLE_SHARK_FOOD ||

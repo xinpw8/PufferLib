@@ -1135,13 +1135,7 @@ static void col_for_each_reachable_consumable_dose_raw_osrs_id(
         abort();
     }
 
-    enum {
-        REGISTRY_COUNT = (int)(
-            sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY) /
-            sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY[0])
-        )
-    };
-    int seen[REGISTRY_COUNT];
+    int seen[OSRS_ITEM_CONTENT_COUNT];
     int seen_count = 0;
 
     for (int p = 0; p < COLO_NUM_LOADOUT_PROFILES; p++) {
@@ -1156,7 +1150,7 @@ static void col_for_each_reachable_consumable_dose_raw_osrs_id(
 
             uint16_t current_raw_osrs_id = raw_osrs_id;
             for (int step = 0; current_raw_osrs_id != 0; step++) {
-                if (step >= REGISTRY_COUNT) {
+                if (step >= OSRS_ITEM_CONTENT_COUNT) {
                     fprintf(stderr, "colosseum consumable dose chain cycles at raw id %u\n",
                         current_raw_osrs_id);
                     abort();
@@ -1174,7 +1168,7 @@ static void col_for_each_reachable_consumable_dose_raw_osrs_id(
                     current_raw_osrs_id,
                     seen,
                     &seen_count,
-                    REGISTRY_COUNT,
+                    OSRS_ITEM_CONTENT_COUNT,
                     visit,
                     ctx);
                 current_raw_osrs_id =
@@ -1197,8 +1191,7 @@ static void col_for_each_display_inventory_sprite_raw_osrs_id(
         DISPLAY_CAPACITY =
             (int)(sizeof(COLO_NON_CONSUMABLE_DISPLAY_RAW_OSRS_IDS) /
                   sizeof(COLO_NON_CONSUMABLE_DISPLAY_RAW_OSRS_IDS[0])) +
-            (int)(sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY) /
-                  sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY[0]))
+            OSRS_ITEM_CONTENT_COUNT
     };
     int seen[DISPLAY_CAPACITY];
     int seen_count = 0;
@@ -1559,7 +1552,7 @@ typedef struct {
     ColosseumLog log;
     ColoObsMemoCaches obs_memos;
 } ColosseumState;
-static_assert(sizeof(ColosseumState) == 29832, "ColosseumState serialized layout");
+static_assert(sizeof(ColosseumState) == 29720, "ColosseumState serialized layout");
 
 typedef enum {
     COLO_DMG_OFFPRAY = 0,
@@ -1575,5 +1568,5 @@ static void col_build_live_inventory_display(
     int out[COLO_INVENTORY_DISPLAY_SLOTS]
 ) {
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++)
-        out[i] = s->inventory_cells[i].raw_osrs_id;
+        out[i] = osrs_inventory_cell_raw_osrs_id(&s->inventory_cells[i]);
 }

@@ -1466,5 +1466,11 @@ static const Item ITEM_DATABASE[NUM_ITEMS] = {
         .melee_strength = 86, .ranged_strength = 0, .magic_damage = 0, .prayer = 0, .effect_mask = OSRS_ITEM_EFFECT_NONE
     },
 };
+_Static_assert(
+    sizeof(ITEM_DATABASE) / sizeof(ITEM_DATABASE[0]) == NUM_ITEMS,
+    "item database row count must match ItemIndex");
+_Static_assert(NUM_ITEMS < ITEM_NONE,
+    "generated item indexes must remain distinct from ITEM_NONE");
+
 
 #endif

@@ -906,7 +906,8 @@ static int col_queue_inventory_click_action(
         osrs_inventory_cell_click_interpret(&s->inventory_cells[inventory_slot], OSRS_CLICK_TICK_FIRST);
     int action_head;
     if (r.click_action == OSRS_CLICK_EQUIP) {
-        int gear_slot = osrs_item_gear_slot(s->inventory_cells[inventory_slot].item_idx);
+        int gear_slot = osrs_inventory_cell_metadata(
+            &s->inventory_cells[inventory_slot])->gear_slot;
         if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) return -1;
         action_head = COLO_HEAD_EQUIP_SLOT(gear_slot);
     } else if (r.click_action == OSRS_CLICK_EAT) {
@@ -1037,7 +1038,7 @@ static void col_step_human_commands_ctx(
 }
 
 #define COLO_SNAPSHOT_MAGIC 0xC010C001u
-#define COLO_SNAPSHOT_VERSION 23u
+#define COLO_SNAPSHOT_VERSION 24u
 
 typedef struct {
     uint32_t magic;

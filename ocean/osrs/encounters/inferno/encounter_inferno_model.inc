@@ -756,13 +756,12 @@ typedef struct {
     int blood_heal;
 } InfTickScratch;
 typedef struct {
-    uint8_t item_idx;
-    uint16_t raw_osrs_id;
+    uint16_t content_code;
     uint8_t click_action;
     uint8_t consumable_kind;
 } InfInventoryClickMemo;
 
-static_assert(sizeof(InfInventoryClickMemo) == 6, "Inferno inventory click memo size");
+static_assert(sizeof(InfInventoryClickMemo) == 4, "Inferno inventory click memo size");
 
 typedef struct {
     Player player;
@@ -920,4 +919,4 @@ typedef struct {
     float total_hp_restored_jad;
     float total_hp_restored_zuk;
 } InfernoState;
-static_assert(sizeof(InfernoState) == 27300, "InfernoState serialized layout");
+static_assert(sizeof(InfernoState) == 27132, "InfernoState serialized layout");

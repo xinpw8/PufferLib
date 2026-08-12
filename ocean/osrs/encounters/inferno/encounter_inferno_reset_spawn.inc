@@ -11,17 +11,6 @@ static InfSupplyDoses inf_full_starting_supplies(void) {
     };
 }
 
-static uint16_t inf_potion_raw_id_for_dose(OsrsConsumableKind kind, int dose) {
-    int n = (int)(sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY) /
-        sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY[0]));
-    for (int i = 0; i < n; i++) {
-        const OsrsConsumableClick* row = &OSRS_CONSUMABLE_CLICK_REGISTRY[i];
-        if (row->consumable_kind == kind && row->dose_count == dose)
-            return row->raw_osrs_id;
-    }
-    fprintf(stderr, "inferno: no registry row for kind %d dose %d\n", (int)kind, dose);
-    abort();
-}
 
 static void inf_seed_potion_cells(
     InfernoState* s,
@@ -36,8 +25,9 @@ static void inf_seed_potion_cells(
                 OSRS_INVENTORY_SIZE);
             abort();
         }
-        s->inventory_cells[(*next_cell)++] = osrs_inventory_cell_from_raw_osrs_id(
-            inf_potion_raw_id_for_dose(kind, dose));
+        s->inventory_cells[(*next_cell)++] =
+            osrs_inventory_cell_from_content_code(
+                osrs_inventory_content_code_from_consumable(kind, dose));
         doses -= dose;
     }
 }
@@ -56,7 +46,8 @@ static void inf_seed_inventory_cells(InfernoState* s) {
             if (s->player.equipped[slot] == item) continue;
             int duplicate = 0;
             for (int c = 0; c < cell; c++) {
-                if (s->inventory_cells[c].item_idx == item) {
+                if (osrs_inventory_cell_item_index(
+                        &s->inventory_cells[c]) == item) {
                     duplicate = 1;
                     break;
                 }

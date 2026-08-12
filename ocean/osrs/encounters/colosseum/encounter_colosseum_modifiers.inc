@@ -160,20 +160,26 @@ static void col_late_start_drain_supplies(
 
     int done[COLO_INVENTORY_DISPLAY_SLOTS] = {0};
     for (int c = 0; c < COLO_INVENTORY_DISPLAY_SLOTS; c++) {
-        if (done[c] || s->inventory_cells[c].dose == 0) continue;
-        int item = s->inventory_cells[c].item_idx;
+        if (done[c] ||
+                osrs_inventory_cell_dose_count(
+                    &s->inventory_cells[c]) == 0) continue;
+        int item = osrs_inventory_cell_item_index(&s->inventory_cells[c]);
         int total = 0;
         for (int k = c; k < COLO_INVENTORY_DISPLAY_SLOTS; k++) {
-            if (s->inventory_cells[k].item_idx == item &&
-                    s->inventory_cells[k].dose > 0) {
+            if (osrs_inventory_cell_item_index(&s->inventory_cells[k]) == item &&
+                    osrs_inventory_cell_dose_count(
+                        &s->inventory_cells[k]) > 0) {
                 done[k] = 1;
-                total += s->inventory_cells[k].dose;
+                total += osrs_inventory_cell_dose_count(
+                    &s->inventory_cells[k]);
             }
         }
         int drain = total - (int)((float)total * f + 0.5f);
         for (int k = COLO_INVENTORY_DISPLAY_SLOTS - 1; k >= c && drain > 0; k--) {
-            if (s->inventory_cells[k].item_idx != item) continue;
-            while (s->inventory_cells[k].dose > 0 && drain > 0) {
+            if (osrs_inventory_cell_item_index(
+                    &s->inventory_cells[k]) != item) continue;
+            while (osrs_inventory_cell_dose_count(
+                    &s->inventory_cells[k]) > 0 && drain > 0) {
                 OsrsInventoryClickResolution res = osrs_inventory_cell_click_interpret(
                     &s->inventory_cells[k], OSRS_CLICK_TICK_FIRST);
                 if (res.click_action != OSRS_CLICK_DRINK) break;

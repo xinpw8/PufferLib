@@ -32,8 +32,10 @@ static void count_items(
     memset(counts, 0, NUM_ITEMS * sizeof(int));
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
         if (p->equipped[slot] != ITEM_NONE) counts[p->equipped[slot]]++;
-    for (int i = 0; i < OSRS_INVENTORY_SIZE; i++)
-        if (cells[i].item_idx != ITEM_NONE) counts[cells[i].item_idx]++;
+    for (int i = 0; i < OSRS_INVENTORY_SIZE; i++) {
+        uint8_t item_idx = osrs_inventory_cell_item_index(&cells[i]);
+        if (item_idx != ITEM_NONE) counts[item_idx]++;
+    }
 }
 
 static void run_equip_storm(int trial) {
@@ -109,7 +111,8 @@ static void run_drink_dose_check(void) {
     for (int i = 0; i < OSRS_INVENTORY_SIZE; i++)
         cells[i] = osrs_inventory_cell_empty();
     cells[0] = osrs_inventory_cell_from_raw_osrs_id(2434);
-    ASSERT_INT_EQ("prayer potion seeds with 4 doses", cells[0].dose, 4);
+    ASSERT_INT_EQ("prayer potion seeds with 4 doses",
+        osrs_inventory_cell_dose_count(&cells[0]), 4);
 
     for (int expected_dose = 4; expected_dose >= 1; expected_dose--) {
         p.potion_timer = 0;
@@ -129,7 +132,8 @@ static void run_drink_dose_check(void) {
             steps++;
         }
         ASSERT_INT_EQ("one drink step per tick", steps, 1);
-        ASSERT_INT_EQ("dose decrements by one", cells[0].dose, expected_dose - 1);
+        ASSERT_INT_EQ("dose decrements by one",
+            osrs_inventory_cell_dose_count(&cells[0]), expected_dose - 1);
     }
     CHECK("cell empties after the last dose",
         osrs_inventory_cell_is_empty(&cells[0]));
@@ -155,11 +159,34 @@ static void test_weapon_ranges(void) {
     ASSERT_INT_EQ("unarmed attack speed", unarmed.attack_speed, 4);
     ASSERT_INT_EQ("unarmed attack range", unarmed.attack_range, 1);
 }
+static void test_content_code_round_trips(void) {
+    ASSERT_INT_EQ("inventory cell stores only one content code",
+        (int)sizeof(OsrsInventoryCell), (int)sizeof(uint16_t));
+    for (uint16_t code = 0; code < OSRS_ITEM_CONTENT_COUNT; code++) {
+        const OsrsItemContentMetadata* metadata =
+            osrs_item_content_metadata(code);
+        OsrsInventoryCell cell = osrs_inventory_cell_from_content_code(code);
+        ASSERT_INT_EQ("cell preserves content code", cell.content_code, code);
+        ASSERT_INT_EQ("content code preserves raw OSRS id",
+            osrs_inventory_cell_raw_osrs_id(&cell), metadata->raw_osrs_id);
+        ASSERT_INT_EQ("content code preserves item index",
+            osrs_inventory_cell_item_index(&cell), metadata->item_idx);
+        ASSERT_INT_EQ("raw OSRS id round trips to content code",
+            osrs_inventory_content_code_from_raw_osrs_id(metadata->raw_osrs_id),
+            code);
+        if (metadata->item_idx != ITEM_NONE) {
+            ASSERT_INT_EQ("item index round trips to content code",
+                osrs_inventory_content_code_from_item(metadata->item_idx), code);
+        }
+    }
+}
+
 
 int main(void) {
     for (int trial = 0; trial < 500; trial++)
         run_equip_storm(trial);
     run_drink_dose_check();
     test_weapon_ranges();
+    test_content_code_round_trips();
     return osrs_test_summary();
 }

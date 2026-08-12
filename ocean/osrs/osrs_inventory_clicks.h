@@ -7,32 +7,6 @@
 #include "osrs_consumables.h"
 #include "osrs_special_attacks.h"
 
-typedef enum {
-    OSRS_CLICK_NONE = 0,
-    OSRS_CLICK_EQUIP = 1,
-    OSRS_CLICK_EAT = 2,
-    OSRS_CLICK_DRINK = 3,
-} OsrsClickAction;
-
-typedef enum {
-    OSRS_CONSUMABLE_NONE = 0,
-    OSRS_CONSUMABLE_BREW = 1,
-    OSRS_CONSUMABLE_SUPER_RESTORE = 2,
-    OSRS_CONSUMABLE_SANFEW = 3,
-    OSRS_CONSUMABLE_SUPER_COMBAT = 4,
-    OSRS_CONSUMABLE_DIVINE_COMBAT = 5,
-    OSRS_CONSUMABLE_RANGING = 6,
-    OSRS_CONSUMABLE_DIVINE_RANGING = 7,
-    OSRS_CONSUMABLE_SURGE = 8,
-    OSRS_CONSUMABLE_GUTHIX_REST = 9,
-    OSRS_CONSUMABLE_SATURATED_HEART = 10,
-    OSRS_CONSUMABLE_ANTIVENOM_PLUS = 11,
-    OSRS_CONSUMABLE_SHARK_FOOD = 12,
-    OSRS_CONSUMABLE_KARAMBWAN = 13,
-    OSRS_CONSUMABLE_PRAYER_RESTORE = 14,
-    OSRS_CONSUMABLE_BASTION = 15,
-    OSRS_CONSUMABLE_STAMINA = 16,
-} OsrsConsumableKind;
 
 typedef enum {
     OSRS_CLICK_TICK_FIRST = 0,
@@ -92,128 +66,6 @@ typedef void (*OsrsInventoryDrinkOneDoseEffectFn)(
 #define OSRS_INVENTORY_CELL_OBS_FEATURES_CODED 3
 #define OSRS_EQUIPPED_SELF_OBS_FEATURES 18
 
-static const OsrsConsumableClick OSRS_CONSUMABLE_CLICK_REGISTRY[] = {
-    {6685, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_BREW, 4},
-    {6687, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_BREW, 3},
-    {6689, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_BREW, 2},
-    {6691, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_BREW, 1},
-    {3024, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SUPER_RESTORE, 4},
-    {3026, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SUPER_RESTORE, 3},
-    {3028, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SUPER_RESTORE, 2},
-    {3030, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SUPER_RESTORE, 1},
-    {10925, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SANFEW, 4},
-    {10927, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SANFEW, 3},
-    {10929, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SANFEW, 2},
-    {10931, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SANFEW, 1},
-    {12695, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SUPER_COMBAT, 4},
-    {12697, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SUPER_COMBAT, 3},
-    {12699, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SUPER_COMBAT, 2},
-    {12701, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SUPER_COMBAT, 1},
-    {23685, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_DIVINE_COMBAT, 4},
-    {23688, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_DIVINE_COMBAT, 3},
-    {23691, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_DIVINE_COMBAT, 2},
-    {23694, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_DIVINE_COMBAT, 1},
-    {2444, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_RANGING, 4},
-    {169, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_RANGING, 3},
-    {171, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_RANGING, 2},
-    {173, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_RANGING, 1},
-    {23733, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_DIVINE_RANGING, 4},
-    {23736, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_DIVINE_RANGING, 3},
-    {23739, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_DIVINE_RANGING, 2},
-    {23742, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_DIVINE_RANGING, 1},
-    {30875, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SURGE, 4},
-    {30878, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SURGE, 3},
-    {30881, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SURGE, 2},
-    {30884, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SURGE, 1},
-    {4417, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_GUTHIX_REST, 4},
-    {4419, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_GUTHIX_REST, 3},
-    {4421, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_GUTHIX_REST, 2},
-    {4423, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_GUTHIX_REST, 1},
-    {27641, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_SATURATED_HEART, 1},
-    {12913, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_ANTIVENOM_PLUS, 4},
-    {12915, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_ANTIVENOM_PLUS, 3},
-    {12917, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_ANTIVENOM_PLUS, 2},
-    {12919, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_ANTIVENOM_PLUS, 1},
-    {2434, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_PRAYER_RESTORE, 4},
-    {139, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_PRAYER_RESTORE, 3},
-    {141, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_PRAYER_RESTORE, 2},
-    {143, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_PRAYER_RESTORE, 1},
-    {22461, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_BASTION, 4},
-    {22464, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_BASTION, 3},
-    {22467, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_BASTION, 2},
-    {22470, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_BASTION, 1},
-    {12625, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_STAMINA, 4},
-    {12627, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_STAMINA, 3},
-    {12629, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_STAMINA, 2},
-    {12631, OSRS_CLICK_DRINK, OSRS_CONSUMABLE_STAMINA, 1},
-    {385, OSRS_CLICK_EAT, OSRS_CONSUMABLE_SHARK_FOOD, 0},
-    {3144, OSRS_CLICK_EAT, OSRS_CONSUMABLE_KARAMBWAN, 0},
-};
-
-static inline int osrs_consumable_click_registry_index(uint16_t raw_osrs_id) {
-    switch (raw_osrs_id) {
-        case 6685: return 0;
-        case 6687: return 1;
-        case 6689: return 2;
-        case 6691: return 3;
-        case 3024: return 4;
-        case 3026: return 5;
-        case 3028: return 6;
-        case 3030: return 7;
-        case 10925: return 8;
-        case 10927: return 9;
-        case 10929: return 10;
-        case 10931: return 11;
-        case 12695: return 12;
-        case 12697: return 13;
-        case 12699: return 14;
-        case 12701: return 15;
-        case 23685: return 16;
-        case 23688: return 17;
-        case 23691: return 18;
-        case 23694: return 19;
-        case 2444: return 20;
-        case 169: return 21;
-        case 171: return 22;
-        case 173: return 23;
-        case 23733: return 24;
-        case 23736: return 25;
-        case 23739: return 26;
-        case 23742: return 27;
-        case 30875: return 28;
-        case 30878: return 29;
-        case 30881: return 30;
-        case 30884: return 31;
-        case 4417: return 32;
-        case 4419: return 33;
-        case 4421: return 34;
-        case 4423: return 35;
-        case 27641: return 36;
-        case 12913: return 37;
-        case 12915: return 38;
-        case 12917: return 39;
-        case 12919: return 40;
-        case 2434: return 41;
-        case 139: return 42;
-        case 141: return 43;
-        case 143: return 44;
-        case 22461: return 45;
-        case 22464: return 46;
-        case 22467: return 47;
-        case 22470: return 48;
-        case 12625: return 49;
-        case 12627: return 50;
-        case 12629: return 51;
-        case 12631: return 52;
-        case 385: return 53;
-        case 3144: return 54;
-        default: return -1;
-    }
-}
-
-static inline OsrsConsumableClick osrs_consumable_click_lookup_raw_osrs_id(
-    uint16_t raw_osrs_id
-);
 
 static inline void osrs_inventory_clicks_trap(void) {
 #if defined(__clang__) || defined(__GNUC__)
@@ -258,6 +110,7 @@ static inline OsrsConsumableKind6 col_consumable_kind6(OsrsConsumableKind k) {
         case OSRS_CONSUMABLE_SHARK_FOOD:
         case OSRS_CONSUMABLE_KARAMBWAN:       return COL_CKIND6_FOOD;
         case OSRS_CONSUMABLE_NONE:            return COL_CKIND6_NONE;
+        case OSRS_CONSUMABLE_COUNT:           break;
     }
     osrs_inventory_clicks_trap();
     return COL_CKIND6_NONE;
@@ -293,12 +146,6 @@ static inline int osrs_consumable_offensive_boost_amount(OsrsConsumableKind k, i
     }
 }
 
-static inline uint8_t osrs_item_index_for_raw_osrs_id(uint16_t raw_osrs_id) {
-    for (int i = 0; i < NUM_ITEMS; i++) {
-        if (ITEM_DATABASE[i].item_id == raw_osrs_id) return (uint8_t)i;
-    }
-    return ITEM_NONE;
-}
 
 typedef struct {
     float present;
@@ -318,145 +165,176 @@ typedef struct {
     float offensive_boost;
 } OsrsInventoryCellAffordance;
 
-static inline OsrsInventoryCellAffordance osrs_inventory_cell_affordance(
-    uint8_t item_idx,
-    uint16_t raw_osrs_id,
-    uint8_t dose,
+static inline OsrsInventoryCellAffordance osrs_item_content_affordance(
+    const OsrsItemContentMetadata* metadata,
     int is_equipped,
     const float post_use_deltas[6],
     int base_hitpoints,
     int base_prayer,
     int base_level
 ) {
-    OsrsConsumableClick consumable =
-        osrs_consumable_click_lookup_raw_osrs_id(raw_osrs_id);
-    int present = raw_osrs_id != 0 || item_idx != ITEM_NONE;
-    int is_gear = item_idx != ITEM_NONE;
-    int style = is_gear ? get_item_attack_style(item_idx) : 0;
+    int present = metadata->raw_osrs_id != 0;
+    int is_gear = metadata->item != NULL;
+    int is_weapon = is_gear && metadata->item->slot == SLOT_WEAPON;
+    OsrsConsumableKind consumable_kind =
+        (OsrsConsumableKind)metadata->consumable_kind;
+    OsrsConsumableKind6 kind6 = col_consumable_kind6(consumable_kind);
+    int hp_heal =
+        osrs_consumable_hp_heal_amount(consumable_kind, base_hitpoints);
+    int prayer_restore =
+        osrs_consumable_prayer_restore_amount(consumable_kind, base_prayer);
+    int offensive_boost =
+        osrs_consumable_offensive_boost_amount(consumable_kind, base_level);
     uint32_t effect_mask =
-        is_gear ? ITEM_DATABASE[item_idx].effect_mask : OSRS_ITEM_EFFECT_NONE;
-    int is_weapon = is_gear && ITEM_DATABASE[item_idx].slot == SLOT_WEAPON;
-    OsrsConsumableKind6 k6 = col_consumable_kind6(consumable.consumable_kind);
-    OsrsConsumableKind ck = consumable.consumable_kind;
-    int hp_heal = osrs_consumable_hp_heal_amount(ck, base_hitpoints);
-    int pray_restore = osrs_consumable_prayer_restore_amount(ck, base_prayer);
-    int off_boost = osrs_consumable_offensive_boost_amount(ck, base_level);
+        is_gear ? metadata->item->effect_mask : OSRS_ITEM_EFFECT_NONE;
 
-    OsrsInventoryCellAffordance a;
-    a.present = present ? 1.0f : 0.0f;
-    a.is_equipped = is_equipped ? 1.0f : 0.0f;
-    a.dose = dose > 0 ? osrs_clamp_unit((float)dose / 4.0f) : 0.0f;
-    a.is_armor = (is_gear && !is_weapon) ? 1.0f : 0.0f;
-    a.is_weapon = is_weapon ? 1.0f : 0.0f;
-    a.style3[0] = style == 1 ? 1.0f : 0.0f;
-    a.style3[1] = style == 2 ? 1.0f : 0.0f;
-    a.style3[2] = style == 3 ? 1.0f : 0.0f;
-    for (int i = 0; i < 6; i++)
-        a.post_use_deltas[i] =
-            post_use_deltas ? osrs_clamp_unit(post_use_deltas[i]) : 0.0f;
-    /* Normalised energy cost, 0 when the weapon has no special. Doubles as the "this item
-     * has a special attack" flag while also telling the agent whether it can afford one. */
-    a.spec_cost = is_weapon
-        ? osrs_clamp_unit((float)osrs_spec_cost(item_idx) / 100.0f)
+    OsrsInventoryCellAffordance affordance;
+    affordance.present = present ? 1.0f : 0.0f;
+    affordance.is_equipped = is_equipped ? 1.0f : 0.0f;
+    affordance.dose = metadata->dose_count > 0
+        ? osrs_clamp_unit((float)metadata->dose_count / 4.0f)
         : 0.0f;
-    osrs_item_effect_class4(effect_mask, a.effect_class4);
-    a.attack_speed = is_weapon
-        ? osrs_clamp_unit((float)ITEM_DATABASE[item_idx].attack_speed / STAT_NORM_SPEED)
+    affordance.is_armor = (is_gear && !is_weapon) ? 1.0f : 0.0f;
+    affordance.is_weapon = is_weapon ? 1.0f : 0.0f;
+    affordance.style3[0] = metadata->attack_style == 1 ? 1.0f : 0.0f;
+    affordance.style3[1] = metadata->attack_style == 2 ? 1.0f : 0.0f;
+    affordance.style3[2] = metadata->attack_style == 3 ? 1.0f : 0.0f;
+    for (int index = 0; index < 6; index++) {
+        affordance.post_use_deltas[index] = post_use_deltas
+            ? osrs_clamp_unit(post_use_deltas[index])
+            : 0.0f;
+    }
+    affordance.spec_cost = is_weapon
+        ? osrs_clamp_unit(
+            (float)osrs_spec_cost(metadata->item_idx) / 100.0f)
         : 0.0f;
-    a.attack_range = is_weapon
-        ? osrs_clamp_unit((float)ITEM_DATABASE[item_idx].attack_range / STAT_NORM_RANGE)
+    osrs_item_effect_class4(effect_mask, affordance.effect_class4);
+    affordance.attack_speed = is_weapon
+        ? osrs_clamp_unit(
+            (float)metadata->item->attack_speed / STAT_NORM_SPEED)
         : 0.0f;
-    a.kind5[0] = k6 == COL_CKIND6_BREW ? 1.0f : 0.0f;
-    a.kind5[1] = k6 == COL_CKIND6_RESTORE ? 1.0f : 0.0f;
-    a.kind5[2] = k6 == COL_CKIND6_COMBAT_BOOST ? 1.0f : 0.0f;
-    a.kind5[3] = k6 == COL_CKIND6_RANGED_BOOST ? 1.0f : 0.0f;
-    a.kind5[4] = k6 == COL_CKIND6_SPECIAL ? 1.0f : 0.0f;
-    a.hp_heal = base_hitpoints > 0
-        ? osrs_clamp_unit((float)hp_heal / (float)base_hitpoints) : 0.0f;
-    a.prayer_restore = base_prayer > 0
-        ? osrs_clamp_unit((float)pray_restore / (float)base_prayer) : 0.0f;
-    a.offensive_boost = osrs_clamp_unit((float)off_boost / STAT_NORM_STRENGTH);
-    return a;
+    affordance.attack_range = is_weapon
+        ? osrs_clamp_unit(
+            (float)metadata->item->attack_range / STAT_NORM_RANGE)
+        : 0.0f;
+    affordance.kind5[0] = kind6 == COL_CKIND6_BREW ? 1.0f : 0.0f;
+    affordance.kind5[1] = kind6 == COL_CKIND6_RESTORE ? 1.0f : 0.0f;
+    affordance.kind5[2] = kind6 == COL_CKIND6_COMBAT_BOOST ? 1.0f : 0.0f;
+    affordance.kind5[3] = kind6 == COL_CKIND6_RANGED_BOOST ? 1.0f : 0.0f;
+    affordance.kind5[4] = kind6 == COL_CKIND6_SPECIAL ? 1.0f : 0.0f;
+    affordance.hp_heal = base_hitpoints > 0
+        ? osrs_clamp_unit((float)hp_heal / (float)base_hitpoints)
+        : 0.0f;
+    affordance.prayer_restore = base_prayer > 0
+        ? osrs_clamp_unit((float)prayer_restore / (float)base_prayer)
+        : 0.0f;
+    affordance.offensive_boost =
+        osrs_clamp_unit((float)offensive_boost / STAT_NORM_STRENGTH);
+    return affordance;
 }
 
 static inline void osrs_write_inventory_cell_affordance_features(
     float* out,
-    uint8_t item_idx,
-    uint16_t raw_osrs_id,
-    uint8_t dose,
+    const OsrsInventoryCell* cell,
     int is_equipped,
     const float post_use_deltas[6],
     int base_hitpoints,
     int base_prayer,
     int base_level
 ) {
-    OsrsInventoryCellAffordance a = osrs_inventory_cell_affordance(
-        item_idx, raw_osrs_id, dose, is_equipped, post_use_deltas,
+    OsrsInventoryCellAffordance affordance = osrs_item_content_affordance(
+        osrs_inventory_cell_metadata(cell), is_equipped, post_use_deltas,
         base_hitpoints, base_prayer, base_level);
 
-    out[0] = a.present;
-    out[1] = a.is_equipped;
-    out[2] = a.dose;
-    out[3] = a.style3[0];
-    out[4] = a.style3[1];
-    out[5] = a.style3[2];
-    for (int i = 0; i < 6; i++) out[6 + i] = a.post_use_deltas[i];
-    out[12] = a.is_armor;
-    out[13] = a.is_weapon;
-    for (int i = 0; i < 5; i++) out[14 + i] = a.kind5[i];
-    out[19] = a.hp_heal;
-    out[20] = a.prayer_restore;
-    out[21] = a.offensive_boost;
-    for (int i = 0; i < 4; i++) out[22 + i] = a.effect_class4[i];
-    out[26] = a.attack_speed;
-    out[27] = a.attack_range;
+    out[0] = affordance.present;
+    out[1] = affordance.is_equipped;
+    out[2] = affordance.dose;
+    out[3] = affordance.style3[0];
+    out[4] = affordance.style3[1];
+    out[5] = affordance.style3[2];
+    for (int index = 0; index < 6; index++) {
+        out[6 + index] = affordance.post_use_deltas[index];
+    }
+    out[12] = affordance.is_armor;
+    out[13] = affordance.is_weapon;
+    for (int index = 0; index < 5; index++) {
+        out[14 + index] = affordance.kind5[index];
+    }
+    out[19] = affordance.hp_heal;
+    out[20] = affordance.prayer_restore;
+    out[21] = affordance.offensive_boost;
+    for (int index = 0; index < 4; index++) {
+        out[22 + index] = affordance.effect_class4[index];
+    }
+    out[26] = affordance.attack_speed;
+    out[27] = affordance.attack_range;
 }
 
-static inline void osrs_write_inventory_cell_affordance_features_compact(
+static inline void osrs_write_item_content_affordance_features_compact(
     float* out,
-    uint8_t item_idx,
-    uint16_t raw_osrs_id,
-    uint8_t dose,
+    const OsrsItemContentMetadata* metadata,
     int is_equipped,
     int base_hitpoints,
     int base_prayer,
     int base_level
 ) {
-    OsrsInventoryCellAffordance a = osrs_inventory_cell_affordance(
-        item_idx, raw_osrs_id, dose, is_equipped, NULL,
+    OsrsInventoryCellAffordance affordance = osrs_item_content_affordance(
+        metadata, is_equipped, NULL,
         base_hitpoints, base_prayer, base_level);
 
-    out[OSRS_INVENTORY_CELL_COMPACT_PRESENT] = a.present;
-    out[OSRS_INVENTORY_CELL_COMPACT_EQUIPPED] = a.is_equipped;
-    out[OSRS_INVENTORY_CELL_COMPACT_DOSE] = a.dose;
-    out[OSRS_INVENTORY_CELL_COMPACT_IS_ARMOR] = a.is_armor;
-    out[OSRS_INVENTORY_CELL_COMPACT_IS_WEAPON] = a.is_weapon;
+    out[OSRS_INVENTORY_CELL_COMPACT_PRESENT] = affordance.present;
+    out[OSRS_INVENTORY_CELL_COMPACT_EQUIPPED] = affordance.is_equipped;
+    out[OSRS_INVENTORY_CELL_COMPACT_DOSE] = affordance.dose;
+    out[OSRS_INVENTORY_CELL_COMPACT_IS_ARMOR] = affordance.is_armor;
+    out[OSRS_INVENTORY_CELL_COMPACT_IS_WEAPON] = affordance.is_weapon;
 
-    float* u = out + OSRS_INVENTORY_CELL_OBS_SHARED;
-    for (int i = 0; i < OSRS_INVENTORY_CELL_OBS_KIND_UNION; i++) u[i] = 0.0f;
-    if (a.is_armor != 0.0f || a.is_weapon != 0.0f) {
-        u[0] = a.style3[0];
-        u[1] = a.style3[1];
-        u[2] = a.style3[2];
-        for (int i = 0; i < 4; i++) u[3 + i] = a.effect_class4[i];
-        u[7] = a.attack_speed;
-        u[8] = a.attack_range;
-        u[9] = a.spec_cost;
+    float* content = out + OSRS_INVENTORY_CELL_OBS_SHARED;
+    for (int index = 0; index < OSRS_INVENTORY_CELL_OBS_KIND_UNION; index++) {
+        content[index] = 0.0f;
+    }
+    if (affordance.is_armor != 0.0f || affordance.is_weapon != 0.0f) {
+        content[0] = affordance.style3[0];
+        content[1] = affordance.style3[1];
+        content[2] = affordance.style3[2];
+        for (int index = 0; index < 4; index++) {
+            content[3 + index] = affordance.effect_class4[index];
+        }
+        content[7] = affordance.attack_speed;
+        content[8] = affordance.attack_range;
+        content[9] = affordance.spec_cost;
     } else {
-        for (int i = 0; i < 5; i++) u[i] = a.kind5[i];
-        u[5] = a.hp_heal;
-        u[6] = a.prayer_restore;
-        u[7] = a.offensive_boost;
+        for (int index = 0; index < 5; index++) {
+            content[index] = affordance.kind5[index];
+        }
+        content[5] = affordance.hp_heal;
+        content[6] = affordance.prayer_restore;
+        content[7] = affordance.offensive_boost;
     }
 }
 
-static inline void osrs_write_equipped_self_features(float* out, uint8_t item_idx) {
-    for (int i = 0; i < OSRS_EQUIPPED_SELF_OBS_FEATURES; i++) out[i] = 0.0f;
-    if (item_idx == ITEM_NONE) return;
-    if (item_idx >= NUM_ITEMS) osrs_inventory_clicks_trap();
+static inline void osrs_write_inventory_cell_affordance_features_compact(
+    float* out,
+    const OsrsInventoryCell* cell,
+    int is_equipped,
+    int base_hitpoints,
+    int base_prayer,
+    int base_level
+) {
+    osrs_write_item_content_affordance_features_compact(
+        out, osrs_inventory_cell_metadata(cell), is_equipped,
+        base_hitpoints, base_prayer, base_level);
+}
 
-    const Item* item = &ITEM_DATABASE[item_idx];
-    int style = get_item_attack_style(item_idx);
+static inline void osrs_write_equipped_self_features(float* out, uint8_t item_idx) {
+    for (int index = 0; index < OSRS_EQUIPPED_SELF_OBS_FEATURES; index++) {
+        out[index] = 0.0f;
+    }
+    if (item_idx == ITEM_NONE) return;
+
+    const OsrsItemContentMetadata* metadata = osrs_item_content_metadata(
+        osrs_inventory_content_code_from_item(item_idx));
+    const Item* item = metadata->item;
+    int style = metadata->attack_style;
     out[0] = 1.0f;
     out[1] = style == 1 ? 1.0f : 0.0f;
     out[2] = style == 2 ? 1.0f : 0.0f;
@@ -473,133 +351,80 @@ static inline void osrs_write_equipped_self_features(float* out, uint8_t item_id
     out[10] = item->effect_mask != OSRS_ITEM_EFFECT_NONE ? 1.0f : 0.0f;
     out[11] = item->slot == SLOT_WEAPON ? 1.0f : 0.0f;
 
-    float eff4[4];
-    osrs_item_effect_class4(item->effect_mask, eff4);
-    out[12] = eff4[0];
-    out[13] = eff4[1];
-    out[14] = eff4[2];
-    out[15] = eff4[3];
+    float effect_class[4];
+    osrs_item_effect_class4(item->effect_mask, effect_class);
+    out[12] = effect_class[0];
+    out[13] = effect_class[1];
+    out[14] = effect_class[2];
+    out[15] = effect_class[3];
     out[16] = item->slot == SLOT_WEAPON
-        ? osrs_clamp_unit((float)item->attack_speed / STAT_NORM_SPEED) : 0.0f;
+        ? osrs_clamp_unit((float)item->attack_speed / STAT_NORM_SPEED)
+        : 0.0f;
     out[17] = item->slot == SLOT_WEAPON
-        ? osrs_clamp_unit((float)item->attack_range / STAT_NORM_RANGE) : 0.0f;
+        ? osrs_clamp_unit((float)item->attack_range / STAT_NORM_RANGE)
+        : 0.0f;
 }
 
 static inline OsrsClickAction osrs_item_click_action(uint8_t item_idx) {
     if (item_idx == ITEM_NONE) return OSRS_CLICK_NONE;
-    if (item_idx >= NUM_ITEMS) osrs_inventory_clicks_trap();
-
-    switch (ITEM_DATABASE[item_idx].slot) {
-        case SLOT_HEAD:
-        case SLOT_CAPE:
-        case SLOT_NECK:
-        case SLOT_WEAPON:
-        case SLOT_BODY:
-        case SLOT_SHIELD:
-        case SLOT_LEGS:
-        case SLOT_HANDS:
-        case SLOT_FEET:
-        case SLOT_RING:
-        case SLOT_AMMO:
-            return OSRS_CLICK_EQUIP;
-        default:
-            osrs_inventory_clicks_trap();
-            return OSRS_CLICK_NONE;
-    }
+    const OsrsItemContentMetadata* metadata = osrs_item_content_metadata(
+        osrs_inventory_content_code_from_item(item_idx));
+    return (OsrsClickAction)metadata->click_action;
 }
 
 static inline OsrsConsumableKind osrs_item_click_consumable_kind(uint8_t item_idx) {
     if (item_idx == ITEM_NONE) return OSRS_CONSUMABLE_NONE;
-    if (item_idx >= NUM_ITEMS) osrs_inventory_clicks_trap();
-    return OSRS_CONSUMABLE_NONE;
+    const OsrsItemContentMetadata* metadata = osrs_item_content_metadata(
+        osrs_inventory_content_code_from_item(item_idx));
+    return (OsrsConsumableKind)metadata->consumable_kind;
 }
 
 static inline OsrsConsumableClick osrs_consumable_click_lookup_raw_osrs_id(
     uint16_t raw_osrs_id
 ) {
-    int index = osrs_consumable_click_registry_index(raw_osrs_id);
-    if (index >= 0) return OSRS_CONSUMABLE_CLICK_REGISTRY[index];
-
+    const OsrsItemContentMetadata* metadata = osrs_item_content_metadata(
+        osrs_inventory_content_code_from_raw_osrs_id(raw_osrs_id));
     return (OsrsConsumableClick){
-        .raw_osrs_id = raw_osrs_id,
-        .click_action = OSRS_CLICK_NONE,
-        .consumable_kind = OSRS_CONSUMABLE_NONE,
-        .dose_count = 0,
+        .raw_osrs_id = metadata->raw_osrs_id,
+        .click_action = (OsrsClickAction)metadata->click_action,
+        .consumable_kind = (OsrsConsumableKind)metadata->consumable_kind,
+        .dose_count = metadata->dose_count,
     };
 }
 
 static inline uint8_t osrs_consumable_dose_count_after_drink(uint8_t dose_count) {
-    switch (dose_count) {
-        case 1: return 0;
-        case 2: return 1;
-        case 3: return 2;
-        case 4: return 3;
-        default:
-            osrs_inventory_clicks_trap();
-            return 0;
-    }
+    if (dose_count < 1 || dose_count > 4) osrs_inventory_clicks_trap();
+    return (uint8_t)(dose_count - 1);
 }
 
-static inline uint16_t osrs_consumable_raw_osrs_id_after_drink(uint16_t raw_osrs_id) {
-    OsrsConsumableClick before =
-        osrs_consumable_click_lookup_raw_osrs_id(raw_osrs_id);
-    if (before.click_action != OSRS_CLICK_DRINK || before.dose_count == 0) {
-        osrs_inventory_clicks_trap();
-    }
-
-    uint8_t after_dose =
-        osrs_consumable_dose_count_after_drink(before.dose_count);
-    if (after_dose == 0) return 0;
-
-    int count = (int)(
-        sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY) /
-        sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY[0])
-    );
-
-    for (int i = 0; i < count; i++) {
-        OsrsConsumableClick candidate = OSRS_CONSUMABLE_CLICK_REGISTRY[i];
-        if (candidate.consumable_kind == before.consumable_kind &&
-            candidate.dose_count == after_dose) {
-            return candidate.raw_osrs_id;
-        }
-    }
-
-    osrs_inventory_clicks_trap();
-    return 0;
-}
-
-static inline OsrsInventoryClickResolution osrs_inventory_click_classify(
-    uint8_t item_idx,
+static inline uint16_t osrs_consumable_raw_osrs_id_after_drink(
     uint16_t raw_osrs_id
 ) {
-    if (item_idx != ITEM_NONE) {
-        OsrsClickAction action = osrs_item_click_action(item_idx);
-        if (raw_osrs_id != 0 && raw_osrs_id != ITEM_DATABASE[item_idx].item_id) {
-            osrs_inventory_clicks_trap();
-        }
-        return (OsrsInventoryClickResolution){
-            .click_action = action,
-        };
+    const OsrsItemContentMetadata* metadata = osrs_item_content_metadata(
+        osrs_inventory_content_code_from_raw_osrs_id(raw_osrs_id));
+    if (metadata->click_action != OSRS_CLICK_DRINK ||
+            metadata->dose_count == 0) {
+        osrs_inventory_clicks_trap();
     }
+    if (metadata->next_content_code == 0) return 0;
+    return osrs_item_content_metadata(
+        metadata->next_content_code)->raw_osrs_id;
+}
 
-    if (raw_osrs_id == 0) {
-        return (OsrsInventoryClickResolution){
-            .click_action = OSRS_CLICK_NONE,
-        };
-    }
-
-    OsrsConsumableClick consumable =
-        osrs_consumable_click_lookup_raw_osrs_id(raw_osrs_id);
+static inline OsrsInventoryClickResolution osrs_inventory_cell_click_classify(
+    const OsrsInventoryCell* cell
+) {
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(cell);
     return (OsrsInventoryClickResolution){
-        .click_action = consumable.click_action,
-        .consumable_kind = consumable.consumable_kind,
-        .dose_count = consumable.dose_count,
+        .click_action = (OsrsClickAction)metadata->click_action,
+        .consumable_kind = (OsrsConsumableKind)metadata->consumable_kind,
+        .dose_count = metadata->dose_count,
     };
 }
 
-static inline OsrsInventoryClickResolution osrs_inventory_click_interpret(
-    uint8_t item_idx,
-    uint16_t raw_osrs_id,
+static inline OsrsInventoryClickResolution osrs_inventory_cell_click_interpret(
+    const OsrsInventoryCell* cell,
     OsrsClickTickMultiplicity tick_multiplicity
 ) {
     switch (tick_multiplicity) {
@@ -613,30 +438,18 @@ static inline OsrsInventoryClickResolution osrs_inventory_click_interpret(
             osrs_inventory_clicks_trap();
     }
 
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(cell);
     OsrsInventoryClickResolution resolution =
-        osrs_inventory_click_classify(item_idx, raw_osrs_id);
-    if (resolution.click_action == OSRS_CLICK_DRINK &&
-            resolution.dose_count > 0) {
+        osrs_inventory_cell_click_classify(cell);
+    if (resolution.click_action == OSRS_CLICK_DRINK) {
         resolution.raw_osrs_id_after_drink =
-            osrs_consumable_raw_osrs_id_after_drink(raw_osrs_id);
+            metadata->next_content_code == 0
+                ? 0
+                : osrs_item_content_metadata(
+                    metadata->next_content_code)->raw_osrs_id;
     }
     return resolution;
-}
-
-static inline OsrsInventoryClickResolution osrs_inventory_cell_click_classify(
-    const OsrsInventoryCell* cell
-) {
-    return osrs_inventory_click_classify(cell->item_idx, cell->raw_osrs_id);
-}
-
-static inline OsrsInventoryClickResolution osrs_inventory_cell_click_interpret(
-    const OsrsInventoryCell* cell,
-    OsrsClickTickMultiplicity tick_multiplicity
-) {
-    return osrs_inventory_click_interpret(
-        cell->item_idx,
-        cell->raw_osrs_id,
-        tick_multiplicity);
 }
 
 static inline OsrsInventoryClickResolution osrs_inventory_snapshot_click_interpret(
@@ -649,48 +462,27 @@ static inline OsrsInventoryClickResolution osrs_inventory_snapshot_click_interpr
         abort();
     }
     return osrs_inventory_cell_click_interpret(
-        &snapshot->cells[slot],
-        tick_multiplicity);
-}
-
-static inline OsrsInventoryCell osrs_inventory_cell_from_raw_osrs_id(
-    uint16_t raw_osrs_id
-) {
-    if (raw_osrs_id == 0) return osrs_inventory_cell_empty();
-
-    uint8_t item_idx = osrs_item_index_for_raw_osrs_id(raw_osrs_id);
-    if (item_idx != ITEM_NONE) return osrs_inventory_cell_from_item(item_idx);
-
-    OsrsConsumableClick consumable =
-        osrs_consumable_click_lookup_raw_osrs_id(raw_osrs_id);
-    return (OsrsInventoryCell){
-        .item_idx = ITEM_NONE,
-        .raw_osrs_id = raw_osrs_id,
-        .dose = consumable.dose_count,
-    };
+        &snapshot->cells[slot], tick_multiplicity);
 }
 
 static inline void osrs_inventory_cell_decrement_drink(
     OsrsInventoryCell* cell,
     OsrsInventoryClickResolution resolution
 ) {
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(cell);
     if (resolution.click_action != OSRS_CLICK_DRINK ||
             resolution.dose_count == 0 ||
-            cell->dose != resolution.dose_count) {
-        fprintf(stderr, "inventory drink decrement: invalid cell raw=%u dose=%u action=%d resolved_dose=%u\n",
-            cell->raw_osrs_id, cell->dose, (int)resolution.click_action,
-            resolution.dose_count);
+            metadata->dose_count != resolution.dose_count ||
+            metadata->next_content_code == cell->content_code) {
+        fprintf(stderr,
+            "inventory drink decrement: invalid content=%u dose=%u action=%d resolved_dose=%u\n",
+            cell->content_code, metadata->dose_count,
+            (int)resolution.click_action, resolution.dose_count);
         abort();
     }
-
-    if (resolution.raw_osrs_id_after_drink == 0) {
-        *cell = osrs_inventory_cell_empty();
-        return;
-    }
-
-    cell->item_idx = ITEM_NONE;
-    cell->raw_osrs_id = resolution.raw_osrs_id_after_drink;
-    cell->dose = osrs_consumable_dose_count_after_drink(resolution.dose_count);
+    *cell = osrs_inventory_cell_from_content_code(
+        metadata->next_content_code);
 }
 
 static inline OsrsInventoryDrinkConsumeResult osrs_inventory_cell_consume_drink_one_dose(
@@ -704,12 +496,15 @@ static inline OsrsInventoryDrinkConsumeResult osrs_inventory_cell_consume_drink_
         fprintf(stderr, "inventory drink consume: null argument\n");
         abort();
     }
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(cell);
     if (resolution.click_action != OSRS_CLICK_DRINK ||
             resolution.dose_count == 0 ||
-            cell->dose != resolution.dose_count) {
-        fprintf(stderr, "inventory drink consume: invalid cell raw=%u dose=%u action=%d resolved_dose=%u\n",
-            cell->raw_osrs_id, cell->dose, (int)resolution.click_action,
-            resolution.dose_count);
+            metadata->dose_count != resolution.dose_count) {
+        fprintf(stderr,
+            "inventory drink consume: invalid content=%u dose=%u action=%d resolved_dose=%u\n",
+            cell->content_code, metadata->dose_count,
+            (int)resolution.click_action, resolution.dose_count);
         abort();
     }
 
@@ -720,7 +515,7 @@ static inline OsrsInventoryDrinkConsumeResult osrs_inventory_cell_consume_drink_
         .consumable_kind = resolution.consumable_kind,
         .dose_count_before = resolution.dose_count,
         .dose_count_after = dose_after,
-        .raw_osrs_id_before = cell->raw_osrs_id,
+        .raw_osrs_id_before = metadata->raw_osrs_id,
         .raw_osrs_id_after_drink = resolution.raw_osrs_id_after_drink,
     };
     if (*potion_timer > 0) return result;
@@ -736,118 +531,43 @@ static inline void osrs_inventory_cell_consume_eat(OsrsInventoryCell* cell) {
     *cell = osrs_inventory_cell_empty();
 }
 
-/* One dense code per distinguishable cell content. Gear keys on the item index; consumables
-   key on their click-registry entry, because a potion's raw id is what carries its kind and
-   its dose; every remaining present-but-inert raw id collapses onto a single code, since no
-   derived feature can tell two of them apart.
-
-   The code rides the observation divided by OSRS_INVENTORY_CELL_OBS_CODE_SCALE. The encoder's
-   global linear layer reads the WHOLE observation, so 28 raw codes near 200 sitting beside
-   894 features in [0,1] outweigh everything else by four orders of magnitude in the input
-   variance -- measured, and it cost episode_return 7.8 -> 0.6 with entropy collapsing 7.3 ->
-   1.9 over 30M steps. Scaling by a power of two only shifts the exponent, so a code that is
-   exact in bf16 stays exact and the gather's multiply-back is lossless; that is also why the
-   count must stay at or under the scale. */
-#define OSRS_CONSUMABLE_CLICK_REGISTRY_COUNT \
-    ((int)(sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY) / \
-           sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY[0])))
-#define OSRS_INVENTORY_CELL_OBS_CODE_EMPTY 0
-#define OSRS_INVENTORY_CELL_OBS_CODE_GEAR_BASE 1
-#define OSRS_INVENTORY_CELL_OBS_CODE_CONSUMABLE_BASE \
-    (OSRS_INVENTORY_CELL_OBS_CODE_GEAR_BASE + NUM_ITEMS)
-#define OSRS_INVENTORY_CELL_OBS_CODE_INERT \
-    (OSRS_INVENTORY_CELL_OBS_CODE_CONSUMABLE_BASE + OSRS_CONSUMABLE_CLICK_REGISTRY_COUNT)
-#define OSRS_INVENTORY_CELL_OBS_CODE_COUNT (OSRS_INVENTORY_CELL_OBS_CODE_INERT + 1)
-#define OSRS_INVENTORY_CELL_OBS_CODE_SCALE 256
-
-static inline float osrs_inventory_cell_obs_code_encode(int code) {
-    return (float)code / (float)OSRS_INVENTORY_CELL_OBS_CODE_SCALE;
+static inline float osrs_inventory_cell_obs_code_encode(uint16_t content_code) {
+    (void)osrs_item_content_metadata(content_code);
+    return (float)content_code / (float)OSRS_ITEM_OBS_CODE_SCALE;
 }
 
-static inline int osrs_inventory_cell_obs_code_decode(float observed) {
-    return (int)lrintf(observed * (float)OSRS_INVENTORY_CELL_OBS_CODE_SCALE);
-}
-
-/* Stands in for every present raw id that is neither gear nor a registered consumable. */
-#define OSRS_INVENTORY_CELL_INERT_RAW_OSRS_ID 0xFFFFu
-
-static inline int osrs_inventory_cell_obs_code(uint8_t item_idx, uint16_t raw_osrs_id) {
-    if (item_idx != ITEM_NONE) {
-        if (item_idx >= NUM_ITEMS) osrs_inventory_clicks_trap();
-        return OSRS_INVENTORY_CELL_OBS_CODE_GEAR_BASE + item_idx;
+static inline uint16_t osrs_inventory_cell_obs_code_decode(float observed) {
+    int content_code =
+        (int)lrintf(observed * (float)OSRS_ITEM_OBS_CODE_SCALE);
+    if (content_code < 0 || content_code >= OSRS_ITEM_CONTENT_COUNT) {
+        fprintf(stderr, "inventory observation: invalid content code %d\n",
+            content_code);
+        abort();
     }
-    if (raw_osrs_id == 0) return OSRS_INVENTORY_CELL_OBS_CODE_EMPTY;
-    int index = osrs_consumable_click_registry_index(raw_osrs_id);
-    return index >= 0
-        ? OSRS_INVENTORY_CELL_OBS_CODE_CONSUMABLE_BASE + index
-        : OSRS_INVENTORY_CELL_OBS_CODE_INERT;
+    return (uint16_t)content_code;
 }
 
-static inline OsrsInventoryCell osrs_inventory_cell_for_obs_code(int code) {
-    if (code < 0 || code >= OSRS_INVENTORY_CELL_OBS_CODE_COUNT) {
-        osrs_inventory_clicks_trap();
-    }
-    if (code == OSRS_INVENTORY_CELL_OBS_CODE_EMPTY) return osrs_inventory_cell_empty();
-    if (code < OSRS_INVENTORY_CELL_OBS_CODE_CONSUMABLE_BASE) {
-        return osrs_inventory_cell_from_item(
-            (uint8_t)(code - OSRS_INVENTORY_CELL_OBS_CODE_GEAR_BASE));
-    }
-    if (code < OSRS_INVENTORY_CELL_OBS_CODE_INERT) {
-        return osrs_inventory_cell_from_raw_osrs_id(
-            OSRS_CONSUMABLE_CLICK_REGISTRY[
-                code - OSRS_INVENTORY_CELL_OBS_CODE_CONSUMABLE_BASE].raw_osrs_id);
-    }
-    return (OsrsInventoryCell){
-        .item_idx = ITEM_NONE,
-        .raw_osrs_id = OSRS_INVENTORY_CELL_INERT_RAW_OSRS_ID,
-        .dose = 0,
-    };
-}
-
-/* The generated item-table row: the full compact record at the table's fixed base stats.
-   Equipped is supplied by each observation and is the only zeroed slot. */
-static inline void osrs_write_inventory_cell_obs_table_row(
-    float* out,
-    int code,
-    int base_hitpoints,
-    int base_prayer,
-    int base_ranged
-) {
-    OsrsInventoryCell cell = osrs_inventory_cell_for_obs_code(code);
-    osrs_write_inventory_cell_affordance_features_compact(
-        out, cell.item_idx, cell.raw_osrs_id, cell.dose, 0,
-        base_hitpoints, base_prayer, base_ranged);
-
-    out[OSRS_INVENTORY_CELL_COMPACT_EQUIPPED] = 0.0f;
-}
-
-/* The other half of the same record. Projecting both sides off one compact write is what
-   makes them complementary: a change to the affordance reaches the table and the
-   observation together instead of drifting between them. */
 static inline void osrs_write_inventory_cell_obs_code_features(
     float* out,
-    uint8_t item_idx,
-    uint16_t raw_osrs_id,
-    uint8_t dose,
+    const OsrsInventoryCell* cell,
     int is_equipped,
-    int base_hitpoints,
-    int base_prayer,
-    int base_level
+    int base_hitpoints
 ) {
-    float compact[OSRS_INVENTORY_CELL_OBS_FEATURES_COMPACT];
-    osrs_write_inventory_cell_affordance_features_compact(
-        compact, item_idx, raw_osrs_id, dose, is_equipped,
-        base_hitpoints, base_prayer, base_level);
-
-    int is_gear = compact[OSRS_INVENTORY_CELL_COMPACT_IS_ARMOR] != 0.0f ||
-        compact[OSRS_INVENTORY_CELL_COMPACT_IS_WEAPON] != 0.0f;
-
-    out[OSRS_INVENTORY_CELL_OBS_CODE] = osrs_inventory_cell_obs_code_encode(
-        osrs_inventory_cell_obs_code(item_idx, raw_osrs_id));
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(cell);
+    out[OSRS_INVENTORY_CELL_OBS_CODE] =
+        osrs_inventory_cell_obs_code_encode(cell->content_code);
     out[OSRS_INVENTORY_CELL_OBS_EQUIPPED] =
-        compact[OSRS_INVENTORY_CELL_COMPACT_EQUIPPED];
+        is_equipped ? 1.0f : 0.0f;
+    if (metadata->item != NULL || base_hitpoints <= 0) {
+        out[OSRS_INVENTORY_CELL_OBS_HP_HEAL] = 0.0f;
+        return;
+    }
+    int hp_heal = osrs_consumable_hp_heal_amount(
+        (OsrsConsumableKind)metadata->consumable_kind,
+        base_hitpoints);
     out[OSRS_INVENTORY_CELL_OBS_HP_HEAL] =
-        is_gear ? 0.0f : compact[OSRS_INVENTORY_CELL_COMPACT_HP_HEAL];
+        osrs_clamp_unit((float)hp_heal / (float)base_hitpoints);
 }
 
 /* Rebuilds the compact record, overwrites equipped, and overwrites HP-heal only for non-gear. */

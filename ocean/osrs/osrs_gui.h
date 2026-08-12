@@ -2065,8 +2065,12 @@ static const char* gui_inv_primary_action_label(const InvSlot* inv) {
     uint8_t item_idx = inv->type == INV_SLOT_EQUIPMENT
         ? inv->item_db_idx
         : ITEM_NONE;
-    OsrsInventoryClickResolution resolution = osrs_inventory_click_interpret(
-        item_idx, raw_osrs_id, OSRS_CLICK_TICK_FIRST);
+    OsrsInventoryCell cell = item_idx == ITEM_NONE
+        ? osrs_inventory_cell_from_raw_osrs_id(raw_osrs_id)
+        : osrs_inventory_cell_from_item(item_idx);
+    OsrsInventoryClickResolution resolution =
+        osrs_inventory_cell_click_interpret(
+            &cell, OSRS_CLICK_TICK_FIRST);
     switch (resolution.click_action) {
         case OSRS_CLICK_EQUIP: {
             int gear_slot = item_idx != ITEM_NONE ? item_to_gear_slot(item_idx) : -1;

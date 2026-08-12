@@ -271,7 +271,8 @@ static int col_inventory_cell_actionable(const ColosseumState* s, int cell_idx) 
         osrs_inventory_cell_click_interpret(cell, OSRS_CLICK_TICK_FIRST);
     if (r.click_action == OSRS_CLICK_EQUIP) return col_can_equip_from_cell(s, cell_idx);
     if (r.click_action == OSRS_CLICK_DRINK)
-        return cell->dose > 0 && s->player.potion_timer == 0 &&
+        return osrs_inventory_cell_dose_count(cell) > 0 &&
+               s->player.potion_timer == 0 &&
                col_drink_has_effect(s, r.consumable_kind);
     if (r.click_action == OSRS_CLICK_EAT)
         return col_can_eat_consumable_kind(s, r.consumable_kind);
@@ -391,6 +392,8 @@ static void col_apply_drink_one_dose_effect(void* ctx, OsrsConsumableKind kind) 
         case OSRS_CONSUMABLE_STAMINA:
             fprintf(stderr, "colosseum: consumable kind %d not in colosseum kits\n", (int)kind);
             abort();
+        case OSRS_CONSUMABLE_COUNT:
+            break;
     }
     abort();
 }

@@ -23,10 +23,11 @@ static inline int osrs_inventory_cell_holds_equipped_item(
     int cell_idx
 ) {
     const OsrsInventoryCell* cell = &cells[cell_idx];
-    if (cell->item_idx == ITEM_NONE) return 0;
-    int slot = osrs_item_gear_slot(cell->item_idx);
-    if (slot < 0) return 0;
-    return p->equipped[slot] == cell->item_idx;
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(cell);
+    if (metadata->item_idx == ITEM_NONE) return 0;
+    if (metadata->gear_slot < 0) return 0;
+    return p->equipped[metadata->gear_slot] == metadata->item_idx;
 }
 
 static inline int osrs_can_equip_from_cell(
@@ -35,11 +36,11 @@ static inline int osrs_can_equip_from_cell(
     int cell_idx
 ) {
     const OsrsInventoryCell* cell = &cells[cell_idx];
-    if (cell->item_idx == ITEM_NONE) return 0;
+    uint8_t item_idx = osrs_inventory_cell_item_index(cell);
+    if (item_idx == ITEM_NONE) return 0;
     if (osrs_inventory_cell_holds_equipped_item(p, cells, cell_idx)) return 0;
 
-    uint8_t item_idx = cell->item_idx;
-    int gear_slot = osrs_item_gear_slot(item_idx);
+    int gear_slot = osrs_inventory_cell_metadata(cell)->gear_slot;
     if (gear_slot < 0) return 0;
     if (gear_slot == GEAR_SLOT_WEAPON && item_is_two_handed(item_idx) &&
             p->equipped[GEAR_SLOT_SHIELD] != ITEM_NONE &&
@@ -62,8 +63,10 @@ static inline int osrs_equip_from_cell(
     if (!osrs_can_equip_from_cell(p, cells, cell_idx)) return -1;
 
     OsrsInventoryCell* cell = &cells[cell_idx];
-    uint8_t item_idx = cell->item_idx;
-    int gear_slot = osrs_item_gear_slot(item_idx);
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(cell);
+    uint8_t item_idx = metadata->item_idx;
+    int gear_slot = metadata->gear_slot;
     if (gear_slot < 0) {
         fprintf(stderr, "inventory equip: item %u has no gear slot\n", item_idx);
         abort();
@@ -123,6 +126,8 @@ static inline int osrs_can_eat_consumable_kind(
         case OSRS_CONSUMABLE_STAMINA:
         case OSRS_CONSUMABLE_NONE:
             return 0;
+        case OSRS_CONSUMABLE_COUNT:
+            break;
     }
     abort();
 }
@@ -172,7 +177,8 @@ static inline OsrsInventoryTickIntent osrs_resolve_inventory_tick_intent(
         if (action <= 0 || action > OSRS_INVENTORY_SIZE) continue;
         int cell_idx = action - 1;
         if (!osrs_can_equip_from_cell(p, cells, cell_idx)) continue;
-        int gear_slot = osrs_item_gear_slot(cells[cell_idx].item_idx);
+        int gear_slot = osrs_inventory_cell_metadata(
+            &cells[cell_idx])->gear_slot;
         if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) {
             fprintf(stderr, "inventory equip intent: invalid gear slot %d\n", gear_slot);
             abort();
@@ -199,7 +205,7 @@ static inline OsrsInventoryTickIntent osrs_resolve_inventory_tick_intent(
         OsrsInventoryClickResolution resolution =
             osrs_inventory_cell_click_interpret(&cells[cell_idx], OSRS_CLICK_TICK_FIRST);
         if (resolution.click_action == OSRS_CLICK_DRINK &&
-                cells[cell_idx].dose > 0 &&
+                osrs_inventory_cell_dose_count(&cells[cell_idx]) > 0 &&
                 p->potion_timer == 0) {
             intent.drink_cell = cell_idx;
             intent.drink_order = NUM_GEAR_SLOTS + 1;

@@ -37,11 +37,13 @@ static void col_write_mask_ctx(
             osrs_inventory_cell_click_classify(&s->inventory_cells[cell]);
         if (r.click_action == OSRS_CLICK_EQUIP) {
             if (col_can_equip_from_cell(s, cell))
-                cell_equip_slot[cell] = osrs_item_gear_slot(s->inventory_cells[cell].item_idx);
+                cell_equip_slot[cell] = osrs_inventory_cell_metadata(
+                    &s->inventory_cells[cell])->gear_slot;
         } else if (r.click_action == OSRS_CLICK_EAT) {
             cell_can_eat[cell] = col_can_eat_consumable_kind(s, r.consumable_kind);
         } else if (r.click_action == OSRS_CLICK_DRINK) {
-            cell_can_drink[cell] = s->inventory_cells[cell].dose > 0 &&
+            cell_can_drink[cell] = osrs_inventory_cell_dose_count(
+                &s->inventory_cells[cell]) > 0 &&
                 s->player.potion_timer == 0 &&
                 col_drink_has_effect(s, r.consumable_kind);
         }

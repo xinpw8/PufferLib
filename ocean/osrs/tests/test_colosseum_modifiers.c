@@ -194,7 +194,8 @@ static int test_obs_slot_for_npc(const ColosseumState* s, int npc_idx) {
 
 static int test_find_inventory_cell_with_item(const ColosseumState* s, uint8_t item_idx) {
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++)
-        if (s->inventory_cells[i].item_idx == item_idx) return i;
+        if (osrs_inventory_cell_item_index(
+                &s->inventory_cells[i]) == item_idx) return i;
     return -1;
 }
 
@@ -218,7 +219,8 @@ static void test_click_inventory_cell_action_s(
     OsrsInventoryClickResolution r =
         osrs_inventory_cell_click_interpret(&s->inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
     if (r.click_action == OSRS_CLICK_EQUIP) {
-        int slot = osrs_item_gear_slot(s->inventory_cells[cell].item_idx);
+        int slot =
+            osrs_inventory_cell_metadata(&s->inventory_cells[cell])->gear_slot;
         assert(slot >= 0 && slot < NUM_GEAR_SLOTS);
         actions[COLO_HEAD_EQUIP_SLOT(slot)] = cell + 1;
     } else if (r.click_action == OSRS_CLICK_EAT) {
@@ -245,7 +247,8 @@ static float test_click_mask_for_cell_s(
         osrs_inventory_cell_click_interpret(&s->inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
     int head;
     if (r.click_action == OSRS_CLICK_EQUIP) {
-        int slot = osrs_item_gear_slot(s->inventory_cells[cell].item_idx);
+        int slot =
+            osrs_inventory_cell_metadata(&s->inventory_cells[cell])->gear_slot;
         head = (slot >= 0 && slot < NUM_GEAR_SLOTS) ? COLO_HEAD_EQUIP_SLOT(slot)
                                                     : COLO_HEAD_EQUIP_SLOT(0);
     } else if (r.click_action == OSRS_CLICK_EAT) {
@@ -267,7 +270,8 @@ static int test_sum_inventory_doses_for_kind(
         const ColoInvCell* cell = &s->inventory_cells[i];
         OsrsInventoryClickResolution r =
             osrs_inventory_cell_click_interpret(cell, OSRS_CLICK_TICK_FIRST);
-        if (r.consumable_kind == kind) doses += cell->dose;
+        if (r.consumable_kind == kind)
+            doses += osrs_inventory_cell_dose_count(cell);
     }
     return doses;
 }
@@ -301,6 +305,8 @@ static int test_aggregate_doses_for_kind(
         case OSRS_CONSUMABLE_BASTION:
         case OSRS_CONSUMABLE_STAMINA:
             return -1;
+        case OSRS_CONSUMABLE_COUNT:
+            break;
     }
     abort();
 }
@@ -391,22 +397,23 @@ static TestDroppedInventoryFields test_expected_dropped_inventory_fields(
     int cell_idx
 ) {
     const ColoInvCell* cell = &s->inventory_cells[cell_idx];
-    OsrsConsumableClick consumable =
-        osrs_consumable_click_lookup_raw_osrs_id(cell->raw_osrs_id);
-    uint32_t effect_mask = OSRS_ITEM_EFFECT_NONE;
-    if (cell->item_idx != ITEM_NONE) {
-        if (cell->item_idx >= NUM_ITEMS) abort();
-        effect_mask = ITEM_DATABASE[cell->item_idx].effect_mask;
-    }
-    OsrsConsumableKind6 k6 = col_consumable_kind6(consumable.consumable_kind);
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(cell);
+    uint32_t effect_mask = metadata->item == NULL
+        ? OSRS_ITEM_EFFECT_NONE
+        : metadata->item->effect_mask;
+    OsrsConsumableKind6 k6 = col_consumable_kind6(
+        (OsrsConsumableKind)metadata->consumable_kind);
 
     return (TestDroppedInventoryFields){
-        .is_gear = test_binary_float(cell->item_idx != ITEM_NONE),
-        .is_consumable = test_binary_float(consumable.click_action != OSRS_CLICK_NONE),
+        .is_gear = test_binary_float(metadata->item != NULL),
+        .is_consumable = test_binary_float(
+            metadata->consumable_kind != OSRS_CONSUMABLE_NONE),
         .can_use = test_binary_float(col_inventory_cell_actionable(s, cell_idx)),
         .has_effect = test_binary_float(effect_mask != OSRS_ITEM_EFFECT_NONE),
-        .role_food = test_binary_float(consumable.click_action == OSRS_CLICK_EAT),
-        .role_potion_family = test_binary_float(consumable.click_action == OSRS_CLICK_DRINK),
+        .role_food = test_binary_float(metadata->click_action == OSRS_CLICK_EAT),
+        .role_potion_family = test_binary_float(
+            metadata->click_action == OSRS_CLICK_DRINK),
         .kind_food = test_binary_float(k6 == COL_CKIND6_FOOD),
     };
 }
@@ -495,7 +502,8 @@ static int test_count_item_in_equipment_and_inventory(
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
         if (s->player.equipped[slot] == item_idx) count++;
     for (int slot = 0; slot < COLO_INVENTORY_DISPLAY_SLOTS; slot++)
-        if (s->inventory_cells[slot].item_idx == item_idx) count++;
+        if (osrs_inventory_cell_item_index(
+                &s->inventory_cells[slot]) == item_idx) count++;
     return count;
 }
 
@@ -3331,7 +3339,7 @@ static void test_manticore_telegraph_during_windup(void) {
 static int late_start_total_doses(const ColosseumState* s) {
     int total = 0;
     for (int c = 0; c < COLO_INVENTORY_DISPLAY_SLOTS; c++)
-        total += s->inventory_cells[c].dose;
+        total += osrs_inventory_cell_dose_count(&s->inventory_cells[c]);
     return total;
 }
 
@@ -5334,8 +5342,8 @@ static void test_loadout_divine_potions_and_stat_drift(void) {
     s.divine_ranged_timer = 234;
     ColoSnapshot snap;
     col_snapshot_ctx((EncounterState*)&s, (EncounterContext*)&ctx, &snap);
-    CHECK("snapshot version is v23 for interaction route state",
-        snap.version == COLO_SNAPSHOT_VERSION && COLO_SNAPSHOT_VERSION == 23u);
+    CHECK("snapshot version is v24 for canonical inventory identity",
+        snap.version == COLO_SNAPSHOT_VERSION && COLO_SNAPSHOT_VERSION == 24u);
     ColosseumState restored;
     memset(&restored, 0, sizeof(restored));
     col_restore_ctx((EncounterState*)&restored, (EncounterContext*)&ctx, &snap, sizeof(snap));
@@ -6166,7 +6174,7 @@ static void test_combat_fidelity_contract_sizes(void) {
     CHECK("modifier block has 60 features", COLO_MODIFIER_OBS_SIZE == 60);
     CHECK("NPC slots carry a type code, not a type one-hot",
         COLO_FEATURES_PER_NPC == 23);
-    CHECK("snapshot version is v23", COLO_SNAPSHOT_VERSION == 23u);
+    CHECK("snapshot version is v24", COLO_SNAPSHOT_VERSION == 24u);
     CHECK("every active NPC gets an obs slot (no busy-wave drop)",
         COLO_OBS_NPCS == 24 && COLO_OBS_NPCS == COLO_MAX_NPCS);
     CHECK("PRIMARY head covers noop, movement, and NPC obs slots",
@@ -6838,7 +6846,7 @@ static void test_combat_fidelity_snapshot_roundtrip(void) {
 
     ColoSnapshot snap;
     col_snapshot_ctx((EncounterState*)&s, (EncounterContext*)&ctx, &snap);
-    CHECK("snapshot frame is v23", snap.version == 23u);
+    CHECK("snapshot frame is v24", snap.version == 24u);
 
     ColosseumState restored;
     memset(&restored, 0, sizeof(restored));
@@ -7640,7 +7648,8 @@ static void test_colosseum_inventory_memo_tracks_gear_swaps(void) {
 
     int cell = -1, slot = -1;
     for (int c = 0; c < COLO_INVENTORY_DISPLAY_SLOTS; c++) {
-        uint8_t it = s.inventory_cells[c].item_idx;
+        uint8_t it =
+            osrs_inventory_cell_item_index(&s.inventory_cells[c]);
         if (it == ITEM_NONE) continue;
         int gs = osrs_item_gear_slot(it);
         if (gs < 0) continue;
@@ -7654,7 +7663,8 @@ static void test_colosseum_inventory_memo_tracks_gear_swaps(void) {
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs_a);
 
     /* Equip it directly. No cell changes, so the memo key is untouched. */
-    s.player.equipped[slot] = s.inventory_cells[cell].item_idx;
+    s.player.equipped[slot] =
+        osrs_inventory_cell_item_index(&s.inventory_cells[cell]);
     CHECK("a gear swap alone does not move the memo key",
         col_inventory_obs_signature(&s) == sig_before);
 
@@ -7762,11 +7772,8 @@ static void test_colosseum_live_inventory_display(void) {
     col_build_live_inventory_display(&s, kit);
     CHECK("surge vial shows 3-dose after a drink", kit[12] == 30878);
 
-    s.inventory_cells[brew_cell] = (ColoInvCell){
-        .raw_osrs_id = 6691,
-        .item_idx = ITEM_NONE,
-        .dose = 1,
-    };
+    s.inventory_cells[brew_cell] =
+        osrs_inventory_cell_from_raw_osrs_id(6691);
     s.player.potion_timer = 0;
     s.player.current_hitpoints = 50;
     int last_brew[COLO_NUM_ACTION_HEADS] = {0};
@@ -7796,7 +7803,8 @@ static void test_stage3_t1_inventory_ranged_weapon_swap(void) {
     CHECK("T1 ranged weapon click equips tbow",
         s.player.equipped[GEAR_SLOT_WEAPON] == ITEM_TWISTED_BOW);
     CHECK("T1 displaced melee weapon returns to clicked cell",
-        s.inventory_cells[bow_cell].item_idx == melee_weapon);
+        osrs_inventory_cell_item_index(
+            &s.inventory_cells[bow_cell]) == melee_weapon);
 }
 
 static void test_stage3_t1_inventory_weapon_slot_last_click_wins(void) {
@@ -7813,7 +7821,8 @@ static void test_stage3_t1_inventory_weapon_slot_last_click_wins(void) {
     CHECK("weapon equip head equips the named weapon",
         s.player.equipped[GEAR_SLOT_WEAPON] == ITEM_DRAGON_CLAWS);
     CHECK("unclicked weapon stays in its inventory cell",
-        s.inventory_cells[bow_cell].item_idx == ITEM_TWISTED_BOW);
+        osrs_inventory_cell_item_index(
+            &s.inventory_cells[bow_cell]) == ITEM_TWISTED_BOW);
 }
 
 static void test_stage3_t1_human_inventory_primary_click_uses_resolver(void) {
@@ -7837,7 +7846,8 @@ static void test_stage3_t1_human_inventory_primary_click_uses_resolver(void) {
     CHECK("human inventory clicks use last-click-wins semantics",
         s.player.equipped[GEAR_SLOT_WEAPON] == ITEM_DRAGON_CLAWS);
     CHECK("human earlier same-slot click is ignored",
-        s.inventory_cells[bow_cell].item_idx == ITEM_TWISTED_BOW);
+        osrs_inventory_cell_item_index(
+            &s.inventory_cells[bow_cell]) == ITEM_TWISTED_BOW);
     human_input_destroy(&hi);
 }
 
@@ -7856,15 +7866,17 @@ static void test_stage3_t1_human_rearrange_swaps_inventory_slots(void) {
         &hi,
         bow_cell,
         claws_cell,
-        s.inventory_cells[bow_cell].item_idx,
-        s.inventory_cells[bow_cell].raw_osrs_id);
+        osrs_inventory_cell_item_index(&s.inventory_cells[bow_cell]),
+        osrs_inventory_cell_raw_osrs_id(&s.inventory_cells[bow_cell]));
     int actions[COLO_NUM_ACTION_HEADS] = {0};
     col_translate_human_commands_ctx(&hi, actions, &s, &ctx);
 
     CHECK("human rearrange moves bow to target slot",
-        s.inventory_cells[claws_cell].item_idx == ITEM_TWISTED_BOW);
+        osrs_inventory_cell_item_index(
+            &s.inventory_cells[claws_cell]) == ITEM_TWISTED_BOW);
     CHECK("human rearrange moves claws to source slot",
-        s.inventory_cells[bow_cell].item_idx == ITEM_DRAGON_CLAWS);
+        osrs_inventory_cell_item_index(
+            &s.inventory_cells[bow_cell]) == ITEM_DRAGON_CLAWS);
     CHECK("human rearrange leaves action space heads unchanged",
         COLO_NUM_ACTION_HEADS == 20 && COLO_ACTION_DIMS[COLO_HEAD_EQUIP_BASE] == 29);
     human_input_destroy(&hi);
@@ -7882,8 +7894,8 @@ static void test_stage3_t2_brew_click_decrements_dose(void) {
     step_and_observe(&s, &ctx, actions);
     CHECK("T2 brew raises HP", s.player.current_hitpoints > 50);
     CHECK("T2 brew cell dose drops 4 to 3",
-        s.inventory_cells[brew_cell].dose == 3 &&
-        s.inventory_cells[brew_cell].raw_osrs_id == 6687);
+        osrs_inventory_cell_dose_count(&s.inventory_cells[brew_cell]) == 3 &&
+        osrs_inventory_cell_raw_osrs_id(&s.inventory_cells[brew_cell]) == 6687);
     CHECK("T2 brew starts potion timer", s.player.potion_timer == 3);
 }
 
@@ -7893,19 +7905,14 @@ static void test_stage3_t3_one_dose_vial_empties(void) {
     ColosseumState s;
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_BEGINNER_ONLY, 0.0f, 503);
     int brew_cell = test_find_inventory_cell_with_consumable(&s, OSRS_CONSUMABLE_BREW);
-    s.inventory_cells[brew_cell] = (ColoInvCell){
-        .raw_osrs_id = 6691,
-        .item_idx = ITEM_NONE,
-        .dose = 1,
-    };
+    s.inventory_cells[brew_cell] =
+        osrs_inventory_cell_from_raw_osrs_id(6691);
     s.player.current_hitpoints = 50;
     int actions[COLO_NUM_ACTION_HEADS] = {0};
     test_click_inventory_cell_action_s(&s, actions, brew_cell);
     step_and_observe(&s, &ctx, actions);
     CHECK("T3 one-dose vial cell becomes empty",
-        s.inventory_cells[brew_cell].raw_osrs_id == 0 &&
-        s.inventory_cells[brew_cell].item_idx == ITEM_NONE &&
-        s.inventory_cells[brew_cell].dose == 0);
+        osrs_inventory_cell_is_empty(&s.inventory_cells[brew_cell]));
 }
 
 static void test_colosseum_potion_click_source_of_truth(void) {
@@ -7924,7 +7931,8 @@ static void test_colosseum_potion_click_source_of_truth(void) {
     test_click_inventory_cell_action_s(&s, actions, restore_cell);
     step_and_observe(&s, &ctx, actions);
     CHECK("super restore consumes exactly one clicked-cell dose",
-        s.inventory_cells[restore_cell].dose == 3);
+        osrs_inventory_cell_dose_count(
+            &s.inventory_cells[restore_cell]) == 3);
     CHECK("super restore aggregate is rebuilt from cells",
         s.player.restore_doses == restore_sum_before - 1);
 
@@ -7937,7 +7945,8 @@ static void test_colosseum_potion_click_source_of_truth(void) {
     test_click_inventory_cell_action_s(&s, actions, sanfew_cell);
     step_and_observe(&s, &ctx, actions);
     CHECK("sanfew consumes exactly one clicked-cell dose",
-        s.inventory_cells[sanfew_cell].dose == 3);
+        osrs_inventory_cell_dose_count(
+            &s.inventory_cells[sanfew_cell]) == 3);
     CHECK("sanfew aggregate is rebuilt from cells",
         s.player.restore_doses == sanfew_sum_before - 1);
 
@@ -7952,7 +7961,8 @@ static void test_colosseum_potion_click_source_of_truth(void) {
     test_click_inventory_cell_action_s(&s, actions, divine_cell);
     step_and_observe(&s, &ctx, actions);
     CHECK("divine combat consumes exactly one clicked-cell dose",
-        s.inventory_cells[divine_cell].dose == 3);
+        osrs_inventory_cell_dose_count(
+            &s.inventory_cells[divine_cell]) == 3);
     CHECK("divine combat aggregate is rebuilt from cells",
         s.player.combat_potion_doses == divine_sum_before - 1);
     CHECK("divine combat drink starts the potion timer", s.player.potion_timer == 3);
@@ -7967,7 +7977,8 @@ static void test_colosseum_potion_click_source_of_truth(void) {
     test_click_inventory_cell_action_s(&s, actions, restore_cell);
     step_and_observe(&s, &ctx, actions);
     CHECK("low-missing-prayer restore click still consumes one dose",
-        s.inventory_cells[restore_cell].dose == 3);
+        osrs_inventory_cell_dose_count(
+            &s.inventory_cells[restore_cell]) == 3);
     CHECK("low-missing-prayer restore rebuilds aggregate from cells",
         s.player.restore_doses == restore_sum_before - 1);
 }
@@ -7983,12 +7994,14 @@ static void test_colosseum_potion_timer_and_same_tick_gate(void) {
     int brew[COLO_NUM_ACTION_HEADS] = {0};
     test_click_inventory_cell_action_s(&s, brew, brew_cell);
     step_and_observe(&s, &ctx, brew);
-    int brew_dose_after_first = s.inventory_cells[brew_cell].dose;
+    int brew_dose_after_first =
+        osrs_inventory_cell_dose_count(&s.inventory_cells[brew_cell]);
     int brew_aggregate_after_first = s.player.brew_doses;
     s.player.current_hitpoints = 50;
     step_and_observe(&s, &ctx, brew);
     CHECK("second potion click before timer expiry is blocked",
-        s.inventory_cells[brew_cell].dose == brew_dose_after_first &&
+        osrs_inventory_cell_dose_count(
+            &s.inventory_cells[brew_cell]) == brew_dose_after_first &&
         s.player.brew_doses == brew_aggregate_after_first &&
         s.player.potion_timer == 2);
 
@@ -8002,8 +8015,10 @@ static void test_colosseum_potion_timer_and_same_tick_gate(void) {
     drink_one[COLO_HEAD_DRINK] = divine_cell + 1;
     step_and_observe(&s, &ctx, drink_one);
     CHECK("the drink head consumes exactly one potion per tick",
-        s.inventory_cells[divine_cell].dose == 3 &&
-        s.inventory_cells[sanfew_cell].dose == 4);
+        osrs_inventory_cell_dose_count(
+            &s.inventory_cells[divine_cell]) == 3 &&
+        osrs_inventory_cell_dose_count(
+            &s.inventory_cells[sanfew_cell]) == 4);
 
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 515);
     sanfew_cell = test_find_inventory_cell_with_consumable(&s, OSRS_CONSUMABLE_SANFEW);
@@ -8012,10 +8027,13 @@ static void test_colosseum_potion_timer_and_same_tick_gate(void) {
     int drink_again[COLO_NUM_ACTION_HEADS] = {0};
     drink_again[COLO_HEAD_DRINK] = sanfew_cell + 1;
     step_and_observe(&s, &ctx, drink_again);
-    CHECK("first drink consumes one dose", s.inventory_cells[sanfew_cell].dose == 3);
+    CHECK("first drink consumes one dose",
+        osrs_inventory_cell_dose_count(
+            &s.inventory_cells[sanfew_cell]) == 3);
     step_and_observe(&s, &ctx, drink_again);
     CHECK("second drink before potion timer expiry is blocked",
-        s.inventory_cells[sanfew_cell].dose == 3);
+        osrs_inventory_cell_dose_count(
+            &s.inventory_cells[sanfew_cell]) == 3);
 }
 
 typedef struct {
@@ -8065,8 +8083,10 @@ static void test_colosseum_all_drink_kinds_shared_one_dose_path(void) {
         char label[160];
         snprintf(label, sizeof(label), "%s first click decrements one dose", c->label);
         CHECK(label,
-            s.inventory_cells[cell].raw_osrs_id == expected_after_first &&
-            s.inventory_cells[cell].dose == expected_dose_after_first);
+            osrs_inventory_cell_raw_osrs_id(
+                &s.inventory_cells[cell]) == expected_after_first &&
+            osrs_inventory_cell_dose_count(
+                &s.inventory_cells[cell]) == expected_dose_after_first);
         snprintf(label, sizeof(label), "%s first click arms potion timer", c->label);
         CHECK(label, s.player.potion_timer == 3);
         int aggregate = test_aggregate_doses_for_kind(&s, c->kind);
@@ -8079,13 +8099,17 @@ static void test_colosseum_all_drink_kinds_shared_one_dose_path(void) {
         if (!c->raw4) {
             s.inventory_cells[cell] = osrs_inventory_cell_from_raw_osrs_id(c->raw1);
         }
-        uint16_t raw_before_gate = s.inventory_cells[cell].raw_osrs_id;
-        uint8_t dose_before_gate = s.inventory_cells[cell].dose;
+        uint16_t raw_before_gate =
+            osrs_inventory_cell_raw_osrs_id(&s.inventory_cells[cell]);
+        uint8_t dose_before_gate =
+            osrs_inventory_cell_dose_count(&s.inventory_cells[cell]);
         step_and_observe(&s, &ctx, actions);
         snprintf(label, sizeof(label), "%s timer gate blocks next click", c->label);
         CHECK(label,
-            s.inventory_cells[cell].raw_osrs_id == raw_before_gate &&
-            s.inventory_cells[cell].dose == dose_before_gate);
+            osrs_inventory_cell_raw_osrs_id(
+                &s.inventory_cells[cell]) == raw_before_gate &&
+            osrs_inventory_cell_dose_count(
+                &s.inventory_cells[cell]) == dose_before_gate);
 
         const uint16_t chain[] = {c->raw4, c->raw3, c->raw2, c->raw1, 0};
         int start = c->raw4 ? 0 : 3;
@@ -8097,10 +8121,12 @@ static void test_colosseum_all_drink_kinds_shared_one_dose_path(void) {
             test_click_inventory_cell_action_s(&s, actions, cell);
             step_and_observe(&s, &ctx, actions);
             snprintf(label, sizeof(label), "%s chain step %d raw id", c->label, step);
-            CHECK(label, s.inventory_cells[cell].raw_osrs_id == chain[step + 1]);
+            CHECK(label, osrs_inventory_cell_raw_osrs_id(
+                &s.inventory_cells[cell]) == chain[step + 1]);
             uint8_t expected_dose = chain[step + 1] == 0 ? 0 : (uint8_t)(3 - step);
             snprintf(label, sizeof(label), "%s chain step %d dose", c->label, step);
-            CHECK(label, s.inventory_cells[cell].dose == expected_dose);
+            CHECK(label, osrs_inventory_cell_dose_count(
+                &s.inventory_cells[cell]) == expected_dose);
         }
     }
 }
@@ -8182,7 +8208,7 @@ static void test_stage3_t4_click_mask_bits(void) {
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 504);
     int equipped_scythe_cell = test_find_inventory_cell_with_item(&s, ITEM_SCYTHE_OF_VITUR);
     int empty_cell = 27;
-    s.inventory_cells[empty_cell] = (ColoInvCell){ .item_idx = ITEM_NONE };
+    s.inventory_cells[empty_cell] = osrs_inventory_cell_empty();
     int brew_cell = test_find_inventory_cell_with_consumable(&s, OSRS_CONSUMABLE_BREW);
     s.player.current_hitpoints = 50;
     float mask[COLO_ACTION_MASK_SIZE];
@@ -8408,7 +8434,8 @@ static void test_modifier_draft_forces_pick(void) {
 
 static int colo_test_cell_of_named_item(const ColosseumState* s, const char* name) {
     for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
-        uint8_t item = s->inventory_cells[c].item_idx;
+        uint8_t item =
+            osrs_inventory_cell_item_index(&s->inventory_cells[c]);
         if (item == ITEM_NONE) continue;
         const Item* meta = get_item(item);
         if (meta && strcmp(meta->name, name) == 0) return c;
@@ -8431,19 +8458,20 @@ static float test_through_bf16(float v) {
 static void test_item_obs_code_survives_bf16(void) {
     printf("test_item_obs_code_survives_bf16\n");
     int worst = -1;
-    for (int code = 0; code < OSRS_INVENTORY_CELL_OBS_CODE_COUNT; code++) {
+    for (int code = 0; code < OSRS_ITEM_CONTENT_COUNT; code++) {
         float observed = test_through_bf16(osrs_inventory_cell_obs_code_encode(code));
         if (osrs_inventory_cell_obs_code_decode(observed) != code) worst = code;
     }
     CHECK("every item code round-trips through bf16", worst < 0);
     CHECK("the code stays inside the unit range the rest of the observation lives in",
-        osrs_inventory_cell_obs_code_encode(OSRS_INVENTORY_CELL_OBS_CODE_COUNT - 1) <= 1.0f);
+        osrs_inventory_cell_obs_code_encode(
+            OSRS_ITEM_CONTENT_COUNT - 1) <= 1.0f);
 }
 
 static void test_item_obs_table_matches_every_code_semantically(void) {
     printf("test_item_obs_table_matches_every_code_semantically\n");
     CHECK("generic item table has one row for every inventory item code",
-        OSRS_ITEM_OBS_TABLE_ROWS == OSRS_INVENTORY_CELL_OBS_CODE_COUNT);
+        OSRS_ITEM_OBS_TABLE_ROWS == OSRS_ITEM_CONTENT_COUNT);
     CHECK("generic item rows contain the full 15-float compact record",
         OSRS_ITEM_OBS_TABLE_COLS == 15);
     CHECK("generic item rows bake hitpoints at 99",
@@ -8452,18 +8480,17 @@ static void test_item_obs_table_matches_every_code_semantically(void) {
         OSRS_ITEM_OBS_TABLE_BASE_PRAYER == 99);
     CHECK("generic item rows bake ranged at 99",
         OSRS_ITEM_OBS_TABLE_BASE_RANGED == 99);
-    CHECK("generic item code scale matches the inventory observation encoding",
-        OSRS_ITEM_OBS_CODE_SCALE == OSRS_INVENTORY_CELL_OBS_CODE_SCALE);
     CHECK("generic equipped overlay targets the compact equipped feature",
         OSRS_ITEM_OBS_OVERLAY_EQUIPPED == OSRS_INVENTORY_CELL_COMPACT_EQUIPPED);
     CHECK("generic HP-heal overlay targets the compact HP-heal feature",
         OSRS_ITEM_OBS_OVERLAY_HP_HEAL == OSRS_INVENTORY_CELL_COMPACT_HP_HEAL);
 
     for (int code = 0; code < OSRS_ITEM_OBS_TABLE_ROWS; code++) {
-        OsrsInventoryCell cell = osrs_inventory_cell_for_obs_code(code);
+        OsrsInventoryCell cell =
+            osrs_inventory_cell_from_content_code((uint16_t)code);
         float expected[OSRS_ITEM_OBS_TABLE_COLS];
         osrs_write_inventory_cell_affordance_features_compact(
-            expected, cell.item_idx, cell.raw_osrs_id, cell.dose, 0,
+            expected, &cell, 0,
             OSRS_ITEM_OBS_TABLE_BASE_HITPOINTS,
             OSRS_ITEM_OBS_TABLE_BASE_PRAYER,
             OSRS_ITEM_OBS_TABLE_BASE_RANGED);
@@ -8484,17 +8511,19 @@ static void test_item_obs_empty_row_is_all_zero(void) {
         snprintf(label, sizeof(label),
             "empty item code feature %d is zero", feature);
         CHECK(label,
-            TEST_ITEM_OBS_TABLE[OSRS_INVENTORY_CELL_OBS_CODE_EMPTY][feature] == 0.0f);
+            TEST_ITEM_OBS_TABLE[0][feature] == 0.0f);
     }
 }
 
 static void test_item_obs_table_bakes_consumable_hp_heal(void) {
     printf("test_item_obs_table_bakes_consumable_hp_heal\n");
-    int shark_code = osrs_inventory_cell_obs_code(ITEM_NONE, 385);
-    OsrsInventoryCell shark = osrs_inventory_cell_for_obs_code(shark_code);
+    int shark_code =
+        osrs_inventory_content_code_from_raw_osrs_id(385);
+    OsrsInventoryCell shark =
+        osrs_inventory_cell_from_content_code((uint16_t)shark_code);
     float expected[OSRS_ITEM_OBS_TABLE_COLS];
     osrs_write_inventory_cell_affordance_features_compact(
-        expected, shark.item_idx, shark.raw_osrs_id, shark.dose, 0,
+        expected, &shark, 0,
         OSRS_ITEM_OBS_TABLE_BASE_HITPOINTS,
         OSRS_ITEM_OBS_TABLE_BASE_PRAYER,
         OSRS_ITEM_OBS_TABLE_BASE_RANGED);
@@ -8551,9 +8580,12 @@ static void test_inventory_obs_expansion_is_lossless(void) {
             const ColoInvCell* c = &s.inventory_cells[cell];
             float want[COLO_INVENTORY_CELL_ENCODER_FEATURES];
             osrs_write_inventory_cell_affordance_features_compact(
-                want, c->item_idx, c->raw_osrs_id, c->dose,
-                osrs_inventory_cell_holds_equipped_item(&s.player, s.inventory_cells, cell),
-                s.player.base_hitpoints, s.player.base_prayer, s.player.base_attack);
+                want, c,
+                osrs_inventory_cell_holds_equipped_item(
+                    &s.player, s.inventory_cells, cell),
+                s.player.base_hitpoints,
+                s.player.base_prayer,
+                s.player.base_attack);
 
             float got[COLO_INVENTORY_CELL_ENCODER_FEATURES];
             test_expand_inventory_cell(obs, cell, got);
@@ -8584,10 +8616,16 @@ static void test_inventory_obs_memo(void) {
     static float obs[COLO_NUM_OBS];
     int cell_brew = -1;
     for (int c = 0; c < OSRS_INVENTORY_SIZE; c++)
-        if (s.inventory_cells[c].item_idx == ITEM_NONE) { cell_brew = c; break; }
+        if (osrs_inventory_cell_item_index(
+                &s.inventory_cells[c]) == ITEM_NONE) {
+            cell_brew = c;
+            break;
+        }
     CHECK("a gear-free cell exists to hold the brew", cell_brew >= 0);
     s.inventory_cells[cell_brew] = osrs_inventory_cell_from_raw_osrs_id(6685);
-    CHECK("4-dose brew seeded", s.inventory_cells[cell_brew].dose == 4);
+    CHECK("4-dose brew seeded",
+        osrs_inventory_cell_dose_count(
+            &s.inventory_cells[cell_brew]) == 4);
 
     /* Dose rides the item code now: a potion's raw id names its dose, so the sip lands a
        different code and the expanded record picks the dose up from the table row. */
@@ -8598,7 +8636,9 @@ static void test_inventory_obs_memo(void) {
         expanded[OSRS_INVENTORY_CELL_COMPACT_DOSE] == 1.0f);
 
     s.inventory_cells[cell_brew] = osrs_inventory_cell_from_raw_osrs_id(6687);
-    CHECK("sip took a dose", s.inventory_cells[cell_brew].dose == 3);
+    CHECK("sip took a dose",
+        osrs_inventory_cell_dose_count(
+            &s.inventory_cells[cell_brew]) == 3);
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
     test_expand_inventory_cell(obs, cell_brew, expanded);
     CHECK("sip moves the dose feature (dose is in the memo key, not a stale block)",
@@ -8623,9 +8663,11 @@ static void test_best_gear_cache_signatures(void) {
     int weapon_cells[2] = {-1, -1};
     int weapon_count = 0;
     for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
-        uint8_t item = s.inventory_cells[cell].item_idx;
+        const OsrsItemContentMetadata* metadata =
+            osrs_inventory_cell_metadata(&s.inventory_cells[cell]);
+        uint8_t item = metadata->item_idx;
         if (item == ITEM_NONE) {
-            if (s.inventory_cells[cell].raw_osrs_id != 0 && non_gear_cell < 0)
+            if (metadata->raw_osrs_id != 0 && non_gear_cell < 0)
                 non_gear_cell = cell;
             continue;
         }
@@ -8748,6 +8790,24 @@ static void child_col_query_before_topology_finalize(void) {
     col_init_unfinalized_context(&ctx);
     (void)col_topology_tile_blocked(&ctx, 10, 10);
 }
+static void child_col_restore_previous_inventory_snapshot(void) {
+    ColosseumContext ctx;
+    ColosseumState state;
+    col_init_context_typed(&ctx);
+    col_init_state_typed(&state, &ctx);
+    col_reset_ctx(
+        (EncounterState*)&state, (EncounterContext*)&ctx, 123u);
+    ColoSnapshot snapshot;
+    col_snapshot_ctx(
+        (EncounterState*)&state, (EncounterContext*)&ctx, &snapshot);
+    snapshot.version = COLO_SNAPSHOT_VERSION - 1u;
+    col_restore_ctx(
+        (EncounterState*)&state,
+        (EncounterContext*)&ctx,
+        &snapshot,
+        sizeof(snapshot));
+}
+
 
 static void test_colosseum_topology_lifecycle_contract(void) {
     printf("test_colosseum_topology_lifecycle_contract\n");
@@ -8763,6 +8823,9 @@ static void test_colosseum_topology_lifecycle_contract(void) {
     assert_child_aborts(
         "Colosseum query before topology finalize aborts",
         child_col_query_before_topology_finalize);
+    assert_child_aborts(
+        "Colosseum previous inventory snapshot version aborts",
+        child_col_restore_previous_inventory_snapshot);
 }
 
 int main(void) {

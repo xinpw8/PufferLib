@@ -1,5 +1,9 @@
 #include <stdio.h>
 #include <math.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
 
 #include "ocean/osrs/osrs_inventory_clicks.h"
 
@@ -34,25 +38,40 @@ static int test_raw_consumable_classification(void) {
     CHECK("shark food kind", shark.consumable_kind == OSRS_CONSUMABLE_SHARK_FOOD);
     CHECK("shark has no dose", shark.dose_count == 0);
 
-    OsrsConsumableClick unknown =
-        osrs_consumable_click_lookup_raw_osrs_id(9999);
-    CHECK("unknown raw id noops", unknown.click_action == OSRS_CLICK_NONE);
-    CHECK("unknown raw id has no kind",
-          unknown.consumable_kind == OSRS_CONSUMABLE_NONE);
-    CHECK("unknown raw id has no dose", unknown.dose_count == 0);
+    return 0;
+}
+static int operation_aborts(void (*operation)(void)) {
+    fflush(NULL);
+    pid_t pid = fork();
+    if (pid == 0) {
+        operation();
+        _exit(0);
+    }
+    int status = 0;
+    if (pid < 0 || waitpid(pid, &status, 0) != pid) return 0;
+    return WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT;
+}
+
+static void lookup_unknown_raw_id(void) {
+    (void)osrs_inventory_cell_from_raw_osrs_id(9999);
+}
+
+static void lookup_invalid_content_code(void) {
+    (void)osrs_item_content_metadata(OSRS_ITEM_CONTENT_COUNT);
+}
+
+static void construct_invalid_content_code(void) {
+    (void)osrs_inventory_cell_from_content_code(UINT16_MAX);
+}
+
+static int test_invalid_content_aborts(void) {
+    CHECK("unknown raw OSRS id aborts", operation_aborts(lookup_unknown_raw_id));
+    CHECK("invalid metadata code aborts", operation_aborts(lookup_invalid_content_code));
+    CHECK("invalid cell code aborts", operation_aborts(construct_invalid_content_code));
     return 0;
 }
 
-static int test_consumable_registry_index_covers_every_row(void) {
-    for (int i = 0; i < OSRS_CONSUMABLE_CLICK_REGISTRY_COUNT; i++) {
-        CHECK("registered raw id maps to its row",
-            osrs_consumable_click_registry_index(
-                OSRS_CONSUMABLE_CLICK_REGISTRY[i].raw_osrs_id) == i);
-    }
-    CHECK("unknown raw id has no row",
-        osrs_consumable_click_registry_index(9999) == -1);
-    return 0;
-}
+
 
 static int test_sara_brew_dose_variants(void) {
     OsrsConsumableClick brew4 =
@@ -88,39 +107,37 @@ static int test_dose_after_drink(void) {
 }
 
 static int test_pure_click_interpreter(void) {
-    OsrsInventoryClickResolution gear = osrs_inventory_click_interpret(
-        ITEM_VENATOR_BOW,
-        27610,
-        OSRS_CLICK_TICK_FIRST
-    );
+    OsrsInventoryCell gear_cell =
+        osrs_inventory_cell_from_item(ITEM_VENATOR_BOW);
+    OsrsInventoryClickResolution gear =
+        osrs_inventory_cell_click_interpret(
+            &gear_cell, OSRS_CLICK_TICK_FIRST);
     CHECK("gear click resolves equip", gear.click_action == OSRS_CLICK_EQUIP);
     CHECK("gear click has no consumable kind",
           gear.consumable_kind == OSRS_CONSUMABLE_NONE);
 
-    OsrsInventoryClickResolution brew = osrs_inventory_click_interpret(
-        ITEM_NONE,
-        6685,
-        OSRS_CLICK_TICK_FIRST
-    );
+    OsrsInventoryCell brew_cell =
+        osrs_inventory_cell_from_raw_osrs_id(6685);
+    OsrsInventoryClickResolution brew =
+        osrs_inventory_cell_click_interpret(
+            &brew_cell, OSRS_CLICK_TICK_FIRST);
     CHECK("brew click resolves drink", brew.click_action == OSRS_CLICK_DRINK);
     CHECK("brew interpreter kind", brew.consumable_kind == OSRS_CONSUMABLE_BREW);
     CHECK("brew interpreter dose", brew.dose_count == 4);
     CHECK("brew interpreter next raw id", brew.raw_osrs_id_after_drink == 6687);
 
-    OsrsInventoryClickResolution shark = osrs_inventory_click_interpret(
-        ITEM_NONE,
-        385,
-        OSRS_CLICK_TICK_FIRST
-    );
+    OsrsInventoryCell shark_cell =
+        osrs_inventory_cell_from_raw_osrs_id(385);
+    OsrsInventoryClickResolution shark =
+        osrs_inventory_cell_click_interpret(
+            &shark_cell, OSRS_CLICK_TICK_FIRST);
     CHECK("shark click resolves eat", shark.click_action == OSRS_CLICK_EAT);
     CHECK("shark interpreter kind",
           shark.consumable_kind == OSRS_CONSUMABLE_SHARK_FOOD);
 
-    OsrsInventoryClickResolution duplicate = osrs_inventory_click_interpret(
-        ITEM_NONE,
-        6685,
-        OSRS_CLICK_TICK_DUPLICATE
-    );
+    OsrsInventoryClickResolution duplicate =
+        osrs_inventory_cell_click_interpret(
+            &brew_cell, OSRS_CLICK_TICK_DUPLICATE);
     CHECK("duplicate click noops", duplicate.click_action == OSRS_CLICK_NONE);
     return 0;
 }
@@ -168,9 +185,10 @@ static int test_cell_drink_decrements_one_dose(void) {
         osrs_inventory_cell_click_interpret(&restore, OSRS_CLICK_TICK_FIRST);
     osrs_inventory_cell_decrement_drink(&restore, resolution);
 
-    CHECK("restore one drink leaves three doses", restore.dose == 3);
+    CHECK("restore one drink leaves three doses",
+        osrs_inventory_cell_dose_count(&restore) == 3);
     CHECK("restore one drink updates raw id to three-dose",
-          restore.raw_osrs_id == 3026);
+        osrs_inventory_cell_raw_osrs_id(&restore) == 3026);
     return 0;
 }
 
@@ -201,7 +219,8 @@ static int test_shared_drink_consume_owns_timer_and_one_dose(void) {
 
     CHECK("shared consume accepts first drink", first.consumed == 1);
     CHECK("shared consume decrements one dose",
-          restore.dose == 3 && restore.raw_osrs_id == 3026);
+        osrs_inventory_cell_dose_count(&restore) == 3 &&
+        osrs_inventory_cell_raw_osrs_id(&restore) == 3026);
     CHECK("shared consume arms potion timer", potion_timer == 3);
     CHECK("shared consume applies one effect",
           effect.calls == 1 && effect.kind == OSRS_CONSUMABLE_SUPER_RESTORE);
@@ -217,7 +236,8 @@ static int test_shared_drink_consume_owns_timer_and_one_dose(void) {
             &effect);
     CHECK("shared consume blocks live timer", gated.consumed == 0);
     CHECK("timer-gated shared consume leaves cell intact",
-          restore.dose == 3 && restore.raw_osrs_id == 3026);
+        osrs_inventory_cell_dose_count(&restore) == 3 &&
+        osrs_inventory_cell_raw_osrs_id(&restore) == 3026);
     CHECK("timer-gated shared consume skips effect", effect.calls == 1);
     return 0;
 }
@@ -232,9 +252,10 @@ static int test_cell_rearrange_swaps_two_slots(void) {
     osrs_inventory_swap_cells(cells, 1, 9);
 
     CHECK("swap moves bow to target slot",
-          cells[9].item_idx == ITEM_TWISTED_BOW);
+        osrs_inventory_cell_item_index(&cells[9]) == ITEM_TWISTED_BOW);
     CHECK("swap moves brew to source slot",
-          cells[1].raw_osrs_id == 6685 && cells[1].dose == 4);
+        osrs_inventory_cell_raw_osrs_id(&cells[1]) == 6685 &&
+        osrs_inventory_cell_dose_count(&cells[1]) == 4);
     return 0;
 }
 
@@ -254,9 +275,10 @@ static int test_enriched_feature_counts(void) {
 static int test_brew_cell_semantics(void) {
     float out[OSRS_INVENTORY_CELL_OBS_FEATURES];
     float zero_deltas[6] = {0};
+    OsrsInventoryCell brew = osrs_inventory_cell_from_raw_osrs_id(6685);
 
     osrs_write_inventory_cell_affordance_features(
-        out, ITEM_NONE, 6685, 4, 0, zero_deltas, 99, 99, 99);
+        out, &brew, 0, zero_deltas, 99, 99, 99);
     CHECK("brew is not armor", out[12] == 0.0f);
     CHECK("brew is not weapon", out[13] == 0.0f);
     CHECK("brew kind is brew", out[14] == 1.0f);
@@ -272,10 +294,11 @@ static int test_brew_cell_semantics(void) {
 static int test_weapon_cell_semantics(void) {
     float out[OSRS_INVENTORY_CELL_OBS_FEATURES];
     float zero_deltas[6] = {0};
+    OsrsInventoryCell fang =
+        osrs_inventory_cell_from_item(ITEM_OSMUMTENS_FANG);
 
-    uint16_t fang_raw = ITEM_DATABASE[ITEM_OSMUMTENS_FANG].item_id;
     osrs_write_inventory_cell_affordance_features(
-        out, ITEM_OSMUMTENS_FANG, fang_raw, 0, 0, zero_deltas, 99, 99, 99);
+        out, &fang, 0, zero_deltas, 99, 99, 99);
     CHECK("fang is weapon", out[13] == 1.0f);
     CHECK("fang is not armor", out[12] == 0.0f);
     CHECK("fang is not consumable", out[14] == 0.0f && out[15] == 0.0f &&
@@ -345,18 +368,76 @@ static int test_kind6_totality(void) {
 static int test_empty_cell_clamp(void) {
     float out[OSRS_INVENTORY_CELL_OBS_FEATURES];
     float zero_deltas[6] = {0};
+    OsrsInventoryCell empty = osrs_inventory_cell_empty();
     osrs_write_inventory_cell_affordance_features(
-        out, ITEM_NONE, 0, 0, 0, zero_deltas, 99, 99, 99);
+        out, &empty, 0, zero_deltas, 99, 99, 99);
     CHECK("empty cell not present", out[0] == 0.0f);
     CHECK("empty cell within [-1,1]", cell_in_unit_range(out));
     return 0;
 }
+static int test_exhaustive_content_metadata(void) {
+    for (uint16_t code = 0; code < OSRS_ITEM_CONTENT_COUNT; code++) {
+        const OsrsItemContentMetadata* metadata =
+            osrs_item_content_metadata(code);
+        OsrsInventoryCell cell = osrs_inventory_cell_from_content_code(code);
+        OsrsInventoryClickResolution classified =
+            osrs_inventory_cell_click_classify(&cell);
+        CHECK("metadata click action matches classification",
+            classified.click_action == metadata->click_action);
+        CHECK("metadata consumable kind matches classification",
+            classified.consumable_kind == metadata->consumable_kind);
+        CHECK("metadata dose matches classification",
+            classified.dose_count == metadata->dose_count);
+
+        OsrsInventoryClickResolution interpreted =
+            osrs_inventory_cell_click_interpret(&cell, OSRS_CLICK_TICK_FIRST);
+        uint16_t expected_next_raw = metadata->next_content_code == 0
+            ? 0
+            : osrs_item_content_metadata(
+                metadata->next_content_code)->raw_osrs_id;
+        CHECK("metadata next dose matches click interpretation",
+            interpreted.raw_osrs_id_after_drink == expected_next_raw);
+        if (metadata->click_action == OSRS_CLICK_DRINK) {
+            if (metadata->dose_count == 1) {
+                CHECK("one-dose drink transitions to empty",
+                    metadata->next_content_code == 0);
+            } else {
+                const OsrsItemContentMetadata* next =
+                    osrs_item_content_metadata(metadata->next_content_code);
+                CHECK("drink transition preserves consumable kind",
+                    next->consumable_kind == metadata->consumable_kind);
+                CHECK("drink transition decrements exactly one dose",
+                    next->dose_count + 1 == metadata->dose_count);
+            }
+        } else {
+            CHECK("non-drink content has no dose transition",
+                metadata->next_content_code == 0);
+        }
+
+        float expected[OSRS_INVENTORY_CELL_OBS_FEATURES_COMPACT];
+        osrs_write_item_content_affordance_features_compact(
+            expected,
+            metadata,
+            0,
+            OSRS_ITEM_OBS_TABLE_BASE_HITPOINTS,
+            OSRS_ITEM_OBS_TABLE_BASE_PRAYER,
+            OSRS_ITEM_OBS_TABLE_BASE_RANGED);
+        for (int feature = 0;
+                feature < OSRS_INVENTORY_CELL_OBS_FEATURES_COMPACT;
+                feature++) {
+            CHECK("generated observation row remains exact",
+                metadata->observation_row[feature] == expected[feature]);
+        }
+    }
+    return 0;
+}
+
 
 int main(void) {
     if (test_item_index_classification()) return 1;
     if (test_raw_consumable_classification()) return 1;
+    if (test_invalid_content_aborts()) return 1;
     if (test_sara_brew_dose_variants()) return 1;
-    if (test_consumable_registry_index_covers_every_row()) return 1;
     if (test_dose_after_drink()) return 1;
     if (test_pure_click_interpreter()) return 1;
     if (test_cell_click_classification()) return 1;
@@ -370,7 +451,9 @@ int main(void) {
     if (test_effect_class4_decoder()) return 1;
     if (test_kind6_totality()) return 1;
     if (test_empty_cell_clamp()) return 1;
+    if (test_exhaustive_content_metadata()) return 1;
 
-    printf("test_osrs_inventory_clicks: OK\n");
+    printf("test_osrs_inventory_clicks: OK (%d content codes, 3 abort boundaries)\n",
+        OSRS_ITEM_CONTENT_COUNT);
     return 0;
 }

@@ -208,7 +208,7 @@ static float col_inventory_heal_remaining(const ColosseumState* s) {
     float total = 0.0f;
     for (int i = 0; i < OSRS_INVENTORY_SIZE; i++) {
         const OsrsInventoryCell* cell = &s->inventory_cells[i];
-        if (cell->raw_osrs_id == 0) continue;
+        if (osrs_inventory_cell_is_empty(cell)) continue;
         OsrsInventoryClickResolution r =
             osrs_inventory_cell_click_interpret(cell, OSRS_CLICK_TICK_FIRST);
         int per_dose = osrs_consumable_hp_heal_amount(

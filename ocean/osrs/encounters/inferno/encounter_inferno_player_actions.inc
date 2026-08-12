@@ -243,14 +243,22 @@ static void inf_sync_consumable_counters_from_cells(InfernoState* s) {
     p->stamina_doses = 0;
     for (int i = 0; i < OSRS_INVENTORY_SIZE; i++) {
         const OsrsInventoryCell* cell = &s->inventory_cells[i];
-        if (cell->raw_osrs_id == 0) continue;
-        OsrsConsumableClick click =
-            osrs_consumable_click_lookup_raw_osrs_id(cell->raw_osrs_id);
-        switch (click.consumable_kind) {
-            case OSRS_CONSUMABLE_BREW:          p->brew_doses += cell->dose; break;
-            case OSRS_CONSUMABLE_SUPER_RESTORE: p->restore_doses += cell->dose; break;
-            case OSRS_CONSUMABLE_BASTION:       p->bastion_doses += cell->dose; break;
-            case OSRS_CONSUMABLE_STAMINA:       p->stamina_doses += cell->dose; break;
+        const OsrsItemContentMetadata* metadata =
+            osrs_inventory_cell_metadata(cell);
+        if (metadata->raw_osrs_id == 0) continue;
+        switch ((OsrsConsumableKind)metadata->consumable_kind) {
+            case OSRS_CONSUMABLE_BREW:
+                p->brew_doses += metadata->dose_count;
+                break;
+            case OSRS_CONSUMABLE_SUPER_RESTORE:
+                p->restore_doses += metadata->dose_count;
+                break;
+            case OSRS_CONSUMABLE_BASTION:
+                p->bastion_doses += metadata->dose_count;
+                break;
+            case OSRS_CONSUMABLE_STAMINA:
+                p->stamina_doses += metadata->dose_count;
+                break;
             default: break;
         }
     }

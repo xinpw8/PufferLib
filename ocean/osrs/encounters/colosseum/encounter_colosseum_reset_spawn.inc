@@ -533,13 +533,6 @@ static void col_seed_inventory_cells_from_gameplay_loadout(ColosseumState* s) {
         if (raw_id == 0) continue;
 
         s->inventory_cells[i] = osrs_inventory_cell_from_raw_osrs_id(raw_id);
-        if (s->inventory_cells[i].item_idx == ITEM_NONE &&
-                s->inventory_cells[i].dose == 0 &&
-                raw_id != 27281) {
-            fprintf(stderr, "colosseum: gameplay inventory raw id %u has no cell mapping\n",
-                raw_id);
-            abort();
-        }
     }
 }
 
@@ -552,32 +545,33 @@ static void col_sync_consumable_counters_from_inventory(ColosseumState* s) {
     int antivenom_doses = 0;
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++) {
         const ColoInvCell* cell = &s->inventory_cells[i];
-        if (cell->dose == 0) continue;
+        uint8_t dose_count = osrs_inventory_cell_dose_count(cell);
+        if (dose_count == 0) continue;
         OsrsInventoryClickResolution resolution =
             osrs_inventory_cell_click_interpret(cell, OSRS_CLICK_TICK_FIRST);
         if (resolution.click_action != OSRS_CLICK_DRINK) continue;
         switch (resolution.consumable_kind) {
             case OSRS_CONSUMABLE_BREW:
-                brew_doses += cell->dose;
+                brew_doses += dose_count;
                 break;
             case OSRS_CONSUMABLE_SUPER_RESTORE:
             case OSRS_CONSUMABLE_SANFEW:
             case OSRS_CONSUMABLE_PRAYER_RESTORE:
-                restore_doses += cell->dose;
+                restore_doses += dose_count;
                 break;
             case OSRS_CONSUMABLE_SUPER_COMBAT:
             case OSRS_CONSUMABLE_DIVINE_COMBAT:
-                combat_doses += cell->dose;
+                combat_doses += dose_count;
                 break;
             case OSRS_CONSUMABLE_RANGING:
             case OSRS_CONSUMABLE_DIVINE_RANGING:
-                ranged_doses += cell->dose;
+                ranged_doses += dose_count;
                 break;
             case OSRS_CONSUMABLE_SURGE:
-                surge_doses += cell->dose;
+                surge_doses += dose_count;
                 break;
             case OSRS_CONSUMABLE_ANTIVENOM_PLUS:
-                antivenom_doses += cell->dose;
+                antivenom_doses += dose_count;
                 break;
             case OSRS_CONSUMABLE_GUTHIX_REST:
             case OSRS_CONSUMABLE_SATURATED_HEART:
@@ -587,6 +581,7 @@ static void col_sync_consumable_counters_from_inventory(ColosseumState* s) {
                 break;
             case OSRS_CONSUMABLE_BASTION:
             case OSRS_CONSUMABLE_STAMINA:
+            case OSRS_CONSUMABLE_COUNT:
                 fprintf(stderr, "colosseum: consumable kind %d not in colosseum kits\n",
                     (int)resolution.consumable_kind);
                 abort();

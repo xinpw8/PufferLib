@@ -11,7 +11,7 @@
 static_assert(COLO_INVENTORY_OBS_SIZE + COLO_EQUIPPED_SELF_OBS_SIZE ==
     COLO_INVENTORY_OBS_CACHE_FLOATS,
     "inventory obs cache float count must match the inventory+equipped block size");
-static_assert(OSRS_ITEM_OBS_TABLE_ROWS == OSRS_INVENTORY_CELL_OBS_CODE_COUNT,
+static_assert(OSRS_ITEM_OBS_TABLE_ROWS == OSRS_ITEM_CONTENT_COUNT,
     "regenerate osrs_item_obs_table.inc: the cell code space changed");
 static_assert(OSRS_ITEM_OBS_TABLE_COLS == COLO_INVENTORY_CELL_ENCODER_FEATURES,
     "regenerate osrs_item_obs_table.inc: the expanded record width changed");
@@ -24,8 +24,8 @@ static_assert(OSRS_ITEM_OBS_TABLE_BASE_RANGED == MAXED_BASE_RANGED,
 static_assert(OSRS_ITEM_OBS_OVERLAY_EQUIPPED == OSRS_INVENTORY_CELL_COMPACT_EQUIPPED &&
     OSRS_ITEM_OBS_OVERLAY_HP_HEAL == OSRS_INVENTORY_CELL_COMPACT_HP_HEAL,
     "the gather overwrites the dynamic fields at these expanded slots");
-static_assert(OSRS_ITEM_OBS_CODE_SCALE == OSRS_INVENTORY_CELL_OBS_CODE_SCALE,
-    "the gather multiplies the observed code back by this scale before indexing a row");
+static_assert(OSRS_ITEM_CONTENT_COUNT <= OSRS_ITEM_OBS_CODE_SCALE,
+    "every observed content code must remain exact after scaling");
 #define COLO_NPC_CORE_FEATURES    11
 #define COLO_NPC_TELLS_FEATURES   10
 #define COLO_NPC_VENATOR_FEATURES 1
@@ -1124,9 +1124,11 @@ static void col_build_gear_candidates(const ColosseumState* s, ColoGearCandidate
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
         col_gear_candidates_add(c, slot, s->player.equipped[slot]);
     for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
-        uint8_t item = s->inventory_cells[cell].item_idx;
+        const OsrsItemContentMetadata* metadata =
+            osrs_inventory_cell_metadata(&s->inventory_cells[cell]);
+        uint8_t item = metadata->item_idx;
         if (item == ITEM_NONE) continue;
-        int gslot = osrs_item_gear_slot(item);
+        int gslot = metadata->gear_slot;
         if (gslot < 0) continue;
         col_gear_candidates_add(c, gslot, item);
     }
@@ -1493,10 +1495,7 @@ static uint64_t col_inventory_obs_signature(const ColosseumState* s) {
      * at a 34.9% hit rate. What remains depends on cell contents and base stats only. */
     uint64_t h = 1469598103934665603ULL;
     for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
-        const ColoInvCell* c = &s->inventory_cells[cell];
-        uint64_t packed = (uint64_t)c->item_idx
-            | ((uint64_t)c->raw_osrs_id << 8)
-            | ((uint64_t)c->dose << 24);
+        uint64_t packed = s->inventory_cells[cell].content_code;
         h = (h ^ packed) * 1099511628211ULL;
     }
     const int scalars[3] = {
@@ -1569,13 +1568,10 @@ static void col_write_inventory_and_equipped_obs(
         const ColoInvCell* cell = &s->inventory_cells[cell_idx];
         osrs_write_inventory_cell_obs_code_features(
             &obs[i],
-            cell->item_idx,
-            cell->raw_osrs_id,
-            cell->dose,
-            osrs_inventory_cell_holds_equipped_item(&s->player, s->inventory_cells, cell_idx),
-            s->player.base_hitpoints,
-            s->player.base_prayer,
-            s->player.base_ranged);
+            cell,
+            osrs_inventory_cell_holds_equipped_item(
+                &s->player, s->inventory_cells, cell_idx),
+            s->player.base_hitpoints);
         i += COLO_INVENTORY_CELL_OBS_FEATURES;
     }
     assert(i == COLO_OBS_AFTER_INVENTORY);

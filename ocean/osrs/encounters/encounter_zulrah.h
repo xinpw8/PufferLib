@@ -529,7 +529,7 @@ typedef struct {
 
     Log log;
 } ZulrahState;
-static_assert(sizeof(ZulrahState) == 12712, "ZulrahState serialized layout");
+static_assert(sizeof(ZulrahState) == 12600, "ZulrahState serialized layout");
 
 static void zul_set_npc_anim_event(ZulrahState* s, int anim_id, int duration_ticks) {
     osrs_npc_primary_anim_event_set(
@@ -2113,10 +2113,9 @@ static void zul_write_obs(EncounterState* state, EncounterContext* context, floa
     for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
         osrs_write_inventory_cell_affordance_features(
             &obs[i],
-            s->inventory_cells[cell].item_idx,
-            s->inventory_cells[cell].raw_osrs_id,
-            s->inventory_cells[cell].dose,
-            osrs_inventory_cell_holds_equipped_item(&s->player, s->inventory_cells, cell),
+            &s->inventory_cells[cell],
+            osrs_inventory_cell_holds_equipped_item(
+                &s->player, s->inventory_cells, cell),
             ZUL_ZERO_POST_USE_DELTAS,
             s->player.base_hitpoints,
             s->player.base_prayer,
@@ -2178,12 +2177,15 @@ static void zul_write_mask(EncounterState* state, EncounterContext* context, flo
         if (r.click_action == OSRS_CLICK_EQUIP) {
             if (osrs_can_equip_from_cell(&s->player, s->inventory_cells, cell))
                 cell_equip_slot[cell] =
-                    osrs_item_gear_slot(s->inventory_cells[cell].item_idx);
+                    osrs_inventory_cell_metadata(
+                        &s->inventory_cells[cell])->gear_slot;
         } else if (r.click_action == OSRS_CLICK_EAT) {
             cell_can_eat[cell] =
                 osrs_can_eat_consumable_kind(&s->player, r.consumable_kind);
         } else if (r.click_action == OSRS_CLICK_DRINK) {
-            cell_can_drink[cell] = s->inventory_cells[cell].dose > 0 &&
+            cell_can_drink[cell] =
+                osrs_inventory_cell_dose_count(
+                    &s->inventory_cells[cell]) > 0 &&
                 s->player.potion_timer == 0 &&
                 zul_drink_has_effect(s, r.consumable_kind);
         }
@@ -2749,7 +2751,8 @@ static int zul_first_cell_with_kind(
 
 static int zul_cell_with_item(const ZulrahState* s, uint8_t item_idx) {
     for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++)
-        if (s->inventory_cells[cell].item_idx == item_idx) return cell;
+        if (osrs_inventory_cell_item_index(
+                &s->inventory_cells[cell]) == item_idx) return cell;
     return -1;
 }
 

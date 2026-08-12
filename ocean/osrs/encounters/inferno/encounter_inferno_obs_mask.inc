@@ -390,8 +390,8 @@ static void inf_write_obs_ctx(
 
     for (int cell_idx = 0; cell_idx < OSRS_INVENTORY_SIZE; cell_idx++) {
         const OsrsInventoryCell* cell = &s->inventory_cells[cell_idx];
-        obs[i++] = osrs_inventory_cell_obs_code_encode(
-            osrs_inventory_cell_obs_code(cell->item_idx, cell->raw_osrs_id));
+        obs[i++] =
+            osrs_inventory_cell_obs_code_encode(cell->content_code);
     }
     assert(i == INF_OBS_AFTER_INVENTORY);
 
@@ -469,13 +469,11 @@ static inline InfInventoryClickMemo* inf_inventory_click_memo(
 ) {
     const OsrsInventoryCell* cell = &s->inventory_cells[cell_idx];
     InfInventoryClickMemo* memo = &s->inventory_click_memos[cell_idx];
-    if (memo->item_idx != cell->item_idx ||
-            memo->raw_osrs_id != cell->raw_osrs_id) {
+    if (memo->content_code != cell->content_code) {
         OsrsInventoryClickResolution resolution =
             osrs_inventory_cell_click_classify(cell);
         *memo = (InfInventoryClickMemo){
-            .item_idx = cell->item_idx,
-            .raw_osrs_id = cell->raw_osrs_id,
+            .content_code = cell->content_code,
             .click_action = (uint8_t)resolution.click_action,
             .consumable_kind = (uint8_t)resolution.consumable_kind,
         };
@@ -553,7 +551,8 @@ static void inf_write_mask_ctx(
                 case OSRS_CLICK_EQUIP: {
                     if (!osrs_can_equip_from_cell(&s->player, s->inventory_cells, c))
                         break;
-                    int gear_slot = osrs_item_gear_slot(cell->item_idx);
+                    int gear_slot =
+                        osrs_inventory_cell_metadata(cell)->gear_slot;
                     if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) {
                         fprintf(stderr,
                             "inferno: equippable inventory cell %d has invalid gear slot %d\n",
@@ -572,7 +571,7 @@ static void inf_write_mask_ctx(
                     }
                     break;
                 case OSRS_CLICK_DRINK:
-                    if (cell->dose > 0 &&
+                    if (osrs_inventory_cell_dose_count(cell) > 0 &&
                             s->player.potion_timer == 0 &&
                             inf_drink_has_effect(
                                 s, (OsrsConsumableKind)memo->consumable_kind)) {

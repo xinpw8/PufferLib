@@ -582,7 +582,7 @@ static int test_occupied_inventory_cells(const InfernoState* s) {
 
 static int test_cell_holding_item(const InfernoState* s, uint8_t item) {
     for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
-        if (s->inventory_cells[c].item_idx == item)
+        if (osrs_inventory_cell_item_index(&s->inventory_cells[c]) == item)
             return c;
     }
     return -1;
@@ -592,10 +592,10 @@ static int test_cell_doses_of_kind(const InfernoState* s, OsrsConsumableKind kin
     int doses = 0;
     for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
         const OsrsInventoryCell* cell = &s->inventory_cells[c];
-        if (cell->raw_osrs_id == 0) continue;
+        if (osrs_inventory_cell_raw_osrs_id(cell) == 0) continue;
         if (osrs_consumable_click_lookup_raw_osrs_id(
-                cell->raw_osrs_id).consumable_kind == kind)
-            doses += cell->dose;
+                osrs_inventory_cell_raw_osrs_id(cell)).consumable_kind == kind)
+            doses += osrs_inventory_cell_dose_count(cell);
     }
     return doses;
 }
@@ -603,7 +603,7 @@ static int test_cell_doses_of_kind(const InfernoState* s, OsrsConsumableKind kin
 static OsrsConsumableKind test_drink_click_kind(const InfernoState* s, int action) {
     if (action <= 0) return OSRS_CONSUMABLE_NONE;
     return osrs_consumable_click_lookup_raw_osrs_id(
-        s->inventory_cells[action - 1].raw_osrs_id).consumable_kind;
+        osrs_inventory_cell_raw_osrs_id(&s->inventory_cells[action - 1])).consumable_kind;
 }
 
 static void test_final_wave_reward_applies_healer_tags_and_heal_cost(void) {
@@ -6892,13 +6892,13 @@ static void child_inf_pending_spark_overflow(void) {
     inf_queue_pending_spark(&state, 0, 0, 20, 20, 1, 1);
 }
 
-static void child_inf_restore_v1_snapshot(void) {
+static void child_inf_restore_previous_inventory_snapshot(void) {
     EncounterState* raw = inf_create();
     inf_reset(raw, 123u);
     size_t snap_size = inf_snapshot_size(raw);
     InfSnapshot* snap = (InfSnapshot*)malloc(snap_size);
     inf_snapshot(raw, snap);
-    snap->version = 1u;
+    snap->version = INF_SNAPSHOT_VERSION - 1u;
     inf_restore(raw, snap, snap_size);
     free(snap);
     inf_destroy(raw);
@@ -6970,7 +6970,9 @@ static void test_fail_fast_boundaries(void) {
     assert_child_aborts(
         "inferno query before topology finalize aborts",
         child_inf_query_before_topology_finalize);
-    assert_child_aborts("inferno v1 snapshot restore aborts", child_inf_restore_v1_snapshot);
+    assert_child_aborts(
+        "inferno previous inventory snapshot restore aborts",
+        child_inf_restore_previous_inventory_snapshot);
     assert_child_aborts(
         "inferno wrong-config snapshot restore aborts",
         child_inf_restore_wrong_config_snapshot);
@@ -7441,7 +7443,7 @@ static void test_inferno_snapshot_restore_round_trip(void) {
     ASSERT_INT_EQ("snapshot magic stamped",
         (int)snap_A->magic, (int)INF_SNAPSHOT_MAGIC);
     ASSERT_INT_EQ("snapshot version stamped",
-        (int)snap_A->version, (int)INF_SNAPSHOT_VERSION);
+        (int)snap_A->version, 22);
 
     const int N2 = 18;
     for (int i = 0; i < N2; i++) inf_step(raw, actions_b);
@@ -9294,9 +9296,9 @@ static void test_compact_transient_inventory_equipment_semantics(void) {
 
     for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
         const OsrsInventoryCell* inventory_cell = &state.inventory_cells[cell];
-        float expected_code = osrs_inventory_cell_obs_code_encode(
-            osrs_inventory_cell_obs_code(
-                inventory_cell->item_idx, inventory_cell->raw_osrs_id));
+        float expected_code =
+            osrs_inventory_cell_obs_code_encode(
+                inventory_cell->content_code);
         ASSERT_FLOAT_NEAR("compact inventory cell code",
             obs_off[INF_OBS_AFTER_SPARKS + cell], expected_code, 1e-6f);
     }
