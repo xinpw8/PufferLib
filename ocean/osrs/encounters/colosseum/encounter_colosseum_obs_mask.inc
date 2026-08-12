@@ -78,7 +78,7 @@ typedef enum {
 
 #define COLO_THREAT_LOS_OBS_SIZE  3
 
-#define COLO_THRALL_DC_OBS_SIZE   6
+#define COLO_THRALL_DC_OBS_SIZE   5
 
 #define COLO_SPAWN_PHASE_OBS_SIZE 2
 #define COLO_ANCHOR_BLOCKED_OBS_SIZE COLO_NUM_SPAWN_ANCHORS
@@ -1073,11 +1073,10 @@ static void col_write_threat_los_counts(
 
 static void col_write_thrall_dc(const ColosseumState* s, float* obs, int* idx) {
     int i = *idx;
-    int lifetime_full = COLO_THRALL_LIFETIME_TICKS[s->active_loadout_profile];
-    obs[i++] = s->thrall_active ? 1.0f : 0.0f;
-    obs[i++] = (s->thrall_active && lifetime_full > 0)
-        ? col_clamp01((float)s->thrall_lifetime_left / (float)lifetime_full) : 0.0f;
-    obs[i++] = col_clamp01((float)s->thrall_recast_cd / (float)COLO_THRALL_RECAST_CD);
+    obs[i++] = col_clamp01(
+        (float)s->thrall_lifetime_left / (float)s->thrall_lifetime_total);
+    obs[i++] = col_clamp01(
+        (float)s->thrall_aggro_ticks_left / (float)COLO_THRALL_AGGRO_TICKS);
     obs[i++] = s->death_charge_window_left > 0 ? 1.0f : 0.0f;
     obs[i++] = col_clamp01((float)s->death_charge_window_left / (float)COLO_DEATH_CHARGE_WINDOW);
     obs[i++] = col_clamp01((float)s->death_charge_cd / (float)COLO_DEATH_CHARGE_CD);

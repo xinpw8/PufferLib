@@ -2210,7 +2210,7 @@ static void test_death_linger_wave_clear_and_render(void) {
     int entity_count = 0;
     col_fill_render_entities_ctx(
         (EncounterState*)&s, (EncounterContext*)&ctx, entities, 4, &entity_count);
-    CHECK("dying NPC is still rendered", entity_count == 2 && entities[1].npc_slot == idx);
+    CHECK("dying NPC is still rendered", entity_count >= 2 && entities[1].npc_slot == idx);
     CHECK("dying NPC uses death animation",
         entities[1].npc_anim_id == col_npc_death_anim_id(COLO_FREMENNIK_BERSERKER));
     CHECK("lethal hitsplat remains on death frame",
@@ -6438,8 +6438,8 @@ static void test_combat_fidelity_contract_sizes(void) {
         COLO_ACTION_DIMS[COLO_HEAD_EAT] == 29 && COLO_ACTION_DIMS[COLO_HEAD_DRINK] == 29);
     CHECK("prayer head uses shared PVE overhead dim",
         COLO_ACTION_DIMS[COLO_HEAD_PRAYER] == ENCOUNTER_OVERHEAD_DIM_PVE);
-    CHECK("spell head dim is 3 (none/summon-thrall/death-charge)", COLO_SPELL_DIM == 3);
-    CHECK("obs width is 934", COLO_NUM_OBS == 934);
+    CHECK("spell head dim is 2 (none/death-charge)", COLO_SPELL_DIM == 2);
+    CHECK("obs width is 933", COLO_NUM_OBS == 933);
     CHECK("inventory block has 84 features (28 cells x code, equipped, hp_heal)",
         COLO_INVENTORY_OBS_SIZE == 84);
     CHECK("the encoder still sees the 15-feature record, rebuilt from the item table",
@@ -6467,7 +6467,7 @@ static void test_combat_fidelity_contract_sizes(void) {
     int mask_sum = 0;
     for (int h = 0; h < COLO_NUM_ACTION_HEADS; h++) mask_sum += COLO_ACTION_DIMS[h];
     CHECK("mask size equals the summed action-head dims",
-        COLO_ACTION_MASK_SIZE == mask_sum && COLO_ACTION_MASK_SIZE == 452);
+        COLO_ACTION_MASK_SIZE == mask_sum && COLO_ACTION_MASK_SIZE == 451);
 
     int obs_sum = COLO_PLAYER_OBS_SIZE +
         COLO_INVENTORY_OBS_SIZE + COLO_EQUIPPED_SELF_OBS_SIZE + COLO_NPC_OBS_SIZE +
@@ -6923,10 +6923,9 @@ static int thrall_scenario(ColosseumState* s, ColosseumContext* ctx, int mode, u
     s->player.x = 12;
     s->player.y = 18;
     col_rebuild_player_collision_flags(s);
-    int slot = col_spawn_npc_at(s, COLO_FREMENNIK_BERSERKER, 16, 18);
+    int slot = col_spawn_npc_at(s, COLO_FREMENNIK_BERSERKER, 13, 18);
     s->npcs[slot].hp = 200;
     s->npcs[slot].max_hp = 200;
-    osrs_interaction_set(&s->interaction, slot);
     return slot;
 }
 
@@ -6935,25 +6934,32 @@ static void test_thrall_regression(void) {
     ColosseumContext ctx;
     ColosseumState s;
     int idle[COLO_NUM_ACTION_HEADS] = {0};
-    int summon[COLO_NUM_ACTION_HEADS] = {0};
-    summon[COLO_HEAD_SPELL] = COLO_SPELL_SUMMON_THRALL;
 
     int slot = thrall_scenario(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_BEGINNER_ONLY, 201);
-    col_tick_player_ctx(&s, &ctx, summon, 1);
-    CHECK("summon activates the thrall on the targeted NPC",
-        s.thrall_active && s.thrall_target_slot == slot);
-    CHECK("budget thrall lifetime starts at 99 (decremented this tick)",
-        s.thrall_lifetime_left == 98);
-    CHECK("thrall recast gate is 17 (decremented this tick)", s.thrall_recast_cd == 16);
+    CHECK("budget profile starts with an idle 99-tick thrall",
+        s.thrall_target_slot == -1 && s.thrall_aggro_ticks_left == 0 &&
+        s.thrall_lifetime_left == 99 && s.thrall_lifetime_total == 99);
+    osrs_interaction_set(&s.interaction, slot);
+
+    s.player.attack_timer = 2;
+    col_tick_player_ctx(&s, &ctx, idle, 1);
+    CHECK("selecting an NPC without attacking does not acquire a thrall target",
+        !s.tick_scratch.player_attacked && s.thrall_target_slot == -1);
+
+    s.player.attack_timer = 0;
+    col_tick_player_ctx(&s, &ctx, idle, 1);
+    CHECK("an executed player attack acquires a twelve-tick thrall target",
+        s.tick_scratch.player_attacked && s.player_attack_npc_idx == slot &&
+        s.thrall_target_slot == slot &&
+        s.thrall_aggro_ticks_left == COLO_THRALL_AGGRO_TICKS);
 
     osrs_interaction_clear(&s.interaction);
     encounter_pending_hit_queue_clear(&s.npcs[slot].pending_hits);
-
-    for (int t = 0; t < 3; t++) col_tick_player_ctx(&s, &ctx, idle, 1);
-    CHECK("thrall fires exactly once per 4 ticks (timer back to 4)",
-        s.thrall_attack_timer == COLO_THRALL_TICK);
-    CHECK("exactly one thrall hit is queued in the cadence window",
-        s.npcs[slot].pending_hits.count == 1 &&
+    s.thrall_attack_timer = 1;
+    s.tick_scratch.player_attacked = 0;
+    col_tick_player_ctx(&s, &ctx, idle, 1);
+    CHECK("the thrall attacks after interaction and LOS break",
+        s.thrall_target_slot == slot && s.npcs[slot].pending_hits.count == 1 &&
         s.npcs[slot].pending_hits.hits[0].source_npc_slot == -1 &&
         s.npcs[slot].pending_hits.hits[0].attack_style == ATTACK_STYLE_MAGIC);
     float dmg_before = s.tick_scratch.damage_dealt;
@@ -6965,55 +6971,54 @@ static void test_thrall_regression(void) {
     CHECK("the thrall damage is credited to the player accumulator",
         s.tick_scratch.damage_dealt >= dmg_before);
 
-    osrs_interaction_set(&s.interaction, slot);
-
-    int life_now = s.thrall_lifetime_left;
-    col_tick_player_ctx(&s, &ctx, summon, 1);
-    CHECK("summon during the recast gate does not reset lifetime",
-        s.thrall_lifetime_left == life_now - 1);
-
-    while (s.thrall_recast_cd > 0) col_tick_player_ctx(&s, &ctx, idle, 1);
-    col_tick_player_ctx(&s, &ctx, summon, 1);
-    CHECK("re-summon after the gate replaces with a fresh 99-tick thrall",
-        s.thrall_active && s.thrall_lifetime_left == 98);
-
-    s.thrall_lifetime_left = 1;
+    for (int t = 1; t < 11; t++) {
+        s.tick_scratch.player_attacked = 0;
+        col_tick_player_ctx(&s, &ctx, idle, 1);
+    }
+    CHECK("thrall aggro remains through eleven ticks after the player attack",
+        s.thrall_target_slot == slot && s.thrall_aggro_ticks_left == 1);
+    s.tick_scratch.player_attacked = 0;
     col_tick_player_ctx(&s, &ctx, idle, 1);
-    CHECK("budget thrall despawns when lifetime reaches 0",
-        !s.thrall_active && s.thrall_target_slot == -1);
+    CHECK("thrall aggro clears after the twelfth tick without a player attack",
+        s.thrall_target_slot == -1 && s.thrall_aggro_ticks_left == 0);
+
+    s.player.current_magic = 85;
+    s.thrall_lifetime_left = 1;
+    osrs_interaction_set(&s.interaction, slot);
+    s.player.attack_timer = 0;
+    col_tick_player_ctx(&s, &ctx, idle, 1);
+    CHECK("expiry discards a same-tick attack and resummons from current Magic",
+        s.tick_scratch.player_attacked && s.thrall_target_slot == -1 &&
+        s.thrall_aggro_ticks_left == 0 &&
+        s.thrall_lifetime_left == 85 && s.thrall_lifetime_total == 85 &&
+        s.thrall_attack_timer == COLO_THRALL_TICK);
+    osrs_interaction_clear(&s.interaction);
+    encounter_pending_hit_queue_clear(&s.npcs[slot].pending_hits);
+    s.tick_scratch.player_attacked = 0;
+    for (int t = 0; t < COLO_THRALL_TICK; t++)
+        col_tick_player_ctx(&s, &ctx, idle, 1);
+    CHECK("the fresh thrall cannot attack before another player attack",
+        s.thrall_target_slot == -1 && s.npcs[slot].pending_hits.count == 0);
 
     thrall_scenario(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 202);
-    col_tick_player_ctx(&s, &ctx, summon, 1);
-    CHECK("high-eff thrall lifetime starts at 198 (decremented this tick)",
-        s.thrall_lifetime_left == 197);
+    CHECK("Master Combat Achievements double the maxed thrall lifetime",
+        s.thrall_lifetime_left == 198 && s.thrall_lifetime_total == 198);
 
     col_init_context_typed(&ctx);
     memset(&s, 0, sizeof(s));
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 203);
     geo_clear_npcs(&s);
     s.modifiers.draft_pending = 0;
-    s.player.x = 12; s.player.y = 18;
+    s.player.x = 12;
+    s.player.y = 18;
     col_rebuild_player_collision_flags(&s);
-    int sol_slot = col_spawn_npc_at(&s, COLO_SOL_HEREDIT, 18, 16);
+    int sol_slot = col_spawn_npc_at(&s, COLO_SOL_HEREDIT, 13, 18);
     s.npcs[sol_slot].hp = 1500;
     s.npcs[sol_slot].max_hp = 1500;
     osrs_interaction_set(&s.interaction, sol_slot);
-    col_tick_player_ctx(&s, &ctx, summon, 1);
-    CHECK("summon vs Sol Heredit is a no-op (Sol is thrall-immune)", !s.thrall_active);
-    float mask[COLO_ACTION_MASK_SIZE];
-    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
-    int spell_off = col_action_head_mask_offset(COLO_HEAD_SPELL);
-    CHECK("summon-thrall is masked illegal while targeting Sol",
-        mask[spell_off + COLO_SPELL_SUMMON_THRALL] == 0.0f);
-
-    s.thrall_active = 1;
-    s.thrall_target_slot = sol_slot;
-    s.thrall_attack_timer = 1;
-    s.thrall_lifetime_left = 50;
-    int sol_hp = s.npcs[sol_slot].hp;
+    s.player.attack_timer = 0;
     col_tick_player_ctx(&s, &ctx, idle, 1);
-    land_pending_player_hits(&s, &ctx);
-    CHECK("thrall never damages Sol", s.npcs[sol_slot].hp == sol_hp);
+    CHECK("attacking Sol does not acquire a thrall target", s.thrall_target_slot == -1);
 }
 
 static void test_death_charge_regression(void) {
@@ -7084,9 +7089,9 @@ static void test_death_charge_regression(void) {
     slot = thrall_scenario(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 216);
     s.player.special_energy = 50;
     s.npcs[slot].hp = 1;
-    int summon[COLO_NUM_ACTION_HEADS] = {0};
-    summon[COLO_HEAD_SPELL] = COLO_SPELL_SUMMON_THRALL;
-    col_tick_player_ctx(&s, &ctx, summon, 1);
+    osrs_interaction_clear(&s.interaction);
+    s.thrall_target_slot = slot;
+    s.thrall_aggro_ticks_left = COLO_THRALL_AGGRO_TICKS;
     col_tick_player_ctx(&s, &ctx, cast_dc, 1);
     s.thrall_attack_timer = 1;
     col_tick_player_ctx(&s, &ctx, idle, 1);
@@ -7118,11 +7123,11 @@ static void test_combat_fidelity_snapshot_roundtrip(void) {
     ColosseumState s;
     int slot = thrall_scenario(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 221);
     col_apply_weapon_set(&s, COLO_GEAR_MAGIC);
-    s.thrall_active = 1;
     s.thrall_target_slot = slot;
+    s.thrall_aggro_ticks_left = 7;
     s.thrall_lifetime_left = 123;
+    s.thrall_lifetime_total = 151;
     s.thrall_attack_timer = 2;
-    s.thrall_recast_cd = 9;
     s.death_charge_window_left = 44;
     s.death_charge_cd = 0;
 
@@ -7138,9 +7143,9 @@ static void test_combat_fidelity_snapshot_roundtrip(void) {
     CHECK("the recomputed magic set max hit matches the live high-eff value (48)",
         col_live_loadout_stats(&restored)->max_hit == 48);
     CHECK("thrall fields round-trip bit-identically",
-        restored.thrall_active == 1 && restored.thrall_target_slot == slot &&
-        restored.thrall_lifetime_left == 123 && restored.thrall_attack_timer == 2 &&
-        restored.thrall_recast_cd == 9);
+        restored.thrall_target_slot == slot && restored.thrall_aggro_ticks_left == 7 &&
+        restored.thrall_lifetime_left == 123 && restored.thrall_lifetime_total == 151 &&
+        restored.thrall_attack_timer == 2);
     CHECK("Death-Charge fields round-trip bit-identically",
         restored.death_charge_window_left == 44 && restored.death_charge_cd == 0);
 }
@@ -8532,7 +8537,7 @@ static void test_stage3_t4_mask_inventory_heads_flag(void) {
     CHECK("mask_inventory_heads pins every inventory head to noop only",
         all_inventory_heads_pinned_to_noop);
     CHECK("mask_inventory_heads leaves the action-mask size unchanged",
-        COLO_ACTION_MASK_SIZE == 452);
+        COLO_ACTION_MASK_SIZE == 451);
 
     geo_clear_npcs(&s);
     s.modifiers.draft_pending = 0;
@@ -8585,8 +8590,8 @@ static void test_stage3_t6_obs_mask_fuzz_contract(void) {
         }
         step_and_observe(&s, &ctx, actions);
     }
-    CHECK("T6 obs running-index assert reached COLO_NUM_OBS", COLO_NUM_OBS == 934);
-    CHECK("T6 mask running-index assert reached 452", COLO_ACTION_MASK_SIZE == 452);
+    CHECK("T6 obs running-index assert reached COLO_NUM_OBS", COLO_NUM_OBS == 933);
+    CHECK("T6 mask running-index assert reached 451", COLO_ACTION_MASK_SIZE == 451);
 }
 
 static void test_death_attribution_credits_actual_source(void) {

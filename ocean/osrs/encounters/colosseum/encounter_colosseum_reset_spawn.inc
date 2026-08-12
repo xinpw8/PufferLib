@@ -670,7 +670,7 @@ static void col_reset_ctx(EncounterState* state, EncounterContext* context, uint
     col_mark_live_loadout_dirty(s);
     col_ensure_live_loadout_stats(s);
 
-    s->thrall_target_slot = -1;
+    col_resummon_thrall(s);
 
     s->player.x = COLO_PLAYER_START_X;
     s->player.y = COLO_PLAYER_START_Y;

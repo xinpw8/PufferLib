@@ -1226,13 +1226,9 @@ static void col_for_each_display_inventory_sprite_raw_osrs_id(
     col_for_each_reachable_consumable_dose_raw_osrs_id(visit, ctx);
 }
 
-#define COLO_THRALL_MAX_HIT  3
-#define COLO_THRALL_TICK     4
-#define COLO_THRALL_RECAST_CD 17
-static const int COLO_THRALL_LIFETIME_TICKS[COLO_NUM_LOADOUT_PROFILES] = {
-    [COLO_LOADOUT_PROFILE_SPEEDRUN] = 198,
-    [COLO_LOADOUT_PROFILE_BEGINNER] = 99,
-};
+#define COLO_THRALL_MAX_HIT 3
+#define COLO_THRALL_TICK    4
+#define COLO_THRALL_AGGRO_TICKS 12
 
 #define COLO_DEATH_CHARGE_WINDOW   100
 #define COLO_DEATH_CHARGE_CD       100
@@ -1543,11 +1539,11 @@ typedef struct {
     int surge_cooldown;
     OsrsInventoryCell inventory_cells[OSRS_INVENTORY_SIZE];
 
-    int thrall_active;
     int thrall_target_slot;
+    int thrall_aggro_ticks_left;
     int thrall_lifetime_left;
+    int thrall_lifetime_total;
     int thrall_attack_timer;
-    int thrall_recast_cd;
 
     int death_charge_window_left;
     int death_charge_cd;

@@ -19,7 +19,7 @@
 #define COLO_PRIMARY_DIM (ENCOUNTER_MOVE_ACTIONS + COLO_OBS_NPCS)
 #define COLO_OVERHEAD_DIM ENCOUNTER_OVERHEAD_DIM_PVE
 #define COLO_SPEC_DIM 3
-#define COLO_SPELL_DIM 3
+#define COLO_SPELL_DIM 2
 
 #define COLO_OVERHEAD_NO_CHANGE ENCOUNTER_OVERHEAD_NO_CHANGE
 #define COLO_OVERHEAD_OFF ENCOUNTER_OVERHEAD_OFF
@@ -27,8 +27,7 @@
 #define COLO_OVERHEAD_RANGED ENCOUNTER_OVERHEAD_SET_REFRESH_RANGED
 #define COLO_OVERHEAD_MAGIC ENCOUNTER_OVERHEAD_SET_REFRESH_MAGIC
 
-#define COLO_SPELL_SUMMON_THRALL 1
-#define COLO_SPELL_DEATH_CHARGE  2
+#define COLO_SPELL_DEATH_CHARGE 1
 
 #define COLO_MODIFIER_SELECT_DIM (1 + COLO_MODIFIER_DRAFT_OPTIONS)
 
@@ -465,44 +464,44 @@ static int col_player_target_slot(const ColosseumState* s) {
     return s->interaction.target_slot;
 }
 
-static void col_summon_thrall(ColosseumState* s, int target_slot) {
-    s->thrall_active = 1;
-    s->thrall_target_slot = target_slot;
-    s->thrall_lifetime_left = COLO_THRALL_LIFETIME_TICKS[s->active_loadout_profile];
-    s->thrall_attack_timer = COLO_THRALL_TICK;
-    s->thrall_recast_cd = COLO_THRALL_RECAST_CD;
-}
 
 static void col_tick_thrall_and_death_charge(ColosseumState* s, ColosseumContext* ctx) {
-    if (s->thrall_recast_cd > 0) s->thrall_recast_cd--;
     if (s->death_charge_cd > 0) s->death_charge_cd--;
     if (s->death_charge_window_left > 0) s->death_charge_window_left--;
 
-    if (s->thrall_active) {
-        s->thrall_lifetime_left--;
-        if (s->thrall_lifetime_left <= 0) {
-            s->thrall_active = 0;
-            s->thrall_target_slot = -1;
-            s->thrall_lifetime_left = 0;
-            s->thrall_attack_timer = 0;
-            return;
-        }
-        int player_target = col_player_target_slot(s);
-        if (col_npc_is_thrall_target(s, player_target))
-            s->thrall_target_slot = player_target;
-        else if (!col_npc_is_thrall_target(s, s->thrall_target_slot))
-            s->thrall_target_slot = -1;
+    s->thrall_lifetime_left--;
+    if (s->thrall_lifetime_left <= 0) {
+        col_resummon_thrall(s);
+        return;
+    }
 
-        if (s->thrall_attack_timer > 0) s->thrall_attack_timer--;
-        if (s->thrall_attack_timer == 0) {
-            s->thrall_attack_timer = COLO_THRALL_TICK;
-            if (col_npc_is_thrall_target(s, s->thrall_target_slot)) {
-                int dmg = encounter_rand_int(&s->rng_state, COLO_THRALL_MAX_HIT + 1);
-                col_queue_npc_pending_hit(s, s->thrall_target_slot, dmg, 2,
-                    ATTACK_STYLE_MAGIC, ENCOUNTER_SPELL_NONE);
-                ctx->thrall_attacked_this_tick = 1;
-            }
+    int target_refreshed = 0;
+    int player_target = s->player_attack_npc_idx;
+    if (s->tick_scratch.player_attacked && col_npc_is_thrall_target(s, player_target)) {
+        s->thrall_target_slot = player_target;
+        s->thrall_aggro_ticks_left = COLO_THRALL_AGGRO_TICKS;
+        target_refreshed = 1;
+    } else if (!col_npc_is_thrall_target(s, s->thrall_target_slot)) {
+        s->thrall_target_slot = -1;
+        s->thrall_aggro_ticks_left = 0;
+    }
+
+    if (s->thrall_attack_timer > 0) s->thrall_attack_timer--;
+    if (s->thrall_attack_timer == 0) {
+        s->thrall_attack_timer = COLO_THRALL_TICK;
+        if (col_npc_is_thrall_target(s, s->thrall_target_slot)) {
+            int dmg = encounter_rand_int(&s->rng_state, COLO_THRALL_MAX_HIT + 1);
+            col_queue_npc_pending_hit(s, s->thrall_target_slot, dmg, 2,
+                ATTACK_STYLE_MAGIC, ENCOUNTER_SPELL_NONE);
+            ctx->thrall_attacked_this_tick = 1;
         }
+    }
+
+    if (!target_refreshed && s->thrall_target_slot >= 0) {
+        assert(s->thrall_aggro_ticks_left > 0);
+        s->thrall_aggro_ticks_left--;
+        if (s->thrall_aggro_ticks_left == 0)
+            s->thrall_target_slot = -1;
     }
 }
 
@@ -1112,10 +1111,7 @@ static void col_tick_player_ctx(
     }
 
     int spell_act = s->modifiers.draft_pending ? 0 : actions[COLO_HEAD_SPELL];
-    if (spell_act == COLO_SPELL_SUMMON_THRALL && s->thrall_recast_cd == 0) {
-        int target = col_player_target_slot(s);
-        if (col_npc_is_thrall_target(s, target)) col_summon_thrall(s, target);
-    } else if (spell_act == COLO_SPELL_DEATH_CHARGE &&
+    if (spell_act == COLO_SPELL_DEATH_CHARGE &&
             s->death_charge_cd == 0 && s->death_charge_window_left == 0) {
         s->death_charge_window_left = COLO_DEATH_CHARGE_WINDOW;
     }

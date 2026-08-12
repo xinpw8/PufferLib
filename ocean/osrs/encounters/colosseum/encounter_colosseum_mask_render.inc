@@ -87,11 +87,6 @@ static void col_write_mask_ctx(
                       s->player.offensive_prayer != OFFENSIVE_PRAYER_AUGURY) ? 1.0f : 0.0f;
 
     mask[offset++] = 1.0f;
-    {
-        int target = col_player_target_slot(s);
-        mask[offset++] = (!frozen && s->thrall_recast_cd == 0 &&
-                          col_npc_is_thrall_target(s, target)) ? 1.0f : 0.0f;
-    }
     mask[offset++] = (!frozen && s->death_charge_cd == 0 &&
                       s->death_charge_window_left == 0) ? 1.0f : 0.0f;
 
@@ -321,7 +316,7 @@ static void col_fill_render_entities_ctx(
         }
     }
 
-    if (s->thrall_active && n < max_entities) {
+    if (n < max_entities) {
         int tx, ty;
         col_thrall_render_tile(s, ctx, &tx, &ty);
         col_emit_decoration_entity(out, &n, max_entities,

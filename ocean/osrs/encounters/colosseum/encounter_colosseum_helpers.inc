@@ -27,6 +27,34 @@ static void col_modifier_open_draft(ColosseumState* s, int next_wave);
 static void col_apply_late_start_entry_state(
     ColosseumState* s, const ColosseumContext* ctx, int start_wave);
 
+static int col_thrall_lifetime_ticks(const ColosseumState* s) {
+    switch (s->active_loadout_profile) {
+        case COLO_LOADOUT_PROFILE_SPEEDRUN:
+            return 2 * s->player.current_magic;
+        case COLO_LOADOUT_PROFILE_BEGINNER:
+            return s->player.current_magic;
+        case COLO_NUM_LOADOUT_PROFILES:
+            break;
+    }
+    fprintf(stderr, "invalid Colosseum loadout profile %d\n",
+        (int)s->active_loadout_profile);
+    abort();
+}
+
+static void col_resummon_thrall(ColosseumState* s) {
+    int lifetime = col_thrall_lifetime_ticks(s);
+    if (lifetime <= 0) {
+        fprintf(stderr, "invalid thrall lifetime %d at Magic level %d\n",
+            lifetime, s->player.current_magic);
+        abort();
+    }
+    s->thrall_target_slot = -1;
+    s->thrall_aggro_ticks_left = 0;
+    s->thrall_lifetime_left = lifetime;
+    s->thrall_lifetime_total = lifetime;
+    s->thrall_attack_timer = COLO_THRALL_TICK;
+}
+
 static void col_abort_invalid_weapon_set(ColoWeaponSet set) {
     fprintf(stderr, "invalid Colosseum weapon set %d\n", (int)set);
     abort();
