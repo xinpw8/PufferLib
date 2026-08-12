@@ -14,7 +14,7 @@
 - Canonical model contract: `COLO_NUM_OBS == 933`, `COLO_ACTION_MASK_SIZE == 451`, spell head `{none, Death Charge}`.
 - Canonical snapshot version: `25`.
 - Preserve `laser_obs_mode` and require `1` for run38 evaluation.
-- Do not port the Puffer source-layout migration, old item-table files, asset-manifest hash, stale baselines, or the altered FNV seed.
+- Port the verified `osrs-assets-v22` manifest SHA. Do not port the Puffer source-layout migration, old item-table files, stale baselines, or the altered FNV seed.
 - Do not modify Inferno, Zulrah, NH PvP, Puffer internals, checkpoints, generated assets, or local untracked artifacts.
 - Every semantic change gets a failing contract test before implementation.
 
@@ -23,6 +23,7 @@
 ### Task 1: Isolate and establish the red baseline
 
 **Files:**
+- Modify: `ocean/osrs/asset_manifest.json`
 - Modify later: `ocean/osrs/encounters/colosseum/*.inc`
 - Test: `ocean/osrs/tests/test_colosseum_modifiers.c`
 
@@ -39,7 +40,17 @@ git worktree add /private/tmp/puffer-colo-consolidation -b valtteri/colo-consoli
 
 Expected: worktree starts at the plan commit with no tracked modifications.
 
-- [ ] **Step 2: Compile and run the current focused baseline**
+- [ ] **Step 2: Pin and install the published asset archive**
+
+Set the `osrs-assets-v22` SHA to `2f908da5b5ddf148c0cbef48ad6334c5253c04c6cd83782340bc2f1c5dffc7ad`, then run:
+
+```bash
+bash ocean/osrs/scripts/setup-data.sh
+```
+
+Expected: the downloaded release archive matches the manifest and installs the ignored local data.
+
+- [ ] **Step 3: Compile and run the current focused baseline**
 
 ```bash
 clang -std=c11 -O2 -I. ocean/osrs/tests/test_colosseum_modifiers.c -lm -o /tmp/colo_consolidation_baseline
@@ -48,7 +59,7 @@ clang -std=c11 -O2 -I. ocean/osrs/tests/test_colosseum_modifiers.c -lm -o /tmp/c
 
 Expected: `13550/13550 tests passed`.
 
-- [ ] **Step 3: Confirm current interface values before adding red tests**
+- [ ] **Step 4: Confirm current interface values before adding red tests**
 
 Use the existing `test_primary_head_resolution` and fuzz assertions.
 

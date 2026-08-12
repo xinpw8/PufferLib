@@ -4,7 +4,7 @@
   "archive": {
     "name": "osrs-assets-v22.tar.gz",
     "url": "https://github.com/valtterivalo/PufferLib/releases/download/osrs-assets-v22/osrs-assets-v22.tar.gz",
-    "sha256": "48c6c0c0ebbb6454b00732977f987267797ad70cf1ad7ee8e0f0781014bb6c12",
+    "sha256": "2f908da5b5ddf148c0cbef48ad6334c5253c04c6cd83782340bc2f1c5dffc7ad",
     "strip_components": 1
   },
   "required_groups": [

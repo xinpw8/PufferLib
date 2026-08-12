@@ -16,6 +16,10 @@ Port behavior, not branch structure. The current 5c architecture remains authori
 
 Restore the honest multi-crystal laser observation pack and its episode diagnostics. Preserve `laser_obs_mode` because run38 records it and requires the enabled mode. The pack exposes the shared cooldown and per-crystal active, line-delta, and freeze state.
 
+### Asset archive provenance
+
+Pin the `osrs-assets-v22` release archive to `2f908da5b5ddf148c0cbef48ad6334c5253c04c6cd83782340bc2f1c5dffc7ad`. A fresh setup download produced this SHA. The prior manifest SHA rejects the published archive and prevents clean worktree builds.
+
 ### Manticore lifecycle
 
 Represent the first attack separately from the repeating barrage:
@@ -68,7 +72,6 @@ Do not port:
 - the unrelated Puffer source-layout and Python migration
 - `.cu` to `.inc` comment and include edits
 - deleted or replaced per-Colosseum item metadata generators
-- the asset manifest hash without its source asset
 - stale golden or sim-invariant hashes
 - the WIP test's accidental nonstandard FNV seed
 - canceled next-style ungating and pending-style schedule experiments
