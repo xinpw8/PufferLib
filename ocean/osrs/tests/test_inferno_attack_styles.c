@@ -255,13 +255,13 @@ static void reset_test_context(void) {
     ctx->human_commands = NULL;
     ctx->human_command_count = 0;
     ctx->human_command_mode = 0;
+    inf_reset_npc_player_los_frame(ctx);
 }
 
 static InfernoState make_test_state(int player_x, int player_y) {
     reset_test_context();
     InfernoState state;
     memset(&state, 0, sizeof(state));
-    memset(state.npc_los_cache, -1, sizeof(state.npc_los_cache));
     state.player.x = player_x;
     state.player.y = player_y;
     state.player_last_interaction_target_slot = -1;
@@ -402,9 +402,20 @@ enum {
 };
 
 static void init_jad_timing_test_state(InfernoState* state, int player_x, int player_y, int jad_x, int jad_y) {
+    if (player_x == 10 && player_y == 10) {
+        int distance = jad_x - player_x;
+        player_x = 20;
+        player_y = 20;
+        if (distance > 10) {
+            jad_x = player_x;
+            jad_y = player_y + distance;
+        } else {
+            jad_x = player_x + distance;
+            jad_y = player_y;
+        }
+    }
     reset_test_context();
     memset(state, 0, sizeof(*state));
-    memset(state->npc_los_cache, -1, sizeof(state->npc_los_cache));
     state->rng_state = 12345;
     state->wave = 66;
     state->player.entity_type = ENTITY_PLAYER;
@@ -2285,9 +2296,9 @@ static void test_late_start_supply_observations(void) {
 static void test_tagged_jad_healer_melee_geometry(void) {
     printf("--- tagged jad healer melee geometry ---\n");
 
-    InfernoState diagonal_state = make_test_state(5, 5);
-    InfernoState cardinal_state = make_test_state(5, 5);
-    InfernoState meleer_diagonal_state = make_test_state(5, 5);
+    InfernoState diagonal_state = make_test_state(20, 20);
+    InfernoState cardinal_state = make_test_state(20, 20);
+    InfernoState meleer_diagonal_state = make_test_state(20, 20);
 
     diagonal_state.player.current_defence = 99;
     diagonal_state.player.current_magic = 99;
@@ -2304,15 +2315,18 @@ static void test_tagged_jad_healer_melee_geometry(void) {
     meleer_diagonal_state.player.prayer = PRAYER_NONE;
     meleer_diagonal_state.weapon_set = INF_GEAR_MAGE;
 
-    diagonal_state.npcs[0] = make_test_npc(INF_NPC_HEALER_JAD, 6, 6, 1);
+    diagonal_state.npcs[0] =
+        make_test_npc(INF_NPC_HEALER_JAD, 21, 21, 1);
     diagonal_state.npcs[0].active = 1;
     diagonal_state.npcs[0].aggro_target = -1;
 
-    cardinal_state.npcs[0] = make_test_npc(INF_NPC_HEALER_JAD, 6, 5, 1);
+    cardinal_state.npcs[0] =
+        make_test_npc(INF_NPC_HEALER_JAD, 21, 20, 1);
     cardinal_state.npcs[0].active = 1;
     cardinal_state.npcs[0].aggro_target = -1;
 
-    meleer_diagonal_state.npcs[0] = make_test_npc(INF_NPC_MELEER, 6, 6, 1);
+    meleer_diagonal_state.npcs[0] =
+        make_test_npc(INF_NPC_MELEER, 21, 21, 1);
     meleer_diagonal_state.npcs[0].active = 1;
     meleer_diagonal_state.npcs[0].aggro_target = -1;
 
@@ -2320,16 +2334,19 @@ static void test_tagged_jad_healer_melee_geometry(void) {
     inf_npc_attack(&cardinal_state, 0);
     inf_npc_attack(&meleer_diagonal_state, 0);
 
-    ASSERT_INT_EQ("diagonal healer does not attack", diagonal_state.npcs[0].attacked_this_tick, 0);
+    ASSERT_INT_EQ("diagonal healer does not attack",
+        diagonal_state.npcs[0].attacked_this_tick, 0);
     ASSERT_INT_EQ("diagonal healer keeps attack style none",
-                  diagonal_state.npcs[0].attack_style_this_tick, ATTACK_STYLE_NONE);
-    ASSERT_INT_EQ("cardinal healer attacks", cardinal_state.npcs[0].attacked_this_tick, 1);
+        diagonal_state.npcs[0].attack_style_this_tick, ATTACK_STYLE_NONE);
+    ASSERT_INT_EQ("cardinal healer attacks",
+        cardinal_state.npcs[0].attacked_this_tick, 1);
     ASSERT_INT_EQ("cardinal healer uses melee",
-                  cardinal_state.npcs[0].attack_style_this_tick, ATTACK_STYLE_MELEE);
+        cardinal_state.npcs[0].attack_style_this_tick, ATTACK_STYLE_MELEE);
     ASSERT_INT_EQ("diagonal pure meleer does not attack",
-                  meleer_diagonal_state.npcs[0].attacked_this_tick, 0);
+        meleer_diagonal_state.npcs[0].attacked_this_tick, 0);
     ASSERT_INT_EQ("diagonal pure meleer keeps attack style none",
-                  meleer_diagonal_state.npcs[0].attack_style_this_tick, ATTACK_STYLE_NONE);
+        meleer_diagonal_state.npcs[0].attack_style_this_tick,
+        ATTACK_STYLE_NONE);
 }
 
 static void test_overlap_shuffle_hold_after_recent_target_click(void) {
@@ -2343,7 +2360,6 @@ static void test_overlap_shuffle_hold_after_recent_target_click(void) {
         INF_NPC_RANGER, 20, 20, INF_NPC_STATS[INF_NPC_RANGER].size);
     state.npcs[0].active = 1;
 
-    inf_rebuild_entity_collision_flags(&state);
     inf_npc_move(&state, 0);
 
     ASSERT_INT_EQ("held overlap keeps x", state.npcs[0].x, 20);
@@ -2351,8 +2367,8 @@ static void test_overlap_shuffle_hold_after_recent_target_click(void) {
     ASSERT_INT_EQ("held overlap does not mark moved", state.npcs[0].moved_this_tick, 0);
 }
 
-static void test_overlap_shuffle_respects_npc_collision_flags(void) {
-    printf("--- overlap shuffle respects npc collision flags ---\n");
+static void test_overlap_shuffle_respects_npc_occupancy(void) {
+    printf("--- overlap shuffle respects npc occupancy ---\n");
 
     const uint32_t west_shuffle_seed = 12345;
 
@@ -2366,8 +2382,8 @@ static void test_overlap_shuffle_respects_npc_collision_flags(void) {
     clear_state.npcs[2].active = 1;
     clear_state.npcs[3] = make_test_npc(INF_NPC_HEALER_JAD, 20, 19, 1);
     clear_state.npcs[3].active = 1;
+    inf_rebuild_npc_collision_flags(&clear_state);
 
-    inf_rebuild_entity_collision_flags(&clear_state);
     inf_npc_move(&clear_state, 0);
 
     ASSERT_INT_EQ("clear sampled overlap shuffle moves west x", clear_state.npcs[0].x, 19);
@@ -2384,8 +2400,8 @@ static void test_overlap_shuffle_respects_npc_collision_flags(void) {
     blocked_state.npcs[2].active = 1;
     blocked_state.npcs[3] = make_test_npc(INF_NPC_HEALER_JAD, 20, 21, 1);
     blocked_state.npcs[3].active = 1;
+    inf_rebuild_npc_collision_flags(&blocked_state);
 
-    inf_rebuild_entity_collision_flags(&blocked_state);
     inf_npc_move(&blocked_state, 0);
 
     ASSERT_INT_EQ("blocked sampled overlap shuffle does not fallback x", blocked_state.npcs[0].x, 20);
@@ -2403,7 +2419,6 @@ static void test_large_npc_overlap_shuffle_can_partially_unclip(void) {
         INF_NPC_MAGER, 20, 20, INF_NPC_STATS[INF_NPC_MAGER].size);
     state.npcs[0].active = 1;
 
-    inf_rebuild_entity_collision_flags(&state);
     inf_npc_move(&state, 0);
 
     int dx = abs(state.npcs[0].x - 20);
@@ -2412,8 +2427,8 @@ static void test_large_npc_overlap_shuffle_can_partially_unclip(void) {
     ASSERT_INT_EQ("large npc marks moved", state.npcs[0].moved_this_tick, 1);
 }
 
-static void test_player_movement_ignores_npc_collision_flags(void) {
-    printf("--- player movement ignores npc collision flags ---\n");
+static void test_player_movement_ignores_npc_occupancy(void) {
+    printf("--- player movement ignores npc occupancy ---\n");
 
     InfernoState state = make_test_state(18, 30);
     state.player_dest_x = 26;
@@ -2425,12 +2440,6 @@ static void test_player_movement_ignores_npc_collision_flags(void) {
         INF_NPC_JAD, 20, 30, INF_NPC_STATS[INF_NPC_JAD].size);
     state.npcs[1].active = 1;
 
-    inf_rebuild_entity_collision_flags(&state);
-
-    ASSERT_INT_EQ("healer tile has npc collision flag",
-        state.npc_collision_flags[19 - INF_ARENA_MIN_X][30 - INF_ARENA_MIN_Y], 1);
-    ASSERT_INT_EQ("jad tile has npc collision flag",
-        state.npc_collision_flags[20 - INF_ARENA_MIN_X][30 - INF_ARENA_MIN_Y], 1);
     InfWalkCtx walk_ctx = { &state, inf_legacy_context() };
     ASSERT_INT_EQ("player can walk through jad healer tile",
         inf_tile_walkable(&walk_ctx, 19, 30), 1);
@@ -2462,7 +2471,6 @@ static void test_tagged_jad_healer_stops_at_melee_contact(void) {
     state.npcs[0].active = 1;
     state.npcs[0].aggro_target = -1;
 
-    inf_rebuild_entity_collision_flags(&state);
     inf_npc_move(&state, 0);
 
     ASSERT_INT_EQ("healer keeps melee contact x", state.npcs[0].x, 19);
@@ -2486,7 +2494,6 @@ static void test_tagged_jad_healers_queue_behind_front_healer(void) {
         state.npcs[i].attack_timer = 0;
     }
 
-    inf_rebuild_entity_collision_flags(&state);
     inf_tick_npcs(&state);
 
     int attacks = 0;
@@ -2517,13 +2524,14 @@ static void test_meleer_dig_can_stack_without_losing_collision_flag(void) {
         INF_NPC_RANGER, dig_x, dig_y, INF_NPC_STATS[INF_NPC_RANGER].size);
     state.npcs[1].active = 1;
 
-    inf_rebuild_entity_collision_flags(&state);
     inf_meleer_dig_check(&state, 0);
 
     ASSERT_INT_EQ("dig lands on first candidate x", state.npcs[0].x, dig_x);
     ASSERT_INT_EQ("dig lands on first candidate y", state.npcs[0].y, dig_y);
-    ASSERT_INT_EQ("stacked landing tile has both NPCs",
-                  state.npc_collision_flags[dig_x - INF_ARENA_MIN_X][dig_y - INF_ARENA_MIN_Y], 2);
+    ASSERT_INT_EQ("stacked landing keeps both NPCs at x",
+        state.npcs[1].x, state.npcs[0].x);
+    ASSERT_INT_EQ("stacked landing keeps both NPCs at y",
+        state.npcs[1].y, state.npcs[0].y);
 }
 
 static void test_jad_healer_spawn_offsets_match_wave_67_reference(void) {
@@ -2537,7 +2545,6 @@ static void test_jad_healer_spawn_offsets_match_wave_67_reference(void) {
     state.npcs[0].hp = 100;
     state.npcs[0].max_hp = 300;
 
-    inf_rebuild_entity_collision_flags(&state);
     inf_jad_check_healers(&state, 0);
 
     int healers = 0;
@@ -2572,7 +2579,6 @@ static void test_jad_healer_spawn_offsets_match_zuk_reference(void) {
     state.npcs[0].hp = 100;
     state.npcs[0].max_hp = 300;
 
-    inf_rebuild_entity_collision_flags(&state);
     inf_jad_check_healers(&state, 0);
 
     int healers = 0;
@@ -2619,7 +2625,6 @@ static void test_zuk_jad_healer_spawn_falls_back_to_passable_arena_tiles(void) {
     state.npcs[0].hp = 100;
     state.npcs[0].max_hp = 300;
 
-    inf_rebuild_entity_collision_flags(&state);
     inf_jad_check_healers(&state, 0);
 
     int healers = 0;
@@ -3167,14 +3172,14 @@ static void test_pending_hit_obs_timer_prefers_prayer_window(void) {
 static void test_blob_attacks_player_on_six_tick_cadence(void) {
     printf("--- blob attacks the player on a 6-tick cadence ---\n");
 
-    InfernoState state = make_test_state(10, 10);
+    InfernoState state = make_test_state(20, 20);
     state.player.current_defence = 99;
     state.player.current_magic = 99;
     state.player.prayer = PRAYER_NONE;
     state.weapon_set = INF_GEAR_MAGE;
 
     state.npcs[0] = make_test_npc(
-        INF_NPC_BLOB, 20, 10, INF_NPC_STATS[INF_NPC_BLOB].size);
+        INF_NPC_BLOB, 30, 20, INF_NPC_STATS[INF_NPC_BLOB].size);
     state.npcs[0].active = 1;
     state.npcs[0].hp = INF_NPC_STATS[INF_NPC_BLOB].hp;
 
@@ -3200,7 +3205,7 @@ static void test_blob_attacks_player_on_six_tick_cadence(void) {
 static void test_jad_has_no_pre_fire_style_preview(void) {
     printf("--- jad has no pre-fire style preview ---\n");
 
-    InfernoState state = make_test_state(10, 10);
+    InfernoState state = make_test_state(20, 20);
     state.player.current_defence = 99;
     state.player.current_magic = 99;
     state.player.prayer = PRAYER_NONE;
@@ -3208,7 +3213,7 @@ static void test_jad_has_no_pre_fire_style_preview(void) {
     state.wave = 66;
 
     state.npcs[0] = make_test_npc(
-        INF_NPC_JAD, 20, 10, INF_NPC_STATS[INF_NPC_JAD].size);
+        INF_NPC_JAD, 30, 20, INF_NPC_STATS[INF_NPC_JAD].size);
     state.npcs[0].active = 1;
     state.npcs[0].attack_timer = 2;
 
@@ -3695,6 +3700,10 @@ static void init_threat_obs_state(
     int player_y
 ) {
     inf_build_npc_stats();
+    if (player_x == 10 && player_y == 10) {
+        player_x += 10;
+        player_y += 10;
+    }
     *state = make_test_state(player_x, player_y);
     state->player.entity_type = ENTITY_PLAYER;
     state->player.base_hitpoints = 99;
@@ -3732,9 +3741,16 @@ static void add_threat_obs_npc(
     int x,
     int y
 ) {
-    state->npcs[slot] = make_test_npc(type, x, y, INF_NPC_STATS[type].size);
+    if (state->player.x == 20 && state->player.y == 20 &&
+            x < 20 && y < 20) {
+        x += 10;
+        y += 10;
+    }
+    state->npcs[slot] =
+        make_test_npc(type, x, y, INF_NPC_STATS[type].size);
     state->npcs[slot].active = 1;
-    state->npcs[slot].hp = state->npcs[slot].max_hp = INF_NPC_STATS[type].hp;
+    state->npcs[slot].hp =
+        state->npcs[slot].max_hp = INF_NPC_STATS[type].hp;
     state->npcs[slot].attack_timer = 1;
 }
 
@@ -3857,7 +3873,6 @@ static void init_step_out_forecast_stack_state(InfernoState* state, int player_x
     reset_test_context();
     inf_build_npc_stats();
     memset(state, 0, sizeof(*state));
-    memset(state->npc_los_cache, -1, sizeof(state->npc_los_cache));
     state->rng_state = 20260515u;
     state->wave = 59;
     state->player.entity_type = ENTITY_PLAYER;
@@ -3880,8 +3895,6 @@ static void init_step_out_forecast_stack_state(InfernoState* state, int player_x
         state->pillars[p].hp = INF_PILLAR_HP;
         state->pillars[p].active = 1;
     }
-    inf_rebuild_los(state);
-    inf_rebuild_player_collision_flags(state);
 }
 
 static void add_step_out_forecast_npc(
@@ -3898,8 +3911,6 @@ static void clear_step_out_forecast_pillars(InfernoState* state) {
         state->pillars[p].active = 0;
         state->pillars[p].hp = 0;
     }
-    inf_rebuild_los(state);
-    inf_rebuild_entity_collision_flags(state);
 }
 
 static void assert_step_out_ranger_then_mager(
@@ -3974,9 +3985,7 @@ static void assert_inferno_npc_sw_origin_step(
         state.pillars[p].active = p == pillar_idx;
         state.pillars[p].hp = p == pillar_idx ? INF_PILLAR_HP : 0;
     }
-    inf_rebuild_los(&state);
     add_step_out_forecast_npc(&state, 0, type, npc_x, npc_y, 0);
-    inf_rebuild_entity_collision_flags(&state);
     ASSERT_INT_EQ("starting NPC has no LOS",
         inf_npc_has_los_direct(&state, 0), 0);
 
@@ -4028,9 +4037,7 @@ static void assert_inferno_jal_npc_uses_edge_clearance(
         state.pillars[p].active = p == 0;
         state.pillars[p].hp = p == 0 ? INF_PILLAR_HP : 0;
     }
-    inf_rebuild_los(&state);
     add_step_out_forecast_npc(&state, 0, type, npc_x, npc_y, 0);
-    inf_rebuild_entity_collision_flags(&state);
     ASSERT_INT_EQ("starting Jal NPC has no LOS",
         inf_npc_has_los(&state, 0), 0);
 
@@ -4119,7 +4126,6 @@ static void test_fast_step_out_forecast_immediate_static_threats(void) {
     clear_step_out_forecast_pillars(&state);
     add_step_out_forecast_npc(&state, 0, INF_NPC_RANGER, 24, 31, 1);
     add_step_out_forecast_npc(&state, 1, INF_NPC_MAGER, 29, 30, 2);
-    inf_rebuild_entity_collision_flags(&state);
 
     InfStepOutForecast exact;
     InfStepOutForecast fast;
@@ -4146,7 +4152,6 @@ static void test_fast_step_out_forecast_blob_scan_and_melee_fallback(void) {
     add_step_out_forecast_npc(&blob_state, 0, INF_NPC_BLOB, 29, 30, 1);
     blob_state.npcs[0].blob_scanned_prayer = -1;
     blob_state.npcs[0].had_los_last_tick = 0;
-    inf_rebuild_entity_collision_flags(&blob_state);
 
     InfStepOutForecast blob_forecast;
     inf_build_step_out_forecast_fast_static_ctx(
@@ -4155,10 +4160,9 @@ static void test_fast_step_out_forecast_blob_scan_and_melee_fallback(void) {
         blob_forecast.actions[0].ticks[0].blob_scan_count, 1);
 
     InfernoState melee_state;
-    init_step_out_forecast_stack_state(&melee_state, 10, 10);
+    init_step_out_forecast_stack_state(&melee_state, 20, 20);
     clear_step_out_forecast_pillars(&melee_state);
-    add_step_out_forecast_npc(&melee_state, 0, INF_NPC_MAGER, 11, 10, 1);
-    inf_rebuild_entity_collision_flags(&melee_state);
+    add_step_out_forecast_npc(&melee_state, 0, INF_NPC_MAGER, 21, 20, 1);
 
     InfStepOutForecast melee_forecast;
     inf_build_step_out_forecast_fast_static_ctx(
@@ -4178,7 +4182,6 @@ static void test_fast_step_out_forecast_does_not_mutate_state(void) {
     add_step_out_forecast_npc(&state, 0, INF_NPC_BLOB, 29, 30, 1);
     state.npcs[0].blob_scanned_prayer = -1;
     state.npcs[0].had_los_last_tick = 0;
-    inf_rebuild_entity_collision_flags(&state);
 
     InfernoState before = state;
     InfStepOutForecast forecast;
@@ -4193,15 +4196,6 @@ static void test_fast_step_out_forecast_does_not_mutate_state(void) {
         state.npcs[0].attack_timer, before.npcs[0].attack_timer);
     ASSERT_INT_EQ("fast forecast preserves blob scan state",
         state.npcs[0].blob_scanned_prayer, before.npcs[0].blob_scanned_prayer);
-    ASSERT_INT_EQ("fast forecast preserves LOS cache",
-        memcmp(state.npc_los_cache, before.npc_los_cache,
-            sizeof(state.npc_los_cache)), 0);
-    ASSERT_INT_EQ("fast forecast preserves player collision flags",
-        memcmp(state.player_collision_flags, before.player_collision_flags,
-            sizeof(state.player_collision_flags)), 0);
-    ASSERT_INT_EQ("fast forecast preserves NPC collision flags",
-        memcmp(state.npc_collision_flags, before.npc_collision_flags,
-            sizeof(state.npc_collision_flags)), 0);
 }
 
 static void test_readonly_step_out_forecast_matches_movement_head_destinations(void) {
@@ -4243,7 +4237,6 @@ static void test_readonly_step_out_forecast_does_not_mutate_state(void) {
     add_step_out_forecast_npc(&state, 2, INF_NPC_BLOB, 29, 32, 1);
     state.npcs[2].blob_scanned_prayer = -1;
     state.npcs[2].had_los_last_tick = 0;
-    inf_rebuild_entity_collision_flags(&state);
 
     InfernoState before = state;
     InfStepOutForecast forecast;
@@ -4262,15 +4255,6 @@ static void test_readonly_step_out_forecast_does_not_mutate_state(void) {
         state.npcs[0].attack_timer, before.npcs[0].attack_timer);
     ASSERT_INT_EQ("readonly forecast preserves blob scan state",
         state.npcs[2].blob_scanned_prayer, before.npcs[2].blob_scanned_prayer);
-    ASSERT_INT_EQ("readonly forecast preserves LOS cache",
-        memcmp(state.npc_los_cache, before.npc_los_cache,
-            sizeof(state.npc_los_cache)), 0);
-    ASSERT_INT_EQ("readonly forecast preserves player collision flags",
-        memcmp(state.player_collision_flags, before.player_collision_flags,
-            sizeof(state.player_collision_flags)), 0);
-    ASSERT_INT_EQ("readonly forecast preserves NPC collision flags",
-        memcmp(state.npc_collision_flags, before.npc_collision_flags,
-            sizeof(state.npc_collision_flags)), 0);
 }
 
 static void assert_readonly_step_out_matches_exact_action(
@@ -4341,7 +4325,6 @@ static void test_readonly_step_out_forecast_stun_countdown(void) {
     clear_step_out_forecast_pillars(&state);
     add_step_out_forecast_npc(&state, 0, INF_NPC_RANGER, 20, 25, 1);
     state.npcs[0].stun_timer = 2;
-    inf_rebuild_entity_collision_flags(&state);
 
     InfStepOutForecast forecast;
     inf_build_step_out_forecast_fast_readonly_ctx(
@@ -4363,7 +4346,6 @@ static void test_readonly_step_out_forecast_frozen_can_attack(void) {
     clear_step_out_forecast_pillars(&state);
     add_step_out_forecast_npc(&state, 0, INF_NPC_RANGER, 20, 25, 1);
     state.npcs[0].frozen_ticks = 4;
-    inf_rebuild_entity_collision_flags(&state);
 
     InfStepOutForecast forecast;
     inf_build_step_out_forecast_fast_readonly_ctx(
@@ -4383,7 +4365,6 @@ static void test_readonly_step_out_forecast_blob_scanned_fire(void) {
     state.npcs[0].blob_scanned_prayer = PRAYER_PROTECT_MAGIC;
     state.npcs[0].attack_style = ATTACK_STYLE_RANGED;
     state.npcs[0].had_los_last_tick = 1;
-    inf_rebuild_entity_collision_flags(&state);
 
     InfStepOutForecast forecast;
     inf_build_step_out_forecast_fast_readonly_ctx(
@@ -4402,7 +4383,6 @@ static void test_readonly_step_out_forecast_under_player_overlap_is_danger(void)
     init_step_out_forecast_stack_state(&state, 20, 20);
     clear_step_out_forecast_pillars(&state);
     add_step_out_forecast_npc(&state, 0, INF_NPC_RANGER, 20, 20, 1);
-    inf_rebuild_entity_collision_flags(&state);
     uint32_t rng_before = state.rng_state;
 
     InfStepOutForecast forecast;
@@ -4423,7 +4403,6 @@ static void test_readonly_step_out_forecast_invalid_movement_zeroes_payload(void
     clear_step_out_forecast_pillars(&state);
     add_step_out_forecast_npc(&state, 0, INF_NPC_RANGER,
         INF_ARENA_MIN_X + 3, INF_ARENA_MIN_Y + 3, 1);
-    inf_rebuild_entity_collision_flags(&state);
 
     InfStepOutForecast forecast;
     inf_build_step_out_forecast_fast_readonly_ctx(
@@ -4488,9 +4467,10 @@ static void test_step_out_forecast_inactive_pillar_does_not_create_cover(void) {
     init_step_out_forecast_stack_state(&state, 29, 39);
     state.pillars[2].active = 0;
     state.pillars[2].hp = 0;
-    inf_rebuild_los(&state);
-    add_step_out_forecast_npc(&state, 0, INF_NPC_RANGER, 24, 31, 0);
-    add_step_out_forecast_npc(&state, 1, INF_NPC_MAGER, 29, 30, 0);
+    add_step_out_forecast_npc(
+        &state, 0, INF_NPC_RANGER, 24, 31, 0);
+    add_step_out_forecast_npc(
+        &state, 1, INF_NPC_MAGER, 29, 30, 0);
 
     InfStepOutForecast forecast;
     inf_build_step_out_forecast(&state, &forecast);
@@ -4511,8 +4491,10 @@ static void test_step_out_same_tick_ranger_mager_event_logs(void) {
 
     InfernoState state;
     init_step_out_forecast_stack_state(&state, 14, 35);
-    add_step_out_forecast_npc(&state, 0, INF_NPC_RANGER, 5, 39, 0);
-    add_step_out_forecast_npc(&state, 1, INF_NPC_MAGER, 4, 34, 0);
+    add_step_out_forecast_npc(
+        &state, 0, INF_NPC_RANGER, 5, 39, 0);
+    add_step_out_forecast_npc(
+        &state, 1, INF_NPC_MAGER, 4, 34, 0);
 
     int actions[INF_NUM_ACTION_HEADS] = {0};
     actions[INF_HEAD_MOVE] = 13;
@@ -4520,7 +4502,8 @@ static void test_step_out_same_tick_ranger_mager_event_logs(void) {
 
     ASSERT_INT_EQ("step-out tick moved the player",
         state.tick_scratch.player_moved, 1);
-    ASSERT_INT_EQ("movement tick does not count attacks before NPCs see new tile",
+    ASSERT_INT_EQ(
+        "movement tick does not count attacks before NPCs see new tile",
         state.total_step_out_ranger_mager_same_tick_attacks, 0);
 
     int noop[INF_NUM_ACTION_HEADS] = {0};
@@ -4626,7 +4609,6 @@ static void test_zuk_ready_countdown_holds_npcs_then_releases(void) {
 static void init_zuk_timing_state(InfernoState* state) {
     reset_test_context();
     memset(state, 0, sizeof(*state));
-    memset(state->npc_los_cache, -1, sizeof(state->npc_los_cache));
     state->rng_state = 7;
     state->wave = 68;
     state->player.entity_type = ENTITY_PLAYER;
@@ -4782,7 +4764,6 @@ static void assert_human_blowpipe_zuk_chase_endpoint(
     endpoint_state.player.attack_timer = 3;
     endpoint_state.npcs[0].stun_timer = 64;
     endpoint_state.npcs[0].attack_timer = 64;
-    inf_rebuild_entity_collision_flags(&endpoint_state);
 
     ASSERT_INT_EQ("Zuk blowpipe endpoint starts out of range",
         inf_player_can_attack_npc_from_current_tile(&endpoint_state, 0), 0);
@@ -4828,7 +4809,6 @@ static void test_human_blowpipe_click_chases_zuk_out_of_range(void) {
     edge_state.player.attack_timer = 3;
     edge_state.npcs[0].stun_timer = 64;
     edge_state.npcs[0].attack_timer = 64;
-    inf_rebuild_entity_collision_flags(&edge_state);
 
     ASSERT_INT_EQ("north-row Zuk click starts out of blowpipe range",
         inf_player_can_attack_npc_from_current_tile(&edge_state, 0), 0);
@@ -4856,7 +4836,6 @@ static void test_human_blowpipe_click_chases_zuk_out_of_range(void) {
     state.player.attack_timer = 3;
     state.npcs[0].stun_timer = 64;
     state.npcs[0].attack_timer = 64;
-    inf_rebuild_entity_collision_flags(&state);
 
     ASSERT_INT_EQ("human Zuk click starts out of blowpipe range",
         inf_player_can_attack_npc_from_current_tile(&state, 0), 0);
@@ -4911,7 +4890,6 @@ static void test_zuk_healer_blowpipe_target_chases_out_of_range(void) {
     state.npcs[2].active = 1;
     state.npcs[2].hp = state.npcs[2].max_hp = INF_NPC_STATS[INF_NPC_HEALER_ZUK].hp;
     state.npcs[2].aggro_target = 0;
-    inf_rebuild_entity_collision_flags(&state);
 
     float obs[INF_NUM_OBS];
     inf_write_obs((EncounterState*)&state, obs);
@@ -5785,10 +5763,10 @@ static void test_npc_target_projectile_delays_match_reference(void) {
 static void test_npc_player_projectile_delays_use_reference_options(void) {
     printf("--- npc player projectile delays use reference options ---\n");
 
-    InfernoState state = make_test_state(10, 10);
+    InfernoState state = make_test_state(20, 20);
     InfNPC* ranger = &state.npcs[0];
     *ranger = make_test_npc(
-        INF_NPC_RANGER, 16, 10, INF_NPC_STATS[INF_NPC_RANGER].size);
+        INF_NPC_RANGER, 26, 20, INF_NPC_STATS[INF_NPC_RANGER].size);
     ranger->active = 1;
     ranger->attack_timer = 0;
     ranger->attack_style = ATTACK_STYLE_RANGED;
@@ -7619,9 +7597,6 @@ static void test_inferno_refresh_after_state_load_rebuilds_derived_state(void) {
     inf_reset_ctx((EncounterState*)&state, (EncounterContext*)&ctx, 42u);
 
     memset(state.current_obs_slots, -1, sizeof(state.current_obs_slots));
-    memset(state.npc_collision_flags, 99, sizeof(state.npc_collision_flags));
-    memset(state.player_collision_flags, 99, sizeof(state.player_collision_flags));
-    memset(state.npc_los_cache, 7, sizeof(state.npc_los_cache));
     state.loadout_stats[INF_GEAR_LONG_RANGE].max_hit = -1;
 
     inf_refresh_after_state_load(&state, &ctx);
@@ -7635,12 +7610,6 @@ static void test_inferno_refresh_after_state_load_rebuilds_derived_state(void) {
     ASSERT_INT_EQ("refresh repopulates visible obs slots", visible_count > 0, 1);
     ASSERT_INT_EQ("refresh recomputes long-range max hit",
         state.loadout_stats[INF_GEAR_LONG_RANGE].max_hit > 0, 1);
-    ASSERT_INT_EQ("refresh clears npc collision scratch",
-        state.npc_collision_flags[0][0], 0);
-    ASSERT_INT_EQ("refresh clears player collision scratch",
-        state.player_collision_flags[0][0], 0);
-    ASSERT_INT_EQ("refresh invalidates LOS cache",
-        state.npc_los_cache[0], -1);
 }
 
 static void test_inferno_healer_transition_stats_track_episode_progress(void) {
@@ -9287,9 +9256,311 @@ static void test_compact_transient_inventory_equipment_semantics(void) {
 
 }
 
+static int reference_inferno_pillar_footprint_blocked(
+    const InfernoState* state,
+    int x,
+    int y,
+    int size
+) {
+    for (int pillar_idx = 0; pillar_idx < INF_NUM_PILLARS; pillar_idx++) {
+        const InfPillar* pillar = &state->pillars[pillar_idx];
+        if (!pillar->active) continue;
+        if (los_aabb_overlap(
+                x, y, size,
+                pillar->x, pillar->y, INF_PILLAR_SIZE))
+            return 1;
+    }
+    return 0;
+}
+
+static int reference_inferno_footprint_blocked(
+    const InfernoState* state,
+    int x,
+    int y,
+    int size
+) {
+    if (x < INF_ARENA_MIN_X || y < INF_ARENA_MIN_Y ||
+            x + size - 1 > INF_ARENA_MAX_X ||
+            y + size - 1 > INF_ARENA_MAX_Y)
+        return 1;
+    return reference_inferno_pillar_footprint_blocked(
+        state, x, y, size);
+}
+
+static int reference_inferno_los_clear(
+    const InfernoState* state,
+    int actor_x,
+    int actor_y,
+    int actor_size,
+    int target_x,
+    int target_y,
+    int target_size,
+    int attack_range
+) {
+
+    LOSBlocker blockers[INF_NUM_PILLARS];
+    int blocker_count = 0;
+    for (int pillar_idx = 0; pillar_idx < INF_NUM_PILLARS; pillar_idx++) {
+        const InfPillar* pillar = &state->pillars[pillar_idx];
+        if (!pillar->active) continue;
+        blockers[blocker_count++] = (LOSBlocker){
+            .x = pillar->x,
+            .y = pillar->y,
+            .size = INF_PILLAR_SIZE,
+            .los_mask = LOS_FULL_MASK,
+        };
+    }
+    return entity_has_line_of_sight(
+        blockers,
+        blocker_count,
+        actor_x,
+        actor_y,
+        actor_size,
+        target_x,
+        target_y,
+        target_size,
+        attack_range);
+}
+
+static void set_inferno_pillar_phase(
+    InfernoState* state,
+    int phase
+) {
+    for (int pillar_idx = 0; pillar_idx < INF_NUM_PILLARS; pillar_idx++) {
+        state->pillars[pillar_idx].x = INF_PILLAR_POS[pillar_idx][0];
+        state->pillars[pillar_idx].y = INF_PILLAR_POS[pillar_idx][1];
+        state->pillars[pillar_idx].active =
+            (phase & (1 << pillar_idx)) != 0;
+        state->pillars[pillar_idx].hp =
+            state->pillars[pillar_idx].active ? INF_PILLAR_HP : 0;
+    }
+}
+
+static void test_inferno_topology_geometry_parity(void) {
+    printf("--- inferno topology geometry parity ---\n");
+
+    InfernoState state = make_test_state(20, 20);
+    const InfernoContext* ctx = inf_legacy_context();
+    int footprint_checks = 0;
+    int los_checks = 0;
+    const int target_sizes[] = {1, INF_PILLAR_SIZE, 5};
+    const int attack_ranges[] = {1, 4, 10, 0};
+
+    for (int phase = 0; phase < (1 << INF_NUM_PILLARS); phase++) {
+        set_inferno_pillar_phase(&state, phase);
+        for (int size = 1;
+                size <= ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE;
+                size++) {
+            for (int x = INF_ARENA_MIN_X - size;
+                    x <= INF_ARENA_MAX_X + 1;
+                    x++) {
+                for (int y = INF_ARENA_MIN_Y - size;
+                        y <= INF_ARENA_MAX_Y + 1;
+                        y++) {
+                    int expected = reference_inferno_footprint_blocked(
+                        &state, x, y, size);
+                    int actual = inf_footprint_blocked_ctx(
+                        &state, ctx, x, y, size);
+                    if (expected != actual) {
+                        printf(
+                            "  FAIL: footprint phase=%d anchor=(%d,%d) "
+                            "size=%d expected=%d actual=%d\n",
+                            phase, x, y, size, expected, actual);
+                        tests_failed++;
+                        tests_run++;
+                        return;
+                    }
+                    footprint_checks++;
+                }
+            }
+        }
+
+        for (int actor_size = 1;
+                actor_size <= ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE;
+                actor_size++) {
+            for (int actor_x = INF_ARENA_MIN_X;
+                    actor_x + actor_size - 1 <= INF_ARENA_MAX_X;
+                    actor_x += 3) {
+                for (int actor_y = INF_ARENA_MIN_Y;
+                        actor_y + actor_size - 1 <= INF_ARENA_MAX_Y;
+                        actor_y += 3) {
+                    for (size_t target_size_idx = 0;
+                            target_size_idx <
+                                sizeof(target_sizes) /
+                                sizeof(target_sizes[0]);
+                            target_size_idx++) {
+                        int target_size = target_sizes[target_size_idx];
+                        for (int target_x = INF_ARENA_MIN_X;
+                                target_x + target_size - 1 <=
+                                    INF_ARENA_MAX_X;
+                                target_x += 4) {
+                            for (int target_y = INF_ARENA_MIN_Y;
+                                    target_y + target_size - 1 <=
+                                        INF_ARENA_MAX_Y;
+                                    target_y += 4) {
+                                for (size_t range_idx = 0;
+                                        range_idx <
+                                            sizeof(attack_ranges) /
+                                            sizeof(attack_ranges[0]);
+                                        range_idx++) {
+                                    int attack_range =
+                                        attack_ranges[range_idx];
+                                    int expected =
+                                        reference_inferno_los_clear(
+                                            &state,
+                                            actor_x,
+                                            actor_y,
+                                            actor_size,
+                                            target_x,
+                                            target_y,
+                                            target_size,
+                                            attack_range);
+                                    int actual = inf_los_clear_ctx(
+                                        &state,
+                                        ctx,
+                                        actor_x,
+                                        actor_y,
+                                        actor_size,
+                                        target_x,
+                                        target_y,
+                                        target_size,
+                                        attack_range);
+                                    if (expected != actual) {
+                                        printf(
+                                            "  FAIL: LOS phase=%d "
+                                            "actor=(%d,%d,%d) "
+                                            "target=(%d,%d,%d) range=%d "
+                                            "expected=%d actual=%d\n",
+                                            phase,
+                                            actor_x,
+                                            actor_y,
+                                            actor_size,
+                                            target_x,
+                                            target_y,
+                                            target_size,
+                                            attack_range,
+                                            expected,
+                                            actual);
+                                        tests_failed++;
+                                        tests_run++;
+                                        return;
+                                    }
+                                    los_checks++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    ASSERT_INT_EQ(
+        "all topology footprint parity cases checked",
+        footprint_checks > 0,
+        1);
+    ASSERT_INT_EQ(
+        "all topology direct, area, and large-footprint LOS cases checked",
+        los_checks > 0,
+        1);
+}
+
+static void test_inferno_topology_observation_mask_identity(void) {
+    printf("--- inferno topology observation and mask identity ---\n");
+
+    InfernoState state = make_test_state(20, 20);
+    InfernoContext* ctx = inf_legacy_context();
+    static const InfNPCType types[] = {
+        INF_NPC_BAT,
+        INF_NPC_BLOB,
+        INF_NPC_MELEER,
+        INF_NPC_RANGER,
+        INF_NPC_MAGER,
+        INF_NPC_JAD,
+        INF_NPC_ZUK,
+    };
+    static const int positions[][2] = {
+        {20, 16},
+        {17, 23},
+        {24, 24},
+        {36, 34},
+        {31, 33},
+        {14, 38},
+        {12, 45},
+    };
+    float observation[INF_NUM_OBS];
+    float mask[INF_ACTION_MASK_SIZE];
+
+    for (int phase = 0; phase < (1 << INF_NUM_PILLARS); phase++) {
+        memset(state.npcs, 0, sizeof(state.npcs));
+        set_inferno_pillar_phase(&state, phase);
+        for (size_t npc_idx = 0;
+                npc_idx < sizeof(types) / sizeof(types[0]);
+                npc_idx++) {
+            state.npcs[npc_idx] = make_test_npc(
+                types[npc_idx],
+                positions[npc_idx][0],
+                positions[npc_idx][1],
+                INF_NPC_STATS[types[npc_idx]].size);
+            state.npcs[npc_idx].active = 1;
+            state.npcs[npc_idx].aggro_target = -1;
+        }
+        inf_refresh_current_obs_slots_ctx(&state, ctx);
+        inf_write_obs_ctx(
+            (EncounterState*)&state,
+            (EncounterContext*)ctx,
+            observation);
+        inf_write_mask_ctx(
+            (EncounterState*)&state,
+            (EncounterContext*)ctx,
+            mask);
+
+        for (int slot_idx = 0; slot_idx < INF_OBS_NPCS; slot_idx++) {
+            int npc_idx = state.current_obs_slots[slot_idx];
+            if (npc_idx < 0) continue;
+            const InfNPC* npc = &state.npcs[npc_idx];
+            int expected = reference_inferno_los_clear(
+                &state,
+                npc->x,
+                npc->y,
+                npc->size,
+                state.player.x,
+                state.player.y,
+                1,
+                INF_NPC_STATS[npc->type].attack_range);
+            int obs_offset =
+                INF_OBS_AFTER_PILLARS +
+                slot_idx * INF_NPC_SLOT_FEATURES + 6;
+            ASSERT_FLOAT_NEAR(
+                "NPC observation LOS bit matches independent reference",
+                observation[obs_offset],
+                (float)expected,
+                0.0f);
+        }
+
+        int movement_offset = 0;
+        for (int head = 0; head < INF_HEAD_MOVE; head++)
+            movement_offset += INF_ACTION_DIMS[head];
+        for (int action = 0; action < ENCOUNTER_MOVE_ACTIONS; action++) {
+            int x = state.player.x + ENCOUNTER_MOVE_TARGET_DX[action];
+            int y = state.player.y + ENCOUNTER_MOVE_TARGET_DY[action];
+            int expected =
+                !reference_inferno_footprint_blocked(&state, x, y, 1);
+            ASSERT_FLOAT_NEAR(
+                "movement mask bit matches independent reference",
+                mask[movement_offset + action],
+                (float)expected,
+                0.0f);
+        }
+    }
+}
+
+
 int main(void) {
     inf_build_npc_stats();
     inf_finalize_route_topology(inf_legacy_context());
+    test_inferno_topology_geometry_parity();
+    test_inferno_topology_observation_mask_identity();
     test_compact_observation_layout_contract();
     test_compact_player_and_pillar_observation_semantics();
     test_compact_npc_observation_semantics();
@@ -9308,9 +9579,9 @@ int main(void) {
     test_style_choice_sampling();
     test_tagged_jad_healer_melee_geometry();
     test_overlap_shuffle_hold_after_recent_target_click();
-    test_overlap_shuffle_respects_npc_collision_flags();
+    test_overlap_shuffle_respects_npc_occupancy();
     test_large_npc_overlap_shuffle_can_partially_unclip();
-    test_player_movement_ignores_npc_collision_flags();
+    test_player_movement_ignores_npc_occupancy();
     test_tagged_jad_healer_stops_at_melee_contact();
     test_tagged_jad_healers_queue_behind_front_healer();
     test_meleer_dig_can_stack_without_losing_collision_flag();

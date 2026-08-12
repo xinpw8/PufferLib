@@ -814,6 +814,8 @@ static void test_arena_topology_bounds_collision_los_and_revision(void) {
     size_t allocations_before_build = topology_allocation_count;
     EncounterArenaTopologyBuildSpec spec = topology_test_spec(&geometry, 41);
     EncounterArenaTopology* topology = encounter_arena_topology_build(&spec);
+    CHECK("topology detects flagged static LOS",
+        topology->static_los_mode == ENCOUNTER_ARENA_TOPOLOGY_LOS_FLAGGED);
 
     CHECK("topology build uses one explicitly owned allocation",
         topology_allocation_count == allocations_before_build + 1);
@@ -909,6 +911,39 @@ static void test_arena_topology_bounds_collision_los_and_revision(void) {
         memcmp(snapshot, topology, sizeof(*topology)) == 0);
 
     free(topology);
+    TopologyTestGeometry open_geometry = {
+        .origin_x = 10,
+        .origin_y = 20,
+        .width = 8,
+        .height = 8,
+    };
+    EncounterArenaTopologyBuildSpec open_spec =
+        topology_test_spec(&open_geometry, 42);
+    EncounterArenaTopology* open_topology =
+        encounter_arena_topology_build(&open_spec);
+    encounter_arena_topology_finalize(open_topology);
+    CHECK("topology detects open static LOS",
+        open_topology->static_los_mode ==
+            ENCOUNTER_ARENA_TOPOLOGY_LOS_OPEN);
+    for (int actor_size = 1; actor_size <= 3; actor_size++) {
+        for (int target_size = 1; target_size <= 3; target_size++) {
+            for (int range = 1; range <= 10; range++) {
+                int expected = entity_has_line_of_sight(
+                    NULL, 0,
+                    11, 21, actor_size,
+                    15, 24, target_size,
+                    range);
+                int actual = encounter_arena_topology_los_clear(
+                    open_topology,
+                    11, 21, actor_size,
+                    15, 24, target_size,
+                    range);
+                CHECK("open topology LOS matches open geometry reference",
+                    actual == expected);
+            }
+        }
+    }
+    free(open_topology);
     topology_stale_revision_target = NULL;
 }
 

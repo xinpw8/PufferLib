@@ -122,11 +122,13 @@ static void inf_lab_require_type(int type) {
         inf_lab_abort("npc type must be in [0,%d], got %d", INF_NUM_NPC_TYPES - 1, type);
 }
 
-static void inf_lab_require_player_tile(InfernoState* s, int x, int y) {
-    if (!inf_in_arena(x, y))
-        inf_lab_abort("player tile out of arena: (%d,%d)", x, y);
-    if (inf_blocked_by_pillar(s, x, y, 1))
-        inf_lab_abort("player tile is blocked by a pillar: (%d,%d)", x, y);
+static void inf_lab_require_player_tile(
+    InfernoState* s,
+    int x,
+    int y
+) {
+    if (inf_footprint_blocked(s, x, y, 1))
+        inf_lab_abort("player tile is blocked: (%d,%d)", x, y);
 }
 
 static void inf_lab_clear_transient(InfernoState* s) {
@@ -159,9 +161,7 @@ static void inf_lab_clear_transient(InfernoState* s) {
 }
 
 static void inf_lab_refresh_geometry(InfernoState* s) {
-    inf_rebuild_los(s);
-    inf_invalidate_los_cache(s);
-    inf_rebuild_entity_collision_flags(s);
+    inf_rebuild_npc_collision_flags(s);
     inf_refresh_current_obs_slots(s);
 }
 
@@ -801,7 +801,6 @@ static void inf_lab_append_pillars_json(const InfernoState* s, InfLabString* out
 static char* inf_lab_alloc_json(InfernoState* s) {
     InfLabString out;
     encounter_lab_string_init(&out, "inferno lab");
-    inf_invalidate_los_cache(s);
     encounter_lab_string_append(&out,
         "{\"tick\":%d,\"wave\":%d,"
         "\"player\":{\"x\":%d,\"y\":%d,\"hp\":%d,\"prayer\":%d,"

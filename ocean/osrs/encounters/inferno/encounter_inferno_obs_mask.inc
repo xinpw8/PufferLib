@@ -324,7 +324,8 @@ static void inf_write_obs_ctx(
         obs[i++] = (float)(npc->y - py) / (float)INF_ARENA_HEIGHT;
         obs[i++] = (float)npc->attack_timer / 10.0f;
         obs[i++] = (float)style / INF_ATTACK_STYLE_CODE_SCALE;
-        obs[i++] = inf_npc_has_los(s, npc_idx) ? 1.0f : 0.0f;
+        obs[i++] =
+            inf_npc_has_los_ctx(s, ctx, npc_idx) ? 1.0f : 0.0f;
         obs[i++] = (float)npc->frozen_ticks / (float)BARRAGE_FREEZE_TICKS;
         obs[i++] = (float)category / INF_TARGET_CATEGORY_CODE_SCALE;
         obs[i++] = osrs_interaction_active(&s->interaction) &&
@@ -494,11 +495,20 @@ static void inf_write_mask_ctx(
     int offset = 0;
 
     mask[offset++] = 1.0f;
+    uint32_t static_footprint_mask =
+        encounter_arena_topology_nearby_unit_footprint_mask(
+            ctx->route_topology, s->player.x, s->player.y);
     for (int d = 1; d < ENCOUNTER_MOVE_ACTIONS; d++) {
-        int nx = s->player.x + ENCOUNTER_MOVE_TARGET_DX[d];
-        int ny = s->player.y + ENCOUNTER_MOVE_TARGET_DY[d];
-        mask[offset++] = (inf_in_arena(nx, ny) && !inf_blocked_by_pillar(s, nx, ny, 1))
-                         ? 1.0f : 0.0f;
+        int dx = ENCOUNTER_MOVE_TARGET_DX[d];
+        int dy = ENCOUNTER_MOVE_TARGET_DY[d];
+        int step_bit = (dy + 2) * 5 + (dx + 2);
+        if (step_bit > 12) step_bit--;
+        int nx = s->player.x + dx;
+        int ny = s->player.y + dy;
+        int blocked =
+            !(static_footprint_mask & (UINT32_C(1) << step_bit)) ||
+            inf_pillar_footprint_blocked(s, nx, ny, 1);
+        mask[offset++] = blocked ? 0.0f : 1.0f;
     }
 
     mask[offset++] = 1.0f;

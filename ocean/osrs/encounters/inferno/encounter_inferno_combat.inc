@@ -208,8 +208,9 @@ static int inf_is_untagged_live_zuk_healer_slot(
     return aggro->active && aggro->type == INF_NPC_ZUK;
 }
 
-static int inf_player_can_attack_npc_from_current_tile(
+static int inf_player_can_attack_npc_from_current_tile_ctx(
     const InfernoState* s,
+    const InfernoContext* ctx,
     int npc_idx
 ) {
     if (npc_idx < 0 || npc_idx >= INF_MAX_NPCS) return 0;
@@ -218,20 +219,29 @@ static int inf_player_can_attack_npc_from_current_tile(
     if (!npc->active || npc->death_ticks != 0 || npc->hp <= 0) return 0;
 
     const EncounterLoadoutStats* ls = &s->live_stats;
-    OsrsLosQuery los_query = inf_player_los_query(s);
-    return encounter_player_can_attack(
+    return inf_los_clear_ctx(
+        s,
+        ctx,
         s->player.x,
         s->player.y,
+        1,
         npc->x,
         npc->y,
         npc->size,
-        ls->attack_range,
-        NULL, 0, 0,
-        &los_query);
+        ls->attack_range);
 }
 
-static int inf_player_has_los_to_npc_from_current_tile(
+static int inf_player_can_attack_npc_from_current_tile(
     const InfernoState* s,
+    int npc_idx
+) {
+    return inf_player_can_attack_npc_from_current_tile_ctx(
+        s, inf_legacy_context(), npc_idx);
+}
+
+static int inf_player_has_los_to_npc_from_current_tile_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx,
     int npc_idx
 ) {
     if (npc_idx < 0 || npc_idx >= INF_MAX_NPCS) return 0;
@@ -241,9 +251,9 @@ static int inf_player_has_los_to_npc_from_current_tile(
             npc->type == INF_NPC_ZUK_SHIELD)
         return 0;
 
-    return entity_has_line_of_sight(
-        s->los_blockers,
-        s->los_blocker_count,
+    return inf_los_clear_ctx(
+        s,
+        ctx,
         s->player.x,
         s->player.y,
         1,
@@ -253,43 +263,14 @@ static int inf_player_has_los_to_npc_from_current_tile(
         0);
 }
 
-typedef struct {
-    int can_attack_now;
-    int range_deficit;
-} InfPlayerNpcLoadoutReach;
-
-static InfPlayerNpcLoadoutReach inf_player_loadout_reach_to_npc(
+static int inf_player_has_los_to_npc_from_current_tile(
     const InfernoState* s,
-    int npc_idx,
-    int weapon_set
+    int npc_idx
 ) {
-    InfPlayerNpcLoadoutReach out = {0};
-    if (!inf_npc_is_live_player_target(s, npc_idx))
-        return out;
-    if (weapon_set < 0 || weapon_set >= INF_NUM_WEAPON_SETS) {
-        fprintf(stderr, "BUG: invalid Inferno weapon set %d\n", weapon_set);
-        abort();
-    }
-
-    const InfNPC* npc = &s->npcs[npc_idx];
-    const EncounterLoadoutStats* ls = &s->loadout_stats[weapon_set];
-    OsrsLosQuery los_query = inf_player_los_query(s);
-    int edge_distance = encounter_dist_to_npc(
-        s->player.x, s->player.y, npc->x, npc->y, npc->size);
-    out.range_deficit = edge_distance > ls->attack_range
-        ? edge_distance - ls->attack_range
-        : 0;
-    out.can_attack_now = encounter_player_can_attack(
-        s->player.x,
-        s->player.y,
-        npc->x,
-        npc->y,
-        npc->size,
-        ls->attack_range,
-        NULL, 0, 0,
-        &los_query);
-    return out;
+    return inf_player_has_los_to_npc_from_current_tile_ctx(
+        s, inf_legacy_context(), npc_idx);
 }
+
 
 static int inf_player_can_phantom_barrage_npc(
     InfernoState* s,
@@ -313,7 +294,9 @@ static int inf_player_can_phantom_barrage_npc(
         npc->y,
         npc->size,
         10,
-        NULL, 0, 0,
+        ctx->collision_map,
+        ctx->world_offset_x,
+        ctx->world_offset_y,
         &los_query);
 }
 
@@ -343,11 +326,10 @@ static int inf_untagged_zuk_healer_target_is_safe_now(
     const InfernoContext* ctx,
     int npc_idx
 ) {
-    (void)ctx;
     if (!inf_is_untagged_live_zuk_healer_slot(s, npc_idx)) return 1;
     return inf_player_behind_zuk_shield_now(s) &&
         s->player.attack_timer == 0 &&
-        inf_player_can_attack_npc_from_current_tile(s, npc_idx);
+        inf_player_can_attack_npc_from_current_tile_ctx(s, ctx, npc_idx);
 }
 
 static int inf_is_safe_untagged_zuk_healer_target_now(
@@ -502,7 +484,8 @@ static void inf_npc_attack_ctx(InfernoState* s, InfernoContext* ctx, int idx) {
 
     int has_los_now = 0;
     if (stats->attack_range > 1) {
-        has_los_now = inf_npc_has_los(s, idx);
+        inf_sample_npc_player_los_frame(s, ctx, idx);
+        has_los_now = inf_npc_has_los_ctx(s, ctx, idx);
     }
 
     if (npc->type == INF_NPC_BLOB &&
@@ -536,8 +519,6 @@ static void inf_npc_attack_ctx(InfernoState* s, InfernoContext* ctx, int idx) {
                 if (s->pillars[p].hp <= 0) {
                     s->pillars[p].active = 0;
                     s->tick_scratch.pillar_lost = p;
-                    inf_rebuild_los(s);
-                    inf_invalidate_los_cache(s);
                     for (int n = 0; n < INF_MAX_NPCS; n++) {
                         if (!s->npcs[n].active) continue;
                         int ndx = s->npcs[n].x - s->pillars[p].x;
@@ -598,8 +579,8 @@ static void inf_npc_attack_ctx(InfernoState* s, InfernoContext* ctx, int idx) {
             npc->attack_timer = stats->attack_speed;
             return;
         }
-        if (entity_has_line_of_sight(
-                s->los_blockers, s->los_blocker_count,
+        if (inf_los_clear_ctx(
+                s, ctx,
                 npc->x, npc->y, 1,
                 s->player.x, s->player.y, 1,
                 1)) {
@@ -1026,10 +1007,11 @@ static void inf_zuk_tick(InfernoState* s) {
         if (s->zuk.shield_freeze > 0) {
             s->zuk.shield_freeze--;
         } else {
-            int ox = shield->x;
-            int oy = shield->y;
+            int old_x = shield->x;
+            int old_y = shield->y;
             if (inf_npc_sets_collision_flag(shield->type))
-                inf_unstamp_npc_collision_footprint(s, ox, oy, shield->size);
+                inf_unstamp_npc_collision_footprint(
+                    s, old_x, old_y, shield->size);
             shield->x += s->zuk.shield_dir;
             if (shield->x < 11) {
                 s->zuk.shield_freeze = 4;
@@ -1039,7 +1021,8 @@ static void inf_zuk_tick(InfernoState* s) {
                 s->zuk.shield_dir = -1;
             }
             if (inf_npc_sets_collision_flag(shield->type))
-                inf_stamp_npc_collision_footprint(s, shield->x, shield->y, shield->size);
+                inf_stamp_npc_collision_footprint(
+                    s, shield->x, shield->y, shield->size);
         }
     }
 

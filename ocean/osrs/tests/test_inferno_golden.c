@@ -87,11 +87,22 @@ static uint64_t hash_semantic_mask(
 }
 
 static TraceHashes run_episode(int start_wave, uint32_t seed, int max_ticks) {
-    EncounterState* state = inf_create();
-    inf_put_int(state, "start_wave", start_wave);
-    inf_reset(state, seed);
+    InfernoContext context;
+    InfernoState state_storage;
+    inf_init_context_typed(&context);
+    inf_init_state_typed(&state_storage, &context);
+    inf_put_int_ctx(
+        (EncounterState*)&state_storage,
+        (EncounterContext*)&context,
+        "start_wave",
+        start_wave);
+    inf_finalize_route_topology(&context);
+    inf_reset_ctx(
+        (EncounterState*)&state_storage,
+        (EncounterContext*)&context,
+        seed);
 
-    InfernoState* s = (InfernoState*)state;
+    InfernoState* s = &state_storage;
     static float obs[INF_NUM_OBS];
     static float mask[INF_ACTION_MASK_SIZE];
     int actions[INF_NUM_ACTION_HEADS];
@@ -106,7 +117,7 @@ static TraceHashes run_episode(int start_wave, uint32_t seed, int max_ticks) {
     };
 
     for (int t = 0; t < max_ticks; t++) {
-        inf_refresh_current_obs_slots(s);
+        inf_refresh_current_obs_slots_ctx(s, &context);
         for (int head = 0; head < INF_NUM_ACTION_HEADS; head++) {
             uint64_t random_value = splitmix64(&arng);
             if (head != INF_HEAD_TARGET) {
@@ -119,9 +130,12 @@ static TraceHashes run_episode(int start_wave, uint32_t seed, int max_ticks) {
             actions[head] = slot >= 0 ? slot + 1 : 0;
         }
 
-        inf_step(state, actions);
-        inf_write_obs(state, obs);
-        inf_write_mask(state, mask);
+        inf_step_ctx(
+            (EncounterState*)s, (EncounterContext*)&context, actions);
+        inf_write_obs_ctx(
+            (EncounterState*)s, (EncounterContext*)&context, obs);
+        inf_write_mask_ctx(
+            (EncounterState*)s, (EncounterContext*)&context, mask);
 
         for (int npc_idx = TRACE_NPC_SLOTS; npc_idx < INF_MAX_NPCS; npc_idx++) {
             if (s->npcs[npc_idx].active) {
@@ -141,7 +155,7 @@ static TraceHashes run_episode(int start_wave, uint32_t seed, int max_ticks) {
         if (s->episode_over) break;
     }
 
-    inf_destroy(state);
+    inf_destroy_context((EncounterContext*)&context);
     return hashes;
 }
 

@@ -5208,18 +5208,9 @@ static void render_draw_3d_world(RenderClient* rc) {
                     if (slot < 0 || slot >= INF_MAX_NPCS) continue;
                     InfNPC* npc = &debug_inferno_state->npcs[slot];
                     if (!npc->active || npc->death_ticks > 0) continue;
-                    const EncounterLoadoutStats* ls =
-                        &debug_inferno_state->loadout_stats[debug_inferno_state->weapon_set];
-                    OsrsLosQuery los_query = osrs_los_blockers(
-                        debug_inferno_state->los_blockers,
-                        debug_inferno_state->los_blocker_count);
-                    int can_atk = encounter_player_can_attack(
-                        debug_inferno_state->player.x,
-                        debug_inferno_state->player.y,
-                        npc->x, npc->y, npc->size,
-                        ls->attack_range,
-                        NULL, 0, 0,
-                        &los_query);
+                    int can_atk =
+                        inf_player_can_attack_npc_from_current_tile(
+                            debug_inferno_state, slot);
                     lc = can_atk ? GREEN : RED;
                 }
 
@@ -5375,16 +5366,8 @@ static void render_draw_overhead_status(RenderClient* rc, OsrsEnv* env) {
                 }
 
                 {
-                    const EncounterLoadoutStats* ls = &is->loadout_stats[is->weapon_set];
-                    OsrsLosQuery los_query = osrs_los_blockers(
-                        is->los_blockers,
-                        is->los_blocker_count);
-                    int can_atk = encounter_player_can_attack(
-                        is->player.x, is->player.y,
-                        npc->x, npc->y, npc->size,
-                        ls->attack_range,
-                        NULL, 0, 0,
-                        &los_query);
+                    int can_atk =
+                        inf_player_can_attack_npc_from_current_tile(is, slot);
                     const char* patk_txt = can_atk ? "P>NPC" : "P>NPC X";
                     Color patk_col = can_atk ? GREEN : RED;
                     int pw = MeasureText(patk_txt, fs);

@@ -5,6 +5,14 @@
 #define INF_ARENA_MAX_Y    43
 #define INF_ARENA_WIDTH    (INF_ARENA_MAX_X - INF_ARENA_MIN_X + 1)
 #define INF_ARENA_HEIGHT   (INF_ARENA_MAX_Y - INF_ARENA_MIN_Y + 1)
+#define INF_TOPOLOGY_MIN_X 4
+#define INF_TOPOLOGY_MAX_X 43
+#define INF_TOPOLOGY_MIN_Y 5
+#define INF_TOPOLOGY_MAX_Y 55
+#define INF_TOPOLOGY_WIDTH \
+    (INF_TOPOLOGY_MAX_X - INF_TOPOLOGY_MIN_X + 1)
+#define INF_TOPOLOGY_HEIGHT \
+    (INF_TOPOLOGY_MAX_Y - INF_TOPOLOGY_MIN_Y + 1)
 
 #define INF_PLAYER_START_X 25
 #define INF_PLAYER_START_Y 16
@@ -700,6 +708,7 @@ typedef struct {
     const CollisionMap* collision_map;
     const EncounterArenaTopology* route_topology;
     OsrsActorRouteCache player_route_cache;
+    int8_t npc_player_los_frame[INF_MAX_NPCS];
     int world_offset_x;
     int world_offset_y;
     Log* log;
@@ -770,8 +779,8 @@ typedef struct {
     InfDeadMob dead_mobs[INF_MAX_DEAD_MOBS];
     int dead_mob_count;
 
-    LOSBlocker los_blockers[INF_NUM_PILLARS];
-    int los_blocker_count;
+    uint8_t reserved_topology_pillar_storage[
+        sizeof(int) * (4 * INF_NUM_PILLARS + 1)];
 
     int wave;
     int wave_spawn_target;
@@ -879,10 +888,10 @@ typedef struct {
 
     int player_dest_x, player_dest_y;
 
-    int8_t npc_los_cache[INF_MAX_NPCS];
-
+    uint8_t reserved_topology_npc_storage[INF_MAX_NPCS];
     uint8_t npc_collision_flags[INF_ARENA_WIDTH][INF_ARENA_HEIGHT];
-    uint8_t player_collision_flags[INF_ARENA_WIDTH][INF_ARENA_HEIGHT];
+    uint8_t reserved_topology_player_footprint_storage[
+        INF_ARENA_WIDTH * INF_ARENA_HEIGHT];
 
     int start_wave;
     uint32_t rng_state;

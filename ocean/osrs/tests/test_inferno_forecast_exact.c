@@ -125,7 +125,7 @@ static void exact_writer_close(InfExactWriter* writer) {
     writer->file = NULL;
 }
 
-static void exact_zero_serialized_route_storage(InfernoState* state) {
+static void exact_canonicalize_state(InfernoState* state) {
 #ifdef OSRS_INTERACTION_SERIALIZED_ROUTE_BYTES
     osrs_interaction_zero_serialized_route_padding(&state->player.interaction);
     osrs_interaction_zero_serialized_route_padding(&state->interaction);
@@ -133,6 +133,18 @@ static void exact_zero_serialized_route_storage(InfernoState* state) {
     memset(&state->player.interaction.route, 0, sizeof(state->player.interaction.route));
     memset(&state->interaction.route, 0, sizeof(state->interaction.route));
 #endif
+    memset(
+        state->reserved_topology_pillar_storage,
+        0,
+        sizeof(state->reserved_topology_pillar_storage));
+    memset(
+        state->reserved_topology_npc_storage,
+        0,
+        sizeof(state->reserved_topology_npc_storage));
+    memset(
+        state->reserved_topology_player_footprint_storage,
+        0,
+        sizeof(state->reserved_topology_player_footprint_storage));
 }
 
 static void exact_capture(
@@ -149,7 +161,7 @@ static void exact_capture(
     inf_build_step_out_forecast_ctx(s, ctx, &forecast);
     inf_write_obs_ctx((EncounterState*)s, (EncounterContext*)ctx, obs);
     InfernoState canonical_state = *s;
-    exact_zero_serialized_route_storage(&canonical_state);
+    exact_canonicalize_state(&canonical_state);
 
     InfExactRecordHeader record = {0};
     record.scenario_id = scenario_id;
@@ -220,7 +232,8 @@ static int exact_inferno_route_blocked(
     int size
 ) {
     InfExactRouteContext* route_ctx = (InfExactRouteContext*)data;
-    return inf_blocked_by_pillar(route_ctx->state, x, y, size);
+    return inf_footprint_blocked_ctx(
+        route_ctx->state, route_ctx->context, x, y, size);
 }
 
 static int exact_inferno_can_attack(
@@ -378,8 +391,8 @@ static int exact_compare_files(const char* expected_path, const char* actual_pat
             fclose(actual);
             return 1;
         }
-        exact_zero_serialized_route_storage(&expected_state);
-        exact_zero_serialized_route_storage(&actual_state);
+        exact_canonicalize_state(&expected_state);
+        exact_canonicalize_state(&actual_state);
         expected_record.state_hash =
             exact_hash_bytes(&expected_state, sizeof(expected_state));
         actual_record.state_hash =

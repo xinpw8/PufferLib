@@ -860,9 +860,7 @@ static void inf_refresh_after_state_load(InfernoState* s, InfernoContext* ctx) {
         FIGHT_STYLE_RAPID, 0, &s->loadout_stats[INF_GEAR_BP]);
     if (ctx->human_command_mode)
         inf_refresh_human_loadout_stats(s);
-    inf_rebuild_los(s);
-    inf_rebuild_entity_collision_flags(s);
-    inf_invalidate_los_cache(s);
+    inf_rebuild_npc_collision_flags(s);
     inf_refresh_current_obs_slots_ctx(s, ctx);
 }
 
@@ -916,6 +914,7 @@ static void inf_restore_ctx(
     InfernoState* dst = (InfernoState*)state;
     encounter_snapshot_copy_state_from(
         dst, data, offsetof(InfSnapshot, state), sizeof(InfernoState));
+    inf_reset_npc_player_los_frame(ctx);
     inf_refresh_after_state_load(dst, ctx);
 }
 

@@ -432,13 +432,21 @@ static int inf_has_live_player_target(const InfernoState* s) {
     return inf_idle_diagnostic_summary(s).has_live_player_target;
 }
 
-static int inf_has_attackable_player_target(const InfernoState* s) {
+static int inf_has_attackable_player_target_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx
+) {
     for (int i = 0; i < INF_MAX_NPCS; i++) {
         if (inf_npc_is_live_player_target(s, i) &&
-                inf_player_can_attack_npc_from_current_tile(s, i))
+                inf_player_can_attack_npc_from_current_tile_ctx(s, ctx, i))
             return 1;
     }
     return 0;
+}
+
+static int inf_has_attackable_player_target(const InfernoState* s) {
+    return inf_has_attackable_player_target_ctx(
+        s, inf_legacy_context());
 }
 
 static InfIdleDiagnosticPhase inf_idle_diagnostic_phase_from_summary(
@@ -461,7 +469,10 @@ static InfIdleDiagnosticPhase inf_idle_diagnostic_phase(const InfernoState* s) {
         s, inf_idle_diagnostic_summary(s));
 }
 
-static int inf_player_has_immediate_threat(const InfernoState* s) {
+static int inf_player_has_immediate_threat_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx
+) {
     if (s->tick_scratch.attacks_fired > 0) return 1;
     for (int h = 0; h < s->player_pending_hits.count; h++) {
         const EncounterPendingHit* ph = &s->player_pending_hits.hits[h];
@@ -470,11 +481,17 @@ static int inf_player_has_immediate_threat(const InfernoState* s) {
     }
     for (int i = 0; i < INF_MAX_NPCS; i++) {
         const InfNPC* npc = &s->npcs[i];
-        InfNpcPlayerThreat threat = inf_npc_player_threat(s, npc);
+        InfNpcPlayerThreat threat =
+            inf_npc_player_threat_ctx(s, ctx, npc);
         if (threat.telegraph_style_mask && threat.can_attack_this_tick)
             return 1;
     }
     return 0;
+}
+
+static int inf_player_has_immediate_threat(const InfernoState* s) {
+    return inf_player_has_immediate_threat_ctx(
+        s, inf_legacy_context());
 }
 
 typedef struct {
@@ -483,7 +500,8 @@ typedef struct {
 } InfIdleMissedActionFacts;
 
 static InfIdleMissedActionFacts inf_idle_missed_action_facts(
-    const InfernoState* s
+    const InfernoState* s,
+    const InfernoContext* ctx
 ) {
     InfIdleMissedActionFacts facts = {
         .player_has_immediate_threat = s->tick_scratch.attacks_fired > 0,
@@ -500,11 +518,12 @@ static InfIdleMissedActionFacts inf_idle_missed_action_facts(
     for (int i = 0; i < INF_MAX_NPCS; i++) {
         if (!facts.has_attackable_player_target &&
                 inf_npc_is_live_player_target(s, i) &&
-                inf_player_can_attack_npc_from_current_tile(s, i))
+                inf_player_can_attack_npc_from_current_tile_ctx(s, ctx, i))
             facts.has_attackable_player_target = 1;
         if (!facts.player_has_immediate_threat) {
             const InfNPC* npc = &s->npcs[i];
-            InfNpcPlayerThreat threat = inf_npc_player_threat(s, npc);
+            InfNpcPlayerThreat threat =
+                inf_npc_player_threat_ctx(s, ctx, npc);
             if (threat.telegraph_style_mask && threat.can_attack_this_tick)
                 facts.player_has_immediate_threat = 1;
         }
@@ -598,9 +617,8 @@ static void inf_step_ctx(EncounterState* state, EncounterContext* context, const
     inf_resolve_player_pending_hits(s);
     inf_resolve_pending_sparks(s);
 
+    inf_reset_npc_player_los_frame(ctx);
     if (!in_wave_gap && !in_ready_gap) {
-        inf_rebuild_player_collision_flags(s);
-        inf_invalidate_los_cache(s);
         inf_tick_npcs_ctx(s, ctx);
     }
     inf_update_healer_transition_stats(s);
@@ -630,7 +648,7 @@ static void inf_step_ctx(EncounterState* state, EncounterContext* context, const
         (s->player.x != player_x_before_tick_player ||
          s->player.y != player_y_before_tick_player) ? 1 : 0;
     if (s->tick_scratch.player_moved)
-        inf_invalidate_los_cache(s);
+        inf_reset_npc_player_los_frame(ctx);
     inf_resolve_jad_prayer_checks_after_player(s, ctx);
 
     if (can_player_attack) {
@@ -649,7 +667,7 @@ static void inf_step_ctx(EncounterState* state, EncounterContext* context, const
         attack_ready_no_attack = s->ticks_without_action > 0;
         if (attack_ready_no_attack) {
             InfIdleMissedActionFacts missed_action_facts =
-                inf_idle_missed_action_facts(s);
+                inf_idle_missed_action_facts(s, ctx);
             target_available_no_attack =
                 idle_diagnostic_summary.has_live_player_target;
             safe_attack_opportunity_missed =
@@ -719,7 +737,7 @@ static void inf_step_ctx(EncounterState* state, EncounterContext* context, const
     if (spawn_wave_now) {
         s->wave = s->wave_spawn_target;
         inf_spawn_wave(s);
-        inf_invalidate_los_cache(s);
+        inf_reset_npc_player_los_frame(ctx);
         goto finish_step;
     }
     if (s->wave_spawn_delay > 0) goto finish_step;

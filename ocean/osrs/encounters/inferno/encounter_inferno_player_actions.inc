@@ -110,21 +110,14 @@ static float inf_record_player_reward_damage(
 }
 
 static int inf_tile_walkable(void* data, int x, int y) {
-    InfWalkCtx* wc = (InfWalkCtx*)data;
-    InfernoState* s = wc->s;
-    const InfernoContext* ctx = wc->ctx;
-    if (!inf_in_arena(x, y)) return 0;
-    if (inf_blocked_by_pillar(s, x, y, 1)) return 0;
-    if (ctx->collision_map)
-        if (!collision_tile_walkable(ctx->collision_map, 0,
-                x + ctx->world_offset_x, y + ctx->world_offset_y))
-            return 0;
-    return 1;
+    const InfWalkCtx* walk = (const InfWalkCtx*)data;
+    return !inf_footprint_blocked_ctx(
+        walk->s, walk->ctx, x, y, 1);
 }
 
 static int inf_player_route_blocked(void* data, int x, int y, int size) {
-    InfWalkCtx* walk = (InfWalkCtx*)data;
-    return inf_blocked_by_pillar(walk->s, x, y, size);
+    const InfWalkCtx* walk = (const InfWalkCtx*)data;
+    return inf_pillar_footprint_blocked(walk->s, x, y, size);
 }
 
 static uint64_t inf_player_route_blocker_revision(const InfernoState* s) {
@@ -472,7 +465,8 @@ static void inf_tick_player_ctx(
                 int is_safe_target =
                     inf_player_behind_zuk_shield_now(s) &&
                     s->player.attack_timer == 0 &&
-                    inf_player_can_attack_npc_from_current_tile(s, npc_idx);
+                    inf_player_can_attack_npc_from_current_tile_ctx(
+                        s, ctx, npc_idx);
                 s->total_zuk_untagged_healer_targets++;
                 if (is_safe_target)
                     s->total_zuk_safe_untagged_healer_targets++;
@@ -580,7 +574,6 @@ static void inf_tick_player_ctx(
         },
     };
     (void)osrs_encounter_player_step(&player_step_input);
-    inf_rebuild_player_collision_flags(s);
 
     if (can_attack && s->player.attack_timer > 0) s->player.attack_timer--;
     int has_zuk_healer_target = osrs_interaction_active(&s->interaction) &&

@@ -78,22 +78,80 @@ static void inf_shuffle_spawns(InfernoState* s) {
         s->spawn_order[i] = i;
     encounter_shuffle(s->spawn_order, INF_NUM_SPAWN_POS, &s->rng_state);
 }
+static InfernoContext* inf_legacy_context(void);
 
-static void inf_rebuild_los(InfernoState* s) {
-    s->los_blocker_count = 0;
-    for (int i = 0; i < INF_NUM_PILLARS; i++) {
-        if (s->pillars[i].active) {
-            LOSBlocker* b = &s->los_blockers[s->los_blocker_count++];
-            b->x = s->pillars[i].x;
-            b->y = s->pillars[i].y;
-            b->size = INF_PILLAR_SIZE;
-            b->los_mask = LOS_FULL_MASK;
-        }
+
+static int inf_pillar_footprint_blocked(
+    const InfernoState* s,
+    int x,
+    int y,
+    int size
+) {
+    for (int pillar_idx = 0; pillar_idx < INF_NUM_PILLARS; pillar_idx++) {
+        const InfPillar* pillar = &s->pillars[pillar_idx];
+        if (!pillar->active) continue;
+        if (los_aabb_overlap(
+                x, y, size,
+                pillar->x, pillar->y, INF_PILLAR_SIZE))
+            return 1;
     }
+    return 0;
+}
+
+static uint32_t inf_pillar_los_flags(void* data, int x, int y) {
+    const InfernoState* s = (const InfernoState*)data;
+    return inf_pillar_footprint_blocked(s, x, y, 1)
+        ? LOS_FULL_MASK
+        : 0;
 }
 
 static OsrsLosQuery inf_player_los_query(const InfernoState* s) {
-    return osrs_los_blockers(s->los_blockers, s->los_blocker_count);
+    return osrs_los_flags(inf_pillar_los_flags, (void*)s);
+}
+
+static int inf_footprint_blocked_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx,
+    int x,
+    int y,
+    int size
+) {
+    return encounter_arena_topology_footprint_blocked(
+            ctx->route_topology, x, y, size) ||
+        inf_pillar_footprint_blocked(s, x, y, size);
+}
+
+static int inf_los_clear_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx,
+    int actor_x,
+    int actor_y,
+    int actor_size,
+    int target_x,
+    int target_y,
+    int target_size,
+    int attack_range
+) {
+    if (!encounter_arena_topology_los_clear(
+            ctx->route_topology,
+            actor_x,
+            actor_y,
+            actor_size,
+            target_x,
+            target_y,
+            target_size,
+            attack_range))
+        return 0;
+    return entity_has_line_of_sight_with_flags(
+        inf_pillar_los_flags,
+        (void*)s,
+        actor_x,
+        actor_y,
+        actor_size,
+        target_x,
+        target_y,
+        target_size,
+        attack_range);
 }
 
 typedef struct {
@@ -146,6 +204,27 @@ static InfTargetArea inf_npc_current_target_area(const InfernoState* s, const In
     };
 }
 
+static int inf_npc_has_los_to_area_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx,
+    const InfNPC* npc,
+    int target_x,
+    int target_y,
+    int target_size
+) {
+    const InfNPCStats* stats = &INF_NPC_STATS[npc->type];
+    return inf_los_clear_ctx(
+        s,
+        ctx,
+        npc->x,
+        npc->y,
+        npc->size,
+        target_x,
+        target_y,
+        target_size,
+        stats->attack_range);
+}
+
 static int inf_npc_has_los_to_area(
     const InfernoState* s,
     const InfNPC* npc,
@@ -153,39 +232,71 @@ static int inf_npc_has_los_to_area(
     int target_y,
     int target_size
 ) {
-    const InfNPCStats* stats = &INF_NPC_STATS[npc->type];
-    return entity_has_line_of_sight(s->los_blockers, s->los_blocker_count,
-        npc->x, npc->y, npc->size,
-        target_x, target_y, target_size,
-        stats->attack_range);
+    return inf_npc_has_los_to_area_ctx(
+        s, inf_legacy_context(), npc, target_x, target_y, target_size);
+}
+
+static int inf_npc_has_los_to_tile_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx,
+    const InfNPC* npc,
+    int target_x,
+    int target_y
+) {
+    return inf_npc_has_los_to_area_ctx(
+        s, ctx, npc, target_x, target_y, 1);
 }
 
 static int inf_npc_has_los_to_tile(
-    const InfernoState* s, const InfNPC* npc, int target_x, int target_y
+    const InfernoState* s,
+    const InfNPC* npc,
+    int target_x,
+    int target_y
 ) {
-    return inf_npc_has_los_to_area(s, npc, target_x, target_y, 1);
+    return inf_npc_has_los_to_tile_ctx(
+        s, inf_legacy_context(), npc, target_x, target_y);
 }
 
-static int inf_npc_has_los_direct(const InfernoState* s, int i) {
-    const InfNPC* npc = &s->npcs[i];
+static int inf_npc_has_los_direct_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx,
+    int npc_idx
+) {
+    const InfNPC* npc = &s->npcs[npc_idx];
     InfTargetArea target = inf_npc_current_target_area(s, npc);
-    return inf_npc_has_los_to_area(s, npc, target.x, target.y, target.size);
+    return inf_npc_has_los_to_area_ctx(
+        s, ctx, npc, target.x, target.y, target.size);
 }
 
-static int inf_npc_has_los(InfernoState* s, int i) {
-    if (s->npc_los_cache[i] >= 0)
-        return s->npc_los_cache[i];
-    int result = inf_npc_has_los_direct(s, i);
-    s->npc_los_cache[i] = (int8_t)result;
-    return result;
+static int inf_npc_has_los_direct(const InfernoState* s, int npc_idx) {
+    return inf_npc_has_los_direct_ctx(
+        s, inf_legacy_context(), npc_idx);
 }
 
-static inline void inf_invalidate_los_cache(InfernoState* s) {
-    memset(s->npc_los_cache, -1, sizeof(s->npc_los_cache));
+static void inf_reset_npc_player_los_frame(InfernoContext* ctx) {
+    memset(ctx->npc_player_los_frame, -1, sizeof(ctx->npc_player_los_frame));
 }
 
-static inline void inf_invalidate_npc_los_cache(InfernoState* s, int i) {
-    s->npc_los_cache[i] = -1;
+static void inf_sample_npc_player_los_frame(
+    const InfernoState* s,
+    InfernoContext* ctx,
+    int npc_idx
+) {
+    ctx->npc_player_los_frame[npc_idx] =
+        (int8_t)inf_npc_has_los_direct_ctx(s, ctx, npc_idx);
+}
+
+static int inf_npc_has_los_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx,
+    int npc_idx
+) {
+    int8_t sampled = ctx->npc_player_los_frame[npc_idx];
+    return sampled >= 0 ? sampled : inf_npc_has_los_direct_ctx(s, ctx, npc_idx);
+}
+
+static int inf_npc_has_los(const InfernoState* s, int npc_idx) {
+    return inf_npc_has_los_ctx(s, inf_legacy_context(), npc_idx);
 }
 
 static inline int inf_is_final_wave(const InfernoState* s) {
@@ -387,8 +498,9 @@ static inline int inf_npc_type_has_player_pressure(InfNPCType type) {
         type != INF_NPC_HEALER_ZUK;
 }
 
-static inline InfNpcPlayerThreat inf_npc_player_threat(
+static inline InfNpcPlayerThreat inf_npc_player_threat_ctx(
     const InfernoState* s,
+    const InfernoContext* ctx,
     const InfNPC* npc
 ) {
     InfNpcPlayerThreat threat = {0};
@@ -415,7 +527,8 @@ static inline InfNpcPlayerThreat inf_npc_player_threat(
 
     if (stats->attack_range > 1 &&
             !(npc->type == INF_NPC_BLOB && npc->blob_scanned_prayer >= 0) &&
-            !inf_npc_has_los_to_tile(s, npc, s->player.x, s->player.y))
+            !inf_npc_has_los_to_tile_ctx(
+                s, ctx, npc, s->player.x, s->player.y))
         return threat;
 
     threat.can_attack_if_ready = 1;
@@ -433,6 +546,14 @@ static inline InfNpcPlayerThreat inf_npc_player_threat(
         npc->dig_freeze_timer == 0 &&
         npc->dig_attack_delay == 0;
     return threat;
+}
+
+static inline InfNpcPlayerThreat inf_npc_player_threat(
+    const InfernoState* s,
+    const InfNPC* npc
+) {
+    return inf_npc_player_threat_ctx(
+        s, inf_legacy_context(), npc);
 }
 
 static inline int inf_npc_is_live_player_target(
@@ -641,7 +762,6 @@ static void inf_apply_npc_death(InfernoState* s, int npc_idx);
 static int inf_mager_resurrect_ctx(InfernoState* s, InfernoContext* ctx, int idx);
 static void inf_queue_zuk_healer_sparks(InfernoState* s, const InfNPC* npc);
 static void inf_resolve_pending_sparks(InfernoState* s);
-static void inf_rebuild_player_collision_flags(InfernoState* s);
 static void inf_invalidate_current_obs_slots(InfernoState* s);
 static void inf_refresh_current_obs_slots_ctx(InfernoState* s, const InfernoContext* ctx);
 static void inf_ensure_current_obs_slots_ctx(InfernoState* s, const InfernoContext* ctx);
@@ -711,15 +831,31 @@ typedef struct {
 
 static InfRouteTopologyOwner inf_route_topology_owner;
 
-static uint32_t inf_route_topology_flags(void* data, int x, int y) {
-    const InfRouteTopologyBuildContext* build =
-        (const InfRouteTopologyBuildContext*)data;
+static uint32_t inf_topology_collision_flags(
+    const InfRouteTopologyBuildContext* build,
+    int x,
+    int y
+) {
     if (!build->collision_map) return 0;
     return (uint32_t)collision_get_flags(
         build->collision_map,
         0,
         x + build->world_offset_x,
         y + build->world_offset_y);
+}
+
+static uint32_t inf_route_topology_flags(void* data, int x, int y) {
+    const InfRouteTopologyBuildContext* build =
+        (const InfRouteTopologyBuildContext*)data;
+    if (x < INF_ARENA_MIN_X || x > INF_ARENA_MAX_X ||
+            y < INF_ARENA_MIN_Y || y > INF_ARENA_MAX_Y)
+        return COLLISION_BLOCKED;
+    return inf_topology_collision_flags(build, x, y);
+}
+
+static uint32_t inf_route_topology_los_flags(void* data, int x, int y) {
+    return inf_topology_collision_flags(
+        (const InfRouteTopologyBuildContext*)data, x, y);
 }
 
 static void inf_finalize_route_topology(InfernoContext* ctx) {
@@ -733,14 +869,16 @@ static void inf_finalize_route_topology(InfernoContext* ctx) {
         ctx->world_offset_y,
     };
     EncounterArenaTopologyBuildSpec spec = {
-        .origin_x = INF_ARENA_MIN_X,
-        .origin_y = INF_ARENA_MIN_Y,
-        .width = INF_ARENA_WIDTH,
-        .height = INF_ARENA_HEIGHT,
+        .origin_x = INF_TOPOLOGY_MIN_X,
+        .origin_y = INF_TOPOLOGY_MIN_Y,
+        .width = INF_TOPOLOGY_WIDTH,
+        .height = INF_TOPOLOGY_HEIGHT,
         .max_footprint_size = ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE,
-        .revision = UINT64_C(0x494e4645524e4f01),
+        .revision = UINT64_C(0x494e4645524e4f02),
         .tile_flags = inf_route_topology_flags,
         .tile_flags_ctx = &build,
+        .los_tile_flags = inf_route_topology_los_flags,
+        .los_tile_flags_ctx = &build,
     };
     if (!inf_route_topology_owner.topology) {
         inf_route_topology_owner.topology =
@@ -766,6 +904,7 @@ static void inf_finalize_context(
 static void inf_init_context_typed(InfernoContext* ctx) {
     memset(ctx, 0, sizeof(*ctx));
     ctx->config = inf_default_config();
+    inf_reset_npc_player_los_frame(ctx);
 }
 
 static void inf_init_context(EncounterContext* context) {
@@ -794,7 +933,6 @@ static void inf_init_state_typed(InfernoState* s, InfernoContext* ctx) {
     s->rng_state = 12345;
     s->start_wave = ctx ? ctx->config.start_wave : 0;
     s->active_loadout_profile = INF_LOADOUT_PROFILE_MAX;
-    memset(s->npc_los_cache, -1, sizeof(s->npc_los_cache));
 }
 
 static void inf_init_state(EncounterState* state, EncounterContext* context) {

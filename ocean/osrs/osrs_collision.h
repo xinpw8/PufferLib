@@ -492,11 +492,65 @@ static inline int entity_has_line_of_sight(
     return has_line_of_sight(blockers, blocker_count, a_px, a_py, t_px, t_py, 1, range);
 }
 
+static inline int entity_has_line_of_sight_with_flags(
+    los_tile_flags_fn tile_flags,
+    void* tile_flags_ctx,
+    int ax,
+    int ay,
+    int a_size,
+    int tx,
+    int ty,
+    int t_size,
+    int range
+) {
+    if (range == 1) {
+        if (los_aabb_overlap(ax, ay, a_size, tx, ty, t_size)) return 0;
+
+        int a_x1 = ax + a_size - 1;
+        int a_y1 = ay + a_size - 1;
+        int t_x1 = tx + t_size - 1;
+        int t_y1 = ty + t_size - 1;
+
+        return (a_x1 + 1 == tx &&
+                    los_intervals_overlap(ay, a_y1, ty, t_y1)) ||
+            (t_x1 + 1 == ax &&
+                    los_intervals_overlap(ay, a_y1, ty, t_y1)) ||
+            (a_y1 + 1 == ty &&
+                    los_intervals_overlap(ax, a_x1, tx, t_x1)) ||
+            (t_y1 + 1 == ay &&
+                    los_intervals_overlap(ax, a_x1, tx, t_x1));
+    }
+
+    int a_px = tx;
+    if (a_px < ax) a_px = ax;
+    if (a_px >= ax + a_size) a_px = ax + a_size - 1;
+    int a_py = ty;
+    if (a_py < ay) a_py = ay;
+    if (a_py >= ay + a_size) a_py = ay + a_size - 1;
+
+    int t_px = ax;
+    if (t_px < tx) t_px = tx;
+    if (t_px >= tx + t_size) t_px = tx + t_size - 1;
+    int t_py = ay;
+    if (t_py < ty) t_py = ty;
+    if (t_py >= ty + t_size) t_py = ty + t_size - 1;
+
+    return los_has_line_of_sight_with_flags(
+        tile_flags,
+        tile_flags_ctx,
+        a_px,
+        a_py,
+        t_px,
+        t_py,
+        1,
+        range);
+}
+
 #define ENCOUNTER_ARENA_TOPOLOGY_MAX_DIMENSION 64
 #define ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES \
     (ENCOUNTER_ARENA_TOPOLOGY_MAX_DIMENSION * \
      ENCOUNTER_ARENA_TOPOLOGY_MAX_DIMENSION)
-#define ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE 5
+#define ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE 7
 #define ENCOUNTER_ARENA_TOPOLOGY_LOS_WORDS \
     ((ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES * \
       ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES + 63) / 64)
@@ -512,7 +566,14 @@ typedef struct {
     uint64_t revision;
     encounter_arena_tile_flags_fn tile_flags;
     void* tile_flags_ctx;
+    encounter_arena_tile_flags_fn los_tile_flags;
+    void* los_tile_flags_ctx;
 } EncounterArenaTopologyBuildSpec;
+typedef enum {
+    ENCOUNTER_ARENA_TOPOLOGY_LOS_OPEN = 0,
+    ENCOUNTER_ARENA_TOPOLOGY_LOS_FLAGGED = 1,
+} EncounterArenaTopologyLosMode;
+
 
 typedef struct EncounterArenaTopology {
     int origin_x;
@@ -523,6 +584,7 @@ typedef struct EncounterArenaTopology {
     int max_footprint_size;
     uint64_t revision;
     uint8_t finalized;
+    EncounterArenaTopologyLosMode static_los_mode;
     uint32_t static_collision_flags[ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
     uint8_t static_blocked[ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
     uint8_t footprint_blocked
@@ -532,6 +594,8 @@ typedef struct EncounterArenaTopology {
         [ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE]
         [ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
     uint64_t static_los_bits[ENCOUNTER_ARENA_TOPOLOGY_LOS_WORDS];
+    uint32_t nearby_unit_footprint_masks
+        [ENCOUNTER_ARENA_TOPOLOGY_MAX_TILES];
 } EncounterArenaTopology;
 
 static inline void encounter_arena_topology_abort(
@@ -666,17 +730,28 @@ static inline int encounter_arena_topology_build_step_allowed(
     return 1;
 }
 
+typedef struct {
+    const EncounterArenaTopology* topology;
+    const EncounterArenaTopologyBuildSpec* spec;
+} EncounterArenaTopologyLosBuildContext;
+
 static uint32_t encounter_arena_topology_los_flags(
-    void* ctx,
+    void* data,
     int x,
     int y
 ) {
-    const EncounterArenaTopology* topology =
-        (const EncounterArenaTopology*)ctx;
-    if (!encounter_arena_topology_contains_raw(topology, x, y))
+    const EncounterArenaTopologyLosBuildContext* build =
+        (const EncounterArenaTopologyLosBuildContext*)data;
+    if (!encounter_arena_topology_contains_raw(build->topology, x, y))
         return LOS_FULL_MASK;
-    uint32_t flags = topology->static_collision_flags[
-        encounter_arena_topology_index_raw(topology, x, y)];
+    encounter_arena_tile_flags_fn tile_flags =
+        build->spec->los_tile_flags
+            ? build->spec->los_tile_flags
+            : build->spec->tile_flags;
+    void* tile_flags_ctx = build->spec->los_tile_flags
+        ? build->spec->los_tile_flags_ctx
+        : build->spec->tile_flags_ctx;
+    uint32_t flags = tile_flags ? tile_flags(tile_flags_ctx, x, y) : 0;
     if (flags & COLLISION_BLOCKED) return LOS_FULL_MASK;
     return flags &
         (LOS_FULL_MASK | LOS_EAST_MASK | LOS_WEST_MASK |
@@ -777,6 +852,26 @@ static inline EncounterArenaTopology* encounter_arena_topology_build(
             }
         }
     }
+    for (int local_x = 0; local_x < topology->width; local_x++) {
+        for (int local_y = 0; local_y < topology->height; local_y++) {
+            int x = topology->origin_x + local_x;
+            int y = topology->origin_y + local_y;
+            int index = local_x * topology->height + local_y;
+            uint32_t mask = 0;
+            for (int dy = -2; dy <= 2; dy++) {
+                for (int dx = -2; dx <= 2; dx++) {
+                    if (dx == 0 && dy == 0) continue;
+                    int bit = (dy + 2) * 5 + (dx + 2);
+                    if (bit > 12) bit--;
+                    if (!encounter_arena_topology_footprint_blocked_raw(
+                            topology, x + dx, y + dy, 1))
+                        mask |= UINT32_C(1) << bit;
+                }
+            }
+            topology->nearby_unit_footprint_masks[index] = mask;
+        }
+    }
+
 
     for (int size = 1; size <= topology->max_footprint_size; size++) {
         for (int local_x = 0; local_x < topology->width; local_x++) {
@@ -801,43 +896,64 @@ static inline EncounterArenaTopology* encounter_arena_topology_build(
         }
     }
 
+    EncounterArenaTopologyLosBuildContext los_build = {
+        .topology = topology,
+        .spec = spec,
+    };
+    topology->static_los_mode = ENCOUNTER_ARENA_TOPOLOGY_LOS_OPEN;
     for (int source = 0; source < topology->tile_count; source++) {
         int source_x = topology->origin_x + source / topology->height;
         int source_y = topology->origin_y + source % topology->height;
         if (encounter_arena_topology_los_flags(
-                topology, source_x, source_y) == 0)
-            encounter_arena_topology_set_los(topology, source, source);
+                &los_build, source_x, source_y) != 0) {
+            topology->static_los_mode =
+                ENCOUNTER_ARENA_TOPOLOGY_LOS_FLAGGED;
+            break;
+        }
+    }
+    if (topology->static_los_mode ==
+            ENCOUNTER_ARENA_TOPOLOGY_LOS_FLAGGED) {
+        for (int source = 0; source < topology->tile_count; source++) {
+            int source_x =
+                topology->origin_x + source / topology->height;
+            int source_y =
+                topology->origin_y + source % topology->height;
+            if (encounter_arena_topology_los_flags(
+                    &los_build, source_x, source_y) == 0)
+                encounter_arena_topology_set_los(
+                    topology, source, source);
 
-        for (int target = source + 1;
-                target < topology->tile_count;
-                target++) {
-            int target_x =
-                topology->origin_x + target / topology->height;
-            int target_y =
-                topology->origin_y + target % topology->height;
-            int forward = los_has_line_of_sight_with_flags(
-                encounter_arena_topology_los_flags,
-                topology,
-                source_x,
-                source_y,
-                target_x,
-                target_y,
-                1,
-                0);
-            int reverse = los_has_line_of_sight_with_flags(
-                encounter_arena_topology_los_flags,
-                topology,
-                target_x,
-                target_y,
-                source_x,
-                source_y,
-                1,
-                0);
-            if (forward && reverse) {
-                encounter_arena_topology_set_los(
-                    topology, source, target);
-                encounter_arena_topology_set_los(
-                    topology, target, source);
+            for (int target = source + 1;
+                    target < topology->tile_count;
+                    target++) {
+                int target_x =
+                    topology->origin_x + target / topology->height;
+                int target_y =
+                    topology->origin_y + target % topology->height;
+                int forward = los_has_line_of_sight_with_flags(
+                    encounter_arena_topology_los_flags,
+                    &los_build,
+                    source_x,
+                    source_y,
+                    target_x,
+                    target_y,
+                    1,
+                    0);
+                int reverse = los_has_line_of_sight_with_flags(
+                    encounter_arena_topology_los_flags,
+                    &los_build,
+                    target_x,
+                    target_y,
+                    source_x,
+                    source_y,
+                    1,
+                    0);
+                if (forward)
+                    encounter_arena_topology_set_los(
+                        topology, source, target);
+                if (reverse)
+                    encounter_arena_topology_set_los(
+                        topology, target, source);
             }
         }
     }
@@ -951,6 +1067,17 @@ static inline int encounter_arena_topology_footprint_blocked(
         topology, x, y, size);
 }
 
+static inline uint32_t encounter_arena_topology_nearby_unit_footprint_mask(
+    const EncounterArenaTopology* topology,
+    int x,
+    int y
+) {
+    encounter_arena_topology_require_finalized(topology);
+    if (!encounter_arena_topology_contains_raw(topology, x, y)) return 0;
+    int index = encounter_arena_topology_index_raw(topology, x, y);
+    return topology->nearby_unit_footprint_masks[index];
+}
+
 static inline int encounter_arena_topology_step_allowed(
     const EncounterArenaTopology* topology,
     int x,
@@ -987,16 +1114,19 @@ static inline int encounter_arena_topology_los_clear(
         topology, actor_size);
     encounter_arena_topology_require_footprint_size(
         topology, target_size);
-    if (encounter_arena_topology_footprint_blocked_raw(
-            topology, actor_x, actor_y, actor_size) ||
-            encounter_arena_topology_footprint_blocked_raw(
-                topology, target_x, target_y, target_size))
-        return 0;
-
     int64_t actor_max_x = (int64_t)actor_x + actor_size - 1;
     int64_t actor_max_y = (int64_t)actor_y + actor_size - 1;
     int64_t target_max_x = (int64_t)target_x + target_size - 1;
     int64_t target_max_y = (int64_t)target_y + target_size - 1;
+    if (!encounter_arena_topology_contains_raw(
+            topology, actor_x, actor_y) ||
+            !encounter_arena_topology_contains_raw(
+                topology, (int)actor_max_x, (int)actor_max_y) ||
+            !encounter_arena_topology_contains_raw(
+                topology, target_x, target_y) ||
+            !encounter_arena_topology_contains_raw(
+                topology, (int)target_max_x, (int)target_max_y))
+        return 0;
     int overlap =
         (int64_t)actor_x <= target_max_x &&
         (int64_t)target_x <= actor_max_x &&
@@ -1038,6 +1168,9 @@ static inline int encounter_arena_topology_los_clear(
     if (attack_range > 0 &&
             (abs_dx > attack_range || abs_dy > attack_range))
         return 0;
+    if (topology->static_los_mode ==
+            ENCOUNTER_ARENA_TOPOLOGY_LOS_OPEN)
+        return 1;
 
     int actor_index = encounter_arena_topology_index_raw(
         topology, (int)actor_los_x, (int)actor_los_y);

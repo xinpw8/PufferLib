@@ -66,6 +66,7 @@ typedef enum {
     OSRS_LOS_OPEN = 0,
     OSRS_LOS_BLOCKERS,
     OSRS_LOS_TILE,
+    OSRS_LOS_FLAGS,
 } OsrsLosKind;
 
 typedef struct {
@@ -73,6 +74,7 @@ typedef struct {
     const LOSBlocker* blockers;
     int blocker_count;
     int (*tile_blocked)(void* ctx, int x, int y);
+    los_tile_flags_fn tile_flags;
     void* tile_ctx;
 } OsrsLosQuery;
 
@@ -82,6 +84,7 @@ static inline OsrsLosQuery osrs_los_open(void) {
     query.blockers = NULL;
     query.blocker_count = 0;
     query.tile_blocked = NULL;
+    query.tile_flags = NULL;
     query.tile_ctx = NULL;
     return query;
 }
@@ -95,6 +98,7 @@ static inline OsrsLosQuery osrs_los_blockers(
     query.blockers = blockers;
     query.blocker_count = blocker_count;
     query.tile_blocked = NULL;
+    query.tile_flags = NULL;
     query.tile_ctx = NULL;
     return query;
 }
@@ -108,6 +112,21 @@ static inline OsrsLosQuery osrs_los_tile(
     query.blockers = NULL;
     query.blocker_count = 0;
     query.tile_blocked = tile_blocked;
+    query.tile_flags = NULL;
+    query.tile_ctx = tile_ctx;
+    return query;
+}
+
+static inline OsrsLosQuery osrs_los_flags(
+    los_tile_flags_fn tile_flags,
+    void* tile_ctx
+) {
+    OsrsLosQuery query;
+    query.kind = OSRS_LOS_FLAGS;
+    query.blockers = NULL;
+    query.blocker_count = 0;
+    query.tile_blocked = NULL;
+    query.tile_flags = tile_flags;
     query.tile_ctx = tile_ctx;
     return query;
 }
@@ -119,6 +138,7 @@ static inline const OsrsLosQuery* osrs_los_open_query(void) {
         0,
         NULL,
         NULL,
+        NULL,
     };
     return &query;
 }
@@ -128,13 +148,16 @@ static inline int osrs_los_query_valid(
     int attack_range
 ) {
     if (attack_range <= 1) return 1;
-    if (!query || query->kind < OSRS_LOS_OPEN || query->kind > OSRS_LOS_TILE)
+    if (!query || query->kind < OSRS_LOS_OPEN ||
+            query->kind > OSRS_LOS_FLAGS)
         return 0;
     if (query->kind == OSRS_LOS_BLOCKERS &&
             (query->blocker_count < 0 ||
              (query->blocker_count > 0 && !query->blockers)))
         return 0;
-    return query->kind != OSRS_LOS_TILE || query->tile_blocked;
+    if (query->kind == OSRS_LOS_TILE && !query->tile_blocked)
+        return 0;
+    return query->kind != OSRS_LOS_FLAGS || query->tile_flags;
 }
 
 static inline void osrs_los_require_query(
@@ -237,6 +260,18 @@ static inline int osrs_los_clear(
             return osrs_los_tile_ray_clear(
                 query, t_los_x, t_los_y, p_los_x, p_los_y);
         }
+
+        case OSRS_LOS_FLAGS:
+            return entity_has_line_of_sight_with_flags(
+                query->tile_flags,
+                query->tile_ctx,
+                px,
+                py,
+                psize,
+                tx,
+                ty,
+                tsize,
+                attack_range);
     }
 
     fprintf(stderr, "unhandled OSRS LoS query kind: %d\n", (int)query->kind);
