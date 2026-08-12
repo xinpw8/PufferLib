@@ -7,9 +7,33 @@
 #include "osrs_encounter_player.h"
 #include "osrs_pvp_gear.h"
 
+static inline int pvp_topology_destination_selectable(
+    const EncounterArenaTopology* topology,
+    int x,
+    int y
+) {
+    if (!is_in_wilderness(x, y)) return 0;
+    if (encounter_arena_topology_contains(topology, x, y))
+        return !encounter_arena_topology_tile_blocked(topology, x, y);
+
+    int min_x = topology->origin_x;
+    int max_x = min_x + topology->width - 1;
+    int min_y = topology->origin_y;
+    int max_y = min_y + topology->height - 1;
+    int fallback_x = x < min_x ? min_x : (x > max_x ? max_x : x);
+    int fallback_y = y < min_y ? min_y : (y > max_y ? max_y : y);
+    return !encounter_arena_topology_tile_blocked(
+        topology, fallback_x, fallback_y);
+}
+
 static int select_closest_candidate_tile(
-    Player* p, const int candidates[4][2], int target_x, int target_y,
-    int* out_x, int* out_y, const CollisionMap* cmap
+    Player* p,
+    const int candidates[4][2],
+    int target_x,
+    int target_y,
+    int* out_x,
+    int* out_y,
+    const EncounterArenaTopology* topology
 ) {
     int has_best = 0;
     int best_x = 0;
@@ -21,20 +45,16 @@ static int select_closest_candidate_tile(
     for (int i = 0; i < 4; i++) {
         int cx = candidates[i][0];
         int cy = candidates[i][1];
-        if (!is_in_wilderness(cx, cy)) {
+        if (!pvp_topology_destination_selectable(topology, cx, cy))
             continue;
-        }
-        if (!collision_tile_walkable(cmap, 0, cx, cy)) {
-            continue;
-        }
         int dist_agent = chebyshev_distance(p->x, p->y, cx, cy);
         int dist_target = chebyshev_distance(cx, cy, target_x, target_y);
         int hash = tile_hash(cx, cy);
         if (!has_best ||
-            dist_agent < best_dist_agent ||
-            (dist_agent == best_dist_agent &&
-             (dist_target < best_dist_target ||
-              (dist_target == best_dist_target && hash < best_hash)))) {
+                dist_agent < best_dist_agent ||
+                (dist_agent == best_dist_agent &&
+                 (dist_target < best_dist_target ||
+                  (dist_target == best_dist_target && hash < best_hash)))) {
             has_best = 1;
             best_x = cx;
             best_y = cy;
@@ -44,65 +64,74 @@ static int select_closest_candidate_tile(
         }
     }
 
-    if (!has_best) {
-        return 0;
-    }
+    if (!has_best) return 0;
     *out_x = best_x;
     *out_y = best_y;
     return 1;
 }
 
-static int select_closest_adjacent_tile(Player* p, int target_x, int target_y, int* out_x, int* out_y, const CollisionMap* cmap) {
+static int select_closest_adjacent_tile(
+    Player* p,
+    int target_x,
+    int target_y,
+    int* out_x,
+    int* out_y,
+    const EncounterArenaTopology* topology
+) {
     const int candidates[4][2] = {
         {target_x, target_y + 1},
         {target_x + 1, target_y},
         {target_x, target_y - 1},
         {target_x - 1, target_y}
     };
-    return select_closest_candidate_tile(p, candidates, target_x, target_y, out_x, out_y, cmap);
+    return select_closest_candidate_tile(
+        p, candidates, target_x, target_y, out_x, out_y, topology);
 }
 
-static int select_closest_diagonal_tile(Player* p, int target_x, int target_y, int* out_x, int* out_y, const CollisionMap* cmap) {
+static int select_closest_diagonal_tile(
+    Player* p,
+    int target_x,
+    int target_y,
+    int* out_x,
+    int* out_y,
+    const EncounterArenaTopology* topology
+) {
     const int candidates[4][2] = {
         {target_x + 1, target_y + 1},
         {target_x + 1, target_y - 1},
         {target_x - 1, target_y - 1},
         {target_x - 1, target_y + 1}
     };
-    return select_closest_candidate_tile(p, candidates, target_x, target_y, out_x, out_y, cmap);
+    return select_closest_candidate_tile(
+        p, candidates, target_x, target_y, out_x, out_y, topology);
 }
 
-static int select_farcast_tile(Player* p, int target_x, int target_y, int distance, int* out_x, int* out_y, const CollisionMap* cmap) {
+static int select_farcast_tile(
+    Player* p,
+    int target_x,
+    int target_y,
+    int distance,
+    int* out_x,
+    int* out_y,
+    const EncounterArenaTopology* topology
+) {
     int raw_dx = p->x - target_x;
     int raw_dy = p->y - target_y;
     int d = distance;
-
     int dx = raw_dx < -d ? -d : (raw_dx > d ? d : raw_dx);
     int dy = raw_dy < -d ? -d : (raw_dy > d ? d : raw_dy);
-
     int adx = abs_int(dx);
     int ady = abs_int(dy);
     if (adx < d && ady < d) {
-        if (adx >= ady) {
-            dx = (raw_dx >= 0) ? d : -d;
-        } else {
-            dy = (raw_dy >= 0) ? d : -d;
-        }
+        if (adx >= ady)
+            dx = raw_dx >= 0 ? d : -d;
+        else
+            dy = raw_dy >= 0 ? d : -d;
     }
 
     int cx = target_x + dx;
     int cy = target_y + dy;
-
-    if (is_in_wilderness(cx, cy) && collision_tile_walkable(cmap, 0, cx, cy)) {
-        *out_x = cx;
-        *out_y = cy;
-        return 1;
-    }
-
-    cx = cx < WILD_MIN_X ? WILD_MIN_X : (cx > WILD_MAX_X ? WILD_MAX_X : cx);
-    cy = cy < WILD_MIN_Y ? WILD_MIN_Y : (cy > WILD_MAX_Y ? WILD_MAX_Y : cy);
-    if (chebyshev_distance(cx, cy, target_x, target_y) == distance
-        && collision_tile_walkable(cmap, 0, cx, cy)) {
+    if (pvp_topology_destination_selectable(topology, cx, cy)) {
         *out_x = cx;
         *out_y = cy;
         return 1;
@@ -111,63 +140,6 @@ static int select_farcast_tile(Player* p, int target_x, int target_y, int distan
     return 0;
 }
 
-static int step_toward_destination(Player* p, const CollisionMap* cmap) {
-    int dx = p->dest_x - p->x;
-    int dy = p->dest_y - p->y;
-    if (dx == 0 && dy == 0) {
-        return 0;
-    }
-
-    int step_x = (dx > 0) ? 1 : (dx < 0 ? -1 : 0);
-    int step_y = (dy > 0) ? 1 : (dy < 0 ? -1 : 0);
-
-    if (step_x != 0 && step_y != 0) {
-        if (collision_traversable_step(cmap, 0, p->x, p->y, step_x, step_y)) {
-            p->x += step_x;
-            p->y += step_y;
-            return 1;
-        }
-        if (collision_traversable_step(cmap, 0, p->x, p->y, step_x, 0)) {
-            p->x += step_x;
-            return 1;
-        }
-        if (collision_traversable_step(cmap, 0, p->x, p->y, 0, step_y)) {
-            p->y += step_y;
-            return 1;
-        }
-        return 0;
-    }
-
-    if (collision_traversable_step(cmap, 0, p->x, p->y, step_x, step_y)) {
-        p->x += step_x;
-        p->y += step_y;
-        return 1;
-    }
-
-    return 0;
-}
-
-static void set_destination(Player* p, int dest_x, int dest_y, const CollisionMap* cmap) {
-    p->dest_x = dest_x;
-    p->dest_y = dest_y;
-    if (p->x == dest_x && p->y == dest_y) {
-        p->is_moving = 0;
-        return;
-    }
-    if (!step_toward_destination(p, cmap)) {
-        p->is_moving = 0;
-        return;
-    }
-    if (p->x != dest_x || p->y != dest_y) {
-        step_toward_destination(p, cmap);
-    }
-    p->is_moving = (p->x != dest_x || p->y != dest_y) ? 1 : 0;
-}
-
-static int pvp_tile_walkable(void* ctx, int x, int y) {
-    const CollisionMap* cmap = (const CollisionMap*)ctx;
-    return is_in_wilderness(x, y) && collision_tile_walkable(cmap, 0, x, y);
-}
 
 typedef struct {
     EncounterArenaTopology* topology;
@@ -183,6 +155,15 @@ static uint32_t pvp_route_topology_flags(void* data, int x, int y) {
         : 0;
 }
 
+
+static inline int pvp_topology_tile_walkable(
+    const EncounterArenaTopology* topology,
+    int x,
+    int y
+) {
+    return !encounter_arena_topology_tile_blocked(topology, x, y);
+}
+
 static const EncounterArenaTopology* pvp_route_topology_finalize(
     const CollisionMap* collision_map
 ) {
@@ -192,9 +173,10 @@ static const EncounterArenaTopology* pvp_route_topology_finalize(
         .width = FIGHT_AREA_WIDTH,
         .height = FIGHT_AREA_HEIGHT,
         .max_footprint_size = 1,
-        .revision = UINT64_C(0x4e48505650000001),
+        .revision = UINT64_C(0x4e48505650000004),
         .tile_flags = pvp_route_topology_flags,
         .tile_flags_ctx = (void*)collision_map,
+        .los_build_mode = ENCOUNTER_ARENA_TOPOLOGY_LOS_BUILD_OPEN,
     };
     if (!pvp_route_topology_owner.topology) {
         pvp_route_topology_owner.topology =
@@ -210,87 +192,15 @@ static const EncounterArenaTopology* pvp_route_topology_finalize(
 }
 
 
-static void move_toward_target(
-    Player* p,
-    Player* target,
-    int attack_range,
-    const CollisionMap* cmap,
-    const EncounterArenaTopology* topology
-) {
-    if (p->frozen_ticks > 0) {
-        return;
-    }
-    EncounterRouteInput route_input = {
-        .topology = topology,
-        .blockers = {0},
-        .source_x = p->x,
-        .source_y = p->y,
-        .actor_size = 1,
-        .target_x = target->x,
-        .target_y = target->y,
-        .target_size = 1,
-        .target_kind = ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY,
-        .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
-        .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
-    };
-    EncounterRouteResult route = encounter_route_solve(&route_input);
-    int moved = 0;
-    if (route.outcome == ROUTE_REACHED_TARGET ||
-            route.outcome == ROUTE_REACHED_FALLBACK) {
-        p->x += route.first_dx;
-        p->y += route.first_dy;
-        moved = route.first_dx != 0 || route.first_dy != 0;
-        if ((route.run_dx != 0 || route.run_dy != 0) &&
-                !encounter_player_can_attack(
-                    p->x, p->y,
-                    target->x, target->y, 1, attack_range,
-                    cmap, 0, 0, osrs_los_open_query())) {
-            p->x += route.run_dx;
-            p->y += route.run_dy;
-            moved = 1;
-        }
-    }
-    p->is_moving = moved;
-}
-
-static void step_out_from_same_tile(Player* p, Player* target, const CollisionMap* cmap) {
-    if (p->frozen_ticks > 0) {
-        return;
-    }
-
-    int dest_x = target->x - 1;
-    int dest_y = target->y;
-    if (is_in_wilderness(dest_x, dest_y) && collision_tile_walkable(cmap, 0, dest_x, dest_y)) {
-        set_destination(p, dest_x, dest_y, cmap);
-        return;
-    }
-    dest_x = target->x + 1;
-    if (is_in_wilderness(dest_x, dest_y) && collision_tile_walkable(cmap, 0, dest_x, dest_y)) {
-        set_destination(p, dest_x, dest_y, cmap);
-        return;
-    }
-    dest_x = target->x;
-    dest_y = target->y - 1;
-    if (is_in_wilderness(dest_x, dest_y) && collision_tile_walkable(cmap, 0, dest_x, dest_y)) {
-        set_destination(p, dest_x, dest_y, cmap);
-        return;
-    }
-    dest_y = target->y + 1;
-    if (is_in_wilderness(dest_x, dest_y) && collision_tile_walkable(cmap, 0, dest_x, dest_y)) {
-        set_destination(p, dest_x, dest_y, cmap);
-        return;
-    }
-}
 
 /* skipped when either player is frozen: walking under a frozen opponent is a
    legal, intentional position in OSRS PvP */
-static void resolve_same_tile(Player* mover, Player* blocker, const CollisionMap* cmap) {
-    if (blocker->frozen_ticks > 0) {
-        return;
-    }
-    if (mover->frozen_ticks > 0) {
-        return;
-    }
+static void resolve_same_tile(
+    Player* mover,
+    Player* blocker,
+    const EncounterArenaTopology* topology
+) {
+    if (blocker->frozen_ticks > 0 || mover->frozen_ticks > 0) return;
 
     static const int OFFSETS[8][2] = {
         {-1, 0}, {1, 0}, {0, -1}, {0, 1},
@@ -300,9 +210,8 @@ static void resolve_same_tile(Player* mover, Player* blocker, const CollisionMap
     for (int i = 0; i < 8; i++) {
         int nx = mover->x + OFFSETS[i][0];
         int ny = mover->y + OFFSETS[i][1];
-        if (is_in_wilderness(nx, ny)
-            && collision_tile_walkable(cmap, 0, nx, ny)
-            && !(nx == blocker->x && ny == blocker->y)) {
+        if (pvp_topology_tile_walkable(topology, nx, ny) &&
+                !(nx == blocker->x && ny == blocker->y)) {
             mover->x = nx;
             mover->y = ny;
             mover->dest_x = nx;
@@ -334,20 +243,16 @@ static int pvp_lookup_attack_target(void* ctx, int target_slot, OsrsAttackTarget
 }
 
 static inline OsrsEncounterArena pvp_build_arena(
-    OsrsEnv* env,
     const EncounterArenaTopology* topology
 ) {
-    OsrsEncounterArena arena;
-    arena.topology = topology;
-    arena.blockers = (EncounterRouteBlockers){0};
-    arena.movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN;
-    arena.cost_policy = ENCOUNTER_ROUTE_COST_OSRS_TARGET_BFS;
-    arena.destination_cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS;
-    arena.collision_map = (const CollisionMap*)env->collision_map;
-    arena.world_offset_x = 0;
-    arena.world_offset_y = 0;
-    arena.los_query = osrs_los_open_query();
-    return arena;
+    return (OsrsEncounterArena){
+        .topology = topology,
+        .blockers = {0},
+        .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+        .cost_policy = ENCOUNTER_ROUTE_COST_OSRS_TARGET_BFS,
+        .destination_cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
+        .attack_geometry = ENCOUNTER_ROUTE_ATTACK_GEOMETRY_TOPOLOGY,
+    };
 }
 
 static inline OsrsPlayerStepResult pvp_step_player_movement(
@@ -363,7 +268,7 @@ static inline OsrsPlayerStepResult pvp_step_player_movement(
     if (*dest_x < 0 || *dest_y < 0) return result;
 
     Player* p = &env->players[agent_idx];
-    OsrsEncounterArena arena = pvp_build_arena(env, topology);
+    OsrsEncounterArena arena = pvp_build_arena(topology);
     OsrsPlayerStepInput input = {
         .player = p,
         .interaction = &p->interaction,
@@ -383,6 +288,98 @@ static inline OsrsPlayerStepResult pvp_step_player_movement(
     p->is_moving = (*dest_x >= 0) ? 1 : 0;
     return result;
 }
+
+static inline int pvp_step_player_melee_chase(
+    OsrsEnv* env,
+    int agent_idx,
+    const EncounterArenaTopology* topology,
+    OsrsActorRouteCache* route_cache
+) {
+    Player* player = &env->players[agent_idx];
+    Player* target = &env->players[1 - agent_idx];
+    int destination_x = 0;
+    int destination_y = 0;
+    if (!select_closest_adjacent_tile(
+            player,
+            target->x,
+            target->y,
+            &destination_x,
+            &destination_y,
+            topology))
+        return 0;
+
+    EncounterRouteInput route_input = {
+        .topology = topology,
+        .source_x = player->x,
+        .source_y = player->y,
+        .actor_size = 1,
+        .target_x = destination_x,
+        .target_y = destination_y,
+        .target_size = 1,
+        .target_kind = ENCOUNTER_ROUTE_TARGET_TILE,
+        .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+        .cost_policy = ENCOUNTER_ROUTE_COST_DIRECT,
+    };
+    EncounterRouteResult route =
+        encounter_route_greedy_direct(&route_input);
+    int moved = osrs_player_step_apply_route(player, &route);
+    player->dest_x = destination_x;
+    player->dest_y = destination_y;
+    player->is_moving =
+        player->x != destination_x || player->y != destination_y;
+    osrs_actor_route_cache_clear(route_cache);
+    return moved;
+}
+
+static inline int pvp_step_player_ranged_chase(
+    OsrsEnv* env,
+    int agent_idx,
+    int attack_range,
+    const EncounterArenaTopology* topology,
+    OsrsActorRouteCache* route_cache
+) {
+    Player* player = &env->players[agent_idx];
+    Player* target = &env->players[1 - agent_idx];
+    EncounterRouteInput route_input = {
+        .topology = topology,
+        .source_x = player->x,
+        .source_y = player->y,
+        .actor_size = 1,
+        .target_x = target->x,
+        .target_y = target->y,
+        .target_size = 1,
+        .target_kind = ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY,
+        .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+        .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
+    };
+    EncounterRouteResult route = encounter_route_solve(&route_input);
+    if (route.outcome != ROUTE_REACHED_TARGET &&
+            route.outcome != ROUTE_REACHED_FALLBACK) {
+        player->is_moving = 0;
+        return 0;
+    }
+
+    int moved = route.first_dx != 0 || route.first_dy != 0;
+    player->x += route.first_dx;
+    player->y += route.first_dy;
+    if ((route.run_dx != 0 || route.run_dy != 0) &&
+            !encounter_arena_topology_player_can_attack(
+                topology,
+                player->x,
+                player->y,
+                target->x,
+                target->y,
+                1,
+                attack_range)) {
+        player->x += route.run_dx;
+        player->y += route.run_dy;
+        moved = 1;
+    }
+    player->is_moving = moved;
+    osrs_actor_route_cache_clear(route_cache);
+    return moved;
+}
+
 
 static inline void pvp_set_walk_dest_from_head_move(OsrsEnv* env, int agent_idx, int move_action) {
     Player* p = &env->players[agent_idx];

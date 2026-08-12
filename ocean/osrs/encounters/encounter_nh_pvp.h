@@ -17,6 +17,7 @@ typedef struct {
 static_assert(sizeof(NhPvpState) == 7160, "NhPvpState serialized layout");
 
 typedef struct {
+    const CollisionMap* collision_map;
     const EncounterArenaTopology* route_topology;
     OsrsActorRouteCache player_route_cache[NUM_AGENTS];
 } NhPvpContext;
@@ -73,14 +74,14 @@ static void nh_pvp_finalize_context(
     EncounterState* state,
     EncounterContext* context
 ) {
-    NhPvpState* s = (NhPvpState*)state;
+    (void)state;
     NhPvpContext* ctx = (NhPvpContext*)context;
     if (!ctx || ctx->route_topology) {
         fprintf(stderr, "NH PvP route topology finalized twice\n");
         abort();
     }
-    ctx->route_topology = pvp_route_topology_finalize(
-        (const CollisionMap*)s->env.collision_map);
+    ctx->route_topology =
+        pvp_route_topology_finalize(ctx->collision_map);
 }
 
 
@@ -93,7 +94,7 @@ static void nh_pvp_reset(EncounterState* state, EncounterContext* context, uint3
         s->env.rng_seed = seed;
     }
     pvp_actor_route_caches_clear(ctx->player_route_cache);
-    pvp_reset(&s->env);
+    pvp_reset(&s->env, ctx->route_topology);
 }
 
 static void nh_pvp_step(EncounterState* state, EncounterContext* context, const int* actions) {
@@ -260,10 +261,12 @@ static void nh_pvp_put_ptr(
     const char* key,
     void* value
 ) {
-    (void)context;
-    NhPvpState* s = (NhPvpState*)state;
+    (void)state;
+    NhPvpContext* ctx = (NhPvpContext*)context;
     if (strcmp(key, "collision_map") == 0)
-        s->env.collision_map = value;
+        ctx->collision_map = (const CollisionMap*)value;
+    else
+        encounter_abort_unknown_config("nh_pvp", "ptr", key);
 }
 
 static void* nh_pvp_get_log(EncounterState* state, EncounterContext* context) {

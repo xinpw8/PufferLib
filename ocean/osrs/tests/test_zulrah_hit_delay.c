@@ -20,12 +20,21 @@ static int spec8_magic_delay(int distance, int is_player) {
 
 static ZulrahContext g_ctx;
 static ZulrahState g_state;
+static CollisionMap* g_collision_map;
+
 
 static ZulrahState* fresh_state(uint32_t seed) {
     EncounterState* state = (EncounterState*)&g_state;
     EncounterContext* context = (EncounterContext*)&g_ctx;
     ENCOUNTER_ZULRAH.init_context(context);
     ENCOUNTER_ZULRAH.init_state(state, context);
+    if (!g_collision_map)
+        g_collision_map = collision_map_load("ocean/osrs/data/zulrah.cmap");
+    if (!g_collision_map) abort();
+    ENCOUNTER_ZULRAH.put_ptr(state, context, "collision_map", g_collision_map);
+    ENCOUNTER_ZULRAH.put_int(state, context, "world_offset_x", 2256);
+    ENCOUNTER_ZULRAH.put_int(state, context, "world_offset_y", 3061);
+
     ENCOUNTER_ZULRAH.put_int(state, context, "gear_tier", 0);
     ENCOUNTER_ZULRAH.put_int(state, context, "gear_tier_mode", ZUL_GEAR_TIER_FIXED);
     ENCOUNTER_ZULRAH.put_int(state, context, "episode_mode", ZUL_EPISODE_SINGLE_KILL);
@@ -335,6 +344,83 @@ static void test_melee_stare_reads_prayer_at_calculation(void) {
     }
 }
 
+static void test_topology_geometry_parity(void) {
+    printf("\n--- Zulrah static topology matches the arena collision map ---\n");
+    ZulrahState* s = fresh_state(0x7a110001u);
+    (void)s;
+    const EncounterArenaTopology* topology = g_ctx.route_topology;
+    CHECK("Zulrah topology covers the 28 by 28 local arena",
+        topology->origin_x == 0 && topology->origin_y == 0 &&
+        topology->width == ZUL_ARENA_SIZE &&
+        topology->height == ZUL_ARENA_SIZE);
+    CHECK("Zulrah pillar lines preserve the encounter's open LOS rule",
+        topology->static_los_mode == ENCOUNTER_ARENA_TOPOLOGY_LOS_OPEN);
+
+    int open_tiles = 0;
+    int step_checks = 0;
+    for (int x = 0; x < ZUL_ARENA_SIZE; x++) {
+        for (int y = 0; y < ZUL_ARENA_SIZE; y++) {
+            int expected_walkable = collision_tile_walkable(
+                g_collision_map, 0, x + 2256, y + 3061);
+            CHECK("Zulrah player tile parity",
+                zul_topology_player_tile_allowed(&g_ctx, x, y) ==
+                    expected_walkable);
+            if (!expected_walkable) continue;
+            open_tiles++;
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    if (dx == 0 && dy == 0) continue;
+                    int expected_step = collision_traversable_step(
+                        g_collision_map, 0,
+                        x + 2256, y + 3061, dx, dy);
+                    CHECK("Zulrah player step parity",
+                        encounter_arena_topology_step_allowed(
+                            topology, x, y, 1, dx, dy) == expected_step);
+                    step_checks++;
+                }
+            }
+        }
+    }
+    ASSERT_INT_EQ("Zulrah collision map has 69 allowed player tiles",
+        open_tiles, 69);
+    ASSERT_INT_EQ("Zulrah checks every direction from every allowed tile",
+        step_checks, 69 * 8);
+
+    int phase_targets = 0;
+    for (int rotation = 0; rotation < ZUL_NUM_ROTATIONS; rotation++) {
+        for (int phase_index = 0;
+                phase_index < ZUL_ROT_LENGTHS[rotation];
+                phase_index++) {
+            const ZulRotationPhase* phase =
+                &ZUL_ROTATIONS[rotation][phase_index];
+            int target_x = ZUL_POSITIONS[phase->position][0];
+            int target_y = ZUL_POSITIONS[phase->position][1];
+            CHECK("every Zulrah phase target footprint stays in topology",
+                encounter_arena_topology_contains(
+                    topology, target_x, target_y) &&
+                encounter_arena_topology_contains(
+                    topology,
+                    target_x + ZUL_NPC_SIZE - 1,
+                    target_y + ZUL_NPC_SIZE - 1));
+            CHECK("every Zulrah phase stand tile is allowed",
+                zul_topology_player_tile_allowed(
+                    &g_ctx,
+                    ZUL_STAND_COORDS[phase->stand][0],
+                    ZUL_STAND_COORDS[phase->stand][1]));
+            if (phase->stall != ZUL_STAND_NONE) {
+                CHECK("every Zulrah phase stall tile is allowed",
+                    zul_topology_player_tile_allowed(
+                        &g_ctx,
+                        ZUL_STAND_COORDS[phase->stall][0],
+                        ZUL_STAND_COORDS[phase->stall][1]));
+            }
+            phase_targets++;
+        }
+    }
+    ASSERT_INT_EQ("all 47 Zulrah phase targets are pinned",
+        phase_targets, 47);
+}
+
 int main(void) {
     printf("zulrah hit-delay and roll-order regressions\n\n");
 
@@ -343,6 +429,7 @@ int main(void) {
     test_damage_drawn_before_accuracy();
     test_prayer_does_not_perturb_the_rng_stream();
     test_prayer_resolves_at_throw_not_landing();
+    test_topology_geometry_parity();
     test_melee_stare_reads_prayer_at_calculation();
 
     return osrs_test_summary();

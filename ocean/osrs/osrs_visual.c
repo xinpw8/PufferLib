@@ -106,7 +106,7 @@ static void run_random_episode(OsrsEnv* env, int verbose) {
     const EncounterArenaTopology* route_topology =
         pvp_route_topology_finalize((const CollisionMap*)env->collision_map);
     OsrsActorRouteCache route_cache[NUM_AGENTS] = {0};
-    pvp_reset(env);
+    pvp_reset(env, route_topology);
 
     while (!env->episode_over) {
         for (int agent = 0; agent < NUM_AGENTS; agent++) {
@@ -143,7 +143,7 @@ static void benchmark(OsrsEnv* env, int num_steps) {
     int total_steps = 0;
 
     while (total_steps < num_steps) {
-        pvp_reset(env);
+        pvp_reset(env, route_topology);
         pvp_actor_route_caches_clear(route_cache);
         episodes++;
 
@@ -327,6 +327,9 @@ static VisualCollisionLoad visual_load_encounter_collision_map(
 ) {
     CollisionMap* cmap = NULL;
     int offset_x = 0, offset_y = 0;
+    if (encounter_name_is_pvp(encounter_name)) {
+        cmap = collision_map_load(OSRS_ASSET("wilderness.cmap"));
+    } else
     if (strcmp(encounter_name, "zulrah") == 0) {
         cmap = collision_map_load(OSRS_ASSET("zulrah.cmap"));
         offset_x = 2256; offset_y = 3061;
@@ -339,8 +342,18 @@ static VisualCollisionLoad visual_load_encounter_collision_map(
     }
     VisualCollisionLoad result = { NULL, offset_x, offset_y };
     if (cmap) {
-        edef->put_int(env->encounter_state, env->encounter_context, "world_offset_x", offset_x);
-        edef->put_int(env->encounter_state, env->encounter_context, "world_offset_y", offset_y);
+        if (!encounter_name_is_pvp(encounter_name)) {
+            edef->put_int(
+                env->encounter_state,
+                env->encounter_context,
+                "world_offset_x",
+                offset_x);
+            edef->put_int(
+                env->encounter_state,
+                env->encounter_context,
+                "world_offset_y",
+                offset_y);
+        }
         edef->put_ptr(env->encounter_state, env->encounter_context, "collision_map", cmap);
         env->collision_map = cmap;
         result.cmap = cmap;
@@ -383,6 +396,7 @@ static void run_profile(
         printf("Profiling %s for 10 seconds...\n", encounter_name ? encounter_name : "pvp");
     }
 
+    const EncounterArenaTopology* direct_pvp_topology = NULL;
     if (encounter_name) {
         const EncounterDef* edef = visual_open_encounter(env, encounter_name);
         if (!edef) return;
@@ -404,11 +418,11 @@ static void run_profile(
         env->has_rng_seed = 1;
         env->rng_seed = profile_seed;
         env->is_lms = 1;
-        pvp_reset(env);
+        direct_pvp_topology =
+            pvp_route_topology_finalize(
+                (const CollisionMap*)env->collision_map);
+        pvp_reset(env, direct_pvp_topology);
     }
-    const EncounterArenaTopology* direct_pvp_topology = encounter_name
-        ? NULL
-        : pvp_route_topology_finalize((const CollisionMap*)env->collision_map);
     OsrsActorRouteCache direct_pvp_route_cache[NUM_AGENTS] = {0};
 
     const EncounterDef* profile_edef = (const EncounterDef*)env->encounter_def;
@@ -561,7 +575,7 @@ static void run_profile(
             }
             pvp_step(env, direct_pvp_topology, direct_pvp_route_cache);
             if (env->episode_over) {
-                pvp_reset(env);
+                pvp_reset(env, direct_pvp_topology);
                 pvp_actor_route_caches_clear(direct_pvp_route_cache);
             }
         }
@@ -1449,7 +1463,7 @@ static void visual_frame(void* arg) {
                     (EncounterContext*)env->encounter_context,
                     (uint32_t)rand());
             } else {
-                pvp_reset(env);
+                pvp_reset(env, rc->route_topology);
             }
             render_reset_episode_visual_state(rc, env);
             visual_policy_reset_recurrent(&vs->policy);
@@ -1929,6 +1943,20 @@ static void run_visual(
     uint32_t policy_seed
 ) {
     env->client = NULL;
+    const EncounterArenaTopology* direct_pvp_topology = NULL;
+    if (!encounter_name) {
+        const char* cmap_path = getenv("OSRS_COLLISION_MAP");
+        if (cmap_path && cmap_path[0]) {
+            env->collision_map = collision_map_load(cmap_path);
+            if (env->collision_map) {
+                fprintf(stderr, "collision map loaded: %d regions\n",
+                    ((CollisionMap*)env->collision_map)->count);
+            }
+        }
+        direct_pvp_topology =
+            pvp_route_topology_finalize(
+                (const CollisionMap*)env->collision_map);
+    }
 
     if (encounter_name) {
         const EncounterDef* edef = visual_open_encounter(env, encounter_name);
@@ -1974,24 +2002,13 @@ static void run_visual(
         env->pvp_runtime.use_c_opponent = 1;
         env->pvp_runtime.opponent.type = OPP_IMPROVED;
         env->is_lms = 1;
-        pvp_reset(env);
+        pvp_reset(env, direct_pvp_topology);
     }
 
-    const char* cmap_path = getenv("OSRS_COLLISION_MAP");
-    if (cmap_path && cmap_path[0]) {
-        env->collision_map = collision_map_load(cmap_path);
-        if (env->collision_map) {
-            fprintf(stderr, "collision map loaded: %d regions\n",
-                    ((CollisionMap*)env->collision_map)->count);
-        }
-    }
 
     pvp_render(env);
     RenderClient* rc = (RenderClient*)env->client;
-    rc->route_topology =
-        (!encounter_name || strcmp(encounter_name, "pvp") == 0)
-        ? pvp_route_topology_finalize((const CollisionMap*)env->collision_map)
-        : NULL;
+    rc->route_topology = direct_pvp_topology;
     pvp_actor_route_caches_clear(rc->player_route_cache);
 #ifdef __EMSCRIPTEN__
     if (!encounter_name || encounter_name_is_pvp(encounter_name)) {
@@ -2412,7 +2429,10 @@ int main(int argc, char** argv) {
         benchmark(&env, 100000);
 
         printf("\nVerifying observations...\n");
-        pvp_reset(&env);
+        pvp_reset(
+            &env,
+            pvp_route_topology_finalize(
+                (const CollisionMap*)env.collision_map));
         printf("Observation count per agent: %d\n", SLOT_NUM_OBSERVATIONS);
         printf("First 10 observations (agent 0): ");
         for (int i = 0; i < 10; i++) {

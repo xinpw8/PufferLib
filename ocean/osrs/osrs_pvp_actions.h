@@ -205,9 +205,13 @@ static void reset_tick_flags(Player* p) {
     p->clicks_this_tick = 0;
 }
 
-static void execute_switches(OsrsEnv* env, int agent_idx, int* actions) {
+static void execute_switches(
+    OsrsEnv* env,
+    int agent_idx,
+    int* actions,
+    const EncounterArenaTopology* topology
+) {
     Player* p = &env->players[agent_idx];
-    const CollisionMap* cmap = (const CollisionMap*)env->collision_map;
 
     p->consumable_used_this_tick = 0;
 
@@ -312,17 +316,19 @@ static void execute_switches(OsrsEnv* env, int agent_idx, int* actions) {
         int dest_x = -1, dest_y = -1;
         switch (combat_action) {
             case MOVE_ADJACENT:
-                if (!select_closest_adjacent_tile(p, tx, ty, &dest_x, &dest_y, cmap)) {
+                if (!select_closest_adjacent_tile(
+                        p, tx, ty, &dest_x, &dest_y, topology)) {
                     dest_x = -1; dest_y = -1;
                 }
                 break;
             case MOVE_UNDER:
-                if (is_in_wilderness(tx, ty) && collision_tile_walkable(cmap, 0, tx, ty)) {
+                if (pvp_topology_tile_walkable(topology, tx, ty)) {
                     dest_x = tx; dest_y = ty;
                 }
                 break;
             case MOVE_DIAGONAL:
-                if (!select_closest_diagonal_tile(p, tx, ty, &dest_x, &dest_y, cmap)) {
+                if (!select_closest_diagonal_tile(
+                        p, tx, ty, &dest_x, &dest_y, topology)) {
                     dest_x = -1; dest_y = -1;
                 }
                 break;
@@ -333,7 +339,8 @@ static void execute_switches(OsrsEnv* env, int agent_idx, int* actions) {
             case MOVE_FARCAST_6:
             case MOVE_FARCAST_7: {
                 int fd = combat_action - MOVE_FARCAST_2 + 2;
-                if (!select_farcast_tile(p, tx, ty, fd, &dest_x, &dest_y, cmap)) {
+                if (!select_farcast_tile(
+                        p, tx, ty, fd, &dest_x, &dest_y, topology)) {
                     dest_x = -1; dest_y = -1;
                 }
                 break;
@@ -400,60 +407,53 @@ static PvpAttackDecode pvp_decode_attack_actions(
     };
 }
 
-static void execute_attack_movement(OsrsEnv* env, int agent_idx, int* actions) {
+static void execute_attack_movement(
+    OsrsEnv* env,
+    int agent_idx,
+    int* actions,
+    const EncounterArenaTopology* topology,
+    OsrsActorRouteCache* route_cache
+) {
     Player* p = &env->players[agent_idx];
     Player* t = &env->players[1 - agent_idx];
-    const CollisionMap* cmap = (const CollisionMap*)env->collision_map;
-
-    PvpAttackDecode decode = pvp_decode_attack_actions(env, agent_idx, p, actions);
+    PvpAttackDecode decode =
+        pvp_decode_attack_actions(env, agent_idx, p, actions);
 
     if (decode.attack_action != ATTACK_NONE)
         osrs_interaction_set(&p->interaction, 1 - agent_idx);
 
-    int has_attack = (decode.attack_action != ATTACK_NONE) || osrs_interaction_active(&p->interaction);
-    int dist = chebyshev_distance(p->x, p->y, t->x, t->y);
-
+    int has_attack =
+        decode.attack_action != ATTACK_NONE ||
+        osrs_interaction_active(&p->interaction);
+    int distance = chebyshev_distance(p->x, p->y, t->x, t->y);
     AttackStyle attack_style = ATTACK_STYLE_NONE;
-    if (decode.attack_action != ATTACK_NONE) {
-        switch (decode.attack_action) {
-            case ATTACK_ATK:
-                attack_style = get_slot_weapon_attack_style(p);
-                break;
-            case ATTACK_ICE:
-                attack_style = ATTACK_STYLE_MAGIC;
-                break;
-            case ATTACK_BLOOD:
-                attack_style = ATTACK_STYLE_MAGIC;
-                break;
-            default:
-                break;
-        }
-    } else if (osrs_interaction_active(&p->interaction)) {
+    if (decode.attack_action == ATTACK_ATK)
         attack_style = get_slot_weapon_attack_style(p);
-    }
-    if (decode.attack_action == ATTACK_ICE && !can_cast_ice_spell(p)) {
+    else if (decode.attack_action == ATTACK_ICE ||
+            decode.attack_action == ATTACK_BLOOD)
+        attack_style = ATTACK_STYLE_MAGIC;
+    else if (osrs_interaction_active(&p->interaction))
+        attack_style = get_slot_weapon_attack_style(p);
+
+    if (decode.attack_action == ATTACK_ICE && !can_cast_ice_spell(p))
         attack_style = ATTACK_STYLE_NONE;
-    }
-    if (decode.attack_action == ATTACK_BLOOD && !can_cast_blood_spell(p)) {
+    if (decode.attack_action == ATTACK_BLOOD && !can_cast_blood_spell(p))
         attack_style = ATTACK_STYLE_NONE;
-    }
 
     p->did_attack_auto_move = 0;
+    if (!has_attack ||
+            decode.move_action != MOVE_NONE ||
+            decode.explicit_move_in_progress ||
+            !can_move(p))
+        return;
 
-    if (has_attack && decode.move_action == MOVE_NONE && !decode.explicit_move_in_progress && can_move(p)) {
-        if (attack_style == ATTACK_STYLE_MELEE && !is_in_melee_range(p, t)) {
-            int adj_x, adj_y;
-            if (select_closest_adjacent_tile(p, t->x, t->y, &adj_x, &adj_y, cmap)) {
-                set_destination(p, adj_x, adj_y, cmap);
-            }
-            p->did_attack_auto_move = 1;
-            dist = chebyshev_distance(p->x, p->y, t->x, t->y);
-        }
-    }
-
-    if (has_attack && dist == 0 && can_move(p)) {
-        step_out_from_same_tile(p, t, cmap);
-    }
+    int melee_chase =
+        attack_style == ATTACK_STYLE_MELEE &&
+        !is_in_melee_range(p, t);
+    if (!melee_chase && distance != 0) return;
+    (void)pvp_step_player_melee_chase(
+        env, agent_idx, topology, route_cache);
+    p->did_attack_auto_move = melee_chase;
 }
 
 /* runs after BOTH players' attack movement so range checks use final positions;
@@ -462,11 +462,12 @@ static void execute_attack_combat(
     OsrsEnv* env,
     int agent_idx,
     int* actions,
-    const EncounterArenaTopology* topology
+    const EncounterArenaTopology* topology,
+    OsrsActorRouteCache* route_cache
 ) {
     Player* p = &env->players[agent_idx];
     Player* t = &env->players[1 - agent_idx];
-    const CollisionMap* cmap = (const CollisionMap*)env->collision_map;
+
 
     PvpAttackDecode decode = pvp_decode_attack_actions(env, agent_idx, p, actions);
 
@@ -547,21 +548,19 @@ static void execute_attack_combat(
     if (has_attack && decode.move_action == MOVE_NONE && !decode.explicit_move_in_progress
             && can_move(p) && !p->did_attack_auto_move) {
         int in_range = 0;
-        int auto_walk_range = 1;
+        int chase_range = 1;
         switch (attack_style) {
             case ATTACK_STYLE_MELEE:
                 in_range = is_in_melee_range(p, t);
                 break;
             case ATTACK_STYLE_RANGED: {
-                int range = get_attack_range(p, ATTACK_STYLE_RANGED);
-                auto_walk_range = range;
-                in_range = (dist <= range);
+                chase_range = get_attack_range(p, ATTACK_STYLE_RANGED);
+                in_range = (dist <= chase_range);
                 break;
             }
             case ATTACK_STYLE_MAGIC: {
-                int range = get_attack_range(p, ATTACK_STYLE_MAGIC);
-                auto_walk_range = range;
-                in_range = (dist <= range);
+                chase_range = get_attack_range(p, ATTACK_STYLE_MAGIC);
+                in_range = (dist <= chase_range);
                 break;
             }
             default:
@@ -570,12 +569,15 @@ static void execute_attack_combat(
         }
         if (!in_range) {
             if (attack_style == ATTACK_STYLE_MELEE) {
-                int adj_x, adj_y;
-                if (select_closest_adjacent_tile(p, t->x, t->y, &adj_x, &adj_y, cmap)) {
-                    set_destination(p, adj_x, adj_y, cmap);
-                }
+                (void)pvp_step_player_melee_chase(
+                    env, agent_idx, topology, route_cache);
             } else {
-                move_toward_target(p, t, auto_walk_range, cmap, topology);
+                (void)pvp_step_player_ranged_chase(
+                    env,
+                    agent_idx,
+                    chase_range,
+                    topology,
+                    route_cache);
             }
         }
     }

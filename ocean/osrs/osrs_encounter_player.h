@@ -32,12 +32,14 @@ typedef struct {
     int move_action;
 } OsrsPlayerCommand;
 
+
 typedef struct {
     const EncounterArenaTopology* topology;
     EncounterRouteBlockers blockers;
     EncounterRouteMovementMode movement_mode;
     EncounterRouteCostPolicy cost_policy;
     EncounterRouteCostPolicy destination_cost_policy;
+    EncounterRouteAttackGeometry attack_geometry;
     const CollisionMap* collision_map;
     int world_offset_x;
     int world_offset_y;
@@ -104,10 +106,21 @@ static inline int osrs_player_step_lookup_target(
     return input->target_lookup(input->target_ctx, target_slot, target);
 }
 
-static inline int osrs_player_step_can_attack_target(
+static OSRS_ROUTE_NOINLINE int osrs_player_step_can_attack_target(
     const OsrsPlayerStepInput* input,
     const OsrsAttackTarget* target
 ) {
+    if (input->arena.attack_geometry ==
+            ENCOUNTER_ROUTE_ATTACK_GEOMETRY_TOPOLOGY) {
+        return encounter_arena_topology_player_can_attack_trusted(
+            input->arena.topology,
+            input->player->x,
+            input->player->y,
+            target->x,
+            target->y,
+            target->size,
+            target->attack_range);
+    }
     return encounter_player_can_attack(
         input->player->x,
         input->player->y,
@@ -243,6 +256,7 @@ static inline void osrs_player_step_build_attack_route(
         .target_size = target->size,
         .target_kind = ENCOUNTER_ROUTE_TARGET_ATTACK_RANGE,
         .attack_range = target->attack_range,
+        .attack_geometry = input->arena.attack_geometry,
         .collision_map = input->arena.collision_map,
         .world_offset_x = input->arena.world_offset_x,
         .world_offset_y = input->arena.world_offset_y,
@@ -317,7 +331,8 @@ static inline int osrs_player_step_chase_target(
         return 0;
     }
 
-    int remaining_waypoints = route->waypoint_count - route->waypoint_index;
+    int remaining_waypoints =
+        route->waypoint_count - route->waypoint_index;
     int reroute =
         !osrs_player_step_route_matches(route, player, target, &input->arena) ||
         route->state == OSRS_INTERACTION_ROUTE_FAILED ||

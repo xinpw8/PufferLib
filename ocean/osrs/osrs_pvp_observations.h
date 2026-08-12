@@ -78,12 +78,20 @@ static inline int can_eat_karambwan(Player* p) {
     return osrs_player_can_eat_food_type(p, FOOD_KARAMBWAN);
 }
 
-static inline int can_move_adjacent(Player* p, const CollisionMap* cmap) {
+static inline int can_move_adjacent(
+    Player* p,
+    const EncounterArenaTopology* topology
+) {
     int dest_x = 0;
     int dest_y = 0;
-    if (!select_closest_adjacent_tile(p, p->last_obs_target_x, p->last_obs_target_y, &dest_x, &dest_y, cmap)) {
+    if (!select_closest_adjacent_tile(
+            p,
+            p->last_obs_target_x,
+            p->last_obs_target_y,
+            &dest_x,
+            &dest_y,
+            topology))
         return 0;
-    }
     return !(dest_x == p->x && dest_y == p->y);
 }
 
@@ -92,21 +100,39 @@ static inline int can_move_under(Player* p, Player* target) {
     return remaining_ticks(target->frozen_ticks) > 0 && dist != 0;
 }
 
-static inline int can_move_to_farcast(Player* p, int distance, const CollisionMap* cmap) {
+static inline int can_move_to_farcast(
+    Player* p,
+    int distance,
+    const EncounterArenaTopology* topology
+) {
     int dest_x = 0;
     int dest_y = 0;
-    if (!select_farcast_tile(p, p->last_obs_target_x, p->last_obs_target_y, distance, &dest_x, &dest_y, cmap)) {
+    if (!select_farcast_tile(
+            p,
+            p->last_obs_target_x,
+            p->last_obs_target_y,
+            distance,
+            &dest_x,
+            &dest_y,
+            topology))
         return 0;
-    }
     return !(dest_x == p->x && dest_y == p->y);
 }
 
-static inline int can_move_diagonal(Player* p, const CollisionMap* cmap) {
+static inline int can_move_diagonal(
+    Player* p,
+    const EncounterArenaTopology* topology
+) {
     int dest_x = 0;
     int dest_y = 0;
-    if (!select_closest_diagonal_tile(p, p->last_obs_target_x, p->last_obs_target_y, &dest_x, &dest_y, cmap)) {
+    if (!select_closest_diagonal_tile(
+            p,
+            p->last_obs_target_x,
+            p->last_obs_target_y,
+            &dest_x,
+            &dest_y,
+            topology))
         return 0;
-    }
     return !(dest_x == p->x && dest_y == p->y);
 }
 
@@ -170,7 +196,11 @@ static void ocean_write_obs_p1(OsrsEnv* env) {
     ocean_write_obs_agent(env, env->ocean_io.agent_obs_p1, 1);
 }
 
-static void generate_slot_observations(OsrsEnv* env, int agent_idx) {
+static void generate_slot_observations(
+    OsrsEnv* env,
+    int agent_idx,
+    const EncounterArenaTopology* topology
+) {
     Player* p = &env->players[agent_idx];
     Player* t = &env->players[1 - agent_idx];
 
@@ -462,7 +492,6 @@ static void generate_slot_observations(OsrsEnv* env, int agent_idx) {
     if (scale < 1.0f) scale = 1.0f;
     obs[194] = clampf((float)(t->x - p->x) / scale, -1.0f, 1.0f);
     obs[195] = clampf((float)(t->y - p->y) / scale, -1.0f, 1.0f);
-    const CollisionMap* cmap_obs = (const CollisionMap*)env->collision_map;
     for (int m = 0; m < MOVE_DIM; m++) {
         if (m == 0) {
             obs[196 + m] = 1.0f;
@@ -470,11 +499,16 @@ static void generate_slot_observations(OsrsEnv* env, int agent_idx) {
         }
         int nx = p->x + ENCOUNTER_MOVE_TARGET_DX[m];
         int ny = p->y + ENCOUNTER_MOVE_TARGET_DY[m];
-        obs[196 + m] = pvp_tile_walkable((void*)cmap_obs, nx, ny) ? 1.0f : 0.0f;
+        obs[196 + m] =
+            pvp_topology_tile_walkable(topology, nx, ny) ? 1.0f : 0.0f;
     }
 }
 
-static void compute_action_masks(OsrsEnv* env, int agent_idx) {
+static void compute_action_masks(
+    OsrsEnv* env,
+    int agent_idx,
+    const EncounterArenaTopology* topology
+) {
     Player* p = &env->players[agent_idx];
     Player* t = &env->players[1 - agent_idx];
 
@@ -527,16 +561,23 @@ static void compute_action_masks(OsrsEnv* env, int agent_idx) {
                                  melee_reachable;
     mask[offset + ATTACK_ICE] = attack_ready && can_cast_ice_spell(p);
     mask[offset + ATTACK_BLOOD] = attack_ready && can_cast_blood_spell(p);
-    const CollisionMap* cmap = (const CollisionMap*)env->collision_map;
-    mask[offset + MOVE_ADJACENT] = can_move_now && can_move_adjacent(p, cmap);
+    mask[offset + MOVE_ADJACENT] =
+        can_move_now && can_move_adjacent(p, topology);
     mask[offset + MOVE_UNDER] = can_move_now && can_move_under(p, t);
-    mask[offset + MOVE_DIAGONAL] = can_move_now && can_move_diagonal(p, cmap);
-    mask[offset + MOVE_FARCAST_2] = can_move_now && can_move_to_farcast(p, 2, cmap);
-    mask[offset + MOVE_FARCAST_3] = can_move_now && can_move_to_farcast(p, 3, cmap);
-    mask[offset + MOVE_FARCAST_4] = can_move_now && can_move_to_farcast(p, 4, cmap);
-    mask[offset + MOVE_FARCAST_5] = can_move_now && can_move_to_farcast(p, 5, cmap);
-    mask[offset + MOVE_FARCAST_6] = can_move_now && can_move_to_farcast(p, 6, cmap);
-    mask[offset + MOVE_FARCAST_7] = can_move_now && can_move_to_farcast(p, 7, cmap);
+    mask[offset + MOVE_DIAGONAL] =
+        can_move_now && can_move_diagonal(p, topology);
+    mask[offset + MOVE_FARCAST_2] =
+        can_move_now && can_move_to_farcast(p, 2, topology);
+    mask[offset + MOVE_FARCAST_3] =
+        can_move_now && can_move_to_farcast(p, 3, topology);
+    mask[offset + MOVE_FARCAST_4] =
+        can_move_now && can_move_to_farcast(p, 4, topology);
+    mask[offset + MOVE_FARCAST_5] =
+        can_move_now && can_move_to_farcast(p, 5, topology);
+    mask[offset + MOVE_FARCAST_6] =
+        can_move_now && can_move_to_farcast(p, 6, topology);
+    mask[offset + MOVE_FARCAST_7] =
+        can_move_now && can_move_to_farcast(p, 7, topology);
     offset += COMBAT_DIM;
 
     int has_prayer = p->current_prayer > 0;
@@ -585,7 +626,8 @@ static void compute_action_masks(OsrsEnv* env, int agent_idx) {
         }
         int nx = p->x + ENCOUNTER_MOVE_TARGET_DX[m];
         int ny = p->y + ENCOUNTER_MOVE_TARGET_DY[m];
-        mask[offset + m] = pvp_tile_walkable((void*)cmap, nx, ny) ? 1 : 0;
+        mask[offset + m] =
+            pvp_topology_tile_walkable(topology, nx, ny) ? 1 : 0;
     }
     offset += MOVE_DIM;
 }

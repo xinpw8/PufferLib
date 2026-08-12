@@ -257,7 +257,11 @@ void pvp_init(OsrsEnv* env) {
 
 void pvp_render(OsrsEnv* env);
 
-void pvp_reset(OsrsEnv* env) {
+void pvp_reset(
+    OsrsEnv* env,
+    const EncounterArenaTopology* topology
+) {
+    encounter_arena_topology_require_finalized(topology);
     if (env->has_rng_seed) {
         if (env->rng_seed == 0) {
             fprintf(stderr, "Error: seed must be non-zero (use seed=1 or higher in reset())\n");
@@ -342,17 +346,23 @@ void pvp_reset(OsrsEnv* env) {
     }
 
     for (int i = 0; i < NUM_AGENTS; i++) {
-        generate_slot_observations(env, i);
+        generate_slot_observations(env, i, topology);
         if (env->action_masks != NULL && (env->action_masks_agents & (1 << i))) {
-            compute_action_masks(env, i);
+            compute_action_masks(env, i, topology);
         }
     }
 }
 
-static void pvp_resolve_same_tile(OsrsEnv* env, int first, int second) {
+static void pvp_resolve_same_tile(
+    OsrsEnv* env,
+    int first,
+    int second,
+    const EncounterArenaTopology* topology
+) {
     if (env->players[0].x == env->players[1].x &&
-        env->players[0].y == env->players[1].y) {
-        resolve_same_tile(&env->players[second], &env->players[first], (const CollisionMap*)env->collision_map);
+            env->players[0].y == env->players[1].y) {
+        resolve_same_tile(
+            &env->players[second], &env->players[first], topology);
     }
 }
 
@@ -375,6 +385,7 @@ void pvp_step(
         fprintf(stderr, "PvP step missing actor route caches\n");
         abort();
     }
+    encounter_arena_topology_require_finalized(route_topology);
     memset(env->rewards, 0, NUM_AGENTS * sizeof(float));
     memset(env->terminals, 0, NUM_AGENTS);
 
@@ -470,8 +481,8 @@ void pvp_step(
         pre_move_y[i] = env->players[i].y;
     }
 
-    execute_switches(env, first, agent_actions[first]);
-    execute_switches(env, second, agent_actions[second]);
+    execute_switches(env, first, agent_actions[first], route_topology);
+    execute_switches(env, second, agent_actions[second], route_topology);
 
     for (int i = 0; i < NUM_AGENTS; i++) {
         Player* pi = &env->players[i];
@@ -483,17 +494,21 @@ void pvp_step(
     pvp_step_player_movement(env, first, route_topology, &route_cache[first]);
     pvp_step_player_movement(env, second, route_topology, &route_cache[second]);
 
-    pvp_resolve_same_tile(env, first, second);
+    pvp_resolve_same_tile(env, first, second, route_topology);
 
-    execute_attack_movement(env, first, agent_actions[first]);
-    execute_attack_movement(env, second, agent_actions[second]);
+    execute_attack_movement(
+        env, first, agent_actions[first], route_topology, &route_cache[first]);
+    execute_attack_movement(
+        env, second, agent_actions[second], route_topology, &route_cache[second]);
 
-    pvp_resolve_same_tile(env, first, second);
+    pvp_resolve_same_tile(env, first, second, route_topology);
 
-    execute_attack_combat(env, first, agent_actions[first], route_topology);
-    execute_attack_combat(env, second, agent_actions[second], route_topology);
+    execute_attack_combat(
+        env, first, agent_actions[first], route_topology, &route_cache[first]);
+    execute_attack_combat(
+        env, second, agent_actions[second], route_topology, &route_cache[second]);
 
-    pvp_resolve_same_tile(env, first, second);
+    pvp_resolve_same_tile(env, first, second, route_topology);
 
     for (int i = 0; i < NUM_AGENTS; i++) {
         int dx = abs(env->players[i].x - pre_move_x[i]);
@@ -559,9 +574,9 @@ void pvp_step(
 
     env->_episode_return += env->rewards[0];
     for (int i = 0; i < NUM_AGENTS; i++) {
-        generate_slot_observations(env, i);
+        generate_slot_observations(env, i, route_topology);
         if (env->action_masks != NULL && (env->action_masks_agents & (1 << i))) {
-            compute_action_masks(env, i);
+            compute_action_masks(env, i, route_topology);
         }
     }
 
@@ -600,7 +615,7 @@ void pvp_step(
         env->log.n = 1.0f;
 
         if (env->auto_reset) {
-            pvp_reset(env);
+            pvp_reset(env, route_topology);
         }
     } else {
         env->ocean_io.agent_terminals[0] = 0;

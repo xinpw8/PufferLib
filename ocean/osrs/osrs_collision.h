@@ -559,6 +559,7 @@ typedef uint32_t (*encounter_arena_tile_flags_fn)(void* ctx, int x, int y);
 typedef enum {
     ENCOUNTER_ARENA_TOPOLOGY_LOS_BUILD_FLAGGED = 0,
     ENCOUNTER_ARENA_TOPOLOGY_LOS_BUILD_TILE_BLOCKED,
+    ENCOUNTER_ARENA_TOPOLOGY_LOS_BUILD_OPEN,
 } EncounterArenaTopologyLosBuildMode;
 
 
@@ -849,6 +850,12 @@ static inline EncounterArenaTopology* encounter_arena_topology_build(
             "footprint size", spec->max_footprint_size);
     if (spec->revision == 0)
         encounter_arena_topology_abort("revision", 0);
+    if (spec->los_build_mode <
+            ENCOUNTER_ARENA_TOPOLOGY_LOS_BUILD_FLAGGED ||
+            spec->los_build_mode >
+                ENCOUNTER_ARENA_TOPOLOGY_LOS_BUILD_OPEN)
+        encounter_arena_topology_abort(
+            "LOS build mode", spec->los_build_mode);
 
     EncounterArenaTopology* topology =
         (EncounterArenaTopology*)calloc(1, sizeof(*topology));
@@ -960,6 +967,10 @@ static inline EncounterArenaTopology* encounter_arena_topology_build(
         .spec = spec,
     };
     if (topology->los_build_mode ==
+            ENCOUNTER_ARENA_TOPOLOGY_LOS_BUILD_OPEN) {
+        topology->static_los_mode =
+            ENCOUNTER_ARENA_TOPOLOGY_LOS_OPEN;
+    } else if (topology->los_build_mode ==
             ENCOUNTER_ARENA_TOPOLOGY_LOS_BUILD_TILE_BLOCKED) {
         topology->static_los_mode =
             ENCOUNTER_ARENA_TOPOLOGY_LOS_TILE_BLOCKED;
@@ -1155,6 +1166,20 @@ encounter_arena_topology_footprint_blocked_assume_finalized_size_in_range(
     return encounter_arena_topology_footprint_blocked_raw(
         topology, x, y, size);
 }
+static inline int
+encounter_arena_topology_footprint_in_bounds_assume_finalized_size_in_range(
+    const EncounterArenaTopology* topology,
+    int x,
+    int y,
+    int size
+) {
+    int64_t local_x = (int64_t)x - topology->origin_x;
+    int64_t local_y = (int64_t)y - topology->origin_y;
+    return local_x >= 0 && local_y >= 0 &&
+        local_x + size <= topology->width &&
+        local_y + size <= topology->height;
+}
+
 
 static inline int encounter_arena_topology_footprint_blocked(
     const EncounterArenaTopology* topology,
@@ -1201,6 +1226,77 @@ static inline int encounter_arena_topology_step_allowed(
         (uint8_t)(1u << bit)) != 0;
 }
 
+static inline int
+encounter_arena_topology_los_clear_assume_finalized_footprints_in_bounds(
+    const EncounterArenaTopology* topology,
+    int actor_x,
+    int actor_y,
+    int actor_size,
+    int target_x,
+    int target_y,
+    int target_size,
+    int attack_range
+) {
+    int64_t actor_max_x = (int64_t)actor_x + actor_size - 1;
+    int64_t actor_max_y = (int64_t)actor_y + actor_size - 1;
+    int64_t target_max_x = (int64_t)target_x + target_size - 1;
+    int64_t target_max_y = (int64_t)target_y + target_size - 1;
+    int x_overlap =
+        (int64_t)actor_x <= target_max_x &&
+        (int64_t)target_x <= actor_max_x;
+    int y_overlap =
+        (int64_t)actor_y <= target_max_y &&
+        (int64_t)target_y <= actor_max_y;
+
+    if (attack_range == 1) {
+        return (actor_max_x + 1 == target_x && y_overlap) ||
+            (target_max_x + 1 == actor_x && y_overlap) ||
+            (actor_max_y + 1 == target_y && x_overlap) ||
+            (target_max_y + 1 == actor_y && x_overlap);
+    }
+
+    if (x_overlap && y_overlap &&
+            !(topology->static_los_mode ==
+                ENCOUNTER_ARENA_TOPOLOGY_LOS_TILE_BLOCKED &&
+              attack_range == 0))
+        return 0;
+
+    int64_t dx = 0;
+    int64_t dy = 0;
+    if (actor_max_x < target_x) dx = (int64_t)target_x - actor_max_x;
+    else if (target_max_x < actor_x) dx = (int64_t)actor_x - target_max_x;
+    if (actor_max_y < target_y) dy = (int64_t)target_y - actor_max_y;
+    else if (target_max_y < actor_y) dy = (int64_t)actor_y - target_max_y;
+    if (attack_range > 0 && (dx > attack_range || dy > attack_range))
+        return 0;
+    if (topology->static_los_mode ==
+            ENCOUNTER_ARENA_TOPOLOGY_LOS_OPEN)
+        return 1;
+
+    int64_t actor_los_x = target_x;
+    if (actor_los_x < actor_x) actor_los_x = actor_x;
+    if (actor_los_x > actor_max_x) actor_los_x = actor_max_x;
+    int64_t actor_los_y = target_y;
+    if (actor_los_y < actor_y) actor_los_y = actor_y;
+    if (actor_los_y > actor_max_y) actor_los_y = actor_max_y;
+    int64_t target_los_x = actor_x;
+    if (target_los_x < target_x) target_los_x = target_x;
+    if (target_los_x > target_max_x) target_los_x = target_max_x;
+    int64_t target_los_y = actor_y;
+    if (target_los_y < target_y) target_los_y = target_y;
+    if (target_los_y > target_max_y) target_los_y = target_max_y;
+
+    int actor_index = encounter_arena_topology_index_raw(
+        topology, (int)actor_los_x, (int)actor_los_y);
+    int target_index = encounter_arena_topology_index_raw(
+        topology, (int)target_los_x, (int)target_los_y);
+    size_t bit_index =
+        (size_t)actor_index * (size_t)topology->tile_count +
+        (size_t)target_index;
+    return (int)((topology->static_los_bits[bit_index >> 6] >>
+        (bit_index & 63)) & UINT64_C(1));
+}
+
 static inline int encounter_arena_topology_los_clear(
     const EncounterArenaTopology* topology,
     int actor_x,
@@ -1216,86 +1312,111 @@ static inline int encounter_arena_topology_los_clear(
         topology, actor_size);
     encounter_arena_topology_require_footprint_size(
         topology, target_size);
-    int64_t actor_max_x = (int64_t)actor_x + actor_size - 1;
-    int64_t actor_max_y = (int64_t)actor_y + actor_size - 1;
-    int64_t target_max_x = (int64_t)target_x + target_size - 1;
-    int64_t target_max_y = (int64_t)target_y + target_size - 1;
-    if (!encounter_arena_topology_contains_raw(
-            topology, actor_x, actor_y) ||
-            !encounter_arena_topology_contains_raw(
-                topology, (int)actor_max_x, (int)actor_max_y) ||
-            !encounter_arena_topology_contains_raw(
-                topology, target_x, target_y) ||
-            !encounter_arena_topology_contains_raw(
-                topology, (int)target_max_x, (int)target_max_y))
+    if (!encounter_arena_topology_footprint_in_bounds_assume_finalized_size_in_range(
+            topology, actor_x, actor_y, actor_size) ||
+            !encounter_arena_topology_footprint_in_bounds_assume_finalized_size_in_range(
+                topology, target_x, target_y, target_size))
         return 0;
-    int overlap =
-        (int64_t)actor_x <= target_max_x &&
-        (int64_t)target_x <= actor_max_x &&
-        (int64_t)actor_y <= target_max_y &&
-        (int64_t)target_y <= actor_max_y;
+    return encounter_arena_topology_los_clear_assume_finalized_footprints_in_bounds(
+        topology,
+        actor_x,
+        actor_y,
+        actor_size,
+        target_x,
+        target_y,
+        target_size,
+        attack_range);
+}
+
+static inline int encounter_arena_topology_player_can_attack_trusted(
+    const EncounterArenaTopology* topology,
+    int player_x,
+    int player_y,
+    int target_x,
+    int target_y,
+    int target_size,
+    int attack_range
+) {
+    int target_max_x = target_x + target_size - 1;
+    int target_max_y = target_y + target_size - 1;
+    int dx = player_x < target_x
+        ? target_x - player_x
+        : (player_x > target_max_x ? player_x - target_max_x : 0);
+    int dy = player_y < target_y
+        ? target_y - player_y
+        : (player_y > target_max_y ? player_y - target_max_y : 0);
+    int distance = dx > dy ? dx : dy;
+    if (distance < 1 || distance > attack_range) return 0;
 
     if (attack_range == 1) {
-        int y_overlap =
-            (int64_t)actor_y <= target_max_y &&
-            (int64_t)target_y <= actor_max_y;
-        int x_overlap =
-            (int64_t)actor_x <= target_max_x &&
-            (int64_t)target_x <= actor_max_x;
-        return (actor_max_x + 1 == target_x && y_overlap) ||
-            (target_max_x + 1 == actor_x && y_overlap) ||
-            (actor_max_y + 1 == target_y && x_overlap) ||
-            (target_max_y + 1 == actor_y && x_overlap);
-    }
-
-    int64_t actor_los_x = target_x;
-    if (actor_los_x < actor_x) actor_los_x = actor_x;
-    if (actor_los_x > actor_max_x) actor_los_x = actor_max_x;
-    int64_t actor_los_y = target_y;
-    if (actor_los_y < actor_y) actor_los_y = actor_y;
-    if (actor_los_y > actor_max_y) actor_los_y = actor_max_y;
-
-    int64_t target_los_x = actor_x;
-    if (target_los_x < target_x) target_los_x = target_x;
-    if (target_los_x > target_max_x) target_los_x = target_max_x;
-    int64_t target_los_y = actor_y;
-    if (target_los_y < target_y) target_los_y = target_y;
-    if (target_los_y > target_max_y) target_los_y = target_max_y;
-    if (topology->static_los_mode ==
-            ENCOUNTER_ARENA_TOPOLOGY_LOS_TILE_BLOCKED &&
-            attack_range == 0) {
-        int actor_index = encounter_arena_topology_index_raw(
-            topology, (int)actor_los_x, (int)actor_los_y);
-        int target_index = encounter_arena_topology_index_raw(
-            topology, (int)target_los_x, (int)target_los_y);
-        size_t bit_index =
-            (size_t)actor_index * (size_t)topology->tile_count +
-            (size_t)target_index;
-        return (int)((topology->static_los_bits[bit_index >> 6] >>
-            (bit_index & 63)) & UINT64_C(1));
-    }
-    if (overlap) return 0;
-
-    int64_t dx = target_los_x - actor_los_x;
-    int64_t dy = target_los_y - actor_los_y;
-    int64_t abs_dx = dx < 0 ? -dx : dx;
-    int64_t abs_dy = dy < 0 ? -dy : dy;
-    if (attack_range > 0 &&
-            (abs_dx > attack_range || abs_dy > attack_range))
+        uint32_t flags = topology->static_collision_flags[
+            encounter_arena_topology_index_raw(
+                topology, player_x, player_y)];
+        if (player_x + 1 == target_x &&
+                player_y >= target_y && player_y <= target_max_y)
+            return (flags & COLLISION_WALL_EAST) == 0;
+        if (player_x == target_max_x + 1 &&
+                player_y >= target_y && player_y <= target_max_y)
+            return (flags & COLLISION_WALL_WEST) == 0;
+        if (player_y + 1 == target_y &&
+                player_x >= target_x && player_x <= target_max_x)
+            return (flags & COLLISION_WALL_NORTH) == 0;
+        if (player_y == target_max_y + 1 &&
+                player_x >= target_x && player_x <= target_max_x)
+            return (flags & COLLISION_WALL_SOUTH) == 0;
         return 0;
+    }
+
     if (topology->static_los_mode ==
             ENCOUNTER_ARENA_TOPOLOGY_LOS_OPEN)
         return 1;
+    return encounter_arena_topology_los_clear_assume_finalized_footprints_in_bounds(
+        topology,
+        player_x,
+        player_y,
+        1,
+        target_x,
+        target_y,
+        target_size,
+        attack_range);
+}
 
-    int actor_index = encounter_arena_topology_index_raw(
-        topology, (int)actor_los_x, (int)actor_los_y);
-    int target_index = encounter_arena_topology_index_raw(
-        topology, (int)target_los_x, (int)target_los_y);
-    size_t bit_index =
-        (size_t)actor_index * (size_t)topology->tile_count +
-        (size_t)target_index;
-    return (int)((topology->static_los_bits[bit_index >> 6] >>
-        (bit_index & 63)) & UINT64_C(1));
+static inline int encounter_arena_topology_player_can_attack(
+    const EncounterArenaTopology* topology,
+    int player_x,
+    int player_y,
+    int target_x,
+    int target_y,
+    int target_size,
+    int attack_range
+) {
+    encounter_arena_topology_require_finalized(topology);
+    encounter_arena_topology_require_footprint_size(topology, 1);
+    encounter_arena_topology_require_footprint_size(
+        topology, target_size);
+    if (!encounter_arena_topology_footprint_in_bounds_assume_finalized_size_in_range(
+            topology, player_x, player_y, 1) ||
+            !encounter_arena_topology_footprint_in_bounds_assume_finalized_size_in_range(
+                topology, target_x, target_y, target_size))
+        return 0;
+    if (attack_range < 1)
+        return encounter_arena_topology_los_clear_assume_finalized_footprints_in_bounds(
+            topology,
+            player_x,
+            player_y,
+            1,
+            target_x,
+            target_y,
+            target_size,
+            attack_range);
+    return encounter_arena_topology_player_can_attack_trusted(
+        topology,
+        player_x,
+        player_y,
+        target_x,
+        target_y,
+        target_size,
+        attack_range);
 }
 
 #endif

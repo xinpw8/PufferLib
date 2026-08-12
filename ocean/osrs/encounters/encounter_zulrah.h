@@ -29,8 +29,11 @@
 
 
 typedef struct {
+    const CollisionMap* collision_map;
     const EncounterArenaTopology* route_topology;
     OsrsActorRouteCache player_route_cache;
+    int world_offset_x;
+    int world_offset_y;
 } ZulrahContext;
 #define ZUL_POS_NORTH   0
 #define ZUL_POS_SOUTH   1
@@ -478,9 +481,9 @@ typedef struct {
     int thrall_duration_remaining;
     int thrall_cooldown;
 
-    void* collision_map;
-    int world_offset_x;
-    int world_offset_y;
+    uint64_t topology_context_layout_reserved;
+    int topology_world_offset_x_layout_reserved;
+    int topology_world_offset_y_layout_reserved;
 
     int tick;
     int episode_over;
@@ -688,11 +691,13 @@ static inline int zul_on_platform_bounds(int x, int y) {
            y >= ZUL_PLATFORM_MIN && y <= ZUL_PLATFORM_MAX;
 }
 
-static inline int zul_on_platform(ZulrahState* s, int x, int y) {
-    if (!s->collision_map) return zul_on_platform_bounds(x, y);
-    int wx = x + s->world_offset_x;
-    int wy = y + s->world_offset_y;
-    return collision_tile_walkable((const CollisionMap*)s->collision_map, 0, wx, wy);
+static inline int zul_topology_player_tile_allowed(
+    const ZulrahContext* ctx,
+    int x,
+    int y
+) {
+    return !encounter_arena_topology_tile_blocked(
+        ctx->route_topology, x, y);
 }
 
 
@@ -723,19 +728,23 @@ static uint32_t zul_route_topology_flags(void* data, int x, int y) {
         x + build->world_offset_x,
         y + build->world_offset_y);
 }
+static uint32_t zul_route_topology_los_flags(void* data, int x, int y) {
+    (void)data;
+    (void)x;
+    (void)y;
+    return 0;
+}
 
-static void zul_finalize_route_topology(
-    ZulrahContext* ctx,
-    const ZulrahState* state
-) {
-    if (!ctx || !state || ctx->route_topology) {
+
+static void zul_finalize_route_topology(ZulrahContext* ctx) {
+    if (!ctx || ctx->route_topology) {
         fprintf(stderr, "zulrah route topology finalized twice\n");
         abort();
     }
     ZulRouteTopologyBuildContext build = {
-        (const CollisionMap*)state->collision_map,
-        state->world_offset_x,
-        state->world_offset_y,
+        ctx->collision_map,
+        ctx->world_offset_x,
+        ctx->world_offset_y,
     };
     EncounterArenaTopologyBuildSpec spec = {
         .origin_x = 0,
@@ -743,9 +752,11 @@ static void zul_finalize_route_topology(
         .width = ZUL_ARENA_SIZE,
         .height = ZUL_ARENA_SIZE,
         .max_footprint_size = ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE,
-        .revision = UINT64_C(0x5a554c5241480001),
+        .revision = UINT64_C(0x5a554c5241480002),
         .tile_flags = zul_route_topology_flags,
         .tile_flags_ctx = &build,
+        .los_tile_flags = zul_route_topology_los_flags,
+        .los_tile_flags_ctx = NULL,
     };
     if (!zul_route_topology_owner.topology) {
         zul_route_topology_owner.topology =
@@ -764,9 +775,8 @@ static void zul_finalize_context(
     EncounterState* state,
     EncounterContext* context
 ) {
-    zul_finalize_route_topology(
-        (ZulrahContext*)context,
-        (const ZulrahState*)state);
+    (void)state;
+    zul_finalize_route_topology((ZulrahContext*)context);
 }
 
 static inline int zul_player_in_cloud(int cx, int cy, int px, int py) {
@@ -1234,15 +1244,17 @@ static const EncounterLoadoutStats* zul_live_stats(ZulrahState* s) {
 
 static int zul_player_can_attack_zulrah(
     ZulrahState* s,
+    const ZulrahContext* ctx,
     const EncounterLoadoutStats* loadout_stats
 ) {
-    return encounter_player_can_attack(
-        s->player.x, s->player.y,
-        s->zulrah.x, s->zulrah.y, ZUL_NPC_SIZE,
-        loadout_stats->attack_range,
-        (const CollisionMap*)s->collision_map,
-        s->world_offset_x, s->world_offset_y,
-        osrs_los_open_query());
+    return encounter_arena_topology_player_can_attack(
+        ctx->route_topology,
+        s->player.x,
+        s->player.y,
+        s->zulrah.x,
+        s->zulrah.y,
+        ZUL_NPC_SIZE,
+        loadout_stats->attack_range);
 }
 
 static int zul_zulrah_def_roll(ZulrahState* s, int is_mage) {
@@ -1269,13 +1281,13 @@ static int zul_player_attack_hits(
         : encounter_roll_hit_chance(&s->rng_state, att_roll, def_roll);
 }
 
-static void zul_player_attack(ZulrahState* s) {
+static void zul_player_attack(ZulrahState* s, const ZulrahContext* ctx) {
     if (!s->zulrah_visible || s->is_diving) return;
     if (s->player.attack_timer > 0) return;
     if (s->player_stunned_ticks > 0) return;
 
     const EncounterLoadoutStats* ls = zul_live_stats(s);
-    if (!zul_player_can_attack_zulrah(s, ls)) return;
+    if (!zul_player_can_attack_zulrah(s, ctx, ls)) return;
 
     AttackStyle style = zul_player_equipped_attack_style(s);
     int is_mage = (style == ATTACK_STYLE_MAGIC);
@@ -1333,7 +1345,7 @@ static void zul_player_attack(ZulrahState* s) {
         s, s->player.attack_style_this_tick, dmg, 0);
 }
 
-static void zul_player_spec(ZulrahState* s) {
+static void zul_player_spec(ZulrahState* s, const ZulrahContext* ctx) {
     if (!s->zulrah_visible || s->is_diving) return;
     if (s->player.attack_timer > 0) return;
     if (s->player_stunned_ticks > 0) return;
@@ -1341,7 +1353,7 @@ static void zul_player_spec(ZulrahState* s) {
     AttackStyle style = zul_player_equipped_attack_style(s);
     int is_mage = (style == ATTACK_STYLE_MAGIC);
     const EncounterLoadoutStats* ls = zul_live_stats(s);
-    if (!zul_player_can_attack_zulrah(s, ls)) return;
+    if (!zul_player_can_attack_zulrah(s, ctx, ls)) return;
 
     int weapon = s->player.equipped[GEAR_SLOT_WEAPON];
 
@@ -1382,14 +1394,19 @@ static void zul_player_spec(ZulrahState* s) {
     s->player_attack_dmg = total_dmg;
 }
 
-static void zul_pick_snakeling_pos(ZulrahState* s, int* ox, int* oy) {
+static void zul_pick_snakeling_pos(
+    ZulrahState* s,
+    const ZulrahContext* ctx,
+    int* ox,
+    int* oy
+) {
     int order[ZUL_NUM_SNAKELING_POSITIONS];
     for (int i = 0; i < ZUL_NUM_SNAKELING_POSITIONS; i++) order[i] = i;
     encounter_shuffle(order, ZUL_NUM_SNAKELING_POSITIONS, &s->rng_state);
     for (int i = 0; i < ZUL_NUM_SNAKELING_POSITIONS; i++) {
         int px = ZUL_SNAKELING_POSITIONS[order[i]][0];
         int py = ZUL_SNAKELING_POSITIONS[order[i]][1];
-        if (zul_on_platform(s, px, py) &&
+        if (zul_topology_player_tile_allowed(ctx, px, py) &&
             !(px == s->player.x && py == s->player.y)) {
             *ox = px; *oy = py; return;
         }
@@ -1398,7 +1415,10 @@ static void zul_pick_snakeling_pos(ZulrahState* s, int* ox, int* oy) {
     *oy = s->player.y;
 }
 
-static void zul_spawn_snakeling(ZulrahState* s) {
+static void zul_spawn_snakeling(
+    ZulrahState* s,
+    const ZulrahContext* ctx
+) {
     for (int i = 0; i < ZUL_MAX_SNAKELINGS; i++) {
         if (s->snakelings[i].active) continue;
         ZulrahSnakeling* sn = &s->snakelings[i];
@@ -1413,7 +1433,7 @@ static void zul_spawn_snakeling(ZulrahState* s) {
             ? MONSTER_DATABASE[MON_ZULRAH_SNAKELING_MAGIC].npc_id
             : MONSTER_DATABASE[MON_ZULRAH_SNAKELING_MELEE].npc_id;
         sn->entity.npc_anim_id = -1;
-        zul_pick_snakeling_pos(s, &sn->entity.x, &sn->entity.y);
+        zul_pick_snakeling_pos(s, ctx, &sn->entity.x, &sn->entity.y);
         sn->entity.current_hitpoints = ZUL_SNAKELING_HP;
         sn->entity.base_hitpoints = ZUL_SNAKELING_HP;
         sn->attack_timer = ZUL_SNAKELING_SPEED;
@@ -1497,22 +1517,29 @@ static const ZulRotationPhase* zul_current_phase(ZulrahState* s) {
     return &ZUL_ROTATIONS[s->rotation_index][s->phase_index];
 }
 
-static int zul_cloud_fits(ZulrahState* s, int x, int y) {
-    for (int dx = 0; dx < ZUL_CLOUD_SIZE; dx++) {
-        for (int dy = 0; dy < ZUL_CLOUD_SIZE; dy++) {
-            if (!zul_on_platform(s, x + dx, y + dy)) return 0;
-        }
-    }
-    return 1;
+static int zul_cloud_fits(
+    const ZulrahContext* ctx,
+    int x,
+    int y
+) {
+    return !encounter_arena_topology_footprint_blocked(
+        ctx->route_topology, x, y, ZUL_CLOUD_SIZE);
 }
 
-static int zul_pick_cloud_pos(ZulrahState* s, int stand, int stall, int* ox, int* oy) {
+static int zul_pick_cloud_pos(
+    ZulrahState* s,
+    const ZulrahContext* ctx,
+    int stand,
+    int stall,
+    int* ox,
+    int* oy
+) {
     int attempts = 0;
     while (attempts++ < 100) {
         int x = ZUL_PLATFORM_MIN + encounter_rand_int(&s->rng_state, ZUL_PLATFORM_MAX - ZUL_PLATFORM_MIN + 1);
         int y = ZUL_PLATFORM_MIN + encounter_rand_int(&s->rng_state, ZUL_PLATFORM_MAX - ZUL_PLATFORM_MIN + 1);
 
-        if (!zul_cloud_fits(s, x, y)) continue;
+        if (!zul_cloud_fits(ctx, x, y)) continue;
         if (zul_cloud_overlaps_safe_area(x, y, stand, stall)) continue;
 
         int overlap = 0;
@@ -1573,18 +1600,21 @@ static void zul_emit_cloud_event(ZulrahState* s, int dst_x, int dst_y, int fligh
     s->cloud_events[i].flight_ticks = flight_ticks;
 }
 
-static void zul_spawn_cloud(ZulrahState* s) {
+static void zul_spawn_cloud(
+    ZulrahState* s,
+    const ZulrahContext* ctx
+) {
     const ZulRotationPhase* phase = zul_current_phase(s);
     int stand = phase->stand;
     int stall = phase->stall;
     int x, y;
     int spawned = 0;
-    if (zul_pick_cloud_pos(s, stand, stall, &x, &y)) {
+    if (zul_pick_cloud_pos(s, ctx, stand, stall, &x, &y)) {
         zul_queue_pending_cloud(s, x, y, ZUL_CLOUD_FLIGHT_1);
         zul_emit_cloud_event(s, x, y, ZUL_CLOUD_FLIGHT_1);
         spawned = 1;
     }
-    if (zul_pick_cloud_pos(s, stand, stall, &x, &y)) {
+    if (zul_pick_cloud_pos(s, ctx, stand, stall, &x, &y)) {
         zul_queue_pending_cloud(s, x, y, ZUL_CLOUD_FLIGHT_2);
         zul_emit_cloud_event(s, x, y, ZUL_CLOUD_FLIGHT_2);
         spawned = 1;
@@ -1667,22 +1697,26 @@ static void zul_thrall_tick(ZulrahState* s) {
     s->total_damage_dealt += dmg;
 }
 
-static void zul_fire_action(ZulrahState* s, ZulActionType type) {
+static void zul_fire_action(
+    ZulrahState* s,
+    const ZulrahContext* ctx,
+    ZulActionType type
+) {
     switch (type) {
         case ZA_RANGED:        zul_attack_ranged(s); break;
         case ZA_MAGIC_RANGED:  zul_attack_magic_ranged(s); break;
         case ZA_MELEE:         zul_melee_start(s); break;
         case ZA_JAD_RM:
         case ZA_JAD_MR:        zul_attack_jad(s); break;
-        case ZA_CLOUDS:        zul_spawn_cloud(s); break;
-        case ZA_SNAKELINGS:    zul_spawn_snakeling(s); break;
+        case ZA_CLOUDS:        zul_spawn_cloud(s, ctx); break;
+        case ZA_SNAKELINGS:    zul_spawn_snakeling(s, ctx); break;
         case ZA_SNAKECLOUD_ALT:
-            if (s->action_progress % 2 == 0) zul_spawn_snakeling(s);
-            else zul_spawn_cloud(s);
+            if (s->action_progress % 2 == 0) zul_spawn_snakeling(s, ctx);
+            else zul_spawn_cloud(s, ctx);
             break;
         case ZA_CLOUDSNAKE_ALT:
-            if (s->action_progress % 2 == 0) zul_spawn_cloud(s);
-            else zul_spawn_snakeling(s);
+            if (s->action_progress % 2 == 0) zul_spawn_cloud(s, ctx);
+            else zul_spawn_snakeling(s, ctx);
             break;
         case ZA_END: break;
     }
@@ -1770,7 +1804,7 @@ static void zul_next_phase(ZulrahState* s) {
     zul_enter_phase(s);
 }
 
-static void zul_phase_tick(ZulrahState* s) {
+static void zul_phase_tick(ZulrahState* s, const ZulrahContext* ctx) {
     if (!s->zulrah_visible) return;
 
     if (s->phase_timer > 0) s->phase_timer--;
@@ -1803,7 +1837,7 @@ static void zul_phase_tick(ZulrahState* s) {
     s->action_timer--;
     if (s->action_timer > 0) return;
 
-    zul_fire_action(s, (ZulActionType)act->type);
+    zul_fire_action(s, ctx, (ZulActionType)act->type);
     s->action_progress++;
 
     if (s->action_progress >= act->count) {
@@ -1881,19 +1915,25 @@ static void zul_apply_drink_cell(
         zul_apply_drink_one_dose_effect, s);
 }
 
-static void zul_player_attack_snakeling(ZulrahState* s, int snakeling_idx) {
+static void zul_player_attack_snakeling(
+    ZulrahState* s,
+    const ZulrahContext* ctx,
+    int snakeling_idx
+) {
     if (snakeling_idx < 0 || snakeling_idx >= ZUL_MAX_SNAKELINGS) return;
     ZulrahSnakeling* sn = &s->snakelings[snakeling_idx];
     if (!sn->active) return;
 
     const EncounterLoadoutStats* ls = zul_live_stats(s);
-    if (!encounter_player_can_attack(
-            s->player.x, s->player.y,
-            sn->entity.x, sn->entity.y, 1,
-            ls->attack_range,
-            (const CollisionMap*)s->collision_map,
-            s->world_offset_x, s->world_offset_y,
-            osrs_los_open_query())) return;
+    if (!encounter_arena_topology_player_can_attack(
+            ctx->route_topology,
+            s->player.x,
+            s->player.y,
+            sn->entity.x,
+            sn->entity.y,
+            1,
+            ls->attack_range))
+        return;
 
     AttackStyle style = zul_player_equipped_attack_style(s);
     s->player.attack_timer = ls->attack_speed;
@@ -2095,7 +2135,8 @@ static void zul_write_obs(EncounterState* state, EncounterContext* context, floa
 }
 
 static void zul_write_mask(EncounterState* state, EncounterContext* context, float* mask) {
-    (void)context;
+    ZulrahContext* ctx = (ZulrahContext*)context;
+    encounter_arena_topology_require_finalized(ctx->route_topology);
     ZulrahState* s = (ZulrahState*)state;
     for (int i = 0; i < ZUL_ACTION_MASK_SIZE; i++) mask[i] = 1.0f;
     int off = 0;
@@ -2106,7 +2147,8 @@ static void zul_write_mask(EncounterState* state, EncounterContext* context, flo
             else {
                 int nx = s->player.x + ENCOUNTER_MOVE_TARGET_DX[m];
                 int ny = s->player.y + ENCOUNTER_MOVE_TARGET_DY[m];
-                if (!zul_on_platform(s, nx, ny)) mask[off] = 0.0f;
+                if (!zul_topology_player_tile_allowed(ctx, nx, ny))
+                    mask[off] = 0.0f;
             }
         }
         off++;
@@ -2406,9 +2448,7 @@ static void zul_reset(EncounterState* state, EncounterContext* context, uint32_t
     osrs_actor_route_cache_clear(&ctx->player_route_cache);
     ZulrahState* s = (ZulrahState*)state;
     Log saved_log = s->log;
-    void* saved_cmap = s->collision_map;
-    int saved_wx = s->world_offset_x;
-    int saved_wy = s->world_offset_y;
+    (void)ctx;
     int saved_tier = s->gear_tier;
     int saved_fixed_tier = s->gear_tier_fixed;
     int saved_tier_mode = s->gear_tier_mode;
@@ -2419,9 +2459,7 @@ static void zul_reset(EncounterState* state, EncounterContext* context, uint32_t
     uint32_t saved_rng = s->rng_state;
     memset(s, 0, sizeof(ZulrahState));
     s->log = saved_log;
-    s->collision_map = saved_cmap;
-    s->world_offset_x = saved_wx;
-    s->world_offset_y = saved_wy;
+
     s->gear_tier = saved_tier;
     s->gear_tier_fixed = saved_fixed_tier;
     s->gear_tier_mode = saved_tier_mode;
@@ -2613,10 +2651,11 @@ static void zul_step_tick(
             .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
             .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
             .destination_cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
-            .collision_map = (const CollisionMap*)s->collision_map,
-            .world_offset_x = s->world_offset_x,
-            .world_offset_y = s->world_offset_y,
-            .los_query = osrs_los_open_query(),
+            .attack_geometry = ENCOUNTER_ROUTE_ATTACK_GEOMETRY_TOPOLOGY,
+            .collision_map = NULL,
+            .world_offset_x = 0,
+            .world_offset_y = 0,
+            .los_query = NULL,
         },
     };
     OsrsPlayerStepResult step_result = osrs_encounter_player_step(&step_input);
@@ -2636,14 +2675,14 @@ static void zul_step_tick(
             if (s->zulrah_visible && !s->is_diving) {
                 if (s->player.spec_armed && s->player.special_energy >=
                         osrs_spec_cost(s->player.equipped[GEAR_SLOT_WEAPON])) {
-                    zul_player_spec(s);
+                    zul_player_spec(s, ctx);
                     osrs_spec_disarm(&s->player.spec_armed);
                 } else {
-                    zul_player_attack(s);
+                    zul_player_attack(s, ctx);
                 }
             }
         } else {
-            zul_player_attack_snakeling(s, target - 1);
+            zul_player_attack_snakeling(s, ctx, target - 1);
         }
     }
 
@@ -2659,7 +2698,7 @@ static void zul_step_tick(
         return;
     }
 
-    zul_phase_tick(s);
+    zul_phase_tick(s, ctx);
 
     zul_snakeling_tick(s, ctx);
 
@@ -2916,11 +2955,11 @@ static void zul_fill_render_entities(
 }
 
 static void zul_put_int(EncounterState* state, EncounterContext* context, const char* key, int value) {
-    (void)context;
+    ZulrahContext* ctx = (ZulrahContext*)context;
     ZulrahState* s = (ZulrahState*)state;
     if (strcmp(key, "seed") == 0) s->rng_state = (uint32_t)value;
-    else if (strcmp(key, "world_offset_x") == 0) s->world_offset_x = value;
-    else if (strcmp(key, "world_offset_y") == 0) s->world_offset_y = value;
+    else if (strcmp(key, "world_offset_x") == 0) ctx->world_offset_x = value;
+    else if (strcmp(key, "world_offset_y") == 0) ctx->world_offset_y = value;
     else if (strcmp(key, "gear_tier") == 0) {
         s->gear_tier_fixed = encounter_require_int_range_config(
             "zulrah", key, value, 0, ZUL_NUM_GEAR_TIERS - 1);
@@ -2991,10 +3030,10 @@ static void zul_put_ptr(
     const char* key,
     void* value
 ) {
-    (void)context;
-    ZulrahState* s = (ZulrahState*)st;
+    ZulrahContext* ctx = (ZulrahContext*)context;
+    (void)st;
     if (strcmp(key, "collision_map") == 0)
-        s->collision_map = value;
+        ctx->collision_map = (const CollisionMap*)value;
     else
         encounter_abort_unknown_config("zulrah", "ptr", key);
 }
