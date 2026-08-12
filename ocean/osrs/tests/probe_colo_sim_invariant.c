@@ -6,13 +6,13 @@
  * the half that must not move when the observation is recut.
  *
  * Covers the whole ColosseumState plus the full 452-float action mask. Storage whose
- * SIZE is not part of the simulation contract -- the obs memo caches, and the pending-hit
- * queues' spare capacity -- is hashed by content rather than by raw bytes, so resizing or
- * renarrowing it does not move a digest.
+ * size or representation is not part of the simulation contract is hashed semantically:
+ * inventory identity, obs memo caches, and pending-hit queue spare capacity. Resizing or
+ * renarrowing those records does not move a digest.
  *
- * Re-seeding rule: prove the digests first, never re-print to make an edit pass. The
- * pending-hit narrowing was carried across by computing baselines on the old record with
- * this same hash and confirming the new one reproduced all 12.
+ * Re-seeding rule: prove the digests first, never re-print to make an edit pass. Pending-hit
+ * narrowing and canonical inventory identity were carried across by computing the same
+ * semantic hash on the old and new records and confirming all 12 were byte-identical.
  *
  * The player-collision re-seed could NOT use that method: replacing a 1156-byte array with
  * two ints moved the struct's padding (size fell 1152, not the 1148 the fields imply), so
@@ -52,6 +52,14 @@ static inline uint64_t fnv_i32(uint64_t h, int v) {
     int32_t w = (int32_t)v;
     return fnv_bytes(h, &w, sizeof(w));
 }
+static inline uint64_t fnv_u8(uint64_t h, uint8_t v) {
+    return fnv_bytes(h, &v, sizeof(v));
+}
+
+static inline uint64_t fnv_u16(uint64_t h, uint16_t v) {
+    return fnv_bytes(h, &v, sizeof(v));
+}
+
 
 static inline uint64_t splitmix64(uint64_t* s) {
     uint64_t z = (*s += 0x9E3779B97F4A7C15ULL);
@@ -72,18 +80,18 @@ typedef struct {
  * determinism fixes. Regenerate with --print only when a SIMULATION change is
  * intended, never to make an observation edit pass. */
 static SimConfig CONFIGS[] = {
-    {"w01",  1, 1001ULL, 0xC0FFEE01ULL, 0x9c4cbcde5d159413ULL},
-    {"w02",  2, 1002ULL, 0xC0FFEE02ULL, 0x926e334416bc21f0ULL},
-    {"w03",  3, 1003ULL, 0xC0FFEE03ULL, 0xcc8a421a35859befULL},
-    {"w04",  4, 1004ULL, 0xC0FFEE04ULL, 0x14b1e80d759d1cb2ULL},
-    {"w05",  5, 1005ULL, 0xC0FFEE05ULL, 0x22f415d9f4d6dd02ULL},
-    {"w06",  6, 1006ULL, 0xC0FFEE06ULL, 0xb82309c9c86c363bULL},
-    {"w07",  7, 1007ULL, 0xC0FFEE07ULL, 0x4fd42a575b3fd127ULL},
-    {"w08",  8, 1008ULL, 0xC0FFEE08ULL, 0x48548d73bd727fd2ULL},
-    {"w09",  9, 1009ULL, 0xC0FFEE09ULL, 0xb3f7b27247b54a07ULL},
-    {"w10", 10, 1010ULL, 0xC0FFEE10ULL, 0x2b0b3f61efb8b43fULL},
-    {"w11", 11, 1011ULL, 0xC0FFEE11ULL, 0x1e8ff8d2425f33a7ULL},
-    {"w12", 12, 1012ULL, 0xC0FFEE12ULL, 0x210c0b6ce8537df3ULL},
+    {"w01",  1, 1001ULL, 0xC0FFEE01ULL, 0xe882cb88e9bfe571ULL},
+    {"w02",  2, 1002ULL, 0xC0FFEE02ULL, 0x2030dfc6f5128a4aULL},
+    {"w03",  3, 1003ULL, 0xC0FFEE03ULL, 0xb6340675ad060ccfULL},
+    {"w04",  4, 1004ULL, 0xC0FFEE04ULL, 0xda9cbc85c2b1ccceULL},
+    {"w05",  5, 1005ULL, 0xC0FFEE05ULL, 0xffe01df334b833dcULL},
+    {"w06",  6, 1006ULL, 0xC0FFEE06ULL, 0x91c31d65c5756157ULL},
+    {"w07",  7, 1007ULL, 0xC0FFEE07ULL, 0x3abedfcf6d66865bULL},
+    {"w08",  8, 1008ULL, 0xC0FFEE08ULL, 0x9c20637df795889bULL},
+    {"w09",  9, 1009ULL, 0xC0FFEE09ULL, 0xcbf92ffc1560faa7ULL},
+    {"w10", 10, 1010ULL, 0xC0FFEE10ULL, 0xabe0af7272270f17ULL},
+    {"w11", 11, 1011ULL, 0xC0FFEE11ULL, 0x4b7bd07c37349b9dULL},
+    {"w12", 12, 1012ULL, 0xC0FFEE12ULL, 0xaf6eddfc94e7f411ULL},
 };
 
 static void fill_actions(
@@ -148,6 +156,7 @@ static uint64_t hash_sim(uint64_t h, const ColosseumState* s, const float* mask)
      * Taking the whole tail removes the padding from the hash entirely. */
     SkipRegion skip[] = {
         {offsetof(ColosseumState, npcs), sizeof(s->npcs)},
+        {offsetof(ColosseumState, inventory_cells), sizeof(s->inventory_cells)},
         {offsetof(ColosseumState, player_pending_hits), sizeof(s->player_pending_hits)},
         {offsetof(ColosseumState, log), sizeof(*s) - offsetof(ColosseumState, log)},
     };
@@ -164,6 +173,12 @@ static uint64_t hash_sim(uint64_t h, const ColosseumState* s, const float* mask)
 
     for (int i = 0; i < COLO_MAX_NPCS; i++) h = fnv_npc(h, &s->npcs[i]);
     h = fnv_queue(h, &s->player_pending_hits);
+    for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++) {
+        const OsrsInventoryCell* cell = &s->inventory_cells[i];
+        h = fnv_u8(h, osrs_inventory_cell_item_index(cell));
+        h = fnv_u16(h, osrs_inventory_cell_raw_osrs_id(cell));
+        h = fnv_u8(h, osrs_inventory_cell_dose_count(cell));
+    }
 
     for (int i = 0; i < COLO_ACTION_MASK_SIZE; i++) h = fnv_f32(h, mask[i]);
     return h;

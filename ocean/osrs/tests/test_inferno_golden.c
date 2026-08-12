@@ -27,6 +27,14 @@ static inline uint64_t fnv_i32(uint64_t h, int v) {
     int32_t w = (int32_t)v;
     return fnv_bytes(h, &w, sizeof(w));
 }
+static inline uint64_t fnv_u8(uint64_t h, uint8_t v) {
+    return fnv_bytes(h, &v, sizeof(v));
+}
+
+static inline uint64_t fnv_u16(uint64_t h, uint16_t v) {
+    return fnv_bytes(h, &v, sizeof(v));
+}
+
 
 static inline uint64_t splitmix64(uint64_t* s) {
     uint64_t z = (*s += 0x9E3779B97F4A7C15ULL);
@@ -56,7 +64,12 @@ static uint64_t hash_core_state(uint64_t h, const InfernoState* s) {
     h = fnv_bytes(h, s->npcs, TRACE_NPC_SLOTS * sizeof(s->npcs[0]));
     h = fnv_bytes(h, &s->player_pending_hits, sizeof(s->player_pending_hits));
     h = fnv_bytes(h, s->pending_sparks, sizeof(s->pending_sparks));
-    h = fnv_bytes(h, s->inventory_cells, sizeof(s->inventory_cells));
+    for (int cell_idx = 0; cell_idx < OSRS_INVENTORY_SIZE; cell_idx++) {
+        const OsrsInventoryCell* cell = &s->inventory_cells[cell_idx];
+        h = fnv_u8(h, osrs_inventory_cell_item_index(cell));
+        h = fnv_u16(h, osrs_inventory_cell_raw_osrs_id(cell));
+        h = fnv_u8(h, osrs_inventory_cell_dose_count(cell));
+    }
     h = fnv_bytes(h, s->dead_mobs, sizeof(s->dead_mobs));
     h = fnv_i32(h, s->wave);
     return fnv_i32(h, s->tick);
@@ -187,11 +200,11 @@ static const GoldenConfig CONFIGS[] = {
 #define EPISODE_TICKS 2000
 
 static const uint64_t EXPECTED_STATE[NUM_CONFIGS] = {
-    0xc34a1be07be9b76cULL, 0xe0b7035532045326ULL, 0x9bfdcadcd40dd503ULL,
-    0xef441bdc10b4543aULL, 0x6bdf53afedce0649ULL, 0x567ee6344c8b711fULL,
-    0x292f4392c8186e26ULL, 0x3d1c234ca61bbf8cULL, 0xe983644326ae38a6ULL,
-    0xf572a5e51102d345ULL, 0x093845fc28bd3edfULL, 0x8bec31a8997b0e6dULL,
-    0x4276518d9178c88aULL, 0x67a1cc0619493f62ULL, 0x65a6a9dfbe029b15ULL,
+    0x3e4fbb35c1889d44ULL, 0x8c68f1dc6f54c2a6ULL, 0x71d36e99ebd433e8ULL,
+    0x9c028c5906c58dbeULL, 0xd6183313a76b807fULL, 0x28b5ad296c307915ULL,
+    0x1e408a9f378394e6ULL, 0x228334e4bd9b7f3aULL, 0x26463ee9c8e17cc8ULL,
+    0x2762fdd6008979ddULL, 0xd9f8faf40e2d0657ULL, 0xff5ceeb4f52cb16fULL,
+    0xef0befe2d848d410ULL, 0x38385138dce9f842ULL, 0x7444a507700231c1ULL,
 };
 
 static const uint64_t EXPECTED_REWARD[NUM_CONFIGS] = {
