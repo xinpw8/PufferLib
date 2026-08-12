@@ -1322,6 +1322,10 @@ typedef struct {
     int player_spec_fired_kind;
     int player_venator_chain_count;
     int player_venator_chain_slots[OSRS_VENATOR_MAX_CHAIN_HITS];
+    int volatility_explosion_count;
+    int volatility_explosion_x[COLO_MAX_NPCS];
+    int volatility_explosion_y[COLO_MAX_NPCS];
+    ColoNpcType volatility_explosion_type[COLO_MAX_NPCS];
 } ColosseumContext;
 
 /* Clears only what was written. col_render_hit_events_add aborts past
@@ -1346,6 +1350,7 @@ static inline void col_context_clear_render_events(ColosseumContext* ctx) {
     ctx->player_venator_chain_count = 0;
     for (int i = 0; i < OSRS_VENATOR_MAX_CHAIN_HITS; i++)
         ctx->player_venator_chain_slots[i] = -1;
+    ctx->volatility_explosion_count = 0;
 }
 
 static inline void col_context_record_venator_chain(

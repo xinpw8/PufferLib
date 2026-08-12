@@ -23,9 +23,6 @@ static void col_apply_npc_death(
         s->death_charge_cd = COLO_DEATH_CHARGE_CD;
     }
 
-    col_mod_volatility_on_death(
-        s, ctx->route_topology,
-        npc->x, npc->y, col_npc_effective_size(npc));
     col_mod_on_owner_death(s, idx);
     if (!osrs_npc_death_linger_start(
             npc->hp, npc->active, &npc->death_ticks,
@@ -145,12 +142,26 @@ static void col_resolve_player_projectiles_on_npcs(
     col_resolve_player_projectiles_on_npcs_ctx(s, ctx);
 }
 
-static void col_tick_npc_death_lingers(ColosseumState* s) {
+static void col_tick_npc_death_lingers(
+    ColosseumState* s,
+    ColosseumContext* ctx
+) {
     for (int i = 0; i < COLO_MAX_NPCS; i++) {
         ColoNPC* npc = &s->npcs[i];
         if (!npc->active || npc->death_ticks <= 0) continue;
-        if (osrs_npc_death_linger_tick(&npc->death_ticks))
-            col_deactivate_npc(s, i);
+        if (!osrs_npc_death_linger_tick(&npc->death_ticks)) continue;
+
+        int npc_size = col_npc_effective_size(npc);
+        if (col_mod_active(s, COLO_MOD_VOLATILITY)) {
+            if (ctx->volatility_explosion_count >= COLO_MAX_NPCS) abort();
+            int event = ctx->volatility_explosion_count++;
+            ctx->volatility_explosion_x[event] = npc->x + npc_size / 2;
+            ctx->volatility_explosion_y[event] = npc->y + npc_size / 2;
+            ctx->volatility_explosion_type[event] = npc->type;
+        }
+        col_mod_volatility_on_corpse_removed(
+            s, ctx->route_topology, npc->x, npc->y, npc_size);
+        col_deactivate_npc(s, i);
     }
 }
 

@@ -862,7 +862,7 @@ static int col_volatility_player_in_blast(
         x, y, size, tier, s->player.x, s->player.y);
 }
 
-static void col_mod_volatility_on_death(
+static void col_mod_volatility_on_corpse_removed(
     ColosseumState* s,
     const EncounterArenaTopology* topology,
     int x,

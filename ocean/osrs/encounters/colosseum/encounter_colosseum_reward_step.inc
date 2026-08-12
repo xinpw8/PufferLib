@@ -349,7 +349,7 @@ static ColoPrePlayerPhase col_advance_pre_player_phase_ctx(
 
     col_resolve_player_projectiles_on_npcs_ctx(s, ctx);
     col_resolve_player_pending_hits_ctx(s, ctx);
-    col_tick_npc_death_lingers(s);
+    col_tick_npc_death_lingers(s, ctx);
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_PRE_RESOLVE_HITS);
 #endif

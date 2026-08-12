@@ -1557,7 +1557,7 @@ static void test_reentry_sand_tiles(void) {
     s.modifiers.active_mask |= (1u << COLO_MOD_VOLATILITY);
     s.modifiers.tier[COLO_MOD_VOLATILITY] = 3;
     s.player.x = 5; s.player.y = 18;
-    col_mod_volatility_on_death(
+    col_mod_volatility_on_corpse_removed(
         &s, ctx.route_topology, 20, 16, 1);
     CHECK("Volatility T3 leaves a Volatility pool at the centre",
         s.molten_count == 1 && s.molten_kind[0] == COLO_POOL_VOLATILITY);
@@ -1576,7 +1576,7 @@ static void test_reentry_sand_tiles(void) {
         s.molten_count == 0);
 
     s.modifiers.tier[COLO_MOD_REENTRY] = 2;
-    col_mod_volatility_on_death(
+    col_mod_volatility_on_corpse_removed(
         &s, ctx.route_topology, 20, 16, 1);
     CHECK("Reentry II makes the Volatility III pool permanent",
         s.molten_count == 1 && s.molten_lifetime[0] == COLO_POOL_PERMANENT);
@@ -1586,7 +1586,7 @@ static void test_reentry_sand_tiles(void) {
 
     s.molten_count = 0;
     s.modifiers.tier[COLO_MOD_REENTRY] = 3;
-    col_mod_volatility_on_death(
+    col_mod_volatility_on_corpse_removed(
         &s, ctx.route_topology, 20, 16, 1);
     CHECK("Reentry III also makes the Volatility III pool permanent",
         s.molten_count == 1 && s.molten_lifetime[0] == COLO_POOL_PERMANENT);
@@ -2011,24 +2011,54 @@ static void test_solarflare_orb(void) {
     CHECK("Solarflare III disables prayer on hit", s.player.prayer == PRAYER_NONE);
 }
 
-static void test_volatility_explosion(void) {
-    printf("test_volatility_explosion\n");
+static void test_volatility_explodes_on_corpse_removal(void) {
+    printf("test_volatility_explodes_on_corpse_removal\n");
     ColosseumContext ctx;
     col_init_context_typed(&ctx);
     ColosseumState s;
     memset(&s, 0, sizeof(s));
-    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 29);
-    s.modifiers.active_mask |= (1u << COLO_MOD_VOLATILITY);
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 302);
+    geo_clear_npcs(&s);
+    s.modifiers.active_mask = 1u << COLO_MOD_VOLATILITY;
     s.modifiers.tier[COLO_MOD_VOLATILITY] = 1;
+    s.player.x = 20;
+    s.player.y = 16;
 
-    s.player.x = 17; s.player.y = 17;
-    s.player.current_hitpoints = 99;
     int idx = 0;
-    col_init_npc(&s, idx, COLO_FREMENNIK_BERSERKER, 18, 17);
-    int hp_before = s.player.current_hitpoints;
+    col_init_npc(&s, idx, COLO_FREMENNIK_BERSERKER, 20, 17);
     s.npcs[idx].hp = 0;
+    int hp_before = s.player.current_hitpoints;
     col_apply_npc_death(&s, &ctx, idx);
-    CHECK("Volatility explosion hits an adjacent player", s.player.current_hitpoints < hp_before);
+
+    CHECK("Volatility does not explode on the lethal hit",
+        s.player.current_hitpoints == hp_before);
+    int linger_ticks = col_npc_death_linger_ticks(s.npcs[idx].type);
+    for (int tick = 1; tick < linger_ticks; tick++) {
+        col_tick_npc_death_lingers(&s, &ctx);
+        CHECK("Volatility waits while the corpse is rendered",
+            s.npcs[idx].active && s.player.current_hitpoints == hp_before);
+    }
+
+    col_tick_npc_death_lingers(&s, &ctx);
+    CHECK("Volatility explodes when the corpse is removed",
+        !s.npcs[idx].active && s.player.current_hitpoints < hp_before);
+
+    EncounterOverlay ov = {0};
+    col_render_post_tick_ctx(
+        (EncounterState*)&s, (EncounterContext*)&ctx, &ov);
+    CHECK("Volatility corpse removal emits the explosion spotanim",
+        ov.projectile_count == 1 &&
+        ov.projectiles[0].src_x == 20 &&
+        ov.projectiles[0].src_y == 17 &&
+        ov.projectiles[0].dst_x == 20 &&
+        ov.projectiles[0].dst_y == 17 &&
+        ov.projectiles[0].launch_gfx_id == 2713);
+    CHECK("Volatility explosion spotanim scales by NPC family",
+        col_volatility_explosion_gfx_id(COLO_MANTICORE) == 2721 &&
+        col_volatility_explosion_gfx_id(COLO_JAVELIN_COLOSSUS) == 2722 &&
+        col_volatility_explosion_gfx_id(COLO_SHOCKWAVE_COLOSSUS) == 2722 &&
+        col_volatility_explosion_gfx_id(COLO_MINOTAUR) == 2723 &&
+        col_volatility_explosion_gfx_id(COLO_SOL_HEREDIT) == 2724);
 }
 
 static void test_modifier_hazard_obs_fixes(void) {
@@ -7906,9 +7936,19 @@ static void test_pending_hit_recoil_volatility_damage_accounting(void) {
     col_resolve_player_pending_hits_ctx(&s, &ctx);
 
     CHECK("pending hit lands before its echo-boots recoil death effect",
-        s.player.current_hitpoints == 64 &&
+        s.player.current_hitpoints == 89 &&
         s.npcs[0].hp == 0);
-    CHECK("nested Volatility and pending-hit damage remain separately exact",
+    CHECK("Volatility damage waits for corpse removal",
+        s.tick_scratch.damage_received == 10.0f &&
+        s.tick_scratch.landed_offpray_damage == 10.0f &&
+        s.tick_scratch.landed_unprayable_damage == 0.0f);
+
+    int linger_ticks = col_npc_death_linger_ticks(s.npcs[0].type);
+    for (int tick = 0; tick < linger_ticks; tick++)
+        col_tick_npc_death_lingers(&s, &ctx);
+    CHECK("corpse removal applies Volatility after the pending hit",
+        s.player.current_hitpoints == 64);
+    CHECK("Volatility and pending-hit damage remain separately exact",
         s.tick_scratch.damage_received == 35.0f &&
         s.tick_scratch.landed_offpray_damage == 10.0f &&
         s.tick_scratch.landed_unprayable_damage == 25.0f);
@@ -9143,7 +9183,7 @@ int main(void) {
     test_step_loop_draft();
     test_eleven_drafts_per_run();
     test_solarflare_orb();
-    test_volatility_explosion();
+    test_volatility_explodes_on_corpse_removal();
     test_modifier_hazard_obs_fixes();
     test_death_linger_wave_clear_and_render();
     test_draft_offer_and_select();

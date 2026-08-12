@@ -756,6 +756,64 @@ enum {
     COLO_SOL_SAND_PILLAR_ANIM_ID     = 10812,
 };
 
+enum {
+    COLO_VOLATILITY_HUMAN_EXPLOSION_GFX_ID = 2713,
+    COLO_VOLATILITY_MANTICORE_EXPLOSION_GFX_ID = 2721,
+    COLO_VOLATILITY_COLOSSUS_EXPLOSION_GFX_ID = 2722,
+    COLO_VOLATILITY_MINOTAUR_EXPLOSION_GFX_ID = 2723,
+    COLO_VOLATILITY_SOL_EXPLOSION_GFX_ID = 2724,
+};
+
+static int col_volatility_explosion_gfx_id(ColoNpcType npc_type) {
+    switch (npc_type) {
+        case COLO_MANTICORE:
+            return COLO_VOLATILITY_MANTICORE_EXPLOSION_GFX_ID;
+        case COLO_JAVELIN_COLOSSUS:
+        case COLO_SHOCKWAVE_COLOSSUS:
+            return COLO_VOLATILITY_COLOSSUS_EXPLOSION_GFX_ID;
+        case COLO_MINOTAUR:
+            return COLO_VOLATILITY_MINOTAUR_EXPLOSION_GFX_ID;
+        case COLO_SOL_HEREDIT:
+            return COLO_VOLATILITY_SOL_EXPLOSION_GFX_ID;
+        default:
+            return COLO_VOLATILITY_HUMAN_EXPLOSION_GFX_ID;
+    }
+}
+
+static void col_emit_volatility_explosions(
+    const ColosseumContext* ctx,
+    EncounterOverlay* ov
+) {
+    encounter_require_projectile_slots(ov, ctx->volatility_explosion_count);
+    for (int i = 0; i < ctx->volatility_explosion_count; i++) {
+        int x = ctx->volatility_explosion_x[i];
+        int y = ctx->volatility_explosion_y[i];
+        OsrsProjectileEventSpec spec = {
+            .src_x = x,
+            .src_y = y,
+            .dst_x = x,
+            .dst_y = y,
+            .style = encounter_attack_style_to_proj_style(ATTACK_STYLE_MAGIC),
+            .damage = 0,
+            .duration_ticks = 1,
+            .start_h = 0,
+            .end_h = 0,
+            .curve = 0,
+            .arc_height = 0.0f,
+            .src_size = 1,
+            .dst_size = 1,
+            .model_id = 0,
+            .anim_id = -1,
+            .travel_gfx_id = 0,
+            .launch_gfx_id =
+                col_volatility_explosion_gfx_id(ctx->volatility_explosion_type[i]),
+            .impact_gfx_id = 0,
+            .start_delay = 0,
+        };
+        (void)osrs_emit_projectile_with_spec(ov, &spec, 0);
+    }
+}
+
 static void col_emit_sol_hazard_vfx(ColosseumState* s, EncounterOverlay* ov) {
     if (s->wave != COLO_WAVE_BOSS || !s->sol.started) return;
     const SolHereditState* sol = &s->sol;
@@ -875,6 +933,7 @@ static void col_render_post_tick_ctx(
         col_emit_npc_attack_projectile(s, ctx, ov, i);
     }
     col_emit_sol_hazard_vfx(s, ov);
+    col_emit_volatility_explosions(ctx, ov);
     col_emit_player_attack_projectiles(s, ctx, ov);
     if (ctx->thrall_attacked_this_tick)
         col_emit_thrall_projectile(s, ctx, ov);
