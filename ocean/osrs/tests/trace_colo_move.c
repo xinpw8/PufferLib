@@ -16,11 +16,18 @@ static int nearest_live_obs_target(const ColosseumState* s) {
     return best_slot < 0 ? 0 : col_primary_attack_action_for_obs_slot(best_slot);
 }
 
-static int first_walkable_move(const ColosseumState* s) {
+static int first_walkable_move(
+    ColosseumState* s,
+    const ColosseumContext* ctx
+) {
+    ColoGeometryContext geometry = {
+        .state = s,
+        .context = ctx,
+    };
     for (int a = 1; a < ENCOUNTER_MOVE_ACTIONS; a++) {
         int nx = s->player.x + ENCOUNTER_MOVE_TARGET_DX[a];
         int ny = s->player.y + ENCOUNTER_MOVE_TARGET_DY[a];
-        if (col_player_walkable((void*)s, nx, ny)) return a;
+        if (col_player_walkable(&geometry, nx, ny)) return a;
     }
     return 0;
 }
@@ -33,6 +40,7 @@ int main(void) {
     ctx.config.beginner_loadout_fraction = 0.5f;
     ctx.config.step_out_forecast_obs_enabled = 1;
     ctx.config.action_debug_log = 1;
+    col_finalize_route_topology(&ctx);
 
     ColosseumState s;
     memset(&s, 0, sizeof(s));
@@ -50,7 +58,7 @@ int main(void) {
             actions[COLO_HEAD_MODIFIER_SELECT] = opt + 1;
         } else {
             actions[COLO_HEAD_PRIMARY] = (tick & 1)
-                ? first_walkable_move(&s)
+                ? first_walkable_move(&s, &ctx)
                 : nearest_live_obs_target(&s);
         }
         col_step_ctx((EncounterState*)&s, (EncounterContext*)&ctx, actions);

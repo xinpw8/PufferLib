@@ -14,14 +14,14 @@ Base: `a506c5a462c4a035e9d79d842d35655ac7a4102c`
 - Routed player, NPC, forecast, spawn, Sol, modifier, observation, mask, lab, and render geometry through explicit topology-owning contexts.
 - Kept NPC occupancy, player occupancy, modifiers, hazards, and active state dynamic.
 - Deleted the process-global legacy context and contextless reset, step, combat, lab, and attack wrappers.
-- Made supported callbacks reject NULL context. Standalone probes and tests now initialize, finalize, and destroy their own contexts.
+- Made supported callbacks reject NULL context. Standalone probes and tests now initialize and finalize explicit contexts.
 - Added exhaustive static tile, footprint, directed LOS, endpoint-law, legal-step, and forecast parity checks to existing Colosseum tests.
 - Added lifecycle checks for NULL and unfinalized contexts.
 - Preserved the observation and mask layouts. No item tables changed.
 
 ## Observed evidence
 
-The interrupted worker's compile attempts exposed stale private-geometry and old-signature callers in `test_colosseum_modifiers.c`. Recovery migrated those callers and the remaining standalone probes. No clean compile, test, profile, or sanitizer result was observed after the final source edits.
+The interrupted worker's compile attempts exposed stale private-geometry and old-signature callers in `test_colosseum_modifiers.c`. The first main gate then reproduced a stale `col_player_walkable` callback-data crash in the modifier test. Source inspection found the same callback misuse in the skyfall probe and movement trace, plus unfinalized contexts in five standalone probes. Recovery migrated those callers to explicit geometry contexts and finalized every audited context before reset, step, or topology query. No clean compile, test, profile, or sanitizer result was observed after the follow-up edits.
 
 ## Pending main validation
 

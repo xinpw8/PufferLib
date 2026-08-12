@@ -126,6 +126,7 @@ static void run_episodes(const char* label, int scripted, int start_wave, int n_
     ctx.config.loadout_profile_mode = COLO_LOADOUT_PROFILE_MODE_MIXED;
     ctx.config.beginner_loadout_fraction = 0.5f;
     ctx.config.step_out_forecast_obs_enabled = 1;
+    col_finalize_route_topology(&ctx);
 
     static float obs[COLO_NUM_OBS];
     ColosseumState s;

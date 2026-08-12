@@ -117,6 +117,7 @@ static void run_episodes(const char* label, int mode, int n_eps) {
     ctx.config.beginner_loadout_fraction = 0.0f;
     ctx.config.step_out_forecast_obs_enabled = 1;
     ctx.config.wave_clear_bonus = 1.0f;
+    col_finalize_route_topology(&ctx);
 
     static float obs[COLO_NUM_OBS];
     ColosseumState s;

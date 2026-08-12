@@ -3822,17 +3822,22 @@ static void skyfall_dodge_init_state(
 
 static int skyfall_dodge_move_action_off_tile(
     const ColosseumState* s,
+    const ColosseumContext* ctx,
     int marked_x,
     int marked_y
 ) {
     for (int action = 1; action < ENCOUNTER_MOVE_ACTIONS; action++) {
         ColosseumState tmp = *s;
+        ColoGeometryContext geometry = {
+            .state = &tmp,
+            .context = ctx,
+        };
         int moved = encounter_move_to_target(
             &tmp.player,
             ENCOUNTER_MOVE_TARGET_DX[action],
             ENCOUNTER_MOVE_TARGET_DY[action],
             col_player_walkable,
-            &tmp);
+            &geometry);
         if (moved > 0 && (tmp.player.x != marked_x || tmp.player.y != marked_y))
             return action;
     }
@@ -3855,7 +3860,7 @@ static int skyfall_dodge_damage_after_wait(int wait_visible_ticks) {
     jv->skyfall_damage = SKYFALL_DODGE_FORCED_DAMAGE;
 
     int move_action = skyfall_dodge_move_action_off_tile(
-        &s, jv->skyfall_tile_x, jv->skyfall_tile_y);
+        &s, &ctx, jv->skyfall_tile_x, jv->skyfall_tile_y);
     int hp_before = s.player.current_hitpoints;
 
     for (int i = 0; i < wait_visible_ticks; i++) {

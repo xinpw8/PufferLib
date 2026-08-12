@@ -15,6 +15,7 @@ static int reset_brew_doses(int remove_brews, uint32_t seed) {
 
     ENCOUNTER_COLOSSEUM.put_int((EncounterState*)&s, (EncounterContext*)&ctx,
         "remove_brews", remove_brews);
+    col_finalize_route_topology(&ctx);
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, seed);
     return s.player.brew_doses;
 }

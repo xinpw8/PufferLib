@@ -5,6 +5,7 @@
 
 #define col_init_context_typed(ctx_ptr) do { \
     col_init_context_typed(ctx_ptr); \
+    col_finalize_route_topology((ctx_ptr)); \
     (ctx_ptr)->config.late_start_state_mode = 0; \
 } while (0)
 
@@ -52,7 +53,6 @@ static void run_test(const char* label, PrayerPolicy policy, int start_wave, int
     ctx.config.start_wave = start_wave;
     ctx.config.loadout_profile_mode = COLO_LOADOUT_PROFILE_MODE_MIXED;
     ctx.config.beginner_loadout_fraction = 0.5f;
-    col_finalize_route_topology(&ctx);
 
     static float obs[COLO_NUM_OBS];
     ColosseumState s;
