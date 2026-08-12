@@ -2059,9 +2059,17 @@ static int gui_inv_slot_at(GuiState* gs, int mx, int my) {
     return -1;
 }
 
+static uint16_t gui_inventory_raw_osrs_id(int osrs_id) {
+    if (osrs_id < 0 || osrs_id > UINT16_MAX) {
+        fprintf(stderr, "gui inventory: invalid raw OSRS id %d\n", osrs_id);
+        abort();
+    }
+    return (uint16_t)osrs_id;
+}
+
 static const char* gui_inv_primary_action_label(const InvSlot* inv) {
     uint16_t raw_osrs_id =
-        inv->osrs_id > 0 && inv->osrs_id <= UINT16_MAX ? (uint16_t)inv->osrs_id : 0;
+        gui_inventory_raw_osrs_id(inv->osrs_id);
     uint8_t item_idx = inv->type == INV_SLOT_EQUIPMENT
         ? inv->item_db_idx
         : ITEM_NONE;
@@ -2500,10 +2508,12 @@ static void gui_load_display_inventory(GuiState* gs) {
     if (count > INV_GRID_SLOTS) count = INV_GRID_SLOTS;
     for (int i = 0; i < count; i++) {
         int osrs_id = gs->display_inventory_osrs_ids[i];
-        if (osrs_id <= 0) continue;
-        uint8_t item_idx = osrs_id <= UINT16_MAX
-            ? osrs_item_index_for_raw_osrs_id((uint16_t)osrs_id)
-            : ITEM_NONE;
+        if (osrs_id == 0) continue;
+        const OsrsItemContentMetadata* metadata =
+            osrs_item_content_metadata(
+                osrs_inventory_content_code_from_raw_osrs_id(
+                    gui_inventory_raw_osrs_id(osrs_id)));
+        uint8_t item_idx = metadata->item_idx;
         gs->inv_grid[i].type = INV_SLOT_EQUIPMENT;
         gs->inv_grid[i].item_db_idx = item_idx;
         gs->inv_grid[i].osrs_id = osrs_id;

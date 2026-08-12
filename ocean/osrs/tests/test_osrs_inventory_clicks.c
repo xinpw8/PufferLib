@@ -63,11 +63,51 @@ static void lookup_invalid_content_code(void) {
 static void construct_invalid_content_code(void) {
     (void)osrs_inventory_cell_from_content_code(UINT16_MAX);
 }
+static void lookup_invalid_item_index(void) {
+    (void)osrs_inventory_content_code_from_item(NUM_ITEMS);
+}
+
+static void lookup_invalid_consumable_kind_none(void) {
+    (void)osrs_inventory_content_code_from_consumable(
+        OSRS_CONSUMABLE_NONE, 4);
+}
+
+static void lookup_invalid_consumable_kind_count(void) {
+    (void)osrs_inventory_content_code_from_consumable(
+        OSRS_CONSUMABLE_COUNT, 4);
+}
+
+static void lookup_invalid_consumable_zero_dose(void) {
+    (void)osrs_inventory_content_code_from_consumable(
+        OSRS_CONSUMABLE_BREW, 0);
+}
+
+static void lookup_invalid_consumable_high_dose(void) {
+    (void)osrs_inventory_content_code_from_consumable(
+        OSRS_CONSUMABLE_BREW, 5);
+}
+
+static void lookup_invalid_gear_slot_item(void) {
+    (void)osrs_item_gear_slot(NUM_ITEMS);
+}
+
 
 static int test_invalid_content_aborts(void) {
     CHECK("unknown raw OSRS id aborts", operation_aborts(lookup_unknown_raw_id));
     CHECK("invalid metadata code aborts", operation_aborts(lookup_invalid_content_code));
     CHECK("invalid cell code aborts", operation_aborts(construct_invalid_content_code));
+    CHECK("invalid item index aborts",
+        operation_aborts(lookup_invalid_item_index));
+    CHECK("none consumable kind aborts",
+        operation_aborts(lookup_invalid_consumable_kind_none));
+    CHECK("sentinel consumable kind aborts",
+        operation_aborts(lookup_invalid_consumable_kind_count));
+    CHECK("zero consumable dose aborts",
+        operation_aborts(lookup_invalid_consumable_zero_dose));
+    CHECK("high consumable dose aborts",
+        operation_aborts(lookup_invalid_consumable_high_dose));
+    CHECK("invalid gear-slot item aborts",
+        operation_aborts(lookup_invalid_gear_slot_item));
     return 0;
 }
 
@@ -453,7 +493,7 @@ int main(void) {
     if (test_empty_cell_clamp()) return 1;
     if (test_exhaustive_content_metadata()) return 1;
 
-    printf("test_osrs_inventory_clicks: OK (%d content codes, 3 abort boundaries)\n",
+    printf("test_osrs_inventory_clicks: OK (%d content codes, 9 abort boundaries)\n",
         OSRS_ITEM_CONTENT_COUNT);
     return 0;
 }
