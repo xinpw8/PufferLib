@@ -4744,6 +4744,9 @@ static void test_sol_laser_react_window(void) {
     col_sol_spawn_crystal(&s);
     sol_move_player(&s, s.sol.crystals[0].x, 14);
     col_sol_fire_lasers(&s);
+    CHECK("laser volley accounting records an aligned launch",
+        s.log.laser_volleys == 1.0f &&
+        s.log.laser_aligned_at_fire == 1.0f);
     s.player.current_hitpoints = 99;
     for (int t = 0; t < 3; t++) step_and_observe(&s, &ctx, idle);
     CHECK("the beam telegraph opens 3 ticks after the volley (freeze 6)",
@@ -4751,6 +4754,10 @@ static void test_sol_laser_react_window(void) {
     for (int t = 0; t < 3; t++) step_and_observe(&s, &ctx, idle);
     CHECK("the 3 reaction ticks pass without damage",
         s.player.current_hitpoints == 99);
+    CHECK("laser show accounting records the aligned telegraph",
+        s.log.laser_aligned_at_show == 1.0f);
+    CHECK("laser prefire accounting records the still-aligned player",
+        s.log.laser_aligned_at_pre == 1.0f);
     float laser_damage_before =
         s.log.sol_damage_by_source[COLO_SOL_DAMAGE_CRYSTAL_LASER];
     step_and_observe(&s, &ctx, idle);
@@ -4759,6 +4766,78 @@ static void test_sol_laser_react_window(void) {
     CHECK("crystal-laser damage has its own source total",
         s.log.sol_damage_by_source[COLO_SOL_DAMAGE_CRYSTAL_LASER] ==
             laser_damage_before + (float)(99 - s.player.current_hitpoints));
+    CHECK("laser damage accounting records the hit and failed reaction",
+        s.log.laser_hits == 1.0f &&
+        s.log.laser_dmg == (float)(99 - s.player.current_hitpoints) &&
+        s.log.laser_aligned_at_damage == 1.0f &&
+        s.log.laser_react_fail == 1.0f &&
+        s.log.laser_react_ok == 0.0f);
+}
+
+static void test_sol_laser_observation_pack(void) {
+    printf("test_sol_laser_observation_pack\n");
+    ColosseumState s = {0};
+    s.wave = COLO_WAVE_BOSS;
+    s.player.x = 17;
+    s.player.y = 16;
+    s.sol.started = 1;
+    s.sol.laser_cooldown =
+        COLO_SOL_CRYSTAL_COOLDOWN_MIN + COLO_SOL_CRYSTAL_COOLDOWN_RAND - 1;
+    s.sol.crystal_count = 2;
+    s.sol.crystals[0] = (ColoSolCrystal){
+        .active = 1,
+        .edge = COLO_SOL_EDGE_NORTH,
+        .x = 20,
+        .firing_freeze = COLO_SOL_LASER_FREEZE,
+    };
+    s.sol.crystals[1] = (ColoSolCrystal){
+        .active = 1,
+        .edge = COLO_SOL_EDGE_EAST,
+        .y = 10,
+        .firing_freeze = COLO_SOL_LASER_FREEZE / 3,
+    };
+
+    float enabled[COLO_BOSS_OBS_SIZE] = {0};
+    float disabled[COLO_BOSS_OBS_SIZE] = {0};
+    int enabled_idx = 0;
+    int disabled_idx = 0;
+    col_write_boss_obs(&s, enabled, &enabled_idx, 1);
+    col_write_boss_obs(&s, disabled, &disabled_idx, 0);
+
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    CHECK("honest laser observations are enabled by default",
+        ctx.config.laser_obs_mode == 1);
+    col_put_int_ctx(
+        (EncounterState*)&s, (EncounterContext*)&ctx, "laser_obs_mode", 0);
+    CHECK("laser observation ablation parses as a binary config",
+        ctx.config.laser_obs_mode == 0);
+
+    int laser = COLO_BOSS_OBS_PREMOVE_HAZARD_OFFSET + 2;
+    CHECK("laser pack has one cooldown plus four three-float crystal records",
+        COLO_SOL_LASER_OBS_SIZE ==
+            1 + COLO_SOL_MAX_CRYSTALS * COLO_SOL_LASER_CRYSTAL_FEATS);
+    CHECK("enabled and disabled laser modes preserve the boss observation width",
+        enabled_idx == COLO_BOSS_OBS_SIZE &&
+        disabled_idx == COLO_BOSS_OBS_SIZE);
+    CHECK("laser pack writes the normalized shared cooldown",
+        enabled[laser] == 1.0f);
+    CHECK("north crystal writes active, signed x-line delta, and freeze",
+        enabled[laser + 1] == 1.0f &&
+        fabsf(enabled[laser + 2] - 3.0f / (float)COLO_ARENA_WIDTH) < 0.000001f &&
+        enabled[laser + 3] == 1.0f);
+    CHECK("east crystal writes active, signed y-line delta, and freeze",
+        enabled[laser + 4] == 1.0f &&
+        fabsf(enabled[laser + 5] + 6.0f / (float)COLO_ARENA_HEIGHT) < 0.000001f &&
+        fabsf(enabled[laser + 6] - 1.0f / 3.0f) < 0.000001f);
+    for (int i = 0; i < COLO_SOL_LASER_OBS_SIZE; i++)
+        CHECK("disabled laser mode zeroes every laser-pack channel",
+            disabled[laser + i] == 0.0f);
+    for (int i = 0; i < COLO_BOSS_OBS_SIZE; i++) {
+        if (i >= laser && i < laser + COLO_SOL_LASER_OBS_SIZE) continue;
+        CHECK("laser ablation changes no other boss observation",
+            enabled[i] == disabled[i]);
+    }
 }
 
 static void test_sol_phase_transition_sand_guarantees(void) {
@@ -6157,7 +6236,7 @@ static void test_combat_fidelity_contract_sizes(void) {
     CHECK("prayer head uses shared PVE overhead dim",
         COLO_ACTION_DIMS[COLO_HEAD_PRAYER] == ENCOUNTER_OVERHEAD_DIM_PVE);
     CHECK("spell head dim is 3 (none/summon-thrall/death-charge)", COLO_SPELL_DIM == 3);
-    CHECK("obs width is 922", COLO_NUM_OBS == 922);
+    CHECK("obs width is 934", COLO_NUM_OBS == 934);
     CHECK("inventory block has 84 features (28 cells x code, equipped, hp_heal)",
         COLO_INVENTORY_OBS_SIZE == 84);
     CHECK("the encoder still sees the 15-feature record, rebuilt from the item table",
@@ -8301,7 +8380,7 @@ static void test_stage3_t6_obs_mask_fuzz_contract(void) {
         }
         step_and_observe(&s, &ctx, actions);
     }
-    CHECK("T6 obs running-index assert reached COLO_NUM_OBS", COLO_NUM_OBS == 922);
+    CHECK("T6 obs running-index assert reached COLO_NUM_OBS", COLO_NUM_OBS == 934);
     CHECK("T6 mask running-index assert reached 452", COLO_ACTION_MASK_SIZE == 452);
 }
 
@@ -8927,6 +9006,7 @@ int main(void) {
     test_sol_crystal_lifecycle();
     test_sol_aoe_reaction_window();
     test_sol_laser_react_window();
+    test_sol_laser_observation_pack();
     test_sol_phase_transition_sand_guarantees();
     test_sol_beams_become_pools();
     test_sol_beam_strike_reaction_window();

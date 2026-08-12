@@ -65,8 +65,12 @@ typedef enum {
 #define COLO_BOSS_OBS_PARRY_DAMAGE_OFFSET \
     (COLO_BOSS_OBS_PARRY_TICKS_OFFSET + COLO_SOL_PARRY_LAND_TICKS_MAX)
 #define COLO_BOSS_OBS_PREMOVE_HAZARD_OFFSET 37
+#define COLO_SOL_LASER_CRYSTAL_FEATS 3
+#define COLO_SOL_LASER_OBS_SIZE \
+    (1 + COLO_SOL_MAX_CRYSTALS * COLO_SOL_LASER_CRYSTAL_FEATS)
+#define COLO_BOSS_OBS_PREMOVE_TAIL_SIZE (2 + COLO_SOL_LASER_OBS_SIZE)
 #define COLO_BOSS_OBS_SIZE \
-    (COLO_BOSS_OBS_PREMOVE_HAZARD_OFFSET + COLO_SOL_HAZARD_SOURCE_COUNT)
+    (COLO_BOSS_OBS_PREMOVE_HAZARD_OFFSET + COLO_BOSS_OBS_PREMOVE_TAIL_SIZE)
 
 #define COLO_OBS_PENDING_HITS     16
 #define COLO_FEATURES_PER_HIT     7
@@ -662,7 +666,12 @@ static ColoSolParryTell col_sol_parry_tell(const ColosseumState* s) {
     };
 }
 
-static void col_write_boss_obs(const ColosseumState* s, float* obs, int* idx) {
+static void col_write_boss_obs(
+    const ColosseumState* s,
+    float* obs,
+    int* idx,
+    int laser_obs_mode
+) {
     int i = *idx;
     const SolHereditState* sol = &s->sol;
     int px = s->player.x, py = s->player.y;
@@ -707,10 +716,34 @@ static void col_write_boss_obs(const ColosseumState* s, float* obs, int* idx) {
     obs[i++] = sol->next_attack_guaranteed_max ? 1.0f : 0.0f;
     if (col_sol_clamp_active(s)) {
         obs[i++] = col_sol_premove_aoe_hit(s) ? 1.0f : 0.0f;
-        obs[i++] = col_sol_premove_laser_hit(s) ? 1.0f : 0.0f;
         obs[i++] = col_sol_premove_molten_hit(s) ? 1.0f : 0.0f;
+        if (laser_obs_mode) {
+            obs[i++] = col_clamp01((float)sol->laser_cooldown / (float)(
+                COLO_SOL_CRYSTAL_COOLDOWN_MIN + COLO_SOL_CRYSTAL_COOLDOWN_RAND - 1));
+            for (int crystal = 0; crystal < COLO_SOL_MAX_CRYSTALS; crystal++) {
+                if (crystal < sol->crystal_count && sol->crystals[crystal].active) {
+                    const ColoSolCrystal* c = &sol->crystals[crystal];
+                    obs[i++] = 1.0f;
+                    if (c->edge == COLO_SOL_EDGE_NORTH ||
+                            c->edge == COLO_SOL_EDGE_SOUTH)
+                        obs[i++] = (float)(c->x - px) / (float)COLO_ARENA_WIDTH;
+                    else
+                        obs[i++] = (float)(c->y - py) / (float)COLO_ARENA_HEIGHT;
+                    obs[i++] = c->firing_freeze > 0
+                        ? col_clamp01(
+                            (float)c->firing_freeze / (float)COLO_SOL_LASER_FREEZE)
+                        : 0.0f;
+                } else {
+                    obs[i++] = 0.0f;
+                    obs[i++] = 0.0f;
+                    obs[i++] = 0.0f;
+                }
+            }
+        } else {
+            i += COLO_SOL_LASER_OBS_SIZE;
+        }
     } else {
-        i += COLO_SOL_HAZARD_SOURCE_COUNT;
+        i += COLO_BOSS_OBS_PREMOVE_TAIL_SIZE;
     }
     *idx = i;
 }
@@ -1714,7 +1747,7 @@ static void col_write_obs_ctx(
     obs[i++] = (s->wave_spawn_delay > 0 || s->wave_ready_delay > 0) ? 1.0f : 0.0f;
     assert(i == COLO_OBS_AFTER_WAVE);
 
-    col_write_boss_obs(s, obs, &i);
+    col_write_boss_obs(s, obs, &i, ctx->config.laser_obs_mode);
     assert(i == COLO_OBS_AFTER_BOSS);
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_OBS_BOSS);

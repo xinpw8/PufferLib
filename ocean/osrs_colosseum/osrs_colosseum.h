@@ -78,6 +78,15 @@ struct Log {
     float rew_win;
     float rew_death;
     float rew_timeout;
+    float laser_volleys;
+    float laser_hits;
+    float laser_dmg;
+    float laser_aligned_at_fire;
+    float laser_aligned_at_show;
+    float laser_aligned_at_pre;
+    float laser_aligned_at_damage;
+    float laser_react_ok;
+    float laser_react_fail;
     float avoid_total;
     float avoid_achieved;
     float avoid_missed;
@@ -260,6 +269,7 @@ void puf_init(Env* env, Dict* kwargs) {
         "mask_inventory_heads",
         "late_start_state_mode",
         "bis_gear_oracle_mode",
+        "laser_obs_mode",
         "episode_max_ticks_override",
         "damage_scale_anneal_ticks",
     };
@@ -416,6 +426,15 @@ void puf_step(Env* env) {
             env->log.rew_win += clog->rew_win;
             env->log.rew_death += clog->rew_death;
             env->log.rew_timeout += clog->rew_timeout;
+            env->log.laser_volleys += clog->laser_volleys;
+            env->log.laser_hits += clog->laser_hits;
+            env->log.laser_dmg += clog->laser_dmg;
+            env->log.laser_aligned_at_fire += clog->laser_aligned_at_fire;
+            env->log.laser_aligned_at_show += clog->laser_aligned_at_show;
+            env->log.laser_aligned_at_pre += clog->laser_aligned_at_pre;
+            env->log.laser_aligned_at_damage += clog->laser_aligned_at_damage;
+            env->log.laser_react_ok += clog->laser_react_ok;
+            env->log.laser_react_fail += clog->laser_react_fail;
             env->log.avoid_total += clog->avoid_total;
             env->log.avoid_achieved += clog->avoid_achieved;
             env->log.avoid_missed += clog->avoid_missed;
@@ -528,6 +547,15 @@ void puf_log(Log* log, Dict* out) {
         ? log->reward_clamped_steps / log->reward_steps : 0.0f);
     dict_set(out, "reward_clamp_loss", log->reward_clamp_loss);
     dict_set(out, "reward_raw_peak", log->reward_raw_peak);
+    dict_set(out, "laser_volleys", log->laser_volleys);
+    dict_set(out, "laser_hits", log->laser_hits);
+    dict_set(out, "laser_dmg", log->laser_dmg);
+    dict_set(out, "laser_aligned_at_fire", log->laser_aligned_at_fire);
+    dict_set(out, "laser_aligned_at_show", log->laser_aligned_at_show);
+    dict_set(out, "laser_aligned_at_pre", log->laser_aligned_at_pre);
+    dict_set(out, "laser_aligned_at_damage", log->laser_aligned_at_damage);
+    dict_set(out, "laser_react_ok", log->laser_react_ok);
+    dict_set(out, "laser_react_fail", log->laser_react_fail);
     dict_set(out, "clamp_loss_wave_clear", log->clamp_loss_wave_clear);
     dict_set(out, "clamp_loss_win", log->clamp_loss_win);
     dict_set(out, "rew_damage", log->rew_damage);

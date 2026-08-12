@@ -40,6 +40,11 @@ static void col_sol_begin_boss_arena(ColosseumState* s) {
     s->sol.boss_idx = -1;
     s->sol.force_spear = 1;
     s->sol.laser_cooldown = COLO_SOL_CRYSTAL_COOLDOWN_MIN;
+    s->sol.laser_volley_active = 0;
+    s->sol.laser_show_seen = 0;
+    s->sol.laser_aligned_show = 0;
+    s->sol.laser_n_aligned_show = 0;
+    s->sol.laser_n_active_at_fire = 0;
     s->sol.boss_arena_min_x = COLO_BOSS_ARENA_MIN_X;
     s->sol.boss_arena_min_y = COLO_BOSS_ARENA_MIN_Y;
     s->sol.boss_arena_max_x = COLO_BOSS_ARENA_MAX_X;
@@ -372,9 +377,21 @@ static void col_sol_spawn_crystal(ColosseumState* s) {
 
 static void col_sol_fire_lasers(ColosseumState* s) {
     SolHereditState* sol = &s->sol;
-    for (int i = 0; i < sol->crystal_count; i++)
-        if (sol->crystals[i].active)
-            sol->crystals[i].firing_freeze = COLO_SOL_LASER_FREEZE;
+    int active = 0;
+    int aligned = 0;
+    for (int i = 0; i < sol->crystal_count; i++) {
+        if (!sol->crystals[i].active) continue;
+        sol->crystals[i].firing_freeze = COLO_SOL_LASER_FREEZE;
+        active++;
+        if (col_sol_crystal_in_line(s, &sol->crystals[i])) aligned++;
+    }
+    sol->laser_volley_active = 1;
+    sol->laser_show_seen = 0;
+    sol->laser_aligned_show = 0;
+    sol->laser_n_aligned_show = 0;
+    sol->laser_n_active_at_fire = active;
+    s->log.laser_volleys += 1.0f;
+    if (aligned > 0) s->log.laser_aligned_at_fire += 1.0f;
     sol->laser_cooldown = sol->phase >= 5
         ? COLO_SOL_CRYSTAL_COOLDOWN_ENRAGE
         : COLO_SOL_CRYSTAL_COOLDOWN_MIN
@@ -383,6 +400,13 @@ static void col_sol_fire_lasers(ColosseumState* s) {
 
 static void col_sol_tick_crystals(ColosseumState* s) {
     SolHereditState* sol = &s->sol;
+    int aligned_show = 0;
+    int aligned_pre = 0;
+    int aligned_damage = 0;
+    int showing = 0;
+    int prefire = 0;
+    int damaging = 0;
+    int firing = 0;
     for (int i = 0; i < sol->crystal_count; i++) {
         ColoSolCrystal* c = &sol->crystals[i];
         if (!c->active) continue;
@@ -397,21 +421,59 @@ static void col_sol_tick_crystals(ColosseumState* s) {
             c->move_timer = COLO_SOL_CRYSTAL_MOVE_TICKS;
         }
 
-        if (c->firing_freeze == COLO_SOL_LASER_DAMAGE_FREEZE &&
-                col_sol_crystal_in_line(s, c)) {
-            int dmg = COLO_SOL_LASER_MIN_HIT
-                + encounter_rand_int(&s->rng_state, COLO_SOL_LASER_RAND);
-            int applied = col_damage_player_from_sol(
-                s, dmg, COLO_SOL_DAMAGE_CRYSTAL_LASER);
-            if (applied > 0) {
-                s->last_hit_by_type = COLO_SOL_HEREDIT;
-                col_mod_on_player_damaged(
-                    s, applied, COLO_DAMAGE_SOL_CRYSTAL_LASER);
+        if (c->firing_freeze > 0) firing = 1;
+        if (c->firing_freeze == COLO_SOL_LASER_BEAM_SHOW_MAX) {
+            showing = 1;
+            if (col_sol_crystal_in_line(s, c)) aligned_show++;
+        }
+        if (c->firing_freeze == COLO_SOL_LASER_DAMAGE_FREEZE + 1) {
+            prefire = 1;
+            if (col_sol_crystal_in_line(s, c)) aligned_pre++;
+        }
+        if (c->firing_freeze == COLO_SOL_LASER_DAMAGE_FREEZE) {
+            damaging = 1;
+            if (col_sol_crystal_in_line(s, c)) {
+                aligned_damage++;
+                int dmg = COLO_SOL_LASER_MIN_HIT
+                    + encounter_rand_int(&s->rng_state, COLO_SOL_LASER_RAND);
+                int applied = col_damage_player_from_sol(
+                    s, dmg, COLO_SOL_DAMAGE_CRYSTAL_LASER);
+                if (applied > 0) {
+                    s->last_hit_by_type = COLO_SOL_HEREDIT;
+                    col_mod_on_player_damaged(
+                        s, applied, COLO_DAMAGE_SOL_CRYSTAL_LASER);
+                    s->log.laser_hits += 1.0f;
+                    s->log.laser_dmg += (float)applied;
+                }
             }
         }
 
         c->move_timer--;
         c->firing_freeze--;
+    }
+    if (showing) {
+        sol->laser_show_seen = 1;
+        sol->laser_n_aligned_show = aligned_show;
+        if (aligned_show > 0) {
+            sol->laser_aligned_show = 1;
+            s->log.laser_aligned_at_show += 1.0f;
+        }
+    }
+    if (prefire && aligned_pre > 0)
+        s->log.laser_aligned_at_pre += 1.0f;
+    if (damaging) {
+        if (aligned_damage > 0) s->log.laser_aligned_at_damage += 1.0f;
+        if (sol->laser_aligned_show && aligned_damage == 0)
+            s->log.laser_react_ok += 1.0f;
+        if (sol->laser_aligned_show && aligned_damage > 0)
+            s->log.laser_react_fail += 1.0f;
+    }
+    if (sol->laser_volley_active && !firing) {
+        sol->laser_volley_active = 0;
+        sol->laser_show_seen = 0;
+        sol->laser_aligned_show = 0;
+        sol->laser_n_aligned_show = 0;
+        sol->laser_n_active_at_fire = 0;
     }
 }
 

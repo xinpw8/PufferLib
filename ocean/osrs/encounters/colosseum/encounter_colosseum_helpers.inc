@@ -283,6 +283,7 @@ static ColConfig col_default_config(void) {
         .mask_inventory_heads = 0,
         .late_start_state_mode = 2,
         .late_start_supply_fraction_per_wave = 0.07f,
+        .laser_obs_mode = 1,
         .prayer_switch_fail_prob = 0.0f,
         .player_damage_received_scale = 1.0f,
         .damage_scale_anneal_start = 1.0f,
