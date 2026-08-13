@@ -2,16 +2,23 @@
 #include <math.h>
 #include <string.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define GRID_SIZE 5
+#define ACT_SIZES {GRID_SIZE * GRID_SIZE}
+#define OBS_SIZE (GRID_SIZE * GRID_SIZE)
+#define NUM_ATNS 1
+typedef unsigned char obs_t;
 
 // Only use floats.
-typedef struct {
+struct Log {
     float perf;
     float score;
     float episode_return;
     float episode_length;
     float scramble_p;
     float n; // Required as the last field.
-} Log;
+};
 
 typedef struct Client {
     int cell_size;
@@ -19,12 +26,11 @@ typedef struct Client {
     int cursor_col;
 } Client;
 
-typedef struct {
+struct Env {
     Log log;                     // Required field.
-    unsigned char* observations; // Required field. Ensure type matches in .py and .c.
-    float* actions;              // Required field. Ensure type matches in .py and .c.
-    float* rewards;              // Required field.
-    float* terminals;            // Required field.
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
     int grid_size;
     int cell_size;
     int max_steps;
@@ -41,7 +47,8 @@ typedef struct {
     int num_agents;
     int observation_size;
     unsigned int rng;
-} LightsOut;
+};
+typedef Env LightsOut;
 
 void step_grid(LightsOut* env, int idx) {
     if (idx < 0 || idx >= env->grid_size * env->grid_size) return;
@@ -91,7 +98,7 @@ void init_lightsout(LightsOut* env) {
     }
 }
 
-void c_close(LightsOut* env) {
+void puf_close(LightsOut* env) {
     free(env->grid);
     env->grid = NULL;
     if (env->client != NULL) {
@@ -105,21 +112,21 @@ void c_close(LightsOut* env) {
 
 void compute_observations(LightsOut* env) {
     for (int i = 0; i < env->grid_size * env->grid_size; i++) {
-        env->observations[i] = env->grid[i];
+        ((obs_t*)env->agents[0].observations)[i] = env->grid[i];
     }
 }
 
-void c_reset(LightsOut* env) {
-    env->rewards[0] = 0.0f;
-    env->terminals[0] = 0.0f;
+void puf_reset(LightsOut* env) {
+    env->agents[0].rewards[0] = 0.0f;
+    env->agents[0].terminals[0] = 0.0f;
     init_lightsout(env);
     compute_observations(env);
 }
 
-void c_step(LightsOut* env) {
+void puf_step(LightsOut* env) {
     int num_cells = env->grid_size * env->grid_size;
-    int atn = env->actions[0];
-    env->terminals[0] = 0.0f;
+    int atn = env->agents[0].actions[0];
+    env->agents[0].terminals[0] = 0.0f;
 
     float reward = -0.02 * (36.0 / (env->grid_size * env->grid_size)); // Base step penalty.
     int prev_on = env->lights_on;
@@ -146,17 +153,17 @@ void c_step(LightsOut* env) {
     if (env->lights_on == 0) {
         reward = 2.0f; // Solved reward.
         env->ema = 0.85f * env->ema + 0.15f; // Update EMA of steps to solve.
-        env->terminals[0] = 1.0f;
+        env->agents[0].terminals[0] = 1.0f;
     } else if (env->client == NULL && env->step_count >= env->max_steps) {
         reward -= 0.5f; // Timeout penalty during training.
         env->ema = 0.85f * env->ema; // Decay EMA since we failed to solve.
-        env->terminals[0] = 1.0f;
+        env->agents[0].terminals[0] = 1.0f;
     }
 
-    env->rewards[0] = reward;
+    env->agents[0].rewards[0] = reward;
     env->episode_return += reward;
 
-    if (env->terminals[0] > 0.0f) {
+    if (env->agents[0].terminals[0] > 0.0f) {
         env->log.episode_return += env->episode_return;
         env->log.episode_length += (float)env->step_count;
         env->log.n += 1.0f;
@@ -188,9 +195,9 @@ Client* make_client(int cell_size, int grid_size) {
     return client;
 }
 
-void c_render(LightsOut* env) {
+void puf_render(LightsOut* env) {
     if (IsWindowReady() && (WindowShouldClose() || IsKeyPressed(KEY_ESCAPE))) {
-        c_close(env);
+        puf_close(env);
         exit(0);
     }
 
@@ -216,7 +223,7 @@ void c_render(LightsOut* env) {
         COLORS[2]
     );
 
-    if (env->terminals[0] > 0.0f) {
+    if (env->agents[0].terminals[0] > 0.0f) {
         const char* msg = "Solved";
         int font_size = 48;
         int text_w = MeasureText(msg, font_size);
@@ -229,3 +236,28 @@ void c_render(LightsOut* env) {
 
     EndDrawing();
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "scramble_p", log->scramble_p);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->grid_size = GRID_SIZE;
+    env->cell_size = 1280 / GRID_SIZE;
+    if (1280 % GRID_SIZE != 0) env->cell_size++; // ceil
+    env->max_steps = dict_get(kwargs, "max_steps");
+    env->observation_size = OBS_SIZE;
+    env->num_agents = 1;
+    env->ema = 0.5f;
+    env->score_ema = 0.0f;
+    env->scramble_prob = 0.15f;
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    init_lightsout(env);
+}
+

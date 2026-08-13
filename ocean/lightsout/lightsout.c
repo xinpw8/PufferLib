@@ -12,7 +12,7 @@ static void demo_cleanup(void) {
     free(g_env->actions);
     free(g_env->rewards);
     free(g_env->terminals);
-    c_close(g_env);
+    puf_close(g_env);
     g_env = NULL;
 }
 
@@ -21,12 +21,12 @@ int demo(){
     LightsOut env = {.grid_size = 5, .cell_size = 100, .client = NULL};
     g_env = &env;
     atexit(demo_cleanup);
-    env.observations = (unsigned char*)calloc(env.grid_size * env.grid_size, sizeof(unsigned char));
-    env.actions = (float*)calloc(1, sizeof(float));
-    env.rewards = (float*)calloc(1, sizeof(float));
-    env.terminals = (float*)calloc(1, sizeof(float));
+    env.agents[0].observations = (unsigned char*)calloc(env.grid_size * env.grid_size, sizeof(unsigned char));
+    env.agents[0].actions = (float*)calloc(1, sizeof(float));
+    env.agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env.agents[0].terminals = (float*)calloc(1, sizeof(float));
 
-    c_reset(&env);
+    puf_reset(&env);
     env.client = make_client(env.cell_size, env.grid_size);
 
     while (!WindowShouldClose()) {
@@ -36,12 +36,12 @@ int demo(){
         if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) env.client->cursor_col = (env.client->cursor_col + 1) % env.grid_size;
         if (IsKeyPressed(KEY_SPACE)) {
             int idx = env.client->cursor_row * env.grid_size + env.client->cursor_col;
-            env.actions[0] = (float)idx;
-            c_step(&env);
+            env.agents[0].actions[0] = (float)idx;
+            puf_step(&env);
         } else if (IsKeyPressed(KEY_R)) {
-            c_reset(&env);
+            puf_reset(&env);
         }
-        c_render(&env);
+        puf_render(&env);
     }
 
     demo_cleanup();

@@ -1,35 +1,35 @@
 #include "checkers.h"
 
 int main() {
-  Checkers env = {.size = 8};
-  env.observations =
-      (unsigned char *)calloc(env.size * env.size, sizeof(unsigned char));
-  env.actions = (int *)calloc(1, sizeof(int));
-  env.rewards = (float *)calloc(1, sizeof(float));
-  env.terminals = (unsigned char *)calloc(1, sizeof(unsigned char));
+  Checkers env = {.size = BOARD_SIZE, .num_agents = 1};
+  env.agents[0].observations =
+      (obs_t *)calloc(env.size * env.size, sizeof(obs_t));
+  env.agents[0].actions = (float *)calloc(1, sizeof(float));
+  env.agents[0].rewards = (float *)calloc(1, sizeof(float));
+  env.agents[0].terminals = (float *)calloc(1, sizeof(float));
 
-  c_reset(&env);
-  c_render(&env);
+  puf_reset(&env);
+  puf_render(&env);
   while (!WindowShouldClose()) {
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
-      env.actions[0] = 0;
+      env.agents[0].actions[0] = 0;
       if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W))
-        env.actions[0] = 1;
+        env.agents[0].actions[0] = 1;
       if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S))
-        env.actions[0] = 2;
+        env.agents[0].actions[0] = 2;
       if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
-        env.actions[0] = 3;
+        env.agents[0].actions[0] = 3;
       if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))
-        env.actions[0] = 4;
+        env.agents[0].actions[0] = 4;
     } else {
-      env.actions[0] = rand() % 5;
+      env.agents[0].actions[0] = (float)(rand() % (env.size * env.size * 8));
     }
-    c_step(&env);
-    c_render(&env);
+    puf_step(&env);
+    puf_render(&env);
   }
-  free(env.observations);
-  free(env.actions);
-  free(env.rewards);
-  free(env.terminals);
-  c_close(&env);
+  free(env.agents[0].observations);
+  free(env.agents[0].actions);
+  free(env.agents[0].rewards);
+  free(env.agents[0].terminals);
+  puf_close(&env);
 }

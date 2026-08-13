@@ -156,29 +156,6 @@ void _embedding(int* input, float* weights, float* output, int batch_size, int n
     }
 }
 
-void _layernorm(float* input, float* weights, float* bias, float* output, int batch_size, int input_dim) {
-    for (int b = 0; b < batch_size; b++) {
-        float mean = 0.0f;
-        for (int i = 0; i < input_dim; i++) {
-            mean += input[b*input_dim + i];
-        }
-        mean /= (float)input_dim;
-
-        float variance = 0.0f;
-        for (int i = 0; i < input_dim; i++) {
-            float diff = input[b*input_dim + i] - mean;
-            variance += diff*diff;
-        }
-        variance /= (float)input_dim;
-
-        float denom = sqrtf(variance + 1e-5f);
-        for (int i = 0; i < input_dim; i++) {
-            float norm = (input[b*input_dim + i] - mean)/denom;
-            output[b*input_dim + i] = norm*weights[i] + bias[i];
-        }
-    }
-}
-
 void _one_hot(int* input, int* output, int batch_size, int input_size, int num_classes) {
     for (int b = 0; b < batch_size; b++) {
         for (int i = 0; i < input_size; i++) {
@@ -228,53 +205,50 @@ void _gaussian_sample(float* input, float* log_std, float* output, int batch_siz
     }
 }
 
-void _argmax_multidiscrete(float* input, float* output, int batch_size, int logit_sizes[], int num_actions) {
+// hard=1: argmax; hard=0: softmax sample. +1 on in_adr skips fused value head.
+void _multidiscrete(float* input, float* output, int batch_size, int logit_sizes[],
+        int num_actions, int hard) {
     int atn_sum = 0;
-    for (int a = 0; a < num_actions; a++) atn_sum += logit_sizes[a];
-    for (int b = 0; b < batch_size; b++) {
-        // +1 skips the value head fused into the decoder output
-        int in_adr = b * (atn_sum + 1);
-        for (int a = 0; a < num_actions; a++) {
-            int out_adr = b*num_actions + a;
-            float max_logit = input[in_adr];
-            output[out_adr] = 0.0f;
-            int num_action_types = logit_sizes[a];
-            for (int i = 1; i < num_action_types; i++) {
-                float out = input[in_adr + i];
-                if (out > max_logit) {
-                    max_logit = out;
-                    output[out_adr] = (float)i;
-                }
-            }
-            in_adr += num_action_types;
-        }
+    for (int a = 0; a < num_actions; a++) {
+        atn_sum += logit_sizes[a];
     }
-}
-
-void _softmax_multidiscrete(float* input, float* output, int batch_size, int logit_sizes[], int num_actions) {
-    int atn_sum = 0;
-    for (int a = 0; a < num_actions; a++) atn_sum += logit_sizes[a];
     for (int b = 0; b < batch_size; b++) {
-        // +1 skips the value head fused into the decoder output
         int in_adr = b * (atn_sum + 1);
         for (int a = 0; a < num_actions; a++) {
-            int out_adr = b*num_actions + a;
-            float logit_exp_sum = 0;
-            int num_action_types = logit_sizes[a];
-            for (int i = 0; i < num_action_types; i++) {
-                logit_exp_sum += expf(input[in_adr + i]);
-            }
-            float prob = rand() / (float)RAND_MAX;
-            float logit_prob = 0;
+            int out_adr = b * num_actions + a;
+            int n = logit_sizes[a];
             output[out_adr] = 0.0f;
-            for (int i = 0; i < num_action_types; i++) {
-                logit_prob += expf(input[in_adr + i]) / logit_exp_sum;
-                if (prob < logit_prob) {
-                    output[out_adr] = (float)i;
-                    break;
+            if (hard) {
+                float max_logit = input[in_adr];
+                for (int i = 1; i < n; i++) {
+                    float out = input[in_adr + i];
+                    if (out > max_logit) {
+                        max_logit = out;
+                        output[out_adr] = (float)i;
+                    }
+                }
+            } else {
+                float max_logit = input[in_adr];
+                for (int i = 1; i < n; i++) {
+                    if (input[in_adr + i] > max_logit) {
+                        max_logit = input[in_adr + i];
+                    }
+                }
+                float logit_exp_sum = 0.0f;
+                for (int i = 0; i < n; i++) {
+                    logit_exp_sum += expf(input[in_adr + i] - max_logit);
+                }
+                float prob = rand() / (float)RAND_MAX;
+                float logit_prob = 0.0f;
+                for (int i = 0; i < n; i++) {
+                    logit_prob += expf(input[in_adr + i] - max_logit) / logit_exp_sum;
+                    if (prob < logit_prob) {
+                        output[out_adr] = (float)i;
+                        break;
+                    }
                 }
             }
-            in_adr += num_action_types;
+            in_adr += n;
         }
     }
 }
@@ -295,35 +269,6 @@ void _max_dim1(float* input, float* output, int batch_size, int seq_len, int fea
 }
 
 // User API. Provided to help organize layers
-typedef struct Affine Affine;
-struct Affine {
-    float* output;
-    float* weights;
-    float* bias;
-    int batch_size;
-    int input_dim;
-    int output_dim;
-};
-
-Affine* make_affine(Weights* weights, int batch_size, int input_dim, int output_dim) {
-    size_t buffer_size = batch_size*output_dim*sizeof(float);
-    Affine* layer = (Affine*)calloc(1, sizeof(Affine) + buffer_size);
-    *layer = (Affine){
-        .output = (float*)(layer + 1),
-        .weights = get_weights(weights, output_dim*input_dim),
-        .bias = get_weights(weights, output_dim),
-        .batch_size = batch_size,
-        .input_dim = input_dim,
-        .output_dim = output_dim,
-    };
-    return layer;
-}
-
-void affine(Affine* layer, float* input) {
-    _linear(input, layer->weights, layer->bias, layer->output,
-        layer->batch_size, layer->input_dim, layer->output_dim);
-}
-
 typedef struct Linear Linear;
 struct Linear {
     float* output;
@@ -469,33 +414,6 @@ void embedding(Embedding* layer, int* input) {
     _embedding(input, layer->weights, layer->output, layer->batch_size, layer->num_embeddings, layer->embedding_dim);
 }
 
-typedef struct LayerNorm LayerNorm;
-struct LayerNorm {
-    float* output;
-    float* weights;
-    float* bias;
-    int batch_size;
-    int input_dim;
-};
-
-LayerNorm* make_layernorm(Weights* weights, int batch_size, int input_dim) {
-    size_t output_size = batch_size*input_dim*sizeof(float);
-    LayerNorm* layer = (LayerNorm*)calloc(1, sizeof(LayerNorm) + output_size);
-    *layer = (LayerNorm){
-        .output = (float*)(layer + 1),
-        .weights = get_weights(weights, input_dim),
-        .bias = get_weights(weights, input_dim),
-        .batch_size = batch_size,
-        .input_dim = input_dim,
-    };
-    return layer;
-}
-    
-void layernorm(LayerNorm* layer, float* input) {
-    _layernorm(input, layer->weights, layer->bias, layer->output,
-        layer->batch_size, layer->input_dim);
-}
-
 typedef struct OneHot OneHot;
 struct OneHot {
     int* output;
@@ -535,56 +453,9 @@ Multidiscrete* make_multidiscrete(int batch_size, int logit_sizes[], int num_act
     return layer;
 }
 
-void argmax_multidiscrete(Multidiscrete* layer, float* input, float* output) {
-    _argmax_multidiscrete(input, output, layer->batch_size, layer->logit_sizes, layer->num_actions);
-}
-
-void softmax_multidiscrete(Multidiscrete* layer, float* input, float* output) {
-    _softmax_multidiscrete(input, output, layer->batch_size, layer->logit_sizes, layer->num_actions);
-}
-
-// Default models
-
-typedef struct Default Default;
-struct Default {
-    int num_agents;
-    float* obs;
-    Affine* encoder;
-    ReLU* relu1;
-    Affine* actor;
-    Affine* value_fn;
-    Multidiscrete* multidiscrete;
-};
-
-Default* make_default(Weights* weights, int num_agents, int input_dim, int hidden_dim, int action_dim) {
-    Default* net = (Default*)calloc(1, sizeof(Default));
-    net->num_agents = num_agents;
-    net->obs = (float*)calloc(num_agents*input_dim, sizeof(float));
-    net->encoder = make_affine(weights, num_agents, input_dim, hidden_dim);
-    net->relu1 = make_relu(num_agents, hidden_dim);
-    net->actor = make_affine(weights, num_agents, hidden_dim, action_dim);
-    net->value_fn = make_affine(weights, num_agents, hidden_dim, 1);
-    int logit_sizes[1] = {action_dim};
-    net->multidiscrete = make_multidiscrete(num_agents, logit_sizes, 1);
-    return net;
-}
-
-void free_default(Default* net) {
-    free(net->obs);
-    free(net->encoder);
-    free(net->relu1);
-    free(net->actor);
-    free(net->value_fn);
-    free(net->multidiscrete);
-    free(net);
-}
-
-void forward_default(Default* net, float* observations, float* actions) {
-    affine(net->encoder, observations);
-    relu(net->relu1, net->encoder->output);
-    affine(net->actor, net->relu1->output);
-    affine(net->value_fn, net->relu1->output);
-    softmax_multidiscrete(net->multidiscrete, net->actor->output, actions);
+void multidiscrete(Multidiscrete* layer, float* input, float* output, int hard) {
+    _multidiscrete(input, output, layer->batch_size, layer->logit_sizes,
+        layer->num_actions, hard);
 }
 
 // MinGRU: inference-only single-step recurrent layer.
@@ -653,9 +524,9 @@ void free_mingru(MinGRU* layer) {
     free(layer);
 }
 
-// PufferNet: default policy matching the native backend Policy in models.cu.
+// PufferNet: default policy matching the native backend Arch in algo.cu.
 // Architecture: Linear encoder -> N x MinGRU -> Linear decoder (fused value).
-// Weight file order (matches policy_weights_create reg_params call order):
+// Weight file order (matches weights_create reg_params call order):
 //   encoder weight (hidden_dim x input_dim)
 //   decoder weight ((atn_sum+1) x hidden_dim, last output is value)
 //   decoder logstd (1 x num_actions) IF continuous
@@ -715,7 +586,7 @@ void forward_puffernet(PufferNet* net, float* observations, float* actions) {
     if (net->is_continuous) {
         _gaussian_mean(net->decoder->output, actions, net->num_agents, net->num_actions);
     } else {
-        softmax_multidiscrete(net->multidiscrete, net->decoder->output, actions);
+        multidiscrete(net->multidiscrete, net->decoder->output, actions, 0);
     }
 }
 
@@ -833,8 +704,8 @@ int main(int argc, char** argv) {
     int act_sizes[] = ACT_SIZES;
     int num_actions = (int)(sizeof(act_sizes) / sizeof(act_sizes[0]));
 
-    int hidden_size = (int)puf_ini_get(&ini, "policy", "hidden_size");
-    int num_layers = (int)puf_ini_get(&ini, "policy", "num_layers");
+    int hidden_size = puf_ini_get(&ini, "policy", "hidden_size");
+    int num_layers = puf_ini_get(&ini, "policy", "num_layers");
 
     Env env = {0};
     env.rng = 0;

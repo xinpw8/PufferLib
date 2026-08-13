@@ -7,7 +7,12 @@
 #include <assert.h>
 #include <string.h>
 #include "raylib.h"
+#include "pufferenv.h"
+#define float3 rl_float3
+#define double3 rl_double3
 #include "raymath.h"
+#undef float3
+#undef double3
 #include "rlgl.h"
 #include <time.h>
 
@@ -57,6 +62,11 @@
 #define ROAD_FEATURES 7
 
 #define OBS_SIZE (EGO_FEATURES + PARTNER_FEATURES * (MAX_AGENTS - 1) + ROAD_FEATURES * MAX_ROAD_SEGMENT_OBSERVATIONS)
+#define ACT_SIZES {7, 13}
+#define NUM_ATNS 2
+
+typedef Env Drive;
+typedef float obs_t;
 
 // Observation normalization
 #define MAX_SPEED 100.0f
@@ -116,7 +126,6 @@ const Color PUFF_BACKGROUND2 = (Color){18, 72, 72, 255};
 const Color ROAD_COLOR       = (Color){35, 35, 37, 255};
 
 // Forward declarations
-typedef struct Drive Drive;
 typedef struct Client Client;
 typedef struct Log Log;
 typedef struct Entity Entity;
@@ -200,15 +209,14 @@ float normalize_heading(float heading) {
     return heading;
 }
 
-struct Drive {
+struct Env {
     Client* client;
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
+    Agent agents[MAX_AGENTS];
     Log log;
     Log* logs;
     int num_agents;
+    int tag;
+    int boundary_reached;
     int max_agents;
     int active_agent_count;
     int* active_agent_indices;
@@ -844,12 +852,12 @@ void remove_bad_trajectories(Drive* env) {
 
     for (int t = 0; t < TRAJECTORY_LENGTH; t++) {
         for (int i = 0; i < env->active_agent_count; i++) {
-            move_expert(env, env->actions, env->active_agent_indices[i]);
+            move_expert(env, NULL, env->active_agent_indices[i]);
         }
         for (int i = 0; i < env->expert_static_agent_count; i++) {
             int expert_idx = env->expert_static_agent_indices[i];
             if (env->entities[expert_idx].x == INVALID_POSITION) continue;
-            move_expert(env, env->actions, expert_idx);
+            move_expert(env, NULL, expert_idx);
         }
         for (int i = 0; i < env->active_agent_count; i++) {
             int agent_idx = env->active_agent_indices[i];
@@ -893,7 +901,7 @@ void init(Drive* env) {
     env->logs = (Log*)calloc(env->active_agent_count, sizeof(Log));
 }
 
-void c_close(Drive* env) {
+void puf_close(Drive* env) {
     for (int i = 0; i < env->num_entities; i++) {
         free_entity(&env->entities[i]);
     }
@@ -911,18 +919,10 @@ void c_close(Drive* env) {
 
 void allocate(Drive* env) {
     init(env);
-    env->observations = (float*)calloc(env->active_agent_count * OBS_SIZE, sizeof(float));
-    env->actions = (float*)calloc(env->active_agent_count * 2, sizeof(float));
-    env->rewards = (float*)calloc(env->active_agent_count, sizeof(float));
-    env->terminals = (float*)calloc(env->active_agent_count, sizeof(float));
 }
 
 void free_allocated(Drive* env) {
-    free(env->observations);
-    free(env->actions);
-    free(env->rewards);
-    free(env->terminals);
-    c_close(env);
+    puf_close(env);
 }
 
 // Dynamics
@@ -930,9 +930,9 @@ void move_dynamics(Drive* env, int action_idx, int agent_idx) {
     if (env->dynamics_model != CLASSIC) return;
 
     Entity* agent = &env->entities[agent_idx];
-    float (*action_array)[2] = (float(*)[2])env->actions;
-    int acceleration_index = action_array[action_idx][0];
-    int steering_index = action_array[action_idx][1];
+    float* atn = env->agents[action_idx].actions;
+    int acceleration_index = (int)atn[0];
+    int steering_index = (int)atn[1];
     float acceleration = ACCELERATION_VALUES[acceleration_index];
     float steering = STEERING_VALUES[steering_index];
 
@@ -964,11 +964,9 @@ void move_dynamics(Drive* env, int action_idx, int agent_idx) {
 
 // Observations
 void compute_observations(Drive* env) {
-    memset(env->observations, 0, OBS_SIZE * env->active_agent_count * sizeof(float));
-    float (*observations)[OBS_SIZE] = (float(*)[OBS_SIZE])env->observations;
-
     for (int i = 0; i < env->active_agent_count; i++) {
-        float* obs = &observations[i][0];
+        float* obs = (float*)env->agents[i].observations;
+        if (obs) memset(obs, 0, OBS_SIZE * sizeof(float));
         Entity* ego = &env->entities[env->active_agent_indices[i]];
         if (ego->type > CYCLIST) break;
 
@@ -1079,7 +1077,7 @@ void compute_observations(Drive* env) {
     }
 }
 
-void c_reset(Drive* env) {
+void puf_reset(Drive* env) {
     env->timestep = 0;
     set_start_position(env);
     for (int x = 0; x < env->active_agent_count; x++) {
@@ -1108,14 +1106,16 @@ void respawn_agent(Drive* env, int agent_idx) {
     e->respawn_timestep = env->timestep;
 }
 
-void c_step(Drive* env) {
-    memset(env->rewards, 0, env->active_agent_count * sizeof(float));
-    memset(env->terminals, 0, env->active_agent_count * sizeof(float));
+void puf_step(Drive* env) {
+    for (int _i = 0; _i < env->active_agent_count; _i++) {
+        env->agents[_i].rewards[0] = 0;
+        env->agents[_i].terminals[0] = 0;
+    }
     env->timestep++;
 
     if (env->timestep == TRAJECTORY_LENGTH) {
         add_log(env);
-        c_reset(env);
+        puf_reset(env);
         return;
     }
 
@@ -1123,7 +1123,7 @@ void c_step(Drive* env) {
     for (int i = 0; i < env->expert_static_agent_count; i++) {
         int expert_idx = env->expert_static_agent_indices[i];
         if (env->entities[expert_idx].x == INVALID_POSITION) continue;
-        move_expert(env, env->actions, expert_idx);
+        move_expert(env, NULL, expert_idx);
     }
 
     // Apply dynamics for active agents
@@ -1144,12 +1144,12 @@ void c_step(Drive* env) {
 
         if (collision_state > NO_COLLISION) {
             if (collision_state == VEHICLE_COLLISION && env->entities[agent_idx].respawn_timestep == -1) {
-                env->rewards[i] = env->reward_vehicle_collision;
+                env->agents[i].rewards[0] = env->reward_vehicle_collision;
                 env->logs[i].episode_return += env->reward_vehicle_collision;
                 env->logs[i].clean_collision_rate = 1.0f;
                 env->logs[i].collision_rate = 1.0f;
             } else if (collision_state == OFFROAD) {
-                env->rewards[i] = env->reward_offroad_collision;
+                env->agents[i].rewards[0] = env->reward_offroad_collision;
                 env->logs[i].offroad_rate = 1.0f;
                 env->logs[i].episode_return += env->reward_offroad_collision;
             }
@@ -1164,10 +1164,10 @@ void c_step(Drive* env) {
 
         if (distance_to_goal < MIN_DISTANCE_TO_GOAL) {
             if (env->entities[agent_idx].respawn_timestep != -1) {
-                env->rewards[i] += env->reward_goal_post_respawn;
+                env->agents[i].rewards[0] += env->reward_goal_post_respawn;
                 env->logs[i].episode_return += env->reward_goal_post_respawn;
             } else {
-                env->rewards[i] += 1.0f;
+                env->agents[i].rewards[0] += 1.0f;
                 env->logs[i].episode_return += 1.0f;
             }
             env->entities[agent_idx].reached_goal = 1;
@@ -1319,8 +1319,7 @@ void draw_agent_obs(Drive* env, int agent_index) {
 
     if (!IsKeyDown(KEY_LEFT_CONTROL)) return;
 
-    float (*observations)[OBS_SIZE] = (float(*)[OBS_SIZE])env->observations;
-    float* agent_obs = &observations[agent_index][0];
+    float* agent_obs = (float*)env->agents[agent_index].observations;
 
     // Draw goal
     float goal_x = agent_obs[0] / OBS_GOAL_SCALE;
@@ -1417,7 +1416,7 @@ void draw_road_edge(Drive* env, float start_x, float start_y, float end_x, float
     DrawTriangle3D(b4, t4, b1, CURB_SIDE); DrawTriangle3D(t4, t1, b1, CURB_SIDE);
 }
 
-void c_render(Drive* env) {
+void puf_render(Drive* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
@@ -1573,8 +1572,8 @@ void c_render(Drive* env) {
     DrawText(TextFormat("Agent Index: %d", human_idx), 10, 90, 20, PUFF_WHITE);
     DrawText("Controls: W/S - Accelerate/Brake, A/D - Steer, 1-4 - Switch Agent",
              10, client->height - 30, 20, PUFF_WHITE);
-    DrawText(TextFormat("Acceleration: %d", env->actions[env->human_agent_idx * 2]), 10, 110, 20, PUFF_WHITE);
-    DrawText(TextFormat("Steering: %d", env->actions[env->human_agent_idx * 2 + 1]), 10, 130, 20, PUFF_WHITE);
+    DrawText(TextFormat("Acceleration: %d", (int)env->agents[env->human_agent_idx].actions[0]), 10, 110, 20, PUFF_WHITE);
+    DrawText(TextFormat("Steering: %d", (int)env->agents[env->human_agent_idx].actions[1]), 10, 130, 20, PUFF_WHITE);
     DrawText(TextFormat("Grid Rows: %d", env->grid_rows), 10, 150, 20, PUFF_WHITE);
     DrawText(TextFormat("Grid Cols: %d", env->grid_cols), 10, 170, 20, PUFF_WHITE);
     EndDrawing();
@@ -1588,3 +1587,44 @@ void close_client(Client* client) {
     CloseWindow();
     free(client);
 }
+
+#define MAP_BINARY_DIR "drive_data/binaries"
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->human_agent_idx = dict_get(kwargs, "human_agent_idx");
+    env->reward_vehicle_collision = dict_get(kwargs, "reward_vehicle_collision");
+    env->reward_offroad_collision = dict_get(kwargs, "reward_offroad_collision");
+    env->reward_goal_post_respawn = dict_get(kwargs, "reward_goal_post_respawn");
+    env->reward_vehicle_collision_post_respawn = dict_get(kwargs, "reward_vehicle_collision_post_respawn");
+    int map_id = 0;
+    int max_agents = MAX_AGENTS;
+    for (int i = 0; i < kwargs->size; i++) {
+        if (strcmp(kwargs->items[i].key, "map_id") == 0) map_id = (int)kwargs->items[i].value;
+        if (strcmp(kwargs->items[i].key, "max_agents") == 0) max_agents = (int)kwargs->items[i].value;
+    }
+    char map_file[512];
+    snprintf(map_file, sizeof(map_file), "%s/map_%03d.bin", MAP_BINARY_DIR, map_id);
+    env->map_name = strdup(map_file);
+    env->max_agents = max_agents;
+    init(env);
+    env->num_agents = env->active_agent_count;
+    if (env->num_agents > MAX_AGENTS) env->num_agents = MAX_AGENTS;
+    for (int i = 0; i < env->num_agents; i++) {
+        env->agents[i].policy = 0;
+        env->agents[i].action_mask = NULL;
+    }
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "offroad_rate", log->offroad_rate);
+    dict_set(out, "collision_rate", log->collision_rate);
+    dict_set(out, "dnf_rate", log->dnf_rate);
+    dict_set(out, "n", log->n);
+    dict_set(out, "completion_rate", log->completion_rate);
+    dict_set(out, "clean_collision_rate", log->clean_collision_rate);
+}
+

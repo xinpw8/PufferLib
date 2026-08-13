@@ -103,11 +103,21 @@ static inline Quatv vquat_mul(Quatv q1, Quatv q2) {
 }
 
 static inline void vquat_normalize(Quatv* q) {
-    vf n = v_sqrt(q->w * q->w + q->x * q->x + q->y * q->y + q->z * q->z);
-    q->w /= n;
-    q->x /= n;
-    q->y /= n;
-    q->z /= n;
+    vf n2 = q->w * q->w + q->x * q->x + q->y * q->y + q->z * q->z;
+    vf n = v_sqrt(n2);
+    for (int i = 0; i < DRONE_LANES; i++) {
+        if (!(n[i] > 1e-8f)) {
+            q->w[i] = 1.0f;
+            q->x[i] = 0.0f;
+            q->y[i] = 0.0f;
+            q->z[i] = 0.0f;
+        } else {
+            q->w[i] /= n[i];
+            q->x[i] /= n[i];
+            q->y[i] /= n[i];
+            q->z[i] /= n[i];
+        }
+    }
 }
 
 static inline vf vclampf(vf v, vf lo, vf hi) {

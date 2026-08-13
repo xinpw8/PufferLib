@@ -16,37 +16,37 @@ void demo() {
     float rewards[1] = {0};
     float terminals[1] = {0};
 
-    env.observations = observations;
-    env.actions = actions;
-    env.rewards = rewards;
-    env.terminals = terminals;
+    env.agents[0].observations = observations;
+    env.agents[0].actions = actions;
+    env.agents[0].rewards = rewards;
+    env.agents[0].terminals = terminals;
 
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
 
     while (!WindowShouldClose()) {
         // User can take control
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
             bool pressed = false;
-            if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) { env.actions[0] = 0; pressed = true; }
-            else if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) { env.actions[0] = 1; pressed = true; }
-            else if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) { env.actions[0] = 2; pressed = true; }
-            else if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) { env.actions[0] = 3; pressed = true; }
+            if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) { env.agents[0].actions[0] = 0; pressed = true; }
+            else if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) { env.agents[0].actions[0] = 1; pressed = true; }
+            else if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) { env.agents[0].actions[0] = 2; pressed = true; }
+            else if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) { env.agents[0].actions[0] = 3; pressed = true; }
 
             if (pressed) {
-                c_step(&env);
+                puf_step(&env);
             }
         } else {
-            forward_puffernet(net, env.observations, env.actions);
-            c_step(&env);
+            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
+            puf_step(&env);
         }
 
-        c_render(&env);
+        puf_render(&env);
     }
 
     free_puffernet(net);
     free(weights);
-    c_close(&env);
+    puf_close(&env);
 }
 
 int main() {

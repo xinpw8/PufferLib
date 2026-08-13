@@ -5,6 +5,16 @@
 #include <assert.h>
 #include <string.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {82}
+#define OBS_SIZE 326
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 
 #define NOOP 0
 #define MOVE_MIN 1
@@ -67,14 +77,12 @@ void union_groups(Group* groups, int pos1, int pos2) {
 }
 
 typedef struct Client Client;
-typedef struct CGo CGo;
-struct CGo {
+struct Env {
     Client* client;
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
     Log log;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
     float score;
     int num_agents;
     int width;
@@ -118,6 +126,7 @@ struct CGo {
     float old_episode_return;
     unsigned int rng;
 };
+typedef Env CGo;
 
 void add_log(CGo* env) {
     env->log.episode_length += env->tick;
@@ -152,7 +161,7 @@ void add_log(CGo* env) {
     env->log.black_wins += black_win;
     env->log.white_wins += white_win;
     env->log.score += env->score;
-    env->log.episode_return += env->rewards[0];
+    env->log.episode_return += env->agents[0].rewards[0];
     env->log.n += 1.0;
 }
 
@@ -193,18 +202,22 @@ void init(CGo* env) {
 void allocate(CGo* env) {
     init(env);
     if(env->selfplay){
-        env->observations = (float*)calloc(2*((env->grid_size)*(env->grid_size)*4 +2), sizeof(float));
-        env->actions = (float*)calloc(2, sizeof(float));
+        env->agents[0].observations = (obs_t*)calloc(2*((env->grid_size)*(env->grid_size)*4 +2), sizeof(obs_t));
+        env->agents[0].actions = (float*)calloc(2, sizeof(float));
     } else{
 	// +2 correct?
-        env->observations = (float*)calloc((env->grid_size)*(env->grid_size)*4 +2, sizeof(float));
-        env->actions = (float*)calloc(1, sizeof(float));
+        env->agents[0].observations = (obs_t*)calloc((env->grid_size)*(env->grid_size)*4 +2, sizeof(obs_t));
+        env->agents[0].actions = (float*)calloc(1, sizeof(float));
     }
-    env->rewards = (float*)calloc(1, sizeof(float));
-    env->terminals = (float*)calloc(1, sizeof(float));
+    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    env->num_agents = 1;
+
 }
 
-void c_close(CGo* env) {
+void puf_close(CGo* env) {
     free(env->board_x);
     free(env->board_y);
     free(env->board_states);
@@ -216,11 +229,11 @@ void c_close(CGo* env) {
 }
 
 void free_allocated(CGo* env) {
-    free(env->actions);
-    free(env->observations);
-    free(env->terminals);
-    free(env->rewards);
-    c_close(env);
+    free(env->agents[0].actions);
+    free(env->agents[0].observations);
+    free(env->agents[0].terminals);
+    free(env->agents[0].rewards);
+    puf_close(env);
 }
 
 static inline void increment_version(CGo* env) {
@@ -237,7 +250,7 @@ void compute_observations(CGo* env) {
     int iterations = env->selfplay ? 2 : 1;
 
     for(int i = 0; i < iterations; i++){
-        float* current_obs = env->observations + (i * obs_len);
+        obs_t* current_obs = ((obs_t*)env->agents[0].observations) + (i * obs_len);
         
         int self, opp;
         if (i == 0) {
@@ -251,10 +264,10 @@ void compute_observations(CGo* env) {
         int turn = env->turn + 1 == self ? 1 : 0;
 
         // Memory Layout: [Current Self][Current Opp][Prev Self][Prev Opp]
-        float* plane_self      = current_obs;
-        float* plane_opp       = current_obs + N;
-        float* plane_prev_self = current_obs + (2 * N);
-        float* plane_prev_opp  = current_obs + (3 * N);
+        obs_t* plane_self      = current_obs;
+        obs_t* plane_opp       = current_obs + N;
+        obs_t* plane_prev_self = current_obs + (2 * N);
+        obs_t* plane_prev_opp  = current_obs + (3 * N);
 
         for (int idx = 0; idx < N; idx++) {
             int val = env->board_states[idx];
@@ -276,7 +289,6 @@ void compute_observations(CGo* env) {
 int is_valid_position(CGo* env, int x, int y) {
     return (x >= 0 && x < env->grid_size && y >= 0 && y < env->grid_size);
 }
-
 
 void flood_fill(CGo* env, int x, int y, int* territory, int player) {
     if (!is_valid_position(env, x, y)) {
@@ -383,7 +395,6 @@ int find_in_group(int* group, int group_size, int value) {
     return 0;  // Not found
 }
 
-
 void capture_group(CGo* env, uint8_t* board, int root, int* affected_groups, int* affected_count) {
     increment_version(env);
     // Use a queue for BFS
@@ -406,10 +417,10 @@ void capture_group(CGo* env, uint8_t* board, int root, int* affected_groups, int
         board[pos] = 0;  // Remove stone
         env->capture_count[capturing_player - 1]++;  // Update capturing player's count
 	if(capturing_player == env->side){
-		env->rewards[0] += env->reward_player_capture;
+		env->agents[0].rewards[0] += env->reward_player_capture;
 		env->log.episode_return += env->reward_player_capture;
 	} else{
-		env->rewards[0] += env->reward_opponent_capture;
+		env->agents[0].rewards[0] += env->reward_opponent_capture;
 		env->log.episode_return += env->reward_opponent_capture;
 	}
         int x = pos % (env->grid_size);
@@ -439,7 +450,6 @@ void capture_group(CGo* env, uint8_t* board, int root, int* affected_groups, int
         }
     }
 }
-
 
 int count_liberties(CGo* env, int root, int* queue, uint8_t* board) {
     increment_version(env);
@@ -491,7 +501,7 @@ int make_move(CGo* env, int pos, int player){
     }
     env->old_capture_count[0] = env->capture_count[0];
     env->old_capture_count[1] = env->capture_count[1];
-    env->old_reward = env->rewards[0];
+    env->old_reward = env->agents[0].rewards[0];
     env->old_episode_return = env->log.episode_return;
 
     env->changed_count = 0;
@@ -576,14 +586,13 @@ rollback:
     }
     env->capture_count[0] = env->old_capture_count[0];
     env->capture_count[1] = env->old_capture_count[1];
-    env->rewards[0] = env->old_reward;
+    env->agents[0].rewards[0] = env->old_reward;
     env->log.episode_return = env->old_episode_return;
 
     if (player == env->side) env->illegal_move_count++;
 
     return 0;
 }
-
 
 void enemy_random_move(CGo* env, int side){
     int num_positions = (env->grid_size)*(env->grid_size);
@@ -612,7 +621,7 @@ void enemy_random_move(CGo* env, int side){
     }
     // If no move is possible, pass or end the game
     env->previous_move = 0;
-    env->terminals[0] = 1;
+    env->agents[0].terminals[0] = 1;
 }
 
 int find_group_liberty(CGo* env, int root){
@@ -717,7 +726,7 @@ void enemy_greedy_easy(CGo* env, int side){
     enemy_random_move(env, side);
 }
 
-void c_reset(CGo* env) {
+void puf_reset(CGo* env) {
     env->tick = 0;
     env->illegal_move_count = 0;
     env->legal_move_count = 0;
@@ -743,30 +752,30 @@ void c_reset(CGo* env) {
 }
 
 void clip_rewards(CGo* env){
-    if(env->rewards[0] > 1){
-	    env->rewards[0] = 1;
+    if(env->agents[0].rewards[0] > 1){
+	    env->agents[0].rewards[0] = 1;
     } 
-    if(env->rewards[0] < -1){
-	    env->rewards[0] = -1;
+    if(env->agents[0].rewards[0] < -1){
+	    env->agents[0].rewards[0] = -1;
     }
 }
 
 void end_game(CGo* env){
     compute_score_tromp_taylor(env);
     if (env->score > 0) {
-        env->rewards[0] = 1.0;
+        env->agents[0].rewards[0] = 1.0;
     }
     else if (env->score < 0) {
-        env->rewards[0] = -1.0;
+        env->agents[0].rewards[0] = -1.0;
     }
     else {
-        env->rewards[0] = 0.0;
+        env->agents[0].rewards[0] = 0.0;
     }
-    //env->rewards[0] = env->score / 10.0f;
+    //env->agents[0].rewards[0] = env->score / 10.0f;
     clip_rewards(env);
-    env->terminals[0] = 1;
+    env->agents[0].terminals[0] = 1;
     add_log(env);
-    c_reset(env);
+    puf_reset(env);
 }
 
 void human_play(CGo* env){
@@ -775,7 +784,7 @@ void human_play(CGo* env){
         return;
     }
     if(env->selfplay && env->turn + 1 != env->side){
-        env->actions[indx] = -1;
+        env->agents[0].actions[indx] = -1;
     }
     if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
         Vector2 mousePos = GetMousePosition();
@@ -796,7 +805,7 @@ void human_play(CGo* env){
         if (cellX >= 0 && cellX <= env->grid_size && cellY >= 0 && cellY <= env->grid_size) {
             // Calculate the point index (1-19) based on the click position
             int pointIndex = cellY * (env->grid_size) + cellX + 1; 
-            env->actions[indx] = (unsigned short)pointIndex;
+            env->agents[0].actions[indx] = (unsigned short)pointIndex;
         }
         // Check if pass button is clicked
         int left = (env->grid_size + 1)*env->grid_square_size;
@@ -808,16 +817,16 @@ void human_play(CGo* env){
 
         if (mousePos.x >= passButtonX && mousePos.x <= passButtonX + passButtonWidth &&
             mousePos.y >= passButtonY && mousePos.y <= passButtonY + passButtonHeight) {
-            env->actions[indx] = 0; // Send action 0 for pass
+            env->agents[0].actions[indx] = 0; // Send action 0 for pass
         }
     }
 
 }
 
-void c_step(CGo* env) {
+void puf_step(CGo* env) {
     env->tick += 1;
-    env->rewards[0] = 0.0;
-    env->terminals[0] = 0;
+    env->agents[0].rewards[0] = 0.0;
+    env->agents[0].terminals[0] = 0;
     int action = 0;
     int bot_side = 3 - env->side; 
     int is_legal = 0;
@@ -825,9 +834,9 @@ void c_step(CGo* env) {
         human_play(env);
     }
     if(env->selfplay){
-        action = (env->turn +1 == env->side) ? (int)env->actions[0] : (int)env->actions[1];
+        action = (env->turn +1 == env->side) ? (int)env->agents[0].actions[0] : (int)env->agents[0].actions[1];
     } else {
-        action = (int)env->actions[0];
+        action = (int)env->agents[0].actions[0];
     }
     if(action == -1){
         compute_observations(env);
@@ -836,7 +845,7 @@ void c_step(CGo* env) {
     // useful for training , can prob be a hyper param. Recommend to increase with larger board size
     float max_moves = 3 * env->grid_size * env->grid_size;
     if (env->tick > max_moves && !env->human_play) {
-         env->terminals[0] = 1;
+         env->agents[0].terminals[0] = 1;
          end_game(env);
          compute_observations(env);
          return;
@@ -844,7 +853,7 @@ void c_step(CGo* env) {
     // play against bots 
     if(!env->selfplay && env->turn == (bot_side - 1)){
         enemy_greedy_hard(env, bot_side);
-        if (env->terminals[0] == 1) {
+        if (env->agents[0].terminals[0] == 1) {
             end_game(env);
         }
         compute_observations(env);
@@ -857,11 +866,11 @@ void c_step(CGo* env) {
         if(env->turn + 1 == env->side){
             //printf("Pass\n");
             env->legal_move_count +=1;
-            env->rewards[0] = env->reward_move_pass;
+            env->agents[0].rewards[0] = env->reward_move_pass;
             env->log.episode_return += env->reward_move_pass;
             env->pass_move_count += 1;
         }
-        if (env->terminals[0] == 1 || env->previous_move == NOOP) {
+        if (env->agents[0].terminals[0] == 1 || env->previous_move == NOOP) {
             end_game(env);
             return;
         }
@@ -876,19 +885,19 @@ void c_step(CGo* env) {
             env->moves_made++;
             if(env->turn + 1 == env->side){
                 env->legal_move_count +=1;
-                env->rewards[0] += env->reward_move_valid;
+                env->agents[0].rewards[0] += env->reward_move_valid;
                 env->log.episode_return += env->reward_move_valid;
             }
         } else {
             if(env->turn + 1 == env->side){
-                env->rewards[0] = env->reward_move_invalid;
+                env->agents[0].rewards[0] = env->reward_move_invalid;
                 env->log.episode_return += env->reward_move_invalid;
             }
         }
     }
     env->previous_move = action;
 
-    if (env->terminals[0] == 1) {
+    if (env->agents[0].terminals[0] == 1) {
         end_game(env);
         return;
     }
@@ -919,8 +928,7 @@ Client* make_client(int width, int height) {
     return client;
 }
 
-
-void c_render(CGo* env) {
+void puf_render(CGo* env) {
     if (env->client == NULL) {
         env->client = make_client(env->width, env->height);
     }
@@ -1011,3 +1019,34 @@ void close_client(Client* client) {
     CloseWindow();
     free(client);
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "n", log->n);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->side = (rand_r(&env->rng) % 2) + 1;
+    env->selfplay = dict_get(kwargs, "selfplay");
+    env->width = dict_get(kwargs, "width");
+    env->height = dict_get(kwargs, "height");
+    env->grid_size = dict_get(kwargs, "grid_size");
+    env->board_width = dict_get(kwargs, "board_width");
+    env->board_height = dict_get(kwargs, "board_height");
+    env->grid_square_size = dict_get(kwargs, "grid_square_size");
+    env->komi = dict_get(kwargs, "komi");
+    env->reward_move_pass = dict_get(kwargs, "reward_move_pass");
+    env->reward_move_invalid = dict_get(kwargs, "reward_move_invalid");
+    env->reward_move_valid = dict_get(kwargs, "reward_move_valid");
+    env->reward_player_capture = dict_get(kwargs, "reward_player_capture");
+    env->reward_opponent_capture = dict_get(kwargs, "reward_opponent_capture");
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    init(env);
+}
+

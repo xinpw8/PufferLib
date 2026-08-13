@@ -1,5 +1,5 @@
 // Minimal entity encoder (points + max pool).
-// Included by src/ocean.cu — requires precision_t, PrecisionTensor, Allocator, puf_mm, etc.
+// Included by src/ocean.cu — requires precision_t, Prec, Allocator, puf_mm, etc.
 
 // ---- Minimal entity encoder ----
 
@@ -14,14 +14,14 @@ static constexpr int ME_HIDDEN_TILE = 32;
 static constexpr int ME_FC_THREADS = ME_BATCH_TILE * ME_HIDDEN_TILE;
 
 struct MinimalEntityEncoderWeights {
-    PrecisionTensor input_w, output_w;
+    Prec input_w, output_w;
     int obs_size, hidden;
 };
 
 struct MinimalEntityEncoderActivations {
-    PrecisionTensor point_input, entity_hidden, out, grad_entity;
-    PrecisionTensor input_wgrad, output_wgrad;
-    IntTensor argmax;
+    Prec point_input, entity_hidden, out, grad_entity;
+    Prec input_wgrad, output_wgrad;
+    Int argmax;
 };
 
 __global__ void me_materialize_points_kernel(
@@ -208,15 +208,15 @@ static MinimalEntityEncoderWeights* me_encoder_create(int obs_size, int hidden) 
     return ew;
 }
 
-static PrecisionTensor me_encoder_forward(void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
+static Prec me_encoder_forward(void* w, void* activations, Prec input, cudaStream_t stream) {
     MinimalEntityEncoderWeights* ew = (MinimalEntityEncoderWeights*)w;
     MinimalEntityEncoderActivations* a = (MinimalEntityEncoderActivations*)activations;
     int B = input.shape[0];
 
     me_materialize_points_kernel<<<grid_size(B * ME_NUM_POINTS * ME_ENTITY_IN), BLOCK_SIZE, 0, stream>>>(
         a->point_input.data, input.data, B, ew->obs_size);
-    PrecisionTensor point_input = {.data = a->point_input.data, .shape = {B, ME_NUM_POINTS, ME_ENTITY_IN}};
-    PrecisionTensor entity_hidden = {.data = a->entity_hidden.data, .shape = {B, ME_NUM_POINTS, ME_ENTITY_HIDDEN}};
+    Prec point_input = {.data = a->point_input.data, .shape = {B, ME_NUM_POINTS, ME_ENTITY_IN}};
+    Prec entity_hidden = {.data = a->entity_hidden.data, .shape = {B, ME_NUM_POINTS, ME_ENTITY_HIDDEN}};
     puf_mm(&point_input, &ew->input_w, &entity_hidden, stream);
 
     dim3 block(ME_HIDDEN_TILE, ME_BATCH_TILE);
@@ -231,7 +231,7 @@ static PrecisionTensor me_encoder_forward(void* w, void* activations, PrecisionT
     return a->out;
 }
 
-static void me_encoder_backward(void* w, void* activations, PrecisionTensor grad, cudaStream_t stream) {
+static void me_encoder_backward(void* w, void* activations, Prec grad, cudaStream_t stream) {
     MinimalEntityEncoderWeights* ew = (MinimalEntityEncoderWeights*)w;
     MinimalEntityEncoderActivations* a = (MinimalEntityEncoderActivations*)activations;
     int B = grad.shape[0];
@@ -248,8 +248,8 @@ static void me_encoder_backward(void* w, void* activations, PrecisionTensor grad
 
 static void me_encoder_init_weights(void* w, uint64_t* seed, cudaStream_t stream) {
     MinimalEntityEncoderWeights* ew = (MinimalEntityEncoderWeights*)w;
-    PrecisionTensor input_w = {.data = ew->input_w.data, .shape = {ME_ENTITY_HIDDEN, ME_ENTITY_IN}};
-    PrecisionTensor output_w = {.data = ew->output_w.data, .shape = {ew->hidden, ME_ENTITY_HIDDEN}};
+    Prec input_w = {.data = ew->input_w.data, .shape = {ME_ENTITY_HIDDEN, ME_ENTITY_IN}};
+    Prec output_w = {.data = ew->output_w.data, .shape = {ew->hidden, ME_ENTITY_HIDDEN}};
     puf_kaiming_init(&input_w, std::sqrt(2.0f), (*seed)++, stream);
     puf_kaiming_init(&output_w, 1.0f, (*seed)++, stream);
 }

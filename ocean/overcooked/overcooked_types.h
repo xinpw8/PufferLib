@@ -10,6 +10,7 @@
 #include <math.h>
 #include <stdint.h>
 #include "raylib.h"
+#include "pufferenv.h"
 
 // Tile types
 #define EMPTY 0
@@ -83,20 +84,20 @@ typedef struct {
     float step_penalty;
 } RewardConfig;
 
-typedef struct {
-    float perf; // Recommended 0-1 normalized single real number perf metric
-    float score; // Recommended unnormalized single real number perf metric
-    float episode_return; // Recommended metric: sum of agent rewards over episode
-    float episode_length; // Recommended metric: number of steps of agent episode
-    float dishes_served; // Number of dishes successfully served
-    float correct_dishes; // Number of correct 3-onion dishes
-    float wrong_dishes; // Number of wrong dishes submitted
-    float ingredients_picked; // Total ingredients picked up
-    float pots_started; // Number of cooking sessions started
-    float items_dropped; // Number of items dropped/placed
-    float agent_collisions; // Number of times agents tried to move to same spot
-    float n; // Required as the last field
-} Log;
+struct Log {
+    float perf;
+    float score;
+    float episode_return;
+    float episode_length;
+    float dishes_served;
+    float correct_dishes;
+    float wrong_dishes;
+    float ingredients_picked;
+    float pots_started;
+    float items_dropped;
+    float agent_collisions;
+    float n;
+};
 
 typedef struct {
     Texture2D floor;
@@ -161,7 +162,7 @@ typedef struct __attribute__((aligned(32))) {
     int held_soup_tomatoes;
     int held_soup_total;
     int ticks_since_reward;
-} Agent;
+} Chef;
 
 typedef struct __attribute__((aligned(32))) {
     int x;
@@ -201,33 +202,40 @@ typedef struct {
     float inv_height;  // 1.0f / height
 } StaticCache;
 
-typedef struct {
-    Log log; // Required field. Env binding code uses this to aggregate logs
+#define OVERCOOKED_MAX_AGENTS 4
+#define ACT_SIZES {6}
+#define OBS_SIZE 43
+#define NUM_ATNS 1
+
+typedef Env Overcooked;
+typedef float obs_t;
+
+struct Env {
+    Log log;
     Client* client;
+    Agent agents[OVERCOOKED_MAX_AGENTS]; // pufferenv RL agents
     LayoutType layout_id;
     char* grid;
-    Item* items;  // Dynamic items in the kitchen
+    Item* items;
     int num_items;
     int max_items;
-    Agent* agents;  // Array of agents
+    Chef* chefs;  // game entities
     int num_agents;
-    uint64_t agent_position_mask;  // Bit (y * width + x) set if agent present
-    CookingPot* cooking_pots;  // Array of cooking pots (one per stove)
+    int tag;
+    int boundary_reached;
+    uint64_t agent_position_mask;
+    CookingPot* cooking_pots;
     int num_stoves;
-    int* pot_index_grid;  // Maps grid cell to pot index (-1 if not a stove)
-    int* item_grid;       // Maps grid cell to item index (-1 if empty)
-    float* observations; // Required. You can use any obs type, but make sure it matches in Python!
-    float* actions; // Required. int* for discrete/multidiscrete, float* for box
-    float* rewards; // Required
-    float* terminals; // Required. We don't yet have truncations as standard yet
+    int* pot_index_grid;
+    int* item_grid;
     int width;
     int height;
     int grid_size;
     RewardConfig rewards_config;
     int observation_size;
-    StaticCache cache;  // Cached static tile positions for O(1) lookup
+    StaticCache cache;
     unsigned int rng;
-} Overcooked;
+};
 
 // Grid layout
 static const char CRAMPED_ROOM[5][5] = {

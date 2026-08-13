@@ -18,19 +18,19 @@ void demo() {
         .script_opponents = true,
     };
     allocate_moba(&env);
-    c_reset(&env);
+    puf_reset(&env);
 
     float obs_f[5 * 510];
-    c_render(&env);
+    puf_render(&env);
     int frame = 1;
     while (!WindowShouldClose()) {
         if (frame % 12 == 0) {
             for (int i = 0; i < 5 * 510; i++)
-                obs_f[i] = (float)env.observations[i];
-            forward_puffernet(net, obs_f, env.actions);
-            c_step(&env);
+                obs_f[i] = (float)env.agents[0].observations[i];
+            forward_puffernet(net, obs_f, env.agents[0].actions);
+            puf_step(&env);
         }
-        c_render(&env);
+        puf_render(&env);
         frame = (frame + 1) % 12;
     }
     free_puffernet(net);

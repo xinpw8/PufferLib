@@ -3,6 +3,16 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {7}
+#define OBS_SIZE 42
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 
 #define WIN_CONDITION 4
 const int PLAYER_WIN = 1.0;
@@ -28,15 +38,12 @@ struct Log {
 };
 
 typedef struct Client Client;
-typedef struct Connect4 Connect4;
-struct Connect4 {
-    // Pufferlib inputs / outputs
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
+struct Env {
     int num_agents;
     Log log;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
     Client* client;
 
     // Bit string representation from:
@@ -49,28 +56,33 @@ struct Connect4 {
     int end_game;
     unsigned int rng;
 };
+typedef Env Connect4;
 
 void allocate_cconnect4(Connect4* env) {
-    env->observations = (float*)calloc(42, sizeof(float));
-    env->actions = (float*)calloc(1, sizeof(float));
-    env->terminals = (float*)calloc(1, sizeof(float));
-    env->rewards = (float*)calloc(1, sizeof(float));
+    env->agents[0].observations = (obs_t*)calloc(42, sizeof(obs_t));
+    env->agents[0].actions = (float*)calloc(1, sizeof(float));
+    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
+    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    env->num_agents = 1;
+
 }
 
 void free_allocated_cconnect4(Connect4* env) {
-    free(env->actions);
-    free(env->observations);
-    free(env->terminals);
-    free(env->rewards);
+    free(env->agents[0].actions);
+    free(env->agents[0].observations);
+    free(env->agents[0].terminals);
+    free(env->agents[0].rewards);
 }
 
-void c_close(Connect4* env) {
+void puf_close(Connect4* env) {
 }
 
 void add_log(Connect4* env) {
-    env->log.perf += (float)(env->rewards[0] == PLAYER_WIN);
-    env->log.score += env->rewards[0];
-    env->log.episode_return += env->rewards[0];
+    env->log.perf += (float)(env->agents[0].rewards[0] == PLAYER_WIN);
+    env->log.score += env->agents[0].rewards[0];
+    env->log.episode_return += env->agents[0].rewards[0];
     env->log.episode_length += env->tick;
     env->log.n += 1;
 }
@@ -234,46 +246,46 @@ void compute_observation(Connect4* env) {
 
         int p0_bit = (player_pieces >> i) & 1;
         if (p0_bit == 1) {
-            env->observations[obs_idx] = PLAYER_WIN;
+            ((obs_t*)env->agents[0].observations)[obs_idx] = PLAYER_WIN;
         }
         int p1_bit = (env_pieces >> i) & 1;
         if (p1_bit == 1) {
-            env->observations[obs_idx] = ENV_WIN;
+            ((obs_t*)env->agents[0].observations)[obs_idx] = ENV_WIN;
         }
         obs_idx += 1;
     }
 }
 
-void c_reset(Connect4* env) {
+void puf_reset(Connect4* env) {
     env->end_game = 0;
     env->tick=0;
-    env->terminals[0] = 0;
+    env->agents[0].terminals[0] = 0;
     env->player_pieces = 0;
     env->env_pieces = 0;
     for (int i = 0; i < 42; i ++) {
-        env->observations[i] = 0.0;
+        ((obs_t*)env->agents[0].observations)[i] = 0.0;
     }
 }
 
 void finish_game(Connect4* env, float reward) {
-    env->rewards[0] = reward;
-    env->terminals[0] = 1;
+    env->agents[0].rewards[0] = reward;
+    env->agents[0].terminals[0] = 1;
     add_log(env);
     env->end_game = 1;
 }
 
-void c_step(Connect4* env) {
+void puf_step(Connect4* env) {
     env->tick+=1;
-    env->rewards[0] = 0.0;
-    env->terminals[0] = 0;
+    env->agents[0].rewards[0] = 0.0;
+    env->agents[0].terminals[0] = 0;
 
     if(env->end_game == 1) {
-        c_reset(env);
+        puf_reset(env);
         return;
     }
 
     // Player action (PLAYER_WIN)
-    uint64_t column = (uint64_t)env->actions[0];
+    uint64_t column = (uint64_t)env->agents[0].actions[0];
     uint64_t piece_mask = env->player_pieces | env->env_pieces;
     if (invalid_move(column, piece_mask)) {
         finish_game(env, ENV_WIN);
@@ -327,7 +339,7 @@ Client* make_client() {
     return client;
 }
 
-void c_render(Connect4* env) {
+void puf_render(Connect4* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
@@ -356,12 +368,13 @@ void c_render(Connect4* env) {
 
         Color piece_color=PURPLE;
         int color_idx = 0;
-        if (env->observations[obs_idx] == 0.0) {
+        float cell = (float)((obs_t*)env->agents[0].observations)[obs_idx];
+        if (cell == 0.0f) {
             piece_color = BLACK;
-        } else if (env->observations[obs_idx]  == PLAYER_WIN) {
+        } else if (cell == (float)PLAYER_WIN) {
             piece_color = PUFF_CYAN;
             color_idx = 1;
-        } else if (env->observations[obs_idx]  == ENV_WIN) {
+        } else if (cell == (float)ENV_WIN) {
             piece_color = PUFF_RED;
             color_idx = 2;
         }
@@ -393,3 +406,22 @@ void close_client(Client* client) {
     CloseWindow();
     free(client);
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->player_pieces = dict_get(kwargs, "player_pieces");
+    env->env_pieces = dict_get(kwargs, "env_pieces");
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    init(env);
+}
+

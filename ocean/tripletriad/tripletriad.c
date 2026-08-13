@@ -18,7 +18,7 @@ void demo() {
         .num_cards = 10,
     };
     allocate_ctripletriad(&env);
-    c_reset(&env); 
+    puf_reset(&env); 
     env.client = make_client(env.width, env.height);
 
     int tick = 0;
@@ -47,18 +47,18 @@ void demo() {
                 }
             }
         } else if (tick % 45 == 0) {
-            forward_puffernet(net, env.observations, env.actions);
-            action = env.actions[0];
+            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
+            action = env.agents[0].actions[0];
         }
 
         tick = (tick + 1) % 45;
 
         if (action != NOOP) {
-            env.actions[0] = action;
-            c_step(&env);
+            env.agents[0].actions[0] = action;
+            puf_step(&env);
         }
 
-        c_render(&env);
+        puf_render(&env);
     }
     free_puffernet(net);
     free(weights);

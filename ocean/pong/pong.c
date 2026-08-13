@@ -27,33 +27,33 @@ void demo() {
     };
 
     allocate(&env);
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
     SetTargetFPS(60);
     int frame = 0;
     while (!WindowShouldClose()) {
         // User can take control of the paddle
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            if(env.continuous) {
+            if (env.continuous) {
                 float move = GetMouseWheelMove();
                 float clamped_wheel = fmaxf(-1.0f, fminf(1.0f, move));
-                env.actions[0] = clamped_wheel;
-                printf("Mouse wheel move: %f\n", env.actions[0]);
+                env.agents[0].actions[0] = clamped_wheel;
+                printf("Mouse wheel move: %f\n", env.agents[0].actions[0]);
             } else {
-                env.actions[0] = 0.0;
-                if (IsKeyDown(KEY_UP)   || IsKeyDown(KEY_W)) env.actions[0] = 1.0;
-                if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) env.actions[0] = 2.0;
+                env.agents[0].actions[0] = 0.0;
+                if (IsKeyDown(KEY_UP)   || IsKeyDown(KEY_W)) env.agents[0].actions[0] = 1.0;
+                if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) env.agents[0].actions[0] = 2.0;
             }
         } else if (frame == 0) {
-            forward_puffernet(net, env.observations, env.actions);
+            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
         }
 
         frame = (frame + 1) % 8;
-        c_step(&env);
+        puf_step(&env);
         // Reset frame counter on score so policy fires immediately next
         // iteration, matching training's early-return-from-frameskip behavior
-        if (env.rewards[0] != 0.0f) frame = 0;
-        c_render(&env);
+        if (env.agents[0].rewards[0] != 0.0f) frame = 0;
+        puf_render(&env);
     }
     free_puffernet(net);
     free(weights);

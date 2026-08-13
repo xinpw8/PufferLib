@@ -20,45 +20,45 @@ int main() {
     env.step_penalty = -0.01f;
     env.progress_reward_scale = 0.25f;
 
-    env.observations = (float*)calloc(DOCKING_OBS_SIZE, sizeof(float));
-    env.actions = (float*)calloc(1, sizeof(float));
-    env.rewards = (float*)calloc(1, sizeof(float));
-    env.terminals = (float*)calloc(1, sizeof(float));
+    env.agents[0].observations = (float*)calloc(DOCKING_OBS_SIZE, sizeof(float));
+    env.agents[0].actions = (float*)calloc(1, sizeof(float));
+    env.agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env.agents[0].terminals = (float*)calloc(1, sizeof(float));
 
     c_init(&env);
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
 
     while (!WindowShouldClose()) {
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            env.actions[0] = DOCK_NOOP;
+            env.agents[0].actions[0] = DOCK_NOOP;
             if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
-                env.actions[0] = DOCK_TURN_LEFT;
+                env.agents[0].actions[0] = DOCK_TURN_LEFT;
             } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
-                env.actions[0] = DOCK_TURN_RIGHT;
+                env.agents[0].actions[0] = DOCK_TURN_RIGHT;
             } else if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
-                env.actions[0] = DOCK_THRUST;
+                env.agents[0].actions[0] = DOCK_THRUST;
             } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
-                env.actions[0] = DOCK_BRAKE;
+                env.agents[0].actions[0] = DOCK_BRAKE;
             }
         } else {
-            forward_puffernet(net, env.observations, env.actions);
+            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
         }
 
         if (IsKeyPressed(KEY_R)) {
-            c_reset(&env);
+            puf_reset(&env);
         } else {
-            c_step(&env);
+            puf_step(&env);
         }
-        c_render(&env);
+        puf_render(&env);
     }
 
     free_puffernet(net);
     free(weights);
-    free(env.observations);
-    free(env.actions);
-    free(env.rewards);
-    free(env.terminals);
-    c_close(&env);
+    free(env.agents[0].observations);
+    free(env.agents[0].actions);
+    free(env.agents[0].rewards);
+    free(env.agents[0].terminals);
+    puf_close(&env);
     return 0;
 }

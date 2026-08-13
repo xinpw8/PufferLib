@@ -51,13 +51,13 @@ struct Log {
     float damage_taken;
     float range_damage_inflicted;
     // Per-slot scores for match() scoring + selfplay sanity-check. In selfplay
-    // both should average to ~0.5; in match A=slot 0, B=slot 1, slot_0_score is
+    // both should average to ~0.5; in match A=policy 0, B=policy 1, policy_0_score is
     // the win rate of policy A. Each game contributes 1.0 worth of credit total
     // (win=1.0 to winner, draw=0.5 each). We scale by num_agents on accumulation
     // so the eval_log mean (sum / n where n increments by num_agents per ep)
     // equals win_rate directly.
-    float slot_0_score;
-    float slot_1_score;
+    float policy_0_score;
+    float policy_1_score;
     float draw_rate;
     float n;
 };
@@ -157,7 +157,7 @@ void puf_init(Env* env, Dict* kwargs) {
     env->height = dict_get(kwargs, "height");
     env->num_agents = dict_get(kwargs, "num_agents");
     env->num_bots = dict_get(kwargs, "num_bots");
-    env->max_ticks = (int)dict_get(kwargs, "max_ticks");
+    env->max_ticks = dict_get(kwargs, "max_ticks");
     env->reward_damage = robocode_get_float(kwargs, "reward_damage", 0.0f);
     env->reward_spot = robocode_get_float(kwargs, "reward_spot", 0.0f);
     env->reward_melee_damage_inflicted = robocode_get_float(kwargs, "reward_melee_damage_inflicted", 0.0f);
@@ -191,8 +191,8 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "range_damage_inflicted", log->range_damage_inflicted);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
-    dict_set(out, "slot_0_score", log->slot_0_score);
-    dict_set(out, "slot_1_score", log->slot_1_score);
+    dict_set(out, "policy_0_score", log->policy_0_score);
+    dict_set(out, "policy_1_score", log->policy_1_score);
     dict_set(out, "draw_rate", log->draw_rate);
     dict_set(out, "n", log->n);
 }
@@ -643,11 +643,11 @@ static inline int agent_terminal_outcome(Robocode* env) {
 // 0 draw. Historical accounting only applies when env->tag > 0.
 static inline void end_episode(Robocode* env, int outcome) {
     float s0_score = (outcome > 0) ? 1.0f : (outcome < 0) ? 0.0f : 0.5f;
-    // Scale by num_agents so that (slot_0_score / n) where n increments by
+    // Scale by num_agents so that (policy_0_score / n) where n increments by
     // num_agents per episode in add_log gives the win rate directly. match()
-    // reads this from env/slot_0_score after eval_log divides by n.
-    env->log.slot_0_score += s0_score * env->num_agents;
-    env->log.slot_1_score += (1.0f - s0_score) * env->num_agents;
+    // reads this from env/policy_0_score after eval_log divides by n.
+    env->log.policy_0_score += s0_score * env->num_agents;
+    env->log.policy_1_score += (1.0f - s0_score) * env->num_agents;
     if (outcome == 0) env->log.draw_rate += env->num_agents;
     if (env->tag > 0) {
         env->boundary_reached = 1;

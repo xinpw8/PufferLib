@@ -18,28 +18,38 @@ void demo() {
     PufferNet* net = make_puffernet(weights, env.num_agents, 605, 128, 2, logit_sizes, 1);
 
     allocate(&env);
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
 
     int tick = 0;
     while (!WindowShouldClose()) {
         if (tick % 2 == 0) {
-            for (int e = 0; e < env.num_agents * 605; e++) {
-                net->obs[e] = env.observations[e];
+            for (int a = 0; a < env.num_agents; a++) {
+                obs_t* obs = (obs_t*)env.agents[a].observations;
+                for (int e = 0; e < 605; e++) {
+                    net->obs[a * 605 + e] = obs[e];
+                }
             }
-            forward_puffernet(net, net->obs, env.actions);
+            float actions[8];
+            for (int a = 0; a < env.num_agents; a++) {
+                actions[a] = 0.0f;
+            }
+            forward_puffernet(net, net->obs, actions);
+            for (int a = 0; a < env.num_agents; a++) {
+                env.agents[a].actions[0] = actions[a];
+            }
 
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) env.actions[0] = ACTION_UP;
-                if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) env.actions[0] = ACTION_LEFT;
-                if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[0] = ACTION_RIGHT;
-                if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) env.actions[0] = ACTION_DOWN;
+                if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) env.agents[0].actions[0] = ACTION_UP;
+                if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) env.agents[0].actions[0] = ACTION_LEFT;
+                if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.agents[0].actions[0] = ACTION_RIGHT;
+                if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) env.agents[0].actions[0] = ACTION_DOWN;
             }
 
-            c_step(&env);
+            puf_step(&env);
         }
         tick++;
-        c_render(&env);
+        puf_render(&env);
     }
 
     free_puffernet(net);

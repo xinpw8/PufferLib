@@ -36,8 +36,8 @@ void demo() {
     env->num_levels = num_maps;
     env->levels = levels;
 
-    c_reset(env);
-    c_render(env);
+    puf_reset(env);
+    puf_render(env);
     while (!WindowShouldClose()) {
         env->actions[0] = ATN_PASS;
         env->actions[0] = ATN_SOUTH;
@@ -63,8 +63,8 @@ void demo() {
             forward_puffernet(net, obs, env->actions);
         }
 
-        c_step(env);
-        c_render(env);
+        puf_step(env);
+        puf_render(env);
     }
     
     free_puffernet(net);
@@ -73,7 +73,7 @@ void demo() {
     free(env->actions);
     free(env->rewards);
     free(env->terminals);
-    c_close(env);
+    puf_close(env);
     free(levels);
 }
 

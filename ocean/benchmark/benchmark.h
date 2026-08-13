@@ -1,34 +1,56 @@
 #include <string.h>
 #include <math.h>
+#include "pufferenv.h"
 
-typedef struct {
+#define ACT_SIZES {2}
+#define OBS_SIZE 512
+#define NUM_ATNS 1
+typedef unsigned char obs_t;
+
+struct Log {
     float perf;
     float score;
     float n;
-} Log;
+};
 
-typedef struct {
+struct Env {
     Log log;
-    unsigned char* observations;
-    double* actions;
-    float* rewards;
-    float* terminals;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
     int num_agents;
     int bandwidth;
     int compute;
-} Benchmark;
+    unsigned int rng;
+};
+typedef Env Benchmark;
 
-void c_reset(Benchmark* env) {}
+void puf_reset(Benchmark* env) {}
 
-void c_step(Benchmark* env) {
+void puf_step(Benchmark* env) {
     float result = 0;
     for (int i=0; i<env->compute; i++) {
         result = sinf(result + 0.1f);
     }
 
-    //memset(env->observations, result, env->bandwidth);
+    //memset(((obs_t*)env->agents[0].observations), result, env->bandwidth);
 }
 
-void c_render(Benchmark* env) { }
+void puf_render(Benchmark* env) { }
 
-void c_close(Benchmark* env) { }
+void puf_close(Benchmark* env) { }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->compute = dict_get(kwargs, "compute");
+    env->bandwidth = dict_get(kwargs, "bandwidth");
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+}
+

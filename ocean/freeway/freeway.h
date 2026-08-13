@@ -6,6 +6,16 @@
 #include <string.h>
 #include "raylib.h"
 #include "freeway_levels.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {3}
+#define OBS_SIZE 34
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define max(a, b) (((a) > (b)) ? (a) : (b))
@@ -65,15 +75,13 @@ struct FreewayEnemy {
 };
 
 typedef struct Client Client;
-typedef struct Freeway Freeway;
-struct Freeway {
+struct Env {
     Client* client;
     Log log;
-    float* observations;
-    float* actions;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
     int* human_actions;
-    float* rewards;
-    float* terminals;
     int num_agents;
 
     FreewayPlayer ai_player; // Player-Related
@@ -104,6 +112,7 @@ struct Freeway {
     int enable_human_player;
     unsigned int rng;
 };
+typedef Env Freeway;
 
 void load_level(Freeway* env, int level) {
     FreewayEnemy* enemy;
@@ -161,23 +170,27 @@ void init(Freeway* env) {
 
 void allocate(Freeway* env) {
     init(env);
-    env->observations = (float*)calloc(4 + NUM_LANES*MAX_ENEMIES_PER_LANE, sizeof(float));
-    env->actions = (float*)calloc(1, sizeof(float));
-    env->rewards = (float*)calloc(1, sizeof(float));
-    env->terminals = (float*)calloc(1, sizeof(float));
+    env->agents[0].observations = (obs_t*)calloc(4 + NUM_LANES*MAX_ENEMIES_PER_LANE, sizeof(obs_t));
+    env->agents[0].actions = (float*)calloc(1, sizeof(float));
+    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    env->num_agents = 1;
+
 }
 
-void c_close(Freeway* env) {
+void puf_close(Freeway* env) {
     free(env->human_actions);
     free(env->enemies);
 }
 
 void free_allocated(Freeway* env) {
-    free(env->actions);
-    free(env->observations);
-    free(env->terminals);
-    free(env->rewards);
-    c_close(env);
+    free(env->agents[0].actions);
+    free(env->agents[0].observations);
+    free(env->agents[0].terminals);
+    free(env->agents[0].rewards);
+    puf_close(env);
 }
 
 void add_log(Freeway* env) {
@@ -191,21 +204,21 @@ void add_log(Freeway* env) {
 }
 
 void compute_observations(Freeway* env) {
-    env->observations[0] = env->ai_player.player_y / env->height;
-    env->observations[1] = env->ai_player.best_lane_idx /(float) NUM_LANES;
-    env->observations[2] = env->ai_player.score / (float) HUMAN_HIGH_SCORE[env->level];
-    env->observations[3] = (env->ai_player.ticks_stunts_left  > 0);
+    ((obs_t*)env->agents[0].observations)[0] = env->ai_player.player_y / env->height;
+    ((obs_t*)env->agents[0].observations)[1] = env->ai_player.best_lane_idx /(float) NUM_LANES;
+    ((obs_t*)env->agents[0].observations)[2] = env->ai_player.score / (float) HUMAN_HIGH_SCORE[env->level];
+    ((obs_t*)env->agents[0].observations)[3] = (env->ai_player.ticks_stunts_left  > 0);
 
     FreewayEnemy* enemy;
     for (int lane = 0; lane < NUM_LANES; lane++) {
         for (int i = 0; i < MAX_ENEMIES_PER_LANE; i++){
             enemy = &env->enemies[lane*MAX_ENEMIES_PER_LANE + i];
             if (enemy->is_enabled){
-                env->observations[4 + lane * MAX_ENEMIES_PER_LANE + i] = enemy->enemy_x / env->width;
-                env->observations[4 + lane * MAX_ENEMIES_PER_LANE + i] += (lane < NUM_LANES/2 ? enemy->enemy_height/(2 * env->width): -enemy->enemy_height/(2 * env->width));
+                ((obs_t*)env->agents[0].observations)[4 + lane * MAX_ENEMIES_PER_LANE + i] = enemy->enemy_x / env->width;
+                ((obs_t*)env->agents[0].observations)[4 + lane * MAX_ENEMIES_PER_LANE + i] += (lane < NUM_LANES/2 ? enemy->enemy_height/(2 * env->width): -enemy->enemy_height/(2 * env->width));
             }
             else {
-                env->observations[4 + lane * MAX_ENEMIES_PER_LANE + i] = 0.0f;
+                ((obs_t*)env->agents[0].observations)[4 + lane * MAX_ENEMIES_PER_LANE + i] = 0.0f;
             }
         }
     }   
@@ -348,7 +361,7 @@ void step_player(Freeway* env, FreewayPlayer* player, int action) {
             player->hits+=1;
             player->ticks_stunts_left = TICKS_STUNT;
             if (env->use_dense_rewards){
-                env->rewards[0] += PENALTY_HIT;
+                env->agents[0].rewards[0] += PENALTY_HIT;
                 env->ep_return += PENALTY_HIT;
             }
             if (env->difficulty == 1){
@@ -360,12 +373,12 @@ void step_player(Freeway* env, FreewayPlayer* player, int action) {
     if (player->player_y <= env->road_start - (player->best_lane_idx+1) * env->lane_size){
         player->best_lane_idx += 1; 
         if (env->use_dense_rewards){
-            env->rewards[0] += 1.0 / (float) NUM_LANES;
+            env->agents[0].rewards[0] += 1.0 / (float) NUM_LANES;
             env->ep_return += 1.0 / (float) NUM_LANES;
         }
         else{
             if (player->best_lane_idx == NUM_LANES){
-                env->rewards[0] = 1.0;
+                env->agents[0].rewards[0] = 1.0;
                 env->ep_return += 1.0;
             }
         }
@@ -373,11 +386,11 @@ void step_player(Freeway* env, FreewayPlayer* player, int action) {
 
     if (player->best_lane_idx == NUM_LANES) {
         reached_end(env, player);
-        env->rewards[0] += 1.0;
+        env->agents[0].rewards[0] += 1.0;
         env->ep_return += 1.0;
     }
 }
-void c_reset(Freeway* env) {
+void puf_reset(Freeway* env) {
     env->ai_player.player_y = env->height / 2;
     env->ai_player.best_lane_idx = 0;
     env->ai_player.ticks_stunts_left = 0;
@@ -400,10 +413,10 @@ void c_reset(Freeway* env) {
     compute_observations(env);
 }
 
-void c_step(Freeway* env) {
-    env->terminals[0] = 0;
-    env->rewards[0] = 0.0;
-    int ai_action = env->actions[0];
+void puf_step(Freeway* env) {
+    env->agents[0].terminals[0] = 0;
+    env->agents[0].rewards[0] = 0.0;
+    int ai_action = env->agents[0].actions[0];
     int human_action = env->human_actions[0];
     env->time_left = GAME_LENGTH - env->tick*TICK_RATE;
 
@@ -416,17 +429,15 @@ void c_step(Freeway* env) {
         move_enemies(env);
     }
     if (env->tick * TICK_RATE >= GAME_LENGTH) {
-        env->terminals[0] = 1.0;
+        env->agents[0].terminals[0] = 1.0;
         add_log(env);
-        c_reset(env);
+        puf_reset(env);
     }
     if (env->tick % RANDOMIZE_SPEED_FREQ == 0) {
         randomize_enemy_speed(env);
     }
     compute_observations(env);
 }
-
-
 
 typedef struct Client Client;
 struct Client {
@@ -473,7 +484,7 @@ Color CAR_COLORS[10] = {
     (Color){ 0, 100, 0, 255 },      // Dark Green
     (Color){ 0, 0, 139, 255 }       // Dark Blue
 };
-void c_render(Freeway* env) {
+void puf_render(Freeway* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
@@ -622,3 +633,34 @@ void c_render(Freeway* env) {
 
     //PlaySound(client->sound);
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "up_action_frac", log->up_action_frac);
+    dict_set(out, "hits", log->hits);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->frameskip = dict_get(kwargs, "frameskip");
+    env->width = dict_get(kwargs, "width");
+    env->height = dict_get(kwargs, "height");
+    env->player_width = dict_get(kwargs, "player_width");
+    env->player_height = dict_get(kwargs, "player_height");
+    env->car_width = dict_get(kwargs, "car_width");
+    env->car_height = dict_get(kwargs, "car_height");
+    env->lane_size = dict_get(kwargs, "lane_size");
+    env->difficulty = dict_get(kwargs, "difficulty");
+    env->level = dict_get(kwargs, "level");
+    env->enable_human_player = dict_get(kwargs, "enable_human_player");
+    env->env_randomization = dict_get(kwargs, "env_randomization");
+    env->use_dense_rewards = dict_get(kwargs, "use_dense_rewards");
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    init(env);
+}
+

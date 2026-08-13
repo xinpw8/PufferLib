@@ -46,18 +46,18 @@ int demo() {
     allocate(&env);
 
     init(&env);
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
 
     while (!WindowShouldClose()) {
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
             get_input(&env);
         } else {
-            forward_puffernet(net, env.observations, env.actions);
+            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
         }
 
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
     }
 
     free_puffernet(net);

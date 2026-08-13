@@ -3,7 +3,7 @@
 
 #ifdef __EMSCRIPTEN__
 void emscriptenStep(void *e) {
-    stepEnv((iwEnv *)e);
+    puf_step((iwEnv *)e);
     return;
 }
 #endif
@@ -33,10 +33,10 @@ int main(void) {
     emscripten_set_main_loop_arg(emscriptenStep, e, 0, true);
 #else
     while (!WindowShouldClose()) {
-        stepEnv(e);
+        puf_step(e);
     }
 
-    destroyEnv(e);
+    puf_close(e);
     destroyMaps();
     free(e->observations);
     fastFree(e->actions);

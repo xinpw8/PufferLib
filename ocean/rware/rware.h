@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include "pufferenv.h"
 #include <assert.h>
 #include <string.h>
 #include <time.h>
@@ -28,6 +29,13 @@
 // observation types
 #define SELF_OBS 3
 #define VISION_OBS 24
+#define ACT_SIZES {5}
+#define OBS_SIZE (SELF_OBS+VISION_OBS)
+#define NUM_ATNS 1
+#define MAX_AGENTS 32
+
+typedef Env CRware;
+typedef float obs_t;
 
 // Facing directions
 #define FACING_RIGHT 0
@@ -124,12 +132,11 @@ static const int map_rows[3] = {11, 10, 16};
 static const int map_cols[3] = {10, 20, 20};
 static const int* maps[3] = {tiny_map, small_map, medium_map};
 
-static inline int max(int a, int b) {
+static inline int rware_max(int a, int b) {
     return (a > b) ? a : b;
 }
 	
 typedef struct Client Client;
-typedef struct CRware CRware;
 typedef struct Log Log;
 
 struct Log {
@@ -148,12 +155,9 @@ struct MovementGraph {
     int num_cycles;
 };
 
-struct CRware {
+struct Env {
     Client* client;
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
+    Agent agents[MAX_AGENTS];
     Log* agent_logs;
     Log log;
     float* scores;
@@ -163,6 +167,8 @@ struct CRware {
     int map_choice;
     int* warehouse_states;
     int num_agents;
+    int tag;
+    int boundary_reached;
     int num_requested_shelves;
     int* agent_locations;
     int* old_agent_locations;
@@ -296,13 +302,9 @@ void init(CRware* env) {
 
 void allocate(CRware* env) {
     init(env);
-    env->observations = (float*)calloc(env->num_agents*(SELF_OBS+VISION_OBS), sizeof(float));
-    env->actions = (float*)calloc(env->num_agents, sizeof(float));
-    env->rewards = (float*)calloc(env->num_agents, sizeof(float));
-    env->terminals = (float*)calloc(env->num_agents, sizeof(float));
 }
 
-void c_close(CRware* env) {
+void puf_close(CRware* env) {
     free(env->warehouse_states);
     free(env->agent_locations);
     free(env->agent_directions);
@@ -316,21 +318,16 @@ void c_close(CRware* env) {
 }
 
 void free_allocated(CRware* env) {
-    free(env->actions);
-    free(env->observations);
-    free(env->terminals);
-    free(env->rewards);
-    c_close(env);
+    puf_close(env);
 }
 
 void compute_observations(CRware* env) {
     int surround_indices[8];
     int cols = map_cols[env->map_choice - 1];
     int rows = map_rows[env->map_choice - 1];
-    float (*observations)[SELF_OBS+VISION_OBS] = (float(*)[SELF_OBS+VISION_OBS])env->observations;
     for (int i = 0; i < env->num_agents; i++) {
         // Agent location, direction, state
-        float* obs = &observations[i][0];
+        float* obs = (float*)env->agents[i].observations;
         int agent_location = env->agent_locations[i];
         int current_x = agent_location % cols;
         int current_y = agent_location / cols;
@@ -368,9 +365,9 @@ void compute_observations(CRware* env) {
     }
 }
 
-void c_reset(CRware* env) {
+void puf_reset(CRware* env) {
      
-	env->terminals[0] = 0;
+	env->agents[0].terminals[0] = 0;
     // set agents in center
     env->human_agent_idx = 0;
     if (env->map_choice == 1) {
@@ -518,7 +515,7 @@ void calculate_weights(CRware* env) {
             int max_child_weight = 0;
             for (int j = 0; j < env->num_agents; j++) {
                 if (graph->target_positions[j] != env->agent_locations[i]) continue;
-                max_child_weight = max(max_child_weight, graph->weights[j]);
+                max_child_weight = rware_max(max_child_weight, graph->weights[j]);
             }
             
             if (max_child_weight == 0 || graph->weights[i] == max_child_weight + 1) {
@@ -584,7 +581,7 @@ void pickup_shelf(CRware* env, int agent_idx) {
     int current_position_state = env->warehouse_states[agent_location];
     int original_map_state = map[agent_location];
     if ((current_position_state == REQUESTED_SHELF) && (agent_state==UNLOADED)) {
-        env->rewards[agent_idx] = 0.5;
+        env->agents[agent_idx].rewards[0] = 0.5;
 	env->agent_logs[agent_idx].episode_return += 0.5;
 	env->agent_states[agent_idx]=HOLDING_REQUESTED_SHELF;
     }
@@ -593,7 +590,7 @@ void pickup_shelf(CRware* env, int agent_idx) {
     && original_map_state != GOAL) {
         env->agent_states[agent_idx]=UNLOADED;
         env->warehouse_states[agent_location] = original_map_state;
-        env->rewards[agent_idx] = 1.0;
+        env->agents[agent_idx].rewards[0] = 1.0;
 
         env->agent_logs[agent_idx].score = 1.0;
         env->agent_logs[agent_idx].episode_return += 1.0;
@@ -605,7 +602,7 @@ void pickup_shelf(CRware* env, int agent_idx) {
     // drop shelf at goal
     else if (agent_state == HOLDING_REQUESTED_SHELF && current_position_state == GOAL) {
         env->agent_states[agent_idx]=HOLDING_EMPTY_SHELF;
-        env->rewards[agent_idx] = 0.5;
+        env->agents[agent_idx].rewards[0] = 0.5;
         env->agent_logs[agent_idx].episode_return += 0.5;
         env->agent_logs[agent_idx].score = 1.0;
         // Try random selection first, then fall back to linear scan to avoid infinite loop
@@ -654,7 +651,7 @@ void process_cycle_movements(CRware* env, MovementGraph* graph) {
         if (!can_move_cycle) continue;
         for (int i = 0; i < env->num_agents; i++) {
             if (graph->cycle_ids[i] != cycle) continue;
-            if ((int)env->actions[i] != FORWARD) continue;
+            if ((int)env->agents[i].actions[0] != FORWARD) continue;
             move_agent(env, i);
         }
     }
@@ -671,7 +668,7 @@ void process_tree_movements(CRware* env, MovementGraph* graph) {
     for (int weight = max_weight; weight > 0; weight--) {
         for (int i = 0; i < env->num_agents; i++) {
             if (graph->cycle_ids[i] != -1 || graph->weights[i] != weight) continue;
-            if ((int)env->actions[i] != FORWARD) continue;
+            if ((int)env->agents[i].actions[0] != FORWARD) continue;
 
             int new_pos = get_new_position(env, i);
             if (new_pos == -1) continue;
@@ -683,8 +680,10 @@ void process_tree_movements(CRware* env, MovementGraph* graph) {
     }
 }
 
-void c_step(CRware* env) {
-    memset(env->rewards, 0, env->num_agents * sizeof(float));
+void puf_step(CRware* env) {
+    for (int _i = 0; _i < env->num_agents; _i++) {
+        env->agents[_i].rewards[0] = 0;
+    }
     MovementGraph* graph = env->movement_graph;
 
     // Reset movement graph so stale targets from previous steps don't
@@ -695,7 +694,7 @@ void c_step(CRware* env) {
     for (int i = 0; i < env->num_agents; i++) {
         env->old_agent_locations[i] = env->agent_locations[i];
         env->agent_logs[i].episode_length += 1;
-        int action = (int)env->actions[i];
+        int action = (int)env->agents[i].actions[0];
 
         if (action != NOOP && action != TOGGLE_LOAD) {
             env->agent_directions[i] = get_direction(env, action, i);
@@ -750,7 +749,7 @@ Client* make_client(CRware* env) {
     return client;
 }
 
-void c_render(CRware* env) {
+void puf_render(CRware* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
@@ -859,3 +858,30 @@ void close_client(Client* client) {
     CloseWindow();
     free(client);
 }
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->width = dict_get(kwargs, "width");
+    env->height = dict_get(kwargs, "height");
+    env->map_choice = dict_get(kwargs, "map_choice");
+    env->num_agents = dict_get(kwargs, "num_agents");
+    env->num_requested_shelves = dict_get(kwargs, "num_requested_shelves");
+    env->grid_square_size = dict_get(kwargs, "grid_square_size");
+    env->human_agent_idx = dict_get(kwargs, "human_agent_idx");
+    if (env->num_agents > MAX_AGENTS) {
+        fprintf(stderr, "rware: num_agents too large\n");
+        exit(1);
+    }
+    for (int i = 0; i < env->num_agents; i++) {
+        env->agents[i].policy = 0;
+        env->agents[i].action_mask = NULL;
+    }
+    init(env);
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+}
+

@@ -24,15 +24,15 @@ int main(void) {
     };
 
     init(&env);
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
     while (!WindowShouldClose()) {
         if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) actions[0] = 0;
         else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) actions[0] = 2;
         else actions[0] = 1;
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
     }
-    c_close(&env);
+    puf_close(&env);
     return 0;
 }

@@ -12,7 +12,7 @@ __global__ void nh_bias_relu_kernel(
     data[idx] = from_float(fmaxf(0.0f, to_float(data[idx]) + to_float(bias[idx % dim])));
 }
 
-// ---- Nethack constants ----
+// constants
 // Obs layout (must match ocean/nethack/nethack.h):
 //   [0, 2*NH_MGRID)  full 79x21 glyph grid, int16 LE (map memory included)
 //   [2*NH_MGRID, +4*NH_BL_RAW)  blstats, int32 LE (x,y first)
@@ -21,15 +21,15 @@ __global__ void nh_bias_relu_kernel(
 
 static constexpr int NH_MAPW = 79, NH_MAPH = 21;
 static constexpr int NH_MGRID = NH_MAPW * NH_MAPH;
-static constexpr int NH_GLYPH_VOCAB = 5977;        // MAX_GLYPH + 1 (NetHack 3.6.6)
-static constexpr int NH_PAD_GLYPH = NH_GLYPH_VOCAB - 1;   // NO_GLYPH: off-map crop cells
+static constexpr int NH_GLYPH_VOCAB = 5977; // MAX_GLYPH + 1 (NetHack 3.6.6)
+static constexpr int NH_PAD_GLYPH = NH_GLYPH_VOCAB - 1; // NO_GLYPH: off-map crop cells
 static constexpr int NH_EMBED_DIM = 32;
-static constexpr int NH_CROP = 9, NH_CHALF = 4;    // NETHACK_CROP, egocentric
+static constexpr int NH_CROP = 9, NH_CHALF = 4; // NETHACK_CROP, egocentric
 static constexpr int NH_CGRID = NH_CROP * NH_CROP;
-static constexpr int NH_PW = 5, NH_PH = 5;         // patch size (cells)
-static constexpr int NH_PX = 16, NH_PY = 5;        // patch grid (ceil 79/5, 21/5)
-static constexpr int NH_TOK = NH_PX * NH_PY;       // 80 global tokens
-static constexpr int NH_PCELLS = NH_PW * NH_PH;    // cells per patch (off-map -> pad glyph)
+static constexpr int NH_PW = 5, NH_PH = 5; // patch size (cells)
+static constexpr int NH_PX = 16, NH_PY = 5; // patch grid (ceil 79/5, 21/5)
+static constexpr int NH_TOK = NH_PX * NH_PY; // 80 global tokens
+static constexpr int NH_PCELLS = NH_PW * NH_PH; // cells per patch (off-map -> pad glyph)
 static constexpr int NH_LOC_IN = NH_CGRID * NH_EMBED_DIM;
 static constexpr int NH_LOC_HID = 256;
 // Global branch: per patch, embed+flatten (25 cells x 32 dims) + normalized
@@ -41,34 +41,42 @@ static constexpr int NH_LOC_HID = 256;
 // as concatenating onto the flatten.
 static constexpr int NH_P1 = 16;
 static constexpr int NH_GLB_HID = 128;
-static constexpr int NH_TROW = NH_PCELLS * NH_P1;  // fused-table row: per-pos 16-dim
+static constexpr int NH_TROW = NH_PCELLS * NH_P1; // fused-table row: per-pos 16-dim
 static constexpr int NH_PAD_PER_SAMPLE = NH_TOK * NH_PCELLS - NH_MGRID;
-static constexpr int NH_HOT_G = 10;                // hot-glyph dT smem slots (10x400 int64 = 32KB)
-static constexpr int NH_BL_RAW = 27;               // NLE_BLSTATS_SIZE
+static constexpr int NH_HOT_G = 10; // hot-glyph dT smem slots (10x400 int64 = 32KB)
+static constexpr int NH_BL_RAW = 27; // NLE_BLSTATS_SIZE
 static constexpr int NH_BL_HUNGER = 21, NH_BL_CONDITION = 25;
-static constexpr int NH_BL_HP = 10, NH_BL_ENE = 14;  // hp/hpmax at 10/11, ene/enemax at 14/15
-static constexpr int NH_ACTIONS = 22;              // NETHACK_NUM_ACTIONS
-static constexpr int NH_OCLASSES = 18;             // MAXOCLASSES
-static constexpr int NH_EX_RAW = 2 + NH_OCLASSES;  // NETHACK_EXTRA_INTS
+static constexpr int NH_BL_HP = 10, NH_BL_ENE = 14; // hp/hpmax at 10/11, ene/enemax at 14/15
+static constexpr int NH_ACTIONS = 26; // NETHACK_NUM_ACTIONS
+static constexpr int NH_OCLASSES = 18; // MAXOCLASSES
+static constexpr int NH_EXTRA_SHOP = 2 + NH_OCLASSES; // extra[] index of the shop pair
+static constexpr int NH_SPELL_SLOTS = 8; // NETHACK_SPELL_SLOTS
+static constexpr int NH_EX_RAW = 2 + NH_OCLASSES + 2 + 1 + 4 * NH_SPELL_SLOTS + 2; // NETHACK_EXTRA_INTS (+spell block +weight pair)
 // blstats feature map (cumulative offsets; each block documented at its
 // kernel branch). hp/ene fracs are the danger ratios the linear bl_w can't
 // synthesize from separate cur/max scalars; dnum is one-hot because dungeon
 // branch is nominal, not ordinal.
-static constexpr int NH_F_HUNGER = 25;                          // 7-way one-hot
-static constexpr int NH_F_COND   = NH_F_HUNGER + 7;             // 13 condition bits
-static constexpr int NH_F_PREV   = NH_F_COND + 13;              // prev-action one-hot
-static constexpr int NH_F_INV    = NH_F_PREV + NH_ACTIONS;      // inv class counts
-static constexpr int NH_F_FRAC   = NH_F_INV + NH_OCLASSES;      // hp_frac, ene_frac
-static constexpr int NH_F_DNUM   = NH_F_FRAC + 2;               // 8-way one-hot
-static constexpr int NH_F_ENGR   = NH_F_DNUM + 8;               // engraving bits
-static constexpr int NH_BL_FEAT  = NH_F_ENGR + 2;
+static constexpr int NH_F_HUNGER = 25; // 7-way one-hot
+static constexpr int NH_F_COND = NH_F_HUNGER + 7; // 13 condition bits
+static constexpr int NH_F_PREV = NH_F_COND + 13; // prev-action one-hot
+static constexpr int NH_F_INV = NH_F_PREV + NH_ACTIONS; // inv class counts
+static constexpr int NH_F_FRAC = NH_F_INV + NH_OCLASSES; // hp_frac, ene_frac
+static constexpr int NH_F_DNUM = NH_F_FRAC + 2; // 8-way one-hot
+static constexpr int NH_F_ENGR = NH_F_DNUM + 8; // engraving bits
+static constexpr int NH_F_SHOP = NH_F_ENGR + 2; // in-shop, affordability
+// spell scalar feature: known count only — per-slot content rides the
+// spell-key path (v3 pointer), not the blstats block
+static constexpr int NH_F_SPELL = NH_F_SHOP + 2;
+// encumbrance ratio (softsign around the wall) + carry capacity /1000
+static constexpr int NH_F_WEIGHT = NH_F_SPELL + 1;
+static constexpr int NH_BL_FEAT = NH_F_WEIGHT + 2;
 static constexpr int NH_BL_DNUM = 23;
 static constexpr int NH_BL_HID = 64;
 // Inventory entity branch: 55 slot glyphs, each embed -> shared 32->32
 // linear -> relu. The per-slot vectors are the pointer decoder's keys (slot
 // identity lives there); the trunk only gets the pooled summary below. Fused
 // per-glyph table T_inv = E @ inv1_w^T (5977xNH_INV_HID) rebuilt per forward.
-static constexpr int NH_INV = 55;                  // NETHACK_INV_SLOTS
+static constexpr int NH_INV = 55; // NETHACK_INV_SLOTS
 // 16-dim per-slot rep: doubles as the pooled-summary bottleneck AND the
 // decoder pointer key (unified, patch-encoder style). Halves the pool max
 // MACs, the deterministic max-backward atomics, and the max-kernel smem
@@ -84,24 +92,32 @@ static constexpr int NH_INV_POOL = 128;
 // hashes into NH_MSG_VOCAB buckets, its NH_MSG_HID-dim embed row summed, then
 // scaled by 1/sqrt(count+1) (normalized bag / EmbeddingBag sum). The summary
 // is concatenated raw (signed, no relu) like the blstats raw features.
-static constexpr int NH_MSG_LEN = 128;             // raw topline chars in obs tail
-static constexpr int NH_MSG_VOCAB = 4096;          // trigram hash buckets
-static constexpr int NH_MSG_LOG2V = 12;            // log2(NH_MSG_VOCAB)
-static constexpr int NH_MSG_HID = 32;              // trigram embed = message summary dim
+static constexpr int NH_MSG_LEN = 128; // raw topline chars in obs tail
+static constexpr int NH_MSG_VOCAB = 4096; // trigram hash buckets
+static constexpr int NH_MSG_LOG2V = 12; // log2(NH_MSG_VOCAB)
+static constexpr int NH_MSG_HID = 32; // trigram embed = message summary dim
 static constexpr int NH_MSG_CONCAT_OFF = NH_LOC_HID + NH_GLB_HID + NH_INV_POOL + NH_BL_HID + NH_BL_FEAT;
-static constexpr int NH_CONCAT = NH_MSG_CONCAT_OFF + NH_MSG_HID;
-static constexpr int NH_BL_OFF = 2 * NH_MGRID;     // blstats offset, obs elements
+// spell-key path (v3 pointer): per slot, key = spk_w . [e_eff(book glyph) |
+// known, lev/7, fail/100, know/20000]; keys feed the CAST pointer head and a
+// sum-pooled 16-dim trunk summary. Empty slots are exact zeros end to end.
+static constexpr int NH_SPKEY = NH_INV_HID; // 16, shared key width
+static constexpr int NH_SPIN = NH_EMBED_DIM + 4; // 36 key inputs/slot
+static constexpr int NH_SPELL_CONCAT_OFF = NH_MSG_CONCAT_OFF + NH_MSG_HID;
+static constexpr int NH_CONCAT = NH_SPELL_CONCAT_OFF + NH_SPKEY;
+static constexpr int NH_BL_OFF = 2 * NH_MGRID; // blstats offset, obs elements
 static constexpr int NH_INV_OFF = NH_BL_OFF + (NH_BL_RAW + NH_EX_RAW) * 4;
 // obs v4: per-slot identification-gated state, 8 int8 fields per slot
 // [buc, spe(-128=unknown), quan, ero1, ero2, flags, typeknown, rsvd],
 // expanded to NH_SFEAT features feeding the slot MLP beside the embed
 static constexpr int NH_INVST_OFF = NH_INV_OFF + NH_INV * 2;
-static constexpr int NH_ST_RAW = 8;                // NLE_INV_STATE_FIELDS
-static constexpr int NH_SFEAT = 24;   // buc4 + known+spe + quan + ero2 + flags7 + tk + armcat7
-static constexpr int NH_MSG_OFF  = NH_INVST_OFF + NH_INV * NH_ST_RAW;   // message block start
+static constexpr int NH_ST_RAW = 8; // NLE_INV_STATE_FIELDS
+static constexpr int NH_SFEAT = 24; // buc4 + known+spe + quan + ero2 + flags7 + tk + armcat7
+// discovered-type glyphs: true otyp glyph once dknown && oc_name_known, else pad
+static constexpr int NH_INVTRUE_OFF = NH_INVST_OFF + NH_INV * NH_ST_RAW;
+static constexpr int NH_MSG_OFF = NH_INVTRUE_OFF + NH_INV * 2; // message block start
 static constexpr int NH_OBS_SIZE = NH_MSG_OFF + NH_MSG_LEN;
-static constexpr int NH_SORT_BLOCKS = 256;         // hist grid (smem histograms)
-static constexpr int NH_HOT_T = 16;                // hot-glyph smem rows (16x32 int64 = 4KB)
+static constexpr int NH_SORT_BLOCKS = 256; // hist grid (smem histograms)
+static constexpr int NH_HOT_T = 16; // hot-glyph smem rows (16x32 int64 = 4KB)
 
 // Residual factorized glyph embedding: E_eff = E_res + E_kind[kind(g)] +
 // E_sub[sub(g)]. The (kind, sub) mapping is generated from the engine's own
@@ -142,7 +158,7 @@ static __device__ const signed char nh_obj_armcat_dev[NH_NUM_OBJECTS] = {
 };
 static_assert(NH_GM_VOCAB == 5977, "glyph map vocab mismatch");
 static constexpr int NH_NKIND = NH_GM_NKIND;
-static constexpr int NH_NSUB  = NH_GM_NSUB;
+static constexpr int NH_NSUB = NH_GM_NSUB;
 
 // 2^24 fixed-point gradient accumulators: integer atomics are associative, so
 // scatter/bias sums are bit-identical run to run (float atomicAdd ordering is
@@ -172,7 +188,10 @@ __global__ void nh_fxp_to_precision_rows_kernel(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
     int row = idx / trow;
-    if (counts[row] == 0 && hot_map[row] < 0) { dst[idx] = from_float(0.0f); return; }
+    if (counts[row] == 0 && hot_map[row] < 0) {
+        dst[idx] = from_float(0.0f);
+        return;
+    }
     dst[idx] = from_float(nh_fxp_to_float(src[idx]));
     src[idx] = 0;
 }
@@ -180,23 +199,23 @@ __global__ void nh_fxp_to_precision_rows_kernel(
 // Per-blstat normalization: log1p fields get log1p(max(v,0))*scale, the rest
 // v*scale. Hunger (21) and condition (25) are expanded, not scaled.
 __constant__ float NH_BL_SCALE[NH_BL_RAW] = {
-    1.f/79, 1.f/21,                                  // x, y
+    1.f/79, 1.f/21, // x, y
     1.f/25, 1.f/125, 1.f/25, 1.f/25, 1.f/25, 1.f/25, 1.f/25,  // str25 str125 dex con int wis cha
-    0.1f,                                            // score (log)
-    1.f/200, 1.f/200, 1.f/50,                        // hp, hpmax, depth
-    0.1f,                                            // gold (log)
-    1.f/100, 1.f/100, 1.f/10, 1.f/10, 1.f/30,        // ene, enemax, ac, hd, xp level
-    0.1f, 0.1f,                                      // exp points, time (log)
-    0.f,                                             // hunger (expanded)
-    1.f/4, 0.f, 1.f/50,                              // cap, dnum (one-hot), dlevel
-    0.f,                                             // condition (expanded)
-    1.f,                                             // align
+    0.1f, // score (log)
+    1.f/200, 1.f/200, 1.f/50, // hp, hpmax, depth
+    0.1f, // gold (log)
+    1.f/100, 1.f/100, 1.f/10, 1.f/10, 1.f/30, // ene, enemax, ac, hd, xp level
+    0.1f, 0.1f, // exp points, time (log)
+    0.f, // hunger (expanded)
+    1.f/4, 0.f, 1.f/50, // cap, dnum (one-hot), dlevel
+    0.f, // condition (expanded)
+    1.f, // align
 };
 __constant__ int NH_BL_ISLOG[NH_BL_RAW] = {
     0,0,0,0,0,0,0,0,0, 1, 0,0,0, 1, 0,0,0,0,0, 1,1, 0, 0,0,0, 0, 0,
 };
 
-// ---- Nethack kernels ----
+// kernels
 
 __device__ __forceinline__ int nh_bl_read_i32(const precision_t* p) {
     return (int)((unsigned int)(int)to_float(p[0])
@@ -225,8 +244,8 @@ __global__ void nh_crop_kernel(
     if (t >= B * NH_CGRID) return;
     int b = t / NH_CGRID, p = t % NH_CGRID;
     const precision_t* bl = obs + (int64_t)b * NH_OBS_SIZE + NH_BL_OFF;
-    int r = nh_bl_read_i32(bl + 4) - NH_CHALF + p / NH_CROP;   // blstats[1] = y
-    int c = nh_bl_read_i32(bl)     - NH_CHALF + p % NH_CROP;   // blstats[0] = x
+    int r = nh_bl_read_i32(bl + 4) - NH_CHALF + p / NH_CROP; // blstats[1] = y
+    int c = nh_bl_read_i32(bl)     - NH_CHALF + p % NH_CROP; // blstats[0] = x
     crop[t] = (r < 0 || r >= NH_MAPH || c < 0 || c >= NH_MAPW)
         ? (float)NH_PAD_GLYPH : idx[b * NH_MGRID + r * NH_MAPW + c];
 }
@@ -238,7 +257,7 @@ __global__ void nh_local_gather_kernel(
     int t = blockIdx.x * blockDim.x + threadIdx.x;
     if (t >= B * NH_LOC_IN) return;
     int d = t % NH_EMBED_DIM;
-    int64_t cell = t / NH_EMBED_DIM;   // b*NH_CGRID + p
+    int64_t cell = t / NH_EMBED_DIM; // b*NH_CGRID + p
     x[t] = E[(int64_t)(int)crop[cell] * NH_EMBED_DIM + d];
 }
 
@@ -322,8 +341,8 @@ __global__ void nh_patch_max_kernel(
     if (b >= B) return;
     if (threadIdx.x == 0) {
         const precision_t* bl = obs + (int64_t)b * NH_OBS_SIZE + NH_BL_OFF;
-        hero[0] = (float)nh_bl_read_i32(bl);       // x
-        hero[1] = (float)nh_bl_read_i32(bl + 4);   // y
+        hero[0] = (float)nh_bl_read_i32(bl); // x
+        hero[1] = (float)nh_bl_read_i32(bl + 4); // y
     }
     for (int i = threadIdx.x; i < NH_GLB_HID * NH_P1; i += blockDim.x)
         w2s[i] = to_float(w2[i]);
@@ -356,7 +375,10 @@ __global__ void nh_patch_max_kernel(
             float v = 0.0f;
             for (int k = 0; k < NH_P1; k++)
                 v += w2s[o * NH_P1 + k] * t16s[tk * NH_P1 + k];
-            if (v > best) { best = v; bm = tk; }
+            if (v > best) {
+                best = v;
+                bm = tk;
+            }
         }
         glb_out[(int64_t)b * NH_GLB_HID + o] = from_float(fmaxf(best + to_float(b2[o]), 0.0f));
         argmax[(int64_t)b * NH_GLB_HID + o] = bm;
@@ -444,15 +466,33 @@ __global__ void nh_blstats_kernel(
             // hp_frac / ene_frac in [0,1]: the "how close to death/empty" ratio
             int base = (j == NH_F_FRAC) ? NH_BL_HP : NH_BL_ENE;
             int cur = nh_bl_read_i32(src + 4*base);
-            int mx  = nh_bl_read_i32(src + 4*(base + 1));
+            int mx = nh_bl_read_i32(src + 4*(base + 1));
             f = fminf(fmaxf((float)cur / (float)(mx > 1 ? mx : 1), 0.0f), 1.0f);
         } else if (j < NH_F_ENGR) {
             int v = nh_bl_read_i32(src + 4*NH_BL_DNUM);
             f = (j - NH_F_DNUM == max(0, min(v, 7))) ? 1.0f : 0.0f;
-        } else {
+        } else if (j < NH_F_SHOP) {
             // underfoot engraving from ex[0]: any engraving, active Elbereth
             int v = nh_bl_read_i32(ex);
             f = (j == NH_F_ENGR) ? (v >= 1 ? 1.0f : 0.0f) : (v >= 2 ? 1.0f : 0.0f);
+        } else if (j < NH_F_SPELL) {
+            // standing on shop goods, and gold/price capped at 1
+            int v = nh_bl_read_i32(ex + 4*(NH_EXTRA_SHOP + (j - NH_F_SHOP)));
+            f = (j == NH_F_SHOP) ? (float)v : (float)v * 0.01f;
+        } else if (j < NH_F_WEIGHT) {
+            // known-spell count/8; per-slot content rides the spell-key path
+            int v = nh_bl_read_i32(ex + 4*(NH_EXTRA_SHOP + 2));
+            f = (float)v * 0.125f;
+        } else {
+            // encumbrance: softsign(ratio-1) is 0 at the wall, keeps gradient
+            // through Overloaded (~3x); capacity /1000 (engine caps there)
+            int v = nh_bl_read_i32(ex + 4*(NH_EXTRA_SHOP + 2 + 1 + 4 * NH_SPELL_SLOTS
+                                           + (j - NH_F_WEIGHT)));
+            if (j == NH_F_WEIGHT) {
+                float d = (float)v * 0.01f - 1.0f;
+                f = d / (1.0f + fabsf(d));
+            } else
+                f = (float)v * 0.001f;
         }
         // strict [-1,1]: bounds deep-play excursions (AC -15 -> -1.5, hp 300 ->
         // 1.5, stacked inv counts) — validated neutral-now, deep-safe (n=4)
@@ -461,13 +501,13 @@ __global__ void nh_blstats_kernel(
 }
 
 // concat = [local hid | global hid | bl hid | bl raw feats]
-// ---- trigram message branch ----
+// trigram message branch
 __device__ __forceinline__ int nh_msg_lc(int c) {
-    return (c >= 'A' && c <= 'Z') ? c + 32 : c;   // lowercase; keep spaces/punct
+    return (c >= 'A' && c <= 'Z') ? c + 32 : c; // lowercase; keep spaces/punct
 }
 __device__ __forceinline__ int nh_msg_hash(int c0, int c1, int c2) {
     unsigned key = ((unsigned)c0 << 16) | ((unsigned)c1 << 8) | (unsigned)c2;
-    return (int)((key * 2654435761u) >> (32 - NH_MSG_LOG2V));   // top log2V bits
+    return (int)((key * 2654435761u) >> (32 - NH_MSG_LOG2V)); // top log2V bits
 }
 // per-position trigram bucket id (-1 for the padded tail / past the null). Ids
 // stay contiguous because the topline is null-terminated, so consumers break
@@ -477,10 +517,16 @@ __global__ void nh_msg_ids_kernel(
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= B * NH_MSG_LEN) return;
     int b = i / NH_MSG_LEN, t = i % NH_MSG_LEN;
-    if (t > NH_MSG_LEN - 3) { ids[i] = -1.0f; return; }
+    if (t > NH_MSG_LEN - 3) {
+        ids[i] = -1.0f;
+        return;
+    }
     const precision_t* m = obs + (int64_t)b * NH_OBS_SIZE + NH_MSG_OFF;
     int c0 = (int)to_float(m[t]), c1 = (int)to_float(m[t + 1]), c2 = (int)to_float(m[t + 2]);
-    if (c0 == 0 || c1 == 0 || c2 == 0) { ids[i] = -1.0f; return; }
+    if (c0 == 0 || c1 == 0 || c2 == 0) {
+        ids[i] = -1.0f;
+        return;
+    }
     ids[i] = (float)nh_msg_hash(nh_msg_lc(c0), nh_msg_lc(c1), nh_msg_lc(c2));
 }
 // normalized-sum bag: block per sample, one warp = NH_MSG_HID lanes (lane d
@@ -514,12 +560,145 @@ __global__ void nh_msg_bwd_kernel(
     int d = threadIdx.x;
     const float* mi = ids + (int64_t)b * NH_MSG_LEN;
     int count = 0;
-    for (int t = 0; t < NH_MSG_LEN; t++) { if ((int)mi[t] < 0) break; count++; }
+    for (int t = 0; t < NH_MSG_LEN; t++) {
+        if ((int)mi[t] < 0) break;
+        count++;
+    }
     float g = to_float(grad_concat[(int64_t)b * NH_CONCAT + NH_MSG_CONCAT_OFF + d])
               * rsqrtf((float)count + 1.0f);
     if (g == 0.0f) return;
     for (int t = 0; t < count; t++)
         nh_fxp_atomic_add(&dmsg_acc[(int64_t)(int)mi[t] * NH_MSG_HID + d], g);
+}
+
+// spell-key forward: per slot, build the 36-dim input [e_eff(book glyph) |
+// known, lev/7, fail/100, know/20000], key = spk_w . input. Saves inputs +
+// glyph ids for the backward; empty slot -> zero input -> zero key.
+__global__ void nh_spkey_kernel(precision_t* __restrict__ keys,
+    precision_t* __restrict__ sp_in, float* __restrict__ sp_idx,
+    const precision_t* __restrict__ spk_w, const precision_t* __restrict__ e_eff,
+    const precision_t* __restrict__ obs, int B) {
+    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    if (t >= B * NH_SPELL_SLOTS) return;
+    int b = t / NH_SPELL_SLOTS, s = t % NH_SPELL_SLOTS;
+    const precision_t* src = obs + (int64_t)b * NH_OBS_SIZE + NH_BL_OFF
+                           + 4 * (NH_BL_RAW + NH_EXTRA_SHOP + 2 + 1 + 4 * s);
+    int id = (int)to_float(src[0]) | ((int)to_float(src[1]) << 8);
+    int g = id > 0 ? min(id + 1906, NH_GLYPH_VOCAB - 1) : -1;
+    sp_idx[(int64_t)t] = (float)g;
+    float in[NH_SPIN];
+    for (int d = 0; d < NH_EMBED_DIM; d++)
+        in[d] = g >= 0 ? to_float(e_eff[(int64_t)g * NH_EMBED_DIM + d]) : 0.0f;
+    int lev = (int)to_float(src[4]) | ((int)to_float(src[5]) << 8);
+    int fail = (int)to_float(src[8]) | ((int)to_float(src[9]) << 8);
+    int know = (int)to_float(src[12]) | ((int)to_float(src[13]) << 8)
+             | ((int)to_float(src[14]) << 16);
+    in[NH_EMBED_DIM + 0] = id > 0 ? 1.0f : 0.0f;
+    in[NH_EMBED_DIM + 1] = fminf((float)lev * 0.142857f, 1.0f);
+    in[NH_EMBED_DIM + 2] = fminf((float)fail * 0.01f, 1.0f);
+    in[NH_EMBED_DIM + 3] = fminf((float)know * 0.00005f, 1.0f);
+    precision_t* inb = sp_in + (int64_t)t * NH_SPIN;
+    for (int c = 0; c < NH_SPIN; c++) inb[c] = from_float(in[c]);
+    precision_t* kb = keys + (int64_t)t * NH_SPKEY;
+    for (int r = 0; r < NH_SPKEY; r++) {
+        float acc = 0.0f;
+        for (int c = 0; c < NH_SPIN; c++)
+            acc += to_float(spk_w[r * NH_SPIN + c]) * in[c];
+        kb[r] = from_float(fmaxf(acc, 0.0f)); // relu'd slot rep (inv1 idiom)
+    }
+}
+
+// inventory-style pool: project each relu'd slot rep, max over slots, bias,
+// relu (mirrors inv2). Saves the argmax slot per (sample, pool dim).
+__global__ void nh_sppool_kernel(precision_t* __restrict__ concat,
+    precision_t* __restrict__ pool, int* __restrict__ amax,
+    const precision_t* __restrict__ keys,
+    const precision_t* __restrict__ spk2_w, const precision_t* __restrict__ spk2_b, int B) {
+    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    if (t >= B * NH_SPKEY) return;
+    int b = t / NH_SPKEY, d = t % NH_SPKEY;
+    float best = -1e30f;
+    int bs = 0;
+    for (int s = 0; s < NH_SPELL_SLOTS; s++) {
+        float acc = 0.0f;
+        for (int k = 0; k < NH_SPKEY; k++)
+            acc += to_float(spk2_w[d * NH_SPKEY + k])
+                 * to_float(keys[((int64_t)b * NH_SPELL_SLOTS + s) * NH_SPKEY + k]);
+        if (acc > best) {
+            best = acc;
+            bs = s;
+        }
+    }
+    amax[t] = bs;
+    float v = fmaxf(best + to_float(spk2_b[d]), 0.0f);
+    pool[t] = from_float(v);
+    concat[(int64_t)b * NH_CONCAT + NH_SPELL_CONCAT_OFF + d] = from_float(v);
+}
+
+// backward: scatter the concat-grad spell slice into the fxp dE staging
+// spell-key backward, stage 1: total per-slot rep grad = pool grad routed
+// through relu + argmax + spk2 projection, plus the pointer's key grads;
+// finally masked by the rep's own relu.
+__global__ void nh_spkey_dk_kernel(precision_t* __restrict__ dkeys,
+    const precision_t* __restrict__ grad_concat, const precision_t* __restrict__ pool,
+    const int* __restrict__ amax, const precision_t* __restrict__ spk2_w,
+    const precision_t* __restrict__ keys, const precision_t* __restrict__ ptr_dkeys, int B) {
+    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    if (t >= B * NH_SPELL_SLOTS * NH_SPKEY) return;
+    int b = t / (NH_SPELL_SLOTS * NH_SPKEY);
+    int s = (t / NH_SPKEY) % NH_SPELL_SLOTS;
+    int k = t % NH_SPKEY;
+    float v = ptr_dkeys ? to_float(ptr_dkeys[t]) : 0.0f;
+    for (int d = 0; d < NH_SPKEY; d++) {
+        if (amax[(int64_t)b * NH_SPKEY + d] != s) continue;
+        if (to_float(pool[(int64_t)b * NH_SPKEY + d]) <= 0.0f)
+            continue; // pool relu gate
+        v += to_float(grad_concat[(int64_t)b * NH_CONCAT + NH_SPELL_CONCAT_OFF + d])
+           * to_float(spk2_w[d * NH_SPKEY + k]);
+    }
+    if (to_float(keys[t]) <= 0.0f) v = 0.0f; // rep relu gate
+    dkeys[t] = from_float(v);
+}
+
+// spk2 grads: (16x16 + 16) threads loop the batch; small enough to be cheap
+__global__ void nh_spk2_grad_kernel(precision_t* __restrict__ spk2_wgrad,
+    precision_t* __restrict__ spk2_bgrad, const precision_t* __restrict__ grad_concat,
+    const precision_t* __restrict__ pool, const int* __restrict__ amax,
+    const precision_t* __restrict__ keys, int B) {
+    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    if (t >= NH_SPKEY * (NH_SPKEY + 1)) return;
+    int d = t / (NH_SPKEY + 1), k = t % (NH_SPKEY + 1);
+    float acc = 0.0f;
+    for (int b = 0; b < B; b++) {
+        if (to_float(pool[(int64_t)b * NH_SPKEY + d]) <= 0.0f)
+            continue;
+        float g = to_float(grad_concat[(int64_t)b * NH_CONCAT + NH_SPELL_CONCAT_OFF + d]);
+        if (g == 0.0f) continue;
+        if (k == NH_SPKEY) { // bias
+            acc += g;
+            continue;
+        }
+        int s = amax[(int64_t)b * NH_SPKEY + d];
+        acc += g * to_float(keys[((int64_t)b * NH_SPELL_SLOTS + s) * NH_SPKEY + k]);
+    }
+    if (k == NH_SPKEY) spk2_bgrad[d] = from_float(acc);
+    else spk2_wgrad[d * NH_SPKEY + k] = from_float(acc);
+}
+
+// stage 2: scatter d_embed = spk_w[:, :32]^T . dkey into the fxp dE staging
+__global__ void nh_spkey_dE_kernel(long long* __restrict__ dE_i,
+    const precision_t* __restrict__ dkeys, const precision_t* __restrict__ spk_w,
+    const float* __restrict__ sp_idx, int B) {
+    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    if (t >= B * NH_SPELL_SLOTS * NH_EMBED_DIM) return;
+    int bs = t / NH_EMBED_DIM;
+    int d = t % NH_EMBED_DIM;
+    int g = (int)sp_idx[bs];
+    if (g < 0) return;
+    float acc = 0.0f;
+    for (int r = 0; r < NH_SPKEY; r++)
+        acc += to_float(spk_w[r * NH_SPIN + d]) * to_float(dkeys[(int64_t)bs * NH_SPKEY + r]);
+    if (acc != 0.0f) nh_fxp_atomic_add(&dE_i[(int64_t)g * NH_EMBED_DIM + d], acc);
 }
 
 __global__ void nh_concat_kernel(
@@ -541,8 +720,10 @@ __global__ void nh_concat_kernel(
         val = bl_out[(int64_t)b * NH_BL_HID + (c - NH_LOC_HID - NH_GLB_HID - NH_INV_POOL)];
     else if (c < NH_MSG_CONCAT_OFF)
         val = bl_feats[(int64_t)b * NH_BL_FEAT + (c - NH_LOC_HID - NH_GLB_HID - NH_INV_POOL - NH_BL_HID)];
-    else
+    else if (c < NH_SPELL_CONCAT_OFF)
         val = msg[(int64_t)b * NH_MSG_HID + (c - NH_MSG_CONCAT_OFF)];
+    else
+        return; // spell slice: nh_spell_gather_kernel fills it afterwards
     out[idx] = val;
 }
 
@@ -555,14 +736,14 @@ __global__ void nh_slice_kernel(
     dst[idx] = src[(idx / n) * stride + offset + idx % n];
 }
 
-// ---- inventory entity branch ----
+// inventory entity branch
 
 __global__ void nh_inv_decode_kernel(
-    float* __restrict__ idx, const precision_t* __restrict__ obs, int B) {
+    float* __restrict__ idx, const precision_t* __restrict__ obs, int B, int off) {
     int t = blockIdx.x * blockDim.x + threadIdx.x;
     if (t >= B * NH_INV) return;
     int b = t / NH_INV, s = t % NH_INV;
-    const precision_t* src = obs + (int64_t)b * NH_OBS_SIZE + NH_INV_OFF + 2 * s;
+    const precision_t* src = obs + (int64_t)b * NH_OBS_SIZE + off + 2 * s;
     int g = (int)to_float(src[0]) | ((int)to_float(src[1]) << 8);
     idx[t] = (float)max(0, min(g, NH_GLYPH_VOCAB - 1));
 }
@@ -590,14 +771,14 @@ __global__ void nh_inv_sfeat_kernel(precision_t* __restrict__ out,
     int st[NH_ST_RAW];
     for (int j = 0; j < NH_ST_RAW; j++) {
         int v = (int)to_float(src[j]);
-        st[j] = v >= 128 ? v - 256 : v;   // bytes -> int8
+        st[j] = v >= 128 ? v - 256 : v; // bytes -> int8
     }
     precision_t* f = out + (int64_t)t * NH_SFEAT;
     for (int c = 0; c < 4; c++) f[c] = from_float(st[0] == c ? 1.0f : 0.0f);
     int spe_known = st[1] != -128;
     f[4] = from_float((float)spe_known);
     f[5] = from_float(spe_known ? (float)st[1] * 0.1f : 0.0f);
-    f[6] = from_float(log1pf(fmaxf((float)st[2], 0.0f)) * 0.5f);   // guard vs unclamped export drift
+    f[6] = from_float(log1pf(fmaxf((float)st[2], 0.0f)) * 0.5f); // guard vs unclamped export drift
     f[7] = from_float((float)st[3] * (1.0f / 3.0f));
     f[8] = from_float((float)st[4] * (1.0f / 3.0f));
     for (int c = 0; c < 7; c++)
@@ -616,13 +797,18 @@ __global__ void nh_inv_sfeat_kernel(precision_t* __restrict__ out,
 __global__ void nh_inv_gather_kernel(precision_t* __restrict__ out,
     const precision_t* __restrict__ T, const precision_t* __restrict__ b1,
     const precision_t* __restrict__ ws, const precision_t* __restrict__ sfeat,
-    const float* __restrict__ idx, int B) {
+    const float* __restrict__ idx, const precision_t* __restrict__ Tt,
+    const float* __restrict__ idxt, int B) {
     int t = blockIdx.x * blockDim.x + threadIdx.x;
     if (t >= B * NH_INV_FLAT) return;
     int b = t / NH_INV_FLAT, r = t % NH_INV_FLAT;
     int s = r / NH_INV_HID, k = r % NH_INV_HID;
     int g = (int)idx[b * NH_INV + s];
     float v = to_float(T[g * NH_INV_HID + k]) + to_float(b1[k]);
+    // discovered-type channel: pad = unknown identity, hard zero contribution
+    int gt = (int)idxt[b * NH_INV + s];
+    if (gt != NH_GLYPH_VOCAB - 1)
+        v += to_float(Tt[gt * NH_INV_HID + k]);
     const precision_t* f = sfeat + ((int64_t)b * NH_INV + s) * NH_SFEAT;
     for (int j = 0; j < NH_SFEAT; j++)
         v += to_float(ws[k * NH_SFEAT + j]) * to_float(f[j]);
@@ -653,7 +839,10 @@ __global__ void nh_inv_max_kernel(precision_t* __restrict__ pool_out,
             float v = 0.0f;
             for (int k = 0; k < NH_INV_HID; k++)
                 v += w2s[o * NH_INV_HID + k] * ss[s * NH_INV_HID + k];
-            if (v > best) { best = v; bm = s; }
+            if (v > best) {
+                best = v;
+                bm = s;
+            }
         }
         pool_out[(int64_t)b * NH_INV_POOL + o] = from_float(fmaxf(best + to_float(b2[o]), 0.0f));
         argmax[(int64_t)b * NH_INV_POOL + o] = bm;
@@ -700,12 +889,15 @@ __global__ void nh_inv_max_bwd_kernel(precision_t* __restrict__ inv_grad,
 // dT_inv scatter, plain global fxp atomics: 55x16 per sample is too small
 // for the hot-row machinery to pay
 __global__ void nh_dTinv_scatter_kernel(long long* __restrict__ dT,
-    const precision_t* __restrict__ dflat, const float* __restrict__ idx, int64_t n) {
+    const precision_t* __restrict__ dflat, const float* __restrict__ idx, int64_t n,
+    int skip_pad) {
     int64_t t = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
     if (t >= n) return;
     float v = to_float(dflat[t]);
     if (v == 0.0f) return;
     int g = (int)idx[t / NH_INV_HID];
+    // true-glyph channel: pad slots contributed hard zero in the forward
+    if (skip_pad && g == NH_GLYPH_VOCAB - 1) return;
     nh_fxp_atomic_add(&dT[(int64_t)g * NH_INV_HID + t % NH_INV_HID], v);
 }
 
@@ -766,7 +958,7 @@ __global__ void nh_bias_flush_kernel(
     else if ((i -= n5) < n6) d6[i] = from_float(v);
 }
 
-// ---- embedding backward ----
+// embedding backward
 // Both views are linear in the embeddings, so dE is a scatter-add of per-cell
 // 32-dim grad vectors into glyph rows. The dominant glyphs (unexplored stone,
 // floor, walls cover ~80% of cells) contend on the same rows; per-block smem
@@ -798,7 +990,10 @@ __global__ void nh_hot_select_kernel(
     for (int k = 0; k < K; k++) {
         int bv = 0, bg = -1;
         for (int g = tid; g < NH_GLYPH_VOCAB; g += blockDim.x)
-            if (counts[g] > bv) { bv = counts[g]; bg = g; }
+            if (counts[g] > bv) {
+                bv = counts[g];
+                bg = g;
+            }
         best_v[tid] = bv; best_g[tid] = bg;
         __syncthreads();
         for (int off = blockDim.x / 2; off > 0; off >>= 1) {
@@ -824,7 +1019,7 @@ __global__ void nh_dE_scatter_kernel(
     const float* __restrict__ gidx, const int* __restrict__ hot_map,
     const int* __restrict__ hot_list, const int* __restrict__ hot_n,
     int64_t ncell) {
-    extern __shared__ long long acc_s[];   // NH_HOT_T x NH_EMBED_DIM
+    extern __shared__ long long acc_s[]; // NH_HOT_T x NH_EMBED_DIM
     for (int i = threadIdx.x; i < NH_HOT_T * NH_EMBED_DIM; i += blockDim.x)
         acc_s[i] = 0;
     __syncthreads();
@@ -859,7 +1054,7 @@ __global__ void nh_dT_patch_scatter_kernel(
     long long* __restrict__ dT_i, const precision_t* __restrict__ dt16,
     const float* __restrict__ idx, const int* __restrict__ hot_map,
     const int* __restrict__ hot_list, const int* __restrict__ hot_n, int B) {
-    extern __shared__ long long acc_s[];   // NH_HOT_G x NH_TROW
+    extern __shared__ long long acc_s[]; // NH_HOT_G x NH_TROW
     for (int i = threadIdx.x; i < NH_HOT_G * NH_TROW; i += blockDim.x)
         acc_s[i] = 0;
     __syncthreads();
@@ -934,51 +1129,62 @@ __global__ void nh_count_pad_kernel(int* __restrict__ counts, int B) {
         counts[NH_PAD_GLYPH] += NH_PAD_PER_SAMPLE * B;
 }
 
-// ---- Nethack encoder structs ----
+// encoder structs
 
 struct NethackEncoderWeights {
-    PrecisionTensor embed_w, ekind_w, esub_w, loc_w, loc_b;
-    PrecisionTensor glb1_w, glb1_xy, glb1_b, glb2_w, glb2_b;
-    PrecisionTensor inv1_w, inv1_b, inv1s_w, inv2_w, inv2_b;
-    PrecisionTensor bl_w, bl_b, proj_w, proj_b;
-    PrecisionTensor msg_w;                 // trigram embedding table (NH_MSG_VOCAB, NH_MSG_HID)
+    Prec embed_w, ekind_w, esub_w, loc_w, loc_b;
+    Prec glb1_w, glb1_xy, glb1_b, glb2_w, glb2_b;
+    Prec inv1_w, inv1_b, inv1s_w, invt_w, inv2_w, inv2_b;
+    Prec bl_w, bl_b, proj_w, proj_b;
+    Prec msg_w; // trigram embedding table (NH_MSG_VOCAB, NH_MSG_HID)
+    Prec spk_w; // spell slot-rep projection (NH_SPKEY, NH_SPIN)
+    Prec spk2_w, spk2_b; // spell pool projection + bias (inv2 idiom)
     int obs_size, hidden;
 };
 
 struct NethackEncoderActivations {
-    FloatTensor glyph_idx, crop_glyph;     // decoded grid + crop glyph ids
-    PrecisionTensor e_eff;                 // materialized E_res + E_kind + E_sub
-    PrecisionTensor x_local;               // crop embeds (grad aliases it)
-    PrecisionTensor w_perm, glyph_T;       // fused embed+flatten+glb1 table
-    PrecisionTensor t16;                   // relu'd patch tokens (dt16 overwrites)
-    PrecisionTensor dxy;                   // per-token hero offsets (w_xy wgrad)
-    IntTensor tok_argmax;                  // winning token per (sample, out dim)
-    FloatTensor inv_idx;                   // inventory slot glyph ids
-    PrecisionTensor inv_sfeat;             // per-slot state features (B, 55*NH_SFEAT)
-    PrecisionTensor inv_T, inv_out;        // fused inv table + relu'd flat slots
-    PrecisionTensor inv_pool;              // pooled 128-dim trunk summary
-    IntTensor inv_amax;                    // winning slot per (sample, pool dim)
-    PrecisionTensor loc_out, glb_out;
-    PrecisionTensor bl_feats, bl_out;
-    FloatTensor msg_ids;                   // per-position trigram bucket ids (-1 pad)
-    PrecisionTensor msg_out;               // normalized trigram-bag summary (B, NH_MSG_HID)
-    PrecisionTensor concat, out;
-    PrecisionTensor loc_grad, glb_grad, inv_grad, bl_grad;   // contiguous concat slices
-    PrecisionTensor inv_pool_grad;         // pooled-summary slice of concat grad
-    PrecisionTensor dT, dw_perm;           // dT table + permuted glb1 wgrad
-    PrecisionTensor dTinv, dE_tmp;         // inv-table grad + its dE staging
-    LongTensor dT_i, dTinv_i;              // fixed-point dT scatter staging
-    LongTensor dE_i;                       // fixed-point local embed-grad staging
-    LongTensor dw2_acc;                    // fixed-point glb2 wgrad staging
-    LongTensor dw2i_acc;                   // fixed-point inv2 wgrad staging
-    LongTensor dmsg_acc;                   // fixed-point trigram-table wgrad staging
-    LongTensor bias_acc;                   // fixed-point bias grads: proj | loc | glb2 | bl | glb1 | inv1 | inv2
-    IntTensor sort_local, sort_grid;       // counts | hot_map | hot_list | hot_n
-    PrecisionTensor embed_wgrad, ekind_wgrad, esub_wgrad, loc_wgrad, loc_bgrad;
-    PrecisionTensor glb1_wgrad, glb1_xygrad, glb1_bgrad, glb2_wgrad, glb2_bgrad;
-    PrecisionTensor inv1_wgrad, inv1_bgrad, inv1s_wgrad, inv2_wgrad, inv2_bgrad;
-    PrecisionTensor bl_wgrad, bl_bgrad, proj_wgrad, proj_bgrad;
-    PrecisionTensor msg_wgrad;
+    Float glyph_idx, crop_glyph; // decoded grid + crop glyph ids
+    Prec e_eff; // materialized E_res + E_kind + E_sub
+    Prec x_local; // crop embeds (grad aliases it)
+    Prec w_perm, glyph_T; // fused embed+flatten+glb1 table
+    Prec t16; // relu'd patch tokens (dt16 overwrites)
+    Prec dxy; // per-token hero offsets (w_xy wgrad)
+    Int tok_argmax; // winning token per (sample, out dim)
+    Float inv_idx; // inventory slot glyph ids
+    Float spell_idx; // per-slot book glyphs (-1 = empty slot)
+    Prec spk_in, spk_keys; // spell-key inputs (B, 8*36) + relu'd reps (B, 8*16)
+    Prec spk_dkeys; // total per-slot rep grads (pool + pointer)
+    Int spk_amax; // pool argmax slot per (sample, pool dim)
+    Prec spk_pool; // pooled forward values (relu gate for backward;
+                                // concat is grad-aliased and unreadable then)
+    Float invt_idx; // discovered-type glyph ids (pad = unknown)
+    Prec inv_sfeat; // per-slot state features (B, 55*NH_SFEAT)
+    Prec inv_T, inv_out; // fused inv table + relu'd flat slots
+    Prec invt_T; // fused discovered-type table
+    Prec inv_pool; // pooled 128-dim trunk summary
+    Int inv_amax; // winning slot per (sample, pool dim)
+    Prec loc_out, glb_out;
+    Prec bl_feats, bl_out;
+    Float msg_ids; // per-position trigram bucket ids (-1 pad)
+    Prec msg_out; // normalized trigram-bag summary (B, NH_MSG_HID)
+    Prec concat, out;
+    Prec loc_grad, glb_grad, inv_grad, bl_grad; // contiguous concat slices
+    Prec inv_pool_grad; // pooled-summary slice of concat grad
+    Prec dT, dw_perm; // dT table + permuted glb1 wgrad
+    Prec dTinv, dE_tmp; // inv-table grad + its dE staging
+    Prec dTtrue; // discovered-type table grad
+    Long dT_i, dTinv_i, dTtrue_i; // fixed-point dT scatter staging
+    Long dE_i; // fixed-point local embed-grad staging
+    Long dw2_acc; // fixed-point glb2 wgrad staging
+    Long dw2i_acc; // fixed-point inv2 wgrad staging
+    Long dmsg_acc; // fixed-point trigram-table wgrad staging
+    Long bias_acc; // fixed-point bias grads: proj | loc | glb2 | bl | glb1 | inv1 | inv2
+    Int sort_local, sort_grid; // counts | hot_map | hot_list | hot_n
+    Prec embed_wgrad, ekind_wgrad, esub_wgrad, loc_wgrad, loc_bgrad;
+    Prec glb1_wgrad, glb1_xygrad, glb1_bgrad, glb2_wgrad, glb2_bgrad;
+    Prec inv1_wgrad, inv1_bgrad, inv1s_wgrad, invt_wgrad, inv2_wgrad, inv2_bgrad;
+    Prec bl_wgrad, bl_bgrad, proj_wgrad, proj_bgrad;
+    Prec msg_wgrad, spk_wgrad, spk2_wgrad, spk2_bgrad;
 };
 
 static NethackEncoderWeights* nethack_encoder_create(int obs_size, int hidden) {
@@ -993,9 +1199,9 @@ static NethackEncoderWeights* nethack_encoder_create(int obs_size, int hidden) {
     return ew;
 }
 
-// ---- Nethack encoder interface ----
+// encoder interface
 
-// ---- encoder <-> pointer-decoder wiring ----
+// encoder <-> pointer-decoder wiring
 // The decoder's slot head is a pointer over the inventory branch's per-slot
 // vectors: it reads the encoder's inv_out (keys), and the encoder backward
 // adds the decoder's key gradients into the inv slice (inv_out has two grad
@@ -1003,12 +1209,13 @@ static NethackEncoderWeights* nethack_encoder_create(int obs_size, int hidden) {
 // registration (cudagraph-safe); train vs rollout resolved by batch size.
 struct NethackDecoderActivations;
 // encoder acts register immediately before their partner decoder acts inside
-// each policy_reg_* call; the decoder captures this at its own reg time, so
+// each arch_reg_* call; the decoder captures this at its own reg time, so
 // every rollout buffer's decoder reads its own buffer's inv_out.
-static NethackEncoderActivations* nh_enc_last = nullptr;
-static PrecisionTensor* nh_ptr_keygrad = nullptr;   // train decoder's (B_TT, NH_INV_FLAT)
+static NethackEncoderActivations* nh_enc_last = NULL;
+static Prec* nh_ptr_keygrad = NULL; // train decoder's (B_TT, NH_INV_FLAT)
+static Prec* nh_ptr_spkeygrad = NULL; // train decoder's spell-key grads (B_TT, 8*NH_SPKEY)
 
-static PrecisionTensor nethack_encoder_forward(void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
+static Prec nethack_encoder_forward(void* w, void* activations, Prec input, cudaStream_t stream) {
     NethackEncoderWeights* ew = (NethackEncoderWeights*)w;
     NethackEncoderActivations* a = (NethackEncoderActivations*)activations;
     int B = input.shape[0];
@@ -1035,14 +1242,18 @@ static PrecisionTensor nethack_encoder_forward(void* w, void* activations, Preci
         ew->glb2_b.data, a->glyph_idx.data, input.data, B);
 
     nh_inv_decode_kernel<<<grid_size(B * NH_INV), BLOCK_SIZE, 0, stream>>>(
-        a->inv_idx.data, input.data, B);
+        a->inv_idx.data, input.data, B, NH_INV_OFF);
+    nh_inv_decode_kernel<<<grid_size(B * NH_INV), BLOCK_SIZE, 0, stream>>>(
+        a->invt_idx.data, input.data, B, NH_INVTRUE_OFF);
     nh_inv_table_kernel<<<grid_size(NH_GLYPH_VOCAB * NH_INV_HID), BLOCK_SIZE, 0, stream>>>(
         a->inv_T.data, a->e_eff.data, ew->inv1_w.data);
+    nh_inv_table_kernel<<<grid_size(NH_GLYPH_VOCAB * NH_INV_HID), BLOCK_SIZE, 0, stream>>>(
+        a->invt_T.data, a->e_eff.data, ew->invt_w.data);
     nh_inv_sfeat_kernel<<<grid_size(B * NH_INV), BLOCK_SIZE, 0, stream>>>(
         a->inv_sfeat.data, input.data, B);
     nh_inv_gather_kernel<<<grid_size(B * NH_INV_FLAT), BLOCK_SIZE, 0, stream>>>(
         a->inv_out.data, a->inv_T.data, ew->inv1_b.data, ew->inv1s_w.data,
-        a->inv_sfeat.data, a->inv_idx.data, B);
+        a->inv_sfeat.data, a->inv_idx.data, a->invt_T.data, a->invt_idx.data, B);
     nh_inv_max_kernel<<<B, 128, 0, stream>>>(
         a->inv_pool.data, a->inv_amax.data, a->inv_out.data,
         ew->inv2_w.data, ew->inv2_b.data, B);
@@ -1061,13 +1272,19 @@ static PrecisionTensor nethack_encoder_forward(void* w, void* activations, Preci
     nh_concat_kernel<<<grid_size(B * NH_CONCAT), BLOCK_SIZE, 0, stream>>>(
         a->concat.data, a->loc_out.data, a->glb_out.data, a->inv_pool.data,
         a->bl_out.data, a->bl_feats.data, a->msg_out.data, B);
+    nh_spkey_kernel<<<grid_size(B * NH_SPELL_SLOTS), BLOCK_SIZE, 0, stream>>>(
+        a->spk_keys.data, a->spk_in.data, a->spell_idx.data,
+        ew->spk_w.data, a->e_eff.data, input.data, B);
+    nh_sppool_kernel<<<grid_size(B * NH_SPKEY), BLOCK_SIZE, 0, stream>>>(
+        a->concat.data, a->spk_pool.data, a->spk_amax.data, a->spk_keys.data,
+        ew->spk2_w.data, ew->spk2_b.data, B);
     puf_mm(&a->concat, &ew->proj_w, &a->out, stream);
     nh_bias_relu_kernel<<<grid_size(B * ew->hidden), BLOCK_SIZE, 0, stream>>>(
         a->out.data, ew->proj_b.data, B * ew->hidden, ew->hidden);
     return a->out;
 }
 
-static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor grad, cudaStream_t stream) {
+static void nethack_encoder_backward(void* w, void* activations, Prec grad, cudaStream_t stream) {
     NethackEncoderWeights* ew = (NethackEncoderWeights*)w;
     NethackEncoderActivations* a = (NethackEncoderActivations*)activations;
     int B = grad.shape[0], H = ew->hidden;
@@ -1079,7 +1296,7 @@ static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor
         grad.data, a->out.data, bacc, (int64_t)B * H, H);
     puf_mm_tn(&grad, &a->concat, &a->proj_wgrad, stream);
 
-    PrecisionTensor grad_concat = {.data = a->concat.data, .shape = {B, NH_CONCAT}};
+    Prec grad_concat = {.data = a->concat.data, .shape = {B, NH_CONCAT}};
     puf_mm_nn(&grad, &ew->proj_w, &grad_concat, stream);
 
     // Local view: wgrad against saved x_local, then the input grad overwrites
@@ -1088,9 +1305,9 @@ static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor
         a->loc_grad.data, grad_concat.data, B, NH_CONCAT, 0, NH_LOC_HID);
     nh_relu_bias_bwd_kernel<<<nh_colsum_grid((int64_t)B * NH_LOC_HID, NH_LOC_HID), BLOCK_SIZE, NH_LOC_HID * sizeof(long long), stream>>>(
         a->loc_grad.data, a->loc_out.data, bacc + H, (int64_t)B * NH_LOC_HID, NH_LOC_HID);
-    PrecisionTensor locg = {.data = a->loc_grad.data, .shape = {B, NH_LOC_HID}};
+    Prec locg = {.data = a->loc_grad.data, .shape = {B, NH_LOC_HID}};
     puf_mm_tn(&locg, &a->x_local, &a->loc_wgrad, stream);
-    PrecisionTensor dx_local = {.data = a->x_local.data, .shape = {B, NH_LOC_IN}};
+    Prec dx_local = {.data = a->x_local.data, .shape = {B, NH_LOC_IN}};
     puf_mm_nn(&locg, &ew->loc_w, &dx_local, stream);
 
     // Global view: relu mask + b2 grad, then the fused max backward (dW2 via
@@ -1108,8 +1325,8 @@ static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor
     nh_col_sum_kernel<<<nh_colsum_grid((int64_t)B * NH_TOK * NH_P1, NH_P1), BLOCK_SIZE, NH_P1 * sizeof(long long), stream>>>(
         bacc + H + NH_LOC_HID + NH_GLB_HID + NH_BL_HID, a->t16.data, (int64_t)B * NH_TOK * NH_P1, NH_P1);
     // (dx,dy) weight slice: dW_xy = dt16^T @ dxy (tall-K, 16x2 output)
-    PrecisionTensor dt16v = {.data = a->t16.data, .shape = {B * NH_TOK, NH_P1}};
-    PrecisionTensor dxyv  = {.data = a->dxy.data, .shape = {B * NH_TOK, 2}};
+    Prec dt16v = {.data = a->t16.data, .shape = {B * NH_TOK, NH_P1}};
+    Prec dxyv = {.data = a->dxy.data, .shape = {B * NH_TOK, 2}};
     puf_mm_tn(&dt16v, &dxyv, &a->glb1_xygrad, stream);
 
     // Inventory branch: slice the pooled-summary grad, relu-mask it (inv2
@@ -1130,29 +1347,36 @@ static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor
         a->inv2_wgrad.data, (long long*)a->dw2i_acc.data, NH_INV_POOL * NH_INV_HID);
     // pointer-decoder key grads: second consumer of inv_out, summed before
     // the relu mask (both paths read the post-relu slot vectors)
-    if (nh_ptr_keygrad != nullptr)
+    if (nh_ptr_keygrad != NULL)
         nh_add_inplace_kernel<<<grid_size(B * NH_INV_FLAT), BLOCK_SIZE, 0, stream>>>(
             a->inv_grad.data, nh_ptr_keygrad->data, B * NH_INV_FLAT);
     nh_relu_bias_bwd_kernel<<<nh_colsum_grid((int64_t)B * NH_INV_FLAT, NH_INV_HID), BLOCK_SIZE, NH_INV_HID * sizeof(long long), stream>>>(
         a->inv_grad.data, a->inv_out.data, bacc + H + NH_LOC_HID + NH_GLB_HID + NH_BL_HID + NH_P1,
         (int64_t)B * NH_INV_FLAT, NH_INV_HID);
     // state-path weight grad: dW_s = dslot^T @ sfeat over the B*55 slot rows
-    PrecisionTensor dsflat = {.data = a->inv_grad.data, .shape = {B * NH_INV, NH_INV_HID}};
-    PrecisionTensor sfflat = {.data = a->inv_sfeat.data, .shape = {B * NH_INV, NH_SFEAT}};
+    Prec dsflat = {.data = a->inv_grad.data, .shape = {B * NH_INV, NH_INV_HID}};
+    Prec sfflat = {.data = a->inv_sfeat.data, .shape = {B * NH_INV, NH_SFEAT}};
     puf_mm_tn(&dsflat, &sfflat, &a->inv1s_wgrad, stream);
     cudaMemsetAsync(a->dTinv_i.data, 0, (size_t)NH_GLYPH_VOCAB * NH_INV_HID * sizeof(long long), stream);
     nh_dTinv_scatter_kernel<<<grid_size((int64_t)B * NH_INV_FLAT), BLOCK_SIZE, 0, stream>>>(
-        (long long*)a->dTinv_i.data, a->inv_grad.data, a->inv_idx.data, (int64_t)B * NH_INV_FLAT);
+        (long long*)a->dTinv_i.data, a->inv_grad.data, a->inv_idx.data, (int64_t)B * NH_INV_FLAT, 0);
     nh_fxp_to_precision_kernel<<<grid_size(NH_GLYPH_VOCAB * NH_INV_HID), BLOCK_SIZE, 0, stream>>>(
         a->dTinv.data, (long long*)a->dTinv_i.data, NH_GLYPH_VOCAB * NH_INV_HID);
     puf_mm_tn(&a->dTinv, &a->e_eff, &a->inv1_wgrad, stream);
+    // discovered-type channel: same fused-table backward keyed by true glyph
+    cudaMemsetAsync(a->dTtrue_i.data, 0, (size_t)NH_GLYPH_VOCAB * NH_INV_HID * sizeof(long long), stream);
+    nh_dTinv_scatter_kernel<<<grid_size((int64_t)B * NH_INV_FLAT), BLOCK_SIZE, 0, stream>>>(
+        (long long*)a->dTtrue_i.data, a->inv_grad.data, a->invt_idx.data, (int64_t)B * NH_INV_FLAT, 1);
+    nh_fxp_to_precision_kernel<<<grid_size(NH_GLYPH_VOCAB * NH_INV_HID), BLOCK_SIZE, 0, stream>>>(
+        a->dTtrue.data, (long long*)a->dTtrue_i.data, NH_GLYPH_VOCAB * NH_INV_HID);
+    puf_mm_tn(&a->dTtrue, &a->e_eff, &a->invt_wgrad, stream);
 
     // Blstats branch (raw-feature slice of concat has no upstream params)
     nh_slice_kernel<<<grid_size(B * NH_BL_HID), BLOCK_SIZE, 0, stream>>>(
         a->bl_grad.data, grad_concat.data, B, NH_CONCAT, NH_LOC_HID + NH_GLB_HID + NH_INV_POOL, NH_BL_HID);
     nh_relu_bias_bwd_kernel<<<nh_colsum_grid((int64_t)B * NH_BL_HID, NH_BL_HID), BLOCK_SIZE, NH_BL_HID * sizeof(long long), stream>>>(
         a->bl_grad.data, a->bl_out.data, bacc + H + NH_LOC_HID + NH_GLB_HID, (int64_t)B * NH_BL_HID, NH_BL_HID);
-    PrecisionTensor blg = {.data = a->bl_grad.data, .shape = {B, NH_BL_HID}};
+    Prec blg = {.data = a->bl_grad.data, .shape = {B, NH_BL_HID}};
     puf_mm_tn(&blg, &a->bl_feats, &a->bl_wgrad, stream);
 
     // Message branch: scatter (1/sqrt(count+1))*dout into the trigram embedding
@@ -1182,8 +1406,8 @@ static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor
     int dT_n = NH_GLYPH_VOCAB * NH_TROW;
     nh_fxp_to_precision_rows_kernel<<<grid_size(dT_n), BLOCK_SIZE, 0, stream>>>(
         a->dT.data, (long long*)a->dT_i.data, counts_g, hot_map_g, NH_TROW, dT_n);
-    puf_mm_nn(&a->dT, &a->w_perm, &a->embed_wgrad, stream);   // dE  = dT @ W'
-    puf_mm_tn(&a->dT, &a->e_eff, &a->dw_perm, stream);        // dW' = dT^T @ E_eff
+    puf_mm_nn(&a->dT, &a->w_perm, &a->embed_wgrad, stream); // dE = dT @ W'
+    puf_mm_tn(&a->dT, &a->e_eff, &a->dw_perm, stream); // dW' = dT^T @ E_eff
     nh_unpermute_g1_kernel<<<grid_size(NH_TROW * NH_EMBED_DIM), BLOCK_SIZE, 0, stream>>>(
         a->glb1_wgrad.data, a->dw_perm.data);
 
@@ -1206,6 +1430,29 @@ static void nethack_encoder_backward(void* w, void* activations, PrecisionTensor
 
     // Inventory branch adds its embed grads last: dE += dT_inv @ inv1_w.
     puf_mm_nn(&a->dTinv, &ew->inv1_w, &a->dE_tmp, stream);
+    nh_add_inplace_kernel<<<grid_size(dE_n), BLOCK_SIZE, 0, stream>>>(
+        a->embed_wgrad.data, a->dE_tmp.data, dE_n);
+    // ...and the discovered-type channel's: dE += dT_true @ invt_w.
+    puf_mm_nn(&a->dTtrue, &ew->invt_w, &a->dE_tmp, stream);
+    nh_add_inplace_kernel<<<grid_size(dE_n), BLOCK_SIZE, 0, stream>>>(
+        a->embed_wgrad.data, a->dE_tmp.data, dE_n);
+
+    // spell-embed channel: scatter its concat-grad slice into dE (reuse dE_i)
+    cudaMemsetAsync(a->dE_i.data, 0, (size_t)NH_GLYPH_VOCAB * NH_EMBED_DIM * sizeof(long long), stream);
+    nh_spkey_dk_kernel<<<grid_size(B * NH_SPELL_SLOTS * NH_SPKEY), BLOCK_SIZE, 0, stream>>>(
+        a->spk_dkeys.data, grad_concat.data, a->spk_pool.data, a->spk_amax.data,
+        ew->spk2_w.data, a->spk_keys.data,
+        nh_ptr_spkeygrad != NULL ? nh_ptr_spkeygrad->data : NULL, B);
+    nh_spk2_grad_kernel<<<grid_size(NH_SPKEY * (NH_SPKEY + 1)), BLOCK_SIZE, 0, stream>>>(
+        a->spk2_wgrad.data, a->spk2_bgrad.data, grad_concat.data, a->spk_pool.data,
+        a->spk_amax.data, a->spk_keys.data, B);
+    nh_spkey_dE_kernel<<<grid_size(B * NH_SPELL_SLOTS * NH_EMBED_DIM), BLOCK_SIZE, 0, stream>>>(
+        (long long*)a->dE_i.data, a->spk_dkeys.data, ew->spk_w.data, a->spell_idx.data, B);
+    { Prec dkf = {.data = a->spk_dkeys.data, .shape = {B * NH_SPELL_SLOTS, NH_SPKEY}};
+      Prec inf = {.data = a->spk_in.data, .shape = {B * NH_SPELL_SLOTS, NH_SPIN}};
+      puf_mm_tn(&dkf, &inf, &a->spk_wgrad, stream); }
+    nh_fxp_to_precision_kernel<<<grid_size(NH_GLYPH_VOCAB * NH_EMBED_DIM), BLOCK_SIZE, 0, stream>>>(
+        a->dE_tmp.data, (long long*)a->dE_i.data, NH_GLYPH_VOCAB * NH_EMBED_DIM);
     nh_add_inplace_kernel<<<grid_size(dE_n), BLOCK_SIZE, 0, stream>>>(
         a->embed_wgrad.data, a->dE_tmp.data, dE_n);
 
@@ -1241,38 +1488,47 @@ static void nethack_encoder_init_weights(void* w, uint64_t* seed, cudaStream_t s
     puf_kaiming_init(&ew->inv1_w, 1.0f, (*seed)++, stream);
     cudaMemsetAsync(ew->inv1_b.data, 0, numel(ew->inv1_b.shape) * sizeof(precision_t), stream);
     puf_kaiming_init(&ew->inv1s_w, 1.0f, (*seed)++, stream);
+    // zero: discovered-type channel starts as an exact no-op (ekind_w idiom)
+    cudaMemsetAsync(ew->invt_w.data, 0, numel(ew->invt_w.shape) * sizeof(precision_t), stream);
     puf_kaiming_init(&ew->inv2_w, 1.0f, (*seed)++, stream);
     cudaMemsetAsync(ew->inv2_b.data, 0, numel(ew->inv2_b.shape) * sizeof(precision_t), stream);
     puf_kaiming_init(&ew->bl_w, 1.0f, (*seed)++, stream);
     cudaMemsetAsync(ew->bl_b.data, 0, numel(ew->bl_b.shape) * sizeof(precision_t), stream);
     puf_kaiming_init(&ew->proj_w, 1.0f, (*seed)++, stream);
     cudaMemsetAsync(ew->proj_b.data, 0, numel(ew->proj_b.shape) * sizeof(precision_t), stream);
-    puf_normal_init(&ew->msg_w, 1.0f, (*seed)++, stream);   // trigram embedding
+    puf_normal_init(&ew->msg_w, 1.0f, (*seed)++, stream); // trigram embedding
+    puf_kaiming_init(&ew->spk_w, 1.0f, (*seed)++, stream); // spell slot-rep projection
+    puf_kaiming_init(&ew->spk2_w, 1.0f, (*seed)++, stream);
+    cudaMemsetAsync(ew->spk2_b.data, 0, numel(ew->spk2_b.shape) * sizeof(precision_t), stream);
 }
 
 // Param and grad registration orders must match pairwise (muon walks both flat).
 static void nethack_encoder_reg_params(void* w, Allocator* alloc) {
     NethackEncoderWeights* ew = (NethackEncoderWeights*)w;
     ew->embed_w = {.shape = {NH_GLYPH_VOCAB, NH_EMBED_DIM}};
-    ew->ekind_w = {.shape = {NH_NKIND, NH_EMBED_DIM}};   // 14x32=448, mult of 8
-    ew->esub_w  = {.shape = {NH_NSUB, NH_EMBED_DIM}};    // 944x32=30208, mult of 8
-    ew->loc_w   = {.shape = {NH_LOC_HID, NH_LOC_IN}};
-    ew->loc_b   = {.shape = {NH_LOC_HID}};
-    ew->glb1_w  = {.shape = {NH_P1, NH_PCELLS * NH_EMBED_DIM}};
+    ew->ekind_w = {.shape = {NH_NKIND, NH_EMBED_DIM}}; // 14x32=448, mult of 8
+    ew->esub_w = {.shape = {NH_NSUB, NH_EMBED_DIM}}; // 944x32=30208, mult of 8
+    ew->loc_w = {.shape = {NH_LOC_HID, NH_LOC_IN}};
+    ew->loc_b = {.shape = {NH_LOC_HID}};
+    ew->glb1_w = {.shape = {NH_P1, NH_PCELLS * NH_EMBED_DIM}};
     ew->glb1_xy = {.shape = {NH_P1, 2}};
-    ew->glb1_b  = {.shape = {NH_P1}};
-    ew->glb2_w  = {.shape = {NH_GLB_HID, NH_P1}};
-    ew->glb2_b  = {.shape = {NH_GLB_HID}};
-    ew->inv1_w  = {.shape = {NH_INV_HID, NH_EMBED_DIM}};
-    ew->inv1_b  = {.shape = {NH_INV_HID}};
-    ew->inv1s_w = {.shape = {NH_INV_HID, NH_SFEAT}};   // 32x17=544, mult of 8
-    ew->inv2_w  = {.shape = {NH_INV_POOL, NH_INV_HID}};
-    ew->inv2_b  = {.shape = {NH_INV_POOL}};
-    ew->bl_w    = {.shape = {NH_BL_HID, NH_BL_FEAT}};
-    ew->bl_b    = {.shape = {NH_BL_HID}};
-    ew->proj_w  = {.shape = {ew->hidden, NH_CONCAT}};
-    ew->proj_b  = {.shape = {ew->hidden}};
-    ew->msg_w   = {.shape = {NH_MSG_VOCAB, NH_MSG_HID}};   // 4096x32=131072, mult of 8
+    ew->glb1_b = {.shape = {NH_P1}};
+    ew->glb2_w = {.shape = {NH_GLB_HID, NH_P1}};
+    ew->glb2_b = {.shape = {NH_GLB_HID}};
+    ew->inv1_w = {.shape = {NH_INV_HID, NH_EMBED_DIM}};
+    ew->inv1_b = {.shape = {NH_INV_HID}};
+    ew->inv1s_w = {.shape = {NH_INV_HID, NH_SFEAT}};
+    ew->invt_w = {.shape = {NH_INV_HID, NH_EMBED_DIM}}; // 16x32=512, mult of 8
+    ew->inv2_w = {.shape = {NH_INV_POOL, NH_INV_HID}};
+    ew->inv2_b = {.shape = {NH_INV_POOL}};
+    ew->bl_w = {.shape = {NH_BL_HID, NH_BL_FEAT}};
+    ew->bl_b = {.shape = {NH_BL_HID}};
+    ew->proj_w = {.shape = {ew->hidden, NH_CONCAT}};
+    ew->proj_b = {.shape = {ew->hidden}};
+    ew->msg_w = {.shape = {NH_MSG_VOCAB, NH_MSG_HID}}; // 4096x32=131072, mult of 8
+    ew->spk_w = {.shape = {NH_SPKEY, NH_SPIN}}; // 16x36=576, mult of 8
+    ew->spk2_w = {.shape = {NH_SPKEY, NH_SPKEY}}; // 16x16=256, mult of 8
+    ew->spk2_b = {.shape = {NH_SPKEY}}; // 16, mult of 8
     alloc_register(alloc,&ew->embed_w);
     alloc_register(alloc,&ew->ekind_w); alloc_register(alloc,&ew->esub_w);
     alloc_register(alloc,&ew->loc_w);   alloc_register(alloc,&ew->loc_b);
@@ -1280,76 +1536,95 @@ static void nethack_encoder_reg_params(void* w, Allocator* alloc) {
     alloc_register(alloc,&ew->glb1_b);
     alloc_register(alloc,&ew->glb2_w);  alloc_register(alloc,&ew->glb2_b);
     alloc_register(alloc,&ew->inv1_w);  alloc_register(alloc,&ew->inv1_b);
-    alloc_register(alloc,&ew->inv1s_w);
+    alloc_register(alloc,&ew->inv1s_w); alloc_register(alloc,&ew->invt_w);
     alloc_register(alloc,&ew->inv2_w);  alloc_register(alloc,&ew->inv2_b);
     alloc_register(alloc,&ew->bl_w);    alloc_register(alloc,&ew->bl_b);
     alloc_register(alloc,&ew->proj_w);  alloc_register(alloc,&ew->proj_b);
     alloc_register(alloc,&ew->msg_w);
+    alloc_register(alloc,&ew->spk_w);
+    alloc_register(alloc,&ew->spk2_w);  alloc_register(alloc,&ew->spk2_b);
 }
 
 static void nethack_encoder_reg_train(void* w, void* activations, Allocator* acts, Allocator* grads, int B_TT) {
     NethackEncoderWeights* ew = (NethackEncoderWeights*)w;
     NethackEncoderActivations* a = (NethackEncoderActivations*)activations;
     *a = {};
-    a->glyph_idx  = {.shape = {B_TT, NH_MGRID}};
+    a->glyph_idx = {.shape = {B_TT, NH_MGRID}};
     a->crop_glyph = {.shape = {B_TT, NH_CGRID}};
-    a->e_eff      = {.shape = {NH_GLYPH_VOCAB, NH_EMBED_DIM}};
-    a->x_local    = {.shape = {B_TT, NH_LOC_IN}};
-    a->w_perm     = {.shape = {NH_TROW, NH_EMBED_DIM}};
-    a->glyph_T    = {.shape = {NH_GLYPH_VOCAB, NH_TROW}};
-    a->t16        = {.shape = {B_TT, NH_TOK * NH_P1}};
-    a->dxy        = {.shape = {B_TT, NH_TOK * 2}};
+    a->e_eff = {.shape = {NH_GLYPH_VOCAB, NH_EMBED_DIM}};
+    a->x_local = {.shape = {B_TT, NH_LOC_IN}};
+    a->w_perm = {.shape = {NH_TROW, NH_EMBED_DIM}};
+    a->glyph_T = {.shape = {NH_GLYPH_VOCAB, NH_TROW}};
+    a->t16 = {.shape = {B_TT, NH_TOK * NH_P1}};
+    a->dxy = {.shape = {B_TT, NH_TOK * 2}};
     a->tok_argmax = {.shape = {B_TT, NH_GLB_HID}};
-    a->inv_idx    = {.shape = {B_TT, NH_INV}};
-    a->inv_sfeat  = {.shape = {B_TT, NH_INV * NH_SFEAT}};
-    a->inv_T      = {.shape = {NH_GLYPH_VOCAB, NH_INV_HID}};
-    a->inv_out    = {.shape = {B_TT, NH_INV_FLAT}};
-    a->inv_pool   = {.shape = {B_TT, NH_INV_POOL}};
-    a->inv_amax   = {.shape = {B_TT, NH_INV_POOL}};
-    a->loc_out    = {.shape = {B_TT, NH_LOC_HID}};
-    a->glb_out    = {.shape = {B_TT, NH_GLB_HID}};
-    a->bl_feats   = {.shape = {B_TT, NH_BL_FEAT}};
-    a->bl_out     = {.shape = {B_TT, NH_BL_HID}};
-    a->msg_ids    = {.shape = {B_TT, NH_MSG_LEN}};
-    a->msg_out    = {.shape = {B_TT, NH_MSG_HID}};
-    a->concat     = {.shape = {B_TT, NH_CONCAT}};
-    a->out        = {.shape = {B_TT, ew->hidden}};
+    a->inv_idx = {.shape = {B_TT, NH_INV}};
+    a->spell_idx = {.shape = {B_TT, 8}};
+    a->invt_idx = {.shape = {B_TT, NH_INV}};
+    a->inv_sfeat = {.shape = {B_TT, NH_INV * NH_SFEAT}};
+    a->inv_T = {.shape = {NH_GLYPH_VOCAB, NH_INV_HID}};
+    a->invt_T = {.shape = {NH_GLYPH_VOCAB, NH_INV_HID}};
+    a->inv_out = {.shape = {B_TT, NH_INV_FLAT}};
+    a->inv_pool = {.shape = {B_TT, NH_INV_POOL}};
+    a->inv_amax = {.shape = {B_TT, NH_INV_POOL}};
+    a->loc_out = {.shape = {B_TT, NH_LOC_HID}};
+    a->glb_out = {.shape = {B_TT, NH_GLB_HID}};
+    a->bl_feats = {.shape = {B_TT, NH_BL_FEAT}};
+    a->bl_out = {.shape = {B_TT, NH_BL_HID}};
+    a->msg_ids = {.shape = {B_TT, NH_MSG_LEN}};
+    a->msg_out = {.shape = {B_TT, NH_MSG_HID}};
+    a->spk_in = {.shape = {B_TT, NH_SPELL_SLOTS * NH_SPIN}};
+    a->spk_keys = {.shape = {B_TT, NH_SPELL_SLOTS * NH_SPKEY}};
+    a->spk_dkeys = {.shape = {B_TT, NH_SPELL_SLOTS * NH_SPKEY}};
+    a->spk_amax = {.shape = {B_TT, NH_SPKEY}};
+    a->spk_pool = {.shape = {B_TT, NH_SPKEY}};
+    a->concat = {.shape = {B_TT, NH_CONCAT}};
+    a->out = {.shape = {B_TT, ew->hidden}};
     alloc_register(acts,&a->glyph_idx); alloc_register(acts,&a->crop_glyph);
     alloc_register(acts,&a->e_eff);
     alloc_register(acts,&a->x_local);
     alloc_register(acts,&a->w_perm);    alloc_register(acts,&a->glyph_T);
     alloc_register(acts,&a->t16);       alloc_register(acts,&a->dxy);
     alloc_register(acts,&a->tok_argmax);
-    alloc_register(acts,&a->inv_idx);   alloc_register(acts,&a->inv_sfeat);
-    alloc_register(acts,&a->inv_T);     alloc_register(acts,&a->inv_out);
+    alloc_register(acts,&a->inv_idx);   alloc_register(acts,&a->invt_idx);
+    alloc_register(acts,&a->spell_idx);
+    alloc_register(acts,&a->spk_in);    alloc_register(acts,&a->spk_keys);
+    alloc_register(acts,&a->spk_dkeys); alloc_register(acts,&a->spk_amax);
+    alloc_register(acts,&a->spk_pool);
+    alloc_register(acts,&a->inv_sfeat);
+    alloc_register(acts,&a->inv_T);     alloc_register(acts,&a->invt_T);
+    alloc_register(acts,&a->inv_out);
     alloc_register(acts,&a->inv_pool);  alloc_register(acts,&a->inv_amax);
     alloc_register(acts,&a->loc_out);   alloc_register(acts,&a->glb_out);
     alloc_register(acts,&a->bl_feats);  alloc_register(acts,&a->bl_out);
     alloc_register(acts,&a->msg_ids);   alloc_register(acts,&a->msg_out);
     alloc_register(acts,&a->concat);    alloc_register(acts,&a->out);
-    a->loc_grad   = {.shape = {B_TT, NH_LOC_HID}};
-    a->glb_grad   = {.shape = {B_TT, NH_GLB_HID}};
-    a->inv_grad   = {.shape = {B_TT, NH_INV_FLAT}};
+    a->loc_grad = {.shape = {B_TT, NH_LOC_HID}};
+    a->glb_grad = {.shape = {B_TT, NH_GLB_HID}};
+    a->inv_grad = {.shape = {B_TT, NH_INV_FLAT}};
     a->inv_pool_grad = {.shape = {B_TT, NH_INV_POOL}};
-    a->bl_grad    = {.shape = {B_TT, NH_BL_HID}};
-    a->dT         = {.shape = {NH_GLYPH_VOCAB, NH_TROW}};
-    a->dT_i       = {.shape = {NH_GLYPH_VOCAB, NH_TROW}};
-    a->dTinv      = {.shape = {NH_GLYPH_VOCAB, NH_INV_HID}};
-    a->dTinv_i    = {.shape = {NH_GLYPH_VOCAB, NH_INV_HID}};
-    a->dE_tmp     = {.shape = {NH_GLYPH_VOCAB, NH_EMBED_DIM}};
-    a->dw_perm    = {.shape = {NH_TROW, NH_EMBED_DIM}};
-    a->dE_i       = {.shape = {NH_GLYPH_VOCAB, NH_EMBED_DIM}};
-    a->dw2_acc    = {.shape = {NH_GLB_HID * NH_P1}};
-    a->dw2i_acc   = {.shape = {NH_INV_POOL * NH_INV_HID}};
-    a->dmsg_acc   = {.shape = {NH_MSG_VOCAB * NH_MSG_HID}};
+    a->bl_grad = {.shape = {B_TT, NH_BL_HID}};
+    a->dT = {.shape = {NH_GLYPH_VOCAB, NH_TROW}};
+    a->dT_i = {.shape = {NH_GLYPH_VOCAB, NH_TROW}};
+    a->dTinv = {.shape = {NH_GLYPH_VOCAB, NH_INV_HID}};
+    a->dTinv_i = {.shape = {NH_GLYPH_VOCAB, NH_INV_HID}};
+    a->dTtrue = {.shape = {NH_GLYPH_VOCAB, NH_INV_HID}};
+    a->dTtrue_i = {.shape = {NH_GLYPH_VOCAB, NH_INV_HID}};
+    a->dE_tmp = {.shape = {NH_GLYPH_VOCAB, NH_EMBED_DIM}};
+    a->dw_perm = {.shape = {NH_TROW, NH_EMBED_DIM}};
+    a->dE_i = {.shape = {NH_GLYPH_VOCAB, NH_EMBED_DIM}};
+    a->dw2_acc = {.shape = {NH_GLB_HID * NH_P1}};
+    a->dw2i_acc = {.shape = {NH_INV_POOL * NH_INV_HID}};
+    a->dmsg_acc = {.shape = {NH_MSG_VOCAB * NH_MSG_HID}};
     a->sort_local = {.shape = {2 * NH_GLYPH_VOCAB + NH_HOT_T + 1}};
-    a->sort_grid  = {.shape = {2 * NH_GLYPH_VOCAB + NH_HOT_G + 1}};
-    a->bias_acc   = {.shape = {ew->hidden + NH_LOC_HID + NH_GLB_HID + NH_BL_HID + NH_P1 + NH_INV_HID + NH_INV_POOL}};
+    a->sort_grid = {.shape = {2 * NH_GLYPH_VOCAB + NH_HOT_G + 1}};
+    a->bias_acc = {.shape = {ew->hidden + NH_LOC_HID + NH_GLB_HID + NH_BL_HID + NH_P1 + NH_INV_HID + NH_INV_POOL}};
     alloc_register(acts,&a->loc_grad);  alloc_register(acts,&a->glb_grad);
     alloc_register(acts,&a->inv_grad);  alloc_register(acts,&a->inv_pool_grad);
     alloc_register(acts,&a->bl_grad);
     alloc_register(acts,&a->dT);        alloc_register(acts,&a->dT_i);
     alloc_register(acts,&a->dTinv);     alloc_register(acts,&a->dTinv_i);
+    alloc_register(acts,&a->dTtrue);    alloc_register(acts,&a->dTtrue_i);
     alloc_register(acts,&a->dE_tmp);
     alloc_register(acts,&a->dw_perm);   alloc_register(acts,&a->dE_i);
     alloc_register(acts,&a->dw2_acc);   alloc_register(acts,&a->dw2i_acc);
@@ -1358,24 +1633,28 @@ static void nethack_encoder_reg_train(void* w, void* activations, Allocator* act
     alloc_register(acts,&a->bias_acc);
     a->embed_wgrad = {.shape = {NH_GLYPH_VOCAB, NH_EMBED_DIM}};
     a->ekind_wgrad = {.shape = {NH_NKIND, NH_EMBED_DIM}};
-    a->esub_wgrad  = {.shape = {NH_NSUB, NH_EMBED_DIM}};
-    a->loc_wgrad   = {.shape = {NH_LOC_HID, NH_LOC_IN}};
-    a->loc_bgrad   = {.shape = {NH_LOC_HID}};
-    a->glb1_wgrad  = {.shape = {NH_P1, NH_PCELLS * NH_EMBED_DIM}};
+    a->esub_wgrad = {.shape = {NH_NSUB, NH_EMBED_DIM}};
+    a->loc_wgrad = {.shape = {NH_LOC_HID, NH_LOC_IN}};
+    a->loc_bgrad = {.shape = {NH_LOC_HID}};
+    a->glb1_wgrad = {.shape = {NH_P1, NH_PCELLS * NH_EMBED_DIM}};
     a->glb1_xygrad = {.shape = {NH_P1, 2}};
-    a->glb1_bgrad  = {.shape = {NH_P1}};
-    a->glb2_wgrad  = {.shape = {NH_GLB_HID, NH_P1}};
-    a->glb2_bgrad  = {.shape = {NH_GLB_HID}};
-    a->inv1_wgrad  = {.shape = {NH_INV_HID, NH_EMBED_DIM}};
-    a->inv1_bgrad  = {.shape = {NH_INV_HID}};
+    a->glb1_bgrad = {.shape = {NH_P1}};
+    a->glb2_wgrad = {.shape = {NH_GLB_HID, NH_P1}};
+    a->glb2_bgrad = {.shape = {NH_GLB_HID}};
+    a->inv1_wgrad = {.shape = {NH_INV_HID, NH_EMBED_DIM}};
+    a->inv1_bgrad = {.shape = {NH_INV_HID}};
     a->inv1s_wgrad = {.shape = {NH_INV_HID, NH_SFEAT}};
-    a->inv2_wgrad  = {.shape = {NH_INV_POOL, NH_INV_HID}};
-    a->inv2_bgrad  = {.shape = {NH_INV_POOL}};
-    a->bl_wgrad    = {.shape = {NH_BL_HID, NH_BL_FEAT}};
-    a->bl_bgrad    = {.shape = {NH_BL_HID}};
-    a->proj_wgrad  = {.shape = {ew->hidden, NH_CONCAT}};
-    a->proj_bgrad  = {.shape = {ew->hidden}};
-    a->msg_wgrad   = {.shape = {NH_MSG_VOCAB, NH_MSG_HID}};
+    a->invt_wgrad = {.shape = {NH_INV_HID, NH_EMBED_DIM}};
+    a->inv2_wgrad = {.shape = {NH_INV_POOL, NH_INV_HID}};
+    a->inv2_bgrad = {.shape = {NH_INV_POOL}};
+    a->bl_wgrad = {.shape = {NH_BL_HID, NH_BL_FEAT}};
+    a->bl_bgrad = {.shape = {NH_BL_HID}};
+    a->proj_wgrad = {.shape = {ew->hidden, NH_CONCAT}};
+    a->proj_bgrad = {.shape = {ew->hidden}};
+    a->msg_wgrad = {.shape = {NH_MSG_VOCAB, NH_MSG_HID}};
+    a->spk_wgrad = {.shape = {NH_SPKEY, NH_SPIN}};
+    a->spk2_wgrad = {.shape = {NH_SPKEY, NH_SPKEY}};
+    a->spk2_bgrad = {.shape = {NH_SPKEY}};
     alloc_register(grads,&a->embed_wgrad);
     alloc_register(grads,&a->ekind_wgrad); alloc_register(grads,&a->esub_wgrad);
     alloc_register(grads,&a->loc_wgrad);   alloc_register(grads,&a->loc_bgrad);
@@ -1383,52 +1662,66 @@ static void nethack_encoder_reg_train(void* w, void* activations, Allocator* act
     alloc_register(grads,&a->glb1_bgrad);
     alloc_register(grads,&a->glb2_wgrad);  alloc_register(grads,&a->glb2_bgrad);
     alloc_register(grads,&a->inv1_wgrad);  alloc_register(grads,&a->inv1_bgrad);
-    alloc_register(grads,&a->inv1s_wgrad);
+    alloc_register(grads,&a->inv1s_wgrad); alloc_register(grads,&a->invt_wgrad);
     alloc_register(grads,&a->inv2_wgrad);  alloc_register(grads,&a->inv2_bgrad);
     alloc_register(grads,&a->bl_wgrad);    alloc_register(grads,&a->bl_bgrad);
     alloc_register(grads,&a->proj_wgrad);  alloc_register(grads,&a->proj_bgrad);
     alloc_register(grads,&a->msg_wgrad);
+    alloc_register(grads,&a->spk_wgrad);
+    alloc_register(grads,&a->spk2_wgrad); alloc_register(grads,&a->spk2_bgrad);
     nh_enc_last = a;
 }
 
 static void nethack_encoder_reg_rollout(void* w, void* activations, Allocator* alloc, int B) {
     NethackEncoderWeights* ew = (NethackEncoderWeights*)w;
     NethackEncoderActivations* a = (NethackEncoderActivations*)activations;
-    a->glyph_idx  = {.shape = {B, NH_MGRID}};
+    a->glyph_idx = {.shape = {B, NH_MGRID}};
     a->crop_glyph = {.shape = {B, NH_CGRID}};
-    a->e_eff      = {.shape = {NH_GLYPH_VOCAB, NH_EMBED_DIM}};
-    a->x_local    = {.shape = {B, NH_LOC_IN}};
-    a->w_perm     = {.shape = {NH_TROW, NH_EMBED_DIM}};
-    a->glyph_T    = {.shape = {NH_GLYPH_VOCAB, NH_TROW}};
-    a->t16        = {.shape = {B, NH_TOK * NH_P1}};
-    a->dxy        = {.shape = {B, NH_TOK * 2}};
+    a->e_eff = {.shape = {NH_GLYPH_VOCAB, NH_EMBED_DIM}};
+    a->x_local = {.shape = {B, NH_LOC_IN}};
+    a->w_perm = {.shape = {NH_TROW, NH_EMBED_DIM}};
+    a->glyph_T = {.shape = {NH_GLYPH_VOCAB, NH_TROW}};
+    a->t16 = {.shape = {B, NH_TOK * NH_P1}};
+    a->dxy = {.shape = {B, NH_TOK * 2}};
     a->tok_argmax = {.shape = {B, NH_GLB_HID}};
-    a->inv_idx    = {.shape = {B, NH_INV}};
-    a->inv_sfeat  = {.shape = {B, NH_INV * NH_SFEAT}};
-    a->inv_T      = {.shape = {NH_GLYPH_VOCAB, NH_INV_HID}};
-    a->inv_out    = {.shape = {B, NH_INV_FLAT}};
-    a->inv_pool   = {.shape = {B, NH_INV_POOL}};
-    a->inv_amax   = {.shape = {B, NH_INV_POOL}};
-    a->loc_out    = {.shape = {B, NH_LOC_HID}};
-    a->glb_out    = {.shape = {B, NH_GLB_HID}};
-    a->bl_feats   = {.shape = {B, NH_BL_FEAT}};
-    a->bl_out     = {.shape = {B, NH_BL_HID}};
-    a->msg_ids    = {.shape = {B, NH_MSG_LEN}};
-    a->msg_out    = {.shape = {B, NH_MSG_HID}};
-    a->concat     = {.shape = {B, NH_CONCAT}};
-    a->out        = {.shape = {B, ew->hidden}};
+    a->inv_idx = {.shape = {B, NH_INV}};
+    a->invt_idx = {.shape = {B, NH_INV}};
+    a->spell_idx = {.shape = {B, 8}};
+    a->inv_sfeat = {.shape = {B, NH_INV * NH_SFEAT}};
+    a->inv_T = {.shape = {NH_GLYPH_VOCAB, NH_INV_HID}};
+    a->invt_T = {.shape = {NH_GLYPH_VOCAB, NH_INV_HID}};
+    a->inv_out = {.shape = {B, NH_INV_FLAT}};
+    a->inv_pool = {.shape = {B, NH_INV_POOL}};
+    a->inv_amax = {.shape = {B, NH_INV_POOL}};
+    a->loc_out = {.shape = {B, NH_LOC_HID}};
+    a->glb_out = {.shape = {B, NH_GLB_HID}};
+    a->bl_feats = {.shape = {B, NH_BL_FEAT}};
+    a->bl_out = {.shape = {B, NH_BL_HID}};
+    a->msg_ids = {.shape = {B, NH_MSG_LEN}};
+    a->msg_out = {.shape = {B, NH_MSG_HID}};
+    a->spk_in = {.shape = {B, NH_SPELL_SLOTS * NH_SPIN}};
+    a->spk_keys = {.shape = {B, NH_SPELL_SLOTS * NH_SPKEY}};
+    a->spk_amax = {.shape = {B, NH_SPKEY}};
+    a->spk_pool = {.shape = {B, NH_SPKEY}};
+    a->concat = {.shape = {B, NH_CONCAT}};
+    a->out = {.shape = {B, ew->hidden}};
     alloc_register(alloc,&a->glyph_idx); alloc_register(alloc,&a->crop_glyph);
     alloc_register(alloc,&a->e_eff);
     alloc_register(alloc,&a->x_local);
     alloc_register(alloc,&a->w_perm);    alloc_register(alloc,&a->glyph_T);
     alloc_register(alloc,&a->t16);       alloc_register(alloc,&a->dxy);
     alloc_register(alloc,&a->tok_argmax);
-    alloc_register(alloc,&a->inv_idx);   alloc_register(alloc,&a->inv_sfeat);
-    alloc_register(alloc,&a->inv_T);     alloc_register(alloc,&a->inv_out);
+    alloc_register(alloc,&a->inv_idx);   alloc_register(alloc,&a->invt_idx);
+    alloc_register(alloc,&a->spell_idx);
+    alloc_register(alloc,&a->inv_sfeat);
+    alloc_register(alloc,&a->inv_T);     alloc_register(alloc,&a->invt_T);
+    alloc_register(alloc,&a->inv_out);
     alloc_register(alloc,&a->inv_pool);  alloc_register(alloc,&a->inv_amax);
     alloc_register(alloc,&a->loc_out);   alloc_register(alloc,&a->glb_out);
     alloc_register(alloc,&a->bl_feats);  alloc_register(alloc,&a->bl_out);
     alloc_register(alloc,&a->msg_ids);   alloc_register(alloc,&a->msg_out);
+    alloc_register(alloc,&a->spk_in);    alloc_register(alloc,&a->spk_keys);
+    alloc_register(alloc,&a->spk_amax); alloc_register(alloc,&a->spk_pool);
     alloc_register(alloc,&a->concat);    alloc_register(alloc,&a->out);
     nh_enc_last = a;
 }
@@ -1452,7 +1745,7 @@ static void create_nethack_encoder(Encoder* enc) {
     };
 }
 
-// ---- Nethack decoder: per-verb pointer slot heads ----
+// decoder: per-verb pointer slot heads
 // Output layout matches DefaultDecoder: [14 verb | 5x55 slots | 8 dir | value].
 // verb/dir/value are one small linear. Each item verb (wear/eat/quaff/throw/
 // zap) owns a query q_h = W_qh . hidden; slot logit i = exp(ltau_h) * cos(q_h, k_i)
@@ -1462,13 +1755,18 @@ static void create_nethack_encoder(Encoder* enc) {
 // shared across heads, so the item->action mapping is position-invariant and
 // every item use trains the same projections.
 
-static constexpr int NH_DIRS    = 8;
-static constexpr int NH_HEADS   = 12;                                // wear|eat|quaff|throw|zap|takeoff|puton|remove|wield|apply|read|drop
-static constexpr int NH_SLOT_OD = NH_HEADS * NH_INV;                 // 660 slot logits
-static constexpr int NH_DEC_OD  = NH_ACTIONS + NH_SLOT_OD + NH_DIRS; // 690 logits
-static constexpr int NH_DEC_LIN = NH_ACTIONS + NH_DIRS + 1;          // 31 verb|dir|value rows
-static constexpr int NH_DEC_PAD = 32;                                // lin rows padded to mult of 8 (cublasLt alignment)
-static constexpr int NH_QDIM    = NH_HEADS * NH_INV_HID;             // stacked queries
+static constexpr int NH_DIRS = 8;
+static constexpr int NH_DIRHEADS = 6; // move|run|kick|throw|zap|apply
+static constexpr int NH_HEADS = 12; // wear|eat|quaff|throw|zap|takeoff|puton|remove|wield|apply|read|drop
+static constexpr int NH_SLOT_OD = NH_HEADS * NH_INV; // 660 slot logits
+static constexpr int NH_DEC_OD = NH_ACTIONS + NH_SLOT_OD + NH_DIRHEADS * NH_DIRS
+                                + NH_SPELL_SLOTS; // logits: verbs|slots|dirs|spell
+static constexpr int NH_DEC_LIN = NH_ACTIONS + NH_DIRHEADS * NH_DIRS + 1; // verbs|dirs|value
+static constexpr int NH_DEC_PAD = (NH_DEC_LIN + 7) / 8 * 8; // lin rows padded to mult of 8 (cublasLt alignment)
+// queries: 12 cosine inv heads + 1 dot-product spell head (row NH_HEADS)
+static constexpr int NH_QHEADS = NH_HEADS + 1;
+static constexpr int NH_QDIM = NH_QHEADS * NH_INV_HID; // stacked queries
+static constexpr int NH_SPELL_BASE = NH_ACTIONS + NH_SLOT_OD + NH_DIRHEADS * NH_DIRS;
 // tau is padded to 8 entries (first NH_HEADS live): checkpoints are saved
 // compactly and the puffernet loader assumes every tensor is a multiple of
 // 8 floats (16-byte bf16 alignment). Pad slots are dead but NOT frozen
@@ -1480,34 +1778,36 @@ struct NethackDecoderWeights {
     // weights to DecoderWeights to read .continuous / .logstd when deciding
     // discrete-vs-continuous sampling (pufferlib.cu sample + train sites).
     // weight_unused is never registered; logstd stays null; continuous false.
-    PrecisionTensor weight_unused, logstd;
+    Prec weight_unused, logstd;
     int hidden_dim, output_dim;
     bool continuous;
     // pointer-head weights (v3: per-verb queries, shared cosine keys)
-    PrecisionTensor lin_w;   // (NH_DEC_PAD rows, hidden); first NH_DEC_LIN used
-    PrecisionTensor q_w;     // (NH_QDIM, hidden) stacked per-head query projections
-    PrecisionTensor k_w;     // (NH_INV_HID, NH_INV_HID) key projection over inv features
-    PrecisionTensor tau;     // (NH_TAU_PAD,) learnable LOG temperatures, first NH_HEADS live
+    Prec lin_w; // (NH_DEC_PAD rows, hidden); first NH_DEC_LIN used
+    Prec q_w; // (NH_QDIM, hidden) stacked per-head query projections
+    Prec k_w; // (NH_INV_HID, NH_INV_HID) key projection over inv features
+    Prec tau; // (NH_TAU_PAD,) learnable LOG temperatures, first NH_HEADS live
 };
 
 struct NethackDecoderActivations {
-    NethackEncoderActivations* enc;          // partner encoder acts (keys source)
-    PrecisionTensor out;                     // (B, NH_DEC_OD+1)
-    PrecisionTensor tmp, q;                  // (B, NH_DEC_PAD), (B, NH_QDIM)
-    PrecisionTensor saved_input, grad_input, grad_input2;
-    PrecisionTensor grad_out;                // assembled logits+value grad
-    PrecisionTensor dtmp, dq;
-    PrecisionTensor keygrad;                 // (B, NH_INV_FLAT) -> encoder inv slice
-    PrecisionTensor kmat;                    // (B, NH_INV_FLAT) projected keys
-    PrecisionTensor kn, qn;                  // key norms (B, NH_INV), query norms (B, NH_HEADS)
-    PrecisionTensor slot_logits;             // (B, NH_SLOT_OD) tau_h * cos
-    PrecisionTensor dkmat;                   // backward scratch
-    LongTensor tau_acc;                      // fixed-point dtau staging (NH_TAU_PAD,)
-    PrecisionTensor lin_wgrad, q_wgrad, k_wgrad, tau_grad;
+    NethackEncoderActivations* enc; // partner encoder acts (keys source)
+    Prec out; // (B, NH_DEC_OD+1)
+    Prec tmp, q; // (B, NH_DEC_PAD), (B, NH_QDIM)
+    Prec saved_input, grad_input, grad_input2;
+    Prec grad_out; // assembled logits+value grad
+    Prec dtmp, dq;
+    Prec keygrad; // (B, NH_INV_FLAT) -> encoder inv slice
+    Prec kmat; // (B, NH_INV_FLAT) projected keys
+    Prec kn, qn; // key norms (B, NH_INV), query norms (B, NH_QHEADS)
+    Prec slot_logits; // (B, NH_SLOT_OD) tau_h * cos
+    Prec dkmat; // backward scratch
+    Prec spdk; // spell-key grads from the pointer (B, 8*NH_SPKEY)
+    Long tau_acc; // fixed-point dtau staging (NH_TAU_PAD,)
+    Prec lin_wgrad, q_wgrad, k_wgrad, tau_grad;
 };
 
 __global__ void nh_dec_assemble_kernel(precision_t* __restrict__ out,
-    const precision_t* __restrict__ tmp, const precision_t* __restrict__ slot_logits, int B) {
+    const precision_t* __restrict__ tmp, const precision_t* __restrict__ slot_logits,
+    const precision_t* __restrict__ q, const precision_t* __restrict__ spkeys, int B) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int od1 = NH_DEC_OD + 1;
     if (idx >= B * od1) return;
@@ -1516,7 +1816,18 @@ __global__ void nh_dec_assemble_kernel(precision_t* __restrict__ out,
     if (c < NH_ACTIONS) v = to_float(tmp[(int64_t)b * NH_DEC_PAD + c]);
     else if (c < NH_ACTIONS + NH_SLOT_OD)
         v = to_float(slot_logits[(int64_t)b * NH_SLOT_OD + (c - NH_ACTIONS)]);
-    else v = to_float(tmp[(int64_t)b * NH_DEC_PAD + NH_ACTIONS + (c - NH_ACTIONS - NH_SLOT_OD)]);
+    else if (c < NH_SPELL_BASE) // per-verb dir rows from lin
+        v = to_float(tmp[(int64_t)b * NH_DEC_PAD + NH_ACTIONS + (c - NH_ACTIONS - NH_SLOT_OD)]);
+    else if (c < NH_SPELL_BASE + NH_SPELL_SLOTS) {
+        // spell head: dot(q_spell, key_s) / sqrt(keydim)
+        int s = c - NH_SPELL_BASE;
+        const precision_t* qs = q + ((int64_t)b * NH_QHEADS + NH_HEADS) * NH_INV_HID;
+        const precision_t* ks = spkeys + ((int64_t)b * NH_SPELL_SLOTS + s) * NH_SPKEY;
+        float dot = 0.0f;
+        for (int k = 0; k < NH_SPKEY; k++) dot += to_float(qs[k]) * to_float(ks[k]);
+        v = dot * 0.25f;
+    } else // value
+        v = to_float(tmp[(int64_t)b * NH_DEC_PAD + NH_DEC_LIN - 1]);
     out[idx] = from_float(v);
 }
 
@@ -1543,13 +1854,13 @@ __global__ void nh_ptr3_cos_kernel(precision_t* __restrict__ slot_logits,
     if (idx >= B * NH_SLOT_OD) return;
     int b = idx / NH_SLOT_OD, hi = idx % NH_SLOT_OD;
     int h = hi / NH_INV, i = hi % NH_INV;
-    const precision_t* qb = q + ((int64_t)b * NH_HEADS + h) * NH_INV_HID;
+    const precision_t* qb = q + ((int64_t)b * NH_QHEADS + h) * NH_INV_HID;
     const precision_t* ki = kmat + ((int64_t)b * NH_INV + i) * NH_INV_HID;
     float dot = 0.0f;
     for (int k = 0; k < NH_INV_HID; k++)
         dot += to_float(qb[k]) * to_float(ki[k]);
     slot_logits[idx] = from_float(expf(to_float(tau[h])) * dot /
-        (to_float(qn[(int64_t)b * NH_HEADS + h]) * to_float(kn[(int64_t)b * NH_INV + i])));
+        (to_float(qn[(int64_t)b * NH_QHEADS + h]) * to_float(kn[(int64_t)b * NH_INV + i])));
 }
 
 __global__ void nh_dec_dtmp_kernel(precision_t* __restrict__ dtmp,
@@ -1557,8 +1868,14 @@ __global__ void nh_dec_dtmp_kernel(precision_t* __restrict__ dtmp,
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= B * NH_DEC_PAD) return;
     int b = idx / NH_DEC_PAD, c = idx % NH_DEC_PAD;
-    if (c >= NH_DEC_LIN) { dtmp[idx] = from_float(0.0f); return; }   // pad rows
-    int src = c < NH_ACTIONS ? c : NH_ACTIONS + NH_SLOT_OD + (c - NH_ACTIONS);
+    if (c >= NH_DEC_LIN) { // pad rows
+        dtmp[idx] = from_float(0.0f);
+        return;
+    }
+    // lin rows: verbs, dirs, then value (spell logits are pointer-derived)
+    int src = c < NH_ACTIONS ? c
+            : c < NH_DEC_LIN - 1 ? NH_ACTIONS + NH_SLOT_OD + (c - NH_ACTIONS)
+            : NH_DEC_OD;
     dtmp[idx] = g[(int64_t)b * (NH_DEC_OD + 1) + src];
 }
 
@@ -1573,11 +1890,12 @@ __global__ void nh_ptr3_dq_kernel(precision_t* __restrict__ dq,
     int bh = blockIdx.x * blockDim.x + threadIdx.x;
     if (bh >= B * NH_HEADS) return;
     int b = bh / NH_HEADS, h = bh % NH_HEADS;
+    int64_t qrow = (int64_t)b * NH_QHEADS + h;
     float tauv = expf(to_float(tau[h]));
-    float qnv = to_float(qn[bh]);
+    float qnv = to_float(qn[qrow]);
     float vhat[NH_INV_HID], dv[NH_INV_HID];
     for (int k = 0; k < NH_INV_HID; k++) {
-        vhat[k] = to_float(q[(int64_t)bh * NH_INV_HID + k]) / qnv;
+        vhat[k] = to_float(q[qrow * NH_INV_HID + k]) / qnv;
         dv[k] = 0.0f;
     }
     float dtau = 0.0f;
@@ -1595,8 +1913,28 @@ __global__ void nh_ptr3_dq_kernel(precision_t* __restrict__ dq,
     float vdv = 0.0f;
     for (int k = 0; k < NH_INV_HID; k++) vdv += vhat[k] * dv[k];
     for (int k = 0; k < NH_INV_HID; k++)
-        dq[(int64_t)bh * NH_INV_HID + k] = from_float((dv[k] - vhat[k] * vdv) / qnv);
+        dq[qrow * NH_INV_HID + k] = from_float((dv[k] - vhat[k] * vdv) / qnv);
     if (dtau != 0.0f) nh_fxp_atomic_add(&tau_acc[h], dtau * tauv);
+}
+
+// spell head backward (dot-product pointer): dq_spell = 0.25 sum_s g_s k_s,
+// spdk_s = 0.25 g_s q_spell (+ the pool grad, added encoder-side). Always
+// writes its dq row and all spdk entries (zeros when CAST saw no gradient).
+__global__ void nh_spq_bwd_kernel(precision_t* __restrict__ dq,
+    precision_t* __restrict__ spdk, const precision_t* __restrict__ g,
+    const precision_t* __restrict__ q, const precision_t* __restrict__ spkeys, int B) {
+    int t = blockIdx.x * blockDim.x + threadIdx.x;
+    if (t >= B * NH_SPKEY) return;
+    int b = t / NH_SPKEY, k = t % NH_SPKEY;
+    int64_t qrow = ((int64_t)b * NH_QHEADS + NH_HEADS) * NH_INV_HID;
+    float qk = to_float(q[qrow + k]);
+    float dqk = 0.0f;
+    for (int s = 0; s < NH_SPELL_SLOTS; s++) {
+        float gs = to_float(g[(int64_t)b * (NH_DEC_OD + 1) + NH_SPELL_BASE + s]);
+        dqk += 0.25f * gs * to_float(spkeys[((int64_t)b * NH_SPELL_SLOTS + s) * NH_SPKEY + k]);
+        spdk[((int64_t)b * NH_SPELL_SLOTS + s) * NH_SPKEY + k] = from_float(0.25f * gs * qk);
+    }
+    dq[qrow + k] = from_float(dqk);
 }
 
 // dk_i = sum_h tau_h * g_hi * (v_h - u_i * cos_hi) / ||k_i||
@@ -1620,14 +1958,14 @@ __global__ void nh_ptr3_dkmat_kernel(precision_t* __restrict__ dkmat,
         if (gi == 0.0f) continue;
         float tauv = expf(to_float(tau[h]));
         float cosv = to_float(out[gi_idx]) / tauv;
-        float vk = to_float(q[((int64_t)b * NH_HEADS + h) * NH_INV_HID + k])
-                 / to_float(qn[(int64_t)b * NH_HEADS + h]);
+        float vk = to_float(q[((int64_t)b * NH_QHEADS + h) * NH_INV_HID + k])
+                 / to_float(qn[(int64_t)b * NH_QHEADS + h]);
         acc += tauv * gi * (vk - uk * cosv);
     }
     dkmat[idx] = from_float(acc / knv);
 }
 
-static PrecisionTensor nethack_decoder_forward(void* w, void* activations, PrecisionTensor input, cudaStream_t stream) {
+static Prec nethack_decoder_forward(void* w, void* activations, Prec input, cudaStream_t stream) {
     NethackDecoderWeights* dw = (NethackDecoderWeights*)w;
     NethackDecoderActivations* a = (NethackDecoderActivations*)activations;
     int B = input.shape[0];
@@ -1635,22 +1973,22 @@ static PrecisionTensor nethack_decoder_forward(void* w, void* activations, Preci
     if (a->saved_input.data) puf_copy(&a->saved_input, &input, stream);
     puf_mm(&input, &dw->lin_w, &a->tmp, stream);
     puf_mm(&input, &dw->q_w, &a->q, stream);
-    PrecisionTensor sflat = {.data = ea->inv_out.data, .shape = {B * NH_INV, NH_INV_HID}};
-    PrecisionTensor kflat = {.data = a->kmat.data, .shape = {B * NH_INV, NH_INV_HID}};
+    Prec sflat = {.data = ea->inv_out.data, .shape = {B * NH_INV, NH_INV_HID}};
+    Prec kflat = {.data = a->kmat.data, .shape = {B * NH_INV, NH_INV_HID}};
     puf_mm(&sflat, &dw->k_w, &kflat, stream);
-    nh_ptr_rownorm_kernel<<<grid_size(B * NH_HEADS), BLOCK_SIZE, 0, stream>>>(
-        a->qn.data, a->q.data, B * NH_HEADS);
+    nh_ptr_rownorm_kernel<<<grid_size(B * NH_QHEADS), BLOCK_SIZE, 0, stream>>>(
+        a->qn.data, a->q.data, B * NH_QHEADS);
     nh_ptr_rownorm_kernel<<<grid_size(B * NH_INV), BLOCK_SIZE, 0, stream>>>(
         a->kn.data, a->kmat.data, B * NH_INV);
     nh_ptr3_cos_kernel<<<grid_size(B * NH_SLOT_OD), BLOCK_SIZE, 0, stream>>>(
         a->slot_logits.data, a->q.data, a->qn.data, a->kmat.data, a->kn.data, dw->tau.data, B);
     nh_dec_assemble_kernel<<<grid_size(B * (NH_DEC_OD + 1)), BLOCK_SIZE, 0, stream>>>(
-        a->out.data, a->tmp.data, a->slot_logits.data, B);
+        a->out.data, a->tmp.data, a->slot_logits.data, a->q.data, ea->spk_keys.data, B);
     return a->out;
 }
 
-static PrecisionTensor nethack_decoder_backward(void* w, void* activations,
-    FloatTensor grad_logits, FloatTensor grad_logstd, FloatTensor grad_value, cudaStream_t stream) {
+static Prec nethack_decoder_backward(void* w, void* activations,
+    Float grad_logits, Float grad_logstd, Float grad_value, cudaStream_t stream) {
     (void)grad_logstd;
     NethackDecoderWeights* dw = (NethackDecoderWeights*)w;
     NethackDecoderActivations* a = (NethackDecoderActivations*)activations;
@@ -1666,13 +2004,15 @@ static PrecisionTensor nethack_decoder_backward(void* w, void* activations,
         a->q.data, a->qn.data, a->kmat.data, a->kn.data, dw->tau.data, B);
     nh_fxp_to_precision_kernel<<<1, 32, 0, stream>>>(
         a->tau_grad.data, (long long*)a->tau_acc.data, NH_TAU_PAD);
+    nh_spq_bwd_kernel<<<grid_size(B * NH_SPKEY), BLOCK_SIZE, 0, stream>>>(
+        a->dq.data, a->spdk.data, a->grad_out.data, a->q.data, ea->spk_keys.data, B);
     nh_ptr3_dkmat_kernel<<<grid_size((int64_t)B * NH_INV_FLAT), BLOCK_SIZE, 0, stream>>>(
         a->dkmat.data, a->grad_out.data, a->out.data, a->q.data, a->qn.data,
         a->kmat.data, a->kn.data, dw->tau.data, B);
     // dK = dkmat^T @ s ; keygrad (ds, into the encoder inv slice) = dkmat @ K
-    PrecisionTensor dkflat = {.data = a->dkmat.data, .shape = {B * NH_INV, NH_INV_HID}};
-    PrecisionTensor sflat = {.data = ea->inv_out.data, .shape = {B * NH_INV, NH_INV_HID}};
-    PrecisionTensor kgflat = {.data = a->keygrad.data, .shape = {B * NH_INV, NH_INV_HID}};
+    Prec dkflat = {.data = a->dkmat.data, .shape = {B * NH_INV, NH_INV_HID}};
+    Prec sflat = {.data = ea->inv_out.data, .shape = {B * NH_INV, NH_INV_HID}};
+    Prec kgflat = {.data = a->keygrad.data, .shape = {B * NH_INV, NH_INV_HID}};
     puf_mm_tn(&dkflat, &sflat, &a->k_wgrad, stream);
     puf_mm_nn(&dkflat, &dw->k_w, &kgflat, stream);
     puf_mm_tn(&a->dtmp, &a->saved_input, &a->lin_wgrad, stream);
@@ -1700,9 +2040,9 @@ static void nethack_decoder_init_weights(void* w, uint64_t* seed, cudaStream_t s
 static void nethack_decoder_reg_params(void* w, Allocator* alloc) {
     NethackDecoderWeights* dw = (NethackDecoderWeights*)w;
     dw->lin_w = {.shape = {NH_DEC_PAD, dw->hidden_dim}};
-    dw->q_w   = {.shape = {NH_QDIM, dw->hidden_dim}};
-    dw->k_w   = {.shape = {NH_INV_HID, NH_INV_HID}};
-    dw->tau   = {.shape = {NH_TAU_PAD}};
+    dw->q_w = {.shape = {NH_QDIM, dw->hidden_dim}};
+    dw->k_w = {.shape = {NH_INV_HID, NH_INV_HID}};
+    dw->tau = {.shape = {NH_TAU_PAD}};
     alloc_register(alloc,&dw->lin_w);
     alloc_register(alloc,&dw->q_w);
     alloc_register(alloc,&dw->k_w);
@@ -1713,26 +2053,27 @@ static void nethack_decoder_reg_train(void* w, void* activations, Allocator* act
     NethackDecoderWeights* dw = (NethackDecoderWeights*)w;
     NethackDecoderActivations* a = (NethackDecoderActivations*)activations;
     *a = {};
-    a->out         = {.shape = {B_TT, NH_DEC_OD + 1}};
-    a->tmp         = {.shape = {B_TT, NH_DEC_PAD}};
-    a->q           = {.shape = {B_TT, NH_QDIM}};
+    a->out = {.shape = {B_TT, NH_DEC_OD + 1}};
+    a->tmp = {.shape = {B_TT, NH_DEC_PAD}};
+    a->q = {.shape = {B_TT, NH_QDIM}};
     a->saved_input = {.shape = {B_TT, dw->hidden_dim}};
-    a->grad_input  = {.shape = {B_TT, dw->hidden_dim}};
+    a->grad_input = {.shape = {B_TT, dw->hidden_dim}};
     a->grad_input2 = {.shape = {B_TT, dw->hidden_dim}};
-    a->grad_out    = {.shape = {B_TT, NH_DEC_OD + 1}};
-    a->dtmp        = {.shape = {B_TT, NH_DEC_PAD}};
-    a->dq          = {.shape = {B_TT, NH_QDIM}};
-    a->keygrad     = {.shape = {B_TT, NH_INV_FLAT}};
-    a->kmat        = {.shape = {B_TT, NH_INV_FLAT}};
-    a->kn          = {.shape = {B_TT, NH_INV}};
-    a->qn          = {.shape = {B_TT, NH_HEADS}};
+    a->grad_out = {.shape = {B_TT, NH_DEC_OD + 1}};
+    a->dtmp = {.shape = {B_TT, NH_DEC_PAD}};
+    a->dq = {.shape = {B_TT, NH_QDIM}};
+    a->keygrad = {.shape = {B_TT, NH_INV_FLAT}};
+    a->kmat = {.shape = {B_TT, NH_INV_FLAT}};
+    a->kn = {.shape = {B_TT, NH_INV}};
+    a->qn = {.shape = {B_TT, NH_QHEADS}};
     a->slot_logits = {.shape = {B_TT, NH_SLOT_OD}};
-    a->dkmat       = {.shape = {B_TT, NH_INV_FLAT}};
-    a->tau_acc     = {.shape = {NH_TAU_PAD}};
-    a->lin_wgrad   = {.shape = {NH_DEC_PAD, dw->hidden_dim}};
-    a->q_wgrad     = {.shape = {NH_QDIM, dw->hidden_dim}};
-    a->k_wgrad     = {.shape = {NH_INV_HID, NH_INV_HID}};
-    a->tau_grad    = {.shape = {NH_TAU_PAD}};
+    a->dkmat = {.shape = {B_TT, NH_INV_FLAT}};
+    a->spdk = {.shape = {B_TT, NH_SPELL_SLOTS * NH_SPKEY}};
+    a->tau_acc = {.shape = {NH_TAU_PAD}};
+    a->lin_wgrad = {.shape = {NH_DEC_PAD, dw->hidden_dim}};
+    a->q_wgrad = {.shape = {NH_QDIM, dw->hidden_dim}};
+    a->k_wgrad = {.shape = {NH_INV_HID, NH_INV_HID}};
+    a->tau_grad = {.shape = {NH_TAU_PAD}};
     alloc_register(acts,&a->out);         alloc_register(acts,&a->tmp);
     alloc_register(acts,&a->q);           alloc_register(acts,&a->saved_input);
     alloc_register(acts,&a->grad_input);  alloc_register(acts,&a->grad_input2);
@@ -1741,22 +2082,24 @@ static void nethack_decoder_reg_train(void* w, void* activations, Allocator* act
     alloc_register(acts,&a->kmat);        alloc_register(acts,&a->kn);
     alloc_register(acts,&a->qn);          alloc_register(acts,&a->slot_logits);
     alloc_register(acts,&a->dkmat);       alloc_register(acts,&a->tau_acc);
+    alloc_register(acts,&a->spdk);
     alloc_register(grads,&a->lin_wgrad);  alloc_register(grads,&a->q_wgrad);
     alloc_register(grads,&a->k_wgrad);    alloc_register(grads,&a->tau_grad);
     a->enc = nh_enc_last;
     nh_ptr_keygrad = &a->keygrad;
+    nh_ptr_spkeygrad = &a->spdk;
 }
 
 static void nethack_decoder_reg_rollout(void* w, void* activations, Allocator* alloc, int B) {
-    (void)w;   // rollout shapes are all compile-time constants
+    (void)w; // rollout shapes are all compile-time constants
     NethackDecoderActivations* a = (NethackDecoderActivations*)activations;
     a->enc = nh_enc_last;
     a->out = {.shape = {B, NH_DEC_OD + 1}};
     a->tmp = {.shape = {B, NH_DEC_PAD}};
-    a->q   = {.shape = {B, NH_QDIM}};
-    a->kmat        = {.shape = {B, NH_INV_FLAT}};
-    a->kn          = {.shape = {B, NH_INV}};
-    a->qn          = {.shape = {B, NH_HEADS}};
+    a->q = {.shape = {B, NH_QDIM}};
+    a->kmat = {.shape = {B, NH_INV_FLAT}};
+    a->kn = {.shape = {B, NH_INV}};
+    a->qn = {.shape = {B, NH_QHEADS}};
     a->slot_logits = {.shape = {B, NH_SLOT_OD}};
     alloc_register(alloc,&a->out);
     alloc_register(alloc,&a->tmp);

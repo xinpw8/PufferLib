@@ -48,7 +48,7 @@ static void init_cooking_pots(Overcooked* env) {
         }
     }
 
-    env->cooking_pots = calloc(env->num_stoves, sizeof(CookingPot));
+    env->cooking_pots = (CookingPot*)calloc(env->num_stoves, sizeof(CookingPot));
 
     int pot_index = 0;
     for (int y = 0; y < env->height; y++) {
@@ -71,7 +71,7 @@ static void init_cooking_pots(Overcooked* env) {
 
 static void init_pot_indices(Overcooked* env) {
     // Allocate pot index grid (same size as main grid)
-    env->pot_index_grid = calloc(env->width * env->height, sizeof(int));
+    env->pot_index_grid = (int*)calloc(env->width * env->height, sizeof(int));
 
     // Initialize all cells to -1 (not a stove)
     for (int i = 0; i < env->width * env->height; i++) {
@@ -96,7 +96,7 @@ static inline CookingPot* get_pot_at(Overcooked* env, int x, int y) {
 }
 
 static void init_item_grid(Overcooked* env) {
-    env->item_grid = calloc(env->width * env->height, sizeof(int));
+    env->item_grid = (int*)calloc(env->width * env->height, sizeof(int));
     for (int i = 0; i < env->width * env->height; i++) {
         env->item_grid[i] = -1;
     }

@@ -24,12 +24,12 @@ int demo() {
 
     // allocate memory, initialize the client
     allocate(&env);
-    c_reset(&env);
+    puf_reset(&env);
     env.client = make_client();
 
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_R)) {
-            c_reset(&env);
+            puf_reset(&env);
         }
 
         if (IsKeyDown(KEY_LEFT_SHIFT) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
@@ -46,23 +46,23 @@ int demo() {
                 Cell* cell = &env.board[BOARD_IDX(env.COLS, r, c)];
                 int mirror_action = (cell->mirror + 1) % ACTIONS_PER_CELL;
                 int cell_idx = (r - 1) * INNER_COLS + (c - 1);
-                env.actions[0] = (float)(cell_idx * ACTIONS_PER_CELL + mirror_action);
-                c_step(&env);
+                env.agents[0].actions[0] = (float)(cell_idx * ACTIONS_PER_CELL + mirror_action);
+                puf_step(&env);
             }
         } else {
-            copy_observations(observations, env.observations);
-            forward_puffernet(net, observations, env.actions);
-            c_step(&env);
+            copy_observations(observations, env.agents[0].observations);
+            forward_puffernet(net, observations, env.agents[0].actions);
+            puf_step(&env);
         }
 
-        c_render(&env);
+        puf_render(&env);
     }
 
     free_puffernet(net);
     free(weights);
 
     // call closing procedures
-    c_close(&env);
+    puf_close(&env);
     return 0;
 }
 

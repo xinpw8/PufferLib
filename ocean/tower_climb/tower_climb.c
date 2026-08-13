@@ -29,8 +29,8 @@ void demo() {
     env->num_maps = num_maps;
     env->all_levels = levels;
     env->all_puzzles = puzzle_states;
-    c_reset(env);
-    c_render(env);
+    puf_reset(env);
+    puf_render(env);
     Client* client = env->client;
     client->enable_animations = 1;
     int tick = 0;
@@ -48,7 +48,7 @@ void demo() {
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
                 env->actions[0] = human_action;
             }
-            c_step(env);
+            puf_step(env);
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
                 env->actions[0] = NOOP;
             }
@@ -75,7 +75,7 @@ void demo() {
                 env->actions[0] = DROP;
             }
         }
-        c_render(env);
+        puf_render(env);
         
         // Handle delayed level reset after puffer animation finishes
         if (env->pending_reset) {
@@ -92,7 +92,7 @@ void demo() {
             
             if (shouldReset) {
                 env->pending_reset = false;
-                c_reset(env);
+                puf_reset(env);
             }
         }
     }
@@ -116,7 +116,7 @@ void performance_test() {
     int i = 0;
     while (time(NULL) - start < test_time) {
         env->actions[0] = rand() % 5;
-        c_step(env);
+        puf_step(env);
         i++;
     }
     long end = time(NULL);

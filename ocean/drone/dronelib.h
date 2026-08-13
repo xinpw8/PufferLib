@@ -121,6 +121,7 @@ typedef struct {
 // math
 
 static inline float clampf(float v, float min, float max) {
+    if (!isfinite(v)) return 0.0f;
     if (v < min) return min;
     if (v > max) return max;
     return v;

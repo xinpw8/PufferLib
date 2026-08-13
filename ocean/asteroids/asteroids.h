@@ -5,9 +5,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "pufferenv.h"
 
 #define MAX_PARTICLES 10
 #define MAX_ASTEROIDS 20
+
+// player (4) + MAX_ASTEROIDS * (rel_x, rel_y, vx, vy, radius) = 4 + 100
+#define ACT_SIZES {4}
+#define OBS_SIZE (4 + MAX_ASTEROIDS * 5)
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 
 const unsigned char FORWARD = 0;
 const unsigned char TURN_LEFT = 1;
@@ -30,13 +41,13 @@ static int global_game_over_timer = 0;
 static int global_game_over_started = 0;
 static int global_render_flag = 0;
 
-typedef struct {
+struct Log {
   float perf;
   float score;
   float episode_return;
   float episode_length;
   float n;
-} Log;
+};
 
 typedef struct {
   Vector2 position;
@@ -57,12 +68,12 @@ typedef struct {
   float distance;
 } AsteroidDistance;
 
-typedef struct {
+struct Env {
   Log log;
-  float *observations;
-  int *actions;
-  float *rewards;
-  unsigned char *terminals;
+  Agent agents[1];
+  int tag;
+  int boundary_reached;
+  int num_agents;
   int size;
   Vector2 player_position;
   Vector2 player_vel;
@@ -78,7 +89,9 @@ typedef struct {
   int score;
   float episode_return;
   int frameskip;
-} Asteroids;
+  unsigned int rng;
+};
+typedef Env Asteroids;
 
 float random_float(float low, float high) {
   return low + (high - low) * ((float)rand() / (float)RAND_MAX);
@@ -274,7 +287,7 @@ void check_particle_asteroid_collision(Asteroids *env) {
       if (particle_asteroid_collision(env, p, as)) {
         memset(p, 0, sizeof(*p));
         env->score += 1;
-        env->rewards[0] += 1.0f;
+        env->agents[0].rewards[0] += 1.0f;
 
         switch (as->radius) {
         case 10:
@@ -306,8 +319,8 @@ void check_player_asteroid_collision(Asteroids *env) {
     dx = env->player_position.x - as->position.x;
     dy = env->player_position.y - as->position.y;
     if (min_dist * min_dist > dx * dx + dy * dy) {
-      env->terminals[0] = 1;
-      env->rewards[0] = -1.0f;
+      env->agents[0].terminals[0] = 1;
+      env->agents[0].rewards[0] = -1.0f;
       return;
     }
   }
@@ -315,10 +328,10 @@ void check_player_asteroid_collision(Asteroids *env) {
 
 void compute_observations(Asteroids *env) {
   int observation_indx = 0;
-  env->observations[observation_indx++] = env->player_position.x / env->size;
-  env->observations[observation_indx++] = env->player_position.y / env->size;
-  env->observations[observation_indx++] = env->player_vel.x;
-  env->observations[observation_indx++] = env->player_vel.y;
+  ((obs_t*)env->agents[0].observations)[observation_indx++] = env->player_position.x / env->size;
+  ((obs_t*)env->agents[0].observations)[observation_indx++] = env->player_position.y / env->size;
+  ((obs_t*)env->agents[0].observations)[observation_indx++] = env->player_vel.x;
+  ((obs_t*)env->agents[0].observations)[observation_indx++] = env->player_vel.y;
   
   // Create temporary array to store asteroids with their distances
   AsteroidDistance asteroid_distances[MAX_ASTEROIDS];
@@ -355,20 +368,20 @@ void compute_observations(Asteroids *env) {
   for (int i = 0; i < MAX_ASTEROIDS; i++) {
     if (i < num_active_asteroids) {
       Asteroid as = asteroid_distances[i].asteroid;
-      env->observations[observation_indx++] =
+      ((obs_t*)env->agents[0].observations)[observation_indx++] =
           (as.position.x - env->player_position.x) / env->size;
-      env->observations[observation_indx++] =
+      ((obs_t*)env->agents[0].observations)[observation_indx++] =
           (as.position.y - env->player_position.y) / env->size;
-      env->observations[observation_indx++] = as.velocity.x;
-      env->observations[observation_indx++] = as.velocity.y;
-      env->observations[observation_indx++] = (float)as.radius / 40;
+      ((obs_t*)env->agents[0].observations)[observation_indx++] = as.velocity.x;
+      ((obs_t*)env->agents[0].observations)[observation_indx++] = as.velocity.y;
+      ((obs_t*)env->agents[0].observations)[observation_indx++] = (float)as.radius / 40;
     } else {
       // Pad with zeros for missing asteroids to ensure fixed observation size
-      env->observations[observation_indx++] = 0.0f; // relative x
-      env->observations[observation_indx++] = 0.0f; // relative y
-      env->observations[observation_indx++] = 0.0f; // velocity x
-      env->observations[observation_indx++] = 0.0f; // velocity y
-      env->observations[observation_indx++] = 0.0f; // radius
+      ((obs_t*)env->agents[0].observations)[observation_indx++] = 0.0f; // relative x
+      ((obs_t*)env->agents[0].observations)[observation_indx++] = 0.0f; // relative y
+      ((obs_t*)env->agents[0].observations)[observation_indx++] = 0.0f; // velocity x
+      ((obs_t*)env->agents[0].observations)[observation_indx++] = 0.0f; // velocity y
+      ((obs_t*)env->agents[0].observations)[observation_indx++] = 0.0f; // radius
     }
   }
 }
@@ -381,7 +394,7 @@ void add_log(Asteroids *env) {
   env->log.n++;
 }
 
-void c_reset(Asteroids *env) {
+void puf_reset(Asteroids *env) {
   env->player_position = (Vector2){env->size / 2.0f, env->size / 2.0f};
   env->player_angle = 0.0f;
   env->player_radius = 12;
@@ -444,30 +457,30 @@ void step_frame(Asteroids *env, int action) {
     env->player_position.y = 0;
 }
 
-void c_step(Asteroids *env) {
-  env->rewards[0] = 0;
-  env->terminals[0] = 0;
+void puf_step(Asteroids *env) {
+  env->agents[0].rewards[0] = 0;
+  env->agents[0].terminals[0] = 0;
   env->thruster_on = 0;
 
   // only when rendering
   if (global_game_over_timer > 0)
     return;
 
-  int action = env->actions[0];
+  int action = (int)env->agents[0].actions[0];
   for (int i = 0; i < env->frameskip; i++) {
     env->tick += 1;
     step_frame(env, action);
   }
 
-  env->episode_return += env->rewards[0];
-  if (env->terminals[0] == 1 || env->tick > MAX_TICK) {
-    env->terminals[0] = 1;
+  env->episode_return += env->agents[0].rewards[0];
+  if (env->agents[0].terminals[0] == 1 || env->tick > MAX_TICK) {
+    env->agents[0].terminals[0] = 1;
     add_log(env);
-    c_reset(env);
+    puf_reset(env);
     return;
   }
 
-  // env->rewards[0] = env->score;
+  // env->agents[0].rewards[0] = env->score;
   compute_observations(env);
 }
 
@@ -545,7 +558,7 @@ void draw_asteroids(Asteroids *env) {
   }
 }
 
-void c_render(Asteroids *env) {
+void puf_render(Asteroids *env) {
   if (!IsWindowReady()) {
     InitWindow(env->size, env->size, "PufferLib Asteroids");
     SetConfigFlags(FLAG_MSAA_4X_HINT);
@@ -557,7 +570,7 @@ void c_render(Asteroids *env) {
     exit(0);
   }
 
-  if (env->terminals[0] == 1 && !global_game_over_started) {
+  if (env->agents[0].terminals[0] == 1 && !global_game_over_started) {
     global_game_over_started = 1;
     global_game_over_timer = 120;
   }
@@ -593,8 +606,24 @@ void c_render(Asteroids *env) {
   EndDrawing();
 }
 
-void c_close(Asteroids *env) {
+void puf_close(Asteroids *env) {
   if (IsWindowReady()) {
     CloseWindow();
   }
 }
+
+void puf_init(Env *env, Dict *kwargs) {
+  env->num_agents = 1;
+  env->size = dict_get(kwargs, "size");
+  env->frameskip = dict_get(kwargs, "frameskip");
+  env->agents[0].policy = 0;
+  env->agents[0].action_mask = NULL;
+}
+
+void puf_log(Log *log, Dict *out) {
+  dict_set(out, "perf", log->perf);
+  dict_set(out, "score", log->score);
+  dict_set(out, "episode_return", log->episode_return);
+  dict_set(out, "episode_length", log->episode_length);
+}
+

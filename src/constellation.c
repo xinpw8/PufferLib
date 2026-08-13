@@ -178,7 +178,7 @@ static int parse_list(char* raw, float** out, int* len) {
         return 0;
     }
 
-    float* vals = (float*)calloc((size_t)n, sizeof(float));
+    float* vals = (float*)calloc(n, sizeof(float));
     if (!vals) {
         perror("calloc");
         exit(1);

@@ -23,11 +23,7 @@
 #define ACT_SIZES {1, 1, 1, 1}
 #define MAX_DRONES 256
 
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
 typedef float obs_t;
-#endif
 
 typedef Env DroneEnv;
 
@@ -57,10 +53,12 @@ typedef struct {
 
 typedef struct Log Log;
 struct Log {
+    float perf;
+    float score;
     float episode_return;
     float episode_length;
-    float n;
     TaskLog task[NUM_TASKS];
+    float n;
 };
 
 typedef struct Client Client;
@@ -74,7 +72,8 @@ struct Env {
     unsigned int rng;
 
     Drone* drones;
-    Physics physics;
+    // Host-only SIMD kernel. void* so Env stays CUDA-device-safe (no GCC vectors).
+    void* physics;
     Log log;
 
     TaskType task;
@@ -109,7 +108,8 @@ void init(DroneEnv* env) {
     for (int i = 0; i < env->num_agents; i++)
         env->drones[i].target = (Target*)calloc(1, sizeof(Target));
 
-    physics_init(&env->physics, env->num_agents, env->integrator);
+    env->physics = calloc(1, sizeof(Physics));
+    physics_init((Physics*)env->physics, env->num_agents, env->integrator);
     env->log = (Log){0};
 }
 
@@ -129,16 +129,15 @@ void reset_agent(DroneEnv* env, int idx) {
 
     init_drone(agent, &env->rng, env->dr);
     task_reset(env, agent, idx);
-    physics_set_drone(&env->physics, idx, &agent->params, &agent->state);
+    physics_set_drone((Physics*)env->physics, idx, &agent->params, &agent->state);
     agent->prev_pos = agent->state.pos;
 }
 
 void compute_observations(DroneEnv* env) {
     bool is_race = (env->task == TASK_RACE);
-    for (int i = 0; i < env->num_agents; i++) {
+    for (int i = 0; i < env->num_agents; i++)
         compute_drone_observations(&env->drones[i],
             (float*)env->agents[i].observations, is_race);
-    }
 }
 
 // Contiguous action buffer base (pufferl/puffercpu layout agents[i] stride NUM_ATNS)
@@ -160,14 +159,14 @@ void puf_step(DroneEnv* env) {
     for (int i = 0; i < env->num_agents; i++)
         env->drones[i].prev_pos = env->drones[i].state.pos;
 
-    physics_step(&env->physics, drone_actions_base(env));
+    physics_step((Physics*)env->physics, drone_actions_base(env));
 
     for (int i = 0; i < env->num_agents; i++) {
         Drone* agent = &env->drones[i];
         float* action = env->agents[i].actions;
         agent->episode_length++;
 
-        agent->state = physics_get_state(&env->physics, i);
+        agent->state = physics_get_state((Physics*)env->physics, i);
         StepCache cache;
         cache.dist = norm3(sub3(agent->target->pos, agent->state.pos));
         cache.prev_dist = norm3(sub3(agent->target->pos, agent->prev_pos));
@@ -212,7 +211,11 @@ void puf_close(DroneEnv* env) {
         free(env->drones);
         env->drones = NULL;
     }
-    physics_close(&env->physics);
+    if (env->physics != NULL) {
+        physics_close((Physics*)env->physics);
+        free(env->physics);
+        env->physics = NULL;
+    }
 
     if (env->client != NULL) {
         close_client(env->client);
@@ -241,7 +244,11 @@ static void race_config(DroneEnv* env, Dict* kwargs) {
 
 void puf_init(Env* env, Dict* kwargs) {
     env->num_agents = (int)dict_get(kwargs, "num_drones");
-    assert(env->num_agents > 0 && env->num_agents <= MAX_DRONES);
+    if (env->num_agents <= 0 || env->num_agents > MAX_DRONES) {
+        fprintf(stderr, "drone: num_drones=%d out of range (1..%d)\n",
+                env->num_agents, MAX_DRONES);
+        exit(1);
+    }
 
     env->alpha_vel = (float)dict_get(kwargs, "alpha_vel");
     env->alpha_omega = (float)dict_get(kwargs, "alpha_omega");
@@ -275,6 +282,11 @@ void puf_init(Env* env, Dict* kwargs) {
         race_config(env, kwargs);
     } else {
         hover_config(env, kwargs);
+    }
+
+    for (int i = 0; i < env->num_agents; i++) {
+        env->agents[i].policy = 0;
+        env->agents[i].action_mask = NULL;
     }
 
     task_init(env);

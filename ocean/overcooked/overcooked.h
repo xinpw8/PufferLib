@@ -5,7 +5,16 @@
 #ifndef OVERCOOKED_H
 #define OVERCOOKED_H
 
+// Re-export for build.sh ENV_HEADER check (also in overcooked_types.h)
+#ifndef OBS_SIZE
+#define ACT_SIZES {6}
+#define OBS_SIZE 43
+#define NUM_ATNS 1
+typedef float obs_t;
+#endif
+
 #include "overcooked_types.h"
+// obs_t/ACT_SIZES defined in overcooked_types.h
 #include "overcooked_items.h"
 #include "overcooked_obs.h"
 #include "overcooked_logic.h"
@@ -15,11 +24,11 @@ static void init(Overcooked* env) {
     const LayoutInfo* layout = get_layout_info(env->layout_id);
     env->width = layout->width;
     env->height = layout->height;
-    env->grid = calloc(env->width * env->height, sizeof(char));
+    env->grid = (char*)calloc(env->width * env->height, sizeof(char));
     env->max_items = 20;
-    env->items = calloc(env->max_items, sizeof(Item));
+    env->items = (Item*)calloc(env->max_items, sizeof(Item));
     env->num_items = 0;
-    env->agents = calloc(env->num_agents, sizeof(Agent));
+    env->chefs = (Chef*)calloc(env->num_agents, sizeof(Chef));
     parse_grid(env);
     init_static_cache(env);
     init_cooking_pots(env);
@@ -30,7 +39,7 @@ static void init(Overcooked* env) {
     memset(&env->log, 0, sizeof(Log));
 }
 
-void c_reset(Overcooked* env) {
+void puf_reset(Overcooked* env) {
     env->num_items = 0;
     reset_item_grid(env);
     parse_grid(env);
@@ -50,38 +59,38 @@ void c_reset(Overcooked* env) {
     const LayoutInfo* layout = get_layout_info(env->layout_id);
     for (int i = 0; i < env->num_agents; i++) {
         if (i < layout->num_spawns) {
-            env->agents[i].x = layout->spawn_positions[i * 2];
-            env->agents[i].y = layout->spawn_positions[i * 2 + 1];
+            env->chefs[i].x = layout->spawn_positions[i * 2];
+            env->chefs[i].y = layout->spawn_positions[i * 2 + 1];
         } else {
-            env->agents[i].x = 1 + (i % (env->width - 2));
-            env->agents[i].y = 1 + (i / (env->width - 2));
+            env->chefs[i].x = 1 + (i % (env->width - 2));
+            env->chefs[i].y = 1 + (i / (env->width - 2));
         }
-        env->agents[i].held_item = NO_ITEM;
-        env->agents[i].facing_direction = 0;
-        env->agents[i].held_soup_onions = 0;
-        env->agents[i].held_soup_tomatoes = 0;
-        env->agents[i].held_soup_total = 0;
-        env->agents[i].ticks_since_reward = 0;
+        env->chefs[i].held_item = NO_ITEM;
+        env->chefs[i].facing_direction = 0;
+        env->chefs[i].held_soup_onions = 0;
+        env->chefs[i].held_soup_tomatoes = 0;
+        env->chefs[i].held_soup_total = 0;
+        env->chefs[i].ticks_since_reward = 0;
 
-        env->rewards[i] = 0.0f;
-        env->terminals[i] = 0;
+        env->agents[i].rewards[0] = 0.0f;
+        env->agents[i].terminals[0] = 0;
     }
 
     env->agent_position_mask = 0;
     for (int i = 0; i < env->num_agents; i++) {
-        set_agent_position(env, env->agents[i].x, env->agents[i].y);
+        set_agent_position(env, env->chefs[i].x, env->chefs[i].y);
     }
 
     compute_observations(env);
 }
 
-void c_step(Overcooked* env) {
+void puf_step(Overcooked* env) {
     for (int i = 0; i < env->num_agents; i++) {
-        int action = env->actions[i];
-        env->rewards[i] = env->rewards_config.step_penalty;
-        env->agents[i].ticks_since_reward++;
+        int action = (int)env->agents[i].actions[0];
+        env->agents[i].rewards[0] = env->rewards_config.step_penalty;
+        env->chefs[i].ticks_since_reward++;
 
-        Agent* agent = &env->agents[i];
+        Chef* agent = &env->chefs[i];
         int new_x = agent->x;
         int new_y = agent->y;
 
@@ -101,7 +110,7 @@ void c_step(Overcooked* env) {
                 set_agent_position(env, new_x, new_y);
             } else {
                 for (int j = 0; j < env->num_agents; j++) {
-                    if (j != i && (int)env->agents[j].x == new_x && (int)env->agents[j].y == new_y) {
+                    if (j != i && (int)env->chefs[j].x == new_x && (int)env->chefs[j].y == new_y) {
                         env->log.agent_collisions++;
                         break;
                     }
@@ -114,34 +123,34 @@ void c_step(Overcooked* env) {
 
     const LayoutInfo* layout = get_layout_info(env->layout_id);
     for (int i = 0; i < env->num_agents; i++) {
-        if (env->agents[i].ticks_since_reward % 512 == 0 && env->agents[i].ticks_since_reward > 0) {
-            clear_agent_position(env, env->agents[i].x, env->agents[i].y);
+        if (env->chefs[i].ticks_since_reward % 512 == 0 && env->chefs[i].ticks_since_reward > 0) {
+            clear_agent_position(env, env->chefs[i].x, env->chefs[i].y);
             if (i < layout->num_spawns) {
-                env->agents[i].x = layout->spawn_positions[i * 2];
-                env->agents[i].y = layout->spawn_positions[i * 2 + 1];
+                env->chefs[i].x = layout->spawn_positions[i * 2];
+                env->chefs[i].y = layout->spawn_positions[i * 2 + 1];
             } else {
-                env->agents[i].x = 1 + (i % (env->width - 2));
-                env->agents[i].y = 1 + (i / (env->width - 2));
+                env->chefs[i].x = 1 + (i % (env->width - 2));
+                env->chefs[i].y = 1 + (i / (env->width - 2));
             }
-            set_agent_position(env, env->agents[i].x, env->agents[i].y);
-            env->agents[i].held_item = NO_ITEM;
-            env->agents[i].held_soup_onions = 0;
-            env->agents[i].held_soup_tomatoes = 0;
-            env->agents[i].held_soup_total = 0;
+            set_agent_position(env, env->chefs[i].x, env->chefs[i].y);
+            env->chefs[i].held_item = NO_ITEM;
+            env->chefs[i].held_soup_onions = 0;
+            env->chefs[i].held_soup_tomatoes = 0;
+            env->chefs[i].held_soup_total = 0;
         }
     }
 
     for (int i = 0; i < env->num_agents; i++) {
-        env->log.episode_return += env->rewards[i];
+        env->log.episode_return += env->agents[i].rewards[0];
     }
 
     compute_observations(env);
 }
 
-void c_close(Overcooked* env) {
+void puf_close(Overcooked* env) {
     free(env->grid);
     free(env->items);
-    free(env->agents);
+    free(env->chefs);
     free(env->cooking_pots);
     free(env->pot_index_grid);
     free(env->item_grid);
@@ -149,6 +158,45 @@ void c_close(Overcooked* env) {
         unload_textures(env->client);
         free(env->client);
     }
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->layout_id = (LayoutType)dict_get(kwargs, "layout");
+    env->num_agents = dict_get(kwargs, "num_agents");
+    env->grid_size = dict_get(kwargs, "grid_size");
+    env->observation_size = OBS_SIZE;
+    if (env->num_agents > OVERCOOKED_MAX_AGENTS) {
+        fprintf(stderr, "overcooked: num_agents too large\n");
+        exit(1);
+    }
+    env->rewards_config.dish_served_whole_team = dict_get(kwargs, "reward_dish_served_whole_team");
+    env->rewards_config.dish_served_agent = dict_get(kwargs, "reward_dish_served_agent");
+    env->rewards_config.pot_started = dict_get(kwargs, "reward_pot_started");
+    env->rewards_config.ingredient_added = dict_get(kwargs, "reward_ingredient_added");
+    env->rewards_config.ingredient_picked = dict_get(kwargs, "reward_ingredient_picked");
+    env->rewards_config.plate_picked = dict_get(kwargs, "reward_plate_picked");
+    env->rewards_config.soup_plated = dict_get(kwargs, "reward_soup_plated");
+    env->rewards_config.wrong_dish_served = dict_get(kwargs, "reward_wrong_dish_served");
+    env->rewards_config.step_penalty = dict_get(kwargs, "reward_step_penalty");
+    for (int i = 0; i < env->num_agents; i++) {
+        env->agents[i].policy = 0;
+        env->agents[i].action_mask = NULL;
+    }
+    init(env);
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "dishes_served", log->dishes_served);
+    dict_set(out, "correct_dishes", log->correct_dishes);
+    dict_set(out, "wrong_dishes", log->wrong_dishes);
+    dict_set(out, "ingredients_picked", log->ingredients_picked);
+    dict_set(out, "pots_started", log->pots_started);
+    dict_set(out, "items_dropped", log->items_dropped);
+    dict_set(out, "agent_collisions", log->agent_collisions);
 }
 
 #endif // OVERCOOKED_H

@@ -5,6 +5,7 @@
 #include "id_pool.h"
 #include "raylib.h"
 #include "rlights.h"
+#include "pufferenv.h"
 
 #include "include/cc_array.h"
 
@@ -334,13 +335,13 @@ typedef struct droneStats {
     float totalShotDistances;
 } droneStats;
 
-typedef struct Log {
+struct Log {
     float length;
     float ties;
     droneStats stats[_MAX_DRONES];
 
     float n;
-} Log;
+};
 
 typedef struct gameCamera {
     Camera3D camera3D;
@@ -411,7 +412,13 @@ typedef struct debugPoint {
     Color color;
 } debugPoint;
 
-typedef struct iwEnv {
+struct Env {
+    Agent agents[_MAX_DRONES];
+    int num_agents;
+    int tag;
+    int boundary_reached;
+    unsigned int rng;
+
     uint8_t numDrones;
     uint8_t numAgents;
     uint8_t numTeams;
@@ -493,6 +500,7 @@ typedef struct iwEnv {
     float renderScale;
     CC_Array *explosions;
     CC_Array *debugPoints;
-} iwEnv;
+};
+typedef struct Env iwEnv;
 
 #endif

@@ -38,24 +38,24 @@ void demo() {
         .tau = 0.02f,
     };
     allocate(&env);
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
 
     while (!WindowShouldClose()) {
         int userControlMode = IsKeyDown(KEY_LEFT_SHIFT);
 
         if (!userControlMode) {
-            forward_puffernet(net, env.observations, env.actions);
-            env.actions[0] = movement(env.actions[0], 0);
+            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
+            env.agents[0].actions[0] = movement(env.agents[0].actions[0], 0);
         } else {
-            env.actions[0] = movement(env.actions[0], userControlMode);
+            env.agents[0].actions[0] = movement(env.agents[0].actions[0], userControlMode);
         }   
 
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
 
-        if (env.terminals[0] > 0.5f) {
-            c_reset(&env);
+        if (env.agents[0].terminals[0] > 0.5f) {
+            puf_reset(&env);
         }
     }
 

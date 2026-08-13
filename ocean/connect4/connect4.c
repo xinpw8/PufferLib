@@ -12,32 +12,32 @@ void demo() {
     Connect4 env = {
     };
     allocate_cconnect4(&env);
-    c_reset(&env);
+    puf_reset(&env);
  
     env.client = make_client();
 
     int tick = 0;
     while (!WindowShouldClose()) {
-        env.actions[0] = NOOP;
+        env.agents[0].actions[0] = NOOP;
         // user inputs 1 - 7 key pressed
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            if(IsKeyPressed(KEY_ONE)) env.actions[0] = 0;
-            if(IsKeyPressed(KEY_TWO)) env.actions[0] = 1;
-            if(IsKeyPressed(KEY_THREE)) env.actions[0] = 2;
-            if(IsKeyPressed(KEY_FOUR)) env.actions[0] = 3;
-            if(IsKeyPressed(KEY_FIVE)) env.actions[0] = 4;
-            if(IsKeyPressed(KEY_SIX)) env.actions[0] = 5;
-            if(IsKeyPressed(KEY_SEVEN)) env.actions[0] = 6;
+            if(IsKeyPressed(KEY_ONE)) env.agents[0].actions[0] = 0;
+            if(IsKeyPressed(KEY_TWO)) env.agents[0].actions[0] = 1;
+            if(IsKeyPressed(KEY_THREE)) env.agents[0].actions[0] = 2;
+            if(IsKeyPressed(KEY_FOUR)) env.agents[0].actions[0] = 3;
+            if(IsKeyPressed(KEY_FIVE)) env.agents[0].actions[0] = 4;
+            if(IsKeyPressed(KEY_SIX)) env.agents[0].actions[0] = 5;
+            if(IsKeyPressed(KEY_SEVEN)) env.agents[0].actions[0] = 6;
         } else if (tick % 30 == 0) {
-            forward_puffernet(net, env.observations, env.actions);
+            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
         }
 
         tick = (tick + 1) % 60;
-        if (env.actions[0] >= 0 && env.actions[0] <= 6) {
-            c_step(&env);
+        if (env.agents[0].actions[0] >= 0 && env.agents[0].actions[0] <= 6) {
+            puf_step(&env);
         }
 
-        c_render(&env);
+        puf_render(&env);
     }
     free_puffernet(net);
     free(weights);

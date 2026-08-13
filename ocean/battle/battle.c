@@ -38,15 +38,15 @@ int main() {
     env.terminals = calloc(env.num_agents, sizeof(unsigned char));
 
     // Always call reset and render first
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
 
     int ctrl = 0;
 
     while (!WindowShouldClose()) {
         /*
         for (int i=0; i<env.num_agents; i++) {
-            Entity* agent = &env.agents[i];
+            Entity* agent = &env.units[i];
             int army = agent->army;
             float vx = env.observations[num_obs*i + 3*army];
             float vz = env.observations[num_obs*i + 3*army + 2];
@@ -120,7 +120,7 @@ int main() {
             camera->target = (Vector3){x, y, z};
 
 
-            Entity* agent = &env.agents[i];
+            Entity* agent = &env.units[i];
             Vector3 forward = Vector3RotateByQuaternion((Vector3){0, 0, 1}, agent->orientation);
 
             Vector3 local_up = Vector3RotateByQuaternion((Vector3){0, 1, 0}, agent->orientation);
@@ -136,7 +136,7 @@ int main() {
 
 
             /*
-            Entity* agent = &env.agents[i];
+            Entity* agent = &env.units[i];
             Vec3 forward = quat_rotate(agent->orientation, (Vec3){0, 0, -1}); // Ship's local forward
             vec3_normalize(&forward);
 
@@ -194,8 +194,8 @@ int main() {
 
         //forward_linearlstm(net, env.observations, env.actions);
         compute_observations(&env);
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
     }
 
     // Try to clean up after yourself
@@ -204,6 +204,6 @@ int main() {
     free(env.actions);
     free(env.rewards);
     free(env.terminals);
-    c_close(&env);
+    puf_close(&env);
 }
 

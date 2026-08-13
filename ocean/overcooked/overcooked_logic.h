@@ -8,7 +8,7 @@
 #include "overcooked_items.h"
 
 // Forward declaration for circular dependency
-static void evaluate_dish_served(Overcooked* env, Agent* agent, int agent_idx);
+static void evaluate_dish_served(Overcooked* env, Chef* agent, int agent_idx);
 
 static void parse_grid(Overcooked* env) {
     const LayoutInfo* layout = get_layout_info(env->layout_id);
@@ -105,7 +105,7 @@ static int is_valid_position(Overcooked* env, int x, int y, int excluding_agent)
 }
 
 static void handle_interaction(Overcooked* env, int agent_idx) {
-    Agent* agent = &env->agents[agent_idx];
+    Chef* agent = &env->chefs[agent_idx];
     int target_x = agent->x;
     int target_y = agent->y;
 
@@ -131,7 +131,7 @@ static void handle_interaction(Overcooked* env, int agent_idx) {
                 pot->ingredient_count++;
                 if (agent->held_item == ONION) {
                     pot->num_onions++;
-                    env->rewards[agent_idx] += env->rewards_config.ingredient_added;
+                    env->agents[agent_idx].rewards[0] += env->rewards_config.ingredient_added;
                 } else if (agent->held_item == TOMATO) {
                     pot->num_tomatoes++;
                 }
@@ -144,7 +144,7 @@ static void handle_interaction(Overcooked* env, int agent_idx) {
                 pot->cooking_progress = 0;
                 env->log.pots_started++;
                 if (pot->num_onions == 3) {
-                    env->rewards[agent_idx] += env->rewards_config.pot_started;
+                    env->agents[agent_idx].rewards[0] += env->rewards_config.pot_started;
                 }
             }
             else if (pot->cooking_state == COOKED) {
@@ -157,7 +157,7 @@ static void handle_interaction(Overcooked* env, int agent_idx) {
             agent->held_soup_tomatoes = pot->num_tomatoes;
             agent->held_soup_total = pot->ingredient_count;
 
-            env->rewards[agent_idx] += env->rewards_config.soup_plated;
+            env->agents[agent_idx].rewards[0] += env->rewards_config.soup_plated;
 
             pot->cooking_state = NOT_COOKING;
             pot->cooking_progress = 0;
@@ -219,22 +219,22 @@ static void handle_interaction(Overcooked* env, int agent_idx) {
             // Add logs for each ingredient type
             agent->held_item = ONION; // Always gives onions for now
             env->log.ingredients_picked++;
-            env->rewards[agent_idx] += env->rewards_config.ingredient_picked;
+            env->agents[agent_idx].rewards[0] += env->rewards_config.ingredient_picked;
         }
         else if (tile == PLATE_BOX) {
             agent->held_item = PLATE;
-            env->rewards[agent_idx] += env->rewards_config.plate_picked;
+            env->agents[agent_idx].rewards[0] += env->rewards_config.plate_picked;
         }
     }
 }
 
-static void evaluate_dish_served(Overcooked* env, Agent* agent, int agent_idx) {
+static void evaluate_dish_served(Overcooked* env, Chef* agent, int agent_idx) {
     int is_correct_recipe = (agent->held_soup_onions == 3);
 
     if (is_correct_recipe) {
-        env->rewards[agent_idx] += env->rewards_config.dish_served_agent;
+        env->agents[agent_idx].rewards[0] += env->rewards_config.dish_served_agent;
         for (int i = 0; i < env->num_agents; i++) {
-            env->rewards[i] += env->rewards_config.dish_served_whole_team;
+            env->agents[i].rewards[0] += env->rewards_config.dish_served_whole_team;
         }
         env->log.episode_length += agent->ticks_since_reward;
         env->log.score += 25.0 / agent->ticks_since_reward;
@@ -243,9 +243,9 @@ static void evaluate_dish_served(Overcooked* env, Agent* agent, int agent_idx) {
         env->log.correct_dishes++;
         env->log.n++;
     } else {
-        env->rewards[agent_idx] += env->rewards_config.wrong_dish_served;
+        env->agents[agent_idx].rewards[0] += env->rewards_config.wrong_dish_served;
         for (int i = 0; i < env->num_agents; i++) {
-            env->rewards[i] += env->rewards_config.wrong_dish_served;
+            env->agents[i].rewards[0] += env->rewards_config.wrong_dish_served;
         }
         env->log.wrong_dishes++;
     }

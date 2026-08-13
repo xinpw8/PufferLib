@@ -4,6 +4,10 @@
 #include "puffercpu.h"
 #include "rlgl.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 // Match raylib's built-in GIF recorder (SUPPORT_GIF_RECORDING / Ctrl+F12):
 // same msf_gif path, full-res rlReadScreenPixels, 10fps, bitDepth 16.
 // Own symbols so we don't clash with the copy inside libraylib.
@@ -89,6 +93,24 @@ static TaskType next_demo_task(TaskType cur) {
     // Cycle race <-> hover only in interactive mode
     return (cur == TASK_RACE) ? TASK_HOVER : TASK_RACE;
 }
+
+#ifdef __EMSCRIPTEN__
+typedef struct {
+    DroneEnv* env;
+    PufferNet* net;
+    float* observations;
+    float* actions;
+} WebRenderArgs;
+
+void emscriptenStep(void* e) {
+    WebRenderArgs* args = (WebRenderArgs*)e;
+    if (tab_swap_pressed()) {
+        setup_task(args->env, next_demo_task(args->env->task));
+    }
+    step_realtime(args->env, args->net, args->observations, args->actions);
+    puf_render(args->env);
+}
+#endif
 
 // Capture schedule: race 5s, then each other task 2.5s.
 typedef struct {
@@ -269,6 +291,14 @@ void demo(int gif_mode, const char* gif_path) {
     puf_render(&env);
     SetTargetFPS(60);
 
+#ifdef __EMSCRIPTEN__
+    static WebRenderArgs args;
+    args.env = &env;
+    args.net = net;
+    args.observations = (float*)observations;
+    args.actions = actions;
+    emscripten_set_main_loop_arg(emscriptenStep, &args, 0, true);
+#else
     while (!WindowShouldClose()) {
         if (tab_swap_pressed()) {
             setup_task(&env, next_demo_task(env.task));
@@ -284,6 +314,7 @@ void demo(int gif_mode, const char* gif_path) {
     free(actions);
     free(rewards);
     free(terminals);
+#endif
 }
 
 int main(int argc, char** argv) {

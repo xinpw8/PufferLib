@@ -9,6 +9,12 @@
 
 #include "worldgen.h"
 #include "raylib.h"
+#include "pufferenv.h"
+
+// Train/eval builds need full step implementations (forward-declared below).
+#ifndef CRAFTAX_ENABLE_ENV_IMPL
+#define CRAFTAX_ENABLE_ENV_IMPL
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -20,7 +26,7 @@
 
 #define CRAFTAX_NUM_PROFILE_ZONES 18
 
-typedef struct {
+struct Log {
     const char* name;
     uint64_t total_ns;
     uint64_t count;
@@ -107,6 +113,12 @@ static inline void craftax_profile_report(void) {
 #define CRAFTAX_OBS_SIZE CRAFTAX_WG_OBS_SIZE
 
 #define CRAFTAX_NUM_ACTIONS 43
+#define ACT_SIZES {CRAFTAX_NUM_ACTIONS}
+#define OBS_SIZE CRAFTAX_OBS_SIZE
+#define NUM_ATNS 1
+
+typedef Env Craftax;
+typedef float obs_t;
 #define CRAFTAX_NUM_ACHIEVEMENTS 67
 
 #define CRAFTAX_MAX_MELEE_MOBS 3
@@ -561,28 +573,26 @@ static inline void craftax_calculate_inventory_achievements_native(
 );
 #endif
 
-typedef struct Log {
+struct Log {
     float perf;
     float score;
     float episode_return;
     float episode_length;
     float achievements[CRAFTAX_NUM_ACHIEVEMENTS];
     float n;
-} Log;
+};
 
 typedef struct Client {
     int unused;
 } Client;
 
-typedef struct Craftax {
+struct Env {
     Client* client;
     Log log;
-
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
+    Agent agents[1];
     int num_agents;
+    int tag;
+    int boundary_reached;
 
     unsigned int rng;
     uint64_t seed;
@@ -596,9 +606,7 @@ typedef struct Craftax {
     float achievements[CRAFTAX_NUM_ACHIEVEMENTS];
     float episode_return_accum;
     int32_t episode_length_accum;
-} Craftax;
-
-#ifdef CRAFTAX_ENABLE_ENV_IMPL
+};
 
 // ============================================================
 // Native reset, observation, reward, and step glue
@@ -711,7 +719,7 @@ static inline void craftax_reset_state_from_seed(Craftax* env) {
     craftax_reset_state_from_reset_key(env->state, reset_key);
 }
 
-// Hot-path reset used by c_step on episode-done. Consults the reset pool
+// Hot-path reset used by puf_step on episode-done. Consults the reset pool
 // when enabled, falls through to generate_world otherwise. Pool index is
 // derived from the reset_key so different done events pick different
 // pooled worlds. The direct craftax_reset_state_from_reset_key stays
@@ -874,28 +882,28 @@ static void c_init(Craftax* env) {
     craftax_reset_state_from_seed(env);
 }
 
-static void c_reset(Craftax* env) {
-    if (env->rewards != NULL) {
-        env->rewards[0] = 0.0f;
+void puf_reset(Craftax* env) {
+    if (env->agents[0].rewards != NULL) {
+        env->agents[0].rewards[0] = 0.0f;
     }
-    if (env->terminals != NULL) {
-        env->terminals[0] = 0.0f;
+    if (env->agents[0].terminals != NULL) {
+        env->agents[0].terminals[0] = 0.0f;
     }
     env->episode_return_accum = 0.0f;
     env->episode_length_accum = 0;
     memset(env->achievements, 0, sizeof(env->achievements));
 
     craftax_reset_state_from_seed(env);
-    craftax_encode_native_observation(env->state, env->observations);
+    craftax_encode_native_observation(env->state, ((obs_t*)env->agents[0].observations));
 }
 
 #ifdef CRAFTAX_PROFILE
 static void c_step_native(Craftax* env) {
     CRAFTAX_PROFILE_START();
-    env->rewards[0] = 0.0f;
-    env->terminals[0] = 0.0f;
+    env->agents[0].rewards[0] = 0.0f;
+    env->agents[0].terminals[0] = 0.0f;
 
-    int action = (int)env->actions[0];
+    int action = (int)env->agents[0].actions[0];
     if (action < 0) {
         action = CRAFTAX_ACTION_NOOP;
     }
@@ -923,8 +931,8 @@ static void c_step_native(Craftax* env) {
     CRAFTAX_PROFILE_END(15);
 
     CRAFTAX_PROFILE_ZONE(16);
-    env->rewards[0] = reward;
-    env->terminals[0] = done ? 1.0f : 0.0f;
+    env->agents[0].rewards[0] = reward;
+    env->agents[0].terminals[0] = done ? 1.0f : 0.0f;
     env->episode_return_accum += reward;
     env->episode_length_accum += 1;
     CRAFTAX_PROFILE_END(16);
@@ -940,7 +948,7 @@ static void c_step_native(Craftax* env) {
     }
 
     CRAFTAX_PROFILE_ZONE(11);
-    craftax_encode_native_observation(env->state, env->observations);
+    craftax_encode_native_observation(env->state, ((obs_t*)env->agents[0].observations));
     CRAFTAX_PROFILE_END(11);
 
     // Record unprofiled time
@@ -961,10 +969,10 @@ static void c_step_native(Craftax* env) {
 #endif
 
 static void c_step_gameplay(Craftax* env) {
-    env->rewards[0] = 0.0f;
-    env->terminals[0] = 0.0f;
+    env->agents[0].rewards[0] = 0.0f;
+    env->agents[0].terminals[0] = 0.0f;
 
-    int action = (int)env->actions[0];
+    int action = (int)env->agents[0].actions[0];
     if (action < 0) action = CRAFTAX_ACTION_NOOP;
     if (action >= CRAFTAX_NUM_ACTIONS) action = CRAFTAX_NUM_ACTIONS - 1;
 
@@ -978,8 +986,8 @@ static void c_step_gameplay(Craftax* env) {
     bool done = craftax_is_game_over_native(env->state);
     craftax_copy_achievements_to_env(env, env->state);
 
-    env->rewards[0] = reward;
-    env->terminals[0] = done ? 1.0f : 0.0f;
+    env->agents[0].rewards[0] = reward;
+    env->agents[0].terminals[0] = done ? 1.0f : 0.0f;
     env->episode_return_accum += reward;
     env->episode_length_accum += 1;
 
@@ -993,15 +1001,15 @@ static void c_step_gameplay(Craftax* env) {
 }
 
 static void c_step_encode(Craftax* env) {
-    craftax_encode_native_observation(env->state, env->observations);
+    craftax_encode_native_observation(env->state, ((obs_t*)env->agents[0].observations));
 }
 
-static void c_step(Craftax* env) {
+void puf_step(Craftax* env) {
     c_step_gameplay(env);
     c_step_encode(env);
 }
 
-static void c_close(Craftax* env) {
+void puf_close(Craftax* env) {
     if (!env->owns_state_storage || env->arena == NULL) {
         return;
     }
@@ -1096,7 +1104,7 @@ static void craftax_draw_tile(int tex_id, int dst_x, int dst_y, float tint_alpha
     DrawTexturePro(craftax_textures[tex_id], src, dst, (Vector2){0, 0}, 0.0f, tint);
 }
 
-static void c_render(Craftax* env) {
+void puf_render(Craftax* env) {
     const int view_w = CRAFTAX_RENDER_COLS * CRAFTAX_TEX_DRAW_PX;
     const int view_h = CRAFTAX_RENDER_ROWS * CRAFTAX_TEX_DRAW_PX;
     const int hud_h = 80;
@@ -1174,4 +1182,47 @@ static void c_render(Craftax* env) {
     EndDrawing();
 }
 
-#endif
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    struct { const char* name; int idx; } checkpoints[] = {
+        {"collect_wood", 0},
+        {"make_wood_pickaxe", 5},
+        {"make_stone_pickaxe", 13},
+        {"collect_iron", 18},
+        {"make_iron_pickaxe", 20},
+        {"collect_diamond", 19},
+        {"enter_gnomish_mines", 28},
+        {"defeat_necromancer", 48},
+    };
+    for (int i = 0; i < (int)(sizeof(checkpoints) / sizeof(checkpoints[0])); i++) {
+        dict_set(out, checkpoints[i].name, log->achievements[checkpoints[i].idx]);
+    }
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->agents[0].policy = 0;
+    env->agents[0].action_mask = NULL;
+    uint64_t seed_offset = 0;
+    // optional keys
+    for (int i = 0; i < kwargs->size; i++) {
+        if (strcmp(kwargs->items[i].key, "seed_offset") == 0) {
+            seed_offset = (uint64_t)kwargs->items[i].value;
+        }
+        if (strcmp(kwargs->items[i].key, "reset_pool_size") == 0) {
+            craftax_set_reset_pool_size((int)kwargs->items[i].value);
+        }
+    }
+    env->seed = seed_offset + (uint64_t)env->rng;
+    c_init(env);
+}
+
+// Step subsystem implementations (after Craftax types / forward decls).
+#include "step_crafting.h"
+#include "step_update_mobs.h"
+#include "step_spawn_mobs.h"
+

@@ -47,12 +47,12 @@ static inline void dict_reserve(Dict* dict, int cap) {
     if (cap <= dict->cap) {
         return;
     }
-    dict->items = (DictItem*)realloc(dict->items, (size_t)cap * sizeof(DictItem));
+    dict->items = (DictItem*)realloc(dict->items, cap * sizeof(DictItem));
     if (!dict->items) {
         perror("realloc");
         exit(1);
     }
-    memset(dict->items + dict->cap, 0, (size_t)(cap - dict->cap) * sizeof(DictItem));
+    memset(dict->items + dict->cap, 0, (cap - dict->cap) * sizeof(DictItem));
     dict->cap = cap;
 }
 
@@ -215,7 +215,7 @@ static void puf_ini_strip_quotes(char* s) {
 
 static int puf_ini_read_line(FILE* fp, char** line, int* cap) {
     int n = 0;
-    for (;;) {
+    while (1) {
         int c = fgetc(fp);
         if (c == EOF && n == 0) {
             return 0;
@@ -273,7 +273,7 @@ static int puf_ini_parse_list(const char* raw, double** out, int* len) {
         }
     }
 
-    double* values = (double*)calloc((size_t)cap, sizeof(double));
+    double* values = (double*)calloc(cap, sizeof(double));
     if (!values) {
         perror("calloc");
         exit(1);
@@ -328,7 +328,7 @@ static Dict* puf_ini_section(Ini* ini, const char* name, int add) {
     }
 
     ini->sections = (Dict*)realloc(ini->sections,
-        (size_t)(ini->num_sections + 1) * sizeof(Dict));
+        (ini->num_sections + 1) * sizeof(Dict));
     if (!ini->sections) {
         perror("realloc");
         exit(1);
@@ -363,18 +363,6 @@ static DictItem* puf_ini_set(Dict* dict, const char* key, const char* raw) {
 
 static inline double puf_ini_get(Ini* ini, const char* section, const char* key) {
     return dict_get(puf_ini_section(ini, section, 0), key);
-}
-
-static inline int puf_ini_get_int(Ini* ini, const char* section, const char* key) {
-    return (int)puf_ini_get(ini, section, key);
-}
-
-static inline long puf_ini_get_long(Ini* ini, const char* section, const char* key) {
-    return (long)puf_ini_get(ini, section, key);
-}
-
-static inline float puf_ini_get_float(Ini* ini, const char* section, const char* key) {
-    return (float)puf_ini_get(ini, section, key);
 }
 
 static inline const char* puf_ini_get_str(Ini* ini, const char* section,

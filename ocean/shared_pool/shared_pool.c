@@ -15,8 +15,8 @@ int main() {
       .food_base_spawn_rate = 2e-3,
   };
   allocate_ccpr(&env);
-  c_reset(&env);
-  c_render(&env);
+  puf_reset(&env);
+  puf_render(&env);
 
   Weights* weights = load_weights("resources/cpr/cpr_weights.bin");
   int logit_sizes[] = {5};
@@ -26,25 +26,25 @@ int main() {
     // User can take control of the first puffer
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
       if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W))
-        env.actions[0] = 0;
+        env.agents[0].actions[0] = 0;
       if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S))
-        env.actions[0] = 1;
+        env.agents[0].actions[0] = 1;
       if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
-        env.actions[0] = 2;
+        env.agents[0].actions[0] = 2;
       if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))
-        env.actions[0] = 3;
+        env.agents[0].actions[0] = 3;
 
-      printf("Getting user input %d\n", env.actions[0]);
+      printf("Getting user input %d\n", env.agents[0].actions[0]);
       sleep(2);
     } else {
         for (int i = 0; i < env.num_agents*49; i++) {
-            net->obs[i] = env.observations[i];
+            net->obs[i] = env.agents[0].observations[i];
         }
-        forward_linearlstm(net, net->obs, env.actions);
+        forward_linearlstm(net, net->obs, env.agents[0].actions);
     }
 
-    c_step(&env);
-    c_render(&env);
+    puf_step(&env);
+    puf_render(&env);
   }
   //close_renderer(renderer);
   free_CCpr(&env);

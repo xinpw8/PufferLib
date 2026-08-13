@@ -20,7 +20,7 @@ struct MMONet {
     Conv2D* map_conv2;
     Embedding* player_embed;
     float* proj_buffer;
-    Affine* proj;
+    Linear* proj;
     ReLU* proj_relu;
     Linear* decoder;
     MinGRU* mingru;
@@ -40,7 +40,7 @@ MMONet* init_mmonet(Weights* weights, int num_agents) {
     net->map_conv2 = make_conv2d(weights, num_agents, 4, 3, 128, 128, 3, 1);
     net->player_embed = make_embedding(weights, num_agents*47, 128, 32);
     net->proj_buffer = calloc(num_agents*1817, sizeof(float));
-    net->proj = make_affine(weights, num_agents, 1817, hidden);
+    net->proj = make_linear(weights, num_agents, 1817, hidden);
     net->proj_relu = make_relu(num_agents, hidden);
     net->decoder = make_linear(weights, num_agents, hidden, 26 + 1);
     net->mingru = make_mingru(weights, num_agents, hidden, 4);
@@ -142,13 +142,13 @@ void forward(MMONet* net, unsigned char* observations, float* terminals, float* 
         }
     }
 
-    affine(net->proj, net->proj_buffer);
+    linear(net->proj, net->proj_buffer);
     relu(net->proj_relu, net->proj->output);
 
     mingru(net->mingru, net->proj_relu->output);
     linear(net->decoder, net->mingru->output);
 
-    softmax_multidiscrete(net->multidiscrete, net->decoder->output, actions);
+    multidiscrete(net->multidiscrete, net->decoder->output, actions, 0);
 }
 
 void demo(int num_players) {
@@ -179,8 +179,8 @@ void demo(int num_players) {
     };
     allocate_mmo(&env);
 
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
 
     float human_action = ATN_NOOP;
     bool human_mode = false;
@@ -190,17 +190,17 @@ void demo(int num_players) {
             human_mode = !human_mode;
         }
         if (i % 36 == 0) {
-            forward(net, env.observations, env.terminals, env.actions);
+            forward(net, env.agents[0].observations, env.agents[0].terminals, env.agents[0].actions);
             if (human_mode) {
-                env.actions[0] = human_action;
+                env.agents[0].actions[0] = human_action;
             }
 
-            c_step(&env);
+            puf_step(&env);
             human_action = ATN_NOOP;
         }
-        int atn = c_render(&env);
-        if (atn != ATN_NOOP) {
-            human_action = atn;
+        puf_render(&env);
+        if (env.client && env.client->last_action != ATN_NOOP) {
+            human_action = env.client->last_action;
         }
         i = (i + 1) % 36;
     }
@@ -232,13 +232,13 @@ void test_mmonet_performance(int num_players, int timeout) {
         .y_window = 5,
     };
     allocate_mmo(&env);
-    c_reset(&env);
+    puf_reset(&env);
 
     int start = time(NULL);
     int num_steps = 0;
     while (time(NULL) - start < timeout) {
-        forward(net, env.observations, env.terminals, env.actions);
-        c_step(&env);
+        forward(net, env.agents[0].observations, env.agents[0].terminals, env.agents[0].actions);
+        puf_step(&env);
         num_steps++;
     }
 
@@ -446,15 +446,15 @@ void test_performance(int num_players, int timeout) {
         .y_window = 5,
     };
     allocate_mmo(&env);
-    c_reset(&env);
+    puf_reset(&env);
 
     int start = time(NULL);
     int num_steps = 0;
     while (time(NULL) - start < timeout) {
         for (int i = 0; i < num_players; i++) {
-            env.actions[i] = rand_r(&env.rng) % 23;
+            env.agents[0].actions[i] = rand_r(&env.rng) % 23;
         }
-        c_step(&env);
+        puf_step(&env);
         num_steps++;
     }
 
@@ -491,14 +491,14 @@ void test_no_render_log(int num_players, int target_episodes) {
         .reward_death = -1.0,
     };
     allocate_mmo(&env);
-    c_reset(&env);
+    puf_reset(&env);
 
     int num_steps = 0;
     int prev_n = 0;
     float prev_mcp = 0.0f;
     while ((int)env.log.n < target_episodes) {
-        forward(net, env.observations, env.terminals, env.actions);
-        c_step(&env);
+        forward(net, env.agents[0].observations, env.agents[0].terminals, env.agents[0].actions);
+        puf_step(&env);
         num_steps++;
 
         int curr_n = (int)env.log.n;

@@ -8,76 +8,79 @@
 #include <string.h>
 #include <math.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {9, 5}
+#define OBS_SIZE 28  // num_goals*2 + num_agents*2 + 4 = 4*2 + 8*2 + 4
+#define NUM_ATNS 2
+#define MAX_AGENTS 8
+#define MAX_GOALS 4
+
+typedef Env Target;
+typedef float obs_t;
 
 // Required struct. Only use floats!
-typedef struct {
+struct Log {
     float perf; // Recommended 0-1 normalized single real number perf metric
     float score; // Recommended unnormalized single real number perf metric
     float episode_return; // Recommended metric: sum of agent rewards over episode
     float episode_length; // Recommended metric: number of steps of agent episode
-    // Any extra fields you add here may be exported to Python in binding.c
     float n; // Required as the last field
-} Log;
+};
 
 typedef struct {
     Texture2D puffer;
     Texture2D star;
 } Client;
 
+// Game entity (was Agent)
 typedef struct {
     float x;
     float y;
     float heading;
     float speed;
     int ticks_since_reward;
-} Agent;
+} Entity;
 
 typedef struct {
     float x;
     float y;
 } Goal;
 
-// Required that you have some struct for your env
-// Recommended that you name it the same as the env file
-typedef struct {
-    Log log; // Required field. Env binding code uses this to aggregate logs
+struct Env {
+    Log log;
     Client* client;
-    Agent* agents;
+    Agent agents[MAX_AGENTS];
+    Entity* entities;
     Goal* goals;
-    float* observations; // Required. You can use any obs type, but make sure it matches in Python!
-    float* actions; // Required
-    float* rewards; // Required
-    float* terminals; // Required
     int width;
     int height;
     int num_agents;
     int num_goals;
+    int tag;
+    int boundary_reached;
     unsigned int rng;
-} Target;
+};
 
-/* Recommended to have an init function of some kind if you allocate
- * extra memory. This should be freed by c_close. Don't forget to call
- * this in binding.c!
- */
 void init(Target* env) {
-    env->agents = calloc(env->num_agents, sizeof(Agent));
-    env->goals = calloc(env->num_goals, sizeof(Goal));
+    env->entities = (Entity*)calloc(env->num_agents, sizeof(Entity));
+    env->goals = (Goal*)calloc(env->num_goals, sizeof(Goal));
 }
 
 void update_goals(Target* env) {
     for (int a = 0; a < env->num_agents; a++) {
-        Agent* agent = &env->agents[a];
+        Entity* agent = &env->entities[a];
         for (int g = 0; g < env->num_goals; g++) {
             Goal* goal = &env->goals[g];
             float dx = goal->x - agent->x;
             float dy = goal->y - agent->y;
-            float dist = sqrtf(dx*dx + dy*dy);
+            float dist = sqrtf(dx * dx + dy * dy);
             if (dist > 64) {
                 continue;
             }
             goal->x = rand_r(&env->rng) % env->width;
             goal->y = rand_r(&env->rng) % env->height;
-            env->rewards[a] = 1.0f;
+            env->agents[a].rewards[0] = 1.0f;
             env->log.score += 1.0f;
             env->log.episode_length += agent->ticks_since_reward;
             env->log.perf += fmaxf(0.0f, 1.0f - 0.01f * agent->ticks_since_reward);
@@ -88,38 +91,33 @@ void update_goals(Target* env) {
     }
 }
 
-/* Recommended to have an observation function of some kind because
- * you need to compute agent observations in both reset and in step.
- * If using float obs, try to normalize to roughly -1 to 1 by dividing
- * by an appropriate constant.
- */
 void compute_observations(Target* env) {
-    int obs_idx = 0;
     for (int a = 0; a < env->num_agents; a++) {
-        Agent* agent = &env->agents[a];
+        Entity* agent = &env->entities[a];
+        obs_t* obs = (obs_t*)env->agents[a].observations;
+        int obs_idx = 0;
         for (int g = 0; g < env->num_goals; g++) {
             Goal* goal = &env->goals[g];
-            env->observations[obs_idx++] = (goal->x - agent->x) / env->width;
-            env->observations[obs_idx++] = (goal->y - agent->y) / env->height;
+            obs[obs_idx++] = (goal->x - agent->x) / env->width;
+            obs[obs_idx++] = (goal->y - agent->y) / env->height;
         }
         for (int b = 0; b < env->num_agents; b++) {
-            Agent* other = &env->agents[b];
-            env->observations[obs_idx++] = (other->x - agent->x) / env->width;
-            env->observations[obs_idx++] = (other->y - agent->y) / env->height;
+            Entity* other = &env->entities[b];
+            obs[obs_idx++] = (other->x - agent->x) / env->width;
+            obs[obs_idx++] = (other->y - agent->y) / env->height;
         }
-        env->observations[obs_idx++] = agent->heading / (2*PI);
-        env->observations[obs_idx++] = env->rewards[a];
-        env->observations[obs_idx++] = agent->x / env->width;
-        env->observations[obs_idx++] = agent->y / env->height;
+        obs[obs_idx++] = agent->heading / (2 * PI);
+        obs[obs_idx++] = env->agents[a].rewards[0];
+        obs[obs_idx++] = agent->x / env->width;
+        obs[obs_idx++] = agent->y / env->height;
     }
 }
 
-// Required function
-void c_reset(Target* env) {
+void puf_reset(Target* env) {
     for (int i = 0; i < env->num_agents; i++) {
-        env->agents[i].x = rand_r(&env->rng) % env->width;
-        env->agents[i].y = rand_r(&env->rng) % env->height;
-        env->agents[i].ticks_since_reward = 0;
+        env->entities[i].x = rand_r(&env->rng) % env->width;
+        env->entities[i].y = rand_r(&env->rng) % env->height;
+        env->entities[i].ticks_since_reward = 0;
     }
     for (int i = 0; i < env->num_goals; i++) {
         env->goals[i].x = rand_r(&env->rng) % env->width;
@@ -134,19 +132,17 @@ static inline float clipf(float val, float min, float max) {
     return val;
 }
 
-// Required function
-void c_step(Target* env) {
+void puf_step(Target* env) {
     for (int i = 0; i < env->num_agents; i++) {
-        env->rewards[i] = 0;
-        Agent* agent = &env->agents[i];
+        env->agents[i].rewards[0] = 0;
+        Entity* agent = &env->entities[i];
+        float* actions = env->agents[i].actions;
         agent->ticks_since_reward += 1;
 
-        // action[2*i]: heading adjustment (0-8, center=4)
-        // action[2*i+1]: speed adjustment (0-4, center=2)
-        agent->heading += (env->actions[2*i] - 4.0f) / 12.0f;
-        agent->heading = clipf(agent->heading, 0, 2*PI);
+        agent->heading += (actions[0] - 4.0f) / 12.0f;
+        agent->heading = clipf(agent->heading, 0, 2 * PI);
 
-        agent->speed += env->actions[2*i + 1] - 2.0f;
+        agent->speed += actions[1] - 2.0f;
         agent->speed = clipf(agent->speed, -20.0f, 20.0f);
 
         agent->x += agent->speed * cosf(agent->heading);
@@ -164,8 +160,7 @@ void c_step(Target* env) {
     compute_observations(env);
 }
 
-// Required function. Should handle creating the client on first call
-void c_render(Target* env) {
+void puf_render(Target* env) {
     if (env->client == NULL) {
         InitWindow(1080, 720, "PufferLib Target");
         SetTargetFPS(60);
@@ -174,7 +169,6 @@ void c_render(Target* env) {
         env->client->star = LoadTexture("resources/shared/star.png");
     }
 
-    // Standard across our envs so exiting is always the same
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
@@ -188,12 +182,12 @@ void c_render(Target* env) {
     }
 
     for (int i = 0; i < env->num_agents; i++) {
-        Agent* agent = &env->agents[i];
+        Entity* agent = &env->entities[i];
         float heading = agent->heading;
         DrawTexturePro(
             env->client->puffer,
             (Rectangle){
-                (heading < PI/2 || heading > 3*PI/2) ? 0 : 128,
+                (heading < PI / 2 || heading > 3 * PI / 2) ? 0 : 128,
                 0, 128, 128,
             },
             (Rectangle){
@@ -211,10 +205,8 @@ void c_render(Target* env) {
     EndDrawing();
 }
 
-// Required function. Should clean up anything you allocated
-// Do not free env->observations, actions, rewards, terminals
-void c_close(Target* env) {
-    free(env->agents);
+void puf_close(Target* env) {
+    free(env->entities);
     free(env->goals);
     if (env->client != NULL) {
         Client* client = env->client;
@@ -224,3 +216,24 @@ void c_close(Target* env) {
         free(client);
     }
 }
+
+void puf_init(Env* env, Dict* kwargs) {
+    (void)kwargs;
+    env->width = 952;
+    env->height = 592;
+    env->num_agents = MAX_AGENTS;
+    env->num_goals = MAX_GOALS;
+    for (int i = 0; i < env->num_agents; i++) {
+        env->agents[i].policy = 0;
+        env->agents[i].action_mask = NULL;
+    }
+    init(env);
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+}
+

@@ -10,6 +10,7 @@
 #include "raylib.h"
 
 #include "grid.h"
+#include "pufferenv.h"
 
 #define EMPTY 0
 #define NORMAL_FOOD 1
@@ -29,7 +30,6 @@
 #define REWARD_80_HP 0
 #define REWARD_DEATH -1.0f
 
-
 #define LOG_SCORE_REWARD_SMALL 0.1f
 #define LOG_SCORE_REWARD_MEDIUM 0.2f
 #define LOG_SCORE_REWARD_MOVE - 0.0
@@ -38,7 +38,14 @@
 #define HP_REWARD_FOOD_MEDIUM 50
 #define HP_REWARD_FOOD_SMALL 20
 #define HP_LOSS_PER_STEP 1
-#define MAX_HP 100 
+#define MAX_HP 100
+#define ACT_SIZES {5}
+#define OBS_SIZE 49  // (2*vision+1)^2 with vision=3
+#define NUM_ATNS 1
+#define MAX_AGENTS 32
+
+typedef Env CCpr;
+typedef unsigned char obs_t;
 
 typedef struct Log Log;
 struct Log {
@@ -51,8 +58,7 @@ struct Log {
   float n;
 };
 
-typedef struct Agent Agent;
-struct Agent {
+struct Entity {
   int r;
   int c;
   int id;
@@ -79,12 +85,14 @@ void free_foodlist(FoodList *foods) {
 }
 
 typedef struct Renderer Renderer;
-typedef struct CCpr CCpr;
-struct CCpr {
+struct Env {
   Renderer* client;
+  Agent agents[MAX_AGENTS];
   int width;
   int height;
   int num_agents;
+  int tag;
+  int boundary_reached;
 
   int vision;
   int vision_window;
@@ -97,14 +105,9 @@ struct CCpr {
   float interactive_food_reward;
 
   unsigned char *grid;
-  unsigned char *observations;
-  int *actions;
-  float *rewards;
-  unsigned char *terminals;
-  unsigned char *truncations;
   unsigned char *masks;
 
-  Agent *agents;
+  Entity *entities;
 
   Log log;
   Log* agent_logs;
@@ -113,6 +116,7 @@ struct CCpr {
 
   FoodList *foods;
   float food_base_spawn_rate;
+  unsigned int rng;
 };
 
 void add_log(CCpr *env, Log *log) {
@@ -127,7 +131,7 @@ void add_log(CCpr *env, Log *log) {
 void init_ccpr(CCpr *env) {
   env->grid =
       (unsigned char *)calloc(env->width * env->height, sizeof(unsigned char));
-  env->agents = (Agent *)calloc(env->num_agents, sizeof(Agent));
+  env->entities = (Entity *)calloc(env->num_agents, sizeof(Agent));
   env->vision_window = 2 * env->vision + 1;
   env->obs_size = env->vision_window * env->vision_window;// + 1;
   env->interactive_food_agent_count =
@@ -138,21 +142,12 @@ void init_ccpr(CCpr *env) {
 }
 
 void allocate_ccpr(CCpr *env) {
-  // Called by C stuff
-  int obs_size = (2 * env->vision + 1) * (2 * env->vision + 1); //+ 1;
-  env->observations = (unsigned char *)calloc(env->num_agents * obs_size,
-                                              sizeof(unsigned char));
-  env->actions = (int *)calloc(env->num_agents, sizeof(unsigned int));
-  env->rewards = (float *)calloc(env->num_agents, sizeof(float));
-  env->terminals =
-      (unsigned char *)calloc(env->num_agents, sizeof(unsigned char));
-  env->truncations = (unsigned char*)calloc(env->num_agents, sizeof(unsigned char));
   init_ccpr(env);
 }
 
-void c_close(CCpr *env) {
+void puf_close(CCpr *env) {
   free(env->grid);
-  free(env->agents);
+  free(env->entities);
   free(env->interactive_food_agent_count);
   free_foodlist(env->foods);
   free(env->masks);
@@ -160,12 +155,7 @@ void c_close(CCpr *env) {
 }
 
 void free_CCpr(CCpr *env) {
-  free(env->observations);
-  free(env->actions);
-  free(env->rewards);
-  free(env->terminals);
-  free(env->truncations);
-  c_close(env);
+  puf_close(env);
 }
 
 int grid_index(CCpr *env, int r, int c) { return r * env->width + c; }
@@ -183,11 +173,11 @@ void add_food(CCpr *env, int grid_idx, int food_type) {
 
 void reward_agent(CCpr *env, int agent_id, float reward) {
   // We don't reward if agent is full life
-  // Agent *agent = &env->agents[agent_id];
+  // Entity *agent = &env->entities[agent_id];
   // if (agent->hp >= MAX_HP) {
   //   return;
   // }
-  env->rewards[agent_id] += reward;
+  env->agents[agent_id].rewards[0] += reward;
   env->agent_logs[agent_id].episode_return += reward;
 }
 
@@ -281,35 +271,22 @@ void spawn_foods(CCpr *env) {
 }
 
 void compute_observations(CCpr *env) {
-  // For full obs
-  // memcpy(env->observations, env->grid,
-  //        env->width * env->height * sizeof(unsigned char));
-  // return;
-
-  // For partial obs
   for (int i = 0; i < env->num_agents; i++) {
-    Agent *agent = &env->agents[i];
-    // env->observations[env->vision_window*env->vision_window + i*env->obs_size] = agent->hp;
-    if (agent->hp == 0) {
-      continue;
-    }
-    int obs_offset = i * env->obs_size;
+    Entity *agent = &env->entities[i];
+    obs_t *obs = (obs_t*)env->agents[i].observations;
     int r_offset = agent->r - env->vision;
     int c_offset = agent->c - env->vision;
     for (int r = 0; r < 2 * env->vision + 1; r++) {
       for (int c = 0; c < 2 * env->vision + 1; c++) {
         int grid_idx = (r_offset + r) * env->width + c_offset + c;
-        int obs_idx = obs_offset + r * env->vision_window + c;
-        env->observations[obs_idx] = env->grid[grid_idx];
+        obs[r * env->vision_window + c] = env->grid[grid_idx];
       }
     }
-
-    
   }
 }
 
 void add_hp(CCpr *env, int agent_id, float hp) {
-  Agent *agent = &env->agents[agent_id];
+  Entity *agent = &env->entities[agent_id];
   agent->hp += hp;
   if (agent->hp > MAX_HP) {
     agent->hp = MAX_HP;
@@ -317,7 +294,7 @@ void add_hp(CCpr *env, int agent_id, float hp) {
     agent->hp = 0;
     env->agent_logs[agent->id].score += LOG_SCORE_REWARD_DEATH;
     reward_agent(env, agent_id, REWARD_DEATH);
-    env->terminals[agent->id] = 1;
+    env->agents[agent->id].terminals[0] = 1;
     add_log(env, &env->agent_logs[agent_id]);
   }
 }
@@ -376,7 +353,7 @@ void make_grid_from_scratch(CCpr *env){
 }
 
 void spawn_agent(CCpr *env, int i){
-  Agent *agent = &env->agents[i];
+  Entity *agent = &env->entities[i];
   agent->id = i;
   agent->hp = 80;
   int adr = 0;
@@ -396,7 +373,7 @@ void spawn_agent(CCpr *env, int i){
   env->grid[adr] = get_agent_tile_from_id(agent->id);
   env->agent_logs[i] = (Log){0};
 }
-void c_reset(CCpr *env) {
+void puf_reset(CCpr *env) {
   env->tick = 0;
   memset(env->agent_logs, 0, env->num_agents * sizeof(Log));
   env->log = (Log){0};
@@ -410,9 +387,9 @@ void c_reset(CCpr *env) {
   }
 
   init_foods(env);
-  memset(env->observations, 0, env->num_agents * env->obs_size * sizeof(unsigned char));
+  /* observations cleared per agent by trainer */
   //memset(env->truncations, 0, env->num_agents * sizeof(unsigned char));
-  memset(env->terminals, 0, env->num_agents * sizeof(unsigned char));
+  for (int _ti = 0; _ti < env->num_agents; _ti++) env->agents[_ti].terminals[0] = 0;
   memset(env->masks, 1, env->num_agents * sizeof(unsigned char));
   compute_observations(env);
 }
@@ -424,8 +401,8 @@ void reward_agents_near(CCpr *env, int food_index) {
   // TODO: could iterate over neighbors of food index and check if is agent
   // (remove iteration cost)
   for (int i = 0; i < env->num_agents; i++) {
-    int ac = env->agents[i].c;
-    int ar = env->agents[i].r;
+    int ac = env->entities[i].c;
+    int ar = env->entities[i].r;
 
     if ((ac == food_c && (ar == food_r - 1 || ar == food_r + 1)) ||
         (ar == food_r && (ac == food_c - 1 || ac == food_c + 1))) {
@@ -439,9 +416,9 @@ void reward_agents_near(CCpr *env, int food_index) {
 
 void step_agent(CCpr *env, int i) {
 
-  Agent *agent = &env->agents[i];
+  Entity *agent = &env->entities[i];
 
-  int action = env->actions[i];
+  int action = ((int)env->agents[i].actions[0]);
 
   int dr = 0;
   int dc = 0;
@@ -534,7 +511,7 @@ void step_agent(CCpr *env, int i) {
 }
 
 void clear_agent(CCpr *env, int agent_id) {
-  Agent *agent = &env->agents[agent_id];
+  Entity *agent = &env->entities[agent_id];
   if (agent->r < 0 || agent->c < 0) {
     return;
   }
@@ -544,15 +521,15 @@ void clear_agent(CCpr *env, int agent_id) {
   agent->c = -1;
 }
 
-void c_step(CCpr *env) {
+void puf_step(CCpr *env) {
   env->tick++;
 
-  memset(env->rewards, 0, env->num_agents * sizeof(float));
+  for (int _ri = 0; _ri < env->num_agents; _ri++) env->agents[_ri].rewards[0] = 0;
   memset(env->interactive_food_agent_count, 0,
          (env->width * env->height + 7) / 8);
 
   for (int i = 0; i < env->num_agents; i++) {
-    if (env->agents[i].hp == 0) {
+    if (env->entities[i].hp == 0) {
       env->masks[i] = 0;
       clear_agent(env, i);
       continue;
@@ -566,19 +543,19 @@ void c_step(CCpr *env) {
   //We loop again here because in the future an entity might have attacked an agent in the process
   int alive_agents = 0;
   for (int i = 0; i < env->num_agents; i++) {
-    if (env->agents[i].hp > 0) {
+    if (env->entities[i].hp > 0) {
       env->agent_logs[i].alive_steps += 1;
       alive_agents += 1;
-      if (env->agents[i].hp < 20) {
+      if (env->entities[i].hp < 20) {
         reward_agent(env, i, REWARD_20_HP);
         env->agent_logs[i].score += REWARD_20_HP;
-      } else if (env->agents[i].hp > 80) {
+      } else if (env->entities[i].hp > 80) {
         reward_agent(env, i, REWARD_80_HP);
         env->agent_logs[i].score += REWARD_80_HP;
       }
     } 
     // else {
-      // int grid_idx = grid_index(env, env->agents[i].r, env->agents[i].c);
+      // int grid_idx = grid_index(env, env->entities[i].r, env->entities[i].c);
       // env->grid[grid_idx] = EMPTY;
       // spawn_agent(env, i);
     // }
@@ -595,9 +572,9 @@ void c_step(CCpr *env) {
   env->log.food_nb = env->foods->size;
   compute_observations(env);
   if (alive_agents == 0 || env->tick > 1000) {
-    c_reset(env);
+    puf_reset(env);
     if (alive_agents == 0) {
-      memset(env->terminals, 1, env->num_agents * sizeof(unsigned char)); 
+      for (int _ti = 0; _ti < env->num_agents; _ti++) env->agents[_ti].terminals[0] = 1;
     }
   }
 }
@@ -645,7 +622,7 @@ void close_renderer(Renderer *renderer) {
   free(renderer);
 }
 
-void c_render(CCpr *env) {
+void puf_render(CCpr *env) {
   if (env->client == NULL) {
       env->client = init_renderer(32, env->width, env->height);
   };
@@ -675,7 +652,7 @@ void c_render(CCpr *env) {
         int col_id = agent_id % (sizeof(COLORS) / sizeof(COLORS[0]));
         Color color = COLORS[col_id];
         int starting_sprite_x = 0;
-        float rotation = env->agents[agent_id].direction * 90.0f;
+        float rotation = env->entities[agent_id].direction * 90.0f;
         if (rotation == 180) {
           starting_sprite_x = 128;
           rotation = 0;
@@ -689,3 +666,33 @@ void c_render(CCpr *env) {
   }
   EndDrawing();
 }
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->width = GRID_WIDTH;
+    env->height = GRID_HEIGHT;
+    env->num_agents = dict_get(kwargs, "num_agents");
+    env->vision = dict_get(kwargs, "vision");
+    env->reward_food = dict_get(kwargs, "reward_food");
+    env->interactive_food_reward = dict_get(kwargs, "interactive_food_reward");
+    env->reward_move = dict_get(kwargs, "reward_move");
+    env->food_base_spawn_rate = dict_get(kwargs, "food_base_spawn_rate");
+    if (env->num_agents > MAX_AGENTS) {
+        fprintf(stderr, "shared_pool: num_agents too large\n");
+        exit(1);
+    }
+    for (int i = 0; i < env->num_agents; i++) {
+        env->agents[i].policy = 0;
+        env->agents[i].action_mask = NULL;
+    }
+    init_ccpr(env);
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "moves", log->moves);
+    dict_set(out, "food_nb", log->food_nb);
+    dict_set(out, "alive_steps", log->alive_steps);
+}
+

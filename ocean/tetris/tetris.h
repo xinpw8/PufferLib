@@ -6,9 +6,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "pufferenv.h"
 
-static inline int min(int a, int b) { return a < b ? a : b; }
-static inline int max(int a, int b) { return a > b ? a : b; }
+#define ACT_SIZES {7}
+#define OBS_SIZE 234
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
+
+static inline int tetris_min(int a, int b) { return a < b ? a : b; }
+static inline int tetris_max(int a, int b) { return a > b ? a : b; }
 
 #define HALF_LINEWIDTH 1
 #define SQUARE_SIZE 32
@@ -42,7 +52,7 @@ static inline int max(int a, int b) { return a > b ? a : b; }
 const int SCORE_COMBO[5] = {0, 100, 300, 500, 1000};
 const float REWARD_COMBO[5] = {0, 0.1, 0.3, 0.5, 1.0};
 
-typedef struct Log {
+struct Log {
 	float perf;
 	float score;
 	float episode_length;
@@ -56,7 +66,7 @@ typedef struct Log {
 	float game_level;
 	float ticks_per_line;
 	float n;
-} Log;
+};
 
 typedef struct Client {
 	int total_cols;
@@ -67,13 +77,12 @@ typedef struct Client {
 	int preview_target_col;
 } Client;
 
-typedef struct Tetris {
+struct Env {
 	Client *client;
 	Log log;
-	float *observations;
-	float *actions;
-	float *rewards;
-	float *terminals;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
 	int num_agents;
 	int dim_obs;
 	int num_float_obs;
@@ -111,14 +120,15 @@ typedef struct Tetris {
 	int atn_count_hold;
 	int tetromino_counts[NUM_TETROMINOES];
     unsigned int rng;
-} Tetris;
+};
+typedef Env Tetris;
 
 void init(Tetris *env) {
 	env->grid = (int *)calloc(env->n_rows * env->n_cols, sizeof(int));
 	if (env->grid == NULL) {
 		exit(1);
 	}
-	env->tetromino_deck = calloc(DECK_SIZE, sizeof(int));
+	env->tetromino_deck = (int*)calloc(DECK_SIZE, sizeof(int));
 	if (env->tetromino_deck == NULL) {
 		exit(1);
 	}
@@ -128,23 +138,27 @@ void allocate(Tetris *env) {
 	init(env);
 	// grid, 6 floats, 4 one-hot tetrominoes encode (current, previews, hold) + self-inflicting noisy action bits
 	env->dim_obs = env->n_cols * env->n_rows + NUM_FLOAT_OBS + NUM_TETROMINOES * (NUM_PREVIEW + 2) + env->n_noise_obs;
-	env->observations = (float *)calloc(env->dim_obs, sizeof(float));
-	env->actions = (float *)calloc(1, sizeof(float));
-	env->rewards = (float *)calloc(1, sizeof(float));
-	env->terminals = (float *)calloc(1, sizeof(float));
+	env->agents[0].observations = (obs_t*)calloc(env->dim_obs, sizeof(obs_t));
+	env->agents[0].actions = (float *)calloc(1, sizeof(float));
+	env->agents[0].rewards = (float *)calloc(1, sizeof(float));
+	env->agents[0].terminals = (float *)calloc(1, sizeof(float));
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    env->num_agents = 1;
+
 }
 
-void c_close(Tetris *env) {
+void puf_close(Tetris *env) {
 	free(env->grid);
 	free(env->tetromino_deck);
 }
 
 void free_allocated(Tetris *env) {
-	free(env->actions);
-	free(env->observations);
-	free(env->terminals);
-	free(env->rewards);
-	c_close(env);
+	free(env->agents[0].actions);
+	free(env->agents[0].observations);
+	free(env->agents[0].terminals);
+	free(env->agents[0].rewards);
+	puf_close(env);
 }
 
 void add_log(Tetris *env) {
@@ -166,39 +180,39 @@ void add_log(Tetris *env) {
 void compute_observations(Tetris *env) {
 	// content of the grid: 0 for empty, 1 for placed blocks, 2 for the current tetromino
 	for (int i = 0; i < env->n_cols * env->n_rows; i++) {
-		env->observations[i] = env->grid[i] != 0;
+		((obs_t*)env->agents[0].observations)[i] = env->grid[i] != 0;
 	}
 
 	for (int r = 0; r < SIZE; r++) {
 		for (int c = 0; c < SIZE; c++) {
 			if (TETROMINOES[env->cur_tetromino][env->cur_tetromino_rot][r][c] == 1) {
-				env->observations[(env->cur_tetromino_row + r) * env->n_cols + c + env->cur_tetromino_col] = 2;
+				((obs_t*)env->agents[0].observations)[(env->cur_tetromino_row + r) * env->n_cols + c + env->cur_tetromino_col] = 2;
 			}
 		}
 	}
 	int offset = env->n_cols * env->n_rows;
-	env->observations[offset] = env->tick / ((float)MAX_TICKS);
-	env->observations[offset + 1] = env->tick_fall / ((float)env->ticks_per_fall);
-	env->observations[offset + 2] = env->cur_tetromino_row / ((float)env->n_rows);
-	env->observations[offset + 3] = env->cur_tetromino_col / ((float)env->n_cols);
-	env->observations[offset + 4] = env->cur_tetromino_rot;
-	env->observations[offset + 5] = env->can_swap;
+	((obs_t*)env->agents[0].observations)[offset] = env->tick / ((float)MAX_TICKS);
+	((obs_t*)env->agents[0].observations)[offset + 1] = env->tick_fall / ((float)env->ticks_per_fall);
+	((obs_t*)env->agents[0].observations)[offset + 2] = env->cur_tetromino_row / ((float)env->n_rows);
+	((obs_t*)env->agents[0].observations)[offset + 3] = env->cur_tetromino_col / ((float)env->n_cols);
+	((obs_t*)env->agents[0].observations)[offset + 4] = env->cur_tetromino_rot;
+	((obs_t*)env->agents[0].observations)[offset + 5] = env->can_swap;
 	offset += NUM_FLOAT_OBS;
 
 	// Zero out the one-hot encoded part of the observations for deck and hold.
-	memset(env->observations + offset, 0, NUM_TETROMINOES * (NUM_PREVIEW + 2) * sizeof(float));
+	memset(((obs_t*)env->agents[0].observations) + offset, 0, NUM_TETROMINOES * (NUM_PREVIEW + 2) * sizeof(float));
 	if (env->use_deck_obs) {
 		// Deck, one hot encoded
 		int tetromino_id;
 		for (int j = 0; j < NUM_PREVIEW + 1; j++) {
 			tetromino_id = env->tetromino_deck[(env->cur_position_in_deck + j) % DECK_SIZE];
-			env->observations[offset + tetromino_id] = 1;
+			((obs_t*)env->agents[0].observations)[offset + tetromino_id] = 1;
 			offset += NUM_TETROMINOES;
 		}
 		
 		// Hold, one hot encoded
 		if (env->hold_tetromino > -1) {
-			env->observations[offset + env->hold_tetromino] = 1;
+			((obs_t*)env->agents[0].observations)[offset + env->hold_tetromino] = 1;
 		}
 		offset += NUM_TETROMINOES;
 	} else {
@@ -207,7 +221,7 @@ void compute_observations(Tetris *env) {
 
 	// Turn off noise bits, one-by-one.
 	if (env->n_noise_obs > 0) {
-		env->observations[offset + rand_r(&env->rng) % env->n_noise_obs] = 0;
+		((obs_t*)env->agents[0].observations)[offset + rand_r(&env->rng) % env->n_noise_obs] = 0;
 	}
 }
 
@@ -376,7 +390,7 @@ void add_garbage_lines(Tetris *env, int num_lines, int num_holes) {
 	for (int r = 0; r < num_lines; r++) {
 		for (int c = 0; c < env->n_cols; c++) {
 			if (env->grid[r * env->n_cols + c] != 0) {
-				env->terminals[0] = 1; // Game over
+				env->agents[0].terminals[0] = 1; // Game over
 				return;
 			}
 		}
@@ -413,10 +427,10 @@ void add_garbage_lines(Tetris *env, int num_lines, int num_holes) {
 	}
 
 	// Move the current piece up as well
-	env->cur_tetromino_row = max(0, env->cur_tetromino_row - num_lines);
+	env->cur_tetromino_row = tetris_max(0, env->cur_tetromino_row - num_lines);
 }
 
-void c_reset(Tetris *env) {
+void puf_reset(Tetris *env) {
 	env->score = 0;
 	env->hold_tetromino = -1;
 	env->tick = 0;
@@ -443,7 +457,7 @@ void c_reset(Tetris *env) {
 	// Noise obs effectively jitters the action.
 	// The agents will eventually learn to ignore these.
 	for (int i = 0; i < env->n_noise_obs; i++) {
-		env->observations[234 + i] = 1;
+		((obs_t*)env->agents[0].observations)[234 + i] = 1;
 	}
 
 	initialize_deck(env);
@@ -478,35 +492,35 @@ void place_tetromino(Tetris *env) {
 		env->count_combos += 1;
 		env->lines_deleted += lines_deleted;
 		env->score += SCORE_COMBO[lines_deleted];
-		env->rewards[0] += REWARD_COMBO[lines_deleted];
+		env->agents[0].rewards[0] += REWARD_COMBO[lines_deleted];
 		env->episode_return += REWARD_COMBO[lines_deleted];
 
 		// These determine the game difficulty. Consider making them args.
 		env->game_level = 1 + env->lines_deleted / LINES_PER_LEVEL;
-		env->ticks_per_fall = max(3, INITIAL_TICKS_PER_FALL - env->game_level / 4);
-		env->ticks_per_garbage = max(40, (int)(INITIAL_TICKS_PER_GARBAGE - 7 * sqrt((double)env->game_level)));
+		env->ticks_per_fall = tetris_max(3, INITIAL_TICKS_PER_FALL - env->game_level / 4);
+		env->ticks_per_garbage = tetris_max(40, (int)(INITIAL_TICKS_PER_GARBAGE - 7 * sqrt((double)env->game_level)));
 	}
 
 	if (can_spawn_new_tetromino(env)) {
 		spawn_new_tetromino(env);
 	} else {
-		env->terminals[0] = 1; // Game over
+		env->agents[0].terminals[0] = 1; // Game over
 	}
 }
 
-void c_step(Tetris *env) {
-	env->terminals[0] = 0;
-	env->rewards[0] = 0.0;
+void puf_step(Tetris *env) {
+	env->agents[0].terminals[0] = 0;
+	env->agents[0].rewards[0] = 0.0;
 	env->tick += 1;
 	env->tick_fall += 1;
 	env->tick_garbage += 1;
-	int action = env->actions[0];
+	int action = env->agents[0].actions[0];
 
 	if (action == ACTION_LEFT) {
 		if (can_go_left(env)) {
 			env->cur_tetromino_col -= 1;
 		} else {
-			env->rewards[0] += REWARD_INVALID_ACTION;
+			env->agents[0].rewards[0] += REWARD_INVALID_ACTION;
 			env->episode_return += REWARD_INVALID_ACTION;
 		}
 	}
@@ -514,7 +528,7 @@ void c_step(Tetris *env) {
 		if (can_go_right(env)) {
 			env->cur_tetromino_col += 1;
 		} else {
-			env->rewards[0] += REWARD_INVALID_ACTION;
+			env->agents[0].rewards[0] += REWARD_INVALID_ACTION;
 			env->episode_return += REWARD_INVALID_ACTION;
 		}
 	}
@@ -522,10 +536,10 @@ void c_step(Tetris *env) {
 		env->atn_count_rotate += 1;
 		if (can_rotate(env)) {
 			env->cur_tetromino_rot = (env->cur_tetromino_rot + 1) % NUM_ROTATIONS;
-			env->rewards[0] += REWARD_ROTATE;
+			env->agents[0].rewards[0] += REWARD_ROTATE;
 			env->episode_return += REWARD_ROTATE;
 		} else {
-			env->rewards[0] += REWARD_INVALID_ACTION;
+			env->agents[0].rewards[0] += REWARD_INVALID_ACTION;
 			env->episode_return += REWARD_INVALID_ACTION;
 		}
 	}
@@ -534,10 +548,10 @@ void c_step(Tetris *env) {
 		if (can_soft_drop(env)) {
 			env->cur_tetromino_row += 1;
 			env->score += SCORE_SOFT_DROP;
-			// env->rewards[0] += REWARD_SOFT_DROP;
+			// env->agents[0].rewards[0] += REWARD_SOFT_DROP;
 			// env->episode_return += REWARD_SOFT_DROP;
 		} else {
-			env->rewards[0] += REWARD_INVALID_ACTION;
+			env->agents[0].rewards[0] += REWARD_INVALID_ACTION;
 			env->episode_return += REWARD_INVALID_ACTION;
 		}
 	}
@@ -561,7 +575,7 @@ void c_step(Tetris *env) {
 				env->tick_fall = 0;
 			}
 		} else {
-			env->rewards[0] += REWARD_INVALID_ACTION;
+			env->agents[0].rewards[0] += REWARD_INVALID_ACTION;
 			env->episode_return += REWARD_INVALID_ACTION;
 		}
 	}
@@ -570,7 +584,7 @@ void c_step(Tetris *env) {
 		while (can_soft_drop(env)) {
 			env->cur_tetromino_row += 1;
 			// NOTE: this seems to be a super effective reward trick
-			env->rewards[0] += REWARD_HARD_DROP;
+			env->agents[0].rewards[0] += REWARD_HARD_DROP;
 			env->episode_return += REWARD_HARD_DROP;
 		}
 		env->score += SCORE_HARD_DROP;
@@ -587,18 +601,18 @@ void c_step(Tetris *env) {
 
 	if (env->tick >= GARBAGE_KICKOFF_TICK && env->tick_garbage >= env->ticks_per_garbage) {
 		env->tick_garbage = 0;
-		int num_holes = min(5, max(1, env->game_level / 8));
+		int num_holes = tetris_min(5, tetris_max(1, env->game_level / 8));
 		add_garbage_lines(env, 1, num_holes);
 	}
 
-	if (env->terminals[0] == 1 || (env->tick >= MAX_TICKS)) {
+	if (env->agents[0].terminals[0] == 1 || (env->tick >= MAX_TICKS)) {
 		// TraceLog(LOG_INFO, "Game reset. Score: %d", env->score);
 		// TraceLog(LOG_INFO, "I:%d O:%d T:%d S:%d Z:%d J:%d L:%d",
 		// 	env->tetromino_counts[1], env->tetromino_counts[0], env->tetromino_counts[4],
 		// 	env->tetromino_counts[2], env->tetromino_counts[3], env->tetromino_counts[6], env->tetromino_counts[5]);
 
 		add_log(env);
-		c_reset(env);
+		puf_reset(env);
 	}
 
 	compute_observations(env);
@@ -609,7 +623,7 @@ Client *make_client(Tetris *env) {
 	client->ui_rows = 1;
 	client->deck_rows = SIZE;
 	client->total_rows = 1 + client->ui_rows + 1 + client->deck_rows + 1 + env->n_rows + 1;
-	client->total_cols = max(1 + env->n_cols + 1, 1 + 3 * NUM_PREVIEW);
+	client->total_cols = tetris_max(1 + env->n_cols + 1, 1 + 3 * NUM_PREVIEW);
 	client->preview_target_col = env->n_cols / 2;
 	client->preview_target_rotation = 0;
 	InitWindow(SQUARE_SIZE * client->total_cols, SQUARE_SIZE * client->total_rows, "PufferLib Tetris");
@@ -628,7 +642,7 @@ Color DASH_COLOR_BRIGHT = (Color){150, 150, 150, 255};
 Color DASH_COLOR_DARK = (Color){50, 50, 50, 255};
 // Color GARBAGE_COLOR = (Color){140, 140, 140, 255};
 
-void c_render(Tetris *env) {
+void puf_render(Tetris *env) {
 	if (env->client == NULL) {
 		env->client = make_client(env);
 	}
@@ -773,3 +787,32 @@ void c_render(Tetris *env) {
 	DrawText(TextFormat("Lvl: %i", env->game_level), (client->total_cols - 4) * SQUARE_SIZE, SQUARE_SIZE + 4, 28, (Color){160, 255, 160, 255});
 	EndDrawing();
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "lines_deleted", log->lines_deleted);
+    dict_set(out, "avg_combo", log->avg_combo);
+    dict_set(out, "atn_frac_soft_drop", log->atn_frac_soft_drop);
+    dict_set(out, "atn_frac_hard_drop", log->atn_frac_hard_drop);
+    dict_set(out, "atn_frac_rotate", log->atn_frac_rotate);
+    dict_set(out, "atn_frac_hold", log->atn_frac_hold);
+    dict_set(out, "game_level", log->game_level);
+    dict_set(out, "ticks_per_line", log->ticks_per_line);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->n_cols = dict_get(kwargs, "n_cols");
+    env->n_rows = dict_get(kwargs, "n_rows");
+    env->use_deck_obs = dict_get(kwargs, "use_deck_obs");
+    env->n_noise_obs = dict_get(kwargs, "n_noise_obs");
+    env->n_init_garbage = dict_get(kwargs, "n_init_garbage");
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    init(env);
+}
+

@@ -18,33 +18,33 @@ void demo() {
         .chase_mode_length = 70,
     };
     allocate(&env);
-    c_reset(&env);
+    puf_reset(&env);
  
     Client* client = make_client(&env);
     bool human_control = false;
 
     while (!WindowShouldClose()) {
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) env.actions[0] = DOWN;
-            if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) env.actions[0] = UP;
-            if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.actions[0] = LEFT;
-            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[0] = RIGHT;
+            if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) env.agents[0].actions[0] = DOWN;
+            if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) env.agents[0].actions[0] = UP;
+            if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.agents[0].actions[0] = LEFT;
+            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.agents[0].actions[0] = RIGHT;
             human_control = true;
         } else {
             human_control = false;
         }
 
         if (!human_control) {
-            forward_puffernet(net, env.observations, env.actions);
+            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
         }
 
-        c_step(&env);
-        if (env.terminals[0] > 0.5f) {
-            c_reset(&env);
+        puf_step(&env);
+        if (env.agents[0].terminals[0] > 0.5f) {
+            puf_reset(&env);
         }
 
         for (int i = 0; i < FRAMES; i++) {
-            c_render(&env);
+            puf_render(&env);
         }
     }
     free_puffernet(net);

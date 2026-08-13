@@ -22,9 +22,21 @@ typedef struct Agent {
     int policy;
 } Agent;
 
+// Env backend identity. Trainer: if (PUF_BACKEND == PUF_GPU) — not #if.
+// GPU env sources #define PUF_BACKEND PUF_GPU before including this header.
+#define PUF_CPU 0
+#define PUF_GPU 1
+#ifndef PUF_BACKEND
+#define PUF_BACKEND PUF_CPU
+#endif
+
+// Shared env API. CPU: per-env Env*. GPU: Env* is device batch base; step/reset
+// run the full vector inside the env. puf_bind_stream / puf_vec_create are GPU
+// create-path hooks (CPU builds get stubs in pufferl).
 void puf_init(Env* env, Dict* kwargs);
 void puf_reset(Env* env);
 void puf_step(Env* env);
+// CPU: host Env*. GPU: device batch base; implementation D2Hs what it needs and draws.
 void puf_render(Env* env);
 void puf_close(Env* env);
 void puf_log(Log* log, Dict* out);

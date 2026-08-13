@@ -12,7 +12,7 @@ void demo() {
     };
     allocate(&env);
     env.client = make_client(&env);
-    c_reset(&env);
+    puf_reset(&env);
 
     Weights* weights = load_weights("resources/tetris/tetris_weights.bin");
     int logit_sizes[1] = {7};
@@ -23,7 +23,7 @@ void demo() {
     static bool swap_key_was_down = false;
 
     int frame = 0;
-    env.actions[0] = 0;
+    env.agents[0].actions[0] = 0;
     while (!WindowShouldClose()) {
         bool process_logic = true;
         frame++;
@@ -33,32 +33,32 @@ void demo() {
                 process_logic = false;
             } else {
                 if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
-                    env.actions[0] = 1;
+                    env.agents[0].actions[0] = 1;
                 } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
-                    env.actions[0] = 2;
+                    env.agents[0].actions[0] = 2;
                 } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
-                    env.actions[0] = 4;
+                    env.agents[0].actions[0] = 4;
                 } else if ((IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) && !rotate_key_was_down) {
-                    env.actions[0] = 3;
+                    env.agents[0].actions[0] = 3;
                 } else if (IsKeyDown(KEY_SPACE) && !hard_drop_key_was_down) {
-                    env.actions[0] = 5;
+                    env.agents[0].actions[0] = 5;
                 } else if (IsKeyDown(KEY_C) && !swap_key_was_down) {
-                    env.actions[0] = 6;
+                    env.agents[0].actions[0] = 6;
                 }
             }
         } else {
-            forward_puffernet(net, env.observations, env.actions);
+            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
         }
 
         if (process_logic) {
             rotate_key_was_down = IsKeyDown(KEY_UP) || IsKeyDown(KEY_W);
             hard_drop_key_was_down = IsKeyDown(KEY_SPACE);
             swap_key_was_down = IsKeyDown(KEY_C);
-            c_step(&env);
-            env.actions[0] = 0;
+            puf_step(&env);
+            env.agents[0].actions[0] = 0;
         }
 
-        c_render(&env);
+        puf_render(&env);
     }
 
     free_puffernet(net);

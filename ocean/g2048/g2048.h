@@ -67,11 +67,6 @@ struct Env {
     int num_agents;
     int tag;
     int boundary_reached;
-    // Aliases into agents[0] after vec wiring (demo may set these directly).
-    obs_t* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
 
     float scaffolding_ratio;  // fraction of episodes that spawn high curriculum tiles
     bool is_scaffolding_episode;
@@ -91,16 +86,6 @@ struct Env {
     unsigned int rng;
 };
 typedef Env Game;
-
-static inline void sync_agent_buffers(Env* env) {
-    if (env->agents[0].observations == NULL) {
-        return;
-    }
-    env->observations = (obs_t*)env->agents[0].observations;
-    env->actions = env->agents[0].actions;
-    env->rewards = env->agents[0].rewards;
-    env->terminals = env->agents[0].terminals;
-}
 
 // Precomputed color table for rendering optimization
 const Color PUFF_BACKGROUND = (Color){6, 24, 24, 255};
@@ -132,10 +117,10 @@ static Color tile_colors[17] = {
 void add_log(Game* game);
 
 // --- Required functions for env_binding.h ---
-void c_reset(Game* game);
-void c_step(Game* game);
-void c_render(Game* game);
-void c_close(Game* game);
+void puf_reset(Game* game);
+void puf_step(Game* game);
+void puf_render(Game* game);
+void puf_close(Game* game);
 
 void init(Game* game) {
     game->lifetime_max_tile = 0;
@@ -146,9 +131,9 @@ void update_observations(Game* game) {
     for (int i = 0; i < SIZE * SIZE; i++) {
         unsigned char v = ((unsigned char*)game->grid)[i];
 #if defined(from_float) && !defined(PRECISION_FLOAT)
-        game->observations[i] = from_float((float)v);
+        ((obs_t*)game->agents[0].observations)[i] = from_float((float)v);
 #else
-        game->observations[i] = (obs_t)v;
+        ((obs_t*)game->agents[0].observations)[i] = (obs_t)v;
 #endif
     }
 }
@@ -226,7 +211,7 @@ void set_scaffolding_curriculum(Game* game) {
     }
 }
 
-void c_reset(Game* game) {
+void puf_reset(Game* game) {
     memset(game->grid, EMPTY, SIZE * SIZE);
     game->score = 0;
     game->tick = 0;
@@ -397,10 +382,10 @@ void update_stats(Game* game) {
     game->max_tile = max_tile;
 }
 
-void c_step(Game* game) {
+void puf_step(Game* game) {
     float reward = 0.0f;
     float score_add = 0.0f;
-    bool did_move = move(game, game->actions[0] + 1, &reward, &score_add);
+    bool did_move = move(game, game->agents[0].actions[0] + 1, &reward, &score_add);
     game->tick++;
 
     if (did_move) {
@@ -425,19 +410,19 @@ void c_step(Game* game) {
 
     bool game_over = is_game_over(game);
     bool max_ticks_reached = game->tick >= game->max_episode_ticks;
-    game->terminals[0] = (game_over || max_ticks_reached) ? 1 : 0;
+    game->agents[0].terminals[0] = (game_over || max_ticks_reached) ? 1 : 0;
 
     // Game over penalty overrides other rewards
     if (game_over) {
         reward += GAME_OVER_PENALTY;
     }
 
-    game->rewards[0] = reward;
+    game->agents[0].rewards[0] = reward;
     game->episode_reward += reward;
 
-    if (game->terminals[0]) {
+    if (game->agents[0].terminals[0]) {
         add_log(game);
-        c_reset(game);
+        puf_reset(game);
     }
 }
 
@@ -445,7 +430,7 @@ void c_step(Game* game) {
 void step_without_reset(Game* game) {
     float score_add = 0.0f;
     float reward = 0.0f;
-    bool did_move = move(game, game->actions[0] + 1, &reward, &score_add);
+    bool did_move = move(game, game->agents[0].actions[0] + 1, &reward, &score_add);
     game->tick++;
 
     if (did_move) {
@@ -461,11 +446,11 @@ void step_without_reset(Game* game) {
     }
 
     bool game_over = is_game_over(game);
-    game->terminals[0] = (game_over) ? 1 : 0;
+    game->agents[0].terminals[0] = (game_over) ? 1 : 0;
 }
 
 // Rendering optimizations
-void c_render(Game* game) {
+void puf_render(Game* game) {
     static bool window_initialized = false;
     static char score_text[32];
     static const int px = 100;
@@ -527,7 +512,7 @@ void c_render(Game* game) {
     EndDrawing();
 }
 
-void c_close(Game* game) {
+void puf_close(Game* game) {
     if (IsWindowReady()) {
         CloseWindow();
     }
@@ -549,27 +534,9 @@ void puf_log(Log* log, Dict* out) {
 
 void puf_init(Env* env, Dict* kwargs) {
     env->num_agents = 1;
-    env->scaffolding_ratio = (float)dict_get(kwargs, "scaffolding_ratio");
+    env->scaffolding_ratio = dict_get(kwargs, "scaffolding_ratio");
     env->agents[0].action_mask = NULL;
     env->agents[0].policy = 0;
     init(env);
 }
 
-void puf_reset(Env* env) {
-    sync_agent_buffers(env);
-    c_reset(env);
-}
-
-void puf_step(Env* env) {
-    sync_agent_buffers(env);
-    c_step(env);
-}
-
-void puf_render(Env* env) {
-    sync_agent_buffers(env);
-    c_render(env);
-}
-
-void puf_close(Env* env) {
-    c_close(env);
-}

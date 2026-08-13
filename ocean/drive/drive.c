@@ -12,16 +12,16 @@ void demo() {
 	    .map_name = "resources/drive/map_010.bin",
     };
     allocate(&env);
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
     Weights* weights = load_weights("resources/drive/drive_weights.bin");
     int logit_sizes[2] = {7, 13};
     PufferNet* net = make_puffernet(weights, env.active_agent_count, OBS_SIZE, 256, 4, logit_sizes, 2);
     int accel_delta = 2;
     int steer_delta = 4;
     while (!WindowShouldClose()) {
-        float (*actions)[2] = (float(*)[2])env.actions;
-        forward_puffernet(net, env.observations, env.actions);
+        float (*actions)[2] = (float(*)[2])env.agents[0].actions;
+        forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
             actions[env.human_agent_idx][0] = 3;
             actions[env.human_agent_idx][1] = 6;
@@ -45,8 +45,8 @@ void demo() {
                 env.human_agent_idx = (env.human_agent_idx + 1) % env.active_agent_count;
             }
         }
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
     }
 
     close_client(env.client);
@@ -63,7 +63,7 @@ void performance_test() {
 	    .map_name = "resources/drive/map_942.bin",
     };
     allocate(&env);
-    c_reset(&env);
+    puf_reset(&env);
 
     Weights* weights = load_weights("resources/drive/drive_weights.bin");
     int logit_sizes[2] = {7, 13};
@@ -72,8 +72,8 @@ void performance_test() {
     long start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
-        forward_puffernet(net, env.observations, env.actions);
-        c_step(&env);
+        forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
+        puf_step(&env);
         i++;
     }
     long end = time(NULL);

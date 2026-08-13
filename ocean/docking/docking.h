@@ -2,6 +2,16 @@
 #include <string.h>
 #include <math.h>
 #include "raylib.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {5}
+#define OBS_SIZE DOCKING_OBS_SIZE
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 
 #define DOCKING_OBS_SIZE 8
 
@@ -15,7 +25,7 @@ const unsigned char DOCK_RESULT_SUCCESS = 0;
 const unsigned char DOCK_RESULT_CRASH = 1;
 const unsigned char DOCK_RESULT_TIMEOUT = 2;
 
-typedef struct {
+struct Log {
     float perf;
     float score;
     float episode_return;
@@ -26,14 +36,13 @@ typedef struct {
     float final_distance;
     float alignment_error;
     float n;
-} Log;
+};
 
-typedef struct {
+struct Env {
     Log log;
-    float* observations;
-    float* actions;
-    float* rewards;
-    float* terminals;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
     int num_agents;
     int width;
     int height;
@@ -62,7 +71,8 @@ typedef struct {
     unsigned char last_action;
     unsigned char reset_pending;
     unsigned int rng;
-} Docking;
+};
+typedef Env Docking;
 
 static inline float docking_clipf(float val, float min, float max) {
     if (val < min) return min;
@@ -127,15 +137,15 @@ void compute_observations(Docking* env) {
     float dist = sqrtf(dx*dx + dy*dy);
     float diag = docking_diag(env);
 
-    memset(env->observations, 0, DOCKING_OBS_SIZE * sizeof(float));
-    env->observations[0] = dx / env->width;
-    env->observations[1] = dy / env->height;
-    env->observations[2] = cosf(env->ship_heading);
-    env->observations[3] = sinf(env->ship_heading);
-    env->observations[4] = cosf(env->dock_heading);
-    env->observations[5] = sinf(env->dock_heading);
-    env->observations[6] = env->ship_speed / env->max_speed;
-    env->observations[7] = dist / diag;
+    memset(((obs_t*)env->agents[0].observations), 0, DOCKING_OBS_SIZE * sizeof(float));
+    ((obs_t*)env->agents[0].observations)[0] = dx / env->width;
+    ((obs_t*)env->agents[0].observations)[1] = dy / env->height;
+    ((obs_t*)env->agents[0].observations)[2] = cosf(env->ship_heading);
+    ((obs_t*)env->agents[0].observations)[3] = sinf(env->ship_heading);
+    ((obs_t*)env->agents[0].observations)[4] = cosf(env->dock_heading);
+    ((obs_t*)env->agents[0].observations)[5] = sinf(env->dock_heading);
+    ((obs_t*)env->agents[0].observations)[6] = env->ship_speed / env->max_speed;
+    ((obs_t*)env->agents[0].observations)[7] = dist / diag;
 }
 
 void add_log(Docking* env, unsigned char result) {
@@ -143,7 +153,7 @@ void add_log(Docking* env, unsigned char result) {
     float angle_error = docking_angle_error(env->ship_heading, env->dock_heading) / PI;
 
     env->log.perf += result == DOCK_RESULT_SUCCESS ? 1.0f : 0.0f;
-    env->log.score += env->rewards[0];
+    env->log.score += env->agents[0].rewards[0];
     env->log.episode_return += env->episode_return;
     env->log.episode_length += env->tick;
     env->log.success_rate += result == DOCK_RESULT_SUCCESS ? 1.0f : 0.0f;
@@ -154,7 +164,7 @@ void add_log(Docking* env, unsigned char result) {
     env->log.n += 1.0f;
 }
 
-void c_reset(Docking* env) {
+void puf_reset(Docking* env) {
     float width = (float)env->width;
     float height = (float)env->height;
 
@@ -177,8 +187,8 @@ void c_reset(Docking* env) {
 }
 
 void finish_episode(Docking* env, float reward, unsigned char result) {
-    env->rewards[0] = reward;
-    env->terminals[0] = 1.0f;
+    env->agents[0].rewards[0] = reward;
+    env->agents[0].terminals[0] = 1.0f;
     env->episode_return += reward;
     env->last_result = result;
     env->feedback_timer = 72;
@@ -186,13 +196,13 @@ void finish_episode(Docking* env, float reward, unsigned char result) {
     env->reset_pending = 1;
 }
 
-void c_step(Docking* env) {
+void puf_step(Docking* env) {
     if (env->reset_pending) {
         if (IsWindowReady() && env->feedback_timer > 66) {
             env->feedback_timer -= 1;
             return;
         }
-        c_reset(env);
+        puf_reset(env);
     }
 
     env->tick += 1;
@@ -200,11 +210,11 @@ void c_step(Docking* env) {
         env->feedback_timer -= 1;
     }
 
-    memset(env->observations, 0, DOCKING_OBS_SIZE * sizeof(float));
-    env->rewards[0] = 0.0f;
-    env->terminals[0] = 0.0f;
+    memset(((obs_t*)env->agents[0].observations), 0, DOCKING_OBS_SIZE * sizeof(float));
+    env->agents[0].rewards[0] = 0.0f;
+    env->agents[0].terminals[0] = 0.0f;
 
-    int action = (int)env->actions[0];
+    int action = (int)env->agents[0].actions[0];
     env->last_action = (unsigned char)action;
     if (action == DOCK_TURN_LEFT) {
         env->ship_heading -= env->turn_rate;
@@ -261,7 +271,7 @@ void c_step(Docking* env) {
 
     float reward = env->step_penalty + env->progress_reward_scale * dist_delta;
     reward = docking_clipf(reward, -1.0f, 1.0f);
-    env->rewards[0] = reward;
+    env->agents[0].rewards[0] = reward;
     env->episode_return += reward;
 
     float angle_error = docking_angle_error(env->ship_heading, env->dock_heading);
@@ -305,9 +315,9 @@ void c_step(Docking* env) {
             env->ship_y = dock_entrance_y + dy_to_entrance * inv_dist * (soft_radius + 1.5f);
             env->ship_speed *= 0.25f;
 
-            float old_reward = env->rewards[0];
-            env->rewards[0] = docking_clipf(old_reward - 0.10f, -1.0f, 1.0f);
-            env->episode_return += env->rewards[0] - old_reward;
+            float old_reward = env->agents[0].rewards[0];
+            env->agents[0].rewards[0] = docking_clipf(old_reward - 0.10f, -1.0f, 1.0f);
+            env->episode_return += env->agents[0].rewards[0] - old_reward;
             env->prev_distance = docking_distance(env);
             compute_observations(env);
         }
@@ -437,7 +447,7 @@ void draw_thruster(Vector2 center, Vector2 dir, float ship_len, float ship_wid) 
     DrawTriangle(inner_tip, left, right, (Color){255, 220, 100, 220});
 }
 
-void c_render(Docking* env) {
+void puf_render(Docking* env) {
     if (!IsWindowReady()) {
         int screen_width = 960;
         int screen_height = (int)(screen_width * (env->height / (float)env->width));
@@ -553,8 +563,41 @@ void c_render(Docking* env) {
     EndDrawing();
 }
 
-void c_close(Docking* env) {
+void puf_close(Docking* env) {
     if (IsWindowReady()) {
         CloseWindow();
     }
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "success_rate", log->success_rate);
+    dict_set(out, "crash_rate", log->crash_rate);
+    dict_set(out, "timeout_rate", log->timeout_rate);
+    dict_set(out, "final_distance", log->final_distance);
+    dict_set(out, "alignment_error", log->alignment_error);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    env->num_agents = 1;
+    env->width = dict_get(kwargs, "width");
+    env->height = dict_get(kwargs, "height");
+    env->max_ticks = dict_get(kwargs, "max_ticks");
+    env->max_speed = dict_get(kwargs, "max_speed");
+    env->turn_rate = dict_get(kwargs, "turn_rate");
+    env->accel = dict_get(kwargs, "accel");
+    env->drag = dict_get(kwargs, "drag");
+    env->dock_radius = dict_get(kwargs, "dock_radius");
+    env->dock_speed_threshold = dict_get(kwargs, "dock_speed_threshold");
+    env->dock_heading_threshold = dict_get(kwargs, "dock_heading_threshold");
+    env->step_penalty = dict_get(kwargs, "step_penalty");
+    env->progress_reward_scale = dict_get(kwargs, "progress_reward_scale");
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    c_init(env);
+}
+

@@ -16,7 +16,7 @@ int demo() {
         .reward_death = -1.0f,
     };
     allocate_csnake(&env);
-    c_reset(&env);
+    puf_reset(&env);
 
     Weights* weights = load_weights("resources/snake/snake_weights.bin");
     int logit_sizes[] = {4};
@@ -26,25 +26,25 @@ int demo() {
     while (!WindowShouldClose()) {
         // User can take control of the first snake
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) env.actions[0] = 0;
-            if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) env.actions[0] = 1;
-            if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.actions[0] = 2;
-            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.actions[0] = 3;
+            if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) env.agents[0].actions[0] = 0;
+            if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) env.agents[0].actions[0] = 1;
+            if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.agents[0].actions[0] = 2;
+            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.agents[0].actions[0] = 3;
         } else {
             memset(net->obs, 0, env.num_agents*968*sizeof(float));
             for (int i = 0; i < env.num_agents*121; i++) {
-                int obs = env.observations[i];
+                int obs = env.agents[0].observations[i];
                 net->obs[i*8 + obs] = 1.0f;
             }
             int* actions = (int*)calloc(env.num_agents, sizeof(int));
             forward_linearlstm(net, net->obs, actions);
             for (int i = 0; i < env.num_agents; i++) {
-                env.actions[i] = actions[i];
+                env.agents[0].actions[i] = actions[i];
             }
             free(actions);
         }
-        c_step(&env);
-        c_render(&env);
+        puf_step(&env);
+        puf_render(&env);
     }
     free_linearlstm(net);
     free(weights);
@@ -67,15 +67,15 @@ void test_performance(float test_time) {
         .reward_death = -1.0f,
     };
     allocate_csnake(&env);
-    c_reset(&env);
+    puf_reset(&env);
 
     int start = time(NULL);
     int i = 0;
     while (time(NULL) - start < test_time) {
         for (int j = 0; j < env.num_agents; j++) {
-            env.actions[j] = rand()%4;
+            env.agents[0].actions[j] = rand()%4;
         }
-        c_step(&env);
+        puf_step(&env);
         i++;
     }
     int end = time(NULL);

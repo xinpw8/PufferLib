@@ -1,7 +1,7 @@
 // Craftax-Classic environment for PufferLib Ocean.
 //
 // Single-header per-env implementation. PufferLib's vec layer owns the
-// observation/action/reward/terminal buffers and parallelizes c_step
+// observation/action/reward/terminal buffers and parallelizes puf_step
 // across env instances via OpenMP; this file never allocates its own
 // threads or batches.
 //
@@ -30,6 +30,17 @@
 #include <math.h>
 #include <immintrin.h>
 #include "raylib.h"
+
+#include "pufferenv.h"
+
+#define ACT_SIZES {17}
+#define OBS_SIZE 1345
+#define NUM_ATNS 1
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 
 // ============================================================
 // Constants
@@ -132,14 +143,14 @@ static inline int      cr_ri(uint64_t* s, int n) { return (int)(cr_pcg(s) % (uin
 // ============================================================
 // PufferLib-required structs
 // ============================================================
-typedef struct Log {
+struct Log {
     float perf;                         // 0-1 normalized progress (achievements / 22)
     float score;                        // sum of episode returns seen so far
     float episode_return;               // last episode return
     float episode_length;               // last episode length
     float achievements[NUM_ACHIEVEMENTS];
     float n;                            // required counter (last field)
-} Log;
+};
 
 typedef struct Client {
     int dummy;                          // handled by raylib globally; no per-env handle needed
@@ -148,14 +159,12 @@ typedef struct Client {
 // ============================================================
 // Env struct
 // ============================================================
-typedef struct CraftaxClassic {
+struct Env {
     Client* client;
     Log log;
-
-    float* observations;                // (OBS_DIM,) fp32, PufferLib-owned
-    float* actions;                     // (1,) fp32
-    float* rewards;                     // (1,)
-    float* terminals;                   // (1,)
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
 
     int num_agents;                     // = 1
 
@@ -217,7 +226,8 @@ typedef struct CraftaxClassic {
     // Scratch for per-step reward computation
     int8_t old_health;
     bool   old_achievements[NUM_ACHIEVEMENTS];
-} CraftaxClassic;
+};
+typedef Env CraftaxClassic;
 
 // ============================================================
 // Map accessors + small helpers
@@ -301,8 +311,8 @@ static void generate_world(CraftaxClassic* s) {
     // Padded by +16 floats so AVX-512 permute-load at the last grid row doesn't
     // read out of bounds.
     enum { GRID = 10, GRID_PAD = GRID * GRID + 16 };
-    _Alignas(64) float cos_a[4][GRID_PAD];
-    _Alignas(64) float sin_a[4][GRID_PAD];
+    alignas(64) float cos_a[4][GRID_PAD];
+    alignas(64) float sin_a[4][GRID_PAD];
     for (int layer = 0; layer < 4; layer++) {
         for (int i = 0; i < GRID * GRID; i++) {
             float a = cr_rf(&s->pcg) * 2.0f * 3.14159265f;
@@ -316,7 +326,7 @@ static void generate_world(CraftaxClassic* s) {
     float inv_scale = 1.0f / scale;
     int center = MAP_SIZE / 2;
 
-    _Alignas(64) float noise[4][MAP_SIZE][MAP_SIZE];
+    alignas(64) float noise[4][MAP_SIZE][MAP_SIZE];
     {
         const __m512 c_lane = _mm512_setr_ps(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
         const __m512 one    = _mm512_set1_ps(1.0f);
@@ -830,10 +840,10 @@ static void update_intrinsics(CraftaxClassic* s, int action) {
 }
 
 // ============================================================
-// Observation builder (writes OBS_DIM floats into env->observations)
+// Observation builder (writes OBS_DIM floats into ((obs_t*)env->agents[0].observations))
 // ============================================================
 static void compute_observations(CraftaxClassic* s) {
-    float* obs = s->observations;
+    obs_t* obs = ((obs_t*)s->agents[0].observations);
     int pr = s->player_r, pc = s->player_c;
     int idx = 0;
     for (int dr = -3; dr <= 3; dr++) {
@@ -846,7 +856,7 @@ static void compute_observations(CraftaxClassic* s) {
         for (int dc = -4; dc <= 4; dc++) {
             int c = pc + dc;
             int8_t blk = (row_ok && (unsigned)c < MAP_SIZE) ? map_get(s, r, c) : BLK_OUT_OF_BOUNDS;
-            float* dst = obs + idx;
+            obs_t* dst = obs + idx;
             for (int b = 0; b < NUM_BLOCK_TYPES; b++) dst[b] = 0.0f;
             if ((unsigned)blk < NUM_BLOCK_TYPES) dst[blk] = 1.0f;
             idx += NUM_BLOCK_TYPES;
@@ -890,7 +900,7 @@ static void add_log(CraftaxClassic* env) {
 }
 
 // ============================================================
-// Public API: c_init / c_reset / c_step / c_close / c_render
+// Public API: c_init / puf_reset / puf_step / puf_close / puf_render
 // ============================================================
 static void c_init(CraftaxClassic* env) {
     env->num_agents = 1;
@@ -904,18 +914,18 @@ static void c_init(CraftaxClassic* env) {
     memset(&env->log, 0, sizeof(env->log));
 }
 
-static void c_reset(CraftaxClassic* env) {
+void puf_reset(CraftaxClassic* env) {
     env->episode_return_accum = 0.0f;
     env->episode_length_accum = 0;
     generate_world(env);
     compute_observations(env);
 }
 
-static void c_step(CraftaxClassic* env) {
-    env->rewards[0] = 0.0f;
-    env->terminals[0] = 0.0f;
+void puf_step(CraftaxClassic* env) {
+    env->agents[0].rewards[0] = 0.0f;
+    env->agents[0].terminals[0] = 0.0f;
 
-    int action = (int)env->actions[0];
+    int action = (int)env->agents[0].actions[0];
     if (action < 0) action = 0;
     if (action >= NUM_ACTIONS) action = NUM_ACTIONS - 1;
 
@@ -947,7 +957,7 @@ static void c_step(CraftaxClassic* env) {
         ach_r += (float)(env->achievements[i] && !env->old_achievements[i]);
     float hp_r = (float)(env->health - env->old_health) * 0.1f;
     float r = ach_r + hp_r;
-    env->rewards[0] = r;
+    env->agents[0].rewards[0] = r;
     env->episode_return_accum += r;
     env->episode_length_accum += 1;
 
@@ -957,15 +967,15 @@ static void c_step(CraftaxClassic* env) {
         && map_get(env, env->player_r, env->player_c) == BLK_LAVA) done = true;
 
     if (done) {
-        env->terminals[0] = 1.0f;
+        env->agents[0].terminals[0] = 1.0f;
         add_log(env);
-        c_reset(env);   // auto-reset (observation written inside)
+        puf_reset(env);   // auto-reset (observation written inside)
     } else {
         compute_observations(env);
     }
 }
 
-static void c_close(CraftaxClassic* env) {
+void puf_close(CraftaxClassic* env) {
     (void)env;
 }
 
@@ -980,7 +990,6 @@ static void c_close(CraftaxClassic* env) {
 //   [50..53] arrows: down, up, left, right
 
 #include <stdio.h>
-
 #define CC_TEX_TILE_PX 16
 #define CC_TEX_SCALE 4
 #define CC_TEX_DRAW_PX (CC_TEX_TILE_PX * CC_TEX_SCALE)
@@ -1068,7 +1077,7 @@ static void cc_draw_tile(int tex_id, int dst_x, int dst_y) {
     DrawTexturePro(cc_textures[tex_id], src, dst, (Vector2){0, 0}, 0.0f, WHITE);
 }
 
-static void c_render(CraftaxClassic* env) {
+void puf_render(CraftaxClassic* env) {
     const int view_w = CC_RENDER_COLS * CC_TEX_DRAW_PX;
     const int view_h = CC_RENDER_ROWS * CC_TEX_DRAW_PX;
     const int hud_h = 60;
@@ -1161,3 +1170,31 @@ static void c_render(CraftaxClassic* env) {
              4, hud_y + 40, 12, (Color){180, 180, 180, 255});
     EndDrawing();
 }
+
+// --- Native trainer (pufferl) API ---
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    static const char* ACH_NAMES[NUM_ACHIEVEMENTS] = {
+        "collect_wood",   "place_table",    "eat_cow",       "collect_sapling",
+        "collect_drink",  "make_wood_pick", "make_wood_sword","place_plant",
+        "defeat_zombie",  "collect_stone",  "place_stone",   "eat_plant",
+        "defeat_skeleton","make_stone_pick","make_stone_sword","wake_up",
+        "place_furnace",  "collect_coal",   "collect_iron",  "collect_diamond",
+        "make_iron_pick", "make_iron_sword",
+    };
+    for (int i = 0; i < NUM_ACHIEVEMENTS; i++) {
+        dict_set(out, ACH_NAMES[i], log->achievements[i]);
+    }
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    (void)kwargs;
+    env->num_agents = 1;
+    env->agents[0].action_mask = NULL;
+    env->agents[0].policy = 0;
+    c_init(env);
+}
+

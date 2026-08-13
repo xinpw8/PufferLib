@@ -20,8 +20,8 @@ void free_allocated(Hex* env) {
 void demo() {
     Hex env = {0};
     allocate(&env);
-    c_reset(&env);
-    c_render(&env);
+    puf_reset(&env);
+    puf_render(&env);
     env.random_opponent = false;
 
     while(!WindowShouldClose()) {
@@ -48,32 +48,32 @@ void demo() {
             int c = (int)roundf((mouse.x - start_x) / hex_width - r * 0.5f);
 
             if(r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
-                env.actions[0] = r * BOARD_SIZE + c;
+                env.agents[0].actions[0] = r * BOARD_SIZE + c;
                 move_made = true;
             }
         }
 
         if(move_made) {
-            c_step(&env);
+            puf_step(&env);
         }
 
-        c_render(&env);
+        puf_render(&env);
     }
 
     free_allocated(&env);
-    c_close(&env);
+    puf_close(&env);
 }
 
 void speed_test() {
     Hex env = {0};
     allocate(&env);
-    c_reset(&env);
+    puf_reset(&env);
     clock_t start = clock();
 
     int num_steps = 1000000;
     for(int i = 0; i < num_steps; i++) {
-        env.actions[0] = compute_legal_move(&env);
-        c_step(&env);
+        env.agents[0].actions[0] = compute_legal_move(&env);
+        puf_step(&env);
     }
     clock_t end = clock();
     double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
@@ -81,7 +81,7 @@ void speed_test() {
     printf("SPS: %.2fM\n", num_steps / elapsed / 1e6);
 
     free_allocated(&env);
-    c_close(&env);
+    puf_close(&env);
 }
 
 int main() {

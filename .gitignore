@@ -3,6 +3,7 @@ c_*.c
 pufferlib/extensions.c
 pufferlib/puffernet.c
 logs/
+ocean/osrs/data/
 
 # Build dir
 build/
@@ -167,8 +168,17 @@ pufferlib/ocean/impulse_wars/*-release/
 pufferlib/ocean/impulse_wars/debug-*/
 pufferlib/ocean/impulse_wars/release-*/
 pufferlib/ocean/impulse_wars/benchmark/
+ocean/impulse_wars/include/
+
+# Generated antibody data
+ocean/antibody/generated/
 
 # Data
 resources/drive/data/*
 resources/drive/binaries/*
 
+
+# Local refactor baselines (not for commit)
+.refactor-snapshots/
+
+vendor/fast-nle/

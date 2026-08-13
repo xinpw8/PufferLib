@@ -19,7 +19,7 @@ static void nethack_touch(const char* path) {
 }
 
 static void nethack_rm_rf(const char* path, int depth) {
-    if (depth > 3) return;   // vardir trees are at most base/env/save/files
+    if (depth > 3) return; // vardir trees are at most base/env/save/files
     DIR* d = opendir(path);
     if (d) {
         struct dirent* e;
@@ -82,7 +82,7 @@ static int nethack_make_vardir(const char* source_hackdir, char* out_buf, size_t
 
     // fail fast on a dangling nhdat symlink: symlink(2) would succeed and the
     // error surface later as a cryptic init_dungeons panic
-    char resolved[4096];   // realpath(3) requires a PATH_MAX buffer
+    char resolved[4096]; // realpath(3) requires a PATH_MAX buffer
     if (realpath(src, resolved) == NULL || access(resolved, R_OK) != 0) {
         fprintf(stderr,
                 "nethack: NETHACKDIR misconfigured — no readable nhdat at %s (%s).\n"

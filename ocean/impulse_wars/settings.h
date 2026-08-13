@@ -620,7 +620,7 @@ const weaponInformation nuke = {
     .spawnWeight = NUKE_SPAWN_WEIGHT,
 };
 
-weaponInformation *weaponInfos[] = {
+static weaponInformation *weaponInfos[] = {
     (weaponInformation *)&standard,
     (weaponInformation *)&machineGun,
     (weaponInformation *)&sniper,
@@ -633,7 +633,7 @@ weaponInformation *weaponInfos[] = {
     (weaponInformation *)&nuke,
 };
 
-const char *weaponNames[] = {
+static const char *weaponNames[] = {
     "standard",
     "machine_gun",
     "sniper",

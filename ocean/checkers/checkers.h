@@ -6,6 +6,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "pufferenv.h"
+
+// size=8 from config/checkers.ini; action = pos*8 + move_type
+#define BOARD_SIZE 8
+#define ACT_SIZES {BOARD_SIZE * BOARD_SIZE * 8}
+#define OBS_SIZE (BOARD_SIZE * BOARD_SIZE)
+#define NUM_ATNS 1
+typedef unsigned char obs_t;
 
 #define EMPTY 0
 #define AGENT 1
@@ -16,23 +24,22 @@
 #define OPPONENT_KING 4
 
 // Required struct. Only use floats!
-typedef struct {
+struct Log {
   float perf;
   float score;
   float episode_return;
   float episode_length;
   float winrate;
   float n;
-} Log;
+};
 
 // Required that you have some struct for your env
-// Recommended that you name it the same as the env file
-typedef struct {
+struct Env {
   Log log;
-  unsigned char *observations;
-  int *actions;
-  float *rewards;
-  unsigned char *terminals;
+  Agent agents[1];
+  int tag;
+  int boundary_reached;
+  int num_agents;
   int size;
   int tick;
   int current_player;
@@ -42,7 +49,9 @@ typedef struct {
   int capture_available_valid;
   int game_over_cache;
   int game_over_valid;
-} Checkers;
+  unsigned int rng;
+};
+typedef Env Checkers;
 
 typedef struct {
   int r;
@@ -117,7 +126,7 @@ int get_piece(Checkers *env, Position p) {
   if (!check_in_bounds(env, p)) {
     return EMPTY;
   }
-  return env->observations[p2i(env, p)];
+  return ((obs_t*)env->agents[0].observations)[p2i(env, p)];
 }
 
 int get_piece_type(Checkers *env, Position p) {
@@ -188,7 +197,7 @@ int capture_available(Checkers *env) {
   int current_king = env->current_player == AGENT ? AGENT_KING : OPPONENT_KING;
 
   for (int i = 0; i < env->size * env->size; i++) {
-    int piece = env->observations[i];
+    int piece = ((obs_t*)env->agents[0].observations)[i];
     if (piece != current_pawn && piece != current_king)
       continue;
 
@@ -203,12 +212,12 @@ int capture_available(Checkers *env) {
       if (new_r < 0 || new_r >= env->size || new_c < 0 || new_c >= env->size)
         continue;
 
-      if (env->observations[new_r * env->size + new_c] != EMPTY)
+      if (((obs_t*)env->agents[0].observations)[new_r * env->size + new_c] != EMPTY)
         continue;
 
       int mid_r = r + directions[d][0] / 2;
       int mid_c = c + directions[d][1] / 2;
-      int mid_piece = env->observations[mid_r * env->size + mid_c];
+      int mid_piece = ((obs_t*)env->agents[0].observations)[mid_r * env->size + mid_c];
 
       int opponent_pawn =
           env->current_player == AGENT ? OPPONENT_PAWN : AGENT_PAWN;
@@ -246,7 +255,7 @@ int num_legal_moves(Checkers *env) {
   int has_captures = capture_available(env);
 
   for (int i = 0; i < env->size * env->size; i++) {
-    int piece = env->observations[i];
+    int piece = ((obs_t*)env->agents[0].observations)[i];
     if (piece != current_pawn && piece != current_king)
       continue;
 
@@ -263,7 +272,7 @@ int num_legal_moves(Checkers *env) {
       if (new_r < 0 || new_r >= env->size || new_c < 0 || new_c >= env->size)
         continue;
 
-      if (env->observations[new_r * env->size + new_c] != EMPTY)
+      if (((obs_t*)env->agents[0].observations)[new_r * env->size + new_c] != EMPTY)
         continue;
 
       int move_size = abs(directions[d][0]);
@@ -281,7 +290,7 @@ int num_legal_moves(Checkers *env) {
       if (move_size == 2) {
         int mid_r = r + directions[d][0] / 2;
         int mid_c = c + directions[d][1] / 2;
-        int mid_piece = env->observations[mid_r * env->size + mid_c];
+        int mid_piece = ((obs_t*)env->agents[0].observations)[mid_r * env->size + mid_c];
 
         int opponent_pawn =
             env->current_player == AGENT ? OPPONENT_PAWN : AGENT_PAWN;
@@ -311,14 +320,14 @@ int try_make_king(Checkers *env) {
   int promoted = 0;
 
   for (int i = 0; i < env->size; i++) {
-    if (env->observations[i] == OPPONENT_PAWN) {
-      env->observations[i] = OPPONENT_KING;
+    if (((obs_t*)env->agents[0].observations)[i] == OPPONENT_PAWN) {
+      ((obs_t*)env->agents[0].observations)[i] = OPPONENT_KING;
       promoted = 1;
     }
   }
   for (int i = 0; i < env->size; i++) {
-    if (env->observations[env->size * (env->size - 1) + i] == AGENT_PAWN) {
-      env->observations[env->size * (env->size - 1) + i] = AGENT_KING;
+    if (((obs_t*)env->agents[0].observations)[env->size * (env->size - 1) + i] == AGENT_PAWN) {
+      ((obs_t*)env->agents[0].observations)[env->size * (env->size - 1) + i] = AGENT_KING;
       promoted = 1;
     }
   }
@@ -357,7 +366,7 @@ int is_game_over(Checkers *env) {
   int current_king = env->current_player == AGENT ? AGENT_KING : OPPONENT_KING;
 
   for (int i = 0; i < env->size * env->size; i++) {
-    int piece = env->observations[i];
+    int piece = ((obs_t*)env->agents[0].observations)[i];
     if (piece != current_pawn && piece != current_king)
       continue;
 
@@ -371,7 +380,7 @@ int is_game_over(Checkers *env) {
 
       if (new_r < 0 || new_r >= env->size || new_c < 0 || new_c >= env->size)
         continue;
-      if (env->observations[new_r * env->size + new_c] != EMPTY)
+      if (((obs_t*)env->agents[0].observations)[new_r * env->size + new_c] != EMPTY)
         continue;
 
       if (piece == current_pawn) {
@@ -411,13 +420,13 @@ int get_winner(Checkers *env) {
 void make_move(Checkers *env, int action) {
   Move m = decode_action(env, action);
   if (!is_valid_move(env, m)) {
-    env->rewards[0] = -1.0f; // reward for invalid move
+    env->agents[0].rewards[0] = -1.0f; // reward for invalid move
     return;
   }
 
   int moving_piece = get_piece(env, m.from);
-  env->observations[p2i(env, m.from)] = EMPTY;
-  env->observations[p2i(env, m.to)] = moving_piece;
+  ((obs_t*)env->agents[0].observations)[p2i(env, m.from)] = EMPTY;
+  ((obs_t*)env->agents[0].observations)[p2i(env, m.to)] = moving_piece;
 
   int capture_occurred = 0;
   float reward = 0.0f;
@@ -425,8 +434,8 @@ void make_move(Checkers *env, int action) {
   if (move_size(m) == 2) {
     Position between_pos =
         (Position){(m.from.r + m.to.r) / 2, (m.from.c + m.to.c) / 2};
-    int captured_piece = env->observations[p2i(env, between_pos)];
-    env->observations[p2i(env, between_pos)] = EMPTY;
+    int captured_piece = ((obs_t*)env->agents[0].observations)[p2i(env, between_pos)];
+    ((obs_t*)env->agents[0].observations)[p2i(env, between_pos)] = EMPTY;
     capture_occurred = 1;
 
     if (captured_piece == AGENT_PAWN || captured_piece == AGENT_KING) {
@@ -456,7 +465,7 @@ void make_move(Checkers *env, int action) {
 
   if (promotion_occurred) {
     for (int i = 0; i < env->size; i++) {
-      if (env->observations[env->size * (env->size - 1) + i] == AGENT_KING) {
+      if (((obs_t*)env->agents[0].observations)[env->size * (env->size - 1) + i] == AGENT_KING) {
         reward += 0.05f; // reward for promotion
         break;
       }
@@ -464,12 +473,12 @@ void make_move(Checkers *env, int action) {
   }
 
   if (is_game_over(env)) {
-    env->terminals[0] = 1;
+    env->agents[0].terminals[0] = 1;
     int winner = get_winner(env);
     reward = winner == AGENT ? 1.0f : -1.0f;
   }
 
-  env->rewards[0] = clamp(reward, -1.0f, 1.0f);
+  env->agents[0].rewards[0] = clamp(reward, -1.0f, 1.0f);
 }
 
 void scripted_first_move(Checkers *env) {
@@ -478,7 +487,7 @@ void scripted_first_move(Checkers *env) {
   int has_captures = capture_available(env);
 
   for (int i = 0; i < env->size * env->size; i++) {
-    int piece = env->observations[i];
+    int piece = ((obs_t*)env->agents[0].observations)[i];
     if (piece != current_pawn && piece != current_king)
       continue;
 
@@ -494,7 +503,7 @@ void scripted_first_move(Checkers *env) {
 
       if (new_r < 0 || new_r >= env->size || new_c < 0 || new_c >= env->size)
         continue;
-      if (env->observations[new_r * env->size + new_c] != EMPTY)
+      if (((obs_t*)env->agents[0].observations)[new_r * env->size + new_c] != EMPTY)
         continue;
 
       int move_size = abs(directions[d][0]);
@@ -512,7 +521,7 @@ void scripted_first_move(Checkers *env) {
       if (move_size == 2) {
         int mid_r = r + directions[d][0] / 2;
         int mid_c = c + directions[d][1] / 2;
-        int mid_piece = env->observations[mid_r * env->size + mid_c];
+        int mid_piece = ((obs_t*)env->agents[0].observations)[mid_r * env->size + mid_c];
 
         int opponent_pawn =
             env->current_player == AGENT ? OPPONENT_PAWN : AGENT_PAWN;
@@ -535,7 +544,7 @@ float evaluate_position(Checkers *env) {
   float score = 0.0f;
 
   for (int i = 0; i < env->size * env->size; i++) {
-    int piece = env->observations[i];
+    int piece = ((obs_t*)env->agents[0].observations)[i];
     int r = i / env->size;
 
     if (piece == AGENT_PAWN) {
@@ -562,7 +571,7 @@ void scripted_random_move(Checkers *env) {
   int num_positions = env->size * env->size;
   while (1) {
     i = random() % num_positions;
-    int piece = env->observations[i];
+    int piece = ((obs_t*)env->agents[0].observations)[i];
     if (piece != current_pawn && piece != current_king)
       continue;
 
@@ -578,7 +587,7 @@ void scripted_random_move(Checkers *env) {
 
       if (new_r < 0 || new_r >= env->size || new_c < 0 || new_c >= env->size)
         continue;
-      if (env->observations[new_r * env->size + new_c] != EMPTY)
+      if (((obs_t*)env->agents[0].observations)[new_r * env->size + new_c] != EMPTY)
         continue;
 
       int move_size = abs(directions[d][0]);
@@ -596,7 +605,7 @@ void scripted_random_move(Checkers *env) {
       if (move_size == 2) {
         int mid_r = r + directions[d][0] / 2;
         int mid_c = c + directions[d][1] / 2;
-        int mid_piece = env->observations[mid_r * env->size + mid_c];
+        int mid_piece = ((obs_t*)env->agents[0].observations)[mid_r * env->size + mid_c];
 
         int opponent_pawn =
             env->current_player == AGENT ? OPPONENT_PAWN : AGENT_PAWN;
@@ -633,7 +642,7 @@ void update_piece_counts(Checkers *env) {
   env->opponent_pieces = 0;
 
   for (int i = 0; i < env->size * env->size; i++) {
-    int piece = env->observations[i];
+    int piece = ((obs_t*)env->agents[0].observations)[i];
     if (piece == AGENT_PAWN || piece == AGENT_KING) {
       env->agent_pieces++;
     } else if (piece == OPPONENT_PAWN || piece == OPPONENT_KING) {
@@ -646,34 +655,34 @@ void update_piece_counts(Checkers *env) {
 }
 
 void add_log(Checkers *env) {
-  env->log.perf += (env->rewards[0] > 0) ? 1 : 0;
+  env->log.perf += (env->agents[0].rewards[0] > 0) ? 1 : 0;
   env->log.score += evaluate_position(env);
   env->log.episode_length += env->tick;
-  env->log.episode_return += env->rewards[0];
-  if (env->terminals[0] == 1)
+  env->log.episode_return += env->agents[0].rewards[0];
+  if (env->agents[0].terminals[0] == 1)
     env->log.winrate += get_winner(env) == AGENT ? 1.0f : 0.0f;
   env->log.n += 1;
 }
 
 // Required function
-void c_reset(Checkers *env) {
+void puf_reset(Checkers *env) {
   env->tick = 0;
-  env->terminals[0] = 0;
-  env->rewards[0] = 0.0f;
+  env->agents[0].terminals[0] = 0;
+  env->agents[0].rewards[0] = 0.0f;
 
   int tiles = env->size * env->size;
   for (int i = 0; i < tiles; i++)
-    env->observations[i] = EMPTY;
+    ((obs_t*)env->agents[0].observations)[i] = EMPTY;
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < env->size; j++) {
       if ((i + j) % 2)
-        env->observations[i * env->size + j] = AGENT_PAWN;
+        ((obs_t*)env->agents[0].observations)[i * env->size + j] = AGENT_PAWN;
     }
   }
   for (int i = env->size - 3; i < env->size; i++) {
     for (int j = 0; j < env->size; j++) {
       if ((i + j) % 2)
-        env->observations[i * env->size + j] = OPPONENT_PAWN;
+        ((obs_t*)env->agents[0].observations)[i * env->size + j] = OPPONENT_PAWN;
     }
   }
 
@@ -683,31 +692,31 @@ void c_reset(Checkers *env) {
 }
 
 // Required function
-void c_step(Checkers *env) {
+void puf_step(Checkers *env) {
   env->tick += 1;
-  int action = env->actions[0];
-  env->rewards[0] = 0.0f;
-  env->terminals[0] = 0;
+  int action = (int)env->agents[0].actions[0];
+  env->agents[0].rewards[0] = 0.0f;
+  env->agents[0].terminals[0] = 0;
 
   make_move(env, action);
 
-  env->rewards[0] = clamp(env->rewards[0], -1.0f, 1.0f);
-  if (env->terminals[0] == 1) {
+  env->agents[0].rewards[0] = clamp(env->agents[0].rewards[0], -1.0f, 1.0f);
+  if (env->agents[0].terminals[0] == 1) {
     add_log(env);
-    c_reset(env);
+    puf_reset(env);
     return;
   }
 
   scripted_step(env, 1);
-  if (env->terminals[0] == 1) {
+  if (env->agents[0].terminals[0] == 1) {
     add_log(env);
-    c_reset(env);
+    puf_reset(env);
     return;
   }
 }
 
 // Required function. Should handle creating the client on first call
-void c_render(Checkers *env) {
+void puf_render(Checkers *env) {
   const Color BG1 = (Color){27, 27, 27, 255};
   const Color BG2 = (Color){13, 13, 13, 255};
 
@@ -738,7 +747,7 @@ void c_render(Checkers *env) {
   Color piece_color;
   for (int i = 0; i < env->size; i++) {
     for (int j = 0; j < env->size; j++) {
-      int piece = env->observations[i * env->size + j];
+      int piece = ((obs_t*)env->agents[0].observations)[i * env->size + j];
       if ((i + j) % 2 == 0)
         DrawRectangle(j * cell_size - 1, i * cell_size - 1, cell_size + 1,
                       cell_size + 1, BG2);
@@ -817,9 +826,25 @@ void c_render(Checkers *env) {
 }
 
 // Required function. Should clean up anything you allocated
-// Do not free env->observations, actions, rewards, terminals
-void c_close(Checkers *env) {
+// Do not free ((obs_t*)env->agents[0].observations), actions, rewards, terminals
+void puf_close(Checkers *env) {
   if (IsWindowReady()) {
     CloseWindow();
   }
 }
+
+void puf_init(Env *env, Dict *kwargs) {
+  env->num_agents = 1;
+  env->size = dict_get(kwargs, "size");
+  env->agents[0].policy = 0;
+  env->agents[0].action_mask = NULL;
+}
+
+void puf_log(Log *log, Dict *out) {
+  dict_set(out, "perf", log->perf);
+  dict_set(out, "score", log->score);
+  dict_set(out, "episode_return", log->episode_return);
+  dict_set(out, "episode_length", log->episode_length);
+  dict_set(out, "winrate", log->winrate);
+}
+
