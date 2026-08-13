@@ -38,16 +38,16 @@ void perfTest(const uint32_t numSteps) {
 
     // randActions(e);
     setupEnv(e);
-    stepEnv(e);
+    puf_step(e);
 
     uint32_t steps = 0;
     while (steps != numSteps) {
         // randActions(e);
-        stepEnv(e);
+        puf_step(e);
         steps++;
     }
 
-    destroyEnv(e);
+    puf_close(e);
     destroyMaps();
     free(e->observations);
     fastFree(e->actions);

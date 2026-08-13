@@ -152,7 +152,7 @@ rayClient *createRayClient() {
     return client;
 }
 
-void setupRayClient(iwEnv *e) {
+void puf_render(iwEnv *e) {
     if (e->client != NULL) {
         return;
     }

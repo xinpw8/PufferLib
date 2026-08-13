@@ -6,6 +6,12 @@
 #include <time.h>
 #include "raylib.h"
 #include "maps.h"
+#include "pufferenv.h"
+
+#define ACT_SIZES {1}
+#define NUM_ATNS 1
+#define OBS_SIZE (121 * 121 * 4)
+typedef unsigned char obs_t;
 
 
 #define CELL_EMPTY 0
@@ -44,7 +50,7 @@ const Color COLOR_ENTITY_NAME_HOVER = YELLOW;
 // TODO many leaks...
 
 // forward declarations
-typedef struct Tactical Tactical;
+typedef struct Env Tactical;
 typedef struct Entity Entity;
 typedef struct Spell Spell;
 typedef struct Client Client;
@@ -53,20 +59,18 @@ typedef struct Client Client;
 void add_animation_text(Tactical* env, Client* client, const char* text, int cell, Color color, int font_size, float duration);
 void compute_movement(Tactical* env, Entity* entity);
 
-typedef struct Log {
+struct Log {
     float score;
     float n;
-} Log;
+};
 
-typedef struct Tactical {
+struct Env {
     Log log;
     Client* client;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
     int num_agents;
-    unsigned char* observations;
-    int* actions;
-    float* rewards;
-    unsigned char* terminals;
-    unsigned char* truncations;
 
     unsigned int n_entities;
     Entity* entities;
@@ -84,7 +88,9 @@ typedef struct Tactical {
 
     unsigned int* movement_path;
     int* movement_distance;
-} Tactical;
+    unsigned int rng;
+};
+typedef Env Tactical;
 
 // Entity (player, summoned creature...)
 struct Entity {
@@ -180,16 +186,15 @@ struct Client {
 
 };
 
-void free_tactical(Tactical* env) {
-    free(env->rewards);
-    free(env->observations);
-    free(env->actions);
+void puf_close(Tactical* env) {
     free(env->map);
     free(env->movement_path);
     free(env->movement_distance);
     free(env->entities);
-
-    free(env); // do this last
+    if (env->client != NULL) {
+        free(env->client);
+        env->client = NULL;
+    }
 }
 
 int get_cell(Tactical* env, int row, int col) {
@@ -507,7 +512,7 @@ Spell create_spell_swift_rabbit() {
 void assign_spells(Entity* entity) {
     // TODO assign different spells based on class
     entity->spell_count = 5;
-    entity->spells = malloc(entity->spell_count * sizeof(Spell));
+    entity->spells = (Spell*)malloc(entity->spell_count * sizeof(Spell));
     entity->spells[0] = create_spell_explosive_arrow();
     entity->spells[1] = create_spell_flying_arrow();
     entity->spells[2] = create_spell_rooting_arrow();
@@ -533,7 +538,7 @@ void compute_movement(Tactical* env, Entity* entity) {
     }
 
     // compute walkable cells mask
-    bool* walkable_cells = calloc(env->map_size, sizeof(bool));
+    bool* walkable_cells = (bool*)calloc(env->map_size, sizeof(bool));
     for (int i = 0; i < env->map_size; ++i) {
         // set ground cells to be walkable (TODO this should be pre-computed)
         if (env->map[i] == CELL_GROUND) {
@@ -548,9 +553,9 @@ void compute_movement(Tactical* env, Entity* entity) {
 
     // TODO these can be calloc'ed once and reused (memset them to 0 each time this function is called)
     // EDIT: no, don't use memset for arrays of int, dangerous
-    int* queue = calloc(env->map_size, sizeof(int));
-    int* visited = calloc(env->map_size, sizeof(int));
-    int* distances = calloc(env->map_size, sizeof(int));
+    int* queue = (int*)calloc(env->map_size, sizeof(int));
+    int* visited = (int*)calloc(env->map_size, sizeof(int));
+    int* distances = (int*)calloc(env->map_size, sizeof(int));
     int front = 0;
     int rear = 0;
 
@@ -622,14 +627,10 @@ bool try_move_entity(Tactical* env, Entity* entity, const int cell) {
     return false;
 }
 
-Tactical* init_tactical() {
-    Tactical* env = calloc(1, sizeof(Tactical));
-
+void init_tactical(Tactical* env) {
     env->num_agents = 1;
-
-    env->rewards = calloc(env->num_agents, sizeof(float));
-    env->observations = calloc(env->num_agents*121*121*4, sizeof(unsigned char));
-    env->actions = calloc(env->num_agents*1, sizeof(int));
+    env->agents[0].policy = 0;
+    env->agents[0].action_mask = NULL;
 
     // init map
     int map_id = 3; // ok
@@ -637,7 +638,7 @@ Tactical* init_tactical() {
     env->map_height = get_map_height(map_id);
     env->map_width = get_map_width(map_id);
     env->map_size = env->map_height * env->map_width;
-    env->map = calloc(env->map_height * env->map_width, sizeof(unsigned int));
+    env->map = (unsigned int*)calloc(env->map_height * env->map_width, sizeof(unsigned int));
     for (int i = 0; i < env->map_height; i++) {
         for (int j = 0; j < env->map_width; j++) {
             int idx = i * env->map_width + j;
@@ -654,7 +655,7 @@ Tactical* init_tactical() {
     env->cell_to_entity = (Entity**)calloc(env->map_size, sizeof(Entity*));
 
     // init players
-    env->entities = calloc(2, sizeof(Entity));
+    env->entities = (Entity*)calloc(2, sizeof(Entity));
     env->n_entities = 2;
     env->player1 = &env->entities[0];
     env->player2 = &env->entities[1];
@@ -695,11 +696,18 @@ Tactical* init_tactical() {
     env->current_player_idx = 0;
     env->current_player = &env->entities[env->current_player_idx];
 
-    env->movement_path = calloc(env->map_size, sizeof(unsigned int));
-    env->movement_distance = calloc(env->map_size, sizeof(int));
+    env->movement_path = (unsigned int*)calloc(env->map_size, sizeof(unsigned int));
+    env->movement_distance = (int*)calloc(env->map_size, sizeof(int));
     compute_movement(env, env->current_player);
+}
 
-    return env;
+void puf_init(Env* env, Dict* kwargs) {
+    (void)kwargs;
+    init_tactical(env);
+}
+
+void puf_log(Log* log, Dict* out) {
+    dict_set(out, "score", log->score);
 }
 
 void next_player(Tactical* env) {
@@ -714,19 +722,12 @@ void next_player(Tactical* env) {
     compute_movement(env, env->current_player);
 }
 
-void c_reset(Tactical* env) {
+void puf_reset(Tactical* env) {
     compute_observations(env);
 }
 
-int c_step(Tactical* env) {
-    if (false) {
-        c_reset(env);
-        int winner = 2;
-        return winner;
-    }
-
+void puf_step(Tactical* env) {
     compute_observations(env);
-    return 0;
 }
 
 
@@ -740,9 +741,9 @@ Client* init_client(Tactical* env) {
     client->width = 1200;
     client->height = 900;
 
-    client->movement_cells = malloc(env->map_size * sizeof(bool));
-    client->spell_cells = malloc(env->map_size * sizeof(bool));
-    client->active_spell_cells = malloc(env->map_size * sizeof(bool));
+    client->movement_cells = (bool*)malloc(env->map_size * sizeof(bool));
+    client->spell_cells = (bool*)malloc(env->map_size * sizeof(bool));
+    client->active_spell_cells = (bool*)malloc(env->map_size * sizeof(bool));
     client->active_spell = NULL;
 
     // TODO fill the screen automatically (these are hardcoded for map 2)
@@ -755,23 +756,23 @@ Client* init_client(Tactical* env) {
     client->mcell = -1;
     client->mcell_type = -1;
 
-    client->move_anim_path = calloc(env->map_size, sizeof(int));
+    client->move_anim_path = (int*)calloc(env->map_size, sizeof(int));
     client->move_anim_cells_per_second = 6;
 
     client->text_anim_count = 0;
 
     client->spell_anim = NULL;
     
-    client->xa = calloc(env->map_size, sizeof(float));
-    client->xb = calloc(env->map_size, sizeof(float));
-    client->xc = calloc(env->map_size, sizeof(float));
-    client->xd = calloc(env->map_size, sizeof(float));
-    client->xe = calloc(env->map_size, sizeof(float));
-    client->ya = calloc(env->map_size, sizeof(float));
-    client->yb = calloc(env->map_size, sizeof(float));
-    client->yc = calloc(env->map_size, sizeof(float));
-    client->yd = calloc(env->map_size, sizeof(float));
-    client->ye = calloc(env->map_size, sizeof(float));
+    client->xa = (float*)calloc(env->map_size, sizeof(float));
+    client->xb = (float*)calloc(env->map_size, sizeof(float));
+    client->xc = (float*)calloc(env->map_size, sizeof(float));
+    client->xd = (float*)calloc(env->map_size, sizeof(float));
+    client->xe = (float*)calloc(env->map_size, sizeof(float));
+    client->ya = (float*)calloc(env->map_size, sizeof(float));
+    client->yb = (float*)calloc(env->map_size, sizeof(float));
+    client->yc = (float*)calloc(env->map_size, sizeof(float));
+    client->yd = (float*)calloc(env->map_size, sizeof(float));
+    client->ye = (float*)calloc(env->map_size, sizeof(float));
     for (int row = 0; row < env->map_height; ++row) {
         for (int col = 0; col < env->map_width; ++col) {
             int cell = get_cell(env, row, col);
@@ -874,11 +875,12 @@ void draw_cells_and_entities(Client* client, Tactical* env) {
                 }
             }
             // DrawTriangleStrip((Vector2[]){{xa, ya}, {xb, yb}, {xc, yc}, {xd, yd}}, 4, cell_color);
-            DrawTriangleStrip((Vector2[]){
+            Vector2 cell_strip[4] = {
                 {client->xa[cell], client->ya[cell]},
                 {client->xb[cell], client->yb[cell]},
                 {client->xc[cell], client->yc[cell]},
-                {client->xd[cell], client->yd[cell]}}, 4, cell_color);
+                {client->xd[cell], client->yd[cell]}};
+            DrawTriangleStrip(cell_strip, 4, cell_color);
             if (client->movement_cells[cell]) {
                 const unsigned int dist = env->movement_distance[cell];
                 const char* text = TextFormat("%i", dist);
@@ -887,12 +889,13 @@ void draw_cells_and_entities(Client* client, Tactical* env) {
                     client->ye[cell] - 6, 12, COLOR_CELL_MOVE_TEXT);
             }
             // draw white border around cell
-            DrawLineStrip((Vector2[]){
+            Vector2 cell_border[5] = {
                 {client->xa[cell], client->ya[cell]},
                 {client->xb[cell], client->yb[cell]},
                 {client->xd[cell], client->yd[cell]},
                 {client->xc[cell], client->yc[cell]},
-                {client->xa[cell], client->ya[cell]}}, 5, COLOR_CELL_BORDER);
+                {client->xa[cell], client->ya[cell]}};
+            DrawLineStrip(cell_border, 5, COLOR_CELL_BORDER);
         }
     }
 
@@ -918,19 +921,21 @@ void draw_cells_and_entities(Client* client, Tactical* env) {
         int cell_type = env->map[cell];
         if (cell_type == CELL_WALL) {
             // draw isometric cell (a, b, c, d) shifted up by dy ("grass")
-            DrawTriangleStrip((Vector2[]){
+            Vector2 grass_strip[4] = {
                 {client->xa[cell], client->ya[cell] - client->dy},
                 {client->xb[cell], client->yb[cell] - client->dy},
                 {client->xc[cell], client->yc[cell] - client->dy},
-                {client->xd[cell], client->yd[cell] - client->dy}}, 4, COLOR_CELL_GRASS);
+                {client->xd[cell], client->yd[cell] - client->dy}};
+            DrawTriangleStrip(grass_strip, 4, COLOR_CELL_GRASS);
             // draw connections between (a, b, c, d) and the shifted up cell ("dirt")
-            DrawTriangleStrip((Vector2[]){
+            Vector2 dirt_strip[6] = {
                 {client->xc[cell], client->yc[cell]},
                 {client->xc[cell], client->yc[cell] - client->dy},
                 {client->xd[cell], client->yd[cell]},
                 {client->xd[cell], client->yd[cell] - client->dy},
                 {client->xb[cell], client->yb[cell]},
-                {client->xb[cell], client->yb[cell] - client->dy}}, 6, COLOR_CELL_DIRT);
+                {client->xb[cell], client->yb[cell] - client->dy}};
+            DrawTriangleStrip(dirt_strip, 6, COLOR_CELL_DIRT);
         }
 
         // draw entity at cell (if any)
@@ -1026,7 +1031,7 @@ void update_animation_move(Tactical* env, Client* client) {
 void add_animation_text(Tactical* env, Client* client, const char* text, int cell, Color color, int font_size, float duration) {
     int idx = client->text_anim_count;
     if (idx < MAX_TEXT_ANIMATIONS) {
-        client->text_anim_texts[idx] = malloc(strlen(text) + 1);
+        client->text_anim_texts[idx] = (char*)malloc(strlen(text) + 1);
         strcpy(client->text_anim_texts[idx], text);
 
         client->text_anim_x0[idx] = client->xe[cell] - MeasureText(text, font_size) / 2;
@@ -1108,9 +1113,9 @@ void draw_animation_spell(Tactical* env, Client* client) {
     }
 }
 
-int c_render(Tactical* env) {
+void puf_render(Tactical* env) {
     if (IsKeyDown(KEY_Q) || IsKeyDown(KEY_BACKSPACE)) {
-        return 1;  // close window
+        return;
     }
 
     if (env->client == NULL) {
@@ -1310,7 +1315,6 @@ int c_render(Tactical* env) {
     SetMouseCursor(cursor);
 
     EndDrawing();
-    return 0;
 }
 
 void close_client(Client* client) {

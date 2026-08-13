@@ -20,8 +20,6 @@ int main(void) {
     dict_set(&kwargs, "patch_density", 0.001);
     dict_set(&kwargs, "electric_field_radius", 15);
     dict_set(&kwargs, "reflection_wall_range", 100);
-    dict_set(&kwargs, "field_fish_range", 100);
-    dict_set(&kwargs, "field_food_range", 5);
     dict_set(&kwargs, "episode_length", 512);
 
     Wef env = {0};
