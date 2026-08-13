@@ -173,6 +173,11 @@ pufferlib/ocean/impulse_wars/benchmark/
 resources/drive/data/*
 resources/drive/binaries/*
 
+# Pretrained weights live on puffer.ai; fetched on first load
+resources/**/*weights*.bin
+resources/onlyfish/danadvantage.bin
+resources/onlyfish/lonelypuff.bin
+
 
 # Local refactor baselines (not for commit)
 .refactor-snapshots/
