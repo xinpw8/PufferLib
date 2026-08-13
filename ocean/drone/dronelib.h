@@ -39,10 +39,10 @@
 #define MARGIN_X (GRID_X - 1)
 #define MARGIN_Y (GRID_Y - 1)
 #define MARGIN_Z (GRID_Z - 1)
-#define RING_RADIUS 2.0f
+#define RING_RADIUS 0.5f
 #define V_TARGET 0.05f
 
-#define DRONE_OBS_SIZE 19
+#define DRONE_OBS_SIZE 21
 
 // Core Parameters
 #define DT 0.002f // 500 Hz
@@ -85,14 +85,6 @@ typedef struct {
 } State;
 
 typedef struct {
-    Vec3 vel;
-    Vec3 v_dot;
-    Quat q_dot;
-    Vec3 w_dot;
-    float rpm_dot[4];
-} StateDerivative;
-
-typedef struct {
     float mass;
     float ixx;
     float iyy;
@@ -107,12 +99,19 @@ typedef struct {
     float max_vel;
     float max_omega;
     float k_mot;
+
+    float inv_mass;
+    float inv_ixx;
+    float inv_iyy;
+    float inv_izz;
+    float inv_k_mot;
 } Params;
 
 typedef struct {
     State state;
     Params params;
     Vec3 prev_pos;
+    float prev_action[4];
     Target* target;
 
     float episode_return;
@@ -135,21 +134,8 @@ static inline Vec3 add3(Vec3 a, Vec3 b) { return (Vec3){a.x + b.x, a.y + b.y, a.
 static inline Vec3 sub3(Vec3 a, Vec3 b) { return (Vec3){a.x - b.x, a.y - b.y, a.z - b.z}; }
 static inline Vec3 scalmul3(Vec3 a, float b) { return (Vec3){a.x * b, a.y * b, a.z * b}; }
 
-static inline Quat add_quat(Quat a, Quat b) {
-    return (Quat){a.w + b.w, a.x + b.x, a.y + b.y, a.z + b.z};
-}
-static inline Quat scalmul_quat(Quat a, float b) {
-    return (Quat){a.w * b, a.x * b, a.y * b, a.z * b};
-}
-
 static inline float dot3(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
 static inline float norm3(Vec3 a) { return sqrtf(dot3(a, a)); }
-
-static inline void clamp3(Vec3* vec, float min, float max) {
-    vec->x = clampf(vec->x, min, max);
-    vec->y = clampf(vec->y, min, max);
-    vec->z = clampf(vec->z, min, max);
-}
 
 static inline void clamp4(float a[4], float min, float max) {
     a[0] = clampf(a[0], min, max);
@@ -165,16 +151,6 @@ static inline Quat quat_mul(Quat q1, Quat q2) {
     out.y = q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x;
     out.z = q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w;
     return out;
-}
-
-static inline void quat_normalize(Quat* q) {
-    float n = sqrtf(q->w * q->w + q->x * q->x + q->y * q->y + q->z * q->z);
-    if (n > 0.0f) {
-        q->w /= n;
-        q->x /= n;
-        q->y /= n;
-        q->z /= n;
-    }
 }
 
 static inline Vec3 quat_rotate(Quat q, Vec3 v) {
@@ -196,12 +172,6 @@ static inline Quat rndquat(unsigned int* rng) {
     return (Quat){s1 * sinf(a), s1 * cosf(a), s2 * sinf(b), s2 * cosf(b)};
 }
 
-static inline Quat quat_from_axis_angle(Vec3 axis, float angle) {
-    float half = angle * 0.5f;
-    float s = sinf(half);
-    return (Quat){cosf(half), axis.x * s, axis.y * s, axis.z * s};
-}
-
 static inline Target rndring(unsigned int* rng, float radius) {
     Target ring = (Target){0};
     ring.pos.x = rndf(-GRID_X + 2 * radius, GRID_X - 2 * radius, rng);
@@ -221,17 +191,15 @@ static inline Vec3 random_pos(unsigned int* rng) {
     };
 }
 
-// physics
+static inline bool out_of_bounds(Vec3 p, float scale) {
+    return fabsf(p.x) > GRID_X * scale || fabsf(p.y) > GRID_Y * scale ||
+           fabsf(p.z) > GRID_Z * scale;
+}
+
+// params
 
 static inline float rpm_hover(const Params* p) {
     return sqrtf((p->mass * p->gravity) / (4.0f * p->k_thrust));
-}
-
-static inline float rpm_min_for_centered_hover(const Params* p) {
-    float min_rpm = 2.0f * rpm_hover(p) - p->max_rpm;
-    if (min_rpm < 0.0f) min_rpm = 0.0f;
-    if (min_rpm > p->max_rpm) min_rpm = p->max_rpm;
-    return min_rpm;
 }
 
 static inline void init_drone(Drone* drone, unsigned int* rng, float dr) {
@@ -250,6 +218,12 @@ static inline void init_drone(Drone* drone, unsigned int* rng, float dr) {
     drone->params.max_omega = BASE_MAX_OMEGA;
     drone->params.k_mot = BASE_K_MOT * rndf(1.0f - dr, 1.0f + dr, rng);
 
+    drone->params.inv_mass = 1.0f / drone->params.mass;
+    drone->params.inv_ixx = 1.0f / drone->params.ixx;
+    drone->params.inv_iyy = 1.0f / drone->params.iyy;
+    drone->params.inv_izz = 1.0f / drone->params.izz;
+    drone->params.inv_k_mot = 1.0f / drone->params.k_mot;
+
     float hover = rpm_hover(&drone->params);
     for (int i = 0; i < 4; i++)
         drone->state.rpms[i] = hover;
@@ -261,119 +235,9 @@ static inline void init_drone(Drone* drone, unsigned int* rng, float dr) {
     drone->state.quat = (Quat){1, 0, 0, 0};
 }
 
-static inline void compute_derivatives(State* state, Params* params, float* actions,
-                                       StateDerivative* d) {
-    float min_rpm = rpm_min_for_centered_hover(params);
-
-    float target_rpms[4];
-    for (int i = 0; i < 4; i++) {
-        float u = (actions[i] + 1.0f) * 0.5f;
-        target_rpms[i] = min_rpm + u * (params->max_rpm - min_rpm);
-    }
-
-    for (int i = 0; i < 4; i++)
-        d->rpm_dot[i] = (1.0f / params->k_mot) * (target_rpms[i] - state->rpms[i]);
-
-    float T[4];
-    for (int i = 0; i < 4; i++) {
-        float rpm = state->rpms[i] < 0.0f ? 0.0f : state->rpms[i];
-        T[i] = params->k_thrust * rpm * rpm;
-    }
-
-    Vec3 F_prop = quat_rotate(state->quat, (Vec3){0, 0, T[0] + T[1] + T[2] + T[3]});
-
-    d->vel = state->vel;
-    d->v_dot = (Vec3){
-        (F_prop.x - params->b_drag * state->vel.x) / params->mass,
-        (F_prop.y - params->b_drag * state->vel.y) / params->mass,
-        ((F_prop.z - params->b_drag * state->vel.z) / params->mass) - params->gravity,
-    };
-
-    Quat omega_q = (Quat){0, state->omega.x, state->omega.y, state->omega.z};
-    d->q_dot = scalmul_quat(quat_mul(state->quat, omega_q), 0.5f);
-
-    float af = params->arm_len / sqrtf(2.0f);
-    Vec3 tau_prop = {
-        af * ((T[2] + T[3]) - (T[0] + T[1])),
-        af * ((T[1] + T[2]) - (T[0] + T[3])),
-        params->k_drag * (-T[0] + T[1] - T[2] + T[3]),
-    };
-    Vec3 tau_aero = scalmul3(state->omega, -params->k_ang_damp);
-    Vec3 tau_iner = {
-        (params->iyy - params->izz) * state->omega.y * state->omega.z,
-        (params->izz - params->ixx) * state->omega.z * state->omega.x,
-        (params->ixx - params->iyy) * state->omega.x * state->omega.y,
-    };
-
-    d->w_dot = (Vec3){
-        (tau_prop.x + tau_aero.x + tau_iner.x) / params->ixx,
-        (tau_prop.y + tau_aero.y + tau_iner.y) / params->iyy,
-        (tau_prop.z + tau_aero.z + tau_iner.z) / params->izz,
-    };
-}
-
-static inline void step(State* s, StateDerivative* d, float dt, State* out) {
-    out->pos = add3(s->pos, scalmul3(d->vel, dt));
-    out->vel = add3(s->vel, scalmul3(d->v_dot, dt));
-    out->quat = add_quat(s->quat, scalmul_quat(d->q_dot, dt));
-    out->omega = add3(s->omega, scalmul3(d->w_dot, dt));
-    for (int i = 0; i < 4; i++)
-        out->rpms[i] = s->rpms[i] + d->rpm_dot[i] * dt;
-    quat_normalize(&out->quat);
-}
-
-static inline void rk4_step(State* state, Params* params, float* actions, float dt) {
-    StateDerivative k1, k2, k3, k4;
-    State tmp;
-
-    compute_derivatives(state, params, actions, &k1);
-    step(state, &k1, dt * 0.5f, &tmp);
-    compute_derivatives(&tmp, params, actions, &k2);
-    step(state, &k2, dt * 0.5f, &tmp);
-    compute_derivatives(&tmp, params, actions, &k3);
-    step(state, &k3, dt, &tmp);
-    compute_derivatives(&tmp, params, actions, &k4);
-
-    float dt6 = dt / 6.0f;
-
-    state->pos.x += (k1.vel.x + 2 * k2.vel.x + 2 * k3.vel.x + k4.vel.x) * dt6;
-    state->pos.y += (k1.vel.y + 2 * k2.vel.y + 2 * k3.vel.y + k4.vel.y) * dt6;
-    state->pos.z += (k1.vel.z + 2 * k2.vel.z + 2 * k3.vel.z + k4.vel.z) * dt6;
-
-    state->vel.x += (k1.v_dot.x + 2 * k2.v_dot.x + 2 * k3.v_dot.x + k4.v_dot.x) * dt6;
-    state->vel.y += (k1.v_dot.y + 2 * k2.v_dot.y + 2 * k3.v_dot.y + k4.v_dot.y) * dt6;
-    state->vel.z += (k1.v_dot.z + 2 * k2.v_dot.z + 2 * k3.v_dot.z + k4.v_dot.z) * dt6;
-
-    state->quat.w += (k1.q_dot.w + 2 * k2.q_dot.w + 2 * k3.q_dot.w + k4.q_dot.w) * dt6;
-    state->quat.x += (k1.q_dot.x + 2 * k2.q_dot.x + 2 * k3.q_dot.x + k4.q_dot.x) * dt6;
-    state->quat.y += (k1.q_dot.y + 2 * k2.q_dot.y + 2 * k3.q_dot.y + k4.q_dot.y) * dt6;
-    state->quat.z += (k1.q_dot.z + 2 * k2.q_dot.z + 2 * k3.q_dot.z + k4.q_dot.z) * dt6;
-
-    state->omega.x += (k1.w_dot.x + 2 * k2.w_dot.x + 2 * k3.w_dot.x + k4.w_dot.x) * dt6;
-    state->omega.y += (k1.w_dot.y + 2 * k2.w_dot.y + 2 * k3.w_dot.y + k4.w_dot.y) * dt6;
-    state->omega.z += (k1.w_dot.z + 2 * k2.w_dot.z + 2 * k3.w_dot.z + k4.w_dot.z) * dt6;
-
-    for (int i = 0; i < 4; i++)
-        state->rpms[i] +=
-            (k1.rpm_dot[i] + 2 * k2.rpm_dot[i] + 2 * k3.rpm_dot[i] + k4.rpm_dot[i]) * dt6;
-
-    quat_normalize(&state->quat);
-}
-
-static inline void move_drone(Drone* drone, float* actions) {
-    clamp4(actions, -1.0f, 1.0f);
-    for (int s = 0; s < ACTION_SUBSTEPS; s++) {
-        rk4_step(&drone->state, &drone->params, actions, DT);
-        clamp3(&drone->state.vel, -drone->params.max_vel, drone->params.max_vel);
-        clamp3(&drone->state.omega, -drone->params.max_omega, drone->params.max_omega);
-        for (int i = 0; i < 4; i++)
-            drone->state.rpms[i] = clampf(drone->state.rpms[i], 0.0f, drone->params.max_rpm);
-    }
-}
-
 // observations
 
-void compute_drone_observations(Drone* agent, float* observations) {
+void compute_drone_observations(Drone* agent, float* observations, bool is_race) {
     int idx = 0;
     Quat q = agent->state.quat;
     Quat q_inv = quat_inverse(q);
@@ -408,4 +272,7 @@ void compute_drone_observations(Drone* agent, float* observations) {
     observations[idx++] = normal_body.x;
     observations[idx++] = normal_body.y;
     observations[idx++] = normal_body.z;
+
+    observations[idx++] = is_race ? 0.0f : 1.0f;
+    observations[idx++] = is_race ? 1.0f : 0.0f;
 }
