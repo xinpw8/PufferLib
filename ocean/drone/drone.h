@@ -1,9 +1,12 @@
 // Originally made by Sam Turner and Finlay Sanders, 2025.
 // Included in pufferlib under the original project's MIT license.
 // https://github.com/tensaur/drone
+//
+// 5c API port of Fin's multitask drone (PR #599 / FinlaySanders/4.0).
 
 #pragma once
 
+#include <assert.h>
 #include <limits.h>
 #include <math.h>
 #include <stdbool.h>
@@ -11,20 +14,28 @@
 #include <string.h>
 
 #include "dronelib.h"
+#include "physics.h"
 #include "pufferenv.h"
 
-#define HORIZON 1024
-#define ACT_SIZES {1, 1, 1, 1}
+// 5c API surface (pufferl / puffercpu)
 #define OBS_SIZE DRONE_OBS_SIZE
 #define NUM_ATNS 4
-#define MAX_DRONES 128
+#define ACT_SIZES {1, 1, 1, 1}
+#define MAX_DRONES 256
+
+typedef float obs_t;
 
 typedef Env DroneEnv;
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
+
+typedef enum {
+    TASK_HOVER = 0,
+    TASK_RACE = 1,
+    TASK_SPHERE = 2,
+    TASK_CUBE = 3,
+    TASK_FLAG = 4,
+} TaskType;
+
+#define NUM_TASKS 5
 
 typedef struct {
     float dist;
@@ -33,77 +44,73 @@ typedef struct {
     float omega;
 } StepCache;
 
-#define MAX_TASK_LOG_ENTRIES 16
+typedef struct {
+    float n;
+    float perf;
+    float score;
+    float keys[4];
+} TaskLog;
 
 typedef struct Log Log;
 struct Log {
-    float score;
     float perf;
+    float score;
     float episode_return;
     float episode_length;
-    float task[MAX_TASK_LOG_ENTRIES];
+    TaskLog task[NUM_TASKS];
     float n;
 };
 
-static inline void log_task_add(Log* log, int idx, float value) {
-    if (idx < 0 || idx >= MAX_TASK_LOG_ENTRIES) return;
-    log->task[idx] += value;
-}
-
 typedef struct Client Client;
 
-typedef struct {
-    const char* name;
-    const char* log_keys[MAX_TASK_LOG_ENTRIES];
-    int num_log_keys;
-
-    void (*init)(DroneEnv* env);
-    void (*close)(DroneEnv* env);
-    void (*env_reset)(DroneEnv* env);
-    void (*reset)(DroneEnv* env, Drone* agent, int idx);
-    float (*reward)(DroneEnv* env, Drone* agent, int idx, StepCache* cache);
-    bool (*done)(DroneEnv* env, Drone* agent, int idx, StepCache* cache);
-
-    void (*log)(DroneEnv* env, Drone* agent, int idx, Log* log, StepCache* cache);
-    void (*render)(DroneEnv* env, Client* client);
-} Task;
-
 struct Env {
+    Client* client;
     Agent agents[MAX_DRONES];
     int num_agents;
     int tag;
     int boundary_reached;
     unsigned int rng;
 
-    int tick;
     Drone* drones;
+    // Host-only SIMD kernel. void* so Env stays CUDA-device-safe (no GCC vectors).
+    void* physics;
     Log log;
 
-    const Task* task;
+    TaskType task;
     void* task_config;
     void* task_state;
 
-    Client* client;
+    // Shared reward shaping
+    float alpha_vel;
+    float alpha_omega;
+    float alpha_action;
+
+    // Domain randomisation
+    float dr;
+
+    // Physics integrator (0=RK4, 1=RK2)
+    int integrator;
 };
 
-void compute_observations(DroneEnv* env) {
-    for (int i = 0; i < env->num_agents; i++)
-        compute_drone_observations(&env->drones[i], (float*)env->agents[i].observations);
-}
+// Task sampling fractions (set in puf_init for puf_log episode_frac keys)
+static float task_fracs[NUM_TASKS];
 
-void reset_agent_base(Drone* agent, unsigned int* rng) {
-    Target* target = agent->target;
-    memset(agent, 0, sizeof(Drone));
-    agent->target = target;
-    init_drone(agent, rng, 0.05f);
-}
+// Forward decls used by tasks / render before includes
+void reset_agent(DroneEnv* env, int idx);
+void puf_close(DroneEnv* env);
+void close_client(Client* client);
+
+#include "tasklib.h"
 
 void init(DroneEnv* env) {
+    assert(env->num_agents > 0 && env->num_agents <= MAX_DRONES);
     env->drones = (Drone*)calloc(env->num_agents, sizeof(Drone));
     for (int i = 0; i < env->num_agents; i++)
         env->drones[i].target = (Target*)calloc(1, sizeof(Target));
+
+    env->physics = calloc(1, sizeof(Physics));
+    physics_init((Physics*)env->physics, env->num_agents, env->integrator);
     env->log = (Log){0};
-    env->tick = 0;
 }
 
 void add_log(DroneEnv* env, int idx, StepCache* cache) {
@@ -111,41 +118,76 @@ void add_log(DroneEnv* env, int idx, StepCache* cache) {
     env->log.episode_return += agent->episode_return;
     env->log.episode_length += agent->episode_length;
     env->log.n += 1.0f;
+    task_log(env, agent, idx, &env->log, cache);
+}
 
-    if (env->task->log) env->task->log(env, agent, idx, &env->log, cache);
+void reset_agent(DroneEnv* env, int idx) {
+    Drone* agent = &env->drones[idx];
+    Target* target = agent->target;
+    memset(agent, 0, sizeof(Drone));
+    agent->target = target;
+
+    init_drone(agent, &env->rng, env->dr);
+    task_reset(env, agent, idx);
+    physics_set_drone((Physics*)env->physics, idx, &agent->params, &agent->state);
+    agent->prev_pos = agent->state.pos;
+}
+
+void compute_observations(DroneEnv* env) {
+    bool is_race = (env->task == TASK_RACE);
+    for (int i = 0; i < env->num_agents; i++)
+        compute_drone_observations(&env->drones[i],
+            (float*)env->agents[i].observations, is_race);
+}
+
+// Contiguous action buffer base (pufferl/puffercpu layout agents[i] stride NUM_ATNS)
+static inline float* drone_actions_base(DroneEnv* env) {
+    return env->agents[0].actions;
 }
 
 void puf_reset(DroneEnv* env) {
-    if (env->task->env_reset) env->task->env_reset(env);
-
+    task_env_reset(env);
     for (int i = 0; i < env->num_agents; i++) {
-        Drone* agent = &env->drones[i];
-        reset_agent_base(agent, &env->rng);
-        env->task->reset(env, agent, i);
-        agent->prev_pos = agent->state.pos;
+        reset_agent(env, i);
+        if (env->agents[i].terminals) env->agents[i].terminals[0] = 0.0f;
+        if (env->agents[i].rewards) env->agents[i].rewards[0] = 0.0f;
     }
-
     compute_observations(env);
 }
 
 void puf_step(DroneEnv* env) {
-    env->tick = (env->tick + 1) % HORIZON;
+    for (int i = 0; i < env->num_agents; i++)
+        env->drones[i].prev_pos = env->drones[i].state.pos;
+
+    physics_step((Physics*)env->physics, drone_actions_base(env));
 
     for (int i = 0; i < env->num_agents; i++) {
         Drone* agent = &env->drones[i];
-
-        agent->prev_pos = agent->state.pos;
-        move_drone(agent, env->agents[i].actions);
+        float* action = env->agents[i].actions;
         agent->episode_length++;
 
+        agent->state = physics_get_state((Physics*)env->physics, i);
         StepCache cache;
-        cache.prev_dist = norm3(sub3(agent->target->pos, agent->prev_pos));
         cache.dist = norm3(sub3(agent->target->pos, agent->state.pos));
+        cache.prev_dist = norm3(sub3(agent->target->pos, agent->prev_pos));
         cache.vel = norm3(agent->state.vel);
         cache.omega = norm3(agent->state.omega);
 
-        float reward = env->task->reward(env, agent, i, &cache);
-        bool done = env->task->done(env, agent, i, &cache);
+        float reward = task_reward(env, agent, i, &cache);
+        reward -= env->alpha_vel * cache.vel;
+        reward -= env->alpha_omega * cache.omega;
+
+        if (agent->episode_length > 1) {
+            float da = 0.0f;
+            for (int k = 0; k < 4; k++) {
+                float d = action[k] - agent->prev_action[k];
+                da += d * d;
+            }
+            reward -= env->alpha_action * da;
+        }
+        for (int k = 0; k < 4; k++) agent->prev_action[k] = action[k];
+
+        bool done = task_done(env, agent, i, &cache);
 
         agent->episode_return += reward;
         env->agents[i].rewards[0] = reward;
@@ -153,90 +195,176 @@ void puf_step(DroneEnv* env) {
 
         if (done) {
             add_log(env, i, &cache);
-            reset_agent_base(agent, &env->rng);
-            env->task->reset(env, agent, i);
-            agent->prev_pos = agent->state.pos;
+            reset_agent(env, i);
         }
     }
 
     compute_observations(env);
 }
 
-void c_close_client(Client* client);
-
 void puf_close(DroneEnv* env) {
-    if (env->task != NULL && env->task->close != NULL) env->task->close(env);
+    task_close(env);
 
-    for (int i = 0; i < env->num_agents; i++)
-        free(env->drones[i].target);
-    free(env->drones);
+    if (env->drones != NULL) {
+        for (int i = 0; i < env->num_agents; i++)
+            free(env->drones[i].target);
+        free(env->drones);
+        env->drones = NULL;
+    }
+    if (env->physics != NULL) {
+        physics_close((Physics*)env->physics);
+        free(env->physics);
+        env->physics = NULL;
+    }
 
-    if (env->client != NULL) c_close_client(env->client);
+    if (env->client != NULL) {
+        close_client(env->client);
+        env->client = NULL;
+    }
 }
-#include "render.h"
-#include "task_hover.h"
-#include "task_race.h"
 
-static const Task* DRONE_LOG_TASK = NULL;
-
-static void drone_hover_config(DroneEnv* env, Dict* kwargs) {
+static void hover_config(DroneEnv* env, Dict* kwargs) {
     HoverConfig* cfg = (HoverConfig*)calloc(1, sizeof(HoverConfig));
-    cfg->target_dist = dict_get(kwargs, "hover_target_dist");
-    cfg->hover_dist = dict_get(kwargs, "hover_dist");
-    cfg->hover_omega = dict_get(kwargs, "hover_omega");
-    cfg->hover_vel = dict_get(kwargs, "hover_vel");
-    cfg->alpha_dist = dict_get(kwargs, "alpha_dist");
-    cfg->alpha_hover = dict_get(kwargs, "alpha_hover");
-    cfg->alpha_shaping = dict_get(kwargs, "alpha_shaping");
-    cfg->alpha_omega = dict_get(kwargs, "alpha_omega");
+    cfg->target_dist = (float)dict_get(kwargs, "hover_target_dist");
+    cfg->alpha_hover = (float)dict_get(kwargs, "alpha_hover");
+    cfg->alpha_dist = (float)dict_get(kwargs, "hover_alpha_dist");
+    cfg->sphere_radius = (float)dict_get(kwargs, "sphere_radius");
+    cfg->horizon = (int)dict_get(kwargs, "hover_horizon");
     env->task_config = cfg;
 }
 
-static void drone_race_config(DroneEnv* env, Dict* kwargs) {
+static void race_config(DroneEnv* env, Dict* kwargs) {
     RaceConfig* cfg = (RaceConfig*)calloc(1, sizeof(RaceConfig));
-    cfg->max_rings = dict_get(kwargs, "max_rings");
-    cfg->ring_reward = dict_get(kwargs, "ring_reward");
-    cfg->collision_penalty = dict_get(kwargs, "collision_penalty");
-    cfg->time_penalty = dict_get(kwargs, "time_penalty");
-    cfg->alpha_dist = dict_get(kwargs, "alpha_dist");
+    cfg->max_rings = (int)dict_get(kwargs, "max_rings");
+    cfg->ring_reward = (float)dict_get(kwargs, "ring_reward");
+    cfg->alpha_dist = (float)dict_get(kwargs, "race_alpha_dist");
+    cfg->horizon = (int)dict_get(kwargs, "race_horizon");
     env->task_config = cfg;
 }
 
 void puf_init(Env* env, Dict* kwargs) {
-    env->num_agents = dict_get(kwargs, "num_drones");
-    if (env->num_agents > MAX_DRONES) {
-        fprintf(stderr, "drone: num_drones too large\n");
+    env->num_agents = (int)dict_get(kwargs, "num_drones");
+    if (env->num_agents <= 0 || env->num_agents > MAX_DRONES) {
+        fprintf(stderr, "drone: num_drones=%d out of range (1..%d)\n",
+                env->num_agents, MAX_DRONES);
         exit(1);
     }
-    int task = dict_get(kwargs, "task");
-    if (task == 1) {
-        env->task = &TASK_RACE;
-        drone_race_config(env, kwargs);
+
+    env->alpha_vel = (float)dict_get(kwargs, "alpha_vel");
+    env->alpha_omega = (float)dict_get(kwargs, "alpha_omega");
+    env->alpha_action = (float)dict_get(kwargs, "alpha_action");
+    env->dr = (float)dict_get(kwargs, "dr");
+    env->integrator = (int)dict_get(kwargs, "use_rk2");
+
+    task_fracs[TASK_HOVER] = (float)dict_get(kwargs, "hover_frac");
+    task_fracs[TASK_RACE] = (float)dict_get(kwargs, "race_frac");
+    task_fracs[TASK_SPHERE] = (float)dict_get(kwargs, "sphere_frac");
+    task_fracs[TASK_CUBE] = (float)dict_get(kwargs, "cube_frac");
+    task_fracs[TASK_FLAG] = (float)dict_get(kwargs, "flag_frac");
+
+    float total = 0.0f;
+    for (int t = 0; t < NUM_TASKS; t++) total += task_fracs[t];
+    if (total <= 0.0f) total = 1.0f;
+
+    // Deterministic per-env task assignment from rng seed index (Fin binding)
+    int idx = (int)env->rng;
+    float cum = 0.0f;
+    env->task = TASK_HOVER;
+    for (int t = 0; t < NUM_TASKS; t++) {
+        cum += task_fracs[t] / total;
+        if ((int)floorf((idx + 1) * cum) > (int)floorf(idx * cum)) {
+            env->task = (TaskType)t;
+            break;
+        }
+    }
+
+    if (env->task == TASK_RACE) {
+        race_config(env, kwargs);
     } else {
-        env->task = &TASK_HOVER;
-        drone_hover_config(env, kwargs);
+        hover_config(env, kwargs);
     }
-    env->task->init(env);
-    if (DRONE_LOG_TASK != NULL && DRONE_LOG_TASK != env->task) {
-        fprintf(stderr, "drone: multi-task mix not supported in log\n");
-        exit(1);
-    }
-    DRONE_LOG_TASK = env->task;
+
     for (int i = 0; i < env->num_agents; i++) {
         env->agents[i].policy = 0;
         env->agents[i].action_mask = NULL;
     }
+
+    task_init(env);
     init(env);
 }
 
+static inline float task_avg(float sum, float n) { return n > 0.0f ? sum / n : 0.0f; }
+
 void puf_log(Log* log, Dict* out) {
-    dict_set(out, "perf", log->perf);
-    dict_set(out, "score", log->score);
+    static int first = 1;
+
+    float perf = 0.0f, score = 0.0f;
+    int active = 0;
+    for (int t = 0; t < NUM_TASKS; t++) {
+        float n = log->task[t].n;
+        if (n <= 0.0f) continue;
+        perf += log->task[t].perf / n;
+        score += log->task[t].score / n;
+        active++;
+    }
+    dict_set(out, "perf", active > 0 ? perf / active : 0.0f);
+    dict_set(out, "score", active > 0 ? score / active : 0.0f);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
-    if (DRONE_LOG_TASK != NULL) {
-        for (int i = 0; i < DRONE_LOG_TASK->num_log_keys; i++)
-            dict_set(out, DRONE_LOG_TASK->log_keys[i], log->task[i]);
+
+    if (log->task[TASK_HOVER].n > 0.0f || (first && task_fracs[TASK_HOVER] > 0.0f)) {
+        TaskLog* h = &log->task[TASK_HOVER];
+        dict_set(out, "hover/perf", task_avg(h->perf, h->n));
+        dict_set(out, "hover/score", task_avg(h->score, h->n));
+        dict_set(out, "hover/ema_dist", task_avg(h->keys[0], h->n));
+        dict_set(out, "hover/ema_vel", task_avg(h->keys[1], h->n));
+        dict_set(out, "hover/ema_omega", task_avg(h->keys[2], h->n));
+        dict_set(out, "hover/oob", task_avg(h->keys[3], h->n));
+        dict_set(out, "hover/episode_frac", h->n);
     }
+    if (log->task[TASK_RACE].n > 0.0f || (first && task_fracs[TASK_RACE] > 0.0f)) {
+        TaskLog* r = &log->task[TASK_RACE];
+        dict_set(out, "race/perf", task_avg(r->perf, r->n));
+        dict_set(out, "race/score", task_avg(r->score, r->n));
+        dict_set(out, "race/rings_passed", task_avg(r->keys[0], r->n));
+        dict_set(out, "race/ring_collisions", task_avg(r->keys[1], r->n));
+        dict_set(out, "race/completed", task_avg(r->keys[2], r->n));
+        dict_set(out, "race/oob", task_avg(r->keys[3], r->n));
+        dict_set(out, "race/episode_frac", r->n);
+    }
+    if (log->task[TASK_SPHERE].n > 0.0f || (first && task_fracs[TASK_SPHERE] > 0.0f)) {
+        TaskLog* s = &log->task[TASK_SPHERE];
+        dict_set(out, "sphere/perf", task_avg(s->perf, s->n));
+        dict_set(out, "sphere/score", task_avg(s->score, s->n));
+        dict_set(out, "sphere/ema_dist", task_avg(s->keys[0], s->n));
+        dict_set(out, "sphere/ema_vel", task_avg(s->keys[1], s->n));
+        dict_set(out, "sphere/ema_omega", task_avg(s->keys[2], s->n));
+        dict_set(out, "sphere/oob", task_avg(s->keys[3], s->n));
+        dict_set(out, "sphere/episode_frac", s->n);
+    }
+    if (log->task[TASK_CUBE].n > 0.0f || (first && task_fracs[TASK_CUBE] > 0.0f)) {
+        TaskLog* c = &log->task[TASK_CUBE];
+        dict_set(out, "cube/perf", task_avg(c->perf, c->n));
+        dict_set(out, "cube/score", task_avg(c->score, c->n));
+        dict_set(out, "cube/ema_dist", task_avg(c->keys[0], c->n));
+        dict_set(out, "cube/ema_vel", task_avg(c->keys[1], c->n));
+        dict_set(out, "cube/ema_omega", task_avg(c->keys[2], c->n));
+        dict_set(out, "cube/oob", task_avg(c->keys[3], c->n));
+        dict_set(out, "cube/episode_frac", c->n);
+    }
+    if (log->task[TASK_FLAG].n > 0.0f || (first && task_fracs[TASK_FLAG] > 0.0f)) {
+        TaskLog* f = &log->task[TASK_FLAG];
+        dict_set(out, "flag/perf", task_avg(f->perf, f->n));
+        dict_set(out, "flag/score", task_avg(f->score, f->n));
+        dict_set(out, "flag/ema_dist", task_avg(f->keys[0], f->n));
+        dict_set(out, "flag/ema_vel", task_avg(f->keys[1], f->n));
+        dict_set(out, "flag/ema_omega", task_avg(f->keys[2], f->n));
+        dict_set(out, "flag/oob", task_avg(f->keys[3], f->n));
+        dict_set(out, "flag/episode_frac", f->n);
+    }
+
+    first = 0;
 }
 
+// Rendering (defines Client, puf_render, close_client)
+#include "render.h"

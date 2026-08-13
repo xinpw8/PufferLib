@@ -3153,6 +3153,13 @@ static PuffeRL* eval_make(Ini* ini, TrainContext* ctx, int mode) {
     } else {
         char buf[4096];
         const char* path = puf_checkpoint_path_key(ini, "load_model_path", buf, sizeof(buf));
+        if (!path && render) {
+            snprintf(buf, sizeof(buf), "resources/%s/%s_weights.bin",
+                     PUFFER_ENV_NAME, PUFFER_ENV_NAME);
+            if (access(buf, R_OK) == 0) {
+                path = buf;
+            }
+        }
         if (path) {
             pufferl_load_policy(p, 0, path);
         }
@@ -3559,7 +3566,7 @@ int main(int argc, char** argv) {
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
     if (argc < 3) {
-        fprintf(stderr, "usage: %s train|eval|match|sweep ENV [section.key=value ...]\n", argv[0]);
+        fprintf(stderr, "usage: %s train|eval|render|match|sweep ENV [section.key=value ...]\n", argv[0]);
         exit(1);
     }
     int total_gpus = 0;
@@ -3577,10 +3584,12 @@ int main(int argc, char** argv) {
         run_sweep(&ini, argv[0]);
     } else if (strcmp(mode, "eval") == 0) {
         run_eval(&ini, &ctx, EVAL_SCORE, 1);
+    } else if (strcmp(mode, "render") == 0) {
+        run_eval(&ini, &ctx, EVAL_RENDER, 1);
     } else if (strcmp(mode, "match") == 0) {
         run_eval(&ini, &ctx, EVAL_MATCH, 1);
     } else {
-        assert(0 && "unknown mode (train|eval|match|sweep)");
+        assert(0 && "unknown mode (train|eval|render|match|sweep)");
     }
 
     puf_ini_free(&ini);

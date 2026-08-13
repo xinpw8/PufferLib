@@ -1,6 +1,7 @@
 #pragma once
 
 #include <immintrin.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -153,6 +154,73 @@ static inline int pva_read_f32(FILE* file, float* out) {
     return pva_read(out, sizeof(*out), file);
 }
 
+/* Flat face normals from current triangle verts (PVA meshes are de-indexed). */
+static inline void pva_compute_flat_normals(Mesh* mesh) {
+    if (mesh == NULL || mesh->vertices == NULL || mesh->normals == NULL) {
+        return;
+    }
+
+    int tri_count = mesh->triangleCount;
+    for (int t = 0; t < tri_count; t++) {
+        int base = t * 9;
+        float ax = mesh->vertices[base + 3] - mesh->vertices[base + 0];
+        float ay = mesh->vertices[base + 4] - mesh->vertices[base + 1];
+        float az = mesh->vertices[base + 5] - mesh->vertices[base + 2];
+        float bx = mesh->vertices[base + 6] - mesh->vertices[base + 0];
+        float by = mesh->vertices[base + 7] - mesh->vertices[base + 1];
+        float bz = mesh->vertices[base + 8] - mesh->vertices[base + 2];
+        float nx = ay * bz - az * by;
+        float ny = az * bx - ax * bz;
+        float nz = ax * by - ay * bx;
+        float len = sqrtf(nx * nx + ny * ny + nz * nz);
+        if (len > 1e-12f) {
+            nx /= len;
+            ny /= len;
+            nz /= len;
+        } else {
+            nx = 0.0f;
+            ny = 1.0f;
+            nz = 0.0f;
+        }
+        for (int k = 0; k < 3; k++) {
+            mesh->normals[base + k * 3 + 0] = nx;
+            mesh->normals[base + k * 3 + 1] = ny;
+            mesh->normals[base + k * 3 + 2] = nz;
+        }
+    }
+}
+
+/*
+ * Drop baked export shading so materials provide flat albedo and runtime
+ * lighting can do the rest (low-poly / Unity-default style).
+ */
+static inline void pva_use_flat_albedo(PvaClip* clip) {
+    if (clip == NULL) {
+        return;
+    }
+
+    for (int i = 0; i < clip->mesh_count; i++) {
+        Mesh* mesh = &clip->model.meshes[i];
+        if (mesh->colors == NULL) {
+            mesh->colors = (unsigned char*)calloc((size_t)mesh->vertexCount * 4,
+                sizeof(unsigned char));
+        }
+        if (mesh->colors == NULL) {
+            continue;
+        }
+        for (int v = 0; v < mesh->vertexCount; v++) {
+            mesh->colors[v * 4 + 0] = 255;
+            mesh->colors[v * 4 + 1] = 255;
+            mesh->colors[v * 4 + 2] = 255;
+            mesh->colors[v * 4 + 3] = 255;
+        }
+        if (mesh->vboId != NULL) {
+            UpdateMeshBuffer(*mesh, 3, mesh->colors,
+                mesh->vertexCount * 4 * (int)sizeof(unsigned char), 0);
+        }
+    }
+}
+
 static inline void pva_set_mesh_frame(Mesh* mesh, PvaMeshClip* clip,
         int frame, int update_gpu) {
     int count = clip->vertex_count * 3;
@@ -166,9 +234,15 @@ static inline void pva_set_mesh_frame(Mesh* mesh, PvaMeshClip* clip,
         }
     }
 
+    /* Exporters currently bake lighting into colors and omit normals. Rebuild
+     * face normals from the deformed frame so runtime shaders can light it. */
+    if (normal == NULL && mesh->normals != NULL) {
+        pva_compute_flat_normals(mesh);
+    }
+
     if (update_gpu) {
         UpdateMeshBuffer(*mesh, 0, mesh->vertices, count * (int)sizeof(float), 0);
-        if (normal != NULL && mesh->normals != NULL) {
+        if (mesh->normals != NULL) {
             UpdateMeshBuffer(*mesh, 2, mesh->normals, count * (int)sizeof(float), 0);
         }
     }
@@ -266,17 +340,15 @@ static inline PvaClip* pva_load_clip(const char* path) {
             return NULL;
         }
         clip->model.materials[i] = LoadMaterialDefault();
-        if ((flags & PVA_FLAG_COLORS) != 0) {
-            clip->model.materials[i].maps[MATERIAL_MAP_DIFFUSE].color = WHITE;
-        } else {
-            Color material_color = {
-                (unsigned char)(pva_clamp(color[0], 0.0f, 1.0f) * 255.0f),
-                (unsigned char)(pva_clamp(color[1], 0.0f, 1.0f) * 255.0f),
-                (unsigned char)(pva_clamp(color[2], 0.0f, 1.0f) * 255.0f),
-                (unsigned char)(pva_clamp(color[3], 0.0f, 1.0f) * 255.0f),
-            };
-            clip->model.materials[i].maps[MATERIAL_MAP_DIFFUSE].color = material_color;
-        }
+        /* Keep base albedo even when vertex colors are present (baked shade).
+         * Runtime lighting paths can flatten vertex colors and use this. */
+        Color material_color = {
+            (unsigned char)(pva_clamp(color[0], 0.0f, 1.0f) * 255.0f),
+            (unsigned char)(pva_clamp(color[1], 0.0f, 1.0f) * 255.0f),
+            (unsigned char)(pva_clamp(color[2], 0.0f, 1.0f) * 255.0f),
+            (unsigned char)(pva_clamp(color[3], 0.0f, 1.0f) * 255.0f),
+        };
+        clip->model.materials[i].maps[MATERIAL_MAP_DIFFUSE].color = material_color;
     }
 
     for (uint32_t i = 0; i < mesh_count; i++) {
@@ -307,15 +379,14 @@ static inline PvaClip* pva_load_clip(const char* path) {
         mesh->triangleCount = (int)triangle_count;
         mesh->vertices = (float*)calloc((size_t)vertex_count * 3, sizeof(float));
         mesh->texcoords = (float*)calloc((size_t)vertex_count * 2, sizeof(float));
-        if ((flags & PVA_FLAG_NORMALS) != 0) {
-            mesh->normals = (float*)calloc((size_t)vertex_count * 3, sizeof(float));
-        }
+        /* Always allocate normals: either load per-frame half-floats or rebuild
+         * flat face normals after each pose for runtime lighting. */
+        mesh->normals = (float*)calloc((size_t)vertex_count * 3, sizeof(float));
         if ((flags & PVA_FLAG_COLORS) != 0) {
             mesh->colors = (unsigned char*)calloc((size_t)vertex_count * 4, sizeof(unsigned char));
         }
 
-        if (mesh->vertices == NULL || mesh->texcoords == NULL ||
-                ((flags & PVA_FLAG_NORMALS) != 0 && mesh->normals == NULL) ||
+        if (mesh->vertices == NULL || mesh->texcoords == NULL || mesh->normals == NULL ||
                 ((flags & PVA_FLAG_COLORS) != 0 && mesh->colors == NULL) ||
                 !pva_read(mesh->texcoords, (size_t)vertex_count * 2 * sizeof(float), file)) {
             fclose(file);
