@@ -302,9 +302,6 @@ typedef struct {
     int num_layers;
     float lr;
     float min_lr_ratio;
-    float verb_eps;
-    float verb_eps_anneal_start;
-    float verb_eps_anneal_end;
     bool anneal_lr;
     float momentum;
     // Muon-Rel: per-mb post-Ortho lr *= √(1-β2^t)/(1-μ^t), t=mb+1 local to epoch.
@@ -637,10 +634,7 @@ __global__ void sample_logits(
         precision_t* value_out,               // (B,)
         curandStatePhilox4_32_10_t* rng_states,
         precision_t* action_mask,             // (B, A_total); always allocated
-        int mask_stride,                      // 0 when unused
-        const signed char* head_consume,      // (nverbs, num_atns) or NULL
-        int hc_stride,
-        const float* verb_eps) {              // floor on head 0, NULL = off
+        int mask_stride) {
     int B = dec_out.shape[0];
     int fused_cols = dec_out.shape[1];
     int num_atns = NUM_ATNS;
@@ -682,20 +676,24 @@ __global__ void sample_logits(
             float cache[PPO_MAX_HEAD_A];
             float logsumexp = ppo_discrete_logsumexp(
                 logits, logits_base, logits_offset, A, action_mask, mask_base, cache);
-
+#ifdef PUFFER_NETHACK
             float inv_K = 0.0f;
-            float eps = h == 0 ? verb_eps_load(verb_eps,
+            float eps = h == 0 ? nethack_verb_eps_load(
                 action_mask + mask_base + logits_offset, A, &inv_K) : 0.0f;
-
+#endif
             float rand_val = curand_uniform(&state);
             float cumsum = 0.0f;
             int sampled = A - 1;
             for (int a = 0; a < A; a++) {
-                if (eps > 0.0f)
-                    cumsum += verb_eps_mix(expf(cache[a] - logsumexp),
+#ifdef PUFFER_NETHACK
+                if (eps > 0.0f) {
+                    cumsum += nethack_verb_eps_mix(expf(cache[a] - logsumexp),
                         action_mask[mask_base + logits_offset + a], eps, inv_K);
-                else
+                } else
+#endif
+                {
                     cumsum += expf(cache[a] - logsumexp);
+                }
                 if (rand_val < cumsum) {
                     sampled = a;
                     break;
@@ -717,16 +715,20 @@ __global__ void sample_logits(
             float action = (float)sampled;
             actions[aidx] = action;
             env_actions[aidx] = action;
-            // consumed-head gating: only heads the sampled verb uses count
+#ifdef PUFFER_NETHACK
             int verb = (int)actions[idx * num_atns];
-            int used = (head_consume == NULL || h == 0)
-                ? 1 : (int)head_consume[verb * hc_stride + h];
+            int used = nethack_head_used(verb, h);
             if (used) {
-                if (eps > 0.0f)
-                    total_log_prob += verb_eps_logp(cache[sampled] - logsumexp, eps, inv_K);
-                else
+                if (eps > 0.0f) {
+                    total_log_prob += logf((1.0f - eps)
+                        * expf(cache[sampled] - logsumexp) + eps * inv_K);
+                } else {
                     total_log_prob += cache[sampled] - logsumexp;
+                }
             }
+#else
+            total_log_prob += cache[sampled] - logsumexp;
+#endif
             logits_offset += A;
         }
     }
@@ -917,15 +919,12 @@ void pufferl_forward(PuffeRL* pufferl, int buf, int t, cudaStream_t stream) {
         }
 
         // Offset RNG by off so policies don't collide on per-buffer rng slots.
-        int hc_stride_s = 0;
-        const signed char* hc_dev_s = get_head_consume_dev(&hc_stride_s);
         sample_logits<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(
             dec, p_logstd, pufferl->act_sizes,
             act_b.data, env->actions.data + (long)sub * act_cols,
             lp_b.data, val_b.data,
             pufferl->rng_states[buf] + off,
-            mask_b.data, mask_stride, hc_dev_s, hc_stride_s,
-            g_veps_dev);
+            mask_b.data, mask_stride);
     }
 
     if (hypers->cudagraphs) {
@@ -1156,6 +1155,7 @@ static void* vec_thread_main(void* arg) {
     int buf = a->buf;
     int* state = &vec->worker_state[buf];
     int horizon = pufferl->hypers.horizon;
+    cudaSetDevice(pufferl->hypers.gpu_id);
     cublas_init_handle();
     int apb = vec->agents_per_buf;
     int agent_start = buf * apb;
@@ -2295,9 +2295,6 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         .num_layers = puf_ini_get(ini, "policy", "num_layers"),
         .lr = puf_ini_get(ini, "train", "learning_rate"),
         .min_lr_ratio = puf_ini_get(ini, "train", "min_lr_ratio"),
-        .verb_eps = puf_ini_get(ini, "train", "verb_eps"),
-        .verb_eps_anneal_start = puf_ini_get(ini, "train", "verb_eps_anneal_start"),
-        .verb_eps_anneal_end = puf_ini_get(ini, "train", "verb_eps_anneal_end"),
         .anneal_lr = puf_ini_get(ini, "train", "anneal_lr") != 0,
         .momentum = puf_ini_get(ini, "train", "momentum"),
         .muon_rel = puf_ini_get(ini, "train", "muon_rel") != 0,
@@ -2597,9 +2594,9 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     cudaMemcpy(pufferl->muon.lr, &hypers.lr, sizeof(float), cudaMemcpyHostToDevice);
     cudaMemset(pufferl->muon.mb.data, 0, numel(pufferl->muon.mb.shape) * sizeof(float));
 
-    // Upload head-consume map before any stream capture (see init_head_consume_map).
-    init_head_consume_map();
-    init_verb_eps(hypers.verb_eps);
+#ifdef PUFFER_NETHACK
+    nethack_policy_init(ini);
+#endif
 
     // CUDA graphs: allocate graph array only; capture on first real use.
     if (hypers.cudagraphs) {
@@ -3002,8 +2999,9 @@ static void log_history_bin_mean(PufLogHistory* h, const char* key,
 }
 
 double rollout_start(PuffeRL* p, int slot) {
-    verb_eps_update(p->hypers.verb_eps, p->hypers.verb_eps_anneal_start,
-        p->hypers.verb_eps_anneal_end, p->global_step, p->hypers.total_timesteps);
+#ifdef PUFFER_NETHACK
+    nethack_policy_on_rollout(p->global_step, p->hypers.total_timesteps);
+#endif
     p->write_slot = slot;
     if (p->hypers.async) {
         Prec* param = &p->policies[0].param;

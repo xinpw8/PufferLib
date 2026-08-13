@@ -197,6 +197,10 @@ if [ "$MODE" = "local" ] || [ "$MODE" = "fast" ]; then
     exit 0
 elif [ "$MODE" = "web" ]; then
     mkdir -p "build/web/$ENV"
+    PRELOAD_ENV=()
+    if [ -d "resources/$ENV" ]; then
+        PRELOAD_ENV=(--preload-file "resources/$ENV@resources/$ENV")
+    fi
     echo "Compiling $ENV for web..."
     emcc \
         -o "build/web/$ENV/game.html" \
@@ -210,8 +214,8 @@ elif [ "$MODE" = "web" ]; then
         --shell-file vendor/minshell.html \
         -sINITIAL_MEMORY=512MB -sALLOW_MEMORY_GROWTH -sSTACK_SIZE=512KB \
         -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES3 \
-        --preload-file resources/$ENV@resources/$ENV \
         --preload-file resources/shared@resources/shared \
+        "${PRELOAD_ENV[@]}" \
         "${EXTRA_CFLAGS[@]}"
     echo "Built: build/web/$ENV/game.html"
     exit 0
