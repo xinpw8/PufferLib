@@ -13,6 +13,27 @@
 #include <time.h>
 
 #include "gp_cuda.cu"
+#define BLOCK_SIZE 256
+#ifndef PUF_BLOCK_REDUCE_SUM
+#define PUF_BLOCK_REDUCE_SUM
+__device__ __forceinline__ void block_reduce_sum(
+        float *smem, float *out, int tid, int nthreads, int nchan) {
+    __syncthreads();
+    for (int s = nthreads / 2; s > 0; s >>= 1) {
+        if (tid < s) {
+            for (int c = 0; c < nchan; c++) {
+                smem[c * nthreads + tid] += smem[c * nthreads + tid + s];
+            }
+        }
+        __syncthreads();
+    }
+    if (tid == 0) {
+        for (int c = 0; c < nchan; c++) {
+            out[c] = smem[c * nthreads];
+        }
+    }
+}
+#endif
 #include "protein.cu"
 
 // -- default search space (21 dims, matches Python ordering) ------------------

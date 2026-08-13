@@ -18,7 +18,6 @@ const int BT = 512;    // Train batch (with T dim)
 const int T_ = 64;     // T_ to avoid collision with PrefixScan::T
 const int H_ = 128;
 const int A_ = 4;
-const int INPUT_SIZE = 96;
 
 #ifndef ENV_NAME
 #error "ENV_NAME must be defined at compile time (e.g. -DENV_NAME=breakout)"
@@ -33,8 +32,9 @@ void print_usage(const char* prog) {
     printf("\nProfiles:\n");
     printf("  kernels        - All individual kernel microbenchmarks\n");
     printf("  mingrugate     - MinGRU gate kernel only\n");
-    printf("  logcoeffsvals  - log_coeffs_and_values fwd+bwd\n");
-    printf("  fusedscan      - Fused scan (checkpointed) kernel only\n");
+    printf("  fusedscan      - MinGRU seq scan fwd+bwd\n");
+    printf("    --batch N --horizon N --hidden N\n");
+    printf("  fusedscan-sweep - Seq scan vs T at fixed B*T=65536\n");
     printf("  samplelogits   - Sample logits kernel only\n");
     printf("  ppoloss        - PPO loss fused fwd+bwd kernel\n");
     printf("  im2col         - im2col + col2im (nmmo3 conv sizes, B=1024)\n");
@@ -47,6 +47,7 @@ void print_usage(const char* prog) {
     printf("    --horizon N  - Horizon length (default: %d)\n", T_);
     printf("  all            - Run all available profiles\n");
 }
+
 
 inline void print_timing(const char* name, float ms, int N) {
     printf("  %-28s %8.1f us  %8.2f M elem/s\n", name, ms * 1000, N / ms / 1e3);
@@ -103,7 +104,7 @@ inline float profile_kernel(kernel_fn fn, void* args) {
 }
 
 struct MingruGateProfile {
-    PrecisionTensor state, combined, x_in, out, next_state;
+    Prec state, combined, x_in, out, next_state;
     Allocator alloc;
     int B, H;
 };
@@ -148,100 +149,13 @@ void profile_mingrugate(int B, int H) {
     float ms = profile_kernel((kernel_fn)run_mingrugate, p);
     print_timing("forward", ms, B);
     printf("\n");
-    alloc_free(&p->alloc);
-    free(p);
-}
-
-__global__ void log_coeffs_and_values_fwd_kernel(
-        float* log_coeff_out, float* log_value_out,
-        const float* gate, const float* hidden, int N) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= N) return;
-    log_coeffs_and_values_fwd(gate[idx], hidden[idx],
-        &log_coeff_out[idx], &log_value_out[idx]);
-}
-
-__global__ void log_coeffs_and_values_bwd_kernel(
-        float* grad_gate_out, float* grad_hidden_out,
-        const float* grad_log_coeffs, const float* grad_log_values,
-        const float* gate, const float* hidden, int N) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= N) return;
-    log_coeffs_and_values_bwd(grad_log_coeffs[idx], grad_log_values[idx],
-        gate[idx], hidden[idx], &grad_gate_out[idx], &grad_hidden_out[idx]);
-}
-
-struct LogCoeffsProfile {
-    FloatTensor gate, hidden, log_coeff, log_value;
-    FloatTensor grad_log_coeffs, grad_log_values, grad_gate, grad_hidden;
-    Allocator alloc;
-    int N;
-};
-
-LogCoeffsProfile* create_logcoeffs(int N) {
-    auto* p = (LogCoeffsProfile*)calloc(1, sizeof(LogCoeffsProfile));
-    p->N = N;
-    p->gate = {.shape = {N}};
-    p->hidden = {.shape = {N}};
-    p->log_coeff = {.shape = {N}};
-    p->log_value = {.shape = {N}};
-    p->grad_log_coeffs = {.shape = {N}};
-    p->grad_log_values = {.shape = {N}};
-    p->grad_gate = {.shape = {N}};
-    p->grad_hidden = {.shape = {N}};
-    p->alloc = {};
-    alloc_register(&p->alloc, &p->gate);
-    alloc_register(&p->alloc, &p->hidden);
-    alloc_register(&p->alloc, &p->log_coeff);
-    alloc_register(&p->alloc, &p->log_value);
-    alloc_register(&p->alloc, &p->grad_log_coeffs);
-    alloc_register(&p->alloc, &p->grad_log_values);
-    alloc_register(&p->alloc, &p->grad_gate);
-    alloc_register(&p->alloc, &p->grad_hidden);
-    alloc_create(&p->alloc);
-
-    float* buf = (float*)malloc(N * sizeof(float));
-    for (int i = 0; i < N; ++i) buf[i] = rand1() * 5.0f;
-    cudaMemcpy(p->gate.data, buf, N * sizeof(float), cudaMemcpyHostToDevice);
-    for (int i = 0; i < N; ++i) buf[i] = rand1() * 5.0f;
-    cudaMemcpy(p->hidden.data, buf, N * sizeof(float), cudaMemcpyHostToDevice);
-    for (int i = 0; i < N; ++i) buf[i] = rand1();
-    cudaMemcpy(p->grad_log_coeffs.data, buf, N * sizeof(float), cudaMemcpyHostToDevice);
-    for (int i = 0; i < N; ++i) buf[i] = rand1();
-    cudaMemcpy(p->grad_log_values.data, buf, N * sizeof(float), cudaMemcpyHostToDevice);
-    free(buf);
-    return p;
-}
-
-void run_logcoeffs_fwd(LogCoeffsProfile* p) {
-    log_coeffs_and_values_fwd_kernel<<<grid_size(p->N), BLOCK_SIZE>>>(
-        p->log_coeff.data, p->log_value.data,
-        p->gate.data, p->hidden.data, p->N);
-}
-
-void run_logcoeffs_bwd(LogCoeffsProfile* p) {
-    log_coeffs_and_values_bwd_kernel<<<grid_size(p->N), BLOCK_SIZE>>>(
-        p->grad_gate.data, p->grad_hidden.data,
-        p->grad_log_coeffs.data, p->grad_log_values.data,
-        p->gate.data, p->hidden.data, p->N);
-}
-
-void profile_logcoeffs(int B, int T, int H) {
-    int N = B * T * H;
-    printf("log_coeffs_and_values (N=%d, %dx%dx%d)\n", N, B, T, H);
-    auto* p = create_logcoeffs(N);
-    float fwd = profile_kernel((kernel_fn)run_logcoeffs_fwd, p);
-    print_timing("forward", fwd, N);
-    float bwd = profile_kernel((kernel_fn)run_logcoeffs_bwd, p);
-    print_timing("backward", bwd, N);
-    printf("\n");
-    alloc_free(&p->alloc);
+    cudaFree(p->alloc.mem);
     free(p);
 }
 
 struct FusedScanProfile {
     PrefixScan scan;
-    PrecisionTensor grad_out, grad_next_state;
+    Prec grad_out, grad_next_state;
     Allocator alloc;
     int B, T, H;
 };
@@ -253,17 +167,15 @@ FusedScanProfile* create_fusedscan(int B, int T, int H) {
     PrefixScan& s = p->scan;
     s.B = B; s.T = T; s.H = H;
 
-    // Allocator needs PrecisionTensor/FloatTensor, but PrefixScan uses raw ptrs
+    // Allocator needs Prec/Float, but PrefixScan uses raw ptrs
     // for combined/state/input. Allocate those via tensors then assign.
-    PrecisionTensor combined_t = {.shape = {B, T, 3*H}};
-    PrecisionTensor state_t    = {.shape = {B, H}};
-    PrecisionTensor input_t    = {.shape = {B, T, H}};
+    Prec combined_t = {.shape = {B, T, 3*H}};
+    Prec state_t    = {.shape = {B, H}};
+    Prec input_t    = {.shape = {B, T, H}};
 
     s.out            = {.shape = {B, T, H}};
     s.next_state     = {.shape = {B, H}};
-    s.a_star         = {.shape = {B, T+1, H}};
-    s.s_vals         = {.shape = {B, T+1, H}};
-    s.log_values_buf = {.shape = {B, T+1, H}};
+    s.scan_h         = {.shape = {B, T, H}};
     s.grad_combined  = {.shape = {B, T, 3*H}};
     s.grad_state     = {.shape = {B, H}};
     s.grad_input     = {.shape = {B, T, H}};
@@ -277,9 +189,7 @@ FusedScanProfile* create_fusedscan(int B, int T, int H) {
     alloc_register(&p->alloc, &input_t);
     alloc_register(&p->alloc, &s.out);
     alloc_register(&p->alloc, &s.next_state);
-    alloc_register(&p->alloc, &s.a_star);
-    alloc_register(&p->alloc, &s.s_vals);
-    alloc_register(&p->alloc, &s.log_values_buf);
+    alloc_register(&p->alloc, &s.scan_h);
     alloc_register(&p->alloc, &s.grad_combined);
     alloc_register(&p->alloc, &s.grad_state);
     alloc_register(&p->alloc, &s.grad_input);
@@ -309,34 +219,62 @@ FusedScanProfile* create_fusedscan(int B, int T, int H) {
 }
 
 void run_fusedscan_fwd(FusedScanProfile* p) {
-    mingru_scan_forward<<<grid_size(p->B * p->H), BLOCK_SIZE>>>(p->scan);
+    mingru_scan_forward_seq<<<grid_size(p->B * p->H), BLOCK_SIZE>>>(p->scan);
 }
-
 void run_fusedscan_bwd(FusedScanProfile* p) {
     mingru_scan_backward<<<grid_size(p->B * p->H), BLOCK_SIZE>>>(
         p->scan, p->grad_out.data, p->grad_next_state.data);
 }
 
 void profile_fusedscan(int B, int T, int H) {
-    printf("fused_scan (N=%d, %dx%dx%d)\n", B*T*H, B, T, H);
+    printf("fused_scan seq (N=%d, B=%d T=%d H=%d)\n", B * T * H, B, T, H);
     auto* p = create_fusedscan(B, T, H);
+    run_fusedscan_fwd(p);
+    cudaDeviceSynchronize();
+
     float fwd = profile_kernel((kernel_fn)run_fusedscan_fwd, p);
-    print_timing("forward", fwd, B*T);
+    print_timing("fwd seq", fwd, B * T);
+    run_fusedscan_fwd(p);
+    cudaDeviceSynchronize();
     float bwd = profile_kernel((kernel_fn)run_fusedscan_bwd, p);
-    print_timing("backward", bwd, B*T);
+    print_timing("bwd", bwd, B * T);
+    printf("  %-28s %8.1f us\n", "fwd+bwd", (fwd + bwd) * 1000);
     printf("\n");
-    alloc_free(&p->alloc);
+    cudaFree(p->alloc.mem);
     free(p);
+}
+
+// Fixed B*T=65536: seq scan cost vs T.
+void profile_fusedscan_sweep(int H) {
+    const int mb = 65536;
+    const int Ts[] = {32, 48, 64, 96, 128, 192, 256, 384, 512};
+    printf("=== seq scan  H=%d  fixed B*T=%d ===\n", H, mb);
+    printf("%6s %6s %10s %10s %10s\n", "T", "B", "fwd", "bwd", "tot");
+    for (int i = 0; i < (int)(sizeof(Ts) / sizeof(Ts[0])); i++) {
+        int T = Ts[i];
+        int B = mb / T;
+        auto* p = create_fusedscan(B, T, H);
+        run_fusedscan_fwd(p);
+        cudaDeviceSynchronize();
+        float fs = profile_kernel((kernel_fn)run_fusedscan_fwd, p);
+        run_fusedscan_fwd(p);
+        cudaDeviceSynchronize();
+        float bwd = profile_kernel((kernel_fn)run_fusedscan_bwd, p);
+        printf("%6d %6d %8.1f us %8.1f us %8.1f us\n",
+            T, B, fs * 1000, bwd * 1000, (fs + bwd) * 1000);
+        cudaFree(p->alloc.mem);
+        free(p);
+    }
 }
 
 struct PPOProfile {
     PPOKernelArgs ka;
     PPOGraphArgs ga;
-    FloatTensor loss, losses_acc, ppo_partials;
-    FloatTensor grad_logits_t, grad_values_t, adv_mean_t, adv_var_t;
-    PrecisionTensor logits_t, actions_t, old_logprobs_t, advantages_t, prio_t, values_t, returns_t;
-    PrecisionTensor ratio_t, newvalue_t;
-    IntTensor act_sizes_t;
+    Float losses_acc, ppo_partials;
+    Float grad_logits_t, grad_values_t, adv_mean_t, adv_var_t, ent_coef_t;
+    Prec logits_t, actions_t, old_logprobs_t, advantages_t, prio_t, values_t, returns_t;
+    Prec ratio_t, newvalue_t;
+    Int act_sizes_t;
     Allocator alloc;
     int N, T, A, ppo_grid;
 };
@@ -363,9 +301,9 @@ PPOProfile* create_ppoloss(int N, int T, int A) {
     p->grad_values_t  = {.shape = {NT}};
     p->adv_mean_t     = {.shape = {1}};
     p->adv_var_t      = {.shape = {1}};
-    p->loss           = {.shape = {1}};
+    p->ent_coef_t     = {.shape = {1}};
     p->losses_acc     = {.shape = {LOSS_N + 1}};
-    p->ppo_partials   = {.shape = {ppo_grid, LOSS_N + 1}};
+    p->ppo_partials   = {.shape = {ppo_grid, LOSS_N}};
     p->act_sizes_t    = {.shape = {1}};
 
     p->alloc = {};
@@ -382,13 +320,16 @@ PPOProfile* create_ppoloss(int N, int T, int A) {
     alloc_register(&p->alloc, &p->grad_values_t);
     alloc_register(&p->alloc, &p->adv_mean_t);
     alloc_register(&p->alloc, &p->adv_var_t);
-    alloc_register(&p->alloc, &p->loss);
+    alloc_register(&p->alloc, &p->ent_coef_t);
     alloc_register(&p->alloc, &p->losses_acc);
     alloc_register(&p->alloc, &p->ppo_partials);
     alloc_register(&p->alloc, &p->act_sizes_t);
     alloc_create(&p->alloc);
 
     cudaMemcpy(p->act_sizes_t.data, &A, sizeof(int), cudaMemcpyHostToDevice);
+
+    float ent_coef_val = 0.01f;
+    cudaMemcpy(p->ent_coef_t.data, &ent_coef_val, sizeof(float), cudaMemcpyHostToDevice);
 
     // Fill with random data
     float* buf = (float*)malloc(NT * fused_cols * sizeof(float));
@@ -429,19 +370,20 @@ PPOProfile* create_ppoloss(int N, int T, int A) {
     // Wire up kernel args
     p->ka = {
         .grad_logits = p->grad_logits_t.data,
-        .grad_logstd = nullptr,
+        .grad_logstd = NULL,
         .grad_values_pred = p->grad_values_t.data,
         .logits = p->logits_t.data,
-        .logstd = nullptr,
+        .logstd = NULL,
         .values_pred = p->logits_t.data + A,  // value is last col in fused layout
         .adv_mean = p->adv_mean_t.data,
         .adv_var = p->adv_var_t.data,
         .act_sizes = p->act_sizes_t.data,
+        .action_mask = NULL,
+        .head_consume = NULL,
+        .hc_stride = 0,
         .num_atns = 1,
-        .clip_coef = 0.1f, .vf_clip_coef = 0.1f, .vf_coef = 0.5f, .ent_coef = 0.01f,
+        .clip_coef = 0.1f, .vf_clip_coef = 0.1f, .vf_coef = 0.5f, .ent_coef = p->ent_coef_t.data,
         .T_seq = T, .A_total = A, .N = N,
-        .logits_stride_n = T * fused_cols, .logits_stride_t = fused_cols, .logits_stride_a = 1,
-        .values_stride_n = T * fused_cols, .values_stride_t = fused_cols,
         .is_continuous = false,
     };
     p->ga = {
@@ -459,11 +401,10 @@ PPOProfile* create_ppoloss(int N, int T, int A) {
 }
 
 void run_ppoloss(PPOProfile* p) {
-    cudaMemset(p->loss.data, 0, sizeof(float));
     ppo_loss_compute<<<p->ppo_grid, PPO_THREADS>>>(
         p->ppo_partials.data, p->ka, p->ga);
-    ppo_loss_reduce<<<1, LOSS_N + 1>>>(
-        p->loss.data, p->losses_acc.data, p->ppo_partials.data, p->ppo_grid);
+    ppo_loss_reduce<<<1, LOSS_N>>>(
+        p->losses_acc.data, p->ppo_partials.data, NULL, p->ppo_grid);
 }
 
 void profile_ppoloss(int N, int T, int A) {
@@ -473,14 +414,14 @@ void profile_ppoloss(int N, int T, int A) {
     float ms = profile_kernel((kernel_fn)run_ppoloss, p);
     print_timing("fwd+bwd", ms, NT);
     printf("\n");
-    alloc_free(&p->alloc);
+    cudaFree(p->alloc.mem);
     free(p);
 }
 
 struct SampleLogitsProfile {
-    PrecisionTensor dec_out, logstd;
-    IntTensor act_sizes;
-    PrecisionTensor actions_t, logprobs_t, value_out_t;
+    Prec dec_out, logstd;
+    Int act_sizes;
+    Prec actions_t, logprobs_t, value_out_t;
     curandStatePhilox4_32_10_t* rng_states;
     Allocator alloc;
     int B, A;
@@ -523,7 +464,7 @@ void run_samplelogits(SampleLogitsProfile* p) {
     sample_logits<<<grid_size(p->B), BLOCK_SIZE>>>(
         p->dec_out, p->logstd, p->act_sizes,
         p->actions_t.data, p->logprobs_t.data, p->value_out_t.data,
-        p->rng_states, nullptr, 0);
+        p->rng_states, NULL, 0, NULL, 0);
 }
 
 void profile_samplelogits(int B, int A) {
@@ -533,12 +474,12 @@ void profile_samplelogits(int B, int A) {
     print_timing("forward", ms, B);
     printf("\n");
     cudaFree(p->rng_states);
-    alloc_free(&p->alloc);
+    cudaFree(p->alloc.mem);
     free(p);
 }
 
 struct Im2ColProfile {
-    PrecisionTensor input, col, grad_input;
+    Prec input, col, grad_input;
     Allocator alloc;
     int B, IC, IH, IW, K, S, OH, OW;
 };
@@ -590,7 +531,7 @@ void profile_im2col(int B, int IC, int IH, int IW, int K, int S, int OH, int OW)
     float bwd = profile_kernel((kernel_fn)run_col2im, p);
     print_timing("col2im", bwd, total);
     printf("\n");
-    alloc_free(&p->alloc);
+    cudaFree(p->alloc.mem);
     free(p);
 }
 
@@ -940,12 +881,12 @@ inline EncoderWork add_work(EncoderWork a, EncoderWork b) {
 }
 
 struct MinimalEncoderProfile {
-    PrecisionTensor obs;
-    PrecisionTensor flat_w, flat_out, flat_wgrad, grad_out;
+    Prec obs;
+    Prec flat_w, flat_out, flat_wgrad, grad_out;
     MinimalEntityEncoderWeights me_w;
     MinimalEntityEncoderActivations me_a;
-    FloatTensor input_wgrad_partials;
-    PrecisionTensor point_input, cublas_entity_hidden, point_logits, cublas_out;
+    Float input_wgrad_partials;
+    Prec point_input, cublas_entity_hidden, point_logits, cublas_out;
     Allocator alloc;
     int B, H;
 };
@@ -1026,7 +967,7 @@ MinimalEncoderProfile* create_minimalenc(int B, int H) {
 }
 
 void run_flat_encoder(MinimalEncoderProfile* p) {
-    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_T,
+    cublasGemmExDense(g_cublas_handle, CUBLAS_OP_N, CUBLAS_OP_T,
         p->B, p->H, ME_OBS_SIZE,
         p->obs.data, p->flat_w.data, p->flat_out.data, 0);
 }
@@ -1049,11 +990,11 @@ void run_me_projection_kernel(MinimalEncoderProfile* p) {
 void run_me_projection(MinimalEncoderProfile* p) {
     me_materialize_points_kernel<<<grid_size(p->B * ME_NUM_POINTS * ME_ENTITY_IN), BLOCK_SIZE>>>(
         p->me_a.point_input.data, p->obs.data, p->B, ME_OBS_SIZE);
-    PrecisionTensor point_input = {
+    Prec point_input = {
         .data = p->me_a.point_input.data,
         .shape = {p->B, ME_NUM_POINTS, ME_ENTITY_IN},
     };
-    PrecisionTensor entity_hidden = {
+    Prec entity_hidden = {
         .data = p->me_a.entity_hidden.data,
         .shape = {p->B, ME_NUM_POINTS, ME_ENTITY_HIDDEN},
     };
@@ -1130,7 +1071,7 @@ void run_materialize_points(MinimalEncoderProfile* p) {
 }
 
 void run_cublas_projection(MinimalEncoderProfile* p) {
-    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_T,
+    cublasGemmExDense(g_cublas_handle, CUBLAS_OP_N, CUBLAS_OP_T,
         p->B * ME_NUM_POINTS, ME_ENTITY_HIDDEN, ME_ENTITY_IN,
         p->point_input.data, p->me_w.input_w.data,
         p->cublas_entity_hidden.data, 0);
@@ -1139,7 +1080,7 @@ void run_cublas_projection(MinimalEncoderProfile* p) {
 }
 
 void run_cublas_output_gemm(MinimalEncoderProfile* p) {
-    cublasGemmExDense(CUBLAS_OP_N, CUBLAS_OP_T,
+    cublasGemmExDense(g_cublas_handle, CUBLAS_OP_N, CUBLAS_OP_T,
         p->B * ME_NUM_POINTS, p->H, ME_ENTITY_HIDDEN,
         p->cublas_entity_hidden.data, p->me_w.output_w.data,
         p->point_logits.data, 0);
@@ -1279,9 +1220,10 @@ void profile_minimalenc(int B, int H) {
     printf("  one argmax probe per (batch, point, entity_hidden, hidden) tuple. The shared-atomic\n");
     printf("  grad_entity estimate counts one routed contribution per (batch, hidden, entity_hidden).\n\n");
 
-    alloc_free(&p->alloc);
+    cudaFree(p->alloc.mem);
     free(p);
 }
+
 
 #ifdef PUFFERLIB_BUILD_MAIN
 static void empty_net_callback(void* ctx, int buf, int t) {
@@ -1330,12 +1272,12 @@ EnvSpeedArgs* create_envspeed(int total_agents, int num_buffers, int num_threads
     dict_set(vec_kwargs, "num_buffers", (double)num_buffers);
 
     StaticVec* vec = create_static_vec(total_agents, num_buffers, 1, vec_kwargs, env_kwargs);
-    if (!vec) { fprintf(stderr, "Failed to create environments\n"); return nullptr; }
+    if (!vec) { fprintf(stderr, "Failed to create environments\n"); return NULL; }
     for (int i = 0; i < num_buffers; i++)
         cudaStreamCreateWithFlags(&vec->streams[i], cudaStreamNonBlocking);
 
     printf("Created %d envs (%s) for %d total_agents\n", vec->size, TOSTRING(ENV_NAME), total_agents);
-    create_static_threads(vec, num_threads, horizon, nullptr, empty_net_callback, empty_thread_init);
+    create_static_threads(vec, num_threads, horizon, NULL, empty_net_callback, empty_thread_init);
     static_vec_reset(vec);
     cudaDeviceSynchronize();
 
@@ -1408,13 +1350,21 @@ int main(int argc, char** argv) {
     int buffers = BUF, threads = 16, horizon = T_;
     int total_agents = BR * buffers;
     int encoder_batch = BR, encoder_hidden = H_;
+    int scan_batch = BT, scan_T = T_, scan_H = H_;
     for (int i = 2; i < argc - 1; i++) {
         if (strcmp(argv[i], "--buffers") == 0) buffers = atoi(argv[++i]);
         else if (strcmp(argv[i], "--threads") == 0) threads = atoi(argv[++i]);
-        else if (strcmp(argv[i], "--horizon") == 0) horizon = atoi(argv[++i]);
-        else if (strcmp(argv[i], "--total-agents") == 0) total_agents = atoi(argv[++i]);
-        else if (strcmp(argv[i], "--batch") == 0) encoder_batch = atoi(argv[++i]);
-        else if (strcmp(argv[i], "--hidden") == 0) encoder_hidden = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--horizon") == 0) {
+            horizon = atoi(argv[++i]);
+            scan_T = horizon;
+        } else if (strcmp(argv[i], "--total-agents") == 0) total_agents = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--batch") == 0) {
+            encoder_batch = atoi(argv[++i]);
+            scan_batch = encoder_batch;
+        } else if (strcmp(argv[i], "--hidden") == 0) {
+            encoder_hidden = atoi(argv[++i]);
+            scan_H = encoder_hidden;
+        }
     }
 
     warmup_gpu();
@@ -1422,10 +1372,10 @@ int main(int argc, char** argv) {
 
     if (strcmp(profile, "kernels") == 0 || strcmp(profile, "mingrugate") == 0 || run_all)
         profile_mingrugate(BR, H_);
-    if (strcmp(profile, "kernels") == 0 || strcmp(profile, "logcoeffsvals") == 0 || run_all)
-        profile_logcoeffs(BT, T_, H_);
     if (strcmp(profile, "kernels") == 0 || strcmp(profile, "fusedscan") == 0 || run_all)
-        profile_fusedscan(BT, T_, H_);
+        profile_fusedscan(scan_batch, scan_T, scan_H);
+    if (strcmp(profile, "fusedscan-sweep") == 0)
+        profile_fusedscan_sweep(scan_H);
     if (strcmp(profile, "kernels") == 0 || strcmp(profile, "samplelogits") == 0 || run_all)
         profile_samplelogits(BR, A_);
     if (strcmp(profile, "kernels") == 0 || strcmp(profile, "ppoloss") == 0 || run_all)
@@ -1443,8 +1393,8 @@ int main(int argc, char** argv) {
     if (!run_all
         && strcmp(profile, "kernels") != 0
         && strcmp(profile, "mingrugate") != 0
-        && strcmp(profile, "logcoeffsvals") != 0
         && strcmp(profile, "fusedscan") != 0
+        && strcmp(profile, "fusedscan-sweep") != 0
         && strcmp(profile, "samplelogits") != 0
         && strcmp(profile, "ppoloss") != 0
         && strcmp(profile, "im2col") != 0

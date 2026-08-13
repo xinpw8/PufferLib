@@ -7,8 +7,8 @@
 extern "C" {
 
 static Encoder g_enc;
-static NMMO3EncoderWeights* g_w = nullptr;
-static NMMO3EncoderActivations* g_a = nullptr;
+static NMMO3EncoderWeights* g_w = NULL;
+static NMMO3EncoderActivations* g_a = NULL;
 static Allocator g_param_alloc = {}, g_act_alloc = {}, g_grad_alloc = {};
 
 void nmmo3_test_init(int B) {
@@ -51,15 +51,15 @@ void nmmo3_test_set_weights(void* c1w, void* c1b, void* c2w, void* c2b,
 
 // Forward: obs and output are device float ptrs
 void nmmo3_test_forward(void* output, void* obs, int B) {
-    PrecisionTensor input = {.data = (precision_t*)obs, .shape = {B, 1707}};
-    PrecisionTensor result = g_enc.forward(g_w, g_a, input, 0);
+    Prec input = {.data = (precision_t*)obs, .shape = {B, 1707}};
+    Prec result = g_enc.forward(g_w, g_a, input, 0);
     cudaMemcpy(output, result.data, B * 512 * sizeof(float), cudaMemcpyDeviceToDevice);
     cudaDeviceSynchronize();
 }
 
 // Backward: grad is device float ptr (B, 512), modified in-place by relu backward
 void nmmo3_test_backward(void* grad, int B) {
-    PrecisionTensor g = {.data = (precision_t*)grad, .shape = {B, 512}};
+    Prec g = {.data = (precision_t*)grad, .shape = {B, 512}};
     g_enc.backward(g_w, g_a, g, 0);
     cudaDeviceSynchronize();
 }

@@ -111,8 +111,8 @@ def test_league_trials_use_historical_selfplay_only():
             "opp_timeout_steps": 100_000_000,
         },
         "vec": {
-            "num_frozen_banks": 2,
-            "frozen_bank_pct": 0.125,
+            "num_policies": 3,
+            "hist_policy_percent": 0.125,
         },
         "env": {
             "num_agents": 2,
@@ -132,10 +132,10 @@ def test_league_trials_use_historical_selfplay_only():
     assert args["selfplay"]["enabled"] == 1
     assert args["selfplay"]["snapshot_interval"] == 200_000_000
     assert args["selfplay"]["opp_timeout_steps"] == 100_000_000
-    assert args["vec"]["num_frozen_banks"] == 2
-    assert args["vec"]["frozen_bank_pct"] == 0.125
-    assert args["vec"]["frozen_bank_hidden_size"] == 256
-    assert args["vec"]["frozen_bank_num_layers"] == 3
+    assert args["vec"]["num_policies"] == 3
+    assert args["vec"]["hist_policy_percent"] == 0.125
+    assert args["vec"]["hist_policy_hidden_size"] == 256
+    assert args["vec"]["hist_policy_num_layers"] == 3
 
 
 
@@ -206,5 +206,5 @@ def test_league_match_policy_arch_uses_player_hypers():
     assert match_args["policy"]["num_layers"] == 2
     assert match_args["enemy_hidden_size"] == 512
     assert match_args["enemy_num_layers"] == 5
-    assert match_args["vec"]["frozen_bank_hidden_size"] == 512
-    assert match_args["vec"]["frozen_bank_num_layers"] == 5
+    assert match_args["vec"]["hist_policy_hidden_size"] == 512
+    assert match_args["vec"]["hist_policy_num_layers"] == 5

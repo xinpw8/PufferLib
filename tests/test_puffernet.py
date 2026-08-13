@@ -180,24 +180,6 @@ def test_puffernet_embedding(batch_size=16, num_embeddings=128, embedding_dim=32
 
     assert_near(output_puffer, output_torch.numpy())
 
-def test_puffernet_layernorm(batch_size=16, input_size=128):
-    input_np = make_dummy_data(batch_size, input_size, seed=42)
-    weights_np = make_dummy_data(input_size, seed=43)
-    bias_np = make_dummy_data(input_size, seed=44)
-    output_puffer = np.zeros((batch_size, input_size), dtype=np.float32)
-    puffernet.puf_layernorm(input_np, weights_np, bias_np, output_puffer,
-        batch_size, input_size)
-
-    input_torch = torch.from_numpy(input_np)
-    weights_torch = torch.from_numpy(weights_np)
-    bias_torch = torch.from_numpy(bias_np)
-    torch_layernorm = torch.nn.LayerNorm(input_size)
-    torch_layernorm.weight.data = weights_torch
-    torch_layernorm.bias.data = bias_torch
-    output_torch = torch_layernorm(input_torch).detach()
-
-    assert_near(output_puffer, output_torch.numpy())
-
 def test_puffernet_one_hot(batch_size=16, input_size=128, num_classes=10):
     input_np = make_dummy_int_data(num_classes, batch_size, input_size)
     output_puffer = np.zeros((batch_size, input_size, num_classes), dtype=np.int32)
@@ -263,7 +245,6 @@ if __name__ == '__main__':
     test_puffernet_convolution_3d_layer()
     test_puffernet_lstm()
     test_puffernet_embedding()
-    test_puffernet_layernorm()
     test_puffernet_one_hot()
     test_puffernet_cat_dim1()
     test_puffernet_argmax_multidiscrete()
