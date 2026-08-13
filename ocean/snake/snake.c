@@ -20,7 +20,7 @@ int demo() {
 
     Weights* weights = load_weights("resources/snake/snake_weights.bin");
     int logit_sizes[] = {4};
-    LinearLSTM* net = make_linearlstm(weights, env.num_agents, 968, logit_sizes, 1);
+    LinearLSTM* net = make_linearlstm(weights, env.num_agents, OBS_SIZE, logit_sizes, 1);
     env.client = make_client(2, env.width, env.height);
 
     while (!WindowShouldClose()) {
@@ -31,10 +31,12 @@ int demo() {
             if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) env.agents[0].actions[0] = 2;
             if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) env.agents[0].actions[0] = 3;
         } else {
-            memset(net->obs, 0, env.num_agents*968*sizeof(float));
-            for (int i = 0; i < env.num_agents*121; i++) {
-                int obs = env.agents[0].observations[i];
-                net->obs[i*8 + obs] = 1.0f;
+            for (int a = 0; a < env.num_agents; a++) {
+                obs_t* src = (obs_t*)env.agents[a].observations;
+                float* dst = net->obs + a * OBS_SIZE;
+                for (int i = 0; i < OBS_SIZE; i++) {
+                    dst[i] = (float)src[i];
+                }
             }
             int* actions = (int*)calloc(env.num_agents, sizeof(int));
             forward_linearlstm(net, net->obs, actions);

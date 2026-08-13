@@ -1085,6 +1085,9 @@ struct TrainGraph {
     Prec mb_newvalue;
     Prec mb_prio;        // (B,)
     Prec mb_action_mask; // (B, T, mask_size); always allocated
+    Prec mb_rewards;     // (B, T) for per-mb GAE
+    Prec mb_imp;         // (B, T) ρ; 1 if advantage_is=0
+    Prec mb_gae_v;       // (B, T) backup V for per-mb GAE
 };
 
 void register_train_buffers(TrainGraph& bufs, Allocator* alloc,
@@ -1103,6 +1106,9 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc,
         .mb_newvalue =      {.shape = {B, T}},
         .mb_prio =          {.shape = {B}},
         .mb_action_mask =   {.shape = {B, T, mask_size}},
+        .mb_rewards =       {.shape = {B, T}},
+        .mb_imp =           {.shape = {B, T}},
+        .mb_gae_v =         {.shape = {B, T}},
     };
     alloc_register(alloc, &bufs.mb_obs);
     alloc_register(alloc, &bufs.mb_state);
@@ -1116,6 +1122,9 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc,
     alloc_register(alloc, &bufs.mb_ratio);
     alloc_register(alloc, &bufs.mb_newvalue);
     alloc_register(alloc, &bufs.mb_action_mask);
+    alloc_register(alloc, &bufs.mb_rewards);
+    alloc_register(alloc, &bufs.mb_imp);
+    alloc_register(alloc, &bufs.mb_gae_v);
 }
 
 // Prioritized replay over single-epoch data. These kernels are
@@ -1508,6 +1517,7 @@ struct PPOKernelArgs {
     const float* ent_coef;  // device ptr — host by-value bakes into CUDA graphs
     int T_seq, A_total, N;
     bool is_continuous;
+    bool normalize_advantages;
 };
 
 // adv_scratch layout: [var, mean, 2*PPO_VM_MAX_BLOCKS partials, flag-as-float-slot]
@@ -1614,8 +1624,11 @@ __global__ void ppo_loss_compute(
         float val_pred = to_float(a.values_pred[logits_base]);
         g.out_newvalue[nt] = from_float(val_pred);
 
-        float adv_std = sqrtf(a.adv_var[0]);
-        float adv_normalized = (adv - a.adv_mean[0]) / (adv_std + 1e-8f);
+        float adv_for_pg = adv;
+        if (a.normalize_advantages) {
+            float adv_std = sqrtf(a.adv_var[0]);
+            adv_for_pg = (adv - a.adv_mean[0]) / (adv_std + 1e-8f);
+        }
         float ent_coef = *a.ent_coef;
         float d_entropy_term = inv_NT * (-ent_coef);
 
@@ -1691,7 +1704,7 @@ __global__ void ppo_loss_compute(
         float clip_lo = 1.0f - a.clip_coef;
         float clip_hi = 1.0f + a.clip_coef;
         float ratio_clipped = fmaxf(clip_lo, fminf(clip_hi, ratio));
-        float wa = -w * adv_normalized;
+        float wa = -w * adv_for_pg;
         float pg_loss1 = wa * ratio;
         float pg_loss2 = wa * ratio_clipped;
         float pg_loss = fmaxf(pg_loss1, pg_loss2);
@@ -1840,6 +1853,7 @@ void ppo_loss_fwd_bwd(
         int* act_sizes, float* losses_acc,
         float clip_coef, float vf_clip_coef, float vf_coef, const float* ent_coef,
         PPOBufs& bufs, bool is_continuous,
+        bool normalize_advantages,
         cudaStream_t stream) {
     int N = dec_out.shape[0], T = dec_out.shape[1], fused_cols = dec_out.shape[2];
     int A_total = fused_cols - 1;  // last column is value
@@ -1847,12 +1861,14 @@ void ppo_loss_fwd_bwd(
 
     float* adv_var = bufs.adv_scratch;
     float* adv_mean = adv_var + 1;
-    float* adv_partials = adv_var + 2;
-    int* adv_flag = (int*)(adv_var + 2 + 2 * PPO_VM_MAX_BLOCKS);
-    int adv_n = (int)numel(graph.mb_advantages.shape);
-    int adv_blocks = min((adv_n + PPO_VM_THREADS - 1) / PPO_VM_THREADS, PPO_VM_MAX_BLOCKS);
-    ppo_adv_mean_var<<<adv_blocks, PPO_VM_THREADS, 0, stream>>>(
-        graph.mb_advantages.data, adv_partials, adv_var, adv_mean, adv_flag, adv_n);
+    if (normalize_advantages) {
+        float* adv_partials = adv_var + 2;
+        int* adv_flag = (int*)(adv_var + 2 + 2 * PPO_VM_MAX_BLOCKS);
+        int adv_n = (int)numel(graph.mb_advantages.shape);
+        int adv_blocks = min((adv_n + PPO_VM_THREADS - 1) / PPO_VM_THREADS, PPO_VM_MAX_BLOCKS);
+        ppo_adv_mean_var<<<adv_blocks, PPO_VM_THREADS, 0, stream>>>(
+            graph.mb_advantages.data, adv_partials, adv_var, adv_mean, adv_flag, adv_n);
+    }
 
     int ppo_grid = (total + PPO_THREADS - 1) / PPO_THREADS;
 
@@ -1888,6 +1904,7 @@ void ppo_loss_fwd_bwd(
         .vf_coef = vf_coef, .ent_coef = ent_coef,
         .T_seq = T, .A_total = A_total, .N = N,
         .is_continuous = is_continuous,
+        .normalize_advantages = normalize_advantages,
     };
     ppo_loss_compute<<<ppo_grid, PPO_THREADS, 0, stream>>>(
             bufs.ppo_partials.data, args, graph_args);

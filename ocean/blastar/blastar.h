@@ -105,10 +105,10 @@ typedef Env Blastar;
 
 void add_log(Blastar* env) {
     env->log.episode_length += env->tick;
-    env->log.lives = env->player.lives;
-    env->log.score = env->player.score;
-    env->log.perf = env->player.score / MAX_SCORE;
-    env->log.kill_streak = env->kill_streak;
+    env->log.lives += env->player.lives;
+    env->log.score += env->player.score;
+    env->log.perf += env->player.score / MAX_SCORE;
+    env->log.kill_streak += env->kill_streak;
     env->log.n += 1;
 }
 

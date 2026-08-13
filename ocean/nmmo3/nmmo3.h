@@ -729,6 +729,8 @@ struct Env {
     float reward_item_level;
     float reward_market;
     float reward_death;
+    // 1: zero entity bytes when pids[cell] is empty (no stale last-seen enemy).
+    int clear_stale_entities;
 };
 
 static inline void sync_mmo_agent_buffers(MMO* env) {
@@ -832,6 +834,7 @@ void puf_init(Env* env, Dict* kwargs) {
     env->reward_item_level = dict_get(kwargs, "reward_item_level");
     env->reward_market = dict_get(kwargs, "reward_market");
     env->reward_death = dict_get(kwargs, "reward_death");
+    env->clear_stale_entities = dict_get(kwargs, "clear_stale_entities");
     env->agents = (Agent*)calloc(env->num_agents, sizeof(Agent));
     for (int i = 0; i < env->num_agents; i++) {
         env->agents[i].action_mask = NULL;
@@ -1050,6 +1053,13 @@ void compute_all_obs(MMO* env) {
                     env->observations[obs_adr+7] = seen->hp / 20; // Bucketed for discrete
                     env->observations[obs_adr+8] = seen->anim;
                     env->observations[obs_adr+9] = seen->dir;
+                } else if (env->clear_stale_entities) {
+                    env->observations[obs_adr+4] = 0;
+                    env->observations[obs_adr+5] = 0;
+                    env->observations[obs_adr+6] = 0;
+                    env->observations[obs_adr+7] = 0;
+                    env->observations[obs_adr+8] = 0;
+                    env->observations[obs_adr+9] = 0;
                 }
                 obs_adr += 10;
             }

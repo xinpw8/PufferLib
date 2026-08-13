@@ -8,11 +8,7 @@
 #define ACT_SIZES {7}
 #define OBS_SIZE 42
 #define NUM_ATNS 1
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
 typedef float obs_t;
-#endif
 
 #define WIN_CONDITION 4
 const int PLAYER_WIN = 1.0;
@@ -35,6 +31,7 @@ struct Log {
     float episode_return;
     float episode_length;
     float n;
+    float invalids;
 };
 
 typedef struct Client Client;
@@ -245,56 +242,63 @@ void compute_observation(Connect4* env) {
         }
 
         int p0_bit = (player_pieces >> i) & 1;
-        if (p0_bit == 1) {
-            ((obs_t*)env->agents[0].observations)[obs_idx] = PLAYER_WIN;
-        }
         int p1_bit = (env_pieces >> i) & 1;
-        if (p1_bit == 1) {
-            ((obs_t*)env->agents[0].observations)[obs_idx] = ENV_WIN;
+        obs_t cell = 0;
+        if (p0_bit == 1) {
+            cell = (obs_t)PLAYER_WIN;
+        } else if (p1_bit == 1) {
+            cell = (obs_t)ENV_WIN;
         }
+        ((obs_t*)env->agents[0].observations)[obs_idx] = cell;
         obs_idx += 1;
     }
 }
 
-void puf_reset(Connect4* env) {
+static void reset_board(Connect4* env) {
     env->end_game = 0;
-    env->tick=0;
-    env->agents[0].terminals[0] = 0;
+    env->tick = 0;
     env->player_pieces = 0;
     env->env_pieces = 0;
-    for (int i = 0; i < 42; i ++) {
-        ((obs_t*)env->agents[0].observations)[i] = 0.0;
+    for (int i = 0; i < 42; i++) {
+        ((obs_t*)env->agents[0].observations)[i] = 0;
     }
 }
 
-void finish_game(Connect4* env, float reward) {
+void puf_reset(Connect4* env) {
+    reset_board(env);
+    env->agents[0].terminals[0] = 0;
+    if (env->agents[0].rewards) {
+        env->agents[0].rewards[0] = 0;
+    }
+}
+
+// Same-step auto-reset as go: terminal=1 is uploaded with the *next* empty
+// board so MinGRU zeros state and then encodes a fresh episode, not the
+// stale terminal position.
+void finish_game(Connect4* env, float reward, int invalid) {
     env->agents[0].rewards[0] = reward;
     env->agents[0].terminals[0] = 1;
+    env->log.invalids += (float)invalid;
     add_log(env);
-    env->end_game = 1;
+    reset_board(env);
 }
 
 void puf_step(Connect4* env) {
-    env->tick+=1;
+    env->tick += 1;
     env->agents[0].rewards[0] = 0.0;
     env->agents[0].terminals[0] = 0;
-
-    if(env->end_game == 1) {
-        puf_reset(env);
-        return;
-    }
 
     // Player action (PLAYER_WIN)
     uint64_t column = (uint64_t)env->agents[0].actions[0];
     uint64_t piece_mask = env->player_pieces | env->env_pieces;
     if (invalid_move(column, piece_mask)) {
-        finish_game(env, ENV_WIN);
+        finish_game(env, ENV_WIN, 1);
         return;
     }
 
     env->player_pieces = play(column, piece_mask, env->env_pieces);
     if (won(env->player_pieces)) {
-        finish_game(env, PLAYER_WIN);
+        finish_game(env, PLAYER_WIN, 0);
         return;
     }
 
@@ -302,13 +306,13 @@ void puf_step(Connect4* env) {
     column = compute_env_move(env);
     piece_mask = env->player_pieces | env->env_pieces;
     if (invalid_move(column, piece_mask)) {
-        finish_game(env, PLAYER_WIN);
+        finish_game(env, PLAYER_WIN, 0);
         return;
     }
 
     env->env_pieces = play(column, piece_mask, env->player_pieces);
     if (won(env->env_pieces)) {
-        finish_game(env, ENV_WIN);
+        finish_game(env, ENV_WIN, 0);
         return;
     }
 
@@ -414,6 +418,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
     dict_set(out, "n", log->n);
+    dict_set(out, "invalids", log->invalids);
 }
 
 void puf_init(Env* env, Dict* kwargs) {

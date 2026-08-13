@@ -307,6 +307,10 @@ typedef struct {
     float verb_eps_anneal_end;
     bool anneal_lr;
     float momentum;
+    bool advantage_per_mb;
+    bool advantage_is;
+    bool advantage_live_v;
+    bool normalize_advantages;
     int minibatch_size;
     float replay_ratio;
     long total_timesteps;
@@ -1373,7 +1377,8 @@ __device__ void copy_bytes(
 #define SELECT_COPY_THREADS 256
 __global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
         int* idx, precision_t* advantages, float* mb_prio,
-        int obs_rb, int act_rb, int lp_rb, int term_rb, int mask_rb, int horizon) {
+        int obs_rb, int act_rb, int lp_rb, int term_rb, int rew_rb,
+        int mask_rb, int horizon) {
     int mb = blockIdx.x;
     int src_row = idx[mb];
 
@@ -1385,6 +1390,8 @@ __global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
         (char*)graph.mb_logprobs.data, src_row, mb, lp_rb);
     copy_bytes((const char*)rollouts.action_mask.data,
         (char*)graph.mb_action_mask.data, src_row, mb, mask_rb);
+    copy_bytes((const char*)rollouts.rewards.data,
+        (char*)graph.mb_rewards.data, src_row, mb, rew_rb);
 
     int srh = (int64_t)src_row * horizon;
     int drh = (int64_t)mb * horizon;
@@ -1455,6 +1462,79 @@ __global__ void scatter_rows(precision_t* dst, int* idx,
 float cosine_annealing(float base, float min_v, long t, long T) {
     double u = (double)t / (double)T;
     return min_v + 0.5f * (base - min_v) * (1.0f + (float)cos(M_PI * u));
+}
+
+// Per-mb GAE prep: ρ (IS or 1) and backup V (live V_θ or frozen rollout V).
+__global__ void mb_fill_imp_and_gae_v(
+        const precision_t* __restrict__ logits,
+        const float* __restrict__ actions,
+        const precision_t* __restrict__ old_logprobs,
+        const precision_t* __restrict__ mb_values_rollout,
+        const precision_t* __restrict__ action_mask,
+        precision_t* __restrict__ imp_out,
+        precision_t* __restrict__ gae_v_out,
+        const int* __restrict__ act_sizes,
+        int N, int T, int A_total, int num_atns,
+        int use_is, int use_live_v, int is_continuous) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int NT = N * T;
+    if (idx >= NT) return;
+    int logits_base = idx * (A_total + 1);
+    float v_pred = to_float(logits[logits_base + A_total]);
+    float v_roll = to_float(mb_values_rollout[idx]);
+    gae_v_out[idx] = from_float(use_live_v ? v_pred : v_roll);
+
+    if (!use_is) {
+        imp_out[idx] = from_float(1.0f);
+        return;
+    }
+    if (is_continuous) {
+        imp_out[idx] = from_float(1.0f);
+        return;
+    }
+    float old_lp = to_float(old_logprobs[idx]);
+    float new_lp = 0.0f;
+    int logits_offset = 0;
+    for (int h = 0; h < num_atns; ++h) {
+        int A = act_sizes[h];
+        int act = (int)actions[idx * num_atns + h];
+        if (act < 0) act = 0;
+        if (act >= A) act = A - 1;
+        float max_l = -1e30f;
+        for (int a = 0; a < A; ++a) {
+            float l = to_float(logits[logits_base + logits_offset + a]);
+            float m = to_float(action_mask[idx * A_total + logits_offset + a]);
+            if (m == 0.0f) l = -1e4f;
+            if (l > max_l) max_l = l;
+        }
+        float sum = 0.0f;
+        for (int a = 0; a < A; ++a) {
+            float l = to_float(logits[logits_base + logits_offset + a]);
+            float m = to_float(action_mask[idx * A_total + logits_offset + a]);
+            if (m == 0.0f) l = -1e4f;
+            sum += __expf(l - max_l);
+        }
+        float lse = max_l + __logf(sum + 1e-20f);
+        float la = to_float(logits[logits_base + logits_offset + act]);
+        float ma = to_float(action_mask[idx * A_total + logits_offset + act]);
+        if (ma == 0.0f) la = -1e4f;
+        new_lp += la - lse;
+        logits_offset += A;
+    }
+    float rho = __expf(new_lp - old_lp);
+    if (!(rho > 0.0f) || rho > 1e6f) rho = 1.0f;
+    imp_out[idx] = from_float(rho);
+}
+
+__global__ void mb_set_returns_from_gae(
+        precision_t* __restrict__ returns,
+        const precision_t* __restrict__ gae_v,
+        const precision_t* __restrict__ advantages,
+        int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) {
+        returns[i] = from_float(to_float(gae_v[i]) + to_float(advantages[i]));
+    }
 }
 
 __global__ void fill_precision_kernel(precision_t* dst, precision_t val, int n) {
@@ -1596,6 +1676,8 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
         / rollouts->logprobs.shape[0]) * pe;
     int term_rb = (numel(rollouts->terminals.shape)
         / rollouts->terminals.shape[0]) * pe;
+    int rew_rb = (numel(rollouts->rewards.shape)
+        / rollouts->rewards.shape[0]) * pe;
     int mask_rb = (numel(rollouts->action_mask.shape)
         / rollouts->action_mask.shape[0]) * pe;
     int sel_horizon = (int)rollouts->values.shape[1];
@@ -1624,7 +1706,7 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
         select_copy<<<mb_segs, SELECT_COPY_THREADS, 0, train_stream>>>(
             sel_src, *graph, sel_idx, advantages->data,
             pufferl->prio_bufs.mb_prio.data,
-            obs_rb, act_rb, lp_rb, term_rb, mask_rb, sel_horizon);
+            obs_rb, act_rb, lp_rb, term_rb, rew_rb, mask_rb, sel_horizon);
         profile_end(hypers->profile);
 
         cudaEventRecord(pufferl->profile.events[TE_ME], train_stream);
@@ -1651,11 +1733,46 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
                 p_logstd = dw_train->logstd;
             }
 
+            // Per-mb GAE (± IS ρ, ± live V) after forward, before loss.
+            // Off: keep once-per-epoch A/returns from select_copy (control).
+            if (hypers->advantage_per_mb) {
+                int Nmb = (int)graph->mb_advantages.shape[0];
+                int Tmb = (int)graph->mb_advantages.shape[1];
+                int A_total = (int)(dec.shape[2] - 1);
+                int n_nt = Nmb * Tmb;
+                int use_is = hypers->advantage_is ? 1 : 0;
+                int use_live = hypers->advantage_live_v ? 1 : 0;
+                float rho = use_is
+                    ? (hypers->vtrace_rho_clip > 0.0f
+                        ? hypers->vtrace_rho_clip : 1.0f)
+                    : 1.0f;
+                float cclip = use_is
+                    ? (hypers->vtrace_c_clip > 0.0f
+                        ? hypers->vtrace_c_clip : 1.0f)
+                    : 1.0f;
+                int adv_grid = (Nmb + ADV_THREADS - 1) / ADV_THREADS;
+                mb_fill_imp_and_gae_v<<<grid_size(n_nt), BLOCK_SIZE, 0, stream>>>(
+                    dec.data, graph->mb_actions.data, graph->mb_logprobs.data,
+                    graph->mb_values.data, graph->mb_action_mask.data,
+                    graph->mb_imp.data, graph->mb_gae_v.data,
+                    pufferl->act_sizes, Nmb, Tmb, A_total, (int)NUM_ATNS,
+                    use_is, use_live, pufferl->is_continuous ? 1 : 0);
+                puff_advantage<<<adv_grid, ADV_THREADS, 0, stream>>>(
+                    graph->mb_gae_v.data, graph->mb_rewards.data,
+                    graph->mb_terminals.data, graph->mb_imp.data,
+                    graph->mb_advantages.data, hypers->gamma, hypers->gae_lambda,
+                    rho, cclip, Nmb, Tmb);
+                mb_set_returns_from_gae<<<grid_size(n_nt), BLOCK_SIZE, 0, stream>>>(
+                    graph->mb_returns.data, graph->mb_gae_v.data,
+                    graph->mb_advantages.data, n_nt);
+            }
+
             ppo_loss_fwd_bwd(dec, p_logstd, *graph,
                 pufferl->act_sizes, pufferl->losses,
                 hypers->clip_coef, hypers->vf_clip_coef, hypers->vf_coef,
                 pufferl->ppo_bufs.ent_coef,
-                pufferl->ppo_bufs, pufferl->is_continuous, stream);
+                pufferl->ppo_bufs, pufferl->is_continuous,
+                hypers->normalize_advantages, stream);
 
             Float grad_logits = pufferl->ppo_bufs.grad_logits;
             Float grad_logstd = pufferl->is_continuous ? pufferl->ppo_bufs.grad_logstd : Float();
@@ -1699,10 +1816,14 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
             BLOCK_SIZE, 0, train_stream>>>(
             rollouts->ratio.data, pufferl->prio_bufs.idx.data,
             graph->mb_ratio.data, num_idx, ratio_row);
-        scatter_rows<<<grid_size(num_idx * value_row),
-            BLOCK_SIZE, 0, train_stream>>>(
-            rollouts->values.data, pufferl->prio_bufs.idx.data,
-            graph->mb_newvalue.data, num_idx, value_row);
+        // Control (once-GAE): write new V back into the rollout buffer.
+        // Per-mb + live V: leave frozen rollout V as the vf-clip anchor.
+        if (!hypers->advantage_per_mb) {
+            scatter_rows<<<grid_size(num_idx * value_row),
+                BLOCK_SIZE, 0, train_stream>>>(
+                rollouts->values.data, pufferl->prio_bufs.idx.data,
+                graph->mb_newvalue.data, num_idx, value_row);
+        }
         cudaEventRecord(pufferl->profile.events[TE_FE], train_stream);
     }
 
@@ -1870,6 +1991,10 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
         .verb_eps_anneal_end = puf_ini_get(ini, "train", "verb_eps_anneal_end"),
         .anneal_lr = puf_ini_get(ini, "train", "anneal_lr") != 0,
         .momentum = puf_ini_get(ini, "train", "momentum"),
+        .advantage_per_mb = puf_ini_get(ini, "train", "advantage_per_mb") != 0,
+        .advantage_is = puf_ini_get(ini, "train", "advantage_is") != 0,
+        .advantage_live_v = puf_ini_get(ini, "train", "advantage_live_v") != 0,
+        .normalize_advantages = puf_ini_get(ini, "train", "normalize_advantages") != 0,
         .minibatch_size = puf_ini_get(ini, "train", "minibatch_size"),
         .replay_ratio = puf_ini_get(ini, "train", "replay_ratio"),
         .total_timesteps = puf_ini_get(ini, "train", "total_timesteps"),
@@ -2678,6 +2803,15 @@ void run_sweep(Ini* ini, const char* exe_path) {
         snprintf(params[n_params].section, sizeof(params[n_params].section),
             "%.*s", (int)(dot - path), path);
         snprintf(params[n_params].key, sizeof(params[n_params].key), "%s", dot + 1);
+
+        // default.ini sweep dims are shared. Skip env-specific ones this
+        // env never declared (e.g. env.frameskip on g2048).
+        Dict* live = puf_ini_section(ini, params[n_params].section, 0);
+        if (!dict_find(live, params[n_params].key)) {
+            fprintf(stderr, "sweep: skip %s.%s (not in this env)\n",
+                params[n_params].section, params[n_params].key);
+            continue;
+        }
 
         const char* dist = dict_get_str(dict, "distribution");
         SpaceType type = SPACE_LINEAR;

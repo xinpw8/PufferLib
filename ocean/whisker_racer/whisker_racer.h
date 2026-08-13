@@ -162,11 +162,11 @@ void free_allocated(WhiskerRacer* env) {
 
 void add_log(WhiskerRacer* env) {
     env->log.episode_length += env->tick;
-    if (env->log.episode_length > 0.01f) {
-    }
     env->log.episode_return += env->score;
     env->log.score += env->score;
-    env->log.perf += env->score / (float)env->max_score;
+    // One lap = 16 radial sectors. max_score is never set in init (stays 0).
+    float one_lap = 16.0f * (env->reward_yellow > 0.0f ? env->reward_yellow : 1.0f);
+    env->log.perf += env->score / one_lap;
     env->log.n += 1;
 }
 

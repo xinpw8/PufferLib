@@ -11,29 +11,58 @@ set -e
 #   ./build.sh breakout --fast       # Standalone executable (optimized)
 #   ./build.sh breakout --web        # Emscripten web build
 #   ./build.sh breakout --profile    # Kernel profiling binary
+#   ./build.sh breakout --device N   # Pin CUDA_VISIBLE_DEVICES during the build
 #   ./build.sh all                   # Build all envs native and native float32
+#
+# Native train/eval binaries are written per-env so parallel builds/runs
+# do not clobber a shared ./puffer:
+#   build/puffer_<env>         default precision
+#   build/puffer_<env>_float   --float
+# Runtime GPU selection: CUDA_VISIBLE_DEVICES=N ./build/puffer_<env> train <env>
+# or  ./build/puffer_<env> train <env> base.gpu_offset=N
 
 if [ -z "$1" ]; then
-    echo "Usage: ./build.sh ENV_NAME [--gpu] [--float] [--debug] [--local|--fast|--web|--profile|--cpu]"
+    echo "Usage: ./build.sh ENV_NAME [--gpu] [--float] [--debug] [--local|--fast|--web|--profile|--cpu] [--device N]"
     exit 1
 fi
 ENV=$1
 shift
 
 USE_GPU_ENV=0
-for arg in "$@"; do
-    case $arg in
+DEVICE=""
+SNAKE_RAW=0
+while [ $# -gt 0 ]; do
+    case $1 in
         --gpu) USE_GPU_ENV=1 ;;
         --float) PRECISION="-DPRECISION_FLOAT" ;;
+        --no-onehot) SNAKE_RAW=1 ;;
         --debug) DEBUG=1 ;;
         --local) MODE=local ;;
         --fast)  MODE=fast ;;
         --web)   MODE=web ;;
         --profile) MODE=profile ;;
         --cpu)   MODE=cpu ;;
-        *) echo "Error: unknown argument '$arg'" && exit 1 ;;
+        --device)
+            shift
+            if [ -z "$1" ]; then
+                echo "Error: --device requires a GPU index" && exit 1
+            fi
+            DEVICE=$1
+            ;;
+        --device=*)
+            DEVICE="${1#--device=}"
+            if [ -z "$DEVICE" ]; then
+                echo "Error: --device requires a GPU index" && exit 1
+            fi
+            ;;
+        *) echo "Error: unknown argument '$1'" && exit 1 ;;
     esac
+    shift
 done
+
+if [ -n "$DEVICE" ]; then
+    export CUDA_VISIBLE_DEVICES="$DEVICE"
+fi
 
 if [ "$ENV" = "all" ]; then
     FAILED=""
@@ -223,6 +252,7 @@ elif [ "$MODE" = "cpu" ]; then
         exit 1
     fi
 
+    mkdir -p build
     echo "Compiling standalone CPU eval for $ENV..."
     ${CC:-clang} "${CLANG_OPT[@]}" \
         -I. -Isrc -I$SRC_DIR -Ivendor "${INCLUDES[@]}" \
@@ -234,8 +264,8 @@ elif [ "$MODE" = "cpu" ]; then
         "${EXTRA_LDFLAGS[@]}" \
         "${STANDALONE_LDFLAGS[@]}" \
         -lm -lpthread -fopenmp \
-        -o build_cpu
-    echo "Built: ./build_cpu"
+        -o "build/cpu_${ENV}"
+    echo "Built: ./build/cpu_${ENV}"
     exit 0
 fi
 
@@ -289,7 +319,15 @@ MODE=${MODE:-native}
 NVCC_NARROW=(-Xcompiler=-Wno-narrowing --diag-suppress=2361)
 
 if [ "$MODE" = "native" ]; then
-    echo "Compiling native train/eval binary ($ARCH)..."
+    if [ -n "$PRECISION" ]; then
+        TRAIN_BIN="build/puffer_${ENV}_float"
+    elif [ "$SNAKE_RAW" = "1" ]; then
+        TRAIN_BIN="build/puffer_${ENV}_raw"
+        EXTRA_CFLAGS+=(-DSNAKE_ONEHOT=0)
+    else
+        TRAIN_BIN="build/puffer_${ENV}"
+    fi
+    echo "Compiling native train/eval binary ($ARCH) -> $TRAIN_BIN..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
         "${INCLUDES[@]}" \
@@ -310,11 +348,12 @@ if [ "$MODE" = "native" ]; then
         "${EXTRA_LDFLAGS[@]}" \
         -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand \
         -lm -lpthread $OMP_LIB "${STANDALONE_LDFLAGS[@]}" \
-        -o puffer
-    echo "Built: ./puffer"
+        -o "$TRAIN_BIN"
+    echo "Built: ./$TRAIN_BIN"
 
 elif [ "$MODE" = "profile" ]; then
-    echo "Compiling profile binary ($ARCH)..."
+    PROFILE_BIN="build/profile_${ENV}"
+    echo "Compiling profile binary ($ARCH) -> $PROFILE_BIN..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
         "${INCLUDES[@]}" \
@@ -332,6 +371,6 @@ elif [ "$MODE" = "profile" ]; then
         -L$CUDA_HOME/lib64 \
         -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand \
         -lGL -lm -lpthread $OMP_LIB \
-        -o profile
-    echo "Built: ./profile"
+        -o "$PROFILE_BIN"
+    echo "Built: ./$PROFILE_BIN"
 fi
