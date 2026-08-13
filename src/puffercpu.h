@@ -605,8 +605,69 @@ void free_puffernet(PufferNet* net) {
 
 #include "ini.h"
 #include <dirent.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <unistd.h>
+
+static int puf_align8(int n) {
+    return (n + 7) & ~7;
+}
+
+static int puffernet_weight_count(int input_dim, int hidden, int layers,
+        const int act_sizes[], int num_actions) {
+    int atn_sum = 0;
+    int continuous = 1;
+    for (int i = 0; i < num_actions; i++) {
+        atn_sum += act_sizes[i];
+        if (act_sizes[i] != 1) {
+            continuous = 0;
+        }
+    }
+    int n = 0;
+    n = puf_align8(n + hidden * input_dim);
+    n = puf_align8(n + (atn_sum + 1) * hidden);
+    if (continuous) {
+        n = puf_align8(n + num_actions);
+    }
+    for (int l = 0; l < layers; l++) {
+        n = puf_align8(n + 3 * hidden * hidden);
+    }
+    return n;
+}
+
+static void puf_mkdir_parent(const char* path) {
+    char dir[1024];
+    snprintf(dir, sizeof(dir), "%s", path);
+    for (char* p = dir + 1; *p; p++) {
+        if (*p == '/') {
+            *p = 0;
+            if (mkdir(dir, 0777) != 0 && errno != EEXIST) {
+                perror(dir);
+            }
+            *p = '/';
+        }
+    }
+}
+
+static int puf_write_untrained_weights(const char* path, int n) {
+    FILE* fp = fopen(path, "wb");
+    if (!fp) {
+        perror(path);
+        return -1;
+    }
+    unsigned int rng = 73;
+    for (int i = 0; i < n; i++) {
+        rng = rng * 1664525u + 1013904223u;
+        float v = ((rng >> 8) / 16777215.0f) * 0.2f - 0.1f;
+        if (fwrite(&v, sizeof(float), 1, fp) != 1) {
+            fclose(fp);
+            return -1;
+        }
+    }
+    fclose(fp);
+    return 0;
+}
 
 #ifndef ENV_HEADER
 #error "ENV_HEADER required for PUFFERCPU_EVAL_MAIN"
@@ -675,47 +736,84 @@ static const char* puf_model_path(Ini* ini, const char* env_name,
     }
 
     snprintf(out, out_size, "resources/%s/%s_weights.bin", env_name, env_name);
+    if (access(out, R_OK) == 0) {
+        return out;
+    }
+    const char* website = puf_ini_get_str(ini, "base", "website_dir");
+    if (website && strcmp(website, "None") != 0) {
+        snprintf(out, out_size, "%s/docs/assets/models/%s_weights.bin",
+            website, env_name);
+    }
     return out;
 }
 
 int main(int argc, char** argv) {
+#ifndef PUFFER_ENV_NAME
     if (argc < 2) {
         fprintf(stderr, "usage: %s ENV [section.key=value ...]\n", argv[0]);
         return 1;
     }
-
     const char* env_name = argv[1];
+    int argi = 2;
+#else
+    const char* env_name = PUFFER_ENV_NAME;
+    int argi = 1;
+    if (argc >= 2 && argv[1][0] && argv[1][0] != '-' && strchr(argv[1], '=') == NULL) {
+        env_name = argv[1];
+        argi = 2;
+    }
+#endif
     Ini ini = {0};
-    puf_ini_load_env(&ini, env_name, argc - 2, argv + 2);
-
-    if (sizeof(obs_t) != sizeof(float)) {
-        fprintf(stderr, "cpu eval currently requires float observations\n");
-        return 1;
-    }
-
-    char path_buf[1024];
-    const char* path = puf_model_path(&ini, env_name, path_buf, sizeof(path_buf));
-    Weights* weights = load_weights(path);
-    if (!weights) {
-        puf_ini_free(&ini);
-        return 1;
-    }
+    puf_ini_load_env(&ini, env_name, argc - argi, argv + argi);
 
     int act_sizes[] = ACT_SIZES;
     int num_actions = (int)(sizeof(act_sizes) / sizeof(act_sizes[0]));
+    int hidden_size = (int)puf_ini_get(&ini, "policy", "hidden_size");
+    int num_layers = (int)puf_ini_get(&ini, "policy", "num_layers");
 
-    int hidden_size = puf_ini_get(&ini, "policy", "hidden_size");
-    int num_layers = puf_ini_get(&ini, "policy", "num_layers");
+    char path_buf[1024];
+    const char* path = puf_model_path(&ini, env_name, path_buf, sizeof(path_buf));
+    int need = puffernet_weight_count(OBS_SIZE, hidden_size, num_layers,
+        act_sizes, num_actions);
+    Weights* weights = load_weights(path);
+    if (!weights || weights->size < need) {
+        if (weights) {
+            printf("export: %s too small (%d < %d); writing untrained\n",
+                path, weights->size, need);
+            free(weights);
+            weights = NULL;
+        }
+        puf_mkdir_parent(path);
+        if (puf_write_untrained_weights(path, need) != 0) {
+            puf_ini_free(&ini);
+            return 1;
+        }
+        printf("export: wrote untrained %s (%d floats)\n", path, need);
+        weights = load_weights(path);
+        if (!weights) {
+            puf_ini_free(&ini);
+            return 1;
+        }
+    }
 
     Env env = {0};
     env.rng = 0;
     puf_init(&env, puf_ini_section(&ini, "env", 0));
 
     obs_t observations[env.num_agents * OBS_SIZE];
+    float obs_f[env.num_agents * OBS_SIZE];
     float actions[env.num_agents * NUM_ATNS];
     float rewards[env.num_agents];
     float terminals[env.num_agents];
+    int act_n = 0;
+    for (int i = 0; i < num_actions; i++) {
+        act_n += act_sizes[i];
+    }
+    unsigned char* masks = (unsigned char*)calloc(
+        (size_t)env.num_agents * (size_t)act_n, 1);
+    memset(masks, 1, (size_t)env.num_agents * (size_t)act_n);
     memset(observations, 0, sizeof(observations));
+    memset(obs_f, 0, sizeof(obs_f));
     memset(actions, 0, sizeof(actions));
     memset(rewards, 0, sizeof(rewards));
     memset(terminals, 0, sizeof(terminals));
@@ -724,7 +822,7 @@ int main(int argc, char** argv) {
         env.agents[i].actions = actions + i * NUM_ATNS;
         env.agents[i].rewards = rewards + i;
         env.agents[i].terminals = terminals + i;
-        env.agents[i].action_mask = NULL;
+        env.agents[i].action_mask = masks + i * act_n;
         env.agents[i].policy = 0;
     }
     puf_reset(&env);
@@ -732,11 +830,52 @@ int main(int argc, char** argv) {
     PufferNet* net = make_puffernet(weights, env.num_agents, OBS_SIZE,
         hidden_size, num_layers, act_sizes, num_actions);
 
+    const char* screenshot = puf_ini_get_str(&ini, "base", "screenshot");
+    int want_shot = screenshot && strcmp(screenshot, "None") != 0;
+    int screenshot_steps = (int)puf_ini_get(&ini, "base", "screenshot_steps");
+
     int frame = 0;
-    puf_render(&env);
+    if (want_shot) {
+        for (int s = 0; s < screenshot_steps; s++) {
+            float* fwd = obs_f;
+            if (sizeof(obs_t) == sizeof(float)) {
+                fwd = (float*)observations;
+            } else {
+                for (int i = 0; i < env.num_agents * OBS_SIZE; i++) {
+                    obs_f[i] = (float)observations[i];
+                }
+            }
+            forward_puffernet(net, fwd, actions);
+            puf_step(&env);
+        }
+        puf_render(&env);
+        const char* shot_base = strrchr(screenshot, '/');
+        shot_base = shot_base ? shot_base + 1 : screenshot;
+        TakeScreenshot(shot_base);
+        if (strcmp(shot_base, screenshot) != 0 && access(shot_base, R_OK) == 0) {
+            puf_mkdir_parent(screenshot);
+            rename(shot_base, screenshot);
+        }
+        printf("screenshot: %s %dx%d\n", screenshot,
+            GetScreenWidth(), GetScreenHeight());
+        puf_close(&env);
+        free_puffernet(net);
+        free(weights);
+        free(masks);
+        puf_ini_free(&ini);
+        return 0;
+    }
     while (!WindowShouldClose()) {
         if (frame % 4 == 0) {
-            forward_puffernet(net, observations, actions);
+            float* fwd = obs_f;
+            if (sizeof(obs_t) == sizeof(float)) {
+                fwd = (float*)observations;
+            } else {
+                for (int i = 0; i < env.num_agents * OBS_SIZE; i++) {
+                    obs_f[i] = (float)observations[i];
+                }
+            }
+            forward_puffernet(net, fwd, actions);
         }
         frame = (frame + 1) % 4;
         puf_step(&env);
@@ -746,6 +885,7 @@ int main(int argc, char** argv) {
     puf_close(&env);
     free_puffernet(net);
     free(weights);
+    free(masks);
     puf_ini_free(&ini);
     return 0;
 }

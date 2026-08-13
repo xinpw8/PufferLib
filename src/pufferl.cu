@@ -3156,6 +3156,14 @@ static PuffeRL* eval_make(Ini* ini, TrainContext* ctx, int mode) {
         if (!path && render) {
             snprintf(buf, sizeof(buf), "resources/%s/%s_weights.bin",
                      PUFFER_ENV_NAME, PUFFER_ENV_NAME);
+            if (access(buf, R_OK) != 0) {
+                const char* website = puf_ini_get_str(ini, "base", "website_dir");
+                if (website && strcmp(website, "None") != 0) {
+                    snprintf(buf, sizeof(buf),
+                        "%s/docs/assets/models/%s_weights.bin",
+                        website, PUFFER_ENV_NAME);
+                }
+            }
             if (access(buf, R_OK) == 0) {
                 path = buf;
             }
@@ -3174,6 +3182,89 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
     EvalResult r = eval_loop(ini, p, mode, verbose, n, NULL, 0);
     close_pufferl(p);
     return r;
+}
+
+static void puf_shrink_for_export(Ini* ini) {
+    puf_ini_put(ini, "vec.num_policies", "1");
+    puf_ini_put(ini, "vec.hist_policy_percent", "0");
+    puf_ini_put(ini, "selfplay.enabled", "0");
+    puf_ini_put(ini, "base.async", "0");
+    puf_ini_put(ini, "base.cudagraphs", "-1");
+    puf_ini_put(ini, "vec.num_buffers", "1");
+    puf_ini_put(ini, "vec.total_agents", "256");
+    char mb[32];
+    snprintf(mb, sizeof(mb), "%ld", (long)puf_ini_get(ini, "train", "horizon"));
+    puf_ini_put(ini, "train.minibatch_size", mb);
+}
+
+static const char* puf_try_latest_checkpoint(Ini* ini, char* out, size_t out_size) {
+    char root[2048];
+    snprintf(root, sizeof(root), "%s/%s",
+        puf_ini_get_str(ini, "base", "checkpoint_dir"),
+        puf_ini_get_str(ini, "base", "env_name"));
+    out[0] = 0;
+    time_t best_time = 0;
+    puf_find_latest_checkpoint(root, out, out_size, &best_time);
+    return out[0] ? out : NULL;
+}
+
+static void puf_mkdir_parent(const char* path) {
+    char dir[4096];
+    snprintf(dir, sizeof(dir), "%s", path);
+    char* slash = strrchr(dir, '/');
+    if (!slash) {
+        return;
+    }
+    *slash = 0;
+    if (dir[0]) {
+        mkdir_p(dir);
+    }
+}
+
+void run_export(Ini* ini, TrainContext* ctx) {
+    puf_shrink_for_export(ini);
+    PuffeRL* p = create_pufferl(ini, ctx);
+
+    char src_buf[4096];
+    const char* src = puf_checkpoint_path_key(ini, "load_model_path",
+        src_buf, sizeof(src_buf));
+    if (!src) {
+        src = puf_try_latest_checkpoint(ini, src_buf, sizeof(src_buf));
+    }
+    if (src) {
+        printf("export: loading %s\n", src);
+        pufferl_load_policy(p, 0, src);
+    } else {
+        printf("export: no checkpoint; writing untrained policy\n");
+    }
+
+    char dest[4096];
+    const char* export_path = puf_ini_get_str(ini, "base", "export_path");
+    if (export_path && strcmp(export_path, "None") != 0) {
+        snprintf(dest, sizeof(dest), "%s", export_path);
+    } else {
+        snprintf(dest, sizeof(dest), "resources/%s/%s_weights.bin",
+            PUFFER_ENV_NAME, PUFFER_ENV_NAME);
+    }
+    puf_mkdir_parent(dest);
+    puf_save_weights(p, dest);
+    printf("export: wrote %s\n", dest);
+
+    const char* website_dir = puf_ini_get_str(ini, "base", "website_dir");
+    if (website_dir && strcmp(website_dir, "None") != 0) {
+        char models_dir[2048];
+        char web_dest[4096];
+        snprintf(models_dir, sizeof(models_dir), "%s/docs/assets/models", website_dir);
+        int n = snprintf(web_dest, sizeof(web_dest), "%s/%s_weights.bin",
+            models_dir, PUFFER_ENV_NAME);
+        assert(n > 0 && n < (int)sizeof(web_dest) && "website model path too long");
+        if (access(models_dir, W_OK) == 0 && strcmp(dest, web_dest) != 0) {
+            puf_save_weights(p, web_dest);
+            printf("export: wrote %s\n", web_dest);
+        }
+    }
+
+    close_pufferl(p);
 }
 
 TrainResult run_train(Ini* ini, TrainContext* ctx) {
@@ -3566,7 +3657,7 @@ int main(int argc, char** argv) {
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
     if (argc < 3) {
-        fprintf(stderr, "usage: %s train|eval|render|match|sweep ENV [section.key=value ...]\n", argv[0]);
+        fprintf(stderr, "usage: %s train|eval|render|match|sweep|export ENV [section.key=value ...]\n", argv[0]);
         exit(1);
     }
     int total_gpus = 0;
@@ -3588,8 +3679,10 @@ int main(int argc, char** argv) {
         run_eval(&ini, &ctx, EVAL_RENDER, 1);
     } else if (strcmp(mode, "match") == 0) {
         run_eval(&ini, &ctx, EVAL_MATCH, 1);
+    } else if (strcmp(mode, "export") == 0) {
+        run_export(&ini, &ctx);
     } else {
-        assert(0 && "unknown mode (train|eval|render|match|sweep)");
+        assert(0 && "unknown mode (train|eval|render|match|sweep|export)");
     }
 
     puf_ini_free(&ini);

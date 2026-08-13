@@ -451,6 +451,7 @@ bool attack_aa(Entity *agent, Entity *target) {
     if (angle < PI/6) {
         return true;
     }
+    return false;
 }
 
 void move_basic(Battle* env, Entity* agent, float* actions) {

@@ -10,6 +10,7 @@ set -e
 #   ./build.sh breakout --local      # Standalone executable (debug, sanitizers)
 #   ./build.sh breakout --fast       # Standalone executable (optimized)
 #   ./build.sh breakout --web        # Emscripten web build
+#                                    # copy build/web/ENV/* to ../docker/puffer.ai/docs/assets/ENV/
 #   ./build.sh breakout --profile    # Kernel profiling binary
 #   ./build.sh breakout --device N   # Pin CUDA_VISIBLE_DEVICES during the build
 #   ./build.sh all                   # Build all envs native and native float32
@@ -226,24 +227,49 @@ if [ "$MODE" = "local" ] || [ "$MODE" = "fast" ]; then
     echo "Built: ./$OUTPUT_NAME"
     exit 0
 elif [ "$MODE" = "web" ]; then
+    ENV_HEADER="$SRC_DIR/$ENV.h"
+    if ! grep -q 'typedef[[:space:]].*obs_t' "$ENV_HEADER" 2>/dev/null; then
+        echo "Error: $ENV_HEADER must typedef obs_t for web eval"
+        exit 1
+    fi
     mkdir -p "build/web/$ENV"
     echo "Compiling $ENV for web..."
+    PRELOAD=(
+        --preload-file resources/$ENV@resources/$ENV
+        --preload-file resources/shared@resources/shared
+        --preload-file config/default.ini@config/default.ini
+    )
+    if [ -f "config/$ENV.ini" ]; then
+        PRELOAD+=(--preload-file "config/$ENV.ini@config/$ENV.ini")
+    fi
+    if [ -f "config/${ENV}_web.ini" ]; then
+        PRELOAD+=(--preload-file "config/${ENV}_web.ini@config/${ENV}_web.ini")
+    fi
     emcc \
         -o "build/web/$ENV/game.html" \
-        "$SRC_FILE" $EXTRA_SRC \
+        src/puffercpu_main.c $EXTRA_SRC \
         -O3 -Wall -Wno-narrowing \
         "${LINK_ARCHIVES[@]}" \
-        "${INCLUDES[@]}" \
+        -I. -Isrc -I$SRC_DIR -Ivendor "${INCLUDES[@]}" \
         -L. -L./$RAYLIB_NAME/lib \
         -sASSERTIONS=2 -gsource-map \
         -sUSE_GLFW=3 -sUSE_WEBGL2=1 -sASYNCIFY -sFILESYSTEM -sFORCE_FILESYSTEM=1 \
         --shell-file vendor/minshell.html \
         -sINITIAL_MEMORY=512MB -sALLOW_MEMORY_GROWTH -sSTACK_SIZE=512KB \
         -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES3 \
-        --preload-file resources/$ENV@resources/$ENV \
-        --preload-file resources/shared@resources/shared \
+        -DPUFFERCPU_EVAL_MAIN \
+        -DENV_HEADER=\"$ENV_HEADER\" \
+        -DPUFFER_ENV_NAME=\"$ENV\" \
+        "${PRELOAD[@]}" \
         "${EXTRA_CFLAGS[@]}"
     echo "Built: build/web/$ENV/game.html"
+    WEBSITE_DIR="${PUFFER_WEBSITE_DIR:-../docker/puffer.ai}"
+    WEBSITE_ASSETS="$WEBSITE_DIR/docs/assets"
+    if [ -d "$WEBSITE_ASSETS" ]; then
+        mkdir -p "$WEBSITE_ASSETS/$ENV"
+        cp -a "build/web/$ENV/." "$WEBSITE_ASSETS/$ENV/"
+        echo "Published: $WEBSITE_ASSETS/$ENV/"
+    fi
     exit 0
 elif [ "$MODE" = "cpu" ]; then
     ENV_HEADER="$SRC_DIR/$ENV.h"
@@ -259,7 +285,8 @@ elif [ "$MODE" = "cpu" ]; then
         -DPLATFORM_DESKTOP \
         -DPUFFERCPU_EVAL_MAIN \
         -DENV_HEADER=\"$ENV_HEADER\" \
-        -x c src/puffercpu.h -x none $EXTRA_SRC \
+        -DPUFFER_ENV_NAME=\"$ENV\" \
+        src/puffercpu_main.c $EXTRA_SRC \
         "${LINK_ARCHIVES[@]}" \
         "${EXTRA_LDFLAGS[@]}" \
         "${STANDALONE_LDFLAGS[@]}" \

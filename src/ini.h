@@ -488,6 +488,17 @@ static inline void puf_ini_load_env(Ini* ini, const char* env_name,
     }
 
     puf_ini_put(ini, "base.env_name", env_name);
+#ifdef PLATFORM_WEB
+    {
+        char web_path[1024];
+        snprintf(web_path, sizeof(web_path), "config/%s_web.ini", env_name);
+        FILE* web_fp = fopen(web_path, "r");
+        if (web_fp) {
+            fclose(web_fp);
+            puf_ini_load_file(ini, web_path);
+        }
+    }
+#endif
     for (int i = 0; i < argc; i++) {
         puf_ini_apply_arg(ini, "base", argv[i], i);
     }
