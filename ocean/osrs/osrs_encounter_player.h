@@ -3,6 +3,16 @@
 
 #include "osrs_encounter.h"
 #include "osrs_interaction.h"
+typedef struct {
+    int16_t destination_dx;
+    int16_t destination_dy;
+    int8_t first_dx;
+    int8_t first_dy;
+    int8_t run_dx;
+    int8_t run_dy;
+    uint16_t distance;
+    uint8_t outcome;
+} OsrsLocalMoveRoute;
 
 typedef enum {
     OSRS_PLAYER_MOVE_NONE = 0,
@@ -331,13 +341,11 @@ static inline int osrs_player_step_chase_target(
         return 0;
     }
 
-    int remaining_waypoints =
-        route->waypoint_count - route->waypoint_index;
     int reroute =
-        !osrs_player_step_route_matches(route, player, target, &input->arena) ||
-        route->state == OSRS_INTERACTION_ROUTE_FAILED ||
-        remaining_waypoints <= 1;
-    if (!reroute && !osrs_player_step_route_next_traversable(input))
+        !osrs_player_step_route_matches(route, player, target, &input->arena);
+    if (!reroute &&
+            route->state == OSRS_INTERACTION_ROUTE_READY &&
+            !osrs_player_step_route_next_traversable(input))
         reroute = 1;
     if (reroute)
         osrs_player_step_build_attack_route(input, target);

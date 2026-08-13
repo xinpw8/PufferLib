@@ -17,17 +17,23 @@ static inline int osrs_first_empty_inventory_cell(
     return -1;
 }
 
-static inline int osrs_inventory_cell_holds_equipped_item(
+static inline int osrs_can_equip_metadata(
     const Player* p,
-    const OsrsInventoryCell* cells,
-    int cell_idx
+    const OsrsItemContentMetadata* metadata,
+    int inventory_has_empty_cell
 ) {
-    const OsrsInventoryCell* cell = &cells[cell_idx];
-    const OsrsItemContentMetadata* metadata =
-        osrs_inventory_cell_metadata(cell);
-    if (metadata->item_idx == ITEM_NONE) return 0;
-    if (metadata->gear_slot < 0) return 0;
-    return p->equipped[metadata->gear_slot] == metadata->item_idx;
+    uint8_t item_idx = metadata->item_idx;
+    int gear_slot = metadata->gear_slot;
+    if (item_idx == ITEM_NONE || gear_slot < 0) return 0;
+    if (p->equipped[gear_slot] == item_idx) return 0;
+    if (gear_slot == GEAR_SLOT_WEAPON && item_is_two_handed(item_idx) &&
+            p->equipped[GEAR_SLOT_SHIELD] != ITEM_NONE &&
+            p->equipped[GEAR_SLOT_WEAPON] != ITEM_NONE &&
+            !inventory_has_empty_cell) return 0;
+    if (gear_slot == GEAR_SLOT_SHIELD &&
+            item_is_two_handed(p->equipped[GEAR_SLOT_WEAPON]) &&
+            !inventory_has_empty_cell) return 0;
+    return 1;
 }
 
 static inline int osrs_can_equip_from_cell(
@@ -35,13 +41,13 @@ static inline int osrs_can_equip_from_cell(
     const OsrsInventoryCell* cells,
     int cell_idx
 ) {
-    const OsrsInventoryCell* cell = &cells[cell_idx];
-    uint8_t item_idx = osrs_inventory_cell_item_index(cell);
-    if (item_idx == ITEM_NONE) return 0;
-    if (osrs_inventory_cell_holds_equipped_item(p, cells, cell_idx)) return 0;
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(&cells[cell_idx]);
+    uint8_t item_idx = metadata->item_idx;
+    if (item_idx == ITEM_NONE || metadata->gear_slot < 0) return 0;
 
-    int gear_slot = osrs_inventory_cell_metadata(cell)->gear_slot;
-    if (gear_slot < 0) return 0;
+    int gear_slot = metadata->gear_slot;
+    if (p->equipped[gear_slot] == item_idx) return 0;
     if (gear_slot == GEAR_SLOT_WEAPON && item_is_two_handed(item_idx) &&
             p->equipped[GEAR_SLOT_SHIELD] != ITEM_NONE &&
             p->equipped[GEAR_SLOT_WEAPON] != ITEM_NONE &&
@@ -140,28 +146,22 @@ typedef struct {
     int drink;
 } OsrsInventoryClickActions;
 
+static_assert(NUM_GEAR_SLOTS <= 32, "inventory intent gear mask too narrow");
+
 typedef struct {
+    uint32_t equip_slot_mask;
     int equip_cell_by_slot[NUM_GEAR_SLOTS];
-    int equip_order_by_slot[NUM_GEAR_SLOTS];
     int eat_cell;
-    int eat_order;
     OsrsInventoryClickResolution eat_resolution;
     int drink_cell;
-    int drink_order;
     OsrsInventoryClickResolution drink_resolution;
 } OsrsInventoryTickIntent;
 
 static inline OsrsInventoryTickIntent osrs_inventory_tick_intent_empty(void) {
-    OsrsInventoryTickIntent intent;
-    memset(&intent, 0, sizeof(intent));
-    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-        intent.equip_cell_by_slot[slot] = -1;
-        intent.equip_order_by_slot[slot] = -1;
-    }
-    intent.eat_cell = -1;
-    intent.eat_order = -1;
-    intent.drink_cell = -1;
-    intent.drink_order = -1;
+    OsrsInventoryTickIntent intent = {
+        .eat_cell = -1,
+        .drink_cell = -1,
+    };
     return intent;
 }
 
@@ -171,21 +171,36 @@ static inline OsrsInventoryTickIntent osrs_resolve_inventory_tick_intent(
     const OsrsInventoryClickActions* clicks
 ) {
     OsrsInventoryTickIntent intent = osrs_inventory_tick_intent_empty();
+    int inventory_has_empty_cell = -1;
 
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
         int action = clicks->equip_by_slot[slot];
         if (action <= 0 || action > OSRS_INVENTORY_SIZE) continue;
         int cell_idx = action - 1;
-        if (!osrs_can_equip_from_cell(p, cells, cell_idx)) continue;
-        int gear_slot = osrs_inventory_cell_metadata(
-            &cells[cell_idx])->gear_slot;
+        const OsrsItemContentMetadata* metadata =
+            osrs_inventory_cell_metadata(&cells[cell_idx]);
+        int needs_empty_cell =
+            (metadata->gear_slot == GEAR_SLOT_WEAPON &&
+                item_is_two_handed(metadata->item_idx) &&
+                p->equipped[GEAR_SLOT_SHIELD] != ITEM_NONE &&
+                p->equipped[GEAR_SLOT_WEAPON] != ITEM_NONE) ||
+            (metadata->gear_slot == GEAR_SLOT_SHIELD &&
+                item_is_two_handed(p->equipped[GEAR_SLOT_WEAPON]));
+        if (needs_empty_cell && inventory_has_empty_cell < 0) {
+            inventory_has_empty_cell =
+                osrs_first_empty_inventory_cell(cells, -1) >= 0;
+        }
+        if (!osrs_can_equip_metadata(
+                p, metadata,
+                !needs_empty_cell || inventory_has_empty_cell)) continue;
+        int gear_slot = metadata->gear_slot;
         if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) {
             fprintf(stderr, "inventory equip intent: invalid gear slot %d\n", gear_slot);
             abort();
         }
         if (gear_slot != slot) continue;
         intent.equip_cell_by_slot[slot] = cell_idx;
-        intent.equip_order_by_slot[slot] = slot;
+        intent.equip_slot_mask |= UINT32_C(1) << slot;
     }
 
     if (clicks->eat > 0 && clicks->eat <= OSRS_INVENTORY_SIZE) {
@@ -195,7 +210,6 @@ static inline OsrsInventoryTickIntent osrs_resolve_inventory_tick_intent(
         if (resolution.click_action == OSRS_CLICK_EAT &&
                 osrs_can_eat_consumable_kind(p, resolution.consumable_kind)) {
             intent.eat_cell = cell_idx;
-            intent.eat_order = NUM_GEAR_SLOTS;
             intent.eat_resolution = resolution;
         }
     }
@@ -208,7 +222,6 @@ static inline OsrsInventoryTickIntent osrs_resolve_inventory_tick_intent(
                 osrs_inventory_cell_dose_count(&cells[cell_idx]) > 0 &&
                 p->potion_timer == 0) {
             intent.drink_cell = cell_idx;
-            intent.drink_order = NUM_GEAR_SLOTS + 1;
             intent.drink_resolution = resolution;
         }
     }
@@ -219,24 +232,9 @@ static inline OsrsInventoryTickIntent osrs_resolve_inventory_tick_intent(
 static inline int osrs_inventory_tick_intent_has_effect(
     const OsrsInventoryTickIntent* intent
 ) {
-    if (intent->eat_cell >= 0 || intent->drink_cell >= 0) return 1;
-    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
-        if (intent->equip_cell_by_slot[slot] >= 0) return 1;
-    return 0;
-}
-
-static inline int osrs_next_inventory_apply_order(
-    const OsrsInventoryTickIntent* intent
-) {
-    int sentinel = NUM_GEAR_SLOTS + 2;
-    int best = sentinel;
-    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-        int order = intent->equip_order_by_slot[slot];
-        if (order >= 0 && order < best) best = order;
-    }
-    if (intent->eat_order >= 0 && intent->eat_order < best) best = intent->eat_order;
-    if (intent->drink_order >= 0 && intent->drink_order < best) best = intent->drink_order;
-    return best == sentinel ? -1 : best;
+    return intent->equip_slot_mask != 0 ||
+        intent->eat_cell >= 0 ||
+        intent->drink_cell >= 0;
 }
 
 typedef enum {
@@ -258,37 +256,32 @@ static inline int osrs_inventory_intent_next(
     OsrsInventoryTickIntent* intent,
     OsrsInventoryApplyStep* out
 ) {
-    int order = osrs_next_inventory_apply_order(intent);
-    if (order < 0) return 0;
-    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-        if (intent->equip_order_by_slot[slot] != order) continue;
+    if (intent->equip_slot_mask != 0) {
+        int slot = __builtin_ctz(intent->equip_slot_mask);
+        intent->equip_slot_mask &= intent->equip_slot_mask - 1;
         out->kind = OSRS_INVENTORY_APPLY_EQUIP;
         out->gear_slot = slot;
         out->cell_idx = intent->equip_cell_by_slot[slot];
         memset(&out->resolution, 0, sizeof(out->resolution));
-        intent->equip_order_by_slot[slot] = -1;
-        intent->equip_cell_by_slot[slot] = -1;
         return 1;
     }
-    if (intent->eat_order == order) {
+    if (intent->eat_cell >= 0) {
         out->kind = OSRS_INVENTORY_APPLY_EAT;
         out->gear_slot = -1;
         out->cell_idx = intent->eat_cell;
         out->resolution = intent->eat_resolution;
-        intent->eat_order = -1;
         intent->eat_cell = -1;
         return 1;
     }
-    if (intent->drink_order == order) {
+    if (intent->drink_cell >= 0) {
         out->kind = OSRS_INVENTORY_APPLY_DRINK;
         out->gear_slot = -1;
         out->cell_idx = intent->drink_cell;
         out->resolution = intent->drink_resolution;
-        intent->drink_order = -1;
         intent->drink_cell = -1;
         return 1;
     }
-    abort();
+    return 0;
 }
 
 #endif

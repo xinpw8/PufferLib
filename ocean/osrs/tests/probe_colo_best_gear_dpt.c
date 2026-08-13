@@ -113,7 +113,7 @@ static void test_beats_worn_single_swap(void) {
         }
         for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
             uint8_t w =
-                osrs_inventory_cell_item_index(&s.inventory_cells[cell]);
+                osrs_inventory_cell_item_index(&s.player.inventory_cells[cell]);
             if (w != ITEM_NONE && item_is_weapon(w) && !add_seen[w]) {
                 add_seen[w] = 1; weapons[nweap++] = w;
             }
@@ -158,7 +158,7 @@ static void test_equip_and_augury_same_tick(void) {
     int shadow_cell = -1;
     for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++)
         if (osrs_inventory_cell_item_index(
-                &s.inventory_cells[cell]) == ITEM_TUMEKENS_SHADOW) {
+                &s.player.inventory_cells[cell]) == ITEM_TUMEKENS_SHADOW) {
             shadow_cell = cell;
             break;
         }
@@ -245,8 +245,8 @@ static void test_per_cell_marginal_bit(void) {
 
     for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++)
         if (osrs_inventory_cell_item_index(
-                &s.inventory_cells[cell]) == ITEM_TUMEKENS_SHADOW)
-            s.inventory_cells[cell] = osrs_inventory_cell_empty();
+                &s.player.inventory_cells[cell]) == ITEM_TUMEKENS_SHADOW)
+            s.player.inventory_cells[cell] = osrs_inventory_cell_empty();
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
         if (s.player.equipped[slot] == ITEM_TUMEKENS_SHADOW)
             s.player.equipped[slot] = ITEM_NONE;

@@ -898,31 +898,15 @@ typedef struct {
 } ColoBestGear;
 
 #define COLO_BEST_GEAR_CACHE_WAYS 12
-
-/* Feeds encounter_init_maxed_player_combat_stats and, through it, every prayer-restore
- * feature the item observation table bakes. Never rewritten during an episode. */
 #define COLO_PLAYER_PRAYER_LEVEL 99
 
-/* Replaces the 11 per-slot item stat rows. Those were a second encoding of combat maths
- * the player block already carries: encounter_compute_loadout_stats sums the equipped set
- * into EncounterLoadoutStats and the prefix emits attack_bonus, strength_bonus, max_hit,
- * attack_speed, attack_range, all five defence bonuses, eff_level and spell_base_damage.
- * Equipment EFFECTS were the one part with no aggregate in the observation. */
 
-#define COLO_INVENTORY_OBS_CACHE_WAYS 8
-#define COLO_INVENTORY_OBS_CACHE_FLOATS \
-    (OSRS_INVENTORY_SIZE * OSRS_INVENTORY_CELL_OBS_FEATURES_CODED + \
-     OSRS_EQUIPMENT_EFFECT_AGGREGATE_FEATURES)
 
 typedef struct {
     ColoBestGear best_gear[COLO_BEST_GEAR_CACHE_WAYS][COLO_NUM_WEAPON_SETS][COLO_NUM_NPC_TYPES];
     uint64_t best_gear_sig[COLO_BEST_GEAR_CACHE_WAYS];
     int best_gear_valid[COLO_BEST_GEAR_CACHE_WAYS];
     int best_gear_next;
-    float inventory[COLO_INVENTORY_OBS_CACHE_WAYS][COLO_INVENTORY_OBS_CACHE_FLOATS];
-    uint64_t inventory_sig[COLO_INVENTORY_OBS_CACHE_WAYS];
-    int inventory_valid[COLO_INVENTORY_OBS_CACHE_WAYS];
-    int inventory_next;
 } ColoObsMemoCaches;
 
 typedef enum {
@@ -1542,7 +1526,6 @@ typedef struct {
     int divine_ranged_timer;
     int surge_doses;
     int surge_cooldown;
-    OsrsInventoryCell inventory_cells[OSRS_INVENTORY_SIZE];
 
     int thrall_target_slot;
     int thrall_aggro_ticks_left;
@@ -1580,7 +1563,7 @@ typedef struct {
     ColosseumLog log;
     ColoObsMemoCaches obs_memos;
 } ColosseumState;
-static_assert(sizeof(ColosseumState) == 29872, "ColosseumState serialized layout");
+static_assert(sizeof(ColosseumState) == 26640, "ColosseumState serialized layout");
 
 typedef enum {
     COLO_DMG_OFFPRAY = 0,
@@ -1596,5 +1579,5 @@ static void col_build_live_inventory_display(
     int out[COLO_INVENTORY_DISPLAY_SLOTS]
 ) {
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++)
-        out[i] = osrs_inventory_cell_raw_osrs_id(&s->inventory_cells[i]);
+        out[i] = osrs_inventory_cell_raw_osrs_id(&s->player.inventory_cells[i]);
 }

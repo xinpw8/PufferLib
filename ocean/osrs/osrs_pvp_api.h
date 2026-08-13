@@ -216,21 +216,54 @@ static void set_fight_positions(OsrsEnv* env) {
     env->players[1].dest_y = y1;
     env->players[1].is_moving = 0;
 }
+static void pvp_seed_inventory_supplies(Player* p) {
+    static const struct {
+        OsrsConsumableKind kind;
+        int dose;
+        int cells;
+    } POTIONS[] = {
+        {OSRS_CONSUMABLE_BREW, 4, 1},
+        {OSRS_CONSUMABLE_SUPER_RESTORE, 4, 2},
+        {OSRS_CONSUMABLE_SUPER_COMBAT, 4, 1},
+        {OSRS_CONSUMABLE_RANGING, 4, 1},
+    };
+    for (int k = 0; k < (int)(sizeof(POTIONS) / sizeof(POTIONS[0])); k++) {
+        for (int n = 0; n < POTIONS[k].cells; n++) {
+            int cell = osrs_first_empty_inventory_cell(p->inventory_cells, -1);
+            if (cell < 0) abort();
+            p->inventory_cells[cell] = osrs_inventory_cell_from_content_code(
+                osrs_inventory_content_code_from_consumable(
+                    POTIONS[k].kind, POTIONS[k].dose));
+        }
+    }
+    for (int n = 0; n < p->karambwan_count; n++) {
+        int cell = osrs_first_empty_inventory_cell(p->inventory_cells, -1);
+        if (cell < 0) abort();
+        p->inventory_cells[cell] =
+            osrs_inventory_cell_from_raw_osrs_id(3144);
+    }
+    p->food_count = 0;
+    for (;;) {
+        int cell = osrs_first_empty_inventory_cell(p->inventory_cells, -1);
+        if (cell < 0) abort();
+        if (osrs_first_empty_inventory_cell(p->inventory_cells, cell) < 0)
+            break;
+        p->inventory_cells[cell] =
+            osrs_inventory_cell_from_raw_osrs_id(385);
+        p->food_count++;
+    }
+}
+
 
 /** Point env buffers at internal storage and zero all runtime state. */
 void pvp_init(OsrsEnv* env) {
-    env->observations = env->_obs_buf;
     env->actions = env->_acts_buf;
     env->rewards = env->_rews_buf;
     env->terminals = env->_terms_buf;
-    env->action_masks = env->_masks_buf;
-    env->action_masks_agents = 0x3;
 
-    memset(env->_obs_buf, 0, sizeof(env->_obs_buf));
     memset(env->_acts_buf, 0, sizeof(env->_acts_buf));
     memset(env->_rews_buf, 0, sizeof(env->_rews_buf));
     memset(env->_terms_buf, 0, sizeof(env->_terms_buf));
-    memset(env->_masks_buf, 0, sizeof(env->_masks_buf));
 
     env->_episode_return = 0.0f;
     env->has_rng_seed = 0;
@@ -334,7 +367,9 @@ void pvp_reset(
     int tiers[NUM_AGENTS] = { base_tier, p1_tier };
     for (int i = 0; i < NUM_AGENTS; i++) {
         init_player_gear_randomized(&env->players[i], tiers[i], &env->rng_state);
-        env->players[i].food_count = compute_food_count(&env->players[i]);
+        pvp_seed_inventory_supplies(&env->players[i]);
+        env->pvp_runtime.initial_supply_units[i] =
+            pvp_remaining_supply_units(&env->players[i]);
         osrs_refresh_player_equipment(&env->players[i]);
     }
 
@@ -345,12 +380,6 @@ void pvp_reset(
         opponent_reset(env, &env->pvp_runtime.opponent_p0);
     }
 
-    for (int i = 0; i < NUM_AGENTS; i++) {
-        generate_slot_observations(env, i, topology);
-        if (env->action_masks != NULL && (env->action_masks_agents & (1 << i))) {
-            compute_action_masks(env, i, topology);
-        }
-    }
 }
 
 static void pvp_resolve_same_tile(
@@ -403,65 +432,53 @@ void pvp_step(
     reset_tick_flags(&env->players[1]);
 
     if (env->pvp_runtime.use_c_opponent_p0) {
-        memset(env->actions, 0, NUM_ACTION_HEADS * sizeof(int));
+        memset(env->actions, 0, OSRS_BASE_NUM_ACTION_HEADS * sizeof(int));
     } else {
-        memcpy(env->actions, env->ocean_io.agent_actions, NUM_ACTION_HEADS * sizeof(int));
+        memcpy(env->actions, env->ocean_io.agent_actions,
+            OSRS_BASE_NUM_ACTION_HEADS * sizeof(int));
     }
 
     if (env->pvp_runtime.use_external_opponent_actions) {
         memcpy(
-            env->actions + NUM_ACTION_HEADS,
+            env->actions + OSRS_BASE_NUM_ACTION_HEADS,
             env->pvp_runtime.external_opponent_actions,
-            NUM_ACTION_HEADS * sizeof(int)
+            OSRS_BASE_NUM_ACTION_HEADS * sizeof(int)
         );
     } else {
-        memset(env->actions + NUM_ACTION_HEADS, 0, NUM_ACTION_HEADS * sizeof(int));
+        memset(env->actions + OSRS_BASE_NUM_ACTION_HEADS, 0,
+            OSRS_BASE_NUM_ACTION_HEADS * sizeof(int));
     }
 
-    if (env->pvp_runtime.use_c_opponent && !env->pvp_runtime.use_external_opponent_actions) {
+    if (env->pvp_runtime.use_c_opponent &&
+            !env->pvp_runtime.use_external_opponent_actions) {
         generate_opponent_action(env, &env->pvp_runtime.opponent);
         memcpy(
-            env->actions + NUM_ACTION_HEADS,
-            env->pending_actions + NUM_ACTION_HEADS,
-            NUM_ACTION_HEADS * sizeof(int)
+            env->actions + OSRS_BASE_NUM_ACTION_HEADS,
+            env->pending_actions + OSRS_BASE_NUM_ACTION_HEADS,
+            OSRS_BASE_NUM_ACTION_HEADS * sizeof(int)
         );
     }
     if (env->pvp_runtime.use_c_opponent_p0) {
-        generate_opponent_action_for_player0(env, &env->pvp_runtime.opponent_p0);
+        generate_opponent_action_for_player0(
+            env, &env->pvp_runtime.opponent_p0);
         memcpy(
             env->actions,
             env->pending_actions,
-            NUM_ACTION_HEADS * sizeof(int)
+            OSRS_BASE_NUM_ACTION_HEADS * sizeof(int)
         );
     }
 
     int first = env->pid_holder;
     int second = 1 - env->pid_holder;
+    int actions_p0[OSRS_BASE_NUM_ACTION_HEADS];
+    int actions_p1[OSRS_BASE_NUM_ACTION_HEADS];
+    memcpy(actions_p0, env->actions,
+        OSRS_BASE_NUM_ACTION_HEADS * sizeof(int));
+    memcpy(actions_p1, env->actions + OSRS_BASE_NUM_ACTION_HEADS,
+        OSRS_BASE_NUM_ACTION_HEADS * sizeof(int));
 
-    int actions_p0[NUM_ACTION_HEADS];
-    int actions_p1[NUM_ACTION_HEADS];
-    memcpy(actions_p0, env->actions, NUM_ACTION_HEADS * sizeof(int));
-    memcpy(actions_p1, env->actions + NUM_ACTION_HEADS, NUM_ACTION_HEADS * sizeof(int));
-
-    for (int i = 0; i < NUM_AGENTS; i++) {
-        int* a = (i == 0) ? actions_p0 : actions_p1;
-        int lo = a[HEAD_LOADOUT];
-        int cv = a[HEAD_COMBAT];
-        if (lo == LOADOUT_MAGE || lo == LOADOUT_TANK || lo == LOADOUT_SPEC_MAGIC) {
-            if (cv == ATTACK_ATK) {
-                a[HEAD_COMBAT] = ATTACK_NONE;
-            }
-        }
-    }
-
-    memcpy(env->actions, actions_p0, NUM_ACTION_HEADS * sizeof(int));
-    memcpy(env->actions + NUM_ACTION_HEADS, actions_p1, NUM_ACTION_HEADS * sizeof(int));
-
-    memcpy(
-        env->last_executed_actions,
-        env->actions,
-        NUM_AGENTS * NUM_ACTION_HEADS * sizeof(int)
-    );
+    memcpy(env->last_executed_actions, env->actions,
+        NUM_AGENTS * OSRS_BASE_NUM_ACTION_HEADS * sizeof(int));
 
     update_timers(&env->players[0]);
     update_timers(&env->players[1]);
@@ -552,7 +569,7 @@ void pvp_step(
     }
 
     memcpy(env->pending_actions, env->actions,
-           NUM_AGENTS * NUM_ACTION_HEADS * sizeof(int));
+        NUM_AGENTS * OSRS_BASE_NUM_ACTION_HEADS * sizeof(int));
     for (int i = 0; i < NUM_AGENTS; i++) {
         if (env->players[i].current_hitpoints <= 0) {
             env->episode_over = 1;
@@ -573,17 +590,6 @@ void pvp_step(
     }
 
     env->_episode_return += env->rewards[0];
-    for (int i = 0; i < NUM_AGENTS; i++) {
-        generate_slot_observations(env, i, route_topology);
-        if (env->action_masks != NULL && (env->action_masks_agents & (1 << i))) {
-            compute_action_masks(env, i, route_topology);
-        }
-    }
-
-    ocean_write_obs(env);
-    if (env->ocean_io.agent_obs_p1 != NULL) {
-        ocean_write_obs_p1(env);
-    }
     env->ocean_io.agent_rewards[0] = env->rewards[0];
 
     if (env->episode_over) {

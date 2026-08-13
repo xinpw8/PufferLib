@@ -6,6 +6,7 @@
 #include "../osrs_encounter_visual_events.h"
 #include "../osrs_interaction.h"
 #include "../osrs_inventory_actions.h"
+#include "../osrs_policy.h"
 #include "../osrs_types.h"
 #include "../osrs_items.h"
 #include "../osrs_combat.h"
@@ -111,36 +112,32 @@ static const int ZUL_POSITIONS[ZUL_NUM_POSITIONS][2] = {
 #define ZUL_PLAYER_RESTORE_DOSES 8
 #define ZUL_MAX_TICKS         600
 
-#define ZUL_NUM_SCALAR_OBS    118
-#define ZUL_NUM_OBS           (ZUL_NUM_SCALAR_OBS + \
-    OSRS_INVENTORY_SIZE * OSRS_INVENTORY_CELL_OBS_FEATURES + \
-    NUM_GEAR_SLOTS * OSRS_EQUIPPED_SELF_OBS_FEATURES)
-#define ZUL_NUM_ACTION_HEADS  (2 + NUM_GEAR_SLOTS + 2 + 2)
+#define ZUL_ENCOUNTER_OBS_SIZE 104
+#define ZUL_OBS_AFTER_SHARED OSRS_SHARED_OBS_SIZE
+#define ZUL_NUM_OBS (ZUL_OBS_AFTER_SHARED + ZUL_ENCOUNTER_OBS_SIZE)
 
 #define ZUL_OBS_NPC_SLOTS (1 + ZUL_MAX_SNAKELINGS)
 
-#define ZUL_MOVE_DIM      ENCOUNTER_MOVE_ACTIONS
-#define ZUL_PRIMARY_DIM   (ZUL_MOVE_DIM + ZUL_OBS_NPC_SLOTS)
-#define ZUL_PRAYER_DIM    ENCOUNTER_OVERHEAD_DIM_PVE
-#define ZUL_OFFENSIVE_DIM ENCOUNTER_OFFENSIVE_DIM
-#define ZUL_INV_CLICK_HEADS (NUM_GEAR_SLOTS + 2)
-#define ZUL_INV_CLICK_DIM (OSRS_INVENTORY_SIZE + 1)
-#define ZUL_SPEC_DIM      3
+#define ZUL_NUM_ACTION_HEADS OSRS_BASE_NUM_ACTION_HEADS
+#define ZUL_PRIMARY_DIM OSRS_PRIMARY_DIM(ZUL_OBS_NPC_SLOTS)
+#define ZUL_ACTION_MASK_SIZE OSRS_BASE_ACTION_MASK_SIZE(ZUL_OBS_NPC_SLOTS)
 
-#define ZUL_ACTION_MASK_SIZE (ZUL_PRIMARY_DIM + ZUL_PRAYER_DIM + \
-    ZUL_INV_CLICK_HEADS * ZUL_INV_CLICK_DIM + ZUL_SPEC_DIM + ZUL_OFFENSIVE_DIM)
+#define ZUL_HEAD_PRIMARY OSRS_HEAD_PRIMARY
+#define ZUL_HEAD_OVERHEAD OSRS_HEAD_OVERHEAD
+#define ZUL_HEAD_EQUIP_BASE OSRS_HEAD_EQUIP_BASE
+#define ZUL_HEAD_EQUIP_SLOT(slot) OSRS_HEAD_EQUIP_SLOT(slot)
+#define ZUL_HEAD_EAT OSRS_HEAD_EAT
+#define ZUL_HEAD_DRINK OSRS_HEAD_DRINK
+#define ZUL_HEAD_SPELL OSRS_HEAD_SPELL
+#define ZUL_HEAD_SPECIAL OSRS_HEAD_SPECIAL
+#define ZUL_HEAD_OFFENSIVE OSRS_HEAD_OFFENSIVE
 
-#define ZUL_HEAD_PRIMARY    0
-#define ZUL_HEAD_PRAYER     1
-#define ZUL_HEAD_EQUIP_BASE 2
-#define ZUL_HEAD_EQUIP_SLOT(slot) (ZUL_HEAD_EQUIP_BASE + (slot))
-#define ZUL_HEAD_EAT        (ZUL_HEAD_EQUIP_BASE + NUM_GEAR_SLOTS)
-#define ZUL_HEAD_DRINK      (ZUL_HEAD_EAT + 1)
-#define ZUL_HEAD_SPEC       (ZUL_HEAD_DRINK + 1)
-#define ZUL_HEAD_OFFENSIVE  (ZUL_HEAD_SPEC + 1)
-
-#define ZUL_PRIMARY_ATTACK_BASE ZUL_MOVE_DIM
+#define ZUL_PRIMARY_ATTACK_BASE OSRS_PRIMARY_MOVE_ACTIONS
 #define ZUL_MOVE_STAY 0
+
+static_assert(ZUL_NUM_OBS == 205, "Zulrah observation width");
+static_assert(ZUL_NUM_ACTION_HEADS == 18, "Zulrah action head count");
+static_assert(ZUL_ACTION_MASK_SIZE == 427, "Zulrah action mask width");
 
 typedef enum {
     ZUL_FORM_GREEN = 0,
@@ -295,18 +292,9 @@ static const int ZUL_ROT_LENGTHS[ZUL_NUM_ROTATIONS] = { 11, 11, 12, 13 };
 #undef ZA
 #undef ZE
 
-#define ZUL_ACTION_DIMS_INIT { \
-    ZUL_PRIMARY_DIM, \
-    ZUL_PRAYER_DIM, \
-    ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, \
-    ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, \
-    ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, ZUL_INV_CLICK_DIM, \
-    ZUL_INV_CLICK_DIM, \
-    ZUL_INV_CLICK_DIM, \
-    ZUL_SPEC_DIM, \
-    ZUL_OFFENSIVE_DIM \
-}
-static const int ZUL_ACTION_HEAD_DIMS[ZUL_NUM_ACTION_HEADS] = ZUL_ACTION_DIMS_INIT;
+#define ZUL_ACTION_DIMS_INIT OSRS_BASE_ACTION_DIMS_INIT(ZUL_OBS_NPC_SLOTS)
+static const int ZUL_ACTION_HEAD_DIMS[ZUL_NUM_ACTION_HEADS] =
+    ZUL_ACTION_DIMS_INIT;
 static_assert(ZUL_HEAD_OFFENSIVE == ZUL_NUM_ACTION_HEADS - 1,
     "OFFENSIVE must be the last zulrah action head");
 
@@ -450,7 +438,6 @@ typedef struct {
     ZulrahPendingCloud pending_clouds[ZUL_MAX_PENDING_CLOUDS];
     ZulrahSnakeling snakelings[ZUL_MAX_SNAKELINGS];
 
-    OsrsInventoryCell inventory_cells[OSRS_INVENTORY_SIZE];
     OsrsInteraction interaction;
     int player_dest_x, player_dest_y;
     int player_dest_explicit;
@@ -529,7 +516,7 @@ typedef struct {
 
     Log log;
 } ZulrahState;
-static_assert(sizeof(ZulrahState) == 12600, "ZulrahState serialized layout");
+static_assert(sizeof(ZulrahState) == 12160, "ZulrahState serialized layout");
 
 static void zul_set_npc_anim_event(ZulrahState* s, int anim_id, int duration_ticks) {
     osrs_npc_primary_anim_event_set(
@@ -705,6 +692,10 @@ static inline int zul_topology_player_tile_allowed(
 
 typedef struct {
     EncounterArenaTopology* topology;
+    OsrsLocalMoveRoute
+        local_move_routes[ZUL_ARENA_SIZE * ZUL_ARENA_SIZE]
+            [OSRS_PRIMARY_MOVE_ACTIONS];
+    int local_move_routes_ready;
 } ZulRouteTopologyOwner;
 
 typedef struct {
@@ -734,6 +725,72 @@ static uint32_t zul_route_topology_los_flags(void* data, int x, int y) {
     (void)y;
     return 0;
 }
+static void zul_local_move_routes_build(ZulRouteTopologyOwner* owner) {
+    const EncounterArenaTopology* topology = owner->topology;
+    for (int x = 0; x < ZUL_ARENA_SIZE; x++) {
+        for (int y = 0; y < ZUL_ARENA_SIZE; y++) {
+            int source_index =
+                encounter_arena_topology_index_raw(topology, x, y);
+            for (int action = 1;
+                    action < OSRS_PRIMARY_MOVE_ACTIONS;
+                    action++) {
+                EncounterRouteInput input = {
+                    .topology = topology,
+                    .source_x = x,
+                    .source_y = y,
+                    .actor_size = 1,
+                    .target_x = x + ENCOUNTER_MOVE_TARGET_DX[action],
+                    .target_y = y + ENCOUNTER_MOVE_TARGET_DY[action],
+                    .target_size = 1,
+                    .target_kind = ENCOUNTER_ROUTE_TARGET_TILE,
+                    .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+                    .cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
+                };
+                EncounterRouteResult route =
+                    encounter_route_solve(&input);
+                owner->local_move_routes[source_index][action] =
+                    (OsrsLocalMoveRoute){
+                        .destination_dx =
+                            (int16_t)(route.destination_x - x),
+                        .destination_dy =
+                            (int16_t)(route.destination_y - y),
+                        .first_dx = (int8_t)route.first_dx,
+                        .first_dy = (int8_t)route.first_dy,
+                        .run_dx = (int8_t)route.run_dx,
+                        .run_dy = (int8_t)route.run_dy,
+                        .distance = route.distance,
+                        .outcome = (uint8_t)route.outcome,
+                    };
+            }
+        }
+    }
+    owner->local_move_routes_ready = 1;
+}
+
+static int zul_apply_local_move_route(Player* player, int action) {
+    if (!zul_route_topology_owner.local_move_routes_ready ||
+            action <= 0 || action >= OSRS_PRIMARY_MOVE_ACTIONS ||
+            !encounter_arena_topology_contains(
+                zul_route_topology_owner.topology,
+                player->x, player->y))
+        abort();
+    int source_index = encounter_arena_topology_index_raw(
+        zul_route_topology_owner.topology, player->x, player->y);
+    const OsrsLocalMoveRoute* cached =
+        &zul_route_topology_owner.local_move_routes[source_index][action];
+    EncounterRouteResult route = {
+        .outcome = (EncounterRouteOutcome)cached->outcome,
+        .destination_x = player->x + cached->destination_dx,
+        .destination_y = player->y + cached->destination_dy,
+        .first_dx = cached->first_dx,
+        .first_dy = cached->first_dy,
+        .run_dx = cached->run_dx,
+        .run_dy = cached->run_dy,
+        .distance = cached->distance,
+    };
+    return osrs_player_step_apply_route(player, &route);
+}
+
 
 
 static void zul_finalize_route_topology(ZulrahContext* ctx) {
@@ -769,6 +826,8 @@ static void zul_finalize_route_topology(ZulrahContext* ctx) {
             "zulrah");
     }
     ctx->route_topology = zul_route_topology_owner.topology;
+    if (!zul_route_topology_owner.local_move_routes_ready)
+        zul_local_move_routes_build(&zul_route_topology_owner);
 }
 
 static void zul_finalize_context(
@@ -784,12 +843,6 @@ static inline int zul_player_in_cloud(int cx, int cy, int px, int py) {
            py >= cy && py < cy + ZUL_CLOUD_SIZE;
 }
 
-static int zul_active_cloud_count(const ZulrahState* s) {
-    int count = 0;
-    for (int i = 0; i < ZUL_MAX_CLOUDS; i++)
-        count += s->clouds[i].active ? 1 : 0;
-    return count;
-}
 
 static int zul_pending_cloud_count(const ZulrahState* s) {
     int count = 0;
@@ -797,6 +850,22 @@ static int zul_pending_cloud_count(const ZulrahState* s) {
         count += s->pending_clouds[i].delay > 0 ? 1 : 0;
     return count;
 }
+typedef struct {
+    int active_count;
+    int pending_count;
+    int active_dx;
+    int active_dy;
+    int escape_dx;
+    int escape_dy;
+    int pending_dx;
+    int pending_dy;
+    int pending_delay;
+    int active_overlaps_stand;
+    int active_overlaps_stall;
+    int pending_overlaps_stand;
+    int pending_overlaps_stall;
+    uint32_t unsafe_move_actions;
+} ZulrahCloudObservationSummary;
 
 static int zul_rect_signed_delta_1d(int p, int lo, int size) {
     int hi = lo + size - 1;
@@ -805,7 +874,14 @@ static int zul_rect_signed_delta_1d(int p, int lo, int size) {
     return 0;
 }
 
-static void zul_cloud_escape_delta(int cx, int cy, int px, int py, int* dx, int* dy) {
+static void zul_cloud_escape_delta(
+    int cx,
+    int cy,
+    int px,
+    int py,
+    int* dx,
+    int* dy
+) {
     int west = cx - 1 - px;
     int east = cx + ZUL_CLOUD_SIZE - px;
     int south = cy - 1 - py;
@@ -831,129 +907,96 @@ static void zul_cloud_escape_delta(int cx, int cy, int px, int py, int* dx, int*
     *dy = best_dy;
 }
 
-static int zul_nearest_active_cloud_features(
+static ZulrahCloudObservationSummary zul_cloud_observation_summary(
     const ZulrahState* s,
-    int* signed_dx,
-    int* signed_dy,
-    int* escape_dx,
-    int* escape_dy
+    int stand_id,
+    int stall_id
 ) {
-    int found = 0;
-    int best_dist = 0;
-    *signed_dx = 0;
-    *signed_dy = 0;
-    *escape_dx = 0;
-    *escape_dy = 0;
+    ZulrahCloudObservationSummary summary = {0};
+    int active_nearest_found = 0;
+    int active_nearest_locked = 0;
+    int active_best_dist = 0;
     for (int i = 0; i < ZUL_MAX_CLOUDS; i++) {
-        if (!s->clouds[i].active) continue;
-        int dx = zul_rect_signed_delta_1d(s->player.x, s->clouds[i].x, ZUL_CLOUD_SIZE);
-        int dy = zul_rect_signed_delta_1d(s->player.y, s->clouds[i].y, ZUL_CLOUD_SIZE);
+        const ZulrahCloud* cloud = &s->clouds[i];
+        if (!cloud->active) continue;
+        summary.active_count++;
+        if (!summary.active_overlaps_stand &&
+                stand_id < ZUL_NUM_STAND_LOCATIONS) {
+            summary.active_overlaps_stand = zul_cloud_overlaps_safe_area(
+                cloud->x, cloud->y, stand_id, ZUL_STAND_NONE);
+        }
+        if (!summary.active_overlaps_stall &&
+                stall_id < ZUL_NUM_STAND_LOCATIONS) {
+            summary.active_overlaps_stall = zul_cloud_overlaps_safe_area(
+                cloud->x, cloud->y, stall_id, ZUL_STAND_NONE);
+        }
+        for (int action = 0; action < OSRS_PRIMARY_MOVE_ACTIONS; action++) {
+            int x = s->player.x + ENCOUNTER_MOVE_TARGET_DX[action];
+            int y = s->player.y + ENCOUNTER_MOVE_TARGET_DY[action];
+            if (zul_player_in_cloud(cloud->x, cloud->y, x, y))
+                summary.unsafe_move_actions |= UINT32_C(1) << action;
+        }
+        if (active_nearest_locked) continue;
+        int dx = zul_rect_signed_delta_1d(
+            s->player.x, cloud->x, ZUL_CLOUD_SIZE);
+        int dy = zul_rect_signed_delta_1d(
+            s->player.y, cloud->y, ZUL_CLOUD_SIZE);
         int dist = max_int(abs_int(dx), abs_int(dy));
         int inside = zul_player_in_cloud(
-            s->clouds[i].x, s->clouds[i].y, s->player.x, s->player.y);
-        if (!found || inside || dist < best_dist) {
-            found = 1;
-            best_dist = dist;
-            *signed_dx = dx;
-            *signed_dy = dy;
-            if (inside)
+            cloud->x, cloud->y, s->player.x, s->player.y);
+        if (!active_nearest_found || inside || dist < active_best_dist) {
+            active_nearest_found = 1;
+            active_best_dist = dist;
+            summary.active_dx = dx;
+            summary.active_dy = dy;
+            if (inside) {
                 zul_cloud_escape_delta(
-                    s->clouds[i].x, s->clouds[i].y,
-                    s->player.x, s->player.y, escape_dx, escape_dy);
-            else {
-                *escape_dx = 0;
-                *escape_dy = 0;
+                    cloud->x, cloud->y, s->player.x, s->player.y,
+                    &summary.escape_dx, &summary.escape_dy);
+                active_nearest_locked = 1;
+            } else {
+                summary.escape_dx = 0;
+                summary.escape_dy = 0;
             }
-            if (inside) break;
         }
     }
-    return found;
-}
 
-static int zul_nearest_pending_cloud_features(
-    const ZulrahState* s,
-    int* dx,
-    int* dy,
-    int* delay
-) {
-    int found = 0;
-    int best_dist = 0;
-    *dx = 0;
-    *dy = 0;
-    *delay = 0;
+    int pending_nearest_found = 0;
+    int pending_best_dist = 0;
     for (int i = 0; i < ZUL_MAX_PENDING_CLOUDS; i++) {
-        if (s->pending_clouds[i].delay <= 0) continue;
-        int pdx = s->pending_clouds[i].x - s->player.x;
-        int pdy = s->pending_clouds[i].y - s->player.y;
-        int dist = max_int(abs_int(pdx), abs_int(pdy));
-        if (!found || dist < best_dist) {
-            found = 1;
-            best_dist = dist;
-            *dx = pdx;
-            *dy = pdy;
-            *delay = s->pending_clouds[i].delay;
+        const ZulrahPendingCloud* cloud = &s->pending_clouds[i];
+        if (cloud->delay <= 0) continue;
+        summary.pending_count++;
+        if (!summary.pending_overlaps_stand &&
+                stand_id < ZUL_NUM_STAND_LOCATIONS) {
+            summary.pending_overlaps_stand = zul_cloud_overlaps_safe_area(
+                cloud->x, cloud->y, stand_id, ZUL_STAND_NONE);
+        }
+        if (!summary.pending_overlaps_stall &&
+                stall_id < ZUL_NUM_STAND_LOCATIONS) {
+            summary.pending_overlaps_stall = zul_cloud_overlaps_safe_area(
+                cloud->x, cloud->y, stall_id, ZUL_STAND_NONE);
+        }
+        if (cloud->delay <= 1) {
+            for (int action = 0; action < OSRS_PRIMARY_MOVE_ACTIONS; action++) {
+                int x = s->player.x + ENCOUNTER_MOVE_TARGET_DX[action];
+                int y = s->player.y + ENCOUNTER_MOVE_TARGET_DY[action];
+                if (zul_player_in_cloud(cloud->x, cloud->y, x, y))
+                    summary.unsafe_move_actions |= UINT32_C(1) << action;
+            }
+        }
+        int dx = cloud->x - s->player.x;
+        int dy = cloud->y - s->player.y;
+        int dist = max_int(abs_int(dx), abs_int(dy));
+        if (!pending_nearest_found || dist < pending_best_dist) {
+            pending_nearest_found = 1;
+            pending_best_dist = dist;
+            summary.pending_dx = dx;
+            summary.pending_dy = dy;
+            summary.pending_delay = cloud->delay;
         }
     }
-    return found;
-}
-
-static int zul_active_cloud_overlaps_safe(const ZulrahState* s, int safe_id) {
-    if (safe_id >= ZUL_NUM_STAND_LOCATIONS) return 0;
-    for (int i = 0; i < ZUL_MAX_CLOUDS; i++) {
-        if (!s->clouds[i].active) continue;
-        if (zul_cloud_overlaps_safe_area(
-                s->clouds[i].x, s->clouds[i].y, safe_id, ZUL_STAND_NONE))
-            return 1;
-    }
-    return 0;
-}
-
-static int zul_pending_cloud_overlaps_safe(const ZulrahState* s, int safe_id) {
-    if (safe_id >= ZUL_NUM_STAND_LOCATIONS) return 0;
-    for (int i = 0; i < ZUL_MAX_PENDING_CLOUDS; i++) {
-        if (s->pending_clouds[i].delay <= 0) continue;
-        if (zul_cloud_overlaps_safe_area(
-                s->pending_clouds[i].x, s->pending_clouds[i].y,
-                safe_id, ZUL_STAND_NONE))
-            return 1;
-    }
-    return 0;
-}
-
-static int zul_tile_in_active_cloud(const ZulrahState* s, int x, int y) {
-    for (int i = 0; i < ZUL_MAX_CLOUDS; i++) {
-        if (!s->clouds[i].active) continue;
-        if (zul_player_in_cloud(s->clouds[i].x, s->clouds[i].y, x, y))
-            return 1;
-    }
-    return 0;
-}
-
-static int zul_tile_in_pending_cloud_by_delay(
-    const ZulrahState* s,
-    int x,
-    int y,
-    int max_delay
-) {
-    for (int i = 0; i < ZUL_MAX_PENDING_CLOUDS; i++) {
-        if (s->pending_clouds[i].delay <= 0 ||
-                s->pending_clouds[i].delay > max_delay)
-            continue;
-        if (zul_player_in_cloud(s->pending_clouds[i].x, s->pending_clouds[i].y, x, y))
-            return 1;
-    }
-    return 0;
-}
-
-static int zul_move_action_cloud_unsafe(const ZulrahState* s, int action) {
-    if (action < 0 || action >= ZUL_MOVE_DIM) {
-        fprintf(stderr, "zulrah move action out of range for cloud obs: %d\n", action);
-        abort();
-    }
-    int x = s->player.x + ENCOUNTER_MOVE_TARGET_DX[action];
-    int y = s->player.y + ENCOUNTER_MOVE_TARGET_DY[action];
-    return zul_tile_in_active_cloud(s, x, y) ||
-        zul_tile_in_pending_cloud_by_delay(s, x, y, 1);
+    return summary;
 }
 
 static int zul_form_npc_id(ZulrahForm f) {
@@ -1871,7 +1914,7 @@ static void zul_apply_eat_cell(ZulrahState* s, int cell_idx, OsrsConsumableKind 
             abort();
     }
     OsrsPlayerEatResult r = osrs_player_eat_food_effects(&s->player, type);
-    if (r.consumed) osrs_inventory_cell_consume_eat(&s->inventory_cells[cell_idx]);
+    if (r.consumed) osrs_inventory_cell_consume_eat(&s->player.inventory_cells[cell_idx]);
 }
 
 static void zul_apply_drink_one_dose_effect(void* ctx, OsrsConsumableKind kind) {
@@ -1911,7 +1954,7 @@ static void zul_apply_drink_cell(
     ZulrahState* s, int cell_idx, OsrsInventoryClickResolution resolution
 ) {
     (void)osrs_inventory_cell_consume_drink_one_dose(
-        &s->inventory_cells[cell_idx], resolution, &s->player.potion_timer,
+        &s->player.inventory_cells[cell_idx], resolution, &s->player.potion_timer,
         zul_apply_drink_one_dose_effect, s);
 }
 
@@ -2008,21 +2051,34 @@ static void zul_write_obs(EncounterState* state, EncounterContext* context, floa
     ZulrahState* s = (ZulrahState*)state;
     memset(obs, 0, ZUL_NUM_OBS * sizeof(float));
     int i = 0;
-
-    obs[i++] = (float)s->player.current_hitpoints / s->player.base_hitpoints;
-    obs[i++] = (float)s->player.current_prayer / s->player.base_prayer;
-    obs[i++] = (float)s->player.x / ZUL_ARENA_SIZE;
-    obs[i++] = (float)s->player.y / ZUL_ARENA_SIZE;
-    obs[i++] = (float)s->player.attack_timer / 5.0f;
-    obs[i++] = (float)s->player.food_timer / 3.0f;
-    obs[i++] = (float)s->player.potion_timer / 3.0f;
-    obs[i++] = (s->player.prayer == PRAYER_PROTECT_MAGIC) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.prayer == PRAYER_PROTECT_RANGED) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.prayer == PRAYER_PROTECT_MELEE) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.offensive_prayer == OFFENSIVE_PRAYER_PIETY) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.offensive_prayer == OFFENSIVE_PRAYER_RIGOUR) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.offensive_prayer == OFFENSIVE_PRAYER_AUGURY) ? 1.0f : 0.0f;
-    obs[i++] = (float)s->player_stunned_ticks / ZUL_MELEE_STUN_TICKS;
+    const EncounterLoadoutStats* loadout_stats = zul_live_stats(s);
+    OsrsSharedObservationInput shared_input = {
+        .player = &s->player,
+        .interaction = &s->interaction,
+        .arena_min_x = 0,
+        .arena_max_x = ZUL_ARENA_SIZE,
+        .arena_min_y = 0,
+        .arena_max_y = ZUL_ARENA_SIZE,
+        .attack_style = loadout_stats->style,
+        .attack_range = loadout_stats->attack_range,
+        .max_hit = loadout_stats->max_hit,
+        .attack_speed = loadout_stats->attack_speed,
+        .defence_stab = loadout_stats->def_stab,
+        .defence_slash = loadout_stats->def_slash,
+        .defence_crush = loadout_stats->def_crush,
+        .defence_magic = loadout_stats->def_magic,
+        .defence_ranged = loadout_stats->def_ranged,
+        .effective_level = loadout_stats->eff_level,
+        .attack_bonus = loadout_stats->attack_bonus,
+        .strength_bonus = loadout_stats->strength_bonus,
+        .spell_base_damage = loadout_stats->spell_base_damage,
+        .special_attack_cost =
+            osrs_spec_cost(s->player.equipped[GEAR_SLOT_WEAPON]),
+    };
+    i += osrs_write_shared_observations(&obs[i], &shared_input);
+    assert(i == ZUL_OBS_AFTER_SHARED);
+    obs[i++] =
+        (float)s->player_stunned_ticks / ZUL_MELEE_STUN_TICKS;
 
     obs[i++] = (float)s->zulrah.current_hitpoints / MONSTER_DATABASE[MON_ZULRAH_GREEN].hp;
     obs[i++] = (float)(s->zulrah.x - s->player.x) / ZUL_ARENA_SIZE;
@@ -2062,7 +2118,6 @@ static void zul_write_obs(EncounterState* state, EncounterContext* context, floa
     obs[i++] = s->damage_received_this_tick / 50.0f;
     obs[i++] = s->total_damage_dealt / MONSTER_DATABASE[MON_ZULRAH_GREEN].hp;
 
-    obs[i++] = (float)s->player.special_energy / 100.0f;
     obs[i++] = (s->antivenom_timer > 0) ? 1.0f : 0.0f;
     obs[i++] = (float)s->antivenom_timer / ZUL_ANTIVENOM_DURATION;
     obs[i++] = (float)s->gear_tier / (ZUL_NUM_GEAR_TIERS - 1);
@@ -2081,51 +2136,32 @@ static void zul_write_obs(EncounterState* state, EncounterContext* context, floa
         obs[i++] = 0.0f; obs[i++] = 0.0f;
     }
 
-    int active_dx = 0;
-    int active_dy = 0;
-    int escape_dx = 0;
-    int escape_dy = 0;
-    zul_nearest_active_cloud_features(
-        s, &active_dx, &active_dy, &escape_dx, &escape_dy);
-    int pending_dx = 0;
-    int pending_dy = 0;
-    int pending_delay = 0;
-    zul_nearest_pending_cloud_features(
-        s, &pending_dx, &pending_dy, &pending_delay);
-    obs[i++] = (escape_dx != 0 || escape_dy != 0) ? 1.0f : 0.0f;
-    obs[i++] = (float)active_dx / (float)ZUL_ARENA_SIZE;
-    obs[i++] = (float)active_dy / (float)ZUL_ARENA_SIZE;
-    obs[i++] = (float)escape_dx / (float)ZUL_ARENA_SIZE;
-    obs[i++] = (float)escape_dy / (float)ZUL_ARENA_SIZE;
-    obs[i++] = (float)zul_active_cloud_count(s) / (float)ZUL_MAX_CLOUDS;
-    obs[i++] = (float)zul_pending_cloud_count(s) / (float)ZUL_MAX_PENDING_CLOUDS;
-    obs[i++] = (float)pending_dx / (float)ZUL_ARENA_SIZE;
-    obs[i++] = (float)pending_dy / (float)ZUL_ARENA_SIZE;
-    obs[i++] = (float)pending_delay / (float)ZUL_CLOUD_FLIGHT_2;
-    obs[i++] = zul_active_cloud_overlaps_safe(s, phase->stand) ? 1.0f : 0.0f;
-    obs[i++] = zul_active_cloud_overlaps_safe(s, phase->stall) ? 1.0f : 0.0f;
-    obs[i++] = zul_pending_cloud_overlaps_safe(s, phase->stand) ? 1.0f : 0.0f;
-    obs[i++] = zul_pending_cloud_overlaps_safe(s, phase->stall) ? 1.0f : 0.0f;
-    for (int m = 0; m < ZUL_MOVE_DIM; m++)
-        obs[i++] = zul_move_action_cloud_unsafe(s, m) ? 1.0f : 0.0f;
+    ZulrahCloudObservationSummary cloud_summary =
+        zul_cloud_observation_summary(s, phase->stand, phase->stall);
+    obs[i++] =
+        (cloud_summary.escape_dx != 0 || cloud_summary.escape_dy != 0)
+            ? 1.0f : 0.0f;
+    obs[i++] = (float)cloud_summary.active_dx / (float)ZUL_ARENA_SIZE;
+    obs[i++] = (float)cloud_summary.active_dy / (float)ZUL_ARENA_SIZE;
+    obs[i++] = (float)cloud_summary.escape_dx / (float)ZUL_ARENA_SIZE;
+    obs[i++] = (float)cloud_summary.escape_dy / (float)ZUL_ARENA_SIZE;
+    obs[i++] = (float)cloud_summary.active_count / (float)ZUL_MAX_CLOUDS;
+    obs[i++] =
+        (float)cloud_summary.pending_count / (float)ZUL_MAX_PENDING_CLOUDS;
+    obs[i++] = (float)cloud_summary.pending_dx / (float)ZUL_ARENA_SIZE;
+    obs[i++] = (float)cloud_summary.pending_dy / (float)ZUL_ARENA_SIZE;
+    obs[i++] =
+        (float)cloud_summary.pending_delay / (float)ZUL_CLOUD_FLIGHT_2;
+    obs[i++] = cloud_summary.active_overlaps_stand ? 1.0f : 0.0f;
+    obs[i++] = cloud_summary.active_overlaps_stall ? 1.0f : 0.0f;
+    obs[i++] = cloud_summary.pending_overlaps_stand ? 1.0f : 0.0f;
+    obs[i++] = cloud_summary.pending_overlaps_stall ? 1.0f : 0.0f;
+    for (int action = 0; action < OSRS_PRIMARY_MOVE_ACTIONS; action++) {
+        obs[i++] =
+            cloud_summary.unsafe_move_actions & (UINT32_C(1) << action)
+                ? 1.0f : 0.0f;
+    }
 
-    static const float ZUL_ZERO_POST_USE_DELTAS[6] = {0};
-    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
-        osrs_write_inventory_cell_affordance_features(
-            &obs[i],
-            &s->inventory_cells[cell],
-            osrs_inventory_cell_holds_equipped_item(
-                &s->player, s->inventory_cells, cell),
-            ZUL_ZERO_POST_USE_DELTAS,
-            s->player.base_hitpoints,
-            s->player.base_prayer,
-            s->player.base_attack);
-        i += OSRS_INVENTORY_CELL_OBS_FEATURES;
-    }
-    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-        osrs_write_equipped_self_features(&obs[i], s->player.equipped[slot]);
-        i += OSRS_EQUIPPED_SELF_OBS_FEATURES;
-    }
 
     if (i != ZUL_NUM_OBS) {
         fprintf(stderr, "zulrah obs size mismatch: wrote %d expected %d\n", i, ZUL_NUM_OBS);
@@ -2133,108 +2169,115 @@ static void zul_write_obs(EncounterState* state, EncounterContext* context, floa
     }
 }
 
-static void zul_write_mask(EncounterState* state, EncounterContext* context, float* mask) {
+static void zul_write_mask_bytes(
+    EncounterState* state,
+    EncounterContext* context,
+    unsigned char* mask
+) {
     ZulrahContext* ctx = (ZulrahContext*)context;
     encounter_arena_topology_require_finalized(ctx->route_topology);
     ZulrahState* s = (ZulrahState*)state;
-    for (int i = 0; i < ZUL_ACTION_MASK_SIZE; i++) mask[i] = 1.0f;
-    int off = 0;
+    memset(mask, 0, ZUL_ACTION_MASK_SIZE);
 
-    for (int m = 0; m < ZUL_MOVE_DIM; m++) {
-        if (m > 0) {
-            if (s->player_stunned_ticks > 0) { mask[off] = 0.0f; }
-            else {
-                int nx = s->player.x + ENCOUNTER_MOVE_TARGET_DX[m];
-                int ny = s->player.y + ENCOUNTER_MOVE_TARGET_DY[m];
-                if (!zul_topology_player_tile_allowed(ctx, nx, ny))
-                    mask[off] = 0.0f;
-            }
-        }
-        off++;
-    }
-    mask[off] = s->zulrah_visible && !s->is_diving ? 1.0f : 0.0f;
-    off++;
-    for (int n = 0; n < ZUL_MAX_SNAKELINGS; n++) {
-        mask[off] = s->snakelings[n].active ? 1.0f : 0.0f;
-        off++;
-    }
-    for (int p = 0; p < ZUL_PRAYER_DIM; p++) {
-        if (p == ENCOUNTER_OVERHEAD_OFF && s->player.prayer == PRAYER_NONE)
-            mask[off] = 0.0f;
-        if (p >= ENCOUNTER_OVERHEAD_SET_REFRESH_MELEE && s->player.current_prayer <= 0)
-            mask[off] = 0.0f;
-        off++;
-    }
-    int cell_equip_slot[OSRS_INVENTORY_SIZE];
-    int cell_can_eat[OSRS_INVENTORY_SIZE];
-    int cell_can_drink[OSRS_INVENTORY_SIZE];
-    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
-        cell_equip_slot[cell] = -1;
-        cell_can_eat[cell] = 0;
-        cell_can_drink[cell] = 0;
-        OsrsInventoryClickResolution r = osrs_inventory_cell_click_interpret(
-            &s->inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
-        if (r.click_action == OSRS_CLICK_EQUIP) {
-            if (osrs_can_equip_from_cell(&s->player, s->inventory_cells, cell))
-                cell_equip_slot[cell] =
-                    osrs_inventory_cell_metadata(
-                        &s->inventory_cells[cell])->gear_slot;
-        } else if (r.click_action == OSRS_CLICK_EAT) {
-            cell_can_eat[cell] =
-                osrs_can_eat_consumable_kind(&s->player, r.consumable_kind);
-        } else if (r.click_action == OSRS_CLICK_DRINK) {
-            cell_can_drink[cell] =
-                osrs_inventory_cell_dose_count(
-                    &s->inventory_cells[cell]) > 0 &&
-                s->player.potion_timer == 0 &&
-                zul_drink_has_effect(s, r.consumable_kind);
+    int offset = osrs_base_action_head_mask_offset(
+        ZUL_OBS_NPC_SLOTS, ZUL_HEAD_PRIMARY);
+    mask[offset] = 1;
+    if (s->player_stunned_ticks <= 0) {
+        for (int action = 1; action < OSRS_PRIMARY_MOVE_ACTIONS; action++) {
+            int nx = s->player.x + ENCOUNTER_MOVE_TARGET_DX[action];
+            int ny = s->player.y + ENCOUNTER_MOVE_TARGET_DY[action];
+            mask[offset + action] =
+                zul_topology_player_tile_allowed(ctx, nx, ny);
         }
     }
+    mask[offset + ZUL_PRIMARY_ATTACK_BASE] =
+        s->zulrah_visible && !s->is_diving;
+    for (int n = 0; n < ZUL_MAX_SNAKELINGS; n++)
+        mask[offset + ZUL_PRIMARY_ATTACK_BASE + n + 1] =
+            s->snakelings[n].active;
+
+    offset = osrs_base_action_head_mask_offset(
+        ZUL_OBS_NPC_SLOTS, ZUL_HEAD_OVERHEAD);
+    int has_prayer = s->player.current_prayer > 0;
+    mask[offset + ENCOUNTER_OVERHEAD_NO_CHANGE] = 1;
+    mask[offset + ENCOUNTER_OVERHEAD_OFF] =
+        s->player.prayer != PRAYER_NONE;
+    for (int action = ENCOUNTER_OVERHEAD_SET_REFRESH_MELEE;
+            action < OSRS_OVERHEAD_DIM;
+            action++)
+        mask[offset + action] = has_prayer;
+
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-        mask[off] = 1.0f;
-        off++;
-        for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
-            mask[off] = cell_equip_slot[cell] == slot ? 1.0f : 0.0f;
-            off++;
+        offset = osrs_base_action_head_mask_offset(
+            ZUL_OBS_NPC_SLOTS, ZUL_HEAD_EQUIP_SLOT(slot));
+        mask[offset] = 1;
+    }
+    int eat_offset = osrs_base_action_head_mask_offset(
+        ZUL_OBS_NPC_SLOTS, ZUL_HEAD_EAT);
+    int drink_offset = osrs_base_action_head_mask_offset(
+        ZUL_OBS_NPC_SLOTS, ZUL_HEAD_DRINK);
+    mask[eat_offset] = 1;
+    mask[drink_offset] = 1;
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        OsrsInventoryClickResolution resolution =
+            osrs_inventory_cell_click_interpret(
+                &s->player.inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
+        if (resolution.click_action == OSRS_CLICK_EQUIP &&
+                osrs_can_equip_from_cell(
+                    &s->player, s->player.inventory_cells, cell)) {
+            int gear_slot = osrs_inventory_cell_metadata(
+                &s->player.inventory_cells[cell])->gear_slot;
+            if (gear_slot >= 0 && gear_slot < NUM_GEAR_SLOTS) {
+                offset = osrs_base_action_head_mask_offset(
+                    ZUL_OBS_NPC_SLOTS, ZUL_HEAD_EQUIP_SLOT(gear_slot));
+                mask[offset + cell + 1] = 1;
+            }
+        } else if (resolution.click_action == OSRS_CLICK_EAT &&
+                osrs_can_eat_consumable_kind(
+                    &s->player, resolution.consumable_kind)) {
+            mask[eat_offset + cell + 1] = 1;
+        } else if (resolution.click_action == OSRS_CLICK_DRINK &&
+                osrs_inventory_cell_dose_count(
+                    &s->player.inventory_cells[cell]) > 0 &&
+                s->player.potion_timer == 0 &&
+                zul_drink_has_effect(s, resolution.consumable_kind)) {
+            mask[drink_offset + cell + 1] = 1;
         }
     }
-    mask[off] = 1.0f;
-    off++;
-    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
-        mask[off] = cell_can_eat[cell] ? 1.0f : 0.0f;
-        off++;
-    }
-    mask[off] = 1.0f;
-    off++;
-    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
-        mask[off] = cell_can_drink[cell] ? 1.0f : 0.0f;
-        off++;
-    }
-    {
-        int weapon = s->player.equipped[GEAR_SLOT_WEAPON];
-        int weapon_spec_cost = osrs_spec_cost(weapon);
-        mask[off] = 1.0f;
-        off++;
-        mask[off] = weapon_spec_cost > 0 &&
-            (s->player.special_energy >= weapon_spec_cost || s->player.spec_armed)
-            ? 1.0f : 0.0f;
-        off++;
-        mask[off] = s->player.spec_armed ? 1.0f : 0.0f;
-        off++;
-    }
-    for (int o = 0; o < ZUL_OFFENSIVE_DIM; o++) {
-        if (o == ENCOUNTER_OFFENSIVE_OFF &&
-                s->player.offensive_prayer == OFFENSIVE_PRAYER_NONE)
-            mask[off] = 0.0f;
-        if (o >= ENCOUNTER_OFFENSIVE_SET_REFRESH_PIETY && s->player.current_prayer <= 0)
-            mask[off] = 0.0f;
-        off++;
-    }
-    if (off != ZUL_ACTION_MASK_SIZE) {
-        fprintf(stderr, "zulrah mask size mismatch: wrote %d expected %d\n",
-            off, ZUL_ACTION_MASK_SIZE);
-        abort();
-    }
+
+    offset = osrs_base_action_head_mask_offset(
+        ZUL_OBS_NPC_SLOTS, ZUL_HEAD_SPELL);
+    mask[offset + OSRS_SPELL_NONE] = 1;
+
+    int weapon = s->player.equipped[GEAR_SLOT_WEAPON];
+    int weapon_spec_cost = osrs_spec_cost(weapon);
+    offset = osrs_base_action_head_mask_offset(
+        ZUL_OBS_NPC_SLOTS, ZUL_HEAD_SPECIAL);
+    mask[offset] = 1;
+    mask[offset + 1] = weapon_spec_cost > 0 &&
+        (s->player.special_energy >= weapon_spec_cost ||
+            s->player.spec_armed);
+    mask[offset + 2] = s->player.spec_armed;
+
+    offset = osrs_base_action_head_mask_offset(
+        ZUL_OBS_NPC_SLOTS, ZUL_HEAD_OFFENSIVE);
+    mask[offset + ENCOUNTER_OFFENSIVE_NO_CHANGE] = 1;
+    mask[offset + ENCOUNTER_OFFENSIVE_OFF] =
+        s->player.offensive_prayer != OFFENSIVE_PRAYER_NONE;
+    mask[offset + ENCOUNTER_OFFENSIVE_SET_REFRESH_PIETY] = has_prayer;
+    mask[offset + ENCOUNTER_OFFENSIVE_SET_REFRESH_RIGOUR] = has_prayer;
+    mask[offset + ENCOUNTER_OFFENSIVE_SET_REFRESH_AUGURY] = has_prayer;
+}
+
+static void zul_write_mask(
+    EncounterState* state,
+    EncounterContext* context,
+    float* mask
+) {
+    unsigned char byte_mask[ZUL_ACTION_MASK_SIZE];
+    zul_write_mask_bytes(state, context, byte_mask);
+    for (int i = 0; i < ZUL_ACTION_MASK_SIZE; i++)
+        mask[i] = (float)byte_mask[i];
 }
 
 static float zul_compute_reward(ZulrahState* s) {
@@ -2419,12 +2462,12 @@ static void zul_record_episode_timeout(ZulrahState* s) {
 
 static void zul_seed_inventory_cells(ZulrahState* s) {
     for (int i = 0; i < OSRS_INVENTORY_SIZE; i++)
-        s->inventory_cells[i] = osrs_inventory_cell_empty();
+        s->player.inventory_cells[i] = osrs_inventory_cell_empty();
     int cell = 0;
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
         uint8_t item = ZUL_RANGE_LOADOUT[s->gear_tier][slot];
         if (item == ITEM_NONE || item == s->player.equipped[slot]) continue;
-        s->inventory_cells[cell++] = osrs_inventory_cell_from_item(item);
+        s->player.inventory_cells[cell++] = osrs_inventory_cell_from_item(item);
     }
     static const struct { uint16_t raw_osrs_id; int count; } ZUL_TRIP_CONSUMABLES[] = {
         {385, ZUL_PLAYER_FOOD},
@@ -2438,7 +2481,7 @@ static void zul_seed_inventory_cells(ZulrahState* s) {
                 fprintf(stderr, "zulrah trip inventory overflows %d cells\n", OSRS_INVENTORY_SIZE);
                 abort();
             }
-            s->inventory_cells[cell++] = osrs_inventory_cell_from_raw_osrs_id(
+            s->player.inventory_cells[cell++] = osrs_inventory_cell_from_raw_osrs_id(
                 ZUL_TRIP_CONSUMABLES[k].raw_osrs_id);
         }
     }
@@ -2566,12 +2609,13 @@ static void zul_step_tick(
         return;
     }
 
-    zul_process_prayer(s, actions[ZUL_HEAD_PRAYER], actions[ZUL_HEAD_OFFENSIVE]);
+    zul_process_prayer(
+        s, actions[ZUL_HEAD_OVERHEAD], actions[ZUL_HEAD_OFFENSIVE]);
 
     if (s->human_command_mode)
         zul_apply_human_player_commands(s);
 
-    int spec_act = actions[ZUL_HEAD_SPEC];
+    int spec_act = actions[ZUL_HEAD_SPECIAL];
     int spec_cost = osrs_spec_cost(s->player.equipped[GEAR_SLOT_WEAPON]);
     if (spec_act == 1 && spec_cost > 0 && s->player.special_energy >= spec_cost) {
         s->player.spec_armed = 1;
@@ -2586,7 +2630,7 @@ static void zul_step_tick(
         clicks.eat = actions[ZUL_HEAD_EAT];
         clicks.drink = actions[ZUL_HEAD_DRINK];
         OsrsInventoryTickIntent intent =
-            osrs_resolve_inventory_tick_intent(&s->player, s->inventory_cells, &clicks);
+            osrs_resolve_inventory_tick_intent(&s->player, s->player.inventory_cells, &clicks);
         if (osrs_inventory_tick_intent_has_effect(&intent))
             osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_EQUIP);
         OsrsInventoryApplyStep click_step;
@@ -2594,7 +2638,7 @@ static void zul_step_tick(
             switch (click_step.kind) {
                 case OSRS_INVENTORY_APPLY_EQUIP:
                     if (osrs_equip_from_cell(
-                            &s->player, s->inventory_cells, click_step.cell_idx) >= 0)
+                            &s->player, s->player.inventory_cells, click_step.cell_idx) >= 0)
                         zul_mark_live_stats_dirty(s);
                     break;
                 case OSRS_INVENTORY_APPLY_EAT:
@@ -2617,6 +2661,7 @@ static void zul_step_tick(
     }
 
     OsrsPlayerCommand command = { .kind = OSRS_PLAYER_CMD_NONE };
+    int local_move_action = 0;
     if (has_new_target) {
         command.kind = OSRS_PLAYER_CMD_TARGET;
         command.target_slot = new_target_slot;
@@ -2627,11 +2672,12 @@ static void zul_step_tick(
         s->player_dest_explicit = 0;
         command.kind = OSRS_PLAYER_CMD_MOVE;
         command.move_kind = OSRS_PLAYER_MOVE_DESTINATION;
-    } else if (primary > 0 && primary < ZUL_MOVE_DIM) {
+    } else if (primary > 0 && primary < OSRS_PRIMARY_MOVE_ACTIONS) {
         s->player_dest_x = s->player.x + ENCOUNTER_MOVE_TARGET_DX[primary];
         s->player_dest_y = s->player.y + ENCOUNTER_MOVE_TARGET_DY[primary];
         command.kind = OSRS_PLAYER_CMD_MOVE;
         command.move_kind = OSRS_PLAYER_MOVE_DESTINATION;
+        local_move_action = primary;
     } else {
         s->player_dest_x = -1;
         s->player_dest_y = -1;
@@ -2660,7 +2706,16 @@ static void zul_step_tick(
             .los_query = NULL,
         },
     };
-    OsrsPlayerStepResult step_result = osrs_encounter_player_step(&step_input);
+    OsrsPlayerStepResult step_result = {.target_slot = -1};
+    if (local_move_action && s->player_stunned_ticks <= 0) {
+        osrs_interaction_check_interrupt(
+            &s->interaction, OSRS_IACT_MOVE);
+        step_result.moved =
+            zul_apply_local_move_route(&s->player, local_move_action) > 0;
+        step_result.explicit_moved = step_result.moved;
+    } else {
+        step_result = osrs_encounter_player_step(&step_input);
+    }
     s->player_moved_this_tick = step_result.moved;
     s->player_chased_target_this_tick = step_result.chased_target;
 
@@ -2743,7 +2798,7 @@ static int zul_first_cell_with_kind(
 ) {
     for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
         OsrsInventoryClickResolution r = osrs_inventory_cell_click_interpret(
-            &s->inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
+            &s->player.inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
         if (r.click_action == click && r.consumable_kind == kind) return cell;
     }
     return -1;
@@ -2752,7 +2807,7 @@ static int zul_first_cell_with_kind(
 static int zul_cell_with_item(const ZulrahState* s, uint8_t item_idx) {
     for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++)
         if (osrs_inventory_cell_item_index(
-                &s->inventory_cells[cell]) == item_idx) return cell;
+                &s->player.inventory_cells[cell]) == item_idx) return cell;
     return -1;
 }
 
@@ -2776,15 +2831,18 @@ static void zul_heuristic_actions(ZulrahState* s, int* actions) {
         switch (s->current_form) {
             case ZUL_FORM_GREEN:
                 if (s->player.prayer != PRAYER_PROTECT_RANGED)
-                    actions[ZUL_HEAD_PRAYER] = ENCOUNTER_OVERHEAD_SET_REFRESH_RANGED;
+                    actions[ZUL_HEAD_OVERHEAD] =
+                        ENCOUNTER_OVERHEAD_SET_REFRESH_RANGED;
                 break;
             case ZUL_FORM_BLUE:
                 if (s->player.prayer != PRAYER_PROTECT_MAGIC)
-                    actions[ZUL_HEAD_PRAYER] = ENCOUNTER_OVERHEAD_SET_REFRESH_MAGIC;
+                    actions[ZUL_HEAD_OVERHEAD] =
+                        ENCOUNTER_OVERHEAD_SET_REFRESH_MAGIC;
                 break;
             case ZUL_FORM_RED:
                 if (s->player.prayer != PRAYER_PROTECT_MELEE)
-                    actions[ZUL_HEAD_PRAYER] = ENCOUNTER_OVERHEAD_SET_REFRESH_MELEE;
+                    actions[ZUL_HEAD_OVERHEAD] =
+                        ENCOUNTER_OVERHEAD_SET_REFRESH_MELEE;
                 break;
         }
         OffensivePrayer target_off = OFFENSIVE_PRAYER_NONE;
@@ -2857,7 +2915,7 @@ static void zul_heuristic_actions(ZulrahState* s, int* actions) {
                 int spec_cost = osrs_spec_cost(s->player.equipped[GEAR_SLOT_WEAPON]);
                 if (spec_cost > 0 && s->player.special_energy >= spec_cost &&
                         !s->player.spec_armed)
-                    actions[ZUL_HEAD_SPEC] = 1;
+                    actions[ZUL_HEAD_SPECIAL] = 1;
             }
         }
     }
@@ -3300,7 +3358,7 @@ static void zul_translate_human_commands(HumanInput* hi, int* actions, ZulrahSta
                 s->player_dest_explicit = 0;
                 break;
             case HUMAN_COMMAND_OVERHEAD_PRAYER:
-                actions[ZUL_HEAD_PRAYER] = cmd->overhead_prayer;
+                actions[ZUL_HEAD_OVERHEAD] = cmd->overhead_prayer;
                 break;
             case HUMAN_COMMAND_OFFENSIVE_PRAYER:
                 actions[ZUL_HEAD_OFFENSIVE] = cmd->offensive_prayer;
@@ -3324,7 +3382,7 @@ static void zul_translate_human_commands(HumanInput* hi, int* actions, ZulrahSta
                 break;
             }
             case HUMAN_COMMAND_SPEC_TOGGLE:
-                actions[ZUL_HEAD_SPEC] = s->player.spec_armed ? 2 : 1;
+                actions[ZUL_HEAD_SPECIAL] = s->player.spec_armed ? 2 : 1;
                 break;
             case HUMAN_COMMAND_EQUIP_INVENTORY_ITEM:
             case HUMAN_COMMAND_FIGHT_STYLE:
@@ -3407,7 +3465,7 @@ static const EncounterDef ENCOUNTER_ZULRAH = {
     .arena_width = ZUL_ARENA_SIZE,
     .arena_height = ZUL_ARENA_SIZE,
     .head_move = ZUL_HEAD_PRIMARY,
-    .head_prayer = ZUL_HEAD_PRAYER,
+    .head_prayer = ZUL_HEAD_OVERHEAD,
     .head_target = -1,
 
     .render_post_tick = zul_render_post_tick,

@@ -42,30 +42,20 @@ typedef void (*OsrsInventoryDrinkOneDoseEffectFn)(
 );
 
 #define OSRS_INVENTORY_CELL_OBS_FEATURES 28
-#define OSRS_INVENTORY_CELL_OBS_SHARED 5
+#define OSRS_INVENTORY_CELL_OBS_SHARED 4
 #define OSRS_INVENTORY_CELL_OBS_KIND_UNION 10
 #define OSRS_INVENTORY_CELL_OBS_FEATURES_COMPACT \
     (OSRS_INVENTORY_CELL_OBS_SHARED + OSRS_INVENTORY_CELL_OBS_KIND_UNION)
 
-/* Slot names for the compact record. The coded observation ships three of these and an
-   item-table gather rebuilds the rest, so both sides must agree on where they sit. */
+/* Slot names for the compact record reconstructed by the item-table gather. */
 #define OSRS_INVENTORY_CELL_COMPACT_PRESENT   0
-#define OSRS_INVENTORY_CELL_COMPACT_EQUIPPED  1
-#define OSRS_INVENTORY_CELL_COMPACT_DOSE      2
-#define OSRS_INVENTORY_CELL_COMPACT_IS_ARMOR  3
-#define OSRS_INVENTORY_CELL_COMPACT_IS_WEAPON 4
-/* Union slot: effect_class4[2] on a gear cell, hp_heal on a consumable cell. */
+#define OSRS_INVENTORY_CELL_COMPACT_DOSE      1
+#define OSRS_INVENTORY_CELL_COMPACT_IS_ARMOR  2
+#define OSRS_INVENTORY_CELL_COMPACT_IS_WEAPON 3
+/* Union slot: effect_class4[2] on gear, hp_heal on consumables. */
 #define OSRS_INVENTORY_CELL_COMPACT_HP_HEAL   (OSRS_INVENTORY_CELL_OBS_SHARED + 5)
 
-/* The coded observation: everything a cell carries that the item alone does not determine.
-   hp_heal is here because it divides by base_hitpoints, which the Frailty modifier rewrites
-   mid-episode; dose and the other ten features are pure item facts and live in the table. */
-#define OSRS_INVENTORY_CELL_OBS_CODE     0
-#define OSRS_INVENTORY_CELL_OBS_EQUIPPED 1
-#define OSRS_INVENTORY_CELL_OBS_HP_HEAL  2
-#define OSRS_INVENTORY_CELL_OBS_FEATURES_CODED 3
-#define OSRS_EQUIPPED_SELF_OBS_FEATURES 18
-
+#define OSRS_INVENTORY_CELL_OBS_CODE 0
 
 static inline void osrs_inventory_clicks_trap(void) {
 #if defined(__clang__) || defined(__GNUC__)
@@ -283,7 +273,6 @@ static inline void osrs_write_item_content_affordance_features_compact(
         base_hitpoints, base_prayer, base_level);
 
     out[OSRS_INVENTORY_CELL_COMPACT_PRESENT] = affordance.present;
-    out[OSRS_INVENTORY_CELL_COMPACT_EQUIPPED] = affordance.is_equipped;
     out[OSRS_INVENTORY_CELL_COMPACT_DOSE] = affordance.dose;
     out[OSRS_INVENTORY_CELL_COMPACT_IS_ARMOR] = affordance.is_armor;
     out[OSRS_INVENTORY_CELL_COMPACT_IS_WEAPON] = affordance.is_weapon;
@@ -325,45 +314,6 @@ static inline void osrs_write_inventory_cell_affordance_features_compact(
         base_hitpoints, base_prayer, base_level);
 }
 
-static inline void osrs_write_equipped_self_features(float* out, uint8_t item_idx) {
-    for (int index = 0; index < OSRS_EQUIPPED_SELF_OBS_FEATURES; index++) {
-        out[index] = 0.0f;
-    }
-    if (item_idx == ITEM_NONE) return;
-
-    const OsrsItemContentMetadata* metadata = osrs_item_content_metadata(
-        osrs_inventory_content_code_from_item(item_idx));
-    const Item* item = metadata->item;
-    int style = metadata->attack_style;
-    out[0] = 1.0f;
-    out[1] = style == 1 ? 1.0f : 0.0f;
-    out[2] = style == 2 ? 1.0f : 0.0f;
-    out[3] = style == 3 ? 1.0f : 0.0f;
-    out[4] = osrs_clamp_unit((float)item->attack_slash / STAT_NORM_ATTACK);
-    out[5] = osrs_clamp_unit((float)item->melee_strength / STAT_NORM_STRENGTH);
-    out[6] = osrs_clamp_unit((float)item->attack_ranged / STAT_NORM_ATTACK);
-    out[7] = osrs_clamp_unit((float)item->ranged_strength / STAT_NORM_STRENGTH);
-    out[8] = osrs_clamp_unit(((float)item->attack_magic / STAT_NORM_ATTACK) +
-        ((float)item->magic_damage / STAT_NORM_MAGIC_DMG));
-    out[9] = osrs_clamp_unit((float)(item->defence_stab + item->defence_slash +
-        item->defence_crush + item->defence_magic + item->defence_ranged) /
-        (5.0f * STAT_NORM_DEFENCE));
-    out[10] = item->effect_mask != OSRS_ITEM_EFFECT_NONE ? 1.0f : 0.0f;
-    out[11] = item->slot == SLOT_WEAPON ? 1.0f : 0.0f;
-
-    float effect_class[4];
-    osrs_item_effect_class4(item->effect_mask, effect_class);
-    out[12] = effect_class[0];
-    out[13] = effect_class[1];
-    out[14] = effect_class[2];
-    out[15] = effect_class[3];
-    out[16] = item->slot == SLOT_WEAPON
-        ? osrs_clamp_unit((float)item->attack_speed / STAT_NORM_SPEED)
-        : 0.0f;
-    out[17] = item->slot == SLOT_WEAPON
-        ? osrs_clamp_unit((float)item->attack_range / STAT_NORM_RANGE)
-        : 0.0f;
-}
 
 static inline OsrsClickAction osrs_item_click_action(uint8_t item_idx) {
     if (item_idx == ITEM_NONE) return OSRS_CLICK_NONE;
@@ -547,46 +497,12 @@ static inline uint16_t osrs_inventory_cell_obs_code_decode(float observed) {
     return (uint16_t)content_code;
 }
 
-static inline void osrs_write_inventory_cell_obs_code_features(
+static inline void osrs_write_inventory_cell_obs_code(
     float* out,
-    const OsrsInventoryCell* cell,
-    int is_equipped,
-    int base_hitpoints
+    const OsrsInventoryCell* cell
 ) {
-    const OsrsItemContentMetadata* metadata =
-        osrs_inventory_cell_metadata(cell);
     out[OSRS_INVENTORY_CELL_OBS_CODE] =
         osrs_inventory_cell_obs_code_encode(cell->content_code);
-    out[OSRS_INVENTORY_CELL_OBS_EQUIPPED] =
-        is_equipped ? 1.0f : 0.0f;
-    if (metadata->item != NULL || base_hitpoints <= 0) {
-        out[OSRS_INVENTORY_CELL_OBS_HP_HEAL] = 0.0f;
-        return;
-    }
-    int hp_heal = osrs_consumable_hp_heal_amount(
-        (OsrsConsumableKind)metadata->consumable_kind,
-        base_hitpoints);
-    out[OSRS_INVENTORY_CELL_OBS_HP_HEAL] =
-        osrs_clamp_unit((float)hp_heal / (float)base_hitpoints);
-}
-
-/* Rebuilds the compact record, overwrites equipped, and overwrites HP-heal only for non-gear. */
-static inline void osrs_expand_inventory_cell_obs_code_features(
-    float* out,
-    const float* coded,
-    const float* table_row
-) {
-    for (int f = 0; f < OSRS_INVENTORY_CELL_OBS_FEATURES_COMPACT; f++) {
-        out[f] = table_row[f];
-    }
-    int is_gear = table_row[OSRS_INVENTORY_CELL_COMPACT_IS_ARMOR] != 0.0f ||
-        table_row[OSRS_INVENTORY_CELL_COMPACT_IS_WEAPON] != 0.0f;
-    out[OSRS_INVENTORY_CELL_COMPACT_EQUIPPED] =
-        coded[OSRS_INVENTORY_CELL_OBS_EQUIPPED];
-    if (!is_gear) {
-        out[OSRS_INVENTORY_CELL_COMPACT_HP_HEAL] =
-            coded[OSRS_INVENTORY_CELL_OBS_HP_HEAL];
-    }
 }
 
 #endif

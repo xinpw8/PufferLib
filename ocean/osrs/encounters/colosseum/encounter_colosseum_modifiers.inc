@@ -162,31 +162,31 @@ static void col_late_start_drain_supplies(
     for (int c = 0; c < COLO_INVENTORY_DISPLAY_SLOTS; c++) {
         if (done[c] ||
                 osrs_inventory_cell_dose_count(
-                    &s->inventory_cells[c]) == 0) continue;
-        int item = osrs_inventory_cell_item_index(&s->inventory_cells[c]);
+                    &s->player.inventory_cells[c]) == 0) continue;
+        int item = osrs_inventory_cell_item_index(&s->player.inventory_cells[c]);
         int total = 0;
         for (int k = c; k < COLO_INVENTORY_DISPLAY_SLOTS; k++) {
-            if (osrs_inventory_cell_item_index(&s->inventory_cells[k]) == item &&
+            if (osrs_inventory_cell_item_index(&s->player.inventory_cells[k]) == item &&
                     osrs_inventory_cell_dose_count(
-                        &s->inventory_cells[k]) > 0) {
+                        &s->player.inventory_cells[k]) > 0) {
                 done[k] = 1;
                 total += osrs_inventory_cell_dose_count(
-                    &s->inventory_cells[k]);
+                    &s->player.inventory_cells[k]);
             }
         }
         int drain = total - (int)((float)total * f + 0.5f);
         for (int k = COLO_INVENTORY_DISPLAY_SLOTS - 1; k >= c && drain > 0; k--) {
             if (osrs_inventory_cell_item_index(
-                    &s->inventory_cells[k]) != item) continue;
+                    &s->player.inventory_cells[k]) != item) continue;
             while (osrs_inventory_cell_dose_count(
-                    &s->inventory_cells[k]) > 0 && drain > 0) {
+                    &s->player.inventory_cells[k]) > 0 && drain > 0) {
                 OsrsInventoryClickResolution res = osrs_inventory_cell_click_interpret(
-                    &s->inventory_cells[k], OSRS_CLICK_TICK_FIRST);
+                    &s->player.inventory_cells[k], OSRS_CLICK_TICK_FIRST);
                 if (res.click_action != OSRS_CLICK_DRINK) break;
                 int scratch_timer = 0;
                 OsrsInventoryDrinkConsumeResult consumed =
                     osrs_inventory_cell_consume_drink_one_dose(
-                        &s->inventory_cells[k], res, &scratch_timer,
+                        &s->player.inventory_cells[k], res, &scratch_timer,
                         col_late_start_drink_noop, s);
                 if (!consumed.consumed) break;
                 drain--;
@@ -237,7 +237,7 @@ static void col_record_wave_entry(const ColosseumState* s, int entered_wave) {
     }
     if (slot >= 0) {
         ColoWaveEntrySample* out = &res->samples[slot];
-        memcpy(out->cells, s->inventory_cells, sizeof(out->cells));
+        memcpy(out->cells, s->player.inventory_cells, sizeof(out->cells));
         out->active_mask = s->modifiers.active_mask;
         for (int m = 0; m < COLO_NUM_REAL_MODIFIERS; m++)
             out->tier[m] = (uint8_t)s->modifiers.tier[m];
@@ -259,7 +259,7 @@ static int col_apply_wave_entry_sample(ColosseumState* s, int start_wave) {
     }
     if (!have) return 0;
 
-    memcpy(s->inventory_cells, sample.cells, sizeof(sample.cells));
+    memcpy(s->player.inventory_cells, sample.cells, sizeof(sample.cells));
     col_sync_consumable_counters_from_inventory(s);
     s->modifiers.active_mask = sample.active_mask;
     for (int m = 0; m < COLO_NUM_REAL_MODIFIERS; m++)

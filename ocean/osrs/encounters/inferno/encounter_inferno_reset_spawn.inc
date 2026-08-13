@@ -25,7 +25,7 @@ static void inf_seed_potion_cells(
                 OSRS_INVENTORY_SIZE);
             abort();
         }
-        s->inventory_cells[(*next_cell)++] =
+        s->player.inventory_cells[(*next_cell)++] =
             osrs_inventory_cell_from_content_code(
                 osrs_inventory_content_code_from_consumable(kind, dose));
         doses -= dose;
@@ -34,7 +34,7 @@ static void inf_seed_potion_cells(
 
 static void inf_seed_inventory_cells(InfernoState* s) {
     for (int i = 0; i < OSRS_INVENTORY_SIZE; i++)
-        s->inventory_cells[i] = osrs_inventory_cell_empty();
+        s->player.inventory_cells[i] = osrs_inventory_cell_empty();
 
     int cell = 0;
     const uint8_t* const* loadouts =
@@ -47,7 +47,7 @@ static void inf_seed_inventory_cells(InfernoState* s) {
             int duplicate = 0;
             for (int c = 0; c < cell; c++) {
                 if (osrs_inventory_cell_item_index(
-                        &s->inventory_cells[c]) == item) {
+                        &s->player.inventory_cells[c]) == item) {
                     duplicate = 1;
                     break;
                 }
@@ -58,7 +58,8 @@ static void inf_seed_inventory_cells(InfernoState* s) {
                     OSRS_INVENTORY_SIZE);
                 abort();
             }
-            s->inventory_cells[cell++] = osrs_inventory_cell_from_item(item);
+            s->player.inventory_cells[cell++] =
+                osrs_inventory_cell_from_item(item);
         }
     }
 

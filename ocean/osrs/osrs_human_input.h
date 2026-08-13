@@ -134,13 +134,13 @@ static int human_select_spell_idx(HumanInput* hi, GuiSpellIdx sidx) {
 
     if (gui_spell_is_ice(sidx)) {
         human_input_apply_ui_intent(
-            hi, osrs_ui_intent_select_spell(ATTACK_ICE, (int)sidx));
+            hi, osrs_ui_intent_select_spell(PVP_ATTACK_ICE, (int)sidx));
         return 1;
     }
 
     if (gui_spell_is_blood(sidx)) {
         human_input_apply_ui_intent(
-            hi, osrs_ui_intent_select_spell(ATTACK_BLOOD, (int)sidx));
+            hi, osrs_ui_intent_select_spell(PVP_ATTACK_BLOOD, (int)sidx));
         return 1;
     }
 
@@ -330,72 +330,105 @@ static void human_handle_combat_click(HumanInput* hi, GuiState* gs, Player* p,
     }
 }
 
-static void human_to_pvp_actions(HumanInput* hi, int* actions,
-                                  Player* agent, Player* target) {
-    for (int h = 0; h < NUM_ACTION_HEADS; h++) actions[h] = 0;
+static void human_pvp_translate_inventory_cell(
+    int* actions,
+    const Player* player,
+    int cell
+) {
+    if (cell < 0 || cell >= OSRS_INVENTORY_SIZE) return;
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(&player->inventory_cells[cell]);
+    int click_action = cell + 1;
+    if (metadata->click_action == OSRS_CLICK_EQUIP) {
+        if (metadata->gear_slot >= 0 && metadata->gear_slot < NUM_GEAR_SLOTS)
+            actions[OSRS_HEAD_EQUIP_SLOT(metadata->gear_slot)] = click_action;
+    } else if (metadata->click_action == OSRS_CLICK_EAT) {
+        actions[OSRS_HEAD_EAT] = click_action;
+    } else if (metadata->click_action == OSRS_CLICK_DRINK) {
+        actions[OSRS_HEAD_DRINK] = click_action;
+    }
+}
 
-    actions[HEAD_LOADOUT] = LOADOUT_KEEP;
+static int human_pvp_find_consumable_cell(
+    const Player* player,
+    OsrsConsumableKind kind
+) {
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        const OsrsItemContentMetadata* metadata =
+            osrs_inventory_cell_metadata(&player->inventory_cells[cell]);
+        if (metadata->consumable_kind == kind) return cell;
+    }
+    return -1;
+}
+
+static void human_to_pvp_actions(
+    HumanInput* hi,
+    int* actions,
+    Player* agent
+) {
+    memset(actions, 0, OSRS_BASE_NUM_ACTION_HEADS * sizeof(int));
+    if (hi->pending_move_x >= 0 && hi->pending_move_y >= 0) {
+        int dx = hi->pending_move_x - agent->x;
+        int dy = hi->pending_move_y - agent->y;
+        if (dx < -2) dx = -2;
+        if (dx > 2) dx = 2;
+        if (dy < -2) dy = -2;
+        if (dy > 2) dy = 2;
+        for (int action = 1; action < OSRS_PRIMARY_MOVE_ACTIONS; action++) {
+            if (ENCOUNTER_MOVE_TARGET_DX[action] == dx &&
+                    ENCOUNTER_MOVE_TARGET_DY[action] == dy) {
+                actions[OSRS_HEAD_PRIMARY] = action;
+                break;
+            }
+        }
+    }
+    encounter_translate_prayer(hi, actions, OSRS_HEAD_OVERHEAD);
+    encounter_translate_offensive_prayer(hi, actions, OSRS_HEAD_OFFENSIVE);
 
     if (hi->pending_attack) {
-        if (hi->pending_spell == ATTACK_ICE) {
-            actions[HEAD_COMBAT] = ATTACK_ICE;
-        } else if (hi->pending_spell == ATTACK_BLOOD) {
-            actions[HEAD_COMBAT] = ATTACK_BLOOD;
-        } else {
-            actions[HEAD_COMBAT] = ATTACK_ATK;
-        }
-    } else if (hi->pending_move_x >= 0 && hi->pending_move_y >= 0) {
-        int dx = hi->pending_move_x - target->x;
-        int dy = hi->pending_move_y - target->y;
-        int dist = (abs(dx) > abs(dy)) ? abs(dx) : abs(dy);
-
-        if (dist == 0) {
-            actions[HEAD_COMBAT] = MOVE_UNDER;
-        } else if (dist == 1) {
-            if (dx == 0 || dy == 0) {
-                actions[HEAD_COMBAT] = MOVE_ADJACENT;
-            } else {
-                actions[HEAD_COMBAT] = MOVE_DIAGONAL;
-            }
-        } else {
-            int fc = dist;
-            if (fc < 2) fc = 2;
-            if (fc > 7) fc = 7;
-            actions[HEAD_COMBAT] = MOVE_FARCAST_2 + (fc - 2);
-        }
+        actions[OSRS_HEAD_PRIMARY] = OSRS_PRIMARY_MOVE_ACTIONS;
+        if (hi->pending_spell == PVP_ATTACK_ICE)
+            actions[OSRS_HEAD_SPELL] = OSRS_SPELL_ICE_BARRAGE;
+        else if (hi->pending_spell == PVP_ATTACK_BLOOD)
+            actions[OSRS_HEAD_SPELL] = OSRS_SPELL_BLOOD_BARRAGE;
     }
-
-    if (hi->pending_prayer >= 0) {
-        actions[HEAD_OVERHEAD] = hi->pending_prayer;
-    }
-
     if (hi->pending_food) {
-        actions[HEAD_FOOD] = FOOD_EAT;
+        int cell = human_pvp_find_consumable_cell(
+            agent, OSRS_CONSUMABLE_SHARK_FOOD);
+        if (cell >= 0) actions[OSRS_HEAD_EAT] = cell + 1;
     }
-
-    if (hi->pending_potion > 0) {
-        actions[HEAD_POTION] = hi->pending_potion;
-    }
-
     if (hi->pending_karambwan) {
-        actions[HEAD_KARAMBWAN] = KARAM_EAT;
+        int cell = human_pvp_find_consumable_cell(
+            agent, OSRS_CONSUMABLE_KARAMBWAN);
+        if (cell >= 0) actions[OSRS_HEAD_EAT] = cell + 1;
     }
-
-    if (hi->pending_veng) {
-        actions[HEAD_VENG] = VENG_CAST;
+    OsrsConsumableKind potion_kind = OSRS_CONSUMABLE_NONE;
+    if (hi->pending_potion == POTION_BREW)
+        potion_kind = OSRS_CONSUMABLE_BREW;
+    else if (hi->pending_potion == POTION_RESTORE)
+        potion_kind = OSRS_CONSUMABLE_SUPER_RESTORE;
+    else if (hi->pending_potion == POTION_COMBAT)
+        potion_kind = OSRS_CONSUMABLE_SUPER_COMBAT;
+    else if (hi->pending_potion == POTION_RANGED)
+        potion_kind = OSRS_CONSUMABLE_RANGING;
+    if (potion_kind != OSRS_CONSUMABLE_NONE) {
+        int cell = human_pvp_find_consumable_cell(agent, potion_kind);
+        if (cell >= 0) actions[OSRS_HEAD_DRINK] = cell + 1;
     }
-
-    if (hi->pending_spec) {
-        AttackStyle style = (AttackStyle)get_item_attack_style(agent->equipped[GEAR_SLOT_WEAPON]);
-        switch (style) {
-            case ATTACK_STYLE_MELEE:  actions[HEAD_LOADOUT] = LOADOUT_SPEC_MELEE; break;
-            case ATTACK_STYLE_RANGED: actions[HEAD_LOADOUT] = LOADOUT_SPEC_RANGE; break;
-            case ATTACK_STYLE_MAGIC:  actions[HEAD_LOADOUT] = LOADOUT_SPEC_MAGIC; break;
-            default: break;
+    for (int i = 0; i < hi->commands.count; i++) {
+        const HumanCommand* command = &hi->commands.items[i];
+        if (command->kind == HUMAN_COMMAND_EQUIP_INVENTORY_ITEM ||
+                command->kind == HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK ||
+                command->kind == HUMAN_COMMAND_EAT ||
+                command->kind == HUMAN_COMMAND_DRINK) {
+            human_pvp_translate_inventory_cell(
+                actions, agent, command->inventory_slot);
         }
     }
-
-    (void)agent;
+    if (hi->pending_veng)
+        actions[OSRS_HEAD_SPELL] = OSRS_SPELL_VENGEANCE;
+    if (hi->pending_spec)
+        actions[OSRS_HEAD_SPECIAL] = agent->spec_armed ? 2 : 1;
 }
 
 #define CLICK_CROSS_NUM_FRAMES 4

@@ -57,7 +57,7 @@ static int scripted_first_modifier(const ColosseumState* s) {
 
 static int scripted_heal_cell(const ColosseumState* s) {
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++) {
-        const ColoInvCell* cell = &s->inventory_cells[i];
+        const ColoInvCell* cell = &s->player.inventory_cells[i];
         OsrsInventoryClickResolution r =
             osrs_inventory_cell_click_interpret(
                 cell, OSRS_CLICK_TICK_FIRST);
@@ -83,7 +83,7 @@ static void aggressive_policy(ColosseumState* s, int* actions) {
         int heal_cell = scripted_heal_cell(s);
         if (heal_cell >= 0) {
             OsrsInventoryClickResolution r = osrs_inventory_cell_click_interpret(
-                &s->inventory_cells[heal_cell], OSRS_CLICK_TICK_FIRST);
+                &s->player.inventory_cells[heal_cell], OSRS_CLICK_TICK_FIRST);
             int head = r.click_action == OSRS_CLICK_DRINK ? COLO_HEAD_DRINK : COLO_HEAD_EAT;
             actions[head] = heal_cell + 1;
         }

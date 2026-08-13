@@ -16,6 +16,7 @@
 #include "../osrs_inventory_clicks.h"
 #include "../osrs_item_obs_generated.h"
 #include "../osrs_inventory_actions.h"
+#include "../osrs_policy.h"
 #include "../osrs_interaction.h"
 #include "../data/npc_models.h"
 #include <assert.h>

@@ -573,7 +573,7 @@ static void* inf_get_player_for_input(void* state, int idx) {
 
 static int inf_first_cell_with_kind(const InfernoState* s, OsrsConsumableKind kind) {
     for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
-        const OsrsInventoryCell* cell = &s->inventory_cells[c];
+        const OsrsInventoryCell* cell = &s->player.inventory_cells[c];
         const OsrsItemContentMetadata* metadata =
             osrs_inventory_cell_metadata(cell);
         if (metadata->raw_osrs_id == 0) continue;
@@ -599,7 +599,7 @@ static void inf_translate_gear_swap(const InfernoState* s, int* actions, InfWeap
         if (item == ITEM_NONE || s->player.equipped[slot] == item) continue;
         for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
             if (osrs_inventory_cell_item_index(
-                    &s->inventory_cells[c]) == item) {
+                    &s->player.inventory_cells[c]) == item) {
                 actions[INF_HEAD_EQUIP_SLOT(slot)] = c + 1;
                 break;
             }
@@ -615,9 +615,9 @@ static void inf_translate_human_input_ctx(
 ) {
     for (int h = 0; h < INF_NUM_ACTION_HEADS; h++) actions[h] = 0;
 
-    encounter_translate_movement(hi, actions, INF_HEAD_MOVE, inf_get_player_for_input, state);
+    encounter_translate_movement(
+        hi, actions, INF_HEAD_PRIMARY, inf_get_player_for_input, state);
     encounter_translate_prayer(hi, actions, INF_HEAD_PRAYER);
-    actions[INF_HEAD_PRAYER] = inf_local_overhead_action(actions[INF_HEAD_PRAYER]);
     encounter_translate_offensive_prayer(hi, actions, INF_HEAD_OFFENSIVE);
     InfernoState* s = (InfernoState*)state;
     InfernoContext* ctx = (InfernoContext*)context;
@@ -625,12 +625,9 @@ static void inf_translate_human_input_ctx(
     if (hi->pending_target_idx >= 0) {
         int found_slot = inf_find_target_obs_slot(s, hi->pending_target_idx);
         if (inf_obs_slot_is_targetable(s, ctx, found_slot)) {
-            actions[INF_HEAD_TARGET] = found_slot + 1;
-        } else {
-            actions[INF_HEAD_TARGET] = 0;
+            actions[INF_HEAD_PRIMARY] =
+                inf_primary_attack_action_for_obs_slot(found_slot);
         }
-    } else {
-        actions[INF_HEAD_TARGET] = 0;
     }
 
     if (hi->pending_gear >= 1 && hi->pending_gear <= INF_NUM_WEAPON_SETS)
@@ -651,8 +648,10 @@ static void inf_translate_human_input_ctx(
     else if (hi->pending_potion == POTION_STAMINA)
         inf_translate_drink(s, actions, OSRS_CONSUMABLE_STAMINA);
 
-    if (hi->pending_spell == ATTACK_BLOOD) actions[INF_HEAD_SPELL] = 1;
-    else if (hi->pending_spell == ATTACK_ICE) actions[INF_HEAD_SPELL] = 2;
+    if (hi->pending_spell == OSRS_SPELL_BLOOD_BARRAGE)
+        actions[INF_HEAD_SPELL] = OSRS_SPELL_BLOOD_BARRAGE;
+    else if (hi->pending_spell == OSRS_SPELL_ICE_BARRAGE)
+        actions[INF_HEAD_SPELL] = OSRS_SPELL_ICE_BARRAGE;
 
     if (hi->pending_spec) actions[INF_HEAD_SPEC] = s->player.spec_armed ? 2 : 1;
 }
@@ -677,29 +676,33 @@ static void inf_translate_human_commands_ctx(
             case HUMAN_COMMAND_WALK:
                 s->player_dest_x = cmd->world_x;
                 s->player_dest_y = cmd->world_y;
-                actions[INF_HEAD_TARGET] = 0;
+                actions[INF_HEAD_PRIMARY] = 0;
                 actions[INF_HEAD_SPELL] = 0;
                 break;
             case HUMAN_COMMAND_ATTACK_NPC: {
                 int found_slot = inf_find_target_obs_slot(s, cmd->npc_slot);
-                actions[INF_HEAD_TARGET] = inf_obs_slot_is_targetable(s, ctx, found_slot)
-                    ? found_slot + 1 : 0;
+                actions[INF_HEAD_PRIMARY] = inf_obs_slot_is_targetable(
+                    s, ctx, found_slot)
+                        ? inf_primary_attack_action_for_obs_slot(found_slot) : 0;
                 s->player_dest_x = -1;
                 s->player_dest_y = -1;
                 break;
             }
             case HUMAN_COMMAND_SPELL_TARGET: {
                 int found_slot = inf_find_target_obs_slot(s, cmd->npc_slot);
-                actions[INF_HEAD_TARGET] = inf_obs_slot_is_targetable(s, ctx, found_slot)
-                    ? found_slot + 1 : 0;
-                if (cmd->spell == ATTACK_BLOOD) actions[INF_HEAD_SPELL] = 1;
-                else if (cmd->spell == ATTACK_ICE) actions[INF_HEAD_SPELL] = 2;
+                actions[INF_HEAD_PRIMARY] = inf_obs_slot_is_targetable(
+                    s, ctx, found_slot)
+                        ? inf_primary_attack_action_for_obs_slot(found_slot) : 0;
+                if (cmd->spell == OSRS_SPELL_BLOOD_BARRAGE)
+                    actions[INF_HEAD_SPELL] = OSRS_SPELL_BLOOD_BARRAGE;
+                else if (cmd->spell == OSRS_SPELL_ICE_BARRAGE)
+                    actions[INF_HEAD_SPELL] = OSRS_SPELL_ICE_BARRAGE;
                 s->player_dest_x = -1;
                 s->player_dest_y = -1;
                 break;
             }
             case HUMAN_COMMAND_OVERHEAD_PRAYER:
-                actions[INF_HEAD_PRAYER] = inf_local_overhead_action(cmd->overhead_prayer);
+                actions[INF_HEAD_PRAYER] = cmd->overhead_prayer;
                 break;
             case HUMAN_COMMAND_OFFENSIVE_PRAYER:
                 actions[INF_HEAD_OFFENSIVE] = cmd->offensive_prayer;
@@ -1000,9 +1003,9 @@ static const EncounterDef ENCOUNTER_INFERNO = {
     .translate_human_input = inf_translate_human_input_ctx,
     .is_human_targetable_npc_slot = inf_is_human_targetable_npc_slot_ctx,
     .apply_lab_command = inf_apply_lab_command_ctx,
-    .head_move = INF_HEAD_MOVE,
+    .head_move = INF_HEAD_PRIMARY,
     .head_prayer = INF_HEAD_PRAYER,
-    .head_target = INF_HEAD_TARGET,
+    .head_target = INF_HEAD_PRIMARY,
 
     .render_post_tick = inf_render_post_tick_ctx,
     .get_log = inf_get_log_ctx,

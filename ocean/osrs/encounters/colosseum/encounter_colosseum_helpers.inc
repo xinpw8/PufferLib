@@ -45,16 +45,15 @@ static int col_thrall_lifetime_ticks(const ColosseumState* s) {
 
 static void col_resummon_thrall(ColosseumState* s) {
     int lifetime = col_thrall_lifetime_ticks(s);
-    if (lifetime <= 0) {
-        fprintf(stderr, "invalid thrall lifetime %d at Magic level %d\n",
-            lifetime, s->player.current_magic);
-        abort();
-    }
     s->thrall_target_slot = -1;
     s->thrall_aggro_ticks_left = 0;
+    s->thrall_attack_timer = COLO_THRALL_TICK;
+    if (lifetime <= 0) {
+        s->thrall_lifetime_left = 0;
+        return;
+    }
     s->thrall_lifetime_left = lifetime;
     s->thrall_lifetime_total = lifetime;
-    s->thrall_attack_timer = COLO_THRALL_TICK;
 }
 
 static void col_abort_invalid_weapon_set(ColoWeaponSet set) {

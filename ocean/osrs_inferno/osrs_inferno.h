@@ -250,11 +250,10 @@ static inline void inferno_env_write_obs(Env* env) {
 }
 
 static inline void inferno_env_write_mask(Env* env) {
-    float mask_f[INF_ACTION_MASK_SIZE];
-    ENCOUNTER_INFERNO.write_mask(INF_ENV_STATE(env), INF_ENV_CONTEXT(env), mask_f);
-    unsigned char* mask = env->agents[0].action_mask;
+    float mask[INF_ACTION_MASK_SIZE];
+    inf_write_mask_ctx(INF_ENV_STATE(env), INF_ENV_CONTEXT(env), mask);
     for (int i = 0; i < INF_ACTION_MASK_SIZE; i++)
-        mask[i] = mask_f[i] > 0.0f ? 1u : 0u;
+        env->agents[0].action_mask[i] = mask[i] != 0.0f;
 }
 
 void puf_reset(Env* env) {

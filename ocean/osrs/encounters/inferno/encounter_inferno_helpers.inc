@@ -79,6 +79,10 @@ static void inf_shuffle_spawns(InfernoState* s) {
     encounter_shuffle(s->spawn_order, INF_NUM_SPAWN_POS, &s->rng_state);
 }
 static InfernoContext* inf_legacy_context(void);
+static const EncounterArenaTopology* inf_route_topology_for_state(
+    const InfernoContext* ctx,
+    const InfernoState* state
+);
 
 
 static int inf_pillar_footprint_blocked(
@@ -97,6 +101,23 @@ static int inf_pillar_footprint_blocked(
     }
     return 0;
 }
+static uint8_t inf_active_pillar_mask(const InfernoState* state) {
+    uint8_t mask = 0;
+    for (int pillar = 0; pillar < INF_NUM_PILLARS; pillar++)
+        mask |= (uint8_t)(state->pillars[pillar].active != 0) << pillar;
+    return mask;
+}
+static int inf_pillars_at_canonical_positions(
+    const InfernoState* state
+) {
+    for (int pillar = 0; pillar < INF_NUM_PILLARS; pillar++)
+        if (state->pillars[pillar].x != INF_PILLAR_POS[pillar][0] ||
+                state->pillars[pillar].y != INF_PILLAR_POS[pillar][1])
+            return 0;
+    return 1;
+}
+
+
 
 static uint32_t inf_pillar_los_flags(void* data, int x, int y) {
     const InfernoState* s = (const InfernoState*)data;
@@ -116,9 +137,12 @@ static int inf_footprint_blocked_ctx(
     int y,
     int size
 ) {
+    const EncounterArenaTopology* topology =
+        inf_route_topology_for_state(ctx, s);
     return encounter_arena_topology_footprint_blocked(
-            ctx->route_topology, x, y, size) ||
-        inf_pillar_footprint_blocked(s, x, y, size);
+            topology, x, y, size) ||
+        (!inf_pillars_at_canonical_positions(s) &&
+         inf_pillar_footprint_blocked(s, x, y, size));
 }
 
 static int inf_los_clear_ctx(
@@ -132,15 +156,21 @@ static int inf_los_clear_ctx(
     int target_size,
     int attack_range
 ) {
-    if (!encounter_arena_topology_los_clear(
-            ctx->route_topology,
+    if (inf_pillars_at_canonical_positions(s))
+        return encounter_arena_topology_los_clear(
+            inf_route_topology_for_state(ctx, s),
             actor_x,
             actor_y,
             actor_size,
             target_x,
             target_y,
             target_size,
-            attack_range))
+            attack_range);
+    const EncounterArenaTopology* topology = ctx->route_topology;
+    if (!encounter_arena_topology_footprint_in_bounds_assume_finalized_size_in_range(
+            topology, actor_x, actor_y, actor_size) ||
+            !encounter_arena_topology_footprint_in_bounds_assume_finalized_size_in_range(
+                topology, target_x, target_y, target_size))
         return 0;
     return entity_has_line_of_sight_with_flags(
         inf_pillar_los_flags,
@@ -794,13 +824,15 @@ static InfConfig inf_default_config(void) {
 }
 
 typedef struct {
-    EncounterArenaTopology* topology;
+    EncounterArenaTopology*
+        topologies[1 << INF_NUM_PILLARS];
 } InfRouteTopologyOwner;
 
 typedef struct {
     const CollisionMap* collision_map;
     int world_offset_x;
     int world_offset_y;
+    uint8_t pillar_mask;
 } InfRouteTopologyBuildContext;
 
 static InfRouteTopologyOwner inf_route_topology_owner;
@@ -824,13 +856,31 @@ static uint32_t inf_route_topology_flags(void* data, int x, int y) {
     if (x < INF_ARENA_MIN_X || x > INF_ARENA_MAX_X ||
             y < INF_ARENA_MIN_Y || y > INF_ARENA_MAX_Y)
         return COLLISION_BLOCKED;
-    return inf_topology_collision_flags(build, x, y);
+    uint32_t flags = inf_topology_collision_flags(build, x, y);
+    for (int pillar = 0; pillar < INF_NUM_PILLARS; pillar++) {
+        if ((build->pillar_mask & (1 << pillar)) == 0) continue;
+        if (los_aabb_overlap(
+                x, y, 1,
+                INF_PILLAR_POS[pillar][0],
+                INF_PILLAR_POS[pillar][1],
+                INF_PILLAR_SIZE))
+            flags |= COLLISION_BLOCKED | LOS_FULL_MASK;
+    }
+    return flags;
 }
 
 static uint32_t inf_route_topology_los_flags(void* data, int x, int y) {
-    (void)data;
-    (void)x;
-    (void)y;
+    const InfRouteTopologyBuildContext* build =
+        (const InfRouteTopologyBuildContext*)data;
+    for (int pillar = 0; pillar < INF_NUM_PILLARS; pillar++) {
+        if ((build->pillar_mask & (1 << pillar)) == 0) continue;
+        if (los_aabb_overlap(
+                x, y, 1,
+                INF_PILLAR_POS[pillar][0],
+                INF_PILLAR_POS[pillar][1],
+                INF_PILLAR_SIZE))
+            return LOS_FULL_MASK;
+    }
     return 0;
 }
 
@@ -839,34 +889,51 @@ static void inf_finalize_route_topology(InfernoContext* ctx) {
         fprintf(stderr, "inferno route topology finalized twice\n");
         abort();
     }
-    InfRouteTopologyBuildContext build = {
-        ctx->collision_map,
-        ctx->world_offset_x,
-        ctx->world_offset_y,
-    };
-    EncounterArenaTopologyBuildSpec spec = {
-        .origin_x = INF_TOPOLOGY_MIN_X,
-        .origin_y = INF_TOPOLOGY_MIN_Y,
-        .width = INF_TOPOLOGY_WIDTH,
-        .height = INF_TOPOLOGY_HEIGHT,
-        .max_footprint_size = ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE,
-        .revision = UINT64_C(0x494e4645524e4f02),
-        .tile_flags = inf_route_topology_flags,
-        .tile_flags_ctx = &build,
-        .los_tile_flags = inf_route_topology_los_flags,
-        .los_tile_flags_ctx = &build,
-    };
-    if (!inf_route_topology_owner.topology) {
-        inf_route_topology_owner.topology =
-            encounter_arena_topology_build(&spec);
-        encounter_arena_topology_finalize(inf_route_topology_owner.topology);
-    } else {
-        encounter_arena_topology_require_spec(
-            inf_route_topology_owner.topology,
-            &spec,
-            "inferno");
+    for (int pillar_mask = 0;
+            pillar_mask < (1 << INF_NUM_PILLARS);
+            pillar_mask++) {
+        InfRouteTopologyBuildContext build = {
+            ctx->collision_map,
+            ctx->world_offset_x,
+            ctx->world_offset_y,
+            (uint8_t)pillar_mask,
+        };
+        EncounterArenaTopologyBuildSpec spec = {
+            .origin_x = INF_TOPOLOGY_MIN_X,
+            .origin_y = INF_TOPOLOGY_MIN_Y,
+            .width = INF_TOPOLOGY_WIDTH,
+            .height = INF_TOPOLOGY_HEIGHT,
+            .max_footprint_size =
+                ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE,
+            .revision =
+                UINT64_C(0x494e4645524e4f02) + (uint64_t)pillar_mask,
+            .tile_flags = inf_route_topology_flags,
+            .tile_flags_ctx = &build,
+            .los_tile_flags = inf_route_topology_los_flags,
+            .los_tile_flags_ctx = &build,
+        };
+        EncounterArenaTopology** topology =
+            &inf_route_topology_owner.topologies[pillar_mask];
+        if (!*topology) {
+            *topology = encounter_arena_topology_build(&spec);
+            encounter_arena_topology_finalize(*topology);
+        } else {
+            encounter_arena_topology_require_spec(
+                *topology, &spec, "inferno");
+        }
     }
-    ctx->route_topology = inf_route_topology_owner.topology;
+    ctx->route_topology = inf_route_topology_owner.topologies[0];
+}
+
+static const EncounterArenaTopology* inf_route_topology_for_state(
+    const InfernoContext* ctx,
+    const InfernoState* state
+) {
+    encounter_arena_topology_require_finalized(ctx->route_topology);
+    if (!inf_pillars_at_canonical_positions(state))
+        return ctx->route_topology;
+    return inf_route_topology_owner.topologies[
+        inf_active_pillar_mask(state)];
 }
 
 static void inf_finalize_context(

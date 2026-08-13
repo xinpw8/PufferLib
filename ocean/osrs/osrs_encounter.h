@@ -13,6 +13,7 @@
 #include <string.h>
 #include "osrs_types.h"
 #include "osrs_items.h"
+#include "osrs_inventory.h"
 #include "osrs_pathfinding.h"
 #include "osrs_combat.h"
 #include "osrs_consumables.h"
@@ -1713,32 +1714,50 @@ static void encounter_populate_inventory(
     const uint8_t* const* loadouts, int num_loadouts,
     const uint8_t extra_items[NUM_GEAR_SLOTS]
 ) {
-    memset(p->inventory, 255 , sizeof(p->inventory));
-    memset(p->num_items_in_slot, 0, sizeof(p->num_items_in_slot));
-
-    for (int s = 0; s < NUM_GEAR_SLOTS; s++) {
-        int n = 0;
-        for (int l = 0; l < num_loadouts && n < MAX_ITEMS_PER_SLOT; l++) {
-            uint8_t item = loadouts[l][s];
-            if (item == 255 ) continue;
-            int dup = 0;
-            for (int j = 0; j < n; j++) { if (p->inventory[s][j] == item) { dup = 1; break; } }
-            if (dup) continue;
-            p->inventory[s][n++] = item;
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++)
+        p->inventory_cells[cell] = osrs_inventory_cell_empty();
+    int cell = 0;
+    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
+        for (int loadout = 0; loadout < num_loadouts; loadout++) {
+            uint8_t item = loadouts[loadout][slot];
+            if (item == ITEM_NONE || item == p->equipped[slot]) continue;
+            int duplicate = 0;
+            for (int previous = 0; previous < cell; previous++) {
+                if (osrs_inventory_cell_item_index(
+                        &p->inventory_cells[previous]) == item) {
+                    duplicate = 1;
+                    break;
+                }
+            }
+            if (!duplicate && cell < OSRS_INVENTORY_SIZE)
+                p->inventory_cells[cell++] =
+                    osrs_inventory_cell_from_item(item);
         }
-        if (extra_items && extra_items[s] != 255  && n < MAX_ITEMS_PER_SLOT) {
-            int dup = 0;
-            for (int j = 0; j < n; j++) { if (p->inventory[s][j] == extra_items[s]) { dup = 1; break; } }
-            if (!dup) p->inventory[s][n++] = extra_items[s];
+        if (!extra_items || extra_items[slot] == ITEM_NONE ||
+                extra_items[slot] == p->equipped[slot])
+            continue;
+        int duplicate = 0;
+        for (int previous = 0; previous < cell; previous++) {
+            if (osrs_inventory_cell_item_index(
+                    &p->inventory_cells[previous]) == extra_items[slot]) {
+                duplicate = 1;
+                break;
+            }
         }
-        p->num_items_in_slot[s] = n;
+        if (!duplicate && cell < OSRS_INVENTORY_SIZE)
+            p->inventory_cells[cell++] =
+                osrs_inventory_cell_from_item(extra_items[slot]);
     }
 }
 
 static inline void encounter_clear_ammo_inventory_slot(Player* p) {
-    for (int i = 0; i < MAX_ITEMS_PER_SLOT; i++)
-        p->inventory[GEAR_SLOT_AMMO][i] = ITEM_NONE;
-    p->num_items_in_slot[GEAR_SLOT_AMMO] = 0;
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        uint8_t item =
+            osrs_inventory_cell_item_index(&p->inventory_cells[cell]);
+        if (item != ITEM_NONE &&
+                osrs_item_gear_slot(item) == GEAR_SLOT_AMMO)
+            p->inventory_cells[cell] = osrs_inventory_cell_empty();
+    }
 }
 
 static inline void encounter_translate_movement(HumanInput* hi, int* actions,

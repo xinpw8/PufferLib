@@ -39,6 +39,7 @@ typedef struct {
     int ticks;
     int kills;
     int winner;
+    uint64_t simulation_hash;
 } EpisodeStats;
 
 static void apply_env_config(
@@ -76,10 +77,15 @@ static uint64_t run_episode(const GoldenConfig* cfg, int max_ticks, EpisodeStats
     ENCOUNTER_ZULRAH.reset(state, context, cfg->env_seed);
 
     uint64_t h = FNV_OFFSET;
+    uint64_t simulation_hash = FNV_OFFSET;
 
     for (int t = 0; t < max_ticks; t++) {
         zul_heuristic_actions(&s, actions);
         ENCOUNTER_ZULRAH.step(state, context, actions);
+        simulation_hash =
+            fnv_bytes(simulation_hash, actions, sizeof(actions));
+        simulation_hash =
+            fnv_bytes(simulation_hash, &s, sizeof(s));
         ENCOUNTER_ZULRAH.write_obs(state, context, obs);
         ENCOUNTER_ZULRAH.write_mask(state, context, mask);
 
@@ -97,6 +103,7 @@ static uint64_t run_episode(const GoldenConfig* cfg, int max_ticks, EpisodeStats
     stats->ticks = s.tick;
     stats->kills = s.kills_this_episode;
     stats->winner = s.winner;
+    stats->simulation_hash = simulation_hash;
     return h;
 }
 
@@ -146,12 +153,21 @@ static_assert(EPISODE_TICKS > ZUL_MAX_TICKS,
     "episode budget must cover the in-sim tick cap");
 
 static const uint64_t BASELINE[NUM_CONFIGS] = {
-    0xecf8fefec11da90fULL,  /* t0_single */
-    0xfaa0144d43a61972ULL,  /* t1_single */
-    0x801a8acf962b8ff2ULL,  /* t2_single */
-    0xdd701c2aac0eaa2fULL,  /* t0_trip */
-    0xa9033115654c7a8aULL,  /* t1_trip */
-    0x22e191b4b0fd500eULL,  /* t2_trip */
+    0x9ef8a0cef416f781ULL,  /* t0_single */
+    0xf8b5969beba40413ULL,  /* t1_single */
+    0x069ea11e537ca6ffULL,  /* t2_single */
+    0x97de7b21c6970b1aULL,  /* t0_trip */
+    0x2c039ba671b594bdULL,  /* t1_trip */
+    0x41329c81c35a1694ULL,  /* t2_trip */
+};
+
+static const uint64_t SIMULATION_BASELINE[NUM_CONFIGS] = {
+    0xd1297d5ee0382522ULL,  /* t0_single */
+    0x8e586a704d1ccd01ULL,  /* t1_single */
+    0x8d7b82dd02af49d1ULL,  /* t2_single */
+    0x0a5d8f989ce34467ULL,  /* t0_trip */
+    0x3a737efafde6efc6ULL,  /* t1_trip */
+    0xfbb31e45ea44b25dULL,  /* t2_trip */
 };
 
 int main(int argc, char** argv) {
@@ -169,25 +185,35 @@ int main(int argc, char** argv) {
             printf("    0x%016llxULL,  /* %s */\n",
                    (unsigned long long)h, CONFIGS[c].name);
         } else {
-            int ok = h == BASELINE[c];
+            int observation_ok = h == BASELINE[c];
+            int simulation_ok =
+                stats[c].simulation_hash == SIMULATION_BASELINE[c];
+            int ok = observation_ok && simulation_ok;
             printf("  %-12s 0x%016llx  %s\n",
                    CONFIGS[c].name, (unsigned long long)h, ok ? "PASS" : "FAIL");
-            if (!ok) {
-                printf("               expected 0x%016llx\n",
+            if (!observation_ok) {
+                printf("               expected obs 0x%016llx\n",
                        (unsigned long long)BASELINE[c]);
-                failed++;
             }
+            if (!simulation_ok) {
+                printf("               expected sim 0x%016llx, got 0x%016llx\n",
+                       (unsigned long long)SIMULATION_BASELINE[c],
+                       (unsigned long long)stats[c].simulation_hash);
+            }
+            if (!ok) failed++;
         }
     }
 
     if (print_mode) {
         printf("\nconfig coverage:\n");
         for (int c = 0; c < NUM_CONFIGS; c++) {
-            printf("  %-12s ticks=%-4d kills=%-2d winner=%d  %s\n",
+            printf("  %-12s ticks=%-4d kills=%-2d winner=%d sim=0x%016llx  %s\n",
                    CONFIGS[c].name, stats[c].ticks, stats[c].kills,
-                   stats[c].winner, CONFIGS[c].description);
+                   stats[c].winner,
+                   (unsigned long long)stats[c].simulation_hash,
+                   CONFIGS[c].description);
         }
-        printf("\npaste the array above into BASELINE[].\n");
+        printf("\npaste the observation and simulation arrays above into their baselines.\n");
         return 0;
     }
 

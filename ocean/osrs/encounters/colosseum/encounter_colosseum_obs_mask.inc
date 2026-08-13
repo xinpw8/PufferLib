@@ -1,16 +1,11 @@
 #line 76 "encounter_colosseum.h"
 
-#define COLO_PLAYER_OBS_SIZE      36
-/* Each cell ships an item code plus dynamic equipped and HP-heal fields. The entity encoder
- * rebuilds the full compact record from OSRS_ITEM_OBS_TABLE, then overwrites those fields. */
-#define COLO_INVENTORY_CELL_OBS_FEATURES OSRS_INVENTORY_CELL_OBS_FEATURES_CODED
-#define COLO_INVENTORY_CELL_ENCODER_FEATURES OSRS_INVENTORY_CELL_OBS_FEATURES_COMPACT
-#define COLO_INVENTORY_OBS_SIZE \
-    (COLO_INVENTORY_DISPLAY_SLOTS * COLO_INVENTORY_CELL_OBS_FEATURES)
-#define COLO_EQUIPPED_SELF_OBS_SIZE OSRS_EQUIPMENT_EFFECT_AGGREGATE_FEATURES
-static_assert(COLO_INVENTORY_OBS_SIZE + COLO_EQUIPPED_SELF_OBS_SIZE ==
-    COLO_INVENTORY_OBS_CACHE_FLOATS,
-    "inventory obs cache float count must match the inventory+equipped block size");
+#define COLO_INVENTORY_CELL_OBS_FEATURES \
+    OSRS_SHARED_INVENTORY_CELL_OBS_FEATURES
+#define COLO_INVENTORY_CELL_ENCODER_FEATURES \
+    OSRS_INVENTORY_CELL_OBS_FEATURES_COMPACT
+#define COLO_INVENTORY_OBS_SIZE OSRS_SHARED_INVENTORY_OBS_SIZE
+#define COLO_EQUIPPED_OBS_SIZE OSRS_SHARED_EQUIPPED_OBS_SIZE
 static_assert(OSRS_ITEM_OBS_TABLE_ROWS == OSRS_ITEM_CONTENT_COUNT,
     "regenerate osrs_item_obs_table.inc: the cell code space changed");
 static_assert(OSRS_ITEM_OBS_TABLE_COLS == COLO_INVENTORY_CELL_ENCODER_FEATURES,
@@ -21,9 +16,6 @@ static_assert(OSRS_ITEM_OBS_TABLE_BASE_PRAYER == COLO_PLAYER_PRAYER_LEVEL,
     "regenerate osrs_item_obs_table.inc: it bakes prayer_restore at this level");
 static_assert(OSRS_ITEM_OBS_TABLE_BASE_RANGED == MAXED_BASE_RANGED,
     "regenerate osrs_item_obs_table.inc: it bakes offensive_boost at this level");
-static_assert(OSRS_ITEM_OBS_OVERLAY_EQUIPPED == OSRS_INVENTORY_CELL_COMPACT_EQUIPPED &&
-    OSRS_ITEM_OBS_OVERLAY_HP_HEAL == OSRS_INVENTORY_CELL_COMPACT_HP_HEAL,
-    "the gather overwrites the dynamic fields at these expanded slots");
 static_assert(OSRS_ITEM_CONTENT_COUNT <= OSRS_ITEM_OBS_CODE_SCALE,
     "every observed content code must remain exact after scaling");
 #define COLO_NPC_CORE_FEATURES    11
@@ -84,21 +76,19 @@ typedef enum {
 #define COLO_ANCHOR_BLOCKED_OBS_SIZE COLO_NUM_SPAWN_ANCHORS
 #define COLO_SPAWN_OBS_SIZE (COLO_SPAWN_PHASE_OBS_SIZE + COLO_ANCHOR_BLOCKED_OBS_SIZE)
 
-#define COLO_NUM_OBS (COLO_PLAYER_OBS_SIZE + \
-    COLO_INVENTORY_OBS_SIZE + COLO_EQUIPPED_SELF_OBS_SIZE + COLO_NPC_OBS_SIZE + \
+#define COLO_NUM_OBS (OSRS_SHARED_OBS_SIZE + COLO_NPC_OBS_SIZE + \
     COLO_MODIFIER_OBS_SIZE + COLO_WAVE_OBS_SIZE + COLO_BOSS_OBS_SIZE + \
-    COLO_PENDING_HIT_OBS_SIZE + \
-    COLO_THREAT_LOS_OBS_SIZE + COLO_THRALL_DC_OBS_SIZE + \
-    COLO_SPAWN_OBS_SIZE)
+    COLO_PENDING_HIT_OBS_SIZE + COLO_THREAT_LOS_OBS_SIZE + \
+    COLO_THRALL_DC_OBS_SIZE + COLO_SPAWN_OBS_SIZE)
 
-#define COLO_OBS_AFTER_PLAYER   COLO_PLAYER_OBS_SIZE
-#define COLO_OBS_AFTER_INVENTORY (COLO_OBS_AFTER_PLAYER + COLO_INVENTORY_OBS_SIZE)
-#define COLO_OBS_AFTER_EQUIPPED_SELF \
-    (COLO_OBS_AFTER_INVENTORY + COLO_EQUIPPED_SELF_OBS_SIZE)
-#define COLO_OBS_AFTER_NPCS     (COLO_OBS_AFTER_EQUIPPED_SELF + COLO_NPC_OBS_SIZE)
-#define COLO_OBS_AFTER_MODS     (COLO_OBS_AFTER_NPCS + COLO_MODIFIER_OBS_SIZE)
-#define COLO_OBS_AFTER_WAVE     (COLO_OBS_AFTER_MODS + COLO_WAVE_OBS_SIZE)
-#define COLO_OBS_AFTER_BOSS     (COLO_OBS_AFTER_WAVE + COLO_BOSS_OBS_SIZE)
+#define COLO_OBS_INVENTORY_START OSRS_SHARED_SELF_OBS_SIZE
+#define COLO_OBS_EQUIPMENT_START \
+    (COLO_OBS_INVENTORY_START + OSRS_SHARED_INVENTORY_OBS_SIZE)
+#define COLO_OBS_AFTER_SHARED OSRS_SHARED_OBS_SIZE
+#define COLO_OBS_AFTER_NPCS (COLO_OBS_AFTER_SHARED + COLO_NPC_OBS_SIZE)
+#define COLO_OBS_AFTER_MODS (COLO_OBS_AFTER_NPCS + COLO_MODIFIER_OBS_SIZE)
+#define COLO_OBS_AFTER_WAVE (COLO_OBS_AFTER_MODS + COLO_WAVE_OBS_SIZE)
+#define COLO_OBS_AFTER_BOSS (COLO_OBS_AFTER_WAVE + COLO_BOSS_OBS_SIZE)
 #define COLO_OBS_AFTER_PENDING_HITS \
     (COLO_OBS_AFTER_BOSS + COLO_PENDING_HIT_OBS_SIZE)
 #define COLO_OBS_AFTER_THREAT_LOS \
@@ -124,6 +114,8 @@ static inline float col_obs_rel_y(int ny, int py) {
 
 typedef struct {
     OsrsVenatorMonster monsters[COLO_MAX_NPCS];
+    uint32_t bounce_masks[COLO_MAX_NPCS];
+    uint8_t selection_distances[COLO_MAX_NPCS][COLO_MAX_NPCS];
     int count;
 } ColoVenatorPreviewTargets;
 
@@ -151,6 +143,51 @@ static void col_collect_venator_preview_targets(
         if (!col_npc_is_live_enemy(npc)) continue;
         out->monsters[out->count++] = col_venator_monster_from_npc(npc, slot);
     }
+    for (int sender_idx = 0; sender_idx < out->count; sender_idx++) {
+        OsrsVenatorMonster sender = out->monsters[sender_idx];
+        for (int target_idx = 0; target_idx < out->count; target_idx++) {
+            OsrsVenatorMonster target = out->monsters[target_idx];
+            if (osrs_venator_can_bounce(
+                    sender.footprint, target.footprint)) {
+                out->bounce_masks[sender.slot] |=
+                    UINT32_C(1) << target.slot;
+            }
+            int distance = osrs_venator_selection_distance(
+                sender.footprint, target.footprint);
+            if (distance < 0 || distance > UINT8_MAX) abort();
+            out->selection_distances[sender.slot][target.slot] =
+                (uint8_t)distance;
+        }
+    }
+}
+static int col_venator_best_bounce_slot(
+    const ColoVenatorPreviewTargets* targets,
+    int range_sender_slot,
+    int selection_sender_slot,
+    int forbidden_slot
+) {
+    int best_slot = -1;
+    int best_distance = INT_MAX;
+    uint32_t bounce_mask = targets->bounce_masks[range_sender_slot];
+    for (int candidate_idx = 0;
+            candidate_idx < targets->count;
+            candidate_idx++) {
+        int candidate_slot = targets->monsters[candidate_idx].slot;
+        if (candidate_slot == forbidden_slot ||
+                (bounce_mask & (UINT32_C(1) << candidate_slot)) == 0)
+            continue;
+        int distance =
+            targets->selection_distances[selection_sender_slot][candidate_slot];
+        if (osrs_venator_is_better_candidate(
+                distance,
+                candidate_slot,
+                best_distance,
+                best_slot)) {
+            best_slot = candidate_slot;
+            best_distance = distance;
+        }
+    }
+    return best_slot;
 }
 
 static int col_venator_extra_bounce_if_shot(
@@ -162,12 +199,13 @@ static int col_venator_extra_bounce_if_shot(
         abort();
     const ColoNPC* npc = &s->npcs[primary_slot];
     if (!col_npc_is_live_enemy(npc)) return 0;
-    OsrsVenatorMonster primary = col_venator_monster_from_npc(npc, primary_slot);
-    OsrsVenatorChain chain =
-        osrs_venator_resolve_chain(primary, targets->monsters, targets->count);
-    int extra = (int)chain.length - 1;
-    if (extra < 0 || extra > OSRS_VENATOR_MAX_CHAIN_HITS - 1) abort();
-    return extra;
+    int second_slot = col_venator_best_bounce_slot(
+        targets, primary_slot, primary_slot, primary_slot);
+    if (second_slot < 0) return 0;
+    if (targets->count < 3) return 1;
+    int third_slot = col_venator_best_bounce_slot(
+        targets, primary_slot, second_slot, second_slot);
+    return third_slot >= 0 ? 2 : 1;
 }
 
 typedef struct {
@@ -749,9 +787,13 @@ static void col_write_boss_obs(
                 }
             }
         } else {
+            memset(&obs[i], 0,
+                COLO_SOL_LASER_OBS_SIZE * sizeof(*obs));
             i += COLO_SOL_LASER_OBS_SIZE;
         }
     } else {
+        memset(&obs[i], 0,
+            COLO_BOSS_OBS_PREMOVE_TAIL_SIZE * sizeof(*obs));
         i += COLO_BOSS_OBS_PREMOVE_TAIL_SIZE;
     }
     *idx = i;
@@ -1166,7 +1208,7 @@ static void col_build_gear_candidates(const ColosseumState* s, ColoGearCandidate
         col_gear_candidates_add(c, slot, s->player.equipped[slot]);
     for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
         const OsrsItemContentMetadata* metadata =
-            osrs_inventory_cell_metadata(&s->inventory_cells[cell]);
+            osrs_inventory_cell_metadata(&s->player.inventory_cells[cell]);
         uint8_t item = metadata->item_idx;
         if (item == ITEM_NONE) continue;
         int gslot = metadata->gear_slot;
@@ -1530,105 +1572,6 @@ static int col_attacked_with_argmax_set(ColosseumState* s) {
     return col_weapon_set_is_argmax_dpt_for_npc(s, npc_slot, s->weapon_set, best);
 }
 
-static uint64_t col_inventory_obs_signature(const ColosseumState* s) {
-    /* Equipped gear is deliberately NOT in the key. It was only ever an input through the
-     * counterfactual deltas, and hashing it made every gear swap evict the block -- measured
-     * at a 34.9% hit rate. What remains depends on cell contents and base stats only. */
-    uint64_t h = 1469598103934665603ULL;
-    for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
-        uint64_t packed = s->inventory_cells[cell].content_code;
-        h = (h ^ packed) * 1099511628211ULL;
-    }
-    const int scalars[3] = {
-        s->player.base_hitpoints, s->player.base_prayer, s->player.base_ranged,
-    };
-    for (int k = 0; k < 3; k++)
-        h = (h ^ (uint64_t)(uint32_t)scalars[k]) * 1099511628211ULL;
-    return h;
-}
-
-/* Gear-dependent, so it is written fresh on every path. The memo key covers cell contents
- * only -- putting equipped gear back in it would send the hit rate back to the 34.9% that
- * made this block expensive in the first place. */
-/* Non-const because col_live_effects memoises internally. C accepts the implicit cast and
- * g++/nvcc reject it, so this only shows up in check-builds.sh, never in the C test gate. */
-static void col_write_equipped_effect_aggregate(
-    ColosseumState* s, float* obs, int* pi
-) {
-    osrs_write_equipment_effect_aggregate(&obs[*pi], col_live_effects(s));
-    *pi += OSRS_EQUIPMENT_EFFECT_AGGREGATE_FEATURES;
-}
-
-/* Likewise gear-dependent: it asks whether the item in this cell is the one currently worn
- * in its slot. Stamped after a cache hit so a gear swap shows up on the tick it happens. */
-static void col_stamp_equipped_flags(const ColosseumState* s, float* obs, int block_start) {
-    for (int c = 0; c < COLO_INVENTORY_DISPLAY_SLOTS; c++) {
-        obs[block_start + c * COLO_INVENTORY_CELL_OBS_FEATURES +
-            OSRS_INVENTORY_CELL_OBS_EQUIPPED] =
-            osrs_inventory_cell_holds_equipped_item(&s->player, s->inventory_cells, c)
-                ? 1.0f : 0.0f;
-    }
-}
-
-static void col_write_inventory_and_equipped_obs(
-    ColosseumState* s,
-    float* obs,
-    int* idx
-) {
-    int i = *idx;
-    int block_start = i;
-
-    ColoObsMemoCaches* memos = &s->obs_memos;
-    uint64_t sig = col_inventory_obs_signature(s);
-    for (int w = 0; w < COLO_INVENTORY_OBS_CACHE_WAYS; w++) {
-        if (memos->inventory_valid[w] && memos->inventory_sig[w] == sig) {
-            memcpy(&obs[i], memos->inventory[w],
-                   sizeof(float) * COLO_INVENTORY_OBS_CACHE_FLOATS);
-            col_stamp_equipped_flags(s, obs, block_start);
-            int j = block_start + COLO_INVENTORY_OBS_SIZE;
-            col_write_equipped_effect_aggregate(s, obs, &j);
-            s->log.inv_memo_hits += 1.0f;
-            *idx = block_start + COLO_INVENTORY_OBS_CACHE_FLOATS;
-            return;
-        }
-    }
-    s->log.inv_memo_misses += 1.0f;
-
-    /* The generated table bakes base-99 item semantics. Colosseum overwrites HP heal because
-     * Frailty rewrites base hitpoints, while prayer and ranged stay fixed. */
-    if (s->player.base_prayer != OSRS_ITEM_OBS_TABLE_BASE_PRAYER ||
-            s->player.base_ranged != OSRS_ITEM_OBS_TABLE_BASE_RANGED) {
-        fprintf(stderr,
-            "colosseum inventory obs: base prayer %d ranged %d, item table baked %d/%d\n",
-            s->player.base_prayer, s->player.base_ranged,
-            OSRS_ITEM_OBS_TABLE_BASE_PRAYER, OSRS_ITEM_OBS_TABLE_BASE_RANGED);
-        abort();
-    }
-
-    for (int cell_idx = 0; cell_idx < COLO_INVENTORY_DISPLAY_SLOTS; cell_idx++) {
-        const ColoInvCell* cell = &s->inventory_cells[cell_idx];
-        osrs_write_inventory_cell_obs_code_features(
-            &obs[i],
-            cell,
-            osrs_inventory_cell_holds_equipped_item(
-                &s->player, s->inventory_cells, cell_idx),
-            s->player.base_hitpoints);
-        i += COLO_INVENTORY_CELL_OBS_FEATURES;
-    }
-    assert(i == COLO_OBS_AFTER_INVENTORY);
-
-    col_write_equipped_effect_aggregate(s, obs, &i);
-    assert(i == COLO_OBS_AFTER_EQUIPPED_SELF);
-
-    int slot = memos->inventory_next;
-    memcpy(memos->inventory[slot], &obs[block_start],
-           sizeof(float) * COLO_INVENTORY_OBS_CACHE_FLOATS);
-    memos->inventory_sig[slot] = sig;
-    memos->inventory_valid[slot] = 1;
-    memos->inventory_next = (slot + 1) % COLO_INVENTORY_OBS_CACHE_WAYS;
-
-    *idx = i;
-}
 
 static void col_write_obs_ctx(
     EncounterState* state,
@@ -1653,58 +1596,38 @@ static void col_write_obs_ctx(
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_OBS_REFRESH_SLOTS);
 #endif
-    memset(obs, 0, COLO_NUM_OBS * sizeof(float));
     int i = 0;
-    int px = s->player.x, py = s->player.y;
     const EncounterLoadoutStats* ls = col_live_loadout_stats(s);
 
-    obs[i++] = col_clamp01((float)s->player.current_hitpoints / 99.0f);
-    obs[i++] = (float)(px - COLO_ARENA_MIN_X) / (float)COLO_ARENA_WIDTH;
-    obs[i++] = (float)(COLO_ARENA_MAX_X - px) / (float)COLO_ARENA_WIDTH;
-    obs[i++] = (float)(py - COLO_ARENA_MIN_Y) / (float)COLO_ARENA_HEIGHT;
-    obs[i++] = (float)(COLO_ARENA_MAX_Y - py) / (float)COLO_ARENA_HEIGHT;
-    obs[i++] = (s->player.prayer == PRAYER_PROTECT_MELEE) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.prayer == PRAYER_PROTECT_RANGED) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.prayer == PRAYER_PROTECT_MAGIC) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.offensive_prayer == OFFENSIVE_PRAYER_PIETY) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.offensive_prayer == OFFENSIVE_PRAYER_RIGOUR) ? 1.0f : 0.0f;
-    obs[i++] = (s->player.offensive_prayer == OFFENSIVE_PRAYER_AUGURY) ? 1.0f : 0.0f;
-    obs[i++] = col_clamp01((float)s->player.current_prayer / 99.0f);
-    obs[i++] = col_clamp01((float)s->player.run_energy / 10000.0f);
-    obs[i++] = col_clamp01((float)s->player.special_energy / 100.0f);
-    obs[i++] = s->player.spec_armed ? 1.0f : 0.0f;
-    obs[i++] = col_clamp01((float)s->player.attack_timer / 8.0f);
-    obs[i++] = col_clamp01((float)s->player.food_timer / 3.0f);
-    obs[i++] = col_clamp01((float)s->player.potion_timer / 3.0f);
-    obs[i++] = osrs_interaction_active(&s->interaction) ? 1.0f : 0.0f;
-    obs[i++] = col_clamp01((float)ls->attack_range / 15.0f);
-    obs[i++] = col_clamp01((float)ls->max_hit / 80.0f);
-    obs[i++] = col_clamp01((float)ls->attack_speed / 6.0f);
-    obs[i++] = col_clamp01((float)s->player.current_defence / 99.0f);
-    obs[i++] = col_clamp01((float)ls->def_stab / 300.0f);
-    obs[i++] = col_clamp01((float)ls->def_slash / 300.0f);
-    obs[i++] = col_clamp01((float)ls->def_crush / 300.0f);
-    obs[i++] = col_clamp01((float)ls->def_magic / 300.0f);
-    obs[i++] = col_clamp01((float)ls->def_ranged / 300.0f);
-    obs[i++] = col_clamp01((float)ls->eff_level / 165.0f);
-    obs[i++] = col_clamp01((float)ls->attack_bonus / 200.0f);
-    obs[i++] = col_clamp01((float)ls->strength_bonus / 160.0f);
-    int colo_spec_cost = osrs_spec_cost(s->player.equipped[GEAR_SLOT_WEAPON]);
-    obs[i++] = col_clamp01((float)colo_spec_cost / 100.0f);
-    obs[i++] = colo_spec_cost > 0 ? 1.0f : 0.0f;
-    obs[i++] = s->active_loadout_profile == COLO_LOADOUT_PROFILE_SPEEDRUN ? 1.0f : 0.0f;
-    obs[i++] = s->active_loadout_profile == COLO_LOADOUT_PROFILE_BEGINNER ? 1.0f : 0.0f;
-    obs[i++] = col_clamp01((float)ls->spell_base_damage / 40.0f);
-    assert(i == COLO_OBS_AFTER_PLAYER);
+    int colo_spec_cost =
+        osrs_spec_cost(s->player.equipped[GEAR_SLOT_WEAPON]);
+    OsrsSharedObservationInput shared_input = {
+        .player = &s->player,
+        .interaction = &s->interaction,
+        .arena_min_x = COLO_ARENA_MIN_X,
+        .arena_max_x = COLO_ARENA_MAX_X,
+        .arena_min_y = COLO_ARENA_MIN_Y,
+        .arena_max_y = COLO_ARENA_MAX_Y,
+        .attack_style = col_equipped_weapon_attack_style(&s->player),
+        .attack_range = ls->attack_range,
+        .max_hit = ls->max_hit,
+        .attack_speed = ls->attack_speed,
+        .defence_stab = ls->def_stab,
+        .defence_slash = ls->def_slash,
+        .defence_crush = ls->def_crush,
+        .defence_magic = ls->def_magic,
+        .defence_ranged = ls->def_ranged,
+        .effective_level = ls->eff_level,
+        .attack_bonus = ls->attack_bonus,
+        .strength_bonus = ls->strength_bonus,
+        .spell_base_damage = ls->spell_base_damage,
+        .special_attack_cost = colo_spec_cost,
+    };
+    i = osrs_write_shared_observations(obs, &shared_input);
+    assert(i == COLO_OBS_AFTER_SHARED);
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_OBS_PREFIX);
 #endif
-
-#ifdef COLO_PROFILE_ENABLED
-    COLO_PROFILE_MARK(COLO_PROF_OBS_PILLARS);
-#endif
-
-    col_write_inventory_and_equipped_obs(s, obs, &i);
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_OBS_INVENTORY);
 #endif
@@ -1717,7 +1640,9 @@ static void col_write_obs_ctx(
 
     for (int n = 0; n < COLO_OBS_NPCS; n++) {
         int npc_idx = s->current_obs_slots[n];
-        if (npc_idx < 0 || npc_idx >= COLO_MAX_NPCS || !s->npcs[npc_idx].active) {
+        if (npc_idx < 0 || npc_idx >= COLO_MAX_NPCS ||
+                !s->npcs[npc_idx].active) {
+            memset(&obs[i], 0, COLO_FEATURES_PER_NPC * sizeof(*obs));
             i += COLO_FEATURES_PER_NPC;
             continue;
         }
@@ -1774,6 +1699,7 @@ static void col_write_obs_ctx(
             obs[i++] = col_clamp01((float)ph->damage / 75.0f);
             obs[i++] = col_pending_hit_ignores_prayer(ph) ? 1.0f : 0.0f;
         } else {
+            memset(&obs[i], 0, COLO_FEATURES_PER_HIT * sizeof(*obs));
             i += COLO_FEATURES_PER_HIT;
         }
     }

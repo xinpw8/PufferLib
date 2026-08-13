@@ -1,25 +1,24 @@
 #line 76 "encounter_colosseum.h"
 
-#define COLO_HEAD_PRIMARY         0
-#define COLO_HEAD_PRAYER          1
-
-#define COLO_HEAD_EQUIP_BASE      2
-#define COLO_HEAD_EQUIP_SLOT(slot) (COLO_HEAD_EQUIP_BASE + (slot))
-#define COLO_HEAD_EAT            (COLO_HEAD_EQUIP_BASE + NUM_GEAR_SLOTS)
-#define COLO_HEAD_DRINK          (COLO_HEAD_EAT + 1)
-#define COLO_HEAD_SPEC           (COLO_HEAD_DRINK + 1)
-#define COLO_HEAD_MODIFIER_SELECT (COLO_HEAD_SPEC + 1)
-#define COLO_HEAD_GRAPPLE_PARRY  (COLO_HEAD_MODIFIER_SELECT + 1)
-#define COLO_HEAD_OFFENSIVE      (COLO_HEAD_GRAPPLE_PARRY + 1)
-#define COLO_HEAD_SPELL          (COLO_HEAD_OFFENSIVE + 1)
+#define COLO_HEAD_PRIMARY OSRS_HEAD_PRIMARY
+#define COLO_HEAD_PRAYER OSRS_HEAD_OVERHEAD
+#define COLO_HEAD_EQUIP_BASE OSRS_HEAD_EQUIP_BASE
+#define COLO_HEAD_EQUIP_SLOT(slot) OSRS_HEAD_EQUIP_SLOT(slot)
+#define COLO_HEAD_EAT OSRS_HEAD_EAT
+#define COLO_HEAD_DRINK OSRS_HEAD_DRINK
+#define COLO_HEAD_SPELL OSRS_HEAD_SPELL
+#define COLO_HEAD_SPEC OSRS_HEAD_SPECIAL
+#define COLO_HEAD_OFFENSIVE OSRS_HEAD_OFFENSIVE
+#define COLO_HEAD_MODIFIER_SELECT OSRS_BASE_NUM_ACTION_HEADS
+#define COLO_HEAD_GRAPPLE_PARRY (COLO_HEAD_MODIFIER_SELECT + 1)
 
 #define COLO_INV_CLICK_HEADS (NUM_GEAR_SLOTS + 2)
-#define COLO_INV_CLICK_DIM 29
-#define COLO_PRIMARY_ATTACK_BASE ENCOUNTER_MOVE_ACTIONS
-#define COLO_PRIMARY_DIM (ENCOUNTER_MOVE_ACTIONS + COLO_OBS_NPCS)
-#define COLO_OVERHEAD_DIM ENCOUNTER_OVERHEAD_DIM_PVE
-#define COLO_SPEC_DIM 3
-#define COLO_SPELL_DIM 2
+#define COLO_INV_CLICK_DIM OSRS_INVENTORY_CLICK_DIM
+#define COLO_PRIMARY_ATTACK_BASE OSRS_PRIMARY_MOVE_ACTIONS
+#define COLO_PRIMARY_DIM OSRS_PRIMARY_DIM(COLO_OBS_NPCS)
+#define COLO_OVERHEAD_DIM OSRS_OVERHEAD_DIM
+#define COLO_SPEC_DIM OSRS_SPECIAL_DIM
+#define COLO_SPELL_DIM OSRS_SPELL_DIM
 
 #define COLO_OVERHEAD_NO_CHANGE ENCOUNTER_OVERHEAD_NO_CHANGE
 #define COLO_OVERHEAD_OFF ENCOUNTER_OVERHEAD_OFF
@@ -27,35 +26,24 @@
 #define COLO_OVERHEAD_RANGED ENCOUNTER_OVERHEAD_SET_REFRESH_RANGED
 #define COLO_OVERHEAD_MAGIC ENCOUNTER_OVERHEAD_SET_REFRESH_MAGIC
 
-#define COLO_SPELL_DEATH_CHARGE 1
-
+#define COLO_SPELL_DEATH_CHARGE OSRS_SPELL_DEATH_CHARGE
 #define COLO_MODIFIER_SELECT_DIM (1 + COLO_MODIFIER_DRAFT_OPTIONS)
 
 #define COLO_GRAPPLE_PARRY_DIM (1 + COLO_NUM_GRAPPLE_SLOTS)
 
 #define COLO_ACTION_DIMS_INIT { \
-    COLO_PRIMARY_DIM, \
-    COLO_OVERHEAD_DIM, \
-    COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, \
-    COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, \
-    COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, \
-    COLO_INV_CLICK_DIM, \
-    COLO_INV_CLICK_DIM, \
-    COLO_SPEC_DIM, \
+    OSRS_BASE_ACTION_DIMS(COLO_OBS_NPCS), \
     COLO_MODIFIER_SELECT_DIM, \
-    COLO_GRAPPLE_PARRY_DIM, \
-    ENCOUNTER_OFFENSIVE_DIM, \
-    COLO_SPELL_DIM \
+    COLO_GRAPPLE_PARRY_DIM \
 }
 static const int COLO_ACTION_DIMS[COLO_NUM_ACTION_HEADS] = COLO_ACTION_DIMS_INIT;
-static_assert(COLO_NUM_ACTION_HEADS == 2 + NUM_GEAR_SLOTS + 2 + 5,
-    "colosseum action head count must match the per-category layout");
-static_assert(COLO_HEAD_SPELL == COLO_NUM_ACTION_HEADS - 1,
-    "SPELL must be the last colosseum action head");
-#define COLO_ACTION_MASK_SIZE (ENCOUNTER_MOVE_ACTIONS + COLO_OVERHEAD_DIM + \
-    COLO_OBS_NPCS + COLO_INV_CLICK_HEADS * COLO_INV_CLICK_DIM + COLO_SPEC_DIM + \
-    COLO_MODIFIER_SELECT_DIM + COLO_GRAPPLE_PARRY_DIM + ENCOUNTER_OFFENSIVE_DIM + \
-    COLO_SPELL_DIM)
+static_assert(COLO_NUM_ACTION_HEADS == OSRS_BASE_NUM_ACTION_HEADS + 2,
+    "colosseum action head count must match the shared base plus extensions");
+static_assert(COLO_HEAD_GRAPPLE_PARRY == COLO_NUM_ACTION_HEADS - 1,
+    "colosseum extensions must follow the shared action heads");
+#define COLO_ACTION_MASK_SIZE \
+    (OSRS_BASE_ACTION_MASK_SIZE(COLO_OBS_NPCS) + \
+     COLO_MODIFIER_SELECT_DIM + COLO_GRAPPLE_PARRY_DIM)
 
 static int col_action_head_mask_offset(int head) {
     int offset = 0;
@@ -207,11 +195,13 @@ static void col_sync_weapon_set_from_equipped_weapon(ColosseumState* s) {
 }
 
 static int col_can_equip_from_cell(const ColosseumState* s, int cell_idx) {
-    return osrs_can_equip_from_cell(&s->player, s->inventory_cells, cell_idx);
+    return osrs_can_equip_from_cell(
+        &s->player, s->player.inventory_cells, cell_idx);
 }
 
 static void col_equip_from_cell(ColosseumState* s, int cell_idx) {
-    if (osrs_equip_from_cell(&s->player, s->inventory_cells, cell_idx) < 0) return;
+    if (osrs_equip_from_cell(
+            &s->player, s->player.inventory_cells, cell_idx) < 0) return;
     col_sync_weapon_set_from_equipped_weapon(s);
     col_mark_live_loadout_dirty(s);
 }
@@ -265,7 +255,7 @@ static int col_drink_has_effect(const ColosseumState* s, OsrsConsumableKind kind
 }
 
 static int col_inventory_cell_actionable(const ColosseumState* s, int cell_idx) {
-    const ColoInvCell* cell = &s->inventory_cells[cell_idx];
+    const ColoInvCell* cell = &s->player.inventory_cells[cell_idx];
     OsrsInventoryClickResolution r =
         osrs_inventory_cell_click_interpret(cell, OSRS_CLICK_TICK_FIRST);
     if (r.click_action == OSRS_CLICK_EQUIP) return col_can_equip_from_cell(s, cell_idx);
@@ -279,7 +269,7 @@ static int col_inventory_cell_actionable(const ColosseumState* s, int cell_idx) 
 }
 
 static void col_empty_inventory_cell(ColosseumState* s, int cell_idx) {
-    s->inventory_cells[cell_idx] = osrs_inventory_cell_empty();
+    s->player.inventory_cells[cell_idx] = osrs_inventory_cell_empty();
 }
 
 static void col_heal_player_capped(ColosseumState* s, int amount) {
@@ -403,7 +393,7 @@ static int col_apply_drink_cell(
     OsrsInventoryClickResolution resolution
 ) {
     if (cell_idx < 0 || cell_idx >= COLO_INVENTORY_DISPLAY_SLOTS) return 0;
-    ColoInvCell* cell = &s->inventory_cells[cell_idx];
+    ColoInvCell* cell = &s->player.inventory_cells[cell_idx];
     if (resolution.click_action != OSRS_CLICK_DRINK) return 0;
     OsrsInventoryDrinkConsumeResult consume =
         osrs_inventory_cell_consume_drink_one_dose(
@@ -426,7 +416,8 @@ static OsrsInventoryTickIntent col_resolve_inventory_tick_intent(
         clicks.equip_by_slot[slot] = actions[COLO_HEAD_EQUIP_SLOT(slot)];
     clicks.eat = actions[COLO_HEAD_EAT];
     clicks.drink = actions[COLO_HEAD_DRINK];
-    return osrs_resolve_inventory_tick_intent(&s->player, s->inventory_cells, &clicks);
+    return osrs_resolve_inventory_tick_intent(
+        &s->player, s->player.inventory_cells, &clicks);
 }
 
 static void col_apply_inventory_tick_intent(

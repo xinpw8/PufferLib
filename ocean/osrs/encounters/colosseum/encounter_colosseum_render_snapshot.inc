@@ -969,11 +969,12 @@ static int col_queue_inventory_click_action(
 ) {
     if (inventory_slot < 0 || inventory_slot >= COLO_INVENTORY_DISPLAY_SLOTS) return -1;
     OsrsInventoryClickResolution r =
-        osrs_inventory_cell_click_interpret(&s->inventory_cells[inventory_slot], OSRS_CLICK_TICK_FIRST);
+        osrs_inventory_cell_click_interpret(
+            &s->player.inventory_cells[inventory_slot], OSRS_CLICK_TICK_FIRST);
     int action_head;
     if (r.click_action == OSRS_CLICK_EQUIP) {
         int gear_slot = osrs_inventory_cell_metadata(
-            &s->inventory_cells[inventory_slot])->gear_slot;
+            &s->player.inventory_cells[inventory_slot])->gear_slot;
         if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) return -1;
         action_head = COLO_HEAD_EQUIP_SLOT(gear_slot);
     } else if (r.click_action == OSRS_CLICK_EAT) {
@@ -1067,7 +1068,9 @@ static void col_translate_human_commands_ctx(
                 break;
             case HUMAN_COMMAND_ITEM_ON_ITEM:
                 osrs_inventory_swap_cells(
-                    s->inventory_cells, cmd->inventory_slot, cmd->target_inventory_slot);
+                    s->player.inventory_cells,
+                    cmd->inventory_slot,
+                    cmd->target_inventory_slot);
                 break;
             case HUMAN_COMMAND_OFFENSIVE_PRAYER:
                 actions[COLO_HEAD_OFFENSIVE] = cmd->offensive_prayer;
@@ -1104,7 +1107,7 @@ static void col_step_human_commands_ctx(
 }
 
 #define COLO_SNAPSHOT_MAGIC 0xC010C001u
-#define COLO_SNAPSHOT_VERSION 25u
+#define COLO_SNAPSHOT_VERSION 26u
 
 typedef struct {
     uint32_t magic;

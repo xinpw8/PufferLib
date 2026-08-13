@@ -134,10 +134,10 @@ static inline float col_curriculum_uniform(uint32_t env_index) {
 static void col_write_action_mask_bytes(Env* env, unsigned char* mask_out) {
     if (!mask_out) return;
     float mask_f[COLO_ACTION_MASK_SIZE];
-    ENCOUNTER_COLOSSEUM.write_mask(COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), mask_f);
-    for (int i = 0; i < COLO_ACTION_MASK_SIZE; i++) {
+    ENCOUNTER_COLOSSEUM.write_mask(
+        COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), mask_f);
+    for (int i = 0; i < COLO_ACTION_MASK_SIZE; i++)
         mask_out[i] = mask_f[i] != 0.0f ? 1 : 0;
-    }
 }
 
 static inline void col_log_dpt_sample(float* hit_acc, float* n_acc, int sample) {

@@ -141,11 +141,24 @@ static int select_farcast_tile(
 }
 
 
+
 typedef struct {
     EncounterArenaTopology* topology;
+    OsrsLocalMoveRoute
+        local_move_routes[FIGHT_AREA_WIDTH * FIGHT_AREA_HEIGHT]
+            [OSRS_PRIMARY_MOVE_ACTIONS];
+    int local_move_routes_ready;
 } PvpRouteTopologyOwner;
 
 static PvpRouteTopologyOwner pvp_route_topology_owner;
+
+static const uint8_t PVP_MOVE_ACTION_BY_DELTA[25] = {
+    9, 10, 11, 12, 13,
+    14, 1, 2, 3, 15,
+    16, 4, 0, 5, 17,
+    18, 6, 7, 8, 19,
+    20, 21, 22, 23, 24,
+};
 
 static uint32_t pvp_route_topology_flags(void* data, int x, int y) {
     const CollisionMap* collision_map = (const CollisionMap*)data;
@@ -153,6 +166,90 @@ static uint32_t pvp_route_topology_flags(void* data, int x, int y) {
     return collision_map
         ? (uint32_t)collision_get_flags(collision_map, 0, x, y)
         : 0;
+}
+
+static void pvp_local_move_routes_build(PvpRouteTopologyOwner* owner) {
+    const EncounterArenaTopology* topology = owner->topology;
+    for (int x = topology->origin_x;
+            x < topology->origin_x + topology->width;
+            x++) {
+        for (int y = topology->origin_y;
+                y < topology->origin_y + topology->height;
+                y++) {
+            int source_index =
+                encounter_arena_topology_index_raw(topology, x, y);
+            for (int action = 1; action < OSRS_PRIMARY_MOVE_ACTIONS; action++) {
+                EncounterRouteInput input = {
+                    .topology = topology,
+                    .source_x = x,
+                    .source_y = y,
+                    .actor_size = 1,
+                    .target_x = x + ENCOUNTER_MOVE_TARGET_DX[action],
+                    .target_y = y + ENCOUNTER_MOVE_TARGET_DY[action],
+                    .target_size = 1,
+                    .target_kind = ENCOUNTER_ROUTE_TARGET_TILE,
+                    .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+                    .cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
+                };
+                EncounterRouteResult route = encounter_route_solve(&input);
+                owner->local_move_routes[source_index][action] =
+                    (OsrsLocalMoveRoute){
+                        .destination_dx =
+                            (int16_t)(route.destination_x - x),
+                        .destination_dy =
+                            (int16_t)(route.destination_y - y),
+                        .first_dx = (int8_t)route.first_dx,
+                        .first_dy = (int8_t)route.first_dy,
+                        .run_dx = (int8_t)route.run_dx,
+                        .run_dy = (int8_t)route.run_dy,
+                        .distance = route.distance,
+                        .outcome = (uint8_t)route.outcome,
+                    };
+            }
+        }
+    }
+    owner->local_move_routes_ready = 1;
+}
+
+static int pvp_local_move_route_lookup(
+    const void* data,
+    const EncounterRouteInput* input,
+    EncounterRouteResult* result
+) {
+    const PvpRouteTopologyOwner* owner =
+        (const PvpRouteTopologyOwner*)data;
+    if (!owner || !input || !result) abort();
+    if (!owner->local_move_routes_ready ||
+            input->topology != owner->topology ||
+            input->blockers.is_blocked ||
+            input->actor_size != 1 ||
+            input->target_size != 1 ||
+            input->target_kind != ENCOUNTER_ROUTE_TARGET_TILE ||
+            input->movement_mode != ENCOUNTER_ROUTE_MOVEMENT_RUN ||
+            input->cost_policy != ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS ||
+            !encounter_arena_topology_contains(
+                input->topology, input->source_x, input->source_y))
+        return 0;
+    int dx = input->target_x - input->source_x;
+    int dy = input->target_y - input->source_y;
+    if (dx < -2 || dx > 2 || dy < -2 || dy > 2) return 0;
+    int action = PVP_MOVE_ACTION_BY_DELTA[(dx + 2) * 5 + dy + 2];
+    if (action == 0) return 0;
+    int source_index = encounter_arena_topology_index_raw(
+        input->topology, input->source_x, input->source_y);
+    const OsrsLocalMoveRoute* route =
+        &owner->local_move_routes[source_index][action];
+    *result = (EncounterRouteResult){
+        .outcome = (EncounterRouteOutcome)route->outcome,
+        .destination_x = input->source_x + route->destination_dx,
+        .destination_y = input->source_y + route->destination_dy,
+        .first_dx = route->first_dx,
+        .first_dy = route->first_dy,
+        .run_dx = route->run_dx,
+        .run_dy = route->run_dy,
+        .distance = route->distance,
+    };
+    return 1;
 }
 
 
@@ -182,6 +279,7 @@ static const EncounterArenaTopology* pvp_route_topology_finalize(
         pvp_route_topology_owner.topology =
             encounter_arena_topology_build(&spec);
         encounter_arena_topology_finalize(pvp_route_topology_owner.topology);
+        pvp_local_move_routes_build(&pvp_route_topology_owner);
     } else {
         encounter_arena_topology_require_spec(
             pvp_route_topology_owner.topology,
@@ -268,6 +366,35 @@ static inline OsrsPlayerStepResult pvp_step_player_movement(
     if (*dest_x < 0 || *dest_y < 0) return result;
 
     Player* p = &env->players[agent_idx];
+    if (p->frozen_ticks <= 0) {
+        osrs_interaction_check_interrupt(&p->interaction, OSRS_IACT_MOVE);
+        if (p->x == *dest_x && p->y == *dest_y) {
+            *dest_x = -1;
+            *dest_y = -1;
+            p->is_moving = 0;
+            return result;
+        }
+        EncounterRouteInput route_input = {
+            .topology = topology,
+            .source_x = p->x,
+            .source_y = p->y,
+            .actor_size = 1,
+            .target_x = *dest_x,
+            .target_y = *dest_y,
+            .target_size = 1,
+            .target_kind = ENCOUNTER_ROUTE_TARGET_TILE,
+            .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+            .cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
+        };
+        EncounterRouteResult route;
+        if (pvp_local_move_route_lookup(
+                &pvp_route_topology_owner, &route_input, &route)) {
+            result.moved = osrs_player_step_apply_route(p, &route) > 0;
+            result.explicit_moved = result.moved;
+            p->is_moving = 1;
+            return result;
+        }
+    }
     OsrsEncounterArena arena = pvp_build_arena(topology);
     OsrsPlayerStepInput input = {
         .player = p,
@@ -383,7 +510,7 @@ static inline int pvp_step_player_ranged_chase(
 
 static inline void pvp_set_walk_dest_from_head_move(OsrsEnv* env, int agent_idx, int move_action) {
     Player* p = &env->players[agent_idx];
-    if (move_action <= 0 || move_action >= MOVE_DIM) return;
+    if (move_action <= 0 || move_action >= OSRS_PRIMARY_MOVE_ACTIONS) return;
     env->pvp_runtime.walk_dest_x[agent_idx] = p->x + ENCOUNTER_MOVE_TARGET_DX[move_action];
     env->pvp_runtime.walk_dest_y[agent_idx] = p->y + ENCOUNTER_MOVE_TARGET_DY[move_action];
 }

@@ -268,18 +268,14 @@ static void write_header(const char* path) {
         "#define OSRS_ITEM_OBS_TABLE_BASE_HITPOINTS %d\n"
         "#define OSRS_ITEM_OBS_TABLE_BASE_PRAYER %d\n"
         "#define OSRS_ITEM_OBS_TABLE_BASE_RANGED %d\n\n"
-        "#define OSRS_ITEM_OBS_CODE_SCALE %d\n\n"
-        "#define OSRS_ITEM_OBS_OVERLAY_EQUIPPED %d\n"
-        "#define OSRS_ITEM_OBS_OVERLAY_HP_HEAL %d\n\n",
+        "#define OSRS_ITEM_OBS_CODE_SCALE %d\n\n",
         GEN_CONTENT_COUNT,
         GEN_CONTENT_COUNT,
         OSRS_INVENTORY_CELL_OBS_FEATURES_COMPACT,
         GEN_BASE_HITPOINTS,
         GEN_BASE_PRAYER,
         GEN_BASE_RANGED,
-        OSRS_ITEM_OBS_CODE_SCALE,
-        OSRS_INVENTORY_CELL_COMPACT_EQUIPPED,
-        OSRS_INVENTORY_CELL_COMPACT_HP_HEAL);
+        OSRS_ITEM_OBS_CODE_SCALE);
     write_content_rows(out);
     write_consumable_rows(out);
     fprintf(out, "\n#endif\n");

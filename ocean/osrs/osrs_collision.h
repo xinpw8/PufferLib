@@ -1205,6 +1205,23 @@ static inline uint32_t encounter_arena_topology_nearby_unit_footprint_mask(
     return topology->nearby_unit_footprint_masks[index];
 }
 
+static inline int
+encounter_arena_topology_step_allowed_assume_finalized_size_in_range(
+    const EncounterArenaTopology* topology,
+    int x,
+    int y,
+    int size,
+    int dx,
+    int dy
+) {
+    if (!encounter_arena_topology_contains_raw(topology, x, y)) return 0;
+    int bit = (dy + 1) * 3 + (dx + 1);
+    if (bit > 4) bit--;
+    int index = encounter_arena_topology_index_raw(topology, x, y);
+    return (topology->legal_step_masks[size - 1][index] &
+        (uint8_t)(1u << bit)) != 0;
+}
+
 static inline int encounter_arena_topology_step_allowed(
     const EncounterArenaTopology* topology,
     int x,
@@ -1218,12 +1235,8 @@ static inline int encounter_arena_topology_step_allowed(
     if (dx < -1 || dx > 1 || dy < -1 || dy > 1 ||
             (dx == 0 && dy == 0))
         encounter_arena_topology_abort("step direction", 0);
-    if (!encounter_arena_topology_contains_raw(topology, x, y)) return 0;
-    int bit = (dy + 1) * 3 + (dx + 1);
-    if (bit > 4) bit--;
-    int index = encounter_arena_topology_index_raw(topology, x, y);
-    return (topology->legal_step_masks[size - 1][index] &
-        (uint8_t)(1u << bit)) != 0;
+    return encounter_arena_topology_step_allowed_assume_finalized_size_in_range(
+        topology, x, y, size, dx, dy);
 }
 
 static inline int

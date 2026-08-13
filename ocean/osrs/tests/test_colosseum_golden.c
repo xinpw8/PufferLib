@@ -182,22 +182,20 @@ static const GoldenConfig CONFIGS[] = {
 #define NUM_CONFIGS ((int)(sizeof(CONFIGS) / sizeof(CONFIGS[0])))
 #define EPISODE_TICKS 4000
 
-/* Re-seeded for the consolidated contract. Honest Sol laser observations change the
- * observation width from 934 to 933. Manticore activation, automatic thralls, and
- * corpse-timed Volatility intentionally change simulation timing. */
+/* Re-seeded after the canonical inventory and equipment observation cutover. */
 static const uint64_t BASELINE[NUM_CONFIGS] = {
-    0x1258544d5c658eddULL,
-    0x68e9ade887662e65ULL,
-    0x0c44516a8e72aeb4ULL,
-    0x88ac4636389bd581ULL,
-    0x6fbfce261a0dbee1ULL,
-    0xf43b72bd8e2c2c04ULL,
-    0x8332e858be3c913eULL,
-    0x1d431ebf29dc964dULL,
-    0x75f1c7b7cbb88fbbULL,
-    0x701b7d6256d72996ULL,
-    0xe5b310495bc052bcULL,
-    0x92baaf448c9bdf5cULL,
+    0x51537d0fc2e421deULL,
+    0xf67cadfd982ad1f9ULL,
+    0x7645fd997d792642ULL,
+    0xe332936ca669006dULL,
+    0x570f75972875ccf7ULL,
+    0x10152aff5f56c2c1ULL,
+    0xf8b757f054d16911ULL,
+    0x0ef2d74e21c99aafULL,
+    0x0d47de8319cb77e4ULL,
+    0x9df4fb8c24dffbd6ULL,
+    0x70d83553f5658edfULL,
+    0x0f5bf824e69f1941ULL,
 };
 
 int main(int argc, char** argv) {

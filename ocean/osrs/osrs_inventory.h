@@ -8,7 +8,6 @@
 #include "osrs_types.h"
 #include "osrs_items.h"
 
-#define OSRS_INVENTORY_SIZE 28
 
 typedef enum {
     OSRS_CLICK_NONE = 0,
@@ -56,17 +55,17 @@ typedef struct {
 #define OSRS_ITEM_CONTENT_METADATA_ROW( \
     CODE, ITEM_POINTER, ITEM_IDX, RAW_OSRS_ID, GEAR_SLOT, CLICK_ACTION, \
     CONSUMABLE_KIND, DOSE_COUNT, NEXT_CONTENT_CODE, ATTACK_STYLE, ...) \
-    [CODE] = { \
-        .item = ITEM_POINTER, \
-        .raw_osrs_id = RAW_OSRS_ID, \
-        .next_content_code = NEXT_CONTENT_CODE, \
-        .item_idx = ITEM_IDX, \
-        .gear_slot = GEAR_SLOT, \
-        .click_action = CLICK_ACTION, \
-        .consumable_kind = CONSUMABLE_KIND, \
-        .dose_count = DOSE_COUNT, \
-        .attack_style = ATTACK_STYLE, \
-        .observation_row = {__VA_ARGS__}, \
+    { \
+        ITEM_POINTER, \
+        RAW_OSRS_ID, \
+        NEXT_CONTENT_CODE, \
+        ITEM_IDX, \
+        GEAR_SLOT, \
+        CLICK_ACTION, \
+        CONSUMABLE_KIND, \
+        DOSE_COUNT, \
+        ATTACK_STYLE, \
+        {__VA_ARGS__}, \
     },
 static const OsrsItemContentMetadata
     OSRS_ITEM_CONTENT_METADATA[OSRS_ITEM_CONTENT_COUNT] = {
@@ -74,38 +73,28 @@ static const OsrsItemContentMetadata
 };
 #undef OSRS_ITEM_CONTENT_METADATA_ROW
 
-#define OSRS_RAW_CONTENT_CODE_ROW( \
-    CODE, ITEM_POINTER, ITEM_IDX, RAW_OSRS_ID, GEAR_SLOT, CLICK_ACTION, \
-    CONSUMABLE_KIND, DOSE_COUNT, NEXT_CONTENT_CODE, ATTACK_STYLE, ...) \
-    [RAW_OSRS_ID] = (uint16_t)((CODE) + 1),
-static const uint16_t OSRS_CONTENT_CODE_BY_RAW_OSRS_ID[UINT16_MAX + 1] = {
-    OSRS_ITEM_CONTENT_ROWS(OSRS_RAW_CONTENT_CODE_ROW)
-};
-#undef OSRS_RAW_CONTENT_CODE_ROW
-
-#define OSRS_CONSUMABLE_CONTENT_CODE_ROW(KIND, DOSE, CODE) \
-    [KIND][DOSE] = (uint16_t)((CODE) + 1),
-static const uint16_t
-    OSRS_CONTENT_CODE_BY_CONSUMABLE_KIND_AND_DOSE[OSRS_CONSUMABLE_COUNT][5] = {
-    OSRS_CONSUMABLE_CONTENT_ROWS(OSRS_CONSUMABLE_CONTENT_CODE_ROW)
-};
-#undef OSRS_CONSUMABLE_CONTENT_CODE_ROW
-
-typedef struct {
-    uint16_t content_code;
-} OsrsInventoryCell;
 
 typedef struct {
     OsrsInventoryCell cells[OSRS_INVENTORY_SIZE];
 } OsrsInventorySlotSnapshot;
 
-_Static_assert(
+static inline OsrsInventoryCell* osrs_player_inventory_cells(Player* player) {
+    return player->inventory_cells;
+}
+
+static inline const OsrsInventoryCell* osrs_player_inventory_cells_const(
+    const Player* player
+) {
+    return player->inventory_cells;
+}
+
+static_assert(
     sizeof(OSRS_ITEM_CONTENT_METADATA) /
         sizeof(OSRS_ITEM_CONTENT_METADATA[0]) == OSRS_ITEM_CONTENT_COUNT,
     "generated item metadata row count must match its content-code domain");
-_Static_assert(OSRS_ITEM_CONTENT_COUNT <= UINT16_MAX,
+static_assert(OSRS_ITEM_CONTENT_COUNT <= UINT16_MAX,
     "item content code must fit uint16_t");
-_Static_assert(sizeof(OsrsInventoryCell) == sizeof(uint16_t),
+static_assert(sizeof(OsrsInventoryCell) == sizeof(uint16_t),
     "inventory cells carry only canonical content identity");
 
 static inline const OsrsItemContentMetadata* osrs_item_content_metadata(
@@ -126,18 +115,25 @@ static inline uint16_t osrs_inventory_content_code_from_item(uint8_t item_idx) {
     return (uint16_t)(1 + item_idx);
 }
 
+#define OSRS_RAW_CONTENT_CODE_CASE( \
+    CODE, ITEM_POINTER, ITEM_IDX, RAW_OSRS_ID, GEAR_SLOT, CLICK_ACTION, \
+    CONSUMABLE_KIND, DOSE_COUNT, NEXT_CONTENT_CODE, ATTACK_STYLE, ...) \
+    case RAW_OSRS_ID: return CODE;
 static inline uint16_t osrs_inventory_content_code_from_raw_osrs_id(
     uint16_t raw_osrs_id
 ) {
-    uint16_t encoded = OSRS_CONTENT_CODE_BY_RAW_OSRS_ID[raw_osrs_id];
-    if (encoded == 0) {
-        fprintf(stderr, "inventory content: unrepresentable raw OSRS id %u\n",
-            raw_osrs_id);
-        abort();
+    switch (raw_osrs_id) {
+        OSRS_ITEM_CONTENT_ROWS(OSRS_RAW_CONTENT_CODE_CASE)
+        default:
+            fprintf(stderr, "inventory content: unrepresentable raw OSRS id %u\n",
+                raw_osrs_id);
+            abort();
     }
-    return (uint16_t)(encoded - 1);
 }
+#undef OSRS_RAW_CONTENT_CODE_CASE
 
+#define OSRS_CONSUMABLE_CONTENT_CODE_CASE(KIND, DOSE, CODE) \
+    case (KIND) * 5 + (DOSE): return CODE;
 static inline uint16_t osrs_inventory_content_code_from_consumable(
     OsrsConsumableKind kind,
     uint8_t dose_count
@@ -148,15 +144,15 @@ static inline uint16_t osrs_inventory_content_code_from_consumable(
             (int)kind, dose_count);
         abort();
     }
-    uint16_t encoded =
-        OSRS_CONTENT_CODE_BY_CONSUMABLE_KIND_AND_DOSE[kind][dose_count];
-    if (encoded == 0) {
-        fprintf(stderr, "inventory content: unrepresentable consumable kind %d dose %u\n",
-            (int)kind, dose_count);
-        abort();
+    switch ((int)kind * 5 + dose_count) {
+        OSRS_CONSUMABLE_CONTENT_ROWS(OSRS_CONSUMABLE_CONTENT_CODE_CASE)
+        default:
+            fprintf(stderr, "inventory content: unrepresentable consumable kind %d dose %u\n",
+                (int)kind, dose_count);
+            abort();
     }
-    return (uint16_t)(encoded - 1);
 }
+#undef OSRS_CONSUMABLE_CONTENT_CODE_CASE
 
 static inline int osrs_inventory_slot_valid(int slot) {
     return slot >= 0 && slot < OSRS_INVENTORY_SIZE;

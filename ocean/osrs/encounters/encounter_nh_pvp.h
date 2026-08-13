@@ -5,16 +5,16 @@
 #include "../osrs_encounter_visual_events.h"
 #include "../osrs_env.h"
 
-/* order must match the HEAD_* indices in osrs_types.h */
-static const int NH_PVP_ACTION_DIMS[] = {
-    LOADOUT_DIM, COMBAT_DIM, OVERHEAD_DIM,
-    FOOD_DIM, POTION_DIM, KARAMBWAN_DIM, VENG_DIM, OFFENSIVE_DIM, MOVE_DIM
-};
+#define NH_PVP_TARGET_SLOTS 1
+#define NH_PVP_ACTION_MASK_SIZE \
+    OSRS_BASE_ACTION_MASK_SIZE(NH_PVP_TARGET_SLOTS)
+#define NH_PVP_ACTION_DIMS_INIT OSRS_BASE_ACTION_DIMS_INIT(NH_PVP_TARGET_SLOTS)
+static const int NH_PVP_ACTION_DIMS[OSRS_BASE_NUM_ACTION_HEADS] =
+    NH_PVP_ACTION_DIMS_INIT;
 
 typedef struct {
     OsrsEnv env;
 } NhPvpState;
-static_assert(sizeof(NhPvpState) == 7160, "NhPvpState serialized layout");
 
 typedef struct {
     const CollisionMap* collision_map;
@@ -22,38 +22,126 @@ typedef struct {
     OsrsActorRouteCache player_route_cache[NUM_AGENTS];
 } NhPvpContext;
 
-static void nh_pvp_translate_human_input(HumanInput* hi, int* actions, Player* agent, Player* target) {
-    for (int h = 0; h < NUM_ACTION_HEADS; h++) actions[h] = 0;
-    actions[HEAD_LOADOUT] = LOADOUT_KEEP;
+static int nh_pvp_find_consumable_cell(
+    const Player* player,
+    OsrsConsumableKind kind
+) {
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        const OsrsItemContentMetadata* metadata =
+            osrs_inventory_cell_metadata(&player->inventory_cells[cell]);
+        if (metadata->consumable_kind == kind) return cell;
+    }
+    return -1;
+}
+
+static void nh_pvp_translate_inventory_cell(
+    int* actions,
+    const Player* player,
+    int cell
+) {
+    if (cell < 0 || cell >= OSRS_INVENTORY_SIZE) return;
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(&player->inventory_cells[cell]);
+    int click_action = cell + 1;
+    if (metadata->click_action == OSRS_CLICK_EQUIP) {
+        if (metadata->gear_slot >= 0 && metadata->gear_slot < NUM_GEAR_SLOTS)
+            actions[OSRS_HEAD_EQUIP_SLOT(metadata->gear_slot)] = click_action;
+    } else if (metadata->click_action == OSRS_CLICK_EAT) {
+        actions[OSRS_HEAD_EAT] = click_action;
+    } else if (metadata->click_action == OSRS_CLICK_DRINK) {
+        actions[OSRS_HEAD_DRINK] = click_action;
+    }
+}
+
+static void nh_pvp_translate_human_input(
+    HumanInput* hi,
+    int* actions,
+    Player* agent,
+    Player* target
+) {
+    memset(actions, 0, OSRS_BASE_NUM_ACTION_HEADS * sizeof(int));
+    if (hi->pending_move_x >= 0 && hi->pending_move_y >= 0) {
+        int dx = hi->pending_move_x - agent->x;
+        int dy = hi->pending_move_y - agent->y;
+        if (dx < -2) dx = -2;
+        if (dx > 2) dx = 2;
+        if (dy < -2) dy = -2;
+        if (dy > 2) dy = 2;
+        for (int action = 1; action < OSRS_PRIMARY_MOVE_ACTIONS; action++) {
+            if (ENCOUNTER_MOVE_TARGET_DX[action] == dx &&
+                    ENCOUNTER_MOVE_TARGET_DY[action] == dy) {
+                actions[OSRS_HEAD_PRIMARY] = action;
+                break;
+            }
+        }
+    }
+    encounter_translate_prayer(hi, actions, OSRS_HEAD_OVERHEAD);
+    encounter_translate_offensive_prayer(hi, actions, OSRS_HEAD_OFFENSIVE);
 
     if (hi->pending_attack) {
-        if (hi->pending_spell == ATTACK_ICE) actions[HEAD_COMBAT] = ATTACK_ICE;
-        else if (hi->pending_spell == ATTACK_BLOOD) actions[HEAD_COMBAT] = ATTACK_BLOOD;
-        else actions[HEAD_COMBAT] = ATTACK_ATK;
+        actions[OSRS_HEAD_PRIMARY] = OSRS_PRIMARY_MOVE_ACTIONS;
+        if (hi->pending_spell == PVP_ATTACK_ICE)
+            actions[OSRS_HEAD_SPELL] = OSRS_SPELL_ICE_BARRAGE;
+        else if (hi->pending_spell == PVP_ATTACK_BLOOD)
+            actions[OSRS_HEAD_SPELL] = OSRS_SPELL_BLOOD_BARRAGE;
     }
-    encounter_translate_prayer(hi, actions, HEAD_OVERHEAD);
-    encounter_translate_offensive_prayer(hi, actions, HEAD_OFFENSIVE);
-
-    if (hi->pending_food) actions[HEAD_FOOD] = FOOD_EAT;
-    if (hi->pending_potion > 0) actions[HEAD_POTION] = hi->pending_potion;
-    if (hi->pending_karambwan) actions[HEAD_KARAMBWAN] = KARAM_EAT;
-    if (hi->pending_veng) actions[HEAD_VENG] = VENG_CAST;
-    if (hi->pending_spec) {
-        AttackStyle style = (AttackStyle)get_item_attack_style(agent->equipped[GEAR_SLOT_WEAPON]);
-        if (style == ATTACK_STYLE_MELEE) actions[HEAD_LOADOUT] = LOADOUT_SPEC_MELEE;
-        else if (style == ATTACK_STYLE_RANGED) actions[HEAD_LOADOUT] = LOADOUT_SPEC_RANGE;
-        else if (style == ATTACK_STYLE_MAGIC) actions[HEAD_LOADOUT] = LOADOUT_SPEC_MAGIC;
+    if (hi->pending_food) {
+        int cell = nh_pvp_find_consumable_cell(
+            agent, OSRS_CONSUMABLE_SHARK_FOOD);
+        if (cell >= 0) actions[OSRS_HEAD_EAT] = cell + 1;
     }
+    if (hi->pending_karambwan) {
+        int cell = nh_pvp_find_consumable_cell(
+            agent, OSRS_CONSUMABLE_KARAMBWAN);
+        if (cell >= 0) actions[OSRS_HEAD_EAT] = cell + 1;
+    }
+    OsrsConsumableKind potion_kind = OSRS_CONSUMABLE_NONE;
+    if (hi->pending_potion == POTION_BREW)
+        potion_kind = OSRS_CONSUMABLE_BREW;
+    else if (hi->pending_potion == POTION_RESTORE)
+        potion_kind = OSRS_CONSUMABLE_SUPER_RESTORE;
+    else if (hi->pending_potion == POTION_COMBAT)
+        potion_kind = OSRS_CONSUMABLE_SUPER_COMBAT;
+    else if (hi->pending_potion == POTION_RANGED)
+        potion_kind = OSRS_CONSUMABLE_RANGING;
+    if (potion_kind != OSRS_CONSUMABLE_NONE) {
+        int cell = nh_pvp_find_consumable_cell(agent, potion_kind);
+        if (cell >= 0) actions[OSRS_HEAD_DRINK] = cell + 1;
+    }
+    for (int i = 0; i < hi->commands.count; i++) {
+        const HumanCommand* command = &hi->commands.items[i];
+        if (command->kind == HUMAN_COMMAND_EQUIP_INVENTORY_ITEM ||
+                command->kind == HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK ||
+                command->kind == HUMAN_COMMAND_EAT ||
+                command->kind == HUMAN_COMMAND_DRINK) {
+            nh_pvp_translate_inventory_cell(
+                actions, agent, command->inventory_slot);
+        }
+    }
+    if (hi->pending_veng)
+        actions[OSRS_HEAD_SPELL] = OSRS_SPELL_VENGEANCE;
+    if (hi->pending_spec)
+        actions[OSRS_HEAD_SPECIAL] = agent->spec_armed ? 2 : 1;
     (void)target;
 }
 
-static EncounterState* nh_pvp_create(void) {
-    NhPvpState* s = (NhPvpState*)calloc(1, sizeof(NhPvpState));
+static void nh_pvp_init_state(
+    EncounterState* state,
+    EncounterContext* context
+) {
+    (void)context;
+    NhPvpState* s = (NhPvpState*)state;
+    memset(s, 0, sizeof(*s));
     pvp_init(&s->env);
-    s->env.ocean_io.agent_obs = s->env._obs_buf;
     s->env.ocean_io.agent_actions = s->env._acts_buf;
     s->env.ocean_io.agent_rewards = s->env._rews_buf;
     s->env.ocean_io.agent_terminals = s->env._terms_buf;
+}
+
+static EncounterState* nh_pvp_create(void) {
+    NhPvpState* s = (NhPvpState*)malloc(sizeof(NhPvpState));
+    if (!s) abort();
+    nh_pvp_init_state((EncounterState*)s, NULL);
     return (EncounterState*)s;
 }
 
@@ -101,7 +189,8 @@ static void nh_pvp_step(EncounterState* state, EncounterContext* context, const 
     NhPvpContext* ctx = (NhPvpContext*)context;
     NhPvpState* s = (NhPvpState*)state;
     encounter_arena_topology_require_finalized(ctx->route_topology);
-    memcpy(s->env.ocean_io.agent_actions, actions, NUM_ACTION_HEADS * sizeof(int));
+    memcpy(s->env.ocean_io.agent_actions, actions,
+        OSRS_BASE_NUM_ACTION_HEADS * sizeof(int));
     pvp_step(&s->env, ctx->route_topology, ctx->player_route_cache);
 }
 
@@ -142,10 +231,14 @@ static void nh_pvp_step_human_commands(
     hi->pending_spec = 0;
 }
 
-static void nh_pvp_write_obs(EncounterState* state, EncounterContext* context, float* obs_out) {
+static void nh_pvp_write_obs(
+    EncounterState* state,
+    EncounterContext* context,
+    float* obs_out
+) {
     (void)context;
     NhPvpState* s = (NhPvpState*)state;
-    memcpy(obs_out, s->env._obs_buf, SLOT_NUM_OBSERVATIONS * sizeof(float));
+    pvp_write_observations(obs_out, &s->env, 0);
 }
 
 static void nh_pvp_write_mask(
@@ -153,11 +246,9 @@ static void nh_pvp_write_mask(
     EncounterContext* context,
     float* mask_out
 ) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
-    for (int i = 0; i < ACTION_MASK_SIZE; i++) {
-        mask_out[i] = (float)s->env._masks_buf[i];
-    }
+    NhPvpContext* ctx = (NhPvpContext*)context;
+    pvp_write_action_mask(mask_out, &s->env, 0, ctx->route_topology);
 }
 
 static float nh_pvp_get_reward(EncounterState* state, EncounterContext* context) {
@@ -289,14 +380,15 @@ static int nh_pvp_get_winner(EncounterState* state, EncounterContext* context) {
 
 static const EncounterDef ENCOUNTER_NH_PVP = {
     .name = "nh_pvp",
-    .obs_size = SLOT_NUM_OBSERVATIONS,
-    .num_action_heads = NUM_ACTION_HEADS,
+    .obs_size = NH_PVP_NUM_OBS,
+    .num_action_heads = OSRS_BASE_NUM_ACTION_HEADS,
     .action_head_dims = NH_PVP_ACTION_DIMS,
-    .mask_size = ACTION_MASK_SIZE,
+    .mask_size = NH_PVP_ACTION_MASK_SIZE,
     .state_size = sizeof(NhPvpState),
     .context_size = sizeof(NhPvpContext),
     .init_context = nh_pvp_init_context,
     .destroy_context = nh_pvp_destroy_context,
+    .init_state = nh_pvp_init_state,
     .finalize_context = nh_pvp_finalize_context,
 
     .create = nh_pvp_create,
@@ -319,9 +411,9 @@ static const EncounterDef ENCOUNTER_NH_PVP = {
     .put_ptr = nh_pvp_put_ptr,
 
     .translate_human_input = NULL,
-    .head_move = -1,
-    .head_prayer = -1,
-    .head_target = -1,
+    .head_move = OSRS_HEAD_PRIMARY,
+    .head_prayer = OSRS_HEAD_OVERHEAD,
+    .head_target = OSRS_HEAD_PRIMARY,
 
     .render_post_tick = NULL,
     .get_log = nh_pvp_get_log,

@@ -65,7 +65,7 @@ static uint64_t hash_core_state(uint64_t h, const InfernoState* s) {
     h = fnv_bytes(h, &s->player_pending_hits, sizeof(s->player_pending_hits));
     h = fnv_bytes(h, s->pending_sparks, sizeof(s->pending_sparks));
     for (int cell_idx = 0; cell_idx < OSRS_INVENTORY_SIZE; cell_idx++) {
-        const OsrsInventoryCell* cell = &s->inventory_cells[cell_idx];
+        const OsrsInventoryCell* cell = &s->player.inventory_cells[cell_idx];
         h = fnv_u8(h, osrs_inventory_cell_item_index(cell));
         h = fnv_u16(h, osrs_inventory_cell_raw_osrs_id(cell));
         h = fnv_u8(h, osrs_inventory_cell_dose_count(cell));
@@ -82,17 +82,20 @@ static uint64_t hash_semantic_mask(
 ) {
     int offset = 0;
     for (int head = 0; head < INF_NUM_ACTION_HEADS; head++) {
-        if (head != INF_HEAD_TARGET) {
+        if (head != INF_HEAD_PRIMARY) {
             for (int action = 0; action < INF_ACTION_DIMS[head]; action++)
                 h = fnv_f32(h, mask[offset + action]);
             offset += INF_ACTION_DIMS[head];
             continue;
         }
 
-        h = fnv_f32(h, mask[offset]);
+        for (int action = 0; action < OSRS_PRIMARY_MOVE_ACTIONS; action++)
+            h = fnv_f32(h, mask[offset + action]);
         for (int npc_idx = 0; npc_idx < TRACE_NPC_SLOTS; npc_idx++) {
             int slot = inf_find_target_obs_slot(s, npc_idx);
-            h = fnv_f32(h, slot >= 0 ? mask[offset + slot + 1] : 0.0f);
+            h = fnv_f32(h, slot >= 0
+                ? mask[offset + inf_primary_attack_action_for_obs_slot(slot)]
+                : 0.0f);
         }
         offset += INF_ACTION_DIMS[head];
     }
@@ -133,14 +136,8 @@ static TraceHashes run_episode(int start_wave, uint32_t seed, int max_ticks) {
         inf_refresh_current_obs_slots_ctx(s, &context);
         for (int head = 0; head < INF_NUM_ACTION_HEADS; head++) {
             uint64_t random_value = splitmix64(&arng);
-            if (head != INF_HEAD_TARGET) {
-                actions[head] =
-                    (int)(random_value % (uint64_t)INF_ACTION_DIMS[head]);
-                continue;
-            }
-            int npc_idx = (int)(random_value % TRACE_NPC_SLOTS);
-            int slot = inf_find_target_obs_slot(s, npc_idx);
-            actions[head] = slot >= 0 ? slot + 1 : 0;
+            actions[head] =
+                (int)(random_value % (uint64_t)INF_ACTION_DIMS[head]);
         }
 
         inf_step_ctx(
@@ -199,52 +196,53 @@ static const GoldenConfig CONFIGS[] = {
 #define NUM_CONFIGS ((int)(sizeof(CONFIGS) / sizeof(CONFIGS[0])))
 #define EPISODE_TICKS 2000
 
+/* Canonical inventory cells intentionally change the serialized player state hash. */
 static const uint64_t EXPECTED_STATE[NUM_CONFIGS] = {
-    0x3e4fbb35c1889d44ULL, 0x8c68f1dc6f54c2a6ULL, 0x71d36e99ebd433e8ULL,
-    0x9c028c5906c58dbeULL, 0xd6183313a76b807fULL, 0x28b5ad296c307915ULL,
-    0x1e408a9f378394e6ULL, 0x228334e4bd9b7f3aULL, 0x26463ee9c8e17cc8ULL,
-    0x2762fdd6008979ddULL, 0xd9f8faf40e2d0657ULL, 0xff5ceeb4f52cb16fULL,
-    0xef0befe2d848d410ULL, 0x38385138dce9f842ULL, 0x7444a507700231c1ULL,
+    0xd1a32c595e0f20e4ULL, 0xd556d9d18290dbe0ULL, 0x7dc08bb94dc1420aULL,
+    0x005ebedd7892aa36ULL, 0xde2fb70f9d751137ULL, 0x985dd084df5d7707ULL,
+    0xed97211bab4b9a47ULL, 0x8ea493a4516b791fULL, 0x6cebcf139b64d613ULL,
+    0x8dc44e7252f56c19ULL, 0xe5c5146c16159d32ULL, 0x237eb63b95cd8ee8ULL,
+    0xc53b4ecacd50a647ULL, 0xda3e4d8630b526f2ULL, 0x1db55fe5533fdb5dULL,
 };
 
 static const uint64_t EXPECTED_REWARD[NUM_CONFIGS] = {
-    0x7a65310944a973aaULL, 0xa122490e8a5ea4faULL, 0xd8288292f3160f5aULL,
-    0x1f71cc42bc243e13ULL, 0x65af16b1d7e922caULL, 0x49a0f296876aea23ULL,
-    0xc4080cd4d9a6eb13ULL, 0x9d01d9da22e0bb93ULL, 0x6c34cdb27c0c1733ULL,
-    0x29916e1218e670b3ULL, 0x6494cc221d5e7db3ULL, 0x11a8e2781441fd33ULL,
-    0x5d411311ad9cd553ULL, 0xe7f1c65d07654513ULL, 0x47a1f9c7b1d3def3ULL,
+    0xef229a1a4b13b62aULL, 0x380701212d84bfbaULL, 0x4098eaaa762c034aULL,
+    0xfcafb9b6e476bbaaULL, 0x23577b00d055c7daULL, 0x2366aa6e9afa77d3ULL,
+    0xabf96da3254522b3ULL, 0x64778a6835f7bae3ULL, 0x3b83ee4d02793243ULL,
+    0x24ccbb9772bf51d3ULL, 0x4c54b1462ee3a663ULL, 0x29916e1218e670b3ULL,
+    0x6c34cdb27c0c1733ULL, 0x47a1f9c7b1d3def3ULL, 0x47a1f9c7b1d3def3ULL,
 };
 
 static const uint64_t EXPECTED_MASK[NUM_CONFIGS] = {
-    0x9609313d75a829baULL, 0x34109efbca6fab0aULL, 0x9787e973169329baULL,
-    0xe97fa334ceaf6153ULL, 0xd2dc555e39a58ba3ULL, 0x0ea03aa9e92854e3ULL,
-    0xc2432dc597e3e483ULL, 0xbf39837ae26a6aaaULL, 0x7fc9129b3356ed93ULL,
-    0xe54fb95b499c2003ULL, 0xd0bb60198af9b643ULL, 0xa01ad9cfc96241c3ULL,
-    0x49744aaffe686a73ULL, 0x5b55145ce7296033ULL, 0xfd42b38660125883ULL,
+    0xbbb48dc73a049bf3ULL, 0x39dc7eec5cb9e2f3ULL, 0x4c106d4052a4fdbaULL,
+    0x143ebc7ebbb2d72aULL, 0x7dad20ecbb02bd93ULL, 0xef4d1b6877c93acaULL,
+    0x8fca3065ddbf1793ULL, 0x2623748ea2e51b33ULL, 0x09130bda5462ebf3ULL,
+    0x12a49268eb13bd53ULL, 0x408fca7dc9aff313ULL, 0x1e80e464ea552a5aULL,
+    0x77f5a923af526e3aULL, 0x9f3034f7b394665aULL, 0x25d8b9153b3ae063ULL,
 };
 
 static const uint64_t EXPECTED_TERMINAL[NUM_CONFIGS] = {
-    0xaacea6292d1dbfd3ULL, 0x08f8c8682da946a1ULL, 0x8799762912bdf103ULL,
-    0x622fee1940c541abULL, 0x82fbcdc1da23c683ULL, 0x2629f248900d0043ULL,
-    0xc92dd3ae1e3522b2ULL, 0xbb44db79d20b1d81ULL, 0xa10f828fd67b1801ULL,
-    0xe2d9ed2b31cf44a1ULL, 0x448b70e96c7c46a1ULL, 0xca591485885081a1ULL,
-    0xd05fd043497d9b27ULL, 0xf92b462e21d67e67ULL, 0x12e57f8f9818c547ULL,
+    0xb3480d7ee6336ae2ULL, 0x910cf79bbeeba6e3ULL, 0xe238e61f8c13c673ULL,
+    0xda963a44d311c6daULL, 0xb310e5115ff5cb52ULL, 0x48994c2ef3769192ULL,
+    0x2d82388999073b22ULL, 0x1b1338d1b46b5673ULL, 0x0e985be125b2f7f3ULL,
+    0x258a6c0def52abe1ULL, 0x77852c52053de533ULL, 0xe2d9ed2b31cf44a1ULL,
+    0x7c696af13bd0d307ULL, 0x12e57f8f9818c547ULL, 0x12e57f8f9818c547ULL,
 };
 
-static const uint64_t LEGACY_OBSERVATION[NUM_CONFIGS] = {
-    0x03f4682055435366ULL, 0x90b9c6fb55157aacULL, 0x0092dfb263b4768cULL,
-    0x3964598751ca95a2ULL, 0x5a8ff64de7cc10feULL, 0xb8a7174941603f51ULL,
-    0xb6b6e303a9e7857cULL, 0x792e4afd5831fe70ULL, 0xfd926d25fd8b4258ULL,
-    0x7b738c46a083f9c5ULL, 0xcef689a6461bbfafULL, 0xd8e160b35c03dbc0ULL,
-    0x2a2f884605e7a640ULL, 0x12fdce41ea3ac43fULL, 0xc8f251c4e9489e7dULL,
-};
-
-static const uint64_t COMPACT_OBSERVATION[NUM_CONFIGS] = {
+static const uint64_t PRE_UNIFIED_OBSERVATION[NUM_CONFIGS] = {
     0xf2362a766a6212d1ULL, 0xa87ad065ca1666dcULL, 0xcac6b26329cadeafULL,
     0xda3602f8cf48fd1fULL, 0x9898fdcd480dc4e6ULL, 0x7c305c0b8123853fULL,
     0x9fb81d2ca3477306ULL, 0xb7e475f336034eadULL, 0x73f5ac59f227cb67ULL,
     0xda647dd6d85cfbe9ULL, 0x78ff2080d00d29c0ULL, 0x83cb4a3947e97146ULL,
     0xbf34279c73e947f4ULL, 0xdf399dc7aee3d3f3ULL, 0x989c8fc6b6aea06dULL,
+};
+
+static const uint64_t UNIFIED_OBSERVATION[NUM_CONFIGS] = {
+    0x6c59b72c00728ad9ULL, 0x18a13290de7329bcULL, 0x6748854d95c23f92ULL,
+    0x6825dad29da6b32dULL, 0x7c5520ac1cc5837fULL, 0xb88e7bda4fc6b77eULL,
+    0x45cbf9bbfa703b70ULL, 0x89db5b7cc84b4728ULL, 0xb93f28f45f543b70ULL,
+    0x3f1afd9c57acd296ULL, 0x3dd5d5e4e6289715ULL, 0x5c08d30cfb280174ULL,
+    0x82bf60a965334a54ULL, 0x66a4cbc54247e358ULL, 0x338f8cdd2b9d56afULL,
 };
 
 static int check_hash(
@@ -268,7 +266,8 @@ int main(int argc, char** argv) {
 
     printf("inferno semantic golden (%d configs, <=%d ticks each)\n", NUM_CONFIGS,
         EPISODE_TICKS);
-    printf("lineage 59f90b7f4 obs3432 -> compact obs498\n\n");
+    printf("player contract obs%d primary%d heads%d\n\n",
+        INF_NUM_OBS, INF_ACTION_DIMS[INF_HEAD_PRIMARY], INF_NUM_ACTION_HEADS);
 
     int failed = 0;
     for (int c = 0; c < NUM_CONFIGS; c++) {
@@ -296,9 +295,9 @@ int main(int argc, char** argv) {
             CONFIGS[c].name, "terminal", hashes.terminal, EXPECTED_TERMINAL[c]);
         config_failed += check_hash(
             CONFIGS[c].name, "observation", hashes.observation,
-            COMPACT_OBSERVATION[c]);
-        if (LEGACY_OBSERVATION[c] == COMPACT_OBSERVATION[c]) {
-            printf("  %-12s observation lineage did not change\n", CONFIGS[c].name);
+            UNIFIED_OBSERVATION[c]);
+        if (PRE_UNIFIED_OBSERVATION[c] == UNIFIED_OBSERVATION[c]) {
+            printf("  %-12s observation contract did not change\n", CONFIGS[c].name);
             config_failed++;
         }
         if (!config_failed) printf("  %-12s PASS\n", CONFIGS[c].name);

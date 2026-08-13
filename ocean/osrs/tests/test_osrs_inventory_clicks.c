@@ -5,7 +5,9 @@
 #include <unistd.h>
 
 
-#include "ocean/osrs/osrs_inventory_clicks.h"
+#include "ocean/osrs/osrs_policy.h"
+
+
 
 #define CHECK(label, cond) do { \
     if (!(cond)) { \
@@ -308,7 +310,122 @@ static int cell_in_unit_range(const float* out) {
 
 static int test_enriched_feature_counts(void) {
     CHECK("cell obs features is 28", OSRS_INVENTORY_CELL_OBS_FEATURES == 28);
-    CHECK("equipped obs features is 18", OSRS_EQUIPPED_SELF_OBS_FEATURES == 18);
+    return 0;
+}
+
+static int test_shared_policy_contract(void) {
+    CHECK("shared self observation width is 52",
+        OSRS_SHARED_SELF_OBS_SIZE == 52);
+    CHECK("shared inventory cells carry one canonical content code",
+        OSRS_SHARED_INVENTORY_CELL_OBS_FEATURES == 1);
+    CHECK("shared inventory observation covers 28 cells",
+        OSRS_SHARED_INVENTORY_OBS_SIZE == 28);
+    CHECK("shared equipment observation covers eleven worn slots",
+        OSRS_SHARED_EQUIPPED_OBS_SIZE == NUM_GEAR_SLOTS);
+    CHECK("shared equipment effects retain their aggregate",
+        OSRS_SHARED_EFFECT_OBS_SIZE == 10);
+    CHECK("shared observation prefix is 101",
+        OSRS_SHARED_OBS_SIZE == 101);
+    CHECK("shared base action contract has 18 heads",
+        OSRS_BASE_NUM_ACTION_HEADS == 18);
+    CHECK("shared action heads have stable semantic order",
+        OSRS_HEAD_PRIMARY == 0 &&
+        OSRS_HEAD_OVERHEAD == 1 &&
+        OSRS_HEAD_EQUIP_BASE == 2 &&
+        OSRS_HEAD_EAT == 13 &&
+        OSRS_HEAD_DRINK == 14 &&
+        OSRS_HEAD_SPELL == 15 &&
+        OSRS_HEAD_SPECIAL == 16 &&
+        OSRS_HEAD_OFFENSIVE == 17);
+    return 0;
+}
+
+static int test_shared_action_layout(void) {
+    const int target_slots = 14;
+    CHECK("primary combines movement and targets",
+        OSRS_PRIMARY_DIM(target_slots) == 39);
+    CHECK("overhead follows primary",
+        osrs_base_action_head_mask_offset(target_slots, OSRS_HEAD_OVERHEAD) == 39);
+    CHECK("equipment heads follow overhead",
+        osrs_base_action_head_mask_offset(target_slots, OSRS_HEAD_EQUIP_BASE) == 46);
+    CHECK("eat follows eleven equipment heads",
+        osrs_base_action_head_mask_offset(target_slots, OSRS_HEAD_EAT) ==
+            46 + NUM_GEAR_SLOTS * OSRS_INVENTORY_CLICK_DIM);
+    CHECK("spell follows eat and drink",
+        osrs_base_action_head_mask_offset(target_slots, OSRS_HEAD_SPELL) ==
+            46 + (NUM_GEAR_SLOTS + 2) * OSRS_INVENTORY_CLICK_DIM);
+    CHECK("base mask size matches final head boundary",
+        OSRS_BASE_ACTION_MASK_SIZE(target_slots) ==
+            osrs_base_action_head_mask_offset(target_slots, OSRS_HEAD_OFFENSIVE) +
+                OSRS_OFFENSIVE_DIM);
+    return 0;
+}
+
+static int test_shared_observation_layout(void) {
+    Player player = {0};
+    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
+        player.equipped[slot] = ITEM_NONE;
+    player.base_hitpoints = 99;
+    player.current_hitpoints = 66;
+    player.base_prayer = 77;
+    player.current_prayer = 55;
+    player.x = 12;
+    player.y = 23;
+    player.equipped[GEAR_SLOT_WEAPON] = ITEM_WHIP;
+    player.inventory_cells[7] =
+        osrs_inventory_cell_from_item(ITEM_TWISTED_BOW);
+    player.equipment_effect_profile.effect_mask =
+        OSRS_ITEM_EFFECT_TWISTED_BOW;
+    player.equipment_effect_profile.shield_item = ITEM_NONE;
+
+    CHECK("real equip transition succeeds",
+        osrs_equip_from_cell(&player, player.inventory_cells, 7) ==
+            GEAR_SLOT_WEAPON);
+    CHECK("equipped item leaves the inventory",
+        osrs_inventory_cell_item_index(&player.inventory_cells[7]) == ITEM_WHIP);
+    CHECK("clicked item occupies the worn weapon slot",
+        player.equipped[GEAR_SLOT_WEAPON] == ITEM_TWISTED_BOW);
+
+    float obs[OSRS_SHARED_OBS_SIZE] = {0};
+    OsrsSharedObservationInput input = {
+        .player = &player,
+        .interaction = &player.interaction,
+        .arena_min_x = 10,
+        .arena_max_x = 20,
+        .arena_min_y = 20,
+        .arena_max_y = 30,
+        .attack_style = ATTACK_STYLE_RANGED,
+    };
+    CHECK("shared writer returns exact width",
+        osrs_write_shared_observations(obs, &input) == OSRS_SHARED_OBS_SIZE);
+    CHECK("shared self prefix begins with hitpoints",
+        fabsf(obs[0] - 66.0f / 99.0f) < 1e-6f);
+    int cell_offset = OSRS_SHARED_OBS_INVENTORY_START + 7;
+    CHECK("inventory observation contains the displaced item",
+        obs[cell_offset] == osrs_inventory_cell_obs_code_encode(
+            player.inventory_cells[7].content_code));
+    int weapon_offset =
+        OSRS_SHARED_OBS_EQUIPPED_START + GEAR_SLOT_WEAPON;
+    CHECK("equipment observation contains the worn item",
+        obs[weapon_offset] == osrs_inventory_cell_obs_code_encode(
+            osrs_inventory_content_code_from_item(ITEM_TWISTED_BOW)));
+    CHECK("shared equipment effects follow worn item codes",
+        obs[OSRS_SHARED_OBS_EFFECT_START + 1] == 1.0f);
+    return 0;
+}
+
+static int test_player_owns_canonical_inventory(void) {
+    Player player = {0};
+    OsrsInventoryCell* cells = osrs_player_inventory_cells(&player);
+    cells[7] = osrs_inventory_cell_from_item(ITEM_TWISTED_BOW);
+    CHECK("player owns exactly 28 canonical inventory cells",
+        sizeof(player.inventory_cells) / sizeof(player.inventory_cells[0]) ==
+            OSRS_INVENTORY_SIZE);
+    CHECK("canonical inventory accessor returns player storage",
+        &player.inventory_cells[7] == &cells[7]);
+    CHECK("canonical inventory stores content identity",
+        osrs_inventory_cell_item_index(&player.inventory_cells[7]) ==
+            ITEM_TWISTED_BOW);
     return 0;
 }
 
@@ -367,11 +484,6 @@ static int test_effect_class4_decoder(void) {
     CHECK("lightbearer is util only",
           eff4[0] == 0.0f && eff4[1] == 0.0f && eff4[2] == 0.0f && eff4[3] == 1.0f);
 
-    float eq[OSRS_EQUIPPED_SELF_OBS_FEATURES];
-    osrs_write_equipped_self_features(eq, ITEM_AMULET_OF_BLOOD_FURY);
-    CHECK("equipped blood fury lifesteal", eq[12] == 1.0f);
-    CHECK("equipped blood fury no other class",
-          eq[13] == 0.0f && eq[14] == 0.0f && eq[15] == 0.0f);
     return 0;
 }
 
@@ -486,6 +598,10 @@ int main(void) {
     if (test_shared_drink_consume_owns_timer_and_one_dose()) return 1;
     if (test_cell_rearrange_swaps_two_slots()) return 1;
     if (test_enriched_feature_counts()) return 1;
+    if (test_shared_policy_contract()) return 1;
+    if (test_player_owns_canonical_inventory()) return 1;
+    if (test_shared_action_layout()) return 1;
+    if (test_shared_observation_layout()) return 1;
     if (test_brew_cell_semantics()) return 1;
     if (test_weapon_cell_semantics()) return 1;
     if (test_effect_class4_decoder()) return 1;

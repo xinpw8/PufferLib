@@ -1,53 +1,38 @@
 #line 3605 "encounter_inferno.h"
-#define INF_HEAD_MOVE       0
-#define INF_HEAD_PRAYER     1
-#define INF_HEAD_TARGET     2
-#define INF_HEAD_EQUIP_BASE 3
-#define INF_HEAD_EQUIP_SLOT(slot) (INF_HEAD_EQUIP_BASE + (slot))
-#define INF_HEAD_EAT        (INF_HEAD_EQUIP_BASE + NUM_GEAR_SLOTS)
-#define INF_HEAD_DRINK      (INF_HEAD_EAT + 1)
-#define INF_HEAD_SPELL      (INF_HEAD_DRINK + 1)
-#define INF_HEAD_SPEC       (INF_HEAD_SPELL + 1)
-#define INF_HEAD_OFFENSIVE  (INF_HEAD_SPEC + 1)
+#define INF_HEAD_PRIMARY OSRS_HEAD_PRIMARY
+#define INF_HEAD_PRAYER OSRS_HEAD_OVERHEAD
+#define INF_HEAD_EQUIP_BASE OSRS_HEAD_EQUIP_BASE
+#define INF_HEAD_EQUIP_SLOT(slot) OSRS_HEAD_EQUIP_SLOT(slot)
+#define INF_HEAD_EAT OSRS_HEAD_EAT
+#define INF_HEAD_DRINK OSRS_HEAD_DRINK
+#define INF_HEAD_SPELL OSRS_HEAD_SPELL
+#define INF_HEAD_SPEC OSRS_HEAD_SPECIAL
+#define INF_HEAD_OFFENSIVE OSRS_HEAD_OFFENSIVE
 #define INF_INV_CLICK_HEADS (NUM_GEAR_SLOTS + 2)
-#define INF_INV_CLICK_DIM   (OSRS_INVENTORY_SIZE + 1)
-#define INF_SPEC_DIM        3
-#define INF_ACTION_DIMS_INIT { \
-    ENCOUNTER_MOVE_ACTIONS, \
-    ENCOUNTER_OVERHEAD_DIM_PVE_REDEMPTION, \
-    INF_OBS_NPCS+1, \
-    INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, \
-    INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, \
-    INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, \
-    INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, INF_INV_CLICK_DIM, \
-    INF_INV_CLICK_DIM, \
-    3, \
-    INF_SPEC_DIM, \
-    ENCOUNTER_OFFENSIVE_DIM \
-}
+#define INF_INV_CLICK_DIM OSRS_INVENTORY_CLICK_DIM
+#define INF_PRIMARY_ATTACK_BASE OSRS_PRIMARY_MOVE_ACTIONS
+#define INF_PRIMARY_DIM OSRS_PRIMARY_DIM(INF_OBS_NPCS)
+#define INF_SPEC_DIM OSRS_SPECIAL_DIM
+#define INF_ACTION_DIMS_INIT { OSRS_BASE_ACTION_DIMS(INF_OBS_NPCS) }
 static const int INF_ACTION_DIMS[INF_NUM_ACTION_HEADS] = INF_ACTION_DIMS_INIT;
-#define INF_ACTION_MASK_SIZE (ENCOUNTER_MOVE_ACTIONS + ENCOUNTER_OVERHEAD_DIM_PVE_REDEMPTION + INF_OBS_NPCS+1 + INF_INV_CLICK_HEADS*INF_INV_CLICK_DIM + 3 + INF_SPEC_DIM + ENCOUNTER_OFFENSIVE_DIM)
-#define INF_OVERHEAD_SET_REFRESH_REDEMPTION ENCOUNTER_OVERHEAD_SET_REFRESH_SMITE
+#define INF_ACTION_MASK_SIZE OSRS_BASE_ACTION_MASK_SIZE(INF_OBS_NPCS)
 
 static int inf_action_head_mask_offset(int head) {
-    int offset = 0;
-    for (int h = 0; h < head; h++)
-        offset += INF_ACTION_DIMS[h];
-    return offset;
+    return osrs_base_action_head_mask_offset(INF_OBS_NPCS, head);
 }
 
-static int inf_canonical_overhead_action(int action) {
-    return action == INF_OVERHEAD_SET_REFRESH_REDEMPTION
-        ? ENCOUNTER_OVERHEAD_SET_REFRESH_REDEMPTION
-        : action;
+static int inf_primary_attack_action_for_obs_slot(int obs_slot) {
+    if (obs_slot < 0 || obs_slot >= INF_OBS_NPCS) {
+        fprintf(stderr, "inferno primary attack obs slot out of range: %d\n",
+            obs_slot);
+        abort();
+    }
+    return INF_PRIMARY_ATTACK_BASE + obs_slot;
 }
 
-static int inf_local_overhead_action(int action) {
-    if (action == ENCOUNTER_OVERHEAD_SET_REFRESH_REDEMPTION)
-        return INF_OVERHEAD_SET_REFRESH_REDEMPTION;
-    if (action == ENCOUNTER_OVERHEAD_SET_REFRESH_SMITE)
-        return ENCOUNTER_OVERHEAD_NO_CHANGE;
-    return action;
+static int inf_primary_obs_slot_from_action(int primary_action) {
+    int obs_slot = primary_action - INF_PRIMARY_ATTACK_BASE;
+    return obs_slot >= 0 && obs_slot < INF_OBS_NPCS ? obs_slot : -1;
 }
 
 static void inf_record_offensive_prayer_attack(
@@ -114,18 +99,28 @@ static int inf_tile_walkable(void* data, int x, int y) {
     return !inf_footprint_blocked_ctx(
         walk->s, walk->ctx, x, y, 1);
 }
-
 static int inf_player_route_blocked(void* data, int x, int y, int size) {
     const InfWalkCtx* walk = (const InfWalkCtx*)data;
     return inf_pillar_footprint_blocked(walk->s, x, y, size);
 }
 
-static uint64_t inf_player_route_blocker_revision(const InfernoState* s) {
-    uint64_t revision = 1;
-    for (int pillar = 0; pillar < INF_NUM_PILLARS; pillar++)
-        revision |= (uint64_t)(s->pillars[pillar].active != 0) << (pillar + 1);
-    return revision;
+static uint64_t inf_player_route_blocker_revision(
+    const InfernoState* state
+) {
+    uint64_t revision = UINT64_C(1469598103934665603);
+    for (int pillar = 0; pillar < INF_NUM_PILLARS; pillar++) {
+        const InfPillar* value = &state->pillars[pillar];
+        revision ^= (uint32_t)value->x;
+        revision *= UINT64_C(1099511628211);
+        revision ^= (uint32_t)value->y;
+        revision *= UINT64_C(1099511628211);
+        revision ^= (uint32_t)(value->active != 0);
+        revision *= UINT64_C(1099511628211);
+    }
+    return revision ? revision : 1;
 }
+
+
 
 typedef struct {
     InfernoState* s;
@@ -206,7 +201,7 @@ static void inf_apply_blood_barrage_heal_damage(InfernoState* s, int damage) {
 
 static void inf_player_pretick(InfernoState* s, InfernoContext* ctx, const int* actions) {
     OffensivePrayer prev_offensive = s->player.offensive_prayer;
-    int prayer_act = inf_canonical_overhead_action(actions[INF_HEAD_PRAYER]);
+    int prayer_act = actions[INF_HEAD_PRAYER];
     int offensive_act = actions[INF_HEAD_OFFENSIVE];
     if (encounter_apply_overhead_action(&s->player.prayer, prayer_act)) {
         s->player.prayer_just_activated = 1;
@@ -242,7 +237,7 @@ static void inf_sync_consumable_counters_from_cells(InfernoState* s) {
     p->bastion_doses = 0;
     p->stamina_doses = 0;
     for (int i = 0; i < OSRS_INVENTORY_SIZE; i++) {
-        const OsrsInventoryCell* cell = &s->inventory_cells[i];
+        const OsrsInventoryCell* cell = &s->player.inventory_cells[i];
         const OsrsItemContentMetadata* metadata =
             osrs_inventory_cell_metadata(cell);
         if (metadata->raw_osrs_id == 0) continue;
@@ -303,7 +298,7 @@ static void inf_apply_eat_cell(InfernoState* s, int cell_idx, OsrsConsumableKind
             abort();
     }
     osrs_player_eat_food_effects(&s->player, food);
-    osrs_inventory_cell_consume_eat(&s->inventory_cells[cell_idx]);
+    osrs_inventory_cell_consume_eat(&s->player.inventory_cells[cell_idx]);
 }
 
 static void inf_apply_human_player_commands_ctx(InfernoState* s, InfernoContext* ctx) {
@@ -411,23 +406,22 @@ static void inf_tick_player_ctx(
         clicks.eat = actions[INF_HEAD_EAT];
         clicks.drink = actions[INF_HEAD_DRINK];
         OsrsInventoryTickIntent intent =
-            osrs_resolve_inventory_tick_intent(&s->player, s->inventory_cells, &clicks);
+            osrs_resolve_inventory_tick_intent(
+                &s->player, s->player.inventory_cells, &clicks);
         if (intent.eat_cell >= 0)
             osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_EAT);
         if (intent.drink_cell >= 0)
             osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_DRINK);
-        for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-            if (intent.equip_cell_by_slot[slot] >= 0) {
-                osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_EQUIP);
-                break;
-            }
-        }
+        if (intent.equip_slot_mask != 0)
+            osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_EQUIP);
         OsrsInventoryApplyStep click_step;
         while (osrs_inventory_intent_next(&intent, &click_step)) {
             switch (click_step.kind) {
                 case OSRS_INVENTORY_APPLY_EQUIP:
                     if (osrs_equip_from_cell(
-                            &s->player, s->inventory_cells, click_step.cell_idx) >= 0) {
+                            &s->player,
+                            s->player.inventory_cells,
+                            click_step.cell_idx) >= 0) {
                         s->total_gear_switches++;
                         inf_note_human_weapon_set(s);
                         inf_refresh_live_stats(s);
@@ -440,7 +434,7 @@ static void inf_tick_player_ctx(
                 case OSRS_INVENTORY_APPLY_DRINK: {
                     OsrsInventoryDrinkConsumeResult drink =
                         osrs_inventory_cell_consume_drink_one_dose(
-                            &s->inventory_cells[click_step.cell_idx],
+                            &s->player.inventory_cells[click_step.cell_idx],
                             click_step.resolution,
                             &s->player.potion_timer,
                             inf_apply_drink_one_dose_effect, s);
@@ -454,10 +448,10 @@ static void inf_tick_player_ctx(
 
     inf_ensure_current_obs_slots_ctx(s, ctx);
 
-    int target = actions[INF_HEAD_TARGET];
+    int primary_action = actions[INF_HEAD_PRIMARY];
+    int obs_idx = inf_primary_obs_slot_from_action(primary_action);
     int has_new_target = 0;
-    if (target > 0 && target <= INF_OBS_NPCS) {
-        int obs_idx = target - 1;
+    if (obs_idx >= 0) {
         int npc_idx = s->current_obs_slots[obs_idx];
         int is_live_target =
             npc_idx >= 0 && npc_idx < INF_MAX_NPCS &&
@@ -515,7 +509,9 @@ static void inf_tick_player_ctx(
                 s->interaction.target_slot)) {
         osrs_interaction_clear(&s->interaction);
     }
-    int has_explicit_move = (actions[INF_HEAD_MOVE] > 0 || s->player_dest_x >= 0);
+    int has_explicit_move =
+        (primary_action > 0 && primary_action < OSRS_PRIMARY_MOVE_ACTIONS) ||
+        s->player_dest_x >= 0;
     if (osrs_interaction_active(&s->interaction)) {
         int target_slot = s->interaction.target_slot;
         int target_can_manual_phantom =
@@ -538,7 +534,7 @@ static void inf_tick_player_ctx(
     int claimed_target_standing =
         has_new_target && osrs_interaction_active(&s->interaction);
     OsrsPlayerCommand command = { .kind = OSRS_PLAYER_CMD_NONE };
-    int move_act = actions[INF_HEAD_MOVE];
+    int move_act = primary_action;
     if (!claimed_target_standing && has_explicit_move) {
         if (s->player_dest_x >= 0) {
             command.kind = OSRS_PLAYER_CMD_MOVE;
@@ -550,6 +546,14 @@ static void inf_tick_player_ctx(
         }
     }
     InfWalkCtx wc = { s, ctx };
+    EncounterRouteBlockers route_blockers = {0};
+    if (!inf_pillars_at_canonical_positions(s)) {
+        route_blockers = (EncounterRouteBlockers){
+            .is_blocked = inf_player_route_blocked,
+            .ctx = &wc,
+            .revision = inf_player_route_blocker_revision(s),
+        };
+    }
     InfPlayerStepTargetCtx target_ctx = {
         .s = s,
         .ctx = ctx,
@@ -566,15 +570,14 @@ static void inf_tick_player_ctx(
         .dest_x = &s->player_dest_x,
         .dest_y = &s->player_dest_y,
         .arena = {
-            .topology = ctx->route_topology,
-            .blockers = {
-                .is_blocked = inf_player_route_blocked,
-                .ctx = &wc,
-                .revision = inf_player_route_blocker_revision(s),
-            },
+            .topology = inf_route_topology_for_state(ctx, s),
+            .blockers = route_blockers,
             .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
-            .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
+            .cost_policy = s->wave >= INF_WAVE_ZUK
+                ? ENCOUNTER_ROUTE_COST_OSRS_TARGET_BFS
+                : ENCOUNTER_ROUTE_COST_OSRS,
             .destination_cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
+            .attack_geometry = ENCOUNTER_ROUTE_ATTACK_GEOMETRY_TOPOLOGY,
             .collision_map = ctx->collision_map,
             .world_offset_x = ctx->world_offset_x,
             .world_offset_y = ctx->world_offset_y,

@@ -526,7 +526,7 @@ static void col_spawn_reinforcements(
 
 static void col_init_empty_inventory_cells(ColosseumState* s) {
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++) {
-        s->inventory_cells[i] = osrs_inventory_cell_empty();
+        s->player.inventory_cells[i] = osrs_inventory_cell_empty();
     }
 }
 
@@ -537,7 +537,8 @@ static void col_seed_inventory_cells_from_gameplay_loadout(ColosseumState* s) {
         uint16_t raw_id = (uint16_t)kit[i];
         if (raw_id == 0) continue;
 
-        s->inventory_cells[i] = osrs_inventory_cell_from_raw_osrs_id(raw_id);
+        s->player.inventory_cells[i] =
+            osrs_inventory_cell_from_raw_osrs_id(raw_id);
     }
 }
 
@@ -549,7 +550,7 @@ static void col_sync_consumable_counters_from_inventory(ColosseumState* s) {
     int surge_doses = 0;
     int antivenom_doses = 0;
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++) {
-        const ColoInvCell* cell = &s->inventory_cells[i];
+        const ColoInvCell* cell = &s->player.inventory_cells[i];
         uint8_t dose_count = osrs_inventory_cell_dose_count(cell);
         if (dose_count == 0) continue;
         OsrsInventoryClickResolution resolution =
@@ -652,8 +653,6 @@ static void col_reset_ctx(EncounterState* state, EncounterContext* context, uint
         s->episode_max_ticks = ctx->config.episode_max_ticks_override;
     const uint8_t* const* loadouts = col_loadouts_for_profile(s->active_loadout_profile);
     encounter_apply_loadout(&s->player, loadouts[COLO_GEAR_MELEE], GEAR_MELEE);
-    memset(s->player.inventory, ITEM_NONE, sizeof(s->player.inventory));
-    memset(s->player.num_items_in_slot, 0, sizeof(s->player.num_items_in_slot));
     col_seed_inventory_cells_from_gameplay_loadout(s);
 
     const ColoSupplyLoadout* supplies = &COLO_SUPPLY_LOADOUTS[s->active_loadout_profile];

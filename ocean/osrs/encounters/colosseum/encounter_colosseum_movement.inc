@@ -64,18 +64,18 @@ col_npc_blocked_ignore_player_assume_finalized_size_in_range(
     if (encounter_arena_topology_footprint_blocked_assume_finalized_size_in_range(
             geometry->context->route_topology, x, y, size))
         return 1;
-    int sol_clamp_active = col_sol_clamp_active(state);
-    for (int dx = 0; dx < size; dx++) {
-        for (int dy = 0; dy < size; dy++) {
-            if (sol_clamp_active &&
-                    !col_in_boss_arena(state, x + dx, y + dy))
+    if (col_sol_clamp_active(state) &&
+            (x <= state->sol.boss_arena_min_x ||
+             y <= state->sol.boss_arena_min_y ||
+             x + size - 1 >= state->sol.boss_arena_max_x ||
+             y + size - 1 >= state->sol.boss_arena_max_y))
+        return 1;
+    int grid_x = x - COLO_ARENA_MIN_X;
+    int grid_y = y - COLO_ARENA_MIN_Y;
+    for (int dx = 0; dx < size; dx++)
+        for (int dy = 0; dy < size; dy++)
+            if (state->npc_collision_flags[grid_x + dx][grid_y + dy])
                 return 1;
-            int grid_x, grid_y;
-            if (!col_grid_index(x + dx, y + dy, &grid_x, &grid_y))
-                return 1;
-            if (state->npc_collision_flags[grid_x][grid_y]) return 1;
-        }
-    }
     return 0;
 }
 static int col_npc_blocked_ignore_player(
@@ -98,17 +98,8 @@ static int col_npc_blocked(void* data, int x, int y, int size) {
     ColoGeometryContext* geometry = (ColoGeometryContext*)data;
     ColosseumState* state = geometry->state;
     if (col_npc_blocked_ignore_player(data, x, y, size)) return 1;
-    for (int dx = 0; dx < size; dx++) {
-        for (int dy = 0; dy < size; dy++) {
-            int grid_x, grid_y;
-            if (!col_grid_index(x + dx, y + dy, &grid_x, &grid_y))
-                return 1;
-            if (grid_x == state->player_grid_x &&
-                    grid_y == state->player_grid_y)
-                return 1;
-        }
-    }
-    return 0;
+    return state->player.x >= x && state->player.x < x + size &&
+        state->player.y >= y && state->player.y < y + size;
 }
 
 typedef struct {
@@ -123,7 +114,7 @@ static int col_npc_move_blocked_ignore_player(
     int size
 ) {
     ColoNpcMoveCtx* move = (ColoNpcMoveCtx*)data;
-    return col_npc_blocked_ignore_player(
+    return col_npc_blocked_ignore_player_assume_finalized_size_in_range(
         &move->geometry, x, y, size);
 }
 
@@ -136,6 +127,7 @@ static int col_npc_move_overlap_hold(void* data) {
 
 typedef struct {
     ColoGeometryContext geometry;
+    const uint16_t (*npc_collision_prefix)[COLO_ARENA_HEIGHT + 1];
     int size;
     int ignore_npcs;
 } ColoNpcPathCtx;
@@ -155,6 +147,33 @@ static ColoNpcPathCtx col_npc_path_ctx_begin(
         },
         .size = size,
     };
+}
+static uint64_t col_npc_path_blocker_revision(
+    const ColoNpcPathCtx* path
+) {
+    const Player* player = &path->geometry.state->player;
+    uint64_t tile =
+        (uint64_t)(player->x - COLO_ARENA_MIN_X) *
+            COLO_ARENA_HEIGHT +
+        (uint64_t)(player->y - COLO_ARENA_MIN_Y);
+    return 1 + tile +
+        (uint64_t)col_sol_clamp_active(path->geometry.state) *
+            COLO_ARENA_WIDTH * COLO_ARENA_HEIGHT;
+}
+
+static void col_npc_collision_prefix_build(
+    const ColosseumState* state,
+    uint16_t prefix[COLO_ARENA_WIDTH + 1][COLO_ARENA_HEIGHT + 1]
+) {
+    memset(prefix, 0, sizeof(uint16_t) *
+        (COLO_ARENA_WIDTH + 1) * (COLO_ARENA_HEIGHT + 1));
+    for (int x = 0; x < COLO_ARENA_WIDTH; x++) {
+        uint16_t column_sum = 0;
+        for (int y = 0; y < COLO_ARENA_HEIGHT; y++) {
+            column_sum += state->npc_collision_flags[x][y] != 0;
+            prefix[x + 1][y + 1] = prefix[x][y + 1] + column_sum;
+        }
+    }
 }
 
 static int col_npc_path_blocked_uncached(
@@ -180,8 +199,28 @@ static int col_npc_path_blocked_uncached(
                     return 1;
         return 0;
     }
-    return col_npc_blocked_ignore_player_assume_finalized_size_in_range(
-        &path->geometry, x, y, path->size);
+    if (!path->npc_collision_prefix)
+        return col_npc_blocked_ignore_player_assume_finalized_size_in_range(
+            &path->geometry, x, y, path->size);
+    if (encounter_arena_topology_footprint_blocked_assume_finalized_size_in_range(
+            path->geometry.context->route_topology, x, y, path->size))
+        return 1;
+    if (col_sol_clamp_active(state) &&
+            (x <= state->sol.boss_arena_min_x ||
+             y <= state->sol.boss_arena_min_y ||
+             x + path->size - 1 >= state->sol.boss_arena_max_x ||
+             y + path->size - 1 >= state->sol.boss_arena_max_y))
+        return 1;
+    int x0 = x - COLO_ARENA_MIN_X;
+    int y0 = y - COLO_ARENA_MIN_Y;
+    int x1 = x0 + path->size;
+    int y1 = y0 + path->size;
+    uint16_t occupied =
+        path->npc_collision_prefix[x1][y1] -
+        path->npc_collision_prefix[x0][y1] -
+        path->npc_collision_prefix[x1][y0] +
+        path->npc_collision_prefix[x0][y0];
+    return occupied != 0;
 }
 
 static int col_npc_path_blocked(void* data, int x, int y, int size) {
@@ -193,12 +232,13 @@ static int col_npc_path_blocked(void* data, int x, int y, int size) {
     return col_npc_path_blocked_uncached(path, x, y);
 }
 
-static int col_npc_path_step_with_ctx(
+static int col_npc_path_steps_with_ctx(
     ColoNpcPathCtx* pc,
     int* x,
     int* y,
     int tx,
-    int ty
+    int ty,
+    int maximum_steps
 ) {
     if (tx < COLO_ARENA_MIN_X) tx = COLO_ARENA_MIN_X;
     if (tx > COLO_ARENA_MAX_X) tx = COLO_ARENA_MAX_X;
@@ -216,7 +256,7 @@ static int col_npc_path_step_with_ctx(
         .blockers = {
             .is_blocked = col_npc_path_blocked,
             .ctx = pc,
-            .revision = 1,
+            .revision = col_npc_path_blocker_revision(pc),
         },
         .source_x = *x,
         .source_y = *y,
@@ -225,10 +265,13 @@ static int col_npc_path_step_with_ctx(
         .target_y = ty,
         .target_size = 1,
         .target_kind = ENCOUNTER_ROUTE_TARGET_TILE,
-        .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_WALK,
+        .movement_mode = maximum_steps > 1
+            ? ENCOUNTER_ROUTE_MOVEMENT_RUN
+            : ENCOUNTER_ROUTE_MOVEMENT_WALK,
         .cost_policy = pc->ignore_npcs
             ? ENCOUNTER_ROUTE_COST_SOUTH_FIRST_REVERSE
             : ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
+        .result_detail = ENCOUNTER_ROUTE_RESULT_NEXT_STEPS,
     };
     EncounterRouteResult route = encounter_route_solve(&input);
 #ifdef COLO_PROFILE_ENABLED
@@ -241,7 +284,28 @@ static int col_npc_path_step_with_ctx(
     }
     *x += route.first_dx;
     *y += route.first_dy;
+    if (maximum_steps > 1 && route.distance > 1) {
+        *x += route.run_dx;
+        *y += route.run_dy;
+        return 2;
+    }
     return 1;
+}
+
+static OSRS_ROUTE_NOINLINE int col_npc_path_step_with_prefix(
+    ColosseumState* state,
+    const ColosseumContext* context,
+    int* x,
+    int* y,
+    int size,
+    int tx,
+    int ty
+) {
+    uint16_t prefix[COLO_ARENA_WIDTH + 1][COLO_ARENA_HEIGHT + 1];
+    col_npc_collision_prefix_build(state, prefix);
+    ColoNpcPathCtx path = col_npc_path_ctx_begin(state, context, size);
+    path.npc_collision_prefix = prefix;
+    return col_npc_path_steps_with_ctx(&path, x, y, tx, ty, 1);
 }
 
 static int col_npc_path_step(
@@ -253,9 +317,13 @@ static int col_npc_path_step(
     int tx,
     int ty
 ) {
+    if (size >= COLO_NPC_STATS[COLO_SOL_HEREDIT].size)
+        return col_npc_path_step_with_prefix(
+            s, context, x, y, size, tx, ty);
     ColoNpcPathCtx pc = col_npc_path_ctx_begin(s, context, size);
-    return col_npc_path_step_with_ctx(&pc, x, y, tx, ty);
+    return col_npc_path_steps_with_ctx(&pc, x, y, tx, ty, 1);
 }
+
 
 
 static void col_warband_pick_target(
@@ -296,12 +364,8 @@ static void col_warband_move(
     pc.ignore_npcs = 1;
     int tx, ty;
     col_warband_pick_target(s, &pc, npc, &tx, &ty);
-    int steps = 0;
-    for (int k = 0; k < COLO_WARBAND_TILES_PER_TICK; k++) {
-        if (npc->x == tx && npc->y == ty) break;
-        if (!col_npc_path_step_with_ctx(&pc, &npc->x, &npc->y, tx, ty)) break;
-        steps++;
-    }
+    int steps = col_npc_path_steps_with_ctx(
+        &pc, &npc->x, &npc->y, tx, ty, COLO_WARBAND_TILES_PER_TICK);
     npc->moved_this_tick = steps > 0 ? 1 : 0;
 }
 

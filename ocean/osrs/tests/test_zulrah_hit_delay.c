@@ -421,8 +421,74 @@ static void test_topology_geometry_parity(void) {
         phase_targets, 47);
 }
 
+static void test_unified_player_contract_dimensions(void) {
+    printf("\n--- unified player contract dimensions ---\n");
+    CHECK("Zulrah uses shared action heads",
+        ZUL_NUM_ACTION_HEADS == OSRS_BASE_NUM_ACTION_HEADS);
+    CHECK("Zulrah primary head uses shared target layout",
+        ZUL_ACTION_HEAD_DIMS[OSRS_HEAD_PRIMARY] ==
+            OSRS_PRIMARY_DIM(ZUL_OBS_NPC_SLOTS));
+    CHECK("Zulrah overhead head uses shared dimension",
+        ZUL_ACTION_HEAD_DIMS[OSRS_HEAD_OVERHEAD] == OSRS_OVERHEAD_DIM);
+    CHECK("Zulrah spell head uses shared dimension",
+        ZUL_ACTION_HEAD_DIMS[OSRS_HEAD_SPELL] == OSRS_SPELL_DIM);
+    CHECK("Zulrah observation uses shared prefix",
+        ZUL_NUM_OBS == OSRS_SHARED_OBS_SIZE + 104);
+    CHECK("Zulrah action mask uses shared dimensions",
+        ZUL_ACTION_MASK_SIZE == OSRS_BASE_ACTION_MASK_SIZE(ZUL_OBS_NPC_SLOTS));
+}
+static void test_unified_player_contract_semantics(void) {
+    printf("\n--- unified player contract semantics ---\n");
+    ZulrahState* state = fresh_state(0xA11CE001u);
+    state->player_stunned_ticks = 3;
+    float observation[ZUL_NUM_OBS];
+    float mask[ZUL_ACTION_MASK_SIZE];
+    zul_write_obs(
+        (EncounterState*)state, (EncounterContext*)&g_ctx, observation);
+    zul_write_mask(
+        (EncounterState*)state, (EncounterContext*)&g_ctx, mask);
+    unsigned char byte_mask[ZUL_ACTION_MASK_SIZE];
+    zul_write_mask_bytes(
+        (EncounterState*)state, (EncounterContext*)&g_ctx, byte_mask);
+    for (int i = 0; i < ZUL_ACTION_MASK_SIZE; i++)
+        CHECK("Zulrah byte mask matches the float contract",
+            (float)byte_mask[i] == mask[i]);
+
+    ASSERT_FLOAT_NEAR("shared hitpoints lead Zulrah observation",
+        observation[0],
+        (float)state->player.current_hitpoints /
+            (float)state->player.base_hitpoints,
+        0.0f);
+    ASSERT_FLOAT_NEAR("shared inventory code is in Zulrah observation",
+        observation[OSRS_SHARED_OBS_INVENTORY_START],
+        osrs_inventory_cell_obs_code_encode(
+            state->player.inventory_cells[0].content_code),
+        0.0f);
+    ASSERT_FLOAT_NEAR("encounter observation exposes melee stun duration",
+        observation[ZUL_OBS_AFTER_SHARED],
+        3.0f / ZUL_MELEE_STUN_TICKS,
+        0.0f);
+    ASSERT_FLOAT_NEAR("Zulrah state follows melee stun",
+        observation[ZUL_OBS_AFTER_SHARED + 1],
+        (float)state->zulrah.current_hitpoints /
+            (float)MONSTER_DATABASE[MON_ZULRAH_GREEN].hp,
+        0.0f);
+
+    int spell_offset =
+        osrs_base_action_head_mask_offset(ZUL_OBS_NPC_SLOTS, OSRS_HEAD_SPELL);
+    ASSERT_FLOAT_NEAR("Zulrah no-spell action stays legal",
+        mask[spell_offset], 1.0f, 0.0f);
+    for (int spell = 1; spell < OSRS_SPELL_DIM; spell++) {
+        ASSERT_FLOAT_NEAR("unsupported Zulrah spells stay masked",
+            mask[spell_offset + spell], 0.0f, 0.0f);
+    }
+}
+
+
 int main(void) {
     printf("zulrah hit-delay and roll-order regressions\n\n");
+    test_unified_player_contract_dimensions();
+    test_unified_player_contract_semantics();
 
     test_npc_hit_delay_by_distance();
     test_player_hit_delay_by_distance();

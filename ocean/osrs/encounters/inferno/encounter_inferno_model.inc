@@ -47,7 +47,7 @@ static const int INF_SPAWN_POS[INF_NUM_SPAWN_POS][2] = {
 #define INF_WAVE_ZUK      (INF_NUM_WAVES - 1)
 #define INF_START_WAVE_ZUK_JAD      (INF_WAVE_ZUK + 1)
 #define INF_MAX_PUBLIC_START_WAVE   (INF_NUM_WAVES + 2)
-#define INF_NUM_ACTION_HEADS 19
+#define INF_NUM_ACTION_HEADS OSRS_BASE_NUM_ACTION_HEADS
 
 typedef enum {
     INF_NPC_NIBBLER = 0,
@@ -866,7 +866,6 @@ typedef struct {
     InfWeaponSet weapon_set;
     InfLoadoutProfile active_loadout_profile;
     EncounterLoadoutStats loadout_stats[INF_NUM_WEAPON_SETS];
-    OsrsInventoryCell inventory_cells[OSRS_INVENTORY_SIZE];
     InfInventoryClickMemo inventory_click_memos[OSRS_INVENTORY_SIZE];
     EncounterLoadoutStats live_stats;
     EncounterLoadoutStats human_loadout_stats;
@@ -919,4 +918,4 @@ typedef struct {
     float total_hp_restored_jad;
     float total_hp_restored_zuk;
 } InfernoState;
-static_assert(sizeof(InfernoState) == 27132, "InfernoState serialized layout");
+static_assert(sizeof(InfernoState) == 27012, "InfernoState serialized layout");

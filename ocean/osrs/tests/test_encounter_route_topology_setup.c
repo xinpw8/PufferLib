@@ -232,6 +232,10 @@ static const EncounterArenaTopology* finalize_with_map(
     TestContext* context = calloc(1, sizeof(*context));
     if (!context) abort();
     TEST_DEF.init_context((EncounterContext*)context);
+    if (!TEST_DEF.init_state) {
+        fprintf(stderr, "%s has no embedded-state initializer\n", TEST_DEF.name);
+        abort();
+    }
     EncounterState* state = TEST_DEF.create();
     if (!state) abort();
     put_geometry(state, (EncounterContext*)context, map, map_first);

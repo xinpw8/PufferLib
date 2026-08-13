@@ -77,21 +77,22 @@ typedef struct {
 } SimConfig;
 
 /* Baselines pin the consolidated Manticore activation, automatic-thrall, and
- * corpse-timed Volatility behavior. Regenerate with --print only for an intended
- * simulation change, never to make an observation-only edit pass. */
+ * corpse-timed Volatility behavior after inventory moved into canonical Player state.
+ * Regenerate with --print only for an intended simulation or serialized-state change,
+ * never to make an observation-only edit pass. */
 static SimConfig CONFIGS[] = {
-    {"w01",  1, 1001ULL, 0xC0FFEE01ULL, 0xc53c6412d234f229ULL},
-    {"w02",  2, 1002ULL, 0xC0FFEE02ULL, 0x778581a45fed3ddeULL},
-    {"w03",  3, 1003ULL, 0xC0FFEE03ULL, 0xb70dc406e22b2c1aULL},
-    {"w04",  4, 1004ULL, 0xC0FFEE04ULL, 0x635935a5ab0ade49ULL},
-    {"w05",  5, 1005ULL, 0xC0FFEE05ULL, 0xb8bddb3cfb335938ULL},
-    {"w06",  6, 1006ULL, 0xC0FFEE06ULL, 0x39095d5c8accb6dbULL},
-    {"w07",  7, 1007ULL, 0xC0FFEE07ULL, 0x494c2434e8dd8c83ULL},
-    {"w08",  8, 1008ULL, 0xC0FFEE08ULL, 0x13ee63bf0f98b87bULL},
-    {"w09",  9, 1009ULL, 0xC0FFEE09ULL, 0xff48a1acf6a1c401ULL},
-    {"w10", 10, 1010ULL, 0xC0FFEE10ULL, 0xb2a8313066a5a4c6ULL},
-    {"w11", 11, 1011ULL, 0xC0FFEE11ULL, 0xbb81f53e0991c17aULL},
-    {"w12", 12, 1012ULL, 0xC0FFEE12ULL, 0x63fdfb9bd8aed92dULL},
+    {"w01",  1, 1001ULL, 0xC0FFEE01ULL, 0x00b4a64bb88751a0ULL},
+    {"w02",  2, 1002ULL, 0xC0FFEE02ULL, 0x06e0f553b3786844ULL},
+    {"w03",  3, 1003ULL, 0xC0FFEE03ULL, 0xe4c6c0cc84781d8cULL},
+    {"w04",  4, 1004ULL, 0xC0FFEE04ULL, 0x42cedf6fe6821b46ULL},
+    {"w05",  5, 1005ULL, 0xC0FFEE05ULL, 0x15204ad085dba366ULL},
+    {"w06",  6, 1006ULL, 0xC0FFEE06ULL, 0x108aa5784aea9c9eULL},
+    {"w07",  7, 1007ULL, 0xC0FFEE07ULL, 0x667fd12223f6da5aULL},
+    {"w08",  8, 1008ULL, 0xC0FFEE08ULL, 0x41351e62c162053bULL},
+    {"w09",  9, 1009ULL, 0xC0FFEE09ULL, 0x5538f0c631fb4227ULL},
+    {"w10", 10, 1010ULL, 0xC0FFEE10ULL, 0x805f1543d28e08d6ULL},
+    {"w11", 11, 1011ULL, 0xC0FFEE11ULL, 0x26b522b3a0d403e0ULL},
+    {"w12", 12, 1012ULL, 0xC0FFEE12ULL, 0xdbab4cb0e6eb7d72ULL},
 };
 
 static void fill_actions(
@@ -156,7 +157,8 @@ static uint64_t hash_sim(uint64_t h, const ColosseumState* s, const float* mask)
      * Taking the whole tail removes the padding from the hash entirely. */
     SkipRegion skip[] = {
         {offsetof(ColosseumState, npcs), sizeof(s->npcs)},
-        {offsetof(ColosseumState, inventory_cells), sizeof(s->inventory_cells)},
+        {offsetof(ColosseumState, player.inventory_cells),
+            sizeof(s->player.inventory_cells)},
         {offsetof(ColosseumState, player_pending_hits), sizeof(s->player_pending_hits)},
         {offsetof(ColosseumState, log), sizeof(*s) - offsetof(ColosseumState, log)},
     };
@@ -174,7 +176,7 @@ static uint64_t hash_sim(uint64_t h, const ColosseumState* s, const float* mask)
     for (int i = 0; i < COLO_MAX_NPCS; i++) h = fnv_npc(h, &s->npcs[i]);
     h = fnv_queue(h, &s->player_pending_hits);
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++) {
-        const OsrsInventoryCell* cell = &s->inventory_cells[i];
+        const OsrsInventoryCell* cell = &s->player.inventory_cells[i];
         h = fnv_u8(h, osrs_inventory_cell_item_index(cell));
         h = fnv_u16(h, osrs_inventory_cell_raw_osrs_id(cell));
         h = fnv_u8(h, osrs_inventory_cell_dose_count(cell));

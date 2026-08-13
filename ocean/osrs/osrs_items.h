@@ -1,6 +1,7 @@
 #ifndef OSRS_ITEMS_H
 #define OSRS_ITEMS_H
 
+#include <assert.h>
 #include <stdint.h>
 #include <stddef.h>
 
