@@ -1,6 +1,6 @@
 #include <time.h>
 #include "snake.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 int demo() {
     CSnake env = {

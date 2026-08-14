@@ -1,5 +1,5 @@
 #include "drone.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 #include "render.h"
 #include "task_hover.h"
 #include <time.h>
