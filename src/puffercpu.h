@@ -8,6 +8,10 @@
 #include <string.h>
 #include <math.h>
 #include <assert.h>
+#include <sys/stat.h>
+#ifdef PLATFORM_WEB
+#include <emscripten.h>
+#endif
 
 typedef struct {
     void* data;
@@ -33,7 +37,7 @@ void* alloc(Arena* allocator, size_t size) {
     return ptr;
 }
 
-// File format is obained by flattening and concatenating all pytorch layers
+// File format is obtained by flattening and concatenating all pytorch layers
 typedef struct Weights Weights;
 struct Weights {
     float* data;
@@ -41,8 +45,95 @@ struct Weights {
     int idx;
 };
 
+// Hosted at https://puffer.ai/assets/models/<basename>. Local clone first.
+#define PUFFER_MODEL_URL "https://puffer.ai/assets/models/"
+
+static const char* puf_basename(const char* path) {
+    const char* slash = strrchr(path, '/');
+    return slash ? slash + 1 : path;
+}
+
+static void puf_mkdir_parent(const char* path) {
+    char buf[1024];
+    snprintf(buf, sizeof(buf), "%s", path);
+    for (char* p = buf + 1; *p; p++) {
+        if (*p == '/') {
+            *p = 0;
+            mkdir(buf, 0755);
+            *p = '/';
+        }
+    }
+}
+
+static int puf_copy_file(const char* src, const char* dst) {
+    FILE* in = fopen(src, "rb");
+    if (!in) {
+        return -1;
+    }
+
+    puf_mkdir_parent(dst);
+    FILE* out = fopen(dst, "wb");
+    if (!out) {
+        fclose(in);
+        return -1;
+    }
+
+    char buf[1 << 16];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (fwrite(buf, 1, n, out) != n) {
+            fclose(in);
+            fclose(out);
+            return -1;
+        }
+    }
+    fclose(in);
+    fclose(out);
+    return 0;
+}
+
+static int puf_file_ok(const char* path) {
+    FILE* f = fopen(path, "rb");
+    if (!f) {
+        return 0;
+    }
+    fclose(f);
+    return 1;
+}
+
+static int puf_fetch_weights(const char* filename) {
+    const char* base = puf_basename(filename);
+    if (!base[0]) {
+        return -1;
+    }
+
+    char url[1024];
+    snprintf(url, sizeof(url), PUFFER_MODEL_URL "%s", base);
+    puf_mkdir_parent(filename);
+
+#ifdef PLATFORM_WEB
+    emscripten_wget(url, filename);
+#else
+    char src[1024];
+    snprintf(src, sizeof(src), "../puffer.ai/docs/assets/models/%s", base);
+    if (puf_copy_file(src, filename) == 0) {
+        return 0;
+    }
+
+    char cmd[2048];
+    snprintf(cmd, sizeof(cmd), "curl -fsSL -o '%s' '%s'", filename, url);
+    if (system(cmd) != 0) {
+        return -1;
+    }
+#endif
+    return puf_file_ok(filename) ? 0 : -1;
+}
+
 Weights* load_weights(const char* filename) {
     FILE* file = fopen(filename, "rb");
+    if (!file && puf_fetch_weights(filename) == 0) {
+        file = fopen(filename, "rb");
+    }
     if (!file) {
         perror("Error opening file");
         return NULL;

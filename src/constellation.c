@@ -122,15 +122,11 @@ static const char* EXTRA_KEYS[] = {
     "train/ent_coef",
     "train/gamma",
     "train/gae_lambda",
-    "train/vtrace_rho_clip",
-    "train/vtrace_c_clip",
     "train/clip_coef",
     "train/vf_clip_coef",
     "train/vf_coef",
     "train/max_grad_norm",
     "train/momentum",
-    "train/prio_alpha",
-    "train/prio_beta0",
     "train/horizon",
     "train/replay_ratio",
     "train/minibatch_size",
@@ -510,8 +506,8 @@ void CustomUpdateCamera(Camera *camera, float orbitSpeed) {
 #define PUFF_WHITE ((Color){241, 241, 241, 255})
 #define PUFF_BACKGROUND ((Color){6, 24, 24, 255})
 
-int hyper_count = 23;
-char *hyper_key[23] = {
+int hyper_count = 19;
+char *hyper_key[19] = {
     "agent_steps",
     "uptime",
     "env/perf",
@@ -520,15 +516,11 @@ char *hyper_key[23] = {
     "train/ent_coef",
     "train/gamma",
     "train/gae_lambda",
-    "train/vtrace_rho_clip",
-    "train/vtrace_c_clip",
     "train/clip_coef",
     "train/vf_clip_coef",
     "train/vf_coef",
     "train/max_grad_norm",
     "train/momentum",
-    "train/prio_alpha",
-    "train/prio_beta0",
     "train/horizon",
     "train/replay_ratio",
     "train/minibatch_size",
