@@ -58,7 +58,10 @@
     X(COLO_PROF_ENV_STEPS,              "env_steps") \
     X(COLO_PROF_BEST_GEAR_REQUESTS,     "best_gear_requests") \
     X(COLO_PROF_BEST_GEAR_HITS,         "best_gear_hits") \
-    X(COLO_PROF_BEST_GEAR_BUILDS,       "best_gear_builds")
+    X(COLO_PROF_BEST_GEAR_BUILDS,       "best_gear_builds") \
+    X(COLO_PROF_VENATOR_REQUESTS,       "venator_requests") \
+    X(COLO_PROF_VENATOR_HITS,           "venator_hits") \
+    X(COLO_PROF_VENATOR_REFRESHES,       "venator_refreshes")
 
 #define OSRS_ENV_PROFILE_PREFIX     colosseum
 #define OSRS_ENV_PROFILE_COUNT      COLO_PROF_COUNT

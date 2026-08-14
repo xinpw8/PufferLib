@@ -1280,6 +1280,19 @@ typedef struct {
 
 } ColConfig;
 
+typedef struct {
+    OsrsVenatorMonster monsters[COLO_MAX_NPCS];
+    uint32_t bounce_masks[COLO_MAX_NPCS];
+    uint8_t selection_distances[COLO_MAX_NPCS][COLO_MAX_NPCS];
+    int count;
+} ColoVenatorPreviewTargets;
+
+typedef struct {
+    ColoVenatorPreviewTargets targets;
+    uint64_t generation;
+    int valid;
+} ColoVenatorPreviewCache;
+
 typedef enum {
     COLO_NPC_RENDER_ATTACK_NORMAL = 0,
     COLO_NPC_RENDER_ATTACK_JAVELIN_SKYFALL,
@@ -1290,6 +1303,7 @@ typedef struct {
     const CollisionMap* collision_map;
     const EncounterArenaTopology* route_topology;
     OsrsActorRouteCache player_route_cache;
+    ColoVenatorPreviewCache venator_preview_cache;
     int world_offset_x;
     int world_offset_y;
     const HumanCommand* human_commands;

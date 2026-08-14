@@ -112,12 +112,6 @@ static inline float col_obs_rel_y(int ny, int py) {
     return (float)(ny - py) / (float)COLO_ARENA_HEIGHT;
 }
 
-typedef struct {
-    OsrsVenatorMonster monsters[COLO_MAX_NPCS];
-    uint32_t bounce_masks[COLO_MAX_NPCS];
-    uint8_t selection_distances[COLO_MAX_NPCS][COLO_MAX_NPCS];
-    int count;
-} ColoVenatorPreviewTargets;
 
 static ColoNPC col_matchup_representative_npc(ColoNpcType type) {
     if (type < 0 || type >= COLO_NUM_NPC_TYPES) abort();
@@ -132,33 +126,129 @@ static ColoNPC col_matchup_representative_npc(ColoNpcType type) {
     };
 }
 
-static void col_collect_venator_preview_targets(
+typedef struct {
+    int same_roster;
+    uint32_t changed_slots;
+} ColoVenatorPreviewDelta;
+
+static int col_collect_venator_preview_monsters(
     const ColosseumState* s,
-    ColoVenatorPreviewTargets* out
+    OsrsVenatorMonster monsters[COLO_MAX_NPCS]
 ) {
-    if (!s || !out) abort();
-    memset(out, 0, sizeof(*out));
+    int count = 0;
     for (int slot = 0; slot < COLO_MAX_NPCS; slot++) {
         const ColoNPC* npc = &s->npcs[slot];
         if (!col_npc_is_live_enemy(npc)) continue;
-        out->monsters[out->count++] = col_venator_monster_from_npc(npc, slot);
+        monsters[count++] = col_venator_monster_from_npc(npc, slot);
     }
-    for (int sender_idx = 0; sender_idx < out->count; sender_idx++) {
-        OsrsVenatorMonster sender = out->monsters[sender_idx];
-        for (int target_idx = 0; target_idx < out->count; target_idx++) {
-            OsrsVenatorMonster target = out->monsters[target_idx];
-            if (osrs_venator_can_bounce(
-                    sender.footprint, target.footprint)) {
-                out->bounce_masks[sender.slot] |=
-                    UINT32_C(1) << target.slot;
+    return count;
+}
+
+static ColoVenatorPreviewDelta col_venator_preview_delta(
+    const ColoVenatorPreviewTargets* targets,
+    const OsrsVenatorMonster current[COLO_MAX_NPCS],
+    int current_count
+) {
+    if (current_count != targets->count)
+        return (ColoVenatorPreviewDelta){0};
+    uint32_t changed_slots = 0;
+    for (int idx = 0; idx < current_count; idx++) {
+        const OsrsVenatorMonster* cached = &targets->monsters[idx];
+        const OsrsVenatorMonster* now = &current[idx];
+        if (cached->slot != now->slot)
+            return (ColoVenatorPreviewDelta){0};
+        if (cached->footprint.sw_x != now->footprint.sw_x ||
+                cached->footprint.sw_y != now->footprint.sw_y ||
+                cached->footprint.size != now->footprint.size ||
+                cached->life != now->life)
+            changed_slots |= UINT32_C(1) << now->slot;
+    }
+    return (ColoVenatorPreviewDelta){
+        .same_roster = 1,
+        .changed_slots = changed_slots,
+    };
+}
+
+static void col_write_venator_preview_pair(
+    ColoVenatorPreviewTargets* targets,
+    int sender_idx,
+    int target_idx
+) {
+    OsrsVenatorMonster sender = targets->monsters[sender_idx];
+    OsrsVenatorMonster target = targets->monsters[target_idx];
+    uint32_t target_bit = UINT32_C(1) << target.slot;
+    if (osrs_venator_can_bounce(sender.footprint, target.footprint))
+        targets->bounce_masks[sender.slot] |= target_bit;
+    else
+        targets->bounce_masks[sender.slot] &= ~target_bit;
+    int distance = osrs_venator_selection_distance(
+        sender.footprint, target.footprint);
+    if (distance < 0 || distance > UINT8_MAX) abort();
+    targets->selection_distances[sender.slot][target.slot] =
+        (uint8_t)distance;
+}
+
+static const ColoVenatorPreviewTargets* col_get_venator_preview_targets(
+    const ColosseumState* s,
+    ColosseumContext* ctx
+) {
+    if (!s || !ctx) abort();
+#ifdef COLO_PROFILE_ENABLED
+    if (COLO_PROFILE_ENABLED())
+        COLO_PROFILE_ADD(COLO_PROF_VENATOR_REQUESTS, 1.0);
+#endif
+    OsrsVenatorMonster current[COLO_MAX_NPCS];
+    int current_count = col_collect_venator_preview_monsters(s, current);
+    ColoVenatorPreviewCache* cache = &ctx->venator_preview_cache;
+    ColoVenatorPreviewTargets* targets = &cache->targets;
+    ColoVenatorPreviewDelta delta = cache->valid
+        ? col_venator_preview_delta(targets, current, current_count)
+        : (ColoVenatorPreviewDelta){0};
+    if (delta.same_roster && delta.changed_slots == 0) {
+#ifdef COLO_PROFILE_ENABLED
+        if (COLO_PROFILE_ENABLED())
+            COLO_PROFILE_ADD(COLO_PROF_VENATOR_HITS, 1.0);
+#endif
+        return targets;
+    }
+
+#ifdef COLO_PROFILE_ENABLED
+    if (COLO_PROFILE_ENABLED())
+        COLO_PROFILE_ADD(COLO_PROF_VENATOR_REFRESHES, 1.0);
+#endif
+    if (delta.same_roster) {
+        for (int idx = 0; idx < current_count; idx++) {
+            int slot = current[idx].slot;
+            if ((delta.changed_slots & (UINT32_C(1) << slot)) != 0)
+                targets->monsters[idx] = current[idx];
+        }
+        for (int sender_idx = 0; sender_idx < current_count; sender_idx++) {
+            int sender_slot = current[sender_idx].slot;
+            for (int target_idx = 0; target_idx < current_count; target_idx++) {
+                int target_slot = current[target_idx].slot;
+                if ((delta.changed_slots &
+                        ((UINT32_C(1) << sender_slot) |
+                         (UINT32_C(1) << target_slot))) != 0)
+                    col_write_venator_preview_pair(
+                        targets, sender_idx, target_idx);
             }
-            int distance = osrs_venator_selection_distance(
-                sender.footprint, target.footprint);
-            if (distance < 0 || distance > UINT8_MAX) abort();
-            out->selection_distances[sender.slot][target.slot] =
-                (uint8_t)distance;
+        }
+    } else {
+        memset(targets, 0, sizeof(*targets));
+        targets->count = current_count;
+        memcpy(
+            targets->monsters,
+            current,
+            (size_t)current_count * sizeof(*current));
+        for (int sender_idx = 0; sender_idx < current_count; sender_idx++) {
+            for (int target_idx = 0; target_idx < current_count; target_idx++)
+                col_write_venator_preview_pair(
+                    targets, sender_idx, target_idx);
         }
     }
+    cache->valid = 1;
+    cache->generation++;
+    return targets;
 }
 static int col_venator_best_bounce_slot(
     const ColoVenatorPreviewTargets* targets,
@@ -1632,8 +1722,8 @@ static void col_write_obs_ctx(
     COLO_PROFILE_MARK(COLO_PROF_OBS_INVENTORY);
 #endif
 
-    ColoVenatorPreviewTargets venator_targets;
-    col_collect_venator_preview_targets(s, &venator_targets);
+    const ColoVenatorPreviewTargets* venator_targets =
+        col_get_venator_preview_targets(s, ctx);
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_OBS_VENATOR);
 #endif
@@ -1648,7 +1738,7 @@ static void col_write_obs_ctx(
         }
         col_write_npc_slot(
             s, ctx, &s->npcs[npc_idx], npc_idx,
-            &venator_targets, obs, &i);
+            venator_targets, obs, &i);
     }
     assert(i == COLO_OBS_AFTER_NPCS);
 #ifdef COLO_PROFILE_ENABLED

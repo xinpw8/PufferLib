@@ -339,7 +339,10 @@ static uint64_t osrs_profile_hash_bytes(uint64_t hash, const void* data, size_t 
 static int osrs_colosseum_profile_slot_is_counter(int slot) {
     return slot == COLO_PROF_BEST_GEAR_REQUESTS ||
         slot == COLO_PROF_BEST_GEAR_HITS ||
-        slot == COLO_PROF_BEST_GEAR_BUILDS;
+        slot == COLO_PROF_BEST_GEAR_BUILDS ||
+        slot == COLO_PROF_VENATOR_REQUESTS ||
+        slot == COLO_PROF_VENATOR_HITS ||
+        slot == COLO_PROF_VENATOR_REFRESHES;
 }
 
 static void osrs_print_colosseum_profile_results(int total_steps) {
@@ -379,10 +382,21 @@ static void osrs_print_colosseum_profile_results(int total_steps) {
         best_gear_requests,
         best_gear_requests / steps,
         best_gear_requests > 0.0 ? 100.0 * best_gear_hits / best_gear_requests : 0.0);
+    double venator_requests = values[COLO_PROF_VENATOR_REQUESTS];
+    double venator_hits = values[COLO_PROF_VENATOR_HITS];
+    printf("  %-28s %.0f total  %.6f per step  %.2f%% hit\n",
+        "venator",
+        venator_requests,
+        venator_requests / steps,
+        venator_requests > 0.0 ? 100.0 * venator_hits / venator_requests : 0.0);
     printf("  %-28s %.0f total  %.6f per step\n",
         colosseum_env_profile_name(COLO_PROF_BEST_GEAR_BUILDS),
         values[COLO_PROF_BEST_GEAR_BUILDS],
         values[COLO_PROF_BEST_GEAR_BUILDS] / steps);
+    printf("  %-28s %.0f total  %.6f per step\n",
+        colosseum_env_profile_name(COLO_PROF_VENATOR_REFRESHES),
+        values[COLO_PROF_VENATOR_REFRESHES],
+        values[COLO_PROF_VENATOR_REFRESHES] / steps);
 }
 #endif
 

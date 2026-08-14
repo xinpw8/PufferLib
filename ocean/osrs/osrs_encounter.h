@@ -877,14 +877,15 @@ static inline int encounter_npc_try_step(
     encounter_npc_blocked_fn is_blocked, void* ctx
 ) {
     if (dx == 0 && dy == 0) return 0;
-    int x_clear = encounter_npc_x_edge_clear(*x, *y, size, dx, dy, is_blocked, ctx);
-    int y_clear = encounter_npc_y_edge_clear(*x, *y, size, dx, dy, is_blocked, ctx);
-    if (x_clear && y_clear) {
-        *x += dx;
-        *y += dy;
-        return 1;
-    }
-    return 0;
+    if (!encounter_npc_x_edge_clear(
+            *x, *y, size, dx, dy, is_blocked, ctx))
+        return 0;
+    if (!encounter_npc_y_edge_clear(
+            *x, *y, size, dx, dy, is_blocked, ctx))
+        return 0;
+    *x += dx;
+    *y += dy;
+    return 1;
 }
 
 static inline int encounter_npc_step_out_from_under(

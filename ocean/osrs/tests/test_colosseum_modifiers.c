@@ -6435,15 +6435,15 @@ static void test_matchup_dpt_obs_ranking(void) {
     s.player.x = 12;
     s.player.y = 16;
     venator_spawn_enemy(&s, 0, COLO_FREMENNIK_BERSERKER, 16, 16, 1);
-    ColoVenatorPreviewTargets targets;
-    col_collect_venator_preview_targets(&s, &targets);
-    int isolated_extra = col_venator_extra_bounce_if_shot(&s, &targets, 0);
+    const ColoVenatorPreviewTargets* targets =
+        col_get_venator_preview_targets(&s, &ctx);
+    int isolated_extra = col_venator_extra_bounce_if_shot(&s, targets, 0);
     CHECK("isolated Venator preview has no extra bounces", isolated_extra == 0);
 
     venator_spawn_enemy(&s, 1, COLO_FREMENNIK_ARCHER, 18, 16, 1);
     venator_spawn_enemy(&s, 2, COLO_FREMENNIK_BERSERKER, 18, 17, 1);
-    col_collect_venator_preview_targets(&s, &targets);
-    int clustered_extra = col_venator_extra_bounce_if_shot(&s, &targets, 0);
+    targets = col_get_venator_preview_targets(&s, &ctx);
+    int clustered_extra = col_venator_extra_bounce_if_shot(&s, targets, 0);
     CHECK("clustered Venator preview sees extra bounces", clustered_extra >= 1);
 }
 
@@ -6775,6 +6775,38 @@ static void test_venator_bow_bounce_colosseum_integration(void) {
     CHECK("venator bounce projectile delays increase by hop",
         ov.projectiles[1].start_delay > ov.projectiles[0].start_delay &&
         ov.projectiles[2].start_delay > ov.projectiles[1].start_delay);
+}
+
+static void test_venator_preview_cache_reuses_unchanged_geometry(void) {
+    printf("test_venator_preview_cache_reuses_unchanged_geometry\n");
+    ColosseumContext ctx;
+    ColosseumState s;
+    loadout_reset(
+        &s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 8208);
+    geo_clear_npcs(&s);
+    venator_spawn_enemy(
+        &s, 0, COLO_FREMENNIK_BERSERKER, 16, 16, 1);
+    venator_spawn_enemy(
+        &s, 1, COLO_FREMENNIK_ARCHER, 18, 16, 1);
+
+    const ColoVenatorPreviewTargets* first =
+        col_get_venator_preview_targets(&s, &ctx);
+    uint64_t first_generation = ctx.venator_preview_cache.generation;
+    const ColoVenatorPreviewTargets* second =
+        col_get_venator_preview_targets(&s, &ctx);
+    CHECK("unchanged venator geometry reuses the preview",
+        first == second &&
+        ctx.venator_preview_cache.generation == first_generation);
+    CHECK("nearby target is present in cached bounce mask",
+        (second->bounce_masks[0] & (UINT32_C(1) << 1)) != 0);
+
+    s.npcs[1].x = 25;
+    const ColoVenatorPreviewTargets* moved =
+        col_get_venator_preview_targets(&s, &ctx);
+    CHECK("changed venator geometry refreshes the preview",
+        ctx.venator_preview_cache.generation == first_generation + 1);
+    CHECK("refreshed preview removes the distant target",
+        (moved->bounce_masks[0] & (UINT32_C(1) << 1)) == 0);
 }
 
 static void test_frailty_disables_brew_overheal(void) {
@@ -9131,6 +9163,32 @@ static void child_col_restore_previous_inventory_snapshot(void) {
 }
 
 
+typedef struct {
+    int calls;
+    int blocked_x;
+} TestNpcStepBlocker;
+
+static int test_npc_step_blocked(void* data, int x, int y, int size) {
+    (void)y;
+    (void)size;
+    TestNpcStepBlocker* blocker = (TestNpcStepBlocker*)data;
+    blocker->calls++;
+    return x == blocker->blocked_x;
+}
+
+static void test_npc_step_skips_y_edge_after_blocked_x_edge(void) {
+    printf("test_npc_step_skips_y_edge_after_blocked_x_edge\n");
+    TestNpcStepBlocker blocker = {
+        .blocked_x = 11,
+    };
+    int x = 10;
+    int y = 10;
+    int moved = encounter_npc_try_step(
+        &x, &y, 1, 1, 1, test_npc_step_blocked, &blocker);
+    ASSERT_INT_EQ("blocked diagonal does not move", moved, 0);
+    ASSERT_INT_EQ("blocked x edge skips y edge queries", blocker.calls, 1);
+}
+
 static void test_colosseum_topology_lifecycle_contract(void) {
     printf("test_colosseum_topology_lifecycle_contract\n");
     assert_child_aborts(
@@ -9171,6 +9229,7 @@ int main(void) {
     test_player_ranged_los_blocked_by_pillar();
     test_player_chase_routes_around_pillar_for_los();
     test_colosseum_npc_movement_player_tile_guards();
+    test_npc_step_skips_y_edge_after_blocked_x_edge();
     test_zero_actions_hit_timeout();
     test_offpray_attribution_log();
     test_step_loop_draft();
@@ -9279,6 +9338,7 @@ int main(void) {
     test_combat_fidelity_contract_sizes();
     test_scythe_multihit_per_size();
     test_venator_bow_bounce_colosseum_integration();
+    test_venator_preview_cache_reuses_unchanged_geometry();
     test_red_flag_minotaur_not_solid_to_other_npcs();
     test_bee_contact_damage_band();
     test_divine_state_obs_presence();
