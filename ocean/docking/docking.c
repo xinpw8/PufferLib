@@ -1,5 +1,5 @@
 #include "docking.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 int main() {
     Weights* weights = load_weights("resources/docking/docking_weights.bin");

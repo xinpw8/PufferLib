@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "puffernet.h"
+#include "puffercpu.h"
 #include "nmmo3.h"
 
 // Only run 1 agent in the C version

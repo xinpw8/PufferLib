@@ -581,11 +581,11 @@ void puf_step(SlimeVolley* env) {
         if (env->num_agents == 2){
             env->agents[1].terminals[0] = 1;
         }
-        env->log.perf = (left->lives - right->lives + 5.0f)  / 10.0f; // normalize to 0-1
-        env->log.score = (float)(left->lives - right->lives);
-        env->log.episode_return = (5.0f - right->lives);
-        env->log.episode_length = (float)env->tick;
-        env->log.n++;
+        env->log.perf += (left->lives - right->lives + 5.0f) / 10.0f;
+        env->log.score += (float)(left->lives - right->lives);
+        env->log.episode_return += (5.0f - right->lives);
+        env->log.episode_length += (float)env->tick;
+        env->log.n += 1;
         puf_reset(env);
     }
     

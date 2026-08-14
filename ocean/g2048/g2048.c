@@ -1,5 +1,5 @@
 #include "g2048.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {
     Weights* weights = load_weights("resources/g2048/g2048_weights.bin");

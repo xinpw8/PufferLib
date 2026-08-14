@@ -1,5 +1,5 @@
 #include "terraform.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 #include <time.h>
 
 void allocate(Terraform* env) {

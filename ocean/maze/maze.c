@@ -1,5 +1,5 @@
 #include "maze.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {
     Weights* weights = load_weights("resources/maze/maze_weights.bin");

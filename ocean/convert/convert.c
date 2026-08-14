@@ -1,5 +1,5 @@
 #include "convert.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 int main() {
     Convert env = {

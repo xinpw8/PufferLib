@@ -8,7 +8,7 @@
 #include <time.h>
 #include "enduro.h"
 #include "raylib.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void get_input(Enduro* env) {
         if ((IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_RIGHT)) || (IsKeyDown(KEY_S) && IsKeyDown(KEY_D))) {

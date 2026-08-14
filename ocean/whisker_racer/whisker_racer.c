@@ -1,6 +1,6 @@
 #include <time.h>
 #include "whisker_racer.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {
     printf("demo\n");

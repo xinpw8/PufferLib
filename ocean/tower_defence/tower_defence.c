@@ -99,7 +99,7 @@ static int td_demo_sample_masked_action(const float *logits, const unsigned char
 }
 
 #ifndef TD_TEST
-#include "puffernet.h"
+#include "puffercpu.h"
 
 static int td_demo_align8(int value) {
     return (value + 7) & ~7;
@@ -183,8 +183,7 @@ int main(void) {
     puf_reset(&env);
     puf_render(&env);
 
-    Weights *weights =
-        access(TD_DEMO_WEIGHT_PATH, R_OK) == 0 ? load_weights(TD_DEMO_WEIGHT_PATH) : NULL;
+    Weights *weights = load_weights(TD_DEMO_WEIGHT_PATH);
     if (weights && !td_demo_weights_compatible(weights)) {
         printf("Ignoring incompatible policy weights at %s: got %d floats for typed-placement "
                "obs/action contract\n",

@@ -1,6 +1,6 @@
 #include <time.h>
 #include "overcooked.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 int main(int argc, char** argv) {
     LayoutType layout_id = LAYOUT_CRAMPED_ROOM;

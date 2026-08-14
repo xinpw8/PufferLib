@@ -120,7 +120,7 @@ struct Env {
 };
 
 void add_log(CCpr *env, Log *log) {
-  env->log.perf = fmaxf(0, 1.0 - 0.01*log->alive_steps);
+  env->log.perf += fmaxf(0, 1.0 - 0.01*log->alive_steps);
   env->log.episode_return += log->episode_return;
   env->log.score += log->score;
   env->log.moves += log->moves / log->alive_steps;

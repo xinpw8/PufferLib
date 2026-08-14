@@ -1,6 +1,6 @@
 #include <time.h>
 #include "go.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo(int grid_size) {
 

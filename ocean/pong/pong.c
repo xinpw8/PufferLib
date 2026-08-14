@@ -1,6 +1,6 @@
 #include <time.h>
 #include "pong.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {
     // Weight count: encoder(32x8=256) + decoder(4x32=128) + 1x mingru(3x32x32=3072) = 3456

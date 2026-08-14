@@ -6,7 +6,16 @@
 #include "pufferenv.h"
 
 #define ACT_SIZES {4}
-#define OBS_SIZE 121
+#define DEFAULT_VISION 5
+#define TILE_TYPES 8
+#ifndef SNAKE_ONEHOT
+#define SNAKE_ONEHOT 1
+#endif
+#if SNAKE_ONEHOT
+#define OBS_SIZE ((2*DEFAULT_VISION+1)*(2*DEFAULT_VISION+1)*TILE_TYPES)
+#else
+#define OBS_SIZE ((2*DEFAULT_VISION+1)*(2*DEFAULT_VISION+1))
+#endif
 #define NUM_ATNS 1
 #define MAX_AGENTS 512
 
@@ -109,12 +118,26 @@ void compute_observations(CSnake* env) {
         int head_ptr = i*2*env->max_snake_length + 2*env->snake_ptr[i];
         int r_offset = env->snake[head_ptr] - env->vision;
         int c_offset = env->snake[head_ptr+1] - env->vision;
-        for (int r = 0; r < 2 * env->vision + 1; r++) {
-            for (int c = 0; c < 2 * env->vision + 1; c++) {
+#if SNAKE_ONEHOT
+        memset(obs, 0, OBS_SIZE * sizeof(obs_t));
+        for (int r = 0; r < env->window; r++) {
+            for (int c = 0; c < env->window; c++) {
+                int tile = (unsigned char)env->grid[
+                    (r_offset + r)*env->width + c_offset + c];
+                if (tile >= TILE_TYPES) {
+                    tile = TILE_TYPES - 1;
+                }
+                obs[(r*env->window + c)*TILE_TYPES + tile] = 1;
+            }
+        }
+#else
+        for (int r = 0; r < env->window; r++) {
+            for (int c = 0; c < env->window; c++) {
                 obs[r*env->window + c] = (obs_t)env->grid[
                     (r_offset + r)*env->width + c_offset + c];
             }
         }
+#endif
     }
 }
 
@@ -171,7 +194,16 @@ void spawn_food(CSnake* env) {
 
 void puf_reset(CSnake* env) {
     env->window = 2*env->vision+1;
+#if SNAKE_ONEHOT
+    env->obs_size = env->window*env->window*TILE_TYPES;
+#else
     env->obs_size = env->window*env->window;
+#endif
+    if (env->obs_size != OBS_SIZE) {
+        fprintf(stderr, "snake: vision=%d implies obs %d, but OBS_SIZE=%d\n",
+            env->vision, env->obs_size, OBS_SIZE);
+        exit(1);
+    }
     env->tick = 0;
     env->log = (Log){0};
     

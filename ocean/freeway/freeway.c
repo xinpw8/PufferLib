@@ -1,6 +1,6 @@
 #include <time.h>
 #include "freeway.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 #include <unistd.h>
 
 void demo() {

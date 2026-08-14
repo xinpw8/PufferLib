@@ -1,5 +1,5 @@
 #include "connect4.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 #include "time.h"
 
 const unsigned char NOOP = 8;

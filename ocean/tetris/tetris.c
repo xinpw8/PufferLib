@@ -1,6 +1,6 @@
 #include <time.h>
 #include "tetris.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {
     Tetris env = {

@@ -1,7 +1,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "drive.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {
     Drive env = {

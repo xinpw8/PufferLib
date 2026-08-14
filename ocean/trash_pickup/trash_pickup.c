@@ -1,6 +1,6 @@
 #include <time.h>
 #include "trash_pickup.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {
     CTrashPickupEnv env = {

@@ -1,5 +1,5 @@
 #include "dino.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 int main() {
     Weights* weights = load_weights("resources/dino/dino_weights.bin");

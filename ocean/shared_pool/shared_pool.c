@@ -1,7 +1,7 @@
 #include <raylib.h>
 #include <unistd.h>
 #include "cpr.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 #include "shared_pool.h"
 
 int main() {

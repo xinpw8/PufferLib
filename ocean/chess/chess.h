@@ -2792,7 +2792,6 @@ static void init_chess_client(Chess* env, int cell_size) {
     int font_loaded = 0;
     env->client->piece_font = load_piece_font(cell_size, &font_loaded);
     env->client->use_unicode_pieces = font_loaded;
-    if (env->mode == CHESS_MODE_SELFPLAY) env->log_pgn_choice_made = 0;
 }
 
 void puf_render(Chess* env) {

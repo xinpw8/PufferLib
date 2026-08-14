@@ -543,14 +543,10 @@ static double demo_now(void) {
 static const char* demo_find_weights(void) {
     const char* envw = getenv("NH_WEIGHTS");
     if (envw && envw[0]) return envw;
-    static const char* candidates[] = {
-        "nethack_depth_weights.bin",
-        "resources/nethack/nethack_weights.bin",
-    };
-    for (int i = 0; i < (int)(sizeof(candidates) / sizeof(candidates[0])); i++) {
-        if (access(candidates[i], R_OK) == 0) return candidates[i];
+    if (access("nethack_depth_weights.bin", R_OK) == 0) {
+        return "nethack_depth_weights.bin";
     }
-    return candidates[0];
+    return "resources/nethack/nethack_weights.bin";
 }
 
 // Drain stdin. Returns a bitset: bit0=space, bit1=shift+space/S, bit2=quit.

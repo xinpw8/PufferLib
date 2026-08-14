@@ -10,30 +10,60 @@ set -e
 #   ./build.sh breakout --local      # Standalone executable (debug, sanitizers)
 #   ./build.sh breakout --fast       # Standalone executable (optimized)
 #   ./build.sh breakout --web        # Emscripten web build
+#                                    # copy build/web/ENV/* to ../docker/puffer.ai/docs/assets/ENV/
 #   ./build.sh breakout --profile    # Kernel profiling binary
+#   ./build.sh breakout --device N   # Pin CUDA_VISIBLE_DEVICES during the build
 #   ./build.sh all                   # Build all envs native and native float32
+#
+# Native train/eval binaries are written per-env so parallel builds/runs
+# do not clobber a shared ./puffer:
+#   build/puffer_<env>         default precision
+#   build/puffer_<env>_float   --float
+# Runtime GPU selection: CUDA_VISIBLE_DEVICES=N ./build/puffer_<env> train <env>
+# or  ./build/puffer_<env> train <env> base.gpu_offset=N
 
 if [ -z "$1" ]; then
-    echo "Usage: ./build.sh ENV_NAME [--gpu] [--float] [--debug] [--local|--fast|--web|--profile|--cpu]"
+    echo "Usage: ./build.sh ENV_NAME [--gpu] [--float] [--debug] [--local|--fast|--web|--profile|--cpu] [--device N]"
     exit 1
 fi
 ENV=$1
 shift
 
 USE_GPU_ENV=0
-for arg in "$@"; do
-    case $arg in
+DEVICE=""
+SNAKE_RAW=0
+while [ $# -gt 0 ]; do
+    case $1 in
         --gpu) USE_GPU_ENV=1 ;;
         --float) PRECISION="-DPRECISION_FLOAT" ;;
+        --no-onehot) SNAKE_RAW=1 ;;
         --debug) DEBUG=1 ;;
         --local) MODE=local ;;
         --fast)  MODE=fast ;;
         --web)   MODE=web ;;
         --profile) MODE=profile ;;
         --cpu)   MODE=cpu ;;
-        *) echo "Error: unknown argument '$arg'" && exit 1 ;;
+        --device)
+            shift
+            if [ -z "$1" ]; then
+                echo "Error: --device requires a GPU index" && exit 1
+            fi
+            DEVICE=$1
+            ;;
+        --device=*)
+            DEVICE="${1#--device=}"
+            if [ -z "$DEVICE" ]; then
+                echo "Error: --device requires a GPU index" && exit 1
+            fi
+            ;;
+        *) echo "Error: unknown argument '$1'" && exit 1 ;;
     esac
+    shift
 done
+
+if [ -n "$DEVICE" ]; then
+    export CUDA_VISIBLE_DEVICES="$DEVICE"
+fi
 
 if [ "$ENV" = "all" ]; then
     FAILED=""
@@ -197,28 +227,55 @@ if [ "$MODE" = "local" ] || [ "$MODE" = "fast" ]; then
     echo "Built: ./$OUTPUT_NAME"
     exit 0
 elif [ "$MODE" = "web" ]; then
+    ENV_HEADER="$SRC_DIR/$ENV.h"
+    if ! grep -q 'typedef[[:space:]].*obs_t' "$ENV_HEADER" 2>/dev/null; then
+        echo "Error: $ENV_HEADER must typedef obs_t for web eval"
+        exit 1
+    fi
     mkdir -p "build/web/$ENV"
     PRELOAD_ENV=()
     if [ -d "resources/$ENV" ]; then
         PRELOAD_ENV=(--preload-file "resources/$ENV@resources/$ENV")
     fi
     echo "Compiling $ENV for web..."
+    PRELOAD=(
+        --preload-file resources/$ENV@resources/$ENV
+        --preload-file resources/shared@resources/shared
+        --preload-file config/default.ini@config/default.ini
+    )
+    if [ -f "config/$ENV.ini" ]; then
+        PRELOAD+=(--preload-file "config/$ENV.ini@config/$ENV.ini")
+    fi
+    if [ -f "config/${ENV}_web.ini" ]; then
+        PRELOAD+=(--preload-file "config/${ENV}_web.ini@config/${ENV}_web.ini")
+    fi
     emcc \
         -o "build/web/$ENV/game.html" \
-        "$SRC_FILE" $EXTRA_SRC \
+        -x c src/puffercpu.h -x none $EXTRA_SRC \
         -O3 -Wall -Wno-narrowing \
         "${LINK_ARCHIVES[@]}" \
-        "${INCLUDES[@]}" \
+        -I. -Isrc -I$SRC_DIR -Ivendor "${INCLUDES[@]}" \
         -L. -L./$RAYLIB_NAME/lib \
         -sASSERTIONS=2 -gsource-map \
         -sUSE_GLFW=3 -sUSE_WEBGL2=1 -sASYNCIFY -sFILESYSTEM -sFORCE_FILESYSTEM=1 \
         --shell-file vendor/minshell.html \
         -sINITIAL_MEMORY=512MB -sALLOW_MEMORY_GROWTH -sSTACK_SIZE=512KB \
         -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES3 \
+        -DPUFFERCPU_EVAL_MAIN \
+        -DENV_HEADER=\"$ENV_HEADER\" \
+        -DPUFFER_ENV_NAME=\"$ENV\" \
         --preload-file resources/shared@resources/shared \
         "${PRELOAD_ENV[@]}" \
+        "${PRELOAD[@]}" \
         "${EXTRA_CFLAGS[@]}"
     echo "Built: build/web/$ENV/game.html"
+    WEBSITE_DIR="${PUFFER_WEBSITE_DIR:-../docker/puffer.ai}"
+    WEBSITE_ASSETS="$WEBSITE_DIR/docs/assets"
+    if [ -d "$WEBSITE_ASSETS" ]; then
+        mkdir -p "$WEBSITE_ASSETS/$ENV"
+        cp -a "build/web/$ENV/." "$WEBSITE_ASSETS/$ENV/"
+        echo "Published: $WEBSITE_ASSETS/$ENV/"
+    fi
     exit 0
 elif [ "$MODE" = "cpu" ]; then
     ENV_HEADER="$SRC_DIR/$ENV.h"
@@ -227,19 +284,21 @@ elif [ "$MODE" = "cpu" ]; then
         exit 1
     fi
 
+    mkdir -p build
     echo "Compiling standalone CPU eval for $ENV..."
     ${CC:-clang} "${CLANG_OPT[@]}" \
         -I. -Isrc -I$SRC_DIR -Ivendor "${INCLUDES[@]}" \
         -DPLATFORM_DESKTOP \
         -DPUFFERCPU_EVAL_MAIN \
         -DENV_HEADER=\"$ENV_HEADER\" \
+        -DPUFFER_ENV_NAME=\"$ENV\" \
         -x c src/puffercpu.h -x none $EXTRA_SRC \
         "${LINK_ARCHIVES[@]}" \
         "${EXTRA_LDFLAGS[@]}" \
         "${STANDALONE_LDFLAGS[@]}" \
         -lm -lpthread -fopenmp \
-        -o build_cpu
-    echo "Built: ./build_cpu"
+        -o "build/cpu_${ENV}"
+    echo "Built: ./build/cpu_${ENV}"
     exit 0
 fi
 
@@ -293,7 +352,15 @@ MODE=${MODE:-native}
 NVCC_NARROW=(-Xcompiler=-Wno-narrowing --diag-suppress=2361)
 
 if [ "$MODE" = "native" ]; then
-    echo "Compiling native train/eval binary ($ARCH)..."
+    if [ -n "$PRECISION" ]; then
+        TRAIN_BIN="build/puffer_${ENV}_float"
+    elif [ "$SNAKE_RAW" = "1" ]; then
+        TRAIN_BIN="build/puffer_${ENV}_raw"
+        EXTRA_CFLAGS+=(-DSNAKE_ONEHOT=0)
+    else
+        TRAIN_BIN="build/puffer_${ENV}"
+    fi
+    echo "Compiling native train/eval binary ($ARCH) -> $TRAIN_BIN..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
         "${INCLUDES[@]}" \
@@ -314,11 +381,12 @@ if [ "$MODE" = "native" ]; then
         "${EXTRA_LDFLAGS[@]}" \
         -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand \
         -lm -lpthread $OMP_LIB "${STANDALONE_LDFLAGS[@]}" \
-        -o puffer
-    echo "Built: ./puffer"
+        -o "$TRAIN_BIN"
+    echo "Built: ./$TRAIN_BIN"
 
 elif [ "$MODE" = "profile" ]; then
-    echo "Compiling profile binary ($ARCH)..."
+    PROFILE_BIN="build/profile_${ENV}"
+    echo "Compiling profile binary ($ARCH) -> $PROFILE_BIN..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
         "${INCLUDES[@]}" \
@@ -336,6 +404,6 @@ elif [ "$MODE" = "profile" ]; then
         -L$CUDA_HOME/lib64 \
         -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand \
         -lGL -lm -lpthread $OMP_LIB \
-        -o profile
-    echo "Built: ./profile"
+        -o "$PROFILE_BIN"
+    echo "Built: ./$PROFILE_BIN"
 fi

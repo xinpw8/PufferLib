@@ -10,7 +10,7 @@
  * lets you load basic PyTorch model architectures so that
  * you can run them in pure C or on the web via WASM
  */
-#include "puffernet.h"
+#include "puffercpu.h"
 
 int main() {
     // Weights are exported by running puffer export

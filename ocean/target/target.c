@@ -1,5 +1,5 @@
 #include "target.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {
     // encoder(128x28=3584) + decoder(15x128=1920) + 4x mingru(384x128=49152) = 202112

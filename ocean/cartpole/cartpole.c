@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "cartpole.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 #define OBSERVATIONS_SIZE 4
 #define ACTIONS_SIZE 2

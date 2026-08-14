@@ -1,7 +1,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "tower_climb.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {   
     Weights* weights = load_weights("resources/tower_climb/tower_climb_weights.bin");

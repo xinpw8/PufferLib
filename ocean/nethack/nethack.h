@@ -1052,8 +1052,8 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "truncated", log->truncated);
 }
 
-// Per-(verb,head) consumption map for PPO consumed-head gating (weak symbol
-// read by src/algo.cu). heads: [0]=verb, [1..12]=slot heads 0..11,
+// Per-(verb,head) consumption map. Used by nethack_policy.cu (included
+// from algo.cu when -DPUFFER_NETHACK). heads: [0]=verb, [1..12]=slot 0..11,
 // [13..18]=per-verb dir heads, [19]=spell-slot head (CAST). A head is
 // "consumed" iff the sampled verb actually uses it.
 #define PUFFER_PROVIDES_HEAD_CONSUME_MAP 1

@@ -5,7 +5,7 @@
  * get faster builds and better error messages
  */
 #include "slimevolley.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 #include <stdio.h>
 
 

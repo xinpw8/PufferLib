@@ -1,6 +1,6 @@
 #include <time.h>
 #include "pacman.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {
     // printf("OBSERVATIONS_COUNT: %d\n", OBSERVATIONS_COUNT);

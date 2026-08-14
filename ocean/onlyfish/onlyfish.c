@@ -1,5 +1,5 @@
 #include "onlyfish.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 #include <dirent.h>
 #include <string.h>
 #include <stdio.h>
@@ -7,53 +7,48 @@
 
 int main() {
     const char* dirpath = "resources/onlyfish/";
-    DIR* dir = opendir(dirpath);
-    if (dir == NULL) {
-        perror("Unable to open directory");
-        return 1;
+    char fish[32][64];
+    int num_agents = 0;
+    const char* hosted[] = {"danadvantage.bin", "lonelypuff.bin"};
+    for (int i = 0; i < 2; i++) {
+        snprintf(fish[num_agents++], 64, "%s", hosted[i]);
     }
 
-    int num_agents = 0;
-    struct dirent* entry;
-    while ((entry = readdir(dir))) {
-        if (entry->d_type == DT_REG) {
+    DIR* dir = opendir(dirpath);
+    if (dir) {
+        struct dirent* entry;
+        while ((entry = readdir(dir))) {
             size_t len = strlen(entry->d_name);
-            if (len > 4 && strcmp(entry->d_name + len - 4, ".bin") == 0) {
-                num_agents++;
+            if (len <= 4 || strcmp(entry->d_name + len - 4, ".bin") != 0) {
+                continue;
+            }
+            int seen = 0;
+            for (int i = 0; i < num_agents; i++) {
+                if (strcmp(fish[i], entry->d_name) == 0) {
+                    seen = 1;
+                }
+            }
+            if (!seen && num_agents < 32) {
+                snprintf(fish[num_agents++], 64, "%s", entry->d_name);
             }
         }
-    }
-    closedir(dir);
-
-    if (num_agents == 0) {
-        fprintf(stderr, "No .bin files found in directory\n");
-        return 1;
+        closedir(dir);
     }
 
     LinearLSTM** nets = calloc(num_agents, sizeof(LinearLSTM*));
     char** names = calloc(num_agents, sizeof(char*));
-
-    dir = opendir(dirpath);
-    int idx = 0;
-    while ((entry = readdir(dir))) {
-        if (entry->d_type == DT_REG) {
-            size_t len = strlen(entry->d_name);
-            if (len > 4 && strcmp(entry->d_name + len - 4, ".bin") == 0) {
-                char fullpath[256];
-                sprintf(fullpath, "%s%s", dirpath, entry->d_name);
-                Weights* weights = load_weights(fullpath);
-                int logit_sizes[2] = {9, 5};
-                nets[idx] = make_linearlstm(weights, 1, 21, logit_sizes, 2);
-
-                names[idx] = strdup(entry->d_name);
-                char* dot = strrchr(names[idx], '.');
-                if (dot) *dot = '\0';
-
-                idx++;
-            }
+    int logit_sizes[2] = {9, 5};
+    for (int i = 0; i < num_agents; i++) {
+        char fullpath[256];
+        snprintf(fullpath, sizeof(fullpath), "%s%s", dirpath, fish[i]);
+        Weights* weights = load_weights(fullpath);
+        nets[i] = make_linearlstm(weights, 1, 21, logit_sizes, 2);
+        names[i] = strdup(fish[i]);
+        char* dot = strrchr(names[i], '.');
+        if (dot) {
+            *dot = '\0';
         }
     }
-    closedir(dir);
 
     int num_goals = 4;
     int num_obs = 21;

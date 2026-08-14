@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include "puffernet.h"
+#include "puffercpu.h"
 
 const char* WEIGHTS_PATH = "resources/blastar/blastar_weights.bin";
 #define OBSERVATIONS_SIZE 10

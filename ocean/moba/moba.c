@@ -1,5 +1,5 @@
 #include "moba.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {
     // encoder(64x510=32640) + decoder(24x64=1536) + 5x mingru(192x64=12288) = 95616

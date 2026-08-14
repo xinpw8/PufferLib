@@ -63,11 +63,7 @@ struct Env {
 typedef Env Cartpole;
 
 void add_log(Cartpole* env) {
-    if (env->episode_return > 0) {
-        env->log.perf = env->episode_return / MAX_STEPS;
-    } else {
-        env->log.perf = 0.0f;
-    }
+    env->log.perf += env->episode_return / MAX_STEPS;
     env->log.episode_length += env->tick;
     env->log.score += env->tick;
     env->log.x_threshold_termination += (env->x < -X_THRESHOLD || env->x > X_THRESHOLD);

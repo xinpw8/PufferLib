@@ -1,7 +1,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "rware.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 #define MAP_TINY_WIDTH 640
 #define MAP_TINY_HEIGHT 704
 #define MAP_SMALL_WIDTH 1280

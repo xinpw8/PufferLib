@@ -27,8 +27,11 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdalign.h>
 #include <math.h>
+#if defined(__AVX2__)
 #include <immintrin.h>
+#endif
 #include "raylib.h"
 
 #include "pufferenv.h"

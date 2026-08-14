@@ -7,7 +7,7 @@
  */
 
 #include "squared.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 void demo() {
     Squared env = {.size = 11};

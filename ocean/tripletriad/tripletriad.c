@@ -1,5 +1,5 @@
 #include "tripletriad.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 #include <time.h>
 
 #define NOOP -1

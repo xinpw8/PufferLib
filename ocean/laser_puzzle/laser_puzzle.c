@@ -1,5 +1,5 @@
 #include "laser_puzzle.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 
 #define WEIGHTS_PATH "resources/laser_puzzle/laser_puzzle_weights.bin"
 

@@ -1,5 +1,5 @@
 #include "convert_circle.h"
-#include "puffernet.h"
+#include "puffercpu.h"
 #include <stdlib.h>
 #include <time.h>
 
