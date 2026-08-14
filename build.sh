@@ -2,8 +2,9 @@
 set -e
 
 # Usage:
-#   ./build.sh breakout              # Full native train/eval binary (CPU envs)
+#   ./build.sh breakout              # Native train/eval -> ./puffer
 #   ./build.sh breakout --gpu        # GPU env (ENV_HEADER=ocean/ENV/ENV.cu; exclusive vs .h)
+#   ./build.sh breakout --named      # Native -> build/puffer_breakout (does not clobber ./puffer)
 #   ./build.sh breakout --float      # float32 precision (required for --slowly)
 #   ./build.sh breakout --cpu        # Tiny standalone CPU eval executable
 #   ./build.sh breakout --debug      # Debug build
@@ -15,15 +16,12 @@ set -e
 #   ./build.sh breakout --device N   # Pin CUDA_VISIBLE_DEVICES during the build
 #   ./build.sh all                   # Build all envs native and native float32
 #
-# Native train/eval binaries are written per-env so parallel builds/runs
-# do not clobber a shared ./puffer:
-#   build/puffer_<env>         default precision
-#   build/puffer_<env>_float   --float
-# Runtime GPU selection: CUDA_VISIBLE_DEVICES=N ./build/puffer_<env> train <env>
-# or  ./build/puffer_<env> train <env> base.gpu_offset=N
+# Env is compiled in. Run: ./puffer train | eval | match | sweep [section.key=value ...]
+# Named: CUDA_VISIBLE_DEVICES=N ./build/puffer_breakout train
+# or     ./build/puffer_breakout train base.gpu_offset=N
 
 if [ -z "$1" ]; then
-    echo "Usage: ./build.sh ENV_NAME [--gpu] [--float] [--debug] [--local|--fast|--web|--profile|--cpu] [--device N]"
+    echo "Usage: ./build.sh ENV_NAME [--gpu] [--named] [--float] [--debug] [--local|--fast|--web|--profile|--cpu] [--device N]"
     exit 1
 fi
 ENV=$1
@@ -32,9 +30,11 @@ shift
 USE_GPU_ENV=0
 DEVICE=""
 SNAKE_RAW=0
+NAMED=0
 while [ $# -gt 0 ]; do
     case $1 in
         --gpu) USE_GPU_ENV=1 ;;
+        --named) NAMED=1 ;;
         --float) PRECISION="-DPRECISION_FLOAT" ;;
         --no-onehot) SNAKE_RAW=1 ;;
         --debug) DEBUG=1 ;;
@@ -194,6 +194,7 @@ case "$ENV" in
         ;;
 esac
 
+USER_OUTPUT_NAME=${OUTPUT_NAME-}
 OUTPUT_NAME=${OUTPUT_NAME:-$ENV}
 SRC_FILE=${SRC_FILE:-$SRC_DIR/$ENV.c}
 
@@ -352,13 +353,21 @@ MODE=${MODE:-native}
 NVCC_NARROW=(-Xcompiler=-Wno-narrowing --diag-suppress=2361)
 
 if [ "$MODE" = "native" ]; then
-    if [ -n "$PRECISION" ]; then
-        TRAIN_BIN="build/puffer_${ENV}_float"
-    elif [ "$SNAKE_RAW" = "1" ]; then
-        TRAIN_BIN="build/puffer_${ENV}_raw"
-        EXTRA_CFLAGS+=(-DSNAKE_ONEHOT=0)
+    if [ -n "$USER_OUTPUT_NAME" ]; then
+        TRAIN_BIN="$USER_OUTPUT_NAME"
+    elif [ "$NAMED" = 1 ]; then
+        if [ -n "$PRECISION" ]; then
+            TRAIN_BIN="build/puffer_${ENV}_float"
+        elif [ "$SNAKE_RAW" = "1" ]; then
+            TRAIN_BIN="build/puffer_${ENV}_raw"
+        else
+            TRAIN_BIN="build/puffer_${ENV}"
+        fi
     else
-        TRAIN_BIN="build/puffer_${ENV}"
+        TRAIN_BIN="puffer"
+    fi
+    if [ "$SNAKE_RAW" = "1" ]; then
+        EXTRA_CFLAGS+=(-DSNAKE_ONEHOT=0)
     fi
     echo "Compiling native train/eval binary ($ARCH) -> $TRAIN_BIN..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \

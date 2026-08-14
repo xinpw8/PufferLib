@@ -2734,11 +2734,10 @@ void run_sweep(Ini* ini, const char* exe_path) {
             for (int s = 0; s < ini->num_sections; s++) {
                 nkeys += ini->sections[s].size;
             }
-            char** argv = (char**)calloc(nkeys + 4, sizeof(char*));
+            char** argv = (char**)calloc(nkeys + 3, sizeof(char*));
             argv[0] = (char*)exe_path;
             argv[1] = (char*)"train";
-            argv[2] = (char*)puf_ini_get_str(ini, "base", "env_name");
-            int argc = 3;
+            int argc = 2;
             char full_key[PUF_DICT_MAX_KEY * 2];
             char val[128];
             for (int s = 0; s < ini->num_sections; s++) {
@@ -2768,7 +2767,7 @@ void run_sweep(Ini* ini, const char* exe_path) {
             assert(posix_spawnp(&job.pid, exe_path, &actions, NULL, argv, environ) == 0
                 && "posix_spawn train failed");
             posix_spawn_file_actions_destroy(&actions);
-            for (int a = 3; a < argc; a++) {
+            for (int a = 2; a < argc; a++) {
                 free(argv[a]);
             }
             free(argv);
@@ -3323,8 +3322,8 @@ TrainResult launch_train(Ini* ini) {
 int main(int argc, char** argv) {
     setbuf(stdout, NULL);
     setbuf(stderr, NULL);
-    if (argc < 3) {
-        fprintf(stderr, "usage: %s train|eval|match|sweep ENV [section.key=value ...]\n", argv[0]);
+    if (argc < 2) {
+        fprintf(stderr, "usage: %s train|eval|match|sweep [section.key=value ...]\n", argv[0]);
         exit(1);
     }
     int total_gpus = 0;
@@ -3333,7 +3332,7 @@ int main(int argc, char** argv) {
 
     const char* mode = argv[1];
     Ini ini = {0};
-    puf_ini_load_env(&ini, argv[2], argc - 3, argv + 3);
+    puf_ini_load_env(&ini, PUFFER_ENV_NAME, argc - 2, argv + 2);
     TrainContext ctx = {.world_size = 1, .artifact_owner = 1};
 
     if (strcmp(mode, "train") == 0) {

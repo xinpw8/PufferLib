@@ -273,7 +273,6 @@ struct PPOProfile {
     Float losses_acc, ppo_partials;
     Float grad_logits_t, grad_values_t, adv_mean_t, adv_var_t, ent_coef_t;
     Prec logits_t, actions_t, old_logprobs_t, advantages_t, prio_t, values_t, returns_t;
-    Prec ratio_t, newvalue_t;
     Int act_sizes_t;
     Allocator alloc;
     int N, T, A, ppo_grid;
@@ -295,8 +294,6 @@ PPOProfile* create_ppoloss(int N, int T, int A) {
     p->prio_t         = {.shape = {N}};
     p->values_t       = {.shape = {NT}};
     p->returns_t      = {.shape = {NT}};
-    p->ratio_t        = {.shape = {NT}};
-    p->newvalue_t     = {.shape = {NT}};
     p->grad_logits_t  = {.shape = {N, T, A}};
     p->grad_values_t  = {.shape = {NT}};
     p->adv_mean_t     = {.shape = {1}};
@@ -314,8 +311,6 @@ PPOProfile* create_ppoloss(int N, int T, int A) {
     alloc_register(&p->alloc, &p->prio_t);
     alloc_register(&p->alloc, &p->values_t);
     alloc_register(&p->alloc, &p->returns_t);
-    alloc_register(&p->alloc, &p->ratio_t);
-    alloc_register(&p->alloc, &p->newvalue_t);
     alloc_register(&p->alloc, &p->grad_logits_t);
     alloc_register(&p->alloc, &p->grad_values_t);
     alloc_register(&p->alloc, &p->adv_mean_t);
@@ -375,24 +370,17 @@ PPOProfile* create_ppoloss(int N, int T, int A) {
         .logits = p->logits_t.data,
         .logstd = NULL,
         .values_pred = p->logits_t.data + A,  // value is last col in fused layout
-        .adv_mean = p->adv_mean_t.data,
-        .adv_var = p->adv_var_t.data,
         .act_sizes = p->act_sizes_t.data,
         .action_mask = NULL,
-        .head_consume = NULL,
-        .hc_stride = 0,
         .num_atns = 1,
         .clip_coef = 0.1f, .vf_clip_coef = 0.1f, .vf_coef = 0.5f, .ent_coef = p->ent_coef_t.data,
         .T_seq = T, .A_total = A, .N = N,
         .is_continuous = false,
     };
     p->ga = {
-        .out_ratio = p->ratio_t.data,
-        .out_newvalue = p->newvalue_t.data,
         .actions = p->actions_t.data,
         .old_logprobs = p->old_logprobs_t.data,
         .advantages = p->advantages_t.data,
-        .prio = p->prio_t.data,
         .values = p->values_t.data,
         .returns = p->returns_t.data,
     };
@@ -464,7 +452,7 @@ void run_samplelogits(SampleLogitsProfile* p) {
     sample_logits<<<grid_size(p->B), BLOCK_SIZE>>>(
         p->dec_out, p->logstd, p->act_sizes,
         p->actions_t.data, p->logprobs_t.data, p->value_out_t.data,
-        p->rng_states, NULL, 0, NULL, 0);
+        p->rng_states, NULL, 0);
 }
 
 void profile_samplelogits(int B, int A) {
