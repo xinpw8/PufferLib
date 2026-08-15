@@ -5,6 +5,7 @@
 #include "osrs_items.h"
 #include "osrs_consumables.h"
 #include "osrs_player_consumables.h"
+#include "osrs_human_input_types.h"
 #include "osrs_pvp_gear.h"
 #include "osrs_pvp_combat.h"
 #include "osrs_pvp_movement.h"
@@ -15,8 +16,112 @@
 /* fury +3 + neitiznot +3, worn in every loadout */
 #define PRAYER_BONUS 6
 
-static void eat_food(Player* p, int is_karambwan) {
-    osrs_player_eat_food_type(p, is_karambwan ? FOOD_KARAMBWAN : FOOD_SHARK);
+typedef enum {
+    PVP_ATTACK_NONE = 0,
+    PVP_ATTACK_WEAPON,
+    PVP_ATTACK_ICE,
+    PVP_ATTACK_BLOOD,
+} PvpAttackIntent;
+
+static void human_pvp_translate_inventory_cell(
+    int* actions,
+    const Player* player,
+    int cell
+) {
+    if (cell < 0 || cell >= OSRS_INVENTORY_SIZE) return;
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(&player->inventory_cells[cell]);
+    int click_action = cell + 1;
+    if (metadata->click_action == OSRS_CLICK_EQUIP) {
+        if (metadata->gear_slot >= 0 && metadata->gear_slot < NUM_GEAR_SLOTS)
+            actions[OSRS_HEAD_EQUIP_SLOT(metadata->gear_slot)] = click_action;
+    } else if (metadata->click_action == OSRS_CLICK_EAT) {
+        actions[OSRS_HEAD_EAT] = click_action;
+    } else if (metadata->click_action == OSRS_CLICK_DRINK) {
+        actions[OSRS_HEAD_DRINK] = click_action;
+    }
+}
+
+static int human_pvp_find_consumable_cell(
+    const Player* player,
+    OsrsConsumableKind kind
+) {
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        const OsrsItemContentMetadata* metadata =
+            osrs_inventory_cell_metadata(&player->inventory_cells[cell]);
+        if (metadata->consumable_kind == kind) return cell;
+    }
+    return -1;
+}
+
+static void human_to_pvp_actions(
+    HumanInput* hi,
+    int* actions,
+    Player* agent
+) {
+    memset(actions, 0, OSRS_BASE_NUM_ACTION_HEADS * sizeof(int));
+    if (hi->pending_move_x >= 0 && hi->pending_move_y >= 0) {
+        int dx = hi->pending_move_x - agent->x;
+        int dy = hi->pending_move_y - agent->y;
+        if (dx < -2) dx = -2;
+        if (dx > 2) dx = 2;
+        if (dy < -2) dy = -2;
+        if (dy > 2) dy = 2;
+        for (int action = 1; action < OSRS_PRIMARY_MOVE_ACTIONS; action++) {
+            if (ENCOUNTER_MOVE_TARGET_DX[action] == dx &&
+                    ENCOUNTER_MOVE_TARGET_DY[action] == dy) {
+                actions[OSRS_HEAD_PRIMARY] = action;
+                break;
+            }
+        }
+    }
+    encounter_translate_prayer(hi, actions, OSRS_HEAD_OVERHEAD);
+    encounter_translate_offensive_prayer(hi, actions, OSRS_HEAD_OFFENSIVE);
+
+    if (hi->pending_attack) {
+        actions[OSRS_HEAD_PRIMARY] = OSRS_PRIMARY_MOVE_ACTIONS;
+        if (hi->pending_spell == PVP_ATTACK_ICE)
+            actions[OSRS_HEAD_SPELL] = OSRS_SPELL_ICE_BARRAGE;
+        else if (hi->pending_spell == PVP_ATTACK_BLOOD)
+            actions[OSRS_HEAD_SPELL] = OSRS_SPELL_BLOOD_BARRAGE;
+    }
+    if (hi->pending_food) {
+        int cell = human_pvp_find_consumable_cell(
+            agent, OSRS_CONSUMABLE_SHARK_FOOD);
+        if (cell >= 0) actions[OSRS_HEAD_EAT] = cell + 1;
+    }
+    if (hi->pending_karambwan) {
+        int cell = human_pvp_find_consumable_cell(
+            agent, OSRS_CONSUMABLE_KARAMBWAN);
+        if (cell >= 0) actions[OSRS_HEAD_EAT] = cell + 1;
+    }
+    OsrsConsumableKind potion_kind = OSRS_CONSUMABLE_NONE;
+    if (hi->pending_potion == POTION_BREW)
+        potion_kind = OSRS_CONSUMABLE_BREW;
+    else if (hi->pending_potion == POTION_RESTORE)
+        potion_kind = OSRS_CONSUMABLE_SUPER_RESTORE;
+    else if (hi->pending_potion == POTION_COMBAT)
+        potion_kind = OSRS_CONSUMABLE_SUPER_COMBAT;
+    else if (hi->pending_potion == POTION_RANGED)
+        potion_kind = OSRS_CONSUMABLE_RANGING;
+    if (potion_kind != OSRS_CONSUMABLE_NONE) {
+        int cell = human_pvp_find_consumable_cell(agent, potion_kind);
+        if (cell >= 0) actions[OSRS_HEAD_DRINK] = cell + 1;
+    }
+    for (int i = 0; i < hi->commands.count; i++) {
+        const HumanCommand* command = &hi->commands.items[i];
+        if (command->kind == HUMAN_COMMAND_EQUIP_INVENTORY_ITEM ||
+                command->kind == HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK ||
+                command->kind == HUMAN_COMMAND_EAT ||
+                command->kind == HUMAN_COMMAND_DRINK) {
+            human_pvp_translate_inventory_cell(
+                actions, agent, command->inventory_slot);
+        }
+    }
+    if (hi->pending_veng)
+        actions[OSRS_HEAD_SPELL] = OSRS_SPELL_VENGEANCE;
+    if (hi->pending_spec)
+        actions[OSRS_HEAD_SPECIAL] = agent->spec_armed ? 2 : 1;
 }
 
 static void pvp_apply_drink_one_dose_effect(
@@ -330,12 +435,6 @@ static void execute_switches(
     (void)topology;
 }
 
-typedef enum {
-    PVP_ATTACK_NONE = 0,
-    PVP_ATTACK_WEAPON,
-    PVP_ATTACK_ICE,
-    PVP_ATTACK_BLOOD,
-} PvpAttackIntent;
 
 #define PVP_MOVE_NONE 0
 

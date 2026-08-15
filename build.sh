@@ -87,30 +87,17 @@ fi
 PLATFORM="$(uname -s)"
 if [ "$PLATFORM" = "Linux" ]; then
     RAYLIB_NAME='raylib-5.5_linux_amd64'
+    OMP_FLAGS=(-fopenmp)
     OMP_LIB=-lomp5
     SANITIZE_FLAGS=(-fsanitize=address,undefined,bounds,pointer-overflow,leak -fno-omit-frame-pointer)
     STANDALONE_LDFLAGS=(-lGL)
 else
     RAYLIB_NAME='raylib-5.5_macos'
+    OMP_PREFIX="$(brew --prefix libomp)"
+    OMP_FLAGS=(-Xclang -fopenmp -I"$OMP_PREFIX/include" -L"$OMP_PREFIX/lib" -lomp)
     OMP_LIB=-lomp
     SANITIZE_FLAGS=()
     STANDALONE_LDFLAGS=(-framework Cocoa -framework IOKit -framework CoreVideo -framework OpenGL)
-fi
-
-# OpenMP for the standalone (--local/--fast/--cpu) clang paths. Apple clang rejects
-# -fopenmp; it needs -Xclang -fopenmp plus Homebrew libomp on the include/lib path.
-# Linux clang/gcc take -fopenmp directly, so those defaults are preserved there.
-OMP_CFLAGS=(-fopenmp)
-OMP_LDFLAGS=(-fopenmp)
-if [ "$PLATFORM" != "Linux" ]; then
-    OMP_PREFIX="$(brew --prefix libomp 2>/dev/null || true)"
-    if [ -n "$OMP_PREFIX" ]; then
-        OMP_CFLAGS=(-Xclang -fopenmp -I"$OMP_PREFIX/include")
-        OMP_LDFLAGS=(-L"$OMP_PREFIX/lib" -lomp)
-    else
-        OMP_CFLAGS=(-Xclang -fopenmp)
-        OMP_LDFLAGS=(-lomp)
-    fi
 fi
 
 CLANG_WARN=(
@@ -214,9 +201,6 @@ USER_OUTPUT_NAME=${OUTPUT_NAME-}
 OUTPUT_NAME=${OUTPUT_NAME:-$ENV}
 SRC_FILE=${SRC_FILE:-$SRC_DIR/$ENV.c}
 
-# Standalone environment build
-# -mavx2 enables AVX2 intrinsics (__m256, _mm256_*) which drive.h and
-# src/pufferenv.h use directly. x86_64 only — omitted on ARM/Apple Silicon.
 if [ "$(uname -m)" = "x86_64" ]; then
     SIMD_FLAGS=(-mavx2 -mfma)
 else
@@ -239,7 +223,7 @@ if [ "$MODE" = "local" ] || [ "$MODE" = "fast" ]; then
         "${LINK_ARCHIVES[@]}"
         "${EXTRA_LDFLAGS[@]}"
         "${STANDALONE_LDFLAGS[@]}"
-        -lm -lpthread "${OMP_CFLAGS[@]}" "${OMP_LDFLAGS[@]}"
+        -lm -lpthread "${OMP_FLAGS[@]}"
         -DPLATFORM_DESKTOP
         "${EXTRA_CFLAGS[@]}"
     )
@@ -317,7 +301,7 @@ elif [ "$MODE" = "cpu" ]; then
         "${LINK_ARCHIVES[@]}" \
         "${EXTRA_LDFLAGS[@]}" \
         "${STANDALONE_LDFLAGS[@]}" \
-        -lm -lpthread "${OMP_CFLAGS[@]}" "${OMP_LDFLAGS[@]}" \
+        -lm -lpthread "${OMP_FLAGS[@]}" \
         -o "build/cpu_${ENV}"
     echo "Built: ./build/cpu_${ENV}"
     exit 0

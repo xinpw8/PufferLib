@@ -88,59 +88,6 @@ static int select_closest_adjacent_tile(
         p, candidates, target_x, target_y, out_x, out_y, topology);
 }
 
-static int select_closest_diagonal_tile(
-    Player* p,
-    int target_x,
-    int target_y,
-    int* out_x,
-    int* out_y,
-    const EncounterArenaTopology* topology
-) {
-    const int candidates[4][2] = {
-        {target_x + 1, target_y + 1},
-        {target_x + 1, target_y - 1},
-        {target_x - 1, target_y - 1},
-        {target_x - 1, target_y + 1}
-    };
-    return select_closest_candidate_tile(
-        p, candidates, target_x, target_y, out_x, out_y, topology);
-}
-
-static int select_farcast_tile(
-    Player* p,
-    int target_x,
-    int target_y,
-    int distance,
-    int* out_x,
-    int* out_y,
-    const EncounterArenaTopology* topology
-) {
-    int raw_dx = p->x - target_x;
-    int raw_dy = p->y - target_y;
-    int d = distance;
-    int dx = raw_dx < -d ? -d : (raw_dx > d ? d : raw_dx);
-    int dy = raw_dy < -d ? -d : (raw_dy > d ? d : raw_dy);
-    int adx = abs_int(dx);
-    int ady = abs_int(dy);
-    if (adx < d && ady < d) {
-        if (adx >= ady)
-            dx = raw_dx >= 0 ? d : -d;
-        else
-            dy = raw_dy >= 0 ? d : -d;
-    }
-
-    int cx = target_x + dx;
-    int cy = target_y + dy;
-    if (pvp_topology_destination_selectable(topology, cx, cy)) {
-        *out_x = cx;
-        *out_y = cy;
-        return 1;
-    }
-
-    return 0;
-}
-
-
 
 typedef struct {
     EncounterArenaTopology* topology;
@@ -340,19 +287,6 @@ static int pvp_lookup_attack_target(void* ctx, int target_slot, OsrsAttackTarget
     return 1;
 }
 
-static inline OsrsEncounterArena pvp_build_arena(
-    const EncounterArenaTopology* topology
-) {
-    return (OsrsEncounterArena){
-        .topology = topology,
-        .blockers = {0},
-        .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
-        .cost_policy = ENCOUNTER_ROUTE_COST_OSRS_TARGET_BFS,
-        .destination_cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
-        .attack_geometry = ENCOUNTER_ROUTE_ATTACK_GEOMETRY_TOPOLOGY,
-    };
-}
-
 static inline OsrsPlayerStepResult pvp_step_player_movement(
     OsrsEnv* env,
     int agent_idx,
@@ -395,7 +329,14 @@ static inline OsrsPlayerStepResult pvp_step_player_movement(
             return result;
         }
     }
-    OsrsEncounterArena arena = pvp_build_arena(topology);
+    OsrsEncounterArena arena = {
+        .topology = topology,
+        .blockers = {0},
+        .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+        .cost_policy = ENCOUNTER_ROUTE_COST_OSRS_TARGET_BFS,
+        .destination_cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
+        .attack_geometry = ENCOUNTER_ROUTE_ATTACK_GEOMETRY_TOPOLOGY,
+    };
     OsrsPlayerStepInput input = {
         .player = p,
         .interaction = &p->interaction,

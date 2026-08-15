@@ -1,10 +1,6 @@
 #line 76 "encounter_colosseum.h"
 
-static void col_apply_npc_death(
-    ColosseumState* s,
-    const ColosseumContext* ctx,
-    int idx
-) {
+static void col_apply_npc_death(ColosseumState* s, int idx) {
     ColoNPC* npc = &s->npcs[idx];
 
     if (col_type_is_hazard_entity(npc->type)) {
@@ -80,7 +76,7 @@ static void col_apply_echo_boots_recoil(
         s->current_wave_fresh_damage += fresh;
     }
     if (npc->hp <= 0) {
-        col_apply_npc_death(s, ctx, attacker_slot);
+        col_apply_npc_death(s, attacker_slot);
     } else {
         col_mod_on_npc_hp_changed(
             s, ctx->route_topology, attacker_slot);
@@ -124,7 +120,7 @@ static void col_resolve_player_projectiles_on_npcs_ctx(
                         s->current_wave_fresh_damage += fresh;
                 }
                 if (npc->hp <= 0) {
-                    col_apply_npc_death(s, ctx, i);
+                    col_apply_npc_death(s, i);
                     break;
                 }
                 col_mod_on_npc_hp_changed(s, ctx->route_topology, i);
@@ -135,12 +131,6 @@ static void col_resolve_player_projectiles_on_npcs_ctx(
     }
 }
 
-static void col_resolve_player_projectiles_on_npcs(
-    ColosseumState* s,
-    ColosseumContext* ctx
-) {
-    col_resolve_player_projectiles_on_npcs_ctx(s, ctx);
-}
 
 static void col_remove_npc_corpse(
     ColosseumState* s,

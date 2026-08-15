@@ -49,19 +49,19 @@ static void create_custom_encoder(const char* env_name, Encoder* enc) {
         return;
     }
     if (strcmp(env_name, "osrs_colosseum") == 0) {
-        create_osrs_colosseum_encoder(enc);
+        create_osrs_entity_encoder<&OSRS_COLOSSEUM_ENTITY_DESCRIPTOR>(enc);
         return;
     }
     if (strcmp(env_name, "osrs_inferno") == 0) {
-        create_osrs_inferno_encoder(enc);
+        create_osrs_entity_encoder<&OSRS_INFERNO_ENTITY_DESCRIPTOR>(enc);
         return;
     }
     if (strcmp(env_name, "osrs_zulrah") == 0) {
-        create_osrs_zulrah_encoder(enc);
+        create_osrs_entity_encoder<&OSRS_EQUIPMENT_ENTITY_DESCRIPTOR>(enc);
         return;
     }
     if (strcmp(env_name, "osrs_pvp") == 0) {
-        create_osrs_pvp_encoder(enc);
+        create_osrs_entity_encoder<&OSRS_EQUIPMENT_ENTITY_DESCRIPTOR>(enc);
         return;
     }
 }

@@ -34,37 +34,6 @@ static inline int col_wave_entry_delay_ticks(int target_wave) {
 #define COLO_MAX_NPCS 24
 #define COLO_OBS_NPCS COLO_MAX_NPCS
 
-typedef enum {
-    COLO_FORECAST_BEHAVIOR_STANDARD = 0,
-    COLO_FORECAST_BEHAVIOR_WARBAND,
-    COLO_FORECAST_BEHAVIOR_MANTICORE,
-    COLO_FORECAST_BEHAVIOR_SOL,
-} ColoForecastBehaviorKind;
-
-typedef struct {
-    int active;
-    ColoNpcType type;
-    ColoForecastBehaviorKind forecast_behavior;
-    int x;
-    int y;
-    int size;
-    int hp;
-    int attack_range;
-    int attack_speed;
-    int can_move;
-    AttackStyle default_style;
-    int attack_timer;
-    int stun_timer;
-    int frozen_ticks;
-    int death_ticks;
-    int cycle_step;
-    AttackStyle orb_style[3];
-    AttackStyle fixed_orb_style[3];
-    int formation_dir;
-    int javelin_attack_count;
-    int sol_attack_delay;
-    int sol_immobile_ticks;
-} ColoForecastNpcLocal;
 
 typedef struct { uint8_t lo, hi; } ColoWallSpan;
 #define COLO_WALL_SPANS_PER_ROW 3
@@ -1326,28 +1295,14 @@ typedef struct {
     ColoNpcType volatility_explosion_type[COLO_MAX_NPCS];
 } ColosseumContext;
 
-/* Clears only what was written. col_render_hit_events_add aborts past
- * ENCOUNTER_RENDER_HITS_MAX and fills strictly below count, and a row whose count is zero
- * is already zero from the previous clear, so the old blanket memset of
- * COLO_MAX_NPCS x ENCOUNTER_RENDER_HITS_MAX ints re-zeroed memory that was already zero.
- * That was 3488 B per tick per env and 15% of the whole env step. */
 static inline void col_context_clear_render_events(ColosseumContext* ctx) {
     memset(ctx->npc_render_attack_anim, 0, sizeof(ctx->npc_render_attack_anim));
     memset(ctx->manticore_charge_started, 0, sizeof(ctx->manticore_charge_started));
-    for (int h = 0; h < ctx->player_render_hit_count; h++)
-        ctx->player_render_hit_damage[h] = 0;
     ctx->player_render_hit_count = 0;
-    for (int i = 0; i < COLO_MAX_NPCS; i++) {
-        int n = ctx->npc_render_hit_count[i];
-        if (n <= 0) continue;
-        for (int h = 0; h < n; h++) ctx->npc_render_hit_damage[i][h] = 0;
-        ctx->npc_render_hit_count[i] = 0;
-    }
+    memset(ctx->npc_render_hit_count, 0, sizeof(ctx->npc_render_hit_count));
     ctx->thrall_attacked_this_tick = 0;
     ctx->player_spec_fired_kind = 0;
     ctx->player_venator_chain_count = 0;
-    for (int i = 0; i < OSRS_VENATOR_MAX_CHAIN_HITS; i++)
-        ctx->player_venator_chain_slots[i] = -1;
     ctx->volatility_explosion_count = 0;
 }
 
@@ -1358,8 +1313,6 @@ static inline void col_context_record_venator_chain(
     if (!chain) abort();
     osrs_venator_validate_chain_length(chain->length);
     ctx->player_venator_chain_count = (int)chain->length;
-    for (int i = 0; i < OSRS_VENATOR_MAX_CHAIN_HITS; i++)
-        ctx->player_venator_chain_slots[i] = -1;
     for (int i = 0; i < (int)chain->length; i++)
         ctx->player_venator_chain_slots[i] = chain->hits[i].slot;
 }
@@ -1560,8 +1513,6 @@ typedef struct {
     int player_dest_x, player_dest_y;
 
     uint8_t npc_collision_flags[COLO_ARENA_WIDTH][COLO_ARENA_HEIGHT];
-    /* The player occupies one tile, so a full arena grid recorded one cell and was
-     * memset in full twice per tick. Cache the cell instead. -1 means off-grid. */
     int player_grid_x, player_grid_y;
 
     int start_wave;
@@ -1570,10 +1521,6 @@ typedef struct {
     float active_player_damage_received_scale;
     int profiling_suppressed;
 
-    /* Last two members, and both are skipped by probe_colo_sim_invariant. The probe hashes
-     * this struct's raw bytes, so a member that grows mid-struct repads everything after it
-     * and moves all twelve digests with no behaviour change -- which is exactly what adding
-     * reward telemetry to the log did. At the tail, neither can shift a hashed byte. */
     ColosseumLog log;
     ColoObsMemoCaches obs_memos;
 } ColosseumState;

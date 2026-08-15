@@ -15,7 +15,7 @@ static void col_resolve_player_pending_hits_ctx(ColosseumState* s, ColosseumCont
 static void col_remove_npc_corpse(
     ColosseumState* s, ColosseumContext* ctx, int npc_slot);
 static void col_rebuild_player_collision_flags(ColosseumState* s);
-static void col_refresh_current_obs_slots_ctx(ColosseumState* s, const ColosseumContext* ctx);
+static void col_refresh_current_obs_slots(ColosseumState* s);
 
 static void col_sol_boss_tick(ColosseumState* s, ColosseumContext* ctx);
 static void col_sol_begin_boss_arena(ColosseumState* s);
@@ -110,24 +110,10 @@ static AttackStyle col_equipped_weapon_attack_style(const Player* p) {
     return ATTACK_STYLE_MELEE;
 }
 
-static FightStyle col_equipped_weapon_fight_style(const Player* p) {
-    AttackStyle style = col_equipped_weapon_attack_style(p);
-    if (style == ATTACK_STYLE_RANGED)
-        return FIGHT_STYLE_RAPID;
-    if (style == ATTACK_STYLE_MAGIC)
-        return FIGHT_STYLE_ACCURATE;
-    return FIGHT_STYLE_AGGRESSIVE;
-}
-
 static GearSet col_gear_set_for_attack_style(AttackStyle style) {
     if (style == ATTACK_STYLE_RANGED) return GEAR_RANGED;
     if (style == ATTACK_STYLE_MAGIC) return GEAR_MAGE;
     return GEAR_MELEE;
-}
-
-static int col_equipped_spell_base_damage(const ColosseumState* s) {
-    if (col_equipped_weapon_attack_style(&s->player) != ATTACK_STYLE_MAGIC) return 0;
-    return COLO_MAGIC_SPELL_BASE_DAMAGE[s->active_loadout_profile];
 }
 
 static void col_current_style_levels(
@@ -156,7 +142,9 @@ static void col_mark_live_loadout_dirty(ColosseumState* s) {
 
 static void col_recompute_live_loadout_stats(ColosseumState* s) {
     AttackStyle style = col_equipped_weapon_attack_style(&s->player);
-    FightStyle fight_style = col_equipped_weapon_fight_style(&s->player);
+    FightStyle fight_style = style == ATTACK_STYLE_RANGED ? FIGHT_STYLE_RAPID
+        : style == ATTACK_STYLE_MAGIC ? FIGHT_STYLE_ACCURATE
+        : FIGHT_STYLE_AGGRESSIVE;
     int current_att_level;
     int current_str_level;
     col_current_style_levels(&s->player, style, &current_att_level, &current_str_level);
@@ -168,7 +156,9 @@ static void col_recompute_live_loadout_stats(ColosseumState* s) {
         s->player.offensive_prayer,
         current_att_level,
         fight_style,
-        col_equipped_spell_base_damage(s),
+        style == ATTACK_STYLE_MAGIC
+            ? COLO_MAGIC_SPELL_BASE_DAMAGE[s->active_loadout_profile]
+            : 0,
         &s->loadout_stats_live);
     encounter_update_loadout_level(
         &s->loadout_stats_live,
@@ -336,15 +326,6 @@ static int col_topology_tile_blocked(
     return encounter_arena_topology_tile_blocked(ctx->route_topology, x, y);
 }
 
-static int col_topology_footprint_blocked(
-    const ColosseumContext* ctx,
-    int x,
-    int y,
-    int size
-) {
-    return encounter_arena_topology_footprint_blocked(
-        ctx->route_topology, x, y, size);
-}
 
 static int col_topology_los_clear(
     const ColosseumContext* ctx,

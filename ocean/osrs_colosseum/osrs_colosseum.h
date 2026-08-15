@@ -7,9 +7,6 @@
 
 #include "pufferenv.h"
 
-/* Before the encounter header, so the COLO_PROFILE_MARK sites inside it compile in.
- * Every mark is a branch on a static int and does no work until
- * PUFFER_COLOSSEUM_PROFILE is set, so the training path pays a predictable branch. */
 #include "colosseum_profile.h"
 
 #define Log OsrsSharedLog
@@ -132,7 +129,6 @@ static inline float col_curriculum_uniform(uint32_t env_index) {
 }
 
 static void col_write_action_mask_bytes(Env* env, unsigned char* mask_out) {
-    if (!mask_out) return;
     float mask_f[COLO_ACTION_MASK_SIZE];
     ENCOUNTER_COLOSSEUM.write_mask(
         COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), mask_f);
@@ -339,9 +335,6 @@ void puf_step(Env* env) {
     COLO_PROFILE_MARK(COLO_PROF_C_REWARD_TERMINAL);
 #endif
 
-    /* Both readings run the best-gear oracle, which is the single most expensive thing
-     * left in the env step. They are means over millions of steps, so a 1-in-N sample is
-     * just as precise and costs N times less. */
     if (env->state.start_wave == env->config_start_wave &&
             (env->dpt_sample_step++ % COLO_DPT_SAMPLE_INTERVAL) == 0) {
         col_log_dpt_sample(
@@ -457,15 +450,14 @@ void puf_step(Env* env) {
 #endif
     }
 #ifdef COLO_PROFILE_ENABLED
-    if (col_prof_enabled)
+    if (col_prof_enabled) {
         COLO_PROFILE_ADD(COLO_PROF_C_STEP_TOTAL, COLO_PROFILE_NOW_MS() - col_prof_step_t0);
         COLO_PROFILE_ADD(COLO_PROF_ENV_STEPS, 1.0);
+    }
 #endif
 }
 
 #ifdef COLO_PROFILE_ENABLED
-/* best_gear_* accumulate event counts, not milliseconds, so a %-of-step column on them
- * is meaningless. */
 static int col_profile_slot_is_counter(int slot) {
     return slot == COLO_PROF_ENV_STEPS ||
         slot == COLO_PROF_BEST_GEAR_REQUESTS ||
@@ -483,8 +475,6 @@ void puf_env_profile_report(void) {
     double total = v[COLO_PROF_C_STEP_TOTAL];
     if (total <= 0.0) return;
 
-    /* Absolute ns per env step is the number worth judging: a share only says how a slot
-     * compares to its siblings, never whether the work itself is justified. */
     double steps = v[COLO_PROF_ENV_STEPS];
     if (steps <= 0.0) return;
     printf("\nenv profile: %.0f env-steps, %.0f ns/env-step total\n",
@@ -540,9 +530,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "npc_blocked_tiles", log->npc_blocked_tiles);
     dict_set(out, "npc_stamp_tiles", log->npc_stamp_tiles);
 
-    /* Ahead of the per-type breakdowns on purpose: the dashboard renders only the first
-     * PUF_DASH_MAX_USER_ROWS*2 keys, and how much reward the [-1,1] clamp discards is a
-     * health check on the whole reward design, not a per-NPC detail. */
     dict_set(out, "reward_clamp_frac", log->reward_steps > 0.0f
         ? log->reward_clamped_steps / log->reward_steps : 0.0f);
     dict_set(out, "reward_clamp_loss", log->reward_clamp_loss);
@@ -723,4 +710,5 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "death_dmg_self", log->death_dmg_self);
     dict_set(out, "death_heal_remaining", log->death_heal_remaining);
     dict_set(out, "farm_damage", log->farm_damage);
+    dict_set(out, "n", log->n);
 }

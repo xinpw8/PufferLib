@@ -58,7 +58,6 @@ static inline uint32_t zul_lowbias32(uint32_t x) {
 }
 
 static void zul_write_native_action_mask(Env* env, unsigned char* mask_out) {
-    if (!mask_out) return;
     zul_write_mask_bytes(
         ZUL_ENV_STATE(env), ZUL_ENV_CONTEXT(env), mask_out);
 }

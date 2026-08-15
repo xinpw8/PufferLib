@@ -252,20 +252,12 @@ static inline uint8_t find_best_available(
     return ITEM_NONE;
 }
 
-static inline uint8_t find_best_melee_spec(const Player* p) {
-    return find_best_available(p, GEAR_SLOT_WEAPON, MELEE_SPEC_PRIORITY, MELEE_SPEC_PRIORITY_LEN);
-}
-
 static inline uint8_t find_best_ranged_spec(const Player* p) {
     return find_best_available(p, GEAR_SLOT_WEAPON, RANGE_SPEC_PRIORITY, RANGE_SPEC_PRIORITY_LEN);
 }
 
 static inline uint8_t find_best_magic_spec(const Player* p) {
     return find_best_available(p, GEAR_SLOT_WEAPON, MAGIC_SPEC_PRIORITY, MAGIC_SPEC_PRIORITY_LEN);
-}
-
-static inline int player_has_gmaul(const Player* p) {
-    return player_has_item_in_slot(p, GEAR_SLOT_WEAPON, ITEM_GRANITE_MAUL);
 }
 
 typedef struct {
@@ -538,10 +530,6 @@ static inline int remove_item_from_inventory(Player* p, int gear_slot, uint8_t i
     return 1;
 }
 
-static inline int item_to_gear_slot(uint8_t item_idx) {
-    return osrs_item_gear_slot(item_idx);
-}
-
 static const uint8_t CHAIN_REPLACES[][2] = {
     { ITEM_VESTAS, ITEM_WHIP },
     { ITEM_ZURIELS_STAFF, ITEM_STAFF_OF_DEAD },
@@ -600,13 +588,13 @@ static const uint8_t CHAIN_REPLACES[][2] = {
 #define CHAIN_REPLACES_LEN (sizeof(CHAIN_REPLACES) / sizeof(CHAIN_REPLACES[0]))
 
 static inline void add_loot_item(Player* p, uint8_t item_idx) {
-    int gear_slot = item_to_gear_slot(item_idx);
+    int gear_slot = osrs_item_gear_slot(item_idx);
     if (gear_slot < 0) return;
 
     for (int i = 0; i < (int)CHAIN_REPLACES_LEN; i++) {
         if (CHAIN_REPLACES[i][1] == item_idx) {
             uint8_t better = CHAIN_REPLACES[i][0];
-            int better_slot = item_to_gear_slot(better);
+            int better_slot = osrs_item_gear_slot(better);
             if (better_slot >= 0 && player_has_item_in_slot(p, better_slot, better)) {
                 return;
             }
@@ -615,7 +603,7 @@ static inline void add_loot_item(Player* p, uint8_t item_idx) {
 
     uint8_t replaces = UPGRADE_REPLACES[item_idx];
     if (replaces != ITEM_NONE) {
-        int replace_slot = item_to_gear_slot(replaces);
+        int replace_slot = osrs_item_gear_slot(replaces);
         if (replace_slot >= 0) {
             remove_item_from_inventory(p, replace_slot, replaces);
         }
@@ -624,7 +612,7 @@ static inline void add_loot_item(Player* p, uint8_t item_idx) {
     for (int i = 0; i < (int)CHAIN_REPLACES_LEN; i++) {
         if (CHAIN_REPLACES[i][0] == item_idx) {
             uint8_t obsolete = CHAIN_REPLACES[i][1];
-            int obs_slot = item_to_gear_slot(obsolete);
+            int obs_slot = osrs_item_gear_slot(obsolete);
             if (obs_slot >= 0) {
                 remove_item_from_inventory(p, obs_slot, obsolete);
             }

@@ -138,11 +138,6 @@ typedef struct {
     int can_move;
 } InfNPCStats;
 
-/** attack_decision_ticks: ticks between inf_npc_attack decisions, when that is
-    not MONSTER_DATABASE attack_speed. 0 means use the database. Jal-Ak is the
-    only deviation: the wiki gives it attack speed 6 and a protection-prayer
-    scan 3 ticks before each attack, and inferno spends one decision on the scan
-    and one on the attack, so its decision cadence is half its attack speed. */
 typedef struct {
     int attack_range;
     AttackStyle default_style;

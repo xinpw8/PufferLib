@@ -21,20 +21,6 @@ static_assert(14 + 13 - 1 == 26);
 static_assert(124 + 14 * 13 <= 530);
 
 static constexpr OsrsEntityEncoderDescriptor OSRS_INFERNO_ENTITY_DESCRIPTOR = {
-    .env_name = "osrs_inferno",
-    .obs_size = 530,
     .branches = OSRS_INFERNO_ENTITY_BRANCHES,
     .num_branches = 2,
 };
-
-static void* osrs_inferno_entity_encoder_create_weights(void* self) {
-    return osrs_entity_encoder_create_weights(
-        self, &OSRS_INFERNO_ENTITY_DESCRIPTOR);
-}
-
-static void create_osrs_inferno_encoder(Encoder* encoder) {
-    osrs_entity_encoder_configure(
-        encoder,
-        osrs_inferno_entity_encoder_create_weights,
-        &OSRS_INFERNO_ENTITY_DESCRIPTOR);
-}

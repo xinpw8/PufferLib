@@ -1,18 +1,13 @@
 #line 3605 "encounter_inferno.h"
 #define INF_HEAD_PRIMARY OSRS_HEAD_PRIMARY
 #define INF_HEAD_PRAYER OSRS_HEAD_OVERHEAD
-#define INF_HEAD_EQUIP_BASE OSRS_HEAD_EQUIP_BASE
 #define INF_HEAD_EQUIP_SLOT(slot) OSRS_HEAD_EQUIP_SLOT(slot)
 #define INF_HEAD_EAT OSRS_HEAD_EAT
 #define INF_HEAD_DRINK OSRS_HEAD_DRINK
 #define INF_HEAD_SPELL OSRS_HEAD_SPELL
 #define INF_HEAD_SPEC OSRS_HEAD_SPECIAL
 #define INF_HEAD_OFFENSIVE OSRS_HEAD_OFFENSIVE
-#define INF_INV_CLICK_HEADS (NUM_GEAR_SLOTS + 2)
-#define INF_INV_CLICK_DIM OSRS_INVENTORY_CLICK_DIM
 #define INF_PRIMARY_ATTACK_BASE OSRS_PRIMARY_MOVE_ACTIONS
-#define INF_PRIMARY_DIM OSRS_PRIMARY_DIM(INF_OBS_NPCS)
-#define INF_SPEC_DIM OSRS_SPECIAL_DIM
 #define INF_ACTION_DIMS_INIT { OSRS_BASE_ACTION_DIMS(INF_OBS_NPCS) }
 static const int INF_ACTION_DIMS[INF_NUM_ACTION_HEADS] = INF_ACTION_DIMS_INIT;
 #define INF_ACTION_MASK_SIZE OSRS_BASE_ACTION_MASK_SIZE(INF_OBS_NPCS)
@@ -355,9 +350,6 @@ static void inf_apply_human_player_commands_ctx(InfernoState* s, InfernoContext*
         inf_refresh_human_loadout_stats(s);
 }
 
-static void inf_apply_human_player_commands(InfernoState* s) {
-    inf_apply_human_player_commands_ctx(s, inf_legacy_context());
-}
 
 static void inf_tick_player_ctx(
     InfernoState* s,
@@ -816,9 +808,6 @@ static void inf_tick_player_ctx(
     }
 }
 
-static void inf_tick_player(InfernoState* s, const int* actions, int can_attack) {
-    inf_tick_player_ctx(s, inf_legacy_context(), actions, can_attack);
-}
 
 static int inf_roll_delayed_jad_damage(
     InfernoState* s,

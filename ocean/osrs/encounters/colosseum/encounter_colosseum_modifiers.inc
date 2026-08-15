@@ -211,13 +211,6 @@ typedef struct {
     ColoWaveEntrySample samples[COLO_WAVE_ENTRY_RESERVOIR_CAP];
 } ColoWaveEntryReservoir;
 
-/* Per worker thread, not global. A shared reservoir is order dependent by
-   construction: res->seen and the slot draw both advance in whichever order
-   threads happen to clear waves, and locking fixes tearing but not order. Envs
-   are partitioned schedule(static) (src/pufferl.cu:1040,1334), so each thread
-   sees a fixed env subset in a fixed order and its reservoir is reproducible.
-   Donors are spread across threads because start_wave is drawn per env, so a
-   thread's ~256 envs still hold ~80 wave-1 donors to sample from. */
 static OSRS_THREAD_LOCAL ColoWaveEntryReservoir g_colo_wave_entry_res[COLO_NUM_WAVES];
 static OSRS_THREAD_LOCAL uint32_t g_colo_wave_entry_rng = 0x9e3779b9u;
 

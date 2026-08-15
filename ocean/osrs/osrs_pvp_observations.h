@@ -57,14 +57,6 @@ static inline int can_use_potion(Player* p, int potion_type) {
     }
 }
 
-static inline int can_eat_food(Player* p) {
-    return osrs_player_can_eat_food_type(p, FOOD_SHARK);
-}
-
-static inline int can_eat_karambwan(Player* p) {
-    return osrs_player_can_eat_food_type(p, FOOD_KARAMBWAN);
-}
-
 static inline int pvp_drink_kind_available(
     Player* p,
     OsrsConsumableKind kind

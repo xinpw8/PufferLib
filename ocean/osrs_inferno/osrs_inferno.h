@@ -176,14 +176,11 @@ void puf_init(Env* env, Dict* kwargs) {
 
     int start_wave = (int)dict_get(kwargs, "start_wave");
     inferno_env_put_int(env, "start_wave", start_wave);
-    inferno_env_put_float(env, "damage_reward_coeff",
-        (float)dict_get(kwargs, "damage_reward_coeff"));
-    inferno_env_put_float(env, "shield_penalty_coeff",
-        (float)dict_get(kwargs, "shield_penalty_coeff"));
-    inferno_env_put_float(env, "tag_reward_coeff",
-        (float)dict_get(kwargs, "tag_reward_coeff"));
 
     static const char* const float_keys[] = {
+        "damage_reward_coeff",
+        "shield_penalty_coeff",
+        "tag_reward_coeff",
         "shield_tag_reward_coeff",
         "budget_loadout_fraction",
         "offensive_prayer_reward_coeff",
@@ -209,28 +206,22 @@ void puf_init(Env* env, Dict* kwargs) {
         "curriculum_supply_brew_jitter",
         "curriculum_supply_restore_jitter",
         "curriculum_no_brew_frac",
+        "late_start_supply_profile_scale",
     };
     for (size_t k = 0; k < sizeof(float_keys) / sizeof(*float_keys); k++)
         inferno_env_put_float(env, float_keys[k], (float)dict_get(kwargs, float_keys[k]));
 
-    inferno_env_put_float(env, "late_start_supply_profile_scale",
-        (float)dict_get(kwargs, "late_start_supply_profile_scale"));
-    inferno_env_put_int(env, "terminal_penalty_enabled",
-        (int)dict_get(kwargs, "terminal_penalty_enabled"));
-
     static const char* const int_keys[] = {
+        "terminal_penalty_enabled",
         "curriculum_supply_jitter_mode",
         "curriculum_no_brew_mode",
+        "loadout_profile_mode",
+        "zuk_healer_reward_mode",
+        "joseph_reward_mode",
     };
     for (size_t k = 0; k < sizeof(int_keys) / sizeof(*int_keys); k++)
         inferno_env_put_int(env, int_keys[k], (int)dict_get(kwargs, int_keys[k]));
 
-    inferno_env_put_int(env, "loadout_profile_mode",
-        (int)dict_get(kwargs, "loadout_profile_mode"));
-    inferno_env_put_int(env, "zuk_healer_reward_mode",
-        (int)dict_get(kwargs, "zuk_healer_reward_mode"));
-    inferno_env_put_int(env, "joseph_reward_mode",
-        (int)dict_get(kwargs, "joseph_reward_mode"));
     inferno_apply_reward_profile(env, (int)dict_get(kwargs, "reward_profile"));
     inferno_env_put_int(env, "zuk_safe_untagged_healer_target_mask",
         (int)dict_get(kwargs, "zuk_safe_untagged_healer_target_mask"));

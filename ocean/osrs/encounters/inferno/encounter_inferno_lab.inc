@@ -29,8 +29,6 @@ typedef enum {
 } InfLabPillarState;
 
 typedef EncounterLabOptionalInt InfLabOptionalInt;
-#define INF_LAB_OPTIONAL_INT_UNSET ENCOUNTER_LAB_OPTIONAL_INT_UNSET
-#define INF_LAB_OPTIONAL_INT_SET ENCOUNTER_LAB_OPTIONAL_INT_SET
 
 typedef struct {
     int x;

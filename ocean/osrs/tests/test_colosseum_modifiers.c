@@ -129,15 +129,12 @@ static int first_live_score_enemy(const ColosseumState* s) {
     return -1;
 }
 
-static void kill_first_live_score_enemy(
-    ColosseumState* s,
-    ColosseumContext* ctx
-) {
+static void kill_first_live_score_enemy(ColosseumState* s) {
     int slot = first_live_score_enemy(s);
     CHECK("a live score enemy exists", slot >= 0);
     if (slot < 0) return;
     s->npcs[slot].hp = 0;
-    col_apply_npc_death(s, ctx, slot);
+    col_apply_npc_death(s, slot);
 }
 
 static float score_for_depth(float depth) {
@@ -150,7 +147,7 @@ static void land_pending_player_hits(
     ColosseumContext* ctx
 ) {
     for (int t = 0; t < 4; t++)
-        col_resolve_player_projectiles_on_npcs(s, ctx);
+        col_resolve_player_projectiles_on_npcs_ctx(s, ctx);
 }
 
 static void geo_clear_npcs(ColosseumState* s) {
@@ -394,6 +391,7 @@ static float test_any_inventory_kind_bit(const float* cell_obs) {
 
 static TestDroppedInventoryFields test_expected_dropped_inventory_fields(
     const ColosseumState* s,
+    const float mask[COLO_ACTION_MASK_SIZE],
     int cell_idx
 ) {
     const ColoInvCell* cell = &s->player.inventory_cells[cell_idx];
@@ -409,7 +407,7 @@ static TestDroppedInventoryFields test_expected_dropped_inventory_fields(
         .is_gear = test_binary_float(metadata->item != NULL),
         .is_consumable = test_binary_float(
             metadata->consumable_kind != OSRS_CONSUMABLE_NONE),
-        .can_use = test_binary_float(col_inventory_cell_actionable(s, cell_idx)),
+        .can_use = test_click_mask_for_cell_s(s, mask, cell_idx),
         .has_effect = test_binary_float(effect_mask != OSRS_ITEM_EFFECT_NONE),
         .role_food = test_binary_float(metadata->click_action == OSRS_CLICK_EAT),
         .role_potion_family = test_binary_float(
@@ -472,7 +470,7 @@ static void test_check_inventory_cut_equivalence_state(
 
     for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
         TestDroppedInventoryFields expected =
-            test_expected_dropped_inventory_fields(s, cell);
+            test_expected_dropped_inventory_fields(s, mask, cell);
         TestDroppedInventoryFields reconstructed =
             test_reconstructed_dropped_inventory_fields(s, obs, mask, cell);
         test_check_inventory_dropped_field(
@@ -1208,7 +1206,7 @@ static void test_totem_lifecycle(void) {
 
     int tslot2 = s.totems[0].npc_slot;
     s.npcs[0].hp = 0;
-    col_apply_npc_death(&s, &ctx, 0);
+    col_apply_npc_death(&s, 0);
     CHECK("the owner's death despawns its totem",
         !s.npcs[tslot2].active && s.totems[0].phase == COLO_HAZARD_NONE);
 
@@ -1220,7 +1218,7 @@ static void test_totem_lifecycle(void) {
     land_pending_player_hits(&s, &ctx);
     CHECK("second totem down and respawning", s.totems[0].phase == COLO_HAZARD_RESPAWNING);
     s.npcs[0].hp = 0;
-    col_apply_npc_death(&s, &ctx, 0);
+    col_apply_npc_death(&s, 0);
     CHECK("the owner's death cancels a pending totem respawn",
         s.totems[0].phase == COLO_HAZARD_NONE);
 
@@ -1501,7 +1499,7 @@ static void test_totemic_sol_extra_totems_every_two_minutes(void) {
     CHECK("a third totem spawns two minutes later", count_live_totems(&s) == 3);
 
     s.npcs[sol].hp = 0;
-    col_apply_npc_death(&s, &ctx, sol);
+    col_apply_npc_death(&s, sol);
     CHECK("Sol's death despawns every totem it owned", count_live_totems(&s) == 0);
 }
 
@@ -2053,7 +2051,7 @@ static void test_volatility_explodes_on_corpse_removal(void) {
     col_init_npc(&s, idx, COLO_FREMENNIK_BERSERKER, 20, 17);
     s.npcs[idx].hp = 0;
     int hp_before = s.player.current_hitpoints;
-    col_apply_npc_death(&s, &ctx, idx);
+    col_apply_npc_death(&s, idx);
 
     CHECK("Volatility does not explode on the lethal hit",
         s.player.current_hitpoints == hp_before);
@@ -2090,7 +2088,7 @@ static void test_volatility_explodes_on_corpse_removal(void) {
     s.player.current_hitpoints = 99;
     col_init_npc(&s, idx, COLO_MINOTAUR, 20, 17);
     s.npcs[idx].hp = 0;
-    col_apply_npc_death(&s, &ctx, idx);
+    col_apply_npc_death(&s, idx);
     s.wave = 1;
     col_spawn_wave(&s, &ctx);
     CHECK("wave spawn cleanup still removes a volatile corpse through its explosion",
@@ -2267,7 +2265,7 @@ static void test_death_linger_wave_clear_and_render(void) {
         &s.npcs[idx].hp, &s.npcs[idx].hit_landed_this_tick,
         &s.npcs[idx].hit_damage, 1);
     s.npcs[idx].hit_was_successful_this_tick = dealt > 0;
-    col_apply_npc_death(&s, &ctx, idx);
+    col_apply_npc_death(&s, idx);
 
     int linger_ticks = col_npc_death_linger_ticks(COLO_FREMENNIK_BERSERKER);
     CHECK("lethal hit starts NPC death linger", s.npcs[idx].active &&
@@ -2640,7 +2638,7 @@ static void test_outcome_score_wave_clear_has_no_double_count(void) {
     complete_open_draft(&s, &ctx, 1);
 
     while (first_live_score_enemy(&s) >= 0)
-        kill_first_live_score_enemy(&s, &ctx);
+        kill_first_live_score_enemy(&s);
     s.log.waves_cleared = 1;
     CHECK("within-wave progress is zero after all wave enemies are killed",
         col_current_wave_score_progress(&s) == 0.0f);
@@ -2750,7 +2748,7 @@ static void test_wave12_quartet_and_win(void) {
         int sol = col_sol_find_idx(&s);
         if (sol < 0) { win_ok = 0; continue; }
         s.npcs[sol].hp = 0;
-        col_apply_npc_death(&s, &ctx, sol);
+        col_apply_npc_death(&s, sol);
         int idle[COLO_NUM_ACTION_HEADS] = {0};
         step_and_observe(&s, &ctx, idle);
         if (!(s.episode_over && s.winner == COLO_OUTCOME_PLAYER_WON)) win_ok = 0;
@@ -2905,9 +2903,6 @@ static void test_warband_move_skip(void) {
     CHECK("once the warband is chasing the stutter-step suppresses every attack",
         attacks_once_chasing == 0);
 }
-
-/** Regression: warband melee is calculated before the player tick, so a same-tick
-    step-out cannot dodge it. */
 static void test_warband_melee_not_dodged_by_same_tick_step_out(void) {
     printf("test_warband_melee_not_dodged_by_same_tick_step_out\n");
     ColosseumContext ctx;
@@ -4101,23 +4096,17 @@ static void skyfall_dodge_init_state(
 
 static int skyfall_dodge_move_action_off_tile(
     const ColosseumState* s,
-    const ColosseumContext* ctx,
+    ColosseumContext* ctx,
     int marked_x,
     int marked_y
 ) {
     for (int action = 1; action < ENCOUNTER_MOVE_ACTIONS; action++) {
         ColosseumState tmp = *s;
-        ColoGeometryContext geometry = {
-            .state = &tmp,
-            .context = ctx,
-        };
-        int moved = encounter_move_to_target(
-            &tmp.player,
-            ENCOUNTER_MOVE_TARGET_DX[action],
-            ENCOUNTER_MOVE_TARGET_DY[action],
-            col_player_walkable,
-            &geometry);
-        if (moved > 0 && (tmp.player.x != marked_x || tmp.player.y != marked_y))
+        OsrsLosQuery los_query = col_player_los_query(ctx);
+        OsrsPlayerStepInput input =
+            col_primary_step_input(&tmp, ctx, action, &los_query);
+        osrs_encounter_player_step(&input);
+        if (tmp.player.x != marked_x || tmp.player.y != marked_y)
             return action;
     }
     assert(0 && "no move action leaves the marked tile");
@@ -5763,6 +5752,7 @@ static void test_consumable_overdrink_mask(void) {
     ColosseumState s;
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 11);
     s.player.potion_timer = 0;
+    float mask[COLO_ACTION_MASK_SIZE];
 
     int brew = test_find_inventory_cell_with_consumable(&s, OSRS_CONSUMABLE_BREW);
     int combat = test_find_inventory_cell_with_consumable(&s, OSRS_CONSUMABLE_DIVINE_COMBAT);
@@ -5771,22 +5761,30 @@ static void test_consumable_overdrink_mask(void) {
         brew >= 0 && combat >= 0 && sanfew >= 0);
 
     s.player.current_hitpoints = s.player.base_hitpoints;
-    CHECK("brew masked at full HP", !col_inventory_cell_actionable(&s, brew));
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
+    CHECK("brew masked at full HP",
+        test_click_mask_for_cell_s(&s, mask, brew) == 0.0f);
     s.player.current_hitpoints = s.player.base_hitpoints - 10;
-    CHECK("brew valid below max HP", col_inventory_cell_actionable(&s, brew));
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
+    CHECK("brew valid below max HP",
+        test_click_mask_for_cell_s(&s, mask, brew) == 1.0f);
 
     s.player.current_attack = s.player.base_attack;
     s.player.current_strength = s.player.base_strength;
     s.player.current_defence = s.player.base_defence;
-    CHECK("combat valid at unboosted stats", col_inventory_cell_actionable(&s, combat));
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
+    CHECK("combat valid at unboosted stats",
+        test_click_mask_for_cell_s(&s, mask, combat) == 1.0f);
     s.player.current_attack = 105;
     s.player.current_strength = 112;
     s.player.current_defence = 118;
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
     CHECK("combat masked once all combat stats >= 105",
-        !col_inventory_cell_actionable(&s, combat));
+        test_click_mask_for_cell_s(&s, mask, combat) == 0.0f);
     s.player.current_strength = 104;
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
     CHECK("combat valid again when one stat dips below 105",
-        col_inventory_cell_actionable(&s, combat));
+        test_click_mask_for_cell_s(&s, mask, combat) == 1.0f);
 
     s.player.current_attack = s.player.base_attack;
     s.player.current_strength = s.player.base_strength;
@@ -5796,13 +5794,18 @@ static void test_consumable_overdrink_mask(void) {
     s.player.current_prayer = s.player.base_prayer;
     s.player_venom = 0;
     s.player_poison = 0;
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
     CHECK("sanfew masked with full stats/prayer and no venom",
-        !col_inventory_cell_actionable(&s, sanfew));
+        test_click_mask_for_cell_s(&s, mask, sanfew) == 0.0f);
     s.player_venom = 4;
-    CHECK("sanfew valid while venomed (it cures)", col_inventory_cell_actionable(&s, sanfew));
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
+    CHECK("sanfew valid while venomed",
+        test_click_mask_for_cell_s(&s, mask, sanfew) == 1.0f);
     s.player_venom = 0;
     s.player.current_prayer = s.player.base_prayer - 60;
-    CHECK("sanfew valid when prayer is well down", col_inventory_cell_actionable(&s, sanfew));
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
+    CHECK("sanfew valid when prayer is well down",
+        test_click_mask_for_cell_s(&s, mask, sanfew) == 1.0f);
 }
 
 static void test_loadout_surge_potion(void) {
@@ -6458,7 +6461,7 @@ static void test_primary_head_resolution(void) {
     s.npcs[0].hp = 200;
     s.npcs[0].max_hp = 200;
     col_rebuild_player_collision_flags(&s);
-    col_refresh_current_obs_slots_ctx(&s, &ctx);
+    col_refresh_current_obs_slots(&s);
     int obs_slot = col_find_target_obs_slot(&s, 0);
     int attack_action = col_primary_attack_action_for_obs_slot(obs_slot);
 
@@ -7144,7 +7147,7 @@ static void test_death_charge_regression(void) {
     CHECK("Death Charge arms a 100-tick window (decremented this tick)",
         s.death_charge_window_left == 99 && s.death_charge_cd == 0);
     s.npcs[slot].hp = 0;
-    col_apply_npc_death(&s, &ctx, slot);
+    col_apply_npc_death(&s, slot);
     CHECK("a player-credited kill in the window grants +15 spec",
         s.player.special_energy == 65);
     CHECK("the kill closes the window and starts the 100-tick cooldown",
@@ -7154,13 +7157,13 @@ static void test_death_charge_regression(void) {
     s.player.special_energy = 95;
     col_tick_player_ctx(&s, &ctx, cast_dc, 1);
     s.npcs[slot].hp = 0;
-    col_apply_npc_death(&s, &ctx, slot);
+    col_apply_npc_death(&s, slot);
     CHECK("Death Charge spec gain clamps at 100", s.player.special_energy == 100);
 
     slot = thrall_scenario(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 213);
     s.player.special_energy = 40;
     s.npcs[slot].hp = 0;
-    col_apply_npc_death(&s, &ctx, slot);
+    col_apply_npc_death(&s, slot);
     CHECK("a kill outside an armed window grants no spec and starts no cooldown",
         s.player.special_energy == 40 && s.death_charge_cd == 0);
 
@@ -7190,8 +7193,8 @@ static void test_death_charge_regression(void) {
     col_tick_player_ctx(&s, &ctx, cast_dc, 1);
     s.npcs[slot].hp = 0;
     s.npcs[slot_b].hp = 0;
-    col_apply_npc_death(&s, &ctx, slot);
-    col_apply_npc_death(&s, &ctx, slot_b);
+    col_apply_npc_death(&s, slot);
+    col_apply_npc_death(&s, slot_b);
     CHECK("two same-tick kills consume the charge exactly once (+15)",
         s.player.special_energy == 65 && s.death_charge_window_left == 0);
 
@@ -7902,13 +7905,13 @@ static void test_player_melee_lands_at_delay_zero(void) {
     int hp_before = s.npcs[0].hp;
     int resolved_same_pass = 1;
     for (int swing = 0; swing < 32 && s.npcs[0].hp == hp_before; swing++) {
-        col_resolve_player_projectiles_on_npcs(&s, &ctx);
+        col_resolve_player_projectiles_on_npcs_ctx(&s, &ctx);
         if (s.npcs[0].pending_hits.count != 0) resolved_same_pass = 0;
         if (s.npcs[0].hp < hp_before) break;
         s.player.attack_timer = 0;
         col_player_attack_target_ctx(&s, &ctx, 0);
     }
-    col_resolve_player_projectiles_on_npcs(&s, &ctx);
+    col_resolve_player_projectiles_on_npcs_ctx(&s, &ctx);
     CHECK("a delay-0 melee hit lands on the first resolver pass",
         s.npcs[0].hp < hp_before && resolved_same_pass &&
         s.npcs[0].pending_hits.count == 0);
@@ -8031,10 +8034,6 @@ static void test_pending_hit_recoil_volatility_damage_accounting(void) {
         s.tick_scratch.landed_unprayable_damage == 25.0f);
     col_accumulate_tick_stats(&s, &ctx);
 }
-
-/* The win bonus used to be `+=` onto the same tick's shaped reward and wave-clear bonus,
- * which pushed the tick past the trainer's [-1,1] clamp and measurably destroyed 59% of it.
- * Terminal outcomes are now assignments, like death and timeout. */
 
 static void test_shared_inventory_tracks_gear_swaps(void) {
     printf("test_shared_inventory_tracks_gear_swaps\n");
@@ -8242,7 +8241,7 @@ static void test_stage3_t1_human_inventory_primary_click_uses_resolver(void) {
     human_input_queue_inventory_primary_click(&hi, bow_cell);
     human_input_queue_inventory_primary_click(&hi, claws_cell);
     int actions[COLO_NUM_ACTION_HEADS] = {0};
-    col_translate_human_commands_ctx(&hi, actions, &s, &ctx);
+    col_translate_human_commands(&hi, actions, &s);
 
     CHECK("human weapon clicks collapse to the weapon equip head",
         actions[COLO_HEAD_EQUIP_SLOT(GEAR_SLOT_WEAPON)] == claws_cell + 1);
@@ -8273,7 +8272,7 @@ static void test_stage3_t1_human_rearrange_swaps_inventory_slots(void) {
         osrs_inventory_cell_item_index(&s.player.inventory_cells[bow_cell]),
         osrs_inventory_cell_raw_osrs_id(&s.player.inventory_cells[bow_cell]));
     int actions[COLO_NUM_ACTION_HEADS] = {0};
-    col_translate_human_commands_ctx(&hi, actions, &s, &ctx);
+    col_translate_human_commands(&hi, actions, &s);
 
     CHECK("human rearrange moves bow to target slot",
         osrs_inventory_cell_item_index(
@@ -8584,10 +8583,13 @@ static void test_inventory_pure_cut_reconstruction(void) {
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_BEGINNER_ONLY, 0.0f, 903);
     int bowfa_cell = test_find_inventory_cell_with_item(&s, ITEM_BOW_OF_FAERDHINEN);
     assert(bowfa_cell >= 0);
+    float bowfa_mask[COLO_ACTION_MASK_SIZE];
+    col_write_mask_ctx(
+        (EncounterState*)&s, (EncounterContext*)&ctx, bowfa_mask);
     CHECK("full inventory two-handed equip is denied",
         s.player.equipped[GEAR_SLOT_WEAPON] != ITEM_NONE &&
         s.player.equipped[GEAR_SLOT_SHIELD] != ITEM_NONE &&
-        !col_inventory_cell_actionable(&s, bowfa_cell));
+        test_click_mask_for_cell_s(&s, bowfa_mask, bowfa_cell) == 0.0f);
     test_check_inventory_cut_equivalence_state(
         &s, &ctx, "full inventory two-handed equip denial");
 
@@ -9079,7 +9081,8 @@ static void test_farm_safe_damage_cap(void) {
     s.tick_scratch.fresh_damage_dealt = 100.0f;
     s.tick_scratch.fresh_damage_reinforcement = 30.0f;
     col_accumulate_tick_stats(&s, &ctx);
-    float r_capped = col_shaped_total(col_shaped_reward(&s, &ctx));
+    ColoShapedReward capped = col_shaped_reward(&s, &ctx);
+    float r_capped = capped.damage + capped.boss_phase;
     CHECK("cap on, wave 1: reinforcement damage pays nothing",
         fabsf(r_capped - 70.0f) < 1e-3f);
     CHECK("farm damage is logged", fabsf(s.log.farm_damage - 30.0f) < 1e-3f);
@@ -9088,7 +9091,8 @@ static void test_farm_safe_damage_cap(void) {
     s.tick_scratch.fresh_damage_dealt = 100.0f;
     s.tick_scratch.fresh_damage_reinforcement = 30.0f;
     col_accumulate_tick_stats(&s, &ctx);
-    float r_uncapped = col_shaped_total(col_shaped_reward(&s, &ctx));
+    ColoShapedReward uncapped = col_shaped_reward(&s, &ctx);
+    float r_uncapped = uncapped.damage + uncapped.boss_phase;
     CHECK("cap off: full damage pays", fabsf(r_uncapped - 100.0f) < 1e-3f);
 
     ctx.config.farm_safe_damage_cap = 1;
@@ -9096,7 +9100,8 @@ static void test_farm_safe_damage_cap(void) {
     s.tick_scratch.fresh_damage_dealt = 100.0f;
     s.tick_scratch.fresh_damage_reinforcement = 30.0f;
     col_accumulate_tick_stats(&s, &ctx);
-    float r_late = col_shaped_total(col_shaped_reward(&s, &ctx));
+    ColoShapedReward late = col_shaped_reward(&s, &ctx);
+    float r_late = late.damage + late.boss_phase;
     CHECK("cap on, wave 5+: reinforcements stay full-value at the default window",
         fabsf(r_late - 100.0f) < 1e-3f);
 
@@ -9104,7 +9109,8 @@ static void test_farm_safe_damage_cap(void) {
     s.tick_scratch.fresh_damage_dealt = 100.0f;
     s.tick_scratch.fresh_damage_reinforcement = 30.0f;
     col_accumulate_tick_stats(&s, &ctx);
-    float r_widened = col_shaped_total(col_shaped_reward(&s, &ctx));
+    ColoShapedReward widened = col_shaped_reward(&s, &ctx);
+    float r_widened = widened.damage + widened.boss_phase;
     CHECK("widened farm_cap_waves caps the same wave-5 reinforcement damage",
         fabsf(r_widened - 70.0f) < 1e-3f);
     ctx.config.farm_cap_waves = COLO_FARM_CAP_WAVES;

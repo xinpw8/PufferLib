@@ -5,10 +5,6 @@ static float col_expected_dpt_for_equipment_vs_npc(
     ColosseumState* s, const uint8_t equipment[NUM_GEAR_SLOTS],
     const ColoNPC* npc, int use_style_matched_prayer);
 
-/* The trainer hard-clamps every per-step reward to [-1,1] before PPO, so any tick whose
- * terms sum past 1 delivers a signal the agent never sees. Measured here rather than
- * bounded per-coefficient, because the terms stack: a wave-12 clear carries the killing
- * blow's damage reward, wave_clear_bonus and win_bonus on one tick. */
 static void col_record_reward_clamp_headroom(ColosseumState* s) {
     float mag = fabsf(s->reward);
     s->log.reward_steps += 1.0f;
@@ -18,8 +14,6 @@ static void col_record_reward_clamp_headroom(ColosseumState* s) {
     s->log.reward_clamped_steps += 1.0f;
     s->log.reward_clamp_loss += over;
     if (s->tick_scratch.wave_completed) s->log.clamp_loss_wave_clear += over;
-    /* episode_over guards the winner read: COLO_OUTCOME_PLAYER_WON is 0, which is also
-     * what winner holds on every non-terminal tick. */
     if (s->episode_over && s->winner == COLO_OUTCOME_PLAYER_WON)
         s->log.clamp_loss_win += over;
 }
@@ -29,10 +23,6 @@ static float col_terminal_death_reward(ColosseumState* s, const ColosseumContext
     return -ctx->config.death_penalty_coeff;
 }
 
-static float col_terminal_timeout_reward(ColosseumState* s, const ColosseumContext* ctx) {
-    s->log.rew_timeout -= ctx->config.timeout_penalty;
-    return -ctx->config.timeout_penalty;
-}
 
 static void col_update_min_sol_hp_seen(ColosseumState* s) {
     if (!s->sol.started) return;
@@ -82,9 +72,6 @@ static float col_current_wave_score_progress(const ColosseumState* s) {
     return progress;
 }
 
-/* A loss caps here, a win scores 1.0. At the old 0.99 a policy that always reached
-   Sol's last phase and never won scored ~0.973, so winning was worth under 3% and the
-   sweep optimised depth instead. */
 #define COLO_SCORE_LOSS_CEILING 0.5f
 
 static float col_episode_outcome_score(const ColosseumState* s) {
@@ -112,9 +99,6 @@ static float col_episode_max_wave_depth(const ColosseumState* s) {
         col_sol_score_progress(s);
 }
 
-/* Damage the player was thrown, could have prayed, and did pray away this tick. Only one
- * overhead can be up, so `best` is the most any policy could have stopped and the remainder
- * is structurally unrecoverable -- crediting it would pay for luck, not play. */
 typedef struct {
     float total;
     float best;
@@ -134,9 +118,6 @@ static ColoTickAvoidance col_tick_avoidance(const ColoTickScratch* t) {
     return a;
 }
 
-/* Split from the reward so the three terminal paths, which compute a shaped reward and then
- * throw it away in favour of a terminal penalty, still record their tick statistics without
- * crediting reward the agent never receives. */
 static void col_accumulate_tick_stats(ColosseumState* s, const ColosseumContext* ctx) {
     const ColConfig* cfg = &ctx->config;
     ColoTickScratch* t = &s->tick_scratch;
@@ -156,10 +137,6 @@ static void col_accumulate_tick_stats(ColosseumState* s, const ColosseumContext*
     if (s->wave < cfg->farm_cap_waves)
         s->log.farm_damage += t->fresh_damage_reinforcement;
 
-    /* Headroom split for a defensive reward. Only ONE overhead can be up, so on a tick where
-     * two styles land only the larger can ever be prayed: the remainder is structurally
-     * unavoidable and no reward shape can recover it. Separating that from what the policy
-     * simply misplayed is the number that decides whether a defensive term is worth building. */
     ColoTickAvoidance av = col_tick_avoidance(t);
     s->log.avoid_total += av.total;
     s->log.avoid_achieved += av.achieved;
@@ -168,9 +145,6 @@ static void col_accumulate_tick_stats(ColosseumState* s, const ColosseumContext*
     s->log.dmg_unprayable += t->landed_unprayable_damage;
 }
 
-/* Returned by value rather than logged in place: a tick that ends in death, timeout or a win
- * overwrites the shaped reward with a terminal one, and the per-term log must record what was
- * actually paid. col_commit_reward_terms is the single place that credits the log. */
 typedef struct {
     float damage;
     float boss_phase;
@@ -195,14 +169,6 @@ static ColoShapedReward col_shaped_reward(ColosseumState* s, const ColosseumCont
     return out;
 }
 
-static float col_shaped_total(ColoShapedReward r) {
-    return r.damage + r.boss_phase;
-}
-
-static void col_commit_reward_terms(ColosseumState* s, ColoShapedReward r) {
-    s->log.rew_damage += r.damage;
-    s->log.rew_boss_phase += r.boss_phase;
-}
 
 static float col_inventory_heal_remaining(const ColosseumState* s) {
     float total = 0.0f;
@@ -288,9 +254,6 @@ static ColoPrePlayerPhase col_advance_pre_player_phase_ctx(
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_PRE_RESET_PLAYER);
 #endif
-    /* Mean live NPCs is 4.4 of 24, and the tick-flag fields sit in their own cache line
-     * per NPC, so clearing all 24 touched 24 lines to reset ~4. col_deactivate_npc clears
-     * a slot on the way out, so skipping inactive slots here is equivalent. */
     for (int i = 0; i < COLO_MAX_NPCS; i++) {
         ColoNPC* npc = &s->npcs[i];
         if (!npc->active) continue;
@@ -312,7 +275,8 @@ static ColoPrePlayerPhase col_advance_pre_player_phase_ctx(
         s->episode_over = 1;
         s->time_limit_truncated = 1;
         s->winner = COLO_OUTCOME_PLAYER_DIED;
-        s->reward = col_terminal_timeout_reward(s, ctx);
+        s->log.rew_timeout -= ctx->config.timeout_penalty;
+        s->reward = -ctx->config.timeout_penalty;
         col_record_terminal_outcome_score(s);
         s->log.max_wave_depth = col_episode_max_wave_depth(s);
         col_record_reward_clamp_headroom(s);
@@ -422,7 +386,7 @@ static void col_step_ctx(EncounterState* state, EncounterContext* context, const
 
     col_accumulate_tick_stats(s, ctx);
     ColoShapedReward shaped = col_shaped_reward(s, ctx);
-    s->reward = col_shaped_total(shaped);
+    s->reward = shaped.damage + shaped.boss_phase;
     int shaped_paid = 1;
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_STEP_REWARD);
@@ -469,9 +433,6 @@ static void col_step_ctx(EncounterState* state, EncounterContext* context, const
         if (s->wave + 1 >= COLO_NUM_WAVES) {
             s->episode_over = 1;
             s->winner = COLO_OUTCOME_PLAYER_WON;
-            /* Terminal, so paid as an assignment exactly like death and timeout. Stacking
-             * the win onto the same tick's shaped reward AND wave clear pushed the tick past
-             * the trainer's [-1,1] clamp and destroyed 59% of the win bonus (measured). */
             s->reward = ctx->config.win_bonus;
             s->log.rew_win += ctx->config.win_bonus;
             shaped_paid = 0;
@@ -489,7 +450,10 @@ static void col_step_ctx(EncounterState* state, EncounterContext* context, const
     }
 
 finish_step:
-    if (shaped_paid) col_commit_reward_terms(s, shaped);
+    if (shaped_paid) {
+        s->log.rew_damage += shaped.damage;
+        s->log.rew_boss_phase += shaped.boss_phase;
+    }
     if (s->episode_over) {
         col_record_terminal_outcome_score(s);
         s->log.max_wave_depth = col_episode_max_wave_depth(s);

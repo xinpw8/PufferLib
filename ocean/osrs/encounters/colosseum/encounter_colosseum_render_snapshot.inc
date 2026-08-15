@@ -172,8 +172,6 @@ static void* col_get_log_ctx(EncounterState* state, EncounterContext* context) {
     s->log.episode_length = s->tick;
     s->log.wave_reached = s->wave;
     s->log.win = (s->episode_over && s->winner == COLO_OUTCOME_PLAYER_WON) ? 1 : 0;
-    /* the tick cap reports PLAYER_DIED so training keeps timeout-as-terminal, but a
-       truncation has no killer and no damage source, so it must not count as a death. */
     s->log.timed_out = (s->episode_over && s->time_limit_truncated) ? 1 : 0;
     s->log.died = (s->episode_over && s->winner == COLO_OUTCOME_PLAYER_DIED
                    && !s->time_limit_truncated) ? 1 : 0;
@@ -955,8 +953,8 @@ static int col_is_human_targetable_npc_slot_ctx(
     int npc_slot
 ) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = col_require_context(context);
-    col_refresh_current_obs_slots_ctx(s, ctx);
+    col_require_context(context);
+    col_refresh_current_obs_slots(s);
     int obs_slot = col_find_target_obs_slot(s, npc_slot);
     if (obs_slot < 0) return 0;
     return col_obs_slot_is_targetable(s, obs_slot);
@@ -1008,8 +1006,8 @@ static void col_translate_human_input_ctx(
     encounter_translate_prayer(hi, actions, COLO_HEAD_PRAYER);
 
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = col_require_context(context);
-    col_refresh_current_obs_slots_ctx(s, ctx);
+    col_require_context(context);
+    col_refresh_current_obs_slots(s);
 
     if (hi->pending_target_idx >= 0) {
         int found_slot = col_find_target_obs_slot(s, hi->pending_target_idx);
@@ -1026,14 +1024,13 @@ static void col_translate_human_input_ctx(
     col_apply_pending_draft_grapple_heads(hi, actions);
 }
 
-static void col_translate_human_commands_ctx(
+static void col_translate_human_commands(
     HumanInput* hi,
     int* actions,
-    ColosseumState* s,
-    ColosseumContext* ctx
+    ColosseumState* s
 ) {
     for (int h = 0; h < COLO_NUM_ACTION_HEADS; h++) actions[h] = 0;
-    col_refresh_current_obs_slots_ctx(s, ctx);
+    col_refresh_current_obs_slots(s);
 
     for (int i = 0; i < hi->commands.count; i++) {
         const HumanCommand* cmd = &hi->commands.items[i];
@@ -1099,7 +1096,7 @@ static void col_step_human_commands_ctx(
     ctx->human_command_mode = 1;
     ctx->human_commands = hi->commands.items;
     ctx->human_command_count = hi->commands.count;
-    col_translate_human_commands_ctx(hi, actions, s, ctx);
+    col_translate_human_commands(hi, actions, s);
     col_step_ctx(state, (EncounterContext*)ctx, actions);
     ctx->human_commands = NULL;
     ctx->human_command_count = 0;
@@ -1125,7 +1122,7 @@ static void col_refresh_after_state_load(ColosseumState* s, ColosseumContext* ct
     col_mark_live_loadout_dirty(s);
     col_ensure_live_loadout_stats(s);
     col_rebuild_player_collision_flags(s);
-    col_refresh_current_obs_slots_ctx(s, ctx);
+    col_refresh_current_obs_slots(s);
 }
 
 static size_t col_snapshot_size_ctx(EncounterState* state, EncounterContext* context) {

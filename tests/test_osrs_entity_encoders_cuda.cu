@@ -14,12 +14,6 @@ static Allocator test_acts;
 static Allocator test_grads;
 static bool test_cublas_initialized;
 
-static const OsrsEntityEncoderDescriptor* test_descriptor(int kind) {
-    return kind == 0
-        ? &OSRS_COLOSSEUM_ENTITY_DESCRIPTOR
-        : &OSRS_INFERNO_ENTITY_DESCRIPTOR;
-}
-
 static void test_free_allocator(Allocator* allocator) {
     if (allocator->mem) cudaFree(allocator->mem);
     free(allocator->regs);
@@ -36,29 +30,7 @@ static void test_reset() {
     test_activations = nullptr;
 }
 
-void osrs_entity_test_contract(int kind, int* values) {
-    const OsrsEntityEncoderDescriptor* descriptor = test_descriptor(kind);
-    const OsrsEntityBranchDescriptor* equipment = &descriptor->branches[0];
-    const OsrsEntityBranchDescriptor* npc = &descriptor->branches[1];
-    values[0] = descriptor->obs_size;
-    values[1] = npc->obs_start;
-    values[2] = npc->num_records;
-    values[3] = npc->obs_features;
-    values[4] = osrs_entity_branch_features(npc);
-    values[5] = npc->type_onehot;
-    values[6] = npc->type_code_scale;
-    values[7] = equipment->obs_start;
-    values[8] = equipment->num_records;
-    values[9] = equipment->obs_features;
-    values[10] = osrs_entity_branch_features(equipment);
-    values[11] = OSRS_ENTITY_INV_START;
-    values[12] = OSRS_ENTITY_INV_NUM_RECORDS;
-    values[13] = OSRS_ENTITY_INV_FEATURES;
-}
-
-int osrs_entity_test_init(int kind, int batch, int obs_size, int hidden) {
-    const OsrsEntityEncoderDescriptor* descriptor = test_descriptor(kind);
-    if (obs_size != descriptor->obs_size) return 1;
+void osrs_entity_test_init(int kind, int batch, int obs_size, int hidden) {
     test_reset();
     if (!test_cublas_initialized) {
         cublas_init_handle();
@@ -67,15 +39,17 @@ int osrs_entity_test_init(int kind, int batch, int obs_size, int hidden) {
     test_encoder = {};
     test_encoder.in_dim = obs_size;
     test_encoder.out_dim = hidden;
-    create_custom_encoder(descriptor->env_name, &test_encoder);
+    const char* env_name = kind == 0 ? "osrs_colosseum" : "osrs_inferno";
+    create_custom_encoder(env_name, &test_encoder);
     test_weights = (OsrsEntityEncoderWeights*)test_encoder.create_weights(&test_encoder);
     test_encoder.reg_params(test_weights, &test_params);
     alloc_create(&test_params);
-    test_activations = (OsrsEntityEncoderActivations*)calloc(1, test_encoder.activation_size);
-    test_encoder.reg_train(test_weights, test_activations, &test_acts, &test_grads, batch);
+    test_activations = (OsrsEntityEncoderActivations*)calloc(
+        1, test_encoder.activation_size);
+    test_encoder.reg_train(
+        test_weights, test_activations, &test_acts, &test_grads, batch);
     alloc_create(&test_acts);
     alloc_create(&test_grads);
-    return 0;
 }
 
 void osrs_entity_test_set_weights(
@@ -112,13 +86,11 @@ void osrs_entity_test_forward(void* output, void* observations, int batch, int o
     Prec result = test_encoder.forward(test_weights, test_activations, input, 0);
     cudaMemcpy(output, result.data, (int64_t)batch * test_encoder.out_dim * sizeof(float),
         cudaMemcpyDeviceToDevice);
-    cudaDeviceSynchronize();
 }
 
 void osrs_entity_test_backward(void* grad, int batch, int hidden) {
     Prec output_grad = {.data = (precision_t*)grad, .shape = {batch, hidden}};
     test_encoder.backward(test_weights, test_activations, output_grad, 0);
-    cudaDeviceSynchronize();
 }
 
 void osrs_entity_test_get_grad(int index, void* output) {

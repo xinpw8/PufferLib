@@ -47,13 +47,11 @@
 #define BLOOD_BLITZ_MAX_HIT 25
 #define BLOOD_BARRAGE_MAX_HIT 29
 
-/** Percent of damage dealt that a blood spell heals the caster. */
 #define BLOOD_RUSH_HEAL_PERCENT 10
 #define BLOOD_BURST_HEAL_PERCENT 15
 #define BLOOD_BLITZ_HEAL_PERCENT 20
 #define BLOOD_BARRAGE_HEAL_PERCENT 25
 
-/** Ticks between casts, and tile range, for a combat spell cast from a staff. */
 #define COMBAT_SPELL_CAST_SPEED 5
 #define COMBAT_SPELL_ATTACK_RANGE 10
 

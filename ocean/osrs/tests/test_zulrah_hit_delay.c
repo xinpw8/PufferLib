@@ -73,7 +73,10 @@ static int ticks_until_player_hit(ZulrahState* s, AttackStyle style) {
 
     for (int t = 1; t <= 16; t++) {
         int before = s->player.current_hitpoints;
-        zul_resolve_player_pending_hits(s);
+        encounter_resolve_player_pending_hits_observed(
+            &s->player_pending_hits, &s->player, s->player.prayer,
+            &s->damage_received_this_tick, NULL, NULL,
+            zul_player_hit_landed, s);
         if (s->player.current_hitpoints < before) return t;
     }
     return 0;
@@ -171,8 +174,6 @@ static void test_player_hit_delay_by_distance(void) {
     }
 }
 
-/** The canonical contract draws damage FIRST. Under the old inverted order the
-    accuracy roll consumed draw 1, so the queued damage could not match. */
 static void test_damage_drawn_before_accuracy(void) {
     printf("\n--- damage roll precedes the accuracy roll ---\n");
 
@@ -219,8 +220,6 @@ static void test_damage_drawn_before_accuracy(void) {
     CHECK("collected magic hits for the draw-order probe", magic_checked > 0);
 }
 
-/** Prayer decides whether damage is frozen to zero, never how many draws the
-    attack consumes. This is what the skipped-roll defect broke. */
 static void test_prayer_does_not_perturb_the_rng_stream(void) {
     printf("\n--- prayer state leaves the RNG stream untouched ---\n");
 
@@ -285,7 +284,11 @@ static void test_prayer_resolves_at_throw_not_landing(void) {
         late_on_checked++;
 
         s->player.prayer = PRAYER_PROTECT_RANGED;
-        for (int t = 0; t < 8; t++) zul_resolve_player_pending_hits(s);
+        for (int t = 0; t < 8; t++)
+            encounter_resolve_player_pending_hits_observed(
+                &s->player_pending_hits, &s->player, s->player.prayer,
+                &s->damage_received_this_tick, NULL, NULL,
+                zul_player_hit_landed, s);
 
         CHECK("praying after the throw does not cancel the hit",
             s->player.current_hitpoints < s->player.base_hitpoints);
@@ -301,15 +304,17 @@ static void test_prayer_resolves_at_throw_not_landing(void) {
 
         zul_attack_ranged(s);
         s->player.prayer = PRAYER_NONE;
-        for (int t = 0; t < 8; t++) zul_resolve_player_pending_hits(s);
+        for (int t = 0; t < 8; t++)
+            encounter_resolve_player_pending_hits_observed(
+                &s->player_pending_hits, &s->player, s->player.prayer,
+                &s->damage_received_this_tick, NULL, NULL,
+                zul_player_hit_landed, s);
 
         ASSERT_INT_EQ("dropping prayer after the throw does not revive the hit",
             s->player.current_hitpoints, s->player.base_hitpoints);
     }
 }
 
-/** Defect 3 mirror image: the melee stare froze its protect check at landing,
-    three ticks after Zulrah committed to the attack. */
 static void test_melee_stare_reads_prayer_at_calculation(void) {
     printf("\n--- melee stare reads prayer at the calculation tick ---\n");
 
@@ -320,7 +325,7 @@ static void test_melee_stare_reads_prayer_at_calculation(void) {
         s->player.current_hitpoints = s->player.base_hitpoints;
         s->player.prayer = PRAYER_NONE;
 
-        zul_melee_start(s);
+        zul_fire_action(s, &g_ctx, ZA_MELEE);
         s->player.prayer = PRAYER_PROTECT_MELEE;
         zul_melee_hit(s);
 
@@ -335,7 +340,7 @@ static void test_melee_stare_reads_prayer_at_calculation(void) {
         s->player.current_hitpoints = s->player.base_hitpoints;
         s->player.prayer = PRAYER_PROTECT_MELEE;
 
-        zul_melee_start(s);
+        zul_fire_action(s, &g_ctx, ZA_MELEE);
         s->player.prayer = PRAYER_NONE;
         zul_melee_hit(s);
 
@@ -363,7 +368,7 @@ static void test_topology_geometry_parity(void) {
             int expected_walkable = collision_tile_walkable(
                 g_collision_map, 0, x + 2256, y + 3061);
             CHECK("Zulrah player tile parity",
-                zul_topology_player_tile_allowed(&g_ctx, x, y) ==
+                !encounter_arena_topology_tile_blocked(topology, x, y) ==
                     expected_walkable);
             if (!expected_walkable) continue;
             open_tiles++;
@@ -403,14 +408,14 @@ static void test_topology_geometry_parity(void) {
                     target_x + ZUL_NPC_SIZE - 1,
                     target_y + ZUL_NPC_SIZE - 1));
             CHECK("every Zulrah phase stand tile is allowed",
-                zul_topology_player_tile_allowed(
-                    &g_ctx,
+                !encounter_arena_topology_tile_blocked(
+                    topology,
                     ZUL_STAND_COORDS[phase->stand][0],
                     ZUL_STAND_COORDS[phase->stand][1]));
             if (phase->stall != ZUL_STAND_NONE) {
                 CHECK("every Zulrah phase stall tile is allowed",
-                    zul_topology_player_tile_allowed(
-                        &g_ctx,
+                    !encounter_arena_topology_tile_blocked(
+                        topology,
                         ZUL_STAND_COORDS[phase->stall][0],
                         ZUL_STAND_COORDS[phase->stall][1]));
             }
@@ -485,10 +490,25 @@ static void test_unified_player_contract_semantics(void) {
 }
 
 
+static void test_weaponless_player_observation_stays_defined(void) {
+    ZulrahState* state = fresh_state(0xDEADu);
+    state->player.equipped[GEAR_SLOT_WEAPON] = ITEM_NONE;
+    zul_mark_live_stats_dirty(state);
+
+    ASSERT_INT_EQ("weaponless player keeps the ranged stats contract",
+        zul_player_equipped_attack_style(state), ATTACK_STYLE_RANGED);
+    float observation[ZUL_NUM_OBS];
+    ENCOUNTER_ZULRAH.write_obs(
+        (EncounterState*)state, (EncounterContext*)&g_ctx, observation);
+    CHECK("weaponless player observation remains defined", observation[0] >= 0.0f);
+}
+
+
 int main(void) {
     printf("zulrah hit-delay and roll-order regressions\n\n");
     test_unified_player_contract_dimensions();
     test_unified_player_contract_semantics();
+    test_weaponless_player_observation_stays_defined();
 
     test_npc_hit_delay_by_distance();
     test_player_hit_delay_by_distance();

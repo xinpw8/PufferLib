@@ -20,15 +20,7 @@ typedef enum {
     OSRS_PLAYER_MOVE_DESTINATION,
 } OsrsPlayerMoveKind;
 
-/**
- * One click per tick. The engine cannot both start an attack and walk somewhere
- * else on the same tick: a ground click cancels the entity interaction, an entity
- * click cancels the walk. TARGET and MOVE are therefore mutually exclusive by
- * construction rather than by caller discipline.
- *
- * A walk already in flight is state, not a command. It continues under CMD_NONE
- * and is cancelled by either new command.
- */
+/* One click per tick. */
 typedef enum {
     OSRS_PLAYER_CMD_NONE = 0,
     OSRS_PLAYER_CMD_TARGET,
@@ -412,7 +404,6 @@ static inline OsrsPlayerStepResult osrs_encounter_player_step(
         } else {
             osrs_interaction_clear(interaction);
         }
-        /* an entity click cancels any walk already in flight */
         if (input->dest_x) *input->dest_x = -1;
         if (input->dest_y) *input->dest_y = -1;
     } else if (input->command.kind == OSRS_PLAYER_CMD_MOVE) {
@@ -429,9 +420,6 @@ static inline OsrsPlayerStepResult osrs_encounter_player_step(
         }
     }
 
-    /* an active interaction always chases. the only way to walk elsewhere is a
-       MOVE command, and that cleared the interaction above, so the two are
-       mutually exclusive by construction rather than by a tie-break policy. */
     if (input->command.kind == OSRS_PLAYER_CMD_MOVE &&
             !osrs_interaction_active(interaction)) {
         result.moved =

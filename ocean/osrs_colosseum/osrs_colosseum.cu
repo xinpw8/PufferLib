@@ -21,20 +21,6 @@ static_assert(12 + 23 - 1 == 34);
 static_assert(101 + 24 * 23 <= 904);
 
 static constexpr OsrsEntityEncoderDescriptor OSRS_COLOSSEUM_ENTITY_DESCRIPTOR = {
-    .env_name = "osrs_colosseum",
-    .obs_size = 904,
     .branches = OSRS_COLOSSEUM_ENTITY_BRANCHES,
     .num_branches = 2,
 };
-
-static void* osrs_colosseum_entity_encoder_create_weights(void* self) {
-    return osrs_entity_encoder_create_weights(
-        self, &OSRS_COLOSSEUM_ENTITY_DESCRIPTOR);
-}
-
-static void create_osrs_colosseum_encoder(Encoder* encoder) {
-    osrs_entity_encoder_configure(
-        encoder,
-        osrs_colosseum_entity_encoder_create_weights,
-        &OSRS_COLOSSEUM_ENTITY_DESCRIPTOR);
-}

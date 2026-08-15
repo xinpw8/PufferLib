@@ -114,11 +114,12 @@ static inline void opp_tick_cooldowns(OpponentState* opp) {
 static inline OppConsumables opp_get_consumables(OpponentState* opp, Player* self) {
     float hp_pct = (float)self->current_hitpoints / (float)self->base_hitpoints;
     OppConsumables c;
-    c.can_food = opp->food_cooldown <= 0 && can_eat_food(self) && hp_pct < 1.0f;
+    c.can_food = opp->food_cooldown <= 0 &&
+        osrs_player_can_eat_food_type(self, FOOD_SHARK) && hp_pct < 1.0f;
     c.can_brew = opp->potion_cooldown <= 0 &&
         pvp_drink_kind_available(self, OSRS_CONSUMABLE_BREW);
     c.can_karambwan = opp->karambwan_cooldown <= 0 &&
-        can_eat_karambwan(self) && hp_pct < 1.0f;
+        osrs_player_can_eat_food_type(self, FOOD_KARAMBWAN) && hp_pct < 1.0f;
     c.can_restore = opp->potion_cooldown <= 0 &&
         pvp_drink_kind_available(self, OSRS_CONSUMABLE_SUPER_RESTORE);
     return c;
@@ -1682,7 +1683,8 @@ static void opp_gmaul_combo(OsrsEnv* env, OpponentState* opp, int* actions) {
     Player* self = &env->players[1];
     Player* target = &env->players[0];
     float target_hp_pct = (float)target->current_hitpoints / (float)target->base_hitpoints;
-    int has_gmaul = player_has_gmaul(self);
+    int has_gmaul =
+        player_has_item_in_slot(self, GEAR_SLOT_WEAPON, ITEM_GRANITE_MAUL);
 
     opp_tick_cooldowns(opp);
 

@@ -58,7 +58,6 @@ static inline uint32_t nh_pvp_lowbias32(uint32_t x) {
 }
 
 static void nh_pvp_write_native_action_mask(Env* env, unsigned char* mask_out) {
-    if (!mask_out) return;
     pvp_write_action_mask_bytes(
         mask_out, &env->state.env, 0, env->context.route_topology);
 }
@@ -89,9 +88,6 @@ static void nh_pvp_apply_shaping(Env* env, int enabled, float scale) {
     shaping->ko_bonus = 0.15f;
     shaping->wasted_resources_penalty = -0.07f;
     shaping->prayer_penalty_enabled = 1;
-    shaping->click_penalty_enabled = 0;
-    shaping->click_penalty_threshold = 5;
-    shaping->click_penalty_coef = -0.003f;
 }
 
 void puf_init(Env* env, Dict* kwargs) {

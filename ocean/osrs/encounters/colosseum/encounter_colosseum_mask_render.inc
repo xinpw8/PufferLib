@@ -1,5 +1,27 @@
 #line 76 "encounter_colosseum.h"
 
+static int col_primary_action_valid(
+    const ColosseumState* s,
+    const ColosseumContext* ctx,
+    int primary_action
+) {
+    if (primary_action < 0 || primary_action >= COLO_PRIMARY_DIM) {
+        fprintf(stderr, "colosseum primary action out of range: %d\n", primary_action);
+        abort();
+    }
+    if (primary_action == 0) return 1;
+    if (s->modifiers.draft_pending && !s->modifiers.draft_free_movement) return 0;
+    if (primary_action < ENCOUNTER_MOVE_ACTIONS) {
+        int nx = s->player.x + ENCOUNTER_MOVE_TARGET_DX[primary_action];
+        int ny = s->player.y + ENCOUNTER_MOVE_TARGET_DY[primary_action];
+        return col_player_walkable_ctx(s, ctx, nx, ny);
+    }
+
+    int obs_slot = col_primary_obs_slot_from_action(primary_action);
+    int npc_slot = col_obs_slot_to_npc(s, obs_slot);
+    return npc_slot >= 0 && col_npc_is_live_target(&s->npcs[npc_slot]);
+}
+
 static void col_write_mask_ctx(
     EncounterState* state,
     EncounterContext* context,
@@ -8,7 +30,7 @@ static void col_write_mask_ctx(
     ColosseumState* s = (ColosseumState*)state;
     ColosseumContext* ctx = col_require_context(context);
     encounter_arena_topology_require_finalized(ctx->route_topology);
-    col_refresh_current_obs_slots_ctx(s, ctx);
+    col_refresh_current_obs_slots(s);
 
     int primary_offset = col_action_head_mask_offset(COLO_HEAD_PRIMARY);
     for (int action = 0; action < COLO_PRIMARY_DIM; action++) {
@@ -27,56 +49,45 @@ static void col_write_mask_ctx(
             s->player.current_prayer > 0 ? 1.0f : 0.0f;
     }
 
-    int inventory_heads_enabled = !ctx->config.mask_inventory_heads;
-    int cell_equip_slot[COLO_INVENTORY_DISPLAY_SLOTS];
-    int cell_can_eat[COLO_INVENTORY_DISPLAY_SLOTS];
-    int cell_can_drink[COLO_INVENTORY_DISPLAY_SLOTS];
-    int inventory_has_empty_cell =
-        osrs_first_empty_inventory_cell(s->player.inventory_cells, -1) >= 0;
-    for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
-        cell_equip_slot[cell] = -1;
-        cell_can_eat[cell] = 0;
-        cell_can_drink[cell] = 0;
-        OsrsInventoryClickResolution resolution =
-            osrs_inventory_cell_click_classify(
-                &s->player.inventory_cells[cell]);
-        if (resolution.click_action == OSRS_CLICK_EQUIP) {
-            const OsrsItemContentMetadata* metadata =
-                osrs_inventory_cell_metadata(
-                    &s->player.inventory_cells[cell]);
-            if (osrs_can_equip_metadata(
-                    &s->player, metadata, inventory_has_empty_cell)) {
-                cell_equip_slot[cell] = metadata->gear_slot;
-            }
-        } else if (resolution.click_action == OSRS_CLICK_EAT) {
-            cell_can_eat[cell] =
-                col_can_eat_consumable_kind(s, resolution.consumable_kind);
-        } else if (resolution.click_action == OSRS_CLICK_DRINK) {
-            cell_can_drink[cell] = osrs_inventory_cell_dose_count(
-                &s->player.inventory_cells[cell]) > 0 &&
-                s->player.potion_timer == 0 &&
-                col_drink_has_effect(s, resolution.consumable_kind);
-        }
-    }
-    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-        int head_offset =
-            col_action_head_mask_offset(COLO_HEAD_EQUIP_SLOT(slot));
-        mask[head_offset] = 1.0f;
+    int inventory_offset =
+        col_action_head_mask_offset(COLO_HEAD_EQUIP_BASE);
+    memset(&mask[inventory_offset], 0,
+        COLO_INV_CLICK_HEADS * COLO_INV_CLICK_DIM * sizeof(*mask));
+    for (int head = 0; head < COLO_INV_CLICK_HEADS; head++)
+        mask[inventory_offset + head * COLO_INV_CLICK_DIM] = 1.0f;
+
+    if (!ctx->config.mask_inventory_heads) {
+        int eat_offset = col_action_head_mask_offset(COLO_HEAD_EAT);
+        int drink_offset = col_action_head_mask_offset(COLO_HEAD_DRINK);
+        int inventory_has_empty_cell =
+            osrs_first_empty_inventory_cell(s->player.inventory_cells, -1) >= 0;
         for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
-            mask[head_offset + cell + 1] =
-                inventory_heads_enabled && cell_equip_slot[cell] == slot
-                    ? 1.0f : 0.0f;
+            const OsrsInventoryCell* inventory_cell =
+                &s->player.inventory_cells[cell];
+            OsrsInventoryClickResolution resolution =
+                osrs_inventory_cell_click_classify(inventory_cell);
+            if (resolution.click_action == OSRS_CLICK_EQUIP) {
+                const OsrsItemContentMetadata* metadata =
+                    osrs_inventory_cell_metadata(inventory_cell);
+                if (metadata->gear_slot >= 0 &&
+                        metadata->gear_slot < NUM_GEAR_SLOTS &&
+                        osrs_can_equip_metadata(
+                            &s->player, metadata, inventory_has_empty_cell)) {
+                    int offset = col_action_head_mask_offset(
+                        COLO_HEAD_EQUIP_SLOT(metadata->gear_slot));
+                    mask[offset + cell + 1] = 1.0f;
+                }
+            } else if (resolution.click_action == OSRS_CLICK_EAT &&
+                    osrs_can_eat_consumable_kind(
+                        &s->player, resolution.consumable_kind)) {
+                mask[eat_offset + cell + 1] = 1.0f;
+            } else if (resolution.click_action == OSRS_CLICK_DRINK &&
+                    osrs_inventory_cell_dose_count(inventory_cell) > 0 &&
+                    s->player.potion_timer == 0 &&
+                    col_drink_has_effect(s, resolution.consumable_kind)) {
+                mask[drink_offset + cell + 1] = 1.0f;
+            }
         }
-    }
-    int eat_offset = col_action_head_mask_offset(COLO_HEAD_EAT);
-    int drink_offset = col_action_head_mask_offset(COLO_HEAD_DRINK);
-    mask[eat_offset] = 1.0f;
-    mask[drink_offset] = 1.0f;
-    for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
-        mask[eat_offset + cell + 1] =
-            inventory_heads_enabled && cell_can_eat[cell] ? 1.0f : 0.0f;
-        mask[drink_offset + cell + 1] =
-            inventory_heads_enabled && cell_can_drink[cell] ? 1.0f : 0.0f;
     }
 
     int spell_offset = col_action_head_mask_offset(COLO_HEAD_SPELL);

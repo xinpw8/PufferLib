@@ -369,7 +369,7 @@ static inline void col_write_nearest_hazard_xy_value(
         s, nearest->found, nearest->x, nearest->y, value, obs, idx);
 }
 
-static void col_refresh_current_obs_slots_ctx(ColosseumState* s, const ColosseumContext* ctx) {
+static void col_refresh_current_obs_slots(ColosseumState* s) {
     for (int i = 0; i < COLO_OBS_NPCS; i++) s->current_obs_slots[i] = -1;
     int slot = 0;
     for (int i = 0; i < COLO_MAX_NPCS && slot < COLO_OBS_NPCS; i++) {
@@ -638,9 +638,6 @@ static void col_write_npc_slot(
     const ColoNpcStats* ns = &COLO_NPC_STATS[npc->type];
     int size = col_npc_effective_size(npc);
 
-    /* type+1, so 0 stays "empty slot" from the memset. The entity encoder expands this
-     * back to the same one-hot on the GPU, so the network sees exactly what it did before
-     * while the observation carries 1 float per slot instead of COLO_NUM_NPC_TYPES. */
     obs[i++] = (float)(npc->type + 1);
     obs[i++] = col_obs_rel_x(npc->x, px);
     obs[i++] = col_obs_rel_y(npc->y, py);
@@ -698,29 +695,46 @@ static int col_sol_premove_molten_hit(const ColosseumState* s) {
     return 0;
 }
 
-static int col_premove_molten_forecast_needed(
-    const ColosseumState* s
-) {
-    if (s->molten_count > 0) return 1;
-    if (col_mod_tier(s, COLO_MOD_REENTRY) == 0) return 0;
-    for (int n = 0; n < COLO_MAX_NPCS; n++) {
-        const ColoNPC* npc = &s->npcs[n];
-        if (!col_npc_is_live_target(npc) ||
-                npc->type != COLO_JAVELIN_COLOSSUS) {
-            continue;
-        }
-        const ColoJavelinState* jv = &npc->type_state.javelin;
-        if (jv->skyfall_pending && jv->skyfall_timer <= 1) return 1;
-    }
-    return 0;
-}
-
-static int col_build_post_premove_molten_forecast(
+static int col_premove_molten_burn(
     const ColosseumState* s,
-    const ColosseumContext* ctx,
-    ColosseumState* forecast
+    const ColosseumContext* ctx
 ) {
-    *forecast = *s;
+    int imminent_skyfall = 0;
+    if (col_mod_tier(s, COLO_MOD_REENTRY) > 0) {
+        for (int n = 0; n < COLO_MAX_NPCS; n++) {
+            const ColoNPC* npc = &s->npcs[n];
+            if (!col_npc_is_live_target(npc) ||
+                    npc->type != COLO_JAVELIN_COLOSSUS) {
+                continue;
+            }
+            const ColoJavelinState* jv = &npc->type_state.javelin;
+            if (jv->skyfall_pending && jv->skyfall_timer <= 1) {
+                imminent_skyfall = 1;
+                break;
+            }
+        }
+    }
+
+    if (!imminent_skyfall) {
+        for (int pool = 0; pool < s->molten_count; pool++)
+            if (s->molten_x[pool] == s->player.x &&
+                    s->molten_y[pool] == s->player.y &&
+                    s->molten_burn_timer[pool] == 0)
+                return 1;
+        return 0;
+    }
+
+    ColosseumState forecast;
+    forecast.modifiers = s->modifiers;
+    forecast.rng_state = s->rng_state;
+    forecast.molten_count = s->molten_count;
+    size_t molten_bytes = (size_t)s->molten_count * sizeof(s->molten_x[0]);
+    memcpy(forecast.molten_x, s->molten_x, molten_bytes);
+    memcpy(forecast.molten_y, s->molten_y, molten_bytes);
+    memcpy(forecast.molten_kind, s->molten_kind, molten_bytes);
+    memcpy(forecast.molten_lifetime, s->molten_lifetime, molten_bytes);
+    memcpy(forecast.molten_burn_timer, s->molten_burn_timer, molten_bytes);
+
     for (int n = 0; n < COLO_MAX_NPCS; n++) {
         const ColoNPC* npc = &s->npcs[n];
         if (!col_npc_is_live_target(npc) ||
@@ -730,27 +744,16 @@ static int col_build_post_premove_molten_forecast(
         const ColoJavelinState* jv = &npc->type_state.javelin;
         if (!jv->skyfall_pending || jv->skyfall_timer > 1) continue;
         col_mod_reentry_on_skyfall(
-            forecast, ctx->route_topology,
+            &forecast, ctx->route_topology,
             jv->skyfall_tile_x, jv->skyfall_tile_y);
     }
 
-    int burned = 0;
-    for (int pool = 0; pool < forecast->molten_count; pool++) {
-        int player_on_pool =
-            forecast->molten_x[pool] == forecast->player.x &&
-            forecast->molten_y[pool] == forecast->player.y;
-        if (!burned &&
-                player_on_pool &&
-                forecast->molten_burn_timer[pool] == 0) {
-            forecast->molten_burn_timer[pool] =
-                COLO_REENTRY_MOLTEN_BURN_INTERVAL - 1;
-            burned = 1;
-            continue;
-        }
-        if (forecast->molten_burn_timer[pool] > 0)
-            forecast->molten_burn_timer[pool]--;
-    }
-    return burned;
+    for (int pool = 0; pool < forecast.molten_count; pool++)
+        if (forecast.molten_x[pool] == s->player.x &&
+                forecast.molten_y[pool] == s->player.y &&
+                forecast.molten_burn_timer[pool] == 0)
+            return 1;
+    return 0;
 }
 
 typedef struct {
@@ -990,6 +993,60 @@ static void col_write_nearest_modifier_solarflare(
         for (int k = 0; k < 5; k++) obs[i++] = 0.0f;
     }
     *idx = i;
+}
+
+typedef struct {
+    int found;
+    int x;
+    int y;
+    int size;
+    int ticks;
+    int distance;
+} ColoVolatilityBlastPreview;
+
+static ColoVolatilityBlastPreview col_soonest_queued_volatility_blast(
+    const ColosseumState* s
+) {
+    ColoVolatilityBlastPreview best = {
+        .distance = 1 << 30,
+    };
+    for (int n = 0; n < COLO_MAX_NPCS; n++) {
+        const ColoNPC* npc = &s->npcs[n];
+        if (!col_npc_is_live_enemy(npc)) continue;
+        for (int h = 0; h < npc->pending_hits.count; h++) {
+            const EncounterPendingHit* hit = &npc->pending_hits.hits[h];
+            if (!hit->active) continue;
+            int ticks = hit->ticks_remaining < 0 ? 0 : hit->ticks_remaining;
+            int damage = 0;
+            for (int j = 0; j < npc->pending_hits.count; j++) {
+                const EncounterPendingHit* other = &npc->pending_hits.hits[j];
+                if (!other->active) continue;
+                int other_ticks =
+                    other->ticks_remaining < 0 ? 0 : other->ticks_remaining;
+                if (other_ticks <= ticks) damage += other->damage;
+            }
+            if (damage < npc->hp) continue;
+            int size = col_npc_effective_size(npc);
+            int center_x = npc->x + size / 2;
+            int center_y = npc->y + size / 2;
+            int dx = abs(center_x - s->player.x);
+            int dy = abs(center_y - s->player.y);
+            int distance = dx > dy ? dx : dy;
+            if (best.found &&
+                    (ticks > best.ticks ||
+                     (ticks == best.ticks && distance >= best.distance)))
+                continue;
+            best = (ColoVolatilityBlastPreview){
+                .found = 1,
+                .x = npc->x,
+                .y = npc->y,
+                .size = size,
+                .ticks = ticks,
+                .distance = distance,
+            };
+        }
+    }
+    return best;
 }
 
 static void col_write_volatility_blast_previews(
@@ -1637,28 +1694,18 @@ static int col_weapon_set_is_argmax_dpt_for_npc(
     return 1;
 }
 
-/* Sampled on attack ticks only. Reading it on every tick that merely has a target fired
- * the best-gear oracle ~4x more often than the reward that motivated the metric. */
 static int col_current_set_is_argmax_dpt_for_target(ColosseumState* s) {
     if (!s->tick_scratch.player_attacked) return -1;
-    int target = col_player_target_slot(s);
-    if (target < 0 || target >= COLO_MAX_NPCS) return -1;
-    const ColoNPC* npc = &s->npcs[target];
-    if (!col_npc_is_live_target(npc) || col_type_is_hazard_entity(npc->type))
-        return -1;
     const ColoBestGear (*best)[COLO_NUM_NPC_TYPES] = col_get_best_gear_table(s);
-    return col_weapon_set_is_argmax_dpt_for_npc(s, target, s->weapon_set, best);
+    return col_weapon_set_is_argmax_dpt_for_npc(
+        s, col_player_target_slot(s), s->weapon_set, best);
 }
 
 static int col_attacked_with_argmax_set(ColosseumState* s) {
     if (!s->tick_scratch.player_attacked) return -1;
-    int npc_slot = s->player_attack_npc_idx;
-    if (npc_slot < 0 || npc_slot >= COLO_MAX_NPCS) return -1;
-    const ColoNPC* npc = &s->npcs[npc_slot];
-    if (!col_npc_is_live_target(npc) || col_type_is_hazard_entity(npc->type))
-        return -1;
     const ColoBestGear (*best)[COLO_NUM_NPC_TYPES] = col_get_best_gear_table(s);
-    return col_weapon_set_is_argmax_dpt_for_npc(s, npc_slot, s->weapon_set, best);
+    return col_weapon_set_is_argmax_dpt_for_npc(
+        s, s->player_attack_npc_idx, s->weapon_set, best);
 }
 
 
@@ -1674,14 +1721,8 @@ static void col_write_obs_ctx(
     int col_prof_enabled = COLO_PROFILE_ENABLED();
     double col_prof_t0 = col_prof_enabled ? COLO_PROFILE_NOW_MS() : 0.0;
 #endif
-    col_refresh_current_obs_slots_ctx(s, ctx);
-    ColosseumState post_premove_molten;
-    int premove_molten_burn = 0;
-    if (col_premove_molten_forecast_needed(s)) {
-        premove_molten_burn =
-            col_build_post_premove_molten_forecast(
-                s, ctx, &post_premove_molten);
-    }
+    col_refresh_current_obs_slots(s);
+    int premove_molten_burn = col_premove_molten_burn(s, ctx);
 #ifdef COLO_PROFILE_ENABLED
     COLO_PROFILE_MARK(COLO_PROF_OBS_REFRESH_SLOTS);
 #endif

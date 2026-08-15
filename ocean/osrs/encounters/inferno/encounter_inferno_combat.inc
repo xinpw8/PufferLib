@@ -138,14 +138,6 @@ static int inf_resolve_player_attack_ctx(
     return 1;
 }
 
-static int inf_resolve_player_attack(
-    InfernoState* s,
-    int manual_spell,
-    InfPlayerAttack* out
-) {
-    return inf_resolve_player_attack_ctx(
-        s, inf_legacy_context(), manual_spell, out);
-}
 
 static int inf_player_has_any_barrage_spell_available(const InfernoState* s) {
     return s->player.current_magic >= BLOOD_BARRAGE_LEVEL;
@@ -232,29 +224,6 @@ static int inf_player_can_attack_npc_from_current_tile_ctx(
 }
 
 
-static int inf_player_has_los_to_npc_from_current_tile_ctx(
-    const InfernoState* s,
-    const InfernoContext* ctx,
-    int npc_idx
-) {
-    if (npc_idx < 0 || npc_idx >= INF_MAX_NPCS) return 0;
-
-    const InfNPC* npc = &s->npcs[npc_idx];
-    if (!npc->active || npc->death_ticks != 0 || npc->hp <= 0 ||
-            npc->type == INF_NPC_ZUK_SHIELD)
-        return 0;
-
-    return inf_los_clear_ctx(
-        s,
-        ctx,
-        s->player.x,
-        s->player.y,
-        1,
-        npc->x,
-        npc->y,
-        npc->size,
-        0);
-}
 
 
 
@@ -832,9 +801,6 @@ static void inf_npc_attack_ctx(InfernoState* s, InfernoContext* ctx, int idx) {
         npc->attack_timer = inf_jad_attack_timer(s->wave);
 }
 
-static void inf_npc_attack(InfernoState* s, int idx) {
-    inf_npc_attack_ctx(s, inf_legacy_context(), idx);
-}
 
 static int inf_find_mager_respawn_tile(
     InfernoState* s, const InfernoContext* ctx, int size, int* out_x, int* out_y
@@ -893,9 +859,6 @@ static int inf_mager_resurrect_ctx(InfernoState* s, InfernoContext* ctx, int idx
     return 1;
 }
 
-static int inf_mager_resurrect(InfernoState* s, int idx) {
-    return inf_mager_resurrect_ctx(s, inf_legacy_context(), idx);
-}
 
 #define INF_JAD_HEALER_MAX_SPAWN_CANDIDATES 165
 
@@ -960,10 +923,7 @@ static void inf_jad_check_healers_ctx(InfernoState* s, const InfernoContext* ctx
     if (npc->hp >= npc->max_hp / 2) return;
     inf_npc_jad(npc)->healer_spawned = 1;
 
-    int num_healers;
-    if (s->wave == 66)      num_healers = 5;
-    else if (s->wave == 67) num_healers = 3;
-    else                    num_healers = 3;
+    int num_healers = s->wave == 66 ? 5 : 3;
 
     for (int h = 0; h < num_healers; h++) {
         int slot = inf_find_free_npc(s);
@@ -977,9 +937,6 @@ static void inf_jad_check_healers_ctx(InfernoState* s, const InfernoContext* ctx
     }
 }
 
-static void inf_jad_check_healers(InfernoState* s, int idx) {
-    inf_jad_check_healers_ctx(s, inf_legacy_context(), idx);
-}
 
 static void inf_zuk_tick(InfernoState* s) {
     if (!inf_is_final_wave(s)) return;
@@ -1253,8 +1210,4 @@ static void inf_tick_npcs_ctx(InfernoState* s, InfernoContext* ctx) {
             s->npcs[slot].attack_timer = 4;
         }
     }
-}
-
-static void inf_tick_npcs(InfernoState* s) {
-    inf_tick_npcs_ctx(s, inf_legacy_context());
 }

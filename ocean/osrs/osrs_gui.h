@@ -580,9 +580,6 @@ static void gui_load_named_asset_range(GuiState* gs, const char* prefix, int fir
     }
 }
 
-static int gui_load_ui_interfaces(GuiState* gs) {
-    return osrs_ui_interfaces_load(&gs->ui_interfaces, OSRS_ASSET("ui/interfaces.bin"));
-}
 
 static const int GUI_PRAYER_ON_SPRITE_IDS[GUI_NUM_PRAYERS] = {
     115, 116, 117, 133, 134,
@@ -666,7 +663,7 @@ static void gui_load_sprites(GuiState* gs) {
     gs->sprites_loaded = 1;
     int ok = 1;
     gs->named_asset_count = 0;
-    gui_load_ui_interfaces(gs);
+    osrs_ui_interfaces_load(&gs->ui_interfaces, OSRS_ASSET("ui/interfaces.bin"));
     gui_load_fonts(gs);
     gui_load_item_stack_variants(gs);
 
@@ -2073,7 +2070,7 @@ static const char* gui_inv_primary_action_label(const InvSlot* inv) {
             &cell, OSRS_CLICK_TICK_FIRST);
     switch (resolution.click_action) {
         case OSRS_CLICK_EQUIP: {
-            int gear_slot = item_idx != ITEM_NONE ? item_to_gear_slot(item_idx) : -1;
+            int gear_slot = item_idx != ITEM_NONE ? osrs_item_gear_slot(item_idx) : -1;
             return gear_slot == GEAR_SLOT_WEAPON || gear_slot == GEAR_SLOT_AMMO
                 ? "Wield"
                 : "Wear";
@@ -2092,7 +2089,7 @@ static const char* gui_inv_primary_action_label(const InvSlot* inv) {
     switch (inv->type) {
         case INV_SLOT_EQUIPMENT: {
             if (inv->item_db_idx == ITEM_NONE) return NULL;
-            int gear_slot = item_to_gear_slot(inv->item_db_idx);
+            int gear_slot = osrs_item_gear_slot(inv->item_db_idx);
             return gear_slot == GEAR_SLOT_WEAPON || gear_slot == GEAR_SLOT_AMMO
                 ? "Wield"
                 : "Wear";
@@ -2219,7 +2216,7 @@ static InvAction gui_inv_click(GuiState* gs, Player* p, int slot,
                 gs->human_clicked_inv_slot = slot;
                 return INV_ACTION_EQUIP;
             }
-            int gear_slot = item_to_gear_slot(inv->item_db_idx);
+            int gear_slot = osrs_item_gear_slot(inv->item_db_idx);
             if (gear_slot >= 0) {
                 if (human_active) {
                     human_input_queue_equip_inventory_item(hi, slot, inv->item_db_idx, gear_slot);
@@ -2236,7 +2233,7 @@ static InvAction gui_inv_click(GuiState* gs, Player* p, int slot,
                 human_input_queue_eat(hi, 0, slot);
                 gs->human_clicked_inv_slot = slot;
             }
-            else { eat_food(p, 0); }
+            else { osrs_player_eat_food_type(p, FOOD_SHARK); }
             return INV_ACTION_EAT;
         case INV_SLOT_KARAMBWAN:
             if (human_active) {
@@ -2244,7 +2241,7 @@ static InvAction gui_inv_click(GuiState* gs, Player* p, int slot,
                 human_input_queue_eat(hi, 1, slot);
                 gs->human_clicked_inv_slot = slot;
             }
-            else { eat_food(p, 1); }
+            else { osrs_player_eat_food_type(p, FOOD_KARAMBWAN); }
             return INV_ACTION_EAT;
         case INV_SLOT_BREW:
             if (human_active) {

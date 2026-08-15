@@ -281,28 +281,12 @@ static void test_nh_attack_chase_destinations(void) {
 
 static void test_nh_out_of_arena_destination_fallback(void) {
     printf("--- NH PvP out-of-arena destination fallback ---\n");
-    Player player = {0};
-    player.x = FIGHT_AREA_BASE_X + 1;
-    player.y = FIGHT_AREA_BASE_Y + 1;
-    int destination_x = -1;
-    int destination_y = -1;
-    CHECK("farcast click beyond the arena keeps a route fallback target",
-        select_farcast_tile(
-            &player,
-            FIGHT_AREA_BASE_X + 5,
-            FIGHT_AREA_BASE_Y,
-            6,
-            &destination_x,
-            &destination_y,
-            nh_context.route_topology));
-    ASSERT_INT_EQ("farcast keeps the original x destination",
-        destination_x, FIGHT_AREA_BASE_X - 1);
-    ASSERT_INT_EQ("farcast keeps the original y destination",
-        destination_y, FIGHT_AREA_BASE_Y + 1);
+    int destination_x = FIGHT_AREA_BASE_X - 1;
+    int destination_y = FIGHT_AREA_BASE_Y + 1;
     EncounterRouteInput route_input = {
         .topology = nh_context.route_topology,
-        .source_x = player.x,
-        .source_y = player.y,
+        .source_x = FIGHT_AREA_BASE_X + 1,
+        .source_y = FIGHT_AREA_BASE_Y + 1,
         .actor_size = 1,
         .target_x = destination_x,
         .target_y = destination_y,
@@ -398,7 +382,7 @@ static void test_nh_shared_contract_and_inventory_actions(void) {
         osrs_inventory_cell_item_index(
             &player->inventory_cells[ranged_cell]) == previous_weapon);
 
-    int food_cell = nh_pvp_find_consumable_cell(
+    int food_cell = human_pvp_find_consumable_cell(
         player, OSRS_CONSUMABLE_SHARK_FOOD);
     CHECK("reset exposes a food cell", food_cell >= 0);
     player->current_hitpoints = 50;
@@ -421,7 +405,7 @@ static void test_nh_masked_drink_is_not_executed(void) {
         (EncounterContext*)&nh_context,
         2);
     Player* player = &nh_state->env.players[0];
-    int brew_cell = nh_pvp_find_consumable_cell(
+    int brew_cell = human_pvp_find_consumable_cell(
         player, OSRS_CONSUMABLE_BREW);
     CHECK("reset exposes a brew cell", brew_cell >= 0);
     player->current_hitpoints =

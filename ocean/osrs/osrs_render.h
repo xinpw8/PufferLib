@@ -548,10 +548,6 @@ static int render_offhand_uses_shield_block_anim(uint8_t item_idx) {
     }
 }
 
-static int render_projectile_profile_value_or(int value, int fallback) {
-    return osrs_combat_projectile_value_or(value, fallback);
-}
-
 static int render_spawn_profile_projectile(
     RenderClient* rc,
     const OsrsCombatProjectileProfile* profile,
@@ -566,11 +562,11 @@ static int render_spawn_profile_projectile(
         rc->effects, profile->travel_spotanim_id,
         src_x, src_y, dst_x, dst_y,
         delay_client_ticks, duration_client_ticks,
-        render_projectile_profile_value_or(
+        osrs_combat_projectile_value_or(
             profile->projectile_start_height, fallback_start_height),
-        render_projectile_profile_value_or(
+        osrs_combat_projectile_value_or(
             profile->projectile_end_height, fallback_end_height),
-        render_projectile_profile_value_or(
+        osrs_combat_projectile_value_or(
             profile->projectile_angle, fallback_slope),
         rc->effect_client_tick_counter,
         rc->spotanims, rc->model_cache, rc->npc_model_cache,

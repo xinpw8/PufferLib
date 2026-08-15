@@ -52,8 +52,8 @@ static void test_lab_typed_commands_mutate_state(void) {
             .type = INF_NPC_RANGER,
             .x = 24,
             .y = 31,
-            .hp = { .kind = INF_LAB_OPTIONAL_INT_UNSET },
-            .timer = { .kind = INF_LAB_OPTIONAL_INT_SET, .value = 3 },
+            .hp = { .kind = ENCOUNTER_LAB_OPTIONAL_INT_UNSET },
+            .timer = { .kind = ENCOUNTER_LAB_OPTIONAL_INT_SET, .value = 3 },
         },
     });
     ASSERT_INT_EQ("ranger active", state->npcs[0].active, 1);
@@ -83,7 +83,7 @@ static void test_lab_typed_commands_mutate_state(void) {
         .as.pillar = {
             .pillar_idx = 2,
             .state = INF_LAB_PILLAR_REMOVED,
-            .hp = { .kind = INF_LAB_OPTIONAL_INT_SET, .value = 0 },
+            .hp = { .kind = ENCOUNTER_LAB_OPTIONAL_INT_SET, .value = 0 },
         },
     });
     ASSERT_INT_EQ("north pillar inactive", state->pillars[2].active, 0);
@@ -194,8 +194,8 @@ static void test_lab_kill_refresh_uses_finalized_context(void) {
             .type = INF_NPC_RANGER,
             .x = 28,
             .y = 40,
-            .hp = {.kind = INF_LAB_OPTIONAL_INT_SET, .value = 1},
-            .timer = {.kind = INF_LAB_OPTIONAL_INT_SET, .value = 0},
+            .hp = {.kind = ENCOUNTER_LAB_OPTIONAL_INT_SET, .value = 1},
+            .timer = {.kind = ENCOUNTER_LAB_OPTIONAL_INT_SET, .value = 0},
         },
     });
     inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
@@ -234,8 +234,8 @@ static void test_lab_snapshot_restore_round_trip(void) {
             .type = INF_NPC_MAGER,
             .x = 27,
             .y = 32,
-            .hp = { .kind = INF_LAB_OPTIONAL_INT_SET, .value = 99 },
-            .timer = { .kind = INF_LAB_OPTIONAL_INT_SET, .value = 2 },
+            .hp = { .kind = ENCOUNTER_LAB_OPTIONAL_INT_SET, .value = 99 },
+            .timer = { .kind = ENCOUNTER_LAB_OPTIONAL_INT_SET, .value = 2 },
         },
     });
     inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
@@ -243,7 +243,7 @@ static void test_lab_snapshot_restore_round_trip(void) {
         .as.pillar = {
             .pillar_idx = 1,
             .state = INF_LAB_PILLAR_REMOVED,
-            .hp = { .kind = INF_LAB_OPTIONAL_INT_SET, .value = 0 },
+            .hp = { .kind = ENCOUNTER_LAB_OPTIONAL_INT_SET, .value = 0 },
         },
     });
     state->wave = 11;
@@ -274,7 +274,7 @@ static void test_lab_snapshot_restore_round_trip(void) {
         .as.pillar = {
             .pillar_idx = 1,
             .state = INF_LAB_PILLAR_ACTIVE,
-            .hp = { .kind = INF_LAB_OPTIONAL_INT_SET, .value = INF_PILLAR_HP },
+            .hp = { .kind = ENCOUNTER_LAB_OPTIONAL_INT_SET, .value = INF_PILLAR_HP },
         },
     });
     state->wave = 60;

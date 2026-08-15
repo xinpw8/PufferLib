@@ -1,30 +1,3 @@
-/* Hashes SIMULATION state only, never observation floats.
- *
- * test_colosseum_golden folds COLO_NUM_OBS obs floats and the sim scalars into one
- * hash, so re-seeding it after an observation change also re-seeds the simulation
- * half and a sim regression landed in the same commit is invisible. This probe is
- * the half that must not move when the observation is recut.
- *
- * Covers the whole ColosseumState plus the full 452-float action mask. Storage whose
- * size or representation is not part of the simulation contract is hashed semantically:
- * inventory identity, obs memo caches, and pending-hit queue spare capacity. Resizing or
- * renarrowing those records does not move a digest.
- *
- * Re-seeding rule: prove the digests first, never re-print to make an edit pass. Pending-hit
- * narrowing and canonical inventory identity were carried across by computing the same
- * semantic hash on the old and new records and confirming all 12 were byte-identical.
- *
- * The player-collision re-seed could NOT use that method: replacing a 1156-byte array with
- * two ints moved the struct's padding (size fell 1152, not the 1148 the fields imply), so
- * the hashed byte SEQUENCE differs even though the content does not. That re-seed rests on
- * the golden tests, which hash observation floats every tick and would move if any NPC were
- * blocked differently, plus test_colosseum_modifiers at 10491/10491.
- *
- * ColosseumLog is skipped as of the reward-clamp telemetry: it is an observation OF the
- * simulation, not part of it, so adding a counter to it must not read as a sim regression.
- * That re-seed WAS proved by the differential method: digests printed with the log skipped
- * on the tree without the telemetry reproduced all 12 with it. Sim quantities the log
- * derives from still reach the goldens through the observation. */
 
 #include <stdint.h>
 #include <stdio.h>
@@ -76,10 +49,6 @@ typedef struct {
     uint64_t baseline;
 } SimConfig;
 
-/* Baselines pin the consolidated Manticore activation, automatic-thrall, and
- * corpse-timed Volatility behavior after inventory moved into canonical Player state.
- * Regenerate with --print only for an intended simulation or serialized-state change,
- * never to make an observation-only edit pass. */
 static SimConfig CONFIGS[] = {
     {"w01",  1, 1001ULL, 0xC0FFEE01ULL, 0x00b4a64bb88751a0ULL},
     {"w02",  2, 1002ULL, 0xC0FFEE02ULL, 0x06e0f553b3786844ULL},
@@ -107,9 +76,6 @@ static void fill_actions(
     }
 }
 
-/* Queue contents widened back to int32, so narrowing a field's storage type does not
- * move the digest. Only the live prefix is hashed: readers all loop to count, so bytes
- * past it are not simulation state. */
 static uint64_t fnv_queue(uint64_t h, const EncounterPendingHitQueue* q) {
     h = fnv_i32(h, q->count);
     for (int i = 0; i < q->count; i++) {
@@ -146,15 +112,6 @@ static int skip_cmp(const void* a, const void* b) {
 }
 
 static uint64_t hash_sim(uint64_t h, const ColosseumState* s, const float* mask) {
-    /* Hash AROUND storage whose SIZE is not part of the simulation contract, then hash
-     * its contents semantically. FNV-1a multiplies once per byte, so leaving a memo
-     * cache or a queue's spare capacity in the byte range makes resizing it move every
-     * digest -- a false alarm on exactly the edits this probe exists to clear. */
-    /* log and obs_memos are the last two members, skipped as ONE region running to the end
-     * of the struct. Skipping them individually left the alignment padding between them in
-     * the hash, and that padding is 4 bytes or 0 depending on sizeof(ColosseumLog) mod 8 --
-     * so adding three floats to the log moved all twelve digests with no behaviour change.
-     * Taking the whole tail removes the padding from the hash entirely. */
     SkipRegion skip[] = {
         {offsetof(ColosseumState, npcs), sizeof(s->npcs)},
         {offsetof(ColosseumState, player.inventory_cells),

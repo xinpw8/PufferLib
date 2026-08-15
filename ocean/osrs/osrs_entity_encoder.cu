@@ -28,8 +28,6 @@ struct OsrsEntityBranchDescriptor {
 };
 
 struct OsrsEntityEncoderDescriptor {
-    const char* env_name;
-    int obs_size;
     const OsrsEntityBranchDescriptor* branches;
     int num_branches;
 };
@@ -94,28 +92,6 @@ __device__ __forceinline__ float osrs_entity_gelu_grad(float x) {
     float t = tanhf(inner);
     float dinner = 0.7978845608028654f * (1.0f + 3.0f * 0.044715f * x * x);
     return 0.5f * (1.0f + t) + 0.5f * x * (1.0f - t * t) * dinner;
-}
-
-__global__ void osrs_entity_gather_inventory(
-    precision_t* __restrict__ flat,
-    const precision_t* __restrict__ obs,
-    int B,
-    int obs_size
-) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int record_block = OSRS_ENTITY_INV_NUM_RECORDS * OSRS_ENTITY_INV_FEATURES;
-    int total = B * record_block;
-    if (idx >= total) return;
-    int b = idx / record_block;
-    int off = idx - b * record_block;
-    int record = off / OSRS_ENTITY_INV_FEATURES;
-    int feature = off - record * OSRS_ENTITY_INV_FEATURES;
-    const precision_t* src = obs + (int64_t)b * obs_size + OSRS_ENTITY_INV_START
-        + record * OSRS_ENTITY_INV_OBS_FEATURES;
-    int code = (int)lrintf(to_float(src[0]) * (float)OSRS_ITEM_OBS_CODE_SCALE);
-    assert(code >= 0 && code < OSRS_ITEM_OBS_TABLE_ROWS);
-    float value = OSRS_ITEM_OBS_TABLE_DEV[code][feature];
-    flat[idx] = from_float(value);
 }
 
 __global__ void osrs_entity_gather_branch(
@@ -230,7 +206,7 @@ __global__ void osrs_entity_fused_pool_fwd(
     int64_t out_idx = (int64_t)b * H + h;
     out[out_idx] = from_float(
         to_float(out[out_idx]) + (best_record < 0 ? 0.0f : best));
-    argmax[out_idx] = best_record;
+    if (argmax) argmax[out_idx] = best_record;
 }
 
 __global__ void osrs_entity_fused_l2_wgrad(
@@ -405,9 +381,13 @@ static Prec osrs_entity_encoder_forward(
     puf_mm(&input, &ew->global_w, &a->out, stream);
 
     int inventory_batch = B * OSRS_ENTITY_INV_NUM_RECORDS;
-    osrs_entity_gather_inventory<<<
-        grid_size(B * OSRS_ENTITY_INV_NUM_RECORDS * OSRS_ENTITY_INV_FEATURES),
-        BLOCK_SIZE, 0, stream>>>(a->inv_flat.data, input.data, B, ew->obs_size);
+    osrs_entity_gather_branch<<<
+        grid_size(inventory_batch * OSRS_ENTITY_INV_FEATURES),
+        BLOCK_SIZE, 0, stream>>>(
+        a->inv_flat.data, input.data, B, ew->obs_size,
+        OSRS_ENTITY_INV_START, OSRS_ENTITY_INV_NUM_RECORDS,
+        OSRS_ENTITY_INV_OBS_FEATURES, 0, OSRS_ITEM_OBS_CODE_SCALE,
+        OSRS_ENTITY_BRANCH_ITEM_TABLE);
     Prec inventory_2d = {
         .data = a->inv_flat.data,
         .shape = {inventory_batch, OSRS_ENTITY_INV_FEATURES},
@@ -522,36 +502,19 @@ static void osrs_entity_encoder_init_weights(
     }
 }
 
-static void osrs_entity_assert_aligned(
-    const OsrsEntityEncoderWeights* ew,
-    int64_t num_elements,
-    const char* name
-) {
-    if (num_elements % 8 != 0) {
-        fprintf(stderr, "%s entity encoder: %s numel %lld not a multiple of 8\n",
-            ew->descriptor->env_name, name, (long long)num_elements);
-        abort();
-    }
-}
-
-static void osrs_entity_register_param(
-    OsrsEntityEncoderWeights* ew,
-    Allocator* allocator,
-    Prec* tensor,
-    const char* name
-) {
-    osrs_entity_assert_aligned(ew, numel(tensor->shape), name);
+static void osrs_entity_register_param(Allocator* allocator, Prec* tensor) {
+    assert(numel(tensor->shape) % 8 == 0);
     alloc_register(allocator, tensor);
 }
 
 static void osrs_entity_encoder_reg_params(void* weights, Allocator* allocator) {
     OsrsEntityEncoderWeights* ew = (OsrsEntityEncoderWeights*)weights;
     ew->global_w = {.shape = {ew->hidden, ew->obs_size}};
-    osrs_entity_register_param(ew, allocator, &ew->global_w, "global_w");
+    osrs_entity_register_param(allocator, &ew->global_w);
     ew->inv_l1_w = {.shape = {OSRS_ENTITY_BOTTLENECK, OSRS_ENTITY_INV_FEATURES}};
     ew->inv_l2_w = {.shape = {ew->hidden, OSRS_ENTITY_BOTTLENECK}};
-    osrs_entity_register_param(ew, allocator, &ew->inv_l1_w, "inv_l1_w");
-    osrs_entity_register_param(ew, allocator, &ew->inv_l2_w, "inv_l2_w");
+    osrs_entity_register_param(allocator, &ew->inv_l1_w);
+    osrs_entity_register_param(allocator, &ew->inv_l2_w);
     for (int branch_idx = 0;
             branch_idx < ew->descriptor->num_branches;
             branch_idx++) {
@@ -561,8 +524,8 @@ static void osrs_entity_encoder_reg_params(void* weights, Allocator* allocator) 
             &osrs_entity_branch_weights(ew)[branch_idx];
         bw->l1_w = {.shape = {OSRS_ENTITY_BOTTLENECK, features}};
         bw->l2_w = {.shape = {ew->hidden, OSRS_ENTITY_BOTTLENECK}};
-        osrs_entity_register_param(ew, allocator, &bw->l1_w, "entity_l1_w");
-        osrs_entity_register_param(ew, allocator, &bw->l2_w, "entity_l2_w");
+        osrs_entity_register_param(allocator, &bw->l1_w);
+        osrs_entity_register_param(allocator, &bw->l2_w);
     }
 }
 
@@ -643,17 +606,15 @@ static void osrs_entity_register_branch_rollout(
     const OsrsEntityBranchDescriptor* descriptor,
     OsrsEntityBranchActivations* branch,
     Allocator* allocator,
-    int B,
-    int H
+    int B
 ) {
+    *branch = {};
     int features = osrs_entity_branch_features(descriptor);
     int record_batch = B * descriptor->num_records;
     branch->flat = {.shape = {record_batch, features}};
     branch->z1 = {.shape = {record_batch, OSRS_ENTITY_BOTTLENECK}};
-    branch->pool_argmax = {.shape = {B, H}};
     alloc_register(allocator, &branch->flat);
     alloc_register(allocator, &branch->z1);
-    alloc_register(allocator, &branch->pool_argmax);
 }
 
 static void osrs_entity_encoder_reg_rollout(
@@ -665,6 +626,7 @@ static void osrs_entity_encoder_reg_rollout(
     OsrsEntityEncoderWeights* ew = (OsrsEntityEncoderWeights*)weights;
     OsrsEntityEncoderActivations* a = (OsrsEntityEncoderActivations*)activations;
     int H = ew->hidden;
+    *a = {};
     a->out = {.shape = {B, H}};
     a->inv_flat = {
         .shape = {B * OSRS_ENTITY_INV_NUM_RECORDS, OSRS_ENTITY_INV_FEATURES},
@@ -672,36 +634,22 @@ static void osrs_entity_encoder_reg_rollout(
     a->inv_z1 = {
         .shape = {B * OSRS_ENTITY_INV_NUM_RECORDS, OSRS_ENTITY_BOTTLENECK},
     };
-    a->inv_pool_argmax = {.shape = {B, H}};
     alloc_register(allocator, &a->out);
     alloc_register(allocator, &a->inv_flat);
     alloc_register(allocator, &a->inv_z1);
-    alloc_register(allocator, &a->inv_pool_argmax);
     for (int branch_idx = 0;
             branch_idx < ew->descriptor->num_branches;
             branch_idx++) {
         osrs_entity_register_branch_rollout(
             &ew->descriptor->branches[branch_idx],
             &osrs_entity_branch_activations(a)[branch_idx],
-            allocator, B, H);
+            allocator, B);
     }
 }
 
-static void* osrs_entity_encoder_create_weights(
-    void* self,
-    const OsrsEntityEncoderDescriptor* descriptor
-) {
+template <const OsrsEntityEncoderDescriptor* descriptor>
+static void* osrs_entity_encoder_create_weights(void* self) {
     Encoder* encoder = (Encoder*)self;
-    if (descriptor->num_branches < 0) {
-        fprintf(stderr, "%s entity encoder: invalid branch count %d\n",
-            descriptor->env_name, descriptor->num_branches);
-        abort();
-    }
-    if (encoder->in_dim != descriptor->obs_size) {
-        fprintf(stderr, "%s entity encoder: env obs size %d != descriptor %d\n",
-            descriptor->env_name, encoder->in_dim, descriptor->obs_size);
-        abort();
-    }
     size_t weights_size = sizeof(OsrsEntityEncoderWeights) +
         (size_t)descriptor->num_branches * sizeof(OsrsEntityBranchWeights);
     OsrsEntityEncoderWeights* ew =
@@ -712,11 +660,8 @@ static void* osrs_entity_encoder_create_weights(
     return ew;
 }
 
-static void osrs_entity_encoder_configure(
-    Encoder* encoder,
-    create_weights_fn create_weights,
-    const OsrsEntityEncoderDescriptor* descriptor
-) {
+template <const OsrsEntityEncoderDescriptor* descriptor>
+static void create_osrs_entity_encoder(Encoder* encoder) {
     *encoder = Encoder{
         .forward = osrs_entity_encoder_forward,
         .backward = osrs_entity_encoder_backward,
@@ -724,7 +669,7 @@ static void osrs_entity_encoder_configure(
         .reg_params = osrs_entity_encoder_reg_params,
         .reg_train = osrs_entity_encoder_reg_train,
         .reg_rollout = osrs_entity_encoder_reg_rollout,
-        .create_weights = create_weights,
+        .create_weights = osrs_entity_encoder_create_weights<descriptor>,
         .in_dim = encoder->in_dim,
         .out_dim = encoder->out_dim,
         .activation_size = sizeof(OsrsEntityEncoderActivations) +
@@ -744,43 +689,10 @@ static constexpr OsrsEntityBranchDescriptor OSRS_EQUIPMENT_ENTITY_BRANCH[] = {
     },
 };
 
-static constexpr OsrsEntityEncoderDescriptor OSRS_ZULRAH_ENTITY_DESCRIPTOR = {
-    .env_name = "osrs_zulrah",
-    .obs_size = 205,
+static constexpr OsrsEntityEncoderDescriptor OSRS_EQUIPMENT_ENTITY_DESCRIPTOR = {
     .branches = OSRS_EQUIPMENT_ENTITY_BRANCH,
     .num_branches = 1,
 };
 #ifdef ZUL_NUM_OBS
-static_assert(OSRS_ZULRAH_ENTITY_DESCRIPTOR.obs_size == ZUL_NUM_OBS);
+static_assert(ZUL_NUM_OBS == 205);
 #endif
-
-static constexpr OsrsEntityEncoderDescriptor OSRS_PVP_ENTITY_DESCRIPTOR = {
-    .env_name = "osrs_pvp",
-    .obs_size = 133,
-    .branches = OSRS_EQUIPMENT_ENTITY_BRANCH,
-    .num_branches = 1,
-};
-
-static void* osrs_zulrah_entity_encoder_create_weights(void* self) {
-    return osrs_entity_encoder_create_weights(
-        self, &OSRS_ZULRAH_ENTITY_DESCRIPTOR);
-}
-
-static void* osrs_pvp_entity_encoder_create_weights(void* self) {
-    return osrs_entity_encoder_create_weights(
-        self, &OSRS_PVP_ENTITY_DESCRIPTOR);
-}
-
-static void create_osrs_zulrah_encoder(Encoder* encoder) {
-    osrs_entity_encoder_configure(
-        encoder,
-        osrs_zulrah_entity_encoder_create_weights,
-        &OSRS_ZULRAH_ENTITY_DESCRIPTOR);
-}
-
-static void create_osrs_pvp_encoder(Encoder* encoder) {
-    osrs_entity_encoder_configure(
-        encoder,
-        osrs_pvp_entity_encoder_create_weights,
-        &OSRS_PVP_ENTITY_DESCRIPTOR);
-}

@@ -164,12 +164,9 @@ static void col_lab_clear_transient(
     }
 }
 
-static void col_lab_refresh_geometry(
-    ColosseumState* s,
-    const ColosseumContext* ctx
-) {
+static void col_lab_refresh_geometry(ColosseumState* s) {
     col_rebuild_player_collision_flags(s);
-    col_refresh_current_obs_slots_ctx(s, ctx);
+    col_refresh_current_obs_slots(s);
 }
 
 static void col_lab_remove_all_npcs(ColosseumState* s) {
@@ -184,7 +181,7 @@ static void col_lab_clear_npcs(
 ) {
     col_lab_remove_all_npcs(s);
     col_lab_clear_transient(s, ctx);
-    col_lab_refresh_geometry(s, ctx);
+    col_lab_refresh_geometry(s);
 }
 
 static const char* col_lab_modifier_name(int mod);
@@ -223,7 +220,7 @@ static void col_lab_apply_command(
             if (p->prayer.kind == ENCOUNTER_LAB_OPTIONAL_INT_SET)
                 s->player.prayer = (OverheadPrayer)p->prayer.value;
             col_lab_clear_transient(s, ctx);
-            col_lab_refresh_geometry(s, ctx);
+            col_lab_refresh_geometry(s);
             return;
         }
 
@@ -256,7 +253,7 @@ static void col_lab_apply_command(
                 s->npcs[spawn->slot].attack_timer = spawn->timer.value;
             }
             col_lab_clear_transient(s, ctx);
-            col_lab_refresh_geometry(s, ctx);
+            col_lab_refresh_geometry(s);
             return;
         }
 
@@ -274,7 +271,7 @@ static void col_lab_apply_command(
             s->npcs[move->slot].target_y = move->y;
             col_stamp_npc_collision(s, &s->npcs[move->slot], 1);
             col_lab_clear_transient(s, ctx);
-            col_lab_refresh_geometry(s, ctx);
+            col_lab_refresh_geometry(s);
             return;
         }
 
@@ -283,7 +280,7 @@ static void col_lab_apply_command(
             col_lab_require_slot(slot);
             col_deactivate_npc(s, slot);
             col_lab_clear_transient(s, ctx);
-            col_lab_refresh_geometry(s, ctx);
+            col_lab_refresh_geometry(s);
             return;
         }
 
@@ -295,7 +292,7 @@ static void col_lab_apply_command(
             s->npcs[slot].hp = 0;
             col_deactivate_npc(s, slot);
             col_lab_clear_transient(s, ctx);
-            col_lab_refresh_geometry(s, ctx);
+            col_lab_refresh_geometry(s);
             return;
         }
 
@@ -309,7 +306,7 @@ static void col_lab_apply_command(
             if (hp > s->npcs[slot].max_hp)
                 col_lab_abort("npc hp %d exceeds max hp %d", hp, s->npcs[slot].max_hp);
             s->npcs[slot].hp = hp;
-            col_lab_refresh_geometry(s, ctx);
+            col_lab_refresh_geometry(s);
             return;
         }
 
@@ -321,7 +318,7 @@ static void col_lab_apply_command(
                 col_lab_abort("cannot set timer for inactive npc slot %d", slot);
             if (timer < 0) col_lab_abort("npc timer must be nonnegative");
             s->npcs[slot].attack_timer = timer;
-            col_lab_refresh_geometry(s, ctx);
+            col_lab_refresh_geometry(s);
             return;
         }
 
@@ -340,7 +337,7 @@ static void col_lab_apply_command(
 
             col_spawn_wave(s, ctx);
             col_lab_clear_transient(s, ctx);
-            col_lab_refresh_geometry(s, ctx);
+            col_lab_refresh_geometry(s);
             return;
         }
 
@@ -372,7 +369,7 @@ static void col_lab_apply_command(
                 s->sol.force_spear = 1;
             }
             s->sol.phase = phase;
-            col_lab_refresh_geometry(s, ctx);
+            col_lab_refresh_geometry(s);
             return;
         }
 
@@ -404,7 +401,7 @@ static void col_lab_apply_command(
                 s->modifiers.tier[mod] = (uint8_t)tier;
             }
             if ((ColoModifier)mod == COLO_MOD_FRAILTY) col_mod_apply_frailty_hp(s);
-            col_lab_refresh_geometry(s, ctx);
+            col_lab_refresh_geometry(s);
             return;
         }
 
@@ -433,7 +430,7 @@ static void col_lab_apply_command(
             for (int t = 0; t < ticks; t++)
                 col_step_ctx(
                     (EncounterState*)s, (EncounterContext*)ctx, actions);
-            col_lab_refresh_geometry(s, ctx);
+            col_lab_refresh_geometry(s);
             return;
         }
     }

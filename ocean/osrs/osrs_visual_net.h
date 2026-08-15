@@ -2,13 +2,9 @@
 
 #include "osrs_item_obs_generated.h"
 
-/* 5c puffercpu.h dropped _gelu. Keep a local twin so the viewer encoder stays
-   bit-compatible with the CUDA GELU without carrying a core patch. */
-static inline void osrs_visual_gelu(float* input, float* output, int size) {
-    for (int i = 0; i < size; i++) {
-        float x = input[i];
-        output[i] = 0.5f * x * (1.0f + tanhf(0.7978845608028654f * (x + 0.044715f * x * x * x)));
-    }
+static inline float osrs_visual_gelu(float x) {
+    return 0.5f * x *
+        (1.0f + tanhf(0.7978845608028654f * (x + 0.044715f * x * x * x)));
 }
 
 #define OSRS_ENT_INV_START        52
@@ -48,8 +44,6 @@ typedef enum {
     ENTITY_RECORD_ITEM_TABLE,
 } EntityRecordExpansion;
 
-
-#define ENTITY_RECORD_MAX_FEATS 64
 #define ENTITY_ENCODER_MAX_BRANCHES 3
 
 typedef struct {
@@ -72,19 +66,14 @@ typedef struct {
     EntityPoolDescriptor branches[ENTITY_ENCODER_MAX_BRANCHES];
 } EntityEncoderDescriptor;
 
-typedef struct EntityPoolBranch EntityPoolBranch;
-struct EntityPoolBranch {
-    EntityPoolDescriptor descriptor;
+typedef struct {
+    const EntityPoolDescriptor* descriptor;
     float* l1_w;
     float* l2_w;
-    float* z1;
-    float* h1;
-    float* e;
-    unsigned char* active;
-};
+    float* hidden;
+} EntityPoolBranch;
 
-typedef struct EntityEncoder EntityEncoder;
-struct EntityEncoder {
+typedef struct {
     float* output;
     float* global_w;
     int batch_size;
@@ -92,91 +81,33 @@ struct EntityEncoder {
     int hidden_dim;
     int num_branches;
     EntityPoolBranch branches[ENTITY_ENCODER_MAX_BRANCHES];
-};
+} EntityEncoder;
 
 static void entity_pool_branch_init(
         EntityPoolBranch* branch, Weights* weights, int hidden_dim,
-        const EntityPoolDescriptor* descriptor) {
-    if (descriptor->feats > ENTITY_RECORD_MAX_FEATS ||
-            descriptor->start < 0 || descriptor->num_recs <= 0 ||
-            descriptor->obs_feats <= 0 || descriptor->code_scale <= 0 ||
-            descriptor->bottleneck <= 0 || descriptor->active_width <= 0 ||
-            descriptor->active_width > descriptor->feats) {
-        fprintf(stderr, "entity pool branch: invalid shape or encoding contract\n");
-        abort();
-    }
-    if (descriptor->expansion == ENTITY_RECORD_TYPE_ONEHOT &&
-            (descriptor->type_onehot <= 0 ||
-             descriptor->feats != descriptor->type_onehot + descriptor->obs_feats - 1)) {
-        fprintf(stderr, "entity pool branch: stale type-code expansion contract\n");
-        abort();
-    }
-    if (descriptor->expansion == ENTITY_RECORD_ITEM_TABLE &&
-            (descriptor->type_onehot != 0 ||
-             descriptor->feats != OSRS_ITEM_OBS_TABLE_COLS ||
-             descriptor->obs_feats != 1)) {
-        fprintf(stderr, "entity pool branch: stale item-table expansion contract\n");
-        abort();
-    }
-    branch->descriptor = *descriptor;
+        const EntityPoolDescriptor* descriptor, float** scratch) {
+    branch->descriptor = descriptor;
     branch->l1_w = get_weights_aligned(
         weights, descriptor->bottleneck * descriptor->feats);
     branch->l2_w = get_weights_aligned(
         weights, hidden_dim * descriptor->bottleneck);
-    branch->z1 = (float*)calloc(
-        (size_t)descriptor->num_recs * descriptor->bottleneck, sizeof(float));
-    branch->h1 = (float*)calloc(
-        (size_t)descriptor->num_recs * descriptor->bottleneck, sizeof(float));
-    branch->e = (float*)calloc(
-        (size_t)descriptor->num_recs * hidden_dim, sizeof(float));
-    branch->active = (unsigned char*)calloc(
-        (size_t)descriptor->num_recs, sizeof(unsigned char));
-}
-
-static int entity_pool_descriptor_is_shared_item_branch(
-        const EntityPoolDescriptor* descriptor, int start, int num_recs) {
-    return descriptor->start == start &&
-        descriptor->num_recs == num_recs &&
-        descriptor->feats == OSRS_ENT_ITEM_FEATS &&
-        descriptor->obs_feats == 1 &&
-        descriptor->type_onehot == 0 &&
-        descriptor->code_scale == OSRS_ITEM_OBS_CODE_SCALE &&
-        descriptor->bottleneck == OSRS_ENT_ITEM_BOTTLENECK &&
-        descriptor->active_width == 1 &&
-        descriptor->expansion == ENTITY_RECORD_ITEM_TABLE;
+    branch->hidden = *scratch;
+    *scratch += descriptor->num_recs * descriptor->bottleneck;
 }
 
 static EntityEncoder* make_entity_encoder(
         Weights* weights, int batch_size, int input_dim, int hidden_dim,
         const EntityEncoderDescriptor* descriptor) {
-    if (!descriptor ||
-            (descriptor->obs_size > 0 && descriptor->obs_size != input_dim) ||
-            descriptor->num_branches < 2 ||
-            descriptor->num_branches > ENTITY_ENCODER_MAX_BRANCHES ||
-            !entity_pool_descriptor_is_shared_item_branch(
-                &descriptor->branches[0],
-                OSRS_ENT_INV_START,
-                OSRS_ENT_INV_NUM_RECS) ||
-            !entity_pool_descriptor_is_shared_item_branch(
-                &descriptor->branches[1],
-                OSRS_ENT_EQUIPPED_START,
-                OSRS_ENT_EQUIPPED_NUM_RECS)) {
-        fprintf(stderr, "entity encoder: stale environment descriptor\n");
-        abort();
-    }
+    size_t scratch_floats = (size_t)batch_size * hidden_dim;
     for (int i = 0; i < descriptor->num_branches; i++) {
-        const EntityPoolDescriptor* branch = &descriptor->branches[i];
-        if (branch->start < 0 ||
-                branch->start + branch->num_recs * branch->obs_feats >
-                    input_dim) {
-            fprintf(stderr, "entity encoder: branch exceeds observation width\n");
-            abort();
-        }
+        scratch_floats += (size_t)descriptor->branches[i].num_recs *
+            descriptor->branches[i].bottleneck;
     }
-    size_t out_size = (size_t)batch_size * hidden_dim * sizeof(float);
-    EntityEncoder* layer =
-        (EntityEncoder*)calloc(1, sizeof(EntityEncoder) + out_size);
-    layer->output = (float*)(layer + 1);
+    EntityEncoder* layer = (EntityEncoder*)calloc(
+        1, sizeof(EntityEncoder) + scratch_floats * sizeof(float));
+    float* scratch = (float*)(layer + 1);
+    layer->output = scratch;
+    scratch += (size_t)batch_size * hidden_dim;
     layer->global_w = get_weights_aligned(weights, hidden_dim * input_dim);
     layer->batch_size = batch_size;
     layer->input_dim = input_dim;
@@ -184,39 +115,26 @@ static EntityEncoder* make_entity_encoder(
     layer->num_branches = descriptor->num_branches;
     for (int i = 0; i < descriptor->num_branches; i++) {
         entity_pool_branch_init(
-            &layer->branches[i], weights, hidden_dim, &descriptor->branches[i]);
+            &layer->branches[i], weights, hidden_dim,
+            &descriptor->branches[i], &scratch);
     }
     return layer;
 }
 
 static void entity_expand_record(
         const EntityPoolDescriptor* descriptor, const float* rec, float* out) {
-    switch (descriptor->expansion) {
-        case ENTITY_RECORD_TYPE_ONEHOT: {
-            int code = (int)lrintf(rec[0] * (float)descriptor->code_scale);
-            if (code < 0 || code > descriptor->type_onehot) {
-                fprintf(stderr, "entity pool branch: type code %d out of range\n", code);
-                abort();
-            }
-            for (int i = 0; i < descriptor->type_onehot; i++)
-                out[i] = (code == i + 1) ? 1.0f : 0.0f;
-            for (int i = 0; i < descriptor->feats - descriptor->type_onehot; i++)
-                out[descriptor->type_onehot + i] = rec[1 + i];
-            return;
-        }
-        case ENTITY_RECORD_ITEM_TABLE: {
-            int code = (int)lrintf(rec[0] * (float)descriptor->code_scale);
-            if (code < 0 || code >= OSRS_ITEM_OBS_TABLE_ROWS) {
-                fprintf(stderr, "entity pool branch: item code %d out of table\n", code);
-                abort();
-            }
-            for (int i = 0; i < descriptor->feats; i++)
-                out[i] = OSRS_ITEM_OBS_TABLE[code][i];
-            return;
-        }
+    int code = (int)lrintf(rec[0] * (float)descriptor->code_scale);
+    if (descriptor->expansion == ENTITY_RECORD_ITEM_TABLE) {
+        assert(code >= 0 && code < OSRS_ITEM_OBS_TABLE_ROWS);
+        for (int i = 0; i < descriptor->feats; i++)
+            out[i] = OSRS_ITEM_OBS_TABLE[code][i];
+        return;
     }
-    fprintf(stderr, "entity pool branch: unknown record expansion\n");
-    abort();
+    assert(code >= 0 && code <= descriptor->type_onehot);
+    for (int i = 0; i < descriptor->type_onehot; i++)
+        out[i] = code == i + 1 ? 1.0f : 0.0f;
+    for (int i = 0; i < descriptor->feats - descriptor->type_onehot; i++)
+        out[descriptor->type_onehot + i] = rec[1 + i];
 }
 
 void entity_encoder_forward(EntityEncoder* layer, float* observations) {
@@ -225,69 +143,53 @@ void entity_encoder_forward(EntityEncoder* layer, float* observations) {
     for (int b = 0; b < layer->batch_size; b++) {
         float* obs = observations + (size_t)b * IN;
         float* out = layer->output + (size_t)b * H;
-
         for (int o = 0; o < H; o++) {
             float sum = 0.0f;
-            for (int i = 0; i < IN; i++) sum += obs[i] * layer->global_w[o * IN + i];
+            for (int i = 0; i < IN; i++)
+                sum += obs[i] * layer->global_w[o * IN + i];
             out[o] = sum;
         }
-
         for (int br = 0; br < layer->num_branches; br++) {
-            EntityPoolBranch* p = &layer->branches[br];
-            const EntityPoolDescriptor* descriptor = &p->descriptor;
+            EntityPoolBranch* branch = &layer->branches[br];
+            const EntityPoolDescriptor* descriptor = branch->descriptor;
             float* recs = obs + descriptor->start;
-            float expanded[ENTITY_RECORD_MAX_FEATS];
+            unsigned long long active_records = 0;
+            float expanded[COLO_ENT_NPC_FEATS];
             for (int n = 0; n < descriptor->num_recs; n++) {
                 float* rec = recs + n * descriptor->obs_feats;
-                float* z1n = p->z1 + n * descriptor->bottleneck;
+                float* hidden = branch->hidden + n * descriptor->bottleneck;
                 entity_expand_record(descriptor, rec, expanded);
                 float active_sum = 0.0f;
                 for (int i = 0; i < descriptor->active_width; i++)
                     active_sum += expanded[i];
-                p->active[n] = active_sum > 0.0f;
+                if (active_sum > 0.0f)
+                    active_records |= 1ULL << n;
                 for (int k = 0; k < descriptor->bottleneck; k++) {
-                    const float* w = p->l1_w + k * descriptor->feats;
+                    const float* weight = branch->l1_w + k * descriptor->feats;
                     float sum = 0.0f;
                     for (int i = 0; i < descriptor->feats; i++)
-                        sum += expanded[i] * w[i];
-                    z1n[k] = sum;
-                }
-            }
-            osrs_visual_gelu(
-                p->z1, p->h1, descriptor->num_recs * descriptor->bottleneck);
-            for (int n = 0; n < descriptor->num_recs; n++) {
-                float* h1n = p->h1 + n * descriptor->bottleneck;
-                float* en = p->e + (size_t)n * H;
-                for (int o = 0; o < H; o++) {
-                    float sum = 0.0f;
-                    for (int k = 0; k < descriptor->bottleneck; k++)
-                        sum += h1n[k] *
-                            p->l2_w[o * descriptor->bottleneck + k];
-                    en[o] = sum;
+                        sum += expanded[i] * weight[i];
+                    hidden[k] = osrs_visual_gelu(sum);
                 }
             }
             for (int o = 0; o < H; o++) {
                 float best = -INFINITY;
-                int best_n = -1;
+                int has_active_record = 0;
                 for (int n = 0; n < descriptor->num_recs; n++) {
-                    if (!p->active[n]) continue;
-                    float v = p->e[(size_t)n * H + o];
-                    if (v > best) { best = v; best_n = n; }
+                    if ((active_records & (1ULL << n)) == 0) continue;
+                    const float* hidden =
+                        branch->hidden + n * descriptor->bottleneck;
+                    float sum = 0.0f;
+                    for (int k = 0; k < descriptor->bottleneck; k++)
+                        sum += hidden[k] *
+                            branch->l2_w[o * descriptor->bottleneck + k];
+                    if (sum > best) best = sum;
+                    has_active_record = 1;
                 }
-                out[o] += (best_n < 0) ? 0.0f : best;
+                if (has_active_record) out[o] += best;
             }
         }
     }
-}
-
-void free_entity_encoder(EntityEncoder* layer) {
-    for (int br = 0; br < layer->num_branches; br++) {
-        free(layer->branches[br].z1);
-        free(layer->branches[br].h1);
-        free(layer->branches[br].e);
-        free(layer->branches[br].active);
-    }
-    free(layer);
 }
 
 typedef struct VisualNet VisualNet;
@@ -307,7 +209,7 @@ struct VisualNet {
 void visual_net_free(VisualNet* net) {
     free(net->obs);
     if (net->encoder) free(net->encoder);
-    if (net->entity_encoder) free_entity_encoder(net->entity_encoder);
+    free(net->entity_encoder);
     free(net->decoder);
     free_mingru(net->mingru);
     if (net->multidiscrete) free(net->multidiscrete);

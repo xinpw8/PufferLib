@@ -1403,7 +1403,7 @@ __global__ void transpose_102(precision_t* dst, const precision_t* src,
     dst[b * A * C + a * C + c] = src[idx];
 }
 
-__global__ void transpose_102(float* dst, const float* src, int A, int B, int C) {
+__global__ void transpose_102_float(float* dst, const float* src, int A, int B, int C) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int total = A * B * C;
     if (idx >= total) {
@@ -1445,7 +1445,7 @@ static void train_epoch_gpu(PuffeRL* pufferl, RolloutBuf src, int slot,
     int mask_c = src.action_mask.shape[2];
     transpose_102<<<grid_size(T * B * obs_size), BLOCK_SIZE, 0, stream>>>(
         rollouts->observations.data, src.observations.data, T, B, obs_size);
-    transpose_102<<<grid_size(T * B * num_atns), BLOCK_SIZE, 0, stream>>>(
+    transpose_102_float<<<grid_size(T * B * num_atns), BLOCK_SIZE, 0, stream>>>(
         rollouts->actions.data, src.actions.data, T, B, num_atns);
     transpose_102<<<grid_size(T * B), BLOCK_SIZE, 0, stream>>>(
         rollouts->logprobs.data, src.logprobs.data, T, B, 1);

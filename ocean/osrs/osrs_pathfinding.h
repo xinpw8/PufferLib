@@ -73,73 +73,50 @@ typedef struct {
     OsrsLosKind kind;
     const LOSBlocker* blockers;
     int blocker_count;
-    int (*tile_blocked)(void* ctx, int x, int y);
+    los_tile_blocked_fn tile_blocked;
     los_tile_flags_fn tile_flags;
     void* tile_ctx;
 } OsrsLosQuery;
 
 static inline OsrsLosQuery osrs_los_open(void) {
-    OsrsLosQuery query;
-    query.kind = OSRS_LOS_OPEN;
-    query.blockers = NULL;
-    query.blocker_count = 0;
-    query.tile_blocked = NULL;
-    query.tile_flags = NULL;
-    query.tile_ctx = NULL;
-    return query;
+    return (OsrsLosQuery){.kind = OSRS_LOS_OPEN};
 }
 
 static inline OsrsLosQuery osrs_los_blockers(
     const LOSBlocker* blockers,
     int blocker_count
 ) {
-    OsrsLosQuery query;
-    query.kind = OSRS_LOS_BLOCKERS;
-    query.blockers = blockers;
-    query.blocker_count = blocker_count;
-    query.tile_blocked = NULL;
-    query.tile_flags = NULL;
-    query.tile_ctx = NULL;
-    return query;
+    return (OsrsLosQuery){
+        .kind = OSRS_LOS_BLOCKERS,
+        .blockers = blockers,
+        .blocker_count = blocker_count,
+    };
 }
 
 static inline OsrsLosQuery osrs_los_tile(
-    int (*tile_blocked)(void* ctx, int x, int y),
+    los_tile_blocked_fn tile_blocked,
     void* tile_ctx
 ) {
-    OsrsLosQuery query;
-    query.kind = OSRS_LOS_TILE;
-    query.blockers = NULL;
-    query.blocker_count = 0;
-    query.tile_blocked = tile_blocked;
-    query.tile_flags = NULL;
-    query.tile_ctx = tile_ctx;
-    return query;
+    return (OsrsLosQuery){
+        .kind = OSRS_LOS_TILE,
+        .tile_blocked = tile_blocked,
+        .tile_ctx = tile_ctx,
+    };
 }
 
 static inline OsrsLosQuery osrs_los_flags(
     los_tile_flags_fn tile_flags,
     void* tile_ctx
 ) {
-    OsrsLosQuery query;
-    query.kind = OSRS_LOS_FLAGS;
-    query.blockers = NULL;
-    query.blocker_count = 0;
-    query.tile_blocked = NULL;
-    query.tile_flags = tile_flags;
-    query.tile_ctx = tile_ctx;
-    return query;
+    return (OsrsLosQuery){
+        .kind = OSRS_LOS_FLAGS,
+        .tile_flags = tile_flags,
+        .tile_ctx = tile_ctx,
+    };
 }
 
 static inline const OsrsLosQuery* osrs_los_open_query(void) {
-    static const OsrsLosQuery query = {
-        OSRS_LOS_OPEN,
-        NULL,
-        0,
-        NULL,
-        NULL,
-        NULL,
-    };
+    static const OsrsLosQuery query = {.kind = OSRS_LOS_OPEN};
     return &query;
 }
 
@@ -169,53 +146,6 @@ static inline void osrs_los_require_query(
     abort();
 }
 
-static inline int osrs_los_tile_ray_clear(
-    const OsrsLosQuery* query,
-    int x0, int y0,
-    int x1, int y1
-) {
-    int dx = x1 - x0;
-    int dy = y1 - y0;
-    int adx = dx < 0 ? -dx : dx;
-    int ady = dy < 0 ? -dy : dy;
-    if (adx == 0 && ady == 0) return 1;
-    if (query->tile_blocked(query->tile_ctx, x1, y1)) return 0;
-
-    if (adx > ady) {
-        int x = x0;
-        int y_fp = y0 * LOS_FP_SCALE + LOS_FP_HALF;
-        int slope = (dy * LOS_FP_SCALE) / adx;
-        int x_inc = dx > 0 ? 1 : -1;
-        if (dy < 0) y_fp -= 1;
-        while (x != x1) {
-            x += x_inc;
-            int y = y_fp >> 16;
-            if (query->tile_blocked(query->tile_ctx, x, y)) return 0;
-            y_fp += slope;
-            int new_y = y_fp >> 16;
-            if (new_y != y &&
-                    query->tile_blocked(query->tile_ctx, x, new_y))
-                return 0;
-        }
-    } else {
-        int y = y0;
-        int x_fp = x0 * LOS_FP_SCALE + LOS_FP_HALF;
-        int slope = (dx * LOS_FP_SCALE) / ady;
-        int y_inc = dy > 0 ? 1 : -1;
-        if (dx < 0) x_fp -= 1;
-        while (y != y1) {
-            y += y_inc;
-            int x = x_fp >> 16;
-            if (query->tile_blocked(query->tile_ctx, x, y)) return 0;
-            x_fp += slope;
-            int new_x = x_fp >> 16;
-            if (new_x != x &&
-                    query->tile_blocked(query->tile_ctx, new_x, y))
-                return 0;
-        }
-    }
-    return 1;
-}
 
 static inline int osrs_los_clear(
     const OsrsLosQuery* query,
@@ -257,8 +187,13 @@ static inline int osrs_los_clear(
             if (t_los_y < ty) t_los_y = ty;
             if (t_los_y >= ty + tsize) t_los_y = ty + tsize - 1;
 
-            return osrs_los_tile_ray_clear(
-                query, t_los_x, t_los_y, p_los_x, p_los_y);
+            return los_tile_ray_clear(
+                query->tile_blocked,
+                query->tile_ctx,
+                t_los_x,
+                t_los_y,
+                p_los_x,
+                p_los_y);
         }
 
         case OSRS_LOS_FLAGS:
@@ -321,10 +256,6 @@ static inline int encounter_player_can_attack(
 #define OSRS_THREAD_LOCAL _Thread_local
 #endif
 
-#define PATHFIND_GRID_SIZE 104
-#define PATHFIND_ARENA_MAX 48
-#define PATHFIND_MAX_QUEUE_FULL (PATHFIND_GRID_SIZE * PATHFIND_GRID_SIZE)
-#define PATHFIND_MAX_QUEUE_ARENA (PATHFIND_ARENA_MAX * PATHFIND_ARENA_MAX)
 #define PATHFIND_MAX_FALLBACK_RADIUS 10
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -342,6 +273,22 @@ static inline int encounter_player_can_attack(
 #define VIA_SE    9
 #define VIA_NE    12
 #define VIA_START 99
+static const int8_t encounter_route_osrs_dx[8] =
+    {-1, 1, 0, 0, -1, 1, -1, 1};
+static const int8_t encounter_route_osrs_dy[8] =
+    {0, 0, -1, 1, -1, -1, 1, 1};
+static const int8_t encounter_route_osrs_via[8] =
+    {VIA_W, VIA_E, VIA_S, VIA_N, VIA_SW, VIA_SE, VIA_NW, VIA_NE};
+static const uint8_t encounter_route_osrs_step_mask[8] =
+    {8, 16, 2, 64, 1, 4, 32, 128};
+static const int8_t encounter_route_south_dx[8] =
+    {0, -1, 0, 1, -1, -1, 1, 1};
+static const int8_t encounter_route_south_dy[8] =
+    {-1, 0, 1, 0, -1, 1, -1, 1};
+static const int8_t encounter_route_south_via[8] =
+    {VIA_S, VIA_W, VIA_N, VIA_E, VIA_SW, VIA_NW, VIA_SE, VIA_NE};
+static const uint8_t encounter_route_south_step_mask[8] =
+    {2, 8, 64, 16, 1, 32, 4, 128};
 
 
 #define ENCOUNTER_ROUTE_MAX_WAYPOINTS 25
@@ -499,6 +446,17 @@ typedef struct {
 } EncounterRouteScratch;
 
 static OSRS_THREAD_LOCAL EncounterRouteScratch encounter_route_scratch;
+static inline uint16_t encounter_route_next_generation(
+    EncounterRouteScratch* scratch
+) {
+    scratch->current_generation++;
+    if (scratch->current_generation != 0)
+        return scratch->current_generation;
+    memset(scratch->generation, 0, sizeof(scratch->generation));
+    memset(scratch->target_generation, 0, sizeof(scratch->target_generation));
+    memset(scratch->blocker_generation, 0, sizeof(scratch->blocker_generation));
+    return ++scratch->current_generation;
+}
 static inline int encounter_route_is_target(
     const EncounterRouteInput* input,
     int x,
@@ -590,60 +548,9 @@ static inline int encounter_route_dynamic_blocked_cached_at_index(
     return scratch->blocker_value[index];
 }
 
-static inline int encounter_route_dynamic_blocked_cached(
-    const EncounterRouteInput* input,
-    EncounterRouteScratch* scratch,
-    uint16_t generation,
-    int x,
-    int y
-) {
-    if (!input->blockers.is_blocked) return 0;
-    if (!encounter_arena_topology_contains(input->topology, x, y))
-        return encounter_route_dynamic_blocked(input, x, y);
-    int index = encounter_arena_topology_index_raw(input->topology, x, y);
-    return encounter_route_dynamic_blocked_cached_at_index(
-        input, scratch, generation, x, y, index);
-}
-
-static inline int encounter_route_step_allowed_cached(
-    const EncounterRouteInput* input,
-    EncounterRouteScratch* scratch,
-    uint16_t generation,
-    int x,
-    int y,
-    int dx,
-    int dy
-) {
-    if (encounter_route_dynamic_blocked_cached(
-            input, scratch, generation, x + dx, y + dy))
-        return 0;
-    if (dx != 0 && dy != 0 &&
-            (encounter_route_dynamic_blocked_cached(
-                input, scratch, generation, x, y + dy) ||
-             encounter_route_dynamic_blocked_cached(
-                input, scratch, generation, x + dx, y)))
-        return 0;
-    if (!encounter_arena_topology_step_allowed_assume_finalized_size_in_range(
-            input->topology, x, y, input->actor_size, dx, dy))
-        return 0;
-    return 1;
-}
 
 
-static inline int encounter_route_footprints_overlap(
-    int actor_x,
-    int actor_y,
-    int actor_size,
-    int target_x,
-    int target_y,
-    int target_size
-) {
-    return
-        actor_x < target_x + target_size &&
-        target_x < actor_x + actor_size &&
-        actor_y < target_y + target_size &&
-        target_y < actor_y + actor_size;
-}
+
 
 static inline int encounter_route_footprints_cardinal_adjacent(
     int actor_x,
@@ -956,14 +863,12 @@ static inline int encounter_route_direction_rank(
     int dx,
     int dy
 ) {
-    static const int osrs_dx[8] = {-1, 1, 0, 0, -1, 1, -1, 1};
-    static const int osrs_dy[8] = {0, 0, -1, 1, -1, -1, 1, 1};
-    static const int south_dx[8] = {0, -1, 0, 1, -1, -1, 1, 1};
-    static const int south_dy[8] = {-1, 0, 1, 0, -1, 1, -1, 1};
-    const int* rank_dx =
-        encounter_route_cost_is_osrs(input->cost_policy) ? osrs_dx : south_dx;
-    const int* rank_dy =
-        encounter_route_cost_is_osrs(input->cost_policy) ? osrs_dy : south_dy;
+    const int8_t* rank_dx = encounter_route_cost_is_osrs(input->cost_policy)
+        ? encounter_route_osrs_dx
+        : encounter_route_south_dx;
+    const int8_t* rank_dy = encounter_route_cost_is_osrs(input->cost_policy)
+        ? encounter_route_osrs_dy
+        : encounter_route_south_dy;
     for (int rank = 0; rank < 8; rank++) {
         if (rank_dx[rank] == dx && rank_dy[rank] == dy) return rank;
     }
@@ -1287,7 +1192,7 @@ static inline EncounterRouteResult encounter_route_escape_overlap(
             int x = input->source_x + dx;
             int y = input->source_y + dy;
             if (!encounter_route_destination_allowed(input, x, y)) continue;
-            if (encounter_route_footprints_overlap(
+            if (encounter_entity_footprints_overlap(
                     x, y, input->actor_size,
                     input->target_x, input->target_y, input->target_size))
                 continue;
@@ -1415,14 +1320,14 @@ static inline void encounter_route_reverse_build_result(
     EncounterReverseRouteField* field,
     EncounterRouteResult* result
 ) {
-    static const int8_t osrs_dx[8] = {-1, 1, 0, 0, -1, 1, -1, 1};
-    static const int8_t osrs_dy[8] = {0, 0, -1, 1, -1, -1, 1, 1};
-    static const int8_t south_dx[8] = {0, -1, 0, 1, -1, -1, 1, 1};
-    static const int8_t south_dy[8] = {-1, 0, 1, 0, -1, 1, -1, 1};
     const int8_t* direction_dx =
-        encounter_route_cost_is_osrs(input->cost_policy) ? osrs_dx : south_dx;
+        encounter_route_cost_is_osrs(input->cost_policy)
+            ? encounter_route_osrs_dx
+            : encounter_route_south_dx;
     const int8_t* direction_dy =
-        encounter_route_cost_is_osrs(input->cost_policy) ? osrs_dy : south_dy;
+        encounter_route_cost_is_osrs(input->cost_policy)
+            ? encounter_route_osrs_dy
+            : encounter_route_south_dy;
     const EncounterArenaTopology* topology = input->topology;
     int current_x = input->source_x;
     int current_y = input->source_y;
@@ -1598,16 +1503,8 @@ static inline int encounter_route_try_reverse(
         source_local_x * topology->height + source_local_y;
     if (!encounter_route_reverse_field_contains(field, source_index) &&
             field->head < field->tail) {
-        scratch->current_generation++;
-        if (scratch->current_generation == 0) {
-            memset(scratch->generation, 0, sizeof(scratch->generation));
-            memset(scratch->target_generation, 0,
-                sizeof(scratch->target_generation));
-            memset(scratch->blocker_generation, 0,
-                sizeof(scratch->blocker_generation));
-            scratch->current_generation = 1;
-        }
-        uint16_t blocker_generation = scratch->current_generation;
+        uint16_t blocker_generation =
+            encounter_route_next_generation(scratch);
         while (field->head < field->tail &&
                 !encounter_route_reverse_field_contains(field, source_index)) {
             int current_packed = field->queue[field->head++];
@@ -1618,12 +1515,9 @@ static inline int encounter_route_try_reverse(
             int current_abs_y = topology->origin_y + current_y;
             uint16_t next_depth = (uint16_t)(
                 encounter_route_reverse_field_depth(field, current_index) + 1);
-            static const int8_t dx[8] =
-                {-1, 1, 0, 0, -1, 1, -1, 1};
-            static const int8_t dy[8] =
-                {0, 0, -1, 1, -1, -1, 1, 1};
-            static const uint8_t step_mask[8] =
-                {8, 16, 2, 64, 1, 4, 32, 128};
+            const int8_t* dx = encounter_route_osrs_dx;
+            const int8_t* dy = encounter_route_osrs_dy;
+            const uint8_t* step_mask = encounter_route_osrs_step_mask;
             for (int direction = 0; direction < 8; direction++) {
                 int predecessor_x = current_x - dx[direction];
                 int predecessor_y = current_y - dy[direction];
@@ -1774,14 +1668,10 @@ static OSRS_ROUTE_NOINLINE int encounter_route_expand_source_field(
         if (target_edges[local_x] & (UINT64_C(1) << local_y))
             return local_x * topology->height + local_y;
     }
-    static const int8_t direction_dx[8] = {-1, 1, 0, 0, -1, 1, -1, 1};
-    static const int8_t direction_dy[8] = {0, 0, -1, 1, -1, -1, 1, 1};
-    static const int8_t direction_via[8] = {
-        VIA_W, VIA_E, VIA_S, VIA_N, VIA_SW, VIA_SE, VIA_NW, VIA_NE
-    };
-    static const uint8_t direction_step_mask[8] = {
-        8, 16, 2, 64, 1, 4, 32, 128
-    };
+    const int8_t* direction_dx = encounter_route_osrs_dx;
+    const int8_t* direction_dy = encounter_route_osrs_dy;
+    const int8_t* direction_via = encounter_route_osrs_via;
+    const uint8_t* direction_step_mask = encounter_route_osrs_step_mask;
     const uint8_t* legal_step_masks =
         topology->legal_step_masks[input->actor_size - 1];
     while (field->expanded_count < field->visited_count) {
@@ -2241,7 +2131,7 @@ static inline EncounterRouteResult encounter_route_solve(
     }
     if ((input->target_kind == ENCOUNTER_ROUTE_TARGET_CARDINAL_ADJACENCY ||
          input->target_kind == ENCOUNTER_ROUTE_TARGET_ATTACK_RANGE) &&
-            encounter_route_footprints_overlap(
+            encounter_entity_footprints_overlap(
                 input->source_x, input->source_y, input->actor_size,
                 input->target_x, input->target_y, input->target_size)) {
 #ifdef OSRS_ROUTE_PROBE
@@ -2276,16 +2166,7 @@ static inline EncounterRouteResult encounter_route_solve(
 #endif
     const EncounterArenaTopology* topology = input->topology;
     EncounterRouteScratch* scratch = &encounter_route_scratch;
-    scratch->current_generation++;
-    if (scratch->current_generation == 0) {
-        memset(scratch->generation, 0, sizeof(scratch->generation));
-        memset(scratch->target_generation, 0,
-            sizeof(scratch->target_generation));
-        memset(scratch->blocker_generation, 0,
-            sizeof(scratch->blocker_generation));
-        scratch->current_generation = 1;
-    }
-    uint16_t generation = scratch->current_generation;
+    uint16_t generation = encounter_route_next_generation(scratch);
     int target_index = -1;
     if (input->target_kind == ENCOUNTER_ROUTE_TARGET_TILE) {
         target_index =
@@ -2330,32 +2211,19 @@ static inline EncounterRouteResult encounter_route_solve(
     int head = 0;
     int tail = 1;
     int selected_index = -1;
-    static const int8_t osrs_dx[8] = {-1, 1, 0, 0, -1, 1, -1, 1};
-    static const int8_t osrs_dy[8] = {0, 0, -1, 1, -1, -1, 1, 1};
-    static const int8_t osrs_via[8] = {
-        VIA_W, VIA_E, VIA_S, VIA_N, VIA_SW, VIA_SE, VIA_NW, VIA_NE
-    };
-    static const uint8_t osrs_step_mask[8] = {
-        8, 16, 2, 64, 1, 4, 32, 128
-    };
-    static const int8_t south_dx[8] = {0, -1, 0, 1, -1, -1, 1, 1};
-    static const int8_t south_dy[8] = {-1, 0, 1, 0, -1, 1, -1, 1};
-    static const int8_t south_via[8] = {
-        VIA_S, VIA_W, VIA_N, VIA_E, VIA_SW, VIA_NW, VIA_SE, VIA_NE
-    };
-    static const uint8_t south_step_mask[8] = {
-        2, 8, 64, 16, 1, 32, 4, 128
-    };
     int osrs_cost = encounter_route_cost_is_osrs(input->cost_policy);
-    const int8_t* direction_dx = osrs_cost ? osrs_dx : south_dx;
-    const int8_t* direction_dy = osrs_cost ? osrs_dy : south_dy;
-    const int8_t* direction_via = osrs_cost ? osrs_via : south_via;
-    const uint8_t* direction_step_mask =
-        osrs_cost ? osrs_step_mask : south_step_mask;
-    int direction_delta[8];
-    for (int i = 0; i < 8; i++)
-        direction_delta[i] =
-            direction_dx[i] * topology->height + direction_dy[i];
+    const int8_t* direction_dx = osrs_cost
+        ? encounter_route_osrs_dx
+        : encounter_route_south_dx;
+    const int8_t* direction_dy = osrs_cost
+        ? encounter_route_osrs_dy
+        : encounter_route_south_dy;
+    const int8_t* direction_via = osrs_cost
+        ? encounter_route_osrs_via
+        : encounter_route_south_via;
+    const uint8_t* direction_step_mask = osrs_cost
+        ? encounter_route_osrs_step_mask
+        : encounter_route_south_step_mask;
     const uint8_t* legal_step_masks =
         topology->legal_step_masks[input->actor_size - 1];
     if (!input->blockers.is_blocked) {
@@ -2409,40 +2277,34 @@ static inline EncounterRouteResult encounter_route_solve(
                 if (scratch->generation[next_index] == generation) continue;
                 int dx = direction_dx[i];
                 int dy = direction_dy[i];
-                if (scratch->blocker_generation[next_index] != generation) {
-                    scratch->blocker_generation[next_index] = generation;
-                    scratch->blocker_value[next_index] = (uint8_t)
-                        input->blockers.is_blocked(
-                            input->blockers.ctx,
-                            topology->origin_x + next_x,
-                            topology->origin_y + next_y,
-                            input->actor_size);
-                }
-                if (scratch->blocker_value[next_index]) continue;
+                if (encounter_route_dynamic_blocked_cached_at_index(
+                        input,
+                        scratch,
+                        generation,
+                        topology->origin_x + next_x,
+                        topology->origin_y + next_y,
+                        next_index))
+                    continue;
                 if (dx != 0 && dy != 0) {
                     int side_index =
                         current_x * topology->height + next_y;
-                    if (scratch->blocker_generation[side_index] != generation) {
-                        scratch->blocker_generation[side_index] = generation;
-                        scratch->blocker_value[side_index] = (uint8_t)
-                            input->blockers.is_blocked(
-                                input->blockers.ctx,
-                                x,
-                                topology->origin_y + next_y,
-                                input->actor_size);
-                    }
-                    if (scratch->blocker_value[side_index]) continue;
+                    if (encounter_route_dynamic_blocked_cached_at_index(
+                            input,
+                            scratch,
+                            generation,
+                            x,
+                            topology->origin_y + next_y,
+                            side_index))
+                        continue;
                     side_index = next_x * topology->height + current_y;
-                    if (scratch->blocker_generation[side_index] != generation) {
-                        scratch->blocker_generation[side_index] = generation;
-                        scratch->blocker_value[side_index] = (uint8_t)
-                            input->blockers.is_blocked(
-                                input->blockers.ctx,
-                                topology->origin_x + next_x,
-                                y,
-                                input->actor_size);
-                    }
-                    if (scratch->blocker_value[side_index]) continue;
+                    if (encounter_route_dynamic_blocked_cached_at_index(
+                            input,
+                            scratch,
+                            generation,
+                            topology->origin_x + next_x,
+                            y,
+                            side_index))
+                        continue;
                 }
                 if (tail >= topology->tile_count) {
                     fprintf(stderr, "OSRS route queue overflow: %d\n", tail);

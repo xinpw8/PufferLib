@@ -58,9 +58,6 @@ static inline int osrs_can_equip_from_cell(
     return 1;
 }
 
-/** Equips the cell's item, displacing worn gear (2h weapon/shield rules
- *  included) back into the inventory. Returns the gear slot equipped into,
- *  or -1 if the click was not equippable. */
 static inline int osrs_equip_from_cell(
     Player* p,
     OsrsInventoryCell* cells,
@@ -73,10 +70,6 @@ static inline int osrs_equip_from_cell(
         osrs_inventory_cell_metadata(cell);
     uint8_t item_idx = metadata->item_idx;
     int gear_slot = metadata->gear_slot;
-    if (gear_slot < 0) {
-        fprintf(stderr, "inventory equip: item %u has no gear slot\n", item_idx);
-        abort();
-    }
     uint8_t displaced = p->equipped[gear_slot];
 
     if (gear_slot == GEAR_SLOT_WEAPON && item_is_two_handed(item_idx)) {
@@ -86,7 +79,7 @@ static inline int osrs_equip_from_cell(
                 displaced = shield;
             } else {
                 int empty = osrs_first_empty_inventory_cell(cells, cell_idx);
-                if (empty < 0) return -1;
+                if (empty < 0) abort();
                 cells[empty] = osrs_inventory_cell_from_item(shield);
             }
             p->equipped[GEAR_SLOT_SHIELD] = ITEM_NONE;
@@ -138,8 +131,6 @@ static inline int osrs_can_eat_consumable_kind(
     abort();
 }
 
-/** One tick's worth of inventory-click actions: per-gear-slot equip heads
- *  plus eat and drink heads, each 0 = no-op or 1..28 = inventory cell + 1. */
 typedef struct {
     int equip_by_slot[NUM_GEAR_SLOTS];
     int eat;
@@ -157,20 +148,15 @@ typedef struct {
     OsrsInventoryClickResolution drink_resolution;
 } OsrsInventoryTickIntent;
 
-static inline OsrsInventoryTickIntent osrs_inventory_tick_intent_empty(void) {
-    OsrsInventoryTickIntent intent = {
-        .eat_cell = -1,
-        .drink_cell = -1,
-    };
-    return intent;
-}
-
 static inline OsrsInventoryTickIntent osrs_resolve_inventory_tick_intent(
     const Player* p,
     const OsrsInventoryCell* cells,
     const OsrsInventoryClickActions* clicks
 ) {
-    OsrsInventoryTickIntent intent = osrs_inventory_tick_intent_empty();
+    OsrsInventoryTickIntent intent = {
+        .eat_cell = -1,
+        .drink_cell = -1,
+    };
     int inventory_has_empty_cell = -1;
 
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
@@ -194,10 +180,6 @@ static inline OsrsInventoryTickIntent osrs_resolve_inventory_tick_intent(
                 p, metadata,
                 !needs_empty_cell || inventory_has_empty_cell)) continue;
         int gear_slot = metadata->gear_slot;
-        if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) {
-            fprintf(stderr, "inventory equip intent: invalid gear slot %d\n", gear_slot);
-            abort();
-        }
         if (gear_slot != slot) continue;
         intent.equip_cell_by_slot[slot] = cell_idx;
         intent.equip_slot_mask |= UINT32_C(1) << slot;
@@ -250,8 +232,6 @@ typedef struct {
     OsrsInventoryClickResolution resolution;
 } OsrsInventoryApplyStep;
 
-/** Pops the intent's next click in OSRS application order (equip slots
- *  ascending, then eat, then drink). Returns 0 when the intent is drained. */
 static inline int osrs_inventory_intent_next(
     OsrsInventoryTickIntent* intent,
     OsrsInventoryApplyStep* out

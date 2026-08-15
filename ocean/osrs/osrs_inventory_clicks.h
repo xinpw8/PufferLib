@@ -47,12 +47,11 @@ typedef void (*OsrsInventoryDrinkOneDoseEffectFn)(
 #define OSRS_INVENTORY_CELL_OBS_FEATURES_COMPACT \
     (OSRS_INVENTORY_CELL_OBS_SHARED + OSRS_INVENTORY_CELL_OBS_KIND_UNION)
 
-/* Slot names for the compact record reconstructed by the item-table gather. */
 #define OSRS_INVENTORY_CELL_COMPACT_PRESENT   0
 #define OSRS_INVENTORY_CELL_COMPACT_DOSE      1
 #define OSRS_INVENTORY_CELL_COMPACT_IS_ARMOR  2
 #define OSRS_INVENTORY_CELL_COMPACT_IS_WEAPON 3
-/* Union slot: effect_class4[2] on gear, hp_heal on consumables. */
+/* Gear effect, consumable healing. */
 #define OSRS_INVENTORY_CELL_COMPACT_HP_HEAL   (OSRS_INVENTORY_CELL_OBS_SHARED + 5)
 
 #define OSRS_INVENTORY_CELL_OBS_CODE 0

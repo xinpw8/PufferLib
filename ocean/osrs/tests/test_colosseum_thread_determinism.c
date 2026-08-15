@@ -1,13 +1,3 @@
-/**
- * Steps a fixed set of colosseum envs through a fixed action sequence, once with
- * one OpenMP worker and once with many, then compares every observation float.
- *
- * This isolates the environment from the trainer. Training diverges run to run
- * only when vec.num_threads > 1, and the trainer's env loop is
- * `#pragma omp parallel for schedule(static)` over independent Env structs, so
- * either the env carries thread-shared state or the cause is outside the env.
- * Nothing here is reimplemented: it drives col_step_ctx and col_write_obs_ctx.
- */
 #define _POSIX_C_SOURCE 200809L
 #include <stdint.h>
 #include <stdio.h>
@@ -23,22 +13,19 @@
 typedef struct {
     ColosseumState state;
     ColosseumContext ctx;
-} ProbeEnv;
+} ThreadTestEnv;
 
-static uint64_t sm(uint64_t* s) {
+static uint64_t splitmix64(uint64_t* s) {
     uint64_t z = (*s += 0x9E3779B97F4A7C15ull);
     z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
     z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
     return z ^ (z >> 31);
 }
 
-static ProbeEnv* g_envs;
+static ThreadTestEnv* g_envs;
 static float* g_obs;
 static uint64_t g_state_hash[NUM_ENVS];
 
-/* Observations are a lossy view of the state, so hash the whole struct too:
-   divergence in rewards, timers or RNG can be invisible in obs yet still steer
-   training. States are memset before reset, so padding hashes deterministically. */
 static uint64_t fnv1a(const void* p, size_t n) {
     const unsigned char* b = (const unsigned char*)p;
     uint64_t h = 1469598103934665603ull;
@@ -59,9 +46,6 @@ static void run_pass(int workers, int late_start_mode, const int* actions) {
         col_reset_ctx((EncounterState*)&g_envs[i].state,
             (EncounterContext*)&g_envs[i].ctx, 900u + (unsigned)i * 7u);
     }
-    /* The trainer resets inside the parallel loop when an episode ends, which is
-       the path col_apply_late_start_entry_state and the wave-entry reservoir sit
-       on. Stepping without it leaves finished envs frozen and never exercises it. */
     for (int t = 0; t < NUM_TICKS; t++) {
         #pragma omp parallel for schedule(static) num_threads(workers)
         for (int i = 0; i < NUM_ENVS; i++) {
@@ -121,9 +105,9 @@ int main(int argc, char** argv) {
     int* actions = (int*)malloc(nact * sizeof(int));
     uint64_t rng = 20260730u;
     for (size_t i = 0; i < nact; i++)
-        actions[i] = (int)(sm(&rng) % (uint64_t)COLO_ACTION_DIMS[i % COLO_NUM_ACTION_HEADS]);
+        actions[i] = (int)(splitmix64(&rng) % (uint64_t)COLO_ACTION_DIMS[i % COLO_NUM_ACTION_HEADS]);
 
-    g_envs = (ProbeEnv*)malloc(sizeof(ProbeEnv) * NUM_ENVS);
+    g_envs = (ThreadTestEnv*)malloc(sizeof(ThreadTestEnv) * NUM_ENVS);
     g_obs = (float*)malloc(sizeof(float) * NUM_ENVS * COLO_NUM_OBS);
     float* ref = (float*)malloc(sizeof(float) * NUM_ENVS * COLO_NUM_OBS);
     uint64_t ref_hash[NUM_ENVS];

@@ -64,8 +64,6 @@ static void col_deactivate_npc(ColosseumState* s, int idx) {
     if (!col_type_is_hazard_entity(npc->type) && !col_type_is_warbander(npc->type))
         col_stamp_npc_collision(s, npc, 0);
     npc->active = 0;
-    /* The per-tick reset skips inactive slots, so a slot leaving play clears its own tick
-     * flags once here instead of every tick forever. */
     npc->attacked_this_tick = 0;
     npc->attack_style_this_tick = ATTACK_STYLE_NONE;
     npc->moved_this_tick = 0;

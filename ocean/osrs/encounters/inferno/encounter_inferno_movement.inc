@@ -170,9 +170,6 @@ static void inf_npc_move_ctx(
             s, npc->x, npc->y, npc->size);
 }
 
-static void inf_npc_move(InfernoState* s, int idx) {
-    inf_npc_move_ctx(s, inf_legacy_context(), idx);
-}
 
 static void inf_meleer_dig_check_ctx(InfernoState* s, const InfernoContext* ctx, int idx) {
     InfNPC* npc = &s->npcs[idx];
@@ -232,8 +229,4 @@ static void inf_meleer_dig_check_ctx(InfernoState* s, const InfernoContext* ctx,
             npc->dig_freeze_timer = 6;
         }
     }
-}
-
-static void inf_meleer_dig_check(InfernoState* s, int idx) {
-    inf_meleer_dig_check_ctx(s, inf_legacy_context(), idx);
 }

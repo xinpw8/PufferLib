@@ -21,7 +21,6 @@ static void* topology_counted_calloc(size_t count, size_t size);
 
 #define calloc topology_counted_calloc
 #include "ocean/osrs/osrs_encounter_player.h"
-#include "ocean/osrs/tests/osrs_route_reference.h"
 #undef calloc
 
 static void* topology_counted_calloc(size_t count, size_t size) {
@@ -47,24 +46,12 @@ typedef struct {
 } StepTargetCtx;
 typedef struct {
     int calls;
-} StepWalkableCountCtx;
-typedef struct {
-    int calls;
     int open_x;
     int open_y;
 } StepRouteBlockedCountCtx;
 
 
 
-static int step_tile_walkable(void* ctx, int x, int y) {
-    (void)ctx;
-    return x >= 0 && x < STEP_GRID && y >= 0 && y < STEP_GRID;
-}
-static int step_counted_tile_walkable(void* ctx, int x, int y) {
-    StepWalkableCountCtx* count = (StepWalkableCountCtx*)ctx;
-    count->calls++;
-    return x >= 0 && x < STEP_GRID && y >= 0 && y < STEP_GRID;
-}
 
 
 static int step_vertical_wall(void* ctx, int x, int y) {
@@ -198,58 +185,8 @@ static void test_ranged_chase_targets_nearest_attack_position(void) {
 }
 
 
-static void test_attack_route_rejects_cardinal_adjacency_through_wall(void) {
-    CollisionMap map;
-    CollisionRegion region;
-    collision_map_init(&map);
-    memset(&region, 0, sizeof(region));
-    collision_map_put(&map, collision_region_hash(9, 10), &region);
-    region.flags[0][9][10] = COLLISION_WALL_EAST;
-    region.flags[0][10][10] = COLLISION_WALL_WEST;
 
-    const OsrsLosQuery* los = osrs_los_open_query();
-    PathResult route = encounter_pathfind_arena_attack_approach(
-        &map, 0, 0,
-        9, 10,
-        10, 10, 1, 1,
-        step_tile_walkable, NULL,
-        NULL, NULL,
-        los,
-        0, 0, STEP_GRID, STEP_GRID);
 
-    CHECK("wall-adjacent route moves around the wall",
-        route.found && (route.next_dx != 0 || route.next_dy != 0));
-}
-
-static void test_attack_route_fallback_stays_within_ten_tiles(void) {
-    const OsrsLosQuery* los = osrs_los_open_query();
-    PathResult route = encounter_pathfind_arena_attack_approach(
-        NULL, 0, 0,
-        10, 10,
-        -20, 10, 1, 1,
-        step_tile_walkable, NULL,
-        NULL, NULL,
-        los,
-        0, 0, STEP_GRID, STEP_GRID);
-
-    CHECK("fallback outside the ten-tile target radius fails", !route.found);
-}
-
-static void test_attack_route_uses_rsmod_cardinal_first_order(void) {
-    PathResult route = encounter_pathfind_arena_attack_approach(
-        NULL, 0, 0,
-        10, 10,
-        8, 8, 1, 1,
-        step_tile_walkable, NULL,
-        NULL, NULL,
-        osrs_los_open_query(),
-        0, 0, STEP_GRID, STEP_GRID);
-
-    CHECK("RSMod route takes west before southwest",
-        route.found &&
-        route.next_dx == -1 && route.next_dy == 0 &&
-        route.run_dx == -1 && route.run_dy == -1);
-}
 
 static void test_melee_attack_does_not_cross_cardinal_wall(void) {
     CollisionMap map;
@@ -301,10 +238,6 @@ static void test_melee_attack_does_not_cross_cardinal_wall(void) {
     free(wall_topology);
 }
 
-/* an entity click cancels a walk already in flight: the player closes on the
-   target instead of continuing to the clicked tile. this is the nh_pvp/zulrah
-   regression — EXPLICIT_FIRST used to honour both, giving free damage while
-   repositioning. */
 static void test_target_command_cancels_walk_in_flight(void) {
     printf("--- entity click cancels a walk in flight ---\n");
 
@@ -669,125 +602,9 @@ static void test_target_selection_does_not_own_route_cache(void) {
         memcmp(&route_cache, &preserved, sizeof(preserved)) == 0);
 }
 
-static void test_attack_route_field_stops_at_first_reachable_target_edge(void) {
-    EncounterArenaAttackRouteField field;
-    encounter_build_arena_attack_route_field(
-        &field,
-        NULL,
-        0,
-        0,
-        2,
-        2,
-        12,
-        2,
-        1,
-        step_tile_walkable,
-        NULL,
-        NULL,
-        NULL,
-        0,
-        0,
-        STEP_GRID,
-        STEP_GRID);
 
-    EncounterAttackRouteLanding landing = encounter_arena_attack_route_landing(
-        &field,
-        12,
-        2,
-        1,
-        1,
-        osrs_los_open_query());
 
-    CHECK("goal-directed field stops before exhausting the arena",
-        field.visited_count < STEP_GRID * STEP_GRID);
-    CHECK("goal-directed field keeps the first FIFO target edge",
-        landing.route_found && landing.route_x == 11 && landing.route_y == 2);
-}
 
-static void test_unreachable_attack_route_field_exhausts_for_fallback(void) {
-    EncounterArenaAttackRouteField field;
-    encounter_build_arena_attack_route_field(
-        &field,
-        NULL,
-        0,
-        0,
-        10,
-        10,
-        -20,
-        10,
-        1,
-        step_tile_walkable,
-        NULL,
-        NULL,
-        NULL,
-        0,
-        0,
-        STEP_GRID,
-        STEP_GRID);
-
-    CHECK("unreachable target exhausts the field for fallback",
-        field.visited_count == STEP_GRID * STEP_GRID);
-}
-
-static void test_attack_route_caches_walkability_per_tile(void) {
-    EncounterArenaAttackRouteField field;
-    StepWalkableCountCtx walkable_count = {0};
-    encounter_build_arena_attack_route_field(
-        &field,
-        NULL,
-        0,
-        0,
-        1,
-        1,
-        22,
-        22,
-        1,
-        step_counted_tile_walkable,
-        &walkable_count,
-        NULL,
-        NULL,
-        0,
-        0,
-        STEP_GRID,
-        STEP_GRID);
-
-    CHECK("route field checks each arena tile at most once",
-        walkable_count.calls <= STEP_GRID * STEP_GRID);
-}
-
-static void test_attackable_target_skips_route_scan(void) {
-    Player player;
-    memset(&player, 0, sizeof(player));
-    player.x = 10;
-    player.y = 10;
-    player.dest_x = 7;
-    player.dest_y = 8;
-    StepWalkableCountCtx walkable_count = {0};
-
-    int moved = encounter_chase_attack_target(
-        &player,
-        12,
-        10,
-        1,
-        2,
-        NULL,
-        0,
-        0,
-        step_counted_tile_walkable,
-        &walkable_count,
-        NULL,
-        NULL,
-        osrs_los_open_query(),
-        0,
-        0,
-        0,
-        0);
-
-    CHECK("attackable target does not move", moved == 0);
-    CHECK("attackable target skips walkability scan", walkable_count.calls == 0);
-    CHECK("attackable target preserves destination",
-        player.dest_x == 7 && player.dest_y == 8);
-}
 
 
 typedef struct {
@@ -1477,18 +1294,11 @@ int main(void) {
     test_arena_topology_extreme_origins_and_reader_bounds();
     test_arena_topology_bounds_collision_los_and_revision();
     test_target_selection_does_not_own_route_cache();
-    test_attack_route_field_stops_at_first_reachable_target_edge();
-    test_unreachable_attack_route_field_exhausts_for_fallback();
-    test_attack_route_caches_walkability_per_tile();
-    test_attackable_target_skips_route_scan();
     test_ranged_chase_targets_nearest_attack_position();
     test_target_command_cancels_walk_in_flight();
     test_move_command_cancels_interaction();
     test_destination_click_routes_around_wall();
     test_none_command_chases_active_interaction();
-    test_attack_route_rejects_cardinal_adjacency_through_wall();
-    test_attack_route_fallback_stays_within_ten_tiles();
-    test_attack_route_uses_rsmod_cardinal_first_order();
     test_melee_attack_does_not_cross_cardinal_wall();
     test_attack_route_persists_and_invalidates_canonically();
     test_failed_attack_route_persists_and_invalidates();

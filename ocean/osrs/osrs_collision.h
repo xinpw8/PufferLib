@@ -128,9 +128,6 @@ static inline int collision_get_flags(const CollisionMap* map, int height, int x
     return region->flags[h][lx][ly];
 }
 
-static inline int collision_is_inactive(const CollisionMap* map, int height, int x, int y, int flag) {
-    return (collision_get_flags(map, height, x, y) & flag) == 0;
-}
 
 static inline int collision_flags_traversable_step(
     uint32_t destination_flags,
@@ -207,53 +204,13 @@ static inline int collision_traversable_step(
         dy);
 }
 
-static inline int collision_traversable_north(
-    const CollisionMap* map, int height, int x, int y
-) {
-    return collision_traversable_step(map, height, x, y, 0, 1);
-}
 
-static inline int collision_traversable_south(
-    const CollisionMap* map, int height, int x, int y
-) {
-    return collision_traversable_step(map, height, x, y, 0, -1);
-}
 
-static inline int collision_traversable_east(
-    const CollisionMap* map, int height, int x, int y
-) {
-    return collision_traversable_step(map, height, x, y, 1, 0);
-}
 
-static inline int collision_traversable_west(
-    const CollisionMap* map, int height, int x, int y
-) {
-    return collision_traversable_step(map, height, x, y, -1, 0);
-}
 
-static inline int collision_traversable_north_east(
-    const CollisionMap* map, int height, int x, int y
-) {
-    return collision_traversable_step(map, height, x, y, 1, 1);
-}
 
-static inline int collision_traversable_north_west(
-    const CollisionMap* map, int height, int x, int y
-) {
-    return collision_traversable_step(map, height, x, y, -1, 1);
-}
 
-static inline int collision_traversable_south_east(
-    const CollisionMap* map, int height, int x, int y
-) {
-    return collision_traversable_step(map, height, x, y, 1, -1);
-}
 
-static inline int collision_traversable_south_west(
-    const CollisionMap* map, int height, int x, int y
-) {
-    return collision_traversable_step(map, height, x, y, -1, -1);
-}
 
 static inline int collision_tile_walkable(const CollisionMap* map, int height, int x, int y) {
     if (map == NULL) return 1;
@@ -337,6 +294,54 @@ static inline int los_aabb_overlap(
 
 
 typedef uint32_t (*los_tile_flags_fn)(void* ctx, int x, int y);
+typedef int (*los_tile_blocked_fn)(void* ctx, int x, int y);
+
+static inline int los_tile_ray_clear(
+    los_tile_blocked_fn tile_blocked,
+    void* tile_ctx,
+    int x0,
+    int y0,
+    int x1,
+    int y1
+) {
+    int dx = x1 - x0;
+    int dy = y1 - y0;
+    int adx = dx < 0 ? -dx : dx;
+    int ady = dy < 0 ? -dy : dy;
+    if (adx == 0 && ady == 0) return 1;
+    if (tile_blocked(tile_ctx, x1, y1)) return 0;
+
+    if (adx > ady) {
+        int x = x0;
+        int y_fp = y0 * LOS_FP_SCALE + LOS_FP_HALF;
+        int slope = (dy * LOS_FP_SCALE) / adx;
+        int x_inc = dx > 0 ? 1 : -1;
+        if (dy < 0) y_fp--;
+        while (x != x1) {
+            x += x_inc;
+            int y = y_fp >> 16;
+            if (tile_blocked(tile_ctx, x, y)) return 0;
+            y_fp += slope;
+            int new_y = y_fp >> 16;
+            if (new_y != y && tile_blocked(tile_ctx, x, new_y)) return 0;
+        }
+    } else {
+        int y = y0;
+        int x_fp = x0 * LOS_FP_SCALE + LOS_FP_HALF;
+        int slope = (dx * LOS_FP_SCALE) / ady;
+        int y_inc = dy > 0 ? 1 : -1;
+        if (dx < 0) x_fp--;
+        while (y != y1) {
+            y += y_inc;
+            int x = x_fp >> 16;
+            if (tile_blocked(tile_ctx, x, y)) return 0;
+            x_fp += slope;
+            int new_x = x_fp >> 16;
+            if (new_x != x && tile_blocked(tile_ctx, new_x, y)) return 0;
+        }
+    }
+    return 1;
+}
 
 typedef struct {
     const LOSBlocker* blockers;
@@ -431,65 +436,43 @@ static inline int los_has_line_of_sight_with_flags(
     return 1;
 }
 
-static int has_line_of_sight(
-    const LOSBlocker* blockers,
-    int blocker_count,
-    int x1,
-    int y1,
-    int x2,
-    int y2,
-    int src_size,
-    int range
-) {
-    LOSBlockerFlagsContext ctx = {blockers, blocker_count};
-    return los_has_line_of_sight_with_flags(
-        los_blocker_tile_flags, &ctx,
-        x1, y1, x2, y2, src_size, range);
-}
 
 static inline int los_intervals_overlap(int a0, int a1, int b0, int b1) {
     return !(a1 < b0 || b1 < a0);
 }
+static inline int entity_has_line_of_sight_with_flags(
+    los_tile_flags_fn tile_flags,
+    void* tile_flags_ctx,
+    int ax,
+    int ay,
+    int a_size,
+    int tx,
+    int ty,
+    int t_size,
+    int range);
 
 static inline int entity_has_line_of_sight(
-    const LOSBlocker* blockers, int blocker_count,
-    int ax, int ay, int a_size,
-    int tx, int ty, int t_size,
+    const LOSBlocker* blockers,
+    int blocker_count,
+    int ax,
+    int ay,
+    int a_size,
+    int tx,
+    int ty,
+    int t_size,
     int range
 ) {
-    if (range == 1) {
-        if (los_aabb_overlap(ax, ay, a_size, tx, ty, t_size)) return 0;
-
-        int a_x0 = ax;
-        int a_x1 = ax + a_size - 1;
-        int a_y0 = ay;
-        int a_y1 = ay + a_size - 1;
-        int t_x0 = tx;
-        int t_x1 = tx + t_size - 1;
-        int t_y0 = ty;
-        int t_y1 = ty + t_size - 1;
-
-        return (a_x1 + 1 == t_x0 && los_intervals_overlap(a_y0, a_y1, t_y0, t_y1)) ||
-               (t_x1 + 1 == a_x0 && los_intervals_overlap(a_y0, a_y1, t_y0, t_y1)) ||
-               (a_y1 + 1 == t_y0 && los_intervals_overlap(a_x0, a_x1, t_x0, t_x1)) ||
-               (t_y1 + 1 == a_y0 && los_intervals_overlap(a_x0, a_x1, t_x0, t_x1));
-    }
-
-    int a_px = tx;
-    if (a_px < ax) a_px = ax;
-    if (a_px >= ax + a_size) a_px = ax + a_size - 1;
-    int a_py = ty;
-    if (a_py < ay) a_py = ay;
-    if (a_py >= ay + a_size) a_py = ay + a_size - 1;
-
-    int t_px = ax;
-    if (t_px < tx) t_px = tx;
-    if (t_px >= tx + t_size) t_px = tx + t_size - 1;
-    int t_py = ay;
-    if (t_py < ty) t_py = ty;
-    if (t_py >= ty + t_size) t_py = ty + t_size - 1;
-
-    return has_line_of_sight(blockers, blocker_count, a_px, a_py, t_px, t_py, 1, range);
+    LOSBlockerFlagsContext ctx = {blockers, blocker_count};
+    return entity_has_line_of_sight_with_flags(
+        los_blocker_tile_flags,
+        &ctx,
+        ax,
+        ay,
+        a_size,
+        tx,
+        ty,
+        t_size,
+        range);
 }
 
 static inline int entity_has_line_of_sight_with_flags(
@@ -766,54 +749,12 @@ static uint32_t encounter_arena_topology_los_flags(
         (LOS_FULL_MASK | LOS_EAST_MASK | LOS_WEST_MASK |
          LOS_NORTH_MASK | LOS_SOUTH_MASK);
 }
-static int encounter_arena_topology_tile_ray_clear(
-    EncounterArenaTopologyLosBuildContext* build,
-    int x0,
-    int y0,
-    int x1,
-    int y1
+static int encounter_arena_topology_los_tile_blocked(
+    void* data,
+    int x,
+    int y
 ) {
-    int dx = x1 - x0;
-    int dy = y1 - y0;
-    int adx = dx < 0 ? -dx : dx;
-    int ady = dy < 0 ? -dy : dy;
-    if (adx == 0 && ady == 0) return 1;
-    if (encounter_arena_topology_los_flags(build, x1, y1)) return 0;
-
-    if (adx > ady) {
-        int x = x0;
-        int y_fp = y0 * LOS_FP_SCALE + LOS_FP_HALF;
-        int slope = (dy * LOS_FP_SCALE) / adx;
-        int x_inc = dx > 0 ? 1 : -1;
-        if (dy < 0) y_fp -= 1;
-        while (x != x1) {
-            x += x_inc;
-            int y = y_fp >> 16;
-            if (encounter_arena_topology_los_flags(build, x, y)) return 0;
-            y_fp += slope;
-            int new_y = y_fp >> 16;
-            if (new_y != y &&
-                    encounter_arena_topology_los_flags(build, x, new_y))
-                return 0;
-        }
-    } else {
-        int y = y0;
-        int x_fp = x0 * LOS_FP_SCALE + LOS_FP_HALF;
-        int slope = (dx * LOS_FP_SCALE) / ady;
-        int y_inc = dy > 0 ? 1 : -1;
-        if (dx < 0) x_fp -= 1;
-        while (y != y1) {
-            y += y_inc;
-            int x = x_fp >> 16;
-            if (encounter_arena_topology_los_flags(build, x, y)) return 0;
-            x_fp += slope;
-            int new_x = x_fp >> 16;
-            if (new_x != x &&
-                    encounter_arena_topology_los_flags(build, new_x, y))
-                return 0;
-        }
-    }
-    return 1;
+    return encounter_arena_topology_los_flags(data, x, y) != 0;
 }
 
 
@@ -986,7 +927,8 @@ static inline EncounterArenaTopology* encounter_arena_topology_build(
                     topology->origin_x + target / topology->height;
                 int target_y =
                     topology->origin_y + target % topology->height;
-                if (encounter_arena_topology_tile_ray_clear(
+                if (los_tile_ray_clear(
+                        encounter_arena_topology_los_tile_blocked,
                         &los_build,
                         source_x,
                         source_y,

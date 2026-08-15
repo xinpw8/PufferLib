@@ -339,9 +339,6 @@ static float inf_compute_reward_ctx(InfernoState* s, const InfernoContext* ctx) 
     return reward;
 }
 
-static float inf_compute_reward(InfernoState* s) {
-    return inf_compute_reward_ctx(s, inf_legacy_context());
-}
 
 static float inf_terminal_loss_reward(
     const InfernoState* s,
@@ -427,26 +424,7 @@ static InfIdleDiagnosticSummary inf_idle_diagnostic_summary(const InfernoState* 
     return summary;
 }
 
-static int inf_has_live_player_target(const InfernoState* s) {
-    return inf_idle_diagnostic_summary(s).has_live_player_target;
-}
 
-static int inf_has_attackable_player_target_ctx(
-    const InfernoState* s,
-    const InfernoContext* ctx
-) {
-    for (int i = 0; i < INF_MAX_NPCS; i++) {
-        if (inf_npc_is_live_player_target(s, i) &&
-                inf_player_can_attack_npc_from_current_tile_ctx(s, ctx, i))
-            return 1;
-    }
-    return 0;
-}
-
-static int inf_has_attackable_player_target(const InfernoState* s) {
-    return inf_has_attackable_player_target_ctx(
-        s, inf_legacy_context());
-}
 
 static InfIdleDiagnosticPhase inf_idle_diagnostic_phase_from_summary(
     const InfernoState* s,
@@ -463,35 +441,7 @@ static InfIdleDiagnosticPhase inf_idle_diagnostic_phase_from_summary(
     return INF_IDLE_PHASE_ZUK_PRE_JAD;
 }
 
-static InfIdleDiagnosticPhase inf_idle_diagnostic_phase(const InfernoState* s) {
-    return inf_idle_diagnostic_phase_from_summary(
-        s, inf_idle_diagnostic_summary(s));
-}
 
-static int inf_player_has_immediate_threat_ctx(
-    const InfernoState* s,
-    const InfernoContext* ctx
-) {
-    if (s->tick_scratch.attacks_fired > 0) return 1;
-    for (int h = 0; h < s->player_pending_hits.count; h++) {
-        const EncounterPendingHit* ph = &s->player_pending_hits.hits[h];
-        if (ph->check_prayer && inf_pending_hit_obs_timer(ph) <= 1)
-            return 1;
-    }
-    for (int i = 0; i < INF_MAX_NPCS; i++) {
-        const InfNPC* npc = &s->npcs[i];
-        InfNpcPlayerThreat threat =
-            inf_npc_player_threat_ctx(s, ctx, npc);
-        if (threat.telegraph_style_mask && threat.can_attack_this_tick)
-            return 1;
-    }
-    return 0;
-}
-
-static int inf_player_has_immediate_threat(const InfernoState* s) {
-    return inf_player_has_immediate_threat_ctx(
-        s, inf_legacy_context());
-}
 
 typedef struct {
     int has_attackable_player_target;
@@ -776,8 +726,4 @@ finish_step:
         safe_attack_opportunity_missed);
     inf_invalidate_current_obs_slots(s);
     s->episode_return += s->reward;
-}
-
-static void inf_step(EncounterState* state, const int* actions) {
-    inf_step_ctx(state, (EncounterContext*)inf_legacy_context(), actions);
 }

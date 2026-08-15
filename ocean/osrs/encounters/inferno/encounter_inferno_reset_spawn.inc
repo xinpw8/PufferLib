@@ -442,9 +442,6 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     inf_spawn_wave(s);
 }
 
-static void inf_reset(EncounterState* state, uint32_t seed) {
-    inf_reset_ctx(state, (EncounterContext*)inf_legacy_context(), seed);
-}
 
 static int inf_find_free_npc(InfernoState* s) {
     for (int i = 0; i < INF_MAX_NPCS; i++) {

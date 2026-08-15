@@ -182,7 +182,6 @@ static const GoldenConfig CONFIGS[] = {
 #define NUM_CONFIGS ((int)(sizeof(CONFIGS) / sizeof(CONFIGS[0])))
 #define EPISODE_TICKS 4000
 
-/* Re-seeded after the canonical inventory and equipment observation cutover. */
 static const uint64_t BASELINE[NUM_CONFIGS] = {
     0x51537d0fc2e421deULL,
     0xf67cadfd982ad1f9ULL,

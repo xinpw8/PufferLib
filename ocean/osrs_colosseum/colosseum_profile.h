@@ -17,7 +17,6 @@
     X(COLO_PROF_C_LOG_DPT,              "c_log_dpt") \
     X(COLO_PROF_OBS_REFRESH_SLOTS,      "obs_refresh_slots") \
     X(COLO_PROF_OBS_PREFIX,             "obs_prefix") \
-    X(COLO_PROF_OBS_PILLARS,            "obs_pillars") \
     X(COLO_PROF_OBS_INVENTORY,          "obs_inventory") \
     X(COLO_PROF_OBS_VENATOR,            "obs_venator") \
     X(COLO_PROF_OBS_NPC_SLOTS,          "obs_npc_slots") \

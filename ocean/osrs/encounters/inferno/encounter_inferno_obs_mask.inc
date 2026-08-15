@@ -11,8 +11,6 @@
     (ENCOUNTER_MAX_PENDING_HITS * INF_FEATURES_PER_HIT)
 #define INF_PENDING_SPARK_OBS_SIZE \
     (INF_SPARK_OBS_SLOTS * INF_FEATURES_PER_SPARK)
-#define INF_INVENTORY_OBS_SIZE OSRS_SHARED_INVENTORY_OBS_SIZE
-#define INF_EQUIPPED_OBS_SIZE OSRS_SHARED_EQUIPPED_OBS_SIZE
 
 #define INF_OBS_AFTER_SHARED OSRS_SHARED_OBS_SIZE
 #define INF_OBS_AFTER_ENCOUNTER \
@@ -50,10 +48,7 @@ static_assert(INF_OBS_AFTER_SPARKS == 530,
     "Inferno spark observation boundary");
 static_assert(INF_NUM_OBS == 530, "Inferno observation width");
 
-#define INF_PROTECTION_PRAYER_CODE_SCALE 8.0f
-#define INF_OFFENSIVE_PRAYER_CODE_SCALE 4.0f
 #define INF_WAVE_PHASE_CODE_SCALE 8.0f
-#define INF_WEAPON_SET_CODE_SCALE 4.0f
 #define INF_NPC_TYPE_CODE_SCALE 16.0f
 #define INF_ATTACK_STYLE_CODE_SCALE 4.0f
 #define INF_TARGET_CATEGORY_CODE_SCALE 8.0f
@@ -212,9 +207,6 @@ static void inf_ensure_current_obs_slots_ctx(
         inf_refresh_current_obs_slots_ctx(s, ctx);
 }
 
-static void inf_refresh_current_obs_slots(InfernoState* s) {
-    inf_refresh_current_obs_slots_ctx(s, inf_legacy_context());
-}
 
 static void inf_write_obs_ctx(
     EncounterState* state,
@@ -418,9 +410,6 @@ static int inf_find_target_obs_slot(const InfernoState* s, int npc_slot) {
         s->current_obs_slots, INF_OBS_NPCS, npc_slot);
 }
 
-static void inf_write_obs(EncounterState* state, float* obs) {
-    inf_write_obs_ctx(state, (EncounterContext*)inf_legacy_context(), obs);
-}
 
 static int inf_obs_slot_is_targetable(
     InfernoState* s,
@@ -449,10 +438,6 @@ static int inf_is_human_targetable_npc_slot_ctx(
     return inf_obs_slot_is_targetable(s, ctx, inf_find_target_obs_slot(s, npc_slot));
 }
 
-static int inf_is_human_targetable_npc_slot(EncounterState* state, int npc_slot) {
-    return inf_is_human_targetable_npc_slot_ctx(
-        state, (EncounterContext*)inf_legacy_context(), npc_slot);
-}
 
 static int inf_drink_has_effect(const InfernoState* s, OsrsConsumableKind kind) {
     const Player* p = &s->player;
@@ -523,7 +508,7 @@ static void inf_write_mask_ctx(
             !(static_footprint_mask & (UINT32_C(1) << step_bit)) ||
             (!pillars_at_canonical_positions &&
              inf_pillar_footprint_blocked(s, nx, ny, 1));
-        mask[primary_offset + action] = blocked ? 0.0f : 1.0f;
+        if (!blocked) mask[primary_offset + action] = 1.0f;
     }
 
     int has_forced_safe_healer_target =
@@ -544,24 +529,24 @@ static void inf_write_mask_ctx(
                     s, ctx, npc_idx)) {
             is_targetable = 0;
         }
-        mask[primary_offset +
-            inf_primary_attack_action_for_obs_slot(obs_slot)] =
-                is_targetable ? 1.0f : 0.0f;
+        if (is_targetable)
+            mask[primary_offset +
+                inf_primary_attack_action_for_obs_slot(obs_slot)] = 1.0f;
     }
     if (has_forced_safe_healer_target) mask[primary_offset] = 0.0f;
 
     int overhead_offset = inf_action_head_mask_offset(INF_HEAD_PRAYER);
     mask[overhead_offset + ENCOUNTER_OVERHEAD_NO_CHANGE] = 1.0f;
-    mask[overhead_offset + ENCOUNTER_OVERHEAD_OFF] =
-        s->player.prayer != PRAYER_NONE ? 1.0f : 0.0f;
-    mask[overhead_offset + ENCOUNTER_OVERHEAD_SET_REFRESH_MELEE] =
-        s->player.current_prayer > 0 ? 1.0f : 0.0f;
-    mask[overhead_offset + ENCOUNTER_OVERHEAD_SET_REFRESH_RANGED] =
-        s->player.current_prayer > 0 ? 1.0f : 0.0f;
-    mask[overhead_offset + ENCOUNTER_OVERHEAD_SET_REFRESH_MAGIC] =
-        s->player.current_prayer > 0 ? 1.0f : 0.0f;
-    mask[overhead_offset + ENCOUNTER_OVERHEAD_SET_REFRESH_REDEMPTION] =
-        s->player.current_prayer > 0 ? 1.0f : 0.0f;
+    if (s->player.prayer != PRAYER_NONE)
+        mask[overhead_offset + ENCOUNTER_OVERHEAD_OFF] = 1.0f;
+    if (s->player.current_prayer > 0) {
+        for (int action = ENCOUNTER_OVERHEAD_SET_REFRESH_MELEE;
+                action <= ENCOUNTER_OVERHEAD_SET_REFRESH_MAGIC;
+                action++)
+            mask[overhead_offset + action] = 1.0f;
+        mask[overhead_offset +
+            ENCOUNTER_OVERHEAD_SET_REFRESH_REDEMPTION] = 1.0f;
+    }
 
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
         int head_offset =
@@ -619,37 +604,34 @@ static void inf_write_mask_ctx(
 
     int spell_offset = inf_action_head_mask_offset(INF_HEAD_SPELL);
     mask[spell_offset + OSRS_SPELL_NONE] = 1.0f;
-    mask[spell_offset + OSRS_SPELL_BLOOD_BARRAGE] =
-        s->player.current_magic >= BLOOD_BARRAGE_LEVEL ? 1.0f : 0.0f;
-    mask[spell_offset + OSRS_SPELL_ICE_BARRAGE] =
-        s->player.current_magic >= ICE_BARRAGE_LEVEL ? 1.0f : 0.0f;
+    if (s->player.current_magic >= BLOOD_BARRAGE_LEVEL)
+        mask[spell_offset + OSRS_SPELL_BLOOD_BARRAGE] = 1.0f;
+    if (s->player.current_magic >= ICE_BARRAGE_LEVEL)
+        mask[spell_offset + OSRS_SPELL_ICE_BARRAGE] = 1.0f;
 
     int spec_offset = inf_action_head_mask_offset(INF_HEAD_SPEC);
     mask[spec_offset] = 1.0f;
-    mask[spec_offset + 1] =
-        !s->player.spec_armed &&
-        s->player.equipped[GEAR_SLOT_WEAPON] == ITEM_TOXIC_BLOWPIPE &&
-        s->player.special_energy >= BLOWPIPE_SPEC_COST ? 1.0f : 0.0f;
-    mask[spec_offset + 2] = s->player.spec_armed ? 1.0f : 0.0f;
+    if (!s->player.spec_armed &&
+            s->player.equipped[GEAR_SLOT_WEAPON] == ITEM_TOXIC_BLOWPIPE &&
+            s->player.special_energy >= BLOWPIPE_SPEC_COST)
+        mask[spec_offset + 1] = 1.0f;
+    if (s->player.spec_armed) mask[spec_offset + 2] = 1.0f;
 
     int offensive_offset =
         inf_action_head_mask_offset(INF_HEAD_OFFENSIVE);
     mask[offensive_offset] = 1.0f;
-    mask[offensive_offset + 1] =
-        s->player.offensive_prayer != OFFENSIVE_PRAYER_NONE ? 1.0f : 0.0f;
-    mask[offensive_offset + 2] =
-        s->player.current_prayer > 0 ? 1.0f : 0.0f;
-    mask[offensive_offset + 3] =
-        s->player.current_prayer > 0 ? 1.0f : 0.0f;
-    mask[offensive_offset + 4] =
-        s->player.current_prayer > 0 ? 1.0f : 0.0f;
+    if (s->player.offensive_prayer != OFFENSIVE_PRAYER_NONE)
+        mask[offensive_offset + 1] = 1.0f;
+    if (s->player.current_prayer > 0) {
+        for (int action = ENCOUNTER_OFFENSIVE_SET_REFRESH_PIETY;
+                action <= ENCOUNTER_OFFENSIVE_SET_REFRESH_AUGURY;
+                action++)
+            mask[offensive_offset + action] = 1.0f;
+    }
 
     s->total_action_mask_checks++;
 }
 
-static void inf_write_mask(EncounterState* state, float* mask) {
-    inf_write_mask_ctx(state, (EncounterContext*)inf_legacy_context(), mask);
-}
 
 
 static float inf_get_reward_ctx(EncounterState* state, EncounterContext* context) {
@@ -781,14 +763,4 @@ static void inf_fill_render_entities_ctx(
 
     encounter_resolve_attack_target(out, n, s->interaction.target_slot);
     *count = n;
-}
-
-static void inf_fill_render_entities(
-    EncounterState* state,
-    RenderEntity* out,
-    int max_entities,
-    int* count
-) {
-    inf_fill_render_entities_ctx(
-        state, (EncounterContext*)inf_legacy_context(), out, max_entities, count);
 }

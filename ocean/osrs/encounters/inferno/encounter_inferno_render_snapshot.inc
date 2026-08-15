@@ -68,9 +68,6 @@ static void inf_put_int_ctx(
     else encounter_abort_unknown_config("inferno", "int", key);
 }
 
-static void inf_put_int(EncounterState* state, const char* key, int value) {
-    inf_put_int_ctx(state, (EncounterContext*)inf_legacy_context(), key, value);
-}
 
 static void inf_put_float_ctx(
     EncounterState* state,
@@ -168,9 +165,6 @@ static void inf_put_float_ctx(
     else encounter_abort_unknown_config("inferno", "float", key);
 }
 
-static void inf_put_float(EncounterState* state, const char* key, float value) {
-    inf_put_float_ctx(state, (EncounterContext*)inf_legacy_context(), key, value);
-}
 
 static void inf_put_ptr_ctx(
     EncounterState* state,
@@ -562,9 +556,6 @@ static void inf_render_post_tick_ctx(
     }
 }
 
-static void inf_render_post_tick(EncounterState* state, EncounterOverlay* ov) {
-    inf_render_post_tick_ctx(state, (EncounterContext*)inf_legacy_context(), ov);
-}
 
 static void* inf_get_player_for_input(void* state, int idx) {
     InfernoState* s = (InfernoState*)state;
@@ -656,10 +647,6 @@ static void inf_translate_human_input_ctx(
     if (hi->pending_spec) actions[INF_HEAD_SPEC] = s->player.spec_armed ? 2 : 1;
 }
 
-static void inf_translate_human_input(HumanInput* hi, int* actions, EncounterState* state) {
-    inf_translate_human_input_ctx(
-        hi, actions, state, (EncounterContext*)inf_legacy_context());
-}
 
 static void inf_translate_human_commands_ctx(
     HumanInput* hi,
@@ -740,9 +727,6 @@ static void inf_translate_human_commands_ctx(
     }
 }
 
-static void inf_translate_human_commands(HumanInput* hi, int* actions, InfernoState* s) {
-    inf_translate_human_commands_ctx(hi, actions, s, inf_legacy_context());
-}
 
 static void inf_step_human_commands_ctx(
     EncounterState* state,
@@ -763,10 +747,6 @@ static void inf_step_human_commands_ctx(
     human_input_clear_pending(hi);
 }
 
-static void inf_step_human_commands(EncounterState* state, HumanInput* hi) {
-    inf_step_human_commands_ctx(
-        state, (EncounterContext*)inf_legacy_context(), hi);
-}
 
 #define INF_SNAPSHOT_MAGIC 0x1FE00001u
 #define INF_SNAPSHOT_VERSION 22u
@@ -875,9 +855,6 @@ static size_t inf_snapshot_size_ctx(EncounterState* state, EncounterContext* con
     return sizeof(InfSnapshot);
 }
 
-static size_t inf_snapshot_size(EncounterState* state) {
-    return inf_snapshot_size_ctx(state, (EncounterContext*)inf_legacy_context());
-}
 
 static void inf_snapshot_ctx(EncounterState* state, EncounterContext* context, void* out) {
     InfernoContext* ctx = (InfernoContext*)context;
@@ -892,9 +869,6 @@ static void inf_snapshot_ctx(EncounterState* state, EncounterContext* context, v
     osrs_interaction_zero_serialized_route_padding(&snap->state.interaction);
 }
 
-static void inf_snapshot(EncounterState* state, void* out) {
-    inf_snapshot_ctx(state, (EncounterContext*)inf_legacy_context(), out);
-}
 
 static void inf_restore_ctx(
     EncounterState* state,
@@ -923,9 +897,6 @@ static void inf_restore_ctx(
     inf_refresh_after_state_load(dst, ctx);
 }
 
-static void inf_restore(EncounterState* state, const void* data, size_t n) {
-    inf_restore_ctx(state, (EncounterContext*)inf_legacy_context(), data, n);
-}
 
 typedef struct {
     InfernoState* state;

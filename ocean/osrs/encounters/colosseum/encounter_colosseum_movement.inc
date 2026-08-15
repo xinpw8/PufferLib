@@ -17,12 +17,6 @@ static int col_player_walkable_ctx(
     return 1;
 }
 
-static int col_player_walkable(void* data, int x, int y) {
-    const ColoGeometryContext* geometry =
-        (const ColoGeometryContext*)data;
-    return col_player_walkable_ctx(
-        geometry->state, geometry->context, x, y);
-}
 
 static int col_topology_los_tile_blocked(void* data, int x, int y) {
     const ColosseumContext* context = (const ColosseumContext*)data;
@@ -390,11 +384,6 @@ static void col_npc_move_ctx(ColosseumState* s, ColosseumContext* ctx, int idx) 
     npc->target_x = tx;
     npc->target_y = ty;
 
-    /* Both hold paths decide from footprint geometry and the static LOS table, neither of
-     * which reads npc_collision_flags, so they are checked before the clear. An NPC that was
-     * never going to move now touches the grid zero times instead of erasing and redrawing
-     * its own footprint. Measured before this: 27.9 stamp writes per tick against 7.0 blocked
-     * probes, with most NPCs holding most ticks behind the attack_timer gate. */
     int is_ranged = st->attack_range > 1;
     if (is_ranged) {
         int dist = encounter_dist_to_npc(s->player.x, s->player.y, npc->x, npc->y, size);

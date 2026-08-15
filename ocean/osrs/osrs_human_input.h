@@ -16,13 +16,7 @@ static void human_set_click_cross(HumanInput* hi, int screen_x, int screen_y, in
     hi->click_is_attack = is_attack;
 }
 
-static int human_overhead_click_action(const Player* p, OverheadPrayer target, int set_refresh_action) {
-    return p->prayer == target ? ENCOUNTER_OVERHEAD_OFF : set_refresh_action;
-}
 
-static int human_offensive_click_action(const Player* p, OffensivePrayer target, int set_refresh_action) {
-    return p->offensive_prayer == target ? ENCOUNTER_OFFENSIVE_OFF : set_refresh_action;
-}
 
 static int human_gui_rect_contains(Rectangle rect, int mouse_x, int mouse_y) {
     return mouse_x >= rect.x && mouse_x < rect.x + rect.width &&
@@ -86,15 +80,16 @@ static int human_apply_prayer_idx(HumanInput* hi, Player* p, GuiPrayerIdx pidx) 
     };
     for (size_t i = 0; i < sizeof(overhead_rows) / sizeof(overhead_rows[0]); i++) {
         if (overhead_rows[i].idx != pidx) continue;
-        hi->pending_prayer = human_overhead_click_action(
-            p, overhead_rows[i].target, overhead_rows[i].refresh_action);
+        hi->pending_prayer = p->prayer == overhead_rows[i].target
+            ? ENCOUNTER_OVERHEAD_OFF : overhead_rows[i].refresh_action;
         human_input_queue_overhead_prayer(hi, hi->pending_prayer);
         return 1;
     }
     for (size_t i = 0; i < sizeof(offensive_rows) / sizeof(offensive_rows[0]); i++) {
         if (offensive_rows[i].idx != pidx) continue;
-        hi->pending_offensive_prayer = human_offensive_click_action(
-            p, offensive_rows[i].target, offensive_rows[i].refresh_action);
+        hi->pending_offensive_prayer =
+            p->offensive_prayer == offensive_rows[i].target
+                ? ENCOUNTER_OFFENSIVE_OFF : offensive_rows[i].refresh_action;
         human_input_queue_offensive_prayer(hi, hi->pending_offensive_prayer);
         return 1;
     }
@@ -328,107 +323,6 @@ static void human_handle_combat_click(HumanInput* hi, GuiState* gs, Player* p,
         }
         human_apply_spec_toggle(hi);
     }
-}
-
-static void human_pvp_translate_inventory_cell(
-    int* actions,
-    const Player* player,
-    int cell
-) {
-    if (cell < 0 || cell >= OSRS_INVENTORY_SIZE) return;
-    const OsrsItemContentMetadata* metadata =
-        osrs_inventory_cell_metadata(&player->inventory_cells[cell]);
-    int click_action = cell + 1;
-    if (metadata->click_action == OSRS_CLICK_EQUIP) {
-        if (metadata->gear_slot >= 0 && metadata->gear_slot < NUM_GEAR_SLOTS)
-            actions[OSRS_HEAD_EQUIP_SLOT(metadata->gear_slot)] = click_action;
-    } else if (metadata->click_action == OSRS_CLICK_EAT) {
-        actions[OSRS_HEAD_EAT] = click_action;
-    } else if (metadata->click_action == OSRS_CLICK_DRINK) {
-        actions[OSRS_HEAD_DRINK] = click_action;
-    }
-}
-
-static int human_pvp_find_consumable_cell(
-    const Player* player,
-    OsrsConsumableKind kind
-) {
-    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
-        const OsrsItemContentMetadata* metadata =
-            osrs_inventory_cell_metadata(&player->inventory_cells[cell]);
-        if (metadata->consumable_kind == kind) return cell;
-    }
-    return -1;
-}
-
-static void human_to_pvp_actions(
-    HumanInput* hi,
-    int* actions,
-    Player* agent
-) {
-    memset(actions, 0, OSRS_BASE_NUM_ACTION_HEADS * sizeof(int));
-    if (hi->pending_move_x >= 0 && hi->pending_move_y >= 0) {
-        int dx = hi->pending_move_x - agent->x;
-        int dy = hi->pending_move_y - agent->y;
-        if (dx < -2) dx = -2;
-        if (dx > 2) dx = 2;
-        if (dy < -2) dy = -2;
-        if (dy > 2) dy = 2;
-        for (int action = 1; action < OSRS_PRIMARY_MOVE_ACTIONS; action++) {
-            if (ENCOUNTER_MOVE_TARGET_DX[action] == dx &&
-                    ENCOUNTER_MOVE_TARGET_DY[action] == dy) {
-                actions[OSRS_HEAD_PRIMARY] = action;
-                break;
-            }
-        }
-    }
-    encounter_translate_prayer(hi, actions, OSRS_HEAD_OVERHEAD);
-    encounter_translate_offensive_prayer(hi, actions, OSRS_HEAD_OFFENSIVE);
-
-    if (hi->pending_attack) {
-        actions[OSRS_HEAD_PRIMARY] = OSRS_PRIMARY_MOVE_ACTIONS;
-        if (hi->pending_spell == PVP_ATTACK_ICE)
-            actions[OSRS_HEAD_SPELL] = OSRS_SPELL_ICE_BARRAGE;
-        else if (hi->pending_spell == PVP_ATTACK_BLOOD)
-            actions[OSRS_HEAD_SPELL] = OSRS_SPELL_BLOOD_BARRAGE;
-    }
-    if (hi->pending_food) {
-        int cell = human_pvp_find_consumable_cell(
-            agent, OSRS_CONSUMABLE_SHARK_FOOD);
-        if (cell >= 0) actions[OSRS_HEAD_EAT] = cell + 1;
-    }
-    if (hi->pending_karambwan) {
-        int cell = human_pvp_find_consumable_cell(
-            agent, OSRS_CONSUMABLE_KARAMBWAN);
-        if (cell >= 0) actions[OSRS_HEAD_EAT] = cell + 1;
-    }
-    OsrsConsumableKind potion_kind = OSRS_CONSUMABLE_NONE;
-    if (hi->pending_potion == POTION_BREW)
-        potion_kind = OSRS_CONSUMABLE_BREW;
-    else if (hi->pending_potion == POTION_RESTORE)
-        potion_kind = OSRS_CONSUMABLE_SUPER_RESTORE;
-    else if (hi->pending_potion == POTION_COMBAT)
-        potion_kind = OSRS_CONSUMABLE_SUPER_COMBAT;
-    else if (hi->pending_potion == POTION_RANGED)
-        potion_kind = OSRS_CONSUMABLE_RANGING;
-    if (potion_kind != OSRS_CONSUMABLE_NONE) {
-        int cell = human_pvp_find_consumable_cell(agent, potion_kind);
-        if (cell >= 0) actions[OSRS_HEAD_DRINK] = cell + 1;
-    }
-    for (int i = 0; i < hi->commands.count; i++) {
-        const HumanCommand* command = &hi->commands.items[i];
-        if (command->kind == HUMAN_COMMAND_EQUIP_INVENTORY_ITEM ||
-                command->kind == HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK ||
-                command->kind == HUMAN_COMMAND_EAT ||
-                command->kind == HUMAN_COMMAND_DRINK) {
-            human_pvp_translate_inventory_cell(
-                actions, agent, command->inventory_slot);
-        }
-    }
-    if (hi->pending_veng)
-        actions[OSRS_HEAD_SPELL] = OSRS_SPELL_VENGEANCE;
-    if (hi->pending_spec)
-        actions[OSRS_HEAD_SPECIAL] = agent->spec_armed ? 2 : 1;
 }
 
 #define CLICK_CROSS_NUM_FRAMES 4

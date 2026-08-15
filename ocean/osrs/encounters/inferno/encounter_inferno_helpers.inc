@@ -78,7 +78,6 @@ static void inf_shuffle_spawns(InfernoState* s) {
         s->spawn_order[i] = i;
     encounter_shuffle(s->spawn_order, INF_NUM_SPAWN_POS, &s->rng_state);
 }
-static InfernoContext* inf_legacy_context(void);
 static const EncounterArenaTopology* inf_route_topology_for_state(
     const InfernoContext* ctx,
     const InfernoState* state
@@ -385,13 +384,6 @@ static inline int inf_melee_fallback_possible_at_tile(
         player_x, player_y, npc->type, npc->x, npc->y, npc->size, dist);
 }
 
-static inline int inf_melee_fallback_possible(
-    const InfernoState* s, const InfNPC* npc, const InfNPCStats* stats,
-    int planned_style, int dist
-) {
-    return inf_melee_fallback_possible_at_tile(
-        s->player.x, s->player.y, npc, stats, planned_style, dist);
-}
 
 static inline int inf_attack_style_options_mask_at_tile(
     int player_x, int player_y, const InfNPC* npc, const InfNPCStats* stats,
@@ -419,13 +411,6 @@ static inline int inf_attack_style_from_mask(int style_mask) {
     return ATTACK_STYLE_NONE;
 }
 
-static inline int inf_style_count_from_mask(int style_mask) {
-    int mask = style_mask & (INF_STYLE_MASK_MELEE |
-        INF_STYLE_MASK_RANGED | INF_STYLE_MASK_MAGIC);
-    return ((mask & INF_STYLE_MASK_MELEE) != 0) +
-        ((mask & INF_STYLE_MASK_RANGED) != 0) +
-        ((mask & INF_STYLE_MASK_MAGIC) != 0);
-}
 
 static inline int inf_npc_style_max_hit(
     const InfNPCStats* stats, int style
@@ -440,32 +425,6 @@ static inline int inf_npc_style_max_hit(
     return max_hit;
 }
 
-static inline int inf_npc_style_mask_max_hit(
-    const InfNPCStats* stats, int style_mask
-) {
-    int max_hit = 0;
-    if (style_mask & INF_STYLE_MASK_MELEE) {
-        int style_max = inf_npc_style_max_hit(stats, ATTACK_STYLE_MELEE);
-        if (style_max > max_hit) max_hit = style_max;
-    }
-    if (style_mask & INF_STYLE_MASK_RANGED) {
-        int style_max = inf_npc_style_max_hit(stats, ATTACK_STYLE_RANGED);
-        if (style_max > max_hit) max_hit = style_max;
-    }
-    if (style_mask & INF_STYLE_MASK_MAGIC) {
-        int style_max = inf_npc_style_max_hit(stats, ATTACK_STYLE_MAGIC);
-        if (style_max > max_hit) max_hit = style_max;
-    }
-    return max_hit;
-}
-
-static inline int inf_attack_style_obs_preview(int style_mask) {
-    int primary_mask = style_mask & (INF_STYLE_MASK_RANGED | INF_STYLE_MASK_MAGIC);
-    int primary_style = inf_attack_style_from_mask(primary_mask);
-    if (primary_style != ATTACK_STYLE_NONE)
-        return primary_style;
-    return inf_attack_style_from_mask(style_mask);
-}
 
 static inline int inf_attack_style_telegraph_mask(
     const InfernoState* s, const InfNPC* npc, const InfNPCStats* stats,
@@ -552,13 +511,6 @@ static inline InfNpcPlayerThreat inf_npc_player_threat_ctx(
     return threat;
 }
 
-static inline InfNpcPlayerThreat inf_npc_player_threat(
-    const InfernoState* s,
-    const InfNPC* npc
-) {
-    return inf_npc_player_threat_ctx(
-        s, inf_legacy_context(), npc);
-}
 
 static inline int inf_npc_is_live_player_target(
     const InfernoState* s,
@@ -571,31 +523,6 @@ static inline int inf_npc_is_live_player_target(
 }
 
 
-static inline int inf_barrage_total_target_count(
-    const InfernoState* s,
-    int primary_idx
-) {
-    if (primary_idx < 0 || primary_idx >= INF_MAX_NPCS) return 0;
-    const InfNPC* primary = &s->npcs[primary_idx];
-    if (!primary->active || primary->death_ticks > 0 ||
-            primary->type == INF_NPC_ZUK_SHIELD)
-        return 0;
-
-    int count = 1;
-    for (int i = 0; i < INF_MAX_NPCS && count < BARRAGE_MAX_HITS; i++) {
-        if (i == primary_idx) continue;
-        const InfNPC* npc = &s->npcs[i];
-        if (!npc->active || npc->death_ticks > 0 ||
-                npc->type == INF_NPC_ZUK_SHIELD)
-            continue;
-
-        int dx = npc->x - primary->x;
-        int dy = npc->y - primary->y;
-        if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1)
-            count++;
-    }
-    return count;
-}
 
 static inline int inf_pending_hit_obs_timer(const EncounterPendingHit* ph) {
     if (ph->check_prayer && ph->prayer_check_delay > 0)
@@ -752,16 +679,13 @@ static void inf_store_dead_mob(InfernoState* s, InfNPC* npc) {
 }
 
 static float inf_compute_reward_ctx(InfernoState* s, const InfernoContext* ctx);
-static float inf_compute_reward(InfernoState* s);
 static void inf_spawn_wave(InfernoState* s);
 static void inf_tick_npcs_ctx(InfernoState* s, InfernoContext* ctx);
-static void inf_tick_npcs(InfernoState* s);
 static void inf_tick_player_ctx(
     InfernoState* s,
     InfernoContext* ctx,
     const int* actions,
     int can_attack);
-static void inf_tick_player(InfernoState* s, const int* actions, int can_attack);
 static void inf_apply_npc_death(InfernoState* s, int npc_idx);
 static int inf_mager_resurrect_ctx(InfernoState* s, InfernoContext* ctx, int idx);
 static void inf_queue_zuk_healer_sparks(InfernoState* s, const InfNPC* npc);
@@ -769,7 +693,6 @@ static void inf_resolve_pending_sparks(InfernoState* s);
 static void inf_invalidate_current_obs_slots(InfernoState* s);
 static void inf_refresh_current_obs_slots_ctx(InfernoState* s, const InfernoContext* ctx);
 static void inf_ensure_current_obs_slots_ctx(InfernoState* s, const InfernoContext* ctx);
-static void inf_refresh_current_obs_slots(InfernoState* s);
 
 static InfConfig inf_default_config(void) {
     return (InfConfig){
@@ -957,17 +880,6 @@ static void inf_init_context(EncounterContext* context) {
 static void inf_destroy_context(EncounterContext* context) {
 }
 
-static InfernoContext* inf_legacy_context(void) {
-    static InfernoContext ctx;
-    static Log log;
-    static int initialized = 0;
-    if (!initialized) {
-        inf_init_context_typed(&ctx);
-        ctx.log = &log;
-        initialized = 1;
-    }
-    return &ctx;
-}
 
 static void inf_init_state_typed(InfernoState* s, InfernoContext* ctx) {
     inf_build_npc_stats();

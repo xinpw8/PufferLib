@@ -60,7 +60,6 @@ static inline void osrs_actor_route_cache_clear(OsrsActorRouteCache* route) {
 }
 
 static inline void osrs_interaction_set(OsrsInteraction* ix, int target_slot) {
-    if (ix->target_slot == target_slot) return;
     ix->target_slot = target_slot;
 }
 

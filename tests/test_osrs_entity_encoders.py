@@ -12,9 +12,14 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 CUDA_SOURCE = Path(__file__).with_name("test_osrs_entity_encoders_cuda.cu")
 ITEM_HEADER = ROOT / "ocean/osrs/osrs_item_obs_generated.h"
+ITEM_SOURCE = ITEM_HEADER.read_text()
 BATCH = 9
 HIDDEN = 40
 BOTTLENECK = 16
+INVENTORY_START = 52
+INVENTORY_COUNT = 28
+EQUIPMENT_START = 80
+EQUIPMENT_COUNT = 11
 
 
 @dataclass(frozen=True)
@@ -28,13 +33,6 @@ class EncoderContract:
     npc_features: int
     type_count: int
     type_code_scale: int
-    equipment_start: int
-    equipment_count: int
-    equipment_obs_features: int
-    equipment_features: int
-    inventory_start: int
-    inventory_count: int
-    inventory_features: int
 
 
 CONTRACTS = (
@@ -48,13 +46,6 @@ CONTRACTS = (
         npc_features=34,
         type_count=12,
         type_code_scale=1,
-        equipment_start=80,
-        equipment_count=11,
-        equipment_obs_features=1,
-        equipment_features=14,
-        inventory_start=52,
-        inventory_count=28,
-        inventory_features=14,
     ),
     EncoderContract(
         name="inferno",
@@ -66,20 +57,12 @@ CONTRACTS = (
         npc_features=26,
         type_count=14,
         type_code_scale=16,
-        equipment_start=80,
-        equipment_count=11,
-        equipment_obs_features=1,
-        equipment_features=14,
-        inventory_start=52,
-        inventory_count=28,
-        inventory_features=14,
     ),
 )
 
 
 def _generated_integer(name: str) -> int:
-    source = ITEM_HEADER.read_text()
-    match = re.search(rf"^#define\s+{name}\s+(\d+)\s*$", source, re.MULTILINE)
+    match = re.search(rf"^#define\s+{name}\s+(\d+)\s*$", ITEM_SOURCE, re.MULTILINE)
     assert match, f"generated item-table constant {name} is missing"
     return int(match.group(1))
 
@@ -88,7 +71,7 @@ def _load_item_table() -> np.ndarray:
     columns = _generated_integer("OSRS_ITEM_OBS_TABLE_COLS")
     expected_rows = _generated_integer("OSRS_ITEM_OBS_TABLE_ROWS")
     rows = []
-    for line in ITEM_HEADER.read_text().splitlines():
+    for line in ITEM_SOURCE.splitlines():
         if not line.lstrip().startswith("X("):
             continue
         values = re.findall(
@@ -132,33 +115,22 @@ def _make_observations(
         )
 
     code_scale = _generated_integer("OSRS_ITEM_OBS_CODE_SCALE")
-    inventory_block = contract.inventory_count
-    observations[
-        :,
-        contract.inventory_start : contract.inventory_start + inventory_block,
-    ] = 0
+    observations[:, INVENTORY_START : INVENTORY_START + INVENTORY_COUNT] = 0
     inventory_cells = observations[
-        :,
-        contract.inventory_start : contract.inventory_start + inventory_block,
-    ].reshape(BATCH, contract.inventory_count)
+        :, INVENTORY_START : INVENTORY_START + INVENTORY_COUNT
+    ].reshape(BATCH, INVENTORY_COUNT)
     assert table_rows <= inventory_cells.size
     for code in range(table_rows):
-        batch, cell = divmod(code, contract.inventory_count)
+        batch, cell = divmod(code, INVENTORY_COUNT)
         inventory_cells[batch, cell] = code / code_scale
 
-    equipment_block = contract.equipment_count * contract.equipment_obs_features
     equipment_cells = observations[
-        :,
-        contract.equipment_start : contract.equipment_start + equipment_block,
-    ].reshape(
-        BATCH,
-        contract.equipment_count,
-        contract.equipment_obs_features,
-    )
+        :, EQUIPMENT_START : EQUIPMENT_START + EQUIPMENT_COUNT
+    ].reshape(BATCH, EQUIPMENT_COUNT)
     for batch in range(BATCH):
-        for cell in range(contract.equipment_count):
-            code = 1 + (batch * contract.equipment_count + cell) % (table_rows - 1)
-            equipment_cells[batch, cell, 0] = code / code_scale
+        for cell in range(EQUIPMENT_COUNT):
+            code = 1 + (batch * EQUIPMENT_COUNT + cell) % (table_rows - 1)
+            equipment_cells[batch, cell] = code / code_scale
     return observations
 
 
@@ -172,7 +144,7 @@ def _materialize_items(
     code_scale = _generated_integer("OSRS_ITEM_OBS_CODE_SCALE")
     codes = np.rint(source * code_scale).astype(np.int64)
     assert np.all((codes >= 0) & (codes < table.shape[0]))
-    return table[codes].copy(), codes
+    return table[codes]
 
 
 def _materialize(
@@ -196,67 +168,19 @@ def _materialize(
         npc_records[:, :, npc_type] = npc_codes == npc_type + 1
     npc_records[:, :, contract.type_count :] = npc_source[:, :, 1:]
 
-    inventory_records, inventory_codes = _materialize_items(
+    inventory_records = _materialize_items(
         observations,
-        contract.inventory_start,
-        contract.inventory_count,
+        INVENTORY_START,
+        INVENTORY_COUNT,
         table,
     )
-    equipment_records, equipment_codes = _materialize_items(
+    equipment_records = _materialize_items(
         observations,
-        contract.equipment_start,
-        contract.equipment_count,
+        EQUIPMENT_START,
+        EQUIPMENT_COUNT,
         table,
     )
-    return (
-        npc_records,
-        inventory_records,
-        equipment_records,
-        npc_codes,
-        inventory_codes,
-        equipment_codes,
-    )
-
-
-@pytest.mark.parametrize("contract", CONTRACTS, ids=lambda contract: contract.name)
-def test_cpu_materialization_contract(contract):
-    table = _load_item_table()
-    observations = _make_observations(contract, table.shape[0])
-    (
-        npc_records,
-        inventory_records,
-        equipment_records,
-        npc_codes,
-        inventory_codes,
-        equipment_codes,
-    ) = _materialize(contract, observations, table)
-    assert npc_records.shape == (
-        BATCH,
-        contract.npc_count,
-        contract.npc_features,
-    )
-    assert inventory_records.shape == (
-        BATCH,
-        contract.inventory_count,
-        contract.inventory_features,
-    )
-    assert equipment_records.shape == (
-        BATCH,
-        contract.equipment_count,
-        contract.equipment_features,
-    )
-    assert set(npc_codes.ravel()) == set(range(contract.type_count + 1))
-    assert set(inventory_codes.ravel()) == set(range(table.shape[0]))
-    assert np.all(equipment_codes > 0)
-    assert np.count_nonzero(npc_records[npc_codes == 0]) == 0
-    assert np.count_nonzero(inventory_records[inventory_codes == 0]) == 0
-    materialized_sizes = (
-        npc_records.size,
-        inventory_records.size,
-        equipment_records.size,
-    )
-    assert all(size > 256 for size in materialized_sizes)
-    assert all(size % 256 != 0 for size in materialized_sizes)
+    return npc_records, inventory_records, equipment_records
 
 
 def _torch_reference(
@@ -267,14 +191,9 @@ def _torch_reference(
     table,
     weights,
 ):
-    (
-        npc_records,
-        inventory_records,
-        equipment_records,
-        _,
-        _,
-        _,
-    ) = _materialize(contract, observations.detach().cpu().numpy(), table)
+    npc_records, inventory_records, equipment_records = _materialize(
+        contract, observations.detach().cpu().numpy(), table
+    )
     npc = torch.from_numpy(npc_records).to(observations.device)
     inventory = torch.from_numpy(inventory_records).to(observations.device)
     equipment = torch.from_numpy(equipment_records).to(observations.device)
@@ -316,17 +235,12 @@ def _torch_reference(
 def _configure_library(path: Path):
     library = ctypes.CDLL(path)
     pointer = ctypes.c_void_p
-    library.osrs_entity_test_contract.argtypes = [
-        ctypes.c_int,
-        ctypes.POINTER(ctypes.c_int),
-    ]
     library.osrs_entity_test_init.argtypes = [
         ctypes.c_int,
         ctypes.c_int,
         ctypes.c_int,
         ctypes.c_int,
     ]
-    library.osrs_entity_test_init.restype = ctypes.c_int
     library.osrs_entity_test_set_weights.argtypes = [pointer] * 7
     library.osrs_entity_test_forward.argtypes = [
         pointer,
@@ -397,32 +311,8 @@ def test_cuda_forward_and_all_weight_gradients(cuda_library, contract):
     if not torch.cuda.is_available():
         pytest.skip("CUDA is not available")
 
-    reported = (ctypes.c_int * 14)()
-    cuda_library.osrs_entity_test_contract(contract.kind, reported)
-    assert list(reported) == [
-        contract.obs_size,
-        contract.npc_start,
-        contract.npc_count,
-        contract.npc_obs_features,
-        contract.npc_features,
-        contract.type_count,
-        contract.type_code_scale,
-        contract.equipment_start,
-        contract.equipment_count,
-        contract.equipment_obs_features,
-        contract.equipment_features,
-        contract.inventory_start,
-        contract.inventory_count,
-        contract.inventory_features,
-    ]
-    assert (
-        cuda_library.osrs_entity_test_init(
-            contract.kind,
-            BATCH,
-            contract.obs_size,
-            HIDDEN,
-        )
-        == 0
+    cuda_library.osrs_entity_test_init(
+        contract.kind, BATCH, contract.obs_size, HIDDEN
     )
 
     table = _load_item_table()
@@ -431,9 +321,9 @@ def test_cuda_forward_and_all_weight_gradients(cuda_library, contract):
     generator = torch.Generator(device="cuda").manual_seed(6100 + contract.kind)
     shapes = (
         (HIDDEN, contract.obs_size),
-        (BOTTLENECK, contract.inventory_features),
+        (BOTTLENECK, table.shape[1]),
         (HIDDEN, BOTTLENECK),
-        (BOTTLENECK, contract.equipment_features),
+        (BOTTLENECK, table.shape[1]),
         (HIDDEN, BOTTLENECK),
         (BOTTLENECK, contract.npc_features),
         (HIDDEN, BOTTLENECK),
@@ -468,10 +358,8 @@ def test_cuda_forward_and_all_weight_gradients(cuda_library, contract):
     )
     reference_output.backward(output_gradient)
     cuda_library.osrs_entity_test_backward(_pointer(output_gradient), BATCH, HIDDEN)
-    torch.cuda.synchronize()
 
     for index, weight in enumerate(weights):
         cuda_gradient = torch.empty_like(weight)
         cuda_library.osrs_entity_test_get_grad(index, _pointer(cuda_gradient))
-        torch.cuda.synchronize()
         torch.testing.assert_close(cuda_gradient, weight.grad, atol=5e-3, rtol=5e-3)
