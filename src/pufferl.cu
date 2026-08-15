@@ -2547,125 +2547,6 @@ typedef struct {
     TrainResult result;
 } SweepJob;
 
-// Raw (denormalized) values, so a resume can re-normalize against a space whose
-// ranges have since moved. Normalized samples would silently change meaning.
-static void sweep_obs_append(const char* path, SweepParam* params, SweepSpace* space,
-        const float* sample, int run, int point, float score, float cost) {
-    if (!path || !path[0]) {
-        return;
-    }
-    int fresh = access(path, F_OK) != 0;
-    FILE* f = fopen(path, "a");
-    if (!f) {
-        fprintf(stderr, "sweep: cannot append observations to %s: %s\n",
-            path, strerror(errno));
-        return;
-    }
-    if (fresh) {
-        fprintf(f, "run,point,score,cost");
-        for (int i = 0; i < space->num; i++) {
-            fprintf(f, ",%s.%s", params[i].section, params[i].key);
-        }
-        fprintf(f, "\n");
-    }
-    fprintf(f, "%d,%d,%.9g,%.9g", run, point, score, cost);
-    for (int i = 0; i < space->num; i++) {
-        fprintf(f, ",%.9g", space_unnormalize(&space->spaces[i], sample[i]));
-    }
-    fprintf(f, "\n");
-    fclose(f);
-}
-
-// Replays (score, cost) from a prior sweep's observation log so the surrogate
-// starts warm. Rows whose values fall outside the current ranges are counted and
-// reported, never dropped quietly.
-static int sweep_obs_resume(const char* path, ProteinSweep* protein,
-        SweepParam* params, SweepSpace* space) {
-    FILE* f = fopen(path, "r");
-    if (!f) {
-        fprintf(stderr, "sweep.resume_from: cannot read %s: %s\n",
-            path, strerror(errno));
-        exit(1);
-    }
-    char line[16384];
-    if (!fgets(line, sizeof(line), f)) {
-        fprintf(stderr, "sweep.resume_from: %s is empty\n", path);
-        exit(1);
-    }
-    int* col_of = (int*)calloc((size_t)space->num, sizeof(int));
-    for (int i = 0; i < space->num; i++) {
-        col_of[i] = -1;
-    }
-    int ncols = 0;
-    char* save = NULL;
-    for (char* tok = strtok_r(line, ",\r\n", &save); tok;
-            tok = strtok_r(NULL, ",\r\n", &save)) {
-        for (int i = 0; i < space->num; i++) {
-            char name[160];
-            snprintf(name, sizeof(name), "%s.%s", params[i].section, params[i].key);
-            if (strcmp(tok, name) == 0) {
-                col_of[i] = ncols;
-            }
-        }
-        ncols++;
-    }
-    for (int i = 0; i < space->num; i++) {
-        if (col_of[i] < 0) {
-            fprintf(stderr, "sweep.resume_from: %s has no column for [%s] %s\n",
-                path, params[i].section, params[i].key);
-            exit(1);
-        }
-    }
-
-    float* sample = (float*)calloc((size_t)space->num, sizeof(float));
-    float* vals = (float*)calloc((size_t)ncols, sizeof(float));
-    int replayed = 0;
-    int skipped = 0;
-    while (fgets(line, sizeof(line), f)) {
-        int n = 0;
-        save = NULL;
-        for (char* tok = strtok_r(line, ",\r\n", &save); tok && n < ncols;
-                tok = strtok_r(NULL, ",\r\n", &save)) {
-            vals[n++] = strtof(tok, NULL);
-        }
-        if (n < ncols) {
-            skipped++;
-            continue;
-        }
-        // A value written at a range endpoint round-trips through float32 a hair
-        // outside it, so admit that epsilon and snap it back. A genuinely
-        // narrowed range lands far outside and is still rejected.
-        int in_range = 1;
-        for (int i = 0; i < space->num; i++) {
-            float norm = space_normalize(&space->spaces[i], vals[col_of[i]]);
-            if (!isfinite(norm) || norm < -1.001f || norm > 1.001f) {
-                in_range = 0;
-                break;
-            }
-            sample[i] = fmaxf(-1.0f, fminf(1.0f, norm));
-        }
-        float score = vals[2];
-        float cost = vals[3];
-        if (!in_range || !isfinite(score) || !isfinite(cost)) {
-            skipped++;
-            continue;
-        }
-        protein_sweep_observe(protein, sample, score, cost, 0);
-        replayed++;
-    }
-    free(vals);
-    free(sample);
-    free(col_of);
-    fclose(f);
-    if (replayed > 0) {
-        protein_sweep_skip_random(protein);
-    }
-    printf("sweep resume: replayed %d observations from %s (%d skipped as "
-        "out of range or malformed)\n", replayed, path, skipped);
-    fflush(stdout);
-    return replayed;
-}
-
 void run_sweep(Ini* ini, const char* exe_path) {
     // Build SweepSpace + param map from [sweep.<section>.<key>] sections.
     const char* goal = puf_ini_get_str(ini, "sweep", "goal");
@@ -2784,20 +2665,6 @@ void run_sweep(Ini* ini, const char* exe_path) {
         .top_k = 5,
         .rng_seed = 73ULL,
     });
-
-    char obs_path[2048];
-    {
-        char dir[1024];
-        snprintf(dir, sizeof(dir), "%s/%s",
-            puf_ini_get_str(ini, "base", "log_dir"),
-            puf_ini_get_str(ini, "base", "env_name"));
-        mkdir_p(dir);
-        snprintf(obs_path, sizeof(obs_path), "%s/sweep_observations.csv", dir);
-    }
-    const char* resume_from = puf_ini_get_str(ini, "sweep", "resume_from");
-    if (resume_from && resume_from[0]) {
-        sweep_obs_resume(resume_from, protein, params, space);
-    }
 
     int parallel = sweep_gpus / train_gpus;
     // Row 0 = staging for suggest; rows 1..parallel = per-slot copies for observe.
@@ -2942,8 +2809,6 @@ void run_sweep(Ini* ini, const char* exe_path) {
         for (int pi = 0; pi < job->result.points; pi++) {
             protein_sweep_observe(protein, job->sample,
                 job->result.scores[pi], job->result.costs[pi], 0);
-            sweep_obs_append(obs_path, params, space, job->sample, job->run, pi,
-                job->result.scores[pi], job->result.costs[pi]);
         }
         printf("sweep run=%d score=%.4f cost=%.2f steps=%.0f random=%d gp_obs=%d pareto=%d\n",
             job->run, job->result.score, job->result.cost, job->result.steps,
