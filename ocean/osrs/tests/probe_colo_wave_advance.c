@@ -57,9 +57,10 @@ static int scripted_first_modifier(const ColosseumState* s) {
 
 static int scripted_heal_cell(const ColosseumState* s) {
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++) {
-        const ColoInvCell* cell = &s->inventory_cells[i];
-        OsrsInventoryClickResolution r = osrs_inventory_click_interpret(
-            cell->item_idx, cell->raw_osrs_id, OSRS_CLICK_TICK_FIRST);
+        const ColoInvCell* cell = &s->player.inventory_cells[i];
+        OsrsInventoryClickResolution r =
+            osrs_inventory_cell_click_interpret(
+                cell, OSRS_CLICK_TICK_FIRST);
         if ((r.consumable_kind == OSRS_CONSUMABLE_BREW ||
                 r.consumable_kind == OSRS_CONSUMABLE_GUTHIX_REST ||
                 r.consumable_kind == OSRS_CONSUMABLE_SHARK_FOOD ||
@@ -82,7 +83,7 @@ static void aggressive_policy(ColosseumState* s, int* actions) {
         int heal_cell = scripted_heal_cell(s);
         if (heal_cell >= 0) {
             OsrsInventoryClickResolution r = osrs_inventory_cell_click_interpret(
-                &s->inventory_cells[heal_cell], OSRS_CLICK_TICK_FIRST);
+                &s->player.inventory_cells[heal_cell], OSRS_CLICK_TICK_FIRST);
             int head = r.click_action == OSRS_CLICK_DRINK ? COLO_HEAD_DRINK : COLO_HEAD_EAT;
             actions[head] = heal_cell + 1;
         }
@@ -117,6 +118,7 @@ static void run_episodes(const char* label, int mode, int n_eps) {
     ctx.config.beginner_loadout_fraction = 0.0f;
     ctx.config.step_out_forecast_obs_enabled = 1;
     ctx.config.wave_clear_bonus = 1.0f;
+    col_finalize_route_topology(&ctx);
 
     static float obs[COLO_NUM_OBS];
     ColosseumState s;

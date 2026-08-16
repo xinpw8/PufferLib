@@ -1,4 +1,30 @@
 #line 862 "encounter_inferno.h"
+static inline int inf_is_barrage_spell(int spell) {
+    return spell == ENCOUNTER_SPELL_BLOOD || spell == ENCOUNTER_SPELL_ICE;
+}
+
+static inline int inf_spell_base_damage(int spell) {
+    if (spell == ENCOUNTER_SPELL_ICE) return ICE_BARRAGE_MAX_HIT;
+    if (spell == ENCOUNTER_SPELL_BLOOD) return BLOOD_BARRAGE_MAX_HIT;
+    fprintf(stderr, "BUG: invalid Inferno spell %d\n", spell);
+    abort();
+}
+
+static inline int inf_player_autocast_spell(const Player* p) {
+    return p->autocast_spell == ENCOUNTER_SPELL_ICE
+        ? ENCOUNTER_SPELL_ICE
+        : ENCOUNTER_SPELL_BLOOD;
+}
+
+static inline int inf_player_magic_base_damage(const Player* p) {
+    return inf_spell_base_damage(inf_player_autocast_spell(p));
+}
+
+static inline void inf_apply_spell_cast_stats(EncounterLoadoutStats* out) {
+    out->attack_speed = COMBAT_SPELL_CAST_SPEED;
+    out->attack_range = COMBAT_SPELL_ATTACK_RANGE;
+}
+
 static EncounterPendingHit* inf_queue_npc_pending_hit(
     InfernoState* s,
     int npc_idx,
@@ -24,13 +50,13 @@ static EncounterPendingHit* inf_queue_npc_pending_hit(
     }
 
     EncounterPendingHit hit = {
-        .damage = damage,
-        .ticks_remaining = ticks_remaining,
-        .attack_style = attack_style,
+        .ticks_remaining = (int8_t)ticks_remaining,
+        .attack_style = (int8_t)attack_style,
         .check_prayer = 0,
-        .spell_type = spell_type,
-        .hit_success = hit_success,
+        .spell_type = (int8_t)spell_type,
+        .hit_success = (int8_t)hit_success,
         .elysian_reduced = 0,
+        .damage = (int16_t)damage,
     };
     return encounter_pending_hit_queue_push(
         &npc->pending_hits, hit, "inferno npc", s->tick, npc_idx, npc->type);
@@ -42,7 +68,7 @@ static EncounterPendingHit* inf_queue_player_pending_hit(
     int npc_type,
     EncounterPendingHit hit
 ) {
-    hit.source_npc_slot = npc_idx;
+    hit.source_npc_slot = (int8_t)npc_idx;
     return encounter_pending_hit_queue_push(
         &s->player_pending_hits, hit, "inferno player", s->tick, npc_idx, npc_type);
 }
@@ -52,22 +78,110 @@ static void inf_shuffle_spawns(InfernoState* s) {
         s->spawn_order[i] = i;
     encounter_shuffle(s->spawn_order, INF_NUM_SPAWN_POS, &s->rng_state);
 }
+static InfernoContext* inf_legacy_context(void);
+static const EncounterArenaTopology* inf_route_topology_for_state(
+    const InfernoContext* ctx,
+    const InfernoState* state
+);
 
-static void inf_rebuild_los(InfernoState* s) {
-    s->los_blocker_count = 0;
-    for (int i = 0; i < INF_NUM_PILLARS; i++) {
-        if (s->pillars[i].active) {
-            LOSBlocker* b = &s->los_blockers[s->los_blocker_count++];
-            b->x = s->pillars[i].x;
-            b->y = s->pillars[i].y;
-            b->size = INF_PILLAR_SIZE;
-            b->los_mask = LOS_FULL_MASK;
-        }
+
+static int inf_pillar_footprint_blocked(
+    const InfernoState* s,
+    int x,
+    int y,
+    int size
+) {
+    for (int pillar_idx = 0; pillar_idx < INF_NUM_PILLARS; pillar_idx++) {
+        const InfPillar* pillar = &s->pillars[pillar_idx];
+        if (!pillar->active) continue;
+        if (los_aabb_overlap(
+                x, y, size,
+                pillar->x, pillar->y, INF_PILLAR_SIZE))
+            return 1;
     }
+    return 0;
+}
+static uint8_t inf_active_pillar_mask(const InfernoState* state) {
+    uint8_t mask = 0;
+    for (int pillar = 0; pillar < INF_NUM_PILLARS; pillar++)
+        mask |= (uint8_t)(state->pillars[pillar].active != 0) << pillar;
+    return mask;
+}
+static int inf_pillars_at_canonical_positions(
+    const InfernoState* state
+) {
+    for (int pillar = 0; pillar < INF_NUM_PILLARS; pillar++)
+        if (state->pillars[pillar].x != INF_PILLAR_POS[pillar][0] ||
+                state->pillars[pillar].y != INF_PILLAR_POS[pillar][1])
+            return 0;
+    return 1;
+}
+
+
+
+static uint32_t inf_pillar_los_flags(void* data, int x, int y) {
+    const InfernoState* s = (const InfernoState*)data;
+    return inf_pillar_footprint_blocked(s, x, y, 1)
+        ? LOS_FULL_MASK
+        : 0;
 }
 
 static OsrsLosQuery inf_player_los_query(const InfernoState* s) {
-    return osrs_los_blockers(s->los_blockers, s->los_blocker_count);
+    return osrs_los_flags(inf_pillar_los_flags, (void*)s);
+}
+
+static int inf_footprint_blocked_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx,
+    int x,
+    int y,
+    int size
+) {
+    const EncounterArenaTopology* topology =
+        inf_route_topology_for_state(ctx, s);
+    return encounter_arena_topology_footprint_blocked(
+            topology, x, y, size) ||
+        (!inf_pillars_at_canonical_positions(s) &&
+         inf_pillar_footprint_blocked(s, x, y, size));
+}
+
+static int inf_los_clear_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx,
+    int actor_x,
+    int actor_y,
+    int actor_size,
+    int target_x,
+    int target_y,
+    int target_size,
+    int attack_range
+) {
+    if (inf_pillars_at_canonical_positions(s))
+        return encounter_arena_topology_los_clear(
+            inf_route_topology_for_state(ctx, s),
+            actor_x,
+            actor_y,
+            actor_size,
+            target_x,
+            target_y,
+            target_size,
+            attack_range);
+    const EncounterArenaTopology* topology = ctx->route_topology;
+    if (!encounter_arena_topology_footprint_in_bounds_assume_finalized_size_in_range(
+            topology, actor_x, actor_y, actor_size) ||
+            !encounter_arena_topology_footprint_in_bounds_assume_finalized_size_in_range(
+                topology, target_x, target_y, target_size))
+        return 0;
+    return entity_has_line_of_sight_with_flags(
+        inf_pillar_los_flags,
+        (void*)s,
+        actor_x,
+        actor_y,
+        actor_size,
+        target_x,
+        target_y,
+        target_size,
+        attack_range);
 }
 
 typedef struct {
@@ -120,47 +234,74 @@ static InfTargetArea inf_npc_current_target_area(const InfernoState* s, const In
     };
 }
 
-static int inf_npc_has_los_to_area(
+static int inf_npc_has_los_to_area_ctx(
     const InfernoState* s,
+    const InfernoContext* ctx,
     const InfNPC* npc,
     int target_x,
     int target_y,
     int target_size
 ) {
     const InfNPCStats* stats = &INF_NPC_STATS[npc->type];
-    return entity_has_line_of_sight(s->los_blockers, s->los_blocker_count,
-        npc->x, npc->y, npc->size,
-        target_x, target_y, target_size,
+    return inf_los_clear_ctx(
+        s,
+        ctx,
+        npc->x,
+        npc->y,
+        npc->size,
+        target_x,
+        target_y,
+        target_size,
         stats->attack_range);
 }
 
-static int inf_npc_has_los_to_tile(
-    const InfernoState* s, const InfNPC* npc, int target_x, int target_y
+
+static int inf_npc_has_los_to_tile_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx,
+    const InfNPC* npc,
+    int target_x,
+    int target_y
 ) {
-    return inf_npc_has_los_to_area(s, npc, target_x, target_y, 1);
+    return inf_npc_has_los_to_area_ctx(
+        s, ctx, npc, target_x, target_y, 1);
 }
 
-static int inf_npc_has_los_direct(const InfernoState* s, int i) {
-    const InfNPC* npc = &s->npcs[i];
+
+static int inf_npc_has_los_direct_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx,
+    int npc_idx
+) {
+    const InfNPC* npc = &s->npcs[npc_idx];
     InfTargetArea target = inf_npc_current_target_area(s, npc);
-    return inf_npc_has_los_to_area(s, npc, target.x, target.y, target.size);
+    return inf_npc_has_los_to_area_ctx(
+        s, ctx, npc, target.x, target.y, target.size);
 }
 
-static int inf_npc_has_los(InfernoState* s, int i) {
-    if (s->npc_los_cache[i] >= 0)
-        return s->npc_los_cache[i];
-    int result = inf_npc_has_los_direct(s, i);
-    s->npc_los_cache[i] = (int8_t)result;
-    return result;
+
+static void inf_reset_npc_player_los_frame(InfernoContext* ctx) {
+    memset(ctx->npc_player_los_frame, -1, sizeof(ctx->npc_player_los_frame));
 }
 
-static inline void inf_invalidate_los_cache(InfernoState* s) {
-    memset(s->npc_los_cache, -1, sizeof(s->npc_los_cache));
+static void inf_sample_npc_player_los_frame(
+    const InfernoState* s,
+    InfernoContext* ctx,
+    int npc_idx
+) {
+    ctx->npc_player_los_frame[npc_idx] =
+        (int8_t)inf_npc_has_los_direct_ctx(s, ctx, npc_idx);
 }
 
-static inline void inf_invalidate_npc_los_cache(InfernoState* s, int i) {
-    s->npc_los_cache[i] = -1;
+static int inf_npc_has_los_ctx(
+    const InfernoState* s,
+    const InfernoContext* ctx,
+    int npc_idx
+) {
+    int8_t sampled = ctx->npc_player_los_frame[npc_idx];
+    return sampled >= 0 ? sampled : inf_npc_has_los_direct_ctx(s, ctx, npc_idx);
 }
+
 
 static inline int inf_is_final_wave(const InfernoState* s) {
     return s->wave == INF_NUM_WAVES - 1;
@@ -361,8 +502,9 @@ static inline int inf_npc_type_has_player_pressure(InfNPCType type) {
         type != INF_NPC_HEALER_ZUK;
 }
 
-static inline InfNpcPlayerThreat inf_npc_player_threat(
+static inline InfNpcPlayerThreat inf_npc_player_threat_ctx(
     const InfernoState* s,
+    const InfernoContext* ctx,
     const InfNPC* npc
 ) {
     InfNpcPlayerThreat threat = {0};
@@ -389,7 +531,8 @@ static inline InfNpcPlayerThreat inf_npc_player_threat(
 
     if (stats->attack_range > 1 &&
             !(npc->type == INF_NPC_BLOB && npc->blob_scanned_prayer >= 0) &&
-            !inf_npc_has_los_to_tile(s, npc, s->player.x, s->player.y))
+            !inf_npc_has_los_to_tile_ctx(
+                s, ctx, npc, s->player.x, s->player.y))
         return threat;
 
     threat.can_attack_if_ready = 1;
@@ -409,6 +552,14 @@ static inline InfNpcPlayerThreat inf_npc_player_threat(
     return threat;
 }
 
+static inline InfNpcPlayerThreat inf_npc_player_threat(
+    const InfernoState* s,
+    const InfNPC* npc
+) {
+    return inf_npc_player_threat_ctx(
+        s, inf_legacy_context(), npc);
+}
+
 static inline int inf_npc_is_live_player_target(
     const InfernoState* s,
     int npc_idx
@@ -419,84 +570,6 @@ static inline int inf_npc_is_live_player_target(
         npc->type != INF_NPC_ZUK_SHIELD;
 }
 
-typedef struct {
-    int if_ready_total;
-    int if_ready_melee;
-    int if_ready_ranged;
-    int if_ready_magic;
-    int if_ready_max_hit;
-    int if_ready_sum_max_hit;
-    int this_tick_total;
-    int this_tick_melee;
-    int this_tick_ranged;
-    int this_tick_magic;
-    int this_tick_max_hit;
-    int this_tick_sum_max_hit;
-    int timer_lte_1;
-    int timer_lte_2;
-    int timer_lte_4;
-    int if_ready_style_count;
-    int this_tick_style_count;
-    int nearest_timer;
-} InfNpcPressureSummary;
-
-static inline int inf_npc_pressure_timer(const InfNPC* npc) {
-    return npc->attack_timer > 0 ? npc->attack_timer : 1;
-}
-
-static inline int inf_npc_attack_unblocked_for_pressure(const InfNPC* npc) {
-    return npc->stun_timer == 0 &&
-        npc->dig_freeze_timer == 0 &&
-        npc->dig_attack_delay == 0;
-}
-
-static inline InfNpcPressureSummary inf_npc_pressure_summary(
-    const InfernoState* s
-) {
-    InfNpcPressureSummary out = { .nearest_timer = 999 };
-    int if_ready_style_mask = 0;
-    int this_tick_style_mask = 0;
-
-    for (int i = 0; i < INF_MAX_NPCS; i++) {
-        const InfNPC* npc = &s->npcs[i];
-        InfNpcPlayerThreat threat = inf_npc_player_threat(s, npc);
-        if (!threat.can_attack_if_ready || !threat.style_mask)
-            continue;
-
-        const InfNPCStats* stats = &INF_NPC_STATS[npc->type];
-        int max_hit = inf_npc_style_mask_max_hit(stats, threat.style_mask);
-        out.if_ready_total++;
-        if (threat.style_mask & INF_STYLE_MASK_MELEE) out.if_ready_melee++;
-        if (threat.style_mask & INF_STYLE_MASK_RANGED) out.if_ready_ranged++;
-        if (threat.style_mask & INF_STYLE_MASK_MAGIC) out.if_ready_magic++;
-        if (max_hit > out.if_ready_max_hit) out.if_ready_max_hit = max_hit;
-        out.if_ready_sum_max_hit += max_hit;
-        if_ready_style_mask |= threat.style_mask;
-
-        if (inf_npc_attack_unblocked_for_pressure(npc)) {
-            int timer = inf_npc_pressure_timer(npc);
-            if (timer < out.nearest_timer) out.nearest_timer = timer;
-            if (timer <= 1) out.timer_lte_1++;
-            if (timer <= 2) out.timer_lte_2++;
-            if (timer <= 4) out.timer_lte_4++;
-        }
-
-        if (!threat.can_attack_this_tick)
-            continue;
-
-        out.this_tick_total++;
-        if (threat.style_mask & INF_STYLE_MASK_MELEE) out.this_tick_melee++;
-        if (threat.style_mask & INF_STYLE_MASK_RANGED) out.this_tick_ranged++;
-        if (threat.style_mask & INF_STYLE_MASK_MAGIC) out.this_tick_magic++;
-        if (max_hit > out.this_tick_max_hit) out.this_tick_max_hit = max_hit;
-        out.this_tick_sum_max_hit += max_hit;
-        this_tick_style_mask |= threat.style_mask;
-    }
-
-    out.if_ready_style_count = inf_style_count_from_mask(if_ready_style_mask);
-    out.this_tick_style_count = inf_style_count_from_mask(this_tick_style_mask);
-    return out;
-}
 
 static inline int inf_barrage_total_target_count(
     const InfernoState* s,
@@ -693,8 +766,9 @@ static void inf_apply_npc_death(InfernoState* s, int npc_idx);
 static int inf_mager_resurrect_ctx(InfernoState* s, InfernoContext* ctx, int idx);
 static void inf_queue_zuk_healer_sparks(InfernoState* s, const InfNPC* npc);
 static void inf_resolve_pending_sparks(InfernoState* s);
-static void inf_rebuild_player_collision_flags(InfernoState* s);
+static void inf_invalidate_current_obs_slots(InfernoState* s);
 static void inf_refresh_current_obs_slots_ctx(InfernoState* s, const InfernoContext* ctx);
+static void inf_ensure_current_obs_slots_ctx(InfernoState* s, const InfernoContext* ctx);
 static void inf_refresh_current_obs_slots(InfernoState* s);
 
 static InfConfig inf_default_config(void) {
@@ -718,8 +792,6 @@ static InfConfig inf_default_config(void) {
         .supply_milestone_restore_reward_coeff = 0.0f,
         .death_penalty_coeff = 0.0f,
         .terminal_penalty_enabled = 0,
-        .step_out_forecast_obs_enabled = 1,
-        .step_out_forecast_obs_mode = INF_STEP_OUT_FORECAST_MODE_EXACT_ROLLOUT,
         .phase_900_bonus = 0.0f,
         .phase_600_bonus = 0.0f,
         .phase_300_bonus = 0.0f,
@@ -746,15 +818,136 @@ static InfConfig inf_default_config(void) {
         .zuk_healer_reward_mode = INF_ZUK_HEALER_REWARD_MODE_BASELINE,
         .post_jad_zuk_multiplier = 1.0f,
         .jad_alive_zuk_multiplier = 1.0f,
-        .oracle_mode = 0,
         .shield_tag_reward_coeff = 0.0f,
         .joseph_reward_mode = INF_JOSEPH_REWARD_MODE_OFF,
     };
 }
 
+typedef struct {
+    EncounterArenaTopology*
+        topologies[1 << INF_NUM_PILLARS];
+} InfRouteTopologyOwner;
+
+typedef struct {
+    const CollisionMap* collision_map;
+    int world_offset_x;
+    int world_offset_y;
+    uint8_t pillar_mask;
+} InfRouteTopologyBuildContext;
+
+static InfRouteTopologyOwner inf_route_topology_owner;
+
+static uint32_t inf_topology_collision_flags(
+    const InfRouteTopologyBuildContext* build,
+    int x,
+    int y
+) {
+    if (!build->collision_map) return 0;
+    return (uint32_t)collision_get_flags(
+        build->collision_map,
+        0,
+        x + build->world_offset_x,
+        y + build->world_offset_y);
+}
+
+static uint32_t inf_route_topology_flags(void* data, int x, int y) {
+    const InfRouteTopologyBuildContext* build =
+        (const InfRouteTopologyBuildContext*)data;
+    if (x < INF_ARENA_MIN_X || x > INF_ARENA_MAX_X ||
+            y < INF_ARENA_MIN_Y || y > INF_ARENA_MAX_Y)
+        return COLLISION_BLOCKED;
+    uint32_t flags = inf_topology_collision_flags(build, x, y);
+    for (int pillar = 0; pillar < INF_NUM_PILLARS; pillar++) {
+        if ((build->pillar_mask & (1 << pillar)) == 0) continue;
+        if (los_aabb_overlap(
+                x, y, 1,
+                INF_PILLAR_POS[pillar][0],
+                INF_PILLAR_POS[pillar][1],
+                INF_PILLAR_SIZE))
+            flags |= COLLISION_BLOCKED | LOS_FULL_MASK;
+    }
+    return flags;
+}
+
+static uint32_t inf_route_topology_los_flags(void* data, int x, int y) {
+    const InfRouteTopologyBuildContext* build =
+        (const InfRouteTopologyBuildContext*)data;
+    for (int pillar = 0; pillar < INF_NUM_PILLARS; pillar++) {
+        if ((build->pillar_mask & (1 << pillar)) == 0) continue;
+        if (los_aabb_overlap(
+                x, y, 1,
+                INF_PILLAR_POS[pillar][0],
+                INF_PILLAR_POS[pillar][1],
+                INF_PILLAR_SIZE))
+            return LOS_FULL_MASK;
+    }
+    return 0;
+}
+
+static void inf_finalize_route_topology(InfernoContext* ctx) {
+    if (!ctx || ctx->route_topology) {
+        fprintf(stderr, "inferno route topology finalized twice\n");
+        abort();
+    }
+    for (int pillar_mask = 0;
+            pillar_mask < (1 << INF_NUM_PILLARS);
+            pillar_mask++) {
+        InfRouteTopologyBuildContext build = {
+            ctx->collision_map,
+            ctx->world_offset_x,
+            ctx->world_offset_y,
+            (uint8_t)pillar_mask,
+        };
+        EncounterArenaTopologyBuildSpec spec = {
+            .origin_x = INF_TOPOLOGY_MIN_X,
+            .origin_y = INF_TOPOLOGY_MIN_Y,
+            .width = INF_TOPOLOGY_WIDTH,
+            .height = INF_TOPOLOGY_HEIGHT,
+            .max_footprint_size =
+                ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE,
+            .revision =
+                UINT64_C(0x494e4645524e4f02) + (uint64_t)pillar_mask,
+            .tile_flags = inf_route_topology_flags,
+            .tile_flags_ctx = &build,
+            .los_tile_flags = inf_route_topology_los_flags,
+            .los_tile_flags_ctx = &build,
+        };
+        EncounterArenaTopology** topology =
+            &inf_route_topology_owner.topologies[pillar_mask];
+        if (!*topology) {
+            *topology = encounter_arena_topology_build(&spec);
+            encounter_arena_topology_finalize(*topology);
+        } else {
+            encounter_arena_topology_require_spec(
+                *topology, &spec, "inferno");
+        }
+    }
+    ctx->route_topology = inf_route_topology_owner.topologies[0];
+}
+
+static const EncounterArenaTopology* inf_route_topology_for_state(
+    const InfernoContext* ctx,
+    const InfernoState* state
+) {
+    encounter_arena_topology_require_finalized(ctx->route_topology);
+    if (!inf_pillars_at_canonical_positions(state))
+        return ctx->route_topology;
+    return inf_route_topology_owner.topologies[
+        inf_active_pillar_mask(state)];
+}
+
+static void inf_finalize_context(
+    EncounterState* state,
+    EncounterContext* context
+) {
+    (void)state;
+    inf_finalize_route_topology((InfernoContext*)context);
+}
+
 static void inf_init_context_typed(InfernoContext* ctx) {
     memset(ctx, 0, sizeof(*ctx));
     ctx->config = inf_default_config();
+    inf_reset_npc_player_los_frame(ctx);
 }
 
 static void inf_init_context(EncounterContext* context) {
@@ -782,7 +975,6 @@ static void inf_init_state_typed(InfernoState* s, InfernoContext* ctx) {
     s->rng_state = 12345;
     s->start_wave = ctx ? ctx->config.start_wave : 0;
     s->active_loadout_profile = INF_LOADOUT_PROFILE_MAX;
-    memset(s->npc_los_cache, -1, sizeof(s->npc_los_cache));
 }
 
 static void inf_init_state(EncounterState* state, EncounterContext* context) {
@@ -791,7 +983,7 @@ static void inf_init_state(EncounterState* state, EncounterContext* context) {
 
 static EncounterState* inf_create(void) {
     InfernoState* s = (InfernoState*)calloc(1, sizeof(InfernoState));
-    inf_init_state_typed(s, inf_legacy_context());
+    inf_init_state_typed(s, NULL);
     return (EncounterState*)s;
 }
 

@@ -14,25 +14,38 @@
     X(COLO_PROF_C_REWARD_TERMINAL,      "c_reward_terminal") \
     X(COLO_PROF_C_TERMINAL_LOG,         "c_terminal_log") \
     X(COLO_PROF_C_RESET,                "c_reset") \
+    X(COLO_PROF_C_LOG_DPT,              "c_log_dpt") \
     X(COLO_PROF_OBS_REFRESH_SLOTS,      "obs_refresh_slots") \
     X(COLO_PROF_OBS_PREFIX,             "obs_prefix") \
     X(COLO_PROF_OBS_PILLARS,            "obs_pillars") \
-    X(COLO_PROF_OBS_BESTGEAR,           "obs_bestgear_build") \
     X(COLO_PROF_OBS_INVENTORY,          "obs_inventory") \
     X(COLO_PROF_OBS_VENATOR,            "obs_venator") \
     X(COLO_PROF_OBS_NPC_SLOTS,          "obs_npc_slots") \
     X(COLO_PROF_OBS_MODIFIERS,          "obs_modifiers") \
     X(COLO_PROF_OBS_BOSS,               "obs_boss") \
     X(COLO_PROF_OBS_PENDING_HITS,       "obs_pending_hits") \
-    X(COLO_PROF_OBS_FORECAST,           "obs_forecast") \
     X(COLO_PROF_OBS_THREAT_LOS,         "obs_threat_los") \
     X(COLO_PROF_OBS_THRALL_DC,          "obs_thrall_dc") \
-    X(COLO_PROF_OBS_WEAPON_CHOICE,      "obs_weapon_choice") \
     X(COLO_PROF_OBS_SPAWN,              "obs_spawn") \
-    X(COLO_PROF_OBS_THREAT_FIELD,       "obs_threat_field") \
-    X(COLO_PROF_FC_SETUP,               "fc_setup") \
-    X(COLO_PROF_FC_ROLLOUT,             "fc_rollout") \
-    X(COLO_PROF_FC_SOLARFLARE,          "fc_solarflare") \
+    X(COLO_PROF_STEP_PRE_PLAYER,        "step_pre_player") \
+    X(COLO_PROF_PRE_RESET_SCRATCH,      "pre_reset_scratch") \
+    X(COLO_PROF_PRE_RESET_RENDER,       "pre_reset_render") \
+    X(COLO_PROF_PRE_RESET_PLAYER,       "pre_reset_player") \
+    X(COLO_PROF_PRE_RESET_NPCS,         "pre_reset_npcs") \
+    X(COLO_PROF_PRE_PLAYER_PRETICK,     "pre_player_pretick") \
+    X(COLO_PROF_PRE_SPAWN,              "pre_spawn") \
+    X(COLO_PROF_PRE_RESOLVE_HITS,       "pre_resolve_hits") \
+    X(COLO_PROF_PRE_COLLISION,          "pre_collision") \
+    X(COLO_PROF_PRE_NPC_PHASE,          "pre_npc_phase") \
+    X(COLO_PROF_PRE_OFFPRAY,            "pre_offpray") \
+    X(COLO_PROF_STEP_PLAYER,            "step_player") \
+    X(COLO_PROF_PLAYER_TIMERS,          "player_timers") \
+    X(COLO_PROF_PLAYER_INVENTORY,       "player_inventory") \
+    X(COLO_PROF_PLAYER_INTENT,          "player_intent") \
+    X(COLO_PROF_PLAYER_MOVE,            "player_move") \
+    X(COLO_PROF_PLAYER_ATTACK,          "player_attack") \
+    X(COLO_PROF_STEP_REWARD,            "step_reward") \
+    X(COLO_PROF_STEP_WAVE_LOGIC,        "step_wave_logic") \
     X(COLO_PROF_STEP_NPC_TOTAL,         "step_npc_total") \
     X(COLO_PROF_STEP_SOL_BOSS,          "step_sol_boss") \
     X(COLO_PROF_STEP_JAVELIN_SKYFALL,   "step_javelin_skyfall") \
@@ -41,7 +54,14 @@
     X(COLO_PROF_STEP_NPC_ATTACK,        "step_npc_attack") \
     X(COLO_PROF_STEP_MANTICORE_BARRAGE, "step_manticore_barrage") \
     X(COLO_PROF_STEP_WARBAND_ATTACK,    "step_warband_attack") \
-    X(COLO_PROF_STEP_MODIFIERS_HAZARDS, "step_modifiers_hazards")
+    X(COLO_PROF_STEP_MODIFIERS_HAZARDS, "step_modifiers_hazards") \
+    X(COLO_PROF_ENV_STEPS,              "env_steps") \
+    X(COLO_PROF_BEST_GEAR_REQUESTS,     "best_gear_requests") \
+    X(COLO_PROF_BEST_GEAR_HITS,         "best_gear_hits") \
+    X(COLO_PROF_BEST_GEAR_BUILDS,       "best_gear_builds") \
+    X(COLO_PROF_VENATOR_REQUESTS,       "venator_requests") \
+    X(COLO_PROF_VENATOR_HITS,           "venator_hits") \
+    X(COLO_PROF_VENATOR_REFRESHES,       "venator_refreshes")
 
 #define OSRS_ENV_PROFILE_PREFIX     colosseum
 #define OSRS_ENV_PROFILE_COUNT      COLO_PROF_COUNT

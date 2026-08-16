@@ -122,11 +122,14 @@ static void inf_lab_require_type(int type) {
         inf_lab_abort("npc type must be in [0,%d], got %d", INF_NUM_NPC_TYPES - 1, type);
 }
 
-static void inf_lab_require_player_tile(InfernoState* s, int x, int y) {
-    if (!inf_in_arena(x, y))
-        inf_lab_abort("player tile out of arena: (%d,%d)", x, y);
-    if (inf_blocked_by_pillar(s, x, y, 1))
-        inf_lab_abort("player tile is blocked by a pillar: (%d,%d)", x, y);
+static void inf_lab_require_player_tile(
+    InfernoState* s,
+    const InfernoContext* ctx,
+    int x,
+    int y
+) {
+    if (inf_footprint_blocked_ctx(s, ctx, x, y, 1))
+        inf_lab_abort("player tile is blocked: (%d,%d)", x, y);
 }
 
 static void inf_lab_clear_transient(InfernoState* s) {
@@ -158,11 +161,12 @@ static void inf_lab_clear_transient(InfernoState* s) {
     }
 }
 
-static void inf_lab_refresh_geometry(InfernoState* s) {
-    inf_rebuild_los(s);
-    inf_invalidate_los_cache(s);
-    inf_rebuild_entity_collision_flags(s);
-    inf_refresh_current_obs_slots(s);
+static void inf_lab_refresh_geometry(
+    InfernoState* s,
+    const InfernoContext* ctx
+) {
+    inf_rebuild_npc_collision_flags(s);
+    inf_refresh_current_obs_slots_ctx(s, ctx);
 }
 
 static void inf_lab_remove_all_npcs(InfernoState* s) {
@@ -170,13 +174,20 @@ static void inf_lab_remove_all_npcs(InfernoState* s) {
     s->dead_mob_count = 0;
 }
 
-static void inf_lab_clear_npcs(InfernoState* s) {
+static void inf_lab_clear_npcs(
+    InfernoState* s,
+    const InfernoContext* ctx
+) {
     inf_lab_remove_all_npcs(s);
     inf_lab_clear_transient(s);
-    inf_lab_refresh_geometry(s);
+    inf_lab_refresh_geometry(s, ctx);
 }
 
-static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd) {
+static void inf_lab_apply_command_ctx(
+    InfernoState* s,
+    InfernoContext* ctx,
+    const InfernoLabCommand* cmd
+) {
     if (!s || !cmd) inf_lab_abort("null command");
 
     switch (cmd->kind) {
@@ -184,15 +195,16 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
             return;
 
         case INF_LAB_COMMAND_RESET:
-            inf_reset((EncounterState*)s, cmd->as.reset.seed);
+            inf_reset_ctx(
+                (EncounterState*)s, (EncounterContext*)ctx, cmd->as.reset.seed);
             return;
 
         case INF_LAB_COMMAND_SET_PLAYER:
-            inf_lab_require_player_tile(s, cmd->as.tile.x, cmd->as.tile.y);
+            inf_lab_require_player_tile(s, ctx, cmd->as.tile.x, cmd->as.tile.y);
             s->player.x = cmd->as.tile.x;
             s->player.y = cmd->as.tile.y;
             inf_lab_clear_transient(s);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
 
         case INF_LAB_COMMAND_SPAWN_NPC: {
@@ -222,7 +234,7 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
                 s->npcs[spawn->slot].attack_timer = spawn->timer.value;
             }
             inf_lab_clear_transient(s);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -236,7 +248,7 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
             s->npcs[move->slot].target_x = move->x;
             s->npcs[move->slot].target_y = move->y;
             inf_lab_clear_transient(s);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -245,7 +257,7 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
             inf_lab_require_slot(slot);
             inf_deactivate_npc(s, slot);
             inf_lab_clear_transient(s);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -256,7 +268,7 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
                 inf_lab_abort("cannot kill inactive npc slot %d", slot);
             s->npcs[slot].hp = 0;
             inf_apply_npc_death(s, slot);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -271,7 +283,7 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
                 inf_lab_abort("npc hp %d exceeds max hp %d",
                     hp, s->npcs[slot].max_hp);
             s->npcs[slot].hp = hp;
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -283,7 +295,7 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
                 inf_lab_abort("cannot set timer for inactive npc slot %d", slot);
             if (timer < 0) inf_lab_abort("npc timer must be nonnegative");
             s->npcs[slot].attack_timer = timer;
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -307,8 +319,9 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
             } else {
                 s->pillars[pillar->pillar_idx].hp = 0;
             }
+            inf_reset_npc_player_los_frame(ctx);
             inf_lab_clear_transient(s);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
 
@@ -321,11 +334,11 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
             s->wave_ready_delay = INF_START_READY_TICKS;
             inf_spawn_wave(s);
             inf_lab_clear_transient(s);
-            inf_lab_refresh_geometry(s);
+            inf_lab_refresh_geometry(s, ctx);
             return;
 
         case INF_LAB_COMMAND_CLEAR_NPCS:
-            inf_lab_clear_npcs(s);
+            inf_lab_clear_npcs(s, ctx);
             return;
 
         case INF_LAB_COMMAND_STEP_TICKS: {
@@ -333,14 +346,15 @@ static void inf_lab_apply_command(InfernoState* s, const InfernoLabCommand* cmd)
             if (ticks < 0) inf_lab_abort("step_ticks must be nonnegative");
             int actions[INF_NUM_ACTION_HEADS] = {0};
             for (int t = 0; t < ticks; t++)
-                inf_step((EncounterState*)s, actions);
-            inf_lab_refresh_geometry(s);
+                inf_step_ctx((EncounterState*)s, (EncounterContext*)ctx, actions);
+            inf_lab_refresh_geometry(s, ctx);
             return;
         }
     }
 
     inf_lab_abort("unknown command kind %d", cmd->kind);
 }
+
 
 static int inf_lab_nearest_pillar_idx(const InfernoState* s, int x, int y) {
     int best_idx = -1;
@@ -720,9 +734,13 @@ static int inf_lab_forecast_action_has_ranger_mager_same_tick(
     return 0;
 }
 
-static void inf_lab_append_forecast_json(InfernoState* s, InfLabString* out) {
+static void inf_lab_append_forecast_json(
+    InfernoState* s,
+    const InfernoContext* ctx,
+    InfLabString* out
+) {
     InfStepOutForecast forecast;
-    inf_build_step_out_forecast_ctx(s, inf_legacy_context(), &forecast);
+    inf_build_step_out_forecast_ctx(s, ctx, &forecast);
     encounter_lab_string_append(out, "\"forecast\":{\"horizon\":%d,\"actions\":[",
         INF_STEP_OUT_FORECAST_HORIZON);
     for (int action_idx = 0; action_idx < ENCOUNTER_MOVE_ACTIONS; action_idx++) {
@@ -750,14 +768,18 @@ static void inf_lab_append_forecast_json(InfernoState* s, InfLabString* out) {
     encounter_lab_string_append(out, "]}");
 }
 
-static void inf_lab_append_npcs_json(InfernoState* s, InfLabString* out) {
+static void inf_lab_append_npcs_json(
+    InfernoState* s,
+    const InfernoContext* ctx,
+    InfLabString* out
+) {
     encounter_lab_string_append(out, "\"npcs\":[");
     int emitted = 0;
     for (int i = 0; i < INF_MAX_NPCS; i++) {
         InfNPC* npc = &s->npcs[i];
         if (!npc->active) continue;
         if (emitted > 0) encounter_lab_string_append(out, ",");
-        int los = npc->death_ticks > 0 ? 0 : inf_npc_has_los(s, i);
+        int los = npc->death_ticks > 0 ? 0 : inf_npc_has_los_ctx(s, ctx, i);
         const EncounterPendingHit* pending =
             encounter_pending_hit_queue_earliest(&npc->pending_hits);
         int pending_ticks = pending ? pending->ticks_remaining : 0;
@@ -798,10 +820,12 @@ static void inf_lab_append_pillars_json(const InfernoState* s, InfLabString* out
     encounter_lab_string_append(out, "]");
 }
 
-static char* inf_lab_alloc_json(InfernoState* s) {
+static char* inf_lab_alloc_json_ctx(
+    InfernoState* s,
+    const InfernoContext* ctx
+) {
     InfLabString out;
     encounter_lab_string_init(&out, "inferno lab");
-    inf_invalidate_los_cache(s);
     encounter_lab_string_append(&out,
         "{\"tick\":%d,\"wave\":%d,"
         "\"player\":{\"x\":%d,\"y\":%d,\"hp\":%d,\"prayer\":%d,"
@@ -815,12 +839,13 @@ static char* inf_lab_alloc_json(InfernoState* s) {
         s->player_attack_dmg);
     inf_lab_append_pillars_json(s, &out);
     encounter_lab_string_append(&out, ",");
-    inf_lab_append_npcs_json(s, &out);
+    inf_lab_append_npcs_json(s, ctx, &out);
     encounter_lab_string_append(&out, ",");
-    inf_lab_append_forecast_json(s, &out);
+    inf_lab_append_forecast_json(s, ctx, &out);
     encounter_lab_string_append(&out, "}");
     return out.data;
 }
+
 
 static InfLabCommandKind inf_lab_command_kind_for(const char* command) {
     static const EncounterLabCommandAlias aliases[] = {
@@ -846,8 +871,11 @@ static InfLabCommandKind inf_lab_command_kind_for(const char* command) {
         "inferno lab", command, aliases, sizeof(aliases) / sizeof(aliases[0]));
 }
 
-static InfLabLineResult inf_lab_apply_script_line_impl(
-    InfernoState* s, const char* line, char** out_json
+static InfLabLineResult inf_lab_apply_script_line_impl_ctx(
+    InfernoState* s,
+    InfernoContext* ctx,
+    const char* line,
+    char** out_json
 ) {
     EncounterLabLine lex = encounter_lab_line_begin("inferno lab", line);
     if (!lex.command) {
@@ -857,13 +885,13 @@ static InfLabLineResult inf_lab_apply_script_line_impl(
 
     if (strcmp(lex.command, "forecast") == 0) {
         InfStepOutForecast forecast;
-        inf_build_step_out_forecast_ctx(s, inf_legacy_context(), &forecast);
+        inf_build_step_out_forecast_ctx(s, ctx, &forecast);
         (void)forecast;
         free(lex.buffer);
         return INF_LAB_LINE_FORECAST;
     }
     if (strcmp(lex.command, "dump") == 0 || strcmp(lex.command, "dump_json") == 0) {
-        if (out_json) *out_json = inf_lab_alloc_json(s);
+        if (out_json) *out_json = inf_lab_alloc_json_ctx(s, ctx);
         free(lex.buffer);
         return INF_LAB_LINE_DUMP;
     }
@@ -881,21 +909,7 @@ static InfLabLineResult inf_lab_apply_script_line_impl(
     }
 
     InfernoLabCommand cmd = inf_lab_build_script_command(kind, &args, lex.command);
-    inf_lab_apply_command(s, &cmd);
+    inf_lab_apply_command_ctx(s, ctx, &cmd);
     free(lex.buffer);
     return INF_LAB_LINE_NONE;
-}
-
-static InfLabLineResult inf_lab_apply_script_line(
-    InfernoState* s, const char* line
-) {
-    return inf_lab_apply_script_line_impl(s, line, NULL);
-}
-
-static InfLabLineResult inf_lab_apply_script_line_alloc_json(
-    InfernoState* s, const char* line, char** out_json
-) {
-    if (!out_json) inf_lab_abort("json output pointer is required");
-    *out_json = NULL;
-    return inf_lab_apply_script_line_impl(s, line, out_json);
 }

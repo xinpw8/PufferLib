@@ -1790,68 +1790,58 @@ static void gui_reset_inventory_ui_state(GuiState* gs) {
 
 static void gui_populate_inventory(GuiState* gs, Player* p) {
     memset(gs->inv_grid, 0, sizeof(gs->inv_grid));
-    int n = 0;
-
-    for (int s = 0; s < NUM_GEAR_SLOTS && n < INV_GRID_SLOTS; s++) {
-        for (int i = 0; i < p->num_items_in_slot[s] && n < INV_GRID_SLOTS; i++) {
-            uint8_t item = p->inventory[s][i];
-            if (item == ITEM_NONE) continue;
-            int is_equipped = 0;
-            for (int e = 0; e < NUM_GEAR_SLOTS; e++) {
-                if (p->equipped[e] == item) { is_equipped = 1; break; }
-            }
-            if (is_equipped) continue;
-            int dup = 0;
-            for (int j = 0; j < n; j++) {
-                if (gs->inv_grid[j].type == INV_SLOT_EQUIPMENT &&
-                    gs->inv_grid[j].item_db_idx == item) { dup = 1; break; }
-            }
-            if (dup) continue;
-            gs->inv_grid[n].type = INV_SLOT_EQUIPMENT;
-            gs->inv_grid[n].item_db_idx = item;
-            gs->inv_grid[n].osrs_id = ITEM_DATABASE[item].item_id;
-            n++;
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE &&
+            cell < INV_GRID_SLOTS; cell++) {
+        const OsrsItemContentMetadata* metadata =
+            osrs_inventory_cell_metadata(&p->inventory_cells[cell]);
+        if (metadata->item_idx != ITEM_NONE) {
+            gs->inv_grid[cell].type = INV_SLOT_EQUIPMENT;
+            gs->inv_grid[cell].item_db_idx = metadata->item_idx;
+            gs->inv_grid[cell].osrs_id =
+                ITEM_DATABASE[metadata->item_idx].item_id;
+            continue;
+        }
+        gs->inv_grid[cell].osrs_id = metadata->raw_osrs_id;
+        switch ((OsrsConsumableKind)metadata->consumable_kind) {
+            case OSRS_CONSUMABLE_SHARK_FOOD:
+                gs->inv_grid[cell].type = INV_SLOT_FOOD;
+                break;
+            case OSRS_CONSUMABLE_KARAMBWAN:
+                gs->inv_grid[cell].type = INV_SLOT_KARAMBWAN;
+                break;
+            case OSRS_CONSUMABLE_BREW:
+                gs->inv_grid[cell].type = INV_SLOT_BREW;
+                break;
+            case OSRS_CONSUMABLE_SUPER_RESTORE:
+                gs->inv_grid[cell].type = INV_SLOT_RESTORE;
+                break;
+            case OSRS_CONSUMABLE_SUPER_COMBAT:
+            case OSRS_CONSUMABLE_DIVINE_COMBAT:
+                gs->inv_grid[cell].type = INV_SLOT_COMBAT_POT;
+                break;
+            case OSRS_CONSUMABLE_RANGING:
+            case OSRS_CONSUMABLE_DIVINE_RANGING:
+                gs->inv_grid[cell].type = INV_SLOT_RANGED_POT;
+                break;
+            case OSRS_CONSUMABLE_BASTION:
+                gs->inv_grid[cell].type = INV_SLOT_BASTION_POT;
+                break;
+            case OSRS_CONSUMABLE_STAMINA:
+                gs->inv_grid[cell].type = INV_SLOT_STAMINA_POT;
+                break;
+            case OSRS_CONSUMABLE_ANTIVENOM_PLUS:
+                gs->inv_grid[cell].type = INV_SLOT_ANTIVENOM;
+                break;
+            case OSRS_CONSUMABLE_PRAYER_RESTORE:
+                gs->inv_grid[cell].type = INV_SLOT_PRAYER_POT;
+                break;
+            case OSRS_CONSUMABLE_SATURATED_HEART:
+                gs->inv_grid[cell].type = INV_SLOT_SATURATED_HEART;
+                break;
+            default:
+                break;
         }
     }
-
-    for (int i = 0; i < p->food_count && n < INV_GRID_SLOTS; i++) {
-        gs->inv_grid[n].type = INV_SLOT_FOOD;
-        gs->inv_grid[n].osrs_id = OSRS_ID_SHARK;
-        n++;
-    }
-    for (int i = 0; i < p->karambwan_count && n < INV_GRID_SLOTS; i++) {
-        gs->inv_grid[n].type = INV_SLOT_KARAMBWAN;
-        gs->inv_grid[n].osrs_id = OSRS_ID_KARAMBWAN;
-        n++;
-    }
-
-    #define ADD_POTION_VIALS(doses_total, slot_type) do { \
-        int _rem = (doses_total); \
-        while (_rem > 0 && n < INV_GRID_SLOTS) { \
-            int _d = (_rem >= 4) ? 4 : _rem; \
-            gs->inv_grid[n].type = (slot_type); \
-            gs->inv_grid[n].osrs_id = gui_consumable_osrs_id((slot_type), _d); \
-            _rem -= _d; \
-            n++; \
-        } \
-    } while(0)
-
-    ADD_POTION_VIALS(p->brew_doses, INV_SLOT_BREW);
-    ADD_POTION_VIALS(p->restore_doses, INV_SLOT_RESTORE);
-    ADD_POTION_VIALS(p->combat_potion_doses, INV_SLOT_COMBAT_POT);
-    ADD_POTION_VIALS(p->ranged_potion_doses, INV_SLOT_RANGED_POT);
-    ADD_POTION_VIALS(p->bastion_doses, INV_SLOT_BASTION_POT);
-    ADD_POTION_VIALS(p->stamina_doses, INV_SLOT_STAMINA_POT);
-    ADD_POTION_VIALS(p->antivenom_doses, INV_SLOT_ANTIVENOM);
-    ADD_POTION_VIALS(p->prayer_pot_doses, INV_SLOT_PRAYER_POT);
-    #undef ADD_POTION_VIALS
-
-    for (int i = 0; i < p->saturated_heart_count && n < INV_GRID_SLOTS; i++) {
-        gs->inv_grid[n].type = INV_SLOT_SATURATED_HEART;
-        gs->inv_grid[n].osrs_id = OSRS_ID_SATURATED_HEART;
-        n++;
-    }
-
     gui_snapshot_inventory_state(gs, p);
 }
 
@@ -1926,11 +1916,13 @@ static void gui_inv_update_potion_doses(GuiState* gs, InvSlotType type,
 }
 
 static int gui_player_loadout_contains(const Player* p, uint8_t item_db_idx) {
-    for (int g = 0; g < NUM_GEAR_SLOTS; g++) {
-        for (int i = 0; i < p->num_items_in_slot[g]; i++) {
-            if (p->inventory[g][i] == item_db_idx) return 1;
-        }
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        if (osrs_inventory_cell_item_index(
+                &p->inventory_cells[cell]) == item_db_idx)
+            return 1;
     }
+    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
+        if (p->equipped[slot] == item_db_idx) return 1;
     return 0;
 }
 
@@ -2059,14 +2051,26 @@ static int gui_inv_slot_at(GuiState* gs, int mx, int my) {
     return -1;
 }
 
+static uint16_t gui_inventory_raw_osrs_id(int osrs_id) {
+    if (osrs_id < 0 || osrs_id > UINT16_MAX) {
+        fprintf(stderr, "gui inventory: invalid raw OSRS id %d\n", osrs_id);
+        abort();
+    }
+    return (uint16_t)osrs_id;
+}
+
 static const char* gui_inv_primary_action_label(const InvSlot* inv) {
     uint16_t raw_osrs_id =
-        inv->osrs_id > 0 && inv->osrs_id <= UINT16_MAX ? (uint16_t)inv->osrs_id : 0;
+        gui_inventory_raw_osrs_id(inv->osrs_id);
     uint8_t item_idx = inv->type == INV_SLOT_EQUIPMENT
         ? inv->item_db_idx
         : ITEM_NONE;
-    OsrsInventoryClickResolution resolution = osrs_inventory_click_interpret(
-        item_idx, raw_osrs_id, OSRS_CLICK_TICK_FIRST);
+    OsrsInventoryCell cell = item_idx == ITEM_NONE
+        ? osrs_inventory_cell_from_raw_osrs_id(raw_osrs_id)
+        : osrs_inventory_cell_from_item(item_idx);
+    OsrsInventoryClickResolution resolution =
+        osrs_inventory_cell_click_interpret(
+            &cell, OSRS_CLICK_TICK_FIRST);
     switch (resolution.click_action) {
         case OSRS_CLICK_EQUIP: {
             int gear_slot = item_idx != ITEM_NONE ? item_to_gear_slot(item_idx) : -1;
@@ -2496,10 +2500,12 @@ static void gui_load_display_inventory(GuiState* gs) {
     if (count > INV_GRID_SLOTS) count = INV_GRID_SLOTS;
     for (int i = 0; i < count; i++) {
         int osrs_id = gs->display_inventory_osrs_ids[i];
-        if (osrs_id <= 0) continue;
-        uint8_t item_idx = osrs_id <= UINT16_MAX
-            ? osrs_item_index_for_raw_osrs_id((uint16_t)osrs_id)
-            : ITEM_NONE;
+        if (osrs_id == 0) continue;
+        const OsrsItemContentMetadata* metadata =
+            osrs_item_content_metadata(
+                osrs_inventory_content_code_from_raw_osrs_id(
+                    gui_inventory_raw_osrs_id(osrs_id)));
+        uint8_t item_idx = metadata->item_idx;
         gs->inv_grid[i].type = INV_SLOT_EQUIPMENT;
         gs->inv_grid[i].item_db_idx = item_idx;
         gs->inv_grid[i].osrs_id = osrs_id;

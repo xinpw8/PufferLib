@@ -1,0 +1,46 @@
+Diagnostics:
+  UnusedIncludes: None
+---
+If:
+  PathMatch: ocean/osrs_colosseum/.*
+CompileFlags:
+  Add:
+    - -xc
+    - -I../../src
+    - -I../../vendor
+    - -I../../raylib-5.5_macos/include
+    - -I../../raylib-5.5_linux_amd64/include
+    - -I../../raylib-5.5_webassembly/include
+    - -Wno-pragma-once-outside-header
+---
+If:
+  PathMatch: src/.*
+CompileFlags:
+  Add:
+    - -xc
+    - -I../raylib-5.5_macos/include
+    - -I../raylib-5.5_linux_amd64/include
+    - -I../raylib-5.5_webassembly/include
+    - -Wno-pragma-once-outside-header
+---
+If:
+  PathMatch: .*\.cu
+CompileFlags:
+  Remove:
+    - -xc
+  Add:
+    - -xcuda
+    - -nocudainc
+    - -nocudalib
+    - --cuda-host-only
+    - -ferror-limit=0
+Diagnostics:
+  Suppress: '*'
+---
+If:
+  PathMatch: .*\.inc
+CompileFlags:
+  Add:
+    - -ferror-limit=0
+Diagnostics:
+  Suppress: '*'

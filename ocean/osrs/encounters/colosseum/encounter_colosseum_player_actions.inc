@@ -1,25 +1,24 @@
 #line 76 "encounter_colosseum.h"
 
-#define COLO_HEAD_PRIMARY         0
-#define COLO_HEAD_PRAYER          1
-
-#define COLO_HEAD_EQUIP_BASE      2
-#define COLO_HEAD_EQUIP_SLOT(slot) (COLO_HEAD_EQUIP_BASE + (slot))
-#define COLO_HEAD_EAT            (COLO_HEAD_EQUIP_BASE + NUM_GEAR_SLOTS)
-#define COLO_HEAD_DRINK          (COLO_HEAD_EAT + 1)
-#define COLO_HEAD_SPEC           (COLO_HEAD_DRINK + 1)
-#define COLO_HEAD_MODIFIER_SELECT (COLO_HEAD_SPEC + 1)
-#define COLO_HEAD_GRAPPLE_PARRY  (COLO_HEAD_MODIFIER_SELECT + 1)
-#define COLO_HEAD_OFFENSIVE      (COLO_HEAD_GRAPPLE_PARRY + 1)
-#define COLO_HEAD_SPELL          (COLO_HEAD_OFFENSIVE + 1)
+#define COLO_HEAD_PRIMARY OSRS_HEAD_PRIMARY
+#define COLO_HEAD_PRAYER OSRS_HEAD_OVERHEAD
+#define COLO_HEAD_EQUIP_BASE OSRS_HEAD_EQUIP_BASE
+#define COLO_HEAD_EQUIP_SLOT(slot) OSRS_HEAD_EQUIP_SLOT(slot)
+#define COLO_HEAD_EAT OSRS_HEAD_EAT
+#define COLO_HEAD_DRINK OSRS_HEAD_DRINK
+#define COLO_HEAD_SPELL OSRS_HEAD_SPELL
+#define COLO_HEAD_SPEC OSRS_HEAD_SPECIAL
+#define COLO_HEAD_OFFENSIVE OSRS_HEAD_OFFENSIVE
+#define COLO_HEAD_MODIFIER_SELECT OSRS_BASE_NUM_ACTION_HEADS
+#define COLO_HEAD_GRAPPLE_PARRY (COLO_HEAD_MODIFIER_SELECT + 1)
 
 #define COLO_INV_CLICK_HEADS (NUM_GEAR_SLOTS + 2)
-#define COLO_INV_CLICK_DIM 29
-#define COLO_PRIMARY_ATTACK_BASE ENCOUNTER_MOVE_ACTIONS
-#define COLO_PRIMARY_DIM (ENCOUNTER_MOVE_ACTIONS + COLO_OBS_NPCS)
-#define COLO_OVERHEAD_DIM ENCOUNTER_OVERHEAD_DIM_PVE
-#define COLO_SPEC_DIM 3
-#define COLO_SPELL_DIM 3
+#define COLO_INV_CLICK_DIM OSRS_INVENTORY_CLICK_DIM
+#define COLO_PRIMARY_ATTACK_BASE OSRS_PRIMARY_MOVE_ACTIONS
+#define COLO_PRIMARY_DIM OSRS_PRIMARY_DIM(COLO_OBS_NPCS)
+#define COLO_OVERHEAD_DIM OSRS_OVERHEAD_DIM
+#define COLO_SPEC_DIM OSRS_SPECIAL_DIM
+#define COLO_SPELL_DIM OSRS_SPELL_DIM
 
 #define COLO_OVERHEAD_NO_CHANGE ENCOUNTER_OVERHEAD_NO_CHANGE
 #define COLO_OVERHEAD_OFF ENCOUNTER_OVERHEAD_OFF
@@ -27,36 +26,24 @@
 #define COLO_OVERHEAD_RANGED ENCOUNTER_OVERHEAD_SET_REFRESH_RANGED
 #define COLO_OVERHEAD_MAGIC ENCOUNTER_OVERHEAD_SET_REFRESH_MAGIC
 
-#define COLO_SPELL_SUMMON_THRALL 1
-#define COLO_SPELL_DEATH_CHARGE  2
-
+#define COLO_SPELL_DEATH_CHARGE OSRS_SPELL_DEATH_CHARGE
 #define COLO_MODIFIER_SELECT_DIM (1 + COLO_MODIFIER_DRAFT_OPTIONS)
 
 #define COLO_GRAPPLE_PARRY_DIM (1 + COLO_NUM_GRAPPLE_SLOTS)
 
 #define COLO_ACTION_DIMS_INIT { \
-    COLO_PRIMARY_DIM, \
-    COLO_OVERHEAD_DIM, \
-    COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, \
-    COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, \
-    COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, COLO_INV_CLICK_DIM, \
-    COLO_INV_CLICK_DIM, \
-    COLO_INV_CLICK_DIM, \
-    COLO_SPEC_DIM, \
+    OSRS_BASE_ACTION_DIMS(COLO_OBS_NPCS), \
     COLO_MODIFIER_SELECT_DIM, \
-    COLO_GRAPPLE_PARRY_DIM, \
-    ENCOUNTER_OFFENSIVE_DIM, \
-    COLO_SPELL_DIM \
+    COLO_GRAPPLE_PARRY_DIM \
 }
 static const int COLO_ACTION_DIMS[COLO_NUM_ACTION_HEADS] = COLO_ACTION_DIMS_INIT;
-static_assert(COLO_NUM_ACTION_HEADS == 2 + NUM_GEAR_SLOTS + 2 + 5,
-    "colosseum action head count must match the per-category layout");
-static_assert(COLO_HEAD_SPELL == COLO_NUM_ACTION_HEADS - 1,
-    "SPELL must be the last colosseum action head");
-#define COLO_ACTION_MASK_SIZE (ENCOUNTER_MOVE_ACTIONS + COLO_OVERHEAD_DIM + \
-    COLO_OBS_NPCS + COLO_INV_CLICK_HEADS * COLO_INV_CLICK_DIM + COLO_SPEC_DIM + \
-    COLO_MODIFIER_SELECT_DIM + COLO_GRAPPLE_PARRY_DIM + ENCOUNTER_OFFENSIVE_DIM + \
-    COLO_SPELL_DIM)
+static_assert(COLO_NUM_ACTION_HEADS == OSRS_BASE_NUM_ACTION_HEADS + 2,
+    "colosseum action head count must match the shared base plus extensions");
+static_assert(COLO_HEAD_GRAPPLE_PARRY == COLO_NUM_ACTION_HEADS - 1,
+    "colosseum extensions must follow the shared action heads");
+#define COLO_ACTION_MASK_SIZE \
+    (OSRS_BASE_ACTION_MASK_SIZE(COLO_OBS_NPCS) + \
+     COLO_MODIFIER_SELECT_DIM + COLO_GRAPPLE_PARRY_DIM)
 
 static int col_action_head_mask_offset(int head) {
     int offset = 0;
@@ -133,14 +120,28 @@ static void col_tick_live_stat_drift_and_divines(ColosseumState* s) {
 }
 
 static void col_apply_divine_combat_potion_effect(ColosseumState* s) {
-    encounter_damage_player(&s->player, 10, &s->tick_scratch.damage_received);
-    s->tick_scratch.landed_self_damage += 10.0f;
+    int hitpoints_before = s->player.current_hitpoints;
+    encounter_damage_player(&s->player, 10, NULL);
+    int applied = hitpoints_before - s->player.current_hitpoints;
+    s->tick_scratch.damage_received += (float)applied;
+    s->tick_scratch.landed_self_damage += (float)applied;
+    if (applied > 0) {
+        s->last_damage_source = COLO_DAMAGE_SELF;
+        col_mod_add_doom_stack(s, COLO_DAMAGE_SELF);
+    }
     s->divine_combat_timer = ENCOUNTER_DIVINE_POTION_TICKS;
 }
 
 static void col_apply_divine_ranged_potion_effect(ColosseumState* s) {
-    encounter_damage_player(&s->player, 10, &s->tick_scratch.damage_received);
-    s->tick_scratch.landed_self_damage += 10.0f;
+    int hitpoints_before = s->player.current_hitpoints;
+    encounter_damage_player(&s->player, 10, NULL);
+    int applied = hitpoints_before - s->player.current_hitpoints;
+    s->tick_scratch.damage_received += (float)applied;
+    s->tick_scratch.landed_self_damage += (float)applied;
+    if (applied > 0) {
+        s->last_damage_source = COLO_DAMAGE_SELF;
+        col_mod_add_doom_stack(s, COLO_DAMAGE_SELF);
+    }
     s->divine_ranged_timer = ENCOUNTER_DIVINE_POTION_TICKS;
 }
 
@@ -152,7 +153,6 @@ static int col_overhead_switch_slips(uint32_t* rng_state, float fail_prob) {
 static void col_player_pretick(ColosseumState* s, ColosseumContext* ctx, const int* actions) {
     OverheadPrayer prev_prayer = s->player.prayer;
     OffensivePrayer prev_offensive = s->player.offensive_prayer;
-    int prayer_before = s->player.current_prayer;
     int overhead_activated = encounter_apply_overhead_action(&s->player.prayer,
         actions[COLO_HEAD_PRAYER]);
     if (s->player.prayer != prev_prayer &&
@@ -169,16 +169,6 @@ static void col_player_pretick(ColosseumState* s, ColosseumContext* ctx, const i
     encounter_drain_all_prayers(&s->player, encounter_player_prayer_bonus(&s->player));
     if (s->player.offensive_prayer != prev_offensive)
         col_mark_live_loadout_dirty(s);
-    if (ctx->config.action_debug_log) {
-        fprintf(stderr,
-            "colo_action tick=%d pretick primary=%d prayer_action=%d "
-            "offensive_action=%d spell=%d prayer=%d->%d offensive=%d->%d pp=%d->%d\n",
-            s->tick, actions[COLO_HEAD_PRIMARY], actions[COLO_HEAD_PRAYER],
-            actions[COLO_HEAD_OFFENSIVE],
-            actions[COLO_HEAD_SPELL], prev_prayer, s->player.prayer,
-            prev_offensive, s->player.offensive_prayer, prayer_before,
-            s->player.current_prayer);
-    }
 }
 
 static void col_apply_weapon_set(ColosseumState* s, ColoWeaponSet set) {
@@ -204,76 +194,14 @@ static void col_sync_weapon_set_from_equipped_weapon(ColosseumState* s) {
     s->player.visible_gear = s->player.current_gear;
 }
 
-static int col_first_empty_inventory_cell(const ColosseumState* s, int except_slot) {
-    for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++) {
-        if (i == except_slot) continue;
-        if (osrs_inventory_cell_is_empty(&s->inventory_cells[i])) return i;
-    }
-    return -1;
-}
-
-static int col_inventory_cell_holds_equipped_item(const ColosseumState* s, int cell_idx) {
-    const ColoInvCell* cell = &s->inventory_cells[cell_idx];
-    if (cell->item_idx == ITEM_NONE) return 0;
-    int slot = osrs_item_gear_slot(cell->item_idx);
-    if (slot < 0) return 0;
-    return s->player.equipped[slot] == cell->item_idx;
-}
-
 static int col_can_equip_from_cell(const ColosseumState* s, int cell_idx) {
-    const ColoInvCell* cell = &s->inventory_cells[cell_idx];
-    if (cell->item_idx == ITEM_NONE) return 0;
-    if (col_inventory_cell_holds_equipped_item(s, cell_idx)) return 0;
-
-    uint8_t item_idx = cell->item_idx;
-    int gear_slot = osrs_item_gear_slot(item_idx);
-    if (gear_slot < 0) return 0;
-    if (gear_slot == GEAR_SLOT_WEAPON && item_is_two_handed(item_idx) &&
-            s->player.equipped[GEAR_SLOT_SHIELD] != ITEM_NONE &&
-            s->player.equipped[GEAR_SLOT_WEAPON] != ITEM_NONE &&
-            col_first_empty_inventory_cell(s, cell_idx) < 0) return 0;
-    if (gear_slot == GEAR_SLOT_SHIELD &&
-            item_is_two_handed(s->player.equipped[GEAR_SLOT_WEAPON]) &&
-            col_first_empty_inventory_cell(s, cell_idx) < 0) return 0;
-    return 1;
+    return osrs_can_equip_from_cell(
+        &s->player, s->player.inventory_cells, cell_idx);
 }
 
 static void col_equip_from_cell(ColosseumState* s, int cell_idx) {
-    if (!col_can_equip_from_cell(s, cell_idx)) return;
-
-    ColoInvCell* cell = &s->inventory_cells[cell_idx];
-    uint8_t item_idx = cell->item_idx;
-    int gear_slot = osrs_item_gear_slot(item_idx);
-    if (gear_slot < 0) {
-        fprintf(stderr, "colosseum equip: item %u has no gear slot\n", item_idx);
-        abort();
-    }
-    uint8_t displaced = s->player.equipped[gear_slot];
-
-    if (gear_slot == GEAR_SLOT_WEAPON && item_is_two_handed(item_idx)) {
-        uint8_t shield = s->player.equipped[GEAR_SLOT_SHIELD];
-        if (shield != ITEM_NONE) {
-            if (displaced == ITEM_NONE) {
-                displaced = shield;
-            } else {
-                int empty = col_first_empty_inventory_cell(s, cell_idx);
-                if (empty < 0) return;
-                s->inventory_cells[empty] = osrs_inventory_cell_from_item(shield);
-            }
-            s->player.equipped[GEAR_SLOT_SHIELD] = ITEM_NONE;
-        }
-    } else if (gear_slot == GEAR_SLOT_SHIELD &&
-            item_is_two_handed(s->player.equipped[GEAR_SLOT_WEAPON])) {
-        displaced = s->player.equipped[GEAR_SLOT_WEAPON];
-        s->player.equipped[GEAR_SLOT_WEAPON] = ITEM_NONE;
-
-        s->player.spec_armed = 0;
-    }
-
-    s->player.equipped[gear_slot] = item_idx;
-    *cell = osrs_inventory_cell_from_item(displaced);
-    if (gear_slot == GEAR_SLOT_WEAPON) s->player.spec_armed = 0;
-    osrs_refresh_player_equipment(&s->player);
+    if (osrs_equip_from_cell(
+            &s->player, s->player.inventory_cells, cell_idx) < 0) return;
     col_sync_weapon_set_from_equipped_weapon(s);
     col_mark_live_loadout_dirty(s);
 }
@@ -282,28 +210,7 @@ static int col_can_eat_consumable_kind(
     const ColosseumState* s,
     OsrsConsumableKind kind
 ) {
-    switch (kind) {
-        case OSRS_CONSUMABLE_SHARK_FOOD:
-            return s->player.food_timer == 0 &&
-                s->player.current_hitpoints < s->player.base_hitpoints;
-        case OSRS_CONSUMABLE_KARAMBWAN:
-            return s->player.karambwan_timer == 0 &&
-                s->player.current_hitpoints < s->player.base_hitpoints;
-        case OSRS_CONSUMABLE_BREW:
-        case OSRS_CONSUMABLE_SUPER_RESTORE:
-        case OSRS_CONSUMABLE_SANFEW:
-        case OSRS_CONSUMABLE_SUPER_COMBAT:
-        case OSRS_CONSUMABLE_DIVINE_COMBAT:
-        case OSRS_CONSUMABLE_RANGING:
-        case OSRS_CONSUMABLE_DIVINE_RANGING:
-        case OSRS_CONSUMABLE_SURGE:
-        case OSRS_CONSUMABLE_GUTHIX_REST:
-        case OSRS_CONSUMABLE_SATURATED_HEART:
-        case OSRS_CONSUMABLE_ANTIVENOM_PLUS:
-        case OSRS_CONSUMABLE_NONE:
-            return 0;
-    }
-    abort();
+    return osrs_can_eat_consumable_kind(&s->player, kind);
 }
 
 #define COLO_BOOST_REDRINK_LEVEL 105
@@ -338,6 +245,8 @@ static int col_drink_has_effect(const ColosseumState* s, OsrsConsumableKind kind
             return p->current_magic < COLO_BOOST_REDRINK_LEVEL;
         case OSRS_CONSUMABLE_SUPER_RESTORE:
             return col_restore_worth_drinking(s);
+        case OSRS_CONSUMABLE_PRAYER_RESTORE:
+            return p->current_prayer < p->base_prayer;
         case OSRS_CONSUMABLE_SANFEW:
             return afflicted || col_restore_worth_drinking(s);
         default:
@@ -346,12 +255,13 @@ static int col_drink_has_effect(const ColosseumState* s, OsrsConsumableKind kind
 }
 
 static int col_inventory_cell_actionable(const ColosseumState* s, int cell_idx) {
-    const ColoInvCell* cell = &s->inventory_cells[cell_idx];
+    const ColoInvCell* cell = &s->player.inventory_cells[cell_idx];
     OsrsInventoryClickResolution r =
         osrs_inventory_cell_click_interpret(cell, OSRS_CLICK_TICK_FIRST);
     if (r.click_action == OSRS_CLICK_EQUIP) return col_can_equip_from_cell(s, cell_idx);
     if (r.click_action == OSRS_CLICK_DRINK)
-        return cell->dose > 0 && s->player.potion_timer == 0 &&
+        return osrs_inventory_cell_dose_count(cell) > 0 &&
+               s->player.potion_timer == 0 &&
                col_drink_has_effect(s, r.consumable_kind);
     if (r.click_action == OSRS_CLICK_EAT)
         return col_can_eat_consumable_kind(s, r.consumable_kind);
@@ -359,7 +269,7 @@ static int col_inventory_cell_actionable(const ColosseumState* s, int cell_idx) 
 }
 
 static void col_empty_inventory_cell(ColosseumState* s, int cell_idx) {
-    s->inventory_cells[cell_idx] = osrs_inventory_cell_empty();
+    s->player.inventory_cells[cell_idx] = osrs_inventory_cell_empty();
 }
 
 static void col_heal_player_capped(ColosseumState* s, int amount) {
@@ -368,7 +278,7 @@ static void col_heal_player_capped(ColosseumState* s, int amount) {
         s->player.current_hitpoints = s->player.base_hitpoints;
 }
 
-static void col_apply_food_cell(ColosseumState* s, OsrsConsumableKind kind) {
+static int col_apply_food_cell(ColosseumState* s, OsrsConsumableKind kind) {
     FoodType type;
     if (kind == OSRS_CONSUMABLE_SHARK_FOOD) type = FOOD_SHARK;
     else if (kind == OSRS_CONSUMABLE_KARAMBWAN) type = FOOD_KARAMBWAN;
@@ -376,34 +286,23 @@ static void col_apply_food_cell(ColosseumState* s, OsrsConsumableKind kind) {
         fprintf(stderr, "colosseum: consumable kind %d is not food\n", (int)kind);
         abort();
     }
-
-    EatResult r = osrs_eat_food(type, s->player.current_hitpoints,
-        s->player.base_hitpoints, osrs_player_food_timer(&s->player, type));
-    if (!r.consumed) return;
-    if (type == FOOD_KARAMBWAN) {
-        s->player.karambwan_timer = 2;
-        s->player.food_timer = 3;
-        s->player.potion_timer = 3;
-        s->player.ate_karambwan_this_tick = 1;
-        s->player.last_karambwan_heal = r.hp_healed;
-    } else {
-        s->player.food_timer = 3;
-        s->player.ate_food_this_tick = 1;
-        s->player.last_food_heal = r.hp_healed;
-    }
-    col_heal_player_capped(s, r.hp_healed);
+    return osrs_player_eat_food_effects(&s->player, type).consumed;
 }
 
 static void col_apply_drink_one_dose_effect(void* ctx, OsrsConsumableKind kind) {
     ColosseumState* s = (ColosseumState*)ctx;
     switch (kind) {
-        case OSRS_CONSUMABLE_BREW:
-            encounter_apply_brew_heal(
-                &s->player, osrs_brew_heal_amount(s->player.base_hitpoints));
+        case OSRS_CONSUMABLE_BREW: {
+            int brew_heal = osrs_brew_heal_amount(s->player.base_hitpoints);
+            int cap = col_mod_active(s, COLO_MOD_FRAILTY)
+                ? s->player.base_hitpoints
+                : s->player.base_hitpoints + brew_heal;
+            encounter_apply_brew_heal_capped(&s->player, brew_heal, cap);
             encounter_apply_consumable_stat_effect(
                 &s->player, ENCOUNTER_CONSUMABLE_STAT_EFFECT_BREW_DRAIN);
             col_finish_stat_moving_consumable(s);
             return;
+        }
         case OSRS_CONSUMABLE_SUPER_RESTORE:
             encounter_add_prayer_restore(
                 &s->player, osrs_super_restore_amount(s->player.base_prayer));
@@ -411,6 +310,11 @@ static void col_apply_drink_one_dose_effect(void* ctx, OsrsConsumableKind kind) 
                 &s->player, ENCOUNTER_CONSUMABLE_STAT_EFFECT_RESTORE);
             encounter_cap_prayer_restore(&s->player);
             col_finish_stat_moving_consumable(s);
+            return;
+        case OSRS_CONSUMABLE_PRAYER_RESTORE:
+            encounter_add_prayer_restore(
+                &s->player, osrs_prayer_potion_restore_amount(s->player.base_prayer));
+            encounter_cap_prayer_restore(&s->player);
             return;
         case OSRS_CONSUMABLE_SANFEW:
             encounter_add_prayer_restore(
@@ -473,6 +377,12 @@ static void col_apply_drink_one_dose_effect(void* ctx, OsrsConsumableKind kind) 
         case OSRS_CONSUMABLE_KARAMBWAN:
             fprintf(stderr, "colosseum: consumable kind %d is not drinkable\n", (int)kind);
             abort();
+        case OSRS_CONSUMABLE_BASTION:
+        case OSRS_CONSUMABLE_STAMINA:
+            fprintf(stderr, "colosseum: consumable kind %d not in colosseum kits\n", (int)kind);
+            abort();
+        case OSRS_CONSUMABLE_COUNT:
+            break;
     }
     abort();
 }
@@ -483,7 +393,7 @@ static int col_apply_drink_cell(
     OsrsInventoryClickResolution resolution
 ) {
     if (cell_idx < 0 || cell_idx >= COLO_INVENTORY_DISPLAY_SLOTS) return 0;
-    ColoInvCell* cell = &s->inventory_cells[cell_idx];
+    ColoInvCell* cell = &s->player.inventory_cells[cell_idx];
     if (resolution.click_action != OSRS_CLICK_DRINK) return 0;
     OsrsInventoryDrinkConsumeResult consume =
         osrs_inventory_cell_consume_drink_one_dose(
@@ -497,154 +407,41 @@ static int col_apply_drink_cell(
     return 1;
 }
 
-typedef struct {
-    int equip_cell_by_slot[NUM_GEAR_SLOTS];
-    int equip_order_by_slot[NUM_GEAR_SLOTS];
-    int eat_cell;
-    int eat_order;
-    OsrsInventoryClickResolution eat_resolution;
-    int drink_cell;
-    int drink_order;
-    OsrsInventoryClickResolution drink_resolution;
-} ColoInventoryTickIntent;
-
-static ColoInventoryTickIntent col_inventory_tick_intent_empty(void) {
-    ColoInventoryTickIntent intent;
-    memset(&intent, 0, sizeof(intent));
-    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-        intent.equip_cell_by_slot[slot] = -1;
-        intent.equip_order_by_slot[slot] = -1;
-    }
-    intent.eat_cell = -1;
-    intent.eat_order = -1;
-    intent.drink_cell = -1;
-    intent.drink_order = -1;
-    return intent;
-}
-
-static ColoInventoryTickIntent col_resolve_inventory_tick_intent(
+static OsrsInventoryTickIntent col_resolve_inventory_tick_intent(
     const ColosseumState* s,
     const int* actions
 ) {
-    ColoInventoryTickIntent intent = col_inventory_tick_intent_empty();
-
-    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-        int action = actions[COLO_HEAD_EQUIP_SLOT(slot)];
-        if (action <= 0 || action > COLO_INVENTORY_DISPLAY_SLOTS) continue;
-        int cell_idx = action - 1;
-        if (!col_can_equip_from_cell(s, cell_idx)) continue;
-        int gear_slot = osrs_item_gear_slot(s->inventory_cells[cell_idx].item_idx);
-        if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) {
-            fprintf(stderr, "colosseum equip intent: invalid gear slot %d\n", gear_slot);
-            abort();
-        }
-        if (gear_slot != slot) continue;
-        intent.equip_cell_by_slot[slot] = cell_idx;
-        intent.equip_order_by_slot[slot] = slot;
-    }
-
-    int eat_action = actions[COLO_HEAD_EAT];
-    if (eat_action > 0 && eat_action <= COLO_INVENTORY_DISPLAY_SLOTS) {
-        int cell_idx = eat_action - 1;
-        OsrsInventoryClickResolution resolution =
-            osrs_inventory_cell_click_interpret(
-                &s->inventory_cells[cell_idx], OSRS_CLICK_TICK_FIRST);
-        if (resolution.click_action == OSRS_CLICK_EAT &&
-                col_can_eat_consumable_kind(s, resolution.consumable_kind)) {
-            intent.eat_cell = cell_idx;
-            intent.eat_order = NUM_GEAR_SLOTS;
-            intent.eat_resolution = resolution;
-        }
-    }
-
-    int drink_action = actions[COLO_HEAD_DRINK];
-    if (drink_action > 0 && drink_action <= COLO_INVENTORY_DISPLAY_SLOTS) {
-        int cell_idx = drink_action - 1;
-        OsrsInventoryClickResolution resolution =
-            osrs_inventory_cell_click_interpret(
-                &s->inventory_cells[cell_idx], OSRS_CLICK_TICK_FIRST);
-        if (resolution.click_action == OSRS_CLICK_DRINK &&
-                s->inventory_cells[cell_idx].dose > 0 &&
-                s->player.potion_timer == 0) {
-            intent.drink_cell = cell_idx;
-            intent.drink_order = NUM_GEAR_SLOTS + 1;
-            intent.drink_resolution = resolution;
-        }
-    }
-
-    return intent;
-}
-
-static int col_inventory_tick_intent_has_effect(const ColoInventoryTickIntent* intent) {
-    if (intent->eat_cell >= 0 || intent->drink_cell >= 0) return 1;
+    OsrsInventoryClickActions clicks;
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
-        if (intent->equip_cell_by_slot[slot] >= 0) return 1;
-    return 0;
-}
-
-static int col_next_inventory_apply_order(const ColoInventoryTickIntent* intent) {
-    int sentinel = NUM_GEAR_SLOTS + 2;
-    int best = sentinel;
-    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-        int order = intent->equip_order_by_slot[slot];
-        if (order >= 0 && order < best) best = order;
-    }
-    if (intent->eat_order >= 0 && intent->eat_order < best) best = intent->eat_order;
-    if (intent->drink_order >= 0 && intent->drink_order < best) best = intent->drink_order;
-    return best == sentinel ? -1 : best;
+        clicks.equip_by_slot[slot] = actions[COLO_HEAD_EQUIP_SLOT(slot)];
+    clicks.eat = actions[COLO_HEAD_EAT];
+    clicks.drink = actions[COLO_HEAD_DRINK];
+    return osrs_resolve_inventory_tick_intent(
+        &s->player, s->player.inventory_cells, &clicks);
 }
 
 static void col_apply_inventory_tick_intent(
     ColosseumState* s,
-    ColoInventoryTickIntent* intent
+    OsrsInventoryTickIntent* intent
 ) {
-    if (col_inventory_tick_intent_has_effect(intent))
+    if (osrs_inventory_tick_intent_has_effect(intent))
         osrs_interaction_check_interrupt(&s->interaction, OSRS_IACT_EQUIP);
 
-    int order;
-    while ((order = col_next_inventory_apply_order(intent)) >= 0) {
-        for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-            if (intent->equip_order_by_slot[slot] != order) continue;
-            col_equip_from_cell(s, intent->equip_cell_by_slot[slot]);
-            intent->equip_order_by_slot[slot] = -1;
-            intent->equip_cell_by_slot[slot] = -1;
-        }
-        if (intent->eat_order == order) {
-            col_apply_food_cell(s, intent->eat_resolution.consumable_kind);
-            col_empty_inventory_cell(s, intent->eat_cell);
-            intent->eat_order = -1;
-            intent->eat_cell = -1;
-        }
-        if (intent->drink_order == order) {
-            (void)col_apply_drink_cell(
-                s, intent->drink_cell, intent->drink_resolution);
-            intent->drink_order = -1;
-            intent->drink_cell = -1;
+    OsrsInventoryApplyStep step;
+    while (osrs_inventory_intent_next(intent, &step)) {
+        switch (step.kind) {
+            case OSRS_INVENTORY_APPLY_EQUIP:
+                col_equip_from_cell(s, step.cell_idx);
+                break;
+            case OSRS_INVENTORY_APPLY_EAT:
+                if (col_apply_food_cell(s, step.resolution.consumable_kind))
+                    col_empty_inventory_cell(s, step.cell_idx);
+                break;
+            case OSRS_INVENTORY_APPLY_DRINK:
+                (void)col_apply_drink_cell(s, step.cell_idx, step.resolution);
+                break;
         }
     }
-}
-
-static void col_log_inventory_tick_intent(
-    const ColosseumState* s,
-    const ColoInventoryTickIntent* intent,
-    const int* actions,
-    int interrupted
-) {
-    fprintf(stderr, "colo_action tick=%d equip_heads=", s->tick);
-    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
-        fprintf(stderr, "%s%d", slot == 0 ? "" : ",",
-            actions[COLO_HEAD_EQUIP_SLOT(slot)]);
-    fprintf(stderr, " eat_head=%d drink_head=%d equips=",
-        actions[COLO_HEAD_EAT], actions[COLO_HEAD_DRINK]);
-    int wrote = 0;
-    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-        if (intent->equip_cell_by_slot[slot] < 0) continue;
-        fprintf(stderr, "%sslot%d:cell%d", wrote ? "," : "",
-            slot, intent->equip_cell_by_slot[slot]);
-        wrote = 1;
-    }
-    fprintf(stderr, " eat_cell=%d drink_cell=%d interrupted=%d\n",
-        intent->eat_cell, intent->drink_cell, interrupted);
 }
 
 static int col_npc_is_thrall_target(const ColosseumState* s, int slot) {
@@ -658,44 +455,44 @@ static int col_player_target_slot(const ColosseumState* s) {
     return s->interaction.target_slot;
 }
 
-static void col_summon_thrall(ColosseumState* s, int target_slot) {
-    s->thrall_active = 1;
-    s->thrall_target_slot = target_slot;
-    s->thrall_lifetime_left = COLO_THRALL_LIFETIME_TICKS[s->active_loadout_profile];
-    s->thrall_attack_timer = COLO_THRALL_TICK;
-    s->thrall_recast_cd = COLO_THRALL_RECAST_CD;
-}
 
 static void col_tick_thrall_and_death_charge(ColosseumState* s, ColosseumContext* ctx) {
-    if (s->thrall_recast_cd > 0) s->thrall_recast_cd--;
     if (s->death_charge_cd > 0) s->death_charge_cd--;
     if (s->death_charge_window_left > 0) s->death_charge_window_left--;
 
-    if (s->thrall_active) {
-        s->thrall_lifetime_left--;
-        if (s->thrall_lifetime_left <= 0) {
-            s->thrall_active = 0;
-            s->thrall_target_slot = -1;
-            s->thrall_lifetime_left = 0;
-            s->thrall_attack_timer = 0;
-            return;
-        }
-        int player_target = col_player_target_slot(s);
-        if (col_npc_is_thrall_target(s, player_target))
-            s->thrall_target_slot = player_target;
-        else if (!col_npc_is_thrall_target(s, s->thrall_target_slot))
-            s->thrall_target_slot = -1;
+    s->thrall_lifetime_left--;
+    if (s->thrall_lifetime_left <= 0) {
+        col_resummon_thrall(s);
+        return;
+    }
 
-        if (s->thrall_attack_timer > 0) s->thrall_attack_timer--;
-        if (s->thrall_attack_timer == 0) {
-            s->thrall_attack_timer = COLO_THRALL_TICK;
-            if (col_npc_is_thrall_target(s, s->thrall_target_slot)) {
-                int dmg = encounter_rand_int(&s->rng_state, COLO_THRALL_MAX_HIT + 1);
-                col_queue_npc_pending_hit(s, s->thrall_target_slot, dmg, 2,
-                    ATTACK_STYLE_MAGIC, ENCOUNTER_SPELL_NONE);
-                ctx->thrall_attacked_this_tick = 1;
-            }
+    int target_refreshed = 0;
+    int player_target = s->player_attack_npc_idx;
+    if (s->tick_scratch.player_attacked && col_npc_is_thrall_target(s, player_target)) {
+        s->thrall_target_slot = player_target;
+        s->thrall_aggro_ticks_left = COLO_THRALL_AGGRO_TICKS;
+        target_refreshed = 1;
+    } else if (!col_npc_is_thrall_target(s, s->thrall_target_slot)) {
+        s->thrall_target_slot = -1;
+        s->thrall_aggro_ticks_left = 0;
+    }
+
+    if (s->thrall_attack_timer > 0) s->thrall_attack_timer--;
+    if (s->thrall_attack_timer == 0) {
+        s->thrall_attack_timer = COLO_THRALL_TICK;
+        if (col_npc_is_thrall_target(s, s->thrall_target_slot)) {
+            int dmg = encounter_rand_int(&s->rng_state, COLO_THRALL_MAX_HIT + 1);
+            col_queue_npc_pending_hit(s, s->thrall_target_slot, dmg, 2,
+                ATTACK_STYLE_MAGIC, ENCOUNTER_SPELL_NONE);
+            ctx->thrall_attacked_this_tick = 1;
         }
+    }
+
+    if (!target_refreshed && s->thrall_target_slot >= 0) {
+        assert(s->thrall_aggro_ticks_left > 0);
+        s->thrall_aggro_ticks_left--;
+        if (s->thrall_aggro_ticks_left == 0)
+            s->thrall_target_slot = -1;
     }
 }
 
@@ -706,17 +503,18 @@ typedef struct {
 
 static int col_tile_walkable(void* ctx, int x, int y) {
     ColoWalkCtx* wc = (ColoWalkCtx*)ctx;
-    return col_player_walkable(wc->s, x, y);
+    return col_player_walkable_ctx(wc->s, wc->ctx, x, y);
 }
 
-static int col_pathfind_blocked(void* ctx, int abs_x, int abs_y) {
-    ColoWalkCtx* wc = (ColoWalkCtx*)ctx;
-    int x = abs_x - wc->ctx->world_offset_x;
-    int y = abs_y - wc->ctx->world_offset_y;
-    if (col_static_blocked(x, y)) return 1;
-    if (col_sol_clamp_active(wc->s) && !col_in_boss_arena(wc->s, x, y)) return 1;
+static int col_player_route_blocked(void* data, int x, int y, int size) {
+    ColosseumState* state = (ColosseumState*)data;
+    if (!col_sol_clamp_active(state)) return 0;
+    for (int dx = 0; dx < size; dx++)
+        for (int dy = 0; dy < size; dy++)
+            if (!col_in_boss_arena(state, x + dx, y + dy)) return 1;
     return 0;
 }
+
 
 static int col_npc_collision_flag_at(const ColosseumState* s, int x, int y) {
     int gx, gy;
@@ -1121,9 +919,7 @@ static void col_player_attack_target_ctx(
         abort();
     }
 
-    int ticks = ls->style == ATTACK_STYLE_MELEE
-        ? hit_timing.damage_delay_ticks
-        : (ls->attack_range > 1 ? 3 : 1);
+    int ticks = hit_timing.damage_delay_ticks;
     int damage = 0;
     int bf_heal = 0;
     for (int splat = 0; splat < resolved_count; splat++) {
@@ -1181,8 +977,85 @@ static void col_player_attack_target_ctx(
     s->tick_scratch.attacks_fired++;
 }
 
-static void col_player_attack_target(ColosseumState* s, int npc_slot) {
-    col_player_attack_target_ctx(s, col_legacy_context(), npc_slot);
+
+typedef struct {
+    OsrsPlayerStepInput input;
+    int move_action;
+} ColoPrimaryStepPlan;
+
+static ColoPrimaryStepPlan col_primary_step_plan(
+    ColosseumState* s,
+    ColosseumContext* ctx,
+    Player* player,
+    OsrsInteraction* interaction,
+    int primary_action,
+    int* player_dest_x,
+    int* player_dest_y,
+    ColoWalkCtx* walk_ctx,
+    OsrsLosQuery* los_query
+) {
+    if (primary_action < 0 || primary_action >= COLO_PRIMARY_DIM) {
+        fprintf(stderr, "colosseum primary action out of range: %d\n", primary_action);
+        abort();
+    }
+
+    int has_new_target = 0;
+    int new_target_slot = -1;
+    int move_action = 0;
+    if (primary_action > 0 && primary_action < ENCOUNTER_MOVE_ACTIONS) {
+        move_action = primary_action;
+    } else if (primary_action >= COLO_PRIMARY_ATTACK_BASE) {
+        int obs_slot = col_primary_obs_slot_from_action(primary_action);
+        int npc_slot = col_obs_slot_to_npc(s, obs_slot);
+        if (npc_slot >= 0 && s->npcs[npc_slot].active) {
+            has_new_target = 1;
+            new_target_slot = npc_slot;
+        }
+    }
+
+    OsrsPlayerCommand command = { .kind = OSRS_PLAYER_CMD_NONE };
+    if (has_new_target) {
+        command.kind = OSRS_PLAYER_CMD_TARGET;
+        command.target_slot = new_target_slot;
+    } else if (*player_dest_x >= 0) {
+        command.kind = OSRS_PLAYER_CMD_MOVE;
+        command.move_kind = OSRS_PLAYER_MOVE_DESTINATION;
+    } else if (move_action > 0 && move_action < ENCOUNTER_MOVE_ACTIONS) {
+        command.kind = OSRS_PLAYER_CMD_MOVE;
+        command.move_kind = OSRS_PLAYER_MOVE_ACTION;
+        command.move_action = move_action;
+    }
+
+    *walk_ctx = (ColoWalkCtx){s, ctx};
+    *los_query = col_player_los_query(ctx);
+    return (ColoPrimaryStepPlan){
+        .input = {
+            .player = player,
+            .interaction = interaction,
+            .route_cache = &ctx->player_route_cache,
+            .target_lookup = col_lookup_player_attack_target,
+            .target_ctx = s,
+            .command = command,
+            .dest_x = player_dest_x,
+            .dest_y = player_dest_y,
+            .arena = {
+                .topology = ctx->route_topology,
+                .blockers = {
+                    .is_blocked = col_player_route_blocked,
+                    .ctx = s,
+                    .revision = (uint64_t)col_sol_clamp_active(s) + 1,
+                },
+                .movement_mode = ENCOUNTER_ROUTE_MOVEMENT_RUN,
+                .cost_policy = ENCOUNTER_ROUTE_COST_OSRS,
+                .destination_cost_policy = ENCOUNTER_ROUTE_COST_SOUTH_FIRST_BFS,
+                .collision_map = ctx->collision_map,
+                .world_offset_x = ctx->world_offset_x,
+                .world_offset_y = ctx->world_offset_y,
+                .los_query = los_query,
+            },
+        },
+        .move_action = move_action,
+    };
 }
 
 static void col_tick_player_ctx(
@@ -1191,6 +1064,11 @@ static void col_tick_player_ctx(
     const int* actions,
     int can_attack
 ) {
+#ifdef COLO_PROFILE_ENABLED
+    int col_prof_enabled =
+        COLO_PROFILE_ENABLED() && !s->profiling_suppressed;
+    double col_prof_t0 = col_prof_enabled ? COLO_PROFILE_NOW_MS() : 0.0;
+#endif
     if (s->player_last_interaction_age == 0)
         s->player_last_interaction_age = 1;
 
@@ -1202,13 +1080,17 @@ static void col_tick_player_ctx(
     if (encounter_tick_saturated_heart(&s->player))
         col_mark_live_loadout_dirty(s);
 
+#ifdef COLO_PROFILE_ENABLED
+    COLO_PROFILE_MARK(COLO_PROF_PLAYER_TIMERS);
+#endif
+
     if (!ctx->config.mask_inventory_heads) {
-        ColoInventoryTickIntent intent = col_resolve_inventory_tick_intent(s, actions);
-        if (ctx->config.action_debug_log)
-            col_log_inventory_tick_intent(
-                s, &intent, actions, col_inventory_tick_intent_has_effect(&intent));
+        OsrsInventoryTickIntent intent = col_resolve_inventory_tick_intent(s, actions);
         col_apply_inventory_tick_intent(s, &intent);
     }
+#ifdef COLO_PROFILE_ENABLED
+    COLO_PROFILE_MARK(COLO_PROF_PLAYER_INVENTORY);
+#endif
 
     int spec_act = actions[COLO_HEAD_SPEC];
     uint8_t equipped_weapon = s->player.equipped[GEAR_SLOT_WEAPON];
@@ -1220,10 +1102,7 @@ static void col_tick_player_ctx(
     }
 
     int spell_act = s->modifiers.draft_pending ? 0 : actions[COLO_HEAD_SPELL];
-    if (spell_act == COLO_SPELL_SUMMON_THRALL && s->thrall_recast_cd == 0) {
-        int target = col_player_target_slot(s);
-        if (col_npc_is_thrall_target(s, target)) col_summon_thrall(s, target);
-    } else if (spell_act == COLO_SPELL_DEATH_CHARGE &&
+    if (spell_act == COLO_SPELL_DEATH_CHARGE &&
             s->death_charge_cd == 0 && s->death_charge_window_left == 0) {
         s->death_charge_window_left = COLO_DEATH_CHARGE_WINDOW;
     }
@@ -1238,98 +1117,27 @@ static void col_tick_player_ctx(
     if (grapple_act > 0 && grapple_act <= COLO_NUM_GRAPPLE_SLOTS)
         col_sol_grapple_parry_attempt(s, grapple_act - 1);
 
+#ifdef COLO_PROFILE_ENABLED
+    COLO_PROFILE_MARK(COLO_PROF_PLAYER_INTENT);
+#endif
+
     int primary_act = actions[COLO_HEAD_PRIMARY];
-    if (primary_act < 0 || primary_act >= COLO_PRIMARY_DIM) {
-        fprintf(stderr, "colosseum primary action out of range: %d\n", primary_act);
-        abort();
-    }
-
-    int has_new_target = 0;
-    int new_target_slot = -1;
-    int move_act = 0;
-    if (primary_act > 0 && primary_act < ENCOUNTER_MOVE_ACTIONS) {
-        move_act = primary_act;
-    } else if (primary_act >= COLO_PRIMARY_ATTACK_BASE) {
-        int obs_slot = col_primary_obs_slot_from_action(primary_act);
-        int npc_slot = col_obs_slot_to_npc(s, obs_slot);
-        if (npc_slot >= 0 && s->npcs[npc_slot].active) {
-            has_new_target = 1;
-            new_target_slot = npc_slot;
-        }
-    }
-
-    int has_explicit_move = (move_act > 0 || s->player_dest_x >= 0);
-    OsrsPlayerMoveKind move_kind = OSRS_PLAYER_MOVE_NONE;
-    if (has_explicit_move) {
-        if (s->player_dest_x >= 0) move_kind = OSRS_PLAYER_MOVE_DESTINATION;
-        else if (move_act > 0 && move_act < ENCOUNTER_MOVE_ACTIONS)
-            move_kind = OSRS_PLAYER_MOVE_ACTION;
-    }
-    int player_x_before_step = s->player.x;
-    int player_y_before_step = s->player.y;
-    int npc_flag_before_step =
-        col_npc_collision_flag_at(s, player_x_before_step, player_y_before_step);
-    int interaction_before_step = osrs_interaction_active(&s->interaction)
-        ? s->interaction.target_slot : -1;
-    ColoWalkCtx wc = { s, ctx };
-    OsrsLosQuery los_query = col_player_los_query(s);
-    OsrsPlayerStepInput step_input = {
-        .player = &s->player,
-        .interaction = &s->interaction,
-        .target_lookup = col_lookup_player_attack_target,
-        .target_ctx = s,
-        .has_new_target = has_new_target,
-        .new_target_slot = new_target_slot,
-        .move_kind = move_kind,
-        .move_action = move_act,
-        .dest_x = &s->player_dest_x,
-        .dest_y = &s->player_dest_y,
-        .arena = {
-            .collision_map = ctx->collision_map,
-            .world_offset_x = ctx->world_offset_x,
-            .world_offset_y = ctx->world_offset_y,
-            .is_walkable = col_tile_walkable,
-            .walkable_ctx = &wc,
-            .extra_blocked = col_pathfind_blocked,
-            .blocked_ctx = &wc,
-            .los_query = &los_query,
-            .arena_base_x = COLO_ARENA_MIN_X,
-            .arena_base_y = COLO_ARENA_MIN_Y,
-            .arena_w = COLO_ARENA_WIDTH,
-            .arena_h = COLO_ARENA_HEIGHT,
-        },
-    };
-    OsrsPlayerStepResult step_result = osrs_encounter_player_step(&step_input);
-    if (has_new_target && step_result.target_slot == new_target_slot) {
-        s->player_last_interaction_target_slot = new_target_slot;
+    ColoWalkCtx walk_ctx;
+    OsrsLosQuery los_query;
+    ColoPrimaryStepPlan primary_plan = col_primary_step_plan(
+        s, ctx, &s->player, &s->interaction, primary_act,
+        &s->player_dest_x, &s->player_dest_y, &walk_ctx, &los_query);
+    OsrsPlayerStepResult step_result =
+        osrs_encounter_player_step(&primary_plan.input);
+    if (primary_plan.input.command.kind == OSRS_PLAYER_CMD_TARGET &&
+            step_result.target_slot == primary_plan.input.command.target_slot) {
+        s->player_last_interaction_target_slot = primary_plan.input.command.target_slot;
         s->player_last_interaction_age = 0;
     }
-    if (ctx->config.action_debug_log) {
-        fprintf(stderr,
-            "colo_action tick=%d movement move_kind=%d move_action=%d "
-            "dest=%d,%d has_new_target=%d new_target=%d interaction=%d->%d "
-            "pos=%d,%d->%d,%d moved=%d explicit=%d chased=%d can_attack=%d\n",
-            s->tick, move_kind, move_act, s->player_dest_x, s->player_dest_y,
-            has_new_target, new_target_slot, interaction_before_step,
-            step_result.target_slot, player_x_before_step, player_y_before_step,
-            s->player.x, s->player.y, step_result.moved,
-            step_result.explicit_moved, step_result.chased_target,
-            step_result.can_attack);
-        fprintf(stderr,
-            "colo_action tick=%d movement_walkability npc_flag=%d->%d "
-            "walkable=%d->%d path_extra=%d->%d\n",
-            s->tick, npc_flag_before_step,
-            col_npc_collision_flag_at(s, s->player.x, s->player.y),
-            col_player_walkable(s, player_x_before_step, player_y_before_step),
-            col_player_walkable(s, s->player.x, s->player.y),
-            col_pathfind_blocked(&wc,
-                player_x_before_step + ctx->world_offset_x,
-                player_y_before_step + ctx->world_offset_y),
-            col_pathfind_blocked(&wc,
-                s->player.x + ctx->world_offset_x,
-                s->player.y + ctx->world_offset_y));
-    }
     col_rebuild_player_collision_flags(s);
+#ifdef COLO_PROFILE_ENABLED
+    COLO_PROFILE_MARK(COLO_PROF_PLAYER_MOVE);
+#endif
 
     if (ctx->config.bis_gear_oracle_mode) col_apply_bis_gear_oracle(s);
 
@@ -1341,7 +1149,9 @@ static void col_tick_player_ctx(
             int player_range = col_player_attack_range(s);
             if (encounter_player_can_attack(s->player.x, s->player.y,
                     npc->x, npc->y, col_npc_effective_size(npc),
-                    player_range, &los_query)) {
+                    player_range,
+                    ctx->collision_map, ctx->world_offset_x, ctx->world_offset_y,
+                    &los_query)) {
 
                 int armed_kind = (!col_type_is_hazard_entity(npc->type) &&
                                   s->player.spec_armed)
@@ -1354,4 +1164,7 @@ static void col_tick_player_ctx(
     }
 
     if (can_attack) col_tick_thrall_and_death_charge(s, ctx);
+#ifdef COLO_PROFILE_ENABLED
+    COLO_PROFILE_MARK(COLO_PROF_PLAYER_ATTACK);
+#endif
 }

@@ -47,52 +47,29 @@
 #define BLOOD_BLITZ_MAX_HIT 25
 #define BLOOD_BARRAGE_MAX_HIT 29
 
+/** Percent of damage dealt that a blood spell heals the caster. */
+#define BLOOD_RUSH_HEAL_PERCENT 10
+#define BLOOD_BURST_HEAL_PERCENT 15
+#define BLOOD_BLITZ_HEAL_PERCENT 20
+#define BLOOD_BARRAGE_HEAL_PERCENT 25
+
+/** Ticks between casts, and tile range, for a combat spell cast from a staff. */
+#define COMBAT_SPELL_CAST_SPEED 5
+#define COMBAT_SPELL_ATTACK_RANGE 10
+
 #define NUM_GEAR_SLOTS 11
+#define OSRS_INVENTORY_SIZE 28
 
-#define NUM_ACTION_HEADS 9
+typedef struct {
+    uint16_t content_code;
+} OsrsInventoryCell;
 
-#define HEAD_LOADOUT    0
-#define HEAD_COMBAT     1
-#define HEAD_OVERHEAD   2
-#define HEAD_FOOD       3
-#define HEAD_POTION     4
-#define HEAD_KARAMBWAN  5
-#define HEAD_VENG       6
-#define HEAD_OFFENSIVE  7
-#define HEAD_MOVE       8
-
-#define LOADOUT_DIM     9
-#define COMBAT_DIM     13
-#define OVERHEAD_DIM    7
-#define FOOD_DIM        2
-#define POTION_DIM      5
-#define KARAMBWAN_DIM   2
-#define VENG_DIM        2
-#define OFFENSIVE_DIM   5
-#define MOVE_DIM       25
-
-#define ACTION_MASK_SIZE (LOADOUT_DIM + COMBAT_DIM + OVERHEAD_DIM + \
-    FOOD_DIM + POTION_DIM + KARAMBWAN_DIM + VENG_DIM + OFFENSIVE_DIM + MOVE_DIM)
-
-static const int ACTION_HEAD_DIMS[NUM_ACTION_HEADS] = {
-    LOADOUT_DIM,
-    COMBAT_DIM,
-    OVERHEAD_DIM,
-    FOOD_DIM,
-    POTION_DIM,
-    KARAMBWAN_DIM,
-    VENG_DIM,
-    OFFENSIVE_DIM,
-    MOVE_DIM,
-};
 
 #define NUM_ITEM_STATS 18
 
-#define MAX_ITEMS_PER_SLOT 10
 
 #define NUM_DYNAMIC_GEAR_SLOTS 8
 
-#define SLOT_NUM_OBSERVATIONS 221
 
 #define MAXED_BASE_ATTACK 99
 #define MAXED_BASE_STRENGTH 99
@@ -225,35 +202,6 @@ static const int DYNAMIC_GEAR_SLOTS[NUM_DYNAMIC_GEAR_SLOTS] = {
     GEAR_SLOT_HEAD, GEAR_SLOT_CAPE, GEAR_SLOT_NECK, GEAR_SLOT_RING
 };
 
-typedef enum {
-    LOADOUT_KEEP = 0,
-    LOADOUT_MELEE,
-    LOADOUT_RANGE,
-    LOADOUT_MAGE,
-    LOADOUT_TANK,
-    LOADOUT_SPEC_MELEE,
-    LOADOUT_SPEC_RANGE,
-    LOADOUT_SPEC_MAGIC,
-    LOADOUT_GMAUL,
-} LoadoutAction;
-
-#define ATTACK_NONE      0
-#define ATTACK_ATK       1
-#define ATTACK_ICE       2
-#define ATTACK_BLOOD     3
-#define MOVE_ADJACENT    4
-#define MOVE_UNDER       5
-#define MOVE_DIAGONAL    6
-#define MOVE_FARCAST_2   7
-#define MOVE_FARCAST_3   8
-#define MOVE_FARCAST_4   9
-#define MOVE_FARCAST_5  10
-#define MOVE_FARCAST_6  11
-#define MOVE_FARCAST_7  12
-#define MOVE_NONE ATTACK_NONE
-
-static inline int is_attack_action(int v) { return v >= ATTACK_ATK && v <= ATTACK_BLOOD; }
-static inline int is_move_action(int v) { return v >= MOVE_ADJACENT && v <= MOVE_FARCAST_7; }
 
 typedef enum {
     OVERHEAD_NONE = 0,
@@ -600,10 +548,8 @@ typedef struct {
     int bolt_ignores_defense;
 
     uint8_t equipped[NUM_GEAR_SLOTS];
+    OsrsInventoryCell inventory_cells[OSRS_INVENTORY_SIZE];
 
-    uint8_t inventory[NUM_GEAR_SLOTS][MAX_ITEMS_PER_SLOT];
-
-    uint8_t num_items_in_slot[NUM_GEAR_SLOTS];
 
     GearBonuses slot_cached_bonuses;
     OsrsEquipmentEffectProfile equipment_effect_profile;
@@ -640,9 +586,6 @@ typedef struct Log {
     float target_available_no_attack_ticks;
     float safe_attack_opportunity_missed_ticks;
     float progressless_ticks;
-    float npc_pressure_if_ready_count;
-    float npc_pressure_this_tick_count;
-    float npc_pressure_max_incoming_hit;
     float attack_ready_no_attack_ticks_by_phase[OSRS_INFERNO_IDLE_PHASE_COUNT];
     float target_available_no_attack_ticks_by_phase[OSRS_INFERNO_IDLE_PHASE_COUNT];
     float safe_attack_opportunity_missed_ticks_by_phase[OSRS_INFERNO_IDLE_PHASE_COUNT];
@@ -704,32 +647,9 @@ typedef struct Log {
     float post_healer_set_pressure_normal_sum;
     float action_mask_checks_normal_sum;
 
-    float hist_score_bank[8];
-    float hist_n_bank[8];
-
-    float colo_pray_faced_by_type[12];
-    float colo_pray_correct_by_type[12];
-    float colo_offpray_damage_by_type[12];
-    float colo_total_damage_by_type[12];
-
-    float colo_death_by_type[12];
-    float colo_death_fatal_damage;
-
-    float colo_offpray_damage_conflict;
-    float colo_offpray_damage_solo;
-    float colo_death_on_conflict_tick;
-
-    float colo_death_dmg_unprayable;
-    float colo_death_dmg_offpray;
-    float colo_death_dmg_prayed;
-    float colo_death_dmg_self;
-    float colo_death_heal_remaining;
-    float colo_farm_damage;
-    float colo_typeless_damage_by_type[12];
-    float colo_outcome_score;
-    float colo_min_sol_hp;
-
-    float colo_max_depth_reached;
+    float inf_death_wave_hist[6];
+    float inf_death_brew_doses_hist[6];
+    float inf_death_restore_doses_hist[6];
 } Log;
 
 typedef struct {
@@ -860,7 +780,7 @@ typedef struct {
     int use_c_opponent;
     int use_c_opponent_p0;
     int use_external_opponent_actions;
-    int external_opponent_actions[NUM_ACTION_HEADS];
+    int external_opponent_actions[32];
     OpponentState opponent;
     OpponentState opponent_p0;
     PFSPState pfsp;
@@ -868,6 +788,7 @@ typedef struct {
 
     int walk_dest_x[NUM_AGENTS];
     int walk_dest_y[NUM_AGENTS];
+    int initial_supply_units[NUM_AGENTS];
 } OsrsPvpRuntime;
 
 typedef struct {
@@ -879,17 +800,13 @@ typedef struct {
     unsigned char* agent_terminals;
 } OsrsOceanBuffers;
 
-#define OCEAN_OBS_SIZE (SLOT_NUM_OBSERVATIONS + ACTION_MASK_SIZE)
 
 typedef struct {
     Log log;
 
-    float* observations;
     int* actions;
     float* rewards;
     unsigned char* terminals;
-    unsigned char* action_masks;
-    unsigned char action_masks_agents;
     int num_agents;
 
     Player players[NUM_AGENTS];
@@ -908,8 +825,8 @@ typedef struct {
     uint32_t rng_reset_count;
     int has_rng_seed;
 
-    int pending_actions[NUM_AGENTS * NUM_ACTION_HEADS];
-    int last_executed_actions[NUM_AGENTS * NUM_ACTION_HEADS];
+    int pending_actions[NUM_AGENTS * 32];
+    int last_executed_actions[NUM_AGENTS * 32];
 
     RewardShapingConfig shaping;
 
@@ -926,11 +843,9 @@ typedef struct {
     OsrsOceanBuffers ocean_io;
     float _episode_return;
 
-    float _obs_buf[NUM_AGENTS * SLOT_NUM_OBSERVATIONS];
-    int _acts_buf[NUM_AGENTS * NUM_ACTION_HEADS];
+    int _acts_buf[NUM_AGENTS * 32];
     float _rews_buf[NUM_AGENTS];
     unsigned char _terms_buf[NUM_AGENTS];
-    unsigned char _masks_buf[NUM_AGENTS * ACTION_MASK_SIZE];
 
 } OsrsEnv;
 

@@ -485,6 +485,8 @@ typedef struct RenderClient {
     int effect_anim_state_count;
 
     const CollisionMap* collision_map;
+    const EncounterArenaTopology* route_topology;
+    OsrsActorRouteCache player_route_cache[NUM_AGENTS];
     int collision_world_offset_x;
     int collision_world_offset_y;
 
@@ -775,6 +777,13 @@ static ColosseumState* render_colosseum_state_from_env(OsrsEnv* env) {
     return (ColosseumState*)env->encounter_state;
 }
 
+static ZulrahState* render_zulrah_state_from_env(OsrsEnv* env) {
+    if (!env || !env->encounter_def || !env->encounter_state) return NULL;
+    const EncounterDef* def = (const EncounterDef*)env->encounter_def;
+    if (strcmp(def->name, "zulrah") != 0) return NULL;
+    return (ZulrahState*)env->encounter_state;
+}
+
 static Color render_inferno_lab_forecast_color(
     const InfStepOutForecastAction* action
 ) {
@@ -789,12 +798,26 @@ static Color render_inferno_lab_forecast_color(
     return (Color){ 60, 220, 80, 170 };
 }
 
-static void render_inferno_lab_draw_forecast_3d(RenderClient* rc) {
-    InfernoState* s = render_inferno_state_from_client(rc);
-    if (!s || !rc->lab_enabled || !rc->lab_show_forecast) return;
+static int render_inferno_lab_build_forecast(
+    RenderClient* rc,
+    const OsrsEnv* env,
+    InfStepOutForecast* forecast
+) {
+    InfernoState* state = render_inferno_state_from_client(rc);
+    if (!state || !rc->lab_enabled || !rc->lab_show_forecast) return 0;
 
+    const InfernoContext* ctx = (const InfernoContext*)env->encounter_context;
+    encounter_arena_topology_require_finalized(ctx->route_topology);
+    inf_build_step_out_forecast_ctx(state, ctx, forecast);
+    return 1;
+}
+
+static void render_inferno_lab_draw_forecast_3d(
+    RenderClient* rc,
+    const OsrsEnv* env
+) {
     InfStepOutForecast forecast;
-    inf_build_step_out_forecast(s, &forecast);
+    if (!render_inferno_lab_build_forecast(rc, env, &forecast)) return;
     int has_terrain = rc->terrain && rc->terrain->loaded;
     for (int action_idx = 0; action_idx < ENCOUNTER_MOVE_ACTIONS; action_idx++) {
         const InfStepOutForecastAction* action = &forecast.actions[action_idx];
@@ -4369,7 +4392,7 @@ static void render_player_composite(
         transform);
 }
 
-static void render_draw_3d_world(RenderClient* rc) {
+static void render_draw_3d_world(RenderClient* rc, OsrsEnv* env) {
     rlSetClipPlanes(0.5, 500.0);
 
     Camera3D cam = render_build_3d_camera(rc);
@@ -4973,7 +4996,7 @@ static void render_draw_3d_world(RenderClient* rc) {
                 }
             }
         }
-        render_inferno_lab_draw_forecast_3d(rc);
+        render_inferno_lab_draw_forecast_3d(rc, env);
 
         #undef OV_GROUND
     }
@@ -5158,7 +5181,7 @@ static void render_draw_3d_world(RenderClient* rc) {
         (Vector3){ fa_x, bh, fa_z + fa_h },
         (Vector3){ fa_x, bh, fa_z }, YELLOW);
 
-    InfernoState* debug_inferno_state = render_inferno_state_from_client(rc);
+    InfernoState* debug_inferno_state = render_inferno_state_from_env(env);
     if (rc->show_debug && rc->entity_count > 0) {
         int player_idx = rc->gui.gui_entity_idx;
         if (player_idx < 0 || player_idx >= rc->entity_count ||
@@ -5195,17 +5218,11 @@ static void render_draw_3d_world(RenderClient* rc) {
                     if (slot < 0 || slot >= INF_MAX_NPCS) continue;
                     InfNPC* npc = &debug_inferno_state->npcs[slot];
                     if (!npc->active || npc->death_ticks > 0) continue;
-                    const EncounterLoadoutStats* ls =
-                        &debug_inferno_state->loadout_stats[debug_inferno_state->weapon_set];
-                    OsrsLosQuery los_query = osrs_los_blockers(
-                        debug_inferno_state->los_blockers,
-                        debug_inferno_state->los_blocker_count);
-                    int can_atk = encounter_player_can_attack(
-                        debug_inferno_state->player.x,
-                        debug_inferno_state->player.y,
-                        npc->x, npc->y, npc->size,
-                        ls->attack_range,
-                        &los_query);
+                    int can_atk =
+                        inf_player_can_attack_npc_from_current_tile_ctx(
+                            debug_inferno_state,
+                            (const InfernoContext*)env->encounter_context,
+                            slot);
                     lc = can_atk ? GREEN : RED;
                 }
 
@@ -5242,7 +5259,7 @@ static void render_draw_3d_world(RenderClient* rc) {
 
 static void render_draw_overhead_status(RenderClient* rc, OsrsEnv* env) {
     Camera3D cam = render_build_3d_camera(rc);
-    InfernoState* debug_state = render_inferno_state_from_client(rc);
+    InfernoState* debug_state = render_inferno_state_from_env(env);
 
     static const int prayer_to_headicon[] = {
         -1,
@@ -5352,7 +5369,8 @@ static void render_draw_overhead_status(RenderClient* rc, OsrsEnv* env) {
                 }
 
                 if (npc->type != INF_NPC_NIBBLER) {
-                    int npc_los = inf_npc_has_los(is, slot);
+                    int npc_los = inf_npc_has_los_ctx(
+                        is, (const InfernoContext*)env->encounter_context, slot);
                     const char* los_txt = npc_los ? "NPC>P" : "NPC>P X";
                     Color los_col = npc_los ? GREEN : RED;
                     int lw = MeasureText(los_txt, fs);
@@ -5361,14 +5379,11 @@ static void render_draw_overhead_status(RenderClient* rc, OsrsEnv* env) {
                 }
 
                 {
-                    const EncounterLoadoutStats* ls = &is->loadout_stats[is->weapon_set];
-                    OsrsLosQuery los_query = osrs_los_blockers(
-                        is->los_blockers,
-                        is->los_blocker_count);
-                    int can_atk = encounter_player_can_attack(
-                        is->player.x, is->player.y,
-                        npc->x, npc->y, npc->size,
-                        ls->attack_range, &los_query);
+                    int can_atk =
+                        inf_player_can_attack_npc_from_current_tile_ctx(
+                            is,
+                            (const InfernoContext*)env->encounter_context,
+                            slot);
                     const char* patk_txt = can_atk ? "P>NPC" : "P>NPC X";
                     Color patk_col = can_atk ? GREEN : RED;
                     int pw = MeasureText(patk_txt, fs);
@@ -6157,7 +6172,7 @@ void pvp_render(OsrsEnv* env) {
     BeginDrawing();
     ClearBackground(COLOR_BG);
 
-    render_draw_3d_world(rc);
+    render_draw_3d_world(rc, env);
 
     render_draw_overhead_status(rc, env);
 
@@ -6281,6 +6296,22 @@ void pvp_render(OsrsEnv* env) {
                         i < INV_GRID_SLOTS; i++)
                     rc->gui.display_inventory_osrs_ids[i] = live_kit[i];
                 rc->gui.display_inventory_count = COLO_INVENTORY_DISPLAY_SLOTS;
+            }
+            ZulrahState* zul_inv = render_zulrah_state_from_env(env);
+            if (zul_inv) {
+                for (int i = 0; i < OSRS_INVENTORY_SIZE && i < INV_GRID_SLOTS; i++)
+                    rc->gui.display_inventory_osrs_ids[i] =
+                        osrs_inventory_cell_raw_osrs_id(
+                            &zul_inv->player.inventory_cells[i]);
+                rc->gui.display_inventory_count = OSRS_INVENTORY_SIZE;
+            }
+            InfernoState* inf_inv = render_inferno_state_from_env(env);
+            if (inf_inv) {
+                for (int i = 0; i < OSRS_INVENTORY_SIZE && i < INV_GRID_SLOTS; i++)
+                    rc->gui.display_inventory_osrs_ids[i] =
+                        osrs_inventory_cell_raw_osrs_id(
+                            &inf_inv->player.inventory_cells[i]);
+                rc->gui.display_inventory_count = OSRS_INVENTORY_SIZE;
             }
         }
         if (gui_player) {

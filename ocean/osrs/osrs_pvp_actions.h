@@ -10,6 +10,7 @@
 #include "osrs_pvp_movement.h"
 #include "osrs_pvp_observations.h"
 #include "osrs_encounter.h"
+#include "osrs_policy.h"
 
 /* fury +3 + neitiznot +3, worn in every loadout */
 #define PRAYER_BONUS 6
@@ -18,8 +19,17 @@ static void eat_food(Player* p, int is_karambwan) {
     osrs_player_eat_food_type(p, is_karambwan ? FOOD_KARAMBWAN : FOOD_SHARK);
 }
 
-static void drink_potion(Player* p, int potion_type) {
-    if (p->potion_timer > 0) return;
+static void pvp_apply_drink_one_dose_effect(
+    void* ctx,
+    OsrsConsumableKind kind
+) {
+    Player* p = (Player*)ctx;
+    int potion_type = POTION_NONE;
+    if (kind == OSRS_CONSUMABLE_BREW) potion_type = POTION_BREW;
+    else if (kind == OSRS_CONSUMABLE_SUPER_RESTORE) potion_type = POTION_RESTORE;
+    else if (kind == OSRS_CONSUMABLE_SUPER_COMBAT) potion_type = POTION_COMBAT;
+    else if (kind == OSRS_CONSUMABLE_RANGING) potion_type = POTION_RANGED;
+    else return;
 
     switch (potion_type) {
         case POTION_BREW: {
@@ -128,8 +138,6 @@ static void drink_potion(Player* p, int potion_type) {
             break;
         }
     }
-
-    p->potion_timer = 3;
     p->food_timer = 3;
 }
 
@@ -205,156 +213,131 @@ static void reset_tick_flags(Player* p) {
     p->clicks_this_tick = 0;
 }
 
-static void execute_switches(OsrsEnv* env, int agent_idx, int* actions) {
-    Player* p = &env->players[agent_idx];
-    const CollisionMap* cmap = (const CollisionMap*)env->collision_map;
+static void pvp_refresh_visible_gear(Player* p) {
+    uint8_t weapon = p->equipped[GEAR_SLOT_WEAPON];
+    update_spec_weapons_for_weapon(p, weapon);
+    AttackStyle style = (AttackStyle)get_item_attack_style(weapon);
+    if (item_is_spec_weapon(weapon)) p->current_gear = GEAR_SPEC;
+    else if (style == ATTACK_STYLE_MELEE) p->current_gear = GEAR_MELEE;
+    else if (style == ATTACK_STYLE_RANGED) p->current_gear = GEAR_RANGED;
+    else if (style == ATTACK_STYLE_MAGIC) p->current_gear = GEAR_MAGE;
+    p->visible_gear = weapon == ITEM_VOIDWAKER ? GEAR_MAGE : p->current_gear;
+}
 
+static void execute_switches(
+    OsrsEnv* env,
+    int agent_idx,
+    int* actions,
+    const EncounterArenaTopology* topology
+) {
+    Player* p = &env->players[agent_idx];
     p->consumable_used_this_tick = 0;
 
-    int overhead_action = actions[HEAD_OVERHEAD];
-    int offensive_action = actions[HEAD_OFFENSIVE];
+    OsrsInventoryClickActions clicks = {0};
+    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
+        clicks.equip_by_slot[slot] = actions[OSRS_HEAD_EQUIP_SLOT(slot)];
+    clicks.eat = actions[OSRS_HEAD_EAT];
+    clicks.drink = actions[OSRS_HEAD_DRINK];
+    OsrsInventoryTickIntent intent = osrs_resolve_inventory_tick_intent(
+        p, p->inventory_cells, &clicks);
+    if (intent.drink_cell >= 0 &&
+            !pvp_drink_kind_available(
+                p, intent.drink_resolution.consumable_kind)) {
+        intent.drink_cell = -1;
+    }
+    if (osrs_inventory_tick_intent_has_effect(&intent))
+        osrs_interaction_check_interrupt(&p->interaction, OSRS_IACT_EQUIP);
 
+    OsrsInventoryApplyStep step;
+    while (osrs_inventory_intent_next(&intent, &step)) {
+        if (step.kind == OSRS_INVENTORY_APPLY_EQUIP) {
+            if (osrs_equip_from_cell(
+                    p, p->inventory_cells, step.cell_idx) >= 0)
+                p->clicks_this_tick++;
+        } else if (step.kind == OSRS_INVENTORY_APPLY_EAT) {
+            FoodType type =
+                step.resolution.consumable_kind == OSRS_CONSUMABLE_KARAMBWAN
+                    ? FOOD_KARAMBWAN : FOOD_SHARK;
+            OsrsPlayerEatResult result = osrs_player_eat_food_type(p, type);
+            if (result.consumed) {
+                p->inventory_cells[step.cell_idx] = osrs_inventory_cell_empty();
+                p->consumable_used_this_tick = 1;
+                p->clicks_this_tick++;
+            }
+        } else {
+            OsrsInventoryDrinkConsumeResult result =
+                osrs_inventory_cell_consume_drink_one_dose(
+                    &p->inventory_cells[step.cell_idx],
+                    step.resolution,
+                    &p->potion_timer,
+                    pvp_apply_drink_one_dose_effect,
+                    p);
+            if (result.consumed) {
+                p->consumable_used_this_tick = 1;
+                p->clicks_this_tick++;
+            }
+        }
+    }
+    pvp_refresh_visible_gear(p);
+
+    int overhead_action = actions[OSRS_HEAD_OVERHEAD];
+    int offensive_action = actions[OSRS_HEAD_OFFENSIVE];
     if (env->is_lms &&
         (overhead_action == ENCOUNTER_OVERHEAD_SET_REFRESH_SMITE ||
-         overhead_action == ENCOUNTER_OVERHEAD_SET_REFRESH_REDEMPTION)) {
+         overhead_action == ENCOUNTER_OVERHEAD_SET_REFRESH_REDEMPTION))
         overhead_action = ENCOUNTER_OVERHEAD_NO_CHANGE;
-    }
     if (p->current_prayer <= 0) {
         if (overhead_action >= ENCOUNTER_OVERHEAD_SET_REFRESH_MELEE)
             overhead_action = ENCOUNTER_OVERHEAD_NO_CHANGE;
         if (offensive_action >= ENCOUNTER_OFFENSIVE_SET_REFRESH_PIETY)
             offensive_action = ENCOUNTER_OFFENSIVE_NO_CHANGE;
     }
-
-    OverheadPrayer prev_prayer = p->prayer;
-    OffensivePrayer prev_offensive = p->offensive_prayer;
-    int prayer_commanded =
-        overhead_action != ENCOUNTER_OVERHEAD_NO_CHANGE ||
-        offensive_action != ENCOUNTER_OFFENSIVE_NO_CHANGE;
-    if (encounter_apply_overhead_action(&p->prayer, overhead_action)) {
+    OverheadPrayer previous_prayer = p->prayer;
+    OffensivePrayer previous_offensive = p->offensive_prayer;
+    if (encounter_apply_overhead_action(&p->prayer, overhead_action))
         p->prayer_just_activated = 1;
-    }
-    if (encounter_apply_offensive_action(&p->offensive_prayer, offensive_action)) {
+    if (encounter_apply_offensive_action(&p->offensive_prayer, offensive_action))
         p->offensive_prayer_just_activated = 1;
-    }
-    if (prayer_commanded || p->prayer != prev_prayer || p->offensive_prayer != prev_offensive)
+    if (p->prayer != previous_prayer ||
+            p->offensive_prayer != previous_offensive)
         p->clicks_this_tick++;
-    int loadout_action = actions[HEAD_LOADOUT];
-    int loadout_switches = apply_loadout(p, loadout_action);
-    p->clicks_this_tick += loadout_switches;
-    if (loadout_switches > 0)
-        osrs_interaction_check_interrupt(&p->interaction, OSRS_IACT_EQUIP);
 
-    if (loadout_action == LOADOUT_SPEC_MELEE || loadout_action == LOADOUT_SPEC_RANGE ||
-        loadout_action == LOADOUT_SPEC_MAGIC || loadout_action == LOADOUT_GMAUL) {
-        p->spec_armed = 1;
-    }
-    int food_action = actions[HEAD_FOOD];
-    if (food_action == FOOD_EAT && can_eat_food(p)) {
-        eat_food(p, 0);
-        p->consumable_used_this_tick = 1;
-        p->clicks_this_tick++;
-        osrs_interaction_check_interrupt(&p->interaction, OSRS_IACT_EAT);
-    }
+    int special_action = actions[OSRS_HEAD_SPECIAL];
+    if (special_action == 1 && can_toggle_spec(p)) p->spec_armed = 1;
+    else if (special_action == 2) p->spec_armed = 0;
 
-    int potion_action = actions[HEAD_POTION];
-    int potion_ok = 0;
-    switch (potion_action) {
-        case POTION_BREW:
-            potion_ok = can_use_potion(p, POTION_BREW) && can_use_brew_boost(p);
-            break;
-        case POTION_RESTORE:
-            potion_ok = can_use_potion(p, POTION_RESTORE) && can_restore_stats(p);
-            break;
-        case POTION_COMBAT:
-            potion_ok = can_use_potion(p, POTION_COMBAT) && can_boost_combat_skills(p);
-            break;
-        case POTION_RANGED:
-            potion_ok = can_use_potion(p, POTION_RANGED) && can_boost_ranged(p);
-            break;
-        default:
-            break;
-    }
-    if (potion_ok) {
-        drink_potion(p, potion_action);
-        p->consumable_used_this_tick = 1;
-        p->clicks_this_tick++;
-        osrs_interaction_check_interrupt(&p->interaction, OSRS_IACT_DRINK);
-    }
-
-    int karam_action = actions[HEAD_KARAMBWAN];
-    if (karam_action == KARAM_EAT && can_eat_karambwan(p)) {
-        eat_food(p, 1);
-        p->consumable_used_this_tick = 1;
-        p->clicks_this_tick++;
-        osrs_interaction_check_interrupt(&p->interaction, OSRS_IACT_EAT);
-    }
-    int combat_action = actions[HEAD_COMBAT];
-    int head_move = actions[HEAD_MOVE];
-    int is_spec_loadout = (loadout_action == LOADOUT_SPEC_MELEE ||
-                           loadout_action == LOADOUT_SPEC_RANGE ||
-                           loadout_action == LOADOUT_SPEC_MAGIC ||
-                           loadout_action == LOADOUT_GMAUL);
-
-    int command_issued = 0;
-    if (!is_spec_loadout && head_move > 0 && head_move < MOVE_DIM) {
-        pvp_set_walk_dest_from_head_move(env, agent_idx, head_move);
-        command_issued = 1;
-    } else if (!is_spec_loadout && is_move_action(combat_action)) {
-        int tx = p->last_obs_target_x;
-        int ty = p->last_obs_target_y;
-        int dest_x = -1, dest_y = -1;
-        switch (combat_action) {
-            case MOVE_ADJACENT:
-                if (!select_closest_adjacent_tile(p, tx, ty, &dest_x, &dest_y, cmap)) {
-                    dest_x = -1; dest_y = -1;
-                }
-                break;
-            case MOVE_UNDER:
-                if (is_in_wilderness(tx, ty) && collision_tile_walkable(cmap, 0, tx, ty)) {
-                    dest_x = tx; dest_y = ty;
-                }
-                break;
-            case MOVE_DIAGONAL:
-                if (!select_closest_diagonal_tile(p, tx, ty, &dest_x, &dest_y, cmap)) {
-                    dest_x = -1; dest_y = -1;
-                }
-                break;
-            case MOVE_FARCAST_2:
-            case MOVE_FARCAST_3:
-            case MOVE_FARCAST_4:
-            case MOVE_FARCAST_5:
-            case MOVE_FARCAST_6:
-            case MOVE_FARCAST_7: {
-                int fd = combat_action - MOVE_FARCAST_2 + 2;
-                if (!select_farcast_tile(p, tx, ty, fd, &dest_x, &dest_y, cmap)) {
-                    dest_x = -1; dest_y = -1;
-                }
-                break;
-            }
-            default:
-                break;
-        }
-        env->pvp_runtime.walk_dest_x[agent_idx] = dest_x;
-        env->pvp_runtime.walk_dest_y[agent_idx] = dest_y;
-        command_issued = (dest_x >= 0);
-    }
-    /* no clearing else: walk_dest persists until arrival, matching OSRS click
-       semantics (the SDK sets it back to -1 when the player gets there) */
-    if (command_issued) {
+    int primary = actions[OSRS_HEAD_PRIMARY];
+    if (primary >= OSRS_PRIMARY_MOVE_ACTIONS &&
+            primary < OSRS_PRIMARY_DIM(1)) {
+        osrs_interaction_set(&p->interaction, 1 - agent_idx);
+        env->pvp_runtime.walk_dest_x[agent_idx] = -1;
+        env->pvp_runtime.walk_dest_y[agent_idx] = -1;
+    } else if (primary > 0 && primary < OSRS_PRIMARY_MOVE_ACTIONS) {
+        pvp_set_walk_dest_from_head_move(env, agent_idx, primary);
         p->clicks_this_tick++;
         osrs_interaction_check_interrupt(&p->interaction, OSRS_IACT_MOVE);
     }
-    int veng_action = actions[HEAD_VENG];
-    if (veng_action == VENG_CAST && p->is_lunar_spellbook &&
-        !p->veng_active && remaining_ticks(p->veng_cooldown) == 0 &&
-        p->current_magic >= 94) {
+
+    if (actions[OSRS_HEAD_SPELL] == OSRS_SPELL_VENGEANCE &&
+            p->is_lunar_spellbook && !p->veng_active &&
+            remaining_ticks(p->veng_cooldown) == 0 &&
+            p->current_magic >= 94) {
         p->veng_active = 1;
         p->veng_cooldown = 50;
         p->cast_veng_this_tick = 1;
         p->clicks_this_tick++;
     }
+    (void)topology;
 }
+
+typedef enum {
+    PVP_ATTACK_NONE = 0,
+    PVP_ATTACK_WEAPON,
+    PVP_ATTACK_ICE,
+    PVP_ATTACK_BLOOD,
+} PvpAttackIntent;
+
+#define PVP_MOVE_NONE 0
 
 typedef struct {
     int attack_action;
@@ -366,139 +349,133 @@ typedef struct {
 static PvpAttackDecode pvp_decode_attack_actions(
     OsrsEnv* env, int agent_idx, Player* p, const int* actions
 ) {
-    int loadout_action = actions[HEAD_LOADOUT];
-    int combat_action = actions[HEAD_COMBAT];
-    int attack_action = is_attack_action(combat_action) ? combat_action : ATTACK_NONE;
-    int move_action = is_move_action(combat_action) ? combat_action : MOVE_NONE;
-    int explicit_move_in_progress = (actions[HEAD_MOVE] > 0 && actions[HEAD_MOVE] < MOVE_DIM)
-        || env->pvp_runtime.walk_dest_x[agent_idx] >= 0;
-
-    int is_gmaul = (loadout_action == LOADOUT_GMAUL);
-    if (is_gmaul) {
-        attack_action = ATTACK_ATK;
-        move_action = MOVE_NONE;
+    int primary = actions[OSRS_HEAD_PRIMARY];
+    int spell = actions[OSRS_HEAD_SPELL];
+    int attack_action = PVP_ATTACK_NONE;
+    if (primary >= OSRS_PRIMARY_MOVE_ACTIONS &&
+            primary < OSRS_PRIMARY_DIM(1)) {
+        if (spell == OSRS_SPELL_ICE_BARRAGE) attack_action = PVP_ATTACK_ICE;
+        else if (spell == OSRS_SPELL_BLOOD_BARRAGE) attack_action = PVP_ATTACK_BLOOD;
+        else attack_action = PVP_ATTACK_WEAPON;
     }
-
-    int current_loadout = get_current_loadout(p);
-    int in_mage_loadout = (current_loadout == LOADOUT_MAGE);
-    int in_tank_loadout = (current_loadout == LOADOUT_TANK);
-    if (attack_action == ATTACK_ATK && (in_mage_loadout || in_tank_loadout) && !is_gmaul) {
-        attack_action = ATTACK_NONE;
-    }
-
+    int explicit_move_in_progress =
+        (primary > 0 && primary < OSRS_PRIMARY_MOVE_ACTIONS) ||
+        env->pvp_runtime.walk_dest_x[agent_idx] >= 0;
+    int is_gmaul =
+        p->equipped[GEAR_SLOT_WEAPON] == ITEM_GRANITE_MAUL &&
+        p->spec_armed;
     return (PvpAttackDecode){
         .attack_action = attack_action,
-        .move_action = move_action,
+        .move_action = PVP_MOVE_NONE,
         .explicit_move_in_progress = explicit_move_in_progress,
         .is_gmaul = is_gmaul,
     };
 }
 
-static void execute_attack_movement(OsrsEnv* env, int agent_idx, int* actions) {
+static void execute_attack_movement(
+    OsrsEnv* env,
+    int agent_idx,
+    int* actions,
+    const EncounterArenaTopology* topology,
+    OsrsActorRouteCache* route_cache
+) {
     Player* p = &env->players[agent_idx];
     Player* t = &env->players[1 - agent_idx];
-    const CollisionMap* cmap = (const CollisionMap*)env->collision_map;
+    PvpAttackDecode decode =
+        pvp_decode_attack_actions(env, agent_idx, p, actions);
 
-    PvpAttackDecode decode = pvp_decode_attack_actions(env, agent_idx, p, actions);
-
-    if (decode.attack_action != ATTACK_NONE)
+    if (decode.attack_action != PVP_ATTACK_NONE)
         osrs_interaction_set(&p->interaction, 1 - agent_idx);
 
-    int has_attack = (decode.attack_action != ATTACK_NONE) || osrs_interaction_active(&p->interaction);
-    int dist = chebyshev_distance(p->x, p->y, t->x, t->y);
-
+    int has_attack =
+        decode.attack_action != PVP_ATTACK_NONE ||
+        osrs_interaction_active(&p->interaction);
+    int distance = chebyshev_distance(p->x, p->y, t->x, t->y);
     AttackStyle attack_style = ATTACK_STYLE_NONE;
-    if (decode.attack_action != ATTACK_NONE) {
-        switch (decode.attack_action) {
-            case ATTACK_ATK:
-                attack_style = get_slot_weapon_attack_style(p);
-                break;
-            case ATTACK_ICE:
-                attack_style = ATTACK_STYLE_MAGIC;
-                break;
-            case ATTACK_BLOOD:
-                attack_style = ATTACK_STYLE_MAGIC;
-                break;
-            default:
-                break;
-        }
-    } else if (osrs_interaction_active(&p->interaction)) {
+    if (decode.attack_action == PVP_ATTACK_WEAPON)
         attack_style = get_slot_weapon_attack_style(p);
-    }
-    if (decode.attack_action == ATTACK_ICE && !can_cast_ice_spell(p)) {
+    else if (decode.attack_action == PVP_ATTACK_ICE ||
+            decode.attack_action == PVP_ATTACK_BLOOD)
+        attack_style = ATTACK_STYLE_MAGIC;
+    else if (osrs_interaction_active(&p->interaction))
+        attack_style = get_slot_weapon_attack_style(p);
+
+    if (decode.attack_action == PVP_ATTACK_ICE && !can_cast_ice_spell(p))
         attack_style = ATTACK_STYLE_NONE;
-    }
-    if (decode.attack_action == ATTACK_BLOOD && !can_cast_blood_spell(p)) {
+    if (decode.attack_action == PVP_ATTACK_BLOOD && !can_cast_blood_spell(p))
         attack_style = ATTACK_STYLE_NONE;
-    }
 
     p->did_attack_auto_move = 0;
+    if (!has_attack ||
+            decode.move_action != PVP_MOVE_NONE ||
+            decode.explicit_move_in_progress ||
+            !can_move(p))
+        return;
 
-    if (has_attack && decode.move_action == MOVE_NONE && !decode.explicit_move_in_progress && can_move(p)) {
-        if (attack_style == ATTACK_STYLE_MELEE && !is_in_melee_range(p, t)) {
-            int adj_x, adj_y;
-            if (select_closest_adjacent_tile(p, t->x, t->y, &adj_x, &adj_y, cmap)) {
-                set_destination(p, adj_x, adj_y, cmap);
-            }
-            p->did_attack_auto_move = 1;
-            dist = chebyshev_distance(p->x, p->y, t->x, t->y);
-        }
-    }
-
-    if (has_attack && dist == 0 && can_move(p)) {
-        step_out_from_same_tile(p, t, cmap);
-    }
+    int melee_chase =
+        attack_style == ATTACK_STYLE_MELEE &&
+        !is_in_melee_range(p, t);
+    if (!melee_chase && distance != 0) return;
+    (void)pvp_step_player_melee_chase(
+        env, agent_idx, topology, route_cache);
+    p->did_attack_auto_move = melee_chase;
 }
 
 /* runs after BOTH players' attack movement so range checks use final positions;
    checking ranges in the movement phase reintroduces the PID-dependent same-tile bug */
-static void execute_attack_combat(OsrsEnv* env, int agent_idx, int* actions) {
+static void execute_attack_combat(
+    OsrsEnv* env,
+    int agent_idx,
+    int* actions,
+    const EncounterArenaTopology* topology,
+    OsrsActorRouteCache* route_cache
+) {
     Player* p = &env->players[agent_idx];
     Player* t = &env->players[1 - agent_idx];
-    const CollisionMap* cmap = (const CollisionMap*)env->collision_map;
+
 
     PvpAttackDecode decode = pvp_decode_attack_actions(env, agent_idx, p, actions);
 
-    if (decode.attack_action == ATTACK_NONE && osrs_interaction_active(&p->interaction)) {
+    if (decode.attack_action == PVP_ATTACK_NONE && osrs_interaction_active(&p->interaction)) {
         AttackStyle weapon_style = get_slot_weapon_attack_style(p);
         if (weapon_style != ATTACK_STYLE_MAGIC) {
-            decode.attack_action = ATTACK_ATK;
+            decode.attack_action = PVP_ATTACK_WEAPON;
         }
     }
 
     int attack_ready = can_attack_now(p);
-    int has_attack = (decode.attack_action != ATTACK_NONE);
+    int has_attack = (decode.attack_action != PVP_ATTACK_NONE);
     int dist = chebyshev_distance(p->x, p->y, t->x, t->y);
 
     AttackStyle attack_style = ATTACK_STYLE_NONE;
     int magic_type = 0;
 
     switch (decode.attack_action) {
-        case ATTACK_ATK:
+        case PVP_ATTACK_WEAPON:
             attack_style = get_slot_weapon_attack_style(p);
             break;
-        case ATTACK_ICE:
+        case PVP_ATTACK_ICE:
             attack_style = ATTACK_STYLE_MAGIC;
             magic_type = 1;
             break;
-        case ATTACK_BLOOD:
+        case PVP_ATTACK_BLOOD:
             attack_style = ATTACK_STYLE_MAGIC;
             magic_type = 2;
             break;
         default:
             break;
     }
-    if (decode.attack_action == ATTACK_ICE && !can_cast_ice_spell(p)) {
+    if (decode.attack_action == PVP_ATTACK_ICE && !can_cast_ice_spell(p)) {
         attack_style = ATTACK_STYLE_NONE;
     }
-    if (decode.attack_action == ATTACK_BLOOD && !can_cast_blood_spell(p)) {
+    if (decode.attack_action == PVP_ATTACK_BLOOD && !can_cast_blood_spell(p)) {
         attack_style = ATTACK_STYLE_NONE;
     }
 
     int can_attack = attack_ready || (decode.is_gmaul && is_granite_maul_attack_available(p));
 
     switch (decode.attack_action) {
-        case ATTACK_ATK:
+        case PVP_ATTACK_WEAPON:
             if (can_attack && attack_style != ATTACK_STYLE_NONE) {
                 AttackStyle actual_style = (attack_style == ATTACK_STYLE_MAGIC)
                     ? ATTACK_STYLE_MELEE
@@ -519,8 +496,8 @@ static void execute_attack_combat(OsrsEnv* env, int agent_idx, int* actions) {
                 }
             }
             break;
-        case ATTACK_ICE:
-        case ATTACK_BLOOD:
+        case PVP_ATTACK_ICE:
+        case PVP_ATTACK_BLOOD:
             if (attack_ready && attack_style == ATTACK_STYLE_MAGIC) {
                 int range = get_attack_range(p, ATTACK_STYLE_MAGIC);
                 if (dist > 0 && dist <= range) {
@@ -533,24 +510,22 @@ static void execute_attack_combat(OsrsEnv* env, int agent_idx, int* actions) {
             break;
     }
 
-    if (has_attack && decode.move_action == MOVE_NONE && !decode.explicit_move_in_progress
+    if (has_attack && decode.move_action == PVP_MOVE_NONE && !decode.explicit_move_in_progress
             && can_move(p) && !p->did_attack_auto_move) {
         int in_range = 0;
-        int auto_walk_range = 1;
+        int chase_range = 1;
         switch (attack_style) {
             case ATTACK_STYLE_MELEE:
                 in_range = is_in_melee_range(p, t);
                 break;
             case ATTACK_STYLE_RANGED: {
-                int range = get_attack_range(p, ATTACK_STYLE_RANGED);
-                auto_walk_range = range;
-                in_range = (dist <= range);
+                chase_range = get_attack_range(p, ATTACK_STYLE_RANGED);
+                in_range = (dist <= chase_range);
                 break;
             }
             case ATTACK_STYLE_MAGIC: {
-                int range = get_attack_range(p, ATTACK_STYLE_MAGIC);
-                auto_walk_range = range;
-                in_range = (dist <= range);
+                chase_range = get_attack_range(p, ATTACK_STYLE_MAGIC);
+                in_range = (dist <= chase_range);
                 break;
             }
             default:
@@ -559,15 +534,24 @@ static void execute_attack_combat(OsrsEnv* env, int agent_idx, int* actions) {
         }
         if (!in_range) {
             if (attack_style == ATTACK_STYLE_MELEE) {
-                int adj_x, adj_y;
-                if (select_closest_adjacent_tile(p, t->x, t->y, &adj_x, &adj_y, cmap)) {
-                    set_destination(p, adj_x, adj_y, cmap);
-                }
+                (void)pvp_step_player_melee_chase(
+                    env, agent_idx, topology, route_cache);
             } else {
-                move_toward_target(p, t, auto_walk_range, cmap);
+                (void)pvp_step_player_ranged_chase(
+                    env,
+                    agent_idx,
+                    chase_range,
+                    topology,
+                    route_cache);
             }
         }
     }
+}
+
+static inline int pvp_remaining_supply_units(const Player* p) {
+    return p->food_count + p->karambwan_count +
+        p->brew_doses + p->restore_doses +
+        p->combat_potion_doses + p->ranged_potion_doses;
 }
 
 static float calculate_reward(OsrsEnv* env, int agent_idx) {
@@ -583,7 +567,8 @@ static float calculate_reward(OsrsEnv* env, int agent_idx) {
     }
 
     if (cfg->prayer_penalty_enabled && !t->just_attacked) {
-        int overhead = env->last_executed_actions[agent_idx * NUM_ACTION_HEADS + HEAD_OVERHEAD];
+        int overhead = env->last_executed_actions[
+            agent_idx * OSRS_BASE_NUM_ACTION_HEADS + OSRS_HEAD_OVERHEAD];
         if (overhead == OVERHEAD_MAGE || overhead == OVERHEAD_RANGED || overhead == OVERHEAD_MELEE) {
             reward += cfg->prayer_switch_no_attack_penalty;
         }
@@ -611,17 +596,17 @@ static float calculate_reward(OsrsEnv* env, int agent_idx) {
             if (t->food_count > 0 || t->karambwan_count > 0 || t->brew_doses > 0) {
                 reward += cfg->ko_bonus;
             }
-            float opp_total = (float)(t->food_count + t->karambwan_count
-                                       + t->brew_doses + t->restore_doses
-                                       + t->combat_potion_doses
-                                       + t->ranged_potion_doses);
-            float max_total = (float)(MAXED_FOOD_COUNT + MAXED_KARAMBWAN_COUNT
-                                      + MAXED_BREW_DOSES + MAXED_RESTORE_DOSES
-                                      + MAXED_COMBAT_POTION_DOSES
-                                      + MAXED_RANGED_POTION_DOSES);
-            if (max_total > 0.0f) {
-                reward += cfg->ko_supplies_bonus_coef * (opp_total / max_total);
+            float opp_total = (float)pvp_remaining_supply_units(t);
+            int initial_supply_units =
+                env->pvp_runtime.initial_supply_units[1 - agent_idx];
+            if (initial_supply_units <= 0) {
+                fprintf(stderr,
+                    "pvp reward: invalid initial supply count %d\n",
+                    initial_supply_units);
+                abort();
             }
+            reward += cfg->ko_supplies_bonus_coef *
+                (opp_total / (float)initial_supply_units);
         } else if (env->winner == (1 - agent_idx)) {
             if (p->food_count > 0 || p->karambwan_count > 0 || p->brew_doses > 0) {
                 reward += cfg->wasted_resources_penalty;

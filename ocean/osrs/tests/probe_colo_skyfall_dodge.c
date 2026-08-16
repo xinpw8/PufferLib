@@ -78,6 +78,7 @@ static void probe_init_context(ColosseumContext* ctx) {
     ctx->config.beginner_loadout_fraction = 0.0f;
     ctx->config.step_out_forecast_obs_enabled = 1;
     ctx->config.action_debug_log = 0;
+    col_finalize_route_topology(ctx);
 }
 
 static void probe_init_empty_state(
@@ -150,15 +151,24 @@ static ProbeSkyfallObs probe_read_skyfall_obs(
     return out;
 }
 
-static int probe_move_action_ending_off_tile(const ColosseumState* s, int x, int y) {
+static int probe_move_action_ending_off_tile(
+    const ColosseumState* s,
+    const ColosseumContext* ctx,
+    int x,
+    int y
+) {
     for (int action = 1; action < ENCOUNTER_MOVE_ACTIONS; action++) {
         ColosseumState tmp = *s;
+        ColoGeometryContext geometry = {
+            .state = &tmp,
+            .context = ctx,
+        };
         int moved = encounter_move_to_target(
             &tmp.player,
             ENCOUNTER_MOVE_TARGET_DX[action],
             ENCOUNTER_MOVE_TARGET_DY[action],
             col_player_walkable,
-            &tmp);
+            &geometry);
         if (moved > 0 && (tmp.player.x != x || tmp.player.y != y)) return action;
     }
     probe_fail("move action ending off marked tile found");
@@ -234,7 +244,8 @@ static ProbeStepDodgeResult probe_run_no_lock_wait_case(int wait_visible_ticks) 
     probe_init_empty_state(&s, &ctx, 0x5100u + (uint32_t)wait_visible_ticks);
     probe_spawn_javelin(&s);
     ProbeSkyfallObs first = probe_fire_skyfall_visible(&s, &ctx, 0);
-    int move_action = probe_move_action_ending_off_tile(&s, first.marked_x, first.marked_y);
+    int move_action = probe_move_action_ending_off_tile(
+        &s, &ctx, first.marked_x, first.marked_y);
     int hp_before = s.player.current_hitpoints;
     int move_tick = -1;
     int player_x_after_move = s.player.x;
@@ -309,7 +320,8 @@ static ProbeStepDodgeResult probe_run_attack_lock_case(
         s.npcs[0].y);
     probe_establish_attack_lock(&s, &ctx);
     ProbeSkyfallObs first = probe_fire_skyfall_visible(&s, &ctx, 1);
-    int move_action = probe_move_action_ending_off_tile(&s, first.marked_x, first.marked_y);
+    int move_action = probe_move_action_ending_off_tile(
+        &s, &ctx, first.marked_x, first.marked_y);
     int hp_before = s.player.current_hitpoints;
 
     probe_zero_actions(actions);

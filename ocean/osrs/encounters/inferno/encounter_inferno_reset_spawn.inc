@@ -1,11 +1,73 @@
 #line 1436 "encounter_inferno.h"
+static void inf_sync_consumable_counters_from_cells(InfernoState* s);
+static void inf_refresh_live_stats(InfernoState* s);
+
 static InfSupplyDoses inf_full_starting_supplies(void) {
     return (InfSupplyDoses){
         .brew_doses = 24,
-        .restore_doses = 40,
+        .restore_doses = 36,
         .bastion_doses = 16,
         .stamina_doses = 4,
     };
+}
+
+
+static void inf_seed_potion_cells(
+    InfernoState* s,
+    int* next_cell,
+    OsrsConsumableKind kind,
+    int doses
+) {
+    while (doses > 0) {
+        int dose = doses >= 4 ? 4 : doses;
+        if (*next_cell >= OSRS_INVENTORY_SIZE) {
+            fprintf(stderr, "inferno: inventory kit overflows %d cells\n",
+                OSRS_INVENTORY_SIZE);
+            abort();
+        }
+        s->player.inventory_cells[(*next_cell)++] =
+            osrs_inventory_cell_from_content_code(
+                osrs_inventory_content_code_from_consumable(kind, dose));
+        doses -= dose;
+    }
+}
+
+static void inf_seed_inventory_cells(InfernoState* s) {
+    for (int i = 0; i < OSRS_INVENTORY_SIZE; i++)
+        s->player.inventory_cells[i] = osrs_inventory_cell_empty();
+
+    int cell = 0;
+    const uint8_t* const* loadouts =
+        inf_loadouts_for_profile(s->active_loadout_profile);
+    for (int g = 0; g < INF_NUM_WEAPON_SETS; g++) {
+        for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
+            uint8_t item = loadouts[g][slot];
+            if (item == ITEM_NONE) continue;
+            if (s->player.equipped[slot] == item) continue;
+            int duplicate = 0;
+            for (int c = 0; c < cell; c++) {
+                if (osrs_inventory_cell_item_index(
+                        &s->player.inventory_cells[c]) == item) {
+                    duplicate = 1;
+                    break;
+                }
+            }
+            if (duplicate) continue;
+            if (cell >= OSRS_INVENTORY_SIZE) {
+                fprintf(stderr, "inferno: gear kit overflows %d cells\n",
+                    OSRS_INVENTORY_SIZE);
+                abort();
+            }
+            s->player.inventory_cells[cell++] =
+                osrs_inventory_cell_from_item(item);
+        }
+    }
+
+    inf_seed_potion_cells(s, &cell, OSRS_CONSUMABLE_BREW, s->player.brew_doses);
+    inf_seed_potion_cells(s, &cell, OSRS_CONSUMABLE_SUPER_RESTORE,
+        s->player.restore_doses);
+    inf_seed_potion_cells(s, &cell, OSRS_CONSUMABLE_BASTION, s->player.bastion_doses);
+    inf_seed_potion_cells(s, &cell, OSRS_CONSUMABLE_STAMINA, s->player.stamina_doses);
 }
 
 static const InfSupplyProfileAnchor INF_SUPPLY_PROFILE_ANCHORS[] = {
@@ -276,7 +338,9 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     inf_build_npc_stats();
     InfernoState* s = (InfernoState*)state;
     InfernoContext* ctx = (InfernoContext*)context;
-    if (!ctx) ctx = inf_legacy_context();
+    encounter_arena_topology_require_finalized(ctx->route_topology);
+    osrs_actor_route_cache_clear(&ctx->player_route_cache);
+    inf_reset_npc_player_los_frame(ctx);
     int saved_start = ctx->config.start_wave;
     uint32_t saved_rng = s->rng_state;
     memset(s, 0, sizeof(InfernoState));
@@ -305,13 +369,6 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     s->total_zuk_healer_out_of_range_ticks = 0;
     s->total_zuk_healer_attackable_ticks = 0;
     s->total_action_mask_checks = 0;
-    for (int h = 0; h < 9; h++) {
-        s->zero_valid_action_head_count[h] = 0;
-        s->min_valid_action_count_by_head[h] = 1000000;
-    }
-    s->target_head_valid_healer_count = 0;
-    s->target_head_valid_zuk_count = 0;
-    s->target_head_valid_set_count = 0;
 
     s->player.entity_type = ENTITY_PLAYER;
     encounter_init_maxed_player_combat_stats(&s->player, 99);
@@ -337,6 +394,8 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     s->player.bastion_doses = start_supplies.bastion_doses;
     s->player.stamina_doses = start_supplies.stamina_doses;
     inf_apply_curriculum_supply_variation(s, ctx, full_supplies);
+    inf_seed_inventory_cells(s);
+    inf_sync_consumable_counters_from_cells(s);
     s->stamina_active_ticks = 0;
     s->player.prayer = PRAYER_NONE;
     s->player.autocast_enabled = 1;
@@ -349,17 +408,18 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     s->last_hit_by_type = -1;
 
     encounter_compute_loadout_stats(loadouts[INF_GEAR_MAGE], ATTACK_STYLE_MAGIC,
-        OFFENSIVE_PRAYER_NONE, 99, FIGHT_STYLE_AUTOCAST, 30, &s->loadout_stats[INF_GEAR_MAGE]);
+        OFFENSIVE_PRAYER_NONE, 99, FIGHT_STYLE_AUTOCAST,
+        inf_player_magic_base_damage(&s->player), &s->loadout_stats[INF_GEAR_MAGE]);
     encounter_compute_loadout_stats(loadouts[INF_GEAR_LONG_RANGE], ATTACK_STYLE_RANGED,
         OFFENSIVE_PRAYER_NONE, 99, FIGHT_STYLE_RAPID, 0, &s->loadout_stats[INF_GEAR_LONG_RANGE]);
     encounter_compute_loadout_stats(loadouts[INF_GEAR_BP], ATTACK_STYLE_RANGED,
         OFFENSIVE_PRAYER_NONE, 99, FIGHT_STYLE_RAPID, 0, &s->loadout_stats[INF_GEAR_BP]);
+    inf_refresh_live_stats(s);
 
     int effective_start = inf_runtime_wave_from_start_wave(s->start_wave);
     int is_zuk_wave = (effective_start >= INF_WAVE_ZUK);
     s->player.x = is_zuk_wave ? INF_ZUK_PLAYER_START_X : INF_PLAYER_START_X;
     s->player.y = is_zuk_wave ? INF_ZUK_PLAYER_START_Y : INF_PLAYER_START_Y;
-    inf_rebuild_player_collision_flags(s);
 
     for (int i = 0; i < INF_NUM_PILLARS; i++) {
         s->pillars[i].x = INF_PILLAR_POS[i][0];
@@ -372,7 +432,6 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
             s->pillars[i].active = 1;
         }
     }
-    inf_rebuild_los(s);
 
     s->dead_mob_count = 0;
 
@@ -381,7 +440,6 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     s->wave_spawn_delay = 0;
     s->wave_ready_delay = INF_START_READY_TICKS;
     inf_spawn_wave(s);
-    inf_invalidate_los_cache(s);
 }
 
 static void inf_reset(EncounterState* state, uint32_t seed) {
@@ -394,12 +452,14 @@ static int inf_find_free_npc(InfernoState* s) {
     }
     return -1;
 }
-
-static int inf_grid_index(int x, int y, int* gx, int* gy) {
-    *gx = x - INF_ARENA_MIN_X;
-    *gy = y - INF_ARENA_MIN_Y;
-    return *gx >= 0 && *gx < INF_ARENA_WIDTH && *gy >= 0 && *gy < INF_ARENA_HEIGHT;
+static int inf_grid_index(int x, int y, int* grid_x, int* grid_y) {
+    *grid_x = x - INF_ARENA_MIN_X;
+    *grid_y = y - INF_ARENA_MIN_Y;
+    return *grid_x >= 0 && *grid_x < INF_ARENA_WIDTH &&
+        *grid_y >= 0 && *grid_y < INF_ARENA_HEIGHT;
 }
+
+
 
 static int inf_npc_sets_collision_flag(InfNPCType type) {
     return type != INF_NPC_NIBBLER && type != INF_NPC_ZUK_SHIELD;
@@ -408,62 +468,64 @@ static int inf_npc_sets_collision_flag(InfNPCType type) {
 static int inf_npc_effective_size(const InfNPC* npc) {
     return npc->size > 0 ? npc->size : INF_NPC_STATS[npc->type].size;
 }
-
-static void inf_unstamp_npc_collision_footprint(InfernoState* s, int x, int y, int size) {
+static void inf_unstamp_npc_collision_footprint(
+    InfernoState* s,
+    int x,
+    int y,
+    int size
+) {
     for (int dx = 0; dx < size; dx++) {
         for (int dy = 0; dy < size; dy++) {
-            int gx, gy;
-            if (inf_grid_index(x + dx, y + dy, &gx, &gy)) {
-                if (s->npc_collision_flags[gx][gy] > 0)
-                    s->npc_collision_flags[gx][gy]--;
-            }
+            int grid_x;
+            int grid_y;
+            if (!inf_grid_index(
+                    x + dx, y + dy, &grid_x, &grid_y))
+                continue;
+            if (s->npc_collision_flags[grid_x][grid_y] > 0)
+                s->npc_collision_flags[grid_x][grid_y]--;
         }
     }
 }
 
-static void inf_stamp_npc_collision_footprint(InfernoState* s, int x, int y, int size) {
+static void inf_stamp_npc_collision_footprint(
+    InfernoState* s,
+    int x,
+    int y,
+    int size
+) {
     for (int dx = 0; dx < size; dx++) {
         for (int dy = 0; dy < size; dy++) {
-            int gx, gy;
-            if (inf_grid_index(x + dx, y + dy, &gx, &gy)) {
-                assert(s->npc_collision_flags[gx][gy] < UINT8_MAX);
-                s->npc_collision_flags[gx][gy]++;
-            }
+            int grid_x;
+            int grid_y;
+            if (!inf_grid_index(
+                    x + dx, y + dy, &grid_x, &grid_y))
+                continue;
+            assert(s->npc_collision_flags[grid_x][grid_y] < UINT8_MAX);
+            s->npc_collision_flags[grid_x][grid_y]++;
         }
     }
 }
 
-static void inf_clear_player_collision_flags(InfernoState* s) {
-    memset(s->player_collision_flags, 0, sizeof(s->player_collision_flags));
-}
-
-static void inf_stamp_player_collision_flags(InfernoState* s) {
-    int gx, gy;
-    if (inf_grid_index(s->player.x, s->player.y, &gx, &gy))
-        s->player_collision_flags[gx][gy] = 1;
-}
-
-static void inf_rebuild_player_collision_flags(InfernoState* s) {
-    inf_clear_player_collision_flags(s);
-    inf_stamp_player_collision_flags(s);
-}
-
-static void inf_rebuild_entity_collision_flags(InfernoState* s) {
+static void inf_rebuild_npc_collision_flags(InfernoState* s) {
     memset(s->npc_collision_flags, 0, sizeof(s->npc_collision_flags));
-    inf_rebuild_player_collision_flags(s);
-    for (int i = 0; i < INF_MAX_NPCS; i++) {
-        InfNPC* npc = &s->npcs[i];
-        if (!npc->active) continue;
-        if (!inf_npc_sets_collision_flag(npc->type)) continue;
-        inf_stamp_npc_collision_footprint(s, npc->x, npc->y, inf_npc_effective_size(npc));
+    for (int npc_idx = 0; npc_idx < INF_MAX_NPCS; npc_idx++) {
+        InfNPC* npc = &s->npcs[npc_idx];
+        if (!npc->active ||
+                !inf_npc_sets_collision_flag(npc->type))
+            continue;
+        inf_stamp_npc_collision_footprint(
+            s, npc->x, npc->y, inf_npc_effective_size(npc));
     }
 }
+
+
 
 static void inf_deactivate_npc(InfernoState* s, int idx) {
     if (idx < 0 || idx >= INF_MAX_NPCS) return;
     InfNPC* npc = &s->npcs[idx];
     if (npc->active && inf_npc_sets_collision_flag(npc->type))
-        inf_unstamp_npc_collision_footprint(s, npc->x, npc->y, inf_npc_effective_size(npc));
+        inf_unstamp_npc_collision_footprint(
+            s, npc->x, npc->y, inf_npc_effective_size(npc));
     encounter_pending_hit_queue_clear(&npc->pending_hits);
     npc->active = 0;
 }
@@ -497,9 +559,9 @@ static void inf_init_npc(InfernoState* s, int idx, InfNPCType type, int x, int y
     npc->had_los_last_tick = 0;
     npc->stun_timer = stats->stun_on_spawn;
     inf_npc_init_type_state(npc);
-
     if (inf_npc_sets_collision_flag(type))
         inf_stamp_npc_collision_footprint(s, x, y, stats->size);
+
 }
 
 static int inf_find_first_active_npc_of_type(const InfernoState* s, InfNPCType type) {
@@ -574,9 +636,8 @@ static void inf_spawn_wave(InfernoState* s) {
     const InfWaveDef* w = &INF_WAVES[s->wave];
 
     for (int i = 0; i < INF_MAX_NPCS; i++) s->npcs[i].active = 0;
-    encounter_pending_hit_queue_clear(&s->player_pending_hits);
     memset(s->npc_collision_flags, 0, sizeof(s->npc_collision_flags));
-    inf_rebuild_player_collision_flags(s);
+    encounter_pending_hit_queue_clear(&s->player_pending_hits);
 
     s->dead_mob_count = 0;
 
@@ -593,21 +654,17 @@ static void inf_spawn_wave(InfernoState* s) {
     }
 
     if (s->wave >= 66) {
-        int pillars_changed = 0;
         for (int p = 0; p < INF_NUM_PILLARS; p++) {
             if (s->pillars[p].active) {
                 s->pillars[p].active = 0;
                 s->pillars[p].hp = 0;
-                pillars_changed = 1;
             }
         }
-        if (pillars_changed) inf_rebuild_los(s);
     }
 
     if (s->wave == 66) {
         s->player.x = 18;
         s->player.y = 32;
-        inf_rebuild_player_collision_flags(s);
         int slot = inf_find_free_npc(s);
         if (slot >= 0) {
             inf_init_npc(s, slot, INF_NPC_JAD, 23, 30);
@@ -620,7 +677,6 @@ static void inf_spawn_wave(InfernoState* s) {
     if (s->wave == 67) {
         s->player.x = 25;
         s->player.y = 30;
-        inf_rebuild_player_collision_flags(s);
         int stuns[3] = { 1, 4, 7 };
         for (int i = 2; i > 0; i--) {
             int j = encounter_rand_int(&s->rng_state, i + 1);
@@ -669,7 +725,6 @@ static void inf_spawn_wave(InfernoState* s) {
 
         s->player.x = INF_ZUK_PLAYER_START_X;
         s->player.y = INF_ZUK_PLAYER_START_Y;
-        inf_rebuild_player_collision_flags(s);
         inf_seed_joseph_zuk_checkpoint(s);
         return;
     }

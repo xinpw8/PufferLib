@@ -8,9 +8,10 @@
 #include <sys/types.h>
 
 #include "ocean/osrs/encounters/encounter_inferno.h"
+#include "ocean/osrs/tests/osrs_route_reference.h"
 
-#define EXACT_MAGIC "INFEXACTv1"
-#define EXACT_VERSION 1u
+#define EXACT_MAGIC "INFEXACTv2"
+#define EXACT_VERSION 2u
 #define EXACT_CHUNK_BYTES 65536
 #define EXACT_ROLLOUT_STEPS 64
 #define EXACT_ENV_SEED 0x01FEC0DEu
@@ -21,9 +22,7 @@ typedef struct {
     uint32_t version;
     uint32_t state_size;
     uint32_t forecast_size;
-    uint32_t forecast_obs_size;
     uint32_t obs_size;
-    uint32_t action_features;
     uint32_t record_count;
 } InfExactFileHeader;
 
@@ -40,7 +39,6 @@ typedef struct {
     uint32_t forecast_size;
     uint64_t state_hash;
     uint64_t forecast_hash;
-    uint64_t forecast_obs_hash;
     uint64_t obs_hash;
     float reward;
 } InfExactRecordHeader;
@@ -103,9 +101,7 @@ static void exact_writer_open(InfExactWriter* writer, const char* path) {
     header.version = EXACT_VERSION;
     header.state_size = (uint32_t)sizeof(InfernoState);
     header.forecast_size = (uint32_t)sizeof(InfStepOutForecast);
-    header.forecast_obs_size = INF_STEP_OUT_FORECAST_OBS_SIZE;
     header.obs_size = INF_NUM_OBS;
-    header.action_features = INF_STEP_OUT_FORECAST_ACTION_FEATURES;
     exact_write_all(writer->file, &header, sizeof(header));
 }
 
@@ -115,9 +111,7 @@ static void exact_writer_close(InfExactWriter* writer) {
     header.version = EXACT_VERSION;
     header.state_size = (uint32_t)sizeof(InfernoState);
     header.forecast_size = (uint32_t)sizeof(InfStepOutForecast);
-    header.forecast_obs_size = INF_STEP_OUT_FORECAST_OBS_SIZE;
     header.obs_size = INF_NUM_OBS;
-    header.action_features = INF_STEP_OUT_FORECAST_ACTION_FEATURES;
     header.record_count = writer->record_count;
     if (fseek(writer->file, 0, SEEK_SET) != 0) {
         perror("seek inferno exact fixture");
@@ -131,6 +125,28 @@ static void exact_writer_close(InfExactWriter* writer) {
     writer->file = NULL;
 }
 
+static void exact_canonicalize_state(InfernoState* state) {
+#ifdef OSRS_INTERACTION_SERIALIZED_ROUTE_BYTES
+    osrs_interaction_zero_serialized_route_padding(&state->player.interaction);
+    osrs_interaction_zero_serialized_route_padding(&state->interaction);
+#else
+    memset(&state->player.interaction.route, 0, sizeof(state->player.interaction.route));
+    memset(&state->interaction.route, 0, sizeof(state->interaction.route));
+#endif
+    memset(
+        state->reserved_topology_pillar_storage,
+        0,
+        sizeof(state->reserved_topology_pillar_storage));
+    memset(
+        state->reserved_topology_npc_storage,
+        0,
+        sizeof(state->reserved_topology_npc_storage));
+    memset(
+        state->reserved_topology_player_footprint_storage,
+        0,
+        sizeof(state->reserved_topology_player_footprint_storage));
+}
+
 static void exact_capture(
     InfExactWriter* writer,
     uint32_t scenario_id,
@@ -140,14 +156,12 @@ static void exact_capture(
     InfernoContext* ctx
 ) {
     InfStepOutForecast forecast;
-    float forecast_obs[INF_STEP_OUT_FORECAST_OBS_SIZE];
     float obs[INF_NUM_OBS];
 
     inf_build_step_out_forecast_ctx(s, ctx, &forecast);
     inf_write_obs_ctx((EncounterState*)s, (EncounterContext*)ctx, obs);
-    int forecast_obs_offset =
-        INF_PLAYER_OBS_SIZE + INF_PILLAR_OBS_SIZE + INF_TOTAL_NPC_OBS_SIZE;
-    memcpy(forecast_obs, &obs[forecast_obs_offset], sizeof(forecast_obs));
+    InfernoState canonical_state = *s;
+    exact_canonicalize_state(&canonical_state);
 
     InfExactRecordHeader record = {0};
     record.scenario_id = scenario_id;
@@ -161,17 +175,15 @@ static void exact_capture(
     record.state_size = (uint32_t)sizeof(*s);
     record.obs_size = INF_NUM_OBS;
     record.forecast_size = (uint32_t)sizeof(forecast);
-    record.state_hash = exact_hash_bytes(s, sizeof(*s));
+    record.state_hash = exact_hash_bytes(&canonical_state, sizeof(canonical_state));
     record.forecast_hash = exact_hash_bytes(&forecast, sizeof(forecast));
-    record.forecast_obs_hash = exact_hash_bytes(forecast_obs, sizeof(forecast_obs));
     record.obs_hash = exact_hash_bytes(obs, sizeof(obs));
     record.reward = inf_get_reward_ctx((EncounterState*)s, (EncounterContext*)ctx);
 
     exact_write_all(writer->file, &record, sizeof(record));
     exact_write_all(writer->file, &forecast, sizeof(forecast));
-    exact_write_all(writer->file, forecast_obs, sizeof(forecast_obs));
     exact_write_all(writer->file, obs, sizeof(obs));
-    exact_write_all(writer->file, s, sizeof(*s));
+    exact_write_all(writer->file, &canonical_state, sizeof(canonical_state));
     writer->record_count++;
 }
 
@@ -205,12 +217,88 @@ static void exact_init_state(
         (EncounterContext*)ctx,
         "start_wave",
         public_start_wave);
-    inf_put_int_ctx(
-        (EncounterState*)s,
-        (EncounterContext*)ctx,
-        "step_out_forecast_obs_mode",
-        INF_STEP_OUT_FORECAST_MODE_EXACT_ROLLOUT);
+    inf_finalize_route_topology(ctx);
     inf_reset_ctx((EncounterState*)s, (EncounterContext*)ctx, seed);
+}
+typedef struct {
+    InfernoState* state;
+    InfernoContext* context;
+} InfExactRouteContext;
+
+static int exact_inferno_route_blocked(
+    void* data,
+    int x,
+    int y,
+    int size
+) {
+    InfExactRouteContext* route_ctx = (InfExactRouteContext*)data;
+    return inf_footprint_blocked_ctx(
+        route_ctx->state, route_ctx->context, x, y, size);
+}
+
+static int exact_inferno_can_attack(
+    void* data,
+    int player_x,
+    int player_y,
+    int target_x,
+    int target_y,
+    int target_size,
+    int attack_range
+) {
+    InfExactRouteContext* route_ctx = (InfExactRouteContext*)data;
+    OsrsLosQuery query = inf_player_los_query(route_ctx->state);
+    return encounter_player_can_attack(
+        player_x,
+        player_y,
+        target_x,
+        target_y,
+        target_size,
+        attack_range,
+        route_ctx->context->collision_map,
+        route_ctx->context->world_offset_x,
+        route_ctx->context->world_offset_y,
+        &query);
+}
+
+static void exact_inferno_route_equivalence(void) {
+    InfernoState state;
+    InfernoContext context;
+    exact_init_state(&state, &context, 1, EXACT_ENV_SEED);
+    InfExactRouteContext route_ctx = {
+        .state = &state,
+        .context = &context,
+    };
+    static const int attack_ranges[] = {1, 5, 10};
+    uint64_t checks = osrs_reference_route_exhaustive(
+        "all-pillars",
+        context.route_topology,
+        (EncounterRouteBlockers){
+            .is_blocked = exact_inferno_route_blocked,
+            .ctx = &route_ctx,
+            .revision = inf_player_route_blocker_revision(&state),
+        },
+        5,
+        attack_ranges,
+        3,
+        exact_inferno_can_attack,
+        &route_ctx);
+    state.pillars[1].active = 0;
+    checks += osrs_reference_route_exhaustive(
+        "middle-pillar-collapsed",
+        context.route_topology,
+        (EncounterRouteBlockers){
+            .is_blocked = exact_inferno_route_blocked,
+            .ctx = &route_ctx,
+            .revision = inf_player_route_blocker_revision(&state),
+        },
+        5,
+        attack_ranges,
+        3,
+        exact_inferno_can_attack,
+        &route_ctx);
+    printf(
+        "inferno exhaustive route equivalence PASS: %llu source-target-range queries across 2 blocker fields\n",
+        (unsigned long long)checks);
 }
 
 static void exact_run_wave_rollout(
@@ -246,6 +334,13 @@ static void exact_generate_fixture(const char* path) {
     exact_writer_close(&writer);
 }
 
+static void exact_read_all(FILE* file, void* data, size_t size) {
+    if (fread(data, 1, size, file) != size) {
+        fprintf(stderr, "truncated inferno exact fixture\n");
+        abort();
+    }
+}
+
 static int exact_compare_files(const char* expected_path, const char* actual_path) {
     FILE* expected = fopen(expected_path, "rb");
     if (!expected) {
@@ -258,46 +353,103 @@ static int exact_compare_files(const char* expected_path, const char* actual_pat
         abort();
     }
 
-    uint8_t expected_buf[EXACT_CHUNK_BYTES];
-    uint8_t actual_buf[EXACT_CHUNK_BYTES];
-    uint64_t offset = 0;
-    for (;;) {
-        size_t ne = fread(expected_buf, 1, sizeof(expected_buf), expected);
-        size_t na = fread(actual_buf, 1, sizeof(actual_buf), actual);
-        if (ne != na) {
-            printf("inferno exact mismatch: size differs at byte %llu\n",
-                (unsigned long long)offset);
+    InfExactFileHeader expected_file;
+    InfExactFileHeader actual_file;
+    exact_read_all(expected, &expected_file, sizeof(expected_file));
+    exact_read_all(actual, &actual_file, sizeof(actual_file));
+    if (memcmp(&expected_file, &actual_file, sizeof(expected_file)) != 0) {
+        printf("inferno exact mismatch: file header\n");
+        fclose(expected);
+        fclose(actual);
+        return 1;
+    }
+
+    for (uint32_t index = 0; index < expected_file.record_count; index++) {
+        InfExactRecordHeader expected_record;
+        InfExactRecordHeader actual_record;
+        InfStepOutForecast expected_forecast;
+        InfStepOutForecast actual_forecast;
+        float expected_obs[INF_NUM_OBS];
+        float actual_obs[INF_NUM_OBS];
+        InfernoState expected_state;
+        InfernoState actual_state;
+        exact_read_all(expected, &expected_record, sizeof(expected_record));
+        exact_read_all(actual, &actual_record, sizeof(actual_record));
+        exact_read_all(expected, &expected_forecast, sizeof(expected_forecast));
+        exact_read_all(actual, &actual_forecast, sizeof(actual_forecast));
+        exact_read_all(expected, expected_obs, sizeof(expected_obs));
+        exact_read_all(actual, actual_obs, sizeof(actual_obs));
+        exact_read_all(expected, &expected_state, sizeof(expected_state));
+        exact_read_all(actual, &actual_state, sizeof(actual_state));
+
+        if (exact_hash_bytes(&expected_state, sizeof(expected_state)) !=
+                    expected_record.state_hash ||
+                exact_hash_bytes(&actual_state, sizeof(actual_state)) !=
+                    actual_record.state_hash) {
+            printf("inferno exact fixture state hash mismatch at record %u\n", index);
             fclose(expected);
             fclose(actual);
             return 1;
         }
-        if (ne == 0) break;
-        if (memcmp(expected_buf, actual_buf, ne) != 0) {
-            for (size_t i = 0; i < ne; i++) {
-                if (expected_buf[i] == actual_buf[i]) continue;
-                printf("inferno exact mismatch at byte %llu: expected %u got %u\n",
-                    (unsigned long long)(offset + i),
-                    (unsigned)expected_buf[i],
-                    (unsigned)actual_buf[i]);
-                fclose(expected);
-                fclose(actual);
-                return 1;
+        exact_canonicalize_state(&expected_state);
+        exact_canonicalize_state(&actual_state);
+        expected_record.state_hash =
+            exact_hash_bytes(&expected_state, sizeof(expected_state));
+        actual_record.state_hash =
+            exact_hash_bytes(&actual_state, sizeof(actual_state));
+        if (memcmp(&expected_record, &actual_record, sizeof(expected_record)) != 0 ||
+                memcmp(&expected_forecast, &actual_forecast, sizeof(expected_forecast)) != 0 ||
+                memcmp(expected_obs, actual_obs, sizeof(expected_obs)) != 0 ||
+                memcmp(&expected_state, &actual_state, sizeof(expected_state)) != 0) {
+            printf(
+                "inferno exact mismatch at record %u scenario %u step %u\n",
+                index,
+                expected_record.scenario_id,
+                expected_record.step_index);
+            const uint8_t* expected_bytes = (const uint8_t*)&expected_state;
+            const uint8_t* actual_bytes = (const uint8_t*)&actual_state;
+            for (size_t byte = 0; byte < sizeof(expected_state); byte++) {
+                if (expected_bytes[byte] == actual_bytes[byte]) continue;
+                printf(
+                    "first state byte mismatch offset=%zu expected=%u actual=%u player expected=(%d,%d) actual=(%d,%d)\n",
+                    byte,
+                    (unsigned)expected_bytes[byte],
+                    (unsigned)actual_bytes[byte],
+                    expected_state.player.x,
+                    expected_state.player.y,
+                    actual_state.player.x,
+                    actual_state.player.y);
+                break;
             }
+            fclose(expected);
+            fclose(actual);
+            return 1;
         }
-        offset += (uint64_t)ne;
     }
 
+    int expected_tail = fgetc(expected);
+    int actual_tail = fgetc(actual);
     fclose(expected);
     fclose(actual);
+    if (expected_tail != EOF || actual_tail != EOF) {
+        printf("inferno exact mismatch: trailing data\n");
+        return 1;
+    }
     return 0;
 }
 
 int main(int argc, char** argv) {
+    if (argc == 2 && strcmp(argv[1], "--attack-route-selftest") == 0) {
+        inf_build_npc_stats();
+        exact_inferno_route_equivalence();
+        return 0;
+    }
     if (argc != 3 ||
             (strcmp(argv[1], "--write-golden") != 0 &&
              strcmp(argv[1], "--compare") != 0)) {
         fprintf(stderr,
-            "usage: %s --write-golden DIR | --compare DIR\n", argv[0]);
+            "usage: %s --attack-route-selftest | --write-golden DIR | --compare DIR\n",
+            argv[0]);
         return 2;
     }
 

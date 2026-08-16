@@ -66,8 +66,7 @@ static uint64_t run_episode(const GoldenConfig* cfg, int max_ticks) {
 
     col_init_context_typed(&ctx);
     ctx.config.start_wave = cfg->public_start_wave - 1;
-    ctx.config.step_out_forecast_obs_enabled = 1;
-    ctx.config.forecast_horizon = 4;
+    col_finalize_route_topology(&ctx);
 
     memset(&s, 0, sizeof(s));
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, cfg->env_seed);
@@ -183,19 +182,20 @@ static const GoldenConfig CONFIGS[] = {
 #define NUM_CONFIGS ((int)(sizeof(CONFIGS) / sizeof(CONFIGS[0])))
 #define EPISODE_TICKS 4000
 
+/* Re-seeded after the canonical inventory and equipment observation cutover. */
 static const uint64_t BASELINE[NUM_CONFIGS] = {
-    0x6b648dbd26450b82ULL,
-    0xd25dd5f73aea2df6ULL,
-    0x137d8011443b61f8ULL,
-    0xeb82de91da34947dULL,
-    0xf10a60721a18d0ecULL,
-    0xef3182c4eebbaeb5ULL,
-    0x63f92c48e77deeecULL,
-    0x4e15c78ede861b01ULL,
-    0x4b420b3e18d846ebULL,
-    0x054f146530962087ULL,
-    0x4b5835b98fc7d4b0ULL,
-    0xae22f0ac054585aaULL,
+    0x51537d0fc2e421deULL,
+    0xf67cadfd982ad1f9ULL,
+    0x7645fd997d792642ULL,
+    0xe332936ca669006dULL,
+    0x570f75972875ccf7ULL,
+    0x10152aff5f56c2c1ULL,
+    0xf8b757f054d16911ULL,
+    0x0ef2d74e21c99aafULL,
+    0x0d47de8319cb77e4ULL,
+    0x9df4fb8c24dffbd6ULL,
+    0x70d83553f5658edfULL,
+    0x0f5bf824e69f1941ULL,
 };
 
 int main(int argc, char** argv) {

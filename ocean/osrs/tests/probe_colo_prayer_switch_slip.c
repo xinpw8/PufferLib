@@ -11,6 +11,7 @@ static void prep(ColosseumContext* ctx, ColosseumState* s, float fail_prob) {
 
     ENCOUNTER_COLOSSEUM.put_float((EncounterState*)s, (EncounterContext*)ctx,
         "prayer_switch_fail_prob", fail_prob);
+    col_finalize_route_topology(ctx);
     s->player.prayer = PRAYER_PROTECT_RANGED;
     s->player.current_prayer = 990;
     s->player.prayer_just_activated = 0;

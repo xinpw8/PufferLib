@@ -5,6 +5,14 @@
 #define INF_ARENA_MAX_Y    43
 #define INF_ARENA_WIDTH    (INF_ARENA_MAX_X - INF_ARENA_MIN_X + 1)
 #define INF_ARENA_HEIGHT   (INF_ARENA_MAX_Y - INF_ARENA_MIN_Y + 1)
+#define INF_TOPOLOGY_MIN_X 4
+#define INF_TOPOLOGY_MAX_X 43
+#define INF_TOPOLOGY_MIN_Y 5
+#define INF_TOPOLOGY_MAX_Y 55
+#define INF_TOPOLOGY_WIDTH \
+    (INF_TOPOLOGY_MAX_X - INF_TOPOLOGY_MIN_X + 1)
+#define INF_TOPOLOGY_HEIGHT \
+    (INF_TOPOLOGY_MAX_Y - INF_TOPOLOGY_MIN_Y + 1)
 
 #define INF_PLAYER_START_X 25
 #define INF_PLAYER_START_Y 16
@@ -39,7 +47,7 @@ static const int INF_SPAWN_POS[INF_NUM_SPAWN_POS][2] = {
 #define INF_WAVE_ZUK      (INF_NUM_WAVES - 1)
 #define INF_START_WAVE_ZUK_JAD      (INF_WAVE_ZUK + 1)
 #define INF_MAX_PUBLIC_START_WAVE   (INF_NUM_WAVES + 2)
-#define INF_NUM_ACTION_HEADS 9
+#define INF_NUM_ACTION_HEADS OSRS_BASE_NUM_ACTION_HEADS
 
 typedef enum {
     INF_NPC_NIBBLER = 0,
@@ -130,6 +138,11 @@ typedef struct {
     int can_move;
 } InfNPCStats;
 
+/** attack_decision_ticks: ticks between inf_npc_attack decisions, when that is
+    not MONSTER_DATABASE attack_speed. 0 means use the database. Jal-Ak is the
+    only deviation: the wiki gives it attack speed 6 and a protection-prayer
+    scan 3 ticks before each attack, and inferno spends one decision on the scan
+    and one on the attack, so its decision cadence is half its attack speed. */
 typedef struct {
     int attack_range;
     AttackStyle default_style;
@@ -140,6 +153,7 @@ typedef struct {
     int max_hit_cap;
     int stun_on_spawn;
     int can_move;
+    int attack_decision_ticks;
 } InfNPCOverlay;
 
 static const MonsterIndex INF_NPC_TO_MON[INF_NUM_NPC_TYPES] = {
@@ -160,20 +174,20 @@ static const MonsterIndex INF_NPC_TO_MON[INF_NUM_NPC_TYPES] = {
 };
 
 static const InfNPCOverlay INF_NPC_OVERLAY[INF_NUM_NPC_TYPES] = {
-    [INF_NPC_NIBBLER]    = { 1,  ATTACK_STYLE_MELEE,  MELEE_STYLE_CRUSH, 0,   0,   0, 0, 1, 1 },
-    [INF_NPC_BAT]        = { 4,  ATTACK_STYLE_RANGED, MELEE_STYLE_STAB,  0,   0,   0, 0, 0, 1 },
-    [INF_NPC_BLOB]       = { 15, ATTACK_STYLE_MAGIC,  MELEE_STYLE_CRUSH, 1,  29, 100, 0, 0, 1 },
-    [INF_NPC_BLOB_MELEE] = { 1,  ATTACK_STYLE_MELEE,  MELEE_STYLE_CRUSH, 0,   0,   0, 0, 0, 1 },
-    [INF_NPC_BLOB_RANGE] = { 15, ATTACK_STYLE_RANGED, MELEE_STYLE_STAB,  0,   0,   0, 0, 0, 1 },
-    [INF_NPC_BLOB_MAGE]  = { 15, ATTACK_STYLE_MAGIC,  MELEE_STYLE_STAB,  0,  18, 100, 0, 0, 1 },
-    [INF_NPC_MELEER]     = { 1,  ATTACK_STYLE_MELEE,  MELEE_STYLE_SLASH, 0,   0,   0, 0, 0, 1 },
-    [INF_NPC_RANGER]     = { 15, ATTACK_STYLE_RANGED, MELEE_STYLE_CRUSH, 1,   0,   0, 0, 0, 1 },
-    [INF_NPC_MAGER]      = { 15, ATTACK_STYLE_MAGIC,  MELEE_STYLE_STAB,  1,  70, 100, 0, 0, 1 },
-    [INF_NPC_JAD]        = { 50, ATTACK_STYLE_RANGED, MELEE_STYLE_STAB,  1, 113, 100, 113, 0, 1 },
-    [INF_NPC_ZUK]        = { 99, ATTACK_STYLE_MAGIC,  MELEE_STYLE_STAB,  0, 148, 100, 0, 8, 0 },
-    [INF_NPC_HEALER_JAD] = { 1,  ATTACK_STYLE_MELEE,  MELEE_STYLE_CRUSH, 0,   0,   0, 0, 1, 1 },
-    [INF_NPC_HEALER_ZUK] = { 99, ATTACK_STYLE_MAGIC,  MELEE_STYLE_STAB,  0,  10, 100, 0, 1, 0 },
-    [INF_NPC_ZUK_SHIELD] = { 0,  ATTACK_STYLE_NONE,   MELEE_STYLE_STAB,  0,   0,   0, 0, 1, 0 },
+    [INF_NPC_NIBBLER]    = { 1,  ATTACK_STYLE_MELEE,  MELEE_STYLE_CRUSH, 0,   0,   0, 0, 1, 1, 0 },
+    [INF_NPC_BAT]        = { 4,  ATTACK_STYLE_RANGED, MELEE_STYLE_STAB,  0,   0,   0, 0, 0, 1, 0 },
+    [INF_NPC_BLOB]       = { 15, ATTACK_STYLE_MAGIC,  MELEE_STYLE_CRUSH, 1,  29, 100, 0, 0, 1, 3 },
+    [INF_NPC_BLOB_MELEE] = { 1,  ATTACK_STYLE_MELEE,  MELEE_STYLE_CRUSH, 0,   0,   0, 0, 0, 1, 0 },
+    [INF_NPC_BLOB_RANGE] = { 15, ATTACK_STYLE_RANGED, MELEE_STYLE_STAB,  0,   0,   0, 0, 0, 1, 0 },
+    [INF_NPC_BLOB_MAGE]  = { 15, ATTACK_STYLE_MAGIC,  MELEE_STYLE_STAB,  0,  18, 100, 0, 0, 1, 0 },
+    [INF_NPC_MELEER]     = { 1,  ATTACK_STYLE_MELEE,  MELEE_STYLE_SLASH, 0,   0,   0, 0, 0, 1, 0 },
+    [INF_NPC_RANGER]     = { 15, ATTACK_STYLE_RANGED, MELEE_STYLE_CRUSH, 1,   0,   0, 0, 0, 1, 0 },
+    [INF_NPC_MAGER]      = { 15, ATTACK_STYLE_MAGIC,  MELEE_STYLE_STAB,  1,  70, 100, 0, 0, 1, 0 },
+    [INF_NPC_JAD]        = { 50, ATTACK_STYLE_RANGED, MELEE_STYLE_STAB,  1, 113, 100, 113, 0, 1, 0 },
+    [INF_NPC_ZUK]        = { 99, ATTACK_STYLE_MAGIC,  MELEE_STYLE_STAB,  0, 148, 100, 0, 8, 0, 0 },
+    [INF_NPC_HEALER_JAD] = { 1,  ATTACK_STYLE_MELEE,  MELEE_STYLE_CRUSH, 0,   0,   0, 0, 1, 1, 0 },
+    [INF_NPC_HEALER_ZUK] = { 99, ATTACK_STYLE_MAGIC,  MELEE_STYLE_STAB,  0,  10, 100, 0, 1, 0, 0 },
+    [INF_NPC_ZUK_SHIELD] = { 0,  ATTACK_STYLE_NONE,   MELEE_STYLE_STAB,  0,   0,   0, 0, 1, 0, 0 },
 };
 
 static InfNPCStats INF_NPC_STATS[INF_NUM_NPC_TYPES];
@@ -185,8 +199,9 @@ static void inf_build_npc_stats(void) {
         InfNPCStats* s = &INF_NPC_STATS[i];
 
         s->hp              = m->hp;
-        s->attack_speed    = m->attack_speed;
-        if (i == INF_NPC_BLOB) s->attack_speed = 3;
+        s->attack_speed    = o->attack_decision_ticks > 0
+            ? o->attack_decision_ticks
+            : m->attack_speed;
         s->size            = m->size;
         s->att_level       = m->att_level;
         s->str_level       = m->str_level;
@@ -316,8 +331,8 @@ static const InfWaveDef INF_WAVES[INF_NUM_WAVES] = {
     #undef W
 };
 
-#define INF_MAX_NPCS      32
-#define INF_OBS_NPCS      37
+#define INF_MAX_NPCS      37
+#define INF_OBS_NPCS      14
 #define INF_START_READY_TICKS 6
 
 #define INF_MAX_DEAD_MOBS 16
@@ -603,13 +618,6 @@ enum {
 };
 
 enum {
-    INF_STEP_OUT_FORECAST_MODE_OFF = 0,
-    INF_STEP_OUT_FORECAST_MODE_EXACT_ROLLOUT = 1,
-    INF_STEP_OUT_FORECAST_MODE_FAST_STATIC_TILE = 2,
-    INF_STEP_OUT_FORECAST_MODE_FAST_READONLY_MOVE = 3,
-};
-
-enum {
     INF_CURRICULUM_SUPPLY_MODE_OFF = 0,
     INF_CURRICULUM_SUPPLY_MODE_ALL = 1,
     INF_CURRICULUM_SUPPLY_MODE_ZUK = 2,
@@ -664,8 +672,6 @@ typedef struct {
     float supply_milestone_restore_reward_coeff;
     float death_penalty_coeff;
     int terminal_penalty_enabled;
-    int step_out_forecast_obs_enabled;
-    int step_out_forecast_obs_mode;
     float phase_900_bonus;
     float phase_600_bonus;
     float phase_300_bonus;
@@ -693,7 +699,6 @@ typedef struct {
     int zuk_healer_reward_mode;
     float post_jad_zuk_multiplier;
     float jad_alive_zuk_multiplier;
-    int oracle_mode;
     float shield_tag_reward_coeff;
     int joseph_reward_mode;
 } InfConfig;
@@ -701,6 +706,9 @@ typedef struct {
 typedef struct {
     InfConfig config;
     const CollisionMap* collision_map;
+    const EncounterArenaTopology* route_topology;
+    OsrsActorRouteCache player_route_cache;
+    int8_t npc_player_los_frame[INF_MAX_NPCS];
     int world_offset_x;
     int world_offset_y;
     Log* log;
@@ -747,6 +755,13 @@ typedef struct {
     int brewed;
     int blood_heal;
 } InfTickScratch;
+typedef struct {
+    uint16_t content_code;
+    uint8_t click_action;
+    uint8_t consumable_kind;
+} InfInventoryClickMemo;
+
+static_assert(sizeof(InfInventoryClickMemo) == 4, "Inferno inventory click memo size");
 
 typedef struct {
     Player player;
@@ -756,14 +771,15 @@ typedef struct {
     InfNPC npcs[INF_MAX_NPCS];
     uint32_t next_npc_render_id;
     int current_obs_slots[INF_OBS_NPCS];
+    uint8_t current_obs_slots_valid;
     InfPillar pillars[INF_NUM_PILLARS];
     InfZukState zuk;
 
     InfDeadMob dead_mobs[INF_MAX_DEAD_MOBS];
     int dead_mob_count;
 
-    LOSBlocker los_blockers[INF_NUM_PILLARS];
-    int los_blocker_count;
+    uint8_t reserved_topology_pillar_storage[
+        sizeof(int) * (4 * INF_NUM_PILLARS + 1)];
 
     int wave;
     int wave_spawn_target;
@@ -829,11 +845,6 @@ typedef struct {
     int total_target_available_no_attack_ticks;
     int total_safe_attack_opportunity_missed_ticks;
     int total_progressless_ticks;
-    float total_npc_pressure_if_ready_count;
-    float total_npc_pressure_this_tick_count;
-    float total_npc_pressure_if_ready_max_hit;
-    float total_npc_pressure_this_tick_max_hit;
-    float max_npc_pressure_incoming_hit;
     int attack_ready_no_attack_ticks_by_phase[OSRS_INFERNO_IDLE_PHASE_COUNT];
     int target_available_no_attack_ticks_by_phase[OSRS_INFERNO_IDLE_PHASE_COUNT];
     int safe_attack_opportunity_missed_ticks_by_phase[OSRS_INFERNO_IDLE_PHASE_COUNT];
@@ -855,6 +866,8 @@ typedef struct {
     InfWeaponSet weapon_set;
     InfLoadoutProfile active_loadout_profile;
     EncounterLoadoutStats loadout_stats[INF_NUM_WEAPON_SETS];
+    InfInventoryClickMemo inventory_click_memos[OSRS_INVENTORY_SIZE];
+    EncounterLoadoutStats live_stats;
     EncounterLoadoutStats human_loadout_stats;
     int stamina_active_ticks;
 
@@ -873,10 +886,10 @@ typedef struct {
 
     int player_dest_x, player_dest_y;
 
-    int8_t npc_los_cache[INF_MAX_NPCS];
-
+    uint8_t reserved_topology_npc_storage[INF_MAX_NPCS];
     uint8_t npc_collision_flags[INF_ARENA_WIDTH][INF_ARENA_HEIGHT];
-    uint8_t player_collision_flags[INF_ARENA_WIDTH][INF_ARENA_HEIGHT];
+    uint8_t reserved_topology_player_footprint_storage[
+        INF_ARENA_WIDTH * INF_ARENA_HEIGHT];
 
     int start_wave;
     uint32_t rng_state;
@@ -901,12 +914,8 @@ typedef struct {
     int total_zuk_healer_out_of_range_ticks;
     int total_zuk_healer_attackable_ticks;
     int total_action_mask_checks;
-    int zero_valid_action_head_count[9];
-    int min_valid_action_count_by_head[9];
-    int target_head_valid_healer_count;
-    int target_head_valid_zuk_count;
-    int target_head_valid_set_count;
     int total_shield_tags;
     float total_hp_restored_jad;
     float total_hp_restored_zuk;
 } InfernoState;
+static_assert(sizeof(InfernoState) == 27012, "InfernoState serialized layout");

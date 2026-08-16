@@ -2,6 +2,7 @@
 #define OSRS_PVP_GEAR_H
 
 #include "osrs_types.h"
+#include "osrs_policy.h"
 #include "osrs_items.h"
 #include "osrs_inventory.h"
 #include "osrs_combat.h"
@@ -34,6 +35,8 @@ static const uint8_t MELEE_WEAPON_PRIORITY[] = {
 static const uint8_t RANGE_WEAPON_PRIORITY[] = {
     ITEM_MORRIGANS_JAVELIN, ITEM_ZARYTE_CROSSBOW, ITEM_ARMADYL_CROSSBOW, ITEM_RUNE_CROSSBOW
 };
+#define RANGE_WEAPON_PRIORITY_LEN \
+    (sizeof(RANGE_WEAPON_PRIORITY) / sizeof(RANGE_WEAPON_PRIORITY[0]))
 
 static const uint8_t MAGE_WEAPON_PRIORITY[] = {
     ITEM_ZURIELS_STAFF, ITEM_KODAI_WAND, ITEM_VOLATILE_STAFF,
@@ -216,15 +219,29 @@ static inline int slot_equip_item(Player* p, int gear_slot, uint8_t item_idx) {
     return 1;
 }
 
-static inline int player_has_item_in_slot(Player* p, int gear_slot, uint8_t item_idx) {
-    for (int i = 0; i < p->num_items_in_slot[gear_slot]; i++) {
-        if (p->inventory[gear_slot][i] == item_idx) return 1;
+static inline int pvp_inventory_cell_with_item(
+    const Player* p,
+    uint8_t item_idx
+) {
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        if (osrs_inventory_cell_item_index(&p->inventory_cells[cell]) == item_idx)
+            return cell;
     }
-    return 0;
+    return -1;
+}
+
+static inline int player_has_item_in_slot(
+    const Player* p,
+    int gear_slot,
+    uint8_t item_idx
+) {
+    if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) return 0;
+    if (p->equipped[gear_slot] == item_idx) return 1;
+    return pvp_inventory_cell_with_item(p, item_idx) >= 0;
 }
 
 static inline uint8_t find_best_available(
-    Player* p, int gear_slot,
+    const Player* p, int gear_slot,
     const uint8_t* priority, int priority_len
 ) {
     for (int i = 0; i < priority_len; i++) {
@@ -235,19 +252,19 @@ static inline uint8_t find_best_available(
     return ITEM_NONE;
 }
 
-static inline uint8_t find_best_melee_spec(Player* p) {
+static inline uint8_t find_best_melee_spec(const Player* p) {
     return find_best_available(p, GEAR_SLOT_WEAPON, MELEE_SPEC_PRIORITY, MELEE_SPEC_PRIORITY_LEN);
 }
 
-static inline uint8_t find_best_ranged_spec(Player* p) {
+static inline uint8_t find_best_ranged_spec(const Player* p) {
     return find_best_available(p, GEAR_SLOT_WEAPON, RANGE_SPEC_PRIORITY, RANGE_SPEC_PRIORITY_LEN);
 }
 
-static inline uint8_t find_best_magic_spec(Player* p) {
+static inline uint8_t find_best_magic_spec(const Player* p) {
     return find_best_available(p, GEAR_SLOT_WEAPON, MAGIC_SPEC_PRIORITY, MAGIC_SPEC_PRIORITY_LEN);
 }
 
-static inline int player_has_gmaul(Player* p) {
+static inline int player_has_gmaul(const Player* p) {
     return player_has_item_in_slot(p, GEAR_SLOT_WEAPON, ITEM_GRANITE_MAUL);
 }
 
@@ -266,17 +283,24 @@ typedef struct {
     GearPriorityList neck;
     GearPriorityList ring;
     int shield_two_handed_aware;
-} LoadoutPriorities;
+} PvpEquipmentPriorities;
+
+typedef enum {
+    PVP_EQUIPMENT_MELEE = 0,
+    PVP_EQUIPMENT_RANGED,
+    PVP_EQUIPMENT_MAGIC,
+    PVP_EQUIPMENT_TANK,
+    PVP_EQUIPMENT_SPEC_MELEE,
+    PVP_EQUIPMENT_SPEC_RANGED,
+    PVP_EQUIPMENT_SPEC_MAGIC,
+    PVP_EQUIPMENT_GMAUL,
+    PVP_EQUIPMENT_PLAN_COUNT,
+} PvpEquipmentPlan;
 
 #define GEAR_LIST(arr) { arr, (int)(sizeof(arr) / sizeof((arr)[0])) }
 
-/* rows are positional in LOADOUT_* enum order (KEEP hole first, then MELEE,
-   RANGE, MAGE, TANK, SPEC_MELEE, SPEC_RANGE, SPEC_MAGIC); columns are weapon,
-   shield, body, legs, head, cape, neck, ring, shield_two_handed_aware.
-   g++ on the trainer include path cannot compile designated initializers here. */
-static const LoadoutPriorities LOADOUT_PRIORITIES[LOADOUT_GMAUL] = {
-    { {NULL, 0}, {NULL, 0}, {NULL, 0}, {NULL, 0},
-      {NULL, 0}, {NULL, 0}, {NULL, 0}, {NULL, 0}, 0 },
+static const PvpEquipmentPriorities
+PVP_EQUIPMENT_PRIORITIES[PVP_EQUIPMENT_PLAN_COUNT] = {
     { GEAR_LIST(MELEE_WEAPON_PRIORITY), GEAR_LIST(MELEE_SHIELD_PRIORITY),
       GEAR_LIST(TANK_BODY_PRIORITY), GEAR_LIST(TANK_LEGS_PRIORITY),
       GEAR_LIST(TANK_HEAD_PRIORITY), GEAR_LIST(MELEE_CAPE_PRIORITY),
@@ -300,88 +324,96 @@ static const LoadoutPriorities LOADOUT_PRIORITIES[LOADOUT_GMAUL] = {
     { GEAR_LIST(RANGE_SPEC_PRIORITY), GEAR_LIST(TANK_SHIELD_PRIORITY),
       GEAR_LIST(TANK_BODY_PRIORITY), GEAR_LIST(TANK_LEGS_PRIORITY),
       GEAR_LIST(TANK_HEAD_PRIORITY), GEAR_LIST(MAGE_CAPE_PRIORITY),
-      GEAR_LIST(MELEE_NECK_PRIORITY), GEAR_LIST(MELEE_RING_PRIORITY), 1 },
+      GEAR_LIST(MELEE_NECK_PRIORITY), GEAR_LIST(MAGE_RING_PRIORITY), 1 },
     { GEAR_LIST(MAGIC_SPEC_PRIORITY), GEAR_LIST(MAGE_SHIELD_PRIORITY),
       GEAR_LIST(MAGE_BODY_PRIORITY), GEAR_LIST(MAGE_LEGS_PRIORITY),
       GEAR_LIST(MAGE_HEAD_PRIORITY), GEAR_LIST(MAGE_CAPE_PRIORITY),
       GEAR_LIST(MAGE_NECK_PRIORITY), GEAR_LIST(MAGE_RING_PRIORITY), 0 },
+    { GEAR_LIST(MELEE_SPEC_PRIORITY), GEAR_LIST(MELEE_SHIELD_PRIORITY),
+      GEAR_LIST(TANK_BODY_PRIORITY), GEAR_LIST(TANK_LEGS_PRIORITY),
+      GEAR_LIST(TANK_HEAD_PRIORITY), GEAR_LIST(MELEE_CAPE_PRIORITY),
+      GEAR_LIST(MELEE_NECK_PRIORITY), GEAR_LIST(MELEE_RING_PRIORITY), 1 },
 };
 
-/* out[] order must match DYNAMIC_GEAR_SLOTS: weapon, shield, body, legs, head,
-   cape, neck, ring */
-static inline void resolve_loadout(Player* p, int loadout, uint8_t out[NUM_DYNAMIC_GEAR_SLOTS]) {
-    for (int i = 0; i < NUM_DYNAMIC_GEAR_SLOTS; i++) {
-        out[i] = p->equipped[DYNAMIC_GEAR_SLOTS[i]];
-    }
+#undef GEAR_LIST
 
-    if (loadout == LOADOUT_GMAUL) {
+static inline void pvp_resolve_equipment_plan(
+    const Player* p,
+    PvpEquipmentPlan plan,
+    uint8_t out[NUM_DYNAMIC_GEAR_SLOTS]
+) {
+    for (int i = 0; i < NUM_DYNAMIC_GEAR_SLOTS; i++)
+        out[i] = p->equipped[DYNAMIC_GEAR_SLOTS[i]];
+
+    if (plan == PVP_EQUIPMENT_GMAUL) {
         out[0] = ITEM_GRANITE_MAUL;
         out[1] = osrs_suppress_shield_for_two_handed_weapon(out[0], out[1]);
         return;
     }
-    if (loadout < LOADOUT_MELEE || loadout > LOADOUT_SPEC_MAGIC) {
-        return;
-    }
+    if (plan < 0 || plan >= PVP_EQUIPMENT_PLAN_COUNT) return;
 
-    const LoadoutPriorities* lp = &LOADOUT_PRIORITIES[loadout];
-
-    uint8_t weapon = find_best_available(p, GEAR_SLOT_WEAPON, lp->weapon.items, lp->weapon.len);
+    const PvpEquipmentPriorities* priorities = &PVP_EQUIPMENT_PRIORITIES[plan];
+    uint8_t weapon = find_best_available(
+        p, GEAR_SLOT_WEAPON, priorities->weapon.items, priorities->weapon.len);
     if (weapon != ITEM_NONE) out[0] = weapon;
-
-    if (lp->shield_two_handed_aware && item_is_two_handed(out[0])) {
+    if (priorities->shield_two_handed_aware && item_is_two_handed(out[0])) {
         out[1] = osrs_suppress_shield_for_two_handed_weapon(out[0], out[1]);
     } else {
-        uint8_t shield = find_best_available(p, GEAR_SLOT_SHIELD, lp->shield.items, lp->shield.len);
+        uint8_t shield = find_best_available(
+            p, GEAR_SLOT_SHIELD, priorities->shield.items, priorities->shield.len);
         if (shield != ITEM_NONE) out[1] = shield;
     }
-
-    uint8_t body = find_best_available(p, GEAR_SLOT_BODY, lp->body.items, lp->body.len);
+    uint8_t body = find_best_available(
+        p, GEAR_SLOT_BODY, priorities->body.items, priorities->body.len);
     if (body != ITEM_NONE) out[2] = body;
-    uint8_t legs = find_best_available(p, GEAR_SLOT_LEGS, lp->legs.items, lp->legs.len);
+    uint8_t legs = find_best_available(
+        p, GEAR_SLOT_LEGS, priorities->legs.items, priorities->legs.len);
     if (legs != ITEM_NONE) out[3] = legs;
-    uint8_t head = find_best_available(p, GEAR_SLOT_HEAD, lp->head.items, lp->head.len);
+    uint8_t head = find_best_available(
+        p, GEAR_SLOT_HEAD, priorities->head.items, priorities->head.len);
     if (head != ITEM_NONE) out[4] = head;
-    uint8_t cape = find_best_available(p, GEAR_SLOT_CAPE, lp->cape.items, lp->cape.len);
+    uint8_t cape = find_best_available(
+        p, GEAR_SLOT_CAPE, priorities->cape.items, priorities->cape.len);
     if (cape != ITEM_NONE) out[5] = cape;
-    uint8_t neck = find_best_available(p, GEAR_SLOT_NECK, lp->neck.items, lp->neck.len);
+    uint8_t neck = find_best_available(
+        p, GEAR_SLOT_NECK, priorities->neck.items, priorities->neck.len);
     if (neck != ITEM_NONE) out[6] = neck;
-    uint8_t ring = find_best_available(p, GEAR_SLOT_RING, lp->ring.items, lp->ring.len);
+    uint8_t ring = find_best_available(
+        p, GEAR_SLOT_RING, priorities->ring.items, priorities->ring.len);
     if (ring != ITEM_NONE) out[7] = ring;
 }
 
-static inline int apply_loadout(Player* p, int loadout) {
-    if (loadout <= LOADOUT_KEEP || loadout > LOADOUT_GMAUL) return 0;
-
+static inline void pvp_emit_equipment_plan_actions(
+    int* actions,
+    const Player* p,
+    PvpEquipmentPlan plan
+) {
     uint8_t resolved[NUM_DYNAMIC_GEAR_SLOTS];
-    resolve_loadout(p, loadout, resolved);
-
-    int changed = 0;
+    pvp_resolve_equipment_plan(p, plan, resolved);
     for (int i = 0; i < NUM_DYNAMIC_GEAR_SLOTS; i++) {
         int gear_slot = DYNAMIC_GEAR_SLOTS[i];
-        changed += slot_equip_item(p, gear_slot, resolved[i]);
+        if (resolved[i] == ITEM_NONE || resolved[i] == p->equipped[gear_slot])
+            continue;
+        int cell = pvp_inventory_cell_with_item(p, resolved[i]);
+        if (cell >= 0) actions[OSRS_HEAD_EQUIP_SLOT(gear_slot)] = cell + 1;
     }
-
-    return changed;
 }
 
-static inline int is_loadout_active(Player* p, int loadout) {
-    if (loadout <= LOADOUT_KEEP || loadout > LOADOUT_GMAUL) return 0;
-
-    uint8_t resolved[NUM_DYNAMIC_GEAR_SLOTS];
-    resolve_loadout(p, loadout, resolved);
-
-    for (int i = 0; i < NUM_DYNAMIC_GEAR_SLOTS; i++) {
-        int gear_slot = DYNAMIC_GEAR_SLOTS[i];
-        if (p->equipped[gear_slot] != resolved[i]) return 0;
-    }
-    return 1;
-}
-
-static inline int get_current_loadout(Player* p) {
-    for (int l = 1; l <= LOADOUT_GMAUL; l++) {
-        if (is_loadout_active(p, l)) return l;
-    }
-    return 0;
+static inline void pvp_apply_equipment_plan(
+    Player* p,
+    PvpEquipmentPlan plan
+) {
+    int actions[OSRS_BASE_NUM_ACTION_HEADS] = {0};
+    pvp_emit_equipment_plan_actions(actions, p, plan);
+    OsrsInventoryClickActions clicks = {0};
+    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
+        clicks.equip_by_slot[slot] = actions[OSRS_HEAD_EQUIP_SLOT(slot)];
+    OsrsInventoryTickIntent intent = osrs_resolve_inventory_tick_intent(
+        p, p->inventory_cells, &clicks);
+    OsrsInventoryApplyStep step;
+    while (osrs_inventory_intent_next(&intent, &step))
+        if (step.kind == OSRS_INVENTORY_APPLY_EQUIP)
+            (void)osrs_equip_from_cell(p, p->inventory_cells, step.cell_idx);
 }
 
 static inline AttackStyle get_slot_weapon_attack_style(Player* p) {
@@ -391,8 +423,8 @@ static inline AttackStyle get_slot_weapon_attack_style(Player* p) {
 }
 
 static inline void init_slot_equipment_lms(Player* p) {
-    memset(p->inventory, ITEM_NONE, sizeof(p->inventory));
-    memset(p->num_items_in_slot, 0, sizeof(p->num_items_in_slot));
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++)
+        p->inventory_cells[cell] = osrs_inventory_cell_empty();
 
     p->equipped[GEAR_SLOT_HEAD] = ITEM_HELM_NEITIZNOT;
     p->equipped[GEAR_SLOT_CAPE] = ITEM_GOD_CAPE;
@@ -407,60 +439,32 @@ static inline void init_slot_equipment_lms(Player* p) {
     p->equipped[GEAR_SLOT_RING] = ITEM_BERSERKER_RING;
     update_spec_weapons_for_weapon(p, p->equipped[GEAR_SLOT_WEAPON]);
 
-    p->inventory[GEAR_SLOT_HEAD][0] = ITEM_HELM_NEITIZNOT;
-    p->num_items_in_slot[GEAR_SLOT_HEAD] = 1;
-
-    p->inventory[GEAR_SLOT_CAPE][0] = ITEM_GOD_CAPE;
-    p->num_items_in_slot[GEAR_SLOT_CAPE] = 1;
-
-    p->inventory[GEAR_SLOT_NECK][0] = ITEM_GLORY;
-    p->num_items_in_slot[GEAR_SLOT_NECK] = 1;
-
-    p->inventory[GEAR_SLOT_AMMO][0] = ITEM_DIAMOND_BOLTS_E;
-    p->num_items_in_slot[GEAR_SLOT_AMMO] = 1;
-
-    p->inventory[GEAR_SLOT_WEAPON][0] = ITEM_WHIP;
-    p->inventory[GEAR_SLOT_WEAPON][1] = ITEM_RUNE_CROSSBOW;
-    p->inventory[GEAR_SLOT_WEAPON][2] = ITEM_AHRIM_STAFF;
-    p->inventory[GEAR_SLOT_WEAPON][3] = ITEM_DRAGON_DAGGER;
-    p->num_items_in_slot[GEAR_SLOT_WEAPON] = 4;
-
-    p->inventory[GEAR_SLOT_SHIELD][0] = ITEM_DRAGON_DEFENDER;
-    p->inventory[GEAR_SLOT_SHIELD][1] = ITEM_SPIRIT_SHIELD;
-    p->num_items_in_slot[GEAR_SLOT_SHIELD] = 2;
-
-    p->inventory[GEAR_SLOT_BODY][0] = ITEM_BLACK_DHIDE_BODY;
-    p->inventory[GEAR_SLOT_BODY][1] = ITEM_MYSTIC_TOP;
-    p->num_items_in_slot[GEAR_SLOT_BODY] = 2;
-
-    p->inventory[GEAR_SLOT_LEGS][0] = ITEM_RUNE_PLATELEGS;
-    p->inventory[GEAR_SLOT_LEGS][1] = ITEM_MYSTIC_BOTTOM;
-    p->num_items_in_slot[GEAR_SLOT_LEGS] = 2;
-
-    p->inventory[GEAR_SLOT_HANDS][0] = ITEM_BARROWS_GLOVES;
-    p->num_items_in_slot[GEAR_SLOT_HANDS] = 1;
-
-    p->inventory[GEAR_SLOT_FEET][0] = ITEM_CLIMBING_BOOTS;
-    p->num_items_in_slot[GEAR_SLOT_FEET] = 1;
-
-    p->inventory[GEAR_SLOT_RING][0] = ITEM_BERSERKER_RING;
-    p->num_items_in_slot[GEAR_SLOT_RING] = 1;
+    static const uint8_t BASE_SWITCH_ITEMS[] = {
+        ITEM_RUNE_CROSSBOW,
+        ITEM_AHRIM_STAFF,
+        ITEM_DRAGON_DAGGER,
+        ITEM_SPIRIT_SHIELD,
+        ITEM_MYSTIC_TOP,
+        ITEM_MYSTIC_BOTTOM,
+    };
+    for (int i = 0; i < (int)(sizeof(BASE_SWITCH_ITEMS) / sizeof(BASE_SWITCH_ITEMS[0])); i++)
+        p->inventory_cells[i] =
+            osrs_inventory_cell_from_item(BASE_SWITCH_ITEMS[i]);
 
     osrs_refresh_player_equipment(p);
     p->current_gear = GEAR_MELEE;
+    p->visible_gear = GEAR_MELEE;
 }
 
 static inline int add_item_to_inventory(Player* p, int gear_slot, uint8_t item_idx) {
     if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) return 0;
-    if (p->num_items_in_slot[gear_slot] >= MAX_ITEMS_PER_SLOT) return 0;
-
-    for (int i = 0; i < p->num_items_in_slot[gear_slot]; i++) {
-        if (p->inventory[gear_slot][i] == item_idx) return 0;
+    if (player_has_item_in_slot(p, gear_slot, item_idx)) return 0;
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        if (!osrs_inventory_cell_is_empty(&p->inventory_cells[cell])) continue;
+        p->inventory_cells[cell] = osrs_inventory_cell_from_item(item_idx);
+        return 1;
     }
-
-    p->inventory[gear_slot][p->num_items_in_slot[gear_slot]] = item_idx;
-    p->num_items_in_slot[gear_slot]++;
-    return 1;
+    return 0;
 }
 
 static const uint8_t UPGRADE_REPLACES[NUM_ITEMS] = {
@@ -527,17 +531,11 @@ static const uint8_t UPGRADE_REPLACES[NUM_ITEMS] = {
 };
 
 static inline int remove_item_from_inventory(Player* p, int gear_slot, uint8_t item_idx) {
-    for (int i = 0; i < p->num_items_in_slot[gear_slot]; i++) {
-        if (p->inventory[gear_slot][i] == item_idx) {
-            for (int j = i; j < p->num_items_in_slot[gear_slot] - 1; j++) {
-                p->inventory[gear_slot][j] = p->inventory[gear_slot][j + 1];
-            }
-            p->num_items_in_slot[gear_slot]--;
-            p->inventory[gear_slot][p->num_items_in_slot[gear_slot]] = ITEM_NONE;
-            return 1;
-        }
-    }
-    return 0;
+    if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) return 0;
+    int cell = pvp_inventory_cell_with_item(p, item_idx);
+    if (cell < 0) return 0;
+    p->inventory_cells[cell] = osrs_inventory_cell_empty();
+    return 1;
 }
 
 static inline int item_to_gear_slot(uint8_t item_idx) {
@@ -646,17 +644,16 @@ static inline void add_loot_item(Player* p, uint8_t item_idx) {
 /* 4 brew + 2 restore + 1 combat + 1 ranged + 2 karambwan + 1 rune pouch */
 #define FIXED_INVENTORY_SLOTS 11
 
-static inline int count_switch_items(Player* p) {
+static inline int count_switch_items(const Player* p) {
     int switches = 0;
-    for (int s = 0; s < NUM_GEAR_SLOTS; s++) {
-        if (p->num_items_in_slot[s] > 1) {
-            switches += p->num_items_in_slot[s] - 1;
-        }
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        if (osrs_inventory_cell_item_index(&p->inventory_cells[cell]) != ITEM_NONE)
+            switches++;
     }
     return switches;
 }
 
-static inline int compute_food_count(Player* p) {
+static inline int compute_food_count(const Player* p) {
     int switches = count_switch_items(p);
     int food = 28 - FIXED_INVENTORY_SLOTS - switches;
     return food > 1 ? food : 1;
@@ -718,25 +715,26 @@ static inline void init_player_gear_randomized(Player* p, int tier, uint32_t* rn
 
     #undef ADD_RANDOM_LOOT
 
-    if (tier >= 3 && player_has_item_in_slot(p, GEAR_SLOT_SHIELD, ITEM_DRAGON_DEFENDER)) {
+    if (tier >= 3 &&
+            player_has_item_in_slot(p, GEAR_SLOT_SHIELD, ITEM_DRAGON_DEFENDER)) {
         int has_1h_melee = 0;
-        for (int i = 0; i < p->num_items_in_slot[GEAR_SLOT_WEAPON]; i++) {
-            uint8_t w = p->inventory[GEAR_SLOT_WEAPON][i];
-            if (get_item_attack_style(w) == ATTACK_STYLE_MELEE && !item_is_two_handed(w)) {
+        for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+            uint8_t weapon =
+                osrs_inventory_cell_item_index(&p->inventory_cells[cell]);
+            if (weapon != ITEM_NONE &&
+                    osrs_item_gear_slot(weapon) == GEAR_SLOT_WEAPON &&
+                    get_item_attack_style(weapon) == ATTACK_STYLE_MELEE &&
+                    !item_is_two_handed(weapon)) {
                 has_1h_melee = 1;
                 break;
             }
         }
-        if (!has_1h_melee) {
-            remove_item_from_inventory(p, GEAR_SLOT_SHIELD, ITEM_DRAGON_DEFENDER);
-        }
+        if (!has_1h_melee)
+            remove_item_from_inventory(
+                p, GEAR_SLOT_SHIELD, ITEM_DRAGON_DEFENDER);
     }
 
-    uint8_t resolved[NUM_DYNAMIC_GEAR_SLOTS];
-    resolve_loadout(p, LOADOUT_MELEE, resolved);
-    for (int i = 0; i < NUM_DYNAMIC_GEAR_SLOTS; i++) {
-        slot_equip_item(p, DYNAMIC_GEAR_SLOTS[i], resolved[i]);
-    }
+    pvp_apply_equipment_plan(p, PVP_EQUIPMENT_MELEE);
 
     osrs_refresh_player_equipment(p);
     p->current_gear = GEAR_MELEE;

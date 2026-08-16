@@ -34,33 +34,6 @@ static inline int col_wave_entry_delay_ticks(int target_wave) {
 #define COLO_MAX_NPCS 24
 #define COLO_OBS_NPCS COLO_MAX_NPCS
 
-#define COLO_STEP_OUT_FORECAST_HORIZON 4
-#define COLO_STEP_OUT_FORECAST_ACTION_FEATURES 9
-#define COLO_STEP_OUT_FORECAST_OBS_SIZE \
-    (ENCOUNTER_MOVE_ACTIONS * COLO_STEP_OUT_FORECAST_ACTION_FEATURES)
-
-typedef struct {
-    int melee_count;
-    int ranged_count;
-    int magic_count;
-    int max_hit;
-} ColoStepOutForecastTick;
-
-typedef struct {
-    int valid;
-    int land_x;
-    int land_y;
-    ColoStepOutForecastTick ticks[COLO_STEP_OUT_FORECAST_HORIZON];
-    int same_tick_mixed_style_conflict;
-    int ranged_magic_offtick_opportunity;
-    int melee_fallback_exposure;
-    int solarflare_contact_tick;
-} ColoStepOutForecastAction;
-
-typedef struct {
-    ColoStepOutForecastAction actions[ENCOUNTER_MOVE_ACTIONS];
-} ColoStepOutForecast;
-
 typedef enum {
     COLO_FORECAST_BEHAVIOR_STANDARD = 0,
     COLO_FORECAST_BEHAVIOR_WARBAND,
@@ -138,175 +111,8 @@ static const int COLO_PILLARS[COLO_NUM_PILLARS][2] = {
     {8, 8}, {23, 8}, {8, 23}, {23, 23},
 };
 
-static uint8_t COLO_STATIC_BLOCKED[COLO_ARENA_WIDTH][COLO_ARENA_HEIGHT];
-
 #define COLO_ARENA_TILE_COUNT (COLO_ARENA_WIDTH * COLO_ARENA_HEIGHT)
-#define COLO_STATIC_LOS_TABLE_BITS (COLO_ARENA_TILE_COUNT * COLO_ARENA_TILE_COUNT)
-#define COLO_STATIC_LOS_TABLE_WORDS ((COLO_STATIC_LOS_TABLE_BITS + 63) / 64)
-#define COLO_STATIC_FOOTPRINT_MAX_SIZE 5
-#define COLO_STATIC_FOOTPRINT_PAD (COLO_STATIC_FOOTPRINT_MAX_SIZE - 1)
-#define COLO_STATIC_FOOTPRINT_MIN_X (COLO_ARENA_MIN_X - COLO_STATIC_FOOTPRINT_PAD)
-#define COLO_STATIC_FOOTPRINT_MIN_Y (COLO_ARENA_MIN_Y - COLO_STATIC_FOOTPRINT_PAD)
-#define COLO_STATIC_FOOTPRINT_MAX_X (COLO_ARENA_MAX_X + 1)
-#define COLO_STATIC_FOOTPRINT_MAX_Y (COLO_ARENA_MAX_Y + 1)
-#define COLO_STATIC_FOOTPRINT_WIDTH \
-    (COLO_STATIC_FOOTPRINT_MAX_X - COLO_STATIC_FOOTPRINT_MIN_X + 1)
-#define COLO_STATIC_FOOTPRINT_HEIGHT \
-    (COLO_STATIC_FOOTPRINT_MAX_Y - COLO_STATIC_FOOTPRINT_MIN_Y + 1)
-static uint64_t COLO_STATIC_LOS_BITS[COLO_STATIC_LOS_TABLE_WORDS];
-static uint8_t COLO_STATIC_FOOTPRINT_BLOCKED[COLO_STATIC_FOOTPRINT_MAX_SIZE]
-    [COLO_STATIC_FOOTPRINT_WIDTH][COLO_STATIC_FOOTPRINT_HEIGHT];
-static int COLO_STATIC_LOOKUP_TABLES_BUILT = 0;
-
-static void col_build_static_lookup_tables_once(void);
-
-static void col_build_static_arena(void) {
-    memset(COLO_STATIC_BLOCKED, 0, sizeof(COLO_STATIC_BLOCKED));
-    for (int y = 0; y < COLO_ARENA_HEIGHT; y++) {
-        for (int sp = 0; sp < COLO_WALL_SPANS_PER_ROW; sp++) {
-            ColoWallSpan span = COLO_WALL_SPANS[y][sp];
-            for (int x = span.lo; x < span.hi; x++) COLO_STATIC_BLOCKED[x][y] = 1;
-        }
-    }
-    for (int p = 0; p < COLO_NUM_PILLARS; p++)
-        for (int dx = 0; dx < COLO_PILLAR_SIZE; dx++)
-            for (int dy = 0; dy < COLO_PILLAR_SIZE; dy++)
-                COLO_STATIC_BLOCKED[COLO_PILLARS[p][0] + dx][COLO_PILLARS[p][1] + dy] = 1;
-    col_build_static_lookup_tables_once();
-}
-
-static inline int col_static_blocked(int x, int y) {
-    if (x < COLO_ARENA_MIN_X || x > COLO_ARENA_MAX_X ||
-        y < COLO_ARENA_MIN_Y || y > COLO_ARENA_MAX_Y) return 1;
-    return COLO_STATIC_BLOCKED[x][y];
-}
-
-static inline int col_static_los_endpoint_in_bounds(int x, int y) {
-    return x >= COLO_ARENA_MIN_X && x <= COLO_ARENA_MAX_X &&
-           y >= COLO_ARENA_MIN_Y && y <= COLO_ARENA_MAX_Y;
-}
-
-static inline uint32_t col_static_los_index(int x0, int y0, int x1, int y1) {
-    uint32_t a = (uint32_t)((x0 - COLO_ARENA_MIN_X) * COLO_ARENA_HEIGHT +
-        (y0 - COLO_ARENA_MIN_Y));
-    uint32_t b = (uint32_t)((x1 - COLO_ARENA_MIN_X) * COLO_ARENA_HEIGHT +
-        (y1 - COLO_ARENA_MIN_Y));
-    return a * COLO_ARENA_TILE_COUNT + b;
-}
-
-static inline void col_static_los_set(uint32_t idx) {
-    COLO_STATIC_LOS_BITS[idx >> 6] |= 1ULL << (idx & 63);
-}
-
-static inline int col_static_los_get(int x0, int y0, int x1, int y1) {
-    uint32_t idx = col_static_los_index(x0, y0, x1, y1);
-    return (int)((COLO_STATIC_LOS_BITS[idx >> 6] >> (idx & 63)) & 1ULL);
-}
-
-static inline int col_static_footprint_anchor_in_table(int x, int y) {
-    return x >= COLO_STATIC_FOOTPRINT_MIN_X && x <= COLO_STATIC_FOOTPRINT_MAX_X &&
-           y >= COLO_STATIC_FOOTPRINT_MIN_Y && y <= COLO_STATIC_FOOTPRINT_MAX_Y;
-}
-
-static int col_static_footprint_blocked_reference_slowpath(int x, int y, int size) {
-    for (int dx = 0; dx < size; dx++) {
-        for (int dy = 0; dy < size; dy++) {
-            if (col_static_blocked(x + dx, y + dy)) return 1;
-        }
-    }
-    return 0;
-}
-
-static inline int col_static_footprint_blocked_lookup(int x, int y, int size) {
-    if (size < 1 || size > COLO_STATIC_FOOTPRINT_MAX_SIZE)
-        return col_static_footprint_blocked_reference_slowpath(x, y, size);
-    if (!COLO_STATIC_LOOKUP_TABLES_BUILT) col_build_static_arena();
-    if (!col_static_footprint_anchor_in_table(x, y)) return 1;
-    return COLO_STATIC_FOOTPRINT_BLOCKED[size - 1]
-        [x - COLO_STATIC_FOOTPRINT_MIN_X]
-        [y - COLO_STATIC_FOOTPRINT_MIN_Y];
-}
-
-static int col_los_tile_blocked_reference(void* ctx, int x, int y) {
-    return col_static_blocked(x, y);
-}
-
-static int col_tiles_have_los_reference_slowpath(int x0, int y0, int x1, int y1) {
-    OsrsLosQuery query = osrs_los_tile(col_los_tile_blocked_reference, NULL);
-    return osrs_los_tile_ray_clear(&query, x0, y0, x1, y1);
-}
-
-static void col_build_static_lookup_tables_once(void) {
-    if (COLO_STATIC_LOOKUP_TABLES_BUILT) return;
-    for (int x0 = COLO_ARENA_MIN_X; x0 <= COLO_ARENA_MAX_X; x0++) {
-        for (int y0 = COLO_ARENA_MIN_Y; y0 <= COLO_ARENA_MAX_Y; y0++) {
-            for (int x1 = COLO_ARENA_MIN_X; x1 <= COLO_ARENA_MAX_X; x1++) {
-                for (int y1 = COLO_ARENA_MIN_Y; y1 <= COLO_ARENA_MAX_Y; y1++) {
-                    if (col_tiles_have_los_reference_slowpath(x0, y0, x1, y1))
-                        col_static_los_set(col_static_los_index(x0, y0, x1, y1));
-                }
-            }
-        }
-    }
-    for (int size = 1; size <= COLO_STATIC_FOOTPRINT_MAX_SIZE; size++) {
-        for (int x = COLO_STATIC_FOOTPRINT_MIN_X; x <= COLO_STATIC_FOOTPRINT_MAX_X; x++) {
-            for (int y = COLO_STATIC_FOOTPRINT_MIN_Y; y <= COLO_STATIC_FOOTPRINT_MAX_Y; y++) {
-                COLO_STATIC_FOOTPRINT_BLOCKED[size - 1]
-                    [x - COLO_STATIC_FOOTPRINT_MIN_X]
-                    [y - COLO_STATIC_FOOTPRINT_MIN_Y] =
-                    (uint8_t)col_static_footprint_blocked_reference_slowpath(x, y, size);
-            }
-        }
-    }
-    COLO_STATIC_LOOKUP_TABLES_BUILT = 1;
-}
-
-static void col_static_los_table_selftest(void) {
-    col_build_static_arena();
-    for (int x0 = COLO_ARENA_MIN_X; x0 <= COLO_ARENA_MAX_X; x0++) {
-        for (int y0 = COLO_ARENA_MIN_Y; y0 <= COLO_ARENA_MAX_Y; y0++) {
-            for (int x1 = COLO_ARENA_MIN_X; x1 <= COLO_ARENA_MAX_X; x1++) {
-                for (int y1 = COLO_ARENA_MIN_Y; y1 <= COLO_ARENA_MAX_Y; y1++) {
-                    int table = col_static_los_get(x0, y0, x1, y1);
-                    int slow = col_tiles_have_los_reference_slowpath(x0, y0, x1, y1);
-                    if (table != slow) {
-                        fprintf(stderr,
-                            "colosseum LoS table mismatch (%d,%d)->(%d,%d): table=%d slow=%d\n",
-                            x0, y0, x1, y1, table, slow);
-                        abort();
-                    }
-                }
-            }
-        }
-    }
-    printf("colosseum LoS table selftest PASS: %u pairs\n",
-        (unsigned)COLO_STATIC_LOS_TABLE_BITS);
-}
-
-static void col_static_footprint_table_selftest(void) {
-    col_build_static_arena();
-    int checks = 0;
-    int min_x = COLO_STATIC_FOOTPRINT_MIN_X - COLO_STATIC_FOOTPRINT_MAX_SIZE;
-    int min_y = COLO_STATIC_FOOTPRINT_MIN_Y - COLO_STATIC_FOOTPRINT_MAX_SIZE;
-    int max_x = COLO_STATIC_FOOTPRINT_MAX_X + COLO_STATIC_FOOTPRINT_MAX_SIZE;
-    int max_y = COLO_STATIC_FOOTPRINT_MAX_Y + COLO_STATIC_FOOTPRINT_MAX_SIZE;
-    for (int size = 1; size <= COLO_STATIC_FOOTPRINT_MAX_SIZE; size++) {
-        for (int x = min_x; x <= max_x; x++) {
-            for (int y = min_y; y <= max_y; y++) {
-                int table = col_static_footprint_blocked_lookup(x, y, size);
-                int slow = col_static_footprint_blocked_reference_slowpath(x, y, size);
-                if (table != slow) {
-                    fprintf(stderr,
-                        "colosseum footprint table mismatch (%d,%d) size=%d: table=%d slow=%d\n",
-                        x, y, size, table, slow);
-                    abort();
-                }
-                checks++;
-            }
-        }
-    }
-    printf("colosseum footprint table selftest PASS: %d checks\n", checks);
-}
+static int COLO_NPC_STATS_BUILT = 0;
 
 #define COLO_NUM_SPAWN_ANCHORS 13
 #define COLO_SPAWN_ZONE_SIZE   3
@@ -522,7 +328,8 @@ static const ColoNpcOverlay COLO_NPC_OVERLAY[COLO_NUM_NPC_TYPES] = {
 static ColoNpcStats COLO_NPC_STATS[COLO_NUM_NPC_TYPES];
 
 static void col_build_npc_stats(void) {
-    col_build_static_arena();
+    if (COLO_NPC_STATS_BUILT) return;
+    COLO_NPC_STATS_BUILT = 1;
     for (int i = 0; i < COLO_NUM_NPC_TYPES; i++) {
         const MonsterStats* m = &COLO_NPC_BASE[i];
         const ColoNpcOverlay* o = &COLO_NPC_OVERLAY[i];
@@ -615,7 +422,7 @@ static const ColoWaveDef COLO_WAVES[COLO_NUM_WAVES] = {
 #define COLO_NUM_MODIFIERS 16
 #define COLO_MODIFIER_DRAFT_OPTIONS 3
 
-#define COLO_RFDD_LAST_DRAFT_WAVE 6
+#define COLO_RFDD_FIRST_DRAFT_WAVE 6
 
 #define COLO_DRAFT_UPGRADE_WEIGHT 2
 
@@ -676,14 +483,20 @@ typedef struct {
 #define COLO_MAX_TOTEMS COLO_MAX_NPCS
 #define COLO_TOTEM_HEAL_PCT 30
 #define COLO_TOTEM_HEAL_INTERVAL 7
+#define COLO_TOTEM_SPAWN_HEAL_DELAY 5
+#define COLO_TOTEM_PROJECTILE_TICKS 2
 #define COLO_TOTEM_RESPAWN_TICKS 200
 #define COLO_TOTEM_SOL_HEAL 75
+#define COLO_TOTEM_SOL_EXTRA_INTERVAL 200
+#define COLO_TOTEM_OBS_COUNT_NORM 4
 
 typedef struct {
     ColoHazardPhase phase;
+    int owner_slot;
     int npc_slot;
     int respawn_timer;
     int heal_timer;
+    int projectile_timer;
 } ColoTotem;
 
 #define COLO_SOLARFLARE_RING_STEPS       16
@@ -707,8 +520,9 @@ static const int COLO_DOOM_CAP[4] = { 0, 15, 10, 5 };
 #define COLO_VOLATILITY_MAX_HIT 25
 
 typedef enum {
-    COLO_POOL_VOLATILITY = 0,
-    COLO_POOL_REENTRY,
+    COLO_POOL_VOLATILITY = 1,
+    COLO_POOL_REENTRY = 2,
+    COLO_POOL_REENTRY_VOLATILITY = 3,
 } ColoMoltenPoolKind;
 
 typedef enum {
@@ -740,6 +554,50 @@ typedef enum {
     COLO_SOL_AOE_SHIELD1,
     COLO_SOL_AOE_SHIELD2,
 } ColoSolAoeAttack;
+
+typedef enum {
+    COLO_SOL_DAMAGE_SPEAR_1 = 0,
+    COLO_SOL_DAMAGE_SPEAR_2,
+    COLO_SOL_DAMAGE_SHIELD_1,
+    COLO_SOL_DAMAGE_SHIELD_2,
+    COLO_SOL_DAMAGE_TRIPLE_PARRY,
+    COLO_SOL_DAMAGE_GRAPPLE,
+    COLO_SOL_DAMAGE_CRYSTAL_LASER,
+    COLO_SOL_DAMAGE_MOLTEN_SAND,
+    COLO_NUM_SOL_DAMAGE_SOURCES,
+} ColoSolDamageSource;
+
+typedef enum {
+    COLO_JAVELIN_DAMAGE_BASIC_RANGED = 0,
+    COLO_JAVELIN_DAMAGE_SKYFALL,
+    COLO_JAVELIN_DAMAGE_REENTRY_POOL,
+    COLO_JAVELIN_DAMAGE_REENTRY_VOLATILITY_POOL,
+    COLO_NUM_JAVELIN_DAMAGE_SOURCES,
+} ColoJavelinDamageSource;
+
+typedef enum {
+    COLO_DAMAGE_NPC_ATTACK = 0,
+    COLO_DAMAGE_JAVELIN_BASIC_RANGED,
+    COLO_DAMAGE_MANTICORE_VENOM,
+    COLO_DAMAGE_BEE_POISON,
+    COLO_DAMAGE_BEE_CONTACT,
+    COLO_DAMAGE_JAVELIN_SKYFALL,
+    COLO_DAMAGE_REENTRY_POOL,
+    COLO_DAMAGE_VOLATILITY_EXPLOSION,
+    COLO_DAMAGE_VOLATILITY_POOL,
+    COLO_DAMAGE_REENTRY_VOLATILITY_POOL,
+    COLO_DAMAGE_SOLARFLARE,
+    COLO_DAMAGE_SELF,
+    COLO_DAMAGE_SOL_SPEAR_1,
+    COLO_DAMAGE_SOL_SPEAR_2,
+    COLO_DAMAGE_SOL_SHIELD_1,
+    COLO_DAMAGE_SOL_SHIELD_2,
+    COLO_DAMAGE_SOL_TRIPLE_PARRY,
+    COLO_DAMAGE_SOL_GRAPPLE,
+    COLO_DAMAGE_SOL_CRYSTAL_LASER,
+    COLO_DAMAGE_SOL_MOLTEN_SAND,
+    COLO_NUM_DAMAGE_SOURCES,
+} ColoDamageSource;
 
 typedef enum {
     COLO_SOL_ATTACK_NONE = 0,
@@ -807,7 +665,7 @@ typedef struct {
     int last_attack_kind;
     int last_variant;
 
-    int aoe_attack;
+    ColoSolAoeAttack aoe_attack;
     int aoe_age;
     int aoe_x, aoe_y;
     int aoe_dir_x, aoe_dir_y;
@@ -829,6 +687,11 @@ typedef struct {
     ColoSolCrystal crystals[COLO_SOL_MAX_CRYSTALS];
     int crystal_count;
     int laser_cooldown;
+    int laser_volley_active;
+    int laser_show_seen;
+    int laser_aligned_show;
+    int laser_n_aligned_show;
+    int laser_n_active_at_fire;
 
     ColoSolBeam beams[COLO_SOL_BEAM_MAX];
     int hazard_tile_x[COLO_SOL_HAZARD_TILES_MAX];
@@ -901,7 +764,15 @@ typedef struct {
     int formation_dir;
 } ColoWarbandState;
 
+typedef enum {
+    COLO_MANTICORE_PHASE_ACTIVATING = 0,
+    COLO_MANTICORE_PHASE_WAITING_FOR_TARGET,
+    COLO_MANTICORE_PHASE_CHARGING,
+    COLO_MANTICORE_PHASE_REPEATING,
+} ColoManticorePhase;
+
 typedef struct {
+    ColoManticorePhase phase;
     int cycle_step;
     AttackStyle orb_style[3];
     AttackStyle fixed_orb_style[3];
@@ -981,6 +852,9 @@ static inline int col_warband_window_offset(ColoNpcType type) {
 #define COLO_JAVELIN_SKYFALL_MAX_HIT 40
 #define COLO_JAVELIN_SKYFALL_ANIM_ID 10893
 #define COLO_MANTICORE_STAGGER_TICKS 5
+#define COLO_MANTICORE_ACTIVATION_TICKS 7
+#define COLO_MANTICORE_CHARGE_TICKS 10
+#define COLO_MANTICORE_ARM_ANIMATION_TICKS 3
 
 #define COLO_MINOTAUR_HEAL_RANGE 7
 
@@ -997,6 +871,7 @@ static void colo_npc_init_type_state(ColoNPC* npc) {
             break;
         case COLO_MANTICORE:
             npc->type_state.manticore = (ColoManticoreState){
+                .phase = COLO_MANTICORE_PHASE_ACTIVATING,
                 .cycle_step = -1,
                 .orb_style = { ATTACK_STYLE_NONE, ATTACK_STYLE_NONE, ATTACK_STYLE_NONE },
                 .fixed_orb_style = { ATTACK_STYLE_NONE, ATTACK_STYLE_NONE, ATTACK_STYLE_NONE },
@@ -1023,35 +898,15 @@ typedef struct {
 } ColoBestGear;
 
 #define COLO_BEST_GEAR_CACHE_WAYS 12
+#define COLO_PLAYER_PRAYER_LEVEL 99
 
-#define COLO_WEAPON_CHOICE_OBS_CACHE_WAYS 8
-#define COLO_WEAPON_CHOICE_OBS_CACHE_FLOATS (2 * OSRS_INVENTORY_SIZE + 2)
 
-#define COLO_INVENTORY_OBS_CACHE_WAYS 8
-#define COLO_INVENTORY_OBS_CACHE_FLOATS \
-    (OSRS_INVENTORY_SIZE * OSRS_INVENTORY_CELL_OBS_FEATURES + \
-     NUM_GEAR_SLOTS * OSRS_EQUIPPED_SELF_OBS_FEATURES)
-
-#define COLO_THREAT_FIELD_OBS_CACHE_WAYS 4
-#define COLO_THREAT_FIELD_OBS_CACHE_FLOATS (2 * 17 * 17)
 
 typedef struct {
     ColoBestGear best_gear[COLO_BEST_GEAR_CACHE_WAYS][COLO_NUM_WEAPON_SETS][COLO_NUM_NPC_TYPES];
     uint64_t best_gear_sig[COLO_BEST_GEAR_CACHE_WAYS];
     int best_gear_valid[COLO_BEST_GEAR_CACHE_WAYS];
     int best_gear_next;
-    float weapon_choice[COLO_WEAPON_CHOICE_OBS_CACHE_WAYS][COLO_WEAPON_CHOICE_OBS_CACHE_FLOATS];
-    uint64_t weapon_choice_sig[COLO_WEAPON_CHOICE_OBS_CACHE_WAYS];
-    int weapon_choice_valid[COLO_WEAPON_CHOICE_OBS_CACHE_WAYS];
-    int weapon_choice_next;
-    float inventory[COLO_INVENTORY_OBS_CACHE_WAYS][COLO_INVENTORY_OBS_CACHE_FLOATS];
-    uint64_t inventory_sig[COLO_INVENTORY_OBS_CACHE_WAYS];
-    int inventory_valid[COLO_INVENTORY_OBS_CACHE_WAYS];
-    int inventory_next;
-    float threat_field[COLO_THREAT_FIELD_OBS_CACHE_WAYS][COLO_THREAT_FIELD_OBS_CACHE_FLOATS];
-    uint64_t threat_field_sig[COLO_THREAT_FIELD_OBS_CACHE_WAYS];
-    int threat_field_valid[COLO_THREAT_FIELD_OBS_CACHE_WAYS];
-    int threat_field_next;
 } ColoObsMemoCaches;
 
 typedef enum {
@@ -1281,13 +1136,7 @@ static void col_for_each_reachable_consumable_dose_raw_osrs_id(
         abort();
     }
 
-    enum {
-        REGISTRY_COUNT = (int)(
-            sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY) /
-            sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY[0])
-        )
-    };
-    int seen[REGISTRY_COUNT];
+    int seen[OSRS_ITEM_CONTENT_COUNT];
     int seen_count = 0;
 
     for (int p = 0; p < COLO_NUM_LOADOUT_PROFILES; p++) {
@@ -1302,7 +1151,7 @@ static void col_for_each_reachable_consumable_dose_raw_osrs_id(
 
             uint16_t current_raw_osrs_id = raw_osrs_id;
             for (int step = 0; current_raw_osrs_id != 0; step++) {
-                if (step >= REGISTRY_COUNT) {
+                if (step >= OSRS_ITEM_CONTENT_COUNT) {
                     fprintf(stderr, "colosseum consumable dose chain cycles at raw id %u\n",
                         current_raw_osrs_id);
                     abort();
@@ -1320,7 +1169,7 @@ static void col_for_each_reachable_consumable_dose_raw_osrs_id(
                     current_raw_osrs_id,
                     seen,
                     &seen_count,
-                    REGISTRY_COUNT,
+                    OSRS_ITEM_CONTENT_COUNT,
                     visit,
                     ctx);
                 current_raw_osrs_id =
@@ -1343,8 +1192,7 @@ static void col_for_each_display_inventory_sprite_raw_osrs_id(
         DISPLAY_CAPACITY =
             (int)(sizeof(COLO_NON_CONSUMABLE_DISPLAY_RAW_OSRS_IDS) /
                   sizeof(COLO_NON_CONSUMABLE_DISPLAY_RAW_OSRS_IDS[0])) +
-            (int)(sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY) /
-                  sizeof(OSRS_CONSUMABLE_CLICK_REGISTRY[0]))
+            OSRS_ITEM_CONTENT_COUNT
     };
     int seen[DISPLAY_CAPACITY];
     int seen_count = 0;
@@ -1362,13 +1210,9 @@ static void col_for_each_display_inventory_sprite_raw_osrs_id(
     col_for_each_reachable_consumable_dose_raw_osrs_id(visit, ctx);
 }
 
-#define COLO_THRALL_MAX_HIT  3
-#define COLO_THRALL_TICK     4
-#define COLO_THRALL_RECAST_CD 17
-static const int COLO_THRALL_LIFETIME_TICKS[COLO_NUM_LOADOUT_PROFILES] = {
-    [COLO_LOADOUT_PROFILE_SPEEDRUN] = 198,
-    [COLO_LOADOUT_PROFILE_BEGINNER] = 99,
-};
+#define COLO_THRALL_MAX_HIT 3
+#define COLO_THRALL_TICK    4
+#define COLO_THRALL_AGGRO_TICKS 12
 
 #define COLO_DEATH_CHARGE_WINDOW   100
 #define COLO_DEATH_CHARGE_CD       100
@@ -1405,46 +1249,26 @@ typedef struct {
     float wave_clear_bonus;
     float boss_phase_bonus;
     float win_bonus;
-    float prayer_correct_reward;
-    float offpray_damage_penalty_coeff;
 
-    float multistyle_exposure_penalty_coeff;
 
-    float argmax_gear_reward_coeff;
-
-    float offensive_boost_reward_coeff;
-
-    float stall_penalty_coeff;
 
     int farm_safe_damage_cap;
 
     int farm_cap_waves;
-
-    float avoided_damage_coeff;
     float death_penalty_coeff;
     float timeout_penalty;
     int curriculum_agent;
     int loadout_profile_mode;
     float beginner_loadout_fraction;
-    int step_out_forecast_obs_enabled;
-    int threat_field_obs_enabled;
-    int forecast_horizon;
-    int forecast_run_tile_mode;
     int mask_inventory_heads;
-    int action_debug_log;
     int late_start_state_mode;
 
     float late_start_supply_fraction_per_wave;
 
-    int prayer_oracle_mode;
-
     int bis_gear_oracle_mode;
-
-    int invuln_mode;
+    int laser_obs_mode;
 
     int episode_max_ticks_override;
-
-    int remove_brews;
 
     float prayer_switch_fail_prob;
 
@@ -1456,10 +1280,18 @@ typedef struct {
 
 } ColConfig;
 
-typedef enum {
-    COLO_FORECAST_RUN_TILE_FULL = 0,
-    COLO_FORECAST_RUN_TILE_STATIC_THREAT = 1,
-} ColoForecastRunTileMode;
+typedef struct {
+    OsrsVenatorMonster monsters[COLO_MAX_NPCS];
+    uint32_t bounce_masks[COLO_MAX_NPCS];
+    uint8_t selection_distances[COLO_MAX_NPCS][COLO_MAX_NPCS];
+    int count;
+} ColoVenatorPreviewTargets;
+
+typedef struct {
+    ColoVenatorPreviewTargets targets;
+    uint64_t generation;
+    int valid;
+} ColoVenatorPreviewCache;
 
 typedef enum {
     COLO_NPC_RENDER_ATTACK_NORMAL = 0,
@@ -1469,9 +1301,11 @@ typedef enum {
 typedef struct {
     ColConfig config;
     const CollisionMap* collision_map;
+    const EncounterArenaTopology* route_topology;
+    OsrsActorRouteCache player_route_cache;
+    ColoVenatorPreviewCache venator_preview_cache;
     int world_offset_x;
     int world_offset_y;
-    Log* log;
     const HumanCommand* human_commands;
     int human_command_count;
     int human_command_mode;
@@ -1486,20 +1320,35 @@ typedef struct {
     int player_spec_fired_kind;
     int player_venator_chain_count;
     int player_venator_chain_slots[OSRS_VENATOR_MAX_CHAIN_HITS];
+    int volatility_explosion_count;
+    int volatility_explosion_x[COLO_MAX_NPCS];
+    int volatility_explosion_y[COLO_MAX_NPCS];
+    ColoNpcType volatility_explosion_type[COLO_MAX_NPCS];
 } ColosseumContext;
 
+/* Clears only what was written. col_render_hit_events_add aborts past
+ * ENCOUNTER_RENDER_HITS_MAX and fills strictly below count, and a row whose count is zero
+ * is already zero from the previous clear, so the old blanket memset of
+ * COLO_MAX_NPCS x ENCOUNTER_RENDER_HITS_MAX ints re-zeroed memory that was already zero.
+ * That was 3488 B per tick per env and 15% of the whole env step. */
 static inline void col_context_clear_render_events(ColosseumContext* ctx) {
     memset(ctx->npc_render_attack_anim, 0, sizeof(ctx->npc_render_attack_anim));
     memset(ctx->manticore_charge_started, 0, sizeof(ctx->manticore_charge_started));
+    for (int h = 0; h < ctx->player_render_hit_count; h++)
+        ctx->player_render_hit_damage[h] = 0;
     ctx->player_render_hit_count = 0;
-    memset(ctx->player_render_hit_damage, 0, sizeof(ctx->player_render_hit_damage));
-    memset(ctx->npc_render_hit_count, 0, sizeof(ctx->npc_render_hit_count));
-    memset(ctx->npc_render_hit_damage, 0, sizeof(ctx->npc_render_hit_damage));
+    for (int i = 0; i < COLO_MAX_NPCS; i++) {
+        int n = ctx->npc_render_hit_count[i];
+        if (n <= 0) continue;
+        for (int h = 0; h < n; h++) ctx->npc_render_hit_damage[i][h] = 0;
+        ctx->npc_render_hit_count[i] = 0;
+    }
     ctx->thrall_attacked_this_tick = 0;
     ctx->player_spec_fired_kind = 0;
     ctx->player_venator_chain_count = 0;
     for (int i = 0; i < OSRS_VENATOR_MAX_CHAIN_HITS; i++)
         ctx->player_venator_chain_slots[i] = -1;
+    ctx->volatility_explosion_count = 0;
 }
 
 static inline void col_context_record_venator_chain(
@@ -1547,6 +1396,7 @@ typedef struct {
     int waves_cleared;
     int win;
     int died;
+    int timed_out;
     float total_damage_dealt;
     float total_damage_received;
     float total_boss_damage;
@@ -1563,6 +1413,7 @@ typedef struct {
     float total_damage_by_type[COLO_NUM_NPC_TYPES];
 
     float death_by_type[COLO_NUM_NPC_TYPES];
+    float npc_attack_death_by_type[COLO_NUM_NPC_TYPES];
     float death_fatal_damage;
 
     float offpray_damage_conflict;
@@ -1575,7 +1426,42 @@ typedef struct {
     float death_dmg_self;
     float death_heal_remaining;
     float farm_damage;
+    float reward_steps;
+    float reward_clamped_steps;
+    float reward_clamp_loss;
+    float reward_raw_peak;
+    float clamp_loss_wave_clear;
+    float clamp_loss_win;
+    float rew_damage;
+    float rew_boss_phase;
+    float rew_wave_clear;
+    float rew_win;
+    float rew_death;
+    float rew_timeout;
+    float avoid_total;
+    float avoid_achieved;
+    float avoid_missed;
+    float avoid_impossible;
+    float dmg_unprayable;
+    float inv_memo_hits;
+    float inv_memo_misses;
+    float npc_blocked_calls;
+    float npc_blocked_tiles;
+    float npc_stamp_tiles;
     float typeless_damage_by_type[COLO_NUM_NPC_TYPES];
+    float sol_damage_by_source[COLO_NUM_SOL_DAMAGE_SOURCES];
+    float javelin_damage_by_source[COLO_NUM_JAVELIN_DAMAGE_SOURCES];
+    float death_by_source[COLO_NUM_DAMAGE_SOURCES];
+    float doom_death_by_source[COLO_NUM_DAMAGE_SOURCES];
+    float laser_volleys;
+    float laser_hits;
+    float laser_dmg;
+    float laser_aligned_at_fire;
+    float laser_aligned_at_show;
+    float laser_aligned_at_pre;
+    float laser_aligned_at_damage;
+    float laser_react_ok;
+    float laser_react_fail;
     float outcome_score;
     float max_wave_depth;
 } ColosseumLog;
@@ -1616,6 +1502,7 @@ typedef struct {
     int doom_stacks;
     ColoBeeSwarm bees[COLO_MAX_BEE_SWARMS];
     ColoTotem totems[COLO_MAX_TOTEMS];
+    int sol_totem_spawn_timer;
     ColoSolarflareOrb solarflare;
     int player_venom;
     int player_venom_timer;
@@ -1632,8 +1519,9 @@ typedef struct {
     float reward;
     float episode_return;
     int last_hit_by_type;
+    int last_damage_source;
+    int last_doom_damage_source;
     int rewarded_boss_phase;
-    float avoided_damage_already_rewarded;
     int min_sol_hp_seen;
 
     OsrsInteraction interaction;
@@ -1652,13 +1540,12 @@ typedef struct {
     int divine_ranged_timer;
     int surge_doses;
     int surge_cooldown;
-    OsrsInventoryCell inventory_cells[OSRS_INVENTORY_SIZE];
 
-    int thrall_active;
     int thrall_target_slot;
+    int thrall_aggro_ticks_left;
     int thrall_lifetime_left;
+    int thrall_lifetime_total;
     int thrall_attack_timer;
-    int thrall_recast_cd;
 
     int death_charge_window_left;
     int death_charge_cd;
@@ -1673,24 +1560,31 @@ typedef struct {
     int player_dest_x, player_dest_y;
 
     uint8_t npc_collision_flags[COLO_ARENA_WIDTH][COLO_ARENA_HEIGHT];
-    uint8_t player_collision_flags[COLO_ARENA_WIDTH][COLO_ARENA_HEIGHT];
-
-    ColosseumLog log;
+    /* The player occupies one tile, so a full arena grid recorded one cell and was
+     * memset in full twice per tick. Cache the cell instead. -1 means off-grid. */
+    int player_grid_x, player_grid_y;
 
     int start_wave;
     uint32_t rng_state;
 
     float active_player_damage_received_scale;
+    int profiling_suppressed;
 
+    /* Last two members, and both are skipped by probe_colo_sim_invariant. The probe hashes
+     * this struct's raw bytes, so a member that grows mid-struct repads everything after it
+     * and moves all twelve digests with no behaviour change -- which is exactly what adding
+     * reward telemetry to the log did. At the tail, neither can shift a hashed byte. */
+    ColosseumLog log;
     ColoObsMemoCaches obs_memos;
 } ColosseumState;
+static_assert(sizeof(ColosseumState) == 26640, "ColosseumState serialized layout");
 
 typedef enum {
     COLO_DMG_OFFPRAY = 0,
     COLO_DMG_UNPRAYABLE = 1,
 } ColoDamageChannel;
 
-static inline void col_damage_player_from(
+static inline int col_damage_player_from(
     ColosseumState* s, int dmg, int npc_type, ColoDamageChannel channel);
 static void col_apply_bis_gear_oracle(ColosseumState* s);
 
@@ -1699,5 +1593,5 @@ static void col_build_live_inventory_display(
     int out[COLO_INVENTORY_DISPLAY_SLOTS]
 ) {
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++)
-        out[i] = s->inventory_cells[i].raw_osrs_id;
+        out[i] = osrs_inventory_cell_raw_osrs_id(&s->player.inventory_cells[i]);
 }

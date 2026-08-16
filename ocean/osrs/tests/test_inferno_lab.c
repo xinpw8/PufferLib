@@ -16,11 +16,18 @@
     } \
 } while (0)
 
+static InfernoContext lab_context;
+
 static InfernoState* make_lab_state(void) {
     InfernoState* state = (InfernoState*)inf_create();
-    inf_put_float((EncounterState*)state, "late_start_supply_profile_scale", 1.0f);
-    inf_reset((EncounterState*)state, 20260515u);
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_put_float_ctx(
+        (EncounterState*)state,
+        (EncounterContext*)&lab_context,
+        "late_start_supply_profile_scale",
+        1.0f);
+    inf_reset_ctx(
+        (EncounterState*)state, (EncounterContext*)&lab_context, 20260515u);
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_CLEAR_NPCS,
     });
     return state;
@@ -31,14 +38,14 @@ static void test_lab_typed_commands_mutate_state(void) {
 
     InfernoState* state = make_lab_state();
 
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_SET_PLAYER,
         .as.tile = { .x = 29, .y = 39 },
     });
     ASSERT_INT_EQ("player x", state->player.x, 29);
     ASSERT_INT_EQ("player y", state->player.y, 39);
 
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_SPAWN_NPC,
         .as.spawn_npc = {
             .slot = 0,
@@ -53,25 +60,25 @@ static void test_lab_typed_commands_mutate_state(void) {
     ASSERT_INT_EQ("ranger type", state->npcs[0].type, INF_NPC_RANGER);
     ASSERT_INT_EQ("ranger timer", state->npcs[0].attack_timer, 3);
 
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_MOVE_NPC,
         .as.move_npc = { .slot = 0, .x = 20, .y = 32 },
     });
     ASSERT_INT_EQ("ranger moved x", state->npcs[0].x, 20);
     ASSERT_INT_EQ("ranger moved y", state->npcs[0].y, 32);
 
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_SET_NPC_HP,
         .as.npc_hp = { .slot = 0, .hp = 7 },
     });
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_SET_NPC_TIMER,
         .as.npc_timer = { .slot = 0, .timer = 0 },
     });
     ASSERT_INT_EQ("ranger hp", state->npcs[0].hp, 7);
     ASSERT_INT_EQ("ranger timer zero", state->npcs[0].attack_timer, 0);
 
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_SET_PILLAR,
         .as.pillar = {
             .pillar_idx = 2,
@@ -80,13 +87,14 @@ static void test_lab_typed_commands_mutate_state(void) {
         },
     });
     ASSERT_INT_EQ("north pillar inactive", state->pillars[2].active, 0);
-    ASSERT_INT_EQ("north pillar removed from LOS blockers", state->los_blocker_count, 2);
+    ASSERT_INT_EQ("north pillar removed from dynamic LOS",
+        inf_pillar_footprint_blocked(state, 28, 36, 1), 0);
 
     inf_destroy((EncounterState*)state);
 }
 
 static void add_script_line(InfernoState* state, const char* line) {
-    InfLabLineResult result = inf_lab_apply_script_line(state, line);
+    InfLabLineResult result = inf_lab_apply_script_line_impl_ctx(state, &lab_context, line, NULL);
     ASSERT_INT_EQ("script line does not dump", result, INF_LAB_LINE_NONE);
 }
 
@@ -106,11 +114,11 @@ static void test_lab_script_reaches_exact_forecast(void) {
     InfernoState* state = make_lab_state();
     setup_north_pillar_stack_from_script(state);
 
-    InfLabLineResult result = inf_lab_apply_script_line(state, "forecast");
+    InfLabLineResult result = inf_lab_apply_script_line_impl_ctx(state, &lab_context, "forecast", NULL);
     ASSERT_INT_EQ("forecast line result", result, INF_LAB_LINE_FORECAST);
 
     InfStepOutForecast forecast;
-    inf_build_step_out_forecast(state, &forecast);
+    inf_build_step_out_forecast_ctx(state, &lab_context, &forecast);
     const InfStepOutForecastAction* run_west = &forecast.actions[11];
     ASSERT_INT_EQ("run west valid", run_west->valid, 1);
     ASSERT_INT_EQ("run west land x", run_west->land_x, 27);
@@ -129,7 +137,7 @@ static void test_lab_json_contains_state_and_forecast(void) {
     InfernoState* state = make_lab_state();
     setup_north_pillar_stack_from_script(state);
 
-    char* json = inf_lab_alloc_json(state);
+    char* json = inf_lab_alloc_json_ctx(state, &lab_context);
     ASSERT_CONTAINS("json has player", json, "\"player\":{\"x\":29,\"y\":39");
     ASSERT_CONTAINS("json has ranger", json, "\"type\":\"ranger\"");
     ASSERT_CONTAINS("json has mager", json, "\"type\":\"mager\"");
@@ -139,8 +147,7 @@ static void test_lab_json_contains_state_and_forecast(void) {
     free(json);
 
     char* dump = NULL;
-    InfLabLineResult result = inf_lab_apply_script_line_alloc_json(
-        state, "dump", &dump);
+    InfLabLineResult result = inf_lab_apply_script_line_impl_ctx(state, &lab_context, "dump", &dump);
     ASSERT_INT_EQ("dump line result", result, INF_LAB_LINE_DUMP);
     ASSERT_CONTAINS("dump has action array", dump, "\"actions\":[");
     free(dump);
@@ -153,7 +160,7 @@ static void test_lab_spawn_wave_and_delete(void) {
 
     InfernoState* state = make_lab_state();
 
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_SPAWN_WAVE,
         .as.wave = { .wave = 60 },
     });
@@ -164,7 +171,7 @@ static void test_lab_spawn_wave_and_delete(void) {
         if (state->npcs[i].active) active_count++;
     ASSERT_INT_EQ("wave 60 active NPC count", active_count, 7);
 
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_DELETE_NPC,
         .as.npc_slot = { .slot = 0 },
     });
@@ -173,15 +180,54 @@ static void test_lab_spawn_wave_and_delete(void) {
     inf_destroy((EncounterState*)state);
 }
 
+static void test_lab_kill_refresh_uses_finalized_context(void) {
+    printf("--- inferno lab kill refresh uses finalized context ---\n");
+    InfernoState* state = make_lab_state();
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
+        .kind = INF_LAB_COMMAND_SET_PLAYER,
+        .as.tile = {.x = 20, .y = 40},
+    });
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
+        .kind = INF_LAB_COMMAND_SPAWN_NPC,
+        .as.spawn_npc = {
+            .slot = 0,
+            .type = INF_NPC_RANGER,
+            .x = 28,
+            .y = 40,
+            .hp = {.kind = INF_LAB_OPTIONAL_INT_SET, .value = 1},
+            .timer = {.kind = INF_LAB_OPTIONAL_INT_SET, .value = 0},
+        },
+    });
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
+        .kind = INF_LAB_COMMAND_KILL_NPC,
+        .as.npc_slot = {.slot = 0},
+    });
+    state->player.current_magic = 99;
+    state->player.equipped[GEAR_SLOT_WEAPON] = ITEM_KODAI_WAND;
+    state->npcs[0].death_ticks = 2;
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
+        .kind = INF_LAB_COMMAND_SET_NPC_TIMER,
+        .as.npc_timer = {.slot = 0, .timer = 0},
+    });
+    ASSERT_INT_EQ("dying ranger is phantom barrage eligible",
+        inf_player_can_phantom_barrage_npc(state, &lab_context, 0), 1);
+
+    ASSERT_INT_EQ("dying ranger reaches phantom window",
+        state->npcs[0].death_ticks, 2);
+    ASSERT_INT_EQ("dying ranger receives phantom obs slot",
+        inf_find_target_obs_slot(state, 0) >= 0, 1);
+    inf_destroy((EncounterState*)state);
+}
+
 static void test_lab_snapshot_restore_round_trip(void) {
     printf("--- inferno lab snapshot restore round trip ---\n");
 
     InfernoState* state = make_lab_state();
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_SET_PLAYER,
         .as.tile = { .x = 29, .y = 39 },
     });
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_SPAWN_NPC,
         .as.spawn_npc = {
             .slot = 3,
@@ -192,7 +238,7 @@ static void test_lab_snapshot_restore_round_trip(void) {
             .timer = { .kind = INF_LAB_OPTIONAL_INT_SET, .value = 2 },
         },
     });
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_SET_PILLAR,
         .as.pillar = {
             .pillar_idx = 1,
@@ -208,22 +254,22 @@ static void test_lab_snapshot_restore_round_trip(void) {
     state->player_pending_hits.count = 2;
 
     size_t snapshot_size = ENCOUNTER_INFERNO.snapshot_size(
-        (EncounterState*)state, (EncounterContext*)inf_legacy_context());
+        (EncounterState*)state, (EncounterContext*)&lab_context);
     ASSERT_INT_EQ("snapshot size", (int)snapshot_size, (int)sizeof(InfSnapshot));
     InfSnapshot* snapshot = (InfSnapshot*)malloc(snapshot_size);
     ENCOUNTER_INFERNO.snapshot(
         (EncounterState*)state,
-        (EncounterContext*)inf_legacy_context(),
+        (EncounterContext*)&lab_context,
         snapshot);
 
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_SET_PLAYER,
         .as.tile = { .x = 18, .y = 18 },
     });
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_CLEAR_NPCS,
     });
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    inf_lab_apply_command_ctx(state, &lab_context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_SET_PILLAR,
         .as.pillar = {
             .pillar_idx = 1,
@@ -240,7 +286,7 @@ static void test_lab_snapshot_restore_round_trip(void) {
 
     ENCOUNTER_INFERNO.restore(
         (EncounterState*)state,
-        (EncounterContext*)inf_legacy_context(),
+        (EncounterContext*)&lab_context,
         snapshot,
         snapshot_size);
 
@@ -251,7 +297,8 @@ static void test_lab_snapshot_restore_round_trip(void) {
     ASSERT_INT_EQ("restored mager hp", state->npcs[3].hp, 99);
     ASSERT_INT_EQ("restored mager timer", state->npcs[3].attack_timer, 2);
     ASSERT_INT_EQ("restored west pillar inactive", state->pillars[1].active, 0);
-    ASSERT_INT_EQ("restored LOS blockers", state->los_blocker_count, 2);
+    ASSERT_INT_EQ("restored west pillar removed from dynamic LOS",
+        inf_pillar_footprint_blocked(state, 11, 34, 1), 0);
     ASSERT_INT_EQ("restored wave", state->wave, 11);
     ASSERT_INT_EQ("restored tick", state->tick, 321);
     ASSERT_INT_EQ("restored rng", (int)state->rng_state, (int)0x1234abcd);
@@ -264,10 +311,13 @@ static void test_lab_snapshot_restore_round_trip(void) {
 }
 
 int main(void) {
+    inf_init_context_typed(&lab_context);
+    inf_finalize_route_topology(&lab_context);
     test_lab_typed_commands_mutate_state();
     test_lab_script_reaches_exact_forecast();
     test_lab_json_contains_state_and_forecast();
     test_lab_spawn_wave_and_delete();
+    test_lab_kill_refresh_uses_finalized_context();
     test_lab_snapshot_restore_round_trip();
 
     return osrs_test_summary();

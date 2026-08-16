@@ -1,102 +1,138 @@
 #line 76 "encounter_colosseum.h"
 
-static void col_write_mask_ctx(EncounterState* state, EncounterContext* context, float* mask) {
+static void col_write_mask_ctx(
+    EncounterState* state,
+    EncounterContext* context,
+    float* mask
+) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
+    encounter_arena_topology_require_finalized(ctx->route_topology);
     col_refresh_current_obs_slots_ctx(s, ctx);
-    int offset = 0;
 
-    int frozen = s->modifiers.draft_pending && !s->modifiers.draft_free_movement;
-    mask[offset++] = 1.0f;
-    for (int d = 1; d < ENCOUNTER_MOVE_ACTIONS; d++) {
-        int nx = s->player.x + ENCOUNTER_MOVE_TARGET_DX[d];
-        int ny = s->player.y + ENCOUNTER_MOVE_TARGET_DY[d];
-        mask[offset++] = (!frozen && col_player_walkable(s, nx, ny)) ? 1.0f : 0.0f;
+    int primary_offset = col_action_head_mask_offset(COLO_HEAD_PRIMARY);
+    for (int action = 0; action < COLO_PRIMARY_DIM; action++) {
+        mask[primary_offset + action] =
+            col_primary_action_valid(s, ctx, action) ? 1.0f : 0.0f;
     }
 
-    for (int n = 0; n < COLO_OBS_NPCS; n++)
-        mask[offset++] = (!frozen && col_obs_slot_is_targetable(s, n)) ? 1.0f : 0.0f;
-
-    mask[offset++] = 1.0f;
-    mask[offset++] = s->player.prayer != PRAYER_NONE ? 1.0f : 0.0f;
-    mask[offset++] = s->player.current_prayer > 0 ? 1.0f : 0.0f;
-    mask[offset++] = s->player.current_prayer > 0 ? 1.0f : 0.0f;
-    mask[offset++] = s->player.current_prayer > 0 ? 1.0f : 0.0f;
+    int overhead_offset = col_action_head_mask_offset(COLO_HEAD_PRAYER);
+    mask[overhead_offset + ENCOUNTER_OVERHEAD_NO_CHANGE] = 1.0f;
+    mask[overhead_offset + ENCOUNTER_OVERHEAD_OFF] =
+        s->player.prayer != PRAYER_NONE ? 1.0f : 0.0f;
+    for (int action = ENCOUNTER_OVERHEAD_SET_REFRESH_MELEE;
+            action < OSRS_OVERHEAD_DIM;
+            action++) {
+        mask[overhead_offset + action] =
+            s->player.current_prayer > 0 ? 1.0f : 0.0f;
+    }
 
     int inventory_heads_enabled = !ctx->config.mask_inventory_heads;
     int cell_equip_slot[COLO_INVENTORY_DISPLAY_SLOTS];
     int cell_can_eat[COLO_INVENTORY_DISPLAY_SLOTS];
     int cell_can_drink[COLO_INVENTORY_DISPLAY_SLOTS];
+    int inventory_has_empty_cell =
+        osrs_first_empty_inventory_cell(s->player.inventory_cells, -1) >= 0;
     for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
         cell_equip_slot[cell] = -1;
         cell_can_eat[cell] = 0;
         cell_can_drink[cell] = 0;
-        OsrsInventoryClickResolution r =
-            osrs_inventory_cell_click_interpret(&s->inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
-        if (r.click_action == OSRS_CLICK_EQUIP) {
-            if (col_can_equip_from_cell(s, cell))
-                cell_equip_slot[cell] = osrs_item_gear_slot(s->inventory_cells[cell].item_idx);
-        } else if (r.click_action == OSRS_CLICK_EAT) {
-            cell_can_eat[cell] = col_can_eat_consumable_kind(s, r.consumable_kind);
-        } else if (r.click_action == OSRS_CLICK_DRINK) {
-            cell_can_drink[cell] = s->inventory_cells[cell].dose > 0 &&
+        OsrsInventoryClickResolution resolution =
+            osrs_inventory_cell_click_classify(
+                &s->player.inventory_cells[cell]);
+        if (resolution.click_action == OSRS_CLICK_EQUIP) {
+            const OsrsItemContentMetadata* metadata =
+                osrs_inventory_cell_metadata(
+                    &s->player.inventory_cells[cell]);
+            if (osrs_can_equip_metadata(
+                    &s->player, metadata, inventory_has_empty_cell)) {
+                cell_equip_slot[cell] = metadata->gear_slot;
+            }
+        } else if (resolution.click_action == OSRS_CLICK_EAT) {
+            cell_can_eat[cell] =
+                col_can_eat_consumable_kind(s, resolution.consumable_kind);
+        } else if (resolution.click_action == OSRS_CLICK_DRINK) {
+            cell_can_drink[cell] = osrs_inventory_cell_dose_count(
+                &s->player.inventory_cells[cell]) > 0 &&
                 s->player.potion_timer == 0 &&
-                col_drink_has_effect(s, r.consumable_kind);
+                col_drink_has_effect(s, resolution.consumable_kind);
         }
     }
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
-        mask[offset++] = 1.0f;
-        for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++)
-            mask[offset++] = (inventory_heads_enabled && cell_equip_slot[cell] == slot)
-                ? 1.0f : 0.0f;
+        int head_offset =
+            col_action_head_mask_offset(COLO_HEAD_EQUIP_SLOT(slot));
+        mask[head_offset] = 1.0f;
+        for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
+            mask[head_offset + cell + 1] =
+                inventory_heads_enabled && cell_equip_slot[cell] == slot
+                    ? 1.0f : 0.0f;
+        }
     }
-    mask[offset++] = 1.0f;
-    for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++)
-        mask[offset++] = (inventory_heads_enabled && cell_can_eat[cell]) ? 1.0f : 0.0f;
-    mask[offset++] = 1.0f;
-    for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++)
-        mask[offset++] = (inventory_heads_enabled && cell_can_drink[cell]) ? 1.0f : 0.0f;
+    int eat_offset = col_action_head_mask_offset(COLO_HEAD_EAT);
+    int drink_offset = col_action_head_mask_offset(COLO_HEAD_DRINK);
+    mask[eat_offset] = 1.0f;
+    mask[drink_offset] = 1.0f;
+    for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
+        mask[eat_offset + cell + 1] =
+            inventory_heads_enabled && cell_can_eat[cell] ? 1.0f : 0.0f;
+        mask[drink_offset + cell + 1] =
+            inventory_heads_enabled && cell_can_drink[cell] ? 1.0f : 0.0f;
+    }
 
-    mask[offset++] = 1.0f;
+    int spell_offset = col_action_head_mask_offset(COLO_HEAD_SPELL);
+    mask[spell_offset + OSRS_SPELL_NONE] = 1.0f;
+    for (int spell = OSRS_SPELL_BLOOD_BARRAGE;
+            spell < OSRS_SPELL_DEATH_CHARGE;
+            spell++)
+        mask[spell_offset + spell] = 0.0f;
+    int frozen =
+        s->modifiers.draft_pending && !s->modifiers.draft_free_movement;
+    mask[spell_offset + OSRS_SPELL_DEATH_CHARGE] =
+        !frozen && s->death_charge_cd == 0 &&
+        s->death_charge_window_left == 0 ? 1.0f : 0.0f;
+
+    int spec_offset = col_action_head_mask_offset(COLO_HEAD_SPEC);
+    mask[spec_offset] = 1.0f;
     int spec_cost = osrs_spec_cost(s->player.equipped[GEAR_SLOT_WEAPON]);
-    mask[offset++] = (spec_cost > 0 &&
-                      (s->player.special_energy >= spec_cost || s->player.spec_armed))
-        ? 1.0f : 0.0f;
-    mask[offset++] = s->player.spec_armed ? 1.0f : 0.0f;
-
-    mask[offset++] = s->modifiers.draft_pending ? 0.0f : 1.0f;
-    for (int o = 0; o < COLO_MODIFIER_DRAFT_OPTIONS; o++)
-        mask[offset++] = (s->modifiers.draft_pending && s->modifiers.draft_options[o] >= 0)
+    mask[spec_offset + 1] =
+        spec_cost > 0 &&
+        (s->player.special_energy >= spec_cost || s->player.spec_armed)
             ? 1.0f : 0.0f;
+    mask[spec_offset + 2] = s->player.spec_armed ? 1.0f : 0.0f;
 
-    mask[offset++] = 1.0f;
-    for (int g = 0; g < COLO_NUM_GRAPPLE_SLOTS; g++)
-        mask[offset++] = s->sol.grapple_active ? 1.0f : 0.0f;
+    int offensive_offset = col_action_head_mask_offset(COLO_HEAD_OFFENSIVE);
+    mask[offensive_offset] = 1.0f;
+    mask[offensive_offset + 1] =
+        s->player.offensive_prayer != OFFENSIVE_PRAYER_NONE ? 1.0f : 0.0f;
+    mask[offensive_offset + 2] =
+        s->player.current_prayer > 0 &&
+        s->player.offensive_prayer != OFFENSIVE_PRAYER_PIETY ? 1.0f : 0.0f;
+    mask[offensive_offset + 3] =
+        s->player.current_prayer > 0 &&
+        s->player.offensive_prayer != OFFENSIVE_PRAYER_RIGOUR ? 1.0f : 0.0f;
+    mask[offensive_offset + 4] =
+        s->player.current_prayer > 0 &&
+        s->player.offensive_prayer != OFFENSIVE_PRAYER_AUGURY ? 1.0f : 0.0f;
 
-    mask[offset++] = 1.0f;
-    mask[offset++] = (s->player.offensive_prayer != OFFENSIVE_PRAYER_NONE) ? 1.0f : 0.0f;
-    mask[offset++] = (s->player.current_prayer > 0 &&
-                      s->player.offensive_prayer != OFFENSIVE_PRAYER_PIETY) ? 1.0f : 0.0f;
-    mask[offset++] = (s->player.current_prayer > 0 &&
-                      s->player.offensive_prayer != OFFENSIVE_PRAYER_RIGOUR) ? 1.0f : 0.0f;
-    mask[offset++] = (s->player.current_prayer > 0 &&
-                      s->player.offensive_prayer != OFFENSIVE_PRAYER_AUGURY) ? 1.0f : 0.0f;
-
-    mask[offset++] = 1.0f;
-    {
-        int target = col_player_target_slot(s);
-        mask[offset++] = (!frozen && s->thrall_recast_cd == 0 &&
-                          col_npc_is_thrall_target(s, target)) ? 1.0f : 0.0f;
+    int modifier_offset =
+        col_action_head_mask_offset(COLO_HEAD_MODIFIER_SELECT);
+    mask[modifier_offset] = s->modifiers.draft_pending ? 0.0f : 1.0f;
+    for (int option = 0; option < COLO_MODIFIER_DRAFT_OPTIONS; option++) {
+        mask[modifier_offset + option + 1] =
+            s->modifiers.draft_pending &&
+            s->modifiers.draft_options[option] >= 0 ? 1.0f : 0.0f;
     }
-    mask[offset++] = (!frozen && s->death_charge_cd == 0 &&
-                      s->death_charge_window_left == 0) ? 1.0f : 0.0f;
 
-    if (offset != COLO_ACTION_MASK_SIZE) {
-        fprintf(stderr, "colosseum mask index mismatch: wrote %d, expected %d\n",
-            offset, COLO_ACTION_MASK_SIZE);
-        abort();
+    int grapple_offset =
+        col_action_head_mask_offset(COLO_HEAD_GRAPPLE_PARRY);
+    mask[grapple_offset] = 1.0f;
+    for (int grapple = 0; grapple < COLO_NUM_GRAPPLE_SLOTS; grapple++) {
+        mask[grapple_offset + grapple + 1] =
+            s->sol.grapple_active ? 1.0f : 0.0f;
     }
 }
+
+
 
 static float col_get_reward_ctx(EncounterState* state, EncounterContext* context) {
     return ((ColosseumState*)state)->reward;
@@ -167,16 +203,25 @@ static int col_npc_render_attack_anim_id(
     abort();
 }
 
-static void col_thrall_render_tile(const ColosseumState* s, int* out_x, int* out_y) {
+static void col_thrall_render_tile(
+    ColosseumState* s,
+    const ColosseumContext* ctx,
+    int* out_x,
+    int* out_y
+) {
     static const int RING[16][2] = {
         {0, 1}, {1, 0}, {-1, 0}, {0, -1},
         {1, 1}, {1, -1}, {-1, 1}, {-1, -1},
         {0, 2}, {2, 0}, {-2, 0}, {0, -2},
         {1, 2}, {2, 1}, {-1, 2}, {-2, 1} };
+    ColoGeometryContext geometry = {
+        .state = s,
+        .context = ctx,
+    };
     for (int a = 0; a < 16; a++) {
         int x = s->player.x + RING[a][0];
         int y = s->player.y + RING[a][1];
-        if (!col_npc_blocked((void*)s, x, y, 1)) {
+        if (!col_npc_blocked(&geometry, x, y, 1)) {
             *out_x = x;
             *out_y = y;
             return;
@@ -223,7 +268,7 @@ static void col_fill_render_entities_ctx(
     int max_entities,
     int* count
 ) {
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     ColosseumState* s = (ColosseumState*)state;
     const EncounterLoadoutStats* ls = col_live_loadout_stats(s);
     s->player.gui_max_hit = ls->max_hit;
@@ -304,9 +349,9 @@ static void col_fill_render_entities_ctx(
         }
     }
 
-    if (s->thrall_active && n < max_entities) {
+    if (n < max_entities) {
         int tx, ty;
-        col_thrall_render_tile(s, &tx, &ty);
+        col_thrall_render_tile(s, ctx, &tx, &ty);
         col_emit_decoration_entity(out, &n, max_entities,
             COLO_NPC_DEF_ID_THRALL, COLO_NPC_SLOT_THRALL, COLO_THRALL_RENDER_INSTANCE_ID,
             ctx->thrall_attacked_this_tick ? 11101 : -1, tx, ty, "Arceuus Thrall");

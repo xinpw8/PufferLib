@@ -12,6 +12,7 @@ static void loadout_reset(ColosseumState* s, ColosseumContext* ctx, int mode,
     col_init_context_typed(ctx);
     ctx->config.loadout_profile_mode = mode;
     ctx->config.beginner_loadout_fraction = frac;
+    col_finalize_route_topology(ctx);
     memset(s, 0, sizeof(*s));
     col_reset_ctx((EncounterState*)s, (EncounterContext*)ctx, seed);
 }
@@ -111,7 +112,8 @@ static void test_beats_worn_single_swap(void) {
             }
         }
         for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
-            uint8_t w = s.inventory_cells[cell].item_idx;
+            uint8_t w =
+                osrs_inventory_cell_item_index(&s.player.inventory_cells[cell]);
             if (w != ITEM_NONE && item_is_weapon(w) && !add_seen[w]) {
                 add_seen[w] = 1; weapons[nweap++] = w;
             }
@@ -155,7 +157,11 @@ static void test_equip_and_augury_same_tick(void) {
 
     int shadow_cell = -1;
     for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++)
-        if (s.inventory_cells[cell].item_idx == ITEM_TUMEKENS_SHADOW) { shadow_cell = cell; break; }
+        if (osrs_inventory_cell_item_index(
+                &s.player.inventory_cells[cell]) == ITEM_TUMEKENS_SHADOW) {
+            shadow_cell = cell;
+            break;
+        }
     CHECK("T4 shadow is in the bag", shadow_cell >= 0);
     if (shadow_cell < 0) return;
 
@@ -238,8 +244,9 @@ static void test_per_cell_marginal_bit(void) {
     float magic_dpt_with = best[COLO_GEAR_MAGIC][COLO_FREMENNIK_BERSERKER].dpt;
 
     for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++)
-        if (s.inventory_cells[cell].item_idx == ITEM_TUMEKENS_SHADOW)
-            s.inventory_cells[cell].item_idx = ITEM_NONE;
+        if (osrs_inventory_cell_item_index(
+                &s.player.inventory_cells[cell]) == ITEM_TUMEKENS_SHADOW)
+            s.player.inventory_cells[cell] = osrs_inventory_cell_empty();
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
         if (s.player.equipped[slot] == ITEM_TUMEKENS_SHADOW)
             s.player.equipped[slot] = ITEM_NONE;

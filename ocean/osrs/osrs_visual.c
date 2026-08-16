@@ -26,6 +26,179 @@
 #include "puffercpu.h"
 #include "osrs_visual_net.h"
 
+_Static_assert(OSRS_SHARED_OBS_SIZE == 101,
+    "entity encoder shared observation prefix");
+_Static_assert(OSRS_ENT_INV_START == OSRS_SHARED_OBS_INVENTORY_START,
+    "entity encoder inventory offset");
+_Static_assert(OSRS_ENT_INV_NUM_RECS == OSRS_INVENTORY_SIZE,
+    "entity encoder inventory record count");
+_Static_assert(OSRS_ENT_INV_OBS_FEATS == OSRS_SHARED_INVENTORY_CELL_OBS_FEATURES,
+    "entity encoder inventory observation record width");
+_Static_assert(
+    OSRS_ENT_INV_START + OSRS_ENT_INV_NUM_RECS * OSRS_ENT_INV_OBS_FEATS ==
+        OSRS_SHARED_OBS_EQUIPPED_START,
+    "entity encoder inventory boundary");
+_Static_assert(OSRS_ENT_EQUIPPED_START == OSRS_SHARED_OBS_EQUIPPED_START,
+    "entity encoder equipped offset");
+_Static_assert(OSRS_ENT_EQUIPPED_NUM_RECS == NUM_GEAR_SLOTS,
+    "entity encoder equipped record count");
+_Static_assert(
+    OSRS_ENT_EQUIPPED_START +
+            OSRS_ENT_EQUIPPED_NUM_RECS * OSRS_ENT_EQUIPPED_OBS_FEATS ==
+        OSRS_SHARED_OBS_EFFECT_START,
+    "entity encoder equipped boundary");
+_Static_assert(OSRS_ENT_ITEM_FEATS == OSRS_ITEM_OBS_TABLE_COLS,
+    "entity encoder expanded item record width");
+_Static_assert(OSRS_ITEM_CONTENT_COUNT <= OSRS_ITEM_OBS_CODE_SCALE,
+    "entity encoder item code scale");
+
+_Static_assert(COLO_ENT_OBS_SIZE == COLO_NUM_OBS,
+    "Colosseum entity encoder observation width");
+_Static_assert(COLO_ENT_NPC_START == COLO_OBS_AFTER_SHARED,
+    "Colosseum entity encoder NPC offset");
+_Static_assert(COLO_ENT_NPC_NUM_RECS == COLO_OBS_NPCS,
+    "Colosseum entity encoder NPC count");
+_Static_assert(COLO_ENT_NPC_OBS_FEATS == COLO_FEATURES_PER_NPC,
+    "Colosseum entity encoder NPC observation record width");
+_Static_assert(
+    COLO_ENT_NPC_START +
+            COLO_ENT_NPC_NUM_RECS * COLO_ENT_NPC_OBS_FEATS ==
+        COLO_OBS_AFTER_NPCS,
+    "Colosseum entity encoder NPC boundary");
+_Static_assert(
+    COLO_ENT_NPC_FEATS ==
+        COLO_ENT_NPC_TYPE_ONEHOT +
+            (COLO_FEATURES_PER_NPC - COLO_NPC_TYPE_CODE_FEATURES),
+    "Colosseum entity encoder expanded NPC record width");
+_Static_assert(COLO_ENT_NPC_TYPE_ONEHOT == COLO_NUM_NPC_TYPES,
+    "Colosseum entity encoder NPC type width");
+
+_Static_assert(INF_ENT_OBS_SIZE == INF_NUM_OBS,
+    "Inferno entity encoder observation width");
+_Static_assert(INF_ENT_NPC_START == INF_OBS_AFTER_PILLARS,
+    "Inferno entity encoder NPC offset");
+_Static_assert(INF_ENT_NPC_NUM_RECS == INF_OBS_NPCS,
+    "Inferno entity encoder NPC count");
+_Static_assert(INF_ENT_NPC_OBS_FEATS == INF_NPC_SLOT_FEATURES,
+    "Inferno entity encoder NPC observation record width");
+_Static_assert(
+    INF_ENT_NPC_START +
+            INF_ENT_NPC_NUM_RECS * INF_ENT_NPC_OBS_FEATS ==
+        INF_OBS_AFTER_NPCS,
+    "Inferno entity encoder NPC boundary");
+_Static_assert(
+    INF_ENT_NPC_FEATS ==
+        INF_ENT_NPC_TYPE_ONEHOT + (INF_NPC_SLOT_FEATURES - 1),
+    "Inferno entity encoder expanded NPC record width");
+_Static_assert(INF_ENT_NPC_TYPE_ONEHOT == INF_NUM_NPC_TYPES,
+    "Inferno entity encoder NPC type width");
+_Static_assert(INF_ENT_NPC_TYPE_SCALE == (int)INF_NPC_TYPE_CODE_SCALE,
+    "Inferno entity encoder NPC type scale");
+
+#define VISUAL_SHARED_ITEM_BRANCH(name, offset, count) { \
+    .weight_name = name, \
+    .start = offset, \
+    .num_recs = count, \
+    .feats = OSRS_ENT_ITEM_FEATS, \
+    .obs_feats = 1, \
+    .type_onehot = 0, \
+    .code_scale = OSRS_ITEM_OBS_CODE_SCALE, \
+    .bottleneck = OSRS_ENT_ITEM_BOTTLENECK, \
+    .active_width = 1, \
+    .expansion = ENTITY_RECORD_ITEM_TABLE, \
+}
+
+static const EntityEncoderDescriptor VISUAL_ENTITY_ENCODER_DESCRIPTORS[] = {
+    {
+        .env_name = "colosseum",
+        .obs_size = COLO_ENT_OBS_SIZE,
+        .num_branches = 3,
+        .branches = {
+            VISUAL_SHARED_ITEM_BRANCH(
+                "inventory", OSRS_ENT_INV_START, OSRS_ENT_INV_NUM_RECS),
+            VISUAL_SHARED_ITEM_BRANCH(
+                "equipped", OSRS_ENT_EQUIPPED_START, OSRS_ENT_EQUIPPED_NUM_RECS),
+            {
+                .weight_name = "npc",
+                .start = COLO_ENT_NPC_START,
+                .num_recs = COLO_ENT_NPC_NUM_RECS,
+                .feats = COLO_ENT_NPC_FEATS,
+                .obs_feats = COLO_ENT_NPC_OBS_FEATS,
+                .type_onehot = COLO_ENT_NPC_TYPE_ONEHOT,
+                .code_scale = COLO_ENT_NPC_TYPE_SCALE,
+                .bottleneck = COLO_ENT_NPC_BOTTLENECK,
+                .active_width = COLO_ENT_NPC_TYPE_ONEHOT,
+                .expansion = ENTITY_RECORD_TYPE_ONEHOT,
+            },
+        },
+    },
+    {
+        .env_name = "inferno",
+        .obs_size = INF_ENT_OBS_SIZE,
+        .num_branches = 3,
+        .branches = {
+            VISUAL_SHARED_ITEM_BRANCH(
+                "inventory", OSRS_ENT_INV_START, OSRS_ENT_INV_NUM_RECS),
+            VISUAL_SHARED_ITEM_BRANCH(
+                "equipped", OSRS_ENT_EQUIPPED_START, OSRS_ENT_EQUIPPED_NUM_RECS),
+            {
+                .weight_name = "npc",
+                .start = INF_ENT_NPC_START,
+                .num_recs = INF_ENT_NPC_NUM_RECS,
+                .feats = INF_ENT_NPC_FEATS,
+                .obs_feats = INF_ENT_NPC_OBS_FEATS,
+                .type_onehot = INF_ENT_NPC_TYPE_ONEHOT,
+                .code_scale = INF_ENT_NPC_TYPE_SCALE,
+                .bottleneck = INF_ENT_NPC_BOTTLENECK,
+                .active_width = INF_ENT_NPC_TYPE_ONEHOT,
+                .expansion = ENTITY_RECORD_TYPE_ONEHOT,
+            },
+        },
+    },
+    {
+        .env_name = "zulrah",
+        .obs_size = ZUL_NUM_OBS,
+        .num_branches = 2,
+        .branches = {
+            VISUAL_SHARED_ITEM_BRANCH(
+                "inventory", OSRS_ENT_INV_START, OSRS_ENT_INV_NUM_RECS),
+            VISUAL_SHARED_ITEM_BRANCH(
+                "equipped", OSRS_ENT_EQUIPPED_START, OSRS_ENT_EQUIPPED_NUM_RECS),
+        },
+    },
+    {
+        .env_name = "nh_pvp",
+        .obs_size = 133,
+        .num_branches = 2,
+        .branches = {
+            VISUAL_SHARED_ITEM_BRANCH(
+                "inventory", OSRS_ENT_INV_START, OSRS_ENT_INV_NUM_RECS),
+            VISUAL_SHARED_ITEM_BRANCH(
+                "equipped", OSRS_ENT_EQUIPPED_START, OSRS_ENT_EQUIPPED_NUM_RECS),
+        },
+    },
+};
+
+static const EntityEncoderDescriptor* visual_policy_entity_descriptor(
+        const EncounterDef* edef) {
+    for (int i = 0;
+            i < (int)(sizeof(VISUAL_ENTITY_ENCODER_DESCRIPTORS) /
+                sizeof(VISUAL_ENTITY_ENCODER_DESCRIPTORS[0]));
+            i++) {
+        const EntityEncoderDescriptor* descriptor =
+            &VISUAL_ENTITY_ENCODER_DESCRIPTORS[i];
+        if (strcmp(edef->name, descriptor->env_name) != 0) continue;
+        if (descriptor->obs_size > 0 && descriptor->obs_size != edef->obs_size) {
+            fprintf(stderr,
+                "policy: %s observation width %d != descriptor width %d\n",
+                edef->name, edef->obs_size, descriptor->obs_size);
+            abort();
+        }
+        return descriptor;
+    }
+    return NULL;
+}
+
 static void visual_require_gui_item_sprite(int raw_osrs_id, void* ctx) {
     gui_require_sprite_by_osrs_id((GuiState*)ctx, raw_osrs_id);
 }
@@ -57,17 +230,21 @@ static void print_env_state(OsrsEnv* env) {
 }
 
 static void run_random_episode(OsrsEnv* env, int verbose) {
-    pvp_reset(env);
+    const EncounterArenaTopology* route_topology =
+        pvp_route_topology_finalize((const CollisionMap*)env->collision_map);
+    OsrsActorRouteCache route_cache[NUM_AGENTS] = {0};
+    pvp_reset(env, route_topology);
 
     while (!env->episode_over) {
         for (int agent = 0; agent < NUM_AGENTS; agent++) {
-            int* actions = env->actions + agent * NUM_ACTION_HEADS;
-            for (int h = 0; h < NUM_ACTION_HEADS; h++) {
-                actions[h] = rand() % ACTION_HEAD_DIMS[h];
+            int* actions =
+                env->actions + agent * OSRS_BASE_NUM_ACTION_HEADS;
+            for (int h = 0; h < OSRS_BASE_NUM_ACTION_HEADS; h++) {
+                actions[h] = rand() % NH_PVP_ACTION_DIMS[h];
             }
         }
 
-        pvp_step(env);
+        pvp_step(env, route_topology, route_cache);
 
         if (verbose && env->tick % 50 == 0) {
             print_env_state(env);
@@ -84,6 +261,9 @@ static void run_random_episode(OsrsEnv* env, int verbose) {
 }
 
 static void benchmark(OsrsEnv* env, int num_steps) {
+    const EncounterArenaTopology* route_topology =
+        pvp_route_topology_finalize((const CollisionMap*)env->collision_map);
+    OsrsActorRouteCache route_cache[NUM_AGENTS] = {0};
     printf("Benchmarking %d steps...\n", num_steps);
 
     clock_t start = clock();
@@ -91,18 +271,20 @@ static void benchmark(OsrsEnv* env, int num_steps) {
     int total_steps = 0;
 
     while (total_steps < num_steps) {
-        pvp_reset(env);
+        pvp_reset(env, route_topology);
+        pvp_actor_route_caches_clear(route_cache);
         episodes++;
 
         while (!env->episode_over && total_steps < num_steps) {
             for (int agent = 0; agent < NUM_AGENTS; agent++) {
-                int* actions = env->actions + agent * NUM_ACTION_HEADS;
-                for (int h = 0; h < NUM_ACTION_HEADS; h++) {
-                    actions[h] = rand() % ACTION_HEAD_DIMS[h];
+                int* actions =
+                    env->actions + agent * OSRS_BASE_NUM_ACTION_HEADS;
+                for (int h = 0; h < OSRS_BASE_NUM_ACTION_HEADS; h++) {
+                    actions[h] = rand() % NH_PVP_ACTION_DIMS[h];
                 }
             }
 
-            pvp_step(env);
+            pvp_step(env, route_topology, route_cache);
             total_steps++;
         }
     }
@@ -146,19 +328,37 @@ static double osrs_profile_now_seconds(void) {
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
 }
 
+static uint64_t osrs_profile_hash_bytes(uint64_t hash, const void* data, size_t size) {
+    const uint8_t* bytes = (const uint8_t*)data;
+    for (size_t i = 0; i < size; i++)
+        hash = (hash ^ bytes[i]) * 1099511628211ULL;
+    return hash;
+}
+
 #ifdef COLO_PROFILE_ENABLED
-static void osrs_print_colosseum_profile_results(void) {
+static int osrs_colosseum_profile_slot_is_counter(int slot) {
+    return slot == COLO_PROF_BEST_GEAR_REQUESTS ||
+        slot == COLO_PROF_BEST_GEAR_HITS ||
+        slot == COLO_PROF_BEST_GEAR_BUILDS ||
+        slot == COLO_PROF_VENATOR_REQUESTS ||
+        slot == COLO_PROF_VENATOR_HITS ||
+        slot == COLO_PROF_VENATOR_REFRESHES;
+}
+
+static void osrs_print_colosseum_profile_results(int total_steps) {
     int count = colosseum_env_profile_count();
     if (count <= 0) return;
     double values[COLO_PROF_COUNT];
     int order[COLO_PROF_COUNT];
+    int order_count = 0;
     for (int i = 0; i < count; i++) {
         values[i] = colosseum_env_profile_read_reset_ms(i);
-        order[i] = i;
+        if (!osrs_colosseum_profile_slot_is_counter(i))
+            order[order_count++] = i;
     }
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < order_count; i++) {
         int best = i;
-        for (int j = i + 1; j < count; j++) {
+        for (int j = i + 1; j < order_count; j++) {
             if (values[order[j]] > values[order[best]]) best = j;
         }
         int tmp = order[i];
@@ -167,12 +367,36 @@ static void osrs_print_colosseum_profile_results(void) {
     }
     double total = values[COLO_PROF_C_STEP_TOTAL];
     printf("Colosseum profile buckets:\n");
-    for (int r = 0; r < count; r++) {
+    for (int r = 0; r < order_count; r++) {
         int slot = order[r];
         double pct = total > 0.0 ? 100.0 * values[slot] / total : 0.0;
         printf("  %-28s %.3f ms  %.2f%%\n",
             colosseum_env_profile_name(slot), values[slot], pct);
     }
+    double steps = total_steps > 0 ? (double)total_steps : 1.0;
+    double best_gear_requests = values[COLO_PROF_BEST_GEAR_REQUESTS];
+    double best_gear_hits = values[COLO_PROF_BEST_GEAR_HITS];
+    printf("Colosseum cache counters:\n");
+    printf("  %-28s %.0f total  %.6f per step  %.2f%% hit\n",
+        "best_gear",
+        best_gear_requests,
+        best_gear_requests / steps,
+        best_gear_requests > 0.0 ? 100.0 * best_gear_hits / best_gear_requests : 0.0);
+    double venator_requests = values[COLO_PROF_VENATOR_REQUESTS];
+    double venator_hits = values[COLO_PROF_VENATOR_HITS];
+    printf("  %-28s %.0f total  %.6f per step  %.2f%% hit\n",
+        "venator",
+        venator_requests,
+        venator_requests / steps,
+        venator_requests > 0.0 ? 100.0 * venator_hits / venator_requests : 0.0);
+    printf("  %-28s %.0f total  %.6f per step\n",
+        colosseum_env_profile_name(COLO_PROF_BEST_GEAR_BUILDS),
+        values[COLO_PROF_BEST_GEAR_BUILDS],
+        values[COLO_PROF_BEST_GEAR_BUILDS] / steps);
+    printf("  %-28s %.0f total  %.6f per step\n",
+        colosseum_env_profile_name(COLO_PROF_VENATOR_REFRESHES),
+        values[COLO_PROF_VENATOR_REFRESHES],
+        values[COLO_PROF_VENATOR_REFRESHES] / steps);
 }
 #endif
 
@@ -246,6 +470,9 @@ static VisualCollisionLoad visual_load_encounter_collision_map(
 ) {
     CollisionMap* cmap = NULL;
     int offset_x = 0, offset_y = 0;
+    if (encounter_name_is_pvp(encounter_name)) {
+        cmap = collision_map_load(OSRS_ASSET("wilderness.cmap"));
+    } else
     if (strcmp(encounter_name, "zulrah") == 0) {
         cmap = collision_map_load(OSRS_ASSET("zulrah.cmap"));
         offset_x = 2256; offset_y = 3061;
@@ -258,9 +485,19 @@ static VisualCollisionLoad visual_load_encounter_collision_map(
     }
     VisualCollisionLoad result = { NULL, offset_x, offset_y };
     if (cmap) {
+        if (!encounter_name_is_pvp(encounter_name)) {
+            edef->put_int(
+                env->encounter_state,
+                env->encounter_context,
+                "world_offset_x",
+                offset_x);
+            edef->put_int(
+                env->encounter_state,
+                env->encounter_context,
+                "world_offset_y",
+                offset_y);
+        }
         edef->put_ptr(env->encounter_state, env->encounter_context, "collision_map", cmap);
-        edef->put_int(env->encounter_state, env->encounter_context, "world_offset_x", offset_x);
-        edef->put_int(env->encounter_state, env->encounter_context, "world_offset_y", offset_y);
         env->collision_map = cmap;
         result.cmap = cmap;
     }
@@ -278,13 +515,22 @@ static const EncounterDef* visual_open_encounter(OsrsEnv* env, const char* encou
     env->encounter_context = visual_create_encounter_context(edef);
     return edef;
 }
+static void visual_finalize_encounter(
+    const EncounterDef* edef,
+    OsrsEnv* env
+) {
+    if (edef->finalize_context)
+        edef->finalize_context(env->encounter_state, env->encounter_context);
+}
 
 static void run_profile(
     OsrsEnv* env,
     const char* encounter_name,
     int start_wave,
-    int profile_steps
+    int profile_steps,
+    uint32_t profile_seed
 ) {
+    srand(profile_seed);
     if (profile_steps > 0) {
         printf("Profiling %s for %d steps...\n",
             encounter_name ? encounter_name : "pvp",
@@ -293,6 +539,7 @@ static void run_profile(
         printf("Profiling %s for 10 seconds...\n", encounter_name ? encounter_name : "pvp");
     }
 
+    const EncounterArenaTopology* direct_pvp_topology = NULL;
     if (encounter_name) {
         const EncounterDef* edef = visual_open_encounter(env, encounter_name);
         if (!edef) return;
@@ -306,13 +553,20 @@ static void run_profile(
                 start_wave);
             fprintf(stderr, "start_wave: %d\n", start_wave);
         }
-        edef->reset(env->encounter_state, env->encounter_context, 0);
+        visual_finalize_encounter(edef, env);
+        edef->reset(env->encounter_state, env->encounter_context, profile_seed);
     } else {
         env->pvp_runtime.use_c_opponent = 1;
         env->pvp_runtime.opponent.type = OPP_IMPROVED;
+        env->has_rng_seed = 1;
+        env->rng_seed = profile_seed;
         env->is_lms = 1;
-        pvp_reset(env);
+        direct_pvp_topology =
+            pvp_route_topology_finalize(
+                (const CollisionMap*)env->collision_map);
+        pvp_reset(env, direct_pvp_topology);
     }
+    OsrsActorRouteCache direct_pvp_route_cache[NUM_AGENTS] = {0};
 
     const EncounterDef* profile_edef = (const EncounterDef*)env->encounter_def;
     float* encounter_obs = NULL;
@@ -349,6 +603,7 @@ static void run_profile(
     double elapsed = 0;
     int total_steps = 0;
     int enc_actions[64] = {0};
+    const int pin_inventory_actions = getenv("OSRS_PROFILE_PIN_INV") != NULL;
 
     while ((profile_steps > 0 && total_steps < profile_steps) ||
            (profile_steps <= 0 && elapsed < 10.0)) {
@@ -369,7 +624,7 @@ static void run_profile(
             for (int h = 0; h < edef->num_action_heads; h++) {
                 enc_actions[h] = rand() % edef->action_head_dims[h];
             }
-            if (getenv("OSRS_PROFILE_PIN_INV")) {
+            if (pin_inventory_actions) {
                 for (int h = 2; h < 15 && h < edef->num_action_heads; h++)
                     enc_actions[h] = 0;
             }
@@ -456,14 +711,16 @@ static void run_profile(
 #endif
         } else {
             for (int agent = 0; agent < NUM_AGENTS; agent++) {
-                int* actions = env->actions + agent * NUM_ACTION_HEADS;
-                for (int h = 0; h < NUM_ACTION_HEADS; h++) {
-                    actions[h] = rand() % ACTION_HEAD_DIMS[h];
+                int* actions =
+                    env->actions + agent * OSRS_BASE_NUM_ACTION_HEADS;
+                for (int h = 0; h < OSRS_BASE_NUM_ACTION_HEADS; h++) {
+                    actions[h] = rand() % NH_PVP_ACTION_DIMS[h];
                 }
             }
-            pvp_step(env);
+            pvp_step(env, direct_pvp_topology, direct_pvp_route_cache);
             if (env->episode_over) {
-                pvp_reset(env);
+                pvp_reset(env, direct_pvp_topology);
+                pvp_actor_route_caches_clear(direct_pvp_route_cache);
             }
         }
 
@@ -478,9 +735,43 @@ static void run_profile(
     printf("  Total steps: %d\n", total_steps);
     printf("  Time: %.3f seconds\n", elapsed);
     printf("  Steps/sec: %.0f\n", total_steps / elapsed);
+#ifdef OSRS_ROUTE_PROBE
+    printf(
+        "  Route probes: tile=%llu cardinal=%llu attack=%llu direct=%llu overlap=%llu try_direct=%llu source=%llu reverse=%llu bfs=%llu nodes=%llu\n",
+        (unsigned long long)osrs_route_probe_calls[0],
+        (unsigned long long)osrs_route_probe_calls[1],
+        (unsigned long long)osrs_route_probe_calls[2],
+        (unsigned long long)osrs_route_probe_direct,
+        (unsigned long long)osrs_route_probe_overlap,
+        (unsigned long long)osrs_route_probe_try_direct,
+        (unsigned long long)osrs_route_probe_source,
+        (unsigned long long)osrs_route_probe_reverse,
+        (unsigned long long)osrs_route_probe_bfs,
+        (unsigned long long)osrs_route_probe_nodes);
+    printf(
+        "  Source fields: builds=%llu nodes=%llu\n",
+        (unsigned long long)osrs_route_probe_source_builds,
+        (unsigned long long)osrs_route_probe_source_nodes);
+    printf(
+        "  Route cost calls: osrs=%llu south=%llu direct=%llu south_bfs=%llu reverse=%llu target_bfs=%llu\n",
+        (unsigned long long)osrs_route_probe_cost_calls[0],
+        (unsigned long long)osrs_route_probe_cost_calls[1],
+        (unsigned long long)osrs_route_probe_cost_calls[2],
+        (unsigned long long)osrs_route_probe_cost_calls[3],
+        (unsigned long long)osrs_route_probe_cost_calls[4],
+        (unsigned long long)osrs_route_probe_cost_calls[5]);
+    printf(
+        "  Route cost BFS: osrs=%llu south=%llu direct=%llu south_bfs=%llu reverse=%llu target_bfs=%llu\n",
+        (unsigned long long)osrs_route_probe_cost_bfs[0],
+        (unsigned long long)osrs_route_probe_cost_bfs[1],
+        (unsigned long long)osrs_route_probe_cost_bfs[2],
+        (unsigned long long)osrs_route_probe_cost_bfs[3],
+        (unsigned long long)osrs_route_probe_cost_bfs[4],
+        (unsigned long long)osrs_route_probe_cost_bfs[5]);
+#endif
 #ifdef COLO_PROFILE_ENABLED
     if (encounter_name && strcmp(encounter_name, "colosseum") == 0)
-        osrs_print_colosseum_profile_results();
+        osrs_print_colosseum_profile_results(total_steps);
 #endif
 #ifdef INF_PROFILE_ENABLED
     if (encounter_name && strcmp(encounter_name, "inferno") == 0)
@@ -640,10 +931,10 @@ static int visual_policy_is_continuous(
     return 1;
 }
 
-#define VISUAL_POLICY_ENTITY_FEATS      37
-#define VISUAL_POLICY_ENTITY_BOTTLENECK 16
-#define VISUAL_POLICY_INV_FEATS         28
-#define VISUAL_POLICY_INV_BOTTLENECK    16
+static int64_t visual_policy_advance_weight_offset(
+        int64_t offset, int64_t count) {
+    return (offset + count + 7) & ~(int64_t)7;
+}
 
 static int64_t visual_policy_expected_weight_count(
     int input_size,
@@ -652,28 +943,35 @@ static int64_t visual_policy_expected_weight_count(
     const int* action_dims,
     int num_action_heads,
     int decoder_value_heads,
-    int entity_encoder
+    int entity_encoder,
+    const EntityEncoderDescriptor* descriptor
 ) {
     int action_sum = 0;
     for (int h = 0; h < num_action_heads; h++) {
         action_sum += action_dims[h];
     }
 
-    int64_t total = 0;
-    total += (int64_t)hidden_size * input_size;
-    if (entity_encoder >= 1) {
-        total += (int64_t)VISUAL_POLICY_ENTITY_BOTTLENECK * VISUAL_POLICY_ENTITY_FEATS;
-        total += (int64_t)hidden_size * VISUAL_POLICY_ENTITY_BOTTLENECK;
+    int64_t total = visual_policy_advance_weight_offset(
+        0, (int64_t)hidden_size * input_size);
+    if (entity_encoder) {
+        if (!descriptor) return -1;
+        for (int i = 0; i < descriptor->num_branches; i++) {
+            const EntityPoolDescriptor* branch = &descriptor->branches[i];
+            total = visual_policy_advance_weight_offset(
+                total, (int64_t)branch->bottleneck * branch->feats);
+            total = visual_policy_advance_weight_offset(
+                total, (int64_t)hidden_size * branch->bottleneck);
+        }
     }
-    if (entity_encoder >= 2) {
-        total += (int64_t)VISUAL_POLICY_INV_BOTTLENECK * VISUAL_POLICY_INV_FEATS;
-        total += (int64_t)hidden_size * VISUAL_POLICY_INV_BOTTLENECK;
-    }
-    total += (int64_t)(action_sum + decoder_value_heads) * hidden_size;
+    total = visual_policy_advance_weight_offset(
+        total, (int64_t)(action_sum + decoder_value_heads) * hidden_size);
     if (visual_policy_is_continuous(action_dims, num_action_heads)) {
-        total += num_action_heads;
+        total = visual_policy_advance_weight_offset(total, num_action_heads);
     }
-    total += (int64_t)num_layers * 3 * hidden_size * hidden_size;
+    for (int i = 0; i < num_layers; i++) {
+        total = visual_policy_advance_weight_offset(
+            total, (int64_t)3 * hidden_size * hidden_size);
+    }
     return total;
 }
 
@@ -684,6 +982,7 @@ static int64_t visual_policy_file_weight_count(const Weights* weights) {
 static VisualPolicyModelShape visual_policy_select_model_shape(
     const VisualPolicy* policy,
     const EncounterDef* edef,
+    const EntityEncoderDescriptor* descriptor,
     int cli_hidden_size,
     int cli_num_layers,
     int cli_entity_encoder
@@ -692,6 +991,7 @@ static VisualPolicyModelShape visual_policy_select_model_shape(
     int obs_input_size = policy->obs_size;
     int full_input_size = policy->obs_size + policy->mask_size;
     int64_t file_weights = visual_policy_file_weight_count(policy->weights);
+    int enc_max = descriptor ? 1 : 0;
 
     VisualPolicyModelShape match = {0};
     int matches = 0;
@@ -700,14 +1000,15 @@ static VisualPolicyModelShape visual_policy_select_model_shape(
         if (cli_hidden_size > 0 && hs != cli_hidden_size) continue;
         for (int layers = 1; layers <= 8; layers++) {
             if (cli_num_layers > 0 && layers != cli_num_layers) continue;
-            for (int enc = 0; enc <= 2; enc++) {
+            for (int enc = 0; enc <= enc_max; enc++) {
                 if (cli_entity_encoder > 0 && enc != cli_entity_encoder) continue;
                 for (int value_heads = 0; value_heads <= 1; value_heads++) {
                     for (int variant = 0; variant <= 1; variant++) {
                         int input_size = variant ? full_input_size : obs_input_size;
+                        if (enc && input_size != edef->obs_size) continue;
                         int64_t expected = visual_policy_expected_weight_count(
                             input_size, hs, layers, policy->action_dims,
-                            policy->num_action_heads, value_heads, enc);
+                            policy->num_action_heads, value_heads, enc, descriptor);
                         if (expected != file_weights) continue;
                         match = (VisualPolicyModelShape){
                             input_size, value_heads, enc, hs, layers};
@@ -727,8 +1028,9 @@ static VisualPolicyModelShape visual_policy_select_model_shape(
     if (matches == 0) {
         fprintf(stderr,
             "policy: %s model shape mismatch: file=%lld floats matches no architecture"
-            " (obs=%d mask=%d, scanned hs 128..4096, layers 1..8, entity 0..2%s)\n",
+            " (obs=%d mask=%d, scanned hs 128..4096, layers 1..8, entity 0..%d%s)\n",
             edef->name, (long long)file_weights, policy->obs_size, policy->mask_size,
+            enc_max,
             (cli_hidden_size > 0 || cli_num_layers > 0 || cli_entity_encoder > 0)
                 ? " within the given CLI constraints" : "");
         abort();
@@ -745,7 +1047,7 @@ static VisualPolicyModelShape visual_policy_select_model_shape(
 
 static int64_t visual_policy_layout_tensor(const char* name, int64_t off, int64_t count) {
     int64_t start = off;
-    int64_t end = (off + count + 7) & ~(int64_t)7;
+    int64_t end = visual_policy_advance_weight_offset(off, count);
     fprintf(stderr, "policy: tensor %-16s [%lld, %lld) (%lld floats)\n",
         name, (long long)start, (long long)end, (long long)count);
     return end;
@@ -769,7 +1071,8 @@ static VisualNet* visual_policy_make_puffernet(
     int action_dims[],
     int num_action_heads,
     int decoder_value_heads,
-    int entity_encoder
+    int entity_encoder,
+    const EntityEncoderDescriptor* descriptor
 ) {
     VisualNet* net = (VisualNet*)calloc(1, sizeof(VisualNet));
     if (!net) {
@@ -796,23 +1099,27 @@ static VisualNet* visual_policy_make_puffernet(
     net->is_continuous = is_continuous;
     net->num_actions = num_action_heads;
 
-    /* Expected .bin layout in policy_weights_create order (src/algo.cu): encoder
-       tensor(s), decoder weight, optional logstd, then the MinGRU projections. */
     int64_t off = 0;
     if (entity_encoder) {
-        off = visual_policy_layout_tensor("enc.global_w", off, (int64_t)hidden_dim * input_dim);
-        off = visual_policy_layout_tensor("enc.entity_l1_w", off,
-            (int64_t)COLO_ENT_INF_BOTTLENECK * COLO_ENT_INF_FEATS);
-        off = visual_policy_layout_tensor("enc.entity_l2_w", off,
-            (int64_t)hidden_dim * COLO_ENT_INF_BOTTLENECK);
-        if (entity_encoder >= 2) {
-            off = visual_policy_layout_tensor("enc.inv_l1_w", off,
-                (int64_t)COLO_ENT_INF_INV_BOTTLENECK * COLO_ENT_INF_INV_FEATS);
-            off = visual_policy_layout_tensor("enc.inv_l2_w", off,
-                (int64_t)hidden_dim * COLO_ENT_INF_INV_BOTTLENECK);
+        if (!descriptor) {
+            fprintf(stderr, "policy: entity encoder resolved without a descriptor\n");
+            abort();
+        }
+        off = visual_policy_layout_tensor(
+            "enc.global_w", off, (int64_t)hidden_dim * input_dim);
+        for (int i = 0; i < descriptor->num_branches; i++) {
+            const EntityPoolDescriptor* branch = &descriptor->branches[i];
+            char name[48];
+            snprintf(name, sizeof(name), "enc.%s_l1_w", branch->weight_name);
+            off = visual_policy_layout_tensor(
+                name, off, (int64_t)branch->bottleneck * branch->feats);
+            snprintf(name, sizeof(name), "enc.%s_l2_w", branch->weight_name);
+            off = visual_policy_layout_tensor(
+                name, off, (int64_t)hidden_dim * branch->bottleneck);
         }
     } else {
-        off = visual_policy_layout_tensor("enc.weight", off, (int64_t)hidden_dim * input_dim);
+        off = visual_policy_layout_tensor(
+            "enc.weight", off, (int64_t)hidden_dim * input_dim);
     }
     int64_t off_after_encoder = off;
     off = visual_policy_layout_tensor("decoder.weight", off,
@@ -830,8 +1137,8 @@ static VisualNet* visual_policy_make_puffernet(
     int64_t off_total = off;
 
     if (entity_encoder) {
-        net->entity_encoder = make_colosseum_entity_encoder(
-            weights, 1, input_dim, hidden_dim, entity_encoder);
+        net->entity_encoder = make_entity_encoder(
+            weights, 1, input_dim, hidden_dim, descriptor);
     } else {
         net->encoder = make_linear(weights, 1, input_dim, hidden_dim);
     }
@@ -874,7 +1181,6 @@ static float g_cli_camera_dist = -1.0f;
 static float g_cli_camera_yaw = -1000.0f;
 static float g_cli_camera_pitch = -1000.0f;
 static int g_cli_visual_loadout_mode = -1;
-static int g_cli_prayer_oracle = 0;
 static void visual_policy_init(
     VisualPolicy* policy,
     const EncounterDef* edef,
@@ -910,13 +1216,16 @@ static void visual_policy_init(
     for (int h = 0; h < edef->num_action_heads; h++) {
         policy->action_dims[h] = edef->action_head_dims[h];
     }
+    const EntityEncoderDescriptor* descriptor =
+        visual_policy_entity_descriptor(edef);
     policy->weights = load_weights(model_path);
     if (!policy->weights) {
         fprintf(stderr, "policy: failed to load model: %s\n", model_path);
         abort();
     }
     VisualPolicyModelShape model_shape = visual_policy_select_model_shape(
-        policy, edef, cli_hidden_size, cli_num_layers, cli_entity_encoder);
+        policy, edef, descriptor,
+        cli_hidden_size, cli_num_layers, cli_entity_encoder);
     fprintf(stderr,
         "policy: %s arch resolved hs=%d layers=%d entity=%d input=%d value_heads=%d\n",
         edef->name, model_shape.hidden_size, model_shape.num_layers,
@@ -930,7 +1239,8 @@ static void visual_policy_init(
         policy->action_dims,
         policy->num_action_heads,
         model_shape.decoder_value_heads,
-        model_shape.entity_encoder);
+        model_shape.entity_encoder,
+        descriptor);
     int64_t file_weights = visual_policy_file_weight_count(policy->weights);
     if (policy->weights->idx != file_weights) {
         fprintf(stderr,
@@ -1007,19 +1317,11 @@ static int visual_policy_sample_masked(
     return best_action;
 }
 
-static void visual_policy_actions(
-    VisualPolicy* policy,
-    const EncounterDef* edef,
-    EncounterState* state,
-    EncounterContext* context,
-    int* actions
-) {
+static void visual_policy_actions_from_obs(VisualPolicy* policy, int* actions) {
     if (!policy || !policy->enabled) return;
-    edef->write_obs(state, context, policy->obs);
-    edef->write_mask(state, context, policy->obs + policy->obs_size);
     float* encoded;
     if (policy->net->entity_encoder) {
-        colosseum_entity_encoder(policy->net->entity_encoder, policy->obs);
+        entity_encoder_forward(policy->net->entity_encoder, policy->obs);
         encoded = policy->net->entity_encoder->output;
     } else {
         linear(policy->net->encoder, policy->obs);
@@ -1046,6 +1348,157 @@ static void visual_policy_actions(
         logit_offset += dim;
         mask_offset += dim;
     }
+}
+
+static void visual_policy_actions(
+    VisualPolicy* policy,
+    const EncounterDef* edef,
+    EncounterState* state,
+    EncounterContext* context,
+    int* actions
+) {
+    if (!policy || !policy->enabled) return;
+    edef->write_obs(state, context, policy->obs);
+    edef->write_mask(state, context, policy->obs + policy->obs_size);
+    visual_policy_actions_from_obs(policy, actions);
+}
+
+static void run_policy_profile(
+    OsrsEnv* env,
+    const char* encounter_name,
+    int start_wave,
+    int profile_steps,
+    const char* model_path,
+    VisualPolicyMode policy_mode,
+    uint32_t policy_seed,
+    int loadout_mode
+) {
+    if (profile_steps <= 0) {
+        fprintf(stderr, "policy profile requires --profile-steps > 0\n");
+        abort();
+    }
+    const EncounterDef* edef = visual_open_encounter(env, encounter_name);
+    if (!edef) abort();
+    visual_load_encounter_collision_map(edef, env, encounter_name);
+    if (strcmp(encounter_name, "colosseum") == 0) {
+        if (start_wave >= 0)
+            edef->put_int(env->encounter_state, env->encounter_context,
+                "start_wave", start_wave);
+        edef->put_int(env->encounter_state, env->encounter_context,
+            "loadout_profile_mode", loadout_mode);
+    } else if (strcmp(encounter_name, "inferno") == 0 && start_wave >= 0) {
+        edef->put_int(env->encounter_state, env->encounter_context,
+            "start_wave", start_wave);
+    }
+    visual_finalize_encounter(edef, env);
+    edef->reset(env->encounter_state, env->encounter_context, policy_seed);
+
+    VisualPolicy policy;
+    visual_policy_init(&policy, edef, model_path, policy_mode, policy_seed,
+        g_cli_hidden_size, g_cli_num_layers, g_cli_entity_encoder);
+    if (!policy.enabled) abort();
+
+#ifdef COLO_PROFILE_ENABLED
+    int profile_count = colosseum_env_profile_count();
+    for (int i = 0; i < profile_count; i++)
+        (void)colosseum_env_profile_read_reset_ms(i);
+#endif
+
+    int actions[VISUAL_POLICY_MAX_ACTION_HEADS] = {0};
+    int total_steps = 0;
+    int reset_count = 0;
+    double environment_ms = 0.0;
+    uint64_t trace_hash = 1469598103934665603ULL;
+    double wall_start = osrs_profile_now_seconds();
+    while (total_steps < profile_steps) {
+        double environment_step_ms = 0.0;
+        double start_ms = osrs_profile_now_seconds() * 1000.0;
+        edef->write_obs(env->encounter_state, env->encounter_context, policy.obs);
+        double end_ms = osrs_profile_now_seconds() * 1000.0;
+        environment_step_ms += end_ms - start_ms;
+#ifdef COLO_PROFILE_ENABLED
+        COLO_PROFILE_ADD(COLO_PROF_C_WRITE_OBS, end_ms - start_ms);
+#endif
+
+        start_ms = end_ms;
+        edef->write_mask(env->encounter_state, env->encounter_context,
+            policy.obs + policy.obs_size);
+        end_ms = osrs_profile_now_seconds() * 1000.0;
+        environment_step_ms += end_ms - start_ms;
+#ifdef COLO_PROFILE_ENABLED
+        COLO_PROFILE_ADD(COLO_PROF_C_WRITE_MASK, end_ms - start_ms);
+#endif
+        trace_hash = osrs_profile_hash_bytes(
+            trace_hash,
+            policy.obs,
+            (size_t)(policy.obs_size + policy.mask_size) * sizeof(float));
+
+        visual_policy_actions_from_obs(&policy, actions);
+        trace_hash = osrs_profile_hash_bytes(
+            trace_hash,
+            actions,
+            (size_t)policy.num_action_heads * sizeof(int));
+
+        start_ms = osrs_profile_now_seconds() * 1000.0;
+        edef->step(env->encounter_state, env->encounter_context, actions);
+        end_ms = osrs_profile_now_seconds() * 1000.0;
+        environment_step_ms += end_ms - start_ms;
+#ifdef COLO_PROFILE_ENABLED
+        COLO_PROFILE_ADD(COLO_PROF_C_ENCOUNTER_STEP, end_ms - start_ms);
+#endif
+
+        start_ms = end_ms;
+        float reward = edef->get_reward(env->encounter_state, env->encounter_context);
+        int terminal = edef->is_terminal(
+            env->encounter_state, env->encounter_context);
+        end_ms = osrs_profile_now_seconds() * 1000.0;
+        environment_step_ms += end_ms - start_ms;
+#ifdef COLO_PROFILE_ENABLED
+        COLO_PROFILE_ADD(COLO_PROF_C_REWARD_TERMINAL, end_ms - start_ms);
+#endif
+        trace_hash = osrs_profile_hash_bytes(trace_hash, &reward, sizeof(reward));
+        trace_hash = osrs_profile_hash_bytes(trace_hash, &terminal, sizeof(terminal));
+
+        if (terminal) {
+            start_ms = end_ms;
+            reset_count++;
+            edef->reset(env->encounter_state, env->encounter_context,
+                policy_seed + (uint32_t)reset_count);
+            visual_policy_reset_recurrent(&policy);
+            end_ms = osrs_profile_now_seconds() * 1000.0;
+            environment_step_ms += end_ms - start_ms;
+#ifdef COLO_PROFILE_ENABLED
+            COLO_PROFILE_ADD(COLO_PROF_C_RESET, end_ms - start_ms);
+#endif
+        }
+
+#ifdef COLO_PROFILE_ENABLED
+        COLO_PROFILE_ADD(COLO_PROF_C_STEP_TOTAL, environment_step_ms);
+#endif
+        environment_ms += environment_step_ms;
+        total_steps++;
+    }
+    double wall_elapsed = osrs_profile_now_seconds() - wall_start;
+
+    printf("Policy profile results:\n");
+    printf("  Total steps: %d\n", total_steps);
+    printf("  Resets: %d\n", reset_count);
+    printf("  Wall time: %.3f seconds\n", wall_elapsed);
+    printf("  Environment time: %.3f seconds\n", environment_ms / 1000.0);
+    printf("  Environment steps/sec: %.0f\n",
+        environment_ms > 0.0 ? 1000.0 * total_steps / environment_ms : 0.0);
+    printf("  Wall steps/sec: %.0f\n",
+        wall_elapsed > 0.0 ? total_steps / wall_elapsed : 0.0);
+    printf("  Trace hash: %016llx\n", (unsigned long long)trace_hash);
+#ifdef COLO_PROFILE_ENABLED
+    osrs_print_colosseum_profile_results(total_steps);
+#endif
+
+    visual_policy_destroy(&policy);
+    edef->destroy(env->encounter_state);
+    env->encounter_state = NULL;
+    visual_destroy_encounter_context(
+        edef, (EncounterContext**)&env->encounter_context);
 }
 
 typedef struct {
@@ -1166,7 +1619,7 @@ static void visual_frame(void* arg) {
                     (EncounterContext*)env->encounter_context,
                     (uint32_t)rand());
             } else {
-                pvp_reset(env);
+                pvp_reset(env, rc->route_topology);
             }
             render_reset_episode_visual_state(rc, env);
             visual_policy_reset_recurrent(&vs->policy);
@@ -1277,22 +1730,23 @@ static void visual_frame(void* arg) {
 
     } else {
         if (rc->human_input.enabled) {
-            human_to_pvp_actions(&rc->human_input,
-                                  env->actions, &env->players[0], &env->players[1]);
-            int* opp = env->actions + NUM_ACTION_HEADS;
-            for (int h = 0; h < NUM_ACTION_HEADS; h++) {
-                opp[h] = rand() % ACTION_HEAD_DIMS[h];
+            human_to_pvp_actions(
+                &rc->human_input, env->actions, &env->players[0]);
+            int* opp = env->actions + OSRS_BASE_NUM_ACTION_HEADS;
+            for (int h = 0; h < OSRS_BASE_NUM_ACTION_HEADS; h++) {
+                opp[h] = rand() % NH_PVP_ACTION_DIMS[h];
             }
             human_input_clear_pending(&rc->human_input);
         } else {
             for (int agent = 0; agent < NUM_AGENTS; agent++) {
-                int* actions = env->actions + agent * NUM_ACTION_HEADS;
-                for (int h = 0; h < NUM_ACTION_HEADS; h++) {
-                    actions[h] = rand() % ACTION_HEAD_DIMS[h];
+                int* actions =
+                    env->actions + agent * OSRS_BASE_NUM_ACTION_HEADS;
+                for (int h = 0; h < OSRS_BASE_NUM_ACTION_HEADS; h++) {
+                    actions[h] = rand() % NH_PVP_ACTION_DIMS[h];
                 }
             }
         }
-        pvp_step(env);
+        pvp_step(env, rc->route_topology, rc->player_route_cache);
 
         if (rc->human_input.enabled && rc->human_input.pending_move_x >= 0) {
             Player* p0 = &env->players[0];
@@ -1349,6 +1803,7 @@ static void run_metrics(
     if (bis_oracle)
         edef->put_int(env->encounter_state, env->encounter_context,
                       "bis_gear_oracle_mode", 1);
+    visual_finalize_encounter(edef, env);
     edef->reset(env->encounter_state, env->encounter_context, policy_seed);
 
     VisualPolicy policy;
@@ -1372,6 +1827,10 @@ static void run_metrics(
     static uint64_t npc_eff_n[COLO_NUM_NPC_TYPES];
     static uint64_t wave_ticks[12], wave_visits[12], wave_reinforced[12];
     static uint64_t wave_attacks_post_reinforce[12];
+    double sol_damage_by_source[COLO_NUM_SOL_DAMAGE_SOURCES] = {0};
+    double javelin_damage_by_source[COLO_NUM_JAVELIN_DAMAGE_SOURCES] = {0};
+    double death_by_source[COLO_NUM_DAMAGE_SOURCES] = {0};
+    double doom_death_by_source[COLO_NUM_DAMAGE_SOURCES] = {0};
     memset(wpn_npc, 0, sizeof(wpn_npc));
     memset(wpn_total, 0, sizeof(wpn_total));
     memset(wpn_spec, 0, sizeof(wpn_spec));
@@ -1386,6 +1845,7 @@ static void run_metrics(
     uint64_t total_attacks = 0, argmax_set_attacks = 0, argmax_evals = 0;
     long total_ticks = 0;
     int episodes = 0;
+    int sol_episodes = 0;
     int prev_wave = 0, prev_reinf_timer = 0, wave_seen = 0;
     int enc_actions[64] = {0};
 
@@ -1462,6 +1922,21 @@ static void run_metrics(
                 (EncounterContext*)env->encounter_context)) {
             ep_scores[episodes] = cs->log.outcome_score;
             ep_winners[episodes] = cs->winner;
+            if (cs->sol.started) sol_episodes++;
+            for (int source = 0; source < COLO_NUM_SOL_DAMAGE_SOURCES; source++)
+                sol_damage_by_source[source] +=
+                    (double)cs->log.sol_damage_by_source[source];
+            for (int source = 0;
+                    source < COLO_NUM_JAVELIN_DAMAGE_SOURCES;
+                    source++)
+                javelin_damage_by_source[source] +=
+                    (double)cs->log.javelin_damage_by_source[source];
+            for (int source = 0; source < COLO_NUM_DAMAGE_SOURCES; source++) {
+                death_by_source[source] +=
+                    (double)cs->log.death_by_source[source];
+                doom_death_by_source[source] +=
+                    (double)cs->log.doom_death_by_source[source];
+            }
             episodes++;
             edef->reset(env->encounter_state,
                 (EncounterContext*)env->encounter_context,
@@ -1476,6 +1951,7 @@ static void run_metrics(
     printf("# episodes=%d ticks=%ld total_attacks=%llu mode=%s bis_oracle=%d\n",
         num_episodes, total_ticks, (unsigned long long)total_attacks,
         policy_mode == VISUAL_POLICY_ARGMAX ? "argmax" : "sample", bis_oracle);
+    printf("# sol_episodes=%d\n", sol_episodes);
     {
         double score_sum = 0.0;
         int wins = 0;
@@ -1520,6 +1996,84 @@ static void run_metrics(
             100.0 * (double)wave_reinforced[wv] / (double)wave_visits[wv],
             (unsigned long long)wave_attacks_post_reinforce[wv]);
     }
+    static const char* const sol_damage_source_names[COLO_NUM_SOL_DAMAGE_SOURCES] = {
+        "spear_1",
+        "spear_2",
+        "shield_1",
+        "shield_2",
+        "triple_parry",
+        "grapple",
+        "crystal_laser",
+        "molten_sand",
+    };
+    double sol_damage_total = 0.0;
+    for (int source = 0; source < COLO_NUM_SOL_DAMAGE_SOURCES; source++)
+        sol_damage_total += sol_damage_by_source[source];
+    printf("\nsol_damage_source,total,per_episode,per_sol_episode,pct\n");
+    for (int source = 0; source < COLO_NUM_SOL_DAMAGE_SOURCES; source++) {
+        double damage = sol_damage_by_source[source];
+        printf("%s,%.0f,%.3f,%.3f,%.1f%%\n",
+            sol_damage_source_names[source],
+            damage,
+            damage / (double)num_episodes,
+            sol_episodes ? damage / (double)sol_episodes : 0.0,
+            sol_damage_total > 0.0 ? 100.0 * damage / sol_damage_total : 0.0);
+    }
+    static const char* const javelin_damage_source_names[
+        COLO_NUM_JAVELIN_DAMAGE_SOURCES
+    ] = {
+        "basic_ranged",
+        "skyfall",
+        "reentry_pool",
+        "reentry_volatility_pool",
+    };
+    double javelin_damage_total = 0.0;
+    for (int source = 0;
+            source < COLO_NUM_JAVELIN_DAMAGE_SOURCES;
+            source++)
+        javelin_damage_total += javelin_damage_by_source[source];
+    printf("\njavelin_damage_source,total,per_episode,pct\n");
+    for (int source = 0;
+            source < COLO_NUM_JAVELIN_DAMAGE_SOURCES;
+            source++) {
+        double damage = javelin_damage_by_source[source];
+        printf("%s,%.0f,%.3f,%.1f%%\n",
+            javelin_damage_source_names[source],
+            damage,
+            damage / (double)num_episodes,
+            javelin_damage_total > 0.0
+                ? 100.0 * damage / javelin_damage_total
+                : 0.0);
+    }
+    static const char* const damage_source_names[COLO_NUM_DAMAGE_SOURCES] = {
+        "npc_attack",
+        "javelin_basic_ranged",
+        "manticore_venom",
+        "bee_poison",
+        "bee_contact",
+        "javelin_skyfall",
+        "reentry_pool",
+        "volatility_explosion",
+        "volatility_pool",
+        "reentry_volatility_pool",
+        "solarflare",
+        "self",
+        "sol_spear_1",
+        "sol_spear_2",
+        "sol_shield_1",
+        "sol_shield_2",
+        "sol_triple_parry",
+        "sol_grapple",
+        "sol_crystal_laser",
+        "sol_molten_sand",
+    };
+    printf("\ndamage_source,deaths,doom_deaths\n");
+    for (int source = 0; source < COLO_NUM_DAMAGE_SOURCES; source++) {
+        printf("%s,%.0f,%.0f\n",
+            damage_source_names[source],
+            death_by_source[source],
+            doom_death_by_source[source]);
+    }
     printf("\nweapon\\npc");
     for (int t = 0; t < COLO_NUM_NPC_TYPES; t++) printf(",%s", npc_names[t]);
     printf("\n");
@@ -1546,6 +2100,20 @@ static void run_visual(
     uint32_t policy_seed
 ) {
     env->client = NULL;
+    const EncounterArenaTopology* direct_pvp_topology = NULL;
+    if (!encounter_name) {
+        const char* cmap_path = getenv("OSRS_COLLISION_MAP");
+        if (cmap_path && cmap_path[0]) {
+            env->collision_map = collision_map_load(cmap_path);
+            if (env->collision_map) {
+                fprintf(stderr, "collision map loaded: %d regions\n",
+                    ((CollisionMap*)env->collision_map)->count);
+            }
+        }
+        direct_pvp_topology =
+            pvp_route_topology_finalize(
+                (const CollisionMap*)env->collision_map);
+    }
 
     if (encounter_name) {
         const EncounterDef* edef = visual_open_encounter(env, encounter_name);
@@ -1567,11 +2135,6 @@ static void run_visual(
             edef->put_int(env->encounter_state, env->encounter_context,
                 "loadout_profile_mode", g_cli_visual_loadout_mode);
         }
-        if (strcmp(encounter_name, "colosseum") == 0 && edef->put_int &&
-                g_cli_prayer_oracle) {
-            edef->put_int(env->encounter_state, env->encounter_context,
-                "prayer_oracle_mode", 1);
-        }
 
         VisualCollisionLoad cload = visual_load_encounter_collision_map(edef, env, encounter_name);
         if (cload.cmap) {
@@ -1586,6 +2149,7 @@ static void run_visual(
                 "start_wave",
                 start_wave);
         }
+        visual_finalize_encounter(edef, env);
         edef->reset(env->encounter_state, env->encounter_context, 0);
         fprintf(stderr, "encounter: %s (obs=%d, heads=%d)\n",
                 edef->name, edef->obs_size, edef->num_action_heads);
@@ -1595,20 +2159,14 @@ static void run_visual(
         env->pvp_runtime.use_c_opponent = 1;
         env->pvp_runtime.opponent.type = OPP_IMPROVED;
         env->is_lms = 1;
-        pvp_reset(env);
+        pvp_reset(env, direct_pvp_topology);
     }
 
-    const char* cmap_path = getenv("OSRS_COLLISION_MAP");
-    if (cmap_path && cmap_path[0]) {
-        env->collision_map = collision_map_load(cmap_path);
-        if (env->collision_map) {
-            fprintf(stderr, "collision map loaded: %d regions\n",
-                    ((CollisionMap*)env->collision_map)->count);
-        }
-    }
 
     pvp_render(env);
     RenderClient* rc = (RenderClient*)env->client;
+    rc->route_topology = direct_pvp_topology;
+    pvp_actor_route_caches_clear(rc->player_route_cache);
 #ifdef __EMSCRIPTEN__
     if (!encounter_name || encounter_name_is_pvp(encounter_name)) {
         rc->ticks_per_second = 15.0f;
@@ -1853,26 +2411,11 @@ static void run_visual(
 }
 #endif
 
-static void visual_alloc_env_buffers(OsrsEnv* env) {
-    env->observations = (float*)calloc(NUM_AGENTS * SLOT_NUM_OBSERVATIONS, sizeof(float));
-    env->actions = (int*)calloc(NUM_AGENTS * NUM_ACTION_HEADS, sizeof(int));
-    env->rewards = (float*)calloc(NUM_AGENTS, sizeof(float));
-    env->terminals = (unsigned char*)calloc(NUM_AGENTS, sizeof(unsigned char));
-    env->action_masks = (unsigned char*)calloc(NUM_AGENTS * ACTION_MASK_SIZE, sizeof(unsigned char));
-    env->action_masks_agents = (1 << NUM_AGENTS) - 1;
+static void visual_init_env_buffers(OsrsEnv* env) {
+    pvp_init(env);
     env->ocean_io.agent_actions = env->actions;
-    env->ocean_io.agent_obs = (float*)calloc(OCEAN_OBS_SIZE, sizeof(float));
     env->ocean_io.agent_rewards = env->rewards;
     env->ocean_io.agent_terminals = env->terminals;
-}
-
-static void visual_free_env_buffers(OsrsEnv* env) {
-    free(env->observations);
-    free(env->actions);
-    free(env->rewards);
-    free(env->terminals);
-    free(env->action_masks);
-    free(env->ocean_io.agent_obs);
 }
 
 int main(int argc, char** argv) {
@@ -1941,8 +2484,6 @@ int main(int argc, char** argv) {
             loadout_mode = atoi(argv[++i]);
             g_cli_visual_loadout_mode = loadout_mode;
         }
-        else if (strcmp(argv[i], "--prayer-oracle") == 0)
-            g_cli_prayer_oracle = 1;
     }
 
 #ifdef __EMSCRIPTEN__
@@ -1973,18 +2514,23 @@ int main(int argc, char** argv) {
     }
 
     if (use_profile) {
-        visual_alloc_env_buffers(&env);
+        visual_init_env_buffers(&env);
 
-        run_profile(&env, encounter_name, start_wave, profile_steps);
+        if (model_path && model_path[0]) {
+            run_policy_profile(&env, encounter_name, start_wave, profile_steps,
+                model_path, policy_mode, policy_seed, loadout_mode);
+        } else {
+            run_profile(
+                &env, encounter_name, start_wave, profile_steps, policy_seed);
+        }
 
-        visual_free_env_buffers(&env);
         pvp_close(&env);
         return 0;
     }
 
     if (use_visual) {
 #ifdef OSRS_VISUAL
-        pvp_init(&env);
+        visual_init_env_buffers(&env);
         if (gear_tier >= 0 && gear_tier <= 3) {
             for (int t = 0; t < 4; t++) env.pvp_runtime.gear_tier_weights[t] = 0.0f;
             env.pvp_runtime.gear_tier_weights[gear_tier] = 1.0f;
@@ -1994,10 +2540,6 @@ int main(int argc, char** argv) {
             env.pvp_runtime.gear_tier_weights[2] = 0.10f;
             env.pvp_runtime.gear_tier_weights[3] = 0.05f;
         }
-        env.ocean_io.agent_actions = env.actions;
-        env.ocean_io.agent_obs = env._obs_buf;
-        env.ocean_io.agent_rewards = env.rewards;
-        env.ocean_io.agent_terminals = env.terminals;
         run_visual(
             &env,
             encounter_name,
@@ -2013,7 +2555,7 @@ int main(int argc, char** argv) {
         return 1;
 #endif
     } else {
-        visual_alloc_env_buffers(&env);
+        visual_init_env_buffers(&env);
 
         printf("OSRS PvP C Environment Demo\n\n");
 
@@ -2024,19 +2566,24 @@ int main(int argc, char** argv) {
         benchmark(&env, 100000);
 
         printf("\nVerifying observations...\n");
-        pvp_reset(&env);
-        printf("Observation count per agent: %d\n", SLOT_NUM_OBSERVATIONS);
+        pvp_reset(
+            &env,
+            pvp_route_topology_finalize(
+                (const CollisionMap*)env.collision_map));
+        float observations[NH_PVP_NUM_OBS];
+        pvp_write_observations(observations, &env, 0);
+        printf("Observation count per agent: %d\n", NH_PVP_NUM_OBS);
         printf("First 10 observations (agent 0): ");
         for (int i = 0; i < 10; i++) {
-            printf("%.2f ", env.observations[i]);
+            printf("%.2f ", observations[i]);
         }
         printf("\n");
 
-        printf("\nAction heads: %d\n", NUM_ACTION_HEADS);
+        printf("\nAction heads: %d\n", OSRS_BASE_NUM_ACTION_HEADS);
         printf("Action dims: [");
-        for (int i = 0; i < NUM_ACTION_HEADS; i++) {
-            printf("%d", ACTION_HEAD_DIMS[i]);
-            if (i < NUM_ACTION_HEADS - 1) {
+        for (int i = 0; i < OSRS_BASE_NUM_ACTION_HEADS; i++) {
+            printf("%d", NH_PVP_ACTION_DIMS[i]);
+            if (i < OSRS_BASE_NUM_ACTION_HEADS - 1) {
                 printf(", ");
             }
         }
@@ -2044,7 +2591,6 @@ int main(int argc, char** argv) {
 
         printf("\nDemo complete.\n");
 
-        visual_free_env_buffers(&env);
         pvp_close(&env);
     }
 

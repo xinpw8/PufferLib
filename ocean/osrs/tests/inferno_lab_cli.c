@@ -41,14 +41,18 @@ static char* read_script_line(FILE* file) {
     return line;
 }
 
-static void run_script(FILE* file, InfernoState* state) {
+static void run_script(
+    FILE* file,
+    InfernoState* state,
+    InfernoContext* context
+) {
     for (;;) {
         char* line = read_script_line(file);
         if (!line) break;
 
         char* dump = NULL;
-        InfLabLineResult result = inf_lab_apply_script_line_alloc_json(
-            state, line, &dump);
+        InfLabLineResult result = inf_lab_apply_script_line_impl_ctx(
+            state, context, line, &dump);
         if (result == INF_LAB_LINE_DUMP) {
             printf("%s\n", dump);
             free(dump);
@@ -59,21 +63,29 @@ static void run_script(FILE* file, InfernoState* state) {
 
 int main(int argc, char** argv) {
     InfernoState* state = (InfernoState*)inf_create();
-    inf_put_float((EncounterState*)state, "late_start_supply_profile_scale", 1.0f);
-    inf_reset((EncounterState*)state, 20260515u);
-    inf_lab_apply_command(state, &(InfernoLabCommand){
+    InfernoContext context;
+    inf_init_context_typed(&context);
+    inf_finalize_route_topology(&context);
+    inf_put_float_ctx(
+        (EncounterState*)state,
+        (EncounterContext*)&context,
+        "late_start_supply_profile_scale",
+        1.0f);
+    inf_reset_ctx(
+        (EncounterState*)state, (EncounterContext*)&context, 20260515u);
+    inf_lab_apply_command_ctx(state, &context, &(InfernoLabCommand){
         .kind = INF_LAB_COMMAND_CLEAR_NPCS,
     });
 
     if (argc == 1) {
-        run_script(stdin, state);
+        run_script(stdin, state, &context);
     } else if (argc == 2) {
         FILE* file = fopen(argv[1], "r");
         if (!file) {
             fprintf(stderr, "inferno lab: cannot open %s\n", argv[1]);
             abort();
         }
-        run_script(file, state);
+        run_script(file, state, &context);
         fclose(file);
     } else {
         fprintf(stderr, "usage: inferno_lab [script]\n");
