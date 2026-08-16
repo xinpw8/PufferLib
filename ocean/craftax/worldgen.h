@@ -1270,7 +1270,6 @@ static inline void craftax_generate_world_from_key(
 
     CraftaxThreefryKey state_key;
     craftax_threefry_split(rng, &rng, &state_key);
-    (void)rng;
     out->state_rng[0] = state_key.word[0];
     out->state_rng[1] = state_key.word[1];
 

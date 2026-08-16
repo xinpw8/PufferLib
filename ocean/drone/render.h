@@ -2,8 +2,6 @@
 // Included in pufferlib under the original project's MIT license.
 // https://github.com/tensaur/drone
 
-#pragma once
-
 #include <math.h>
 
 #include "drone.h"
@@ -238,7 +236,9 @@ void handle_fps_control(Client* client, float dt) {
                 if (client->target_fps < 10) client->target_fps = 10;
             }
 
+#ifndef __EMSCRIPTEN__
             SetTargetFPS(client->target_fps);
+#endif
             repeat_timer = key_held ? 0.05f : 0.3f;
             key_held = true;
         }
@@ -269,12 +269,15 @@ Client* make_client(DroneEnv* env) {
     client->width = WIDTH;
     client->height = HEIGHT;
 
+#if !defined(__EMSCRIPTEN__) && !defined(PLATFORM_WEB)
     SetConfigFlags(FLAG_MSAA_4X_HINT);
+#endif
     InitWindow(WIDTH, HEIGHT, "PufferLib Drone");
 
 #ifndef __EMSCRIPTEN__
     SetTargetFPS(60);
 #endif
+    client->target_fps = 60;
 
     if (!IsWindowReady()) {
         TraceLog(LOG_ERROR, "Window failed to initialize\n");
@@ -309,7 +312,7 @@ Client* make_client(DroneEnv* env) {
     client->selected_drone = 0;
     client->inspect_mode = false;
     client->follow_mode = false;
-    client->target_fps = 100;
+    client->target_fps = 60;
     client->model_loaded = false;
     client->model_scale = MODEL_SCALE_NORMAL;
 
@@ -340,7 +343,11 @@ Client* make_client(DroneEnv* env) {
         }
     }
 
+#if defined(__EMSCRIPTEN__) || defined(PLATFORM_WEB)
+    client->use_3d_model = false;
+#else
     client->use_3d_model = client->model_loaded;
+#endif
     client->prop_angles = (float*)calloc(env->num_agents * NUM_PROPELLERS, sizeof(float));
 
     return client;
@@ -461,7 +468,6 @@ void DrawDronePrimitive(Client* client, Drone* agent, float* actions, Color body
 
 // Task-specific overlays
 static void render_task(DroneEnv* env, Client* client) {
-    (void)client;
     if (env->task != TASK_RACE) return;
     RaceConfig* cfg = (RaceConfig*)env->task_config;
     RaceState* state = (RaceState*)env->task_state;
@@ -494,7 +500,7 @@ void puf_render(DroneEnv* env) {
     }
 
     Client* client = env->client;
-    float dt = GetFrameTime();
+    float dt = ACTION_DT;
 
     // Get selected drone position for camera
     Vec3 drone_pos = env->drones[client->selected_drone].state.pos;
@@ -636,7 +642,7 @@ void puf_render(DroneEnv* env) {
     DrawText(TextFormat("Step: %d / %d", env->drones[client->selected_drone].episode_length,
                         task_horizon(env)), 10, y, 20, WHITE);
     y += 25;
-    DrawText(TextFormat("FPS: %d (W/S to adjust)", client->target_fps), 10, y, 18, WHITE);
+    DrawText(TextFormat("FPS: %d (target %d, W/S)", GetFPS(), client->target_fps), 10, y, 18, WHITE);
     y += 22;
     if (client->model_loaded) {
         DrawText(TextFormat("Render: %s (M)", client->use_3d_model ? "3D Model" : "Primitive"), 10,

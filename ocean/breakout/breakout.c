@@ -25,7 +25,10 @@ void demo() {
         .paddle_speed = 620,
         .continuous = 0,
     };
-    allocate(&env);
+    env.agents[0].observations = (float*)calloc(OBS_SIZE, sizeof(float));
+    env.agents[0].actions = (float*)calloc(1, sizeof(float));
+    env.agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env.agents[0].terminals = (float*)calloc(1, sizeof(float));
 
     env.client = make_client(&env);
 
@@ -33,34 +36,19 @@ void demo() {
     int frame = 0;
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
-        float* actions = env.agents[0].actions;
-        // User can take control of the paddle
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            if (env.continuous) {
-                float move = GetMouseWheelMove();
-                float clamped_wheel = fmaxf(-1.0f, fminf(1.0f, move));
-                actions[0] = clamped_wheel;
-            } else {
-                actions[0] = 0.0;
-                if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) {
-                    actions[0] = 1;
-                }
-                if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
-                    actions[0] = 2;
-                }
-            }
-        } else if (frame % 4 == 0) {
-            // Apply frameskip outside the env for smoother rendering
-            forward_puffernet(net, env.agents[0].observations, actions);
+        if (frame % 4 == 0) {
+            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
         }
-
         frame = (frame + 1) % 4;
         puf_step(&env);
         puf_render(&env);
     }
     free_puffernet(net);
     free(weights);
-    free_allocated(&env);
+    free(env.agents[0].observations);
+    free(env.agents[0].actions);
+    free(env.agents[0].rewards);
+    free(env.agents[0].terminals);
     close_client(env.client);
 }
 

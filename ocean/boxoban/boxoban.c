@@ -3,7 +3,7 @@
  *   ./boxoban [difficulty|path_to_bin]
  *
  * If you pass one of the known difficulty names (basic, easy, medium,
- * hard, unfiltered) the demo looks for pufferlib/ocean/boxoban/boxoban_maps_<difficulty>.bin
+ * hard, unfiltered) the demo looks for resources/boxoban/boxoban_maps_<difficulty>.bin
  * Otherwise the argument is treated as an explicit path to a bin file.
  */
 
@@ -35,7 +35,7 @@ static const char* resolve_map_path(int argc, char** argv, char* buffer, size_t 
         }
         return buffer;
     }
-    snprintf(buffer, buf_sz, "pufferlib/ocean/boxoban/boxoban_maps_%s.bin", arg);
+    snprintf(buffer, buf_sz, "resources/boxoban/boxoban_maps_%s.bin", arg);
     return buffer;
 }
 
@@ -54,10 +54,6 @@ int demo(int argc, char** argv) {
 
     Boxoban env = {
         .size = 10,
-        .observations = NULL,
-        .actions = NULL,
-        .rewards = NULL,
-        .terminals = NULL,
         .max_steps = 500,
         .int_r_coeff = 0.1f,
         .target_loss_pen_coeff = 0.5f,
@@ -84,32 +80,7 @@ int demo(int argc, char** argv) {
     puf_reset(&env);
     puf_render(&env);
     while (!WindowShouldClose()) {
-        if (IsKeyPressed(KEY_LEFT_SHIFT) || IsKeyPressed(KEY_RIGHT_SHIFT)) {
-            TraceLog(LOG_INFO, "Shift key pressed");
-        }
-        bool manual = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
-        bool stepped = false;
-        if (manual) {
-            int new_action = -1;
-            if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)) new_action = UP;
-            if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) new_action = DOWN;
-            if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) new_action = LEFT;
-            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) new_action = RIGHT;
-
-            if (new_action >= 0) {
-                env.agents[0].actions[0] = new_action;
-                puf_step(&env);
-                stepped = true;
-            }
-        } else {
-            env.agents[0].actions[0] = rand() % 5;
-            puf_step(&env);
-            stepped = true;
-        }
-
-        if (!stepped) {
-            // Manual mode with no direction: stay paused
-        }
+        puf_step(&env);
         puf_render(&env);
     }
     free(env.agents[0].observations);
@@ -135,10 +106,6 @@ void test_performance(int argc, char** argv, int timeout) {
 
     Boxoban env = {
         .size = 10,
-        .observations = NULL,
-        .actions = NULL,
-        .rewards = NULL,
-        .terminals = NULL,
         .max_steps = 500,
         .int_r_coeff = 0.1f,
         .target_loss_pen_coeff = 0.5f,

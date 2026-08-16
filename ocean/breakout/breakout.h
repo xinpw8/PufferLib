@@ -5,10 +5,6 @@
 #include <limits.h>
 #include <string.h>
 #include "raylib.h"
-#include "pufferenv.h"
-
-#define ACT_SIZES {3}
-typedef Env Breakout;
 // Native bf16 train (pufferl defines from_float + precision_t before including
 // this header): store obs as precision_t so env→rollout is a D2D copy. Standalone
 // CPU / float builds keep float obs_t.
@@ -17,6 +13,10 @@ typedef precision_t obs_t;
 #else
 typedef float obs_t;
 #endif
+#include "pufferenv.h"
+
+#define ACT_SIZES {3}
+typedef Env Breakout;
 
 #define NOOP 0
 #define LEFT 1
@@ -124,6 +124,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 
 typedef struct CollisionInfo CollisionInfo;
@@ -162,28 +163,10 @@ void init(Breakout* env) {
     generate_brick_positions(env);
 }
 
-void allocate(Breakout* env) {
-    init(env);
-    env->agents[0].observations = (obs_t*)calloc(OBS_SIZE, sizeof(obs_t));
-    env->agents[0].actions = (float*)calloc(NUM_ATNS, sizeof(float));
-    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
-    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
-    env->agents[0].action_mask = NULL;
-    env->agents[0].policy = 0;
-}
-
 void puf_close(Breakout* env) {
     free(env->brick_x);
     free(env->brick_y);
     free(env->brick_states);
-}
-
-void free_allocated(Breakout* env) {
-    free(env->agents[0].actions);
-    free(env->agents[0].observations);
-    free(env->agents[0].terminals);
-    free(env->agents[0].rewards);
-    puf_close(env);
 }
 
 void add_log(Breakout* env) {
@@ -195,7 +178,7 @@ void add_log(Breakout* env) {
 }
 
 void compute_observations(Breakout* env) {
-    obs_t* obs = (obs_t*)env->agents[0].observations;
+    obs_t* obs = env->agents[0].observations;
     obs[0] = env->paddle_x / env->width;
     obs[1] = env->paddle_y / env->height;
     obs[2] = env->ball_x / env->width;
@@ -540,7 +523,27 @@ void step_frame(Breakout* env, float action) {
     }
 }
 
+// Hold Left Shift + A/D, arrows, or mouse wheel.
+static void breakout_human_controls(Breakout *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    if (env->continuous) {
+        float move = GetMouseWheelMove();
+        env->agents[0].actions[0] = fmaxf(-1.0f, fminf(1.0f, move));
+        return;
+    }
+    env->agents[0].actions[0] = 0.0f;
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[0] = 1;
+    }
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[0] = 2;
+    }
+}
+
 void puf_step(Breakout* env) {
+    breakout_human_controls(env);
     env->agents[0].terminals[0] = 0;
     env->agents[0].rewards[0] = 0.0;
 
@@ -589,6 +592,7 @@ void puf_render(Breakout* env) {
     if (IsKeyPressed(KEY_TAB)) {
         ToggleFullscreen();
     }
+    breakout_human_controls(env);
 
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});

@@ -408,7 +408,7 @@
      int obs_panel_y = grid_offset_y;
  
      if (env->num_agents > 0) {
-         float* obs = (float*)env->agents[0].observations;
+         float* obs = env->agents[0].observations;
  
          DrawText("=== OBSERVATION ARRAY (43 dims) ===", obs_panel_x, obs_panel_y, 11, BLACK);
          obs_panel_y += 18;

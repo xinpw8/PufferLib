@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+typedef float obs_t;
 #include "pufferenv.h"
 
 // OBS: 2*num_resources (nearest factory offsets) + 4 (heading,reward,x,y) + num_resources (item one-hot)
@@ -16,8 +17,6 @@
 #define NUM_ATNS 2
 #define MAX_AGENTS 1024
 #define MAX_RESOURCES 16
-
-typedef float obs_t;
 
 struct Log {
   float perf;
@@ -67,8 +66,8 @@ struct Env {
 };
 typedef Env ConvertCircle;
 
-static inline float random_float(float low, float high) {
-  return low + (high - low) * ((float)rand() / (float)RAND_MAX);
+static inline float random_float_r(unsigned int *rng, float low, float high) {
+  return low + (high - low) * ((float)rand_r(rng) / (float)RAND_MAX);
 }
 
 void init(ConvertCircle *env) {
@@ -79,7 +78,7 @@ void init(ConvertCircle *env) {
 void compute_observations(ConvertCircle *env) {
   for (int a = 0; a < env->num_agents; a++) {
     Entity *agent = &env->entities[a];
-    obs_t *obs = (obs_t *)env->agents[a].observations;
+    float*obs = env->agents[a].observations;
     if (obs == NULL)
       continue;
     int obs_idx = 0;
@@ -116,9 +115,9 @@ void compute_observations(ConvertCircle *env) {
 
 void puf_reset(ConvertCircle *env) {
   for (int i = 0; i < env->num_agents; i++) {
-    env->entities[i].x = env->width / 2.0f + random_float(-10.0f, 10.0f);
-    env->entities[i].y = env->height / 2.0f + random_float(-10.0f, 10.0f);
-    env->entities[i].item = rand() % env->num_resources;
+    env->entities[i].x = env->width / 2.0f + random_float_r(&env->rng, -10.0f, 10.0f);
+    env->entities[i].y = env->height / 2.0f + random_float_r(&env->rng, -10.0f, 10.0f);
+    env->entities[i].item = rand_r(&env->rng) % env->num_resources;
     env->entities[i].episode_length = 0;
   }
   float angle;
@@ -127,12 +126,12 @@ void puf_reset(ConvertCircle *env) {
     if (env->equidistant) {
       angle = i * delta_angle;
     } else {
-      angle = random_float(0, 2.0f * PI);
+      angle = random_float_r(&env->rng, 0, 2.0f * PI);
     }
     env->factories[i].x = env->width / 2.0f + env->radius * cosf(angle);
     env->factories[i].y = env->height / 2.0f + env->radius * sinf(angle);
     env->factories[i].item = i % env->num_resources;
-    env->factories[i].heading = (rand() % 360) * PI / 180.0f;
+    env->factories[i].heading = (rand_r(&env->rng) % 360) * PI / 180.0f;
   }
   compute_observations(env);
 }
@@ -158,7 +157,12 @@ void puf_step(ConvertCircle *env) {
 
     if (actions != NULL) {
       agent->heading += (actions[0] - 4.0f) / 12.0f;
-      agent->heading = clip(agent->heading, 0, 2 * PI);
+      while (agent->heading < 0) {
+        agent->heading += 2 * PI;
+      }
+      while (agent->heading >= 2 * PI) {
+        agent->heading -= 2 * PI;
+      }
 
       agent->speed += 1.0f * (actions[1] - 2.0f);
       agent->speed = clip(agent->speed, -20.0f, 20.0f);
@@ -170,9 +174,10 @@ void puf_step(ConvertCircle *env) {
     agent->y += agent->speed * sinf(agent->heading);
     agent->y = clip(agent->y, 16, env->height - 16);
 
-    if (rand() % env->num_agents == 0) {
-      env->entities[i].x = env->width / 2.0f + random_float(-10.0f, 10.0f);
-      env->entities[i].y = env->height / 2.0f + random_float(-10.0f, 10.0f);
+    // Fixed 1/1024 shuffle so web (512 agents) matches train rate.
+    if (rand_r(&env->rng) % 1024 == 0) {
+      env->entities[i].x = env->width / 2.0f + random_float_r(&env->rng, -10.0f, 10.0f);
+      env->entities[i].y = env->height / 2.0f + random_float_r(&env->rng, -10.0f, 10.0f);
     }
 
     for (int f = 0; f < env->num_factories; f++) {
@@ -185,9 +190,14 @@ void puf_step(ConvertCircle *env) {
       }
       if (factory->item == agent->item) {
         agent->item = (agent->item + 1) % env->num_resources;
-        env->log.perf += 1.0f;
-        env->log.score += 1.0f;
-        env->log.episode_length += agent->episode_length;
+        float elen = (float)agent->episode_length;
+        if (elen < 1.0f) {
+          elen = 1.0f;
+        }
+        // Adjacent typed stars on the circle are ~80px (~4 steps at max speed).
+        env->log.perf += fminf(1.0f, 16.0f / elen);
+        env->log.score += 1000.0f / elen;
+        env->log.episode_length += elen;
         env->log.n++;
         if (env->agents[i].rewards != NULL)
           env->agents[i].rewards[0] = 1.0f;
@@ -204,7 +214,7 @@ void puf_step(ConvertCircle *env) {
     float factory_y = clip(factory->y, 16, env->height - 16);
 
     if (factory_x != factory->x || factory_y != factory->y) {
-      factory->heading = (rand() % 360) * PI / 180.0f;
+      factory->heading = (rand_r(&env->rng) % 360) * PI / 180.0f;
       factory->x = factory_x;
       factory->y = factory_y;
     }
@@ -305,5 +315,6 @@ void puf_log(Log *log, Dict *out) {
   dict_set(out, "score", log->score);
   dict_set(out, "episode_return", log->episode_return);
   dict_set(out, "episode_length", log->episode_length);
+  dict_set(out, "n", log->n);
 }
 

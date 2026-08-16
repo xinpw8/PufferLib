@@ -333,7 +333,6 @@ static float inf_terminal_loss_reward(
     const InfernoState* s,
     const InfernoContext* ctx
 ) {
-    (void)s;
     return ctx->config.terminal_penalty_enabled ? -1.0f : 0.0f;
 }
 

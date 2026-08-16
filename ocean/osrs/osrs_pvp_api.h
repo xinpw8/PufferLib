@@ -592,7 +592,6 @@ void pvp_step(OsrsEnv* env) {
 }
 
 void pvp_close(OsrsEnv* env) {
-    (void)env;
 }
 
 #endif // OSRS_PVP_API_H

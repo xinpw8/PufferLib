@@ -91,7 +91,6 @@ static inline int is_agent_at(Overcooked* env, int x, int y) {
 }
 
 static int is_valid_position(Overcooked* env, int x, int y, int excluding_agent) {
-    (void)excluding_agent;
     if (x < 0 || x >= env->width || y < 0 || y >= env->height) {
         return 0;
     }
@@ -199,10 +198,8 @@ static void handle_interaction(Overcooked* env, int agent_idx) {
             }
             agent->held_item = NO_ITEM;
             env->log.items_dropped++;
-        } else if ((tile == EMPTY) && item == NULL) {
-            agent->held_item = NO_ITEM;
-            env->log.items_dropped++;
         }
+        // Interact into EMPTY (floor / teammate) is a no-op; items stay held.
     }
     else {
         if (item != NULL) {

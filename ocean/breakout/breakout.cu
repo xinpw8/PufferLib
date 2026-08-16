@@ -13,6 +13,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+// Fixed env obs dtype (not tied to train precision build flags).
+typedef __nv_bfloat16 obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {3}
@@ -28,9 +30,6 @@
 #define BRICK_INDEX_BACKWALL_COLLISION -2
 #define BRICK_INDEX_PADDLE_COLLISION -1
 
-// Fixed env obs dtype (not tied to train precision build flags).
-typedef __nv_bfloat16 obs_t;
-
 struct Log {
     float perf;
     float score;
@@ -44,6 +43,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 
 #define BREAKOUT_GPU_MAX_BRICKS 128
@@ -695,19 +695,15 @@ void puf_bind_stream(cudaStream_t stream) {
 
 // Same signatures as CPU. GPU path uses batch base; puf_init is unused (create fills).
 void puf_init(Env* env, Dict* kwargs) {
-    (void)env;
-    (void)kwargs;
 }
 
 void puf_reset(Env* env) {
-    (void)env;
     int threads = g_gpu.n * BREAKOUT_THREADS_PER_ENV;
     gpu_breakout_reset_kernel<<<breakout_grid(threads), BREAKOUT_BLOCK>>>(
         g_gpu.envs, g_gpu.observations, g_gpu.rewards, g_gpu.terminals, g_gpu.n);
 }
 
 void puf_step(Env* env) {
-    (void)env;
     int threads = g_gpu.n * BREAKOUT_THREADS_PER_ENV;
     gpu_breakout_step_kernel<<<breakout_grid(threads), BREAKOUT_BLOCK, 0, g_gpu.stream>>>(
         g_gpu.envs, g_gpu.actions, g_gpu.observations, g_gpu.rewards, g_gpu.terminals,
@@ -715,7 +711,6 @@ void puf_step(Env* env) {
 }
 
 void puf_close(Env* env) {
-    (void)env;
     if (g_gpu.client) {
         UnloadTexture(g_gpu.client->ball);
         CloseWindow();
@@ -728,7 +723,6 @@ void puf_close(Env* env) {
 
 // D2H env 0 and draw (same layout as breakout.h). env is device batch base.
 void puf_render(Env* env) {
-    (void)env;
     if (!g_gpu.envs || g_gpu.n < 1) {
         return;
     }

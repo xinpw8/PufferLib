@@ -53,10 +53,12 @@ int main(int argc, char** argv) {
         .observation_size = num_obs
     };
 
-    env.agents[0].observations = (float*)calloc(num_obs * num_agents, sizeof(float));
-    env.agents[0].actions = (float*)calloc(num_agents, sizeof(float));
-    env.agents[0].rewards = (float*)calloc(num_agents, sizeof(float));
-    env.agents[0].terminals = (float*)calloc(num_agents, sizeof(float));
+    for (int i = 0; i < num_agents; i++) {
+        env.agents[i].observations = (float*)calloc(num_obs, sizeof(float));
+        env.agents[i].actions = (float*)calloc(1, sizeof(float));
+        env.agents[i].rewards = (float*)calloc(1, sizeof(float));
+        env.agents[i].terminals = (float*)calloc(1, sizeof(float));
+    }
 
     init(&env);
     puf_reset(&env);
@@ -67,17 +69,19 @@ int main(int argc, char** argv) {
     while (!WindowShouldClose()) {
         // forward_linearlstm(net, env.agents[0].observations, env.agents[0].actions);
         for (int i = 0; i < num_agents; i++) {
-            env.agents[0].actions[i] = rand() % 6;
+            env.agents[i].actions[0] = rand() % 6;
         }
         puf_step(&env);
         puf_render(&env);
     }
 
     // free_linearlstm(net);
-    free(env.agents[0].observations);
-    free(env.agents[0].actions);
-    free(env.agents[0].rewards);
-    free(env.agents[0].terminals);
+    for (int i = 0; i < num_agents; i++) {
+        free(env.agents[i].observations);
+        free(env.agents[i].actions);
+        free(env.agents[i].rewards);
+        free(env.agents[i].terminals);
+    }
     puf_close(&env);
 
     return 0;

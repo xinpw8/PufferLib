@@ -8,6 +8,7 @@
 #include <string.h>
 #include <math.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {9, 5}
@@ -17,7 +18,6 @@
 #define MAX_GOALS 4
 
 typedef Env Target;
-typedef float obs_t;
 
 // Required struct. Only use floats!
 struct Log {
@@ -94,7 +94,7 @@ void update_goals(Target* env) {
 void compute_observations(Target* env) {
     for (int a = 0; a < env->num_agents; a++) {
         Entity* agent = &env->entities[a];
-        obs_t* obs = (obs_t*)env->agents[a].observations;
+        obs_t* obs = env->agents[a].observations;
         int obs_idx = 0;
         for (int g = 0; g < env->num_goals; g++) {
             Goal* goal = &env->goals[g];
@@ -160,6 +160,27 @@ void puf_step(Target* env) {
     compute_observations(env);
 }
 
+// Hold Left Shift + WASD/arrows for agent 0 turn/accel.
+static void target_human_controls(Target* env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    env->agents[0].actions[0] = 4.0f;
+    env->agents[0].actions[1] = 2.0f;
+    if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
+        env->agents[0].actions[0] = 0.0f;
+    }
+    if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) {
+        env->agents[0].actions[0] = 8.0f;
+    }
+    if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) {
+        env->agents[0].actions[1] = 0.0f;
+    }
+    if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) {
+        env->agents[0].actions[1] = 4.0f;
+    }
+}
+
 void puf_render(Target* env) {
     if (env->client == NULL) {
         InitWindow(1080, 720, "PufferLib Target");
@@ -172,6 +193,7 @@ void puf_render(Target* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+    target_human_controls(env);
 
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});
@@ -187,7 +209,7 @@ void puf_render(Target* env) {
         DrawTexturePro(
             env->client->puffer,
             (Rectangle){
-                (heading < PI / 2 || heading > 3 * PI / 2) ? 0 : 128,
+                (heading < PI / 2 || heading > 3 * PI / 2) ? 128 : 0,
                 0, 128, 128,
             },
             (Rectangle){
@@ -218,7 +240,6 @@ void puf_close(Target* env) {
 }
 
 void puf_init(Env* env, Dict* kwargs) {
-    (void)kwargs;
     env->width = 952;
     env->height = 592;
     env->num_agents = MAX_AGENTS;
@@ -235,5 +256,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 

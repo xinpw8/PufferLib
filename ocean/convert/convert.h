@@ -8,6 +8,7 @@
 #include <string.h>
 #include <math.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {9, 5}
@@ -16,7 +17,6 @@
 #define MAX_AGENTS 1024
 
 typedef Env Convert;
-typedef float obs_t;
 
 struct Log {
     float perf;
@@ -71,7 +71,7 @@ void init(Convert* env) {
 void compute_observations(Convert* env) {
     for (int a = 0; a < env->num_agents; a++) {
         Entity* agent = &env->entities[a];
-        obs_t* obs = (obs_t*)env->agents[a].observations;
+        float* obs = env->agents[a].observations;
         int obs_idx = 0;
         float dists[env->num_resources];
         for (int i = 0; i < env->num_resources; i++) {
@@ -133,7 +133,12 @@ void puf_step(Convert* env) {
         agent->episode_length += 1;
 
         agent->heading += (actions[0] - 4.0f) / 12.0f;
-        agent->heading = clip(agent->heading, 0, 2 * PI);
+        while (agent->heading < 0) {
+            agent->heading += 2 * PI;
+        }
+        while (agent->heading >= 2 * PI) {
+            agent->heading -= 2 * PI;
+        }
 
         agent->speed += 1.0f * (actions[1] - 2.0f);
         agent->speed = clip(agent->speed, -20.0f, 20.0f);
@@ -144,7 +149,8 @@ void puf_step(Convert* env) {
         agent->y += agent->speed * sinf(agent->heading);
         agent->y = clip(agent->y, 16, env->height - 16);
 
-        if (rand_r(&env->rng) % env->num_agents == 0) {
+        // Fixed 1/1024 shuffle so web (512 agents) matches train rate.
+        if (rand_r(&env->rng) % 1024 == 0) {
             env->entities[i].x = rand_r(&env->rng) % env->width;
             env->entities[i].y = rand_r(&env->rng) % env->height;
         }
@@ -159,9 +165,14 @@ void puf_step(Convert* env) {
             }
             if (factory->item == agent->item) {
                 agent->item = (agent->item + 1) % env->num_resources;
-                env->log.perf += 1.0f;
-                env->log.score += 1.0f;
-                env->log.episode_length += agent->episode_length;
+                float elen = (float)agent->episode_length;
+                if (elen < 1.0f) {
+                    elen = 1.0f;
+                }
+                // 80-step convert is "solved" (straight-line ~20-40 on this map).
+                env->log.perf += fminf(1.0f, 80.0f / elen);
+                env->log.score += 1000.0f / elen;
+                env->log.episode_length += elen;
                 env->log.n++;
                 env->agents[i].rewards[0] = 1.0f;
                 agent->episode_length = 0;
@@ -268,6 +279,12 @@ void puf_init(Env* env, Dict* kwargs) {
             env->num_agents, MAX_AGENTS);
         exit(1);
     }
+    if (3 * env->num_resources + 4 != OBS_SIZE) {
+        fprintf(stderr,
+            "convert: num_resources=%d implies obs size %d, but OBS_SIZE=%d\n",
+            env->num_resources, 3 * env->num_resources + 4, OBS_SIZE);
+        exit(1);
+    }
     for (int i = 0; i < env->num_agents; i++) {
         env->agents[i].policy = 0;
         env->agents[i].action_mask = NULL;
@@ -280,5 +297,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 

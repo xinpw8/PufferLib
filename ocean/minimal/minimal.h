@@ -2,6 +2,7 @@
 // Don't one-line structs/fns/ifs/vars in PRs. This fits in a screenshot.
 #include <stdlib.h>
 #include <math.h>
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define AGENTS 8
@@ -11,7 +12,11 @@
 #define NUM_ATNS 2
 
 typedef Env Minimal;
-typedef float obs_t;
+
+#ifdef PUFFERCPU_EVAL_MAIN
+#define PUF_MINIMAL_NET 1
+#include "minimal_net.h"
+#endif
 
 const int WIDTH = 1080, HEIGHT = 720, COOLDOWN = 30, TYPES = 4;
 const float SPEED = 20.0f, MIN_TICKS = COOLDOWN*AGENTS/(float)TARGETS;
@@ -27,7 +32,6 @@ struct Env {
 }; // Required: An env struct
 
 void puf_init(Env* env, Dict* kwargs) {
-    (void)kwargs;
     env->num_agents = AGENTS;
     for (int i=0; i<AGENTS; i++) {
         env->agents[i].policy = 0;
@@ -38,11 +42,12 @@ void puf_init(Env* env, Dict* kwargs) {
 void puf_log(Log* log, Dict* out) {
     dict_set(out, "perf", log->perf);
     dict_set(out, "score", log->score);
+    dict_set(out, "n", log->n);
 }
 
 void compute_observations(Env* env) {
     for (int a=0; a<AGENTS ; a++) {
-        int idx = 0; obs_t* obs = (obs_t*)env->agents[a].observations;
+        int idx = 0; obs_t* obs = env->agents[a].observations;
         Entity* agent = &env->entities[a];
         obs[idx++] = agent->heading / (2*PI);
         obs[idx++] = agent->speed / SPEED;

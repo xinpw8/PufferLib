@@ -108,7 +108,6 @@ static void inf_put_float_ctx(
     const char* key,
     float value
 ) {
-    (void)state;
     InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
     if (strcmp(key, "damage_reward_coeff") == 0) ctx->config.damage_reward_coeff = value;
     else if (strcmp(key, "offensive_prayer_reward_coeff") == 0) {
@@ -208,19 +207,16 @@ static void inf_put_ptr_ctx(
     const char* key,
     void* value
 ) {
-    (void)state;
     InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
     if (strcmp(key, "collision_map") == 0) ctx->collision_map = (const CollisionMap*)value;
     else encounter_abort_unknown_config("inferno", "ptr", key);
 }
 
 static int inf_get_tick_ctx(EncounterState* state, EncounterContext* context) {
-    (void)context;
     return ((InfernoState*)state)->tick;
 }
 
 static int inf_get_winner_ctx(EncounterState* state, EncounterContext* context) {
-    (void)context;
     return ((InfernoState*)state)->winner;
 }
 
@@ -328,7 +324,6 @@ static void inf_render_post_tick_ctx(
     EncounterContext* context,
     EncounterOverlay* ov
 ) {
-    (void)context;
     InfernoState* s = (InfernoState*)state;
     ov->tile_shadow_count = 0;
     ov->projectile_count = 0;
@@ -803,8 +798,6 @@ static InfLateAddCounts inf_late_add_counts(const InfernoState* s) {
 }
 
 static size_t inf_cell_key_size_ctx(EncounterState* state, EncounterContext* context) {
-    (void)state;
-    (void)context;
     return sizeof(InfCellKey);
 }
 
@@ -824,7 +817,6 @@ static void inf_write_cell_key_ctx(
     EncounterContext* context,
     void* out
 ) {
-    (void)context;
     const InfernoState* s = (const InfernoState*)state;
     InfCellKey* k = (InfCellKey*)out;
     memset(k, 0, sizeof(InfCellKey));
@@ -875,7 +867,6 @@ static void inf_write_cell_key(EncounterState* state, void* out) {
 }
 
 static float inf_progress_score_ctx(EncounterState* state, EncounterContext* context) {
-    (void)context;
     const InfernoState* s = (const InfernoState*)state;
     if (s->episode_over && s->winner == INF_OUTCOME_PLAYER_WON) return 2.0f;
 
@@ -1017,8 +1008,6 @@ static void inf_refresh_after_state_load(InfernoState* s, InfernoContext* ctx) {
 }
 
 static size_t inf_snapshot_size_ctx(EncounterState* state, EncounterContext* context) {
-    (void)state;
-    (void)context;
     return sizeof(InfSnapshot);
 }
 
@@ -1082,7 +1071,6 @@ static int inf_apply_lab_command_ctx(
     EncounterContext* context,
     const char* line
 ) {
-    (void)context;
     return encounter_apply_lab_command_dump_wrapper(
         state, line, INF_LAB_LINE_DUMP, inf_lab_apply_script_line_alloc_json_void);
 }

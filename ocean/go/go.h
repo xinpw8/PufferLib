@@ -5,16 +5,13 @@
 #include <assert.h>
 #include <string.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {82}
 #define OBS_SIZE 326
 #define NUM_ATNS 1
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
+#define PUF_STEPS_PER_SEC 3
 
 #define NOOP 0
 #define MOVE_MIN 1
@@ -126,9 +123,9 @@ struct Env {
     float old_episode_return;
     unsigned int rng;
 };
-typedef Env CGo;
+typedef Env Go;
 
-void add_log(CGo* env) {
+void add_log(Go* env) {
     env->log.episode_length += env->tick;
     
     // Calculate perf as a win rate (1.0 if win, 0.0 if loss)
@@ -165,7 +162,7 @@ void add_log(CGo* env) {
     env->log.n += 1.0;
 }
 
-void generate_board_positions(CGo* env) {
+void generate_board_positions(Go* env) {
     for (int i = 0; i < (env->grid_size-1) * (env->grid_size-1); i++) {
         int row = i / (env->grid_size-1);
         int col = i % (env->grid_size-1);
@@ -174,7 +171,7 @@ void generate_board_positions(CGo* env) {
     }
 }
 
-void init_groups(CGo* env) {
+void init_groups(Go* env) {
     for (int i = 0; i < (env->grid_size)*(env->grid_size); i++) {
         env->groups[i].parent = i;
         env->groups[i].rank = 0;
@@ -183,7 +180,7 @@ void init_groups(CGo* env) {
     }
 }
 
-void init(CGo* env) {
+void init(Go* env) {
     int board_render_size = (env->grid_size-1)*(env->grid_size-1);
     int grid_size = env->grid_size*env->grid_size;
     env->board_x = (int*)calloc(board_render_size, sizeof(int));
@@ -199,25 +196,14 @@ void init(CGo* env) {
     init_groups(env);
 }
 
-void allocate(CGo* env) {
-    init(env);
-    if(env->selfplay){
-        env->agents[0].observations = (obs_t*)calloc(2*((env->grid_size)*(env->grid_size)*4 +2), sizeof(obs_t));
-        env->agents[0].actions = (float*)calloc(2, sizeof(float));
-    } else{
-	// +2 correct?
-        env->agents[0].observations = (obs_t*)calloc((env->grid_size)*(env->grid_size)*4 +2, sizeof(obs_t));
-        env->agents[0].actions = (float*)calloc(1, sizeof(float));
+void puf_close(Go* env) {
+    if (env->client) {
+        if (IsWindowReady()) {
+            CloseWindow();
+        }
+        free(env->client);
+        env->client = NULL;
     }
-    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
-    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
-    env->agents[0].action_mask = NULL;
-    env->agents[0].policy = 0;
-    env->num_agents = 1;
-
-}
-
-void puf_close(CGo* env) {
     free(env->board_x);
     free(env->board_y);
     free(env->board_states);
@@ -228,15 +214,7 @@ void puf_close(CGo* env) {
     free(env->groups);
 }
 
-void free_allocated(CGo* env) {
-    free(env->agents[0].actions);
-    free(env->agents[0].observations);
-    free(env->agents[0].terminals);
-    free(env->agents[0].rewards);
-    puf_close(env);
-}
-
-static inline void increment_version(CGo* env) {
+static inline void increment_version(Go* env) {
     env->current_version++;
     if (env->current_version == 0) { 
         memset(env->visited, 0, (env->grid_size) * (env->grid_size));
@@ -244,13 +222,14 @@ static inline void increment_version(CGo* env) {
     }
 }
 
-void compute_observations(CGo* env) {
+void compute_observations(Go* env) {
+    obs_t* obs = env->agents[0].observations;
     int obs_len = env->grid_size * env->grid_size * 4 + 2;
     int N = env->grid_size * env->grid_size;
     int iterations = env->selfplay ? 2 : 1;
 
     for(int i = 0; i < iterations; i++){
-        obs_t* current_obs = ((obs_t*)env->agents[0].observations) + (i * obs_len);
+        float* current_obs = obs + (i * obs_len);
         
         int self, opp;
         if (i == 0) {
@@ -264,10 +243,10 @@ void compute_observations(CGo* env) {
         int turn = env->turn + 1 == self ? 1 : 0;
 
         // Memory Layout: [Current Self][Current Opp][Prev Self][Prev Opp]
-        obs_t* plane_self      = current_obs;
-        obs_t* plane_opp       = current_obs + N;
-        obs_t* plane_prev_self = current_obs + (2 * N);
-        obs_t* plane_prev_opp  = current_obs + (3 * N);
+        float* plane_self      = current_obs;
+        float* plane_opp       = current_obs + N;
+        float* plane_prev_self = current_obs + (2 * N);
+        float* plane_prev_opp  = current_obs + (3 * N);
 
         for (int idx = 0; idx < N; idx++) {
             int val = env->board_states[idx];
@@ -286,11 +265,11 @@ void compute_observations(CGo* env) {
     } 
 }
 
-int is_valid_position(CGo* env, int x, int y) {
+int is_valid_position(Go* env, int x, int y) {
     return (x >= 0 && x < env->grid_size && y >= 0 && y < env->grid_size);
 }
 
-void flood_fill(CGo* env, int x, int y, int* territory, int player) {
+void flood_fill(Go* env, int x, int y, int* territory, int player) {
     if (!is_valid_position(env, x, y)) {
         return;
     }
@@ -307,7 +286,7 @@ void flood_fill(CGo* env, int x, int y, int* territory, int player) {
     }
 }
 
-void compute_score_tromp_taylor(CGo* env) {
+void compute_score_tromp_taylor(Go* env) {
     int player_score = 0;
     int opponent_score = 0;
     int player = env->side;
@@ -395,7 +374,7 @@ int find_in_group(int* group, int group_size, int value) {
     return 0;  // Not found
 }
 
-void capture_group(CGo* env, uint8_t* board, int root, int* affected_groups, int* affected_count) {
+void capture_group(Go* env, uint8_t* board, int root, int* affected_groups, int* affected_count) {
     increment_version(env);
     // Use a queue for BFS
     int queue_size = (env->grid_size) * (env->grid_size);
@@ -451,7 +430,7 @@ void capture_group(CGo* env, uint8_t* board, int root, int* affected_groups, int
     }
 }
 
-int count_liberties(CGo* env, int root, int* queue, uint8_t* board) {
+int count_liberties(Go* env, int root, int* queue, uint8_t* board) {
     increment_version(env);
     int liberties = 0;
     int front = 0;
@@ -489,7 +468,7 @@ int count_liberties(CGo* env, int root, int* queue, uint8_t* board) {
     return liberties;
 }
 
-int make_move(CGo* env, int pos, int player){
+int make_move(Go* env, int pos, int player){
     int x = pos % (env->grid_size);
     int y = pos / (env->grid_size);
     // cannot place stone on occupied tile
@@ -594,7 +573,7 @@ rollback:
     return 0;
 }
 
-void enemy_random_move(CGo* env, int side){
+void enemy_random_move(Go* env, int side){
     int num_positions = (env->grid_size)*(env->grid_size);
     int positions[num_positions];
     int count = 0;
@@ -624,7 +603,7 @@ void enemy_random_move(CGo* env, int side){
     env->agents[0].terminals[0] = 1;
 }
 
-int find_group_liberty(CGo* env, int root){
+int find_group_liberty(Go* env, int root){
     increment_version(env);
     int queue[(env->grid_size)*(env->grid_size)];
     int front = 0, rear = 0;
@@ -654,7 +633,7 @@ int find_group_liberty(CGo* env, int root){
     return -1; // Should not happen if liberties > 0
 }
 
-void enemy_greedy_hard(CGo* env, int side){
+void enemy_greedy_hard(Go* env, int side){
 
     int opp = 3 - side;
 	// Attempt to capture opponent stones in atari
@@ -694,7 +673,7 @@ void enemy_greedy_hard(CGo* env, int side){
     enemy_random_move(env, side);
 }
 
-void enemy_greedy_easy(CGo* env, int side){
+void enemy_greedy_easy(Go* env, int side){
     // Attempt to capture opponent stones in atari
     for(int i = 0; i < (env->grid_size)*(env->grid_size); i++){
         if(env->board_states[i] != 1){
@@ -726,7 +705,7 @@ void enemy_greedy_easy(CGo* env, int side){
     enemy_random_move(env, side);
 }
 
-void puf_reset(CGo* env) {
+void puf_reset(Go* env) {
     env->tick = 0;
     env->illegal_move_count = 0;
     env->legal_move_count = 0;
@@ -751,7 +730,7 @@ void puf_reset(CGo* env) {
     compute_observations(env);
 }
 
-void clip_rewards(CGo* env){
+void clip_rewards(Go* env){
     if(env->agents[0].rewards[0] > 1){
 	    env->agents[0].rewards[0] = 1;
     } 
@@ -760,7 +739,7 @@ void clip_rewards(CGo* env){
     }
 }
 
-void end_game(CGo* env){
+void end_game(Go* env){
     compute_score_tromp_taylor(env);
     if (env->score > 0) {
         env->agents[0].rewards[0] = 1.0;
@@ -778,7 +757,7 @@ void end_game(CGo* env){
     puf_reset(env);
 }
 
-void human_play(CGo* env){
+void human_play(Go* env){
     int indx=1;
     if(!env->selfplay || !env->human_play){
         return;
@@ -823,7 +802,45 @@ void human_play(CGo* env){
 
 }
 
-void puf_step(CGo* env) {
+// Hold Left Shift + click a point or the pass button.
+// Skip the step when Shift is down and there is no click this frame.
+static int go_human_controls(Go *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return 0;
+    }
+    if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        return -1;
+    }
+    Vector2 mousePos = GetMousePosition();
+    int boardOffsetX = env->grid_square_size;
+    int boardOffsetY = env->grid_square_size;
+    int relativeX = (int)mousePos.x - boardOffsetX;
+    int relativeY = (int)mousePos.y - boardOffsetY;
+    int cellX = (relativeX + env->grid_square_size / 2) / env->grid_square_size;
+    int cellY = (relativeY + env->grid_square_size / 2) / env->grid_square_size;
+    if (cellX >= 0 && cellX <= env->grid_size && cellY >= 0 && cellY <= env->grid_size) {
+        env->agents[0].actions[0] = cellY * env->grid_size + cellX + 1;
+        return 1;
+    }
+    int left = (env->grid_size + 1) * env->grid_square_size;
+    int top = env->grid_square_size;
+    int passButtonX = left;
+    int passButtonY = top + 90;
+    int passButtonWidth = 100;
+    int passButtonHeight = 50;
+    if (mousePos.x >= passButtonX && mousePos.x <= passButtonX + passButtonWidth
+            && mousePos.y >= passButtonY
+            && mousePos.y <= passButtonY + passButtonHeight) {
+        env->agents[0].actions[0] = 0;
+        return 1;
+    }
+    return -1;
+}
+
+void puf_step(Go* env) {
+    if (go_human_controls(env) < 0) {
+        return;
+    }
     env->tick += 1;
     env->agents[0].rewards[0] = 0.0;
     env->agents[0].terminals[0] = 0;
@@ -928,7 +945,7 @@ Client* make_client(int width, int height) {
     return client;
 }
 
-void puf_render(CGo* env) {
+void puf_render(Go* env) {
     if (env->client == NULL) {
         env->client = make_client(env->width, env->height);
     }
@@ -936,6 +953,8 @@ void puf_render(CGo* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+
+    go_human_controls(env);
 
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);
@@ -1014,10 +1033,6 @@ void puf_render(CGo* env) {
         left, top + 40, 20, PUFF_WHITE
     );
     EndDrawing();
-}
-void close_client(Client* client) {
-    CloseWindow();
-    free(client);
 }
 
 // --- Native trainer (pufferl) API ---

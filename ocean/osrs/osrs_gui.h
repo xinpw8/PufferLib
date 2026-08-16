@@ -3148,7 +3148,6 @@ static inline int gui_spell_castable(GuiSpellIdx s) {
 }
 
 static void gui_draw_spellbook(GuiState* gs, Player* p) {
-    (void)p;
     int gx, gy;
     gui_spell_grid_origin(gs, &gx, &gy);
 

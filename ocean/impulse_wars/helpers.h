@@ -12,6 +12,7 @@
 
 #ifndef NDEBUG
 #define ON_ERROR __builtin_trap()
+#ifdef IW_DEBUG
 #define _DEBUG_GET_TIMEINFO() \
     time_t _t = time(NULL);   \
     struct tm *_timeinfo;     \
@@ -38,6 +39,12 @@
         printf(msg " %d:%d:%d %s:%d\n", _timeinfo->tm_hour, _timeinfo->tm_min, _timeinfo->tm_sec, __FILE__, __LINE__); \
         fflush(stdout);                                                                                                \
     } while (0)
+#else
+#define DEBUG_RAW_LOG(msg)
+#define DEBUG_RAW_LOGF(fmt, args...)
+#define DEBUG_LOGF(fmt, args...)
+#define DEBUG_LOG(msg)
+#endif
 
 #define ASSERT(condition)                                                                  \
     do {                                                                                   \
@@ -113,7 +120,7 @@
 // heap memory, use dlmalloc in release mode for performance; emscripten
 // uses dlmalloc by default so no need to change anything here; dlmalloc
 // sometimes won't compile on macOS so just use malloc and friends
-#if !defined(NDEBUG) || defined(__EMSCRIPTEN__) || defined(__APPLE__)
+#if !defined(IW_USE_DLMALLOC) || defined(__EMSCRIPTEN__) || defined(__APPLE__)
 #define fastMalloc(size) malloc(size)
 #define fastMallocFn malloc
 #define fastCalloc(nmemb, size) calloc(nmemb, size)
@@ -157,7 +164,7 @@ static inline bool b2VecEqual(const b2Vec2 v1, const b2Vec2 v2) {
 
 // from https://lemire.me/blog/2019/03/19/the-fastest-conventional-random-number-generator-that-can-pass-big-crush/
 // see also https://github.com/lemire/testingRNG
-uint64_t wyhash64(uint64_t *state) {
+static uint64_t wyhash64(uint64_t *state) {
     *state += 0x60bee2bee120fc15;
     __uint128_t tmp;
     tmp = (__uint128_t)(*state) * 0xa3b195354a39b70d;

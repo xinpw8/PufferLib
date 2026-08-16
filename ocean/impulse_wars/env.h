@@ -4,23 +4,21 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 
-double lastFrameTime = 0.0;
-double accumulator = 0.0;
+static double lastFrameTime = 0.0;
+static double accumulator = 0.0;
 #endif
 
 #include "game.h"
 #include "map.h"
 #include "render.h"
 #include "scripted_agent.h"
-#include "settings.h"
-#include "types.h"
 
-const uint8_t THREE_BIT_MASK = 0x7;
-const uint8_t FOUR_BIT_MASK = 0xf;
+static const uint8_t THREE_BIT_MASK = 0x7;
+static const uint8_t FOUR_BIT_MASK = 0xf;
 
 static inline uint8_t* iw_obs(iwEnv* e, uint8_t i) {
     if (e->agents[i].observations) {
-        return (uint8_t*)e->agents[i].observations;
+        return e->agents[i].observations;
     }
     return e->observations + (size_t)i * e->obsBytes;
 }
@@ -653,7 +651,7 @@ void clearEnv(iwEnv *e) {
     e->episodeLength = 0;
     memset(e->stats, 0x0, sizeof(e->stats));
 
-    for (uint8_t i = 0; i < e->numDrones; i++) {
+    for (size_t i = 0; i < cc_array_size(e->drones); i++) {
         droneEntity *drone = safe_array_get_at(e->drones, i);
         destroyDrone(e, drone);
     }
@@ -814,7 +812,7 @@ float computeReward(iwEnv *e, droneEntity *drone) {
     return reward;
 }
 
-const float REWARD_EPS = 1.0e-6f;
+static const float REWARD_EPS = 1.0e-6f;
 
 void computeRewards(iwEnv *e, const bool roundOver, const int8_t winner, const int8_t winningTeam) {
     if (roundOver && winner != -1 && winner < e->numAgents) {

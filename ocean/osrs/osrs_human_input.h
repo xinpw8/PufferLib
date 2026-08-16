@@ -201,7 +201,6 @@ static int human_apply_combat_style(
         }
     }
 
-    (void)gs;
     return 1;
 }
 
@@ -395,7 +394,6 @@ static void human_to_pvp_actions(HumanInput* hi, int* actions,
         }
     }
 
-    (void)agent;
 }
 
 #define CLICK_CROSS_NUM_FRAMES 4

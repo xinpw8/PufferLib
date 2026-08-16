@@ -5,15 +5,14 @@
 #include "id_pool.h"
 #include "raylib.h"
 #include "rlights.h"
+typedef uint8_t obs_t;
 #include "pufferenv.h"
 
 #include "include/cc_array.h"
 
-#include "settings.h"
-
 #define _MAX_DRONES 4
 
-const uint8_t NUM_WALL_TYPES = 3;
+static const uint8_t NUM_WALL_TYPES = 3;
 
 #define MAX_TRAIL_POINTS 20
 #define MAX_DRONE_TRAIL_POINTS 20
@@ -56,7 +55,7 @@ typedef struct entity {
 } entity;
 
 #define _NUM_WEAPONS 10
-const uint8_t NUM_WEAPONS = _NUM_WEAPONS;
+static const uint8_t NUM_WEAPONS = _NUM_WEAPONS;
 
 enum weaponType {
     STANDARD_WEAPON,

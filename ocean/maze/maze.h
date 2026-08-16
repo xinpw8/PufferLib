@@ -5,13 +5,13 @@
 #include <assert.h>
 #include <math.h>
 #include "raylib.h"
+typedef unsigned char obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {5}
 #define MY_VEC_INIT
 #define MY_VEC_CLOSE
 typedef Env Grid;
-typedef unsigned char obs_t;
 
 #define TWO_PI 2.0*PI
 
@@ -91,7 +91,8 @@ void add_log(Grid* env, int idx) {
 }
  
 void compute_observations(Grid* env) {
-    memset(((obs_t*)env->agents[0].observations), 0, WINDOW*WINDOW*env->num_agents);
+    obs_t* obs = env->agents[0].observations;
+    memset(obs, 0, WINDOW*WINDOW*env->num_agents);
     State* s = &env->state;
     for (int agent_idx = 0; agent_idx < env->num_agents; agent_idx++) {
         int x = s->x;
@@ -123,7 +124,7 @@ void compute_observations(Grid* env) {
                 int c_idx = c - x + VISION;
                 int obs_adr = obs_offset + r_idx*WINDOW + c_idx;
                 int adr = maze_offset(r, c);
-                ((obs_t*)env->agents[0].observations)[obs_adr] = s->maze[adr];
+                obs[obs_adr] = s->maze[adr];
             }
         }
     }
@@ -160,8 +161,30 @@ int move_to(Grid* env, int agent_idx, float y, float x) {
     return 0;
 }
  
+// Hold Left Shift + WASD/arrows.
+static void maze_human_controls(Env *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    State* s = &env->state;
+    if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+        env->agents[0].actions[0] = ATN_NORTH;
+    } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+        env->agents[0].actions[0] = ATN_SOUTH;
+    } else if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        s->direction = PI;
+        env->agents[0].actions[0] = ATN_WEST;
+    } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        s->direction = 0;
+        env->agents[0].actions[0] = ATN_EAST;
+    } else {
+        env->agents[0].actions[0] = ATN_PASS;
+    }
+}
+
 void puf_step(Env* env) {
-env->agents[0].terminals[0] = 0.0f;
+    maze_human_controls(env);
+    env->agents[0].terminals[0] = 0.0f;
     env->agents[0].rewards[0] = 0.0f;
 
     State* s = &env->state;
@@ -224,20 +247,14 @@ void clear_overlay(Renderer* renderer) {
     memset(renderer->overlay, 0, renderer->width*renderer->height*sizeof(float));
 }
 
-void close_renderer(Renderer* renderer) {
-    CloseWindow();
-    free(renderer->overlay);
-    free(renderer);
-}
-
 void puf_close(Env* env) {
-    if (env->renderer != NULL) {
-        close_renderer(env->renderer);
-        env->renderer = NULL;
+    if (env->renderer) {
+        free(env->renderer->overlay);
+        CloseWindow();
+        free(env->renderer);
     }
     if (env->owns_levels) {
         free(env->levels);
-        env->levels = NULL;
     }
 }
 
@@ -251,6 +268,8 @@ void puf_render(Env* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+
+    maze_human_controls(env);
 
     State* s = &env->state;
     int r = s->y;
@@ -522,4 +541,5 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }

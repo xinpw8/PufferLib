@@ -6,22 +6,18 @@
 #include <string.h>
 #include "raylib.h"
 #include <time.h>
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {3}
 #define OBS_SIZE 3
 #define NUM_ATNS 1
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
 
 #define LEFT 0
 #define NOOP 1
 #define RIGHT 2
 
-#define PI2 PI * 2
+#define PI2 (PI * 2)
 
 #define MAX_CONTROL_POINTS 32
 #define NUM_RADIAL_SECTORS 16
@@ -149,31 +145,39 @@ struct Env {
 typedef Env WhiskerRacer;
 
 void puf_close(WhiskerRacer* env) {
-    //unload_track();
+    if (env->client) {
+        UnloadTexture(env->puffer);
+        CloseWindow();
+        free(env->client);
+    }
 }
 
-void free_allocated(WhiskerRacer* env) {
-    free(env->agents[0].actions);
-    free(env->agents[0].observations);
-    free(env->agents[0].terminals);
-    free(env->agents[0].rewards);
-    puf_close(env);
+static int radial_sectors(WhiskerRacer* env) {
+    int n = env->num_radial_sectors;
+    if (n < 2) {
+        n = 2;
+    }
+    if (n > NUM_RADIAL_SECTORS) {
+        n = NUM_RADIAL_SECTORS;
+    }
+    return n;
 }
 
 void add_log(WhiskerRacer* env) {
     env->log.episode_length += env->tick;
     env->log.episode_return += env->score;
     env->log.score += env->score;
-    // One lap = 16 radial sectors. max_score is never set in init (stays 0).
-    float one_lap = 16.0f * (env->reward_yellow > 0.0f ? env->reward_yellow : 1.0f);
-    env->log.perf += env->score / one_lap;
+    // max_score is never set; one lap = nsec * reward_yellow.
+    float yellow = env->reward_yellow > 0.0f ? env->reward_yellow : 1.0f;
+    env->log.perf += env->score / ((float)radial_sectors(env) * yellow);
     env->log.n += 1;
 }
 
 void compute_observations(WhiskerRacer* env) {
-    ((obs_t*)env->agents[0].observations)[0] = env->flw_length;
-    ((obs_t*)env->agents[0].observations)[1] = env->frw_length;
-    ((obs_t*)env->agents[0].observations)[2] = env->score / 100.0f;
+    obs_t* obs = env->agents[0].observations;
+    obs[0] = env->flw_length;
+    obs[1] = env->frw_length;
+    obs[2] = env->score / 100.0f;
 }
 
 Client* make_client(WhiskerRacer* env) {
@@ -202,7 +206,7 @@ void close_client(Client* client) {
 }
 
 void get_random_start(WhiskerRacer* env) {
-    int start_idx = rand() % env->track.total_points;
+    int start_idx = rand_r(&env->rng) % env->track.total_points;
     env->near_point_idx = start_idx;
 
     env->px = env->track.centerline[start_idx].x;
@@ -236,9 +240,10 @@ void reset_radial_progress(WhiskerRacer* env) {
     float angle = atan2f(env->py - center_y, env->px - center_x);
     if (angle < 0) angle += PI2;
 
-    env->current_sector = (int)(angle / (PI2 / 16.0f)) % 16;
+    int nsec = radial_sectors(env);
+    env->current_sector = (int)(angle / (PI2 / (float)nsec)) % nsec;
 
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < NUM_RADIAL_SECTORS; i++) {
         env->sectors_completed[i] = 0;
     }
     env->total_sectors_crossed = 0;
@@ -253,10 +258,10 @@ void reset_round(WhiskerRacer* env) {
 }
 
 void puf_reset(WhiskerRacer* env) {
-    compute_observations(env);
     env->score = 0;
     reset_round(env);
     env->tick = 0;
+    compute_observations(env);
 }
 
 // Line segment intersection helper function
@@ -382,11 +387,12 @@ void update_radial_progress(WhiskerRacer* env) {
 
     if (angle < 0) angle += PI2;
 
-    int sector = (int)(angle / (PI2 / 16.0f));
-    sector = sector % env->num_radial_sectors;
+    int nsec = radial_sectors(env);
+    int sector = (int)(angle / (PI2 / (float)nsec));
+    sector = sector % nsec;
 
     if (sector != env->current_sector) {
-        int expected_next = (env->current_sector + 1) % 16;
+        int expected_next = (env->current_sector + 1) % nsec;
         if (sector == expected_next) {
             if (!env->sectors_completed[sector]) {
                 env->sectors_completed[sector] = 1;
@@ -443,24 +449,24 @@ void GenerateRandomControlPoints(WhiskerRacer* env) {
     int n = env->num_points;
 
     if (env->method == -1) {
-        env->method = rand() % 3;
+        env->method = rand_r(&env->rng) % 3;
     }
 
     if (env->method == 0) {
         // Randomly choose distinct, non-adjacent indices for tight and medium corners
-        int opt1 = rand() % n;
+        int opt1 = rand_r(&env->rng) % n;
         int opt2;
         do {
-            opt2 = rand() % n;
+            opt2 = rand_r(&env->rng) % n;
         } while (opt2 == opt1 || abs(opt2 - opt1) == 1 || abs(opt2 - opt1) == n - 1);
 
         int opt3, opt4;
         do {
-            opt3 = rand() % n;
+            opt3 = rand_r(&env->rng) % n;
         } while (opt3 == opt1 || opt3 == opt2);
 
         do {
-            opt4 = rand() % n;
+            opt4 = rand_r(&env->rng) % n;
         } while (opt4 == opt1 || opt4 == opt2 || opt4 == opt3 || abs(opt4 - opt3) == 1 || abs(opt4 - opt3) == n - 1);
 
         // Generate control points
@@ -469,11 +475,11 @@ void GenerateRandomControlPoints(WhiskerRacer* env) {
 
             float dist_from_center;
             if (i == opt1) {
-                dist_from_center = env->height * 0.2 + (rand() % 30);
+                dist_from_center = env->height * 0.2 + (rand_r(&env->rng) % 30);
             } else if (i == opt2 || i == opt3) {
-                dist_from_center = env->height * 0.3 + (rand() % 40);
+                dist_from_center = env->height * 0.3 + (rand_r(&env->rng) % 40);
             } else {
-                dist_from_center = env->height * 0.5 + (rand() % 30);
+                dist_from_center = env->height * 0.5 + (rand_r(&env->rng) % 30);
             }
 
             env->track.controls[i].position.x = center_x + dist_from_center * cosf(angle);
@@ -496,7 +502,7 @@ void GenerateRandomControlPoints(WhiskerRacer* env) {
             int attempts = 0;
             int pos;
             do {
-                pos = rand() % n;
+                pos = rand_r(&env->rng) % n;
                 bool valid = (assigned[pos] == 0);
                 if (valid) break;
                 attempts++;
@@ -513,7 +519,7 @@ void GenerateRandomControlPoints(WhiskerRacer* env) {
             int attempts = 0;
             int pos;
             do {
-                pos = rand() % n;
+                pos = rand_r(&env->rng) % n;
                 int prev_prev = (pos - 2 + n) % n;
                 int prev = (pos - 1 + n) % n;
                 int next = (pos + 1) % n;
@@ -549,11 +555,11 @@ void GenerateRandomControlPoints(WhiskerRacer* env) {
 
             float dist_from_center;
             if (corner_types[i] == 0) {
-                dist_from_center = env->height * 0.35 + (rand() % 30);
+                dist_from_center = env->height * 0.35 + (rand_r(&env->rng) % 30);
             } else if (corner_types[i] == 1) {
-                dist_from_center = env->height * 0.45 + (rand() % 40);
+                dist_from_center = env->height * 0.45 + (rand_r(&env->rng) % 40);
             } else {
-                dist_from_center = env->height * 0.6 + (rand() % 30);
+                dist_from_center = env->height * 0.6 + (rand_r(&env->rng) % 30);
             }
 
             env->track.controls[i].position.x = center_x + dist_from_center * 1.2f * cosf(angle);
@@ -567,17 +573,17 @@ void GenerateRandomControlPoints(WhiskerRacer* env) {
         float track_stretch_x = 1.0;
         float track_stretch_y = 0.6;
 
-        float freq1 = 2.0f + (rand() % 5);
-        float amp1 = (1.0f / freq1) * (0.9f + 0.2f * (rand() % 100) / 100.0f);
-        float phase1 = PI2 * (rand() % 100) / 100.0f;
+        float freq1 = 2.0f + (rand_r(&env->rng) % 5);
+        float amp1 = (1.0f / freq1) * (0.9f + 0.2f * (rand_r(&env->rng) % 100) / 100.0f);
+        float phase1 = PI2 * (rand_r(&env->rng) % 100) / 100.0f;
 
-        float freq2 = 1.0f + (rand() % 2);
-        float amp2 = 0.2f + 0.2f * (rand() % 100) / 100.0f;
-        float phase2 = PI2 * (rand() % 100) / 100.0f;
+        float freq2 = 1.0f + (rand_r(&env->rng) % 2);
+        float amp2 = 0.2f + 0.2f * (rand_r(&env->rng) % 100) / 100.0f;
+        float phase2 = PI2 * (rand_r(&env->rng) % 100) / 100.0f;
 
-        float freq3 = 10.0f + 0.5f * (rand() % 3);
-        float amp3 = 0.3f + 0.1f * (rand() % 100) / 100.0f;
-        float phase3 = PI2 * (rand() % 100) / 100.0f;
+        float freq3 = 10.0f + 0.5f * (rand_r(&env->rng) % 3);
+        float amp3 = 0.3f + 0.1f * (rand_r(&env->rng) % 100) / 100.0f;
+        float phase3 = PI2 * (rand_r(&env->rng) % 100) / 100.0f;
 
         for (int i = 0; i < n; i++) {
             float angle = (PI2 * i) / n;
@@ -881,6 +887,25 @@ void Draw(WhiskerRacer* env, Vector2* center_points) {
     EndDrawing();
 }
 
+// Hold Left Shift + A/D or mouse wheel.
+static void whisker_racer_human_controls(WhiskerRacer *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    if (env->continuous) {
+        float move = GetMouseWheelMove();
+        env->agents[0].actions[0] = fmaxf(-1.0f, fminf(1.0f, move));
+        return;
+    }
+    env->agents[0].actions[0] = 1.0f;
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[0] = 0.0f;
+    }
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[0] = 2.0f;
+    }
+}
+
 void puf_render(WhiskerRacer* env) {
 
     static RenderTexture2D mode7RenderTexture;
@@ -897,18 +922,15 @@ void puf_render(WhiskerRacer* env) {
         ToggleFullscreen();
     }
 
-    if (IsKeyDown(KEY_M)) {
-        if (env->mode7 == 1) {
-  	    env->mode7 = 0;
-        }
-        else {
-   	    env->mode7 = 1;
-        }
+    if ((IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) && IsKeyPressed(KEY_M)) {
+        env->mode7 = !env->mode7;
     }
+
+    whisker_racer_human_controls(env);
 
     if (env->render_many)
     {
-        env->method = rand() % 3;
+        env->method = rand_r(&env->rng) % 3;
         GenerateRandomTrack(env);
     }
 
@@ -950,41 +972,21 @@ void init(WhiskerRacer* env) {
 
     env->texture_initialized = 0;
 
-    srand(env->rng + env->i);
-
     GenerateRandomTrack(env);
 }
 
-void allocate(WhiskerRacer* env) {
-    init(env);
-    env->agents[0].observations = (obs_t*)calloc(3, sizeof(obs_t));
-    env->agents[0].actions = (float*)calloc(1, sizeof(float));
-    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
-    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
-    env->agents[0].action_mask = NULL;
-    env->agents[0].policy = 0;
-    env->num_agents = 1;
-
-}
-
 void step_frame(WhiskerRacer* env, float action) {
-    float act = 0.0;
-
-    if (action == LEFT) {
-        act = -1.0;
+    if (env->continuous) {
+        env->ang -= action * (PI / env->turn_pi_frac);
+    } else if (action == LEFT) {
         env->ang += PI / env->turn_pi_frac;
     } else if (action == RIGHT) {
-        act = 1.0;
         env->ang -= PI / env->turn_pi_frac;
     }
     if (env->ang > PI2) {
         env->ang -= PI2;
-    }
-    else if (env->ang < 0) {
+    } else if (env->ang < 0) {
         env->ang += PI2;
-    }
-    if (env->continuous){
-        act = action;
     }
     //env->whisker_dirs[0] = (Vector2){cosf(env->ang + env->llw_ang), sinf(env->ang + env->llw_ang)}; // left-left
     //env->whisker_dirs[1] = (Vector2){cosf(env->ang + env->flw_ang), sinf(env->ang + env->flw_ang)}; // front-left
@@ -1026,6 +1028,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {
@@ -1033,14 +1036,9 @@ void puf_init(Env* env, Dict* kwargs) {
     env->frameskip = dict_get(kwargs, "frameskip");
     env->width = dict_get(kwargs, "width");
     env->height = dict_get(kwargs, "height");
-    env->llw_ang = dict_get(kwargs, "llw_ang");
-    env->flw_ang = dict_get(kwargs, "flw_ang");
-    env->frw_ang = dict_get(kwargs, "frw_ang");
-    env->rrw_ang = dict_get(kwargs, "rrw_ang");
     env->max_whisker_length = dict_get(kwargs, "max_whisker_length");
     env->turn_pi_frac = dict_get(kwargs, "turn_pi_frac");
     env->maxv = dict_get(kwargs, "maxv");
-    env->render = dict_get(kwargs, "render");
     env->continuous = dict_get(kwargs, "continuous");
     env->reward_yellow = dict_get(kwargs, "reward_yellow");
     env->reward_green = dict_get(kwargs, "reward_green");
@@ -1057,9 +1055,7 @@ void puf_init(Env* env, Dict* kwargs) {
     env->ftmp4 = dict_get(kwargs, "ftmp4");
     env->mode7 = dict_get(kwargs, "mode7");
     env->render_many = dict_get(kwargs, "render_many");
-    env->rng = dict_get(kwargs, "rng");
     env->method = dict_get(kwargs, "method");
-    env->i = dict_get(kwargs, "i");
     env->agents[0].action_mask = NULL;
     env->agents[0].policy = 0;
     init(env);

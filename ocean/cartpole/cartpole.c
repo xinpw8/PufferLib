@@ -14,14 +14,6 @@
 
 const char* WEIGHTS_PATH = "resources/cartpole/cartpole_weights.bin";
 
-float movement(float action, int userControlMode) {
-    if (userControlMode) {
-        return (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) ? 1.0f : -1.0f;
-    } else {
-        return (action > 0.5f) ? 1.0f : -1.0f;
-    }
-}
-
 void demo() {
     Weights* weights = load_weights(WEIGHTS_PATH);
     
@@ -37,20 +29,16 @@ void demo() {
         .force_mag = 10.0f,
         .tau = 0.02f,
     };
-    allocate(&env);
+    env.agents[0].observations = (float*)calloc(OBSERVATIONS_SIZE, sizeof(float));
+    env.agents[0].actions = (float*)calloc(1, sizeof(float));
+    env.agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env.agents[0].terminals = (float*)calloc(1, sizeof(float));
     puf_reset(&env);
     puf_render(&env);
 
     while (!WindowShouldClose()) {
-        int userControlMode = IsKeyDown(KEY_LEFT_SHIFT);
-
-        if (!userControlMode) {
-            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
-            env.agents[0].actions[0] = movement(env.agents[0].actions[0], 0);
-        } else {
-            env.agents[0].actions[0] = movement(env.agents[0].actions[0], userControlMode);
-        }   
-
+        forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
+        env.agents[0].actions[0] = (env.agents[0].actions[0] > 0.5f) ? 1.0f : -1.0f;
         puf_step(&env);
         puf_render(&env);
 
@@ -61,7 +49,10 @@ void demo() {
 
     free_puffernet(net);
     free(weights);
-    free_allocated(&env);
+    free(env.agents[0].observations);
+    free(env.agents[0].actions);
+    free(env.agents[0].rewards);
+    free(env.agents[0].terminals);
 }
 
 int main() {

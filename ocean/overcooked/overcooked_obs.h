@@ -111,7 +111,7 @@ static void compute_observations(Overcooked* env) {
 
     for (int agent_idx = 0; agent_idx < env->num_agents; agent_idx++) {
         Chef* agent = &env->chefs[agent_idx];
-        float* obs = (float*)env->agents[agent_idx].observations;
+        obs_t* obs = env->agents[agent_idx].observations;
         int obs_idx = 0;
 
         memset(obs, 0, env->observation_size * sizeof(float));

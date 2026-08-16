@@ -4,12 +4,12 @@
 #include <math.h>
 #include <time.h>
 #include "raylib.h"
+typedef unsigned char obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {2}
 #define OBS_SIZE 1
 #define NUM_ATNS 1
-typedef unsigned char obs_t;
 
 // Marsaglia polar method from https://en.wikipedia.org/wiki/Marsaglia_polar_method
 static double gaussian_sample(double mean, double variance) {
@@ -60,13 +60,6 @@ struct Env {
 };
 typedef Env World;
 
-void free_allocated(World* env) {
-    free(env->agents[0].observations);
-    free(env->agents[0].actions);
-    free(env->agents[0].rewards);
-    free(env->agents[0].terminals);
-}
-
 void add_log(World* env) {
     env->log.perf += env->agents[0].rewards[0];
     env->log.score += env->agents[0].rewards[0];
@@ -76,8 +69,23 @@ void add_log(World* env) {
 }
 
 void puf_reset(World* env) {
-    ((obs_t*)env->agents[0].observations)[0] = 0;
+    obs_t* obs = env->agents[0].observations;
+    obs[0] = 0;
     env->tick = 0;
+}
+
+// Hold Left Shift + A/D or arrows.
+static void onestateworld_human_controls(World *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    env->agents[0].actions[0] = 0;
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[0] = LEFT;
+    }
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[0] = RIGHT;
+    }
 }
 
 void puf_step(World* env) {
@@ -113,6 +121,8 @@ void puf_render(World* env) {
         exit(0);
     }
 
+    onestateworld_human_controls(env);
+
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});
 
@@ -133,8 +143,8 @@ void puf_render(World* env) {
 }
 
 void puf_close(World* env) {
-    (void)env;
     if (IsWindowReady()) {
+        UnloadTexture(env->puffer);
         CloseWindow();
     }
 }
@@ -153,5 +163,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 

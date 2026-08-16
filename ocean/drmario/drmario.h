@@ -1,21 +1,22 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include "raylib.h"
 #include <stdbool.h>
-#include <time.h>
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {7}
-#define OBS_SIZE 133
+// Default 16x8 board, 3 planes + 12 scalars. Must match [env] n_rows/n_cols.
+#define N_SCALAR_OBS 12
+#define N_OBS_PLANES 3
+#define OBS_SIZE 396
 #define NUM_ATNS 1
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
 
 #define SQUARE_SIZE 32
-#define TICKS_PER_FALL 3
+#define TICKS_PER_FALL 6
+#define MAX_TICKS 4096
+#define MAX_BOARD_CELLS 512
 
 #define SCORE_SOFT_DROP 0.0f
 #define SCORE_HARD_DROP 0.0f
@@ -32,7 +33,7 @@ typedef float obs_t;
 #define REWARD_PLACE_NEXT_TO_SAME_COLOR 0.01f
 #define REWARD_NO_LINE_CLEARS -0.01f
 #define REWARD_CLEAR_LINE 0.5f
-#define REWARD_HEIGHT -0.02f
+#define REWARD_HEIGHT 0.0f
 
 #define ROTATION_0 0
 #define ROTATION_90 1
@@ -47,18 +48,12 @@ typedef float obs_t;
 #define ACTION_ROTATE_RIGHT 5
 #define ACTION_DROP 6
 
-#define N_SCALAR_OBS 12
-#define N_OBS_PLANES 3
-
-// Required struct. Only use floats!
 struct Log {
     float perf; // Recommended 0-1 normalized single real number perf metric
     float score; // Recommended unnormalized single real number perf metric
     float episode_return; // Recommended metric: sum of agent rewards over episode
     float episode_length; // Recommended metric: number of steps of agent episode
-    // Any extra fields you add here may be exported in binding.c
     float viruses_cleared;
-
     float n; // Required as the last field
 };
 
@@ -125,36 +120,28 @@ struct Env {
 };
 typedef Env DrMario;
 
-void c_init(DrMario *env) {
-    env->grid = (int*)calloc(env->n_rows*env->n_cols, sizeof(int));
-    if (env->grid == NULL) {
-        exit(1);
-    }
+static inline int drm_cells(DrMario *env) {
+    return env->n_rows * env->n_cols;
 }
 
-void allocate(DrMario *env) {
-    c_init(env);
-    env->dim_obs = env->n_rows*env->n_cols*N_OBS_PLANES + N_SCALAR_OBS; 
-    env->agents[0].observations = (obs_t*)calloc(env->dim_obs, sizeof(obs_t));
-    if (env->agents[0].observations == NULL) {
-        exit(1);
+// Above the bottle is empty; walls and the floor are solid.
+static inline bool drm_solid(DrMario *env, int r, int c) {
+    if (r < 0) {
+        return false;
     }
-    env->agents[0].actions = (float *)calloc(1, sizeof(float));
-    if (env->agents[0].actions == NULL) {
-        exit(1);
+    if (r >= env->n_rows || c < 0 || c >= env->n_cols) {
+        return true;
     }
-    env->agents[0].rewards = (float *)calloc(1, sizeof(float));
-    if (env->agents[0].rewards == NULL) {
-        exit(1);
-    }
-    env->agents[0].terminals = (float *)calloc(1, sizeof(float));
-    if (env->agents[0].terminals == NULL) {
-        exit(1);
-    }
-    env->agents[0].action_mask = NULL;
-    env->agents[0].policy = 0;
-    env->num_agents = 1;
+    return env->grid[r * env->n_cols + c] != 0;
+}
 
+static inline bool drm_in_board(DrMario *env, int r, int c) {
+    return r >= 0 && r < env->n_rows && c >= 0 && c < env->n_cols;
+}
+
+void init(DrMario *env) {
+    env->grid = (int*)calloc((size_t)drm_cells(env), sizeof(int));
+    assert(env->grid != NULL);
 }
 
 void puf_close(DrMario *env) {
@@ -162,14 +149,6 @@ void puf_close(DrMario *env) {
     if (IsWindowReady()) {
        CloseWindow();
     }
-}
-
-void free_allocated(DrMario *env) {
-    free(env->agents[0].actions);
-    free(env->agents[0].observations);
-    free(env->agents[0].terminals);
-    free(env->agents[0].rewards);
-    puf_close(env);
 }
 
 void add_log(DrMario *env) {
@@ -182,11 +161,12 @@ void add_log(DrMario *env) {
 }
 
 void compute_observations(DrMario *env) {
-    int cells = env->n_rows * env->n_cols;
+    int cells = drm_cells(env);
+    float* obs = env->agents[0].observations;
     
-    obs_t* plane_occupied = ((obs_t*)env->agents[0].observations);
-    obs_t* plane_viruses = ((obs_t*)env->agents[0].observations) + cells;
-    obs_t* plane_colors = ((obs_t*)env->agents[0].observations) + 2*cells;
+    float* plane_occupied = obs;
+    float* plane_viruses = obs + cells;
+    float* plane_colors = obs + 2 * cells;
 
     for (int i = 0; i < cells; i++) {
         int cell = env->grid[i];
@@ -197,14 +177,14 @@ void compute_observations(DrMario *env) {
 
     int r1 = env->cap_row_1, c1 = env->cap_col_1;
     int r2 = env->cap_row_2, c2 = env->cap_col_2;
-    if (r1 >= 0 && r1 < env->n_rows && c1 >= 0 && c1 < env->n_cols) {
-        int i = r1*env->n_cols + c1;
+    if (drm_in_board(env, r1, c1)) {
+        int i = r1 * env->n_cols + c1;
         plane_occupied[i] = 1.0f;
         plane_viruses[i] = 0.0f;
         plane_colors[i] = env->cap_color_a / 3.0f;
     }
-    if (r2 >= 0 && r2 < env->n_rows && c2 >= 0 && c2 < env->n_cols) {
-        int i = r2*env->n_cols + c2;
+    if (drm_in_board(env, r2, c2)) {
+        int i = r2 * env->n_cols + c2;
         plane_occupied[i] = 1.0f;
         plane_viruses[i] = 0.0f;
         plane_colors[i] = env->cap_color_b / 3.0f;
@@ -213,18 +193,18 @@ void compute_observations(DrMario *env) {
     int off = cells * N_OBS_PLANES;
     float safe_r1 = (r1 < 0) ? 0.0f : r1 / (float)(env->n_rows - 1);
     float safe_r2 = (r2 < 0) ? 0.0f : r2 / (float)(env->n_rows - 1);
-    ((obs_t*)env->agents[0].observations)[off + 0] = env->cap_color_a / 3.0f;
-    ((obs_t*)env->agents[0].observations)[off + 1] = env->cap_color_b / 3.0f;
-    ((obs_t*)env->agents[0].observations)[off + 2] = env->cap_orient / 3.0f;
-    ((obs_t*)env->agents[0].observations)[off + 3] = safe_r1;
-    ((obs_t*)env->agents[0].observations)[off + 4] = c1 / (float)(env->n_cols - 1);
-    ((obs_t*)env->agents[0].observations)[off + 5] = safe_r2;
-    ((obs_t*)env->agents[0].observations)[off + 6] = c2 / (float)(env->n_cols - 1);
-    ((obs_t*)env->agents[0].observations)[off + 7] = env->viruses_remaining / (float)env->n_init_viruses;
-    ((obs_t*)env->agents[0].observations)[off + 8] = env->viruses_cleared_step / (float)env->n_init_viruses;
-    ((obs_t*)env->agents[0].observations)[off + 9] = env->lines_cleared_step / 4.0f;
-    ((obs_t*)env->agents[0].observations)[off + 10] = env->score / 10000.0f;
-    ((obs_t*)env->agents[0].observations)[off + 11] = env->tick / 2000.0f;
+    obs[off + 0] = env->cap_color_a / 3.0f;
+    obs[off + 1] = env->cap_color_b / 3.0f;
+    obs[off + 2] = env->cap_orient / 3.0f;
+    obs[off + 3] = safe_r1;
+    obs[off + 4] = c1 / (float)(env->n_cols - 1);
+    obs[off + 5] = safe_r2;
+    obs[off + 6] = c2 / (float)(env->n_cols - 1);
+    obs[off + 7] = env->viruses_remaining / (float)env->n_init_viruses;
+    obs[off + 8] = env->viruses_cleared_step / (float)env->n_init_viruses;
+    obs[off + 9] = env->lines_cleared_step / 4.0f;
+    obs[off + 10] = env->score / 10000.0f;
+    obs[off + 11] = env->tick / (float)MAX_TICKS;
 }
 
 void place_viruses(DrMario *env) {
@@ -232,11 +212,16 @@ void place_viruses(DrMario *env) {
     int placed = 0;
     int attempts = 0;
     
+    int lo = env->n_rows > 8 ? env->n_rows - 8 : 0;
+    int span = env->n_rows - lo;
+    if (span < 1) {
+        span = 1;
+    }
     while (placed < env->n_init_viruses && attempts < 1000) {
         attempts++;
-        int r = (rand_r(&env->rng) % 8) + 8;
+        int r = lo + (int)(rand_r(&env->rng) % (unsigned)span);
         int c = rand_r(&env->rng) % env->n_cols;
-        int idx = r*env->n_cols + c;
+        int idx = r * env->n_cols + c;
         
         if (env->grid[idx] != 0) {
             continue;
@@ -261,7 +246,7 @@ void spawn_capsule(DrMario *env) {
 }
 
 void puf_reset(DrMario *env) {
-    memset(env->grid, 0, env->n_rows*env->n_cols*sizeof(int));
+    memset(env->grid, 0, (size_t)drm_cells(env) * sizeof(int));
     env->score = 0;
     env->tick = 0;
     env->tick_fall = 0;
@@ -271,54 +256,51 @@ void puf_reset(DrMario *env) {
 
     env->episode_return = 0;
     env->viruses_cleared = 0;
+    env->viruses_cleared_step = 0;
+    env->lines_cleared_step = 0;
     env->atn_count_soft_drop = 0;
     env->atn_count_hard_drop = 0;
     env->atn_count_rotate = 0;
+    env->cap_colliding_left = false;
+    env->cap_colliding_right = false;
+    env->cap_colliding_down = false;
+    env->cap_colliding_up = false;
+    // Do not zero rewards/terminals: last-step signal is still live.
     place_viruses(env);
     spawn_capsule(env);
     compute_observations(env);
 }
 
 void get_collisions(DrMario* env) {
-    env->cap_colliding_left = false;
-    env->cap_colliding_right = false;
-    env->cap_colliding_down = false;
-    env->cap_colliding_up = false;
+    env->cap_colliding_left = drm_solid(env, env->cap_row_1, env->cap_col_1 - 1)
+                           || drm_solid(env, env->cap_row_2, env->cap_col_2 - 1);
+    env->cap_colliding_right = drm_solid(env, env->cap_row_1, env->cap_col_1 + 1)
+                            || drm_solid(env, env->cap_row_2, env->cap_col_2 + 1);
+    env->cap_colliding_down = drm_solid(env, env->cap_row_1 + 1, env->cap_col_1)
+                           || drm_solid(env, env->cap_row_2 + 1, env->cap_col_2);
+    env->cap_colliding_up = drm_solid(env, env->cap_row_1 - 1, env->cap_col_1)
+                         || drm_solid(env, env->cap_row_2 - 1, env->cap_col_2);
+}
 
-    if (env->cap_row_1 < 0 || env->cap_row_2 < 0) {
-        return;
+static int drm_color_run(DrMario* env, int r, int c, int dr, int dc,
+        int color, int skip_r, int skip_c) {
+    int n = 0;
+    r += dr;
+    c += dc;
+    while (drm_in_board(env, r, c)) {
+        if (r == skip_r && c == skip_c) {
+            r += dr;
+            c += dc;
+            continue;
+        }
+        if (abs(env->grid[r * env->n_cols + c]) != color) {
+            break;
+        }
+        n++;
+        r += dr;
+        c += dc;
     }
-
-    int below1 = (env->cap_row_1+1)*env->n_cols + env->cap_col_1;
-    int below2 = (env->cap_row_2+1)*env->n_cols + env->cap_col_2;
-    bool blocked_down = env->grid[below1] != 0 || env->grid[below2] != 0;
-    bool at_bottom = env->cap_row_1 == env->n_rows-1 || env->cap_row_2 == env->n_rows-1;
-    if (blocked_down || at_bottom) {
-        env->cap_colliding_down = true;
-    }
-
-    int above1 = (env->cap_row_1-1)*env->n_cols + env->cap_col_1;
-    int above2 = (env->cap_row_2-1)*env->n_cols + env->cap_col_2;
-    bool blocked_up = env->grid[above1] != 0 || env->grid[above2] != 0;
-    if (blocked_up) {
-        env->cap_colliding_up = true;
-    }
-
-    int right1 = env->cap_row_1*env->n_cols + env->cap_col_1 + 1;
-    int right2 = env->cap_row_2*env->n_cols + env->cap_col_2 + 1;
-    bool blocked_right = env->grid[right1] != 0 || env->grid[right2] != 0;
-    bool at_right_wall = env->cap_col_1 == env->n_cols-1 || env->cap_col_2 == env->n_cols-1;
-    if (blocked_right || at_right_wall) {
-        env->cap_colliding_right = true;
-    }
-
-    int left1 = env->cap_row_1*env->n_cols + env->cap_col_1 - 1;
-    int left2 = env->cap_row_2*env->n_cols + env->cap_col_2 - 1;
-    bool blocked_left = env->grid[left1] != 0 || env->grid[left2] != 0;
-    bool at_left_wall = env->cap_col_1 == 0 || env->cap_col_2 == 0;
-    if (blocked_left || at_left_wall) {
-        env->cap_colliding_left = true;
-    }
+    return n;
 }
 
 void get_color_collisions(DrMario* env) {
@@ -327,335 +309,249 @@ void get_color_collisions(DrMario* env) {
     env->cap_colliding_color_hor_2 = 0.0f;
     env->cap_colliding_color_ver_2 = 0.0f;
 
-    if (env->cap_row_1 < 0 || env->cap_row_2 < 0) {
-        return;
-    }
-
-    int cap_color_1 = abs(env->cap_color_a);
-    int cap_color_2 = abs(env->cap_color_b);
-    int cols = env->n_cols;
-
-    if (env->cap_row_1+1 != env->cap_row_2) {
-        int i = 1;
-        int color_up = abs(env->grid[(env->cap_row_1+i)*cols + env->cap_col_1]);
-        while (color_up == cap_color_1 && i < 100) {
-            env->cap_colliding_color_ver_1++;
-            i++;
-            color_up = abs(env->grid[(env->cap_row_1+i)*cols + env->cap_col_1]);
-        }
-    }
-
-    if (env->cap_row_1 >= 1 && env->cap_row_1-1 != env->cap_row_2) {
-        int i = 1;
-        int color_down = abs(env->grid[(env->cap_row_1-i)*cols + env->cap_col_1]);
-        while (color_down == cap_color_1 && i <= 100) {
-            env->cap_colliding_color_ver_1++;
-            i++;
-            color_down = abs(env->grid[(env->cap_row_1-i)*cols + env->cap_col_1]);
-        }
-    }
-
-    if (env->cap_col_1+1 != env->cap_col_2) {
-        int i = 1;
-        int color_right = abs(env->grid[env->cap_row_1*cols + env->cap_col_1+i]);
-        while (color_right == cap_color_1 && i <= 100) {
-            env->cap_colliding_color_hor_1++;
-            i++;
-            color_right = abs(env->grid[env->cap_row_1*cols + env->cap_col_1+i]);
-        }
-    }
-
-    if (env->cap_col_1 >= 1 && env->cap_col_1-1 != env->cap_col_2) {
-        int i = 1;
-        int color_left = abs(env->grid[env->cap_row_1*cols + env->cap_col_1-i]);
-        while (color_left == cap_color_1 && i <= 100) {
-            env->cap_colliding_color_hor_1++;
-            i++;
-            color_left = abs(env->grid[env->cap_row_1*cols + env->cap_col_1-i]);
-        }
-    }
-
-    if (env->cap_row_2+1 != env->cap_row_1) {
-        int i = 1;
-        int color_up = abs(env->grid[(env->cap_row_2+i)*cols + env->cap_col_2]);
-        while (color_up == cap_color_2 && i < 100) {
-            env->cap_colliding_color_ver_2++;
-            i++;
-            color_up = abs(env->grid[(env->cap_row_2+i)*cols + env->cap_col_2]);
-        }
-    }
-
-    if (env->cap_row_2 >= 1 && env->cap_row_2-1 != env->cap_row_1) {
-        int i = 1;
-        int color_down = abs(env->grid[(env->cap_row_2-i)*cols + env->cap_col_2]);
-        while (color_down == cap_color_2 && i <= 100) {
-            env->cap_colliding_color_ver_2++;
-            i++;
-            color_down = abs(env->grid[(env->cap_row_2-i)*cols + env->cap_col_2]);
-        }
-    }
-
-    if (env->cap_col_2+1 != env->cap_col_1) {
-        int i = 1;
-        int color_right = abs(env->grid[env->cap_row_2*cols + env->cap_col_2+i]);
-        while (color_right == cap_color_2 && i <= 100) {
-            env->cap_colliding_color_hor_2++;
-            i++;
-            color_right = abs(env->grid[env->cap_row_2*cols + env->cap_col_2+i]);
-        }
-    }
-
-    if (env->cap_col_2 >= 1 && env->cap_col_2-1 != env->cap_col_1) {
-        int i = 1;
-        int color_left = abs(env->grid[env->cap_row_2*cols + env->cap_col_2-i]);
-        while (color_left == cap_color_2 && i <= 100) {
-            env->cap_colliding_color_hor_2++;
-            i++;
-            color_left = abs(env->grid[env->cap_row_2*cols + env->cap_col_2-i]);
-        }
-    }
+    int color1 = abs(env->cap_color_a);
+    int color2 = abs(env->cap_color_b);
+    env->cap_colliding_color_ver_1 = (float)(
+        drm_color_run(env, env->cap_row_1, env->cap_col_1, 1, 0, color1,
+            env->cap_row_2, env->cap_col_2)
+        + drm_color_run(env, env->cap_row_1, env->cap_col_1, -1, 0, color1,
+            env->cap_row_2, env->cap_col_2));
+    env->cap_colliding_color_hor_1 = (float)(
+        drm_color_run(env, env->cap_row_1, env->cap_col_1, 0, 1, color1,
+            env->cap_row_2, env->cap_col_2)
+        + drm_color_run(env, env->cap_row_1, env->cap_col_1, 0, -1, color1,
+            env->cap_row_2, env->cap_col_2));
+    env->cap_colliding_color_ver_2 = (float)(
+        drm_color_run(env, env->cap_row_2, env->cap_col_2, 1, 0, color2,
+            env->cap_row_1, env->cap_col_1)
+        + drm_color_run(env, env->cap_row_2, env->cap_col_2, -1, 0, color2,
+            env->cap_row_1, env->cap_col_1));
+    env->cap_colliding_color_hor_2 = (float)(
+        drm_color_run(env, env->cap_row_2, env->cap_col_2, 0, 1, color2,
+            env->cap_row_1, env->cap_col_1)
+        + drm_color_run(env, env->cap_row_2, env->cap_col_2, 0, -1, color2,
+            env->cap_row_1, env->cap_col_1));
 }
 
 void rotate_cap(DrMario* env) {
-    int old_orient = env->cap_orient;
-    int old_cap_row_2 = env->cap_row_2;
-    int old_cap_col_2 = env->cap_col_2;
-
-    if (env->agents[0].actions[0] == ACTION_ROTATE_LEFT) {
-        env->cap_orient = (env->cap_orient + 1) % 4;
-    } else if (env->agents[0].actions[0] == ACTION_ROTATE_RIGHT) {
-        env->cap_orient = (env->cap_orient + 3) % 4;
+    int action = (int)env->agents[0].actions[0];
+    int new_orient;
+    if (action == ACTION_ROTATE_LEFT) {
+        new_orient = (env->cap_orient + 1) % 4;
+    } else if (action == ACTION_ROTATE_RIGHT) {
+        new_orient = (env->cap_orient + 3) % 4;
     } else {
         return;
     }
 
-    env->cap_row_2 = env->cap_row_1;
-    if (env->cap_orient == ROTATION_90) {
-        env->cap_row_2 -= 1;
-    } else if (env->cap_orient == ROTATION_270) {
-        env->cap_row_2 += 1;
+    int nr2 = env->cap_row_1;
+    int nc2 = env->cap_col_1;
+    if (new_orient == ROTATION_90) {
+        nr2 -= 1;
+    } else if (new_orient == ROTATION_270) {
+        nr2 += 1;
+    }
+    if (new_orient == ROTATION_0) {
+        nc2 += 1;
+    } else if (new_orient == ROTATION_180) {
+        nc2 -= 1;
     }
 
-    env->cap_col_2 = env->cap_col_1;
-    if (env->cap_orient == ROTATION_0) {
-        env->cap_col_2 += 1;
-    } else if (env->cap_orient == ROTATION_180) {
-        env->cap_col_2 -= 1;
+    // Second half may sit above the bottle while entering. Floor/walls/occupancy block.
+    if (nc2 < 0 || nc2 >= env->n_cols || nr2 >= env->n_rows) {
+        return;
     }
-
-    int idx = env->cap_row_2*env->n_cols + env->cap_col_2;
-    bool out_of_bounds = env->cap_row_2 < 0 || env->cap_row_2 >= env->n_rows
-                      || env->cap_col_2 < 0 || env->cap_col_2 >= env->n_cols;
-    if (env->grid[idx] != 0 || out_of_bounds) {
-        env->cap_orient = old_orient;
-        env->cap_row_2 = old_cap_row_2;
-        env->cap_col_2 = old_cap_col_2;
+    if (nr2 >= 0 && env->grid[nr2 * env->n_cols + nc2] != 0) {
         return;
     }
 
+    env->cap_orient = new_orient;
+    env->cap_row_2 = nr2;
+    env->cap_col_2 = nc2;
+    env->atn_count_rotate += 1;
     env->score += SCORE_ROTATE;
     env->agents[0].rewards[0] += REWARD_ROTATE;
 }
 
 void move_cap(DrMario* env) {
+    int action = (int)env->agents[0].actions[0];
+
+    if (action == ACTION_LEFT && !env->cap_colliding_left) {
+        env->cap_col_1 -= 1;
+        env->cap_col_2 -= 1;
+    } else if (action == ACTION_RIGHT && !env->cap_colliding_right) {
+        env->cap_col_1 += 1;
+        env->cap_col_2 += 1;
+    } else if (action == ACTION_DOWN && !env->cap_colliding_down) {
+        env->cap_row_1 += 1;
+        env->cap_row_2 += 1;
+        env->atn_count_soft_drop += 1;
+        env->score += SCORE_SOFT_DROP;
+        env->agents[0].rewards[0] += REWARD_SOFT_DROP;
+    } else if (action == ACTION_DROP && !env->cap_colliding_down) {
+        env->atn_count_hard_drop += 1;
+        env->score += SCORE_HARD_DROP;
+        env->agents[0].rewards[0] += REWARD_HARD_DROP;
+        do {
+            env->cap_row_1 += 1;
+            env->cap_row_2 += 1;
+            get_collisions(env);
+        } while (!env->cap_colliding_down);
+    }
+
     env->tick_fall += 1;
     if (env->tick_fall >= env->ticks_per_fall) {
         env->tick_fall = 0;
+        get_collisions(env);
         if (!env->cap_colliding_down) {
             env->cap_row_1 += 1;
             env->cap_row_2 += 1;
         }
-        return;
     }
+}
 
-    if (env->cap_row_1 < 0 || env->cap_row_2 < 0) {
-        return;
-    }
-    
-    if (env->agents[0].actions[0] == ACTION_LEFT && !env->cap_colliding_left) {
-        env->cap_col_1 -= 1;
-        env->cap_col_2 -= 1;
-    } else if (env->agents[0].actions[0] == ACTION_RIGHT && !env->cap_colliding_right) {
-        env->cap_col_1 += 1;
-        env->cap_col_2 += 1;
-    } else if (env->agents[0].actions[0] == ACTION_DOWN && !env->cap_colliding_down) {
-        env->cap_row_1 += 1;
-        env->cap_row_2 += 1;
-
-        env->atn_count_soft_drop += 1;
-        env->score += SCORE_SOFT_DROP;
-        env->agents[0].rewards[0] += REWARD_SOFT_DROP;
-    } else if (env->agents[0].actions[0] == ACTION_DROP) {
-        if (!env->cap_colliding_down) {
-            env->atn_count_hard_drop += 1;
-            env->score += SCORE_HARD_DROP;
-            env->agents[0].rewards[0] += REWARD_HARD_DROP;
-            do {
-                env->cap_row_1 += 1;
-                env->cap_row_2 += 1;
-                get_collisions(env);
-            } while (!env->cap_colliding_down);
+static void apply_gravity(DrMario* env) {
+    bool falling = true;
+    int guard = drm_cells(env);
+    while (falling && guard-- > 0) {
+        falling = false;
+        for (int r = env->n_rows - 2; r >= 0; r--) {
+            for (int c = 0; c < env->n_cols; c++) {
+                int idx = r * env->n_cols + c;
+                int below = idx + env->n_cols;
+                if (env->grid[idx] > 0 && env->grid[below] == 0) {
+                    env->grid[below] = env->grid[idx];
+                    env->grid[idx] = 0;
+                    falling = true;
+                }
+            }
         }
     }
 }
 
 void clear_lines(DrMario* env) {
-    int n = 1000;
-    int i = 0;
+    int cells = drm_cells(env);
+    unsigned char to_clear[MAX_BOARD_CELLS];
+    if (cells > MAX_BOARD_CELLS) {
+        return;
+    }
 
     env->lines_cleared_step = 0;
     env->viruses_cleared_step = 0;
 
-    while (i < n) {
-        bool *to_clear = (bool*)calloc(env->n_rows*env->n_cols, sizeof(bool));
-        if (!to_clear) {
-            break;
-        }
+    for (int pass = 0; pass < cells; pass++) {
+        memset(to_clear, 0, (size_t)cells);
 
         for (int r = 0; r < env->n_rows; r++) {
             for (int c = 0; c < env->n_cols; c++) {
-                int cell = env->grid[r*env->n_cols + c];
+                int cell = env->grid[r * env->n_cols + c];
                 if (cell == 0) {
                     continue;
                 }
                 int color = abs(cell);
                 int c_end = c + 1;
-                while (c_end < env->n_cols && abs(env->grid[r*env->n_cols + c_end]) == color) {
+                while (c_end < env->n_cols
+                        && abs(env->grid[r * env->n_cols + c_end]) == color) {
                     c_end += 1;
                 }
                 if (c_end - c >= 4) {
                     env->lines_cleared_step++;
                     for (int k = c; k < c_end; k++) {
-                        to_clear[r*env->n_cols + k] = true;
+                        to_clear[r * env->n_cols + k] = 1;
                     }
                 }
-                c = c_end-1;
+                c = c_end - 1;
             }
         }
 
         for (int c = 0; c < env->n_cols; c++) {
             for (int r = 0; r < env->n_rows; r++) {
-                int cell = env->grid[r*env->n_cols + c];
+                int cell = env->grid[r * env->n_cols + c];
                 if (cell == 0) {
                     continue;
                 }
                 int color = abs(cell);
                 int r_end = r + 1;
-                while (r_end < env->n_rows && abs(env->grid[r_end*env->n_cols + c]) == color) {
+                while (r_end < env->n_rows
+                        && abs(env->grid[r_end * env->n_cols + c]) == color) {
                     r_end += 1;
                 }
                 if (r_end - r >= 4) {
                     env->lines_cleared_step++;
                     for (int k = r; k < r_end; k++) {
-                        to_clear[k*env->n_cols + c] = true;
+                        to_clear[k * env->n_cols + c] = 1;
                     }
                 }
-                r = r_end-1;
+                r = r_end - 1;
             }
         }
 
         bool any_cleared = false;
-        for (int k = 0; k < env->n_rows*env->n_cols; k++) {
-            if (to_clear[k]) { 
-                any_cleared = true;
-                break; 
+        for (int k = 0; k < cells; k++) {
+            if (!to_clear[k]) {
+                continue;
             }
+            any_cleared = true;
+            if (env->grid[k] < 0) {
+                env->viruses_remaining--;
+                env->viruses_cleared++;
+                env->viruses_cleared_step++;
+            }
+            env->grid[k] = 0;
         }
-
         if (!any_cleared) {
-            free(to_clear);
             break;
         }
-
-        for (int k = 0; k < env->n_rows*env->n_cols; k++) {
-            if (to_clear[k]) {
-                if (env->grid[k] < 0) {
-                    env->viruses_remaining--;
-                    env->viruses_cleared++;
-                    env->viruses_cleared_step++;
-                }
-                env->grid[k] = 0;
-            }
-        }
-
-        int m = 1000;
-        int j = 0;
-        while (j < m) {
-            bool falling = false;
-            for (int r = env->n_rows-2; r >= 0; r--) {
-                for (int c = 0; c < env->n_cols; c++) {
-                    int cell = env->grid[r*env->n_cols + c];
-                    if (cell <= 0 || env->grid[(r+1)*env->n_cols + c] != 0) {
-                        continue;
-                    }
-                    
-                    bool neighbor_cleared = (r < env->n_rows-2 && to_clear[(r+1)*env->n_cols + c])
-                                         || (r > 0 && to_clear[(r-1)*env->n_cols + c])
-                                         || (c < env->n_cols-1 && to_clear[r*env->n_cols + c+1])
-                                         || (c > 0 && to_clear[r*env->n_cols + c-1]);
-                    if (neighbor_cleared) {
-                        to_clear[r*env->n_cols + c] = true;
-                    }
-
-                    if (to_clear[r*env->n_cols + c]) {
-                        env->grid[(r+1)*env->n_cols + c] = cell;
-                        env->grid[r*env->n_cols + c] = 0;
-                        falling = true;   
-                    }
-                }
-            }
-            if (!falling) {
-                break;
-            }
-            j++;
-        }
-
-        free(to_clear);
-        i++;
-    }   
+        apply_gravity(env);
+    }
 }
 
 void spawn_new_cap(DrMario* env) {
     if (!env->cap_colliding_down) {
         return;
     }
+    // Still above the bottle and blocked: spawn lock. Do not write OOB.
+    if (!drm_in_board(env, env->cap_row_1, env->cap_col_1)
+            || !drm_in_board(env, env->cap_row_2, env->cap_col_2)) {
+        return;
+    }
 
-    env->grid[env->cap_row_1*env->n_cols + env->cap_col_1] = env->cap_color_a;
-    env->grid[env->cap_row_2*env->n_cols + env->cap_col_2] = env->cap_color_b;
+    env->grid[env->cap_row_1 * env->n_cols + env->cap_col_1] = env->cap_color_a;
+    env->grid[env->cap_row_2 * env->n_cols + env->cap_col_2] = env->cap_color_b;
 
     int row = env->cap_row_1 > env->cap_row_2 ? env->cap_row_1 : env->cap_row_2;
-    env->agents[0].rewards[0] += row*REWARD_HEIGHT;
+    env->agents[0].rewards[0] += row * REWARD_HEIGHT;
 
     get_color_collisions(env);
 
     int color_collisions = 0;
     if (env->cap_colliding_color_hor_1 >= 2) {
-        color_collisions += env->cap_colliding_color_hor_1;
+        color_collisions += (int)env->cap_colliding_color_hor_1;
     }
     if (env->cap_colliding_color_hor_2 >= 2) {
-        color_collisions += env->cap_colliding_color_hor_2;
+        color_collisions += (int)env->cap_colliding_color_hor_2;
     }
     if (env->cap_colliding_color_ver_1 >= 2) {
-        color_collisions += env->cap_colliding_color_ver_1;
+        color_collisions += (int)env->cap_colliding_color_ver_1;
     }
     if (env->cap_colliding_color_ver_2 >= 2) {
-        color_collisions += env->cap_colliding_color_ver_2;
+        color_collisions += (int)env->cap_colliding_color_ver_2;
     }
 
     if (color_collisions > 0) {
-        env->score += color_collisions*SCORE_PLACE_NEXT_TO_SAME_COLOR;
-        env->agents[0].rewards[0] += color_collisions*REWARD_PLACE_NEXT_TO_SAME_COLOR;
+        env->score += color_collisions * SCORE_PLACE_NEXT_TO_SAME_COLOR;
+        env->agents[0].rewards[0] += color_collisions * REWARD_PLACE_NEXT_TO_SAME_COLOR;
     }
 
     clear_lines(env);
     if (env->viruses_cleared_step > 0) {
-        env->agents[0].rewards[0] += env->viruses_cleared_step*REWARD_KILL_VIRUS;
-        env->score += env->viruses_cleared_step*SCORE_KILL_VIRUS;
+        env->agents[0].rewards[0] += env->viruses_cleared_step * REWARD_KILL_VIRUS;
+        env->score += env->viruses_cleared_step * SCORE_KILL_VIRUS;
     }
 
     if (env->lines_cleared_step > 0) {
-        env->agents[0].rewards[0] += env->lines_cleared_step*REWARD_CLEAR_LINE;
-        env->score += env->lines_cleared_step*SCORE_CLEAR_LINE;
+        env->agents[0].rewards[0] += env->lines_cleared_step * REWARD_CLEAR_LINE;
+        env->score += env->lines_cleared_step * SCORE_CLEAR_LINE;
     }
 
     if (env->lines_cleared_step == 0 && env->viruses_cleared_step == 0) {
@@ -664,30 +560,77 @@ void spawn_new_cap(DrMario* env) {
     }
 
     spawn_capsule(env);
+    get_collisions(env);
 }
 
-void end_game_check(DrMario* env) {
-    if (env->viruses_remaining <= 0) {
-        float speed_bonus = 1.0f / (1.0f + env->tick*0.001f);
-        env->agents[0].rewards[0] += 1.0f + speed_bonus;
-        env->agents[0].terminals[0] = 1;
-        add_log(env);
-        puf_reset(env);
-        return;
-    }
-
-    bool cap_at_top = env->cap_colliding_down && (env->cap_row_1 <= 0 || env->cap_row_2 <= 0);
-    if (!cap_at_top) {
-        return;
-    }
-    float fraction_remaining = env->viruses_remaining / (float)env->n_init_viruses;
-    env->agents[0].rewards[0] -= 1.0f + fraction_remaining*0.5f;
+static void finish_episode(DrMario* env) {
     env->agents[0].terminals[0] = 1;
+    env->episode_return += env->agents[0].rewards[0];
     add_log(env);
     puf_reset(env);
 }
 
+void end_game_check(DrMario* env) {
+    if (env->viruses_remaining <= 0) {
+        float speed_bonus = 1.0f / (1.0f + env->tick * 0.001f);
+        env->agents[0].rewards[0] += 1.0f + speed_bonus;
+        finish_episode(env);
+        return;
+    }
+
+    // Game over when the next capsule cannot enter, not when a pill touches row 0.
+    bool spawn_locked = env->cap_colliding_down
+        && (env->cap_row_1 < 0 || env->cap_row_2 < 0);
+    if (spawn_locked) {
+        float fraction_remaining = env->viruses_remaining / (float)env->n_init_viruses;
+        env->agents[0].rewards[0] -= 1.0f + fraction_remaining * 0.5f;
+        finish_episode(env);
+        return;
+    }
+
+    if (env->tick >= MAX_TICKS) {
+        env->agents[0].terminals[0] = 1;
+        finish_episode(env);
+    }
+}
+
+// Hold Left Shift + A/D/S, Z/X rotate, space drop.
+// Skip the step when Shift is held and no action this frame.
+static int drmario_human_controls(DrMario *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return 0;
+    }
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[0] = ACTION_LEFT;
+        return 1;
+    }
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[0] = ACTION_RIGHT;
+        return 1;
+    }
+    if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+        env->agents[0].actions[0] = ACTION_DOWN;
+        return 1;
+    }
+    if (IsKeyPressed(KEY_Z)) {
+        env->agents[0].actions[0] = ACTION_ROTATE_LEFT;
+        return 1;
+    }
+    if (IsKeyPressed(KEY_X)) {
+        env->agents[0].actions[0] = ACTION_ROTATE_RIGHT;
+        return 1;
+    }
+    if (IsKeyPressed(KEY_SPACE)) {
+        env->agents[0].actions[0] = ACTION_DROP;
+        return 1;
+    }
+    return -1;
+}
+
 void puf_step(DrMario *env) {
+    if (drmario_human_controls(env) < 0) {
+        return;
+    }
     env->tick += 1;
     env->agents[0].terminals[0] = 0;
     env->agents[0].rewards[0] = 0;
@@ -702,13 +645,15 @@ void puf_step(DrMario *env) {
         get_collisions(env);
     }
 
-    move_cap(env);   
+    move_cap(env);
     get_collisions(env);
-
-    end_game_check(env);
     spawn_new_cap(env);
-    
-    env->episode_return += env->agents[0].rewards[0];
+    end_game_check(env);
+
+    // finish_episode already folded this step's reward into the logged return.
+    if (env->agents[0].terminals[0] == 0) {
+        env->episode_return += env->agents[0].rewards[0];
+    }
 
     compute_observations(env);
 }
@@ -722,8 +667,10 @@ void puf_render(DrMario *env) {
         exit(0);
     }
 
+    drmario_human_controls(env);
+
     BeginDrawing();
-    ClearBackground(BLACK);
+    ClearBackground((Color){6, 24, 24, 255});
 
     for (int r = 0; r < env->n_rows; r++) {
         for (int c = 0; c < env->n_cols; c++) {
@@ -776,6 +723,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
     dict_set(out, "viruses_cleared", log->viruses_cleared);
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {
@@ -783,8 +731,10 @@ void puf_init(Env* env, Dict* kwargs) {
     env->n_rows = dict_get(kwargs, "n_rows");
     env->n_cols = dict_get(kwargs, "n_cols");
     env->n_init_viruses = dict_get(kwargs, "n_init_viruses");
+    env->dim_obs = drm_cells(env) * N_OBS_PLANES + N_SCALAR_OBS;
+    assert(env->dim_obs == OBS_SIZE);
+    env->ticks_per_fall = TICKS_PER_FALL;
     env->agents[0].action_mask = NULL;
     env->agents[0].policy = 0;
-    c_init(env);
+    init(env);
 }
-

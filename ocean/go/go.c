@@ -4,7 +4,7 @@
 
 void demo(int grid_size) {
 
-    CGo env = {
+    Go env = {
         .width = 950,
         .height = 750,
         .grid_size = grid_size,
@@ -25,64 +25,30 @@ void demo(int grid_size) {
     int logit_sizes[1] = {grid_size * grid_size + 1};
     int obs_size = grid_size * grid_size * 4 + 2;
     PufferNet* net = make_puffernet(weights, 1, obs_size, 512, 1, logit_sizes, 1);
-    allocate(&env);
+    env.agents[0].observations = (float*)calloc(obs_size, sizeof(float));
+    env.agents[0].actions = (float*)calloc(2, sizeof(float));
+    env.agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env.agents[0].terminals = (float*)calloc(1, sizeof(float));
     puf_reset(&env);
     puf_render(&env);
 
     int tick = 0;
     while (!WindowShouldClose()) {
-        if(tick % 3 == 0) {
+        if (tick % 3 == 0) {
             tick = 0;
-            int human_action = env.agents[0].actions[0];
             forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
-            if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                env.agents[0].actions[0] = human_action;
-            }
             puf_step(&env);
-            if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                env.agents[0].actions[0] = -1;
-            }
         }
         tick++;
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                Vector2 mousePos = GetMousePosition();
-
-                // Calculate the offset for the board
-                int boardOffsetX = env.grid_square_size;
-                int boardOffsetY = env.grid_square_size;
-
-                // Adjust mouse position relative to the board
-                int relativeX = mousePos.x - boardOffsetX;
-                int relativeY = mousePos.y - boardOffsetY;
-
-                // Calculate cell indices for the corners
-                int cellX = (relativeX + env.grid_square_size / 2) / env.grid_square_size;
-                int cellY = (relativeY + env.grid_square_size / 2) / env.grid_square_size;
-
-                // Ensure the click is within the game board
-                if (cellX >= 0 && cellX <= env.grid_size && cellY >= 0 && cellY <= env.grid_size) {
-                    // Calculate the point index (1-19) based on the click position
-                    int pointIndex = cellY * (env.grid_size) + cellX + 1;
-                    env.agents[0].actions[0] = (unsigned short)pointIndex;
-                }
-            // Check if pass button is clicked
-                int passButtonX = env.width - 300;
-                int passButtonY = 200;
-                int passButtonWidth = 100;
-                int passButtonHeight = 50;
-
-                if (mousePos.x >= passButtonX && mousePos.x <= passButtonX + passButtonWidth &&
-                    mousePos.y >= passButtonY && mousePos.y <= passButtonY + passButtonHeight) {
-                    env.agents[0].actions[0] = 0; // Send action 0 for pass
-                }
-            }
-        }
         puf_render(&env);
     }
     free_puffernet(net);
     free(weights);
-    free_allocated(&env);
+    free(env.agents[0].observations);
+    free(env.agents[0].actions);
+    free(env.agents[0].rewards);
+    free(env.agents[0].terminals);
+    puf_close(&env);
 }
 
 int main() {

@@ -19,13 +19,19 @@
 #include "simplex.h"
 #include "tile_atlas.h"
 #include "raylib.h"
+typedef unsigned char obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {26}
 #define OBS_SIZE 1707
 #define NUM_ATNS 1
+#define TICK_FRAMES 36
 typedef Env MMO;
-typedef unsigned char obs_t;
+
+#ifdef PUFFERCPU_EVAL_MAIN
+#define PUF_NMMO3_NET 1
+#include "nmmo3_net.h"
+#endif
 
 #if defined(PLATFORM_DESKTOP)
     #define GLSL_VERSION 330
@@ -738,7 +744,7 @@ static inline void sync_mmo_agent_buffers(MMO* env) {
         return;
     }
 
-    env->observations = (obs_t*)env->agents[0].observations;
+    env->observations = env->agents[0].observations;
     env->actions = env->agents[0].actions;
     env->rewards = env->agents[0].rewards;
     env->terminals = env->agents[0].terminals;
@@ -862,24 +868,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "equip_defense", log->equip_defense);
     dict_set(out, "r", log->r);
     dict_set(out, "c", log->c);
-}
-
-void allocate_mmo(MMO* env) {
-    // TODO: Not hardcode
-    env->observations = (obs_t*)calloc(env->num_agents*OBS_SIZE, sizeof(obs_t));
-    env->rewards = (float*)calloc(env->num_agents, sizeof(float));
-    env->terminals = (float*)calloc(env->num_agents, sizeof(float));
-    env->actions = (float*)calloc(env->num_agents*NUM_ATNS, sizeof(float));
-    env->agents = (Agent*)calloc(env->num_agents, sizeof(Agent));
-    for (int i = 0; i < env->num_agents; i++) {
-        env->agents[i].observations = env->observations + i*OBS_SIZE;
-        env->agents[i].actions = env->actions + i*NUM_ATNS;
-        env->agents[i].rewards = env->rewards + i;
-        env->agents[i].terminals = env->terminals + i;
-        env->agents[i].action_mask = NULL;
-        env->agents[i].policy = 0;
-    }
-    init(env);
+    dict_set(out, "n", log->n);
 }
 
 void puf_close(MMO* env) {
@@ -892,19 +881,11 @@ void puf_close(MMO* env) {
     free_respawn_buffer(env->enemy_respawn_buffer);
     free_respawn_buffer(env->drop_respawn_buffer);
     free(env->market);
-}
-
-void free_allocated_mmo(MMO* env) {
-    free(env->observations);
-    free(env->rewards);
-    free(env->terminals);
     free(env->returns);
     free(env->reward_struct);
     free(env->players);
     free(env->enemies);
-    free(env->actions);
     free(env->agents);
-    puf_close(env);
 }
 
 bool is_buy(int mode) {
@@ -2225,7 +2206,6 @@ void puf_step(Env* env) {
 }
 
 #define FRAME_RATE 60
-#define TICK_FRAMES 36
 #define DELAY_FRAMES 24
 #define SPRITE_SIZE 128
 #define TILE_SIZE 64
@@ -2305,7 +2285,6 @@ struct Client {
     int my_player;
     int start_time;
     int frame;
-    int last_action;
 };
 
 #define TILE_SPRING_GRASS 0
@@ -2590,6 +2569,8 @@ Client* make_client(MMO* env) {
         client->shader_terrain_data[4*i+2] = 0;
         client->shader_terrain_data[4*i+3] = 255;
     }
+    // Terrain atlas coords are static; water anim is a shader time uniform.
+    UpdateTexture(client->shader_terrain, client->shader_terrain_data);
 
     client->render_mode = RENDER_MODE_CENTERED;
     client->tiles = LoadTexture("resources/nmmo3/merged_sheet.png");
@@ -2788,6 +2769,13 @@ int simple_hash(int n) {
     return ((n * 2654435761) & 0xFFFFFFFF) % INT_MAX;
 }
 
+static int entity_in_view(const Entity* e, int start_r, int start_c,
+        int end_r, int end_c) {
+    // +1 tile: lerp still draws the previous cell.
+    return e->r >= start_r - 1 && e->r < end_r + 1
+        && e->c >= start_c - 1 && e->c < end_c + 1;
+}
+
 void draw_entity(Client* client, MMO* env, int pid, float delta) {
     Entity* entity = get_entity(env, pid);
     Animation* animation = &ANIMATIONS[entity->anim];
@@ -2867,8 +2855,6 @@ void draw_min(Client* client, MMO* env, int x, int y,
     SetShaderValue(client->shader, client->shader_resolution_loc, client->shader_resolution, SHADER_UNIFORM_VEC3);
 
     SetShaderValueTexture(client->shader, client->shader_texture_tiles_loc, client->tiles);
-
-    UpdateTexture(client->shader_terrain, client->shader_terrain_data);
     SetShaderValueTexture(client->shader, client->shader_terrain_loc, client->shader_terrain);
 
     DrawRectangle(
@@ -2981,8 +2967,11 @@ void render_centered(Client* client, MMO* env, int pid, int action, float delta)
         start_r, end_c-start_c, end_r-start_r,
         env->width, env->height, 1, delta);
 
-    for (int pid = 0; pid < env->num_agents+env->num_enemies; pid++) {
-        draw_entity(client, env, pid, delta);
+    for (int eid = 0; eid < env->num_agents + env->num_enemies; eid++) {
+        if (!entity_in_view(get_entity(env, eid), start_r, start_c, end_r, end_c)) {
+            continue;
+        }
+        draw_entity(client, env, eid, delta);
     }
 
     EndMode2D();
@@ -3143,8 +3132,11 @@ void render_fixed(Client* client, MMO* env, float delta) {
     draw_min(client, env, start_c, start_r,
         end_c-start_c, end_r-start_r, env->width, env->height, 1, delta);
 
-    for (int pid = 0; pid < env->num_agents+env->num_enemies; pid++) {
-        draw_entity(client, env, pid, delta);
+    for (int eid = 0; eid < env->num_agents + env->num_enemies; eid++) {
+        if (!entity_in_view(get_entity(env, eid), start_r, start_c, end_r, end_c)) {
+            continue;
+        }
+        draw_entity(client, env, eid, delta);
     }
 
     EndMode2D();
@@ -3211,57 +3203,55 @@ void process_command_input(Client* client, MMO* env) {
 
 void puf_render(MMO* env) {
     if (env->client == NULL) {
-        // Must reset before making client
         env->client = make_client(env);
     }
     Client* client = env->client;
-    float delta = (float)client->frame / 36.0f;
-
-    BeginDrawing();
-    ClearBackground(BLANK);
     int action = 0;
+    // One env tick = TICK_FRAMES vsyncs. Desktop: EndDrawing waits.
+    // Web: ASYNCIFY + SetTargetFPS makes WaitTime yield a rAF per swap.
+    for (int f = 0; f < TICK_FRAMES; f++) {
+        float delta = (float)f / (float)TICK_FRAMES;
+        BeginDrawing();
+        ClearBackground(BLANK);
 
-    if (IsKeyDown(KEY_ESCAPE)) {
-        CloseWindow();
-        exit(0);
-    }
-    if (IsKeyPressed(KEY_TAB)) {
-        ToggleBorderlessWindowed();
-        if (client->render_mode == RENDER_MODE_CENTERED) {
-            client->render_mode = RENDER_MODE_FIXED;
+        if (IsKeyDown(KEY_ESCAPE)) {
+            CloseWindow();
+            exit(0);
+        }
+        if (IsKeyPressed(KEY_TAB)) {
+            ToggleBorderlessWindowed();
+            if (client->render_mode == RENDER_MODE_CENTERED) {
+                client->render_mode = RENDER_MODE_FIXED;
+            } else {
+                client->render_mode = RENDER_MODE_CENTERED;
+            }
+        }
+        if (IsKeyPressed(KEY_GRAVE)) { // tilde
+            client->command_mode = !client->command_mode;
+            GetCharPressed(); // clear tilde key
+        }
+        if (client->render_mode == RENDER_MODE_FIXED) {
+            if (!client->command_mode) {
+                process_fixed_input(client);
+            }
+            render_fixed(client, env, delta);
         } else {
-            client->render_mode = RENDER_MODE_CENTERED;
+            if (!client->command_mode) {
+                action = process_centered_input();
+            }
+            if (IsKeyDown(KEY_LEFT_SHIFT) && env->agents[0].actions) {
+                env->agents[0].actions[0] = action;
+            }
+            render_centered(client, env, client->my_player, action, delta);
         }
-    }
-    if (IsKeyPressed(KEY_GRAVE)) { // tilde
-        client->command_mode = !client->command_mode;
-        GetCharPressed(); // clear tilde key
-    }
-    if (client->render_mode == RENDER_MODE_FIXED) {
-        if (!client->command_mode) {
-            process_fixed_input(client);
+        if (client->command_mode) {
+            process_command_input(client, env);
         }
-        render_fixed(client, env, delta);
-    } else {
-        if (!client->command_mode) {
-            action = process_centered_input();
+        if (IsKeyDown(KEY_H)) {
+            DrawTextEx(client->font, TextFormat("FPS: %d", GetFPS()),
+                (Vector2){16, 16}, 24, 4, YELLOW);
         }
-        render_centered(client, env, client->my_player, action, delta);
+        EndDrawing();
     }
-    if (client->command_mode) {
-        process_command_input(client, env);
-    }
-
-    if (IsKeyDown(KEY_H)) {
-        DrawTextEx(client->font, TextFormat("FPS: %d", GetFPS()),
-            (Vector2){16, 16}, 24, 4, YELLOW);
-    }
-
-    EndDrawing();
-    client->frame += 1;
-    if (client->frame >= 36) {
-        client->frame = 0;
-    }
-    client->last_action = action;
 }
 

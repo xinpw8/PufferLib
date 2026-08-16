@@ -1,10 +1,9 @@
-#pragma once
-
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define Log OsrsSharedLog
@@ -14,7 +13,6 @@
 #define OBS_SIZE COLO_NUM_OBS
 #define NUM_ATNS COLO_NUM_ACTION_HEADS
 #define ACT_SIZES COLO_ACTION_DIMS_INIT
-typedef float obs_t;
 
 #define COLO_ENV_STATE(env) ((EncounterState*)&(env)->state)
 #define COLO_ENV_CONTEXT(env) ((EncounterContext*)&(env)->context)
@@ -104,13 +102,13 @@ static inline void col_log_dpt_sample(float* hit_acc, float* n_acc, int sample) 
 }
 
 static void col_assign_curriculum_wave(Env* env, Dict* kwargs) {
-    int classic_curriculum_mode = (int)dict_get(kwargs, "classic_curriculum_mode");
+    int classic_curriculum_mode = dict_get(kwargs, "classic_curriculum_mode");
     if (classic_curriculum_mode < 0 || classic_curriculum_mode > 1) {
         fprintf(stderr, "colosseum: classic_curriculum_mode must be 0 or 1, got %d\n",
             classic_curriculum_mode);
         abort();
     }
-    int num_tiers_config = (int)dict_get(kwargs, "curriculum_num_tiers");
+    int num_tiers_config = dict_get(kwargs, "curriculum_num_tiers");
     if (num_tiers_config < 0 || num_tiers_config > COLO_MAX_CURRICULUM_TIERS) {
         fprintf(stderr, "colosseum: curriculum_num_tiers must be 0..%d, got %d\n",
             COLO_MAX_CURRICULUM_TIERS, num_tiers_config);
@@ -129,8 +127,8 @@ static void col_assign_curriculum_wave(Env* env, Dict* kwargs) {
     float fracs[COLO_MAX_CURRICULUM_TIERS];
     int num_tiers = 0;
     for (int i = 0; i < num_tiers_config; i++) {
-        int wave = (int)dict_get(kwargs, wave_keys[i]);
-        float frac = (float)dict_get(kwargs, frac_keys[i]);
+        int wave = dict_get(kwargs, wave_keys[i]);
+        float frac = dict_get(kwargs, frac_keys[i]);
         if (frac > 0.0f) {
             waves[num_tiers] = wave;
             fracs[num_tiers] = frac;
@@ -174,7 +172,7 @@ void puf_init(Env* env, Dict* kwargs) {
 
     memset(&env->log, 0, sizeof(Log));
 
-    int start_wave = (int)dict_get(kwargs, "start_wave");
+    int start_wave = dict_get(kwargs, "start_wave");
     ENCOUNTER_COLOSSEUM.put_int(
         COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), "start_wave", start_wave);
     env->config_start_wave = start_wave - 1;
@@ -198,7 +196,7 @@ void puf_init(Env* env, Dict* kwargs) {
     for (size_t k = 0; k < sizeof(float_keys) / sizeof(*float_keys); k++) {
         ENCOUNTER_COLOSSEUM.put_float(
             COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env),
-            float_keys[k], (float)dict_get(kwargs, float_keys[k]));
+            float_keys[k], dict_get(kwargs, float_keys[k]));
     }
 
     static const char* const int_keys[] = {
@@ -220,7 +218,7 @@ void puf_init(Env* env, Dict* kwargs) {
     for (size_t k = 0; k < sizeof(int_keys) / sizeof(*int_keys); k++) {
         ENCOUNTER_COLOSSEUM.put_int(
             COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env),
-            int_keys[k], (int)dict_get(kwargs, int_keys[k]));
+            int_keys[k], dict_get(kwargs, int_keys[k]));
     }
 
     col_assign_curriculum_wave(env, kwargs);
@@ -230,7 +228,7 @@ void puf_reset(Env* env) {
     Agent* agent = &env->agents[0];
     ENCOUNTER_COLOSSEUM.reset(COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), 0);
     ENCOUNTER_COLOSSEUM.write_obs(
-        COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), (float*)agent->observations);
+        COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), agent->observations);
     col_write_action_mask_bytes(env, agent->action_mask);
 }
 
@@ -252,7 +250,7 @@ void puf_step(Env* env) {
 
     ENCOUNTER_COLOSSEUM.step(COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), env->acts_staging);
 
-    float* obs = (float*)agent->observations;
+    obs_t* obs = agent->observations;
     ENCOUNTER_COLOSSEUM.write_obs(COLO_ENV_STATE(env), COLO_ENV_CONTEXT(env), obs);
     col_write_action_mask_bytes(env, agent->action_mask);
 
@@ -318,7 +316,6 @@ void puf_step(Env* env) {
 }
 
 void puf_render(Env* env) {
-    (void)env;
 }
 
 void puf_close(Env* env) {
@@ -399,4 +396,5 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "death_dmg_self", log->death_dmg_self);
     dict_set(out, "death_heal_remaining", log->death_heal_remaining);
     dict_set(out, "farm_damage", log->farm_damage);
+    dict_set(out, "n", log->n);
 }

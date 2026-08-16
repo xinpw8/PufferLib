@@ -6,6 +6,7 @@
 #include <limits.h>
 
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define TOP_MARGIN 50
@@ -27,11 +28,6 @@
 #define ACT_SIZES {1, 1}
 #define OBS_SIZE (MAX_BOIDS * 4)
 #define NUM_ATNS 2
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
 
 struct Log {
     float perf;
@@ -78,11 +74,13 @@ typedef Env Boids;
 static inline float flmax(float a, float b) { return a > b ? a : b; }
 static inline float flmin(float a, float b) { return a > b ? b : a; }
 static inline float flclip(float x, float lo, float hi) { return flmin(hi, flmax(lo, x)); }
-static inline float rndf(float lo, float hi) { return lo + (float)rand() / (float)RAND_MAX * (hi - lo); }
+static inline float rndf(float lo, float hi, unsigned int* rng) {
+    return lo + (float)rand_r(rng) / (float)RAND_MAX * (hi - lo);
+}
 
 static void respawn_boid(Boids* env, unsigned int i) {
-    env->boids[i].x = rndf(LEFT_MARGIN, WIDTH - RIGHT_MARGIN);
-    env->boids[i].y = rndf(BOTTOM_MARGIN, HEIGHT - TOP_MARGIN);
+    env->boids[i].x = rndf(LEFT_MARGIN, WIDTH - RIGHT_MARGIN, &env->rng);
+    env->boids[i].y = rndf(BOTTOM_MARGIN, HEIGHT - TOP_MARGIN, &env->rng);
     env->boids[i].velocity.x = 0;
     env->boids[i].velocity.y = 0;
     env->boid_logs[i] = (Log){0};
@@ -95,8 +93,8 @@ void init(Boids* env) {
     env->tick = 0;
 
     for (unsigned current_indx = 0; current_indx < env->num_boids; current_indx++) {
-        env->boids[current_indx].x = rndf(LEFT_MARGIN, WIDTH - RIGHT_MARGIN);
-        env->boids[current_indx].y = rndf(BOTTOM_MARGIN, HEIGHT - TOP_MARGIN);
+        env->boids[current_indx].x = rndf(LEFT_MARGIN, WIDTH - RIGHT_MARGIN, &env->rng);
+        env->boids[current_indx].y = rndf(BOTTOM_MARGIN, HEIGHT - TOP_MARGIN, &env->rng);
         env->boids[current_indx].velocity.x = 0;
         env->boids[current_indx].velocity.y = 0;
     }
@@ -104,9 +102,7 @@ void init(Boids* env) {
 
 static void compute_observations(Boids* env) {
     for (unsigned i = 0; i < env->num_boids; i++) {
-        obs_t* obs = (obs_t*)env->agents[i].observations;
-        if (obs == NULL)
-            continue;
+        float* obs = env->agents[i].observations;
         int idx = 0;
         for (unsigned j = 0; j < env->num_boids; j++) {
             obs[idx++] = (env->boids[j].x - env->boids[i].x) / WIDTH;
@@ -122,7 +118,6 @@ static void compute_observations(Boids* env) {
 }
 
 void puf_reset(Boids* env) {
-    env->log = (Log){0};
     env->tick = 0;
     for (unsigned boid_indx = 0; boid_indx < env->num_boids; boid_indx++) {
         respawn_boid(env, boid_indx);
@@ -229,7 +224,7 @@ struct Client {
     Texture2D boid_texture;
 };
 
-void c_close_client(Client* client) {
+void close_client(Client* client) {
     UnloadTexture(client->boid_texture);
     CloseWindow();
     free(client);
@@ -239,7 +234,7 @@ void puf_close(Boids* env) {
     free(env->boids);
     free(env->boid_logs);
     if (env->client != NULL) {
-        c_close_client(env->client);
+        close_client(env->client);
         env->client = NULL;
     }
 }
@@ -262,7 +257,7 @@ Client* make_client(Boids* env) {
     client->boid_texture = LoadTexture(BOID_TEXTURE_PATH);
     if (client->boid_texture.id == 0) {
         TraceLog(LOG_ERROR, "Failed to load texture: %s", BOID_TEXTURE_PATH);
-        c_close_client(client);
+        close_client(client);
         return NULL;
     }
 
@@ -272,43 +267,34 @@ Client* make_client(Boids* env) {
 void puf_render(Boids* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
-        if (env->client == NULL) {
-            TraceLog(LOG_ERROR, "Failed to initialize client for rendering\n");
-            return;
-        }
+    }
+    if (IsKeyDown(KEY_ESCAPE)) {
+        exit(0);
     }
 
-    if (!WindowShouldClose() && IsWindowReady()) {
-        if (IsKeyDown(KEY_ESCAPE)) {
-            exit(0);
-        }
+    BeginDrawing();
+    ClearBackground((Color){6, 24, 24, 255});
 
-        BeginDrawing();
-        ClearBackground((Color){6, 24, 24, 255});
-
-        for (unsigned boid_indx = 0; boid_indx < env->num_boids; boid_indx++) {
-            DrawTexturePro(
-                env->client->boid_texture,
-                (Rectangle){
-                    (env->boids[boid_indx].velocity.x > 0) ? 0.0f : 128.0f,
-                    0,
-                    128,
-                    128,
-                },
-                (Rectangle){
-                    env->boids[boid_indx].x,
-                    env->boids[boid_indx].y,
-                    BOID_WIDTH,
-                    BOID_HEIGHT},
-                (Vector2){0, 0},
+    for (unsigned boid_indx = 0; boid_indx < env->num_boids; boid_indx++) {
+        DrawTexturePro(
+            env->client->boid_texture,
+            (Rectangle){
+                (env->boids[boid_indx].velocity.x > 0) ? 0.0f : 128.0f,
                 0,
-                WHITE);
-        }
-
-        EndDrawing();
-    } else {
-        TraceLog(LOG_WARNING, "Window is not ready or should close");
+                128,
+                128,
+            },
+            (Rectangle){
+                env->boids[boid_indx].x,
+                env->boids[boid_indx].y,
+                BOID_WIDTH,
+                BOID_HEIGHT},
+            (Vector2){0, 0},
+            0,
+            WHITE);
     }
+
+    EndDrawing();
 }
 
 void puf_init(Env* env, Dict* kwargs) {

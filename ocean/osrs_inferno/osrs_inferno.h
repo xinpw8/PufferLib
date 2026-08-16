@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 
+typedef float obs_t;
 #include "pufferenv.h"
 #include "inferno_profile.h"
 
@@ -17,7 +18,6 @@
 #define OBS_SIZE INF_NUM_OBS
 #define NUM_ATNS INF_NUM_ACTION_HEADS
 #define ACT_SIZES INF_ACTION_DIMS_INIT
-typedef float obs_t;
 
 #define INF_ENV_STATE(env) ((EncounterState*)&((env)->state))
 #define INF_ENV_CONTEXT(env) ((EncounterContext*)&((env)->context))
@@ -106,7 +106,8 @@ static void inferno_apply_reward_profile(Env* env, int reward_profile) {
 }
 
 static void inferno_apply_curriculum(Env* env, Dict* kwargs) {
-    if ((int)dict_get(kwargs, "classic_curriculum_mode") != 1)
+    int classic_curriculum_mode = dict_get(kwargs, "classic_curriculum_mode");
+    if (classic_curriculum_mode != 1)
         return;
 
     static const char* const wave_keys[] = {
@@ -123,7 +124,7 @@ static void inferno_apply_curriculum(Env* env, Dict* kwargs) {
     float total_frac = 0.0f;
     for (int i = 0; i < 8; i++) {
         DictItem* w = dict_find(kwargs, wave_keys[i]);
-        float f = (float)dict_get(kwargs, frac_keys[i]);
+        float f = dict_get(kwargs, frac_keys[i]);
         if (w && f > 0.0f) {
             waves[num_tiers] = (int)w->value;
             fracs[num_tiers] = f;
@@ -166,14 +167,14 @@ void puf_init(Env* env, Dict* kwargs) {
 
     memset(&env->log, 0, sizeof(Log));
 
-    int start_wave = (int)dict_get(kwargs, "start_wave");
+    int start_wave = dict_get(kwargs, "start_wave");
     inferno_env_put_int(env, "start_wave", start_wave);
     inferno_env_put_float(env, "damage_reward_coeff",
-        (float)dict_get(kwargs, "damage_reward_coeff"));
+        dict_get(kwargs, "damage_reward_coeff"));
     inferno_env_put_float(env, "shield_penalty_coeff",
-        (float)dict_get(kwargs, "shield_penalty_coeff"));
+        dict_get(kwargs, "shield_penalty_coeff"));
     inferno_env_put_float(env, "tag_reward_coeff",
-        (float)dict_get(kwargs, "tag_reward_coeff"));
+        dict_get(kwargs, "tag_reward_coeff"));
 
     static const char* const float_keys[] = {
         "shield_tag_reward_coeff",
@@ -203,34 +204,34 @@ void puf_init(Env* env, Dict* kwargs) {
         "curriculum_no_brew_frac",
     };
     for (size_t k = 0; k < sizeof(float_keys) / sizeof(*float_keys); k++)
-        inferno_env_put_float(env, float_keys[k], (float)dict_get(kwargs, float_keys[k]));
+        inferno_env_put_float(env, float_keys[k], dict_get(kwargs, float_keys[k]));
 
     inferno_env_put_float(env, "late_start_supply_profile_scale",
-        (float)dict_get(kwargs, "late_start_supply_profile_scale"));
-    inferno_env_put_int(env, "oracle_mode", (int)dict_get(kwargs, "oracle_mode"));
+        dict_get(kwargs, "late_start_supply_profile_scale"));
+    inferno_env_put_int(env, "oracle_mode", dict_get(kwargs, "oracle_mode"));
     inferno_env_put_int(env, "terminal_penalty_enabled",
-        (int)dict_get(kwargs, "terminal_penalty_enabled"));
+        dict_get(kwargs, "terminal_penalty_enabled"));
 
     static const char* const int_keys[] = {
         "curriculum_supply_jitter_mode",
         "curriculum_no_brew_mode",
     };
     for (size_t k = 0; k < sizeof(int_keys) / sizeof(*int_keys); k++)
-        inferno_env_put_int(env, int_keys[k], (int)dict_get(kwargs, int_keys[k]));
+        inferno_env_put_int(env, int_keys[k], dict_get(kwargs, int_keys[k]));
 
     inferno_env_put_int(env, "step_out_forecast_obs_mode",
-        (int)dict_get(kwargs, "step_out_forecast_obs_mode"));
+        dict_get(kwargs, "step_out_forecast_obs_mode"));
     inferno_env_put_int(env, "loadout_profile_mode",
-        (int)dict_get(kwargs, "loadout_profile_mode"));
+        dict_get(kwargs, "loadout_profile_mode"));
     inferno_env_put_int(env, "zuk_healer_reward_mode",
-        (int)dict_get(kwargs, "zuk_healer_reward_mode"));
+        dict_get(kwargs, "zuk_healer_reward_mode"));
     inferno_env_put_int(env, "joseph_reward_mode",
-        (int)dict_get(kwargs, "joseph_reward_mode"));
-    inferno_apply_reward_profile(env, (int)dict_get(kwargs, "reward_profile"));
+        dict_get(kwargs, "joseph_reward_mode"));
+    inferno_apply_reward_profile(env, dict_get(kwargs, "reward_profile"));
     inferno_env_put_int(env, "zuk_safe_untagged_healer_target_mask",
-        (int)dict_get(kwargs, "zuk_safe_untagged_healer_target_mask"));
+        dict_get(kwargs, "zuk_safe_untagged_healer_target_mask"));
     inferno_env_put_int(env, "zuk_force_safe_untagged_healer_target_mask",
-        (int)dict_get(kwargs, "zuk_force_safe_untagged_healer_target_mask"));
+        dict_get(kwargs, "zuk_force_safe_untagged_healer_target_mask"));
 
     env->config_start_wave = (start_wave > 0) ? start_wave - 1 : 0;
 
@@ -239,7 +240,7 @@ void puf_init(Env* env, Dict* kwargs) {
 
 static inline void inferno_env_write_obs(Env* env) {
     ENCOUNTER_INFERNO.write_obs(INF_ENV_STATE(env), INF_ENV_CONTEXT(env),
-        (float*)env->agents[0].observations);
+        env->agents[0].observations);
 }
 
 static inline void inferno_env_write_mask(Env* env) {
@@ -415,7 +416,6 @@ void puf_step(Env* env) {
 }
 
 void puf_render(Env* env) {
-    (void)env;
 }
 
 void puf_close(Env* env) {
@@ -567,6 +567,7 @@ void puf_log(Log* log, Dict* out) {
         dict_set(out, "spark_damage_after_240_normal", 0.0f);
         dict_set(out, "hp_restored_after_240_normal", 0.0f);
     }
+    dict_set(out, "n", log->n);
 }
 
 #endif

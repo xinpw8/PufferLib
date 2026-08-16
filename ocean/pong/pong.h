@@ -2,16 +2,12 @@
 #include <stdbool.h>
 #include <math.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {3}
 #define OBS_SIZE 8
 #define NUM_ATNS 1
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
 
 typedef struct Log Log;
 struct Log {
@@ -71,28 +67,6 @@ void init(Pong* env) {
     env->paddle_dir = 0;
 }
 
-void allocate(Pong* env) {
-    init(env);
-    env->agents[0].observations = (obs_t*)calloc(OBS_SIZE, sizeof(obs_t));
-    env->agents[0].actions = (float*)calloc(NUM_ATNS, sizeof(float));
-    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
-    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
-    env->agents[0].action_mask = NULL;
-    env->agents[0].policy = 0;
-    env->num_agents = 1;
-}
-
-void free_allocated(Pong* env) {
-    free(env->agents[0].observations);
-    free(env->agents[0].actions);
-    free(env->agents[0].rewards);
-    free(env->agents[0].terminals);
-}
-
-void puf_close(Pong* env) {
-    (void)env;
-}
-
 void add_log(Pong* env) {
     float score = (float)env->score_r - (float)env->score_l;
     env->log.episode_length += env->tick;
@@ -103,7 +77,7 @@ void add_log(Pong* env) {
 }
 
 void compute_observations(Pong* env) {
-    obs_t* obs = (obs_t*)env->agents[0].observations;
+    obs_t* obs = env->agents[0].observations;
     obs[0] = (env->paddle_yl - env->min_paddle_y) / (env->max_paddle_y - env->min_paddle_y);
     obs[1] = (env->paddle_yr - env->min_paddle_y) / (env->max_paddle_y - env->min_paddle_y);
     obs[2] = env->ball_x / env->width;
@@ -120,7 +94,8 @@ void reset_round(Pong* env) {
     env->ball_x = env->width / 5;
     env->ball_y = env->height / 2 - env->ball_height / 2;
     env->ball_vx = env->ball_initial_speed_x;
-    env->ball_vy = (rand_r(&env->rng) % 2 - 1) * env->ball_initial_speed_y;
+    env->ball_vy = ((rand_r(&env->rng) & 1) ? 1.0f : -1.0f)
+        * env->ball_initial_speed_y;
     env->tick = 0;
     env->n_bounces = 0;
 }
@@ -130,6 +105,25 @@ void puf_reset(Pong* env) {
     env->score_l = 0;
     env->score_r = 0;
     compute_observations(env);
+}
+
+// Hold Left Shift + W/S or arrows (or wheel if continuous).
+static void pong_human_controls(Pong *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    if (env->continuous) {
+        float move = GetMouseWheelMove();
+        env->agents[0].actions[0] = fmaxf(-1.0f, fminf(1.0f, move));
+        return;
+    }
+    env->agents[0].actions[0] = 0.0f;
+    if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+        env->agents[0].actions[0] = 1.0f;
+    }
+    if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+        env->agents[0].actions[0] = 2.0f;
+    }
 }
 
 void puf_step(Pong* env) {
@@ -255,15 +249,22 @@ Client* make_client(Pong* env) {
     client->ball_color = (Color){255, 255, 255, 255};
 
     InitWindow(env->width + 2 * client->x_pad, env->height, "PufferLib Pong");
-    SetTargetFPS(60 / env->frameskip);
+    SetTargetFPS(60 / (env->frameskip > 0 ? env->frameskip : 1));
 
     client->ball = LoadTexture("resources/shared/puffers_128.png");
     return client;
 }
 
 void close_client(Client* client) {
+    UnloadTexture(client->ball);
     CloseWindow();
     free(client);
+}
+
+void puf_close(Pong* env) {
+    if (env->client) {
+        close_client(env->client);
+    }
 }
 
 void puf_render(Pong* env) {
@@ -275,6 +276,8 @@ void puf_render(Pong* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+
+    pong_human_controls(env);
 
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});
@@ -331,6 +334,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {

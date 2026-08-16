@@ -2,12 +2,16 @@
 #define PUFFERLIB_OCEAN_BOXOBAN_MAPS_H
 
 #include <dirent.h>
+#ifndef PLATFORM_WEB
 #include <fcntl.h>
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef PLATFORM_WEB
 #include <sys/mman.h>
+#endif
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -16,7 +20,10 @@
 
 /*
 Maps are stored in binary files keyed by difficulty.
-If the bin does not exist it is created on the fly, then mmapped and shared by envs.
+Native: resources/boxoban/boxoban_maps_<difficulty>.bin (generated/downloaded,
+mmapped). Gitignores those bins. Web preload must not pack them — only
+resources/boxoban/web_maps.bin (small subset) plus textures/weights.
+Web: fread the preloaded web_maps.bin (no curl/mmap).
 */
 
 extern uint8_t *MAP_BASE;
@@ -317,13 +324,49 @@ static int boxoban_ensure_text_maps(const char* difficulty) {
     return boxoban_download_text_maps(difficulty);
 }
 
+static const char* BOXOBAN_WEB_MAP_BIN = "resources/boxoban/web_maps.bin";
+
 static int boxoban_bin_path(const char* difficulty, char* out_path, size_t out_cap) {
+#ifdef PLATFORM_WEB
+    int written = snprintf(out_path, out_cap, "%s", BOXOBAN_WEB_MAP_BIN);
+#else
     int written = snprintf(out_path, out_cap, "resources/boxoban/boxoban_maps_%s.bin", difficulty);
+#endif
     if (written <= 0 || (size_t)written >= out_cap) {
         return -1;
     }
     return 0;
 }
+
+#ifndef PLATFORM_WEB
+static int boxoban_legacy_bin_path(const char* difficulty, char* out_path, size_t out_cap) {
+    int written = snprintf(out_path, out_cap,
+        "ocean/boxoban/maps/boxoban_maps_%s.bin", difficulty);
+    if (written <= 0 || (size_t)written >= out_cap) {
+        return -1;
+    }
+    return 0;
+}
+
+static int boxoban_mkdir_parent(const char* path) {
+    char tmp[1024];
+    size_t len = strlen(path);
+    if (len >= sizeof(tmp)) {
+        return -1;
+    }
+    memcpy(tmp, path, len + 1);
+    for (size_t i = 1; i < len; i++) {
+        if (tmp[i] == '/') {
+            tmp[i] = '\0';
+            if (boxoban_mkdir_p(tmp) != 0) {
+                return -1;
+            }
+            tmp[i] = '/';
+        }
+    }
+    return 0;
+}
+#endif
 
 int boxoban_prepare_maps_for_difficulty(const char* difficulty, char* out_path, size_t out_cap) {
     if (difficulty == NULL || out_path == NULL) {
@@ -336,7 +379,25 @@ int boxoban_prepare_maps_for_difficulty(const char* difficulty, char* out_path, 
         return -1;
     }
 
+#ifndef PLATFORM_WEB
     if (access(out_path, F_OK) != 0) {
+        char legacy_path[512];
+        if (boxoban_legacy_bin_path(difficulty, legacy_path, sizeof(legacy_path)) == 0 &&
+                access(legacy_path, F_OK) == 0) {
+            if (boxoban_set_map_path(legacy_path) != 0) {
+                return -1;
+            }
+            snprintf(out_path, out_cap, "%s", legacy_path);
+            return 0;
+        }
+    }
+#endif
+
+    if (access(out_path, F_OK) != 0) {
+#ifdef PLATFORM_WEB
+        fprintf(stderr, "Missing preloaded Boxoban maps at %s\n", out_path);
+        return -1;
+#else
         if (boxoban_ensure_text_maps(difficulty) != 0) {
             return -1;
         }
@@ -348,12 +409,18 @@ int boxoban_prepare_maps_for_difficulty(const char* difficulty, char* out_path, 
             return -1;
         }
 
+        if (boxoban_mkdir_parent(out_path) != 0) {
+            boxoban_path_list_free(&maps);
+            return -1;
+        }
+
         if (boxoban_write_bin_from_files((const char* const*)maps.items, maps.count, out_path, 0, &puzzle_count) != 0) {
             boxoban_path_list_free(&maps);
             return -1;
         }
         boxoban_path_list_free(&maps);
         fprintf(stdout, "[Boxoban] Generated %zu puzzles for '%s' at %s\n", puzzle_count, difficulty, out_path);
+#endif
     }
 
     if (boxoban_set_map_path(out_path) != 0) {
@@ -363,9 +430,13 @@ int boxoban_prepare_maps_for_difficulty(const char* difficulty, char* out_path, 
 }
 
 static void reset_map_cache(void) {
+#ifdef PLATFORM_WEB
+    free(MAP_BASE);
+#else
     if (MAP_BASE != NULL && MAP_BASE != MAP_FAILED && MAP_FILESIZE > 0) {
         munmap(MAP_BASE, MAP_FILESIZE);
     }
+#endif
     MAP_BASE = NULL;
     MAP_FILESIZE = 0;
     PUZZLE_COUNT = 0;
@@ -420,6 +491,45 @@ void ensure_map_loaded(void) {
         }
     }
 
+#ifdef PLATFORM_WEB
+    FILE* fp = fopen(BOXOBAN_MAP_PATH, "rb");
+    if (fp == NULL) {
+        perror("fopen");
+        abort();
+    }
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        perror("fseek");
+        abort();
+    }
+    long file_size = ftell(fp);
+    if (file_size < 0) {
+        perror("ftell");
+        abort();
+    }
+    if (fseek(fp, 0, SEEK_SET) != 0) {
+        perror("fseek");
+        abort();
+    }
+
+    MAP_FILESIZE = (size_t)file_size;
+    if (MAP_FILESIZE == 0 || MAP_FILESIZE % PUZZLE_SIZE != 0) {
+        fprintf(stderr, "Invalid Boxoban map file size %zu (expected multiple of %zu)\n",
+            MAP_FILESIZE, PUZZLE_SIZE);
+        abort();
+    }
+    PUZZLE_COUNT = MAP_FILESIZE / PUZZLE_SIZE;
+
+    MAP_BASE = (uint8_t*)malloc(MAP_FILESIZE);
+    if (MAP_BASE == NULL) {
+        fprintf(stderr, "Failed to allocate Boxoban map buffer (%zu bytes)\n", MAP_FILESIZE);
+        abort();
+    }
+    if (fread(MAP_BASE, 1, MAP_FILESIZE, fp) != MAP_FILESIZE) {
+        fprintf(stderr, "Failed to read Boxoban map file %s\n", BOXOBAN_MAP_PATH);
+        abort();
+    }
+    fclose(fp);
+#else
     int fd = open(BOXOBAN_MAP_PATH, O_RDONLY);
     if (fd < 0) {
         perror("open");
@@ -446,6 +556,7 @@ void ensure_map_loaded(void) {
         perror("mmap");
         abort();
     }
+#endif
 }
 
 #endif

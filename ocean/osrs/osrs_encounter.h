@@ -1670,7 +1670,6 @@ static inline int encounter_resolve_npc_pending_hit(
     int* npc_hp, int* hit_landed, int* hit_damage,
     int* frozen_ticks, int* blood_heal_acc, float* damage_dealt_acc
 ) {
-    (void)frozen_ticks;
     if (!ph->active) return 0;
     ph->ticks_remaining--;
     if (ph->ticks_remaining > 0) return 0;

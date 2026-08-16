@@ -8,6 +8,7 @@
 #include <float.h>
 #include <time.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 #include "simplex.h"
 #define float3 rl_float3
@@ -51,7 +52,6 @@ const unsigned char TARGET = 2;
 #define MAX_AGENTS 16
 
 typedef Env Terraform;
-typedef float obs_t;
 #define DOZER_STEP_HEIGHT 5.0f 
 typedef struct Log Log;
 struct Log {
@@ -323,7 +323,7 @@ void compute_all_observations(Terraform* env) {
     int channel_diff_offset = (2*VISION+1)*(2*VISION+1);
     for (int i = 0; i < env->num_agents; i++) {
         int obs_idx = 0;
-        float* obs = (float*)env->agents[i].observations;
+        obs_t* obs = env->agents[i].observations;
         memset(obs, 0, OBS_SIZE * sizeof(float));
         int x_offset = env->dozers[i].x - dialate*VISION;
         int y_offset = env->dozers[i].y - dialate*VISION;
@@ -558,6 +558,34 @@ float scoop_dirt(Terraform* env, float x, float y, int bucket_atn, int agent_idx
     return reward;
 }
 
+// Hold Left Shift + WASD/arrows, space scoop, enter drop.
+static void terraform_human_controls(Terraform *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    env->agents[0].actions[0] = 2;
+    env->agents[0].actions[1] = 2;
+    env->agents[0].actions[2] = 0;
+    if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+        env->agents[0].actions[0] = 4;
+    }
+    if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
+        env->agents[0].actions[0] = 0;
+    }
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[1] = 0;
+    }
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[1] = 4;
+    }
+    if (IsKeyPressed(KEY_SPACE)) {
+        env->agents[0].actions[2] = 1;
+    }
+    if (IsKeyPressed(KEY_ENTER)) {
+        env->agents[0].actions[2] = 2;
+    }
+}
+
 void puf_step(Terraform* env) {
     env->tick += 1;
     if ((env->reset_frequency && env->tick % env->reset_frequency == 0) || env->current_total_delta < 0.01f) {
@@ -569,6 +597,7 @@ void puf_step(Terraform* env) {
             }
         }
         for (int i = 0; i < env->num_agents; i++) {
+            env->agents[i].terminals[0] = 1;
             env->agent_logs[i].episode_length = env->tick;
             env->agent_logs[i].score = env->delta_progress;
             env->agent_logs[i].perf = env->delta_progress;
@@ -996,6 +1025,7 @@ void puf_render(Terraform* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+    terraform_human_controls(env);
     Client* client = env->client;
 
     handle_camera_controls(client);
@@ -1085,7 +1115,7 @@ void puf_render(Terraform* env) {
                     Color clr = PUFF_WHITE;
                     int idx = y*(2*VISION+1) + x;
                     int obs_idx = 121 + idx;
-                    float* aobs = (float*)env->agents[i].observations;
+                    obs_t* aobs = env->agents[i].observations;
                     if(aobs[obs_idx] == 1.0f) {
                         clr = GREEN;
                     } else if(aobs[obs_idx] == 0.66f) {
@@ -1159,5 +1189,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
     dict_set(out, "quadrant_progress", log->quadrant_progress);
+    dict_set(out, "n", log->n);
 }
 

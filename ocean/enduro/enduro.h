@@ -10,16 +10,12 @@
 #include <string.h>
 #include <float.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {9}
 #define OBS_SIZE 68
 #define NUM_ATNS 1
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
 
 // Constant defs
 #define MAX_ENEMIES 10
@@ -193,7 +189,6 @@ struct Env {
     int boundary_reached;
     int num_agents;
     size_t obs_size;
-    int num_envs;
     float width;
     float height;
     float car_width;
@@ -491,9 +486,7 @@ unsigned int xorshift32(unsigned int *state);
 void add_log(Enduro* env);
 
 // Environment functions
-void allocate(Enduro* env);
 void init(Enduro* env);
-void free_allocated(Enduro* env);
 void reset_round(Enduro* env);
 void puf_reset(Enduro* env);
 unsigned char check_collision(Enduro* env, Car* car);
@@ -511,7 +504,6 @@ void compute_observations(Enduro* env);
 
 // Client functions
 Client* make_client(Enduro* env);
-void close_client(Client* client);
 void render_car(GameState* gameState);
 
 // GameState rendering functions
@@ -716,24 +708,13 @@ void init(Enduro* env) {
     env->tracking_collisions_player_vs_road = 0.0f;
 }
 
-void allocate(Enduro* env) {
-    env->agents[0].observations = (obs_t*)calloc(env->obs_size, sizeof(obs_t));
-    env->agents[0].actions = (float*)calloc(1, sizeof(float));
-    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
-    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
-    env->agents[0].action_mask = NULL;
-    env->agents[0].policy = 0;
-    env->num_agents = 1;
-}
-
-void free_allocated(Enduro* env) {
-    free(env->agents[0].observations);
-    free(env->agents[0].actions);
-    free(env->agents[0].rewards);
-    free(env->agents[0].terminals);
-}
-
 void puf_close(Enduro* env) {
+    if (env->client != NULL) {
+        cleanup(&env->client->gameState);
+        CloseWindow();
+        free(env->client);
+        env->client = NULL;
+    }
 }
 
 // Called when a day is failed by player
@@ -1034,7 +1015,36 @@ void accelerate(Enduro* env) {
     clamp_speed(env);
 }
 
-void puf_step(Enduro* env) {  
+// Hold Left Shift + A/D/S/space (or arrows).
+static void enduro_human_controls(Enduro *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    if ((IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_RIGHT))
+            || (IsKeyDown(KEY_S) && IsKeyDown(KEY_D))) {
+        env->agents[0].actions[0] = ACTION_DOWNRIGHT;
+    } else if ((IsKeyDown(KEY_DOWN) && IsKeyDown(KEY_LEFT))
+            || (IsKeyDown(KEY_S) && IsKeyDown(KEY_A))) {
+        env->agents[0].actions[0] = ACTION_DOWNLEFT;
+    } else if (IsKeyDown(KEY_SPACE) && (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))) {
+        env->agents[0].actions[0] = ACTION_RIGHTFIRE;
+    } else if (IsKeyDown(KEY_SPACE) && (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))) {
+        env->agents[0].actions[0] = ACTION_LEFTFIRE;
+    } else if (IsKeyDown(KEY_SPACE)) {
+        env->agents[0].actions[0] = ACTION_FIRE;
+    } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+        env->agents[0].actions[0] = ACTION_DOWN;
+    } else if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[0] = ACTION_LEFT;
+    } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[0] = ACTION_RIGHT;
+    } else {
+        env->agents[0].actions[0] = ACTION_NOOP;
+    }
+}
+
+void puf_step(Enduro* env) {
+    enduro_human_controls(env);
     env->agents[0].rewards[0] = 0.0f;
     env->elapsedTimeEnv += (1.0f / TARGET_FPS);
     update_time_of_day(env);
@@ -1449,7 +1459,7 @@ void puf_step(Enduro* env) {
 }
 
 void compute_observations(Enduro* env) {
-    obs_t* obs = ((obs_t*)env->agents[0].observations);
+    float* obs = env->agents[0].observations;
     int obs_index = 0;
 
     // Most obs normalized to [0, 1]
@@ -1758,12 +1768,6 @@ Client* make_client(Enduro* env) {
     loadTextures(&client->gameState);
 
     return client;
-}
-
-void close_client(Client* client) {
-    cleanup(&client->gameState);
-    CloseWindow();
-    free(client);
 }
 
 void render_car(GameState* gameState) {
@@ -2110,6 +2114,7 @@ void puf_render(Enduro* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
+    enduro_human_controls(env);
     // Client* client = env->client;
     GameState* gameState = &env->client->gameState;
 
@@ -2278,6 +2283,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "days_failed", log->days_failed);
     dict_set(out, "collisions_player_vs_car", log->collisions_player_vs_car);
     dict_set(out, "collisions_player_vs_road", log->collisions_player_vs_road);
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {

@@ -29,7 +29,7 @@ void demo() {
     env.matching_factor = 1.0f;
 
     for (unsigned i = 0; i < env.num_boids; i++) {
-        env.agents[i].observations = calloc(OBS_SIZE, sizeof(obs_t));
+        env.agents[i].observations = calloc(OBS_SIZE, sizeof(float));
         env.agents[i].actions = (float*)calloc(NUM_ATNS, sizeof(float));
         env.agents[i].rewards = (float*)calloc(1, sizeof(float));
         env.agents[i].terminals = (float*)calloc(1, sizeof(float));

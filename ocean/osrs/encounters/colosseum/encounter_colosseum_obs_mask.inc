@@ -236,7 +236,6 @@ static inline void col_write_nearest_hazard_xy_values(
 }
 
 static void col_refresh_current_obs_slots_ctx(ColosseumState* s, const ColosseumContext* ctx) {
-    (void)ctx;
     for (int i = 0; i < COLO_OBS_NPCS; i++) s->current_obs_slots[i] = -1;
     int slot = 0;
     for (int i = 0; i < COLO_MAX_NPCS && slot < COLO_OBS_NPCS; i++) {

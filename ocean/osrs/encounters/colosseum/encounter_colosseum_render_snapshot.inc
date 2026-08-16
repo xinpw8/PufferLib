@@ -116,7 +116,6 @@ static void col_put_float_ctx(
     const char* key,
     float value
 ) {
-    (void)state;
     ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
     if (strcmp(key, "damage_reward_coeff") == 0) ctx->config.damage_reward_coeff = value;
     else if (strcmp(key, "late_start_supply_fraction_per_wave") == 0) {
@@ -192,25 +191,21 @@ static void col_put_ptr_ctx(
     const char* key,
     void* value
 ) {
-    (void)state;
     ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
     if (strcmp(key, "collision_map") == 0) ctx->collision_map = (const CollisionMap*)value;
     else encounter_abort_unknown_config("colosseum", "ptr", key);
 }
 
 static int col_get_tick_ctx(EncounterState* state, EncounterContext* context) {
-    (void)context;
     return ((ColosseumState*)state)->tick;
 }
 
 static int col_get_winner_ctx(EncounterState* state, EncounterContext* context) {
-    (void)context;
     return ((ColosseumState*)state)->winner;
 }
 
 static void* col_get_log_ctx(EncounterState* state, EncounterContext* context) {
     ColosseumState* s = (ColosseumState*)state;
-    (void)context;
     s->log.episode_return = s->episode_return;
     s->log.episode_length = s->tick;
     s->log.wave_reached = s->wave;
@@ -1102,13 +1097,10 @@ static void col_refresh_after_state_load(ColosseumState* s, ColosseumContext* ct
 }
 
 static size_t col_snapshot_size_ctx(EncounterState* state, EncounterContext* context) {
-    (void)state;
-    (void)context;
     return sizeof(ColoSnapshot);
 }
 
 static void col_snapshot_ctx(EncounterState* state, EncounterContext* context, void* out) {
-    (void)context;
     ColoSnapshot* snap = (ColoSnapshot*)out;
     encounter_snapshot_write_frame(
         snap, sizeof(*snap), COLO_SNAPSHOT_MAGIC, COLO_SNAPSHOT_VERSION,

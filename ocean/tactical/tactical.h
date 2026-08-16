@@ -6,12 +6,12 @@
 #include <time.h>
 #include "raylib.h"
 #include "maps.h"
+typedef unsigned char obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {1}
 #define NUM_ATNS 1
 #define OBS_SIZE (121 * 121 * 4)
-typedef unsigned char obs_t;
 
 
 #define CELL_EMPTY 0
@@ -702,12 +702,12 @@ void init_tactical(Tactical* env) {
 }
 
 void puf_init(Env* env, Dict* kwargs) {
-    (void)kwargs;
     init_tactical(env);
 }
 
 void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
+    dict_set(out, "n", log->n);
 }
 
 void next_player(Tactical* env) {

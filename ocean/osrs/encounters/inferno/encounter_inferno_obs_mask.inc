@@ -724,17 +724,14 @@ static void inf_write_mask(EncounterState* state, float* mask) {
 }
 
 static float inf_get_reward_ctx(EncounterState* state, EncounterContext* context) {
-    (void)context;
     return ((InfernoState*)state)->reward;
 }
 
 static int inf_is_terminal_ctx(EncounterState* state, EncounterContext* context) {
-    (void)context;
     return ((InfernoState*)state)->episode_over;
 }
 
 static int inf_get_entity_count_ctx(EncounterState* state, EncounterContext* context) {
-    (void)context;
     InfernoState* s = (InfernoState*)state;
     int count = 1;
     for (int i = 0; i < INF_MAX_NPCS; i++)
@@ -743,7 +740,6 @@ static int inf_get_entity_count_ctx(EncounterState* state, EncounterContext* con
 }
 
 static void* inf_get_entity_ctx(EncounterState* state, EncounterContext* context, int index) {
-    (void)context;
     InfernoState* s = (InfernoState*)state;
     if (index == 0) return &s->player;
     return NULL;

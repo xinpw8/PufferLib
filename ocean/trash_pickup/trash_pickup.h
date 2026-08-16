@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "raylib.h"
+typedef unsigned char obs_t;
 #include "pufferenv.h"
 
 #define EMPTY 0
@@ -21,8 +22,8 @@
 // Per-agent local crop: (2*sight+1)^2 * 5 channels with sight_range=5
 #define ACT_SIZES {4}
 #define OBS_SIZE 605
+#define PUF_STEPS_PER_SEC 30
 #define NUM_ATNS 1
-typedef unsigned char obs_t;
 
 struct Log {
     float perf;
@@ -156,7 +157,7 @@ void compute_observations(CTrashPickupEnv* env) {
     int per_agent_obs = 5 * channel_offset;
 
     for (int agent_idx = 0; agent_idx < env->num_agents; agent_idx++) {
-        obs_t* obs = (obs_t*)env->agents[agent_idx].observations;
+        obs_t* obs = env->agents[agent_idx].observations;
         if (obs == NULL) {
             continue;
         }
@@ -367,16 +368,22 @@ void initialize_env(CTrashPickupEnv* env) {
     env->total_num_obs = env->num_agents * ((((env->agent_sight_range * 2 + 1) * (env->agent_sight_range * 2 + 1)) * 5));
 }
 
-void allocate(CTrashPickupEnv* env) {
-    initialize_env(env);
-    int per_agent = OBS_SIZE;
-    for (int i = 0; i < env->num_agents; i++) {
-        env->agents[i].observations = calloc(per_agent, sizeof(obs_t));
-        env->agents[i].actions = (float*)calloc(NUM_ATNS, sizeof(float));
-        env->agents[i].rewards = (float*)calloc(1, sizeof(float));
-        env->agents[i].terminals = (float*)calloc(1, sizeof(float));
-        env->agents[i].action_mask = NULL;
-        env->agents[i].policy = 0;
+// Hold Left Shift + WASD/arrows for agent 0.
+static void trash_pickup_human_controls(CTrashPickupEnv *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+        env->agents[0].actions[0] = ACTION_UP;
+    }
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[0] = ACTION_LEFT;
+    }
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[0] = ACTION_RIGHT;
+    }
+    if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+        env->agents[0].actions[0] = ACTION_DOWN;
     }
 }
 
@@ -425,16 +432,6 @@ void puf_close(CTrashPickupEnv* env) {
     free(env->entities);
 }
 
-void free_allocated(CTrashPickupEnv* env) {
-    for (int i = 0; i < env->num_agents; i++) {
-        free(env->agents[i].observations);
-        free(env->agents[i].actions);
-        free(env->agents[i].rewards);
-        free(env->agents[i].terminals);
-    }
-    puf_close(env);
-}
-
 const Color PUFF_RED = (Color){187, 0, 0, 255};
 const Color PUFF_CYAN = (Color){0, 187, 187, 255};
 const Color PUFF_WHITE = (Color){241, 241, 241, 241};
@@ -468,6 +465,8 @@ void puf_render(CTrashPickupEnv* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+
+    trash_pickup_human_controls(env);
 
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);
@@ -598,6 +597,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
     dict_set(out, "trash_collected", log->trash_collected);
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {

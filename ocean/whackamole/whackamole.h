@@ -3,19 +3,16 @@
 #include <math.h>
 #include <time.h>
 #include "raylib.h"
-#include "pufferenv.h"
-
-#define ACT_SIZES {TOTAL_CELLS}
-#define OBS_SIZE TOTAL_CELLS
-#define NUM_ATNS 1
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
 typedef float obs_t;
-#endif
+#include "pufferenv.h"
 
 #define GRID_SIZE 5
 #define TOTAL_CELLS (GRID_SIZE * GRID_SIZE)
+#define ACT_SIZES {TOTAL_CELLS}
+#define OBS_SIZE TOTAL_CELLS
+#define NUM_ATNS 1
+#define PUF_STEPS_PER_SEC 2
+
 #define CELL_SIZE 128
 #define NOOP -1.0f
 #define ATTEMPTS_PER_EPISODE 3
@@ -61,10 +58,11 @@ void add_log(Whackamole* env) {
 }
 
 void puf_reset(Whackamole* env) {
-    memset(((obs_t*)env->agents[0].observations), 0, sizeof(float) * TOTAL_CELLS);
+    obs_t* obs = env->agents[0].observations;
+    memset(obs, 0, sizeof(float) * TOTAL_CELLS);
     
     int mole_idx = rand_r(&env->rng) % TOTAL_CELLS;
-    ((obs_t*)env->agents[0].observations)[mole_idx] = 1.0f;
+    obs[mole_idx] = 1.0f;
     env->mole_r = mole_idx / GRID_SIZE;
     env->mole_c = mole_idx % GRID_SIZE;
     
@@ -78,7 +76,24 @@ void puf_reset(Whackamole* env) {
     }
 }
 
+// Hold Left Shift + click a cell.
+static void whackamole_human_controls(Whackamole *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    env->agents[0].actions[0] = NOOP;
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        Vector2 mouse = GetMousePosition();
+        int c = (int)(mouse.x / CELL_SIZE);
+        int r = (int)(mouse.y / CELL_SIZE);
+        if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+            env->agents[0].actions[0] = (float)(r * GRID_SIZE + c);
+        }
+    }
+}
+
 void puf_step(Whackamole* env) {
+    obs_t* obs = env->agents[0].observations;
     env->tick += 1;
     
     int action = (int)env->agents[0].actions[0];
@@ -124,8 +139,8 @@ void puf_step(Whackamole* env) {
         env->agents[0].terminals[0] = 0.0f;
         // Move puffre for next attempt
         int new_idx = rand_r(&env->rng) % TOTAL_CELLS;
-        ((obs_t*)env->agents[0].observations)[mole_idx] = 0.0f;
-        ((obs_t*)env->agents[0].observations)[new_idx] = 1.0f;
+        obs[mole_idx] = 0.0f;
+        obs[new_idx] = 1.0f;
         env->mole_r = new_idx / GRID_SIZE;
         env->mole_c = new_idx % GRID_SIZE;
     }
@@ -136,10 +151,16 @@ void puf_render(Whackamole* env) {
         InitWindow(CELL_SIZE * GRID_SIZE, CELL_SIZE * GRID_SIZE, "PufferLib WhacKe-a-PUFFER");
         SetTargetFPS(60);
         env->client = (Client*)calloc(1, sizeof(Client));
-        env->client->puffer = LoadTexture("pufferfish.png");
+        env->client->puffer = LoadTexture("resources/whackamole/pufferfish.png");
         if (env->client->puffer.id == 0) {
             env->client->puffer = LoadTexture("ocean/whackamole/pufferfish.png");
-    }
+        }
+        if (env->client->puffer.id == 0) {
+            env->client->puffer = LoadTexture("pufferfish.png");
+        }
+        if (env->client->puffer.id == 0) {
+            env->client->puffer = LoadTexture("resources/shared/puffers_128.png");
+        }
         env->client->show_flash = false;
         env->client->flash_timer = 0;
     }
@@ -147,6 +168,7 @@ void puf_render(Whackamole* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+    whackamole_human_controls(env);
     
     BeginDrawing();
     ClearBackground((Color){34, 139, 34, 255});
@@ -199,7 +221,6 @@ void puf_close(Whackamole* env) {
             UnloadTexture(env->client->puffer);
         }
         free(env->client);
-        env->client = NULL;
     }
     if (IsWindowReady()) {
         CloseWindow();
@@ -212,10 +233,10 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {
-    (void)kwargs;
     env->num_agents = 1;
     env->hits = 0;
     env->tick = 0;

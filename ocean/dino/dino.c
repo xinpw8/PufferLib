@@ -17,20 +17,17 @@ int main() {
         .rate_increment_rate = 600,
     };
     env.client = make_client(&env);
+    env.agents[0].observations = (float*)calloc(OBS_SIZE, sizeof(float));
+    env.agents[0].actions = (float*)calloc(1, sizeof(float));
+    env.agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env.agents[0].terminals = (float*)calloc(1, sizeof(float));
     
     c_init(&env);
     puf_reset(&env);
     puf_render(&env);
 
     while (!WindowShouldClose()) {
-        env.agents[0].actions[0] = rand() % 3;
-        if(IsKeyDown(KEY_LEFT_SHIFT)){
-            env.agents[0].actions[0] = (float) NOOP;
-            if(IsKeyDown(KEY_UP)) env.agents[0].actions[0] = (float) JUMP;
-            if(IsKeyDown(KEY_DOWN)) env.agents[0].actions[0] = (float) CROUCH;
-        } else {
-            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
-        }
+        forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
         puf_step(&env);
         puf_render(&env);
     }

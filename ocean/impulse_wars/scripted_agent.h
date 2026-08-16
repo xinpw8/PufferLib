@@ -2,19 +2,18 @@
 #define IMPULSE_WARS_SCRIPTED_BOT_H
 
 #include "game.h"
-#include "types.h"
 
-const uint8_t NUM_NEAR_WALLS = 3;
-const uint8_t NUM_NEAR_PICKUPS = 1;
+static const uint8_t NUM_NEAR_WALLS = 3;
+static const uint8_t NUM_NEAR_PICKUPS = 1;
 
-const float WALL_CHECK_DISTANCE_SQUARED = SQUARED(6.0f);
-const float WALL_AVOID_DISTANCE = 4.0f;
-const float WALL_DANGER_DISTANCE = 3.0f;
-const float WALL_BURST_CHECK_DISTANCE = 5.0f;
-const float WALL_BURST_CHECK_SPEED = 20.0f;
-const float BURST_MIN_RADIUS_SQUARED = SQUARED(DRONE_BURST_RADIUS_MIN);
-const float STABILIZE_MOVE_SPEED = 5.0f;
-const float SHOTGUN_DANGER_DISTANCE = 4.0f;
+static const float WALL_CHECK_DISTANCE_SQUARED = SQUARED(6.0f);
+static const float WALL_AVOID_DISTANCE = 4.0f;
+static const float WALL_DANGER_DISTANCE = 3.0f;
+static const float WALL_BURST_CHECK_DISTANCE = 5.0f;
+static const float WALL_BURST_CHECK_SPEED = 20.0f;
+static const float BURST_MIN_RADIUS_SQUARED = SQUARED(DRONE_BURST_RADIUS_MIN);
+static const float STABILIZE_MOVE_SPEED = 5.0f;
+static const float SHOTGUN_DANGER_DISTANCE = 4.0f;
 
 void addDebugPoint(iwEnv *e, b2Vec2 pos, float size, Color color) {
 #ifndef NDEBUG

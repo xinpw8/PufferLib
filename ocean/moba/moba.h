@@ -8,6 +8,7 @@
 #include "game_map.h"
 
 #include "raylib.h"
+typedef unsigned char obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {7, 7, 3, 2, 2, 2}
@@ -16,7 +17,6 @@
 #define MAX_MOBA_AGENTS 10
 
 typedef Env MOBA;
-typedef unsigned char obs_t;
 
 #if defined(PLATFORM_DESKTOP)
     #define GLSL_VERSION 330
@@ -80,6 +80,10 @@ const float WAYPOINTS[][20][2] = {{{96.26153846153846, 14.04615384615385}, {93.6
 const int WAYPOINTS_N[6] = {14, 10, 13, 9, 9, 12};
 
 #define LOG_BUFFER_SIZE 1024
+#define FRAMES 12
+#ifdef PUFFERCPU_EVAL_MAIN
+#define PUF_EVAL_SHOULD_FORWARD
+#endif
 
 typedef struct PlayerLog PlayerLog;
 struct PlayerLog {
@@ -382,6 +386,7 @@ struct Env {
 
     CachedRNG *path_rng;
     unsigned int rng;
+    int tick_frames_left;
 };
 
 void add_log(MOBA* env, int radiant_victory, int dire_victory) {
@@ -439,23 +444,6 @@ void add_log(MOBA* env, int radiant_victory, int dire_victory) {
     log->radiant_support_usage_e = radiant_support->usage_e;
 }
  
-void puf_close(MOBA* env) {
-    free(env->entities);
-    free(env->reward_components);
-    free(env->map->grid);
-    free(env->map->pids);
-    free(env->map);
-    free(env->orig_grid);
-    free(env->path_rng->rng);
-    free(env->path_rng);
-    free(env->ai_path_buffer);
-}
-
-void free_allocated_moba(MOBA* env) {
-    free(env->ai_paths);
-    puf_close(env);
-}
-
 void compute_observations(MOBA* env) {
     int agents = (env->script_opponents) ? NUM_PLAYERS/2 : NUM_PLAYERS;
     // per-agent obs zeroed below
@@ -466,7 +454,7 @@ void compute_observations(MOBA* env) {
     // per-agent observations
     for (int pid = 0; pid < agents; pid++) {
         // Does this copy?
-        unsigned char* obs_map = (unsigned char*)env->agents[pid].observations;
+        obs_t* obs_map = env->agents[pid].observations;
         if (obs_map) memset(obs_map, 0, OBS_SIZE);
         unsigned char* obs_extra = obs_map + 11*11*4;
 
@@ -1793,21 +1781,6 @@ void init_moba(MOBA* env, unsigned char* game_map_npy) {
     }
 }
 
-MOBA* allocate_moba(MOBA* env) {
-    // TODO: Don't hardcode sizes
-    int agents = (env->script_opponents) ? NUM_PLAYERS/2 : NUM_PLAYERS;
-    /* truncations removed */
-
-    env->ai_path_buffer = (int*)calloc(3*8*128*128, sizeof(int));
-    env->ai_paths = (unsigned char*)calloc(128*128*128*128, sizeof(unsigned char));
-    for (int i = 0; i < 128*128*128*128; i++) {
-        env->ai_paths[i] = 255;
-    }
-
-    init_moba(env, game_map_npy);
-    return env;
-}
- 
 void puf_reset(MOBA* env) {
     //map->pids[:] = -1
     //randomize_tower_hp(env);
@@ -1879,6 +1852,15 @@ void puf_reset(MOBA* env) {
 }
 
 void puf_step(MOBA* env) {
+#ifdef PUFFERCPU_EVAL_MAIN
+    // Web/--cpu: one rAF per visual frame. Hold the cell and lerp for
+    // FRAMES-1 extra draws so motion isn't a 12-swap dump in one tick.
+    if (env->tick_frames_left > 0) {
+        env->tick_frames_left--;
+        return;
+    }
+    env->tick_frames_left = FRAMES - 1;
+#endif
     for (int pid = 0; pid < NUM_ENTITIES; pid++) {
         Entity* entity = &env->entities[pid];
         entity->target_pid = -1;
@@ -2118,7 +2100,6 @@ GameRenderer* init_game_renderer(int cell_size, int width, int height) {
     return renderer;
 }
 
-#define FRAMES 12
 void draw_bars(Entity* entity, int x, int y, int width, int height, bool draw_text) {
     float health_bar = entity->health / entity->max_health;
     float mana_bar = entity->mana / entity->max_mana;
@@ -2155,7 +2136,17 @@ void puf_render(MOBA* env) {
         env->client = init_game_renderer(32, 41, 23);
     }
     GameRenderer* renderer = env->client;
+#ifdef PUFFERCPU_EVAL_MAIN
+    int elapsed = (FRAMES - 1) - env->tick_frames_left;
+    if (elapsed < 0) {
+        elapsed = 0;
+    }
+    int frame = elapsed;
+    float tick_frac = elapsed / (float)FRAMES;
+#else
     int frame = renderer->frame;
+    float tick_frac = (float)frame / (float)FRAMES;
+#endif
 
     Map* map = env->map;
     Entity* my_player = &env->entities[renderer->human_player];
@@ -2165,8 +2156,6 @@ void puf_render(MOBA* env) {
     renderer->height = GetScreenHeight() / ts;
     renderer->shader_resolution[0] = renderer->width;
     renderer->shader_resolution[1] = renderer->height;
-
-    float tick_frac = (float)frame / (float)FRAMES;
 
     float fmain_r = my_player->last_y + tick_frac*(my_player->y - my_player->last_y);
     float fmain_c = my_player->last_x + tick_frac*(my_player->x - my_player->last_x);
@@ -2426,11 +2415,13 @@ void puf_render(MOBA* env) {
     DrawText(TextFormat("Move: %i", player->move_timer), 25*ts, hud_y, 20, (player->move_timer > 0) ? on_color : off_color);
 
     EndDrawing();
+#ifndef PUFFERCPU_EVAL_MAIN
     renderer->frame += 1;
     if (renderer->frame % FRAMES == 0) {
         renderer->frame = 0;
     }
-    }
+#endif
+}
 
 void close_game_renderer(GameRenderer* renderer) {
     UnloadImage(renderer->shader_background);
@@ -2440,10 +2431,20 @@ void close_game_renderer(GameRenderer* renderer) {
     free(renderer);
 }
 
-#ifndef GAME_MAP_INCLUDED
-#define GAME_MAP_INCLUDED
-#include "game_map.h"
-#endif
+void puf_close(MOBA* env) {
+    if (env->client)
+        close_game_renderer(env->client);
+    free(env->entities);
+    free(env->reward_components);
+    free(env->map->grid);
+    free(env->map->pids);
+    free(env->map);
+    free(env->orig_grid);
+    free(env->path_rng->rng);
+    free(env->path_rng);
+    free(env->ai_path_buffer);
+    free(env->ai_paths);
+}
 
 void puf_init(Env* env, Dict* kwargs) {
     env->vision_range = dict_get(kwargs, "vision_range");
@@ -2485,5 +2486,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "dire_level", log->dire_level);
     dict_set(out, "radiant_towers_alive", log->radiant_towers_alive);
     dict_set(out, "dire_towers_alive", log->dire_towers_alive);
+    dict_set(out, "n", log->n);
 }
 

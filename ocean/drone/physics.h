@@ -1,7 +1,5 @@
 // SIMD physics kernel
 
-#pragma once
-
 #include <string.h>
 
 #include "dronelib.h"

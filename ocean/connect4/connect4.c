@@ -1,8 +1,5 @@
 #include "connect4.h"
 #include "puffercpu.h"
-#include "time.h"
-
-const unsigned char NOOP = 8;
 
 void demo() {
     Weights* weights = load_weights("resources/connect4/connect4_weights.bin");
@@ -11,38 +8,33 @@ void demo() {
 
     Connect4 env = {
     };
-    allocate_cconnect4(&env);
+    env.num_agents = 1;
+    env.agents[0].observations = (float*)calloc(42, sizeof(float));
+    env.agents[0].actions = (float*)calloc(1, sizeof(float));
+    env.agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env.agents[0].terminals = (float*)calloc(1, sizeof(float));
     puf_reset(&env);
- 
+
     env.client = make_client();
 
     int tick = 0;
     while (!WindowShouldClose()) {
-        env.agents[0].actions[0] = NOOP;
-        // user inputs 1 - 7 key pressed
         if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            if(IsKeyPressed(KEY_ONE)) env.agents[0].actions[0] = 0;
-            if(IsKeyPressed(KEY_TWO)) env.agents[0].actions[0] = 1;
-            if(IsKeyPressed(KEY_THREE)) env.agents[0].actions[0] = 2;
-            if(IsKeyPressed(KEY_FOUR)) env.agents[0].actions[0] = 3;
-            if(IsKeyPressed(KEY_FIVE)) env.agents[0].actions[0] = 4;
-            if(IsKeyPressed(KEY_SIX)) env.agents[0].actions[0] = 5;
-            if(IsKeyPressed(KEY_SEVEN)) env.agents[0].actions[0] = 6;
+            puf_step(&env);
         } else if (tick % 30 == 0) {
             forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
-        }
-
-        tick = (tick + 1) % 60;
-        if (env.agents[0].actions[0] >= 0 && env.agents[0].actions[0] <= 6) {
             puf_step(&env);
         }
-
+        tick = (tick + 1) % 60;
         puf_render(&env);
     }
     free_puffernet(net);
     free(weights);
-    close_client(env.client);
-    free_allocated_cconnect4(&env);
+    puf_close(&env);
+    free(env.agents[0].observations);
+    free(env.agents[0].actions);
+    free(env.agents[0].rewards);
+    free(env.agents[0].terminals);
 }
 
 int main() {

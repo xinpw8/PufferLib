@@ -57,14 +57,40 @@ static void setup_task(DroneEnv* env, TaskType task) {
     puf_reset(env);
 }
 
-static void step_realtime(DroneEnv* env, PufferNet* net, float* observations, float* actions) {
+// Same as train: one forward + one ACTION_DT tick.
+static void step_once(DroneEnv* env, PufferNet* net, float* observations, float* actions) {
+    forward_puffernet(net, observations, actions);
+    puf_step(env);
+}
+
+// 100 Hz of (forward+tick). Display is rAF. Re-forward every tick.
+static void step_display_frame(DroneEnv* env, PufferNet* net, float* observations, float* actions) {
+    static double prev = -1.0;
     static double accum = 0.0;
-    accum += GetFrameTime();
-    if (accum > 0.25) accum = 0.25;
-    while (accum >= ACTION_DT) {
-        forward_puffernet(net, observations, actions);
-        puf_step(env);
-        accum -= ACTION_DT;
+#ifdef __EMSCRIPTEN__
+    double now = emscripten_get_now() * 0.001;
+#else
+    double now = GetTime();
+#endif
+    int n = 1;
+    if (prev >= 0.0) {
+        double dt = now - prev;
+        if (dt <= 0.0 || dt > 0.25) {
+            dt = ACTION_DT;
+        }
+        accum += dt;
+        n = 0;
+        while (accum >= ACTION_DT && n < 5) {
+            accum -= ACTION_DT;
+            n++;
+        }
+        if (n < 1) {
+            n = 1;
+        }
+    }
+    prev = now;
+    for (int i = 0; i < n; i++) {
+        step_once(env, net, observations, actions);
     }
 }
 
@@ -107,7 +133,7 @@ void emscriptenStep(void* e) {
     if (tab_swap_pressed()) {
         setup_task(args->env, next_demo_task(args->env->task));
     }
-    step_realtime(args->env, args->net, args->observations, args->actions);
+    step_display_frame(args->env, args->net, args->observations, args->actions);
     puf_render(args->env);
 }
 #endif
@@ -261,7 +287,7 @@ void demo(int gif_mode, const char* gif_path) {
     // Physics + drones allocated once; setup_task owns task config/state
     init(&env);
 
-    obs_t* observations = (obs_t*)calloc(num_agents * OBS_SIZE, sizeof(obs_t));
+    float* observations = (float*)calloc(num_agents * OBS_SIZE, sizeof(float));
     float* actions = (float*)calloc(num_agents * NUM_ATNS, sizeof(float));
     float* rewards = (float*)calloc(num_agents, sizeof(float));
     float* terminals = (float*)calloc(num_agents, sizeof(float));
@@ -289,7 +315,9 @@ void demo(int gif_mode, const char* gif_path) {
 
     setup_task(&env, TASK_RACE);
     puf_render(&env);
+#ifndef __EMSCRIPTEN__
     SetTargetFPS(60);
+#endif
 
 #ifdef __EMSCRIPTEN__
     static WebRenderArgs args;
@@ -303,7 +331,7 @@ void demo(int gif_mode, const char* gif_path) {
         if (tab_swap_pressed()) {
             setup_task(&env, next_demo_task(env.task));
         }
-        step_realtime(&env, net, (float*)observations, actions);
+        step_display_frame(&env, net, (float*)observations, actions);
         puf_render(&env);
     }
 

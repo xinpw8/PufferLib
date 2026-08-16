@@ -1,5 +1,4 @@
-#include "env.h"
-#include "render.h"
+#include "impulse_wars.h"
 
 #ifdef __EMSCRIPTEN__
 void emscriptenStep(void *e) {
@@ -13,12 +12,21 @@ int main(void) {
 
     iwEnv *e = fastCalloc(1, sizeof(iwEnv));
 
-    posix_memalign((void **)&e->observations, sizeof(void *), alignedSize(NUM_DRONES * obsBytes(NUM_DRONES), sizeof(float)));
+    posix_memalign((void **)&e->observations, sizeof(void *),
+        alignedSize(NUM_DRONES * obsBytes(NUM_DRONES), sizeof(float)));
     e->rewards = fastCalloc(NUM_DRONES, sizeof(float));
     e->actions = fastCalloc(NUM_DRONES * CONTINUOUS_ACTION_SIZE, sizeof(float));
     e->masks = fastCalloc(NUM_DRONES, sizeof(uint8_t));
     e->terminals = fastCalloc(NUM_DRONES, sizeof(uint8_t));
     e->truncations = fastCalloc(NUM_DRONES, sizeof(uint8_t));
+    for (int i = 0; i < NUM_DRONES; i++) {
+        e->agents[i].observations = e->observations
+            + (size_t)i * obsBytes(NUM_DRONES);
+        e->agents[i].actions = e->actions + (size_t)i * CONTINUOUS_ACTION_SIZE;
+        e->agents[i].rewards = e->rewards + i;
+        e->agents[i].action_mask = NULL;
+        e->agents[i].policy = 0;
+    }
 
     rayClient *client = createRayClient();
     e->client = client;

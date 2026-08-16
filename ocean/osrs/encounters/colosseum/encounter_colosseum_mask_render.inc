@@ -99,17 +99,14 @@ static void col_write_mask_ctx(EncounterState* state, EncounterContext* context,
 }
 
 static float col_get_reward_ctx(EncounterState* state, EncounterContext* context) {
-    (void)context;
     return ((ColosseumState*)state)->reward;
 }
 
 static int col_is_terminal_ctx(EncounterState* state, EncounterContext* context) {
-    (void)context;
     return ((ColosseumState*)state)->episode_over;
 }
 
 static int col_get_entity_count_ctx(EncounterState* state, EncounterContext* context) {
-    (void)context;
     ColosseumState* s = (ColosseumState*)state;
     int count = 1;
     for (int i = 0; i < COLO_MAX_NPCS; i++)
@@ -118,7 +115,6 @@ static int col_get_entity_count_ctx(EncounterState* state, EncounterContext* con
 }
 
 static void* col_get_entity_ctx(EncounterState* state, EncounterContext* context, int index) {
-    (void)context;
     ColosseumState* s = (ColosseumState*)state;
     if (index == 0) return &s->player;
     return NULL;

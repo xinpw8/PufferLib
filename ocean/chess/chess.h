@@ -8,13 +8,14 @@
 #include <time.h>
 #include <unistd.h> 
 #include "raylib.h"
+typedef uint8_t obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {97}
 #define NUM_ATNS 1
+#define PUF_STEPS_PER_SEC 1
 #define MY_VEC_INIT
 #define MY_VEC_CLOSE
-typedef uint8_t obs_t;
 
 typedef uint64_t Bitboard;
 typedef uint64_t Key;
@@ -536,7 +537,7 @@ typedef Env Chess;
 
 static void chess_sync_agent_ptrs(Chess* env) {
     for (int s = 0; s < env->num_agents; s++) {
-        env->obs_ptr[s] = (uint8_t*)env->agents[s].observations;
+        env->obs_ptr[s] = env->agents[s].observations;
         env->action_mask_ptr[s] = env->agents[s].action_mask;
         env->action_ptr[s] = env->agents[s].actions;
         env->reward_ptr[s] = env->agents[s].rewards;
@@ -2303,8 +2304,93 @@ static Move maia_get_move(Chess* env) {
     }
 }
 
+#ifdef PUFFERCPU_EVAL_MAIN
+static int chess_action_is_legal(Chess* env, int mover_idx, int action) {
+    if (action < 0 || action >= PASS_ACTION) {
+        return 0;
+    }
+    int is_promo = (action >= 64 && action < 96);
+    if (env->pick_phase[mover_idx] == 0) {
+        if (is_promo) {
+            return 0;
+        }
+        Square sq = (env->pos.sideToMove == CHESS_BLACK)
+            ? (Square)(action ^ 56) : (Square)action;
+        for (int i = 0; i < env->legal_moves.count; i++) {
+            if (from_sq(env->legal_moves.moves[i].move) == sq) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+    if (is_promo) {
+        int promo_row = (action - 64) / 8;
+        int desired_file = (action - 64) % 8;
+        int desired_promo = QUEEN - promo_row;
+        for (int i = 0; i < env->valid_destinations[mover_idx].count; i++) {
+            Move m = env->valid_destinations[mover_idx].moves[i].move;
+            if (type_of_m(m) == PROMOTION
+                    && (int)promotion_type(m) == desired_promo
+                    && (int)file_of(to_sq(m)) == desired_file) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+    Square sq = (env->pos.sideToMove == CHESS_BLACK)
+        ? (Square)(action ^ 56) : (Square)action;
+    for (int i = 0; i < env->valid_destinations[mover_idx].count; i++) {
+        if (to_sq(env->valid_destinations[mover_idx].moves[i].move) == sq) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int chess_pick_legal_action(Chess* env, int mover_idx) {
+    int flip = (env->pos.sideToMove == CHESS_BLACK) ? 56 : 0;
+    if (env->pick_phase[mover_idx] == 0) {
+        if (env->legal_moves.count <= 0) {
+            return PASS_ACTION;
+        }
+        int idx = rand_r(&env->rng) % env->legal_moves.count;
+        return (int)(from_sq(env->legal_moves.moves[idx].move) ^ flip);
+    }
+    int n = env->valid_destinations[mover_idx].count;
+    if (n <= 0) {
+        return PASS_ACTION;
+    }
+    int idx = rand_r(&env->rng) % n;
+    Move m = env->valid_destinations[mover_idx].moves[idx].move;
+    if (type_of_m(m) == PROMOTION) {
+        return 64 + (QUEEN - (int)promotion_type(m)) * 8 + file_of(to_sq(m));
+    }
+    return (int)(to_sq(m) ^ flip);
+}
+
+static void chess_eval_autostart(Chess* env) {
+    if (env->mode == CHESS_MODE_HUMAN || env->mode == CHESS_MODE_HUMAN_RANDOM) {
+        env->mode = CHESS_MODE_RANDOM;
+    }
+    env->human_color = 0;
+    env->log_pgn = 0;
+    env->log_pgn_choice_made = 1;
+    env->show_game_end_popup = 0;
+    if (env->rng == 0) {
+        env->rng = (unsigned int)time(NULL);
+        if (env->rng == 0) {
+            env->rng = 1u;
+        }
+    }
+}
+#endif
+
 void puf_reset(Chess* env) {
     chess_sync_agent_ptrs(env);
+#ifdef PUFFERCPU_EVAL_MAIN
+    char prev_result[32];
+    memcpy(prev_result, env->last_result, sizeof(prev_result));
+#endif
     env->tick = 0;
     env->chess_moves = 0;
     env->game_result = 0;
@@ -2315,6 +2401,11 @@ void puf_reset(Chess* env) {
     env->pgn_move_count = 0;
     env->show_game_end_popup = 0;
     env->has_last_move_highlight = 0;
+#ifdef PUFFERCPU_EVAL_MAIN
+    memcpy(env->last_result, prev_result, sizeof(env->last_result));
+#else
+    env->last_result[0] = '\0';
+#endif
     clear_player_selection(env, 0);
     clear_player_selection(env, 1);
     env->valid_from_mask[0] = 0;
@@ -2323,11 +2414,25 @@ void puf_reset(Chess* env) {
     memset(env->white_captured, 0, sizeof(env->white_captured));
     memset(env->black_captured, 0, sizeof(env->black_captured));
     
+#ifdef PUFFERCPU_EVAL_MAIN
+    chess_eval_autostart(env);
+    env->learner_color = (int)(rand_r(&env->rng) & 1u);
+    if (env->mode == CHESS_MODE_SELFPLAY) {
+        if (rand_r(&env->rng) & 1u) {
+            env->slot_for_color[CHESS_WHITE] = 1;
+            env->slot_for_color[CHESS_BLACK] = 0;
+        } else {
+            env->slot_for_color[CHESS_WHITE] = 0;
+            env->slot_for_color[CHESS_BLACK] = 1;
+        }
+    }
+#else
     if (env->mode == CHESS_MODE_HUMAN || env->mode == CHESS_MODE_HUMAN_RANDOM) {
         env->human_color = -1;
     } else if (env->mode != CHESS_MODE_SELFPLAY) {
         env->learner_color = 1 - env->learner_color;
     }
+#endif
     env->maia_phase = 0;
     
     if (env->fen_curriculum != NULL && env->num_fens > 0) {
@@ -2358,11 +2463,14 @@ void puf_step(Chess* env) {
     if (env->render_paused && env->client != NULL) {
         return;
     }
+#ifndef PUFFERCPU_EVAL_MAIN
     if ((env->mode == CHESS_MODE_HUMAN || env->mode == CHESS_MODE_HUMAN_RANDOM)
             && env->human_color == -1) {
         return;
     }
+#endif
     
+#ifndef PUFFERCPU_EVAL_MAIN
     if (env->mode == CHESS_MODE_SELFPLAY && !env->log_pgn_choice_made) {
         if (env->client != NULL) {
             return;
@@ -2370,6 +2478,7 @@ void puf_step(Chess* env) {
         env->log_pgn = 0;
         env->log_pgn_choice_made = 1;
     }
+#endif
 
     if ((env->mode == CHESS_MODE_HUMAN || env->mode == CHESS_MODE_HUMAN_RANDOM)
             && env->show_game_end_popup) {
@@ -2431,6 +2540,12 @@ void puf_step(Chess* env) {
             action = -1;
             *env->action_ptr[0] = -1;
         }
+#ifdef PUFFERCPU_EVAL_MAIN
+        if (env->legal_moves.count > 0
+                && !chess_action_is_legal(env, mover_idx, action)) {
+            action = chess_pick_legal_action(env, mover_idx);
+        }
+#endif
 
         mover = env->pos.sideToMove;
         mover_idx = (int)mover;
@@ -2785,8 +2900,12 @@ static void draw_piece(Chess* env, Piece pc, int file, int rank, int cell_size) 
 static void init_chess_client(Chess* env, int cell_size) {
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     int board_size = 8 * cell_size;
-    InitWindow(board_size, board_size + 140, "PufferLib Chess - AI vs Opponent");
+    InitWindow(board_size, board_size + 140, "PufferLib Chess");
+#ifdef PUFFERCPU_EVAL_MAIN
+    SetTargetFPS(60);
+#else
     SetTargetFPS(env->render_fps > 0 ? env->render_fps : 30);
+#endif
     env->client = (Client*)calloc(1, sizeof(Client));
     env->client->cell_size = cell_size;
     int font_loaded = 0;
@@ -2798,30 +2917,46 @@ void puf_render(Chess* env) {
     const int cell_size = 64;
     const int board_size = 8 * cell_size;
     const int scoreboard_y = board_size + 10;
+#ifdef PUFFERCPU_EVAL_MAIN
+    static int speed_idx = 4;
+#else
     static int speed_idx = 3;
-    static const int SPEED_FPS[] = {2, 5, 10, 30, 60, 120, 0};
     static const int NUM_SPEEDS = 7;
+#endif
+    static const int SPEED_FPS[] = {2, 5, 10, 30, 60, 120, 0};
     static int selected_sq = -1;
     
     if (env->client == NULL) {
         init_chess_client(env, cell_size);
     }
 
+#ifndef PUFFERCPU_EVAL_MAIN
 human_wait_retry:
+#endif
     if (IsKeyDown(KEY_ESCAPE) || WindowShouldClose()) { CloseWindow(); exit(0); }
     
-    int flip_board = ((env->mode == CHESS_MODE_HUMAN || env->mode == CHESS_MODE_HUMAN_RANDOM)
-        && env->human_color == CHESS_BLACK) ? 1 : 0;
+    int flip_board = 0;
+    if ((env->mode == CHESS_MODE_HUMAN || env->mode == CHESS_MODE_HUMAN_RANDOM)
+            && env->human_color == CHESS_BLACK) {
+        flip_board = 1;
+    }
+#ifdef PUFFERCPU_EVAL_MAIN
+    if (env->learner_color == CHESS_BLACK) {
+        flip_board = 1;
+    }
+#endif
     Vector2 mouse = GetMousePosition();
     int clicked = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
     
     if (IsKeyPressed(KEY_SPACE)) env->render_paused = !env->render_paused;
+#ifndef PUFFERCPU_EVAL_MAIN
     if (IsKeyPressed(KEY_EQUAL) || IsKeyPressed(KEY_KP_ADD)) {
         if (speed_idx < NUM_SPEEDS - 1) { speed_idx++; SetTargetFPS(SPEED_FPS[speed_idx]); }
     }
     if (IsKeyPressed(KEY_MINUS) || IsKeyPressed(KEY_KP_SUBTRACT)) {
         if (speed_idx > 0) { speed_idx--; SetTargetFPS(SPEED_FPS[speed_idx]); }
     }
+#endif
     
     if (!env->render_paused
             && (env->mode == CHESS_MODE_HUMAN || env->mode == CHESS_MODE_HUMAN_RANDOM)
@@ -2863,8 +2998,12 @@ human_wait_retry:
     BeginDrawing();
     ClearBackground((Color){40, 40, 40, 255});
     
+#ifdef PUFFERCPU_EVAL_MAIN
+    if (0) {
+#else
     if ((env->mode == CHESS_MODE_HUMAN || env->mode == CHESS_MODE_HUMAN_RANDOM)
             && env->show_game_end_popup) {
+#endif
         int pw = 300, ph = 200;
         int px = (board_size - pw) / 2, py = (board_size - ph) / 2;
         DrawRectangle(px, py, pw, ph, (Color){60, 60, 60, 255});
@@ -2942,20 +3081,26 @@ human_wait_retry:
             }
         }
     } else {
+        int highlight_sq = selected_sq;
+        int mover_idx = (int)env->pos.sideToMove;
+        if (highlight_sq < 0 && env->pick_phase[mover_idx]
+                && env->selected_square[mover_idx] != SQ_NONE) {
+            highlight_sq = (int)env->selected_square[mover_idx];
+        }
         Bitboard selected_destinations = 0;
-        if (selected_sq != -1) {
+        if (highlight_sq != -1) {
             for (int i = 0; i < env->legal_moves.count; i++) {
                 Move m = env->legal_moves.moves[i].move;
-                if ((int)from_sq(m) == selected_sq) {
+                if ((int)from_sq(m) == highlight_sq) {
                     selected_destinations |= sq_bb(to_sq(m));
                 }
             }
         }
         int selected_file = -1;
         int selected_rank = -1;
-        if (selected_sq != -1) {
-            selected_file = file_of((Square)selected_sq);
-            selected_rank = rank_of((Square)selected_sq);
+        if (highlight_sq != -1) {
+            selected_file = file_of((Square)highlight_sq);
+            selected_rank = rank_of((Square)highlight_sq);
         }
         for (int rank = 0; rank < 8; rank++) {
             for (int file = 0; file < 8; file++) {
@@ -2976,10 +3121,10 @@ human_wait_retry:
                     }
                 }
 
-                if (selected_sq != -1 && selected_file == file && selected_rank == rank) {
+                if (highlight_sq != -1 && selected_file == file && selected_rank == rank) {
                     DrawRectangleLines(draw_x, draw_y, cell_size, cell_size, (Color){255, 215, 0, 255});
                 }
-                if (selected_sq != -1 && (selected_destinations & sq_bb(make_square(file, rank)))) {
+                if (highlight_sq != -1 && (selected_destinations & sq_bb(make_square(file, rank)))) {
                     DrawRectangleLines(draw_x + 2, draw_y + 2, cell_size - 4, cell_size - 4, (Color){0, 200, 0, 255});
                 }
             }
@@ -3129,13 +3274,17 @@ human_wait_retry:
         }
         
         if (clicked) {
+#ifndef PUFFERCPU_EVAL_MAIN
             if (CheckCollisionPointRec(mouse, minus_btn)) {
                 if (speed_idx > 0) { speed_idx--; SetTargetFPS(SPEED_FPS[speed_idx]); }
             }
+#endif
             if (CheckCollisionPointRec(mouse, pause_btn)) env->render_paused = !env->render_paused;
+#ifndef PUFFERCPU_EVAL_MAIN
             if (CheckCollisionPointRec(mouse, plus_btn)) {
                 if (speed_idx < NUM_SPEEDS - 1) { speed_idx++; SetTargetFPS(SPEED_FPS[speed_idx]); }
             }
+#endif
             if ((env->mode == CHESS_MODE_HUMAN || env->mode == CHESS_MODE_HUMAN_RANDOM)
                     && CheckCollisionPointRec(mouse, restart_btn)) puf_reset(env);
         }
@@ -3148,6 +3297,7 @@ human_wait_retry:
     // iteration. Non-human modes fall through to a single c_render call as
     // before. Refresh obs after the commit so the next rollout inference sees
     // the post-human-move state instead of the stale "human's turn" obs.
+#ifndef PUFFERCPU_EVAL_MAIN
     if ((env->mode == CHESS_MODE_HUMAN || env->mode == CHESS_MODE_HUMAN_RANDOM)
             && env->human_color != -1
             && env->pos.sideToMove == env->human_color
@@ -3163,6 +3313,7 @@ human_wait_retry:
         if (env->legal_dirty) rebuild_legal_state(env);
         populate_observations(env);
     }
+#endif
 }
 
 void puf_close(Chess* env) {
@@ -3225,17 +3376,17 @@ static char** load_fen_file(const char* path, int* num_fens_out) {
 }
 
 static void apply_kwargs(Env* env, Dict* kwargs) {
-    env->max_moves = (int)dict_get(kwargs, "max_moves");
-    env->reward_draw = (float)dict_get(kwargs, "reward_draw");
-    env->reward_invalid_piece = (float)dict_get(kwargs, "reward_invalid_piece");
-    env->reward_invalid_move = (float)dict_get(kwargs, "reward_invalid_move");
-    env->reward_repetition = (float)dict_get(kwargs, "reward_repetition");
-    env->render_fps = (int)dict_get(kwargs, "render_fps");
-    env->mode = (int)dict_get(kwargs, "mode");
-    env->enable_50_move_rule = (int)dict_get(kwargs, "enable_50_move_rule");
-    env->enable_threefold_repetition = (int)dict_get(kwargs, "enable_threefold_repetition");
-    env->random_fen = (int)dict_get(kwargs, "random_fen");
-    env->fen_curric_pct = (float)dict_get(kwargs, "fen_curric_pct");
+    env->max_moves = dict_get(kwargs, "max_moves");
+    env->reward_draw = dict_get(kwargs, "reward_draw");
+    env->reward_invalid_piece = dict_get(kwargs, "reward_invalid_piece");
+    env->reward_invalid_move = dict_get(kwargs, "reward_invalid_move");
+    env->reward_repetition = dict_get(kwargs, "reward_repetition");
+    env->render_fps = dict_get(kwargs, "render_fps");
+    env->mode = dict_get(kwargs, "mode");
+    env->enable_50_move_rule = dict_get(kwargs, "enable_50_move_rule");
+    env->enable_threefold_repetition = dict_get(kwargs, "enable_threefold_repetition");
+    env->random_fen = dict_get(kwargs, "random_fen");
+    env->fen_curric_pct = dict_get(kwargs, "fen_curric_pct");
 
     env->client = NULL;
     env->legal_dirty = 1;
@@ -3249,20 +3400,33 @@ static void apply_kwargs(Env* env, Dict* kwargs) {
     env->maia_stdout_fd = -1;
     env->maia_phase = 0;
     strcpy(env->starting_fen, DEFAULT_STARTING_FEN);
+#ifdef PUFFERCPU_EVAL_MAIN
+    env->last_result[0] = '\0';
+    chess_eval_autostart(env);
+#else
     strcpy(env->last_result, "Game starting...");
+#endif
 }
 
 void puf_init(Env* env, Dict* kwargs) {
     apply_kwargs(env, kwargs);
+#ifdef PUFFERCPU_EVAL_MAIN
+    chess_eval_autostart(env);
+#endif
     env->num_agents = (env->mode == CHESS_MODE_SELFPLAY) ? 2 : 1;
     env->learner_color = CHESS_WHITE;
     env->slot_for_color[CHESS_WHITE] = 0;
     env->slot_for_color[CHESS_BLACK] = 1;
     env->fen_curriculum = NULL;
     env->num_fens = 0;
-    for (int s = 0; s < env->num_agents; s++) {
-        env->agents[s].policy = 0;
-        env->agents[s].action_mask = NULL;
+    env->agents[0].policy = 0;
+    env->agents[0].action_mask = NULL;
+    if (env->num_agents > 1) {
+        // Slot 0 = live learner. Slot 1 = historical/frozen opponent on the
+        // hist_policy_percent tail (env_setup forces both slots to 0 on the
+        // selfplay majority). Policy 1 empty → create_pufferl abort.
+        env->agents[1].policy = 1;
+        env->agents[1].action_mask = NULL;
     }
     init_bitboards();
 }
@@ -3301,15 +3465,16 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "games_as_white", log->games_as_white);
     dict_set(out, "games_as_black", log->games_as_black);
     dict_set(out, "maia_failures", log->maia_failures);
+    dict_set(out, "n", log->n);
 }
 
 Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_counts,
                  Dict* vec_kwargs, Dict* env_kwargs) {
-    int total_agents = (int)dict_get(vec_kwargs, "total_agents");
-    int num_buffers = (int)dict_get(vec_kwargs, "num_buffers");
+    int total_agents = dict_get(vec_kwargs, "total_agents");
+    int num_buffers = dict_get(vec_kwargs, "num_buffers");
     int agents_per_buffer = total_agents / num_buffers;
 
-    float curric_pct = (float)dict_get(env_kwargs, "fen_curric_pct");
+    float curric_pct = dict_get(env_kwargs, "fen_curric_pct");
     if (curric_pct > 0.0f && SHARED_FEN_CURRICULUM == NULL) {
         SHARED_FEN_CURRICULUM = load_fen_file(FEN_CURRICULUM_PATH, &SHARED_NUM_FENS);
         if (SHARED_FEN_CURRICULUM != NULL) {
@@ -3317,7 +3482,7 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
         }
     }
 
-    int mode = (int)dict_get(env_kwargs, "mode");
+    int mode = dict_get(env_kwargs, "mode");
     int agents_per_env = (mode == CHESS_MODE_SELFPLAY) ? 2 : 1;
     int num_envs = total_agents / agents_per_env;
     Env* envs = (Env*)calloc(num_envs, sizeof(Env));
@@ -3336,9 +3501,11 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
         }
         env->fen_curriculum = SHARED_FEN_CURRICULUM;
         env->num_fens = SHARED_NUM_FENS;
-        for (int s = 0; s < env->num_agents; s++) {
-            env->agents[s].policy = 0;
-            env->agents[s].action_mask = NULL;
+        env->agents[0].policy = 0;
+        env->agents[0].action_mask = NULL;
+        if (env->num_agents > 1) {
+            env->agents[1].policy = 1;
+            env->agents[1].action_mask = NULL;
         }
         init_bitboards();
     }
@@ -3363,7 +3530,6 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
 }
 
 void my_vec_close(Env* envs) {
-    (void)envs;
     if (SHARED_FEN_CURRICULUM != NULL) {
         for (int i = 0; i < SHARED_NUM_FENS; i++) {
             free(SHARED_FEN_CURRICULUM[i]);

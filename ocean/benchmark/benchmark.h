@@ -1,11 +1,11 @@
 #include <string.h>
 #include <math.h>
+typedef unsigned char obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {2}
 #define OBS_SIZE 512
 #define NUM_ATNS 1
-typedef unsigned char obs_t;
 
 struct Log {
     float perf;
@@ -33,7 +33,7 @@ void puf_step(Benchmark* env) {
         result = sinf(result + 0.1f);
     }
 
-    //memset(((obs_t*)env->agents[0].observations), result, env->bandwidth);
+    //memset((env->agents[0].observations), result, env->bandwidth);
 }
 
 void puf_render(Benchmark* env) { }
@@ -44,6 +44,7 @@ void puf_close(Benchmark* env) { }
 void puf_log(Log* log, Dict* out) {
     dict_set(out, "perf", log->perf);
     dict_set(out, "score", log->score);
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {

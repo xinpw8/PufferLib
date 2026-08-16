@@ -7,12 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include "raylib.h"
+typedef unsigned char obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {5}
 #define OBS_SIZE 121
 #define NUM_ATNS 1
-typedef unsigned char obs_t;
+#define SQUARED_FRAMES 12
 
 const unsigned char NOOP = 0;
 const unsigned char DOWN = 1;
@@ -59,9 +60,10 @@ void add_log(Squared* env) {
 
 // Required function
 void puf_reset(Squared* env) {
+    obs_t* obs = env->agents[0].observations;
     int tiles = env->size*env->size;
-    memset(((obs_t*)env->agents[0].observations), 0, tiles*sizeof(obs_t));
-    ((obs_t*)env->agents[0].observations)[tiles/2] = AGENT;
+    memset(obs, 0, tiles*sizeof(unsigned char));
+    obs[tiles/2] = AGENT;
     env->r = env->size/2;
     env->c = env->size/2;
     env->tick = 0;
@@ -69,18 +71,39 @@ void puf_reset(Squared* env) {
     do {
         target_idx = rand_r(&env->rng) % tiles;
     } while (target_idx == tiles/2);
-    ((obs_t*)env->agents[0].observations)[target_idx] = TARGET;
+    obs[target_idx] = TARGET;
+}
+
+// Hold Left Shift + WASD/arrows.
+static void squared_human_controls(Squared *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    env->agents[0].actions[0] = NOOP;
+    if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+        env->agents[0].actions[0] = UP;
+    }
+    if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+        env->agents[0].actions[0] = DOWN;
+    }
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[0] = LEFT;
+    }
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[0] = RIGHT;
+    }
 }
 
 // Required function
 void puf_step(Squared* env) {
+    obs_t* obs = env->agents[0].observations;
     env->tick += 1;
 
     int action = (int)env->agents[0].actions[0];
     env->agents[0].terminals[0] = 0;
     env->agents[0].rewards[0] = 0;
 
-    ((obs_t*)env->agents[0].observations)[env->r*env->size + env->c] = EMPTY;
+    obs[env->r*env->size + env->c] = EMPTY;
 
     if (action == DOWN) {
         env->r += 1;
@@ -105,7 +128,7 @@ void puf_step(Squared* env) {
     }
 
     int pos = env->r*env->size + env->c;
-    if (((obs_t*)env->agents[0].observations)[pos] == TARGET) {
+    if (obs[pos] == TARGET) {
         env->agents[0].terminals[0] = 1;
         env->agents[0].rewards[0] = 1.0;
         add_log(env);
@@ -113,41 +136,43 @@ void puf_step(Squared* env) {
         return;
     }
 
-    ((obs_t*)env->agents[0].observations)[pos] = AGENT;
+    obs[pos] = AGENT;
 }
 
 // Required function. Should handle creating the client on first call
 void puf_render(Squared* env) {
+    obs_t* obs = env->agents[0].observations;
     if (!IsWindowReady()) {
         InitWindow(64*env->size, 64*env->size, "PufferLib Squared");
-        SetTargetFPS(5);
+        SetTargetFPS(60);
     }
-
-    // Standard across our envs so exiting is always the same
-    if (IsKeyDown(KEY_ESCAPE)) {
-        exit(0);
-    }
-
-    BeginDrawing();
-    ClearBackground((Color){6, 24, 24, 255});
 
     int px = 64;
-    for (int i = 0; i < env->size; i++) {
-        for (int j = 0; j < env->size; j++) {
-            int tex = ((obs_t*)env->agents[0].observations)[i*env->size + j];
-            if (tex == EMPTY) {
-                continue;
-            }
-            Color color = (tex == AGENT) ? (Color){0, 187, 187, 255} : (Color){187, 0, 0, 255};
-            DrawRectangle(j*px, i*px, px, px, color);
+    for (int f = 0; f < SQUARED_FRAMES; f++) {
+        if (IsKeyDown(KEY_ESCAPE)) {
+            exit(0);
         }
+        squared_human_controls(env);
+        BeginDrawing();
+        ClearBackground((Color){6, 24, 24, 255});
+        for (int i = 0; i < env->size; i++) {
+            for (int j = 0; j < env->size; j++) {
+                int tex = obs[i * env->size + j];
+                if (tex == EMPTY) {
+                    continue;
+                }
+                Color color = (tex == AGENT)
+                    ? (Color){0, 187, 187, 255}
+                    : (Color){187, 0, 0, 255};
+                DrawRectangle(j * px, i * px, px, px, color);
+            }
+        }
+        EndDrawing();
     }
-
-    EndDrawing();
 }
 
 // Required function. Should clean up anything you allocated
-// Do not free ((obs_t*)env->agents[0].observations), actions, rewards, terminals
+// Do not free observations, actions, rewards, terminals
 void puf_close(Squared* env) {
     if (IsWindowReady()) {
         CloseWindow();
@@ -160,6 +185,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {

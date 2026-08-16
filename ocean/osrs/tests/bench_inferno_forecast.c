@@ -104,7 +104,6 @@ typedef void (*ForecastBuilder)(
     const InfernoState*, const InfernoContext*, InfStepOutForecast*);
 
 static void bench_forecast_exact(InfernoState* state, float* obs) {
-    (void)obs;
     InfStepOutForecast forecast;
     inf_build_step_out_forecast_exact_ctx(state, inf_legacy_context(), &forecast);
     bench_sink += forecast.actions[0].valid;
@@ -112,7 +111,6 @@ static void bench_forecast_exact(InfernoState* state, float* obs) {
 }
 
 static void bench_forecast_fast_static(InfernoState* state, float* obs) {
-    (void)obs;
     InfStepOutForecast forecast;
     inf_build_step_out_forecast_fast_static_ctx(
         state, inf_legacy_context(), &forecast);
@@ -121,7 +119,6 @@ static void bench_forecast_fast_static(InfernoState* state, float* obs) {
 }
 
 static void bench_forecast_fast_readonly(InfernoState* state, float* obs) {
-    (void)obs;
     InfStepOutForecast forecast;
     inf_build_step_out_forecast_fast_readonly_ctx(
         state, inf_legacy_context(), &forecast);
@@ -142,14 +139,12 @@ static void bench_mask(InfernoState* state, float* obs) {
 }
 
 static void bench_copy_fixed(const InfernoState* template, float* obs) {
-    (void)obs;
     InfernoState state;
     memcpy(&state, template, sizeof(state));
     bench_sink += state.player.x;
 }
 
 static void bench_step_fixed(const InfernoState* template, float* obs) {
-    (void)obs;
     InfernoState state;
     memcpy(&state, template, sizeof(state));
     int actions[INF_NUM_ACTION_HEADS] = {0};

@@ -9,6 +9,7 @@
 
 #include "worldgen.h"
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 // Train/eval builds need full step implementations (forward-declared below).
@@ -118,7 +119,6 @@ static inline void craftax_profile_report(void) {
 #define NUM_ATNS 1
 
 typedef Env Craftax;
-typedef float obs_t;
 #define CRAFTAX_NUM_ACHIEVEMENTS 67
 
 #define CRAFTAX_MAX_MELEE_MOBS 3
@@ -606,7 +606,16 @@ struct Env {
     float achievements[CRAFTAX_NUM_ACHIEVEMENTS];
     float episode_return_accum;
     int32_t episode_length_accum;
+    // EVAL_MAIN (web/--cpu) calls puf_step once per rAF. Craftax is a
+    // grid game: hold the world for TICK_FRAMES so len/timestep match
+    // visible actions instead of 60Hz no-op crafts.
+    int tick_frames_left;
 };
+
+#ifdef PUFFERCPU_EVAL_MAIN
+#define CRAFTAX_TICK_FRAMES 6
+#define PUF_EVAL_SHOULD_FORWARD
+#endif
 
 // ============================================================
 // Native reset, observation, reward, and step glue
@@ -883,6 +892,7 @@ static void c_init(Craftax* env) {
 }
 
 void puf_reset(Craftax* env) {
+    float* obs = env->agents[0].observations;
     if (env->agents[0].rewards != NULL) {
         env->agents[0].rewards[0] = 0.0f;
     }
@@ -894,11 +904,12 @@ void puf_reset(Craftax* env) {
     memset(env->achievements, 0, sizeof(env->achievements));
 
     craftax_reset_state_from_seed(env);
-    craftax_encode_native_observation(env->state, ((obs_t*)env->agents[0].observations));
+    craftax_encode_native_observation(env->state, obs);
 }
 
 #ifdef CRAFTAX_PROFILE
 static void c_step_native(Craftax* env) {
+    float* obs = env->agents[0].observations;
     CRAFTAX_PROFILE_START();
     env->agents[0].rewards[0] = 0.0f;
     env->agents[0].terminals[0] = 0.0f;
@@ -948,7 +959,7 @@ static void c_step_native(Craftax* env) {
     }
 
     CRAFTAX_PROFILE_ZONE(11);
-    craftax_encode_native_observation(env->state, ((obs_t*)env->agents[0].observations));
+    craftax_encode_native_observation(env->state, obs);
     CRAFTAX_PROFILE_END(11);
 
     // Record unprofiled time
@@ -1001,10 +1012,52 @@ static void c_step_gameplay(Craftax* env) {
 }
 
 static void c_step_encode(Craftax* env) {
-    craftax_encode_native_observation(env->state, ((obs_t*)env->agents[0].observations));
+    float* obs = env->agents[0].observations;
+    craftax_encode_native_observation(env->state, obs);
+}
+
+// Hold Left Shift + WASD/arrows/space/Z. Period steps a noop.
+static int craftax_human_controls(Craftax *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return 0;
+    }
+    int action = CRAFTAX_ACTION_NOOP;
+    if (IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT)) {
+        action = CRAFTAX_ACTION_LEFT;
+    }
+    if (IsKeyPressed(KEY_D) || IsKeyPressed(KEY_RIGHT)) {
+        action = CRAFTAX_ACTION_RIGHT;
+    }
+    if (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP)) {
+        action = CRAFTAX_ACTION_UP;
+    }
+    if (IsKeyPressed(KEY_S) || IsKeyPressed(KEY_DOWN)) {
+        action = CRAFTAX_ACTION_DOWN;
+    }
+    if (IsKeyPressed(KEY_SPACE)) {
+        action = CRAFTAX_ACTION_DO;
+    }
+    if (IsKeyPressed(KEY_Z)) {
+        action = CRAFTAX_ACTION_SLEEP;
+    }
+    if (action != CRAFTAX_ACTION_NOOP || IsKeyPressed(KEY_PERIOD)) {
+        env->agents[0].actions[0] = (float)action;
+        return 1;
+    }
+    return -1;
 }
 
 void puf_step(Craftax* env) {
+    if (craftax_human_controls(env) < 0) {
+        return;
+    }
+#ifdef CRAFTAX_TICK_FRAMES
+    if (env->tick_frames_left > 0) {
+        env->tick_frames_left--;
+        return;
+    }
+    env->tick_frames_left = CRAFTAX_TICK_FRAMES - 1;
+#endif
     c_step_gameplay(env);
     c_step_encode(env);
 }
@@ -1115,6 +1168,7 @@ void puf_render(Craftax* env) {
     }
     if (!craftax_textures_loaded) craftax_load_textures();
     if (IsKeyDown(KEY_ESCAPE)) exit(0);
+    craftax_human_controls(env);
 
     CraftaxState* s = env->state;
     int lvl = s->player_level;
@@ -1201,6 +1255,7 @@ void puf_log(Log* log, Dict* out) {
     for (int i = 0; i < (int)(sizeof(checkpoints) / sizeof(checkpoints[0])); i++) {
         dict_set(out, checkpoints[i].name, log->achievements[checkpoints[i].idx]);
     }
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {

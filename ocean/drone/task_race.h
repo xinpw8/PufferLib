@@ -1,5 +1,3 @@
-#pragma once
-
 #include "drone.h"
 
 #define RACE_OOB_SCALE 2.0f

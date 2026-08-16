@@ -7,10 +7,6 @@ int main(void) {
     float terminals[1] = {0};
 
     DoublePendulum env = {
-        .observations = observations,
-        .actions = actions,
-        .rewards = rewards,
-        .terminals = terminals,
         .num_agents = 1,
         .rng = 1,
         .cart_mass = 1.0f,
@@ -23,13 +19,14 @@ int main(void) {
         .dt = 0.02f,
     };
 
+    env.agents[0].observations = observations;
+    env.agents[0].actions = actions;
+    env.agents[0].rewards = rewards;
+    env.agents[0].terminals = terminals;
     init(&env);
     puf_reset(&env);
     puf_render(&env);
     while (!WindowShouldClose()) {
-        if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) actions[0] = 0;
-        else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) actions[0] = 2;
-        else actions[0] = 1;
         puf_step(&env);
         puf_render(&env);
     }

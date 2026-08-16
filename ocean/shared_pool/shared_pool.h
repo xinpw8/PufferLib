@@ -10,6 +10,7 @@
 #include "raylib.h"
 
 #include "grid.h"
+typedef unsigned char obs_t;
 #include "pufferenv.h"
 
 #define EMPTY 0
@@ -45,7 +46,6 @@
 #define MAX_AGENTS 32
 
 typedef Env CCpr;
-typedef unsigned char obs_t;
 
 typedef struct Log Log;
 struct Log {
@@ -58,6 +58,7 @@ struct Log {
   float n;
 };
 
+typedef struct Entity Entity;
 struct Entity {
   int r;
   int c;
@@ -273,7 +274,7 @@ void spawn_foods(CCpr *env) {
 void compute_observations(CCpr *env) {
   for (int i = 0; i < env->num_agents; i++) {
     Entity *agent = &env->entities[i];
-    obs_t *obs = (obs_t*)env->agents[i].observations;
+    obs_t* obs = env->agents[i].observations;
     int r_offset = agent->r - env->vision;
     int c_offset = agent->c - env->vision;
     for (int r = 0; r < 2 * env->vision + 1; r++) {
@@ -521,7 +522,27 @@ void clear_agent(CCpr *env, int agent_id) {
   agent->c = -1;
 }
 
+// Hold Left Shift + WASD/arrows for agent 0.
+static void shared_pool_human_controls(CCpr *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+        env->agents[0].actions[0] = 0;
+    }
+    if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+        env->agents[0].actions[0] = 1;
+    }
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[0] = 2;
+    }
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[0] = 3;
+    }
+}
+
 void puf_step(CCpr *env) {
+  shared_pool_human_controls(env);
   env->tick++;
 
   for (int _ri = 0; _ri < env->num_agents; _ri++) env->agents[_ri].rewards[0] = 0;
@@ -632,6 +653,8 @@ void puf_render(CCpr *env) {
     exit(0);
   }
 
+  shared_pool_human_controls(env);
+
   BeginDrawing();
   ClearBackground((Color){6, 24, 24, 255});
 
@@ -694,5 +717,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "moves", log->moves);
     dict_set(out, "food_nb", log->food_nb);
     dict_set(out, "alive_steps", log->alive_steps);
+    dict_set(out, "n", log->n);
 }
 

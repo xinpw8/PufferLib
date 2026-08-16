@@ -9,12 +9,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 // 5c trainer macros (no binding.c). Float obs; pufferl converts on upload.
 #define ACT_SIZES {1, 1, 1, 1}
 #define NUM_ATNS 4
-typedef float obs_t;
 
 // Constants
 #define PI_F 3.14159265358979323846f
@@ -507,7 +507,7 @@ void compute_observations(Wef* env) {
     }
     for (int i = 0; i < env->num_agents; i++) {
         FishAgent* agent = &env->fish[i];
-        obs_t* obs = (obs_t*)env->agents[i].observations;
+        obs_t* obs = env->agents[i].observations;
         int obs_idx = 0;
 
         bool cons_eod = false;
@@ -666,8 +666,6 @@ void puf_reset(Wef* env) {
         agent.max_angular_velocity = (MAX_ANGULAR_VELOCITY_RAD_S / SIMULATION_HZ) * size_mult;
         agent.emits_eod = true;
         env->fish[i] = agent;
-        env->agents[i].rewards[0] = 0.0f;
-        env->agents[i].terminals[0] = 0.0f;
     }
 
     // Distribute food
@@ -1002,14 +1000,39 @@ void puf_render(Wef* env) {
         SetTargetFPS(60);
         env->client = client;
     }
+    if (IsKeyDown(KEY_ESCAPE)) {
+        exit(0);
+    }
     if (IsKeyPressed(KEY_TAB)) {
         ToggleFullscreen();
     }
-    if (IsKeyPressed(KEY_F)) {
-        env->client->show_field = !env->client->show_field;
-    }
-    if (IsKeyPressed(KEY_S)) {
-        env->client->show_sensors = !env->client->show_sensors;
+    // Hold Left Shift + WASD/arrows; Space bites. Skip F/S viz toggles while driving.
+    if (IsWindowReady() && IsKeyDown(KEY_LEFT_SHIFT)) {
+        float* a = env->agents[0].actions;
+        a[0] = 0.0f;
+        a[1] = 0.0f;
+        a[2] = 1.0f;
+        a[3] = -1.0f;
+        if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+            a[0] = 1.0f;
+        } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+            a[0] = -1.0f;
+        }
+        if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+            a[1] = -1.0f;
+        } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+            a[1] = 1.0f;
+        }
+        if (IsKeyDown(KEY_SPACE)) {
+            a[3] = 1.0f;
+        }
+    } else {
+        if (IsKeyPressed(KEY_F)) {
+            env->client->show_field = !env->client->show_field;
+        }
+        if (IsKeyPressed(KEY_S)) {
+            env->client->show_sensors = !env->client->show_sensors;
+        }
     }
 
     for (int i = 0; i < env->num_agents; i++) {
@@ -1234,28 +1257,27 @@ void puf_close(Wef* env) {
             CloseWindow();
         }
         free(env->client);
-        env->client = NULL;
     }
 }
 
 void puf_init(Env* env, Dict* kwargs) {
-    env->num_agents = (int)dict_get(kwargs, "num_agents");
+    env->num_agents = dict_get(kwargs, "num_agents");
     assert(env->num_agents > 0 && env->num_agents <= MAX_AGENTS);
-    env->min_arena_size_x = (float)dict_get(kwargs, "min_arena_width");
-    env->min_arena_size_y = (float)dict_get(kwargs, "min_arena_height");
-    env->max_arena_size_x = (float)dict_get(kwargs, "max_arena_width");
-    env->max_arena_size_y = (float)dict_get(kwargs, "max_arena_height");
+    env->min_arena_size_x = dict_get(kwargs, "min_arena_width");
+    env->min_arena_size_y = dict_get(kwargs, "min_arena_height");
+    env->max_arena_size_x = dict_get(kwargs, "max_arena_width");
+    env->max_arena_size_y = dict_get(kwargs, "max_arena_height");
     env->arena_size_x = env->min_arena_size_x;
     env->arena_size_y = env->min_arena_size_y;
-    env->food_distribution = (FoodDistribution)(int)dict_get(kwargs, "food_distribution");
-    env->configured_num_food = (int)dict_get(kwargs, "num_food");
+    env->food_distribution = (FoodDistribution)dict_get(kwargs, "food_distribution");
+    env->configured_num_food = dict_get(kwargs, "num_food");
     assert(env->configured_num_food > 0 && env->configured_num_food <= MAX_FOOD);
-    env->patch_radius_cm = (float)dict_get(kwargs, "patch_radius");
-    env->patch_radius_std_cm = (float)dict_get(kwargs, "patch_radius_std");
-    env->patch_density = (float)dict_get(kwargs, "patch_density");
-    env->electric_field_radius_cm = (float)dict_get(kwargs, "electric_field_radius");
-    env->reflection_wall_range_cm = (float)dict_get(kwargs, "reflection_wall_range");
-    env->episode_length = (int)dict_get(kwargs, "episode_length");
+    env->patch_radius_cm = dict_get(kwargs, "patch_radius");
+    env->patch_radius_std_cm = dict_get(kwargs, "patch_radius_std");
+    env->patch_density = dict_get(kwargs, "patch_density");
+    env->electric_field_radius_cm = dict_get(kwargs, "electric_field_radius");
+    env->reflection_wall_range_cm = dict_get(kwargs, "reflection_wall_range");
+    env->episode_length = dict_get(kwargs, "episode_length");
     for (int i = 0; i < env->num_agents; i++) {
         env->agents[i].policy = 0;
         env->agents[i].action_mask = NULL;
@@ -1303,4 +1325,5 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "collisions_fish", log->collisions_fish);
     dict_set(out, "bites", log->bites);
     dict_set(out, "food_per_fish_area", log->food_per_fish_area);
+    dict_set(out, "n", log->n);
 }

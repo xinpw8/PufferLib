@@ -120,8 +120,6 @@ static void col_synthesize_draft_history(ColosseumState* s, int start_wave) {
 }
 
 static void col_late_start_drink_noop(void* ctx, OsrsConsumableKind kind) {
-    (void)ctx;
-    (void)kind;
 }
 
 static void col_late_start_drain_supplies(

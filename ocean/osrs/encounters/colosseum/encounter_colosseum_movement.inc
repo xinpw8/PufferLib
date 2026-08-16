@@ -8,12 +8,10 @@ static int col_player_walkable(void* ctx, int x, int y) {
 }
 
 static int col_los_tile_blocked(void* ctx, int x, int y) {
-    (void)ctx;
     return col_static_blocked(x, y);
 }
 
 static int col_tiles_have_los(const ColosseumState* s, int x0, int y0, int x1, int y1) {
-    (void)s;
     if (!COLO_STATIC_LOOKUP_TABLES_BUILT) col_build_static_arena();
     if (col_static_los_endpoint_in_bounds(x0, y0) &&
             col_static_los_endpoint_in_bounds(x1, y1))
@@ -305,7 +303,6 @@ static void col_warband_move(ColosseumState* s, int idx) {
 }
 
 static void col_npc_move_ctx(ColosseumState* s, ColosseumContext* ctx, int idx) {
-    (void)ctx;
     ColoNPC* npc = &s->npcs[idx];
     const ColoNpcStats* st = &COLO_NPC_STATS[npc->type];
     if (npc->type == COLO_SOL_HEREDIT) return;

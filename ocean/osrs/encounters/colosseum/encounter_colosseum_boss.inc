@@ -499,7 +499,6 @@ static int col_sol_overhead_on_in_window(const ColosseumState* s, int lookback) 
 }
 
 static void col_sol_start_triple_parry(ColosseumState* s, int idx) {
-    (void)idx;
     SolHereditState* sol = &s->sol;
     static const int SHORT_DMG[COLO_SOL_PARRY_HITS] = { 15, 25, 35 };
     static const int LONG_DMG[COLO_SOL_PARRY_HITS]  = { 15, 30, 45 };
@@ -604,7 +603,6 @@ static void col_sol_enter_phase(ColosseumState* s, int new_phase) {
 }
 
 static void col_sol_boss_tick(ColosseumState* s, ColosseumContext* ctx) {
-    (void)ctx;
     SolHereditState* sol = &s->sol;
     if (s->wave != COLO_WAVE_BOSS || !sol->started) return;
 

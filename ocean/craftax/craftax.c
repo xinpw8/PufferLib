@@ -16,13 +16,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-static uint32_t xorshift32(uint32_t* s) {
-    uint32_t x = *s;
-    x ^= x << 13; x ^= x >> 17; x ^= x << 5;
-    *s = x ? x : 0xdeadbeef;
-    return x;
-}
-
 int main(int argc, char** argv) {
     uint64_t seed = (argc > 1) ? strtoull(argv[1], NULL, 10) : (uint64_t)time(NULL);
 
@@ -41,29 +34,8 @@ int main(int argc, char** argv) {
     c_init(&env);
     puf_reset(&env);
 
-    uint32_t action_rng = (uint32_t)(seed ^ 0x9E3779B9u);
-    bool human_control = false;
-    int human_action = CRAFTAX_ACTION_NOOP;
-
     while (!WindowShouldClose()) {
-        // Toggle human control
-        if (IsKeyPressed(KEY_H)) human_control = !human_control;
-
-        if (human_control) {
-            human_action = CRAFTAX_ACTION_NOOP;
-            if (IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT))  human_action = CRAFTAX_ACTION_LEFT;
-            if (IsKeyPressed(KEY_D) || IsKeyPressed(KEY_RIGHT)) human_action = CRAFTAX_ACTION_RIGHT;
-            if (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP))    human_action = CRAFTAX_ACTION_UP;
-            if (IsKeyPressed(KEY_S) || IsKeyPressed(KEY_DOWN))  human_action = CRAFTAX_ACTION_DOWN;
-            if (IsKeyPressed(KEY_SPACE)) human_action = CRAFTAX_ACTION_DO;
-            if (IsKeyPressed(KEY_Z)) human_action = CRAFTAX_ACTION_SLEEP;
-            env.agents[0].actions[0] = (float)human_action;
-            if (human_action != CRAFTAX_ACTION_NOOP || IsKeyPressed(KEY_PERIOD)) puf_step(&env);
-        } else {
-            env.agents[0].actions[0] = (float)(xorshift32(&action_rng) % CRAFTAX_NUM_ACTIONS);
-            puf_step(&env);
-        }
-
+        puf_step(&env);
         puf_render(&env);
     }
 

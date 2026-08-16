@@ -1726,7 +1726,6 @@ static void render_lab_draw_hud(RenderClient* rc) {
 }
 
 static void render_draw_colosseum_grapple_banner(RenderClient* rc, OsrsEnv* env) {
-    (void)rc;
     ColosseumState* cs = render_colosseum_state_from_env(env);
     if (!cs || !cs->sol.started) return;
     const SolHereditState* sol = &cs->sol;
@@ -2368,7 +2367,6 @@ static void flight_spawn(RenderClient* rc,
 }
 
 static void flight_advance_animation(RenderClient* rc, FlightProjectile* fp) {
-    (void)rc;
     if (fp->anim_id < 0) return;
     if (!fp->anim_playback.sequence || fp->anim_playback.sequence->frame_count <= 0) {
         fprintf(stderr, "render: projectile animation %d is missing\n", fp->anim_id);
@@ -3166,7 +3164,6 @@ static void render_reset_episode_visual_state(RenderClient* rc, OsrsEnv* env) {
 }
 
 static void render_pre_tick(RenderClient* rc, OsrsEnv* env) {
-    (void)rc; (void)env;
 }
 
 static void render_post_tick(RenderClient* rc, OsrsEnv* env) {
@@ -3802,7 +3799,6 @@ static void render_draw_panel_npc(int x, int y, RenderEntity* p, OsrsEnv* env) {
             DrawText(TextFormat("Pillars: %d / %d", pillars_alive, INF_NUM_PILLARS), x, y, 10, COLOR_TEXT_DIM);
         }
     }
-    (void)y;
 }
 
 static Camera3D render_build_3d_camera(RenderClient* rc) {
@@ -5519,7 +5515,6 @@ static void render_draw_minimap_entity_dot(
     } else {
         DrawRectangle(sx, sy, sz_px, sz_px, fallback);
     }
-    (void)gs;
 }
 
 static void render_ensure_minimap_surface(RenderClient* rc, int w, int h) {
@@ -5719,7 +5714,6 @@ static void render_draw_minimap_area(RenderClient* rc, OsrsEnv* env, Player* p) 
     gui_draw_named_asset(gs, "wiki_icon_0", wiki_button, WHITE);
     EndMode2D();
 
-    (void)env;
 }
 
 static int render_target_label_entity_idx(RenderClient* rc) {

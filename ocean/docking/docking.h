@@ -2,16 +2,12 @@
 #include <string.h>
 #include <math.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {5}
 #define OBS_SIZE DOCKING_OBS_SIZE
 #define NUM_ATNS 1
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
 
 #define DOCKING_OBS_SIZE 8
 
@@ -69,7 +65,6 @@ struct Env {
     int feedback_timer;
     unsigned char last_result;
     unsigned char last_action;
-    unsigned char reset_pending;
     unsigned int rng;
 };
 typedef Env Docking;
@@ -109,43 +104,22 @@ static inline float docking_diag(Docking* env) {
     return sqrtf((float)(env->width*env->width + env->height*env->height));
 }
 
-void c_init(Docking* env) {
-    env->num_agents = 1;
-    env->width = env->width < 64 ? 64 : env->width;
-    env->height = env->height < 64 ? 64 : env->height;
-    env->max_ticks = env->max_ticks == 0 ? 1024 : env->max_ticks;
-    if (env->max_ticks > 0 && env->max_ticks < 16) env->max_ticks = 16;
-    env->max_speed = env->max_speed <= 0.0f ? 6.0f : env->max_speed;
-    env->turn_rate = env->turn_rate <= 0.0f ? 0.10f : env->turn_rate;
-    env->accel = env->accel <= 0.0f ? 0.55f : env->accel;
-    env->drag = docking_clipf(env->drag, 0.0f, 1.0f);
-    if (env->drag == 0.0f) env->drag = 0.92f;
-    env->dock_radius = env->dock_radius <= 1.0f ? 24.0f : env->dock_radius;
-    env->dock_speed_threshold = env->dock_speed_threshold <= 0.0f ? 0.75f : env->dock_speed_threshold;
-    env->dock_heading_threshold = env->dock_heading_threshold <= 0.0f ? 0.30f : env->dock_heading_threshold;
-    env->step_penalty = env->step_penalty == 0.0f ? -0.01f : env->step_penalty;
-    env->progress_reward_scale = env->progress_reward_scale == 0.0f ? 0.25f : env->progress_reward_scale;
-    env->feedback_timer = 0;
-    env->last_result = DOCK_RESULT_TIMEOUT;
-    env->last_action = DOCK_NOOP;
-    env->reset_pending = 0;
-}
-
 void compute_observations(Docking* env) {
+    float* obs = env->agents[0].observations;
     float dx = env->dock_x - env->ship_x;
     float dy = env->dock_y - env->ship_y;
     float dist = sqrtf(dx*dx + dy*dy);
     float diag = docking_diag(env);
 
-    memset(((obs_t*)env->agents[0].observations), 0, DOCKING_OBS_SIZE * sizeof(float));
-    ((obs_t*)env->agents[0].observations)[0] = dx / env->width;
-    ((obs_t*)env->agents[0].observations)[1] = dy / env->height;
-    ((obs_t*)env->agents[0].observations)[2] = cosf(env->ship_heading);
-    ((obs_t*)env->agents[0].observations)[3] = sinf(env->ship_heading);
-    ((obs_t*)env->agents[0].observations)[4] = cosf(env->dock_heading);
-    ((obs_t*)env->agents[0].observations)[5] = sinf(env->dock_heading);
-    ((obs_t*)env->agents[0].observations)[6] = env->ship_speed / env->max_speed;
-    ((obs_t*)env->agents[0].observations)[7] = dist / diag;
+    memset(obs, 0, DOCKING_OBS_SIZE * sizeof(float));
+    obs[0] = dx / env->width;
+    obs[1] = dy / env->height;
+    obs[2] = cosf(env->ship_heading);
+    obs[3] = sinf(env->ship_heading);
+    obs[4] = cosf(env->dock_heading);
+    obs[5] = sinf(env->dock_heading);
+    obs[6] = env->ship_speed / env->max_speed;
+    obs[7] = dist / diag;
 }
 
 void add_log(Docking* env, unsigned char result) {
@@ -176,7 +150,6 @@ void puf_reset(Docking* env) {
     env->ship_heading = docking_wrap_angle((-0.35f + 0.70f * docking_randf(env)) * PI);
     env->ship_speed = 0.0f;
     env->last_action = DOCK_NOOP;
-    env->reset_pending = 0;
 
     env->dock_x = width * (0.65f + 0.20f * docking_randf(env));
     env->dock_y = height * (0.20f + 0.60f * docking_randf(env));
@@ -193,24 +166,33 @@ void finish_episode(Docking* env, float reward, unsigned char result) {
     env->last_result = result;
     env->feedback_timer = 72;
     add_log(env, result);
-    env->reset_pending = 1;
+    puf_reset(env);
+}
+
+// Hold Left Shift + WASD/arrows.
+static void docking_human_controls(Docking *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    env->agents[0].actions[0] = DOCK_NOOP;
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[0] = DOCK_TURN_LEFT;
+    } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[0] = DOCK_TURN_RIGHT;
+    } else if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+        env->agents[0].actions[0] = DOCK_THRUST;
+    } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+        env->agents[0].actions[0] = DOCK_BRAKE;
+    }
 }
 
 void puf_step(Docking* env) {
-    if (env->reset_pending) {
-        if (IsWindowReady() && env->feedback_timer > 66) {
-            env->feedback_timer -= 1;
-            return;
-        }
-        puf_reset(env);
-    }
+    float* obs = env->agents[0].observations;
+    docking_human_controls(env);
 
     env->tick += 1;
-    if (env->feedback_timer > 0) {
-        env->feedback_timer -= 1;
-    }
 
-    memset(((obs_t*)env->agents[0].observations), 0, DOCKING_OBS_SIZE * sizeof(float));
+    memset(obs, 0, DOCKING_OBS_SIZE * sizeof(float));
     env->agents[0].rewards[0] = 0.0f;
     env->agents[0].terminals[0] = 0.0f;
 
@@ -459,6 +441,11 @@ void puf_render(Docking* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+    if (IsKeyPressed(KEY_R)) {
+        puf_reset(env);
+    }
+
+    docking_human_controls(env);
 
     float margin = 40.0f;
     float scale_x = (GetScreenWidth() - 2.0f * margin) / env->width;
@@ -525,15 +512,24 @@ void puf_render(Docking* env) {
     }
     draw_ship(ship_center, ship_dir, ship_len, ship_wid, ship_color);
 
-    DrawRectangle(20, 18, 220, 118, Fade(BLACK, 0.25f));
-    DrawText("Dock slowly into the green bay", 32, 28, 22, RAYWHITE);
-    DrawText(TextFormat("speed  %.2f / %.2f", env->ship_speed, env->max_speed), 32, 58, 20, RAYWHITE);
-    DrawText(TextFormat("align  %.2f", angle_error), 32, 84, 20, RAYWHITE);
-    if (env->max_ticks > 0) {
-        DrawText(TextFormat("steps  %d / %d", env->tick, env->max_ticks), 32, 110, 20, RAYWHITE);
-    } else {
-        DrawText(TextFormat("steps  %d", env->tick), 32, 110, 20, RAYWHITE);
-    }
+    const char* title = "Dock slowly into the green bay";
+    const char* speed_text = TextFormat("speed  %.2f / %.2f", env->ship_speed, env->max_speed);
+    const char* align_text = TextFormat("align  %.2f", angle_error);
+    const char* steps_text = env->max_ticks > 0
+        ? TextFormat("steps  %d / %d", env->tick, env->max_ticks)
+        : TextFormat("steps  %d", env->tick);
+    int hud_w = MeasureText(title, 22);
+    int speed_w = MeasureText(speed_text, 20);
+    int align_w = MeasureText(align_text, 20);
+    int steps_w = MeasureText(steps_text, 20);
+    if (speed_w > hud_w) hud_w = speed_w;
+    if (align_w > hud_w) hud_w = align_w;
+    if (steps_w > hud_w) hud_w = steps_w;
+    DrawRectangle(20, 18, hud_w + 24, 118, Fade(BLACK, 0.25f));
+    DrawText(title, 32, 28, 22, RAYWHITE);
+    DrawText(speed_text, 32, 58, 20, RAYWHITE);
+    DrawText(align_text, 32, 84, 20, RAYWHITE);
+    DrawText(steps_text, 32, 110, 20, RAYWHITE);
 
     DrawRectangle(32, GetScreenHeight() - 36, 180, 12, Fade(RAYWHITE, 0.15f));
     DrawRectangle(32, GetScreenHeight() - 36, (int)(180.0f * speed_ratio), 12, ship_color);
@@ -561,6 +557,9 @@ void puf_render(Docking* env) {
     }
 
     EndDrawing();
+    if (env->feedback_timer > 0) {
+        env->feedback_timer -= 1;
+    }
 }
 
 void puf_close(Docking* env) {
@@ -580,6 +579,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "timeout_rate", log->timeout_rate);
     dict_set(out, "final_distance", log->final_distance);
     dict_set(out, "alignment_error", log->alignment_error);
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {
@@ -596,8 +596,10 @@ void puf_init(Env* env, Dict* kwargs) {
     env->dock_heading_threshold = dict_get(kwargs, "dock_heading_threshold");
     env->step_penalty = dict_get(kwargs, "step_penalty");
     env->progress_reward_scale = dict_get(kwargs, "progress_reward_scale");
+    env->feedback_timer = 0;
+    env->last_result = DOCK_RESULT_TIMEOUT;
+    env->last_action = DOCK_NOOP;
     env->agents[0].action_mask = NULL;
     env->agents[0].policy = 0;
-    c_init(env);
 }
 

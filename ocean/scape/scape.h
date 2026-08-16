@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include "raylib.h"
 #include "rlgl.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {9, 5}
@@ -17,7 +18,6 @@
 #define NUM_ATNS 2
 
 typedef Env Scape;
-typedef float obs_t;
 
 static float offset_x = -6.5f;
 static float offset_z = 12.5f;
@@ -461,7 +461,7 @@ void puf_render(Scape* env) {
 }
 
 // Required function. Should clean up anything you allocated
-// Do not free ((obs_t*)env->agents[0].observations), actions, rewards, terminals
+// Do not free observations, actions, rewards, terminals
 void puf_close(Scape* env) {
     free(env->entities);
     if (env->client != NULL) {
@@ -473,7 +473,6 @@ void puf_close(Scape* env) {
 }
 
 void puf_init(Env* env, Dict* kwargs) {
-    (void)kwargs;
     env->width = 1080;
     env->height = 720;
     env->num_agents = 1;
@@ -487,5 +486,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 

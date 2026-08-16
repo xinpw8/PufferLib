@@ -344,7 +344,6 @@ static int inf_untagged_zuk_healer_target_is_safe_now(
     const InfernoContext* ctx,
     int npc_idx
 ) {
-    (void)ctx;
     if (!inf_is_untagged_live_zuk_healer_slot(s, npc_idx)) return 1;
     return inf_player_behind_zuk_shield_now(s) &&
         s->player.attack_timer == 0 &&

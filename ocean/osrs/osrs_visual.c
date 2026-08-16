@@ -1079,7 +1079,6 @@ static void async_policy_join(AsyncPolicy* ap) {
     ap->in_flight = 0;
     ap->has_actions = 1;
 #else
-    (void)ap;
 #endif
 }
 
@@ -1105,7 +1104,6 @@ static void async_policy_spawn(
     }
     ap->in_flight = 1;
 #else
-    (void)ap; (void)policy; (void)edef; (void)env;
 #endif
 }
 

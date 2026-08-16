@@ -312,7 +312,6 @@ static void col_apply_instant_melee_hit(
     ColosseumState* s, ColosseumContext* ctx, int attacker_slot, int npc_type,
     int dmg, int hit_success
 ) {
-    (void)hit_success;
     int rolled_dmg = dmg;
     EncounterProtectResolve pr = encounter_resolve_protect_at_throw(dmg, s->player.prayer, ATTACK_STYLE_MELEE);
     int prayed = pr.prayed;

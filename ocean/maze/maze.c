@@ -15,10 +15,10 @@ void demo() {
     Grid* env = (Grid*)calloc(1, sizeof(Grid));
     env->num_agents = 1;
     env->rng = 73;
-    env->observations = calloc(WINDOW*WINDOW, sizeof(unsigned char));
-    env->actions = calloc(1, sizeof(float));
-    env->rewards = calloc(1, sizeof(float));
-    env->terminals = calloc(1, sizeof(float));
+    env->agents[0].observations = calloc(WINDOW * WINDOW, sizeof(unsigned char));
+    env->agents[0].actions = calloc(1, sizeof(float));
+    env->agents[0].rewards = calloc(1, sizeof(float));
+    env->agents[0].terminals = calloc(1, sizeof(float));
 
     // Generate maps matching binding.c: random odd sizes, random difficulty
     State* levels = calloc(num_maps, sizeof(State));
@@ -39,40 +39,22 @@ void demo() {
     puf_reset(env);
     puf_render(env);
     while (!WindowShouldClose()) {
-        env->actions[0] = ATN_PASS;
-        env->actions[0] = ATN_SOUTH;
-        State* s = &env->state;
-
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            if (IsKeyDown(KEY_UP)    || IsKeyDown(KEY_W)){
-                env->actions[0] = ATN_NORTH;
-            } else if (IsKeyDown(KEY_DOWN)  || IsKeyDown(KEY_S)) {
-                env->actions[0] = ATN_SOUTH;
-            } else if (IsKeyDown(KEY_LEFT)  || IsKeyDown(KEY_A)) {
-                s->direction = PI;
-                env->actions[0] = ATN_WEST;
-            } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
-                s->direction = 0;
-                env->actions[0] = ATN_EAST;
-            } else {
-                env->actions[0] = ATN_PASS;
-            }
-        } else {
-            float obs[121];
-            for (int i = 0; i < 121; i++) obs[i] = env->observations[i];
-            forward_puffernet(net, obs, env->actions);
+        float obs[121];
+        obs_t* src = env->agents[0].observations;
+        for (int i = 0; i < 121; i++) {
+            obs[i] = src[i];
         }
-
+        forward_puffernet(net, obs, env->agents[0].actions);
         puf_step(env);
         puf_render(env);
     }
     
     free_puffernet(net);
     free(weights);
-    free(env->observations);
-    free(env->actions);
-    free(env->rewards);
-    free(env->terminals);
+    free(env->agents[0].observations);
+    free(env->agents[0].actions);
+    free(env->agents[0].rewards);
+    free(env->agents[0].terminals);
     puf_close(env);
     free(levels);
 }

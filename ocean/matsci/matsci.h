@@ -4,17 +4,13 @@
 #include <math.h>
 #include <lammps/library.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define MAX_AGENTS 256
 #define ACT_SIZES {1, 1, 1}
 #define NUM_ATNS 3
 #define OBS_SIZE 3
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
 
 #define WIDTH 1080
 #define HEIGHT 720
@@ -106,6 +102,7 @@ void puf_init(Env* env, Dict* kwargs) {
 
 void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
+    dict_set(out, "n", log->n);
 }
 
 void init(Matsci* env) {
@@ -149,7 +146,7 @@ void init(Matsci* env) {
 void compute_observations(Matsci* env) {
     double** x = (double **) lammps_extract_atom(env->handle, "x");
     for (int i=0; i<env->num_agents; i++) {
-        obs_t* obs = (obs_t*)env->agents[i].observations;
+        obs_t* obs = env->agents[i].observations;
         obs[0] = x[i][0] - env->goal.x;
         obs[1] = x[i][1] - env->goal.y;
         obs[2] = x[i][2] - env->goal.z;

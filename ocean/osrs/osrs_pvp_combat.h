@@ -730,7 +730,6 @@ static inline int is_ranged_attack_available(Player* p) {
 
 static inline int is_melee_attack_available(Player* p, Player* t) {
     if (!is_attack_available(p)) return 0;
-    (void)t;
     return is_melee_weapon_equipped(p);
 }
 
@@ -770,7 +769,6 @@ static inline int is_granite_maul_attack_available(Player* p) {
 }
 
 static inline int is_melee_spec_attack_available(Player* p, Player* t) {
-    (void)t;
     if (!is_granite_maul_attack_available(p) && !is_attack_available(p)) return 0;
     if (is_melee_spec_two_handed(p->melee_spec_weapon) && !can_equip_two_handed_weapon(p)) return 0;
     if (!is_melee_weapon_equipped(p) || !is_melee_spec_weapon_equipped(p)) return 0;

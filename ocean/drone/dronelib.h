@@ -2,8 +2,6 @@
 // Included in pufferlib under the original project's MIT license.
 // https://github.com/tensaur/drone
 
-#pragma once
-
 #include <float.h>
 #include <math.h>
 #include <stdbool.h>

@@ -6,16 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {4}
 #define OBS_SIZE 291
 #define NUM_ATNS 1
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
 
 #define PX_PADDING_TOP 40 // 40px padding on top of the window
 
@@ -26,7 +22,7 @@ typedef float obs_t;
 #define GHOST_OBSERVATIONS_COUNT 9
 #define PLAYER_OBSERVATIONS_COUNT 11
 #define NUM_GHOSTS 4
-#define FRAMES 7  // Fixed number of frames per step for interpolation
+#define FRAMES 7  // vsync interpolant frames per env tick
 
 #define NUM_DOTS 240
 #define NUM_POWERUPS 4
@@ -238,18 +234,6 @@ void init(PacmanEnv *env) {
     }
 }
 
-void allocate(PacmanEnv *env) {
-    init(env);
-    env->agents[0].observations = (obs_t*)calloc(OBSERVATIONS_COUNT, sizeof(obs_t));
-    env->agents[0].actions = (float *)calloc(1, sizeof(float));
-    env->agents[0].rewards = (float *)calloc(1, sizeof(float));
-    env->agents[0].terminals = (float *)calloc(1, sizeof(float));
-    env->agents[0].action_mask = NULL;
-    env->agents[0].policy = 0;
-    env->num_agents = 1;
-
-}
-
 void puf_close(PacmanEnv *env) {
     free(env->game_map);
     free(env->possible_spawn_pos);
@@ -258,19 +242,11 @@ void puf_close(PacmanEnv *env) {
     free(env->pickup_obs_map);
 }
 
-void free_allocated(PacmanEnv *env) {
-    free(env->agents[0].actions);
-    free(env->agents[0].observations);
-    free(env->agents[0].terminals);
-    free(env->agents[0].rewards);
-    puf_close(env);
-}
-
 #define INV_MAP_WIDTH (1.0f / MAP_WIDTH)
 #define INV_MAP_HEIGHT (1.0f / MAP_HEIGHT)
 
 void compute_observations(PacmanEnv *env) {
-    obs_t *obs = ((obs_t*)env->agents[0].observations);
+    obs_t* obs = env->agents[0].observations;
     // player observations
     obs[0] = env->player_pos.x * INV_MAP_WIDTH;
     obs[1] = env->player_pos.y * INV_MAP_HEIGHT;
@@ -300,8 +276,11 @@ void compute_observations(PacmanEnv *env) {
         obs[p + 8] = ghost->return_to_spawn;
     }
 
-    memcpy(obs + PLAYER_OBSERVATIONS_COUNT + (NUM_GHOSTS * GHOST_OBSERVATIONS_COUNT),
-           env->pickup_obs, sizeof(float) * (NUM_DOTS + NUM_POWERUPS));
+    // Element-wise copy; memcpy of a float[] can overflow if the store type is narrower.
+    int base = PLAYER_OBSERVATIONS_COUNT + NUM_GHOSTS * GHOST_OBSERVATIONS_COUNT;
+    for (int i = 0; i < NUM_DOTS + NUM_POWERUPS; i++) {
+        obs[base + i] = env->pickup_obs[i];
+    }
 }
 
 void update_interpolation(PacmanEnv *env) {
@@ -877,26 +856,37 @@ void puf_render(PacmanEnv *env) {
         env->client = make_client(env);
     }
     Client *client = env->client;
-
-    float progress = client->frame / (float)FRAMES;
-    client->frame = (client->frame + 1) % (FRAMES);
-
     handle_input(env);
-
-    BeginDrawing();
-    ClearBackground(PUFF_BACKGROUND);
-
-    render_map(client, env);
-
-    render_player(client, env, progress);
-    for (int i = 0; i < 4; i++) {
-        render_ghost(client, &env->ghosts[i], &client->ghost_sprites[i], progress);
+    for (int i = 0; i < FRAMES; i++) {
+        float progress = i / (float)FRAMES;
+        client->frame = i;
+        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+            if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+                env->agents[0].actions[0] = DOWN;
+            }
+            if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+                env->agents[0].actions[0] = UP;
+            }
+            if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+                env->agents[0].actions[0] = LEFT;
+            }
+            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+                env->agents[0].actions[0] = RIGHT;
+            }
+        }
+        BeginDrawing();
+        ClearBackground(PUFF_BACKGROUND);
+        render_map(client, env);
+        render_player(client, env, progress);
+        for (int g = 0; g < 4; g++) {
+            render_ghost(client, &env->ghosts[g], &client->ghost_sprites[g], progress);
+        }
+        DrawText(TextFormat("Score: %i", env->score), 10, 10, 20, WHITE);
+        DrawText(TextFormat("Mode: %s", env->scatter_mode ? "Scatter" : "Chase"),
+            150, 10, 20, WHITE);
+        DrawText("[Shift] WASD/arrows", 300, 10, 16, WHITE);
+        EndDrawing();
     }
-
-    DrawText(TextFormat("Score: %i", env->score), 10, 10, 20, WHITE);
-    DrawText(TextFormat("Mode: %s", env->scatter_mode ? "Scatter" : "Chase"), 150, 10, 20, WHITE);
-
-    EndDrawing();
 }
 
 void unload_direction_sprites(DirectionSprites *sprites) {
@@ -925,6 +915,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {

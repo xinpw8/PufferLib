@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <math.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define NUM_ACTIONS 5
@@ -92,7 +93,6 @@ struct Robot {
 };
 
 typedef struct Client Client;
-typedef float obs_t;
 typedef Env Robocode;
 
 #define OBS_SIZE (EGO_FEATURES + OTHER_FEATURES)
@@ -179,6 +179,8 @@ void puf_init(Env* env, Dict* kwargs) {
     env->bot_policy = dict_get(kwargs, "bot_policy");
     env->agents[0].policy = 0;
     env->agents[1].policy = 1;
+    env->agents[0].action_mask = NULL;
+    env->agents[1].action_mask = NULL;
     init(env);
 }
 
@@ -208,11 +210,6 @@ void init(Robocode* env){
     env->logs = (Log*)calloc(env->num_agents, sizeof(Log));
     bot_mems_alloc(env);
 }
-
-void allocate_env(Robocode* env) {
-    init(env);
-}
-
 
 void puf_close(Robocode* env) {
     free(env->robots);
@@ -502,7 +499,7 @@ int scan_area(Robocode* env, Robot* robot){
 void compute_observations(Robocode* env){
     for(int i = 0; i < env->num_agents; i++){
         Robot* robot = &env->robots[i];
-        obs_t* obs = (obs_t*)env->agents[i].observations;
+        obs_t* obs = env->agents[i].observations;
         obs[0] = robot->x / env->width;
         obs[1] = robot->y / env->height;
         // Absolute headings stored as degrees in [0, 360); convert to radians [0, 2π).
@@ -657,6 +654,46 @@ static inline void end_episode(Robocode* env, int outcome) {
     }
     add_log(env);
     puf_reset(env);
+}
+
+// Hold Left Shift + WASD/QE/arrows/space.
+static void robocode_human_controls(Robocode *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    float *actions = env->agents[0].actions;
+    actions[0] = 2;
+    actions[1] = 4;
+    actions[2] = 5;
+    actions[3] = 5;
+    actions[4] = 0;
+    if (IsKeyDown(KEY_W)) {
+        actions[0] = 3.0f;
+    }
+    if (IsKeyDown(KEY_S)) {
+        actions[0] = 1.0f;
+    }
+    if (IsKeyDown(KEY_A)) {
+        actions[1] = 3.0f;
+    }
+    if (IsKeyDown(KEY_D)) {
+        actions[1] = 5.0f;
+    }
+    if (IsKeyDown(KEY_Q)) {
+        actions[2] = 4.0f;
+    }
+    if (IsKeyDown(KEY_E)) {
+        actions[2] = 6.0f;
+    }
+    if (IsKeyDown(KEY_LEFT)) {
+        actions[3] = 0.0f;
+    }
+    if (IsKeyDown(KEY_RIGHT)) {
+        actions[3] = 8.0f;
+    }
+    if (IsKeyDown(KEY_SPACE)) {
+        actions[4] = 1.0f;
+    }
 }
 
 void puf_step(Robocode* env) {
@@ -865,7 +902,7 @@ struct Client {
 };
 
 Client* make_client(Robocode* env) {
-    InitWindow(env->width+100, env->height+100, "PufferLib Ray Robocode");
+    InitWindow(env->width, env->height, "PufferLib Ray Robocode");
     SetTargetFPS(60);
     Client* client = (Client*)calloc(1, sizeof(Client));
     client->atlas = LoadTexture("resources/robocode/robocode.png");
@@ -881,16 +918,10 @@ void puf_render(Robocode* env) {
     if(env->client == NULL){
         env->client = make_client(env);
     }
+    robocode_human_controls(env);
     Client* client = env->client;
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});
-
-    // Center the world inside the padded window.
-    Camera2D camera = {0};
-    camera.offset = (Vector2){(GetScreenWidth() - env->width)/2.0f,
-                              (GetScreenHeight() - env->height)/2.0f};
-    camera.zoom = 1.0f;
-    BeginMode2D(camera);
 
     for (int x = 0; x < env->width; x+=64) {
         for (int y = 0; y < env->height; y+=64) {
@@ -947,6 +978,5 @@ void puf_render(Robocode* env) {
     const char* tick_text = TextFormat("%i", env->tick);
     DrawText(tick_text, 10, 10, 10, WHITE);
 
-    EndMode2D();
     EndDrawing();
 }

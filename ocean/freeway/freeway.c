@@ -6,7 +6,7 @@
 void demo() {
     Weights* weights = load_weights("resources/freeway/freeway_weights.bin");
     int logit_sizes[1] = {3};
-    PufferNet* net = make_puffernet(weights, 1, 34, 128, 7, logit_sizes, 1);
+    PufferNet* net = make_puffernet(weights, 1, OBS_SIZE, 128, 4, logit_sizes, 1);
 
     Freeway env = {
         .frameskip=4,
@@ -23,7 +23,11 @@ void demo() {
         .env_randomization=1,
         .enable_human_player=1,
     };
-    allocate(&env);
+    init(&env);
+    env.agents[0].observations = (float*)calloc(OBS_SIZE, sizeof(float));
+    env.agents[0].actions = (float*)calloc(1, sizeof(float));
+    env.agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env.agents[0].terminals = (float*)calloc(1, sizeof(float));
 
     env.client = make_client(&env);
 
@@ -31,15 +35,16 @@ void demo() {
     SetTargetFPS(60);
     while (!WindowShouldClose()) {
         forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
-        env.human_actions[0] = 0;
-        if (IsKeyDown(KEY_UP)  || IsKeyDown(KEY_W)) env.human_actions[0] = 1;
-        if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) env.human_actions[0] = 2;
         puf_step(&env);
         puf_render(&env);
     }
     free_puffernet(net);
     free(weights);
-    free_allocated(&env);
+    free(env.agents[0].observations);
+    free(env.agents[0].actions);
+    free(env.agents[0].rewards);
+    free(env.agents[0].terminals);
+    puf_close(&env);
     close_client(env.client);
 }
 

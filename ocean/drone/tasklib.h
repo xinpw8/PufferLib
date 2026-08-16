@@ -1,5 +1,3 @@
-#pragma once
-
 #include "task_hover.h"
 #include "task_race.h"
 

@@ -19,45 +19,45 @@
 #define TEXT_MAX_LAYERS 32
 #define LETTER_BOUNDRY_COLOR VIOLET
 
-bool SHOW_LETTER_BOUNDRY = false;
+static bool SHOW_LETTER_BOUNDRY = false;
 
-const Color STONE_GRAY = (Color){80, 80, 80, 255};
-const Color PUFF_RED = RED;
-const Color PUFF_GREEN = GREEN;
-const Color PUFF_YELLOW = YELLOW;
-const Color PUFF_CYAN = BLUE;
-const Color PUFF_WHITE = RAYWHITE;
-const Color PUFF_BACKGROUND = BLACK;
-const Color PUFF_BACKGROUND2 = BLACK;
+static const Color STONE_GRAY = (Color){80, 80, 80, 255};
+static const Color PUFF_RED = RED;
+static const Color PUFF_GREEN = GREEN;
+static const Color PUFF_YELLOW = YELLOW;
+static const Color PUFF_CYAN = BLUE;
+static const Color PUFF_WHITE = RAYWHITE;
+static const Color PUFF_BACKGROUND = BLACK;
+static const Color PUFF_BACKGROUND2 = BLACK;
 
 void setEnvFrameRate(iwEnv *e);
 bool droneControlledByHuman(const iwEnv *e, uint8_t i);
 
-const float DEFAULT_SCALE = 11.0f;
-const uint16_t DEFAULT_WIDTH = 1280;
-const uint16_t DEFAULT_HEIGHT = 720;
-const uint16_t HEIGHT_LEEWAY = 75;
+static const float DEFAULT_SCALE = 11.0f;
+static const uint16_t DEFAULT_WIDTH = 1280;
+static const uint16_t DEFAULT_HEIGHT = 720;
+static const uint16_t HEIGHT_LEEWAY = 75;
 
-const float START_READY_TIME = 1.5f;
-const float END_WAIT_TIME = 2.0f;
+static const float START_READY_TIME = 1.5f;
+static const float END_WAIT_TIME = 2.0f;
 
-const float EXPLOSION_TIME = 0.5f;
+static const float EXPLOSION_TIME = 0.5f;
 
-const float DRONE_RESPAWN_GUIDE_SHRINK_TIME = 0.75f;
-const float DRONE_RESPAWN_GUIDE_HOLD_TIME = 0.75f;
-const float DRONE_RESPAWN_GUIDE_MAX_RADIUS = DRONE_RADIUS * 5.5f;
-const float DRONE_RESPAWN_GUIDE_MIN_RADIUS = DRONE_RADIUS * 2.5f;
+static const float DRONE_RESPAWN_GUIDE_SHRINK_TIME = 0.75f;
+static const float DRONE_RESPAWN_GUIDE_HOLD_TIME = 0.75f;
+static const float DRONE_RESPAWN_GUIDE_MAX_RADIUS = DRONE_RADIUS * 5.5f;
+static const float DRONE_RESPAWN_GUIDE_MIN_RADIUS = DRONE_RADIUS * 2.5f;
 
-const float DRONE_PIECE_LIFETIME = 2.0f;
+static const float DRONE_PIECE_LIFETIME = 2.0f;
 
-const Color barolo = {.r = 165, .g = 37, .b = 8, .a = 255};
-const Color bambooBrown = {.r = 204, .g = 129, .b = 0, .a = 255};
+static const Color barolo = {.r = 165, .g = 37, .b = 8, .a = 255};
+static const Color bambooBrown = {.r = 204, .g = 129, .b = 0, .a = 255};
 
-const float droneLightRadius = 0.1f;
-const float halfDroneRadius = DRONE_RADIUS / 2.0f;
-const float droneThrusterLength = 1.5f * DRONE_RADIUS;
-const float aimGuideLength = 0.3f * DRONE_RADIUS;
-const float chargedAimGuideLength = DRONE_RADIUS;
+static const float droneLightRadius = 0.1f;
+static const float halfDroneRadius = DRONE_RADIUS / 2.0f;
+static const float droneThrusterLength = 1.5f * DRONE_RADIUS;
+static const float aimGuideLength = 0.3f * DRONE_RADIUS;
+static const float chargedAimGuideLength = DRONE_RADIUS;
 
 static inline b2Vec2 rayVecToB2Vec(const iwEnv *e, const Vector2 v) {
     return (b2Vec2){.x = (v.x - e->client->halfWidth) / e->renderScale, .y = ((v.y - e->client->halfHeight - (2 * e->renderScale)) / e->renderScale)};
@@ -182,13 +182,13 @@ void destroyRayClient(rayClient *client) {
     fastFree(client);
 }
 
-const float ZOOM_SPEED = 0.04f;
-const float PAN_SPEED = 0.04f;
-const float MAX_CAMERA_HEIGHT = 130.0f;
-const float MIN_CAMERA_HEIGHT = 60.0f;
-const float BOUNDS_PADDING = 4.0f;
-const float MAP_MAX_X_OFFSET = 25.0f;
-const float MAP_MAX_Y_OFFSET = 10.0f;
+static const float ZOOM_SPEED = 0.04f;
+static const float PAN_SPEED = 0.04f;
+static const float MAX_CAMERA_HEIGHT = 130.0f;
+static const float MIN_CAMERA_HEIGHT = 60.0f;
+static const float BOUNDS_PADDING = 4.0f;
+static const float MAP_MAX_X_OFFSET = 25.0f;
+static const float MAP_MAX_Y_OFFSET = 10.0f;
 
 void setCamera2DZoom(iwEnv *e) {
     gameCamera *camera = e->client->camera;

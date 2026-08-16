@@ -41,7 +41,6 @@ static void nh_pvp_translate_human_input(HumanInput* hi, int* actions, Player* a
         else if (style == ATTACK_STYLE_RANGED) actions[HEAD_LOADOUT] = LOADOUT_SPEC_RANGE;
         else if (style == ATTACK_STYLE_MAGIC) actions[HEAD_LOADOUT] = LOADOUT_SPEC_MAGIC;
     }
-    (void)target;
 }
 
 static EncounterState* nh_pvp_create(void) {
@@ -61,15 +60,12 @@ static void nh_pvp_destroy(EncounterState* state) {
 }
 
 static void nh_pvp_init_context(EncounterContext* context) {
-    (void)context;
 }
 
 static void nh_pvp_destroy_context(EncounterContext* context) {
-    (void)context;
 }
 
 static void nh_pvp_reset(EncounterState* state, EncounterContext* context, uint32_t seed) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     if (seed != 0) {
         s->env.has_rng_seed = 1;
@@ -79,7 +75,6 @@ static void nh_pvp_reset(EncounterState* state, EncounterContext* context, uint3
 }
 
 static void nh_pvp_step(EncounterState* state, EncounterContext* context, const int* actions) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     memcpy(s->env.ocean_io.agent_actions, actions, NUM_ACTION_HEADS * sizeof(int));
     pvp_step(&s->env);
@@ -90,7 +85,6 @@ static void nh_pvp_step_human_commands(
     EncounterContext* context,
     HumanInput* hi
 ) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     int saved_use_c_opponent_p0 = s->env.pvp_runtime.use_c_opponent_p0;
     s->env.pvp_runtime.use_c_opponent_p0 = 0;
@@ -122,7 +116,6 @@ static void nh_pvp_step_human_commands(
 }
 
 static void nh_pvp_write_obs(EncounterState* state, EncounterContext* context, float* obs_out) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     memcpy(obs_out, s->env._obs_buf, SLOT_NUM_OBSERVATIONS * sizeof(float));
 }
@@ -132,7 +125,6 @@ static void nh_pvp_write_mask(
     EncounterContext* context,
     float* mask_out
 ) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     for (int i = 0; i < ACTION_MASK_SIZE; i++) {
         mask_out[i] = (float)s->env._masks_buf[i];
@@ -140,25 +132,20 @@ static void nh_pvp_write_mask(
 }
 
 static float nh_pvp_get_reward(EncounterState* state, EncounterContext* context) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     return s->env._rews_buf[0];
 }
 
 static int nh_pvp_is_terminal(EncounterState* state, EncounterContext* context) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     return s->env.episode_over;
 }
 
 static int nh_pvp_get_entity_count(EncounterState* state, EncounterContext* context) {
-    (void)state;
-    (void)context;
     return NUM_AGENTS;
 }
 
 static void* nh_pvp_get_entity(EncounterState* state, EncounterContext* context, int index) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     return &s->env.players[index];
 }
@@ -170,7 +157,6 @@ static void nh_pvp_fill_render_entities(
     int max_entities,
     int* count
 ) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     int n = NUM_AGENTS < max_entities ? NUM_AGENTS : max_entities;
     for (int i = 0; i < n; i++) {
@@ -186,7 +172,6 @@ static void nh_pvp_put_int(
     const char* key,
     int value
 ) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     if (strcmp(key, "opponent_type") == 0) {
         s->env.pvp_runtime.opponent.type = (OpponentType)value;
@@ -227,7 +212,6 @@ static void nh_pvp_put_float(
     const char* key,
     float value
 ) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     if (strcmp(key, "shaping_scale") == 0) {
         s->env.shaping.shaping_scale = value;
@@ -240,7 +224,6 @@ static void nh_pvp_put_ptr(
     const char* key,
     void* value
 ) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     if (strcmp(key, "collision_map") == 0) {
         s->env.collision_map = value;
@@ -248,19 +231,16 @@ static void nh_pvp_put_ptr(
 }
 
 static void* nh_pvp_get_log(EncounterState* state, EncounterContext* context) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     return &s->env.log;
 }
 
 static int nh_pvp_get_tick(EncounterState* state, EncounterContext* context) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     return s->env.tick;
 }
 
 static int nh_pvp_get_winner(EncounterState* state, EncounterContext* context) {
-    (void)context;
     NhPvpState* s = (NhPvpState*)state;
     return s->env.winner;
 }

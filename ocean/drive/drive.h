@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <string.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 #define float3 rl_float3
 #define double3 rl_double3
@@ -64,9 +65,9 @@
 #define OBS_SIZE (EGO_FEATURES + PARTNER_FEATURES * (MAX_AGENTS - 1) + ROAD_FEATURES * MAX_ROAD_SEGMENT_OBSERVATIONS)
 #define ACT_SIZES {7, 13}
 #define NUM_ATNS 2
+#define MY_VEC_INIT
 
 typedef Env Drive;
-typedef float obs_t;
 
 // Observation normalization
 #define MAX_SPEED 100.0f
@@ -404,7 +405,7 @@ void add_entity_to_grid(Drive* env, int grid_index, int entity_idx, int geometry
 }
 
 void init_grid_map(Drive* env) {
-    float top_left_x, top_left_y, bottom_right_x, bottom_right_y;
+    float top_left_x = 0, top_left_y = 0, bottom_right_x = 0, bottom_right_y = 0;
     int first_valid_point = 0;
 
     for (int i = 0; i < env->num_entities; i++) {
@@ -428,6 +429,12 @@ void init_grid_map(Drive* env) {
     }
 
     env->map_corners = (float*)calloc(4, sizeof(float));
+    if (!first_valid_point) {
+        env->grid_cols = 0;
+        env->grid_rows = 0;
+        env->grid_cells = NULL;
+        return;
+    }
     env->map_corners[0] = top_left_x;
     env->map_corners[1] = top_left_y;
     env->map_corners[2] = bottom_right_x;
@@ -885,9 +892,13 @@ void remove_bad_trajectories(Drive* env) {
 
 // Initialization / Cleanup
 void init(Drive* env) {
-    env->human_agent_idx = 0;
     env->timestep = 0;
     env->entities = load_map_binary(env->map_name, env);
+    if (!env->entities) {
+        fprintf(stderr, "ERROR: Cannot load map %s\n",
+                env->map_name ? env->map_name : "(null)");
+        exit(1);
+    }
     env->dynamics_model = CLASSIC;
     set_means(env);
     init_grid_map(env);
@@ -902,10 +913,13 @@ void init(Drive* env) {
 }
 
 void puf_close(Drive* env) {
-    for (int i = 0; i < env->num_entities; i++) {
-        free_entity(&env->entities[i]);
+    if (env->entities) {
+        for (int i = 0; i < env->num_entities; i++) {
+            free_entity(&env->entities[i]);
+        }
+        free(env->entities);
+        env->entities = NULL;
     }
-    free(env->entities);
     free(env->active_agent_indices);
     free(env->logs);
     free(env->map_corners);
@@ -915,14 +929,6 @@ void puf_close(Drive* env) {
     free(env->neighbor_cache_indices);
     free(env->static_agent_indices);
     free(env->expert_static_agent_indices);
-}
-
-void allocate(Drive* env) {
-    init(env);
-}
-
-void free_allocated(Drive* env) {
-    puf_close(env);
 }
 
 // Dynamics
@@ -965,7 +971,7 @@ void move_dynamics(Drive* env, int action_idx, int agent_idx) {
 // Observations
 void compute_observations(Drive* env) {
     for (int i = 0; i < env->active_agent_count; i++) {
-        float* obs = (float*)env->agents[i].observations;
+        float* obs = env->agents[i].observations;
         if (obs) memset(obs, 0, OBS_SIZE * sizeof(float));
         Entity* ego = &env->entities[env->active_agent_indices[i]];
         if (ego->type > CYCLIST) break;
@@ -1079,6 +1085,7 @@ void compute_observations(Drive* env) {
 
 void puf_reset(Drive* env) {
     env->timestep = 0;
+    if (!env->entities || env->active_agent_count <= 0) return;
     set_start_position(env);
     for (int x = 0; x < env->active_agent_count; x++) {
         env->logs[x] = (Log){0};
@@ -1106,8 +1113,55 @@ void respawn_agent(Drive* env, int agent_idx) {
     e->respawn_timestep = env->timestep;
 }
 
+// Hold Left Shift + WASD/arrows. Tab cycles the human vehicle.
+static void drive_human_controls(Drive *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    if (env->active_agent_count <= 0) {
+        return;
+    }
+    if (env->human_agent_idx < 0 || env->human_agent_idx >= env->active_agent_count) {
+        env->human_agent_idx = 0;
+    }
+    int idx = env->human_agent_idx;
+    float *atn = env->agents[idx].actions;
+    atn[0] = 3;
+    atn[1] = 6;
+    if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+        atn[0] += 2;
+        if (atn[0] > 6) {
+            atn[0] = 6;
+        }
+    }
+    if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
+        atn[0] -= 2;
+        if (atn[0] < 0) {
+            atn[0] = 0;
+        }
+    }
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        atn[1] += 4;
+        if (atn[1] < 0) {
+            atn[1] = 0;
+        }
+    }
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        atn[1] -= 4;
+        if (atn[1] > 12) {
+            atn[1] = 12;
+        }
+    }
+    if (IsKeyPressed(KEY_TAB)) {
+        env->human_agent_idx = (env->human_agent_idx + 1) % env->active_agent_count;
+    }
+}
+
 void puf_step(Drive* env) {
+    drive_human_controls(env);
+    if (!env->entities || env->active_agent_count <= 0) return;
     for (int _i = 0; _i < env->active_agent_count; _i++) {
+        if (!env->agents[_i].rewards) continue;
         env->agents[_i].rewards[0] = 0;
         env->agents[_i].terminals[0] = 0;
     }
@@ -1217,19 +1271,17 @@ Client* make_client(Drive* env) {
         client->car_assignments[i] = (rand_r(&env->rng) % 4) + 1;
     }
     // Get initial target position from first active agent
-    float map_center_x = (env->map_corners[0] + env->map_corners[2]) / 2.0f;
-    float map_center_y = (env->map_corners[1] + env->map_corners[3]) / 2.0f;
-    Vector3 target_pos = {
-       0,
-        0,  // Y is up
-        1   // Z is depth
-    };
-    
-    // Set up camera to look at target from above and behind
-    client->default_camera_position = (Vector3){ 
-        0,           // Same X as target
-        120.0f,   // 20 units above target
-        175.0f    // 20 units behind target
+    float map_center_x = 0.0f;
+    float map_center_y = 0.0f;
+    if (env->map_corners) {
+        map_center_x = (env->map_corners[0] + env->map_corners[2]) / 2.0f;
+        map_center_y = (env->map_corners[1] + env->map_corners[3]) / 2.0f;
+    }
+    Vector3 target_pos = { map_center_x, map_center_y, 1.0f };
+    client->default_camera_position = (Vector3){
+        map_center_x,
+        map_center_y + 120.0f,
+        175.0f
     };
     client->default_camera_target = target_pos;
     client->camera.position = client->default_camera_position;
@@ -1319,7 +1371,9 @@ void draw_agent_obs(Drive* env, int agent_index) {
 
     if (!IsKeyDown(KEY_LEFT_CONTROL)) return;
 
-    float* agent_obs = (float*)env->agents[agent_index].observations;
+    if (agent_index < 0 || agent_index >= env->active_agent_count) return;
+    if (!env->agents[agent_index].observations) return;
+    float* agent_obs = env->agents[agent_index].observations;
 
     // Draw goal
     float goal_x = agent_obs[0] / OBS_GOAL_SCALE;
@@ -1420,17 +1474,19 @@ void puf_render(Drive* env) {
     if (env->client == NULL) {
         env->client = make_client(env);
     }
+    drive_human_controls(env);
     Client* client = env->client;
     BeginDrawing();
     ClearBackground(ROAD_COLOR);
     BeginMode3D(client->camera);
     handle_camera_controls(client);
 
-    // Map bounds
-    DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[1], 0}, PUFF_CYAN);
-    DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[0], env->map_corners[3], 0}, PUFF_CYAN);
-    DrawLine3D((Vector3){env->map_corners[2], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, PUFF_CYAN);
-    DrawLine3D((Vector3){env->map_corners[0], env->map_corners[3], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, PUFF_CYAN);
+    if (env->map_corners) {
+        DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[1], 0}, PUFF_CYAN);
+        DrawLine3D((Vector3){env->map_corners[0], env->map_corners[1], 0}, (Vector3){env->map_corners[0], env->map_corners[3], 0}, PUFF_CYAN);
+        DrawLine3D((Vector3){env->map_corners[2], env->map_corners[1], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, PUFF_CYAN);
+        DrawLine3D((Vector3){env->map_corners[0], env->map_corners[3], 0}, (Vector3){env->map_corners[2], env->map_corners[3], 0}, PUFF_CYAN);
+    }
 
     for (int i = 0; i < env->num_entities; i++) {
         // Draw vehicles
@@ -1548,8 +1604,8 @@ void puf_render(Drive* env) {
     }
 
     // Grid overlay
-    float grid_start_x = env->map_corners[0];
-    float grid_start_y = env->map_corners[1];
+    float grid_start_x = env->map_corners ? env->map_corners[0] : 0.0f;
+    float grid_start_y = env->map_corners ? env->map_corners[1] : 0.0f;
     for (int i = 0; i < env->grid_cols; i++) {
         for (int j = 0; j < env->grid_rows; j++) {
             float x = grid_start_x + i * GRID_CELL_SIZE;
@@ -1567,13 +1623,25 @@ void puf_render(Drive* env) {
     DrawText(TextFormat("Camera Target: (%.2f, %.2f, %.2f)",
         client->camera.target.x, client->camera.target.y, client->camera.target.z), 10, 30, 20, PUFF_WHITE);
     DrawText(TextFormat("Timestep: %d", env->timestep), 10, 50, 20, PUFF_WHITE);
-    int human_idx = env->active_agent_indices[env->human_agent_idx];
+    int human_idx = -1;
+    int accel = 0;
+    int steer = 0;
+    if (env->active_agent_count > 0 && env->active_agent_indices
+        && env->human_agent_idx >= 0
+        && env->human_agent_idx < env->active_agent_count) {
+        human_idx = env->active_agent_indices[env->human_agent_idx];
+        float* atn = env->agents[env->human_agent_idx].actions;
+        if (atn) {
+            accel = (int)atn[0];
+            steer = (int)atn[1];
+        }
+    }
     DrawText(TextFormat("Controlling Agent: %d", env->human_agent_idx), 10, 70, 20, PUFF_WHITE);
     DrawText(TextFormat("Agent Index: %d", human_idx), 10, 90, 20, PUFF_WHITE);
     DrawText("Controls: W/S - Accelerate/Brake, A/D - Steer, 1-4 - Switch Agent",
              10, client->height - 30, 20, PUFF_WHITE);
-    DrawText(TextFormat("Acceleration: %d", (int)env->agents[env->human_agent_idx].actions[0]), 10, 110, 20, PUFF_WHITE);
-    DrawText(TextFormat("Steering: %d", (int)env->agents[env->human_agent_idx].actions[1]), 10, 130, 20, PUFF_WHITE);
+    DrawText(TextFormat("Acceleration: %d", accel), 10, 110, 20, PUFF_WHITE);
+    DrawText(TextFormat("Steering: %d", steer), 10, 130, 20, PUFF_WHITE);
     DrawText(TextFormat("Grid Rows: %d", env->grid_rows), 10, 150, 20, PUFF_WHITE);
     DrawText(TextFormat("Grid Cols: %d", env->grid_cols), 10, 170, 20, PUFF_WHITE);
     EndDrawing();
@@ -1589,6 +1657,47 @@ void close_client(Client* client) {
 }
 
 #define MAP_BINARY_DIR "drive_data/binaries"
+#define MAP_RESOURCE_DIR "resources/drive"
+
+static int drive_map_exists(const char* path) {
+    FILE* fp = fopen(path, "rb");
+    if (!fp) return 0;
+    fclose(fp);
+    return 1;
+}
+
+// Train maps live in drive_data/binaries/. The web demo only preloads
+// resources/drive/map_010.bin and map_942.bin.
+static void resolve_map_path(int map_id, char* out, size_t out_sz) {
+    snprintf(out, out_sz, "%s/map_%03d.bin", MAP_BINARY_DIR, map_id);
+    if (drive_map_exists(out)) return;
+    snprintf(out, out_sz, "%s/map_%03d.bin", MAP_RESOURCE_DIR, map_id);
+    if (drive_map_exists(out)) return;
+    const char* fallbacks[] = {
+        MAP_RESOURCE_DIR "/map_010.bin",
+        MAP_RESOURCE_DIR "/map_942.bin",
+    };
+    for (int i = 0; i < 2; i++) {
+        if (drive_map_exists(fallbacks[i])) {
+            snprintf(out, out_sz, "%s", fallbacks[i]);
+            return;
+        }
+    }
+}
+
+static int peek_map_agent_count(const char* filename, int max_agents) {
+    Drive temp = {0};
+    temp.map_name = (char*)filename;
+    temp.max_agents = max_agents > 0 ? max_agents : MAX_AGENTS;
+    temp.entities = load_map_binary(filename, &temp);
+    if (!temp.entities) return 0;
+    set_means(&temp);
+    set_active_agents(&temp);
+    int n = temp.active_agent_count;
+    if (n > MAX_AGENTS) n = MAX_AGENTS;
+    puf_close(&temp);
+    return n;
+}
 
 void puf_init(Env* env, Dict* kwargs) {
     env->human_agent_idx = dict_get(kwargs, "human_agent_idx");
@@ -1596,16 +1705,11 @@ void puf_init(Env* env, Dict* kwargs) {
     env->reward_offroad_collision = dict_get(kwargs, "reward_offroad_collision");
     env->reward_goal_post_respawn = dict_get(kwargs, "reward_goal_post_respawn");
     env->reward_vehicle_collision_post_respawn = dict_get(kwargs, "reward_vehicle_collision_post_respawn");
-    int map_id = 0;
-    int max_agents = MAX_AGENTS;
-    for (int i = 0; i < kwargs->size; i++) {
-        if (strcmp(kwargs->items[i].key, "map_id") == 0) map_id = (int)kwargs->items[i].value;
-        if (strcmp(kwargs->items[i].key, "max_agents") == 0) max_agents = (int)kwargs->items[i].value;
-    }
+    int map_id = dict_get(kwargs, "map_id");
     char map_file[512];
-    snprintf(map_file, sizeof(map_file), "%s/map_%03d.bin", MAP_BINARY_DIR, map_id);
+    resolve_map_path(map_id, map_file, sizeof(map_file));
     env->map_name = strdup(map_file);
-    env->max_agents = max_agents;
+    env->max_agents = MAX_AGENTS;
     init(env);
     env->num_agents = env->active_agent_count;
     if (env->num_agents > MAX_AGENTS) env->num_agents = MAX_AGENTS;
@@ -1613,6 +1717,120 @@ void puf_init(Env* env, Dict* kwargs) {
         env->agents[i].policy = 0;
         env->agents[i].action_mask = NULL;
     }
+}
+
+// 4.0 binding.c: scan maps, assign distinct map_ids, pack each buffer to
+// exactly agents_per_buffer (full maps, then 1-agent leftovers).
+Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_counts,
+                 Dict* vec_kwargs, Dict* env_kwargs) {
+    int total_agents = dict_get(vec_kwargs, "total_agents");
+    int num_buffers = dict_get(vec_kwargs, "num_buffers");
+    int num_maps = dict_get(env_kwargs, "num_maps");
+    int agents_per_buffer = total_agents / num_buffers;
+
+    float reward_vehicle_collision = dict_get(env_kwargs, "reward_vehicle_collision");
+    float reward_offroad_collision = dict_get(env_kwargs, "reward_offroad_collision");
+    float reward_goal_post_respawn = dict_get(env_kwargs, "reward_goal_post_respawn");
+    float reward_vehicle_collision_post_respawn = dict_get(env_kwargs, "reward_vehicle_collision_post_respawn");
+    int human_agent_idx = dict_get(env_kwargs, "human_agent_idx");
+
+    char first_map[512];
+    snprintf(first_map, sizeof(first_map), "%s/map_%03d.bin", MAP_BINARY_DIR, 0);
+    FILE* test_fp = fopen(first_map, "rb");
+    if (!test_fp) {
+        fprintf(stderr, "ERROR: Cannot find map files at %s/\n", MAP_BINARY_DIR);
+        fprintf(stderr, "Download WOMD JSON and run ocean/drive/dataset.py (see dataset.py header).\n");
+        exit(1);
+    }
+    fclose(test_fp);
+
+    int* agents_per_map = (int*)calloc(num_maps, sizeof(int));
+    int* valid_map_ids = (int*)calloc(num_maps, sizeof(int));
+    int num_valid_maps = 0;
+    for (int m = 0; m < num_maps; m++) {
+        char map_file[512];
+        snprintf(map_file, sizeof(map_file), "%s/map_%03d.bin", MAP_BINARY_DIR, m);
+        agents_per_map[m] = peek_map_agent_count(map_file, MAX_AGENTS);
+        if (agents_per_map[m] > 0) {
+            valid_map_ids[num_valid_maps++] = m;
+        }
+    }
+    printf("Scanned %d maps from %s/, %d valid\n", num_maps, MAP_BINARY_DIR, num_valid_maps);
+
+    if (num_valid_maps == 0) {
+        fprintf(stderr, "ERROR: No valid maps found in %s/\n", MAP_BINARY_DIR);
+        free(agents_per_map);
+        free(valid_map_ids);
+        exit(1);
+    }
+
+    int max_envs = agents_per_buffer * num_buffers;
+    int* env_map_ids = (int*)malloc(max_envs * sizeof(int));
+    int* env_max_agents = (int*)malloc(max_envs * sizeof(int));
+    int total_envs = 0;
+    int cursor = 0;
+
+    for (int b = 0; b < num_buffers; b++) {
+        buffer_env_starts[b] = total_envs;
+        int buffer_agents = 0;
+        while (buffer_agents < agents_per_buffer) {
+            int m = valid_map_ids[cursor % num_valid_maps];
+            int cap = agents_per_map[m];
+            int remaining = agents_per_buffer - buffer_agents;
+            if (cap <= remaining) {
+                env_map_ids[total_envs] = m;
+                env_max_agents[total_envs] = cap;
+                buffer_agents += cap;
+                total_envs++;
+                cursor++;
+            } else {
+                while (buffer_agents < agents_per_buffer) {
+                    int mm = valid_map_ids[cursor % num_valid_maps];
+                    env_map_ids[total_envs] = mm;
+                    env_max_agents[total_envs] = 1;
+                    buffer_agents++;
+                    total_envs++;
+                    cursor++;
+                }
+            }
+        }
+        buffer_env_counts[b] = total_envs - buffer_env_starts[b];
+    }
+
+    printf("total envs: %d (%d maps cycled)\n", total_envs, cursor);
+
+    Env* envs = (Env*)calloc(total_envs, sizeof(Env));
+    for (int i = 0; i < total_envs; i++) {
+        char map_file[512];
+        snprintf(map_file, sizeof(map_file), "%s/map_%03d.bin", MAP_BINARY_DIR, env_map_ids[i]);
+        Env* env = &envs[i];
+        env->rng = i;
+        env->map_name = strdup(map_file);
+        env->human_agent_idx = human_agent_idx;
+        env->reward_vehicle_collision = reward_vehicle_collision;
+        env->reward_offroad_collision = reward_offroad_collision;
+        env->reward_goal_post_respawn = reward_goal_post_respawn;
+        env->reward_vehicle_collision_post_respawn = reward_vehicle_collision_post_respawn;
+        env->max_agents = env_max_agents[i];
+        init(env);
+        env->num_agents = env->active_agent_count;
+        if (env->num_agents > env->max_agents) env->num_agents = env->max_agents;
+        if (env->num_agents > MAX_AGENTS) env->num_agents = MAX_AGENTS;
+        for (int a = 0; a < env->num_agents; a++) {
+            env->agents[a].policy = 0;
+            env->agents[a].action_mask = NULL;
+        }
+    }
+
+    free(env_map_ids);
+    free(env_max_agents);
+    free(agents_per_map);
+    free(valid_map_ids);
+
+    printf("Created %d envs, target %d agents\n", total_envs, total_agents);
+
+    *num_envs_out = total_envs;
+    return envs;
 }
 
 void puf_log(Log* log, Dict* out) {

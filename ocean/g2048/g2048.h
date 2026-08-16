@@ -5,6 +5,12 @@
 #include <math.h>
 #include <string.h>
 #include "raylib.h"
+// float obs for native trainer (bf16 cast path + CUDA graphs). Grid still stored as uchar.
+#if defined(from_float) && !defined(PRECISION_FLOAT)
+typedef precision_t obs_t;
+#else
+typedef float obs_t;
+#endif
 #include "pufferenv.h"
 
 static inline int g2048_min(int a, int b) { return a < b ? a : b; }
@@ -13,12 +19,7 @@ static inline int g2048_max(int a, int b) { return a > b ? a : b; }
 #define ACT_SIZES {4}
 #define OBS_SIZE 16
 #define NUM_ATNS 1
-// float obs for native trainer (bf16 cast path + CUDA graphs). Grid still stored as uchar.
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
+#define PUF_STEPS_PER_SEC 8
 
 #define SIZE 4
 #define EMPTY 0
@@ -128,12 +129,13 @@ void init(Game* game) {
 }
 
 void update_observations(Game* game) {
+    obs_t* obs = game->agents[0].observations;
     for (int i = 0; i < SIZE * SIZE; i++) {
         unsigned char v = ((unsigned char*)game->grid)[i];
 #if defined(from_float) && !defined(PRECISION_FLOAT)
-        ((obs_t*)game->agents[0].observations)[i] = from_float((float)v);
+        obs[i] = from_float((float)v);
 #else
-        ((obs_t*)game->agents[0].observations)[i] = (obs_t)v;
+        obs[i] = (obs_t)v;
 #endif
     }
 }
@@ -382,7 +384,34 @@ void update_stats(Game* game) {
     game->max_tile = max_tile;
 }
 
+// Hold Left Shift + WASD/arrows. Skip the step when no key this frame.
+static int g2048_human_controls(Game *game) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return 0;
+    }
+    if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
+        game->agents[0].actions[0] = 0;
+        return 1;
+    }
+    if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
+        game->agents[0].actions[0] = 1;
+        return 1;
+    }
+    if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) {
+        game->agents[0].actions[0] = 2;
+        return 1;
+    }
+    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
+        game->agents[0].actions[0] = 3;
+        return 1;
+    }
+    return -1;
+}
+
 void puf_step(Game* game) {
+    if (g2048_human_controls(game) < 0) {
+        return;
+    }
     float reward = 0.0f;
     float score_add = 0.0f;
     bool did_move = move(game, game->agents[0].actions[0] + 1, &reward, &score_add);
@@ -466,6 +495,8 @@ void puf_render(Game* game) {
         exit(0);
     }
 
+    g2048_human_controls(game);
+
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);
 
@@ -505,6 +536,7 @@ void puf_render(Game* game) {
     // Draw score (format once per frame)
     snprintf(score_text, sizeof(score_text), "Score: %d", game->score);
     DrawText(score_text, 10, px * SIZE + 10, 24, PUFF_WHITE);
+    DrawText("[Shift] WASD/arrows", 360, px * SIZE + 16, 16, PUFF_WHITE);
 
     snprintf(score_text, sizeof(score_text), "Moves: %d", game->moves_made);
     DrawText(score_text, 210, px * SIZE + 10, 24, PUFF_WHITE);
@@ -530,6 +562,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "reached_32768", log->reached_32768);
     dict_set(out, "reached_65536", log->reached_65536);
     dict_set(out, "reached_131072", log->reached_131072);
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {

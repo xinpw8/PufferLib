@@ -4,8 +4,6 @@
 //
 // 5c API port of Fin's multitask drone (PR #599 / FinlaySanders/4.0).
 
-#pragma once
-
 #include <assert.h>
 #include <limits.h>
 #include <math.h>
@@ -15,6 +13,7 @@
 
 #include "dronelib.h"
 #include "physics.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 // 5c API surface (pufferl / puffercpu)
@@ -22,8 +21,10 @@
 #define NUM_ATNS 4
 #define ACT_SIZES {1, 1, 1, 1}
 #define MAX_DRONES 256
-
-typedef float obs_t;
+// Train: 1 forward + 1 ACTION_DT (100 Hz). Display is rAF (~60, often less).
+// Eval loop runs that many (forward+tick) pairs per visual frame, re-forward
+// each time. Not GetFrameTime. Not setTimeout(10).
+#define PUF_EVAL_TICK_HZ 100
 
 typedef Env DroneEnv;
 
@@ -137,7 +138,7 @@ void compute_observations(DroneEnv* env) {
     bool is_race = (env->task == TASK_RACE);
     for (int i = 0; i < env->num_agents; i++)
         compute_drone_observations(&env->drones[i],
-            (float*)env->agents[i].observations, is_race);
+            env->agents[i].observations, is_race);
 }
 
 // Contiguous action buffer base (pufferl/puffercpu layout agents[i] stride NUM_ATNS)
@@ -155,7 +156,8 @@ void puf_reset(DroneEnv* env) {
     compute_observations(env);
 }
 
-void puf_step(DroneEnv* env) {
+// One ACTION_DT (100 Hz) of physics + rewards. Training calls this once.
+static void drone_tick(DroneEnv* env) {
     for (int i = 0; i < env->num_agents; i++)
         env->drones[i].prev_pos = env->drones[i].state.pos;
 
@@ -202,6 +204,10 @@ void puf_step(DroneEnv* env) {
     compute_observations(env);
 }
 
+void puf_step(DroneEnv* env) {
+    drone_tick(env);
+}
+
 void puf_close(DroneEnv* env) {
     task_close(env);
 
@@ -225,42 +231,42 @@ void puf_close(DroneEnv* env) {
 
 static void hover_config(DroneEnv* env, Dict* kwargs) {
     HoverConfig* cfg = (HoverConfig*)calloc(1, sizeof(HoverConfig));
-    cfg->target_dist = (float)dict_get(kwargs, "hover_target_dist");
-    cfg->alpha_hover = (float)dict_get(kwargs, "alpha_hover");
-    cfg->alpha_dist = (float)dict_get(kwargs, "hover_alpha_dist");
-    cfg->sphere_radius = (float)dict_get(kwargs, "sphere_radius");
-    cfg->horizon = (int)dict_get(kwargs, "hover_horizon");
+    cfg->target_dist = dict_get(kwargs, "hover_target_dist");
+    cfg->alpha_hover = dict_get(kwargs, "alpha_hover");
+    cfg->alpha_dist = dict_get(kwargs, "hover_alpha_dist");
+    cfg->sphere_radius = dict_get(kwargs, "sphere_radius");
+    cfg->horizon = dict_get(kwargs, "hover_horizon");
     env->task_config = cfg;
 }
 
 static void race_config(DroneEnv* env, Dict* kwargs) {
     RaceConfig* cfg = (RaceConfig*)calloc(1, sizeof(RaceConfig));
-    cfg->max_rings = (int)dict_get(kwargs, "max_rings");
-    cfg->ring_reward = (float)dict_get(kwargs, "ring_reward");
-    cfg->alpha_dist = (float)dict_get(kwargs, "race_alpha_dist");
-    cfg->horizon = (int)dict_get(kwargs, "race_horizon");
+    cfg->max_rings = dict_get(kwargs, "max_rings");
+    cfg->ring_reward = dict_get(kwargs, "ring_reward");
+    cfg->alpha_dist = dict_get(kwargs, "race_alpha_dist");
+    cfg->horizon = dict_get(kwargs, "race_horizon");
     env->task_config = cfg;
 }
 
 void puf_init(Env* env, Dict* kwargs) {
-    env->num_agents = (int)dict_get(kwargs, "num_drones");
+    env->num_agents = dict_get(kwargs, "num_drones");
     if (env->num_agents <= 0 || env->num_agents > MAX_DRONES) {
         fprintf(stderr, "drone: num_drones=%d out of range (1..%d)\n",
                 env->num_agents, MAX_DRONES);
         exit(1);
     }
 
-    env->alpha_vel = (float)dict_get(kwargs, "alpha_vel");
-    env->alpha_omega = (float)dict_get(kwargs, "alpha_omega");
-    env->alpha_action = (float)dict_get(kwargs, "alpha_action");
-    env->dr = (float)dict_get(kwargs, "dr");
-    env->integrator = (int)dict_get(kwargs, "use_rk2");
+    env->alpha_vel = dict_get(kwargs, "alpha_vel");
+    env->alpha_omega = dict_get(kwargs, "alpha_omega");
+    env->alpha_action = dict_get(kwargs, "alpha_action");
+    env->dr = dict_get(kwargs, "dr");
+    env->integrator = dict_get(kwargs, "use_rk2");
 
-    task_fracs[TASK_HOVER] = (float)dict_get(kwargs, "hover_frac");
-    task_fracs[TASK_RACE] = (float)dict_get(kwargs, "race_frac");
-    task_fracs[TASK_SPHERE] = (float)dict_get(kwargs, "sphere_frac");
-    task_fracs[TASK_CUBE] = (float)dict_get(kwargs, "cube_frac");
-    task_fracs[TASK_FLAG] = (float)dict_get(kwargs, "flag_frac");
+    task_fracs[TASK_HOVER] = dict_get(kwargs, "hover_frac");
+    task_fracs[TASK_RACE] = dict_get(kwargs, "race_frac");
+    task_fracs[TASK_SPHERE] = dict_get(kwargs, "sphere_frac");
+    task_fracs[TASK_CUBE] = dict_get(kwargs, "cube_frac");
+    task_fracs[TASK_FLAG] = dict_get(kwargs, "flag_frac");
 
     float total = 0.0f;
     for (int t = 0; t < NUM_TASKS; t++) total += task_fracs[t];
@@ -364,6 +370,7 @@ void puf_log(Log* log, Dict* out) {
     }
 
     first = 0;
+    dict_set(out, "n", log->n);
 }
 
 // Rendering (defines Client, puf_render, close_client)

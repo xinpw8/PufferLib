@@ -4,12 +4,11 @@
 #include <errno.h>
 #include <string.h>
 
-#include "env.h"
-#include "settings.h"
+#include "game.h"
 
 // clang-format off
 
-const char boringLayout[] = {
+static const char boringLayout[] = {
     'D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D',
     'D','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','D',
     'D','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','D',
@@ -33,7 +32,7 @@ const char boringLayout[] = {
     'D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D',
 };
 
-mapEntry boringMap = {
+static mapEntry boringMap = {
     .layout = boringLayout,
     .columns = 21,
     .rows = 21,
@@ -46,7 +45,7 @@ mapEntry boringMap = {
     .maxSuddenDeathWalls = 5,
 };
 
-const char prototypeArenaLayout[] = {
+static const char prototypeArenaLayout[] = {
     'D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D',
     'D','O','O','O','O','O','O','O','d','O','O','O','O','O','O','O','O','O','O','D',
     'D','O','w','O','O','O','O','O','O','O','O','O','O','O','O','O','O','d','O','D',
@@ -69,7 +68,7 @@ const char prototypeArenaLayout[] = {
     'D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D',
 };
 
-mapEntry prototypeArenaMap = {
+static mapEntry prototypeArenaMap = {
     .layout = prototypeArenaLayout,
     .columns = 20,
     .rows = 20,
@@ -82,7 +81,7 @@ mapEntry prototypeArenaMap = {
     .maxSuddenDeathWalls = 4,
 };
 
-const char snipersLayout[] = {
+static const char snipersLayout[] = {
     'B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B',
     'B','D','D','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','D','D','B',
     'B','D','D','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','D','D','B',
@@ -106,7 +105,7 @@ const char snipersLayout[] = {
     'B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B',
 };
 
-mapEntry snipersMap = {
+static mapEntry snipersMap = {
     .layout = snipersLayout,
     .columns = 21,
     .rows = 21,
@@ -119,7 +118,7 @@ mapEntry snipersMap = {
     .maxSuddenDeathWalls = 4,
 };
 
-const char roomsLayout[] = {
+static const char roomsLayout[] = {
     'D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D',
     'D','O','O','O','O','O','O','O','O','O','D','O','O','O','O','O','O','O','O','O','D',
     'D','O','O','O','O','O','O','O','O','O','D','O','O','O','O','O','O','O','O','O','D',
@@ -143,7 +142,7 @@ const char roomsLayout[] = {
     'D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D',
 };
 
-mapEntry roomsMap = {
+static mapEntry roomsMap = {
     .layout = roomsLayout,
     .columns = 21,
     .rows = 21,
@@ -156,7 +155,7 @@ mapEntry roomsMap = {
     .maxSuddenDeathWalls = 5,
 };
 
-const char xArenaLayout[] = {
+static const char xArenaLayout[] = {
     'D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D',
     'D','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','D',
     'D','O','O','O','O','O','O','O','O','O','d','O','O','O','O','O','O','O','O','O','d','O','D',
@@ -182,7 +181,7 @@ const char xArenaLayout[] = {
     'D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D',
 };
 
-mapEntry xArena = {
+static mapEntry xArena = {
     .layout = xArenaLayout,
     .columns = 23,
     .rows = 23,
@@ -195,7 +194,7 @@ mapEntry xArena = {
     .maxSuddenDeathWalls = 6,
 };
 
-const char crossBounceLayout[] = {
+static const char crossBounceLayout[] = {
     'D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D',
     'D','B','B','B','B','O','O','O','O','B','D','D','D','D','B','O','O','O','O','B','B','B','B','D',
     'D','B','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','B','D',
@@ -222,7 +221,7 @@ const char crossBounceLayout[] = {
     'D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D',
 };
 
-mapEntry crossBounce = {
+static mapEntry crossBounce = {
     .layout = crossBounceLayout,
     .columns = 24,
     .rows = 24,
@@ -235,7 +234,7 @@ mapEntry crossBounce = {
     .maxSuddenDeathWalls = 6,
 };
 
-const char asteriskArenaLayout[]= {
+static const char asteriskArenaLayout[]= {
     'D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D',
     'D','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','D',
     'D','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','D',
@@ -261,7 +260,7 @@ const char asteriskArenaLayout[]= {
     'D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D','D',
 };
 
-mapEntry asteriskArena = {
+static mapEntry asteriskArena = {
     .layout = asteriskArenaLayout,
     .columns = 23,
     .rows = 23,
@@ -274,7 +273,7 @@ mapEntry asteriskArena = {
     .maxSuddenDeathWalls = 7,
 };
 
-const char foamPitLayout[] = {
+static const char foamPitLayout[] = {
     'B','B','B','W','W','W','D','D','D','B','B','D','D','D','W','W','W','B','B','B',
     'B','O','O','O','O','O','O','O','D','B','B','D','O','O','O','O','O','O','O','B',
     'B','O','O','O','O','O','O','O','O','B','B','O','O','O','O','O','O','O','O','B',
@@ -297,7 +296,7 @@ const char foamPitLayout[] = {
     'B','B','B','W','W','W','D','D','D','B','B','D','D','D','W','W','W','B','B','B',
 };
 
-mapEntry foamPitMap = {
+static mapEntry foamPitMap = {
     .layout = foamPitLayout,
     .columns = 20,
     .rows = 20,
@@ -310,7 +309,7 @@ mapEntry foamPitMap = {
     .maxSuddenDeathWalls = 5,
 };
 
-const char siegeLayout[] = {
+static const char siegeLayout[] = {
     'B','B','B','W','W','W','W','W','D','D','D','D','D','D','D','D','D','W','W','W','W','W','B','B','B',
     'B','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','B',
     'B','O','d','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','d','O','B',
@@ -337,7 +336,7 @@ const char siegeLayout[] = {
     'B','B','B','W','W','W','W','W','D','D','D','D','D','D','D','D','D','W','W','W','W','W','B','B','B',
 };
 
-mapEntry siegeMap = {
+static mapEntry siegeMap = {
     .layout = siegeLayout,
     .columns = 25,
     .rows = 24,
@@ -352,7 +351,7 @@ mapEntry siegeMap = {
 
 // clang-format on
 
-mapEntry *maps[] = {
+static mapEntry *maps[] = {
     &boringMap,
     &prototypeArenaMap,
     &snipersMap,

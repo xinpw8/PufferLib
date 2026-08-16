@@ -260,7 +260,6 @@ static inline int opp_get_mage_attack(Player* self, Player* target) {
 
 static void opp_apply_boost_potion(OsrsEnv* env, OpponentState* opp, int* actions,
                                     Player* self, int attack_style, int potion_used) {
-    (void)env;
     if (potion_used) return;
     if (opp->potion_cooldown > 0) return;
     float hp_pct = (float)self->current_hitpoints / (float)self->base_hitpoints;
@@ -338,7 +337,6 @@ static int opp_apply_consumables(OsrsEnv* env, OpponentState* opp, int* actions,
         opp->potion_cooldown = 3;
     }
 
-    (void)env;
     return potion_used;
 }
 

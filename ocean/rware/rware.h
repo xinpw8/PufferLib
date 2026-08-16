@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+typedef float obs_t;
 #include "pufferenv.h"
 #include <assert.h>
 #include <string.h>
@@ -33,9 +34,9 @@
 #define OBS_SIZE (SELF_OBS+VISION_OBS)
 #define NUM_ATNS 1
 #define MAX_AGENTS 32
+#define RWARE_FRAMES 12
 
 typedef Env CRware;
-typedef float obs_t;
 
 // Facing directions
 #define FACING_RIGHT 0
@@ -184,8 +185,8 @@ struct Env {
 void add_log(CRware* env, Log* agent_log) {
     env->log.episode_return += agent_log->episode_return;
     env->log.episode_length += agent_log->episode_length;
-    env->log.score += agent_log->score;   
-    env->log.perf += fmaxf(0.0, agent_log->score - 0.01*agent_log->episode_length);
+    env->log.score += agent_log->score;
+    env->log.perf += fmaxf(0.0f, agent_log->score - 0.01f * agent_log->episode_length);
     env->log.n += 1;
 }
 
@@ -249,8 +250,6 @@ int request_new_shelf(CRware* env) {
 }
 
 void generate_map(CRware* env,const int* map) {
-    // seed new random
-    srand(time(NULL));
     int map_size = map_sizes[env->map_choice - 1];
     memcpy(env->warehouse_states, map, map_size * sizeof(int));
 
@@ -300,13 +299,10 @@ void init(CRware* env) {
     }
 }
 
-void allocate(CRware* env) {
-    init(env);
-}
-
 void puf_close(CRware* env) {
     free(env->warehouse_states);
     free(env->agent_locations);
+    free(env->old_agent_locations);
     free(env->agent_directions);
     free(env->agent_states);
     free(env->movement_graph->target_positions);
@@ -317,17 +313,13 @@ void puf_close(CRware* env) {
     free(env->scores);
 }
 
-void free_allocated(CRware* env) {
-    puf_close(env);
-}
-
 void compute_observations(CRware* env) {
     int surround_indices[8];
     int cols = map_cols[env->map_choice - 1];
     int rows = map_rows[env->map_choice - 1];
     for (int i = 0; i < env->num_agents; i++) {
         // Agent location, direction, state
-        float* obs = (float*)env->agents[i].observations;
+        obs_t* obs = env->agents[i].observations;
         int agent_location = env->agent_locations[i];
         int current_x = agent_location % cols;
         int current_y = agent_location / cols;
@@ -341,19 +333,21 @@ void compute_observations(CRware* env) {
             int new_y = current_y + SURROUNDING_VECTORS[j][1];
             surround_indices[j] = new_x + new_y * cols;
             // other robots location and rotation if on that spot
+            int found_agent = 0;
             for (int k = 0; k < env->num_agents; k++) {
-                if(i==k){
+                if (i == k) {
                     continue;
                 }
-                if(env->agent_locations[k] == surround_indices[j]){
+                if (env->agent_locations[k] == surround_indices[j]) {
                     obs[3 + j*3] = 1;
-                    obs[4 + j*3] = (env->agent_directions[k] + 1) / 4.0;
-                    break;
-                } else {
-                    obs[3 + j*3] = 0;
-                    obs[4 + j*3] = 0;
+                    obs[4 + j*3] = (env->agent_directions[k] + 1) / 4.0f;
+                    found_agent = 1;
                     break;
                 }
+            }
+            if (!found_agent) {
+                obs[3 + j*3] = 0;
+                obs[4 + j*3] = 0;
             }
             // boundary check
             if (new_x < 0 || new_x >= cols || new_y < 0 || new_y >= rows) {
@@ -365,10 +359,7 @@ void compute_observations(CRware* env) {
     }
 }
 
-void puf_reset(CRware* env) {
-     
-	env->agents[0].terminals[0] = 0;
-    // set agents in center
+static void reset_world(CRware* env) {
     env->human_agent_idx = 0;
     if (env->map_choice == 1) {
         generate_map(env, tiny_map);
@@ -377,11 +368,17 @@ void puf_reset(CRware* env) {
     } else {
         generate_map(env, medium_map);
     }
-    for(int x = 0;x<env->num_agents; x++){
-	    env->scores[x] = 0.0;
+    for (int x = 0; x < env->num_agents; x++) {
+        env->scores[x] = 0.0f;
+        env->agent_logs[x] = (Log){0};
     }
     compute_observations(env);
-    
+}
+
+void puf_reset(CRware* env) {
+    reset_world(env);
+    memset(env->agents[0].rewards, 0, env->num_agents * sizeof(float));
+    memset(env->agents[0].terminals, 0, env->num_agents * sizeof(float));
 }
 
 int get_direction(CRware* env, int action, int agent_idx) {
@@ -592,10 +589,9 @@ void pickup_shelf(CRware* env, int agent_idx) {
         env->warehouse_states[agent_location] = original_map_state;
         env->agents[agent_idx].rewards[0] = 1.0;
 
-        env->agent_logs[agent_idx].score = 1.0;
-        env->agent_logs[agent_idx].episode_return += 1.0;
-
-	    env->scores[agent_idx] = 0;
+        env->agent_logs[agent_idx].score = 1.0f;
+        env->agent_logs[agent_idx].episode_return += 1.0f;
+        env->scores[agent_idx] = 0;
         add_log(env, &env->agent_logs[agent_idx]);
         env->agent_logs[agent_idx] = (Log){0};
     }
@@ -604,7 +600,6 @@ void pickup_shelf(CRware* env, int agent_idx) {
         env->agent_states[agent_idx]=HOLDING_EMPTY_SHELF;
         env->agents[agent_idx].rewards[0] = 0.5;
         env->agent_logs[agent_idx].episode_return += 0.5;
-        env->agent_logs[agent_idx].score = 1.0;
         // Try random selection first, then fall back to linear scan to avoid infinite loop
         // when all shelves are currently being carried (warehouse_states == EMPTY).
         int total_shelves;
@@ -681,9 +676,8 @@ void process_tree_movements(CRware* env, MovementGraph* graph) {
 }
 
 void puf_step(CRware* env) {
-    for (int _i = 0; _i < env->num_agents; _i++) {
-        env->agents[_i].rewards[0] = 0;
-    }
+    memset(env->agents[0].rewards, 0, env->num_agents * sizeof(float));
+    memset(env->agents[0].terminals, 0, env->num_agents * sizeof(float));
     MovementGraph* graph = env->movement_graph;
 
     // Reset movement graph so stale targets from previous steps don't
@@ -754,10 +748,34 @@ void puf_render(CRware* env) {
         env->client = make_client(env);
     }
     Client* client = env->client;
-
-    if (IsKeyDown(KEY_ESCAPE)) {
-        exit(0);
+    if (env->human_agent_idx < 0 || env->human_agent_idx >= env->num_agents) {
+        env->human_agent_idx = 0;
     }
+    for (int frame = 0; frame < RWARE_FRAMES; frame++) {
+        if (IsKeyDown(KEY_ESCAPE)) {
+            exit(0);
+        }
+        if (IsKeyDown(KEY_LEFT_SHIFT)) {
+            int idx = env->human_agent_idx;
+            env->agents[idx].actions[0] = NOOP;
+            if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
+                env->agents[idx].actions[0] = FORWARD;
+            }
+            if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+                env->agents[idx].actions[0] = LEFT;
+            }
+            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+                env->agents[idx].actions[0] = RIGHT;
+            }
+            if (IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_ENTER)) {
+                env->agents[idx].actions[0] = TOGGLE_LOAD;
+            }
+            if (IsKeyPressed(KEY_TAB)) {
+                env->human_agent_idx =
+                    (env->human_agent_idx + 1) % env->num_agents;
+            }
+        }
+        client->tick = frame;
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);    
     
@@ -814,8 +832,8 @@ void puf_render(CRware* env) {
         int new_x_pos = (new_agent_location % cols) * env->grid_square_size;
         int new_y_pos = (new_agent_location / cols) * env->grid_square_size;
 
-        float interp_old = (1.0f - 1.0f/12.0f*(float)client->tick);
-        float interp_new = 1.0f/12.0f*(float)client->tick;
+        float interp_old = (1.0f - 1.0f/(float)RWARE_FRAMES*(float)client->tick);
+        float interp_new = 1.0f/(float)RWARE_FRAMES*(float)client->tick;
 
         int x_pos = interp_old*(float)old_x_pos + interp_new*(float)new_x_pos;
         int y_pos = interp_old*(float)old_y_pos + interp_new*(float)new_y_pos;
@@ -850,9 +868,8 @@ void puf_render(CRware* env) {
         );
     }
 
-    client->tick = (client->tick + 1) % 12;
-
     EndDrawing();
+    }
 }
 void close_client(Client* client) {
     CloseWindow();
@@ -883,5 +900,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 

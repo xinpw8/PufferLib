@@ -1,0 +1,570 @@
+#include <stdint.h>
+#include <stdlib.h>
+#include <math.h>
+#include <assert.h>
+
+typedef float obs_t;
+#include "pufferenv.h"
+#include "affine_lock_visible_targets.h"
+
+#define AFFINE_LOCK_BITS 16
+#define AFFINE_LOCK_TIMER_INDEX (2 * AFFINE_LOCK_BITS)
+#define AFFINE_LOCK_OBS_SIZE (AFFINE_LOCK_TIMER_INDEX + 1)
+#define AFFINE_LOCK_NUM_ATNS 1
+#define AFFINE_LOCK_NUM_ACTIONS 8
+#define AFFINE_LOCK_MAX_SOLUTION_DEPTH 16
+#define AFFINE_LOCK_CURRICULUM_DEPTH_COUNT 6
+#define AFFINE_LOCK_STEP_REWARD (-0.01f)
+#ifndef AFFINE_LOCK_VISIBLE_TARGET_TABLE_PATH
+#define AFFINE_LOCK_VISIBLE_TARGET_TABLE_PATH \
+    "ocean/affine_lock/generated/affine_lock_8action_visible_targets.bin"
+#endif
+
+#define ACT_SIZES {AFFINE_LOCK_NUM_ACTIONS}
+#define OBS_SIZE AFFINE_LOCK_OBS_SIZE
+#define NUM_ATNS AFFINE_LOCK_NUM_ATNS
+#define PUF_STEPS_PER_SEC 2
+
+#define MY_VEC_INIT
+#define MY_VEC_CLOSE
+
+static const int AFFINE_LOCK_CURRICULUM_DEPTHS[
+    AFFINE_LOCK_CURRICULUM_DEPTH_COUNT] = {2, 4, 5, 6, 8, 16};
+
+typedef enum AffineLockAction {
+    AFFINE_LOCK_ACTION_SHIFT_LEFT = 0,
+    AFFINE_LOCK_ACTION_SHIFT_RIGHT = 1,
+    AFFINE_LOCK_ACTION_INVERT_RIGHT_7 = 2,
+    AFFINE_LOCK_ACTION_SWAP_ADJACENT_BITS = 3,
+    AFFINE_LOCK_ACTION_SWAP_ADJACENT_PAIRS = 4,
+    AFFINE_LOCK_ACTION_SWAP_NIBBLES_EACH_BYTE = 5,
+    AFFINE_LOCK_ACTION_REVERSE_EACH_NIBBLE = 6,
+    AFFINE_LOCK_ACTION_REVERSE_EACH_BYTE = 7,
+} AffineLockAction;
+
+struct Log {
+    float perf;
+    float score;
+    float solve_rate;
+    float max_depth_solve;
+    float episode_return;
+    float episode_length;
+    float solve_steps;
+    float timeout_rate;
+    float invalid_rate;
+    float solve_efficiency;
+    float target_distance;
+    float solved_target_distance;
+    float depth_2_rate;
+    float depth_2_solve_rate;
+    float depth_4_rate;
+    float depth_4_solve_rate;
+    float depth_5_rate;
+    float depth_5_solve_rate;
+    float depth_6_rate;
+    float depth_6_solve_rate;
+    float depth_8_rate;
+    float depth_8_solve_rate;
+    float depth_16_rate;
+    float depth_16_solve_rate;
+    float n;
+};
+
+typedef struct AffineLockShared {
+    int start_depth;
+    int max_depth;
+    int step_grace;
+    int num_states;
+    uint32_t mask;
+    uint32_t* next;
+    AffineLockVisibleTargetTable visible_target_table;
+    float observation_bit_patterns[256][8];
+} AffineLockShared;
+
+typedef struct Client {
+    int screen_width;
+    int screen_height;
+} Client;
+
+struct Env {
+    Log log;
+    Agent agents[1];
+    int tag;
+    int boundary_reached;
+    int num_agents;
+    unsigned int rng;
+    uint32_t state;
+    uint32_t target;
+    int step_count;
+    int max_steps;
+    int scramble_depth;
+    int curriculum_depth;
+    int solution_length;
+    int solution_actions[AFFINE_LOCK_MAX_SOLUTION_DEPTH];
+    int target_distance;
+    float episode_return;
+    int owns_shared;
+    AffineLockShared* shared;
+    Client* client;
+};
+typedef Env AffineLock;
+
+static void affine_lock_init_shared(
+        AffineLockShared* shared,
+        int start_depth,
+        int max_depth,
+        int step_grace) {
+    shared->start_depth = start_depth;
+    shared->max_depth = max_depth;
+    shared->step_grace = step_grace;
+    shared->num_states = 1 << AFFINE_LOCK_BITS;
+    shared->mask = (1u << AFFINE_LOCK_BITS) - 1u;
+    for (int value = 0; value < 256; value++) {
+        for (int bit = 0; bit < 8; bit++) {
+            shared->observation_bit_patterns[value][bit] =
+                (value & (1 << bit)) ? 1.0f : -1.0f;
+        }
+    }
+
+    shared->next = calloc(
+        shared->num_states * AFFINE_LOCK_NUM_ACTIONS, sizeof(uint32_t));
+    assert(shared->next);
+
+    uint32_t nstates = shared->num_states;
+    for (uint32_t state = 0; state < nstates; state++) {
+        for (int action = 0; action < AFFINE_LOCK_NUM_ACTIONS; action++) {
+            uint32_t next = state;
+            switch (action) {
+                case AFFINE_LOCK_ACTION_SHIFT_LEFT:
+                    next = (state >> 1) | ((state & 1u) << 15);
+                    break;
+                case AFFINE_LOCK_ACTION_SHIFT_RIGHT:
+                    next = ((state << 1) & 0xffffu) | ((state >> 15) & 1u);
+                    break;
+                case AFFINE_LOCK_ACTION_INVERT_RIGHT_7:
+                    next = state ^ 0xfe00u;
+                    break;
+                case AFFINE_LOCK_ACTION_SWAP_ADJACENT_BITS:
+                    next = ((state & 0x5555u) << 1) | ((state & 0xaaaau) >> 1);
+                    break;
+                case AFFINE_LOCK_ACTION_SWAP_ADJACENT_PAIRS:
+                    next = ((state & 0x3333u) << 2) | ((state & 0xccccu) >> 2);
+                    break;
+                case AFFINE_LOCK_ACTION_SWAP_NIBBLES_EACH_BYTE:
+                    next = ((state & 0x0f0fu) << 4) | ((state & 0xf0f0u) >> 4);
+                    break;
+                case AFFINE_LOCK_ACTION_REVERSE_EACH_NIBBLE:
+                    next = ((state & 0x5555u) << 1) | ((state & 0xaaaau) >> 1);
+                    next = ((next & 0x3333u) << 2) | ((next & 0xccccu) >> 2);
+                    break;
+                case AFFINE_LOCK_ACTION_REVERSE_EACH_BYTE:
+                    next = ((state & 0x5555u) << 1) | ((state & 0xaaaau) >> 1);
+                    next = ((next & 0x3333u) << 2) | ((next & 0xccccu) >> 2);
+                    next = ((next & 0x0f0fu) << 4) | ((next & 0xf0f0u) >> 4);
+                    break;
+            }
+            shared->next[state * AFFINE_LOCK_NUM_ACTIONS + action] =
+                next & shared->mask;
+        }
+    }
+
+    char error[256];
+    assert(affine_lock_visible_targets_load(
+        AFFINE_LOCK_VISIBLE_TARGET_TABLE_PATH,
+        AFFINE_LOCK_VISIBLE_TARGET_8ACTION_V1_HASH,
+        &shared->visible_target_table,
+        error,
+        sizeof(error)) == 0);
+}
+
+static void affine_lock_free_shared(AffineLockShared* shared) {
+    free(shared->next);
+    affine_lock_visible_targets_free(&shared->visible_target_table);
+}
+
+static uint32_t affine_lock_apply_action(
+        const AffineLockShared* shared, uint32_t rel, int action) {
+    return shared->next[rel * AFFINE_LOCK_NUM_ACTIONS + action];
+}
+
+// Keep RNG fully local to each env so sweep runs differ only by hyperparams.
+// The mixer avoids weak low bits from the LCG when sampling bounded actions or
+// bit states. Do not replace this with global rand()/srand().
+static uint32_t affine_lock_random_mixed_u32(AffineLock* env) {
+    env->rng = env->rng * 1664525u + 1013904223u;
+    uint32_t x = env->rng;
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+}
+
+static int affine_lock_random_bounded(AffineLock* env, int bound) {
+    uint32_t ubound = bound;
+    uint32_t limit = UINT32_MAX - UINT32_MAX % ubound;
+    uint32_t value = affine_lock_random_mixed_u32(env);
+    while (value >= limit) {
+        value = affine_lock_random_mixed_u32(env);
+    }
+    return value % ubound;
+}
+
+static unsigned int affine_lock_env_seed(
+        unsigned int base_seed, unsigned int env_id) {
+    uint32_t value = 0x811c9dc5u;
+    value = (value ^ base_seed) * 0x01000193u;
+    value = (value ^ env_id) * 0x01000193u;
+    value ^= value >> 16;
+    value *= 0x7feb352du;
+    value ^= value >> 15;
+    value *= 0x846ca68bu;
+    value ^= value >> 16;
+    return value;
+}
+
+static const AffineLockVisibleTargetDepth* affine_lock_visible_target_depth(
+        const AffineLockShared* shared,
+        uint32_t requested_depth) {
+    const AffineLockVisibleTargetTable* table = &shared->visible_target_table;
+    for (uint32_t i = 0; i < table->depth_count; i++) {
+        if (table->depths[i].depth == requested_depth) {
+            return &table->depths[i];
+        }
+    }
+    return NULL;
+}
+
+static void affine_lock_reset_state(AffineLock* env) {
+    AffineLockShared* shared = env->shared;
+    env->scramble_depth = env->curriculum_depth;
+    env->step_count = 0;
+    env->episode_return = 0;
+    const AffineLockVisibleTargetDepth* depth =
+        affine_lock_visible_target_depth(shared, env->scramble_depth);
+    int choice = affine_lock_random_bounded(env, depth->stored_count);
+    const AffineLockVisibleTargetRecord* record =
+        &shared->visible_target_table.records[depth->first_record + choice];
+    env->state = record->start;
+    env->target = record->target;
+    env->target_distance = record->depth;
+    env->solution_length = record->solution_length;
+    for (int i = 0; i < AFFINE_LOCK_MAX_SOLUTION_DEPTH; i++) {
+        env->solution_actions[i] = -1;
+    }
+    for (int i = 0; i < env->solution_length; i++) {
+        env->solution_actions[i] = (record->packed_actions >> (3 * i)) & 7;
+    }
+    env->max_steps = env->target_distance + shared->step_grace;
+}
+
+static void affine_lock_init_env(
+        AffineLock* env, AffineLockShared* shared, unsigned int seed) {
+    env->shared = shared;
+    env->rng = seed;
+    env->num_agents = 1;
+    env->curriculum_depth = shared->start_depth;
+}
+
+static void affine_lock_add_log(AffineLock* env, int solved, int invalid) {
+    AffineLockShared* shared = env->shared;
+    int log_depth = env->target_distance;
+    int at_max_depth = log_depth == shared->max_depth;
+    float solve_credit = solved ? log_depth / (float)shared->max_depth : 0;
+    env->log.perf += solve_credit;
+    env->log.score += solve_credit;
+    env->log.solve_rate += solved;
+    env->log.max_depth_solve += solved && at_max_depth;
+    env->log.episode_return += env->episode_return;
+    env->log.episode_length += env->step_count;
+    env->log.solve_steps += solved ? env->step_count : 0;
+    env->log.timeout_rate += !solved && !invalid;
+    env->log.invalid_rate += invalid;
+    env->log.solve_efficiency += solved ?
+        env->step_count / (float)log_depth : 0;
+    env->log.target_distance += env->target_distance;
+    env->log.solved_target_distance += solved ? env->target_distance : 0;
+    env->log.depth_2_rate += log_depth == 2;
+    env->log.depth_2_solve_rate += solved && log_depth == 2;
+    env->log.depth_4_rate += log_depth == 4;
+    env->log.depth_4_solve_rate += solved && log_depth == 4;
+    env->log.depth_5_rate += log_depth == 5;
+    env->log.depth_5_solve_rate += solved && log_depth == 5;
+    env->log.depth_6_rate += log_depth == 6;
+    env->log.depth_6_solve_rate += solved && log_depth == 6;
+    env->log.depth_8_rate += log_depth == 8;
+    env->log.depth_8_solve_rate += solved && log_depth == 8;
+    env->log.depth_16_rate += log_depth == 16;
+    env->log.depth_16_solve_rate += solved && log_depth == 16;
+    env->log.n += 1;
+}
+
+static void affine_lock_compute_observations(AffineLock* env) {
+    float (*patterns)[8] = env->shared->observation_bit_patterns;
+    uint32_t state = env->state;
+    uint32_t target = env->target;
+    float* obs = env->agents[0].observations;
+    for (int i = 0; i < 8; i++) {
+        obs[i] = patterns[state & 0xffu][i];
+        obs[8 + i] = patterns[(state >> 8) & 0xffu][i];
+        obs[16 + i] = patterns[target & 0xffu][i];
+        obs[24 + i] = patterns[(target >> 8) & 0xffu][i];
+    }
+    obs[AFFINE_LOCK_TIMER_INDEX] = env->step_count / (float)env->max_steps;
+}
+
+void puf_reset(AffineLock* env) {
+    env->agents[0].rewards[0] = 0;
+    env->agents[0].terminals[0] = 0;
+    affine_lock_reset_state(env);
+    affine_lock_compute_observations(env);
+}
+
+static int affine_lock_next_curriculum_depth(
+        const AffineLockShared* shared,
+        int current_depth) {
+    for (int i = 0; i < AFFINE_LOCK_CURRICULUM_DEPTH_COUNT; i++) {
+        int depth = AFFINE_LOCK_CURRICULUM_DEPTHS[i];
+        if (depth > current_depth) {
+            return depth < shared->max_depth ? depth : shared->max_depth;
+        }
+    }
+    return shared->max_depth;
+}
+
+// Hold Left Shift + 1-8.
+static int affine_lock_human_controls(AffineLock *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return 0;
+    }
+    static const int keys[AFFINE_LOCK_NUM_ACTIONS] = {
+        KEY_ONE, KEY_TWO, KEY_THREE, KEY_FOUR,
+        KEY_FIVE, KEY_SIX, KEY_SEVEN, KEY_EIGHT,
+    };
+    for (int i = 0; i < AFFINE_LOCK_NUM_ACTIONS; i++) {
+        if (IsKeyPressed(keys[i])) {
+            env->agents[0].actions[0] = (float)i;
+            return 1;
+        }
+    }
+    return -1;
+}
+
+void puf_step(AffineLock* env) {
+    if (affine_lock_human_controls(env) < 0) {
+        return;
+    }
+    AffineLockShared* shared = env->shared;
+    float raw = env->agents[0].actions[0];
+    int invalid = !isfinite(raw) || raw < 0 || raw > AFFINE_LOCK_NUM_ACTIONS - 1;
+    int action = invalid ? -1 : raw;
+    if (!invalid && action != raw) {
+        invalid = 1;
+    }
+    float reward = AFFINE_LOCK_STEP_REWARD;
+    int terminal = 0;
+    int solved = 0;
+
+    env->agents[0].terminals[0] = 0;
+    env->step_count += 1;
+
+    if (invalid) {
+        reward = -1;
+        terminal = 1;
+    } else {
+        env->state = affine_lock_apply_action(shared, env->state, action);
+        if (env->state == env->target) {
+            reward = 1;
+            terminal = 1;
+            solved = 1;
+        } else if (env->step_count >= env->max_steps) {
+            reward = -1;
+            terminal = 1;
+        }
+    }
+    env->agents[0].rewards[0] = reward;
+    env->episode_return += reward;
+    if (terminal) {
+        env->agents[0].terminals[0] = 1;
+        affine_lock_add_log(env, solved, invalid);
+        env->curriculum_depth = solved ?
+            affine_lock_next_curriculum_depth(shared, env->scramble_depth) :
+            shared->start_depth;
+        affine_lock_reset_state(env);
+    }
+    affine_lock_compute_observations(env);
+}
+
+void puf_close(AffineLock* env) {
+    if (env->client) {
+        if (IsWindowReady()) {
+            CloseWindow();
+        }
+        free(env->client);
+    }
+    if (env->owns_shared) {
+        affine_lock_free_shared(env->shared);
+        free(env->shared);
+    }
+}
+
+void puf_render(AffineLock* env) {
+    if (IsWindowReady() && (WindowShouldClose() || IsKeyPressed(KEY_ESCAPE))) {
+        puf_close(env);
+        exit(0);
+    }
+    affine_lock_human_controls(env);
+    if (!env->client) {
+        Client* client = calloc(1, sizeof(Client));
+        client->screen_width = 780;
+        client->screen_height = 360;
+        InitWindow(client->screen_width, client->screen_height,
+            "PufferLib AffineLock");
+        SetTargetFPS(30);
+        env->client = client;
+    }
+
+    uint32_t rel = (env->state ^ env->target) & env->shared->mask;
+    float display_reward = env->agents[0].rewards[0];
+    int display_terminal = env->agents[0].terminals[0] != 0;
+    int display_solved = display_terminal && display_reward > 0;
+    const char* status = "running";
+    Color status_color = (Color){190, 198, 206, 255};
+    if (display_terminal) {
+        status = display_solved ? "solved" : "failed";
+        status_color = display_solved ?
+            (Color){80, 210, 140, 255} : (Color){238, 88, 88, 255};
+    }
+
+    BeginDrawing();
+    ClearBackground((Color){6, 24, 24, 255});
+    DrawText("Affine Lock", 30, 24, 28, RAYWHITE);
+    DrawText(TextFormat("depth %d/%d  step %d/%d  last reward %.2f",
+        env->scramble_depth, env->shared->max_depth,
+        env->step_count, env->max_steps, display_reward),
+        30, 62, 20, (Color){180, 190, 200, 255});
+    DrawText(TextFormat("status %s  mismatches 0x%04x",
+        status, rel), 30, 90, 20, status_color);
+
+    const char* row_label[2] = {"current", "target"};
+    uint32_t row_value[2] = {env->state, env->target};
+    int row_y[2] = {138, 220};
+    for (int row = 0; row < 2; row++) {
+        DrawText(row_label[row], 30, row_y[row] + 9, 20, RAYWHITE);
+        for (int bit = 0; bit < AFFINE_LOCK_BITS; bit++) {
+            int x = 145 + bit * 34;
+            int on = (row_value[row] >> bit) & 1u;
+            int mismatch = ((env->state ^ env->target) >> bit) & 1u;
+            Color fill = on ?
+                (Color){80, 210, 140, 255} : (Color){38, 48, 58, 255};
+            Color border = mismatch ?
+                (Color){238, 88, 88, 255} : (Color){182, 196, 205, 255};
+            DrawRectangle(x, row_y[row], 24, 34, fill);
+            DrawRectangleLinesEx(
+                (Rectangle){x, row_y[row], 24, 34},
+                mismatch ? 3 : 1, border);
+            DrawText(TextFormat("%d", bit), x + 5, row_y[row] + 40, 10,
+                (Color){128, 140, 150, 255});
+        }
+    }
+
+    DrawText("1 shiftL  2 shiftR  3 inv7  4 bit-swap  5 pair-swap",
+        30, 300, 16, (Color){160, 170, 178, 255});
+    DrawText("6 nib-swap  7 rev-nib  8 rev-byte  R reset",
+        30, 322, 16, (Color){160, 170, 178, 255});
+    EndDrawing();
+}
+
+void puf_log(Log* log, Dict* out) {
+    float nsolve = log->solve_rate;
+    float solved_min_win_moves = nsolve ? log->solved_target_distance / nsolve : 0;
+    float conditional_solve_steps = nsolve ? log->solve_steps / nsolve : 0;
+    float conditional_solve_efficiency = nsolve ?
+        log->solve_efficiency / nsolve : 0;
+
+    dict_set(out, "perf", log->perf);
+    dict_set(out, "score", log->score);
+    dict_set(out, "solve_rate", log->solve_rate);
+    dict_set(out, "max_depth_solve", log->max_depth_solve);
+    dict_set(out, "episode_return", log->episode_return);
+    dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "timeout_rate", log->timeout_rate);
+    dict_set(out, "invalid_rate", log->invalid_rate);
+    dict_set(out, "min_win_moves", log->target_distance);
+    dict_set(out, "solved_min_win_moves", solved_min_win_moves);
+    dict_set(out, "conditional_solve_steps", conditional_solve_steps);
+    dict_set(out, "conditional_solve_efficiency", conditional_solve_efficiency);
+    dict_set(out, "depth_2_solve_rate",
+        log->depth_2_rate ? log->depth_2_solve_rate / log->depth_2_rate : 0);
+    dict_set(out, "depth_4_solve_rate",
+        log->depth_4_rate ? log->depth_4_solve_rate / log->depth_4_rate : 0);
+    dict_set(out, "depth_5_solve_rate",
+        log->depth_5_rate ? log->depth_5_solve_rate / log->depth_5_rate : 0);
+    dict_set(out, "depth_6_solve_rate",
+        log->depth_6_rate ? log->depth_6_solve_rate / log->depth_6_rate : 0);
+    dict_set(out, "depth_8_solve_rate",
+        log->depth_8_rate ? log->depth_8_solve_rate / log->depth_8_rate : 0);
+    dict_set(out, "depth_16_solve_rate",
+        log->depth_16_rate ? log->depth_16_solve_rate / log->depth_16_rate : 0);
+    dict_set(out, "n", log->n);
+}
+
+static AffineLockShared* affine_lock_create_shared(
+        int start_depth, int max_depth, int step_grace) {
+    AffineLockShared* shared = calloc(1, sizeof(AffineLockShared));
+    assert(shared);
+    affine_lock_init_shared(shared, start_depth, max_depth, step_grace);
+    return shared;
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    int start_depth = dict_get(kwargs, "start_depth");
+    int max_depth = dict_get(kwargs, "max_depth");
+    int step_grace = dict_get(kwargs, "step_grace");
+    int seed = dict_get(kwargs, "seed");
+    AffineLockShared* shared =
+        affine_lock_create_shared(start_depth, max_depth, step_grace);
+    affine_lock_init_env(env, shared, affine_lock_env_seed(seed, env->rng));
+    env->owns_shared = 1;
+}
+
+Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_counts,
+        Dict* vec_kwargs, Dict* env_kwargs) {
+    int total_agents = dict_get(vec_kwargs, "total_agents");
+    int num_buffers = dict_get(vec_kwargs, "num_buffers");
+    int agents_per_buffer = total_agents / num_buffers;
+    int base_seed = dict_get(env_kwargs, "seed");
+    int start_depth = dict_get(env_kwargs, "start_depth");
+    int max_depth = dict_get(env_kwargs, "max_depth");
+    int step_grace = dict_get(env_kwargs, "step_grace");
+
+    AffineLockShared* shared =
+        affine_lock_create_shared(start_depth, max_depth, step_grace);
+    Env* envs = calloc(total_agents, sizeof(Env));
+    assert(envs);
+
+    int buf = 0;
+    int buf_agents = 0;
+    buffer_env_starts[0] = 0;
+    buffer_env_counts[0] = 0;
+    for (int i = 0; i < total_agents; i++) {
+        Env* env = &envs[i];
+        affine_lock_init_env(env, shared, affine_lock_env_seed(base_seed, i));
+        buf_agents += env->num_agents;
+        buffer_env_counts[buf]++;
+        if (buf_agents >= agents_per_buffer && buf < num_buffers - 1) {
+            buf++;
+            buffer_env_starts[buf] = i + 1;
+            buffer_env_counts[buf] = 0;
+            buf_agents = 0;
+        }
+    }
+    *num_envs_out = total_agents;
+    return envs;
+}
+
+void my_vec_close(Env* envs) {
+    affine_lock_free_shared(envs[0].shared);
+    free(envs[0].shared);
+}

@@ -10,6 +10,7 @@
 #include <math.h>
 #include <stdint.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 // Tile types
@@ -208,7 +209,6 @@ typedef struct {
 #define NUM_ATNS 1
 
 typedef Env Overcooked;
-typedef float obs_t;
 
 struct Env {
     Log log;

@@ -228,7 +228,6 @@ static inline int col_static_footprint_blocked_lookup(int x, int y, int size) {
 }
 
 static int col_los_tile_blocked_reference(void* ctx, int x, int y) {
-    (void)ctx;
     return col_static_blocked(x, y);
 }
 

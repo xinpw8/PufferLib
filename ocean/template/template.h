@@ -1,12 +1,11 @@
 #include <stdlib.h>
-#include <string.h>
 #include "raylib.h"
+typedef unsigned char obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {2}
 #define OBS_SIZE 1
 #define NUM_ATNS 1
-typedef unsigned char obs_t;
 
 const Color PUFF_RED = (Color){187, 0, 0, 255};
 const Color PUFF_CYAN = (Color){0, 187, 187, 255};
@@ -32,9 +31,9 @@ struct Env {
 typedef Env Template;
 
 void puf_reset(Template* env) {
-    env->x = 0;
     env->goal = (rand_r(&env->rng) % 2 == 0) ? env->size : -env->size;
-    ((obs_t*)env->agents[0].observations)[0] = (env->goal > 0) ? 1 : 0;
+    env->agents[0].observations[0] = (env->goal > 0) ? 1 : 0;
+    env->x = 0;
 }
 
 void puf_step(Template* env) {
@@ -58,7 +57,7 @@ void puf_step(Template* env) {
         env->log.score -= 1;
         env->log.n += 1;
     }
-    ((obs_t*)env->agents[0].observations)[0] = (env->goal > 0) ? 1 : 0;
+    env->agents[0].observations[0] = (env->goal > 0) ? 1 : 0;
 }
 
 void puf_render(Template* env) {
@@ -66,11 +65,18 @@ void puf_render(Template* env) {
         InitWindow(1080, 720, "PufferLib Template");
         SetTargetFPS(5);
     }
-
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
-
+    if (IsKeyDown(KEY_LEFT_SHIFT)) {
+        if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
+            env->agents[0].actions[0] = 0;
+        } else if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) {
+            env->agents[0].actions[0] = 1;
+        } else {
+            env->agents[0].actions[0] = -1;
+        }
+    }
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);
     DrawText("Go to the red square!", 20, 20, 20, PUFF_WHITE);
@@ -80,7 +86,6 @@ void puf_render(Template* env) {
 }
 
 void puf_close(Template* env) {
-    (void)env;
     if (IsWindowReady()) {
         CloseWindow();
     }
@@ -95,5 +100,5 @@ void puf_init(Env* env, Dict* kwargs) {
 
 void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
+    dict_set(out, "n", log->n);
 }
-

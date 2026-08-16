@@ -2,12 +2,16 @@
 #include <string.h>
 #include <stdio.h>
 #include "raylib.h"
+typedef unsigned char obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {3}
 #define OBS_SIZE 4
 #define NUM_ATNS 1
-typedef unsigned char obs_t;
+#define TMAZE_FRAMES 15
+#ifdef PUFFERCPU_EVAL_MAIN
+#define PUF_EVAL_SHOULD_FORWARD
+#endif
 
 const unsigned char FORWARD = 0;
 const unsigned char RIGHT = 1;
@@ -36,18 +40,13 @@ struct Env {
     int size;
     int tick;
     unsigned char state;
+    unsigned char prev_state;
     unsigned char starting_state;
     Texture2D puffer;
     unsigned int rng;
+    int tick_frames_left;
 };
 typedef Env TMaze;
-
-void free_allocated(TMaze* env) {
-    free(env->agents[0].observations);
-    free(env->agents[0].actions);
-    free(env->agents[0].rewards);
-    free(env->agents[0].terminals);
-}
 
 void add_log(TMaze* env) {
     env->log.perf += (env->agents[0].rewards[0] + 1) / 2;
@@ -58,32 +57,58 @@ void add_log(TMaze* env) {
 }
 
 void puf_reset(TMaze* env) {
-    memset(((obs_t*)env->agents[0].observations), WALL, 4 * sizeof(obs_t));
+    obs_t* obs = env->agents[0].observations;
+    memset(obs, WALL, 4 * sizeof(unsigned char));
     env->starting_state = (rand_r(&env->rng) % 2) + 2; // 2 or 3
-    ((obs_t*)env->agents[0].observations)[0] = env->starting_state;
-    ((obs_t*)env->agents[0].observations)[1] = EMPTY;
+    obs[0] = env->starting_state;
+    obs[1] = EMPTY;
     env->tick = 0;
     env->state = 0;
+    env->prev_state = 0;
 }
 
 void compute_observations(TMaze* env) {
+    obs_t* obs = env->agents[0].observations;
     if (env->state == env->size - 1) {
-        ((obs_t*)env->agents[0].observations)[0] = EMPTY;
-        ((obs_t*)env->agents[0].observations)[1] = WALL;
-        ((obs_t*)env->agents[0].observations)[2] = EMPTY;
-        ((obs_t*)env->agents[0].observations)[3] = EMPTY;
+        obs[0] = EMPTY;
+        obs[1] = WALL;
+        obs[2] = EMPTY;
+        obs[3] = EMPTY;
         return;
     }
-    ((obs_t*)env->agents[0].observations)[0] = EMPTY;
-    ((obs_t*)env->agents[0].observations)[1] = EMPTY;
-    ((obs_t*)env->agents[0].observations)[2] = WALL;
-    ((obs_t*)env->agents[0].observations)[3] = WALL;
+    obs[0] = EMPTY;
+    obs[1] = EMPTY;
+    obs[2] = WALL;
+    obs[3] = WALL;
+}
+
+// Hold Left Shift + A/D (turn) or default forward.
+static void tmaze_human_controls(TMaze *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    env->agents[0].actions[0] = FORWARD;
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[0] = LEFT;
+    }
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[0] = RIGHT;
+    }
 }
 
 void puf_step(TMaze* env) {
+#ifdef PUFFERCPU_EVAL_MAIN
+    if (env->tick_frames_left > 0) {
+        env->tick_frames_left--;
+        return;
+    }
+    env->tick_frames_left = TMAZE_FRAMES - 1;
+#endif
+    tmaze_human_controls(env);
     env->tick += 1;
     env->agents[0].terminals[0] = 0;
     env->agents[0].rewards[0] = 0;
+    env->prev_state = env->state;
 
     int action = (int)env->agents[0].actions[0];
 
@@ -110,7 +135,7 @@ void puf_render(TMaze* env) {
 
     if (!IsWindowReady()) {
         InitWindow(px * env->size, px * 5, "PufferLib TMaze MDP");
-        SetTargetFPS(4);
+        SetTargetFPS(60);
         env->puffer = LoadTexture("resources/shared/puffers_128.png");
     }
 
@@ -118,28 +143,40 @@ void puf_render(TMaze* env) {
         exit(0);
     }
 
+    tmaze_human_controls(env);
+
+#ifdef PUFFERCPU_EVAL_MAIN
+    int elapsed = (TMAZE_FRAMES - 1) - env->tick_frames_left;
+    if (elapsed < 0) {
+        elapsed = 0;
+    }
+    float progress = elapsed / (float)TMAZE_FRAMES;
+#else
+    float progress = 1.0f;
+#endif
+
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});
 
-    int agent_pos = env->state;
     for (int i = 0; i < env->size; i++) {
         Color color =
-            (i == agent_pos) ? (Color){0, 255, 255, 255} :
             (i == 0 && env->starting_state == 2) ? (Color){255, 0, 0, 255} :
             (i == 0 && env->starting_state == 3) ? (Color){0, 255, 0, 255} :
             (Color){224, 224, 224, 255};
-
-        if (i == agent_pos) {
-            int starting_sprite_x = 0;
-            Rectangle source_rect = (Rectangle){(float)starting_sprite_x, 0, 128, 128};
-            Rectangle dest_rect = (Rectangle){(float)(i * px), (float)(2 * px), (float)px, (float)px};
-            DrawTexturePro(env->puffer, source_rect, dest_rect, (Vector2){0, 0}, 0, color);
-        } else {
-            DrawRectangle(i * px, 2 * px, px, px, color);
-        }
+        DrawRectangle(i * px, 2 * px, px, px, color);
     }
     DrawRectangle((env->size - 1) * px, 1 * px, px, px, (Color){255, 0, 0, 255});
     DrawRectangle((env->size - 1) * px, 3 * px, px, px, (Color){0, 255, 0, 255});
+
+    float agent_x = ((float)env->prev_state * (1.0f - progress) + (float)env->state * progress) * px;
+    DrawTexturePro(
+        env->puffer,
+        (Rectangle){0, 0, 128, 128},
+        (Rectangle){agent_x, (float)(2 * px), (float)px, (float)px},
+        (Vector2){0, 0},
+        0,
+        WHITE
+    );
 
     char score_text[32];
     snprintf(score_text, sizeof(score_text), "Score: %f", env->agents[0].rewards[0]);
@@ -166,5 +203,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 

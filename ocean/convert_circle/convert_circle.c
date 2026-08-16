@@ -17,7 +17,7 @@ int main() {
   init(&env);
 
   for (int i = 0; i < env.num_agents; i++) {
-    env.agents[i].observations = calloc(OBS_SIZE, sizeof(obs_t));
+    env.agents[i].observations = calloc(OBS_SIZE, sizeof(float));
     env.agents[i].actions = (float *)calloc(NUM_ATNS, sizeof(float));
     env.agents[i].rewards = (float *)calloc(1, sizeof(float));
     env.agents[i].terminals = (float *)calloc(1, sizeof(float));
@@ -41,8 +41,6 @@ int main() {
       env.agents[i].actions[1] = (float)(rand() % 5);
     }
 
-    (void)net;
-    (void)weights;
     puf_step(&env);
     puf_render(&env);
   }

@@ -1,6 +1,5 @@
-#pragma once
-
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 #include <float.h>
 #include <limits.h>
@@ -63,11 +62,6 @@
 #define ACT_SIZES {TD_NUM_ACTIONS}
 #define OBS_SIZE TD_OBS_SIZE
 #define NUM_ATNS 1
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
 
 #define TD_MAX_SPAWNS 4
 #define TD_MAX_TIER 4
@@ -244,7 +238,9 @@ struct Env {
     float reward_clamp_max;
     float max_total_invested;
     float episode_return;
-
+    // EVAL_MAIN calls puf_step every rAF (~60 Hz). The demo integrates at
+    // TD_DT=0.25s (~4 Hz) and interpolates the leftover frames.
+    int tick_frames_left;
     unsigned int rng_state;
     int next_enemy_id;
     int round_pending_advance;
@@ -270,6 +266,33 @@ struct Env {
     uint64_t impact_serial;
 };
 typedef Env TowerDefence;
+
+struct TdClient {
+    int hover_slot;
+    int tower_kind;
+    int queued_manual_action;
+    int human_control;
+    int manual_controls_enabled;
+    int policy_loaded;
+    unsigned int episode_index;
+    uint64_t shot_serial;
+    uint64_t impact_serial;
+    float observed_sim_time;
+    double observed_sim_time_at;
+    double fire_until[TD_NUM_PLACEMENT_SLOTS];
+    struct {
+        float from_x;
+        float from_y;
+        float x;
+        float y;
+        int kind;
+        double until;
+    } impacts[TD_MAX_IMPACT_EVENTS];
+    Texture2D background;
+    Texture2D towers[TD_NUM_TOWER_TYPES];
+    Texture2D enemies[10];
+    Texture2D projectiles[TD_NUM_TOWER_TYPES];
+};
 
 static const float TD_PATH_X[] = {0, 384, 384, 672, 672, 960};
 static const float TD_PATH_Y[] = {108, 108, 270, 270, 459, 459};
@@ -674,38 +697,39 @@ static void td_init(TowerDefence *env) {
 }
 
 static void td_write_observation(TowerDefence *env) {
-    memset(((obs_t*)env->agents[0].observations), 0, TD_OBS_SIZE * sizeof(obs_t));
-    ((obs_t*)env->agents[0].observations)[0] = env->time;
-    ((obs_t*)env->agents[0].observations)[1] = (float)env->round;
+    obs_t* obs = env->agents[0].observations;
+    memset(obs, 0, TD_OBS_SIZE * sizeof(float));
+    obs[0] = env->time;
+    obs[1] = (float)env->round;
     if (env->status_code >= 0 && env->status_code <= TD_STATUS_COMPLETE) {
-        ((obs_t*)env->agents[0].observations)[2 + env->status_code] = 1.0f;
+        obs[2 + env->status_code] = 1.0f;
     }
-    ((obs_t*)env->agents[0].observations)[8] = env->lives;
-    ((obs_t*)env->agents[0].observations)[9] = env->cash;
-    ((obs_t*)env->agents[0].observations)[10] = env->intermission_remaining;
-    ((obs_t*)env->agents[0].observations)[11] = (float)env->round;
-    ((obs_t*)env->agents[0].observations)[12] = env->wave_elapsed;
-    ((obs_t*)env->agents[0].observations)[13] = (float)td_enemy_count(env);
-    ((obs_t*)env->agents[0].observations)[14] = (float)td_tower_count(env);
-    ((obs_t*)env->agents[0].observations)[15] = (float)env->projectile_count;
+    obs[8] = env->lives;
+    obs[9] = env->cash;
+    obs[10] = env->intermission_remaining;
+    obs[11] = (float)env->round;
+    obs[12] = env->wave_elapsed;
+    obs[13] = (float)td_enemy_count(env);
+    obs[14] = (float)td_tower_count(env);
+    obs[15] = (float)env->projectile_count;
 
     int idx = TD_SCALAR_OBS_SIZE;
     for (int slot = 0; slot < TD_NUM_PLACEMENT_SLOTS; slot++) {
         TdTower *tower = &env->towers[slot];
-        ((obs_t*)env->agents[0].observations)[idx++] = td_site_buildable(slot) ? 1.0f : 0.0f;
-        ((obs_t*)env->agents[0].observations)[idx++] = tower->alive ? 1.0f : 0.0f;
+        obs[idx++] = td_site_buildable(slot) ? 1.0f : 0.0f;
+        obs[idx++] = tower->alive ? 1.0f : 0.0f;
         for (int kind = 0; kind < TD_NUM_TOWER_TYPES; kind++) {
-            ((obs_t*)env->agents[0].observations)[idx++] = tower->alive && tower->kind == kind ? 1.0f : 0.0f;
+            obs[idx++] = tower->alive && tower->kind == kind ? 1.0f : 0.0f;
         }
-        ((obs_t*)env->agents[0].observations)[idx++] =
+        obs[idx++] =
             tower->alive ? fminf(1.0f, tower->upgrades[0] / (float)TD_MAX_TIER) : 0.0f;
-        ((obs_t*)env->agents[0].observations)[idx++] =
+        obs[idx++] =
             tower->alive ? fminf(1.0f, tower->upgrades[1] / (float)TD_MAX_TIER) : 0.0f;
-        ((obs_t*)env->agents[0].observations)[idx++] =
+        obs[idx++] =
             tower->alive ? fminf(1.0f, tower->upgrades[2] / (float)TD_MAX_TIER) : 0.0f;
-        ((obs_t*)env->agents[0].observations)[idx++] = td_site_x(slot) / (float)TD_WIDTH;
-        ((obs_t*)env->agents[0].observations)[idx++] = td_site_y(slot) / (float)TD_HEIGHT;
-        ((obs_t*)env->agents[0].observations)[idx++] = tower->alive ? fminf(1.0f, tower->invested / 3000.0f) : 0.0f;
+        obs[idx++] = td_site_x(slot) / (float)TD_WIDTH;
+        obs[idx++] = td_site_y(slot) / (float)TD_HEIGHT;
+        obs[idx++] = tower->alive ? fminf(1.0f, tower->invested / 3000.0f) : 0.0f;
     }
 
     float count_bins[TD_NUM_ENEMY_PROGRESS_BINS] = {0};
@@ -747,24 +771,24 @@ static void td_write_observation(TowerDefence *env) {
                 : 0.0f;
     }
     for (int i = 0; i < TD_NUM_ENEMY_PROGRESS_BINS; i++) {
-        ((obs_t*)env->agents[0].observations)[idx++] = td_squash(count_bins[i], 3.0f);
+        obs[idx++] = td_squash(count_bins[i], 3.0f);
     }
     for (int i = 0; i < TD_NUM_ENEMY_PROGRESS_BINS; i++) {
-        ((obs_t*)env->agents[0].observations)[idx++] = td_squash(hp_bins[i], 3.0f);
+        obs[idx++] = td_squash(hp_bins[i], 3.0f);
     }
 
     idx = TD_GLOBAL_OBSERVATION_OFFSET;
     for (int i = 0; i < 10; i++) {
-        ((obs_t*)env->agents[0].observations)[idx++] = td_squash(type_mass[i], 12.0f);
+        obs[idx++] = td_squash(type_mass[i], 12.0f);
     }
     for (int i = 0; i < 8; i++) {
-        ((obs_t*)env->agents[0].observations)[idx++] = td_squash(prop_mass[i], 12.0f);
+        obs[idx++] = td_squash(prop_mass[i], 12.0f);
     }
     for (int band = 0; band < 4; band++) {
-        ((obs_t*)env->agents[0].observations)[idx++] = td_squash(band_mass[band][0], 4.0f);
-        ((obs_t*)env->agents[0].observations)[idx++] = td_squash(band_mass[band][1], 24.0f);
-        ((obs_t*)env->agents[0].observations)[idx++] = td_squash(band_mass[band][2], 10.0f);
-        ((obs_t*)env->agents[0].observations)[idx++] = td_squash(band_mass[band][3], 10.0f);
+        obs[idx++] = td_squash(band_mass[band][0], 4.0f);
+        obs[idx++] = td_squash(band_mass[band][1], 24.0f);
+        obs[idx++] = td_squash(band_mass[band][2], 10.0f);
+        obs[idx++] = td_squash(band_mass[band][3], 10.0f);
     }
     float comp[10] = {0};
     for (int slot = 0; slot < TD_NUM_PLACEMENT_SLOTS; slot++) {
@@ -784,16 +808,16 @@ static void td_write_observation(TowerDefence *env) {
         comp[8] += (1.0f - slow_mult) * fmaxf(1.0f, slow_time);
         comp[9] += tower->invested;
     }
-    ((obs_t*)env->agents[0].observations)[idx++] = td_squash(comp[0], 6.0f);
-    ((obs_t*)env->agents[0].observations)[idx++] = td_squash(comp[1], 4.0f);
-    ((obs_t*)env->agents[0].observations)[idx++] = td_squash(comp[2], 4.0f);
-    ((obs_t*)env->agents[0].observations)[idx++] = td_squash(comp[3], 12.0f);
-    ((obs_t*)env->agents[0].observations)[idx++] = td_squash(comp[4], 20.0f);
-    ((obs_t*)env->agents[0].observations)[idx++] = td_squash(comp[5], 20.0f);
-    ((obs_t*)env->agents[0].observations)[idx++] = td_squash(comp[6], 4.0f);
-    ((obs_t*)env->agents[0].observations)[idx++] = td_squash(comp[7], 8.0f);
-    ((obs_t*)env->agents[0].observations)[idx++] = td_squash(comp[8], 4.0f);
-    ((obs_t*)env->agents[0].observations)[idx++] = td_squash(comp[9], 8000.0f);
+    obs[idx++] = td_squash(comp[0], 6.0f);
+    obs[idx++] = td_squash(comp[1], 4.0f);
+    obs[idx++] = td_squash(comp[2], 4.0f);
+    obs[idx++] = td_squash(comp[3], 12.0f);
+    obs[idx++] = td_squash(comp[4], 20.0f);
+    obs[idx++] = td_squash(comp[5], 20.0f);
+    obs[idx++] = td_squash(comp[6], 4.0f);
+    obs[idx++] = td_squash(comp[7], 8.0f);
+    obs[idx++] = td_squash(comp[8], 4.0f);
+    obs[idx++] = td_squash(comp[9], 8000.0f);
 
     td_update_masks(env);
 }
@@ -1597,7 +1621,102 @@ void puf_reset(TowerDefence *env) {
     td_write_observation(env);
 }
 
+#ifdef PUFFERCPU_EVAL_MAIN
+#define PUF_EVAL_SHOULD_FORWARD
+#endif
+
+static int td_human_control_active(void) {
+    return IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+}
+
+static int td_mouse_hover_slot(void) {
+    Vector2 mouse = GetMousePosition();
+    if (mouse.x < 0.0f || mouse.x > TD_WIDTH || mouse.y < 0.0f || mouse.y > TD_HEIGHT) {
+        return -1;
+    }
+    float max_distance = fminf(TD_BUILD_GRID_STEP_X, TD_BUILD_GRID_STEP_Y) * 0.5f;
+    float best = max_distance * max_distance;
+    int hover = -1;
+    for (int slot = 0; slot < TD_NUM_PLACEMENT_SLOTS; slot++) {
+        float dx = mouse.x - td_site_x(slot);
+        float dy = mouse.y - td_site_y(slot);
+        float d = dx * dx + dy * dy;
+        if (d <= best) {
+            best = d;
+            hover = slot;
+        }
+    }
+    return hover;
+}
+
+// Hold Shift + 1-3/click/QWE/X/space.
+static void tower_defence_human_controls(TowerDefence *env) {
+    if (!IsWindowReady() || !td_human_control_active()) {
+        return;
+    }
+    TdClient *client = env->client;
+    if (client == NULL || !client->manual_controls_enabled) {
+        return;
+    }
+    static const int tower_keys[TD_NUM_TOWER_TYPES] = {KEY_ONE, KEY_TWO, KEY_THREE};
+    for (int kind = 0; kind < TD_NUM_TOWER_TYPES; kind++) {
+        if (IsKeyPressed(tower_keys[kind])) {
+            client->tower_kind = kind;
+        }
+    }
+    if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER)) {
+        if (env->agents[0].action_mask[TD_ACTION_TRIGGER_NEXT_ROUND]) {
+            client->queued_manual_action = TD_ACTION_TRIGGER_NEXT_ROUND;
+        }
+        return;
+    }
+    client->hover_slot = td_mouse_hover_slot();
+    if (client->hover_slot < 0) {
+        return;
+    }
+    int slot = client->hover_slot;
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        int action = TD_ACTION_PLACE_FIRST + slot * TD_NUM_TOWER_TYPES + client->tower_kind;
+        if (env->agents[0].action_mask[action]) {
+            client->queued_manual_action = action;
+        }
+        return;
+    }
+    static const int upgrade_keys[TD_NUM_UPGRADE_PATHS] = {KEY_Q, KEY_W, KEY_E};
+    for (int path = 0; path < TD_NUM_UPGRADE_PATHS; path++) {
+        if (IsKeyPressed(upgrade_keys[path])) {
+            int action = TD_ACTION_UPGRADE_SLOT_01_TOP + slot * TD_NUM_UPGRADE_PATHS + path;
+            if (env->agents[0].action_mask[action]) {
+                client->queued_manual_action = action;
+            }
+            return;
+        }
+    }
+    if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) || IsKeyPressed(KEY_X)) {
+        int action = TD_ACTION_SELL_SLOT_01 + slot;
+        if (env->agents[0].action_mask[action]) {
+            client->queued_manual_action = action;
+        }
+    }
+}
+
 void puf_step(TowerDefence *env) {
+    tower_defence_human_controls(env);
+    if (env->client != NULL && td_human_control_active()
+            && env->client->manual_controls_enabled) {
+        env->agents[0].actions[0] = (float)env->client->queued_manual_action;
+        env->client->queued_manual_action = TD_ACTION_NOOP;
+    }
+#ifdef PUFFERCPU_EVAL_MAIN
+    if (env->tick_frames_left > 0) {
+        env->tick_frames_left--;
+        return;
+    }
+    env->tick_frames_left = (int)(TD_DT * 60.0f + 0.5f) - 1;
+    if (env->tick_frames_left < 0) {
+        env->tick_frames_left = 0;
+    }
+#endif
     int action = td_normalize_action(env->agents[0].actions[0]);
     float reward = 0.0f;
     int before_round = env->round;
@@ -1671,32 +1790,6 @@ static Color td_enemy_color(int type) {
     return colors[type];
 }
 
-struct TdClient {
-    int hover_slot;
-    int tower_kind;
-    int human_control;
-    int manual_controls_enabled;
-    int policy_loaded;
-    unsigned int episode_index;
-    uint64_t shot_serial;
-    uint64_t impact_serial;
-    float observed_sim_time;
-    double observed_sim_time_at;
-    double fire_until[TD_NUM_PLACEMENT_SLOTS];
-    struct {
-        float from_x;
-        float from_y;
-        float x;
-        float y;
-        int kind;
-        double until;
-    } impacts[TD_MAX_IMPACT_EVENTS];
-    Texture2D background;
-    Texture2D towers[TD_NUM_TOWER_TYPES];
-    Texture2D enemies[10];
-    Texture2D projectiles[TD_NUM_TOWER_TYPES];
-};
-
 static Texture2D td_load_texture(const char *file_name) {
     char path[256];
     snprintf(path, sizeof(path), "%s/%s", TD_RESOURCE_DIR, file_name);
@@ -1751,6 +1844,7 @@ static void td_load_render_assets(TowerDefence *env) {
         exit(1);
     }
     env->client->hover_slot = -1;
+    env->client->queued_manual_action = TD_ACTION_NOOP;
     env->client->episode_index = env->episode_index;
     env->client->shot_serial = env->shot_serial;
     env->client->impact_serial = env->impact_serial;
@@ -1955,30 +2049,6 @@ static Color td_projectile_trail_color(int kind, float alpha) {
     return Fade(colors[kind], alpha);
 }
 
-static int td_human_control_active(void) {
-    return IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
-}
-
-static int td_mouse_hover_slot(void) {
-    Vector2 mouse = GetMousePosition();
-    if (mouse.x < 0.0f || mouse.x > TD_WIDTH || mouse.y < 0.0f || mouse.y > TD_HEIGHT) {
-        return -1;
-    }
-    float max_distance = fminf(TD_BUILD_GRID_STEP_X, TD_BUILD_GRID_STEP_Y) * 0.5f;
-    float best = max_distance * max_distance;
-    int hover = -1;
-    for (int slot = 0; slot < TD_NUM_PLACEMENT_SLOTS; slot++) {
-        float dx = mouse.x - td_site_x(slot);
-        float dy = mouse.y - td_site_y(slot);
-        float d = dx * dx + dy * dy;
-        if (d <= best) {
-            best = d;
-            hover = slot;
-        }
-    }
-    return hover;
-}
-
 void puf_render(TowerDefence *env) {
     if (!IsWindowReady()) {
         InitWindow(TD_WIDTH, TD_HEIGHT + TD_HUD_HEIGHT, "PufferLib Tower Defence");
@@ -1988,6 +2058,7 @@ void puf_render(TowerDefence *env) {
         exit(0);
     }
     td_load_render_assets(env);
+    tower_defence_human_controls(env);
     TdClient *client = env->client;
     double now = GetTime();
     td_sync_client_animation(env, now);
@@ -2293,4 +2364,5 @@ void puf_log(Log *log, Dict *out) {
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
     dict_set(out, "invalid_action_rate", log->invalid_action_rate);
+    dict_set(out, "n", log->n);
 }

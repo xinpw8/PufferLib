@@ -16,7 +16,7 @@
 static void allocate(TowerDefence *env) {
     td_init(env);
     env->num_agents = 1;
-    env->agents[0].observations = (obs_t *)calloc(TD_OBS_SIZE, sizeof(obs_t));
+    env->agents[0].observations = (float *)calloc(TD_OBS_SIZE, sizeof(float));
     env->agents[0].actions = (float *)calloc(1, sizeof(float));
     env->agents[0].rewards = (float *)calloc(1, sizeof(float));
     env->agents[0].terminals = (float *)calloc(1, sizeof(float));
@@ -121,43 +121,6 @@ static int td_demo_weights_compatible(const Weights *weights) {
     return weights != NULL && weights->size - 7 == expected;
 }
 
-static int demo_action(TowerDefence *env, TdClient *client) {
-    if (!td_human_control_active()) {
-        return TD_ACTION_NOOP;
-    }
-    static const int tower_keys[TD_NUM_TOWER_TYPES] = {KEY_ONE, KEY_TWO, KEY_THREE};
-    for (int kind = 0; kind < TD_NUM_TOWER_TYPES; kind++) {
-        if (IsKeyPressed(tower_keys[kind])) {
-            client->tower_kind = kind;
-        }
-    }
-    if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER)) {
-        return env->agents[0].action_mask[TD_ACTION_TRIGGER_NEXT_ROUND] ? TD_ACTION_TRIGGER_NEXT_ROUND
-                                                              : TD_ACTION_NOOP;
-    }
-    client->hover_slot = td_mouse_hover_slot();
-    if (client->hover_slot < 0) {
-        return TD_ACTION_NOOP;
-    }
-    int slot = client->hover_slot;
-    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-        int action = TD_ACTION_PLACE_FIRST + slot * TD_NUM_TOWER_TYPES + client->tower_kind;
-        return env->agents[0].action_mask[action] ? action : TD_ACTION_NOOP;
-    }
-    static const int upgrade_keys[TD_NUM_UPGRADE_PATHS] = {KEY_Q, KEY_W, KEY_E};
-    for (int path = 0; path < TD_NUM_UPGRADE_PATHS; path++) {
-        if (IsKeyPressed(upgrade_keys[path])) {
-            int action = TD_ACTION_UPGRADE_SLOT_01_TOP + slot * TD_NUM_UPGRADE_PATHS + path;
-            return env->agents[0].action_mask[action] ? action : TD_ACTION_NOOP;
-        }
-    }
-    if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) || IsKeyPressed(KEY_X)) {
-        int action = TD_ACTION_SELL_SLOT_01 + slot;
-        return env->agents[0].action_mask[action] ? action : TD_ACTION_NOOP;
-    }
-    return TD_ACTION_NOOP;
-}
-
 static void td_reset_policy_state(PufferNet *net) {
     if (net == NULL || net->mingru == NULL) {
         return;
@@ -169,7 +132,7 @@ static void td_reset_policy_state(PufferNet *net) {
 
 
 static int policy_action(TowerDefence *env, PufferNet *net, uint32_t *rng) {
-    linear(net->encoder, ((obs_t*)env->agents[0].observations));
+    linear(net->encoder, env->agents[0].observations);
     mingru(net->mingru, net->encoder->output);
     linear(net->decoder, net->mingru->output);
     return td_demo_sample_masked_action(net->decoder->output, env->agents[0].action_mask, TD_NUM_ACTIONS,
@@ -200,19 +163,12 @@ int main(void) {
     env.client->manual_controls_enabled = 1;
     env.client->policy_loaded = net != NULL;
 
-    int queued_manual_action = TD_ACTION_NOOP;
     int was_human_control = td_human_control_active();
     uint32_t policy_rng = TD_DEMO_POLICY_SEED;
     double accumulator = 0.0;
     while (!WindowShouldClose()) {
         int human_control = td_human_control_active();
-        if (human_control) {
-            int input_action = demo_action(&env, env.client);
-            if (input_action != TD_ACTION_NOOP) {
-                queued_manual_action = input_action;
-            }
-        } else if (was_human_control) {
-            queued_manual_action = TD_ACTION_NOOP;
+        if (!human_control && was_human_control) {
             td_reset_policy_state(net);
         }
         was_human_control = human_control;
@@ -221,9 +177,6 @@ int main(void) {
         while (accumulator >= TD_DT) {
             if (net != NULL && !human_control) {
                 env.agents[0].actions[0] = (float)policy_action(&env, net, &policy_rng);
-            } else {
-                env.agents[0].actions[0] = (float)queued_manual_action;
-                queued_manual_action = TD_ACTION_NOOP;
             }
             puf_step(&env);
             if (env.agents[0].terminals[0] != 0.0f) {

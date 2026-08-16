@@ -70,17 +70,17 @@ static char** load_fen_file(const char* path, int* num_fens_out) {
 }
 
 static void apply_kwargs(Env* env, Dict* kwargs) {
-    env->max_moves = (int)dict_get(kwargs, "max_moves")->value;
-    env->reward_draw = (float)dict_get(kwargs, "reward_draw")->value;
-    env->reward_invalid_piece = (float)dict_get(kwargs, "reward_invalid_piece")->value;
-    env->reward_invalid_move = (float)dict_get(kwargs, "reward_invalid_move")->value;
-    env->reward_repetition = (float)dict_get(kwargs, "reward_repetition")->value;
-    env->render_fps = (int)dict_get(kwargs, "render_fps")->value;
-    env->mode = (int)dict_get(kwargs, "mode")->value;
-    env->enable_50_move_rule = (int)dict_get(kwargs, "enable_50_move_rule")->value;
-    env->enable_threefold_repetition = (int)dict_get(kwargs, "enable_threefold_repetition")->value;
-    env->random_fen = (int)dict_get(kwargs, "random_fen")->value;
-    env->fen_curric_pct = (float)dict_get(kwargs, "fen_curric_pct")->value;
+    env->max_moves = dict_get(kwargs, "max_moves")->value;
+    env->reward_draw = dict_get(kwargs, "reward_draw")->value;
+    env->reward_invalid_piece = dict_get(kwargs, "reward_invalid_piece")->value;
+    env->reward_invalid_move = dict_get(kwargs, "reward_invalid_move")->value;
+    env->reward_repetition = dict_get(kwargs, "reward_repetition")->value;
+    env->render_fps = dict_get(kwargs, "render_fps")->value;
+    env->mode = dict_get(kwargs, "mode")->value;
+    env->enable_50_move_rule = dict_get(kwargs, "enable_50_move_rule")->value;
+    env->enable_threefold_repetition = dict_get(kwargs, "enable_threefold_repetition")->value;
+    env->random_fen = dict_get(kwargs, "random_fen")->value;
+    env->fen_curric_pct = dict_get(kwargs, "fen_curric_pct")->value;
 
     env->client = NULL;
     env->legal_dirty = 1;
@@ -99,11 +99,11 @@ static void apply_kwargs(Env* env, Dict* kwargs) {
 
 Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_counts,
                  Dict* vec_kwargs, Dict* env_kwargs) {
-    int total_agents = (int)dict_get(vec_kwargs, "total_agents")->value;
-    int num_buffers = (int)dict_get(vec_kwargs, "num_buffers")->value;
+    int total_agents = dict_get(vec_kwargs, "total_agents")->value;
+    int num_buffers = dict_get(vec_kwargs, "num_buffers")->value;
     int agents_per_buffer = total_agents / num_buffers;
 
-    float curric_pct = (float)dict_get(env_kwargs, "fen_curric_pct")->value;
+    float curric_pct = dict_get(env_kwargs, "fen_curric_pct")->value;
     if (curric_pct > 0.0f && SHARED_FEN_CURRICULUM == NULL) {
         SHARED_FEN_CURRICULUM = load_fen_file(FEN_CURRICULUM_PATH, &SHARED_NUM_FENS);
         if (SHARED_FEN_CURRICULUM != NULL) {
@@ -111,7 +111,7 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
         }
     }
 
-    int mode = (int)dict_get(env_kwargs, "mode")->value;
+    int mode = dict_get(env_kwargs, "mode")->value;
     int agents_per_env = (mode == CHESS_MODE_SELFPLAY) ? 2 : 1;
     int num_envs = total_agents / agents_per_env;
     Env* envs = (Env*)calloc(num_envs, sizeof(Env));
@@ -132,6 +132,10 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
         }
         env->fen_curriculum = SHARED_FEN_CURRICULUM;
         env->num_fens = SHARED_NUM_FENS;
+        env->agents[0].policy = 0;
+        if (env->num_agents > 1) {
+            env->agents[1].policy = 1;
+        }
         init_bitboards();
     }
 
@@ -173,6 +177,10 @@ void my_init(Env* env, Dict* kwargs) {
     env->slot_for_color[CHESS_BLACK] = 1;
     env->fen_curriculum = NULL;
     env->num_fens = 0;
+    env->agents[0].policy = 0;
+    if (env->num_agents > 1) {
+        env->agents[1].policy = 1;
+    }
     init_bitboards();
 }
 

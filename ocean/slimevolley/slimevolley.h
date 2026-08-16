@@ -3,6 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <assert.h>
+typedef float obs_t;
 #include "pufferenv.h"
 
 // CONFIG
@@ -11,7 +12,6 @@
 #define NUM_ATNS 3
 
 typedef Env SlimeVolley;
-typedef float obs_t;
 
 #define REF_W 48
 #define REF_H REF_W
@@ -453,13 +453,13 @@ void puf_reset(SlimeVolley* env) {
     env->ball->r = 0.5;
     env->ball->c = BALL_COLOR;
     for (int i=0; i < 2; i++) {
-        float* observations;
+        obs_t* observations;
         if (i == 0) {
-            observations = (float*)env->agents[0].observations;
+            observations = env->agents[0].observations;
         } else if (env->num_agents == 1) {
             observations = env->bot_observations;
         } else {
-            observations = (float*)env->agents[1].observations;
+            observations = env->agents[1].observations;
         }
         env->players[i] = (Player){0};
         env->players[i].x = i == 0 ? -REF_W/4 : REF_W/4;
@@ -506,6 +506,25 @@ void abranti_simple_bot(float* obs, float* action) {
     action[0] = forward;
     action[1] = backward;
     action[2] = 1.0f; // always jump
+}
+
+// Hold Left Shift + A/D/W or arrows/space.
+static void slimevolley_human_controls(SlimeVolley *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    env->agents[0].actions[0] = 0.0f;
+    env->agents[0].actions[1] = 0.0f;
+    env->agents[0].actions[2] = 0.0f;
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[0] = 1.0f;
+    }
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[1] = 1.0f;
+    }
+    if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W) || IsKeyDown(KEY_SPACE)) {
+        env->agents[0].actions[2] = 1.0f;
+    }
 }
 
 // Required function
@@ -604,6 +623,7 @@ void puf_render(SlimeVolley* env) {
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+    slimevolley_human_controls(env);
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);
     wall_display(env->ground);
@@ -672,5 +692,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 

@@ -39,9 +39,10 @@ Interactive controls (default when stdin is a TTY):
 | `Shift+Space` | hold advances at **20 Hz** (fallback: hold `S`) |
 | `q` / `Esc` | quit |
 
-Weight resolution: `NH_WEIGHTS` if set, else `nethack_depth_weights.bin`
-in the repo root (score-style **512×3**), else the checked-in
-`resources/nethack/nethack_weights.bin`. Set `NH_SEED` to replay a seed.
+Weight resolution: `NH_WEIGHTS` if set (`score` / `depth` shorthands, or
+a path), else `resources/nethack/nethack_score_weights.bin`.
+`NH_MULTI=1` randomizes role/race/gender/align. `NH_TTY=1` shows the
+engine tty map. Set `NH_SEED` to replay a seed.
 
 ```bash
 ./nethack 10000 0            # headless 10k steps (prints avg_score / avg_max_depth)

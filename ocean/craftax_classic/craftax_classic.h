@@ -22,34 +22,32 @@
 // Action: 1 discrete in 0..16 (NOOP, 4 moves, DO, SLEEP,
 //         4 place, 3 make-pick, 3 make-sword).
 
-#pragma once
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdalign.h>
 #include <math.h>
-#if defined(__AVX2__)
+#if defined(__AVX512F__) || defined(__AVX2__)
 #include <immintrin.h>
 #endif
 #include "raylib.h"
 
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {17}
 #define OBS_SIZE 1345
 #define NUM_ATNS 1
-#if defined(from_float) && !defined(PRECISION_FLOAT)
-typedef precision_t obs_t;
-#else
-typedef float obs_t;
-#endif
 
 // ============================================================
 // Constants
 // ============================================================
 #define MAP_SIZE 64
-#define MAP_PACKED_ROW 32
+// 17 block types (0..16, including RIPE_PLANT). A nibble only holds 0..15, so
+// 2-blocks-per-byte packing turned every ripe plant into BLK_INVALID and
+// made ACH_EAT_PLANT unreachable.
+#define MAP_PACKED_ROW MAP_SIZE
 #define MAP_PACKED_SIZE (MAP_SIZE * MAP_PACKED_ROW)
 
 #define MAX_ZOMBIES 3
@@ -174,7 +172,7 @@ struct Env {
     unsigned int rng;                   // populated by default my_vec_init (env index)
     uint64_t pcg;                       // actual RNG state (seeded from rng in my_init)
 
-    // Packed map (2 blocks/byte)
+    // One block per byte (BLK_RIPE_PLANT = 16 does not fit in a nibble).
     uint8_t map_packed[MAP_PACKED_SIZE];
 
     // Per-type occupancy bitmaps: bit c of bits[r] = "mob-type at (r,c)"
@@ -236,15 +234,10 @@ typedef Env CraftaxClassic;
 // Map accessors + small helpers
 // ============================================================
 static inline int8_t map_get(const CraftaxClassic* s, int r, int c) {
-    int idx = r * MAP_PACKED_ROW + (c >> 1);
-    uint8_t b = s->map_packed[idx];
-    return (c & 1) ? (int8_t)(b >> 4) : (int8_t)(b & 0x0F);
+    return (int8_t)s->map_packed[r * MAP_PACKED_ROW + c];
 }
 static inline void map_set(CraftaxClassic* s, int r, int c, int8_t v) {
-    int idx = r * MAP_PACKED_ROW + (c >> 1);
-    uint8_t b = s->map_packed[idx];
-    if (c & 1) s->map_packed[idx] = (b & 0x0F) | ((v & 0x0F) << 4);
-    else       s->map_packed[idx] = (b & 0xF0) | (v & 0x0F);
+    s->map_packed[r * MAP_PACKED_ROW + c] = (uint8_t)v;
 }
 static inline bool in_bounds(int r, int c) { return (unsigned)r < MAP_SIZE && (unsigned)c < MAP_SIZE; }
 static inline bool is_solid(int8_t b) {
@@ -297,13 +290,12 @@ static inline int get_damage(const CraftaxClassic* s) {
 // ============================================================
 static inline float perlin_interp(float t) { return t*t*t*(t*(t*6.0f-15.0f)+10.0f); }
 
-#if defined(__clang__) || defined(__GNUC__)
+#if defined(__AVX512F__) && (defined(__clang__) || defined(__GNUC__))
 __attribute__((target("avx512f,avx512bw,avx512dq,avx512vl")))
 #endif
 static void generate_world(CraftaxClassic* s) {
     // Reset maps and bitmaps
-    for (int i = 0; i < MAP_PACKED_SIZE; i++)
-        s->map_packed[i] = (uint8_t)(BLK_GRASS | (BLK_GRASS << 4));
+    memset(s->map_packed, BLK_GRASS, sizeof(s->map_packed));
     memset(s->mob_bits,    0, sizeof(s->mob_bits));
     memset(s->zombie_bits, 0, sizeof(s->zombie_bits));
     memset(s->cow_bits,    0, sizeof(s->cow_bits));
@@ -330,6 +322,7 @@ static void generate_world(CraftaxClassic* s) {
     int center = MAP_SIZE / 2;
 
     alignas(64) float noise[4][MAP_SIZE][MAP_SIZE];
+#if defined(__AVX512F__)
     {
         const __m512 c_lane = _mm512_setr_ps(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
         const __m512 one    = _mm512_set1_ps(1.0f);
@@ -395,6 +388,43 @@ static void generate_world(CraftaxClassic* s) {
             }
         }
     }
+#else
+    // Scalar fallback: native nvcc host compile does not define __AVX512F__,
+    // and emscripten/web has no AVX-512. 64x64 x 4 layers is cheap either way.
+    for (int r = 0; r < MAP_SIZE; r++) {
+        float nr = (float)r * inv_scale;
+        int x0 = (int)nr;
+        float fx = nr - x0;
+        float fx1 = fx - 1.0f;
+        float u = perlin_interp(fx);
+        int row0 = x0 * GRID, row1 = row0 + GRID;
+        for (int c = 0; c < MAP_SIZE; c++) {
+            float nc = (float)c * inv_scale;
+            int y0 = (int)nc;
+            float fy = nc - (float)y0;
+            float fy1 = fy - 1.0f;
+            float v = perlin_interp(fy);
+            int y1 = y0 + 1;
+            for (int k = 0; k < 4; k++) {
+                float c00 = cos_a[k][row0 + y0];
+                float c10 = cos_a[k][row1 + y0];
+                float c01 = cos_a[k][row0 + y1];
+                float c11 = cos_a[k][row1 + y1];
+                float s00 = sin_a[k][row0 + y0];
+                float s10 = sin_a[k][row1 + y0];
+                float s01 = sin_a[k][row0 + y1];
+                float s11 = sin_a[k][row1 + y1];
+                float n00 = c00 * fx  + s00 * fy;
+                float n10 = c10 * fx1 + s10 * fy;
+                float n01 = c01 * fx  + s01 * fy1;
+                float n11 = c11 * fx1 + s11 * fy1;
+                float nx0 = n00 + u * (n10 - n00);
+                float nx1 = n01 + u * (n11 - n01);
+                noise[k][r][c] = (nx0 + v * (nx1 - nx0) + 1.0f) * 0.5f;
+            }
+        }
+    }
+#endif
 
     // Tile-logic sweep -- reads precomputed noise, writes blocks
     for (int r = 0; r < MAP_SIZE; r++) {
@@ -843,10 +873,10 @@ static void update_intrinsics(CraftaxClassic* s, int action) {
 }
 
 // ============================================================
-// Observation builder (writes OBS_DIM floats into ((obs_t*)env->agents[0].observations))
+// Observation builder (writes OBS_DIM floats into (env->agents[0].observations))
 // ============================================================
 static void compute_observations(CraftaxClassic* s) {
-    obs_t* obs = ((obs_t*)s->agents[0].observations);
+    float* obs = s->agents[0].observations;
     int pr = s->player_r, pc = s->player_c;
     int idx = 0;
     for (int dr = -3; dr <= 3; dr++) {
@@ -859,7 +889,7 @@ static void compute_observations(CraftaxClassic* s) {
         for (int dc = -4; dc <= 4; dc++) {
             int c = pc + dc;
             int8_t blk = (row_ok && (unsigned)c < MAP_SIZE) ? map_get(s, r, c) : BLK_OUT_OF_BOUNDS;
-            obs_t* dst = obs + idx;
+            float* dst = obs + idx;
             for (int b = 0; b < NUM_BLOCK_TYPES; b++) dst[b] = 0.0f;
             if ((unsigned)blk < NUM_BLOCK_TYPES) dst[blk] = 1.0f;
             idx += NUM_BLOCK_TYPES;
@@ -979,7 +1009,6 @@ void puf_step(CraftaxClassic* env) {
 }
 
 void puf_close(CraftaxClassic* env) {
-    (void)env;
 }
 
 // ============================================================
@@ -1191,10 +1220,10 @@ void puf_log(Log* log, Dict* out) {
     for (int i = 0; i < NUM_ACHIEVEMENTS; i++) {
         dict_set(out, ACH_NAMES[i], log->achievements[i]);
     }
+    dict_set(out, "n", log->n);
 }
 
 void puf_init(Env* env, Dict* kwargs) {
-    (void)kwargs;
     env->num_agents = 1;
     env->agents[0].action_mask = NULL;
     env->agents[0].policy = 0;

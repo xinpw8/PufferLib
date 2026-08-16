@@ -13,7 +13,7 @@ int main() {
     env.max_speed = 6.0f;
     env.turn_rate = 0.10f;
     env.accel = 0.55f;
-    env.drag = 0.90f;
+    env.drag = 0.92f;
     env.dock_radius = 18.0f;
     env.dock_speed_threshold = 0.72f;
     env.dock_heading_threshold = 0.28f;
@@ -25,31 +25,12 @@ int main() {
     env.agents[0].rewards = (float*)calloc(1, sizeof(float));
     env.agents[0].terminals = (float*)calloc(1, sizeof(float));
 
-    c_init(&env);
     puf_reset(&env);
     puf_render(&env);
 
     while (!WindowShouldClose()) {
-        if (IsKeyDown(KEY_LEFT_SHIFT)) {
-            env.agents[0].actions[0] = DOCK_NOOP;
-            if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
-                env.agents[0].actions[0] = DOCK_TURN_LEFT;
-            } else if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
-                env.agents[0].actions[0] = DOCK_TURN_RIGHT;
-            } else if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
-                env.agents[0].actions[0] = DOCK_THRUST;
-            } else if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
-                env.agents[0].actions[0] = DOCK_BRAKE;
-            }
-        } else {
-            forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
-        }
-
-        if (IsKeyPressed(KEY_R)) {
-            puf_reset(&env);
-        } else {
-            puf_step(&env);
-        }
+        forward_puffernet(net, env.agents[0].observations, env.agents[0].actions);
+        puf_step(&env);
         puf_render(&env);
     }
 

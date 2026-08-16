@@ -762,7 +762,6 @@ static void inf_init_context(EncounterContext* context) {
 }
 
 static void inf_destroy_context(EncounterContext* context) {
-    (void)context;
 }
 
 static InfernoContext* inf_legacy_context(void) {

@@ -6223,9 +6223,6 @@ static void test_render_bridge_npc_debug_and_warband_motion(void) {
 }
 
 static int test_los_every_tile_blocked(void* ctx, int x, int y) {
-    (void)ctx;
-    (void)x;
-    (void)y;
     return 1;
 }
 
@@ -7215,12 +7212,10 @@ static void test_death_attribution_credits_actual_source(void) {
 }
 
 static int test_walkable_block_corner(void* ctx, int x, int y) {
-    (void)ctx;
     return !(x == 1 && y == 1);
 }
 
 static int test_walkable_open(void* ctx, int x, int y) {
-    (void)ctx; (void)x; (void)y;
     return 1;
 }
 

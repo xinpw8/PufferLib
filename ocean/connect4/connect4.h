@@ -3,12 +3,13 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {7}
 #define OBS_SIZE 42
 #define NUM_ATNS 1
-typedef float obs_t;
+#define PUF_STEPS_PER_SEC 1
 
 #define WIN_CONDITION 4
 const int PLAYER_WIN = 1.0;
@@ -54,27 +55,6 @@ struct Env {
     unsigned int rng;
 };
 typedef Env Connect4;
-
-void allocate_cconnect4(Connect4* env) {
-    env->agents[0].observations = (obs_t*)calloc(42, sizeof(obs_t));
-    env->agents[0].actions = (float*)calloc(1, sizeof(float));
-    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
-    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
-    env->agents[0].action_mask = NULL;
-    env->agents[0].policy = 0;
-    env->num_agents = 1;
-
-}
-
-void free_allocated_cconnect4(Connect4* env) {
-    free(env->agents[0].actions);
-    free(env->agents[0].observations);
-    free(env->agents[0].terminals);
-    free(env->agents[0].rewards);
-}
-
-void puf_close(Connect4* env) {
-}
 
 void add_log(Connect4* env) {
     env->log.perf += (float)(env->agents[0].rewards[0] == PLAYER_WIN);
@@ -213,8 +193,9 @@ int compute_env_move(Connect4* env) {
             num_ties++;
         }
     }
-    //printf("Values: %f, %f, %f, %f, %f, %f, %f\n", values[0], values[1], values[2], values[3], values[4], values[5], values[6]);
-    //int best_tie = rand() % num_ties;
+    if (num_ties <= 0) {
+        return 0;
+    }
     int best_tie = rand_r(&env->rng) % num_ties;
     for (uint64_t column = 0; column < 7; column ++) {
         if (values[column] == best_value) {
@@ -229,6 +210,7 @@ int compute_env_move(Connect4* env) {
 }
 
 void compute_observation(Connect4* env) {
+    float* obs = env->agents[0].observations;
     // Populate observations from bitstring game representation
     // http://blog.gamesolver.org/solving-connect-four/06-bitboard/
     uint64_t player_pieces = env->player_pieces;
@@ -243,24 +225,25 @@ void compute_observation(Connect4* env) {
 
         int p0_bit = (player_pieces >> i) & 1;
         int p1_bit = (env_pieces >> i) & 1;
-        obs_t cell = 0;
+        float cell = 0;
         if (p0_bit == 1) {
-            cell = (obs_t)PLAYER_WIN;
+            cell = (float)PLAYER_WIN;
         } else if (p1_bit == 1) {
-            cell = (obs_t)ENV_WIN;
+            cell = (float)ENV_WIN;
         }
-        ((obs_t*)env->agents[0].observations)[obs_idx] = cell;
+        obs[obs_idx] = cell;
         obs_idx += 1;
     }
 }
 
 static void reset_board(Connect4* env) {
+    float* obs = env->agents[0].observations;
     env->end_game = 0;
     env->tick = 0;
     env->player_pieces = 0;
     env->env_pieces = 0;
     for (int i = 0; i < 42; i++) {
-        ((obs_t*)env->agents[0].observations)[i] = 0;
+        obs[i] = 0;
     }
 }
 
@@ -283,7 +266,46 @@ void finish_game(Connect4* env, float reward, int invalid) {
     reset_board(env);
 }
 
+// Hold Left Shift + 1-7. Skip the step when no column this frame.
+static int connect4_human_controls(Connect4 *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return 0;
+    }
+    if (IsKeyPressed(KEY_ONE)) {
+        env->agents[0].actions[0] = 0;
+        return 1;
+    }
+    if (IsKeyPressed(KEY_TWO)) {
+        env->agents[0].actions[0] = 1;
+        return 1;
+    }
+    if (IsKeyPressed(KEY_THREE)) {
+        env->agents[0].actions[0] = 2;
+        return 1;
+    }
+    if (IsKeyPressed(KEY_FOUR)) {
+        env->agents[0].actions[0] = 3;
+        return 1;
+    }
+    if (IsKeyPressed(KEY_FIVE)) {
+        env->agents[0].actions[0] = 4;
+        return 1;
+    }
+    if (IsKeyPressed(KEY_SIX)) {
+        env->agents[0].actions[0] = 5;
+        return 1;
+    }
+    if (IsKeyPressed(KEY_SEVEN)) {
+        env->agents[0].actions[0] = 6;
+        return 1;
+    }
+    return -1;
+}
+
 void puf_step(Connect4* env) {
+    if (connect4_human_controls(env) < 0) {
+        return;
+    }
     env->tick += 1;
     env->agents[0].rewards[0] = 0.0;
     env->agents[0].terminals[0] = 0;
@@ -301,6 +323,10 @@ void puf_step(Connect4* env) {
         finish_game(env, PLAYER_WIN, 0);
         return;
     }
+    if (draw(env->player_pieces | env->env_pieces)) {
+        finish_game(env, 0, 0);
+        return;
+    }
 
     // Environment action (ENV_WIN)
     column = compute_env_move(env);
@@ -313,6 +339,10 @@ void puf_step(Connect4* env) {
     env->env_pieces = play(column, piece_mask, env->player_pieces);
     if (won(env->env_pieces)) {
         finish_game(env, ENV_WIN, 0);
+        return;
+    }
+    if (draw(env->env_pieces | env->player_pieces)) {
+        finish_game(env, 0, 0);
         return;
     }
 
@@ -344,9 +374,12 @@ Client* make_client() {
 }
 
 void puf_render(Connect4* env) {
+    float* obs = env->agents[0].observations;
     if (IsKeyDown(KEY_ESCAPE)) {
         exit(0);
     }
+
+    connect4_human_controls(env);
 
     if (env->client == NULL) {
         env->client = make_client();
@@ -372,7 +405,7 @@ void puf_render(Connect4* env) {
 
         Color piece_color=PURPLE;
         int color_idx = 0;
-        float cell = (float)((obs_t*)env->agents[0].observations)[obs_idx];
+        float cell = (float)obs[obs_idx];
         if (cell == 0.0f) {
             piece_color = BLACK;
         } else if (cell == (float)PLAYER_WIN) {
@@ -409,6 +442,13 @@ void puf_render(Connect4* env) {
 void close_client(Client* client) {
     CloseWindow();
     free(client);
+}
+
+void puf_close(Connect4* env) {
+    if (env->client != NULL) {
+        close_client(env->client);
+        env->client = NULL;
+    }
 }
 
 // --- Native trainer (pufferl) API ---

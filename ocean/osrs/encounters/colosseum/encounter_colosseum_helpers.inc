@@ -319,7 +319,6 @@ static void col_init_context(EncounterContext* context) {
 }
 
 static void col_destroy_context(EncounterContext* context) {
-    (void)context;
 }
 
 static ColosseumContext* col_legacy_context(void) {

@@ -3,70 +3,41 @@
 #include <stdio.h>
 #include <time.h>
 
-void allocate(Hex* env) {
-    env->observations = (float*)calloc(2 * TOTAL_CELLS, sizeof(float));
-    env->actions = (float*)calloc(1, sizeof(float));
-    env->terminals = (float*)calloc(1, sizeof(float));
-    env->rewards = (float*)calloc(1, sizeof(float));
+static void bind_demo_buffers(Hex* env) {
+    env->num_agents = 1;
+    env->agents[0].observations = (float*)calloc(OBS_SIZE, sizeof(float));
+    env->agents[0].actions = (float*)calloc(NUM_ATNS, sizeof(float));
+    env->agents[0].rewards = (float*)calloc(1, sizeof(float));
+    env->agents[0].terminals = (float*)calloc(1, sizeof(float));
+    init(env);
 }
 
-void free_allocated(Hex* env) {
-    free(env->actions);
-    free(env->observations);
-    free(env->terminals);
-    free(env->rewards);
+static void free_demo_buffers(Hex* env) {
+    free(env->agents[0].observations);
+    free(env->agents[0].actions);
+    free(env->agents[0].rewards);
+    free(env->agents[0].terminals);
 }
 
 void demo() {
     Hex env = {0};
-    allocate(&env);
+    bind_demo_buffers(&env);
     puf_reset(&env);
     puf_render(&env);
     env.random_opponent = false;
 
-    while(!WindowShouldClose()) {
-        bool move_made = false;
-
-        if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            Vector2 mouse = GetMousePosition();
-
-            int screen_width = GetScreenWidth();
-            int screen_height = GetScreenHeight();
-            float radius = 22.0f;
-            float sqrt3 = 1.73205f;
-            float hex_width = sqrt3 * radius;
-            float hex_height = 2.0f * radius;
-
-            float total_width = hex_width * BOARD_SIZE + hex_width * 0.5f * BOARD_SIZE;
-            float total_height = hex_height * 0.75f * BOARD_SIZE;
-
-            float start_x = screen_width / 2.0f - total_width / 2.0f + hex_width / 2.0f;
-            float start_y = screen_height / 2.0f - total_height / 2.0f + hex_height / 2.0f;
-
-            // Inverse map:
-            int r = (int)roundf((mouse.y - start_y) / (hex_height * 0.75f));
-            int c = (int)roundf((mouse.x - start_x) / hex_width - r * 0.5f);
-
-            if(r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
-                env.agents[0].actions[0] = r * BOARD_SIZE + c;
-                move_made = true;
-            }
-        }
-
-        if(move_made) {
-            puf_step(&env);
-        }
-
+    while (!WindowShouldClose()) {
+        puf_step(&env);
         puf_render(&env);
     }
 
-    free_allocated(&env);
+    free_demo_buffers(&env);
     puf_close(&env);
 }
 
 void speed_test() {
     Hex env = {0};
-    allocate(&env);
+    bind_demo_buffers(&env);
     puf_reset(&env);
     clock_t start = clock();
 
@@ -80,7 +51,7 @@ void speed_test() {
     printf("Time for %d steps: %.2f seconds\n", num_steps, elapsed);
     printf("SPS: %.2fM\n", num_steps / elapsed / 1e6);
 
-    free_allocated(&env);
+    free_demo_buffers(&env);
     puf_close(&env);
 }
 

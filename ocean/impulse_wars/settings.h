@@ -5,17 +5,17 @@
 #include "types.h"
 
 #define INFINITE -1
-const uint8_t TWO_BIT_MASK = 0x3;
+static const uint8_t TWO_BIT_MASK = 0x3;
 
 // general settings
-const uint8_t TRAINING_ACTIONS_PER_SECOND = 10;
-const uint8_t TRAINING_FRAME_RATE = 30;
-const uint8_t TRAINING_BOX2D_SUBSTEPS = 2;
+static const uint8_t TRAINING_ACTIONS_PER_SECOND = 10;
+static const uint8_t TRAINING_FRAME_RATE = 30;
+static const uint8_t TRAINING_BOX2D_SUBSTEPS = 2;
 
-const uint8_t EVAL_FRAME_RATE = 120;
-const uint8_t EVAL_BOX2D_SUBSTEPS = 4;
+static const uint8_t EVAL_FRAME_RATE = 120;
+static const uint8_t EVAL_BOX2D_SUBSTEPS = 4;
 
-const uint8_t NUM_MAPS = 9;
+static const uint8_t NUM_MAPS = 9;
 #define _MAX_MAP_COLUMNS 25
 #define _MAX_MAP_ROWS 25
 #define MAX_CELLS _MAX_MAP_COLUMNS *_MAX_MAP_ROWS + 1
@@ -24,188 +24,188 @@ const uint8_t NUM_MAPS = 9;
 
 #define MAX_NEAREST_WALLS 8
 
-const uint8_t DRONE_LIVES = 3;
-const float DRONE_RESPAWN_WAIT = 2.0f;
-const uint8_t ROUND_STEPS = 90;
-const uint8_t SUDDEN_DEATH_STEPS = 5;
+static const uint8_t DRONE_LIVES = 3;
+static const float DRONE_RESPAWN_WAIT = 2.0f;
+static const uint8_t ROUND_STEPS = 90;
+static const uint8_t SUDDEN_DEATH_STEPS = 5;
 
-const uint8_t MAX_DRONES = _MAX_DRONES;
+static const uint8_t MAX_DRONES = _MAX_DRONES;
 
-const uint16_t LOG_BUFFER_SIZE = 1024;
+static const uint16_t LOG_BUFFER_SIZE = 1024;
 
 // reward settings
-const float WIN_REWARD = 2.0f;
-const float SELF_KILL_PUNISHMENT = -1.0f;
-const float ENEMY_DEATH_REWARD = 1.0f;
-const float ENEMY_KILL_REWARD = 1.0f;
-const float TEAMMATE_DEATH_PUNISHMENT = -0.5f;
-const float TEAMMATE_KILL_PUNISHMENT = -1.0f;
-const float DEATH_PUNISHMENT = 0.0f;
-const float ENERGY_EMPTY_PUNISHMENT = -0.75f;
-const float WEAPON_PICKUP_REWARD = 0.5f;
-const float SHIELD_BREAK_REWARD = 0.5f;
-const float SHOT_HIT_REWARD_COEF = 0.005f;
-const float EXPLOSION_HIT_REWARD_COEF = 0.005f;
-const float APPROACH_REWARD = 0.0f;
+static const float WIN_REWARD = 2.0f;
+static const float SELF_KILL_PUNISHMENT = -1.0f;
+static const float ENEMY_DEATH_REWARD = 1.0f;
+static const float ENEMY_KILL_REWARD = 1.0f;
+static const float TEAMMATE_DEATH_PUNISHMENT = -0.5f;
+static const float TEAMMATE_KILL_PUNISHMENT = -1.0f;
+static const float DEATH_PUNISHMENT = 0.0f;
+static const float ENERGY_EMPTY_PUNISHMENT = -0.75f;
+static const float WEAPON_PICKUP_REWARD = 0.5f;
+static const float SHIELD_BREAK_REWARD = 0.5f;
+static const float SHOT_HIT_REWARD_COEF = 0.005f;
+static const float EXPLOSION_HIT_REWARD_COEF = 0.005f;
+static const float APPROACH_REWARD = 0.0f;
 
 // approach reward doesn't apply within the cutoff to avoid constant clashing
-const uint8_t DISTANCE_CUTOFF = 15.0f;
+static const uint8_t DISTANCE_CUTOFF = 15.0f;
 
 // observation constants
 
 // map layout observations
-const uint8_t MAP_OBS_ROWS = 11;
-const uint8_t MAP_OBS_COLUMNS = 11;
-const uint16_t MAP_OBS_SIZE = MAP_OBS_ROWS * MAP_OBS_COLUMNS;
+static const uint8_t MAP_OBS_ROWS = 11;
+static const uint8_t MAP_OBS_COLUMNS = 11;
+static const uint16_t MAP_OBS_SIZE = MAP_OBS_ROWS * MAP_OBS_COLUMNS;
 
 // discrete observations
 #define _NUM_NEAR_WALL_OBS 4
-const uint8_t NUM_NEAR_WALL_OBS = _NUM_NEAR_WALL_OBS;
-const uint16_t NEAR_WALL_TYPES_OBS_OFFSET = MAP_OBS_SIZE;
+static const uint8_t NUM_NEAR_WALL_OBS = _NUM_NEAR_WALL_OBS;
+static const uint16_t NEAR_WALL_TYPES_OBS_OFFSET = MAP_OBS_SIZE;
 
 #define _NUM_FLOATING_WALL_OBS 4
-const uint8_t NUM_FLOATING_WALL_OBS = _NUM_FLOATING_WALL_OBS;
-const uint16_t FLOATING_WALL_TYPES_OBS_OFFSET = NEAR_WALL_TYPES_OBS_OFFSET + NUM_NEAR_WALL_OBS;
+static const uint8_t NUM_FLOATING_WALL_OBS = _NUM_FLOATING_WALL_OBS;
+static const uint16_t FLOATING_WALL_TYPES_OBS_OFFSET = NEAR_WALL_TYPES_OBS_OFFSET + NUM_NEAR_WALL_OBS;
 
-const uint8_t NUM_PROJECTILE_OBS = 30;
-const uint16_t PROJECTILE_DRONE_OBS_OFFSET = FLOATING_WALL_TYPES_OBS_OFFSET + NUM_FLOATING_WALL_OBS;
-const uint16_t PROJECTILE_WEAPONS_OBS_OFFSET = PROJECTILE_DRONE_OBS_OFFSET + NUM_PROJECTILE_OBS;
+static const uint8_t NUM_PROJECTILE_OBS = 30;
+static const uint16_t PROJECTILE_DRONE_OBS_OFFSET = FLOATING_WALL_TYPES_OBS_OFFSET + NUM_FLOATING_WALL_OBS;
+static const uint16_t PROJECTILE_WEAPONS_OBS_OFFSET = PROJECTILE_DRONE_OBS_OFFSET + NUM_PROJECTILE_OBS;
 
 #define _NUM_WEAPON_PICKUP_OBS 3
-const uint8_t NUM_WEAPON_PICKUP_OBS = _NUM_WEAPON_PICKUP_OBS;
-const uint16_t WEAPON_PICKUP_WEAPONS_OBS_OFFSET = PROJECTILE_WEAPONS_OBS_OFFSET + NUM_PROJECTILE_OBS;
+static const uint8_t NUM_WEAPON_PICKUP_OBS = _NUM_WEAPON_PICKUP_OBS;
+static const uint16_t WEAPON_PICKUP_WEAPONS_OBS_OFFSET = PROJECTILE_WEAPONS_OBS_OFFSET + NUM_PROJECTILE_OBS;
 
-const uint16_t ENEMY_DRONE_WEAPONS_OBS_OFFSET = WEAPON_PICKUP_WEAPONS_OBS_OFFSET + NUM_WEAPON_PICKUP_OBS;
+static const uint16_t ENEMY_DRONE_WEAPONS_OBS_OFFSET = WEAPON_PICKUP_WEAPONS_OBS_OFFSET + NUM_WEAPON_PICKUP_OBS;
 
 // continuous observations
-const uint8_t NEAR_WALL_POS_OBS_SIZE = 2;
-const uint8_t NEAR_WALL_OBS_SIZE = NUM_NEAR_WALL_OBS * NEAR_WALL_POS_OBS_SIZE;
-const uint16_t NEAR_WALL_POS_OBS_OFFSET = 0;
+static const uint8_t NEAR_WALL_POS_OBS_SIZE = 2;
+static const uint8_t NEAR_WALL_OBS_SIZE = NUM_NEAR_WALL_OBS * NEAR_WALL_POS_OBS_SIZE;
+static const uint16_t NEAR_WALL_POS_OBS_OFFSET = 0;
 
-const uint8_t FLOATING_WALL_INFO_OBS_SIZE = 5;
-const uint8_t FLOATING_WALL_OBS_SIZE = NUM_FLOATING_WALL_OBS * FLOATING_WALL_INFO_OBS_SIZE;
-const uint16_t FLOATING_WALL_INFO_OBS_OFFSET = NEAR_WALL_POS_OBS_OFFSET + NEAR_WALL_OBS_SIZE;
+static const uint8_t FLOATING_WALL_INFO_OBS_SIZE = 5;
+static const uint8_t FLOATING_WALL_OBS_SIZE = NUM_FLOATING_WALL_OBS * FLOATING_WALL_INFO_OBS_SIZE;
+static const uint16_t FLOATING_WALL_INFO_OBS_OFFSET = NEAR_WALL_POS_OBS_OFFSET + NEAR_WALL_OBS_SIZE;
 
-const uint8_t WEAPON_PICKUP_POS_OBS_SIZE = 2;
-const uint8_t WEAPON_PICKUP_OBS_SIZE = NUM_WEAPON_PICKUP_OBS * WEAPON_PICKUP_POS_OBS_SIZE;
-const uint16_t WEAPON_PICKUP_POS_OBS_OFFSET = FLOATING_WALL_INFO_OBS_OFFSET + FLOATING_WALL_OBS_SIZE;
+static const uint8_t WEAPON_PICKUP_POS_OBS_SIZE = 2;
+static const uint8_t WEAPON_PICKUP_OBS_SIZE = NUM_WEAPON_PICKUP_OBS * WEAPON_PICKUP_POS_OBS_SIZE;
+static const uint16_t WEAPON_PICKUP_POS_OBS_OFFSET = FLOATING_WALL_INFO_OBS_OFFSET + FLOATING_WALL_OBS_SIZE;
 
-const uint8_t PROJECTILE_INFO_OBS_SIZE = 4;
-const uint8_t PROJECTILE_OBS_SIZE = NUM_PROJECTILE_OBS * PROJECTILE_INFO_OBS_SIZE;
-const uint16_t PROJECTILE_INFO_OBS_OFFSET = WEAPON_PICKUP_POS_OBS_OFFSET + WEAPON_PICKUP_OBS_SIZE;
+static const uint8_t PROJECTILE_INFO_OBS_SIZE = 4;
+static const uint8_t PROJECTILE_OBS_SIZE = NUM_PROJECTILE_OBS * PROJECTILE_INFO_OBS_SIZE;
+static const uint16_t PROJECTILE_INFO_OBS_OFFSET = WEAPON_PICKUP_POS_OBS_OFFSET + WEAPON_PICKUP_OBS_SIZE;
 
-const uint16_t ENEMY_DRONE_OBS_OFFSET = PROJECTILE_INFO_OBS_OFFSET + PROJECTILE_OBS_SIZE;
-const uint8_t ENEMY_DRONE_OBS_SIZE = 24;
+static const uint16_t ENEMY_DRONE_OBS_OFFSET = PROJECTILE_INFO_OBS_OFFSET + PROJECTILE_OBS_SIZE;
+static const uint8_t ENEMY_DRONE_OBS_SIZE = 24;
 
-const uint8_t DRONE_OBS_SIZE = 22;
+static const uint8_t DRONE_OBS_SIZE = 22;
 
-const uint8_t MISC_OBS_SIZE = 1;
+static const uint8_t MISC_OBS_SIZE = 1;
 
-const uint16_t _DISCRETE_OBS_SIZE = MAP_OBS_SIZE + NUM_NEAR_WALL_OBS + NUM_FLOATING_WALL_OBS + (NUM_PROJECTILE_OBS * 2) + NUM_WEAPON_PICKUP_OBS + 1;
-const uint16_t _CONTINUOUS_OBS_SIZE = NEAR_WALL_OBS_SIZE + FLOATING_WALL_OBS_SIZE + WEAPON_PICKUP_OBS_SIZE + PROJECTILE_OBS_SIZE + DRONE_OBS_SIZE + MISC_OBS_SIZE;
+static const uint16_t _DISCRETE_OBS_SIZE = MAP_OBS_SIZE + NUM_NEAR_WALL_OBS + NUM_FLOATING_WALL_OBS + (NUM_PROJECTILE_OBS * 2) + NUM_WEAPON_PICKUP_OBS + 1;
+static const uint16_t _CONTINUOUS_OBS_SIZE = NEAR_WALL_OBS_SIZE + FLOATING_WALL_OBS_SIZE + WEAPON_PICKUP_OBS_SIZE + PROJECTILE_OBS_SIZE + DRONE_OBS_SIZE + MISC_OBS_SIZE;
 
-uint16_t discreteObsSize(uint8_t numDrones) {
+static uint16_t discreteObsSize(uint8_t numDrones) {
     return _DISCRETE_OBS_SIZE + ((numDrones - 1));
 }
 
-uint16_t continuousObsSize(uint8_t numDrones) {
+static uint16_t continuousObsSize(uint8_t numDrones) {
     return _CONTINUOUS_OBS_SIZE + ((numDrones - 1) * ENEMY_DRONE_OBS_SIZE);
 }
 
-uint16_t obsBytes(uint8_t numDrones) {
+static uint16_t obsBytes(uint8_t numDrones) {
     return alignedSize((discreteObsSize(numDrones) * sizeof(uint8_t)) + (continuousObsSize(numDrones) * sizeof(float)), sizeof(float));
 }
 
-const float MAX_X_POS = 150.0f;
-const float MAX_Y_POS = 150.0f;
-const float MAX_DISTANCE = 200.0f;
-const float MAX_SPEED = 500.0f;
-const float MAX_ACCEL = 1000.0f;
-const float MAX_ANGLE = PI;
+static const float MAX_X_POS = 150.0f;
+static const float MAX_Y_POS = 150.0f;
+static const float MAX_DISTANCE = 200.0f;
+static const float MAX_SPEED = 500.0f;
+static const float MAX_ACCEL = 1000.0f;
+static const float MAX_ANGLE = PI;
 
 // action constants
-const uint8_t CONTINUOUS_ACTION_SIZE = 7;
-const uint8_t DISCRETE_ACTION_SIZE = 5;
-const float ACTION_NOOP_MAGNITUDE = 0.1f;
+static const uint8_t CONTINUOUS_ACTION_SIZE = 7;
+static const uint8_t DISCRETE_ACTION_SIZE = 5;
+static const float ACTION_NOOP_MAGNITUDE = 0.1f;
 
-const float discMoveToContMoveMap[2][8] = {
+static const float discMoveToContMoveMap[2][8] = {
     {1.0f, 0.707107f, 0.0f, -0.707107f, -1.0f, -0.707107f, 0.0f, 0.707107f},
     {0.0f, 0.707107f, 1.0f, 0.707107f, 0.0f, -0.707107f, -1.0f, -0.707107f},
 };
-const float discAimToContAimMap[2][16] = {
+static const float discAimToContAimMap[2][16] = {
     {1.0f, 0.92388f, 0.707107f, 0.382683f, 0.0f, -0.382683f, -0.707107f, -0.92388f, -1.0f, -0.92388f, -0.707107f, -0.382683f, 0.0f, 0.382683f, 0.707107f, 0.92388f},
     {0.0f, 0.382683f, 0.707107f, 0.92388f, 1.0f, 0.92388f, 0.707107f, 0.382683f, 0.0f, -0.382683f, -0.707107f, -0.92388f, -1.0f, -0.92388f, -0.707107f, -0.382683f},
 };
 
-const float MIN_SPAWN_DISTANCE = 6.0f;
-const float MIN_SD_SPAWN_DISTANCE = 3.0f;
+static const float MIN_SPAWN_DISTANCE = 6.0f;
+static const float MIN_SD_SPAWN_DISTANCE = 3.0f;
 
 // wall settings
-const float WALL_THICKNESS = 4.0f;
-const float FLOATING_WALL_THICKNESS = 3.0f;
-const float FLOATING_WALL_DAMPING = 0.75f;
-const float STANDARD_WALL_RESTITUTION = 0.01f;
-const float STANDARD_WALL_FRICTION = 0.3f;
-const float BOUNCY_WALL_RESTITUTION = 1.0f;
-const float WALL_DENSITY = 4.0f;
+static const float WALL_THICKNESS = 4.0f;
+static const float FLOATING_WALL_THICKNESS = 3.0f;
+static const float FLOATING_WALL_DAMPING = 0.75f;
+static const float STANDARD_WALL_RESTITUTION = 0.01f;
+static const float STANDARD_WALL_FRICTION = 0.3f;
+static const float BOUNCY_WALL_RESTITUTION = 1.0f;
+static const float WALL_DENSITY = 4.0f;
 
 // weapon pickup settings
-const float PICKUP_THICKNESS = 3.0f;
-const float PICKUP_SPAWN_DISTANCE_SQUARED = SQUARED(10.0f);
-const float PICKUP_RESPAWN_WAIT = 3.0f;
-const float SUDDEN_DEATH_PICKUP_RESPAWN_WAIT = 2.0f;
+static const float PICKUP_THICKNESS = 3.0f;
+static const float PICKUP_SPAWN_DISTANCE_SQUARED = SQUARED(10.0f);
+static const float PICKUP_RESPAWN_WAIT = 3.0f;
+static const float SUDDEN_DEATH_PICKUP_RESPAWN_WAIT = 2.0f;
 
 // drone settings
-const float DRONE_WALL_SPAWN_DISTANCE = 2.0f;
-const float DRONE_DEATH_WALL_SPAWN_DISTANCE = 7.5f;
-const float DRONE_DRONE_SPAWN_DISTANCE_SQUARED = SQUARED(10.0f);
+static const float DRONE_WALL_SPAWN_DISTANCE = 2.0f;
+static const float DRONE_DEATH_WALL_SPAWN_DISTANCE = 7.5f;
+static const float DRONE_DRONE_SPAWN_DISTANCE_SQUARED = SQUARED(10.0f);
 
 #define DRONE_RADIUS 1.0f
 #define DRONE_DENSITY 1.25f
-const float DRONE_RESTITUTION = 0.3f;
-const float DRONE_FRICTION = 0.1f;
+static const float DRONE_RESTITUTION = 0.3f;
+static const float DRONE_FRICTION = 0.1f;
 #define DRONE_INV_MASS INV_MASS(MASS(DRONE_DENSITY, DRONE_RADIUS))
-const float DRONE_MOVE_MAGNITUDE = 35.0f;
-const float DRONE_LINEAR_DAMPING = 1.0f;
-const float DRONE_MOVE_AIM_COEF = 0.1f;
+static const float DRONE_MOVE_MAGNITUDE = 35.0f;
+static const float DRONE_LINEAR_DAMPING = 1.0f;
+static const float DRONE_MOVE_AIM_COEF = 0.1f;
 
-const float DRONE_ENERGY_MAX = 1.0f;
-const float DRONE_BRAKE_DAMPING_COEF = 2.5f;
-const float DRONE_BRAKE_DRAIN_RATE = 0.5f;
-const float DRONE_ENERGY_REFILL_WAIT = 1.0f;
-const float DRONE_ENERGY_REFILL_EMPTY_WAIT = 3.0f;
-const float DRONE_ENERGY_REFILL_RATE = 0.03f;
-const float DRONE_ENERGY_RESPAWN_REFILL = 0.5f;
+static const float DRONE_ENERGY_MAX = 1.0f;
+static const float DRONE_BRAKE_DAMPING_COEF = 2.5f;
+static const float DRONE_BRAKE_DRAIN_RATE = 0.5f;
+static const float DRONE_ENERGY_REFILL_WAIT = 1.0f;
+static const float DRONE_ENERGY_REFILL_EMPTY_WAIT = 3.0f;
+static const float DRONE_ENERGY_REFILL_RATE = 0.03f;
+static const float DRONE_ENERGY_RESPAWN_REFILL = 0.5f;
 
-const float DRONE_BURST_BASE_COST = 0.1f;
-const float DRONE_BURST_CHARGE_RATE = 0.6f;
-const float DRONE_BURST_RADIUS_BASE = 5.0f;
-const float DRONE_BURST_RADIUS_MIN = 3.5f;
-const float DRONE_BURST_IMPACT_BASE = 140.0f;
-const float DRONE_BURST_IMPACT_MIN = 35.0f;
-const float DRONE_BURST_COOLDOWN = 0.5f;
+static const float DRONE_BURST_BASE_COST = 0.1f;
+static const float DRONE_BURST_CHARGE_RATE = 0.6f;
+static const float DRONE_BURST_RADIUS_BASE = 5.0f;
+static const float DRONE_BURST_RADIUS_MIN = 3.5f;
+static const float DRONE_BURST_IMPACT_BASE = 140.0f;
+static const float DRONE_BURST_IMPACT_MIN = 35.0f;
+static const float DRONE_BURST_COOLDOWN = 0.5f;
 
-const float DRONE_SHIELD_RADIUS = DRONE_RADIUS * 1.5f;
-const float DRONE_SHIELD_HEALTH = 100.0f;
-const float DRONE_SHIELD_START_DURATION = 1.5f;
-const float DRONE_SHIELD_RESPAWN_DURATION = 3.0f;
-const float DRONE_SHIELD_EXPLOSION_REDUCTION = 0.5f;
-const float DRONE_SHIELD_HEALTH_IMPULSE_COEF = 0.5f;
-const float DRONE_SHIELD_HEALTH_EXPLOSION_COEF = 0.8;
-const float DRONE_SHIELD_BREAK_ENERGY_COST = -0.33f;
-const float DRONE_SHIELD_BREAK_ENERGY_REFILL = 0.25f;
+static const float DRONE_SHIELD_RADIUS = DRONE_RADIUS * 1.5f;
+static const float DRONE_SHIELD_HEALTH = 100.0f;
+static const float DRONE_SHIELD_START_DURATION = 1.5f;
+static const float DRONE_SHIELD_RESPAWN_DURATION = 3.0f;
+static const float DRONE_SHIELD_EXPLOSION_REDUCTION = 0.5f;
+static const float DRONE_SHIELD_HEALTH_IMPULSE_COEF = 0.5f;
+static const float DRONE_SHIELD_HEALTH_EXPLOSION_COEF = 0.8;
+static const float DRONE_SHIELD_BREAK_ENERGY_COST = -0.33f;
+static const float DRONE_SHIELD_BREAK_ENERGY_REFILL = 0.25f;
 
 #define PROJECTILE_ENERGY_REFILL_COEF 0.001f
-const float EXPLOSION_ENERGY_REFILL_COEF = 1.75f;
-const float WEAPON_DISCARD_COST = 0.2f;
+static const float EXPLOSION_ENERGY_REFILL_COEF = 1.75f;
+static const float WEAPON_DISCARD_COST = 0.2f;
 
-const uint8_t DRONE_PIECE_COUNT = 5;
-const float DRONE_PIECE_MIN_DISTANCE = 1.5f;
-const float DRONE_PIECE_MAX_DISTANCE = 3.0f;
-const float DRONE_PIECE_LINEAR_DAMPING = 1.0f;
-const float DRONE_PIECE_ANGULAR_DAMPING = 1.0f;
-const float DRONE_PIECE_MIN_SPEED = 5.0f;
-const float DRONE_PIECE_MAX_SPEED = 10.0f;
+static const uint8_t DRONE_PIECE_COUNT = 5;
+static const float DRONE_PIECE_MIN_DISTANCE = 1.5f;
+static const float DRONE_PIECE_MAX_DISTANCE = 3.0f;
+static const float DRONE_PIECE_LINEAR_DAMPING = 1.0f;
+static const float DRONE_PIECE_ANGULAR_DAMPING = 1.0f;
+static const float DRONE_PIECE_MIN_SPEED = 5.0f;
+static const float DRONE_PIECE_MAX_SPEED = 10.0f;
 
 // TODO: increase impulse of imploder of entity it directly hits?
 // weapon projectile settings
@@ -370,7 +370,7 @@ const float DRONE_PIECE_MAX_SPEED = 10.0f;
 #define NUKE_BOUNCE 0
 #define NUKE_SPAWN_WEIGHT 0.5f
 
-const weaponInformation standard = {
+static const weaponInformation standard = {
     .type = STANDARD_WEAPON,
     .isPhysicsBullet = true,
     .canSleep = false,
@@ -395,7 +395,7 @@ const weaponInformation standard = {
     .spawnWeight = STANDARD_SPAWN_WEIGHT,
 };
 
-const weaponInformation machineGun = {
+static const weaponInformation machineGun = {
     .type = MACHINEGUN_WEAPON,
     .isPhysicsBullet = true,
     .canSleep = false,
@@ -420,7 +420,7 @@ const weaponInformation machineGun = {
     .spawnWeight = MACHINEGUN_SPAWN_WEIGHT,
 };
 
-const weaponInformation sniper = {
+static const weaponInformation sniper = {
     .type = SNIPER_WEAPON,
     .isPhysicsBullet = true,
     .canSleep = false,
@@ -445,7 +445,7 @@ const weaponInformation sniper = {
     .spawnWeight = SNIPER_SPAWN_WEIGHT,
 };
 
-const weaponInformation shotgun = {
+static const weaponInformation shotgun = {
     .type = SHOTGUN_WEAPON,
     .isPhysicsBullet = true,
     .canSleep = false,
@@ -470,7 +470,7 @@ const weaponInformation shotgun = {
     .spawnWeight = SHOTGUN_SPAWN_WEIGHT,
 };
 
-const weaponInformation imploder = {
+static const weaponInformation imploder = {
     .type = IMPLODER_WEAPON,
     .isPhysicsBullet = false,
     .canSleep = false,
@@ -495,7 +495,7 @@ const weaponInformation imploder = {
     .spawnWeight = IMPLODER_SPAWN_WEIGHT,
 };
 
-const weaponInformation accelerator = {
+static const weaponInformation accelerator = {
     .type = ACCELERATOR_WEAPON,
     .isPhysicsBullet = true,
     .canSleep = false,
@@ -520,7 +520,7 @@ const weaponInformation accelerator = {
     .spawnWeight = ACCELERATOR_SPAWN_WEIGHT,
 };
 
-const weaponInformation flakCannon = {
+static const weaponInformation flakCannon = {
     .type = FLAK_CANNON_WEAPON,
     .isPhysicsBullet = true,
     .canSleep = false,
@@ -545,7 +545,7 @@ const weaponInformation flakCannon = {
     .spawnWeight = FLAK_CANNON_SPAWN_WEIGHT,
 };
 
-const weaponInformation mineLauncher = {
+static const weaponInformation mineLauncher = {
     .type = MINE_LAUNCHER_WEAPON,
     .isPhysicsBullet = false,
     .canSleep = true,
@@ -570,7 +570,7 @@ const weaponInformation mineLauncher = {
     .spawnWeight = MINE_LAUNCHER_SPAWN_WEIGHT,
 };
 
-const weaponInformation blackHole = {
+static const weaponInformation blackHole = {
     .type = BLACK_HOLE_WEAPON,
     .isPhysicsBullet = false,
     .canSleep = false,
@@ -595,7 +595,7 @@ const weaponInformation blackHole = {
     .spawnWeight = BLACK_HOLE_SPAWN_WEIGHT,
 };
 
-const weaponInformation nuke = {
+static const weaponInformation nuke = {
     .type = NUKE_WEAPON,
     .isPhysicsBullet = false,
     .canSleep = false,
@@ -647,7 +647,7 @@ static const char *weaponNames[] = {
 };
 
 // max ammo of weapon
-int8_t weaponAmmo(const enum weaponType defaultWep, const enum weaponType type) {
+static int8_t weaponAmmo(const enum weaponType defaultWep, const enum weaponType type) {
     if (type == defaultWep) {
         return INFINITE;
     }
@@ -677,7 +677,7 @@ int8_t weaponAmmo(const enum weaponType defaultWep, const enum weaponType type) 
     }
 }
 
-b2ShapeId weaponSensor(const b2BodyId bodyID, const enum weaponType type) {
+static b2ShapeId weaponSensor(const b2BodyId bodyID, const enum weaponType type) {
     b2ShapeDef sensorShapeDef = b2DefaultShapeDef();
     sensorShapeDef.density = 0.0f;
     sensorShapeDef.isSensor = true;
@@ -708,7 +708,7 @@ b2ShapeId weaponSensor(const b2BodyId bodyID, const enum weaponType type) {
 }
 
 // amount of force to apply to projectile
-float weaponFire(uint64_t *seed, const enum weaponType type) {
+static float weaponFire(uint64_t *seed, const enum weaponType type) {
     switch (type) {
     case STANDARD_WEAPON:
         return STANDARD_FIRE_MAGNITUDE;
@@ -739,7 +739,7 @@ float weaponFire(uint64_t *seed, const enum weaponType type) {
     }
 }
 
-b2Vec2 weaponAdjustAim(uint64_t *seed, const enum weaponType type, const uint16_t heat, const b2Vec2 normAim) {
+static b2Vec2 weaponAdjustAim(uint64_t *seed, const enum weaponType type, const uint16_t heat, const b2Vec2 normAim) {
     switch (type) {
     case MACHINEGUN_WEAPON: {
         const float swayCoef = logBasef((heat / 5.0f) + 1, 180);
@@ -763,7 +763,7 @@ b2Vec2 weaponAdjustAim(uint64_t *seed, const enum weaponType type, const uint16_
 
 // sets explosion parameters and returns true if an explosion should be created
 // when a projectile is destroyed
-void weaponExplosion(const enum weaponType type, b2ExplosionDef *explosionDef) {
+static void weaponExplosion(const enum weaponType type, b2ExplosionDef *explosionDef) {
     switch (type) {
     case IMPLODER_WEAPON:
         explosionDef->radius = 15.0f;
@@ -789,7 +789,7 @@ void weaponExplosion(const enum weaponType type, b2ExplosionDef *explosionDef) {
 }
 
 // insertion sort should be faster than quicksort for small arrays
-void insertionSort(nearEntity arr[], uint8_t size) {
+static void insertionSort(nearEntity arr[], uint8_t size) {
     for (int16_t i = 1; i < size; i++) {
         nearEntity key = arr[i];
         int16_t j = i - 1;

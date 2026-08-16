@@ -28,6 +28,7 @@
 #include <math.h>
 #include <float.h>
 #include "raylib.h"
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define WIDTH 1280
@@ -42,7 +43,6 @@
 #define MAX_AGENTS 64
 
 typedef Env OnlyFish;
-typedef float obs_t;
 
 #define STAR_SIZE 128 
 #define PUFFER_SIZE 128 
@@ -191,7 +191,7 @@ void spawn_goal(OnlyFish* env, int x, int y) {
 void compute_observations(OnlyFish* env) {
     for (int i=0; i<env->num_agents; i++) {
         Fish* agent = &env->fish[i];
-        float* obs = (float*)env->agents[i].observations;
+        obs_t* obs = env->agents[i].observations;
         int obs_idx = 0;
         float x = agent->x;
         float y = agent->y;
@@ -267,6 +267,7 @@ void puf_reset(OnlyFish* env) {
 void puf_step(OnlyFish* env) {
     for (int i=0; i<env->num_agents; i++) {
         env->agents[i].rewards[0] = 0;
+        env->agents[i].terminals[0] = 0;
         Fish* agent = &env->fish[i];
         agent->ticks_since_reward += 1;
 
@@ -405,5 +406,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 

@@ -10,11 +10,10 @@
 #define ACT_SIZES {6}
 #define OBS_SIZE 43
 #define NUM_ATNS 1
-typedef float obs_t;
 #endif
 
 #include "overcooked_types.h"
-// obs_t/ACT_SIZES defined in overcooked_types.h
+// ACT_SIZES defined in overcooked_types.h
 #include "overcooked_items.h"
 #include "overcooked_obs.h"
 #include "overcooked_logic.h"
@@ -85,10 +84,14 @@ void puf_reset(Overcooked* env) {
 }
 
 void puf_step(Overcooked* env) {
+    // Team serve reward is written onto every agent; must not re-init mid-loop.
     for (int i = 0; i < env->num_agents; i++) {
-        int action = (int)env->agents[i].actions[0];
         env->agents[i].rewards[0] = env->rewards_config.step_penalty;
         env->chefs[i].ticks_since_reward++;
+    }
+
+    for (int i = 0; i < env->num_agents; i++) {
+        int action = (int)env->agents[i].actions[0];
 
         Chef* agent = &env->chefs[i];
         int new_x = agent->x;
@@ -197,6 +200,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "pots_started", log->pots_started);
     dict_set(out, "items_dropped", log->items_dropped);
     dict_set(out, "agent_collisions", log->agent_collisions);
+    dict_set(out, "n", log->n);
 }
 
 #endif // OVERCOOKED_H

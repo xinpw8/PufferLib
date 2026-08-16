@@ -2,12 +2,12 @@
 #include <string.h>
 #include <stdio.h>
 #include "raylib.h"
+typedef unsigned char obs_t;
 #include "pufferenv.h"
 
 #define ACT_SIZES {2}
 #define OBS_SIZE 1
 #define NUM_ATNS 1
-typedef unsigned char obs_t;
 
 const unsigned char LEFT = 0;
 const unsigned char RIGHT = 1;
@@ -40,13 +40,6 @@ struct Env {
 };
 typedef Env Chain;
 
-void free_allocated(Chain* env) {
-    free(env->agents[0].observations);
-    free(env->agents[0].actions);
-    free(env->agents[0].rewards);
-    free(env->agents[0].terminals);
-}
-
 void add_log(Chain* env) {
     env->log.perf += (env->agents[0].rewards[0] == STATEN_REWARD) ? 1 : 0;
     env->log.score += env->agents[0].rewards[0];
@@ -56,12 +49,29 @@ void add_log(Chain* env) {
 }
 
 void puf_reset(Chain* env) {
-    ((obs_t*)env->agents[0].observations)[0] = 1;
+    unsigned char* obs = env->agents[0].observations;
+    obs[0] = 1;
     env->state = 1;
     env->tick = 0;
 }
 
+// Hold Left Shift + A/D or arrows.
+static void chain_mdp_human_controls(Chain *env) {
+    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
+        return;
+    }
+    env->agents[0].actions[0] = 0;
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)) {
+        env->agents[0].actions[0] = LEFT;
+    }
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
+        env->agents[0].actions[0] = RIGHT;
+    }
+}
+
 void puf_step(Chain* env) {
+    unsigned char* obs = env->agents[0].observations;
+    chain_mdp_human_controls(env);
     env->tick += 1;
     env->agents[0].terminals[0] = 0;
     env->agents[0].rewards[0] = 0;
@@ -69,7 +79,7 @@ void puf_step(Chain* env) {
     int action = (int)env->agents[0].actions[0];
     action = action * 2 - 1; // Map 0,1 to -1,1
     env->state = MIN(MAX(env->state + action, 0), env->size - 1);
-    ((obs_t*)env->agents[0].observations)[0] = env->state;
+    obs[0] = env->state;
 
     if (env->state == 0) {
         env->agents[0].rewards[0] = STATE1_REWARD;
@@ -86,6 +96,7 @@ void puf_step(Chain* env) {
 }
 
 void puf_render(Chain* env) {
+    unsigned char* obs = env->agents[0].observations;
     int px = MAX(8, 1024.0 / env->size);
 
     if (!IsWindowReady()) {
@@ -98,10 +109,12 @@ void puf_render(Chain* env) {
         exit(0);
     }
 
+    chain_mdp_human_controls(env);
+
     BeginDrawing();
     ClearBackground((Color){6, 24, 24, 255});
 
-    int agent_pos = ((obs_t*)env->agents[0].observations)[0];
+    int agent_pos = obs[0];
     for (int i = 0; i < env->size; i++) {
         Color color =
             (i == agent_pos) ? (Color){0, 255, 255, 255} :
@@ -143,5 +156,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "score", log->score);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "n", log->n);
 }
 
