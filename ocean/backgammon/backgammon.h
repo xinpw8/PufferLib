@@ -14,7 +14,7 @@ typedef float obs_t;
 #define ACT_SIZES {104}
 #define OBS_SIZE 35
 #define NUM_ATNS 1
-#define PUF_STEPS_PER_SEC 1
+#define PUF_STEPS_PER_SEC 2
 
 #define NUM_POINTS 24
 #define NUM_CHECKERS 15
@@ -49,10 +49,6 @@ struct Log {
     float n;
 };
 
-typedef struct Client Client;
-struct Client {
-};
-
 // 5.0 packing: Log, Agent[], tag, boundary_reached, then env fields. rng is set
 // by the trainer before puf_init.
 struct Env {
@@ -61,7 +57,7 @@ struct Env {
     int tag;
     int boundary_reached;
     int num_agents;
-    Client* client;
+    int have_window;
 
     int8_t board[NUM_POINTS + 1];
     int8_t bar[2];
@@ -81,6 +77,8 @@ struct Env {
     float opponent_random_prob;
 
     unsigned int rng;
+
+    int pending_reset;
 };
 typedef Env Backgammon;
 
@@ -390,6 +388,7 @@ static void reset_board(Backgammon* env) {
     env->hits_this_episode = 0;
     env->turns_this_episode = 0;
     env->must_enter_from_bar = false;
+    env->pending_reset = 0;
 
     env->board[24] = 2;
     env->board[13] = 5;
@@ -422,10 +421,17 @@ static void finish_game(Backgammon* env, float reward) {
     env->agents[0].rewards[0] = reward;
     env->agents[0].terminals[0] = 1.0f;
     add_log(env);
-    reset_board(env);
+    if (env->have_window) {
+        env->pending_reset = 1;
+    } else {
+        reset_board(env);
+    }
 }
 
 void puf_step(Backgammon* env) {
+    if (env->pending_reset) {
+        reset_board(env);
+    }
     env->tick += 1;
     env->agents[0].rewards[0] = 0.0f;
     env->agents[0].terminals[0] = 0.0f;
@@ -501,9 +507,12 @@ static int point_index_at(int col, int top) {
 }
 
 void puf_render(Backgammon* env) {
-    if (!IsWindowReady()) {
-        InitWindow(WIN_W, WIN_H, "PufferLib Backgammon");
-        SetTargetFPS(30);
+    if (!env->have_window) {
+        env->have_window = 1;
+        if (!IsWindowReady()) {
+            InitWindow(WIN_W, WIN_H, "PufferLib Backgammon");
+            SetTargetFPS(60);
+        }
     }
     if (IsKeyDown(KEY_ESCAPE)) exit(0);
     if (IsKeyPressed(KEY_TAB)) ToggleFullscreen();
@@ -593,12 +602,17 @@ void puf_render(Backgammon* env) {
         env->tick, env->off[BG_WHITE], env->off[BG_BLACK]),
         40, 12, 22, PUFF_WHITE);
     EndDrawing();
+    puf_web_vsync();
+    if (env->pending_reset) {
+        reset_board(env);
+    }
 }
 
 void puf_close(Backgammon* env) {
     if (IsWindowReady()) {
         CloseWindow();
     }
+    env->have_window = 0;
 }
 
 void puf_log(Log* log, Dict* out) {
@@ -617,7 +631,7 @@ void puf_log(Log* log, Dict* out) {
 
 void puf_init(Env* env, Dict* kwargs) {
     env->num_agents = 1;
-    env->client = NULL;
+    env->have_window = 0;
     env->opponent_random_prob = dict_get(kwargs, "opponent_random_prob");
     env->agents[0].action_mask = NULL;
     env->agents[0].policy = 0;

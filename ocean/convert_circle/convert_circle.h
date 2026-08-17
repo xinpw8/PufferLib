@@ -269,6 +269,7 @@ void puf_render(ConvertCircle *env) {
   }
 
   EndDrawing();
+  puf_web_vsync();
 }
 
 void puf_close(ConvertCircle *env) {

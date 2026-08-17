@@ -1292,6 +1292,7 @@ void puf_render(Battle* env) {
 
     EndMode3D();
     EndDrawing();
+    puf_web_vsync();
 }
 
 // Required function. Should clean up anything you allocated

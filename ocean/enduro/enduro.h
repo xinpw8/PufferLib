@@ -2265,6 +2265,7 @@ void puf_render(Enduro* env) {
     );
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 // --- Native trainer (pufferl) API ---

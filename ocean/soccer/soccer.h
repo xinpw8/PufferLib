@@ -695,5 +695,6 @@ void puf_render(Env* env) {
         DrawText(TextFormat("Score: %d - %d", env->scores[0], env->scores[1]),
             16, 12, 20, WHITE);
         EndDrawing();
+        puf_web_vsync();
     }
 }

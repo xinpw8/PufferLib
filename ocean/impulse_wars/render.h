@@ -1749,6 +1749,7 @@ void _renderEnv(iwEnv *e, const bool starting, const bool ending, const int8_t w
     }
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 void renderWait(iwEnv *e, const bool starting, const bool ending, const int8_t winner, const int8_t winningTeam, const float time) {

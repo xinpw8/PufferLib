@@ -979,4 +979,5 @@ void puf_render(Robocode* env) {
     DrawText(tick_text, 10, 10, 10, WHITE);
 
     EndDrawing();
+    puf_web_vsync();
 }

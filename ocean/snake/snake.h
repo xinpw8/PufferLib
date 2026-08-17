@@ -19,6 +19,7 @@ typedef unsigned char obs_t;
 #endif
 #define NUM_ATNS 1
 #define SNAKE_FRAMES 6
+#define PUF_STEPS_PER_SEC 10
 #define MAX_AGENTS 512
 
 typedef Env CSnake;
@@ -385,23 +386,22 @@ void puf_render(CSnake* env) {
     }
     Client* client = env->client;
     int sz = client->cell_size;
-    for (int f = 0; f < SNAKE_FRAMES; f++) {
-        if (IsKeyDown(KEY_ESCAPE)) {
-            exit(0);
-        }
-        snake_human_controls(env);
-        BeginDrawing();
-        ClearBackground(COLORS[0]);
-        for (int y = 0; y < env->height; y++) {
-            for (int x = 0; x < env->width; x++) {
-                int tile = env->grid[y * env->width + x];
-                if (tile != EMPTY) {
-                    DrawRectangle(x * sz, y * sz, sz, sz, COLORS[tile]);
-                }
+    if (IsKeyDown(KEY_ESCAPE)) {
+        exit(0);
+    }
+    snake_human_controls(env);
+    BeginDrawing();
+    ClearBackground(COLORS[0]);
+    for (int y = 0; y < env->height; y++) {
+        for (int x = 0; x < env->width; x++) {
+            int tile = env->grid[y * env->width + x];
+            if (tile != EMPTY) {
+                DrawRectangle(x * sz, y * sz, sz, sz, COLORS[tile]);
             }
         }
-        EndDrawing();
     }
+    EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_init(Env* env, Dict* kwargs) {

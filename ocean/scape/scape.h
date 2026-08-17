@@ -458,6 +458,7 @@ void puf_render(Scape* env) {
     DrawText(TextFormat("offset_x: %f offset_z: %f", offset_x, offset_z), 10, 10, 20, RAYWHITE);
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 // Required function. Should clean up anything you allocated

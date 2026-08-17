@@ -1645,6 +1645,7 @@ void puf_render(Drive* env) {
     DrawText(TextFormat("Grid Rows: %d", env->grid_rows), 10, 150, 20, PUFF_WHITE);
     DrawText(TextFormat("Grid Cols: %d", env->grid_cols), 10, 170, 20, PUFF_WHITE);
     EndDrawing();
+    puf_web_vsync();
 }
 
 void close_client(Client* client) {

@@ -1,3 +1,9 @@
+#include <stdint.h>
+#ifndef IMPULSE_WARS_OBS_T
+#define IMPULSE_WARS_OBS_T
+typedef uint8_t obs_t;
+#endif
+
 #ifdef __cplusplus
 // Game/Box2D/collections-c are C (void* implicit conv); pufferl.cu is C++17.
 #define puf_init puf_init_cxx_decl

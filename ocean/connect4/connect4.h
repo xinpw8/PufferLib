@@ -9,7 +9,7 @@ typedef float obs_t;
 #define ACT_SIZES {7}
 #define OBS_SIZE 42
 #define NUM_ATNS 1
-#define PUF_STEPS_PER_SEC 1
+#define HOLD_FRAMES 30
 
 #define WIN_CONDITION 4
 const int PLAYER_WIN = 1.0;
@@ -49,9 +49,10 @@ struct Env {
     //  & http://blog.gamesolver.org/solving-connect-four/01-introduction/
     uint64_t player_pieces;
     uint64_t env_pieces;
+    uint64_t last_env_bit;
+    int pending_reset;
 
     int tick;
-    int end_game;
     unsigned int rng;
 };
 typedef Env Connect4;
@@ -238,10 +239,10 @@ void compute_observation(Connect4* env) {
 
 static void reset_board(Connect4* env) {
     float* obs = env->agents[0].observations;
-    env->end_game = 0;
     env->tick = 0;
     env->player_pieces = 0;
     env->env_pieces = 0;
+    env->last_env_bit = 0;
     for (int i = 0; i < 42; i++) {
         obs[i] = 0;
     }
@@ -249,64 +250,42 @@ static void reset_board(Connect4* env) {
 
 void puf_reset(Connect4* env) {
     reset_board(env);
+    env->pending_reset = 0;
     env->agents[0].terminals[0] = 0;
     if (env->agents[0].rewards) {
         env->agents[0].rewards[0] = 0;
     }
 }
 
-// Same-step auto-reset as go: terminal=1 is uploaded with the *next* empty
-// board so MinGRU zeros state and then encodes a fresh episode, not the
-// stale terminal position.
+// Same-step auto-reset as go. A live client delays reset until after render.
 void finish_game(Connect4* env, float reward, int invalid) {
     env->agents[0].rewards[0] = reward;
     env->agents[0].terminals[0] = 1;
     env->log.invalids += (float)invalid;
     add_log(env);
-    reset_board(env);
-}
-
-// Hold Left Shift + 1-7. Skip the step when no column this frame.
-static int connect4_human_controls(Connect4 *env) {
-    if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
-        return 0;
+    if (env->client == NULL) {
+        reset_board(env);
+    } else {
+        compute_observation(env);
+        env->pending_reset = 1;
     }
-    if (IsKeyPressed(KEY_ONE)) {
-        env->agents[0].actions[0] = 0;
-        return 1;
-    }
-    if (IsKeyPressed(KEY_TWO)) {
-        env->agents[0].actions[0] = 1;
-        return 1;
-    }
-    if (IsKeyPressed(KEY_THREE)) {
-        env->agents[0].actions[0] = 2;
-        return 1;
-    }
-    if (IsKeyPressed(KEY_FOUR)) {
-        env->agents[0].actions[0] = 3;
-        return 1;
-    }
-    if (IsKeyPressed(KEY_FIVE)) {
-        env->agents[0].actions[0] = 4;
-        return 1;
-    }
-    if (IsKeyPressed(KEY_SIX)) {
-        env->agents[0].actions[0] = 5;
-        return 1;
-    }
-    if (IsKeyPressed(KEY_SEVEN)) {
-        env->agents[0].actions[0] = 6;
-        return 1;
-    }
-    return -1;
 }
 
 void puf_step(Connect4* env) {
-    if (connect4_human_controls(env) < 0) {
-        return;
+    if (IsWindowReady() && IsKeyDown(KEY_LEFT_SHIFT)) {
+        int col = -1;
+        for (int k = 0; k < COLUMNS; k++) {
+            if (IsKeyPressed(KEY_ONE + k)) {
+                col = k;
+            }
+        }
+        if (col < 0) {
+            return;
+        }
+        env->agents[0].actions[0] = col;
     }
     env->tick += 1;
+    env->last_env_bit = 0;
     env->agents[0].rewards[0] = 0.0;
     env->agents[0].terminals[0] = 0;
 
@@ -336,7 +315,9 @@ void puf_step(Connect4* env) {
         return;
     }
 
-    env->env_pieces = play(column, piece_mask, env->player_pieces);
+    uint64_t new_env = play(column, piece_mask, env->player_pieces);
+    env->last_env_bit = new_env ^ env->env_pieces;
+    env->env_pieces = new_env;
     if (won(env->env_pieces)) {
         finish_game(env, ENV_WIN, 0);
         return;
@@ -379,14 +360,16 @@ void puf_render(Connect4* env) {
         exit(0);
     }
 
-    connect4_human_controls(env);
-
     if (env->client == NULL) {
         env->client = make_client();
     }
 
     Client* client = env->client;
-
+    int frames = (env->last_env_bit || env->pending_reset) ? HOLD_FRAMES : 0;
+    uint64_t hide = env->last_env_bit;
+    env->last_env_bit = 0;
+    int f = 0;
+redraw:
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);
     
@@ -406,6 +389,9 @@ void puf_render(Connect4* env) {
         Color piece_color=PURPLE;
         int color_idx = 0;
         float cell = (float)obs[obs_idx];
+        if (f < frames && ((hide >> i) & 1)) {
+            cell = 0;
+        }
         if (cell == 0.0f) {
             piece_color = BLACK;
         } else if (cell == (float)PLAYER_WIN) {
@@ -437,6 +423,14 @@ void puf_render(Connect4* env) {
         );
     }
     EndDrawing();
+    puf_web_vsync();
+    if (f++ < frames) {
+        goto redraw;
+    }
+    if (env->pending_reset) {
+        reset_board(env);
+        env->pending_reset = 0;
+    }
 }
 
 void close_client(Client* client) {

@@ -327,6 +327,7 @@ void puf_render(Pong* env) {
     );
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_log(Log* log, Dict* out) {

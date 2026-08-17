@@ -10,7 +10,7 @@ typedef float obs_t;
 #define ACT_SIZES {TOTAL_CELLS}
 #define OBS_SIZE (2*TOTAL_CELLS)
 #define NUM_ATNS 1
-#define PUF_STEPS_PER_SEC 3
+#define HOLD_FRAMES 18
 
 #define BOARD_SIZE 11
 #define TOTAL_CELLS (BOARD_SIZE * BOARD_SIZE)
@@ -44,6 +44,8 @@ struct Env {
     int tick;
     int current_player;
     int8_t board[TOTAL_CELLS];
+    int last_env_cell;
+    int pending_reset;
     bool random_opponent;
 
     // Disjoint Set Union (Union-Find) tracking arrays
@@ -109,6 +111,8 @@ void puf_reset(Hex* env) {
     memset(env->board, 0, sizeof(env->board));
     env->current_player = 0;
     env->tick = 0;
+    env->last_env_cell = -1;
+    env->pending_reset = 0;
     env->agents[0].terminals[0] = 0;
 
     uf_init(env);
@@ -247,28 +251,34 @@ static int hex_human_controls(Hex *env) {
     return -1;
 }
 
+static void finish_game(Hex* env, float reward) {
+    env->agents[0].rewards[0] = reward;
+    env->agents[0].terminals[0] = 1;
+    add_log(env);
+    if (IsWindowReady()) {
+        env->pending_reset = 1;
+        return;
+    }
+    puf_reset(env);
+    env->agents[0].rewards[0] = reward;
+    env->agents[0].terminals[0] = 1;
+}
+
 void puf_step(Hex* env) {
     if (hex_human_controls(env) < 0) {
         return;
     }
     env->tick += 1;
+    env->last_env_cell = -1;
     int action = (int)env->agents[0].actions[0];
 
     if (invalid_move(action, env->board)) {
-        env->agents[0].rewards[0] = -1;
-        env->agents[0].terminals[0] = 1;
-        add_log(env);
-        puf_reset(env);
+        finish_game(env, -1);
         return;
     }
 
-    // Player move and incremental win check
     if (place_stone_and_check_win(env, action, PLAYER_COLOR)) {
-        env->agents[0].rewards[0] = 1;
-        env->agents[0].terminals[0] = 1;
-
-        add_log(env);
-        puf_reset(env);
+        finish_game(env, 1);
         return;
     }
     int env_action;
@@ -280,12 +290,9 @@ void puf_step(Hex* env) {
         env_action = compute_env_move(env, action);
     }
 
+    env->last_env_cell = env_action;
     if (place_stone_and_check_win(env, env_action, ENV_COLOR)) {
-        env->agents[0].rewards[0] = -1;
-        env->agents[0].terminals[0] = 1;
-
-        add_log(env);
-        puf_reset(env);
+        finish_game(env, -1);
         return;
     }
 }
@@ -305,6 +312,11 @@ void puf_render(Hex* env) {
 
     hex_human_controls(env);
 
+    int frames = (env->last_env_cell >= 0 || env->pending_reset) ? HOLD_FRAMES : 0;
+    int hide = env->last_env_cell;
+    env->last_env_cell = -1;
+    int f = 0;
+redraw:
     BeginDrawing();
     ClearBackground((Color) { 6, 24, 24, 255 });
 
@@ -341,6 +353,9 @@ void puf_render(Hex* env) {
         for (int c = 0; c < BOARD_SIZE; c++) {
             int idx = r * BOARD_SIZE + c;
             int owner = env->board[idx];
+            if (f < frames && idx == hide) {
+                owner = 0;
+            }
 
             Color color = DARKGRAY;
             if (owner == PLAYER_COLOR)
@@ -357,6 +372,13 @@ void puf_render(Hex* env) {
     }
 
     EndDrawing();
+    puf_web_vsync();
+    if (f++ < frames) {
+        goto redraw;
+    }
+    if (env->pending_reset) {
+        puf_reset(env);
+    }
 }
 
 void puf_close(Hex* env) {

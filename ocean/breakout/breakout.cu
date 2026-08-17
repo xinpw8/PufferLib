@@ -791,6 +791,7 @@ void puf_render(Env* env) {
     DrawText(TextFormat("Score: %i", h.score), 10, 10, 20, WHITE);
     DrawText(TextFormat("Balls: %i", h.num_balls), client->width - 80, 10, 20, WHITE);
     EndDrawing();
+    puf_web_vsync();
 }
 
 #endif

@@ -692,6 +692,7 @@ void puf_render(Ants* env) {
     DrawText("[ESC] Exit", 20, env->height - 70, 16, GRAY);
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(Ants* env) {

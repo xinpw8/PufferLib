@@ -542,6 +542,7 @@ void puf_render(LaserPuzzle* env) {
     }
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 // --- Native trainer (pufferl) API ---

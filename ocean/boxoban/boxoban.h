@@ -395,7 +395,7 @@ void draw_tile(Boxoban *env, int x, int y) {
 void puf_render(Boxoban* env) {
     if (!IsWindowReady()) {
         InitWindow(TILE*env->size, TILE*env->size, "PufferLib Boxoban");
-        SetTargetFPS(10);
+        SetTargetFPS(60);
     }
 
     // Standard across our envs so exiting is always the same
@@ -419,6 +419,7 @@ void puf_render(Boxoban* env) {
     }
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 // Required function. Should clean up anything you allocated

@@ -1423,6 +1423,7 @@ void puf_render(MazingContest* env) {
     render_ui_panel(env);
     
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(MazingContest* env) {

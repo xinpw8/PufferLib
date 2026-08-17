@@ -714,6 +714,7 @@ void puf_render(DrMario *env) {
     DrawText(TextFormat("Score: %d", env->score), 4, 20, 14, WHITE);
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 // --- Native trainer (pufferl) API ---

@@ -322,6 +322,7 @@ void puf_render(Env* env) {
         (Vector2){0, 0}, 0, WHITE);
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 void generate_growing_tree_maze(unsigned char* maze,

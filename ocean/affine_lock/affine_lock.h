@@ -474,6 +474,7 @@ void puf_render(AffineLock* env) {
     DrawText("6 nib-swap  7 rev-nib  8 rev-byte  R reset",
         30, 322, 16, (Color){160, 170, 178, 255});
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_log(Log* log, Dict* out) {

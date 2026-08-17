@@ -869,6 +869,7 @@ void puf_render(CRware* env) {
     }
 
     EndDrawing();
+    puf_web_vsync();
     }
 }
 void close_client(Client* client) {

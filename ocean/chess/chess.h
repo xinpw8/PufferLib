@@ -13,7 +13,10 @@ typedef uint8_t obs_t;
 
 #define ACT_SIZES {97}
 #define NUM_ATNS 1
-#define PUF_STEPS_PER_SEC 1
+// Eval: learner pick+place (2 steps) + random opponent ply (1 step) = 3
+// puf_steps per both-players turn. 3 / 0.6s = 5. Maia is 2+2; leave that
+// slightly slower rather than add a board-snapshot interpolant.
+#define PUF_STEPS_PER_SEC 5
 #define MY_VEC_INIT
 #define MY_VEC_CLOSE
 
@@ -3291,6 +3294,10 @@ human_wait_retry:
     }
     
     EndDrawing();
+    puf_web_vsync();
+    // AUDIT: no interpolant. Pick/place already stagger half-moves across
+    // steps; same-step our-then-opp plus a terminal board needs extra
+    // Position/board copies and a puf_render rewrite.
 
     // Human-mode only: stay in c_render (on the window-owning thread) until
     // the human commits a move via mouse clicks. Re-poll input + redraw each

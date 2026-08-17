@@ -290,6 +290,7 @@ void puf_render(Flappy* env) {
     DrawText(TextFormat("Score: %i", env->score), 12, 12, 24, (Color){241, 241, 241, 255});
     DrawText("[Shift] space/up flap", 12, 40, 16, (Color){241, 241, 241, 255});
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(Flappy* env) {

@@ -4,6 +4,8 @@
 //
 // 5c API port of Fin's multitask drone (PR #599 / FinlaySanders/4.0).
 
+#pragma once
+
 #include <assert.h>
 #include <limits.h>
 #include <math.h>

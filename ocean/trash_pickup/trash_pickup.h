@@ -581,6 +581,7 @@ void puf_render(CTrashPickupEnv* env) {
     }
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 // Cleanup and free the rendering client

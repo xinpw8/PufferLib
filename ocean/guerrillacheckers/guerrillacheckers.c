@@ -743,7 +743,6 @@ static void demo(void) {
     GuerrillaCheckers env = {0};
     env.num_agents = 2;
     env.max_episode_length = 256;
-    env.render_fps = 60;
     env.selfplay = 1;  // the client drives both sides turn by turn
     env.side_cfg = 0;
     env.opponent = GC_BOT_GREEDY;

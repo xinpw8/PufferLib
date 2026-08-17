@@ -111,6 +111,7 @@ void puf_render(Env* env) {
     DrawText(TextFormat("Tick %.0d. Simon says...", env->tick), 20, 20, 20, PUFF_WHITE);
     DrawText("[Shift] A/D or arrows", 20, 48, 16, PUFF_WHITE);
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(Env* env) {

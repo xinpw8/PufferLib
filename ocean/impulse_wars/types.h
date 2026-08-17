@@ -5,7 +5,10 @@
 #include "id_pool.h"
 #include "raylib.h"
 #include "rlights.h"
+#ifndef IMPULSE_WARS_OBS_T
+#define IMPULSE_WARS_OBS_T
 typedef uint8_t obs_t;
+#endif
 #include "pufferenv.h"
 
 #include "include/cc_array.h"

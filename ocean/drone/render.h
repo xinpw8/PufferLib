@@ -2,6 +2,8 @@
 // Included in pufferlib under the original project's MIT license.
 // https://github.com/tensaur/drone
 
+#pragma once
+
 #include <math.h>
 
 #include "drone.h"
@@ -720,4 +722,5 @@ void puf_render(DroneEnv* env) {
              inspect_mode ? PUFF_GREEN : LIGHTGRAY);
 
     EndDrawing();
+    puf_web_vsync();
 }

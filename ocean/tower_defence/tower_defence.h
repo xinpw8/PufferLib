@@ -2245,6 +2245,7 @@ void puf_render(TowerDefence *env) {
     DrawText(status, 18, TD_HEIGHT + 42, 20, status_color);
     DrawText(controls, 18, TD_HEIGHT + 74, 20, (Color){226, 232, 240, 255});
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(TowerDefence *env) {

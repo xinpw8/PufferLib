@@ -273,6 +273,7 @@ void puf_render(LightsOut* env) {
     }
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 // --- Native trainer (pufferl) API ---

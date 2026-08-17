@@ -2000,6 +2000,7 @@ void render_map(MapRenderer* renderer, MOBA* env) {
     DrawText("Reinforcement learned MOBA agents running in your browswer!", 10, 10, 20, COLORS[8]);
     DrawText("Written in pure C by @jsuarez5341. Star it on GitHub/pufferai/pufferlib to support my work!", 10, 40, 20, COLORS[8]);
     EndDrawing();
+    puf_web_vsync();
 }
 
 // Player client view
@@ -2415,6 +2416,7 @@ void puf_render(MOBA* env) {
     DrawText(TextFormat("Move: %i", player->move_timer), 25*ts, hud_y, 20, (player->move_timer > 0) ? on_color : off_color);
 
     EndDrawing();
+    puf_web_vsync();
 #ifndef PUFFERCPU_EVAL_MAIN
     renderer->frame += 1;
     if (renderer->frame % FRAMES == 0) {
