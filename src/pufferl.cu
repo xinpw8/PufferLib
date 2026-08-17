@@ -1403,6 +1403,7 @@ __global__ void transpose_102(precision_t* dst, const precision_t* src,
     dst[b * A * C + a * C + c] = src[idx];
 }
 
+#if !defined(PRECISION_FLOAT)
 __global__ void transpose_102(float* dst, const float* src, int A, int B, int C) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int total = A * B * C;
@@ -1415,6 +1416,7 @@ __global__ void transpose_102(float* dst, const float* src, int A, int B, int C)
     int c = rem % C;
     dst[b * A * C + a * C + c] = src[idx];
 }
+#endif
 
 // Cosine decay base → min over t in [0, T). Double for t/T (float loses
 // precision past 2^24). Caller passes epoch and total train epochs.
@@ -2474,6 +2476,7 @@ void rollouts(PuffeRL* p) {
 
 typedef struct {
     float score;
+    float perf;
     float draw;
     int games;
 } EvalResult;
@@ -2865,6 +2868,7 @@ static EvalResult eval_loop(Ini* ini, PuffeRL* p, int mode, int verbose,
         }
         result.score = match ? dict_get(&el, "env/policy_0_score")
             : dict_get(&el, "env/score");
+        result.perf = dict_get(&el, "env/perf");
         if (match) {
             result.draw = dict_get(&el, "env/draw_rate");
         }
@@ -2924,6 +2928,14 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose) {
     assert((mode == EVAL_RENDER || n > 0) && "eval requires positive base.eval_episodes");
     PuffeRL* p = eval_make(ini, ctx, mode);
     EvalResult r = eval_loop(ini, p, mode, verbose, n, NULL, 0);
+    long nparams = 0;
+    if (p && p->policies) {
+        nparams = numel(p->policies[0].master_weights.shape);
+    }
+    printf("CUDA_EVAL env=%s score=%.6f perf=%.6f games=%d params=%ld\n",
+        puf_ini_get_str(ini, "base", "env_name"),
+        r.score, r.perf, r.games, nparams);
+    fflush(stdout);
     close_pufferl(p);
     return r;
 }

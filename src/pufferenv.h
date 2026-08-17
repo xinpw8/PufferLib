@@ -11,12 +11,18 @@
 
 #include "ini.h"
 #include "raylib.h"
+#ifdef PLATFORM_WEB
+void puf_web_vsync(void);
+#else
+static void puf_web_vsync(void) {
+}
+#endif
 
 typedef struct Env Env;
 typedef struct Log Log;
 
 typedef struct Agent {
-    void* observations;
+    obs_t* observations;
     float* actions;
     float* rewards;
     float* terminals;

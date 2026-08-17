@@ -1,7 +1,3 @@
-#ifndef PUFFERCPU_EVAL_MAIN
-#pragma once
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -9,9 +5,8 @@
 #include <math.h>
 #include <assert.h>
 #include <sys/stat.h>
-#ifdef PLATFORM_WEB
-#include <emscripten.h>
-#endif
+#include <dirent.h>
+#include <time.h>
 
 typedef struct {
     void* data;
@@ -37,111 +32,22 @@ void* alloc(Arena* allocator, size_t size) {
     return ptr;
 }
 
-// File format is obtained by flattening and concatenating all pytorch layers
-typedef struct Weights Weights;
-struct Weights {
+// File format: flat fp32 tensors.
+typedef struct Weights {
     float* data;
     int size;
     int idx;
-};
-
-// Hosted at https://puffer.ai/assets/models/<basename>. Local clone first.
-#define PUFFER_MODEL_URL "https://puffer.ai/assets/models/"
-
-static const char* puf_basename(const char* path) {
-    const char* slash = strrchr(path, '/');
-    return slash ? slash + 1 : path;
-}
-
-static void puf_mkdir_parent(const char* path) {
-    char buf[1024];
-    snprintf(buf, sizeof(buf), "%s", path);
-    for (char* p = buf + 1; *p; p++) {
-        if (*p == '/') {
-            *p = 0;
-            mkdir(buf, 0755);
-            *p = '/';
-        }
-    }
-}
-
-static int puf_copy_file(const char* src, const char* dst) {
-    FILE* in = fopen(src, "rb");
-    if (!in) {
-        return -1;
-    }
-
-    puf_mkdir_parent(dst);
-    FILE* out = fopen(dst, "wb");
-    if (!out) {
-        fclose(in);
-        return -1;
-    }
-
-    char buf[1 << 16];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
-        if (fwrite(buf, 1, n, out) != n) {
-            fclose(in);
-            fclose(out);
-            return -1;
-        }
-    }
-    fclose(in);
-    fclose(out);
-    return 0;
-}
-
-static int puf_file_ok(const char* path) {
-    FILE* f = fopen(path, "rb");
-    if (!f) {
-        return 0;
-    }
-    fclose(f);
-    return 1;
-}
-
-static int puf_fetch_weights(const char* filename) {
-    const char* base = puf_basename(filename);
-    if (!base[0]) {
-        return -1;
-    }
-
-    char url[1024];
-    snprintf(url, sizeof(url), PUFFER_MODEL_URL "%s", base);
-    puf_mkdir_parent(filename);
-
-#ifdef PLATFORM_WEB
-    emscripten_wget(url, filename);
-#else
-    char src[1024];
-    snprintf(src, sizeof(src), "../puffer.ai/docs/assets/models/%s", base);
-    if (puf_copy_file(src, filename) == 0) {
-        return 0;
-    }
-
-    char cmd[2048];
-    snprintf(cmd, sizeof(cmd), "curl -fsSL -o '%s' '%s'", filename, url);
-    if (system(cmd) != 0) {
-        return -1;
-    }
-#endif
-    return puf_file_ok(filename) ? 0 : -1;
-}
+} Weights;
 
 Weights* load_weights(const char* filename) {
     FILE* file = fopen(filename, "rb");
-    if (!file && puf_fetch_weights(filename) == 0) {
-        file = fopen(filename, "rb");
-    }
     if (!file) {
-        perror("Error opening file");
         return NULL;
     }
     fseek(file, 0, SEEK_END);
     long file_size = ftell(file);
     rewind(file);
-    size_t num_weights = file_size / sizeof(float);
+    size_t num_weights = (size_t)file_size / sizeof(float);
     // +7 ensures get_weights_aligned never reads past the buffer: the native
     // backend uses 16-byte alignment with bf16 params (2 bytes), so each tensor
     // starts at an 8-float boundary. After the last tensor, up to 7 extra floats
@@ -153,7 +59,7 @@ Weights* load_weights(const char* filename) {
     if (read_size != num_weights) {
         perror("Error reading file");
     }
-    weights->size = num_weights + 7;
+    weights->size = (int)num_weights + 7;
     weights->idx = 0;
     return weights;
 }
@@ -183,8 +89,7 @@ void _relu(float* input, float* output, int size) {
     }
 }
 
-float _sigmoid(float x);
-inline float _sigmoid(float x) {
+float _sigmoid(float x) {
     return 1.0f / (1.0f + expf(-x));
 }
 
@@ -297,21 +202,40 @@ void _gaussian_sample(float* input, float* log_std, float* output, int batch_siz
 }
 
 // hard=1: argmax; hard=0: softmax sample. +1 on in_adr skips fused value head.
+// mask is optional (batch * atn_sum); NULL means every logit is legal.
 void _multidiscrete(float* input, float* output, int batch_size, int logit_sizes[],
-        int num_actions, int hard) {
+        int num_actions, int hard, const unsigned char* mask) {
     int atn_sum = 0;
     for (int a = 0; a < num_actions; a++) {
         atn_sum += logit_sizes[a];
     }
     for (int b = 0; b < batch_size; b++) {
         int in_adr = b * (atn_sum + 1);
+        int mask_adr = b * atn_sum;
         for (int a = 0; a < num_actions; a++) {
             int out_adr = b * num_actions + a;
             int n = logit_sizes[a];
+            const unsigned char* head_mask = mask ? mask + mask_adr : NULL;
             output[out_adr] = 0.0f;
+            int first = -1;
+            for (int i = 0; i < n; i++) {
+                if (!head_mask || head_mask[i]) {
+                    first = i;
+                    break;
+                }
+            }
+            if (first < 0) {
+                in_adr += n;
+                mask_adr += n;
+                continue;
+            }
             if (hard) {
-                float max_logit = input[in_adr];
-                for (int i = 1; i < n; i++) {
+                float max_logit = input[in_adr + first];
+                output[out_adr] = (float)first;
+                for (int i = first + 1; i < n; i++) {
+                    if (head_mask && !head_mask[i]) {
+                        continue;
+                    }
                     float out = input[in_adr + i];
                     if (out > max_logit) {
                         max_logit = out;
@@ -319,19 +243,26 @@ void _multidiscrete(float* input, float* output, int batch_size, int logit_sizes
                     }
                 }
             } else {
-                float max_logit = input[in_adr];
-                for (int i = 1; i < n; i++) {
-                    if (input[in_adr + i] > max_logit) {
+                float max_logit = input[in_adr + first];
+                for (int i = first + 1; i < n; i++) {
+                    if ((!head_mask || head_mask[i]) &&
+                            input[in_adr + i] > max_logit) {
                         max_logit = input[in_adr + i];
                     }
                 }
                 float logit_exp_sum = 0.0f;
                 for (int i = 0; i < n; i++) {
-                    logit_exp_sum += expf(input[in_adr + i] - max_logit);
+                    if (!head_mask || head_mask[i]) {
+                        logit_exp_sum += expf(input[in_adr + i] - max_logit);
+                    }
                 }
                 float prob = rand() / (float)RAND_MAX;
                 float logit_prob = 0.0f;
+                output[out_adr] = (float)first;
                 for (int i = 0; i < n; i++) {
+                    if (head_mask && !head_mask[i]) {
+                        continue;
+                    }
                     logit_prob += expf(input[in_adr + i] - max_logit) / logit_exp_sum;
                     if (prob < logit_prob) {
                         output[out_adr] = (float)i;
@@ -340,6 +271,7 @@ void _multidiscrete(float* input, float* output, int batch_size, int logit_sizes
                 }
             }
             in_adr += n;
+            mask_adr += n;
         }
     }
 }
@@ -360,14 +292,13 @@ void _max_dim1(float* input, float* output, int batch_size, int seq_len, int fea
 }
 
 // User API. Provided to help organize layers
-typedef struct Linear Linear;
-struct Linear {
+typedef struct Linear {
     float* output;
     float* weights;
     int batch_size;
     int input_dim;
     int output_dim;
-};
+} Linear;
 
 Linear* make_linear(Weights* weights, int batch_size, int input_dim, int output_dim) {
     size_t buffer_size = batch_size*output_dim*sizeof(float);
@@ -393,12 +324,11 @@ void linear(Linear* layer, float* input) {
     }
 }
 
-typedef struct ReLU ReLU;
-struct ReLU {
+typedef struct ReLU {
     float* output;
     int batch_size;
     int input_dim;
-};
+} ReLU;
 
 ReLU* make_relu(int batch_size, int input_dim) {
     size_t buffer_size = batch_size*input_dim*sizeof(float);
@@ -415,13 +345,12 @@ void relu(ReLU* layer, float* input) {
     _relu(input, layer->output, layer->batch_size*layer->input_dim);
 }
 
-typedef struct MaxDim1 MaxDim1;
-struct MaxDim1 {
+typedef struct MaxDim1 {
     float* output;
     int batch_size;
     int seq_len;
     int feature_dim;
-};
+} MaxDim1;
 
 MaxDim1* make_max_dim1(int batch_size, int seq_len, int feature_dim) {
     size_t buffer_size = batch_size*feature_dim*sizeof(float);
@@ -439,8 +368,7 @@ void max_dim1(MaxDim1* layer, float* input) {
     _max_dim1(input, layer->output, layer->batch_size, layer->seq_len, layer->feature_dim);
 }
 
-typedef struct Conv2D Conv2D;
-struct Conv2D {
+typedef struct Conv2D {
     float* output;
     float* weights;
     float* bias;
@@ -451,7 +379,7 @@ struct Conv2D {
     int out_channels;
     int kernel_size;
     int stride;
-};
+} Conv2D;
 
 Conv2D* make_conv2d(Weights* weights, int batch_size, int in_width, int in_height,
         int in_channels, int out_channels, int kernel_size, int stride) {
@@ -479,14 +407,13 @@ void conv2d(Conv2D* layer, float* input) {
         layer->in_channels, layer->out_channels, layer->kernel_size, layer->stride);
 }
 
-typedef struct Embedding Embedding;
-struct Embedding {
+typedef struct Embedding {
     float* output;
     float* weights;
     int batch_size;
     int num_embeddings;
     int embedding_dim;
-};
+} Embedding;
 
 Embedding* make_embedding(Weights* weights, int batch_size, int num_embeddings, int embedding_dim) {
     size_t output_size = batch_size*embedding_dim*sizeof(float);
@@ -505,13 +432,12 @@ void embedding(Embedding* layer, int* input) {
     _embedding(input, layer->weights, layer->output, layer->batch_size, layer->num_embeddings, layer->embedding_dim);
 }
 
-typedef struct OneHot OneHot;
-struct OneHot {
+typedef struct OneHot {
     int* output;
     int batch_size;
     int input_size;
     int num_classes;
-};
+} OneHot;
 
 OneHot* make_one_hot(int batch_size, int input_size, int num_classes) {
     size_t buffer_size = batch_size*input_size*num_classes*sizeof(int);
@@ -529,12 +455,11 @@ void one_hot(OneHot* layer, int* input) {
     _one_hot(input, layer->output, layer->batch_size, layer->input_size, layer->num_classes);
 }
 
-typedef struct Multidiscrete Multidiscrete;
-struct Multidiscrete {
+typedef struct Multidiscrete {
     int batch_size;
     int logit_sizes[32];
     int num_actions;
-};
+} Multidiscrete;
 
 Multidiscrete* make_multidiscrete(int batch_size, int logit_sizes[], int num_actions) {
     Multidiscrete* layer = (Multidiscrete*)calloc(1, sizeof(Multidiscrete));
@@ -544,24 +469,24 @@ Multidiscrete* make_multidiscrete(int batch_size, int logit_sizes[], int num_act
     return layer;
 }
 
-void multidiscrete(Multidiscrete* layer, float* input, float* output, int hard) {
+void multidiscrete(Multidiscrete* layer, float* input, float* output, int hard,
+        const unsigned char* mask) {
     _multidiscrete(input, output, layer->batch_size, layer->logit_sizes,
-        layer->num_actions, hard);
+        layer->num_actions, hard, mask);
 }
 
 // MinGRU: inference-only single-step recurrent layer.
 // Matches the fused gate + highway connection in models.cu mingru_gate kernel.
 // Each layer has a bias-free projection (hidden -> 3*hidden).
 // State layout: (num_layers, batch_size, hidden_size).
-typedef struct MinGRU MinGRU;
-struct MinGRU {
+typedef struct MinGRU {
     float* state;    // (num_layers, batch_size, hidden_size) - persists across steps
     float* output;   // (batch_size, hidden_size)
     Linear** proj;   // [num_layers], each projects hidden -> 3*hidden
     int batch_size;
     int hidden_size;
     int num_layers;
-};
+} MinGRU;
 
 MinGRU* make_mingru(Weights* weights, int batch_size, int hidden_size, int num_layers) {
     MinGRU* layer = (MinGRU*)calloc(1, sizeof(MinGRU));
@@ -615,6 +540,20 @@ void free_mingru(MinGRU* layer) {
     free(layer);
 }
 
+// Trainer zero_term_state: clear carry before encoding a post-terminal obs.
+void mingru_zero_term(MinGRU* layer, const float* terminals) {
+    int B = layer->batch_size;
+    int H = layer->hidden_size;
+    for (int b = 0; b < B; b++) {
+        if (terminals[b] <= 0.5f) {
+            continue;
+        }
+        for (int l = 0; l < layer->num_layers; l++) {
+            memset(layer->state + (l * B + b) * H, 0, H * sizeof(float));
+        }
+    }
+}
+
 // PufferNet: default policy matching the native backend Arch in algo.cu.
 // Architecture: Linear encoder -> N x MinGRU -> Linear decoder (fused value).
 // Weight file order (matches weights_create reg_params call order):
@@ -622,8 +561,7 @@ void free_mingru(MinGRU* layer) {
 //   decoder weight ((atn_sum+1) x hidden_dim, last output is value)
 //   decoder logstd (1 x num_actions) IF continuous
 //   mingru weights[0..num_layers-1] (3*hidden_dim x hidden_dim each)
-typedef struct PufferNet PufferNet;
-struct PufferNet {
+typedef struct PufferNet {
     int num_agents;
     float* obs;
     Linear* encoder;
@@ -633,7 +571,7 @@ struct PufferNet {
     int is_continuous;
     int num_actions;
     Multidiscrete* multidiscrete;
-};
+} PufferNet;
 
 PufferNet* make_puffernet(Weights* weights, int num_agents, int input_dim,
         int hidden_dim, int num_layers, int logit_sizes[], int num_actions) {
@@ -670,14 +608,16 @@ void _gaussian_mean(float* input, float* output, int batch_size, int num_actions
     }
 }
 
-void forward_puffernet(PufferNet* net, float* observations, float* actions) {
+void forward_puffernet(PufferNet* net, float* observations, float* actions,
+        const unsigned char* mask, const float* terminals) {
+    mingru_zero_term(net->mingru, terminals);
     linear(net->encoder, observations);
     mingru(net->mingru, net->encoder->output);
     linear(net->decoder, net->mingru->output);
     if (net->is_continuous) {
         _gaussian_mean(net->decoder->output, actions, net->num_agents, net->num_actions);
     } else {
-        multidiscrete(net->multidiscrete, net->decoder->output, actions, 0);
+        multidiscrete(net->multidiscrete, net->decoder->output, actions, 0, mask);
     }
 }
 
@@ -694,13 +634,13 @@ void free_puffernet(PufferNet* net) {
 
 #ifdef PUFFERCPU_EVAL_MAIN
 
-#include "ini.h"
-#include <dirent.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <unistd.h>
+#ifndef ENV_HEADER
+#error "ENV_HEADER required for PUFFERCPU_EVAL_MAIN"
+#endif
 
+#include ENV_HEADER
+
+#if !defined(PUF_NMMO3_NET) && !defined(PUF_ASTEROIDS_NET) && !defined(PUF_MINIMAL_NET)
 static int puf_align8(int n) {
     return (n + 7) & ~7;
 }
@@ -726,51 +666,7 @@ static int puffernet_weight_count(int input_dim, int hidden, int layers,
     }
     return n;
 }
-
-static void puf_mkdir_parent(const char* path) {
-    char dir[1024];
-    snprintf(dir, sizeof(dir), "%s", path);
-    for (char* p = dir + 1; *p; p++) {
-        if (*p == '/') {
-            *p = 0;
-            if (mkdir(dir, 0777) != 0 && errno != EEXIST) {
-                perror(dir);
-            }
-            *p = '/';
-        }
-    }
-}
-
-static int puf_write_untrained_weights(const char* path, int n) {
-    FILE* fp = fopen(path, "wb");
-    if (!fp) {
-        perror(path);
-        return -1;
-    }
-    unsigned int rng = 73;
-    for (int i = 0; i < n; i++) {
-        rng = rng * 1664525u + 1013904223u;
-        float v = ((rng >> 8) / 16777215.0f) * 0.2f - 0.1f;
-        if (fwrite(&v, sizeof(float), 1, fp) != 1) {
-            fclose(fp);
-            return -1;
-        }
-    }
-    fclose(fp);
-    return 0;
-}
-
-#ifndef ENV_HEADER
-#error "ENV_HEADER required for PUFFERCPU_EVAL_MAIN"
 #endif
-
-#include ENV_HEADER
-
-static int puf_has_suffix(const char* s, const char* suffix) {
-    size_t n = strlen(s);
-    size_t m = strlen(suffix);
-    return n >= m && strcmp(s + n - m, suffix) == 0;
-}
 
 static void puf_find_latest_checkpoint(const char* dir,
         char* out, size_t out_size, time_t* best_time) {
@@ -793,9 +689,11 @@ static void puf_find_latest_checkpoint(const char* dir,
             continue;
         }
 
+        size_t pn = strlen(path);
         if (S_ISDIR(st.st_mode)) {
             puf_find_latest_checkpoint(path, out, out_size, best_time);
-        } else if (S_ISREG(st.st_mode) && puf_has_suffix(path, ".bin") &&
+        } else if (S_ISREG(st.st_mode) && pn >= 4 &&
+                strcmp(path + pn - 4, ".bin") == 0 &&
                 st.st_ctime >= *best_time) {
             *best_time = st.st_ctime;
             snprintf(out, out_size, "%s", path);
@@ -805,97 +703,136 @@ static void puf_find_latest_checkpoint(const char* dir,
     closedir(dp);
 }
 
-static const char* puf_model_path(Ini* ini, const char* env_name,
-        char* out, size_t out_size) {
-    const char* path = puf_ini_get_str(ini, "base", "load_model_path");
-    if (path && strcmp(path, "None") != 0) {
-        if (strcmp(path, "latest") != 0) {
-            return path;
-        }
-
+static const char* puf_model_path(const char* env_name, const char* cli_path,
+        int latest, char* out, size_t out_size) {
+    if (cli_path) {
+        return cli_path;
+    }
+    if (latest) {
         char root[2048];
-        snprintf(root, sizeof(root), "%s/%s",
-            puf_ini_get_str(ini, "base", "checkpoint_dir"), env_name);
+        snprintf(root, sizeof(root), "checkpoints/%s", env_name);
         out[0] = 0;
         time_t best_time = 0;
         puf_find_latest_checkpoint(root, out, out_size, &best_time);
-        if (!out[0]) {
-            fprintf(stderr, "no .bin checkpoints found in %s\n", root);
-            exit(1);
-        }
-        return out;
+        return out[0] ? out : NULL;
     }
-
     snprintf(out, out_size, "resources/%s/%s_weights.bin", env_name, env_name);
-    if (access(out, R_OK) == 0) {
-        return out;
-    }
-    const char* website = puf_ini_get_str(ini, "base", "website_dir");
-    if (website && strcmp(website, "None") != 0) {
-        snprintf(out, out_size, "%s/docs/assets/models/%s_weights.bin",
-            website, env_name);
-    }
     return out;
 }
 
-int main(int argc, char** argv) {
-#ifndef PUFFER_ENV_NAME
-    if (argc < 2) {
-        fprintf(stderr, "usage: %s ENV [section.key=value ...]\n", argv[0]);
-        return 1;
+static const char* puf_arg_eq(const char* arg, const char* name) {
+    while (*arg == '-') {
+        arg++;
     }
-    const char* env_name = argv[1];
-    int argi = 2;
-#else
+    size_t n = strlen(name);
+    if (strncmp(arg, name, n) == 0 && arg[n] == '=') {
+        return arg + n + 1;
+    }
+    return NULL;
+}
+
+int main(int argc, char** argv) {
     const char* env_name = PUFFER_ENV_NAME;
     int argi = 1;
-    if (argc >= 2 && argv[1][0] && argv[1][0] != '-' && strchr(argv[1], '=') == NULL) {
+    if (argc >= 2 && argv[1][0] && argv[1][0] != '-' &&
+            strchr(argv[1], '=') == NULL && strchr(argv[1], '/') == NULL &&
+            strstr(argv[1], ".bin") == NULL) {
         env_name = argv[1];
         argi = 2;
     }
-#endif
     Ini ini = {0};
-    puf_ini_load_env(&ini, env_name, argc - argi, argv + argi);
+    int headless = 0;
+    int headless_episodes = 128;
+    int headless_max_steps = 100000;
+    const char* cli_path = NULL;
+    int cli_latest = 0;
+
+    char* ini_argv[argc > 0 ? (size_t)argc : 1];
+    int ini_argc = 0;
+    for (int i = argi; i < argc; i++) {
+        const char* v;
+        if (strcmp(argv[i], "--headless") == 0 ||
+                puf_arg_eq(argv[i], "headless")) {
+            headless = 1;
+            continue;
+        }
+        if (strcmp(argv[i], "--latest") == 0 ||
+                puf_arg_eq(argv[i], "latest")) {
+            cli_latest = 1;
+            continue;
+        }
+        if ((v = puf_arg_eq(argv[i], "episodes"))) {
+            headless_episodes = atoi(v);
+            continue;
+        }
+        if ((v = puf_arg_eq(argv[i], "max_steps"))) {
+            headless_max_steps = atoi(v);
+            continue;
+        }
+        if (strchr(argv[i], '=') == NULL &&
+                (strstr(argv[i], ".bin") != NULL || strchr(argv[i], '/'))) {
+            cli_path = argv[i];
+            continue;
+        }
+        ini_argv[ini_argc++] = argv[i];
+    }
+    puf_ini_load_env(&ini, env_name, ini_argc, ini_argv);
 
     int act_sizes[] = ACT_SIZES;
     int num_actions = (int)(sizeof(act_sizes) / sizeof(act_sizes[0]));
+    char path_buf[1024];
+    const char* path = puf_model_path(env_name, cli_path, cli_latest,
+        path_buf, sizeof(path_buf));
+    Weights* weights = path ? load_weights(path) : NULL;
     int hidden_size = (int)puf_ini_get(&ini, "policy", "hidden_size");
     int num_layers = (int)puf_ini_get(&ini, "policy", "num_layers");
-
-    char path_buf[1024];
-    const char* path = puf_model_path(&ini, env_name, path_buf, sizeof(path_buf));
+    int file_floats = weights ? (weights->size - 7) : 0;
+#ifdef PUF_NMMO3_NET
+    int need = nmmo3_weight_count(hidden_size, num_layers);
+#elif defined(PUF_ASTEROIDS_NET)
+    int need = asteroids_weight_count(hidden_size, num_layers);
+#elif defined(PUF_MINIMAL_NET)
+    int need = minimal_weight_count(hidden_size, num_layers);
+#else
     int need = puffernet_weight_count(OBS_SIZE, hidden_size, num_layers,
         act_sizes, num_actions);
-    Weights* weights = load_weights(path);
-    if (!weights || weights->size < need) {
-        if (weights) {
-            printf("export: %s too small (%d < %d); writing untrained\n",
-                path, weights->size, need);
-            free(weights);
-            weights = NULL;
-        }
-        puf_mkdir_parent(path);
-        if (puf_write_untrained_weights(path, need) != 0) {
-            puf_ini_free(&ini);
-            return 1;
-        }
-        printf("export: wrote untrained %s (%d floats)\n", path, need);
-        weights = load_weights(path);
-        if (!weights) {
-            puf_ini_free(&ini);
-            return 1;
-        }
+#endif
+    assert(!weights || (need - file_floats <= 7 && file_floats <= need));
+    int have_net = weights != NULL;
+    if (headless) {
+        printf("CPU_META env=%s path=%s file_floats=%d need=%d untrained=%d hidden=%d layers=%d\n",
+            env_name, path ? path : "-", file_floats, need, !have_net,
+            hidden_size, num_layers);
+        fflush(stdout);
     }
+
+    Dict* env_sec = puf_ini_section(&ini, "env", 0);
+    int frameskip = 1;
+    DictItem* fs_item = dict_find(env_sec, "frameskip");
+    if (fs_item && fs_item->value > 1.0) {
+        frameskip = (int)fs_item->value;
+        dict_set(env_sec, "frameskip", 1);
+    }
+#ifdef PUF_EVAL_SHOULD_FORWARD
+    frameskip = 1;
+#endif
 
     Env env = {0};
     env.rng = 0;
-    puf_init(&env, puf_ini_section(&ini, "env", 0));
+    puf_init(&env, env_sec);
 
-    obs_t observations[env.num_agents * OBS_SIZE];
-    float obs_f[env.num_agents * OBS_SIZE];
-    float actions[env.num_agents * NUM_ATNS];
-    float rewards[env.num_agents];
-    float terminals[env.num_agents];
+    // Heap, not VLAs: multiagent envs (snake=256, obs=968) overflow the
+    // 512KB WASM stack (obs_f alone is ~1MB).
+    size_t n_obs = (size_t)env.num_agents * (size_t)OBS_SIZE;
+    size_t n_atn = (size_t)env.num_agents * (size_t)NUM_ATNS;
+    size_t n_agt = (size_t)env.num_agents;
+    obs_t* observations = (obs_t*)calloc(n_obs, sizeof(obs_t));
+#if !defined(PUF_NMMO3_NET) && !defined(PUF_ASTEROIDS_NET) && !defined(PUF_MINIMAL_NET)
+    float* obs_f = (float*)calloc(n_obs, sizeof(float));
+#endif
+    float* actions = (float*)calloc(n_atn, sizeof(float));
+    float* rewards = (float*)calloc(n_agt, sizeof(float));
+    float* terminals = (float*)calloc(n_agt, sizeof(float));
     int act_n = 0;
     for (int i = 0; i < num_actions; i++) {
         act_n += act_sizes[i];
@@ -903,11 +840,6 @@ int main(int argc, char** argv) {
     unsigned char* masks = (unsigned char*)calloc(
         (size_t)env.num_agents * (size_t)act_n, 1);
     memset(masks, 1, (size_t)env.num_agents * (size_t)act_n);
-    memset(observations, 0, sizeof(observations));
-    memset(obs_f, 0, sizeof(obs_f));
-    memset(actions, 0, sizeof(actions));
-    memset(rewards, 0, sizeof(rewards));
-    memset(terminals, 0, sizeof(terminals));
     for (int i = 0; i < env.num_agents; i++) {
         env.agents[i].observations = observations + i * OBS_SIZE;
         env.agents[i].actions = actions + i * NUM_ATNS;
@@ -918,65 +850,140 @@ int main(int argc, char** argv) {
     }
     puf_reset(&env);
 
-    PufferNet* net = make_puffernet(weights, env.num_agents, OBS_SIZE,
-        hidden_size, num_layers, act_sizes, num_actions);
-
-    const char* screenshot = puf_ini_get_str(&ini, "base", "screenshot");
-    int want_shot = screenshot && strcmp(screenshot, "None") != 0;
-    int screenshot_steps = (int)puf_ini_get(&ini, "base", "screenshot_steps");
-
-    int frame = 0;
-    if (want_shot) {
-        for (int s = 0; s < screenshot_steps; s++) {
-            float* fwd = obs_f;
-            if (sizeof(obs_t) == sizeof(float)) {
-                fwd = (float*)observations;
-            } else {
-                for (int i = 0; i < env.num_agents * OBS_SIZE; i++) {
-                    obs_f[i] = (float)observations[i];
-                }
-            }
-            forward_puffernet(net, fwd, actions);
-            puf_step(&env);
-        }
-        puf_render(&env);
-        const char* shot_base = strrchr(screenshot, '/');
-        shot_base = shot_base ? shot_base + 1 : screenshot;
-        TakeScreenshot(shot_base);
-        if (strcmp(shot_base, screenshot) != 0 && access(shot_base, R_OK) == 0) {
-            puf_mkdir_parent(screenshot);
-            rename(shot_base, screenshot);
-        }
-        printf("screenshot: %s %dx%d\n", screenshot,
-            GetScreenWidth(), GetScreenHeight());
-        puf_close(&env);
-        free_puffernet(net);
-        free(weights);
-        free(masks);
-        puf_ini_free(&ini);
-        return 0;
+#ifdef PUF_NMMO3_NET
+    MMONet* net = NULL;
+    if (have_net) {
+        net = init_mmonet_arch(weights, env.num_agents,
+            hidden_size, num_layers);
     }
-    while (!WindowShouldClose()) {
-        if (frame % 4 == 0) {
-            float* fwd = obs_f;
-            if (sizeof(obs_t) == sizeof(float)) {
-                fwd = (float*)observations;
-            } else {
-                for (int i = 0; i < env.num_agents * OBS_SIZE; i++) {
-                    obs_f[i] = (float)observations[i];
+#elif defined(PUF_ASTEROIDS_NET)
+    AsteroidsNet* net = NULL;
+    if (have_net) {
+        net = init_asteroids_net(weights, env.num_agents,
+            hidden_size, num_layers);
+    }
+#elif defined(PUF_MINIMAL_NET)
+    MinimalNet* net = NULL;
+    if (have_net) {
+        net = init_minimal_net(weights, env.num_agents,
+            hidden_size, num_layers);
+    }
+#else
+    PufferNet* net = NULL;
+    if (have_net) {
+        net = make_puffernet(weights, env.num_agents, OBS_SIZE,
+            hidden_size, num_layers, act_sizes, num_actions);
+    }
+#endif
+
+    SetConfigFlags(FLAG_MSAA_4X_HINT);
+
+#ifndef PUF_STEPS_PER_SEC
+#define PUF_STEPS_PER_SEC 60
+#endif
+    int step_period = 1;
+    int step_credit = 0;
+    if ((int)PUF_STEPS_PER_SEC < 60) {
+        step_period = 60 / (int)PUF_STEPS_PER_SEC;
+        assert(step_period >= 1);
+    }
+    int step_hold = 0;
+    int hold = 0;
+    int steps = 0;
+#ifndef PLATFORM_WEB
+    if (!headless) {
+        SetTargetFPS(60);
+    }
+#endif
+    while (headless
+            ? (steps < headless_max_steps && env.log.n < (float)headless_episodes)
+            : !WindowShouldClose()) {
+        int do_step = headless || (step_hold == 0);
+        int ticks = 1;
+        if (!headless && (int)PUF_STEPS_PER_SEC > 60) {
+            step_credit += (int)PUF_STEPS_PER_SEC;
+            ticks = 0;
+            while (step_credit >= 60) {
+                step_credit -= 60;
+                ticks++;
+            }
+        }
+        for (int t = 0; t < ticks; t++) {
+#ifdef PUF_EVAL_SHOULD_FORWARD
+            int eval_fwd = env.tick_frames_left <= 0;
+#else
+            int eval_fwd = 1;
+#endif
+            int eval_human = !headless && IsWindowReady() &&
+                IsKeyDown(KEY_LEFT_SHIFT);
+            if (have_net && do_step && eval_fwd && hold == 0 && !eval_human) {
+#ifdef PUF_NMMO3_NET
+                forward(net, observations, terminals, actions);
+#elif defined(PUF_ASTEROIDS_NET)
+                forward_asteroids(net, (float*)observations, terminals, actions);
+#elif defined(PUF_MINIMAL_NET)
+                forward_minimal(net, (float*)observations, terminals, actions);
+#else
+                float* fwd = (float*)observations;
+                if (sizeof(obs_t) != sizeof(float)) {
+                    for (int i = 0; i < (int)n_obs; i++) {
+                        obs_f[i] = (float)observations[i];
+                    }
+                    fwd = obs_f;
+                }
+                forward_puffernet(net, fwd, actions, masks, terminals);
+#endif
+            }
+            if (do_step) {
+                puf_step(&env);
+                if (headless) {
+                    steps++;
                 }
             }
-            forward_puffernet(net, fwd, actions);
+            if (do_step && eval_fwd) {
+                int reset_hold = 0;
+                for (int a = 0; a < env.num_agents; a++) {
+                    if (rewards[a] != 0.0f || terminals[a] > 0.5f) {
+                        reset_hold = 1;
+                    }
+                }
+                hold = reset_hold ? 0 : (hold + 1) % frameskip;
+            }
         }
-        frame = (frame + 1) % 4;
-        puf_step(&env);
-        puf_render(&env);
+        if (!headless) {
+            puf_render(&env);
+            step_hold = (step_hold + 1) % step_period;
+        }
+    }
+
+    if (headless) {
+        float n = env.log.n;
+        float perf = 0.0f;
+        float score = 0.0f;
+        if (n > 0.0f) {
+            Log avg = env.log;
+            float* acc = (float*)&avg;
+            int nf = (int)(sizeof(Log) / sizeof(float));
+            for (int i = 0; i < nf; i++) {
+                acc[i] /= n;
+            }
+            Dict out = {0};
+            puf_log(&avg, &out);
+            dict_set(&out, "n", n);
+            DictItem* pi = dict_find(&out, "perf");
+            DictItem* si = dict_find(&out, "score");
+            if (pi) perf = (float)pi->value;
+            if (si) score = (float)si->value;
+            dict_clear(&out);
+        }
+        printf("CPU_EVAL env=%s file_floats=%d need=%d match=%d untrained=%d n=%.0f perf=%.6f score=%.6f steps=%d agents=%d\n",
+            env_name, file_floats, need,
+            (need - file_floats <= 7) ? 1 : 0,
+            !have_net, n, perf, score, steps, env.num_agents);
+        fflush(stdout);
     }
 
     puf_close(&env);
-    free_puffernet(net);
-    free(weights);
-    free(masks);
     puf_ini_free(&ini);
     return 0;
 }
