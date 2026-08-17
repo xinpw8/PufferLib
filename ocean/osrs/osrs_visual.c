@@ -23,7 +23,7 @@
 
 #ifdef OSRS_VISUAL
 #include "osrs_render.h"
-#include "puffercpu.h"
+#include "puffercpu.c"
 #include "osrs_visual_net.h"
 
 static void visual_require_gui_item_sprite(int raw_osrs_id, void* ctx) {

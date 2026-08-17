@@ -5,7 +5,7 @@
 // Forward matches ocean/asteroids/asteroids.cu:
 //   materialize 20 entities [self(4) | point_i(5)], Linear 9->16, ReLU,
 //   Linear 16->hidden, max-pool over the 20 points, then MinGRU + decoder.
-// Include puffercpu.h first (Linear / ReLU / MinGRU).
+// Include puffercpu.c first (Linear / ReLU / MinGRU).
 
 #define AE_SELF_DIM 4
 #define AE_POINT_DIM 5
@@ -110,5 +110,5 @@ static inline void forward_asteroids(AsteroidsNet* net, const float* observation
     asteroids_encode(net, observations, NULL);
     mingru(net->mingru, net->encoded);
     linear(net->decoder, net->mingru->output);
-    multidiscrete(net->multidiscrete, net->decoder->output, actions, 0);
+    multidiscrete(net->multidiscrete, net->decoder->output, actions, 0, NULL);
 }

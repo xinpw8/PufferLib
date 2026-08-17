@@ -2,7 +2,7 @@
 // CPU NMMO3 policy: custom conv/embed encoder + MinGRU + decoder.
 // Weight order matches CUDA weights_create: encoder (conv1, conv2, embed,
 // proj_w, proj_b), decoder, mingru layers.
-// Include puffercpu.h first (Conv2D / Linear / MinGRU).
+// Include puffercpu.c first (Conv2D / Linear / MinGRU).
 
 #define N3_MAP_H 11
 #define N3_MAP_W 15
@@ -189,5 +189,5 @@ static inline void forward(MMONet* net, unsigned char* observations,
     mmonet_encode(net, observations, NULL);
     mingru(net->mingru, net->proj_relu->output);
     linear(net->decoder, net->mingru->output);
-    multidiscrete(net->multidiscrete, net->decoder->output, actions, 0);
+    multidiscrete(net->multidiscrete, net->decoder->output, actions, 0, NULL);
 }

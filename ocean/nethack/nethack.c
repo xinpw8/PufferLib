@@ -5,7 +5,7 @@
 #include <sys/select.h>
 #include <signal.h>
 #include "nethack.h"
-#include "../../src/puffercpu.h"
+#include "../../src/puffercpu.c"
 #include "glyph_map.h"
 
 // NH_TTY=1: the map panel shows the game's real tty screen instead of the obs
@@ -650,7 +650,7 @@ static void demo_step_once(NethackNet* net, Nethack* env, float* acts_f,
     nethack_net_forward(net, env->agents[0].observations);
     for (int i = 0; i < DEMO_OD; i++)
         if (!env->action_mask[i]) net->logits[i] = -1e9f;
-    multidiscrete(net->md, net->logits, acts_f, 0);
+    multidiscrete(net->md, net->logits, acts_f, 0, NULL);
     for (int h = 0; h < DEMO_NUM_HEADS; h++) env->agents[0].actions[h] = acts_f[h];
     puf_step(env);
     if (env->agents[0].terminals[0] > 0.5f) {

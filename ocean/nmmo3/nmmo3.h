@@ -2285,7 +2285,6 @@ struct Client {
     int my_player;
     int start_time;
     int frame;
-    int human_mode;
 };
 
 #define TILE_SPRING_GRASS 0
@@ -3004,9 +3003,6 @@ int process_centered_input() {
         CloseWindow();
     }
     if (IsKeyDown(KEY_SPACE)) {
-        return ATN_ATTACK;
-    }
-    if (shift_key()) {
         if (down_key()) {
             return ATN_DOWN_SHIFT;
         } else if (up_key()) {
@@ -3016,6 +3012,7 @@ int process_centered_input() {
         } else if (right_key()) {
             return ATN_RIGHT_SHIFT;
         }
+        return ATN_ATTACK;
     }
     if (up_key()) {
         return ATN_UP;
@@ -3219,9 +3216,6 @@ void puf_render(MMO* env) {
             CloseWindow();
             exit(0);
         }
-        if (IsKeyPressed(KEY_LEFT_CONTROL)) {
-            client->human_mode = !client->human_mode;
-        }
         if (IsKeyPressed(KEY_TAB)) {
             if (client->render_mode == RENDER_MODE_CENTERED) {
                 client->render_mode = RENDER_MODE_FIXED;
@@ -3246,7 +3240,7 @@ void puf_render(MMO* env) {
             if (action != ATN_NOOP) {
                 tick_action = action;
             }
-            if (client->human_mode && env->agents[0].actions) {
+            if (shift_key() && env->agents[0].actions) {
                 env->agents[0].actions[0] = tick_action;
             }
             render_centered(client, env, client->my_player, action, delta);

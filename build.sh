@@ -4,6 +4,7 @@ set -e
 # Usage:
 #   ./build.sh breakout              # Native train/eval -> ./puffer
 #   ./build.sh breakout --gpu        # GPU env (ENV_HEADER=ocean/ENV/ENV.cu; exclusive vs .h)
+#   ./build.sh robot_arm             # CUDA-only; implies --gpu
 #   ./build.sh breakout --named      # Native -> build/puffer_breakout (does not clobber ./puffer)
 #   ./build.sh breakout --float      # float32 precision (required for --slowly)
 #   ./build.sh breakout --cpu        # Tiny standalone CPU eval executable
@@ -60,6 +61,16 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
+
+if [ "$ENV" = "robot_arm" ]; then
+    USE_GPU_ENV=1
+    case "${MODE:-native}" in
+        local|fast|web|cpu)
+            echo "Error: robot_arm physics is CUDA-only; use the native GPU build" >&2
+            exit 1
+            ;;
+    esac
+fi
 
 if [ -n "$DEVICE" ]; then
     export CUDA_VISIBLE_DEVICES="$DEVICE"
@@ -134,6 +145,14 @@ EXTRA_LDFLAGS=()
 EXTRA_CFLAGS=()
 SRC_FILE=""
 
+if [ "$ENV" = "clifford" ]; then
+    EXTRA_CFLAGS+=(-DCLIFFORD_USE_SHORTCUT_GATES="${CLIFFORD_USE_SHORTCUT_GATES:-0}")
+    EXTRA_CFLAGS+=(-DCLIFFORD_PAIR_ONEHOT="${CLIFFORD_PAIR_ONEHOT:-0}")
+    if [ -n "${CLIFFORD_N_QUBITS:-}" ]; then
+        EXTRA_CFLAGS+=(-DCLIFFORD_N_QUBITS="$CLIFFORD_N_QUBITS")
+    fi
+fi
+
 if [ "$ENV" = "constellation" ]; then
     SRC_DIR="src"
     OUTPUT_NAME="seethestars"
@@ -157,9 +176,12 @@ elif [ "$ENV" = "impulse_wars" ]; then
     fi
     BOX2D_URL="https://github.com/capnspacehook/box2d/releases/latest/download"
     download "$BOX2D_NAME" "$BOX2D_URL/$BOX2D_NAME.tar.gz"
-    INCLUDES+=(-I./$BOX2D_NAME/include -I./$BOX2D_NAME/src -I./ocean/impulse_wars)
+    INCLUDES+=(-I./$BOX2D_NAME/include -I./$BOX2D_NAME/src -I./ocean/impulse_wars -I./vendor/collections-c)
     LINK_ARCHIVES+=("./$BOX2D_NAME/libbox2d.a")
-    EXTRA_SRC="ocean/impulse_wars/impulse_wars_api.c"
+    # C++ trainer only: game is C (void*/compound literals), not C++17.
+    if [ -z "${MODE:-}" ] || [ "$MODE" = "native" ] || [ "$MODE" = "profile" ]; then
+        EXTRA_SRC="ocean/impulse_wars/impulse_wars_api.c"
+    fi
 elif [ "$ENV" = "nethack" ]; then
     SRC_DIR="ocean/$ENV"
     EXTRA_CFLAGS+=(-DPUFFER_NETHACK)
@@ -213,14 +235,18 @@ else
     LINK_OPT="-O2"
 fi
 if [ "$MODE" = "local" ] || [ "$MODE" = "fast" ]; then
+    ENV_HEADER="$SRC_DIR/$ENV.h"
     FLAGS=(
         "${INCLUDES[@]}"
-        "$SRC_FILE" $EXTRA_SRC -o "$OUTPUT_NAME"
+        src/puffercpu.c $EXTRA_SRC -o "$OUTPUT_NAME"
         "${LINK_ARCHIVES[@]}"
         "${EXTRA_LDFLAGS[@]}"
         "${STANDALONE_LDFLAGS[@]}"
         -lm -lpthread -fopenmp
         -DPLATFORM_DESKTOP
+        -DPUFFERCPU_EVAL_MAIN
+        -DENV_HEADER=\"$ENV_HEADER\"
+        -DPUFFER_ENV_NAME=\"$ENV\"
         "${EXTRA_CFLAGS[@]}"
     )
     echo "Compiling $ENV..."
@@ -235,15 +261,28 @@ elif [ "$MODE" = "web" ]; then
     fi
     mkdir -p "build/web/$ENV"
     PRELOAD_ENV=()
-    if [ -d "resources/$ENV" ]; then
+    if [ "$ENV" = "boxoban" ]; then
+        # Do not pack generated boxoban_maps_*.bin or levels/ (hundreds of MB).
+        PRELOAD_ENV=(
+            --preload-file resources/boxoban/web_maps.bin@resources/boxoban/web_maps.bin
+            --preload-file resources/boxoban/boxoban_weights.bin@resources/boxoban/boxoban_weights.bin
+            --preload-file resources/boxoban/Wall_Black.jpg@resources/boxoban/Wall_Black.jpg
+            --preload-file resources/boxoban/Crate_Black.jpg@resources/boxoban/Crate_Black.jpg
+            --preload-file resources/boxoban/EndPoint_Black.jpg@resources/boxoban/EndPoint_Black.jpg
+            --preload-file resources/boxoban/EndPoint_Blue.jpg@resources/boxoban/EndPoint_Blue.jpg
+            --preload-file resources/boxoban/GroundGravel_Concrete.jpg@resources/boxoban/GroundGravel_Concrete.jpg
+        )
+    elif [ -d "resources/$ENV" ]; then
         PRELOAD_ENV=(--preload-file "resources/$ENV@resources/$ENV")
     fi
     echo "Compiling $ENV for web..."
     PRELOAD=(
-        --preload-file resources/$ENV@resources/$ENV
         --preload-file resources/shared@resources/shared
         --preload-file config/default.ini@config/default.ini
     )
+    if [ -d "ocean/$ENV/generated" ]; then
+        PRELOAD+=(--preload-file "ocean/$ENV/generated@ocean/$ENV/generated")
+    fi
     if [ -f "config/$ENV.ini" ]; then
         PRELOAD+=(--preload-file "config/$ENV.ini@config/$ENV.ini")
     fi
@@ -252,13 +291,14 @@ elif [ "$MODE" = "web" ]; then
     fi
     emcc \
         -o "build/web/$ENV/game.html" \
-        -x c src/puffercpu.h -x none $EXTRA_SRC \
+        src/puffercpu.c $EXTRA_SRC \
         -O3 -Wall -Wno-narrowing \
         "${LINK_ARCHIVES[@]}" \
         -I. -Isrc -I$SRC_DIR -Ivendor "${INCLUDES[@]}" \
         -L. -L./$RAYLIB_NAME/lib \
         -sASSERTIONS=2 -gsource-map \
         -sUSE_GLFW=3 -sUSE_WEBGL2=1 -sASYNCIFY -sFILESYSTEM -sFORCE_FILESYSTEM=1 \
+        --js-library vendor/puf_web_vsync.js \
         --shell-file vendor/minshell.html \
         -sINITIAL_MEMORY=512MB -sALLOW_MEMORY_GROWTH -sSTACK_SIZE=512KB \
         -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES3 \
@@ -293,7 +333,7 @@ elif [ "$MODE" = "cpu" ]; then
         -DPUFFERCPU_EVAL_MAIN \
         -DENV_HEADER=\"$ENV_HEADER\" \
         -DPUFFER_ENV_NAME=\"$ENV\" \
-        -x c src/puffercpu.h -x none $EXTRA_SRC \
+        src/puffercpu.c $EXTRA_SRC \
         "${LINK_ARCHIVES[@]}" \
         "${EXTRA_LDFLAGS[@]}" \
         "${STANDALONE_LDFLAGS[@]}" \
