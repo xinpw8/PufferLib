@@ -1564,8 +1564,8 @@ static int test_player_slot_inventory_contains(
     return p->equipped[gear_slot] == item;
 }
 
-static void test_inferno_reset_inventory_leaves_one_empty_slot(void) {
-    printf("--- inferno reset inventory leaves one empty slot ---\n");
+static void test_inferno_reset_inventory_leaves_two_empty_slots(void) {
+    printf("--- inferno reset inventory leaves two empty slots ---\n");
 
     EncounterState* raw_state = inf_create();
     InfernoState* state = (InfernoState*)raw_state;
@@ -1576,7 +1576,7 @@ static void test_inferno_reset_inventory_leaves_one_empty_slot(void) {
     ASSERT_INT_EQ("full kit bastion vials",
         test_inventory_potion_vials(state->player.bastion_doses), 4);
     ASSERT_INT_EQ("full kit occupied inventory cells",
-        test_occupied_inventory_cells(state), 27);
+        test_occupied_inventory_cells(state), 26);
 
     inf_destroy(raw_state);
 }
@@ -1603,6 +1603,8 @@ static void test_inferno_max_profile_reset_uses_existing_gear(void) {
     ASSERT_INT_EQ("max fast-range weapon in inventory",
         test_player_slot_inventory_contains(
             &state->player, GEAR_SLOT_WEAPON, ITEM_TOXIC_BLOWPIPE), 1);
+    ASSERT_INT_EQ("max loadout keeps dragon darts inside blowpipe",
+        test_cell_holding_item(state, ITEM_DRAGON_DART), -1);
 
     inf_destroy(raw_state);
 }
@@ -1652,8 +1654,10 @@ static void test_inferno_budget_profile_reset_uses_budget_gear(void) {
     ASSERT_INT_EQ("budget range legs available",
         test_player_slot_inventory_contains(
             &state->player, GEAR_SLOT_LEGS, ITEM_CRYSTAL_LEGS), 1);
-    ASSERT_INT_EQ("budget inventory leaves one empty cell",
-        test_occupied_inventory_cells(state), 27);
+    ASSERT_INT_EQ("budget inventory occupied cells",
+        test_occupied_inventory_cells(state), 26);
+    ASSERT_INT_EQ("budget loadout keeps dragon darts inside blowpipe",
+        test_cell_holding_item(state, ITEM_DRAGON_DART), -1);
 
     inf_destroy(raw_state);
 }
@@ -8535,7 +8539,7 @@ int main(void) {
     test_jad_healer_damage_never_gets_damage_reward();
     test_shield_tag_reward_excludes_zuk();
     test_inferno_reset_supplies_match_current_inventory();
-    test_inferno_reset_inventory_leaves_one_empty_slot();
+    test_inferno_reset_inventory_leaves_two_empty_slots();
     test_inferno_max_profile_reset_uses_existing_gear();
     test_inferno_budget_profile_reset_uses_budget_gear();
     test_inferno_mixed_profile_sampling_respects_fraction();

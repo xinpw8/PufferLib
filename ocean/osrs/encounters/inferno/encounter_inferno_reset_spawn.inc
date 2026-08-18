@@ -381,11 +381,6 @@ static void inf_reset_ctx(EncounterState* state, EncounterContext* context, uint
     const uint8_t* const* loadouts =
         inf_loadouts_for_profile(s->active_loadout_profile);
     encounter_apply_loadout(&s->player, loadouts[INF_GEAR_MAGE], GEAR_MAGE);
-    {
-        encounter_populate_inventory(&s->player, loadouts, INF_NUM_WEAPON_SETS, NULL);
-
-        encounter_clear_ammo_inventory_slot(&s->player);
-    }
     InfSupplyDoses full_supplies = inf_full_starting_supplies();
     InfSupplyDoses start_supplies = inf_supplies_for_start_wave(
         full_supplies, s->start_wave, ctx->config.late_start_supply_profile_scale);

@@ -614,6 +614,12 @@ static inline void osrs_sum_equipment_bonuses(const uint8_t loadout[NUM_GEAR_SLO
         out->prayer += item->prayer;
     }
     uint8_t weapon = loadout[GEAR_SLOT_WEAPON];
+    if (weapon == ITEM_TOXIC_BLOWPIPE) {
+        uint8_t ammo = loadout[GEAR_SLOT_AMMO];
+        if (ammo != ITEM_NONE)
+            out->ranged_strength -= ITEM_DATABASE[ammo].ranged_strength;
+        out->ranged_strength += ITEM_DATABASE[ITEM_DRAGON_DART].ranged_strength;
+    }
     if (weapon != 255) {
         out->attack_speed = ITEM_DATABASE[weapon].attack_speed;
         out->attack_range = ITEM_DATABASE[weapon].attack_range;

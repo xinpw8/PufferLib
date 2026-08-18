@@ -1747,16 +1747,6 @@ static void encounter_populate_inventory(
     }
 }
 
-static inline void encounter_clear_ammo_inventory_slot(Player* p) {
-    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
-        uint8_t item =
-            osrs_inventory_cell_item_index(&p->inventory_cells[cell]);
-        if (item != ITEM_NONE &&
-                osrs_item_gear_slot(item) == GEAR_SLOT_AMMO)
-            p->inventory_cells[cell] = osrs_inventory_cell_empty();
-    }
-}
-
 static inline void encounter_translate_movement(HumanInput* hi, int* actions,
                                                  int head_move,
                                                  void* (*get_entity)(void*, int),

@@ -159,6 +159,27 @@ static void test_weapon_ranges(void) {
     ASSERT_INT_EQ("unarmed attack speed", unarmed.attack_speed, 4);
     ASSERT_INT_EQ("unarmed attack range", unarmed.attack_range, 1);
 }
+
+static void test_blowpipe_uses_loaded_dragon_darts(void) {
+    uint8_t loadout[NUM_GEAR_SLOTS];
+    memset(loadout, ITEM_NONE, sizeof(loadout));
+    loadout[GEAR_SLOT_WEAPON] = ITEM_TOXIC_BLOWPIPE;
+    loadout[GEAR_SLOT_AMMO] = ITEM_DRAGON_ARROWS;
+
+    EquipmentBonuses arrow_slot = {0};
+    osrs_sum_equipment_bonuses(loadout, &arrow_slot);
+    ASSERT_INT_EQ("blowpipe replaces arrow strength with loaded dart strength",
+        arrow_slot.ranged_strength, 55);
+
+    loadout[GEAR_SLOT_AMMO] = ITEM_GOD_BLESSING;
+    EquipmentBonuses blessing_slot = {0};
+    osrs_sum_equipment_bonuses(loadout, &blessing_slot);
+    ASSERT_INT_EQ("blowpipe adds loaded dart strength with blessing equipped",
+        blessing_slot.ranged_strength, 55);
+    ASSERT_INT_EQ("blowpipe preserves external ammo prayer bonus",
+        blessing_slot.prayer, 1);
+}
+
 static void test_content_code_round_trips(void) {
     ASSERT_INT_EQ("inventory cell stores only one content code",
         (int)sizeof(OsrsInventoryCell), (int)sizeof(uint16_t));
@@ -187,6 +208,7 @@ int main(void) {
         run_equip_storm(trial);
     run_drink_dose_check();
     test_weapon_ranges();
+    test_blowpipe_uses_loaded_dragon_darts();
     test_content_code_round_trips();
     return osrs_test_summary();
 }
