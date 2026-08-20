@@ -1792,6 +1792,7 @@ static inline int encounter_find_observed_target_slot(
 
 typedef struct {
     const char* name;
+    const char* display_name;
 
     int obs_size;
     int num_action_heads;

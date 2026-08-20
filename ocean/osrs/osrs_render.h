@@ -1812,7 +1812,7 @@ static void render_draw_encounter_status_text(RenderClient* rc) {
         font_size, (Color){ 255, 220, 190, 255 });
 }
 
-static RenderClient* render_make_client(void) {
+static RenderClient* render_make_client(OsrsEnv* env) {
     osrs_asset_require_group(OSRS_ASSET_GROUP_CORE);
     osrs_asset_require_group(OSRS_ASSET_GROUP_GUI);
 
@@ -1863,7 +1863,9 @@ static RenderClient* render_make_client(void) {
         rc->prev_npc_slot[i] = -1;
     }
 
-    InitWindow(RENDER_WINDOW_W, RENDER_WINDOW_H, "OSRS PvP Debug Viewer");
+    const EncounterDef* def = (const EncounterDef*)env->encounter_def;
+    const char* display_name = def ? def->display_name : "PvP";
+    InitWindow(RENDER_WINDOW_W, RENDER_WINDOW_H, TextFormat("OSRS %s", display_name));
     SetTargetFPS(60);
 
     {
@@ -2709,25 +2711,18 @@ static void render_handle_input(RenderClient* rc, OsrsEnv* env) {
 
     float wheel = GetMouseWheelMove();
 
-    if (!rc->human_input.enabled && IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
         Vector2 delta = GetMouseDelta();
         rc->cam_yaw -= delta.x * 0.005f;
         rc->cam_pitch += delta.y * 0.005f;
         if (rc->cam_pitch < 0.1f) rc->cam_pitch = 0.1f;
         if (rc->cam_pitch > 1.4f) rc->cam_pitch = 1.4f;
     }
-    if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+    if (!rc->human_input.enabled && IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
         Vector2 delta = GetMouseDelta();
-        if (rc->human_input.enabled) {
-            rc->cam_yaw -= delta.x * 0.005f;
-            rc->cam_pitch += delta.y * 0.005f;
-            if (rc->cam_pitch < 0.1f) rc->cam_pitch = 0.1f;
-            if (rc->cam_pitch > 1.4f) rc->cam_pitch = 1.4f;
-        } else {
-            float cs = cosf(rc->cam_yaw), sn = sinf(rc->cam_yaw);
-            rc->cam_target_x += (delta.x * cs + delta.y * sn) * 0.05f;
-            rc->cam_target_z += (-delta.x * sn + delta.y * cs) * 0.05f;
-        }
+        float cs = cosf(rc->cam_yaw), sn = sinf(rc->cam_yaw);
+        rc->cam_target_x += (delta.x * cs + delta.y * sn) * 0.05f;
+        rc->cam_target_z += (-delta.x * sn + delta.y * cs) * 0.05f;
     }
     if (wheel != 0.0f) {
         rc->cam_dist *= (wheel > 0) ? (1.0f / 1.15f) : 1.15f;
@@ -5774,11 +5769,15 @@ static int render_scene_is_inferno(OsrsEnv* env) {
     return strcmp(def->name, "inferno") == 0;
 }
 
-static const char* render_control_hint_text(OsrsEnv* env) {
+static const char* render_control_hint_text(RenderClient* rc, OsrsEnv* env) {
     if (render_scene_is_inferno(env)) {
-        return "Right-drag: orbit  Mid-drag: pan  Scroll: zoom  D: debug  H: human  F8: lab";
+        if (rc->human_input.enabled)
+            return "Mid-drag: orbit  Right-click: interact  Scroll: zoom  D: debug  H: policy  F8: lab";
+        return "Mid-drag: orbit  Right-drag: pan  Scroll: zoom  D: debug  H: human  F8: lab";
     }
-    return "Right-drag: orbit  Mid-drag: pan  Scroll: zoom  SPACE: pause  S: safe spots  D: debug  G: cycle entity  H: human";
+    if (rc->human_input.enabled)
+        return "Mid-drag: orbit  Right-click: interact  Scroll: zoom  SPACE: pause  S: safe spots  D: debug  G: cycle entity  H: policy";
+    return "Mid-drag: orbit  Right-drag: pan  Scroll: zoom  SPACE: pause  S: safe spots  D: debug  G: cycle entity  H: human";
 }
 
 static void render_draw_default_top_hud(RenderClient* rc, int display_tick) {
@@ -6077,7 +6076,7 @@ static void render_follow_pvp_fighter_midpoint(RenderClient* rc, OsrsEnv* env, d
 void pvp_render(OsrsEnv* env) {
     RenderClient* rc = (RenderClient*)env->client;
     if (rc == NULL) {
-        rc = render_make_client();
+        rc = render_make_client(env);
         env->client = rc;
     }
 
@@ -6239,7 +6238,7 @@ void pvp_render(OsrsEnv* env) {
         }
 
     render_draw_top_hud(rc, env);
-    DrawText(render_control_hint_text(env), 10, RENDER_WINDOW_H - 20, 10, COLOR_TEXT_DIM);
+    DrawText(render_control_hint_text(rc, env), 10, RENDER_WINDOW_H - 20, 10, COLOR_TEXT_DIM);
 
     rc->gui.gui_entity_count = rc->entity_count;
     rc->gui.encounter_state = env->encounter_state;

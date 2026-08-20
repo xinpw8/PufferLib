@@ -2225,7 +2225,7 @@ static void run_visual(
                 rc->npc_model_cache ? rc->npc_model_cache->count : 0,
                 rc->npc_anim_cache ? rc->npc_anim_cache->seq_count : 0);
     } else if (encounter_name && strcmp(encounter_name, "inferno") == 0) {
-        rc->terrain = terrain_load(OSRS_ASSET("inferno.terrain"));
+        rc->terrain = terrain_load_region(OSRS_ASSET("inferno.terrain"), 35, 83);
         rc->objects = objects_load(OSRS_ASSET("inferno.objects"));
         rc->objects_zuk = objects_load(OSRS_ASSET("inferno_zuk.objects"));
         if (rc->terrain)

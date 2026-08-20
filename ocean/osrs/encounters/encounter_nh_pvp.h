@@ -262,6 +262,7 @@ static int nh_pvp_get_winner(EncounterState* state, EncounterContext* context) {
 
 static const EncounterDef ENCOUNTER_NH_PVP = {
     .name = "nh_pvp",
+    .display_name = "PvP",
     .obs_size = NH_PVP_NUM_OBS,
     .num_action_heads = OSRS_BASE_NUM_ACTION_HEADS,
     .action_head_dims = NH_PVP_ACTION_DIMS,

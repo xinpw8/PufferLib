@@ -6908,6 +6908,60 @@ static void test_inferno_human_equip_does_not_snap_loadout(void) {
     inf_destroy(raw);
 }
 
+static void test_inferno_human_primary_inventory_click_equips_item(void) {
+    printf("--- inferno human primary inventory click equips item ---\n");
+
+    EncounterState* raw = inf_create();
+    InfernoState* state = (InfernoState*)raw;
+    inf_reset_ctx(raw, (EncounterContext*)&test_context, 123);
+    uint8_t old_weapon = state->player.equipped[GEAR_SLOT_WEAPON];
+    state->player.inventory_cells[0] =
+        osrs_inventory_cell_from_item(ITEM_TOXIC_BLOWPIPE);
+
+    HumanInput input;
+    human_input_init(&input);
+    input.enabled = 1;
+    human_input_queue_inventory_primary_click(&input, 0);
+
+    inf_step_human_commands_ctx(raw, (EncounterContext*)&test_context, &input);
+
+    ASSERT_INT_EQ("primary inventory click equips blowpipe",
+        state->player.equipped[GEAR_SLOT_WEAPON], ITEM_TOXIC_BLOWPIPE);
+    ASSERT_INT_EQ("primary inventory click swaps old weapon into source cell",
+        osrs_inventory_cell_item_index(&state->player.inventory_cells[0]), old_weapon);
+    ASSERT_INT_EQ("queued primary click drained", input.commands.count, 0);
+
+    human_input_destroy(&input);
+    inf_destroy(raw);
+}
+
+static void test_inferno_fight_style_command_does_not_click_inventory(void) {
+    printf("--- inferno fight style command does not click inventory ---\n");
+
+    EncounterState* raw = inf_create();
+    InfernoState* state = (InfernoState*)raw;
+    inf_reset_ctx(raw, (EncounterContext*)&test_context, 123);
+    uint8_t old_weapon = state->player.equipped[GEAR_SLOT_WEAPON];
+    state->player.inventory_cells[0] =
+        osrs_inventory_cell_from_item(ITEM_OSMUMTENS_FANG);
+
+    HumanInput input;
+    human_input_init(&input);
+    input.enabled = 1;
+    human_input_queue_fight_style(&input, FIGHT_STYLE_ACCURATE);
+
+    inf_step_human_commands_ctx(raw, (EncounterContext*)&test_context, &input);
+
+    ASSERT_INT_EQ("fight style command preserves equipped weapon",
+        state->player.equipped[GEAR_SLOT_WEAPON], old_weapon);
+    ASSERT_INT_EQ("fight style command preserves inventory cell",
+        osrs_inventory_cell_item_index(&state->player.inventory_cells[0]),
+        ITEM_OSMUMTENS_FANG);
+
+    human_input_destroy(&input);
+    inf_destroy(raw);
+}
+
 static void test_jad_render_uses_style_specific_attack_animation(void) {
     printf("--- jad render uses style-specific attack animation ---\n");
 
@@ -7129,8 +7183,10 @@ static void test_inferno_npc_projectile_render_uses_reference_visual_timing(void
     inf_render_post_tick_ctx((EncounterState*)&blob_state, (EncounterContext*)&test_context, &blob_ov);
 
     ASSERT_INT_EQ("blob projectile count", blob_ov.projectile_count, 1);
-    ASSERT_INT_EQ("blob ranged projectile model",
-        blob_ov.projectiles[0].model_id, INF_GFX_1383_MODEL);
+    ASSERT_INT_EQ("blob ranged projectile uses travel spotanim model",
+        blob_ov.projectiles[0].model_id, 0);
+    ASSERT_INT_EQ("blob ranged projectile travel spotanim",
+        blob_ov.projectiles[0].travel_gfx_id, 1383);
     ASSERT_INT_EQ("blob ranged projectile animation",
         blob_ov.projectiles[0].anim_id, INF_GFX_1383_ANIM);
     ASSERT_INT_EQ("blob ranged impact spotanim",
@@ -7153,9 +7209,11 @@ static void test_inferno_npc_projectile_render_uses_reference_visual_timing(void
     inf_render_post_tick_ctx((EncounterState*)&blob_magic_state, (EncounterContext*)&test_context, &blob_magic_ov);
 
     ASSERT_INT_EQ("blob magic projectile count", blob_magic_ov.projectile_count, 1);
-    ASSERT_INT_EQ("blob magic projectile model",
-        blob_magic_ov.projectiles[0].model_id, INF_GFX_1384_MODEL);
-    ASSERT_INT_EQ("blob magic projectile has no placeholder animation",
+    ASSERT_INT_EQ("blob magic projectile uses travel spotanim model",
+        blob_magic_ov.projectiles[0].model_id, 0);
+    ASSERT_INT_EQ("blob magic projectile travel spotanim",
+        blob_magic_ov.projectiles[0].travel_gfx_id, 1384);
+    ASSERT_INT_EQ("blob magic projectile animation comes from spotanim",
         blob_magic_ov.projectiles[0].anim_id, OSRS_COMBAT_PROJECTILE_MISSING);
     ASSERT_INT_EQ("blob magic impact spotanim",
         blob_magic_ov.projectiles[0].impact_gfx_id, 0);
@@ -8674,6 +8732,8 @@ int main(void) {
     test_inferno_refresh_after_state_load_rebuilds_derived_state();
     test_inferno_healer_transition_stats_track_episode_progress();
     test_inferno_human_equip_does_not_snap_loadout();
+    test_inferno_human_primary_inventory_click_equips_item();
+    test_inferno_fight_style_command_does_not_click_inventory();
     test_jad_render_uses_style_specific_attack_animation();
     test_inferno_render_uses_npc_death_animation();
     test_jad_magic_render_emits_three_offset_projectiles();

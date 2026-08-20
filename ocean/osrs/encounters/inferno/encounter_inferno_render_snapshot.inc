@@ -251,7 +251,6 @@ static const OsrsCombatVisualRow* inf_npc_combat_visual_row(
 
 static void inf_npc_projectile_fallback(
     InfNPCType type,
-    AttackStyle style,
     uint32_t* model_id,
     int* anim_id
 ) {
@@ -261,15 +260,6 @@ static void inf_npc_projectile_fallback(
             *model_id = INF_GFX_1374_MODEL;
             *anim_id = INF_GFX_1374_ANIM;
             return;
-        case INF_NPC_BLOB:
-            if (style == ATTACK_STYLE_RANGED) {
-                *model_id = INF_GFX_1383_MODEL;
-                *anim_id = INF_GFX_1383_ANIM;
-            } else if (style == ATTACK_STYLE_MAGIC) {
-                *model_id = INF_GFX_1384_MODEL;
-                *anim_id = OSRS_COMBAT_PROJECTILE_MISSING;
-            }
-            return;
         case INF_NPC_BLOB_RANGE:
             *model_id = INF_GFX_1379_MODEL;
             *anim_id = INF_GFX_1379_ANIM;
@@ -278,9 +268,35 @@ static void inf_npc_projectile_fallback(
             *model_id = INF_GFX_1381_MODEL;
             *anim_id = INF_GFX_1381_ANIM;
             return;
+
         default:
             return;
     }
+}
+static int inf_queue_inventory_click_action(
+    const InfernoState* s,
+    int* actions,
+    int inventory_slot
+) {
+    if (inventory_slot < 0 || inventory_slot >= OSRS_INVENTORY_SIZE) return -1;
+    OsrsInventoryClickResolution resolution =
+        osrs_inventory_cell_click_interpret(
+            &s->player.inventory_cells[inventory_slot], OSRS_CLICK_TICK_FIRST);
+    int action_head;
+    if (resolution.click_action == OSRS_CLICK_EQUIP) {
+        int gear_slot = osrs_inventory_cell_metadata(
+            &s->player.inventory_cells[inventory_slot])->gear_slot;
+        if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) return -1;
+        action_head = INF_HEAD_EQUIP_SLOT(gear_slot);
+    } else if (resolution.click_action == OSRS_CLICK_EAT) {
+        action_head = INF_HEAD_EAT;
+    } else if (resolution.click_action == OSRS_CLICK_DRINK) {
+        action_head = INF_HEAD_DRINK;
+    } else {
+        return -1;
+    }
+    actions[action_head] = inventory_slot + 1;
+    return action_head;
 }
 
 static void inf_render_post_tick_ctx(
@@ -358,6 +374,7 @@ static void inf_render_post_tick_ctx(
             inf_npc_combat_visual_row(npc->type, actual_style);
         uint32_t proj_model_id = 0;
         int proj_anim_id = OSRS_COMBAT_PROJECTILE_MISSING;
+        int travel_gfx_id = 0;
         int impact_gfx_id = 0;
         if (npc_visual) {
             if (npc_visual->projectile.projectile_model_id > 0)
@@ -367,10 +384,21 @@ static void inf_render_post_tick_ctx(
             if (npc_visual->projectile.impact_spotanim_id > 0)
                 impact_gfx_id = npc_visual->projectile.impact_spotanim_id;
         }
+        if (npc->type == INF_NPC_BLOB && npc_visual &&
+                npc_visual->projectile.travel_spotanim_id > 0) {
+            proj_model_id = 0;
+            travel_gfx_id = npc_visual->projectile.travel_spotanim_id;
+        }
 
-        if (proj_model_id == 0)
+        if (proj_model_id == 0 && travel_gfx_id == 0)
             inf_npc_projectile_fallback(
-                npc->type, actual_style, &proj_model_id, &proj_anim_id);
+                npc->type, &proj_model_id, &proj_anim_id);
+        if (proj_model_id == 0 && travel_gfx_id == 0) {
+            fprintf(stderr,
+                "inferno: missing projectile visual for npc type %d style %d\n",
+                (int)npc->type, (int)actual_style);
+            abort();
+        }
 
         switch (npc->type) {
             case INF_NPC_JAD:
@@ -448,6 +476,7 @@ static void inf_render_post_tick_ctx(
             .dst_size = target_size,
             .model_id = proj_model_id,
             .anim_id = proj_anim_id,
+            .travel_gfx_id = travel_gfx_id,
             .impact_gfx_id = impact_gfx_id,
             .start_delay = start_delay,
         };
@@ -714,13 +743,15 @@ static void inf_translate_human_commands_ctx(
             case HUMAN_COMMAND_SPEC_TOGGLE:
                 actions[INF_HEAD_SPEC] = s->player.spec_armed ? 2 : 1;
                 break;
+            case HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK:
+                inf_queue_inventory_click_action(s, actions, cmd->inventory_slot);
+                break;
             case HUMAN_COMMAND_EQUIP_INVENTORY_ITEM:
             case HUMAN_COMMAND_FIGHT_STYLE:
             case HUMAN_COMMAND_SET_AUTOCAST:
             case HUMAN_COMMAND_ITEM_ON_ITEM:
             case HUMAN_COMMAND_ITEM_ON_WIDGET:
             case HUMAN_COMMAND_SPELL_ON_WIDGET:
-            case HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK:
             case HUMAN_COMMAND_NONE:
                 break;
         }
@@ -931,6 +962,7 @@ static int inf_apply_lab_command_ctx(
 
 static const EncounterDef ENCOUNTER_INFERNO = {
     .name = "inferno",
+    .display_name = "Inferno",
     .obs_size = INF_NUM_OBS,
     .num_action_heads = INF_NUM_ACTION_HEADS,
     .action_head_dims = INF_ACTION_DIMS,

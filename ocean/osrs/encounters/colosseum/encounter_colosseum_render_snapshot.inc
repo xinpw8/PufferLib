@@ -1192,6 +1192,7 @@ static int col_apply_lab_command_ctx(
 
 static const EncounterDef ENCOUNTER_COLOSSEUM = {
     .name = "colosseum",
+    .display_name = "Colosseum",
     .obs_size = COLO_NUM_OBS,
     .num_action_heads = COLO_NUM_ACTION_HEADS,
     .action_head_dims = COLO_ACTION_DIMS,

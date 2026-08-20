@@ -3365,6 +3365,7 @@ static void zul_init_state_ctx(EncounterState* state, EncounterContext* context)
 
 static const EncounterDef ENCOUNTER_ZULRAH = {
     .name = "zulrah",
+    .display_name = "Zulrah",
     .obs_size = ZUL_NUM_OBS,
     .num_action_heads = ZUL_NUM_ACTION_HEADS,
     .action_head_dims = ZUL_ACTION_HEAD_DIMS,

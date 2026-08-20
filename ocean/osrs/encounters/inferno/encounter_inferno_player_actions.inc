@@ -391,8 +391,8 @@ static void inf_tick_player_ctx(
     if (s->player.potion_timer > 0) s->player.potion_timer--;
     if (s->stamina_active_ticks > 0) s->stamina_active_ticks--;
 
-    if (!ctx->human_command_mode) {
-        OsrsInventoryClickActions clicks;
+    {
+        OsrsInventoryClickActions clicks = {0};
         for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
             clicks.equip_by_slot[slot] = actions[INF_HEAD_EQUIP_SLOT(slot)];
         clicks.eat = actions[INF_HEAD_EAT];

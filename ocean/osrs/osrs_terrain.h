@@ -11,6 +11,17 @@
 
 #define TERR_MAGIC 0x54455252
 
+typedef enum {
+    TERRAIN_SELECTION_ALL,
+    TERRAIN_SELECTION_REGION,
+} TerrainSelectionKind;
+
+typedef struct {
+    TerrainSelectionKind kind;
+    int region_x;
+    int region_y;
+} TerrainSelection;
+
 typedef struct {
     Model model;
     int vertex_count;
@@ -25,7 +36,10 @@ typedef struct {
     int hm_height;
 } TerrainMesh;
 
-static TerrainMesh* terrain_load(const char* path) {
+static TerrainMesh* terrain_load_selected(
+    const char* path,
+    TerrainSelection selection
+) {
     FILE* f = osrs_asset_fopen(path, "rb");
     if (!f) {
         fprintf(stderr, "terrain_load: could not open %s\n", path);
@@ -54,6 +68,50 @@ static TerrainMesh* terrain_load(const char* path) {
     unsigned char* raw_colors = (unsigned char*)osrs_malloc_or_abort(
         vert_count * 4, "terrain colors");
     osrs_read_exact(f, raw_colors, 1, vert_count * 4, path, "colors");
+    if (vert_count % 3 != 0) {
+        fprintf(stderr, "terrain_load: vertex count is not divisible by three\n");
+        abort();
+    }
+
+    if (selection.kind == TERRAIN_SELECTION_REGION) {
+        uint32_t selected_vert_count = 0;
+        for (uint32_t source_vertex = 0;
+                source_vertex < vert_count;
+                source_vertex += 3) {
+            float* triangle = raw_verts + source_vertex * 3;
+            float centroid_x =
+                (triangle[0] + triangle[3] + triangle[6]) / 3.0f;
+            float centroid_y =
+                -(triangle[2] + triangle[5] + triangle[8]) / 3.0f;
+            int region_x = (int)floorf(centroid_x / 64.0f);
+            int region_y = (int)floorf(centroid_y / 64.0f);
+            if (region_x != selection.region_x ||
+                    region_y != selection.region_y) {
+                continue;
+            }
+
+            if (selected_vert_count != source_vertex) {
+                memcpy(
+                    raw_verts + selected_vert_count * 3,
+                    triangle,
+                    9 * sizeof(float));
+                memcpy(
+                    raw_colors + selected_vert_count * 4,
+                    raw_colors + source_vertex * 4,
+                    12);
+            }
+            selected_vert_count += 3;
+        }
+        if (selected_vert_count == 0) {
+            fprintf(stderr, "terrain_load: region (%d, %d) is empty\n",
+                selection.region_x, selection.region_y);
+            abort();
+        }
+        vert_count = selected_vert_count;
+        region_count = 1;
+        fprintf(stderr, "terrain region: (%d, %d), %u verts\n",
+            selection.region_x, selection.region_y, vert_count);
+    }
 
     Mesh mesh = { 0 };
     mesh.vertexCount = (int)vert_count;
@@ -124,6 +182,26 @@ static TerrainMesh* terrain_load(const char* path) {
 
     fclose(f);
     return tm;
+}
+
+static TerrainMesh* terrain_load(const char* path) {
+    return terrain_load_selected(
+        path,
+        (TerrainSelection){ .kind = TERRAIN_SELECTION_ALL });
+}
+
+static TerrainMesh* terrain_load_region(
+    const char* path,
+    int region_x,
+    int region_y
+) {
+    return terrain_load_selected(
+        path,
+        (TerrainSelection){
+            .kind = TERRAIN_SELECTION_REGION,
+            .region_x = region_x,
+            .region_y = region_y,
+        });
 }
 
 static void terrain_offset(TerrainMesh* tm, int wx, int wy) {
