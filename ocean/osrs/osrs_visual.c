@@ -23,6 +23,7 @@
 
 #ifdef OSRS_VISUAL
 #include "osrs_render.h"
+#include "osrs_render_scene.h"
 #include "puffercpu.c"
 #include "osrs_visual_net.h"
 
@@ -199,9 +200,6 @@ static const EntityEncoderDescriptor* visual_policy_entity_descriptor(
     return NULL;
 }
 
-static void visual_require_gui_item_sprite(int raw_osrs_id, void* ctx) {
-    gui_require_sprite_by_osrs_id((GuiState*)ctx, raw_osrs_id);
-}
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -210,11 +208,6 @@ static void visual_require_gui_item_sprite(int raw_osrs_id, void* ctx) {
 #include <pthread.h>
 #endif
 
-static int encounter_name_is_pvp(const char* encounter_name) {
-    return encounter_name &&
-        (strcmp(encounter_name, "pvp") == 0 ||
-         strcmp(encounter_name, "nh_pvp") == 0);
-}
 
 static void print_player_state(Player* p, int idx) {
     printf("Player %d: HP=%d/%d Prayer=%d Gear=%d Pos=(%d,%d) Frozen=%d\n",
@@ -459,50 +452,6 @@ static void osrs_print_inferno_profile_results(int total_steps) {
 }
 #endif
 
-typedef struct {
-    CollisionMap* cmap;
-    int offset_x;
-    int offset_y;
-} VisualCollisionLoad;
-
-static VisualCollisionLoad visual_load_encounter_collision_map(
-    const EncounterDef* edef, OsrsEnv* env, const char* encounter_name
-) {
-    CollisionMap* cmap = NULL;
-    int offset_x = 0, offset_y = 0;
-    if (encounter_name_is_pvp(encounter_name)) {
-        cmap = collision_map_load(OSRS_ASSET("wilderness.cmap"));
-    } else
-    if (strcmp(encounter_name, "zulrah") == 0) {
-        cmap = collision_map_load(OSRS_ASSET("zulrah.cmap"));
-        offset_x = 2256; offset_y = 3061;
-    } else if (strcmp(encounter_name, "inferno") == 0) {
-        cmap = collision_map_load(OSRS_ASSET("inferno.cmap"));
-        offset_x = 2246; offset_y = 5315;
-    } else if (strcmp(encounter_name, "colosseum") == 0) {
-        cmap = collision_map_load(OSRS_ASSET("colosseum.cmap"));
-        offset_x = 1808; offset_y = 3090;
-    }
-    VisualCollisionLoad result = { NULL, offset_x, offset_y };
-    if (cmap) {
-        if (!encounter_name_is_pvp(encounter_name)) {
-            edef->put_int(
-                env->encounter_state,
-                env->encounter_context,
-                "world_offset_x",
-                offset_x);
-            edef->put_int(
-                env->encounter_state,
-                env->encounter_context,
-                "world_offset_y",
-                offset_y);
-        }
-        edef->put_ptr(env->encounter_state, env->encounter_context, "collision_map", cmap);
-        env->collision_map = cmap;
-        result.cmap = cmap;
-    }
-    return result;
-}
 
 static const EncounterDef* visual_open_encounter(OsrsEnv* env, const char* encounter_name) {
     const EncounterDef* edef = encounter_find(encounter_name);
@@ -2163,125 +2112,11 @@ static void run_visual(
     }
 
 
+    RenderClient* rc = visual_init_render_scene(
+        env,
+        encounter_name,
+        direct_pvp_topology);
     pvp_render(env);
-    RenderClient* rc = (RenderClient*)env->client;
-    rc->route_topology = direct_pvp_topology;
-    pvp_actor_route_caches_clear(rc->player_route_cache);
-#ifdef __EMSCRIPTEN__
-    if (!encounter_name || encounter_name_is_pvp(encounter_name)) {
-        rc->ticks_per_second = 15.0f;
-    }
-#endif
-
-    if (!encounter_name || encounter_name_is_pvp(encounter_name)) {
-        osrs_asset_require_group(OSRS_ASSET_GROUP_PVP);
-    } else if (strcmp(encounter_name, "zulrah") == 0) {
-        osrs_asset_require_group(OSRS_ASSET_GROUP_ZULRAH);
-        osrs_asset_require_group(OSRS_ASSET_GROUP_COMBAT_VISUALS);
-    } else if (strcmp(encounter_name, "inferno") == 0) {
-        osrs_asset_require_group(OSRS_ASSET_GROUP_INFERNO);
-        osrs_asset_require_group(OSRS_ASSET_GROUP_COMBAT_VISUALS);
-    } else if (strcmp(encounter_name, "colosseum") == 0) {
-        osrs_asset_require_group(OSRS_ASSET_GROUP_COLOSSEUM);
-        osrs_asset_require_group(OSRS_ASSET_GROUP_COMBAT_VISUALS);
-        col_for_each_display_inventory_sprite_raw_osrs_id(
-            visual_require_gui_item_sprite,
-            &rc->gui);
-    }
-
-    if (env->collision_map) {
-        rc->collision_map = (const CollisionMap*)env->collision_map;
-    }
-
-    rc->model_cache = model_cache_load(OSRS_ASSET("equipment.models"));
-    if (rc->model_cache) {
-        rc->show_models = 1;
-    }
-    rc->anim_cache = anim_cache_load(OSRS_ASSET("equipment.anims"));
-    render_load_projectile_assets(rc);
-    render_init_overlay_models(rc);
-    if (!encounter_name || encounter_name_is_pvp(encounter_name)) {
-        rc->terrain = terrain_load(OSRS_ASSET("wilderness.terrain"));
-        rc->objects = NULL;
-        rc->npcs = NULL;
-    } else if (strcmp(encounter_name, "zulrah") == 0) {
-        rc->terrain = terrain_load(OSRS_ASSET("zulrah.terrain"));
-        rc->objects = objects_load(OSRS_ASSET("zulrah.objects"));
-
-        int zul_off_x = 2240 + 16;
-        int zul_off_y = 3008 + 53;
-        if (rc->terrain)
-            terrain_offset(rc->terrain, zul_off_x, zul_off_y);
-        if (rc->objects)
-            objects_offset(rc->objects, zul_off_x, zul_off_y);
-
-        rc->collision_map = (const CollisionMap*)env->collision_map;
-        rc->collision_world_offset_x = 2256;
-        rc->collision_world_offset_y = 3061;
-
-        rc->npc_model_cache = model_cache_load(OSRS_ASSET("zulrah.models"));
-        rc->npc_anim_cache = anim_cache_load(OSRS_ASSET("zulrah.anims"));
-        fprintf(stderr, "zulrah: npc_models=%d, npc_anims=%d seqs\n",
-                rc->npc_model_cache ? rc->npc_model_cache->count : 0,
-                rc->npc_anim_cache ? rc->npc_anim_cache->seq_count : 0);
-    } else if (encounter_name && strcmp(encounter_name, "inferno") == 0) {
-        rc->terrain = terrain_load_region(OSRS_ASSET("inferno.terrain"), 35, 83);
-        rc->objects = objects_load(OSRS_ASSET("inferno.objects"));
-        rc->objects_zuk = objects_load(OSRS_ASSET("inferno_zuk.objects"));
-        if (rc->terrain)
-            terrain_offset(rc->terrain, 2246, 5315);
-        if (rc->objects)
-            objects_offset(rc->objects, 2246, 5315);
-        if (rc->objects_zuk)
-            objects_offset(rc->objects_zuk, 2246, 5315);
-
-        rc->npc_model_cache = model_cache_load(OSRS_ASSET("inferno.models"));
-        rc->npc_anim_cache = anim_cache_load(OSRS_ASSET("inferno.anims"));
-
-        if (env->collision_map) {
-            rc->collision_map = (const CollisionMap*)env->collision_map;
-            rc->collision_world_offset_x = 2246;
-            rc->collision_world_offset_y = 5315;
-        }
-
-        fprintf(stderr, "inferno: terrain=%s, cmap=%s, npc_models=%d, npc_anims=%d seqs\n",
-                rc->terrain ? "loaded" : "MISSING",
-                rc->collision_map ? "loaded" : "MISSING",
-                rc->npc_model_cache ? rc->npc_model_cache->count : 0,
-                rc->npc_anim_cache ? rc->npc_anim_cache->seq_count : 0);
-    } else if (encounter_name && strcmp(encounter_name, "colosseum") == 0) {
-        rc->terrain = terrain_load(OSRS_ASSET("colosseum.terrain"));
-        rc->objects = objects_load(OSRS_ASSET("colosseum.objects"));
-        if (rc->terrain)
-            terrain_offset(rc->terrain, 1808, 3090);
-        if (rc->objects)
-            objects_offset(rc->objects, 1808, 3090);
-        rc->npc_model_cache = model_cache_load(OSRS_ASSET("colosseum_npcs.models"));
-        rc->npc_anim_cache = anim_cache_load(OSRS_ASSET("colosseum_npcs.anims"));
-        if (env->collision_map) {
-            rc->collision_map = (const CollisionMap*)env->collision_map;
-            rc->collision_world_offset_x = 1808;
-            rc->collision_world_offset_y = 3090;
-        }
-        fprintf(stderr, "colosseum: terrain=%s, cmap=%s, npc_models=%d, npc_anims=%d seqs\n",
-                rc->terrain ? "loaded" : "MISSING",
-                rc->collision_map ? "loaded" : "MISSING",
-                rc->npc_model_cache ? rc->npc_model_cache->count : 0,
-                rc->npc_anim_cache ? rc->npc_anim_cache->seq_count : 0);
-    }
-
-    render_populate_entities(rc, env);
-
-    rc->cam_target_x = (float)rc->arena_base_x + (float)rc->arena_width / 2.0f;
-    rc->cam_target_z = -((float)rc->arena_base_y + (float)rc->arena_height / 2.0f);
-
-    for (int i = 0; i < rc->entity_count; i++) {
-        int size = rc->entities[i].npc_size > 1 ? rc->entities[i].npc_size : 1;
-        rc->sub_x[i] = rc->entities[i].x * 128 + size * 64;
-        rc->sub_y[i] = rc->entities[i].y * 128 + size * 64;
-        rc->dest_x[i] = rc->sub_x[i];
-        rc->dest_y[i] = rc->sub_y[i];
-    }
 
     ReplayFile* replay = NULL;
     if (replay_path && env->encounter_def) {

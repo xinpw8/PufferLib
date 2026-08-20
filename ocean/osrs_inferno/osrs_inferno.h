@@ -14,6 +14,9 @@ typedef float obs_t;
 #pragma GCC diagnostic ignored "-Wunused-function"
 #include "../osrs/encounters/encounter_inferno.h"
 #pragma GCC diagnostic pop
+#ifdef OSRS_PUFFER_RENDER
+#include "../osrs/osrs_puffer_render.h"
+#endif
 
 #define OBS_SIZE INF_NUM_OBS
 #define NUM_ATNS INF_NUM_ACTION_HEADS
@@ -35,6 +38,9 @@ struct Env {
     InfernoState state;
     InfernoContext context;
     int config_start_wave;
+#ifdef OSRS_PUFFER_RENDER
+    void* renderer;
+#endif
 };
 
 static inline uint32_t inf_lowbias32(uint32_t x) {
@@ -418,10 +424,23 @@ void puf_step(Env* env) {
 }
 
 void puf_render(Env* env) {
+#ifdef OSRS_PUFFER_RENDER
+    if (env->renderer == NULL) {
+        env->renderer = osrs_puffer_render_create(
+            &ENCOUNTER_INFERNO,
+            INF_ENV_STATE(env),
+            INF_ENV_CONTEXT(env));
+    }
+    osrs_puffer_render_draw(env->renderer);
+#else
     (void)env;
+#endif
 }
 
 void puf_close(Env* env) {
+#ifdef OSRS_PUFFER_RENDER
+    if (env->renderer != NULL) osrs_puffer_render_destroy(env->renderer);
+#endif
     ENCOUNTER_INFERNO.destroy_context(INF_ENV_CONTEXT(env));
 }
 
@@ -536,6 +555,7 @@ void puf_log(Log* log, Dict* out) {
         score = wr + (1.0f - wr) * wave_frac * 0.5f;
     }
     dict_set(out, "score", score);
+    dict_set(out, "perf", score);
 
     if (log->n_normal > 0.0f) {
         float min_zuk_hp_normal = log->min_zuk_hp_normal / log->n_normal;

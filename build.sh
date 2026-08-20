@@ -410,6 +410,19 @@ if [ "$MODE" = "native" ]; then
     if [ "$SNAKE_RAW" = "1" ]; then
         EXTRA_CFLAGS+=(-DSNAKE_ONEHOT=0)
     fi
+    OSRS_RENDER_OBJECT=""
+    case "$ENV" in
+        osrs_*)
+            OSRS_RENDER_OBJECT="build/osrs_puffer_render.o"
+            ENV_COMPILE_FLAGS+=(-DOSRS_PUFFER_RENDER)
+            $CC $LINK_OPT "${CLANG_WARN[@]}" "${SIMD_FLAGS[@]}" -std=c11 \
+                -I. -Isrc -I$SRC_DIR -Ivendor \
+                "${INCLUDES[@]}" \
+                -DPLATFORM_DESKTOP \
+                -c ocean/osrs/osrs_puffer_render.c \
+                -o "$OSRS_RENDER_OBJECT"
+            ;;
+    esac
     echo "Compiling native train/eval binary ($ARCH) -> $TRAIN_BIN..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
@@ -426,6 +439,7 @@ if [ "$MODE" = "native" ]; then
 	    $PRECISION \
 	    src/pufferl.cu \
         $EXTRA_SRC \
+        $OSRS_RENDER_OBJECT \
         "${LINK_ARCHIVES[@]}" \
         -L$CUDA_HOME/lib64 $NCCL_LFLAG \
         "${EXTRA_LDFLAGS[@]}" \

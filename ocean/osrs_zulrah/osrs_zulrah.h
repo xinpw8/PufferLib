@@ -11,6 +11,9 @@ typedef float obs_t;
 #define Log OsrsSharedLog
 #include "../osrs/encounters/encounter_zulrah.h"
 #undef Log
+#ifdef OSRS_PUFFER_RENDER
+#include "../osrs/osrs_puffer_render.h"
+#endif
 
 #define OBS_SIZE ZUL_NUM_OBS
 #define NUM_ATNS ZUL_NUM_ACTION_HEADS
@@ -46,6 +49,9 @@ struct Env {
     ZulrahState state;
     ZulrahContext context;
     int acts_staging[ZUL_NUM_ACTION_HEADS];
+#ifdef OSRS_PUFFER_RENDER
+    void* renderer;
+#endif
 };
 
 static inline uint32_t zul_lowbias32(uint32_t x) {
@@ -169,10 +175,23 @@ void puf_step(Env* env) {
 }
 
 void puf_render(Env* env) {
+#ifdef OSRS_PUFFER_RENDER
+    if (env->renderer == NULL) {
+        env->renderer = osrs_puffer_render_create(
+            &ENCOUNTER_ZULRAH,
+            ZUL_ENV_STATE(env),
+            ZUL_ENV_CONTEXT(env));
+    }
+    osrs_puffer_render_draw(env->renderer);
+#else
     (void)env;
+#endif
 }
 
 void puf_close(Env* env) {
+#ifdef OSRS_PUFFER_RENDER
+    if (env->renderer != NULL) osrs_puffer_render_destroy(env->renderer);
+#endif
     ENCOUNTER_ZULRAH.destroy_context(ZUL_ENV_CONTEXT(env));
 }
 
@@ -182,6 +201,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "wins", log->wins);
     dict_set(out, "kills", log->kills);
     dict_set(out, "score", log->score);
+    dict_set(out, "perf", log->score);
     dict_set(out, "damage_dealt", log->damage_dealt);
     dict_set(out, "damage_received", log->damage_received);
     dict_set(out, "cloud_occupancy_frac", log->cloud_occupancy_frac);
