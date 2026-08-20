@@ -122,6 +122,10 @@ LINK_ARCHIVES=("$RAYLIB_A")
 EXTRA_SRC=""
 EXTRA_LDFLAGS=()
 EXTRA_CFLAGS=()
+if [ -n "${NVCC_EXTRA:-}" ]; then
+    read -ra _nvcc_extra <<< "$NVCC_EXTRA"
+    EXTRA_CFLAGS+=("${_nvcc_extra[@]}")
+fi
 SRC_FILE=""
 
 if [ "$ENV" = "clifford" ]; then

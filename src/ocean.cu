@@ -38,7 +38,11 @@ static void create_custom_encoder(const char* env_name, Encoder* enc) {
         return;
     }
     if (strcmp(env_name, "minimal") == 0) {
+#ifdef MINIMAL_ATTN
+        create_entity_attn_encoder(enc);
+#else
         create_minimal_encoder(enc);
+#endif
         return;
     }
     if (strcmp(env_name, "asteroids") == 0) {
