@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdio.h>
 
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define Log OsrsSharedLog
@@ -14,7 +15,6 @@
 #define OBS_SIZE ZUL_NUM_OBS
 #define NUM_ATNS ZUL_NUM_ACTION_HEADS
 #define ACT_SIZES ZUL_ACTION_DIMS_INIT
-typedef float obs_t;
 
 #define ZUL_ENV_STATE(env) ((EncounterState*)&(env)->state)
 #define ZUL_ENV_CONTEXT(env) ((EncounterContext*)&(env)->context)

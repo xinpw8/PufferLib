@@ -19,6 +19,7 @@ void puf_normal_init(Prec* dst, float std, ulong seed, cudaStream_t stream) {
 
 #include "../ocean/nmmo3/nmmo3.cu"
 #include "../ocean/minimal/minimal.cu"
+#include "../ocean/asteroids/asteroids.cu"
 
 #include "../ocean/osrs/osrs_item_obs_generated.h"
 __device__ static const float OSRS_ITEM_OBS_TABLE_DEV

@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 
+typedef float obs_t;
 #include "pufferenv.h"
 #include "inferno_profile.h"
 
@@ -17,7 +18,6 @@
 #define OBS_SIZE INF_NUM_OBS
 #define NUM_ATNS INF_NUM_ACTION_HEADS
 #define ACT_SIZES INF_ACTION_DIMS_INIT
-typedef float obs_t;
 
 #define INF_ENV_STATE(env) ((EncounterState*)&((env)->state))
 #define INF_ENV_CONTEXT(env) ((EncounterContext*)&((env)->context))

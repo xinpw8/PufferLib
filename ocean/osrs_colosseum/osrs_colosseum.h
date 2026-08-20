@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdio.h>
 
+typedef float obs_t;
 #include "pufferenv.h"
 
 #include "colosseum_profile.h"
@@ -16,7 +17,6 @@
 #define OBS_SIZE COLO_NUM_OBS
 #define NUM_ATNS COLO_NUM_ACTION_HEADS
 #define ACT_SIZES COLO_ACTION_DIMS_INIT
-typedef float obs_t;
 
 #define COLO_ENV_STATE(env) ((EncounterState*)&(env)->state)
 #define COLO_ENV_CONTEXT(env) ((EncounterContext*)&(env)->context)

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef float obs_t;
 #include "pufferenv.h"
 
 #define Log OsrsSharedLog
@@ -13,7 +14,6 @@
 #define OBS_SIZE NH_PVP_NUM_OBS
 #define NUM_ATNS OSRS_BASE_NUM_ACTION_HEADS
 #define ACT_SIZES NH_PVP_ACTION_DIMS_INIT
-typedef float obs_t;
 
 #define NH_PVP_ENV_STATE(env) ((EncounterState*)&(env)->state)
 #define NH_PVP_ENV_CONTEXT(env) ((EncounterContext*)&(env)->context)
