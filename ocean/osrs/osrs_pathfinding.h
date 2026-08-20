@@ -445,7 +445,21 @@ typedef struct {
     uint8_t next_source_field[ENCOUNTER_SOURCE_ROUTE_CACHE_SETS];
 } EncounterRouteScratch;
 
-static OSRS_THREAD_LOCAL EncounterRouteScratch encounter_route_scratch;
+// Heap, not TLS: each TU that includes this header would otherwise reserve
+// ~5.6MB of pthread stack (local-exec TLS). The trainer links two such TUs,
+// leaving a few KB of worker stack; CUDA kernel launch then SIGSEGVs.
+static EncounterRouteScratch* encounter_route_scratch_get(void) {
+    static OSRS_THREAD_LOCAL EncounterRouteScratch* scratch;
+    if (!scratch) {
+        scratch = (EncounterRouteScratch*)calloc(1, sizeof(*scratch));
+        if (!scratch) {
+            fprintf(stderr, "OSRS route scratch allocation failed\n");
+            abort();
+        }
+    }
+    return scratch;
+}
+
 static inline uint16_t encounter_route_next_generation(
     EncounterRouteScratch* scratch
 ) {
@@ -764,7 +778,7 @@ static inline void encounter_route_build_result_path(
     int destination_y,
     uint16_t generation
 ) {
-    EncounterRouteScratch* scratch = &encounter_route_scratch;
+    EncounterRouteScratch* scratch = encounter_route_scratch_get();
     const EncounterArenaTopology* topology = input->topology;
     int source_x = input->source_x - topology->origin_x;
     int source_y = input->source_y - topology->origin_y;
@@ -1476,7 +1490,7 @@ static inline int encounter_route_try_reverse(
     if (input->target_kind != ENCOUNTER_ROUTE_TARGET_TILE ||
             input->cost_policy != ENCOUNTER_ROUTE_COST_SOUTH_FIRST_REVERSE)
         return 0;
-    EncounterRouteScratch* scratch = &encounter_route_scratch;
+    EncounterRouteScratch* scratch = encounter_route_scratch_get();
     EncounterReverseRouteField* field = NULL;
     for (int cache_idx = 0;
             cache_idx < ENCOUNTER_REVERSE_ROUTE_CACHE_SLOTS;
@@ -1827,7 +1841,7 @@ static inline int encounter_route_try_source_field(
          input->target_kind != ENCOUNTER_ROUTE_TARGET_ATTACK_RANGE) ||
             input->cost_policy != ENCOUNTER_ROUTE_COST_OSRS)
         return 0;
-    EncounterRouteScratch* scratch = &encounter_route_scratch;
+    EncounterRouteScratch* scratch = encounter_route_scratch_get();
     int cache_set = encounter_route_source_field_set(input);
     int first_cache_idx = cache_set * ENCOUNTER_SOURCE_ROUTE_CACHE_WAYS;
     EncounterSourceRouteField* field = NULL;
@@ -2165,7 +2179,7 @@ static inline EncounterRouteResult encounter_route_solve(
     osrs_route_probe_cost_bfs[input->cost_policy]++;
 #endif
     const EncounterArenaTopology* topology = input->topology;
-    EncounterRouteScratch* scratch = &encounter_route_scratch;
+    EncounterRouteScratch* scratch = encounter_route_scratch_get();
     uint16_t generation = encounter_route_next_generation(scratch);
     int target_index = -1;
     if (input->target_kind == ENCOUNTER_ROUTE_TARGET_TILE) {
