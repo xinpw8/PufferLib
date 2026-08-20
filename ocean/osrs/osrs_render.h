@@ -14,6 +14,8 @@
 #include "osrs_projectile_orientation.h"
 #include "osrs_render_motion.h"
 #include "osrs_render_click_hull.h"
+typedef float obs_t;
+#include "pufferenv.h"
 #include "data/player_models.h"
 #include "data/npc_models.h"
 #include "osrs_terrain.h"
@@ -6335,6 +6337,7 @@ void pvp_render(OsrsEnv* env) {
     context_menu_draw(rc);
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 #endif

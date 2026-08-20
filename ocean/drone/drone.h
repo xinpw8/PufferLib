@@ -4,6 +4,8 @@
 //
 // 5c API port of Fin's multitask drone (PR #599 / FinlaySanders/4.0).
 
+#pragma once
+
 #include <assert.h>
 #include <limits.h>
 #include <math.h>
@@ -21,10 +23,8 @@ typedef float obs_t;
 #define NUM_ATNS 4
 #define ACT_SIZES {1, 1, 1, 1}
 #define MAX_DRONES 256
-// Train: 1 forward + 1 ACTION_DT (100 Hz). Display is rAF (~60, often less).
-// Eval loop runs that many (forward+tick) pairs per visual frame, re-forward
-// each time. Not GetFrameTime. Not setTimeout(10).
-#define PUF_EVAL_TICK_HZ 100
+// Train is 100 Hz. Eval is 60 fps, so puffercpu emits 5 steps per 3 frames.
+#define PUF_STEPS_PER_SEC 100
 
 typedef Env DroneEnv;
 

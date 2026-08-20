@@ -346,6 +346,7 @@ void puf_render(ClickEnv* env) {
              (Color){180, 255, 180, 255});
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(ClickEnv* env) {

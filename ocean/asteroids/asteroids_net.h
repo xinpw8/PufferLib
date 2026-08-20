@@ -3,20 +3,20 @@
 //   encoder input_w (16 x 9), encoder output_w (hidden x 16),
 //   decoder ((4+1) x hidden), mingru layers (3*hidden x hidden each).
 // Forward matches ocean/asteroids/asteroids.cu:
-//   materialize 20 entities [self(4) | point_i(5)], Linear 9->16, ReLU,
-//   Linear 16->hidden, max-pool over the 20 points, then MinGRU + decoder.
-// Include puffercpu.h first (Linear / ReLU / MinGRU).
+//   materialize 26 entities [self(4) | point_i(5)], Linear 9->16, ReLU,
+//   Linear 16->hidden, max-pool over the 26 points, then MinGRU + decoder.
+// Include puffercpu.c first (Linear / ReLU / MinGRU).
 
 #define AE_SELF_DIM 4
 #define AE_POINT_DIM 5
-#define AE_NUM_POINTS 20
+#define AE_NUM_POINTS 26
 #define AE_ENTITY_IN (AE_SELF_DIM + AE_POINT_DIM)
 #define AE_ENTITY_HIDDEN 16
 #define AE_OBS_SIZE (AE_SELF_DIM + AE_NUM_POINTS * AE_POINT_DIM)
 #define AE_ATN 4
 
 #if defined(OBS_SIZE) && (OBS_SIZE != AE_OBS_SIZE)
-#error "asteroids entity encoder expects OBS_SIZE 104"
+#error "asteroids entity encoder expects OBS_SIZE 134"
 #endif
 
 typedef struct AsteroidsNet AsteroidsNet;
@@ -110,5 +110,5 @@ static inline void forward_asteroids(AsteroidsNet* net, const float* observation
     asteroids_encode(net, observations, NULL);
     mingru(net->mingru, net->encoded);
     linear(net->decoder, net->mingru->output);
-    multidiscrete(net->multidiscrete, net->decoder->output, actions, 0);
+    multidiscrete(net->multidiscrete, net->decoder->output, actions, 0, NULL);
 }

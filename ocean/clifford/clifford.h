@@ -453,6 +453,7 @@ void puf_render(Clifford* env) {
     DrawLine(ox + n * cell - 1, oy, ox + n * cell - 1, oy + dim * cell, PUFF_RED);
     DrawLine(ox, oy + n * cell - 1, ox + dim * cell, oy + n * cell - 1, PUFF_RED);
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_reset(Clifford* env) {

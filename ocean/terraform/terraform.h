@@ -1165,6 +1165,7 @@ void puf_render(Terraform* env) {
     DrawText(TextFormat("Current Quadrant: %d", env->grid_indices[map_idx(env, env->dozers[0].x, env->dozers[0].y)]), 10, 230, 20, PUFF_WHITE);
     DrawFPS(10, 10);
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_init(Env* env, Dict* kwargs) {

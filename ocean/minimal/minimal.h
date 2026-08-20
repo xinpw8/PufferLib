@@ -129,6 +129,7 @@ void puf_render(Env* env) {
         );
     }
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(Env* env) {

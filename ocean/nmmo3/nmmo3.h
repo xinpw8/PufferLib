@@ -3002,8 +3002,7 @@ int process_centered_input() {
     if (IsKeyDown(KEY_ESCAPE)) {
         CloseWindow();
     }
-
-    if (shift_key()) {
+    if (IsKeyDown(KEY_SPACE)) {
         if (down_key()) {
             return ATN_DOWN_SHIFT;
         } else if (up_key()) {
@@ -3013,7 +3012,9 @@ int process_centered_input() {
         } else if (right_key()) {
             return ATN_RIGHT_SHIFT;
         }
-    } else if (up_key()) {
+        return ATN_ATTACK;
+    }
+    if (up_key()) {
         return ATN_UP;
     } else if (down_key()) {
         return ATN_DOWN;
@@ -3021,8 +3022,6 @@ int process_centered_input() {
         return ATN_LEFT;
     } else if (right_key()) {
         return ATN_RIGHT;
-    } else if (IsKeyDown(KEY_SPACE)) {
-        return ATN_ATTACK;
     } else if (IsKeyDown(KEY_ONE)) {
         return ATN_ONE;
     } else if (IsKeyDown(KEY_TWO)) {
@@ -3206,9 +3205,8 @@ void puf_render(MMO* env) {
         env->client = make_client(env);
     }
     Client* client = env->client;
-    int action = 0;
+    int tick_action = ATN_NOOP;
     // One env tick = TICK_FRAMES vsyncs. Desktop: EndDrawing waits.
-    // Web: ASYNCIFY + SetTargetFPS makes WaitTime yield a rAF per swap.
     for (int f = 0; f < TICK_FRAMES; f++) {
         float delta = (float)f / (float)TICK_FRAMES;
         BeginDrawing();
@@ -3219,7 +3217,6 @@ void puf_render(MMO* env) {
             exit(0);
         }
         if (IsKeyPressed(KEY_TAB)) {
-            ToggleBorderlessWindowed();
             if (client->render_mode == RENDER_MODE_CENTERED) {
                 client->render_mode = RENDER_MODE_FIXED;
             } else {
@@ -3236,11 +3233,15 @@ void puf_render(MMO* env) {
             }
             render_fixed(client, env, delta);
         } else {
+            int action = ATN_NOOP;
             if (!client->command_mode) {
                 action = process_centered_input();
             }
-            if (IsKeyDown(KEY_LEFT_SHIFT) && env->agents[0].actions) {
-                env->agents[0].actions[0] = action;
+            if (action != ATN_NOOP) {
+                tick_action = action;
+            }
+            if (shift_key() && env->agents[0].actions) {
+                env->agents[0].actions[0] = tick_action;
             }
             render_centered(client, env, client->my_player, action, delta);
         }
@@ -3252,6 +3253,6 @@ void puf_render(MMO* env) {
                 (Vector2){16, 16}, 24, 4, YELLOW);
         }
         EndDrawing();
+        puf_web_vsync();
     }
 }
-

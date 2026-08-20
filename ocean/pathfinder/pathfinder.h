@@ -884,6 +884,7 @@ void puf_render(Pathfinder* env) {
         draw_board(env, (float)f / (float)PATHFINDER_FRAMES);
         draw_panel(env);
         EndDrawing();
+        puf_web_vsync();
     }
 }
 

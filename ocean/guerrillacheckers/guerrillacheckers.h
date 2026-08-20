@@ -104,7 +104,6 @@ struct Env {
     int legal_count;
     int invalid_this_episode;
     int max_episode_length;
-    int render_fps;
 
     // selfplay == 1: two logical policy slots alternate turns. Slot 0 is the
     // primary policy and slot 1 is the historical bank in tagged envs. Their
@@ -118,6 +117,8 @@ struct Env {
     int mcts_iterations;      // MCTS search budget per move (opponent == GC_BOT_MCTS)
     float mcts_exploration;   // UCB1 exploration constant
     int mcts_rollout;         // GC_MCTS_ROLLOUT_RANDOM / GC_MCTS_ROLLOUT_GREEDY
+
+    int pending_reset;
 };
 
 static inline int gc_actor_slot(GuerrillaCheckers* env) {
@@ -133,7 +134,6 @@ static inline unsigned char* gc_actor_mask(GuerrillaCheckers* env) {
 
 void puf_init(Env* env, Dict* kwargs) {
     env->max_episode_length = dict_get(kwargs, "max_episode_length");
-    env->render_fps = dict_get(kwargs, "render_fps");
     env->selfplay = dict_get(kwargs, "selfplay");
     env->side_cfg = dict_get(kwargs, "side");
     env->opponent = dict_get(kwargs, "opponent");
@@ -809,10 +809,17 @@ void puf_reset(Env* env) {
     if (env->client != NULL) {
         env->client->selected = -1;
     }
+    env->pending_reset = 0;
 }
 
+// Training resets in-step so the next obs is a new episode. A live client
+// delays until the next puf_step so vsync hold frames can show the terminal.
 static void gc_reset_after_terminal_step(GuerrillaCheckers* env) {
     if (*env->agents[0].terminals != 1.0f) return;
+    if (env->client != NULL) {
+        env->pending_reset = 1;
+        return;
+    }
     float rewards[2] = {0};
     float terminals[2] = {0};
     for (int slot = 0; slot < env->num_agents; slot++) {
@@ -827,7 +834,7 @@ static void gc_reset_after_terminal_step(GuerrillaCheckers* env) {
 }
 
 // Hold Left Shift + click a guerrilla point or COIN square (select, then dest).
-// Skip the step when Shift is down and there is no legal action this frame.
+// Render writes the actor action; puf_step no-ops on the -1 wait sentinel.
 static int gc_human_controls(GuerrillaCheckers* env) {
     if (!IsWindowReady() || !IsKeyDown(KEY_LEFT_SHIFT)) {
         return 0;
@@ -908,17 +915,21 @@ static int gc_human_controls(GuerrillaCheckers* env) {
 }
 
 void puf_step(Env* env) {
-    if (gc_human_controls(env) < 0) {
+    if (env->pending_reset) {
+        env->pending_reset = 0;
+        puf_reset(env);
+    }
+    int actor = env->player_to_move;
+    int actor_slot = gc_actor_slot(env);
+    int action = (int)env->agents[actor_slot].actions[0];
+    // Render writes -1 while Shift is held with no completed click this turn.
+    if (action < 0) {
         return;
     }
     for (int slot = 0; slot < env->num_agents; slot++) {
         *env->agents[slot].rewards = 0.0f;
         *env->agents[slot].terminals = 0.0f;
     }
-
-    int actor = env->player_to_move;
-    int actor_slot = gc_actor_slot(env);
-    int action = (int)env->agents[actor_slot].actions[0];
     assert(env->legal_count > 0 &&
         "Guerrilla Checkers step reached a non-terminal state with no legal moves");
     int legal = gc_action_is_legal(env, action);
@@ -975,7 +986,7 @@ static Client* gc_make_client(GuerrillaCheckers* env) {
     client->width = GC_BOARD_W * client->cell;
     client->height = GC_BOARD_H * client->cell + 48;
     InitWindow(client->width, client->height, "PufferLib Guerrilla Checkers");
-    SetTargetFPS(env->render_fps);
+    SetTargetFPS(60);
     return client;
 }
 
@@ -1016,6 +1027,9 @@ static void gc_render_board(GuerrillaCheckers* env) {
 void puf_render(Env* env) {
     if (IsKeyDown(KEY_ESCAPE)) exit(0);
     if (env->client == NULL) env->client = gc_make_client(env);
+    if (IsKeyDown(KEY_LEFT_SHIFT)) {
+        env->agents[gc_actor_slot(env)].actions[0] = -1;
+    }
     gc_human_controls(env);
 
     int cell = env->client->cell;
@@ -1043,4 +1057,5 @@ void puf_render(Env* env) {
         env->guerrilla_count, GC_MAX_GUERRILLAS),
         250, GC_BOARD_H * cell + 16, 18, (Color){190, 204, 208, 255});
     EndDrawing();
+    puf_web_vsync();
 }

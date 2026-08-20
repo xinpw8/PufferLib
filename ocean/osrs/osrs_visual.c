@@ -23,7 +23,7 @@
 
 #ifdef OSRS_VISUAL
 #include "osrs_render.h"
-#include "puffercpu.h"
+#include "puffercpu.c"
 #include "osrs_visual_net.h"
 
 _Static_assert(OSRS_SHARED_OBS_SIZE == 101,

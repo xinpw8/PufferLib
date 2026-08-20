@@ -5,7 +5,7 @@
 // Forward matches ocean/minimal/minimal.cu:
 //   materialize 16 entities [self(2) | point_i(4)], Linear 6->16, ReLU,
 //   Linear 16->hidden, max-pool over the 16 points, then MinGRU + decoder.
-// Include puffercpu.h first (Linear / ReLU / MinGRU).
+// Include puffercpu.c first (Linear / ReLU / MinGRU).
 
 #define ME_SELF_DIM 2
 #define ME_POINT_DIM 4
@@ -106,5 +106,5 @@ static inline void forward_minimal(MinimalNet* net, const float* observations,
     minimal_encode(net, observations);
     mingru(net->mingru, net->encoded);
     linear(net->decoder, net->mingru->output);
-    multidiscrete(net->multidiscrete, net->decoder->output, actions, 0);
+    multidiscrete(net->multidiscrete, net->decoder->output, actions, 0, NULL);
 }

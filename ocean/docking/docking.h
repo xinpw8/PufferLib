@@ -557,6 +557,7 @@ void puf_render(Docking* env) {
     }
 
     EndDrawing();
+    puf_web_vsync();
     if (env->feedback_timer > 0) {
         env->feedback_timer -= 1;
     }

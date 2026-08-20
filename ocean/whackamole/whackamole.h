@@ -213,6 +213,7 @@ void puf_render(Whackamole* env) {
     DrawText(TextFormat("Attempt: %i/%i", env->tick + 1, ATTEMPTS_PER_EPISODE), 10, 70, 20, WHITE);
     
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(Whackamole* env) {

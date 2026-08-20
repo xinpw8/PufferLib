@@ -3,66 +3,56 @@ set -e
 
 # Usage:
 #   ./build.sh breakout              # Native train/eval -> ./puffer
-#   ./build.sh breakout --gpu        # GPU env (ENV_HEADER=ocean/ENV/ENV.cu; exclusive vs .h)
-#   ./build.sh breakout --named      # Native -> build/puffer_breakout (does not clobber ./puffer)
+#   ./build.sh breakout mybin        # Native -> ./mybin (does not clobber ./puffer)
+#   ./build.sh breakout --cu         # CUDA env (ENV_HEADER=ocean/ENV/ENV.cu; exclusive vs .h)
+#   ./build.sh robot_arm             # CUDA-only; implies --cu
 #   ./build.sh breakout --float      # float32 precision (required for --slowly)
-#   ./build.sh breakout --cpu        # Tiny standalone CPU eval executable
-#   ./build.sh breakout --debug      # Debug build
-#   ./build.sh breakout --local      # Standalone executable (debug, sanitizers)
-#   ./build.sh breakout --fast       # Standalone executable (optimized)
+#   ./build.sh breakout --cpu        # Play/eval binary (optimized) -> ./ENV
+#   ./build.sh breakout myplay --cpu # Play -> ./myplay
+#   ./build.sh breakout --debug      # Debug (-O0 -g; sanitizers on --cpu)
 #   ./build.sh breakout --web        # Emscripten web build
 #                                    # copy build/web/ENV/* to ../docker/puffer.ai/docs/assets/ENV/
 #   ./build.sh breakout --profile    # Kernel profiling binary
-#   ./build.sh breakout --device N   # Pin CUDA_VISIBLE_DEVICES during the build
 #   ./build.sh all                   # Build all envs native and native float32
 #
-# Env is compiled in. Run: ./puffer train | eval | match | sweep [section.key=value ...]
-# Named: CUDA_VISIBLE_DEVICES=N ./build/puffer_breakout train
-# or     ./build/puffer_breakout train base.gpu_offset=N
+# Env is compiled in. Run: ./puffer train|eval|match|sweep [--section.key=value ...]
 
 if [ -z "$1" ]; then
-    echo "Usage: ./build.sh ENV_NAME [--gpu] [--named] [--float] [--debug] [--local|--fast|--web|--profile|--cpu] [--device N]"
+    echo "Usage: ./build.sh ENV [OUT] [--cu] [--float] [--debug] [--cpu] [--web] [--profile]"
     exit 1
 fi
 ENV=$1
 shift
+OUT=""
+if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
+    OUT=$1
+    shift
+fi
 
 USE_GPU_ENV=0
-DEVICE=""
 SNAKE_RAW=0
-NAMED=0
 while [ $# -gt 0 ]; do
     case $1 in
-        --gpu) USE_GPU_ENV=1 ;;
-        --named) NAMED=1 ;;
+        --cu) USE_GPU_ENV=1 ;;
         --float) PRECISION="-DPRECISION_FLOAT" ;;
         --no-onehot) SNAKE_RAW=1 ;;
         --debug) DEBUG=1 ;;
-        --local) MODE=local ;;
-        --fast)  MODE=fast ;;
         --web)   MODE=web ;;
         --profile) MODE=profile ;;
         --cpu)   MODE=cpu ;;
-        --device)
-            shift
-            if [ -z "$1" ]; then
-                echo "Error: --device requires a GPU index" && exit 1
-            fi
-            DEVICE=$1
-            ;;
-        --device=*)
-            DEVICE="${1#--device=}"
-            if [ -z "$DEVICE" ]; then
-                echo "Error: --device requires a GPU index" && exit 1
-            fi
-            ;;
         *) echo "Error: unknown argument '$1'" && exit 1 ;;
     esac
     shift
 done
 
-if [ -n "$DEVICE" ]; then
-    export CUDA_VISIBLE_DEVICES="$DEVICE"
+if [ "$ENV" = "robot_arm" ]; then
+    USE_GPU_ENV=1
+    case "${MODE:-native}" in
+        cpu|web)
+            echo "Error: robot_arm physics is CUDA-only; use the native trainer build" >&2
+            exit 1
+            ;;
+    esac
 fi
 
 if [ "$ENV" = "all" ]; then
@@ -137,17 +127,25 @@ EXTRA_LDFLAGS=()
 EXTRA_CFLAGS=()
 SRC_FILE=""
 
+if [ "$ENV" = "clifford" ]; then
+    EXTRA_CFLAGS+=(-DCLIFFORD_USE_SHORTCUT_GATES="${CLIFFORD_USE_SHORTCUT_GATES:-0}")
+    EXTRA_CFLAGS+=(-DCLIFFORD_PAIR_ONEHOT="${CLIFFORD_PAIR_ONEHOT:-0}")
+    if [ -n "${CLIFFORD_N_QUBITS:-}" ]; then
+        EXTRA_CFLAGS+=(-DCLIFFORD_N_QUBITS="$CLIFFORD_N_QUBITS")
+    fi
+fi
+
 if [ "$ENV" = "constellation" ]; then
     SRC_DIR="src"
     OUTPUT_NAME="seethestars"
-    MODE=${MODE:-fast}
+    MODE=${MODE:-cpu}
     CLANG_WARN+=(-Wno-unused-function)
 elif [ "$ENV" = "cache_data" ]; then
     SRC_DIR="src"
     OUTPUT_NAME="cache_data"
     SRC_FILE="src/constellation.c"
     EXTRA_CFLAGS+=(-DPUFFER_CACHE_DATA)
-    MODE=${MODE:-fast}
+    MODE=${MODE:-cpu}
     CLANG_WARN+=(-Wno-unused-function)
 elif [ "$ENV" = "trailer" ]; then
     SRC_DIR="trailer"
@@ -160,9 +158,12 @@ elif [ "$ENV" = "impulse_wars" ]; then
     fi
     BOX2D_URL="https://github.com/capnspacehook/box2d/releases/latest/download"
     download "$BOX2D_NAME" "$BOX2D_URL/$BOX2D_NAME.tar.gz"
-    INCLUDES+=(-I./$BOX2D_NAME/include -I./$BOX2D_NAME/src -I./ocean/impulse_wars)
+    INCLUDES+=(-I./$BOX2D_NAME/include -I./$BOX2D_NAME/src -I./ocean/impulse_wars -I./vendor/collections-c)
     LINK_ARCHIVES+=("./$BOX2D_NAME/libbox2d.a")
-    EXTRA_SRC="ocean/impulse_wars/impulse_wars_api.c"
+    # C++ trainer only: game is C (void*/compound literals), not C++17.
+    if [ -z "${MODE:-}" ] || [ "$MODE" = "native" ] || [ "$MODE" = "profile" ]; then
+        EXTRA_SRC="ocean/impulse_wars/impulse_wars_api.c"
+    fi
 elif [ "$ENV" = "nethack" ]; then
     SRC_DIR="ocean/$ENV"
     EXTRA_CFLAGS+=(-DPUFFER_NETHACK)
@@ -199,6 +200,9 @@ esac
 
 USER_OUTPUT_NAME=${OUTPUT_NAME-}
 OUTPUT_NAME=${OUTPUT_NAME:-$ENV}
+if [ -n "$OUT" ]; then
+    OUTPUT_NAME=$OUT
+fi
 SRC_FILE=${SRC_FILE:-$SRC_DIR/$ENV.c}
 
 if [ "$(uname -m)" = "x86_64" ]; then
@@ -216,15 +220,23 @@ else
     NVCC_OPT="-O2 --threads 0"
     LINK_OPT="-O2"
 fi
-if [ "$MODE" = "local" ] || [ "$MODE" = "fast" ]; then
+if [ "$MODE" = "cpu" ]; then
+    ENV_HEADER="$SRC_DIR/$ENV.h"
+    if ! grep -q 'typedef[[:space:]].*obs_t' "$ENV_HEADER" 2>/dev/null; then
+        echo "Error: $ENV_HEADER must typedef obs_t for standalone eval"
+        exit 1
+    fi
     FLAGS=(
-        "${INCLUDES[@]}"
-        "$SRC_FILE" $EXTRA_SRC -o "$OUTPUT_NAME"
+        -I. -Isrc -I$SRC_DIR -Ivendor "${INCLUDES[@]}"
+        src/puffercpu.c $EXTRA_SRC -o "$OUTPUT_NAME"
         "${LINK_ARCHIVES[@]}"
         "${EXTRA_LDFLAGS[@]}"
         "${STANDALONE_LDFLAGS[@]}"
         -lm -lpthread "${OMP_FLAGS[@]}"
         -DPLATFORM_DESKTOP
+        -DPUFFERCPU_EVAL_MAIN
+        -DENV_HEADER=\"$ENV_HEADER\"
+        -DPUFFER_ENV_NAME=\"$ENV\"
         "${EXTRA_CFLAGS[@]}"
     )
     echo "Compiling $ENV..."
@@ -239,15 +251,28 @@ elif [ "$MODE" = "web" ]; then
     fi
     mkdir -p "build/web/$ENV"
     PRELOAD_ENV=()
-    if [ -d "resources/$ENV" ]; then
+    if [ "$ENV" = "boxoban" ]; then
+        # Do not pack generated boxoban_maps_*.bin or levels/ (hundreds of MB).
+        PRELOAD_ENV=(
+            --preload-file resources/boxoban/web_maps.bin@resources/boxoban/web_maps.bin
+            --preload-file resources/boxoban/boxoban_weights.bin@resources/boxoban/boxoban_weights.bin
+            --preload-file resources/boxoban/Wall_Black.jpg@resources/boxoban/Wall_Black.jpg
+            --preload-file resources/boxoban/Crate_Black.jpg@resources/boxoban/Crate_Black.jpg
+            --preload-file resources/boxoban/EndPoint_Black.jpg@resources/boxoban/EndPoint_Black.jpg
+            --preload-file resources/boxoban/EndPoint_Blue.jpg@resources/boxoban/EndPoint_Blue.jpg
+            --preload-file resources/boxoban/GroundGravel_Concrete.jpg@resources/boxoban/GroundGravel_Concrete.jpg
+        )
+    elif [ -d "resources/$ENV" ]; then
         PRELOAD_ENV=(--preload-file "resources/$ENV@resources/$ENV")
     fi
     echo "Compiling $ENV for web..."
     PRELOAD=(
-        --preload-file resources/$ENV@resources/$ENV
         --preload-file resources/shared@resources/shared
         --preload-file config/default.ini@config/default.ini
     )
+    if [ -d "ocean/$ENV/generated" ]; then
+        PRELOAD+=(--preload-file "ocean/$ENV/generated@ocean/$ENV/generated")
+    fi
     if [ -f "config/$ENV.ini" ]; then
         PRELOAD+=(--preload-file "config/$ENV.ini@config/$ENV.ini")
     fi
@@ -256,13 +281,14 @@ elif [ "$MODE" = "web" ]; then
     fi
     emcc \
         -o "build/web/$ENV/game.html" \
-        -x c src/puffercpu.h -x none $EXTRA_SRC \
+        src/puffercpu.c $EXTRA_SRC \
         -O3 -Wall -Wno-narrowing \
         "${LINK_ARCHIVES[@]}" \
         -I. -Isrc -I$SRC_DIR -Ivendor "${INCLUDES[@]}" \
         -L. -L./$RAYLIB_NAME/lib \
         -sASSERTIONS=2 -gsource-map \
         -sUSE_GLFW=3 -sUSE_WEBGL2=1 -sASYNCIFY -sFILESYSTEM -sFORCE_FILESYSTEM=1 \
+        --js-library vendor/puf_web_vsync.js \
         --shell-file vendor/minshell.html \
         -sINITIAL_MEMORY=512MB -sALLOW_MEMORY_GROWTH -sSTACK_SIZE=512KB \
         -DPLATFORM_WEB -DGRAPHICS_API_OPENGL_ES3 \
@@ -332,12 +358,12 @@ NVCC="ccache $CUDA_HOME/bin/nvcc"
 CC="${CC:-$(command -v ccache >/dev/null && echo 'ccache clang' || echo 'clang')}"
 ARCH=${NVCC_ARCH:-native}
 
-# CPU and GPU envs are separate sources. --gpu selects the .cu; default is .h.
+# CPU and CUDA envs are separate sources. --cu selects the .cu; default is .h.
 # Only one is compiled in (never both).
 if [ "$USE_GPU_ENV" = "1" ]; then
     ENV_HEADER="$SRC_DIR/$ENV.cu"
     if [ ! -f "$ENV_HEADER" ]; then
-        echo "Error: --gpu requires $ENV_HEADER"
+        echo "Error: --cu requires $ENV_HEADER"
         exit 1
     fi
 else
@@ -357,16 +383,10 @@ MODE=${MODE:-native}
 NVCC_NARROW=(-Xcompiler=-Wno-narrowing --diag-suppress=2361)
 
 if [ "$MODE" = "native" ]; then
-    if [ -n "$USER_OUTPUT_NAME" ]; then
+    if [ -n "$OUT" ]; then
+        TRAIN_BIN="$OUT"
+    elif [ -n "$USER_OUTPUT_NAME" ]; then
         TRAIN_BIN="$USER_OUTPUT_NAME"
-    elif [ "$NAMED" = 1 ]; then
-        if [ -n "$PRECISION" ]; then
-            TRAIN_BIN="build/puffer_${ENV}_float"
-        elif [ "$SNAKE_RAW" = "1" ]; then
-            TRAIN_BIN="build/puffer_${ENV}_raw"
-        else
-            TRAIN_BIN="build/puffer_${ENV}"
-        fi
     else
         TRAIN_BIN="puffer"
     fi

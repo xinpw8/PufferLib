@@ -530,6 +530,7 @@ void puf_render(Blastar* env) {
         DrawText(TextFormat("LIVES: %d", env->player.lives), SCREEN_WIDTH - MeasureText(TextFormat("LIVES: %d", env->player.lives), 20) - 10, 10, 20, PUFF_CYAN);
     }
     EndDrawing();
+    puf_web_vsync();
 }
 
 // --- Native trainer (pufferl) API ---

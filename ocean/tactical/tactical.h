@@ -1315,6 +1315,7 @@ void puf_render(Tactical* env) {
     SetMouseCursor(cursor);
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 void close_client(Client* client) {

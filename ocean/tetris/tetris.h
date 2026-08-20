@@ -800,6 +800,7 @@ void puf_render(Tetris *env) {
 	DrawText(TextFormat("Score: %i", env->score), SQUARE_SIZE + 4, SQUARE_SIZE + 4, 28, (Color){255, 160, 160, 255});
 	DrawText(TextFormat("Lvl: %i", env->game_level), (client->total_cols - 4) * SQUARE_SIZE, SQUARE_SIZE + 4, 28, (Color){160, 255, 160, 255});
 	EndDrawing();
+	puf_web_vsync();
 }
 
 // --- Native trainer (pufferl) API ---

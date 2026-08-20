@@ -122,6 +122,7 @@ struct Env {
     float old_reward;
     float old_episode_return;
     unsigned int rng;
+    int pending_reset;
 };
 typedef Env Go;
 
@@ -194,6 +195,7 @@ void init(Go* env) {
     env->temp_groups = (Group*)calloc(grid_size, sizeof(Group));
     generate_board_positions(env);
     init_groups(env);
+    env->pending_reset = 0;
 }
 
 void puf_close(Go* env) {
@@ -727,6 +729,7 @@ void puf_reset(Go* env) {
     env->capture_count[1] = 0;
     env->last_capture_position = -1;
     env->moves_made = 0;
+    env->pending_reset = 0;
     compute_observations(env);
 }
 
@@ -754,7 +757,11 @@ void end_game(Go* env){
     clip_rewards(env);
     env->agents[0].terminals[0] = 1;
     add_log(env);
-    puf_reset(env);
+    if (env->client) {
+        env->pending_reset = 1;
+    } else {
+        puf_reset(env);
+    }
 }
 
 void human_play(Go* env){
@@ -838,6 +845,10 @@ static int go_human_controls(Go *env) {
 }
 
 void puf_step(Go* env) {
+    if (env->pending_reset) {
+        puf_reset(env);
+        env->pending_reset = 0;
+    }
     if (go_human_controls(env) < 0) {
         return;
     }
@@ -941,7 +952,7 @@ Client* make_client(int width, int height) {
     client->width = width;
     client->height = height;
     InitWindow(width, height, "PufferLib Ray Go");
-    SetTargetFPS(10);
+    SetTargetFPS(60);
     return client;
 }
 
@@ -1033,6 +1044,7 @@ void puf_render(Go* env) {
         left, top + 40, 20, PUFF_WHITE
     );
     EndDrawing();
+    puf_web_vsync();
 }
 
 // --- Native trainer (pufferl) API ---

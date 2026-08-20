@@ -886,6 +886,7 @@ void puf_render(PacmanEnv *env) {
             150, 10, 20, WHITE);
         DrawText("[Shift] WASD/arrows", 300, 10, 16, WHITE);
         EndDrawing();
+        puf_web_vsync();
     }
 }
 

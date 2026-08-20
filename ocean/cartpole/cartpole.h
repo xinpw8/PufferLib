@@ -134,6 +134,7 @@ void puf_render(Cartpole* env) {
     DrawText(TextFormat("Pole Angle: %.2f", env->theta * 180.0f / M_PI), 10, 70, 20, PUFF_WHITE);
     DrawText("[Shift] A/D or arrows", 10, 100, 16, PUFF_WHITE);
     EndDrawing();
+    puf_web_vsync();
 }
 
 void compute_observations(Cartpole* env) {

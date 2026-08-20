@@ -542,6 +542,7 @@ void puf_render(Game* game) {
     DrawText(score_text, 210, px * SIZE + 10, 24, PUFF_WHITE);
     
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(Game* game) {

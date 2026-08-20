@@ -47,7 +47,7 @@ typedef unsigned char obs_t;
 #define ACT_SIZES {6}
 #define OBS_SIZE 228
 #define NUM_ATNS 1
-// Origin demo stepped on tick%6 at 60 FPS.
+// 4.0 demo: step on tick%6 at 60 FPS, and only when !isMoving.
 #define PUF_STEPS_PER_SEC 10
 #define MY_VEC_INIT
 #define MY_VEC_CLOSE
@@ -201,6 +201,7 @@ struct Env {
     unsigned int rng;
     int owns_levels;
     int queued_banner;
+    int anim_busy;
 };
 
 void add_log(TowerClimb* env) {
@@ -822,6 +823,10 @@ static void tower_climb_human_controls(TowerClimb *env) {
 }
 
 void puf_step(TowerClimb* env) {
+    // 4.0 demo: do not step until the current clip finishes.
+    if (env->anim_busy) {
+        return;
+    }
     int action = (int)env->agents[0].actions[0];
     env->agents[0].actions[0] = NOOP;
     env->buffer.episode_length += 1.0;
@@ -1426,7 +1431,7 @@ Client* make_client(TowerClimb* env) {
         floor * 1.0f,
         z * 1.0f
     };
-    client->targetPosition = client->visualPosition;  // Initialize target to match
+    client->targetPosition = client->visualPosition;
     
     // Initialize camera rotation controls
     client->lastMousePos = (Vector2){0, 0};
@@ -1509,28 +1514,28 @@ static void process_animation_frame(Client* client, TowerClimb* env) {
     if (!client->enable_animations) return;
     const AnimConfig* config = &ANIM_CONFIGS[client->animState];
     if (!client->isMoving && client->animState != ANIM_IDLE) return;
-    
+
     client->animFrameCounter += config->frameRate;
-    UpdateModelAnimation(client->robot, client->animations[config->animationIndex], 
-                        client->animFrameCounter);
-    // Handle shimmy movement lerping
-    if (client->isMoving && (client->animState == ANIM_SHIMMY_LEFT || 
-                            client->animState == ANIM_SHIMMY_RIGHT)) {
+    UpdateModelAnimation(client->robot, client->animations[config->animationIndex],
+        client->animFrameCounter);
+    if (client->isMoving && (client->animState == ANIM_SHIMMY_LEFT
+            || client->animState == ANIM_SHIMMY_RIGHT)) {
         float progress = 0.065f;
-        // Horizontal movement for UP/DOWN, vertical movement for LEFT/RIGHT
-        bool facingNS = env->state->robot_orientation == UP || env->state->robot_orientation == DOWN;
+        bool facingNS = env->state->robot_orientation == UP
+            || env->state->robot_orientation == DOWN;
         if (facingNS) {
-            client->visualPosition.x = Lerp(client->visualPosition.x, client->targetPosition.x, progress);
+            client->visualPosition.x = Lerp(client->visualPosition.x,
+                client->targetPosition.x, progress);
         } else {
-            client->visualPosition.z = Lerp(client->visualPosition.z, client->targetPosition.z, progress);
+            client->visualPosition.z = Lerp(client->visualPosition.z,
+                client->targetPosition.z, progress);
         }
     }
-    // Check for animation completion
     int maxFrames = config->maxFrames;
     if (maxFrames < 0) {
-        maxFrames = client->animations[config->animationIndex].frameCount + maxFrames;
+        maxFrames = client->animations[config->animationIndex].frameCount
+            + maxFrames;
     }
-    // If we've reached the end of the animation, update the animation state
     if (maxFrames > 0 && client->animFrameCounter >= maxFrames) {
         client->isMoving = false;
         update_animation(client, config->nextState);
@@ -1597,8 +1602,7 @@ static void update_camera(Client* client, TowerClimb* env) {
             desiredTarget.y = maxTargetY;
         }
         
-        // Smooth following with interpolation
-        float followSpeed = 0.02f;  // Very smooth following
+        float followSpeed = 0.02f;
         targetCenter.x = client->camera.target.x + (desiredTarget.x - client->camera.target.x) * followSpeed;
         targetCenter.y = client->camera.target.y + (desiredTarget.y - client->camera.target.y) * followSpeed;
         targetCenter.z = client->camera.target.z + (desiredTarget.z - client->camera.target.z) * followSpeed;
@@ -2015,6 +2019,7 @@ static void render_scene(Client* client, TowerClimb* env) {
     EndShaderMode();
     draw_ui(client, env);
     EndDrawing();
+    puf_web_vsync();
 }
 
 static void snap_client_to_robot(TowerClimb* env) {
@@ -2168,7 +2173,9 @@ void puf_render(TowerClimb* env) {
     }
     // Handle position changes
     if (env->state->robot_position != client->previousRobotPosition && client->enable_animations) {
-        if (client->isMoving) client->visualPosition = client->targetPosition;
+        if (client->isMoving) {
+            client->visualPosition = client->targetPosition;
+        }
         client->isMoving = true;
         update_position(client, env);
         float verticalDiff = client->targetPosition.y - client->visualPosition.y;
@@ -2191,6 +2198,7 @@ void puf_render(TowerClimb* env) {
         client->visualPosition = client->targetPosition;
     }
     process_animation_frame(client, env);
+    env->anim_busy = client->enable_animations && client->isMoving;
     update_camera(client, env);
     render_scene(client, env);
 }

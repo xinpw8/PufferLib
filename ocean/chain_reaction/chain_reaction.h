@@ -24,7 +24,7 @@ typedef float obs_t;
 #define OBS_SIZE (MAX_CELLS * OBS_CHANNELS + GLOBAL_OBS)
 #define ACT_SIZES {MAX_ACTIONS}
 #define NUM_ATNS 1
-#define PUF_STEPS_PER_SEC 2
+#define PUF_STEPS_PER_SEC 3
 #define MAX_RENDER_WAVES 256
 #define RED_PLAYER 1
 #define GREEN_PLAYER -1
@@ -1045,6 +1045,7 @@ void puf_render(ChainEnv* env) {
             24, (Color){240, 240, 240, 230});
     }
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_init(Env* env, Dict* kwargs) {

@@ -591,6 +591,7 @@ void puf_render(SpaceInvaders* env) {
     DrawText(TextFormat("Lives: %i", env->lives), env->width - 100, 10, 20,
         WHITE);
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_log(Log* log, Dict* out) {

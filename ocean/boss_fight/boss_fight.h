@@ -46,6 +46,7 @@ typedef float obs_t;
 
 #define WINDOW_SIZE 720
 #define TARGET_FPS 30
+#define PUF_STEPS_PER_SEC 30
 #define HP_BAR_WIDTH 40
 #define HP_BAR_HEIGHT 5
 #define UI_MARGIN 20
@@ -428,7 +429,7 @@ static float radius_to_screen(float world_radius) {
 Client* make_client(BossFight* env) {
     Client* client = (Client*)calloc(1, sizeof(Client));
     InitWindow(WINDOW_SIZE, WINDOW_SIZE, "PufferLib BossFight");
-    SetTargetFPS(TARGET_FPS);
+    SetTargetFPS(60);
     return client;
 }
 
@@ -660,6 +661,7 @@ void puf_render(BossFight* env) {
         HP_COLOR);
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(BossFight* env) {

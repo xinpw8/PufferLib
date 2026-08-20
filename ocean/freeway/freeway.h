@@ -668,6 +668,7 @@ void puf_render(Freeway* env) {
     DrawText(TextFormat("Time: %i", rounded_time_left), round(0.45*env->width) - 40, 3, 40, (Color) {255, 160, 160, 255});
 
     EndDrawing();
+    puf_web_vsync();
 
     //PlaySound(client->sound);
 }

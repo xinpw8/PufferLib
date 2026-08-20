@@ -48,6 +48,10 @@ static void create_custom_encoder(const char* env_name, Encoder* enc) {
         create_minimal_encoder(enc);
         return;
     }
+    if (strcmp(env_name, "asteroids") == 0) {
+        create_asteroids_encoder(enc);
+        return;
+    }
     if (strcmp(env_name, "osrs_colosseum") == 0) {
         create_osrs_entity_encoder<&OSRS_COLOSSEUM_ENTITY_DESCRIPTOR>(enc);
         return;

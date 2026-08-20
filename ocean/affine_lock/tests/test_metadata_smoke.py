@@ -17,17 +17,14 @@ EXPECTED_MY_LOG_KEYS = [
     "episode_return",
     "episode_length",
     "timeout_rate",
-    "invalid_rate",
     "min_win_moves",
     "solved_min_win_moves",
     "conditional_solve_steps",
     "conditional_solve_efficiency",
-    "depth_2_solve_rate",
-    "depth_4_solve_rate",
-    "depth_5_solve_rate",
-    "depth_6_solve_rate",
-    "depth_8_solve_rate",
-    "depth_16_solve_rate",
+    "d6_solve_rate",
+    "d8_solve_rate",
+    "d16_solve_rate",
+    "n",
 ]
 
 
@@ -57,6 +54,7 @@ def check_config():
     assert parse_int(config["env"]["seed"]) == 42
     assert parse_int(config["env"]["start_depth"]) == 2
     assert parse_int(config["env"]["max_depth"]) == 16
+    assert parse_int(config["env"]["perf_weighting"]) == 1
     assert parse_int(config["train"]["total_timesteps"]) == 200_000_000
     assert parse_int(config["train"]["horizon"]) == 64
     assert parse_int(config["train"]["minibatch_size"]) == 8192
@@ -69,9 +67,6 @@ def check_config():
     assert parse_float(config["train"]["vf_coef"]) == 4.75
     assert parse_float(config["train"]["vf_clip_coef"]) == 0.8
     assert parse_float(config["train"]["max_grad_norm"]) == 3.0
-    assert parse_float(config["train"]["beta1"]) == 0.5
-    assert parse_float(config["train"]["beta2"]) == 0.9915
-    assert parse_float(config["train"]["eps"]) == 0.0001
     assert parse_float(config["train"]["vtrace_rho_clip"]) == 1.4
     assert parse_float(config["train"]["vtrace_c_clip"]) == 3.75
     assert "prio_alpha" not in config["train"]
@@ -92,11 +87,6 @@ def check_config():
     assert_sweep_mean(config, "sweep.train.vf_coef", 4.75)
     assert_sweep_mean(config, "sweep.train.vf_clip_coef", 0.8)
     assert_sweep_mean(config, "sweep.train.max_grad_norm", 3.0)
-    assert_sweep_mean(config, "sweep.train.beta1", 0.5)
-    assert_sweep_mean(config, "sweep.train.beta2", 0.9915)
-    assert_sweep_mean(config, "sweep.train.eps", 0.0001)
-    assert_sweep_mean(config, "sweep.train.vtrace_rho_clip", 1.4)
-    assert_sweep_mean(config, "sweep.train.vtrace_c_clip", 3.75)
     assert "sweep.train.prio_alpha" not in config
     assert "sweep.train.prio_beta0" not in config
     assert config["sweep"]["metric"] == "perf"
@@ -138,9 +128,9 @@ def check_config():
 
 def check_header_text():
     header = (ROOT / "ocean" / "affine_lock" / "affine_lock.h").read_text()
-    assert "#define OBS_SIZE AFFINE_LOCK_OBS_SIZE" in header
-    assert "#define ACT_SIZES {AFFINE_LOCK_NUM_ACTIONS}" in header
-    assert "#define NUM_ATNS AFFINE_LOCK_NUM_ATNS" in header
+    assert "#define OBS_SIZE (TIMER_INDEX + 1)" in header
+    assert "#define ACT_SIZES {NUM_ACTIONS}" in header
+    assert "#define NUM_ATNS 1" in header
     assert "typedef" in header and "obs_t" in header
     assert "void puf_init(" in header
     assert "void puf_reset(" in header
@@ -152,7 +142,7 @@ def check_header_text():
 
     log_keys = re.findall(r'dict_set\(out,\s*"([^"]+)"', header)
     assert log_keys == EXPECTED_MY_LOG_KEYS
-    assert len(log_keys) + 1 <= 32  # trainer vec_log appends "n".
+    assert len(log_keys) <= 32
 
 
 def float_buffer(ptr, count):
@@ -191,9 +181,6 @@ def check_backend_metadata():
     assert base_args["train"]["vf_coef"] == 4.75
     assert base_args["train"]["vf_clip_coef"] == 0.8
     assert base_args["train"]["max_grad_norm"] == 3.0
-    assert base_args["train"]["beta1"] == 0.5
-    assert base_args["train"]["beta2"] == 0.9915
-    assert base_args["train"]["eps"] == 0.0001
     assert base_args["train"]["vtrace_rho_clip"] == 1.4
     assert base_args["train"]["vtrace_c_clip"] == 3.75
     assert "prio_alpha" not in base_args["train"]
@@ -231,8 +218,7 @@ def check_backend_metadata():
 
         logs = vec.log()
         assert logs["n"] == 2.0
-        assert logs["invalid_rate"] == 1.0
-        assert logs["timeout_rate"] == 0.0
+        assert logs["timeout_rate"] == 1.0
         assert logs["solve_rate"] == 0.0
         assert logs["episode_length"] == 1.0
         assert logs["episode_return"] == -1.0

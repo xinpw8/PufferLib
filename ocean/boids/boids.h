@@ -295,6 +295,7 @@ void puf_render(Boids* env) {
     }
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_init(Env* env, Dict* kwargs) {

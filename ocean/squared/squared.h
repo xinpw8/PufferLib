@@ -168,6 +168,7 @@ void puf_render(Squared* env) {
             }
         }
         EndDrawing();
+        puf_web_vsync();
     }
 }
 

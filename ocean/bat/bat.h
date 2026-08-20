@@ -1557,6 +1557,7 @@ void puf_render(Bat* env) {
         env->chirps_emitted, cooldown), 10, 10, 20, RAYWHITE);
     draw_freq_history_panel(env, arena_width, 0, FREQ_PANEL_WIDTH, arena_height);
     EndDrawing();
+    puf_web_vsync();
     record_capture_frame(env);
 }
 

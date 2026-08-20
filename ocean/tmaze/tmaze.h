@@ -183,6 +183,7 @@ void puf_render(TMaze* env) {
     DrawText(score_text, env->size * px - 180, 10, 32, (Color){255, 255, 255, 255});
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(TMaze* env) {

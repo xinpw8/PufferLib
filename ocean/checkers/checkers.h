@@ -50,6 +50,7 @@ struct Env {
     int game_over_valid;
     int select;
     unsigned int rng;
+    int pending_reset;
 };
 typedef Env Checkers;
 
@@ -519,6 +520,7 @@ void puf_reset(Checkers *env) {
     unsigned char *obs = env->agents[0].observations;
     env->tick = 0;
     env->select = -1;
+    env->pending_reset = 0;
     env->agents[0].terminals[0] = 0;
     env->agents[0].rewards[0] = 0.0f;
     if (env->rng == 0) {
@@ -589,7 +591,11 @@ static int checkers_human_controls(Checkers *env) {
 
 // Required function
 void puf_step(Checkers *env) {
-    if (checkers_human_controls(env) < 0) {
+    if (env->pending_reset) {
+        puf_reset(env);
+    }
+    // Render writes -1 while Shift is held with no completed click this turn.
+    if ((int)env->agents[0].actions[0] < 0) {
         return;
     }
     env->tick += 1;
@@ -597,11 +603,21 @@ void puf_step(Checkers *env) {
     env->agents[0].rewards[0] = 0.0f;
     env->agents[0].terminals[0] = 0;
 
-    make_move(env, action);
+    // Unmasked eval samples 512 actions; almost all are illegal and
+    // make_move no-ops. Play a legal piece when a window is up.
+    if (IsWindowReady() && !is_valid_move(env, decode_action(env, action))) {
+        scripted_step(env, 1);
+    } else {
+        make_move(env, action);
+    }
     env->agents[0].rewards[0] = clamp(env->agents[0].rewards[0], -1.0f, 1.0f);
     if (env->agents[0].terminals[0] == 1) {
         add_log(env);
-        puf_reset(env);
+        if (IsWindowReady()) {
+            env->pending_reset = 1;
+        } else {
+            puf_reset(env);
+        }
         return;
     }
 
@@ -610,7 +626,11 @@ void puf_step(Checkers *env) {
     }
     if (env->agents[0].terminals[0] == 1) {
         add_log(env);
-        puf_reset(env);
+        if (IsWindowReady()) {
+            env->pending_reset = 1;
+        } else {
+            puf_reset(env);
+        }
         return;
     }
 }
@@ -630,10 +650,13 @@ void puf_render(Checkers *env) {
     if (!IsWindowReady()) {
         SetConfigFlags(FLAG_MSAA_4X_HINT);
         InitWindow(window_width, window_height, "Puffer Checkers");
-        SetTargetFPS(30);
+        SetTargetFPS(60);
     } else if (GetScreenWidth() != window_width
             || GetScreenHeight() != window_height) {
         SetWindowSize(window_width, window_height);
+    }
+    if (IsKeyDown(KEY_LEFT_SHIFT)) {
+        env->agents[0].actions[0] = -1;
     }
     checkers_human_controls(env);
 
@@ -742,6 +765,10 @@ void puf_render(Checkers *env) {
     }
 
     EndDrawing();
+    puf_web_vsync();
+    if (env->pending_reset) {
+        puf_reset(env);
+    }
 }
 
 // Required function. Should clean up anything you allocated

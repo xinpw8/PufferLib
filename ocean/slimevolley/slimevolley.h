@@ -660,6 +660,7 @@ void puf_render(SlimeVolley* env) {
     }
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 // Required function. Should clean up anything you allocated

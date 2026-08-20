@@ -1201,6 +1201,7 @@ void puf_render(CraftaxClassic* env) {
              env->inv[6], env->inv[7], env->inv[8], env->inv[9], env->inv[10], env->inv[11]),
              4, hud_y + 40, 12, (Color){180, 180, 180, 255});
     EndDrawing();
+    puf_web_vsync();
 }
 
 // --- Native trainer (pufferl) API ---

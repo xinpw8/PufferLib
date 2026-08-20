@@ -505,6 +505,7 @@
      }
  
      EndDrawing();
+     puf_web_vsync();
  }
  
  #endif // OVERCOOKED_RENDER_H

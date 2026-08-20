@@ -83,6 +83,7 @@ void puf_render(Template* env) {
     DrawRectangle(540 - 32 + 64 * env->goal, 360 - 32, 64, 64, PUFF_RED);
     DrawRectangle(540 - 32 + 64 * env->x, 360 - 32, 64, 64, PUFF_CYAN);
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(Template* env) {

@@ -781,6 +781,7 @@ void renderer_draw(TronRenderer *renderer, const TronGame *game,
         }
     }
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(Tron *env) {

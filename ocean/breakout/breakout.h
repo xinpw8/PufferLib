@@ -634,6 +634,7 @@ void puf_render(Breakout* env) {
     DrawText(TextFormat("Score: %i", env->score), 10, 10, 20, WHITE);
     DrawText(TextFormat("Balls: %i", env->num_balls), client->width - 80, 10, 20, WHITE);
     EndDrawing();
+    puf_web_vsync();
 
     //PlaySound(client->sound);
 }

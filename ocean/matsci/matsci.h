@@ -339,6 +339,7 @@ void puf_render(Matsci* env) {
     DrawText("Mouse wheel: Zoom in/out", 10, 30, 16, PUFF_WHITE);
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 

@@ -852,6 +852,7 @@ void Mode7(WhiskerRacer* env, RenderTexture2D mode7RenderTexture) {
     );
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 void Draw(WhiskerRacer* env, Vector2* center_points) {
@@ -885,6 +886,7 @@ void Draw(WhiskerRacer* env, Vector2* center_points) {
     );
 
     EndDrawing();
+    puf_web_vsync();
 }
 
 // Hold Left Shift + A/D or mouse wheel.

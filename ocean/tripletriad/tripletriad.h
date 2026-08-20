@@ -8,7 +8,6 @@ typedef float obs_t;
 #define ACT_SIZES {14}
 #define OBS_SIZE 114
 #define NUM_ATNS 1
-#define PUF_STEPS_PER_SEC 1
 
 #define SELECT_CARD_1 0
 #define SELECT_CARD_2 1
@@ -26,6 +25,7 @@ typedef float obs_t;
 #define PLACE_CARD_9 13
 #define TICK_RATE 1.0f/60.0f
 #define MAX_EPISODE_LENGTH 30
+#define HOLD_FRAMES 18
 
 const Color PUFF_RED = (Color){187, 0, 0, 255};
 const Color PUFF_CYAN = (Color){0, 187, 187, 255};
@@ -69,6 +69,10 @@ struct Env {
     float perf;
     float episode_return;
     float episode_length;
+    int last_opp_slot;
+    int last_opp_cell;
+    int show_anim;
+    int pending_reset;
     Client* client;
     unsigned int rng;
 };
@@ -292,6 +296,10 @@ void puf_reset(CTripleTriad* env) {
     env->tick = 0;
     env->episode_length = 0;
     env->episode_return = 0;
+    env->show_anim = 0;
+    env->pending_reset = 0;
+    env->last_opp_slot = -1;
+    env->last_opp_cell = 0;
 }
 
 void select_card(CTripleTriad* env, int card_selected, int player) {
@@ -504,7 +512,11 @@ void puf_step(CTripleTriad* env) {
     if (env->game_over == 1) {
         env->perf = (env->score[0] > env->score[1]) ? 1.0 : 0.0;
         add_log(env);
-        puf_reset(env);
+        if (env->client) {
+            env->pending_reset = 1;
+        } else {
+            puf_reset(env);
+        }
         return;
     }
     // select a card if the card is in the range of 1-5 and the card is not placed
@@ -525,6 +537,9 @@ void puf_step(CTripleTriad* env) {
         bool card_placed = false;
         if(env->card_selected[0] >= 0) {
             if(check_legal_placement(env, card_placement, 1)) {
+                env->last_opp_slot = -1;
+                env->last_opp_cell = 0;
+                env->show_anim = 1;
                 place_card(env,card_placement, 1);
                 check_card_conversions(env, card_placement, 1);
                 check_win_condition(env, 1);
@@ -546,6 +561,8 @@ void puf_step(CTripleTriad* env) {
             if(bot_card_selected > 0) {
                 select_card(env,bot_card_selected, -1);
                 int bot_card_placement = get_bot_card_placement(env);
+                env->last_opp_slot = env->card_selected[1];
+                env->last_opp_cell = bot_card_placement;
                 place_card(env,bot_card_placement, -1);
                 check_card_conversions(env, bot_card_placement, -1);
                 check_win_condition(env, -1);
@@ -589,6 +606,16 @@ void puf_render(CTripleTriad* env) {
         env->client = make_client(env->width, env->height);
     }
 
+    int frames = env->show_anim ? HOLD_FRAMES : 0;
+    int slot = env->last_opp_slot;
+    int cell = env->last_opp_cell;
+    env->show_anim = 0;
+    if (frames && slot >= 0) {
+        env->card_locations[1][slot] = 0;
+        env->board_states[(cell - 1) / 3][(cell - 1) % 3] = 0;
+    }
+    int f = 0;
+redraw:
     BeginDrawing();
     ClearBackground(PUFF_BACKGROUND);
 
@@ -677,8 +704,17 @@ void puf_render(CTripleTriad* env) {
         }
     }
     EndDrawing();
-
-    //PlaySound(client->sound);
+    puf_web_vsync();
+    if (f++ < frames) {
+        goto redraw;
+    }
+    if (frames && slot >= 0) {
+        env->card_locations[1][slot] = cell;
+        env->board_states[(cell - 1) / 3][(cell - 1) % 3] = -1;
+    }
+    if (env->pending_reset) {
+        puf_reset(env);
+    }
 }
 
 void close_client(Client* client) {

@@ -405,6 +405,7 @@ void puf_render(DoublePendulum* env) {
         env->x, env->theta1 * 180.0f / M_PI, env->theta2 * 180.0f / M_PI),
         20, 48, 20, PUFF_WHITE);
     EndDrawing();
+    puf_web_vsync();
 }
 
 void puf_close(DoublePendulum* env) {
