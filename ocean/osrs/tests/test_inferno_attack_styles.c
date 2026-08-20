@@ -17,6 +17,7 @@ static void inf_init_unfinalized_context(InfernoContext* ctx) {
 #include "ocean/osrs/osrs_effects.h"
 #include "ocean/osrs/osrs_projectile_orientation.h"
 #include "ocean/osrs/osrs_render_motion.h"
+#include "ocean/osrs/osrs_inventory_drag.h"
 #include <math.h>
 
 #include "ocean/osrs/tests/osrs_test_check.h"
@@ -6908,6 +6909,32 @@ static void test_inferno_human_equip_does_not_snap_loadout(void) {
     inf_destroy(raw);
 }
 
+static void test_inventory_drag_requires_180ms_hold_and_dead_zone(void) {
+    printf("--- inventory drag requires 180ms hold and dead zone ---\n");
+
+    ASSERT_INT_EQ("movement before 180ms remains a click",
+        osrs_inventory_drag_ready(0.179, 6, 0), 0);
+    ASSERT_INT_EQ("movement at dead-zone edge remains a click",
+        osrs_inventory_drag_ready(0.180, 5, 0), 0);
+    ASSERT_INT_EQ("movement past dead zone after 180ms starts drag",
+        osrs_inventory_drag_ready(0.180, 6, 0), 1);
+}
+
+static void test_inventory_drag_release_restores_source_opacity(void) {
+    printf("--- inventory drag release restores source opacity ---\n");
+
+    int active = 1;
+    int source_slot = 4;
+    int dim_slot = 4;
+    int dim_timer = 9999;
+    osrs_inventory_drag_release(&active, &source_slot, &dim_slot, &dim_timer);
+
+    ASSERT_INT_EQ("released drag is inactive", active, 0);
+    ASSERT_INT_EQ("released drag clears source slot", source_slot, -1);
+    ASSERT_INT_EQ("released drag clears dim slot", dim_slot, -1);
+    ASSERT_INT_EQ("released drag clears dim timer", dim_timer, 0);
+}
+
 static void test_inferno_human_primary_inventory_click_equips_item(void) {
     printf("--- inferno human primary inventory click equips item ---\n");
 
@@ -8732,6 +8759,8 @@ int main(void) {
     test_inferno_refresh_after_state_load_rebuilds_derived_state();
     test_inferno_healer_transition_stats_track_episode_progress();
     test_inferno_human_equip_does_not_snap_loadout();
+    test_inventory_drag_requires_180ms_hold_and_dead_zone();
+    test_inventory_drag_release_restores_source_opacity();
     test_inferno_human_primary_inventory_click_equips_item();
     test_inferno_fight_style_command_does_not_click_inventory();
     test_jad_render_uses_style_specific_attack_animation();

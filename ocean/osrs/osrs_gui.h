@@ -9,6 +9,7 @@
 
 #include "osrs_asset_raylib.h"
 #include "osrs_human_input_types.h"
+#include "osrs_inventory_drag.h"
 
 #if __has_include("raylib.h")
 #include "raylib.h"
@@ -212,8 +213,6 @@ typedef struct {
 } InvSlot;
 
 #define INV_DIM_TICKS 15
-#define INV_DRAG_DEAD_ZONE 5
-#define INV_DRAG_HOLD_SECONDS 0.030
 
 typedef enum {
     INV_ACTION_NONE = 0,
@@ -2332,8 +2331,11 @@ static void gui_inv_handle_mouse(GuiState* gs, Player* p, HumanInput* hi) {
                 gs->inv_grid[target] = gs->inv_grid[gs->inv_drag_src_slot];
                 gs->inv_grid[gs->inv_drag_src_slot] = tmp;
             }
-            gs->inv_drag_active = 0;
-            gs->inv_drag_src_slot = -1;
+            osrs_inventory_drag_release(
+                &gs->inv_drag_active,
+                &gs->inv_drag_src_slot,
+                &gs->inv_dim_slot,
+                &gs->inv_dim_timer);
         }
         return;
     }
@@ -2348,18 +2350,16 @@ static void gui_inv_handle_mouse(GuiState* gs, Player* p, HumanInput* hi) {
         }
     }
 
-    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && gs->inv_drag_src_slot >= 0 && !gs->inv_drag_active &&
-        GetTime() - gs->inv_drag_press_time >= INV_DRAG_HOLD_SECONDS) {
-        int dx = mx - gs->inv_drag_start_x;
-        int dy = my - gs->inv_drag_start_y;
-        if (dx > INV_DRAG_DEAD_ZONE || dx < -INV_DRAG_DEAD_ZONE ||
-            dy > INV_DRAG_DEAD_ZONE || dy < -INV_DRAG_DEAD_ZONE) {
-            gs->inv_drag_active = 1;
-            gs->inv_drag_mouse_x = mx;
-            gs->inv_drag_mouse_y = my;
-            gs->inv_dim_slot = gs->inv_drag_src_slot;
-            gs->inv_dim_timer = 9999;
-        }
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && gs->inv_drag_src_slot >= 0 &&
+            !gs->inv_drag_active && osrs_inventory_drag_ready(
+                GetTime() - gs->inv_drag_press_time,
+                mx - gs->inv_drag_start_x,
+                my - gs->inv_drag_start_y)) {
+        gs->inv_drag_active = 1;
+        gs->inv_drag_mouse_x = mx;
+        gs->inv_drag_mouse_y = my;
+        gs->inv_dim_slot = gs->inv_drag_src_slot;
+        gs->inv_dim_timer = 9999;
     }
 
     if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && gs->inv_drag_src_slot >= 0 && !gs->inv_drag_active) {
