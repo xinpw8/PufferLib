@@ -13,6 +13,7 @@
 #include <string.h>
 #include "osrs_types.h"
 #include "osrs_items.h"
+#include "osrs_inventory.h"
 #include "osrs_pathfinding.h"
 #include "osrs_combat.h"
 #include "osrs_consumables.h"
@@ -23,13 +24,9 @@
 
 typedef struct EncounterState EncounterState;
 typedef struct EncounterContext EncounterContext;
+typedef struct EncounterArenaTopology EncounterArenaTopology;
 
 #define ENCOUNTER_RENDER_HITS_MAX 32
-
-typedef struct {
-    EncounterState* state;
-    EncounterContext* context;
-} EncounterRuntime;
 
 static inline void encounter_abort_unknown_config(
     const char* encounter_name, const char* config_type, const char* key
@@ -64,19 +61,21 @@ static inline int encounter_require_int_range_config(
 #define ENCOUNTER_MAX_PENDING_HITS 32
 
 typedef struct {
-    int active;
-    int damage;
-    int ticks_remaining;
-    int attack_style;
-    int check_prayer;
-    int prayer_check_delay;
+    int8_t active;
+    int8_t ticks_remaining;
+    int8_t attack_style;
+    int8_t check_prayer;
+    int8_t prayer_check_delay;
 
-    int spell_type;
-    int source_npc_type;
-    int source_npc_slot;
-    int hit_success;
-    int elysian_reduced;
+    int8_t spell_type;
+    int8_t source_npc_type;
+    int8_t source_npc_slot;
+    int8_t hit_success;
+    int8_t elysian_reduced;
+    int16_t damage;
 } EncounterPendingHit;
+
+static_assert(sizeof(EncounterPendingHit) == 12, "pending hit record must stay 12 bytes");
 
 typedef struct {
     EncounterPendingHit hits[ENCOUNTER_MAX_PENDING_HITS];
@@ -92,16 +91,16 @@ static inline EncounterPendingHit encounter_pending_hit_resolved_at_throw(
     if (out_prayed) *out_prayed = pr.prayed;
     return (EncounterPendingHit){
         .active = 1,
-        .damage = pr.frozen_damage,
-        .ticks_remaining = ticks_remaining,
-        .attack_style = attack_style,
+        .ticks_remaining = (int8_t)ticks_remaining,
+        .attack_style = (int8_t)attack_style,
         .check_prayer = 0,
         .prayer_check_delay = 0,
         .spell_type = ENCOUNTER_SPELL_NONE,
-        .source_npc_type = source_npc_type,
-        .source_npc_slot = source_npc_slot,
-        .hit_success = accuracy_hit && !pr.prayed,
+        .source_npc_type = (int8_t)source_npc_type,
+        .source_npc_slot = (int8_t)source_npc_slot,
+        .hit_success = (int8_t)(accuracy_hit && !pr.prayed),
         .elysian_reduced = 0,
+        .damage = (int16_t)pr.frozen_damage,
     };
 }
 
@@ -798,77 +797,6 @@ static inline int encounter_move_to_target(
     return steps;
 }
 
-static inline PathResult encounter_pathfind(
-    const CollisionMap* cmap, int world_offset_x, int world_offset_y,
-    int src_x, int src_y, int dst_x, int dst_y,
-    pathfind_blocked_fn extra_blocked, void* blocked_ctx
-) {
-    return pathfind_step(cmap, 0,
-        src_x + world_offset_x, src_y + world_offset_y,
-        dst_x + world_offset_x, dst_y + world_offset_y,
-        extra_blocked, blocked_ctx);
-}
-
-static inline PathResult encounter_pathfind_arena(
-    const CollisionMap* cmap, int world_offset_x, int world_offset_y,
-    int src_x, int src_y, int dst_x, int dst_y,
-    pathfind_blocked_fn extra_blocked, void* blocked_ctx,
-    int arena_base_x, int arena_base_y, int arena_w, int arena_h
-) {
-    return pathfind_step_arena(cmap, 0,
-        src_x + world_offset_x, src_y + world_offset_y,
-        dst_x + world_offset_x, dst_y + world_offset_y,
-        extra_blocked, blocked_ctx,
-        arena_base_x + world_offset_x, arena_base_y + world_offset_y,
-        arena_w, arena_h);
-}
-
-static inline int encounter_walk_toward(
-    Player* p, int tx, int ty,
-    const CollisionMap* cmap, int world_offset_x, int world_offset_y,
-    encounter_walkable_fn is_walkable, void* ctx,
-    pathfind_blocked_fn extra_blocked, void* blocked_ctx,
-    int arena_base_x, int arena_base_y, int arena_w, int arena_h
-) {
-    int steps = 0;
-    for (int step = 0; step < 2; step++) {
-        if (p->x == tx && p->y == ty) break;
-        PathResult pr = (arena_w > 0)
-            ? encounter_pathfind_arena(cmap, world_offset_x, world_offset_y,
-                                       p->x, p->y, tx, ty,
-                                       extra_blocked, blocked_ctx,
-                                       arena_base_x, arena_base_y, arena_w, arena_h)
-            : encounter_pathfind(cmap, world_offset_x, world_offset_y,
-                                  p->x, p->y, tx, ty,
-                                  extra_blocked, blocked_ctx);
-        if (!pr.found || (pr.next_dx == 0 && pr.next_dy == 0)) break;
-        int nx = p->x + pr.next_dx, ny = p->y + pr.next_dy;
-        if (!is_walkable(ctx, nx, ny)) break;
-        p->x = nx; p->y = ny;
-        steps++;
-    }
-    p->is_running = (steps == 2);
-    p->dest_x = p->x; p->dest_y = p->y;
-    return steps;
-}
-
-static inline int encounter_move_toward_dest(
-    Player* p, int* dest_x, int* dest_y,
-    const CollisionMap* cmap, int world_offset_x, int world_offset_y,
-    encounter_walkable_fn is_walkable, void* ctx,
-    pathfind_blocked_fn extra_blocked, void* blocked_ctx,
-    int arena_base_x, int arena_base_y, int arena_w, int arena_h
-) {
-    if (*dest_x < 0 || *dest_y < 0) return 0;
-    if (p->x == *dest_x && p->y == *dest_y) {
-        *dest_x = -1; *dest_y = -1;
-        return 0;
-    }
-    return encounter_walk_toward(p, *dest_x, *dest_y,
-        cmap, world_offset_x, world_offset_y,
-        is_walkable, ctx, extra_blocked, blocked_ctx,
-        arena_base_x, arena_base_y, arena_w, arena_h);
-}
 
 static inline int encounter_entity_footprint_cardinal_adjacent(
     int ax, int ay, int a_size,
@@ -890,610 +818,7 @@ static inline int encounter_entity_footprint_cardinal_adjacent(
     return (dx + dy) == 1;
 }
 
-static inline int encounter_entity_footprints_overlap(
-    int ax, int ay, int a_size,
-    int bx, int by, int b_size
-) {
-    return !(ax + a_size <= bx || bx + b_size <= ax ||
-             ay + a_size <= by || by + b_size <= ay);
-}
 
-typedef enum {
-    OSRS_LOS_OPEN = 0,
-    OSRS_LOS_BLOCKERS,
-    OSRS_LOS_TILE,
-} OsrsLosKind;
-
-typedef struct {
-    OsrsLosKind kind;
-    const LOSBlocker* blockers;
-    int blocker_count;
-    int (*tile_blocked)(void* ctx, int x, int y);
-    void* tile_ctx;
-} OsrsLosQuery;
-
-static inline OsrsLosQuery osrs_los_open(void) {
-    OsrsLosQuery query;
-    query.kind = OSRS_LOS_OPEN;
-    query.blockers = NULL;
-    query.blocker_count = 0;
-    query.tile_blocked = NULL;
-    query.tile_ctx = NULL;
-    return query;
-}
-
-static inline OsrsLosQuery osrs_los_blockers(
-    const LOSBlocker* blockers,
-    int blocker_count
-) {
-    OsrsLosQuery query;
-    query.kind = OSRS_LOS_BLOCKERS;
-    query.blockers = blockers;
-    query.blocker_count = blocker_count;
-    query.tile_blocked = NULL;
-    query.tile_ctx = NULL;
-    return query;
-}
-
-static inline OsrsLosQuery osrs_los_tile(
-    int (*tile_blocked)(void* ctx, int x, int y),
-    void* tile_ctx
-) {
-    OsrsLosQuery query;
-    query.kind = OSRS_LOS_TILE;
-    query.blockers = NULL;
-    query.blocker_count = 0;
-    query.tile_blocked = tile_blocked;
-    query.tile_ctx = tile_ctx;
-    return query;
-}
-
-static inline const OsrsLosQuery* osrs_los_open_query(void) {
-    static const OsrsLosQuery query = {
-        OSRS_LOS_OPEN,
-        NULL,
-        0,
-        NULL,
-        NULL,
-    };
-    return &query;
-}
-
-static inline void osrs_los_require_query(
-    const OsrsLosQuery* query,
-    int attack_range
-) {
-    if (attack_range <= 1) return;
-    if (!query) {
-        fprintf(stderr, "missing OSRS LoS query for ranged attack\n");
-        abort();
-    }
-    if (query->kind < OSRS_LOS_OPEN || query->kind > OSRS_LOS_TILE) {
-        fprintf(stderr, "invalid OSRS LoS query kind: %d\n", (int)query->kind);
-        abort();
-    }
-    if (query->kind == OSRS_LOS_BLOCKERS) {
-        if (query->blocker_count < 0) {
-            fprintf(stderr, "negative OSRS LoS blocker count: %d\n",
-                query->blocker_count);
-            abort();
-        }
-        if (query->blocker_count > 0 && !query->blockers) {
-            fprintf(stderr, "OSRS LoS blocker query is missing blockers\n");
-            abort();
-        }
-    }
-    if (query->kind == OSRS_LOS_TILE && !query->tile_blocked) {
-        fprintf(stderr, "OSRS tile LoS query is missing tile_blocked\n");
-        abort();
-    }
-}
-
-static inline int osrs_los_tile_ray_clear(
-    const OsrsLosQuery* query,
-    int x0, int y0,
-    int x1, int y1
-) {
-    int dx = x1 - x0;
-    int dy = y1 - y0;
-    int adx = dx < 0 ? -dx : dx;
-    int ady = dy < 0 ? -dy : dy;
-    if (adx == 0 && ady == 0) return 1;
-    if (query->tile_blocked(query->tile_ctx, x1, y1)) return 0;
-
-    if (adx > ady) {
-        int x = x0;
-        int y_fp = y0 * LOS_FP_SCALE + LOS_FP_HALF;
-        int slope = (dy * LOS_FP_SCALE) / adx;
-        int x_inc = dx > 0 ? 1 : -1;
-        if (dy < 0) y_fp -= 1;
-        while (x != x1) {
-            x += x_inc;
-            int y = y_fp >> 16;
-            if (query->tile_blocked(query->tile_ctx, x, y)) return 0;
-            y_fp += slope;
-            int new_y = y_fp >> 16;
-            if (new_y != y &&
-                    query->tile_blocked(query->tile_ctx, x, new_y))
-                return 0;
-        }
-    } else {
-        int y = y0;
-        int x_fp = x0 * LOS_FP_SCALE + LOS_FP_HALF;
-        int slope = (dx * LOS_FP_SCALE) / ady;
-        int y_inc = dy > 0 ? 1 : -1;
-        if (dx < 0) x_fp -= 1;
-        while (y != y1) {
-            y += y_inc;
-            int x = x_fp >> 16;
-            if (query->tile_blocked(query->tile_ctx, x, y)) return 0;
-            x_fp += slope;
-            int new_x = x_fp >> 16;
-            if (new_x != x &&
-                    query->tile_blocked(query->tile_ctx, new_x, y))
-                return 0;
-        }
-    }
-    return 1;
-}
-
-static inline int osrs_los_clear(
-    const OsrsLosQuery* query,
-    int px, int py, int psize,
-    int tx, int ty, int tsize,
-    int attack_range
-) {
-    osrs_los_require_query(query, attack_range);
-    if (attack_range <= 1) return 1;
-
-    switch (query->kind) {
-        case OSRS_LOS_OPEN:
-            return 1;
-
-        case OSRS_LOS_BLOCKERS:
-            return entity_has_line_of_sight(
-                query->blockers,
-                query->blocker_count,
-                px,
-                py,
-                psize,
-                tx,
-                ty,
-                tsize,
-                attack_range);
-
-        case OSRS_LOS_TILE: {
-            int p_los_x = tx;
-            if (p_los_x < px) p_los_x = px;
-            if (p_los_x >= px + psize) p_los_x = px + psize - 1;
-            int p_los_y = ty;
-            if (p_los_y < py) p_los_y = py;
-            if (p_los_y >= py + psize) p_los_y = py + psize - 1;
-
-            int t_los_x = px;
-            if (t_los_x < tx) t_los_x = tx;
-            if (t_los_x >= tx + tsize) t_los_x = tx + tsize - 1;
-            int t_los_y = py;
-            if (t_los_y < ty) t_los_y = ty;
-            if (t_los_y >= ty + tsize) t_los_y = ty + tsize - 1;
-
-            return osrs_los_tile_ray_clear(
-                query, t_los_x, t_los_y, p_los_x, p_los_y);
-        }
-    }
-
-    fprintf(stderr, "unhandled OSRS LoS query kind: %d\n", (int)query->kind);
-    abort();
-}
-
-static inline int encounter_player_can_attack(
-    int player_x, int player_y,
-    int target_x, int target_y, int target_size, int attack_range,
-    const OsrsLosQuery* los_query
-) {
-    int dist = encounter_rect_distance(player_x, player_y, 1,
-                                                   target_x, target_y, target_size);
-    if (dist < 1 || dist > attack_range) return 0;
-    if (attack_range == 1)
-        return encounter_entity_footprint_cardinal_adjacent(
-            player_x, player_y, 1, target_x, target_y, target_size);
-    return osrs_los_clear(los_query,
-        player_x, player_y, 1,
-        target_x, target_y, target_size,
-        attack_range);
-}
-
-#define ENCOUNTER_ATTACK_SEEK_MAX_TILES 128
-
-typedef struct {
-    int x;
-    int y;
-} EncounterAttackSeekTile;
-
-static inline void encounter_attack_seek_add_tile(
-    EncounterAttackSeekTile* tiles, int* count,
-    int x, int y, int world_offset_x, int world_offset_y,
-    pathfind_blocked_fn extra_blocked, void* blocked_ctx
-) {
-    if (extra_blocked &&
-            extra_blocked(blocked_ctx, x + world_offset_x, y + world_offset_y))
-        return;
-    if (*count >= ENCOUNTER_ATTACK_SEEK_MAX_TILES) {
-        fprintf(stderr, "attack seek tile capacity exceeded: %d\n",
-            ENCOUNTER_ATTACK_SEEK_MAX_TILES);
-        abort();
-    }
-    tiles[*count] = (EncounterAttackSeekTile){x, y};
-    (*count)++;
-}
-
-static inline int encounter_attack_seek_nearest_dsq(
-    int x, int y, const EncounterAttackSeekTile* tiles, int count
-) {
-    int best = 0x3fffffff;
-    for (int i = 0; i < count; i++) {
-        int dx = x - tiles[i].x;
-        int dy = y - tiles[i].y;
-        int dsq = dx * dx + dy * dy;
-        if (dsq < best) best = dsq;
-    }
-    return best;
-}
-
-static inline int encounter_attack_seek_has_exact_tile(
-    int x, int y, const EncounterAttackSeekTile* tiles, int count
-) {
-    for (int i = 0; i < count; i++) {
-        if (tiles[i].x == x && tiles[i].y == y) return 1;
-    }
-    return 0;
-}
-
-static inline PathResult encounter_pathfind_arena_attack_approach(
-    const CollisionMap* cmap, int world_offset_x, int world_offset_y,
-    int src_x, int src_y,
-    int target_x, int target_y, int target_size, int attack_range,
-    encounter_walkable_fn is_walkable, void* ctx,
-    pathfind_blocked_fn extra_blocked, void* blocked_ctx,
-    const OsrsLosQuery* los_query,
-    int arena_base_x, int arena_base_y, int arena_w, int arena_h
-) {
-    PathResult result = {0, 0, 0, src_x, src_y};
-
-    if (arena_w <= 0 || arena_w > PATHFIND_ARENA_MAX ||
-        arena_h <= 0 || arena_h > PATHFIND_ARENA_MAX) {
-        fprintf(stderr, "attack approach arena dimensions out of bounds: %dx%d\n",
-            arena_w, arena_h);
-        abort();
-    }
-
-    int local_src_x = src_x - arena_base_x;
-    int local_src_y = src_y - arena_base_y;
-    if (local_src_x < 0 || local_src_x >= arena_w ||
-        local_src_y < 0 || local_src_y >= arena_h) {
-        return result;
-    }
-
-    EncounterAttackSeekTile seek_tiles[ENCOUNTER_ATTACK_SEEK_MAX_TILES];
-    int seek_count = 0;
-    for (int xx = 0; xx < target_size; xx++) {
-        int x = target_x + xx;
-        encounter_attack_seek_add_tile(
-            seek_tiles, &seek_count, x, target_y - 1,
-            world_offset_x, world_offset_y, extra_blocked, blocked_ctx);
-        encounter_attack_seek_add_tile(
-            seek_tiles, &seek_count, x, target_y + target_size,
-            world_offset_x, world_offset_y, extra_blocked, blocked_ctx);
-    }
-    for (int yy = 0; yy < target_size; yy++) {
-        int y = target_y + yy;
-        encounter_attack_seek_add_tile(
-            seek_tiles, &seek_count, target_x - 1, y,
-            world_offset_x, world_offset_y, extra_blocked, blocked_ctx);
-        encounter_attack_seek_add_tile(
-            seek_tiles, &seek_count, target_x + target_size, y,
-            world_offset_x, world_offset_y, extra_blocked, blocked_ctx);
-    }
-    static OSRS_THREAD_LOCAL uint16_t approach_gen[PATHFIND_ARENA_MAX][PATHFIND_ARENA_MAX];
-    static OSRS_THREAD_LOCAL int8_t approach_via[PATHFIND_ARENA_MAX][PATHFIND_ARENA_MAX];
-    static OSRS_THREAD_LOCAL int16_t approach_cost[PATHFIND_ARENA_MAX][PATHFIND_ARENA_MAX];
-    static OSRS_THREAD_LOCAL uint16_t approach_gen_counter = 0;
-    approach_gen_counter++;
-    if (approach_gen_counter == 0) {
-        memset(approach_gen, 0, sizeof(approach_gen));
-        approach_gen_counter = 1;
-    }
-    uint16_t gen = approach_gen_counter;
-
-    #define APPROACH_VISITED(x, y) (approach_gen[(x)][(y)] == gen)
-    #define APPROACH_VISIT(x, y, v, c) do { \
-        approach_gen[(x)][(y)] = gen; \
-        approach_via[(x)][(y)] = (v); \
-        approach_cost[(x)][(y)] = (c); \
-    } while(0)
-    #define APPROACH_VIA(x, y) approach_via[(x)][(y)]
-    #define APPROACH_COST(x, y) approach_cost[(x)][(y)]
-    #define APPROACH_EB(x, y) \
-        (extra_blocked && extra_blocked( \
-            blocked_ctx, (x) + world_offset_x, (y) + world_offset_y))
-
-    int queue_x[PATHFIND_MAX_QUEUE_ARENA];
-    int queue_y[PATHFIND_MAX_QUEUE_ARENA];
-    int head = 0;
-    int tail = 0;
-    APPROACH_VISIT(local_src_x, local_src_y, VIA_START, 0);
-    pathfind_enqueue_or_abort(
-        queue_x, queue_y, &tail, PATHFIND_MAX_QUEUE_ARENA,
-        local_src_x, local_src_y);
-
-    int selected_x = -1;
-    int selected_y = -1;
-    int min_explored_x = local_src_x;
-    int min_explored_y = local_src_y;
-    int max_explored_x = local_src_x;
-    int max_explored_y = local_src_y;
-
-    static const int dir_dx[8] = {-1, 1, 0, 0, -1, 1, -1, 1};
-    static const int dir_dy[8] = {0, 0, -1, 1, -1, -1, 1, 1};
-    static const int dir_via[8] = {
-        VIA_W, VIA_E, VIA_S, VIA_N, VIA_SW, VIA_SE, VIA_NW, VIA_NE
-    };
-
-    while (head < tail) {
-        int cur_x = queue_x[head];
-        int cur_y = queue_y[head];
-        head++;
-
-        int tile_x = arena_base_x + cur_x;
-        int tile_y = arena_base_y + cur_y;
-        if (is_walkable(ctx, tile_x, tile_y) &&
-                !APPROACH_EB(tile_x, tile_y) &&
-                (seek_count > 0
-                    ? encounter_attack_seek_has_exact_tile(
-                        tile_x, tile_y, seek_tiles, seek_count)
-                    : encounter_player_can_attack(
-                        tile_x, tile_y, target_x, target_y, target_size,
-                        attack_range, los_query))) {
-            selected_x = cur_x;
-            selected_y = cur_y;
-            break;
-        }
-
-        int abs_x = tile_x + world_offset_x;
-        int abs_y = tile_y + world_offset_y;
-        int next_cost = APPROACH_COST(cur_x, cur_y) + 1;
-
-        for (int i = 0; i < 8; i++) {
-            int dx = dir_dx[i];
-            int dy = dir_dy[i];
-            int next_x = cur_x + dx;
-            int next_y = cur_y + dy;
-            if (next_x < 0 || next_x >= arena_w ||
-                    next_y < 0 || next_y >= arena_h)
-                continue;
-            if (APPROACH_VISITED(next_x, next_y)) continue;
-            if (!collision_traversable_step(cmap, 0, abs_x, abs_y, dx, dy))
-                continue;
-
-            int next_tile_x = tile_x + dx;
-            int next_tile_y = tile_y + dy;
-            if (!is_walkable(ctx, next_tile_x, next_tile_y)) continue;
-            if (APPROACH_EB(next_tile_x, next_tile_y)) continue;
-            if (dx != 0 && dy != 0) {
-                if (APPROACH_EB(tile_x + dx, tile_y)) continue;
-                if (APPROACH_EB(tile_x, tile_y + dy)) continue;
-                if (!is_walkable(ctx, tile_x + dx, tile_y)) continue;
-                if (!is_walkable(ctx, tile_x, tile_y + dy)) continue;
-            }
-
-            pathfind_enqueue_or_abort(
-                queue_x, queue_y, &tail, PATHFIND_MAX_QUEUE_ARENA,
-                next_x, next_y);
-            APPROACH_VISIT(next_x, next_y, dir_via[i], next_cost);
-            if (next_x < min_explored_x) min_explored_x = next_x;
-            if (next_y < min_explored_y) min_explored_y = next_y;
-            if (next_x > max_explored_x) max_explored_x = next_x;
-            if (next_y > max_explored_y) max_explored_y = next_y;
-        }
-    }
-
-    if (selected_x < 0 && seek_count > 0) {
-        int first_local_x = seek_tiles[0].x - arena_base_x;
-        int first_local_y = seek_tiles[0].y - arena_base_y;
-        int scan_min_x = min_explored_x > first_local_x - PATHFIND_MAX_FALLBACK_RADIUS
-            ? min_explored_x : first_local_x - PATHFIND_MAX_FALLBACK_RADIUS;
-        int scan_min_y = min_explored_y > first_local_y - PATHFIND_MAX_FALLBACK_RADIUS
-            ? min_explored_y : first_local_y - PATHFIND_MAX_FALLBACK_RADIUS;
-        int scan_max_x = max_explored_x > first_local_x + PATHFIND_MAX_FALLBACK_RADIUS
-            ? max_explored_x : first_local_x + PATHFIND_MAX_FALLBACK_RADIUS;
-        int scan_max_y = max_explored_y > first_local_y + PATHFIND_MAX_FALLBACK_RADIUS
-            ? max_explored_y : first_local_y + PATHFIND_MAX_FALLBACK_RADIUS;
-        if (scan_min_x < 0) scan_min_x = 0;
-        if (scan_min_y < 0) scan_min_y = 0;
-        if (scan_max_x >= arena_w) scan_max_x = arena_w - 1;
-        if (scan_max_y >= arena_h) scan_max_y = arena_h - 1;
-
-        int best_dsq = 0x3fffffff;
-        int best_cost = 100;
-        for (int x = scan_min_x; x <= scan_max_x; x++) {
-            for (int y = scan_min_y; y <= scan_max_y; y++) {
-                if (!APPROACH_VISITED(x, y)) continue;
-                int tile_x = arena_base_x + x;
-                int tile_y = arena_base_y + y;
-                if (!is_walkable(ctx, tile_x, tile_y)) continue;
-                int cost = APPROACH_COST(x, y);
-                if (cost >= 100) continue;
-                int dsq = encounter_attack_seek_nearest_dsq(
-                    tile_x, tile_y, seek_tiles, seek_count);
-                if (dsq < best_dsq || (dsq == best_dsq && cost < best_cost)) {
-                    selected_x = x;
-                    selected_y = y;
-                    best_dsq = dsq;
-                    best_cost = cost;
-                }
-            }
-        }
-    }
-
-    int cur_x = selected_x;
-    int cur_y = selected_y;
-    if (selected_x < 0) goto approach_done;
-
-    result.found = 1;
-    result.dest_x = arena_base_x + selected_x;
-    result.dest_y = arena_base_y + selected_y;
-    if (selected_x == local_src_x && selected_y == local_src_y)
-        goto approach_done;
-
-    while (1) {
-        int v = APPROACH_VIA(cur_x, cur_y);
-        int prev_x = cur_x;
-        int prev_y = cur_y;
-        if (v & VIA_W) prev_x++;
-        else if (v & VIA_E) prev_x--;
-        if (v & VIA_S) prev_y++;
-        else if (v & VIA_N) prev_y--;
-
-        if (prev_x == local_src_x && prev_y == local_src_y) {
-            result.next_dx = cur_x - local_src_x;
-            result.next_dy = cur_y - local_src_y;
-            goto approach_done;
-        }
-
-        cur_x = prev_x;
-        cur_y = prev_y;
-        if (APPROACH_VIA(cur_x, cur_y) == VIA_NONE ||
-                APPROACH_VIA(cur_x, cur_y) == VIA_START) {
-            result.found = 0;
-            result.next_dx = 0;
-            result.next_dy = 0;
-            goto approach_done;
-        }
-    }
-
-approach_done:
-    #undef APPROACH_VISITED
-    #undef APPROACH_VISIT
-    #undef APPROACH_VIA
-    #undef APPROACH_COST
-    #undef APPROACH_EB
-    return result;
-}
-
-static inline int encounter_chase_attack_target(
-    Player* p, int target_x, int target_y, int target_size, int attack_range,
-    const CollisionMap* cmap, int world_offset_x, int world_offset_y,
-    encounter_walkable_fn is_walkable, void* ctx,
-    pathfind_blocked_fn extra_blocked, void* blocked_ctx,
-    const OsrsLosQuery* los_query,
-    int arena_base_x, int arena_base_y, int arena_w, int arena_h
-) {
-    int dist = encounter_rect_distance(p->x, p->y, 1,
-                                                   target_x, target_y, target_size);
-
-    if (dist == 0) {
-        int max_r = (target_size + 1) / 2 + 1;
-        int best_dsq = 9999, bx = -1, by = -1;
-        for (int dy = -max_r; dy <= max_r; dy++) {
-            for (int dx = -max_r; dx <= max_r; dx++) {
-                if (dx == 0 && dy == 0) continue;
-                int nx = p->x + dx, ny = p->y + dy;
-                if (!is_walkable(ctx, nx, ny)) continue;
-                if (encounter_entity_footprints_overlap(nx, ny, 1,
-                                                        target_x, target_y, target_size))
-                    continue;
-                int d = dx * dx + dy * dy;
-                if (d < best_dsq) { best_dsq = d; bx = nx; by = ny; }
-            }
-        }
-        if (bx < 0) return 0;
-        int steps = encounter_walk_toward(p, bx, by,
-            cmap, world_offset_x, world_offset_y,
-            is_walkable, ctx, extra_blocked, blocked_ctx,
-            arena_base_x, arena_base_y, arena_w, arena_h);
-        return steps > 0 ? 1 : 0;
-    }
-
-    if (encounter_player_can_attack(p->x, p->y, target_x, target_y,
-                                     target_size, attack_range,
-                                     los_query))
-        return 0;
-
-    int cx, cy;
-    cx = -1;
-    cy = -1;
-
-    if (arena_w <= 0) {
-        int scan_min_x = target_x - attack_range;
-        int scan_max_x = target_x + target_size - 1 + attack_range;
-        int scan_min_y = target_y - attack_range;
-        int scan_max_y = target_y + target_size - 1 + attack_range;
-
-        cx = -1;
-        cy = -1;
-        int best_player_dsq = 0x3fffffff;
-        int best_target_dist = 0x3fffffff;
-        if (scan_min_x <= scan_max_x && scan_min_y <= scan_max_y) {
-            for (int yy = scan_min_y; yy <= scan_max_y; yy++) {
-                for (int xx = scan_min_x; xx <= scan_max_x; xx++) {
-                    if (!is_walkable(ctx, xx, yy)) continue;
-                    if (!encounter_player_can_attack(xx, yy, target_x, target_y,
-                            target_size, attack_range,
-                            los_query))
-                        continue;
-                    int dx = xx - p->x;
-                    int dy = yy - p->y;
-                    int player_dsq = dx * dx + dy * dy;
-                    int target_dist = encounter_rect_distance(
-                        xx, yy, 1, target_x, target_y, target_size);
-                    if (player_dsq < best_player_dsq ||
-                            (player_dsq == best_player_dsq &&
-                             target_dist < best_target_dist)) {
-                        best_player_dsq = player_dsq;
-                        best_target_dist = target_dist;
-                        cx = xx;
-                        cy = yy;
-                    }
-                }
-            }
-        }
-
-        if (cx < 0) {
-            cx = p->x < target_x ? target_x :
-                 (p->x > target_x + target_size - 1 ? target_x + target_size - 1 : p->x);
-            cy = p->y < target_y ? target_y :
-                 (p->y > target_y + target_size - 1 ? target_y + target_size - 1 : p->y);
-        }
-    }
-
-    int steps = 0;
-    for (int step = 0; step < 2; step++) {
-        if (encounter_player_can_attack(p->x, p->y, target_x, target_y,
-                                         target_size, attack_range,
-                                         los_query))
-            break;
-        PathResult pr = (arena_w > 0)
-            ? encounter_pathfind_arena_attack_approach(
-                cmap, world_offset_x, world_offset_y,
-                p->x, p->y,
-                target_x, target_y, target_size, attack_range,
-                is_walkable, ctx,
-                extra_blocked, blocked_ctx,
-                los_query,
-                arena_base_x, arena_base_y, arena_w, arena_h)
-            : encounter_pathfind(cmap, world_offset_x, world_offset_y,
-                p->x, p->y, cx, cy,
-                extra_blocked, blocked_ctx);
-        if (!pr.found || (pr.next_dx == 0 && pr.next_dy == 0)) break;
-        int nx = p->x + pr.next_dx, ny = p->y + pr.next_dy;
-        if (!is_walkable(ctx, nx, ny)) break;
-        p->x = nx; p->y = ny;
-        steps++;
-    }
-    p->is_running = (steps == 2);
-    p->dest_x = p->x; p->dest_y = p->y;
-    return steps > 0 ? 1 : 0;
-}
 
 typedef int (*encounter_npc_blocked_fn)(void* ctx, int x, int y, int size);
 typedef int (*encounter_npc_overlap_hold_fn)(void* ctx);
@@ -1549,14 +874,15 @@ static inline int encounter_npc_try_step(
     encounter_npc_blocked_fn is_blocked, void* ctx
 ) {
     if (dx == 0 && dy == 0) return 0;
-    int x_clear = encounter_npc_x_edge_clear(*x, *y, size, dx, dy, is_blocked, ctx);
-    int y_clear = encounter_npc_y_edge_clear(*x, *y, size, dx, dy, is_blocked, ctx);
-    if (x_clear && y_clear) {
-        *x += dx;
-        *y += dy;
-        return 1;
-    }
-    return 0;
+    if (!encounter_npc_x_edge_clear(
+            *x, *y, size, dx, dy, is_blocked, ctx))
+        return 0;
+    if (!encounter_npc_y_edge_clear(
+            *x, *y, size, dx, dy, is_blocked, ctx))
+        return 0;
+    *x += dx;
+    *y += dy;
+    return 1;
 }
 
 static inline int encounter_npc_step_out_from_under(
@@ -1686,7 +1012,7 @@ static inline int encounter_resolve_npc_pending_hit(
 
 typedef void (*EncounterPendingHitObserver)(
     void* user, const EncounterPendingHit* hit, int damage_after_prayer,
-    int prayer_was_correct, int prayer_was_checked);
+    int damage_applied, int prayer_was_correct, int prayer_was_checked);
 
 static inline void encounter_resolve_player_pending_hits_observed(
     EncounterPendingHitQueue* queue,
@@ -1727,9 +1053,13 @@ static inline void encounter_resolve_player_pending_hits_observed(
                 if (off_prayer_hit_count) (*off_prayer_hit_count)++;
             }
 
+            int hitpoints_before = player->current_hitpoints;
+            encounter_damage_player(player, dmg, NULL);
+            int applied = hitpoints_before - player->current_hitpoints;
+            if (damage_received_acc)
+                *damage_received_acc += (float)applied;
             if (observer && hit->attack_style != ATTACK_STYLE_NONE)
-                observer(observer_user, hit, dmg, prayed, checked);
-            encounter_damage_player(player, dmg, damage_received_acc);
+                observer(observer_user, hit, dmg, applied, prayed, checked);
             encounter_pending_hit_queue_remove(queue, i, "player");
             i--;
         }
@@ -2220,11 +1550,16 @@ typedef enum {
     ENCOUNTER_CONSUMABLE_STAT_EFFECT_SANFEW,
 } EncounterConsumableStatEffect;
 
-static inline void encounter_apply_brew_heal(Player* p, int brew_heal) {
+static inline void encounter_apply_brew_heal_capped(
+    Player* p, int brew_heal, int hitpoints_cap
+) {
     p->current_hitpoints += brew_heal;
-    if (p->current_hitpoints > p->base_hitpoints + brew_heal)
-        p->current_hitpoints = p->base_hitpoints + brew_heal;
+    if (p->current_hitpoints > hitpoints_cap) p->current_hitpoints = hitpoints_cap;
     p->ate_food_this_tick = 1;
+}
+
+static inline void encounter_apply_brew_heal(Player* p, int brew_heal) {
+    encounter_apply_brew_heal_capped(p, brew_heal, p->base_hitpoints + brew_heal);
 }
 
 static inline void encounter_apply_brew_heal_and_timer(Player* p, int brew_heal) {
@@ -2376,32 +1711,40 @@ static void encounter_populate_inventory(
     const uint8_t* const* loadouts, int num_loadouts,
     const uint8_t extra_items[NUM_GEAR_SLOTS]
 ) {
-    memset(p->inventory, 255 , sizeof(p->inventory));
-    memset(p->num_items_in_slot, 0, sizeof(p->num_items_in_slot));
-
-    for (int s = 0; s < NUM_GEAR_SLOTS; s++) {
-        int n = 0;
-        for (int l = 0; l < num_loadouts && n < MAX_ITEMS_PER_SLOT; l++) {
-            uint8_t item = loadouts[l][s];
-            if (item == 255 ) continue;
-            int dup = 0;
-            for (int j = 0; j < n; j++) { if (p->inventory[s][j] == item) { dup = 1; break; } }
-            if (dup) continue;
-            p->inventory[s][n++] = item;
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++)
+        p->inventory_cells[cell] = osrs_inventory_cell_empty();
+    int cell = 0;
+    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
+        for (int loadout = 0; loadout < num_loadouts; loadout++) {
+            uint8_t item = loadouts[loadout][slot];
+            if (item == ITEM_NONE || item == p->equipped[slot]) continue;
+            int duplicate = 0;
+            for (int previous = 0; previous < cell; previous++) {
+                if (osrs_inventory_cell_item_index(
+                        &p->inventory_cells[previous]) == item) {
+                    duplicate = 1;
+                    break;
+                }
+            }
+            if (!duplicate && cell < OSRS_INVENTORY_SIZE)
+                p->inventory_cells[cell++] =
+                    osrs_inventory_cell_from_item(item);
         }
-        if (extra_items && extra_items[s] != 255  && n < MAX_ITEMS_PER_SLOT) {
-            int dup = 0;
-            for (int j = 0; j < n; j++) { if (p->inventory[s][j] == extra_items[s]) { dup = 1; break; } }
-            if (!dup) p->inventory[s][n++] = extra_items[s];
+        if (!extra_items || extra_items[slot] == ITEM_NONE ||
+                extra_items[slot] == p->equipped[slot])
+            continue;
+        int duplicate = 0;
+        for (int previous = 0; previous < cell; previous++) {
+            if (osrs_inventory_cell_item_index(
+                    &p->inventory_cells[previous]) == extra_items[slot]) {
+                duplicate = 1;
+                break;
+            }
         }
-        p->num_items_in_slot[s] = n;
+        if (!duplicate && cell < OSRS_INVENTORY_SIZE)
+            p->inventory_cells[cell++] =
+                osrs_inventory_cell_from_item(extra_items[slot]);
     }
-}
-
-static inline void encounter_clear_ammo_inventory_slot(Player* p) {
-    for (int i = 0; i < MAX_ITEMS_PER_SLOT; i++)
-        p->inventory[GEAR_SLOT_AMMO][i] = ITEM_NONE;
-    p->num_items_in_slot[GEAR_SLOT_AMMO] = 0;
 }
 
 static inline void encounter_translate_movement(HumanInput* hi, int* actions,
@@ -2449,6 +1792,7 @@ static inline int encounter_find_observed_target_slot(
 
 typedef struct {
     const char* name;
+    const char* display_name;
 
     int obs_size;
     int num_action_heads;
@@ -2460,6 +1804,9 @@ typedef struct {
     void (*init_context)(EncounterContext* context);
     void (*destroy_context)(EncounterContext* context);
     void (*init_state)(EncounterState* state, EncounterContext* context);
+    void (*finalize_context)(
+        EncounterState* state,
+        EncounterContext* context);
 
     EncounterState* (*create)(void);
     void (*destroy)(EncounterState* state);
@@ -2473,10 +1820,6 @@ typedef struct {
     void (*snapshot)(EncounterState* state, EncounterContext* context, void* out);
     void (*restore)(
         EncounterState* state, EncounterContext* context, const void* data, size_t n);
-
-    size_t (*cell_key_size)(EncounterState* state, EncounterContext* context);
-    void (*write_cell_key)(EncounterState* state, EncounterContext* context, void* out);
-    float (*progress_score)(EncounterState* state, EncounterContext* context);
 
     void (*write_obs)(EncounterState* state, EncounterContext* context, float* obs_out);
     void (*write_mask)(EncounterState* state, EncounterContext* context, float* mask_out);
@@ -2523,35 +1866,6 @@ typedef struct {
     int (*get_tick)(EncounterState* state, EncounterContext* context);
     int (*get_winner)(EncounterState* state, EncounterContext* context);
 } EncounterDef;
-
-static inline EncounterRuntime encounter_runtime_create(const EncounterDef* def) {
-    EncounterRuntime runtime = {0};
-    if (!def || def->state_size == 0 || def->context_size == 0) {
-        fprintf(stderr, "encounter_runtime_create: %s has no typed runtime\n",
-            def ? def->name : "(null)");
-        abort();
-    }
-    runtime.state = (EncounterState*)calloc(1, def->state_size);
-    runtime.context = (EncounterContext*)calloc(1, def->context_size);
-    if (!runtime.state || !runtime.context) {
-        fprintf(stderr, "encounter_runtime_create: out of memory for %s\n", def->name);
-        abort();
-    }
-    if (def->init_context) def->init_context(runtime.context);
-    if (def->init_state) def->init_state(runtime.state, runtime.context);
-    return runtime;
-}
-
-static inline void encounter_runtime_destroy(const EncounterDef* def, EncounterRuntime* runtime) {
-    if (!runtime) return;
-    if (def && def->destroy_context && runtime->context) {
-        def->destroy_context(runtime->context);
-    }
-    free(runtime->state);
-    free(runtime->context);
-    runtime->state = NULL;
-    runtime->context = NULL;
-}
 
 #define MAX_ENCOUNTERS 32
 

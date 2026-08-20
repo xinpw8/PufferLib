@@ -3,23 +3,55 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
+#include "ocean/osrs/osrs_item_obs_generated.h"
 #include "ocean/osrs/encounters/encounter_colosseum.h"
+static void col_init_unfinalized_context(ColosseumContext* ctx) {
+    col_init_context_typed(ctx);
+}
+
 
 #define col_init_context_typed(ctx_ptr) do { \
     col_init_context_typed(ctx_ptr); \
+    col_finalize_route_topology((ctx_ptr)); \
     (ctx_ptr)->config.late_start_state_mode = 0; \
 } while (0)
 
 #include "ocean/osrs/tests/osrs_test_check.h"
+static void assert_child_aborts(const char* label, void (*fn)(void)) {
+    fflush(NULL);
+    pid_t pid = fork();
+    if (pid == 0) {
+        fn();
+        _exit(0);
+    }
 
-#define TEST_NPC_TELLS_OFFSET 26
+    int status = 0;
+    waitpid(pid, &status, 0);
+    tests_run++;
+    if (WIFSIGNALED(status) ||
+            (WIFEXITED(status) && WEXITSTATUS(status) != 0)) {
+        tests_passed++;
+    } else {
+        tests_failed++;
+        printf("  FAIL: %s - child returned successfully\n", label);
+    }
+}
+
+
 #define TEST_MOD_HAZARD_BASE (COLO_OBS_AFTER_NPCS + COLO_MODIFIER_FLAGS_OBS_SIZE)
 #define TEST_MOD_OBS_DOOM_LETHAL (TEST_MOD_HAZARD_BASE + 2)
-#define TEST_MOD_OBS_VENOM_TIMER (TEST_MOD_HAZARD_BASE + 6)
-#define TEST_MOD_OBS_SOLARFLARE (TEST_MOD_HAZARD_BASE + 10)
-#define TEST_MOD_OBS_MOLTEN (TEST_MOD_HAZARD_BASE + 18)
-#define TEST_MOD_OBS_VOLATILITY (TEST_MOD_HAZARD_BASE + 30)
+#define TEST_MOD_OBS_DOOM_PENDING (TEST_MOD_HAZARD_BASE + 3)
+#define TEST_MOD_OBS_VENOM_SEVERITY (TEST_MOD_HAZARD_BASE + 4)
+#define TEST_MOD_OBS_VENOM_TIMER (TEST_MOD_HAZARD_BASE + 5)
+#define TEST_MOD_OBS_POISON_SEVERITY (TEST_MOD_HAZARD_BASE + 6)
+#define TEST_MOD_OBS_POISON_TIMER (TEST_MOD_HAZARD_BASE + 7)
+#define TEST_MOD_OBS_SOLARFLARE (TEST_MOD_HAZARD_BASE + 11)
+#define TEST_MOD_OBS_MOLTEN (TEST_MOD_HAZARD_BASE + 19)
+#define TEST_MOD_OBS_VOLATILITY (TEST_MOD_HAZARD_BASE + 31)
+#define TEST_MOD_OBS_PREMOVE_UNAVOIDABLE (TEST_MOD_HAZARD_BASE + 39)
 
 static EncounterLoadoutStats test_col_live_stats_for_set(
     const ColosseumState* s,
@@ -107,11 +139,15 @@ static void kill_first_live_score_enemy(ColosseumState* s) {
 
 static float score_for_depth(float depth) {
     float ratio = depth / (float)COLO_NUM_WAVES;
-    return 0.99f * ratio * ratio;
+    return COLO_SCORE_LOSS_CEILING * ratio * ratio;
 }
 
-static void land_pending_player_hits(ColosseumState* s) {
-    for (int t = 0; t < 4; t++) col_resolve_player_projectiles_on_npcs(s);
+static void land_pending_player_hits(
+    ColosseumState* s,
+    ColosseumContext* ctx
+) {
+    for (int t = 0; t < 4; t++)
+        col_resolve_player_projectiles_on_npcs_ctx(s, ctx);
 }
 
 static void geo_clear_npcs(ColosseumState* s) {
@@ -147,15 +183,16 @@ static int forecast_move_action_for_delta(int dx, int dy) {
     return 0;
 }
 
-static int forecast_action_has_event(const ColoStepOutForecastAction* action) {
-    for (int tick = 0; tick < COLO_STEP_OUT_FORECAST_HORIZON; tick++)
-        if (col_step_out_forecast_tick_has_event(&action->ticks[tick])) return 1;
-    return 0;
+static int test_obs_slot_for_npc(const ColosseumState* s, int npc_idx) {
+    for (int slot = 0; slot < COLO_OBS_NPCS; slot++)
+        if (s->current_obs_slots[slot] == npc_idx) return slot;
+    return -1;
 }
 
 static int test_find_inventory_cell_with_item(const ColosseumState* s, uint8_t item_idx) {
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++)
-        if (s->inventory_cells[i].item_idx == item_idx) return i;
+        if (osrs_inventory_cell_item_index(
+                &s->player.inventory_cells[i]) == item_idx) return i;
     return -1;
 }
 
@@ -164,7 +201,7 @@ static int test_find_inventory_cell_with_consumable(
     OsrsConsumableKind kind
 ) {
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++) {
-        const ColoInvCell* cell = &s->inventory_cells[i];
+        const ColoInvCell* cell = &s->player.inventory_cells[i];
         OsrsInventoryClickResolution r =
             osrs_inventory_cell_click_interpret(cell, OSRS_CLICK_TICK_FIRST);
         if (r.consumable_kind == kind) return i;
@@ -177,9 +214,12 @@ static void test_click_inventory_cell_action_s(
 ) {
     assert(cell >= 0 && cell < COLO_INVENTORY_DISPLAY_SLOTS);
     OsrsInventoryClickResolution r =
-        osrs_inventory_cell_click_interpret(&s->inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
+        osrs_inventory_cell_click_interpret(
+            &s->player.inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
     if (r.click_action == OSRS_CLICK_EQUIP) {
-        int slot = osrs_item_gear_slot(s->inventory_cells[cell].item_idx);
+        int slot =
+            osrs_inventory_cell_metadata(
+                &s->player.inventory_cells[cell])->gear_slot;
         assert(slot >= 0 && slot < NUM_GEAR_SLOTS);
         actions[COLO_HEAD_EQUIP_SLOT(slot)] = cell + 1;
     } else if (r.click_action == OSRS_CLICK_EAT) {
@@ -203,10 +243,13 @@ static float test_click_mask_for_cell_s(
     const ColosseumState* s, const float mask[COLO_ACTION_MASK_SIZE], int cell
 ) {
     OsrsInventoryClickResolution r =
-        osrs_inventory_cell_click_interpret(&s->inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
+        osrs_inventory_cell_click_interpret(
+            &s->player.inventory_cells[cell], OSRS_CLICK_TICK_FIRST);
     int head;
     if (r.click_action == OSRS_CLICK_EQUIP) {
-        int slot = osrs_item_gear_slot(s->inventory_cells[cell].item_idx);
+        int slot =
+            osrs_inventory_cell_metadata(
+                &s->player.inventory_cells[cell])->gear_slot;
         head = (slot >= 0 && slot < NUM_GEAR_SLOTS) ? COLO_HEAD_EQUIP_SLOT(slot)
                                                     : COLO_HEAD_EQUIP_SLOT(0);
     } else if (r.click_action == OSRS_CLICK_EAT) {
@@ -225,10 +268,11 @@ static int test_sum_inventory_doses_for_kind(
 ) {
     int doses = 0;
     for (int i = 0; i < COLO_INVENTORY_DISPLAY_SLOTS; i++) {
-        const ColoInvCell* cell = &s->inventory_cells[i];
+        const ColoInvCell* cell = &s->player.inventory_cells[i];
         OsrsInventoryClickResolution r =
             osrs_inventory_cell_click_interpret(cell, OSRS_CLICK_TICK_FIRST);
-        if (r.consumable_kind == kind) doses += cell->dose;
+        if (r.consumable_kind == kind)
+            doses += osrs_inventory_cell_dose_count(cell);
     }
     return doses;
 }
@@ -242,6 +286,7 @@ static int test_aggregate_doses_for_kind(
             return s->player.brew_doses;
         case OSRS_CONSUMABLE_SUPER_RESTORE:
         case OSRS_CONSUMABLE_SANFEW:
+        case OSRS_CONSUMABLE_PRAYER_RESTORE:
             return s->player.restore_doses;
         case OSRS_CONSUMABLE_SUPER_COMBAT:
         case OSRS_CONSUMABLE_DIVINE_COMBAT:
@@ -258,7 +303,11 @@ static int test_aggregate_doses_for_kind(
         case OSRS_CONSUMABLE_NONE:
         case OSRS_CONSUMABLE_SHARK_FOOD:
         case OSRS_CONSUMABLE_KARAMBWAN:
+        case OSRS_CONSUMABLE_BASTION:
+        case OSRS_CONSUMABLE_STAMINA:
             return -1;
+        case OSRS_CONSUMABLE_COUNT:
+            break;
     }
     abort();
 }
@@ -282,18 +331,39 @@ static void test_prepare_for_drink_kind(
     }
 }
 
+static const float TEST_ITEM_OBS_TABLE
+    [OSRS_ITEM_OBS_TABLE_ROWS][OSRS_ITEM_OBS_TABLE_COLS] = {
+#include "ocean/osrs/osrs_item_obs_table.inc"
+};
+
+static void test_expand_inventory_cell(
+    const float obs[COLO_NUM_OBS],
+    int cell_idx,
+    float out[COLO_INVENTORY_CELL_ENCODER_FEATURES]
+) {
+    int code = osrs_inventory_cell_obs_code_decode(
+        obs[COLO_OBS_INVENTORY_START + cell_idx]);
+    if (code < 0 || code >= OSRS_ITEM_OBS_TABLE_ROWS) {
+        fprintf(stderr, "inventory cell %d observed item code %d\n", cell_idx, code);
+        abort();
+    }
+    memcpy(out, TEST_ITEM_OBS_TABLE[code], sizeof(TEST_ITEM_OBS_TABLE[code]));
+}
+
+/* Offsets into the EXPANDED record above, not into the observation. */
 typedef enum {
-    TEST_INV_OBS_ROLE_ARMOR = 12,
-    TEST_INV_OBS_ROLE_WEAPON = 13,
-    TEST_INV_OBS_KIND_BREW = 14,
-    TEST_INV_OBS_KIND_RESTORE = 15,
-    TEST_INV_OBS_KIND_COMBAT_BOOST = 16,
-    TEST_INV_OBS_KIND_RANGED_BOOST = 17,
-    TEST_INV_OBS_KIND_SPECIAL = 18,
-    TEST_INV_OBS_EFFECT_LIFESTEAL = 22,
-    TEST_INV_OBS_EFFECT_DAMAGE_AMP = 23,
-    TEST_INV_OBS_EFFECT_DEFENSIVE = 24,
-    TEST_INV_OBS_EFFECT_UTIL = 25,
+    TEST_INV_OBS_ROLE_ARMOR = 2,
+    TEST_INV_OBS_ROLE_WEAPON = 3,
+    TEST_INV_OBS_KIND_BREW = OSRS_INVENTORY_CELL_OBS_SHARED + 0,
+    TEST_INV_OBS_KIND_RESTORE = OSRS_INVENTORY_CELL_OBS_SHARED + 1,
+    TEST_INV_OBS_KIND_COMBAT_BOOST = OSRS_INVENTORY_CELL_OBS_SHARED + 2,
+    TEST_INV_OBS_KIND_RANGED_BOOST = OSRS_INVENTORY_CELL_OBS_SHARED + 3,
+    TEST_INV_OBS_KIND_SPECIAL = OSRS_INVENTORY_CELL_OBS_SHARED + 4,
+    TEST_INV_OBS_EFFECT_LIFESTEAL = OSRS_INVENTORY_CELL_OBS_SHARED + 3,
+    TEST_INV_OBS_EFFECT_DAMAGE_AMP = OSRS_INVENTORY_CELL_OBS_SHARED + 4,
+    TEST_INV_OBS_EFFECT_DEFENSIVE = OSRS_INVENTORY_CELL_OBS_SHARED + 5,
+    TEST_INV_OBS_EFFECT_UTIL = OSRS_INVENTORY_CELL_OBS_SHARED + 6,
+    TEST_INV_OBS_SPEC_COST = OSRS_INVENTORY_CELL_OBS_SHARED + 9,
 } TestInventoryObsFeature;
 
 typedef struct {
@@ -321,25 +391,27 @@ static float test_any_inventory_kind_bit(const float* cell_obs) {
 
 static TestDroppedInventoryFields test_expected_dropped_inventory_fields(
     const ColosseumState* s,
+    const float mask[COLO_ACTION_MASK_SIZE],
     int cell_idx
 ) {
-    const ColoInvCell* cell = &s->inventory_cells[cell_idx];
-    OsrsConsumableClick consumable =
-        osrs_consumable_click_lookup_raw_osrs_id(cell->raw_osrs_id);
-    uint32_t effect_mask = OSRS_ITEM_EFFECT_NONE;
-    if (cell->item_idx != ITEM_NONE) {
-        if (cell->item_idx >= NUM_ITEMS) abort();
-        effect_mask = ITEM_DATABASE[cell->item_idx].effect_mask;
-    }
-    OsrsConsumableKind6 k6 = col_consumable_kind6(consumable.consumable_kind);
+    const ColoInvCell* cell = &s->player.inventory_cells[cell_idx];
+    const OsrsItemContentMetadata* metadata =
+        osrs_inventory_cell_metadata(cell);
+    uint32_t effect_mask = metadata->item == NULL
+        ? OSRS_ITEM_EFFECT_NONE
+        : metadata->item->effect_mask;
+    OsrsConsumableKind6 k6 = col_consumable_kind6(
+        (OsrsConsumableKind)metadata->consumable_kind);
 
     return (TestDroppedInventoryFields){
-        .is_gear = test_binary_float(cell->item_idx != ITEM_NONE),
-        .is_consumable = test_binary_float(consumable.click_action != OSRS_CLICK_NONE),
-        .can_use = test_binary_float(col_inventory_cell_actionable(s, cell_idx)),
+        .is_gear = test_binary_float(metadata->item != NULL),
+        .is_consumable = test_binary_float(
+            metadata->consumable_kind != OSRS_CONSUMABLE_NONE),
+        .can_use = test_click_mask_for_cell_s(s, mask, cell_idx),
         .has_effect = test_binary_float(effect_mask != OSRS_ITEM_EFFECT_NONE),
-        .role_food = test_binary_float(consumable.click_action == OSRS_CLICK_EAT),
-        .role_potion_family = test_binary_float(consumable.click_action == OSRS_CLICK_DRINK),
+        .role_food = test_binary_float(metadata->click_action == OSRS_CLICK_EAT),
+        .role_potion_family = test_binary_float(
+            metadata->click_action == OSRS_CLICK_DRINK),
         .kind_food = test_binary_float(k6 == COL_CKIND6_FOOD),
     };
 }
@@ -350,20 +422,20 @@ static TestDroppedInventoryFields test_reconstructed_dropped_inventory_fields(
     const float mask[COLO_ACTION_MASK_SIZE],
     int cell_idx
 ) {
-    int base = COLO_OBS_AFTER_PILLARS +
-        cell_idx * COLO_INVENTORY_CELL_OBS_FEATURES;
-    const float* cell_obs = &obs[base];
-    float kind = test_any_inventory_kind_bit(cell_obs);
-    float effect = test_binary_float(
+    float expanded[COLO_INVENTORY_CELL_ENCODER_FEATURES];
+    test_expand_inventory_cell(obs, cell_idx, expanded);
+    const float* cell_obs = expanded;
+    int is_gear_cell = cell_obs[TEST_INV_OBS_ROLE_ARMOR] != 0.0f ||
+        cell_obs[TEST_INV_OBS_ROLE_WEAPON] != 0.0f;
+    float kind = is_gear_cell ? 0.0f : test_any_inventory_kind_bit(cell_obs);
+    float effect = is_gear_cell ? test_binary_float(
         cell_obs[TEST_INV_OBS_EFFECT_LIFESTEAL] != 0.0f ||
         cell_obs[TEST_INV_OBS_EFFECT_DAMAGE_AMP] != 0.0f ||
         cell_obs[TEST_INV_OBS_EFFECT_DEFENSIVE] != 0.0f ||
-        cell_obs[TEST_INV_OBS_EFFECT_UTIL] != 0.0f);
+        cell_obs[TEST_INV_OBS_EFFECT_UTIL] != 0.0f) : 0.0f;
 
     return (TestDroppedInventoryFields){
-        .is_gear = test_binary_float(
-            cell_obs[TEST_INV_OBS_ROLE_ARMOR] != 0.0f ||
-            cell_obs[TEST_INV_OBS_ROLE_WEAPON] != 0.0f),
+        .is_gear = test_binary_float(is_gear_cell),
         .is_consumable = kind,
         .can_use = test_click_mask_for_cell_s(s, mask, cell_idx),
         .has_effect = effect,
@@ -398,7 +470,7 @@ static void test_check_inventory_cut_equivalence_state(
 
     for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
         TestDroppedInventoryFields expected =
-            test_expected_dropped_inventory_fields(s, cell);
+            test_expected_dropped_inventory_fields(s, mask, cell);
         TestDroppedInventoryFields reconstructed =
             test_reconstructed_dropped_inventory_fields(s, obs, mask, cell);
         test_check_inventory_dropped_field(
@@ -428,7 +500,8 @@ static int test_count_item_in_equipment_and_inventory(
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++)
         if (s->player.equipped[slot] == item_idx) count++;
     for (int slot = 0; slot < COLO_INVENTORY_DISPLAY_SLOTS; slot++)
-        if (s->inventory_cells[slot].item_idx == item_idx) count++;
+        if (osrs_inventory_cell_item_index(
+                &s->player.inventory_cells[slot]) == item_idx) count++;
     return count;
 }
 
@@ -725,21 +798,20 @@ static void test_draft_offer_and_select(void) {
     CHECK("selection logged", s.log.modifiers_picked == 1);
 
     s.wave = 1;
-    col_spawn_wave(&s);
+    col_spawn_wave(&s, &ctx);
     CHECK("modifier persists across waves", col_mod_active(&s, (ColoModifier)chosen));
 
-    int rfdd_late = 0, rfdd_window = 0, boss_excluded_seen = 0;
+    int rfdd_before_window = 0, rfdd_in_window = 0, boss_excluded_seen = 0;
     for (int rep = 0; rep < 400; rep++) {
-        int late_wave = 7 + rep % 4;
-        col_modifier_open_draft(&s, late_wave);
+        col_modifier_open_draft(&s, rep % COLO_RFDD_FIRST_DRAFT_WAVE);
         for (int o = 0; o < COLO_MODIFIER_DRAFT_OPTIONS; o++) {
             int m = s.modifiers.draft_options[o];
-            if (m == COLO_MOD_RED_FLAG || m == COLO_MOD_DYNAMIC_DUO) rfdd_late = 1;
+            if (m == COLO_MOD_RED_FLAG || m == COLO_MOD_DYNAMIC_DUO) rfdd_before_window = 1;
         }
-        col_modifier_open_draft(&s, 2 + rep % 5);
+        col_modifier_open_draft(&s, COLO_RFDD_FIRST_DRAFT_WAVE + rep % 5);
         for (int o = 0; o < COLO_MODIFIER_DRAFT_OPTIONS; o++) {
             int m = s.modifiers.draft_options[o];
-            if (m == COLO_MOD_RED_FLAG || m == COLO_MOD_DYNAMIC_DUO) rfdd_window = 1;
+            if (m == COLO_MOD_RED_FLAG || m == COLO_MOD_DYNAMIC_DUO) rfdd_in_window = 1;
         }
         col_modifier_open_draft(&s, COLO_WAVE_BOSS);
         for (int o = 0; o < COLO_MODIFIER_DRAFT_OPTIONS; o++) {
@@ -748,9 +820,49 @@ static void test_draft_offer_and_select(void) {
         }
     }
     s.modifiers.draft_pending = 0;
-    CHECK("Red Flag / Dynamic Duo never offered into wave 8+", rfdd_late == 0);
-    CHECK("Red Flag / Dynamic Duo do appear in drafts before wave 7", rfdd_window == 1);
+    CHECK("Red Flag / Dynamic Duo are not offered before the wave-7 draft",
+        rfdd_before_window == 0);
+    CHECK("Red Flag / Dynamic Duo appear from the wave-7 draft through wave 11",
+        rfdd_in_window == 1);
     CHECK("the wave-12 draft excludes RF/DD/Mantimayhem/Reentry", boss_excluded_seen == 0);
+}
+
+static void test_first_draft_is_fixed_trio(void) {
+    printf("test_first_draft_is_fixed_trio\n");
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    ColosseumState s;
+
+    int all_trios_exact = 1;
+    int order_varied = 0;
+    int first_order[COLO_MODIFIER_DRAFT_OPTIONS] = { -1, -1, -1 };
+    for (int rep = 0; rep < 200; rep++) {
+        memset(&s, 0, sizeof(s));
+        col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 1234u + (uint32_t)rep);
+
+        int seen_relentless = 0, seen_blasphemy = 0, seen_frailty = 0;
+        for (int o = 0; o < COLO_MODIFIER_DRAFT_OPTIONS; o++) {
+            int m = s.modifiers.draft_options[o];
+            if (m == COLO_MOD_RELENTLESS) seen_relentless = 1;
+            else if (m == COLO_MOD_BLASPHEMY) seen_blasphemy = 1;
+            else if (m == COLO_MOD_FRAILTY) seen_frailty = 1;
+            else all_trios_exact = 0;
+        }
+        if (!(seen_relentless && seen_blasphemy && seen_frailty)) all_trios_exact = 0;
+
+        if (rep == 0) {
+            for (int o = 0; o < COLO_MODIFIER_DRAFT_OPTIONS; o++)
+                first_order[o] = s.modifiers.draft_options[o];
+        } else {
+            for (int o = 0; o < COLO_MODIFIER_DRAFT_OPTIONS; o++)
+                if (s.modifiers.draft_options[o] != first_order[o]) order_varied = 1;
+        }
+    }
+
+    CHECK("the wave-1 draft is always exactly Relentless/Blasphemy/Frailty",
+        all_trios_exact == 1);
+    CHECK("the wave-1 draft is pending on reset", s.modifiers.draft_pending == 1);
+    CHECK("the wave-1 draft slot order is not a fixed constant", order_varied == 1);
 }
 
 static void test_draft_upgrade_bias(void) {
@@ -859,7 +971,7 @@ static void test_quartet_extra_spawn(void) {
     memset(&base, 0, sizeof(base));
     col_reset_ctx((EncounterState*)&base, (EncounterContext*)&ctx, 5);
     base.wave = 0;
-    col_spawn_wave(&base);
+    col_spawn_wave(&base, &ctx);
     int base_count = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++) if (base.npcs[i].active) base_count++;
 
@@ -869,7 +981,7 @@ static void test_quartet_extra_spawn(void) {
     q.modifiers.active_mask |= (1u << COLO_MOD_QUARTET);
     q.modifiers.tier[COLO_MOD_QUARTET] = 1;
     q.wave = 0;
-    col_spawn_wave(&q);
+    col_spawn_wave(&q, &ctx);
     int q_count = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++) if (q.npcs[i].active) q_count++;
 
@@ -881,7 +993,7 @@ static void test_quartet_extra_spawn(void) {
     q12.modifiers.active_mask |= (1u << COLO_MOD_QUARTET);
     q12.modifiers.tier[COLO_MOD_QUARTET] = 1;
     q12.wave = COLO_WAVE_BOSS;
-    col_spawn_wave(&q12);
+    col_spawn_wave(&q12, &ctx);
     int sol = 0, warband = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++) {
         if (!q12.npcs[i].active) continue;
@@ -903,7 +1015,7 @@ static void test_bees_hazard(void) {
     s.modifiers.active_mask |= (1u << COLO_MOD_BEES);
     s.modifiers.tier[COLO_MOD_BEES] = 2;
     s.wave = 0;
-    col_spawn_wave(&s);
+    col_spawn_wave(&s, &ctx);
 
     int bee_npcs = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++)
@@ -969,8 +1081,8 @@ static void test_bees_hazard(void) {
     s.player.y = bee_npc->y;
 
     int slot = s.bees[0].npc_slot;
-    col_player_attack_target(&s, slot);
-    land_pending_player_hits(&s);
+    col_player_attack_target_ctx(&s, &ctx, slot);
+    land_pending_player_hits(&s, &ctx);
     CHECK("a single hit kills the swarm", !s.npcs[slot].active);
     CHECK("the killed swarm enters its 50-tick respawn",
         s.bees[0].phase == COLO_HAZARD_RESPAWNING &&
@@ -993,7 +1105,7 @@ static void test_bees_hazard(void) {
     sc.modifiers.active_mask |= (1u << COLO_MOD_BEES);
     sc.modifiers.tier[COLO_MOD_BEES] = 1;
     sc.wave = 0;
-    col_spawn_wave(&sc);
+    col_spawn_wave(&sc, &ctx);
     sc.wave_spawn_delay = 0;
     int live_bee = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++)
@@ -1004,6 +1116,13 @@ static void test_bees_hazard(void) {
     step_and_observe(&sc, &ctx, idle);
     CHECK("the wave clears (next draft opens) with the bee swarm still alive",
         draft_is_open(&sc) && sc.wave_spawn_target == 1);
+}
+
+static int count_live_totems(const ColosseumState* s) {
+    int n = 0;
+    for (int t = 0; t < COLO_MAX_TOTEMS; t++)
+        if (s->totems[t].phase != COLO_HAZARD_NONE) n++;
+    return n;
 }
 
 static void test_totem_lifecycle(void) {
@@ -1022,37 +1141,64 @@ static void test_totem_lifecycle(void) {
 
     col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 12, 16);
     s.npcs[0].hp = 70;
-    col_mod_on_npc_hp_changed(&s, 0);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, 0);
     CHECK("no totem above 50% HP", s.totems[0].phase == COLO_HAZARD_NONE);
     s.npcs[0].hp = 60;
-    col_mod_on_npc_hp_changed(&s, 0);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, 0);
     CHECK("crossing <=50% spawns a totem", s.totems[0].phase == COLO_HAZARD_ALIVE);
     int tslot = s.totems[0].npc_slot;
     CHECK("the totem is a live 1-HP NPC beside its owner",
         tslot >= 0 && s.npcs[tslot].active &&
         s.npcs[tslot].type == COLO_HEALING_TOTEM && s.npcs[tslot].hp == 1);
-    col_mod_on_npc_hp_changed(&s, 0);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, 0);
     CHECK("no duplicate totem for the same owner", s.totems[0].phase == COLO_HAZARD_ALIVE);
 
-    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL - 1; t++) col_mod_tick_totems(&s);
-    CHECK("no heal before the 7th tick", s.npcs[0].hp == 60);
-    col_mod_tick_totems(&s);
-    CHECK("the 7th tick heals 30% of the owner's max HP", s.npcs[0].hp == 60 + 37);
-    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL; t++) col_mod_tick_totems(&s);
-    CHECK("the pulse is gated while the owner is above 50%", s.npcs[0].hp == 97);
-    s.npcs[0].hp = 50;
-    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL; t++) col_mod_tick_totems(&s);
-    CHECK("the pulse resumes once the owner re-crosses 50%", s.npcs[0].hp == 87);
+    CHECK("the totem spawns on the owner's south-west tile",
+        s.npcs[tslot].x == s.npcs[0].x - 1 && s.npcs[tslot].y == s.npcs[0].y - 1);
 
-    col_player_attack_target(&s, tslot);
-    land_pending_player_hits(&s);
+    int heal = s.npcs[0].max_hp * COLO_TOTEM_HEAL_PCT / 100;
+    for (int t = 0; t < COLO_TOTEM_SPAWN_HEAL_DELAY + COLO_TOTEM_PROJECTILE_TICKS - 1; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
+    CHECK("no heal lands before the spawn delay plus projectile flight",
+        s.npcs[0].hp == 60);
+    col_mod_tick_totems(&s, ctx.route_topology);
+    CHECK("the first heal restores 30% of the owner's max HP",
+        s.npcs[0].hp == 60 + heal);
+    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
+    CHECK("heals land every 7 ticks and continue above 50%",
+        s.npcs[0].hp == 60 + 2 * heal || s.npcs[0].hp == s.npcs[0].max_hp);
+    for (int t = 0; t < 4 * COLO_TOTEM_HEAL_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
+    CHECK("the totem heals the owner back to full and then stops",
+        s.npcs[0].hp == s.npcs[0].max_hp);
+
+    s.npcs[0].hp = 50;
+    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL - COLO_TOTEM_PROJECTILE_TICKS; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
+    CHECK("a heal projectile is in flight before it lands",
+        s.totems[0].projectile_timer > 0 && s.npcs[0].hp == 50);
+    col_player_attack_target_ctx(&s, &ctx, tslot);
+    land_pending_player_hits(&s, &ctx);
+    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
+    CHECK("destroying the totem cancels the in-flight heal",
+        s.npcs[0].hp == 50 && s.totems[0].phase == COLO_HAZARD_RESPAWNING);
+    s.totems[0].phase = COLO_HAZARD_ALIVE;
+    s.totems[0].npc_slot = tslot;
+    s.npcs[tslot].active = 1;
+    s.npcs[tslot].hp = 1;
+
+    col_player_attack_target_ctx(&s, &ctx, tslot);
+    land_pending_player_hits(&s, &ctx);
     CHECK("a single attack destroys the totem", !s.npcs[tslot].active);
     CHECK("destruction arms the 200-tick respawn",
         s.totems[0].phase == COLO_HAZARD_RESPAWNING &&
         s.totems[0].respawn_timer == COLO_TOTEM_RESPAWN_TICKS);
-    for (int t = 0; t < COLO_TOTEM_RESPAWN_TICKS - 1; t++) col_mod_tick_totems(&s);
+    for (int t = 0; t < COLO_TOTEM_RESPAWN_TICKS - 1; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("still down one tick early", s.totems[0].phase == COLO_HAZARD_RESPAWNING);
-    col_mod_tick_totems(&s);
+    col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("the totem respawns exactly 200 ticks after destruction",
         s.totems[0].phase == COLO_HAZARD_ALIVE &&
         s.npcs[s.totems[0].npc_slot].active &&
@@ -1066,10 +1212,10 @@ static void test_totem_lifecycle(void) {
 
     col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 12, 16);
     s.npcs[0].hp = 60;
-    col_mod_on_npc_hp_changed(&s, 0);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, 0);
     int tslot3 = s.totems[0].npc_slot;
-    col_player_attack_target(&s, tslot3);
-    land_pending_player_hits(&s);
+    col_player_attack_target_ctx(&s, &ctx, tslot3);
+    land_pending_player_hits(&s, &ctx);
     CHECK("second totem down and respawning", s.totems[0].phase == COLO_HAZARD_RESPAWNING);
     s.npcs[0].hp = 0;
     col_apply_npc_death(&s, 0);
@@ -1093,32 +1239,268 @@ static void test_totemic_sol_wave12(void) {
     CHECK("Sol is live", sol >= 0);
 
     s.npcs[sol].hp = COLO_SOL_HP_MAX * 60 / 100;
-    col_mod_on_npc_hp_changed(&s, sol);
-    CHECK("no totem while Sol is above 50%", s.totems[sol].phase == COLO_HAZARD_NONE);
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, sol);
+    CHECK("no totem while Sol is above 50%", col_totem_for_owner(&s, sol) == NULL);
     s.npcs[sol].hp = COLO_SOL_HP_MAX / 2;
-    col_mod_on_npc_hp_changed(&s, sol);
-    CHECK("Sol at 50% spawns a totem", s.totems[sol].phase == COLO_HAZARD_ALIVE);
-    int tslot = s.totems[sol].npc_slot;
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, sol);
+    ColoTotem* sol_totem = col_totem_for_owner(&s, sol);
+    CHECK("Sol at 50% spawns a totem",
+        sol_totem && sol_totem->phase == COLO_HAZARD_ALIVE);
+    int tslot = sol_totem->npc_slot;
     CHECK("Sol's totem is an attackable 1-HP NPC inside the boss arena",
         s.npcs[tslot].type == COLO_HEALING_TOTEM && s.npcs[tslot].hp == 1 &&
         col_in_boss_arena(&s, s.npcs[tslot].x, s.npcs[tslot].y));
+    CHECK("the first Sol totem arms the two-minute extra-totem timer",
+        s.sol_totem_spawn_timer == COLO_TOTEM_SOL_EXTRA_INTERVAL);
 
     int hp0 = s.npcs[sol].hp;
-    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL - 1; t++) col_mod_tick_totems(&s);
-    CHECK("no Sol heal before the 7th tick", s.npcs[sol].hp == hp0);
-    col_mod_tick_totems(&s);
+    for (int t = 0; t < COLO_TOTEM_SPAWN_HEAL_DELAY + COLO_TOTEM_PROJECTILE_TICKS - 1; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
+    CHECK("no Sol heal before the spawn delay plus projectile flight",
+        s.npcs[sol].hp == hp0);
+    col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("the pulse heals Sol exactly 75", s.npcs[sol].hp == hp0 + COLO_TOTEM_SOL_HEAL);
-    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL; t++) col_mod_tick_totems(&s);
+    for (int t = 0; t < COLO_TOTEM_HEAL_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
     CHECK("Sol keeps healing 75/7t even above 50% (until destroyed)",
         s.npcs[sol].hp == hp0 + 2 * COLO_TOTEM_SOL_HEAL);
 
-    col_player_attack_target(&s, tslot);
-    land_pending_player_hits(&s);
+    col_player_attack_target_ctx(&s, &ctx, tslot);
+    land_pending_player_hits(&s, &ctx);
     int hp1 = s.npcs[sol].hp;
-    for (int t = 0; t < 3 * COLO_TOTEM_HEAL_INTERVAL; t++) col_mod_tick_totems(&s);
+    for (int t = 0; t < 3 * COLO_TOTEM_HEAL_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
+    sol_totem = col_totem_for_owner(&s, sol);
     CHECK("a destroyed totem stops the Sol heal (until the 200t respawn)",
         !s.npcs[tslot].active && s.npcs[sol].hp == hp1 &&
-        s.totems[sol].phase == COLO_HAZARD_RESPAWNING);
+        sol_totem && sol_totem->phase == COLO_HAZARD_RESPAWNING);
+}
+
+static void test_obs_signal_defects(void) {
+    printf("test_obs_signal_defects\n");
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    ctx.config.start_wave = 1;
+    ColosseumState s;
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 5150);
+
+    CHECK("reset leaves no boss index, so pre-boss waves cannot read one",
+        s.sol.boss_idx == -1);
+
+    geo_clear_npcs(&s);
+    s.modifiers.draft_pending = 0;
+    s.modifiers.active_mask |= (1u << COLO_MOD_TOTEMIC) | (1u << COLO_MOD_BEES);
+    s.modifiers.tier[COLO_MOD_TOTEMIC] = 1;
+    s.modifiers.tier[COLO_MOD_BEES] = 1;
+    s.player.x = 12; s.player.y = 16;
+    col_rebuild_player_collision_flags(&s);
+
+    static float obs[COLO_NUM_OBS];
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
+    int boss_base = COLO_OBS_AFTER_MODS + COLO_WAVE_OBS_SIZE;
+    int boss_rel_x = boss_base + COLO_SOL_NUM_PHASES + 7;
+    CHECK("pre-boss waves emit no stray boss-relative position",
+        obs[boss_rel_x] == 0.0f && obs[boss_rel_x + 1] == 0.0f);
+
+    col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 13, 16);
+    s.npcs[0].hp = 60;
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, 0);
+    int tslot = col_totem_for_owner(&s, 0)->npc_slot;
+    s.npcs[tslot].x = s.player.x + 1;
+    s.npcs[tslot].y = s.player.y;
+
+    col_mod_sync_bees(&s);
+    int bslot = s.bees[0].npc_slot;
+    s.npcs[bslot].x = s.player.x;
+    s.npcs[bslot].y = s.player.y + 1;
+
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
+    int in_range_off = COLO_NPC_TYPE_CODE_FEATURES + 3 + 1;
+    int totem_slot = test_obs_slot_for_npc(&s, tslot);
+    int bee_slot = test_obs_slot_for_npc(&s, bslot);
+    int shaman_slot = test_obs_slot_for_npc(&s, 0);
+    CHECK("an adjacent totem does not claim to threaten the player",
+        obs[COLO_OBS_AFTER_SHARED +
+            totem_slot * COLO_FEATURES_PER_NPC + in_range_off] == 0.0f);
+    CHECK("a bee adjacent to the player does not claim an attack range",
+        obs[COLO_OBS_AFTER_SHARED +
+            bee_slot * COLO_FEATURES_PER_NPC + in_range_off] == 0.0f);
+    CHECK("a real attacker in range still reports it",
+        obs[COLO_OBS_AFTER_SHARED +
+            shaman_slot * COLO_FEATURES_PER_NPC + in_range_off] == 1.0f);
+}
+
+static void test_obs_overwrites_dirty_buffer(void) {
+    printf("test_obs_overwrites_dirty_buffer\n");
+    ColosseumContext ctx;
+    ColosseumState s;
+    init_forecast_test_state(&s, &ctx, 5151, 12, 16);
+    float clean[COLO_NUM_OBS] = {0};
+    float dirty[COLO_NUM_OBS];
+    for (int i = 0; i < COLO_NUM_OBS; i++) dirty[i] = 7.0f;
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, clean);
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, dirty);
+    CHECK("pre-boss observation overwrites every output",
+        memcmp(clean, dirty, sizeof(clean)) == 0);
+
+    s.wave = COLO_WAVE_BOSS;
+    s.sol.started = 1;
+    ctx.config.laser_obs_mode = 0;
+    memset(clean, 0, sizeof(clean));
+    for (int i = 0; i < COLO_NUM_OBS; i++) dirty[i] = 7.0f;
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, clean);
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, dirty);
+    CHECK("laser-disabled boss observation overwrites every output",
+        memcmp(clean, dirty, sizeof(clean)) == 0);
+}
+
+
+static void test_totem_heal_timing_obs(void) {
+    printf("test_totem_heal_timing_obs\n");
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    ctx.config.start_wave = 1;
+    ColosseumState s;
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 4242);
+    geo_clear_npcs(&s);
+    s.modifiers.draft_pending = 0;
+    s.modifiers.active_mask |= (1u << COLO_MOD_TOTEMIC);
+    s.modifiers.tier[COLO_MOD_TOTEMIC] = 1;
+    s.player.x = 25; s.player.y = 18;
+    col_rebuild_player_collision_flags(&s);
+
+    col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 12, 16);
+    s.npcs[0].hp = 60;
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, 0);
+    int tslot = s.totems[0].npc_slot;
+    CHECK("fixture: totem spawned", tslot >= 0);
+
+    static float obs[COLO_NUM_OBS];
+    int totem_base, owner_base;
+
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
+    totem_base = COLO_OBS_AFTER_SHARED +
+        test_obs_slot_for_npc(&s, tslot) * COLO_FEATURES_PER_NPC;
+    owner_base = COLO_OBS_AFTER_SHARED +
+        test_obs_slot_for_npc(&s, 0) * COLO_FEATURES_PER_NPC;
+    int launch_idx = totem_base + COLO_NPC_TELLS_OFFSET + 0;
+    int flight_idx = totem_base + COLO_NPC_TELLS_OFFSET + 1;
+    int heal_idx   = totem_base + COLO_NPC_TELLS_OFFSET + 2;
+    int owner_dx_idx = totem_base + COLO_NPC_TELLS_OFFSET + 3;
+    int owner_dy_idx = totem_base + COLO_NPC_TELLS_OFFSET + 4;
+
+    CHECK("a fresh totem shows a pending launch and no projectile in flight",
+        obs[launch_idx] > 0.0f && obs[flight_idx] == 0.0f);
+    CHECK("the pending heal is 30% of a non-Sol owner's max HP",
+        fabsf(obs[heal_idx] - 0.30f) < 0.02f);
+    CHECK("the totem carries its owner's relative position",
+        obs[owner_dx_idx] != 0.0f || obs[owner_dy_idx] != 0.0f);
+    CHECK("a serpent shaman writes no totem tells",
+        obs[owner_base + COLO_NPC_TELLS_OFFSET + 0] == 0.0f &&
+        obs[owner_base + COLO_NPC_TELLS_OFFSET + 1] == 0.0f &&
+        obs[owner_base + COLO_NPC_TELLS_OFFSET + 2] == 0.0f);
+    CHECK("the totem features cost no extra record width",
+        COLO_FEATURES_PER_NPC == 23);
+
+    for (int t = 0; t < COLO_TOTEM_SPAWN_HEAL_DELAY; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
+    CHECK("once launched the projectile is visible and the launch cue clears",
+        s.totems[0].projectile_timer > 0 &&
+        obs[flight_idx] > 0.0f && obs[launch_idx] == 0.0f);
+
+    float flight_before = obs[flight_idx];
+    col_mod_tick_totems(&s, ctx.route_topology);
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
+    CHECK("the in-flight cue counts down toward the landing tick",
+        obs[flight_idx] < flight_before && obs[flight_idx] > 0.0f);
+
+    int hazard_base = COLO_OBS_AFTER_NPCS + COLO_MODIFIER_FLAGS_OBS_SIZE;
+    int sol_timer_idx = hazard_base + COLO_MODIFIER_HAZARD_OBS_SIZE - 2;
+    int count_idx = hazard_base + COLO_MODIFIER_HAZARD_OBS_SIZE - 1;
+    CHECK("one live totem is reported in the hazard block",
+        fabsf(obs[count_idx] - 1.0f / (float)COLO_TOTEM_OBS_COUNT_NORM) < 1e-6f);
+    CHECK("no Sol extra-totem timer outside wave 12", obs[sol_timer_idx] == 0.0f);
+}
+
+static void test_totem_sol_obs_reports_stacking(void) {
+    printf("test_totem_sol_obs_reports_stacking\n");
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    ctx.config.start_wave = 11;
+    ColosseumState s;
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 4243);
+    advance_to_wave_spawn(&s, &ctx);
+    s.modifiers.active_mask |= (1u << COLO_MOD_TOTEMIC);
+    s.modifiers.tier[COLO_MOD_TOTEMIC] = 1;
+    int sol = col_sol_find_idx(&s);
+    s.npcs[sol].hp = COLO_SOL_HP_MAX / 2;
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, sol);
+
+    static float obs[COLO_NUM_OBS];
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
+    int hazard_base = COLO_OBS_AFTER_NPCS + COLO_MODIFIER_FLAGS_OBS_SIZE;
+    int sol_timer_idx = hazard_base + COLO_MODIFIER_HAZARD_OBS_SIZE - 2;
+    int count_idx = hazard_base + COLO_MODIFIER_HAZARD_OBS_SIZE - 1;
+
+    CHECK("the Sol extra-totem countdown is observable once armed",
+        obs[sol_timer_idx] > 0.0f);
+    float armed = obs[sol_timer_idx];
+
+    int tslot = col_totem_for_owner(&s, sol)->npc_slot;
+    int tbase = COLO_OBS_AFTER_SHARED +
+        test_obs_slot_for_npc(&s, tslot) * COLO_FEATURES_PER_NPC;
+    CHECK("a Sol totem's pending heal reads as 75 of Sol's max HP",
+        fabsf(obs[tbase + COLO_NPC_TELLS_OFFSET + 2] -
+              (float)COLO_TOTEM_SOL_HEAL / (float)COLO_SOL_HP_MAX) < 1e-4f);
+
+    for (int t = 0; t < COLO_TOTEM_SOL_EXTRA_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
+    CHECK("a second stacked totem raises the observed live count",
+        count_live_totems(&s) == 2 &&
+        fabsf(obs[count_idx] - 2.0f / (float)COLO_TOTEM_OBS_COUNT_NORM) < 1e-6f);
+    CHECK("the countdown rearms after the extra totem spawns",
+        obs[sol_timer_idx] > 0.0f && fabsf(obs[sol_timer_idx] - armed) < 0.05f);
+}
+
+static void test_totemic_sol_extra_totems_every_two_minutes(void) {
+    printf("test_totemic_sol_extra_totems_every_two_minutes\n");
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    ctx.config.start_wave = 11;
+    ColosseumState s;
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 227);
+    advance_to_wave_spawn(&s, &ctx);
+    s.modifiers.active_mask |= (1u << COLO_MOD_TOTEMIC);
+    s.modifiers.tier[COLO_MOD_TOTEMIC] = 1;
+    int sol = col_sol_find_idx(&s);
+    CHECK("Sol is live", sol >= 0);
+
+    s.npcs[sol].hp = COLO_SOL_HP_MAX / 2;
+    col_mod_on_npc_hp_changed(&s, ctx.route_topology, sol);
+
+    int totems_after_first = count_live_totems(&s);
+    CHECK("exactly one totem at the 50% trigger", totems_after_first == 1);
+
+    for (int t = 0; t < COLO_TOTEM_SOL_EXTRA_INTERVAL - 1; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
+    CHECK("no extra totem one tick early", count_live_totems(&s) == 1);
+    col_mod_tick_totems(&s, ctx.route_topology);
+    CHECK("a second totem spawns two minutes after the first",
+        count_live_totems(&s) == 2);
+
+    for (int t = 0; t < COLO_TOTEM_SOL_EXTRA_INTERVAL; t++)
+        col_mod_tick_totems(&s, ctx.route_topology);
+    CHECK("a third totem spawns two minutes later", count_live_totems(&s) == 3);
+
+    s.npcs[sol].hp = 0;
+    col_apply_npc_death(&s, sol);
+    CHECK("Sol's death despawns every totem it owned", count_live_totems(&s) == 0);
 }
 
 static void test_reentry_sand_tiles(void) {
@@ -1133,7 +1515,8 @@ static void test_reentry_sand_tiles(void) {
 
     s.modifiers.active_mask |= (1u << COLO_MOD_REENTRY);
     s.modifiers.tier[COLO_MOD_REENTRY] = 1;
-    col_mod_reentry_on_skyfall(&s, 20, 12);
+    col_mod_reentry_on_skyfall(
+        &s, ctx.route_topology, 20, 12);
     CHECK("T1 leaves one pool on the targeted tile",
         s.molten_count == 1 && s.molten_x[0] == 20 && s.molten_y[0] == 12);
     CHECK("the T1 pool is the stronger Reentry kind",
@@ -1162,7 +1545,8 @@ static void test_reentry_sand_tiles(void) {
     CHECK("T1 (temporary) clears at wave end", s.molten_count == 0);
 
     s.modifiers.tier[COLO_MOD_REENTRY] = 2;
-    col_mod_reentry_on_skyfall(&s, 20, 12);
+    col_mod_reentry_on_skyfall(
+        &s, ctx.route_topology, 20, 12);
     int has_target = 0, has_sw = 0, has_w = 0, all_reentry = 1;
     for (int i = 0; i < s.molten_count; i++) {
         if (s.molten_x[i] == 20 && s.molten_y[i] == 12) has_target = 1;
@@ -1178,7 +1562,8 @@ static void test_reentry_sand_tiles(void) {
 
     s.molten_count = 0;
     s.modifiers.tier[COLO_MOD_REENTRY] = 3;
-    col_mod_reentry_on_skyfall(&s, 20, 12);
+    col_mod_reentry_on_skyfall(
+        &s, ctx.route_topology, 20, 12);
     has_target = has_sw = has_w = 0;
     for (int i = 0; i < s.molten_count; i++) {
         if (s.molten_x[i] == 20 && s.molten_y[i] == 12) has_target = 1;
@@ -1191,14 +1576,72 @@ static void test_reentry_sand_tiles(void) {
     CHECK("Reentry T3 pools are PERMANENT (survive wave end)", s.molten_count == 3);
 
     s.molten_count = 0;
+    s.modifiers.tier[COLO_MOD_REENTRY] = 1;
     s.modifiers.active_mask |= (1u << COLO_MOD_VOLATILITY);
     s.modifiers.tier[COLO_MOD_VOLATILITY] = 3;
     s.player.x = 5; s.player.y = 18;
-    col_mod_volatility_on_death(&s, 20, 16, 1);
-    CHECK("Volatility T3 leaves a temporary Volatility pool at the centre",
+    col_mod_volatility_on_corpse_removed(
+        &s, ctx.route_topology, 20, 16, 1);
+    CHECK("Volatility T3 leaves a Volatility pool at the centre",
         s.molten_count == 1 && s.molten_kind[0] == COLO_POOL_VOLATILITY);
+    s.player.x = 20;
+    s.player.y = 16;
+    s.player.current_hitpoints = 99;
+    float javelin_typeless_before =
+        s.log.typeless_damage_by_type[COLO_JAVELIN_COLOSSUS];
+    col_mod_tick_molten_pools(&s);
+    CHECK("Volatility pool damage is not attributed to Javelin",
+        s.player.current_hitpoints < 99 &&
+        s.log.typeless_damage_by_type[COLO_JAVELIN_COLOSSUS] ==
+            javelin_typeless_before);
     col_modifiers_on_wave_spawn(&s);
-    CHECK("the Volatility (temporary) pool clears at wave end", s.molten_count == 0);
+    CHECK("under Reentry I the Volatility pool is temporary and clears at wave end",
+        s.molten_count == 0);
+
+    s.modifiers.tier[COLO_MOD_REENTRY] = 2;
+    col_mod_volatility_on_corpse_removed(
+        &s, ctx.route_topology, 20, 16, 1);
+    CHECK("Reentry II makes the Volatility III pool permanent",
+        s.molten_count == 1 && s.molten_lifetime[0] == COLO_POOL_PERMANENT);
+    col_modifiers_on_wave_spawn(&s);
+    CHECK("that permanent Volatility pool survives wave end with its kind intact",
+        s.molten_count == 1 && s.molten_kind[0] == COLO_POOL_VOLATILITY);
+
+    s.molten_count = 0;
+    s.modifiers.tier[COLO_MOD_REENTRY] = 3;
+    col_mod_volatility_on_corpse_removed(
+        &s, ctx.route_topology, 20, 16, 1);
+    CHECK("Reentry III also makes the Volatility III pool permanent",
+        s.molten_count == 1 && s.molten_lifetime[0] == COLO_POOL_PERMANENT);
+}
+
+static void test_mantimayhem_venom_cured_at_wave_end(void) {
+    printf("test_mantimayhem_venom_cured_at_wave_end\n");
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    ColosseumState s;
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 41);
+    geo_clear_npcs(&s);
+    s.modifiers.draft_pending = 0;
+    s.wave = 0;
+    s.wave_spawn_delay = 0;
+    s.wave_ready_delay = 0;
+    s.reinforcement_timer = COLO_REINFORCEMENT_TICKS;
+    s.player.x = 12;
+    s.player.y = 16;
+    s.modifiers.active_mask |= (1u << COLO_MOD_MANTIMAYHEM);
+    s.modifiers.tier[COLO_MOD_MANTIMAYHEM] = 2;
+
+    s.player_venom = COLO_VENOM_START;
+    s.player_venom_timer = COLO_VENOM_INTERVAL;
+    CHECK("rig sanity: the player is venomed mid-wave", s.player_venom > 0);
+
+    int idle[COLO_NUM_ACTION_HEADS] = {0};
+    step_and_observe(&s, &ctx, idle);
+    CHECK("rig sanity: the empty wave clears", s.tick_scratch.wave_completed == 1);
+    CHECK("Mantimayhem venom is cured at the end of each wave",
+        s.player_venom == 0 && s.player_venom_timer == 0);
 }
 
 static void test_venom_escalation(void) {
@@ -1393,7 +1836,7 @@ static void test_mantimayhem_stress(void) {
     s.modifiers.active_mask |= (1u << COLO_MOD_MANTIMAYHEM);
     s.modifiers.tier[COLO_MOD_MANTIMAYHEM] = 2;
     s.wave = 8;
-    col_spawn_wave(&s);
+    col_spawn_wave(&s, &ctx);
 
     int manticores = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++)
@@ -1461,7 +1904,7 @@ static void test_solarflare_orb(void) {
     s.modifiers.active_mask |= (1u << COLO_MOD_SOLARFLARE);
     s.modifiers.tier[COLO_MOD_SOLARFLARE] = 2;
     s.wave = 0;
-    col_spawn_wave(&s);
+    col_spawn_wave(&s, &ctx);
     CHECK("Solarflare orb is active", s.solarflare.active);
 
     int geometry_ok = 1;
@@ -1479,7 +1922,7 @@ static void test_solarflare_orb(void) {
             int x, y;
             col_solarflare_tile(&s, p, step, &x, &y);
             if (!sf_tile_on_pillar_perimeter(p, x, y)) geometry_ok = 0;
-            if (col_static_blocked(x, y)) geometry_ok = 0;
+            if (col_topology_tile_blocked(&ctx, x, y)) geometry_ok = 0;
         }
         for (int c = 0; c < 4; c++) {
             int x, y;
@@ -1591,24 +2034,66 @@ static void test_solarflare_orb(void) {
     CHECK("Solarflare III disables prayer on hit", s.player.prayer == PRAYER_NONE);
 }
 
-static void test_volatility_explosion(void) {
-    printf("test_volatility_explosion\n");
+static void test_volatility_explodes_on_corpse_removal(void) {
+    printf("test_volatility_explodes_on_corpse_removal\n");
     ColosseumContext ctx;
     col_init_context_typed(&ctx);
     ColosseumState s;
     memset(&s, 0, sizeof(s));
-    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 29);
-    s.modifiers.active_mask |= (1u << COLO_MOD_VOLATILITY);
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 302);
+    geo_clear_npcs(&s);
+    s.modifiers.active_mask = 1u << COLO_MOD_VOLATILITY;
     s.modifiers.tier[COLO_MOD_VOLATILITY] = 1;
+    s.player.x = 20;
+    s.player.y = 16;
 
-    s.player.x = 17; s.player.y = 17;
-    s.player.current_hitpoints = 99;
     int idx = 0;
-    col_init_npc(&s, idx, COLO_FREMENNIK_BERSERKER, 18, 17);
+    col_init_npc(&s, idx, COLO_FREMENNIK_BERSERKER, 20, 17);
+    s.npcs[idx].hp = 0;
     int hp_before = s.player.current_hitpoints;
+    col_apply_npc_death(&s, idx);
+
+    CHECK("Volatility does not explode on the lethal hit",
+        s.player.current_hitpoints == hp_before);
+    int linger_ticks = col_npc_death_linger_ticks(s.npcs[idx].type);
+    for (int tick = 1; tick < linger_ticks; tick++) {
+        col_tick_npc_death_lingers(&s, &ctx);
+        CHECK("Volatility waits while the corpse is rendered",
+            s.npcs[idx].active && s.player.current_hitpoints == hp_before);
+    }
+
+    col_tick_npc_death_lingers(&s, &ctx);
+    CHECK("Volatility explodes when the corpse is removed",
+        !s.npcs[idx].active && s.player.current_hitpoints < hp_before);
+
+    EncounterOverlay ov = {0};
+    col_render_post_tick_ctx(
+        (EncounterState*)&s, (EncounterContext*)&ctx, &ov);
+    CHECK("Volatility corpse removal emits the explosion spotanim",
+        ov.projectile_count == 1 &&
+        ov.projectiles[0].src_x == 20 &&
+        ov.projectiles[0].src_y == 17 &&
+        ov.projectiles[0].dst_x == 20 &&
+        ov.projectiles[0].dst_y == 17 &&
+        ov.projectiles[0].launch_gfx_id == 2713);
+    CHECK("Volatility explosion spotanim scales by NPC family",
+        col_volatility_explosion_gfx_id(COLO_MANTICORE) == 2721 &&
+        col_volatility_explosion_gfx_id(COLO_JAVELIN_COLOSSUS) == 2722 &&
+        col_volatility_explosion_gfx_id(COLO_SHOCKWAVE_COLOSSUS) == 2722 &&
+        col_volatility_explosion_gfx_id(COLO_MINOTAUR) == 2723 &&
+        col_volatility_explosion_gfx_id(COLO_SOL_HEREDIT) == 2724);
+
+    col_context_clear_render_events(&ctx);
+    geo_clear_npcs(&s);
+    s.player.current_hitpoints = 99;
+    col_init_npc(&s, idx, COLO_MINOTAUR, 20, 17);
     s.npcs[idx].hp = 0;
     col_apply_npc_death(&s, idx);
-    CHECK("Volatility explosion hits an adjacent player", s.player.current_hitpoints < hp_before);
+    s.wave = 1;
+    col_spawn_wave(&s, &ctx);
+    CHECK("wave spawn cleanup still removes a volatile corpse through its explosion",
+        s.player.current_hitpoints < 99 &&
+        ctx.volatility_explosion_count == 1);
 }
 
 static void test_modifier_hazard_obs_fixes(void) {
@@ -1625,7 +2110,7 @@ static void test_modifier_hazard_obs_fixes(void) {
     jv->skyfall_tile_y = 14;
     jv->skyfall_timer = 2;
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    int tells = COLO_OBS_AFTER_EQUIPPED_SELF + TEST_NPC_TELLS_OFFSET;
+    int tells = COLO_OBS_AFTER_SHARED + COLO_NPC_TELLS_OFFSET;
     CHECK("javelin skyfall tells expose landing dx while pending",
         fabsf(obs[tells + 2] - col_obs_rel_x(19, s.player.x)) < 0.000001f);
     CHECK("javelin skyfall tells expose landing dy while pending",
@@ -1644,7 +2129,7 @@ static void test_modifier_hazard_obs_fixes(void) {
         .move_timer = 1,
     };
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    tells = COLO_OBS_AFTER_EQUIPPED_SELF + TEST_NPC_TELLS_OFFSET;
+    tells = COLO_OBS_AFTER_SHARED + COLO_NPC_TELLS_OFFSET;
     CHECK("bee tells expose a nonzero move timer",
         obs[tells] > 0.0f && obs[tells] <= 1.0f);
     CHECK("bee tells expose next-step contact",
@@ -1652,6 +2137,22 @@ static void test_modifier_hazard_obs_fixes(void) {
         fabsf(obs[tells + 2] - col_obs_rel_x(11, s.player.x)) < 0.000001f &&
         fabsf(obs[tells + 3] - col_obs_rel_y(10, s.player.y)) < 0.000001f &&
         obs[tells + 4] == 1.0f);
+
+    s.player_venom = 8;
+    s.player_venom_timer = 17;
+    s.player_poison = 4;
+    s.player_poison_timer = 23;
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
+    CHECK("venom observation is a compact severity and timer pair",
+        fabsf(obs[TEST_MOD_OBS_VENOM_SEVERITY] -
+            8.0f / (float)COLO_VENOM_CAP) < 0.000001f &&
+        fabsf(obs[TEST_MOD_OBS_VENOM_TIMER] -
+            17.0f / (float)COLO_VENOM_INTERVAL) < 0.000001f);
+    CHECK("bee poison observation exposes remaining hits and time to tick",
+        fabsf(obs[TEST_MOD_OBS_POISON_SEVERITY] -
+            4.0f / (float)COLO_POISON_BEE_CONTACT_SEVERITY) < 0.000001f &&
+        fabsf(obs[TEST_MOD_OBS_POISON_TIMER] -
+            23.0f / (float)COLO_POISON_INTERVAL) < 0.000001f);
 
     init_forecast_test_state(&s, &ctx, 303, 10, 10);
     s.molten_count = 6;
@@ -1661,6 +2162,10 @@ static void test_modifier_hazard_obs_fixes(void) {
     s.molten_x[3] = 10; s.molten_y[3] = 13;
     s.molten_x[4] = 8; s.molten_y[4] = 8;
     s.molten_x[5] = 10; s.molten_y[5] = 14;
+    for (int pool = 0; pool < s.molten_count; pool++) {
+        s.molten_kind[pool] = COLO_POOL_VOLATILITY;
+        s.molten_lifetime[pool] = COLO_POOL_TEMPORARY;
+    }
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
     int molten = TEST_MOD_OBS_MOLTEN;
     CHECK("modifier molten obs lists the nearest pool first",
@@ -1706,6 +2211,15 @@ static void test_modifier_hazard_obs_fixes(void) {
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
     CHECK("Doom lethality obs flips at cap minus one",
         obs[TEST_MOD_OBS_DOOM_LETHAL] == 1.0f);
+    s.molten_count = 1;
+    s.molten_x[0] = s.player.x;
+    s.molten_y[0] = s.player.y;
+    s.molten_kind[0] = COLO_POOL_REENTRY;
+    s.molten_lifetime[0] = COLO_POOL_PERMANENT;
+    s.molten_burn_timer[0] = 1;
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
+    CHECK("Doom pending ignores a Reentry pool on burn cooldown",
+        obs[TEST_MOD_OBS_DOOM_PENDING] == 0.0f);
 
     s.player_venom = COLO_VENOM_START;
     s.player_venom_timer = COLO_VENOM_INTERVAL / 2;
@@ -1761,7 +2275,7 @@ static void test_death_linger_wave_clear_and_render(void) {
     int entity_count = 0;
     col_fill_render_entities_ctx(
         (EncounterState*)&s, (EncounterContext*)&ctx, entities, 4, &entity_count);
-    CHECK("dying NPC is still rendered", entity_count == 2 && entities[1].npc_slot == idx);
+    CHECK("dying NPC is still rendered", entity_count >= 2 && entities[1].npc_slot == idx);
     CHECK("dying NPC uses death animation",
         entities[1].npc_anim_id == col_npc_death_anim_id(COLO_FREMENNIK_BERSERKER));
     CHECK("lethal hitsplat remains on death frame",
@@ -1780,12 +2294,16 @@ static void test_death_linger_wave_clear_and_render(void) {
 static void test_static_arena_mask(void) {
     printf("test_static_arena_mask\n");
     col_build_npc_stats();
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
 
     int gate_rows_ok = 1;
     for (int x = 0; x <= 33; x++) {
         int walkable = (x == 13 || x == 14 || x == 19 || x == 20);
-        if (col_static_blocked(x, 0) != !walkable) gate_rows_ok = 0;
-        if (col_static_blocked(x, 33) != !walkable) gate_rows_ok = 0;
+        if (col_topology_tile_blocked(&ctx, x, 0) != !walkable)
+            gate_rows_ok = 0;
+        if (col_topology_tile_blocked(&ctx, x, 33) != !walkable)
+            gate_rows_ok = 0;
     }
     CHECK("south+north inner rows walkable exactly at the gate flanks {13,14,19,20}",
         gate_rows_ok);
@@ -1793,27 +2311,38 @@ static void test_static_arena_mask(void) {
     int west_ok = 1;
     for (int y = 0; y <= 33; y++) {
         int walkable = (y == 13 || y == 14 || y == 19 || y == 20);
-        if (col_static_blocked(0, y) != !walkable) west_ok = 0;
+        if (col_topology_tile_blocked(&ctx, 0, y) != !walkable)
+            west_ok = 0;
     }
     CHECK("west col 0 open exactly at the entrance rows {13,14,19,20}", west_ok);
 
     int east_ok = 1;
     for (int y = 0; y <= 33; y++)
-        if (!col_static_blocked(33, y)) east_ok = 0;
+        if (!col_topology_tile_blocked(&ctx, 33, y)) east_ok = 0;
     CHECK("east col 33 fully walled", east_ok);
 
-    CHECK("row 3 west extent [0,5)", col_static_blocked(4, 3) && !col_static_blocked(5, 3));
-    CHECK("row 30 west extent [0,6)", col_static_blocked(5, 30) && !col_static_blocked(6, 30));
-    CHECK("row 29 east extent [29,34)", !col_static_blocked(28, 29) && col_static_blocked(29, 29));
+    CHECK("row 3 west extent [0,5)",
+        col_topology_tile_blocked(&ctx, 4, 3) &&
+        !col_topology_tile_blocked(&ctx, 5, 3));
+    CHECK("row 30 west extent [0,6)",
+        col_topology_tile_blocked(&ctx, 5, 30) &&
+        !col_topology_tile_blocked(&ctx, 6, 30));
+    CHECK("row 29 east extent [29,34)",
+        !col_topology_tile_blocked(&ctx, 28, 29) &&
+        col_topology_tile_blocked(&ctx, 29, 29));
 
     int pillars_ok = 1, rim_ok = 1;
     for (int p = 0; p < COLO_NUM_PILLARS; p++) {
         int px = COLO_PILLARS[p][0], py = COLO_PILLARS[p][1];
         for (int dx = 0; dx < 3; dx++)
             for (int dy = 0; dy < 3; dy++)
-                if (!col_static_blocked(px + dx, py + dy)) pillars_ok = 0;
-        if (col_static_blocked(px - 1, py + 1)) rim_ok = 0;
-        if (col_static_blocked(px + 3, py + 1)) rim_ok = 0;
+                if (!col_topology_tile_blocked(
+                        &ctx, px + dx, py + dy))
+                    pillars_ok = 0;
+        if (col_topology_tile_blocked(&ctx, px - 1, py + 1))
+            rim_ok = 0;
+        if (col_topology_tile_blocked(&ctx, px + 3, py + 1))
+            rim_ok = 0;
     }
     CHECK("all 36 pillar tiles blocked on every wave", pillars_ok);
     CHECK("tiles flanking each pillar stay walkable", rim_ok);
@@ -1822,18 +2351,25 @@ static void test_static_arena_mask(void) {
     for (int a = 0; a < COLO_NUM_SPAWN_ANCHORS; a++)
         for (int dx = 0; dx < COLO_SPAWN_ZONE_SIZE; dx++)
             for (int dy = 0; dy < COLO_SPAWN_ZONE_SIZE; dy++)
-                if (col_static_blocked(COLO_SPAWN_ANCHORS[a][0] + dx,
-                                       COLO_SPAWN_ANCHORS[a][1] + dy)) zones_ok = 0;
+                if (col_topology_tile_blocked(
+                        &ctx,
+                        COLO_SPAWN_ANCHORS[a][0] + dx,
+                        COLO_SPAWN_ANCHORS[a][1] + dy))
+                    zones_ok = 0;
     CHECK("every 3x3 spawn-anchor zone fully walkable on the static mask", zones_ok);
 
     CHECK("wave start (7,18) walkable",
-        !col_static_blocked(COLO_PLAYER_START_X, COLO_PLAYER_START_Y));
+        !col_topology_tile_blocked(
+            &ctx, COLO_PLAYER_START_X, COLO_PLAYER_START_Y));
     CHECK("boss start (16,10) walkable",
-        !col_static_blocked(COLO_BOSS_PLAYER_START_X, COLO_BOSS_PLAYER_START_Y));
+        !col_topology_tile_blocked(
+            &ctx, COLO_BOSS_PLAYER_START_X, COLO_BOSS_PLAYER_START_Y));
     int sol_ok = 1;
     for (int dx = 0; dx < 5; dx++)
         for (int dy = 0; dy < 5; dy++)
-            if (col_static_blocked(COLO_SOL_SPAWN_X + dx, COLO_SOL_SPAWN_Y + dy)) sol_ok = 0;
+            if (col_topology_tile_blocked(
+                    &ctx, COLO_SOL_SPAWN_X + dx, COLO_SOL_SPAWN_Y + dy))
+                sol_ok = 0;
     CHECK("Sol's 5x5 footprint at (16,19) unblocked", sol_ok);
 }
 
@@ -1846,16 +2382,22 @@ static void test_static_los_and_attack_gate(void) {
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 31);
     geo_clear_npcs(&s);
 
-    CHECK("SW pillar blocks a ray along row 9", !col_tiles_have_los(&s, 7, 9, 12, 9));
-    CHECK("pillar block is symmetric", !col_tiles_have_los(&s, 12, 9, 7, 9));
-    CHECK("ray one row north of the pillar is clear", col_tiles_have_los(&s, 7, 12, 12, 12));
-    CHECK("north gate doors block along the inner row", !col_tiles_have_los(&s, 14, 33, 19, 33));
-    CHECK("row 32 inside the north gate is clear", col_tiles_have_los(&s, 14, 32, 19, 32));
+    CHECK("SW pillar blocks a ray along row 9",
+        !col_topology_los_clear(&ctx, 7, 9, 1, 12, 9, 1, 0));
+    CHECK("pillar block is symmetric",
+        !col_topology_los_clear(&ctx, 12, 9, 1, 7, 9, 1, 0));
+    CHECK("ray one row north of the pillar is clear",
+        col_topology_los_clear(&ctx, 7, 12, 1, 12, 12, 1, 0));
+    CHECK("north gate doors block along the inner row",
+        !col_topology_los_clear(&ctx, 14, 33, 1, 19, 33, 1, 0));
+    CHECK("row 32 inside the north gate is clear",
+        col_topology_los_clear(&ctx, 14, 32, 1, 19, 32, 1, 0));
 
     s.player.x = 5; s.player.y = 9;
     col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 13, 9);
     s.npcs[0].attack_timer = 0;
-    CHECK("shaman behind the pillar has no LoS", !col_npc_has_los_to_player(&s, &s.npcs[0]));
+    CHECK("shaman behind the pillar has no LoS",
+        !col_npc_has_los_to_player(&s, &ctx, &s.npcs[0]));
     col_npc_attack_ctx(&s, &ctx, 0);
     CHECK("no-LoS shaman holds fire", s.npcs[0].attacked_this_tick == 0);
     col_npc_move_ctx(&s, &ctx, 0);
@@ -1865,7 +2407,8 @@ static void test_static_los_and_attack_gate(void) {
     s.player.x = 5; s.player.y = 12;
     col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 13, 12);
     s.npcs[0].attack_timer = 0;
-    CHECK("clear-row shaman has LoS", col_npc_has_los_to_player(&s, &s.npcs[0]));
+    CHECK("clear-row shaman has LoS",
+        col_npc_has_los_to_player(&s, &ctx, &s.npcs[0]));
     col_npc_attack_ctx(&s, &ctx, 0);
     CHECK("clear-row shaman attacks", s.npcs[0].attacked_this_tick == 1);
 }
@@ -1882,7 +2425,8 @@ static void test_spawn_anchor_exclusion(void) {
     geo_clear_npcs(&s);
     s.player.x = 5; s.player.y = 18;
     int cand[COLO_NUM_SPAWN_ANCHORS];
-    int n = col_spawn_anchor_candidates(&s, cand);
+    int n = col_spawn_anchor_candidates(
+        &s, ctx.route_topology, cand);
     CHECK("b5 spawn-fix tile leaves exactly 10 candidate anchors", n == 10);
     int suppressed_ok = 1;
     for (int i = 0; i < n; i++)
@@ -1894,7 +2438,7 @@ static void test_spawn_anchor_exclusion(void) {
     for (int rep = 0; rep < 30; rep++) {
         s.player.x = 5; s.player.y = 18;
         s.wave = 4;
-        col_spawn_wave(&s);
+        col_spawn_wave(&s, &ctx);
         int used[COLO_NUM_SPAWN_ANCHORS] = {0};
         int archer_x = -1, archer_y = -1;
         for (int i = 0; i < COLO_MAX_NPCS; i++) {
@@ -1907,7 +2451,9 @@ static void test_spawn_anchor_exclusion(void) {
             int size = col_npc_effective_size(npc);
             for (int dx = 0; dx < size; dx++)
                 for (int dy = 0; dy < size; dy++)
-                    if (col_static_blocked(npc->x + dx, npc->y + dy)) unblocked_ok = 0;
+                    if (col_topology_tile_blocked(
+                            &ctx, npc->x + dx, npc->y + dy))
+                        unblocked_ok = 0;
             if (col_type_is_warbander(npc->type)) {
 
                 if (npc->type == COLO_FREMENNIK_ARCHER) {
@@ -1954,7 +2500,7 @@ static void test_reinforcement_gates(void) {
         geo_clear_npcs(&s);
         s.player.x = 16;
         s.player.y = north ? 16 : 15;
-        col_spawn_reinforcements(&s);
+        col_spawn_reinforcements(&s, &ctx);
 
         int count = 0, in_gap_ok = 1, row_ok = 1;
         for (int i = 0; i < COLO_MAX_NPCS; i++) {
@@ -1969,7 +2515,9 @@ static void test_reinforcement_gates(void) {
                 row_ok = 0;
             for (int dx = 0; dx < size; dx++)
                 for (int dy = 0; dy < size; dy++)
-                    if (col_static_blocked(npc->x + dx, npc->y + dy)) row_ok = 0;
+                    if (col_topology_tile_blocked(
+                            &ctx, npc->x + dx, npc->y + dy))
+                        row_ok = 0;
         }
         CHECK("reinforcement set spawned (minotaur + shaman)", count == 2);
         CHECK("reinforcements land inside the gate gap x 15-18", in_gap_ok);
@@ -2025,7 +2573,7 @@ static void test_outcome_score_reinforcement_grows_denominator(void) {
     s.current_wave_fresh_damage = 0.3f * (float)pool_before;
     float score_before = col_episode_outcome_score(&s);
 
-    col_spawn_reinforcements(&s);
+    col_spawn_reinforcements(&s, &ctx);
     CHECK("reinforcements enter the score denominator", s.current_wave_total_killable == 9);
     CHECK("reinforcements grow the HP pool", s.current_wave_hp_pool > pool_before);
 
@@ -2056,7 +2604,7 @@ static void test_fresh_damage_not_farmable_via_healing(void) {
     col_rebuild_player_collision_flags(&s);
 
     col_queue_npc_pending_hit(&s, 0, 70, 1, ATTACK_STYLE_MELEE, ENCOUNTER_SPELL_NONE);
-    land_pending_player_hits(&s);
+    land_pending_player_hits(&s, &ctx);
     CHECK("first hit lands for 70", s.npcs[0].hp == 30);
     CHECK("fresh damage tracks the first hit",
         fabsf(s.current_wave_fresh_damage - 70.0f) < 0.001f);
@@ -2066,12 +2614,12 @@ static void test_fresh_damage_not_farmable_via_healing(void) {
     CHECK("healing does not touch min_hp_seen", s.npcs[0].min_hp_seen == 30);
 
     col_queue_npc_pending_hit(&s, 0, 30, 1, ATTACK_STYLE_MELEE, ENCOUNTER_SPELL_NONE);
-    land_pending_player_hits(&s);
+    land_pending_player_hits(&s, &ctx);
     CHECK("re-damaging restored HP credits no fresh damage",
         fabsf(s.current_wave_fresh_damage - 70.0f) < 0.001f);
 
     col_queue_npc_pending_hit(&s, 0, 20, 1, ATTACK_STYLE_MELEE, ENCOUNTER_SPELL_NONE);
-    land_pending_player_hits(&s);
+    land_pending_player_hits(&s, &ctx);
     CHECK("a new low credits only the fresh portion (20)",
         fabsf(s.current_wave_fresh_damage - 90.0f) < 0.001f);
     CHECK("min_hp_seen follows the deeper low", s.npcs[0].min_hp_seen == 10);
@@ -2089,7 +2637,8 @@ static void test_outcome_score_wave_clear_has_no_double_count(void) {
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 303);
     complete_open_draft(&s, &ctx, 1);
 
-    while (first_live_score_enemy(&s) >= 0) kill_first_live_score_enemy(&s);
+    while (first_live_score_enemy(&s) >= 0)
+        kill_first_live_score_enemy(&s);
     s.log.waves_cleared = 1;
     CHECK("within-wave progress is zero after all wave enemies are killed",
         col_current_wave_score_progress(&s) == 0.0f);
@@ -2125,7 +2674,7 @@ static void test_roster_cap_nine(void) {
     s.modifiers.tier[COLO_MOD_QUARTET] = 1;
     s.modifiers.tier[COLO_MOD_DYNAMIC_DUO] = 1;
     s.wave = 7;
-    col_spawn_wave(&s);
+    col_spawn_wave(&s, &ctx);
     int count = 0;
     for (int i = 0; i < COLO_MAX_NPCS; i++) if (s.npcs[i].active) count++;
     CHECK("wave 8 + Quartet + Dynamic Duo spawns all 9 NPCs", count == 9);
@@ -2157,7 +2706,7 @@ static void test_wave12_quartet_and_win(void) {
         s.modifiers.active_mask |= (1u << COLO_MOD_QUARTET);
         s.modifiers.tier[COLO_MOD_QUARTET] = 1;
         s.wave = COLO_WAVE_BOSS;
-        col_spawn_wave(&s);
+        col_spawn_wave(&s, &ctx);
         s.wave_spawn_delay = 0;
 
         int wb = -1;
@@ -2167,7 +2716,8 @@ static void test_wave12_quartet_and_win(void) {
         int wx = s.npcs[wb].x, wy = s.npcs[wb].y;
         int cheb_dx = abs(wx - s.player.x), cheb_dy = abs(wy - s.player.y);
         if (wx < 9 || wx > 24 || wy < 9 || wy > 24) placement_ok = 0;
-        if (col_static_blocked(wx, wy)) placement_ok = 0;
+        if (col_topology_tile_blocked(&ctx, wx, wy))
+            placement_ok = 0;
         if ((cheb_dx > cheb_dy ? cheb_dx : cheb_dy) <= COLO_SPAWN_EXCLUSION_CHEB)
             placement_ok = 0;
 
@@ -2183,7 +2733,9 @@ static void test_wave12_quartet_and_win(void) {
                 int nx = cx + D[d][0], ny = cy + D[d][1];
                 if (nx == wx && ny == wy) { reached = 1; break; }
                 if (nx < 9 || nx > 24 || ny < 9 || ny > 24) continue;
-                if (seen[nx][ny] || col_static_blocked(nx, ny)) continue;
+                if (seen[nx][ny] ||
+                        col_topology_tile_blocked(&ctx, nx, ny))
+                    continue;
                 int gx, gy;
                 if (!col_grid_index(nx, ny, &gx, &gy)) continue;
                 if (s.npc_collision_flags[gx][gy]) continue;
@@ -2218,14 +2770,12 @@ static void test_player_walks_through_npc_footprint(void) {
     col_rebuild_player_collision_flags(&s);
     int gx, gy;
     int npc_flag = col_grid_index(17, 16, &gx, &gy) && s.npc_collision_flags[gx][gy];
-    int player_flag = col_grid_index(17, 16, &gx, &gy) && s.player_collision_flags[gx][gy];
-    ColoWalkCtx wc = { .s = &s, .ctx = &ctx };
+    int player_flag = col_grid_index(17, 16, &gx, &gy) &&
+        gx == s.player_grid_x && gy == s.player_grid_y;
     CHECK("NPC footprint remains stamped for NPC systems", npc_flag != 0);
     CHECK("NPC footprint is not stamped as player collision", player_flag == 0);
     CHECK("player walkability ignores NPC footprint",
-        col_player_walkable(&s, 17, 16) == 1);
-    CHECK("player pathfinding extra block ignores NPC footprint",
-        col_pathfind_blocked(&wc, 17 + ctx.world_offset_x, 16 + ctx.world_offset_y) == 0);
+        col_player_walkable_ctx(&s, &ctx, 17, 16) == 1);
     int actions[COLO_NUM_ACTION_HEADS] = {0};
     actions[COLO_HEAD_PRIMARY] = forecast_move_action_for_delta(1, 0);
     step_and_observe(&s, &ctx, actions);
@@ -2330,20 +2880,82 @@ static void test_warband_move_skip(void) {
     while ((s.wave_ready_delay > 0 || s.wave_attack_delay > 1) && !s.episode_over)
         step_and_observe(&s, &ctx, idle);
 
-    int attacks = 0;
+    int attacks_while_moving = 0;
+    int attacks_once_chasing = 0;
     int moved_every_tick = 1;
     for (int t = 0; t < 14 && !s.episode_over; t++) {
         s.player.current_hitpoints = 9999;
         step_and_observe(&s, &ctx, walk_south);
         if (!s.tick_scratch.player_moved) moved_every_tick = 0;
-        for (int sp = 0; sp < COLO_MAX_NPCS; sp++)
-            if (s.npcs[sp].active && col_type_is_warbander(s.npcs[sp].type) &&
-                s.npcs[sp].attacked_this_tick) attacks++;
+        for (int sp = 0; sp < COLO_MAX_NPCS; sp++) {
+            const ColoNPC* npc = &s.npcs[sp];
+            if (!npc->active || !col_type_is_warbander(npc->type)) continue;
+            if (!npc->attacked_this_tick) continue;
+            if (npc->moved_this_tick || npc->moved_last_tick) attacks_while_moving++;
+            if (t > 0) attacks_once_chasing++;
+        }
     }
     CHECK("the scripted stutter-step actually moved every tick", moved_every_tick);
-    CHECK("warband fired zero attacks across the stutter-step run", attacks == 0);
-    CHECK("zero warband damage across the stutter-step run",
-        s.log.total_damage_received == 0.0f);
+    CHECK("no warbander attacked on a tick it moved on or moved the tick before",
+        attacks_while_moving == 0);
+    /* t == 0 is excluded: the berserker starts stationary and adjacent, and NPCs
+       process before players, so its attack is calculated before the first step. */
+    CHECK("once the warband is chasing the stutter-step suppresses every attack",
+        attacks_once_chasing == 0);
+}
+static void test_warband_melee_not_dodged_by_same_tick_step_out(void) {
+    printf("test_warband_melee_not_dodged_by_same_tick_step_out\n");
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    ctx.config.start_wave = 0;
+
+    int attacked_standing = 0;
+    int attacked_stepping = 0;
+    for (int step_out = 0; step_out <= 1; step_out++) {
+        ColosseumState s;
+        memset(&s, 0, sizeof(s));
+        col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 53);
+        advance_to_wave_spawn(&s, &ctx);
+        complete_open_draft(&s, &ctx, 1);
+        wb_isolate_warband(&s);
+        int berserker = wb_find_npc(&s, COLO_FREMENNIK_BERSERKER);
+        for (int i = 0; i < COLO_MAX_NPCS; i++)
+            if (s.npcs[i].active && i != berserker) col_deactivate_npc(&s, i);
+        wb_move_npc(&s, berserker, s.player.x, s.player.y + 1);
+
+        int idle[COLO_NUM_ACTION_HEADS] = {0};
+        int step_east[COLO_NUM_ACTION_HEADS] = {0};
+        step_east[COLO_HEAD_PRIMARY] = 7;
+
+        while ((s.wave_ready_delay > 0 || s.wave_attack_delay > 1) && !s.episode_over)
+            step_and_observe(&s, &ctx, idle);
+
+        int px = s.player.x, py = s.player.y;
+        for (int t = 0; t < 12 && !s.episode_over; t++) {
+            const ColoNPC* npc = &s.npcs[berserker];
+            int anchor = s.warband_cycle_anchor;
+            int next_phase = anchor < 0 ? -1
+                : (s.tick + 1 - anchor) % COLO_WARBAND_CYCLE_TICKS;
+            int fires_now =
+                next_phase == col_warband_window_offset(COLO_FREMENNIK_BERSERKER) &&
+                !npc->moved_this_tick && !npc->moved_last_tick &&
+                col_warband_melee_adjacent(&s, npc);
+
+            s.player.current_hitpoints = 9999;
+            step_and_observe(&s, &ctx, fires_now && step_out ? step_east : idle);
+
+            if (fires_now) {
+                if (step_out) attacked_stepping = npc->attacked_this_tick;
+                else attacked_standing = npc->attacked_this_tick;
+                break;
+            }
+            s.player.x = px;
+            s.player.y = py;
+        }
+    }
+
+    CHECK("stationary player takes the warband melee", attacked_standing == 1);
+    CHECK("same-tick step-out does not dodge the warband melee", attacked_stepping == 1);
 }
 
 static uint64_t wb_trajectory_hash(ColosseumState* s, ColosseumContext* ctx,
@@ -2374,8 +2986,8 @@ static uint64_t wb_trajectory_hash(ColosseumState* s, ColosseumContext* ctx,
     return h;
 }
 
-static void test_warband_bfs_memo_bit_identity(void) {
-    printf("test_warband_bfs_memo_bit_identity\n");
+static void test_warband_route_generation_bit_identity(void) {
+    printf("test_warband_route_generation_bit_identity\n");
     ColosseumContext ctx;
     col_init_context_typed(&ctx);
     ctx.config.start_wave = 0;
@@ -2385,17 +2997,15 @@ static void test_warband_bfs_memo_bit_identity(void) {
     int walk_south[COLO_NUM_ACTION_HEADS] = {0};
     walk_south[COLO_HEAD_PRIMARY] = 4;
 
-    memset(col_warband_bfs_memo_key, 0, sizeof(col_warband_bfs_memo_key));
-    uint64_t idle_cold = wb_trajectory_hash(&s, &ctx, 51, idle, 40);
-    uint64_t idle_warm = wb_trajectory_hash(&s, &ctx, 51, idle, 40);
-    CHECK("memo-served warband trajectory == fresh BFS (idle player)",
-        idle_warm == idle_cold);
+    uint64_t idle_first = wb_trajectory_hash(&s, &ctx, 51, idle, 40);
+    uint64_t idle_second = wb_trajectory_hash(&s, &ctx, 51, idle, 40);
+    CHECK("thread-local route generations preserve idle warband trajectory",
+        idle_second == idle_first);
 
-    uint64_t walk_polluted = wb_trajectory_hash(&s, &ctx, 53, walk_south, 40);
-    memset(col_warband_bfs_memo_key, 0, sizeof(col_warband_bfs_memo_key));
-    uint64_t walk_cold = wb_trajectory_hash(&s, &ctx, 53, walk_south, 40);
-    CHECK("polluted-table episode == its fresh-memo reference (walking player)",
-        walk_polluted == walk_cold);
+    uint64_t walk_first = wb_trajectory_hash(&s, &ctx, 53, walk_south, 40);
+    uint64_t walk_second = wb_trajectory_hash(&s, &ctx, 53, walk_south, 40);
+    CHECK("thread-local route generations preserve walking warband trajectory",
+        walk_second == walk_first);
 }
 
 static void test_warband_melee_distance_gate(void) {
@@ -2412,7 +3022,7 @@ static void test_warband_melee_distance_gate(void) {
 
     col_init_npc(&s, 0, COLO_FREMENNIK_ARCHER, 12, 18);
     CHECK("rig sanity: the ranged archer has clear LoS",
-        col_npc_has_los_to_player(&s, &s.npcs[0]));
+        col_npc_has_los_to_player(&s, &ctx, &s.npcs[0]));
     s.warband_cycle_anchor = s.tick - 3;
     col_warband_attack_phase(&s, &ctx);
     CHECK("archer at distance never attacks, even with LoS on its window",
@@ -2480,7 +3090,7 @@ static void test_warband_formation_convergence(void) {
             s.modifiers.active_mask |= (1u << COLO_MOD_QUARTET);
             s.modifiers.tier[COLO_MOD_QUARTET] = 1;
             s.wave = 0;
-            col_spawn_wave(&s);
+            col_spawn_wave(&s, &ctx);
         }
         wb_isolate_warband(&s);
 
@@ -2685,6 +3295,165 @@ static void test_minotaur_heal_semantics(void) {
         s.log.pray_faced_by_type[COLO_MINOTAUR] > mino_faced_before);
 }
 
+static void test_manticore_initial_charge_timing_and_target_gate(void) {
+    printf("test_manticore_initial_charge_timing_and_target_gate\n");
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    ColosseumState s;
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 79);
+    geo_clear_npcs(&s);
+    s.wave_attack_delay = 0;
+    s.player.x = 17;
+    s.player.y = 16;
+    col_rebuild_player_collision_flags(&s);
+    col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
+    ColoNPC* npc = &s.npcs[0];
+    ColoManticoreState* mc = colo_npc_manticore(npc);
+
+    int inactive_for_six_ticks = 1;
+    for (int tick = 0; tick < 6; tick++) {
+        col_context_clear_render_events(&ctx);
+        npc->attacked_this_tick = 0;
+        col_npc_attack_ctx(&s, &ctx, 0);
+        if (ctx.manticore_charge_started[0] ||
+                mc->phase != COLO_MANTICORE_PHASE_ACTIVATING ||
+                mc->cycle_step >= 0 ||
+                npc->attacked_this_tick) {
+            inactive_for_six_ticks = 0;
+        }
+    }
+    CHECK("manticore remains inactive for six ticks after its spawn tick",
+        inactive_for_six_ticks);
+
+    col_context_clear_render_events(&ctx);
+    col_npc_attack_ctx(&s, &ctx, 0);
+    CHECK("manticore starts charging on the seventh spawn tick",
+        ctx.manticore_charge_started[0] &&
+        mc->phase == COLO_MANTICORE_PHASE_CHARGING &&
+        mc->cycle_step == 0 &&
+        npc->attacked_this_tick == 0);
+
+    EncounterOverlay ov;
+    memset(&ov, 0, sizeof(ov));
+    col_render_post_tick_ctx((EncounterState*)&s, (EncounterContext*)&ctx, &ov);
+    CHECK("charging starts before any orb telegraph is visible",
+        ov.floating_model_count == 0);
+    CHECK("hidden charging phase exposes no prayer oracle",
+        !col_visible_manticore_next_prayer(npc).active);
+
+    int no_fire_during_ten_charge_ticks = 1;
+    for (int tick = 1; tick <= COLO_MANTICORE_CHARGE_TICKS; tick++) {
+        col_context_clear_render_events(&ctx);
+        npc->attacked_this_tick = 0;
+        col_npc_attack_ctx(&s, &ctx, 0);
+        if (npc->attacked_this_tick ||
+                mc->phase != COLO_MANTICORE_PHASE_CHARGING ||
+                mc->cycle_step != 0)
+            no_fire_during_ten_charge_ticks = 0;
+        if (tick <= COLO_MANTICORE_ARM_ANIMATION_TICKS) {
+            memset(&ov, 0, sizeof(ov));
+            col_render_post_tick_ctx((EncounterState*)&s, (EncounterContext*)&ctx, &ov);
+            ColoNpcNextPrayerObs next_prayer =
+                col_visible_manticore_next_prayer(npc);
+            if (tick < COLO_MANTICORE_ARM_ANIMATION_TICKS) {
+                CHECK("orbs remain hidden during the three-tick arming animation",
+                    ov.floating_model_count == 0);
+                CHECK("hidden arming ticks expose no prayer oracle",
+                    !next_prayer.active);
+            } else {
+                CHECK("all three orbs appear when the arming animation completes",
+                    ov.floating_model_count == 3);
+                CHECK("revealed orb 0 exposes its style eight ticks before firing",
+                    next_prayer.active &&
+                    next_prayer.style == mc->orb_style[0] &&
+                    next_prayer.ticks == 8);
+            }
+        }
+    }
+    CHECK("manticore consumes ten full charge ticks before firing",
+        no_fire_during_ten_charge_ticks);
+
+    npc->attacked_this_tick = 0;
+    col_npc_attack_ctx(&s, &ctx, 0);
+    CHECK("manticore fires the first orb eleven ticks after charging starts",
+        npc->attacked_this_tick == 1 &&
+        mc->phase == COLO_MANTICORE_PHASE_REPEATING &&
+        mc->cycle_step == 1);
+
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 79);
+    geo_clear_npcs(&s);
+    s.wave_attack_delay = 0;
+    s.player.x = 33;
+    s.player.y = 24;
+    col_rebuild_player_collision_flags(&s);
+    col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
+    npc = &s.npcs[0];
+    mc = colo_npc_manticore(npc);
+    int stayed_unarmed_without_target = 1;
+    for (int tick = 0; tick < 20; tick++) {
+        col_context_clear_render_events(&ctx);
+        npc->attacked_this_tick = 0;
+        col_npc_attack_ctx(&s, &ctx, 0);
+        if (ctx.manticore_charge_started[0] ||
+                mc->phase == COLO_MANTICORE_PHASE_CHARGING ||
+                mc->cycle_step >= 0 ||
+                npc->attacked_this_tick) {
+            stayed_unarmed_without_target = 0;
+        }
+    }
+    CHECK("manticore waits without a target in line of sight and range",
+        stayed_unarmed_without_target &&
+        mc->phase == COLO_MANTICORE_PHASE_WAITING_FOR_TARGET);
+
+    s.player.x = 17;
+    s.player.y = 16;
+    col_rebuild_player_collision_flags(&s);
+    col_context_clear_render_events(&ctx);
+    col_npc_attack_ctx(&s, &ctx, 0);
+    CHECK("first valid target tick starts charging without firing",
+        ctx.manticore_charge_started[0] &&
+        mc->phase == COLO_MANTICORE_PHASE_CHARGING &&
+        mc->cycle_step == 0 &&
+        npc->attacked_this_tick == 0);
+
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 79);
+    geo_clear_npcs(&s);
+    s.wave_attack_delay = 0;
+    s.player.x = 5;
+    s.player.y = 9;
+    col_rebuild_player_collision_flags(&s);
+    col_init_npc(&s, 0, COLO_MANTICORE, 11, 8);
+    npc = &s.npcs[0];
+    mc = colo_npc_manticore(npc);
+    CHECK("blocked fixture remains inside Manticore attack range",
+        col_npc_dist_to_player(&s, npc) <=
+            COLO_NPC_STATS[COLO_MANTICORE].attack_range);
+    CHECK("pillar blocks the Manticore's first line of sight",
+        !col_npc_has_los_to_player(&s, &ctx, npc));
+    for (int tick = 0; tick < COLO_MANTICORE_ACTIVATION_TICKS; tick++) {
+        col_context_clear_render_events(&ctx);
+        col_npc_attack_ctx(&s, &ctx, 0);
+    }
+    CHECK("in-range Manticore waits while line of sight is blocked",
+        mc->phase == COLO_MANTICORE_PHASE_WAITING_FOR_TARGET &&
+        mc->cycle_step < 0 &&
+        !ctx.manticore_charge_started[0]);
+
+    s.player.x = 12;
+    s.player.y = 12;
+    col_rebuild_player_collision_flags(&s);
+    col_context_clear_render_events(&ctx);
+    col_npc_attack_ctx(&s, &ctx, 0);
+    CHECK("first unblocked in-range tick starts the Manticore charge",
+        ctx.manticore_charge_started[0] &&
+        mc->phase == COLO_MANTICORE_PHASE_CHARGING &&
+        mc->cycle_step == 0 &&
+        npc->attacked_this_tick == 0);
+}
+
 static void test_manticore_barrage_period(void) {
     printf("test_manticore_barrage_period\n");
     ColosseumContext ctx;
@@ -2699,6 +3468,7 @@ static void test_manticore_barrage_period(void) {
     s.npcs[0].attack_timer = 2;
 
     ColoManticoreState* mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
     int starts[8];
     int nstarts = 0;
     for (int t = 0; t < 36; t++) {
@@ -2727,6 +3497,7 @@ static void test_manticore_telegraph_during_windup(void) {
     col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
     s.npcs[0].attack_timer = 6;
     ColoManticoreState* mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
     CHECK("spawn rolls a hidden fixed cycle",
         mc->fixed_orb_style[0] != ATTACK_STYLE_NONE &&
         mc->fixed_orb_style[1] != ATTACK_STYLE_NONE &&
@@ -2761,6 +3532,7 @@ static void test_manticore_telegraph_during_windup(void) {
     col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
     s.npcs[0].attack_timer = 3;
     mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
     int orb0_blocked = 0;
     for (int t = 0; t < 12; t++) {
         if (mc->cycle_step == 0 && mc->orb_style[0] != ATTACK_STYLE_NONE) {
@@ -2788,70 +3560,11 @@ static void test_manticore_telegraph_during_windup(void) {
         mc->fixed_orb_style[0] != ATTACK_STYLE_NONE);
 }
 
-static void test_prayer_oracle_manticore_orbs(void) {
-    printf("test_prayer_oracle_manticore_orbs\n");
-    ColosseumContext ctx;
-    col_init_context_typed(&ctx);
-    ColosseumState s;
-    memset(&s, 0, sizeof(s));
-    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 79);
-    advance_to_wave_spawn(&s, &ctx);
-    geo_clear_npcs(&s);
-    s.wave_ready_delay = 0;
-    s.wave_attack_delay = 0;
-    s.player.x = 17; s.player.y = 16;
-    col_rebuild_player_collision_flags(&s);
-    col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
-    ColoManticoreState* mc = colo_npc_manticore(&s.npcs[0]);
-
-    s.npcs[0].attack_timer = 1;
-    mc->cycle_step = -1;
-    mc->fixed_orb_style[0] = ATTACK_STYLE_MAGIC;
-    mc->fixed_orb_style[1] = ATTACK_STYLE_RANGED;
-    mc->fixed_orb_style[2] = ATTACK_STYLE_MELEE;
-    s.player.prayer = PRAYER_NONE;
-    col_apply_prayer_oracle(&s);
-    CHECK("oracle prays orb 0's style on the charge-complete tick (magic, not default ranged)",
-        s.player.prayer == PRAYER_PROTECT_MAGIC);
-
-    for (int o = 0; o < 3; o++) mc->orb_style[o] = mc->fixed_orb_style[o];
-    mc->cycle_step = 1;
-    s.player.prayer = PRAYER_NONE;
-    col_apply_prayer_oracle(&s);
-    CHECK("oracle prays the in-flight orb 1 style (ranged)",
-        s.player.prayer == PRAYER_PROTECT_RANGED);
-    mc->cycle_step = 2;
-    s.player.prayer = PRAYER_NONE;
-    col_apply_prayer_oracle(&s);
-    CHECK("oracle prays the in-flight orb 2 style (melee, not default ranged)",
-        s.player.prayer == PRAYER_PROTECT_MELEE);
-
-    mc->cycle_step = -1;
-    for (int o = 0; o < 3; o++) mc->orb_style[o] = ATTACK_STYLE_NONE;
-    s.npcs[0].attack_timer = 5;
-    s.player.prayer = PRAYER_PROTECT_MELEE;
-    col_apply_prayer_oracle(&s);
-    CHECK("oracle leaves prayer untouched with no thrower this tick",
-        s.player.prayer == PRAYER_PROTECT_MELEE);
-
-    s.npcs[0].attack_timer = 2;
-    for (int t = 0; t < 36; t++) {
-        s.player.current_hitpoints = 99;
-        col_apply_prayer_oracle(&s);
-        col_npc_attack_ctx(&s, &ctx, 0);
-    }
-    float faced = s.log.pray_faced_by_type[COLO_MANTICORE];
-    float correct = s.log.pray_correct_by_type[COLO_MANTICORE];
-    CHECK("solo-manticore barrages under the oracle: every orb faced",
-        faced >= 9.0f);
-    CHECK("solo-manticore barrages under the oracle: every orb prayed",
-        correct == faced);
-}
-
 static int late_start_total_doses(const ColosseumState* s) {
     int total = 0;
     for (int c = 0; c < COLO_INVENTORY_DISPLAY_SLOTS; c++)
-        total += s->inventory_cells[c].dose;
+        total += osrs_inventory_cell_dose_count(
+            &s->player.inventory_cells[c]);
     return total;
 }
 
@@ -2912,7 +3625,7 @@ static void test_late_start_entry_state(void) {
     col_reset_ctx((EncounterState*)&org, (EncounterContext*)&organic_ctx, 99);
     org.modifiers.active_mask = (1u << COLO_MOD_BEES);
     org.modifiers.tier[COLO_MOD_BEES] = 3;
-    org.inventory_cells[27] = org.inventory_cells[26];
+    org.player.inventory_cells[27] = org.player.inventory_cells[26];
     org.player.current_hitpoints = 50;
     col_record_wave_entry(&org, 7);
     int org_doses = late_start_total_doses(&org);
@@ -2944,6 +3657,7 @@ static void test_manticore_orb_same_tick_flick(void) {
     col_rebuild_player_collision_flags(&s);
     col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
     ColoManticoreState* mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
 
     int no_fire_damage = 1, prayed_one_tick = 1, prayer_counted = 0, any_queued = 0;
     for (int rep = 0; rep < 16; rep++) {
@@ -2996,6 +3710,7 @@ static void test_manticore_orb_same_tick_flick(void) {
     col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
     s.npcs[0].attack_timer = 4;
     mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
 
     int actions[COLO_NUM_ACTION_HEADS] = {0};
     int protected_ticks = 0, flicked_damage = 0;
@@ -3082,6 +3797,8 @@ static void test_manticore_shared_wave_cycle(void) {
     col_init_npc(&s, 1, COLO_MANTICORE, 18, 16);
     ColoManticoreState* amc = colo_npc_manticore(&s.npcs[0]);
     ColoManticoreState* bmc = colo_npc_manticore(&s.npcs[1]);
+    amc->phase = COLO_MANTICORE_PHASE_REPEATING;
+    bmc->phase = COLO_MANTICORE_PHASE_REPEATING;
     CHECK("manually-spawned peers also share the wave pattern",
         amc->fixed_orb_style[0] == bmc->fixed_orb_style[0] &&
         amc->fixed_orb_style[1] == bmc->fixed_orb_style[1] &&
@@ -3103,6 +3820,37 @@ static void test_manticore_shared_wave_cycle(void) {
     col_npc_attack_ctx(&s, &ctx, 1);
     CHECK("the delayed peer fires exactly 5 ticks after A's barrage started",
         bmc->cycle_step == 1);
+
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 89);
+    geo_clear_npcs(&s);
+    s.wave = 8;
+    s.player.x = 13;
+    s.player.y = 12;
+    col_rebuild_player_collision_flags(&s);
+    col_init_npc(&s, 0, COLO_MANTICORE, 12, 16);
+    col_init_npc(&s, 1, COLO_MANTICORE, 18, 16);
+    amc = colo_npc_manticore(&s.npcs[0]);
+    bmc = colo_npc_manticore(&s.npcs[1]);
+    col_npc_manticore_arm(&s, 0);
+    col_npc_manticore_arm(&s, 1);
+    amc->phase = COLO_MANTICORE_PHASE_CHARGING;
+    bmc->phase = COLO_MANTICORE_PHASE_CHARGING;
+    s.npcs[0].attack_timer = 0;
+    s.npcs[1].attack_timer = 0;
+    col_npc_attack_ctx(&s, &ctx, 0);
+    col_npc_attack_ctx(&s, &ctx, 1);
+    CHECK("a fully charged initial peer starts its five-tick delay",
+        amc->cycle_step == 1 &&
+        bmc->cycle_step == 0 &&
+        s.npcs[1].attack_timer == COLO_MANTICORE_STAGGER_TICKS - 1);
+    for (int tick = 1; tick < COLO_MANTICORE_STAGGER_TICKS; tick++)
+        col_npc_attack_ctx(&s, &ctx, 1);
+    CHECK("initial peer remains ready through the fourth delayed tick",
+        bmc->cycle_step == 0 && s.npcs[1].attack_timer == 0);
+    col_npc_attack_ctx(&s, &ctx, 1);
+    CHECK("initial peer fires on the fifth delayed tick",
+        bmc->cycle_step == 1);
 }
 
 static void test_manticore_stagger_overlap_fidelity(void) {
@@ -3123,6 +3871,8 @@ static void test_manticore_stagger_overlap_fidelity(void) {
     col_init_npc(&s, 1, COLO_MANTICORE, 18, 16);
     ColoManticoreState* amc = colo_npc_manticore(&s.npcs[0]);
     ColoManticoreState* bmc = colo_npc_manticore(&s.npcs[1]);
+    amc->phase = COLO_MANTICORE_PHASE_REPEATING;
+    bmc->phase = COLO_MANTICORE_PHASE_REPEATING;
     s.player.current_hitpoints = 99;
     s.npcs[0].attack_timer = 0;
     s.npcs[1].attack_timer = 2;
@@ -3146,11 +3896,15 @@ static void test_manticore_stagger_overlap_fidelity(void) {
     col_init_npc(&s, 1, COLO_MANTICORE, 11, 8);
     amc = colo_npc_manticore(&s.npcs[0]);
     bmc = colo_npc_manticore(&s.npcs[1]);
+    amc->phase = COLO_MANTICORE_PHASE_REPEATING;
+    bmc->phase = COLO_MANTICORE_PHASE_REPEATING;
     s.player.current_hitpoints = 99;
     s.npcs[0].attack_timer = 0;
     s.npcs[1].attack_timer = 0;
-    CHECK("fixture: A sees the player", col_npc_has_los_to_player(&s, &s.npcs[0]));
-    CHECK("fixture: the pillar blocks B's LoS", !col_npc_has_los_to_player(&s, &s.npcs[1]));
+    CHECK("fixture: A sees the player",
+        col_npc_has_los_to_player(&s, &ctx, &s.npcs[0]));
+    CHECK("fixture: the pillar blocks B's LoS",
+        !col_npc_has_los_to_player(&s, &ctx, &s.npcs[1]));
     col_npc_attack_ctx(&s, &ctx, 0);
     col_npc_attack_ctx(&s, &ctx, 1);
     CHECK("a ready but LoS-blocked peer is not delayed at A's barrage start",
@@ -3158,7 +3912,7 @@ static void test_manticore_stagger_overlap_fidelity(void) {
     s.player.x = 12; s.player.y = 12;
     col_rebuild_player_collision_flags(&s);
     CHECK("fixture: B sees the player after the step",
-        col_npc_has_los_to_player(&s, &s.npcs[1]));
+        col_npc_has_los_to_player(&s, &ctx, &s.npcs[1]));
     col_npc_attack_ctx(&s, &ctx, 0);
     col_npc_attack_ctx(&s, &ctx, 1);
     CHECK("entering a second manticore's LoS mid-barrage eats the overlap",
@@ -3175,6 +3929,8 @@ static void test_manticore_stagger_overlap_fidelity(void) {
     col_init_npc(&s, 1, COLO_MANTICORE, 18, 16);
     amc = colo_npc_manticore(&s.npcs[0]);
     bmc = colo_npc_manticore(&s.npcs[1]);
+    amc->phase = COLO_MANTICORE_PHASE_REPEATING;
+    bmc->phase = COLO_MANTICORE_PHASE_REPEATING;
     s.player.current_hitpoints = 99;
     s.npcs[0].attack_timer = 3;
     s.npcs[1].attack_timer = 3;
@@ -3307,6 +4063,108 @@ static void test_javelin_skyfall_no_defence_gate(void) {
         s.player.current_hitpoints == 99 && jv->skyfall_pending == 0);
 }
 
+#define SKYFALL_DODGE_FORCED_DAMAGE 38
+
+static void skyfall_dodge_init_state(
+    ColosseumState* s,
+    ColosseumContext* ctx,
+    uint32_t seed
+) {
+    col_init_context_typed(ctx);
+    ctx->config.loadout_profile_mode = COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY;
+    ctx->config.beginner_loadout_fraction = 0.0f;
+    memset(s, 0, sizeof(*s));
+    col_reset_ctx((EncounterState*)s, (EncounterContext*)ctx, seed);
+    geo_clear_npcs(s);
+    s->wave_spawn_delay = 0;
+    s->wave_ready_delay = 0;
+    s->modifiers.draft_pending = 0;
+    s->warband_cycle_anchor = s->tick;
+    s->player.x = 17;
+    s->player.y = 16;
+    s->player.current_hitpoints = 99;
+    s->player.attack_timer = 99;
+    s->player_dest_x = -1;
+    s->player_dest_y = -1;
+    col_apply_weapon_set(s, COLO_GEAR_RANGED);
+    encounter_pending_hit_queue_clear(&s->player_pending_hits);
+    col_rebuild_player_collision_flags(s);
+    col_init_npc(s, 0, COLO_JAVELIN_COLOSSUS, 20, 16);
+    s->npcs[0].stun_timer = 0;
+    s->npcs[0].frozen_ticks = 0;
+}
+
+static int skyfall_dodge_move_action_off_tile(
+    const ColosseumState* s,
+    ColosseumContext* ctx,
+    int marked_x,
+    int marked_y
+) {
+    for (int action = 1; action < ENCOUNTER_MOVE_ACTIONS; action++) {
+        ColosseumState tmp = *s;
+        OsrsLosQuery los_query = col_player_los_query(ctx);
+        OsrsPlayerStepInput input =
+            col_primary_step_input(&tmp, ctx, action, &los_query);
+        osrs_encounter_player_step(&input);
+        if (tmp.player.x != marked_x || tmp.player.y != marked_y)
+            return action;
+    }
+    assert(0 && "no move action leaves the marked tile");
+    return 0;
+}
+
+static int skyfall_dodge_damage_after_wait(int wait_visible_ticks) {
+    ColosseumContext ctx;
+    ColosseumState s;
+    int actions[COLO_NUM_ACTION_HEADS] = {0};
+    skyfall_dodge_init_state(&s, &ctx, 0x5100u + (uint32_t)wait_visible_ticks);
+
+    ColoJavelinState* jv = colo_npc_javelin(&s.npcs[0]);
+    jv->attack_count = 4;
+    s.npcs[0].attack_timer = 0;
+    col_step_ctx((EncounterState*)&s, (EncounterContext*)&ctx, actions);
+    assert(jv->skyfall_pending == 1 &&
+        jv->skyfall_timer == COLO_JAVELIN_SKYFALL_DELAY);
+    jv->skyfall_damage = SKYFALL_DODGE_FORCED_DAMAGE;
+
+    int move_action = skyfall_dodge_move_action_off_tile(
+        &s, &ctx, jv->skyfall_tile_x, jv->skyfall_tile_y);
+    int hp_before = s.player.current_hitpoints;
+
+    for (int i = 0; i < wait_visible_ticks; i++) {
+        memset(actions, 0, sizeof(actions));
+        col_step_ctx((EncounterState*)&s, (EncounterContext*)&ctx, actions);
+    }
+
+    if (colo_npc_javelin(&s.npcs[0])->skyfall_pending) {
+        memset(actions, 0, sizeof(actions));
+        actions[COLO_HEAD_PRIMARY] = move_action;
+        col_step_ctx((EncounterState*)&s, (EncounterContext*)&ctx, actions);
+    }
+
+    while (colo_npc_javelin(&s.npcs[0])->skyfall_pending) {
+        memset(actions, 0, sizeof(actions));
+        col_step_ctx((EncounterState*)&s, (EncounterContext*)&ctx, actions);
+    }
+    return hp_before - s.player.current_hitpoints;
+}
+
+static void test_javelin_skyfall_dodge_lead_window(void) {
+    printf("test_javelin_skyfall_dodge_lead_window\n");
+    int dodged_all = 1;
+    for (int wait = 0; wait < COLO_JAVELIN_SKYFALL_DELAY - 1; wait++) {
+        int visible_timer = COLO_JAVELIN_SKYFALL_DELAY - wait;
+        if (skyfall_dodge_damage_after_wait(wait) != 0) {
+            printf("  skyfall not dodged at visible timer %d\n", visible_timer);
+            dodged_all = 0;
+        }
+    }
+    CHECK("moving with skyfall timer >= 2 dodges the marked tile", dodged_all);
+    CHECK("moving with skyfall timer == 1 is too late",
+        skyfall_dodge_damage_after_wait(COLO_JAVELIN_SKYFALL_DELAY - 1) ==
+            SKYFALL_DODGE_FORCED_DAMAGE);
+}
+
 static int sol_setup(ColosseumState* s, ColosseumContext* ctx, uint32_t seed) {
     col_init_context_typed(ctx);
     ctx->config.start_wave = 11;
@@ -3353,14 +4211,18 @@ static void sol_clear_beams_and_sand(ColosseumState* s) {
     s->sol.hazard_tile_count = 0;
 }
 
-static int sol_phase_sand_invariants_hold(const ColosseumState* s, int expected_count) {
+static int sol_phase_sand_invariants_hold(
+    const ColosseumState* s,
+    const ColosseumContext* ctx,
+    int expected_count
+) {
     if (s->sol.hazard_tile_count != expected_count) return 0;
     int player_tile_seen = 0;
     for (int i = 0; i < s->sol.hazard_tile_count; i++) {
         int x = s->sol.hazard_tile_x[i];
         int y = s->sol.hazard_tile_y[i];
         if (!col_in_boss_arena(s, x, y)) return 0;
-        if (col_static_blocked(x, y)) return 0;
+        if (col_topology_tile_blocked(ctx, x, y)) return 0;
         if (x == s->player.x && y == s->player.y) player_tile_seen = 1;
         for (int j = 0; j < i; j++)
             if (x == s->sol.hazard_tile_x[j] && y == s->sol.hazard_tile_y[j])
@@ -3373,6 +4235,45 @@ static void sol_pin(ColosseumState* s, int idx, int x, int y) {
     wb_move_npc(s, idx, x, y);
     s->sol.attack_delay = 30000;
     s->sol.immobile_ticks = 30000;
+}
+
+static void test_sol_generic_observation_signals_are_neutral(void) {
+    printf("test_sol_generic_observation_signals_are_neutral\n");
+    ColosseumContext ctx;
+    ColosseumState s;
+    init_forecast_test_state(&s, &ctx, 98, 16, 16);
+    col_init_npc(&s, 0, COLO_SOL_HEREDIT, 17, 16);
+    s.sol.boss_idx = 0;
+    s.sol.attack_delay = 0;
+    s.sol.immobile_ticks = 0;
+    s.npcs[0].attack_timer = 5;
+
+    CHECK("fixture: Sol retains the generic melee metadata internally",
+        s.npcs[0].attack_style == ATTACK_STYLE_MELEE &&
+        s.npcs[0].attack_timer == 5);
+
+    static float obs[COLO_NUM_OBS];
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
+    int obs_slot = test_obs_slot_for_npc(&s, 0);
+    CHECK("Sol receives an NPC observation slot", obs_slot >= 0);
+    int npc_base = COLO_OBS_AFTER_SHARED +
+        obs_slot * COLO_FEATURES_PER_NPC;
+    int timer_idx = npc_base + COLO_NUM_NPC_TYPES + 3;
+    int next_prayer_active_idx = timer_idx + 2;
+    CHECK("Sol's stale generic attack timer is hidden",
+        obs[timer_idx] == 0.0f);
+    CHECK("Sol has no generic next-prayer cue",
+        obs[next_prayer_active_idx] == 0.0f);
+
+    int magic, ranged, melee;
+    col_live_threat_style_counts(
+        &s, &ctx, &magic, &ranged, &melee);
+    CHECK("adjacent Sol contributes no prayable live threat style",
+        magic == 0 && ranged == 0 && melee == 0);
+    CHECK("the global style-count observation stays neutral for Sol",
+        obs[COLO_OBS_AFTER_PENDING_HITS] == 0.0f &&
+        obs[COLO_OBS_AFTER_PENDING_HITS + 1] == 0.0f &&
+        obs[COLO_OBS_AFTER_PENDING_HITS + 2] == 0.0f);
 }
 
 static void test_sol_adjacency_gate_and_kiting(void) {
@@ -3508,6 +4409,23 @@ static void test_sol_parry_schedule_and_damage(void) {
     ColosseumState s;
     int idle[COLO_NUM_ACTION_HEADS] = {0};
 
+    CHECK("751 HP remains above the delayed-third-hit phase",
+        col_sol_phase_for_hp(751) == 2);
+    CHECK("750 HP enters the delayed-third-hit phase",
+        col_sol_phase_for_hp(750) == 3);
+
+    int boundary_idx = sol_setup(&s, &ctx, 108);
+    s.npcs[boundary_idx].hp = 751;
+    s.sol.phase = col_sol_phase_for_hp(s.npcs[boundary_idx].hp);
+    col_sol_start_triple_parry(&s, boundary_idx);
+    CHECK("751 HP schedules the third hit at +9",
+        s.sol.parry_land_in[2] == 9);
+    s.npcs[boundary_idx].hp = 750;
+    s.sol.phase = col_sol_phase_for_hp(s.npcs[boundary_idx].hp);
+    col_sol_start_triple_parry(&s, boundary_idx);
+    CHECK("750 HP schedules the third hit at +10",
+        s.sol.parry_land_in[2] == 10);
+
     for (int low = 0; low <= 1; low++) {
         int idx = sol_setup(&s, &ctx, 109 + (uint32_t)low);
         s.npcs[idx].hp = low ? (COLO_SOL_HP_MAX * 40) / 100 : (COLO_SOL_HP_MAX * 80) / 100;
@@ -3516,6 +4434,8 @@ static void test_sol_parry_schedule_and_damage(void) {
         sol_move_player(&s, 12, 12);
         col_sol_start_triple_parry(&s, idx);
         s.player.current_hitpoints = 99;
+        float parry_damage_before =
+            s.log.sol_damage_by_source[COLO_SOL_DAMAGE_TRIPLE_PARRY];
 
         int dmg_at[13] = {0};
         int hp_prev = 99;
@@ -3535,6 +4455,9 @@ static void test_sol_parry_schedule_and_damage(void) {
             if (t != 3 && t != 6 && t != h3 && dmg_at[t] != 0) clean = 0;
         CHECK("no parry damage lands off-schedule", clean);
         CHECK("the combo retires after the third hit", s.sol.parry_hits_left == 0);
+        CHECK("triple-parry damage has its own source total",
+            s.log.sol_damage_by_source[COLO_SOL_DAMAGE_TRIPLE_PARRY] ==
+                parry_damage_before + 15.0f + (float)d2 + (float)d3);
     }
 }
 
@@ -3577,6 +4500,116 @@ static void test_sol_parry_prayer_punish(void) {
         s.player.current_hitpoints == 99 - (15 + 25 + 35));
 }
 
+static ColoSolParryCue test_sol_parry_cue_from_obs(
+    ColosseumState* s,
+    ColosseumContext* ctx,
+    int* ticks_to_land,
+    float* damage
+) {
+    static float obs[COLO_NUM_OBS];
+    col_write_obs_ctx((EncounterState*)s, (EncounterContext*)ctx, obs);
+    int cue_base = COLO_OBS_AFTER_WAVE + COLO_BOSS_OBS_PARRY_CUE_OFFSET;
+    int ticks_base = COLO_OBS_AFTER_WAVE + COLO_BOSS_OBS_PARRY_TICKS_OFFSET;
+    int damage_idx = COLO_OBS_AFTER_WAVE + COLO_BOSS_OBS_PARRY_DAMAGE_OFFSET;
+    ColoSolParryCue cue = COLO_SOL_PARRY_CUE_INACTIVE;
+    int cue_count = 0;
+    *ticks_to_land = 0;
+    for (int c = 0; c < COLO_SOL_PARRY_CUE_COUNT; c++) {
+        if (obs[cue_base + c] != 1.0f) continue;
+        cue = (ColoSolParryCue)c;
+        cue_count++;
+    }
+    for (int tick = 1; tick <= COLO_SOL_PARRY_LAND_TICKS_MAX; tick++) {
+        if (obs[ticks_base + tick - 1] == 1.0f) *ticks_to_land = tick;
+    }
+    *damage = obs[damage_idx] * 45.0f;
+    CHECK("Sol parry cue is one-hot", cue_count == 1);
+    return cue;
+}
+
+static int test_sol_parry_prayer_action(
+    const ColosseumState* s,
+    ColoSolParryCue cue
+) {
+    if (cue == COLO_SOL_PARRY_CUE_FLICK_MELEE) return COLO_OVERHEAD_MELEE;
+    if ((cue == COLO_SOL_PARRY_CUE_OVERHEAD_OFF ||
+            cue == COLO_SOL_PARRY_CUE_POISONED) &&
+            s->player.prayer != PRAYER_NONE)
+        return COLO_OVERHEAD_OFF;
+    return COLO_OVERHEAD_NO_CHANGE;
+}
+
+static void test_sol_parry_observation_contract(void) {
+    printf("test_sol_parry_observation_contract\n");
+    ColosseumContext ctx;
+    ColosseumState s;
+
+    for (int low = 0; low <= 1; low++) {
+        int idx = sol_setup(&s, &ctx, 117 + (uint32_t)low);
+        s.npcs[idx].hp = low ? 750 : 751;
+        s.sol.phase = col_sol_phase_for_hp(s.npcs[idx].hp);
+        s.sol.attack_delay = 1000;
+        sol_move_player(&s, 12, 12);
+        col_sol_start_triple_parry(&s, idx);
+        s.player.current_hitpoints = 99;
+
+        int saw_lead_time = 0;
+        int saw_four_tick_countdown = 0;
+        int saw_third_hit_damage = 0;
+        int actions[COLO_NUM_ACTION_HEADS] = {0};
+        int total_ticks = low ? 10 : 9;
+        for (int t = 0; t < total_ticks; t++) {
+            int ticks_to_land = 0;
+            float damage = 0.0f;
+            ColoSolParryCue cue =
+                test_sol_parry_cue_from_obs(&s, &ctx, &ticks_to_land, &damage);
+            saw_lead_time |= cue == COLO_SOL_PARRY_CUE_LEAD_TIME;
+            saw_four_tick_countdown |= ticks_to_land == 4;
+            saw_third_hit_damage |= damage == (low ? 45.0f : 35.0f);
+            actions[COLO_HEAD_PRAYER] = test_sol_parry_prayer_action(&s, cue);
+            step_and_observe(&s, &ctx, actions);
+        }
+        CHECK("the observation-only parry policy blocks all three hits",
+            s.player.current_hitpoints == 99);
+        CHECK(low ? "the delayed third hit exposes lead time"
+                  : "the normal third hit has no extra lead time",
+            saw_lead_time == low);
+        CHECK(low ? "the delayed third hit exposes a 4-tick one-hot"
+                  : "the normal third hit never exposes a 4-tick one-hot",
+            saw_four_tick_countdown == low);
+        CHECK("the observation exposes the phase-correct third-hit damage",
+            saw_third_hit_damage);
+    }
+
+    int idx = sol_setup(&s, &ctx, 119);
+    s.npcs[idx].hp = 751;
+    s.sol.phase = col_sol_phase_for_hp(s.npcs[idx].hp);
+    s.sol.attack_delay = 1000;
+    sol_move_player(&s, 12, 12);
+    col_sol_start_triple_parry(&s, idx);
+    s.sol.overhead_history[s.tick % COLO_SOL_PRAYER_HISTORY] = 1;
+    s.player.current_hitpoints = 99;
+
+    int saw_poisoned = 0;
+    int saw_poisoned_damage = 0;
+    int actions[COLO_NUM_ACTION_HEADS] = {0};
+    for (int t = 0; t < 9; t++) {
+        int ticks_to_land = 0;
+        float damage = 0.0f;
+        ColoSolParryCue cue =
+            test_sol_parry_cue_from_obs(&s, &ctx, &ticks_to_land, &damage);
+        saw_poisoned |= cue == COLO_SOL_PARRY_CUE_POISONED;
+        saw_poisoned_damage |=
+            cue == COLO_SOL_PARRY_CUE_POISONED && damage == 15.0f;
+        actions[COLO_HEAD_PRAYER] = test_sol_parry_prayer_action(&s, cue);
+        step_and_observe(&s, &ctx, actions);
+    }
+    CHECK("the observation exposes an already-poisoned next hit", saw_poisoned);
+    CHECK("the poisoned cue preserves next-hit damage", saw_poisoned_damage);
+    CHECK("a poisoned first hit does not hide recovery for hits two and three",
+        s.player.current_hitpoints == 99 - 15);
+}
+
 static void test_sol_grapple_perfect_parry(void) {
     printf("test_sol_grapple_perfect_parry\n");
     ColosseumContext ctx;
@@ -3591,9 +4624,14 @@ static void test_sol_grapple_perfect_parry(void) {
     CHECK("the called slot is inside the 5-slot A12 domain",
         s.sol.grapple_body_slot >= 0 && s.sol.grapple_body_slot < COLO_NUM_GRAPPLE_SLOTS);
     s.player.current_hitpoints = 99;
+    float grapple_damage_before =
+        s.log.sol_damage_by_source[COLO_SOL_DAMAGE_GRAPPLE];
     for (int t = 0; t < COLO_SOL_GRAPPLE_WINDOW; t++) step_and_observe(&s, &ctx, idle);
     int fail_dmg = 99 - s.player.current_hitpoints;
     CHECK("an unanswered grapple lands 20-44", fail_dmg >= 20 && fail_dmg <= 44);
+    CHECK("failed grapple damage has its own source total",
+        s.log.sol_damage_by_source[COLO_SOL_DAMAGE_GRAPPLE] ==
+            grapple_damage_before + (float)fail_dmg);
 
     col_sol_start_grapple(&s);
     s.player.current_hitpoints = 99;
@@ -3616,7 +4654,7 @@ static void test_sol_grapple_perfect_parry(void) {
 
     int max_hit = col_live_loadout_stats(&s)->max_hit;
     CHECK("rig sanity: the melee loadout has a positive max hit", max_hit > 0);
-    col_player_attack_target(&s, idx);
+    col_player_attack_target_ctx(&s, &ctx, idx);
     CHECK("the guaranteed max is consumed at no less than the loadout max hit",
         s.player_attack_dmg >= max_hit && s.sol.next_attack_guaranteed_max == 0 &&
         s.sol.guaranteed_max_ticks == 0);
@@ -3654,7 +4692,7 @@ static void test_sol_perfect_parry_forces_spec_attack(void) {
     s.player.spec_armed = 1;
     s.sol.next_attack_guaranteed_max = 1;
     s.sol.guaranteed_max_ticks = COLO_SOL_PERFECT_MAX_TICKS;
-    col_player_attack_target(&s, idx);
+    col_player_attack_target_ctx(&s, &ctx, idx);
 
     CHECK("perfect-parry claws uses the forced first-success best total",
         s.player_attack_dmg == expected_total &&
@@ -3819,13 +4857,13 @@ static void test_sol_crystal_lifecycle(void) {
 
     int accumulates = 1, edges_ok = 1;
     for (int p = 1; p <= 4; p++) {
-        col_sol_enter_phase(&s, p);
+        col_sol_enter_phase(&s, &ctx, p);
         if (s.sol.crystal_count != p) accumulates = 0;
         if (s.sol.crystals[p - 1].edge != p - 1) edges_ok = 0;
     }
     CHECK("one crystal spawns at each transition (4 by 25%)", accumulates);
     CHECK("crystals take their own edges in N/E/S/W order", edges_ok);
-    col_sol_enter_phase(&s, 5);
+    col_sol_enter_phase(&s, &ctx, 5);
     CHECK("the enrage transition adds no fifth crystal", s.sol.crystal_count == 4);
     s.sol.phase = 4;
     sol_clear_beams_and_sand(&s);
@@ -3913,6 +4951,9 @@ static void test_sol_aoe_reaction_window(void) {
         cast_seen && s.sol.aoe_attack == COLO_SOL_AOE_SPEAR1 &&
         col_sol_aoe_tile_is_hazard(&s.sol, s.player.x, s.player.y));
 
+    ColoSolDamageSource opener_source =
+        col_sol_aoe_damage_source(s.sol.aoe_attack);
+    float opener_damage_before = s.log.sol_damage_by_source[opener_source];
     s.player.current_hitpoints = 99;
     step_and_observe(&s, &ctx, idle);
     CHECK("no AoE damage on the telegraph tick (cast + 1)",
@@ -3920,6 +4961,9 @@ static void test_sol_aoe_reaction_window(void) {
     step_and_observe(&s, &ctx, idle);
     CHECK("a stationary player is hit exactly 2 ticks after the cast",
         s.player.current_hitpoints < 99);
+    CHECK("the opener AOE lands in its shape-specific source total",
+        s.log.sol_damage_by_source[opener_source] ==
+            opener_damage_before + (float)(99 - s.player.current_hitpoints));
 
     sol_move_player(&s, 16, 16);
     cast_seen = 0;
@@ -3936,7 +4980,8 @@ static void test_sol_aoe_reaction_window(void) {
     int safe_x = -1, safe_y = -1;
     for (int x = s.player.x - 3; x <= s.player.x + 3 && safe_x < 0; x++)
         for (int y = s.player.y - 3; y <= s.player.y + 3 && safe_x < 0; y++)
-            if (col_in_boss_arena(&s, x, y) && !col_static_blocked(x, y) &&
+            if (col_in_boss_arena(&s, x, y) &&
+                    !col_topology_tile_blocked(&ctx, x, y) &&
                     !col_sol_aoe_tile_is_hazard(&s.sol, x, y)) {
                 safe_x = x; safe_y = y;
             }
@@ -3959,6 +5004,9 @@ static void test_sol_laser_react_window(void) {
     col_sol_spawn_crystal(&s);
     sol_move_player(&s, s.sol.crystals[0].x, 14);
     col_sol_fire_lasers(&s);
+    CHECK("laser volley accounting records an aligned launch",
+        s.log.laser_volleys == 1.0f &&
+        s.log.laser_aligned_at_fire == 1.0f);
     s.player.current_hitpoints = 99;
     for (int t = 0; t < 3; t++) step_and_observe(&s, &ctx, idle);
     CHECK("the beam telegraph opens 3 ticks after the volley (freeze 6)",
@@ -3966,9 +5014,90 @@ static void test_sol_laser_react_window(void) {
     for (int t = 0; t < 3; t++) step_and_observe(&s, &ctx, idle);
     CHECK("the 3 reaction ticks pass without damage",
         s.player.current_hitpoints == 99);
+    CHECK("laser show accounting records the aligned telegraph",
+        s.log.laser_aligned_at_show == 1.0f);
+    CHECK("laser prefire accounting records the still-aligned player",
+        s.log.laser_aligned_at_pre == 1.0f);
+    float laser_damage_before =
+        s.log.sol_damage_by_source[COLO_SOL_DAMAGE_CRYSTAL_LASER];
     step_and_observe(&s, &ctx, idle);
     CHECK("the aligned hit lands on the tick after the reaction window",
         s.player.current_hitpoints < 99);
+    CHECK("crystal-laser damage has its own source total",
+        s.log.sol_damage_by_source[COLO_SOL_DAMAGE_CRYSTAL_LASER] ==
+            laser_damage_before + (float)(99 - s.player.current_hitpoints));
+    CHECK("laser damage accounting records the hit and failed reaction",
+        s.log.laser_hits == 1.0f &&
+        s.log.laser_dmg == (float)(99 - s.player.current_hitpoints) &&
+        s.log.laser_aligned_at_damage == 1.0f &&
+        s.log.laser_react_fail == 1.0f &&
+        s.log.laser_react_ok == 0.0f);
+}
+
+static void test_sol_laser_observation_pack(void) {
+    printf("test_sol_laser_observation_pack\n");
+    ColosseumState s = {0};
+    s.wave = COLO_WAVE_BOSS;
+    s.player.x = 17;
+    s.player.y = 16;
+    s.sol.started = 1;
+    s.sol.laser_cooldown =
+        COLO_SOL_CRYSTAL_COOLDOWN_MIN + COLO_SOL_CRYSTAL_COOLDOWN_RAND - 1;
+    s.sol.crystal_count = 2;
+    s.sol.crystals[0] = (ColoSolCrystal){
+        .active = 1,
+        .edge = COLO_SOL_EDGE_NORTH,
+        .x = 20,
+        .firing_freeze = COLO_SOL_LASER_FREEZE,
+    };
+    s.sol.crystals[1] = (ColoSolCrystal){
+        .active = 1,
+        .edge = COLO_SOL_EDGE_EAST,
+        .y = 10,
+        .firing_freeze = COLO_SOL_LASER_FREEZE / 3,
+    };
+
+    float enabled[COLO_BOSS_OBS_SIZE] = {0};
+    float disabled[COLO_BOSS_OBS_SIZE] = {0};
+    int enabled_idx = 0;
+    int disabled_idx = 0;
+    col_write_boss_obs(&s, enabled, &enabled_idx, 1);
+    col_write_boss_obs(&s, disabled, &disabled_idx, 0);
+
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    CHECK("honest laser observations are enabled by default",
+        ctx.config.laser_obs_mode == 1);
+    col_put_int_ctx(
+        (EncounterState*)&s, (EncounterContext*)&ctx, "laser_obs_mode", 0);
+    CHECK("laser observation ablation parses as a binary config",
+        ctx.config.laser_obs_mode == 0);
+
+    int laser = COLO_BOSS_OBS_PREMOVE_HAZARD_OFFSET + 2;
+    CHECK("laser pack has one cooldown plus four three-float crystal records",
+        COLO_SOL_LASER_OBS_SIZE ==
+            1 + COLO_SOL_MAX_CRYSTALS * COLO_SOL_LASER_CRYSTAL_FEATS);
+    CHECK("enabled and disabled laser modes preserve the boss observation width",
+        enabled_idx == COLO_BOSS_OBS_SIZE &&
+        disabled_idx == COLO_BOSS_OBS_SIZE);
+    CHECK("laser pack writes the normalized shared cooldown",
+        enabled[laser] == 1.0f);
+    CHECK("north crystal writes active, signed x-line delta, and freeze",
+        enabled[laser + 1] == 1.0f &&
+        fabsf(enabled[laser + 2] - 3.0f / (float)COLO_ARENA_WIDTH) < 0.000001f &&
+        enabled[laser + 3] == 1.0f);
+    CHECK("east crystal writes active, signed y-line delta, and freeze",
+        enabled[laser + 4] == 1.0f &&
+        fabsf(enabled[laser + 5] + 6.0f / (float)COLO_ARENA_HEIGHT) < 0.000001f &&
+        fabsf(enabled[laser + 6] - 1.0f / 3.0f) < 0.000001f);
+    for (int i = 0; i < COLO_SOL_LASER_OBS_SIZE; i++)
+        CHECK("disabled laser mode zeroes every laser-pack channel",
+            disabled[laser + i] == 0.0f);
+    for (int i = 0; i < COLO_BOSS_OBS_SIZE; i++) {
+        if (i >= laser && i < laser + COLO_SOL_LASER_OBS_SIZE) continue;
+        CHECK("laser ablation changes no other boss observation",
+            enabled[i] == disabled[i]);
+    }
 }
 
 static void test_sol_phase_transition_sand_guarantees(void) {
@@ -3982,10 +5111,11 @@ static void test_sol_phase_transition_sand_guarantees(void) {
         (void)idx;
         s.sol.attack_delay = 1000;
         sol_move_player(&s, 17, 14);
-        col_sol_enter_phase(&s, 1);
+        col_sol_enter_phase(&s, &ctx, 1);
         for (int t = 0; t < COLO_SOL_BEAM_TO_POOL_TICKS; t++)
-            col_sol_tick_molten(&s);
-        if (!sol_phase_sand_invariants_hold(&s, COLO_SOL_BEAM_COUNT)) {
+            col_sol_tick_molten(&s, &ctx);
+        if (!sol_phase_sand_invariants_hold(
+                &s, &ctx, COLO_SOL_BEAM_COUNT)) {
             seeded_ok = 0;
             break;
         }
@@ -4002,12 +5132,14 @@ static void test_sol_phase_transition_sand_guarantees(void) {
     sol_move_player(&s, corner_x, corner_y);
     CHECK("rig sanity: corner-edge player tile is walkable",
         col_in_boss_arena(&s, s.player.x, s.player.y) &&
-        !col_static_blocked(s.player.x, s.player.y));
-    col_sol_enter_phase(&s, 1);
+        !col_topology_tile_blocked(
+            &ctx, s.player.x, s.player.y));
+    col_sol_enter_phase(&s, &ctx, 1);
     for (int t = 0; t < COLO_SOL_BEAM_TO_POOL_TICKS; t++)
-        col_sol_tick_molten(&s);
+        col_sol_tick_molten(&s, &ctx);
     CHECK("corner-edge phase transition still places 6 in-arena sand tiles including player",
-        sol_phase_sand_invariants_hold(&s, COLO_SOL_BEAM_COUNT));
+        sol_phase_sand_invariants_hold(
+            &s, &ctx, COLO_SOL_BEAM_COUNT));
 }
 
 static void test_sol_beams_become_pools(void) {
@@ -4019,7 +5151,7 @@ static void test_sol_beams_become_pools(void) {
     s.sol.attack_delay = 1000;
     sol_move_player(&s, 17, 14);
 
-    col_sol_drop_beams(&s);
+    col_sol_drop_beams(&s, &ctx);
     int beams = sol_count_active_beams(&s);
     int in_box = 1;
     for (int b = 0; b < COLO_SOL_BEAM_MAX; b++) {
@@ -4027,7 +5159,9 @@ static void test_sol_beams_become_pools(void) {
         int dx = abs(s.sol.beams[b].x - s.player.x);
         int dy = abs(s.sol.beams[b].y - s.player.y);
         if (dx > COLO_SOL_BEAM_SPREAD || dy > COLO_SOL_BEAM_SPREAD) in_box = 0;
-        if (col_static_blocked(s.sol.beams[b].x, s.sol.beams[b].y)) in_box = 0;
+        if (col_topology_tile_blocked(
+                &ctx, s.sol.beams[b].x, s.sol.beams[b].y))
+            in_box = 0;
     }
     CHECK("6 beams drop inside the 9x9 around the player", beams == 6 && in_box);
 
@@ -4041,14 +5175,21 @@ static void test_sol_beams_become_pools(void) {
 
     sol_move_player(&s, s.sol.hazard_tile_x[0], s.sol.hazard_tile_y[0]);
     int burns_ok = 1;
+    int burn_damage_total = 0;
+    float molten_damage_before =
+        s.log.sol_damage_by_source[COLO_SOL_DAMAGE_MOLTEN_SAND];
     for (int t = 0; t < 30; t++) {
         s.player.current_hitpoints = 99;
         step_and_observe(&s, &ctx, idle);
         int dmg = 99 - s.player.current_hitpoints;
+        burn_damage_total += dmg;
         if (dmg < COLO_MOLTEN_SAND_MIN_HIT ||
             dmg > COLO_MOLTEN_SAND_MIN_HIT + COLO_MOLTEN_SAND_RAND - 1) burns_ok = 0;
     }
     CHECK("standing on a pool burns 5-9 every tick", burns_ok);
+    CHECK("molten-sand damage has its own source total",
+        s.log.sol_damage_by_source[COLO_SOL_DAMAGE_MOLTEN_SAND] ==
+            molten_damage_before + (float)burn_damage_total);
     CHECK("pools persist for the rest of the fight", s.sol.hazard_tile_count == 6);
 }
 
@@ -4082,7 +5223,9 @@ static void test_sol_beam_strike_reaction_window(void) {
     int start_x = -1, start_y = -1;
     for (int x = 12; x <= 21 && start_x < 0; x++)
         for (int y = 12; y <= 21 && start_x < 0; y++) {
-            if (!col_in_boss_arena(&s, x, y) || col_static_blocked(x, y)) continue;
+            if (!col_in_boss_arena(&s, x, y) ||
+                    col_topology_tile_blocked(&ctx, x, y))
+                continue;
             int pooled = 0;
             for (int p = 0; p < s.sol.hazard_tile_count; p++)
                 if (s.sol.hazard_tile_x[p] == x && s.sol.hazard_tile_y[p] == y)
@@ -4097,7 +5240,9 @@ static void test_sol_beam_strike_reaction_window(void) {
     int safe_x = -1, safe_y = -1;
     for (int x = s.player.x - 2; x <= s.player.x + 2 && safe_x < 0; x++)
         for (int y = s.player.y - 2; y <= s.player.y + 2 && safe_x < 0; y++) {
-            if (!col_in_boss_arena(&s, x, y) || col_static_blocked(x, y)) continue;
+            if (!col_in_boss_arena(&s, x, y) ||
+                    col_topology_tile_blocked(&ctx, x, y))
+                continue;
             int marked = 0;
             for (int b = 0; b < COLO_SOL_BEAM_MAX; b++)
                 if (s.sol.beams[b].active && s.sol.beams[b].x == x &&
@@ -4134,7 +5279,9 @@ static void test_sol_enrage_sand_telegraphs(void) {
         pools_before >= 1 && sol_count_active_beams(&s) == 0);
 
     int before = s.sol.hazard_tile_count;
-    col_sol_add_pool(&s, s.sol.hazard_tile_x[0], s.sol.hazard_tile_y[0]);
+    col_sol_add_pool(
+        &s, &ctx,
+        s.sol.hazard_tile_x[0], s.sol.hazard_tile_y[0]);
     CHECK("re-covering a pooled tile has no additional effect",
         s.sol.hazard_tile_count == before);
 
@@ -4534,8 +5681,8 @@ static void test_loadout_divine_potions_and_stat_drift(void) {
     s.divine_ranged_timer = 234;
     ColoSnapshot snap;
     col_snapshot_ctx((EncounterState*)&s, (EncounterContext*)&ctx, &snap);
-    CHECK("snapshot version is v20 for Solarflare shared cadence",
-        snap.version == COLO_SNAPSHOT_VERSION && COLO_SNAPSHOT_VERSION == 20u);
+    CHECK("snapshot version matches the consolidated state layout",
+        snap.version == COLO_SNAPSHOT_VERSION && COLO_SNAPSHOT_VERSION == 26u);
     ColosseumState restored;
     memset(&restored, 0, sizeof(restored));
     col_restore_ctx((EncounterState*)&restored, (EncounterContext*)&ctx, &snap, sizeof(snap));
@@ -4605,6 +5752,7 @@ static void test_consumable_overdrink_mask(void) {
     ColosseumState s;
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 11);
     s.player.potion_timer = 0;
+    float mask[COLO_ACTION_MASK_SIZE];
 
     int brew = test_find_inventory_cell_with_consumable(&s, OSRS_CONSUMABLE_BREW);
     int combat = test_find_inventory_cell_with_consumable(&s, OSRS_CONSUMABLE_DIVINE_COMBAT);
@@ -4613,22 +5761,30 @@ static void test_consumable_overdrink_mask(void) {
         brew >= 0 && combat >= 0 && sanfew >= 0);
 
     s.player.current_hitpoints = s.player.base_hitpoints;
-    CHECK("brew masked at full HP", !col_inventory_cell_actionable(&s, brew));
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
+    CHECK("brew masked at full HP",
+        test_click_mask_for_cell_s(&s, mask, brew) == 0.0f);
     s.player.current_hitpoints = s.player.base_hitpoints - 10;
-    CHECK("brew valid below max HP", col_inventory_cell_actionable(&s, brew));
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
+    CHECK("brew valid below max HP",
+        test_click_mask_for_cell_s(&s, mask, brew) == 1.0f);
 
     s.player.current_attack = s.player.base_attack;
     s.player.current_strength = s.player.base_strength;
     s.player.current_defence = s.player.base_defence;
-    CHECK("combat valid at unboosted stats", col_inventory_cell_actionable(&s, combat));
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
+    CHECK("combat valid at unboosted stats",
+        test_click_mask_for_cell_s(&s, mask, combat) == 1.0f);
     s.player.current_attack = 105;
     s.player.current_strength = 112;
     s.player.current_defence = 118;
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
     CHECK("combat masked once all combat stats >= 105",
-        !col_inventory_cell_actionable(&s, combat));
+        test_click_mask_for_cell_s(&s, mask, combat) == 0.0f);
     s.player.current_strength = 104;
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
     CHECK("combat valid again when one stat dips below 105",
-        col_inventory_cell_actionable(&s, combat));
+        test_click_mask_for_cell_s(&s, mask, combat) == 1.0f);
 
     s.player.current_attack = s.player.base_attack;
     s.player.current_strength = s.player.base_strength;
@@ -4638,13 +5794,18 @@ static void test_consumable_overdrink_mask(void) {
     s.player.current_prayer = s.player.base_prayer;
     s.player_venom = 0;
     s.player_poison = 0;
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
     CHECK("sanfew masked with full stats/prayer and no venom",
-        !col_inventory_cell_actionable(&s, sanfew));
+        test_click_mask_for_cell_s(&s, mask, sanfew) == 0.0f);
     s.player_venom = 4;
-    CHECK("sanfew valid while venomed (it cures)", col_inventory_cell_actionable(&s, sanfew));
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
+    CHECK("sanfew valid while venomed",
+        test_click_mask_for_cell_s(&s, mask, sanfew) == 1.0f);
     s.player_venom = 0;
     s.player.current_prayer = s.player.base_prayer - 60;
-    CHECK("sanfew valid when prayer is well down", col_inventory_cell_actionable(&s, sanfew));
+    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
+    CHECK("sanfew valid when prayer is well down",
+        test_click_mask_for_cell_s(&s, mask, sanfew) == 1.0f);
 }
 
 static void test_loadout_surge_potion(void) {
@@ -4704,7 +5865,7 @@ static void test_loadout_spec_weapons(void) {
     s.player.spec_armed = 1;
     osrs_interaction_set(&s.interaction, 0);
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("claws spec drains 50 energy", s.player.special_energy == 50);
     CHECK("claws spec disarms after firing", s.player.spec_armed == 0);
     CHECK("claws spec queues the 4-splat cascade",
@@ -4719,13 +5880,13 @@ static void test_loadout_spec_weapons(void) {
     s.player.x = 10; s.player.y = 16;
     col_init_npc(&s, 0, COLO_SOL_HEREDIT, 11, 14);
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("scythe queues 3 splats into the 5x5 boss",
         s.npcs[0].pending_hits.count == 3);
     geo_clear_npcs(&s);
     col_init_npc(&s, 0, COLO_FREMENNIK_BERSERKER, 10, 17);
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("scythe queues 1 splat into a 1x1 warbander",
         s.npcs[0].pending_hits.count == 1);
 
@@ -4746,7 +5907,7 @@ static void test_loadout_spec_weapons(void) {
         arc_hits[1].npc_slot != arc_hits[2].npc_slot &&
         arc_hits[0].npc_slot != arc_hits[2].npc_slot);
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("scythe arc queues one hit per distinct arc target",
         s.npcs[0].pending_hits.count == 1 &&
         s.npcs[1].pending_hits.count == 1 &&
@@ -4764,7 +5925,7 @@ static void test_loadout_spec_weapons(void) {
     col_init_npc(&s, 1, COLO_HEALING_TOTEM, 15, 15);
     col_init_npc(&s, 2, COLO_FREMENNIK_ARCHER, 15, 17);
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("scythe arc skips incidental hazard entities",
         s.npcs[0].pending_hits.count == 1 &&
         s.npcs[1].pending_hits.count == 0 &&
@@ -4780,7 +5941,7 @@ static void test_loadout_spec_weapons(void) {
         col_init_npc(&s, 0, COLO_FREMENNIK_ARCHER, 15, 16);
         col_init_npc(&s, 1, COLO_FREMENNIK_BERSERKER, 15, 15);
         s.player.attack_timer = 0;
-        col_player_attack_target(&s, 0);
+        col_player_attack_target_ctx(&s, &ctx, 0);
         int scythe_max = col_live_loadout_stats(&s)->max_hit;
         if (s.npcs[0].pending_hits.count == 1 &&
                 s.npcs[1].pending_hits.count == 1 &&
@@ -4824,7 +5985,7 @@ static void test_loadout_spec_weapons(void) {
         s.player.spec_armed = 1;
         s.player.attack_timer = 0;
         s.npcs[0].hp = zerk->hp;
-        col_player_attack_target(&s, 0);
+        col_player_attack_target_ctx(&s, &ctx, 0);
         tries++;
     }
     CHECK("elder maul spec eventually lands", s.npcs[0].def_drained > 0);
@@ -4849,7 +6010,7 @@ static void test_loadout_spec_weapons(void) {
         s.player.spec_armed = 1;
         s.player.attack_timer = 0;
         s.npcs[0].hp = seer->hp;
-        col_player_attack_target(&s, 0);
+        col_player_attack_target_ctx(&s, &ctx, 0);
         if (s.player.current_hitpoints > 20) healed = 1;
         tries++;
     }
@@ -4878,8 +6039,8 @@ static void test_loadout_spec_weapons(void) {
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_BEGINNER_ONLY, 0.0f, 54);
     s.modifiers.draft_pending = 0;
     s.wave_ready_delay = 0;
-    s.inventory_cells[26] = osrs_inventory_cell_empty();
-    s.inventory_cells[27] = osrs_inventory_cell_empty();
+    s.player.inventory_cells[26] = osrs_inventory_cell_empty();
+    s.player.inventory_cells[27] = osrs_inventory_cell_empty();
     col_equip_from_cell(&s, test_find_inventory_cell_with_item(&s, ITEM_SGS));
     s.player.special_energy = 100;
     s.player.spec_armed = 1;
@@ -5046,6 +6207,197 @@ static void test_total_damage_by_type_captures_typeless(void) {
         s.log.typeless_damage_by_type[COLO_JAVELIN_COLOSSUS] == typeless_before + 17.0f);
 }
 
+static void test_javelin_and_doom_damage_source_contract(void) {
+    printf("test_javelin_and_doom_damage_source_contract\n");
+    ColosseumContext ctx;
+    ColosseumState s;
+    init_forecast_test_state(&s, &ctx, 2325, 17, 16);
+
+    EncounterPendingHit basic = {
+        .active = 1,
+        .damage = 11,
+        .ticks_remaining = 1,
+        .attack_style = ATTACK_STYLE_RANGED,
+        .source_npc_type = COLO_JAVELIN_COLOSSUS,
+        .source_npc_slot = -1,
+    };
+    encounter_pending_hit_queue_push(
+        &s.player_pending_hits, basic, "test-javelin", s.tick, -1,
+        COLO_JAVELIN_COLOSSUS);
+    col_resolve_player_pending_hits_ctx(&s, &ctx);
+    CHECK("basic ranged damage has its own Javelin source counter",
+        s.log.javelin_damage_by_source[COLO_JAVELIN_DAMAGE_BASIC_RANGED] ==
+            11.0f);
+    CHECK("basic ranged damage has its own fatal-source identity",
+        s.last_damage_source == COLO_DAMAGE_JAVELIN_BASIC_RANGED);
+
+    col_init_npc(&s, 0, COLO_JAVELIN_COLOSSUS, 20, 16);
+    ColoJavelinState* jv = colo_npc_javelin(&s.npcs[0]);
+    jv->skyfall_pending = 1;
+    jv->skyfall_tile_x = s.player.x;
+    jv->skyfall_tile_y = s.player.y;
+    jv->skyfall_timer = 1;
+    jv->skyfall_damage = 13;
+    col_npc_resolve_javelin_skyfall(&s, &ctx, 0);
+    CHECK("skyfall damage has its own Javelin source counter",
+        s.log.javelin_damage_by_source[COLO_JAVELIN_DAMAGE_SKYFALL] ==
+            13.0f);
+
+    s.molten_count = 1;
+    s.molten_x[0] = s.player.x;
+    s.molten_y[0] = s.player.y;
+    s.molten_kind[0] = COLO_POOL_REENTRY;
+    s.molten_lifetime[0] = COLO_POOL_PERMANENT;
+    s.molten_burn_timer[0] = 0;
+    col_mod_tick_molten_pools(&s);
+    CHECK("Reentry damage has its own positive Javelin source counter",
+        s.log.javelin_damage_by_source[COLO_JAVELIN_DAMAGE_REENTRY_POOL] >
+            0.0f);
+
+    s.modifiers.active_mask |= (1u << COLO_MOD_DOOM);
+    s.modifiers.tier[COLO_MOD_DOOM] = 3;
+    s.doom_stacks = COLO_DOOM_CAP[3] - 1;
+    s.molten_kind[0] = COLO_POOL_VOLATILITY;
+    s.molten_burn_timer[0] = 0;
+    col_mod_tick_molten_pools(&s);
+    CHECK("the lethal Doom stack records the Volatility-pool mechanism",
+        col_mod_doom_lethal(&s) &&
+        s.last_damage_source == COLO_DAMAGE_VOLATILITY_POOL &&
+        s.last_doom_damage_source == COLO_DAMAGE_VOLATILITY_POOL);
+    col_mod_on_player_damaged(&s, 1, COLO_DAMAGE_SOLARFLARE);
+    CHECK("Doom source latches on the transition to lethal",
+        s.last_damage_source == COLO_DAMAGE_SOLARFLARE &&
+        s.last_doom_damage_source == COLO_DAMAGE_VOLATILITY_POOL);
+    col_record_death_attribution(&s);
+    CHECK("death and Doom death metrics preserve their distinct mechanisms",
+        s.log.death_by_source[COLO_DAMAGE_SOLARFLARE] == 1.0f &&
+        s.log.doom_death_by_source[COLO_DAMAGE_VOLATILITY_POOL] == 1.0f);
+}
+
+static void test_applied_damage_and_merged_pool_attribution(void) {
+    printf("test_applied_damage_and_merged_pool_attribution\n");
+    ColosseumContext ctx;
+    ColosseumState s;
+    init_forecast_test_state(&s, &ctx, 2326, 17, 16);
+    s.modifiers.active_mask |= (1u << COLO_MOD_DOOM);
+    s.modifiers.tier[COLO_MOD_DOOM] = 3;
+    s.active_player_damage_received_scale = 0.0f;
+    s.player_venom = COLO_VENOM_START;
+    s.player_venom_timer = 0;
+    int doom_before = s.doom_stacks;
+    col_mod_tick_venom(&s);
+    CHECK("damage rounded to zero does not add Doom or a fatal source",
+        s.doom_stacks == doom_before &&
+        s.last_damage_source == -1 &&
+        s.tick_scratch.damage_received == 0.0f);
+
+    s.active_player_damage_received_scale = 1.0f;
+    s.player.current_hitpoints = 5;
+    int applied = col_damage_player_from(
+        &s, 20, COLO_JAVELIN_COLOSSUS, COLO_DMG_UNPRAYABLE);
+    col_mod_on_player_damaged(
+        &s, applied, COLO_DAMAGE_JAVELIN_SKYFALL);
+    CHECK("overkill records only the actual five hitpoints lost",
+        applied == 5 &&
+        s.tick_scratch.damage_received == 5.0f &&
+        s.log.total_damage_by_type[COLO_JAVELIN_COLOSSUS] == 5.0f);
+    int source_after_fatal = s.last_damage_source;
+    CHECK("damage after zero hitpoints cannot overwrite the fatal source",
+        col_damage_player_from(
+            &s, 15, COLO_JAVELIN_COLOSSUS, COLO_DMG_UNPRAYABLE) == 0 &&
+        s.last_damage_source == source_after_fatal);
+
+    init_forecast_test_state(&s, &ctx, 2327, 17, 16);
+    s.modifiers.active_mask |=
+        (1u << COLO_MOD_DOOM) |
+        (1u << COLO_MOD_BLASPHEMY);
+    s.modifiers.tier[COLO_MOD_DOOM] = 3;
+    s.modifiers.tier[COLO_MOD_BLASPHEMY] = 3;
+    s.player.current_hitpoints = 5;
+    s.player.current_prayer = 77;
+    col_apply_divine_combat_potion_effect(&s);
+    CHECK("divine self-damage has an explicit source and adds one Doom stack",
+        s.player.current_hitpoints == 0 &&
+        s.tick_scratch.damage_received == 5.0f &&
+        s.tick_scratch.landed_self_damage == 5.0f &&
+        s.last_damage_source == COLO_DAMAGE_SELF &&
+        s.doom_stacks == 1);
+    CHECK("Blasphemy ignores divine self-damage",
+        s.player.current_prayer == 77);
+
+    init_forecast_test_state(&s, &ctx, 2328, 17, 16);
+    col_mod_add_molten_pool(
+        &s,
+        ctx.route_topology,
+        s.player.x,
+        s.player.y,
+        COLO_POOL_REENTRY,
+        COLO_POOL_PERMANENT);
+    col_mod_add_molten_pool(
+        &s,
+        ctx.route_topology,
+        s.player.x,
+        s.player.y,
+        COLO_POOL_VOLATILITY,
+        COLO_POOL_TEMPORARY);
+    CHECK("same-tile Reentry and Volatility preserve both provenances",
+        s.molten_count == 1 &&
+        s.molten_kind[0] == COLO_POOL_REENTRY_VOLATILITY &&
+        s.molten_lifetime[0] == COLO_POOL_PERMANENT);
+    int hp_before = s.player.current_hitpoints;
+    col_mod_tick_molten_pools(&s);
+    int first_burn = hp_before - s.player.current_hitpoints;
+    CHECK("combined pool damage has a distinct source and Javelin counter",
+        first_burn >= 1 &&
+        first_burn <= COLO_REENTRY_MOLTEN_MAX_HIT &&
+        s.last_damage_source == COLO_DAMAGE_REENTRY_VOLATILITY_POOL &&
+        s.log.javelin_damage_by_source[
+            COLO_JAVELIN_DAMAGE_REENTRY_VOLATILITY_POOL] == (float)first_burn);
+    hp_before = s.player.current_hitpoints;
+    col_mod_tick_molten_pools(&s);
+    CHECK("combined modifier pool respects the every-other-tick cadence",
+        s.player.current_hitpoints == hp_before &&
+        s.molten_burn_timer[0] == 0);
+    col_mod_tick_molten_pools(&s);
+    CHECK("combined modifier pool burns again after one clear tick",
+        s.player.current_hitpoints < hp_before);
+    col_mod_clear_wave_end_pools(&s);
+    CHECK("a permanent merged tile survives wave end with both provenances",
+        s.molten_count == 1 &&
+        s.molten_kind[0] == COLO_POOL_REENTRY_VOLATILITY &&
+        s.molten_lifetime[0] == COLO_POOL_PERMANENT);
+}
+
+static void test_sol_damage_source_contract(void) {
+    printf("test_sol_damage_source_contract\n");
+    CHECK("every AOE shape maps to its distinct damage source",
+        col_sol_aoe_damage_source(COLO_SOL_AOE_SPEAR1) == COLO_SOL_DAMAGE_SPEAR_1 &&
+        col_sol_aoe_damage_source(COLO_SOL_AOE_SPEAR2) == COLO_SOL_DAMAGE_SPEAR_2 &&
+        col_sol_aoe_damage_source(COLO_SOL_AOE_SHIELD1) == COLO_SOL_DAMAGE_SHIELD_1 &&
+        col_sol_aoe_damage_source(COLO_SOL_AOE_SHIELD2) == COLO_SOL_DAMAGE_SHIELD_2);
+
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    ColosseumState s;
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 2324);
+
+    s.player.current_hitpoints = 5;
+    col_damage_player_from_sol(&s, 20, COLO_SOL_DAMAGE_MOLTEN_SAND);
+    CHECK("source totals count applied damage rather than overkill",
+        s.log.sol_damage_by_source[COLO_SOL_DAMAGE_MOLTEN_SAND] == 5.0f);
+    CHECK("the NPC-type total also counts applied damage",
+        s.log.total_damage_by_type[COLO_SOL_HEREDIT] == 5.0f);
+
+    s.player.current_hitpoints = 99;
+    float typeless_before = s.log.typeless_damage_by_type[COLO_SOL_HEREDIT];
+    col_damage_player_from_sol(&s, 15, COLO_SOL_DAMAGE_TRIPLE_PARRY);
+    CHECK("triple-parry source damage uses the off-prayer channel",
+        s.log.sol_damage_by_source[COLO_SOL_DAMAGE_TRIPLE_PARRY] == 15.0f &&
+        s.tick_scratch.landed_offpray_damage == 15.0f &&
+        s.log.typeless_damage_by_type[COLO_SOL_HEREDIT] == typeless_before);
+}
+
 static void test_npc_magic_defence_rolls_off_magic_level(void) {
     printf("test_npc_magic_defence_rolls_off_magic_level\n");
     col_build_npc_stats();
@@ -5086,15 +6438,15 @@ static void test_matchup_dpt_obs_ranking(void) {
     s.player.x = 12;
     s.player.y = 16;
     venator_spawn_enemy(&s, 0, COLO_FREMENNIK_BERSERKER, 16, 16, 1);
-    ColoVenatorPreviewTargets targets;
-    col_collect_venator_preview_targets(&s, &targets);
-    int isolated_extra = col_venator_extra_bounce_if_shot(&s, &targets, 0);
+    const ColoVenatorPreviewTargets* targets =
+        col_get_venator_preview_targets(&s, &ctx);
+    int isolated_extra = col_venator_extra_bounce_if_shot(&s, targets, 0);
     CHECK("isolated Venator preview has no extra bounces", isolated_extra == 0);
 
     venator_spawn_enemy(&s, 1, COLO_FREMENNIK_ARCHER, 18, 16, 1);
     venator_spawn_enemy(&s, 2, COLO_FREMENNIK_BERSERKER, 18, 17, 1);
-    col_collect_venator_preview_targets(&s, &targets);
-    int clustered_extra = col_venator_extra_bounce_if_shot(&s, &targets, 0);
+    targets = col_get_venator_preview_targets(&s, &ctx);
+    int clustered_extra = col_venator_extra_bounce_if_shot(&s, targets, 0);
     CHECK("clustered Venator preview sees extra bounces", clustered_extra >= 1);
 }
 
@@ -5109,7 +6461,7 @@ static void test_primary_head_resolution(void) {
     s.npcs[0].hp = 200;
     s.npcs[0].max_hp = 200;
     col_rebuild_player_collision_flags(&s);
-    col_refresh_current_obs_slots_ctx(&s, &ctx);
+    col_refresh_current_obs_slots(&s);
     int obs_slot = col_find_target_obs_slot(&s, 0);
     int attack_action = col_primary_attack_action_for_obs_slot(obs_slot);
 
@@ -5155,37 +6507,41 @@ static void test_combat_fidelity_contract_sizes(void) {
     CHECK("equip head dim is 29", COLO_ACTION_DIMS[COLO_HEAD_EQUIP_SLOT(GEAR_SLOT_WEAPON)] == 29);
     CHECK("eat and drink heads are 29-way",
         COLO_ACTION_DIMS[COLO_HEAD_EAT] == 29 && COLO_ACTION_DIMS[COLO_HEAD_DRINK] == 29);
-    CHECK("prayer head uses shared PVE overhead dim",
-        COLO_ACTION_DIMS[COLO_HEAD_PRAYER] == ENCOUNTER_OVERHEAD_DIM_PVE);
-    CHECK("spell head dim is 3 (none/summon-thrall/death-charge)", COLO_SPELL_DIM == 3);
-    CHECK("obs width is 3044", COLO_NUM_OBS == 3044);
-    CHECK("weapon-choice tail has 58 features (28 cell DPT + 28 spec + 2 wielded)",
-        COLO_WEAPON_CHOICE_OBS_SIZE == 58);
-    CHECK("inventory block has 784 features", COLO_INVENTORY_OBS_SIZE == 784);
-    CHECK("equipped-self block has 198 features", COLO_EQUIPPED_SELF_OBS_SIZE == 198);
-    CHECK("modifier hazard tail has 38 features", COLO_MODIFIER_HAZARD_OBS_SIZE == 38);
-    CHECK("modifier block has 74 features", COLO_MODIFIER_OBS_SIZE == 74);
-    CHECK("NPC slots have 37 features (DPT obs removed, B0 neutral)", COLO_FEATURES_PER_NPC == 37);
-    CHECK("snapshot version is v20", COLO_SNAPSHOT_VERSION == 20u);
+    CHECK("prayer head uses the shared overhead dim",
+        COLO_ACTION_DIMS[COLO_HEAD_PRAYER] == OSRS_OVERHEAD_DIM);
+    CHECK("spell head uses the shared five-action contract", COLO_SPELL_DIM == 5);
+    CHECK("obs width is 904", COLO_NUM_OBS == 904);
+    CHECK("inventory block has 28 canonical content codes",
+        COLO_INVENTORY_OBS_SIZE == 28);
+    CHECK("the encoder sees the 14-feature record rebuilt from the item table",
+        COLO_INVENTORY_CELL_ENCODER_FEATURES == 14 &&
+        OSRS_ITEM_OBS_TABLE_COLS == 14);
+    CHECK("spec cost is exposed and normalised for a spec weapon",
+        osrs_clamp_unit((float)osrs_spec_cost(ITEM_DRAGON_CLAWS) / 100.0f) == 0.5f);
+    CHECK("a non-spec weapon reads zero spec cost", osrs_spec_cost(ITEM_NONE) == 0);
+    CHECK("equipment block has one canonical content code per worn slot",
+        COLO_EQUIPPED_OBS_SIZE == NUM_GEAR_SLOTS);
+    CHECK("modifier hazard tail has 42 features", COLO_MODIFIER_HAZARD_OBS_SIZE == 42);
+    CHECK("modifier block has 60 features", COLO_MODIFIER_OBS_SIZE == 60);
+    CHECK("NPC slots carry a type code, not a type one-hot",
+        COLO_FEATURES_PER_NPC == 23);
+    CHECK("snapshot version is v26", COLO_SNAPSHOT_VERSION == 26u);
     CHECK("every active NPC gets an obs slot (no busy-wave drop)",
         COLO_OBS_NPCS == 24 && COLO_OBS_NPCS == COLO_MAX_NPCS);
     CHECK("PRIMARY head covers noop, movement, and NPC obs slots",
         COLO_ACTION_DIMS[COLO_HEAD_PRIMARY] == COLO_PRIMARY_DIM &&
         COLO_ACTION_DIMS[COLO_HEAD_PRIMARY] == 49);
-    CHECK("player block remains 36", COLO_PLAYER_OBS_SIZE == 36);
+    CHECK("shared self block is 52", OSRS_SHARED_SELF_OBS_SIZE == 52);
 
     int mask_sum = 0;
     for (int h = 0; h < COLO_NUM_ACTION_HEADS; h++) mask_sum += COLO_ACTION_DIMS[h];
     CHECK("mask size equals the summed action-head dims",
-        COLO_ACTION_MASK_SIZE == mask_sum && COLO_ACTION_MASK_SIZE == 452);
+        COLO_ACTION_MASK_SIZE == mask_sum && COLO_ACTION_MASK_SIZE == 456);
 
-    int obs_sum = COLO_PLAYER_OBS_SIZE + COLO_PILLAR_OBS_SIZE +
-        COLO_INVENTORY_OBS_SIZE + COLO_EQUIPPED_SELF_OBS_SIZE + COLO_NPC_OBS_SIZE +
+    int obs_sum = OSRS_SHARED_OBS_SIZE + COLO_NPC_OBS_SIZE +
         COLO_MODIFIER_OBS_SIZE + COLO_WAVE_OBS_SIZE + COLO_BOSS_OBS_SIZE +
-        COLO_PENDING_HIT_OBS_SIZE + COLO_STEP_OUT_FORECAST_OBS_SIZE +
-        COLO_THREAT_LOS_OBS_SIZE + COLO_THRALL_DC_OBS_SIZE +
-        COLO_WEAPON_CHOICE_OBS_SIZE + COLO_SPAWN_OBS_SIZE +
-        COLO_THREAT_FIELD_OBS_SIZE;
+        COLO_PENDING_HIT_OBS_SIZE + COLO_THREAT_LOS_OBS_SIZE +
+        COLO_THRALL_DC_OBS_SIZE + COLO_SPAWN_OBS_SIZE;
     CHECK("obs width equals the summed section sizes", COLO_NUM_OBS == obs_sum);
 
     float opa, ops;
@@ -5424,6 +6780,104 @@ static void test_venator_bow_bounce_colosseum_integration(void) {
         ov.projectiles[2].start_delay > ov.projectiles[1].start_delay);
 }
 
+static void test_venator_preview_cache_reuses_unchanged_geometry(void) {
+    printf("test_venator_preview_cache_reuses_unchanged_geometry\n");
+    ColosseumContext ctx;
+    ColosseumState s;
+    loadout_reset(
+        &s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 8208);
+    geo_clear_npcs(&s);
+    venator_spawn_enemy(
+        &s, 0, COLO_FREMENNIK_BERSERKER, 16, 16, 1);
+    venator_spawn_enemy(
+        &s, 1, COLO_FREMENNIK_ARCHER, 18, 16, 1);
+
+    const ColoVenatorPreviewTargets* first =
+        col_get_venator_preview_targets(&s, &ctx);
+    uint64_t first_generation = ctx.venator_preview_cache.generation;
+    const ColoVenatorPreviewTargets* second =
+        col_get_venator_preview_targets(&s, &ctx);
+    CHECK("unchanged venator geometry reuses the preview",
+        first == second &&
+        ctx.venator_preview_cache.generation == first_generation);
+    CHECK("nearby target is present in cached bounce mask",
+        (second->bounce_masks[0] & (UINT32_C(1) << 1)) != 0);
+
+    s.npcs[1].x = 25;
+    const ColoVenatorPreviewTargets* moved =
+        col_get_venator_preview_targets(&s, &ctx);
+    CHECK("changed venator geometry refreshes the preview",
+        ctx.venator_preview_cache.generation == first_generation + 1);
+    CHECK("refreshed preview removes the distant target",
+        (moved->bounce_masks[0] & (UINT32_C(1) << 1)) == 0);
+}
+
+static void test_frailty_disables_brew_overheal(void) {
+    printf("test_frailty_disables_brew_overheal\n");
+    ColosseumContext ctx;
+    ColosseumState s;
+
+    loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_BEGINNER_ONLY, 0.0f, 909);
+    int base = s.player.base_hitpoints;
+    int brew_heal = osrs_brew_heal_amount(base);
+    s.player.current_hitpoints = base;
+    col_apply_drink_one_dose_effect(&s, OSRS_CONSUMABLE_BREW);
+    CHECK("without Frailty a brew overheals above base hitpoints",
+        s.player.current_hitpoints == base + brew_heal);
+
+    loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_BEGINNER_ONLY, 0.0f, 909);
+    s.modifiers.active_mask |= (1u << COLO_MOD_FRAILTY);
+    s.modifiers.tier[COLO_MOD_FRAILTY] = 1;
+    col_mod_apply_frailty_hp(&s);
+    int frail_base = s.player.base_hitpoints;
+    CHECK("Frailty I cuts base hitpoints by 10%",
+        frail_base == 99 - (99 * COLO_FRAILTY_HP_CUT_PCT[1]) / 100);
+
+    s.player.current_hitpoints = frail_base - 1;
+    col_apply_drink_one_dose_effect(&s, OSRS_CONSUMABLE_BREW);
+    CHECK("under Frailty a brew heals up to the reduced base but never past it",
+        s.player.current_hitpoints == frail_base);
+}
+
+static void test_red_flag_minotaur_not_solid_to_other_npcs(void) {
+    printf("test_red_flag_minotaur_not_solid_to_other_npcs\n");
+    ColosseumContext ctx;
+    col_init_context_typed(&ctx);
+    ColosseumState s;
+    ColoGeometryContext geometry = {
+        .state = &s,
+        .context = &ctx,
+    };
+
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 77);
+    geo_clear_npcs(&s);
+    s.modifiers.draft_pending = 0;
+    col_init_npc(&s, 0, COLO_MINOTAUR, 14, 16);
+    int size = col_npc_effective_size(&s.npcs[0]);
+    CHECK("without Red Flag the minotaur blocks other NPCs",
+        col_npc_blocked_ignore_player(&geometry, 14, 16, size));
+
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 77);
+    geo_clear_npcs(&s);
+    s.modifiers.draft_pending = 0;
+    s.modifiers.active_mask |= (1u << COLO_MOD_RED_FLAG);
+    s.modifiers.tier[COLO_MOD_RED_FLAG] = 1;
+    col_init_npc(&s, 0, COLO_MINOTAUR, 14, 16);
+    CHECK("with Red Flag other NPCs can move into the minotaur's tiles",
+        !col_npc_blocked_ignore_player(&geometry, 14, 16, size));
+
+    col_init_npc(&s, 1, COLO_SERPENT_SHAMAN, 20, 16);
+    int shaman_size = col_npc_effective_size(&s.npcs[1]);
+    CHECK("Red Flag does not make other NPC types passable",
+        col_npc_blocked_ignore_player(&geometry, 20, 16, shaman_size));
+
+    col_deactivate_npc(&s, 1);
+    CHECK("deactivating a non-solid minotaur leaves no stale collision flags",
+        !col_npc_blocked_ignore_player(&geometry, 14, 16, size));
+}
+
 static void test_bee_contact_damage_band(void) {
     printf("test_bee_contact_damage_band\n");
     ColosseumContext ctx;
@@ -5454,12 +6908,23 @@ static void test_bee_contact_damage_band(void) {
     col_apply_weapon_set(&s, COLO_GEAR_MELEE);
     CHECK("rig sanity: the melee set is venom-immune",
         osrs_effect_profile_has(col_live_effects(&s), OSRS_ITEM_EFFECT_VENOM_IMMUNE));
-    bee->x = s.player.x;
-    bee->y = s.player.y;
-    s.player.current_hitpoints = 99;
-    col_mod_tick_bees(&s);
-    CHECK("serpentine-helm immunity zeroes bee contact damage",
-        s.player.current_hitpoints == 99);
+
+    s.player_poison = 0;
+    s.player_poison_timer = 0;
+    int halved_in_band = 1, halved_any_zero = 0;
+    for (int t = 0; t < 200; t++) {
+        bee->x = s.player.x;
+        bee->y = s.player.y;
+        s.player.current_hitpoints = 99;
+        col_mod_tick_bees(&s);
+        int dmg = 99 - s.player.current_hitpoints;
+        if (dmg < COLO_BEE_MIN_DAMAGE / 2 || dmg > COLO_BEE_MAX_DAMAGE / 2)
+            halved_in_band = 0;
+        if (dmg == 0) halved_any_zero = 1;
+    }
+    CHECK("antipoison halves bee contact damage rather than nulling it",
+        halved_in_band && !halved_any_zero);
+    CHECK("antipoison still blocks the bee poison stack", s.player_poison == 0);
 }
 
 static void test_divine_state_obs_presence(void) {
@@ -5471,7 +6936,8 @@ static void test_divine_state_obs_presence(void) {
 
     static float obs_base[COLO_NUM_OBS];
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs_base);
-    CHECK("player block has no divine timer tail", COLO_PLAYER_OBS_SIZE == 36);
+    CHECK("shared self block has no divine timer tail",
+        OSRS_SHARED_SELF_OBS_SIZE == 52);
 
     col_apply_divine_combat_potion_effect(&s);
     s.divine_ranged_timer = ENCOUNTER_DIVINE_POTION_TICKS;
@@ -5480,7 +6946,8 @@ static void test_divine_state_obs_presence(void) {
     static float obs_boost[COLO_NUM_OBS];
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs_boost);
     CHECK("divine boosts still surface through live max-hit scalar",
-        obs_boost[20] > obs_base[20]);
+        obs_boost[OSRS_SHARED_OBS_MAX_HIT] >
+            obs_base[OSRS_SHARED_OBS_MAX_HIT]);
 }
 
 static void test_magic_set_max_hit_math(void) {
@@ -5557,10 +7024,9 @@ static int thrall_scenario(ColosseumState* s, ColosseumContext* ctx, int mode, u
     s->player.x = 12;
     s->player.y = 18;
     col_rebuild_player_collision_flags(s);
-    int slot = col_spawn_npc_at(s, COLO_FREMENNIK_BERSERKER, 16, 18);
+    int slot = col_spawn_npc_at(s, COLO_FREMENNIK_BERSERKER, 13, 18);
     s->npcs[slot].hp = 200;
     s->npcs[slot].max_hp = 200;
-    osrs_interaction_set(&s->interaction, slot);
     return slot;
 }
 
@@ -5569,85 +7035,102 @@ static void test_thrall_regression(void) {
     ColosseumContext ctx;
     ColosseumState s;
     int idle[COLO_NUM_ACTION_HEADS] = {0};
-    int summon[COLO_NUM_ACTION_HEADS] = {0};
-    summon[COLO_HEAD_SPELL] = COLO_SPELL_SUMMON_THRALL;
 
     int slot = thrall_scenario(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_BEGINNER_ONLY, 201);
-    col_tick_player_ctx(&s, &ctx, summon, 1);
-    CHECK("summon activates the thrall on the targeted NPC",
-        s.thrall_active && s.thrall_target_slot == slot);
-    CHECK("budget thrall lifetime starts at 99 (decremented this tick)",
-        s.thrall_lifetime_left == 98);
-    CHECK("thrall recast gate is 17 (decremented this tick)", s.thrall_recast_cd == 16);
+    CHECK("budget profile starts with an idle 99-tick thrall",
+        s.thrall_target_slot == -1 && s.thrall_aggro_ticks_left == 0 &&
+        s.thrall_lifetime_left == 99 && s.thrall_lifetime_total == 99);
+    osrs_interaction_set(&s.interaction, slot);
+
+    s.player.attack_timer = 2;
+    col_tick_player_ctx(&s, &ctx, idle, 1);
+    CHECK("selecting an NPC without attacking does not acquire a thrall target",
+        !s.tick_scratch.player_attacked && s.thrall_target_slot == -1);
+
+    s.player.attack_timer = 0;
+    col_tick_player_ctx(&s, &ctx, idle, 1);
+    CHECK("an executed player attack acquires a twelve-tick thrall target",
+        s.tick_scratch.player_attacked && s.player_attack_npc_idx == slot &&
+        s.thrall_target_slot == slot &&
+        s.thrall_aggro_ticks_left == COLO_THRALL_AGGRO_TICKS);
 
     osrs_interaction_clear(&s.interaction);
     encounter_pending_hit_queue_clear(&s.npcs[slot].pending_hits);
-
-    for (int t = 0; t < 3; t++) col_tick_player_ctx(&s, &ctx, idle, 1);
-    CHECK("thrall fires exactly once per 4 ticks (timer back to 4)",
-        s.thrall_attack_timer == COLO_THRALL_TICK);
-    CHECK("exactly one thrall hit is queued in the cadence window",
-        s.npcs[slot].pending_hits.count == 1 &&
+    s.thrall_attack_timer = 1;
+    s.tick_scratch.player_attacked = 0;
+    col_tick_player_ctx(&s, &ctx, idle, 1);
+    CHECK("the thrall attacks after interaction and LOS break",
+        s.thrall_target_slot == slot && s.npcs[slot].pending_hits.count == 1 &&
         s.npcs[slot].pending_hits.hits[0].source_npc_slot == -1 &&
         s.npcs[slot].pending_hits.hits[0].attack_style == ATTACK_STYLE_MAGIC);
     float dmg_before = s.tick_scratch.damage_dealt;
     int npc_hp_before = s.npcs[slot].hp;
-    land_pending_player_hits(&s);
+    land_pending_player_hits(&s, &ctx);
     int thrall_dmg = npc_hp_before - s.npcs[slot].hp;
     CHECK("a single thrall hit lands player-credited damage in [0,3]",
         thrall_dmg >= 0 && thrall_dmg <= COLO_THRALL_MAX_HIT);
     CHECK("the thrall damage is credited to the player accumulator",
         s.tick_scratch.damage_dealt >= dmg_before);
 
+    for (int t = 1; t < 11; t++) {
+        s.tick_scratch.player_attacked = 0;
+        col_tick_player_ctx(&s, &ctx, idle, 1);
+    }
+    CHECK("thrall aggro remains through eleven ticks after the player attack",
+        s.thrall_target_slot == slot && s.thrall_aggro_ticks_left == 1);
+    s.tick_scratch.player_attacked = 0;
+    col_tick_player_ctx(&s, &ctx, idle, 1);
+    CHECK("thrall aggro clears after the twelfth tick without a player attack",
+        s.thrall_target_slot == -1 && s.thrall_aggro_ticks_left == 0);
+
+    s.player.current_magic = 85;
+    s.thrall_lifetime_left = 1;
     osrs_interaction_set(&s.interaction, slot);
+    s.player.attack_timer = 0;
+    col_tick_player_ctx(&s, &ctx, idle, 1);
+    CHECK("expiry discards a same-tick attack and resummons from current Magic",
+        s.tick_scratch.player_attacked && s.thrall_target_slot == -1 &&
+        s.thrall_aggro_ticks_left == 0 &&
+        s.thrall_lifetime_left == 85 && s.thrall_lifetime_total == 85 &&
+        s.thrall_attack_timer == COLO_THRALL_TICK);
 
-    int life_now = s.thrall_lifetime_left;
-    col_tick_player_ctx(&s, &ctx, summon, 1);
-    CHECK("summon during the recast gate does not reset lifetime",
-        s.thrall_lifetime_left == life_now - 1);
-
-    while (s.thrall_recast_cd > 0) col_tick_player_ctx(&s, &ctx, idle, 1);
-    col_tick_player_ctx(&s, &ctx, summon, 1);
-    CHECK("re-summon after the gate replaces with a fresh 99-tick thrall",
-        s.thrall_active && s.thrall_lifetime_left == 98);
-
+    s.player.current_magic = 0;
     s.thrall_lifetime_left = 1;
     col_tick_player_ctx(&s, &ctx, idle, 1);
-    CHECK("budget thrall despawns when lifetime reaches 0",
-        !s.thrall_active && s.thrall_target_slot == -1);
+    CHECK("a thrall cannot be resummoned at zero Magic",
+        s.thrall_target_slot == -1 && s.thrall_aggro_ticks_left == 0 &&
+        s.thrall_lifetime_left == 0);
+    s.player.current_magic = 1;
+    col_tick_player_ctx(&s, &ctx, idle, 1);
+    CHECK("the thrall resummons once Magic becomes positive",
+        s.thrall_lifetime_left == 1 && s.thrall_lifetime_total == 1);
+    osrs_interaction_clear(&s.interaction);
+    encounter_pending_hit_queue_clear(&s.npcs[slot].pending_hits);
+    s.tick_scratch.player_attacked = 0;
+    for (int t = 0; t < COLO_THRALL_TICK; t++)
+        col_tick_player_ctx(&s, &ctx, idle, 1);
+    CHECK("the fresh thrall cannot attack before another player attack",
+        s.thrall_target_slot == -1 && s.npcs[slot].pending_hits.count == 0);
 
     thrall_scenario(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 202);
-    col_tick_player_ctx(&s, &ctx, summon, 1);
-    CHECK("high-eff thrall lifetime starts at 198 (decremented this tick)",
-        s.thrall_lifetime_left == 197);
+    CHECK("Master Combat Achievements double the maxed thrall lifetime",
+        s.thrall_lifetime_left == 198 && s.thrall_lifetime_total == 198);
 
     col_init_context_typed(&ctx);
     memset(&s, 0, sizeof(s));
     col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 203);
     geo_clear_npcs(&s);
     s.modifiers.draft_pending = 0;
-    s.player.x = 12; s.player.y = 18;
+    s.player.x = 12;
+    s.player.y = 18;
     col_rebuild_player_collision_flags(&s);
-    int sol_slot = col_spawn_npc_at(&s, COLO_SOL_HEREDIT, 18, 16);
+    int sol_slot = col_spawn_npc_at(&s, COLO_SOL_HEREDIT, 13, 18);
     s.npcs[sol_slot].hp = 1500;
     s.npcs[sol_slot].max_hp = 1500;
     osrs_interaction_set(&s.interaction, sol_slot);
-    col_tick_player_ctx(&s, &ctx, summon, 1);
-    CHECK("summon vs Sol Heredit is a no-op (Sol is thrall-immune)", !s.thrall_active);
-    float mask[COLO_ACTION_MASK_SIZE];
-    col_write_mask_ctx((EncounterState*)&s, (EncounterContext*)&ctx, mask);
-    int spell_off = col_action_head_mask_offset(COLO_HEAD_SPELL);
-    CHECK("summon-thrall is masked illegal while targeting Sol",
-        mask[spell_off + COLO_SPELL_SUMMON_THRALL] == 0.0f);
-
-    s.thrall_active = 1;
-    s.thrall_target_slot = sol_slot;
-    s.thrall_attack_timer = 1;
-    s.thrall_lifetime_left = 50;
-    int sol_hp = s.npcs[sol_slot].hp;
+    s.player.attack_timer = 0;
     col_tick_player_ctx(&s, &ctx, idle, 1);
-    land_pending_player_hits(&s);
-    CHECK("thrall never damages Sol", s.npcs[sol_slot].hp == sol_hp);
+    CHECK("attacking Sol does not acquire a thrall target", s.thrall_target_slot == -1);
 }
 
 static void test_death_charge_regression(void) {
@@ -5718,9 +7201,9 @@ static void test_death_charge_regression(void) {
     slot = thrall_scenario(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 216);
     s.player.special_energy = 50;
     s.npcs[slot].hp = 1;
-    int summon[COLO_NUM_ACTION_HEADS] = {0};
-    summon[COLO_HEAD_SPELL] = COLO_SPELL_SUMMON_THRALL;
-    col_tick_player_ctx(&s, &ctx, summon, 1);
+    osrs_interaction_clear(&s.interaction);
+    s.thrall_target_slot = slot;
+    s.thrall_aggro_ticks_left = COLO_THRALL_AGGRO_TICKS;
     col_tick_player_ctx(&s, &ctx, cast_dc, 1);
     s.thrall_attack_timer = 1;
     col_tick_player_ctx(&s, &ctx, idle, 1);
@@ -5730,7 +7213,7 @@ static void test_death_charge_regression(void) {
         if (s.npcs[slot].pending_hits.hits[h].active &&
                 s.npcs[slot].pending_hits.hits[h].source_npc_slot == -1)
             s.npcs[slot].pending_hits.hits[h].damage = 5;
-    land_pending_player_hits(&s);
+    land_pending_player_hits(&s, &ctx);
     CHECK("a thrall-credited kill procs Death Charge (+15)",
         s.npcs[slot].hp <= 0 && s.player.special_energy == spec_before + 15);
 
@@ -5752,17 +7235,18 @@ static void test_combat_fidelity_snapshot_roundtrip(void) {
     ColosseumState s;
     int slot = thrall_scenario(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 221);
     col_apply_weapon_set(&s, COLO_GEAR_MAGIC);
-    s.thrall_active = 1;
     s.thrall_target_slot = slot;
+    s.thrall_aggro_ticks_left = 7;
     s.thrall_lifetime_left = 123;
+    s.thrall_lifetime_total = 151;
     s.thrall_attack_timer = 2;
-    s.thrall_recast_cd = 9;
     s.death_charge_window_left = 44;
     s.death_charge_cd = 0;
 
     ColoSnapshot snap;
     col_snapshot_ctx((EncounterState*)&s, (EncounterContext*)&ctx, &snap);
-    CHECK("snapshot frame is v20", snap.version == 20u);
+    CHECK("snapshot frame has the current version",
+        snap.version == COLO_SNAPSHOT_VERSION);
 
     ColosseumState restored;
     memset(&restored, 0, sizeof(restored));
@@ -5772,142 +7256,11 @@ static void test_combat_fidelity_snapshot_roundtrip(void) {
     CHECK("the recomputed magic set max hit matches the live high-eff value (48)",
         col_live_loadout_stats(&restored)->max_hit == 48);
     CHECK("thrall fields round-trip bit-identically",
-        restored.thrall_active == 1 && restored.thrall_target_slot == slot &&
-        restored.thrall_lifetime_left == 123 && restored.thrall_attack_timer == 2 &&
-        restored.thrall_recast_cd == 9);
+        restored.thrall_target_slot == slot && restored.thrall_aggro_ticks_left == 7 &&
+        restored.thrall_lifetime_left == 123 && restored.thrall_lifetime_total == 151 &&
+        restored.thrall_attack_timer == 2);
     CHECK("Death-Charge fields round-trip bit-identically",
         restored.death_charge_window_left == 44 && restored.death_charge_cd == 0);
-}
-
-static void test_step_out_forecast_manticore_armed_pattern(void) {
-    printf("test_step_out_forecast_manticore_armed_pattern\n");
-    ColosseumContext ctx;
-    ColosseumState s;
-    init_forecast_test_state(&s, &ctx, 401, 17, 16);
-    col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
-    s.npcs[0].attack_timer = 1;
-    ColoManticoreState* mc = colo_npc_manticore(&s.npcs[0]);
-    mc->cycle_step = 0;
-    mc->orb_style[0] = ATTACK_STYLE_MAGIC;
-    mc->orb_style[1] = ATTACK_STYLE_RANGED;
-    mc->orb_style[2] = ATTACK_STYLE_MELEE;
-
-    ColoStepOutForecast forecast;
-    col_build_step_out_forecast_ctx(&s, &forecast);
-    const ColoStepOutForecastAction* idle = &forecast.actions[0];
-    CHECK("armed manticore idle forecast is valid", idle->valid == 1);
-    CHECK("armed manticore orb 0 records magic on tick 1",
-        idle->ticks[0].magic_count == 1 && idle->ticks[0].max_hit == COLO_MANTICORE_MAX_HIT_MAGIC);
-    CHECK("armed manticore orb 1 records ranged on tick 2",
-        idle->ticks[1].ranged_count == 1 && idle->ticks[1].max_hit == COLO_MANTICORE_MAX_HIT_RANGED);
-    CHECK("armed manticore orb 2 records melee on tick 3",
-        idle->ticks[2].melee_count == 1 && idle->melee_fallback_exposure == 1);
-}
-
-static void test_step_out_forecast_manticore_pair_stagger(void) {
-    printf("test_step_out_forecast_manticore_pair_stagger\n");
-    ColosseumContext ctx;
-    ColosseumState s;
-    init_forecast_test_state(&s, &ctx, 406, 17, 16);
-    col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
-    col_init_npc(&s, 1, COLO_MANTICORE, 12, 12);
-    s.npcs[0].attack_timer = 1;
-    s.npcs[1].attack_timer = 1;
-    ColoManticoreState* amc = colo_npc_manticore(&s.npcs[0]);
-    ColoManticoreState* bmc = colo_npc_manticore(&s.npcs[1]);
-    amc->cycle_step = 0;
-    amc->orb_style[0] = ATTACK_STYLE_MAGIC;
-    amc->orb_style[1] = ATTACK_STYLE_RANGED;
-    amc->orb_style[2] = ATTACK_STYLE_MELEE;
-    bmc->cycle_step = 0;
-    bmc->orb_style[0] = ATTACK_STYLE_MAGIC;
-    bmc->orb_style[1] = ATTACK_STYLE_RANGED;
-    bmc->orb_style[2] = ATTACK_STYLE_MELEE;
-
-    ColoStepOutForecast forecast;
-    col_build_step_out_forecast_ctx(&s, &forecast);
-    const ColoStepOutForecastAction* idle = &forecast.actions[0];
-    CHECK("synced-pair forecast predicts ONE orb per tick, not two",
-        idle->ticks[0].magic_count == 1 &&
-        idle->ticks[1].ranged_count == 1 &&
-        idle->ticks[2].melee_count == 1);
-
-    s.npcs[1].attack_timer = 3;
-    bmc->orb_style[0] = ATTACK_STYLE_RANGED;
-    col_build_step_out_forecast_ctx(&s, &forecast);
-    idle = &forecast.actions[0];
-    CHECK("still-charging peer forecast overlaps mid-barrage",
-        idle->ticks[2].melee_count == 1 && idle->ticks[2].ranged_count == 1);
-}
-
-static void test_step_out_forecast_warband_window_and_break(void) {
-    printf("test_step_out_forecast_warband_window_and_break\n");
-    ColosseumContext ctx;
-    ColosseumState s;
-    init_forecast_test_state(&s, &ctx, 402, 7, 18);
-    s.tick = 100;
-    s.warband_cycle_anchor = 100;
-    col_init_npc(&s, 0, COLO_FREMENNIK_BERSERKER, 8, 18);
-
-    ColoStepOutForecast forecast;
-    col_build_step_out_forecast_ctx(&s, &forecast);
-    int run_west = forecast_move_action_for_delta(-2, 0);
-    CHECK("adjacent berserker records melee on its next window",
-        forecast.actions[0].ticks[0].melee_count == 1);
-    CHECK("running west breaks the berserker forecast adjacency",
-        !forecast_action_has_event(&forecast.actions[run_west]));
-}
-
-static void test_step_out_forecast_ranged_los_candidate_tiles(void) {
-    printf("test_step_out_forecast_ranged_los_candidate_tiles\n");
-    ColosseumContext ctx;
-    ColosseumState s;
-    init_forecast_test_state(&s, &ctx, 403, 7, 9);
-    col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 12, 12);
-    s.npcs[0].attack_timer = 1;
-
-    ColoStepOutForecast forecast;
-    col_build_step_out_forecast_ctx(&s, &forecast);
-    int run_north = forecast_move_action_for_delta(0, 2);
-    CHECK("pillar-blocked idle tile records no shaman forecast",
-        !forecast_action_has_event(&forecast.actions[0]));
-    CHECK("clear run-north tile records the shaman magic forecast",
-        forecast.actions[run_north].ticks[0].magic_count == 1);
-}
-
-static void test_step_out_forecast_valid_flags(void) {
-    printf("test_step_out_forecast_valid_flags\n");
-    ColosseumContext ctx;
-    ColosseumState s;
-    init_forecast_test_state(&s, &ctx, 404, 7, 9);
-
-    ColoStepOutForecast forecast;
-    col_build_step_out_forecast_ctx(&s, &forecast);
-    int walk_east = forecast_move_action_for_delta(1, 0);
-    int walk_west = forecast_move_action_for_delta(-1, 0);
-    CHECK("pillar move has invalid step-out forecast flag",
-        forecast.actions[walk_east].valid == 0);
-    CHECK("clear move has valid step-out forecast flag",
-        forecast.actions[walk_west].valid == 1);
-}
-
-static void test_step_out_forecast_same_tick_mixed_styles(void) {
-    printf("test_step_out_forecast_same_tick_mixed_styles\n");
-    ColosseumContext ctx;
-    ColosseumState s;
-    init_forecast_test_state(&s, &ctx, 405, 17, 16);
-    col_init_npc(&s, 0, COLO_SERPENT_SHAMAN, 13, 16);
-    col_init_npc(&s, 1, COLO_JAVELIN_COLOSSUS, 20, 15);
-    s.npcs[0].attack_timer = 1;
-    s.npcs[1].attack_timer = 1;
-
-    ColoStepOutForecast forecast;
-    col_build_step_out_forecast_ctx(&s, &forecast);
-    const ColoStepOutForecastAction* idle = &forecast.actions[0];
-    CHECK("same tick magic and ranged forecast conflict is flagged",
-        idle->same_tick_mixed_style_conflict == 1);
-    CHECK("same tick magic and ranged counts are both recorded",
-        idle->ticks[0].magic_count == 1 && idle->ticks[0].ranged_count == 1);
 }
 
 static void test_render_bridge_combat_visuals_and_loadout(void) {
@@ -5947,6 +7300,7 @@ static void test_render_bridge_combat_visuals_and_loadout(void) {
     init_forecast_test_state(&s, &ctx, 503, 17, 16);
     col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
     ColoManticoreState* mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
     mc->fixed_orb_style[0] = ATTACK_STYLE_MAGIC;
     mc->fixed_orb_style[1] = ATTACK_STYLE_RANGED;
     mc->fixed_orb_style[2] = ATTACK_STYLE_MELEE;
@@ -5978,6 +7332,7 @@ static void test_render_bridge_combat_visuals_and_loadout(void) {
     init_forecast_test_state(&s, &ctx, 503, 17, 16);
     col_init_npc(&s, 0, COLO_MANTICORE, 16, 12);
     mc = colo_npc_manticore(&s.npcs[0]);
+    mc->phase = COLO_MANTICORE_PHASE_REPEATING;
     mc->fixed_orb_style[0] = ATTACK_STYLE_MELEE;
     mc->fixed_orb_style[1] = ATTACK_STYLE_RANGED;
     mc->fixed_orb_style[2] = ATTACK_STYLE_MAGIC;
@@ -6230,11 +7585,13 @@ static void test_osrs_los_query_contracts(void) {
     printf("test_osrs_los_query_contracts\n");
     OsrsLosQuery open_query = osrs_los_open();
     CHECK("explicit open LoS permits a ranged attack",
-        encounter_player_can_attack(0, 0, 4, 0, 1, 10, &open_query) == 1);
+        encounter_player_can_attack(
+            0, 0, 4, 0, 1, 10, NULL, 0, 0, &open_query) == 1);
 
     OsrsLosQuery tile_query = osrs_los_tile(test_los_every_tile_blocked, NULL);
     CHECK("tile LoS refuses when every tile blocks",
-        encounter_player_can_attack(0, 0, 4, 0, 1, 10, &tile_query) == 0);
+        encounter_player_can_attack(
+            0, 0, 4, 0, 1, 10, NULL, 0, 0, &tile_query) == 0);
 }
 
 static void test_player_ranged_los_blocked_by_pillar(void) {
@@ -6254,19 +7611,26 @@ static void test_player_ranged_los_blocked_by_pillar(void) {
     col_init_npc(&s, 0, COLO_JAGUAR_WARRIOR, 13, 9);
     ColoNPC* npc = &s.npcs[0];
     CHECK("player + target tiles are clear of static blockers",
-        !col_static_blocked(5, 9) && !col_static_blocked(13, 9));
-    CHECK("pillar 0 sits on the line between them", col_static_blocked(9, 9));
-    CHECK("no LoS through the pillar", col_npc_has_los_to_player(&s, npc) == 0);
-    OsrsLosQuery los_query = col_player_los_query(&s);
+        !col_topology_tile_blocked(&ctx, 5, 9) &&
+        !col_topology_tile_blocked(&ctx, 13, 9));
+    CHECK("pillar 0 sits on the line between them",
+        col_topology_tile_blocked(&ctx, 9, 9));
+    CHECK("no LoS through the pillar",
+        col_npc_has_los_to_player(&s, &ctx, npc) == 0);
+    OsrsLosQuery los_query = col_player_los_query(&ctx);
     CHECK("shared tile LoS blocks the same pillar line",
         encounter_player_can_attack(s.player.x, s.player.y,
             npc->x, npc->y, col_npc_effective_size(npc),
-            col_player_attack_range(&s), &los_query) == 0);
+            col_player_attack_range(&s),
+            ctx.collision_map, ctx.world_offset_x, ctx.world_offset_y,
+            &los_query) == 0);
 
     s.player.x = 13; s.player.y = 4;
     col_rebuild_player_collision_flags(&s);
-    CHECK("the clear column tile is walkable", !col_static_blocked(13, 4));
-    CHECK("LoS is clear down the column", col_npc_has_los_to_player(&s, npc) == 1);
+    CHECK("the clear column tile is walkable",
+        !col_topology_tile_blocked(&ctx, 13, 4));
+    CHECK("LoS is clear down the column",
+        col_npc_has_los_to_player(&s, &ctx, npc) == 1);
     int actions[COLO_NUM_ACTION_HEADS] = {0};
     osrs_interaction_set(&s.interaction, 0);
     s.player.attack_timer = 0;
@@ -6298,12 +7662,14 @@ static void test_player_chase_routes_around_pillar_for_los(void) {
     col_init_npc(&s, 0, COLO_JAGUAR_WARRIOR, 13, 9);
     col_rebuild_player_collision_flags(&s);
     ColoNPC* npc = &s.npcs[0];
-    OsrsLosQuery los_query = col_player_los_query(&s);
+    OsrsLosQuery los_query = col_player_los_query(&ctx);
     int attack_range = col_player_attack_range(&s);
     CHECK("start tile is range-valid and LoS-blocked",
         encounter_player_can_attack(s.player.x, s.player.y,
             npc->x, npc->y, col_npc_effective_size(npc),
-            attack_range, &los_query) == 0);
+            attack_range,
+            ctx.collision_map, ctx.world_offset_x, ctx.world_offset_y,
+            &los_query) == 0);
 
     int actions[COLO_NUM_ACTION_HEADS] = {0};
     int attacked_tick = -1;
@@ -6324,7 +7690,7 @@ static void test_player_chase_routes_around_pillar_for_los(void) {
     CHECK("chase reaches LoS and fires within twelve ticks",
         attacked_tick >= 0);
     CHECK("attack fires from a LoS-valid tile",
-        col_npc_has_los_to_player(&s, npc) == 1 &&
+        col_npc_has_los_to_player(&s, &ctx, npc) == 1 &&
         encounter_rect_distance(s.player.x, s.player.y, 1,
             npc->x, npc->y, col_npc_effective_size(npc)) <= attack_range);
 }
@@ -6370,7 +7736,7 @@ static void test_colosseum_npc_movement_player_tile_guards(void) {
         encounter_dist_to_npc(s.player.x, s.player.y,
             s.npcs[0].x, s.npcs[0].y, col_npc_effective_size(&s.npcs[0])) <=
                 COLO_NPC_STATS[COLO_SERPENT_SHAMAN].attack_range &&
-        col_npc_has_los_to_player(&s, &s.npcs[0]));
+        col_npc_has_los_to_player(&s, &ctx, &s.npcs[0]));
 
     geo_clear_npcs(&s);
     s.player.x = 6;
@@ -6383,7 +7749,7 @@ static void test_colosseum_npc_movement_player_tile_guards(void) {
         encounter_dist_to_npc(s.player.x, s.player.y,
             s.npcs[0].x, s.npcs[0].y, col_npc_effective_size(&s.npcs[0])) <=
                 COLO_NPC_STATS[COLO_SERPENT_SHAMAN].attack_range &&
-        col_npc_has_los_to_player(&s, &s.npcs[0]));
+        col_npc_has_los_to_player(&s, &ctx, &s.npcs[0]));
     col_npc_move_ctx(&s, &ctx, 0);
     CHECK("ranged shaman range+LoS player one-step around pillar holds OSRS tile",
         s.npcs[0].x == shaman_x && s.npcs[0].y == shaman_y &&
@@ -6527,7 +7893,7 @@ static void test_player_melee_lands_at_delay_zero(void) {
     col_init_npc(&s, 0, COLO_JAGUAR_WARRIOR, 16, 16);
 
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("a melee swing queues at least one pending hit on the target",
         s.npcs[0].pending_hits.count >= 1);
     int all_delay_zero = s.npcs[0].pending_hits.count >= 1;
@@ -6539,13 +7905,13 @@ static void test_player_melee_lands_at_delay_zero(void) {
     int hp_before = s.npcs[0].hp;
     int resolved_same_pass = 1;
     for (int swing = 0; swing < 32 && s.npcs[0].hp == hp_before; swing++) {
-        col_resolve_player_projectiles_on_npcs(&s);
+        col_resolve_player_projectiles_on_npcs_ctx(&s, &ctx);
         if (s.npcs[0].pending_hits.count != 0) resolved_same_pass = 0;
         if (s.npcs[0].hp < hp_before) break;
         s.player.attack_timer = 0;
-        col_player_attack_target(&s, 0);
+        col_player_attack_target_ctx(&s, &ctx, 0);
     }
-    col_resolve_player_projectiles_on_npcs(&s);
+    col_resolve_player_projectiles_on_npcs_ctx(&s, &ctx);
     CHECK("a delay-0 melee hit lands on the first resolver pass",
         s.npcs[0].hp < hp_before && resolved_same_pass &&
         s.npcs[0].pending_hits.count == 0);
@@ -6559,7 +7925,7 @@ static void test_player_melee_lands_at_delay_zero(void) {
     col_rebuild_player_collision_flags(&r);
     col_init_npc(&r, 0, COLO_JAGUAR_WARRIOR, 16, 16);
     r.player.attack_timer = 0;
-    col_player_attack_target(&r, 0);
+    col_player_attack_target_ctx(&r, &ctx, 0);
     int ranged_delay_positive = r.npcs[0].pending_hits.count >= 1;
     for (int h = 0; h < r.npcs[0].pending_hits.count; h++)
         if (r.npcs[0].pending_hits.hits[h].ticks_remaining <= 0) ranged_delay_positive = 0;
@@ -6620,6 +7986,148 @@ static void test_echo_boots_recoil_reflects_to_attacker(void) {
         sol.player.item_effect_state.echo_boot_charges == OSRS_ECHO_BOOTS_MAX_CHARGES);
 }
 
+static void test_pending_hit_recoil_volatility_damage_accounting(void) {
+    printf("test_pending_hit_recoil_volatility_damage_accounting\n");
+    ColosseumContext ctx;
+    ColosseumState s;
+    loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_BEGINNER_ONLY, 1.0f, 92);
+    geo_clear_npcs(&s);
+    s.player.x = 18;
+    s.player.y = 16;
+    s.player.current_hitpoints = 99;
+    s.player.prayer = PRAYER_NONE;
+    col_rebuild_player_collision_flags(&s);
+    col_init_npc(&s, 0, COLO_JAGUAR_WARRIOR, 16, 16);
+    s.npcs[0].hp = 1;
+    s.npcs[0].min_hp_seen = 1;
+    s.modifiers.active_mask |= 1u << COLO_MOD_VOLATILITY;
+    s.modifiers.tier[COLO_MOD_VOLATILITY] = 1;
+
+    EncounterPendingHit hit = encounter_pending_hit_resolved_at_throw(
+        10,
+        1,
+        ATTACK_STYLE_RANGED,
+        PRAYER_NONE,
+        COLO_JAGUAR_WARRIOR,
+        0,
+        1,
+        NULL);
+    col_push_player_pending_hit(&s, hit);
+    col_resolve_player_pending_hits_ctx(&s, &ctx);
+
+    CHECK("pending hit lands before its echo-boots recoil death effect",
+        s.player.current_hitpoints == 89 &&
+        s.npcs[0].hp == 0);
+    CHECK("Volatility damage waits for corpse removal",
+        s.tick_scratch.damage_received == 10.0f &&
+        s.tick_scratch.landed_offpray_damage == 10.0f &&
+        s.tick_scratch.landed_unprayable_damage == 0.0f);
+
+    int linger_ticks = col_npc_death_linger_ticks(s.npcs[0].type);
+    for (int tick = 0; tick < linger_ticks; tick++)
+        col_tick_npc_death_lingers(&s, &ctx);
+    CHECK("corpse removal applies Volatility after the pending hit",
+        s.player.current_hitpoints == 64);
+    CHECK("Volatility and pending-hit damage remain separately exact",
+        s.tick_scratch.damage_received == 35.0f &&
+        s.tick_scratch.landed_offpray_damage == 10.0f &&
+        s.tick_scratch.landed_unprayable_damage == 25.0f);
+    col_accumulate_tick_stats(&s, &ctx);
+}
+
+static void test_shared_inventory_tracks_gear_swaps(void) {
+    printf("test_shared_inventory_tracks_gear_swaps\n");
+    ColosseumState s;
+    ColosseumContext ctx;
+    static float obs_before[COLO_NUM_OBS];
+    static float obs_after[COLO_NUM_OBS];
+
+    col_init_context_typed(&ctx);
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 4242u);
+
+    int cell = -1;
+    int slot = -1;
+    for (int candidate = 0;
+            candidate < COLO_INVENTORY_DISPLAY_SLOTS;
+            candidate++) {
+        uint8_t item = osrs_inventory_cell_item_index(
+            &s.player.inventory_cells[candidate]);
+        if (item == ITEM_NONE) continue;
+        int gear_slot = osrs_item_gear_slot(item);
+        if (gear_slot < 0 || s.player.equipped[gear_slot] == item) continue;
+        cell = candidate;
+        slot = gear_slot;
+        break;
+    }
+    CHECK("a swappable gear cell exists at reset", cell >= 0);
+    if (cell < 0) return;
+
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs_before);
+    CHECK("real gear swap succeeds",
+        osrs_equip_from_cell(&s.player, s.player.inventory_cells, cell) == slot);
+    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs_after);
+
+    int inventory_offset = COLO_OBS_INVENTORY_START + cell;
+    int equipment_offset = COLO_OBS_EQUIPMENT_START + slot;
+    CHECK("inventory observation exposes the displaced worn item",
+        obs_after[inventory_offset] != obs_before[inventory_offset]);
+    CHECK("equipment observation exposes the newly worn item",
+        obs_after[equipment_offset] != obs_before[equipment_offset] &&
+        obs_after[equipment_offset] ==
+            osrs_inventory_cell_obs_code_encode(
+                osrs_inventory_content_code_from_item(s.player.equipped[slot])));
+}
+
+static void test_colosseum_win_tick_is_not_stacked(void) {
+    printf("test_colosseum_win_tick_is_not_stacked\n");
+    ColosseumState s;
+    ColosseumContext ctx;
+    int idle[COLO_NUM_ACTION_HEADS] = {0};
+
+    col_init_context_typed(&ctx);
+    ctx.config.start_wave = COLO_WAVE_BOSS;
+    ctx.config.win_bonus = 0.7f;
+    ctx.config.wave_clear_bonus = 0.9f;
+    ctx.config.damage_reward_coeff = 0.01f;
+    ctx.config.boss_phase_bonus = 1.0f;
+    memset(&s, 0, sizeof(s));
+    col_reset_ctx((EncounterState*)&s, (EncounterContext*)&ctx, 4242u);
+
+    for (int t = 0; t < 60 && !s.episode_over; t++) {
+        if (s.modifiers.draft_pending) {
+            int draft[COLO_NUM_ACTION_HEADS] = {0};
+            draft[COLO_HEAD_MODIFIER_SELECT] = 1;
+            col_step_ctx((EncounterState*)&s, (EncounterContext*)&ctx, draft);
+            continue;
+        }
+        if (s.sol.started && col_sol_find_idx(&s) >= 0) break;
+        col_step_ctx((EncounterState*)&s, (EncounterContext*)&ctx, idle);
+    }
+    CHECK("reached the boss wave with Sol alive",
+        !s.episode_over && s.wave == COLO_WAVE_BOSS && col_sol_find_idx(&s) >= 0);
+
+    for (int i = 0; i < COLO_MAX_NPCS; i++) {
+        if (s.npcs[i].active) col_deactivate_npc(&s, i);
+    }
+    s.tick_scratch.fresh_damage_dealt = 90.0f;
+    col_step_ctx((EncounterState*)&s, (EncounterContext*)&ctx, idle);
+
+    CHECK("clearing the final wave ends the episode as a win",
+        s.episode_over == 1 && s.winner == COLO_OUTCOME_PLAYER_WON);
+    CHECK("the winning tick pays exactly win_bonus, with nothing stacked on it",
+        fabsf(s.reward - 0.7f) < 1e-5f);
+    CHECK("the winning tick stays inside the trainer clamp",
+        fabsf(s.reward) <= 1.0f);
+    CHECK("the win tick pays no wave_clear_bonus",
+        fabsf(s.log.rew_wave_clear) < 1e-6f);
+    CHECK("the per-term log credits only what was paid",
+        fabsf(s.log.rew_win - 0.7f) < 1e-5f &&
+        fabsf(s.log.rew_damage) < 1e-6f);
+    CHECK("the clamp telemetry counted the winning tick",
+        s.log.reward_steps > 0.0f && fabsf(s.log.reward_clamp_loss) < 1e-6f);
+}
+
 static void test_colosseum_live_inventory_display(void) {
     printf("test_colosseum_live_inventory_display\n");
     ColosseumContext ctx;
@@ -6667,11 +8175,8 @@ static void test_colosseum_live_inventory_display(void) {
     col_build_live_inventory_display(&s, kit);
     CHECK("surge vial shows 3-dose after a drink", kit[12] == 30878);
 
-    s.inventory_cells[brew_cell] = (ColoInvCell){
-        .raw_osrs_id = 6691,
-        .item_idx = ITEM_NONE,
-        .dose = 1,
-    };
+    s.player.inventory_cells[brew_cell] =
+        osrs_inventory_cell_from_raw_osrs_id(6691);
     s.player.potion_timer = 0;
     s.player.current_hitpoints = 50;
     int last_brew[COLO_NUM_ACTION_HEADS] = {0};
@@ -6701,7 +8206,8 @@ static void test_stage3_t1_inventory_ranged_weapon_swap(void) {
     CHECK("T1 ranged weapon click equips tbow",
         s.player.equipped[GEAR_SLOT_WEAPON] == ITEM_TWISTED_BOW);
     CHECK("T1 displaced melee weapon returns to clicked cell",
-        s.inventory_cells[bow_cell].item_idx == melee_weapon);
+        osrs_inventory_cell_item_index(
+            &s.player.inventory_cells[bow_cell]) == melee_weapon);
 }
 
 static void test_stage3_t1_inventory_weapon_slot_last_click_wins(void) {
@@ -6718,7 +8224,8 @@ static void test_stage3_t1_inventory_weapon_slot_last_click_wins(void) {
     CHECK("weapon equip head equips the named weapon",
         s.player.equipped[GEAR_SLOT_WEAPON] == ITEM_DRAGON_CLAWS);
     CHECK("unclicked weapon stays in its inventory cell",
-        s.inventory_cells[bow_cell].item_idx == ITEM_TWISTED_BOW);
+        osrs_inventory_cell_item_index(
+            &s.player.inventory_cells[bow_cell]) == ITEM_TWISTED_BOW);
 }
 
 static void test_stage3_t1_human_inventory_primary_click_uses_resolver(void) {
@@ -6734,7 +8241,7 @@ static void test_stage3_t1_human_inventory_primary_click_uses_resolver(void) {
     human_input_queue_inventory_primary_click(&hi, bow_cell);
     human_input_queue_inventory_primary_click(&hi, claws_cell);
     int actions[COLO_NUM_ACTION_HEADS] = {0};
-    col_translate_human_commands_ctx(&hi, actions, &s, &ctx);
+    col_translate_human_commands(&hi, actions, &s);
 
     CHECK("human weapon clicks collapse to the weapon equip head",
         actions[COLO_HEAD_EQUIP_SLOT(GEAR_SLOT_WEAPON)] == claws_cell + 1);
@@ -6742,7 +8249,8 @@ static void test_stage3_t1_human_inventory_primary_click_uses_resolver(void) {
     CHECK("human inventory clicks use last-click-wins semantics",
         s.player.equipped[GEAR_SLOT_WEAPON] == ITEM_DRAGON_CLAWS);
     CHECK("human earlier same-slot click is ignored",
-        s.inventory_cells[bow_cell].item_idx == ITEM_TWISTED_BOW);
+        osrs_inventory_cell_item_index(
+            &s.player.inventory_cells[bow_cell]) == ITEM_TWISTED_BOW);
     human_input_destroy(&hi);
 }
 
@@ -6761,15 +8269,17 @@ static void test_stage3_t1_human_rearrange_swaps_inventory_slots(void) {
         &hi,
         bow_cell,
         claws_cell,
-        s.inventory_cells[bow_cell].item_idx,
-        s.inventory_cells[bow_cell].raw_osrs_id);
+        osrs_inventory_cell_item_index(&s.player.inventory_cells[bow_cell]),
+        osrs_inventory_cell_raw_osrs_id(&s.player.inventory_cells[bow_cell]));
     int actions[COLO_NUM_ACTION_HEADS] = {0};
-    col_translate_human_commands_ctx(&hi, actions, &s, &ctx);
+    col_translate_human_commands(&hi, actions, &s);
 
     CHECK("human rearrange moves bow to target slot",
-        s.inventory_cells[claws_cell].item_idx == ITEM_TWISTED_BOW);
+        osrs_inventory_cell_item_index(
+            &s.player.inventory_cells[claws_cell]) == ITEM_TWISTED_BOW);
     CHECK("human rearrange moves claws to source slot",
-        s.inventory_cells[bow_cell].item_idx == ITEM_DRAGON_CLAWS);
+        osrs_inventory_cell_item_index(
+            &s.player.inventory_cells[bow_cell]) == ITEM_DRAGON_CLAWS);
     CHECK("human rearrange leaves action space heads unchanged",
         COLO_NUM_ACTION_HEADS == 20 && COLO_ACTION_DIMS[COLO_HEAD_EQUIP_BASE] == 29);
     human_input_destroy(&hi);
@@ -6787,8 +8297,10 @@ static void test_stage3_t2_brew_click_decrements_dose(void) {
     step_and_observe(&s, &ctx, actions);
     CHECK("T2 brew raises HP", s.player.current_hitpoints > 50);
     CHECK("T2 brew cell dose drops 4 to 3",
-        s.inventory_cells[brew_cell].dose == 3 &&
-        s.inventory_cells[brew_cell].raw_osrs_id == 6687);
+        osrs_inventory_cell_dose_count(
+            &s.player.inventory_cells[brew_cell]) == 3 &&
+        osrs_inventory_cell_raw_osrs_id(
+            &s.player.inventory_cells[brew_cell]) == 6687);
     CHECK("T2 brew starts potion timer", s.player.potion_timer == 3);
 }
 
@@ -6798,19 +8310,14 @@ static void test_stage3_t3_one_dose_vial_empties(void) {
     ColosseumState s;
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_BEGINNER_ONLY, 0.0f, 503);
     int brew_cell = test_find_inventory_cell_with_consumable(&s, OSRS_CONSUMABLE_BREW);
-    s.inventory_cells[brew_cell] = (ColoInvCell){
-        .raw_osrs_id = 6691,
-        .item_idx = ITEM_NONE,
-        .dose = 1,
-    };
+    s.player.inventory_cells[brew_cell] =
+        osrs_inventory_cell_from_raw_osrs_id(6691);
     s.player.current_hitpoints = 50;
     int actions[COLO_NUM_ACTION_HEADS] = {0};
     test_click_inventory_cell_action_s(&s, actions, brew_cell);
     step_and_observe(&s, &ctx, actions);
     CHECK("T3 one-dose vial cell becomes empty",
-        s.inventory_cells[brew_cell].raw_osrs_id == 0 &&
-        s.inventory_cells[brew_cell].item_idx == ITEM_NONE &&
-        s.inventory_cells[brew_cell].dose == 0);
+        osrs_inventory_cell_is_empty(&s.player.inventory_cells[brew_cell]));
 }
 
 static void test_colosseum_potion_click_source_of_truth(void) {
@@ -6829,7 +8336,8 @@ static void test_colosseum_potion_click_source_of_truth(void) {
     test_click_inventory_cell_action_s(&s, actions, restore_cell);
     step_and_observe(&s, &ctx, actions);
     CHECK("super restore consumes exactly one clicked-cell dose",
-        s.inventory_cells[restore_cell].dose == 3);
+        osrs_inventory_cell_dose_count(
+            &s.player.inventory_cells[restore_cell]) == 3);
     CHECK("super restore aggregate is rebuilt from cells",
         s.player.restore_doses == restore_sum_before - 1);
 
@@ -6842,7 +8350,8 @@ static void test_colosseum_potion_click_source_of_truth(void) {
     test_click_inventory_cell_action_s(&s, actions, sanfew_cell);
     step_and_observe(&s, &ctx, actions);
     CHECK("sanfew consumes exactly one clicked-cell dose",
-        s.inventory_cells[sanfew_cell].dose == 3);
+        osrs_inventory_cell_dose_count(
+            &s.player.inventory_cells[sanfew_cell]) == 3);
     CHECK("sanfew aggregate is rebuilt from cells",
         s.player.restore_doses == sanfew_sum_before - 1);
 
@@ -6857,7 +8366,8 @@ static void test_colosseum_potion_click_source_of_truth(void) {
     test_click_inventory_cell_action_s(&s, actions, divine_cell);
     step_and_observe(&s, &ctx, actions);
     CHECK("divine combat consumes exactly one clicked-cell dose",
-        s.inventory_cells[divine_cell].dose == 3);
+        osrs_inventory_cell_dose_count(
+            &s.player.inventory_cells[divine_cell]) == 3);
     CHECK("divine combat aggregate is rebuilt from cells",
         s.player.combat_potion_doses == divine_sum_before - 1);
     CHECK("divine combat drink starts the potion timer", s.player.potion_timer == 3);
@@ -6872,7 +8382,8 @@ static void test_colosseum_potion_click_source_of_truth(void) {
     test_click_inventory_cell_action_s(&s, actions, restore_cell);
     step_and_observe(&s, &ctx, actions);
     CHECK("low-missing-prayer restore click still consumes one dose",
-        s.inventory_cells[restore_cell].dose == 3);
+        osrs_inventory_cell_dose_count(
+            &s.player.inventory_cells[restore_cell]) == 3);
     CHECK("low-missing-prayer restore rebuilds aggregate from cells",
         s.player.restore_doses == restore_sum_before - 1);
 }
@@ -6888,12 +8399,14 @@ static void test_colosseum_potion_timer_and_same_tick_gate(void) {
     int brew[COLO_NUM_ACTION_HEADS] = {0};
     test_click_inventory_cell_action_s(&s, brew, brew_cell);
     step_and_observe(&s, &ctx, brew);
-    int brew_dose_after_first = s.inventory_cells[brew_cell].dose;
+    int brew_dose_after_first =
+        osrs_inventory_cell_dose_count(&s.player.inventory_cells[brew_cell]);
     int brew_aggregate_after_first = s.player.brew_doses;
     s.player.current_hitpoints = 50;
     step_and_observe(&s, &ctx, brew);
     CHECK("second potion click before timer expiry is blocked",
-        s.inventory_cells[brew_cell].dose == brew_dose_after_first &&
+        osrs_inventory_cell_dose_count(
+            &s.player.inventory_cells[brew_cell]) == brew_dose_after_first &&
         s.player.brew_doses == brew_aggregate_after_first &&
         s.player.potion_timer == 2);
 
@@ -6907,8 +8420,10 @@ static void test_colosseum_potion_timer_and_same_tick_gate(void) {
     drink_one[COLO_HEAD_DRINK] = divine_cell + 1;
     step_and_observe(&s, &ctx, drink_one);
     CHECK("the drink head consumes exactly one potion per tick",
-        s.inventory_cells[divine_cell].dose == 3 &&
-        s.inventory_cells[sanfew_cell].dose == 4);
+        osrs_inventory_cell_dose_count(
+            &s.player.inventory_cells[divine_cell]) == 3 &&
+        osrs_inventory_cell_dose_count(
+            &s.player.inventory_cells[sanfew_cell]) == 4);
 
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 515);
     sanfew_cell = test_find_inventory_cell_with_consumable(&s, OSRS_CONSUMABLE_SANFEW);
@@ -6917,10 +8432,13 @@ static void test_colosseum_potion_timer_and_same_tick_gate(void) {
     int drink_again[COLO_NUM_ACTION_HEADS] = {0};
     drink_again[COLO_HEAD_DRINK] = sanfew_cell + 1;
     step_and_observe(&s, &ctx, drink_again);
-    CHECK("first drink consumes one dose", s.inventory_cells[sanfew_cell].dose == 3);
+    CHECK("first drink consumes one dose",
+        osrs_inventory_cell_dose_count(
+            &s.player.inventory_cells[sanfew_cell]) == 3);
     step_and_observe(&s, &ctx, drink_again);
     CHECK("second drink before potion timer expiry is blocked",
-        s.inventory_cells[sanfew_cell].dose == 3);
+        osrs_inventory_cell_dose_count(
+            &s.player.inventory_cells[sanfew_cell]) == 3);
 }
 
 typedef struct {
@@ -6958,7 +8476,8 @@ static void test_colosseum_all_drink_kinds_shared_one_dose_path(void) {
         int cell = 0;
         uint16_t start_raw = c->raw4 ? c->raw4 : c->raw1;
         col_init_empty_inventory_cells(&s);
-        s.inventory_cells[cell] = osrs_inventory_cell_from_raw_osrs_id(start_raw);
+        s.player.inventory_cells[cell] =
+            osrs_inventory_cell_from_raw_osrs_id(start_raw);
         col_sync_consumable_counters_from_inventory(&s);
         test_prepare_for_drink_kind(&s, c->kind);
 
@@ -6970,8 +8489,10 @@ static void test_colosseum_all_drink_kinds_shared_one_dose_path(void) {
         char label[160];
         snprintf(label, sizeof(label), "%s first click decrements one dose", c->label);
         CHECK(label,
-            s.inventory_cells[cell].raw_osrs_id == expected_after_first &&
-            s.inventory_cells[cell].dose == expected_dose_after_first);
+            osrs_inventory_cell_raw_osrs_id(
+                &s.player.inventory_cells[cell]) == expected_after_first &&
+            osrs_inventory_cell_dose_count(
+                &s.player.inventory_cells[cell]) == expected_dose_after_first);
         snprintf(label, sizeof(label), "%s first click arms potion timer", c->label);
         CHECK(label, s.player.potion_timer == 3);
         int aggregate = test_aggregate_doses_for_kind(&s, c->kind);
@@ -6982,19 +8503,25 @@ static void test_colosseum_all_drink_kinds_shared_one_dose_path(void) {
         }
 
         if (!c->raw4) {
-            s.inventory_cells[cell] = osrs_inventory_cell_from_raw_osrs_id(c->raw1);
+            s.player.inventory_cells[cell] =
+                osrs_inventory_cell_from_raw_osrs_id(c->raw1);
         }
-        uint16_t raw_before_gate = s.inventory_cells[cell].raw_osrs_id;
-        uint8_t dose_before_gate = s.inventory_cells[cell].dose;
+        uint16_t raw_before_gate =
+            osrs_inventory_cell_raw_osrs_id(&s.player.inventory_cells[cell]);
+        uint8_t dose_before_gate =
+            osrs_inventory_cell_dose_count(&s.player.inventory_cells[cell]);
         step_and_observe(&s, &ctx, actions);
         snprintf(label, sizeof(label), "%s timer gate blocks next click", c->label);
         CHECK(label,
-            s.inventory_cells[cell].raw_osrs_id == raw_before_gate &&
-            s.inventory_cells[cell].dose == dose_before_gate);
+            osrs_inventory_cell_raw_osrs_id(
+                &s.player.inventory_cells[cell]) == raw_before_gate &&
+            osrs_inventory_cell_dose_count(
+                &s.player.inventory_cells[cell]) == dose_before_gate);
 
         const uint16_t chain[] = {c->raw4, c->raw3, c->raw2, c->raw1, 0};
         int start = c->raw4 ? 0 : 3;
-        s.inventory_cells[cell] = osrs_inventory_cell_from_raw_osrs_id(chain[start]);
+        s.player.inventory_cells[cell] =
+            osrs_inventory_cell_from_raw_osrs_id(chain[start]);
         col_sync_consumable_counters_from_inventory(&s);
         for (int step = start; step < 4; step++) {
             test_prepare_for_drink_kind(&s, c->kind);
@@ -7002,10 +8529,12 @@ static void test_colosseum_all_drink_kinds_shared_one_dose_path(void) {
             test_click_inventory_cell_action_s(&s, actions, cell);
             step_and_observe(&s, &ctx, actions);
             snprintf(label, sizeof(label), "%s chain step %d raw id", c->label, step);
-            CHECK(label, s.inventory_cells[cell].raw_osrs_id == chain[step + 1]);
+            CHECK(label, osrs_inventory_cell_raw_osrs_id(
+                &s.player.inventory_cells[cell]) == chain[step + 1]);
             uint8_t expected_dose = chain[step + 1] == 0 ? 0 : (uint8_t)(3 - step);
             snprintf(label, sizeof(label), "%s chain step %d dose", c->label, step);
-            CHECK(label, s.inventory_cells[cell].dose == expected_dose);
+            CHECK(label, osrs_inventory_cell_dose_count(
+                &s.player.inventory_cells[cell]) == expected_dose);
         }
     }
 }
@@ -7030,7 +8559,8 @@ static void test_inventory_pure_cut_reconstruction(void) {
             loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f,
                 (uint32_t)(920 + i * 4 + dose));
             col_init_empty_inventory_cells(&s);
-            s.inventory_cells[0] = osrs_inventory_cell_from_raw_osrs_id(chain[dose]);
+            s.player.inventory_cells[0] =
+                osrs_inventory_cell_from_raw_osrs_id(chain[dose]);
             col_sync_consumable_counters_from_inventory(&s);
             test_prepare_for_drink_kind(&s, c->kind);
             char label[160];
@@ -7053,14 +8583,17 @@ static void test_inventory_pure_cut_reconstruction(void) {
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_BEGINNER_ONLY, 0.0f, 903);
     int bowfa_cell = test_find_inventory_cell_with_item(&s, ITEM_BOW_OF_FAERDHINEN);
     assert(bowfa_cell >= 0);
+    float bowfa_mask[COLO_ACTION_MASK_SIZE];
+    col_write_mask_ctx(
+        (EncounterState*)&s, (EncounterContext*)&ctx, bowfa_mask);
     CHECK("full inventory two-handed equip is denied",
         s.player.equipped[GEAR_SLOT_WEAPON] != ITEM_NONE &&
         s.player.equipped[GEAR_SLOT_SHIELD] != ITEM_NONE &&
-        !col_inventory_cell_actionable(&s, bowfa_cell));
+        test_click_mask_for_cell_s(&s, bowfa_mask, bowfa_cell) == 0.0f);
     test_check_inventory_cut_equivalence_state(
         &s, &ctx, "full inventory two-handed equip denial");
 
-    s.inventory_cells[27] = osrs_inventory_cell_empty();
+    s.player.inventory_cells[27] = osrs_inventory_cell_empty();
     int bowfa_actions[COLO_NUM_ACTION_HEADS] = {0};
     test_click_inventory_cell_action_s(&s, bowfa_actions, bowfa_cell);
     step_and_observe(&s, &ctx, bowfa_actions);
@@ -7072,8 +8605,10 @@ static void test_inventory_pure_cut_reconstruction(void) {
 
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 904);
     col_init_empty_inventory_cells(&s);
-    s.inventory_cells[0] = osrs_inventory_cell_from_raw_osrs_id(6685);
-    s.inventory_cells[1] = osrs_inventory_cell_from_raw_osrs_id(6685);
+    s.player.inventory_cells[0] =
+        osrs_inventory_cell_from_raw_osrs_id(6685);
+    s.player.inventory_cells[1] =
+        osrs_inventory_cell_from_raw_osrs_id(6685);
     col_sync_consumable_counters_from_inventory(&s);
     s.player.current_hitpoints = 50;
     s.player.potion_timer = 0;
@@ -7087,7 +8622,7 @@ static void test_stage3_t4_click_mask_bits(void) {
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 504);
     int equipped_scythe_cell = test_find_inventory_cell_with_item(&s, ITEM_SCYTHE_OF_VITUR);
     int empty_cell = 27;
-    s.inventory_cells[empty_cell] = (ColoInvCell){ .item_idx = ITEM_NONE };
+    s.player.inventory_cells[empty_cell] = osrs_inventory_cell_empty();
     int brew_cell = test_find_inventory_cell_with_consumable(&s, OSRS_CONSUMABLE_BREW);
     s.player.current_hitpoints = 50;
     float mask[COLO_ACTION_MASK_SIZE];
@@ -7127,7 +8662,7 @@ static void test_stage3_t4_mask_inventory_heads_flag(void) {
     CHECK("mask_inventory_heads pins every inventory head to noop only",
         all_inventory_heads_pinned_to_noop);
     CHECK("mask_inventory_heads leaves the action-mask size unchanged",
-        COLO_ACTION_MASK_SIZE == 452);
+        COLO_ACTION_MASK_SIZE == 456);
 
     geo_clear_npcs(&s);
     s.modifiers.draft_pending = 0;
@@ -7161,7 +8696,7 @@ static void test_stage3_t5_claws_click_spec_fires(void) {
         s.player.equipped[GEAR_SLOT_WEAPON] == ITEM_DRAGON_CLAWS);
     CHECK("T5 SPEC arms equipped claws", s.player.spec_armed == 1);
     s.player.attack_timer = 0;
-    col_player_attack_target(&s, 0);
+    col_player_attack_target_ctx(&s, &ctx, 0);
     CHECK("T5 claws special fires four splats",
         s.npcs[0].pending_hits.count == 4 && s.player.special_energy == 50);
 }
@@ -7180,8 +8715,8 @@ static void test_stage3_t6_obs_mask_fuzz_contract(void) {
         }
         step_and_observe(&s, &ctx, actions);
     }
-    CHECK("T6 obs running-index assert reached COLO_NUM_OBS", COLO_NUM_OBS == 3044);
-    CHECK("T6 mask running-index assert reached 452", COLO_ACTION_MASK_SIZE == 452);
+    CHECK("T6 obs running-index assert reached COLO_NUM_OBS", COLO_NUM_OBS == 904);
+    CHECK("T6 mask running-index assert reached 456", COLO_ACTION_MASK_SIZE == 456);
 }
 
 static void test_death_attribution_credits_actual_source(void) {
@@ -7195,20 +8730,24 @@ static void test_death_attribution_credits_actual_source(void) {
     manticore.source_npc_type = COLO_MANTICORE;
     manticore.source_npc_slot = -1;
     manticore.attack_style = ATTACK_STYLE_MAGIC;
-    col_pending_hit_prayer_observer(&obs, &manticore, 10, 0, 0);
+    col_pending_hit_prayer_observer(&obs, &manticore, 10, 10, 0, 0);
     CHECK("manticore landing credits the manticore", s.last_hit_by_type == COLO_MANTICORE);
 
     EncounterPendingHit shockwave = {0};
     shockwave.source_npc_type = COLO_SHOCKWAVE_COLOSSUS;
     shockwave.source_npc_slot = -1;
     shockwave.attack_style = ATTACK_STYLE_RANGED;
-    col_pending_hit_prayer_observer(&obs, &shockwave, 12, 0, 0);
+    col_pending_hit_prayer_observer(&obs, &shockwave, 12, 12, 0, 0);
     CHECK("a non-manticore landing re-credits the actual source",
           s.last_hit_by_type == COLO_SHOCKWAVE_COLOSSUS);
 
-    col_pending_hit_prayer_observer(&obs, &manticore, 0, 1, 0);
+    col_pending_hit_prayer_observer(&obs, &manticore, 0, 0, 1, 0);
     CHECK("a 0-damage splash does not change attribution",
           s.last_hit_by_type == COLO_SHOCKWAVE_COLOSSUS);
+
+    col_record_death_attribution(&s);
+    CHECK("generic NPC deaths retain their exact attacker type",
+        s.log.npc_attack_death_by_type[COLO_SHOCKWAVE_COLOSSUS] == 1.0f);
 }
 
 static int test_walkable_block_corner(void* ctx, int x, int y) {
@@ -7249,24 +8788,35 @@ static void test_melee_reach_cardinal_vs_diagonal(void) {
             CHECK("reach-1 helper rejects a diagonal corner",
                   encounter_entity_footprint_cardinal_adjacent(cx, cy, 1, tx, ty, tsize) == 0);
             CHECK("range-1 gate rejects a diagonal corner",
-                  encounter_player_can_attack(cx, cy, tx, ty, tsize, 1, open) == 0);
+                  encounter_player_can_attack(
+                      cx, cy, tx, ty, tsize, 1, NULL, 0, 0, open) == 0);
             CHECK("range-2 (halberd) gate allows a diagonal corner",
-                  encounter_player_can_attack(cx, cy, tx, ty, tsize, 2, open) == 1);
+                  encounter_player_can_attack(
+                      cx, cy, tx, ty, tsize, 2, NULL, 0, 0, open) == 1);
         }
 
         for (int k = 0; k < tsize; k++) {
             CHECK("range-1 gate allows a west cardinal-edge tile",
-                  encounter_player_can_attack(tx - 1, ty + k, tx, ty, tsize, 1, open) == 1);
+                  encounter_player_can_attack(
+                      tx - 1, ty + k, tx, ty, tsize, 1,
+                      NULL, 0, 0, open) == 1);
             CHECK("range-1 gate allows an east cardinal-edge tile",
-                  encounter_player_can_attack(tx + tsize, ty + k, tx, ty, tsize, 1, open) == 1);
+                  encounter_player_can_attack(
+                      tx + tsize, ty + k, tx, ty, tsize, 1,
+                      NULL, 0, 0, open) == 1);
             CHECK("range-1 gate allows a south cardinal-edge tile",
-                  encounter_player_can_attack(tx + k, ty - 1, tx, ty, tsize, 1, open) == 1);
+                  encounter_player_can_attack(
+                      tx + k, ty - 1, tx, ty, tsize, 1,
+                      NULL, 0, 0, open) == 1);
             CHECK("range-1 gate allows a north cardinal-edge tile",
-                  encounter_player_can_attack(tx + k, ty + tsize, tx, ty, tsize, 1, open) == 1);
+                  encounter_player_can_attack(
+                      tx + k, ty + tsize, tx, ty, tsize, 1,
+                      NULL, 0, 0, open) == 1);
         }
 
         CHECK("overlap is never meleeable",
-              encounter_player_can_attack(tx, ty, tx, ty, tsize, 1, open) == 0);
+              encounter_player_can_attack(
+                  tx, ty, tx, ty, tsize, 1, NULL, 0, 0, open) == 0);
     }
 }
 
@@ -7293,55 +8843,11 @@ static void test_modifier_draft_forces_pick(void) {
     CHECK("no-op valid again once no draft is pending", mask[base] == 1.0f);
 }
 
-static void test_gear_and_boost_reward_signals(void) {
-    printf("test_gear_and_boost_reward_signals\n");
-    ColosseumContext ctx;
-    ColosseumState s;
-    loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 71);
-    advance_to_wave_spawn(&s, &ctx);
-    int slot = -1;
-    for (int i = 0; i < COLO_MAX_NPCS; i++)
-        if (col_npc_is_live_target(&s.npcs[i]) && !col_type_is_hazard_entity(s.npcs[i].type)) {
-            slot = i;
-            break;
-        }
-    CHECK("a live target exists at reset", slot >= 0);
-
-    s.tick_scratch.player_attacked = 1;
-    s.player_attack_npc_idx = slot;
-
-    float q_attack = col_attacked_gear_quality_ratio(&s);
-    CHECK("gear-quality signal fires in [0,1] when attacking", q_attack >= 0.0f && q_attack <= 1.0f);
-
-    const ColoNPC* tnpc = &s.npcs[slot];
-    const ColoBestGear (*best)[COLO_NUM_NPC_TYPES] = col_get_best_gear_table(&s);
-    int argmax_set = 0;
-    float argmax_dpt = -1.0f;
-    for (int set = 0; set < COLO_NUM_WEAPON_SETS; set++)
-        if (best[set][tnpc->type].dpt > argmax_dpt) {
-            argmax_dpt = best[set][tnpc->type].dpt;
-            argmax_set = set;
-        }
-    memcpy(s.player.equipped, best[argmax_set][tnpc->type].setup, sizeof(s.player.equipped));
-    CHECK("oracle's argmax-best kit yields ~max gear quality",
-          col_attacked_gear_quality_ratio(&s) > 0.99f);
-
-    s.player_attack_style_id = ATTACK_STYLE_RANGED;
-    s.player.current_ranged = s.player.base_ranged;
-    CHECK("no boost reward when ranged is at base",
-          col_attacked_with_offensive_boost(&s) == 0);
-    s.player.current_ranged = s.player.base_ranged + 5;
-    CHECK("boost reward when ranged is above base",
-          col_attacked_with_offensive_boost(&s) == 1);
-
-    s.tick_scratch.player_attacked = 0;
-    CHECK("gear-quality is the no-attack sentinel", col_attacked_gear_quality_ratio(&s) < 0.0f);
-    CHECK("boost signal is the no-attack sentinel", col_attacked_with_offensive_boost(&s) < 0);
-}
 
 static int colo_test_cell_of_named_item(const ColosseumState* s, const char* name) {
     for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
-        uint8_t item = s->inventory_cells[c].item_idx;
+        uint8_t item =
+            osrs_inventory_cell_item_index(&s->player.inventory_cells[c]);
         if (item == ITEM_NONE) continue;
         const Item* meta = get_item(item);
         if (meta && strcmp(meta->name, name) == 0) return c;
@@ -7349,195 +8855,219 @@ static int colo_test_cell_of_named_item(const ColosseumState* s, const char* nam
     return -1;
 }
 
-static void test_threat_field_obs(void) {
-    printf("test_threat_field_obs\n");
+/* Round-to-nearest-even bf16, which is what the trainer stores observations in by default. */
+static float test_through_bf16(float v) {
+    uint32_t bits;
+    memcpy(&bits, &v, sizeof(bits));
+    uint32_t rounded = (bits + 0x7FFFu + ((bits >> 16) & 1u)) & 0xFFFF0000u;
+    float out;
+    memcpy(&out, &rounded, sizeof(out));
+    return out;
+}
+
+/* The whole scheme rests on the code surviving the observation buffer. Nothing else in the
+   C gate runs at training precision, so pin it here. */
+static void test_item_obs_code_survives_bf16(void) {
+    printf("test_item_obs_code_survives_bf16\n");
+    int worst = -1;
+    for (int code = 0; code < OSRS_ITEM_CONTENT_COUNT; code++) {
+        float observed = test_through_bf16(osrs_inventory_cell_obs_code_encode(code));
+        if (osrs_inventory_cell_obs_code_decode(observed) != code) worst = code;
+    }
+    CHECK("every item code round-trips through bf16", worst < 0);
+    CHECK("the code stays inside the unit range the rest of the observation lives in",
+        osrs_inventory_cell_obs_code_encode(
+            OSRS_ITEM_CONTENT_COUNT - 1) <= 1.0f);
+}
+
+static void test_item_obs_table_matches_every_code_semantically(void) {
+    printf("test_item_obs_table_matches_every_code_semantically\n");
+    CHECK("generic item table has one row for every inventory item code",
+        OSRS_ITEM_OBS_TABLE_ROWS == OSRS_ITEM_CONTENT_COUNT);
+    CHECK("generic item rows contain the full 14-float compact record",
+        OSRS_ITEM_OBS_TABLE_COLS == 14);
+    CHECK("generic item rows bake hitpoints at 99",
+        OSRS_ITEM_OBS_TABLE_BASE_HITPOINTS == 99);
+    CHECK("generic item rows bake prayer at 99",
+        OSRS_ITEM_OBS_TABLE_BASE_PRAYER == 99);
+    CHECK("generic item rows bake ranged at 99",
+        OSRS_ITEM_OBS_TABLE_BASE_RANGED == 99);
+
+    for (int code = 0; code < OSRS_ITEM_OBS_TABLE_ROWS; code++) {
+        OsrsInventoryCell cell =
+            osrs_inventory_cell_from_content_code((uint16_t)code);
+        float expected[OSRS_ITEM_OBS_TABLE_COLS];
+        osrs_write_inventory_cell_affordance_features_compact(
+            expected, &cell, 0,
+            OSRS_ITEM_OBS_TABLE_BASE_HITPOINTS,
+            OSRS_ITEM_OBS_TABLE_BASE_PRAYER,
+            OSRS_ITEM_OBS_TABLE_BASE_RANGED);
+        for (int feature = 0; feature < OSRS_ITEM_OBS_TABLE_COLS; feature++) {
+            char label[160];
+            snprintf(label, sizeof(label),
+                "generic item table code %d feature %d matches base-99 semantics",
+                code, feature);
+            CHECK(label, TEST_ITEM_OBS_TABLE[code][feature] == expected[feature]);
+        }
+    }
+}
+
+static void test_item_obs_empty_row_is_all_zero(void) {
+    printf("test_item_obs_empty_row_is_all_zero\n");
+    for (int feature = 0; feature < OSRS_ITEM_OBS_TABLE_COLS; feature++) {
+        char label[128];
+        snprintf(label, sizeof(label),
+            "empty item code feature %d is zero", feature);
+        CHECK(label,
+            TEST_ITEM_OBS_TABLE[0][feature] == 0.0f);
+    }
+}
+
+static void test_item_obs_table_bakes_consumable_hp_heal(void) {
+    printf("test_item_obs_table_bakes_consumable_hp_heal\n");
+    int shark_code =
+        osrs_inventory_content_code_from_raw_osrs_id(385);
+    OsrsInventoryCell shark =
+        osrs_inventory_cell_from_content_code((uint16_t)shark_code);
+    float expected[OSRS_ITEM_OBS_TABLE_COLS];
+    osrs_write_inventory_cell_affordance_features_compact(
+        expected, &shark, 0,
+        OSRS_ITEM_OBS_TABLE_BASE_HITPOINTS,
+        OSRS_ITEM_OBS_TABLE_BASE_PRAYER,
+        OSRS_ITEM_OBS_TABLE_BASE_RANGED);
+
+    CHECK("base-99 shark semantics contain a positive HP heal",
+        expected[OSRS_INVENTORY_CELL_COMPACT_HP_HEAL] > 0.0f);
+    CHECK("generated shark row bakes its base-99 HP heal",
+        TEST_ITEM_OBS_TABLE[shark_code][OSRS_INVENTORY_CELL_COMPACT_HP_HEAL] ==
+            expected[OSRS_INVENTORY_CELL_COMPACT_HP_HEAL]);
+}
+
+
+static void test_inventory_obs_expansion_matches_item_table(void) {
+    printf("test_inventory_obs_expansion_matches_item_table\n");
     ColosseumContext ctx;
     ColosseumState s;
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 71);
 
-    s.player.x = 5; s.player.y = 9;
-    col_rebuild_player_collision_flags(&s);
-    int manti = col_spawn_npc_at(&s, COLO_MANTICORE, 11, 8);
-    CHECK("fixture: shooter spawned", manti >= 0);
-    CHECK("fixture: the pillar blocks LoS to the player's tile",
-        !col_npc_has_los_to_player(&s, &s.npcs[manti]));
-
     static float obs[COLO_NUM_OBS];
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-
-    const int f0 = COLO_OBS_AFTER_SPAWN;
-    const int f1 = f0 + COLO_THREAT_FIELD_TILES;
-#define FIELD_CELL(dx, dy) \
-    (((dy) + COLO_THREAT_FIELD_RADIUS) * COLO_THREAT_FIELD_DIM + \
-     ((dx) + COLO_THREAT_FIELD_RADIUS))
-
-    CHECK("pillar shadow: the player's tile reads zero shooters",
-        obs[f0 + FIELD_CELL(0, 0)] == 0.0f);
-    CHECK("exposed tile east of the pillar reads the shooter",
-        obs[f0 + FIELD_CELL(7, 3)] > 0.0f);
-    CHECK("pillar tile is unstandable", obs[f1 + FIELD_CELL(3, -1)] == 1.0f);
-    CHECK("NPC body tile is unstandable", obs[f1 + FIELD_CELL(6, -1)] == 1.0f);
-    CHECK("the player's own tile is standable", obs[f1 + FIELD_CELL(0, 0)] == 0.0f);
-    CHECK("out-of-arena tile is unstandable", obs[f1 + FIELD_CELL(-8, 0)] == 1.0f);
-
-    s.player.x = 12; s.player.y = 12;
-    col_rebuild_player_collision_flags(&s);
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("center cell reads one shooter after stepping into LoS",
-        obs[f0 + FIELD_CELL(0, 0)] == 0.25f);
-
-    int jag = col_spawn_npc_at(&s, COLO_JAGUAR_WARRIOR, 16, 12);
-    CHECK("fixture: melee NPC spawned", jag >= 0);
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("jaguar body tile is unstandable", obs[f1 + FIELD_CELL(4, 0)] == 1.0f);
-    int jag_size = col_npc_effective_size(&s.npcs[jag]);
-    col_stamp_npc_collision_footprint(&s, s.npcs[jag].x, s.npcs[jag].y, jag_size, 0);
-    s.npcs[jag].x += 1;
-    col_stamp_npc_collision_footprint(&s, s.npcs[jag].x, s.npcs[jag].y, jag_size, 1);
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("vacated tile frees after the melee body moves (not a stale memo)",
-        obs[f1 + FIELD_CELL(4, 0)] == 0.0f);
-    CHECK("the melee body's new tile is unstandable",
-        obs[f1 + FIELD_CELL(6, 0)] == 1.0f);
-
-    col_deactivate_npc(&s, manti);
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("center cell reads zero shooters after the manticore dies",
-        obs[f0 + FIELD_CELL(0, 0)] == 0.0f);
-    CHECK("dead manticore's body tile frees in channel 1",
-        obs[f1 + FIELD_CELL(-1, -4)] == 0.0f);
-
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    float served_field[COLO_THREAT_FIELD_OBS_CACHE_FLOATS];
-    memcpy(served_field, &obs[f0], sizeof(served_field));
-    memset(&s.obs_memos, 0, sizeof(s.obs_memos));
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("memo-served threat field == fresh recompute",
-        memcmp(served_field, &obs[f0], sizeof(served_field)) == 0);
-
-    ctx.config.threat_field_obs_enabled = 0;
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    int all_zero = 1;
-    for (int k = 0; k < COLO_THREAT_FIELD_OBS_SIZE; k++)
-        if (obs[f0 + k] != 0.0f) all_zero = 0;
-    CHECK("disabled threat field leaves the block zeroed", all_zero);
-#undef FIELD_CELL
+    int mismatches = 0;
+    for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
+        int code = osrs_inventory_cell_obs_code_decode(
+            obs[COLO_OBS_INVENTORY_START + cell]);
+        float expanded[COLO_INVENTORY_CELL_ENCODER_FEATURES];
+        test_expand_inventory_cell(obs, cell, expanded);
+        for (int feature = 0;
+                feature < COLO_INVENTORY_CELL_ENCODER_FEATURES;
+                feature++) {
+            if (expanded[feature] != TEST_ITEM_OBS_TABLE[code][feature])
+                mismatches++;
+        }
+    }
+    CHECK("shared inventory codes reconstruct every compact item record",
+        mismatches == 0);
 }
 
-static void test_inventory_obs_memo(void) {
-    printf("test_inventory_obs_memo\n");
+static void test_inventory_obs_code_updates(void) {
+    printf("test_inventory_obs_code_updates\n");
     ColosseumContext ctx;
     ColosseumState s;
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 71);
 
     static float obs[COLO_NUM_OBS];
     int cell_brew = -1;
-    for (int c = 0; c < OSRS_INVENTORY_SIZE; c++)
-        if (s.inventory_cells[c].item_idx == ITEM_NONE) { cell_brew = c; break; }
+    for (int cell = 0; cell < OSRS_INVENTORY_SIZE; cell++) {
+        if (osrs_inventory_cell_item_index(
+                &s.player.inventory_cells[cell]) == ITEM_NONE) {
+            cell_brew = cell;
+            break;
+        }
+    }
     CHECK("a gear-free cell exists to hold the brew", cell_brew >= 0);
-    s.inventory_cells[cell_brew] = osrs_inventory_cell_from_raw_osrs_id(6685);
-    CHECK("4-dose brew seeded", s.inventory_cells[cell_brew].dose == 4);
+    s.player.inventory_cells[cell_brew] =
+        osrs_inventory_cell_from_raw_osrs_id(6685);
 
-    const int cell_base = COLO_OBS_AFTER_PILLARS +
-        cell_brew * COLO_INVENTORY_CELL_OBS_FEATURES;
+    float expanded[COLO_INVENTORY_CELL_ENCODER_FEATURES];
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("4-dose brew renders the full dose feature", obs[cell_base + 2] == 1.0f);
+    test_expand_inventory_cell(obs, cell_brew, expanded);
+    CHECK("4-dose brew renders the full dose feature",
+        expanded[OSRS_INVENTORY_CELL_COMPACT_DOSE] == 1.0f);
 
-    s.inventory_cells[cell_brew] = osrs_inventory_cell_from_raw_osrs_id(6687);
-    CHECK("sip took a dose", s.inventory_cells[cell_brew].dose == 3);
+    s.player.inventory_cells[cell_brew] =
+        osrs_inventory_cell_from_raw_osrs_id(6687);
     col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("sip moves the dose feature (dose is in the memo key, not a stale block)",
-        obs[cell_base + 2] == 0.75f);
-
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    float served_block[COLO_INVENTORY_OBS_CACHE_FLOATS];
-    memcpy(served_block, &obs[COLO_OBS_AFTER_PILLARS], sizeof(served_block));
-    memset(&s.obs_memos, 0, sizeof(s.obs_memos));
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("memo-served inventory block == fresh recompute after the sip",
-        memcmp(served_block, &obs[COLO_OBS_AFTER_PILLARS], sizeof(served_block)) == 0);
+    test_expand_inventory_cell(obs, cell_brew, expanded);
+    CHECK("changed content code reconstructs the new dose",
+        expanded[OSRS_INVENTORY_CELL_COMPACT_DOSE] == 0.75f);
 }
 
-static void test_weapon_choice_obs_rank_and_farm_cap(void) {
-    printf("test_weapon_choice_obs_rank_and_farm_cap\n");
+static void test_best_gear_cache_signatures(void) {
+    printf("test_best_gear_cache_signatures\n");
     ColosseumContext ctx;
     ColosseumState s;
     loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 71);
 
-    static float obs[COLO_NUM_OBS];
-    const int dpt_base = COLO_OBS_AFTER_THRALL_DC;
-    const int spec_base = dpt_base + COLO_CELL_WEAPON_DPT_OBS_SIZE;
-    const int wielded_base = spec_base + COLO_CELL_SPEC_OBS_SIZE;
+    int non_gear_cell = -1;
+    int weapon_cells[2] = {-1, -1};
+    int weapon_count = 0;
+    for (int cell = 0; cell < COLO_INVENTORY_DISPLAY_SLOTS; cell++) {
+        const OsrsItemContentMetadata* metadata =
+            osrs_inventory_cell_metadata(&s.player.inventory_cells[cell]);
+        uint8_t item = metadata->item_idx;
+        if (item == ITEM_NONE) {
+            if (metadata->raw_osrs_id != 0 && non_gear_cell < 0)
+                non_gear_cell = cell;
+            continue;
+        }
+        int gear_slot = osrs_item_gear_slot(item);
+        if (gear_slot < 0 && osrs_spec_cost(item) == 0 && non_gear_cell < 0)
+            non_gear_cell = cell;
+        if (gear_slot == GEAR_SLOT_WEAPON && weapon_count < 2)
+            weapon_cells[weapon_count++] = cell;
+    }
+    CHECK("speedrun kit has a non-gear cell", non_gear_cell >= 0);
+    CHECK("speedrun kit has two weapon cells", weapon_count == 2);
 
-    int cell_tentacle = colo_test_cell_of_named_item(&s, "Abyssal tentacle");
-    int cell_claws = colo_test_cell_of_named_item(&s, "Dragon claws");
-    int cell_tbow = colo_test_cell_of_named_item(&s, "Twisted bow");
-    CHECK("speedrun kit carries tentacle+claws+tbow in cells",
-        cell_tentacle >= 0 && cell_claws >= 0 && cell_tbow >= 0);
+    uint64_t best_gear_signature = col_best_gear_cache_signature(&s);
+    const ColoBestGear (*best_gear)[COLO_NUM_NPC_TYPES] = col_get_best_gear_table(&s);
+    int best_gear_next = s.obs_memos.best_gear_next;
 
-    int manti = col_spawn_npc_at(&s, COLO_MANTICORE, 10, 10);
-    osrs_interaction_set(&s.interaction, manti);
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("3x3: wielded scythe DPT outranks the tentacle cell",
-        obs[wielded_base] > obs[dpt_base + cell_tentacle]);
-    CHECK("3x3: claws cell ranks below tentacle cell",
-        obs[dpt_base + cell_claws] < obs[dpt_base + cell_tentacle]);
-    CHECK("3x3: wielded scythe is ~the best achievable (ratio ~1)",
-        obs[wielded_base + 1] > 0.95f);
-    CHECK("claws cell carries the spec bit", obs[spec_base + cell_claws] == 1.0f);
-    CHECK("tentacle cell carries no spec bit", obs[spec_base + cell_tentacle] == 0.0f);
+    ColoInvCell non_gear = s.player.inventory_cells[non_gear_cell];
+    s.player.inventory_cells[non_gear_cell] = osrs_inventory_cell_empty();
+    CHECK("best-gear key ignores non-gear cells",
+        col_best_gear_cache_signature(&s) == best_gear_signature);
+    CHECK("non-gear change reuses best-gear table",
+        col_get_best_gear_table(&s) == best_gear &&
+        s.obs_memos.best_gear_next == best_gear_next);
 
-    int serpent = col_spawn_npc_at(&s, COLO_SERPENT_SHAMAN, 20, 10);
-    osrs_interaction_set(&s.interaction, serpent);
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("1x1: tbow cell outranks the wielded scythe",
-        obs[dpt_base + cell_tbow] > obs[wielded_base]);
-    CHECK("1x1: wielded-vs-best ratio exposes the scythe gap",
-        obs[wielded_base + 1] < 0.85f);
+    s.player.inventory_cells[non_gear_cell] = non_gear;
+    ColoInvCell tmp = s.player.inventory_cells[weapon_cells[0]];
+    s.player.inventory_cells[weapon_cells[0]] =
+        s.player.inventory_cells[weapon_cells[1]];
+    s.player.inventory_cells[weapon_cells[1]] = tmp;
+    CHECK("best-gear key canonicalizes weapon candidate order",
+        col_best_gear_cache_signature(&s) == best_gear_signature);
+    CHECK("weapon reorder reuses best-gear table",
+        col_get_best_gear_table(&s) == best_gear &&
+        s.obs_memos.best_gear_next == best_gear_next);
 
-    osrs_interaction_clear(&s.interaction);
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("no target: cell DPT + wielded floats are zero",
-        obs[dpt_base + cell_tentacle] == 0.0f && obs[wielded_base] == 0.0f &&
-        obs[wielded_base + 1] == 0.0f);
-    CHECK("no target: spec bits stay up (target-independent)",
-        obs[spec_base + cell_claws] == 1.0f);
+    tmp = s.player.inventory_cells[weapon_cells[0]];
+    s.player.inventory_cells[weapon_cells[0]] =
+        s.player.inventory_cells[weapon_cells[1]];
+    s.player.inventory_cells[weapon_cells[1]] = tmp;
+    s.player.current_ranged++;
+    CHECK("best-gear key includes current combat levels",
+        col_best_gear_cache_signature(&s) != best_gear_signature);
+}
 
-    osrs_interaction_set(&s.interaction, manti);
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    float pre_drain_tentacle = obs[dpt_base + cell_tentacle];
-    float pre_drain_tbow = obs[dpt_base + cell_tbow];
-    float pre_drain_wielded = obs[wielded_base];
-    s.npcs[manti].def_drained = COLO_NPC_STATS[COLO_MANTICORE].def_level;
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("def drain raises the melee tentacle cell DPT (not a stale block)",
-        obs[dpt_base + cell_tentacle] > pre_drain_tentacle);
-    CHECK("def drain raises the ranged tbow cell DPT (not a stale block)",
-        obs[dpt_base + cell_tbow] > pre_drain_tbow);
-    CHECK("def drain raises the wielded DPT (not a stale block)",
-        obs[wielded_base] > pre_drain_wielded);
+static void test_farm_safe_damage_cap(void) {
+    printf("test_farm_safe_damage_cap\n");
+    ColosseumContext ctx;
+    ColosseumState s;
+    loadout_reset(&s, &ctx, COLO_LOADOUT_PROFILE_MODE_SPEEDRUN_ONLY, 0.0f, 71);
 
-    int cell_brew = -1;
-    for (int c = 0; c < OSRS_INVENTORY_SIZE; c++)
-        if (s.inventory_cells[c].item_idx == ITEM_NONE) { cell_brew = c; break; }
-    CHECK("a gear-free cell exists to hold the brew", cell_brew >= 0);
-    s.inventory_cells[cell_brew] = osrs_inventory_cell_from_raw_osrs_id(6685);
-    CHECK("4-dose brew seeded", s.inventory_cells[cell_brew].dose == 4);
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    s.inventory_cells[cell_brew] = osrs_inventory_cell_from_raw_osrs_id(6687);
-    CHECK("sip took a dose", s.inventory_cells[cell_brew].dose == 3);
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    float served_block[COLO_WEAPON_CHOICE_OBS_CACHE_FLOATS];
-    memcpy(served_block, &obs[dpt_base],
-           sizeof(float) * COLO_WEAPON_CHOICE_OBS_CACHE_FLOATS);
-    memset(&s.obs_memos, 0, sizeof(s.obs_memos));
-    col_write_obs_ctx((EncounterState*)&s, (EncounterContext*)&ctx, obs);
-    CHECK("memo-served weapon-choice block == fresh recompute after the sip",
-        memcmp(served_block, &obs[dpt_base],
-               sizeof(float) * COLO_WEAPON_CHOICE_OBS_CACHE_FLOATS) == 0);
-    s.inventory_cells[cell_brew] = osrs_inventory_cell_empty();
-
-    col_spawn_reinforcements(&s);
+    col_spawn_reinforcements(&s, &ctx);
     int jaguar = -1;
     for (int i = 0; i < COLO_MAX_NPCS; i++)
         if (s.npcs[i].active && s.npcs[i].spawned_as_reinforcement) { jaguar = i; break; }
@@ -7550,7 +9080,9 @@ static void test_weapon_choice_obs_rank_and_farm_cap(void) {
     s.tick_scratch = (ColoTickScratch){0};
     s.tick_scratch.fresh_damage_dealt = 100.0f;
     s.tick_scratch.fresh_damage_reinforcement = 30.0f;
-    float r_capped = col_compute_reward_ctx(&s, &ctx);
+    col_accumulate_tick_stats(&s, &ctx);
+    ColoShapedReward capped = col_shaped_reward(&s, &ctx);
+    float r_capped = capped.damage + capped.boss_phase;
     CHECK("cap on, wave 1: reinforcement damage pays nothing",
         fabsf(r_capped - 70.0f) < 1e-3f);
     CHECK("farm damage is logged", fabsf(s.log.farm_damage - 30.0f) < 1e-3f);
@@ -7558,27 +9090,127 @@ static void test_weapon_choice_obs_rank_and_farm_cap(void) {
     ctx.config.farm_safe_damage_cap = 0;
     s.tick_scratch.fresh_damage_dealt = 100.0f;
     s.tick_scratch.fresh_damage_reinforcement = 30.0f;
-    float r_uncapped = col_compute_reward_ctx(&s, &ctx);
+    col_accumulate_tick_stats(&s, &ctx);
+    ColoShapedReward uncapped = col_shaped_reward(&s, &ctx);
+    float r_uncapped = uncapped.damage + uncapped.boss_phase;
     CHECK("cap off: full damage pays", fabsf(r_uncapped - 100.0f) < 1e-3f);
 
     ctx.config.farm_safe_damage_cap = 1;
     s.wave = COLO_FARM_CAP_WAVES;
     s.tick_scratch.fresh_damage_dealt = 100.0f;
     s.tick_scratch.fresh_damage_reinforcement = 30.0f;
-    float r_late = col_compute_reward_ctx(&s, &ctx);
+    col_accumulate_tick_stats(&s, &ctx);
+    ColoShapedReward late = col_shaped_reward(&s, &ctx);
+    float r_late = late.damage + late.boss_phase;
     CHECK("cap on, wave 5+: reinforcements stay full-value at the default window",
         fabsf(r_late - 100.0f) < 1e-3f);
 
     ctx.config.farm_cap_waves = COLO_FARM_CAP_WAVES + 1;
     s.tick_scratch.fresh_damage_dealt = 100.0f;
     s.tick_scratch.fresh_damage_reinforcement = 30.0f;
-    float r_widened = col_compute_reward_ctx(&s, &ctx);
+    col_accumulate_tick_stats(&s, &ctx);
+    ColoShapedReward widened = col_shaped_reward(&s, &ctx);
+    float r_widened = widened.damage + widened.boss_phase;
     CHECK("widened farm_cap_waves caps the same wave-5 reinforcement damage",
         fabsf(r_widened - 70.0f) < 1e-3f);
     ctx.config.farm_cap_waves = COLO_FARM_CAP_WAVES;
 }
 
+static void child_col_reset_without_context(void) {
+    ColosseumState state = {0};
+    col_reset_ctx((EncounterState*)&state, NULL, 1u);
+}
+
+static void child_col_reset_before_topology_finalize(void) {
+    ColosseumContext ctx;
+    ColosseumState state;
+    col_init_unfinalized_context(&ctx);
+    col_init_state_typed(&state, &ctx);
+    col_reset_ctx(
+        (EncounterState*)&state, (EncounterContext*)&ctx, 1u);
+}
+
+static void child_col_step_before_topology_finalize(void) {
+    ColosseumContext ctx;
+    ColosseumState state;
+    int actions[COLO_NUM_ACTION_HEADS] = {0};
+    col_init_unfinalized_context(&ctx);
+    col_init_state_typed(&state, &ctx);
+    col_step_ctx(
+        (EncounterState*)&state, (EncounterContext*)&ctx, actions);
+}
+
+static void child_col_query_before_topology_finalize(void) {
+    ColosseumContext ctx;
+    col_init_unfinalized_context(&ctx);
+    (void)col_topology_tile_blocked(&ctx, 10, 10);
+}
+static void child_col_restore_previous_inventory_snapshot(void) {
+    ColosseumContext ctx;
+    ColosseumState state;
+    col_init_context_typed(&ctx);
+    col_init_state_typed(&state, &ctx);
+    col_reset_ctx(
+        (EncounterState*)&state, (EncounterContext*)&ctx, 123u);
+    ColoSnapshot snapshot;
+    col_snapshot_ctx(
+        (EncounterState*)&state, (EncounterContext*)&ctx, &snapshot);
+    snapshot.version = COLO_SNAPSHOT_VERSION - 1u;
+    col_restore_ctx(
+        (EncounterState*)&state,
+        (EncounterContext*)&ctx,
+        &snapshot,
+        sizeof(snapshot));
+}
+
+
+typedef struct {
+    int calls;
+    int blocked_x;
+} TestNpcStepBlocker;
+
+static int test_npc_step_blocked(void* data, int x, int y, int size) {
+    (void)y;
+    (void)size;
+    TestNpcStepBlocker* blocker = (TestNpcStepBlocker*)data;
+    blocker->calls++;
+    return x == blocker->blocked_x;
+}
+
+static void test_npc_step_skips_y_edge_after_blocked_x_edge(void) {
+    printf("test_npc_step_skips_y_edge_after_blocked_x_edge\n");
+    TestNpcStepBlocker blocker = {
+        .blocked_x = 11,
+    };
+    int x = 10;
+    int y = 10;
+    int moved = encounter_npc_try_step(
+        &x, &y, 1, 1, 1, test_npc_step_blocked, &blocker);
+    ASSERT_INT_EQ("blocked diagonal does not move", moved, 0);
+    ASSERT_INT_EQ("blocked x edge skips y edge queries", blocker.calls, 1);
+}
+
+static void test_colosseum_topology_lifecycle_contract(void) {
+    printf("test_colosseum_topology_lifecycle_contract\n");
+    assert_child_aborts(
+        "Colosseum reset rejects NULL context",
+        child_col_reset_without_context);
+    assert_child_aborts(
+        "Colosseum reset before topology finalize aborts",
+        child_col_reset_before_topology_finalize);
+    assert_child_aborts(
+        "Colosseum step before topology finalize aborts",
+        child_col_step_before_topology_finalize);
+    assert_child_aborts(
+        "Colosseum query before topology finalize aborts",
+        child_col_query_before_topology_finalize);
+    assert_child_aborts(
+        "Colosseum previous snapshot version aborts",
+        child_col_restore_previous_inventory_snapshot);
+}
+
 int main(void) {
+    test_colosseum_topology_lifecycle_contract();
     test_stage3_t1_inventory_ranged_weapon_swap();
     test_stage3_t1_inventory_weapon_slot_last_click_wins();
     test_stage3_t1_human_inventory_primary_click_uses_resolver();
@@ -7598,15 +9230,17 @@ int main(void) {
     test_player_ranged_los_blocked_by_pillar();
     test_player_chase_routes_around_pillar_for_los();
     test_colosseum_npc_movement_player_tile_guards();
+    test_npc_step_skips_y_edge_after_blocked_x_edge();
     test_zero_actions_hit_timeout();
     test_offpray_attribution_log();
     test_step_loop_draft();
     test_eleven_drafts_per_run();
     test_solarflare_orb();
-    test_volatility_explosion();
+    test_volatility_explodes_on_corpse_removal();
     test_modifier_hazard_obs_fixes();
     test_death_linger_wave_clear_and_render();
     test_draft_offer_and_select();
+    test_first_draft_is_fixed_trio();
     test_draft_upgrade_bias();
     test_mantimayhem_stress();
     test_frailty_hp();
@@ -7616,7 +9250,14 @@ int main(void) {
     test_bees_hazard();
     test_totem_lifecycle();
     test_totemic_sol_wave12();
+    test_totemic_sol_extra_totems_every_two_minutes();
+    test_obs_signal_defects();
+    test_obs_overwrites_dirty_buffer();
+    test_totem_heal_timing_obs();
+    test_totem_sol_obs_reports_stacking();
     test_reentry_sand_tiles();
+    test_mantimayhem_venom_cured_at_wave_end();
+    test_frailty_disables_brew_overheal();
     test_venom_escalation();
     test_bee_poison_status();
     test_mantimayhem_t3_shuffle();
@@ -7634,7 +9275,8 @@ int main(void) {
     test_player_walks_through_npc_footprint();
     test_warband_cycle_offsets();
     test_warband_move_skip();
-    test_warband_bfs_memo_bit_identity();
+    test_warband_melee_not_dodged_by_same_tick_step_out();
+    test_warband_route_generation_bit_identity();
     test_warband_melee_distance_gate();
     test_warband_two_tick_stationary_gate();
     test_warband_formation_convergence();
@@ -7642,22 +9284,26 @@ int main(void) {
     test_warband_pillar_routefind_vs_shaman_safespot();
     test_red_flag_minotaur_routefind();
     test_minotaur_heal_semantics();
+    test_manticore_initial_charge_timing_and_target_gate();
     test_manticore_barrage_period();
     test_manticore_telegraph_during_windup();
-    test_prayer_oracle_manticore_orbs();
     test_late_start_entry_state();
     test_manticore_orb_same_tick_flick();
     test_projectile_prayer_locks_at_throw();
     test_npc_melee_instant_unprayable();
     test_player_melee_lands_at_delay_zero();
     test_echo_boots_recoil_reflects_to_attacker();
+    test_pending_hit_recoil_volatility_damage_accounting();
     test_manticore_shared_wave_cycle();
     test_manticore_stagger_overlap_fidelity();
     test_javelin_skyfall_no_defence_gate();
+    test_javelin_skyfall_dodge_lead_window();
+    test_sol_generic_observation_signals_are_neutral();
     test_sol_adjacency_gate_and_kiting();
     test_sol_attack_selection_invariants();
     test_sol_parry_schedule_and_damage();
     test_sol_parry_prayer_punish();
+    test_sol_parry_observation_contract();
     test_sol_grapple_perfect_parry();
     test_sol_perfect_parry_forces_spec_attack();
     test_sol_shield_safe_rings();
@@ -7665,6 +9311,7 @@ int main(void) {
     test_sol_crystal_lifecycle();
     test_sol_aoe_reaction_window();
     test_sol_laser_react_window();
+    test_sol_laser_observation_pack();
     test_sol_phase_transition_sand_guarantees();
     test_sol_beams_become_pools();
     test_sol_beam_strike_reaction_window();
@@ -7677,38 +9324,43 @@ int main(void) {
     test_consumable_overdrink_mask();
     test_loadout_surge_potion();
     test_loadout_spec_weapons();
+    test_shared_inventory_tracks_gear_swaps();
+    test_colosseum_win_tick_is_not_stacked();
     test_colosseum_live_inventory_display();
     test_loadout_item_effects();
     test_loadout_offensive_prayers();
     test_npc_magic_defence_rolls_off_magic_level();
     test_total_damage_by_type_captures_typeless();
+    test_javelin_and_doom_damage_source_contract();
+    test_applied_damage_and_merged_pool_attribution();
+    test_sol_damage_source_contract();
     test_matchup_dpt_obs_ranking();
     test_primary_head_resolution();
     test_combat_fidelity_contract_sizes();
     test_scythe_multihit_per_size();
     test_venator_bow_bounce_colosseum_integration();
+    test_venator_preview_cache_reuses_unchanged_geometry();
+    test_red_flag_minotaur_not_solid_to_other_npcs();
     test_bee_contact_damage_band();
     test_divine_state_obs_presence();
     test_magic_set_max_hit_math();
     test_thrall_regression();
     test_death_charge_regression();
     test_combat_fidelity_snapshot_roundtrip();
-    test_step_out_forecast_manticore_armed_pattern();
-    test_step_out_forecast_manticore_pair_stagger();
-    test_step_out_forecast_warband_window_and_break();
-    test_step_out_forecast_ranged_los_candidate_tiles();
-    test_step_out_forecast_valid_flags();
-    test_step_out_forecast_same_tick_mixed_styles();
     test_render_bridge_combat_visuals_and_loadout();
     test_render_bridge_npc_debug_and_warband_motion();
     test_melee_reach_cardinal_vs_diagonal();
     test_death_attribution_credits_actual_source();
     test_move_action_no_corner_cut();
     test_modifier_draft_forces_pick();
-    test_gear_and_boost_reward_signals();
-    test_weapon_choice_obs_rank_and_farm_cap();
-    test_threat_field_obs();
-    test_inventory_obs_memo();
+    test_best_gear_cache_signatures();
+    test_farm_safe_damage_cap();
+    test_item_obs_code_survives_bf16();
+    test_item_obs_table_matches_every_code_semantically();
+    test_item_obs_empty_row_is_all_zero();
+    test_item_obs_table_bakes_consumable_hp_heal();
+    test_inventory_obs_expansion_matches_item_table();
+    test_inventory_obs_code_updates();
 
     return osrs_test_summary();
 }

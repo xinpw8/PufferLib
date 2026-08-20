@@ -21,7 +21,8 @@ static inline int pvp_melee_spec_to_item(MeleeSpecWeapon w) {
         case MELEE_SPEC_SGS:              return ITEM_SGS;
         case MELEE_SPEC_ANCIENT_GS:       return ITEM_ANCIENT_GS;
         case MELEE_SPEC_VESTAS:           return ITEM_VESTAS;
-        default:                          return ITEM_NONE;
+        case MELEE_SPEC_NONE:             return ITEM_NONE;
+        default:                          abort();
     }
 }
 
@@ -33,98 +34,38 @@ static inline int pvp_ranged_spec_to_item(RangedSpecWeapon w) {
         case RANGED_SPEC_ZCB:          return ITEM_ZARYTE_CROSSBOW;
         case RANGED_SPEC_MSB:          return ITEM_MAGIC_SHORTBOW_I;
         case RANGED_SPEC_MORRIGANS:    return ITEM_MORRIGANS_JAVELIN;
-        default:                       return ITEM_NONE;
+        case RANGED_SPEC_NONE:          return ITEM_NONE;
+        default:                        abort();
     }
 }
 
 static inline int pvp_magic_spec_to_item(MagicSpecWeapon w) {
     switch (w) {
         case MAGIC_SPEC_VOLATILE_STAFF: return ITEM_VOLATILE_STAFF;
-        default:                        return ITEM_NONE;
+        case MAGIC_SPEC_NONE:            return ITEM_NONE;
+        default:                         abort();
     }
 }
 
 static int get_melee_spec_cost(MeleeSpecWeapon weapon) {
+    if (weapon == MELEE_SPEC_NONE) return 50;
     int cost = osrs_spec_cost(pvp_melee_spec_to_item(weapon));
-    return cost > 0 ? cost : 50;
+    if (cost <= 0) abort();
+    return cost;
 }
 
 static int get_ranged_spec_cost(RangedSpecWeapon weapon) {
+    if (weapon == RANGED_SPEC_NONE) return 50;
     int cost = osrs_spec_cost(pvp_ranged_spec_to_item(weapon));
-    return cost > 0 ? cost : 50;
+    if (cost <= 0) abort();
+    return cost;
 }
 
 static int get_magic_spec_cost(MagicSpecWeapon weapon) {
+    if (weapon == MAGIC_SPEC_NONE) return 50;
     int cost = osrs_spec_cost(pvp_magic_spec_to_item(weapon));
-    return cost > 0 ? cost : 50;
-}
-
-static float get_melee_spec_str_mult(MeleeSpecWeapon weapon) {
-    switch (weapon) {
-        case MELEE_SPEC_AGS:             return 1.375f;
-        case MELEE_SPEC_DRAGON_CLAWS:    return 1.0f;
-        case MELEE_SPEC_GRANITE_MAUL:    return 1.0f;
-        case MELEE_SPEC_DRAGON_DAGGER:   return 1.15f;
-        case MELEE_SPEC_VOIDWAKER:       return 1.0f;
-        case MELEE_SPEC_DWH:             return 1.25f;
-        case MELEE_SPEC_BGS:             return 1.21f;
-        case MELEE_SPEC_ZGS:             return 1.1f;
-        case MELEE_SPEC_SGS:             return 1.1f;
-        case MELEE_SPEC_ANCIENT_GS:      return 1.1f;
-        case MELEE_SPEC_VESTAS:          return 1.20f;
-        case MELEE_SPEC_ABYSSAL_DAGGER:  return 0.85f;
-        case MELEE_SPEC_DRAGON_LONGSWORD:return 1.15f;
-        case MELEE_SPEC_DRAGON_MACE:     return 1.5f;
-        case MELEE_SPEC_ABYSSAL_BLUDGEON:return 1.20f;
-        default:                         return 1.0f;
-    }
-}
-
-static float get_melee_spec_acc_mult(MeleeSpecWeapon weapon) {
-    switch (weapon) {
-        case MELEE_SPEC_AGS:             return 2.0f;
-        case MELEE_SPEC_DRAGON_CLAWS:    return 1.0f;
-        case MELEE_SPEC_GRANITE_MAUL:    return 1.0f;
-        case MELEE_SPEC_DRAGON_DAGGER:   return 1.15f;
-        case MELEE_SPEC_VOIDWAKER:       return 1.0f;
-        case MELEE_SPEC_DWH:             return 1.25f;
-        case MELEE_SPEC_BGS:             return 2.0f;
-        case MELEE_SPEC_ZGS:             return 2.0f;
-        case MELEE_SPEC_SGS:             return 2.0f;
-        case MELEE_SPEC_ANCIENT_GS:      return 2.0f;
-        case MELEE_SPEC_VESTAS:          return 1.0f;
-        case MELEE_SPEC_ABYSSAL_DAGGER:  return 1.25f;
-        case MELEE_SPEC_DRAGON_LONGSWORD:return 1.25f;
-        case MELEE_SPEC_DRAGON_MACE:     return 1.25f;
-        case MELEE_SPEC_ABYSSAL_BLUDGEON:return 1.0f;
-        default:                         return 1.0f;
-    }
-}
-
-static float get_ranged_spec_str_mult(RangedSpecWeapon weapon) {
-    switch (weapon) {
-        case RANGED_SPEC_DARK_BOW:    return 1.5f;
-        case RANGED_SPEC_BALLISTA:    return 1.25f;
-        case RANGED_SPEC_ACB:         return 1.0f;
-        case RANGED_SPEC_ZCB:         return 1.0f;
-        case RANGED_SPEC_DRAGON_KNIFE:return 1.0f;
-        case RANGED_SPEC_MSB:         return 1.0f;
-        case RANGED_SPEC_MORRIGANS:   return 1.0f;
-        default:                      return 1.0f;
-    }
-}
-
-static float get_ranged_spec_acc_mult(RangedSpecWeapon weapon) {
-    switch (weapon) {
-        case RANGED_SPEC_DARK_BOW:    return 1.0f;
-        case RANGED_SPEC_BALLISTA:    return 1.25f;
-        case RANGED_SPEC_ACB:         return 2.0f;
-        case RANGED_SPEC_ZCB:         return 2.0f;
-        case RANGED_SPEC_DRAGON_KNIFE:return 1.0f;
-        case RANGED_SPEC_MSB:         return 1.0f;
-        case RANGED_SPEC_MORRIGANS:   return 1.0f;
-        default:                      return 1.0f;
-    }
+    if (cost <= 0) abort();
+    return cost;
 }
 
 static inline float get_defence_prayer_mult(Player* p) {
@@ -340,10 +281,10 @@ static inline int get_blood_base_hit(int current_magic) {
 }
 
 static inline int get_blood_heal_percent(int current_magic) {
-    if (current_magic >= BLOOD_BARRAGE_LEVEL) return 25;
-    if (current_magic >= BLOOD_BLITZ_LEVEL) return 20;
-    if (current_magic >= BLOOD_BURST_LEVEL) return 15;
-    return 10;
+    if (current_magic >= BLOOD_BARRAGE_LEVEL) return BLOOD_BARRAGE_HEAL_PERCENT;
+    if (current_magic >= BLOOD_BLITZ_LEVEL) return BLOOD_BLITZ_HEAL_PERCENT;
+    if (current_magic >= BLOOD_BURST_LEVEL) return BLOOD_BURST_HEAL_PERCENT;
+    return BLOOD_RUSH_HEAL_PERCENT;
 }
 
 /* pvp hit delays historically excluded the +1 attacker-is-player tick, so every
@@ -759,8 +700,8 @@ static inline int can_equip_two_handed_weapon(Player* p) {
 }
 
 static inline int can_spec(Player* p) {
-    int cost = get_melee_spec_cost(p->melee_spec_weapon);
-    return p->melee_spec_weapon != MELEE_SPEC_NONE && p->special_energy >= cost;
+    if (p->melee_spec_weapon == MELEE_SPEC_NONE) return 0;
+    return p->special_energy >= get_melee_spec_cost(p->melee_spec_weapon);
 }
 
 static inline int is_granite_maul_attack_available(Player* p) {

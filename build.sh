@@ -77,11 +77,14 @@ fi
 PLATFORM="$(uname -s)"
 if [ "$PLATFORM" = "Linux" ]; then
     RAYLIB_NAME='raylib-5.5_linux_amd64'
+    OMP_FLAGS=(-fopenmp)
     OMP_LIB=-lomp5
     SANITIZE_FLAGS=(-fsanitize=address,undefined,bounds,pointer-overflow,leak -fno-omit-frame-pointer)
     STANDALONE_LDFLAGS=(-lGL)
 else
     RAYLIB_NAME='raylib-5.5_macos'
+    OMP_PREFIX="$(brew --prefix libomp)"
+    OMP_FLAGS=(-Xclang -fopenmp -I"$OMP_PREFIX/include" -L"$OMP_PREFIX/lib" -lomp)
     OMP_LIB=-lomp
     SANITIZE_FLAGS=()
     STANDALONE_LDFLAGS=(-framework Cocoa -framework IOKit -framework CoreVideo -framework OpenGL)
@@ -202,11 +205,12 @@ if [ -n "$OUT" ]; then
 fi
 SRC_FILE=${SRC_FILE:-$SRC_DIR/$ENV.c}
 
-# Standalone environment build
-# -mavx2 enables AVX2 intrinsics (__m256, _mm256_*) which drive.h and
-# src/pufferenv.h use directly. x86_64 only — strip if porting to ARM/Apple Silicon.
-SIMD_FLAGS=(-mavx2 -mfma)
-if [ -n "$DEBUG" ]; then
+if [ "$(uname -m)" = "x86_64" ]; then
+    SIMD_FLAGS=(-mavx2 -mfma)
+else
+    SIMD_FLAGS=()
+fi
+if [ -n "$DEBUG" ] || [ "$MODE" = "local" ]; then
     CLANG_OPT=(-g -O0 "${CLANG_WARN[@]}" "${SANITIZE_FLAGS[@]}" "${SIMD_FLAGS[@]}")
     NVCC_OPT="-O0 -g"
     LINK_OPT="-g"
@@ -228,7 +232,7 @@ if [ "$MODE" = "cpu" ]; then
         "${LINK_ARCHIVES[@]}"
         "${EXTRA_LDFLAGS[@]}"
         "${STANDALONE_LDFLAGS[@]}"
-        -lm -lpthread -fopenmp
+        -lm -lpthread "${OMP_FLAGS[@]}"
         -DPLATFORM_DESKTOP
         -DPUFFERCPU_EVAL_MAIN
         -DENV_HEADER=\"$ENV_HEADER\"
@@ -303,6 +307,29 @@ elif [ "$MODE" = "web" ]; then
         cp -a "build/web/$ENV/." "$WEBSITE_ASSETS/$ENV/"
         echo "Published: $WEBSITE_ASSETS/$ENV/"
     fi
+    exit 0
+elif [ "$MODE" = "cpu" ]; then
+    ENV_HEADER="$SRC_DIR/$ENV.h"
+    if ! grep -q 'typedef[[:space:]].*obs_t' "$ENV_HEADER" 2>/dev/null; then
+        echo "Error: $ENV_HEADER must typedef obs_t for standalone eval"
+        exit 1
+    fi
+
+    mkdir -p build
+    echo "Compiling standalone CPU eval for $ENV..."
+    ${CC:-clang} "${CLANG_OPT[@]}" \
+        -I. -Isrc -I$SRC_DIR -Ivendor "${INCLUDES[@]}" \
+        -DPLATFORM_DESKTOP \
+        -DPUFFERCPU_EVAL_MAIN \
+        -DENV_HEADER=\"$ENV_HEADER\" \
+        -DPUFFER_ENV_NAME=\"$ENV\" \
+        -x c src/puffercpu.h -x none $EXTRA_SRC \
+        "${LINK_ARCHIVES[@]}" \
+        "${EXTRA_LDFLAGS[@]}" \
+        "${STANDALONE_LDFLAGS[@]}" \
+        -lm -lpthread "${OMP_FLAGS[@]}" \
+        -o "build/cpu_${ENV}"
+    echo "Built: ./build/cpu_${ENV}"
     exit 0
 fi
 

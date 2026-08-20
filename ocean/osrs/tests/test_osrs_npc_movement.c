@@ -1,5 +1,10 @@
+#include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include "ocean/osrs/osrs_encounter.h"
 
@@ -148,7 +153,101 @@ static void test_shared_current_overlap(void) {
         moved == 0 && x == 5 && y == 5);
 }
 
+typedef struct {
+    uint32_t flags[12][12];
+} NpcTopologyGeometry;
+
+static uint32_t npc_topology_flags(void* ctx, int x, int y) {
+    const NpcTopologyGeometry* geometry = (const NpcTopologyGeometry*)ctx;
+    if (x < 0 || x >= 12 || y < 0 || y >= 12)
+        return COLLISION_BLOCKED | LOS_FULL_MASK;
+    return geometry->flags[x][y];
+}
+
+static int npc_topology_aborts(void (*operation)(void)) {
+    fflush(NULL);
+    pid_t pid = fork();
+    if (pid == 0) {
+        operation();
+        _exit(0);
+    }
+    int status = 0;
+    if (pid < 0 || waitpid(pid, &status, 0) != pid) return 0;
+    return WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT;
+}
+
+static void npc_topology_rejects_unsupported_footprint(void) {
+    NpcTopologyGeometry geometry;
+    memset(&geometry, 0, sizeof(geometry));
+    EncounterArenaTopologyBuildSpec spec = {
+        .origin_x = 0,
+        .origin_y = 0,
+        .width = 12,
+        .height = 12,
+        .max_footprint_size =
+            ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE + 1,
+        .revision = 9,
+        .tile_flags = npc_topology_flags,
+        .tile_flags_ctx = &geometry,
+    };
+    (void)encounter_arena_topology_build(&spec);
+}
+
+static void test_arena_topology_footprint_masks(void) {
+    printf("test_arena_topology_footprint_masks\n");
+
+    NpcTopologyGeometry geometry;
+    memset(&geometry, 0, sizeof(geometry));
+    geometry.flags[8][8] = COLLISION_BLOCKED;
+    EncounterArenaTopologyBuildSpec spec = {
+        .origin_x = 0,
+        .origin_y = 0,
+        .width = 12,
+        .height = 12,
+        .max_footprint_size =
+            ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE,
+        .revision = 9,
+        .tile_flags = npc_topology_flags,
+        .tile_flags_ctx = &geometry,
+    };
+    EncounterArenaTopology* topology = encounter_arena_topology_build(&spec);
+    encounter_arena_topology_finalize(topology);
+
+    for (int size = 1;
+            size <= ENCOUNTER_ARENA_TOPOLOGY_MAX_FOOTPRINT_SIZE;
+            size++) {
+        char label[96];
+        snprintf(label, sizeof(label),
+            "size %d mask rejects footprint covering static blocker", size);
+        CHECK(label, encounter_arena_topology_footprint_blocked(
+            topology, 9 - size, 9 - size, size));
+
+        snprintf(label, sizeof(label),
+            "size %d mask accepts clear in-bounds footprint", size);
+        CHECK(label, !encounter_arena_topology_footprint_blocked(
+            topology, 1, 1, size));
+
+        snprintf(label, sizeof(label),
+            "size %d mask rejects footprint crossing arena edge", size);
+        CHECK(label, encounter_arena_topology_footprint_blocked(
+            topology, 13 - size, 1, size));
+    }
+
+    CHECK("large footprint clear cardinal step uses prebuilt mask",
+        encounter_arena_topology_step_allowed(topology, 1, 1, 5, 1, 0));
+    CHECK("large footprint clear diagonal step uses prebuilt mask",
+        encounter_arena_topology_step_allowed(topology, 1, 1, 5, 1, 1));
+    CHECK("large footprint step rejects destination static blocker",
+        !encounter_arena_topology_step_allowed(topology, 3, 3, 5, 1, 1));
+
+    free(topology);
+
+    CHECK("topology build rejects unsupported footprint size",
+        npc_topology_aborts(npc_topology_rejects_unsupported_footprint));
+}
+
 int main(void) {
+    test_arena_topology_footprint_masks();
     test_shared_diagonal_edge_clearance_size_one();
     test_shared_aggro_target_overlap_rewrite();
     test_shared_melee_policy();

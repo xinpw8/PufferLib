@@ -45,18 +45,9 @@ static inline int osrs_player_can_eat_food_type(const Player* p, FoodType type) 
     return r.consumed;
 }
 
-static inline int osrs_player_food_wasted_hp(const Player* p, FoodType type) {
-    osrs_require_player_food_action(type);
-    EatResult r = osrs_eat_food(type, p->current_hitpoints,
-        p->base_hitpoints, osrs_player_food_timer(p, type));
-    if (!r.consumed) return 0;
-    return osrs_food_heal_amount(type) - r.hp_healed;
-}
-
-static inline OsrsPlayerEatResult osrs_player_eat_food_type(Player* p, FoodType type) {
+static inline OsrsPlayerEatResult osrs_player_eat_food_effects(Player* p, FoodType type) {
     osrs_require_player_food_action(type);
     OsrsPlayerEatResult out = {0, 0, 0, 0};
-    if (osrs_player_food_count(p, type) <= 0) return out;
 
     EatResult r = osrs_eat_food(type, p->current_hitpoints,
         p->base_hitpoints, osrs_player_food_timer(p, type));
@@ -68,7 +59,6 @@ static inline OsrsPlayerEatResult osrs_player_eat_food_type(Player* p, FoodType 
     out.hp_wasted = heal_amount - r.hp_healed;
 
     if (type == FOOD_KARAMBWAN) {
-        p->karambwan_count--;
         p->karambwan_timer = 2;
         p->food_timer = 3;
         p->potion_timer = 3;
@@ -77,7 +67,6 @@ static inline OsrsPlayerEatResult osrs_player_eat_food_type(Player* p, FoodType 
         p->last_karambwan_waste = out.hp_wasted;
         out.attack_delay_ticks = 2;
     } else {
-        p->food_count--;
         p->food_timer = 3;
         p->ate_food_this_tick = 1;
         p->last_food_heal = out.hp_healed;
@@ -89,14 +78,23 @@ static inline OsrsPlayerEatResult osrs_player_eat_food_type(Player* p, FoodType 
     if (type != FOOD_ANGLERFISH && p->current_hitpoints > p->base_hitpoints)
         p->current_hitpoints = p->base_hitpoints;
 
-    int combat_ticks = 0;
-    if (p->has_attack_timer) {
-        combat_ticks = p->attack_timer > 0 ? p->attack_timer : 0;
+    if (p->attack_timer > 0) {
+        int combat_ticks = p->attack_timer;
+        p->attack_timer = combat_ticks + out.attack_delay_ticks;
+        p->attack_timer_uncapped = combat_ticks + out.attack_delay_ticks;
     }
-    p->attack_timer = combat_ticks + out.attack_delay_ticks;
-    p->attack_timer_uncapped = combat_ticks + out.attack_delay_ticks;
     p->has_attack_timer = 1;
 
+    return out;
+}
+
+static inline OsrsPlayerEatResult osrs_player_eat_food_type(Player* p, FoodType type) {
+    if (osrs_player_food_count(p, type) <= 0) return (OsrsPlayerEatResult){0, 0, 0, 0};
+    OsrsPlayerEatResult out = osrs_player_eat_food_effects(p, type);
+    if (out.consumed) {
+        if (type == FOOD_KARAMBWAN) p->karambwan_count--;
+        else p->food_count--;
+    }
     return out;
 }
 

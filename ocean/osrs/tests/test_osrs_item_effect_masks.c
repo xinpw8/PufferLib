@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "ocean/osrs/osrs_items.h"
+#include "ocean/osrs/osrs_inventory_clicks.h"
 
 static const struct {
     int item;
@@ -35,6 +35,47 @@ static const struct {
 static const int EXPECTED_ITEM_EFFECT_FREE_ITEMS[] = {
     ITEM_ABYSSAL_TENTACLE,
 };
+
+static int expected_gear_slot(EquipmentSlot slot) {
+    switch (slot) {
+        case SLOT_HEAD: return GEAR_SLOT_HEAD;
+        case SLOT_CAPE: return GEAR_SLOT_CAPE;
+        case SLOT_NECK: return GEAR_SLOT_NECK;
+        case SLOT_WEAPON: return GEAR_SLOT_WEAPON;
+        case SLOT_BODY: return GEAR_SLOT_BODY;
+        case SLOT_SHIELD: return GEAR_SLOT_SHIELD;
+        case SLOT_LEGS: return GEAR_SLOT_LEGS;
+        case SLOT_HANDS: return GEAR_SLOT_HANDS;
+        case SLOT_FEET: return GEAR_SLOT_FEET;
+        case SLOT_RING: return GEAR_SLOT_RING;
+        case SLOT_AMMO: return GEAR_SLOT_AMMO;
+        default: return -1;
+    }
+}
+
+static int verify_generated_gear_metadata(void) {
+    int failures = 0;
+    for (int item_idx = 0; item_idx < NUM_ITEMS; item_idx++) {
+        uint16_t content_code =
+            osrs_inventory_content_code_from_item((uint8_t)item_idx);
+        const OsrsItemContentMetadata* metadata =
+            osrs_item_content_metadata(content_code);
+        const Item* item = &ITEM_DATABASE[item_idx];
+        if (metadata->item_idx != item_idx ||
+                metadata->item != item ||
+                metadata->raw_osrs_id != item->item_id ||
+                metadata->gear_slot != expected_gear_slot(item->slot) ||
+                metadata->attack_style != get_item_attack_style(item_idx) ||
+                metadata->click_action != OSRS_CLICK_EQUIP ||
+                metadata->consumable_kind != OSRS_CONSUMABLE_NONE ||
+                metadata->dose_count != 0 ||
+                metadata->next_content_code != 0) {
+            fprintf(stderr, "item %d generated metadata mismatch\n", item_idx);
+            failures++;
+        }
+    }
+    return failures;
+}
 
 int main(void) {
     const size_t n_expected =
@@ -102,8 +143,9 @@ int main(void) {
         failures++;
     }
 
+    failures += verify_generated_gear_metadata();
     if (failures) {
-        fprintf(stderr, "test_osrs_item_effect_masks: %d failure(s)\n", failures);
+        fprintf(stderr, "test_osrs_item_effect_masks: %d failures\n", failures);
         return 1;
     }
 

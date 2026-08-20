@@ -14,6 +14,9 @@
 #include "../osrs_encounter_visual_events.h"
 #include "../osrs_player_consumables.h"
 #include "../osrs_inventory_clicks.h"
+#include "../osrs_item_obs_generated.h"
+#include "../osrs_inventory_actions.h"
+#include "../osrs_policy.h"
 #include "../osrs_interaction.h"
 #include "../data/npc_models.h"
 #include <assert.h>
@@ -73,7 +76,6 @@ typedef enum {
 #include "colosseum/encounter_colosseum_boss.inc"
 #include "colosseum/encounter_colosseum_player_actions.inc"
 #include "colosseum/encounter_colosseum_reward_step.inc"
-#include "colosseum/encounter_colosseum_forecast.inc"
 #include "colosseum/encounter_colosseum_obs_mask.inc"
 #include "colosseum/encounter_colosseum_mask_render.inc"
 #include "colosseum/encounter_colosseum_lab.inc"

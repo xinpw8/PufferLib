@@ -364,8 +364,14 @@ static inline int osrs_venator_can_bounce(
     OsrsVenatorFootprint sender,
     OsrsVenatorFootprint target
 ) {
-    return osrs_venator_accepts_bounce(sender, target) &&
-        osrs_venator_sends_bounce(sender, target);
+    OsrsVenatorTileSet origins =
+        osrs_venator_sender_origin_tiles(sender);
+    return osrs_venator_origins_find_required_tiles(
+            origins,
+            osrs_venator_accept_required_tiles(sender, target)) &&
+        osrs_venator_origins_find_required_tiles(
+            origins,
+            osrs_venator_send_required_tiles(sender, target));
 }
 
 static inline int osrs_venator_selection_distance(

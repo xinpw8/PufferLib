@@ -55,8 +55,9 @@ static char* col_lab_alloc_json(ColosseumState* s) {
         "\"loadout_profile\":%d,\"brew_doses\":%d,\"restore_doses\":%d,"
         "\"combat_doses\":%d,\"ranged_doses\":%d,\"surge_doses\":%d,"
         "\"surge_cooldown\":%d,\"spec_energy\":%d,\"spec_armed\":%d,"
-        "\"thrall_active\":%d,\"thrall_target\":%d,\"thrall_lifetime\":%d,"
-        "\"thrall_recast_cd\":%d,\"death_charge_window\":%d,\"death_charge_cd\":%d},",
+        "\"thrall_target\":%d,\"thrall_aggro\":%d,\"thrall_lifetime\":%d,"
+        "\"thrall_lifetime_total\":%d,"
+        "\"death_charge_window\":%d,\"death_charge_cd\":%d},",
         s->tick, s->wave + 1,
         s->player.x, s->player.y, s->player.current_hitpoints,
         s->player.base_hitpoints, col_lab_overhead_name(s->player.prayer),
@@ -65,8 +66,9 @@ static char* col_lab_alloc_json(ColosseumState* s) {
         s->active_loadout_profile, s->player.brew_doses, s->player.restore_doses,
         s->player.combat_potion_doses, s->player.ranged_potion_doses, s->surge_doses,
         s->surge_cooldown, s->player.special_energy, s->player.spec_armed,
-        s->thrall_active, s->thrall_target_slot, s->thrall_lifetime_left,
-        s->thrall_recast_cd, s->death_charge_window_left, s->death_charge_cd);
+        s->thrall_target_slot, s->thrall_aggro_ticks_left,
+        s->thrall_lifetime_left, s->thrall_lifetime_total,
+        s->death_charge_window_left, s->death_charge_cd);
     col_lab_append_modifiers_json(s, &out);
     encounter_lab_string_append(&out, ",");
     encounter_lab_string_append(&out,
