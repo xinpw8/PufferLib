@@ -746,10 +746,15 @@ static void inf_translate_human_commands_ctx(
             case HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK:
                 inf_queue_inventory_click_action(s, actions, cmd->inventory_slot);
                 break;
+            case HUMAN_COMMAND_ITEM_ON_ITEM:
+                osrs_inventory_swap_cells(
+                    s->player.inventory_cells,
+                    cmd->inventory_slot,
+                    cmd->target_inventory_slot);
+                break;
             case HUMAN_COMMAND_EQUIP_INVENTORY_ITEM:
             case HUMAN_COMMAND_FIGHT_STYLE:
             case HUMAN_COMMAND_SET_AUTOCAST:
-            case HUMAN_COMMAND_ITEM_ON_ITEM:
             case HUMAN_COMMAND_ITEM_ON_WIDGET:
             case HUMAN_COMMAND_SPELL_ON_WIDGET:
             case HUMAN_COMMAND_NONE:

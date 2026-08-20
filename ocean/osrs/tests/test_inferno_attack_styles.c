@@ -6935,6 +6935,63 @@ static void test_inventory_drag_release_restores_source_opacity(void) {
     ASSERT_INT_EQ("released drag clears dim timer", dim_timer, 0);
 }
 
+static void test_inferno_human_item_drag_reorders_inventory_contract(void) {
+    printf("--- inferno human item drag reorders inventory contract ---\n");
+
+    EncounterState* raw = inf_create();
+    InfernoState* state = (InfernoState*)raw;
+    inf_reset_ctx(raw, (EncounterContext*)&test_context, 123);
+    state->player.inventory_cells[0] =
+        osrs_inventory_cell_from_item(ITEM_TOXIC_BLOWPIPE);
+    state->player.inventory_cells[9] =
+        osrs_inventory_cell_from_item(ITEM_MASORI_BODY_F);
+
+    HumanInput input;
+    human_input_init(&input);
+    input.enabled = 1;
+    human_input_queue_item_on_item(
+        &input,
+        0,
+        9,
+        ITEM_TOXIC_BLOWPIPE,
+        osrs_inventory_cell_raw_osrs_id(&state->player.inventory_cells[0]));
+
+    inf_step_human_commands_ctx(raw, (EncounterContext*)&test_context, &input);
+
+    ASSERT_INT_EQ("drag moves body to source cell",
+        osrs_inventory_cell_item_index(&state->player.inventory_cells[0]),
+        ITEM_MASORI_BODY_F);
+    ASSERT_INT_EQ("drag moves blowpipe to target cell",
+        osrs_inventory_cell_item_index(&state->player.inventory_cells[9]),
+        ITEM_TOXIC_BLOWPIPE);
+
+    float obs[INF_NUM_OBS];
+    inf_write_obs_ctx(raw, (EncounterContext*)&test_context, obs);
+    ASSERT_FLOAT_NEAR("observation follows reordered source cell",
+        obs[OSRS_SHARED_OBS_INVENTORY_START],
+        osrs_inventory_cell_obs_code_encode(
+            osrs_inventory_content_code_from_item(ITEM_MASORI_BODY_F)),
+        0.0f);
+    ASSERT_FLOAT_NEAR("observation follows reordered target cell",
+        obs[OSRS_SHARED_OBS_INVENTORY_START + 9],
+        osrs_inventory_cell_obs_code_encode(
+            osrs_inventory_content_code_from_item(ITEM_TOXIC_BLOWPIPE)),
+        0.0f);
+
+    float mask[INF_ACTION_MASK_SIZE];
+    inf_write_mask_ctx(raw, (EncounterContext*)&test_context, mask);
+    int weapon_offset =
+        inf_action_head_mask_offset(INF_HEAD_EQUIP_SLOT(GEAR_SLOT_WEAPON));
+    ASSERT_FLOAT_NEAR("weapon equip mask leaves source cell",
+        mask[weapon_offset + 1], 0.0f, 0.0f);
+    ASSERT_FLOAT_NEAR("weapon equip mask follows target cell",
+        mask[weapon_offset + 10], 1.0f, 0.0f);
+    ASSERT_INT_EQ("queued item drag drained", input.commands.count, 0);
+
+    human_input_destroy(&input);
+    inf_destroy(raw);
+}
+
 static void test_inferno_human_primary_inventory_click_equips_item(void) {
     printf("--- inferno human primary inventory click equips item ---\n");
 
@@ -8761,6 +8818,7 @@ int main(void) {
     test_inferno_human_equip_does_not_snap_loadout();
     test_inventory_drag_requires_180ms_hold_and_dead_zone();
     test_inventory_drag_release_restores_source_opacity();
+    test_inferno_human_item_drag_reorders_inventory_contract();
     test_inferno_human_primary_inventory_click_equips_item();
     test_inferno_fight_style_command_does_not_click_inventory();
     test_jad_render_uses_style_specific_attack_animation();
