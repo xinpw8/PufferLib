@@ -7,7 +7,7 @@ static void col_put_int_ctx(
     int value
 ) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     if (strcmp(key, "start_wave") == 0) {
         int internal = value - 1;
         if (internal < 0) internal = 0;
@@ -25,14 +25,11 @@ static void col_put_int_ctx(
     else if (strcmp(key, "curriculum_agent") == 0)
         ctx->config.curriculum_agent =
             encounter_require_binary_config("colosseum", key, value);
-    else if (strcmp(key, "step_out_forecast_obs_enabled") == 0)
-        ctx->config.step_out_forecast_obs_enabled =
-            encounter_require_binary_config("colosseum", key, value);
-    else if (strcmp(key, "threat_field_obs_enabled") == 0)
-        ctx->config.threat_field_obs_enabled =
-            encounter_require_binary_config("colosseum", key, value);
     else if (strcmp(key, "mask_inventory_heads") == 0)
         ctx->config.mask_inventory_heads =
+            encounter_require_binary_config("colosseum", key, value);
+    else if (strcmp(key, "laser_obs_mode") == 0)
+        ctx->config.laser_obs_mode =
             encounter_require_binary_config("colosseum", key, value);
     else if (strcmp(key, "farm_safe_damage_cap") == 0)
         ctx->config.farm_safe_damage_cap =
@@ -45,12 +42,6 @@ static void col_put_int_ctx(
         }
         ctx->config.farm_cap_waves = value;
     }
-    else if (strcmp(key, "action_debug_log") == 0)
-        ctx->config.action_debug_log =
-            encounter_require_binary_config("colosseum", key, value);
-    else if (strcmp(key, "prayer_oracle_mode") == 0)
-        ctx->config.prayer_oracle_mode =
-            encounter_require_binary_config("colosseum", key, value);
     else if (strcmp(key, "late_start_state_mode") == 0) {
         if (value < 0 || value > 2) {
             fprintf(stderr, "colosseum: late_start_state_mode must be 0..2, got %d\n",
@@ -62,9 +53,6 @@ static void col_put_int_ctx(
     else if (strcmp(key, "bis_gear_oracle_mode") == 0)
         ctx->config.bis_gear_oracle_mode =
             encounter_require_binary_config("colosseum", key, value);
-    else if (strcmp(key, "invuln_mode") == 0)
-        ctx->config.invuln_mode =
-            encounter_require_binary_config("colosseum", key, value);
     else if (strcmp(key, "episode_max_ticks_override") == 0) {
         if (value < 0) {
             fprintf(stderr, "colosseum: episode_max_ticks_override must be >= 0, got %d\n",
@@ -73,9 +61,6 @@ static void col_put_int_ctx(
         }
         ctx->config.episode_max_ticks_override = value;
     }
-    else if (strcmp(key, "remove_brews") == 0)
-        ctx->config.remove_brews =
-            encounter_require_binary_config("colosseum", key, value);
     else if (strcmp(key, "damage_scale_anneal_ticks") == 0) {
         if (value < 0) {
             fprintf(stderr, "colosseum: damage_scale_anneal_ticks must be >= 0, got %d\n",
@@ -83,22 +68,6 @@ static void col_put_int_ctx(
             abort();
         }
         ctx->config.damage_scale_anneal_ticks = value;
-    }
-    else if (strcmp(key, "forecast_horizon") == 0) {
-        if (value < 1 || value > COLO_STEP_OUT_FORECAST_HORIZON) {
-            fprintf(stderr, "colosseum: forecast_horizon must be 1..%d, got %d\n",
-                COLO_STEP_OUT_FORECAST_HORIZON, value);
-            abort();
-        }
-        ctx->config.forecast_horizon = value;
-    }
-    else if (strcmp(key, "forecast_run_tile_mode") == 0) {
-        if (value < 0 || value > COLO_FORECAST_RUN_TILE_STATIC_THREAT) {
-            fprintf(stderr, "colosseum: forecast_run_tile_mode must be 0..%d, got %d\n",
-                COLO_FORECAST_RUN_TILE_STATIC_THREAT, value);
-            abort();
-        }
-        ctx->config.forecast_run_tile_mode = value;
     }
     else if (strcmp(key, "loadout_profile_mode") == 0) {
         if (value < 0 || value > COLO_LOADOUT_PROFILE_MODE_MIXED) {
@@ -116,7 +85,8 @@ static void col_put_float_ctx(
     const char* key,
     float value
 ) {
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    (void)state;
+    ColosseumContext* ctx = col_require_context(context);
     if (strcmp(key, "damage_reward_coeff") == 0) ctx->config.damage_reward_coeff = value;
     else if (strcmp(key, "late_start_supply_fraction_per_wave") == 0) {
         if (value < 0.0f || value > 0.125f) {
@@ -132,20 +102,6 @@ static void col_put_float_ctx(
     else if (strcmp(key, "wave_clear_bonus") == 0) ctx->config.wave_clear_bonus = value;
     else if (strcmp(key, "boss_phase_bonus") == 0) ctx->config.boss_phase_bonus = value;
     else if (strcmp(key, "win_bonus") == 0) ctx->config.win_bonus = value;
-    else if (strcmp(key, "prayer_correct_reward") == 0)
-        ctx->config.prayer_correct_reward = value;
-    else if (strcmp(key, "offpray_damage_penalty_coeff") == 0)
-        ctx->config.offpray_damage_penalty_coeff = value;
-    else if (strcmp(key, "multistyle_exposure_penalty_coeff") == 0)
-        ctx->config.multistyle_exposure_penalty_coeff = value;
-    else if (strcmp(key, "argmax_gear_reward_coeff") == 0)
-        ctx->config.argmax_gear_reward_coeff = value;
-    else if (strcmp(key, "offensive_boost_reward_coeff") == 0)
-        ctx->config.offensive_boost_reward_coeff = value;
-    else if (strcmp(key, "stall_penalty_coeff") == 0)
-        ctx->config.stall_penalty_coeff = value;
-    else if (strcmp(key, "avoided_damage_coeff") == 0)
-        ctx->config.avoided_damage_coeff = value;
     else if (strcmp(key, "death_penalty_coeff") == 0) ctx->config.death_penalty_coeff = value;
     else if (strcmp(key, "timeout_penalty") == 0) ctx->config.timeout_penalty = value;
     else if (strcmp(key, "beginner_loadout_fraction") == 0) {
@@ -191,26 +147,34 @@ static void col_put_ptr_ctx(
     const char* key,
     void* value
 ) {
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
-    if (strcmp(key, "collision_map") == 0) ctx->collision_map = (const CollisionMap*)value;
-    else encounter_abort_unknown_config("colosseum", "ptr", key);
+    (void)state;
+    ColosseumContext* ctx = col_require_context(context);
+    if (strcmp(key, "collision_map") == 0)
+        ctx->collision_map = (const CollisionMap*)value;
+    else
+        encounter_abort_unknown_config("colosseum", "ptr", key);
 }
 
 static int col_get_tick_ctx(EncounterState* state, EncounterContext* context) {
+    (void)context;
     return ((ColosseumState*)state)->tick;
 }
 
 static int col_get_winner_ctx(EncounterState* state, EncounterContext* context) {
+    (void)context;
     return ((ColosseumState*)state)->winner;
 }
 
 static void* col_get_log_ctx(EncounterState* state, EncounterContext* context) {
     ColosseumState* s = (ColosseumState*)state;
+    (void)context;
     s->log.episode_return = s->episode_return;
     s->log.episode_length = s->tick;
     s->log.wave_reached = s->wave;
     s->log.win = (s->episode_over && s->winner == COLO_OUTCOME_PLAYER_WON) ? 1 : 0;
-    s->log.died = (s->episode_over && s->winner == COLO_OUTCOME_PLAYER_DIED) ? 1 : 0;
+    s->log.timed_out = (s->episode_over && s->time_limit_truncated) ? 1 : 0;
+    s->log.died = (s->episode_over && s->winner == COLO_OUTCOME_PLAYER_DIED
+                   && !s->time_limit_truncated) ? 1 : 0;
     s->log.boss_phase_reached = s->sol.phase;
     s->log.active_tier_sum = col_modifier_active_tier_sum(s);
     return &s->log;
@@ -419,6 +383,10 @@ static void col_emit_manticore_orb_telegraphs(
 ) {
     const ColoManticoreState* mc = &npc->type_state.manticore;
     if (mc->cycle_step < 0) return;
+    if (mc->phase == COLO_MANTICORE_PHASE_CHARGING &&
+            npc->attack_timer >
+                COLO_MANTICORE_CHARGE_TICKS - COLO_MANTICORE_ARM_ANIMATION_TICKS)
+        return;
     if (mc->cycle_step >= 3) {
         fprintf(stderr, "colosseum: invalid manticore cycle_step %d\n", mc->cycle_step);
         abort();
@@ -731,7 +699,11 @@ static void col_emit_player_attack_projectiles(
         s, ctx, ov, base_profile, p_start_delay + p_duration, 30);
 }
 
-static void col_emit_thrall_projectile(ColosseumState* s, EncounterOverlay* ov) {
+static void col_emit_thrall_projectile(
+    ColosseumState* s,
+    const ColosseumContext* ctx,
+    EncounterOverlay* ov
+) {
     int slot = s->thrall_target_slot;
     if (!col_npc_is_thrall_target(s, slot))
         return;
@@ -739,7 +711,7 @@ static void col_emit_thrall_projectile(ColosseumState* s, EncounterOverlay* ov) 
     int target_size = col_npc_effective_size(target);
 
     int src_x, src_y;
-    col_thrall_render_tile(s, &src_x, &src_y);
+    col_thrall_render_tile(s, ctx, &src_x, &src_y);
 
     int dist = encounter_projectile_distance(
         src_x, src_y, 1, target->x, target->y, target_size,
@@ -781,6 +753,64 @@ enum {
     COLO_SOL_SAND_PILLAR_MODEL_ID    = 51243,
     COLO_SOL_SAND_PILLAR_ANIM_ID     = 10812,
 };
+
+enum {
+    COLO_VOLATILITY_HUMAN_EXPLOSION_GFX_ID = 2713,
+    COLO_VOLATILITY_MANTICORE_EXPLOSION_GFX_ID = 2721,
+    COLO_VOLATILITY_COLOSSUS_EXPLOSION_GFX_ID = 2722,
+    COLO_VOLATILITY_MINOTAUR_EXPLOSION_GFX_ID = 2723,
+    COLO_VOLATILITY_SOL_EXPLOSION_GFX_ID = 2724,
+};
+
+static int col_volatility_explosion_gfx_id(ColoNpcType npc_type) {
+    switch (npc_type) {
+        case COLO_MANTICORE:
+            return COLO_VOLATILITY_MANTICORE_EXPLOSION_GFX_ID;
+        case COLO_JAVELIN_COLOSSUS:
+        case COLO_SHOCKWAVE_COLOSSUS:
+            return COLO_VOLATILITY_COLOSSUS_EXPLOSION_GFX_ID;
+        case COLO_MINOTAUR:
+            return COLO_VOLATILITY_MINOTAUR_EXPLOSION_GFX_ID;
+        case COLO_SOL_HEREDIT:
+            return COLO_VOLATILITY_SOL_EXPLOSION_GFX_ID;
+        default:
+            return COLO_VOLATILITY_HUMAN_EXPLOSION_GFX_ID;
+    }
+}
+
+static void col_emit_volatility_explosions(
+    const ColosseumContext* ctx,
+    EncounterOverlay* ov
+) {
+    encounter_require_projectile_slots(ov, ctx->volatility_explosion_count);
+    for (int i = 0; i < ctx->volatility_explosion_count; i++) {
+        int x = ctx->volatility_explosion_x[i];
+        int y = ctx->volatility_explosion_y[i];
+        OsrsProjectileEventSpec spec = {
+            .src_x = x,
+            .src_y = y,
+            .dst_x = x,
+            .dst_y = y,
+            .style = encounter_attack_style_to_proj_style(ATTACK_STYLE_MAGIC),
+            .damage = 0,
+            .duration_ticks = 1,
+            .start_h = 0,
+            .end_h = 0,
+            .curve = 0,
+            .arc_height = 0.0f,
+            .src_size = 1,
+            .dst_size = 1,
+            .model_id = 0,
+            .anim_id = -1,
+            .travel_gfx_id = 0,
+            .launch_gfx_id =
+                col_volatility_explosion_gfx_id(ctx->volatility_explosion_type[i]),
+            .impact_gfx_id = 0,
+            .start_delay = 0,
+        };
+        (void)osrs_emit_projectile_with_spec(ov, &spec, 0);
+    }
+}
 
 static void col_emit_sol_hazard_vfx(ColosseumState* s, EncounterOverlay* ov) {
     if (s->wave != COLO_WAVE_BOSS || !s->sol.started) return;
@@ -849,7 +879,7 @@ static void col_render_post_tick_ctx(
     EncounterOverlay* ov
 ) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     ov->tile_shadow_count = 0;
     ov->floating_model_count = 0;
     ov->active_modifier_count = 0;
@@ -901,9 +931,10 @@ static void col_render_post_tick_ctx(
         col_emit_npc_attack_projectile(s, ctx, ov, i);
     }
     col_emit_sol_hazard_vfx(s, ov);
+    col_emit_volatility_explosions(ctx, ov);
     col_emit_player_attack_projectiles(s, ctx, ov);
     if (ctx->thrall_attacked_this_tick)
-        col_emit_thrall_projectile(s, ov);
+        col_emit_thrall_projectile(s, ctx, ov);
 }
 
 static void* col_get_player_for_input(void* state, int idx) {
@@ -922,8 +953,8 @@ static int col_is_human_targetable_npc_slot_ctx(
     int npc_slot
 ) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
-    col_refresh_current_obs_slots_ctx(s, ctx);
+    col_require_context(context);
+    col_refresh_current_obs_slots(s);
     int obs_slot = col_find_target_obs_slot(s, npc_slot);
     if (obs_slot < 0) return 0;
     return col_obs_slot_is_targetable(s, obs_slot);
@@ -936,10 +967,12 @@ static int col_queue_inventory_click_action(
 ) {
     if (inventory_slot < 0 || inventory_slot >= COLO_INVENTORY_DISPLAY_SLOTS) return -1;
     OsrsInventoryClickResolution r =
-        osrs_inventory_cell_click_interpret(&s->inventory_cells[inventory_slot], OSRS_CLICK_TICK_FIRST);
+        osrs_inventory_cell_click_interpret(
+            &s->player.inventory_cells[inventory_slot], OSRS_CLICK_TICK_FIRST);
     int action_head;
     if (r.click_action == OSRS_CLICK_EQUIP) {
-        int gear_slot = osrs_item_gear_slot(s->inventory_cells[inventory_slot].item_idx);
+        int gear_slot = osrs_inventory_cell_metadata(
+            &s->player.inventory_cells[inventory_slot])->gear_slot;
         if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) return -1;
         action_head = COLO_HEAD_EQUIP_SLOT(gear_slot);
     } else if (r.click_action == OSRS_CLICK_EAT) {
@@ -973,8 +1006,8 @@ static void col_translate_human_input_ctx(
     encounter_translate_prayer(hi, actions, COLO_HEAD_PRAYER);
 
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
-    col_refresh_current_obs_slots_ctx(s, ctx);
+    col_require_context(context);
+    col_refresh_current_obs_slots(s);
 
     if (hi->pending_target_idx >= 0) {
         int found_slot = col_find_target_obs_slot(s, hi->pending_target_idx);
@@ -991,14 +1024,13 @@ static void col_translate_human_input_ctx(
     col_apply_pending_draft_grapple_heads(hi, actions);
 }
 
-static void col_translate_human_commands_ctx(
+static void col_translate_human_commands(
     HumanInput* hi,
     int* actions,
-    ColosseumState* s,
-    ColosseumContext* ctx
+    ColosseumState* s
 ) {
     for (int h = 0; h < COLO_NUM_ACTION_HEADS; h++) actions[h] = 0;
-    col_refresh_current_obs_slots_ctx(s, ctx);
+    col_refresh_current_obs_slots(s);
 
     for (int i = 0; i < hi->commands.count; i++) {
         const HumanCommand* cmd = &hi->commands.items[i];
@@ -1028,20 +1060,14 @@ static void col_translate_human_commands_ctx(
             case HUMAN_COMMAND_SPEC_TOGGLE:
                 actions[COLO_HEAD_SPEC] = 1;
                 break;
-            case HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK: {
-                int action_head =
-                    col_queue_inventory_click_action(s, actions, cmd->inventory_slot);
-                if (ctx->config.action_debug_log) {
-                    fprintf(stderr,
-                        "colo_action tick=%d human_inventory_click slot=%d head=%d action=%d\n",
-                        s->tick, cmd->inventory_slot, action_head,
-                        action_head >= 0 ? actions[action_head] : 0);
-                }
+            case HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK:
+                col_queue_inventory_click_action(s, actions, cmd->inventory_slot);
                 break;
-            }
             case HUMAN_COMMAND_ITEM_ON_ITEM:
                 osrs_inventory_swap_cells(
-                    s->inventory_cells, cmd->inventory_slot, cmd->target_inventory_slot);
+                    s->player.inventory_cells,
+                    cmd->inventory_slot,
+                    cmd->target_inventory_slot);
                 break;
             case HUMAN_COMMAND_OFFENSIVE_PRAYER:
                 actions[COLO_HEAD_OFFENSIVE] = cmd->offensive_prayer;
@@ -1065,12 +1091,12 @@ static void col_step_human_commands_ctx(
     HumanInput* hi
 ) {
     ColosseumState* s = (ColosseumState*)state;
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     int actions[COLO_NUM_ACTION_HEADS];
     ctx->human_command_mode = 1;
     ctx->human_commands = hi->commands.items;
     ctx->human_command_count = hi->commands.count;
-    col_translate_human_commands_ctx(hi, actions, s, ctx);
+    col_translate_human_commands(hi, actions, s);
     col_step_ctx(state, (EncounterContext*)ctx, actions);
     ctx->human_commands = NULL;
     ctx->human_command_count = 0;
@@ -1078,7 +1104,7 @@ static void col_step_human_commands_ctx(
 }
 
 #define COLO_SNAPSHOT_MAGIC 0xC010C001u
-#define COLO_SNAPSHOT_VERSION 20u
+#define COLO_SNAPSHOT_VERSION 26u
 
 typedef struct {
     uint32_t magic;
@@ -1089,24 +1115,32 @@ typedef struct {
 } ColoSnapshot;
 
 static void col_refresh_after_state_load(ColosseumState* s, ColosseumContext* ctx) {
+    osrs_interaction_zero_serialized_route_padding(&s->player.interaction);
+    osrs_interaction_zero_serialized_route_padding(&s->interaction);
+    osrs_actor_route_cache_clear(&ctx->player_route_cache);
     col_build_npc_stats();
     col_mark_live_loadout_dirty(s);
     col_ensure_live_loadout_stats(s);
     col_rebuild_player_collision_flags(s);
-    col_refresh_current_obs_slots_ctx(s, ctx);
+    col_refresh_current_obs_slots(s);
 }
 
 static size_t col_snapshot_size_ctx(EncounterState* state, EncounterContext* context) {
+    (void)state;
+    (void)context;
     return sizeof(ColoSnapshot);
 }
 
 static void col_snapshot_ctx(EncounterState* state, EncounterContext* context, void* out) {
+    (void)context;
     ColoSnapshot* snap = (ColoSnapshot*)out;
     encounter_snapshot_write_frame(
         snap, sizeof(*snap), COLO_SNAPSHOT_MAGIC, COLO_SNAPSHOT_VERSION,
         sizeof(ColosseumState));
     encounter_snapshot_copy_state_to(
         snap, offsetof(ColoSnapshot, state), state, sizeof(ColosseumState));
+    osrs_interaction_zero_serialized_route_padding(&snap->state.player.interaction);
+    osrs_interaction_zero_serialized_route_padding(&snap->state.interaction);
 }
 
 static void col_restore_ctx(
@@ -1115,7 +1149,7 @@ static void col_restore_ctx(
     const void* data,
     size_t n
 ) {
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
     ColosseumState* dst = (ColosseumState*)state;
     encounter_snapshot_validate_frame(
         "col_restore", data, n, sizeof(ColoSnapshot),
@@ -1126,10 +1160,17 @@ static void col_restore_ctx(
     col_refresh_after_state_load(dst, ctx);
 }
 
+typedef struct {
+    ColosseumState* state;
+    ColosseumContext* context;
+} ColoLabInvocation;
+
 static int col_lab_apply_script_line_alloc_json_void(
-    void* state, const char* line, char** out_json
+    void* data, const char* line, char** out_json
 ) {
-    return col_lab_apply_script_line_alloc_json((ColosseumState*)state, line, out_json);
+    ColoLabInvocation* invocation = (ColoLabInvocation*)data;
+    return col_lab_apply_script_line_alloc_json(
+        invocation->state, invocation->context, line, out_json);
 }
 
 static int col_apply_lab_command_ctx(
@@ -1137,14 +1178,21 @@ static int col_apply_lab_command_ctx(
     EncounterContext* context,
     const char* line
 ) {
-    ColosseumContext* ctx = context ? (ColosseumContext*)context : col_legacy_context();
+    ColosseumContext* ctx = col_require_context(context);
+    encounter_arena_topology_require_finalized(ctx->route_topology);
     col_context_clear_render_events(ctx);
+    ColoLabInvocation invocation = {
+        .state = (ColosseumState*)state,
+        .context = ctx,
+    };
     return encounter_apply_lab_command_dump_wrapper(
-        state, line, COLO_LAB_LINE_DUMP, col_lab_apply_script_line_alloc_json_void);
+        &invocation, line, COLO_LAB_LINE_DUMP,
+        col_lab_apply_script_line_alloc_json_void);
 }
 
 static const EncounterDef ENCOUNTER_COLOSSEUM = {
     .name = "colosseum",
+    .display_name = "Colosseum",
     .obs_size = COLO_NUM_OBS,
     .num_action_heads = COLO_NUM_ACTION_HEADS,
     .action_head_dims = COLO_ACTION_DIMS,
@@ -1155,6 +1203,7 @@ static const EncounterDef ENCOUNTER_COLOSSEUM = {
     .init_context = col_init_context,
     .destroy_context = col_destroy_context,
     .init_state = col_init_state,
+    .finalize_context = col_finalize_context,
 
     .create = col_create,
     .destroy = col_destroy,
@@ -1165,10 +1214,6 @@ static const EncounterDef ENCOUNTER_COLOSSEUM = {
     .snapshot_size = col_snapshot_size_ctx,
     .snapshot = col_snapshot_ctx,
     .restore = col_restore_ctx,
-
-    .cell_key_size = NULL,
-    .write_cell_key = NULL,
-    .progress_score = NULL,
 
     .write_obs = col_write_obs_ctx,
     .write_mask = col_write_mask_ctx,

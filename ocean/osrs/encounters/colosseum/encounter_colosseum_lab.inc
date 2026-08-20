@@ -129,13 +129,19 @@ static void col_lab_require_type(int type) {
         col_lab_abort("npc type must be in [0,%d], got %d", COLO_NUM_NPC_TYPES - 1, type);
 }
 
-static int col_lab_in_arena(int x, int y) {
-    return x >= COLO_ARENA_MIN_X && x <= COLO_ARENA_MAX_X &&
-           y >= COLO_ARENA_MIN_Y && y <= COLO_ARENA_MAX_Y;
+static int col_lab_in_arena(
+    const ColosseumContext* ctx,
+    int x,
+    int y
+) {
+    return encounter_arena_topology_contains(ctx->route_topology, x, y);
 }
 
-static void col_lab_clear_transient(ColosseumState* s) {
-    col_context_clear_render_events(col_legacy_context());
+static void col_lab_clear_transient(
+    ColosseumState* s,
+    ColosseumContext* ctx
+) {
+    col_context_clear_render_events(ctx);
     osrs_interaction_init(&s->interaction);
     s->player_last_interaction_target_slot = -1;
     s->player_last_interaction_age = 1;
@@ -160,7 +166,7 @@ static void col_lab_clear_transient(ColosseumState* s) {
 
 static void col_lab_refresh_geometry(ColosseumState* s) {
     col_rebuild_player_collision_flags(s);
-    col_refresh_current_obs_slots_ctx(s, col_legacy_context());
+    col_refresh_current_obs_slots(s);
 }
 
 static void col_lab_remove_all_npcs(ColosseumState* s) {
@@ -169,28 +175,38 @@ static void col_lab_remove_all_npcs(ColosseumState* s) {
     memset(s->bees, 0, sizeof(s->bees));
 }
 
-static void col_lab_clear_npcs(ColosseumState* s) {
+static void col_lab_clear_npcs(
+    ColosseumState* s,
+    ColosseumContext* ctx
+) {
     col_lab_remove_all_npcs(s);
-    col_lab_clear_transient(s);
+    col_lab_clear_transient(s, ctx);
     col_lab_refresh_geometry(s);
 }
 
 static const char* col_lab_modifier_name(int mod);
 
-static void col_lab_apply_command(ColosseumState* s, const ColosseumLabCommand* cmd) {
-    if (!s || !cmd) col_lab_abort("null command");
+static void col_lab_apply_command(
+    ColosseumState* s,
+    ColosseumContext* ctx,
+    const ColosseumLabCommand* cmd
+) {
+    if (!s || !ctx || !cmd) col_lab_abort("null command");
+    encounter_arena_topology_require_finalized(ctx->route_topology);
 
     switch (cmd->kind) {
         case COLO_LAB_COMMAND_NONE:
             return;
 
         case COLO_LAB_COMMAND_RESET:
-            col_reset((EncounterState*)s, cmd->as.reset.seed);
+            col_reset_ctx(
+                (EncounterState*)s, (EncounterContext*)ctx,
+                cmd->as.reset.seed);
             return;
 
         case COLO_LAB_COMMAND_SET_PLAYER: {
             const ColoLabPlayerCommand* p = &cmd->as.player;
-            if (!col_lab_in_arena(p->x, p->y))
+            if (!col_lab_in_arena(ctx, p->x, p->y))
                 col_lab_abort("player tile out of arena: (%d,%d)", p->x, p->y);
             s->player.x = p->x;
             s->player.y = p->y;
@@ -203,7 +219,7 @@ static void col_lab_apply_command(ColosseumState* s, const ColosseumLabCommand* 
             }
             if (p->prayer.kind == ENCOUNTER_LAB_OPTIONAL_INT_SET)
                 s->player.prayer = (OverheadPrayer)p->prayer.value;
-            col_lab_clear_transient(s);
+            col_lab_clear_transient(s, ctx);
             col_lab_refresh_geometry(s);
             return;
         }
@@ -218,7 +234,7 @@ static void col_lab_apply_command(ColosseumState* s, const ColosseumLabCommand* 
             }
             col_lab_require_slot(spawn->slot);
             col_lab_require_type(spawn->type);
-            if (!col_lab_in_arena(spawn->x, spawn->y))
+            if (!col_lab_in_arena(ctx, spawn->x, spawn->y))
                 col_lab_abort("npc tile out of arena: (%d,%d)", spawn->x, spawn->y);
             if (s->npcs[spawn->slot].active)
                 col_deactivate_npc(s, spawn->slot);
@@ -236,7 +252,7 @@ static void col_lab_apply_command(ColosseumState* s, const ColosseumLabCommand* 
                     col_lab_abort("npc timer must be nonnegative");
                 s->npcs[spawn->slot].attack_timer = spawn->timer.value;
             }
-            col_lab_clear_transient(s);
+            col_lab_clear_transient(s, ctx);
             col_lab_refresh_geometry(s);
             return;
         }
@@ -246,17 +262,15 @@ static void col_lab_apply_command(ColosseumState* s, const ColosseumLabCommand* 
             col_lab_require_slot(move->slot);
             if (!s->npcs[move->slot].active)
                 col_lab_abort("cannot move inactive npc slot %d", move->slot);
-            if (!col_lab_in_arena(move->x, move->y))
+            if (!col_lab_in_arena(ctx, move->x, move->y))
                 col_lab_abort("npc tile out of arena: (%d,%d)", move->x, move->y);
-            int size = col_npc_effective_size(&s->npcs[move->slot]);
-            col_stamp_npc_collision_footprint(s, s->npcs[move->slot].x,
-                s->npcs[move->slot].y, size, 0);
+            col_stamp_npc_collision(s, &s->npcs[move->slot], 0);
             s->npcs[move->slot].x = move->x;
             s->npcs[move->slot].y = move->y;
             s->npcs[move->slot].target_x = move->x;
             s->npcs[move->slot].target_y = move->y;
-            col_stamp_npc_collision_footprint(s, move->x, move->y, size, 1);
-            col_lab_clear_transient(s);
+            col_stamp_npc_collision(s, &s->npcs[move->slot], 1);
+            col_lab_clear_transient(s, ctx);
             col_lab_refresh_geometry(s);
             return;
         }
@@ -265,7 +279,7 @@ static void col_lab_apply_command(ColosseumState* s, const ColosseumLabCommand* 
             int slot = cmd->as.npc_slot.slot;
             col_lab_require_slot(slot);
             col_deactivate_npc(s, slot);
-            col_lab_clear_transient(s);
+            col_lab_clear_transient(s, ctx);
             col_lab_refresh_geometry(s);
             return;
         }
@@ -277,7 +291,7 @@ static void col_lab_apply_command(ColosseumState* s, const ColosseumLabCommand* 
                 col_lab_abort("cannot kill inactive npc slot %d", slot);
             s->npcs[slot].hp = 0;
             col_deactivate_npc(s, slot);
-            col_lab_clear_transient(s);
+            col_lab_clear_transient(s, ctx);
             col_lab_refresh_geometry(s);
             return;
         }
@@ -321,8 +335,8 @@ static void col_lab_apply_command(ColosseumState* s, const ColosseumLabCommand* 
             s->wave_spawn_target = s->wave;
             s->wave_spawn_delay = 0;
 
-            col_spawn_wave(s);
-            col_lab_clear_transient(s);
+            col_spawn_wave(s, ctx);
+            col_lab_clear_transient(s, ctx);
             col_lab_refresh_geometry(s);
             return;
         }
@@ -349,7 +363,8 @@ static void col_lab_apply_command(ColosseumState* s, const ColosseumLabCommand* 
             s->sol.boss_idx = idx;
 
             if (s->sol.phase < phase) {
-                while (s->sol.phase < phase) col_sol_enter_phase(s, s->sol.phase + 1);
+                while (s->sol.phase < phase)
+                    col_sol_enter_phase(s, ctx, s->sol.phase + 1);
                 s->sol.immobile_ticks = COLO_SOL_TRANSITION_FREEZE;
                 s->sol.force_spear = 1;
             }
@@ -405,7 +420,7 @@ static void col_lab_apply_command(ColosseumState* s, const ColosseumLabCommand* 
         }
 
         case COLO_LAB_COMMAND_CLEAR_NPCS:
-            col_lab_clear_npcs(s);
+            col_lab_clear_npcs(s, ctx);
             return;
 
         case COLO_LAB_COMMAND_STEP_TICKS: {
@@ -413,7 +428,8 @@ static void col_lab_apply_command(ColosseumState* s, const ColosseumLabCommand* 
             if (ticks < 0) col_lab_abort("step_ticks must be nonnegative");
             int actions[COLO_NUM_ACTION_HEADS] = {0};
             for (int t = 0; t < ticks; t++)
-                col_step((EncounterState*)s, actions);
+                col_step_ctx(
+                    (EncounterState*)s, (EncounterContext*)ctx, actions);
             col_lab_refresh_geometry(s);
             return;
         }

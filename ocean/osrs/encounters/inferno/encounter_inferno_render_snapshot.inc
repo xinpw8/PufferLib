@@ -1,14 +1,4 @@
 #line 7460 "encounter_inferno.h"
-static void inf_require_valid_step_out_forecast_obs_mode(int value) {
-    if (value < INF_STEP_OUT_FORECAST_MODE_OFF ||
-            value > INF_STEP_OUT_FORECAST_MODE_FAST_READONLY_MOVE) {
-        fprintf(stderr,
-            "inferno: step_out_forecast_obs_mode must be in [0,3], got %d\n",
-            value);
-        abort();
-    }
-}
-
 static void inf_put_int_ctx(
     EncounterState* state,
     EncounterContext* context,
@@ -16,7 +6,7 @@ static void inf_put_int_ctx(
     int value
 ) {
     InfernoState* s = (InfernoState*)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     if (strcmp(key, "start_wave") == 0) {
         inf_require_valid_public_wave(value);
         s->start_wave = value - 1;
@@ -43,29 +33,9 @@ static void inf_put_int_ctx(
         inf_require_valid_curriculum_supply_mode(key, value);
         ctx->config.curriculum_no_brew_mode = value;
     }
-    else if (strcmp(key, "step_out_forecast_obs_enabled") == 0) {
-        int enabled = encounter_require_binary_config("inferno", key, value);
-        ctx->config.step_out_forecast_obs_enabled = enabled;
-        ctx->config.step_out_forecast_obs_mode = enabled ?
-            INF_STEP_OUT_FORECAST_MODE_EXACT_ROLLOUT :
-            INF_STEP_OUT_FORECAST_MODE_OFF;
-    }
-    else if (strcmp(key, "step_out_forecast_obs_mode") == 0) {
-        inf_require_valid_step_out_forecast_obs_mode(value);
-        ctx->config.step_out_forecast_obs_mode = value;
-        ctx->config.step_out_forecast_obs_enabled =
-            value != INF_STEP_OUT_FORECAST_MODE_OFF;
-    }
     else if (strcmp(key, "loadout_profile_mode") == 0) {
         inf_require_valid_loadout_profile_mode(value);
         ctx->config.loadout_profile_mode = (InfLoadoutProfileMode)value;
-    }
-    else if (strcmp(key, "oracle_mode") == 0) {
-        if (value < 0 || value > 11) {
-            fprintf(stderr, "inferno: oracle_mode must be in [0,11], got %d\n", value);
-            abort();
-        }
-        ctx->config.oracle_mode = value;
     }
     else if (strcmp(key, "zuk_healer_reward_mode") == 0) {
         if (value < INF_ZUK_HEALER_REWARD_MODE_BASELINE ||
@@ -98,9 +68,6 @@ static void inf_put_int_ctx(
     else encounter_abort_unknown_config("inferno", "int", key);
 }
 
-static void inf_put_int(EncounterState* state, const char* key, int value) {
-    inf_put_int_ctx(state, (EncounterContext*)inf_legacy_context(), key, value);
-}
 
 static void inf_put_float_ctx(
     EncounterState* state,
@@ -108,7 +75,8 @@ static void inf_put_float_ctx(
     const char* key,
     float value
 ) {
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    (void)state;
+    InfernoContext* ctx = (InfernoContext*)context;
     if (strcmp(key, "damage_reward_coeff") == 0) ctx->config.damage_reward_coeff = value;
     else if (strcmp(key, "offensive_prayer_reward_coeff") == 0) {
         inf_require_nonnegative_float_config(key, value);
@@ -197,9 +165,6 @@ static void inf_put_float_ctx(
     else encounter_abort_unknown_config("inferno", "float", key);
 }
 
-static void inf_put_float(EncounterState* state, const char* key, float value) {
-    inf_put_float_ctx(state, (EncounterContext*)inf_legacy_context(), key, value);
-}
 
 static void inf_put_ptr_ctx(
     EncounterState* state,
@@ -207,22 +172,27 @@ static void inf_put_ptr_ctx(
     const char* key,
     void* value
 ) {
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
-    if (strcmp(key, "collision_map") == 0) ctx->collision_map = (const CollisionMap*)value;
-    else encounter_abort_unknown_config("inferno", "ptr", key);
+    (void)state;
+    InfernoContext* ctx = (InfernoContext*)context;
+    if (strcmp(key, "collision_map") == 0)
+        ctx->collision_map = (const CollisionMap*)value;
+    else
+        encounter_abort_unknown_config("inferno", "ptr", key);
 }
 
 static int inf_get_tick_ctx(EncounterState* state, EncounterContext* context) {
+    (void)context;
     return ((InfernoState*)state)->tick;
 }
 
 static int inf_get_winner_ctx(EncounterState* state, EncounterContext* context) {
+    (void)context;
     return ((InfernoState*)state)->winner;
 }
 
 static void* inf_get_log_ctx(EncounterState* state, EncounterContext* context) {
     InfernoState* s = (InfernoState*)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     if (s->episode_over && ctx->log) {
         ctx->log->episode_return += s->episode_return;
         ctx->log->episode_length += (float)s->tick;
@@ -251,12 +221,6 @@ static void* inf_get_log_ctx(EncounterState* state, EncounterContext* context) {
         ctx->log->safe_attack_opportunity_missed_ticks +=
             (float)s->total_safe_attack_opportunity_missed_ticks;
         ctx->log->progressless_ticks += (float)s->total_progressless_ticks;
-        ctx->log->npc_pressure_if_ready_count +=
-            s->total_npc_pressure_if_ready_count;
-        ctx->log->npc_pressure_this_tick_count +=
-            s->total_npc_pressure_this_tick_count;
-        ctx->log->npc_pressure_max_incoming_hit +=
-            s->max_npc_pressure_incoming_hit;
         for (int i = 0; i < OSRS_INFERNO_IDLE_PHASE_COUNT; i++) {
             ctx->log->attack_ready_no_attack_ticks_by_phase[i] +=
                 (float)s->attack_ready_no_attack_ticks_by_phase[i];
@@ -287,7 +251,6 @@ static const OsrsCombatVisualRow* inf_npc_combat_visual_row(
 
 static void inf_npc_projectile_fallback(
     InfNPCType type,
-    AttackStyle style,
     uint32_t* model_id,
     int* anim_id
 ) {
@@ -297,15 +260,6 @@ static void inf_npc_projectile_fallback(
             *model_id = INF_GFX_1374_MODEL;
             *anim_id = INF_GFX_1374_ANIM;
             return;
-        case INF_NPC_BLOB:
-            if (style == ATTACK_STYLE_RANGED) {
-                *model_id = INF_GFX_1383_MODEL;
-                *anim_id = INF_GFX_1383_ANIM;
-            } else if (style == ATTACK_STYLE_MAGIC) {
-                *model_id = INF_GFX_1384_MODEL;
-                *anim_id = OSRS_COMBAT_PROJECTILE_MISSING;
-            }
-            return;
         case INF_NPC_BLOB_RANGE:
             *model_id = INF_GFX_1379_MODEL;
             *anim_id = INF_GFX_1379_ANIM;
@@ -314,9 +268,35 @@ static void inf_npc_projectile_fallback(
             *model_id = INF_GFX_1381_MODEL;
             *anim_id = INF_GFX_1381_ANIM;
             return;
+
         default:
             return;
     }
+}
+static int inf_queue_inventory_click_action(
+    const InfernoState* s,
+    int* actions,
+    int inventory_slot
+) {
+    if (inventory_slot < 0 || inventory_slot >= OSRS_INVENTORY_SIZE) return -1;
+    OsrsInventoryClickResolution resolution =
+        osrs_inventory_cell_click_interpret(
+            &s->player.inventory_cells[inventory_slot], OSRS_CLICK_TICK_FIRST);
+    int action_head;
+    if (resolution.click_action == OSRS_CLICK_EQUIP) {
+        int gear_slot = osrs_inventory_cell_metadata(
+            &s->player.inventory_cells[inventory_slot])->gear_slot;
+        if (gear_slot < 0 || gear_slot >= NUM_GEAR_SLOTS) return -1;
+        action_head = INF_HEAD_EQUIP_SLOT(gear_slot);
+    } else if (resolution.click_action == OSRS_CLICK_EAT) {
+        action_head = INF_HEAD_EAT;
+    } else if (resolution.click_action == OSRS_CLICK_DRINK) {
+        action_head = INF_HEAD_DRINK;
+    } else {
+        return -1;
+    }
+    actions[action_head] = inventory_slot + 1;
+    return action_head;
 }
 
 static void inf_render_post_tick_ctx(
@@ -324,6 +304,7 @@ static void inf_render_post_tick_ctx(
     EncounterContext* context,
     EncounterOverlay* ov
 ) {
+    (void)context;
     InfernoState* s = (InfernoState*)state;
     ov->tile_shadow_count = 0;
     ov->projectile_count = 0;
@@ -393,6 +374,7 @@ static void inf_render_post_tick_ctx(
             inf_npc_combat_visual_row(npc->type, actual_style);
         uint32_t proj_model_id = 0;
         int proj_anim_id = OSRS_COMBAT_PROJECTILE_MISSING;
+        int travel_gfx_id = 0;
         int impact_gfx_id = 0;
         if (npc_visual) {
             if (npc_visual->projectile.projectile_model_id > 0)
@@ -402,10 +384,21 @@ static void inf_render_post_tick_ctx(
             if (npc_visual->projectile.impact_spotanim_id > 0)
                 impact_gfx_id = npc_visual->projectile.impact_spotanim_id;
         }
+        if (npc->type == INF_NPC_BLOB && npc_visual &&
+                npc_visual->projectile.travel_spotanim_id > 0) {
+            proj_model_id = 0;
+            travel_gfx_id = npc_visual->projectile.travel_spotanim_id;
+        }
 
-        if (proj_model_id == 0)
+        if (proj_model_id == 0 && travel_gfx_id == 0)
             inf_npc_projectile_fallback(
-                npc->type, actual_style, &proj_model_id, &proj_anim_id);
+                npc->type, &proj_model_id, &proj_anim_id);
+        if (proj_model_id == 0 && travel_gfx_id == 0) {
+            fprintf(stderr,
+                "inferno: missing projectile visual for npc type %d style %d\n",
+                (int)npc->type, (int)actual_style);
+            abort();
+        }
 
         switch (npc->type) {
             case INF_NPC_JAD:
@@ -483,6 +476,7 @@ static void inf_render_post_tick_ctx(
             .dst_size = target_size,
             .model_id = proj_model_id,
             .anim_id = proj_anim_id,
+            .travel_gfx_id = travel_gfx_id,
             .impact_gfx_id = impact_gfx_id,
             .start_delay = start_delay,
         };
@@ -591,13 +585,46 @@ static void inf_render_post_tick_ctx(
     }
 }
 
-static void inf_render_post_tick(EncounterState* state, EncounterOverlay* ov) {
-    inf_render_post_tick_ctx(state, (EncounterContext*)inf_legacy_context(), ov);
-}
 
 static void* inf_get_player_for_input(void* state, int idx) {
     InfernoState* s = (InfernoState*)state;
     return (idx == 0) ? (void*)&s->player : NULL;
+}
+
+static int inf_first_cell_with_kind(const InfernoState* s, OsrsConsumableKind kind) {
+    for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
+        const OsrsInventoryCell* cell = &s->player.inventory_cells[c];
+        const OsrsItemContentMetadata* metadata =
+            osrs_inventory_cell_metadata(cell);
+        if (metadata->raw_osrs_id == 0) continue;
+        if ((OsrsConsumableKind)metadata->consumable_kind != kind) continue;
+        if (metadata->click_action == OSRS_CLICK_DRINK &&
+                metadata->dose_count == 0) continue;
+        return c;
+    }
+    return -1;
+}
+
+static void inf_translate_drink(const InfernoState* s, int* actions, OsrsConsumableKind kind) {
+    int cell = inf_first_cell_with_kind(s, kind);
+    if (cell >= 0) actions[INF_HEAD_DRINK] = cell + 1;
+}
+
+static void inf_translate_gear_swap(const InfernoState* s, int* actions, InfWeaponSet want) {
+    const uint8_t* const* loadouts =
+        inf_loadouts_for_profile(s->active_loadout_profile);
+    const uint8_t* want_loadout = loadouts[want];
+    for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
+        uint8_t item = want_loadout[slot];
+        if (item == ITEM_NONE || s->player.equipped[slot] == item) continue;
+        for (int c = 0; c < OSRS_INVENTORY_SIZE; c++) {
+            if (osrs_inventory_cell_item_index(
+                    &s->player.inventory_cells[c]) == item) {
+                actions[INF_HEAD_EQUIP_SLOT(slot)] = c + 1;
+                break;
+            }
+        }
+    }
 }
 
 static void inf_translate_human_input_ctx(
@@ -608,43 +635,47 @@ static void inf_translate_human_input_ctx(
 ) {
     for (int h = 0; h < INF_NUM_ACTION_HEADS; h++) actions[h] = 0;
 
-    encounter_translate_movement(hi, actions, INF_HEAD_MOVE, inf_get_player_for_input, state);
+    encounter_translate_movement(
+        hi, actions, INF_HEAD_PRIMARY, inf_get_player_for_input, state);
     encounter_translate_prayer(hi, actions, INF_HEAD_PRAYER);
-    actions[INF_HEAD_PRAYER] = inf_local_overhead_action(actions[INF_HEAD_PRAYER]);
     encounter_translate_offensive_prayer(hi, actions, INF_HEAD_OFFENSIVE);
     InfernoState* s = (InfernoState*)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
-    inf_refresh_current_obs_slots_ctx(s, ctx);
+    InfernoContext* ctx = (InfernoContext*)context;
+    inf_ensure_current_obs_slots_ctx(s, ctx);
     if (hi->pending_target_idx >= 0) {
         int found_slot = inf_find_target_obs_slot(s, hi->pending_target_idx);
         if (inf_obs_slot_is_targetable(s, ctx, found_slot)) {
-            actions[INF_HEAD_TARGET] = found_slot + 1;
-        } else {
-            actions[INF_HEAD_TARGET] = 0;
+            actions[INF_HEAD_PRIMARY] =
+                inf_primary_attack_action_for_obs_slot(found_slot);
         }
-    } else {
-        actions[INF_HEAD_TARGET] = 0;
     }
 
-    if (hi->pending_gear > 0) actions[INF_HEAD_GEAR] = hi->pending_gear;
+    if (hi->pending_gear >= 1 && hi->pending_gear <= INF_NUM_WEAPON_SETS)
+        inf_translate_gear_swap(s, actions, (InfWeaponSet)(hi->pending_gear - 1));
 
-    if (hi->pending_food || hi->pending_potion == POTION_BREW)
-        actions[INF_HEAD_EAT] = 1;
+    if (hi->pending_food) {
+        int cell = inf_first_cell_with_kind(s, OSRS_CONSUMABLE_SHARK_FOOD);
+        if (cell < 0) cell = inf_first_cell_with_kind(s, OSRS_CONSUMABLE_KARAMBWAN);
+        if (cell >= 0) actions[INF_HEAD_EAT] = cell + 1;
+    }
 
-    if (hi->pending_potion == POTION_RESTORE) actions[INF_HEAD_POTION] = 1;
-    else if (hi->pending_potion == POTION_BASTION) actions[INF_HEAD_POTION] = 2;
-    else if (hi->pending_potion == POTION_STAMINA) actions[INF_HEAD_POTION] = 3;
+    if (hi->pending_potion == POTION_BREW)
+        inf_translate_drink(s, actions, OSRS_CONSUMABLE_BREW);
+    else if (hi->pending_potion == POTION_RESTORE)
+        inf_translate_drink(s, actions, OSRS_CONSUMABLE_SUPER_RESTORE);
+    else if (hi->pending_potion == POTION_BASTION)
+        inf_translate_drink(s, actions, OSRS_CONSUMABLE_BASTION);
+    else if (hi->pending_potion == POTION_STAMINA)
+        inf_translate_drink(s, actions, OSRS_CONSUMABLE_STAMINA);
 
-    if (hi->pending_spell == ATTACK_BLOOD) actions[INF_HEAD_SPELL] = 1;
-    else if (hi->pending_spell == ATTACK_ICE) actions[INF_HEAD_SPELL] = 2;
+    if (hi->pending_spell == OSRS_SPELL_BLOOD_BARRAGE)
+        actions[INF_HEAD_SPELL] = OSRS_SPELL_BLOOD_BARRAGE;
+    else if (hi->pending_spell == OSRS_SPELL_ICE_BARRAGE)
+        actions[INF_HEAD_SPELL] = OSRS_SPELL_ICE_BARRAGE;
 
-    if (hi->pending_spec) actions[INF_HEAD_SPEC] = 1;
+    if (hi->pending_spec) actions[INF_HEAD_SPEC] = s->player.spec_armed ? 2 : 1;
 }
 
-static void inf_translate_human_input(HumanInput* hi, int* actions, EncounterState* state) {
-    inf_translate_human_input_ctx(
-        hi, actions, state, (EncounterContext*)inf_legacy_context());
-}
 
 static void inf_translate_human_commands_ctx(
     HumanInput* hi,
@@ -653,7 +684,7 @@ static void inf_translate_human_commands_ctx(
     InfernoContext* ctx
 ) {
     for (int h = 0; h < INF_NUM_ACTION_HEADS; h++) actions[h] = 0;
-    inf_refresh_current_obs_slots_ctx(s, ctx);
+    inf_ensure_current_obs_slots_ctx(s, ctx);
 
     for (int i = 0; i < hi->commands.count; i++) {
         const HumanCommand* cmd = &hi->commands.items[i];
@@ -661,61 +692,77 @@ static void inf_translate_human_commands_ctx(
             case HUMAN_COMMAND_WALK:
                 s->player_dest_x = cmd->world_x;
                 s->player_dest_y = cmd->world_y;
-                actions[INF_HEAD_TARGET] = 0;
+                actions[INF_HEAD_PRIMARY] = 0;
                 actions[INF_HEAD_SPELL] = 0;
                 break;
             case HUMAN_COMMAND_ATTACK_NPC: {
                 int found_slot = inf_find_target_obs_slot(s, cmd->npc_slot);
-                actions[INF_HEAD_TARGET] = inf_obs_slot_is_targetable(s, ctx, found_slot)
-                    ? found_slot + 1 : 0;
+                actions[INF_HEAD_PRIMARY] = inf_obs_slot_is_targetable(
+                    s, ctx, found_slot)
+                        ? inf_primary_attack_action_for_obs_slot(found_slot) : 0;
                 s->player_dest_x = -1;
                 s->player_dest_y = -1;
                 break;
             }
             case HUMAN_COMMAND_SPELL_TARGET: {
                 int found_slot = inf_find_target_obs_slot(s, cmd->npc_slot);
-                actions[INF_HEAD_TARGET] = inf_obs_slot_is_targetable(s, ctx, found_slot)
-                    ? found_slot + 1 : 0;
-                if (cmd->spell == ATTACK_BLOOD) actions[INF_HEAD_SPELL] = 1;
-                else if (cmd->spell == ATTACK_ICE) actions[INF_HEAD_SPELL] = 2;
+                actions[INF_HEAD_PRIMARY] = inf_obs_slot_is_targetable(
+                    s, ctx, found_slot)
+                        ? inf_primary_attack_action_for_obs_slot(found_slot) : 0;
+                if (cmd->spell == OSRS_SPELL_BLOOD_BARRAGE)
+                    actions[INF_HEAD_SPELL] = OSRS_SPELL_BLOOD_BARRAGE;
+                else if (cmd->spell == OSRS_SPELL_ICE_BARRAGE)
+                    actions[INF_HEAD_SPELL] = OSRS_SPELL_ICE_BARRAGE;
                 s->player_dest_x = -1;
                 s->player_dest_y = -1;
                 break;
             }
             case HUMAN_COMMAND_OVERHEAD_PRAYER:
-                actions[INF_HEAD_PRAYER] = inf_local_overhead_action(cmd->overhead_prayer);
+                actions[INF_HEAD_PRAYER] = cmd->overhead_prayer;
                 break;
             case HUMAN_COMMAND_OFFENSIVE_PRAYER:
                 actions[INF_HEAD_OFFENSIVE] = cmd->offensive_prayer;
                 break;
-            case HUMAN_COMMAND_EAT:
-                actions[INF_HEAD_EAT] = 1;
+            case HUMAN_COMMAND_EAT: {
+                int cell = inf_first_cell_with_kind(s, OSRS_CONSUMABLE_SHARK_FOOD);
+                if (cell < 0)
+                    cell = inf_first_cell_with_kind(s, OSRS_CONSUMABLE_KARAMBWAN);
+                if (cell >= 0) actions[INF_HEAD_EAT] = cell + 1;
                 break;
+            }
             case HUMAN_COMMAND_DRINK:
-                if (cmd->potion == POTION_BREW) actions[INF_HEAD_EAT] = 1;
-                else if (cmd->potion == POTION_RESTORE) actions[INF_HEAD_POTION] = 1;
-                else if (cmd->potion == POTION_BASTION) actions[INF_HEAD_POTION] = 2;
-                else if (cmd->potion == POTION_STAMINA) actions[INF_HEAD_POTION] = 3;
+                if (cmd->potion == POTION_BREW)
+                    inf_translate_drink(s, actions, OSRS_CONSUMABLE_BREW);
+                else if (cmd->potion == POTION_RESTORE)
+                    inf_translate_drink(s, actions, OSRS_CONSUMABLE_SUPER_RESTORE);
+                else if (cmd->potion == POTION_BASTION)
+                    inf_translate_drink(s, actions, OSRS_CONSUMABLE_BASTION);
+                else if (cmd->potion == POTION_STAMINA)
+                    inf_translate_drink(s, actions, OSRS_CONSUMABLE_STAMINA);
                 break;
             case HUMAN_COMMAND_SPEC_TOGGLE:
-                actions[INF_HEAD_SPEC] = 1;
+                actions[INF_HEAD_SPEC] = s->player.spec_armed ? 2 : 1;
+                break;
+            case HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK:
+                inf_queue_inventory_click_action(s, actions, cmd->inventory_slot);
+                break;
+            case HUMAN_COMMAND_ITEM_ON_ITEM:
+                osrs_inventory_swap_cells(
+                    s->player.inventory_cells,
+                    cmd->inventory_slot,
+                    cmd->target_inventory_slot);
                 break;
             case HUMAN_COMMAND_EQUIP_INVENTORY_ITEM:
             case HUMAN_COMMAND_FIGHT_STYLE:
             case HUMAN_COMMAND_SET_AUTOCAST:
-            case HUMAN_COMMAND_ITEM_ON_ITEM:
             case HUMAN_COMMAND_ITEM_ON_WIDGET:
             case HUMAN_COMMAND_SPELL_ON_WIDGET:
-            case HUMAN_COMMAND_INVENTORY_PRIMARY_CLICK:
             case HUMAN_COMMAND_NONE:
                 break;
         }
     }
 }
 
-static void inf_translate_human_commands(HumanInput* hi, int* actions, InfernoState* s) {
-    inf_translate_human_commands_ctx(hi, actions, s, inf_legacy_context());
-}
 
 static void inf_step_human_commands_ctx(
     EncounterState* state,
@@ -723,7 +770,7 @@ static void inf_step_human_commands_ctx(
     HumanInput* hi
 ) {
     InfernoState* s = (InfernoState*)state;
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     int actions[INF_NUM_ACTION_HEADS];
     ctx->human_command_mode = 1;
     ctx->human_commands = hi->commands.items;
@@ -736,178 +783,9 @@ static void inf_step_human_commands_ctx(
     human_input_clear_pending(hi);
 }
 
-static void inf_step_human_commands(EncounterState* state, HumanInput* hi) {
-    inf_step_human_commands_ctx(
-        state, (EncounterContext*)inf_legacy_context(), hi);
-}
-
-typedef struct {
-    uint8_t wave;
-    uint8_t weapon_set;
-    uint8_t player_hp_bin;
-    uint8_t player_prayer_bin;
-    uint8_t brew_doses;
-    uint8_t restore_doses;
-    uint8_t overhead_prayer;
-    uint8_t offensive_prayer_attack_timer;
-    uint8_t player_x_quant;
-    uint8_t player_y_quant;
-    uint8_t zuk_hp_bin;
-    uint8_t zuk_phase_flags;
-    uint8_t active_jad_count;
-    uint8_t active_zuk_healer_count;
-    uint8_t active_set_count;
-    uint8_t jad_hp_bin;
-} InfCellKey;
-
-typedef struct {
-    int live_jad_count;
-    int live_zuk_healer_count;
-    int live_set_count;
-    int live_jad_hp;
-    int live_jad_max_hp;
-} InfLateAddCounts;
-
-static InfLateAddCounts inf_late_add_counts(const InfernoState* s) {
-    InfLateAddCounts counts;
-    memset(&counts, 0, sizeof(counts));
-
-    for (int i = 0; i < INF_MAX_NPCS; i++) {
-        const InfNPC* npc = &s->npcs[i];
-        if (!npc->active || npc->hp <= 0) continue;
-        switch (npc->type) {
-            case INF_NPC_JAD:
-                counts.live_jad_count++;
-                counts.live_jad_hp += npc->hp;
-                counts.live_jad_max_hp += npc->max_hp > 0 ? npc->max_hp : npc->hp;
-                break;
-            case INF_NPC_HEALER_ZUK:
-                counts.live_zuk_healer_count++;
-                break;
-            case INF_NPC_MAGER:
-            case INF_NPC_MELEER:
-            case INF_NPC_RANGER:
-                counts.live_set_count++;
-                break;
-            default:
-                break;
-        }
-    }
-
-    return counts;
-}
-
-static size_t inf_cell_key_size_ctx(EncounterState* state, EncounterContext* context) {
-    return sizeof(InfCellKey);
-}
-
-static size_t inf_cell_key_size(EncounterState* state) {
-    return inf_cell_key_size_ctx(state, (EncounterContext*)inf_legacy_context());
-}
-
-static uint8_t inf_cell_attack_timer_bucket(const InfernoState* s) {
-    int timer = s->player.attack_timer;
-    if (timer < 0) timer = 0;
-    if (timer > 15) timer = 15;
-    return (uint8_t)timer;
-}
-
-static void inf_write_cell_key_ctx(
-    EncounterState* state,
-    EncounterContext* context,
-    void* out
-) {
-    const InfernoState* s = (const InfernoState*)state;
-    InfCellKey* k = (InfCellKey*)out;
-    memset(k, 0, sizeof(InfCellKey));
-
-    k->wave = (uint8_t)(s->wave & 0xff);
-    k->weapon_set = (uint8_t)s->weapon_set;
-
-    k->player_hp_bin = (uint8_t)(s->player.current_hitpoints / 10);
-    k->player_prayer_bin = (uint8_t)(s->player.current_prayer / 10);
-    k->brew_doses = (uint8_t)s->player.brew_doses;
-    k->restore_doses = (uint8_t)s->player.restore_doses;
-    k->overhead_prayer = (uint8_t)s->player.prayer;
-    k->offensive_prayer_attack_timer = (uint8_t)(
-        ((uint8_t)s->player.offensive_prayer & 0x0fu) |
-        (inf_cell_attack_timer_bucket(s) << 4));
-
-    int dx = s->player.x - INF_ARENA_MIN_X;
-    int dy = s->player.y - INF_ARENA_MIN_Y;
-    if (dx < 0) dx = 0;
-    if (dy < 0) dy = 0;
-    k->player_x_quant = (uint8_t)((dx / 2) & 0xff);
-    k->player_y_quant = (uint8_t)((dy / 2) & 0xff);
-
-    int zuk_idx = inf_find_live_zuk_idx(s);
-    int zuk_hp = (zuk_idx >= 0) ? s->npcs[zuk_idx].hp : 0;
-    k->zuk_hp_bin = (uint8_t)((zuk_hp / 50) & 0xff);
-
-    k->zuk_phase_flags = (uint8_t)(
-        (s->zuk.healer_spawned ? 0x01u : 0u) |
-        (s->zuk.jad_spawned    ? 0x02u : 0u) |
-        (s->zuk.enraged        ? 0x04u : 0u) |
-        (s->zuk.timer_paused   ? 0x08u : 0u)
-    );
-
-    InfLateAddCounts counts = inf_late_add_counts(s);
-    k->active_jad_count = (uint8_t)(
-        counts.live_jad_count > 255 ? 255 : counts.live_jad_count);
-    k->active_zuk_healer_count = (uint8_t)(
-        counts.live_zuk_healer_count > 255 ? 255 : counts.live_zuk_healer_count);
-    k->active_set_count = (uint8_t)(
-        counts.live_set_count > 255 ? 255 : counts.live_set_count);
-    int jad_hp_bin = counts.live_jad_hp / 50;
-    k->jad_hp_bin = (uint8_t)(jad_hp_bin > 255 ? 255 : jad_hp_bin);
-}
-
-static void inf_write_cell_key(EncounterState* state, void* out) {
-    inf_write_cell_key_ctx(state, (EncounterContext*)inf_legacy_context(), out);
-}
-
-static float inf_progress_score_ctx(EncounterState* state, EncounterContext* context) {
-    const InfernoState* s = (const InfernoState*)state;
-    if (s->episode_over && s->winner == INF_OUTCOME_PLAYER_WON) return 2.0f;
-
-    float min_zhp = (s->min_zuk_hp_seen > 0.0f) ? s->min_zuk_hp_seen : 1200.0f;
-    if (min_zhp < 0.0f) min_zhp = 0.0f;
-    if (min_zhp > 1200.0f) min_zhp = 1200.0f;
-
-    float q = (1200.0f - min_zhp) / 1200.0f;
-    InfLateAddCounts counts = inf_late_add_counts(s);
-
-    if (s->zuk.jad_spawned && counts.live_jad_count == 0) {
-        q += 0.10f;
-        if (min_zhp < 600.0f) {
-            q += 0.06f * ((600.0f - min_zhp) / 600.0f);
-        }
-    } else if (s->zuk.jad_spawned && counts.live_jad_max_hp > 0) {
-        float jad_damage_frac =
-            (float)(counts.live_jad_max_hp - counts.live_jad_hp) /
-            (float)counts.live_jad_max_hp;
-        if (jad_damage_frac < 0.0f) jad_damage_frac = 0.0f;
-        if (jad_damage_frac > 1.0f) jad_damage_frac = 1.0f;
-        q += 0.09f * jad_damage_frac;
-    }
-
-    if (s->zuk.healer_spawned && counts.live_zuk_healer_count == 0) {
-        q += 0.08f;
-    }
-
-    if (min_zhp <= 900.0f && counts.live_set_count == 0) {
-        q += 0.04f;
-    }
-
-    return q;
-}
-
-static float inf_progress_score(EncounterState* state) {
-    return inf_progress_score_ctx(state, (EncounterContext*)inf_legacy_context());
-}
 
 #define INF_SNAPSHOT_MAGIC 0x1FE00001u
-#define INF_SNAPSHOT_VERSION 18u
+#define INF_SNAPSHOT_VERSION 22u
 
 typedef struct {
     uint32_t magic;
@@ -950,7 +828,6 @@ static uint64_t inf_config_fingerprint(const InfConfig* config) {
     INF_HASH_CONFIG_FIELD(config, &h, supply_milestone_restore_reward_coeff);
     INF_HASH_CONFIG_FIELD(config, &h, death_penalty_coeff);
     INF_HASH_CONFIG_FIELD(config, &h, terminal_penalty_enabled);
-    INF_HASH_CONFIG_FIELD(config, &h, step_out_forecast_obs_mode);
     INF_HASH_CONFIG_FIELD(config, &h, phase_900_bonus);
     INF_HASH_CONFIG_FIELD(config, &h, phase_600_bonus);
     INF_HASH_CONFIG_FIELD(config, &h, phase_300_bonus);
@@ -977,7 +854,6 @@ static uint64_t inf_config_fingerprint(const InfConfig* config) {
     INF_HASH_CONFIG_FIELD(config, &h, zuk_healer_reward_mode);
     INF_HASH_CONFIG_FIELD(config, &h, post_jad_zuk_multiplier);
     INF_HASH_CONFIG_FIELD(config, &h, jad_alive_zuk_multiplier);
-    INF_HASH_CONFIG_FIELD(config, &h, oracle_mode);
     INF_HASH_CONFIG_FIELD(config, &h, shield_tag_reward_coeff);
     INF_HASH_CONFIG_FIELD(config, &h, joseph_reward_mode);
     return h;
@@ -986,12 +862,16 @@ static uint64_t inf_config_fingerprint(const InfConfig* config) {
 #undef INF_HASH_CONFIG_FIELD
 
 static void inf_refresh_after_state_load(InfernoState* s, InfernoContext* ctx) {
+    osrs_interaction_zero_serialized_route_padding(&s->player.interaction);
+    osrs_interaction_zero_serialized_route_padding(&s->interaction);
+    osrs_actor_route_cache_clear(&ctx->player_route_cache);
     inf_build_npc_stats();
     const uint8_t* const* loadouts =
         inf_loadouts_for_profile(s->active_loadout_profile);
     encounter_compute_loadout_stats(loadouts[INF_GEAR_MAGE], ATTACK_STYLE_MAGIC,
         s->player.offensive_prayer, s->player.current_magic,
-        inf_player_spell_fight_style(&s->player), 30,
+        inf_player_spell_fight_style(&s->player),
+        inf_player_magic_base_damage(&s->player),
         &s->loadout_stats[INF_GEAR_MAGE]);
     encounter_compute_loadout_stats(loadouts[INF_GEAR_LONG_RANGE], ATTACK_STYLE_RANGED,
         s->player.offensive_prayer, s->player.current_ranged,
@@ -1001,22 +881,19 @@ static void inf_refresh_after_state_load(InfernoState* s, InfernoContext* ctx) {
         FIGHT_STYLE_RAPID, 0, &s->loadout_stats[INF_GEAR_BP]);
     if (ctx->human_command_mode)
         inf_refresh_human_loadout_stats(s);
-    inf_rebuild_los(s);
-    inf_rebuild_entity_collision_flags(s);
-    inf_invalidate_los_cache(s);
+    inf_rebuild_npc_collision_flags(s);
     inf_refresh_current_obs_slots_ctx(s, ctx);
 }
 
 static size_t inf_snapshot_size_ctx(EncounterState* state, EncounterContext* context) {
+    (void)state;
+    (void)context;
     return sizeof(InfSnapshot);
 }
 
-static size_t inf_snapshot_size(EncounterState* state) {
-    return inf_snapshot_size_ctx(state, (EncounterContext*)inf_legacy_context());
-}
 
 static void inf_snapshot_ctx(EncounterState* state, EncounterContext* context, void* out) {
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     InfSnapshot* snap = (InfSnapshot*)out;
     encounter_snapshot_write_frame(
         snap, sizeof(*snap), INF_SNAPSHOT_MAGIC, INF_SNAPSHOT_VERSION,
@@ -1024,11 +901,10 @@ static void inf_snapshot_ctx(EncounterState* state, EncounterContext* context, v
     snap->config_fingerprint = inf_config_fingerprint(&ctx->config);
     encounter_snapshot_copy_state_to(
         snap, offsetof(InfSnapshot, state), state, sizeof(InfernoState));
+    osrs_interaction_zero_serialized_route_padding(&snap->state.player.interaction);
+    osrs_interaction_zero_serialized_route_padding(&snap->state.interaction);
 }
 
-static void inf_snapshot(EncounterState* state, void* out) {
-    inf_snapshot_ctx(state, (EncounterContext*)inf_legacy_context(), out);
-}
 
 static void inf_restore_ctx(
     EncounterState* state,
@@ -1036,7 +912,7 @@ static void inf_restore_ctx(
     const void* data,
     size_t n
 ) {
-    InfernoContext* ctx = context ? (InfernoContext*)context : inf_legacy_context();
+    InfernoContext* ctx = (InfernoContext*)context;
     const InfSnapshot* snap = (const InfSnapshot*)data;
     encounter_snapshot_validate_frame(
         "inf_restore", data, n, sizeof(InfSnapshot),
@@ -1053,17 +929,24 @@ static void inf_restore_ctx(
     InfernoState* dst = (InfernoState*)state;
     encounter_snapshot_copy_state_from(
         dst, data, offsetof(InfSnapshot, state), sizeof(InfernoState));
+    inf_reset_npc_player_los_frame(ctx);
     inf_refresh_after_state_load(dst, ctx);
 }
 
-static void inf_restore(EncounterState* state, const void* data, size_t n) {
-    inf_restore_ctx(state, (EncounterContext*)inf_legacy_context(), data, n);
-}
+
+typedef struct {
+    InfernoState* state;
+    InfernoContext* context;
+} InfLabInvocation;
 
 static int inf_lab_apply_script_line_alloc_json_void(
-    void* state, const char* line, char** out_json
+    void* data, const char* line, char** out_json
 ) {
-    return inf_lab_apply_script_line_alloc_json((InfernoState*)state, line, out_json);
+    InfLabInvocation* invocation = (InfLabInvocation*)data;
+    if (!out_json) inf_lab_abort("json output pointer is required");
+    *out_json = NULL;
+    return inf_lab_apply_script_line_impl_ctx(
+        invocation->state, invocation->context, line, out_json);
 }
 
 static int inf_apply_lab_command_ctx(
@@ -1071,12 +954,20 @@ static int inf_apply_lab_command_ctx(
     EncounterContext* context,
     const char* line
 ) {
+    InfLabInvocation invocation = {
+        .state = (InfernoState*)state,
+        .context = (InfernoContext*)context,
+    };
     return encounter_apply_lab_command_dump_wrapper(
-        state, line, INF_LAB_LINE_DUMP, inf_lab_apply_script_line_alloc_json_void);
+        &invocation,
+        line,
+        INF_LAB_LINE_DUMP,
+        inf_lab_apply_script_line_alloc_json_void);
 }
 
 static const EncounterDef ENCOUNTER_INFERNO = {
     .name = "inferno",
+    .display_name = "Inferno",
     .obs_size = INF_NUM_OBS,
     .num_action_heads = INF_NUM_ACTION_HEADS,
     .action_head_dims = INF_ACTION_DIMS,
@@ -1087,6 +978,7 @@ static const EncounterDef ENCOUNTER_INFERNO = {
     .init_context = inf_init_context,
     .destroy_context = inf_destroy_context,
     .init_state = inf_init_state,
+    .finalize_context = inf_finalize_context,
 
     .create = inf_create,
     .destroy = inf_destroy,
@@ -1097,10 +989,6 @@ static const EncounterDef ENCOUNTER_INFERNO = {
     .snapshot_size = inf_snapshot_size_ctx,
     .snapshot = inf_snapshot_ctx,
     .restore = inf_restore_ctx,
-
-    .cell_key_size = inf_cell_key_size_ctx,
-    .write_cell_key = inf_write_cell_key_ctx,
-    .progress_score = inf_progress_score_ctx,
 
     .write_obs = inf_write_obs_ctx,
     .write_mask = inf_write_mask_ctx,
@@ -1123,9 +1011,9 @@ static const EncounterDef ENCOUNTER_INFERNO = {
     .translate_human_input = inf_translate_human_input_ctx,
     .is_human_targetable_npc_slot = inf_is_human_targetable_npc_slot_ctx,
     .apply_lab_command = inf_apply_lab_command_ctx,
-    .head_move = INF_HEAD_MOVE,
+    .head_move = INF_HEAD_PRIMARY,
     .head_prayer = INF_HEAD_PRAYER,
-    .head_target = INF_HEAD_TARGET,
+    .head_target = INF_HEAD_PRIMARY,
 
     .render_post_tick = inf_render_post_tick_ctx,
     .get_log = inf_get_log_ctx,

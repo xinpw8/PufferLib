@@ -1,6 +1,7 @@
 #ifndef OSRS_ITEMS_H
 #define OSRS_ITEMS_H
 
+#include <assert.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -72,11 +73,6 @@ static inline const Item* get_item(uint8_t item_index) {
 
 static inline int item_supports_ancient_autocast(uint8_t item_index) {
     return item_index == ITEM_KODAI_WAND || item_index == ITEM_DRAGON_HUNTER_WAND;
-}
-
-static inline int item_is_weapon(uint8_t item_index) {
-    if (item_index >= NUM_ITEMS) return 0;
-    return ITEM_DATABASE[item_index].slot == SLOT_WEAPON;
 }
 
 static inline int get_item_attack_style(uint8_t item_index) {

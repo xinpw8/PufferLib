@@ -17,7 +17,6 @@
     X(INF_PROF_OBS_PREFIX,               "obs_prefix") \
     X(INF_PROF_OBS_REFRESH_SLOTS,        "obs_refresh_slots") \
     X(INF_PROF_OBS_NPC_SLOTS,            "obs_npc_slots") \
-    X(INF_PROF_OBS_FORECAST,             "obs_forecast") \
     X(INF_PROF_OBS_PENDING_HITS,         "obs_pending_hits") \
     X(INF_PROF_OBS_SPARKS,               "obs_sparks") \
     X(INF_PROF_FORECAST_LANDING,         "forecast_landing") \

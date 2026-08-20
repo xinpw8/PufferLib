@@ -16,13 +16,7 @@ static void human_set_click_cross(HumanInput* hi, int screen_x, int screen_y, in
     hi->click_is_attack = is_attack;
 }
 
-static int human_overhead_click_action(const Player* p, OverheadPrayer target, int set_refresh_action) {
-    return p->prayer == target ? ENCOUNTER_OVERHEAD_OFF : set_refresh_action;
-}
 
-static int human_offensive_click_action(const Player* p, OffensivePrayer target, int set_refresh_action) {
-    return p->offensive_prayer == target ? ENCOUNTER_OFFENSIVE_OFF : set_refresh_action;
-}
 
 static int human_gui_rect_contains(Rectangle rect, int mouse_x, int mouse_y) {
     return mouse_x >= rect.x && mouse_x < rect.x + rect.width &&
@@ -86,15 +80,16 @@ static int human_apply_prayer_idx(HumanInput* hi, Player* p, GuiPrayerIdx pidx) 
     };
     for (size_t i = 0; i < sizeof(overhead_rows) / sizeof(overhead_rows[0]); i++) {
         if (overhead_rows[i].idx != pidx) continue;
-        hi->pending_prayer = human_overhead_click_action(
-            p, overhead_rows[i].target, overhead_rows[i].refresh_action);
+        hi->pending_prayer = p->prayer == overhead_rows[i].target
+            ? ENCOUNTER_OVERHEAD_OFF : overhead_rows[i].refresh_action;
         human_input_queue_overhead_prayer(hi, hi->pending_prayer);
         return 1;
     }
     for (size_t i = 0; i < sizeof(offensive_rows) / sizeof(offensive_rows[0]); i++) {
         if (offensive_rows[i].idx != pidx) continue;
-        hi->pending_offensive_prayer = human_offensive_click_action(
-            p, offensive_rows[i].target, offensive_rows[i].refresh_action);
+        hi->pending_offensive_prayer =
+            p->offensive_prayer == offensive_rows[i].target
+                ? ENCOUNTER_OFFENSIVE_OFF : offensive_rows[i].refresh_action;
         human_input_queue_offensive_prayer(hi, hi->pending_offensive_prayer);
         return 1;
     }
@@ -134,13 +129,13 @@ static int human_select_spell_idx(HumanInput* hi, GuiSpellIdx sidx) {
 
     if (gui_spell_is_ice(sidx)) {
         human_input_apply_ui_intent(
-            hi, osrs_ui_intent_select_spell(ATTACK_ICE, (int)sidx));
+            hi, osrs_ui_intent_select_spell(PVP_ATTACK_ICE, (int)sidx));
         return 1;
     }
 
     if (gui_spell_is_blood(sidx)) {
         human_input_apply_ui_intent(
-            hi, osrs_ui_intent_select_spell(ATTACK_BLOOD, (int)sidx));
+            hi, osrs_ui_intent_select_spell(PVP_ATTACK_BLOOD, (int)sidx));
         return 1;
     }
 
@@ -201,6 +196,7 @@ static int human_apply_combat_style(
         }
     }
 
+    (void)gs;
     return 1;
 }
 
@@ -327,73 +323,6 @@ static void human_handle_combat_click(HumanInput* hi, GuiState* gs, Player* p,
         }
         human_apply_spec_toggle(hi);
     }
-}
-
-static void human_to_pvp_actions(HumanInput* hi, int* actions,
-                                  Player* agent, Player* target) {
-    for (int h = 0; h < NUM_ACTION_HEADS; h++) actions[h] = 0;
-
-    actions[HEAD_LOADOUT] = LOADOUT_KEEP;
-
-    if (hi->pending_attack) {
-        if (hi->pending_spell == ATTACK_ICE) {
-            actions[HEAD_COMBAT] = ATTACK_ICE;
-        } else if (hi->pending_spell == ATTACK_BLOOD) {
-            actions[HEAD_COMBAT] = ATTACK_BLOOD;
-        } else {
-            actions[HEAD_COMBAT] = ATTACK_ATK;
-        }
-    } else if (hi->pending_move_x >= 0 && hi->pending_move_y >= 0) {
-        int dx = hi->pending_move_x - target->x;
-        int dy = hi->pending_move_y - target->y;
-        int dist = (abs(dx) > abs(dy)) ? abs(dx) : abs(dy);
-
-        if (dist == 0) {
-            actions[HEAD_COMBAT] = MOVE_UNDER;
-        } else if (dist == 1) {
-            if (dx == 0 || dy == 0) {
-                actions[HEAD_COMBAT] = MOVE_ADJACENT;
-            } else {
-                actions[HEAD_COMBAT] = MOVE_DIAGONAL;
-            }
-        } else {
-            int fc = dist;
-            if (fc < 2) fc = 2;
-            if (fc > 7) fc = 7;
-            actions[HEAD_COMBAT] = MOVE_FARCAST_2 + (fc - 2);
-        }
-    }
-
-    if (hi->pending_prayer >= 0) {
-        actions[HEAD_OVERHEAD] = hi->pending_prayer;
-    }
-
-    if (hi->pending_food) {
-        actions[HEAD_FOOD] = FOOD_EAT;
-    }
-
-    if (hi->pending_potion > 0) {
-        actions[HEAD_POTION] = hi->pending_potion;
-    }
-
-    if (hi->pending_karambwan) {
-        actions[HEAD_KARAMBWAN] = KARAM_EAT;
-    }
-
-    if (hi->pending_veng) {
-        actions[HEAD_VENG] = VENG_CAST;
-    }
-
-    if (hi->pending_spec) {
-        AttackStyle style = (AttackStyle)get_item_attack_style(agent->equipped[GEAR_SLOT_WEAPON]);
-        switch (style) {
-            case ATTACK_STYLE_MELEE:  actions[HEAD_LOADOUT] = LOADOUT_SPEC_MELEE; break;
-            case ATTACK_STYLE_RANGED: actions[HEAD_LOADOUT] = LOADOUT_SPEC_RANGE; break;
-            case ATTACK_STYLE_MAGIC:  actions[HEAD_LOADOUT] = LOADOUT_SPEC_MAGIC; break;
-            default: break;
-        }
-    }
-
 }
 
 #define CLICK_CROSS_NUM_FRAMES 4

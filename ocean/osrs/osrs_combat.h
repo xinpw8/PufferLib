@@ -560,11 +560,6 @@ static inline int osrs_player_ranged_max_hit(int eff_range_level, int ranged_str
     return (eff_range_level * (ranged_str_bonus + 64) + 320) / 640;
 }
 
-/** magic_dmg_pct is the total gear bonus in percent (30 = +30%). */
-static inline int osrs_player_magic_max_hit(int spell_base_dmg, int magic_dmg_pct) {
-    return spell_base_dmg * (100 + magic_dmg_pct) / 100;
-}
-
 /** Correct overhead prayer blocks 100% of damage in PvE but only 40% in PvP. */
 static inline int osrs_prayer_reduce_damage(int damage, int prayer, int attack_style, int is_pvp) {
     if (damage <= 0) return 0;
@@ -597,6 +592,8 @@ typedef struct {
 static inline void osrs_sum_equipment_bonuses(const uint8_t loadout[NUM_GEAR_SLOTS],
                                                EquipmentBonuses* out) {
     memset(out, 0, sizeof(*out));
+    out->attack_speed = 4;
+    out->attack_range = 1;
     for (int slot = 0; slot < NUM_GEAR_SLOTS; slot++) {
         uint8_t idx = loadout[slot];
         if (idx == 255) continue;
@@ -617,6 +614,12 @@ static inline void osrs_sum_equipment_bonuses(const uint8_t loadout[NUM_GEAR_SLO
         out->prayer += item->prayer;
     }
     uint8_t weapon = loadout[GEAR_SLOT_WEAPON];
+    if (weapon == ITEM_TOXIC_BLOWPIPE) {
+        uint8_t ammo = loadout[GEAR_SLOT_AMMO];
+        if (ammo != ITEM_NONE)
+            out->ranged_strength -= ITEM_DATABASE[ammo].ranged_strength;
+        out->ranged_strength += ITEM_DATABASE[ITEM_DRAGON_DART].ranged_strength;
+    }
     if (weapon != 255) {
         out->attack_speed = ITEM_DATABASE[weapon].attack_speed;
         out->attack_range = ITEM_DATABASE[weapon].attack_range;
