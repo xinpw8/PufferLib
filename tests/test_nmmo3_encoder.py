@@ -41,10 +41,10 @@ class NMMO3EncoderRef(nn.Module):
         super().__init__()
         offsets = torch.tensor(OFFSETS_NP).view(1, -1, 1, 1)
         self.register_buffer("offsets", offsets)
-        self.conv1 = nn.Conv2d(59, 128, 5, stride=3)
-        self.conv2 = nn.Conv2d(128, 128, 3, stride=1)
+        self.conv1 = nn.Conv2d(59, 128, 5, stride=3, bias=False)
+        self.conv2 = nn.Conv2d(128, 128, 3, stride=1, bias=False)
         self.embed = nn.Embedding(128, 32)
-        self.proj = nn.Linear(1817, 512)
+        self.proj = nn.Linear(1817, 512, bias=False)
 
     def forward(self, observations):
         B = observations.shape[0]
@@ -69,11 +69,10 @@ def load_lib():
     lib = ctypes.CDLL(SO)
     VP = ctypes.c_void_p
     lib.nmmo3_test_init.argtypes = [ctypes.c_int]
-    lib.nmmo3_test_set_weights.argtypes = [VP] * 7
+    lib.nmmo3_test_set_weights.argtypes = [VP] * 4
     lib.nmmo3_test_forward.argtypes = [VP, VP, ctypes.c_int]
     lib.nmmo3_test_backward.argtypes = [VP, ctypes.c_int]
-    for name in ["conv1_wgrad", "conv1_bgrad", "conv2_wgrad", "conv2_bgrad",
-                 "proj_wgrad", "proj_bgrad", "embed_wgrad"]:
+    for name in ["conv1_wgrad", "conv2_wgrad", "proj_wgrad", "embed_wgrad"]:
         getattr(lib, f"nmmo3_test_get_{name}").argtypes = [VP]
     lib.nmmo3_test_get_conv1_out.argtypes = [VP, ctypes.c_int]
     return lib
@@ -85,9 +84,8 @@ def ptr(t):
 
 def extract_weights(model):
     return [t.data.contiguous() for t in [
-        model.conv1.weight, model.conv1.bias,
-        model.conv2.weight, model.conv2.bias,
-        model.embed.weight, model.proj.weight, model.proj.bias,
+        model.conv1.weight, model.conv2.weight,
+        model.embed.weight, model.proj.weight,
     ]]
 
 
@@ -168,7 +166,7 @@ def test_backward(lib, B):
     torch.cuda.synchronize()
 
     # ---- PyTorch forward with CUDA relu masks ----
-    c1w, c1b, c2w, c2b, ew, pw, pb = [w.detach().requires_grad_(True) for w in weights]
+    c1w, c2w, ew, pw = [w.detach().requires_grad_(True) for w in weights]
 
     # Multihot (discrete, no grad)
     ob_map = obs[:, :1650].view(B, 11, 15, 10)
@@ -178,11 +176,11 @@ def test_backward(lib, B):
     mh.scatter_(1, codes, 1)
 
     # Conv1: raw conv, apply CUDA's relu mask
-    conv1_raw = F.conv2d(mh, c1w, c1b, stride=3)
+    conv1_raw = F.conv2d(mh, c1w, None, stride=3)
     conv1_masked = conv1_raw * (conv1_out_cuda > 0).float()
 
     # Conv2: no relu
-    conv2_out = F.conv2d(conv1_masked, c2w, c2b, stride=1)
+    conv2_out = F.conv2d(conv1_masked, c2w, None, stride=1)
 
     # Player/reward branches
     ob_player = obs[:, 1650:-10]
@@ -192,7 +190,7 @@ def test_backward(lib, B):
     # Concat + projection with CUDA's relu mask
     cat = torch.cat([conv2_out.flatten(1), player_embed,
                      ob_player.detach().float(), ob_reward.detach().float()], dim=1)
-    proj_raw = F.linear(cat, pw, pb)
+    proj_raw = F.linear(cat, pw, None)
     proj_masked = proj_raw * (cuda_out > 0).float()
 
     # ---- Backward ----
@@ -210,25 +208,13 @@ def test_backward(lib, B):
     lib.nmmo3_test_get_proj_wgrad(ptr(cuda_proj_wgrad))
     check_match("proj_wgrad", cuda_proj_wgrad, pw.grad, **tol)
 
-    cuda_proj_bgrad = torch.zeros(512, device=device)
-    lib.nmmo3_test_get_proj_bgrad(ptr(cuda_proj_bgrad))
-    check_match("proj_bgrad", cuda_proj_bgrad, pb.grad, **tol)
-
     cuda_c2_wgrad = torch.zeros(128, 128 * 3 * 3, device=device)
     lib.nmmo3_test_get_conv2_wgrad(ptr(cuda_c2_wgrad))
     check_match("conv2_wgrad", cuda_c2_wgrad, c2w.grad.view(128, -1), **tol)
 
-    cuda_c2_bgrad = torch.zeros(128, device=device)
-    lib.nmmo3_test_get_conv2_bgrad(ptr(cuda_c2_bgrad))
-    check_match("conv2_bgrad", cuda_c2_bgrad, c2b.grad, **tol)
-
     cuda_c1_wgrad = torch.zeros(128, 59 * 5 * 5, device=device)
     lib.nmmo3_test_get_conv1_wgrad(ptr(cuda_c1_wgrad))
     check_match("conv1_wgrad", cuda_c1_wgrad, c1w.grad.view(128, -1), **tol)
-
-    cuda_c1_bgrad = torch.zeros(128, device=device)
-    lib.nmmo3_test_get_conv1_bgrad(ptr(cuda_c1_bgrad))
-    check_match("conv1_bgrad", cuda_c1_bgrad, c1b.grad, **tol)
 
     cuda_embed_wgrad = torch.zeros(128, 32, device=device)
     lib.nmmo3_test_get_embed_wgrad(ptr(cuda_embed_wgrad))
