@@ -10,6 +10,9 @@ typedef float obs_t;
 #define Log OsrsSharedLog
 #include "../osrs/encounters/encounter_nh_pvp.h"
 #undef Log
+#ifdef OSRS_PUFFER_RENDER
+#include "../osrs/osrs_puffer_render.h"
+#endif
 
 #define OBS_SIZE NH_PVP_NUM_OBS
 #define NUM_ATNS OSRS_BASE_NUM_ACTION_HEADS
@@ -46,6 +49,9 @@ struct Env {
     NhPvpState state;
     NhPvpContext context;
     int acts_staging[OSRS_BASE_NUM_ACTION_HEADS];
+#ifdef OSRS_PUFFER_RENDER
+    void* renderer;
+#endif
 };
 
 static inline uint32_t nh_pvp_lowbias32(uint32_t x) {
@@ -186,10 +192,23 @@ void puf_step(Env* env) {
 }
 
 void puf_render(Env* env) {
+#ifdef OSRS_PUFFER_RENDER
+    if (env->renderer == NULL) {
+        env->renderer = osrs_puffer_render_create(
+            &ENCOUNTER_NH_PVP,
+            NH_PVP_ENV_STATE(env),
+            NH_PVP_ENV_CONTEXT(env));
+    }
+    osrs_puffer_render_draw(env->renderer);
+#else
     (void)env;
+#endif
 }
 
 void puf_close(Env* env) {
+#ifdef OSRS_PUFFER_RENDER
+    if (env->renderer != NULL) osrs_puffer_render_destroy(env->renderer);
+#endif
     pvp_close(&env->state.env);
     ENCOUNTER_NH_PVP.destroy_context(NH_PVP_ENV_CONTEXT(env));
 }
@@ -211,6 +230,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "damage_per_hit",
         log->attacks_landed > 0.0f ? log->damage_dealt / log->attacks_landed : 0.0f);
     float damage_fraction = log->damage_dealt / 99.0f;
-    dict_set(out, "score",
-        log->wins + (1.0f - log->wins) * damage_fraction * 0.5f);
+    float score = log->wins + (1.0f - log->wins) * damage_fraction * 0.5f;
+    dict_set(out, "score", score);
+    dict_set(out, "perf", score);
 }

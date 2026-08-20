@@ -8,6 +8,7 @@ set -e
 #   ./build.sh robot_arm             # CUDA-only; implies --cu
 #   ./build.sh breakout --float      # float32 precision (required for --slowly)
 #   ./build.sh breakout --cpu        # Play/eval binary (optimized) -> ./ENV
+#   ./build.sh osrs_inferno --cpu     # OSRS visual policy viewer -> ./osrs_inferno
 #   ./build.sh breakout myplay --cpu # Play -> ./myplay
 #   ./build.sh breakout --debug      # Debug (-O0 -g; sanitizers on --cpu)
 #   ./build.sh breakout --web        # Emscripten web build
@@ -225,22 +226,34 @@ else
     LINK_OPT="-O2"
 fi
 if [ "$MODE" = "cpu" ]; then
-    ENV_HEADER="$SRC_DIR/$ENV.h"
-    if ! grep -q 'typedef[[:space:]].*obs_t' "$ENV_HEADER" 2>/dev/null; then
-        echo "Error: $ENV_HEADER must typedef obs_t for standalone eval"
-        exit 1
-    fi
+    STANDALONE_SOURCE="src/puffercpu.c"
+    STANDALONE_DEFINES=()
+    case "$ENV" in
+        osrs_*)
+            STANDALONE_SOURCE="$SRC_FILE"
+            ;;
+        *)
+            ENV_HEADER="$SRC_DIR/$ENV.h"
+            if ! grep -q 'typedef[[:space:]].*obs_t' "$ENV_HEADER" 2>/dev/null; then
+                echo "Error: $ENV_HEADER must typedef obs_t for standalone eval"
+                exit 1
+            fi
+            STANDALONE_DEFINES=(
+                -DPUFFERCPU_EVAL_MAIN
+                -DENV_HEADER=\"$ENV_HEADER\"
+                -DPUFFER_ENV_NAME=\"$ENV\"
+            )
+            ;;
+    esac
     FLAGS=(
         -I. -Isrc -I$SRC_DIR -Ivendor "${INCLUDES[@]}"
-        src/puffercpu.c $EXTRA_SRC -o "$OUTPUT_NAME"
+        "$STANDALONE_SOURCE" $EXTRA_SRC -o "$OUTPUT_NAME"
         "${LINK_ARCHIVES[@]}"
         "${EXTRA_LDFLAGS[@]}"
         "${STANDALONE_LDFLAGS[@]}"
         -lm -lpthread "${OMP_FLAGS[@]}"
         -DPLATFORM_DESKTOP
-        -DPUFFERCPU_EVAL_MAIN
-        -DENV_HEADER=\"$ENV_HEADER\"
-        -DPUFFER_ENV_NAME=\"$ENV\"
+        "${STANDALONE_DEFINES[@]}"
         "${EXTRA_CFLAGS[@]}"
     )
     echo "Compiling $ENV..."
@@ -397,6 +410,19 @@ if [ "$MODE" = "native" ]; then
     if [ "$SNAKE_RAW" = "1" ]; then
         EXTRA_CFLAGS+=(-DSNAKE_ONEHOT=0)
     fi
+    OSRS_RENDER_OBJECT=""
+    case "$ENV" in
+        osrs_*)
+            OSRS_RENDER_OBJECT="build/osrs_puffer_render.o"
+            ENV_COMPILE_FLAGS+=(-DOSRS_PUFFER_RENDER)
+            $CC $LINK_OPT "${CLANG_WARN[@]}" "${SIMD_FLAGS[@]}" -std=c11 \
+                -I. -Isrc -I$SRC_DIR -Ivendor \
+                "${INCLUDES[@]}" \
+                -DPLATFORM_DESKTOP \
+                -c ocean/osrs/osrs_puffer_render.c \
+                -o "$OSRS_RENDER_OBJECT"
+            ;;
+    esac
     echo "Compiling native train/eval binary ($ARCH) -> $TRAIN_BIN..."
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
@@ -413,6 +439,7 @@ if [ "$MODE" = "native" ]; then
 	    $PRECISION \
 	    src/pufferl.cu \
         $EXTRA_SRC \
+        $OSRS_RENDER_OBJECT \
         "${LINK_ARCHIVES[@]}" \
         -L$CUDA_HOME/lib64 $NCCL_LFLAG \
         "${EXTRA_LDFLAGS[@]}" \

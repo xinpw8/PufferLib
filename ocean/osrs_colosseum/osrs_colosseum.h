@@ -13,6 +13,9 @@ typedef float obs_t;
 #define Log OsrsSharedLog
 #include "../osrs/encounters/encounter_colosseum.h"
 #undef Log
+#ifdef OSRS_PUFFER_RENDER
+#include "../osrs/osrs_puffer_render.h"
+#endif
 
 #define OBS_SIZE COLO_NUM_OBS
 #define NUM_ATNS COLO_NUM_ACTION_HEADS
@@ -111,6 +114,9 @@ struct Env {
     int acts_staging[COLO_NUM_ACTION_HEADS];
     uint64_t damage_scale_anneal_step;
     uint64_t dpt_sample_step;
+#ifdef OSRS_PUFFER_RENDER
+    void* renderer;
+#endif
     float max_episode_depth_seen;
 };
 
@@ -494,10 +500,23 @@ void puf_env_profile_report(void) {
 #endif
 
 void puf_render(Env* env) {
+#ifdef OSRS_PUFFER_RENDER
+    if (env->renderer == NULL) {
+        env->renderer = osrs_puffer_render_create(
+            &ENCOUNTER_COLOSSEUM,
+            COLO_ENV_STATE(env),
+            COLO_ENV_CONTEXT(env));
+    }
+    osrs_puffer_render_draw(env->renderer);
+#else
     (void)env;
+#endif
 }
 
 void puf_close(Env* env) {
+#ifdef OSRS_PUFFER_RENDER
+    if (env->renderer != NULL) osrs_puffer_render_destroy(env->renderer);
+#endif
     ENCOUNTER_COLOSSEUM.destroy_context(COLO_ENV_CONTEXT(env));
 }
 
@@ -517,6 +536,7 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "prayer_correct_rate", prayer_rate);
 
     dict_set(out, "score", log->score);
+    dict_set(out, "perf", log->score);
     dict_set(out, "sol_min_hp", log->sol_min_hp);
     dict_set(out, "max_depth_reached", log->max_depth_reached);
     dict_set(out, "avoid_total", log->avoid_total);
