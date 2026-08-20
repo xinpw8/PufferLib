@@ -105,7 +105,7 @@ void _linear(float* input, float* weights, float* bias, float* output,
     }
 }
 
-void _conv2d(float* input, float* weights, float* bias,
+void _conv2d(float* input, float* weights,
         float* output, int batch_size, int in_width, int in_height,
         int in_channels, int out_channels, int kernel_size, int stride) {
     int h_out = (in_height - kernel_size)/stride + 1;
@@ -120,7 +120,7 @@ void _conv2d(float* input, float* weights, float* bias,
                         + h*w_out
                         + w
                     );
-                    output[out_adr] = bias[oc];
+                    output[out_adr] = 0.0f;
                     for (int ic = 0; ic < in_channels; ic++) {
                         for (int kh = 0; kh < kernel_size; kh++) {
                             for (int kw = 0; kw < kernel_size; kw++) {
@@ -371,7 +371,6 @@ void max_dim1(MaxDim1* layer, float* input) {
 typedef struct Conv2D {
     float* output;
     float* weights;
-    float* bias;
     int batch_size;
     int in_width;
     int in_height;
@@ -389,7 +388,6 @@ Conv2D* make_conv2d(Weights* weights, int batch_size, int in_width, int in_heigh
     *layer = (Conv2D){
         .output = (float*)(layer + 1),
         .weights = get_weights(weights, num_weights),
-        .bias = get_weights(weights, out_channels),
         .batch_size = batch_size,
         .in_width = in_width,
         .in_height = in_height,
@@ -402,7 +400,7 @@ Conv2D* make_conv2d(Weights* weights, int batch_size, int in_width, int in_heigh
 }
 
 void conv2d(Conv2D* layer, float* input) {
-    _conv2d(input, layer->weights, layer->bias, layer->output,
+    _conv2d(input, layer->weights, layer->output,
         layer->batch_size, layer->in_width, layer->in_height,
         layer->in_channels, layer->out_channels, layer->kernel_size, layer->stride);
 }

@@ -1,7 +1,7 @@
 #pragma once
 // CPU NMMO3 policy: custom conv/embed encoder + MinGRU + decoder.
 // Weight order matches CUDA weights_create: encoder (conv1, conv2, embed,
-// proj_w, proj_b), decoder, mingru layers.
+// proj_w), decoder, mingru layers. All encoder layers are bias-free.
 // Include puffercpu.c first (Conv2D / Linear / MinGRU).
 
 #define N3_MAP_H 11
@@ -36,7 +36,6 @@ struct MMONet {
     Embedding* player_embed;
     float* proj_buffer;
     Linear* proj;
-    float* proj_bias;
     ReLU* proj_relu;
     Linear* decoder;
     MinGRU* mingru;
@@ -45,23 +44,13 @@ struct MMONet {
 
 static inline int nmmo3_weight_count(int hidden, int layers) {
     int n = 0;
-    n += N3_C1_OC * N3_MULTIHOT * 5 * 5 + N3_C1_OC;
-    n += N3_C2_OC * N3_C1_OC * 3 * 3 + N3_C2_OC;
+    n += N3_C1_OC * N3_MULTIHOT * 5 * 5;
+    n += N3_C2_OC * N3_C1_OC * 3 * 3;
     n += N3_EMBED_VOCAB * N3_EMBED_DIM;
-    n += hidden * N3_CONCAT + hidden;
+    n += hidden * N3_CONCAT;
     n += (N3_ATN + 1) * hidden;
     n += layers * 3 * hidden * hidden;
     return n;
-}
-
-static inline void mmonet_add_bias_relu(float* x, const float* bias,
-        int batch, int dim) {
-    for (int b = 0; b < batch; b++) {
-        for (int i = 0; i < dim; i++) {
-            float v = x[b * dim + i] + bias[i];
-            x[b * dim + i] = v > 0.0f ? v : 0.0f;
-        }
-    }
 }
 
 static inline MMONet* init_mmonet_arch(Weights* weights, int num_agents,
@@ -83,7 +72,6 @@ static inline MMONet* init_mmonet_arch(Weights* weights, int num_agents,
         N3_EMBED_VOCAB, N3_EMBED_DIM);
     net->proj_buffer = (float*)calloc((size_t)num_agents * N3_CONCAT, sizeof(float));
     net->proj = make_linear(weights, num_agents, N3_CONCAT, hidden);
-    net->proj_bias = get_weights_aligned(weights, hidden);
     net->proj_relu = make_relu(num_agents, hidden);
     net->decoder = make_linear(weights, num_agents, hidden, N3_ATN + 1);
     net->mingru = make_mingru(weights, num_agents, hidden, layers);
@@ -174,9 +162,7 @@ static inline void mmonet_encode(MMONet* net, unsigned char* observations,
     }
 
     linear(net->proj, net->proj_buffer);
-    mmonet_add_bias_relu(net->proj->output, net->proj_bias, net->num_agents, net->hidden);
-    memcpy(net->proj_relu->output, net->proj->output,
-        (size_t)net->num_agents * net->hidden * sizeof(float));
+    relu(net->proj_relu, net->proj->output);
     if (hidden_out) {
         memcpy(hidden_out, net->proj_relu->output,
             (size_t)net->num_agents * net->hidden * sizeof(float));
