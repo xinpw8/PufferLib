@@ -14,6 +14,8 @@ set -e
 #   ./build.sh breakout --web        # Emscripten web build
 #                                    # copy build/web/ENV/* to ../docker/puffer.ai/docs/assets/ENV/
 #   ./build.sh breakout --profile    # Kernel profiling binary
+#   ./build.sh constellation         # Sweep dashboard -> ./seethestars
+#   ./build.sh cache_data            # Sweep log cache -> ./cache_data
 #   ./build.sh all                   # Build all envs native and native float32
 #
 # Env is compiled in. Run: ./puffer train|eval|match|sweep [--section.key=value ...]
@@ -143,18 +145,20 @@ fi
 if [ "$ENV" = "constellation" ]; then
     SRC_DIR="src"
     OUTPUT_NAME="seethestars"
-    MODE=${MODE:-cpu}
+    STANDALONE=1
     CLANG_WARN+=(-Wno-unused-function)
 elif [ "$ENV" = "cache_data" ]; then
     SRC_DIR="src"
     OUTPUT_NAME="cache_data"
     SRC_FILE="src/constellation.c"
     EXTRA_CFLAGS+=(-DPUFFER_CACHE_DATA)
-    MODE=${MODE:-cpu}
+    STANDALONE=1
     CLANG_WARN+=(-Wno-unused-function)
 elif [ "$ENV" = "trailer" ]; then
     SRC_DIR="trailer"
     OUTPUT_NAME="trailer/trailer"
+    STANDALONE=1
+    CLANG_WARN+=(-Wno-unused-function)
 elif [ "$ENV" = "impulse_wars" ]; then
     SRC_DIR="ocean/$ENV"
     if [ "$MODE" = "web" ]; then BOX2D_NAME='box2d-web'
@@ -224,6 +228,25 @@ else
     CLANG_OPT=(-O2 "${CLANG_WARN[@]}" "${SIMD_FLAGS[@]}")
     NVCC_OPT="-O2 --threads 0"
     LINK_OPT="-O2"
+fi
+# Dashboard / cache / trailer: compile SRC_FILE only (not puffercpu / CUDA / obs_t).
+if [ "$STANDALONE" = "1" ]; then
+    if [ "$MODE" = "web" ] || [ "$MODE" = "profile" ]; then
+        echo "Error: $ENV is a standalone app, not an env" >&2
+        exit 1
+    fi
+    echo "Compiling $ENV..."
+    ${CC:-clang} "${CLANG_OPT[@]}" \
+        -I. "${INCLUDES[@]}" \
+        "$SRC_FILE" $EXTRA_SRC -o "$OUTPUT_NAME" \
+        "${LINK_ARCHIVES[@]}" \
+        "${EXTRA_LDFLAGS[@]}" \
+        "${STANDALONE_LDFLAGS[@]}" \
+        -lm -lpthread \
+        -DPLATFORM_DESKTOP \
+        "${EXTRA_CFLAGS[@]}"
+    echo "Built: ./$OUTPUT_NAME"
+    exit 0
 fi
 if [ "$MODE" = "cpu" ]; then
     STANDALONE_SOURCE="src/puffercpu.c"

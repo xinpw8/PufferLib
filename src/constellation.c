@@ -338,13 +338,6 @@ static void load_env(const char* env, int full_dataset, Table* out) {
         }
     }
 
-    int tsne1 = table_ensure_col(out, "tsne1");
-    int tsne2 = table_ensure_col(out, "tsne2");
-    for (int r = 0; r < out->rows; r++) {
-        table_set(out, r, tsne1, (float)(r % 997) / 997.0f);
-        table_set(out, r, tsne2, (float)((r * 37) % 991) / 991.0f);
-    }
-
     if (full_dataset || steps_col < 0) {
         return;
     }
@@ -481,13 +474,23 @@ int main(int argc, char** argv) {
 #include "raymath.h"
 
 #define CAMERA_ORBITAL_SPEED 0.05f
-void CustomUpdateCamera(Camera *camera, float orbitSpeed) {
-    float cameraOrbitalSpeed = CAMERA_ORBITAL_SPEED*GetFrameTime();
-    Matrix rotation = MatrixRotate(GetCameraUp(camera), cameraOrbitalSpeed);
-    Vector3 view = Vector3Subtract(camera->position, camera->target);
-    view = Vector3Transform(view, rotation);
-    camera->position = Vector3Add(camera->target, view);
-    CameraMoveToTarget(camera, -GetMouseWheelMove());
+#define MOUSE_ROTATE_SPEED 0.005f
+void CustomUpdateCamera(Camera *camera, Rectangle bounds) {
+    Vector2 mouse = GetMousePosition();
+    if (CheckCollisionPointRec(mouse, bounds) && IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
+        Vector2 delta = GetMouseDelta();
+        CameraYaw(camera, -delta.x*MOUSE_ROTATE_SPEED, true);
+        CameraPitch(camera, -delta.y*MOUSE_ROTATE_SPEED, true, true, false);
+    } else {
+        float dt = CAMERA_ORBITAL_SPEED*GetFrameTime();
+        Matrix rotation = MatrixRotate(GetCameraUp(camera), dt);
+        Vector3 view = Vector3Subtract(camera->position, camera->target);
+        view = Vector3Transform(view, rotation);
+        camera->position = Vector3Add(camera->target, view);
+    }
+    if (CheckCollisionPointRec(mouse, bounds)) {
+        CameraMoveToTarget(camera, -GetMouseWheelMove());
+    }
     if (IsKeyPressed(KEY_KP_SUBTRACT)) CameraMoveToTarget(camera, 2.0f);
     if (IsKeyPressed(KEY_KP_ADD)) CameraMoveToTarget(camera, -2.0f);
 }
@@ -785,7 +788,8 @@ void draw_axes3() {
     );
 }
 
-void boxplot(Table* table, int col, int x_scale, int i, int hyper_count, PlotArgs args, Color color, bool* filter) {
+void boxplot(Table* table, int col, int x_scale, int i, int hyper_count, PlotArgs args,
+        Color color, bool* filter, bool has_highlight, float highlight_val) {
     int width = args.width;
     int height = args.height;
 
@@ -818,6 +822,13 @@ void boxplot(Table* table, int col, int x_scale, int i, int hyper_count, PlotArg
     left = fminf(fmax(left, args.left_margin), width - args.right_margin);
     right = fmaxf(fmin(right, width - args.right_margin), 0);
     DrawRectangle(left, args.top_margin + i*dy, right - left, dy, color);
+
+    if (has_highlight) {
+        float hval = scale_val(x_scale, highlight_val);
+        float hx = args.left_margin + (hval - x_min)/(x_max - x_min)*plot_width;
+        hx = fminf(fmaxf(hx, args.left_margin), width - args.right_margin);
+        DrawRectangle(hx - 1, args.top_margin + i*dy, 3, dy, BLUE);
+    }
 }
 
 void plot_gl(Glyph* glyphs, int size, Shader* shader) {
@@ -968,6 +979,27 @@ void update_closest(Tooltip* tooltip, Vector2 *indices, Glyph* glyphs, int size,
             tooltip->env_idx = indices[i].x;
             tooltip->ary_idx = indices[i].y;
         }
+    }
+}
+
+void brighten_hit(Tooltip* tooltip, Vector2* indices, Glyph* glyphs, int size,
+        float x_offset, float y_offset, bool follow) {
+    if (!tooltip->active) {
+        return;
+    }
+    for (int i=0; i<size; i++) {
+        if (indices[i].y != tooltip->ary_idx || indices[i].x != tooltip->env_idx) {
+            continue;
+        }
+        glyphs[i].r *= 8;
+        glyphs[i].g *= 8;
+        glyphs[i].b *= 8;
+        glyphs[i].i = 0;
+        if (follow) {
+            tooltip->x = x_offset + glyphs[i].x;
+            tooltip->y = y_offset + glyphs[i].y;
+        }
+        return;
     }
 }
 
@@ -1189,6 +1221,7 @@ int main(void) {
     args1.scale[2] = 1;
     RenderTexture2D fig1 = LoadRenderTexture(args1.width, args1.height);
     RenderTexture2D fig1_overlay = LoadRenderTexture(args1.width, args1.height);
+    Rectangle fig1_bounds = {0, 2*SETTINGS_HEIGHT, args1.width, args1.height};
     int fig_env_idx = 0;
     bool fig_env_active = false;
     bool fig_x_active = false;
@@ -1228,12 +1261,14 @@ int main(void) {
     PlotArgs args3 = DEFAULT_PLOT_ARGS;
     RenderTexture2D fig3 = LoadRenderTexture(args3.width, args3.height);
     RenderTexture2D fig3_overlay = LoadRenderTexture(args1.width, args1.height);
-    args3.left_margin = 10;
-    args3.right_margin = 10;
-    args3.top_margin = 10;
-    args3.bottom_margin = 10;
-    args3.x_label = "tsne1";
-    args3.y_label = "tsne2";
+    args3.left_margin = 100;
+    args3.right_margin = 50;
+    args3.top_margin = 20;
+    args3.bottom_margin = 50;
+    args3.scale[0] = LOG;
+    args3.scale[1] = LOG;
+    args3.x_label = "params";
+    args3.y_label = "train FLOPs";
 
     PlotArgs args4 = DEFAULT_PLOT_ARGS;
     RenderTexture2D fig4 = LoadRenderTexture(args4.width, args4.height);
@@ -1266,7 +1301,9 @@ int main(void) {
 
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
             focus = GetMousePosition();
-            tooltip.active = false;
+            if (!CheckCollisionPointRec(focus, fig1_bounds)) {
+                tooltip.active = false;
+            }
         }
         if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
             Vector2 mouse_pos = GetMousePosition();
@@ -1323,13 +1360,18 @@ int main(void) {
                 size++;
             }
         }
+        CustomUpdateCamera(&args1.camera, fig1_bounds);
         autoscale(points, size, &args1);
         toPx(points, glyphs, size, args1);
-        update_closest(&tooltip, env_indices, glyphs, size, 0, 2*SETTINGS_HEIGHT);
+        if (right_clicked) {
+            update_closest(&tooltip, env_indices, glyphs, size, 0, 2*SETTINGS_HEIGHT);
+        }
+        Vector2 click = {tooltip.click_x, tooltip.click_y};
+        brighten_hit(&tooltip, env_indices, glyphs, size, 0, 2*SETTINGS_HEIGHT,
+            CheckCollisionPointRec(click, fig1_bounds));
         plot_gl(glyphs, size, &shader);
 
         BeginMode3D(args1.camera);
-        CustomUpdateCamera(&args1.camera, CAMERA_ORBITAL_SPEED);
         draw_axes3();
         EndMode3D();
         EndTextureMode();
@@ -1350,7 +1392,12 @@ int main(void) {
         args2.mmin[2] = 0.0f;
         args2.mmax[2] = 0.0f;
         toPx(points, glyphs, size, args2);
-        update_closest(&tooltip, env_indices, glyphs, size, fig1.texture.width, 2*SETTINGS_HEIGHT);
+        if (right_clicked) {
+            update_closest(&tooltip, env_indices, glyphs, size,
+                fig1.texture.width, 2*SETTINGS_HEIGHT);
+        }
+        brighten_hit(&tooltip, env_indices, glyphs, size,
+            fig1.texture.width, 2*SETTINGS_HEIGHT, false);
         plot_gl(glyphs, size, &shader);
         draw_axes(args2);
         draw_all_ticks(args2);
@@ -1362,8 +1409,14 @@ int main(void) {
         size = 0;
         for (int i=0; i<data.n; i++) {
             Table* table = &data.tables[i];
-            x = table_col(table, "tsne1");
-            y = table_col(table, "tsne2");
+            int hid = table_col(table, "policy/hidden_size");
+            int layers = table_col(table, "policy/num_layers");
+            int replay = table_col(table, "train/replay_ratio");
+            int steps = table_col(table, "agent_steps");
+            int perf = table_col(table, "env/perf");
+            if (hid < 0 || layers < 0 || replay < 0 || steps < 0 || perf < 0) {
+                continue;
+            }
             for (int j=0; j<table->rows; j++) {
                 filter[j] = true;
             }
@@ -1372,26 +1425,73 @@ int main(void) {
             int filter_param_2 = table_col(table, hyper_key[fig_range2_idx]);
             apply_filter(filter, table, filter_param_2, fig_range2_min_val, fig_range2_max_val);
 
+            int best = -1;
+            float best_flops = FLT_MAX;
+            float best_params = 0;
             for (int j=0; j<table->rows; j++) {
-                if (!filter[j]) {
+                if (!filter[j] || table_get(table, j, perf) <= 0.95f) {
                     continue;
                 }
-                points[size] = (Point){
-                    table_get(table, j, x),
-                    table_get(table, j, y),
-                    0.0f,
-                    i/(float)data.n
-                };
-                env_indices[size] = (Vector2){i, j};
-                size++;
+                float h = table_get(table, j, hid);
+                float L = table_get(table, j, layers);
+                float params = 3.0f * h * h * L;
+                float flops = 6.0f * params * table_get(table, j, replay)
+                    * table_get(table, j, steps) * 1e6f;
+                if (params <= 0 || flops <= 0 || flops >= best_flops) {
+                    continue;
+                }
+                best_flops = flops;
+                best_params = params;
+                best = j;
             }
+            if (best < 0) {
+                continue;
+            }
+            points[size] = (Point){
+                best_params,
+                best_flops,
+                0.0f,
+                i/(float)data.n
+            };
+            env_indices[size] = (Vector2){i, best};
+            size++;
         }
-        autoscale(points, size, &args3);
-        toPx(points, glyphs, size, args3);
-        update_closest(&tooltip, env_indices, glyphs, size, 0, fig1.texture.height + 2*SETTINGS_HEIGHT);
-        plot_gl(glyphs, size, &shader);
-
-        //draw_axes(args3);
+        if (size > 0) {
+            autoscale(points, size, &args3);
+            args3.mmin[2] = 0.0f;
+            args3.mmax[2] = 0.0f;
+            if (args3.mmin[0] >= args3.mmax[0]) {
+                args3.mmax[0] = args3.mmin[0] * 10.0f;
+            }
+            if (args3.mmin[1] >= args3.mmax[1]) {
+                args3.mmax[1] = args3.mmin[1] * 10.0f;
+            }
+            toPx(points, glyphs, size, args3);
+            if (right_clicked) {
+                update_closest(&tooltip, env_indices, glyphs, size,
+                    0, fig1.texture.height + 2*SETTINGS_HEIGHT);
+            }
+            brighten_hit(&tooltip, env_indices, glyphs, size,
+                0, fig1.texture.height + 2*SETTINGS_HEIGHT, false);
+            plot_gl(glyphs, size, &shader);
+        }
+        draw_axes(args3);
+        draw_all_ticks(args3);
+        for (int k=0; k<size; k++) {
+            int ei = env_indices[k].x;
+            char* name = data.tables[ei].name;
+            Vector2 ts = MeasureTextEx(
+                args3.font_small, name, args3.axis_tick_font_size, 0);
+            float lx = glyphs[k].x + 6;
+            float ly = glyphs[k].y - ts.y - 6;
+            if (lx + ts.x + 4 > args3.width) {
+                lx = glyphs[k].x - ts.x - 6;
+            }
+            DrawTextEx(
+                args3.font_small, name, (Vector2){lx, ly},
+                args3.axis_tick_font_size, 0, PUFF_WHITE
+            );
+        }
         EndTextureMode();
 
         // Figure 4
@@ -1422,7 +1522,10 @@ int main(void) {
                 }
                 apply_filter(filter, table, filter_param_1, fig_range1_min_val, fig_range1_max_val);
                 apply_filter(filter, table, filter_param_2, fig_range2_min_val, fig_range2_max_val);
-                boxplot(table, col, args4.scale[0], j, hyper_count, args4, color, filter);
+                bool hit = tooltip.active && i == tooltip.env_idx;
+                float hval = hit ? table_get(table, tooltip.ary_idx, col) : 0;
+                boxplot(table, col, args4.scale[0], j, hyper_count, args4,
+                    color, filter, hit, hval);
             }
         }
         EndBlendMode();
@@ -1605,7 +1708,6 @@ int main(void) {
                 y = y - text_size.y - 4;
             }
             DrawRectangle(x, y, text_size.x + 4, text_size.y + 4, PUFF_BACKGROUND);
-            DrawCircle(tooltip.x, tooltip.y, 2, PUFF_CYAN);
             DrawTextEx(args1.font_small, text, (Vector2){x + 2, y + 2}, args1.axis_tick_font_size, 0, WHITE);
         }
         EndDrawing();
