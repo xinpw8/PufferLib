@@ -198,6 +198,9 @@ else
     echo "Error: environment '$ENV' not found" && exit 1
 fi
 
+# src/ocean.cu compiles only this env's custom net (PUFFER_NETHACK, PUFFER_NMMO3, …).
+EXTRA_CFLAGS+=(-DPUFFER_${ENV^^})
+
 case "$ENV" in
     osrs_*)
         python3 ocean/osrs/scripts/osrs_asset_manifest.py generate-c-header \
