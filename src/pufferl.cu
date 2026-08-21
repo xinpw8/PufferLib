@@ -2075,17 +2075,13 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
 
 // OS reclaims memory/CUDA context on exit. This is the intended design.
 // All memory is allocated up front and static across training.
+// Skip cudaDeviceSynchronize/ncclCommDestroy: captured NCCL graphs deadlock DP.
 void close_pufferl(PuffeRL* p) {
-    cudaDeviceSynchronize();
     if (p->hypers.profile) {
         cudaProfilerStop();
     }
     nvmlShutdown();
     env_close(p->vec);
-    cudaDeviceSynchronize();
-    if (p->nccl_comm != NULL) {
-        ncclCommDestroy(p->nccl_comm);
-    }
 }
 
 // Dashboard
@@ -3268,8 +3264,10 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     return result;
 }
 
-// Fork DP workers before CUDA initialization. Sweep trials occupy contiguous GPU
-// blocks; rank 0 owns the last GPU and writes TrainResult to base.result_fd.
+// Fork DP workers before any CUDA/NCCL call (those start runtime threads;
+// fork after that SIGSEGVs children and rank 0 hangs in ncclCommInitRank).
+// Rank 0 generates the NCCL id after fork and pipes it. Sweep trials occupy
+// contiguous GPU blocks; rank 0 owns the last GPU and writes TrainResult.
 TrainResult launch_train(Ini* ini) {
     int mb = puf_ini_get(ini, "train", "minibatch_size");
     int horizon = puf_ini_get(ini, "train", "horizon");
@@ -3286,11 +3284,9 @@ TrainResult launch_train(Ini* ini) {
     assert(horizon % ADV_VEC_WIDTH == 0
         && "train.horizon must be a multiple of ADV_VEC_WIDTH (4 float / 8 bf16)");
 
-    ncclUniqueId nccl_id;
-    ncclUniqueId* nccl_ptr = NULL;
+    int nccl_pipe[2] = {-1, -1};
     if (world_size > 1) {
-        ncclGetUniqueId(&nccl_id);
-        nccl_ptr = &nccl_id;
+        assert(pipe(nccl_pipe) == 0 && "pipe failed");
     }
 
     int n_workers = world_size - 1;
@@ -3299,19 +3295,37 @@ TrainResult launch_train(Ini* ini) {
         pid_t pid = fork();
         assert(pid >= 0 && "fork failed");
         if (pid == 0) {
+            close(nccl_pipe[1]);
+            ncclUniqueId nccl_id;
+            assert(read(nccl_pipe[0], &nccl_id, sizeof(nccl_id)) == (ssize_t)sizeof(nccl_id)
+                && "failed to read ncclUniqueId");
+            close(nccl_pipe[0]);
             assert(freopen("/dev/null", "w", stdout) == stdout);
             TrainContext child = {
                 .rank = rank,
                 .world_size = world_size,
                 .gpu_id = gpu_offset + rank - 1,
                 .artifact_owner = 0,
-                .nccl_id = nccl_ptr,
+                .nccl_id = &nccl_id,
             };
             run_train(ini, &child);
             puf_ini_free(ini);
             exit(0);
         }
         pids[rank - 1] = pid;
+    }
+
+    ncclUniqueId nccl_id;
+    ncclUniqueId* nccl_ptr = NULL;
+    if (world_size > 1) {
+        close(nccl_pipe[0]);
+        ncclGetUniqueId(&nccl_id);
+        for (int i = 0; i < n_workers; i++) {
+            assert(write(nccl_pipe[1], &nccl_id, sizeof(nccl_id)) == (ssize_t)sizeof(nccl_id)
+                && "failed to write ncclUniqueId");
+        }
+        close(nccl_pipe[1]);
+        nccl_ptr = &nccl_id;
     }
 
     TrainContext host = {
@@ -3349,11 +3363,13 @@ int main(int argc, char** argv) {
             argv[0]);
         exit(1);
     }
-    int total_gpus = 0;
-    assert(cudaGetDeviceCount(&total_gpus) == cudaSuccess && total_gpus >= 1
-        && "no CUDA devices available");
-
     const char* mode = argv[1];
+    // Train forks DP workers; CUDA before that fork SIGSEGVs the children.
+    if (strcmp(mode, "train") != 0) {
+        int total_gpus = 0;
+        assert(cudaGetDeviceCount(&total_gpus) == cudaSuccess && total_gpus >= 1
+            && "no CUDA devices available");
+    }
     int argi = 2;
     const char* model = NULL;
     if (strcmp(mode, "eval") == 0 && argi < argc && argv[argi][0] &&
