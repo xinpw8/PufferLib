@@ -2883,7 +2883,12 @@ static EvalResult eval_loop(Ini* ini, PuffeRL* p, int mode, int verbose,
 static PuffeRL* eval_make(Ini* ini, TrainContext* ctx, int mode, int render) {
     int match = mode == EVAL_MATCH;
     long eval_agents = puf_ini_get(ini, "base", "eval_agents");
-    if (!render && eval_agents != -1) {
+    if (render) {
+        puf_ini_put(ini, "vec.total_agents", "1");
+        puf_ini_put(ini, "vec.num_buffers", "1");
+        puf_ini_put(ini, "vec.num_threads", "1");
+        puf_ini_put(ini, "train.verb_eps", "1");
+    } else if (eval_agents != -1) {
         char buf[64];
         snprintf(buf, sizeof(buf), "%ld", eval_agents);
         puf_ini_put(ini, "vec.total_agents", buf);
