@@ -2686,8 +2686,12 @@ void run_sweep(Ini* ini, const char* exe_path) {
                 for (int j = 0; j < space->num; j++) {
                     float val = puf_ini_get(ini, params[j].section, params[j].key);
                     float norm = space_normalize(&space->spaces[j], val);
-                    assert(isfinite(norm) && norm >= -1.0f && norm <= 1.0f
-                        && "default sweep value outside its sweep range");
+                    if (!(isfinite(norm) && norm >= -1.0f && norm <= 1.0f)) {
+                        fprintf(stderr,
+                            "default sweep value outside its sweep range: %s.%s\n",
+                            params[j].section, params[j].key);
+                        exit(1);
+                    }
                     samples[j] = norm;
                 }
             } else {
@@ -3298,7 +3302,6 @@ TrainResult launch_train(Ini* ini) {
             ncclUniqueId nccl_id;
             assert(read(nccl_pipe[0], &nccl_id, sizeof(nccl_id)) == (ssize_t)sizeof(nccl_id)
                 && "failed to read ncclUniqueId");
-            close(nccl_pipe[0]);
             assert(freopen("/dev/null", "w", stdout) == stdout);
             TrainContext child = {
                 .rank = rank,
@@ -3308,6 +3311,13 @@ TrainResult launch_train(Ini* ini) {
                 .nccl_id = &nccl_id,
             };
             run_train(ini, &child);
+            // Rank 0 may still be in post-train eval. Stay alive until it
+            // closes the pipe; exiting earlier aborts NCCL and poisons rank 0
+            // CUDA graphs (cudaGraphLaunch fails in pufferl_forward).
+            char b;
+            ssize_t n = read(nccl_pipe[0], &b, 1);
+            assert(n >= 0);
+            close(nccl_pipe[0]);
             puf_ini_free(ini);
             exit(0);
         }
@@ -3323,7 +3333,6 @@ TrainResult launch_train(Ini* ini) {
             assert(write(nccl_pipe[1], &nccl_id, sizeof(nccl_id)) == (ssize_t)sizeof(nccl_id)
                 && "failed to write ncclUniqueId");
         }
-        close(nccl_pipe[1]);
         nccl_ptr = &nccl_id;
     }
 
@@ -3335,6 +3344,9 @@ TrainResult launch_train(Ini* ini) {
         .nccl_id = nccl_ptr,
     };
     TrainResult result = run_train(ini, &host);
+    if (world_size > 1) {
+        close(nccl_pipe[1]);
+    }
     for (int i = 0; i < n_workers; i++) {
         int status = 0;
         waitpid(pids[i], &status, 0);
