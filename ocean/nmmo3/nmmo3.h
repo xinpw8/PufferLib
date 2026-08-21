@@ -247,6 +247,8 @@ struct Log {
     float equip_defense;
     float r;
     float c;
+    float n_attack;
+    float n_attack_hit;
 };
  
 // TODO: This is actually simplex and we should probably use the original impl
@@ -566,6 +568,8 @@ struct Entity {
     int time_alive;
     int purchases;
     int sales;
+    int n_attack;
+    int n_attack_hit;
 };
 
 typedef struct Item Item;
@@ -774,6 +778,8 @@ void add_player_log(MMO* env, int pid) {
     log->sales += player->sales;
     log->equip_attack += player->equipment_attack;
     log->equip_defense += player->equipment_defense;
+    log->n_attack += player->n_attack;
+    log->n_attack_hit += player->n_attack_hit;
     log->r += player->r;
     log->c += player->c;
     log->episode_return += (
@@ -866,6 +872,8 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "sales", log->sales);
     dict_set(out, "equip_attack", log->equip_attack);
     dict_set(out, "equip_defense", log->equip_defense);
+    dict_set(out, "n_attack", log->n_attack);
+    dict_set(out, "n_attack_hit", log->n_attack_hit);
     dict_set(out, "r", log->r);
     dict_set(out, "c", log->c);
     dict_set(out, "n", log->n);
@@ -1127,6 +1135,8 @@ void spawn(MMO* env, Entity* entity) {
     entity->time_alive = 0;
     entity->purchases = 0;
     entity->sales = 0;
+    entity->n_attack = 0;
+    entity->n_attack_hit = 0;
 
     int idx = safe_tile(env, 5);
     int r = idx / env->width;
@@ -2178,8 +2188,10 @@ void puf_step(Env* env) {
             Reward* ret = &env->returns[pid];
             ret->market_sell += env->reward_market;
         } else if (action == ATN_ATTACK) {
+            entity->n_attack += 1;
             int target_id = find_target(env, pid, ENTITY_ENEMY);
             if (target_id != -1) {
+                entity->n_attack_hit += 1;
                 attack(env, pid, target_id);
             }
         } else if (is_move(action)) {

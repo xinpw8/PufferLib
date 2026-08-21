@@ -678,6 +678,9 @@ static void create_osrs_entity_encoder(Encoder* encoder) {
     };
 }
 
+#ifndef NUM_GEAR_SLOTS
+#define NUM_GEAR_SLOTS 11
+#endif
 static constexpr OsrsEntityBranchDescriptor OSRS_EQUIPMENT_ENTITY_BRANCH[] = {
     {
         .obs_start = 80,

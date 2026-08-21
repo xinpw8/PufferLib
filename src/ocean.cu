@@ -42,7 +42,11 @@ static void create_custom_encoder(const char* env_name, Encoder* enc) {
     }
 #endif
     if (strcmp(env_name, "nmmo3") == 0) {
-        create_nmmo3_encoder(enc);
+#ifdef N3_ATTN
+        create_nmmo3_attn_encoder(enc);
+#else
+        create_nmmo3_conv_encoder(enc);
+#endif
         return;
     }
     if (strcmp(env_name, "minimal") == 0) {
