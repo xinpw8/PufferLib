@@ -486,9 +486,8 @@ enum {
     NUM_EV,
     EV_T = ENV_END + 1,
     TE_S = 0,
+    TE_MID,
     TE_E,
-    TE_MS,
-    TE_FE,
     NUM_TE,
 };
 
@@ -515,7 +514,7 @@ const char* LOSS_NAMES[] = {
 };
 
 typedef struct {
-    cudaEvent_t events[2][NUM_TE];  // per async slot; recorded inside the train graph
+    unsigned long long* stamps;  // device [2 * NUM_TE]; globaltimer ns
     cudaEvent_t* rollout_ev;  // GPU [EV_T * horizon]; null on CPU
     float accum[NUM_PROF];
     int skip_rollout_time;
@@ -1433,12 +1432,19 @@ __global__ void clamp_precision_kernel(precision_t* dst, float lo, float hi, int
     }
 }
 
+// 1-thread graph node. cudaEventElapsedTime does not timestamp in-graph events.
+__global__ void puf_stamp(unsigned long long* dst) {
+    unsigned long long t;
+    asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(t));
+    *dst = t;
+}
+
 static void train_epoch_gpu(PuffeRL* pufferl, RolloutBuf src, int slot,
         cudaStream_t stream) {
     Hypers* hypers = &pufferl->hypers;
     RolloutBuf* rollouts = &pufferl->train_rollouts;
-    cudaEvent_t* ev = pufferl->profile.events[slot];
-    cudaEventRecord(ev[TE_S], stream);
+    unsigned long long* st = pufferl->profile.stamps + slot * NUM_TE;
+    puf_stamp<<<1, 1, 0, stream>>>(st + TE_S);
 
     int T = src.observations.shape[0];
     int B = src.observations.shape[1];
@@ -1473,8 +1479,7 @@ static void train_epoch_gpu(PuffeRL* pufferl, RolloutBuf src, int slot,
             numel(pufferl->train_state.shape) * sizeof(precision_t),
             cudaMemcpyDeviceToDevice, stream);
     }
-    cudaEventRecord(ev[TE_E], stream);
-    cudaEventRecord(ev[TE_MS], stream);
+    puf_stamp<<<1, 1, 0, stream>>>(st + TE_MID);
 
     int batch_size = hypers->total_agents * hypers->horizon;
     int mb_segs = hypers->minibatch_size / hypers->horizon;
@@ -1541,7 +1546,7 @@ static void train_epoch_gpu(PuffeRL* pufferl, RolloutBuf src, int slot,
                 primary->param.data, primary->master_weights.data, n);
         }
     }
-    cudaEventRecord(ev[TE_FE], stream);
+    puf_stamp<<<1, 1, 0, stream>>>(st + TE_E);
 }
 
 void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
@@ -1582,42 +1587,40 @@ void train_impl(PuffeRL* pufferl, RolloutBuf* src_arg) {
     int total_minibatches = hypers->replay_ratio * batch_size / hypers->minibatch_size;
     bool first = hypers->cudagraphs && pufferl->train_cudagraph[slot] == NULL;
     profile_begin("train_forward_backward", hypers->profile);
-    if (hypers->cudagraphs && !first) {
+    if (first) {
+        double t_cap = wall_clock();
+        assert(cudaStreamBeginCapture(
+            train_stream, cudaStreamCaptureModeThreadLocal)
+            == cudaSuccess && "cudaStreamBeginCapture failed");
+        train_epoch_gpu(pufferl, src, slot, train_stream);
+        cudaGraph_t graph;
+        assert(cudaStreamEndCapture(train_stream, &graph)
+            == cudaSuccess && "cudaStreamEndCapture failed");
+        assert(cudaGraphInstantiate(
+            &pufferl->train_cudagraph[slot], graph, 0)
+            == cudaSuccess && "cudaGraphInstantiate failed");
+        cudaGraphDestroy(graph);
+        double dt = wall_clock() - t_cap;
+        pufferl->start_time += dt;
+        pufferl->last_log_time += dt;
+    }
+    if (hypers->cudagraphs) {
         cudaGraphLaunch(pufferl->train_cudagraph[slot], train_stream);
     } else {
-        double t_cap = 0;
-        if (first) {
-            t_cap = wall_clock();
-            assert(cudaStreamBeginCapture(
-                train_stream, cudaStreamCaptureModeThreadLocal)
-                == cudaSuccess && "cudaStreamBeginCapture failed");
-        }
         train_epoch_gpu(pufferl, src, slot, train_stream);
-        if (first) {
-            cudaGraph_t graph;
-            assert(cudaStreamEndCapture(train_stream, &graph)
-                == cudaSuccess && "cudaStreamEndCapture failed");
-            assert(cudaGraphInstantiate(
-                &pufferl->train_cudagraph[slot], graph, 0)
-                == cudaSuccess && "cudaGraphInstantiate failed");
-            cudaGraphDestroy(graph);
-            double dt = wall_clock() - t_cap;
-            pufferl->start_time += dt;
-            pufferl->last_log_time += dt;
-            cudaGraphLaunch(pufferl->train_cudagraph[slot], train_stream);
-        }
     }
     profile_end(hypers->profile);
 
     cudaStreamSynchronize(train_stream);
 
-    if (total_minibatches > 0 && !first) {
-        float ms;
-        cudaEvent_t* ev = pufferl->profile.events[slot];
-        cudaEventElapsedTime(&ms, ev[TE_S], ev[TE_E]);
-        pufferl->profile.accum[PROF_TRAIN_MISC] += ms;
-        cudaEventElapsedTime(&ms, ev[TE_MS], ev[TE_FE]);
-        pufferl->profile.accum[PROF_TRAIN_MODEL] += ms;
+    if (total_minibatches > 0) {
+        unsigned long long h[NUM_TE];
+        cudaMemcpy(h, pufferl->profile.stamps + slot * NUM_TE,
+            sizeof(h), cudaMemcpyDeviceToHost);
+        pufferl->profile.accum[PROF_TRAIN_MISC] +=
+            (float)(h[TE_MID] - h[TE_S]) * 1e-6f;
+        pufferl->profile.accum[PROF_TRAIN_MODEL] +=
+            (float)(h[TE_E] - h[TE_MID]) * 1e-6f;
     }
     pufferl->epoch += 1;
 }
@@ -1874,12 +1877,8 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     env_setup(pufferl, vec, &vec_kwargs, env_kwargs);
     pufferl->vec = vec;
 
-    for (int s = 0; s < 2; s++) {
-        for (int i = 0; i < NUM_TE; i++) {
-            assert(cudaEventCreate(&pufferl->profile.events[s][i])
-                == cudaSuccess);
-        }
-    }
+    cudaMalloc((void**)&pufferl->profile.stamps,
+        2 * NUM_TE * sizeof(unsigned long long));
     if (PUF_BACKEND == PUF_GPU) {
         int H = hypers.horizon;
         pufferl->profile.rollout_ev = (cudaEvent_t*)calloc(
