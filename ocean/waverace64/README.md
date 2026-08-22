@@ -163,7 +163,7 @@ Command-line `--section.key=value` values override [`config/waverace64.ini`](../
 
 The adapter also opts out of PufferLib's default `[-1, 1]` learner-side reward clamp. Clipping would change the configured miss, finish, and failure magnitudes and would break the telescoping potential identity at a terminal. The learner therefore receives the emitted rewards unchanged. Production reward coefficients are uniformly scaled to one tenth of the original audit values, preserving their ratios while keeping unclipped advantages and value targets in a practical range. Entropy and value clipping are scaled with them.
 
-Evaluation checks the episode target after complete rollout horizons, so `base.eval_episodes` is a minimum and parallel evaluation can overshoot it. Report the actual `CUDA_EVAL games=N` denominator. The standalone `--cpu` evaluator is supported for a serial acceptance check; retained production evaluation still uses the native CUDA-policy binary and an explicit checkpoint.
+Evaluation checks the episode target after complete rollout horizons, so `base.eval_episodes` is a minimum and parallel evaluation can overshoot it. Report the actual `CUDA_EVAL games=N` denominator. For Wave Race, that machine-readable line also includes the exact success count, mean success rate, checkpoints, misses, and every terminal-cause rate. The standalone `--cpu` evaluator is supported for a serial acceptance check; retained production evaluation still uses the native CUDA-policy binary and an explicit checkpoint.
 
 ## Action space
 

@@ -2502,7 +2502,15 @@ typedef struct {
     float score;
     float perf;
     float draw;
+    float success_rate;
+    float failure_rate;
+    float disqualification_rate;
+    float safety_timeout_rate;
+    float env_fault_rate;
+    float misses;
+    float checkpoints;
     int games;
+    int has_outcomes;
 } EvalResult;
 
 #define TRAIN_RESULT_MAX_POINTS 64
@@ -2958,6 +2966,19 @@ static EvalResult eval_loop(Ini* ini, PuffeRL* p, int mode, int verbose,
         result.score = match ? dict_get(&el, "env/policy_0_score")
             : dict_get(&el, "env/score");
         result.perf = dict_get(&el, "env/perf");
+        DictItem* success = dict_find(&el, "env/success_rate");
+        if (success) {
+            result.has_outcomes = 1;
+            result.success_rate = success->value;
+            result.failure_rate = dict_get(&el, "env/failure_rate");
+            result.disqualification_rate = dict_get(
+                &el, "env/disqualification_rate");
+            result.safety_timeout_rate = dict_get(
+                &el, "env/safety_timeout_rate");
+            result.env_fault_rate = dict_get(&el, "env/env_fault_rate");
+            result.misses = dict_get(&el, "env/misses");
+            result.checkpoints = dict_get(&el, "env/checkpoints");
+        }
         if (match) {
             result.draw = dict_get(&el, "env/draw_rate");
         }
@@ -3027,9 +3048,26 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose,
         if (p && p->policies) {
             nparams = numel(p->policies[0].master_weights.shape);
         }
-        printf("CUDA_EVAL env=%s score=%.6f perf=%.6f games=%d params=%ld\n",
+        printf("CUDA_EVAL env=%s score=%.6f perf=%.6f games=%d params=%ld",
             puf_ini_get_str(ini, "base", "env_name"),
             r.score, r.perf, r.games, nparams);
+        if (r.has_outcomes) {
+            int successes = (int)llroundf(r.success_rate * r.games);
+            int failures = (int)llroundf(r.failure_rate * r.games);
+            int disqualifications = (int)llroundf(
+                r.disqualification_rate * r.games);
+            int timeouts = (int)llroundf(r.safety_timeout_rate * r.games);
+            int faults = (int)llroundf(r.env_fault_rate * r.games);
+            printf(" successes=%d success_rate=%.6f checkpoints=%.6f "
+                "misses=%.6f failures=%d failure_rate=%.6f "
+                "disqualifications=%d disqualification_rate=%.6f "
+                "timeouts=%d safety_timeout_rate=%.6f faults=%d "
+                "env_fault_rate=%.6f", successes, r.success_rate,
+                r.checkpoints, r.misses, failures, r.failure_rate,
+                disqualifications, r.disqualification_rate, timeouts,
+                r.safety_timeout_rate, faults, r.env_fault_rate);
+        }
+        putchar('\n');
         fflush(stdout);
     }
     close_pufferl(p);
