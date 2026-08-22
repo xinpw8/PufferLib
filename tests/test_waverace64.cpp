@@ -435,6 +435,101 @@ static void test_failed_shaping(WaveRace64* env) {
         terminal_step, discounted_return, expected);
 }
 
+static void test_terminal_progress_credit(WaveRace64* env) {
+    memset(&env->log, 0, sizeof(env->log));
+    set_rewards(env, 0.f, 1.f, 0.f, 0.1f, 0.f, 10.f, 2.f);
+    env->reward_mode = 1;
+    puf_reset(env);
+    set_action(env, 7, 8, 1, 0, 0);
+
+    double discounted_return = 0.0;
+    double discount_power = 1.0;
+    int terminal_step = -1;
+    for (int step = 1; step <= 1000; step++) {
+        puf_step(env);
+        discounted_return += discount_power * env->agents[0].rewards[0];
+        discount_power *= env->discount;
+        if (env->agents[0].terminals[0] == 1.f) {
+            terminal_step = step;
+            break;
+        }
+    }
+
+    assert(terminal_step > 0);
+    float terminal_potential = env->log.score / env->route_total
+        + env->reward_checkpoint * env->log.checkpoints;
+    double expected = -env->reward_fail
+        + pow((double)env->discount, terminal_step) * terminal_potential;
+    assert(terminal_potential > 0.f);
+    assert(fabs(discounted_return - expected) < 2e-3);
+    assert(discounted_return > -env->reward_fail);
+    printf("PASS terminal-progress-credit frame=%d return=%.3f expected=%.3f\n",
+        terminal_step, discounted_return, expected);
+    env->reward_mode = 0;
+}
+
+static void test_frontier_reward(WaveRace64* env) {
+    memset(&env->log, 0, sizeof(env->log));
+    set_rewards(env, 0.f, 1.f, 0.f, 0.1f, 0.f, 10.f, 2.f);
+    env->reward_mode = 2;
+    puf_reset(env);
+    set_action(env, 7, 8, 1, 0, 0);
+
+    int terminal_step = -1;
+    for (int step = 1; step <= 1000; step++) {
+        puf_step(env);
+        if (env->agents[0].terminals[0] == 1.f) {
+            terminal_step = step;
+            break;
+        }
+    }
+
+    assert(terminal_step > 0);
+    float progress_reward = 3.f * env->log.perf;
+    float checkpoint_reward = env->reward_checkpoint * env->log.checkpoints;
+    float time_cost = env->reward_fail * (1.f - env->discount)
+        * (float)(terminal_step - 1);
+    float expected = progress_reward + checkpoint_reward
+        - time_cost - env->reward_fail;
+    assert(progress_reward > 0.f && checkpoint_reward > 0.f);
+    assert(fabsf(env->log.episode_return - expected) < 2e-3f);
+    printf("PASS frontier-reward frame=%d return=%.3f expected=%.3f\n",
+        terminal_step, env->log.episode_return, expected);
+    env->reward_mode = 0;
+}
+
+static void test_lap_curriculum(WaveRace64* env) {
+    env->curriculum_start_laps = 1;
+    env->curriculum_max_laps = 3;
+    env->curriculum_successes_per_lap = 2;
+    env->curriculum_laps = 1;
+    env->curriculum_successes = 0;
+    puf_reset(env);
+    assert(wr64_target_laps(env) == 1);
+    assert(wr64_u(env, CONFIG_LAPS_ADDR) == 1);
+
+    wr64_record_curriculum_success(env);
+    assert(env->curriculum_laps == 1 && env->curriculum_successes == 1);
+    puf_reset(env);
+    assert(wr64_target_laps(env) == 1);
+    wr64_record_curriculum_success(env);
+    assert(env->curriculum_laps == 2 && env->curriculum_successes == 0);
+    puf_reset(env);
+    assert(wr64_target_laps(env) == 2);
+    wr64_record_curriculum_success(env);
+    wr64_record_curriculum_success(env);
+    assert(env->curriculum_laps == 3 && env->curriculum_successes == 0);
+    puf_reset(env);
+    assert(wr64_target_laps(env) == 3);
+
+    env->curriculum_start_laps = 3;
+    env->curriculum_max_laps = 3;
+    env->curriculum_successes_per_lap = 1;
+    env->curriculum_laps = 3;
+    env->curriculum_successes = 0;
+    puts("PASS lap-curriculum 1->2->3");
+}
+
 typedef struct RouteController {
     float steer_gain;
     float throttle_angle;
@@ -633,6 +728,8 @@ static void test_official_finish(WaveRace64* env) {
         assert(env->agents[0].rewards[0] == 10.f);
         assert(env->log.n == 1.f);
         assert(env->log.success_rate == 1.f);
+        assert(env->log.target_laps == 1.f);
+        assert(env->log.three_lap_success_rate == 0.f);
         assert(env->log.failure_rate == 0.f);
         break;
     }
@@ -725,6 +822,8 @@ static void test_production_three_lap_finish(WaveRace64* env) {
     assert(env->log.n == 1.f);
     assert_observation_ranges(&stats);
     assert(env->log.success_rate == 1.f);
+    assert(env->log.target_laps == 3.f);
+    assert(env->log.three_lap_success_rate == 1.f);
     assert(env->log.failure_rate == 0.f);
     assert(env->log.disqualification_rate == 0.f);
     assert(env->log.safety_timeout_rate == 0.f);
@@ -885,6 +984,10 @@ int main(int argc, char** argv) {
     dict_set(&kwargs, "reward_finish", 10);
     dict_set(&kwargs, "reward_fail", 2);
     dict_set(&kwargs, "discount", 0.9995);
+    dict_set(&kwargs, "reward_mode", 0);
+    dict_set(&kwargs, "curriculum_start_laps", 3);
+    dict_set(&kwargs, "curriculum_max_laps", 3);
+    dict_set(&kwargs, "curriculum_successes_per_lap", 1);
 
     WaveRace64 env = {};
     puf_init(&env, &kwargs);
@@ -908,6 +1011,9 @@ int main(int argc, char** argv) {
     test_buoy_observation_and_wrap(&env);
     test_missed_buoy(&env);
     test_failed_shaping(&env);
+    test_terminal_progress_credit(&env);
+    test_frontier_reward(&env);
+    test_lap_curriculum(&env);
     characterize_b_and_stick_y(&env);
     test_official_finish(&env);
     test_production_three_lap_finish(&env);

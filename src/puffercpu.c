@@ -607,7 +607,7 @@ void _gaussian_mean(float* input, float* output, int batch_size, int num_actions
 }
 
 void forward_puffernet(PufferNet* net, float* observations, float* actions,
-        const unsigned char* mask, const float* terminals) {
+        const unsigned char* mask, const float* terminals, int deterministic) {
     mingru_zero_term(net->mingru, terminals);
     linear(net->encoder, observations);
     mingru(net->mingru, net->encoder->output);
@@ -615,7 +615,8 @@ void forward_puffernet(PufferNet* net, float* observations, float* actions,
     if (net->is_continuous) {
         _gaussian_mean(net->decoder->output, actions, net->num_agents, net->num_actions);
     } else {
-        multidiscrete(net->multidiscrete, net->decoder->output, actions, 0, mask);
+        multidiscrete(net->multidiscrete, net->decoder->output, actions,
+            deterministic, mask);
     }
 }
 
@@ -752,6 +753,8 @@ int main(int argc, char** argv) {
     }
     puf_ini_load_env(&ini, env_name, ini_argc, ini_argv);
     int eval_episodes = (int)puf_ini_get(&ini, "base", "eval_episodes");
+    int eval_deterministic = (int)puf_ini_get(
+        &ini, "base", "eval_deterministic");
 
     int act_sizes[] = ACT_SIZES;
     int num_actions = (int)(sizeof(act_sizes) / sizeof(act_sizes[0]));
@@ -914,7 +917,8 @@ int main(int argc, char** argv) {
                     }
                     fwd = obs_f;
                 }
-                forward_puffernet(net, fwd, actions, masks, terminals);
+                forward_puffernet(net, fwd, actions, masks, terminals,
+                    eval_deterministic);
 #endif
             }
             if (do_step) {

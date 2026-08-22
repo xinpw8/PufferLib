@@ -47,6 +47,7 @@ typedef float obs_t;
 #define WR64_PHYSICS_FORWARD_X   WR_PHYSICS_FORWARD_X
 #define WR64_PHYSICS_FORWARD_Z   WR_PHYSICS_FORWARD_Z
 #define WR64_RIDER_COUNT_ADDR    WR_ADDR_RIDERS
+#define WR64_CONFIG_LAPS_ADDR    0x801CE618u
 #define WR64_TARGET_LAPS_ADDR    0x801CE728u
 #define WR64_COURSE_PRIMARY      WR_COURSE_PRIMARY
 #define WR64_COURSE_NODE_STRIDE  WR_COURSE_NODE_STRIDE
@@ -86,6 +87,8 @@ typedef struct Log {
     float mean_speed;
     float episode_return;
     float episode_length;
+    float target_laps;
+    float three_lap_success_rate;
     float n;
 } Log;
 
@@ -140,6 +143,12 @@ struct Env {
     float reward_finish;
     float reward_fail;
     float discount;
+    int32_t reward_mode;
+    int32_t curriculum_start_laps;
+    int32_t curriculum_max_laps;
+    int32_t curriculum_successes_per_lap;
+    int32_t curriculum_laps;
+    int32_t curriculum_successes;
     char* rom_path;
     float vertical_origin;
     float route_arc[WR64_MAX_COURSE_NODES];
@@ -265,7 +274,7 @@ static inline int wr64_race_identity_valid(WaveRace64* e) {
         && wr64_sanitize_node(e, WR64_COURSE_PRIMARY, wr64_node(e)) >= 0;
 }
 
-static inline int wr64_reset_contract_valid(WaveRace64* e) {
+static inline int wr64_reset_contract_valid(WaveRace64* e, int32_t target_laps) {
     return wr64_race_identity_valid(e)
         && wr64_u(e, WR_ADDR_GAMESTATE) == WR_STATE_RACING
         && wr64_u(e, WR_ADDR_RACE_READY) == 1
@@ -274,7 +283,7 @@ static inline int wr64_reset_contract_valid(WaveRace64* e) {
         && wr64_u(e, WR_ADDR_GAME_MODE) == WR_MODE_TIME_TRIALS
         && wr64_u(e, WR_ADDR_PLAYERS) == 1
         && wr64_u(e, WR_ADDR_RIDERS) == 1
-        && wr64_target_laps(e) == 3;
+        && wr64_target_laps(e) == target_laps;
 }
 
 static inline int32_t wr64_node_type(WaveRace64* e, int32_t node) {
@@ -474,6 +483,15 @@ static inline float wr64_reward_potential(WaveRace64* e) {
     return isfinite(potential) ? potential : 0.f;
 }
 
+static inline void wr64_record_curriculum_success(WaveRace64* env) {
+    if (env->curriculum_laps >= env->curriculum_max_laps) return;
+    env->curriculum_successes++;
+    if (env->curriculum_successes >= env->curriculum_successes_per_lap) {
+        env->curriculum_laps++;
+        env->curriculum_successes = 0;
+    }
+}
+
 void init(WaveRace64* env) {
     if (env->frameskip <= 0) env->frameskip = 4;
     env->num_agents = 1;
@@ -509,7 +527,7 @@ void init(WaveRace64* env) {
         fprintf(stderr, "[waverace64] invalid official course route\n");
         exit(1);
     }
-    if (!wr64_reset_contract_valid(env)) {
+    if (!wr64_reset_contract_valid(env, 3)) {
         fprintf(stderr, "[waverace64] boot did not produce the fixed Time Trial contract\n");
         exit(1);
     }
@@ -547,6 +565,9 @@ void add_log(WaveRace64* env) {
     env->log.safety_timeout_rate += env->state.safety_timeout ? 1.f : 0.f;
     env->log.env_fault_rate += env->state.env_fault ? 1.f : 0.f;
     int32_t target_laps = wr64_target_laps(env);
+    env->log.target_laps += (float)target_laps;
+    env->log.three_lap_success_rate += env->state.success
+        && target_laps == 3 ? 1.f : 0.f;
     float perf = env->route_total > 0.f && target_laps > 0
         ? env->state.max_progress / (env->route_total * (float)target_laps)
         : 0.f;
@@ -675,6 +696,14 @@ void puffer_state_refresh(WaveRace64* env) { compute_observations(env); }
 void puf_reset(WaveRace64* env) {
     wr_current = &env->machine;
     wr_snapshot_restore(&env->snap, &env->machine);
+    if (!wr64_reset_contract_valid(env, 3)) {
+        fprintf(stderr, "[waverace64] reset snapshot is not an active race\n");
+        abort();
+    }
+    wr_wr32(env->machine.rdram, WR64_CONFIG_LAPS_ADDR,
+        (uint32_t)env->curriculum_laps);
+    wr_wr32(env->machine.rdram, WR64_TARGET_LAPS_ADDR,
+        (uint32_t)env->curriculum_laps);
     env->machine.pad_buttons = 0;
     env->machine.pad_stick_x = 0;
     env->machine.pad_stick_y = 0;
@@ -691,7 +720,7 @@ void puf_reset(WaveRace64* env) {
     env->state.prev_y = y;
     env->state.prev_b = z;
     float fraction = 0.f;
-    if (!wr64_reset_contract_valid(env)
+    if (!wr64_reset_contract_valid(env, env->curriculum_laps)
             || !wr64_course_progress(env, &env->state.prev_course_progress, &fraction)
             || env->state.recovery != 0 || wr64_disqualified(env)
             || wr64_ended(env) || wr64_finished(env)) {
@@ -705,6 +734,7 @@ void puf_step(WaveRace64* env) {
     wr_current = &env->machine;
     Agent* agent = &env->agents[0];
     float potential_before = wr64_reward_potential(env);
+    float max_progress_before = env->state.max_progress;
     WRPad pad;
     int ax = (int)agent->actions[0]; ax = ax<0?0:(ax>14?14:ax);
     int ay = (int)agent->actions[1]; ay = ay<0?0:(ay>8 ?8 :ay);
@@ -778,6 +808,10 @@ void puf_step(WaveRace64* env) {
     if (env->state.progress_total > env->state.max_progress) {
         env->state.max_progress = env->state.progress_total;
     }
+    float frontier_progress = env->state.max_progress - max_progress_before;
+    if (!isfinite(frontier_progress) || frontier_progress < 0.f) {
+        frontier_progress = 0.f;
+    }
 
     int32_t misses = wr64_misses(env);
     int miss_events = misses - env->state.prev_misses;
@@ -805,11 +839,21 @@ void puf_step(WaveRace64* env) {
 
     int terminal = success || failed || env_fault;
     float potential_after = wr64_reward_potential(env);
-    float shaping = terminal
-        ? -potential_before
-        : env->discount * potential_after - potential_before;
+    float shaping;
+    if (env->reward_mode == 2) {
+        shaping = env->route_total > 0.f
+            ? env->reward_progress * frontier_progress / env->route_total
+            : 0.f;
+        shaping += env->reward_checkpoint * (float)checkpoint_events;
+    } else {
+        shaping = terminal && env->reward_mode == 0
+            ? -potential_before
+            : env->discount * potential_after - potential_before;
+    }
     // Speed/slip are optional instantaneous terms. Production keeps both at
-    // zero; progress and checkpoint shaping use the observable potential above.
+    // zero. Reward mode 0 is strict terminal-cancelled PBRS, mode 1 retains
+    // terminal potential, and mode 2 credits each verified route frontier and
+    // official checkpoint once.
     if (stable_motion) {
         shaping += env->reward_speed * step_dist
             - env->reward_slip * slip * (float)elapsed_frames;
@@ -837,6 +881,7 @@ void puf_step(WaveRace64* env) {
     if (terminal) {
         agent->terminals[0] = 1.f;
         add_log(env);
+        if (success) wr64_record_curriculum_success(env);
         puf_reset(env);
         return;
     }
@@ -867,6 +912,27 @@ void puf_init(Env* env, Dict* kwargs) {
         fprintf(stderr, "[waverace64] discount must be in (0, 1]\n");
         exit(1);
     }
+    env->reward_mode = (int32_t)dict_get(kwargs, "reward_mode");
+    if (env->reward_mode < 0 || env->reward_mode > 2) {
+        fprintf(stderr, "[waverace64] reward_mode must be 0, 1, or 2\n");
+        exit(1);
+    }
+    env->curriculum_start_laps = (int32_t)dict_get(
+        kwargs, "curriculum_start_laps");
+    env->curriculum_max_laps = (int32_t)dict_get(
+        kwargs, "curriculum_max_laps");
+    env->curriculum_successes_per_lap = (int32_t)dict_get(
+        kwargs, "curriculum_successes_per_lap");
+    if (env->curriculum_start_laps < 1
+            || env->curriculum_start_laps > 3
+            || env->curriculum_max_laps < env->curriculum_start_laps
+            || env->curriculum_max_laps > 3
+            || env->curriculum_successes_per_lap < 1) {
+        fprintf(stderr, "[waverace64] invalid lap curriculum\n");
+        exit(1);
+    }
+    env->curriculum_laps = env->curriculum_start_laps;
+    env->curriculum_successes = 0;
     env->rom_path = (char*)dict_get_str(kwargs, "rom_path");
     env->agents[0].policy = 0;
     init(env);
@@ -974,4 +1040,6 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "mean_speed", log->mean_speed);
     dict_set(out, "episode_return", log->episode_return);
     dict_set(out, "episode_length", log->episode_length);
+    dict_set(out, "target_laps", log->target_laps);
+    dict_set(out, "three_lap_success_rate", log->three_lap_success_rate);
 }

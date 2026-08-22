@@ -565,6 +565,7 @@ typedef struct PuffeRL {
     int async_write_slot;
     int async_num_slots;  // 2 when async (Cleanba), else 1
     bool async_boot;
+    bool deterministic_actions;
     ulong seed;
     curandStatePhilox4_32_10_t** rng_states;  // per-buffer persistent RNG states [num_buffers]
     char env_name[64];  // For policy arch rebuild at create.
@@ -603,7 +604,8 @@ __global__ void sample_logits(
         precision_t* value_out,               // (B,)
         curandStatePhilox4_32_10_t* rng_states,
         precision_t* action_mask,             // (B, A_total); always allocated
-        int mask_stride) {
+        int mask_stride,
+        bool deterministic) {
     int B = dec_out.shape[0];
     int fused_cols = dec_out.shape[1];
     int num_atns = NUM_ATNS;
@@ -625,7 +627,7 @@ __global__ void sample_logits(
             float mean = safe_continuous_mean(logits, logits_base + h);
             float log_std = safe_continuous_logstd(logstd_data, h);
             float std = expf(log_std);
-            float action = finite_or_clamp(
+            float action = deterministic ? mean : finite_or_clamp(
                 mean + std * curand_normal(&state), -1.0e6f, 1.0e6f);
             // Preserve reduced-precision continuous semantics for logprob.
             precision_t stored_p = from_float(action);
@@ -650,22 +652,35 @@ __global__ void sample_logits(
             float eps = h == 0 ? nethack_verb_eps_load(
                 action_mask + mask_base + logits_offset, A, &inv_K) : 0.0f;
 #endif
-            float rand_val = curand_uniform(&state);
-            float cumsum = 0.0f;
-            int sampled = A - 1;
-            for (int a = 0; a < A; a++) {
-#ifdef PUFFER_NETHACK
-                if (eps > 0.0f) {
-                    cumsum += nethack_verb_eps_mix(expf(cache[a] - logsumexp),
-                        action_mask[mask_base + logits_offset + a], eps, inv_K);
-                } else
-#endif
-                {
-                    cumsum += expf(cache[a] - logsumexp);
+            int sampled = -1;
+            if (deterministic) {
+                float best = -INFINITY;
+                for (int a = 0; a < A; a++) {
+                    if (to_float(action_mask[
+                            mask_base + logits_offset + a]) != 0.0f
+                            && (sampled < 0 || cache[a] > best)) {
+                        sampled = a;
+                        best = cache[a];
+                    }
                 }
-                if (rand_val < cumsum) {
-                    sampled = a;
-                    break;
+            } else {
+                float rand_val = curand_uniform(&state);
+                float cumsum = 0.0f;
+                sampled = A - 1;
+                for (int a = 0; a < A; a++) {
+#ifdef PUFFER_NETHACK
+                    if (eps > 0.0f) {
+                        cumsum += nethack_verb_eps_mix(expf(cache[a] - logsumexp),
+                            action_mask[mask_base + logits_offset + a], eps, inv_K);
+                    } else
+#endif
+                    {
+                        cumsum += expf(cache[a] - logsumexp);
+                    }
+                    if (rand_val < cumsum) {
+                        sampled = a;
+                        break;
+                    }
                 }
             }
             // CDF fall-through (float rounding) lands on A - 1, which may be
@@ -877,7 +892,7 @@ static void pufferl_forward_step(PuffeRL* pufferl, int buf, int t,
             act_b.data, env->actions.data + (long)sub * act_cols,
             lp_b.data, val_b.data,
             pufferl->rng_states[buf] + off,
-            mask_b.data, mask_stride);
+            mask_b.data, mask_stride, pufferl->deterministic_actions);
     }
 }
 
@@ -2509,8 +2524,11 @@ typedef struct {
     float env_fault_rate;
     float misses;
     float checkpoints;
+    float target_laps;
+    float three_lap_success_rate;
     int games;
     int has_outcomes;
+    int has_curriculum;
 } EvalResult;
 
 #define TRAIN_RESULT_MAX_POINTS 64
@@ -2978,6 +2996,14 @@ static EvalResult eval_loop(Ini* ini, PuffeRL* p, int mode, int verbose,
             result.env_fault_rate = dict_get(&el, "env/env_fault_rate");
             result.misses = dict_get(&el, "env/misses");
             result.checkpoints = dict_get(&el, "env/checkpoints");
+            DictItem* target_laps = dict_find(&el, "env/target_laps");
+            DictItem* three_lap = dict_find(
+                &el, "env/three_lap_success_rate");
+            if (target_laps && three_lap) {
+                result.has_curriculum = 1;
+                result.target_laps = target_laps->value;
+                result.three_lap_success_rate = three_lap->value;
+            }
         }
         if (match) {
             result.draw = dict_get(&el, "env/draw_rate");
@@ -3019,6 +3045,8 @@ static PuffeRL* eval_make(Ini* ini, TrainContext* ctx, int mode, int render) {
         puf_ini_put(ini, "train.horizon", "1");
     }
     PuffeRL* p = create_pufferl(ini, ctx);
+    p->deterministic_actions = puf_ini_get(
+        ini, "base", "eval_deterministic") != 0;
     if (match) {
         char a_buf[4096], b_buf[4096];
         const char* a = puf_checkpoint_path_key(ini, "load_model_path", a_buf, sizeof(a_buf));
@@ -3066,6 +3094,13 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose,
                 r.checkpoints, r.misses, failures, r.failure_rate,
                 disqualifications, r.disqualification_rate, timeouts,
                 r.safety_timeout_rate, faults, r.env_fault_rate);
+            if (r.has_curriculum) {
+                int three_lap_successes = (int)llroundf(
+                    r.three_lap_success_rate * r.games);
+                printf(" target_laps=%.6f three_lap_successes=%d "
+                    "three_lap_success_rate=%.6f", r.target_laps,
+                    three_lap_successes, r.three_lap_success_rate);
+            }
         }
         putchar('\n');
         fflush(stdout);
@@ -3284,6 +3319,9 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     result.cost = dict_get(&last_log, "uptime");
     result.steps = dict_get(&last_log, "agent_steps");
     DictItem* target = dict_find(&last_log, target_key);
+    if (!target && log_history.size > 0) {
+        target = dict_find(&log_history.items[log_history.size - 1], target_key);
+    }
     result.score = target ? (float)target->value : 0;
 
     int points = use_selfplay ? 1 : puf_ini_get(ini, "sweep", "downsample");
@@ -3353,7 +3391,9 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
     }
 
     if (ctx->artifact_owner) {
-        puf_log_history_add(&log_history, &last_log);
+        if (dict_find(&last_log, target_key)) {
+            puf_log_history_add(&log_history, &last_log);
+        }
         char log_path[4096];
         snprintf(log_path, sizeof(log_path), "%s/%s.ini", log_dir, run_id);
 
