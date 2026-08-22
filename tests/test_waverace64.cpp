@@ -240,7 +240,7 @@ static void assert_body_basis_observation(WaveRace64* env) {
 
 static void test_strict_contract_and_recovery_lane(WaveRace64* env) {
     puf_reset(env);
-    assert(wr64_reset_contract_valid(env));
+    assert(wr64_reset_contract_valid(env, 3));
     assert(wr64_environment_fault(env, WR_STATE_RACING, 1) == 0);
     assert(wr64_environment_fault(env, 0xFFFFFFFFu, 1) == 1);
 
@@ -261,7 +261,7 @@ static void test_strict_contract_and_recovery_lane(WaveRace64* env) {
     wr32(env, node_address, WR64_MAX_COURSE_NODES);
     assert(!wr64_race_identity_valid(env));
     wr32(env, node_address, node);
-    assert(wr64_reset_contract_valid(env));
+    assert(wr64_reset_contract_valid(env, 3));
 
     uint32_t recovery_address = wr64_physics_addr(env, WR64_PHYSICS_RECOVERY);
     uint16_t guest_value = wr_rd16(env->machine.rdram, recovery_address);
