@@ -782,7 +782,11 @@ int main(int argc, char** argv) {
     }
 
     Dict* env_sec = puf_ini_section(&ini, "env", 0);
+#ifdef PUFFER_ENV_DISCOUNT_FROM_TRAIN
+    dict_set(env_sec, "discount", puf_ini_get(&ini, "train", "gamma"));
+#endif
     int frameskip = 1;
+#ifndef PUFFER_ENV_INTERNAL_FRAMESKIP
     DictItem* fs_item = dict_find(env_sec, "frameskip");
     if (fs_item && fs_item->value > 1.0) {
         frameskip = (int)fs_item->value;
@@ -790,6 +794,7 @@ int main(int argc, char** argv) {
     }
 #ifdef PUF_EVAL_SHOULD_FORWARD
     frameskip = 1;
+#endif
 #endif
 
     Env env = {0};

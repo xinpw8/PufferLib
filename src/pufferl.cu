@@ -33,6 +33,9 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#ifdef __linux__
+#include <sched.h>
+#endif
 
 // Project
 #include "ini.h"
@@ -1032,6 +1035,11 @@ static void env_setup(PuffeRL* p, VecEnv* vec, Dict* vk, Dict* ek) {
     cudaHostAlloc((void**)&vec->terminals, total_agents * sizeof(float),
         cudaHostAllocPortable);
     cudaHostAlloc((void**)&vec->action_mask, mask_bytes, cudaHostAllocPortable);
+    // Fresh host transition buffers are uploaded before the first environment
+    // step. Resets intentionally do not clear terminal so autoreset can expose
+    // the transition that just ended; initialization is a separate obligation.
+    memset(vec->rewards, 0, total_agents * sizeof(float));
+    memset(vec->terminals, 0, total_agents * sizeof(float));
     memset(vec->action_mask, 1, mask_bytes);
 
     float frozen_pct = dict_get(vk, "hist_policy_percent");
@@ -1210,10 +1218,24 @@ static void env_start(PuffeRL* p) {
     VecThreadArg* args = (VecThreadArg*)calloc(1,
         vec->buffers * sizeof(VecThreadArg));
     vec->accum = (float*)calloc(1, vec->buffers * NUM_PROF * sizeof(float));
+#ifdef __linux__
+    cpu_set_t creator_affinity;
+    int have_creator_affinity = sched_getaffinity(
+        0, sizeof(creator_affinity), &creator_affinity) == 0;
+#endif
     #pragma omp parallel for schedule(static) num_threads(vec->num_workers)
     for (int i = 0; i < vec->size; i++) {
         puf_reset(&vec->envs[i]);
     }
+#ifdef __linux__
+    // The rollout pthreads inherit this thread's mask. OMP_PROC_BIND may leave
+    // the creator attached to one place after the reset team exits.
+    if (have_creator_affinity && sched_setaffinity(
+            0, sizeof(creator_affinity), &creator_affinity) != 0) {
+        perror("sched_setaffinity rollout creator");
+        abort();
+    }
+#endif
     cpu_upload(p, 0, vec->total_agents, p->default_stream);
     cudaDeviceSynchronize();
     for (int i = 0; i < vec->buffers; i++) {
@@ -1798,6 +1820,11 @@ PuffeRL* create_pufferl(Ini* ini, TrainContext* ctx) {
     Dict vec_kwargs = {0};
     dict_copy(&vec_kwargs, puf_ini_section(ini, "vec", 0));
     Dict* env_kwargs = puf_ini_section(ini, "env", 0);
+#ifdef PUFFER_ENV_DISCOUNT_FROM_TRAIN
+    // Discount-correct potential shaping must use the learner's exact gamma.
+    // The env opt-in keeps CLI overrides and sweeps coupled automatically.
+    dict_set(env_kwargs, "discount", hypers.gamma);
+#endif
     ncclUniqueId* nccl_id = ctx->nccl_id;
 
     PuffeRL* pufferl = (PuffeRL*)calloc(1, sizeof(PuffeRL));
@@ -2820,10 +2847,69 @@ void run_sweep(Ini* ini, const char* exe_path) {
 }
 
 // board!=NULL: merge env/* into train last_log (uptime + util/* stay frozen).
+static void post_train_eval_reset(PuffeRL* p) {
+    VecEnv* vec = p->vec;
+    cudaDeviceSynchronize();
+
+    if (PUF_BACKEND == PUF_GPU) {
+        puf_bind_stream(p->default_stream);
+        puf_reset(vec->envs);
+        cudaMemsetAsync(p->env.rewards.data, 0,
+            vec->total_agents * sizeof(float), p->default_stream);
+        cudaMemsetAsync(p->env.terminals.data, 0,
+            vec->total_agents * sizeof(float), p->default_stream);
+    } else {
+        for (int buf = 0; buf < vec->buffers; buf++) {
+            int* state = &vec->worker_state[buf];
+            while (__atomic_load_n(state, __ATOMIC_SEQ_CST) != BUF_WAITING) {}
+        }
+#ifdef __linux__
+        cpu_set_t caller_affinity;
+        int have_caller_affinity = sched_getaffinity(
+            0, sizeof(caller_affinity), &caller_affinity) == 0;
+#endif
+        #pragma omp parallel for schedule(static) num_threads(vec->num_workers)
+        for (int i = 0; i < vec->size; i++) {
+            puf_reset(&vec->envs[i]);
+        }
+#ifdef __linux__
+        if (have_caller_affinity && sched_setaffinity(
+                0, sizeof(caller_affinity), &caller_affinity) != 0) {
+            perror("sched_setaffinity post-train eval");
+            abort();
+        }
+#endif
+        memset(vec->rewards, 0, vec->total_agents * sizeof(float));
+        memset(vec->terminals, 0, vec->total_agents * sizeof(float));
+        cpu_upload(p, 0, vec->total_agents, p->default_stream);
+    }
+
+    for (int policy = 0; policy < p->num_policies; policy++) {
+        for (int buf = 0; buf < vec->buffers; buf++) {
+            Prec* state = &p->policies[policy].buffer_states[buf];
+            cudaMemsetAsync(state->data, 0,
+                numel(state->shape) * sizeof(precision_t), p->default_stream);
+        }
+    }
+    for (int buf = 0; buf < vec->buffers; buf++) {
+        int n = vec->agents_per_buf;
+        rng_init<<<grid_size(n), BLOCK_SIZE, 0, p->default_stream>>>(
+            p->rng_states[buf], p->seed + buf, n);
+    }
+    cudaStreamSynchronize(p->default_stream);
+}
+
 static EvalResult eval_loop(Ini* ini, PuffeRL* p, int mode, int verbose,
         int render, long eval_episodes, Dict* board, int epoch) {
     int match = mode == EVAL_MATCH;
     EvalResult result = {0};
+    if (board) {
+        // Training can stop in the middle of every vector episode. Evaluation
+        // must start from clean environments and recurrent states, just like a
+        // standalone eval process, or those partial trajectories contaminate
+        // the first completed episodes and the reported score.
+        post_train_eval_reset(p);
+    }
     if (!render) {
         Dict wipe = {0};
         vec_log(p->vec, &wipe, 1);

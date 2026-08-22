@@ -79,7 +79,14 @@ fi
 # Linux/mac
 PLATFORM="$(uname -s)"
 if [ "$PLATFORM" = "Linux" ]; then
-    RAYLIB_NAME='raylib-5.5_linux_amd64'
+    case "$(uname -m)" in
+        x86_64|amd64) RAYLIB_NAME='raylib-5.5_linux_amd64' ;;
+        aarch64|arm64) RAYLIB_NAME='raylib-5.5_linux_aarch64' ;;
+        *)
+            echo "Error: unsupported Linux architecture: $(uname -m)" >&2
+            exit 1
+            ;;
+    esac
     OMP_FLAGS=(-fopenmp)
     OMP_LIB=-lomp5
     SANITIZE_FLAGS=(-fsanitize=address,undefined,bounds,pointer-overflow,leak -fno-omit-frame-pointer)
@@ -159,6 +166,24 @@ elif [ "$ENV" = "trailer" ]; then
     OUTPUT_NAME="trailer/trailer"
     STANDALONE=1
     CLANG_WARN+=(-Wno-unused-function)
+elif [ "$ENV" = "waverace64" ]; then
+    if [ "$PLATFORM" != "Linux" ] || [ "$MODE" = "web" ]; then
+        echo "Error: waverace64 requires the native Linux runtime" >&2
+        exit 1
+    fi
+    SRC_DIR="ocean/$ENV"
+    WR64_DIR="${WR64_DIR:-../wr64-recomp}"
+    if [ ! -f "$WR64_DIR/runtime/wr_env.h" ]; then
+        echo "Error: WR64_DIR does not contain runtime/wr_env.h: $WR64_DIR" >&2
+        exit 1
+    fi
+    if [ ! -f "$WR64_DIR/libwr64.a" ]; then
+        echo "Error: build libwr64.a first in WR64_DIR: $WR64_DIR" >&2
+        exit 1
+    fi
+    INCLUDES+=(-I"$WR64_DIR/runtime" -I"$WR64_DIR/RecompiledFuncs")
+    LINK_ARCHIVES+=("$WR64_DIR/libwr64.a")
+    EXTRA_CFLAGS+=(-D_GNU_SOURCE)
 elif [ "$ENV" = "impulse_wars" ]; then
     SRC_DIR="ocean/$ENV"
     if [ "$MODE" = "web" ]; then BOX2D_NAME='box2d-web'
@@ -283,7 +308,20 @@ if [ "$MODE" = "cpu" ]; then
         "${EXTRA_CFLAGS[@]}"
     )
     echo "Compiling $ENV..."
-    ${CC:-clang} "${CLANG_OPT[@]}" "${FLAGS[@]}"
+    CPU_CC=${CC:-clang}
+    CPU_OPT=("${CLANG_OPT[@]}")
+    if [ "$ENV" = "waverace64" ]; then
+        # The distributed runtime archive is GCC LTO. Clang cannot consume its
+        # LTO objects, so use the matching GNU driver for standalone eval.
+        CPU_CC=${WR64_CC:-gcc}
+        if [ -n "$DEBUG" ]; then
+            CPU_OPT=(-g -O0 -Wall -ffp-contract=off
+                "${SANITIZE_FLAGS[@]}" "${SIMD_FLAGS[@]}")
+        else
+            CPU_OPT=(-O2 -Wall -ffp-contract=off "${SIMD_FLAGS[@]}")
+        fi
+    fi
+    "$CPU_CC" "${CPU_OPT[@]}" "${FLAGS[@]}"
     echo "Built: ./$OUTPUT_NAME"
     exit 0
 elif [ "$MODE" = "web" ]; then
@@ -377,6 +415,12 @@ elif [ "$MODE" = "cpu" ]; then
 fi
 
 CUDA_HOME=${CUDA_HOME:-${CUDA_PATH:-$(dirname "$(dirname "$(which nvcc)")")}}
+
+# The VR4300 has no fused multiply-add. Keep adapter-side floating-point
+# calculations aligned with the separately compiled runtime and parity harness.
+if [ "$ENV" = "waverace64" ]; then
+    EXTRA_CFLAGS+=(-Xcompiler=-ffp-contract=off)
+fi
 # NCCL include/lib fallback.
 # Needed when NCCL is provided by the nvidia-nccl-cu12 wheel in the active venv.
 NCCL_IFLAG=""
