@@ -324,9 +324,9 @@ Both executions reach the same route events and the native Time Trials failure s
 
 The evidence has explicit limits. It covers one deterministic Sunny Beach Time Trials trace through failure. It does not cover every controller trace, successful three-lap completion, other courses, other modes, graphics, audio, controller-pak behavior, or every writable RDRAM byte. A secondary `Math_Rand` state at `0x80226F00` differs from guest frame 2 because post-reset `osGetTime` advancement is not modeled. That stream did not alter the authoritative fields above through frame 637.
 
-The runtime's retained isolation test initializes 16 machines, compares serial and parallel controller streams, repeats the parallel run three times, and requires exact final RDRAM, stack, recomp context, machine state, and trajectory hashes. The retained hardened run is `runtime/isolation_acceptance_20260822T050325Z_3003381.log`; its SHA-256 is `805b8384d97306f77c043734727a5cd0ffbece35088574bbb4ebf9ba165d852f`.
+The runtime's retained isolation test initializes 16 machines, compares serial and parallel controller streams, repeats the parallel run three times, and requires exact final RDRAM, stack, recomp context, machine state, and trajectory hashes. The log is retained only on the deployment host at `/home/spark-advantage/wr64-recomp/runtime/isolation_acceptance_20260822T050325Z_3003381.log`; its SHA-256 is `805b8384d97306f77c043734727a5cd0ffbece35088574bbb4ebf9ba165d852f`.
 
-The adapter regression harness in [`tests/test_waverace64.cpp`](../../tests/test_waverace64.cpp) covers the ABI shape, action mapping, internal frameskip, body basis, reset contract, guest halfword lane, buoy side, lap-wrap continuity, official misses and disqualification, discount-correct failure shaping, shortened one-lap official finish, full production three-lap finish, B/stick-Y interventions, observation ranges, deterministic baselines, and vector affinity/ownership.
+The adapter regression harness in [`tests/test_waverace64.cpp`](../../tests/test_waverace64.cpp) covers the ABI shape, action mapping, internal frameskip, body basis, reset contract, guest halfword lane, buoy side, lap-wrap continuity, official misses and disqualification, discount-correct failure shaping, shortened one-lap official finish, full production three-lap finish, B/stick-Y interventions, observation ranges, deterministic baselines, and vector affinity/ownership. Fresh integration runs cover the central CUDA evaluation, post-train reset, and CPU dispatch paths; the unit harness does not invoke those central paths.
 
 ### Adapter acceptance and remaining parity gaps
 
@@ -343,21 +343,21 @@ The retained deterministic rerun exited zero in 4.7 s. Its no-op baseline ended 
 
 ## Performance and learning acceptance
 
-All production measurements below use the repaired upstream 5.0 port, exact production ROM, 43 observations, five action heads, 128 agents, 16 worker threads, one buffer, frameskip 4, horizon 64, minibatch 2,048, asynchronous rollout, and the current runtime archive. The measured host is an NVIDIA GB10 with 10 Cortex-X925 cores, 10 Cortex-A725 cores, and driver 580.95.05. Trainer throughput is exact `agent_steps / uptime`; whole-process resource figures come from GNU time and include startup, checkpoints, and shutdown.
+All production measurements below use the repaired upstream 5.0 port, exact production ROM, 43 observations, five action heads, 128 agents, 16 worker threads, one buffer, frameskip 4, horizon 64, minibatch 2,048, asynchronous rollout, and the current runtime archive. The measured host is an NVIDIA GB10 with 10 Cortex-X925 cores, 10 Cortex-A725 cores, and driver 580.95.05. Trainer throughput is exact `agent_steps / uptime`; whole-process resource figures come from GNU time and include startup, checkpoints, and shutdown. CPU equivalents are `(user seconds + system seconds) / process wall`.
 
-The measured code commit is `12a3ec660fa248d48dc3e2fe0c5a9c771c0e1814`; runtime commit is `e3f56302898a98ec7f7b20ca35fc1b5de69fe890`. The trainer binary, CPU evaluator, and `libwr64.a` SHA-256 values are `96a63bad5d70e52daebc9ed8907a0d7ee6e8cb720f99b24be7a498eda3a3e757`, `78910b63eb1ec471c7d4677613b60c27d5cd072d2ab133415d2dbe79cca39817`, and `021cc9d7edc4d4ad9848dedbea161c70c98a629c7628e446d9bab260d06a0b5f`.
+Seeds 606, 707, and 808 used deployment commit `10604beca0299ed7909383dfb478c4166788a821` and trainer SHA-256 `8a3a71a782ff02d208cc9a2032e2d0daa3582e3b1c85c0bc422b7e9d3391862c`. Seeds 909 and 1001, plus the fresh evaluation and regression checks, used deployment commit `12a3ec660fa248d48dc3e2fe0c5a9c771c0e1814` and trainer SHA-256 `96a63bad5d70e52daebc9ed8907a0d7ee6e8cb720f99b24be7a498eda3a3e757`. Their patch-equivalent local audit commits are `99b651a23851846de64ab659e84c824fcdbb1dfb` and `9230cec67e3c86f0e93a138c9c64985855428506`; the respective deployment/local pairs have identical Git tree IDs `1769e55c54f93b38580e2346941438ef35a59142` and `a0301fd48c82538ddfeb3d5f794a3c483273099e`. Both cohorts retain the same effective training configuration shown above. The current CPU evaluator SHA-256 is `78910b63eb1ec471c7d4677613b60c27d5cd072d2ab133415d2dbe79cca39817`. Deployment runtime commit `e3f56302898a98ec7f7b20ca35fc1b5de69fe890` and local audit commit `bb824a9a19a77a1cab239d0c783b7052c81dc116` share tree ID `8bfe379221513fd4109e056b875d1a486c30b905`; that tree produced `libwr64.a` SHA-256 `021cc9d7edc4d4ad9848dedbea161c70c98a629c7628e446d9bab260d06a0b5f`.
 
 | Training seed | Decisions | Trainer uptime | Decisions/s | Guest updates/s | Process wall | CPU equivalents | Peak RSS |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 606 | 5,242,880 | 169.338 s | 30,961.1 | 123,844.5 | 170.27 s | 16.87 | 1.550 GiB |
 | 707 | 5,242,880 | 169.593 s | 30,914.5 | 123,658.1 | 170.53 s | 16.87 | 1.550 GiB |
 | 808 | 5,242,880 | 169.492 s | 30,932.8 | 123,731.3 | 170.44 s | 16.87 | 1.551 GiB |
-| 909 | 5,242,880 | 169.929 s | 30,853.4 | 123,413.4 | 170.89 s | 16.87 | 1.551 GiB |
+| 909 | 5,242,880 | 169.929 s | 30,853.4 | 123,413.4 | 170.89 s | 16.88 | 1.551 GiB |
 | 1001 | 5,242,880 | 170.006 s | 30,839.3 | 123,357.3 | 170.95 s | 16.88 | 1.551 GiB |
 
-The five-seed mean is 30,900.2 decisions/s and 123,600.9 guest updates/s. Throughput standard deviation is 46.7 decisions/s, or 0.151% of the mean. A retained topology screen found the best tested frameskip-4 cell at 16 threads and one buffer. Agent counts 128, 256, and 512 were throughput-equivalent within 0.8% in those single short runs, while 128 agents used 1.55 GiB versus 4.89 GiB at 512. Frameskip 4 delivered 17.9% more guest updates/s than the matched frameskip-1 cell. Two and four buffers reduced throughput under the tested OpenMP placement.
+The five-seed mean is 30,900.2 decisions/s and 123,600.9 guest updates/s. The population standard deviation across these runs is 46.7 decisions/s, or 0.151% of the mean. A retained topology screen found the best tested frameskip-4 cell at 16 threads and one buffer. Agent counts 128, 256, and 512 differed by at most 0.8% in the retained single-run screen, while 128 agents used 1.55 GiB versus 4.89 GiB at 512. Frameskip 4 delivered 17.9% more guest updates/s than the matched frameskip-1 cell. Two and four buffers reduced throughput under the tested OpenMP placement.
 
-The current architecture is CPU-bound. The production runs consumed about 16.87 CPU equivalents. Across 644 device-wide dashboard snapshots, GPU utilization had mean 4.20%, median 3%, and range 1% to 7%. These samples are integer NVML snapshots for the whole device, not process-specific continuous telemetry. The earlier topology screen is useful for configuration choice but used horizon 32 and one short run per cell, so it is not substituted for the production figures above.
+The current architecture is CPU-bound. The production runs consumed about 16.88 CPU equivalents. Across 1,072 device-wide dashboard snapshots from all five runs, GPU utilization had mean 4.17%, median 3%, and range 1% to 8%. These samples are integer NVML snapshots for the whole device, not process-specific continuous telemetry. The earlier topology screen is useful for configuration choice but used horizon 32 and one short run per cell, so it is not substituted for the production figures above.
 
 | Learning result | Acceptance criterion | Status |
 | --- | --- | --- |
@@ -365,18 +365,20 @@ The current architecture is CPU-bound. The production runs consumed about 16.87 
 | Strict-PBRS pilot | 5,242,880 decisions, zero successes, held-out `perf=0.0266` | **PASS as a rejected ablation** |
 | Production training | Five complete 5,242,880-decision runs with checkpoints and exact outcome logs | **PASS** |
 | Fresh stochastic three-lap evaluation | Common held-out seed and at least 512 episodes per checkpoint | **PASS with material seed sensitivity:** 93.28%, 99.02%, 29.50%, 93.00%, and 99.41% |
-| Argmax three-lap evaluation | 128 episodes per checkpoint | **MIXED:** seeds 707, 909, and 1001 finished 128/128; seeds 606 and 808 finished 0/128 |
+| Argmax three-lap evaluation | 128 deterministic replicas per checkpoint | **MIXED:** seeds 707, 909, and 1001 finished 128/128; seeds 606 and 808 finished 0/128 |
 | Three-lap learning | Nonzero official success on unmodified three-lap episodes | **PASS in all five stochastic policies** |
 
 For common stochastic evaluation seed 7001, checkpoints 606, 707, 808, 909, and 1001 finished 486/521, 507/512, 154/522, 478/514, and 509/512 episodes. Four of five exceeded 92.9%; the pooled rate is 2,134/2,581, or 82.68%. The 29.50% seed-808 result is retained rather than hidden by the pooled average.
 
 Checkpoint 707 remains the retained production checkpoint because it combines strong stochastic evaluation with the best argmax result: 507/512 stochastic at `perf=0.980537`, then 128/128 argmax at `perf=0.991829`, 47 checkpoints, and zero misses. Checkpoint 1001 had the highest common-seed stochastic rate at 509/512 but lower argmax `perf=0.925126`. Checkpoint 808 proves the fixed budget remains seed-sensitive. It finished 154/522 stochastically and 0/128 with argmax.
 
+Each argmax count comprises 128 replicas of one deterministic initial-state and action trajectory. It is deterministic regression and ranking evidence. The stochastic held-out evaluations measure the rollout distribution.
+
 Checkpoint 606 was also evaluated across held-out seeds 7001, 7002, and 7003. It finished 1,469/1,555 official three-lap episodes, or 94.47%. Random and untrained controls had zero successes. A compile, a short rollout, or a shortened one-lap scripted finish is not counted as learning evidence.
 
 ### Retained production artifacts
 
-Seeds 606, 707, and 808 are under `/home/spark-advantage/wr64-results/curriculum-screen-10604bec`; seeds 909 and 1001 are under `/home/spark-advantage/wr64-results/curriculum-production-12a3ec66`. Checkpoint and training-log identities are:
+The evidence files below are retained only on the `spark` deployment host and are not vendored into either source checkout. Seeds 606, 707, and 808 are under `/home/spark-advantage/wr64-results/curriculum-screen-10604bec`; seeds 909 and 1001 are under `/home/spark-advantage/wr64-results/curriculum-production-12a3ec66`. Checkpoint and training-log identities are:
 
 | Seed | Final checkpoint SHA-256 | Training log SHA-256 |
 | ---: | --- | --- |
@@ -386,7 +388,7 @@ Seeds 606, 707, and 808 are under `/home/spark-advantage/wr64-results/curriculum
 | 909 | `f6e88691a8e2ac26d8fa782d43739755700c323b7017f0a5ff27c1145a6d2e93` | `5e371a0132ccd0f71d51bb88f8d079d45047557a1bae2bbcea7327538ede83a3` |
 | 1001 | `904d4c84575a47d585273c1322c8a9f109fc9bb89c9c42a3d54e7e83d083cc18` | `3f0b77be89b14f1eebbb6417456c70ab8b09ae23f541076ad51080e109c06435` |
 
-The retained seed-707 stochastic and argmax evaluation logs have SHA-256 `9d877f84984a390d169c9b63202cd1b3ddd45ba7826d5295eb5e14fb73640a1c` and `ef3cb5b4f51d3084d065fa5fbb53574992eaf17b4b6f1894095fef82e133f9ab`. All machine-readable evaluation lines report `target_laps=3.000000`, and every retained run exited zero.
+The retained seed-707 stochastic and argmax evaluation logs have SHA-256 `9d877f84984a390d169c9b63202cd1b3ddd45ba7826d5295eb5e14fb73640a1c` and `ef3cb5b4f51d3084d065fa5fbb53574992eaf17b4b6f1894095fef82e133f9ab`. All machine-readable evaluation lines report `target_laps=3.000000`, and every retained evaluation log reached its complete `CUDA_EVAL` result line.
 
 ## Audit
 

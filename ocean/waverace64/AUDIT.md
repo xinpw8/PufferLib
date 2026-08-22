@@ -94,7 +94,7 @@ Primary RNG, active physics position/heading/speed bits, rider route state, offi
 
 The proof remains trace-specific. The secondary `Math_Rand` state at `0x80226F00` differs at guest frame 2 because the headless runtime does not model post-reset time advancement. No listed authoritative field changed through frame 637. Graphics, audio, every writable byte, successful three-lap completion, and alternate action regimes remain unproven.
 
-The retained hardened 16-instance isolation log is `runtime/isolation_acceptance_20260822T050325Z_3003381.log`; its SHA-256 is `805b8384d97306f77c043734727a5cd0ffbece35088574bbb4ebf9ba165d852f`.
+The hardened 16-instance isolation log is retained only on the deployment host at `/home/spark-advantage/wr64-recomp/runtime/isolation_acceptance_20260822T050325Z_3003381.log`; its SHA-256 is `805b8384d97306f77c043734727a5cd0ffbece35088574bbb4ebf9ba165d852f`.
 
 ## Engineering repairs
 
@@ -170,8 +170,8 @@ CPU-free simulation is therefore infeasible within the present static-recomp arc
 
 | Item | Status and required evidence |
 | --- | --- |
-| Current PufferLib 5.0 performance | **MEASURED.** Five production runs average 30,900.2 decisions/s and 123,600.9 guest updates/s at about 16.87 CPU equivalents and 1.55 GiB RSS. Three-run device-wide GPU sampling averaged 4.20%. |
-| Production learning | **PASS.** Complete 5,242,880-decision runs learned official three-lap finishes; the best retained checkpoint finished 507/512 stochastic and 128/128 argmax fresh-process episodes. |
+| Current PufferLib 5.0 performance | **MEASURED.** Five production runs average 30,900.2 decisions/s and 123,600.9 guest updates/s at about 16.88 CPU equivalents and 1.55 GiB RSS. Five-run device-wide GPU sampling averaged 4.17%. |
+| Production learning | **PASS.** Complete 5,242,880-decision runs learned official three-lap finishes; the best retained checkpoint finished 507/512 stochastic episodes and 128/128 deterministic argmax replicas in fresh processes. |
 | Seed sensitivity | **MEASURED AND MATERIAL.** Common-seed stochastic success for five training seeds was 93.28%, 99.02%, 29.50%, 93.00%, and 99.41%. The fixed budget produced nonzero learning in all five but did not guarantee a strong checkpoint. |
 | Continuous process-specific GPU and per-core telemetry | **PARTIAL.** Existing NVML samples are device-wide dashboard snapshots. Continuous process attribution and power/clock traces were not retained. |
 | Broad controller parity | **PENDING.** Add interpreter traces that exercise steering, stick Y, B, R, wave interaction, recovery, misses, and a successful finish. |
