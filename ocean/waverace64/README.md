@@ -246,6 +246,7 @@ Production coefficients are:
 | Slip | `0` |
 | Successful checkpoint | `0.1` |
 | Miss | `-0.5` per official miss event |
+| Nonterminal time cost | `-reward_fail * (1 - gamma)` per policy transition |
 | Official finish | `+10` |
 | Failure | `-2` |
 
@@ -259,7 +260,9 @@ F(s, s_next) = gamma * Phi(s_next) - Phi(s)    on a nonterminal transition
 F(s, terminal) = -Phi(s)                       on a terminal transition
 ```
 
-`train.gamma` is `0.999` in production and is also the environment's potential discount. Gamma is applied per policy transition, where each transition contains four guest updates. This construction telescopes under the learner's discount and prevents an agent from banking progress shaping before a later failure. Miss, finish, and failure terms remain outside the potential.
+`train.gamma` is also the environment's potential discount. Gamma is applied per policy transition, where each transition contains four guest updates. This construction telescopes under the learner's discount and prevents an agent from banking progress shaping before a later failure. Miss, finish, failure, and time terms remain outside the potential.
+
+The nonterminal time cost removes a discount loophole found in pilot training. If `F` is the configured failure magnitude, the discounted sum of `-F * (1 - gamma)` on every nonterminal transition plus `-F` at a failure terminal is exactly `-F`, regardless of episode duration. Stalling until the native timeout therefore cannot make failure cheaper. A successful trajectory retains discounted base return `-F + (F + finish) * gamma^(T-1)`, so faster official finishes remain preferable.
 
 Optional instantaneous speed and slip terms exist for experiments. Production keeps both coefficients at zero. Motion terms are suppressed across game-driven teleports and recovery transitions.
 

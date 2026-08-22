@@ -817,6 +817,11 @@ void puf_step(WaveRace64* env) {
     if (!isfinite(shaping)) shaping = 0.f;
     float r = shaping;
     r -= env->reward_miss * (float)miss_events;
+    // A failure penalty received only at the end is discounted more heavily
+    // when the agent stalls. Charging F*(1-gamma) on each nonterminal
+    // transition makes every zero-miss failure have discounted task return -F,
+    // independent of its duration, while a faster finish remains preferable.
+    if (!terminal) r -= env->reward_fail * (1.f - env->discount);
     if (success) r += env->reward_finish;
     if (failed) r -= env->reward_fail;
     if (!isfinite(r)) r = 0.f;

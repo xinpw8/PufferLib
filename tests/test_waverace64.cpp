@@ -428,7 +428,7 @@ static void test_failed_shaping(WaveRace64* env) {
     assert(env->log.success_rate == 0.f);
     assert(fabsf(env->log.episode_return - reward_sum) < 1e-4f);
     assert(reward_sum <= -2.f + 1e-4f);
-    double expected = -2.0 * pow((double)env->discount, terminal_step - 1);
+    double expected = -2.0;
     assert(fabs(discounted_return - expected) < 2e-3);
     assert(env->agents[0].rewards[0] < -2.f);
     printf("PASS discounted-failure frame=%d return=%.3f expected=%.3f\n",
@@ -697,6 +697,8 @@ static void test_production_three_lap_finish(WaveRace64* env) {
     int terminal_frame = -1;
     float min_reward = INFINITY;
     float max_reward = -INFINITY;
+    double discounted_return = 0.0;
+    double discount_power = 1.0;
     memset(&env->log, 0, sizeof(env->log));
     set_rewards(env, 0.f, 1.f, 0.f, 0.1f, 0.5f, 10.f, 2.f);
     env->frameskip = 4;
@@ -710,6 +712,8 @@ static void test_production_three_lap_finish(WaveRace64* env) {
         puf_step(env);
         min_reward = fminf(min_reward, env->agents[0].rewards[0]);
         max_reward = fmaxf(max_reward, env->agents[0].rewards[0]);
+        discounted_return += discount_power * env->agents[0].rewards[0];
+        discount_power *= env->discount;
         if (env->agents[0].terminals[0] == 1.f) {
             terminal_frame = frame;
             break;
@@ -725,10 +729,15 @@ static void test_production_three_lap_finish(WaveRace64* env) {
     assert(env->log.safety_timeout_rate == 0.f);
     assert(env->log.misses == 0.f);
     assert(min_reward < max_reward && max_reward > 1.f);
+    double expected = -env->reward_fail
+        + (env->reward_fail + env->reward_finish)
+            * pow((double)env->discount, terminal_frame - 1);
+    assert(fabs(discounted_return - expected) < 3e-3);
     printf("PASS production-three-lap decisions=%d updates=%.0f "
-        "score=%.1f reward=[%.3f,%.3f] return=%.3f y=[%.3f,%.3f]\n",
+        "score=%.1f reward=[%.3f,%.3f] return=%.3f discounted=%.3f "
+        "y=[%.3f,%.3f]\n",
         terminal_frame, env->log.episode_length, env->log.score,
-        min_reward, max_reward, env->log.episode_return,
+        min_reward, max_reward, env->log.episode_return, discounted_return,
         stats.min[6], stats.max[6]);
     env->frameskip = 1;
 }
@@ -760,11 +769,14 @@ static void test_random_observation_ranges(WaveRace64* env) {
         stats.min[6], stats.max[6], stats.min[8], stats.max[8]);
 }
 
-static int run_production_baseline(WaveRace64* env, uint32_t* rng) {
+static int run_production_baseline(WaveRace64* env, uint32_t* rng,
+        double* discounted_out) {
     memset(&env->log, 0, sizeof(env->log));
     set_rewards(env, 0.f, 1.f, 0.f, 0.1f, 0.5f, 10.f, 2.f);
     env->frameskip = 4;
     puf_reset(env);
+    double discounted_return = 0.0;
+    double discount_power = 1.0;
     for (int decision = 1; decision <= 4000; decision++) {
         if (rng) {
             *rng = *rng * UINT32_C(1664525) + UINT32_C(1013904223);
@@ -778,7 +790,12 @@ static int run_production_baseline(WaveRace64* env, uint32_t* rng) {
             set_action(env, 7, 4, 0, 0, 0);
         }
         puf_step(env);
-        if (env->agents[0].terminals[0] == 1.f) return decision;
+        discounted_return += discount_power * env->agents[0].rewards[0];
+        discount_power *= env->discount;
+        if (env->agents[0].terminals[0] == 1.f) {
+            if (discounted_out) *discounted_out = discounted_return;
+            return decision;
+        }
     }
     return -1;
 }
@@ -795,15 +812,20 @@ static void assert_baseline_result(WaveRace64* env, int decisions) {
 }
 
 static void test_production_baselines(WaveRace64* env) {
-    int noop_decisions = run_production_baseline(env, NULL);
+    double noop_discounted = 0.0;
+    int noop_decisions = run_production_baseline(
+        env, NULL, &noop_discounted);
     assert_baseline_result(env, noop_decisions);
-    printf("PASS no-op-baseline decisions=%d perf=%.4f cause=%.0f/%.0f/%.0f\n",
-        noop_decisions, env->log.perf, env->log.failure_rate,
+    assert(env->log.misses == 0.f);
+    assert(fabs(noop_discounted + env->reward_fail) < 2e-3);
+    printf("PASS no-op-baseline decisions=%d perf=%.4f discounted=%.3f "
+        "cause=%.0f/%.0f/%.0f\n", noop_decisions, env->log.perf,
+        noop_discounted, env->log.failure_rate,
         env->log.disqualification_rate, env->log.safety_timeout_rate);
 
     uint32_t rng = UINT32_C(0xC001D00D);
     for (int episode = 0; episode < 3; episode++) {
-        int decisions = run_production_baseline(env, &rng);
+        int decisions = run_production_baseline(env, &rng, NULL);
         assert_baseline_result(env, decisions);
         printf("PASS random-baseline episode=%d decisions=%d perf=%.4f "
             "cause=%.0f/%.0f/%.0f\n",
@@ -861,7 +883,7 @@ int main(int argc, char** argv) {
     dict_set(&kwargs, "reward_miss", 0.5);
     dict_set(&kwargs, "reward_finish", 10);
     dict_set(&kwargs, "reward_fail", 2);
-    dict_set(&kwargs, "discount", 0.999);
+    dict_set(&kwargs, "discount", 0.9995);
 
     WaveRace64 env = {};
     puf_init(&env, &kwargs);
