@@ -13,8 +13,8 @@ The original assignment required a native Wave Race 64 core in the current Puffe
 | Native Wave Race 64 core | Implemented with 1,203 statically recompiled game functions and a headless libultra runtime. |
 | Current PufferLib 5.0 integration | Implemented against upstream `5.0` commit `ba238f8c` using the native C++17/CUDA trainer. |
 | Parity with the game | Proven for selected authoritative state on one pinned deterministic interpreter trace through a native failure terminal. Broader parity remains unproven. |
-| High-throughput training | **PENDING:** final clean-worktree benchmark matrix and profiler breakdown. |
-| Learning quality | **PENDING:** production three-lap convergence and checkpoint evaluation. |
+| High-throughput training | Measured at a five-seed median of 30,914.5 policy decisions/s and 123,658.1 guest updates/s. Simulation remains CPU-bound. |
+| Learning quality | Official three-lap finishes learned in independent production runs and verified in fresh-process stochastic and argmax evaluation. Seed sensitivity is material and reported below. |
 | CUDA, CPU-free simulation | Unimplemented. The policy and learner use CUDA; `libwr64.a` executes on host CPU workers. |
 
 ## Execution architecture
@@ -147,7 +147,9 @@ cd "$PUFFER_DIR"
 ./puffer train --env.rom_path="$WR64_ROM"
 ```
 
-The production configuration requests at least 32 post-train evaluation episodes. Post-train evaluation reuses the existing 128-agent training vector; `base.eval_agents = 32` applies when a standalone evaluation vector is created. Before post-train evaluation, the trainer waits for rollout workers, resets every environment, clears transition state, uploads the reset observations, zeros recurrent state, reinitializes action RNG state, and synchronizes the CUDA stream. Post-train metrics therefore do not begin with partial training episodes or recurrent state from training.
+The production run contains exactly 5,242,880 policy decisions, or 640 complete batches at 128 agents and horizon 64. Each environment begins with a one-lap target, advances to two laps after one official finish, and advances to three after the next official finish. Curriculum state is local to each environment.
+
+The production configuration requests at least 32 post-train evaluation episodes. Post-train evaluation reuses the existing 128-agent training vector; `base.eval_agents = 32` applies when a standalone evaluation vector is created. Before post-train evaluation, the trainer waits for rollout workers, forces every Wave Race instance to the official three-lap target, resets every environment, clears transition state, uploads the reset observations, zeros recurrent state, reinitializes action RNG state, and synchronizes the CUDA stream. Fresh CUDA evaluation, post-train evaluation, and the standalone CPU evaluator all use this same three-lap boundary. Evaluation cannot inherit one-lap curriculum state.
 
 A fresh-process evaluation of a named checkpoint remains the retained acceptance method because it isolates the process lifecycle and pins the artifact under test. Use an explicit path because `latest` selects by filesystem creation time and can pick an unrelated benchmark checkpoint:
 
@@ -159,11 +161,11 @@ export WR64_CHECKPOINT=/path/to/checkpoints/waverace64/run/step.bin
   --env.rom_path="$WR64_ROM"
 ```
 
-Command-line `--section.key=value` values override [`config/waverace64.ini`](../../config/waverace64.ini). The trainer injects `train.gamma` into the environment discount, so a gamma override automatically preserves the potential-shaping identity.
+Command-line `--section.key=value` values override [`config/waverace64.ini`](../../config/waverace64.ini). The trainer injects `train.gamma` into the environment discount, keeping the failure time cost and the optional potential-shaping modes consistent with the learner.
 
-The adapter also opts out of PufferLib's default `[-1, 1]` learner-side reward clamp. Clipping would change the configured miss, finish, and failure magnitudes and would break the telescoping potential identity at a terminal. The learner therefore receives the emitted rewards unchanged. Production reward coefficients are uniformly scaled to one tenth of the original audit values, preserving their ratios while keeping unclipped advantages and value targets in a practical range. Entropy and value clipping are scaled with them.
+The adapter opts out of PufferLib's default `[-1, 1]` learner-side reward clamp. Clipping would change the configured miss, finish, and failure magnitudes. The learner therefore receives emitted rewards unchanged.
 
-Evaluation checks the episode target after complete rollout horizons, so `base.eval_episodes` is a minimum and parallel evaluation can overshoot it. Report the actual `CUDA_EVAL games=N` denominator. For Wave Race, that machine-readable line also includes the exact success count, mean success rate, checkpoints, misses, and every terminal-cause rate. The standalone `--cpu` evaluator is supported for a serial acceptance check; retained production evaluation still uses the native CUDA-policy binary and an explicit checkpoint.
+Evaluation checks the episode target after complete rollout horizons, so `base.eval_episodes` is a minimum and parallel evaluation can overshoot it. Report the actual `CUDA_EVAL games=N` denominator. For Wave Race, the machine-readable CUDA and CPU lines include deterministic or stochastic mode, exact success count, checkpoints, misses, every terminal-cause rate, target laps, and three-lap success. Retained production evaluation uses the native CUDA-policy binary, a fresh process, and an explicit checkpoint. `base.eval_deterministic=1` selects per-head argmax; the default samples from all five policy heads.
 
 ## Action space
 
@@ -242,29 +244,35 @@ Production coefficients are:
 | Term | Coefficient |
 | --- | ---: |
 | Speed | `0` |
-| Route progress | `1` per accumulated lap of route distance |
+| New route frontier | `3` per lap of newly reached route distance |
 | Slip | `0` |
-| Successful checkpoint | `0.1` |
+| Successful checkpoint | `0.3` |
 | Miss | `-0.5` per official miss event |
 | Nonterminal time cost | `-reward_fail * (1 - gamma)` per policy transition |
 | Official finish | `+10` |
 | Failure | `-2` |
 
-Progress and checkpoint shaping use a discount-correct potential:
+Production uses reward mode 2. It credits only a new maximum route frontier and verified checkpoint events:
 
 ```text
-Phi(s) = reward_progress * progress_total / route_total
-       + reward_checkpoint * checkpoints
-
-F(s, s_next) = gamma * Phi(s_next) - Phi(s)    on a nonterminal transition
-F(s, terminal) = -Phi(s)                       on a terminal transition
+frontier_gain = max(0, max_progress_after - max_progress_before)
+shaping = 3 * frontier_gain / route_total
+        + 0.3 * successful_checkpoint_events
 ```
 
-`train.gamma` is also the environment's potential discount. Gamma is applied per policy transition, where each transition contains four guest updates. This construction telescopes under the learner's discount and prevents an agent from banking progress shaping before a later failure. Miss, finish, failure, and time terms remain outside the potential.
+The maximum frontier is monotone, so reversing and revisiting a segment cannot earn it twice. A route-node advance accompanied by an official miss earns no checkpoint term. Recovery, teleport, invalid-identity, and discontinuous route transitions earn neither motion nor frontier credit. This matches the practical Puffer racing pattern of dense distance progress plus discrete gates while adding a one-credit frontier guard against oscillation.
+
+Reward mode 0 retains strict terminal-cancelled potential shaping as an ablation. Mode 1 retains terminal potential. Both use `train.gamma` as the environment discount. A 5,242,880-decision mode-0 pilot learned no official finish and evaluated at `perf=0.0266`; its failure returns were mathematically valid but gave successful partial navigation no lasting task credit. Mode 2 is the measured production objective.
 
 The nonterminal time cost removes a discount loophole found in pilot training. If `F` is the configured failure magnitude, the discounted sum of `-F * (1 - gamma)` on every nonterminal transition plus `-F` at a failure terminal is exactly `-F`, regardless of episode duration. Stalling until the native timeout therefore cannot make failure cheaper. A successful trajectory retains discounted base return `-F + (F + finish) * gamma^(T-1)`, so faster official finishes remain preferable.
 
 Optional instantaneous speed and slip terms exist for experiments. Production keeps both coefficients at zero. Motion terms are suppressed across game-driven teleports and recovery transitions.
+
+### Lap curriculum and evaluation boundary
+
+Training starts each vector instance at one lap and advances that instance from 1 to 2 to 3 laps after one official success at each level. The curriculum changes only the two verified native lap-count words after restoring the same race-start snapshot. Actions, observations, physics, course, rider, and terminal definitions are unchanged. Affine Lock, Bat, and Clifford provide native Puffer precedents for success-driven per-environment curricula.
+
+Every evaluation forces three laps before reset. `target_laps=3` and equality between `three_lap_success_rate` and `success_rate` are acceptance invariants. A short 8,192-decision run that could not advance its training curriculum still reported `target_laps=3` in its in-process post-train evaluation, directly exercising this boundary.
 
 ## Terminal and autoreset contract
 
@@ -296,6 +304,8 @@ PufferLib sums per-environment `Log` structures, divides by the internal episode
 | `mean_speed` | `20 * distance / episode_length`, in game units per second |
 | `episode_return` | Undiscounted sum of emitted rewards |
 | `episode_length` | Guest updates, not policy decisions |
+| `target_laps` | Episode target, averaged over completed episodes; training can mix curriculum levels and evaluation must equal `3` |
+| `three_lap_success_rate` | Fraction of episodes that both targeted three laps and reached an official finish |
 | `n` | Episode count used for aggregation; added by the PufferLib logger |
 
 ## Correctness evidence
@@ -325,6 +335,7 @@ The adapter regression harness in [`tests/test_waverace64.cpp`](../../tests/test
 | Shortened one-lap official finish fixture | **PASS:** official finish at update 1,070 with action hash `c6ae00920fd86802`. |
 | Unmodified production three-lap finish using only the 43 observations | **PASS:** frameskip 4, 2,334 decisions, 9,336 guest updates, score 87,582.3, zero misses, and official success. |
 | B and stick-Y authoritative interventions | **PASS:** B changed the authoritative trace in 5 of 6 probes; stick Y changed it in all 6. |
+| Generic Puffer regression | **PASS:** stock CartPole CPU evaluation repeated byte-for-byte at fixed seed; stock Breakout CUDA build and evaluation exited zero. |
 | Multi-trace interpreter parity, including B and R action regimes | **PENDING** |
 | Post-reset secondary RNG and whole-RDRAM parity | **PENDING** |
 
@@ -332,28 +343,50 @@ The retained deterministic rerun exited zero in 4.7 s. Its no-op baseline ended 
 
 ## Performance and learning acceptance
 
-No final number is recorded until it is measured on the repaired upstream 5.0 port with the exact production ROM, 43 observations, five action heads, frameskip 4, and current runtime archive.
+All production measurements below use the repaired upstream 5.0 port, exact production ROM, 43 observations, five action heads, 128 agents, 16 worker threads, one buffer, frameskip 4, horizon 64, minibatch 2,048, asynchronous rollout, and the current runtime archive. The measured host is an NVIDIA GB10 with 10 Cortex-X925 cores, 10 Cortex-A725 cores, and driver 580.95.05. Trainer throughput is exact `agent_steps / uptime`; whole-process resource figures come from GNU time and include startup, checkpoints, and shutdown.
 
-| Performance result | Required reporting | Status |
-| --- | --- | --- |
-| Policy decisions per second | Wall time, agents, buffers, worker threads, horizon, and frameskip | **PENDING** |
-| Guest game updates per second | Decisions per second multiplied by actual updates per decision | **PENDING** |
-| CPU utilization and scaling | Per-core utilization plus 1/8/16/20-thread sweep | **PENDING** |
-| GPU utilization | Device, utilization, policy time, copy time, and learner time | **PENDING** |
-| Memory scaling | Resident memory at representative vector sizes | **PENDING** |
-| Affinity robustness | Bound and unbound runs with identical rollout worker availability | **PENDING** |
+The measured code commit is `12a3ec660fa248d48dc3e2fe0c5a9c771c0e1814`; runtime commit is `e3f56302898a98ec7f7b20ca35fc1b5de69fe890`. The trainer binary, CPU evaluator, and `libwr64.a` SHA-256 values are `96a63bad5d70e52daebc9ed8907a0d7ee6e8cb720f99b24be7a498eda3a3e757`, `78910b63eb1ec471c7d4677613b60c27d5cd072d2ab133415d2dbe79cca39817`, and `021cc9d7edc4d4ad9848dedbea161c70c98a629c7628e446d9bab260d06a0b5f`.
 
-The minimum useful matrix should compare frameskip 1 and 4, agents 128/256/512, threads 16/20, and buffers 1/2/4 where memory permits. Report policy decisions per second and guest updates per second separately.
+| Training seed | Decisions | Trainer uptime | Decisions/s | Guest updates/s | Process wall | CPU equivalents | Peak RSS |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 606 | 5,242,880 | 169.338 s | 30,961.1 | 123,844.5 | 170.27 s | 16.87 | 1.550 GiB |
+| 707 | 5,242,880 | 169.593 s | 30,914.5 | 123,658.1 | 170.53 s | 16.87 | 1.550 GiB |
+| 808 | 5,242,880 | 169.492 s | 30,932.8 | 123,731.3 | 170.44 s | 16.87 | 1.551 GiB |
+| 909 | 5,242,880 | 169.929 s | 30,853.4 | 123,413.4 | 170.89 s | 16.87 | 1.551 GiB |
+| 1001 | 5,242,880 | 170.006 s | 30,839.3 | 123,357.3 | 170.95 s | 16.88 | 1.551 GiB |
+
+The five-seed mean is 30,900.2 decisions/s and 123,600.9 guest updates/s. Throughput standard deviation is 46.7 decisions/s, or 0.151% of the mean. A retained topology screen found the best tested frameskip-4 cell at 16 threads and one buffer. Agent counts 128, 256, and 512 were throughput-equivalent within 0.8% in those single short runs, while 128 agents used 1.55 GiB versus 4.89 GiB at 512. Frameskip 4 delivered 17.9% more guest updates/s than the matched frameskip-1 cell. Two and four buffers reduced throughput under the tested OpenMP placement.
+
+The current architecture is CPU-bound. The production runs consumed about 16.87 CPU equivalents. Across 644 device-wide dashboard snapshots, GPU utilization had mean 4.20%, median 3%, and range 1% to 7%. These samples are integer NVML snapshots for the whole device, not process-specific continuous telemetry. The earlier topology screen is useful for configuration choice but used horizon 32 and one short run per cell, so it is not substituted for the production figures above.
 
 | Learning result | Acceptance criterion | Status |
 | --- | --- | --- |
-| No-op and random baselines | Zero production success with retained `perf`, miss, and terminal-cause data | **PASS:** deterministic harness values retained above |
-| Five-million-transition production run | Complete run with checkpoints, misses, terminal causes, return, and SPS | **PENDING** |
-| Checkpoint evaluation | Headless production evaluation against baselines | **PENDING** |
-| Seed sensitivity | At least three training seeds with the same evaluation protocol | **PENDING** |
-| Three-lap learning | Demonstrated nonzero official `success_rate` on unmodified three-lap episodes | **PENDING** |
+| Untrained Puffer policy baseline | Three seeds, 807 episodes, zero successes; `perf` ranged from `0.0647` to `0.0705` | **PASS** |
+| Strict-PBRS pilot | 5,242,880 decisions, zero successes, held-out `perf=0.0266` | **PASS as a rejected ablation** |
+| Production training | Five complete 5,242,880-decision runs with checkpoints and exact outcome logs | **PASS** |
+| Fresh stochastic three-lap evaluation | Common held-out seed and at least 512 episodes per checkpoint | **PASS with material seed sensitivity:** 93.28%, 99.02%, 29.50%, 93.00%, and 99.41% |
+| Argmax three-lap evaluation | 128 episodes per checkpoint | **MIXED:** seeds 707, 909, and 1001 finished 128/128; seeds 606 and 808 finished 0/128 |
+| Three-lap learning | Nonzero official success on unmodified three-lap episodes | **PASS in all five stochastic policies** |
 
-A compile, a short rollout, or a shortened one-lap scripted finish does not establish learning quality.
+For common stochastic evaluation seed 7001, checkpoints 606, 707, 808, 909, and 1001 finished 486/521, 507/512, 154/522, 478/514, and 509/512 episodes. Four of five exceeded 92.9%; the pooled rate is 2,134/2,581, or 82.68%. The 29.50% seed-808 result is retained rather than hidden by the pooled average.
+
+Checkpoint 707 remains the retained production checkpoint because it combines strong stochastic evaluation with the best argmax result: 507/512 stochastic at `perf=0.980537`, then 128/128 argmax at `perf=0.991829`, 47 checkpoints, and zero misses. Checkpoint 1001 had the highest common-seed stochastic rate at 509/512 but lower argmax `perf=0.925126`. Checkpoint 808 proves the fixed budget remains seed-sensitive. It finished 154/522 stochastically and 0/128 with argmax.
+
+Checkpoint 606 was also evaluated across held-out seeds 7001, 7002, and 7003. It finished 1,469/1,555 official three-lap episodes, or 94.47%. Random and untrained controls had zero successes. A compile, a short rollout, or a shortened one-lap scripted finish is not counted as learning evidence.
+
+### Retained production artifacts
+
+Seeds 606, 707, and 808 are under `/home/spark-advantage/wr64-results/curriculum-screen-10604bec`; seeds 909 and 1001 are under `/home/spark-advantage/wr64-results/curriculum-production-12a3ec66`. Checkpoint and training-log identities are:
+
+| Seed | Final checkpoint SHA-256 | Training log SHA-256 |
+| ---: | --- | --- |
+| 606 | `f06c36dbba2598555890db1c0e0d349e0175d320fde7e9c247d81b371fa9f301` | `7fb3e2bfbbb54166b7065e36a95908024e35cd27d593df5c568439503bce6975` |
+| 707 | `8bbd6ce65587bf8b331e238476b4245fc86903798658ffaa20a385963022c7d4` | `d84638f3824e2560ad0dbc95baff2df6756f623f90deb71ef783fccdf6cc0ef0` |
+| 808 | `bd8be566eb08f79bacf58c5f9f61f44073cb784c33e097ea7c5a6946ffbbc91d` | `56e1cf82f044ececef48758f64a0dbdf48ef6f4b77b67ee88b3b613423807a25` |
+| 909 | `f6e88691a8e2ac26d8fa782d43739755700c323b7017f0a5ff27c1145a6d2e93` | `5e371a0132ccd0f71d51bb88f8d079d45047557a1bae2bbcea7327538ede83a3` |
+| 1001 | `904d4c84575a47d585273c1322c8a9f109fc9bb89c9c42a3d54e7e83d083cc18` | `3f0b77be89b14f1eebbb6417456c70ab8b09ae23f541076ad51080e109c06435` |
+
+The retained seed-707 stochastic and argmax evaluation logs have SHA-256 `9d877f84984a390d169c9b63202cd1b3ddd45ba7826d5295eb5e14fb73640a1c` and `ef3cb5b4f51d3084d065fa5fbb53574992eaf17b4b6f1894095fef82e133f9ab`. All machine-readable evaluation lines report `target_laps=3.000000`, and every retained run exited zero.
 
 ## Audit
 
