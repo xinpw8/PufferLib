@@ -623,7 +623,8 @@ static void test_official_finish(WaveRace64* env) {
         }
         puf_step(env);
         if (env->agents[0].terminals[0] == 0.f) {
-            assert(env->agents[0].rewards[0] == 0.f);
+            float time_cost = -env->reward_fail * (1.f - env->discount);
+            assert(fabsf(env->agents[0].rewards[0] - time_cost) < 1e-7f);
             assert(env->log.n == 0.f);
             continue;
         }
