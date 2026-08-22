@@ -522,6 +522,26 @@ static void test_lap_curriculum(WaveRace64* env) {
     puf_reset(env);
     assert(wr64_target_laps(env) == 3);
 
+    env->curriculum_laps = 1;
+    env->curriculum_successes = 1;
+    puf_reset(env);
+    assert(wr64_target_laps(env) == 1);
+    assert(wr64_u(env, CONFIG_LAPS_ADDR) == 1);
+    assert(wr64_u(env, LAP_TARGET_ADDR) == 1);
+
+    puf_eval_reset(env);
+    assert(env->curriculum_laps == 3);
+    assert(env->curriculum_successes == 0);
+    assert(wr64_target_laps(env) == 3);
+    assert(wr64_u(env, CONFIG_LAPS_ADDR) == 3);
+    assert(wr64_u(env, LAP_TARGET_ADDR) == 3);
+    assert(wr64_reset_contract_valid(env, 3));
+    assert(env->agents[0].observations[22] == 0.f);
+    assert(env->agents[0].observations[23] == 0.f);
+    assert(env->agents[0].observations[32] == 0.f);
+    puf_reset(env);
+    assert(wr64_target_laps(env) == 3);
+
     env->curriculum_start_laps = 3;
     env->curriculum_max_laps = 3;
     env->curriculum_successes_per_lap = 1;

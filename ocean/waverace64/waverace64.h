@@ -30,6 +30,7 @@ typedef float obs_t;
 #define PUFFER_ENV_DISCOUNT_FROM_TRAIN
 #define PUFFER_ENV_INTERNAL_FRAMESKIP
 #define PUFFER_ENV_UNCLIPPED_REWARDS
+#define PUFFER_ENV_EVAL_RESET
 
 // Episode time is measured in WR_GAME_UPDATE_HZ guest updates, not policy
 // decisions. The supported runtime currently defines that rate as 20 Hz.
@@ -728,6 +729,12 @@ void puf_reset(WaveRace64* env) {
         abort();
     }
     compute_observations(env);
+}
+
+void puf_eval_reset(WaveRace64* env) {
+    env->curriculum_laps = 3;
+    env->curriculum_successes = 0;
+    puf_reset(env);
 }
 
 void puf_step(WaveRace64* env) {

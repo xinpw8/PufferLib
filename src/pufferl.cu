@@ -2875,13 +2875,21 @@ void run_sweep(Ini* ini, const char* exe_path) {
 }
 
 // board!=NULL: merge env/* into train last_log (uptime + util/* stay frozen).
+static inline void puf_eval_env_reset(Env* env) {
+#ifdef PUFFER_ENV_EVAL_RESET
+    puf_eval_reset(env);
+#else
+    puf_reset(env);
+#endif
+}
+
 static void post_train_eval_reset(PuffeRL* p) {
     VecEnv* vec = p->vec;
     cudaDeviceSynchronize();
 
     if (PUF_BACKEND == PUF_GPU) {
         puf_bind_stream(p->default_stream);
-        puf_reset(vec->envs);
+        puf_eval_env_reset(vec->envs);
         cudaMemsetAsync(p->env.rewards.data, 0,
             vec->total_agents * sizeof(float), p->default_stream);
         cudaMemsetAsync(p->env.terminals.data, 0,
@@ -2898,7 +2906,7 @@ static void post_train_eval_reset(PuffeRL* p) {
 #endif
         #pragma omp parallel for schedule(static) num_threads(vec->num_workers)
         for (int i = 0; i < vec->size; i++) {
-            puf_reset(&vec->envs[i]);
+            puf_eval_env_reset(&vec->envs[i]);
         }
 #ifdef __linux__
         if (have_caller_affinity && sched_setaffinity(
@@ -3045,6 +3053,10 @@ static PuffeRL* eval_make(Ini* ini, TrainContext* ctx, int mode, int render) {
         puf_ini_put(ini, "train.horizon", "1");
     }
     PuffeRL* p = create_pufferl(ini, ctx);
+#ifdef PUFFER_ENV_EVAL_RESET
+    // Environment-specific evaluation contracts may differ from training.
+    post_train_eval_reset(p);
+#endif
     p->deterministic_actions = puf_ini_get(
         ini, "base", "eval_deterministic") != 0;
     if (match) {
@@ -3076,9 +3088,10 @@ EvalResult run_eval(Ini* ini, TrainContext* ctx, int mode, int verbose,
         if (p && p->policies) {
             nparams = numel(p->policies[0].master_weights.shape);
         }
-        printf("CUDA_EVAL env=%s score=%.6f perf=%.6f games=%d params=%ld",
+        printf("CUDA_EVAL env=%s score=%.6f perf=%.6f games=%d params=%ld "
+            "deterministic=%d",
             puf_ini_get_str(ini, "base", "env_name"),
-            r.score, r.perf, r.games, nparams);
+            r.score, r.perf, r.games, nparams, p->deterministic_actions);
         if (r.has_outcomes) {
             int successes = (int)llroundf(r.success_rate * r.games);
             int failures = (int)llroundf(r.failure_rate * r.games);

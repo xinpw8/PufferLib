@@ -778,9 +778,10 @@ int main(int argc, char** argv) {
     assert(!weights || (need - file_floats <= 7 && file_floats <= need));
     int have_net = weights != NULL;
     if (headless) {
-        printf("CPU_META env=%s path=%s file_floats=%d need=%d untrained=%d hidden=%d layers=%d\n",
+        printf("CPU_META env=%s path=%s file_floats=%d need=%d untrained=%d "
+            "hidden=%d layers=%d deterministic=%d\n",
             env_name, path ? path : "-", file_floats, need, !have_net,
-            hidden_size, num_layers);
+            hidden_size, num_layers, eval_deterministic);
         fflush(stdout);
     }
 
@@ -831,7 +832,11 @@ int main(int argc, char** argv) {
         env.agents[i].action_mask = masks + i * act_n;
         env.agents[i].policy = 0;
     }
+#ifdef PUFFER_ENV_EVAL_RESET
+    puf_eval_reset(&env);
+#else
     puf_reset(&env);
+#endif
 
 #ifdef PUF_NMMO3_NET
     MMONet* net = NULL;
@@ -963,10 +968,12 @@ int main(int argc, char** argv) {
             if (si) score = (float)si->value;
             dict_clear(&out);
         }
-        printf("CPU_EVAL env=%s file_floats=%d need=%d match=%d untrained=%d n=%.0f perf=%.6f score=%.6f steps=%d agents=%d\n",
+        printf("CPU_EVAL env=%s file_floats=%d need=%d match=%d untrained=%d "
+            "deterministic=%d n=%.0f perf=%.6f score=%.6f steps=%d agents=%d\n",
             env_name, file_floats, need,
             (need - file_floats <= 7) ? 1 : 0,
-            !have_net, n, perf, score, steps, env.num_agents);
+            !have_net, eval_deterministic, n, perf, score, steps,
+            env.num_agents);
         fflush(stdout);
     }
 
