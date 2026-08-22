@@ -161,9 +161,9 @@ export WR64_CHECKPOINT=/path/to/checkpoints/waverace64/run/step.bin
 
 Command-line `--section.key=value` values override [`config/waverace64.ini`](../../config/waverace64.ini). The trainer injects `train.gamma` into the environment discount, so a gamma override automatically preserves the potential-shaping identity.
 
-The adapter also opts out of PufferLib's default `[-1, 1]` learner-side reward clamp. Clipping would change the configured miss, finish, and failure magnitudes and would break the telescoping potential identity at a terminal. The learner therefore receives the emitted rewards unchanged; advantage normalization remains part of PPO.
+The adapter also opts out of PufferLib's default `[-1, 1]` learner-side reward clamp. Clipping would change the configured miss, finish, and failure magnitudes and would break the telescoping potential identity at a terminal. The learner therefore receives the emitted rewards unchanged. Production reward coefficients are uniformly scaled to one tenth of the original audit values, preserving their ratios while keeping unclipped advantages and value targets in a practical range. Entropy and value clipping are scaled with them.
 
-Evaluation checks the episode target after complete rollout horizons, so `base.eval_episodes` is a minimum and parallel evaluation can overshoot it. Report the actual `CUDA_EVAL games=N` denominator. The standalone `--cpu` evaluator is excluded from this procedure until its GCC-LTO archive link is independently retained as passing.
+Evaluation checks the episode target after complete rollout horizons, so `base.eval_episodes` is a minimum and parallel evaluation can overshoot it. Report the actual `CUDA_EVAL games=N` denominator. The standalone `--cpu` evaluator is supported for a serial acceptance check; retained production evaluation still uses the native CUDA-policy binary and an explicit checkpoint.
 
 ## Action space
 
@@ -242,12 +242,12 @@ Production coefficients are:
 | Term | Coefficient |
 | --- | ---: |
 | Speed | `0` |
-| Route progress | `10` per accumulated lap of route distance |
+| Route progress | `1` per accumulated lap of route distance |
 | Slip | `0` |
-| Successful checkpoint | `1` |
-| Miss | `-5` per official miss event |
-| Official finish | `+100` |
-| Failure | `-20` |
+| Successful checkpoint | `0.1` |
+| Miss | `-0.5` per official miss event |
+| Official finish | `+10` |
+| Failure | `-2` |
 
 Progress and checkpoint shaping use a discount-correct potential:
 

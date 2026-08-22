@@ -344,7 +344,7 @@ static void test_buoy_observation_and_wrap(WaveRace64* env) {
 
 static void test_missed_buoy(WaveRace64* env) {
     memset(&env->log, 0, sizeof(env->log));
-    set_rewards(env, 0.f, 0.f, 0.f, 1.f, 5.f, 0.f, 0.f);
+    set_rewards(env, 0.f, 0.f, 0.f, 0.1f, 0.5f, 0.f, 0.f);
     float production_discount = env->discount;
     // Isolate event attribution from potential time discount: a missed buoy
     // must receive the miss penalty and never a successful-checkpoint reward.
@@ -370,7 +370,7 @@ static void test_missed_buoy(WaveRace64* env) {
     assert(first_miss == 161);
     assert(env->agents[0].terminals[0] == 0.f);
     assert(env->agents[0].observations[21] == 0.2f);
-    assert(env->agents[0].rewards[0] == -5.f);
+    assert(env->agents[0].rewards[0] == -0.5f);
     printf("PASS missed-buoy frame=%d reward=%.1f\n",
         first_miss, env->agents[0].rewards[0]);
 
@@ -401,7 +401,7 @@ static void test_missed_buoy(WaveRace64* env) {
 
 static void test_failed_shaping(WaveRace64* env) {
     memset(&env->log, 0, sizeof(env->log));
-    set_rewards(env, 0.f, 10.f, 0.f, 1.f, 0.f, 100.f, 20.f);
+    set_rewards(env, 0.f, 1.f, 0.f, 0.1f, 0.f, 10.f, 2.f);
     puf_reset(env);
     set_action(env, 7, 8, 1, 0, 0);
 
@@ -427,10 +427,10 @@ static void test_failed_shaping(WaveRace64* env) {
     assert(env->log.failure_rate == 1.f);
     assert(env->log.success_rate == 0.f);
     assert(fabsf(env->log.episode_return - reward_sum) < 1e-4f);
-    assert(reward_sum <= -20.f + 1e-4f);
-    double expected = -20.0 * pow((double)env->discount, terminal_step - 1);
+    assert(reward_sum <= -2.f + 1e-4f);
+    double expected = -2.0 * pow((double)env->discount, terminal_step - 1);
     assert(fabs(discounted_return - expected) < 2e-3);
-    assert(env->agents[0].rewards[0] < -20.f);
+    assert(env->agents[0].rewards[0] < -2.f);
     printf("PASS discounted-failure frame=%d return=%.3f expected=%.3f\n",
         terminal_step, discounted_return, expected);
 }
@@ -599,7 +599,7 @@ static void characterize_b_and_stick_y(WaveRace64* env) {
 
 static void test_official_finish(WaveRace64* env) {
     memset(&env->log, 0, sizeof(env->log));
-    set_rewards(env, 0.f, 0.f, 0.f, 0.f, 0.f, 100.f, 20.f);
+    set_rewards(env, 0.f, 0.f, 0.f, 0.f, 0.f, 10.f, 2.f);
     puf_reset(env);
     wr32(env, CONFIG_LAPS_ADDR, 1);
     wr32(env, LAP_TARGET_ADDR, 1);
@@ -629,7 +629,7 @@ static void test_official_finish(WaveRace64* env) {
         }
 
         terminal_frame = frame;
-        assert(env->agents[0].rewards[0] == 100.f);
+        assert(env->agents[0].rewards[0] == 10.f);
         assert(env->log.n == 1.f);
         assert(env->log.success_rate == 1.f);
         assert(env->log.failure_rate == 0.f);
@@ -698,7 +698,7 @@ static void test_production_three_lap_finish(WaveRace64* env) {
     float min_reward = INFINITY;
     float max_reward = -INFINITY;
     memset(&env->log, 0, sizeof(env->log));
-    set_rewards(env, 0.f, 10.f, 0.f, 1.f, 5.f, 100.f, 20.f);
+    set_rewards(env, 0.f, 1.f, 0.f, 0.1f, 0.5f, 10.f, 2.f);
     env->frameskip = 4;
     puf_reset(env);
     assert(wr64_target_laps(env) == 3);
@@ -762,7 +762,7 @@ static void test_random_observation_ranges(WaveRace64* env) {
 
 static int run_production_baseline(WaveRace64* env, uint32_t* rng) {
     memset(&env->log, 0, sizeof(env->log));
-    set_rewards(env, 0.f, 10.f, 0.f, 1.f, 5.f, 100.f, 20.f);
+    set_rewards(env, 0.f, 1.f, 0.f, 0.1f, 0.5f, 10.f, 2.f);
     env->frameskip = 4;
     puf_reset(env);
     for (int decision = 1; decision <= 4000; decision++) {
@@ -855,12 +855,12 @@ int main(int argc, char** argv) {
     dict_set_str(&kwargs, "rom_path", argv[1]);
     dict_set(&kwargs, "frameskip", 1);
     dict_set(&kwargs, "reward_speed", 0);
-    dict_set(&kwargs, "reward_progress", 10);
+    dict_set(&kwargs, "reward_progress", 1);
     dict_set(&kwargs, "reward_slip", 0);
-    dict_set(&kwargs, "reward_checkpoint", 1);
-    dict_set(&kwargs, "reward_miss", 5);
-    dict_set(&kwargs, "reward_finish", 100);
-    dict_set(&kwargs, "reward_fail", 20);
+    dict_set(&kwargs, "reward_checkpoint", 0.1);
+    dict_set(&kwargs, "reward_miss", 0.5);
+    dict_set(&kwargs, "reward_finish", 10);
+    dict_set(&kwargs, "reward_fail", 2);
     dict_set(&kwargs, "discount", 0.999);
 
     WaveRace64 env = {};
