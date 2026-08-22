@@ -7,6 +7,10 @@
 
 #include "waverace64.h"
 
+#ifndef PUFFER_ENV_UNCLIPPED_REWARDS
+#error "Wave Race potential shaping requires unclipped learner rewards"
+#endif
+
 #define CONFIG_LAPS_ADDR 0x801CE618u
 #define LAP_TARGET_ADDR  0x801CE728u
 #define SUNNY_ROUTE_TOTAL 29078.811f
@@ -691,6 +695,8 @@ static void test_production_three_lap_finish(WaveRace64* env) {
     // miss while actions remain fixed across each four-update transition.
     ObsStats stats;
     int terminal_frame = -1;
+    float min_reward = INFINITY;
+    float max_reward = -INFINITY;
     memset(&env->log, 0, sizeof(env->log));
     set_rewards(env, 0.f, 10.f, 0.f, 1.f, 5.f, 100.f, 20.f);
     env->frameskip = 4;
@@ -702,6 +708,8 @@ static void test_production_three_lap_finish(WaveRace64* env) {
         assert_body_basis_observation(env);
         route_action_config(env, &PRODUCTION_CONTROLLER);
         puf_step(env);
+        min_reward = fminf(min_reward, env->agents[0].rewards[0]);
+        max_reward = fmaxf(max_reward, env->agents[0].rewards[0]);
         if (env->agents[0].terminals[0] == 1.f) {
             terminal_frame = frame;
             break;
@@ -716,9 +724,12 @@ static void test_production_three_lap_finish(WaveRace64* env) {
     assert(env->log.disqualification_rate == 0.f);
     assert(env->log.safety_timeout_rate == 0.f);
     assert(env->log.misses == 0.f);
+    assert(min_reward < max_reward && max_reward > 1.f);
     printf("PASS production-three-lap decisions=%d updates=%.0f "
-        "score=%.1f y=[%.3f,%.3f]\n", terminal_frame,
-        env->log.episode_length, env->log.score, stats.min[6], stats.max[6]);
+        "score=%.1f reward=[%.3f,%.3f] return=%.3f y=[%.3f,%.3f]\n",
+        terminal_frame, env->log.episode_length, env->log.score,
+        min_reward, max_reward, env->log.episode_return,
+        stats.min[6], stats.max[6]);
     env->frameskip = 1;
 }
 

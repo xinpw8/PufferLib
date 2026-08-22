@@ -1488,9 +1488,11 @@ static void train_epoch_gpu(PuffeRL* pufferl, RolloutBuf src, int slot,
     transpose_102<<<grid_size(T * B * mask_c), BLOCK_SIZE, 0, stream>>>(
         rollouts->action_mask.data, src.action_mask.data, T, B, mask_c);
 
+#ifndef PUFFER_ENV_UNCLIPPED_REWARDS
     clamp_precision_kernel<<<grid_size(
         numel(rollouts->rewards.shape)), BLOCK_SIZE, 0, stream>>>(
         rollouts->rewards.data, -1.0f, 1.0f, numel(rollouts->rewards.shape));
+#endif
 
     if (hypers->reset_every_horizon || src.initial_states.data == NULL) {
         cudaMemsetAsync(pufferl->train_state.data, 0,

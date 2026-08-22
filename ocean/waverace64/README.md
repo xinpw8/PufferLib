@@ -161,6 +161,8 @@ export WR64_CHECKPOINT=/path/to/checkpoints/waverace64/run/step.bin
 
 Command-line `--section.key=value` values override [`config/waverace64.ini`](../../config/waverace64.ini). The trainer injects `train.gamma` into the environment discount, so a gamma override automatically preserves the potential-shaping identity.
 
+The adapter also opts out of PufferLib's default `[-1, 1]` learner-side reward clamp. Clipping would change the configured miss, finish, and failure magnitudes and would break the telescoping potential identity at a terminal. The learner therefore receives the emitted rewards unchanged; advantage normalization remains part of PPO.
+
 Evaluation checks the episode target after complete rollout horizons, so `base.eval_episodes` is a minimum and parallel evaluation can overshoot it. Report the actual `CUDA_EVAL games=N` denominator. The standalone `--cpu` evaluator is excluded from this procedure until its GCC-LTO archive link is independently retained as passing.
 
 ## Action space
