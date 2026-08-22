@@ -952,6 +952,17 @@ int main(int argc, char** argv) {
         float n = env.log.n;
         float perf = 0.0f;
         float score = 0.0f;
+#ifdef PUFFER_ENV_EXACT_OUTCOMES
+        float success_rate = 0.0f;
+        float failure_rate = 0.0f;
+        float disqualification_rate = 0.0f;
+        float safety_timeout_rate = 0.0f;
+        float env_fault_rate = 0.0f;
+        float checkpoints = 0.0f;
+        float misses = 0.0f;
+        float target_laps = 0.0f;
+        float three_lap_success_rate = 0.0f;
+#endif
         if (n > 0.0f) {
             Log avg = env.log;
             float* acc = (float*)&avg;
@@ -966,14 +977,44 @@ int main(int argc, char** argv) {
             DictItem* si = dict_find(&out, "score");
             if (pi) perf = (float)pi->value;
             if (si) score = (float)si->value;
+#ifdef PUFFER_ENV_EXACT_OUTCOMES
+            success_rate = (float)dict_get(&out, "success_rate");
+            failure_rate = (float)dict_get(&out, "failure_rate");
+            disqualification_rate = (float)dict_get(
+                &out, "disqualification_rate");
+            safety_timeout_rate = (float)dict_get(
+                &out, "safety_timeout_rate");
+            env_fault_rate = (float)dict_get(&out, "env_fault_rate");
+            checkpoints = (float)dict_get(&out, "checkpoints");
+            misses = (float)dict_get(&out, "misses");
+            target_laps = (float)dict_get(&out, "target_laps");
+            three_lap_success_rate = (float)dict_get(
+                &out, "three_lap_success_rate");
+#endif
             dict_clear(&out);
         }
         printf("CPU_EVAL env=%s file_floats=%d need=%d match=%d untrained=%d "
-            "deterministic=%d n=%.0f perf=%.6f score=%.6f steps=%d agents=%d\n",
+            "deterministic=%d n=%.0f perf=%.6f score=%.6f steps=%d agents=%d",
             env_name, file_floats, need,
             (need - file_floats <= 7) ? 1 : 0,
             !have_net, eval_deterministic, n, perf, score, steps,
             env.num_agents);
+#ifdef PUFFER_ENV_EXACT_OUTCOMES
+        printf(" successes=%d success_rate=%.6f checkpoints=%.6f "
+            "misses=%.6f failures=%d failure_rate=%.6f "
+            "disqualifications=%d disqualification_rate=%.6f "
+            "timeouts=%d safety_timeout_rate=%.6f faults=%d "
+            "env_fault_rate=%.6f target_laps=%.6f "
+            "three_lap_successes=%d three_lap_success_rate=%.6f",
+            (int)llroundf(success_rate * n), success_rate, checkpoints, misses,
+            (int)llroundf(failure_rate * n), failure_rate,
+            (int)llroundf(disqualification_rate * n), disqualification_rate,
+            (int)llroundf(safety_timeout_rate * n), safety_timeout_rate,
+            (int)llroundf(env_fault_rate * n), env_fault_rate, target_laps,
+            (int)llroundf(three_lap_success_rate * n),
+            three_lap_success_rate);
+#endif
+        putchar('\n');
         fflush(stdout);
     }
 

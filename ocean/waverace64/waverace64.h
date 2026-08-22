@@ -31,6 +31,7 @@ typedef float obs_t;
 #define PUFFER_ENV_INTERNAL_FRAMESKIP
 #define PUFFER_ENV_UNCLIPPED_REWARDS
 #define PUFFER_ENV_EVAL_RESET
+#define PUFFER_ENV_EXACT_OUTCOMES
 
 // Episode time is measured in WR_GAME_UPDATE_HZ guest updates, not policy
 // decisions. The supported runtime currently defines that rate as 20 Hz.
