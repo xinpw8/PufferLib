@@ -257,6 +257,20 @@ static void set_action(WaveRace64* env, int x, int y,
     actions[4] = (float)r;
 }
 
+static void advance_to_legacy_start_for_fixture(WaveRace64* env) {
+    int frameskip = env->frameskip;
+    env->frameskip = 1;
+    set_action(env, 7, 4, 0, 0, 0);
+    for (int update = 0;
+            wr64_race_time_ms(env) < 800 && update < 32; update++) {
+        puf_step(env);
+        assert(env->agents[0].terminals[0] == 0.f);
+    }
+    assert(wr64_race_time_ms(env) == 800);
+    assert(wr64_u(env, WR_ADDR_MODE_STATE) == 3);
+    env->frameskip = frameskip;
+}
+
 static void test_native_speed_conversion() {
     assert(wr64_speed_to_kmh(54.999f) == 97);
     assert(wr64_speed_to_kmh(55.000f) == 99);
@@ -521,6 +535,7 @@ static void test_missed_buoy(WaveRace64* env) {
     // must receive the miss penalty and never a successful-checkpoint reward.
     env->discount = 1.f;
     puf_reset(env);
+    advance_to_legacy_start_for_fixture(env);
 
     int first_miss = -1;
     for (int step = 1; step < 400; step++) {
@@ -839,6 +854,7 @@ static void characterize_b_and_stick_y(WaveRace64* env) {
             probe < sizeof(decisions)/sizeof(decisions[0]); probe++) {
         env->frameskip = 4;
         puf_reset(env);
+        advance_to_legacy_start_for_fixture(env);
         for (int decision = 1; decision <= decisions[probe]; decision++) {
             route_action_config(env, &PRODUCTION_CONTROLLER);
             puf_step(env);
@@ -851,6 +867,7 @@ static void characterize_b_and_stick_y(WaveRace64* env) {
 
     env->frameskip = 1;
     puf_reset(env);
+    advance_to_legacy_start_for_fixture(env);
     uint32_t rng = UINT32_C(0x12345678);
     int saw_recovery = 0;
     for (int update = 0; update < 8192 && !saw_recovery; update++) {
@@ -887,6 +904,7 @@ static void test_official_finish(WaveRace64* env) {
     memset(&env->log, 0, sizeof(env->log));
     set_rewards(env, 0.f, 0.f, 0.f, 0.f, 0.f, 10.f, 2.f);
     puf_reset(env);
+    advance_to_legacy_start_for_fixture(env);
     wr32(env, CONFIG_LAPS_ADDR, 1);
     wr32(env, LAP_TARGET_ADDR, 1);
     assert(wr64_u(env, WR_ADDR_GAMESTATE) == WR_STATE_RACING);
@@ -996,6 +1014,7 @@ static void test_production_three_lap_finish(WaveRace64* env) {
     set_rewards(env, 0.f, 1.f, 0.f, 0.1f, 0.5f, 10.f, 2.f);
     env->frameskip = 4;
     puf_reset(env);
+    advance_to_legacy_start_for_fixture(env);
     assert(wr64_target_laps(env) == 3);
     obs_stats_init(&stats);
     for (int frame = 1; frame <= 4000; frame++) {
@@ -1012,8 +1031,8 @@ static void test_production_three_lap_finish(WaveRace64* env) {
             break;
         }
     }
-    assert(terminal_frame > 0);
     assert(terminal_frame == 2334);
+    assert(terminal_frame > 0);
     assert(env->log.n == 1.f);
     assert_observation_ranges(&stats);
     assert(env->log.success_rate == 1.f);
