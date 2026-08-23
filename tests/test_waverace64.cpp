@@ -257,20 +257,6 @@ static void set_action(WaveRace64* env, int x, int y,
     actions[4] = (float)r;
 }
 
-static void advance_to_legacy_start_for_fixture(WaveRace64* env) {
-    int frameskip = env->frameskip;
-    env->frameskip = 1;
-    set_action(env, 7, 4, 0, 0, 0);
-    for (int update = 0;
-            wr64_race_time_ms(env) < 800 && update < 32; update++) {
-        puf_step(env);
-        assert(env->agents[0].terminals[0] == 0.f);
-    }
-    assert(wr64_race_time_ms(env) == 800);
-    assert(wr64_u(env, WR_ADDR_MODE_STATE) == 3);
-    env->frameskip = frameskip;
-}
-
 static void test_native_speed_conversion() {
     assert(wr64_speed_to_kmh(54.999f) == 97);
     assert(wr64_speed_to_kmh(55.000f) == 99);
@@ -535,8 +521,6 @@ static void test_missed_buoy(WaveRace64* env) {
     // must receive the miss penalty and never a successful-checkpoint reward.
     env->discount = 1.f;
     puf_reset(env);
-    advance_to_legacy_start_for_fixture(env);
-
     int first_miss = -1;
     for (int step = 1; step < 400; step++) {
         float* obs = env->agents[0].observations;
@@ -553,7 +537,7 @@ static void test_missed_buoy(WaveRace64* env) {
         }
     }
 
-    assert(first_miss == 161);
+    assert(first_miss == 145);
     assert(env->agents[0].terminals[0] == 0.f);
     assert(env->agents[0].observations[21] == 0.2f);
     assert(env->agents[0].rewards[0] == -0.5f);
@@ -574,7 +558,7 @@ static void test_missed_buoy(WaveRace64* env) {
             break;
         }
     }
-    assert(terminal_step == 743);
+    assert(terminal_step == 569);
     assert(env->log.misses == 5.f);
     assert(env->log.disqualification_rate == 1.f);
     assert(env->log.failure_rate == 0.f);
@@ -790,8 +774,9 @@ static void route_action_config(WaveRace64* env,
 
 static void route_action_from_observation(WaveRace64* env) {
     static const RouteController controller = {
-        130.f, 0.50f, 0.95f, 0.60f, 1.f,
-        0.85f, 0.45f, 1400.f, 0.f, 4,
+        134.347687f, 0.228220314f, 0.242280304f, 2.70581746f,
+        1.75507069f, 0.427550882f, 0.f, 484.638611f,
+        0.245567679f, 1,
     };
     route_action_config(env, &controller);
 }
@@ -842,19 +827,19 @@ static void compare_interventions(WaveRace64* env, int* b_effects,
 }
 
 static const RouteController PRODUCTION_CONTROLLER = {
-    75.848f, 0.14112f, 0.49904f, 1.3445f, 1.22524f,
-    0.990414f, 0.0293148f, 1025.64f, 0.708171f, 2,
+    134.347687f, 0.228220314f, 0.242280304f, 2.70581746f,
+    1.75507069f, 0.427550882f, 0.f, 484.638611f,
+    0.245567679f, 1,
 };
 
 static void characterize_b_and_stick_y(WaveRace64* env) {
-    static const int decisions[] = {50, 200, 600, 1200, 2000};
+    static const int decisions[] = {50, 300, 600, 900, 1250};
     int b_effects = 0;
     int stick_y_effects = 0;
     for (size_t probe = 0;
             probe < sizeof(decisions)/sizeof(decisions[0]); probe++) {
         env->frameskip = 4;
         puf_reset(env);
-        advance_to_legacy_start_for_fixture(env);
         for (int decision = 1; decision <= decisions[probe]; decision++) {
             route_action_config(env, &PRODUCTION_CONTROLLER);
             puf_step(env);
@@ -867,7 +852,6 @@ static void characterize_b_and_stick_y(WaveRace64* env) {
 
     env->frameskip = 1;
     puf_reset(env);
-    advance_to_legacy_start_for_fixture(env);
     uint32_t rng = UINT32_C(0x12345678);
     int saw_recovery = 0;
     for (int update = 0; update < 8192 && !saw_recovery; update++) {
@@ -890,7 +874,7 @@ static void characterize_b_and_stick_y(WaveRace64* env) {
     int recovery_b_effect = b_effects - midrace_b_effects;
     int recovery_stick_y_effect = stick_y_effects - midrace_stick_y_effects;
     assert(midrace_b_effects == 5);
-    assert(recovery_b_effect == 0);
+    assert(recovery_b_effect == 1);
     assert(midrace_stick_y_effects == 5);
     assert(recovery_stick_y_effect == 1);
     printf("PASS interventions midrace-B=%d/5 recovery-B=%d/1 "
@@ -904,7 +888,6 @@ static void test_official_finish(WaveRace64* env) {
     memset(&env->log, 0, sizeof(env->log));
     set_rewards(env, 0.f, 0.f, 0.f, 0.f, 0.f, 10.f, 2.f);
     puf_reset(env);
-    advance_to_legacy_start_for_fixture(env);
     wr32(env, CONFIG_LAPS_ADDR, 1);
     wr32(env, LAP_TARGET_ADDR, 1);
     assert(wr64_u(env, WR_ADDR_GAMESTATE) == WR_STATE_RACING);
@@ -914,7 +897,7 @@ static void test_official_finish(WaveRace64* env) {
 
     uint64_t action_hash = UINT64_C(14695981039346656037);
     int terminal_frame = -1;
-    for (int frame = 1; frame <= 1500; frame++) {
+    for (int frame = 1; frame <= 2500; frame++) {
         assert(wr64_u(env, WR_ADDR_GAMESTATE) == WR_STATE_RACING);
         assert(wr64_finished(env) == 0);
         assert(wr64_ended(env) == 0);
@@ -940,18 +923,27 @@ static void test_official_finish(WaveRace64* env) {
         assert(env->log.target_laps == 1.f);
         assert(env->log.three_lap_success_rate == 0.f);
         assert(env->log.failure_rate == 0.f);
+        assert(env->log.successful_race_time_ms > 0.f);
+        assert(env->log.successful_lap_1_ms > 0.f);
+        assert(env->log.successful_lap_2_ms == 0.f);
+        assert(env->log.successful_lap_3_ms == 0.f);
+        assert(env->log.successful_race_time_ms
+            == env->log.successful_lap_1_ms);
         break;
     }
 
-    assert(terminal_frame == 1070);
-    assert(action_hash == UINT64_C(0xC6AE00920FD86802));
-    int expected_final[] = {14, 4, 1, 0, 0};
+    assert(terminal_frame == 1758);
+    assert(env->log.episode_length == 1758.f);
+    assert(action_hash == UINT64_C(0x64157B7EA07F2A23));
+    int expected_final[] = {4, 1, 0, 1, 1};
     for (int i = 0; i < NUM_ATNS; i++) {
         assert((int)env->agents[0].actions[i] == expected_final[i]);
     }
-    printf("PASS official-finish frame=%d hash=%016llx reward=%.1f\n",
+    printf("PASS official-finish frame=%d hash=%016llx reward=%.1f "
+        "time=%.0f lap1=%.0f\n",
         terminal_frame, (unsigned long long)action_hash,
-        env->agents[0].rewards[0]);
+        env->agents[0].rewards[0], env->log.successful_race_time_ms,
+        env->log.successful_lap_1_ms);
 }
 
 typedef struct ObsStats {
@@ -1010,17 +1002,21 @@ static void test_production_three_lap_finish(WaveRace64* env) {
     float max_reward = -INFINITY;
     double discounted_return = 0.0;
     double discount_power = 1.0;
+    uint64_t action_hash = UINT64_C(14695981039346656037);
     memset(&env->log, 0, sizeof(env->log));
     set_rewards(env, 0.f, 1.f, 0.f, 0.1f, 0.5f, 10.f, 2.f);
     env->frameskip = 4;
     puf_reset(env);
-    advance_to_legacy_start_for_fixture(env);
     assert(wr64_target_laps(env) == 3);
     obs_stats_init(&stats);
     for (int frame = 1; frame <= 4000; frame++) {
         obs_stats_add(&stats, env->agents[0].observations);
         assert_body_basis_observation(env);
         route_action_config(env, &PRODUCTION_CONTROLLER);
+        for (int i = 0; i < NUM_ATNS; i++) {
+            action_hash = hash_byte(action_hash,
+                (uint8_t)(int)env->agents[0].actions[i]);
+        }
         puf_step(env);
         min_reward = fminf(min_reward, env->agents[0].rewards[0]);
         max_reward = fmaxf(max_reward, env->agents[0].rewards[0]);
@@ -1031,7 +1027,9 @@ static void test_production_three_lap_finish(WaveRace64* env) {
             break;
         }
     }
-    assert(terminal_frame == 2334);
+    assert(terminal_frame == 1300);
+    assert(env->log.episode_length == 5200.f);
+    assert(action_hash == UINT64_C(0x6C5A285EE76CE8E0));
     assert(terminal_frame > 0);
     assert(env->log.n == 1.f);
     assert_observation_ranges(&stats);
@@ -1042,17 +1040,29 @@ static void test_production_three_lap_finish(WaveRace64* env) {
     assert(env->log.disqualification_rate == 0.f);
     assert(env->log.safety_timeout_rate == 0.f);
     assert(env->log.misses == 0.f);
+    assert(env->log.successful_race_time_ms > 0.f);
+    assert(env->log.successful_lap_1_ms > 0.f);
+    assert(env->log.successful_lap_2_ms > 0.f);
+    assert(env->log.successful_lap_3_ms > 0.f);
+    assert(env->log.successful_race_time_ms
+        == env->log.successful_lap_1_ms
+            + env->log.successful_lap_2_ms
+            + env->log.successful_lap_3_ms);
     assert(min_reward < max_reward && max_reward > 1.f);
     double expected = -env->reward_fail
         + (env->reward_fail + env->reward_finish)
             * pow((double)env->discount, terminal_frame - 1);
     assert(fabs(discounted_return - expected) < 3e-3);
     printf("PASS production-three-lap decisions=%d updates=%.0f "
-        "score=%.1f reward=[%.3f,%.3f] return=%.3f discounted=%.3f "
-        "y=[%.3f,%.3f]\n",
-        terminal_frame, env->log.episode_length, env->log.score,
+        "hash=%016llx score=%.1f reward=[%.3f,%.3f] "
+        "return=%.3f discounted=%.3f "
+        "y=[%.3f,%.3f] time=%.0f laps=[%.0f,%.0f,%.0f]\n",
+        terminal_frame, env->log.episode_length,
+        (unsigned long long)action_hash, env->log.score,
         min_reward, max_reward, env->log.episode_return, discounted_return,
-        stats.min[6], stats.max[6]);
+        stats.min[6], stats.max[6], env->log.successful_race_time_ms,
+        env->log.successful_lap_1_ms, env->log.successful_lap_2_ms,
+        env->log.successful_lap_3_ms);
     env->frameskip = 1;
 }
 
