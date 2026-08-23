@@ -6,7 +6,7 @@ Claude did not invent the static Wave Race 64 core. The repository contains 1,20
 
 Several claims around that core were materially wrong or unsupported. The ASCII screen was presented like a playable Wave Race display even though it contained no game pixels. Its original position, heading, progress, and gate telemetry came from RAM scans that were later retracted. The display used 60 Hz for a 20 Hz game-update path, labeled B as a brake, and allowed an unresolved indirect call to become a no-op. The first Puffer integration lived in a package whose own `pyproject.toml` said version `4.0.0`, despite its `pufferlib-5.0-lavin` directory name. The simulator has always run on host CPU.
 
-The defensible conclusion is narrower. A real statically recompiled game core existed underneath a misleading demo and an incorrect initial environment. The repairs establish a fixed-scenario CPU simulator in the native PufferLib 5.0 trainer, a 55-value state observation with local wave samples, and a human-readable state evaluator. The simulator remains host-CPU-bound and broad game parity remains unproven. Three current-contract short runs measure throughput, with the duration caveat documented below. Policy learning has not been measured after the observation ABI changed from 43 to 55, and the earlier checkpoints are incompatible.
+The defensible conclusion is narrower. A real statically recompiled game core existed underneath a misleading demo and an incorrect initial environment. The repairs establish a fixed-scenario CPU simulator in the native PufferLib 5.0 trainer, a 55-value state observation with local wave samples, and a human-readable state evaluator. One complete current-contract training run measured throughput and produced a checkpoint that learned official three-lap finishes in fresh CUDA and CPU evaluation. The simulator remains host-CPU-bound, multi-seed learning is pending, and broad game parity remains unproven. Earlier 43-input checkpoints remain incompatible.
 
 ## Original assignment
 
@@ -27,8 +27,9 @@ This audit gives evidence weight in the following order:
 1. decompilation-derived structures and constants for the exact ROM revision;
 2. frame-aligned output from an independent Mupen64Plus pure interpreter;
 3. deterministic adapter and multi-instance isolation tests;
-4. current implementation source and version metadata;
-5. historical RAM scans, terminal plots, and short training runs.
+4. complete current-contract training and fresh evaluation tied to a hashed checkpoint;
+5. current implementation source and version metadata;
+6. historical RAM scans, terminal plots, and short training runs.
 
 The [official Nintendo controller page](https://www.nintendo.com/eu/media/downloads/games_8/emanuals/nintendo_8/Manual_Nintendo64_WaveRace64_EN.pdf#page=5) is authoritative for player-facing input semantics. It defines A as throttle, B as wave damping, R as sliding, and the stick as handling and center-of-gravity control. Z duplicates A throttle.
 
@@ -48,8 +49,8 @@ The [official Nintendo controller page](https://www.nintendo.com/eu/media/downlo
 | PufferLib 5.0 means this environment runs on CUDA. | The policy, rollout tensors, and learner use CUDA. `waverace64.h` is a CPU backend, and `libwr64.a` runs in host vector workers. | **False for simulation.** GPU learning and CPU simulation coexist. |
 | Training can avoid touching the CPU. | Every environment step resumes a host `ucontext_t`, executes native C, reads and writes host-mapped RDRAM, and uses POSIX runtime shims. | **False in the current architecture.** |
 | The static core had broad parity with the actual game. | One held-A Sunny Beach trace now matches selected authoritative fields bit-for-bit through failure. Secondary RNG, graphics, audio, whole RDRAM, other inputs, success, courses, and modes are outside that proof. | **Partially supported after repair.** Any blanket parity claim remains unsupported. |
-| The environment is currently proven performant. | Three renderer-free 55-input short runs averaged 29,609.44 policy decisions/s and 118,437.76 guest updates/s. Their mean is 4.18% below the retained 43-input mean, but the run durations are not matched. | **Supported only as a short-run measurement.** A production-duration matched comparison is pending, and simulation remains CPU-bound. |
-| A short training smoke test proved the agent could race. | Earlier reward and observation bugs allowed distance gaming, hid the required buoy side, used a short-discount horizon, and sometimes tested shortened episodes. Later learned checkpoints also used the superseded 43-input network. | **False for the original smoke and unmeasured for the current policy ABI.** Scripted controller reachability is not learning evidence. |
+| The environment is currently proven performant. | A complete renderer-free 5,242,880-decision run measured 30,777.828655 decisions/s by trainer uptime and 30,609.995329 decisions/s by whole-process wall. It used 1,687% CPU, or 16.87 CPU equivalents, and 1,625,884 KiB maximum RSS. | **Measured for one full current-contract run.** The retained 43-input baseline is not treated as a fully pinned duration-matched comparison, and simulation remains CPU-bound. |
+| A short training smoke test proved the agent could race. | Earlier reward and observation bugs allowed distance gaming, hid the required buoy side, used a short-discount horizon, and sometimes tested shortened episodes. The current evidence instead uses a complete 55-input run and fresh official three-lap evaluation. | **False for the original smoke; supported for one current training seed by full-run evidence.** Multi-seed reliability remains unknown. |
 | B, Z, and R could all be removed as inert inputs. | Nintendo documents real semantics for all three. The deterministic action probe shows A and Z have the same authoritative throttle trajectory, while R changes that trajectory. Targeted mid-race/recovery interventions make B change the authoritative trace in 5 of 6 probes. | **Unsupported.** The final learner removes only redundant Z and retains B and R. |
 | The current state evaluator reproduces the N64 graphics. | It draws custom Raylib primitives from an immutable state projection. It does not consume cartridge models, textures, framebuffer, audio, RSP output, or RDP output. | **False as graphical parity.** It is supported as a human-readable visualization of selected simulator state. |
 
@@ -115,10 +116,10 @@ The hardened 16-instance isolation log is retained only on the deployment host a
 | Observation ABI changed without checkpoint boundary | `OBS_SIZE` is now 55 and observations 0 through 42 retain their meanings. | Compile-time ABI assertion and CPU/CUDA parameter-shape checks. | Every 43-input checkpoint is incompatible; no migration is defined and retraining is required. |
 | Raw absolute height near 39 in the old feature scale | Height is centered on race-start Y and divided by 100. Vertical velocity and the full body basis are exposed. | Deterministic and random observation range checks. | Tested traces do not establish global bounds for every game state. |
 | Six action heads with redundant Z | Final ABI is `{15,9,2,2,2}` for stick X, stick Y, A, B, and R. Z is fixed off because it duplicates A. | Nintendo manual, direct A/Z comparison, B effects in 5 of 6 authoritative intervention probes, and stick-Y effects in 6 of 6. | Broader B/R interpreter traces pending. |
-| Sparse or cancelled partial-navigation signal | Configured mode credits each new maximum route frontier and verified checkpoint once. Strict terminal-cancelled PBRS remains available as mode 0. | Exact frontier reward regression. | Current 55-input learning behavior is unmeasured. |
-| Learner silently clipped rewards to `[-1, 1]` | Wave Race opts out of the generic learner clamp, preserving configured terminal and shaping magnitudes. | Compile-time adapter gate and reward regression. | Current 55-input training acceptance is pending. |
-| Discount made long failures cheaper than short failures | Every nonterminal transition now charges `reward_fail * (1-gamma)`, making the discounted task return of a zero-miss failure exactly `-reward_fail` at any duration. | Held-A failure, no-op failure, and discounted-return regressions. | Current policy learning is unmeasured. |
-| Short-horizon `gamma=0.995` with frameskip 1 | The checked-in configuration uses frameskip 4, horizon 64, GAE lambda `0.98`, and gamma `0.9995`; trainer gamma is injected into the environment. | Frameskip and gamma-coupling tests. | Current 55-input learning and production-duration throughput remain unmeasured. |
+| Sparse or cancelled partial-navigation signal | Configured mode credits each new maximum route frontier and verified checkpoint once. Strict terminal-cancelled PBRS remains available as mode 0. | Exact frontier reward regression plus current seed-707 official three-lap learning. | Multi-seed learning reliability remains unknown. |
+| Learner silently clipped rewards to `[-1, 1]` | Wave Race opts out of the generic learner clamp, preserving configured terminal and shaping magnitudes. | Compile-time adapter gate, reward regression, and a complete current-contract training run. | Multi-seed acceptance remains pending. |
+| Discount made long failures cheaper than short failures | Every nonterminal transition now charges `reward_fail * (1-gamma)`, making the discounted task return of a zero-miss failure exactly `-reward_fail` at any duration. | Held-A failure, no-op failure, discounted-return regressions, and current seed-707 learning. | Multi-seed learning behavior remains unknown. |
+| Short-horizon `gamma=0.995` with frameskip 1 | The checked-in configuration uses frameskip 4, horizon 64, GAE lambda `0.98`, and gamma `0.9995`; trainer gamma is injected into the environment. | Frameskip and gamma-coupling tests plus one complete 5,242,880-decision run. | A current multi-seed distribution and fully pinned duration-matched old/new comparison remain pending. |
 | Fixed three-lap sparse exploration | Each environment trains on a success-driven 1 to 2 to 3 lap curriculum. Fresh, reused-vector, and CPU evaluation hooks force the official three-lap target. | Direct curriculum regression; one-lap and three-lap scripted fixtures; fresh and post-train target-lap invariants. | Training logs intentionally mix curriculum levels. |
 | Unmapped indirect calls became no-ops | `proutSprintf_recomp` is mapped. Unknown targets are fatal. | Runtime isolation acceptance checks both cases. | Interpreter coverage of all dynamic targets is finite. |
 | Wrong boot RNG seed | First `osGetTime` returns the measured US Rev 1 seed before the game resets time. | 638-scan authoritative bit parity. | Secondary post-reset time stream remains unmatched. |
@@ -126,8 +127,8 @@ The hardened 16-instance isolation log is retained only on the deployment host a
 | Process-global mutable machine state | Runtime state moved into `WRMachine`; owner is derived from RDRAM, with TLS used only as a cache. | 16-instance serial/parallel full-state equality across three repeats. | Optional profiler is intentionally serialized. |
 | Relocatable `Env` objects invalidated saved contexts | Custom vector initialization allocates the exact array once and initializes in place. | Snapshot owner and vector ownership tests. | Environment objects remain immovable by contract. |
 | OpenMP initialization could pin rollout creators | Caller affinity is captured and restored before rollout pthread creation. | Affinity equality tests. | A current bound versus unbound benchmark remains unmeasured. |
-| Old Puffer 4 integration | Adapter ported to the native upstream PufferLib 5.0 trainer and CPU environment ABI. | Native CUDA-policy and CPU-evaluator build paths plus the deterministic adapter harness. | Current 55-input train/eval acceptance remains to be run. |
-| Post-train evaluation inherited partial training episodes or curriculum targets | The trainer now waits for rollout workers, forces three laps, resets every environment, clears transition state, uploads reset observations, zeros recurrent state, reinitializes action RNG state, and synchronizes before evaluation. | Direct reset and target-lap regression coverage. | Fresh current-contract CUDA and CPU evaluation remains to be retained. |
+| Old Puffer 4 integration | Adapter ported to the native upstream PufferLib 5.0 trainer and CPU environment ABI. | Complete current 55-input CUDA training, fresh CUDA evaluation, fresh CPU evaluation, and deterministic adapter harness. | Multi-seed training remains pending. |
+| Post-train evaluation inherited partial training episodes or curriculum targets | The trainer now waits for rollout workers, forces three laps, resets every environment, clears transition state, uploads reset observations, zeros recurrent state, reinitializes action RNG state, and synchronizes before evaluation. | Direct reset coverage plus fresh current-contract CUDA and CPU results with `target_laps=3`. | A separate retained current-contract reused-vector post-train result is not documented. |
 | Misleading live controls and pacing | Runtime telemetry now says `damp waves`, `slide`, `20 updates/s`, and `not game rendering`; absolute sleeps replace the busy spin. | Diagnostic smoke coverage. | This utility is not the human state evaluator and does not measure training. |
 
 ## PufferLib 5.0 design review
@@ -155,7 +156,7 @@ The evaluator consumes an immutable, pointer-free projection containing rider ki
 
 The configured reward uses official course topology and official miss/finish flags. Each new maximum route frontier earns credit once, following the dense distance-progress pattern used by Puffer's Drone racer while preventing oscillation from farming reward. Verified checkpoint credit parallels the discrete sector rewards in Whisker Racer. A route-node advance accompanied by a miss is not counted as a successful checkpoint. Game-driven teleports and recovery discontinuities do not create speed or progress reward. The success-driven per-environment lap curriculum follows established native Puffer curriculum patterns in Affine Lock, Bat, and Clifford.
 
-The deterministic adapter harness includes shortened one-lap and unmodified three-lap scripted fixtures through the public 55-value observation buffer. These fixtures test reachability and regression behavior. They do not establish current policy learning or replace the separate throughput measurement.
+The deterministic adapter harness includes shortened one-lap and unmodified three-lap scripted fixtures through the public 55-value observation buffer. These fixtures test reachability and regression behavior. Current policy learning is established separately for seed 707 by complete training and fresh evaluation; the scripted fixtures do not establish multi-seed reliability or replace throughput measurement.
 
 ## Why the current core cannot become CPU-free by changing the binding
 
@@ -180,17 +181,29 @@ A device-native implementation is technically a separate project. It would need 
 
 CPU-free simulation is therefore infeasible within the present static-recomp architecture. A separate CUDA reimplementation may be research-worthy. It does not follow automatically from the current core, and its parity would begin unproven.
 
-## Unresolved acceptance items
+## Current-contract empirical acceptance and remaining items
+
+The complete seed-707 renderer-free run executed 5,242,880 decisions in 170.346 s of trainer uptime and 171.28 s of process wall time. That is 30,777.828655 decisions/s and 123,111.314618 guest updates/s by trainer uptime, or 30,609.995329 decisions/s by wall time. It used 1,687% CPU, or 16.87 CPU equivalents, and 1,625,884 KiB maximum RSS. The final logged curriculum batch reported success 1.0 and `target_laps=3`. The historical 43-input baseline is not treated as a fully pinned duration-matched comparison.
+
+The resulting 437,248-byte checkpoint is retained at `/home/spark-advantage/wr64-results/state-eval-obs55-e0a8e2d4/checkpoints/waverace64/state-eval-obs55-s707/0000000005242880.bin` with SHA-256 `a6696e3888ca472712071aa9fd6b82b377e3ddf956db41ca2082488c3145fc59`.
+
+Fresh deterministic CUDA evaluation completed 128/128 official three-lap finishes with `perf=0.937920`, score 81,820.898438, 46 checkpoints, zero misses, and no failure, disqualification, timeout, or fault. Fresh stochastic CUDA evaluation with action seed 7001 completed 386/514 official finishes (`0.750973`) with `perf=0.877817`, score 76,568.945312, 39.085602 mean checkpoints, 2.708171 mean misses, 80 generic failures (`0.155642`), 48 disqualifications (`0.093385`), and no timeout or fault. Both reported `target_laps=3`; deterministic `three_lap_success_rate` was 1.
+
+Fresh deterministic CPU evaluation completed its single episode successfully in 619 decisions with `perf=0.889577`, score 77,603.546875, 39 checkpoints, one miss, and no failure, disqualification, timeout, or fault. This is a functional one-episode check, not a CPU success-rate estimate or CUDA/CPU trajectory-equivalence result.
+
+The learned-policy visual capture retained 150 distinct consecutive 960 by 540 PNGs spanning 30 simulated seconds. Frame 149 showed target gate 51, 13 gates cleared, and zero misses. This verifies that the evaluator makes a learned trajectory inspectable. It does not widen the trace-specific simulator parity proof or create N64 graphical parity.
 
 | Item | Status and required evidence |
 | --- | --- |
-| Current 55-input PufferLib 5.0 performance | **SHORT-RUN MEASURED.** Three renderer-free runs averaged 29,609.44 decisions/s and 118,437.76 guest updates/s, 16.220 CPU equivalents, 1.55052 GiB mean peak RSS, and 4.384% device-wide GPU utilization. A production-duration matched comparison and process-attributed GPU telemetry remain pending. |
-| Current 55-input production learning | **NOT RUN.** Train new checkpoints and evaluate official three-lap episodes in fresh stochastic and deterministic processes. |
+| Current 55-input PufferLib 5.0 performance | **MEASURED FOR ONE COMPLETE RUN.** Multi-seed variance, a fully pinned old/new duration-matched comparison, and process-attributed GPU telemetry remain pending. |
+| Current 55-input learning | **PASS FOR SEED 707.** Fresh CUDA argmax finished 128/128 and stochastic seed 7001 finished 386/514 official three-lap episodes. |
 | Seed sensitivity | **UNKNOWN.** Multiple current-contract training seeds and common held-out evaluation seeds are required. |
-| Compatible retained checkpoint | **NONE DOCUMENTED.** The prior 43-input files are structurally incompatible with the current first layer. |
+| Compatible retained checkpoint | **RETAINED.** Size 437,248 bytes; SHA-256 `a6696e3888ca472712071aa9fd6b82b377e3ddf956db41ca2082488c3145fc59`. |
+| CPU policy execution | **PASS AS A ONE-EPISODE CHECK.** Broader CPU evaluation and action-by-action backend comparison remain pending. |
+| Human learned-policy evaluation | **PASS.** The 150-frame capture is legible and state-driven; visual parity with the N64 is not claimed. |
 | Continuous process-specific GPU and per-core telemetry | **PENDING.** Renderer and capture runs must be excluded from training measurements. |
 | Broad controller parity | **PENDING.** Add interpreter traces that exercise steering, stick Y, B, R, wave interaction, recovery, misses, and a successful finish. |
 | Secondary RNG and whole-RDRAM parity | **PENDING.** Implement a measured post-reset time model before making either claim. |
 | CUDA simulator | **UNIMPLEMENTED.** Requires a separate device-native core and fresh parity program. |
 
-The detailed environment contract, commands, observations, actions, reward, terminals, logs, and benchmark placeholders are in [`README.md`](README.md).
+The detailed environment contract, commands, observations, actions, reward, terminals, logs, and empirical results are in [`README.md`](README.md).
