@@ -386,17 +386,20 @@ static void wr64_render_hud(const Client* client) {
     int height = GetScreenHeight();
     DrawRectangle(0, 0, width, 38, (Color){5, 15, 27, 235});
     DrawText("WAVE RACE 64", 14, 8, 22, RAYWHITE);
-    DrawText("SUNNY BEACH  |  TIME TRIAL  |  STATE EVALUATOR",
-        174, 11, 14, (Color){150, 235, 235, 255});
+    const char* subtitle = width < 760
+        ? "SUNNY BEACH | TIME TRIAL | STATE EVAL"
+        : "SUNNY BEACH  |  TIME TRIAL  |  STATE EVALUATOR";
+    DrawText(subtitle, width < 760 ? 190 : 194, 11,
+        width < 760 ? 12 : 14, (Color){150, 235, 235, 255});
 
     DrawRectangle(12, 50, 236, 154, (Color){6, 20, 35, 220});
     DrawRectangleLines(12, 50, 236, 154, (Color){112, 226, 230, 180});
     int display_lap = state->lap < 1 ? 1 : state->lap;
     DrawText(TextFormat("LAP %d / %d", display_lap, state->target_laps),
         24, 62, 24, RAYWHITE);
-    DrawText(TextFormat("GATE %d   CLEARED %d", state->target_node,
+    DrawText(TextFormat("GATE %d    CLEARED %d", state->target_node,
         state->checkpoints), 24, 93, 16, (Color){184, 237, 235, 255});
-    DrawText(TextFormat("SPEED %6.1f game units/s", state->speed_per_second),
+    DrawText(TextFormat("SPEED %7.1f units/s", state->speed_per_second),
         24, 116, 16, (Color){184, 237, 235, 255});
     DrawText(TextFormat("TIME  %6.2f s", (float)state->tick/(float)WR_GAME_UPDATE_HZ),
         24, 139, 16, (Color){184, 237, 235, 255});
@@ -570,7 +573,8 @@ static void wr64_render_draw(WaveRace64* env) {
 
     BeginDrawing();
     ClearBackground((Color){94, 196, 226, 255});
-    DrawCircle(GetScreenWidth() - 92, 72, 42.f, (Color){255, 235, 141, 255});
+    DrawCircle(GetScreenWidth()/2 + 30, 76, 38.f,
+        (Color){255, 235, 141, 255});
     BeginMode3D(camera);
     wr64_render_water(state);
     wr64_render_route(state);
@@ -580,4 +584,3 @@ static void wr64_render_draw(WaveRace64* env) {
     wr64_render_hud(client);
     EndDrawing();
 }
-

@@ -639,6 +639,14 @@ void free_puffernet(PufferNet* net) {
 
 #include ENV_HEADER
 
+static int puf_export_screen(const char* file_name) {
+    Image image = LoadImageFromScreen();
+    if (!IsImageReady(image)) return 0;
+    int exported = ExportImage(image, file_name);
+    UnloadImage(image);
+    return exported;
+}
+
 #if !defined(PUF_NMMO3_NET) && !defined(PUF_ASTEROIDS_NET) && !defined(PUF_MINIMAL_NET)
 static int puf_align8(int n) {
     return (n + 7) & ~7;
@@ -933,9 +941,13 @@ int main(int argc, char** argv) {
                 fprintf(stderr, "Capture path is too long\n");
                 capture_done = 1;
             } else {
-                TakeScreenshot(filename);
-                captured_frames++;
-                capture_done = captured_frames >= capture_count;
+                if (!puf_export_screen(filename)) {
+                    fprintf(stderr, "Could not export capture: %s\n", filename);
+                    capture_done = 1;
+                } else {
+                    captured_frames++;
+                    capture_done = captured_frames >= capture_count;
+                }
             }
         }
         render_frame++;
@@ -1006,9 +1018,13 @@ int main(int argc, char** argv) {
                     fprintf(stderr, "Capture path is too long\n");
                     capture_done = 1;
                 } else {
-                    TakeScreenshot(filename);
-                    captured_frames++;
-                    capture_done = captured_frames >= capture_count;
+                    if (!puf_export_screen(filename)) {
+                        fprintf(stderr, "Could not export capture: %s\n", filename);
+                        capture_done = 1;
+                    } else {
+                        captured_frames++;
+                        capture_done = captured_frames >= capture_count;
+                    }
                 }
             }
             render_frame++;
