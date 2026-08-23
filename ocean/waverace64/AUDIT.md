@@ -100,7 +100,7 @@ The new pure water sampler has a separate, narrower exactness result. The checke
 
 The evaluator capture has also been tested as a read-only state projection. Two captures must have identical logical content and hashes, every captured course pass point must match the adapter geometry, every one of the 1,089 water values must match `wr64_water_height` bit-for-bit, live RDRAM must remain unchanged, and capture without rendering must leave `env->client` null. The retained capture hash is `7d5f6487fbfc38ba` with 59 course nodes.
 
-The separate renderer harness was repeated independently with exact results. It kept `Client` null through 192 training decisions and autoresets, preserved full simulator core state across eight repeated `puf_render` calls, produced two byte-identical 960 by 540 fixed-state captures with pixel hash `1eef85fa7d51633f`, kept headless and variably rendered 96-decision trajectories identical with hash `ffa76503834a3bff`, and produced moving tick-48 state hash `9d18db27cdfc907d`. The pixel hash is a regression baseline on the tested software-rendered Raylib/OpenGL stack, not a portable cross-driver promise or an N64 framebuffer reference.
+The separate renderer harness was repeated independently with exact results. It kept `Client` null through 192 training decisions and autoresets, verified the Shift+Up rising-edge control toggle, preserved full simulator core state across eight repeated `puf_render` calls, produced two byte-identical compact-HUD 960 by 540 captures with pixel hash `1d5323433008b7ff`, kept headless and variably rendered 96-decision trajectories identical with hash `ffa76503834a3bff`, and produced moving guest-update tick-192 state hash `3d79ad5e60a0b87f`. Real X11 key injection separately produced POLICY, HUMAN, POLICY across two Shift+Up chords. The pixel hash is a regression baseline on the tested software-rendered Raylib/OpenGL stack, not a portable cross-driver promise or an N64 framebuffer reference.
 
 The hardened 16-instance isolation log is retained only on the deployment host at `/home/spark-advantage/wr64-recomp/runtime/isolation_acceptance_20260822T050325Z_3003381.log`; its SHA-256 is `805b8384d97306f77c043734727a5cd0ffbece35088574bbb4ebf9ba165d852f`.
 
@@ -112,6 +112,8 @@ The hardened 16-instance isolation log is retained only on the deployment host a
 | Hidden buoy passing side | Observation exposes the signed pass point using the course lateral vector and the next pass point. | Pass-point geometry tests and a scripted three-lap controller using the public observation buffer. | Other courses remain outside the task. |
 | Dynamic water hidden from the learner | Observation indices 43 through 54 expose a rider-local 4 by 3 stencil at forward offsets `-64,64,192,384` and lateral offsets `-96,0,96`. | Bit-exact observation placement test and exact sampler comparison with `func_8004D30C`. | This is local height only, not complete water or wave state. |
 | No salient PufferLib human evaluation | `puf_render` now draws course topology, buoy sides, rider pose, a sampled water surface, minimap, and HUD from an immutable `WR64RenderState`. | Deterministic read-only capture test plus CPU evaluator PNG capture support. | Presentation is custom and has no N64 pixel, asset, camera, or audio parity. |
+| Terminal badge over an invisible autoreset race | The evaluator freezes the captured official terminal state while leaving the RL core's same-transition autoreset intact; Enter exposes the already-reset next race. Terminal-aware capture exits before episode two. | Final source frame shows the official three-lap FINISH; exact capture reported 620 frames and `terminal=1`. | This is renderer lifecycle behavior, not a change to simulator terminal semantics. |
+| Hold-to-own input caused ambiguous handoff | Shift+Up is a rising-edge HUMAN/POLICY toggle. Policy inference continues during human control and only the submitted action is overridden. | Pure toggle regression plus real X11 POLICY to HUMAN to POLICY sequence. | CPU and CUDA inference trajectories are not asserted equivalent. |
 | Evaluation rendering could contaminate training | Renderer allocation and the 33 by 33 display mesh are lazy behind `puf_render`; training never calls it and `Client` remains null. | Renderer harness kept `Client` null through 192 training decisions and showed cadence-independent simulator state. | Simulation and 12 water observation queries still execute on host CPU. |
 | Observation ABI changed without checkpoint boundary | `OBS_SIZE` is now 55 and observations 0 through 42 retain their meanings. | Compile-time ABI assertion and CPU/CUDA parameter-shape checks. | Every 43-input checkpoint is incompatible; no migration is defined and retraining is required. |
 | Raw absolute height near 39 in the old feature scale | Height is centered on race-start Y and divided by 100. Vertical velocity and the full body basis are exposed. | Deterministic and random observation range checks. | Tested traces do not establish global bounds for every game state. |
@@ -142,6 +144,8 @@ The repaired adapter now follows the engineering patterns required by the native
 - lazy evaluator allocation, so training leaves `Client` null and performs no Raylib calls or 33 by 33 render-state capture;
 - internal frameskip, so Puffer performs one inference per four guest updates;
 - exact autoreset semantics that preserve the terminal transition buffers;
+- render-only terminal pause, leaving headless training and autoreset unchanged;
+- persistent Shift+Up control ownership with policy inference kept synchronized during human play;
 - a flat float `Log` structure with episode-count aggregation;
 - address-stable custom vector initialization for saved native contexts;
 - per-instance machine state and copy-on-write reset backing;
@@ -195,7 +199,7 @@ Seed 708 therefore learned strong stochastic race behavior. Its failure is speci
 
 Fresh deterministic CPU evaluation completed its single episode successfully in 619 decisions with `perf=0.889577`, score 77,603.546875, 39 checkpoints, one miss, and no failure, disqualification, timeout, or fault. This is a functional one-episode check, not a CPU success-rate estimate or CUDA/CPU trajectory-equivalence result.
 
-The learned-policy visual capture retained 150 distinct consecutive 960 by 540 PNGs spanning 30 simulated seconds. Frame 149 showed target gate 51, 13 gates cleared, and zero misses. This verifies that the evaluator makes a learned trajectory inspectable. It does not widen the trace-specific simulator parity proof or create N64 graphical parity.
+The earlier learned-policy visual capture retained 150 distinct consecutive 960 by 540 PNGs spanning 30 simulated seconds. Frame 149 showed target gate 51, 13 gates cleared, and zero misses. The new terminal-aware capture retained 620 640 by 480 source frames from reset through the official three-lap finish, then stopped before episode two. Its delivered H.264 High/yuv420p MP4 contains 7,548 decoded frames at 60 frames/s, lasts 125.800 s including a 2 s terminal hold, is 14,228,992 bytes, and has SHA-256 `3fbaeaa9d0a1dcde2ce72d9508b2273d0c38387a3748bafec0c9fed9f5727a85`. This verifies inspectable full-episode CPU policy behavior. It does not widen the trace-specific simulator parity proof, establish CPU/CUDA action equivalence, or create N64 graphical parity.
 
 | Item | Status and required evidence |
 | --- | --- |
@@ -205,7 +209,7 @@ The learned-policy visual capture retained 150 distinct consecutive 960 by 540 P
 | Broader seed sensitivity | **PENDING.** Two training seeds establish the contrast but do not estimate the wider distribution. |
 | Compatible retained checkpoints | **RETAINED.** Both are 437,248 bytes with distinct hashes documented above. |
 | CPU policy execution | **PASS AS A ONE-EPISODE CHECK.** Broader CPU evaluation and action-by-action backend comparison remain pending. |
-| Human learned-policy evaluation | **PASS FOR STABLE SEED 707.** The 150-frame capture is legible and state-driven; visual parity with the N64 is not claimed. |
+| Human learned-policy evaluation | **PASS FOR STABLE SEED 707.** Compact HUD, two-way human toggle, terminal freeze, and a full-race MP4 are verified; visual parity with the N64 is not claimed. |
 | Continuous process-specific GPU and per-core telemetry | **PENDING.** Renderer and capture runs must be excluded from training measurements. |
 | Broad controller parity | **PENDING.** Add interpreter traces that exercise steering, stick Y, B, R, wave interaction, recovery, misses, and a successful finish. |
 | Secondary RNG and whole-RDRAM parity | **PENDING.** Implement a measured post-reset time model before making either claim. |

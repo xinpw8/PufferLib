@@ -179,6 +179,7 @@ This makes the control state legible to a human, but it is not graphical parity 
 Run the CUDA-policy evaluator in a visible window:
 
 ```sh
+WR64_RENDER_WIDTH=640 WR64_RENDER_HEIGHT=360 \
 ./puffer-wr64-final eval \
   /home/spark-advantage/wr64-results/waverace64-obs55-human-eval.bin \
   --base.eval_deterministic=1 \
@@ -187,10 +188,11 @@ Run the CUDA-policy evaluator in a visible window:
 
 The deployed human-eval artifact remains seed 707 because its deterministic argmax policy completed 128/128 fresh CUDA episodes. Seed 708 is a strong stochastic policy, but its deterministic per-head argmax trajectory completed 0/128 and is not the stable interactive default.
 
-The evaluator uses one environment and advances at five policy decisions per wall-clock second. Rendering targets 60 frames/s. Hold Left Shift to replace policy actions with keyboard input; releasing it returns control to the policy.
+The evaluator uses one environment and advances at five policy decisions per wall-clock second. Rendering targets 60 frames/s. Press Shift+Up once to toggle persistent HUMAN control; press the same chord again to return to POLICY. Policy inference continues behind human control so recurrent state remains synchronized for a clean handoff. The top-right mode badge always shows the current owner.
 
-| Input while holding Left Shift | Controller action |
+| Input | Evaluator or controller action |
 | --- | --- |
+| Shift+Up | Toggle HUMAN/POLICY control ownership |
 | W | A, throttle |
 | A or Left Arrow | Full left stick X |
 | D or Right Arrow | Full right stick X |
@@ -198,7 +200,10 @@ The evaluator uses one environment and advances at five policy decisions per wal
 | Down Arrow | Full back stick Y |
 | S | B, wave damping |
 | Space | R, water-surface slide |
+| Enter on a terminal screen | Start rendering the autoreset next race |
 | Close window | End evaluation |
+
+An official finish, disqualification, or failure freezes the actual captured terminal state. The RL core retains normal same-transition autoreset semantics, but rendered evaluation does not advance the new episode invisibly under an old finish badge. Press Enter to continue into the already-reset next race. Human/POLICY ownership persists across that restart.
 
 For a CPU-only policy viewer or PNG capture, build the standalone evaluator under a distinct output name:
 
@@ -213,7 +218,7 @@ WR64_RENDER_WIDTH=1280 WR64_RENDER_HEIGHT=720 \
   --env.rom_path="$WR64_ROM"
 ```
 
-The default window is 960 by 540 pixels. `WR64_RENDER_WIDTH` values below 640 and `WR64_RENDER_HEIGHT` values below 480 are ignored.
+The default window is 800 by 450 pixels. Widths down to 480 and heights down to 270 are accepted. The compact edge HUD was verified at 640 by 360 and 640 by 480.
 
 The CPU evaluator has Wave Race compiled in. Its first positional argument is the checkpoint path; no `waverace64` environment-name token is required.
 
@@ -233,6 +238,22 @@ WR64_RENDER_WIDTH=960 WR64_RENDER_HEIGHT=540 \
 ```
 
 This writes `frame-000000.png` through `frame-000149.png`. At 60 rendered frames/s and five policy decisions/s, `--capture-every=12` retains one image per policy decision and spans 30 simulated seconds. The retained learned-policy capture contains 150 distinct consecutive 960 by 540 images; frame 149 shows target gate 51, 13 gates cleared, and zero misses. `--capture-every=N` keeps every Nth rendered frame. `--capture-hidden` hides the window but still requires a working display and OpenGL context. `--capture-fast` removes normal render pacing and must not be used as a training-throughput measurement. Capture cannot be combined with `--headless`; `--headless` selects metrics-only CPU evaluation and does not call the renderer.
+
+For an exact first episode from reset through its official terminal state, omit `--capture-count` and use `--capture-until-terminal`:
+
+```sh
+WR64_RENDER_WIDTH=640 WR64_RENDER_HEIGHT=480 \
+  ./wr64_eval "$WR64_CHECKPOINT" \
+  --env.rom_path="$WR64_ROM" \
+  --base.eval_deterministic=1 \
+  --capture-dir="$WR64_CAPTURE_DIR" \
+  --capture-every=12 \
+  --capture-hidden \
+  --capture-fast \
+  --capture-until-terminal
+```
+
+The terminal frame is forced into the capture even when it falls between the normal capture cadence, then the process exits before episode two. `--capture-until-terminal` and `--capture-count` are mutually exclusive.
 
 ## Action space
 
@@ -430,11 +451,12 @@ The separate renderer regression in [`tests/test_waverace64_render.cpp`](../../t
 | Check | Retained result |
 | --- | --- |
 | Training path stays lazy | `Client` remained null through 192 decisions, including autoresets |
+| Control ownership | Pure rising-edge test and real X11 injection both produced POLICY to HUMAN to POLICY from two Shift+Up chords |
 | Pure authoritative capture | State hash `7d5f6487fbfc38ba`, 59 course nodes |
 | Renderer preserves simulator core | Eight repeated `puf_render` calls left RDRAM, stack, recomp context, machine scalars, adapter state, and TLS owner unchanged |
-| Fixed-state pixels | Two 960 by 540 captures were byte-identical; pixel hash `1eef85fa7d51633f` |
+| Fixed-state pixels | Two compact-HUD 960 by 540 captures were byte-identical; pixel hash `1d5323433008b7ff` |
 | Render cadence independence | Headless and variably rendered 96-decision trajectories matched; hash `ffa76503834a3bff` |
-| Moving capture | 48 rendered decisions reached tick 48; final state hash `9d18db27cdfc907d` |
+| Moving capture | 48 rendered decisions reached guest-update tick 192; final state hash `3d79ad5e60a0b87f` |
 
 The pixel hash is a regression baseline for the tested Raylib/OpenGL software stack. It is not asserted to be portable across graphics drivers, and it is not a reference N64 framebuffer hash.
 
@@ -491,6 +513,8 @@ Seed 708 is not a non-learning failure. Its stochastic policy completed 410/515 
 
 The seed-707 deterministic CPU episode succeeded after 619 policy decisions with zero generic failures, disqualifications, timeouts, or faults and `target_laps=3`. It is a functional policy and environment check, not enough evidence for a CPU success-rate estimate or CUDA/CPU action-by-action equivalence. The deterministic CUDA entries are replicas of one deterministic initial condition per checkpoint. The stochastic results characterize two trained seeds under one held-out action seed each.
 
+The terminal-aware full-race capture retained the reset frame, every one of those 619 deterministic CPU policy decisions, and the official terminal frame as 620 source PNGs. It stopped before any frame from episode two. The delivered H.264 High/yuv420p MP4 is 640 by 480 at 60 frames/s, has 7,548 decoded frames and a 125.800 s duration including a 2 s finish hold, is 14,228,992 bytes, and has SHA-256 `3fbaeaa9d0a1dcde2ce72d9508b2273d0c38387a3748bafec0c9fed9f5727a85`. This records CPU inference of the seed-707 checkpoint; it is not evidence that CPU and CUDA inference select identical action sequences.
+
 | Current 55-input acceptance item | Status |
 | --- | --- |
 | Full renderer-free training throughput | **MEASURED FOR SEEDS 707 AND 708:** 30,777.828655 and 30,713.28 decisions/s by trainer uptime |
@@ -501,6 +525,7 @@ The seed-707 deterministic CPU episode succeeded after 619 policy decisions with
 | Deterministic per-head argmax | **SHARPLY SEED-SENSITIVE:** seed 707 finished 128/128; seed 708 finished 0/128 |
 | Fresh deterministic CPU evaluation | **PASS AS A SEED-707 ONE-EPISODE CHECK:** 1/1 official success in 619 decisions |
 | Learned-policy PNG capture | **PASS FOR STABLE SEED 707:** 150 distinct consecutive 960 by 540 frames spanning 30 simulated seconds |
+| Full-race MP4 | **PASS FOR STABLE SEED 707:** reset through official three-lap finish, terminal-aware stop, 125.800 s H.264 file |
 | Broader training-seed statistics | **PENDING:** two full seeds establish the contrast but not the wider distribution |
 
 ## Audit
