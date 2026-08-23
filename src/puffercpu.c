@@ -641,7 +641,7 @@ void free_puffernet(PufferNet* net) {
 
 static int puf_export_screen(const char* file_name) {
     Image image = LoadImageFromScreen();
-    if (!IsImageReady(image)) return 0;
+    if (!image.data || image.width <= 0 || image.height <= 0) return 0;
     int exported = ExportImage(image, file_name);
     UnloadImage(image);
     return exported;
