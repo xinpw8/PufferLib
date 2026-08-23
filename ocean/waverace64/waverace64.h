@@ -786,12 +786,84 @@ static inline void wr64_capture_render_state(
     }
 }
 
-static inline uint64_t wr64_render_state_hash(const WR64RenderState* state) {
-    const uint8_t* bytes = (const uint8_t*)state;
-    uint64_t hash = UINT64_C(14695981039346656037);
-    for (size_t i = 0; i < sizeof(*state); i++) {
+static inline uint64_t wr64_render_hash_bytes(uint64_t hash,
+        const void* data, size_t size) {
+    const uint8_t* bytes = (const uint8_t*)data;
+    for (size_t i = 0; i < size; i++) {
         hash = (hash ^ bytes[i]) * UINT64_C(1099511628211);
     }
+    return hash;
+}
+
+// Hash the logical projection, not its object representation. This keeps the
+// render change detector independent of compiler-inserted structure padding.
+static inline uint64_t wr64_render_state_hash(const WR64RenderState* state) {
+    uint64_t hash = UINT64_C(14695981039346656037);
+#define WR64_RENDER_HASH(field) \
+    hash = wr64_render_hash_bytes(hash, &(field), sizeof(field))
+    WR64_RENDER_HASH(state->version);
+    WR64_RENDER_HASH(state->game_state);
+    WR64_RENDER_HASH(state->course_id);
+    WR64_RENDER_HASH(state->game_mode);
+    WR64_RENDER_HASH(state->machine_ticks);
+    WR64_RENDER_HASH(state->tick);
+    WR64_RENDER_HASH(state->lap);
+    WR64_RENDER_HASH(state->target_laps);
+    WR64_RENDER_HASH(state->race_position);
+    WR64_RENDER_HASH(state->target_node);
+    WR64_RENDER_HASH(state->next_node);
+    WR64_RENDER_HASH(state->misses);
+    WR64_RENDER_HASH(state->checkpoints);
+    WR64_RENDER_HASH(state->recovery);
+    WR64_RENDER_HASH(state->physics_state);
+    WR64_RENDER_HASH(state->physics_state_frame);
+    WR64_RENDER_HASH(state->disqualified);
+    WR64_RENDER_HASH(state->ended);
+    WR64_RENDER_HASH(state->finished);
+    WR64_RENDER_HASH(state->success);
+    WR64_RENDER_HASH(state->failed);
+    WR64_RENDER_HASH(state->node_count);
+    WR64_RENDER_HASH(state->pad_buttons);
+    WR64_RENDER_HASH(state->pad_stick_x);
+    WR64_RENDER_HASH(state->pad_stick_y);
+    WR64_RENDER_HASH(state->position);
+    WR64_RENDER_HASH(state->velocity);
+    WR64_RENDER_HASH(state->heading);
+    WR64_RENDER_HASH(state->basis);
+    WR64_RENDER_HASH(state->speed_per_second);
+    WR64_RENDER_HASH(state->route_fraction);
+    WR64_RENDER_HASH(state->progress_fraction);
+    WR64_RENDER_HASH(state->route_total);
+    WR64_RENDER_HASH(state->water_level);
+    WR64_RENDER_HASH(state->water_origin_x);
+    WR64_RENDER_HASH(state->water_origin_z);
+    WR64_RENDER_HASH(state->water_spacing);
+    int32_t node_count = state->node_count;
+    if (node_count < 0) node_count = 0;
+    if (node_count > WR64_MAX_COURSE_NODES) {
+        node_count = WR64_MAX_COURSE_NODES;
+    }
+    for (int32_t i = 0; i < node_count; i++) {
+        const WR64RenderNode* node = &state->nodes[i];
+        WR64_RENDER_HASH(node->index);
+        WR64_RENDER_HASH(node->next);
+        WR64_RENDER_HASH(node->type);
+        WR64_RENDER_HASH(node->valid);
+        WR64_RENDER_HASH(node->live_x);
+        WR64_RENDER_HASH(node->live_y);
+        WR64_RENDER_HASH(node->live_z);
+        WR64_RENDER_HASH(node->anchor_x);
+        WR64_RENDER_HASH(node->anchor_z);
+        WR64_RENDER_HASH(node->tangent_x);
+        WR64_RENDER_HASH(node->tangent_z);
+        WR64_RENDER_HASH(node->lateral_x);
+        WR64_RENDER_HASH(node->lateral_z);
+        WR64_RENDER_HASH(node->length);
+        WR64_RENDER_HASH(node->pass_x);
+        WR64_RENDER_HASH(node->pass_z);
+    }
+    WR64_RENDER_HASH(state->water);
+#undef WR64_RENDER_HASH
     return hash;
 }
 
