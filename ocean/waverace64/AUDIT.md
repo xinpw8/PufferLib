@@ -202,7 +202,7 @@ These results establish current OBS57 learning for one selected training seed un
 
 The prior OBS55 evidence remains historical. Seeds 707 and 708 each executed 5,242,880 decisions at 30,777.828655 and 30,713.28 decisions/s by trainer uptime. Both used 1,687% CPU with maximum RSS 1,625,884 and 1,625,936 KiB. Their trainer binaries had SHA-256 `893c63d0cde3fb9d8073232fe5b1c98a543f53e00732c01b5488e7c7817952f` and `e96263824d6083e08f8d18d57aa415dcf68c2ca2a9260d1b8192cbf90a59633c`. Their 437,248-byte checkpoints had SHA-256 `a6696e3888ca472712071aa9fd6b82b377e3ddf956db41ca2082488c3145fc59` and `83382a3f31141a1645a5be2cb8c31696480066838faaee70c8527138722027dd`; both are incompatible with the current network. Historical seed 707 finished 128/128 deterministic and 386/514 stochastic episodes; historical seed 708 finished 0/128 deterministic and 410/515 stochastic episodes. Those results demonstrate the superseded OBS55 contract, not current OBS57 performance.
 
-The earlier OBS55 learned-policy capture and 108.433 s full-race MP4 remain historical artifacts. A full-race OBS57 MP4 using the current native-time HUD and wave-relative camera is pending.
+The earlier OBS55 learned-policy capture and 108.433 s full-race MP4 remain historical artifacts. The current OBS57 CUDA-policy MP4 is retained at `/home/spark-advantage/wr64-results/obs57-seeds/video/waverace64-obs57-s901-full-race-20260823.mp4`. It is H.264 High/yuv420p at 960 by 540 and 60 frames/s, contains 5,348 decoded frames, lasts 89.133 s, is 18,099,382 bytes, and has SHA-256 `f88b88eb0290d72229a57dbace28a4cd91007f46d7c62d806e57574de280b179`. It starts at native time zero, contains the complete deterministic 82.607 s official race, and retains more than 6 s of the frozen finish. Frames at 0, 10, 82, and 88 s were inspected independently for start, live wave-relative pose, final lap, and terminal state.
 
 | Item | Status and required evidence |
 | --- | --- |
@@ -212,7 +212,7 @@ The earlier OBS55 learned-policy capture and 108.433 s full-race MP4 remain hist
 | Broader seed sensitivity | **PENDING.** One selected OBS57 training seed does not estimate the wider distribution. |
 | Compatible retained checkpoint | **RETAINED.** The 438,272-byte seed-901 checkpoint hash is documented above. |
 | Human state evaluation | **PASS STATIC REGRESSIONS.** Compact truthful Time Trials HUD, native clocks/speed/power, two-way human toggle, terminal freeze, and visible wave-relative motion are verified. |
-| Current OBS57 full-race MP4 | **PENDING.** The existing recording is historical OBS55 evidence. |
+| Current OBS57 full-race MP4 | **PASS.** Native CUDA policy from time zero through the frozen official finish; 89.133 s and 5,348 decoded frames. |
 | Continuous process-specific GPU and per-core telemetry | **PENDING.** Renderer and capture runs must be excluded from training measurements. |
 | Broad controller parity | **PENDING.** Add interpreter traces that exercise steering, stick Y, B, R, wave interaction, recovery, misses, and a successful finish. |
 | Secondary RNG and whole-RDRAM parity | **PENDING.** Implement a measured post-reset time model before making either claim. |

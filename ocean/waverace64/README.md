@@ -546,7 +546,9 @@ Seed 708 is not a non-learning failure. Its stochastic policy completed 410/515 
 
 The seed-707 deterministic CPU episode succeeded after 619 policy decisions with zero generic failures, disqualifications, timeouts, or faults and `target_laps=3`. It is a functional policy and environment check, not enough evidence for a CPU success-rate estimate or CUDA/CPU action-by-action equivalence. The deterministic CUDA entries are replicas of one deterministic initial condition per checkpoint. The stochastic results characterize two trained seeds under one held-out action seed each.
 
-The historical terminal-aware CPU capture retained the reset frame, every one of those 619 deterministic policy decisions, and the official terminal frame as 620 source PNGs. It stopped before any frame from episode two. A separate historical CUDA-policy recording used the frozen finish screen as a synchronization gate, restarted once, and retained the first rendered policy transition through 120 consecutive frames of the next official finish screen. That OBS55 H.264 High/yuv420p MP4 is 640 by 360 at 60 frames/s, contains 6,506 decoded frames, lasts 108.433 s, is 11,085,404 bytes, and has SHA-256 `041bba61d8f86a4a00e4aec555a9b71a7d47e287696aaba7cc60823f31dbfc1b`. Its final state reports lap 3/3, 46 cleared gates, zero misses, and official finish at 106.60 s. A full-race recording of the selected OBS57 policy with the current HUD remains pending.
+The historical terminal-aware CPU capture retained the reset frame, every one of those 619 deterministic policy decisions, and the official terminal frame as 620 source PNGs. It stopped before any frame from episode two. A separate historical CUDA-policy recording used the frozen finish screen as a synchronization gate, restarted once, and retained the first rendered policy transition through 120 consecutive frames of the next official finish screen. That OBS55 H.264 High/yuv420p MP4 is 640 by 360 at 60 frames/s, contains 6,506 decoded frames, lasts 108.433 s, is 11,085,404 bytes, and has SHA-256 `041bba61d8f86a4a00e4aec555a9b71a7d47e287696aaba7cc60823f31dbfc1b`. Its final state reports lap 3/3, 46 cleared gates, zero misses, and official finish at 106.60 s.
+
+The current native CUDA-policy recording is retained at `/home/spark-advantage/wr64-results/obs57-seeds/video/waverace64-obs57-s901-full-race-20260823.mp4`. It is H.264 High/yuv420p at 960 by 540 and 60 frames/s, contains 5,348 decoded frames, lasts 89.133 s, is 18,099,382 bytes, and has SHA-256 `f88b88eb0290d72229a57dbace28a4cd91007f46d7c62d806e57574de280b179`. The file begins at the exact native time-zero state, contains the complete deterministic 82.607 s official race, and ends with more than 6 s of the frozen official finish. Frame inspection at 0, 10, 82, and 88 s verifies the time-zero start, live wave-relative pose, final lap, and terminal overlay without episode-two contamination.
 
 | Current OBS57 acceptance item | Status |
 | --- | --- |
@@ -556,7 +558,7 @@ The historical terminal-aware CPU capture retained the reset frame, every one of
 | Fresh stochastic CUDA three-lap evaluation | **PASS:** 509/512 (`0.994141`) under held-out action seed 3901 |
 | Native time reporting | **PASS:** deterministic splits 29,643/26,029/26,935 ms sum exactly to 82,607 ms |
 | Human evaluator static regressions | **PASS:** compact Time Trials HUD, native clocks/speed/power, wave-relative camera, terminal freeze, and two-way Shift+Up toggle |
-| Current full-race MP4 | **PENDING:** the historical OBS55 recording is not current OBS57 evidence |
+| Current full-race MP4 | **PASS:** selected OBS57 CUDA policy from native time zero through the frozen official finish; 89.133 s, 5,348 frames, hash documented above |
 | Broader OBS57 training-seed statistics | **PENDING:** the selected seed and held-out action evaluation do not estimate the wider training-seed distribution |
 
 ## Audit
