@@ -173,11 +173,11 @@ Evaluation checks the episode target after complete rollout horizons, so `base.e
 
 ## Human state evaluator and capture
 
-The interactive evaluator is a state-based visualization of the same simulation used for training. Its immutable, pointer-free capture contains the rider position, finite-difference velocity, heading and full body basis, controller state, lap and route state, native total and lap clocks, native lap splits, native physics speed, power, checkpoint and miss counts, recovery and terminal flags, the authoritative course graph and signed pass points, and a rider-centered 33 by 33 water-height grid at 128 game-unit spacing. The renderer displays that state as a low-poly water surface, course line, colored buoys and pass-side markers, a schematic rider and watercraft, a chase camera, a minimap, and a compact Time Trials race HUD.
+The interactive evaluator is a state-based visualization of the same simulation used for training. Its immutable, pointer-free capture contains the rider position, finite-difference velocity, heading and full body basis, controller state, lap and route state, native total and lap clocks, native lap splits, native physics speed, power, checkpoint and miss counts, recovery and terminal flags, the authoritative course graph and signed pass points, and a rider-centered 33 by 33 water-height grid at 128 game-unit spacing. The renderer displays that state as a low-poly water surface, course line, colored buoys and pass-side markers, the shared Puffer model in place of the human rider and jet ski, a chase camera, a minimap, and a compact Time Trials race HUD. Puffer position, yaw, pitch, roll, and wave-relative bob come from the captured authoritative rider basis.
 
-This makes the control state legible to a human, but it is not graphical parity with the N64 game. The camera, water shading, wake history, rider and watercraft geometry, HUD, and minimap are renderer-owned presentation. No cartridge textures, models, framebuffer, audio, RSP output, or RDP output are used. The edge HUD mirrors the salient Time Trials layout with `TIME`, `LAP`, `SPEED`, lap splits, `MISS`, and `POWER` or `MAX POWER`. It does not invent Championship rank or opponent portraits for the one-rider Time Trials contract. Renderer correctness means that the shown geometry and labels are projections of captured authoritative fields, within the parity boundary documented below. It does not mean pixel equivalence to Wave Race 64.
+This makes the control state legible to a human, but it is not graphical parity with the N64 game. The camera, water shading, wake history, Puffer model, HUD, and minimap are renderer-owned presentation. No cartridge textures, models, framebuffer, audio, RSP output, or RDP output are used. The Puffer is the repository's existing [`resources/shared/puffer.glb`](../../resources/shared/puffer.glb), also used by Tower Climb. The 1,199,624-byte GLB has SHA-256 `6e5e201b2d08c4eae48f04d9a715ef7b5e6dbb13bffa3c6903ea656730ce7644`. This renderer uses its static bind pose and does not implement the model's morph-target animation. The edge HUD mirrors the salient Time Trials layout with `TIME`, `LAP`, `SPEED`, lap splits, `MISS`, and `POWER` or `MAX POWER`. It does not invent Championship rank or opponent portraits for the one-rider Time Trials contract. Renderer correctness means that the shown geometry and labels are projections of captured authoritative fields, within the parity boundary documented below. It does not mean pixel equivalence to Wave Race 64.
 
-The chase camera follows horizontal rider motion directly but low-pass filters its vertical anchor with a 0.60 s time constant. Reset, discontinuity, and recovery states snap the anchor. This keeps the craft's wave-relative rise, fall, pitch, and roll visible instead of translating the camera eye and target by the same instantaneous rider height. The camera filter is evaluation-only and does not alter simulator state or training observations.
+The chase camera follows horizontal rider motion directly but low-pass filters its vertical anchor with a 0.60 s time constant. Reset, discontinuity, and recovery states snap the anchor. This keeps the Puffer's wave-relative rise, fall, pitch, and roll visible instead of translating the camera eye and target by the same instantaneous rider height. The camera filter and Puffer model are evaluation-only. Training never allocates the renderer or loads the GLB, and neither changes simulator state or training observations.
 
 Run the CUDA-policy evaluator in a visible window:
 
@@ -190,6 +190,8 @@ WR64_RENDER_WIDTH=640 WR64_RENDER_HEIGHT=360 \
 ```
 
 The deployed OBS57 human-evaluation artifact is seed 901. Fresh deterministic CUDA evaluation completed 128/128 official three-lap races with zero misses or failure terminals. The historical OBS55 seed-707 artifact cannot be loaded by the current 57-input network.
+
+The current deployed `puffer-wr64-final` evaluator build has SHA-256 `75b9f1f1a37326bf242ea746cff1cb2eadb371dc61020280963dde4737a59070`.
 
 The evaluator uses one environment and advances at ten policy decisions per wall-clock second, matching two 20 Hz guest updates per action. Rendering targets 60 frames/s. Press Shift+Up once to toggle persistent HUMAN control; press the same chord again to return to POLICY. Policy inference continues behind human control so recurrent state remains synchronized for a clean handoff. The small bottom-right mode badge always shows the current owner.
 
@@ -465,9 +467,9 @@ The separate renderer regression in [`tests/test_waverace64_render.cpp`](../../t
 | Control ownership | Pure rising-edge test and real X11 injection both produced POLICY to HUMAN to POLICY from two Shift+Up chords |
 | Pure authoritative capture | State hash `f2b411ab54afcf26`, including native clocks, speed, and power |
 | Renderer preserves simulator core | Eight repeated `puf_render` calls left RDRAM, stack, recomp context, machine scalars, adapter state, and TLS owner unchanged |
-| Fixed-state pixels | Two compact Time Trials HUD captures were byte-identical; pixel hash `17ebb258db464e16` |
+| Fixed-state pixels and model lifecycle | Two captures were byte-identical; pixel hash `25d9b84784d476bf`; the shared Puffer GLB loaded as a valid model and unloaded cleanly |
 | Render cadence independence | Headless and rendered 192-decision trajectories matched; hash `bb75cd7a071f6551` |
-| Wave-relative camera | A 48-frame, 4.8-s simulated trace exposed 14.284 pixels of craft-head movement while preserving simulator state |
+| Wave-relative Puffer motion | A 48-frame, 4.8-s simulated trace exposed 12.055 pixels of exact teal-body centroid movement and 21 pixels of silhouette-bottom movement while preserving simulator state |
 | Moving capture | 48 rendered frames reached guest-update tick 96; final state hash `3217579d69426366` |
 
 The pixel hash is a regression baseline for the tested Raylib/OpenGL software stack. It is not asserted to be portable across graphics drivers, and it is not a reference N64 framebuffer hash.
@@ -506,7 +508,7 @@ Fresh CUDA evaluation produced:
 
 Both evaluations forced `target_laps=3`. Deterministic evaluation reported no safety timeouts or environment faults. Held-out stochastic evaluation reported no safety timeouts or environment faults; its finish and lap times are conditioned on successful episodes.
 
-A fresh standalone CPU evaluator built from the same committed OBS57 source loaded all 109,568 checkpoint floats and completed one deterministic official three-lap episode in 784 policy decisions. It passed all 48 checkpoints with zero misses, failures, disqualifications, safety timeouts, or environment faults. The deployed `wr64_cpu` binary has SHA-256 `45e6d1152a1acb0a3ef09766d780b14c8a4bf3544464cb56d4b3720bb94098b4`. Its retained log is `/home/spark-advantage/wr64-results/obs57-seeds/evals/final-cpu-det-s1901.log`, SHA-256 `b31035bc62f6386a72ca2a28c8ad26c034d633be57473bceedcee55bcdbe5b44`. This is a checkpoint-format and official-completion smoke test, not a claim of bit-identical CPU and CUDA policy inference.
+A fresh standalone CPU evaluator built from the same committed OBS57 source loaded all 109,568 checkpoint floats and completed one deterministic official three-lap episode in 784 policy decisions. It passed all 48 checkpoints with zero misses, failures, disqualifications, safety timeouts, or environment faults. The deployed `wr64_cpu` binary has SHA-256 `62f8a3be97fda9659f204e4a6e08aac09b57aaa3ded2e19c31b89fc2116c73ab`. Its retained log is `/home/spark-advantage/wr64-results/obs57-seeds/evals/final-cpu-puffer-det-s1901.log`, SHA-256 `b31035bc62f6386a72ca2a28c8ad26c034d633be57473bceedcee55bcdbe5b44`. This is a checkpoint-format and official-completion smoke test, not a claim of bit-identical CPU and CUDA policy inference.
 
 ### Historical OBS55 evidence
 
@@ -550,7 +552,7 @@ The seed-707 deterministic CPU episode succeeded after 619 policy decisions with
 
 The historical terminal-aware CPU capture retained the reset frame, every one of those 619 deterministic policy decisions, and the official terminal frame as 620 source PNGs. It stopped before any frame from episode two. A separate historical CUDA-policy recording used the frozen finish screen as a synchronization gate, restarted once, and retained the first rendered policy transition through 120 consecutive frames of the next official finish screen. That OBS55 H.264 High/yuv420p MP4 is 640 by 360 at 60 frames/s, contains 6,506 decoded frames, lasts 108.433 s, is 11,085,404 bytes, and has SHA-256 `041bba61d8f86a4a00e4aec555a9b71a7d47e287696aaba7cc60823f31dbfc1b`. Its final state reports lap 3/3, 46 cleared gates, zero misses, and official finish at 106.60 s.
 
-The current native CUDA-policy recording is retained at `/home/spark-advantage/wr64-results/obs57-seeds/video/waverace64-obs57-s901-full-race-20260823.mp4`. It is H.264 High/yuv420p at 960 by 540 and 60 frames/s, contains 5,348 decoded frames, lasts 89.133 s, is 18,099,382 bytes, and has SHA-256 `f88b88eb0290d72229a57dbace28a4cd91007f46d7c62d806e57574de280b179`. The file begins at the exact native time-zero state, contains the complete deterministic 82.607 s official race, and ends with more than 6 s of the frozen official finish. Frame inspection at 0, 10, 82, and 88 s verifies the time-zero start, live wave-relative pose, final lap, and terminal overlay without episode-two contamination.
+The current native CUDA-policy Puffer recording is retained at `/home/spark-advantage/wr64-results/obs57-seeds/video/waverace64-obs57-s901-puffer-full-race-20260823.mp4`. It is H.264 High/yuv420p at 960 by 540 and 60 frames/s, contains 5,348 decoded frames, lasts 89.133 s, is 23,783,474 bytes, and has SHA-256 `42e3db2597955bbc43d5078735635afa590c9dcc38fc316cf481640d12a12b60`. The file begins at the exact native time-zero state, contains the complete deterministic 82.607 s official race, and ends with more than 6 s of the frozen official finish. Frame inspection at 0, 10, 82, and 88 s verifies the time-zero start, live Puffer wave motion, final lap, terminal overlay, and absence of a captured X11 cursor or episode-two contamination. The prior rider-and-jet-ski OBS57 recording remains a historical pre-Puffer artifact.
 
 | Current OBS57 acceptance item | Status |
 | --- | --- |
@@ -559,8 +561,8 @@ The current native CUDA-policy recording is retained at `/home/spark-advantage/w
 | Fresh deterministic CUDA three-lap evaluation | **PASS:** 128/128, zero misses and no failure terminal; native finish 82,607 ms |
 | Fresh stochastic CUDA three-lap evaluation | **PASS:** 509/512 (`0.994141`) under held-out action seed 3901 |
 | Native time reporting | **PASS:** deterministic splits 29,643/26,029/26,935 ms sum exactly to 82,607 ms |
-| Human evaluator static regressions | **PASS:** compact Time Trials HUD, native clocks/speed/power, wave-relative camera, terminal freeze, and two-way Shift+Up toggle |
-| Current full-race MP4 | **PASS:** selected OBS57 CUDA policy from native time zero through the frozen official finish; 89.133 s, 5,348 frames, hash documented above |
+| Human evaluator static regressions | **PASS:** valid shared Puffer model, compact Time Trials HUD, native clocks/speed/power, wave-relative motion, terminal freeze, and two-way Shift+Up toggle |
+| Current Puffer full-race MP4 | **PASS:** selected OBS57 CUDA policy from native time zero through the frozen official finish; cursor-free, 89.133 s, 5,348 frames, hash documented above |
 | Broader OBS57 training-seed statistics | **PENDING:** the selected seed and held-out action evaluation do not estimate the wider training-seed distribution |
 
 ## Audit
