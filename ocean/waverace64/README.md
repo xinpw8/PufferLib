@@ -445,7 +445,7 @@ Both executions reach the same route events and the native Time Trials failure s
 
 The evidence has explicit limits. It covers one deterministic Sunny Beach Time Trials trace through failure. It does not cover every controller trace, successful three-lap completion, other courses, other modes, graphics, audio, controller-pak behavior, or every writable RDRAM byte. A secondary `Math_Rand` state at `0x80226F00` differs from guest frame 2 because post-reset `osGetTime` advancement is not modeled. That stream did not alter the authoritative fields above through frame 637.
 
-The runtime's retained isolation test initializes 16 machines, compares serial and parallel controller streams, repeats the parallel run three times, and requires exact final RDRAM, stack, recomp context, machine state, and trajectory hashes. The log is retained only on the deployment host at `/home/spark-advantage/wr64-recomp/runtime/isolation_acceptance_20260822T050325Z_3003381.log`; its SHA-256 is `805b8384d97306f77c043734727a5cd0ffbece35088574bbb4ebf9ba165d852f`.
+The runtime's retained post-change isolation test initializes 16 machines, runs 512 guest updates per machine, compares serial and parallel controller streams, repeats the parallel run three times, and requires exact final RDRAM, stack, recomp context, machine state, and trajectory hashes. It passed with zero failures. The log is retained only on the deployment host at `/home/spark-advantage/wr64-recomp/runtime/isolation_acceptance_20260823T192430Z_4098593.log`; its SHA-256 is `7c910f98e02b05b2dcc4b022cdcd5b6b3103c419a673e01c1cb4b652d6faa3af`.
 
 The adapter regression harness in [`tests/test_waverace64.cpp`](../../tests/test_waverace64.cpp) covers the 57-value ABI shape, exact placement of the 12 water features, native speed and power observations, action mapping, internal frameskip, body basis, exact time-zero reset contract, guest halfword lane, buoy side, lap-wrap continuity, official misses and disqualification, discount-correct failure shaping, shortened one-lap official finish, full three-lap scripted reachability, B/stick-Y interventions, observation ranges, deterministic baselines, and vector affinity/ownership. The unit harness does not invoke the central CUDA train/evaluation path.
 
@@ -505,6 +505,8 @@ Fresh CUDA evaluation produced:
 | Stochastic, seed 3901 | 512 | 509 | 0.994141 | 0.330078 mean | 2 | 1 | 84,200.930 ms | 28,945.953/27,441.498/27,813.461 ms | 1,683.535 mean | 1,040.705 game units/s |
 
 Both evaluations forced `target_laps=3`. Deterministic evaluation reported no safety timeouts or environment faults. Held-out stochastic evaluation reported no safety timeouts or environment faults; its finish and lap times are conditioned on successful episodes.
+
+A fresh standalone CPU evaluator built from the same committed OBS57 source loaded all 109,568 checkpoint floats and completed one deterministic official three-lap episode in 784 policy decisions. It passed all 48 checkpoints with zero misses, failures, disqualifications, safety timeouts, or environment faults. The deployed `wr64_cpu` binary has SHA-256 `45e6d1152a1acb0a3ef09766d780b14c8a4bf3544464cb56d4b3720bb94098b4`. Its retained log is `/home/spark-advantage/wr64-results/obs57-seeds/evals/final-cpu-det-s1901.log`, SHA-256 `b31035bc62f6386a72ca2a28c8ad26c034d633be57473bceedcee55bcdbe5b44`. This is a checkpoint-format and official-completion smoke test, not a claim of bit-identical CPU and CUDA policy inference.
 
 ### Historical OBS55 evidence
 
