@@ -13,8 +13,8 @@ The original assignment required a native Wave Race 64 core in the current Puffe
 | Native Wave Race 64 core | Implemented with 1,203 statically recompiled game functions and a headless libultra runtime. |
 | Current PufferLib 5.0 integration | Implemented against upstream `5.0` commit `ba238f8c` using the native C++17/CUDA trainer. |
 | Parity with the game | Proven for selected authoritative state on one pinned deterministic interpreter trace through a native failure terminal. Broader parity remains unproven. |
-| High-throughput training | **MEASURED FOR ONE FULL CURRENT-CONTRACT RUN.** Seed 707 completed 5,242,880 decisions at 30,777.828655 decisions/s by trainer uptime and 30,609.995329 decisions/s by process wall time. Simulation remains CPU-bound. |
-| Learning quality | **DEMONSTRATED FOR ONE TRAINING SEED.** The current 55-input seed-707 checkpoint finished 128/128 fresh deterministic CUDA episodes and 386/514 fresh stochastic CUDA episodes. Multi-seed training remains pending. |
+| High-throughput training | **MEASURED FOR TWO FULL CURRENT-CONTRACT RUNS.** Seeds 707 and 708 completed 5,242,880 decisions at 30,777.828655 and 30,713.28 decisions/s by trainer uptime. Simulation remains CPU-bound. |
+| Learning quality | **STOCHASTIC LEARNING DEMONSTRATED IN BOTH FULL-RUN SEEDS.** Seeds 707 and 708 finished 386/514 (`0.750973`) and 410/515 (`0.796117`) stochastic episodes. Deterministic per-head argmax is sharply seed-sensitive: 128/128 for seed 707 and 0/128 for seed 708. A broader seed sweep remains pending. |
 | Human-readable evaluation | Implemented as an eval-only state renderer using authoritative rider, course, outcome, and water state. It is a purpose-built visualization, not original Wave Race graphics. |
 | CUDA, CPU-free simulation | Unimplemented. The policy and learner use CUDA; `libwr64.a` executes on host CPU workers. |
 
@@ -36,7 +36,7 @@ libwr64.a on the host CPU
 per-instance 8 MiB RDRAM, native stack, ucontext, and snapshot
 ```
 
-Training is unpaced. The guest's simulated-time cadence does not limit wall-clock throughput. GPU utilization cannot remove the CPU simulator cost in this architecture. One complete 55-observation training run is documented below; a current multi-seed performance distribution and a fully duration-matched comparison with the retained 43-input baseline remain unavailable.
+Training is unpaced. The guest's simulated-time cadence does not limit wall-clock throughput. GPU utilization cannot remove the CPU simulator cost in this architecture. Two complete 55-observation training runs are documented below; a broader seed distribution and a fully duration-matched comparison with the retained 43-input baseline remain unavailable.
 
 The adapter follows the native Puffer environment interface in [`waverace64.h`](waverace64.h): `puf_init`, `puf_reset`, `puf_step`, `puf_close`, `puf_log`, and `puf_render`. Training is renderer-free: the training path never calls `puf_render`, never allocates the renderer `Client`, never captures the 33 by 33 display mesh, and never submits Raylib draw calls. It still runs the recompiled simulator and computes the 12 water observation samples on host CPU. Interactive evaluation calls `puf_render` and therefore has evaluation-only CPU and graphics work. The ASCII utility in the runtime repository remains a telemetry plot and is not the state evaluator.
 
@@ -152,7 +152,7 @@ The configured run contains exactly 5,242,880 policy decisions, or 640 complete 
 
 The checked-in configuration requests at least 32 post-train evaluation episodes. Post-train evaluation reuses the existing 128-agent training vector; `base.eval_agents = 32` applies when a standalone evaluation vector is created. Before post-train evaluation, the trainer waits for rollout workers, forces every Wave Race instance to the official three-lap target, resets every environment, clears transition state, uploads the reset observations, zeros recurrent state, reinitializes action RNG state, and synchronizes the CUDA stream. Fresh CUDA evaluation, post-train evaluation, and the standalone CPU evaluator all use this same three-lap boundary. Evaluation cannot inherit one-lap curriculum state.
 
-A fresh-process evaluation of a named checkpoint remains the acceptance method because it isolates the process lifecycle and pins the artifact under test. The checkpoint must have been trained with `OBS_SIZE = 55`. A 43-input checkpoint has a different first-layer parameter shape and is incompatible; the CUDA and CPU loaders do not define a padding or migration rule. A compatible retained checkpoint now exists at the explicit path below. Do not use `latest`, which selects by filesystem creation time and can pick an unrelated or incompatible checkpoint:
+A fresh-process evaluation of a named checkpoint remains the acceptance method because it isolates the process lifecycle and pins the artifact under test. The checkpoint must have been trained with `OBS_SIZE = 55`. A 43-input checkpoint has a different first-layer parameter shape and is incompatible; the CUDA and CPU loaders do not define a padding or migration rule. Two compatible checkpoints are retained below. This command selects seed 707, the stable deterministic human-evaluation policy. Do not use `latest`, which selects by filesystem creation time and can pick an unrelated or incompatible checkpoint:
 
 ```sh
 export WR64_CHECKPOINT=/home/spark-advantage/wr64-results/state-eval-obs55-e0a8e2d4/checkpoints/waverace64/state-eval-obs55-s707/0000000005242880.bin
@@ -184,6 +184,8 @@ Run the CUDA-policy evaluator in a visible window:
   --base.eval_deterministic=1 \
   --env.rom_path=/home/spark-advantage/baserom.us.rev1.z64
 ```
+
+The deployed human-eval artifact remains seed 707 because its deterministic argmax policy completed 128/128 fresh CUDA episodes. Seed 708 is a strong stochastic policy, but its deterministic per-head argmax trajectory completed 0/128 and is not the stable interactive default.
 
 The evaluator uses one environment and advances at five policy decisions per wall-clock second. Rendering targets 60 frames/s. Hold Left Shift to replace policy actions with keyboard input; releasing it returns control to the policy.
 
@@ -451,42 +453,55 @@ The deterministic controller fixtures establish task reachability and regression
 
 ## Performance and learning acceptance
 
-The current contract has 55 observations. A complete renderer-free seed-707 run executed all 5,242,880 configured policy decisions. Trainer uptime was 170.346 s, giving 30,777.828655 policy decisions/s and 123,111.314618 guest updates/s. Whole-process wall time was 171.28 s, giving 30,609.995329 policy decisions/s. The process used 1,687% CPU, or 16.87 CPU equivalents, and reached 1,625,884 KiB maximum RSS. Renderer and capture paths were inactive. The final logged curriculum batch reported success 1.0 and `target_laps=3`; this is a final-batch training result, not a multi-seed evaluation statistic.
+The current contract has 55 observations. Two complete renderer-free runs were measured:
 
-The retained 43-input historical baseline had mean 30,900.2 and median 30,914.5 policy decisions/s. It is not documented as a fully pinned duration-matched comparison with this run, so no regression percentage is assigned. The current network has 109,312 parameters versus 107,776 previously, an increase of 1,536 or 1.425%. The evidence does not isolate water-query cost from network, host, placement, or run-protocol effects.
+| Training seed | Decisions | Trainer uptime | Decisions/s | Guest updates/s | Process wall | Wall decisions/s | CPU | Maximum RSS | Internal GPU mean |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 707 | 5,242,880 | 170.346 s | 30,777.828655 | 123,111.314618 | 171.28 s | 30,609.995329 | 1,687% | 1,625,884 KiB | Not retained |
+| 708 | 5,242,880 | 170.704 s | 30,713.28 | 122,853.13 | 171.65 s | 30,544.01 | 1,687% | 1,625,936 KiB | 4.287% |
 
-Three earlier 55-input short screens averaged 29,609.44 decisions/s, 16.220 CPU equivalents, 1.55052 GiB mean peak RSS, and 4.384% device-wide GPU utilization. They are retained as preliminary screens, not substituted for the complete run. The GPU figure is device-wide and was not sampled continuously or attributed to this process. Their provenance is deployed Puffer commit `8a9c51f2cebac95c36119d2eb975d53db10b4529`, local renderer-harness commit `1fa4769b942a6179828a2e7b5d5773e8d3596234`, runtime commit `e3f56302898a98ec7f7b20ca35fc1b5de69fe890`, trainer SHA-256 `893c63d0cde3fb9d8073232fe5b1c98a543f53e00732c01b5488e7c7817952f`, and CPU evaluator SHA-256 `a07089133be8f5c32ef89119313f6702170a98d2566451c82f0b56467a0d1161`.
+Seed 707 ran `./puffer-wr64-obs55`, SHA-256 `893c63d0cde3fb9d8073232fe5b1c98a543f53e00732c01b5488e7c7817952f`. Seed 708 ran `./puffer-wr64-final`, SHA-256 `e96263824d6083e08f8d18d57aa415dcf68c2ca2a9260d1b8192cbf90a59633c`. Later changes affected renderer-state hashing, the render harness, and documentation rather than the training path, but the two run binaries remain distinct artifacts.
 
-The compatible seed-707 checkpoint is 437,248 bytes:
+The seed-708 GPU value is the time-weighted internal metric for that run. No equivalent full-run value is retained for seed 707. The renderer and capture paths were inactive in both runs. Seed 707's final logged curriculum batch reported success 1.0 and `target_laps=3`; this is a final-batch training result, not an evaluation statistic.
 
-```text
-/home/spark-advantage/wr64-results/state-eval-obs55-e0a8e2d4/checkpoints/waverace64/state-eval-obs55-s707/0000000005242880.bin
-SHA-256 a6696e3888ca472712071aa9fd6b82b377e3ddf956db41ca2082488c3145fc59
-```
+The retained 43-input historical baseline had mean 30,900.2 and median 30,914.5 policy decisions/s. It is not documented as a fully pinned duration-matched comparison with these runs, so no regression percentage is assigned. The current network has 109,312 parameters versus 107,776 previously, an increase of 1,536 or 1.425%. The evidence does not isolate water-query cost from network, host, placement, or run-protocol effects.
 
-Fresh-process evaluation of that current-contract policy produced:
+Three earlier 55-input short screens averaged 29,609.44 decisions/s, 16.220 CPU equivalents, 1.55052 GiB mean peak RSS, and 4.384% device-wide GPU utilization. They are retained as preliminary screens, not substituted for the complete runs. The GPU figure is device-wide and was not sampled continuously or attributed to this process. Their provenance is deployed Puffer commit `8a9c51f2cebac95c36119d2eb975d53db10b4529`, local renderer-harness commit `1fa4769b942a6179828a2e7b5d5773e8d3596234`, runtime commit `e3f56302898a98ec7f7b20ca35fc1b5de69fe890`, trainer SHA-256 `893c63d0cde3fb9d8073232fe5b1c98a543f53e00732c01b5488e7c7817952f`, and CPU evaluator SHA-256 `a07089133be8f5c32ef89119313f6702170a98d2566451c82f0b56467a0d1161`.
 
-| Evaluator | Action mode | Episodes | Successes | Success rate | Perf | Score | Checkpoints | Misses |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| CUDA | Per-head argmax | 128 | 128 | 1.000000 | 0.937920 | 81,820.898438 | 46.000000 | 0.000000 |
-| CUDA, seed 7001 | Stochastic | 514 | 386 | 0.750973 | 0.877817 | 76,568.945312 | 39.085602 | 2.708171 |
-| CPU | Per-head argmax | 1 | 1 | 1.000000 | 0.889577 | 77,603.546875 | 39.000000 | 1.000000 |
+Both compatible checkpoints are 437,248 bytes:
 
-All 128 deterministic CUDA replicas reported `target_laps=3`, `three_lap_success_rate=1`, and zero generic failures, disqualifications, safety timeouts, or environment faults. The stochastic CUDA run reported 80 generic failures (`0.155642`), 48 disqualifications (`0.093385`), zero safety timeouts, zero environment faults, and `target_laps=3`; all successes were therefore official three-lap finishes. The deterministic CPU episode succeeded after 619 policy decisions with no failure, disqualification, timeout, or fault and `target_laps=3`.
+| Training seed | Checkpoint path | SHA-256 |
+| ---: | --- | --- |
+| 707 | `/home/spark-advantage/wr64-results/state-eval-obs55-e0a8e2d4/checkpoints/waverace64/state-eval-obs55-s707/0000000005242880.bin` | `a6696e3888ca472712071aa9fd6b82b377e3ddf956db41ca2082488c3145fc59` |
+| 708 | `/home/spark-advantage/wr64-results/state-eval-obs55-seed708-final/checkpoints/waverace64/state-eval-obs55-s708/0000000005242880.bin` | `83382a3f31141a1645a5be2cb8c31696480066838faaee70c8527138722027dd` |
 
-The one CPU episode is a functional policy and environment check, not enough evidence for a CPU success-rate estimate or CUDA/CPU action-by-action equivalence. The 128 deterministic CUDA entries are replicas of one deterministic initial condition and policy. The 514-episode stochastic result characterizes one trained seed under one held-out action seed. Multi-seed training remains required to measure training-seed sensitivity.
+Fresh-process evaluation produced:
+
+| Training seed | Evaluator | Action mode | Episodes | Successes | Success rate | Perf | Score | Checkpoints | Misses |
+| ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 707 | CUDA | Per-head argmax | 128 | 128 | 1.000000 | 0.937920 | 81,820.898438 | 46.000000 | 0.000000 |
+| 707 | CUDA, action seed 7001 | Stochastic | 514 | 386 | 0.750973 | 0.877817 | 76,568.945312 | 39.085602 | 2.708171 |
+| 707 | CPU | Per-head argmax | 1 | 1 | 1.000000 | 0.889577 | 77,603.546875 | 39.000000 | 1.000000 |
+| 708 | CUDA | Per-head argmax | 128 | 0 | 0.000000 | 0.720770 | 62,625.097656 | 32.000000 | 1.000000 |
+| 708 | CUDA, action seed 7002 | Stochastic | 515 | 410 | 0.796117 | 0.938844 | 81,918.937500 | 41.429127 | 3.330097 |
+
+For seed 707, deterministic CUDA reported zero generic failures, disqualifications, timeouts, or faults. Stochastic CUDA reported 80 generic failures (`0.155642`), 48 disqualifications (`0.093385`), and no timeout or fault. For seed 708, all 128 deterministic replicas ended in generic failure, with no disqualification, timeout, or fault. Its stochastic evaluation reported 10 generic failures (`0.019417`), 95 disqualifications (`0.184466`), and no timeout or fault. Every CUDA evaluation reported `target_laps=3`; seed 707 deterministic `three_lap_success_rate` was 1.
+
+Seed 708 is not a non-learning failure. Its stochastic policy completed 410/515 official three-lap episodes, while seed 707 completed 386/514 under a different held-out action seed. The collapse is specific to deterministic per-head argmax: the selected modal trajectory finished 0/128 while seed 707's finished 128/128. Seed sensitivity is therefore demonstrated for argmax extraction, while a broader training-seed distribution remains pending.
+
+The seed-707 deterministic CPU episode succeeded after 619 policy decisions with zero generic failures, disqualifications, timeouts, or faults and `target_laps=3`. It is a functional policy and environment check, not enough evidence for a CPU success-rate estimate or CUDA/CPU action-by-action equivalence. The deterministic CUDA entries are replicas of one deterministic initial condition per checkpoint. The stochastic results characterize two trained seeds under one held-out action seed each.
 
 | Current 55-input acceptance item | Status |
 | --- | --- |
-| Full renderer-free training throughput | **MEASURED FOR SEED 707:** 30,777.828655 decisions/s by trainer uptime; 30,609.995329 decisions/s by process wall |
-| Full-run CPU and memory utilization | **MEASURED:** 1,687% CPU and 1,625,884 KiB maximum RSS |
-| Process-attributed GPU utilization | **PENDING:** only preliminary device-wide samples are retained |
-| Compatible checkpoint | **RETAINED:** 437,248 bytes with SHA-256 `a6696e3888ca472712071aa9fd6b82b377e3ddf956db41ca2082488c3145fc59` |
-| Fresh deterministic CUDA three-lap evaluation | **PASS FOR SEED 707:** 128/128 official successes |
-| Fresh stochastic CUDA three-lap evaluation | **MEASURED FOR SEED 707:** 386/514 official successes (`0.750973`) |
-| Fresh deterministic CPU evaluation | **PASS AS A ONE-EPISODE CHECK:** 1/1 official success in 619 decisions |
-| Learned-policy PNG capture | **PASS:** 150 distinct consecutive 960 by 540 frames spanning 30 simulated seconds |
-| Multi-seed training and seed sensitivity | **PENDING** |
+| Full renderer-free training throughput | **MEASURED FOR SEEDS 707 AND 708:** 30,777.828655 and 30,713.28 decisions/s by trainer uptime |
+| Full-run CPU and memory utilization | **MEASURED FOR BOTH:** 1,687% CPU; maximum RSS 1,625,884 and 1,625,936 KiB |
+| GPU utilization | **PARTIAL:** seed 708 time-weighted internal mean 4.287%; comparable seed-707 full-run telemetry not retained |
+| Compatible checkpoints | **RETAINED:** both 437,248 bytes with hashes above |
+| Fresh stochastic CUDA three-lap evaluation | **PASS IN BOTH SEEDS:** 386/514 (`0.750973`) and 410/515 (`0.796117`) official successes |
+| Deterministic per-head argmax | **SHARPLY SEED-SENSITIVE:** seed 707 finished 128/128; seed 708 finished 0/128 |
+| Fresh deterministic CPU evaluation | **PASS AS A SEED-707 ONE-EPISODE CHECK:** 1/1 official success in 619 decisions |
+| Learned-policy PNG capture | **PASS FOR STABLE SEED 707:** 150 distinct consecutive 960 by 540 frames spanning 30 simulated seconds |
+| Broader training-seed statistics | **PENDING:** two full seeds establish the contrast but not the wider distribution |
 
 ## Audit
 
