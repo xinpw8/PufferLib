@@ -936,8 +936,12 @@ int main(int argc, char** argv) {
 #endif
     int step_period = 1;
     int step_credit = 0;
-    if ((int)PUF_STEPS_PER_SEC < 60) {
-        step_period = 60 / (int)PUF_STEPS_PER_SEC;
+    int eval_steps_per_second = (int)PUF_STEPS_PER_SEC;
+#ifdef PUF_STEPS_PER_SEC_ENV
+    eval_steps_per_second = PUF_STEPS_PER_SEC_ENV(&env);
+#endif
+    if (eval_steps_per_second > 0 && eval_steps_per_second < 60) {
+        step_period = 60 / eval_steps_per_second;
         assert(step_period >= 1);
     }
     int step_hold = 0;
@@ -978,8 +982,8 @@ int main(int argc, char** argv) {
         int do_step = headless || (step_hold == 0 && !render_paused);
         int terminal_transition = 0;
         int ticks = 1;
-        if (!headless && (int)PUF_STEPS_PER_SEC > 60) {
-            step_credit += (int)PUF_STEPS_PER_SEC;
+        if (!headless && eval_steps_per_second > 60) {
+            step_credit += eval_steps_per_second;
             ticks = 0;
             while (step_credit >= 60) {
                 step_credit -= 60;

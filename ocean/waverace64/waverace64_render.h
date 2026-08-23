@@ -8,6 +8,7 @@
 
 #define WR64_RENDER_SCALE 0.01f
 #define WR64_WAKE_POINTS 64
+#define WR64_CAMERA_TAU_SECONDS 0.60f
 
 struct Client {
     WR64RenderState state;
@@ -19,6 +20,11 @@ struct Client {
     int toggle_chord_down;
     int terminal_hold;
     int last_tick;
+    int camera_ready;
+    int camera_tick;
+    float camera_y;
+    int hud_lap;
+    int final_lap_until_tick;
     int wake_start;
     int wake_count;
     Vector3 wake[WR64_WAKE_POINTS];
@@ -76,9 +82,58 @@ static inline Vector3 wr64_render_world(float x, float y, float z) {
         z * WR64_RENDER_SCALE);
 }
 
+static void wr64_render_update_camera_anchor(Client* client,
+        const WR64RenderState* state) {
+    float rider_y = state->position[1] * WR64_RENDER_SCALE;
+    int tick_delta = state->tick - client->camera_tick;
+    int snap = !client->camera_ready || tick_delta <= 0
+        || tick_delta > WR_GAME_UPDATE_HZ || state->recovery != 0;
+    if (snap) {
+        client->camera_y = rider_y;
+        client->camera_ready = 1;
+    } else {
+        float seconds = (float)tick_delta / (float)WR_GAME_UPDATE_HZ;
+        float alpha = 1.f - expf(-seconds / WR64_CAMERA_TAU_SECONDS);
+        client->camera_y += alpha * (rider_y - client->camera_y);
+    }
+    client->camera_tick = state->tick;
+}
+
+static void wr64_render_update_hud_state(Client* client,
+        const WR64RenderState* state) {
+    if (client->hud_lap >= 0
+            && client->hud_lap < state->target_laps
+            && state->lap >= state->target_laps) {
+        client->final_lap_until_tick = state->tick
+            + 3 * WR_GAME_UPDATE_HZ;
+    }
+    client->hud_lap = state->lap;
+}
+
 static inline Vector3 wr64_render_position(const WR64RenderState* state) {
     return wr64_render_world(
         state->position[0], state->position[1], state->position[2]);
+}
+
+static Camera3D wr64_render_camera(const Client* client,
+        const WR64RenderState* state) {
+    Vector3 rider = wr64_render_position(state);
+    Vector3 horizontal_forward = wr64_render_normalize(
+        wr64_render_v3(state->heading[0], 0.f, state->heading[1]),
+        wr64_render_v3(0.f, 0.f, 1.f));
+    float camera_y = client->camera_ready ? client->camera_y : rider.y;
+    Vector3 anchor = wr64_render_v3(rider.x, camera_y, rider.z);
+    Camera3D camera = {0};
+    camera.position = wr64_render_add(
+        wr64_render_sub(anchor, wr64_render_mul(horizontal_forward, 9.5f)),
+        wr64_render_v3(0.f, 5.2f, 0.f));
+    camera.target = wr64_render_add(
+        wr64_render_add(anchor, wr64_render_mul(horizontal_forward, 4.0f)),
+        wr64_render_v3(0.f, 0.7f, 0.f));
+    camera.up = wr64_render_v3(0.f, 1.f, 0.f);
+    camera.fovy = 52.f;
+    camera.projection = CAMERA_PERSPECTIVE;
+    return camera;
 }
 
 static inline Vector3 wr64_render_forward(const WR64RenderState* state) {
@@ -323,8 +378,8 @@ static void wr64_render_wake(const Client* client) {
 
 static void wr64_render_minimap(const WR64RenderState* state,
         int x, int y, int width, int height) {
-    DrawRectangle(x, y, width, height, (Color){8, 20, 35, 215});
-    DrawRectangleLines(x, y, width, height, (Color){112, 226, 230, 180});
+    DrawRectangle(x, y, width, height, (Color){8, 20, 35, 112});
+    DrawRectangleLines(x, y, width, height, (Color){235, 252, 250, 145});
     float min_x = INFINITY;
     float max_x = -INFINITY;
     float min_z = INFINITY;
@@ -390,70 +445,158 @@ static const WR64RenderNode* wr64_render_target_node(
     return &state->nodes[state->target_node];
 }
 
+static void wr64_render_format_time(char* output, size_t size, int total_ms) {
+    if (total_ms < 0) total_ms = 0;
+    int minutes = total_ms / 60000;
+    int seconds = (total_ms / 1000) % 60;
+    int millis = total_ms % 1000;
+    snprintf(output, size, "%d'%02d\"%03d", minutes, seconds, millis);
+}
+
+static void wr64_render_draw_outlined(const char* text,
+        int x, int y, int font_size, Color color) {
+    Color edge = {5, 12, 18, 235};
+    DrawText(text, x - 1, y, font_size, edge);
+    DrawText(text, x + 1, y, font_size, edge);
+    DrawText(text, x, y - 1, font_size, edge);
+    DrawText(text, x, y + 1, font_size, edge);
+    DrawText(text, x, y, font_size, color);
+}
+
+static void wr64_render_draw_centered(const char* text,
+        int center_x, int y, int font_size, Color color) {
+    wr64_render_draw_outlined(text,
+        center_x - MeasureText(text, font_size)/2, y, font_size, color);
+}
+
 static void wr64_render_hud(const Client* client) {
     const WR64RenderState* state = &client->state;
     int width = GetScreenWidth();
     int height = GetScreenHeight();
-    Color panel = {5, 15, 27, 218};
-    Color outline = {112, 226, 230, 180};
-    Color secondary = {174, 231, 232, 255};
+    int label_size = width < 600 ? 10 : 12;
+    int value_size = width < 600 ? 17 : 20;
+    Color yellow = {250, 232, 38, 255};
+    Color orange = {255, 139, 24, 255};
+    Color green = {78, 236, 94, 255};
+    Color secondary = {213, 244, 242, 255};
 
-    DrawRectangle(8, 8, 220, 22, panel);
-    DrawRectangleLines(8, 8, 220, 22, outline);
-    DrawText("WAVE RACE 64  |  SUNNY BEACH TT", 15, 14, 10, RAYWHITE);
+    char time_text[32];
+    wr64_render_format_time(time_text, sizeof(time_text), state->race_time_ms);
+    wr64_render_draw_outlined("TIME", 10, 7, label_size, yellow);
+    wr64_render_draw_outlined(time_text, 10, 20, value_size, orange);
 
+    int display_lap = state->lap < 1 ? 1 : state->lap;
+    char lap_text[24];
+    snprintf(lap_text, sizeof(lap_text), "%d / %d",
+        display_lap, state->target_laps);
+    wr64_render_draw_centered("LAP", width/2, 7, label_size, yellow);
+    wr64_render_draw_centered(lap_text, width/2, 20, value_size, green);
+
+    char speed_text[24];
+    snprintf(speed_text, sizeof(speed_text), "%d", state->speed_kmh);
+    int speed_center = width - (width < 600 ? 48 : 56);
+    wr64_render_draw_centered("SPEED", speed_center, 7, label_size, yellow);
+    int speed_width = MeasureText(speed_text, value_size);
+    int speed_x = speed_center - (speed_width + 28)/2;
+    wr64_render_draw_outlined(speed_text, speed_x, 20, value_size, orange);
+    wr64_render_draw_outlined("km/h", speed_x + speed_width + 3,
+        27, 8, RAYWHITE);
+
+    int split_y = 44;
+    for (int lap = 0; lap < 3; lap++) {
+        if (state->lap_splits_ms[lap] <= 0) continue;
+        char split_time[32];
+        char split_text[40];
+        wr64_render_format_time(split_time, sizeof(split_time),
+            state->lap_splits_ms[lap]);
+        snprintf(split_text, sizeof(split_text), "%s  L%d",
+            split_time, lap + 1);
+        wr64_render_draw_outlined(split_text, 10, split_y, 9,
+            lap == 1 ? (Color){255, 75, 62, 255} : secondary);
+        split_y += 11;
+    }
     const char* mode = client->human_control ? "HUMAN" : "POLICY";
     Color mode_color = client->human_control
         ? (Color){225, 146, 38, 235} : (Color){26, 155, 174, 235};
-    DrawRectangle(width - 82, 8, 74, 22, mode_color);
-    DrawText(mode, width - 74, 13, 12, RAYWHITE);
-
-    DrawRectangle(8, 38, 270, 42, panel);
-    DrawRectangleLines(8, 38, 270, 42, outline);
-    int display_lap = state->lap < 1 ? 1 : state->lap;
-    DrawText(TextFormat("LAP %d/%d   GATE %d   CLEARED %d   MISS %d",
-        display_lap, state->target_laps, state->target_node,
-        state->checkpoints, state->misses), 15, 45, 11, RAYWHITE);
-    DrawText(TextFormat("SPD %6.1f u/s   TIME %6.2f   PAD %+d,%+d A%d B%d R%d",
-        state->speed_per_second,
-        (float)state->tick/(float)WR_GAME_UPDATE_HZ,
-        (int)state->pad_stick_x, (int)state->pad_stick_y,
-        (state->pad_buttons & WR_BTN_A) != 0,
-        (state->pad_buttons & WR_BTN_B) != 0,
-        (state->pad_buttons & WR_BTN_R) != 0), 15, 63, 10, secondary);
 
     const WR64RenderNode* target = wr64_render_target_node(state);
-    DrawRectangle(8, 86, 184, 22, panel);
-    DrawRectangleLines(8, 86, 184, 22, outline);
+    char gate_text[64];
     if (target && target->type == 0) {
-        DrawCircle(19, 97, 5.f, wr64_render_buoy_color(0));
-        DrawText("RED BUOY: PASS RIGHT", 31, 92, 10,
-            (Color){92, 255, 184, 255});
+        snprintf(gate_text, sizeof(gate_text),
+            "GATE %d  RED: PASS RIGHT", state->target_node);
     } else if (target && target->type == 1) {
-        DrawCircle(19, 97, 5.f, wr64_render_buoy_color(1));
-        DrawText("YELLOW BUOY: PASS LEFT", 31, 92, 10,
-            (Color){92, 255, 184, 255});
+        snprintf(gate_text, sizeof(gate_text),
+            "GATE %d  YELLOW: PASS LEFT", state->target_node);
     } else {
-        DrawText("FOLLOW ROUTE MARKER", 15, 92, 10,
-            (Color){92, 255, 184, 255});
+        snprintf(gate_text, sizeof(gate_text),
+            "GATE %d  FOLLOW ROUTE", state->target_node);
+    }
+    wr64_render_draw_centered(gate_text, width/2, 58, 9, green);
+
+    int map_w = width < 760 ? 94 : 106;
+    int map_h = width < 760 ? 68 : 78;
+    wr64_render_minimap(state, width - map_w - 8, 62, map_w, map_h);
+
+    int miss_y = height - 18;
+    wr64_render_draw_outlined("MISS", 10, miss_y - 2, 10, RAYWHITE);
+    int remaining = 5 - state->misses;
+    if (remaining < 0) remaining = 0;
+    if (remaining > 5) remaining = 5;
+    for (int i = 0; i < 5; i++) {
+        int x = 51 + 13*i;
+        Color marker = i < remaining
+            ? (Color){238, 54, 42, 255} : (Color){70, 73, 82, 220};
+        DrawCircle(x, miss_y + 2, 4.5f, (Color){4, 9, 15, 235});
+        DrawCircle(x, miss_y + 1, 3.5f, marker);
+        if (i >= remaining) {
+            DrawLine(x - 2, miss_y - 1, x + 2, miss_y + 3, RAYWHITE);
+        }
     }
 
-    int map_w = width < 760 ? 116 : 136;
-    int map_h = width < 760 ? 90 : 104;
-    wr64_render_minimap(state, width - map_w - 8, 38, map_w, map_h);
+    int power = state->power;
+    if (power < 0) power = 0;
+    if (power > 5) power = 5;
+    wr64_render_draw_centered(power == 5 ? "MAX POWER" : "POWER",
+        width/2, height - 34, power == 5 ? 13 : 10,
+        power == 5 ? yellow : RAYWHITE);
+    static const Color power_colors[5] = {
+        {90, 126, 255, 255}, {69, 220, 142, 255},
+        {232, 230, 57, 255}, {255, 163, 42, 255},
+        {244, 70, 42, 255},
+    };
+    int power_x = width/2 - 31;
+    for (int i = 0; i < 5; i++) {
+        Color color = i < power
+            ? power_colors[i] : (Color){66, 74, 82, 210};
+        DrawRectangle(power_x + 13*i, height - 17, 10, 6, color);
+        DrawTriangle(
+            (Vector2){(float)(power_x + 10 + 13*i), (float)(height - 17)},
+            (Vector2){(float)(power_x + 13 + 13*i), (float)(height - 14)},
+            (Vector2){(float)(power_x + 10 + 13*i), (float)(height - 11)},
+            color);
+    }
 
-    int control_y = height - 26;
-    DrawRectangle(8, control_y, width - 16, 18, panel);
-    DrawRectangleLines(8, control_y, width - 16, 18, outline);
-    DrawText("SHIFT+UP toggle | W throttle | A/D steer | UP/DOWN lean | S damp | SPACE slide",
-        14, control_y + 4, width < 600 ? 8 : 9, secondary);
+    int mode_width = MeasureText(mode, 9) + 14;
+    int mode_x = width - mode_width - 8;
+    DrawRectangle(mode_x, height - 24, mode_width, 16, mode_color);
+    wr64_render_draw_centered(mode, mode_x + mode_width/2,
+        height - 21, 9, RAYWHITE);
+
+    if (client->human_control) {
+        wr64_render_draw_centered(
+            "SHIFT+UP policy | W throttle | A/D steer | arrows lean | S damp | SPACE slide",
+            width/2, height - 49, width < 600 ? 7 : 8, secondary);
+    }
 
     if (state->recovery) {
         const char* text = state->recovery == 2 ? "RECOVERY" : "UNSTABLE";
-        int text_width = MeasureText(text, 13);
-        DrawRectangle(width/2 - text_width/2 - 8, 8,
-            text_width + 16, 22, (Color){209, 67, 70, 225});
-        DrawText(text, width/2 - text_width/2, 13, 13, RAYWHITE);
+        wr64_render_draw_centered(text, width/2, 70, 15,
+            (Color){255, 82, 75, 255});
+    }
+    if (!client->terminal_hold && client->final_lap_until_tick > 0
+            && client->final_lap_until_tick >= state->tick) {
+        wr64_render_draw_centered("FINAL LAP", width/2, 79,
+            width < 600 ? 23 : 28, green);
     }
     if (client->terminal_hold && client->has_terminal) {
         const WR64RenderState* terminal = &client->terminal_state;
@@ -463,19 +606,20 @@ static void wr64_render_hud(const Client* client) {
             ? "Official three-lap finish" : "Episode ended";
         Color color = terminal->success
             ? (Color){37, 185, 110, 235} : (Color){204, 62, 71, 235};
-        int box_width = 240;
+        int box_width = 210;
         int box_x = width/2 - box_width/2;
-        int box_y = height/2 - 33;
+        int box_y = height/2 - 30;
         int text_width = MeasureText(label, 20);
-        DrawRectangle(box_x, box_y, box_width, 66, color);
-        DrawRectangleLines(box_x, box_y, box_width, 66, RAYWHITE);
-        DrawText(label, width/2 - text_width/2, box_y + 7, 20, RAYWHITE);
+        DrawRectangle(box_x, box_y, box_width, 60, color);
+        DrawRectangleLines(box_x, box_y, box_width, 60, RAYWHITE);
+        wr64_render_draw_outlined(label,
+            width/2 - text_width/2, box_y + 5, 20, RAYWHITE);
         int detail_width = MeasureText(detail, 11);
-        DrawText(detail, width/2 - detail_width/2, box_y + 32, 11, RAYWHITE);
+        DrawText(detail, width/2 - detail_width/2, box_y + 29, 11, RAYWHITE);
         const char* restart = "ENTER: new race";
         int restart_width = MeasureText(restart, 10);
         DrawText(restart, width/2 - restart_width/2,
-            box_y + 49, 10, RAYWHITE);
+            box_y + 45, 10, RAYWHITE);
     }
 }
 
@@ -506,6 +650,8 @@ static void wr64_render_capture_terminal(WaveRace64* env) {
     if (!env->client) return;
     Client* client = env->client;
     wr64_capture_render_state(env, &client->terminal_state);
+    wr64_render_update_camera_anchor(client, &client->terminal_state);
+    wr64_render_update_hud_state(client, &client->terminal_state);
     client->state = client->terminal_state;
     client->state_hash = wr64_render_state_hash(&client->state);
     client->last_tick = client->state.tick;
@@ -518,6 +664,10 @@ static void wr64_render_reset_episode(WaveRace64* env) {
     if (!env->client) return;
     env->client->has_terminal = 0;
     env->client->terminal_hold = 0;
+    env->client->camera_ready = 0;
+    env->client->camera_tick = 0;
+    env->client->hud_lap = -1;
+    env->client->final_lap_until_tick = -1;
     env->client->wake_start = 0;
     env->client->wake_count = 0;
 }
@@ -595,6 +745,8 @@ static void wr64_render_draw(WaveRace64* env) {
             if (!client->has_state || next.tick != client->last_tick) {
                 wr64_render_append_wake(client, &next);
             }
+            wr64_render_update_camera_anchor(client, &next);
+            wr64_render_update_hud_state(client, &next);
             client->state = next;
             client->state_hash = hash;
             client->last_tick = next.tick;
@@ -603,20 +755,7 @@ static void wr64_render_draw(WaveRace64* env) {
     }
 
     const WR64RenderState* state = &client->state;
-    Vector3 rider = wr64_render_position(state);
-    Vector3 horizontal_forward = wr64_render_normalize(
-        wr64_render_v3(state->heading[0], 0.f, state->heading[1]),
-        wr64_render_v3(0.f, 0.f, 1.f));
-    Camera3D camera = {0};
-    camera.position = wr64_render_add(
-        wr64_render_sub(rider, wr64_render_mul(horizontal_forward, 9.5f)),
-        wr64_render_v3(0.f, 5.2f, 0.f));
-    camera.target = wr64_render_add(
-        wr64_render_add(rider, wr64_render_mul(horizontal_forward, 4.0f)),
-        wr64_render_v3(0.f, 0.7f, 0.f));
-    camera.up = wr64_render_v3(0.f, 1.f, 0.f);
-    camera.fovy = 52.f;
-    camera.projection = CAMERA_PERSPECTIVE;
+    Camera3D camera = wr64_render_camera(client, state);
 
     BeginDrawing();
     ClearBackground((Color){94, 196, 226, 255});

@@ -58,7 +58,10 @@ static uint64_t hash_authoritative_state(WaveRace64* env, uint64_t hash) {
     hash = hash_u32(hash, (uint32_t)wr64_recovery(env));
     hash = hash_u32(hash, wr64_u(env, rider + WR_RIDER_LAP));
     hash = hash_u32(hash, wr64_u(env, rider + WR_RIDER_NODE));
+    hash = hash_u32(hash, wr64_u(env, rider + WR64_RIDER_POWER));
     hash = hash_u32(hash, wr64_u(env, rider + WR64_RIDER_MISSES));
+    hash = hash_u32(hash, wr64_u(env, rider + WR64_RIDER_LAP_TIME));
+    hash = hash_u32(hash, wr64_u(env, rider + WR64_RIDER_TOTAL_TIME));
     hash = hash_u32(hash, wr64_u(env, rider + WR64_RIDER_DQ));
     hash = hash_u32(hash, wr64_u(env, rider + WR64_RIDER_ENDED));
     hash = hash_u32(hash, wr64_u(env, rider + WR64_RIDER_FINISHED));
@@ -129,11 +132,18 @@ static void test_render_state_capture(WaveRace64* env) {
     wr64_capture_render_state(env, &b);
     assert(hash_rdram(env) == before);
     assert(memcmp(&a, &b, sizeof(a)) == 0);
-    assert(a.version == 1);
+    assert(a.version == 2);
     assert(a.game_state == wr64_u(env, WR_ADDR_GAMESTATE));
     assert(a.course_id == WR_COURSE_SUNNY_BEACH);
     assert(a.target_node == wr64_node(env));
     assert(a.target_laps == wr64_target_laps(env));
+    assert(a.race_time_ms == wr64_race_time_ms(env));
+    assert(a.lap_time_ms == wr64_lap_time_ms(env));
+    for (int lap = 0; lap < 3; lap++) {
+        assert(a.lap_splits_ms[lap] == wr64_lap_split_ms(env, lap));
+    }
+    assert(a.speed_kmh == wr64_speed_kmh(env));
+    assert(a.power == wr64_power(env));
     assert(a.misses == wr64_misses(env));
     assert(a.node_count == wr64_node_count(env, WR64_COURSE_PRIMARY));
     assert(a.node_count > 0);
@@ -247,10 +257,20 @@ static void set_action(WaveRace64* env, int x, int y,
     actions[4] = (float)r;
 }
 
+static void test_native_speed_conversion() {
+    assert(wr64_speed_to_kmh(54.999f) == 97);
+    assert(wr64_speed_to_kmh(55.000f) == 99);
+    assert(wr64_speed_to_kmh(55.999f) == 99);
+    assert(wr64_speed_to_kmh(63.999f) == 113);
+    assert(wr64_speed_to_kmh(10000.f) == 999);
+    assert(wr64_speed_to_kmh(NAN) == 0);
+    puts("PASS native double-truncation speed conversion");
+}
+
 static void test_action_contract(WaveRace64* env) {
     int sizes[] = ACT_SIZES;
     int expected_sizes[] = {15, 9, 2, 2, 2};
-    assert(OBS_SIZE == 55);
+    assert(OBS_SIZE == 57);
     assert(NUM_ATNS == 5);
     for (int i = 0; i < NUM_ATNS; i++) assert(sizes[i] == expected_sizes[i]);
 
@@ -282,6 +302,12 @@ static void test_action_contract(WaveRace64* env) {
     for (int i = 0; i < OBS_SIZE; i++) {
         assert(isfinite(env->agents[0].observations[i]));
     }
+    float expected_internal_speed = wr64_physics_speed(env) / WR64_SPEED_SCALE;
+    float expected_power = (float)wr64_power(env) * 0.2f;
+    assert(memcmp(&env->agents[0].observations[55],
+        &expected_internal_speed, sizeof(float)) == 0);
+    assert(memcmp(&env->agents[0].observations[56],
+        &expected_power, sizeof(float)) == 0);
     float x;
     float y;
     float z;
@@ -374,8 +400,19 @@ static void assert_body_basis_observation(WaveRace64* env) {
 static void test_strict_contract_and_recovery_lane(WaveRace64* env) {
     puf_reset(env);
     assert(wr64_reset_contract_valid(env, 3));
+    assert(wr64_u(env, WR_ADDR_MODE_STATE) == 2);
+    assert(wr64_race_time_ms(env) == 0);
+    assert(wr64_lap_time_ms(env) == 0);
     assert(wr64_environment_fault(env, WR_STATE_RACING, 1) == 0);
     assert(wr64_environment_fault(env, 0xFFFFFFFFu, 1) == 1);
+
+    set_action(env, 7, 4, 1, 0, 0);
+    puf_step(env);
+    assert(wr64_race_time_ms(env) == 50 * env->frameskip);
+    assert(wr64_lap_time_ms(env) == 50 * env->frameskip);
+    assert(!wr64_reset_contract_valid(env, 3));
+    puf_reset(env);
+    assert(wr64_reset_contract_valid(env, 3));
 
     uint32_t active_rider = wr64_u(env, WR64_ACTIVE_RIDER_ADDR);
     wr32(env, WR64_ACTIVE_RIDER_ADDR, 1);
@@ -932,7 +969,7 @@ static void assert_observation_ranges(const ObsStats* stats) {
         assert(stats->min[feature] >= -1.001f);
         assert(stats->max[feature] <= 1.001f);
     }
-    int fractions[] = {15, 19, 20, 21, 22, 26, 29, 32};
+    int fractions[] = {15, 19, 20, 21, 22, 26, 29, 32, 56};
     for (size_t i = 0; i < sizeof(fractions)/sizeof(fractions[0]); i++) {
         int feature = fractions[i];
         assert(stats->min[feature] >= -1e-5f);
@@ -1162,6 +1199,7 @@ int main(int argc, char** argv) {
 
     test_water_sampler(&env);
     test_render_state_capture(&env);
+    test_native_speed_conversion();
     test_action_contract(&env);
     test_internal_frameskip(&env);
     characterize_body_basis(&env);

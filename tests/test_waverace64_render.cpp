@@ -103,7 +103,7 @@ static void assert_core_equal(const CoreDigest* before,
 
 static void init_kwargs(Dict* kwargs, const char* rom_path) {
     dict_set_str(kwargs, "rom_path", rom_path);
-    dict_set(kwargs, "frameskip", 4);
+    dict_set(kwargs, "frameskip", 2);
     dict_set(kwargs, "reward_speed", 0);
     dict_set(kwargs, "reward_progress", 3);
     dict_set(kwargs, "reward_slip", 0);
@@ -111,7 +111,7 @@ static void init_kwargs(Dict* kwargs, const char* rom_path) {
     dict_set(kwargs, "reward_miss", 0.5);
     dict_set(kwargs, "reward_finish", 10);
     dict_set(kwargs, "reward_fail", 2);
-    dict_set(kwargs, "discount", 0.9995);
+    dict_set(kwargs, "discount", 0.9997499687421851);
     dict_set(kwargs, "reward_mode", 2);
     dict_set(kwargs, "curriculum_start_laps", 3);
     dict_set(kwargs, "curriculum_max_laps", 3);
@@ -196,9 +196,78 @@ static void test_control_mode_toggle() {
     printf("PASS control-mode shift-up rising-edge toggle\n");
 }
 
+static void test_time_format() {
+    char text[32];
+    wr64_render_format_time(text, sizeof(text), 0);
+    assert(strcmp(text, "0'00\"000") == 0);
+    wr64_render_format_time(text, sizeof(text), 1000);
+    assert(strcmp(text, "0'01\"000") == 0);
+    wr64_render_format_time(text, sizeof(text), 72650);
+    assert(strcmp(text, "1'12\"650") == 0);
+    wr64_render_format_time(text, sizeof(text), -5);
+    assert(strcmp(text, "0'00\"000") == 0);
+    printf("PASS original-style race-clock formatting\n");
+}
+
+static void test_camera_wave_visibility() {
+    Client client = {};
+    WR64RenderState state = {};
+    state.heading[1] = 1.f;
+    state.tick = 100;
+    state.position[1] = 100.f;
+    wr64_render_update_camera_anchor(&client, &state);
+    Camera3D first = wr64_render_camera(&client, &state);
+    float first_relative_y = wr64_render_position(&state).y - first.position.y;
+
+    state.tick += 2;
+    state.position[1] = 124.066f;
+    wr64_render_update_camera_anchor(&client, &state);
+    Camera3D second = wr64_render_camera(&client, &state);
+    float rider_y = wr64_render_position(&state).y;
+    float second_relative_y = rider_y - second.position.y;
+    assert(client.camera_y > 1.f);
+    assert(client.camera_y < rider_y);
+    assert(second.position.y - first.position.y < rider_y - 1.f);
+    assert(fabsf(second_relative_y - first_relative_y) > 0.05f);
+
+    state.tick += 2;
+    state.position[1] = 250.f;
+    state.recovery = 1;
+    wr64_render_update_camera_anchor(&client, &state);
+    assert(fabsf(client.camera_y - 2.5f) < 1e-6f);
+
+    state.recovery = 0;
+    state.tick = 0;
+    state.position[1] = -50.f;
+    wr64_render_update_camera_anchor(&client, &state);
+    assert(fabsf(client.camera_y + 0.5f) < 1e-6f);
+    printf("PASS camera exposes wave heave and snaps on recovery/reset\n");
+}
+
+static void test_final_lap_banner_state() {
+    Client client = {};
+    client.hud_lap = -1;
+    client.final_lap_until_tick = -1;
+    WR64RenderState state = {};
+    state.target_laps = 3;
+    state.lap = 1;
+    state.tick = 100;
+    wr64_render_update_hud_state(&client, &state);
+    assert(client.final_lap_until_tick == -1);
+    state.lap = 2;
+    state.tick = 500;
+    wr64_render_update_hud_state(&client, &state);
+    assert(client.final_lap_until_tick == -1);
+    state.lap = 3;
+    state.tick = 900;
+    wr64_render_update_hud_state(&client, &state);
+    assert(client.final_lap_until_tick == 960);
+    printf("PASS final-lap banner transition is state-driven\n");
+}
+
 static void assert_render_state_matches_authority(
         WaveRace64* env, const WR64RenderState* state) {
-    assert(state->version == 1);
+    assert(state->version == 2);
     assert(state->game_state == wr64_u(env, WR_ADDR_GAMESTATE));
     assert(state->course_id == wr64_u(env, WR_ADDR_COURSE_ID));
     assert(state->game_mode == wr64_u(env, WR_ADDR_GAME_MODE));
@@ -206,6 +275,13 @@ static void assert_render_state_matches_authority(
     assert(state->tick == env->state.tick);
     assert(state->lap == wr64_lap(env));
     assert(state->target_laps == wr64_target_laps(env));
+    assert(state->race_time_ms == wr64_race_time_ms(env));
+    assert(state->lap_time_ms == wr64_lap_time_ms(env));
+    for (int lap = 0; lap < 3; lap++) {
+        assert(state->lap_splits_ms[lap] == wr64_lap_split_ms(env, lap));
+    }
+    assert(state->speed_kmh == wr64_speed_kmh(env));
+    assert(state->power == wr64_power(env));
     assert(state->race_position == (int32_t)wr64_u(
         env, wr64_rider_addr(env, WR_RIDER_RACE_POSITION)));
     assert(state->target_node == wr64_sanitize_node(
@@ -639,6 +715,9 @@ int main(int argc, char** argv) {
     assert(rendered.env.client == NULL);
 
     test_control_mode_toggle();
+    test_time_format();
+    test_camera_wave_visibility();
+    test_final_lap_banner_state();
     test_training_client_remains_null(&headless);
     puf_eval_reset(&rendered.env);
     test_render_state_capture_is_pure(&rendered);

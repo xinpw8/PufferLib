@@ -2954,6 +2954,10 @@ static EvalResult eval_loop(Ini* ini, PuffeRL* p, int mode, int verbose,
     double last_dash = 0;
 #ifdef PUF_STEPS_PER_SEC
     double next_render_step = wall_clock();
+    int eval_steps_per_second = (int)PUF_STEPS_PER_SEC;
+#ifdef PUF_STEPS_PER_SEC_ENV
+    eval_steps_per_second = PUF_STEPS_PER_SEC_ENV(p->vec->envs);
+#endif
 #endif
     while (true) {
         if (render) {
@@ -2967,11 +2971,11 @@ static EvalResult eval_loop(Ini* ini, PuffeRL* p, int mode, int verbose,
             }
 #endif
 #ifdef PUF_STEPS_PER_SEC
-            if ((int)PUF_STEPS_PER_SEC > 0
-                    && (int)PUF_STEPS_PER_SEC < 60) {
+            if (eval_steps_per_second > 0
+                    && eval_steps_per_second < 60) {
                 double now = wall_clock();
                 if (now < next_render_step) continue;
-                double period = 1.0 / (double)PUF_STEPS_PER_SEC;
+                double period = 1.0 / (double)eval_steps_per_second;
                 next_render_step += period;
                 if (next_render_step < now - period) {
                     next_render_step = now + period;

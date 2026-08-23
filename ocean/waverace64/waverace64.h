@@ -18,11 +18,13 @@ typedef float obs_t;
 #include "pufferenv.h"
 #include "wr_env.h"
 
-#define WR64_OBS_SIZE   55
+#define WR64_OBS_SIZE   57
 #define OBS_SIZE        WR64_OBS_SIZE
 #define NUM_ATNS        5
 #define ACT_SIZES       {15, 9, 2, 2, 2}
-#define PUF_STEPS_PER_SEC 5
+#define PUF_STEPS_PER_SEC 10
+#define PUF_STEPS_PER_SEC_ENV(env) \
+    ((int)WR_GAME_UPDATE_HZ / ((env)->frameskip > 0 ? (env)->frameskip : 1))
 
 // WRMachine and its saved ucontext retain pointers into the containing Env.
 // The upstream default vec initializer may realloc after puf_init, so Wave Race
@@ -48,6 +50,7 @@ typedef float obs_t;
 #define WR64_PHYSICS_BASE        WR_PHYSICS_BASE
 #define WR64_PHYSICS_STRIDE      WR_PHYSICS_STRIDE
 #define WR64_PHYSICS_POS         WR_PHYSICS_POS
+#define WR64_PHYSICS_SPEED       WR_PHYSICS_SPEED
 #define WR64_PHYSICS_FORWARD_X   WR_PHYSICS_FORWARD_X
 #define WR64_PHYSICS_FORWARD_Z   WR_PHYSICS_FORWARD_Z
 #define WR64_RIDER_COUNT_ADDR    WR_ADDR_RIDERS
@@ -66,6 +69,10 @@ typedef float obs_t;
 #define WR64_MAX_COURSE_NODES    WR_MAX_COURSE_NODES
 #define WR64_RIDER_MISSES        WR_RIDER_MISSES
 #define WR64_RIDER_DQ            WR_RIDER_DISQUALIFIED
+#define WR64_RIDER_POWER         WR_RIDER_POWER
+#define WR64_RIDER_LAP_TIME      WR_RIDER_LAP_TIME
+#define WR64_RIDER_LAP_SPLIT_1   WR_RIDER_LAP_SPLIT_1
+#define WR64_RIDER_TOTAL_TIME    WR_RIDER_TOTAL_TIME
 #define WR64_RIDER_ENDED         WR_RIDER_ENDED
 #define WR64_RIDER_FINISHED      WR_RIDER_FINISHED
 #define WR64_PHYSICS_RECOVERY    WR_PHYSICS_RECOVERY
@@ -153,6 +160,11 @@ typedef struct WR64RenderState {
     int32_t tick;
     int32_t lap;
     int32_t target_laps;
+    int32_t race_time_ms;
+    int32_t lap_time_ms;
+    int32_t lap_splits_ms[3];
+    int32_t speed_kmh;
+    int32_t power;
     int32_t race_position;
     int32_t target_node;
     int32_t next_node;
@@ -404,6 +416,39 @@ static inline int32_t wr64_misses(WaveRace64* e) {
     return (int32_t)wr64_u(e, wr64_rider_addr(e, WR64_RIDER_MISSES));
 }
 
+static inline int32_t wr64_power(WaveRace64* e) {
+    return (int32_t)wr64_u(e, wr64_rider_addr(e, WR64_RIDER_POWER));
+}
+
+static inline int32_t wr64_lap_time_ms(WaveRace64* e) {
+    return (int32_t)wr64_u(e, wr64_rider_addr(e, WR64_RIDER_LAP_TIME));
+}
+
+static inline int32_t wr64_lap_split_ms(WaveRace64* e, int lap) {
+    if (lap < 0 || lap >= 3) return 0;
+    return (int32_t)wr64_u(e, wr64_rider_addr(e,
+        WR64_RIDER_LAP_SPLIT_1 + 4u*(uint32_t)lap));
+}
+
+static inline int32_t wr64_race_time_ms(WaveRace64* e) {
+    return (int32_t)wr64_u(e, wr64_rider_addr(e, WR64_RIDER_TOTAL_TIME));
+}
+
+static inline float wr64_physics_speed(WaveRace64* e) {
+    return wr64_f(e, wr64_physics_addr(e, WR64_PHYSICS_SPEED));
+}
+
+static inline int32_t wr64_speed_to_kmh(float raw) {
+    if (!isfinite(raw)) return 0;
+    int32_t whole = (int32_t)raw;
+    int32_t kmh = (int32_t)((float)whole * 1.8f);
+    return kmh >= 1000 ? 999 : kmh;
+}
+
+static inline int32_t wr64_speed_kmh(WaveRace64* e) {
+    return wr64_speed_to_kmh(wr64_physics_speed(e));
+}
+
 static inline int32_t wr64_disqualified(WaveRace64* e) {
     return (int32_t)wr64_u(e, wr64_rider_addr(e, WR64_RIDER_DQ));
 }
@@ -480,12 +525,14 @@ static inline int wr64_reset_contract_valid(WaveRace64* e, int32_t target_laps) 
     return wr64_race_identity_valid(e)
         && wr64_u(e, WR_ADDR_GAMESTATE) == WR_STATE_RACING
         && wr64_u(e, WR_ADDR_RACE_READY) == 1
-        && wr64_u(e, WR_ADDR_MODE_STATE) == 3
+        && wr64_u(e, WR_ADDR_MODE_STATE) == 2
         && wr64_u(e, WR_ADDR_COURSE_ID) == WR_COURSE_SUNNY_BEACH
         && wr64_u(e, WR_ADDR_GAME_MODE) == WR_MODE_TIME_TRIALS
         && wr64_u(e, WR_ADDR_PLAYERS) == 1
         && wr64_u(e, WR_ADDR_RIDERS) == 1
-        && wr64_target_laps(e) == target_laps;
+        && wr64_target_laps(e) == target_laps
+        && wr64_lap_time_ms(e) == 0
+        && wr64_race_time_ms(e) == 0;
 }
 
 static inline int32_t wr64_node_type(WaveRace64* e, int32_t node) {
@@ -684,7 +731,7 @@ static inline float wr64_finite_or_zero(float value) {
 static inline void wr64_capture_render_state(
         WaveRace64* e, WR64RenderState* out) {
     memset(out, 0, sizeof(*out));
-    out->version = 1;
+    out->version = 2;
     out->game_state = wr64_u(e, WR_ADDR_GAMESTATE);
     out->course_id = wr64_u(e, WR_ADDR_COURSE_ID);
     out->game_mode = wr64_u(e, WR_ADDR_GAME_MODE);
@@ -692,6 +739,13 @@ static inline void wr64_capture_render_state(
     out->tick = e->state.tick;
     out->lap = wr64_lap(e);
     out->target_laps = wr64_target_laps(e);
+    out->race_time_ms = wr64_race_time_ms(e);
+    out->lap_time_ms = wr64_lap_time_ms(e);
+    for (int lap = 0; lap < 3; lap++) {
+        out->lap_splits_ms[lap] = wr64_lap_split_ms(e, lap);
+    }
+    out->speed_kmh = wr64_speed_kmh(e);
+    out->power = wr64_power(e);
     out->race_position = (int32_t)wr64_u(
         e, wr64_rider_addr(e, WR_RIDER_RACE_POSITION));
     out->target_node = wr64_sanitize_node(
@@ -815,6 +869,11 @@ static inline uint64_t wr64_render_state_hash(const WR64RenderState* state) {
     WR64_RENDER_HASH(state->tick);
     WR64_RENDER_HASH(state->lap);
     WR64_RENDER_HASH(state->target_laps);
+    WR64_RENDER_HASH(state->race_time_ms);
+    WR64_RENDER_HASH(state->lap_time_ms);
+    WR64_RENDER_HASH(state->lap_splits_ms);
+    WR64_RENDER_HASH(state->speed_kmh);
+    WR64_RENDER_HASH(state->power);
     WR64_RENDER_HASH(state->race_position);
     WR64_RENDER_HASH(state->target_node);
     WR64_RENDER_HASH(state->next_node);
@@ -891,7 +950,7 @@ static inline void wr64_record_curriculum_success(WaveRace64* env) {
 }
 
 void init(WaveRace64* env) {
-    if (env->frameskip <= 0) env->frameskip = 4;
+    if (env->frameskip <= 0) env->frameskip = 2;
     env->num_agents = 1;
     if (env->booted) return;
     int abi_status = WR_RUNTIME_ABI_CHECK();
@@ -911,8 +970,8 @@ void init(WaveRace64* env) {
     wr_install_fault_reporter(&env->machine);
     wr_dma_copy(env->machine.rdram, 0x80046800u,
                 env->machine.rom + 0x1000, 0xA95D0 - 0x1000);
-    // Boot once and savestate the first fully active Sunny Beach Time Trial;
-    // every later reset remaps that state instead of replaying the menus.
+    // Boot once and savestate the exact native time-zero Sunny Beach Time
+    // Trial; every later reset remaps that state instead of replaying menus.
     if (wr_boot_to_race(&env->machine, 8000) < 0) {
         fprintf(stderr, "[waverace64] never reached a race\n");
         exit(1);
@@ -1103,6 +1162,8 @@ void compute_observations(WaveRace64* env) {
                 * 0.01f;
         }
     }
+    o[55] = wr64_physics_speed(env) / WR64_SPEED_SCALE;
+    o[56] = (float)wr64_power(env) * 0.2f;
     for (int i = 0; i < WR64_OBS_SIZE; i++) {
         if (!isfinite(o[i])) o[i] = 0.f;
     }
