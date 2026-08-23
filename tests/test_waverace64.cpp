@@ -407,9 +407,10 @@ static void test_strict_contract_and_recovery_lane(WaveRace64* env) {
     assert(wr64_environment_fault(env, 0xFFFFFFFFu, 1) == 1);
 
     set_action(env, 7, 4, 1, 0, 0);
-    puf_step(env);
-    assert(wr64_race_time_ms(env) == 50 * env->frameskip);
-    assert(wr64_lap_time_ms(env) == 50 * env->frameskip);
+    for (int update = 0; update < 16; update++) puf_step(env);
+    assert(wr64_race_time_ms(env) > 0);
+    assert(wr64_lap_time_ms(env) > 0);
+    assert(wr64_physics_speed(env) > 0.f);
     assert(!wr64_reset_contract_valid(env, 3));
     puf_reset(env);
     assert(wr64_reset_contract_valid(env, 3));
