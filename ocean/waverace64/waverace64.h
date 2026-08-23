@@ -1,7 +1,8 @@
 // Wave Race 64 -- PufferLib environment backed by statically recompiled cartridge
-// CPU code. Hardware, rendering, and audio paths are replaced by headless runtime
-// shims. Actions enter through the emulated controller port, and observations are
-// read from the game's RDRAM.
+// CPU code. Hardware video and audio paths are replaced by headless runtime
+// shims. Actions enter through the emulated controller port, observations are
+// read from the game's RDRAM, and the optional evaluator renders those same
+// authoritative state fields without executing the N64 graphics pipeline.
 //
 // Each instance owns a WRMachine, including its RDRAM and suspended game context.
 #pragma once
@@ -17,10 +18,11 @@ typedef float obs_t;
 #include "pufferenv.h"
 #include "wr_env.h"
 
-#define WR64_OBS_SIZE   43
+#define WR64_OBS_SIZE   55
 #define OBS_SIZE        WR64_OBS_SIZE
 #define NUM_ATNS        5
 #define ACT_SIZES       {15, 9, 2, 2, 2}
+#define PUF_STEPS_PER_SEC 5
 
 // WRMachine and its saved ucontext retain pointers into the containing Env.
 // The upstream default vec initializer may realloc after puf_init, so Wave Race
@@ -71,6 +73,31 @@ typedef float obs_t;
 #define WR64_PHYSICS_STATE_FRAME WR_PHYSICS_STATE_FRAME
 #define WR64_SPEED_SCALE         55.555557f
 
+// Dynamic-water state used by the game's own func_8004D30C surface query.
+// The query operates on a 384 by 128 triangular height lattice. Each entry is
+// two guest halfwords; only the signed high byte of the first halfword is used
+// by this physics query.
+#define WR64_WATER_GRID          0x80162420u
+#define WR64_WATER_LEVEL         0x80192458u
+#define WR64_WATER_SCALE_Z       0x800E92A0u
+#define WR64_WATER_SCALE_XZ      0x800E92A4u
+#define WR64_WATER_ROWS          384
+#define WR64_WATER_COLS          128
+
+// Additional fields in the decomp-derived primary course node. Live XYZ drives
+// current-target effects; anchor XZ is where the original buoy model is placed.
+#define WR64_COURSE_NODE_Y        0x0004u
+#define WR64_COURSE_NODE_ANCHOR_X 0x0024u
+#define WR64_COURSE_NODE_ANCHOR_Z 0x0028u
+#define WR64_COURSE_NODE_TANGENT_X 0x0070u
+#define WR64_COURSE_NODE_TANGENT_Z 0x0074u
+#define WR64_COURSE_NODE_DISABLED 0x009Cu
+#define WR64_COURSE_NODE_ENABLED  0x00C8u
+
+#define WR64_RENDER_WATER_DIM     33
+#define WR64_RENDER_WATER_SAMPLES \
+    (WR64_RENDER_WATER_DIM * WR64_RENDER_WATER_DIM)
+
 // Stick detents, as a hand actually holds them.
 static const int8_t WR64_STICK_X[15] = {-80,-68,-56,-44,-32,-20,-10,0,10,20,32,44,56,68,80};
 static const int8_t WR64_STICK_Y[9]  = {-80,-56,-32,-12,0,12,32,56,80};
@@ -95,6 +122,69 @@ typedef struct Log {
 } Log;
 
 typedef struct Client Client;
+
+typedef struct WR64RenderNode {
+    int32_t index;
+    int32_t next;
+    int32_t type;
+    int32_t valid;
+    float live_x;
+    float live_y;
+    float live_z;
+    float anchor_x;
+    float anchor_z;
+    float tangent_x;
+    float tangent_z;
+    float lateral_x;
+    float lateral_z;
+    float length;
+    float pass_x;
+    float pass_z;
+} WR64RenderNode;
+
+// Immutable, pointer-free projection of the gameplay state used by human eval.
+// The renderer consumes this copy and cannot mutate RDRAM or adapter state.
+typedef struct WR64RenderState {
+    uint32_t version;
+    uint32_t game_state;
+    uint32_t course_id;
+    uint32_t game_mode;
+    uint64_t machine_ticks;
+    int32_t tick;
+    int32_t lap;
+    int32_t target_laps;
+    int32_t race_position;
+    int32_t target_node;
+    int32_t next_node;
+    int32_t misses;
+    int32_t checkpoints;
+    int32_t recovery;
+    int32_t physics_state;
+    int32_t physics_state_frame;
+    int32_t disqualified;
+    int32_t ended;
+    int32_t finished;
+    int32_t success;
+    int32_t failed;
+    int32_t node_count;
+    uint16_t pad_buttons;
+    int8_t pad_stick_x;
+    int8_t pad_stick_y;
+    float position[3];
+    float velocity[3];
+    float heading[2];
+    float basis[9];
+    float speed_per_second;
+    float route_fraction;
+    float progress_fraction;
+    float route_total;
+    float water_level;
+    float water_origin_x;
+    float water_origin_z;
+    float water_spacing;
+    WR64RenderNode nodes[WR64_MAX_COURSE_NODES];
+    float water[WR64_RENDER_WATER_SAMPLES];
+} WR64RenderState;
 
 // Episode bookkeeping stays separate from the 8 MiB RDRAM backing and the
 // machine-specific suspended stack used for exact reset.
@@ -161,6 +251,13 @@ struct Env {
 };
 typedef Env WaveRace64;
 
+#ifdef PUFFER_WAVERACE64_RENDER
+static void wr64_render_close(WaveRace64* env);
+static void wr64_render_human_controls(WaveRace64* env);
+static void wr64_render_capture_terminal(WaveRace64* env);
+static void wr64_render_draw(WaveRace64* env);
+#endif
+
 static inline uint32_t wr64_u(WaveRace64* e, uint32_t va) {
     return wr_rd32(e->machine.rdram, va);
 }
@@ -170,6 +267,103 @@ static inline float wr64_f(WaveRace64* e, uint32_t va) {
     float value;
     memcpy(&value, &bits, sizeof(value));
     return value;
+}
+
+static inline int32_t wr64_i32_bits(uint32_t value) {
+    int32_t result;
+    memcpy(&result, &value, sizeof(result));
+    return result;
+}
+
+static inline float wr64_f32_bits(uint32_t value) {
+    float result;
+    memcpy(&result, &value, sizeof(result));
+    return result;
+}
+
+static inline int32_t wr64_add32(int32_t a, int32_t b) {
+    return wr64_i32_bits((uint32_t)a + (uint32_t)b);
+}
+
+static inline int32_t wr64_sub32(int32_t a, int32_t b) {
+    return wr64_i32_bits((uint32_t)a - (uint32_t)b);
+}
+
+static inline int32_t wr64_mul32(int32_t a, int32_t b) {
+    return wr64_i32_bits((uint32_t)a * (uint32_t)b);
+}
+
+static inline int32_t wr64_shl32(int32_t value, unsigned shift) {
+    return wr64_i32_bits((uint32_t)value << shift);
+}
+
+static inline int32_t wr64_asr6(int32_t value) {
+    return value >= 0 ? value / 64 : -(((-value) + 63) / 64);
+}
+
+static inline int32_t wr64_asr8_s16(int16_t value) {
+    int32_t wide = value;
+    return wide >= 0 ? wide / 256 : -(((-wide) + 255) / 256);
+}
+
+static inline int32_t wr64_water_q(const WaveRace64* e,
+        int32_t row, int32_t col) {
+    uint32_t index = (uint32_t)row * WR64_WATER_COLS + (uint32_t)col;
+    int16_t raw = (int16_t)wr_rd16(e->machine.rdram,
+        WR64_WATER_GRID + 4u * index);
+    return wr64_asr8_s16(raw);
+}
+
+// Bit-exact host translation of the game's func_8004D30C water-height query.
+// This implementation was compared against the recompiled function at 262,144
+// randomized points over 64 randomized complete height fields with zero bit
+// mismatches. Keep strict float sequencing and compile with -ffp-contract=off.
+static inline float wr64_water_height(const WaveRace64* e, float x, float z) {
+    const float k0 = wr64_f32_bits(UINT32_C(0x3F93CD3A));
+    const float k1 = wr64_f32_bits(UINT32_C(0x3F13CD3A));
+    volatile float vzf = k0 * z;
+    int32_t v = ((int32_t)vzf) % 24576;
+    int32_t j = wr64_asr6(v);
+    volatile float u0 = k1 * z;
+    volatile float uf = u0 + x;
+    int32_t u = ((int32_t)uf) % 24576;
+    int32_t i = wr64_asr6(u);
+    int32_t h0 = wr64_water_q(e,
+        (j + (i & -128) + 1536) % WR64_WATER_ROWS, i & 127);
+    int32_t fv = wr64_sub32(wr64_shl32(j, 6), v);
+    int32_t fu = wr64_sub32(wr64_shl32(i, 6), u);
+    int32_t sx;
+    int32_t sz;
+    if (fv < fu) {
+        int32_t h1 = wr64_water_q(e,
+            (j + (i & -128) + 1537) % WR64_WATER_ROWS, i & 127);
+        int32_t ip = wr64_add32(i, 1);
+        int32_t h2 = wr64_water_q(e,
+            (j + (ip & -128) + 1537) % WR64_WATER_ROWS, ip & 127);
+        sx = wr64_sub32(h1, h2);
+        sz = wr64_sub32(h0, h1);
+    } else {
+        int32_t ip = wr64_add32(i, 1);
+        int32_t h1 = wr64_water_q(e,
+            (j + (ip & -128) + 1536) % WR64_WATER_ROWS, ip & 127);
+        int32_t h2 = wr64_water_q(e,
+            (j + (ip & -128) + 1537) % WR64_WATER_ROWS, ip & 127);
+        sx = wr64_sub32(h0, h1);
+        sz = wr64_sub32(h1, h2);
+    }
+    int32_t denominator = wr64_add32(
+        wr64_add32(wr64_mul32(sx, sx), wr64_mul32(sz, sz)), 4096);
+    denominator = wr64_shl32(denominator, 12);
+    volatile float denominator_f = (float)denominator;
+    volatile float root = sqrtf(denominator_f);
+    int32_t level = (int32_t)wr_rd32(
+        e->machine.rdram, WR64_WATER_LEVEL);
+    int32_t numerator = wr64_add32(wr64_mul32(sx, fu),
+        wr64_shl32(wr64_add32(level, h0), 12));
+    numerator = wr64_add32(numerator, wr64_mul32(sz, fv));
+    volatile float numerator_f = (float)numerator;
+    volatile float result = numerator_f / root;
+    return result;
 }
 
 static inline uint16_t wr64_h(WaveRace64* e, uint32_t va) {
@@ -477,6 +671,130 @@ static inline float wr64_route_fraction(WaveRace64* e) {
     return wr64_course_progress(e, &absolute, &fraction) ? fraction : 0.f;
 }
 
+static inline float wr64_finite_or_zero(float value) {
+    return isfinite(value) ? value : 0.f;
+}
+
+static inline void wr64_capture_render_state(
+        WaveRace64* e, WR64RenderState* out) {
+    memset(out, 0, sizeof(*out));
+    out->version = 1;
+    out->game_state = wr64_u(e, WR_ADDR_GAMESTATE);
+    out->course_id = wr64_u(e, WR_ADDR_COURSE_ID);
+    out->game_mode = wr64_u(e, WR_ADDR_GAME_MODE);
+    out->machine_ticks = e->machine.ticks;
+    out->tick = e->state.tick;
+    out->lap = wr64_lap(e);
+    out->target_laps = wr64_target_laps(e);
+    out->race_position = (int32_t)wr64_u(
+        e, wr64_rider_addr(e, WR_RIDER_RACE_POSITION));
+    out->target_node = wr64_sanitize_node(
+        e, WR64_COURSE_PRIMARY, wr64_node(e));
+    out->next_node = wr64_next_node(
+        e, WR64_COURSE_PRIMARY, out->target_node);
+    out->misses = wr64_misses(e);
+    out->checkpoints = e->state.checkpoints;
+    out->recovery = wr64_recovery(e);
+    uint32_t physics = wr64_physics_addr(e, 0);
+    out->physics_state = (int32_t)wr64_u(
+        e, physics + WR64_PHYSICS_STATE);
+    out->physics_state_frame = (int32_t)wr64_u(
+        e, physics + WR64_PHYSICS_STATE_FRAME);
+    out->disqualified = wr64_disqualified(e) != 0;
+    out->ended = wr64_ended(e) != 0;
+    out->finished = wr64_finished(e) != 0;
+    out->success = e->state.success;
+    out->failed = e->state.failed;
+    out->pad_buttons = e->machine.pad_buttons;
+    out->pad_stick_x = e->machine.pad_stick_x;
+    out->pad_stick_y = e->machine.pad_stick_y;
+
+    wr64_position(e, &out->position[0], &out->position[1], &out->position[2]);
+    out->velocity[0] = e->state.velocity_x;
+    out->velocity[1] = e->state.velocity_y;
+    out->velocity[2] = e->state.velocity_z;
+    wr64_heading(e, out->velocity[0], out->velocity[2],
+        &out->heading[0], &out->heading[1]);
+    static const uint32_t basis_offsets[9] = {
+        WR_PHYSICS_BASIS_0_X, WR_PHYSICS_BASIS_0_Y,
+        WR_PHYSICS_BASIS_0_Z, WR_PHYSICS_BASIS_1_X,
+        WR_PHYSICS_BASIS_1_Y, WR_PHYSICS_BASIS_1_Z,
+        WR_PHYSICS_BASIS_2_X, WR_PHYSICS_BASIS_2_Y,
+        WR_PHYSICS_BASIS_2_Z,
+    };
+    for (int i = 0; i < 9; i++) {
+        out->basis[i] = wr64_f(e, physics + basis_offsets[i]);
+    }
+    out->speed_per_second = hypotf(
+        out->velocity[0], out->velocity[2]) * (float)WR_GAME_UPDATE_HZ;
+    out->route_fraction = wr64_route_fraction(e);
+    out->route_total = e->route_total;
+    float denominator = e->route_total * (float)out->target_laps;
+    out->progress_fraction = denominator > 0.f
+        ? e->state.progress_total / denominator : 0.f;
+    out->water_level = (float)(int32_t)wr64_u(e, WR64_WATER_LEVEL);
+
+    out->node_count = wr64_node_count(e, WR64_COURSE_PRIMARY);
+    for (int32_t i = 0; i < out->node_count; i++) {
+        WR64RenderNode* node = &out->nodes[i];
+        uint32_t address = wr64_course_addr(WR64_COURSE_PRIMARY, i, 0);
+        node->index = i;
+        node->next = wr64_next_node(e, WR64_COURSE_PRIMARY, i);
+        node->type = (int32_t)wr64_u(e, address + WR64_COURSE_NODE_TYPE);
+        node->valid = (int32_t)wr64_u(
+            e, address + WR64_COURSE_NODE_DISABLED) == 0
+            && (int32_t)wr64_u(e, address + WR64_COURSE_NODE_ENABLED) != 0;
+        node->live_x = wr64_f(e, address + WR64_COURSE_NODE_X);
+        node->live_y = wr64_f(e, address + WR64_COURSE_NODE_Y);
+        node->live_z = wr64_f(e, address + WR64_COURSE_NODE_Z);
+        node->anchor_x = wr64_f(e, address + WR64_COURSE_NODE_ANCHOR_X);
+        node->anchor_z = wr64_f(e, address + WR64_COURSE_NODE_ANCHOR_Z);
+        node->tangent_x = wr64_f(e, address + WR64_COURSE_NODE_TANGENT_X);
+        node->tangent_z = wr64_f(e, address + WR64_COURSE_NODE_TANGENT_Z);
+        node->lateral_x = wr64_f(e, address + WR_COURSE_NODE_LATERAL_X);
+        node->lateral_z = wr64_f(e, address + WR_COURSE_NODE_LATERAL_Z);
+        node->length = wr64_f(e, address + WR64_COURSE_NODE_LENGTH);
+        if (!wr64_pass_point(e, i, &node->pass_x, &node->pass_z)) {
+            node->pass_x = node->live_x;
+            node->pass_z = node->live_z;
+        }
+        float* values = &node->live_x;
+        const int value_count = 12;
+        for (int value = 0; value < value_count; value++) {
+            values[value] = wr64_finite_or_zero(values[value]);
+        }
+    }
+
+    out->water_spacing = 128.f;
+    float half = 0.5f * (float)(WR64_RENDER_WATER_DIM - 1);
+    out->water_origin_x = out->position[0] - half * out->water_spacing;
+    out->water_origin_z = out->position[2] - half * out->water_spacing;
+    for (int row = 0; row < WR64_RENDER_WATER_DIM; row++) {
+        float z = out->water_origin_z + (float)row * out->water_spacing;
+        for (int col = 0; col < WR64_RENDER_WATER_DIM; col++) {
+            float x = out->water_origin_x + (float)col * out->water_spacing;
+            float height = wr64_water_height(e, x, z);
+            out->water[row * WR64_RENDER_WATER_DIM + col]
+                = wr64_finite_or_zero(height);
+        }
+    }
+
+    float* scalar_values = out->position;
+    const int scalar_count = 3 + 3 + 2 + 9 + 8;
+    for (int i = 0; i < scalar_count; i++) {
+        scalar_values[i] = wr64_finite_or_zero(scalar_values[i]);
+    }
+}
+
+static inline uint64_t wr64_render_state_hash(const WR64RenderState* state) {
+    const uint8_t* bytes = (const uint8_t*)state;
+    uint64_t hash = UINT64_C(14695981039346656037);
+    for (size_t i = 0; i < sizeof(*state); i++) {
+        hash = (hash ^ bytes[i]) * UINT64_C(1099511628211);
+    }
+    return hash;
+}
+
 static inline float wr64_reward_potential(WaveRace64* e) {
     float lap_progress = e->route_total > 0.f
         ? e->state.progress_total / e->route_total : 0.f;
@@ -546,6 +864,9 @@ void init(WaveRace64* env) {
 }
 
 void puf_close(WaveRace64* env) {
+#ifdef PUFFER_WAVERACE64_RENDER
+    wr64_render_close(env);
+#endif
     if (env->snap.valid) wr_snapshot_free(&env->snap);
     if (env->machine.rdram) wr_machine_free(&env->machine);
 }
@@ -688,6 +1009,22 @@ void compute_observations(WaveRace64* env) {
     o[40] = wr64_f(env, physics + WR_PHYSICS_BASIS_2_X);
     o[41] = wr64_f(env, physics + WR_PHYSICS_BASIS_2_Y);
     o[42] = wr64_f(env, physics + WR_PHYSICS_BASIS_2_Z);
+    // Dynamic water affects pitch, steering, vertical motion, and the B-button
+    // damping mechanic. A small rider-local stencil keeps that state visible to
+    // the learner without feeding it a rendered image or a dense surface mesh.
+    static const float lateral_offsets[3] = {-96.f, 0.f, 96.f};
+    static const float forward_offsets[4] = {-64.f, 64.f, 192.f, 384.f};
+    int water_index = 43;
+    for (int forward_i = 0; forward_i < 4; forward_i++) {
+        for (int lateral_i = 0; lateral_i < 3; lateral_i++) {
+            float forward = forward_offsets[forward_i];
+            float lateral = lateral_offsets[lateral_i];
+            float sample_x = x + forward*hx + lateral*hz;
+            float sample_z = z + forward*hz - lateral*hx;
+            o[water_index++] = (wr64_water_height(env, sample_x, sample_z) - y)
+                * 0.01f;
+        }
+    }
     for (int i = 0; i < WR64_OBS_SIZE; i++) {
         if (!isfinite(o[i])) o[i] = 0.f;
     }
@@ -741,6 +1078,9 @@ void puf_eval_reset(WaveRace64* env) {
 void puf_step(WaveRace64* env) {
     wr_current = &env->machine;
     Agent* agent = &env->agents[0];
+#ifdef PUFFER_WAVERACE64_RENDER
+    if (env->client) wr64_render_human_controls(env);
+#endif
     float potential_before = wr64_reward_potential(env);
     float max_progress_before = env->state.max_progress;
     WRPad pad;
@@ -888,6 +1228,9 @@ void puf_step(WaveRace64* env) {
 
     if (terminal) {
         agent->terminals[0] = 1.f;
+#ifdef PUFFER_WAVERACE64_RENDER
+        if (env->client) wr64_render_capture_terminal(env);
+#endif
         add_log(env);
         if (success) wr64_record_curriculum_success(env);
         puf_reset(env);
@@ -904,7 +1247,12 @@ void puf_step(WaveRace64* env) {
     compute_observations(env);
 }
 
+#ifdef PUFFER_WAVERACE64_RENDER
+#include "waverace64_render.h"
+void puf_render(WaveRace64* env) { wr64_render_draw(env); }
+#else
 void puf_render(WaveRace64* env) { (void)env; }
+#endif
 
 void puf_init(Env* env, Dict* kwargs) {
     env->frameskip = (int)dict_get(kwargs, "frameskip");

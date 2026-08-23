@@ -732,12 +732,37 @@ int main(int argc, char** argv) {
     int headless = 0;
     const char* cli_path = NULL;
     int cli_latest = 0;
+    const char* capture_dir = NULL;
+    int capture_count = 0;
+    int capture_every = 1;
+    int capture_hidden = 0;
+    int capture_fast = 0;
 
     char* ini_argv[argc > 0 ? (size_t)argc : 1];
     int ini_argc = 0;
     for (int i = argi; i < argc; i++) {
         if (strcmp(argv[i], "--headless") == 0) {
             headless = 1;
+            continue;
+        }
+        if (strncmp(argv[i], "--capture-dir=", 14) == 0) {
+            capture_dir = argv[i] + 14;
+            continue;
+        }
+        if (strncmp(argv[i], "--capture-count=", 16) == 0) {
+            capture_count = atoi(argv[i] + 16);
+            continue;
+        }
+        if (strncmp(argv[i], "--capture-every=", 16) == 0) {
+            capture_every = atoi(argv[i] + 16);
+            continue;
+        }
+        if (strcmp(argv[i], "--capture-hidden") == 0) {
+            capture_hidden = 1;
+            continue;
+        }
+        if (strcmp(argv[i], "--capture-fast") == 0) {
+            capture_fast = 1;
             continue;
         }
         if (strcmp(argv[i], "latest") == 0) {
@@ -750,6 +775,14 @@ int main(int argc, char** argv) {
             continue;
         }
         ini_argv[ini_argc++] = argv[i];
+    }
+    if (capture_dir && capture_count == 0) capture_count = 150;
+    if ((capture_dir && capture_dir[0] == 0) || capture_count < 0
+            || capture_every < 1 || (capture_count > 0 && !capture_dir)
+            || ((capture_hidden || capture_fast) && !capture_dir)
+            || (headless && capture_dir)) {
+        fprintf(stderr, "Invalid capture options\n");
+        return 2;
     }
     puf_ini_load_env(&ini, env_name, ini_argc, ini_argv);
     int eval_episodes = (int)puf_ini_get(&ini, "base", "eval_episodes");
@@ -864,6 +897,7 @@ int main(int argc, char** argv) {
     }
 #endif
 
+    if (capture_hidden) SetConfigFlags(FLAG_WINDOW_HIDDEN);
     SetConfigFlags(FLAG_MSAA_4X_HINT);
 
 #ifndef PUF_STEPS_PER_SEC
@@ -879,16 +913,36 @@ int main(int argc, char** argv) {
     int hold = 0;
     int steps = 0;
 #ifndef PLATFORM_WEB
-    if (!headless) {
+    if (!headless && !capture_fast) {
         SetTargetFPS(60);
     }
 #endif
+    int render_frame = 0;
+    int captured_frames = 0;
+    int capture_done = 0;
     if (!headless) {
         puf_render(&env);
+#ifndef PLATFORM_WEB
+        if (capture_fast) SetTargetFPS(0);
+#endif
+        if (capture_dir && render_frame % capture_every == 0) {
+            char filename[4096];
+            int written = snprintf(filename, sizeof(filename),
+                "%s/frame-%06d.png", capture_dir, captured_frames);
+            if (written < 0 || (size_t)written >= sizeof(filename)) {
+                fprintf(stderr, "Capture path is too long\n");
+                capture_done = 1;
+            } else {
+                TakeScreenshot(filename);
+                captured_frames++;
+                capture_done = captured_frames >= capture_count;
+            }
+        }
+        render_frame++;
     }
     while (headless
             ? (env.log.n < (float)eval_episodes)
-            : !IsWindowReady() || !WindowShouldClose()) {
+            : (!capture_done && (!IsWindowReady() || !WindowShouldClose()))) {
         int do_step = headless || (step_hold == 0);
         int ticks = 1;
         if (!headless && (int)PUF_STEPS_PER_SEC > 60) {
@@ -944,6 +998,20 @@ int main(int argc, char** argv) {
         }
         if (!headless) {
             puf_render(&env);
+            if (capture_dir && render_frame % capture_every == 0) {
+                char filename[4096];
+                int written = snprintf(filename, sizeof(filename),
+                    "%s/frame-%06d.png", capture_dir, captured_frames);
+                if (written < 0 || (size_t)written >= sizeof(filename)) {
+                    fprintf(stderr, "Capture path is too long\n");
+                    capture_done = 1;
+                } else {
+                    TakeScreenshot(filename);
+                    captured_frames++;
+                    capture_done = captured_frames >= capture_count;
+                }
+            }
+            render_frame++;
             step_hold = (step_hold + 1) % step_period;
         }
     }

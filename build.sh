@@ -183,7 +183,7 @@ elif [ "$ENV" = "waverace64" ]; then
     fi
     INCLUDES+=(-I"$WR64_DIR/runtime" -I"$WR64_DIR/RecompiledFuncs")
     LINK_ARCHIVES+=("$WR64_DIR/libwr64.a")
-    EXTRA_CFLAGS+=(-D_GNU_SOURCE)
+    EXTRA_CFLAGS+=(-D_GNU_SOURCE -DPUFFER_WAVERACE64_RENDER)
 elif [ "$ENV" = "impulse_wars" ]; then
     SRC_DIR="ocean/$ENV"
     if [ "$MODE" = "web" ]; then BOX2D_NAME='box2d-web'

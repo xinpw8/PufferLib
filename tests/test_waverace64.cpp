@@ -7,6 +7,8 @@
 
 #include "waverace64.h"
 
+extern "C" void func_8004D30C(uint8_t* rdram, recomp_context* ctx);
+
 #ifndef PUFFER_ENV_UNCLIPPED_REWARDS
 #error "Wave Race potential shaping requires unclipped learner rewards"
 #endif
@@ -61,6 +63,105 @@ static uint64_t hash_authoritative_state(WaveRace64* env, uint64_t hash) {
     hash = hash_u32(hash, wr64_u(env, rider + WR64_RIDER_ENDED));
     hash = hash_u32(hash, wr64_u(env, rider + WR64_RIDER_FINISHED));
     return hash;
+}
+
+static uint64_t hash_rdram(WaveRace64* env) {
+    uint64_t hash = UINT64_C(14695981039346656037);
+    for (size_t i = 0; i < WR_RDRAM_SIZE; i++) {
+        hash = hash_byte(hash, env->machine.rdram[i]);
+    }
+    return hash;
+}
+
+static void test_water_sampler(WaveRace64* env) {
+    uint8_t* scratch = (uint8_t*)malloc(WR_RDRAM_SIZE);
+    assert(scratch != NULL);
+    memcpy(scratch, env->machine.rdram, WR_RDRAM_SIZE);
+    uint64_t before = hash_rdram(env);
+    uint32_t rng = UINT32_C(0xA17E5EED);
+    int branch_a = 0;
+    int branch_b = 0;
+    for (int sample = 0; sample < 4096; sample++) {
+        rng = rng * UINT32_C(1664525) + UINT32_C(1013904223);
+        float x = (float)((int32_t)(rng % 40001u) - 20000);
+        rng = rng * UINT32_C(1664525) + UINT32_C(1013904223);
+        float z = (float)((int32_t)(rng % 40001u) - 20000);
+
+        recomp_context context;
+        wr_ctx_init(&context);
+        context.r29 = (uint64_t)(int64_t)(int32_t)UINT32_C(0x807FFF00);
+        context.f12.fl = x;
+        context.f14.fl = z;
+        func_8004D30C(scratch, &context);
+        float actual = wr64_water_height(env, x, z);
+        uint32_t expected_bits;
+        uint32_t actual_bits;
+        memcpy(&expected_bits, &context.f0.fl, sizeof(expected_bits));
+        memcpy(&actual_bits, &actual, sizeof(actual_bits));
+        assert(actual_bits == expected_bits);
+
+        const float k0 = wr64_f32_bits(UINT32_C(0x3F93CD3A));
+        const float k1 = wr64_f32_bits(UINT32_C(0x3F13CD3A));
+        volatile float vzf = k0*z;
+        volatile float u0 = k1*z;
+        volatile float uf = u0 + x;
+        int32_t v = ((int32_t)vzf) % 24576;
+        int32_t u = ((int32_t)uf) % 24576;
+        int32_t fv = wr64_sub32(wr64_shl32(wr64_asr6(v), 6), v);
+        int32_t fu = wr64_sub32(wr64_shl32(wr64_asr6(u), 6), u);
+        if (fv < fu) branch_a++;
+        else branch_b++;
+    }
+    assert(branch_a > 0 && branch_b > 0);
+    assert(hash_rdram(env) == before);
+    free(scratch);
+    printf("PASS exact-water-query samples=4096 branches=%d/%d pure=YES\n",
+        branch_a, branch_b);
+}
+
+static void test_render_state_capture(WaveRace64* env) {
+    WR64RenderState a;
+    WR64RenderState b;
+    memset(&a, 0xA5, sizeof(a));
+    memset(&b, 0x5A, sizeof(b));
+    uint64_t before = hash_rdram(env);
+    wr64_capture_render_state(env, &a);
+    wr64_capture_render_state(env, &b);
+    assert(hash_rdram(env) == before);
+    assert(memcmp(&a, &b, sizeof(a)) == 0);
+    assert(a.version == 1);
+    assert(a.game_state == wr64_u(env, WR_ADDR_GAMESTATE));
+    assert(a.course_id == WR_COURSE_SUNNY_BEACH);
+    assert(a.target_node == wr64_node(env));
+    assert(a.target_laps == wr64_target_laps(env));
+    assert(a.misses == wr64_misses(env));
+    assert(a.node_count == wr64_node_count(env, WR64_COURSE_PRIMARY));
+    assert(a.node_count > 0);
+    for (int i = 0; i < a.node_count; i++) {
+        const WR64RenderNode* node = &a.nodes[i];
+        uint32_t address = wr64_course_addr(WR64_COURSE_PRIMARY, i, 0);
+        assert(node->index == i);
+        assert(node->next == wr64_next_node(env, WR64_COURSE_PRIMARY, i));
+        assert(node->type == (int32_t)wr64_u(
+            env, address + WR64_COURSE_NODE_TYPE));
+        float pass_x;
+        float pass_z;
+        assert(wr64_pass_point(env, i, &pass_x, &pass_z));
+        assert(memcmp(&node->pass_x, &pass_x, sizeof(float)) == 0);
+        assert(memcmp(&node->pass_z, &pass_z, sizeof(float)) == 0);
+    }
+    for (int row = 0; row < WR64_RENDER_WATER_DIM; row++) {
+        for (int col = 0; col < WR64_RENDER_WATER_DIM; col++) {
+            float x = a.water_origin_x + (float)col*a.water_spacing;
+            float z = a.water_origin_z + (float)row*a.water_spacing;
+            float expected = wr64_water_height(env, x, z);
+            float actual = a.water[row*WR64_RENDER_WATER_DIM + col];
+            assert(memcmp(&expected, &actual, sizeof(float)) == 0);
+        }
+    }
+    assert(wr64_render_state_hash(&a) == wr64_render_state_hash(&b));
+    assert(env->client == NULL);
+    puts("PASS render-state authoritative and read-only");
 }
 
 static ActionDigest action_digest(WaveRace64* env,
@@ -149,7 +250,7 @@ static void set_action(WaveRace64* env, int x, int y,
 static void test_action_contract(WaveRace64* env) {
     int sizes[] = ACT_SIZES;
     int expected_sizes[] = {15, 9, 2, 2, 2};
-    assert(OBS_SIZE == 43);
+    assert(OBS_SIZE == 55);
     assert(NUM_ATNS == 5);
     for (int i = 0; i < NUM_ATNS; i++) assert(sizes[i] == expected_sizes[i]);
 
@@ -180,6 +281,29 @@ static void test_action_contract(WaveRace64* env) {
     }
     for (int i = 0; i < OBS_SIZE; i++) {
         assert(isfinite(env->agents[0].observations[i]));
+    }
+    float x;
+    float y;
+    float z;
+    wr64_position(env, &x, &y, &z);
+    float hx;
+    float hz;
+    wr64_heading(env, env->state.velocity_x, env->state.velocity_z, &hx, &hz);
+    static const float lateral_offsets[3] = {-96.f, 0.f, 96.f};
+    static const float forward_offsets[4] = {-64.f, 64.f, 192.f, 384.f};
+    int index = 43;
+    for (int forward_i = 0; forward_i < 4; forward_i++) {
+        for (int lateral_i = 0; lateral_i < 3; lateral_i++) {
+            float forward = forward_offsets[forward_i];
+            float lateral = lateral_offsets[lateral_i];
+            float sample_x = x + forward*hx + lateral*hz;
+            float sample_z = z + forward*hz - lateral*hx;
+            float expected = (wr64_water_height(env, sample_x, sample_z) - y)
+                * 0.01f;
+            assert(memcmp(&env->agents[0].observations[index],
+                &expected, sizeof(float)) == 0);
+            index++;
+        }
     }
 }
 
@@ -805,6 +929,10 @@ static void assert_observation_ranges(const ObsStats* stats) {
         assert(stats->min[feature] >= -1e-5f);
         assert(stats->max[feature] <= 1.00001f);
     }
+    for (int feature = 43; feature < 55; feature++) {
+        assert(stats->min[feature] >= -4.f);
+        assert(stats->max[feature] <= 4.f);
+    }
 }
 
 static void test_production_three_lap_finish(WaveRace64* env) {
@@ -1023,6 +1151,8 @@ int main(int argc, char** argv) {
     env.agents[0].rewards = &reward;
     env.agents[0].terminals = &terminal;
 
+    test_water_sampler(&env);
+    test_render_state_capture(&env);
     test_action_contract(&env);
     test_internal_frameskip(&env);
     characterize_body_basis(&env);

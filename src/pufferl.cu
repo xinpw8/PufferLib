@@ -2952,12 +2952,27 @@ static EvalResult eval_loop(Ini* ini, PuffeRL* p, int mode, int verbose,
         dict_clear(&wipe);
     }
     double last_dash = 0;
+#ifdef PUF_STEPS_PER_SEC
+    double next_render_step = wall_clock();
+#endif
     while (true) {
         if (render) {
             puf_render(p->vec->envs);
             if (WindowShouldClose()) {
                 return result;
             }
+#ifdef PUF_STEPS_PER_SEC
+            if ((int)PUF_STEPS_PER_SEC > 0
+                    && (int)PUF_STEPS_PER_SEC < 60) {
+                double now = wall_clock();
+                if (now < next_render_step) continue;
+                double period = 1.0 / (double)PUF_STEPS_PER_SEC;
+                next_render_step += period;
+                if (next_render_step < now - period) {
+                    next_render_step = now + period;
+                }
+            }
+#endif
         }
         rollouts(p);
         Dict el = {0};
