@@ -414,6 +414,8 @@ static void test_puf_render_preserves_core_state(TestEnv* test) {
     assert_core_equal(&before, &after_first);
     assert(wr_current == tls_before);
     assert(test->env.client != NULL);
+    assert(test->env.client->puffer_loaded == 1);
+    assert(IsModelValid(test->env.client->puffer));
     assert(IsWindowReady());
 
     for (int frame = 0; frame < 8; frame++) {

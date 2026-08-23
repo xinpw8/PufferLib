@@ -5,10 +5,13 @@
 // calls any Raylib function.
 
 #include <raylib.h>
+#include <rlgl.h>
 
 #define WR64_RENDER_SCALE 0.01f
 #define WR64_WAKE_POINTS 64
 #define WR64_CAMERA_TAU_SECONDS 0.60f
+#define WR64_PUFFER_MODEL_PATH "resources/shared/puffer.glb"
+#define WR64_PUFFER_SCALE 260.0f
 
 struct Client {
     WR64RenderState state;
@@ -28,6 +31,8 @@ struct Client {
     int wake_start;
     int wake_count;
     Vector3 wake[WR64_WAKE_POINTS];
+    Model puffer;
+    int puffer_loaded;
 };
 
 static inline float wr64_render_clampf(float value, float low, float high) {
@@ -167,16 +172,6 @@ static inline Vector3 wr64_render_right(const WR64RenderState* state) {
     return right;
 }
 
-static inline Vector3 wr64_render_basis_point(Vector3 center,
-        Vector3 right, Vector3 up, Vector3 forward,
-        float x, float y, float z) {
-    Vector3 result = center;
-    result = wr64_render_add(result, wr64_render_mul(right, x));
-    result = wr64_render_add(result, wr64_render_mul(up, y));
-    result = wr64_render_add(result, wr64_render_mul(forward, z));
-    return result;
-}
-
 static void wr64_render_triangle_double(
         Vector3 a, Vector3 b, Vector3 c, Color color) {
     DrawTriangle3D(a, b, c, color);
@@ -313,51 +308,34 @@ static void wr64_render_route(const WR64RenderState* state) {
     }
 }
 
-static void wr64_render_vehicle(const WR64RenderState* state) {
+static void wr64_render_puffer(const Client* client,
+        const WR64RenderState* state) {
+    if (!client->puffer_loaded) return;
+
     Vector3 center = wr64_render_position(state);
     Vector3 right = wr64_render_right(state);
     Vector3 up = wr64_render_up(state);
     Vector3 forward = wr64_render_forward(state);
-    center = wr64_render_add(center, wr64_render_mul(up, 0.18f));
+    center = wr64_render_add(center, wr64_render_mul(forward, 0.24f));
+    center = wr64_render_add(center, wr64_render_mul(up, -0.10f));
 
-    Vector3 nose = wr64_render_basis_point(
-        center, right, up, forward, 0.f, 0.f, 1.45f);
-    Vector3 rear_left = wr64_render_basis_point(
-        center, right, up, forward, -0.58f, -0.05f, -1.05f);
-    Vector3 rear_right = wr64_render_basis_point(
-        center, right, up, forward, 0.58f, -0.05f, -1.05f);
-    Vector3 keel = wr64_render_basis_point(
-        center, right, up, forward, 0.f, -0.36f, -0.25f);
-    Vector3 deck = wr64_render_basis_point(
-        center, right, up, forward, 0.f, 0.26f, -0.20f);
-    Color hull = {243, 66, 121, 255};
-    Color hull_dark = {111, 25, 76, 255};
-    wr64_render_triangle_double(nose, rear_left, keel, hull_dark);
-    wr64_render_triangle_double(nose, keel, rear_right, hull_dark);
-    wr64_render_triangle_double(nose, rear_right, deck, hull);
-    wr64_render_triangle_double(nose, deck, rear_left, hull);
-    wr64_render_triangle_double(rear_left, deck, rear_right,
-        (Color){250, 226, 79, 255});
-
-    Vector3 torso_base = wr64_render_basis_point(
-        center, right, up, forward, 0.f, 0.38f, -0.25f);
-    Vector3 shoulders = wr64_render_basis_point(
-        center, right, up, forward, 0.f, 1.25f, -0.05f);
-    DrawCylinderEx(torso_base, shoulders, 0.25f, 0.32f, 10,
-        (Color){39, 194, 111, 255});
-    Vector3 head = wr64_render_basis_point(
-        center, right, up, forward, 0.f, 1.62f, 0.02f);
-    DrawSphere(head, 0.28f, (Color){246, 192, 151, 255});
-    Vector3 bar_left = wr64_render_basis_point(
-        center, right, up, forward, -0.48f, 0.72f, 0.55f);
-    Vector3 bar_right = wr64_render_basis_point(
-        center, right, up, forward, 0.48f, 0.72f, 0.55f);
-    DrawCylinderEx(bar_left, bar_right, 0.045f, 0.045f, 8,
-        (Color){34, 36, 48, 255});
-    DrawCylinderEx(shoulders, bar_left, 0.07f, 0.06f, 8,
-        (Color){246, 192, 151, 255});
-    DrawCylinderEx(shoulders, bar_right, 0.07f, 0.06f, 8,
-        (Color){246, 192, 151, 255});
+    // After the Tower Climb root correction below, the shared Puffer model's
+    // local axes are +X right, +Y up, and +Z nose. Map those axes onto the
+    // authoritative vehicle basis.
+    const float basis[16] = {
+        right.x, right.y, right.z, 0.f,
+        up.x, up.y, up.z, 0.f,
+        forward.x, forward.y, forward.z, 0.f,
+        0.f, 0.f, 0.f, 1.f,
+    };
+    rlPushMatrix();
+    rlTranslatef(center.x, center.y, center.z);
+    rlMultMatrixf(basis);
+    // Tower Climb applies the same correction to undo the GLB root rotation.
+    rlRotatef(-90.f, 0.f, 0.f, 1.f);
+    rlScalef(WR64_PUFFER_SCALE, WR64_PUFFER_SCALE, WR64_PUFFER_SCALE);
+    DrawModel(client->puffer, wr64_render_v3(0.f, 0.f, 0.f), 1.f, WHITE);
+    rlPopMatrix();
 }
 
 static void wr64_render_wake(const Client* client) {
@@ -703,9 +681,28 @@ static void wr64_render_append_wake(Client* client,
 
 static void wr64_render_close(WaveRace64* env) {
     if (!env->client) return;
+    if (env->client->puffer_loaded && IsWindowReady()) {
+        UnloadModel(env->client->puffer);
+        env->client->puffer_loaded = 0;
+    }
     if (IsWindowReady()) CloseWindow();
     free(env->client);
     env->client = NULL;
+}
+
+static void wr64_render_load_puffer(Client* client) {
+    if (!FileExists(WR64_PUFFER_MODEL_PATH)) {
+        fprintf(stderr, "[waverace64] missing Puffer model: %s\n",
+            WR64_PUFFER_MODEL_PATH);
+        abort();
+    }
+    client->puffer = LoadModel(WR64_PUFFER_MODEL_PATH);
+    if (!IsModelValid(client->puffer)) {
+        fprintf(stderr, "[waverace64] invalid Puffer model: %s\n",
+            WR64_PUFFER_MODEL_PATH);
+        abort();
+    }
+    client->puffer_loaded = 1;
 }
 
 static void wr64_render_draw(WaveRace64* env) {
@@ -728,6 +725,7 @@ static void wr64_render_draw(WaveRace64* env) {
     }
 
     Client* client = env->client;
+    if (!client->puffer_loaded) wr64_render_load_puffer(client);
     wr64_render_poll_control_mode(env);
     if (client->terminal_hold && IsKeyPressed(KEY_ENTER)) {
         wr64_render_reset_episode(env);
@@ -765,7 +763,7 @@ static void wr64_render_draw(WaveRace64* env) {
     wr64_render_water(state);
     wr64_render_route(state);
     wr64_render_wake(client);
-    wr64_render_vehicle(state);
+    wr64_render_puffer(client, state);
     EndMode3D();
     wr64_render_hud(client);
     EndDrawing();
