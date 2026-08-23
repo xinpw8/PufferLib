@@ -342,6 +342,15 @@ static void characterize_body_basis(WaveRace64* env) {
         float z = wr64_f(env, physics + offsets[3*row + 2]);
         assert(fabsf(x*x + y*y + z*z - 1.f) < 1e-3f);
     }
+    float hx;
+    float hz;
+    wr64_heading(env, 0.f, 0.f, &hx, &hz);
+    float basis0_dot = hx*wr64_f(env, physics + WR_PHYSICS_BASIS_0_X)
+        + hz*wr64_f(env, physics + WR_PHYSICS_BASIS_0_Z);
+    float basis2_dot = hx*wr64_f(env, physics + WR_PHYSICS_BASIS_2_X)
+        + hz*wr64_f(env, physics + WR_PHYSICS_BASIS_2_Z);
+    printf(" heading=(%+.6f,%+.6f) heading-dot-basis0=%+.6f "
+        "heading-dot-basis2=%+.6f\n", hx, hz, basis0_dot, basis2_dot);
 }
 
 static void assert_body_basis_observation(WaveRace64* env) {
