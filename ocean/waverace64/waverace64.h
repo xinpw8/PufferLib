@@ -125,6 +125,12 @@ typedef struct Log {
     float episode_length;
     float target_laps;
     float three_lap_success_rate;
+    // These are accumulated only for official finishes. puf_log divides them
+    // by success_rate after PufferLib has averaged the flat Log over episodes.
+    float successful_race_time_ms;
+    float successful_lap_1_ms;
+    float successful_lap_2_ms;
+    float successful_lap_3_ms;
     float n;
 } Log;
 
@@ -1028,6 +1034,12 @@ void add_log(WaveRace64* env) {
     env->log.target_laps += (float)target_laps;
     env->log.three_lap_success_rate += env->state.success
         && target_laps == 3 ? 1.f : 0.f;
+    if (env->state.success) {
+        env->log.successful_race_time_ms += (float)wr64_race_time_ms(env);
+        env->log.successful_lap_1_ms += (float)wr64_lap_split_ms(env, 0);
+        env->log.successful_lap_2_ms += (float)wr64_lap_split_ms(env, 1);
+        env->log.successful_lap_3_ms += (float)wr64_lap_split_ms(env, 2);
+    }
     float perf = env->route_total > 0.f && target_laps > 0
         ? env->state.max_progress / (env->route_total * (float)target_laps)
         : 0.f;
@@ -1540,4 +1552,9 @@ void puf_log(Log* log, Dict* out) {
     dict_set(out, "episode_length", log->episode_length);
     dict_set(out, "target_laps", log->target_laps);
     dict_set(out, "three_lap_success_rate", log->three_lap_success_rate);
+    float success_inv = log->success_rate > 0.f ? 1.f / log->success_rate : 0.f;
+    dict_set(out, "finish_time_ms", log->successful_race_time_ms * success_inv);
+    dict_set(out, "lap_1_ms", log->successful_lap_1_ms * success_inv);
+    dict_set(out, "lap_2_ms", log->successful_lap_2_ms * success_inv);
+    dict_set(out, "lap_3_ms", log->successful_lap_3_ms * success_inv);
 }
