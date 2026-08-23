@@ -562,7 +562,7 @@ static uint64_t test_render_cadence_does_not_change_trajectory(
     uint32_t rng = UINT32_C(0xC001D00D);
     uint64_t trajectory_hash = UINT64_C(14695981039346656037);
     int terminals = 0;
-    for (int decision = 0; decision < 96; decision++) {
+    for (int decision = 0; decision < 192; decision++) {
         uint32_t action_rng = rng;
         set_lcg_action(headless, &rng);
         set_lcg_action(rendered, &action_rng);
@@ -584,7 +584,7 @@ static uint64_t test_render_cadence_does_not_change_trajectory(
     }
     assert(terminals > 0);
     assert(headless->env.client == NULL);
-    printf("PASS render-cadence decisions=96 terminals=%d hash=%016llx\n",
+    printf("PASS render-cadence decisions=192 terminals=%d hash=%016llx\n",
         terminals, (unsigned long long)trajectory_hash);
     return trajectory_hash;
 }
