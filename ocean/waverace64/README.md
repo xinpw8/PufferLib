@@ -513,7 +513,7 @@ Seed 708 is not a non-learning failure. Its stochastic policy completed 410/515 
 
 The seed-707 deterministic CPU episode succeeded after 619 policy decisions with zero generic failures, disqualifications, timeouts, or faults and `target_laps=3`. It is a functional policy and environment check, not enough evidence for a CPU success-rate estimate or CUDA/CPU action-by-action equivalence. The deterministic CUDA entries are replicas of one deterministic initial condition per checkpoint. The stochastic results characterize two trained seeds under one held-out action seed each.
 
-The terminal-aware full-race capture retained the reset frame, every one of those 619 deterministic CPU policy decisions, and the official terminal frame as 620 source PNGs. It stopped before any frame from episode two. The delivered H.264 High/yuv420p MP4 is 640 by 480 at 60 frames/s, has 7,548 decoded frames and a 125.800 s duration including a 2 s finish hold, is 14,228,992 bytes, and has SHA-256 `3fbaeaa9d0a1dcde2ce72d9508b2273d0c38387a3748bafec0c9fed9f5727a85`. This records CPU inference of the seed-707 checkpoint; it is not evidence that CPU and CUDA inference select identical action sequences.
+The terminal-aware CPU capture retained the reset frame, every one of those 619 deterministic policy decisions, and the official terminal frame as 620 source PNGs. It stopped before any frame from episode two. A separate native CUDA-policy recording used the frozen finish screen as a synchronization gate, restarted once, and retained the first rendered policy transition through 120 consecutive frames of the next official finish screen. That primary H.264 High/yuv420p MP4 is 640 by 360 at 60 frames/s, contains 6,506 decoded frames, lasts 108.433 s, is 11,085,404 bytes, and has SHA-256 `041bba61d8f86a4a00e4aec555a9b71a7d47e287696aaba7cc60823f31dbfc1b`. Its final state reports lap 3/3, 46 cleared gates, zero misses, and official finish at 106.60 s.
 
 | Current 55-input acceptance item | Status |
 | --- | --- |
@@ -525,7 +525,7 @@ The terminal-aware full-race capture retained the reset frame, every one of thos
 | Deterministic per-head argmax | **SHARPLY SEED-SENSITIVE:** seed 707 finished 128/128; seed 708 finished 0/128 |
 | Fresh deterministic CPU evaluation | **PASS AS A SEED-707 ONE-EPISODE CHECK:** 1/1 official success in 619 decisions |
 | Learned-policy PNG capture | **PASS FOR STABLE SEED 707:** 150 distinct consecutive 960 by 540 frames spanning 30 simulated seconds |
-| Full-race MP4 | **PASS FOR STABLE SEED 707:** reset through official three-lap finish, terminal-aware stop, 125.800 s H.264 file |
+| Full-race MP4 | **PASS FOR STABLE SEED 707:** native CUDA policy through official three-lap finish, 120-frame terminal hold, 108.433 s H.264 file |
 | Broader training-seed statistics | **PENDING:** two full seeds establish the contrast but not the wider distribution |
 
 ## Audit
