@@ -72,7 +72,7 @@ static inline Vector3 wr64_render_position(const WR64RenderState* state) {
 
 static inline Vector3 wr64_render_forward(const WR64RenderState* state) {
     Vector3 forward = wr64_render_v3(
-        -state->basis[6], -state->basis[7], -state->basis[8]);
+        state->basis[0], state->basis[1], state->basis[2]);
     Vector3 fallback = wr64_render_v3(
         state->heading[0], 0.f, state->heading[1]);
     fallback = wr64_render_normalize(fallback, wr64_render_v3(0.f, 0.f, 1.f));
@@ -91,7 +91,7 @@ static inline Vector3 wr64_render_up(const WR64RenderState* state) {
 
 static inline Vector3 wr64_render_right(const WR64RenderState* state) {
     Vector3 right = wr64_render_normalize(
-        wr64_render_v3(state->basis[0], state->basis[1], state->basis[2]),
+        wr64_render_v3(state->basis[6], state->basis[7], state->basis[8]),
         wr64_render_v3(state->heading[1], 0.f, -state->heading[0]));
     Vector3 expected = wr64_render_v3(
         state->heading[1], 0.f, -state->heading[0]);
