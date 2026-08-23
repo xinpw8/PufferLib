@@ -190,7 +190,7 @@ CPU-free simulation is therefore infeasible within the present static-recomp arc
 
 ## Current-contract empirical acceptance and remaining items
 
-The clean current OBS57 frameskip-2 seed-900 run executed 10,485,760 decisions in 201.845 s of trainer uptime. This is 51,949.565260 policy decisions/s and 103,899.130521 native updates/s. The renderer remained inactive. The deployed trainer binary has SHA-256 `f20a62342714f2c0698d356435849d0f3069fbed703e3e7c83ba510c15cff9d2`.
+The clean current OBS57 frameskip-2 seed-900 run executed 10,485,760 decisions in 201.845 s of trainer uptime. This is 51,949.565260 policy decisions/s and 103,899.130521 native updates/s. The renderer remained inactive. The binary used for this retained measurement has SHA-256 `f20a62342714f2c0698d356435849d0f3069fbed703e3e7c83ba510c15cff9d2`; it predates the evaluator-only Puffer model change.
 
 The selected seed-901 OBS57 checkpoint is 438,272 bytes. It is retained at `/home/spark-advantage/wr64-results/obs57-seeds/checkpoints/waverace64/obs57-fs2-s901/0000000010485760.bin` with SHA-256 `eaf2d9be637f5d03a95bb1d6ff9c40096867e977dfcdbd1eb8f94df855f277b5`.
 
