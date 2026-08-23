@@ -647,6 +647,21 @@ static int puf_export_screen(const char* file_name) {
     return exported;
 }
 
+static int puf_capture_screen(const char* capture_dir, int frame) {
+    char filename[4096];
+    int written = snprintf(filename, sizeof(filename),
+        "%s/frame-%06d.png", capture_dir, frame);
+    if (written < 0 || (size_t)written >= sizeof(filename)) {
+        fprintf(stderr, "Capture path is too long\n");
+        return 0;
+    }
+    if (!puf_export_screen(filename)) {
+        fprintf(stderr, "Could not export capture: %s\n", filename);
+        return 0;
+    }
+    return 1;
+}
+
 #if !defined(PUF_NMMO3_NET) && !defined(PUF_ASTEROIDS_NET) && !defined(PUF_MINIMAL_NET)
 static int puf_align8(int n) {
     return (n + 7) & ~7;
@@ -745,6 +760,7 @@ int main(int argc, char** argv) {
     int capture_every = 1;
     int capture_hidden = 0;
     int capture_fast = 0;
+    int capture_until_terminal = 0;
 
     char* ini_argv[argc > 0 ? (size_t)argc : 1];
     int ini_argc = 0;
@@ -773,6 +789,10 @@ int main(int argc, char** argv) {
             capture_fast = 1;
             continue;
         }
+        if (strcmp(argv[i], "--capture-until-terminal") == 0) {
+            capture_until_terminal = 1;
+            continue;
+        }
         if (strcmp(argv[i], "latest") == 0) {
             cli_latest = 1;
             continue;
@@ -784,10 +804,13 @@ int main(int argc, char** argv) {
         }
         ini_argv[ini_argc++] = argv[i];
     }
-    if (capture_dir && capture_count == 0) capture_count = 150;
+    if (capture_dir && capture_count == 0 && !capture_until_terminal) {
+        capture_count = 150;
+    }
     if ((capture_dir && capture_dir[0] == 0) || capture_count < 0
             || capture_every < 1 || (capture_count > 0 && !capture_dir)
             || ((capture_hidden || capture_fast) && !capture_dir)
+            || (capture_until_terminal && (!capture_dir || capture_count > 0))
             || (headless && capture_dir)) {
         fprintf(stderr, "Invalid capture options\n");
         return 2;
@@ -934,18 +957,11 @@ int main(int argc, char** argv) {
         if (capture_fast) SetTargetFPS(0);
 #endif
         if (capture_dir && render_frame % capture_every == 0) {
-            char filename[4096];
-            int written = snprintf(filename, sizeof(filename),
-                "%s/frame-%06d.png", capture_dir, captured_frames);
-            if (written < 0 || (size_t)written >= sizeof(filename)) {
-                fprintf(stderr, "Capture path is too long\n");
+            if (!puf_capture_screen(capture_dir, captured_frames)) {
                 capture_done = 1;
             } else {
-                if (!puf_export_screen(filename)) {
-                    fprintf(stderr, "Could not export capture: %s\n", filename);
-                    capture_done = 1;
-                } else {
-                    captured_frames++;
+                captured_frames++;
+                if (!capture_until_terminal) {
                     capture_done = captured_frames >= capture_count;
                 }
             }
@@ -955,7 +971,12 @@ int main(int argc, char** argv) {
     while (headless
             ? (env.log.n < (float)eval_episodes)
             : (!capture_done && (!IsWindowReady() || !WindowShouldClose()))) {
-        int do_step = headless || (step_hold == 0);
+        int render_paused = 0;
+#ifdef PUF_EVAL_RENDER_PAUSED
+        if (!headless) render_paused = PUF_EVAL_RENDER_PAUSED(&env);
+#endif
+        int do_step = headless || (step_hold == 0 && !render_paused);
+        int terminal_transition = 0;
         int ticks = 1;
         if (!headless && (int)PUF_STEPS_PER_SEC > 60) {
             step_credit += (int)PUF_STEPS_PER_SEC;
@@ -971,8 +992,11 @@ int main(int argc, char** argv) {
 #else
             int eval_fwd = 1;
 #endif
-            int eval_human = !headless && IsWindowReady() &&
-                IsKeyDown(KEY_LEFT_SHIFT);
+            int eval_human = !headless && IsWindowReady()
+                && IsKeyDown(KEY_LEFT_SHIFT);
+#ifdef PUF_EVAL_POLICY_DURING_HUMAN
+            eval_human = 0;
+#endif
             if (have_net && do_step && eval_fwd && hold == 0 && !eval_human) {
 #ifdef PUF_NMMO3_NET
                 forward(net, observations, terminals, actions);
@@ -997,6 +1021,9 @@ int main(int argc, char** argv) {
                 if (headless) {
                     steps++;
                 }
+                for (int a = 0; a < env.num_agents; a++) {
+                    if (terminals[a] > 0.5f) terminal_transition = 1;
+                }
             }
             if (do_step && eval_fwd) {
                 int reset_hold = 0;
@@ -1010,19 +1037,21 @@ int main(int argc, char** argv) {
         }
         if (!headless) {
             puf_render(&env);
-            if (capture_dir && render_frame % capture_every == 0) {
-                char filename[4096];
-                int written = snprintf(filename, sizeof(filename),
-                    "%s/frame-%06d.png", capture_dir, captured_frames);
-                if (written < 0 || (size_t)written >= sizeof(filename)) {
-                    fprintf(stderr, "Capture path is too long\n");
+            int terminal_ready = terminal_transition;
+#ifdef PUF_EVAL_RENDER_TERMINAL
+            terminal_ready = PUF_EVAL_RENDER_TERMINAL(&env);
+#endif
+            int capture_due = capture_dir
+                && render_frame % capture_every == 0;
+            if (capture_until_terminal && terminal_ready) capture_due = 1;
+            if (capture_due) {
+                if (!puf_capture_screen(capture_dir, captured_frames)) {
                     capture_done = 1;
                 } else {
-                    if (!puf_export_screen(filename)) {
-                        fprintf(stderr, "Could not export capture: %s\n", filename);
+                    captured_frames++;
+                    if (capture_until_terminal && terminal_ready) {
                         capture_done = 1;
-                    } else {
-                        captured_frames++;
+                    } else if (!capture_until_terminal) {
                         capture_done = captured_frames >= capture_count;
                     }
                 }
@@ -1099,6 +1128,18 @@ int main(int argc, char** argv) {
             three_lap_success_rate);
 #endif
         putchar('\n');
+        fflush(stdout);
+    } else if (capture_dir) {
+        printf("CPU_CAPTURE env=%s frames=%d render_frames=%d "
+            "until_terminal=%d terminal=%d\n",
+            env_name, captured_frames, render_frame,
+            capture_until_terminal,
+#ifdef PUF_EVAL_RENDER_TERMINAL
+            PUF_EVAL_RENDER_TERMINAL(&env)
+#else
+            0
+#endif
+        );
         fflush(stdout);
     }
 

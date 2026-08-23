@@ -255,7 +255,13 @@ typedef Env WaveRace64;
 static void wr64_render_close(WaveRace64* env);
 static void wr64_render_human_controls(WaveRace64* env);
 static void wr64_render_capture_terminal(WaveRace64* env);
+static void wr64_render_reset_episode(WaveRace64* env);
+static int wr64_render_is_paused(const WaveRace64* env);
+static int wr64_render_terminal_ready(const WaveRace64* env);
 static void wr64_render_draw(WaveRace64* env);
+#define PUF_EVAL_RENDER_PAUSED(env) wr64_render_is_paused(env)
+#define PUF_EVAL_RENDER_TERMINAL(env) wr64_render_terminal_ready(env)
+#define PUF_EVAL_POLICY_DURING_HUMAN 1
 #endif
 
 static inline uint32_t wr64_u(WaveRace64* e, uint32_t va) {
@@ -1145,6 +1151,9 @@ void puf_eval_reset(WaveRace64* env) {
     env->curriculum_laps = 3;
     env->curriculum_successes = 0;
     puf_reset(env);
+#ifdef PUFFER_WAVERACE64_RENDER
+    if (env->client) wr64_render_reset_episode(env);
+#endif
 }
 
 void puf_step(WaveRace64* env) {

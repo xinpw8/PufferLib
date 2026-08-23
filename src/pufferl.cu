@@ -2961,6 +2961,11 @@ static EvalResult eval_loop(Ini* ini, PuffeRL* p, int mode, int verbose,
             if (WindowShouldClose()) {
                 return result;
             }
+#ifdef PUF_EVAL_RENDER_PAUSED
+            if (PUF_EVAL_RENDER_PAUSED(p->vec->envs)) {
+                continue;
+            }
+#endif
 #ifdef PUF_STEPS_PER_SEC
             if ((int)PUF_STEPS_PER_SEC > 0
                     && (int)PUF_STEPS_PER_SEC < 60) {

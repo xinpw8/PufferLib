@@ -178,6 +178,24 @@ static void assert_float_bits(float actual, float expected) {
     assert(float_bits(actual) == float_bits(expected));
 }
 
+static void test_control_mode_toggle() {
+    Client client = {};
+    assert(client.human_control == 0);
+    wr64_render_update_control_mode(&client, 0);
+    assert(client.human_control == 0);
+    wr64_render_update_control_mode(&client, 1);
+    assert(client.human_control == 1);
+    wr64_render_update_control_mode(&client, 1);
+    assert(client.human_control == 1);
+    wr64_render_update_control_mode(&client, 0);
+    assert(client.human_control == 1);
+    wr64_render_update_control_mode(&client, 1);
+    assert(client.human_control == 0);
+    wr64_render_update_control_mode(&client, 0);
+    assert(client.human_control == 0);
+    printf("PASS control-mode shift-up rising-edge toggle\n");
+}
+
 static void assert_render_state_matches_authority(
         WaveRace64* env, const WR64RenderState* state) {
     assert(state->version == 1);
@@ -620,6 +638,7 @@ int main(int argc, char** argv) {
     assert(headless.env.client == NULL);
     assert(rendered.env.client == NULL);
 
+    test_control_mode_toggle();
     test_training_client_remains_null(&headless);
     puf_eval_reset(&rendered.env);
     test_render_state_capture_is_pure(&rendered);
