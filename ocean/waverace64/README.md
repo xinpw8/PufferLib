@@ -1,8 +1,8 @@
-# Wave Race 64 headless training environment
+# Wave Race 64 training environment and state evaluator
 
 This environment integrates a statically recompiled Wave Race 64 US Rev 1 core with the native PufferLib 5.0 trainer. The game simulation executes as native host CPU code. PufferLib runs policy inference, rollout tensors, and learning on CUDA. Every environment instance owns its guest memory and suspended game context.
 
-The supported task is deliberately narrow: rider 0, one rider, Sunny Beach, Time Trials, three laps, and one deterministic race-start snapshot. Rendering, audio, RSP/RDP work, controller-pak behavior, multiplayer, other riders, other courses, and other modes are outside the environment contract.
+The supported task is deliberately narrow: rider 0, one rider, Sunny Beach, Time Trials, three laps, and one deterministic race-start snapshot. Original N64 rendering, audio, RSP/RDP work, controller-pak behavior, multiplayer, other riders, other courses, and other modes are outside the environment contract. Human evaluation uses a custom state renderer described below. It does not reproduce the cartridge framebuffer.
 
 ## Status against the original assignment
 
@@ -13,8 +13,9 @@ The original assignment required a native Wave Race 64 core in the current Puffe
 | Native Wave Race 64 core | Implemented with 1,203 statically recompiled game functions and a headless libultra runtime. |
 | Current PufferLib 5.0 integration | Implemented against upstream `5.0` commit `ba238f8c` using the native C++17/CUDA trainer. |
 | Parity with the game | Proven for selected authoritative state on one pinned deterministic interpreter trace through a native failure terminal. Broader parity remains unproven. |
-| High-throughput training | Measured at a five-seed median of 30,914.5 policy decisions/s and 123,658.1 guest updates/s. Simulation remains CPU-bound. |
-| Learning quality | Official three-lap finishes learned in independent production runs and verified in fresh-process stochastic and argmax evaluation. Seed sensitivity is material and reported below. |
+| High-throughput training | **MEASURED IN THREE SHORT CURRENT-CONTRACT RUNS.** Mean throughput was 29,609.44 policy decisions/s and 118,437.76 guest updates/s. This is 4.18% below the retained 43-input mean, but the different run duration prevents a strict regression claim. Simulation remains CPU-bound. |
+| Learning quality | **UNMEASURED for the current 55-observation contract.** The input layer changed, so prior 43-input checkpoints are incompatible and a fresh training and evaluation campaign is required. |
+| Human-readable evaluation | Implemented as an eval-only state renderer using authoritative rider, course, outcome, and water state. It is a purpose-built visualization, not original Wave Race graphics. |
 | CUDA, CPU-free simulation | Unimplemented. The policy and learner use CUDA; `libwr64.a` executes on host CPU workers. |
 
 ## Execution architecture
@@ -24,7 +25,7 @@ CUDA policy and learner
         | actions and rollout tensors
         v
 PufferLib CPU vector workers
-        | five controller heads, 43 observations, reward, terminal
+        | five controller heads, 55 observations, reward, terminal
         v
 waverace64.h adapter
         | WRPad and public runtime ABI
@@ -35,9 +36,9 @@ libwr64.a on the host CPU
 per-instance 8 MiB RDRAM, native stack, ucontext, and snapshot
 ```
 
-Training is unpaced. The guest's simulated-time cadence does not limit wall-clock throughput. GPU utilization cannot remove the CPU simulator cost in this architecture.
+Training is unpaced. The guest's simulated-time cadence does not limit wall-clock throughput. GPU utilization cannot remove the CPU simulator cost in this architecture. Current 55-observation short-run throughput is documented below; production-duration confirmation remains pending.
 
-The adapter follows the native Puffer environment interface in [`waverace64.h`](waverace64.h): `puf_init`, `puf_reset`, `puf_step`, `puf_close`, `puf_log`, and `puf_render`. `puf_render` is an intentional no-op. The ASCII utility in the runtime repository is a telemetry plot and is not a renderer.
+The adapter follows the native Puffer environment interface in [`waverace64.h`](waverace64.h): `puf_init`, `puf_reset`, `puf_step`, `puf_close`, `puf_log`, and `puf_render`. Training is renderer-free: the training path never calls `puf_render`, never allocates the renderer `Client`, never captures the 33 by 33 display mesh, and never submits Raylib draw calls. It still runs the recompiled simulator and computes the 12 water observation samples on host CPU. Interactive evaluation calls `puf_render` and therefore has evaluation-only CPU and graphics work. The ASCII utility in the runtime repository remains a telemetry plot and is not the state evaluator.
 
 ## Fixed scenario and time base
 
@@ -140,21 +141,21 @@ env OMP_PLACES=cores OMP_PROC_BIND=close \
   /tmp/test_waverace64 "$WR64_ROM"
 ```
 
-Train with the production configuration:
+Train a new policy with the checked-in configuration:
 
 ```sh
 cd "$PUFFER_DIR"
 ./puffer train --env.rom_path="$WR64_ROM"
 ```
 
-The production run contains exactly 5,242,880 policy decisions, or 640 complete batches at 128 agents and horizon 64. Each environment begins with a one-lap target, advances to two laps after one official finish, and advances to three after the next official finish. Curriculum state is local to each environment.
+The configured run contains exactly 5,242,880 policy decisions, or 640 complete batches at 128 agents and horizon 64. Each environment begins with a one-lap target, advances to two laps after one official finish, and advances to three after the next official finish. Curriculum state is local to each environment. These are configuration values, not evidence that the current 55-observation policy learns or meets a throughput target.
 
-The production configuration requests at least 32 post-train evaluation episodes. Post-train evaluation reuses the existing 128-agent training vector; `base.eval_agents = 32` applies when a standalone evaluation vector is created. Before post-train evaluation, the trainer waits for rollout workers, forces every Wave Race instance to the official three-lap target, resets every environment, clears transition state, uploads the reset observations, zeros recurrent state, reinitializes action RNG state, and synchronizes the CUDA stream. Fresh CUDA evaluation, post-train evaluation, and the standalone CPU evaluator all use this same three-lap boundary. Evaluation cannot inherit one-lap curriculum state.
+The checked-in configuration requests at least 32 post-train evaluation episodes. Post-train evaluation reuses the existing 128-agent training vector; `base.eval_agents = 32` applies when a standalone evaluation vector is created. Before post-train evaluation, the trainer waits for rollout workers, forces every Wave Race instance to the official three-lap target, resets every environment, clears transition state, uploads the reset observations, zeros recurrent state, reinitializes action RNG state, and synchronizes the CUDA stream. Fresh CUDA evaluation, post-train evaluation, and the standalone CPU evaluator all use this same three-lap boundary. Evaluation cannot inherit one-lap curriculum state.
 
-A fresh-process evaluation of a named checkpoint remains the retained acceptance method because it isolates the process lifecycle and pins the artifact under test. Use an explicit path because `latest` selects by filesystem creation time and can pick an unrelated benchmark checkpoint:
+A fresh-process evaluation of a named checkpoint remains the acceptance method because it isolates the process lifecycle and pins the artifact under test. The checkpoint must have been trained with `OBS_SIZE = 55`. A 43-input checkpoint has a different first-layer parameter shape and is incompatible; the CUDA and CPU loaders do not define a padding or migration rule. Retrain from scratch and use an explicit path because `latest` selects by filesystem creation time and can pick an unrelated or incompatible checkpoint:
 
 ```sh
-export WR64_CHECKPOINT=/path/to/checkpoints/waverace64/run/step.bin
+export WR64_CHECKPOINT=/path/to/a-new-55-observation-checkpoint.bin
 ./puffer eval "$WR64_CHECKPOINT" --headless \
   --base.eval_episodes=100 \
   --base.eval_agents=128 \
@@ -165,7 +166,65 @@ Command-line `--section.key=value` values override [`config/waverace64.ini`](../
 
 The adapter opts out of PufferLib's default `[-1, 1]` learner-side reward clamp. Clipping would change the configured miss, finish, and failure magnitudes. The learner therefore receives emitted rewards unchanged.
 
-Evaluation checks the episode target after complete rollout horizons, so `base.eval_episodes` is a minimum and parallel evaluation can overshoot it. Report the actual `CUDA_EVAL games=N` denominator. For Wave Race, the machine-readable CUDA and CPU lines include deterministic or stochastic mode, exact success count, checkpoints, misses, every terminal-cause rate, target laps, and three-lap success. Retained production evaluation uses the native CUDA-policy binary, a fresh process, and an explicit checkpoint. `base.eval_deterministic=1` selects per-head argmax; the default samples from all five policy heads.
+Evaluation checks the episode target after complete rollout horizons, so `base.eval_episodes` is a minimum and parallel evaluation can overshoot it. Report the actual `CUDA_EVAL games=N` denominator. For Wave Race, the machine-readable CUDA and CPU lines include deterministic or stochastic mode, exact success count, checkpoints, misses, every terminal-cause rate, target laps, and three-lap success. A retained result must use the native CUDA-policy binary, a fresh process, and an explicit 55-input checkpoint. `base.eval_deterministic=1` selects per-head argmax; the default samples from all five policy heads.
+
+## Human state evaluator and capture
+
+The interactive evaluator is a state-based visualization of the same simulation used for training. Its immutable, pointer-free capture contains the rider position, finite-difference velocity, heading and full body basis, controller state, lap and route state, checkpoint and miss counts, recovery and terminal flags, the authoritative course graph and signed pass points, and a rider-centered 33 by 33 water-height grid at 128 game-unit spacing. The renderer displays that state as a low-poly water surface, course line, colored buoys and pass-side markers, a schematic rider and watercraft, a chase camera, a minimap, and a race HUD.
+
+This makes the control state legible to a human, but it is not graphical parity with the N64 game. The camera, water shading, wake history, rider and watercraft geometry, HUD, and minimap are renderer-owned presentation. No cartridge textures, models, framebuffer, audio, RSP output, or RDP output are used. Renderer correctness means that the shown geometry and labels are projections of captured authoritative fields, within the parity boundary documented below. It does not mean pixel equivalence to Wave Race 64.
+
+Run the CUDA-policy evaluator in a visible window:
+
+```sh
+cd "$PUFFER_DIR"
+export WR64_CHECKPOINT=/path/to/a-new-55-observation-checkpoint.bin
+./puffer eval "$WR64_CHECKPOINT" \
+  --env.rom_path="$WR64_ROM"
+```
+
+The evaluator uses one environment and advances at five policy decisions per wall-clock second. Rendering targets 60 frames/s. Hold Left Shift to replace policy actions with keyboard input; releasing it returns control to the policy.
+
+| Input while holding Left Shift | Controller action |
+| --- | --- |
+| W | A, throttle |
+| A or Left Arrow | Full left stick X |
+| D or Right Arrow | Full right stick X |
+| Up Arrow | Full forward stick Y |
+| Down Arrow | Full back stick Y |
+| S | B, wave damping |
+| Space | R, water-surface slide |
+| Close window | End evaluation |
+
+For a CPU-only policy viewer or PNG capture, build the standalone evaluator under a distinct output name:
+
+```sh
+cd "$PUFFER_DIR"
+WR64_DIR="$WR64_DIR" ./build.sh waverace64 wr64_cpu --cpu
+
+WR64_RENDER_WIDTH=1280 WR64_RENDER_HEIGHT=720 \
+  ./wr64_cpu waverace64 "$WR64_CHECKPOINT" \
+  --env.rom_path="$WR64_ROM"
+```
+
+The default window is 960 by 540 pixels. `WR64_RENDER_WIDTH` values below 640 and `WR64_RENDER_HEIGHT` values below 480 are ignored.
+
+Capture a deterministic sequence after creating the destination directory:
+
+```sh
+export WR64_CAPTURE_DIR=/path/to/wr64-capture
+mkdir -p "$WR64_CAPTURE_DIR"
+
+WR64_RENDER_WIDTH=1280 WR64_RENDER_HEIGHT=720 \
+  ./wr64_cpu waverace64 "$WR64_CHECKPOINT" \
+  --env.rom_path="$WR64_ROM" \
+  --base.eval_deterministic=1 \
+  --capture-dir="$WR64_CAPTURE_DIR" \
+  --capture-count=150 \
+  --capture-every=1
+```
+
+This writes `frame-000000.png` through `frame-000149.png`. `--capture-every=N` keeps every Nth rendered frame. `--capture-hidden` hides the window but still requires a working display and OpenGL context. `--capture-fast` removes normal render pacing and must not be used as a training-throughput measurement. Capture cannot be combined with `--headless`; `--headless` selects metrics-only CPU evaluation and does not call the renderer.
 
 ## Action space
 
@@ -183,7 +242,7 @@ The [official Nintendo controller page](https://www.nintendo.com/eu/media/downlo
 
 ## Observation space
 
-The observation is a flat vector of 43 `float` values. Position, rider, course, miss, finish, and recovery fields come from decompilation-derived structures. Velocity is finite-difference motion per guest update over the selected frameskip. Teleports, recovery transitions, invalid identity, and non-finite motion are excluded from the motion estimate. Any remaining non-finite feature is replaced with zero.
+The observation is a flat vector of 55 `float` values. Position, rider, course, miss, finish, recovery, and water fields come from decompilation-derived structures and game memory. Velocity is finite-difference motion per guest update over the selected frameskip. Teleports, recovery transitions, invalid identity, and non-finite motion are excluded from the motion estimate. Any remaining non-finite feature is replaced with zero.
 
 `WR64_SPEED_SCALE` is `55.555557` game units per guest update. `route_total` is the authoritative Sunny Beach route length accumulated from course-node lengths. Basis-vector names remain ordinal because the decompilation does not assign stable body-axis semantics to the three triplets.
 
@@ -200,7 +259,7 @@ The observation is a flat vector of 43 `float` values. Position, rider, course, 
 | 8 | horizontal speed | `hypot(vx, vz) / WR64_SPEED_SCALE` |
 | 9 | applied A | `0` or `1` |
 | 10 | applied B | `0` or `1` |
-| 11 | reserved Z | Always `0` in the production five-head action contract |
+| 11 | reserved Z | Always `0` in the five-head action contract |
 | 12 | applied R | `0` or `1` |
 | 13 | applied stick X | Signed stick value divided by `80` |
 | 14 | applied stick Y | Signed stick value divided by `80` |
@@ -232,14 +291,38 @@ The observation is a flat vector of 43 `float` values. Position, rider, course, 
 | 40 | basis 2 X | Active physics body-basis triplet 2, X component |
 | 41 | basis 2 Y | Active physics body-basis triplet 2, Y component |
 | 42 | basis 2 Z | Active physics body-basis triplet 2, Z component |
+| 43 | water, forward -64, lateral -96 | Rider-relative water height at that offset |
+| 44 | water, forward -64, lateral 0 | Rider-relative water height at that offset |
+| 45 | water, forward -64, lateral +96 | Rider-relative water height at that offset |
+| 46 | water, forward +64, lateral -96 | Rider-relative water height at that offset |
+| 47 | water, forward +64, lateral 0 | Rider-relative water height at that offset |
+| 48 | water, forward +64, lateral +96 | Rider-relative water height at that offset |
+| 49 | water, forward +192, lateral -96 | Rider-relative water height at that offset |
+| 50 | water, forward +192, lateral 0 | Rider-relative water height at that offset |
+| 51 | water, forward +192, lateral +96 | Rider-relative water height at that offset |
+| 52 | water, forward +384, lateral -96 | Rider-relative water height at that offset |
+| 53 | water, forward +384, lateral 0 | Rider-relative water height at that offset |
+| 54 | water, forward +384, lateral +96 | Rider-relative water height at that offset |
 
 For buoy node types 0 and 1, the pass point is the node center plus a signed `400`-unit offset along the course node's decomp-derived lateral vector. Earlier adapters exposed only the node center, which withheld the required passing side from the policy.
 
-These 43 fields are a compact control observation, not the full game state. The environment does not claim strict Markov sufficiency across every Wave Race mechanic.
+For indices 43 through 54, let rider position be `(x, y, z)`, normalized horizontal heading be `(hx, hz)`, forward offset be `f`, and lateral offset be `l`. The sampled point and feature are:
+
+```text
+sample_x = x + f*hx + l*hz
+sample_z = z + f*hz - l*hx
+observation = (water_height(sample_x, sample_z) - y) * 0.01
+```
+
+The row order is forward offset `-64, 64, 192, 384`, with lateral offset `-96, 0, 96` inside each row. Units before scaling are game units. These 12 values expose nearby dynamic wave height without rendering an image or supplying the dense 33 by 33 evaluator mesh to the learner.
+
+Changing from 43 to 55 observations changes the policy ABI. Every prior 43-input checkpoint has an incompatible first layer, even though observations 0 through 42 retain their meanings. There is no supported conversion or zero-padding path. Train and evaluate a new model with 55 inputs.
+
+These 55 fields are a compact control observation, not the full game state. The environment does not claim strict Markov sufficiency across every Wave Race mechanic.
 
 ## Reward
 
-Production coefficients are:
+The checked-in coefficients are:
 
 | Term | Coefficient |
 | --- | ---: |
@@ -252,7 +335,7 @@ Production coefficients are:
 | Official finish | `+10` |
 | Failure | `-2` |
 
-Production uses reward mode 2. It credits only a new maximum route frontier and verified checkpoint events:
+The checked-in configuration uses reward mode 2. It credits only a new maximum route frontier and verified checkpoint events:
 
 ```text
 frontier_gain = max(0, max_progress_after - max_progress_before)
@@ -262,17 +345,17 @@ shaping = 3 * frontier_gain / route_total
 
 The maximum frontier is monotone, so reversing and revisiting a segment cannot earn it twice. A route-node advance accompanied by an official miss earns no checkpoint term. Recovery, teleport, invalid-identity, and discontinuous route transitions earn neither motion nor frontier credit. This matches the practical Puffer racing pattern of dense distance progress plus discrete gates while adding a one-credit frontier guard against oscillation.
 
-Reward mode 0 retains strict terminal-cancelled potential shaping as an ablation. Mode 1 retains terminal potential. Both use `train.gamma` as the environment discount. A 5,242,880-decision mode-0 pilot learned no official finish and evaluated at `perf=0.0266`; its failure returns were mathematically valid but gave successful partial navigation no lasting task credit. Mode 2 is the measured production objective.
+Reward mode 0 retains strict terminal-cancelled potential shaping as an ablation. Mode 1 retains terminal potential. Both use `train.gamma` as the environment discount. Mode 2 is the current configured objective. Earlier mode comparisons used the superseded 43-observation ABI and are not learning evidence for the current policy.
 
 The nonterminal time cost removes a discount loophole found in pilot training. If `F` is the configured failure magnitude, the discounted sum of `-F * (1 - gamma)` on every nonterminal transition plus `-F` at a failure terminal is exactly `-F`, regardless of episode duration. Stalling until the native timeout therefore cannot make failure cheaper. A successful trajectory retains discounted base return `-F + (F + finish) * gamma^(T-1)`, so faster official finishes remain preferable.
 
-Optional instantaneous speed and slip terms exist for experiments. Production keeps both coefficients at zero. Motion terms are suppressed across game-driven teleports and recovery transitions.
+Optional instantaneous speed and slip terms exist for experiments. The checked-in configuration keeps both coefficients at zero. Motion terms are suppressed across game-driven teleports and recovery transitions.
 
 ### Lap curriculum and evaluation boundary
 
 Training starts each vector instance at one lap and advances that instance from 1 to 2 to 3 laps after one official success at each level. The curriculum changes only the two verified native lap-count words after restoring the same race-start snapshot. Actions, observations, physics, course, rider, and terminal definitions are unchanged. Affine Lock, Bat, and Clifford provide native Puffer precedents for success-driven per-environment curricula.
 
-Every evaluation forces three laps before reset. `target_laps=3` and equality between `three_lap_success_rate` and `success_rate` are acceptance invariants. A short 8,192-decision run that could not advance its training curriculum still reported `target_laps=3` in its in-process post-train evaluation, directly exercising this boundary.
+Every evaluation forces three laps before reset. `target_laps=3` and equality between `three_lap_success_rate` and `success_rate` are acceptance invariants. The adapter regression checks this reset boundary. A new 55-input policy evaluation must report both fields before its result is accepted.
 
 ## Terminal and autoreset contract
 
@@ -326,69 +409,69 @@ The evidence has explicit limits. It covers one deterministic Sunny Beach Time T
 
 The runtime's retained isolation test initializes 16 machines, compares serial and parallel controller streams, repeats the parallel run three times, and requires exact final RDRAM, stack, recomp context, machine state, and trajectory hashes. The log is retained only on the deployment host at `/home/spark-advantage/wr64-recomp/runtime/isolation_acceptance_20260822T050325Z_3003381.log`; its SHA-256 is `805b8384d97306f77c043734727a5cd0ffbece35088574bbb4ebf9ba165d852f`.
 
-The adapter regression harness in [`tests/test_waverace64.cpp`](../../tests/test_waverace64.cpp) covers the ABI shape, action mapping, internal frameskip, body basis, reset contract, guest halfword lane, buoy side, lap-wrap continuity, official misses and disqualification, discount-correct failure shaping, shortened one-lap official finish, full production three-lap finish, B/stick-Y interventions, observation ranges, deterministic baselines, and vector affinity/ownership. Fresh integration runs cover the central CUDA evaluation, post-train reset, and CPU dispatch paths; the unit harness does not invoke those central paths.
+The adapter regression harness in [`tests/test_waverace64.cpp`](../../tests/test_waverace64.cpp) covers the 55-value ABI shape, exact placement of the 12 water features, action mapping, internal frameskip, body basis, reset contract, guest halfword lane, buoy side, lap-wrap continuity, official misses and disqualification, discount-correct failure shaping, shortened one-lap official finish, full three-lap scripted reachability, B/stick-Y interventions, observation ranges, deterministic baselines, and vector affinity/ownership. The unit harness does not invoke the central CUDA train/evaluation path.
+
+The checked-in exact-water test compares `wr64_water_height` bit-for-bit against the recompiled cartridge function `func_8004D30C` at 4,096 deterministic points on the live water field. It exercises both interpolation branches, invokes the reference on scratch RDRAM because the recompiled function uses a guest stack, and verifies that the pure sampler does not change live RDRAM. The implementation was also characterized at 262,144 points across 64 randomized complete water fields with zero float-bit mismatches when compiled with `-ffp-contract=off`.
+
+That result is exact equivalence to the recompiled `func_8004D30C`, not an independent emulator comparison of wave evolution. It validates the query used by observations 43 through 54 and the evaluator mesh. It does not extend the held-A interpreter parity trace to other wave states or inputs.
+
+The render-state regression captures the state twice, requires byte-identical logical content and hashes, checks every course pass point, checks every value in the 33 by 33 water tile bit-for-bit against `wr64_water_height`, verifies live RDRAM is unchanged, and verifies that capture alone leaves `env->client` null. It validates the state projection, not Raylib raster output or N64 visual parity.
+
+The separate renderer regression in [`tests/test_waverace64_render.cpp`](../../tests/test_waverace64_render.cpp) passed twice independently with identical results on the tested software-rendered stack:
+
+| Check | Retained result |
+| --- | --- |
+| Training path stays lazy | `Client` remained null through 192 decisions, including autoresets |
+| Pure authoritative capture | State hash `7d5f6487fbfc38ba`, 59 course nodes |
+| Renderer preserves simulator core | Eight repeated `puf_render` calls left RDRAM, stack, recomp context, machine scalars, adapter state, and TLS owner unchanged |
+| Fixed-state pixels | Two 960 by 540 captures were byte-identical; pixel hash `1eef85fa7d51633f` |
+| Render cadence independence | Headless and variably rendered 96-decision trajectories matched; hash `ffa76503834a3bff` |
+| Moving capture | 48 rendered decisions reached tick 48; final state hash `9d18db27cdfc907d` |
+
+The pixel hash is a regression baseline for the tested Raylib/OpenGL software stack. It is not asserted to be portable across graphics drivers, and it is not a reference N64 framebuffer hash.
 
 ### Adapter acceptance and remaining parity gaps
 
 | Gate | Status |
 | --- | --- |
 | Shortened one-lap official finish fixture | **PASS:** official finish at update 1,070 with action hash `c6ae00920fd86802`. |
-| Unmodified production three-lap finish using only the 43 observations | **PASS:** frameskip 4, 2,334 decisions, 9,336 guest updates, score 87,582.3, zero misses, and official success. |
+| Unmodified three-lap scripted reachability through the public observation interface | **REGRESSION COVERAGE:** the checked-in harness exercises the fixture with the 55-value observation buffer; this is controller reachability, not policy learning. |
 | B and stick-Y authoritative interventions | **PASS:** B changed the authoritative trace in 5 of 6 probes; stick Y changed it in all 6. |
 | Generic Puffer regression | **PASS:** stock CartPole CPU evaluation repeated byte-for-byte at fixed seed; stock Breakout CUDA build and evaluation exited zero. |
 | Multi-trace interpreter parity, including B and R action regimes | **PENDING** |
 | Post-reset secondary RNG and whole-RDRAM parity | **PENDING** |
 
-The retained deterministic rerun exited zero in 4.7 s. Its no-op baseline ended after 2,997 decisions with `perf = 0`. Three fixed-seed random baselines ended after 85, 90, and 85 decisions with `perf = 0.0639`, `0.0556`, and `0.0293`; the harness requires zero official successes for these baselines. These controller fixtures establish task reachability and regression behavior. They do not establish policy learning.
+The deterministic controller fixtures establish task reachability and regression behavior. They do not establish policy learning or current training performance.
 
 ## Performance and learning acceptance
 
-All production measurements below use the repaired upstream 5.0 port, exact production ROM, 43 observations, five action heads, 128 agents, 16 worker threads, one buffer, frameskip 4, horizon 64, minibatch 2,048, asynchronous rollout, and the current runtime archive. The measured host is an NVIDIA GB10 with 10 Cortex-X925 cores, 10 Cortex-A725 cores, and driver 580.95.05. Trainer throughput is exact `agent_steps / uptime`; whole-process resource figures come from GNU time and include startup, checkpoints, and shutdown. CPU equivalents are `(user seconds + system seconds) / process wall`.
+The current contract has 55 observations. Three renderer-free short runs on the deployment host produced:
 
-Seeds 606, 707, and 808 used deployment commit `10604beca0299ed7909383dfb478c4166788a821` and trainer SHA-256 `8a3a71a782ff02d208cc9a2032e2d0daa3582e3b1c85c0bc422b7e9d3391862c`. Seeds 909 and 1001, plus the fresh evaluation and regression checks, used deployment commit `12a3ec660fa248d48dc3e2fe0c5a9c771c0e1814` and trainer SHA-256 `96a63bad5d70e52daebc9ed8907a0d7ee6e8cb720f99b24be7a498eda3a3e757`. Their patch-equivalent local audit commits are `99b651a23851846de64ab659e84c824fcdbb1dfb` and `9230cec67e3c86f0e93a138c9c64985855428506`; the respective deployment/local pairs have identical Git tree IDs `1769e55c54f93b38580e2346941438ef35a59142` and `a0301fd48c82538ddfeb3d5f794a3c483273099e`. Both cohorts retain the same effective training configuration shown above. The current CPU evaluator SHA-256 is `78910b63eb1ec471c7d4677613b60c27d5cd072d2ab133415d2dbe79cca39817`. Deployment runtime commit `e3f56302898a98ec7f7b20ca35fc1b5de69fe890` and local audit commit `bb824a9a19a77a1cab239d0c783b7052c81dc116` share tree ID `8bfe379221513fd4109e056b875d1a486c30b905`; that tree produced `libwr64.a` SHA-256 `021cc9d7edc4d4ad9848dedbea161c70c98a629c7628e446d9bab260d06a0b5f`.
+| Run | Policy decisions/s | Guest updates/s |
+| ---: | ---: | ---: |
+| 1 | 30,247.36 | 120,989.44 |
+| 2 | 30,132.00 | 120,527.99 |
+| 3 | 28,448.96 | 113,795.86 |
+| Mean | 29,609.44 | 118,437.76 |
+| Median | 30,132.00 | 120,527.99 |
 
-| Training seed | Decisions | Trainer uptime | Decisions/s | Guest updates/s | Process wall | CPU equivalents | Peak RSS |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 606 | 5,242,880 | 169.338 s | 30,961.1 | 123,844.5 | 170.27 s | 16.87 | 1.550 GiB |
-| 707 | 5,242,880 | 169.593 s | 30,914.5 | 123,658.1 | 170.53 s | 16.87 | 1.550 GiB |
-| 808 | 5,242,880 | 169.492 s | 30,932.8 | 123,731.3 | 170.44 s | 16.87 | 1.551 GiB |
-| 909 | 5,242,880 | 169.929 s | 30,853.4 | 123,413.4 | 170.89 s | 16.88 | 1.551 GiB |
-| 1001 | 5,242,880 | 170.006 s | 30,839.3 | 123,357.3 | 170.95 s | 16.88 | 1.551 GiB |
+Across those runs, mean CPU use was 16.220 CPU equivalents, mean peak RSS was 1.55052 GiB, and device-wide GPU utilization averaged 4.384%. The GPU figure is not process-attributed continuous telemetry. Renderer and capture paths were not active.
 
-The five-seed mean is 30,900.2 decisions/s and 123,600.9 guest updates/s. The population standard deviation across these runs is 46.7 decisions/s, or 0.151% of the mean. A retained topology screen found the best tested frameskip-4 cell at 16 threads and one buffer. Agent counts 128, 256, and 512 differed by at most 0.8% in the retained single-run screen, while 128 agents used 1.55 GiB versus 4.89 GiB at 512. Frameskip 4 delivered 17.9% more guest updates/s than the matched frameskip-1 cell. Two and four buffers reduced throughput under the tested OpenMP placement.
+The retained 43-input baseline had mean 30,900.2 and median 30,914.5 policy decisions/s. The current short-run mean is 4.18% lower. This is an observed comparison, not a strict matched-duration regression: the current runs are shorter than the retained baseline runs, and the network also grew from 107,776 to 109,312 parameters, an increase of 1,536 or 1.425%. The evidence does not isolate water-query cost, network cost, warmup, or run-length effects. A production-duration matched benchmark remains required before assigning causality or a stable regression percentage.
 
-The current architecture is CPU-bound. The production runs consumed about 16.88 CPU equivalents. Across 1,072 device-wide dashboard snapshots from all five runs, GPU utilization had mean 4.17%, median 3%, and range 1% to 8%. These samples are integer NVML snapshots for the whole device, not process-specific continuous telemetry. The earlier topology screen is useful for configuration choice but used horizon 32 and one short run per cell, so it is not substituted for the production figures above.
+Measurement provenance is deployed Puffer commit `8a9c51f2cebac95c36119d2eb975d53db10b4529`, patch-equivalent local renderer-harness commit `1fa4769b942a6179828a2e7b5d5773e8d3596234` on `e89fd51e`, runtime commit `e3f56302898a98ec7f7b20ca35fc1b5de69fe890`, trainer SHA-256 `893c63d0cde3fb9d8073232fe5b1c98a543f53e00732c01b5488e7c7817952f`, and CPU evaluator SHA-256 `a07089133be8f5c32ef89119313f6702170a98d2566451c82f0b56467a0d1161`.
 
-| Learning result | Acceptance criterion | Status |
-| --- | --- | --- |
-| Untrained Puffer policy baseline | Three seeds, 807 episodes, zero successes; `perf` ranged from `0.0647` to `0.0705` | **PASS** |
-| Strict-PBRS pilot | 5,242,880 decisions, zero successes, held-out `perf=0.0266` | **PASS as a rejected ablation** |
-| Production training | Five complete 5,242,880-decision runs with checkpoints and exact outcome logs | **PASS** |
-| Fresh stochastic three-lap evaluation | Common held-out seed and at least 512 episodes per checkpoint | **PASS with material seed sensitivity:** 93.28%, 99.02%, 29.50%, 93.00%, and 99.41% |
-| Argmax three-lap evaluation | 128 deterministic replicas per checkpoint | **MIXED:** seeds 707, 909, and 1001 finished 128/128; seeds 606 and 808 finished 0/128 |
-| Three-lap learning | Nonzero official success on unmodified three-lap episodes | **PASS in all five stochastic policies** |
+Learning acceptance requires fresh 55-input runs across multiple training seeds, retained checkpoint hashes, and fresh-process evaluation on unmodified three-lap episodes. Report stochastic and per-head argmax results separately, including the actual episode denominator, official successes, misses, terminal-cause rates, `target_laps`, and `three_lap_success_rate`. A scripted finish, a compile, or a short smoke test is not learning evidence.
 
-For common stochastic evaluation seed 7001, checkpoints 606, 707, 808, 909, and 1001 finished 486/521, 507/512, 154/522, 478/514, and 509/512 episodes. Four of five exceeded 92.9%; the pooled rate is 2,134/2,581, or 82.68%. The 29.50% seed-808 result is retained rather than hidden by the pooled average.
-
-Checkpoint 707 remains the retained production checkpoint because it combines strong stochastic evaluation with the best argmax result: 507/512 stochastic at `perf=0.980537`, then 128/128 argmax at `perf=0.991829`, 47 checkpoints, and zero misses. Checkpoint 1001 had the highest common-seed stochastic rate at 509/512 but lower argmax `perf=0.925126`. Checkpoint 808 proves the fixed budget remains seed-sensitive. It finished 154/522 stochastically and 0/128 with argmax.
-
-Each argmax count comprises 128 replicas of one deterministic initial-state and action trajectory. It is deterministic regression and ranking evidence. The stochastic held-out evaluations measure the rollout distribution.
-
-Checkpoint 606 was also evaluated across held-out seeds 7001, 7002, and 7003. It finished 1,469/1,555 official three-lap episodes, or 94.47%. Random and untrained controls had zero successes. A compile, a short rollout, or a shortened one-lap scripted finish is not counted as learning evidence.
-
-### Retained production artifacts
-
-The evidence files below are retained only on the `spark` deployment host and are not vendored into either source checkout. Seeds 606, 707, and 808 are under `/home/spark-advantage/wr64-results/curriculum-screen-10604bec`; seeds 909 and 1001 are under `/home/spark-advantage/wr64-results/curriculum-production-12a3ec66`. Checkpoint and training-log identities are:
-
-| Seed | Final checkpoint SHA-256 | Training log SHA-256 |
-| ---: | --- | --- |
-| 606 | `f06c36dbba2598555890db1c0e0d349e0175d320fde7e9c247d81b371fa9f301` | `7fb3e2bfbbb54166b7065e36a95908024e35cd27d593df5c568439503bce6975` |
-| 707 | `8bbd6ce65587bf8b331e238476b4245fc86903798658ffaa20a385963022c7d4` | `d84638f3824e2560ad0dbc95baff2df6756f623f90deb71ef783fccdf6cc0ef0` |
-| 808 | `bd8be566eb08f79bacf58c5f9f61f44073cb784c33e097ea7c5a6946ffbbc91d` | `56e1cf82f044ececef48758f64a0dbdf48ef6f4b77b67ee88b3b613423807a25` |
-| 909 | `f6e88691a8e2ac26d8fa782d43739755700c323b7017f0a5ff27c1145a6d2e93` | `5e371a0132ccd0f71d51bb88f8d079d45047557a1bae2bbcea7327538ede83a3` |
-| 1001 | `904d4c84575a47d585273c1322c8a9f109fc9bb89c9c42a3d54e7e83d083cc18` | `3f0b77be89b14f1eebbb6417456c70ab8b09ae23f541076ad51080e109c06435` |
-
-The retained seed-707 stochastic and argmax evaluation logs have SHA-256 `9d877f84984a390d169c9b63202cd1b3ddd45ba7826d5295eb5e14fb73640a1c` and `ef3cb5b4f51d3084d065fa5fbb53574992eaf17b4b6f1894095fef82e133f9ab`. All machine-readable evaluation lines report `target_laps=3.000000`, and every retained evaluation log reached its complete `CUDA_EVAL` result line.
+| Current 55-input acceptance item | Status |
+| --- | --- |
+| Renderer-free training throughput | **SHORT-RUN MEASURED:** mean 29,609.44 decisions/s and 118,437.76 guest updates/s; production-duration matched confirmation pending |
+| CPU and memory utilization | **SHORT-RUN MEASURED:** 16.220 CPU equivalents and 1.55052 GiB mean peak RSS |
+| GPU utilization | **PARTIAL:** 4.384% device-wide average; process-attributed continuous telemetry not retained |
+| Multi-seed training | **NOT RUN** |
+| Fresh stochastic three-lap evaluation | **NOT RUN** |
+| Fresh deterministic argmax three-lap evaluation | **NOT RUN** |
+| Retained compatible checkpoint and log hashes | **NONE DOCUMENTED** |
 
 ## Audit
 
