@@ -209,6 +209,53 @@ static void test_time_format() {
     printf("PASS original-style race-clock formatting\n");
 }
 
+static void test_buoy_arrow_guidance() {
+    WR64RenderState state = {};
+    state.target_node = 4;
+    for (int tick = 0; tick < WR64_BUOY_ARROW_BLINK_TICKS; tick++) {
+        state.tick = tick;
+        assert(wr64_render_buoy_arrow_visible(&state, 4));
+        assert(wr64_render_buoy_arrow_visible(&state, 3));
+        assert(wr64_render_buoy_arrow_visible(&state, 5));
+    }
+    for (int tick = WR64_BUOY_ARROW_BLINK_TICKS;
+            tick < 2 * WR64_BUOY_ARROW_BLINK_TICKS; tick++) {
+        state.tick = tick;
+        assert(!wr64_render_buoy_arrow_visible(&state, 4));
+        assert(wr64_render_buoy_arrow_visible(&state, 3));
+        assert(wr64_render_buoy_arrow_visible(&state, 5));
+    }
+    state.tick = 2 * WR64_BUOY_ARROW_BLINK_TICKS;
+    assert(wr64_render_buoy_arrow_visible(&state, 4));
+    state.tick = -1;
+    assert(wr64_render_buoy_arrow_visible(&state, 4));
+
+    WR64RenderNode node = {};
+    node.type = 1;
+    node.live_x = 100.f;
+    node.live_z = -50.f;
+    node.pass_x = 100.f;
+    node.pass_z = 350.f;
+    Vector3 direction = wr64_render_buoy_arrow_direction(&node);
+    assert(fabsf(direction.x) < 1e-6f);
+    assert(fabsf(direction.y) < 1e-6f);
+    assert(fabsf(direction.z - 1.f) < 1e-6f);
+
+    node.pass_x = node.live_x;
+    node.pass_z = node.live_z;
+    node.lateral_x = 0.6f;
+    node.lateral_z = 0.8f;
+    direction = wr64_render_buoy_arrow_direction(&node);
+    assert(fabsf(direction.x - 0.6f) < 1e-6f);
+    assert(fabsf(direction.z - 0.8f) < 1e-6f);
+    node.type = 0;
+    direction = wr64_render_buoy_arrow_direction(&node);
+    assert(fabsf(direction.x + 0.6f) < 1e-6f);
+    assert(fabsf(direction.z + 0.8f) < 1e-6f);
+    printf("PASS buoy arrows pass-side aligned target-only blink=%d ticks\n",
+        WR64_BUOY_ARROW_BLINK_TICKS);
+}
+
 static void test_camera_wave_visibility() {
     Client client = {};
     WR64RenderState state = {};
@@ -718,6 +765,7 @@ int main(int argc, char** argv) {
 
     test_control_mode_toggle();
     test_time_format();
+    test_buoy_arrow_guidance();
     test_camera_wave_visibility();
     test_final_lap_banner_state();
     test_training_client_remains_null(&headless);

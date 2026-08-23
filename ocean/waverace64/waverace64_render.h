@@ -12,6 +12,7 @@
 #define WR64_CAMERA_TAU_SECONDS 0.60f
 #define WR64_PUFFER_MODEL_PATH "resources/shared/puffer.glb"
 #define WR64_PUFFER_SCALE 260.0f
+#define WR64_BUOY_ARROW_BLINK_TICKS ((int)WR_GAME_UPDATE_HZ / 4)
 
 struct Client {
     WR64RenderState state;
@@ -245,6 +246,67 @@ static Color wr64_render_buoy_color(int32_t type) {
     return (Color){78, 224, 226, 255};
 }
 
+static inline int wr64_render_buoy_arrow_visible(
+        const WR64RenderState* state, int32_t node_index) {
+    if (node_index != state->target_node) return 1;
+    const int half_period = WR64_BUOY_ARROW_BLINK_TICKS > 0
+        ? WR64_BUOY_ARROW_BLINK_TICKS : 1;
+    const int32_t tick = state->tick > 0 ? state->tick : 0;
+    return (tick / half_period) % 2 == 0;
+}
+
+static inline Vector3 wr64_render_buoy_arrow_direction(
+        const WR64RenderNode* node) {
+    const float side = node->type == 0 ? -1.f : 1.f;
+    Vector3 fallback = wr64_render_normalize(
+        wr64_render_v3(side * node->lateral_x, 0.f,
+            side * node->lateral_z),
+        wr64_render_v3(side, 0.f, 0.f));
+    return wr64_render_normalize(
+        wr64_render_v3(node->pass_x - node->live_x, 0.f,
+            node->pass_z - node->live_z),
+        fallback);
+}
+
+static void wr64_render_buoy_arrow(const WR64RenderNode* node,
+        Vector3 buoy_top, Color color) {
+    const Vector3 direction = wr64_render_buoy_arrow_direction(node);
+    const Vector3 center = wr64_render_add(
+        buoy_top, wr64_render_v3(0.f, 1.35f, 0.f));
+    const Vector3 vertical = wr64_render_v3(0.f, 1.f, 0.f);
+    Vector3 points[7];
+    points[0] = wr64_render_add(wr64_render_add(center,
+        wr64_render_mul(direction, -1.20f)),
+        wr64_render_mul(vertical, -0.32f));
+    points[1] = wr64_render_add(wr64_render_add(center,
+        wr64_render_mul(direction, 0.20f)),
+        wr64_render_mul(vertical, -0.32f));
+    points[2] = wr64_render_add(wr64_render_add(center,
+        wr64_render_mul(direction, 0.20f)),
+        wr64_render_mul(vertical, -0.74f));
+    points[3] = wr64_render_add(center,
+        wr64_render_mul(direction, 1.25f));
+    points[4] = wr64_render_add(wr64_render_add(center,
+        wr64_render_mul(direction, 0.20f)),
+        wr64_render_mul(vertical, 0.74f));
+    points[5] = wr64_render_add(wr64_render_add(center,
+        wr64_render_mul(direction, 0.20f)),
+        wr64_render_mul(vertical, 0.32f));
+    points[6] = wr64_render_add(wr64_render_add(center,
+        wr64_render_mul(direction, -1.20f)),
+        wr64_render_mul(vertical, 0.32f));
+
+    wr64_render_triangle_double(points[0], points[1], points[5], color);
+    wr64_render_triangle_double(points[0], points[5], points[6], color);
+    wr64_render_triangle_double(points[2], points[3], points[4], color);
+
+    const Color outline = {45, 38, 48, 235};
+    for (int i = 0; i < 7; i++) {
+        DrawCylinderEx(points[i], points[(i + 1) % 7],
+            0.045f, 0.045f, 6, outline);
+    }
+}
+
 static void wr64_render_route(const WR64RenderState* state) {
     for (int i = 0; i < state->node_count; i++) {
         const WR64RenderNode* node = &state->nodes[i];
@@ -275,18 +337,8 @@ static void wr64_render_route(const WR64RenderState* state) {
             DrawSphere(wr64_render_add(top, wr64_render_v3(0.f, 0.03f, 0.f)),
                 0.23f, color);
 
-            if (i == state->target_node || i == state->next_node) {
-                Vector3 pass = wr64_render_world(
-                    node->pass_x, node->live_y + 45.f, node->pass_z);
-                DrawCylinderEx(top, pass, 0.045f, 0.045f, 8,
-                    (Color){92, 255, 184, 220});
-                DrawSphere(pass, i == state->target_node ? 0.34f : 0.22f,
-                    (Color){92, 255, 184, 255});
-            }
-            if (i == state->target_node) {
-                Vector3 beacon = wr64_render_add(top, wr64_render_v3(0.f, 4.f, 0.f));
-                DrawCylinderEx(top, beacon, 0.055f, 0.015f, 8,
-                    (Color){255, 255, 255, 185});
+            if (wr64_render_buoy_arrow_visible(state, i)) {
+                wr64_render_buoy_arrow(node, top, color);
             }
         } else if (node->type == 3) {
             Vector3 lateral = wr64_render_normalize(
