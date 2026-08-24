@@ -14,7 +14,7 @@ The original assignment required a native Wave Race 64 core in the current Puffe
 | Current PufferLib 5.0 integration | Implemented against upstream `5.0` commit `ba238f8c` using the native C++17/CUDA trainer. |
 | Parity with the game | Proven for selected authoritative state on one pinned deterministic interpreter trace through a native failure terminal. Broader parity remains unproven. |
 | High-throughput training | **PASS.** The selected randomized-wave run completed 10,485,760 decisions at 56,575.81 decisions/s and 113,151.62 guest updates/s. A paired fixed/random trainer benchmark took 43.81/43.02 s. Simulation remains CPU-bound. |
-| Learning quality | **PASS FOR THE SUPPORTED TASK.** The randomized-wave seed-903 checkpoint completed 128/128 deterministic episodes on held-out wave seed 2902 and 128/128 on unseen seed 3902. Stochastic evaluation completed 510/512 on each pool. |
+| Learning quality | **PASS FOR THE SUPPORTED TASK.** The randomized-wave seed-903 checkpoint completed 128/128 deterministic episodes on held-out wave seed 2902 and 128/128 on post-selection, training-disjoint wave seed 16902. Stochastic evaluation completed 510/512 on each pool. |
 | Human-readable evaluation | Implemented as an eval-only state renderer using authoritative rider, course, native clock, native speed, power, outcome, and water state. Its compact edge HUD follows the actual Time Trials information layout without claiming original Wave Race graphics. |
 | CUDA, CPU-free simulation | Unimplemented. The policy and learner use CUDA; `libwr64.a` executes on host CPU workers. |
 
@@ -199,18 +199,23 @@ The chase camera follows horizontal rider motion directly but low-pass filters i
 Run the CUDA-policy evaluator in a visible window:
 
 ```sh
-WR64_RENDER_WIDTH=640 WR64_RENDER_HEIGHT=360 \
+DISPLAY=:98 \
+WR64_RENDER_WIDTH=640 WR64_RENDER_HEIGHT=480 \
+LD_LIBRARY_PATH=/home/spark-advantage/.venv/lib/python3.12/site-packages/nvidia/nccl/lib \
 ./puffer-wr64-final eval \
   /home/spark-advantage/wr64-results/obs57-authentic-waves/checkpoints/waverace64/obs57-authwave-s903-final/0000000010485760.bin \
   --base.eval_deterministic=1 \
-  --base.seed=2902 \
+  --base.seed=16902 \
+  --env.frameskip=2 \
   --env.randomize_waves=1 \
-  --env.wave_seed=2902 \
+  --env.wave_seed=16902 \
   --env.wave_variants=128 \
+  --policy.hidden_size=128 \
+  --policy.num_layers=2 \
   --env.rom_path=/home/spark-advantage/baserom.us.rev1.z64
 ```
 
-This command runs the selected randomized-wave policy on one deterministic seed-2902 variant and advances to the next authentic variant after each terminal reset. Fresh headless CUDA evaluation completed 128/128 official three-lap races on seed 2902 and another 128/128 on unseen seed 3902. The historical OBS55 seed-707 artifact cannot be loaded by the current 57-input network.
+This command runs the selected randomized-wave policy on one deterministic seed-16902 variant and advances to the next authentic variant after each terminal reset. Fresh headless CUDA evaluation completed 128/128 official three-lap races on seed 2902 and another 128/128 on post-selection, training-disjoint seed 16902. The historical OBS55 seed-707 artifact cannot be loaded by the current 57-input network.
 
 The current deployed `puffer-wr64-final` evaluator build has SHA-256 `35c7b93d3debe267ab272f84f65e4839af8d29b9d2e9863a4f999c9c96bcc99c`.
 
@@ -518,7 +523,9 @@ The retained all-variant acceptance sweep built the 128-entry seed-902 pool, the
 
 The same sweep found 128 unique full-RDRAM states, complete water fields, height fields, and velocity fields for seed 902. A separate 128-entry pool at held-out seed 2902 also had 128 unique entries. The two pools had zero overlap in boot-time values, full-RDRAM hashes, complete water fields, height fields, and velocity fields. The 1,024-reset stress test replayed exactly, visited all 128 fields, and reported zero recoveries, faults, or terminals during the first 20 fixed-A guest updates. Maximum absolute vertical velocity was 2.384010 game units/update and maximum vertical displacement was 8.785711 game units.
 
-The exact acceptance source and output are retained under `/home/spark-advantage/wr64-results/obs57-authentic-waves/audit`. `probe_wave_pool_acceptance.cpp` has SHA-256 `fbac23774ddd8f7d01bb80367f27828d03e2cbabb51df50d0a3ac58983533586`; `wave-pool-acceptance-final.log` has SHA-256 `8d9d3295ef4bf9627aa533142ef825d36cce6a5d8770b098b059a762fdf0e694`. The stress source hash is `41617a89dea347118dbb1906c372bf9927067c015b6113cf80bf77978a6c16d6` and its log hash is `db7792dc4b144d9482a163b637ffb08231b1180b46e9eebb1c1f58e5925265e5`. The tick-schedule source hash is `a5cf0194c678df14bf788d938c8180829d091d295bb9f40447bc05b2c2330b52` and its log hash is `3d7b4d971e8195767b23fbd1f9f7f593469203afe43883826edbccb82bed8497`. Final runtime ABI/environment, adapter, native-trainer build, renderer, and renderer-UBSan log hashes are `0073b21b657007a8db38bc4b9faef269b3af2d969eb58492f5a83d94dd856618`, `9ce38dde8259e3834941ea59f954e2aa0737a7a7b536c81f9a9750bcee9ae52e`, `2f8bd52527094f9b0037c1eed2934a020e17f96f1579378f8c2c35caa5994e3c`, `49fce4c37b35771c297e04d736833b0b3f94a3fda2312453cb8416f2fe7a4f9e`, and `49fce4c37b35771c297e04d736833b0b3f94a3fda2312453cb8416f2fe7a4f9e`. `SHA256SUMS-final`, itself SHA-256 `b81d6a03a193550109f38e85e5620c69f4df693cc04691d721591b844add8961`, covers every retained source, log, and renderer image in that directory.
+An exact-byte follow-up rejected seed 3902 as disjoint-pool evidence. Training variant 55 equals seed-3902 variant 8, and training variant 114 equals seed-3902 variant 100, in complete water, heights, and velocities. Cross-pool counts were boot ticks 0, full RDRAM 0, complete water 2, heights 2, and velocities 2. The earlier seed-3902 policy evaluation remains valid playback evidence, but it is not disjoint-pool evidence. Post-selection replacement seed 16902 has 128 internally unique complete-water fields and zero overlap with training seed 902 in all five categories.
+
+The exact acceptance source and output are retained under `/home/spark-advantage/wr64-results/obs57-authentic-waves/audit`. `probe_wave_pool_acceptance.cpp` has SHA-256 `fbac23774ddd8f7d01bb80367f27828d03e2cbabb51df50d0a3ac58983533586`; `wave-pool-acceptance-final.log` has SHA-256 `8d9d3295ef4bf9627aa533142ef825d36cce6a5d8770b098b059a762fdf0e694`. The exact overlap probe source has SHA-256 `6dfff49032703d81867b68b364f65beadc67a587dbf8f5e9d81f14796b982851`; its seed-3902 rejection and seed-16902 acceptance logs have hashes `b41f8317fb36e003d2e0736f44be6abbfa0e3056c89addaa9b598769de87abe3` and `d9219624668dcb17e5eaa93f91ce1a5896ce899cde3f91cc6291edff9511216d`. The stress source hash is `41617a89dea347118dbb1906c372bf9927067c015b6113cf80bf77978a6c16d6` and its log hash is `db7792dc4b144d9482a163b637ffb08231b1180b46e9eebb1c1f58e5925265e5`. The tick-schedule source hash is `a5cf0194c678df14bf788d938c8180829d091d295bb9f40447bc05b2c2330b52` and its log hash is `3d7b4d971e8195767b23fbd1f9f7f593469203afe43883826edbccb82bed8497`. Final runtime ABI/environment, adapter, native-trainer build, renderer, and renderer-UBSan log hashes are `0073b21b657007a8db38bc4b9faef269b3af2d969eb58492f5a83d94dd856618`, `9ce38dde8259e3834941ea59f954e2aa0737a7a7b536c81f9a9750bcee9ae52e`, `2f8bd52527094f9b0037c1eed2934a020e17f96f1579378f8c2c35caa5994e3c`, `49fce4c37b35771c297e04d736833b0b3f94a3fda2312453cb8416f2fe7a4f9e`, and `49fce4c37b35771c297e04d736833b0b3f94a3fda2312453cb8416f2fe7a4f9e`. `SHA256SUMS-final`, itself SHA-256 `04bb8d9ba04dbb02f1e7732c4cd96626c8b8f8faf2a4cd6b51dcf428b626ff65`, covers every retained source, log, and renderer image in that directory.
 
 Under one identical renderer-free adapter rollout protocol with 128 environments and 16 OpenMP threads, fixed-wave trials measured 55,380, 57,135, and 58,950 decisions/s; K=128 randomized trials measured 56,315, 28,184, and 57,529 decisions/s. The randomized median was 56,315 decisions/s versus 57,135 fixed, a 1.44% reduction. The low randomized sample is retained rather than discarded. K=128 initialization measured 8.647 s and 106,968 KiB maximum RSS for N=1, and about 3.4 s and 1,893,084 KiB for N=128. This protocol isolates simulator rollout and pool lifetime; it is not a complete CUDA trainer measurement. The benchmark source SHA-256 is `d05569e25c83d85e4dd166ca2a25ac684ba92a97d6f3654c334f7ee5cc784392`; its retained log SHA-256 is `6c6a370ab5b21294bd0ca3e9162f232f7f63394efb5ecdf526d8a0bd753c36c7`.
 
@@ -536,22 +543,22 @@ The selected checkpoint is:
 | --- | ---: | ---: | --- |
 | `/home/spark-advantage/wr64-results/obs57-authentic-waves/checkpoints/waverace64/obs57-authwave-s903-final/0000000010485760.bin` | 438,272 bytes | 109,568 FP32 | `91217a7eb1ff5f4d553b678c206c5acaa727461bcf45cfd4f0266f7c2e0f62bf` |
 
-Fresh CUDA processes evaluated disjoint wave seed 2902 and an additional unseen seed 3902. Every evaluation forced the official three-lap target. The deterministic policy completed all 128 episodes on each pool. Stochastic sampling completed 510/512 on each pool, or 99.6094%. Both stochastic runs had one generic failure and one disqualification; all four runs had zero safety timeout and zero environment fault.
+Fresh CUDA processes evaluated held-out wave seed 2902 and post-selection, training-disjoint seed 16902. Seed 16902 was separately shown internally unique and disjoint from training seed 902 in boot ticks, full RDRAM, complete water, heights, and velocities. Every evaluation forced the official three-lap target. The deterministic policy completed all 128 episodes on each pool. Stochastic sampling completed 510/512 on each pool, or 99.6094%. Both stochastic runs had one generic failure and one disqualification; all four runs had zero safety timeout and zero environment fault.
 
-The seed-2902 deterministic result was repeated with one environment for 128 episodes. Its odd-stride reset schedule completed one exact permutation of all 128 variants, avoiding any ambiguity from parallel autoreset accounting. It again finished 128/128 with zero adverse terminal; the retained log SHA-256 is `554e15b1b016cba7db53bac54bb2adb46a9aa2d3f93877b41c3ec95a7cd668f7`.
+The deterministic result was repeated with one environment for 128 episodes on both seed 2902 and seed 16902. Each odd-stride reset schedule completed one exact permutation of all 128 variants, avoiding any ambiguity from parallel autoreset accounting. Both finished 128/128 with zero adverse terminal. The retained seed-2902 and seed-16902 log SHA-256 values are `554e15b1b016cba7db53bac54bb2adb46a9aa2d3f93877b41c3ec95a7cd668f7` and `3929c1e30c8fbdb0b577575aec71ef4230851e5d568103a5b29620c6f92ffc42`.
 
 | Wave seed | Action mode | Episodes | Successes | Success rate | Mean misses | Generic failures | Disqualifications |
 | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | 2902 | Per-head argmax | 128 | 128 | 1.000000 | 0.992188 | 0 | 0 |
 | 2902 | Stochastic | 512 | 510 | 0.996094 | 0.560547 | 1 | 1 |
-| 3902 | Per-head argmax | 128 | 128 | 1.000000 | 0.945312 | 0 | 0 |
-| 3902 | Stochastic | 512 | 510 | 0.996094 | 0.517578 | 1 | 1 |
+| 16902 | Per-head argmax | 128 | 128 | 1.000000 | 0.828125 | 0 | 0 |
+| 16902 | Stochastic | 512 | 510 | 0.996094 | 0.564453 | 1 | 1 |
 
-The seed-2902 deterministic and stochastic log SHA-256 values are `94e7143f5f2a42f261ab33527c72690482f03607fc1e1d8c643829c925f4fecb` and `ee6dff8037fe3c030d8dcc7890dc257add4b3923d5718109a8b4a039217b6f03`. The seed-3902 values are `b4821ea4dbfb49b3aa8c13e306514659716c5dc7e14cbd9aaa27981e7f83b9b2` and `4c65146c6e33bd692808256a77a7a65abe0cd2b086fa44868101f61ebc37d592`. Seed 2902 was constructed and exhaustively compared with the training pool before policy selection; seed 3902 was first evaluated after seed 903 had been selected.
+The seed-2902 deterministic and stochastic log SHA-256 values are `94e7143f5f2a42f261ab33527c72690482f03607fc1e1d8c643829c925f4fecb` and `ee6dff8037fe3c030d8dcc7890dc257add4b3923d5718109a8b4a039217b6f03`. The seed-16902 values are `32d52753f082d7f670baa4284fb702a59582ffc58d5c7c27702614d676732163` and `a444de2d01c74c8774a19b4f929788f38ac65306ebbccc0390fbf28550966201`. Seed 2902 was constructed and exhaustively compared with the training pool before policy selection. Seed 16902 was screened and evaluated only after seed 903 had been selected.
 
-A fresh standalone CPU process loaded exactly 109,568 floats from the selected checkpoint and completed one deterministic seed-3902 official race in 896 policy decisions. It cleared 46 route checkpoints with zero misses, failures, disqualifications, timeouts, or faults. The CPU evaluator SHA-256 is `fb393420cd494ada8059ef911bead077f061a2520498bc2f499ae661ada85624`; the retained CPU log SHA-256 is `c4808b19e8d9e964e73faace0146a1a1ecea48384fe71b42a27a39eadb10d225`.
+A fresh standalone CPU process loaded exactly 109,568 floats from the selected checkpoint and completed one deterministic seed-16902 official race in 883 policy decisions. It cleared 46 route checkpoints with one miss and zero failures, disqualifications, timeouts, or faults. The CPU evaluator SHA-256 is `fb393420cd494ada8059ef911bead077f061a2520498bc2f499ae661ada85624`; the retained CPU log SHA-256 is `ad79bb3f262092c30d893ac4bad1f441c54855a3c1d402e840eb439117831f16`.
 
-The terminal-aware CPU evaluator ran the selected checkpoint and retained 5,372 960 by 540 source frames from the exact seed-3902 time-zero state through the official finish at 89.519 s. This verifies learned-policy playback and renderer behavior without asserting bit-identical CPU and CUDA inference. The encoded H.264 High/yuv420p MP4 runs at 60 frames/s, contains 5,612 decoded frames after a 240-frame frozen-finish tail, lasts 93.53 s, is 21,331,534 bytes, and has SHA-256 `847e092fdd1328a020a0f64e9260a20463615d3141838835ad575d7ba59034d0`. Full decode completed without error. Independent inspection of start, live-race, lap-transition, late-race, source-terminal, and decoded-tail frames confirmed visible dynamic wave geometry, Puffer bob and orientation, directional buoy arrows, all three laps, and the official finish with no episode-two contamination.
+The terminal-aware CPU evaluator ran the selected checkpoint and retained 5,294 960 by 540 source frames from the exact seed-16902 time-zero state through the official finish at 87.898 s. This verifies learned-policy playback and renderer behavior without asserting bit-identical CPU and CUDA inference. The encoded H.264 High/yuv420p MP4 runs at 60 frames/s, contains 5,534 decoded frames after a 240-frame frozen-finish tail, lasts 92.23 s, is 21,310,915 bytes, and has SHA-256 `a89e81fbb42be0212c3c175b4621efe3fde957e753f59394989e8ab22f6a5835`. Full decode completed without error. Independent inspection of start, live-race, midpoint, source-terminal, and decoded-tail frames confirmed visible dynamic wave geometry, Puffer bob and orientation, directional buoy arrows, all three laps, and the official finish with no episode-two contamination. Capture, encode, and full-decode log SHA-256 values are `4ff46be7f4deeb0319463dea455c2d29a3c05a4737a1530db7fc4861bd340397`, `583d73abff232f75b1b0415ffca7e9822071ae6f5baa3cfdea24a790c25b27da`, and `a5b633665078c0c6bfa4a2fc49fa2162a4df6e9684a3a7f386f9cb8a3909204f`.
 
 ### Historical fixed-wave OBS57 evidence
 
