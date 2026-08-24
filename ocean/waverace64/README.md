@@ -13,8 +13,8 @@ The original assignment required a native Wave Race 64 core in the current Puffe
 | Native Wave Race 64 core | Implemented with 1,203 statically recompiled game functions and a headless libultra runtime. |
 | Current PufferLib 5.0 integration | Implemented against upstream `5.0` commit `ba238f8c` using the native C++17/CUDA trainer. |
 | Parity with the game | Proven for selected authoritative state on one pinned deterministic interpreter trace through a native failure terminal. Broader parity remains unproven. |
-| High-throughput training | **STEADY SIMULATOR COST ACCEPTED; COMPLETE RANDOMIZED TRAINING PENDING.** Under the same renderer-free 128-environment, 16-thread rollout protocol, fixed and 128-variant builds measured median 57,135 and 56,315 decisions/s, a 1.44% difference. The prior complete fixed-wave trainer run reached 51,949.565260 decisions/s. Simulation remains CPU-bound. |
-| Learning quality | **DEMONSTRATED ONLY FOR THE PRIOR FIXED-WAVE CONTRACT.** The seed-901 checkpoint completed 128/128 deterministic episodes with zero misses and 509/512 held-out stochastic episodes. A checkpoint trained with per-episode wave randomization is pending. |
+| High-throughput training | **PASS.** The selected randomized-wave run completed 10,485,760 decisions at 56,575.81 decisions/s and 113,151.62 guest updates/s. A paired fixed/random trainer benchmark took 43.81/43.02 s. Simulation remains CPU-bound. |
+| Learning quality | **PASS FOR THE SUPPORTED TASK.** The randomized-wave seed-903 checkpoint completed 128/128 deterministic episodes on held-out wave seed 2902 and 128/128 on unseen seed 3902. Stochastic evaluation completed 510/512 on each pool. |
 | Human-readable evaluation | Implemented as an eval-only state renderer using authoritative rider, course, native clock, native speed, power, outcome, and water state. Its compact edge HUD follows the actual Time Trials information layout without claiming original Wave Race graphics. |
 | CUDA, CPU-free simulation | Unimplemented. The policy and learner use CUDA; `libwr64.a` executes on host CPU workers. |
 
@@ -36,7 +36,7 @@ libwr64.a on the host CPU
 per-instance 8 MiB RDRAM, native stack, ucontext, and snapshot
 ```
 
-Training is unpaced. The guest's simulated-time cadence does not limit wall-clock throughput. GPU utilization cannot remove the CPU simulator cost in this architecture. The randomized reset contract has a controlled renderer-free rollout comparison, while a complete randomized-wave trainer run and learning evaluation remain pending. A complete fixed-wave OBS57 run and two OBS55 runs are retained as explicitly historical evidence.
+Training is unpaced. The guest's simulated-time cadence does not limit wall-clock throughput. GPU utilization cannot remove the CPU simulator cost in this architecture. The randomized reset contract has controlled renderer-free rollout and paired-trainer comparisons, two complete training runs, fresh policy evaluation on two non-training wave pools, and a full-race capture. One complete fixed-wave OBS57 run and two OBS55 runs remain as explicitly historical evidence.
 
 The adapter follows the native Puffer environment interface in [`waverace64.h`](waverace64.h): `puf_init`, `puf_reset`, `puf_step`, `puf_close`, `puf_log`, and `puf_render`. Training is renderer-free: the training path never calls `puf_render`, never allocates the renderer `Client`, never captures the 33 by 33 display mesh, and never submits Raylib draw calls. It still runs the recompiled simulator and computes the 12 water observation samples on host CPU. Interactive evaluation calls `puf_render` and therefore has evaluation-only CPU and graphics work. The ASCII utility in the runtime repository remains a telemetry plot and is not the state evaluator.
 
@@ -165,14 +165,18 @@ The configured run contains exactly 10,485,760 policy decisions, or 640 complete
 
 The checked-in configuration requests at least 32 post-train evaluation episodes. Post-train evaluation reuses the existing 128-agent training vector; `base.eval_agents = 32` applies when a standalone evaluation vector is created. Before post-train evaluation, the trainer waits for rollout workers, forces every Wave Race instance to the official three-lap target, resets every environment, clears transition state, uploads the reset observations, zeros recurrent state, reinitializes action RNG state, and synchronizes the CUDA stream. Fresh CUDA evaluation, post-train evaluation, and the standalone CPU evaluator all use this same three-lap boundary. Evaluation cannot inherit one-lap curriculum state.
 
-A fresh-process evaluation of a named checkpoint remains the acceptance method because it isolates the process lifecycle and pins the artifact under test. The checkpoint must have been trained with `OBS_SIZE = 57` and the same wave-reset contract under evaluation. OBS43 and OBS55 checkpoints have different first-layer parameter shapes and are incompatible; the CUDA and CPU loaders do not define a padding or migration rule. The seed-901 checkpoint below was trained on the prior fixed-wave contract. It can be reproduced only with `--env.randomize_waves=0`; it is not acceptance evidence for randomized-wave production. Do not use `latest`, which selects by filesystem creation time and can pick an unrelated or incompatible checkpoint:
+A fresh-process evaluation of a named checkpoint remains the acceptance method because it isolates the process lifecycle and pins the artifact under test. The checkpoint must have been trained with `OBS_SIZE = 57` and the same wave-reset contract under evaluation. OBS43 and OBS55 checkpoints have different first-layer parameter shapes and are incompatible; the CUDA and CPU loaders do not define a padding or migration rule. The selected seed-903 checkpoint below was trained from random initialization with the checked-in 128-entry authentic-wave pool. Do not use `latest`, which selects by filesystem creation time and can pick an unrelated or incompatible checkpoint:
 
 ```sh
-export WR64_CHECKPOINT=/home/spark-advantage/wr64-results/obs57-seeds/checkpoints/waverace64/obs57-fs2-s901/0000000010485760.bin
+export WR64_CHECKPOINT=/home/spark-advantage/wr64-results/obs57-authentic-waves/checkpoints/waverace64/obs57-authwave-s903-final/0000000010485760.bin
 ./puffer-wr64-final eval "$WR64_CHECKPOINT" --headless \
-  --base.eval_episodes=100 \
+  --base.eval_deterministic=1 \
+  --base.eval_episodes=128 \
   --base.eval_agents=128 \
-  --env.randomize_waves=0 \
+  --base.seed=2902 \
+  --env.randomize_waves=1 \
+  --env.wave_seed=2902 \
+  --env.wave_variants=128 \
   --env.rom_path="$WR64_ROM"
 ```
 
@@ -197,15 +201,18 @@ Run the CUDA-policy evaluator in a visible window:
 ```sh
 WR64_RENDER_WIDTH=640 WR64_RENDER_HEIGHT=360 \
 ./puffer-wr64-final eval \
-  /home/spark-advantage/wr64-results/obs57-seeds/checkpoints/waverace64/obs57-fs2-s901/0000000010485760.bin \
+  /home/spark-advantage/wr64-results/obs57-authentic-waves/checkpoints/waverace64/obs57-authwave-s903-final/0000000010485760.bin \
   --base.eval_deterministic=1 \
-  --env.randomize_waves=0 \
+  --base.seed=2902 \
+  --env.randomize_waves=1 \
+  --env.wave_seed=2902 \
+  --env.wave_variants=128 \
   --env.rom_path=/home/spark-advantage/baserom.us.rev1.z64
 ```
 
-This command reproduces the prior fixed-wave seed-901 evaluation. Fresh deterministic CUDA evaluation completed 128/128 official three-lap races with zero misses or failure terminals under that prior contract. A randomized-wave checkpoint and human-evaluation result are pending. The historical OBS55 seed-707 artifact cannot be loaded by the current 57-input network.
+This command runs the selected randomized-wave policy on one deterministic seed-2902 variant and advances to the next authentic variant after each terminal reset. Fresh headless CUDA evaluation completed 128/128 official three-lap races on seed 2902 and another 128/128 on unseen seed 3902. The historical OBS55 seed-707 artifact cannot be loaded by the current 57-input network.
 
-The current deployed `puffer-wr64-final` evaluator build has SHA-256 `75b9f1f1a37326bf242ea746cff1cb2eadb371dc61020280963dde4737a59070`.
+The current deployed `puffer-wr64-final` evaluator build has SHA-256 `35c7b93d3debe267ab272f84f65e4839af8d29b9d2e9863a4f999c9c96bcc99c`.
 
 The evaluator uses one environment and advances at ten policy decisions per wall-clock second, matching two 20 Hz guest updates per action. Rendering targets 60 frames/s. Press Shift+Up once to toggle persistent HUMAN control; press the same chord again to return to POLICY. Policy inference continues behind human control so recurrent state remains synchronized for a clean handoff. The small bottom-right mode badge always shows the current owner.
 
@@ -230,11 +237,14 @@ For a CPU-only policy viewer or PNG capture, build the standalone evaluator unde
 cd "$PUFFER_DIR"
 WR64_DIR="$WR64_DIR" ./build.sh waverace64 wr64_eval --cpu
 
-export WR64_CHECKPOINT=/home/spark-advantage/wr64-results/obs57-seeds/checkpoints/waverace64/obs57-fs2-s901/0000000010485760.bin
+export WR64_CHECKPOINT=/home/spark-advantage/wr64-results/obs57-authentic-waves/checkpoints/waverace64/obs57-authwave-s903-final/0000000010485760.bin
 WR64_RENDER_WIDTH=1280 WR64_RENDER_HEIGHT=720 \
   ./wr64_eval "$WR64_CHECKPOINT" \
   --base.eval_deterministic=1 \
-  --env.randomize_waves=0 \
+  --base.seed=2902 \
+  --env.randomize_waves=1 \
+  --env.wave_seed=2902 \
+  --env.wave_variants=128 \
   --env.rom_path="$WR64_ROM"
 ```
 
@@ -514,9 +524,38 @@ Under one identical renderer-free adapter rollout protocol with 128 environments
 
 ## Performance and learning acceptance
 
+### Authentic-wave OBS57 evidence
+
+Two renderer-free PufferLib 5.0 runs were trained from random initialization on the seed-902, K=128 authentic-wave pool. Each completed 10,485,760 decisions. Seed 902 took 186.54 s wall time, or 56,211.86 decisions/s. Seed 903 took 185.34 s, or 56,575.81 decisions/s and 113,151.62 native guest updates/s, with 1,683% CPU and 1,688,236 KiB maximum RSS. The final seed-903 training batch reported 100% official three-lap success, no failure terminal, and `target_laps=3`. Training used the host-CPU recompiled simulator; CUDA ran policy inference, recurrent state, rollout tensors, and PPO learning. The renderer and Raylib were inactive.
+
+An identical 2,097,152-decision paired trainer benchmark took 43.81 s with fixed resets and 43.02 s with K=128 randomized resets. The randomized run was 1.8% faster in this pair, so reset-time page-delta selection introduced no measurable trainer penalty. The pair measures system throughput only and does not establish an intrinsic randomization speedup.
+
+The selected checkpoint is:
+
+| Path | Size | Parameters | SHA-256 |
+| --- | ---: | ---: | --- |
+| `/home/spark-advantage/wr64-results/obs57-authentic-waves/checkpoints/waverace64/obs57-authwave-s903-final/0000000010485760.bin` | 438,272 bytes | 109,568 FP32 | `91217a7eb1ff5f4d553b678c206c5acaa727461bcf45cfd4f0266f7c2e0f62bf` |
+
+Fresh CUDA processes evaluated disjoint wave seed 2902 and an additional unseen seed 3902. Every evaluation forced the official three-lap target. The deterministic policy completed all 128 episodes on each pool. Stochastic sampling completed 510/512 on each pool, or 99.6094%. Both stochastic runs had one generic failure and one disqualification; all four runs had zero safety timeout and zero environment fault.
+
+The seed-2902 deterministic result was repeated with one environment for 128 episodes. Its odd-stride reset schedule completed one exact permutation of all 128 variants, avoiding any ambiguity from parallel autoreset accounting. It again finished 128/128 with zero adverse terminal; the retained log SHA-256 is `554e15b1b016cba7db53bac54bb2adb46a9aa2d3f93877b41c3ec95a7cd668f7`.
+
+| Wave seed | Action mode | Episodes | Successes | Success rate | Mean misses | Generic failures | Disqualifications |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2902 | Per-head argmax | 128 | 128 | 1.000000 | 0.992188 | 0 | 0 |
+| 2902 | Stochastic | 512 | 510 | 0.996094 | 0.560547 | 1 | 1 |
+| 3902 | Per-head argmax | 128 | 128 | 1.000000 | 0.945312 | 0 | 0 |
+| 3902 | Stochastic | 512 | 510 | 0.996094 | 0.517578 | 1 | 1 |
+
+The seed-2902 deterministic and stochastic log SHA-256 values are `94e7143f5f2a42f261ab33527c72690482f03607fc1e1d8c643829c925f4fecb` and `ee6dff8037fe3c030d8dcc7890dc257add4b3923d5718109a8b4a039217b6f03`. The seed-3902 values are `b4821ea4dbfb49b3aa8c13e306514659716c5dc7e14cbd9aaa27981e7f83b9b2` and `4c65146c6e33bd692808256a77a7a65abe0cd2b086fa44868101f61ebc37d592`. Seed 2902 was constructed and exhaustively compared with the training pool before policy selection; seed 3902 was first evaluated after seed 903 had been selected.
+
+A fresh standalone CPU process loaded exactly 109,568 floats from the selected checkpoint and completed one deterministic seed-3902 official race in 896 policy decisions. It cleared 46 route checkpoints with zero misses, failures, disqualifications, timeouts, or faults. The CPU evaluator SHA-256 is `fb393420cd494ada8059ef911bead077f061a2520498bc2f499ae661ada85624`; the retained CPU log SHA-256 is `c4808b19e8d9e964e73faace0146a1a1ecea48384fe71b42a27a39eadb10d225`.
+
+The terminal-aware CPU evaluator ran the selected checkpoint and retained 5,372 960 by 540 source frames from the exact seed-3902 time-zero state through the official finish at 89.519 s. This verifies learned-policy playback and renderer behavior without asserting bit-identical CPU and CUDA inference. The encoded H.264 High/yuv420p MP4 runs at 60 frames/s, contains 5,612 decoded frames after a 240-frame frozen-finish tail, lasts 93.53 s, is 21,331,534 bytes, and has SHA-256 `847e092fdd1328a020a0f64e9260a20463615d3141838835ad575d7ba59034d0`. Full decode completed without error. Independent inspection of start, live-race, lap-transition, late-race, source-terminal, and decoded-tail frames confirmed visible dynamic wave geometry, Puffer bob and orientation, directional buoy arrows, all three laps, and the official finish with no episode-two contamination.
+
 ### Historical fixed-wave OBS57 evidence
 
-The measurements, checkpoint, evaluations, and recordings in this subsection predate authentic per-episode wave-pool selection. They remain pinned provenance for the fixed-wave OBS57 contract, but they are not learning acceptance for the checked-in randomized-wave configuration. The controlled simulator throughput result above is the current randomized performance evidence; a complete trainer run remains pending.
+The measurements, checkpoint, evaluations, and recordings in this subsection predate authentic per-episode wave-pool selection. They remain pinned provenance for the fixed-wave OBS57 contract, but they are not learning acceptance for the checked-in randomized-wave configuration.
 
 The clean frameskip-2 seed-900 run completed the configured 10,485,760 decisions in 201.845 s of trainer uptime. That is 51,949.565260 policy decisions/s and 103,899.130521 native game updates/s. The run used the renderer-free training path. The binary used for this retained measurement has SHA-256 `f20a62342714f2c0698d356435849d0f3069fbed703e3e7c83ba510c15cff9d2`; the current post-measurement Puffer evaluator build is identified above.
 
