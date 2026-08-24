@@ -2,7 +2,7 @@
 
 This environment integrates a statically recompiled Wave Race 64 US Rev 1 core with the native PufferLib 5.0 trainer. The game simulation executes as native host CPU code. PufferLib runs policy inference, rollout tensors, and learning on CUDA. Every environment instance owns its guest memory and suspended game context.
 
-The supported task is deliberately narrow: rider 0, one rider, Sunny Beach, Time Trials, three laps, and one deterministic race-start snapshot. Original N64 rendering, audio, RSP/RDP work, controller-pak behavior, multiplayer, other riders, other courses, and other modes are outside the environment contract. Human evaluation uses a custom state renderer described below. It does not reproduce the cartridge framebuffer.
+The supported task is deliberately narrow: rider 0, one rider, Sunny Beach, Time Trials, three laps, and a finite pool of authentic cartridge race-start states selected per episode. Original N64 rendering, audio, RSP/RDP work, controller-pak behavior, multiplayer, other riders, other courses, and other modes are outside the environment contract. Human evaluation uses a custom state renderer described below. It does not reproduce the cartridge framebuffer.
 
 ## Status against the original assignment
 
@@ -13,8 +13,8 @@ The original assignment required a native Wave Race 64 core in the current Puffe
 | Native Wave Race 64 core | Implemented with 1,203 statically recompiled game functions and a headless libultra runtime. |
 | Current PufferLib 5.0 integration | Implemented against upstream `5.0` commit `ba238f8c` using the native C++17/CUDA trainer. |
 | Parity with the game | Proven for selected authoritative state on one pinned deterministic interpreter trace through a native failure terminal. Broader parity remains unproven. |
-| High-throughput training | **MEASURED FOR A COMPLETE CURRENT RUN.** A clean OBS57, frameskip-2 seed-900 run completed 10,485,760 decisions at 51,949.565260 decisions/s and 103,899.130521 native updates/s by trainer uptime. Simulation remains CPU-bound. |
-| Learning quality | **DEMONSTRATED FOR OBS57.** The selected seed-901 checkpoint completed 128/128 deterministic episodes with zero misses and 509/512 held-out stochastic episodes. |
+| High-throughput training | **STEADY SIMULATOR COST ACCEPTED; COMPLETE RANDOMIZED TRAINING PENDING.** Under the same renderer-free 128-environment, 16-thread rollout protocol, fixed and 128-variant builds measured median 57,135 and 56,315 decisions/s, a 1.44% difference. The prior complete fixed-wave trainer run reached 51,949.565260 decisions/s. Simulation remains CPU-bound. |
+| Learning quality | **DEMONSTRATED ONLY FOR THE PRIOR FIXED-WAVE CONTRACT.** The seed-901 checkpoint completed 128/128 deterministic episodes with zero misses and 509/512 held-out stochastic episodes. A checkpoint trained with per-episode wave randomization is pending. |
 | Human-readable evaluation | Implemented as an eval-only state renderer using authoritative rider, course, native clock, native speed, power, outcome, and water state. Its compact edge HUD follows the actual Time Trials information layout without claiming original Wave Race graphics. |
 | CUDA, CPU-free simulation | Unimplemented. The policy and learner use CUDA; `libwr64.a` executes on host CPU workers. |
 
@@ -36,7 +36,7 @@ libwr64.a on the host CPU
 per-instance 8 MiB RDRAM, native stack, ucontext, and snapshot
 ```
 
-Training is unpaced. The guest's simulated-time cadence does not limit wall-clock throughput. GPU utilization cannot remove the CPU simulator cost in this architecture. A complete current OBS57 run and fresh evaluation are documented below. Two OBS55 runs remain as explicitly historical evidence.
+Training is unpaced. The guest's simulated-time cadence does not limit wall-clock throughput. GPU utilization cannot remove the CPU simulator cost in this architecture. The randomized reset contract has a controlled renderer-free rollout comparison, while a complete randomized-wave trainer run and learning evaluation remain pending. A complete fixed-wave OBS57 run and two OBS55 runs are retained as explicitly historical evidence.
 
 The adapter follows the native Puffer environment interface in [`waverace64.h`](waverace64.h): `puf_init`, `puf_reset`, `puf_step`, `puf_close`, `puf_log`, and `puf_render`. Training is renderer-free: the training path never calls `puf_render`, never allocates the renderer `Client`, never captures the 33 by 33 display mesh, and never submits Raylib draw calls. It still runs the recompiled simulator and computes the 12 water observation samples on host CPU. Interactive evaluation calls `puf_render` and therefore has evaluation-only CPU and graphics work. The ASCII utility in the runtime repository remains a telemetry plot and is not the state evaluator.
 
@@ -61,6 +61,18 @@ The independent interpreter trace establishes one guest game update every three 
 
 Production uses `frameskip = 2`. One policy action is held for two guest updates, or 0.1 s of simulated time. This gives ten policy decisions per simulated second while retaining the native 20 Hz game cadence. `episode_length` and the safety limit count guest updates, not policy decisions. The 14,400-update safety cap corresponds to 720 s. The game's native Time Trials timeout ordinarily fires earlier.
 
+### Per-episode wave reset
+
+Production sets `randomize_waves = 1` and `wave_variants = 128`. Each pool entry comes from a complete cartridge boot through the native course initialization and its 57-frame live-start chain. A deterministic transform of `wave_seed` and the variant index supplies the initial `osGetTime` value before boot. This preserves the scripted large waves, water velocities, rider contact state, RNG state, and every other RDRAM dependency produced by the cartridge. Calling only the low-level wave generator was rejected because it did not reproduce that coherent race-start distribution.
+
+Pool construction validates every donor against the canonical route cache and snapshot scalar contract. It stores only the donor's changed 4 KiB RDRAM pages, reconstructs every entry byte-for-byte, rejects exact duplicate complete 384 by 128 water fields, then rebases donor snapshots to the canonical copy-on-write backing. Extraction is streamed so a standalone environment retains only one full donor at a time. `wave_variants` must be a power of two from 1 through 128. The checked-in value of 128 supplies the largest validated pool.
+
+`puf_reset` restores the environment owner's own native stack, recompilation context, and canonical snapshot, applies the selected variant pages, writes the curriculum lap target, recomputes the variant-specific vertical origin, and projects the first observation. Selection is an exact per-environment odd-stride permutation: a single environment visits every pool entry once per `wave_variants` resets, and the first reset of environments 0 through K-1 is stratified across K entries. `puf_eval_reset` rewinds the permutation so evaluation is independent of policy-dependent training reset history. The same `wave_seed`, environment index, and reset number reproduce the same state. `wave_seed` is independent of `base.seed`.
+
+Variant choice, page application, and validation occur only during initialization or reset. `puf_step` evolves the selected cartridge state normally and contains no pool-selection or page-copy work. Training does not invoke the renderer. On AArch64, the runtime's opaque floating-point scope canonicalizes FPCR before the adapter's initialization, reset, projection, step, and render work and restores the caller's complete FPCR token afterward. Hostile-FPCR regressions cover reset, step, terminal autoreset, state refresh, and render capture.
+
+Set `randomize_waves = 0` to retain the byte-identical pinned `WR_BOOT_OS_TIME` snapshot used by the interpreter comparison and deterministic controller regressions. For train and held-out studies, use different explicit `wave_seed` values. The fixed index salt `0xB9DCF3C0` is a deterministic tested transform, not a source of cryptographic randomness. The schedule test found 128 unique boot-time, full-RDRAM, and complete-water hashes for the checked-in seed 42 and candidate training seed 902, with zero overlap between them. It also found the same uniqueness and zero overlap for candidate train/held-out seeds 902 and 2902. The exhaustive acceptance sweep then established separate complete height and velocity zero-overlap for 902 versus 2902. Duplicate exact water fields for a pathological configured seed cause deterministic initialization failure instead of silently reducing pool diversity.
+
 ## ROM and runtime requirements
 
 The ROM is user-supplied and is never included in this repository.
@@ -81,7 +93,7 @@ The environment requires 64-bit Linux, a working OpenMP toolchain, the PufferLib
 - `runtime/wr_env.h`
 - `RecompiledFuncs/recomp.h`
 
-The public runtime ABI is version `0x00010001`. `WR_RUNTIME_ABI_CHECK()` compares the version and the compiled sizes of `WRMachine`, `WRSnapshot`, and `WRPad` before the archive can write into caller-owned objects. Rebuild the archive and Puffer binary together after any public runtime structure or contract change.
+The public runtime ABI is version `0x00010002`. `WR_RUNTIME_ABI_CHECK()` compares the version and the compiled sizes of `WRMachine`, `WRSnapshot`, and `WRPad` before the archive can write into caller-owned objects. Rebuild the archive and Puffer binary together after any public runtime structure or contract change.
 
 Each `WRSnapshot` owns saved host pointers into one machine's native stack and `ucontext_t`. An initialized `Env` must never move in memory. The custom vector initializer allocates the final environment array once, boots instances in place, preserves per-machine stacks and contexts, and shares a sealed reset RDRAM backing through private copy-on-write mappings. It also restores caller CPU affinity after OpenMP initialization so later rollout threads do not inherit a one-core mask.
 
@@ -149,17 +161,18 @@ cd "$PUFFER_DIR"
 ./puffer train --env.rom_path="$WR64_ROM"
 ```
 
-The configured run contains exactly 10,485,760 policy decisions, or 640 complete batches at 128 agents and horizon 128. It uses `gamma = 0.9997499687421851`, the per-0.1 s equivalent of the historical `0.9995` per-0.2 s discount. Each environment begins with a one-lap target, advances to two laps after one official finish, and advances to three after the next official finish. Curriculum state is local to each environment. These configuration values preserve the prior guest-update exposure and 12.8 s recurrent horizon, but they are not training evidence by themselves.
+The configured run contains exactly 10,485,760 policy decisions, or 640 complete batches at 128 agents and horizon 128. It uses `gamma = 0.9997499687421851`, the per-0.1 s equivalent of the historical `0.9995` per-0.2 s discount. Each environment begins with a one-lap target, advances to two laps after one official finish, and advances to three after the next official finish. Curriculum state is local to each environment. The checked-in configuration enables the 128-entry authentic-wave pool described above. These configuration values preserve the prior guest-update exposure and 12.8 s recurrent horizon, but they are not training evidence by themselves.
 
 The checked-in configuration requests at least 32 post-train evaluation episodes. Post-train evaluation reuses the existing 128-agent training vector; `base.eval_agents = 32` applies when a standalone evaluation vector is created. Before post-train evaluation, the trainer waits for rollout workers, forces every Wave Race instance to the official three-lap target, resets every environment, clears transition state, uploads the reset observations, zeros recurrent state, reinitializes action RNG state, and synchronizes the CUDA stream. Fresh CUDA evaluation, post-train evaluation, and the standalone CPU evaluator all use this same three-lap boundary. Evaluation cannot inherit one-lap curriculum state.
 
-A fresh-process evaluation of a named checkpoint remains the acceptance method because it isolates the process lifecycle and pins the artifact under test. The checkpoint must have been trained with `OBS_SIZE = 57`. OBS43 and OBS55 checkpoints have different first-layer parameter shapes and are incompatible; the CUDA and CPU loaders do not define a padding or migration rule. The selected seed-901 checkpoint is 438,272 bytes with SHA-256 `eaf2d9be637f5d03a95bb1d6ff9c40096867e977dfcdbd1eb8f94df855f277b5`. Do not use `latest`, which selects by filesystem creation time and can pick an unrelated or incompatible checkpoint:
+A fresh-process evaluation of a named checkpoint remains the acceptance method because it isolates the process lifecycle and pins the artifact under test. The checkpoint must have been trained with `OBS_SIZE = 57` and the same wave-reset contract under evaluation. OBS43 and OBS55 checkpoints have different first-layer parameter shapes and are incompatible; the CUDA and CPU loaders do not define a padding or migration rule. The seed-901 checkpoint below was trained on the prior fixed-wave contract. It can be reproduced only with `--env.randomize_waves=0`; it is not acceptance evidence for randomized-wave production. Do not use `latest`, which selects by filesystem creation time and can pick an unrelated or incompatible checkpoint:
 
 ```sh
 export WR64_CHECKPOINT=/home/spark-advantage/wr64-results/obs57-seeds/checkpoints/waverace64/obs57-fs2-s901/0000000010485760.bin
 ./puffer-wr64-final eval "$WR64_CHECKPOINT" --headless \
   --base.eval_episodes=100 \
   --base.eval_agents=128 \
+  --env.randomize_waves=0 \
   --env.rom_path="$WR64_ROM"
 ```
 
@@ -173,7 +186,7 @@ Evaluation checks the episode target after complete rollout horizons, so `base.e
 
 ## Human state evaluator and capture
 
-The interactive evaluator is a state-based visualization of the same simulation used for training. Its immutable, pointer-free capture contains the rider position, finite-difference velocity, heading and full body basis, controller state, lap and route state, native total and lap clocks, native lap splits, native physics speed, power, checkpoint and miss counts, recovery and terminal flags, the authoritative course graph and signed pass points, and a rider-centered 33 by 33 water-height grid at 128 game-unit spacing. The renderer displays that state as a low-poly water surface, course line, colored buoys and pass-side markers, the shared Puffer model in place of the human rider and jet ski, a chase camera, a minimap, and a compact Time Trials race HUD. Puffer position and wave-relative bob come from the captured rider position; yaw, pitch, and roll come from the captured full body basis.
+The interactive evaluator is a state-based visualization of the same simulation used for training. Its immutable, pointer-free capture contains the rider position, finite-difference velocity, heading and full body basis, controller state, lap and route state, native total and lap clocks, native lap splits, native physics speed, power, checkpoint and miss counts, recovery and terminal flags, the authoritative course graph and signed pass points, and a rider-centered 33 by 33 water-height grid at 128 game-unit spacing. The renderer displays that state as a low-poly water surface, course line, striped tapered left/right buoys with large diagonal pass arrows, the shared Puffer model in place of the human rider and jet ski, a chase camera, a minimap, and a compact Time Trials race HUD. The immediate target arrow blinks while the buoy body and neighboring markers remain visible. Puffer position and wave-relative bob come from the captured rider position; yaw, pitch, and roll come from the captured full body basis.
 
 This makes the control state legible to a human, but it is not graphical parity with the N64 game. The camera, water shading, wake history, Puffer model, HUD, and minimap are renderer-owned presentation. No cartridge textures, models, framebuffer, audio, RSP output, or RDP output are used. The Puffer is the repository's existing [`resources/shared/puffer.glb`](../../resources/shared/puffer.glb), also used by Tower Climb. The 1,199,624-byte GLB has SHA-256 `6e5e201b2d08c4eae48f04d9a715ef7b5e6dbb13bffa3c6903ea656730ce7644`. This renderer uses its static bind pose and does not implement the model's morph-target animation. The edge HUD mirrors the salient Time Trials layout with `TIME`, `LAP`, `SPEED`, lap splits, `MISS`, and `POWER` or `MAX POWER`. It does not invent Championship rank or opponent portraits for the one-rider Time Trials contract. Renderer correctness means that the shown geometry and labels are projections of captured authoritative fields, within the parity boundary documented below. It does not mean pixel equivalence to Wave Race 64.
 
@@ -186,10 +199,11 @@ WR64_RENDER_WIDTH=640 WR64_RENDER_HEIGHT=360 \
 ./puffer-wr64-final eval \
   /home/spark-advantage/wr64-results/obs57-seeds/checkpoints/waverace64/obs57-fs2-s901/0000000010485760.bin \
   --base.eval_deterministic=1 \
+  --env.randomize_waves=0 \
   --env.rom_path=/home/spark-advantage/baserom.us.rev1.z64
 ```
 
-The deployed OBS57 human-evaluation artifact is seed 901. Fresh deterministic CUDA evaluation completed 128/128 official three-lap races with zero misses or failure terminals. The historical OBS55 seed-707 artifact cannot be loaded by the current 57-input network.
+This command reproduces the prior fixed-wave seed-901 evaluation. Fresh deterministic CUDA evaluation completed 128/128 official three-lap races with zero misses or failure terminals under that prior contract. A randomized-wave checkpoint and human-evaluation result are pending. The historical OBS55 seed-707 artifact cannot be loaded by the current 57-input network.
 
 The current deployed `puffer-wr64-final` evaluator build has SHA-256 `75b9f1f1a37326bf242ea746cff1cb2eadb371dc61020280963dde4737a59070`.
 
@@ -220,6 +234,7 @@ export WR64_CHECKPOINT=/home/spark-advantage/wr64-results/obs57-seeds/checkpoint
 WR64_RENDER_WIDTH=1280 WR64_RENDER_HEIGHT=720 \
   ./wr64_eval "$WR64_CHECKPOINT" \
   --base.eval_deterministic=1 \
+  --env.randomize_waves=0 \
   --env.rom_path="$WR64_ROM"
 ```
 
@@ -381,7 +396,7 @@ shaping = 3 * frontier_gain / route_total
 
 The maximum frontier is monotone, so reversing and revisiting a segment cannot earn it twice. A route-node advance accompanied by an official miss earns no checkpoint term. Recovery, teleport, invalid-identity, and discontinuous route transitions earn neither motion nor frontier credit. This matches the practical Puffer racing pattern of dense distance progress plus discrete gates while adding a one-credit frontier guard against oscillation.
 
-Reward mode 0 retains strict terminal-cancelled potential shaping as an ablation. Mode 1 retains terminal potential. Both use `train.gamma` as the environment discount. Mode 2 is the current configured objective. Earlier mode comparisons used the superseded 43-observation ABI and are not learning evidence for the current policy.
+Reward mode 0 retains strict terminal-cancelled potential shaping as an ablation. Mode 1 retains terminal potential. Both use `train.gamma` as the environment discount. Mode 2 is the current configured objective. Earlier mode comparisons used the superseded 43-observation ABI and are not learning evidence for a randomized-wave policy.
 
 The nonterminal time cost removes a discount loophole found in pilot training. If `F` is the configured failure magnitude, the discounted sum of `-F * (1 - gamma)` on every nonterminal transition plus `-F` at a failure terminal is exactly `-F`, regardless of episode duration. Stalling until the native timeout therefore cannot make failure cheaper. A successful trajectory retains discounted base return `-F + (F + finish) * gamma^(T-1)`, so faster official finishes remain preferable.
 
@@ -389,7 +404,7 @@ Optional instantaneous speed and slip terms exist for experiments. The checked-i
 
 ### Lap curriculum and evaluation boundary
 
-Training starts each vector instance at one lap and advances that instance from 1 to 2 to 3 laps after one official success at each level. The curriculum changes only the two verified native lap-count words after restoring the same race-start snapshot. Actions, observations, physics, course, rider, and terminal definitions are unchanged. Affine Lock, Bat, and Clifford provide native Puffer precedents for success-driven per-environment curricula.
+Training starts each vector instance at one lap and advances that instance from 1 to 2 to 3 laps after one official success at each level. The curriculum changes only the two verified native lap-count words after restoring the selected authentic race-start state. Actions, observations, course, rider, and terminal definitions are unchanged; water-dependent physics varies by episode. Affine Lock, Bat, and Clifford provide native Puffer precedents for success-driven per-environment curricula.
 
 Every evaluation forces three laps before reset. `target_laps=3` and equality between `three_lap_success_rate` and `success_rate` are acceptance invariants. The adapter regression checks this reset boundary, and the retained OBS57 evaluations report `target_laps=3`. Future accepted results must continue to report both fields.
 
@@ -402,7 +417,7 @@ Every evaluation forces three laps before reset. `target_laps=3` and equality be
 | Safety timeout | 14,400 guest updates without an official terminal | Failure penalty; `safety_timeout_rate` |
 | Environment fault | Race identity or game state leaves the fixed contract without an official terminal | Fatal diagnostic and process abort |
 
-On an ordinary terminal, `puf_step` records the episode log, sets terminal to `1`, restores the exact race-start snapshot, and returns observations from the new episode. The terminal reward and terminal flag remain in their transition buffers through autoreset. PufferLib initializes those buffers separately before the first step.
+On an ordinary terminal, `puf_step` records the episode log, sets terminal to `1`, restores the race-start snapshot, applies the next authentic pool variant when randomization is enabled, and returns observations from the new episode. The terminal reward and terminal flag remain in their transition buffers through autoreset. PufferLib initializes those buffers separately before the first step.
 
 ## Log fields
 
@@ -449,7 +464,7 @@ The evidence has explicit limits. It covers one deterministic Sunny Beach Time T
 
 The runtime's retained post-change isolation test initializes 16 machines, runs 512 guest updates per machine, compares serial and parallel controller streams, repeats the parallel run three times, and requires exact final RDRAM, stack, recomp context, machine state, and trajectory hashes. It passed with zero failures. The log is retained only on the deployment host at `/home/spark-advantage/wr64-recomp/runtime/isolation_acceptance_20260823T192430Z_4098593.log`; its SHA-256 is `7c910f98e02b05b2dcc4b022cdcd5b6b3103c419a673e01c1cb4b652d6faa3af`.
 
-The adapter regression harness in [`tests/test_waverace64.cpp`](../../tests/test_waverace64.cpp) covers the 57-value ABI shape, exact placement of the 12 water features, native speed and power observations, action mapping, internal frameskip, body basis, exact time-zero reset contract, guest halfword lane, buoy side, lap-wrap continuity, official misses and disqualification, discount-correct failure shaping, shortened one-lap official finish, full three-lap scripted reachability, B/stick-Y interventions, observation ranges, deterministic baselines, and vector affinity/ownership. The unit harness does not invoke the central CUDA train/evaluation path.
+The adapter regression harness in [`tests/test_waverace64.cpp`](../../tests/test_waverace64.cpp) covers the 57-value ABI shape, exact placement of the 12 water features, native speed and power observations, action mapping, internal frameskip, body basis, exact time-zero reset contract, guest halfword lane, buoy side, lap-wrap continuity, official misses and disqualification, discount-correct failure shaping, shortened one-lap official finish, full three-lap scripted reachability, B/stick-Y interventions, observation ranges, deterministic baselines, authentic wave-pool reset behavior, and vector affinity/ownership. The pool regressions prove exact permutation replay, complete K-step cycling without duplicates, distinct water observations, divergent authoritative trajectories under identical controls after normalizing unrelated primary RNG state, and ordinary cartridge water evolution without advancing the host variant index. Native donor and reconstructed owner agree on reset RDRAM, adapter state, observations, reward buffers, and render projection. Randomized vectors at N=2, 4, and 8 with K=4 prove canonical snapshot rebasing, curriculum application, shared-pool lifetime after closing environment 0, and absence of cross-environment corruption. The unit harness does not invoke the central CUDA train/evaluation path.
 
 The checked-in exact-water test compares `wr64_water_height` bit-for-bit against the recompiled cartridge function `func_8004D30C` at 4,096 deterministic points on the live water field. It exercises both interpolation branches, invokes the reference on scratch RDRAM because the recompiled function uses a guest stack, and verifies that the pure sampler does not change live RDRAM. The implementation was also characterized at 262,144 points across 64 randomized complete water fields with zero float-bit mismatches when compiled with `-ffp-contract=off`.
 
@@ -467,7 +482,7 @@ The separate renderer regression in [`tests/test_waverace64_render.cpp`](../../t
 | Control ownership | Pure rising-edge test and real X11 injection both produced POLICY to HUMAN to POLICY from two Shift+Up chords |
 | Pure authoritative capture | State hash `f2b411ab54afcf26`, including native clocks, speed, and power |
 | Renderer preserves simulator core | Eight repeated `puf_render` calls left RDRAM, stack, recomp context, machine scalars, adapter state, and TLS owner unchanged |
-| Fixed-state pixels and model lifecycle | Two captures were byte-identical; pixel hash `25d9b84784d476bf`; the shared Puffer GLB loaded as a valid model and unloaded cleanly |
+| Fixed-state pixels and model lifecycle | Two captures were byte-identical; pixel hash `25cf8bb430bd8f98`; the shared Puffer GLB loaded as a valid model and unloaded cleanly |
 | Render cadence independence | Headless and rendered 192-decision trajectories matched; hash `bb75cd7a071f6551` |
 | Wave-relative Puffer motion | A 48-frame, 4.8-s simulated trace exposed 12.055 pixels of exact teal-body centroid movement and 21 pixels of silhouette-bottom movement while preserving simulator state |
 | Moving capture | 48 rendered frames reached guest-update tick 96; final state hash `3217579d69426366` |
@@ -487,9 +502,21 @@ The pixel hash is a regression baseline for the tested Raylib/OpenGL software st
 
 The deterministic controller fixtures establish task reachability and regression behavior. They do not establish policy learning or current training performance.
 
+### Authentic-wave pool acceptance
+
+The retained all-variant acceptance sweep built the 128-entry seed-902 pool, then booted all 128 donors independently and sequentially. Every reconstructed owner matched its native donor on the full 8 MiB reset RDRAM, adapter `State`, 57 observations, transition buffers, render projection, and host-visible machine scalars. Two deterministic 32-decision scripts were run from a fresh reset for every variant; full RDRAM and host-visible state matched after every decision. This establishes the state-transplant contract for all checked pool entries. Native stacks and recompilation contexts remain owner-specific by design and are not claimed byte-identical to donor objects.
+
+The same sweep found 128 unique full-RDRAM states, complete water fields, height fields, and velocity fields for seed 902. A separate 128-entry pool at held-out seed 2902 also had 128 unique entries. The two pools had zero overlap in boot-time values, full-RDRAM hashes, complete water fields, height fields, and velocity fields. The 1,024-reset stress test replayed exactly, visited all 128 fields, and reported zero recoveries, faults, or terminals during the first 20 fixed-A guest updates. Maximum absolute vertical velocity was 2.384010 game units/update and maximum vertical displacement was 8.785711 game units.
+
+The exact acceptance source and output are retained under `/home/spark-advantage/wr64-results/obs57-authentic-waves/audit`. `probe_wave_pool_acceptance.cpp` has SHA-256 `fbac23774ddd8f7d01bb80367f27828d03e2cbabb51df50d0a3ac58983533586`; `wave-pool-acceptance-final.log` has SHA-256 `8d9d3295ef4bf9627aa533142ef825d36cce6a5d8770b098b059a762fdf0e694`. The stress source hash is `41617a89dea347118dbb1906c372bf9927067c015b6113cf80bf77978a6c16d6` and its log hash is `db7792dc4b144d9482a163b637ffb08231b1180b46e9eebb1c1f58e5925265e5`. The tick-schedule source hash is `a5cf0194c678df14bf788d938c8180829d091d295bb9f40447bc05b2c2330b52` and its log hash is `3d7b4d971e8195767b23fbd1f9f7f593469203afe43883826edbccb82bed8497`. Final runtime ABI/environment, adapter, native-trainer build, renderer, and renderer-UBSan log hashes are `0073b21b657007a8db38bc4b9faef269b3af2d969eb58492f5a83d94dd856618`, `9ce38dde8259e3834941ea59f954e2aa0737a7a7b536c81f9a9750bcee9ae52e`, `2f8bd52527094f9b0037c1eed2934a020e17f96f1579378f8c2c35caa5994e3c`, `49fce4c37b35771c297e04d736833b0b3f94a3fda2312453cb8416f2fe7a4f9e`, and `49fce4c37b35771c297e04d736833b0b3f94a3fda2312453cb8416f2fe7a4f9e`. `SHA256SUMS-final`, itself SHA-256 `b81d6a03a193550109f38e85e5620c69f4df693cc04691d721591b844add8961`, covers every retained source, log, and renderer image in that directory.
+
+Under one identical renderer-free adapter rollout protocol with 128 environments and 16 OpenMP threads, fixed-wave trials measured 55,380, 57,135, and 58,950 decisions/s; K=128 randomized trials measured 56,315, 28,184, and 57,529 decisions/s. The randomized median was 56,315 decisions/s versus 57,135 fixed, a 1.44% reduction. The low randomized sample is retained rather than discarded. K=128 initialization measured 8.647 s and 106,968 KiB maximum RSS for N=1, and about 3.4 s and 1,893,084 KiB for N=128. This protocol isolates simulator rollout and pool lifetime; it is not a complete CUDA trainer measurement. The benchmark source SHA-256 is `d05569e25c83d85e4dd166ca2a25ac684ba92a97d6f3654c334f7ee5cc784392`; its retained log SHA-256 is `6c6a370ab5b21294bd0ca3e9162f232f7f63394efb5ecdf526d8a0bd753c36c7`.
+
 ## Performance and learning acceptance
 
-### Current OBS57 evidence
+### Historical fixed-wave OBS57 evidence
+
+The measurements, checkpoint, evaluations, and recordings in this subsection predate authentic per-episode wave-pool selection. They remain pinned provenance for the fixed-wave OBS57 contract, but they are not learning acceptance for the checked-in randomized-wave configuration. The controlled simulator throughput result above is the current randomized performance evidence; a complete trainer run remains pending.
 
 The clean frameskip-2 seed-900 run completed the configured 10,485,760 decisions in 201.845 s of trainer uptime. That is 51,949.565260 policy decisions/s and 103,899.130521 native game updates/s. The run used the renderer-free training path. The binary used for this retained measurement has SHA-256 `f20a62342714f2c0698d356435849d0f3069fbed703e3e7c83ba510c15cff9d2`; the current post-measurement Puffer evaluator build is identified above.
 
@@ -552,17 +579,17 @@ The seed-707 deterministic CPU episode succeeded after 619 policy decisions with
 
 The historical terminal-aware CPU capture retained the reset frame, every one of those 619 deterministic policy decisions, and the official terminal frame as 620 source PNGs. It stopped before any frame from episode two. A separate historical CUDA-policy recording used the frozen finish screen as a synchronization gate, restarted once, and retained the first rendered policy transition through 120 consecutive frames of the next official finish screen. That OBS55 H.264 High/yuv420p MP4 is 640 by 360 at 60 frames/s, contains 6,506 decoded frames, lasts 108.433 s, is 11,085,404 bytes, and has SHA-256 `041bba61d8f86a4a00e4aec555a9b71a7d47e287696aaba7cc60823f31dbfc1b`. Its final state reports lap 3/3, 46 cleared gates, zero misses, and official finish at 106.60 s.
 
-The current native CUDA-policy Puffer recording is retained at `/home/spark-advantage/wr64-results/obs57-seeds/video/waverace64-obs57-s901-puffer-full-race-20260823.mp4`. It is H.264 High/yuv420p at 960 by 540 and 60 frames/s, contains 5,348 decoded frames, lasts 89.133 s, is 23,783,474 bytes, and has SHA-256 `42e3db2597955bbc43d5078735635afa590c9dcc38fc316cf481640d12a12b60`. The file begins at the exact native time-zero state, contains the complete deterministic 82.607 s official race, and ends with more than 6 s of the frozen official finish. Frame inspection at 0, 10, 82, and 88 s verifies the time-zero start, live Puffer wave motion, final lap, terminal overlay, and absence of a captured X11 cursor or episode-two contamination. The prior rider-and-jet-ski OBS57 recording remains a historical pre-Puffer artifact.
+The fixed-wave native CUDA-policy Puffer recording is retained at `/home/spark-advantage/wr64-results/obs57-seeds/video/waverace64-obs57-s901-puffer-full-race-20260823.mp4`. It is H.264 High/yuv420p at 960 by 540 and 60 frames/s, contains 5,348 decoded frames, lasts 89.133 s, is 23,783,474 bytes, and has SHA-256 `42e3db2597955bbc43d5078735635afa590c9dcc38fc316cf481640d12a12b60`. The file begins at the exact native time-zero state, contains the complete deterministic 82.607 s official race, and ends with more than 6 s of the frozen official finish. Frame inspection at 0, 10, 82, and 88 s verifies the time-zero start, live Puffer wave motion, final lap, terminal overlay, and absence of a captured X11 cursor or episode-two contamination. The prior rider-and-jet-ski OBS57 recording remains a historical pre-Puffer artifact.
 
-| Current OBS57 acceptance item | Status |
+| Fixed-wave OBS57 provenance item | Status |
 | --- | --- |
 | Full renderer-free training throughput | **MEASURED:** clean seed 900 reached 51,949.565260 decisions/s and 103,899.130521 native updates/s |
-| Compatible checkpoint | **RETAINED:** selected seed-901 OBS57 checkpoint, 438,272 bytes, with hash above |
+| Fixed-wave checkpoint | **RETAINED:** selected seed-901 OBS57 checkpoint, 438,272 bytes, with hash above |
 | Fresh deterministic CUDA three-lap evaluation | **PASS:** 128/128, zero misses and no failure terminal; native finish 82,607 ms |
 | Fresh stochastic CUDA three-lap evaluation | **PASS:** 509/512 (`0.994141`) under held-out action seed 3901 |
 | Native time reporting | **PASS:** deterministic splits 29,643/26,029/26,935 ms sum exactly to 82,607 ms |
 | Human evaluator static regressions | **PASS:** valid shared Puffer model, compact Time Trials HUD, native clocks/speed/power, wave-relative motion, terminal freeze, and two-way Shift+Up toggle |
-| Current Puffer full-race MP4 | **PASS:** selected OBS57 CUDA policy from native time zero through the frozen official finish; cursor-free, 89.133 s, 5,348 frames, hash documented above |
+| Fixed-wave Puffer full-race MP4 | **PASS:** selected OBS57 CUDA policy from native time zero through the frozen official finish; cursor-free, 89.133 s, 5,348 frames, hash documented above |
 | Broader OBS57 training-seed statistics | **PENDING:** the selected seed and held-out action evaluation do not estimate the wider training-seed distribution |
 
 ## Audit

@@ -90,6 +90,9 @@ typedef float obs_t;
 #define WR64_WATER_SCALE_XZ      0x800E92A4u
 #define WR64_WATER_ROWS          384
 #define WR64_WATER_COLS          128
+#define WR64_WAVE_PAGE_SIZE      4096u
+#define WR64_MAX_WAVE_VARIANTS   128u
+#define WR64_WAVE_TICK_SALT      UINT32_C(0xB9DCF3C0)
 
 // Additional fields in the decomp-derived primary course node. Live XYZ drives
 // current-target effects; anchor XZ is where the original buoy model is placed.
@@ -135,6 +138,23 @@ typedef struct Log {
 } Log;
 
 typedef struct Client Client;
+
+typedef struct WR64WaveVariant {
+    uint16_t* page_indices;
+    uint8_t* page_data;
+    uint32_t num_pages;
+    uint64_t rdram_hash;
+    uint64_t water_hash;
+    uint8_t populated;
+} WR64WaveVariant;
+
+typedef struct WR64WaveVariantPool {
+    WR64WaveVariant* variants;
+    uint32_t count;
+    uint32_t canonical_index;
+    uint32_t references;
+    size_t total_pages;
+} WR64WaveVariantPool;
 
 typedef struct WR64RenderNode {
     int32_t index;
@@ -245,6 +265,14 @@ struct Env {
     int   num_agents;
     int   frameskip;
     unsigned int rng;
+    int32_t randomize_waves;
+    uint32_t wave_seed;
+    uint32_t wave_rng_state;
+    uint32_t wave_episode;
+    uint32_t wave_boot_variant;
+    uint32_t active_wave_variant;
+    int32_t wave_variants;
+    WR64WaveVariantPool* wave_pool;
     float reward_speed;
     float reward_progress;
     float reward_slip;
@@ -269,6 +297,9 @@ struct Env {
 };
 typedef Env WaveRace64;
 
+static inline int wr64_reset_contract_valid(
+    WaveRace64* env, int32_t target_laps);
+
 #ifdef PUFFER_WAVERACE64_RENDER
 static void wr64_render_close(WaveRace64* env);
 static void wr64_render_human_controls(WaveRace64* env);
@@ -284,6 +315,374 @@ static void wr64_render_draw(WaveRace64* env);
 
 static inline uint32_t wr64_u(WaveRace64* e, uint32_t va) {
     return wr_rd32(e->machine.rdram, va);
+}
+
+// Host-side selection is independent for each vector instance and advances
+// only at reset. Each environment uses a seed-derived odd stride over a
+// power-of-two pool, so it visits every authentic variant once per cycle.
+static inline uint32_t wr64_wave_mix32(uint32_t value) {
+    value ^= value >> 16;
+    value *= UINT32_C(0x7FEB352D);
+    value ^= value >> 15;
+    value *= UINT32_C(0x846CA68B);
+    value ^= value >> 16;
+    return value;
+}
+
+static inline uint32_t wr64_wave_stream_seed(
+        uint32_t base_seed, uint32_t env_index) {
+    return wr64_wave_mix32(base_seed
+        ^ wr64_wave_mix32(env_index + UINT32_C(0xD1B54A35)));
+}
+
+static inline uint64_t wr64_wave_variant_ticks(
+        uint32_t base_seed, uint32_t variant_index) {
+    uint32_t low = wr64_wave_mix32(base_seed
+        ^ wr64_wave_mix32(variant_index + WR64_WAVE_TICK_SALT));
+    return (WR_BOOT_OS_TIME & UINT64_C(0xFFFFFFFF00000000)) | low;
+}
+
+static inline uint32_t wr64_wave_next_variant(WaveRace64* env) {
+    uint32_t mask = (uint32_t)env->wave_variants - 1u;
+    uint32_t offset = (wr64_wave_mix32(env->wave_seed)
+        + (uint32_t)env->rng) & mask;
+    uint32_t stride = ((env->wave_rng_state >> 16) | 1u) & mask;
+    if (stride == 0) stride = 1;
+    uint32_t index = (offset + env->wave_episode * stride) & mask;
+    env->wave_episode++;
+    return index;
+}
+
+static inline uint64_t wr64_hash_bytes(const uint8_t* data, size_t size) {
+    uint64_t hash = UINT64_C(14695981039346656037);
+    for (size_t i = 0; i < size; i++) {
+        hash = (hash ^ data[i]) * UINT64_C(1099511628211);
+    }
+    return hash;
+}
+
+static void wr64_wave_pool_destroy(WR64WaveVariantPool* pool) {
+    if (!pool) return;
+    for (uint32_t i = 0; i < pool->count; i++) {
+        free(pool->variants[i].page_indices);
+        free(pool->variants[i].page_data);
+    }
+    free(pool->variants);
+    free(pool);
+}
+
+static void wr64_wave_pool_release(WR64WaveVariantPool* pool) {
+    if (!pool) return;
+    uint32_t references = __atomic_sub_fetch(
+        &pool->references, 1u, __ATOMIC_ACQ_REL);
+    if (references == 0) wr64_wave_pool_destroy(pool);
+}
+
+static int wr64_snapshot_semantics_equal(
+        const WRSnapshot* a, const WRSnapshot* b) {
+    return a && b && a->valid && b->valid
+        && a->size == b->size
+        && a->stack_size == b->stack_size
+        && a->stack_offset == b->stack_offset
+        && a->ticks == b->ticks
+        && a->pad_buttons == b->pad_buttons
+        && a->pad_stick_x == b->pad_stick_x
+        && a->pad_stick_y == b->pad_stick_y
+        && a->resident_overlay == b->resident_overlay
+        && a->vi_fb == b->vi_fb
+        && a->vi_swaps == b->vi_swaps
+        && a->dma_bytes == b->dma_bytes
+        && a->dma_count == b->dma_count
+        && a->cont_reads == b->cont_reads
+        && a->recv_calls == b->recv_calls;
+}
+
+static int wr64_route_cache_equal(
+        const WaveRace64* a, const WaveRace64* b) {
+    return a && b
+        && a->route_total == b->route_total
+        && a->route_nodes == b->route_nodes
+        && a->route_valid == b->route_valid
+        && memcmp(a->route_arc, b->route_arc, sizeof(a->route_arc)) == 0
+        && memcmp(a->route_pred, b->route_pred, sizeof(a->route_pred)) == 0;
+}
+
+static void wr64_require_variant_compatible(
+        WaveRace64* canonical, WaveRace64* donor) {
+    if (!wr64_snapshot_semantics_equal(&canonical->snap, &donor->snap)
+            || !wr64_route_cache_equal(canonical, donor)
+            || !wr64_reset_contract_valid(donor, 3)) {
+        fprintf(stderr,
+            "[waverace64] authentic wave variant violates reset semantics\n");
+        exit(1);
+    }
+}
+
+static WR64WaveVariantPool* wr64_wave_pool_begin(
+        uint32_t count, uint32_t canonical_index) {
+    if (count == 0 || count > WR64_MAX_WAVE_VARIANTS
+            || canonical_index >= count) {
+        fprintf(stderr, "[waverace64] invalid authentic-wave pool\n");
+        exit(1);
+    }
+    if (count > SIZE_MAX / sizeof(WR64WaveVariant)) {
+        fprintf(stderr, "[waverace64] wave-variant allocation overflow\n");
+        exit(1);
+    }
+    WR64WaveVariantPool* pool = (WR64WaveVariantPool*)calloc(1, sizeof(*pool));
+    if (!pool) {
+        fprintf(stderr, "[waverace64] wave-variant pool allocation failed\n");
+        exit(1);
+    }
+    pool->variants = (WR64WaveVariant*)calloc(
+        count, sizeof(*pool->variants));
+    if (!pool->variants) {
+        free(pool);
+        fprintf(stderr, "[waverace64] wave-variant allocation failed\n");
+        exit(1);
+    }
+    pool->count = count;
+    pool->canonical_index = canonical_index;
+    return pool;
+}
+
+static const uint8_t* wr64_wave_variant_page(
+        const WR64WaveVariant* variant, const uint8_t* canonical,
+        size_t page) {
+    for (uint32_t dirty = 0; dirty < variant->num_pages; dirty++) {
+        uint32_t dirty_page = variant->page_indices[dirty];
+        if (dirty_page == page) {
+            return variant->page_data
+                + (size_t)dirty * WR64_WAVE_PAGE_SIZE;
+        }
+        if (dirty_page > page) break;
+    }
+    return canonical + page * WR64_WAVE_PAGE_SIZE;
+}
+
+static int wr64_wave_variant_region_equal(
+        const WR64WaveVariant* variant, const uint8_t* canonical,
+        const uint8_t* candidate, size_t offset, size_t size) {
+    while (size != 0) {
+        size_t page = offset / WR64_WAVE_PAGE_SIZE;
+        size_t within_page = offset % WR64_WAVE_PAGE_SIZE;
+        size_t chunk = WR64_WAVE_PAGE_SIZE - within_page;
+        if (chunk > size) chunk = size;
+        const uint8_t* expected = wr64_wave_variant_page(
+            variant, canonical, page) + within_page;
+        if (memcmp(expected, candidate + offset, chunk) != 0) return 0;
+        offset += chunk;
+        size -= chunk;
+    }
+    return 1;
+}
+
+static void wr64_wave_pool_add(WR64WaveVariantPool* pool,
+        const WRSnapshot* canonical_snapshot,
+        const WRSnapshot* donor_snapshot, uint32_t variant_index) {
+    if (!pool || !canonical_snapshot || !donor_snapshot
+            || variant_index >= pool->count
+            || !canonical_snapshot->rdram || !donor_snapshot->rdram
+            || canonical_snapshot->size != WR_RDRAM_SIZE
+            || donor_snapshot->size != WR_RDRAM_SIZE
+            || pool->variants[variant_index].populated) {
+        fprintf(stderr, "[waverace64] invalid authentic-wave variant\n");
+        exit(1);
+    }
+    const uint8_t* canonical = canonical_snapshot->rdram;
+    const uint8_t* donor = donor_snapshot->rdram;
+    const size_t num_rdram_pages = WR_RDRAM_SIZE / WR64_WAVE_PAGE_SIZE;
+    size_t dirty_pages = 0;
+    for (size_t page = 0; page < num_rdram_pages; page++) {
+        size_t offset = page * WR64_WAVE_PAGE_SIZE;
+        dirty_pages += memcmp(canonical + offset, donor + offset,
+            WR64_WAVE_PAGE_SIZE) != 0;
+    }
+    if (dirty_pages > UINT32_MAX
+            || dirty_pages > SIZE_MAX / sizeof(uint16_t)
+            || dirty_pages > SIZE_MAX / WR64_WAVE_PAGE_SIZE) {
+        fprintf(stderr, "[waverace64] wave delta allocation overflow\n");
+        exit(1);
+    }
+    WR64WaveVariant* variant = &pool->variants[variant_index];
+    variant->num_pages = (uint32_t)dirty_pages;
+    variant->rdram_hash = wr64_hash_bytes(donor, WR_RDRAM_SIZE);
+    const size_t water_offset
+        = WR64_WATER_GRID & UINT32_C(0x1FFFFFFF);
+    const size_t water_size
+        = (size_t)WR64_WATER_ROWS * WR64_WATER_COLS * 4u;
+    variant->water_hash = wr64_hash_bytes(
+        donor + water_offset, water_size);
+    for (uint32_t previous_index = 0;
+            previous_index < pool->count; previous_index++) {
+        WR64WaveVariant* previous = &pool->variants[previous_index];
+        if (!previous->populated
+                || previous->rdram_hash != variant->rdram_hash) {
+            continue;
+        }
+        int equal = 1;
+        for (size_t page = 0; page < num_rdram_pages; page++) {
+            const uint8_t* previous_page = wr64_wave_variant_page(
+                previous, canonical, page);
+            if (memcmp(previous_page,
+                    donor + page * WR64_WAVE_PAGE_SIZE,
+                    WR64_WAVE_PAGE_SIZE) != 0) {
+                equal = 0;
+                break;
+            }
+        }
+        if (equal) {
+            fprintf(stderr,
+                "[waverace64] wave variants %u and %u are identical\n",
+                previous_index, variant_index);
+            exit(1);
+        }
+    }
+    for (uint32_t previous_index = 0;
+            previous_index < pool->count; previous_index++) {
+        WR64WaveVariant* previous = &pool->variants[previous_index];
+        if (!previous->populated
+                || previous->water_hash != variant->water_hash) {
+            continue;
+        }
+        if (wr64_wave_variant_region_equal(previous, canonical,
+                donor, water_offset, water_size)) {
+            fprintf(stderr,
+                "[waverace64] wave variants %u and %u have identical water fields\n",
+                previous_index, variant_index);
+            exit(1);
+        }
+    }
+    if (dirty_pages != 0) {
+        variant->page_indices = (uint16_t*)malloc(
+            dirty_pages * sizeof(*variant->page_indices));
+        variant->page_data = (uint8_t*)malloc(
+            dirty_pages * WR64_WAVE_PAGE_SIZE);
+        if (!variant->page_indices || !variant->page_data) {
+            fprintf(stderr, "[waverace64] wave delta allocation failed\n");
+            exit(1);
+        }
+    }
+
+    size_t dirty_index = 0;
+    for (size_t page = 0; page < num_rdram_pages; page++) {
+        size_t offset = page * WR64_WAVE_PAGE_SIZE;
+        if (memcmp(canonical + offset, donor + offset,
+                WR64_WAVE_PAGE_SIZE) == 0) {
+            continue;
+        }
+        variant->page_indices[dirty_index] = (uint16_t)page;
+        memcpy(variant->page_data + dirty_index * WR64_WAVE_PAGE_SIZE,
+            donor + offset, WR64_WAVE_PAGE_SIZE);
+        dirty_index++;
+    }
+    if (dirty_index != dirty_pages) {
+        fprintf(stderr, "[waverace64] inconsistent wave delta\n");
+        exit(1);
+    }
+
+    // Validate the complete reconstructed image before the donor's full
+    // snapshot is rebased or released.
+    dirty_index = 0;
+    for (size_t page = 0; page < num_rdram_pages; page++) {
+        const uint8_t* reconstructed = canonical
+            + page * WR64_WAVE_PAGE_SIZE;
+        if (dirty_index < dirty_pages
+                && variant->page_indices[dirty_index] == page) {
+            reconstructed = variant->page_data
+                + dirty_index * WR64_WAVE_PAGE_SIZE;
+            dirty_index++;
+        }
+        if (memcmp(reconstructed,
+                donor + page * WR64_WAVE_PAGE_SIZE,
+                WR64_WAVE_PAGE_SIZE) != 0) {
+            fprintf(stderr,
+                "[waverace64] wave variant %u failed reconstruction\n",
+                variant_index);
+            exit(1);
+        }
+    }
+    if (dirty_index != dirty_pages) {
+        fprintf(stderr,
+            "[waverace64] wave variant %u has unapplied pages\n",
+            variant_index);
+        exit(1);
+    }
+    variant->populated = 1;
+    pool->total_pages += dirty_pages;
+}
+
+static void wr64_wave_pool_finalize(const WR64WaveVariantPool* pool) {
+    if (!pool) {
+        fprintf(stderr, "[waverace64] missing authentic-wave pool\n");
+        exit(1);
+    }
+    for (uint32_t variant = 0; variant < pool->count; variant++) {
+        if (!pool->variants[variant].populated) {
+            fprintf(stderr,
+                "[waverace64] missing authentic wave variant %u\n", variant);
+            exit(1);
+        }
+    }
+}
+
+static void wr64_require_variant_snapshot(
+        const WR64WaveVariantPool* pool,
+        const WRSnapshot* canonical_snapshot,
+        const WRSnapshot* candidate_snapshot, uint32_t variant_index) {
+    if (!pool || !canonical_snapshot || !candidate_snapshot
+            || variant_index >= pool->count
+            || !canonical_snapshot->rdram || !candidate_snapshot->rdram
+            || canonical_snapshot->size != WR_RDRAM_SIZE
+            || candidate_snapshot->size != WR_RDRAM_SIZE
+            || !pool->variants[variant_index].populated) {
+        fprintf(stderr, "[waverace64] invalid duplicate wave snapshot\n");
+        exit(1);
+    }
+    const WR64WaveVariant* variant = &pool->variants[variant_index];
+    if (wr64_hash_bytes(candidate_snapshot->rdram, WR_RDRAM_SIZE)
+            != variant->rdram_hash) {
+        fprintf(stderr,
+            "[waverace64] duplicate boot for variant %u changed\n",
+            variant_index);
+        exit(1);
+    }
+    const size_t pages = WR_RDRAM_SIZE / WR64_WAVE_PAGE_SIZE;
+    for (size_t page = 0; page < pages; page++) {
+        const uint8_t* expected = wr64_wave_variant_page(
+            variant, canonical_snapshot->rdram, page);
+        const uint8_t* actual = candidate_snapshot->rdram
+            + page * WR64_WAVE_PAGE_SIZE;
+        if (memcmp(expected, actual, WR64_WAVE_PAGE_SIZE) != 0) {
+            fprintf(stderr,
+                "[waverace64] duplicate boot for variant %u changed page %zu\n",
+                variant_index, page);
+            exit(1);
+        }
+    }
+}
+
+static void wr64_apply_wave_variant(
+        WaveRace64* env, uint32_t variant_index) {
+    WR64WaveVariantPool* pool = env->wave_pool;
+    if (!pool || pool->count != (uint32_t)env->wave_variants
+            || variant_index >= pool->count) {
+        fprintf(stderr, "[waverace64] invalid wave-variant pool\n");
+        abort();
+    }
+    const WR64WaveVariant* variant = &pool->variants[variant_index];
+    if (!variant->populated) {
+        fprintf(stderr, "[waverace64] unpopulated wave variant\n");
+        abort();
+    }
+    for (uint32_t page = 0; page < variant->num_pages; page++) {
+        size_t offset = (size_t)variant->page_indices[page]
+            * WR64_WAVE_PAGE_SIZE;
+        memcpy(env->machine.rdram + offset,
+            variant->page_data + (size_t)page * WR64_WAVE_PAGE_SIZE,
+            WR64_WAVE_PAGE_SIZE);
+    }
+    env->active_wave_variant = variant_index;
 }
 
 static inline float wr64_f(WaveRace64* e, uint32_t va) {
@@ -736,6 +1135,7 @@ static inline float wr64_finite_or_zero(float value) {
 
 static inline void wr64_capture_render_state(
         WaveRace64* e, WR64RenderState* out) {
+    uint64_t fp_scope = wr_env_fp_enter();
     memset(out, 0, sizeof(*out));
     out->version = 2;
     out->game_state = wr64_u(e, WR_ADDR_GAMESTATE);
@@ -824,11 +1224,18 @@ static inline void wr64_capture_render_state(
             node->pass_x = node->live_x;
             node->pass_z = node->live_z;
         }
-        float* values = &node->live_x;
-        const int value_count = 12;
-        for (int value = 0; value < value_count; value++) {
-            values[value] = wr64_finite_or_zero(values[value]);
-        }
+        node->live_x = wr64_finite_or_zero(node->live_x);
+        node->live_y = wr64_finite_or_zero(node->live_y);
+        node->live_z = wr64_finite_or_zero(node->live_z);
+        node->anchor_x = wr64_finite_or_zero(node->anchor_x);
+        node->anchor_z = wr64_finite_or_zero(node->anchor_z);
+        node->tangent_x = wr64_finite_or_zero(node->tangent_x);
+        node->tangent_z = wr64_finite_or_zero(node->tangent_z);
+        node->lateral_x = wr64_finite_or_zero(node->lateral_x);
+        node->lateral_z = wr64_finite_or_zero(node->lateral_z);
+        node->length = wr64_finite_or_zero(node->length);
+        node->pass_x = wr64_finite_or_zero(node->pass_x);
+        node->pass_z = wr64_finite_or_zero(node->pass_z);
     }
 
     out->water_spacing = 128.f;
@@ -845,11 +1252,25 @@ static inline void wr64_capture_render_state(
         }
     }
 
-    float* scalar_values = out->position;
-    const int scalar_count = 3 + 3 + 2 + 9 + 8;
-    for (int i = 0; i < scalar_count; i++) {
-        scalar_values[i] = wr64_finite_or_zero(scalar_values[i]);
+    for (int i = 0; i < 3; i++) {
+        out->position[i] = wr64_finite_or_zero(out->position[i]);
+        out->velocity[i] = wr64_finite_or_zero(out->velocity[i]);
     }
+    for (int i = 0; i < 2; i++) {
+        out->heading[i] = wr64_finite_or_zero(out->heading[i]);
+    }
+    for (int i = 0; i < 9; i++) {
+        out->basis[i] = wr64_finite_or_zero(out->basis[i]);
+    }
+    out->speed_per_second = wr64_finite_or_zero(out->speed_per_second);
+    out->route_fraction = wr64_finite_or_zero(out->route_fraction);
+    out->progress_fraction = wr64_finite_or_zero(out->progress_fraction);
+    out->route_total = wr64_finite_or_zero(out->route_total);
+    out->water_level = wr64_finite_or_zero(out->water_level);
+    out->water_origin_x = wr64_finite_or_zero(out->water_origin_x);
+    out->water_origin_z = wr64_finite_or_zero(out->water_origin_z);
+    out->water_spacing = wr64_finite_or_zero(out->water_spacing);
+    wr_env_fp_leave(fp_scope);
 }
 
 static inline uint64_t wr64_render_hash_bytes(uint64_t hash,
@@ -956,9 +1377,13 @@ static inline void wr64_record_curriculum_success(WaveRace64* env) {
 }
 
 void init(WaveRace64* env) {
+    uint64_t fp_scope = wr_env_fp_enter();
     if (env->frameskip <= 0) env->frameskip = 2;
     env->num_agents = 1;
-    if (env->booted) return;
+    if (env->booted) {
+        wr_env_fp_leave(fp_scope);
+        return;
+    }
     int abi_status = WR_RUNTIME_ABI_CHECK();
     if (abi_status != WR_RUNTIME_ABI_OK) {
         fprintf(stderr, "[waverace64] runtime ABI mismatch (status=%d)\n",
@@ -970,6 +1395,10 @@ void init(WaveRace64* env) {
     if (wr_machine_init(&env->machine, rom) != 0) {
         fprintf(stderr, "[waverace64] cannot open ROM: %s\n", rom);
         exit(1);
+    }
+    if (env->randomize_waves) {
+        env->machine.ticks = wr64_wave_variant_ticks(
+            env->wave_seed, env->wave_boot_variant);
     }
     wr_current = &env->machine;
     wr_init_overlay_table();
@@ -1004,12 +1433,15 @@ void init(WaveRace64* env) {
     }
     env->vertical_origin = spawn_y;
     env->booted = 1;
+    wr_env_fp_leave(fp_scope);
 }
 
 void puf_close(WaveRace64* env) {
 #ifdef PUFFER_WAVERACE64_RENDER
     wr64_render_close(env);
 #endif
+    wr64_wave_pool_release(env->wave_pool);
+    env->wave_pool = NULL;
     if (env->snap.valid) wr_snapshot_free(&env->snap);
     if (env->machine.rdram) wr_machine_free(&env->machine);
 }
@@ -1181,11 +1613,19 @@ void compute_observations(WaveRace64* env) {
     }
 }
 
-void puffer_state_refresh(WaveRace64* env) { compute_observations(env); }
+void puffer_state_refresh(WaveRace64* env) {
+    uint64_t fp_scope = wr_env_fp_enter();
+    compute_observations(env);
+    wr_env_fp_leave(fp_scope);
+}
 
 void puf_reset(WaveRace64* env) {
+    uint64_t fp_scope = wr_env_fp_enter();
     wr_current = &env->machine;
     wr_snapshot_restore(&env->snap, &env->machine);
+    if (env->randomize_waves) {
+        wr64_apply_wave_variant(env, wr64_wave_next_variant(env));
+    }
     if (!wr64_reset_contract_valid(env, 3)) {
         fprintf(stderr, "[waverace64] reset snapshot is not an active race\n");
         abort();
@@ -1204,7 +1644,7 @@ void puf_reset(WaveRace64* env) {
     env->state.recovery = wr64_recovery(env);
     float x, y, z;
     wr64_position(env, &x, &y, &z);
-    (void)y;
+    env->vertical_origin = y;
     env->state.prev_node = wr64_node(env);
     env->state.prev_a = x;
     env->state.prev_y = y;
@@ -1218,11 +1658,13 @@ void puf_reset(WaveRace64* env) {
         abort();
     }
     compute_observations(env);
+    wr_env_fp_leave(fp_scope);
 }
 
 void puf_eval_reset(WaveRace64* env) {
     env->curriculum_laps = 3;
     env->curriculum_successes = 0;
+    env->wave_episode = 0;
     puf_reset(env);
 #ifdef PUFFER_WAVERACE64_RENDER
     if (env->client) wr64_render_reset_episode(env);
@@ -1230,6 +1672,7 @@ void puf_eval_reset(WaveRace64* env) {
 }
 
 void puf_step(WaveRace64* env) {
+    uint64_t fp_scope = wr_env_fp_enter();
     wr_current = &env->machine;
     Agent* agent = &env->agents[0];
 #ifdef PUFFER_WAVERACE64_RENDER
@@ -1388,6 +1831,7 @@ void puf_step(WaveRace64* env) {
         add_log(env);
         if (success) wr64_record_curriculum_success(env);
         puf_reset(env);
+        wr_env_fp_leave(fp_scope);
         return;
     }
     env->state.prev_a = x;
@@ -1399,17 +1843,58 @@ void puf_step(WaveRace64* env) {
     env->state.recovery = recovery;
     if (progress_valid) env->state.prev_course_progress = absolute_progress;
     compute_observations(env);
+    wr_env_fp_leave(fp_scope);
 }
 
 #ifdef PUFFER_WAVERACE64_RENDER
 #include "waverace64_render.h"
-void puf_render(WaveRace64* env) { wr64_render_draw(env); }
+void puf_render(WaveRace64* env) {
+    uint64_t fp_scope = wr_env_fp_enter();
+    wr64_render_draw(env);
+    wr_env_fp_leave(fp_scope);
+}
 #else
 void puf_render(WaveRace64* env) { (void)env; }
 #endif
 
-void puf_init(Env* env, Dict* kwargs) {
+static void wr64_configure(Env* env, Dict* kwargs) {
     env->frameskip = (int)dict_get(kwargs, "frameskip");
+    double randomize_waves = dict_get(kwargs, "randomize_waves");
+    if (randomize_waves != 0.0 && randomize_waves != 1.0) {
+        fprintf(stderr, "[waverace64] randomize_waves must be 0 or 1\n");
+        exit(1);
+    }
+    env->randomize_waves = (int32_t)randomize_waves;
+    double wave_seed = dict_get(kwargs, "wave_seed");
+    if (!isfinite(wave_seed) || wave_seed < 0.0
+            || wave_seed > 4294967295.0 || floor(wave_seed) != wave_seed) {
+        fprintf(stderr, "[waverace64] wave_seed must be a uint32 integer\n");
+        exit(1);
+    }
+    env->wave_seed = (uint32_t)wave_seed;
+    double wave_variants = dict_get(kwargs, "wave_variants");
+    if (!isfinite(wave_variants) || wave_variants < 1.0
+            || wave_variants > (double)WR64_MAX_WAVE_VARIANTS
+            || floor(wave_variants) != wave_variants) {
+        fprintf(stderr,
+            "[waverace64] wave_variants must be a power of two from 1 to %u\n",
+            WR64_MAX_WAVE_VARIANTS);
+        exit(1);
+    }
+    env->wave_variants = (int32_t)wave_variants;
+    if (((uint32_t)env->wave_variants
+            & ((uint32_t)env->wave_variants - 1u)) != 0) {
+        fprintf(stderr,
+            "[waverace64] wave_variants must be a power of two from 1 to %u\n",
+            WR64_MAX_WAVE_VARIANTS);
+        exit(1);
+    }
+    env->wave_rng_state = wr64_wave_stream_seed(
+        env->wave_seed, (uint32_t)env->rng);
+    env->wave_episode = 0;
+    env->wave_boot_variant = (uint32_t)env->rng
+        & ((uint32_t)env->wave_variants - 1u);
+    env->active_wave_variant = env->wave_boot_variant;
     env->reward_speed = (float)dict_get(kwargs, "reward_speed");
     env->reward_progress = (float)dict_get(kwargs, "reward_progress");
     env->reward_slip = (float)dict_get(kwargs, "reward_slip");
@@ -1445,7 +1930,63 @@ void puf_init(Env* env, Dict* kwargs) {
     env->curriculum_successes = 0;
     env->rom_path = (char*)dict_get_str(kwargs, "rom_path");
     env->agents[0].policy = 0;
+}
+
+static void wr64_puf_init_core(Env* env, Dict* kwargs) {
+    uint64_t fp_scope = wr_env_fp_enter();
+    wr64_configure(env, kwargs);
     init(env);
+    wr_env_fp_leave(fp_scope);
+}
+
+static void wr64_build_standalone_wave_pool(Env* env, Dict* kwargs) {
+    uint32_t count = (uint32_t)env->wave_variants;
+    uint32_t canonical_index = env->wave_boot_variant;
+    WR64WaveVariantPool* pool = wr64_wave_pool_begin(
+        count, canonical_index);
+    wr64_wave_pool_add(pool, &env->snap, &env->snap, canonical_index);
+    Env* donor = (Env*)calloc(1, sizeof(*donor));
+    if (!donor) {
+        fprintf(stderr, "[waverace64] wave donor allocation failed\n");
+        exit(1);
+    }
+    for (uint32_t variant = 0; variant < count; variant++) {
+        if (variant == canonical_index) continue;
+        memset(donor, 0, sizeof(*donor));
+        donor->rng = variant;
+        wr64_puf_init_core(donor, kwargs);
+        if (donor->wave_boot_variant != variant) {
+            fprintf(stderr,
+                "[waverace64] donor %u booted variant %u\n",
+                variant, donor->wave_boot_variant);
+            exit(1);
+        }
+        wr64_require_variant_compatible(env, donor);
+        wr64_wave_pool_add(pool, &env->snap, &donor->snap, variant);
+        puf_close(donor);
+    }
+    free(donor);
+    wr64_wave_pool_finalize(pool);
+    pool->references = 1;
+    env->wave_pool = pool;
+    if (wr_snapshot_drop_rdram_copy(&env->snap) != 0) {
+        fprintf(stderr, "[waverace64] canonical reset backing is unavailable\n");
+        exit(1);
+    }
+    fprintf(stderr,
+        "[waverace64] authentic wave pool variants=%u delta_pages=%zu "
+        "payload=%zu bytes\n",
+        pool->count, pool->total_pages,
+        pool->total_pages * (size_t)WR64_WAVE_PAGE_SIZE);
+}
+
+void puf_init(Env* env, Dict* kwargs) {
+    uint64_t fp_scope = wr_env_fp_enter();
+    wr64_puf_init_core(env, kwargs);
+    if (env->randomize_waves) {
+        wr64_build_standalone_wave_pool(env, kwargs);
+    }
+    wr_env_fp_leave(fp_scope);
 }
 
 Env* my_vec_init(int* num_envs_out, int* buffer_env_starts,
@@ -1476,26 +2017,133 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts,
         0, sizeof(caller_affinity), &caller_affinity) == 0;
 #endif
 
-    // Keep one canonical reset image alive while each remaining environment
-    // boots. Sharing immediately bounds private snapshot-copy peak memory by
-    // the initialization-team width instead of total_agents.
+    // Keep one canonical reset image alive. Fixed mode shares each duplicate
+    // immediately. Randomized mode retains one authentic representative per
+    // configured variant until its checked page delta has been recorded.
     envs[0].rng = 0;
-    puf_init(&envs[0], env_kwargs);
+    wr64_puf_init_core(&envs[0], env_kwargs);
     int share_error = 0;
     int share_error_env = -1;
-    #pragma omp parallel for schedule(static) num_threads(init_threads)
-    for (int i = 1; i < total_agents; i++) {
-        envs[i].rng = (unsigned int)i;
-        puf_init(&envs[i], env_kwargs);
-        int rc = wr_snapshot_share_rdram(&envs[i].snap, &envs[0].snap);
-        if (rc != 0) {
-            #pragma omp critical
+    if (!envs[0].randomize_waves) {
+        #pragma omp parallel for schedule(static) num_threads(init_threads)
+        for (int i = 1; i < total_agents; i++) {
+            envs[i].rng = (unsigned int)i;
+            wr64_puf_init_core(&envs[i], env_kwargs);
+            int rc = wr_snapshot_share_rdram(&envs[i].snap, &envs[0].snap);
+            if (rc != 0) {
+                #pragma omp critical
+                {
+                    if (share_error == 0) {
+                        share_error = rc;
+                        share_error_env = i;
+                    }
+                }
+            }
+        }
+    } else {
+        uint32_t variant_count = (uint32_t)envs[0].wave_variants;
+        uint32_t resident_variants = variant_count < (uint32_t)total_agents
+            ? variant_count : (uint32_t)total_agents;
+        WR64WaveVariantPool* pool = wr64_wave_pool_begin(
+            variant_count, 0);
+        wr64_wave_pool_add(pool, &envs[0].snap, &envs[0].snap, 0);
+        #pragma omp parallel for schedule(static) num_threads(init_threads)
+        for (int i = 1; i < (int)resident_variants; i++) {
+            envs[i].rng = (unsigned int)i;
+            wr64_puf_init_core(&envs[i], env_kwargs);
+            wr64_require_variant_compatible(&envs[0], &envs[i]);
+            #pragma omp critical(wr64_wave_pool_extract)
             {
-                if (share_error == 0) {
+                wr64_wave_pool_add(pool,
+                    &envs[0].snap, &envs[i].snap, (uint32_t)i);
+                int rc = wr_snapshot_rebase_rdram(
+                    &envs[i].snap, &envs[0].snap);
+                if (rc != 0 && share_error == 0) {
                     share_error = rc;
                     share_error_env = i;
                 }
             }
+        }
+
+        uint32_t missing_variants = variant_count - resident_variants;
+        uint32_t donor_capacity = missing_variants < (uint32_t)init_threads
+            ? missing_variants : (uint32_t)init_threads;
+        Env* donors = donor_capacity
+            ? (Env*)calloc(donor_capacity, sizeof(*donors)) : NULL;
+        if (donor_capacity && !donors) {
+            fprintf(stderr, "[waverace64] wave donor allocation failed\n");
+            exit(1);
+        }
+        for (uint32_t first = 0; first < missing_variants;
+                first += donor_capacity) {
+            uint32_t batch = missing_variants - first;
+            if (batch > donor_capacity) batch = donor_capacity;
+            memset(donors, 0, batch * sizeof(*donors));
+            #pragma omp parallel for schedule(static) num_threads(init_threads)
+            for (int donor_index = 0;
+                    donor_index < (int)batch; donor_index++) {
+                uint32_t variant = resident_variants + first
+                    + (uint32_t)donor_index;
+                donors[donor_index].rng = variant;
+                wr64_puf_init_core(&donors[donor_index], env_kwargs);
+            }
+            for (uint32_t donor_index = 0;
+                    donor_index < batch; donor_index++) {
+                uint32_t variant = resident_variants + first + donor_index;
+                if (donors[donor_index].wave_boot_variant != variant) {
+                    fprintf(stderr,
+                        "[waverace64] donor %u booted variant %u\n",
+                        variant, donors[donor_index].wave_boot_variant);
+                    exit(1);
+                }
+                wr64_require_variant_compatible(
+                    &envs[0], &donors[donor_index]);
+                wr64_wave_pool_add(pool, &envs[0].snap,
+                    &donors[donor_index].snap, variant);
+                puf_close(&donors[donor_index]);
+            }
+        }
+        free(donors);
+        wr64_wave_pool_finalize(pool);
+
+        #pragma omp parallel for schedule(static) num_threads(init_threads)
+        for (int i = (int)resident_variants; i < total_agents; i++) {
+            envs[i].rng = (unsigned int)i;
+            wr64_puf_init_core(&envs[i], env_kwargs);
+            wr64_require_variant_compatible(&envs[0], &envs[i]);
+            uint32_t representative = (uint32_t)i & (variant_count - 1u);
+            if (envs[i].wave_boot_variant != representative) {
+                fprintf(stderr,
+                    "[waverace64] env %d booted variant %u, expected %u\n",
+                    i, envs[i].wave_boot_variant, representative);
+                exit(1);
+            }
+            wr64_require_variant_snapshot(pool,
+                &envs[0].snap, &envs[i].snap, representative);
+            int rc = wr_snapshot_rebase_rdram(
+                &envs[i].snap, &envs[0].snap);
+            if (rc != 0) {
+                #pragma omp critical
+                {
+                    if (share_error == 0) {
+                        share_error = rc;
+                        share_error_env = i;
+                    }
+                }
+            }
+        }
+        if (share_error == 0) {
+            pool->references = (uint32_t)total_agents;
+            for (int i = 0; i < total_agents; i++) {
+                envs[i].wave_pool = pool;
+            }
+            fprintf(stderr,
+                "[waverace64] authentic wave pool variants=%u "
+                "delta_pages=%zu payload=%zu bytes\n",
+                pool->count, pool->total_pages,
+                pool->total_pages * (size_t)WR64_WAVE_PAGE_SIZE);
+        } else {
+            wr64_wave_pool_destroy(pool);
         }
     }
 
@@ -1510,8 +2158,8 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts,
     }
 #endif
 
-    // The deterministic boot produces one RDRAM image. Stacks and ucontexts
-    // remain machine-owned, while reset RDRAM uses a shared immutable memfd.
+    // Stacks and ucontexts remain machine-owned. Reset RDRAM uses one shared
+    // immutable canonical image, plus reset-only authentic variant pages.
     if (share_error != 0) {
         fprintf(stderr,
             "[waverace64] reset snapshot differs for env %d (rc=%d)\n",

@@ -67,6 +67,13 @@ static inline Vector3 wr64_render_mul(Vector3 value, float scale) {
     return wr64_render_v3(value.x * scale, value.y * scale, value.z * scale);
 }
 
+static inline Vector3 wr64_render_cross(Vector3 a, Vector3 b) {
+    return wr64_render_v3(
+        a.y*b.z - a.z*b.y,
+        a.z*b.x - a.x*b.z,
+        a.x*b.y - a.y*b.x);
+}
+
 static inline float wr64_render_dot(Vector3 a, Vector3 b) {
     return a.x*b.x + a.y*b.y + a.z*b.z;
 }
@@ -179,6 +186,12 @@ static void wr64_render_triangle_double(
     DrawTriangle3D(c, b, a, color);
 }
 
+static void wr64_render_quad_double(
+        Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color color) {
+    wr64_render_triangle_double(a, b, c, color);
+    wr64_render_triangle_double(a, c, d, color);
+}
+
 static void wr64_render_water(const WR64RenderState* state) {
     const int dim = WR64_RENDER_WATER_DIM;
     for (int row = 0; row < dim - 1; row++) {
@@ -268,43 +281,147 @@ static inline Vector3 wr64_render_buoy_arrow_direction(
         fallback);
 }
 
+static inline Vector3 wr64_render_buoy_arrow_axis(
+        const WR64RenderNode* node) {
+    Vector3 pass = wr64_render_buoy_arrow_direction(node);
+    return wr64_render_normalize(
+        wr64_render_add(pass, wr64_render_v3(0.f, -1.f, 0.f)),
+        wr64_render_v3(0.70710678f, -0.70710678f, 0.f));
+}
+
+static inline void wr64_render_buoy_arrow_geometry(
+        const WR64RenderNode* node, Vector3 buoy_top,
+        Vector3 front[7], Vector3 back[7]) {
+    const Vector3 pass = wr64_render_buoy_arrow_direction(node);
+    const Vector3 axis = wr64_render_buoy_arrow_axis(node);
+    const Vector3 across = wr64_render_normalize(
+        wr64_render_add(pass, wr64_render_v3(0.f, 1.f, 0.f)),
+        wr64_render_v3(0.70710678f, 0.70710678f, 0.f));
+    const Vector3 tangent = wr64_render_normalize(
+        wr64_render_v3(node->tangent_x, 0.f, node->tangent_z),
+        wr64_render_v3(pass.z, 0.f, -pass.x));
+    const Vector3 center = wr64_render_add(
+        wr64_render_add(buoy_top, wr64_render_v3(0.f, 0.72f, 0.f)),
+        wr64_render_mul(pass, 0.10f));
+    const float along[7] = {
+        -0.675f, 0.125f, 0.125f, 0.675f, 0.125f, 0.125f, -0.675f};
+    const float width[7] = {
+        -0.170f, -0.170f, -0.350f, 0.f, 0.350f, 0.170f, 0.170f};
+    for (int i = 0; i < 7; i++) {
+        Vector3 point = wr64_render_add(center,
+            wr64_render_add(wr64_render_mul(axis, along[i]),
+                wr64_render_mul(across, width[i])));
+        front[i] = wr64_render_add(point, wr64_render_mul(tangent, 0.08f));
+        back[i] = wr64_render_add(point, wr64_render_mul(tangent, -0.08f));
+    }
+}
+
 static void wr64_render_buoy_arrow(const WR64RenderNode* node,
         Vector3 buoy_top, Color color) {
-    const Vector3 direction = wr64_render_buoy_arrow_direction(node);
-    const Vector3 center = wr64_render_add(
-        buoy_top, wr64_render_v3(0.f, 1.35f, 0.f));
-    const Vector3 vertical = wr64_render_v3(0.f, 1.f, 0.f);
-    Vector3 points[7];
-    points[0] = wr64_render_add(wr64_render_add(center,
-        wr64_render_mul(direction, -1.20f)),
-        wr64_render_mul(vertical, -0.32f));
-    points[1] = wr64_render_add(wr64_render_add(center,
-        wr64_render_mul(direction, 0.20f)),
-        wr64_render_mul(vertical, -0.32f));
-    points[2] = wr64_render_add(wr64_render_add(center,
-        wr64_render_mul(direction, 0.20f)),
-        wr64_render_mul(vertical, -0.74f));
-    points[3] = wr64_render_add(center,
-        wr64_render_mul(direction, 1.25f));
-    points[4] = wr64_render_add(wr64_render_add(center,
-        wr64_render_mul(direction, 0.20f)),
-        wr64_render_mul(vertical, 0.74f));
-    points[5] = wr64_render_add(wr64_render_add(center,
-        wr64_render_mul(direction, 0.20f)),
-        wr64_render_mul(vertical, 0.32f));
-    points[6] = wr64_render_add(wr64_render_add(center,
-        wr64_render_mul(direction, -1.20f)),
-        wr64_render_mul(vertical, 0.32f));
+    Vector3 front[7];
+    Vector3 back[7];
+    wr64_render_buoy_arrow_geometry(node, buoy_top, front, back);
+    wr64_render_triangle_double(front[0], front[1], front[5], color);
+    wr64_render_triangle_double(front[0], front[5], front[6], color);
+    wr64_render_triangle_double(front[2], front[3], front[4], color);
+    wr64_render_triangle_double(back[0], back[5], back[1], color);
+    wr64_render_triangle_double(back[0], back[6], back[5], color);
+    wr64_render_triangle_double(back[2], back[4], back[3], color);
 
-    wr64_render_triangle_double(points[0], points[1], points[5], color);
-    wr64_render_triangle_double(points[0], points[5], points[6], color);
-    wr64_render_triangle_double(points[2], points[3], points[4], color);
-
-    const Color outline = {45, 38, 48, 235};
+    Color side = node->type == 0
+        ? (Color){126, 25, 31, 255} : (Color){171, 117, 18, 255};
     for (int i = 0; i < 7; i++) {
-        DrawCylinderEx(points[i], points[(i + 1) % 7],
-            0.045f, 0.045f, 6, outline);
+        int next = (i + 1) % 7;
+        wr64_render_quad_double(
+            front[i], front[next], back[next], back[i], side);
+        DrawCylinderEx(front[i], front[next],
+            0.025f, 0.025f, 6, side);
     }
+}
+
+static void wr64_render_buoy_letter_stroke(
+        Vector3 center, Vector3 right, Vector3 up,
+        float x0, float y0, float x1, float y1) {
+    Vector3 a = wr64_render_add(center,
+        wr64_render_add(wr64_render_mul(right, x0),
+            wr64_render_mul(up, y0)));
+    Vector3 b = wr64_render_add(center,
+        wr64_render_add(wr64_render_mul(right, x1),
+            wr64_render_mul(up, y1)));
+    DrawCylinderEx(a, b, 0.047f, 0.047f, 7, (Color){18, 19, 22, 255});
+}
+
+static void wr64_render_buoy_letter(
+        Vector3 center, Vector3 right, int32_t type) {
+    const Vector3 up = wr64_render_v3(0.f, 1.f, 0.f);
+    if (type == 0) {
+        wr64_render_buoy_letter_stroke(
+            center, right, up, -0.16f, -0.25f, -0.16f, 0.25f);
+        wr64_render_buoy_letter_stroke(
+            center, right, up, -0.16f, 0.25f, 0.11f, 0.25f);
+        wr64_render_buoy_letter_stroke(
+            center, right, up, 0.11f, 0.25f, 0.13f, 0.02f);
+        wr64_render_buoy_letter_stroke(
+            center, right, up, 0.13f, 0.02f, -0.16f, 0.02f);
+        wr64_render_buoy_letter_stroke(
+            center, right, up, -0.02f, 0.02f, 0.18f, -0.25f);
+    } else {
+        wr64_render_buoy_letter_stroke(
+            center, right, up, -0.14f, 0.25f, -0.14f, -0.25f);
+        wr64_render_buoy_letter_stroke(
+            center, right, up, -0.14f, -0.25f, 0.18f, -0.25f);
+    }
+}
+
+static Vector3 wr64_render_buoy_body(
+        const WR64RenderNode* node, Color color) {
+    const Vector3 up = wr64_render_v3(0.f, 1.f, 0.f);
+    const Vector3 pass = wr64_render_buoy_arrow_direction(node);
+    const Vector3 tangent = wr64_render_normalize(
+        wr64_render_v3(node->tangent_x, 0.f, node->tangent_z),
+        wr64_render_v3(pass.z, 0.f, -pass.x));
+    const Vector3 center = wr64_render_add(
+        wr64_render_world(node->anchor_x, node->live_y, node->anchor_z),
+        wr64_render_v3(0.f, 0.28f, 0.f));
+    const Vector3 tail_root = wr64_render_add(
+        wr64_render_sub(center, wr64_render_mul(pass, 0.28f)),
+        wr64_render_v3(0.f, -0.10f, 0.f));
+    const Vector3 tail_tip = wr64_render_add(
+        wr64_render_sub(center, wr64_render_mul(pass, 1.15f)),
+        wr64_render_v3(0.f, -0.10f, 0.f));
+    const Color dark = {23, 24, 27, 255};
+    for (int segment = 0; segment < 4; segment++) {
+        float t0 = 0.25f * (float)segment;
+        float t1 = 0.25f * (float)(segment + 1);
+        Vector3 a = wr64_render_add(
+            tail_root, wr64_render_mul(wr64_render_sub(tail_tip, tail_root), t0));
+        Vector3 b = wr64_render_add(
+            tail_root, wr64_render_mul(wr64_render_sub(tail_tip, tail_root), t1));
+        float radius_a = 0.34f + (0.10f - 0.34f) * t0;
+        float radius_b = 0.34f + (0.10f - 0.34f) * t1;
+        DrawCylinderEx(a, b, radius_a, radius_b, 10,
+            (segment & 1) ? color : dark);
+    }
+
+    DrawCylinderEx(
+        wr64_render_sub(center, wr64_render_mul(tangent, 0.17f)),
+        wr64_render_add(center, wr64_render_mul(tangent, 0.17f)),
+        0.52f, 0.52f, 18, color);
+    DrawSphere(center, 0.50f, color);
+
+    Vector3 incoming = wr64_render_mul(tangent, -1.f);
+    Vector3 face_right = wr64_render_normalize(
+        wr64_render_cross(incoming, up), pass);
+    wr64_render_buoy_letter(
+        wr64_render_add(center, wr64_render_mul(incoming, 0.505f)),
+        face_right, node->type);
+    Vector3 outgoing = tangent;
+    Vector3 back_right = wr64_render_normalize(
+        wr64_render_cross(outgoing, up), wr64_render_mul(pass, -1.f));
+    wr64_render_buoy_letter(
+        wr64_render_add(center, wr64_render_mul(outgoing, 0.505f)),
+        back_right, node->type);
+    return wr64_render_add(center, wr64_render_mul(up, 0.52f));
 }
 
 static void wr64_render_route(const WR64RenderState* state) {
@@ -328,14 +445,7 @@ static void wr64_render_route(const WR64RenderState* state) {
         if (!node->valid) continue;
         if (node->type == 0 || node->type == 1) {
             Color color = wr64_render_buoy_color(node->type);
-            Vector3 base = wr64_render_world(
-                node->anchor_x, node->live_y - 20.f, node->anchor_z);
-            Vector3 top = wr64_render_world(
-                node->anchor_x, node->live_y + 145.f, node->anchor_z);
-            DrawCylinderEx(base, top, 0.30f, 0.24f, 12, color);
-            DrawSphere(top, 0.32f, RAYWHITE);
-            DrawSphere(wr64_render_add(top, wr64_render_v3(0.f, 0.03f, 0.f)),
-                0.23f, color);
+            Vector3 top = wr64_render_buoy_body(node, color);
 
             if (wr64_render_buoy_arrow_visible(state, i)) {
                 wr64_render_buoy_arrow(node, top, color);
@@ -614,7 +724,7 @@ static void wr64_render_hud(const Client* client) {
 
     if (client->human_control) {
         wr64_render_draw_centered(
-            "SHIFT+UP policy | W throttle | A/D steer | arrows lean | S damp | SPACE slide",
+            "SHIFT+UP policy | W throttle | A/D steer | UP/DOWN lean | DOWN+steer quick turn | S damp waves | SPACE slide",
             width/2, height - 49, width < 600 ? 7 : 8, secondary);
     }
 

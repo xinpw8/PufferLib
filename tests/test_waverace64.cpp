@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#ifdef __linux__
+#include <sys/stat.h>
+#endif
 
 #include "waverace64.h"
 
@@ -74,6 +78,419 @@ static uint64_t hash_rdram(WaveRace64* env) {
         hash = hash_byte(hash, env->machine.rdram[i]);
     }
     return hash;
+}
+
+static uint64_t hash_wave_grid(WaveRace64* env) {
+    size_t offset = WR64_WATER_GRID & UINT32_C(0x1FFFFFFF);
+    size_t size = (size_t)WR64_WATER_ROWS * WR64_WATER_COLS * 4u;
+    return wr64_hash_bytes(env->machine.rdram + offset, size);
+}
+
+static void set_action(WaveRace64* env, int x, int y,
+        int a, int b, int r);
+
+typedef struct HostStepDigest {
+    uint64_t rdram;
+    uint64_t authoritative;
+    uint64_t machine_ticks;
+    State state;
+    uint32_t observations[WR64_OBS_SIZE];
+    uint32_t reward;
+    uint32_t terminal;
+} HostStepDigest;
+
+static HostStepDigest current_host_step_digest(WaveRace64* env) {
+    HostStepDigest digest = {};
+    digest.rdram = hash_rdram(env);
+    digest.authoritative = hash_authoritative_state(
+        env, UINT64_C(14695981039346656037));
+    digest.machine_ticks = env->machine.ticks;
+    digest.state = env->state;
+    memcpy(digest.observations, env->agents[0].observations,
+        sizeof(digest.observations));
+    memcpy(&digest.reward, env->agents[0].rewards, sizeof(digest.reward));
+    memcpy(&digest.terminal, env->agents[0].terminals,
+        sizeof(digest.terminal));
+    return digest;
+}
+
+typedef struct WaveResetDigest {
+    uint64_t rdram;
+    uint64_t grid;
+    uint64_t authoritative;
+    uint32_t active_variant;
+    uint32_t observations[12];
+    uint32_t vertical_origin;
+} WaveResetDigest;
+
+static WaveResetDigest current_wave_digest(WaveRace64* env) {
+    assert(wr64_reset_contract_valid(env, env->curriculum_laps));
+    WaveResetDigest digest = {};
+    digest.rdram = hash_rdram(env);
+    digest.grid = hash_wave_grid(env);
+    digest.authoritative = hash_authoritative_state(
+        env, UINT64_C(14695981039346656037));
+    digest.active_variant = env->active_wave_variant;
+    memcpy(digest.observations, env->agents[0].observations + 43,
+        sizeof(digest.observations));
+    memcpy(&digest.vertical_origin, &env->vertical_origin,
+        sizeof(digest.vertical_origin));
+    return digest;
+}
+
+static WaveResetDigest wave_reset_digest(WaveRace64* env) {
+    puf_reset(env);
+    return current_wave_digest(env);
+}
+
+static int wave_reset_digest_equal(
+        const WaveResetDigest* a, const WaveResetDigest* b) {
+    return a->rdram == b->rdram
+        && a->grid == b->grid
+        && a->authoritative == b->authoritative
+        && a->active_variant == b->active_variant
+        && a->vertical_origin == b->vertical_origin
+        && memcmp(a->observations, b->observations,
+            sizeof(a->observations)) == 0;
+}
+
+#if defined(__aarch64__)
+static uint64_t test_read_fpcr() {
+    uint64_t value;
+    __asm__ volatile("mrs %0, fpcr" : "=r"(value));
+    return value;
+}
+
+static void test_write_fpcr(uint64_t value) {
+    __asm__ volatile("msr fpcr, %0\nisb" : : "r"(value) : "memory");
+}
+#endif
+
+static void test_wave_fp_guard(WaveRace64* env, Dict* kwargs) {
+#if defined(__aarch64__)
+    const uint64_t fpcr_fz = UINT64_C(1) << 24;
+    const uint64_t fpcr_fz16 = UINT64_C(1) << 19;
+    const uint64_t fpcr_rmode = UINT64_C(3) << 22;
+    const uint64_t fpcr_dn = UINT64_C(1) << 25;
+    const uint64_t fpcr_all_controls = (UINT64_C(1) << 26)
+        | fpcr_dn | fpcr_fz | fpcr_rmode | fpcr_fz16
+        | (UINT64_C(1) << 15) | (UINT64_C(0x1F) << 8)
+        | (UINT64_C(1) << 2) | (UINT64_C(1) << 1)
+        | UINT64_C(1);
+
+    puf_reset(env);
+    uint64_t expected_init_rdram = hash_rdram(env);
+    float expected_route_total = env->route_total;
+    float expected_route_arc[WR64_MAX_COURSE_NODES];
+    int32_t expected_route_pred[WR64_MAX_COURSE_NODES];
+    memcpy(expected_route_arc, env->route_arc, sizeof(expected_route_arc));
+    memcpy(expected_route_pred, env->route_pred, sizeof(expected_route_pred));
+
+    uint64_t saved_fpcr = test_read_fpcr();
+    uint64_t requested_hostile = saved_fpcr | fpcr_all_controls;
+    test_write_fpcr(requested_hostile);
+    uint64_t hostile_fpcr = test_read_fpcr();
+    test_write_fpcr(saved_fpcr);
+
+    test_write_fpcr(hostile_fpcr);
+    uint64_t outer_scope = wr_env_fp_enter();
+    uint64_t canonical_fpcr = test_read_fpcr();
+    uint64_t inner_scope = wr_env_fp_enter();
+    test_write_fpcr(canonical_fpcr ^ fpcr_dn);
+    uint64_t mutated_inner_fpcr = test_read_fpcr();
+    wr_env_fp_leave(inner_scope);
+    uint64_t after_inner_fpcr = test_read_fpcr();
+    wr_env_fp_leave(outer_scope);
+    uint64_t after_outer_fpcr = test_read_fpcr();
+    test_write_fpcr(saved_fpcr);
+    assert(canonical_fpcr == 0);
+    if (mutated_inner_fpcr != canonical_fpcr) {
+        assert(after_inner_fpcr == canonical_fpcr);
+    }
+    assert(after_outer_fpcr == hostile_fpcr);
+
+    WaveRace64 hostile_init = {};
+    test_write_fpcr(hostile_fpcr);
+    puf_init(&hostile_init, kwargs);
+    uint64_t init_restored_fpcr = test_read_fpcr();
+    test_write_fpcr(saved_fpcr);
+    assert(init_restored_fpcr == hostile_fpcr);
+    assert(hash_rdram(&hostile_init) == expected_init_rdram);
+    assert(hostile_init.route_total == expected_route_total);
+    assert(memcmp(hostile_init.route_arc,
+        expected_route_arc, sizeof(expected_route_arc)) == 0);
+    assert(memcmp(hostile_init.route_pred,
+        expected_route_pred, sizeof(expected_route_pred)) == 0);
+    puf_close(&hostile_init);
+
+    WaveResetDigest expected_reset = wave_reset_digest(env);
+    test_write_fpcr(hostile_fpcr);
+    puf_reset(env);
+    uint64_t reset_restored_fpcr = test_read_fpcr();
+    test_write_fpcr(saved_fpcr);
+    WaveResetDigest hostile_reset = current_wave_digest(env);
+    assert(reset_restored_fpcr == hostile_fpcr);
+    assert(wave_reset_digest_equal(&expected_reset, &hostile_reset));
+
+    puf_reset(env);
+    puffer_state_refresh(env);
+    uint64_t expected_refresh_rdram = hash_rdram(env);
+    uint32_t expected_refresh_obs[WR64_OBS_SIZE];
+    memcpy(expected_refresh_obs, env->agents[0].observations,
+        sizeof(expected_refresh_obs));
+    memset(env->agents[0].observations, 0xA5,
+        sizeof(expected_refresh_obs));
+    test_write_fpcr(hostile_fpcr);
+    puffer_state_refresh(env);
+    uint64_t refresh_restored_fpcr = test_read_fpcr();
+    test_write_fpcr(saved_fpcr);
+    assert(refresh_restored_fpcr == hostile_fpcr);
+    assert(hash_rdram(env) == expected_refresh_rdram);
+    assert(memcmp(env->agents[0].observations,
+        expected_refresh_obs, sizeof(expected_refresh_obs)) == 0);
+
+    WR64RenderState expected_render = {};
+    WR64RenderState hostile_render = {};
+    wr64_capture_render_state(env, &expected_render);
+    test_write_fpcr(hostile_fpcr);
+    wr64_capture_render_state(env, &hostile_render);
+    uint64_t render_restored_fpcr = test_read_fpcr();
+    test_write_fpcr(saved_fpcr);
+    assert(render_restored_fpcr == hostile_fpcr);
+    assert(memcmp(&expected_render,
+        &hostile_render, sizeof(expected_render)) == 0);
+
+    puf_reset(env);
+    set_action(env, 7, 8, 1, 0, 0);
+    puf_step(env);
+    HostStepDigest expected_step = current_host_step_digest(env);
+    puf_reset(env);
+    set_action(env, 7, 8, 1, 0, 0);
+    test_write_fpcr(hostile_fpcr);
+    puf_step(env);
+    uint64_t step_restored_fpcr = test_read_fpcr();
+    test_write_fpcr(saved_fpcr);
+    HostStepDigest hostile_step = current_host_step_digest(env);
+    assert(step_restored_fpcr == hostile_fpcr);
+    assert(memcmp(&expected_step, &hostile_step, sizeof(expected_step)) == 0);
+
+    puf_reset(env);
+    env->state.tick = WR64_MAX_STEPS;
+    set_action(env, 7, 8, 1, 0, 0);
+    puf_step(env);
+    HostStepDigest expected_terminal = current_host_step_digest(env);
+    assert(expected_terminal.terminal != 0);
+    puf_reset(env);
+    env->state.tick = WR64_MAX_STEPS;
+    set_action(env, 7, 8, 1, 0, 0);
+    test_write_fpcr(hostile_fpcr);
+    puf_step(env);
+    uint64_t terminal_restored_fpcr = test_read_fpcr();
+    test_write_fpcr(saved_fpcr);
+    HostStepDigest hostile_terminal = current_host_step_digest(env);
+    assert(terminal_restored_fpcr == hostile_fpcr);
+    assert(memcmp(&expected_terminal,
+        &hostile_terminal, sizeof(expected_terminal)) == 0);
+
+    puf_reset(env);
+    printf("PASS FPCR init/reset/refresh/render/step/terminal "
+        "rdram=%016llx authoritative=%016llx hostile=%016llx\n",
+        (unsigned long long)expected_step.rdram,
+        (unsigned long long)expected_step.authoritative,
+        (unsigned long long)hostile_fpcr);
+#else
+    (void)env;
+    (void)kwargs;
+    puts("SKIP FPCR host-scope replay (requires aarch64)");
+#endif
+}
+
+static uint64_t wave_physics_trajectory(WaveRace64* env) {
+    const uint32_t primary_rng_addr = UINT32_C(0x800D4640);
+    wr_wr32(env->machine.rdram,
+        primary_rng_addr, UINT32_C(0xA6A1F097));
+    WRPad pad = {};
+    pad.stick_y = 80;
+    pad.a = 1;
+    uint32_t wave_episode = env->wave_episode;
+    uint64_t hash = UINT64_C(14695981039346656037);
+    uint64_t first_grid = hash_wave_grid(env);
+    for (int frame = 0; frame < 120; frame++) {
+        (void)wr_env_step(&env->machine, &pad, 1);
+        hash = hash_authoritative_state(env, hash);
+        assert(env->wave_episode == wave_episode);
+    }
+    assert(hash_wave_grid(env) != first_grid);
+    return hash;
+}
+
+static void test_wave_selection_permutations() {
+    const uint32_t count = 128;
+    uint8_t first_seen[count] = {};
+    for (uint32_t env_index = 0; env_index < count; env_index++) {
+        WaveRace64 probe = {};
+        probe.wave_seed = 42;
+        probe.rng = env_index;
+        probe.wave_variants = (int32_t)count;
+        probe.wave_rng_state = wr64_wave_stream_seed(
+            probe.wave_seed, env_index);
+        uint8_t cycle_seen[count] = {};
+        for (uint32_t episode = 0; episode < count; episode++) {
+            uint32_t variant = wr64_wave_next_variant(&probe);
+            assert(variant < count);
+            assert(!cycle_seen[variant]);
+            cycle_seen[variant] = 1;
+            if (episode == 0) {
+                assert(!first_seen[variant]);
+                first_seen[variant] = 1;
+            }
+        }
+    }
+    for (uint32_t variant = 0; variant < count; variant++) {
+        assert(first_seen[variant]);
+    }
+    puts("PASS K=128 stratified first reset and full-cycle permutations");
+}
+
+static void bind_test_agent(WaveRace64* env,
+        float* observations, float* actions,
+        float* reward, float* terminal) {
+    env->agents[0].observations = observations;
+    env->agents[0].actions = actions;
+    env->agents[0].rewards = reward;
+    env->agents[0].terminals = terminal;
+}
+
+static void test_wave_episode_randomization(Dict* base_kwargs) {
+    Dict kwargs = {};
+    dict_copy(&kwargs, base_kwargs);
+    dict_set(&kwargs, "randomize_waves", 1);
+    dict_set(&kwargs, "wave_seed", 777);
+    dict_set(&kwargs, "wave_variants", 4);
+
+    WaveRace64 env = {};
+    env.rng = 0;
+    puf_init(&env, &kwargs);
+    float observations[WR64_OBS_SIZE] = {};
+    float actions[NUM_ATNS] = {};
+    float reward = 0.f;
+    float terminal = 0.f;
+    bind_test_agent(&env, observations, actions, &reward, &terminal);
+    assert(env.wave_pool != NULL);
+    assert(env.wave_pool->count == 4);
+
+    WaveResetDigest expected[4] = {};
+    uint32_t episode_for_variant[4] = {};
+    uint32_t seen = 0;
+    env.wave_episode = 0;
+    uint32_t selection_seed = env.wave_rng_state;
+    for (uint32_t episode = 0; episode < 4; episode++) {
+        expected[episode] = wave_reset_digest(&env);
+        uint32_t variant = expected[episode].active_variant;
+        assert(variant < 4);
+        assert((seen & (1u << variant)) == 0);
+        seen |= 1u << variant;
+        episode_for_variant[variant] = episode;
+        assert(expected[episode].rdram
+            == env.wave_pool->variants[variant].rdram_hash);
+        assert(expected[episode].grid
+            == env.wave_pool->variants[variant].water_hash);
+        float x, y, z;
+        wr64_position(&env, &x, &y, &z);
+        uint32_t y_bits;
+        memcpy(&y_bits, &y, sizeof(y_bits));
+        assert(y_bits == expected[episode].vertical_origin);
+        assert(env.agents[0].observations[6] == 0.f);
+    }
+    assert(seen == 0xFu);
+    assert(env.wave_rng_state == selection_seed);
+    for (int a = 0; a < 4; a++) {
+        for (int b = a + 1; b < 4; b++) {
+            assert(expected[a].rdram != expected[b].rdram);
+            assert(expected[a].grid != expected[b].grid);
+        }
+    }
+
+    env.wave_episode = 0;
+    for (uint32_t episode = 0; episode < 4; episode++) {
+        WaveResetDigest replay = wave_reset_digest(&env);
+        assert(wave_reset_digest_equal(&expected[episode], &replay));
+    }
+
+    env.wave_episode = episode_for_variant[0];
+    WaveResetDigest variant_zero = wave_reset_digest(&env);
+    uint64_t first_physics = wave_physics_trajectory(&env);
+    env.wave_episode = episode_for_variant[1];
+    WaveResetDigest variant_one = wave_reset_digest(&env);
+    uint64_t second_physics = wave_physics_trajectory(&env);
+    assert(variant_zero.active_variant == 0);
+    assert(variant_one.active_variant == 1);
+    assert(first_physics != second_physics);
+    env.wave_episode = episode_for_variant[0];
+    (void)wave_reset_digest(&env);
+    uint64_t first_physics_replay = wave_physics_trajectory(&env);
+    assert(first_physics == first_physics_replay);
+
+    env.wave_episode = 0;
+    puf_eval_reset(&env);
+    uint32_t eval_variant = env.active_wave_variant;
+    assert(env.wave_episode == 1);
+    env.wave_episode = 91;
+    puf_eval_reset(&env);
+    assert(env.wave_episode == 1);
+    assert(env.active_wave_variant == eval_variant);
+
+    uint32_t target_variant = expected[1].active_variant;
+    WaveRace64 native = {};
+    native.rng = target_variant;
+    wr64_puf_init_core(&native, &kwargs);
+    float native_observations[WR64_OBS_SIZE] = {};
+    float native_actions[NUM_ATNS] = {};
+    float native_reward = 0.f;
+    float native_terminal = 0.f;
+    bind_test_agent(&native, native_observations, native_actions,
+        &native_reward, &native_terminal);
+    native.randomize_waves = 0;
+    puf_reset(&native);
+    env.wave_episode = episode_for_variant[target_variant];
+    puf_reset(&env);
+    assert(env.active_wave_variant == target_variant);
+    assert(memcmp(env.machine.rdram,
+        native.machine.rdram, WR_RDRAM_SIZE) == 0);
+    assert(memcmp(&env.state, &native.state, sizeof(env.state)) == 0);
+    assert(memcmp(env.agents[0].observations,
+        native.agents[0].observations,
+        sizeof(native_observations)) == 0);
+    assert(env.vertical_origin == native.vertical_origin);
+    WR64RenderState transplanted_render = {};
+    WR64RenderState native_render = {};
+    wr64_capture_render_state(&env, &transplanted_render);
+    wr64_capture_render_state(&native, &native_render);
+    assert(memcmp(&transplanted_render,
+        &native_render, sizeof(native_render)) == 0);
+
+    set_action(&env, 8, 8, 1, 0, 0);
+    set_action(&native, 8, 8, 1, 0, 0);
+    puf_step(&env);
+    puf_step(&native);
+    HostStepDigest transplanted_step = current_host_step_digest(&env);
+    HostStepDigest native_step = current_host_step_digest(&native);
+    assert(memcmp(&transplanted_step,
+        &native_step, sizeof(native_step)) == 0);
+    wr64_capture_render_state(&env, &transplanted_render);
+    wr64_capture_render_state(&native, &native_render);
+    assert(memcmp(&transplanted_render,
+        &native_render, sizeof(native_render)) == 0);
+
+    puf_close(&native);
+    size_t delta_pages = env.wave_pool->total_pages;
+    puf_close(&env);
+    dict_clear(&kwargs);
+    printf("PASS authentic reset pool variants=4 delta_pages=%zu "
+        "cycle=unique replay=exact physics=%016llx/%016llx\n",
+        delta_pages,
+        (unsigned long long)first_physics,
+        (unsigned long long)second_physics);
 }
 
 static void test_water_sampler(WaveRace64* env) {
@@ -1193,6 +1610,106 @@ static void test_vec_affinity_and_ownership(Dict* env_kwargs) {
     dict_clear(&vec_kwargs);
     puts("PASS vec-affinity and address-stable ownership");
 }
+
+static void test_random_pool_vec_shapes(Dict* base_kwargs) {
+    const int shapes[] = {2, 4, 8};
+    Dict env_kwargs = {};
+    dict_copy(&env_kwargs, base_kwargs);
+    dict_set(&env_kwargs, "randomize_waves", 1);
+    dict_set(&env_kwargs, "wave_seed", 991);
+    dict_set(&env_kwargs, "wave_variants", 4);
+
+    for (size_t shape = 0; shape < sizeof(shapes) / sizeof(shapes[0]); shape++) {
+        int requested = shapes[shape];
+        Dict vec_kwargs = {};
+        dict_set(&vec_kwargs, "total_agents", requested);
+        dict_set(&vec_kwargs, "num_buffers", 1);
+        dict_set(&vec_kwargs, "num_threads", requested < 4 ? requested : 4);
+        int num_envs = 0;
+        int starts[1] = {};
+        int counts[1] = {};
+        Env* envs = my_vec_init(
+            &num_envs, starts, counts, &vec_kwargs, &env_kwargs);
+        assert(num_envs == requested);
+        assert(starts[0] == 0 && counts[0] == requested);
+        WR64WaveVariantPool* pool = envs[0].wave_pool;
+        assert(pool != NULL && pool->count == 4);
+        assert(pool->references == (uint32_t)requested);
+#ifdef __linux__
+        struct stat canonical_backing = {};
+        assert(fstat(envs[0].snap.memfd, &canonical_backing) == 0);
+        for (int i = 1; i < requested; i++) {
+            struct stat rebased_backing = {};
+            assert(fstat(envs[i].snap.memfd, &rebased_backing) == 0);
+            assert(rebased_backing.st_dev == canonical_backing.st_dev);
+            assert(rebased_backing.st_ino == canonical_backing.st_ino);
+        }
+#endif
+
+        float* observations = (float*)calloc(
+            (size_t)requested * WR64_OBS_SIZE, sizeof(float));
+        float* actions = (float*)calloc(
+            (size_t)requested * NUM_ATNS, sizeof(float));
+        float* rewards = (float*)calloc((size_t)requested, sizeof(float));
+        float* terminals = (float*)calloc((size_t)requested, sizeof(float));
+        assert(observations && actions && rewards && terminals);
+        uint32_t first_seen = 0;
+        for (int i = 0; i < requested; i++) {
+            assert(envs[i].wave_pool == pool);
+            assert(envs[i].snap.owner == &envs[i].machine);
+            assert(envs[i].snap.rdram == NULL);
+            bind_test_agent(&envs[i],
+                observations + (size_t)i * WR64_OBS_SIZE,
+                actions + (size_t)i * NUM_ATNS,
+                &rewards[i], &terminals[i]);
+            envs[i].curriculum_laps = 1;
+            puf_reset(&envs[i]);
+            assert(wr64_reset_contract_valid(
+                &envs[i], envs[i].curriculum_laps));
+            assert(wr64_target_laps(&envs[i]) == 1);
+            if (i < 4) {
+                uint32_t bit = 1u << envs[i].active_wave_variant;
+                assert((first_seen & bit) == 0);
+                first_seen |= bit;
+            }
+        }
+        assert(__builtin_popcount(first_seen)
+            == (requested < 4 ? requested : 4));
+        uint64_t untouched = hash_rdram(&envs[1]);
+        set_action(&envs[0], 8, 8, 1, 0, 0);
+        puf_step(&envs[0]);
+        assert(hash_rdram(&envs[1]) == untouched);
+        for (int i = 1; i < requested; i++) {
+            set_action(&envs[i], 8, 8, 1, 0, 0);
+            puf_step(&envs[i]);
+        }
+
+        uint32_t replay_episode = envs[1].wave_episode;
+        puf_reset(&envs[1]);
+        set_action(&envs[1], 11, 8, 1, 0, 1);
+        puf_step(&envs[1]);
+        HostStepDigest owner_alive = current_host_step_digest(&envs[1]);
+        envs[1].wave_episode = replay_episode;
+        puf_close(&envs[0]);
+        assert(pool->references == (uint32_t)requested - 1u);
+        puf_reset(&envs[1]);
+        set_action(&envs[1], 11, 8, 1, 0, 1);
+        puf_step(&envs[1]);
+        HostStepDigest owner_closed = current_host_step_digest(&envs[1]);
+        assert(memcmp(&owner_alive, &owner_closed,
+            sizeof(owner_alive)) == 0);
+        for (int i = 1; i < requested; i++) puf_close(&envs[i]);
+        my_vec_close(envs);
+        free(terminals);
+        free(rewards);
+        free(actions);
+        free(observations);
+        dict_clear(&vec_kwargs);
+        printf("PASS random pool vec N=%d K=4 ownership/isolation\n",
+            requested);
+    }
+    dict_clear(&env_kwargs);
+}
 #endif
 
 int main(int argc, char** argv) {
@@ -1200,6 +1717,9 @@ int main(int argc, char** argv) {
     Dict kwargs = {};
     dict_set_str(&kwargs, "rom_path", argv[1]);
     dict_set(&kwargs, "frameskip", 1);
+    dict_set(&kwargs, "randomize_waves", 0);
+    dict_set(&kwargs, "wave_seed", 42);
+    dict_set(&kwargs, "wave_variants", 1);
     dict_set(&kwargs, "reward_speed", 0);
     dict_set(&kwargs, "reward_progress", 1);
     dict_set(&kwargs, "reward_slip", 0);
@@ -1246,10 +1766,14 @@ int main(int argc, char** argv) {
     test_production_three_lap_finish(&env);
     test_random_observation_ranges(&env);
     test_production_baselines(&env);
+    test_wave_fp_guard(&env, &kwargs);
+    test_wave_selection_permutations();
+    test_wave_episode_randomization(&kwargs);
 
     puf_close(&env);
 #ifdef __linux__
     test_vec_affinity_and_ownership(&kwargs);
+    test_random_pool_vec_shapes(&kwargs);
 #endif
     dict_clear(&kwargs);
     puts("PASS waverace64 deterministic regressions");

@@ -104,6 +104,9 @@ static void assert_core_equal(const CoreDigest* before,
 static void init_kwargs(Dict* kwargs, const char* rom_path) {
     dict_set_str(kwargs, "rom_path", rom_path);
     dict_set(kwargs, "frameskip", 2);
+    dict_set(kwargs, "randomize_waves", 0);
+    dict_set(kwargs, "wave_seed", 42);
+    dict_set(kwargs, "wave_variants", 1);
     dict_set(kwargs, "reward_speed", 0);
     dict_set(kwargs, "reward_progress", 3);
     dict_set(kwargs, "reward_slip", 0);
@@ -240,6 +243,23 @@ static void test_buoy_arrow_guidance() {
     assert(fabsf(direction.x) < 1e-6f);
     assert(fabsf(direction.y) < 1e-6f);
     assert(fabsf(direction.z - 1.f) < 1e-6f);
+    Vector3 axis = wr64_render_buoy_arrow_axis(&node);
+    assert(fabsf(wr64_render_dot(axis, direction) - 0.70710678f) < 1e-6f);
+    assert(fabsf(axis.y + 0.70710678f) < 1e-6f);
+    Vector3 front[7];
+    Vector3 back[7];
+    wr64_render_buoy_arrow_geometry(
+        &node, wr64_render_v3(0.f, 0.f, 0.f), front, back);
+    Vector3 tail_mid = wr64_render_mul(
+        wr64_render_add(front[0], front[6]), 0.5f);
+    assert(fabsf(wr64_render_dot(
+        wr64_render_sub(front[3], tail_mid), axis) - 1.35f) < 1e-6f);
+    assert(fabsf(wr64_render_length(
+        wr64_render_sub(front[0], front[6])) - 0.34f) < 1e-6f);
+    assert(fabsf(wr64_render_length(
+        wr64_render_sub(front[2], front[4])) - 0.70f) < 1e-6f);
+    assert(fabsf(wr64_render_length(
+        wr64_render_sub(front[0], back[0])) - 0.16f) < 1e-6f);
 
     node.pass_x = node.live_x;
     node.pass_z = node.live_z;
@@ -252,8 +272,11 @@ static void test_buoy_arrow_guidance() {
     direction = wr64_render_buoy_arrow_direction(&node);
     assert(fabsf(direction.x + 0.6f) < 1e-6f);
     assert(fabsf(direction.z + 0.8f) < 1e-6f);
-    printf("PASS buoy arrows pass-side aligned target-only blink=%d ticks\n",
-        WR64_BUOY_ARROW_BLINK_TICKS);
+    axis = wr64_render_buoy_arrow_axis(&node);
+    assert(fabsf(wr64_render_dot(axis, direction) - 0.70710678f) < 1e-6f);
+    assert(fabsf(axis.y + 0.70710678f) < 1e-6f);
+    printf("PASS chunky diagonal buoy arrows L/R pass-side aligned "
+        "target-only blink=%d ticks\n", WR64_BUOY_ARROW_BLINK_TICKS);
 }
 
 static void test_camera_wave_visibility() {
@@ -464,6 +487,30 @@ static void test_puf_render_preserves_core_state(TestEnv* test) {
     assert(test->env.client->puffer_loaded == 1);
     assert(IsModelValid(test->env.client->puffer));
     assert(IsWindowReady());
+
+#if defined(__aarch64__)
+    const uint64_t fpcr_all_controls = (UINT64_C(1) << 26)
+        | (UINT64_C(1) << 25) | (UINT64_C(1) << 24)
+        | (UINT64_C(3) << 22) | (UINT64_C(1) << 19)
+        | (UINT64_C(1) << 15) | (UINT64_C(0x1F) << 8)
+        | (UINT64_C(1) << 2) | (UINT64_C(1) << 1)
+        | UINT64_C(1);
+    uint64_t saved_fpcr;
+    __asm__ volatile("mrs %0, fpcr" : "=r"(saved_fpcr));
+    uint64_t requested_fpcr = saved_fpcr | fpcr_all_controls;
+    __asm__ volatile("msr fpcr, %0\nisb"
+        : : "r"(requested_fpcr) : "memory");
+    uint64_t hostile_fpcr;
+    __asm__ volatile("mrs %0, fpcr" : "=r"(hostile_fpcr));
+    puf_render(&test->env);
+    uint64_t restored_fpcr;
+    __asm__ volatile("mrs %0, fpcr" : "=r"(restored_fpcr));
+    __asm__ volatile("msr fpcr, %0\nisb"
+        : : "r"(saved_fpcr) : "memory");
+    CoreDigest after_hostile = capture_core_digest(test);
+    assert(restored_fpcr == hostile_fpcr);
+    assert_core_equal(&before, &after_hostile);
+#endif
 
     for (int frame = 0; frame < 8; frame++) {
         puf_render(&test->env);
