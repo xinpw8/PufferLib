@@ -373,6 +373,13 @@ static void wr64_render_buoy_letter(
     }
 }
 
+static inline Vector3 wr64_render_buoy_face_right(
+        Vector3 outward, Vector3 fallback) {
+    const Vector3 up = wr64_render_v3(0.f, 1.f, 0.f);
+    return wr64_render_normalize(
+        wr64_render_cross(up, outward), fallback);
+}
+
 static Vector3 wr64_render_buoy_body(
         const WR64RenderNode* node, Color color) {
     const Vector3 up = wr64_render_v3(0.f, 1.f, 0.f);
@@ -410,14 +417,13 @@ static Vector3 wr64_render_buoy_body(
     DrawSphere(center, 0.50f, color);
 
     Vector3 incoming = wr64_render_mul(tangent, -1.f);
-    Vector3 face_right = wr64_render_normalize(
-        wr64_render_cross(incoming, up), pass);
+    Vector3 face_right = wr64_render_buoy_face_right(
+        incoming, wr64_render_mul(pass, -1.f));
     wr64_render_buoy_letter(
         wr64_render_add(center, wr64_render_mul(incoming, 0.505f)),
         face_right, node->type);
     Vector3 outgoing = tangent;
-    Vector3 back_right = wr64_render_normalize(
-        wr64_render_cross(outgoing, up), wr64_render_mul(pass, -1.f));
+    Vector3 back_right = wr64_render_buoy_face_right(outgoing, pass);
     wr64_render_buoy_letter(
         wr64_render_add(center, wr64_render_mul(outgoing, 0.505f)),
         back_right, node->type);

@@ -279,6 +279,24 @@ static void test_buoy_arrow_guidance() {
         "target-only blink=%d ticks\n", WR64_BUOY_ARROW_BLINK_TICKS);
 }
 
+static void test_buoy_letter_orientation() {
+    const Vector3 incoming = wr64_render_normalize(
+        wr64_render_v3(-0.6f, 0.f, -0.8f),
+        wr64_render_v3(0.f, 0.f, -1.f));
+    const Vector3 outgoing = wr64_render_mul(incoming, -1.f);
+    const Vector3 front_right = wr64_render_buoy_face_right(
+        incoming, wr64_render_v3(-1.f, 0.f, 0.f));
+    const Vector3 back_right = wr64_render_buoy_face_right(
+        outgoing, wr64_render_v3(1.f, 0.f, 0.f));
+
+    assert(fabsf(front_right.x + 0.8f) < 1e-6f);
+    assert(fabsf(front_right.z - 0.6f) < 1e-6f);
+    assert(fabsf(back_right.x - 0.8f) < 1e-6f);
+    assert(fabsf(back_right.z + 0.6f) < 1e-6f);
+    assert(wr64_render_dot(front_right, back_right) < -0.999999f);
+    printf("PASS buoy R/L glyphs read left-to-right from both course faces\n");
+}
+
 static void test_camera_wave_visibility() {
     Client client = {};
     WR64RenderState state = {};
@@ -813,6 +831,7 @@ int main(int argc, char** argv) {
     test_control_mode_toggle();
     test_time_format();
     test_buoy_arrow_guidance();
+    test_buoy_letter_orientation();
     test_camera_wave_visibility();
     test_final_lap_banner_state();
     test_training_client_remains_null(&headless);
