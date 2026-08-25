@@ -1,8 +1,8 @@
 # Wave Race 64 training environment and state evaluator
 
-This environment integrates a statically recompiled Wave Race 64 US Rev 1 core with the native PufferLib 5.0 trainer. The game simulation executes as native host CPU code. PufferLib runs policy inference, rollout tensors, and learning on CUDA. Every environment instance owns its guest memory and suspended game context.
+This environment integrates a generated CUDA closure of the statically recompiled Wave Race 64 US Rev 1 racing core with the native PufferLib 5.0 trainer. Production training is device-native: policy inference, cartridge simulation, observations, rewards, terminals, autoresets, rollout tensors, and learning remain on CUDA. The host verifies and boots the cartridge to construct the finite reset pool at startup, then performs only control-plane work such as logging, checkpoints, and optional evaluation rendering.
 
-The supported task is deliberately narrow: rider 0, one rider, Sunny Beach, Time Trials, three laps, and a finite pool of authentic cartridge race-start states selected per episode. Original N64 rendering, audio, RSP/RDP work, controller-pak behavior, multiplayer, other riders, other courses, and other modes are outside the environment contract. Human evaluation uses a custom state renderer described below. It does not reproduce the cartridge framebuffer.
+The supported task is deliberately narrow: rider 0, one rider, Sunny Beach, Time Trials, an official three-lap evaluation target, and a finite pool of authentic cartridge race-start states selected per episode. Training uses a local one-to-two-to-three-lap curriculum before reaching that official target. Original N64 rendering, audio, RSP/RDP work, controller-pak behavior, multiplayer, other riders, other courses, and other modes are outside the environment contract. Human evaluation uses a custom state renderer described below. It does not reproduce the cartridge framebuffer.
 
 ## Status against the original assignment
 
@@ -10,35 +10,34 @@ The original assignment required a native Wave Race 64 core in the current Puffe
 
 | Requirement | Current status |
 | --- | --- |
-| Native Wave Race 64 core | Implemented with 1,203 statically recompiled game functions and a headless libultra runtime. |
+| Native Wave Race 64 core | Implemented. The complete host oracle contains 1,203 statically recompiled functions. The generated racing closure used by CUDA contains 511 game functions, 6 device runtime shims, and 510 indirect-dispatch entries. |
 | Current PufferLib 5.0 integration | Implemented against upstream `5.0` commit `ba238f8c` using the native C++17/CUDA trainer. |
 | Parity with the game | Proven for selected authoritative state on one pinned deterministic interpreter trace through a native failure terminal. Broader parity remains unproven. |
-| High-throughput training | **MEASURED, WITH NO SATURATION CLAIM.** The selected randomized-wave run completed 10,485,760 Puffer agent steps at 56,575.81 SPS. The final optimized same-shape candidate reached 79,848.92 standard Puffer SPS. Simulation remains CPU-bound. |
-| Learning quality | **PASS FOR THE SUPPORTED TASK.** The randomized-wave seed-903 checkpoint completed 128/128 deterministic episodes on held-out wave seed 2902 and 128/128 on post-selection, training-disjoint wave seed 16902. Stochastic evaluation completed 510/512 on each pool. |
+| High-throughput training | **MEASURED.** The accepted 4,096-agent native-CUDA run completed 10,485,760 Puffer agent steps at 81,425.088136 standard Puffer SPS by trainer uptime. GPU utilization was 96%; whole-process CPU averaged 9% of one core, including startup. |
+| Learning quality | **PASS FOR THE SUPPORTED TASK.** Checkpoint `cuda-native-ft906-ft907-final`, fine-tuned for 10,485,760 steps on the frozen production executable, completed 128/128 deterministic three-lap episodes on both held-out wave seed 2902 and training-disjoint seed 16902. |
 | Human-readable evaluation | Implemented as an eval-only state renderer using authoritative rider, course, native clock, native speed, power, outcome, and water state. Its compact edge HUD follows the actual Time Trials information layout without claiming original Wave Race graphics. |
-| CUDA, CPU-free simulation | Unimplemented. The policy and learner use CUDA; `libwr64.a` executes on host CPU workers. |
+| CUDA simulation | **IMPLEMENTED.** The generated cartridge closure, adapter, wave sampling, frameskip, reset, and terminal handling execute in CUDA kernels. There are no per-step CPU simulator workers or per-step action, observation, reward, or terminal transfers. Host work remains at startup, log reduction output, checkpointing, and interactive rendering. |
 
 ## Execution architecture
 
 ```text
-CUDA policy and learner
-        | actions and rollout tensors
-        v
-PufferLib CPU vector workers
-        | five controller heads, 57 observations, reward, terminal
-        v
-waverace64.h adapter
-        | WRPad and public runtime ABI
-        v
-libwr64.a on the host CPU
-        | native recompiled game code and headless OS shims
-        v
-per-instance 8 MiB RDRAM, native stack, ucontext, and snapshot
+Host startup only
+  exact-ROM check -> 128 complete cartridge boots -> validated reset deltas
+                                                   |
+                                                   v
+CUDA device memory
+  policy -> five action heads -> generated WR64 racing closure -> OBS57/reward/terminal
+     ^                                                                  |
+     +---------------------- full-horizon CUDA graph --------------------+
+                                                   |
+                              same-stream device autoreset and log reduce
 ```
 
-Training is unpaced. The guest's simulated-time cadence does not limit wall-clock throughput. GPU utilization cannot remove the CPU simulator cost in this architecture. The randomized reset contract has controlled renderer-free rollout and paired-trainer comparisons, two complete training runs, fresh policy evaluation on two non-training wave pools, and a full-race capture. One complete fixed-wave OBS57 run and two OBS55 runs remain as explicitly historical evidence.
+Wave Race uses the same first-party `PUF_GPU` batch contract as CUDA Breakout and Robot Arm. `puf_vec_create` returns a device `Env` batch, `puf_bind_stream` binds the trainer stream, and `puf_step` advances the entire vector. PufferLib captures policy forward passes plus environment steps across the full rollout horizon in one CUDA graph. CPU backends use pinned action and transition shuttles; this GPU path does not enter those branches.
 
-The adapter follows the native Puffer environment interface in [`waverace64.h`](waverace64.h): `puf_init`, `puf_reset`, `puf_step`, `puf_close`, `puf_log`, and `puf_render`. Training is renderer-free: the training path never calls `puf_render`, never allocates the renderer `Client`, never captures the 33 by 33 display mesh, and never submits Raylib draw calls. It still runs the recompiled simulator and computes the 12 water observation samples on host CPU. Interactive evaluation calls `puf_render` and therefore has evaluation-only CPU and graphics work. The ASCII utility in the runtime repository remains a telemetry plot and is not the state evaluator.
+Each environment owns 8 MiB of physical device RDRAM inside a 4 GiB virtual-address slot. The unmapped remainder is a hardware isolation guard: any 32-bit guest offset stays inside its owner's slot and cannot address another environment. At the checked-in 4,096-agent shape this is 32 GiB, or 34.36 GB decimal, of physical RDRAM and 16 TiB of reserved virtual address space. The accepted run used about 94.9 GB of a 120 GB GPU overall. This large agent count improves device occupancy and amortization, but consumes substantial device memory; lower-memory GPUs must reduce `vec.total_agents`.
+
+Training is unpaced. The guest's simulated-time cadence does not limit wall-clock throughput. The training path never calls `puf_render`, allocates the renderer client, captures the 33 by 33 display mesh, or submits Raylib work. Interactive evaluation synchronizes the selected stream and copies only environment 0 plus its 8 MiB RDRAM or retained terminal RDRAM to the host renderer. The CPU `waverace64.h` backend remains an explicit `--cpu` oracle and standalone evaluator, not the production trainer. The ASCII utility in the runtime repository remains a telemetry plot and is not the state evaluator.
 
 ## Fixed scenario and time base
 
@@ -54,7 +53,7 @@ Initialization drives the real menu state machine to this reset contract:
 | Course | Sunny Beach, `1` |
 | Players and riders | `1`, `1` |
 | Active rider | Rider `0` |
-| Target laps | `3` |
+| Target laps | Canonical donor and evaluation: `3`; training reset: local `1` to `2` to `3` curriculum |
 | Native total and lap clocks | `0 ms`, `0 ms` |
 
 The independent interpreter trace establishes one guest game update every three video-interface callbacks. The video interface is approximately 60 Hz, while controller and gameplay updates occur at 20 Hz on this task. `wr_env_step(machine, pad, 1)` therefore advances one 20 Hz game update.
@@ -65,11 +64,11 @@ Production uses `frameskip = 2`. One policy action is held for two guest updates
 
 Production sets `randomize_waves = 1` and `wave_variants = 128`. Each pool entry comes from a complete cartridge boot through the native course initialization and its 57-frame live-start chain. A deterministic transform of `wave_seed` and the variant index supplies the initial `osGetTime` value before boot. This preserves the scripted large waves, water velocities, rider contact state, RNG state, and every other RDRAM dependency produced by the cartridge. Calling only the low-level wave generator was rejected because it did not reproduce that coherent race-start distribution.
 
-Pool construction validates every donor against the canonical route cache and snapshot scalar contract. It stores only the donor's changed 4 KiB RDRAM pages, reconstructs every entry byte-for-byte, rejects exact duplicate complete 384 by 128 water fields, then rebases donor snapshots to the canonical copy-on-write backing. Extraction is streamed so a standalone environment retains only one full donor at a time. `wave_variants` must be a power of two from 1 through 128. The checked-in value of 128 supplies the largest validated pool.
+CUDA pool construction boots every donor on the host, stages the complete images, validates each donor against the canonical route and snapshot contract, hashes and byte-compares full RDRAM and the complete 384 by 128 water field to reject duplicates, stores only changed 4 KiB pages, and reconstructs every packed entry page-by-page before upload. `wave_variants` must be a power of two from 1 through 128. The checked-in value of 128 is the largest validated pool. The production CUDA constructor stages all complete donor images during startup; the older host backend's streamed donor construction must not be used to estimate CUDA startup memory.
 
-`puf_reset` restores the environment owner's own native stack, recompilation context, and canonical snapshot, applies the selected variant pages, writes the curriculum lap target, recomputes the variant-specific vertical origin, and projects the first observation. Selection is an exact per-environment odd-stride permutation: a single environment visits every pool entry once per `wave_variants` resets, and the first reset of environments 0 through K-1 is stratified across K entries. `puf_eval_reset` rewinds the permutation so evaluation is independent of policy-dependent training reset history. The same `wave_seed`, environment index, and reset number reproduce the same state. `wave_seed` is independent of `base.seed`.
+`puf_reset` uses one cooperative CUDA block per environment to copy canonical RDRAM, apply the selected device-resident page deltas, restore variant machine scalars, write the curriculum lap target, recompute the variant-specific vertical origin, and project the first observation. Autoreset launches the same block shape, and blocks whose environments did not terminate return without copying state. Selection is an exact per-environment odd-stride permutation: a single environment visits every pool entry once per `wave_variants` resets, and the first reset of environments 0 through K-1 is stratified across K entries. `puf_eval_reset` rewinds the permutation so evaluation is independent of policy-dependent training reset history. The same `wave_seed`, environment index, and reset number reproduce the same state. `wave_seed` is independent of `base.seed`.
 
-Variant choice, page application, and validation occur only during initialization or reset. `puf_step` evolves the selected cartridge state normally and contains no pool-selection or page-copy work. Training does not invoke the renderer. On AArch64, the runtime's opaque floating-point scope canonicalizes FPCR before the adapter's initialization, reset, projection, step, and render work and restores the caller's complete FPCR token afterward. Hostile-FPCR regressions cover reset, step, terminal autoreset, state refresh, and render capture.
+Pool validation occurs only during startup. Variant choice and page application occur only in the device reset kernel. `puf_step` launches the cartridge step kernel followed by the conditional autoreset kernel on the bound trainer stream; environments that did not terminate return immediately from reset. Training does not invoke the renderer. The retained host floating-point-scope tests remain oracle evidence. The CUDA closure has a separate CPU/device numerical contract documented under correctness evidence.
 
 Set `randomize_waves = 0` to retain the byte-identical pinned `WR_BOOT_OS_TIME` snapshot used by the interpreter comparison and deterministic controller regressions. For train and held-out studies, use different explicit `wave_seed` values. The fixed index salt `0xB9DCF3C0` is a deterministic tested transform, not a source of cryptographic randomness. The schedule test found 128 unique boot-time, full-RDRAM, and complete-water hashes for the checked-in seed 42 and candidate training seed 902, with zero overlap between them. It also found the same uniqueness and zero overlap for candidate train/held-out seeds 902 and 2902. The exhaustive acceptance sweep then established separate complete height and velocity zero-overlap for 902 versus 2902. Duplicate exact water fields for a pathological configured seed cause deterministic initialization failure instead of silently reducing pool diversity.
 
@@ -86,16 +85,16 @@ The ROM is user-supplied and is never included in this repository.
 
 The runtime validates the exact US Rev 1 image before boot. A wrong revision, byteswap format, truncated image, or modified image is rejected.
 
-The environment requires 64-bit Linux, a working OpenMP toolchain, the PufferLib 5.0 CUDA dependencies, and a built WR64 runtime tree containing:
+The environment requires 64-bit Linux, CUDA virtual memory management, a working C/C++ and OpenMP toolchain for startup pool construction, the PufferLib 5.0 CUDA dependencies, and a built WR64 runtime tree containing:
 
 - `libwr64.a`
 - `runtime/wr_runtime.h`
 - `runtime/wr_env.h`
 - `RecompiledFuncs/recomp.h`
 
-The public runtime ABI is version `0x00010002`. `WR_RUNTIME_ABI_CHECK()` compares the version and the compiled sizes of `WRMachine`, `WRSnapshot`, and `WRPad` before the archive can write into caller-owned objects. Rebuild the archive and Puffer binary together after any public runtime structure or contract change.
+The host bridge uses the public runtime ABI to boot cartridge snapshots and render evaluation state. Rebuild the archive and Puffer binary together after any public runtime structure or contract change. The frozen accepted build used runtime commit `69cd1ff5ee35ccd52a8b2dd7900542f0839d881c` and training-only archive SHA-256 `71179e81461d69edd7bcb7cd861e27cb30b1272da2bf795a3867f61c59bb8830`. The build-time generator separately verifies the exact ROM, resolves the reachable racing closure, emits exhaustive indirect targets, and fails closed on missing or unknown control flow.
 
-Each `WRSnapshot` owns saved host pointers into one machine's native stack and `ucontext_t`. An initialized `Env` must never move in memory. The custom vector initializer allocates the final environment array once, boots instances in place, preserves per-machine stacks and contexts, and shares a sealed reset RDRAM backing through private copy-on-write mappings. It also restores caller CPU affinity after OpenMP initialization so later rollout threads do not inherit a one-core mask.
+Host boot snapshots contain host-only stack and context state, but those pointers are never transplanted to CUDA. The device closure creates a fresh `recomp_context` for each game update and restores only validated guest RDRAM and device machine scalars. The production trainer has no rollout pthreads or address-stable host `Env` requirement. Those constraints apply only to the retained CPU oracle backend.
 
 ## Portable build, test, train, and eval
 
@@ -107,7 +106,7 @@ export WR64_DIR=/path/to/wr64-recomp
 export WR64_ROM=/path/to/baserom.us.rev1.z64
 ```
 
-Verify the ROM and build the runtime archive:
+Verify the ROM and build the training-only host bootstrap archive:
 
 ```sh
 printf '%s  %s\n' \
@@ -115,18 +114,26 @@ printf '%s  %s\n' \
   "$WR64_ROM" | sha256sum --check
 
 cd "$WR64_DIR"
-./build_lib.sh
-./runtime/run_isolation_acceptance.sh "$WR64_ROM" 512 3
+WR64_TRAINING_ONLY=1 ./build_lib.sh
 ```
 
-Build the native trainer first. This also obtains the Raylib headers used by `pufferenv.h`:
+Build the native CUDA trainer. Wave Race selects its `.cu` backend by default, matching first-party CUDA-only environments. `--cu` remains accepted but is not required. The build generator requires `WR64_ROM_PATH`, validates the exact cartridge hash, emits the reachable device closure, and then compiles that closure with strict device floating-point flags:
 
 ```sh
 cd "$PUFFER_DIR"
-WR64_DIR="$WR64_DIR" ./build.sh waverace64
+WR64_DIR="$WR64_DIR" WR64_ROM_PATH="$WR64_ROM" ./build.sh waverace64
 ```
 
-Build and run the deterministic adapter harness:
+The Wave Race device object uses `--fmad=false --ftz=false --prec-div=true --prec-sqrt=true`. Learner and policy kernels are compiled separately and retain normal CUDA contraction; the accepted binary's SASS contains fused multiply-add instructions in the Muon learner. Training also defines `WR64_SUPPRESS_DISPLAY_WATER_NORMALS=1`, which skips renderer-only display-list water-normal work inside the device closure. The CPU/device transition contract verifies that this headless suppression does not alter training outputs.
+
+Build a line-instrumented production trainer for `nsys` or `ncu` with the same required paths:
+
+```sh
+WR64_DIR="$WR64_DIR" WR64_ROM_PATH="$WR64_ROM" \
+  ./build.sh waverace64 --profile
+```
+
+Build and run the retained deterministic CPU oracle harness separately:
 
 ```sh
 cd "$PUFFER_DIR"
@@ -154,24 +161,30 @@ env OMP_PLACES=cores OMP_PROC_BIND=close \
   /tmp/test_waverace64 "$WR64_ROM"
 ```
 
-Train a new policy with the checked-in configuration:
+`--cpu` is the explicit host oracle/evaluator fallback:
+
+```sh
+WR64_DIR="$WR64_DIR" ./build.sh waverace64 wr64_cpu --cpu
+```
+
+Train a new native-CUDA policy with the checked-in configuration:
 
 ```sh
 cd "$PUFFER_DIR"
 ./puffer train --env.rom_path="$WR64_ROM"
 ```
 
-The configured run contains exactly 10,485,760 Puffer agent steps, or 640 complete batches at 128 agents and horizon 128. It uses `gamma = 0.9997499687421851`, the per-0.1 s equivalent of the historical `0.9995` per-0.2 s discount. Each environment begins with a one-lap target, advances to two laps after one official finish, and advances to three after the next official finish. Curriculum state is local to each environment. The checked-in configuration enables the 128-entry authentic-wave pool described above. These configuration values preserve the prior guest-update exposure and 12.8 s recurrent horizon, but they are not training evidence by themselves.
+The configured run contains exactly 10,485,760 Puffer agent steps, or 20 complete 4,096-agent by 128-step rollout batches. It uses one vector buffer, a 128 by 2 policy, and `gamma = 0.9997499687421851`, the per-0.1 s equivalent of the historical `0.9995` per-0.2 s discount. Each environment begins with a one-lap target, advances to two laps after one official finish, and advances to three after the next official finish. Curriculum state is local to each environment. The checked-in configuration enables the 128-entry authentic-wave pool described above. The 128-step recurrent horizon spans 12.8 s of simulated time.
 
 PufferLib 5.0 presents training status as an ANSI terminal dashboard. It has no web UI. In an interactive terminal it redraws about every 0.6 s. The header reports GPU utilization, VRAM, and RAM. The main panel reports environment, parameter count, agent steps, current SPS, epoch, uptime, time remaining, rollout and training timing, and PPO losses. Wave Race supplies score, route distance, checkpoints, misses, terminal-cause rates, mean speed, episode return and length, lap target, three-lap success rate, finish time, and three lap splits. A terminal narrower than 80 columns or no taller than 12 rows receives a compact one-line status instead. As in every other environment, one Puffer step is one action transition for one agent. Wave Race holds that action for two guest updates because `frameskip = 2`; those internal updates are not counted as extra SPS. The displayed SPS is a refresh-interval sample; use total agent steps divided by measured trainer uptime for sustained-throughput claims.
 
-The checked-in configuration requests at least 32 post-train evaluation episodes. Post-train evaluation reuses the existing 128-agent training vector; `base.eval_agents = 32` applies when a standalone evaluation vector is created. Before post-train evaluation, the trainer waits for rollout workers, forces every Wave Race instance to the official three-lap target, resets every environment, clears transition state, uploads the reset observations, zeros recurrent state, reinitializes action RNG state, and synchronizes the CUDA stream. Fresh CUDA evaluation, post-train evaluation, and the standalone CPU evaluator all use this same three-lap boundary. Evaluation cannot inherit one-lap curriculum state.
+The checked-in configuration requests at least 32 post-train evaluation episodes. Post-train evaluation reuses the existing 4,096-agent device vector; `base.eval_agents = 32` applies when a standalone evaluation vector is created. Before evaluation, the trainer synchronizes, forces the official three-lap target in the device reset kernel, clears device reward and terminal buffers, zeros recurrent state, reinitializes action RNG state, and synchronizes the CUDA stream. Evaluation cannot inherit one-lap curriculum state.
 
-A fresh-process evaluation of a named checkpoint remains the acceptance method because it isolates the process lifecycle and pins the artifact under test. The checkpoint must have been trained with `OBS_SIZE = 57` and the same wave-reset contract under evaluation. OBS43 and OBS55 checkpoints have different first-layer parameter shapes and are incompatible; the CUDA and CPU loaders do not define a padding or migration rule. The selected seed-903 checkpoint below was trained from random initialization with the checked-in 128-entry authentic-wave pool. Do not use `latest`, which selects by filesystem creation time and can pick an unrelated or incompatible checkpoint:
+A fresh-process evaluation of a named checkpoint remains the acceptance method because it isolates the process lifecycle and pins the artifact under test. The checkpoint must have `OBS_SIZE = 57` and the same 128 by 2 policy shape. OBS43 and OBS55 checkpoints have incompatible first-layer shapes. The accepted artifact below was initialized from the accepted ft906 CUDA-transition checkpoint, then fine-tuned for another complete 10,485,760-step run on the frozen production executable with base seed 907, wave seed 902, 128 variants, and learning rate `0.0001`. The ft906 checkpoint was itself initialized from the prior strong seed-903 host-simulator policy. Do not use `latest`, which can select an unrelated artifact:
 
 ```sh
-export WR64_CHECKPOINT=/home/spark-advantage/wr64-results/obs57-authentic-waves/checkpoints/waverace64/obs57-authwave-s903-final/0000000010485760.bin
-./puffer-wr64-final eval "$WR64_CHECKPOINT" --headless \
+export WR64_CHECKPOINT=/home/spark-advantage/wr64-results/cuda-native-final/checkpoints/waverace64/cuda-native-ft906-ft907-final/0000000010485760.bin
+./puffer eval "$WR64_CHECKPOINT" --headless \
   --base.eval_deterministic=1 \
   --base.eval_episodes=128 \
   --base.eval_agents=128 \
@@ -182,13 +195,13 @@ export WR64_CHECKPOINT=/home/spark-advantage/wr64-results/obs57-authentic-waves/
   --env.rom_path="$WR64_ROM"
 ```
 
-`puffer-wr64-final` is the retained deployment binary name. A default local `./build.sh waverace64` build is named `puffer` unless an output name is supplied.
+The accepted checkpoint is 438,272 bytes, contains 109,568 FP32 parameters, and has SHA-256 `30932594ce56685beeaffd314ad62c136bc5b0c36eacf60168ef9f1989828684`. A default local build is named `puffer` unless an output name is supplied.
 
 Command-line `--section.key=value` values override [`config/waverace64.ini`](../../config/waverace64.ini). The trainer injects `train.gamma` into the environment discount, keeping the failure time cost and the optional potential-shaping modes consistent with the learner.
 
 The adapter opts out of PufferLib's default `[-1, 1]` learner-side reward clamp. Clipping would change the configured miss, finish, and failure magnitudes. The learner therefore receives emitted rewards unchanged.
 
-Evaluation checks the episode target after complete rollout horizons, so `base.eval_episodes` is a minimum and parallel evaluation can overshoot it. Report the actual `CUDA_EVAL games=N` denominator. For Wave Race, the machine-readable CUDA and CPU lines include deterministic or stochastic mode, exact success count, checkpoints, misses, every terminal-cause rate, target laps, three-lap success, and native successful race and lap times. A retained current result must use the native CUDA-policy binary, a fresh process, and an explicit 57-input checkpoint. `base.eval_deterministic=1` selects per-head argmax; the default samples from all five policy heads.
+Evaluation checks the episode target after complete rollout horizons, so `base.eval_episodes` is a minimum and parallel evaluation can overshoot it. Report the actual `CUDA_EVAL games=N` denominator. The machine-readable line includes deterministic or stochastic mode, exact success count, checkpoints, misses, every terminal-cause rate, target laps, three-lap success, and native successful race and lap times. A retained current result must use the native CUDA backend, a fresh process, and the explicit checkpoint above. `base.eval_deterministic=1` selects per-head argmax; the default samples from all five policy heads.
 
 ## Human state evaluator and capture
 
@@ -203,10 +216,11 @@ Run the CUDA-policy evaluator in a visible window:
 ```sh
 DISPLAY=:98 \
 WR64_RENDER_WIDTH=640 WR64_RENDER_HEIGHT=480 \
-LD_LIBRARY_PATH=/home/spark-advantage/.venv/lib/python3.12/site-packages/nvidia/nccl/lib \
-./puffer-wr64-final eval \
-  /home/spark-advantage/wr64-results/obs57-authentic-waves/checkpoints/waverace64/obs57-authwave-s903-final/0000000010485760.bin \
+./puffer eval \
+  /home/spark-advantage/wr64-results/cuda-native-final/checkpoints/waverace64/cuda-native-ft906-ft907-final/0000000010485760.bin \
   --base.eval_deterministic=1 \
+  --base.eval_agents=1 \
+  --base.eval_episodes=1 \
   --base.seed=16902 \
   --env.frameskip=2 \
   --env.randomize_waves=1 \
@@ -217,9 +231,9 @@ LD_LIBRARY_PATH=/home/spark-advantage/.venv/lib/python3.12/site-packages/nvidia/
   --env.rom_path=/home/spark-advantage/baserom.us.rev1.z64
 ```
 
-This command runs the selected randomized-wave policy on one deterministic seed-16902 variant and advances to the next authentic variant after each terminal reset. Fresh headless CUDA evaluation completed 128/128 official three-lap races on seed 2902 and another 128/128 on post-selection, training-disjoint seed 16902. The historical OBS55 seed-707 artifact cannot be loaded by the current 57-input network.
+This command runs the accepted native-CUDA policy on one deterministic seed-16902 variant and advances to the next authentic variant after each terminal reset. Fresh headless native-CUDA evaluations completed 128/128 official three-lap races on seed 2902 and another 128/128 on training-disjoint seed 16902. The historical OBS55 artifacts cannot be loaded by the current 57-input network.
 
-The current deployed `puffer-wr64-final` evaluator build has SHA-256 `bdf13dcda101aca097a6d2c6f1d01588a9b9e9383d721ef55c53ec893fe7cf51`.
+The accepted ft907 human-evaluation recording is `/home/spark-advantage/wr64-results/cuda-native-final/video/waverace64-puffer-ft907-disjoint16902-full-race.mp4`, 18,955,791 bytes, SHA-256 `952793c10d0d2a5982fa1c3c5a042cc4eaed37c6cd2802e5d450a28cfafd1b93`. Capture retained 4,760 contiguous 960 by 540 source frames from reset through the official three-lap terminal, then H.264 encoding added exactly 240 cloned terminal frames. The resulting H.264 High/yuv420p file contains 5,000 decoded frames at 60 frames/s and lasts 83.333333 s. A full `ffmpeg -xerror` decode passed. Inspection of reset, live lap 2, source terminal, and decoded 82 s tail frames found the expected race state, no cursor, and no episode-two contamination.
 
 The evaluator uses one environment and advances at ten policy decisions per wall-clock second, matching two 20 Hz guest updates per action. Rendering targets 60 frames/s. Press Shift+Up once to toggle persistent HUMAN control; press the same chord again to return to POLICY. Policy inference continues behind human control so recurrent state remains synchronized for a clean handoff. The small bottom-right mode badge always shows the current owner.
 
@@ -244,7 +258,7 @@ For a CPU-only policy viewer or PNG capture, build the standalone evaluator unde
 cd "$PUFFER_DIR"
 WR64_DIR="$WR64_DIR" ./build.sh waverace64 wr64_eval --cpu
 
-export WR64_CHECKPOINT=/home/spark-advantage/wr64-results/obs57-authentic-waves/checkpoints/waverace64/obs57-authwave-s903-final/0000000010485760.bin
+export WR64_CHECKPOINT=/home/spark-advantage/wr64-results/cuda-native-final/checkpoints/waverace64/cuda-native-ft906-ft907-final/0000000010485760.bin
 WR64_RENDER_WIDTH=1280 WR64_RENDER_HEIGHT=720 \
   ./wr64_eval "$WR64_CHECKPOINT" \
   --base.eval_deterministic=1 \
@@ -434,7 +448,7 @@ Every evaluation forces three laps before reset. `target_laps=3` and equality be
 | Safety timeout | 14,400 guest updates without an official terminal | Failure penalty; `safety_timeout_rate` |
 | Environment fault | Race identity or game state leaves the fixed contract without an official terminal | Fatal diagnostic and process abort |
 
-On an ordinary terminal, `puf_step` records the episode log, sets terminal to `1`, restores the race-start snapshot, applies the next authentic pool variant when randomization is enabled, and returns observations from the new episode. The terminal reward and terminal flag remain in their transition buffers through autoreset. PufferLib initializes those buffers separately before the first step.
+On an ordinary terminal, the device step kernel records the episode log, writes terminal reward and terminal `1`, and marks that environment for reset. The immediately following same-stream reset kernel copies canonical device RDRAM, applies the next authentic variant, restores device machine and adapter state, and returns the new episode observation without clearing the terminal transition buffers. In interactive evaluation, environment 0's terminal RDRAM and metadata are copied to a dedicated device buffer before autoreset so the host renderer can freeze the actual finish or failure state.
 
 ## Log fields
 
@@ -465,6 +479,20 @@ PufferLib sums per-environment `Log` structures, divides by the internal episode
 
 ## Correctness evidence
 
+### Native CUDA contract, isolation, and stress
+
+The final CPU-oracle/device contract passed from the authentic reset boundary through all five action heads, controller mapping, frameskip 2, observations, reward, log fields, machine state, official terminal handling, autoreset, and the first three transitions of the next episode. Its scripted official three-lap finish required 2,501 policy decisions and 5,002 native updates, reached native time 250,041 ms with splits 83,624/82,908/83,509 ms, and autoreset correctly. Across 225,720 compared floating-point outputs, 1,645 were not bitwise equal; maximum absolute error was `1.78814e-07` and maximum ULP distance was 3. The byte-level scope covers 13 selected authoritative rider fields plus separately enumerated physics, helper, water, and game-state regions. Rider byte `0x308` is renderer-only, has no observation, reward, terminal, or training effect, and is outside that selected scope. The retained log is `/home/spark-advantage/wr64-results/cuda-native-final/audit/production-candidate-frozen/contract.log`, SHA-256 `275f5c5e4c5e48a3197a47070e54cef61c6ebd3a725b4877b79997554b885c99`.
+
+The final CUDA stress test used 32 environments, 4,096 policy decisions, three passes, and 16 reset variants. It executed 393,216 environment steps and 784,736 native updates, produced 1,600 terminal autoresets, visited all variants, entered recovery 1,434 times, and intentionally exercised 11 successes, 1,523 ordinary failures, and 66 disqualifications. Deterministic replay was exact. Perturbing environment 0 left the other 31 environment hashes exact. Trap, unresolved indirect target, non-finite output, invalid terminal, canary, cross-environment corruption, and device-fault counters were all zero. The first-unmapped VMM probe also passed. The retained stress log is `/home/spark-advantage/wr64-results/cuda-native-final/audit/production-candidate-frozen/stress.log`, SHA-256 `43588d60153fa349210e82ea0dc9ae6ea9bde65f1b00c0ee932a763bddcbb620`.
+
+Generation accepts only the exact ROM SHA-256 documented above. The reachable racing closure contains 511 game functions, 6 device runtime shims, and 510 dispatch entries. Exhaustive extraction covers 82 variable target addresses across four variable `LOOKUP_FUNC` caller sites, and the generated dispatcher fails closed on unknown targets. This replaces host `ucontext_t`, POSIX mappings, and runtime services inside the training loop; those mechanisms exist only in the startup oracle.
+
+The frozen production candidate has SHA-256 `9d0c105e23c138372a44aaf31a1e0d94cfc2cdd268849df09fbc631e86898993`. Its generated closure include has SHA-256 `62e486d963a74077afe6bac863405424dee80ab9b6636c22b3f07e77d39c06eb`, and its separately compiled strict device object has SHA-256 `b5d2309a390128f6059ca260f7b1a142b49a66fd8df3db732099bb1e9dee870a`. `readelf` and `ldd` verified the embedded wheel-NCCL RUNPATH without `LD_LIBRARY_PATH`. The 53-entry frozen evidence manifest is `/home/spark-advantage/wr64-results/cuda-native-final/audit/production-candidate-frozen/SHA256SUMS-final`, SHA-256 `9fa1cfbcd02ba488ff39d786eafc18ba453dbc38d707801d963e72d82ea236cc`; every entry was reverified successfully.
+
+A node-level Nsight Systems trace empirically verifies hot-path residency over 2,097,152 steps with 4,096 environments and horizon 128. It records 512 Wave Race step launches, 513 reset launches, repeated policy, minGRU, PPO, advantage, GEMM, and Muon kernels, and eight CUDA Graph launches matching four rollout and four learner graphs. Before the first step, eight host-to-device transfers carried 75,696,876 startup bytes. Between the first and last step, only six H2D events totaling 24 bytes and seven D2H events totaling 304 bytes occurred, all scalar/log traffic; no action, observation, reward, or terminal array crossed the host boundary per step. The trace is `/home/spark-advantage/wr64-results/cuda-native-final/audit/production-candidate-frozen/nsys/wr64-hotpath-4096-h128-2097152-nodes.nsys-rep`, 32,687,500 bytes, SHA-256 `a09da5546bfc79d38ed71e0e150f9d77241181c3972c292e662db0381f43c6d0`. Its report manifest has SHA-256 `158c85f6350f4516ddd829e6eb47c6ef76310e9042364736baea0c2a7a5b159a`.
+
+### Independent game-parity boundary
+
 The independent oracle uses Mupen64Plus pure interpreter commit `6dca4c15370ac3e2171ce7b31426695f8f39b460` and RSP HLE commit `8a7a472a7172eb2c8725b305eae26818ed7b51a2`. It boots the same ROM through real menus, applies the same guarded controller policy independently, and shares no static runtime code with the probe.
 
 After aligning one extra pre-game interpreter controller scan, 638 controller scans cover guest frames 0 through 637. The following are bit-exact at every aligned scan:
@@ -479,9 +507,9 @@ Both executions reach the same route events and the native Time Trials failure s
 
 The evidence has explicit limits. It covers one deterministic Sunny Beach Time Trials trace through failure. It does not cover every controller trace, successful three-lap completion, other courses, other modes, graphics, audio, controller-pak behavior, or every writable RDRAM byte. A secondary `Math_Rand` state at `0x80226F00` differs from guest frame 2 because post-reset `osGetTime` advancement is not modeled. That stream did not alter the authoritative fields above through frame 637.
 
-The runtime's retained post-change isolation test initializes 16 machines, runs 512 guest updates per machine, compares serial and parallel controller streams, repeats the parallel run three times, and requires exact final RDRAM, stack, recomp context, machine state, and trajectory hashes. It passed with zero failures. The log is retained only on the deployment host at `/home/spark-advantage/wr64-recomp/runtime/isolation_acceptance_20260823T192430Z_4098593.log`; its SHA-256 is `7c910f98e02b05b2dcc4b022cdcd5b6b3103c419a673e01c1cb4b652d6faa3af`.
+The retained 16-machine host isolation test predates the device backend and remains historical CPU-oracle evidence. It ran 512 guest updates per machine, compared serial and parallel controller streams across three parallel repeats, and required exact final RDRAM, stack, recomp context, machine state, and trajectory hashes. It passed with zero failures. The log is `/home/spark-advantage/wr64-recomp/runtime/isolation_acceptance_20260823T192430Z_4098593.log`; its SHA-256 is `7c910f98e02b05b2dcc4b022cdcd5b6b3103c419a673e01c1cb4b652d6faa3af`.
 
-The adapter regression harness in [`tests/test_waverace64.cpp`](../../tests/test_waverace64.cpp) covers the 57-value ABI shape, exact placement of the 12 water features, native speed and power observations, action mapping, internal frameskip, body basis, exact time-zero reset contract, guest halfword lane, buoy side, lap-wrap continuity, official misses and disqualification, discount-correct failure shaping, shortened one-lap official finish, full three-lap scripted reachability, B/stick-Y interventions, observation ranges, deterministic baselines, authentic wave-pool reset behavior, and vector affinity/ownership. The pool regressions prove exact permutation replay, complete K-step cycling without duplicates, distinct water observations, divergent authoritative trajectories under identical controls after normalizing unrelated primary RNG state, and ordinary cartridge water evolution without advancing the host variant index. Native donor and reconstructed owner agree on reset RDRAM, adapter state, observations, reward buffers, and render projection. Randomized vectors at N=2, 4, and 8 with K=4 prove canonical snapshot rebasing, curriculum application, shared-pool lifetime after closing environment 0, and absence of cross-environment corruption. The unit harness does not invoke the central CUDA train/evaluation path.
+The historical CPU adapter regression in [`tests/test_waverace64.cpp`](../../tests/test_waverace64.cpp) covers the 57-value ABI shape, exact placement of the 12 water features, native speed and power observations, action mapping, internal frameskip, body basis, exact time-zero reset contract, guest halfword lane, buoy side, lap-wrap continuity, official misses and disqualification, discount-correct failure shaping, shortened one-lap official finish, full three-lap scripted reachability, B/stick-Y interventions, observation ranges, deterministic baselines, authentic wave-pool reset behavior, and vector affinity/ownership. Its reset-pool and host-context results describe the oracle backend. Current training acceptance comes from the CUDA contract and stress tests above.
 
 The checked-in exact-water test compares `wr64_water_height` bit-for-bit against the recompiled cartridge function `func_8004D30C` at 4,096 deterministic points on the live water field. It exercises both interpolation branches, invokes the reference on scratch RDRAM because the recompiled function uses a guest stack, and verifies that the pure sampler does not change live RDRAM. The implementation was also characterized at 262,144 points across 64 randomized complete water fields with zero float-bit mismatches when compiled with `-ffp-contract=off`.
 
@@ -522,7 +550,9 @@ The deterministic controller fixtures establish task reachability and regression
 
 ### Authentic-wave pool acceptance
 
-The retained all-variant acceptance sweep built the 128-entry seed-902 pool, then booted all 128 donors independently and sequentially. Every reconstructed owner matched its native donor on the full 8 MiB reset RDRAM, adapter `State`, 57 observations, transition buffers, render projection, and host-visible machine scalars. Two deterministic 32-decision scripts were run from a fresh reset for every variant; full RDRAM and host-visible state matched after every decision. This establishes the state-transplant contract for all checked pool entries. Native stacks and recompilation contexts remain owner-specific by design and are not claimed byte-identical to donor objects.
+The production CUDA startup built the complete seed-902, K=128 pool with 15,464 changed pages and 63,340,544 bytes of packed delta payload. It validates route and race-start invariants, rejects byte-identical full RDRAM or water fields after hash matches, and reconstructs each packed variant page-by-page before upload. The CUDA contract then verifies authentic reset projection and transition behavior; the stress test verifies device permutation, replay, autoreset, and isolation under repeated terminals.
+
+The earlier all-variant host acceptance sweep is retained as historical oracle evidence. It booted all 128 donors independently and sequentially. Every reconstructed owner matched its native donor on the full 8 MiB reset RDRAM, adapter `State`, 57 observations, transition buffers, render projection, and host-visible machine scalars. Two deterministic 32-decision scripts were run from a fresh reset for every variant; full RDRAM and host-visible state matched after every decision. Native stacks and recompilation contexts remained owner-specific in that CPU backend.
 
 The same sweep found 128 unique full-RDRAM states, complete water fields, height fields, and velocity fields for seed 902. A separate 128-entry pool at held-out seed 2902 also had 128 unique entries. The two pools had zero overlap in boot-time values, full-RDRAM hashes, complete water fields, height fields, and velocity fields. The 1,024-reset stress test replayed exactly, visited all 128 fields, and reported zero recoveries, faults, or terminals during the first 20 fixed-A guest updates. Maximum absolute vertical velocity was 2.384010 game units/update and maximum vertical displacement was 8.785711 game units.
 
@@ -530,56 +560,59 @@ An exact-byte follow-up rejected seed 3902 as disjoint-pool evidence. Training v
 
 The exact acceptance source and output are retained under `/home/spark-advantage/wr64-results/obs57-authentic-waves/audit`. `probe_wave_pool_acceptance.cpp` has SHA-256 `fbac23774ddd8f7d01bb80367f27828d03e2cbabb51df50d0a3ac58983533586`; `wave-pool-acceptance-final.log` has SHA-256 `8d9d3295ef4bf9627aa533142ef825d36cce6a5d8770b098b059a762fdf0e694`. The exact overlap probe source has SHA-256 `6dfff49032703d81867b68b364f65beadc67a587dbf8f5e9d81f14796b982851`; its seed-3902 rejection and seed-16902 acceptance logs have hashes `b41f8317fb36e003d2e0736f44be6abbfa0e3056c89addaa9b598769de87abe3` and `d9219624668dcb17e5eaa93f91ce1a5896ce899cde3f91cc6291edff9511216d`. The stress source hash is `41617a89dea347118dbb1906c372bf9927067c015b6113cf80bf77978a6c16d6` and its log hash is `db7792dc4b144d9482a163b637ffb08231b1180b46e9eebb1c1f58e5925265e5`. The tick-schedule source hash is `a5cf0194c678df14bf788d938c8180829d091d295bb9f40447bc05b2c2330b52` and its log hash is `3d7b4d971e8195767b23fbd1f9f7f593469203afe43883826edbccb82bed8497`. Final runtime ABI/environment, adapter, native-trainer build, renderer, and renderer-UBSan log hashes are `0073b21b657007a8db38bc4b9faef269b3af2d969eb58492f5a83d94dd856618`, `9ce38dde8259e3834941ea59f954e2aa0737a7a7b536c81f9a9750bcee9ae52e`, `2f8bd52527094f9b0037c1eed2934a020e17f96f1579378f8c2c35caa5994e3c`, `49fce4c37b35771c297e04d736833b0b3f94a3fda2312453cb8416f2fe7a4f9e`, and `49fce4c37b35771c297e04d736833b0b3f94a3fda2312453cb8416f2fe7a4f9e`. `SHA256SUMS-final`, itself SHA-256 `04bb8d9ba04dbb02f1e7732c4cd96626c8b8f8faf2a4cd6b51dcf428b626ff65`, covers every retained source, log, and renderer image in that directory.
 
-Under one identical renderer-free adapter rollout protocol with 128 environments and 16 OpenMP threads, fixed-wave trials measured 55,380, 57,135, and 58,950 SPS; K=128 randomized trials measured 56,315, 28,184, and 57,529 SPS. The randomized median was 56,315 SPS versus 57,135 fixed, a 1.44% reduction. The low randomized sample is retained rather than discarded. K=128 initialization measured 8.647 s and 106,968 KiB maximum RSS for N=1, and about 3.4 s and 1,893,084 KiB for N=128. This protocol isolates simulator rollout and pool lifetime; it is not a complete CUDA trainer measurement. The benchmark source SHA-256 is `d05569e25c83d85e4dd166ca2a25ac684ba92a97d6f3654c334f7ee5cc784392`; its retained log SHA-256 is `6c6a370ab5b21294bd0ca3e9162f232f7f63394efb5ecdf526d8a0bd753c36c7`.
+Historical CPU-only rollout trials with 128 environments and 16 OpenMP threads measured fixed-wave medians of 57,135 SPS and K=128 randomized medians of 56,315 SPS, a 1.44% reduction. Those results characterize the retired host simulator and must not be compared as current native-CUDA training throughput. The benchmark source SHA-256 is `d05569e25c83d85e4dd166ca2a25ac684ba92a97d6f3654c334f7ee5cc784392`; its retained log SHA-256 is `6c6a370ab5b21294bd0ca3e9162f232f7f63394efb5ecdf526d8a0bd753c36c7`.
 
 ## Performance and learning acceptance
 
-### Current throughput optimization
+### Native CUDA throughput and accepted checkpoint
 
 Puffer's cross-environment metric is agent SPS. One Wave Race agent step sends one action to one environment. `frameskip = 2` advances two internal guest updates under that action, but those updates do not count as extra Puffer steps.
 
-The prior 56,575.81 SPS full run was useful training evidence, not a throughput ceiling. A controlled scheduler-only comparison kept 128 agents, 16 workers, the network, rollout horizon, wave pool, seed, and 2,097,152-step workload fixed. Static scheduling reached 59,158 SPS. Wave Race-specific dynamic scheduling reached a four-run median of 75,127.85 SPS with two buffers, a 27.00% gain. A buffer sweep then retained the checked-in one-buffer shape at 75,832.65 SPS; two buffers reached 75,018.85 SPS and four reached 71,467.83 SPS. All other first-party environments retain the original static schedule.
+Launch tuning was measured rather than assumed. At 4,096 agents, aligned `uint4` reset copies, step block 32, autoreset block 1,024, and forced-reset block 256 reached a two-run short-workload mean of 86,068.8 SPS, 26.31% above the retained 68,142.6 SPS native-CUDA baseline. Step blocks 64, 128, and 256 were slower. A reduced grid-stride autoreset design, tested from 16 through 4,096 worker blocks, did not beat the straight one-block-per-environment kernel and was reverted. Capping the step kernel from 98 to 88 registers increased reported occupancy from 33.3% to 41.7%, but reduced two-run mean throughput from 85,663.6 to 85,342.0 SPS and raised global GPU memory use by about 7.3 GB, so it was also rejected.
 
-GCC 13 silently reduced `-march=native` alone to generic Armv8-A on Spark's mixed Cortex-X925/A725 GB10 CPU. Both clusters expose the Cortex-X3 target's instruction features. Replacing that ineffective target with overridable GB10 detection for `-mcpu=cortex-x3`, and permitting hardware square root with `-fno-math-errno` while retaining `-ffp-contract=off`, raised the two-run mean from 75,393.48 to 78,787.62 SPS, or 4.50%. Final `sqrtf@plt` call sites fell from 184 to 14. The final production candidate completed 2,097,152 steps in 26.264 s of trainer uptime at 79,848.92 SPS. End-to-end process wall time was 29.94 s, including wave-pool and trainer initialization.
+The accepted final fine-tuning run used the frozen production executable, 4,096 agents, one vector buffer, horizon 128, base seed 907, wave seed 902, 128 variants, a 128 by 2 network, learning rate `0.0001`, and 10,485,760 agent steps. It was initialized from the accepted ft906 CUDA-transition checkpoint and then received the full configured step budget on device simulation.
 
-The runtime stack keeps a 16 MiB virtual range but only an 8 KiB live suffix at the race snapshot. Disabling transparent huge pages for that stack reduced controlled peak RSS from 1,690,300 to 1,429,280 KiB, a 254.9 MiB saving, without changing throughput materially. A tested 8 MiB bulk-copy reset regressed throughput to 68,378 SPS and peak RSS to 2,317,484 KiB, so it was rejected.
+| Metric | Accepted result |
+| --- | ---: |
+| Standard Puffer SPS by trainer uptime | `81,425.088136` |
+| Trainer uptime | `128.778 s` |
+| Whole-process wall time, including startup | `139.06 s` |
+| Process CPU, whole-run average | `9%` of one core |
+| Process user/system CPU | `8.86 s` / `4.25 s` |
+| Maximum host RSS | `2,452,960 KiB` |
+| GPU utilization | `96%` |
+| Global GPU memory in use | about `94.9 GB / 120 GB` |
 
-Exact adapter output remained byte-identical, the held-out deterministic CUDA evaluation remained exactly 128/128, and migration tests completed 6,144 runtime and 2,024 adapter cross-worker moves with zero mismatches. A bounded simulator profile still attributed 87.90% of sampled CPU time to three cartridge water-physics functions. Further optimization remains available in those kernels and in unused headless display-list construction. Those changes require new byte-level trajectory parity work. The retained evidence is under `/home/spark-advantage/wr64-results/obs57-authentic-waves/audit/perf-20260824`; `SHA256SUMS-all` has SHA-256 `5cfc1d9509d98d4cf3fb8f8039ae39b272d8147d6f1b081c1a338300b212e77b`.
-
-### Authentic-wave OBS57 evidence
-
-Two renderer-free PufferLib 5.0 runs were trained from random initialization on the seed-902, K=128 authentic-wave pool. Each completed 10,485,760 Puffer agent steps. Seed 902 took 186.54 s wall time, or 56,211.86 SPS. Seed 903 took 185.34 s, or 56,575.81 SPS, with 1,683% CPU and 1,688,236 KiB maximum RSS. At frameskip 2 this corresponds to 113,151.62 internal guest updates/s, a secondary simulator diagnostic rather than the cross-environment training metric. The final seed-903 training batch reported 100% official three-lap success, no failure terminal, and `target_laps=3`. Training used the host-CPU recompiled simulator; CUDA ran policy inference, recurrent state, rollout tensors, and PPO learning. The renderer and Raylib were inactive.
-
-An identical 2,097,152-agent-step paired trainer benchmark took 43.81 s with fixed resets and 43.02 s with K=128 randomized resets. The randomized run was 1.8% faster in this pair, so reset-time page-delta selection introduced no measurable trainer penalty. The pair measures system throughput only and does not establish an intrinsic randomization speedup.
-
-The selected checkpoint is:
+The standard SPS value uses Puffer trainer uptime. Whole-process wall time includes cartridge boots, reset-pool validation and packing, CUDA allocation, and trainer startup. This is why wall-derived throughput is lower. The low CPU figures establish that training does not run a host simulator loop; they do not mean the process performs zero startup, logging, checkpoint, or driver work.
 
 | Path | Size | Parameters | SHA-256 |
 | --- | ---: | ---: | --- |
-| `/home/spark-advantage/wr64-results/obs57-authentic-waves/checkpoints/waverace64/obs57-authwave-s903-final/0000000010485760.bin` | 438,272 bytes | 109,568 FP32 | `91217a7eb1ff5f4d553b678c206c5acaa727461bcf45cfd4f0266f7c2e0f62bf` |
+| `/home/spark-advantage/wr64-results/cuda-native-final/checkpoints/waverace64/cuda-native-ft906-ft907-final/0000000010485760.bin` | 438,272 bytes | 109,568 FP32 | `30932594ce56685beeaffd314ad62c136bc5b0c36eacf60168ef9f1989828684` |
 
-Fresh CUDA processes evaluated held-out wave seed 2902 and post-selection, training-disjoint seed 16902. Seed 16902 was separately shown internally unique and disjoint from training seed 902 in boot ticks, full RDRAM, complete water, heights, and velocities. Every evaluation forced the official three-lap target. The deterministic policy completed all 128 episodes on each pool. Stochastic sampling completed 510/512 on each pool, or 99.6094%. Both stochastic runs had one generic failure and one disqualification; all four runs had zero safety timeout and zero environment fault.
+The retained training log is `/home/spark-advantage/wr64-results/cuda-native-final/train-ft907-frozen.log`, SHA-256 `dce77d01f1bfcdcb8e4f2c38b5213805f2e76387f3e31b0861c416873e41e25c`. Its timing record has SHA-256 `6d458b1d869eb21d7f30cd30ebe8fa1c787995d30090ec393c21d411bdc0cb58`, and the resolved run configuration `/home/spark-advantage/wr64-results/cuda-native-final/logs/waverace64/cuda-native-ft906-ft907-final.ini` has SHA-256 `56fe514b4bea03a06a1abaf50cbd73a16e5a737db6798845a8a0c99900d423ac`.
 
-The deterministic result was repeated with one environment for 128 episodes on both seed 2902 and seed 16902. Each odd-stride reset schedule completed one exact permutation of all 128 variants, avoiding any ambiguity from parallel autoreset accounting. Both finished 128/128 with zero adverse terminal. The retained seed-2902 and seed-16902 log SHA-256 values are `554e15b1b016cba7db53bac54bb2adb46a9aa2d3f93877b41c3ec95a7cd668f7` and `3929c1e30c8fbdb0b577575aec71ef4230851e5d568103a5b29620c6f92ffc42`.
+Fresh deterministic native-CUDA evaluation forced the official three-lap target:
 
-| Wave seed | Action mode | Episodes | Successes | Success rate | Mean misses | Generic failures | Disqualifications |
-| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 2902 | Per-head argmax | 128 | 128 | 1.000000 | 0.992188 | 0 | 0 |
-| 2902 | Stochastic | 512 | 510 | 0.996094 | 0.560547 | 1 | 1 |
-| 16902 | Per-head argmax | 128 | 128 | 1.000000 | 0.828125 | 0 | 0 |
-| 16902 | Stochastic | 512 | 510 | 0.996094 | 0.564453 | 1 | 1 |
+| Wave seed | Episodes | Successes | Checkpoints | Misses | Score | Perf | Adverse terminals |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 2902 | 128 | 128 | 47.976562 | 0.015625 | 86,392.726562 | 0.989104 | 0 failures, disqualifications, timeouts, or faults |
+| 16902 | 128 | 128 | 47.906250 | 0.062500 | 86,241.796875 | 0.987613 | 0 failures, disqualifications, timeouts, or faults |
 
-The seed-2902 deterministic and stochastic log SHA-256 values are `94e7143f5f2a42f261ab33527c72690482f03607fc1e1d8c643829c925f4fecb` and `ee6dff8037fe3c030d8dcc7890dc257add4b3923d5718109a8b4a039217b6f03`. The seed-16902 values are `32d52753f082d7f670baa4284fb702a59582ffc58d5c7c27702614d676732163` and `a444de2d01c74c8774a19b4f929788f38ac65306ebbccc0390fbf28550966201`. Seed 2902 was constructed and exhaustively compared with the training pool before policy selection. Seed 16902 was screened and evaluated only after seed 903 had been selected.
+A separate stochastic seed-16902 acceptance completed 512/512 official three-lap races with score 87,329.890625, perf 0.997362, 47.746094 checkpoints, 0.130859 misses, and zero adverse terminals or environment faults. Its retained log has SHA-256 `6de359108f890a2693e63313e6d0a77c61bb4b7b5e779b41c9dec34db17b723a`.
 
-A fresh standalone CPU process loaded exactly 109,568 floats from the selected checkpoint and completed one deterministic seed-16902 official race in 883 policy decisions. It cleared 46 route checkpoints with one miss and zero failures, disqualifications, timeouts, or faults. The current optimized CPU evaluator SHA-256 is `67900b41316d5ef8efc416bcc5f53eee032e1adc0381a6a5655988053adf1b40`; its byte-identical retained CPU log SHA-256 is `b573092806b31d09a21af95fd3653101091f143b282664c7915bd5a045c0c57d`.
+The retained seed-2902 and seed-16902 logs have SHA-256 `8d5e9215f569c00ad2a09390e72191213e23125daa2ada2ed561c803ed16ea84` and `28dab33986905d111c3364caf15c3cb30b594ed995b7d407db1d357345a2207c`. These results demonstrate learning under the accepted CUDA transition contract and deterministic generalization across the two specified non-training pools. They do not estimate a broad training-seed population.
 
-The terminal-aware CPU evaluator ran the selected checkpoint and retained 5,294 960 by 540 source frames from the exact seed-16902 time-zero state through the official finish at 87.898 s. This verifies learned-policy playback and renderer behavior without asserting bit-identical CPU and CUDA inference. The encoded H.264 High/yuv420p MP4 runs at 60 frames/s, contains 5,534 decoded frames after a 240-frame frozen-finish tail, lasts 92.23 s, is 21,310,915 bytes, and has SHA-256 `a89e81fbb42be0212c3c175b4621efe3fde957e753f59394989e8ab22f6a5835`. Full decode completed without error. Independent inspection of start, live-race, midpoint, source-terminal, and decoded-tail frames confirmed visible dynamic wave geometry, Puffer bob and orientation, directional buoy arrows, all three laps, and the official finish with no episode-two contamination. Capture, encode, and full-decode log SHA-256 values are `4ff46be7f4deeb0319463dea455c2d29a3c05a4737a1530db7fc4861bd340397`, `583d73abff232f75b1b0415ffca7e9822071ae6f5baa3cfdea24a790c25b27da`, and `a5b633665078c0c6bfa4a2fc49fa2162a4df6e9684a3a7f386f9cb8a3909204f`.
+### Historical CPU-backend randomized-wave evidence
+
+Before the native CUDA backend, two host-simulator runs completed 10,485,760 steps from random initialization at 56,211.86 and 56,575.81 Puffer SPS while using about 16.8 CPU cores. A later host-only optimization candidate reached 79,848.92 SPS over a shorter workload. These numbers are retained as engineering provenance and are not current production measurements.
+
+The prior seed-903 checkpoint at `/home/spark-advantage/wr64-results/obs57-authentic-waves/checkpoints/waverace64/obs57-authwave-s903-final/0000000010485760.bin`, SHA-256 `91217a7eb1ff5f4d553b678c206c5acaa727461bcf45cfd4f0266f7c2e0f62bf`, was trained with the host simulator. It served only as initialization for the accepted CUDA fine-tuning run. Its old 128/128 and 510/512 evaluations and the 92.23 s Puffer MP4 remain historical host-backend artifacts, not acceptance of the current checkpoint.
 
 ### Historical fixed-wave OBS57 evidence
 
-The measurements, checkpoint, evaluations, and recordings in this subsection predate authentic per-episode wave-pool selection. They remain pinned provenance for the fixed-wave OBS57 contract, but they are not learning acceptance for the checked-in randomized-wave configuration.
+The measurements, checkpoint, evaluations, and recordings in this subsection predate authentic per-episode wave-pool selection and native CUDA simulation. The simulator ran on host CPU; references to CUDA evaluation mean CUDA policy inference only. They remain pinned provenance for the fixed-wave OBS57 contract, but they are not acceptance for current production.
 
-The clean frameskip-2 seed-900 run completed the configured 10,485,760 agent steps in 201.845 s of trainer uptime. That is 51,949.565260 SPS. Its 103,899.130521 internal native game updates/s is retained only as a Wave Race simulator diagnostic. The run used the renderer-free training path. The binary used for this retained measurement has SHA-256 `f20a62342714f2c0698d356435849d0f3069fbed703e3e7c83ba510c15cff9d2`; the current post-measurement Puffer evaluator build is identified above.
+The clean frameskip-2 seed-900 run completed the configured 10,485,760 agent steps in 201.845 s of trainer uptime. That is 51,949.565260 SPS. Its 103,899.130521 internal native game updates/s is retained only as a historical host-simulator diagnostic. The run used the renderer-free training path. The binary used for this retained measurement has SHA-256 `f20a62342714f2c0698d356435849d0f3069fbed703e3e7c83ba510c15cff9d2`.
 
 The selected seed-901 checkpoint is:
 
@@ -600,7 +633,7 @@ A fresh standalone CPU evaluator built from the same committed OBS57 source load
 
 ### Historical OBS55 evidence
 
-The following measurements and artifacts belong to the superseded 55-input, frameskip-4 contract. They remain useful provenance, but they are not compatible checkpoints or current-contract acceptance evidence. Two complete renderer-free runs were measured:
+The following measurements and artifacts belong to the superseded 55-input, frameskip-4, host-simulator contract. References to CUDA mean policy inference, not CUDA game simulation. They remain useful provenance, but they are not compatible checkpoints or current-contract acceptance evidence. Two complete renderer-free runs were measured:
 
 | Training seed | Agent steps | Trainer uptime | Puffer SPS | Guest updates/s | Process wall | Wall SPS | CPU | Maximum RSS | Internal GPU mean |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -655,4 +688,4 @@ The fixed-wave native CUDA-policy Puffer recording is retained at `/home/spark-a
 
 ## Audit
 
-[`AUDIT.md`](AUDIT.md) traces the prior claims, the evidence behind each verdict, the repairs already made, and the remaining CUDA, performance, and learning gaps.
+[`AUDIT.md`](AUDIT.md) traces the prior claims, the native CUDA implementation, the acceptance evidence behind each verdict, and the remaining parity and capacity limits.

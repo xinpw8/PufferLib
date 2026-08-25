@@ -3,6 +3,7 @@ set -e
 
 # Usage:
 #   ./build.sh breakout              # Native train/eval -> ./puffer
+#   ./build.sh waverace64             # CUDA env train/eval -> ./puffer
 #   ./build.sh breakout mybin        # Native -> ./mybin (does not clobber ./puffer)
 #   ./build.sh breakout --cu         # CUDA env (ENV_HEADER=ocean/ENV/ENV.cu; exclusive vs .h)
 #   ./build.sh robot_arm             # CUDA-only; implies --cu
@@ -58,10 +59,31 @@ if [ "$ENV" = "robot_arm" ]; then
     esac
 fi
 
+# Wave Race training is device-native. Keep --cpu as the explicit standalone
+# host oracle/evaluator, but make normal and profile builds select CUDA just as
+# first-party CUDA-only environments do.
+if [ "$ENV" = "waverace64" ]; then
+    case "${MODE:-native}" in
+        cpu) ;;
+        web)
+            echo "Error: waverace64 requires native Linux CUDA or --cpu" >&2
+            exit 1
+            ;;
+        *) USE_GPU_ENV=1 ;;
+    esac
+fi
+
 if [ "$ENV" = "all" ]; then
     FAILED=""
     for env_dir in ocean/*/; do
         env=$(basename "$env_dir")
+        if [ "$env" = "waverace64" ] \
+                && { [ -z "${WR64_ROM_PATH:-}" ] \
+                    || [ ! -f "${WR64_DIR:-../wr64-recomp}/runtime/wr_env.h" ] \
+                    || [ ! -f "${WR64_DIR:-../wr64-recomp}/libwr64.a" ]; }; then
+            echo "SKIP: waverace64 requires WR64_ROM_PATH and a built WR64_DIR"
+            continue
+        fi
         if bash "$0" "$env" && bash "$0" "$env" --float; then
             echo "OK: $env"
         else
@@ -427,7 +449,18 @@ elif [ "$MODE" = "cpu" ]; then
     exit 0
 fi
 
-CUDA_HOME=${CUDA_HOME:-${CUDA_PATH:-$(dirname "$(dirname "$(which nvcc)")")}}
+if [ -z "${CUDA_HOME:-}" ]; then
+    if [ -n "${CUDA_PATH:-}" ]; then
+        CUDA_HOME="$CUDA_PATH"
+    elif command -v nvcc >/dev/null 2>&1; then
+        CUDA_HOME=$(dirname "$(dirname "$(command -v nvcc)")")
+    elif [ -x /usr/local/cuda/bin/nvcc ]; then
+        CUDA_HOME=/usr/local/cuda
+    else
+        echo "Error: nvcc was not found; set CUDA_HOME" >&2
+        exit 1
+    fi
+fi
 
 # The VR4300 has no fused multiply-add. Keep adapter-side floating-point
 # calculations aligned with the separately compiled runtime and parity harness.
@@ -441,17 +474,38 @@ fi
 # Needed when NCCL is provided by the nvidia-nccl-cu12 wheel in the active venv.
 NCCL_IFLAG=""
 NCCL_LFLAG=""
+NCCL_RPATH=()
 for dir in /usr/include /usr/local/cuda/include; do
     if [ -f "$dir/nccl.h" ]; then NCCL_IFLAG="-I$dir"; break; fi
 done
+if [ -z "$NCCL_IFLAG" ]; then
+    for dir in "$HOME"/.venv/lib/python*/site-packages/nvidia/nccl/include; do
+        if [ -f "$dir/nccl.h" ]; then NCCL_IFLAG="-I$dir"; break; fi
+    done
+fi
 for dir in /usr/lib/x86_64-linux-gnu /usr/local/cuda/lib64; do
     if [ -f "$dir/libnccl.so" ] || [ -f "$dir/libnccl.so.2" ]; then NCCL_LFLAG="-L$dir"; break; fi
 done
+if [ -z "$NCCL_LFLAG" ]; then
+    for dir in "$HOME"/.venv/lib/python*/site-packages/nvidia/nccl/lib; do
+        if [ -f "$dir/libnccl.so" ] || [ -f "$dir/libnccl.so.2" ]; then
+            NCCL_LFLAG="-L$dir"
+            break
+        fi
+    done
+fi
 if [ -z "$NCCL_IFLAG" ]; then
     NCCL_IFLAG=$(python -c "import nvidia.nccl, os; print('-I' + os.path.join(nvidia.nccl.__path__[0], 'include'))" 2>/dev/null || echo "")
 fi
 if [ -z "$NCCL_LFLAG" ]; then
     NCCL_LFLAG=$(python -c "import nvidia.nccl, os; print('-L' + os.path.join(nvidia.nccl.__path__[0], 'lib'))" 2>/dev/null || echo "")
+fi
+if [ -n "$NCCL_LFLAG" ]; then
+    NCCL_LIBDIR=${NCCL_LFLAG#-L}
+    case "$NCCL_LIBDIR" in
+        /usr/lib/*|/usr/local/cuda/lib64) ;;
+        *) NCCL_RPATH=("-Xlinker=-rpath" "-Xlinker=$NCCL_LIBDIR") ;;
+    esac
 fi
 
 export CCACHE_DIR="${CCACHE_DIR:-$HOME/.ccache}"
@@ -461,7 +515,8 @@ NVCC="ccache $CUDA_HOME/bin/nvcc"
 CC="${CC:-$(command -v ccache >/dev/null && echo 'ccache clang' || echo 'clang')}"
 ARCH=${NVCC_ARCH:-native}
 
-# CPU and CUDA envs are separate sources. --cu selects the .cu; default is .h.
+# CPU and CUDA envs are separate sources. --cu selects the .cu; CUDA-only
+# environments may select it above by default, while --cpu exits before here.
 # Only one is compiled in (never both).
 if [ "$USE_GPU_ENV" = "1" ]; then
     ENV_HEADER="$SRC_DIR/$ENV.cu"
@@ -473,6 +528,36 @@ else
     ENV_HEADER="$SRC_DIR/$ENV.h"
 fi
 mkdir -p build
+if [ "$ENV" = "waverace64" ] && [ "$USE_GPU_ENV" = "1" ]; then
+    WR64_DEVICE_INC="build/waverace64_recomp_device.inc"
+    python3 ocean/waverace64/generate_cuda_recomp.py \
+        --runtime "$WR64_DIR" \
+        --rom "${WR64_ROM_PATH:?Set WR64_ROM_PATH to the byte-exact USA Rev 1 cartridge}" \
+        --output "$WR64_DEVICE_INC"
+    WR64_CUDA_HOST_OBJECT="build/waverace64_cuda_host.o"
+    WR64_CUDA_DEVICE_OBJECT="build/waverace64_device.o"
+    "${WR64_CC:-gcc}" -O2 -std=c11 -fPIC -fopenmp -ffp-contract=off \
+        "${WR64_HOST_FLAGS[@]}" \
+        -I. -Isrc -I"$SRC_DIR" -Ivendor \
+        -I"$WR64_DIR/runtime" -I"$WR64_DIR/RecompiledFuncs" \
+        -I"$RAYLIB_NAME/include" \
+        -D_GNU_SOURCE -DPLATFORM_DESKTOP -DPUFFER_WAVERACE64_RENDER \
+        -c ocean/waverace64/waverace64_cuda_host.c \
+        -o "$WR64_CUDA_HOST_OBJECT"
+    $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
+        -I. -Isrc -I"$SRC_DIR" -Ivendor -Ibuild \
+        "${INCLUDES[@]}" \
+        -I$CUDA_HOME/include -I$CUDA_HOME/include/cccl \
+        -DWR64_SUPPRESS_DISPLAY_WATER_NORMALS=1 \
+        --fmad=false --ftz=false --prec-div=true --prec-sqrt=true \
+        --diag-suppress=68,177,550 \
+        -c ocean/waverace64/waverace64_device.cu \
+        -o "$WR64_CUDA_DEVICE_OBJECT"
+    EXTRA_SRC="$WR64_CUDA_HOST_OBJECT $WR64_CUDA_DEVICE_OBJECT"
+    INCLUDES+=(-Ibuild)
+    EXTRA_CFLAGS+=(--diag-suppress=68,177,550)
+    EXTRA_LDFLAGS+=(-lcuda)
+fi
 if ! grep -q 'typedef[[:space:]].*obs_t' "$ENV_HEADER" 2>/dev/null; then
     echo "Error: $ENV_HEADER must typedef obs_t"
     exit 1
@@ -528,6 +613,7 @@ if [ "$MODE" = "native" ]; then
         $OSRS_RENDER_OBJECT \
         "${LINK_ARCHIVES[@]}" \
         -L$CUDA_HOME/lib64 $NCCL_LFLAG \
+        "${NCCL_RPATH[@]}" \
         "${EXTRA_LDFLAGS[@]}" \
         -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand \
         -lm -lpthread $OMP_LIB "${STANDALONE_LDFLAGS[@]}" \
@@ -537,6 +623,15 @@ if [ "$MODE" = "native" ]; then
 elif [ "$MODE" = "profile" ]; then
     PROFILE_BIN="build/profile_${ENV}"
     echo "Compiling profile binary ($ARCH) -> $PROFILE_BIN..."
+    PROFILE_SOURCE="tests/profile_kernels.cu"
+    PROFILE_FLAGS=()
+    if [ "$ENV" = "waverace64" ]; then
+        # The generic kernel microbenchmark is not an environment-step driver.
+        # Build the real device-resident trainer with line information so nsys
+        # and ncu observe the generated cartridge and autoreset kernels in situ.
+        PROFILE_SOURCE="src/pufferl.cu"
+        PROFILE_FLAGS=(-DPUFFERLIB_BUILD_MAIN -lineinfo)
+    fi
     $NVCC $NVCC_OPT -arch=$ARCH -std=c++17 \
         -I. -Isrc -I$SRC_DIR -Ivendor \
         "${INCLUDES[@]}" \
@@ -547,11 +642,15 @@ elif [ "$MODE" = "profile" ]; then
         -Xcompiler=-DPLATFORM_DESKTOP \
 	    "${NVCC_NARROW[@]}" \
 	    "${EXTRA_CFLAGS[@]}" \
+        "${PROFILE_FLAGS[@]}" \
         $PRECISION \
         -Xcompiler=-fopenmp \
-        tests/profile_kernels.cu \
-        "$RAYLIB_A" \
-        -L$CUDA_HOME/lib64 \
+        "$PROFILE_SOURCE" \
+        $EXTRA_SRC \
+        "${LINK_ARCHIVES[@]}" \
+        -L$CUDA_HOME/lib64 $NCCL_LFLAG \
+        "${NCCL_RPATH[@]}" \
+        "${EXTRA_LDFLAGS[@]}" \
         -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand \
         -lGL -lm -lpthread $OMP_LIB \
         -o "$PROFILE_BIN"
