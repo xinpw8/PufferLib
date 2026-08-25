@@ -135,6 +135,7 @@ LINK_ARCHIVES=("$RAYLIB_A")
 EXTRA_SRC=""
 EXTRA_LDFLAGS=()
 EXTRA_CFLAGS=()
+WR64_HOST_FLAGS=()
 if [ -n "${NVCC_EXTRA:-}" ]; then
     read -ra _nvcc_extra <<< "$NVCC_EXTRA"
     EXTRA_CFLAGS+=("${_nvcc_extra[@]}")
@@ -184,6 +185,16 @@ elif [ "$ENV" = "waverace64" ]; then
     INCLUDES+=(-I"$WR64_DIR/runtime" -I"$WR64_DIR/RecompiledFuncs")
     LINK_ARCHIVES+=("$WR64_DIR/libwr64.a")
     EXTRA_CFLAGS+=(-D_GNU_SOURCE -DPUFFER_WAVERACE64_RENDER)
+    if [ -n "${WR64_CPU_FLAGS:-}" ]; then
+        read -ra WR64_HOST_FLAGS <<< "$WR64_CPU_FLAGS"
+    elif [ "$(uname -m)" = "aarch64" ] \
+            && lscpu 2>/dev/null | grep -q 'Cortex-X925' \
+            && lscpu 2>/dev/null | grep -q 'Cortex-A725'; then
+        WR64_HOST_FLAGS=(-mcpu=cortex-x3)
+    else
+        WR64_HOST_FLAGS=(-march=native)
+    fi
+    WR64_HOST_FLAGS+=(-fno-math-errno)
 elif [ "$ENV" = "impulse_wars" ]; then
     SRC_DIR="ocean/$ENV"
     if [ "$MODE" = "web" ]; then BOX2D_NAME='box2d-web'
@@ -316,9 +327,11 @@ if [ "$MODE" = "cpu" ]; then
         CPU_CC=${WR64_CC:-gcc}
         if [ -n "$DEBUG" ]; then
             CPU_OPT=(-g -O0 -Wall -ffp-contract=off
+                "${WR64_HOST_FLAGS[@]}"
                 "${SANITIZE_FLAGS[@]}" "${SIMD_FLAGS[@]}")
         else
-            CPU_OPT=(-O2 -Wall -ffp-contract=off "${SIMD_FLAGS[@]}")
+            CPU_OPT=(-O2 -Wall -ffp-contract=off
+                "${WR64_HOST_FLAGS[@]}" "${SIMD_FLAGS[@]}")
         fi
     fi
     "$CPU_CC" "${CPU_OPT[@]}" "${FLAGS[@]}"
@@ -420,6 +433,9 @@ CUDA_HOME=${CUDA_HOME:-${CUDA_PATH:-$(dirname "$(dirname "$(which nvcc)")")}}
 # calculations aligned with the separately compiled runtime and parity harness.
 if [ "$ENV" = "waverace64" ]; then
     EXTRA_CFLAGS+=(-Xcompiler=-ffp-contract=off)
+    for flag in "${WR64_HOST_FLAGS[@]}"; do
+        EXTRA_CFLAGS+=("-Xcompiler=$flag")
+    done
 fi
 # NCCL include/lib fallback.
 # Needed when NCCL is provided by the nvidia-nccl-cu12 wheel in the active venv.

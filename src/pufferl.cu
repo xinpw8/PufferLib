@@ -1200,7 +1200,11 @@ static void* vec_thread_main(void* arg) {
             memset(&vec->rewards[agent_start], 0, apb * sizeof(float));
             memset(&vec->terminals[agent_start], 0, apb * sizeof(float));
             clock_gettime(CLOCK_MONOTONIC, &t0);
+#ifdef PUFFER_ENV_DYNAMIC_STEP_SCHEDULE
+            #pragma omp parallel for schedule(dynamic, 1) num_threads(vec->num_workers)
+#else
             #pragma omp parallel for schedule(static) num_threads(vec->num_workers)
+#endif
             for (int i = env_start; i < env_start + env_count; i++) {
                 puf_step(&envs[i]);
             }

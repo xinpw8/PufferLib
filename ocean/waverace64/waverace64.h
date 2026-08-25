@@ -36,6 +36,10 @@ typedef float obs_t;
 #define PUFFER_ENV_UNCLIPPED_REWARDS
 #define PUFFER_ENV_EVAL_RESET
 #define PUFFER_ENV_EXACT_OUTCOMES
+// Guest-frame cost varies with race state, and the deployment CPU mixes
+// Cortex-X925 and Cortex-A725 cores. Let faster workers claim more machines
+// instead of making every policy step wait for a fixed static partition.
+#define PUFFER_ENV_DYNAMIC_STEP_SCHEDULE
 
 // Episode time is measured in WR_GAME_UPDATE_HZ guest updates, not policy
 // decisions. The supported runtime currently defines that rate as 20 Hz.
