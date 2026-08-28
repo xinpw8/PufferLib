@@ -55,6 +55,12 @@ struct Rek {
     // Which chassis each corner fights in. matchup < 0 randomises per round,
     // which is what training wants; a fixed value pins one matchup for eval.
     int matchup;
+    // Normally corners are dealt to slots at random so neither policy learns a
+    // corner bias, which also means a pinned matchup still hands slot 0 either
+    // chassis. The human demo needs the opposite: if you asked to fight as the
+    // L100 you should get the L100, and the same one next round. Set only by
+    // the standalone binary; training and `puffer match` leave it 0.
+    int fixed_corners;
     // Mass-derived combat multipliers, precomputed per chassis in init() so the
     // step loop never calls powf. Exponents are kwargs because translating a
     // mass ratio into knockdown resistance is a balance decision, not physics
@@ -186,7 +192,9 @@ void c_reset(Rek* env) {
     // boundary_reached is owned by selfplay.py alignment; do not clear it here.
 
     // Corner assignment is randomised so neither policy learns a corner bias.
-    int flip = (int)(rek_rand(&env->rng) & 1u);
+    // fixed_corners pins corner c to slot c instead, so a human who picked a
+    // chassis keeps it.
+    int flip = env->fixed_corners ? 0 : (int)(rek_rand(&env->rng) & 1u);
     env->slot_for_corner[0] = flip;
     env->slot_for_corner[1] = 1 - flip;
 

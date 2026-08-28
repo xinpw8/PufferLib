@@ -74,6 +74,9 @@ static void performance_test(void) {
 static void demo(int matchup) {
     Rek env = make_env(1, 1);
     env.matchup = matchup;
+    // With a pinned matchup, stop dealing corners to slots at random so you
+    // keep the chassis you asked for instead of being reassigned every round.
+    env.fixed_corners = (matchup >= 0);
     allocate_env(&env);
     c_reset(&env);
 
@@ -148,10 +151,11 @@ static void demo(int matchup) {
 static void usage(const char* argv0) {
     printf("usage: %s [--bench] [--matchup N]\n\n", argv0);
     printf("  --bench        headless throughput test, no window\n");
-    printf("  --matchup N    pin the pairing instead of rolling it each round:\n");
+    printf("  --matchup N    pin the pairing instead of rolling it each round.\n");
+    printf("                 You are the first robot listed; the bot is the second.\n");
     for (int a = 0; a < NUM_CHASSIS; a++) {
         for (int b = 0; b < NUM_CHASSIS; b++) {
-            printf("                   %d = %s (corner 0) vs %s (corner 1)\n",
+            printf("                   %d = you %s  vs  bot %s\n",
                 a * NUM_CHASSIS + b, REK_CHASSIS[a].name, REK_CHASSIS[b].name);
         }
     }
