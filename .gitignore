@@ -172,3 +172,7 @@ pufferlib/ocean/impulse_wars/benchmark/
 resources/drive/data/*
 resources/drive/binaries/*
 
+
+# Standalone env binary from ./build.sh rek --fast|--local. Root-anchored so it
+# cannot match the ocean/rek source directory.
+/rek
