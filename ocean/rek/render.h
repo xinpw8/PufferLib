@@ -1,4 +1,5 @@
-// Top-down arena view for the REK combat env. Shows both G1s, their facing,
+// Top-down arena view for the REK combat env. Shows both robots drawn to their
+// real chassis radius, their facing,
 // the live hit volume during a move's active frames, and the scoreboard the
 // round is actually decided on.
 
@@ -44,7 +45,7 @@ static inline Vector2 rek_to_screen(const Client* c, float x, float z) {
 static void rek_draw_fighter(const Client* c, const Rek* env, int slot, Color col) {
     const Fighter* f = &env->fighters[slot];
     Vector2 p = rek_to_screen(c, f->x, f->z);
-    float body_px = env->body_radius * REK_PIXELS_PER_M;
+    float body_px = rek_chassis(f->chassis)->body_radius * REK_PIXELS_PER_M;
 
     // A downed robot is drawn flat and dim so the state reads at a glance.
     if (f->down_timer > 0) {
@@ -56,9 +57,10 @@ static void rek_draw_fighter(const Client* c, const Rek* env, int slot, Color co
     DrawCircleV(p, body_px, Fade(col, 0.85f));
 
     // Facing.
+    float br = rek_chassis(f->chassis)->body_radius;
     Vector2 nose = rek_to_screen(c,
-        f->x + cosf(f->yaw) * env->body_radius * 1.7f,
-        f->z + sinf(f->yaw) * env->body_radius * 1.7f);
+        f->x + cosf(f->yaw) * br * 1.7f,
+        f->z + sinf(f->yaw) * br * 1.7f);
     DrawLineEx(p, nose, 3.0f, REK_WHITE);
 
     if (f->guard) {
@@ -69,7 +71,7 @@ static void rek_draw_fighter(const Client* c, const Rek* env, int slot, Color co
     if (rek_committed(f)) {
         const MoveDef* m = &REK_MOVE_TABLE[f->move];
         bool live = f->frame >= m->startup && f->frame < m->startup + m->active;
-        float reach = m->reach * env->dr_reach;
+        float reach = rek_move_reach(f->move, rek_chassis(f->chassis)) * env->dr_reach;
         Vector2 h = rek_to_screen(c, f->x + cosf(f->yaw) * reach, f->z + sinf(f->yaw) * reach);
         float hr = m->radius * REK_PIXELS_PER_M;
         if (live) {
@@ -112,11 +114,12 @@ void c_render(Rek* env) {
     if (secs_left < 0.0f) secs_left = 0.0f;
 
     DrawText(TextFormat("%.1f", secs_left), REK_SCREEN_W / 2 - 30, 20, 34, REK_WHITE);
-    DrawText(TextFormat("SLOT 0   score %d   hits %d   downs %d/%d",
-        rek_score(f0), f0->hits, f0->downs, REK_DOWNS_TO_LOSE), 24, 20, 20, REK_CYAN);
-    DrawText(TextFormat("SLOT 1   score %d   hits %d   downs %d/%d",
-        rek_score(f1), f1->hits, f1->downs, REK_DOWNS_TO_LOSE),
-        24, REK_SCREEN_H - 40, 20, REK_RED);
+    DrawText(TextFormat("SLOT 0  %s   score %d   hits %d   downs %d/%d",
+        rek_chassis(f0->chassis)->name, rek_score(f0), f0->hits, f0->downs,
+        REK_DOWNS_TO_LOSE), 24, 20, 20, REK_CYAN);
+    DrawText(TextFormat("SLOT 1  %s   score %d   hits %d   downs %d/%d",
+        rek_chassis(f1->chassis)->name, rek_score(f1), f1->hits, f1->downs,
+        REK_DOWNS_TO_LOSE), 24, REK_SCREEN_H - 40, 20, REK_RED);
 
     EndDrawing();
 }

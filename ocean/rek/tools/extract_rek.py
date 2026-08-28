@@ -45,6 +45,41 @@ FIELD_HINTS = {
 MOVE_NAME_HINTS = ('move', 'attack', 'strike', 'punch', 'kick', 'jab', 'hook',
                    'cross', 'uppercut', 'combo', 'ability', 'action')
 
+# REK v0.0.119 fields two chassis. Their in-game names changed from the
+# manufacturers' — L100 was the Unitree G1, H100 was the EngineAI T-800 — so a
+# survey should match on both the new and old names to catch assets that still
+# carry the original naming internally.
+CHASSIS_HINTS = {
+    'L100': ('l100', 'g1', 'unitree'),
+    'H100': ('h100', 't800', 't-800', 'engineai'),
+}
+
+
+# Mirror of ocean/rek/chassis.h. Only needed to convert REK's absolute reach
+# into the limb fraction moves.h stores; keep in sync if chassis.h changes.
+CHASSIS_GEOMETRY = {
+    'L100': {'arm_len': 0.410, 'leg_len': 0.698, 'body_radius': 0.280},
+    'H100': {'arm_len': 0.567, 'leg_len': 1.028, 'body_radius': 0.343},
+}
+
+# Move names that mean a leg threw it, so reach scales off leg length rather
+# than arm length. "roundhouse" and "axe"/"heel" are kicks whose names never say
+# kick, which is exactly the kind of miss that silently shortens a move's reach.
+LEG_MOVE_HINTS = ('kick', 'knee', 'stomp', 'sweep', 'leg', 'roundhouse',
+                  'shin', 'heel', 'axe', 'push_off', 'teep', 'thrust')
+
+# Bump when MoveDef's field layout changes. moves.h checks it.
+MOVES_SCHEMA = 2
+
+
+def chassis_of(name):
+    """Which robot an asset belongs to, or None if it looks shared."""
+    n = norm(name)
+    for chassis, hints in CHASSIS_HINTS.items():
+        if any(h.replace('-', '') in n for h in hints):
+            return chassis
+    return None
+
 # REK's public Steam listing. A playtest or dev build will have its own id, so
 # this is only a default — the Unity-marker tier below finds the install either
 # way.
@@ -312,6 +347,7 @@ def survey(root, out_path):
                     if fields and (looks_like_move(str(name)) or len(fields) >= 3):
                         report['mono_behaviours'].append({
                             'name': str(name),
+                            'chassis': chassis_of(str(name)) or chassis_of(path.name),
                             'fields': fields,
                             'raw_keys': sorted(k for k in tree.keys()),
                             'file': path.name,
@@ -334,6 +370,11 @@ def survey(root, out_path):
     print(f'Scanned {report["files_scanned"]} asset files under {root}')
     print(f'Unity version : {report["unity_version"]}')
     print(f'Move candidates: {len(report["mono_behaviours"])}')
+    by_chassis = {}
+    for mv in report['mono_behaviours']:
+        by_chassis[mv.get('chassis')] = by_chassis.get(mv.get('chassis'), 0) + 1
+    for k, v in sorted(by_chassis.items(), key=lambda kv: str(kv[0])):
+        print(f'  {k or "(shared/unknown)"}: {v}')
     print(f'Animation clips: {len(report["animation_clips"])}')
     print(f'Colliders      : {len(report["colliders"])}')
     print(f'\nWrote {out_path}')
@@ -395,12 +436,25 @@ def emit(report_path, out_path, tick_hz):
                 active = max(1, int(round(active * k)))
                 recovery = max(1, total - startup - active)
 
+        # Which limb throws it decides how reach scales onto each chassis.
+        limb = 'LIMB_LEG' if any(k in norm(name) for k in LEG_MOVE_HINTS) else 'LIMB_ARM'
+
+        # REK stores an absolute reach; moves.h stores a fraction of the limb, so
+        # the move transfers to both chassis. Invert against the chassis the
+        # asset belongs to (default L100) using the same geometry chassis.h uses.
+        ref = mv.get('chassis') or 'L100'
+        geom = CHASSIS_GEOMETRY.get(ref, CHASSIS_GEOMETRY['L100'])
+        limb_len = geom['leg_len'] if limb == 'LIMB_LEG' else geom['arm_len']
+        raw_reach = float(pick(f, 'reach', 0.7))
+        extension = max(0.05, (raw_reach - geom['body_radius']) / limb_len)
+
         rows.append({
             'name': name,
+            'limb': limb,
             'startup': startup,
             'active': active,
             'recovery': recovery,
-            'reach': float(pick(f, 'reach', 0.7)),
+            'extension': extension,
             'radius': float(pick(f, 'radius', 0.24)),
             'damage': float(pick(f, 'damage', 1.0)),
             'balance_cost': 0.02 * startup / 4.0,
@@ -417,14 +471,20 @@ def emit(report_path, out_path, tick_hz):
         '',
         '#pragma once',
         '',
+        '// Schema guard: moves.h refuses a header written for an older MoveDef',
+        '// layout. A stale generated table would otherwise still compile, with',
+        '// every field shifted one position — silently wrong rather than broken.',
+        f'#define REK_MOVES_SCHEMA {MOVES_SCHEMA}',
+        '',
         'static const MoveDef REK_MOVES_GENERATED[] = {',
-        '    {"neutral", 0, 0, 0, 0.00f, 0.00f, 0.0f, 0.00f, 0.00f, 0.00f, false},',
+        '    {"neutral", LIMB_ARM, 0, 0, 0, 0.00f, 0.00f, 0.0f, 0.00f, 0.00f, 0.00f, false},',
     ]
     for r in rows:
         lines.append(
-            '    {{"{name}", {startup}, {active}, {recovery}, {reach:.2f}f, {radius:.2f}f, '
-            '{damage:.1f}f, {balance_cost:.2f}f, {balance_impact:.2f}f, {root_motion:.2f}f, '
-            '{guard}}},'.format(guard='true' if r['guard_breaks'] else 'false', **r)
+            '    {{"{name}", {limb}, {startup}, {active}, {recovery}, {extension:.3f}f, '
+            '{radius:.2f}f, {damage:.1f}f, {balance_cost:.2f}f, {balance_impact:.2f}f, '
+            '{root_motion:.2f}f, {guard}}},'.format(
+                guard='true' if r['guard_breaks'] else 'false', **r)
         )
     lines += [
         '};',

@@ -1,4 +1,4 @@
-// Core simulation for the REK G1 combat env: fighter state, the set-move state
+// Core simulation for the REK combat env: fighter state, the set-move state
 // machine, hit resolution, the balance/down model, and REK's round rules.
 //
 // Deliberately not an articulated-body sim. REK's pilot picks canned moves over
@@ -13,6 +13,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "chassis.h"
 #include "moves.h"
 
 // Locomotion head: neutral plus the 8 WASD combinations, ego-relative.
@@ -34,7 +35,10 @@
 // Feature block sizes. OBS_SIZE in binding.c is derived from these, so adding a
 // feature here propagates without touching the binding.
 #define REK_SCALARS_PER_FIGHTER 14
-#define REK_FIGHTER_FEATURES (REK_SCALARS_PER_FIGHTER + NUM_MOVE_DEFS)
+// Per fighter: scalars, which move is out (one-hot), and which chassis it is
+// (one-hot). Chassis is visible to a pilot at a glance and changes every reach
+// and weight interaction, so hiding it would model less than REK shows.
+#define REK_FIGHTER_FEATURES (REK_SCALARS_PER_FIGHTER + NUM_MOVE_DEFS + NUM_CHASSIS)
 #define REK_RELATIVE_FEATURES 7
 #define REK_CLOCK_FEATURES 1
 #define REK_OBS_SIZE (2 * REK_FIGHTER_FEATURES + REK_RELATIVE_FEATURES + REK_CLOCK_FEATURES)
@@ -65,6 +69,7 @@ struct Log {
 };
 
 typedef struct {
+    int chassis;         // index into REK_CHASSIS
     float x, z;          // root position on the arena floor, metres
     float vx, vz;        // root velocity, m/s
     float yaw;           // facing, radians

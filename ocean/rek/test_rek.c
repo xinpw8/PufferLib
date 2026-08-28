@@ -25,7 +25,10 @@ static Rek make_test_env(int num_agents, int num_bots) {
         .num_bots = num_bots,
         .round_frames = (int)(60.0f * REK_TICK_HZ),
         .arena_radius = 3.0f,
-        .body_radius = 0.28f,
+        .matchup = 0,   // L100 mirror unless a test overrides it
+        .mass_balance_exp = 0.5f,
+        .mass_impact_exp = 0.5f,
+        .mass_speed_exp = 0.25f,
         .move_speed = 1.4f,
         .guard_speed_mult = 0.5f,
         .accel = 0.35f,
@@ -154,7 +157,7 @@ static void land_finishing_hit(Rek* env, int attacker) {
     int mv = heaviest_move();
     const MoveDef* m = &REK_MOVE_TABLE[mv];
 
-    stage(env, m->reach);
+    stage(env, rek_move_reach(mv, rek_chassis(env->fighters[attacker].chassis)));
     env->fighters[victim].down_timer = 0;
     env->fighters[victim].stun = 0;
 
@@ -252,7 +255,7 @@ static void test_round_clock_awards_most_hits(void) {
 
 static void test_obs_size_matches_layout(void) {
     printf("observation layout is self-consistent\n");
-    CHECK(REK_OBS_SIZE == 2 * (REK_SCALARS_PER_FIGHTER + NUM_MOVE_DEFS)
+    CHECK(REK_OBS_SIZE == 2 * (REK_SCALARS_PER_FIGHTER + NUM_MOVE_DEFS + NUM_CHASSIS)
             + REK_RELATIVE_FEATURES + REK_CLOCK_FEATURES,
         "REK_OBS_SIZE does not match its parts");
 
@@ -290,6 +293,111 @@ static void test_bot_mode_runs(void) {
     }
     CHECK(env.log.n > 0.0f, "no episodes completed in 4000 steps");
 
+    c_close(&env);
+    free_allocated(&env);
+}
+
+
+static void test_chassis_geometry_matches_urdf(void) {
+    printf("chassis table matches the measured URDF geometry\n");
+    const ChassisDef* l = rek_chassis(CHASSIS_L100);
+    const ChassisDef* h = rek_chassis(CHASSIS_H100);
+
+    CHECK(h->mass > l->mass, "H100 should outweigh L100");
+    CHECK(h->arm_len > l->arm_len, "H100 should out-reach L100 with its arms");
+    CHECK(h->leg_len > l->leg_len, "H100 should out-reach L100 with its legs");
+    CHECK(h->body_radius > l->body_radius, "H100 should have the larger footprint");
+
+    // Ratios measured off the two URDFs; guard against a careless edit.
+    float mass_r = h->mass / l->mass;
+    float arm_r  = h->arm_len / l->arm_len;
+    CHECK(mass_r > 2.3f && mass_r < 2.5f, "mass ratio should be ~2.42x, got %.2f", mass_r);
+    CHECK(arm_r  > 1.3f && arm_r  < 1.45f, "arm ratio should be ~1.38x, got %.2f", arm_r);
+}
+
+static void test_reach_scales_with_chassis(void) {
+    printf("the same move reaches further on the bigger chassis\n");
+    for (int mv = 1; mv < NUM_MOVE_DEFS; mv++) {
+        float rl = rek_move_reach(mv, rek_chassis(CHASSIS_L100));
+        float rh = rek_move_reach(mv, rek_chassis(CHASSIS_H100));
+        CHECK(rh > rl, "move %d (%s): H100 reach %.3f should exceed L100 %.3f",
+            mv, REK_MOVE_TABLE[mv].name, rh, rl);
+    }
+}
+
+// The point of two chassis: at a gap only the H100 can cross, the H100 lands
+// and the L100 whiffs. Same move, same frames, different arm.
+static void test_h100_outreaches_l100(void) {
+    printf("H100 lands where L100 cannot reach\n");
+    // A move connects while the gap between roots is under
+    //   reach + hit radius + defender body radius,
+    // not merely under reach. Pick a gap between the two chassis' thresholds.
+    float pad = REK_MOVE_TABLE[1].radius + rek_chassis(CHASSIS_L100)->body_radius;
+    float max_l = rek_move_reach(1, rek_chassis(CHASSIS_L100)) + pad;
+    float max_h = rek_move_reach(1, rek_chassis(CHASSIS_H100)) + pad;
+    float gap = 0.5f * (max_l + max_h);
+
+    int hits[NUM_CHASSIS];
+    for (int c = 0; c < NUM_CHASSIS; c++) {
+        Rek env = make_test_env(2, 0);
+        allocate_env(&env);
+        c_reset(&env);
+        // Pin chassis to slots directly. matchup assigns chassis per *corner*,
+        // and corners are shuffled across slots every round, so it cannot be
+        // used to guarantee slot 0 is the attacker chassis under test.
+        env.fighters[0].chassis = c;
+        env.fighters[1].chassis = CHASSIS_L100;
+        stage(&env, gap);
+
+        set_action(&env, 0, 0, 1, 0);
+        set_action(&env, 1, 0, 0, 0);
+        c_step(&env);
+        for (int i = 0; i < rek_move_total(1) + 2; i++) {
+            set_action(&env, 0, 0, 0, 0);
+            set_action(&env, 1, 0, 0, 0);
+            c_step(&env);
+        }
+        hits[c] = env.fighters[0].hits;
+        c_close(&env);
+        free_allocated(&env);
+    }
+
+    CHECK(hits[CHASSIS_L100] == 0,
+        "L100 should whiff at %.2f m, landed %d", gap, hits[CHASSIS_L100]);
+    CHECK(hits[CHASSIS_H100] == 1,
+        "H100 should land at %.2f m, landed %d", gap, hits[CHASSIS_H100]);
+}
+
+static void test_matchup_selection(void) {
+    printf("matchup pins the pairing, negative randomises it\n");
+    for (int c0 = 0; c0 < NUM_CHASSIS; c0++) {
+        for (int c1 = 0; c1 < NUM_CHASSIS; c1++) {
+            Rek env = make_test_env(2, 0);
+            env.matchup = c0 * NUM_CHASSIS + c1;
+            allocate_env(&env);
+            c_reset(&env);
+            int got0 = env.fighters[env.slot_for_corner[0]].chassis;
+            int got1 = env.fighters[env.slot_for_corner[1]].chassis;
+            CHECK(got0 == c0 && got1 == c1,
+                "matchup %d should give (%d,%d), got (%d,%d)",
+                env.matchup, c0, c1, got0, got1);
+            c_close(&env);
+            free_allocated(&env);
+        }
+    }
+
+    // Randomised: over many rounds both chassis must appear in corner 0.
+    Rek env = make_test_env(2, 0);
+    env.matchup = -1;
+    allocate_env(&env);
+    int seen[NUM_CHASSIS] = {0};
+    for (int i = 0; i < 200; i++) {
+        c_reset(&env);
+        seen[env.fighters[env.slot_for_corner[0]].chassis]++;
+    }
+    for (int c = 0; c < NUM_CHASSIS; c++) {
+        CHECK(seen[c] > 0, "randomised matchup never produced chassis %d in 200 rounds", c);
+    }
     c_close(&env);
     free_allocated(&env);
 }
@@ -339,6 +447,10 @@ int main(int argc, char** argv) {
     test_round_clock_awards_most_hits();
     test_obs_size_matches_layout();
     test_bot_mode_runs();
+    test_chassis_geometry_matches_urdf();
+    test_reach_scales_with_chassis();
+    test_h100_outreaches_l100();
+    test_matchup_selection();
 
     if (failures == 0) {
         printf("\nall checks passed\n");

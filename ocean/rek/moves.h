@@ -1,19 +1,29 @@
-// Move table for the REK G1 combat env.
+// Move table for the REK combat env.
 //
-// REK's G1s do not accept joint-level commands: the pilot presses a key and the
-// robot executes a *set move*, with REK's own self-balancing controller running
-// the joints underneath. So a move here is a fighting-game frame envelope
-// (startup / active / recovery) plus the hit volume it sweeps, not a trajectory.
+// REK's robots do not accept joint-level commands: the pilot presses a key and
+// the robot executes a *set move*, with REK's own self-balancing controller
+// running the joints underneath. So a move here is a fighting-game frame
+// envelope (startup / active / recovery) plus the volume it sweeps, not a
+// trajectory.
 //
-// The table below is a placeholder roster calibrated to published Unitree G1
-// reach/mass numbers. tools/extract_rek.py dumps the real roster out of REK's
-// Unity assets and writes moves_generated.h; when that file is present it wins.
-// Everything downstream (action-head width, obs layout) is derived from
-// NUM_MOVE_DEFS, so swapping the table needs no other code change.
+// Reach is stored as `extension` — a fraction of the limb that throws the move,
+// not an absolute distance. An L100's jab and an H100's jab are the same move;
+// the H100's simply lands further out because its arm is 1.38x longer. This is
+// what lets one table serve both chassis, and it is why `limb` matters: kicks
+// scale off leg length, punches off arm length, and the two ratios differ
+// (1.47x vs 1.38x between the chassis).
+//
+// The frame data below is a placeholder roster. tools/extract_rek.py dumps the
+// real one out of REK's Unity assets and writes moves_generated.h; when that
+// file is present it wins. Everything downstream (action-head width, obs
+// layout) is derived from NUM_MOVE_DEFS, so swapping the table needs no other
+// code change.
 
 #pragma once
 
 #include <stdbool.h>
+
+#include "chassis.h"
 
 // Sim runs at 30 Hz. All frame counts below are in 30 Hz frames.
 #define REK_TICK_HZ 30.0f
@@ -21,10 +31,11 @@
 
 typedef struct {
     const char* name;
+    Limb limb;            // which limb's length scales this move's reach
     int startup;          // frames before the hit volume goes live
     int active;           // frames the hit volume is live
     int recovery;         // frames after the active window, still committed
-    float reach;          // hit volume centre, metres forward of the root
+    float extension;      // hit volume centre, as a fraction of limb length
     float radius;         // hit volume radius, metres
     float damage;         // scoreboard value of a clean hit (REK counts hits)
     float balance_cost;   // balance the attacker spends throwing it
@@ -36,22 +47,36 @@ typedef struct {
 // Index 0 is the neutral "no move" entry and is never executed. Keeping it in
 // the table means move id and action index are the same number everywhere.
 static const MoveDef REK_MOVES[] = {
-    // name        start act  rec  reach  rad   dmg  bcost bimp  root   gbreak
-    {"neutral",        0,  0,   0, 0.00f, 0.00f, 0.0f, 0.00f, 0.00f, 0.00f, false},
-    {"jab",            2,  2,   4, 0.62f, 0.20f, 1.0f, 0.02f, 0.10f, 0.06f, false},
-    {"cross",          4,  2,   7, 0.70f, 0.22f, 1.0f, 0.05f, 0.20f, 0.12f, false},
-    {"hook",           6,  3,   9, 0.58f, 0.26f, 1.0f, 0.09f, 0.30f, 0.10f, false},
-    {"uppercut",       7,  3,  11, 0.48f, 0.24f, 1.0f, 0.12f, 0.38f, 0.08f, false},
-    {"front_kick",     8,  3,  12, 0.95f, 0.26f, 1.0f, 0.15f, 0.34f, 0.18f, false},
-    {"roundhouse",    11,  4,  16, 1.05f, 0.30f, 1.0f, 0.22f, 0.52f, 0.14f, false},
-    {"shove",          5,  3,   8, 0.55f, 0.32f, 0.0f, 0.08f, 0.45f, 0.22f, true },
+    // name         limb      start act  rec  ext    rad   dmg  bcost bimp  root  gbreak
+    {"neutral",    LIMB_ARM,     0,  0,   0, 0.00f, 0.00f, 0.0f, 0.00f, 0.00f, 0.00f, false},
+    {"jab",        LIMB_ARM,     2,  2,   4, 0.83f, 0.20f, 1.0f, 0.02f, 0.10f, 0.06f, false},
+    {"cross",      LIMB_ARM,     4,  2,   7, 1.02f, 0.22f, 1.0f, 0.05f, 0.20f, 0.12f, false},
+    {"hook",       LIMB_ARM,     6,  3,   9, 0.73f, 0.26f, 1.0f, 0.09f, 0.30f, 0.10f, false},
+    {"uppercut",   LIMB_ARM,     7,  3,  11, 0.49f, 0.24f, 1.0f, 0.12f, 0.38f, 0.08f, false},
+    {"front_kick", LIMB_LEG,     8,  3,  12, 0.96f, 0.26f, 1.0f, 0.15f, 0.34f, 0.18f, false},
+    {"roundhouse", LIMB_LEG,    11,  4,  16, 1.10f, 0.30f, 1.0f, 0.22f, 0.52f, 0.14f, false},
+    {"shove",      LIMB_ARM,     5,  3,   8, 0.66f, 0.32f, 0.0f, 0.08f, 0.45f, 0.22f, true },
 };
+
+// Bump whenever MoveDef's field layout changes, and bump MOVES_SCHEMA in
+// tools/extract_rek.py to match. Without this check a header generated for an
+// older layout still compiles — C happily initialises 12 fields from 11 values,
+// shifting every entry one position, so a reach lands in an int frame count and
+// the table is silently wrong rather than loudly broken.
+#define REK_MOVES_SCHEMA_EXPECTED 2
 
 #if defined(__has_include)
 #if __has_include("moves_generated.h")
 // Generated by tools/extract_rek.py from the shipped Unity assets. Defines
 // REK_MOVES_GENERATED[] and REK_NUM_MOVES_GENERATED.
 #include "moves_generated.h"
+
+#ifndef REK_MOVES_SCHEMA
+#error "moves_generated.h predates the MoveDef schema guard. Re-run tools/extract_rek.py --emit."
+#elif REK_MOVES_SCHEMA != REK_MOVES_SCHEMA_EXPECTED
+#error "moves_generated.h was written for a different MoveDef layout. Re-run tools/extract_rek.py --emit."
+#endif
+
 #define REK_USING_GENERATED_MOVES 1
 #endif
 #endif
@@ -69,4 +94,11 @@ static const MoveDef REK_MOVES[] = {
 static inline int rek_move_total(int move_id) {
     const MoveDef* m = &REK_MOVE_TABLE[move_id];
     return m->startup + m->active + m->recovery;
+}
+
+// Where this move's hit volume sits, measured from the attacker's root, for the
+// chassis actually throwing it.
+static inline float rek_move_reach(int move_id, const ChassisDef* c) {
+    const MoveDef* m = &REK_MOVE_TABLE[move_id];
+    return c->body_radius + rek_limb_len(c, m->limb) * m->extension;
 }

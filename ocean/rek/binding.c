@@ -49,7 +49,15 @@ void my_init(Env* env, Dict* kwargs) {
     if (env->round_frames < 1) env->round_frames = 1;
 
     env->arena_radius = kwarg_float(kwargs, "arena_radius", 3.0f);
-    env->body_radius  = kwarg_float(kwargs, "body_radius", 0.28f);
+
+    // Chassis. matchup < 0 randomises both corners every round (training);
+    // >= 0 pins a pairing as corner0 * NUM_CHASSIS + corner1, e.g. 0 = L100
+    // mirror, 3 = H100 mirror, 1 = L100 vs H100. Body radius and limb reach
+    // now come from chassis.h, measured off each robot's URDF.
+    env->matchup          = kwarg_int(kwargs, "matchup", -1);
+    env->mass_balance_exp = kwarg_float(kwargs, "mass_balance_exp", 0.5f);
+    env->mass_impact_exp  = kwarg_float(kwargs, "mass_impact_exp", 0.5f);
+    env->mass_speed_exp   = kwarg_float(kwargs, "mass_speed_exp", 0.25f);
 
     env->move_speed        = kwarg_float(kwargs, "move_speed", 1.4f);
     env->guard_speed_mult  = kwarg_float(kwargs, "guard_speed_mult", 0.5f);

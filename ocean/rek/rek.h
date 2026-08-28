@@ -1,4 +1,9 @@
-// REK G1 combat env — two Unitree G1s in a timed hit-counting round.
+// REK combat env — two robots in a timed hit-counting round.
+//
+// REK fields two chassis (v0.0.119): the L100 (formerly Unitree G1) and the
+// H100 (formerly EngineAI T-800). They are not close to equal — the H100 is
+// 2.42x the mass with 1.38x the arm and 1.47x the leg — so matchups are
+// genuinely asymmetric. See chassis.h for the measurements and their source.
 //
 // Rules, as they work in the shipped REK sim: the round is on a clock, the
 // scoreboard counts clean hits, and most hits wins. Going down costs the
@@ -46,7 +51,20 @@ struct Rek {
 
     // Arena
     float arena_radius;
-    float body_radius;
+
+    // Which chassis each corner fights in. matchup < 0 randomises per round,
+    // which is what training wants; a fixed value pins one matchup for eval.
+    int matchup;
+    // Mass-derived combat multipliers, precomputed per chassis in init() so the
+    // step loop never calls powf. Exponents are kwargs because translating a
+    // mass ratio into knockdown resistance is a balance decision, not physics
+    // we can read off a URDF.
+    float mass_balance_exp;
+    float mass_impact_exp;
+    float mass_speed_exp;
+    float ch_balance_resist[NUM_CHASSIS];
+    float ch_impact[NUM_CHASSIS];
+    float ch_speed[NUM_CHASSIS];
 
     // Movement / balance model. All are [env] kwargs so a sweep can tune them
     // and so extraction can pin them to REK's real values.
@@ -151,11 +169,16 @@ static inline void rek_end_episode(Rek* env, int outcome) {
     c_reset(env);
 }
 
-static inline void rek_reset_fighter(Fighter* f, float x, float z, float yaw) {
+static inline void rek_reset_fighter(Fighter* f, int chassis, float x, float z, float yaw) {
     memset(f, 0, sizeof(Fighter));
+    f->chassis = chassis;
     f->x = x;
     f->z = z;
     f->yaw = yaw;
+}
+
+static inline const ChassisDef* rek_of(const Fighter* f) {
+    return rek_chassis(f->chassis);
 }
 
 void c_reset(Rek* env) {
@@ -167,11 +190,24 @@ void c_reset(Rek* env) {
     env->slot_for_corner[0] = flip;
     env->slot_for_corner[1] = 1 - flip;
 
+    // Matchup: negative randomises both corners independently each round, so a
+    // policy meets every pairing including the mirrors. A non-negative value
+    // encodes a fixed pairing as (corner0 * NUM_CHASSIS + corner1), which is
+    // what eval and `puffer match` want so a result is not matchup noise.
+    int c0, c1;
+    if (env->matchup < 0) {
+        c0 = (int)(rek_rand(&env->rng) % (uint32_t)NUM_CHASSIS);
+        c1 = (int)(rek_rand(&env->rng) % (uint32_t)NUM_CHASSIS);
+    } else {
+        c0 = (env->matchup / NUM_CHASSIS) % NUM_CHASSIS;
+        c1 = env->matchup % NUM_CHASSIS;
+    }
+
     float half = env->arena_radius * 0.5f;
     float jitter = 0.25f * env->dr;
-    rek_reset_fighter(&env->fighters[env->slot_for_corner[0]],
+    rek_reset_fighter(&env->fighters[env->slot_for_corner[0]], c0,
         -half + rek_uniform(&env->rng, -jitter, jitter), 0.0f, 0.0f);
-    rek_reset_fighter(&env->fighters[env->slot_for_corner[1]],
+    rek_reset_fighter(&env->fighters[env->slot_for_corner[1]], c1,
         half + rek_uniform(&env->rng, -jitter, jitter), 0.0f, (float)M_PI);
 
     memset(env->move_delay, 0, sizeof(env->move_delay));
@@ -211,7 +247,8 @@ static inline void rek_bot_act(Rek* env, int slot, int* out_dir, int* out_move, 
     float dz = opp->z - me->z;
     float dist = sqrtf(dx * dx + dz * dz);
 
-    float strike_range = 0.85f * env->dr_reach + env->body_radius;
+    // Poke range: the bot's own longest arm move, scaled by its chassis.
+    float strike_range = rek_move_reach(1, rek_of(me)) * env->dr_reach + rek_of(opp)->body_radius;
     if (dist > strike_range) {
         *out_dir = 1;  // close the gap
         *out_move = 0;
@@ -234,7 +271,7 @@ static inline void rek_apply_locomotion(Rek* env, Fighter* f, int dir_action) {
     float fwd, side;
     rek_move_dir(dir_action, &fwd, &side);
 
-    float speed = env->move_speed * env->dr_speed;
+    float speed = env->move_speed * env->dr_speed * env->ch_speed[f->chassis];
     if (f->guard) speed *= env->guard_speed_mult;
 
     // Ego-relative: forward is along the facing the lock-on has slewed to.
@@ -261,7 +298,7 @@ static inline void rek_integrate(Rek* env, Fighter* f, float root_motion) {
     // Keep both robots inside the ring. REK has no ring-out, so this clamps
     // rather than terminating.
     float d = sqrtf(f->x * f->x + f->z * f->z);
-    float limit = env->arena_radius - env->body_radius;
+    float limit = env->arena_radius - rek_of(f)->body_radius;
     if (d > limit && d > 1e-6f) {
         float k = limit / d;
         f->x *= k;
@@ -278,7 +315,7 @@ static inline void rek_resolve_overlap(Rek* env) {
     float dx = b->x - a->x;
     float dz = b->z - a->z;
     float d2 = dx * dx + dz * dz;
-    float min_d = 2.0f * env->body_radius;
+    float min_d = rek_of(a)->body_radius + rek_of(b)->body_radius;
     if (d2 >= min_d * min_d || d2 < 1e-8f) return;
 
     float d = sqrtf(d2);
@@ -317,18 +354,21 @@ static inline void rek_resolve_hit(Rek* env, int slot) {
     Fighter* def = &env->fighters[1 - slot];
     const MoveDef* m = &REK_MOVE_TABLE[att->move];
 
-    float reach = m->reach * env->dr_reach;
+    float reach = rek_move_reach(att->move, rek_of(att)) * env->dr_reach;
     float hx = att->x + cosf(att->yaw) * reach;
     float hz = att->z + sinf(att->yaw) * reach;
     float dx = def->x - hx;
     float dz = def->z - hz;
-    float r = m->radius + env->body_radius;
+    float r = m->radius + rek_of(def)->body_radius;
     if (dx * dx + dz * dz > r * r) return;
 
     att->move_connected = 1;
 
     bool guarded = def->guard && !m->guard_breaks && def->down_timer == 0;
-    float impact = m->balance_impact * env->dr_balance;
+    // A heavier attacker puts more into the hit; a heavier defender absorbs
+    // more of it. Both multipliers are precomputed from the mass ratio.
+    float impact = m->balance_impact * env->dr_balance
+        * env->ch_impact[att->chassis] / env->ch_balance_resist[def->chassis];
     if (guarded) impact *= env->guard_balance_mult;
 
     // A guarded hit does not reach the scoreboard, but it still moves the
@@ -349,8 +389,8 @@ static inline void rek_resolve_hit(Rek* env, int slot) {
     }
 
     def->balance += impact;
-    // Knockback along the strike direction.
-    float kb = impact * 2.0f;
+    // Knockback along the strike direction, damped by the defender's mass.
+    float kb = impact * 2.0f / env->ch_balance_resist[def->chassis];
     def->vx += cosf(att->yaw) * kb;
     def->vz += sinf(att->yaw) * kb;
 }
@@ -411,7 +451,8 @@ static inline void rek_step_fighter(Rek* env, int slot, int dir_action, int move
             f->frame = 0;
             f->move_connected = 0;
             f->moves_started += 1;
-            f->balance += REK_MOVE_TABLE[move_action].balance_cost * env->dr_balance;
+            f->balance += REK_MOVE_TABLE[move_action].balance_cost * env->dr_balance
+                / env->ch_balance_resist[f->chassis];
             f->guard = 0;
         }
     }
@@ -446,6 +487,12 @@ static inline void rek_write_fighter_obs(const Rek* env, float* obs, const Fight
     float* onehot = obs + REK_SCALARS_PER_FIGHTER;
     memset(onehot, 0, NUM_MOVE_DEFS * sizeof(float));
     onehot[f->move] = 1.0f;
+
+    // Which chassis this is. A pilot sees it immediately and it changes every
+    // reach and weight interaction, so the policy gets it too.
+    float* ch = onehot + NUM_MOVE_DEFS;
+    memset(ch, 0, NUM_CHASSIS * sizeof(float));
+    ch[f->chassis] = 1.0f;
 }
 
 static inline void rek_compute_obs(Rek* env, int slot) {
@@ -577,6 +624,18 @@ void init(Rek* env) {
     env->dr_reach = 1.0f;
     env->dr_speed = 1.0f;
     env->dr_balance = 1.0f;
+
+    // Precompute the mass-derived combat multipliers once. Exponents default to
+    // 0.5 (balance/impact) and 0.25 (speed) rather than 1.0: a straight mass
+    // ratio would make the H100 2.42x harder to topple, which turns every mixed
+    // matchup into a foregone conclusion. Square-root keeps the H100's weight a
+    // real advantage (~1.56x) without making the L100 unplayable.
+    for (int i = 0; i < NUM_CHASSIS; i++) {
+        float ratio = REK_CHASSIS[i].mass / REK_REF_MASS;
+        env->ch_balance_resist[i] = powf(ratio, env->mass_balance_exp);
+        env->ch_impact[i]         = powf(ratio, env->mass_impact_exp);
+        env->ch_speed[i]          = powf(1.0f / ratio, env->mass_speed_exp);
+    }
 }
 
 // Standalone (non-vecenv) path used by rek.c. Under vecenv these buffers are

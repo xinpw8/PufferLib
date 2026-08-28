@@ -13,7 +13,10 @@ static Rek make_env(int num_agents, int num_bots) {
         .num_bots = num_bots,
         .round_frames = (int)(60.0f * REK_TICK_HZ),
         .arena_radius = 3.0f,
-        .body_radius = 0.28f,
+        .matchup = -1,          // random pairing each round, like training
+        .mass_balance_exp = 0.5f,
+        .mass_impact_exp = 0.5f,
+        .mass_speed_exp = 0.25f,
         .move_speed = 1.4f,
         .guard_speed_mult = 0.5f,
         .accel = 0.35f,
@@ -68,8 +71,9 @@ static void performance_test(void) {
 
 // Human at slot 0 against the scripted bot. Mirrors REK's scheme: WASD walks,
 // the number row fires set moves, shift guards.
-static void demo(void) {
+static void demo(int matchup) {
     Rek env = make_env(1, 1);
+    env.matchup = matchup;
     allocate_env(&env);
     c_reset(&env);
 
@@ -86,6 +90,9 @@ static void demo(void) {
     } else {
         printf("No checkpoint at resources/rek/rek_weights.bin — keyboard control.\n");
         printf("WASD moves, 1-%d fire set moves, LEFT SHIFT guards.\n", NUM_MOVE_DEFS - 1);
+        printf("Chassis are drawn to scale: %s r=%.2fm, %s r=%.2fm.\n",
+            REK_CHASSIS[CHASSIS_L100].name, REK_CHASSIS[CHASSIS_L100].body_radius,
+            REK_CHASSIS[CHASSIS_H100].name, REK_CHASSIS[CHASSIS_H100].body_radius);
     }
 
     c_render(&env);
@@ -138,11 +145,36 @@ static void demo(void) {
     free_allocated(&env);
 }
 
-int main(int argc, char** argv) {
-    if (argc > 1 && strcmp(argv[1], "--bench") == 0) {
-        performance_test();
-        return 0;
+static void usage(const char* argv0) {
+    printf("usage: %s [--bench] [--matchup N]\n\n", argv0);
+    printf("  --bench        headless throughput test, no window\n");
+    printf("  --matchup N    pin the pairing instead of rolling it each round:\n");
+    for (int a = 0; a < NUM_CHASSIS; a++) {
+        for (int b = 0; b < NUM_CHASSIS; b++) {
+            printf("                   %d = %s (corner 0) vs %s (corner 1)\n",
+                a * NUM_CHASSIS + b, REK_CHASSIS[a].name, REK_CHASSIS[b].name);
+        }
     }
-    demo();
+    printf("                  -1 = random each round (default)\n");
+}
+
+int main(int argc, char** argv) {
+    int matchup = -1;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--bench") == 0) {
+            performance_test();
+            return 0;
+        } else if (strcmp(argv[i], "--matchup") == 0 && i + 1 < argc) {
+            matchup = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+            usage(argv[0]);
+            return 0;
+        } else {
+            printf("unknown argument: %s\n\n", argv[i]);
+            usage(argv[0]);
+            return 1;
+        }
+    }
+    demo(matchup);
     return 0;
 }
