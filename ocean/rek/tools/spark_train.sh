@@ -11,7 +11,7 @@
 set -uo pipefail
 
 HOST="${SPARK_HOST:-spark}"
-BRANCH="${REK_BRANCH:-claude/pufferlib-g1-combat-env-63fq3e}"
+BRANCH="${REK_BRANCH:-rek}"
 REPO="${REK_REPO:-https://github.com/xinpw8/PufferLib}"
 REMOTE_DIR="${REK_REMOTE_DIR:-~/PufferLib}"
 DRY_RUN=0
@@ -66,6 +66,7 @@ PREFLIGHT=$(on_spark '
     printf "cuda_ok\t%s\n" "$(python3 -c "import torch;print(torch.cuda.is_available())" 2>/dev/null || echo MISSING)"
     printf "repo\t%s\n" "$([ -d '"$REMOTE_DIR"'/.git ] && echo present || echo absent)"
     printf "raylib_deps\t%s\n" "$([ -f /usr/include/GL/gl.h ] && echo ok || echo MISSING)"
+    printf "openmp\t%s\n" "$(ls /usr/lib/*/libomp.so /usr/lib/llvm-*/lib/libomp.so 2>/dev/null | head -1 || echo MISSING)"
 ')
 [ -n "$PREFLIGHT" ] || die "preflight produced no output — is bash available on $HOST?"
 echo "$PREFLIGHT" | while IFS=$'\t' read -r k v; do printf '  %-12s %s\n' "$k" "$v"; done
@@ -76,8 +77,13 @@ get() { echo "$PREFLIGHT" | awk -F'\t' -v k="$1" '$1==k{print $2}'; }
 [ "$(get nvcc)" = "MISSING" ] && die "nvcc not found on $HOST. Install the CUDA toolkit, or add it to PATH in ~/.bashrc (login shell is what this script uses)."
 [ "$(get torch)" = "MISSING" ] && die "torch not importable on $HOST. PufferLib needs torch>=2.9 built for aarch64+CUDA."
 [ "$(get cuda_ok)" != "True" ] && warn "torch.cuda.is_available() is $(get cuda_ok) — training needs a working CUDA runtime"
-[ "$(get raylib_deps)" = "MISSING" ] && warn "GL headers missing; the aarch64 raylib build will need:
+# Exact set that took ./build.sh rek --fast from failing to building; libomp is
+# easy to miss because the failure is a bare "cannot find -lomp" at link time,
+# long after the compile looked fine.
+[ "$(get raylib_deps)" = "MISSING" ] && warn "GL/X11 headers missing; the raylib build will need:
     sudo apt install libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev"
+[ "$(get openmp)" = "MISSING" ] && warn "libomp missing; the link step will fail with 'cannot find -lomp':
+    sudo apt install libomp-dev"
 
 # ---------------------------------------------------------------- sync
 say "Syncing $BRANCH"
