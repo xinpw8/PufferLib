@@ -13,11 +13,13 @@
 // scale off leg length, punches off arm length, and the two ratios differ
 // (1.47x vs 1.38x between the chassis).
 //
-// The frame data below is a placeholder roster. tools/extract_rek.py dumps the
-// real one out of REK's Unity assets and writes moves_generated.h; when that
-// file is present it wins. Everything downstream (action-head width, obs
-// layout) is derived from NUM_MOVE_DEFS, so swapping the table needs no other
-// code change.
+// REK's moves are canned animation clips out of an off-the-shelf mocap library,
+// so the real frame data is the clips' own lengths and hit events, not a number
+// anyone typed. The roster below is a placeholder standing in until it is read
+// off the install: tools/extract_rek.py surveys the assets and writes
+// moves_generated.h, which wins over this table when present. Everything
+// downstream (action-head width, obs layout) is derived from NUM_MOVE_DEFS, so
+// swapping the table needs no other code change.
 
 #pragma once
 
@@ -25,7 +27,14 @@
 
 #include "chassis.h"
 
-// Sim runs at 30 Hz. All frame counts below are in 30 Hz frames.
+// UNVERIFIED, and it sets the unit for every frame count in this file. 30 Hz is
+// a stand-in, not a measurement: REK's changelog quotes 72 fps on Quest, which
+// is a render rate and need not be the fixed timestep the sim steps at. Unity
+// keeps the real number in globalgamemanagers -> TimeManager -> Fixed Timestep,
+// and tools/extract_rek.py --survey reports it. If it is not 30, this constant
+// and the whole table move together — a 0.10 s hit window is 3 frames here and
+// 7 at 72 Hz, so getting it wrong rescales every envelope rather than nudging
+// one of them.
 #define REK_TICK_HZ 30.0f
 #define REK_DT (1.0f / REK_TICK_HZ)
 
