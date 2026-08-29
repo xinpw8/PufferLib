@@ -64,9 +64,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install cross toolchain
+        # libomp-dev is what puts omp.h in clang's resource directory on
+        # Ubuntu; clang alone does not ship it, and src/vecenv.h includes it
+        # unconditionally. The header is architecture independent, so it serves
+        # the cross target fine — this job compiles, it never links.
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang gcc-aarch64-linux-gnu
+          sudo apt-get install -y -qq clang gcc-aarch64-linux-gnu libomp-dev
+          test -f "$(clang --print-resource-dir)/include/omp.h" \
+            || { echo "omp.h still missing from $(clang --print-resource-dir)/include"; exit 1; }
 
       - name: Fetch raylib headers
         # Headers only, and they are architecture independent — this job never
