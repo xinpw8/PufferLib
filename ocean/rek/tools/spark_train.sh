@@ -73,7 +73,7 @@ echo "$PREFLIGHT" | while IFS=$'\t' read -r k v; do printf '  %-12s %s\n' "$k" "
 
 get() { echo "$PREFLIGHT" | awk -F'\t' -v k="$1" '$1==k{print $2}'; }
 
-[ "$(get arch)" = "aarch64" ] || warn "arch is $(get arch), not aarch64 — the raylib-from-source path in build.sh only triggers on aarch64/arm64"
+[ "$(get arch)" = "aarch64" ] || warn "arch is $(get arch), not aarch64 — prepare_arm64.sh will no-op and build.sh runs as upstream wrote it"
 [ "$(get nvcc)" = "MISSING" ] && die "nvcc not found on $HOST. Install the CUDA toolkit, or add it to PATH in ~/.bashrc (login shell is what this script uses)."
 [ "$(get torch)" = "MISSING" ] && die "torch not importable on $HOST. PufferLib needs torch>=2.9 built for aarch64+CUDA."
 [ "$(get cuda_ok)" != "True" ] && warn "torch.cuda.is_available() is $(get cuda_ok) — training needs a working CUDA runtime"
@@ -102,12 +102,19 @@ on_spark "
 
 # ---------------------------------------------------------------- build
 if [ "$SKIP_BUILD" = "0" ]; then
-    say "Building (first real exercise of the aarch64 raylib path)"
+    say "Building (first real exercise of the aarch64 path)"
+    # PufferLib's build.sh is left exactly as upstream ships it. Everything
+    # aarch64 needs is staged around it from ocean/rek/tools/arm64: raylib built
+    # from source under the directory name build.sh looks for, and a CC shim
+    # that drops the x86-only -mavx2/-mfma it compiles with unconditionally.
     on_spark "
         set -e
         cd $REMOTE_DIR
         echo 'NVCC_ARCH resolves to:'
         nvcc --version | tail -1
+        ./ocean/rek/tools/arm64/prepare_arm64.sh
+        eval \"\$(./ocean/rek/tools/arm64/prepare_arm64.sh --export)\"
+        echo \"building with CC=\$CC \${REK_CC_EXTRA:-}\"
         ./build.sh rek
     " || die "build failed.
    If it died in raylib, install the GL/X11 headers listed above.

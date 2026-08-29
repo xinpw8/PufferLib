@@ -52,17 +52,8 @@ fi
 
 # Linux/mac
 PLATFORM="$(uname -s)"
-MACHINE="$(uname -m)"
 if [ "$PLATFORM" = "Linux" ]; then
-    # raylib publishes no arm64 Linux binary for 5.5, so aarch64 hosts (DGX
-    # Spark / GB10, Grace, Jetson) get a from-source build below instead of a
-    # release download.
-    if [ "$MACHINE" = "aarch64" ] || [ "$MACHINE" = "arm64" ]; then
-        RAYLIB_NAME='raylib-5.5_linux_arm64'
-        RAYLIB_FROM_SOURCE=1
-    else
-        RAYLIB_NAME='raylib-5.5_linux_amd64'
-    fi
+    RAYLIB_NAME='raylib-5.5_linux_amd64'
     OMP_LIB=-lomp5
     SANITIZE_FLAGS=(-fsanitize=address,undefined,bounds,pointer-overflow,leak -fno-omit-frame-pointer)
     STANDALONE_LDFLAGS=(-lGL)
@@ -95,35 +86,10 @@ download() {
     esac
 }
 
-# Build raylib from source into the same layout the release tarballs use
-# ($name/include, $name/lib/libraylib.a), so everything downstream is unchanged.
-build_raylib_from_source() {
-    local name=$1
-    [ -d "$name" ] && return
-    echo "Building raylib from source for $MACHINE (no upstream arm64 binary)..."
-    local src="raylib-5.5-src"
-    if [ ! -d "$src" ]; then
-        curl -sL "https://github.com/raysan5/raylib/archive/refs/tags/5.5.tar.gz" \
-            -o raylib-src.tar.gz || { echo "Error: failed to download raylib source"; exit 1; }
-        tar xf raylib-src.tar.gz && mv raylib-5.5 "$src" && rm raylib-src.tar.gz
-    fi
-    make -C "$src/src" PLATFORM=PLATFORM_DESKTOP -j"$(nproc)" || {
-        echo "Error: raylib build failed. Install the GL/X11 headers it needs:"
-        echo "  sudo apt install libgl1-mesa-dev libx11-dev libxrandr-dev \\"
-        echo "      libxinerama-dev libxcursor-dev libxi-dev"
-        exit 1
-    }
-    mkdir -p "$name/lib" "$name/include"
-    cp "$src/src/libraylib.a" "$name/lib/"
-    cp "$src/src/raylib.h" "$src/src/raymath.h" "$src/src/rlgl.h" "$name/include/"
-}
-
 RAYLIB_URL="https://github.com/raysan5/raylib/releases/download/5.5"
 if [ "$MODE" = "web" ]; then
     RAYLIB_NAME='raylib-5.5_webassembly'
     download "$RAYLIB_NAME" "$RAYLIB_URL/$RAYLIB_NAME.zip"
-elif [ -n "$RAYLIB_FROM_SOURCE" ]; then
-    build_raylib_from_source "$RAYLIB_NAME"
 else
     download "$RAYLIB_NAME" "$RAYLIB_URL/$RAYLIB_NAME.tar.gz"
 fi
