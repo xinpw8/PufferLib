@@ -237,28 +237,44 @@ def interpret(report):
     return out
 
 
+def handle_line(run, line):
+    """Apply one operator line. Returns a short status for the caller to print.
+
+    Split out from the reader thread so the vocabulary is testable: a mistyped
+    mark that were silently ignored would cost a whole session, since the marks
+    are the only record of what the operator actually saw.
+    """
+    parts = line.strip().split(None, 1)
+    if not parts:
+        return None
+    cmd, rest = parts[0].lower(), (parts[1] if len(parts) > 1 else '')
+
+    if cmd == 'done':
+        return 'done'
+    if cmd in ('block', 'unblock'):
+        run.set_phase('blocked' if cmd == 'block' else 'restored')
+        return f'-> phase {run.phase}'
+    if cmd == 'note':
+        run.mark('note', rest)
+        return 'noted'
+    if cmd in MARKS:
+        run.mark(cmd, rest)
+        return f'marked {cmd} in {run.phase}'
+    return (f'? unknown mark {cmd!r}; one of: {", ".join(MARKS)}, '
+            f'note, block, unblock, done')
+
+
 def _reader(run, stop):
     """Operator marks, read on a background thread so sampling never stalls."""
     for line in sys.stdin:
         if stop.is_set():
             return
-        parts = line.strip().split(None, 1)
-        if not parts:
-            continue
-        cmd, rest = parts[0].lower(), (parts[1] if len(parts) > 1 else '')
-        if cmd == 'done':
+        status = handle_line(run, line)
+        if status == 'done':
             stop.set()
             return
-        elif cmd in ('block', 'unblock'):
-            run.set_phase('blocked' if cmd == 'block' else 'restored')
-            print(f'  -> phase {run.phase}')
-        elif cmd == 'note':
-            run.mark('note', rest)
-        elif cmd in MARKS:
-            run.mark(cmd, rest)
-        else:
-            print(f'  ? unknown mark {cmd!r}; one of: {", ".join(MARKS)}, '
-                  f'note, block, unblock, done')
+        if status:
+            print(f'  {status}')
 
 
 def main() -> int:

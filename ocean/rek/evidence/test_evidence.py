@@ -35,6 +35,7 @@ authority = _load('authority_test')
 check_artifacts = _load('check_artifacts')
 il2cpp = _load('il2cpp_probe')
 collect_mod = _load('collect')
+discovery = _load('install_discovery')
 
 checks = []
 
@@ -526,6 +527,33 @@ def a_block_that_did_not_apply_yields_no_verdict():
     assert v['verdict'] == 'inconclusive', v
     assert not v['block']['effective']
     assert 'still established' in v['block']['reason']
+
+
+@check
+def the_mark_vocabulary_rejects_typos_rather_than_dropping_them():
+    # The marks are the only record of what the operator saw. A mistyped one
+    # that vanished silently would cost the whole session.
+    clock = FakeClock()
+    run = authority.Run(lambda: ([], []), clock)
+
+    assert authority.handle_line(run, '') is None
+    assert authority.handle_line(run, '   ') is None
+
+    status = authority.handle_line(run, 'state-progresed')      # typo
+    assert status.startswith('? unknown mark'), status
+    assert 'state-progressed' in status, status
+    assert run.marks == [], run.marks
+
+    assert authority.handle_line(run, 'block') == '-> phase blocked'
+    assert run.phase == 'blocked'
+    assert 'marked state-progressed' in authority.handle_line(run, 'state-progressed')
+    assert authority.handle_line(run, 'NOTE the arena kept ticking') == 'noted'
+    assert authority.handle_line(run, 'unblock') == '-> phase restored'
+    assert authority.handle_line(run, 'done') == 'done'
+
+    kinds = [(m['kind'], m['phase']) for m in run.marks]
+    assert kinds == [('state-progressed', 'blocked'), ('note', 'blocked')], kinds
+    assert run.marks[1]['text'] == 'the arena kept ticking'
 
 
 @check
@@ -1231,6 +1259,98 @@ def a_partial_collection_is_legible_rather_than_empty():
         assert (out / 'il2cpp_probe.json').exists()
         assert not (out / 'static_survey.json').exists()
         assert json.loads((out / 'collect_log.json').read_text())['steps'] == log
+
+
+def _steam_layout(tmp: Path, second_library=True):
+    """A Steam install split across two drives, the way a real one usually is.
+
+    Mirrors what this has to cope with when driven from WSL: Steam itself on one
+    drive, the game on another, and libraryfolders.vdf pointing at the second
+    with a native Windows path.
+    """
+    main = tmp / 'mnt' / 'c' / 'Program Files (x86)' / 'Steam'
+    (main / 'steamapps' / 'common').mkdir(parents=True)
+
+    other = tmp / 'mnt' / 'd' / 'SteamLibrary'
+    if second_library:
+        common = other / 'steamapps' / 'common'
+        common.mkdir(parents=True)
+        game = common / 'REK Robots'
+        (game / 'REK_Data').mkdir(parents=True)
+        (game / 'REK_Data' / 'globalgamemanagers').write_bytes(b'x')
+        (other / 'steamapps' / 'appmanifest_4582660.acf').write_text(
+            '"AppState"\n{\n\t"appid"\t\t"4582660"\n'
+            '\t"installdir"\t\t"REK Robots"\n}\n')
+        # An unrelated Unity game in the same library, to check ordering.
+        other_game = common / 'SomeOtherGame'
+        (other_game / 'Other_Data').mkdir(parents=True)
+        (other_game / 'Other_Data' / 'globalgamemanagers').write_bytes(b'x')
+
+    (main / 'steamapps' / 'libraryfolders.vdf').write_text(
+        '"libraryfolders"\n{\n\t"0"\n\t{\n\t\t"path"\t\t"%s"\n\t}\n'
+        '\t"1"\n\t{\n\t\t"path"\t\t"D:\\\\SteamLibrary"\n\t}\n}\n'
+        % str(main).replace('\\', '\\\\'))
+    return main, other
+
+
+@check
+def the_install_finder_follows_libraryfolders_across_drives():
+    # Deleting the old extractor took its tests with it, and this is the code
+    # that has to work before any other tool runs at all.
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        main, other = _steam_layout(d)
+        real_globs = discovery.STEAM_ROOT_GLOBS
+        discovery.STEAM_ROOT_GLOBS = [str(d / 'mnt' / '*' / 'Program Files (x86)' / 'Steam'),
+                                      str(d / 'mnt' / '*' / 'SteamLibrary')]
+        try:
+            libs = discovery.steam_libraries()
+            cands = discovery.candidate_installs('4582660')
+        finally:
+            discovery.STEAM_ROOT_GLOBS = real_globs
+
+        assert main.resolve() in libs and other.resolve() in libs, libs
+
+        # The manifest is the only reliable source of the folder name, so it
+        # must come first — a name match and a Unity-marker scan are fallbacks.
+        assert cands, 'found no candidates at all'
+        best, why = cands[0]
+        assert best.name == 'REK Robots', cands
+        assert why == 'appmanifest_4582660.acf', cands
+        # The unrelated Unity game is still offered, but after.
+        assert any(p.name == 'SomeOtherGame' and w == 'unity app'
+                   for p, w in cands), cands
+
+
+@check
+def an_unknown_appid_still_resolves_through_the_unity_marker():
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        main, other = _steam_layout(d)
+        real_globs = discovery.STEAM_ROOT_GLOBS
+        discovery.STEAM_ROOT_GLOBS = [str(d / 'mnt' / '*' / 'Program Files (x86)' / 'Steam'),
+                                      str(d / 'mnt' / '*' / 'SteamLibrary')]
+        try:
+            # A playtest or dev build has a different appid, so tier 1 misses.
+            cands = discovery.candidate_installs('99999999')
+        finally:
+            discovery.STEAM_ROOT_GLOBS = real_globs
+
+        whys = {p.name: w for p, w in cands}
+        assert whys.get('REK Robots') == 'name match', whys
+        assert whys.get('SomeOtherGame') == 'unity app', whys
+
+
+@check
+def a_unity_app_is_recognised_by_its_data_directory():
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        game = d / 'Game'
+        (game / 'Game_Data').mkdir(parents=True)
+        assert not discovery.is_unity_app(game), 'empty _Data should not count'
+        (game / 'Game_Data' / 'globalgamemanagers').write_bytes(b'x')
+        assert discovery.is_unity_app(game)
+        assert not discovery.is_unity_app(d / 'nonexistent')
 
 
 def _states(results):
