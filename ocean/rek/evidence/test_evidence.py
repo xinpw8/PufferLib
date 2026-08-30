@@ -529,6 +529,25 @@ def a_block_that_did_not_apply_yields_no_verdict():
 
 
 @check
+def a_block_command_that_failed_is_decisive_on_its_own():
+    # Sockets can look convincing for other reasons. If the command meant to
+    # apply the block exited non-zero, the intervention did not happen and no
+    # amount of socket evidence should override that.
+    report = authority_run(['1.2.3.4:443'], [],
+                           ['input', 'state-progressed', 'reset-ok'])
+    report['commands'] = [{'t': 2.0, 'phase': 'blocked',
+                           'cmd': 'netsh advfirewall ...', 'returncode': 1}]
+    v = authority.interpret(report)
+    assert v['verdict'] == 'inconclusive', v
+    assert 'exited 1' in v['block']['reason'], v['block']
+
+    # Exit 0 leaves the socket evidence to decide.
+    report['commands'][0]['returncode'] = 0
+    v = authority.interpret(report)
+    assert v['verdict'] == 'local_authority', v
+
+
+@check
 def a_game_with_no_connections_cannot_be_tested_this_way():
     report = authority_run([], [], ['input', 'state-progressed'])
     v = authority.interpret(report)

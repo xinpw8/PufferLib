@@ -71,7 +71,19 @@ class Run:
         self.phase = PHASES[0]
         self.samples = []
         self.marks = []
+        self.commands = []
         self.phase_changes = [{'t': 0.0, 'phase': self.phase}]
+
+    def command(self, cmd, returncode):
+        """What the operator's block/unblock command did.
+
+        A block command that failed still moves the phase, and the socket check
+        is then the only thing standing between a failed intervention and a
+        confident verdict. Recording the exit status puts the more direct
+        evidence in the artifact too.
+        """
+        self.commands.append({'t': self._t(), 'phase': self.phase,
+                              'cmd': cmd, 'returncode': returncode})
 
     def _t(self):
         return round(self._now() - self.t0, 3)
@@ -102,6 +114,7 @@ class Run:
         return {
             'schema': 1,
             'phases': self.phase_changes,
+            'commands': self.commands,
             'marks': self.marks,
             'samples': self.samples,
             'duration_s': self._t(),
@@ -117,6 +130,17 @@ def _phase_marks(report, phase):
 
 
 def block_took_effect(report):
+    # A block command that exited non-zero is decisive on its own: whatever the
+    # sockets look like, the intervention was not applied as intended.
+    for c in report.get('commands', []):
+        if c['phase'] == 'blocked' and c['returncode'] not in (0, None):
+            return {'effective': False,
+                    'reason': f'the block command exited {c["returncode"]}: '
+                              f'{c["cmd"]!r}'}
+    return _block_took_effect_from_sockets(report)
+
+
+def _block_took_effect_from_sockets(report):
     """Did the intervention actually cut the game's networking?
 
     Judged on the game's own sockets, not on whether the machine went quiet.
@@ -276,7 +300,10 @@ def main() -> int:
         if run.phase != last_phase:
             cmd = args.block_cmd if run.phase == 'blocked' else args.unblock_cmd
             if cmd and run.phase in ('blocked', 'restored'):
-                subprocess.run(cmd, shell=True)
+                proc = subprocess.run(cmd, shell=True)
+                run.command(cmd, proc.returncode)
+                if proc.returncode != 0:
+                    print(f'  !! command exited {proc.returncode}: {cmd}')
             last_phase = run.phase
         run.observe()
         time.sleep(args.interval)
