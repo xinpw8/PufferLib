@@ -1,5 +1,11 @@
 #!/bin/bash
-# Drive the rek env on the DGX Spark from WSL, over an `ssh spark` alias.
+# Drive a PufferLib env on the DGX Spark from WSL, over an `ssh spark` alias.
+#
+# The env is named with --env. There is no REK env on this branch: the previous
+# one was a surrogate and has been quarantined on rek_proxy, and a clone will
+# only be built once the evidence package in ocean/rek/evidence has established
+# what it must reproduce. Without --env this runs preflight and sync only, which
+# is still the useful part while that work is in progress.
 #
 #   ./ocean/rek/tools/spark_train.sh --dry-run   # preflight + sync + build + verify
 #   ./ocean/rek/tools/spark_train.sh             # ...then start training
@@ -12,6 +18,7 @@ set -uo pipefail
 
 HOST="${SPARK_HOST:-spark}"
 BRANCH="${REK_BRANCH:-rek}"
+ENV_NAME="${REK_ENV:-}"
 REPO="${REK_REPO:-https://github.com/xinpw8/PufferLib}"
 REMOTE_DIR="${REK_REMOTE_DIR:-~/PufferLib}"
 DRY_RUN=0
@@ -24,6 +31,7 @@ while [ $# -gt 0 ]; do
         --skip-build) SKIP_BUILD=1 ;;
         --host)       HOST="$2"; shift ;;
         --branch)     BRANCH="$2"; shift ;;
+        --env)        ENV_NAME="$2"; shift ;;
         -h|--help)
             sed -n '2,10p' "$0" | sed 's/^# \?//'
             exit 0 ;;
@@ -77,7 +85,7 @@ get() { echo "$PREFLIGHT" | awk -F'\t' -v k="$1" '$1==k{print $2}'; }
 [ "$(get nvcc)" = "MISSING" ] && die "nvcc not found on $HOST. Install the CUDA toolkit, or add it to PATH in ~/.bashrc (login shell is what this script uses)."
 [ "$(get torch)" = "MISSING" ] && die "torch not importable on $HOST. PufferLib needs torch>=2.9 built for aarch64+CUDA."
 [ "$(get cuda_ok)" != "True" ] && warn "torch.cuda.is_available() is $(get cuda_ok) — training needs a working CUDA runtime"
-# Exact set that took ./build.sh rek --fast from failing to building; libomp is
+# Exact set that took ./build.sh --fast from failing to building; libomp is
 # easy to miss because the failure is a bare "cannot find -lomp" at link time,
 # long after the compile looked fine.
 [ "$(get raylib_deps)" = "MISSING" ] && warn "GL/X11 headers missing; the raylib build will need:
@@ -101,6 +109,18 @@ on_spark "
 " || die "sync failed"
 
 # ---------------------------------------------------------------- build
+# Without an env there is nothing to build, verify or train. Say so once and
+# stop, rather than running the remaining steps against a name that resolves to
+# nothing and failing three times over.
+if [ -z "$ENV_NAME" ]; then
+    say "No --env given, so stopping after sync"
+    echo "There is no REK env on this branch yet. The surrogate that used to be
+here is quarantined on rek_proxy; a clone will be built once the evidence
+package under ocean/rek/evidence establishes what it has to reproduce.
+Pass --env NAME to build, verify and train an env that does exist."
+    exit 0
+fi
+
 if [ "$SKIP_BUILD" = "0" ]; then
     say "Building (first real exercise of the aarch64 path)"
     # PufferLib's build.sh is left exactly as upstream ships it. Everything
@@ -115,10 +135,10 @@ if [ "$SKIP_BUILD" = "0" ]; then
         ./ocean/rek/tools/arm64/prepare_arm64.sh
         eval \"\$(./ocean/rek/tools/arm64/prepare_arm64.sh --export)\"
         echo \"building with CC=\$CC \${REK_CC_EXTRA:-}\"
-        ./build.sh rek
+        ./build.sh $ENV_NAME
     " || die "build failed.
    If it died in raylib, install the GL/X11 headers listed above.
-   If it died in nvcc over the GPU arch, pin it: NVCC_ARCH=sm_121 ./build.sh rek"
+   If it died in nvcc over the GPU arch, pin it: NVCC_ARCH=sm_121 ./build.sh $ENV_NAME"
 fi
 
 # ---------------------------------------------------------------- verify
@@ -126,15 +146,15 @@ say "Verifying rules and step rate (headless, no GPU or display needed)"
 on_spark "
     set -e
     cd $REMOTE_DIR
-    cc -O3 -Wall -I./src ocean/rek/test_rek.c -lm -o /tmp/test_rek
-    /tmp/test_rek --bench
+    cc -O3 -Wall -I./src ocean/$ENV_NAME/test_$ENV_NAME.c -lm -o /tmp/test_env
+    /tmp/test_env --bench
     echo
     echo \"cores available: \$(nproc)\"
 " || die "verification failed — the rules did not pass on aarch64"
 
 if [ "$DRY_RUN" = "1" ]; then
     say "Dry run complete — stopping before training"
-    echo "Run without --dry-run to start:  puffer train rek"
+    echo "Run without --dry-run to start:  puffer train $ENV_NAME"
     exit 0
 fi
 
@@ -144,9 +164,9 @@ echo "Ctrl-C detaches this shell; the run keeps going under its own tmux session
 ssh -t "$HOST" "bash -lc $(printf '%q' "
     cd $REMOTE_DIR
     if command -v tmux >/dev/null; then
-        tmux new-session -A -s rek \"puffer train rek ${TRAIN_ARGS[*]:-}\"
+        tmux new-session -A -s $ENV_NAME \"puffer train $ENV_NAME ${TRAIN_ARGS[*]:-}\"
     else
         echo 'tmux not installed — running in the foreground, closing this shell kills it'
-        puffer train rek ${TRAIN_ARGS[*]:-}
+        puffer train $ENV_NAME ${TRAIN_ARGS[*]:-}
     fi
 ")"
