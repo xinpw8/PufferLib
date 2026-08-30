@@ -31,6 +31,7 @@ inventory = _load('inventory')
 static_survey = _load('static_survey')
 trace_mod = _load('trace')
 differ = _load('differ')
+authority = _load('authority_test')
 
 checks = []
 
@@ -66,7 +67,7 @@ def fake_install(tmp: Path) -> Path:
 def inventory_finds_the_build_identity():
     with tempfile.TemporaryDirectory() as d:
         game = fake_install(Path(d))
-        inv = inventory.scan(game, include_volatile=False)
+        inv = inventory.scan(game)
         assert inv['steam']['buildid'] == '19284412', inv['steam']
         assert inv['steam']['appid'] == '4582660'
         kinds = {f['path']: f['kind'] for f in inv['files']}
@@ -77,22 +78,64 @@ def inventory_finds_the_build_identity():
         assert kinds['REK_Data/Plugins/x86_64/physx.dll'] == 'native_plugin'
         assert kinds['REK_Data/StreamingAssets/balance.onnx'] == 'model_asset'
         assert kinds['REK.exe'] == 'executable'
-        # Logs are excluded by default; counting them would make the fingerprint
-        # useless as an identity.
-        assert 'logs/output.txt' not in kinds
+        # Volatile files are recorded — the manifest is complete — but they are
+        # classified so the immutable root can exclude them. Dropping them
+        # entirely would leave the record incomplete; counting them toward the
+        # identity would make it useless.
+        assert kinds['logs/output.txt'] == 'volatile'
+        assert inv['file_count'] == len(kinds)
+        assert inv['immutable_file_count'] == inv['file_count'] - 1
+        roots = inv['merkle_roots']
+        assert set(roots) == {'manifest', 'immutable', 'behavioural'}
+        assert inv['build_fingerprint'] == roots['immutable']
+        assert len({roots['manifest'], roots['immutable']}) == 2
 
 
 @check
 def fingerprint_ignores_noise_and_catches_updates():
     with tempfile.TemporaryDirectory() as d:
         game = fake_install(Path(d))
-        first = inventory.scan(game, False)['build_fingerprint']
+        first = inventory.scan(game)
+        fp = first['build_fingerprint']
 
         (game / 'logs' / 'output.txt').write_text('a different log entirely')
-        assert inventory.scan(game, False)['build_fingerprint'] == first
+        churned = inventory.scan(game)
+        assert churned['build_fingerprint'] == fp
+        # ...but the complete manifest still notices, which is the point of
+        # keeping both roots.
+        assert churned['merkle_roots']['manifest'] != first['merkle_roots']['manifest']
 
         (game / 'GameAssembly.dll').write_bytes(b'il2cpp v2')
-        assert inventory.scan(game, False)['build_fingerprint'] != first
+        assert inventory.scan(game)['build_fingerprint'] != fp
+
+
+@check
+def the_identity_covers_files_no_category_list_anticipated():
+    # The failure the immutable root exists to prevent: a behaviour-bearing file
+    # in a bucket nobody thought to enumerate. An Addressables bundle dropped in
+    # after the fact must move the identity.
+    with tempfile.TemporaryDirectory() as d:
+        game = fake_install(Path(d))
+        before = inventory.scan(game)
+        (game / 'REK_Data' / 'StreamingAssets' / 'aa').mkdir(parents=True)
+        (game / 'REK_Data' / 'StreamingAssets' / 'aa' / 'catalog.json').write_text('{}')
+        after = inventory.scan(game)
+        assert after['build_fingerprint'] != before['build_fingerprint']
+        kinds = {f['path']: f['kind'] for f in after['files']}
+        assert kinds['REK_Data/StreamingAssets/aa/catalog.json'] == 'addressables_catalog'
+
+
+@check
+def a_merkle_root_is_order_independent_and_content_sensitive():
+    pairs = [('b/x', 'h2'), ('a/y', 'h1'), ('c/z', 'h3')]
+    assert inventory.merkle_root(pairs) == inventory.merkle_root(reversed(pairs))
+    assert inventory.merkle_root(pairs) != inventory.merkle_root(
+        [('b/x', 'h2'), ('a/y', 'h1'), ('c/z', 'h4')])
+    # Path is bound into the leaf, so moving a file changes the root even though
+    # its content did not.
+    assert inventory.merkle_root(pairs) != inventory.merkle_root(
+        [('b/x', 'h2'), ('a/MOVED', 'h1'), ('c/z', 'h3')])
+    assert inventory.merkle_root([]) == inventory.merkle_root([])
 
 
 @check
@@ -148,6 +191,37 @@ def a_trace_must_name_its_build_and_source():
 
 
 @check
+def a_server_authoritative_trace_must_identify_the_server():
+    # The client hash pins the client. If the simulation is remote, the server
+    # can be updated independently, so two traces from one client build may come
+    # from different authoritative simulators.
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        try:
+            trace_mod.TraceWriter(d / 'x.trace', ['a'], 'fp0', 'rek',
+                                  authority='server')
+        except ValueError as e:
+            assert 'does not' in str(e) and 'session_id' in str(e), e
+        else:
+            raise AssertionError('accepted a server trace with no server identity')
+
+        with trace_mod.TraceWriter(
+                d / 'ok.trace', ['a'], 'fp0', 'rek', authority='server',
+                server={'endpoint': 'eu-1.example:7777', 'session_id': 'abc123',
+                        'protocol_version': 7, 'server_version': None}) as w:
+            w.append(0, {'a': 1.0})
+        t = trace_mod.Trace.load(d / 'ok.trace')
+        assert t.authority == 'server' and t.server['session_id'] == 'abc123'
+
+        # A local trace needs none of that, and defaults to declaring nothing.
+        with trace_mod.TraceWriter(d / 'loc.trace', ['a'], 'fp0', 'rek',
+                                   authority='local') as w:
+            w.append(0, {'a': 1.0})
+        assert trace_mod.Trace.load(d / 'loc.trace').authority == 'local'
+        assert trace_mod.Trace.load(d / 'ok.trace').header['channels'] == ['a']
+
+
+@check
 def frames_must_be_complete_and_ordered():
     with tempfile.TemporaryDirectory() as d:
         w = trace_mod.TraceWriter(Path(d) / 'x.trace', ['a', 'b'], 'fp0', 'rek')
@@ -165,6 +239,15 @@ def frames_must_be_complete_and_ordered():
         else:
             raise AssertionError('accepted a non-increasing tick')
         w.close()
+
+
+def _write_series(path, source, series, events=(), fp='fp0', channel='root_x'):
+    """A trace with an explicit per-tick series, for shaping distributions."""
+    with trace_mod.TraceWriter(path, [channel], fp, source, experiment='e1') as w:
+        for tick, value in series:
+            w.append(tick, {channel: value})
+        for tick, kind in events:
+            w.event(tick, kind)
 
 
 def _run(args, cwd):
@@ -261,6 +344,202 @@ def a_clone_trace_cannot_masquerade_as_the_oracle():
         p = _run(['baseline', 'c0.trace', 'c1.trace', '--out', 'env.json'], d)
         assert p.returncode != 0, p.stdout
         assert 'must be REK' in p.stdout + p.stderr
+
+
+class FakeClock:
+    def __init__(self):
+        self.t = 1000.0
+
+    def __call__(self):
+        self.t += 0.5
+        return self.t
+
+
+def authority_run(online_peers, blocked_peers, marks, blocked_established=None):
+    """Replay an authority experiment without a game or a network."""
+    clock = FakeClock()
+    peers = {'baseline_online': online_peers, 'blocked': blocked_peers,
+             'restored': online_peers}
+    state = {'phase': 'baseline_online'}
+
+    def sample():
+        ps = peers[state['phase']]
+        est = (blocked_established if state['phase'] == 'blocked'
+               and blocked_established is not None else len(ps))
+        return ([{'raddr': a, 'status': 'ESTABLISHED' if i < est else 'CLOSE_WAIT'}
+                 for i, a in enumerate(ps)], [])
+
+    run = authority.Run(sample, clock)
+    for _ in range(4):
+        run.observe()
+    run.set_phase('blocked')
+    state['phase'] = 'blocked'
+    for kind in marks:
+        run.mark(kind)
+    for _ in range(4):
+        run.observe()
+    run.set_phase('restored')
+    state['phase'] = 'restored'
+    run.observe()
+    return run.report()
+
+
+@check
+def a_block_that_did_not_apply_yields_no_verdict():
+    # The failure that would otherwise manufacture evidence: the firewall rule
+    # missed the process, the game kept talking, and the marks get read as if
+    # the network had been cut.
+    report = authority_run(['1.2.3.4:443'], ['1.2.3.4:443'],
+                           ['input', 'state-progressed', 'score-ok'])
+    v = authority.interpret(report)
+    assert v['verdict'] == 'inconclusive', v
+    assert not v['block']['effective']
+    assert 'still established' in v['block']['reason']
+
+
+@check
+def a_game_with_no_connections_cannot_be_tested_this_way():
+    report = authority_run([], [], ['input', 'state-progressed'])
+    v = authority.interpret(report)
+    assert v['verdict'] == 'inconclusive', v
+    assert 'no remote connections even before' in v['block']['reason']
+
+
+@check
+def state_continuing_with_the_network_cut_means_local_authority():
+    report = authority_run(['1.2.3.4:443'], [],
+                           ['input', 'state-progressed', 'reset-ok', 'score-ok'])
+    v = authority.interpret(report)
+    assert v['block']['effective'], v['block']
+    assert v['verdict'] == 'local_authority', v
+    assert 'live matches' in v['limits']
+
+
+@check
+def progress_without_a_completed_interaction_is_only_weak_evidence():
+    report = authority_run(['1.2.3.4:443'], [], ['input', 'state-progressed'])
+    v = authority.interpret(report)
+    assert v['verdict'] == 'local_authority_weak', v
+    assert 'reset' in v['because']
+
+
+@check
+def freezing_when_cut_off_means_remote_authority():
+    report = authority_run(['1.2.3.4:443'], [], ['input', 'frozen', 'reset-failed'])
+    v = authority.interpret(report)
+    assert v['verdict'] == 'remote_authority', v
+
+
+@check
+def progress_then_correction_means_local_prediction():
+    report = authority_run(['1.2.3.4:443'], [],
+                           ['input', 'state-progressed', 'rollback'])
+    v = authority.interpret(report)
+    assert v['verdict'] == 'local_prediction_remote_correction', v
+
+
+@check
+def an_unmarked_blocked_phase_is_inconclusive():
+    report = authority_run(['1.2.3.4:443'], [], [])
+    v = authority.interpret(report)
+    assert v['verdict'] == 'inconclusive', v
+    assert 'nothing was marked' in v['because']
+
+
+@check
+def one_anomalous_rek_run_must_not_widen_the_tolerance():
+    # The defect this guards: accepting at the maximum lets a single outlier run
+    # buy slack for the clone. Three runs agree closely; a fourth has one large
+    # excursion. A clone that is wrong everywhere by less than that excursion
+    # must still fail.
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        flat = [(t, 0.0) for t in range(200)]
+        for name in ('r0.trace', 'r1.trace', 'r2.trace'):
+            _write_series(d / name, 'rek', flat)
+        spike = [(t, 5.0 if t == 100 else 0.0) for t in range(200)]
+        _write_series(d / 'r3.trace', 'rek', spike)
+
+        p = _run(['baseline', 'r0.trace', 'r1.trace', 'r2.trace', 'r3.trace',
+                  '--out', 'p99.json'], d)
+        assert p.returncode == 0, p.stderr
+        env = json.loads((d / 'p99.json').read_text())
+        ch = env['channels']['root_x']
+        assert ch['max'] == 5.0 and ch['p99'] < 5.0, ch
+        assert ch['outlier_ratio'] > 10, ch
+        assert 'more than 10x their p99' in p.stdout, p.stdout
+
+        # Wrong by 1.0 everywhere: well inside the max, well outside the p99.
+        _write_series(d / 'clone.trace', 'clone:x', [(t, 1.0) for t in range(200)])
+        p99_run = _run(['compare', 'r0.trace', 'clone.trace',
+                        '--envelope', 'p99.json', '--report', 'a.json'], d)
+        assert p99_run.returncode == 1, p99_run.stdout
+
+        _run(['baseline', 'r0.trace', 'r1.trace', 'r2.trace', 'r3.trace',
+              '--accept-at', 'max', '--out', 'max.json'], d)
+        max_run = _run(['compare', 'r0.trace', 'clone.trace',
+                        '--envelope', 'max.json', '--report', 'b.json'], d)
+        assert max_run.returncode == 0, max_run.stdout
+        # Which is the point: --accept-at max is the permissive setting, and the
+        # default must not be it.
+        assert json.loads((d / 'p99.json').read_text())['accept_at'] == 'p99'
+
+
+@check
+def a_dropped_event_does_not_cascade_into_timing_errors():
+    # Zipping two event lists pairs unrelated occurrences as soon as one is
+    # missing, turning one dropped hit into an error on every hit after it.
+    m = differ.match_events([10, 20, 30, 40], [10, 30, 40], window=1)
+    assert m['matched'] == 3 and m['false_negatives'] == 1, m
+    assert m['false_positives'] == 0 and m['max_matched_offset'] == 0, m
+    assert m['recall'] == 0.75 and m['precision'] == 1.0, m
+
+    spurious = differ.match_events([10, 20], [10, 15, 20], window=1)
+    assert spurious['false_positives'] == 1 and spurious['recall'] == 1.0, spurious
+    assert spurious['precision'] < 1.0, spurious
+
+    # Outside the window is not a match at all, however close the count.
+    late = differ.match_events([10], [14], window=1)
+    assert late['matched'] == 0 and late['precision'] == 0.0, late
+
+
+@check
+def compare_reports_how_much_of_the_run_was_still_informative():
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        flat = [(t, 0.0) for t in range(100)]
+        for name in ('r0.trace', 'r1.trace', 'r2.trace'):
+            _write_series(d / name, 'rek', flat)
+        _run(['baseline', 'r0.trace', 'r1.trace', 'r2.trace', '--out', 'env.json'], d)
+
+        # Tracks exactly, then leaves at tick 40 and stays gone.
+        drift = [(t, 0.0 if t < 40 else 1.0) for t in range(100)]
+        _write_series(d / 'clone.trace', 'clone:x', drift)
+        p = _run(['compare', 'r0.trace', 'clone.trace', '--envelope', 'env.json',
+                  '--report', 'r.json'], d)
+        assert p.returncode == 1, p.stdout
+        rep = json.loads((d / 'r.json').read_text())
+        assert rep['first_divergent_tick'] == 40, rep['first_divergent_tick']
+        assert rep['valid_horizon_ticks'] == 40, rep['valid_horizon_ticks']
+        assert 'past the divergence point' in p.stdout, p.stdout
+
+
+@check
+def channel_units_are_carried_through():
+    assert differ.channel_unit('root.0.pos.x') == 'm'
+    assert differ.channel_unit('root.0.angvel.z') == 'rad/s'
+    assert differ.channel_unit('joint.0.knee_l.pos') == 'rad'
+    assert differ.channel_unit('joint.0.knee_l.vel') == 'rad/s'
+    assert differ.channel_unit('contact.0.foot_l.impulse') == 'N*s'
+    assert differ.channel_unit('ctrl.0.hidden[3]') == 'dimensionless'
+
+
+@check
+def quantiles_are_interpolated_not_nearest():
+    assert differ.quantile([0.0, 1.0], 0.5) == 0.5
+    assert differ.quantile([0.0, 10.0], 0.99) == 9.9
+    assert differ.quantile([5.0], 0.99) == 5.0
+    assert differ.quantile([], 0.5) == 0.0
 
 
 def main() -> int:

@@ -3,15 +3,29 @@
 Every trace, every recovered constant and every parity claim has to name the
 build it came from. Without that an update silently invalidates results and
 nothing downstream can tell. This walks the install, hashes every file, and
-derives a single build fingerprint from the files that decide behaviour.
+derives Merkle roots over the result.
 
     python inventory.py --out inventory.json
     python inventory.py --verify inventory.json      # has the build moved?
 
-The fingerprint deliberately covers only the decisive set — executables, the
-IL2CPP pair, UnityPlayer, asset containers, native plugins. Log files, save
-data, crash dumps and shader caches change on their own and would make the
-fingerprint useless as an identity if they counted toward it.
+Three roots, because they answer different questions:
+
+    manifest     every file seen, volatile ones included. The complete record.
+    immutable    every shipped file. This is the build identity that traces
+                 cite. No hand-picked category list, so a behaviour change
+                 cannot hide in a bucket nobody thought to include — an
+                 Addressables bundle, a controller weight file, a Burst
+                 library, a physics plugin.
+    behavioural  the subset most likely to matter, for triage only.
+
+Volatile files — logs, crash dumps, local save state — are recorded in the
+manifest but excluded from the immutable root, since they change on their own
+and would otherwise make the identity useless.
+
+This pins the *client*. It does not pin a server. If the authoritative
+simulation runs remotely, the server can be updated independently and a trace
+must additionally record protocol version, endpoint, session and any
+server-reported version — see trace.py.
 
 Read-only against the install.
 """
@@ -53,9 +67,16 @@ def classify(rel: Path) -> str:
         return 'native_plugin' if 'plugins' in parts else 'managed_or_native'
     if suffix in ('.onnx', '.sentis', '.nn', '.tflite', '.pt', '.pth', '.plan', '.engine'):
         return 'model_asset'
+    # Addressables ship behaviour in bundles and decide which ones load through
+    # a catalog. Missing either would mean fingerprinting a build while the part
+    # that actually changed sat in 'other'.
+    if name.startswith('catalog') and suffix in ('.json', '.bin', '.hash'):
+        return 'addressables_catalog'
+    if 'addressables' in parts or 'aa' in parts:
+        return 'addressables_content'
     if suffix in ('.bundle', '.unity3d') or name.startswith('sharedassets') \
             or name.startswith('level') or name == 'resources.assets' \
-            or suffix == '.assets' or suffix == '.resource' or suffix == '.resS'.lower():
+            or suffix in ('.assets', '.resource', '.ress', '.sharedassets'):
         return 'asset_container'
     if suffix in ('.json', '.ini', '.cfg', '.xml', '.yaml', '.yml', '.toml', '.config'):
         return 'config'
@@ -66,9 +87,15 @@ def classify(rel: Path) -> str:
 
 # Categories whose contents define the build's behaviour. A change in any of
 # these is a different build for our purposes.
-DECISIVE = ('executable', 'il2cpp_code', 'il2cpp_metadata', 'unity_runtime',
-            'unity_settings', 'asset_container', 'native_plugin',
-            'burst_library', 'model_asset', 'managed_or_native')
+BEHAVIOURAL = ('executable', 'il2cpp_code', 'il2cpp_metadata', 'unity_runtime',
+               'unity_settings', 'asset_container', 'addressables_catalog',
+               'addressables_content', 'native_plugin', 'burst_library',
+               'model_asset', 'managed_or_native')
+
+# Files that change on their own — logs, crash dumps, local save state. They are
+# not part of the shipped install, so they are excluded from the immutable root
+# and marked in the manifest rather than dropped.
+VOLATILE = ('volatile',)
 
 
 def sha256(path: Path) -> str:
@@ -80,6 +107,28 @@ def sha256(path: Path) -> str:
                 break
             h.update(block)
     return h.hexdigest()
+
+
+def merkle_root(entries) -> str:
+    """Merkle root over (path, content hash) pairs, sorted by path.
+
+    A tree rather than a hash of a concatenation so that any single file can
+    later be proven in or out of a given build without redistributing the whole
+    manifest, and so two manifests can be diffed structurally. Leaves and
+    internal nodes are domain-separated; an odd node is promoted unchanged.
+    """
+    level = [hashlib.sha256(b'leaf\0' + path.encode() + b'\0' + digest.encode()).digest()
+             for path, digest in sorted(entries)]
+    if not level:
+        return hashlib.sha256(b'empty').hexdigest()
+    while len(level) > 1:
+        nxt = []
+        for i in range(0, len(level) - 1, 2):
+            nxt.append(hashlib.sha256(b'node\0' + level[i] + level[i + 1]).digest())
+        if len(level) % 2:
+            nxt.append(level[-1])
+        level = nxt
+    return level[0].hex()
 
 
 def steam_manifest(root: Path) -> dict:
@@ -112,7 +161,7 @@ def steam_manifest(root: Path) -> dict:
     return {}
 
 
-def scan(root: Path, include_volatile: bool) -> dict:
+def scan(root: Path) -> dict:
     files, errors = [], []
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames.sort()
@@ -120,8 +169,6 @@ def scan(root: Path, include_volatile: bool) -> dict:
             p = Path(dirpath) / fn
             rel = p.relative_to(root)
             kind = classify(rel)
-            if kind == 'volatile' and not include_volatile:
-                continue
             try:
                 st = p.stat()
                 files.append({
@@ -133,13 +180,23 @@ def scan(root: Path, include_volatile: bool) -> dict:
             except OSError as e:
                 errors.append({'path': rel.as_posix(), 'error': str(e)})
 
-    decisive = [f for f in files if f['kind'] in DECISIVE]
-    fingerprint = hashlib.sha256()
-    for f in sorted(decisive, key=lambda f: f['path']):
-        fingerprint.update(f['path'].encode())
-        fingerprint.update(b'\0')
-        fingerprint.update(f['sha256'].encode())
-        fingerprint.update(b'\n')
+    # Three roots, because they answer different questions and conflating them
+    # is how a build gets mis-identified.
+    #
+    #   manifest  every file seen, including volatile ones. Complete record.
+    #   immutable every shipped file. THIS is the build's identity: no heuristic
+    #             selection, so a behaviour change cannot hide in a category
+    #             someone forgot to list.
+    #   behavioural  the subset most likely to matter, for triage only. Never
+    #             the identity — that was the earlier mistake.
+    immutable = [f for f in files if f['kind'] not in VOLATILE]
+    behavioural = [f for f in files if f['kind'] in BEHAVIOURAL]
+
+    roots = {
+        'manifest': merkle_root((f['path'], f['sha256']) for f in files),
+        'immutable': merkle_root((f['path'], f['sha256']) for f in immutable),
+        'behavioural': merkle_root((f['path'], f['sha256']) for f in behavioural),
+    }
 
     by_kind = {}
     for f in files:
@@ -152,8 +209,11 @@ def scan(root: Path, include_volatile: bool) -> dict:
         'recorded_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
         'install': str(root),
         'steam': steam_manifest(root),
-        'build_fingerprint': fingerprint.hexdigest(),
-        'decisive_file_count': len(decisive),
+        # build_fingerprint is the immutable root. Traces cite this.
+        'build_fingerprint': roots['immutable'],
+        'merkle_roots': roots,
+        'immutable_file_count': len(immutable),
+        'behavioural_file_count': len(behavioural),
         'file_count': len(files),
         'by_kind': dict(sorted(by_kind.items())),
         'files': files,
@@ -164,15 +224,18 @@ def scan(root: Path, include_volatile: bool) -> dict:
 def summarise(inv: dict) -> None:
     steam = inv.get('steam') or {}
     print(f'install          : {inv["install"]}')
-    print(f'build fingerprint: {inv["build_fingerprint"]}')
+    print(f'build fingerprint: {inv["build_fingerprint"]}  (immutable Merkle root)')
+    for name, root in inv.get('merkle_roots', {}).items():
+        print(f'  {name:<12} {root}')
     if steam:
         print(f'steam buildid    : {steam.get("buildid", "?")}  '
               f'appid {steam.get("appid", "?")}  '
               f'"{steam.get("name", "?")}"')
     else:
         print('steam buildid    : no appmanifest found beside this install')
-    print(f'files            : {inv["file_count"]} '
-          f'({inv["decisive_file_count"]} decisive)')
+    print(f'files            : {inv["file_count"]} total, '
+          f'{inv["immutable_file_count"]} shipped, '
+          f'{inv["behavioural_file_count"]} behaviour-bearing')
     for kind, e in inv['by_kind'].items():
         print(f'  {kind:<20} {e["count"]:>5}  {e["bytes"] / 1e6:>10.1f} MB')
 
@@ -195,10 +258,10 @@ def summarise(inv: dict) -> None:
             print(f'  {e["path"]}: {e["error"]}')
 
 
-def verify(old_path: Path, root: Path | None, include_volatile: bool) -> int:
+def verify(old_path: Path, root: Path | None) -> int:
     old = json.loads(old_path.read_text())
     root = root or Path(old['install'])
-    new = scan(root, include_volatile)
+    new = scan(root)
 
     if new['build_fingerprint'] == old['build_fingerprint']:
         print(f'build unchanged: {new["build_fingerprint"]}')
@@ -208,6 +271,11 @@ def verify(old_path: Path, root: Path | None, include_volatile: bool) -> int:
           'fingerprint is now unverified.')
     print(f'  was: {old["build_fingerprint"]}')
     print(f'  now: {new["build_fingerprint"]}')
+    for name in ('manifest', 'immutable', 'behavioural'):
+        a = (old.get('merkle_roots') or {}).get(name)
+        b = (new.get('merkle_roots') or {}).get(name)
+        if a and b:
+            print(f'  {name:<12} {"same" if a == b else "DIFFERENT"}')
     old_files = {f['path']: f for f in old['files']}
     new_files = {f['path']: f for f in new['files']}
     for path in sorted(set(old_files) | set(new_files)):
@@ -229,9 +297,6 @@ def main() -> int:
     ap.add_argument('--out', default='inventory.json', help='where to write the inventory')
     ap.add_argument('--verify', metavar='INVENTORY',
         help='re-hash the install and report drift against this inventory')
-    ap.add_argument('--include-volatile', action='store_true',
-        help='also hash logs and crash dumps (excluded by default: they change '
-             'on their own and would break the fingerprint as an identity)')
     args = ap.parse_args()
 
     root = None
@@ -243,11 +308,11 @@ def main() -> int:
         root = find_install(None, args.appid or DEFAULT_APPID)
 
     if args.verify:
-        return verify(Path(args.verify), root, args.include_volatile)
+        return verify(Path(args.verify), root)
 
     if not root.is_dir():
         sys.exit(f'{root} is not a directory')
-    inv = scan(root, args.include_volatile)
+    inv = scan(root)
     Path(args.out).write_text(json.dumps(inv, indent=1))
     summarise(inv)
     print(f'\nWrote {args.out}')

@@ -14,6 +14,22 @@ which is exactly how a plausible but wrong model passes everything.
 
 Throughput work begins after that test passes, not before.
 
+## Status: no evidence has been collected yet
+
+This directory contains instrumentation, not results. None of the following
+exist, and until they do every substantive question about REK is unanswered:
+
+```
+inventory.json                    static_survey.json
+inventory verification result     model/controller inventory
+practice-mode socket trace        live-mode socket trace
+network-interruption result       runtime command trace
+runtime state trace
+```
+
+The tools have to be run against the real Windows installation and their raw
+outputs committed. A package of scripts is not an evidence package.
+
 ## Rules of evidence
 
 1. Every implemented transition rule cites direct static evidence, runtime
@@ -30,7 +46,7 @@ Throughput work begins after that test passes, not before.
 | Step | State | Tool |
 |---|---|---|
 | 1. Pin and inventory one exact build | **tooled** | `inventory.py` |
-| 2. Determine where practice physics executes | **tooled** | `net_observe.py` |
+| 2. Determine where practice physics executes | **tooled** | `authority_test.py` (`net_observe.py` is recon only) |
 | 3. Recover the input → controller / network path | needs runtime instrumentation | — |
 | 4. Inventory physics, bodies, models, native code | **tooled** (static half) | `static_survey.py` |
 | 4b. IL2CPP type and method recovery | needs Il2CppDumper | — |
@@ -49,23 +65,55 @@ python inventory.py --out inventory.json
 python inventory.py --verify inventory.json     # non-zero if the build moved
 ```
 
-Hashes everything, reads the Steam `buildid`, and derives one fingerprint from
-the decisive files. Logs and crash dumps are excluded so that ordinary noise
-does not invalidate the identity, while a real update does. Run `--verify`
-before trusting any earlier trace.
+Hashes every file and derives three Merkle roots: `manifest` over everything,
+`immutable` over every shipped file — this is the identity traces cite — and
+`behavioural` over the subset most likely to matter, for triage only. The
+identity deliberately does not depend on a hand-picked category list, so a
+change cannot hide in a bucket nobody thought to enumerate: an Addressables
+bundle, a controller weight file, a Burst library, a physics plugin. Volatile
+files are recorded but excluded from the identity. Run `--verify` before
+trusting any earlier trace.
+
+This pins the **client**. If the simulation turns out to be remote, the server
+version is not pinned by anything here, and traces must carry endpoint, session,
+protocol and any server-reported version — `trace.py` refuses a
+server-authoritative trace without them.
 
 ### 2. Where does practice physics run?
 
 The fork that determines everything after it. Reflex Arc states that live
 matches use an authoritative dedicated server; that says nothing about practice.
 
+**Socket enumeration cannot answer this.** Practice could hold authentication,
+telemetry, leaderboard or presence sockets while simulating locally; it could be
+server-driven over a mostly idle socket; it could run local prediction corrected
+remotely; or it could contact the server only at reset and result submission.
+Socket presence distinguishes none of those, so `net_observe.py` is
+reconnaissance only.
+
+The decisive experiment is intervention:
+
 ```
-python net_observe.py --name REK --seconds 120 --note "practice, solo" --out net_practice.json
-python net_observe.py --name REK --seconds 120 --note "live match"     --out net_match.json
+python authority_test.py --name REK --out authority_practice.json
 ```
 
-The contrast between the two runs is the evidence, not either alone. Confirm
-with the firewall: block the process and see whether practice still steps.
+Load into practice, type `block`, keep issuing inputs for at least a minute,
+attempt a fall, a recovery, a score and an arena reset, and mark what you see
+from a fixed vocabulary. The tool never touches your firewall — it prompts, or
+runs commands you supply — and it timestamps everything.
+
+| Observed while blocked | Verdict |
+|---|---|
+| state keeps evolving, reset and scoring complete | `local_authority` |
+| state keeps evolving, no interaction confirmed | `local_authority_weak` |
+| world freezes, or inputs stop taking effect | `remote_authority` |
+| state continues, then visibly corrects | `local_prediction_remote_correction` |
+| the game kept talking to the network | `inconclusive` — the block failed |
+
+That last row matters most: the verdict is withheld unless the tool can show, on
+the game's own sockets, that the block actually applied. A failed intervention
+read as evidence is worse than no evidence. Repeat with added latency and packet
+loss where the first run is ambiguous.
 
 - **Locally simulated** → instrument the local simulation directly.
 - **Server-owned** → the recorder sits above the transport, capturing commands
@@ -81,9 +129,29 @@ python static_survey.py --inventory inventory.json --out static_survey.json
 Reports TimeManager (the actual tick rate), PhysicsManager, every
 `ArticulationBody` / `Rigidbody` / joint component with its drives and limits,
 collision geometry, shipped inference models, native plugins and Burst
-libraries, and whether the build is IL2CPP. Anything not found is listed under
-`absent` rather than filled in. Name matches are recorded under `name_hits` and
-are explicitly not findings.
+libraries, the rig the characters are skinned to, the animation clips, and
+whether the build is IL2CPP. Anything not found is listed under `absent`.
+
+Every record carries a **role**: `authoritative`, `candidate_lead`,
+`client_render_only`, `unknown_role`, `absent`. Nothing static is ever marked
+authoritative — presence in the build is not participation in the transition
+function, and only a runtime trace or controlled experiment can promote a
+record. Serialized components are `unknown_role`; name matches and clips are
+`candidate_lead`.
+
+**On animation clips.** They are catalogued, with durations and events, because
+a physics-based controller can still be driven by reference motions, phase
+signals or skill latents drawn from a motion library — the two claims are not in
+conflict. What must not recur is a clip duration becoming a startup, active or
+recovery window. That inference produced the discarded model. How clips are
+consumed is established by tracing the code that reads them, not by reading the
+clips.
+
+The survey also emits `not_recoverable_statically`, naming what this step
+cannot settle: the physics scene practice actually runs, the controller
+observation vector, how outputs become joint targets, recurrent state and skill
+phase, contact-to-score logic, input buffering, network schemas, execution order
+within a tick, and every server-side parameter.
 
 If it is IL2CPP — and a Unity Windows build almost certainly is — types,
 methods and the network schema need Il2CppDumper against `GameAssembly.dll` and
@@ -136,8 +204,31 @@ python differ.py compare  rek_a.trace clone.trace --envelope envelope.json
 repeats of one experiment. That spread is the acceptance envelope. If REK is
 deterministic for a given seed the envelope collapses to zero and the comparison
 becomes exact equality — the stronger result, and one the tooling will not
-soften. `compare` exits non-zero on any channel or event outside the envelope,
-and reports the first divergent tick.
+soften.
+
+Three properties that decide whether the gate is worth anything:
+
+- **The envelope is a quantile, not a maximum.** Default acceptance is p99, with
+  the max reported alongside; a channel whose max exceeds its p99 more than
+  tenfold is called out, because one anomalous REK run would otherwise buy the
+  clone that much slack. `--accept-at max` exists and is the permissive setting.
+- **Events are scored by precision and recall** against a matching window, not
+  by zipping two lists. Zipping turns one dropped hit into a timing error on
+  every hit after it.
+- **Open-loop comparison has a horizon.** Contact-rich humanoid dynamics amplify
+  any difference, so past the first divergence agreement is luck and
+  disagreement is the same error re-counted. The report gives
+  `first_divergent_tick` and `valid_horizon_ticks`, and says so when most of a
+  run is past that point. Validate beyond it with `--mode short-horizon`
+  transition tests from injected states, or with repeated closed-loop
+  experiments compared distributionally.
+
+Hidden controller state must be captured or reconstructed: identical visible
+poses evolve differently when recurrent state or skill phase differs. `compare`
+names any `ctrl.*.hidden` channel REK recorded that the clone did not.
+
+Use at least three REK runs. With two there is one difference per tick and the
+quantiles are indistinguishable from the max; `baseline` says so.
 
 ### Experiment matrix
 

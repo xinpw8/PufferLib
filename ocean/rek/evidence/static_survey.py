@@ -11,9 +11,28 @@ from inventory.json.
 
 Contract, and the reason this replaces the earlier extractor: it emits only
 values it read. There are no defaults, no fallbacks and no name-based guesses.
-A quantity that is not in the build is reported absent, not filled in. Field
-names alone ("balance", "damage", "startup") are reconnaissance and are recorded
-as such under `name_hits`, never promoted to a mechanism.
+A quantity that is not in the build is reported absent, not filled in.
+
+Every record carries a `role`, because "this component exists in the build" and
+"this component participates in the authoritative transition function" are
+different claims and conflating them is how the last model went wrong:
+
+    authoritative       shown to drive the transition function. Nothing static
+                        earns this: it requires a runtime trace or a controlled
+                        experiment, so this tool never assigns it.
+    candidate_lead      plausibly relevant. Name matches and animation clips
+                        land here.
+    client_render_only  established as presentation-side.
+    unknown_role        present and serialized; its part in the simulation is
+                        not established.
+    absent              looked for, not found.
+
+Animation clips are catalogued rather than ignored. A physics-based controller
+can still be driven by reference motions, phase signals or skill latents taken
+from a motion library, so the clips are evidence about the controller's inputs.
+What must not happen again is a clip duration becoming a startup, active or
+recovery window: that inference is what produced the discarded model, and how
+clips are consumed can only be established by tracing the code that reads them.
 
 Requires UnityPy for the asset containers. IL2CPP type recovery is out of scope
 here — it needs Il2CppDumper against GameAssembly.dll and global-metadata.dat,
@@ -38,6 +57,36 @@ BODY_TYPES = ('ArticulationBody', 'Rigidbody', 'ConfigurableJoint',
 
 COLLIDER_TYPES = ('CapsuleCollider', 'BoxCollider', 'SphereCollider',
                   'MeshCollider', 'TerrainCollider')
+
+ROLES = ('authoritative', 'candidate_lead', 'client_render_only',
+         'unknown_role', 'absent')
+
+# Rig fingerprints. Which motion library a build is skinned to is a real lead
+# about where its reference motions came from; it is not a claim about how they
+# are used.
+RIG_SIGNATURES = {
+    'mixamorig': 'Adobe Mixamo',
+    'ccbase': 'Reallusion Character Creator / ActorCore',
+    'bip01': '3ds Max Biped (Kubold Animset Pro and similar)',
+    'rokoko': 'Rokoko',
+    'mocaponline': 'MocapOnline',
+    'ue4mannequin': 'Epic mannequin rig',
+}
+
+# What no amount of static asset reading can establish. Listed in the output so
+# the gap is visible rather than assumed closed.
+NOT_RECOVERABLE_STATICALLY = (
+    'which physics scene practice mode actually runs',
+    'the controller observation vector and its construction',
+    'how controller outputs are interpreted as joint targets or torques',
+    'recurrent controller state and skill phase handling',
+    'how animation clips are consumed, if at all',
+    'contact-to-score logic',
+    'input buffering, cancellation and action duration',
+    'network command and state schemas',
+    'execution order within a tick',
+    'any server-side parameter',
+)
 
 # Words that suggest a MonoBehaviour is worth a human look. Recorded as leads,
 # never as findings.
@@ -92,10 +141,17 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
         'model_assets': [],
         'native_code': [],
         'il2cpp': {},
+        'animation_clips': [],
+        'rig': {'library': None, 'signature_hits': {}, 'sample_bones': []},
         'name_hits': [],
         'containers_scanned': 0,
         'absent': [],
+        'not_recoverable_statically': list(NOT_RECOVERABLE_STATICALLY),
+        'role_note': ('No record here is marked authoritative. Static presence '
+                      'is not participation in the transition function; that '
+                      'needs a runtime trace or a controlled experiment.'),
     }
+    bone_paths = set()
 
     # Native code and shipped models come straight off the inventory: they are
     # files, not Unity objects, and they were already hashed.
@@ -103,7 +159,8 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
         if f['kind'] in ('native_plugin', 'burst_library'):
             report['native_code'].append(f)
         elif f['kind'] == 'model_asset':
-            report['model_assets'].append(dict(f, source='file'))
+            report['model_assets'].append(
+                dict(f, source='file', role='candidate_lead'))
         elif f['kind'] == 'il2cpp_code':
             report['il2cpp']['code'] = f
         elif f['kind'] == 'il2cpp_metadata':
@@ -127,6 +184,7 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
             try:
                 if kind in SETTINGS_TYPES:
                     report['settings'][kind] = {
+                        'role': 'unknown_role',
                         'container': path.name,
                         'values': scalars(obj.read_typetree()),
                     }
@@ -134,6 +192,7 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
                 elif kind in BODY_TYPES:
                     tree = obj.read_typetree()
                     report['bodies'].append({
+                        'role': 'unknown_role',
                         'type': kind,
                         'owner': owner_name(obj),
                         'container': path.name,
@@ -143,15 +202,49 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
                 elif kind in COLLIDER_TYPES:
                     tree = obj.read_typetree()
                     report['colliders'].append({
+                        'role': 'unknown_role',
                         'type': kind,
                         'owner': owner_name(obj),
                         'container': path.name,
                         'values': scalars(tree),
                     })
 
+                elif kind == 'Avatar':
+                    # m_TOS is the only place rig bone names survive into a
+                    # build, and the rig names the motion library.
+                    tos = tree.get('m_TOS')
+                    if isinstance(tos, list):
+                        for entry in tos:
+                            v = (entry.get('second') if isinstance(entry, dict)
+                                 else (entry[1] if isinstance(entry, (list, tuple))
+                                       and len(entry) == 2 else None))
+                            if isinstance(v, str):
+                                bone_paths.add(v)
+
+                elif kind == 'AnimationClip':
+                    flat = scalars(tree)
+                    duration = flat.get('m_Length') or flat.get(
+                        'm_MuscleClip.m_StopTime')
+                    report['animation_clips'].append({
+                        'role': 'candidate_lead',
+                        'name': str(tree.get('m_Name', '') or ''),
+                        'container': path.name,
+                        'duration_s': duration,
+                        'sample_rate': flat.get('m_SampleRate'),
+                        'event_count': len(tree.get('m_Events') or []),
+                        'events': [{'time': e.get('time'),
+                                    'function': e.get('functionName'),
+                                    'data': e.get('data')}
+                                   for e in (tree.get('m_Events') or [])[:32]
+                                   if isinstance(e, dict)],
+                        'caution': 'duration and events are evidence about this '
+                                   'clip, not about any attack envelope',
+                    })
+
                 elif kind in ('NNModel', 'ModelAsset'):
                     tree = obj.read_typetree()
                     report['model_assets'].append({
+                        'role': 'candidate_lead',
                         'source': 'unity_object',
                         'type': kind,
                         'name': str(tree.get('m_Name', '')),
@@ -168,6 +261,7 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
                     hits = sorted({h for h in RECON_HINTS if h in blob})
                     if hits:
                         report['name_hits'].append({
+                            'role': 'candidate_lead',
                             'name': name,
                             'container': path.name,
                             'hints': hits,
@@ -175,6 +269,20 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
                         })
             except Exception:
                 continue
+
+    hits = {}
+    for bone in bone_paths:
+        n = ''.join(c for c in bone.lower() if c.isalnum())
+        for sig, lib in RIG_SIGNATURES.items():
+            if sig in n:
+                hits[lib] = hits.get(lib, 0) + 1
+                break
+    report['rig'] = {
+        'role': 'candidate_lead',
+        'library': max(hits, key=hits.get) if hits else None,
+        'signature_hits': hits,
+        'sample_bones': sorted(bone_paths)[:40],
+    }
 
     for want, where in (('TimeManager', 'fixed timestep / control rate'),
                         ('PhysicsManager', 'gravity, solver iterations, contact offset')):
@@ -238,9 +346,26 @@ def summarise(r: dict) -> None:
     else:
         print('\nNot an IL2CPP build (or the pair was not found).')
 
+    clips = r.get('animation_clips', [])
+    withev = [c for c in clips if c.get('event_count')]
+    print(f'\nanimation clips: {len(clips)} ({len(withev)} carry events)')
+    rig = r.get('rig') or {}
+    print(f'  rig / motion library: {rig.get("library") or "unidentified"} '
+          f'{rig.get("signature_hits") or ""}')
+    for c in clips[:12]:
+        print(f'  {c["name"]:<34} {c["duration_s"]}s  {c["event_count"]} event(s)')
+    if clips:
+        print('  These are candidate leads about what feeds the controller. A '
+              'clip duration is not an attack envelope, and how these are '
+              'consumed cannot be read off the assets.')
+
     print(f'\nreconnaissance leads (names only, NOT findings): {len(r["name_hits"])}')
     for h in r['name_hits'][:15]:
         print(f'  {h["name"] or "(unnamed)"}  {h["hints"]}')
+
+    print('\nnot recoverable from static assets — these need runtime evidence:')
+    for item in r.get('not_recoverable_statically', []):
+        print(f'  - {item}')
 
     if r['absent']:
         print('\nabsent / unreadable — these stay unknown until measured:')

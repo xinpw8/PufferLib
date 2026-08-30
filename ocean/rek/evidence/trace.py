@@ -27,6 +27,13 @@ Two things every trace must carry, and the writer refuses without them:
 `build_fingerprint`, from inventory.py, and `source`, either 'rek' or the name
 of the clone. A trace that cannot say which build it came from cannot support a
 parity claim.
+
+A third applies when the simulation is not local. The client fingerprint pins
+the client only; a server can be updated independently, so two traces from one
+client build may come from different authoritative simulators. A trace declared
+`authority='server'` must therefore also carry a server identity — endpoint and
+session at minimum, plus protocol and server-reported version where the
+handshake exposes them. The writer refuses without it.
 """
 
 import json
@@ -43,12 +50,25 @@ _TICK = struct.Struct('<Q')
 class TraceWriter:
     """Streams frames to disk. Use as a context manager."""
 
-    def __init__(self, path, channels, build_fingerprint, source, **meta):
+    def __init__(self, path, channels, build_fingerprint, source,
+                 authority='unknown', server=None, **meta):
         if not build_fingerprint:
             raise ValueError('build_fingerprint is required: a trace that cannot '
                              'name its build cannot support a parity claim')
         if source not in ('rek',) and not str(source).startswith('clone:'):
             raise ValueError("source must be 'rek' or 'clone:<name>'")
+        if authority not in ('local', 'server', 'unknown'):
+            raise ValueError("authority must be 'local', 'server' or 'unknown'")
+        if authority == 'server':
+            # The client hash does not pin the simulator that produced this.
+            server = server or {}
+            missing = [k for k in ('endpoint', 'session_id') if not server.get(k)]
+            if missing:
+                raise ValueError(
+                    'a server-authoritative trace must identify the server: '
+                    f'missing {missing}. The client build fingerprint does not '
+                    'pin the authoritative simulator, so without this two traces '
+                    'from one client may come from different server builds.')
         if not channels:
             raise ValueError('declare at least one channel')
         if len(set(channels)) != len(channels):
@@ -61,6 +81,8 @@ class TraceWriter:
             'channels': self.channels,
             'build_fingerprint': build_fingerprint,
             'source': source,
+            'authority': authority,
+            'server': server or {},
         })
         self._frame = struct.Struct('<%dd' % len(self.channels))
         self._events = []
@@ -122,6 +144,14 @@ class Trace:
     @property
     def build_fingerprint(self):
         return self.header.get('build_fingerprint')
+
+    @property
+    def authority(self):
+        return self.header.get('authority', 'unknown')
+
+    @property
+    def server(self):
+        return self.header.get('server') or {}
 
     def __len__(self):
         return len(self.ticks)
