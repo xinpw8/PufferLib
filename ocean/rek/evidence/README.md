@@ -71,6 +71,24 @@ the command interface actually is, are the outputs of steps 2 and 4 — writing 
 recorder before those land would mean guessing at the very things this package
 exists to measure.
 
+### Running the collection steps
+
+Steps 1, 4 and 4b are non-interactive and are driven together, so they cannot be
+run out of order or against different builds:
+
+```
+python collect.py --out evidence_out
+```
+
+It pins the build, probes the IL2CPP and native binaries, surveys the Unity
+assets, then reports the package state and what is still needed. Each step
+records whether it succeeded: a run without UnityPy still pins the build and
+probes the binaries, and says which step could not run and why, rather than
+producing a directory that looks like a build with nothing in it.
+
+The authority test is not in there and cannot be — it needs someone playing the
+game and marking what they see while the network is cut.
+
 ### 1. Pin the build
 
 ```

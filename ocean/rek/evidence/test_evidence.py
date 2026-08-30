@@ -34,6 +34,7 @@ differ = _load('differ')
 authority = _load('authority_test')
 check_artifacts = _load('check_artifacts')
 il2cpp = _load('il2cpp_probe')
+collect_mod = _load('collect')
 
 checks = []
 
@@ -1068,6 +1069,81 @@ def files_listed_but_not_on_disk_are_reported():
                              'kind': 'native_plugin', 'size': 1, 'sha256': 'd'})
         r = il2cpp.probe(game, inv, Path(d) / 'out.json')
     assert any(a.get('missing', '').endswith('gone.dll') for a in r['absent']), r['absent']
+
+
+def _full_install(tmp: Path):
+    """A build with both the Unity side and the IL2CPP side present."""
+    game = fake_install(tmp)
+    (game / 'GameAssembly.dll').write_bytes(
+        b'MZ\x00Unity.Sentis.Worker\x00RobotBalanceController\x00'
+        b'PhysicsScene.Simulate\x00')
+    meta = game / 'REK_Data' / 'il2cpp_data' / 'Metadata' / 'global-metadata.dat'
+    meta.write_bytes((0xFAB11BAF).to_bytes(4, 'little')
+                     + (31).to_bytes(4, 'little', signed=True)
+                     + b'\x00NetworkTransportTickRate\x00')
+    return game
+
+
+@check
+def collect_runs_the_whole_non_interactive_pipeline():
+    # The closest thing to a dry run of the one step that has to happen on a
+    # machine this repo cannot reach.
+    install_fake_unitypy(REK_OBJECTS)
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        game = _full_install(d / 'game')
+        out = d / 'evidence_out'
+        log, inv = collect_mod.collect(game, out)
+
+        assert all(step['ok'] for step in log), log
+        assert {s['step'] for s in log} == {'inventory', 'il2cpp_probe',
+                                            'static_survey'}
+
+        for name in ('inventory.json', 'il2cpp_probe.json', 'static_survey.json',
+                     'collect_log.json'):
+            assert (out / name).exists(), name
+
+        # Every artifact cites the same build, which is what makes them
+        # composable at all.
+        fp = inv['build_fingerprint']
+        for name in ('il2cpp_probe.json', 'static_survey.json'):
+            assert json.loads((out / name).read_text())['build_fingerprint'] == fp
+
+        results = check_artifacts.check(out)
+        state = _states(results)
+        assert state['inventory.json'] == 'PRESENT', results
+        assert state['static_survey.json'] == 'PRESENT', results
+        assert state['build agreement'] == 'PRESENT', results
+        # The authority test cannot be automated, so the package correctly
+        # stops one stage short.
+        assert check_artifacts.stage_of(results) == 'build pinned', results
+
+        probe = json.loads((out / 'il2cpp_probe.json').read_text())
+        assert probe['metadata']['metadata_version'] == 31
+        assert probe['inference_runtime_present'] is True
+
+
+@check
+def a_partial_collection_is_legible_rather_than_empty():
+    # No UnityPy: the asset survey cannot run. The build must still be pinned
+    # and the probe must still run, and the failure has to be named.
+    sys.modules.pop('UnityPy', None)
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        game = _full_install(d / 'game')
+        out = d / 'evidence_out'
+        log, inv = collect_mod.collect(game, out)
+
+        by_step = {s['step']: s for s in log}
+        assert by_step['inventory']['ok'] and by_step['il2cpp_probe']['ok'], log
+        assert not by_step['static_survey']['ok'], log
+        assert 'UnityPy' in by_step['static_survey']['error'], by_step['static_survey']
+        # The build is still pinned and the binaries still probed, so the run is
+        # worth keeping rather than starting over.
+        assert inv is not None and (out / 'inventory.json').exists()
+        assert (out / 'il2cpp_probe.json').exists()
+        assert not (out / 'static_survey.json').exists()
+        assert json.loads((out / 'collect_log.json').read_text())['steps'] == log
 
 
 def _states(results):
