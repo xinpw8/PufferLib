@@ -260,7 +260,63 @@ def baseline(paths, out_path, accept):
     return 0
 
 
-def compare(rek_path, clone_path, envelope_path, report_path, horizon):
+# Ticks a short-horizon comparison may start from: points where both sides are
+# known to be aligned because the state was reset or injected, rather than
+# because the trajectory happened not to have diverged yet.
+ANCHOR_KINDS = ('inject', 'reset', 'round_start')
+
+
+def short_horizon(rek, clone, env, window, accept):
+    """Windowed transition tests from anchored states.
+
+    Open-loop replay answers "does the whole episode match", which in a
+    contact-rich humanoid sim is mostly a question about how fast small
+    differences amplify. This answers the more useful one: from a state both
+    sides are known to share, do the next `window` ticks agree? Each window is
+    scored independently, so one early divergence cannot invalidate the rest of
+    the run.
+    """
+    anchors = sorted({e['tick'] for e in rek.events if e['kind'] in ANCHOR_KINDS})
+    if not anchors:
+        return None
+
+    shared = sorted(set(rek.channels) & set(clone.channels))
+    ri, ci = _index(rek), _index(clone)
+    common = set(rek.ticks) & set(clone.ticks)
+
+    windows = []
+    for a in anchors:
+        ticks = [t for t in range(a, a + window) if t in common]
+        if len(ticks) < 2:
+            continue
+        per_channel, failed = {}, []
+        for ch in shared:
+            spread = env['channels'].get(ch)
+            allowed = spread.get(accept) if spread else None
+            diffs = [abs(rek.channels[ch][ri[t]] - clone.channels[ch][ci[t]])
+                     for t in ticks]
+            rec = summarise_errors(diffs)
+            rec['allowed'] = allowed
+            rec['within_envelope'] = allowed is not None and rec[accept] <= allowed
+            per_channel[ch] = rec
+            if not rec['within_envelope']:
+                failed.append(ch)
+        windows.append({'anchor_tick': a, 'ticks': len(ticks),
+                        'channels': per_channel, 'failed_channels': failed,
+                        'passed': not failed})
+
+    passed = [w for w in windows if w['passed']]
+    return {
+        'window_ticks': window,
+        'anchors': len(anchors),
+        'windows_tested': len(windows),
+        'windows_passed': len(passed),
+        'pass_fraction': len(passed) / len(windows) if windows else 0.0,
+        'windows': windows,
+    }
+
+
+def compare(rek_path, clone_path, envelope_path, report_path, horizon, window):
     rek, clone = Trace.load(rek_path), Trace.load(clone_path)
     if rek.source != 'rek':
         sys.exit(f'{rek_path} has source={rek.source!r}; the reference must be REK')
@@ -308,8 +364,10 @@ def compare(rek_path, clone_path, envelope_path, report_path, horizon):
     for kind in sorted(kinds):
         r = [e['tick'] for e in rek.events if e['kind'] == kind]
         c = [e['tick'] for e in clone.events if e['kind'] == kind]
-        window = env['events'].get(kind, {}).get('match_window', 0)
-        rec = match_events(r, c, window)
+        # Named distinctly from the short-horizon window: they are different
+        # quantities, and sharing the name silently zeroed the latter.
+        match_window = env['events'].get(kind, {}).get('match_window', 0)
+        rec = match_events(r, c, match_window)
         rec['agrees'] = (rec['precision'] == 1.0 and rec['recall'] == 1.0)
         events[kind] = rec
         if not rec['agrees']:
@@ -322,9 +380,24 @@ def compare(rek_path, clone_path, envelope_path, report_path, horizon):
                    else ticks)
     hidden = [c for c in rek.channels if '.hidden' in c or '.recurrent' in c]
 
+    windowed = None
+    if horizon == 'short-horizon':
+        windowed = short_horizon(rek, clone, env, window, accept)
+        if windowed is None:
+            sys.exit(
+                'short-horizon mode needs anchor events in the REK trace — one '
+                f'of {ANCHOR_KINDS} — marking states both sides are known to '
+                'share. Without them there is nothing to start a window from, '
+                'and the comparison would silently be open-loop again.')
+        # In this mode the verdict is the windows, not the whole-episode drift.
+        failures = [f'window@{w["anchor_tick"]}' for w in windowed['windows']
+                    if not w['passed']]
+        failures += [f'event:{k}' for k, v in events.items() if not v['agrees']]
+
     report = {
         'schema': 2,
         'mode': horizon,
+        'short_horizon': windowed,
         'build_fingerprint': rek.build_fingerprint,
         'reference': str(rek_path), 'candidate': str(clone_path),
         'clone': clone.source,
@@ -362,6 +435,15 @@ def compare(rek_path, clone_path, envelope_path, report_path, horizon):
               f'visible poses can evolve differently when recurrent state or '
               f'skill phase differs, so this has to be captured or reconstructed.')
 
+    if windowed:
+        print(f'\nshort-horizon: {windowed["windows_passed"]}/'
+              f'{windowed["windows_tested"]} windows of '
+              f'{windowed["window_ticks"]} ticks passed, from '
+              f'{windowed["anchors"]} anchor(s)')
+        for w in windowed['windows']:
+            if not w['passed']:
+                print(f'  FAIL @{w["anchor_tick"]}: {w["failed_channels"][:6]}')
+
     if first_div is not None:
         print(f'\nfirst divergence beyond envelope at tick {first_div} — '
               f'{len(valid_ticks)} of {len(ticks)} ticks were still informative.')
@@ -392,14 +474,16 @@ def main() -> int:
     c.add_argument('--report', default='parity_report.json')
     c.add_argument('--mode', default='open-loop', choices=('open-loop', 'short-horizon'),
         help='open-loop replays a whole episode and is only informative up to '
-             'the first divergence; short-horizon marks the run as a windowed '
-             'transition test from an injected state')
+             'the first divergence; short-horizon scores independent windows '
+             'starting at each inject/reset/round_start event')
+    c.add_argument('--window', type=int, default=30,
+        help='ticks per window in short-horizon mode (default 30)')
 
     args = ap.parse_args()
     if args.cmd == 'baseline':
         return baseline(args.traces, args.out, args.accept_at)
     return compare(args.rek_trace, args.clone_trace, args.envelope, args.report,
-                   args.mode)
+                   args.mode, args.window)
 
 
 if __name__ == '__main__':

@@ -32,6 +32,7 @@ static_survey = _load('static_survey')
 trace_mod = _load('trace')
 differ = _load('differ')
 authority = _load('authority_test')
+check_artifacts = _load('check_artifacts')
 
 checks = []
 
@@ -525,6 +526,60 @@ def compare_reports_how_much_of_the_run_was_still_informative():
 
 
 @check
+def short_horizon_scores_windows_independently():
+    # The point of the mode: one divergence should cost you the window it is in,
+    # not every tick after it. Open-loop cannot distinguish those.
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        anchors = [(t, 'reset') for t in (0, 50, 100, 150)]
+        flat = [(t, 0.0) for t in range(200)]
+        for name in ('r0.trace', 'r1.trace', 'r2.trace'):
+            _write_series(d / name, 'rek', flat, anchors)
+        _run(['baseline', 'r0.trace', 'r1.trace', 'r2.trace', '--out', 'env.json'], d)
+
+        # Wrong only inside the third window.
+        drift = [(t, 1.0 if 100 <= t < 130 else 0.0) for t in range(200)]
+        _write_series(d / 'clone.trace', 'clone:x', drift, anchors)
+
+        p = _run(['compare', 'r0.trace', 'clone.trace', '--envelope', 'env.json',
+                  '--mode', 'short-horizon', '--window', '30',
+                  '--report', 'sh.json'], d)
+        assert p.returncode == 1, p.stdout
+        rep = json.loads((d / 'sh.json').read_text())
+        sh = rep['short_horizon']
+        assert sh['windows_tested'] == 4 and sh['windows_passed'] == 3, sh
+        assert sh['pass_fraction'] == 0.75, sh
+        failed = [w['anchor_tick'] for w in sh['windows'] if not w['passed']]
+        assert failed == [100], failed
+        assert rep['failures'] == ['window@100'], rep['failures']
+
+        # Same data open-loop: one verdict for the whole run, and the tail after
+        # tick 100 carries no information.
+        p = _run(['compare', 'r0.trace', 'clone.trace', '--envelope', 'env.json',
+                  '--report', 'ol.json'], d)
+        assert p.returncode == 1
+        ol = json.loads((d / 'ol.json').read_text())
+        assert ol['first_divergent_tick'] == 100
+        assert ol['short_horizon'] is None
+
+
+@check
+def short_horizon_refuses_to_run_without_anchors():
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        flat = [(t, 0.0) for t in range(60)]
+        for name in ('r0.trace', 'r1.trace'):
+            _write_series(d / name, 'rek', flat)          # no reset/inject events
+        _run(['baseline', 'r0.trace', 'r1.trace', '--out', 'env.json'], d)
+        _write_series(d / 'clone.trace', 'clone:x', flat)
+        p = _run(['compare', 'r0.trace', 'clone.trace', '--envelope', 'env.json',
+                  '--mode', 'short-horizon', '--report', 'r.json'], d)
+        assert p.returncode != 0, p.stdout
+        # Silently falling back to open-loop would be the dangerous behaviour.
+        assert 'nothing to start a window from' in p.stdout + p.stderr
+
+
+@check
 def channel_units_are_carried_through():
     assert differ.channel_unit('root.0.pos.x') == 'm'
     assert differ.channel_unit('root.0.angvel.z') == 'rad/s'
@@ -540,6 +595,75 @@ def quantiles_are_interpolated_not_nearest():
     assert differ.quantile([0.0, 10.0], 0.99) == 9.9
     assert differ.quantile([5.0], 0.99) == 5.0
     assert differ.quantile([], 0.5) == 0.0
+
+
+def _states(results):
+    return {r['artifact']: r['state'] for r in results}
+
+
+@check
+def an_empty_directory_is_honestly_reported_as_no_evidence():
+    with tempfile.TemporaryDirectory() as d:
+        results = check_artifacts.check(Path(d))
+        assert check_artifacts.stage_of(results) == 'no evidence'
+        assert all(r['state'] == 'MISSING' for r in results), results
+
+
+@check
+def the_gate_advances_one_stage_at_a_time():
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        game = fake_install(d / 'install')
+        inv = inventory.scan(game)
+        (d / 'inventory.json').write_text(json.dumps(inv))
+        results = check_artifacts.check(d)
+        assert _states(results)['inventory.json'] == 'PRESENT'
+        assert check_artifacts.stage_of(results) == 'build pinned'
+
+        # An inconclusive authority run does not advance anything — that is the
+        # whole point of refusing a verdict when the block failed.
+        (d / 'authority_practice.json').write_text(json.dumps(
+            {'verdict': {'verdict': 'inconclusive', 'because': 'block failed'}}))
+        results = check_artifacts.check(d)
+        assert _states(results)['authority test'] == 'MISSING', _states(results)
+        assert check_artifacts.stage_of(results) == 'build pinned'
+
+        (d / 'authority_practice.json').write_text(json.dumps(
+            {'verdict': {'verdict': 'local_authority', 'because': 'kept stepping'}}))
+        (d / 'static_survey.json').write_text(json.dumps(
+            {'build_fingerprint': inv['build_fingerprint'], 'bodies': [],
+             'model_assets': [], 'settings': {}}))
+        results = check_artifacts.check(d)
+        assert check_artifacts.stage_of(results) == 'statics surveyed', results
+
+
+@check
+def artifacts_describing_different_builds_are_refused():
+    # Traces from one client build and a survey from another cannot be reasoned
+    # about together, and nothing else in the pipeline would notice.
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        game = fake_install(d / 'install')
+        inv = inventory.scan(game)
+        (d / 'inventory.json').write_text(json.dumps(inv))
+        (d / 'static_survey.json').write_text(json.dumps(
+            {'build_fingerprint': 'a-completely-different-build',
+             'bodies': [], 'model_assets': [], 'settings': {}}))
+        results = check_artifacts.check(d)
+        assert _states(results)['build agreement'] == 'INCONSISTENT', results
+        assert 'different builds' in check_artifacts.stage_of(results)
+
+
+@check
+def two_rek_runs_are_not_enough_for_an_envelope():
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        _write(d / 'r0.trace', 'rek')
+        _write(d / 'r1.trace', 'rek')
+        results = check_artifacts.check(d)
+        assert _states(results)['REK traces'] == 'INCOMPLETE', results
+        assert 'at least 3' in [r for r in results
+                                if r['artifact'] == 'REK traces'][0]['detail']
 
 
 def main() -> int:

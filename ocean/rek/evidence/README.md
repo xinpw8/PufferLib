@@ -28,7 +28,18 @@ runtime state trace
 ```
 
 The tools have to be run against the real Windows installation and their raw
-outputs committed. A package of scripts is not an evidence package.
+outputs committed. A package of scripts is not an evidence package, and that is
+checkable rather than a matter of opinion:
+
+```
+python check_artifacts.py --dir evidence_out/
+```
+
+It reports which artifacts exist, whether each is well formed, and whether they
+all describe the same build — traces from one client build and a survey from
+another cannot be reasoned about together, and nothing else in the pipeline
+notices. It exits non-zero until the package is complete, and today it prints
+`stage: no evidence`.
 
 ## Rules of evidence
 
@@ -52,6 +63,7 @@ outputs committed. A package of scripts is not an evidence package.
 | 4b. IL2CPP type and method recovery | needs Il2CppDumper | — |
 | 5. Tick-level recorder | blocked on 2, 3, 4 | format in `trace.py` |
 | 6. Controlled traces and differential replay | **tooled** | `differ.py` |
+| Completeness gate over all of the above | **tooled** | `check_artifacts.py` |
 
 Steps 3 and 5 are deliberately not written yet. Where the state lives, and what
 the command interface actually is, are the outputs of steps 2 and 4 — writing a
