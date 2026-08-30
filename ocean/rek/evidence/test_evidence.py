@@ -579,6 +579,97 @@ def short_horizon_refuses_to_run_without_anchors():
         assert 'nothing to start a window from' in p.stdout + p.stderr
 
 
+class LCG:
+    """Deterministic pseudo-random, so these checks never flake."""
+    def __init__(self, seed):
+        self.s = seed
+
+    def next(self):
+        self.s = (1103515245 * self.s + 12345) % (1 << 31)
+        return self.s / (1 << 31)
+
+
+def _episodes(directory, prefix, source, n, shift=0.0, hits=lambda r: 3, seed=1):
+    rng = LCG(seed)
+    paths = []
+    for i in range(n):
+        r = rng.next()
+        path = directory / f'{prefix}{i}.trace'
+        value = r + shift
+        _write_series(path, source, [(t, value) for t in range(50)],
+                      [(t * 10 + 5, 'hit') for t in range(hits(r))])
+        paths.append(str(path.name))
+    return paths
+
+
+@check
+def distributional_mode_compares_outcomes_not_trajectories():
+    # The question that survives chaos: over many episodes, do the two produce
+    # the same distribution of outcomes? Trajectory matching cannot ask it.
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        rek = _episodes(d, 'r', 'rek', 24, seed=7)
+        same = _episodes(d, 'c', 'clone:x', 24, seed=99)
+        p = _run(['distributional', '--rek', *rek, '--clone', *same,
+                  '--report', 'ok.json'], d)
+        assert p.returncode == 0, p.stdout
+        assert 'DISTRIBUTIONAL PASS' in p.stdout
+
+        # Same shape, shifted. Every trajectory is individually plausible and
+        # the distribution is wrong.
+        off = _episodes(d, 'b', 'clone:x', 24, shift=2.0, seed=99)
+        p = _run(['distributional', '--rek', *rek, '--clone', *off,
+                  '--report', 'bad.json'], d)
+        assert p.returncode == 1, p.stdout
+        rep = json.loads((d / 'bad.json').read_text())
+        assert 'final:root_x' in rep['failures'], rep['failures']
+        assert rep['statistics']['final:root_x']['ks'] == 1.0
+
+
+@check
+def distributional_mode_refuses_too_few_episodes():
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        rek = _episodes(d, 'r', 'rek', 3, seed=7)
+        clone = _episodes(d, 'c', 'clone:x', 3, seed=8)
+        p = _run(['distributional', '--rek', *rek, '--clone', *clone], d)
+        assert p.returncode != 0 and 'is not a distribution' in p.stdout + p.stderr
+
+        # And with enough to run but not enough to mean much, it says so.
+        rek = _episodes(d, 'q', 'rek', 6, seed=7)
+        clone = _episodes(d, 'w', 'clone:x', 6, seed=8)
+        p = _run(['distributional', '--rek', *rek, '--clone', *clone,
+                  '--report', 'weak.json'], d)
+        assert 'not yet contradicted' in p.stdout, p.stdout
+
+
+@check
+def a_clone_that_never_produces_an_event_is_caught():
+    # Silence again: a clone that simply never emits a hit must not pass by
+    # having no distribution to disagree with.
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        rek = _episodes(d, 'r', 'rek', 12, seed=7)
+        for i in range(12):
+            _write_series(d / f'n{i}.trace', 'clone:x',
+                          [(t, 0.5) for t in range(50)], [])
+        p = _run(['distributional', '--rek', *rek,
+                  '--clone', *[f'n{i}.trace' for i in range(12)],
+                  '--report', 'silent.json'], d)
+        assert p.returncode == 1, p.stdout
+        rep = json.loads((d / 'silent.json').read_text())
+        assert 'first_tick:hit' in rep['statistics_missing_from_clone'], rep
+        assert not rep['passed']
+
+
+@check
+def the_ks_statistic_behaves():
+    assert differ.ks_statistic([1, 2, 3], [1, 2, 3]) == 0.0
+    assert differ.ks_statistic([1, 2, 3], [10, 11, 12]) == 1.0
+    assert 0 < differ.ks_statistic([1, 2, 3, 4], [3, 4, 5, 6]) < 1.0
+    assert differ.ks_statistic([], [1]) == 1.0
+
+
 @check
 def channel_units_are_carried_through():
     assert differ.channel_unit('root.0.pos.x') == 'm'

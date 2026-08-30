@@ -210,6 +210,9 @@ joint state and controller outputs can be captured.
 ```
 python differ.py baseline rek_a.trace rek_b.trace rek_c.trace --out envelope.json
 python differ.py compare  rek_a.trace clone.trace --envelope envelope.json
+python differ.py compare  rek_a.trace clone.trace --envelope envelope.json \
+                          --mode short-horizon --window 30
+python differ.py distributional --rek rek_*.trace --clone clone_*.trace
 ```
 
 `baseline` runs first and measures how far REK differs from itself across
@@ -234,6 +237,19 @@ Three properties that decide whether the gate is worth anything:
   run is past that point. Validate beyond it with `--mode short-horizon`
   transition tests from injected states, or with repeated closed-loop
   experiments compared distributionally.
+
+**Distributional mode** is the other way past the horizon, and the one that
+survives chaos outright. Instead of asking whether two trajectories coincide, it
+asks whether many independent episodes produce the same distribution of
+outcomes: hit counts, event timings, episode lengths, terminal states, per-
+channel summaries. Each statistic is compared with a two-sample KS test, and the
+threshold is REK's own split-half disagreement on that same statistic — so once
+again the oracle sets the bar rather than a number anyone picked.
+
+It refuses to run on fewer than four REK episodes, and says plainly that below
+about twenty a side a pass means "not yet contradicted" rather than parity. A
+clone that never emits an event at all fails rather than passing by having no
+distribution to disagree with.
 
 Hidden controller state must be captured or reconstructed: identical visible
 poses evolve differently when recurrent state or skill phase differs. `compare`

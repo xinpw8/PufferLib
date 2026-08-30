@@ -21,9 +21,21 @@ Open-loop comparison has a horizon. Contact-rich humanoid dynamics amplify any
 difference, so once a trajectory has diverged past the envelope, everything
 after that tick is uninformative — agreement there is luck and disagreement
 there is double-counting. The report names the first divergent tick and treats
-the tail as invalid rather than averaging through it. For validation past that
-point use short-horizon transition tests from injected states (--mode
-short-horizon), or repeated closed-loop experiments compared distributionally.
+the tail as invalid rather than averaging through it.
+
+Two ways to validate past that point, and both are here:
+
+    differ.py compare --mode short-horizon    windowed transition tests from
+                                              states both sides are known to
+                                              share (inject/reset/round_start)
+    differ.py distributional                  many independent episodes, compared
+                                              as distributions of outcomes rather
+                                              than as trajectories
+
+The distributional mode asks the question that survives chaos: over many
+episodes, do the two simulators produce the same distribution of hit counts,
+event timings, episode lengths and terminal states? Its threshold is REK's own
+split-half disagreement on each statistic, so again the oracle sets the bar.
 
 This is the part that makes parity a number instead of a claim, and the reason
 the oracle has to be REK. A suite of tests written against our own rules can
@@ -455,6 +467,136 @@ def compare(rek_path, clone_path, envelope_path, report_path, horizon, window):
     return 0 if report['passed'] else 1
 
 
+# ---------------------------------------------------------------- distributional
+
+def episode_statistics(trace):
+    """Per-episode summary. One number per statistic, comparable across runs.
+
+    Trajectory matching asks whether two runs follow the same path. Past the
+    divergence horizon that question has no useful answer in a contact-rich
+    sim. This asks the one that still does: over many independent episodes, do
+    the two simulators produce the same *distribution* of outcomes.
+    """
+    stats = {}
+    kinds = {e['kind'] for e in trace.events}
+    for kind in kinds:
+        ticks = [e['tick'] for e in trace.events if e['kind'] == kind]
+        stats[f'count:{kind}'] = float(len(ticks))
+        if ticks:
+            stats[f'first_tick:{kind}'] = float(min(ticks))
+    stats['length'] = float(len(trace))
+    for ch, series in trace.channels.items():
+        if not series:
+            continue
+        stats[f'final:{ch}'] = series[-1]
+        stats[f'mean:{ch}'] = sum(series) / len(series)
+        stats[f'absmax:{ch}'] = max(abs(v) for v in series)
+    return stats
+
+
+def ks_statistic(a, b):
+    """Two-sample Kolmogorov-Smirnov D. No scipy; the recorder box may have none."""
+    if not a or not b:
+        return 1.0
+    sa, sb = sorted(a), sorted(b)
+    i = j = 0
+    d = 0.0
+    while i < len(sa) and j < len(sb):
+        x = min(sa[i], sb[j])
+        while i < len(sa) and sa[i] <= x:
+            i += 1
+        while j < len(sb) and sb[j] <= x:
+            j += 1
+        d = max(d, abs(i / len(sa) - j / len(sb)))
+    return d
+
+
+def _splits(n, limit=64):
+    """Disjoint halves of a run set, for measuring REK against itself."""
+    import itertools
+    half = n // 2
+    out = []
+    for combo in itertools.combinations(range(n), half):
+        rest = tuple(i for i in range(n) if i not in combo)
+        out.append((combo, rest))
+        if len(out) >= limit:
+            break
+    return out
+
+
+def distributional(rek_paths, clone_paths, report_path, accept_q):
+    rek = [Trace.load(p) for p in rek_paths]
+    clone = [Trace.load(p) for p in clone_paths]
+    for t, p in zip(rek, rek_paths):
+        if t.source != 'rek':
+            sys.exit(f'{p} has source={t.source!r}; the reference set must be REK')
+    for t, p in zip(clone, clone_paths):
+        if not str(t.source).startswith('clone:'):
+            sys.exit(f'{p} has source={t.source!r}; expected clone:<name>')
+    fps = {t.build_fingerprint for t in rek}
+    if len(fps) != 1:
+        sys.exit(f'REK traces span {len(fps)} builds: {sorted(fps)}')
+    if len(rek) < 4:
+        sys.exit(f'{len(rek)} REK episodes is not a distribution. This mode needs '
+                 'many independent episodes — 20 or more before the thresholds '
+                 'mean much, and at least 4 to measure any self-agreement at all.')
+
+    rek_stats = [episode_statistics(t) for t in rek]
+    clone_stats = [episode_statistics(t) for t in clone]
+    names = sorted(set().union(*[set(s) for s in rek_stats]))
+    missing = [n for n in names
+               if not any(n in s for s in clone_stats)]
+
+    # REK against itself, over disjoint halves: how far the statistic moves when
+    # nothing has changed. Same principle as the trajectory envelope.
+    results, failures = {}, []
+    splits = _splits(len(rek))
+    for name in names:
+        r_vals = [s[name] for s in rek_stats if name in s]
+        c_vals = [s[name] for s in clone_stats if name in s]
+        self_ds = sorted(
+            ks_statistic([rek_stats[i][name] for i in left if name in rek_stats[i]],
+                         [rek_stats[i][name] for i in right if name in rek_stats[i]])
+            for left, right in splits)
+        threshold = quantile(self_ds, accept_q)
+        d = ks_statistic(r_vals, c_vals)
+        rec = {'ks': d, 'self_ks_at_q': threshold, 'self_ks_max': self_ds[-1],
+               'rek_n': len(r_vals), 'clone_n': len(c_vals),
+               'within': d <= threshold}
+        results[name] = rec
+        if not rec['within']:
+            failures.append(name)
+
+    report = {
+        'schema': 1, 'mode': 'distributional',
+        'build_fingerprint': rek[0].build_fingerprint,
+        'rek_episodes': len(rek), 'clone_episodes': len(clone),
+        'accept_quantile': accept_q,
+        'statistics_missing_from_clone': missing,
+        'statistics': results,
+        'failures': failures,
+        'passed': not failures and not missing,
+    }
+    if report_path:
+        Path(report_path).write_text(json.dumps(report, indent=1))
+
+    print(f'{len(rek)} REK episodes vs {len(clone)} clone episodes, '
+          f'{len(names)} statistics')
+    if len(rek) < 20 or len(clone) < 20:
+        print('NOTE: with fewer than ~20 episodes a side, the self-agreement '
+              'thresholds are wide and this test is weak. Treat a pass as '
+              '"not yet contradicted", not as parity.')
+    if missing:
+        print(f'NOT PRODUCED BY THE CLONE: {missing[:8]}')
+    for name, v in sorted(results.items(), key=lambda kv: -kv[1]['ks'])[:14]:
+        flag = 'ok  ' if v['within'] else 'OVER'
+        print(f'  {flag} {name:<38} KS {v["ks"]:.3f}  '
+              f'self {v["self_ks_at_q"]:.3f}')
+    print('\nDISTRIBUTIONAL PASS' if report['passed']
+          else '\nDISTRIBUTIONAL FAIL: ' + ', '.join(failures[:10]))
+    return 0 if report['passed'] else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -479,9 +621,20 @@ def main() -> int:
     c.add_argument('--window', type=int, default=30,
         help='ticks per window in short-horizon mode (default 30)')
 
+    dd = sub.add_parser('distributional',
+        help='compare outcome distributions over many independent episodes')
+    dd.add_argument('--rek', nargs='+', required=True)
+    dd.add_argument('--clone', nargs='+', required=True)
+    dd.add_argument('--report', default='distributional_report.json')
+    dd.add_argument('--accept-q', type=float, default=0.95,
+        help="quantile of REK's own split-half disagreement to accept at "
+             '(default 0.95)')
+
     args = ap.parse_args()
     if args.cmd == 'baseline':
         return baseline(args.traces, args.out, args.accept_at)
+    if args.cmd == 'distributional':
+        return distributional(args.rek, args.clone, args.report, args.accept_q)
     return compare(args.rek_trace, args.clone_trace, args.envelope, args.report,
                    args.mode, args.window)
 
