@@ -597,6 +597,215 @@ def quantiles_are_interpolated_not_nearest():
     assert differ.quantile([], 0.5) == 0.0
 
 
+class FakeType:
+    def __init__(self, name):
+        self.name = name
+
+
+class FakeAssetsFile:
+    unity_version = '2022.3.40f1'
+
+
+class FakeGameObject:
+    def __init__(self, name):
+        self.m_Name = name
+
+
+class FakeRead:
+    """What obj.read() returns — only m_GameObject is used, for collider owners."""
+    def __init__(self, owner):
+        self._owner = owner
+
+    @property
+    def m_GameObject(self):
+        if self._owner is None:
+            raise AttributeError('no GameObject')
+        return self
+
+    def read(self):
+        return FakeGameObject(self._owner)
+
+
+class FakeObject:
+    def __init__(self, type_name, tree, owner=None):
+        self.type = FakeType(type_name)
+        self._tree = tree
+        self._owner = owner
+        self.assets_file = FakeAssetsFile()
+
+    def read_typetree(self):
+        return self._tree
+
+    def read(self):
+        return FakeRead(self._owner)
+
+
+class FakeBundle:
+    def __init__(self, objects):
+        self.objects = objects
+
+
+def install_fake_unitypy(objects):
+    """Inject a stub UnityPy so static_survey's scan loop can be exercised.
+
+    static_survey imports UnityPy inside survey(), so replacing the module here
+    is enough. Without this the whole scan loop — the part that runs on the
+    machine we cannot reach — would never execute until it ran there.
+    """
+    import types
+    mod = types.ModuleType('UnityPy')
+    mod.load = lambda path: FakeBundle(objects)
+    sys.modules['UnityPy'] = mod
+
+
+REK_OBJECTS = [
+    FakeObject('TimeManager', {'Fixed Timestep': 0.013888889,
+                               'Maximum Allowed Timestep': 0.1,
+                               'm_TimeScale': 1.0}),
+    FakeObject('PhysicsManager', {'m_Gravity': {'x': 0.0, 'y': -9.81, 'z': 0.0},
+                                  'm_DefaultSolverIterations': 12,
+                                  'm_DefaultContactOffset': 0.01}),
+    FakeObject('Avatar', {'m_Name': 'L100Avatar',
+                          'm_TOS': [{'first': 1, 'second': 'mixamorig:Hips'},
+                                    {'first': 2, 'second': 'mixamorig:LeftHand'}]}),
+    FakeObject('ArticulationBody', {'m_Mass': 3.2, 'm_LinearDamping': 0.05,
+                                    'm_XDrive': {'stiffness': 800.0,
+                                                 'damping': 40.0}},
+               owner='left_shoulder'),
+    FakeObject('CapsuleCollider', {'m_Radius': 0.085, 'm_Height': 0.2,
+                                   'm_Center': {'x': 0, 'y': 0, 'z': 0}},
+               owner='mixamorig:RightHand'),
+    FakeObject('AnimationClip', {'m_Name': 'Jab', 'm_SampleRate': 30.0,
+                                 'm_MuscleClip': {'m_StopTime': 0.7333},
+                                 'm_Events': [{'time': 0.2,
+                                               'functionName': 'HitboxOn',
+                                               'data': 'RightHand'}]}),
+    FakeObject('NNModel', {'m_Name': 'balance_policy', 'm_ModelData': {}}),
+    FakeObject('MonoBehaviour', {'m_Name': 'MatchRules', 'roundSeconds': 60,
+                                 'downsToLose': 3, 'scoreOnHit': 1}),
+]
+
+
+@check
+def the_survey_scan_loop_actually_runs():
+    install_fake_unitypy(REK_OBJECTS)
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        inv = {'build_fingerprint': 'fp0', 'steam': {'buildid': '19284412'},
+               'files': [{'path': 'REK_Data/globalgamemanagers',
+                          'kind': 'unity_settings', 'sha256': 'x', 'size': 1},
+                         {'path': 'REK_Data/StreamingAssets/balance.onnx',
+                          'kind': 'model_asset', 'sha256': 'y', 'size': 2},
+                         {'path': 'REK_Data/Plugins/x86_64/physx.dll',
+                          'kind': 'native_plugin', 'sha256': 'z', 'size': 3}]}
+        r = static_survey.survey(d, inv, d / 'survey.json')
+
+    assert r['build_fingerprint'] == 'fp0' and r['steam_buildid'] == '19284412'
+    assert r['unity_version'] == '2022.3.40f1'
+
+    # The tick rate, read rather than assumed. This is the value the discarded
+    # model guessed at.
+    tm = r['settings']['TimeManager']['values']
+    assert abs(tm['Fixed Timestep'] - 0.013888889) < 1e-9, tm
+    pm = r['settings']['PhysicsManager']['values']
+    assert pm['m_Gravity.y'] == -9.81 and pm['m_DefaultSolverIterations'] == 12
+
+    body = r['bodies'][0]
+    assert body['type'] == 'ArticulationBody' and body['owner'] == 'left_shoulder'
+    assert body['values']['m_XDrive.stiffness'] == 800.0, body['values']
+
+    col = r['colliders'][0]
+    assert col['owner'] == 'mixamorig:RightHand' and col['values']['m_Radius'] == 0.085
+
+    clip = r['animation_clips'][0]
+    assert clip['name'] == 'Jab' and abs(clip['duration_s'] - 0.7333) < 1e-6
+    assert clip['event_count'] == 1
+    assert clip['events'][0]['function'] == 'HitboxOn'
+
+    assert r['rig']['library'] == 'Adobe Mixamo', r['rig']
+
+    # Files from the inventory come through without needing a container.
+    sources = {m.get('source') for m in r['model_assets']}
+    assert sources == {'file', 'unity_object'}, r['model_assets']
+    assert len(r['native_code']) == 1
+
+    assert any(h['name'] == 'MatchRules' for h in r['name_hits']), r['name_hits']
+    assert r['not_recoverable_statically']
+
+
+@check
+def nothing_static_is_ever_marked_authoritative():
+    # The invariant the whole taxonomy exists for. Presence in the build is not
+    # participation in the transition function, and no static reading may
+    # promote a record to a finding.
+    install_fake_unitypy(REK_OBJECTS)
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        inv = {'build_fingerprint': 'fp0', 'steam': {},
+               'files': [{'path': 'a.assets', 'kind': 'asset_container',
+                          'sha256': 'x', 'size': 1}]}
+        r = static_survey.survey(d, inv, d / 'survey.json')
+
+    roles = []
+    for key in ('bodies', 'colliders', 'model_assets', 'animation_clips',
+                'name_hits'):
+        roles += [rec.get('role') for rec in r[key]]
+    roles += [v.get('role') for v in r['settings'].values()]
+    roles.append(r['rig'].get('role'))
+
+    assert roles, 'nothing was classified at all'
+    assert all(role in static_survey.ROLES for role in roles), roles
+    assert 'authoritative' not in roles, roles
+    # Clips specifically: leads, and they carry the caution in the data.
+    assert all(c['role'] == 'candidate_lead' for c in r['animation_clips'])
+    assert all('not about any attack envelope' in c['caution']
+               for c in r['animation_clips'])
+
+
+class ExplodingObject(FakeObject):
+    def read_typetree(self):
+        raise KeyError('unknown field m_SomethingNew')
+
+
+@check
+def objects_that_cannot_be_read_are_reported_not_swallowed():
+    # The dangerous failure: a schema mismatch on the real build silently
+    # produces an empty survey, and "absent" is then read as "not present"
+    # when it actually meant "could not be read".
+    install_fake_unitypy([ExplodingObject('ArticulationBody', {}),
+                          ExplodingObject('ArticulationBody', {}),
+                          FakeObject('TimeManager', {'Fixed Timestep': 0.02})])
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        inv = {'build_fingerprint': 'fp0', 'steam': {},
+               'files': [{'path': 'a.assets', 'kind': 'asset_container',
+                          'sha256': 'x', 'size': 1}]}
+        r = static_survey.survey(d, inv, d / 'survey.json')
+
+    assert r['bodies'] == []
+    errs = r.get('read_errors')
+    assert errs and errs[0]['type'] == 'ArticulationBody', errs
+    assert errs[0]['count'] == 2 and 'KeyError' in errs[0]['example'], errs
+    # The object that could be read still is.
+    assert r['settings']['TimeManager']['values']['Fixed Timestep'] == 0.02
+
+
+@check
+def a_missing_time_manager_is_reported_absent_not_defaulted():
+    install_fake_unitypy([FakeObject('MonoBehaviour', {'m_Name': 'Thing'})])
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        inv = {'build_fingerprint': 'fp0', 'steam': {},
+               'files': [{'path': 'a.assets', 'kind': 'asset_container',
+                          'sha256': 'x', 'size': 1}]}
+        r = static_survey.survey(d, inv, d / 'survey.json')
+    missing = {a.get('missing') for a in r['absent']}
+    assert 'TimeManager' in missing and 'PhysicsManager' in missing, r['absent']
+    assert 'TimeManager' not in r['settings']
+    # No tick rate is invented to stand in for the one that was not found.
+    assert not any('timestep' in str(v).lower() for v in r['settings'].values())
+
+
 def _states(results):
     return {r['artifact']: r['state'] for r in results}
 

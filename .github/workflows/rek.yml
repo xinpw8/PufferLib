@@ -38,6 +38,15 @@ jobs:
         # including one that simply omits state REK has.
         run: python ocean/rek/evidence/test_evidence.py
 
+      - name: Report evidence-package stage
+        # Informational, not a gate: it will say "no evidence" until artifacts
+        # from the real installation are committed. Surfacing it on every run
+        # keeps the honest answer visible instead of depending on someone
+        # remembering to say it.
+        run: |
+          python ocean/rek/evidence/check_artifacts.py --dir ocean/rek/evidence \
+            | tail -3 || true
+
       - name: Byte-compile every tool
         # These run on a machine we cannot reach, so a syntax error would only
         # surface there.

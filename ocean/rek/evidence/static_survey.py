@@ -152,6 +152,7 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
                       'needs a runtime trace or a controlled experiment.'),
     }
     bone_paths = set()
+    errors = []
 
     # Native code and shipped models come straight off the inventory: they are
     # files, not Unity objects, and they were already hashed.
@@ -212,6 +213,7 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
                 elif kind == 'Avatar':
                     # m_TOS is the only place rig bone names survive into a
                     # build, and the rig names the motion library.
+                    tree = obj.read_typetree()
                     tos = tree.get('m_TOS')
                     if isinstance(tos, list):
                         for entry in tos:
@@ -222,6 +224,7 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
                                 bone_paths.add(v)
 
                 elif kind == 'AnimationClip':
+                    tree = obj.read_typetree()
                     flat = scalars(tree)
                     duration = flat.get('m_Length') or flat.get(
                         'm_MuscleClip.m_StopTime')
@@ -267,8 +270,13 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
                             'hints': hits,
                             'keys': sorted(tree.keys())[:60],
                         })
-            except Exception:
-                continue
+            except Exception as e:
+                # Never swallow this silently. A schema mismatch on the real
+                # build would otherwise produce a plausible-looking empty
+                # survey, and absence would read as "not present" when it
+                # actually meant "could not be read".
+                errors.append({'container': path.name, 'type': kind,
+                               'error': f'{type(e).__name__}: {e}'})
 
     hits = {}
     for bone in bone_paths:
@@ -283,6 +291,16 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
         'signature_hits': hits,
         'sample_bones': sorted(bone_paths)[:40],
     }
+
+    # Read failures are surfaced, and grouped, so a systematic breakage is
+    # obvious rather than looking like an empty build.
+    if errors:
+        by_type = {}
+        for e in errors:
+            by_type.setdefault(e['type'], []).append(e['error'])
+        report['read_errors'] = [
+            {'type': t, 'count': len(v), 'example': v[0]}
+            for t, v in sorted(by_type.items())]
 
     for want, where in (('TimeManager', 'fixed timestep / control rate'),
                         ('PhysicsManager', 'gravity, solver iterations, contact offset')):
@@ -366,6 +384,12 @@ def summarise(r: dict) -> None:
     print('\nnot recoverable from static assets — these need runtime evidence:')
     for item in r.get('not_recoverable_statically', []):
         print(f'  - {item}')
+
+    if r.get('read_errors'):
+        print('\nOBJECTS THAT COULD NOT BE READ — absence below may mean '
+              'unreadable, not missing:')
+        for e in r['read_errors']:
+            print(f'  {e["type"]:<24} {e["count"]:>5}x  {e["example"]}')
 
     if r['absent']:
         print('\nabsent / unreadable — these stay unknown until measured:')
