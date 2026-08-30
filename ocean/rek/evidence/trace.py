@@ -28,7 +28,16 @@ Two things every trace must carry, and the writer refuses without them:
 of the clone. A trace that cannot say which build it came from cannot support a
 parity claim.
 
-A third applies when the simulation is not local. The client fingerprint pins
+A REK trace must additionally say, per channel, where the number came from.
+Channels are declared with a provenance citation naming a class, method,
+serialized field, transport message, runtime address or controlled experiment,
+and the writer refuses a REK channel without one. The recorder is written after
+the static survey and the control-path trace identify those, so this is the
+mechanism that stops a channel being invented in between — a guessed channel is
+indistinguishable from a measured one once it is in the file. Clone traces need
+no citation; a clone's channels come from its own source.
+
+A third requirement applies when the simulation is not local. The client fingerprint pins
 the client only; a server can be updated independently, so two traces from one
 client build may come from different authoritative simulators. A trace declared
 `authority='server'` must therefore also carry a server identity — endpoint and
@@ -43,6 +52,12 @@ from pathlib import Path
 MAGIC = b'REKTRACE\0'
 VERSION = 1
 
+# Where a recorded channel may legitimately come from. Anything else is a guess,
+# and the point of the list is that "it seemed like the obvious value" has no
+# entry in it.
+PROVENANCE_KINDS = ('class', 'method', 'serialized_field', 'transport_message',
+                    'runtime_address', 'controlled_experiment')
+
 _HDR = struct.Struct('<I')
 _TICK = struct.Struct('<Q')
 
@@ -51,7 +66,7 @@ class TraceWriter:
     """Streams frames to disk. Use as a context manager."""
 
     def __init__(self, path, channels, build_fingerprint, source,
-                 authority='unknown', server=None, **meta):
+                 authority='unknown', server=None, provenance=None, **meta):
         if not build_fingerprint:
             raise ValueError('build_fingerprint is required: a trace that cannot '
                              'name its build cannot support a parity claim')
@@ -74,6 +89,31 @@ class TraceWriter:
         if len(set(channels)) != len(channels):
             raise ValueError('duplicate channel names')
 
+        provenance = dict(provenance or {})
+        bad = {}
+        for name, cite in provenance.items():
+            if name not in channels:
+                bad[name] = 'cited but not declared as a channel'
+            elif not isinstance(cite, dict):
+                bad[name] = 'citation must be {"kind": ..., "ref": ...}'
+            elif cite.get('kind') not in PROVENANCE_KINDS:
+                bad[name] = (f'kind must be one of {PROVENANCE_KINDS}, '
+                             f'got {cite.get("kind")!r}')
+            elif not str(cite.get('ref', '')).strip():
+                bad[name] = 'ref is empty; name the field, method or message'
+        if bad:
+            raise ValueError(f'bad channel provenance: {bad}')
+
+        if source == 'rek':
+            # A guessed channel is indistinguishable from a measured one once it
+            # is in the file, so the file will not accept one.
+            uncited = [c for c in channels if c not in provenance]
+            if uncited:
+                raise ValueError(
+                    f'{len(uncited)} REK channel(s) have no provenance: '
+                    f'{uncited[:8]}. Each must cite where it was read from — '
+                    f'one of {PROVENANCE_KINDS}.')
+
         self.channels = list(channels)
         self.header = dict(meta)
         self.header.update({
@@ -83,6 +123,7 @@ class TraceWriter:
             'source': source,
             'authority': authority,
             'server': server or {},
+            'provenance': provenance,
         })
         self._frame = struct.Struct('<%dd' % len(self.channels))
         self._events = []
@@ -152,6 +193,10 @@ class Trace:
     @property
     def server(self):
         return self.header.get('server') or {}
+
+    @property
+    def provenance(self):
+        return self.header.get('provenance') or {}
 
     def __len__(self):
         return len(self.ticks)

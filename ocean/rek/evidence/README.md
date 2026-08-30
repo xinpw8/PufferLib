@@ -202,6 +202,24 @@ rng.state
 Events carry the discrete occurrences: `hit`, `score`, `fall`, `getup`,
 `round_start`, `round_end`, `ko`.
 
+**Every REK channel must cite where it came from.** The writer refuses one that
+does not, with a citation naming a `class`, `method`, `serialized_field`,
+`transport_message`, `runtime_address` or `controlled_experiment`:
+
+```python
+TraceWriter(path, ['root.0.pos.x'], fingerprint, 'rek', provenance={
+    'root.0.pos.x': {'kind': 'serialized_field',
+                     'ref': 'ArticulationBody.m_AnchorPosition.x'}})
+```
+
+The recorder is written only after the static survey and the control-path trace
+identify the real fields, and this is what stops a channel being invented in
+between: once it is in the file, a guessed channel is indistinguishable from a
+measured one. `check_artifacts.py` rejects a REK trace with uncited channels,
+and `differ.py compare` prints the citation for any channel that fails, so a
+disagreement points at the thing it was read from. Clone traces need no
+citations — a clone's channels come from its own source.
+
 Do not infer balance from a UI bar when pelvis orientation, support contacts,
 joint state and controller outputs can be captured.
 

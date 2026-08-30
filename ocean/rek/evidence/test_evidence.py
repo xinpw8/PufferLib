@@ -150,12 +150,20 @@ def scalars_flattens_a_typetree():
     assert flat['m_Nested[1].a'] == 2, flat
 
 
+def _prov(channels, source):
+    """REK channels must cite a source; a clone's come from its own code."""
+    if source != 'rek':
+        return None
+    return {c: {'kind': 'method', 'ref': f'RobotState.Get_{c}'} for c in channels}
+
+
 def _write(path, source, fp='fp0', jitter=0.0, hit_tick=10, channels=None,
            n=40, extra_channel=None):
     channels = channels or ['root_x', 'root_yaw']
     if extra_channel:
         channels = channels + [extra_channel]
-    with trace_mod.TraceWriter(path, channels, fp, source, experiment='e1', seed=7) as w:
+    with trace_mod.TraceWriter(path, channels, fp, source, experiment='e1', seed=7,
+                               provenance=_prov(channels, source)) as w:
         for t in range(n):
             vals = {'root_x': 0.05 * t + jitter * t,
                     'root_yaw': 0.01 * t}
@@ -185,7 +193,8 @@ def a_trace_must_name_its_build_and_source():
         for kwargs in ({'build_fingerprint': '', 'source': 'rek'},
                        {'build_fingerprint': 'fp0', 'source': 'whatever'}):
             try:
-                trace_mod.TraceWriter(Path(d) / 'x.trace', ['a'], **kwargs)
+                trace_mod.TraceWriter(Path(d) / 'x.trace', ['a'],
+                                      provenance=_prov(['a'], 'rek'), **kwargs)
             except ValueError:
                 continue
             raise AssertionError(f'accepted a trace with {kwargs}')
@@ -200,7 +209,8 @@ def a_server_authoritative_trace_must_identify_the_server():
         d = Path(d)
         try:
             trace_mod.TraceWriter(d / 'x.trace', ['a'], 'fp0', 'rek',
-                                  authority='server')
+                                  authority='server',
+                                  provenance=_prov(['a'], 'rek'))
         except ValueError as e:
             assert 'does not' in str(e) and 'session_id' in str(e), e
         else:
@@ -208,6 +218,7 @@ def a_server_authoritative_trace_must_identify_the_server():
 
         with trace_mod.TraceWriter(
                 d / 'ok.trace', ['a'], 'fp0', 'rek', authority='server',
+                provenance=_prov(['a'], 'rek'),
                 server={'endpoint': 'eu-1.example:7777', 'session_id': 'abc123',
                         'protocol_version': 7, 'server_version': None}) as w:
             w.append(0, {'a': 1.0})
@@ -216,16 +227,84 @@ def a_server_authoritative_trace_must_identify_the_server():
 
         # A local trace needs none of that, and defaults to declaring nothing.
         with trace_mod.TraceWriter(d / 'loc.trace', ['a'], 'fp0', 'rek',
-                                   authority='local') as w:
+                                   authority='local',
+                                   provenance=_prov(['a'], 'rek')) as w:
             w.append(0, {'a': 1.0})
         assert trace_mod.Trace.load(d / 'loc.trace').authority == 'local'
         assert trace_mod.Trace.load(d / 'ok.trace').header['channels'] == ['a']
 
 
 @check
+def a_rek_channel_must_cite_where_it_came_from():
+    # The recorder is written after the survey and the control-path trace name
+    # the real fields. This is what stops a channel being invented in between:
+    # once it is in the file, a guessed channel is indistinguishable from a
+    # measured one.
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        try:
+            trace_mod.TraceWriter(d / 'x.trace', ['root_x', 'balance'], 'fp0', 'rek')
+        except ValueError as e:
+            assert 'no provenance' in str(e) and 'balance' in str(e), e
+        else:
+            raise AssertionError('accepted an uncited REK channel')
+
+        # Half-cited is still refused, and names which half.
+        try:
+            trace_mod.TraceWriter(
+                d / 'x.trace', ['root_x', 'balance'], 'fp0', 'rek',
+                provenance={'root_x': {'kind': 'method', 'ref': 'X.GetRoot'}})
+        except ValueError as e:
+            assert "['balance']" in str(e), e
+        else:
+            raise AssertionError('accepted a partially cited REK trace')
+
+        # A citation has to be one of the recognised kinds, with a real ref.
+        for cite, why in (({'kind': 'seemed obvious', 'ref': 'x'}, 'kind must be'),
+                          ({'kind': 'method', 'ref': '  '}, 'ref is empty'),
+                          ({'kind': 'method'}, 'ref is empty'),
+                          ('RobotState.GetRoot', 'citation must be')):
+            try:
+                trace_mod.TraceWriter(d / 'x.trace', ['root_x'], 'fp0', 'rek',
+                                      provenance={'root_x': cite})
+            except ValueError as e:
+                assert why in str(e), (cite, e)
+            else:
+                raise AssertionError(f'accepted citation {cite!r}')
+
+        # Citing something that is not a declared channel is a mistake too.
+        try:
+            trace_mod.TraceWriter(
+                d / 'x.trace', ['root_x'], 'fp0', 'rek',
+                provenance={'root_x': {'kind': 'method', 'ref': 'X.GetRoot'},
+                            'ghost': {'kind': 'method', 'ref': 'X.Nothing'}})
+        except ValueError as e:
+            assert 'not declared as a channel' in str(e), e
+        else:
+            raise AssertionError('accepted provenance for an undeclared channel')
+
+        # Properly cited: written, and the citations survive the round trip.
+        with trace_mod.TraceWriter(
+                d / 'ok.trace', ['root_x'], 'fp0', 'rek',
+                provenance={'root_x': {'kind': 'serialized_field',
+                                       'ref': 'ArticulationBody.m_AnchorPosition.x'}}) as w:
+            w.append(0, {'root_x': 1.0})
+        t = trace_mod.Trace.load(d / 'ok.trace')
+        assert t.provenance['root_x']['kind'] == 'serialized_field'
+        assert 'AnchorPosition' in t.provenance['root_x']['ref']
+
+        # A clone needs no citation — its channels come from its own source.
+        with trace_mod.TraceWriter(d / 'c.trace', ['root_x'], 'fp0',
+                                   'clone:x') as w:
+            w.append(0, {'root_x': 1.0})
+        assert trace_mod.Trace.load(d / 'c.trace').provenance == {}
+
+
+@check
 def frames_must_be_complete_and_ordered():
     with tempfile.TemporaryDirectory() as d:
-        w = trace_mod.TraceWriter(Path(d) / 'x.trace', ['a', 'b'], 'fp0', 'rek')
+        w = trace_mod.TraceWriter(Path(d) / 'x.trace', ['a', 'b'], 'fp0', 'rek',
+                                  provenance=_prov(['a', 'b'], 'rek'))
         try:
             w.append(0, {'a': 1.0})
         except ValueError:
@@ -244,7 +323,8 @@ def frames_must_be_complete_and_ordered():
 
 def _write_series(path, source, series, events=(), fp='fp0', channel='root_x'):
     """A trace with an explicit per-tick series, for shaping distributions."""
-    with trace_mod.TraceWriter(path, [channel], fp, source, experiment='e1') as w:
+    with trace_mod.TraceWriter(path, [channel], fp, source, experiment='e1',
+                               provenance=_prov([channel], source)) as w:
         for tick, value in series:
             w.append(tick, {channel: value})
         for tick, kind in events:
@@ -955,6 +1035,23 @@ def artifacts_describing_different_builds_are_refused():
 
 
 @check
+def the_gate_rejects_a_rek_trace_with_uncited_channels():
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        # Written through the writer, then the citation stripped — which is how
+        # this would actually happen: an older trace, or one hand-edited.
+        _write(d / 'r0.trace', 'rek')
+        raw = (d / 'r0.trace').read_bytes()
+        raw = raw.replace(b'"provenance": {"root_x"', b'"provenance": {"nope_x"', 1)
+        (d / 'r0.trace').write_bytes(raw)
+        results = check_artifacts.check(d)
+        state = _states(results)
+        assert state.get('r0.trace') == 'INVALID', results
+        assert 'no provenance' in [r for r in results
+                                   if r['artifact'] == 'r0.trace'][0]['detail']
+
+
+@check
 def two_rek_runs_are_not_enough_for_an_envelope():
     with tempfile.TemporaryDirectory() as d:
         d = Path(d)
@@ -975,6 +1072,12 @@ def main() -> int:
         except AssertionError as e:
             failed += 1
             print(f'  FAIL  {fn.__name__.replace("_", " ")}: {e}')
+        except Exception as e:
+            # A crash is a failure, not a reason to abandon the remaining
+            # checks and report nothing.
+            failed += 1
+            print(f'  ERROR {fn.__name__.replace("_", " ")}: '
+                  f'{type(e).__name__}: {e}')
     print(f'\n{len(checks) - failed}/{len(checks)} checks passed')
     return 1 if failed else 0
 

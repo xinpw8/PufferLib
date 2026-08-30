@@ -435,6 +435,11 @@ def compare(rek_path, clone_path, envelope_path, report_path, horizon, window):
         allowed = 'n/a' if v['allowed'] is None else f'{v["allowed"]:.6g}'
         print(f'  {flag} {ch:<34} {accept} {v[accept]:.6g} {v["unit"]:<8} '
               f'allowed {allowed}  max {v["max"]:.6g}')
+        if not v['within_envelope']:
+            cite = rek.provenance.get(ch)
+            if cite:
+                print(f'       reference read from {cite.get("kind")}: '
+                      f'{cite.get("ref")}')
     for kind, v in events.items():
         flag = 'ok  ' if v['agrees'] else 'OVER'
         print(f'  {flag} event:{kind:<28} P {v["precision"]:.2f} R {v["recall"]:.2f}  '

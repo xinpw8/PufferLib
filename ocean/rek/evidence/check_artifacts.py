@@ -135,9 +135,15 @@ def check(directory: Path):
     else:
         record('REK traces', 'PRESENT', f'{len(rek_traces)} runs')
 
-    # A server-authoritative trace has to pin the server too.
+    # A server-authoritative trace has to pin the server too, and every REK
+    # channel has to say where it was read from.
     for name, tr in rek_traces:
-        if tr.authority == 'server' and not tr.server.get('session_id'):
+        uncited = [c for c in tr.header.get('channels', [])
+                   if c not in tr.provenance]
+        if uncited:
+            record(name, 'INVALID',
+                   f'{len(uncited)} channel(s) with no provenance: {uncited[:5]}')
+        elif tr.authority == 'server' and not tr.server.get('session_id'):
             record(name, 'INVALID', 'server-authoritative with no server identity')
         elif tr.authority == 'unknown':
             record(name, 'INCOMPLETE',
