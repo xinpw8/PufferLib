@@ -33,6 +33,7 @@ trace_mod = _load('trace')
 differ = _load('differ')
 authority = _load('authority_test')
 check_artifacts = _load('check_artifacts')
+il2cpp = _load('il2cpp_probe')
 
 checks = []
 
@@ -975,6 +976,98 @@ def a_missing_time_manager_is_reported_absent_not_defaulted():
     assert 'TimeManager' not in r['settings']
     # No tick rate is invented to stand in for the one that was not found.
     assert not any('timestep' in str(v).lower() for v in r['settings'].values())
+
+
+def _il2cpp_install(tmp: Path, sanity=0xFAB11BAF, version=31, sentis=True):
+    game = tmp / 'REK'
+    (game / 'REK_Data' / 'il2cpp_data' / 'Metadata').mkdir(parents=True)
+    (game / 'REK_Data' / 'Plugins' / 'x86_64').mkdir(parents=True)
+    meta = game / 'REK_Data' / 'il2cpp_data' / 'Metadata' / 'global-metadata.dat'
+    meta.write_bytes(
+        sanity.to_bytes(4, 'little') + version.to_bytes(4, 'little', signed=True)
+        + b'\x00RobotBalanceController\x00ArticulationBody\x00'
+        + b'\x00NetworkTransportTickRate\x00RoundEndScoreboard\x00'
+        + b'\x00PlayerInputBuffer\x00\x01\x02\x03')
+    body = b'\x00Unity.Sentis.Worker\x00' if sentis else b'\x00PlainOldCode\x00'
+    (game / 'GameAssembly.dll').write_bytes(
+        b'MZ\x00' + body + b'\x00PhysicsScene.Simulate\x00Mixamo_Rig\x00')
+    (game / 'REK_Data' / 'Plugins' / 'x86_64' / 'physx.dll').write_bytes(
+        b'\x00PxSolverBody\x00')
+    files = [
+        {'path': 'REK_Data/il2cpp_data/Metadata/global-metadata.dat',
+         'kind': 'il2cpp_metadata', 'size': meta.stat().st_size, 'sha256': 'a'},
+        {'path': 'GameAssembly.dll', 'kind': 'il2cpp_code', 'size': 10, 'sha256': 'b'},
+        {'path': 'REK_Data/Plugins/x86_64/physx.dll', 'kind': 'native_plugin',
+         'size': 10, 'sha256': 'c'},
+    ]
+    return game, {'build_fingerprint': 'fp0', 'files': files}
+
+
+@check
+def the_il2cpp_probe_reads_the_metadata_header():
+    with tempfile.TemporaryDirectory() as d:
+        game, inv = _il2cpp_install(Path(d), version=31)
+        r = il2cpp.probe(game, inv, Path(d) / 'out.json')
+    md = r['metadata']
+    assert md['valid'] and md['metadata_version'] == 31, md
+    assert md['sanity'] == '0xfab11baf', md
+
+
+@check
+def a_packed_or_non_il2cpp_metadata_file_is_reported_not_assumed():
+    with tempfile.TemporaryDirectory() as d:
+        game, inv = _il2cpp_install(Path(d), sanity=0xDEADBEEF)
+        r = il2cpp.probe(game, inv, Path(d) / 'out.json')
+    md = r['metadata']
+    assert not md['valid'], md
+    assert 'encrypted/packed' in md['why'], md
+    # It still scans the binaries: a packed metadata file does not mean there is
+    # nothing to learn from the rest.
+    assert r['scanned'], r
+
+
+@check
+def the_probe_classifies_names_into_instrumentation_targets():
+    with tempfile.TemporaryDirectory() as d:
+        game, inv = _il2cpp_install(Path(d))
+        r = il2cpp.probe(game, inv, Path(d) / 'out.json')
+    b = r['buckets']
+    assert 'RobotBalanceController' in b['controller']['names'], b['controller']
+    assert 'ArticulationBody' in b['physics']['names'], b['physics']
+    assert 'PhysicsScene.Simulate' in b['physics']['names']
+    assert 'NetworkTransportTickRate' in b['netcode']['names'], b['netcode']
+    assert 'RoundEndScoreboard' in b['match_rules']['names'], b['match_rules']
+    assert 'PlayerInputBuffer' in b['input']['names'], b['input']
+    assert 'Mixamo_Rig' in b['animation']['names'], b['animation']
+    assert all(v['role'] == 'candidate_lead' for v in b.values())
+    assert len(r['scanned']) == 3
+
+
+@check
+def the_probe_detects_whether_an_inference_runtime_ships():
+    # The strongest single result available without a decompiler: whether a
+    # neural controller runs in the client at all.
+    with tempfile.TemporaryDirectory() as d:
+        game, inv = _il2cpp_install(Path(d), sentis=True)
+        r = il2cpp.probe(game, inv, Path(d) / 'out.json')
+    assert r['inference_runtime_present'] is True
+    assert 'Unity.Sentis.Worker' in r['buckets']['inference_runtime']['names']
+
+    with tempfile.TemporaryDirectory() as d:
+        game, inv = _il2cpp_install(Path(d), sentis=False)
+        r = il2cpp.probe(game, inv, Path(d) / 'out.json')
+    assert r['inference_runtime_present'] is False
+    assert r['buckets']['inference_runtime']['count'] == 0
+
+
+@check
+def files_listed_but_not_on_disk_are_reported():
+    with tempfile.TemporaryDirectory() as d:
+        game, inv = _il2cpp_install(Path(d))
+        inv['files'].append({'path': 'REK_Data/Plugins/x86_64/gone.dll',
+                             'kind': 'native_plugin', 'size': 1, 'sha256': 'd'})
+        r = il2cpp.probe(game, inv, Path(d) / 'out.json')
+    assert any(a.get('missing', '').endswith('gone.dll') for a in r['absent']), r['absent']
 
 
 def _states(results):

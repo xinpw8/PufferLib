@@ -60,7 +60,8 @@ notices. It exits non-zero until the package is complete, and today it prints
 | 2. Determine where practice physics executes | **tooled** | `authority_test.py` (`net_observe.py` is recon only) |
 | 3. Recover the input → controller / network path | needs runtime instrumentation | — |
 | 4. Inventory physics, bodies, models, native code | **tooled** (static half) | `static_survey.py` |
-| 4b. IL2CPP type and method recovery | needs Il2CppDumper | — |
+| 4b. IL2CPP names and inference runtime | **tooled** | `il2cpp_probe.py` |
+| 4c. IL2CPP type and method recovery | needs Il2CppDumper | — |
 | 5. Tick-level recorder | blocked on 2, 3, 4 | format in `trace.py` |
 | 6. Controlled traces and differential replay | **tooled** | `differ.py` |
 | Completeness gate over all of the above | **tooled** | `check_artifacts.py` |
@@ -168,6 +169,28 @@ within a tick, and every server-side parameter.
 If it is IL2CPP — and a Unity Windows build almost certainly is — types,
 methods and the network schema need Il2CppDumper against `GameAssembly.dll` and
 `global-metadata.dat`. The survey prints both paths and hashes for that step.
+
+Part of it does not need a decompiler:
+
+```
+python il2cpp_probe.py --inventory inventory.json --out il2cpp_probe.json
+```
+
+It verifies `global-metadata.dat` really is IL2CPP metadata and reports its
+version, so the right dumper can be chosen — and reads nothing past the header,
+because everything past it moves between versions. Then it extracts
+identifier-shaped strings from the metadata and every native binary and sorts
+them into buckets: controller, physics, netcode, match rules, input, animation,
+inference runtime. This is `strings` with domain classification. A name in a
+binary proves a name is in a binary; every one is a `candidate_lead` and a
+target for instrumentation, which is exactly what step 3 needs in order to have
+somewhere to attach.
+
+The one near-decisive result it can produce is whether an inference runtime is
+linked at all. `Unity.Sentis`, `Barracuda` or `onnxruntime` symbols mean a neural
+controller runs in the client and its weights and tensor shapes are recoverable.
+Their absence across every native binary is evidence against, though not proof —
+it could be statically inlined, name-mangled, packed, or server-side only.
 
 ### 5. Recorder
 
