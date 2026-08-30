@@ -58,11 +58,14 @@ def collect(root: Path, out: Path):
     log = []
 
     def do_inventory():
-        inv = inventory_mod.scan(root)
+        def progress(n, nbytes):
+            print(f'      ... {n} files, {nbytes / 1e9:.2f} GB hashed', flush=True)
+
+        inv = inventory_mod.scan(root, progress)
         (out / 'inventory.json').write_text(json.dumps(inv, indent=1))
         return inv
 
-    print(f'[1/3] hashing {root} ...')
+    print(f'[1/3] hashing {root} (several GB; this takes minutes) ...')
     inv = _step(log, 'inventory', do_inventory)
     if inv is None:
         print('inventory failed; nothing downstream can run without it')

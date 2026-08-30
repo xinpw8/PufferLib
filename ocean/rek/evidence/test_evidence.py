@@ -129,6 +129,54 @@ def the_identity_covers_files_no_category_list_anticipated():
 
 
 @check
+def scanning_reports_progress_and_survives_unreadable_files():
+    seen = []
+    with tempfile.TemporaryDirectory() as d:
+        game = fake_install(Path(d))
+        (game / 'REK_Data' / 'locked.assets').write_bytes(b'x')
+
+        # A running game holds locks on Windows, so some files will refuse to
+        # open. Patched rather than chmod'ed because this suite may run as root,
+        # where permissions are advisory.
+        real = inventory.sha256
+
+        def refusing(path):
+            if path.name == 'locked.assets':
+                raise PermissionError(32, 'file in use by another process')
+            return real(path)
+
+        inventory.sha256 = refusing
+        try:
+            inv = inventory.scan(game, progress=lambda n, b: seen.append((n, b)))
+        finally:
+            inventory.sha256 = real
+
+    assert inv['errors'], 'an unreadable file was silently dropped'
+    assert inv['errors'][0]['path'] == 'REK_Data/locked.assets', inv['errors']
+    assert 'in use' in inv['errors'][0]['error']
+
+    # It stays in the manifest, marked unreadable. Dropping it would compute the
+    # identity over a subset, so the same install scanned again with the game
+    # closed would disagree and nothing would say why.
+    entry = [f for f in inv['files'] if f['path'].endswith('locked.assets')]
+    assert entry and entry[0]['unreadable'] and entry[0]['sha256'] is None, entry
+
+    # And the incomplete read is visible as an identity that will not reproduce.
+    with tempfile.TemporaryDirectory() as d2:
+        d2 = Path(d2)
+        (d2 / 'inventory.json').write_text(json.dumps(inv))
+        results = check_artifacts.check(d2)
+        assert _states(results)['inventory.json'] == 'INCOMPLETE', results
+        assert 'will not reproduce' in [
+            r for r in results if r['artifact'] == 'inventory.json'][0]['detail']
+
+    # progress is time-based, so on a tiny fixture it may legitimately never
+    # fire; what matters is that passing it does not break the scan.
+    assert all(isinstance(n, int) for n, _ in seen)
+    # Everything else still hashed.
+    assert any(f['path'] == 'GameAssembly.dll' for f in inv['files'])
+
+@check
 def a_merkle_root_is_order_independent_and_content_sensitive():
     pairs = [('b/x', 'h2'), ('a/y', 'h1'), ('c/z', 'h3')]
     assert inventory.merkle_root(pairs) == inventory.merkle_root(reversed(pairs))
@@ -1059,6 +1107,26 @@ def the_probe_detects_whether_an_inference_runtime_ships():
         r = il2cpp.probe(game, inv, Path(d) / 'out.json')
     assert r['inference_runtime_present'] is False
     assert r['buckets']['inference_runtime']['count'] == 0
+
+
+@check
+def the_probe_scans_the_whole_binary_not_just_the_front():
+    # GameAssembly.dll runs to hundreds of megabytes and the interesting symbols
+    # are not at the front. An earlier cap would have looked like a successful
+    # probe while missing almost everything.
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        big = d / 'big.bin'
+        # A symbol far past any plausible cap, and one placed to straddle a
+        # chunk boundary exactly.
+        chunk = 1 << 16
+        filler = b'\x00' * (chunk - 8)
+        big.write_bytes(filler + b'Straddling_ControllerName' + filler
+                        + b'DeepPolicyNetwork' + b'\x00' * 1000)
+        names, truncated = il2cpp.extract_strings(big, chunk=chunk)
+        assert 'DeepPolicyNetwork' in names, 'missed a symbol past the first chunk'
+        assert 'Straddling_ControllerName' in names, 'symbol split at a boundary'
+        assert truncated is False
 
 
 @check

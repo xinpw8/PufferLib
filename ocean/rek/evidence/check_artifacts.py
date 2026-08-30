@@ -58,6 +58,14 @@ def check(directory: Path):
             elif inv.get('build_fingerprint') != roots.get('immutable'):
                 record('inventory.json', 'INVALID',
                        'build_fingerprint is not the immutable root')
+            elif inv.get('errors'):
+                # A fingerprint computed while some files were locked is not an
+                # identity: the same install scanned again cleanly will disagree.
+                record('inventory.json', 'INCOMPLETE',
+                       f'{len(inv["errors"])} file(s) unreadable (e.g. '
+                       f'{inv["errors"][0]["path"]}); close the game and re-run, '
+                       f'or this fingerprint will not reproduce')
+                fingerprints['inventory.json'] = inv['build_fingerprint']
             else:
                 fingerprints['inventory.json'] = inv['build_fingerprint']
                 buildid = (inv.get('steam') or {}).get('buildid')

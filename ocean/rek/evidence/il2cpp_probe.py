@@ -77,20 +77,39 @@ def read_metadata_header(path: Path):
                     'past it moves between versions.'}
 
 
-def extract_strings(path: Path, min_len=4, cap=4_000_000):
-    """Identifier-shaped byte runs. Format independent, so version drift is
-    irrelevant — the cost is that this finds names, not structure."""
-    data = path.read_bytes()
-    truncated = len(data) > cap
-    if truncated:
-        data = data[:cap]
+# Longest identifier the pattern will match. Chunks overlap by this much so a
+# name straddling a boundary is still found whole.
+_MAX_IDENT = 128
+CHUNK = 8 << 20
+
+
+def extract_strings(path: Path, chunk=CHUNK):
+    """Identifier-shaped byte runs, over the whole file.
+
+    Streamed rather than read whole: GameAssembly.dll runs to hundreds of
+    megabytes, and the interesting symbols are not concentrated at the front.
+    An earlier version capped the scan at 4 MB, which on a real build would have
+    looked like a successful probe while missing almost everything.
+
+    Consecutive chunks overlap by the longest matchable identifier, so a name
+    split across a boundary is still recovered. Matches that touch a chunk edge
+    are otherwise truncated, and a truncated symbol is a wrong symbol.
+    """
     out = set()
-    for m in IDENTIFIER.finditer(data):
-        try:
-            out.add(m.group().decode('ascii'))
-        except UnicodeDecodeError:
-            continue
-    return out, truncated
+    with path.open('rb') as f:
+        tail = b''
+        while True:
+            block = f.read(chunk)
+            if not block:
+                break
+            buf = tail + block
+            for m in IDENTIFIER.finditer(buf):
+                try:
+                    out.add(m.group().decode('ascii'))
+                except UnicodeDecodeError:
+                    continue
+            tail = buf[-_MAX_IDENT:] if len(buf) > _MAX_IDENT else buf
+    return out, False
 
 
 def classify(names):
@@ -134,7 +153,7 @@ def probe(root: Path, inventory: dict, out_path: Path) -> dict:
         if f['kind'] == 'il2cpp_metadata':
             report['metadata'] = dict(read_metadata_header(path), path=f['path'])
         try:
-            names, truncated = extract_strings(path)
+            names, truncated = extract_strings(path)  # whole file, streamed
         except OSError as e:
             report['absent'].append({'missing': f['path'], 'note': str(e)})
             continue

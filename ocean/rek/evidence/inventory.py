@@ -161,8 +161,16 @@ def steam_manifest(root: Path) -> dict:
     return {}
 
 
-def scan(root: Path) -> dict:
+def scan(root: Path, progress=None) -> dict:
+    """Hash every file under `root`.
+
+    `progress` is called with (files, bytes) every couple of seconds. A full
+    install is several gigabytes and takes minutes to hash; without some sign of
+    life that is indistinguishable from a hang, and someone will kill it.
+    """
     files, errors = [], []
+    hashed_bytes = 0
+    last_report = time.time()
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames.sort()
         for fn in sorted(filenames):
@@ -177,8 +185,24 @@ def scan(root: Path) -> dict:
                     'size': st.st_size,
                     'sha256': sha256(p),
                 })
+                hashed_bytes += st.st_size
+                if progress is not None and time.time() - last_report > 2.0:
+                    progress(len(files), hashed_bytes)
+                    last_report = time.time()
             except OSError as e:
+                # Recorded as a leaf, not dropped. A file that could not be read
+                # is still part of the install, and omitting it would silently
+                # compute the identity over a subset — so a scan taken with the
+                # game running would disagree with one taken with it closed and
+                # nothing would say why.
                 errors.append({'path': rel.as_posix(), 'error': str(e)})
+                files.append({
+                    'path': rel.as_posix(),
+                    'kind': kind,
+                    'size': None,
+                    'sha256': None,
+                    'unreadable': True,
+                })
 
     # Three roots, because they answer different questions and conflating them
     # is how a build gets mis-identified.
@@ -192,17 +216,22 @@ def scan(root: Path) -> dict:
     immutable = [f for f in files if f['kind'] not in VOLATILE]
     behavioural = [f for f in files if f['kind'] in BEHAVIOURAL]
 
+    def leaves(group):
+        # UNREADABLE is a distinct leaf value, so an unread file changes the
+        # root rather than vanishing from it.
+        return ((f['path'], f['sha256'] or 'UNREADABLE') for f in group)
+
     roots = {
-        'manifest': merkle_root((f['path'], f['sha256']) for f in files),
-        'immutable': merkle_root((f['path'], f['sha256']) for f in immutable),
-        'behavioural': merkle_root((f['path'], f['sha256']) for f in behavioural),
+        'manifest': merkle_root(leaves(files)),
+        'immutable': merkle_root(leaves(immutable)),
+        'behavioural': merkle_root(leaves(behavioural)),
     }
 
     by_kind = {}
     for f in files:
         e = by_kind.setdefault(f['kind'], {'count': 0, 'bytes': 0})
         e['count'] += 1
-        e['bytes'] += f['size']
+        e['bytes'] += f['size'] or 0
 
     return {
         'schema': 1,
@@ -253,7 +282,9 @@ def summarise(inv: dict) -> None:
     for f in il2cpp:
         print(f'  {f["path"]}  {f["sha256"][:16]}...')
     if inv['errors']:
-        print(f'\n{len(inv["errors"])} files could not be read:')
+        print(f'\nWARNING: {len(inv["errors"])} file(s) could not be read. This '
+              f'fingerprint is NOT a reliable identity — close the game and any '
+              f'tool holding the install, then re-run.')
         for e in inv['errors'][:10]:
             print(f'  {e["path"]}: {e["error"]}')
 
@@ -312,7 +343,11 @@ def main() -> int:
 
     if not root.is_dir():
         sys.exit(f'{root} is not a directory')
-    inv = scan(root)
+    def progress(n, nbytes):
+        print(f'  ... {n} files, {nbytes / 1e9:.2f} GB hashed',
+              file=sys.stderr, flush=True)
+
+    inv = scan(root, progress)
     Path(args.out).write_text(json.dumps(inv, indent=1))
     summarise(inv)
     print(f'\nWrote {args.out}')
