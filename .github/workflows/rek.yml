@@ -38,6 +38,11 @@ jobs:
         # including one that simply omits state REK has.
         run: python ocean/rek/evidence/test_evidence.py
 
+      - name: Check the AI-match keepalive logic
+        # Its Win32 half cannot run here. Its detection and press policy can,
+        # and a false positive there sends a space into a live round.
+        run: python ocean/rek/evidence/test_keep_in_ai_match.py
+
       - name: Report evidence-package stage
         # Informational, not a gate: it will say "no evidence" until artifacts
         # from the real installation are committed. Surfacing it on every run
