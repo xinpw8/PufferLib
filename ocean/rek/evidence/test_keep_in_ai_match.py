@@ -151,6 +151,74 @@ def the_rate_limit_is_a_backstop():
     assert p.decide(t + 61, True)[0] is True
 
 
+def _frame(green):
+    """One downscaled BGRA frame of a uniform colour."""
+    return bytes([0, green, 0, 255]) * (keep.SAMPLE_W * keep.SAMPLE_H)
+
+
+@check
+def frame_difference_measures_motion():
+    a, b = _frame(100), _frame(100)
+    assert keep.frame_diff(a, b) == 0.0
+    assert keep.frame_diff(_frame(100), _frame(110)) == 10.0
+    # No previous frame, or a resize mid-run: treat as maximum motion rather
+    # than as stillness, so a capture hiccup never reads as "the lobby".
+    assert keep.frame_diff(a, None) == 255.0
+    assert keep.frame_diff(a, b[:400]) == 255.0
+    assert keep.frame_diff(b'', b'') == 255.0
+
+
+@check
+def the_static_detector_needs_sustained_stillness():
+    d = keep.StaticDetector(dwell_s=4.0, threshold=2.0)
+    # A fight: the picture keeps changing.
+    for t in range(0, 10):
+        assert d.update(float(t), 30.0) is False
+
+    # The round ends and the screen settles. The dwell is measured from the
+    # last frame that actually moved (t=9), not from the first still one, so
+    # the clock is "how long since anything changed". One still frame is never
+    # enough: a KO freeze looks exactly like this for a moment.
+    assert d.update(10.0, 0.0) is False         # 1s since motion
+    assert d.update(12.0, 0.5) is False         # 3s, and 0.5 is under threshold
+    assert d.update(13.0, 0.0) is True          # 4s since motion
+    assert d.update(20.0, 1.9) is True          # still under threshold
+
+    # Any real motion resets the clock: the next match started.
+    assert d.update(21.0, 40.0) is False
+    assert d.update(24.9, 0.0) is False
+    assert d.update(25.0, 0.0) is True
+
+
+@check
+def auto_falls_back_to_the_detector_that_needs_nothing():
+    # The point of this: on a machine where nothing can be installed right now,
+    # asking for OCR would just exit.
+    assert keep.choose_detector('auto', want=lambda n: True) == 'ocr'
+    assert keep.choose_detector('auto', want=lambda n: False) == 'static'
+    # An explicit choice is never second-guessed.
+    for name in ('static', 'ocr', 'template'):
+        assert keep.choose_detector(name, want=lambda n: False) == name
+
+
+@check
+def a_static_screen_still_only_earns_one_press():
+    # The heuristic is loose, so the press policy has to be the thing that keeps
+    # it safe: a lobby that sits still for ten minutes is one press, not six
+    # hundred.
+    d = keep.StaticDetector(dwell_s=2.0)
+    p = keep.PressPolicy(cooldown_s=3.0, retry_after_s=6.0, max_retries=3)
+    presses = 0
+    t = 0.0
+    for _ in range(600):                        # ten minutes at one frame/s
+        t += 1.0
+        visible = d.update(t, 0.0)
+        if p.decide(t, visible)[0]:
+            p.record_press(t)
+            presses += 1
+    assert presses == 3, presses               # first press, then two retries
+
+
 def main() -> int:
     failed = 0
     for fn in checks:

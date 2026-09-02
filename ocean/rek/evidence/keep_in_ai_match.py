@@ -20,12 +20,17 @@ Space is pressed only when the prompt is actually on screen, only once per
 appearance, only while REK is the foreground window, and never faster than the
 cooldown. Every press is logged with its trigger and its confidence.
 
-Two detectors:
+Three detectors, and `auto` picks the best one available, so this runs with no
+installs at all:
 
-    ocr       pytesseract over the window. Preferred: the prompt is known text,
-              and matching text tolerates resolution and layout changes.
+    static    the lobby screen is frozen; a fight is not. Captures the window
+              through GDI and presses once it has been unchanged for a few
+              seconds. Needs nothing beyond the standard library, which is why
+              it is the fallback.
+    ocr       pytesseract over the window. Better when available: the prompt is
+              known text, and matching text tolerates layout changes.
     template  a reference crop matched by normalised cross-correlation. Needs
-              numpy. Use when OCR is unavailable or unreliable.
+              numpy and Pillow.
 
 What is verified and what is not, stated plainly. The phrase matching and the
 press policy are pure logic and are covered by test_keep_in_ai_match.py, which
@@ -55,6 +60,11 @@ DEFAULT_THRESHOLD = 0.8
 
 VK_SPACE = 0x20
 WM_KEYDOWN, WM_KEYUP = 0x0100, 0x0101
+
+# Downscale the window to this before comparing frames. Small enough that a
+# pure-Python difference over every pixel is trivial, large enough that two
+# robots moving in an arena change it obviously.
+SAMPLE_W, SAMPLE_H = 64, 36
 
 
 # ----------------------------------------------------------------- pure logic
@@ -96,6 +106,48 @@ def detect_prompt(text, phrases=PROMPT_PHRASES, threshold=DEFAULT_THRESHOLD):
     """
     scores = {p: phrase_score(text, p) for p in phrases}
     return (max(scores.values(), default=0.0) >= threshold), scores
+
+
+class StaticDetector:
+    """Treats a frozen screen as the lobby.
+
+    A fight moves: two robots, a camera, a timer. The lobby prompt does not. So
+    "the window has not changed for a few seconds" stands in for "the prompt is
+    up" when there is no OCR to read it with, and it needs no calibration and
+    nothing installed.
+
+    It is a heuristic, not a reading of the text. A KO freeze or a pause is also
+    static, which is why the dwell is seconds rather than one frame, and why the
+    press policy still fires only once per episode. Prefer --detector ocr where
+    pytesseract is available.
+    """
+
+    def __init__(self, dwell_s=4.0, threshold=2.0):
+        self.dwell_s = dwell_s
+        self.threshold = threshold
+        self.last_change = None
+        self.last_diff = None
+
+    def update(self, now, diff):
+        """Feed one frame difference. Returns whether the screen looks static."""
+        self.last_diff = diff
+        if self.last_change is None or diff > self.threshold:
+            self.last_change = now
+            return False
+        return (now - self.last_change) >= self.dwell_s
+
+
+def frame_diff(a, b):
+    """Mean absolute luma difference between two downscaled BGRA frames."""
+    if a is None or b is None or len(a) != len(b) or not a:
+        return 255.0
+    total = 0
+    n = 0
+    for i in range(0, len(a) - 3, 4):
+        # Green alone tracks luma closely enough to decide whether this moved.
+        total += abs(a[i + 1] - b[i + 1])
+        n += 1
+    return (total / n) if n else 255.0
 
 
 class PressPolicy:
@@ -219,6 +271,77 @@ def grab(rect):
     return ImageGrab.grab(bbox=rect, all_screens=True)
 
 
+def grab_sample(hwnd, w=SAMPLE_W, h=SAMPLE_H):
+    """Downscaled BGRA bytes of a window, through GDI only.
+
+    Deliberately dependency-free: this has to work on a machine where nothing
+    can be installed right now. StretchBlt does the scaling in the driver, so
+    the pure-Python comparison afterwards is over a few thousand pixels.
+    """
+    import ctypes.wintypes as wt
+    user32, gdi32 = ctypes.windll.user32, ctypes.windll.gdi32
+
+    rect = wt.RECT()
+    user32.GetClientRect(hwnd, ctypes.byref(rect))
+    sw, sh = rect.right - rect.left, rect.bottom - rect.top
+    if sw <= 0 or sh <= 0:
+        return None
+
+    src = user32.GetDC(hwnd)
+    if not src:
+        return None
+    dst = gdi32.CreateCompatibleDC(src)
+    bmp = gdi32.CreateCompatibleBitmap(src, w, h)
+    old = gdi32.SelectObject(dst, bmp)
+    try:
+        gdi32.SetStretchBltMode(dst, 4)                  # HALFTONE
+        if not gdi32.StretchBlt(dst, 0, 0, w, h, src, 0, 0, sw, sh, 0x00CC0020):
+            return None
+
+        class BITMAPINFOHEADER(ctypes.Structure):
+            _fields_ = [('biSize', wt.DWORD), ('biWidth', ctypes.c_long),
+                        ('biHeight', ctypes.c_long), ('biPlanes', wt.WORD),
+                        ('biBitCount', wt.WORD), ('biCompression', wt.DWORD),
+                        ('biSizeImage', wt.DWORD),
+                        ('biXPelsPerMeter', ctypes.c_long),
+                        ('biYPelsPerMeter', ctypes.c_long),
+                        ('biClrUsed', wt.DWORD), ('biClrImportant', wt.DWORD)]
+
+        info = BITMAPINFOHEADER()
+        info.biSize = ctypes.sizeof(BITMAPINFOHEADER)
+        info.biWidth, info.biHeight = w, -h              # negative: top-down
+        info.biPlanes, info.biBitCount = 1, 32
+        buf = ctypes.create_string_buffer(w * h * 4)
+        if not gdi32.GetDIBits(dst, bmp, 0, h, buf, ctypes.byref(info), 0):
+            return None
+        return buf.raw
+    finally:
+        gdi32.SelectObject(dst, old)
+        gdi32.DeleteObject(bmp)
+        gdi32.DeleteDC(dst)
+        user32.ReleaseDC(hwnd, src)
+
+
+def choose_detector(requested, want=None):
+    """Resolve 'auto' to whatever this machine can actually do.
+
+    `want` is an injection point so the resolution order is testable off
+    Windows; it maps a detector name to whether its dependencies import.
+    """
+    if requested != 'auto':
+        return requested
+    if want is None:
+        def want(name):
+            try:
+                import pytesseract
+                from PIL import ImageGrab                   # noqa: F401
+                pytesseract.get_tesseract_version()
+                return True
+            except Exception:
+                return False
+    return 'ocr' if want('ocr') else 'static'
+
+
 def read_text(image, scale=1.0):
     """OCR the image. Returns '' when pytesseract is unavailable."""
     try:
@@ -276,61 +399,77 @@ def watch(args):
     if shots:
         shots.mkdir(parents=True, exist_ok=True)
 
+    detector = choose_detector(args.detector)
     policy = PressPolicy(args.cooldown, args.retry_after, args.max_retries,
                          args.max_per_minute)
+    static = StaticDetector(args.dwell, args.diff_threshold)
     win = find_window(args.process)
     if not win:
         sys.exit(f'no visible window belonging to a process named {args.process!r}')
     hwnd, rect, pid = win
     print(f'REK window {hwnd} pid {pid} at {rect}')
-    print(f'detector={args.detector}  dry_run={args.dry_run}  log={log_path}')
+    print(f'detector={detector} (asked for {args.detector})  '
+          f'dry_run={args.dry_run}  log={log_path}')
+    if detector == 'static':
+        print(f'watching for the window to stay unchanged for {args.dwell}s. '
+              f'A fight moves; the lobby does not.')
 
     pressed = 0
+    previous = None
     with log_path.open('a', encoding='utf-8') as log:
         while True:
             now = time.time()
+            image = None
             try:
                 win = find_window(args.process) or win
                 hwnd, rect, pid = win
-                image = grab(rect)
+                if detector == 'static':
+                    sample = grab_sample(hwnd)
+                    diff = frame_diff(sample, previous)
+                    previous = sample
+                    visible = static.update(now, diff)
+                    evidence = {'frame_diff': round(diff, 3),
+                                'still_for': round(now - (static.last_change or now), 2)}
+                else:
+                    image = grab(rect)
+                    if detector == 'template':
+                        score = template_score(image, args.template)
+                        visible = score >= args.template_threshold
+                        evidence = {'template_score': round(score, 4)}
+                    else:
+                        text = read_text(image, args.ocr_scale)
+                        if text is None:
+                            sys.exit('pytesseract is not importable. Use '
+                                     '--detector static, which needs nothing.')
+                        visible, scores = detect_prompt(text, threshold=args.threshold)
+                        evidence = {'scores': {k: round(v, 3)
+                                               for k, v in scores.items()}}
             except Exception as e:
-                json.dump({'t': now, 'event': 'capture_error', 'error': str(e)}, log)
-                log.write('\n'); log.flush()
+                json.dump({'t': now, 'event': 'capture_error',
+                           'error': f'{type(e).__name__}: {e}'}, log)
+                log.write('\n')
+                log.flush()
                 time.sleep(args.interval)
                 continue
-
-            evidence = {}
-            if args.detector == 'template':
-                score = template_score(image, args.template)
-                visible = score >= args.template_threshold
-                evidence = {'template_score': round(score, 4)}
-            else:
-                text = read_text(image, args.ocr_scale)
-                if text is None:
-                    sys.exit('pytesseract is not installed. pip install pytesseract '
-                             'and install the Tesseract binary, or use '
-                             '--detector template --template crop.png')
-                visible, scores = detect_prompt(text, threshold=args.threshold)
-                evidence = {'scores': {k: round(v, 3) for k, v in scores.items()}}
 
             should, reason = policy.decide(now, visible)
             fg = is_foreground(hwnd)
             if should and not fg and not args.allow_background:
                 should, reason = False, 'REK is not the foreground window'
 
-            entry = {'t': now, 'prompt_visible': visible, 'reason': reason,
-                     'foreground': fg, **evidence}
+            entry = {'t': now, 'detector': detector, 'prompt_visible': visible,
+                     'reason': reason, 'foreground': fg, **evidence}
 
             if should:
                 if args.dry_run:
                     entry['event'] = 'would_press'
                 else:
                     entry['event'] = 'press'
-                    entry['method'] = press_space(hwnd, args.allow_background
-                                                  and not fg)
+                    entry['method'] = press_space(
+                        hwnd, args.allow_background and not fg)
                     policy.record_press(now)
                     pressed += 1
-                if shots and pressed <= args.keep_shots:
+                if shots and image is not None and pressed <= args.keep_shots:
                     path = shots / f'press-{int(now)}.png'
                     image.save(path)
                     entry['screenshot'] = str(path)
@@ -379,7 +518,14 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--process', default='REK')
-    ap.add_argument('--detector', default='ocr', choices=('ocr', 'template'))
+    ap.add_argument('--detector', default='auto',
+        choices=('auto', 'static', 'ocr', 'template'),
+        help='auto uses ocr when pytesseract works and static otherwise, so '
+             'this runs with nothing installed')
+    ap.add_argument('--dwell', type=float, default=4.0,
+        help='seconds the window must stay unchanged for --detector static')
+    ap.add_argument('--diff-threshold', type=float, default=2.0,
+        help='mean pixel change below which a frame counts as unchanged')
     ap.add_argument('--template', help='reference crop for --detector template')
     ap.add_argument('--template-threshold', type=float, default=0.9)
     ap.add_argument('--threshold', type=float, default=DEFAULT_THRESHOLD)
