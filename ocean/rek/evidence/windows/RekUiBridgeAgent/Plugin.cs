@@ -25,7 +25,7 @@ public sealed class Plugin : BasePlugin
 {
     public const string PluginGuid = "rek.evidence.control.bridge";
     public const string PluginName = "REK Evidence Control Bridge";
-    public const string PluginVersion = "0.2.5";
+    public const string PluginVersion = "0.2.6";
 
     private const string PipeName = "rek-ui-bridge-v1";
     private const int MaxPendingRequests = 32;
@@ -1200,6 +1200,12 @@ public sealed class Plugin : BasePlugin
                 reason = "private_unranked_arena_identity_not_proven";
                 return false;
             }
+            if (!TryReadMultiplayerSessionPrivate(out var sessionIsPrivate, out var sessionPrivacyReason) ||
+                !sessionIsPrivate)
+            {
+                reason = sessionPrivacyReason;
+                return false;
+            }
             if (coordinator.IsRankedArena)
             {
                 reason = "ranked_coordinator_rejected";
@@ -1316,6 +1322,38 @@ public sealed class Plugin : BasePlugin
         _lastPublishedConnection = connectionId;
         _lastStateIdentity = state.Identity;
         _pipe?.Send(connectionId, state.Payload);
+    }
+
+    private static bool TryReadMultiplayerSessionPrivate(
+        out bool isPrivate,
+        out string reason)
+    {
+        isPrivate = false;
+        try
+        {
+            var manager = UnityEngine.Object.FindFirstObjectByType<XRMultiplayer.SessionManager>();
+            if (manager is null)
+            {
+                reason = "multiplayer_session_manager_not_found";
+                return false;
+            }
+            var session = manager.currentSession;
+            if (session is null)
+            {
+                reason = "multiplayer_current_session_not_found";
+                return false;
+            }
+            isPrivate = session.IsPrivate;
+            reason = isPrivate
+                ? "multiplayer_session_private"
+                : "multiplayer_session_public_rejected";
+            return true;
+        }
+        catch (Exception exception)
+        {
+            reason = $"multiplayer_session_privacy_probe_failed:{exception.GetType().Name}";
+            return false;
+        }
     }
 
     private CapturedState CaptureState(string? requestId)
@@ -1719,6 +1757,9 @@ public sealed class Plugin : BasePlugin
             var humanInOpponentSlot = coordinator.HumanInSlot(opponentSlot);
             var networkClientOnly = network is not null && network.IsConnected && network.IsClient && !network.IsServer;
             var solo = context is not null && context.IsSolo;
+            var sessionPrivacyKnown = TryReadMultiplayerSessionPrivate(
+                out var sessionIsPrivate,
+                out var sessionPrivacyReason);
             var exactBotOne = coordinator.clientAiDifficultyLevel == 0 &&
                               coordinator.SparringBotNumber == 1;
             var fighters = coordinator.Fighters;
@@ -1750,6 +1791,9 @@ public sealed class Plugin : BasePlugin
                 opponent_slot = opponentSlot,
                 network_client_only = networkClientOnly,
                 context_is_solo = solo,
+                multiplayer_session_privacy_known = sessionPrivacyKnown,
+                multiplayer_session_is_private = sessionPrivacyKnown ? sessionIsPrivate : null as bool?,
+                multiplayer_session_privacy_reason = sessionPrivacyReason,
                 opponent_is_ai = opponentIsAi,
                 opponent_slot_is_ai = opponentSlotIsAi,
                 human_in_opponent_slot = humanInOpponentSlot,

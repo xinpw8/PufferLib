@@ -49,11 +49,11 @@ All input requests are currently rejected from Unity's main thread with `applied
 The published `space_gate_would_allow` field is observation only. It requires current-build evidence of a connected client-only solo session, an AI opponent slot with no client or human markers, an inactive round, and a visible enabled PostFight continue prompt. It never generates Space.
 
 `EnterSolo` is deliberately rejected. The recovered `KothScreenController`
-route calls `OnSoloClicked()`, which enters the public solo arena rather than
-proving a private room. `IsSolo`, unranked state, an arena ID, and an empty
-opponent client slot do not distinguish those cases. Controlled acquisition may
-attach to an already established private Bot 1 session, but it must not create
-one until a private-session property or transition has been measured.
+route calls `OnSoloClicked()`, which enters the public solo arena. `IsSolo`,
+unranked state, an arena ID, and an empty opponent client slot do not distinguish
+that case from a private room. Controlled acquisition additionally requires the
+active Unity multiplayer session's measured `ISession.IsPrivate` property to be
+true. Session IDs and room codes are not read or published.
 
 ## Current limitations
 

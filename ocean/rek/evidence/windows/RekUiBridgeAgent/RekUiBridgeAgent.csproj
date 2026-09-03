@@ -3,7 +3,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>RekUiBridgeAgent</AssemblyName>
     <RootNamespace>RekUiBridgeAgent</RootNamespace>
-    <Version>0.2.5</Version>
+    <Version>0.2.6</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
@@ -44,6 +44,10 @@
     </Reference>
     <Reference Include="UnityEngine.UIElementsModule">
       <HintPath>$(RekInteropDir)\UnityEngine.UIElementsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.Services.Multiplayer">
+      <HintPath>$(RekInteropDir)\Unity.Services.Multiplayer.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="REKApp">
