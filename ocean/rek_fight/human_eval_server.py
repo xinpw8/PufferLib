@@ -2,6 +2,7 @@
 import argparse
 import ctypes
 import json
+import math
 import os
 import struct
 import threading
@@ -15,6 +16,13 @@ os.environ.setdefault("MUJOCO_GL", "egl")
 
 import mujoco
 import numpy as np
+
+from engineai_t800_policy import (
+    CONTROL_DT,
+    T800MuJoCoBinding,
+    T800SupineRecoveryController,
+    T800WalkingController,
+)
 
 
 INDEX_HTML = r"""
@@ -41,7 +49,7 @@ INDEX_HTML = r"""
 </style>
 <main>
   <h1>REK Fight Human Eval</h1>
-  <p class="notice">Controller reconstruction under test. Blue is you. Orange is a deterministic sparring dummy, not recovered Bot 1.</p>
+  <p class="notice">Official EngineAI T800 walking policy. Blue is you. Orange uses the same walking policy as a deterministic approach dummy. REK combat moves are disabled until their trajectories are measured.</p>
   <div class="viewport"><img id="frame" alt="Live REK fight simulator view"></div>
   <div class="hud" aria-live="polite">
     <div><span class="label">Tick</span><span id="tick">0</span></div>
@@ -53,8 +61,7 @@ INDEX_HTML = r"""
     <kbd>W</kbd>/<kbd>S</kbd> forward/back,
     <kbd>A</kbd>/<kbd>D</kbd> strafe,
     <kbd>Q</kbd>/<kbd>E</kbd> yaw,
-    <kbd>U</kbd> straight kick, <kbd>I</kbd> right side kick.
-    Moves <kbd>1</kbd>–<kbd>6</kbd>: punch combo, right kick, left punch, right punch, dragon punch, left kick.
+    Combat keys are disabled in this controller-validation build.
     Click this page once before using the keyboard.
   </p>
   <button id="reset" type="button">Reset round</button><span id="connection">connecting</span>
@@ -62,8 +69,7 @@ INDEX_HTML = r"""
 <script>
 (() => {
   const held = new Set();
-  const relevant = new Set(['KeyW','KeyS','KeyA','KeyD','KeyQ','KeyE','KeyU','KeyI','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6']);
-  let queuedMove = 0;
+  const relevant = new Set(['KeyW','KeyS','KeyA','KeyD','KeyQ','KeyE']);
   let inputSequence = 0;
   const axis = (negative, positive) => held.has(negative) === held.has(positive) ? 1 : held.has(positive) ? 2 : 0;
   async function sendInput() {
@@ -72,9 +78,8 @@ INDEX_HTML = r"""
       forward: axis('KeyS', 'KeyW'),
       strafe: axis('KeyD', 'KeyA'),
       yaw: axis('KeyE', 'KeyQ'),
-      move: queuedMove
+      move: 0
     };
-    queuedMove = 0;
     try {
       await fetch('/input', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(payload)});
     } catch (_) {}
@@ -82,11 +87,6 @@ INDEX_HTML = r"""
   addEventListener('keydown', event => {
     if (!relevant.has(event.code)) return;
     event.preventDefault();
-    if (!event.repeat) {
-      if (event.code.startsWith('Digit')) queuedMove = Number(event.code.slice(5));
-      if (event.code === 'KeyU') queuedMove = 6;
-      if (event.code === 'KeyI') queuedMove = 2;
-    }
     held.add(event.code);
     sendInput();
   });
@@ -98,7 +98,7 @@ INDEX_HTML = r"""
   });
   addEventListener('blur', () => { held.clear(); sendInput(); });
   document.getElementById('reset').addEventListener('click', async () => {
-    held.clear(); queuedMove = 0;
+    held.clear();
     await fetch('/reset', {method:'POST'});
   });
   const image = document.getElementById('frame');
@@ -113,7 +113,7 @@ INDEX_HTML = r"""
       document.getElementById('humanHits').textContent = state.hits[0];
       document.getElementById('botHits').textContent = state.hits[1];
       document.getElementById('return').textContent = state.episode_return[0].toFixed(3);
-      document.getElementById('connection').textContent = 'live at 50 Hz';
+      document.getElementById('connection').textContent = 'live at 100 Hz control / 500 Hz physics';
     } catch (_) {
       document.getElementById('connection').textContent = 'disconnected';
     }
@@ -307,8 +307,199 @@ class HumanEval:
         self.library.rek_human_destroy(self.session)
 
 
+class PolicyHumanEval:
+    def __init__(
+        self,
+        model_path: Path,
+        policy_path: Path,
+        recovery_policy_path: Path,
+        recovery_trajectory_path: Path,
+        log_path: Path | None,
+    ):
+        self.model = mujoco.MjModel.from_xml_path(str(model_path))
+        self.source_timestep = float(self.model.opt.timestep)
+        self.model.opt.timestep = 0.002
+        self.data = mujoco.MjData(self.model)
+        self.bindings = [T800MuJoCoBinding(mujoco, self.model, fighter=agent) for agent in range(2)]
+        self.controllers = [T800WalkingController(policy_path) for _ in range(2)]
+        self.recovery_controllers = [
+            T800SupineRecoveryController(recovery_policy_path, recovery_trajectory_path) for _ in range(2)
+        ]
+        self.recovering = [False, False]
+        for geom in range(self.model.ngeom):
+            body = int(self.model.geom_bodyid[geom])
+            if 1 <= body <= 30:
+                self.model.geom_rgba[geom] = (0.10, 0.65, 0.95, 1.0)
+            elif 31 <= body <= 60:
+                self.model.geom_rgba[geom] = (0.95, 0.40, 0.12, 1.0)
+        self.renderer = mujoco.Renderer(self.model, height=360, width=640)
+        self.camera = mujoco.MjvCamera()
+        mujoco.mjv_defaultCamera(self.camera)
+        self.camera.distance = 6.2
+        self.camera.azimuth = 90.0
+        self.camera.elevation = -42.0
+        ratio = CONTROL_DT / float(self.model.opt.timestep)
+        self.substeps = int(round(ratio))
+        if abs(ratio - self.substeps) > 1e-9:
+            raise ValueError("walking control period is not divisible by the model timestep")
+        self.action = {"forward": 1, "strafe": 1, "yaw": 1, "move": 0, "sequence": 0}
+        self.lock = threading.RLock()
+        self.running = True
+        self.log_path = log_path
+        if self.log_path:
+            self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self.tick_count = 0
+        self.reset_count = 0
+        self._reset_unlocked()
+        self.thread = threading.Thread(target=self._run, name="rek-official-policy-step", daemon=True)
+        self.thread.start()
+
+    def _write_log(self, kind: str, payload: dict) -> None:
+        if not self.log_path:
+            return
+        record = {"time_unix_ns": time.time_ns(), "kind": kind, **payload}
+        with self.log_path.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(record, separators=(",", ":")) + "\n")
+
+    def _reset_unlocked(self) -> None:
+        mujoco.mj_resetDataKeyframe(self.model, self.data, 0)
+        for binding, controller in zip(self.bindings, self.controllers):
+            binding.set_default_pose(self.data)
+            controller.reset()
+        self.recovering[:] = [False, False]
+        mujoco.mj_forward(self.model, self.data)
+        self.action.update({"forward": 1, "strafe": 1, "yaw": 1, "move": 0})
+        self.tick_count = 0
+        self.reset_count += 1
+
+    def _human_command(self) -> np.ndarray:
+        return np.array(
+            [self.action["forward"] - 1, self.action["strafe"] - 1, self.action["yaw"] - 1],
+            dtype=np.float64,
+        )
+
+    def _bot_command(self) -> np.ndarray:
+        bot = self.bindings[1]
+        delta_world = self.bindings[0].root_position(self.data) - bot.root_position(self.data)
+        quaternion = self.data.qpos[bot.root_qpos_address + 3 : bot.root_qpos_address + 7]
+        w, x, y, z = quaternion
+        yaw = math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+        c, s = math.cos(yaw), math.sin(yaw)
+        forward = c * delta_world[0] + s * delta_world[1]
+        lateral = -s * delta_world[0] + c * delta_world[1]
+        distance = float(np.hypot(forward, lateral))
+        return np.array(
+            [np.clip((distance - 1.2) * 0.8, -0.4, 0.7), np.clip(lateral * 0.5, -0.4, 0.4), 0.0],
+            dtype=np.float64,
+        )
+
+    def _run(self) -> None:
+        deadline = time.monotonic()
+        while self.running:
+            deadline += CONTROL_DT
+            with self.lock:
+                commands = [self._human_command(), self._bot_command()]
+                targets = []
+                for agent, (binding, controller, recovery, normalized_command) in enumerate(
+                    zip(self.bindings, self.controllers, self.recovery_controllers, commands)
+                ):
+                    joint_q, joint_qd, quaternion, angular_velocity = binding.state(self.data)
+                    fallen = binding.root_position(self.data)[2] < 0.65 or binding.root_up_z(self.data) < 0.45
+                    if fallen and not self.recovering[agent]:
+                        recovery.reset(joint_q)
+                        self.recovering[agent] = True
+                        self._write_log("supine_recovery_start", {"tick": self.tick_count, "agent": agent})
+                    if self.recovering[agent]:
+                        target, _ = recovery.step(joint_q, joint_qd, quaternion, angular_velocity)
+                        targets.append((target, recovery))
+                    else:
+                        controller.observe(joint_q, joint_qd, quaternion, angular_velocity)
+                        _, target = controller.act(controller.scale_command(normalized_command))
+                        targets.append((target, controller))
+                for _ in range(self.substeps):
+                    for binding, (target, controller) in zip(self.bindings, targets):
+                        joint_q, joint_qd, _, _ = binding.state(self.data)
+                        binding.apply_torque(self.data, controller.pd_torque(joint_q, joint_qd, target))
+                    mujoco.mj_step(self.model, self.data)
+                for agent, (binding, controller, recovery) in enumerate(
+                    zip(self.bindings, self.controllers, self.recovery_controllers)
+                ):
+                    if self.recovering[agent] and recovery.finished:
+                        upright = binding.root_position(self.data)[2] > 0.8 and binding.root_up_z(self.data) > 0.9
+                        if upright:
+                            self.recovering[agent] = False
+                            controller.reset()
+                            self._write_log("supine_recovery_complete", {"tick": self.tick_count, "agent": agent})
+                self.tick_count += 1
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                time.sleep(remaining)
+            else:
+                deadline = time.monotonic()
+
+    def tick(self) -> int:
+        return self.tick_count
+
+    def update_action(self, payload: dict) -> None:
+        parsed = {
+            "forward": max(0, min(2, int(payload.get("forward", 1)))),
+            "strafe": max(0, min(2, int(payload.get("strafe", 1)))),
+            "yaw": max(0, min(2, int(payload.get("yaw", 1)))),
+            "move": 0,
+            "sequence": int(payload.get("sequence", 0)),
+        }
+        with self.lock:
+            if parsed["sequence"] < self.action["sequence"]:
+                return
+            self.action = parsed
+            self._write_log("input", {"tick": self.tick_count, "action": parsed})
+
+    def reset(self) -> None:
+        with self.lock:
+            sequence = self.action["sequence"]
+            self._reset_unlocked()
+            self.action["sequence"] = sequence
+            self._write_log("reset", {"tick": self.tick_count, "reset_count": self.reset_count})
+
+    def state(self) -> dict:
+        with self.lock:
+            fallen = [
+                bool(binding.root_position(self.data)[2] < 0.65 or binding.root_up_z(self.data) < 0.45)
+                for binding in self.bindings
+            ]
+            return {
+                "tick": self.tick_count,
+                "hits": [0, 0],
+                "fallen": fallen,
+                "move_slot": [0, 0],
+                "reward": [0.0, 0.0],
+                "episode_return": [0.0, 0.0],
+                "input_sequence": self.action["sequence"],
+                "provisional": True,
+                "controller": "engineai_t800_walking_mnn",
+                "opponent": "official_policy_approach_dummy",
+                "combat_moves_enabled": False,
+                "automatic_getup_enabled": True,
+                "automatic_getup_profile": "engineai_t800_supine_to_stance_mnn",
+                "recovering": self.recovering.copy(),
+            }
+
+    def frame(self) -> bytes:
+        with self.lock:
+            roots = np.vstack([binding.root_position(self.data) for binding in self.bindings])
+            self.camera.lookat[:] = roots.mean(axis=0)
+            self.camera.lookat[2] = max(0.8, self.camera.lookat[2])
+            self.renderer.update_scene(self.data, camera=self.camera)
+            return png_bytes(self.renderer.render())
+
+    def close(self) -> None:
+        self.running = False
+        self.thread.join(timeout=1.0)
+        self.renderer.close()
+
+
 class Handler(BaseHTTPRequestHandler):
-    evaluator: HumanEval
+    evaluator: HumanEval | PolicyHumanEval
 
     def _send(self, status: int, content_type: str, body: bytes) -> None:
         self.send_response(status)
@@ -356,12 +547,28 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
-    parser.add_argument("--library", type=Path, required=True)
+    parser.add_argument("--library", type=Path)
     parser.add_argument("--model", type=Path, required=True)
+    parser.add_argument("--walking-policy", type=Path)
+    parser.add_argument("--recovery-policy", type=Path)
+    parser.add_argument("--recovery-trajectory", type=Path)
     parser.add_argument("--log", type=Path)
     args = parser.parse_args()
 
-    evaluator = HumanEval(args.library.resolve(), args.model.resolve(), args.log)
+    if args.walking_policy:
+        if args.recovery_policy is None or args.recovery_trajectory is None:
+            parser.error("--recovery-policy and --recovery-trajectory are required with --walking-policy")
+        evaluator = PolicyHumanEval(
+            args.model.resolve(),
+            args.walking_policy.resolve(),
+            args.recovery_policy.resolve(),
+            args.recovery_trajectory.resolve(),
+            args.log,
+        )
+    else:
+        if args.library is None:
+            parser.error("--library is required without --walking-policy")
+        evaluator = HumanEval(args.library.resolve(), args.model.resolve(), args.log)
     Handler.evaluator = evaluator
     server = HTTPServer((args.host, args.port), Handler)
     print(json.dumps({"ready": True, "host": args.host, "port": args.port}), flush=True)
