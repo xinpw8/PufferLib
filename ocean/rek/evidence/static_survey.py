@@ -116,6 +116,43 @@ def scalars(tree, prefix='', out=None, depth=0):
     return out
 
 
+def derive_fixed_timestep(values):
+    """Fixed timestep in seconds and Hz, from either TimeManager encoding.
+
+    Unity 6 stopped storing Fixed Timestep as a float. It is now a RationalTime:
+    a tick count over a rate given as a numerator and denominator. Reporting
+    only that the field exists is close to useless — the timestep is the unit
+    every frame count in this project is expressed in — so both encodings are
+    converted here, and the one that was used is named.
+
+    Returns {'seconds', 'hz', 'source'} or {'source': None, 'why': ...}.
+    """
+    def num(key):
+        try:
+            return float(values[key])
+        except (KeyError, TypeError, ValueError):
+            return None
+
+    for key in ('Fixed Timestep', 'm_FixedTimestep'):
+        v = num(key)
+        if v and v > 0:
+            return {'seconds': v, 'hz': 1.0 / v, 'source': key}
+
+    for prefix in ('Fixed Timestep', 'm_FixedTimestep'):
+        count = num(f'{prefix}.m_Count')
+        numer = num(f'{prefix}.m_Rate.m_Numerator')
+        denom = num(f'{prefix}.m_Rate.m_Denominator')
+        if count and numer and denom:
+            rate = numer / denom          # ticks per second
+            if rate > 0 and count > 0:
+                return {'seconds': count / rate, 'hz': rate / count,
+                        'source': f'{prefix} RationalTime (Unity 6)'}
+
+    return {'source': None,
+            'why': 'TimeManager carried no timestep in either the float or the '
+                   'Unity 6 RationalTime encoding'}
+
+
 def owner_name(obj):
     try:
         return str(getattr(obj.read().m_GameObject.read(), 'm_Name', '') or '')
@@ -302,6 +339,9 @@ def survey(root: Path, inventory: dict, out_path: Path) -> dict:
             {'type': t, 'count': len(v), 'example': v[0]}
             for t, v in sorted(by_type.items())]
 
+    tm = (report['settings'].get('TimeManager') or {}).get('values') or {}
+    report['fixed_timestep'] = derive_fixed_timestep(tm)
+
     for want, where in (('TimeManager', 'fixed timestep / control rate'),
                         ('PhysicsManager', 'gravity, solver iterations, contact offset')):
         if want not in report['settings']:
@@ -326,6 +366,12 @@ def summarise(r: dict) -> None:
     tm = r['settings'].get('TimeManager', {}).get('values', {})
     if tm:
         print('\nTimeManager (the control/physics rate, measured not assumed):')
+        ft = r.get('fixed_timestep') or {}
+        if ft.get('source'):
+            print(f'  FIXED TIMESTEP = {ft["seconds"]:.9f} s  ->  {ft["hz"]:.4f} Hz'
+                  f'   [{ft["source"]}]')
+        else:
+            print(f'  FIXED TIMESTEP: not derivable — {ft.get("why")}')
         for k, v in sorted(tm.items()):
             print(f'  {k} = {v}')
     else:

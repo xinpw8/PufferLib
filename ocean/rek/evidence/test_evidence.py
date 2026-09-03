@@ -1077,6 +1077,60 @@ def objects_that_cannot_be_read_are_reported_not_swallowed():
 
 
 @check
+def the_fixed_timestep_is_derived_from_either_unity_encoding():
+    # The tick rate is the unit every frame count in this project is expressed
+    # in, and Unity 6 stopped storing it as a float. Reporting only that the
+    # field exists made the survey say "tick rate found" while the number
+    # itself stayed unknown.
+    old = static_survey.derive_fixed_timestep({'Fixed Timestep': 0.02})
+    assert old['hz'] == 50.0 and old['source'] == 'Fixed Timestep', old
+
+    # The real values out of REK's Unity 6000.5.8f1 build.
+    new = static_survey.derive_fixed_timestep({
+        'Fixed Timestep.m_Count': 2822399,
+        'Fixed Timestep.m_Rate.m_Numerator': 141120000,
+        'Fixed Timestep.m_Rate.m_Denominator': 1,
+        'Maximum Allowed Timestep': 0.3333333432674408,
+    })
+    assert abs(new['hz'] - 50.0) < 1e-3, new
+    assert abs(new['seconds'] - 0.02) < 1e-6, new
+    assert 'RationalTime' in new['source'], new
+
+    # Not derivable is said, not guessed at.
+    for values in ({}, {'Fixed Timestep': 0.0},
+                   {'Fixed Timestep.m_Count': 100},           # no rate
+                   {'Fixed Timestep.m_Rate.m_Numerator': 60,
+                    'Fixed Timestep.m_Rate.m_Denominator': 0}):
+        out = static_survey.derive_fixed_timestep(values)
+        assert out['source'] is None and 'why' in out, (values, out)
+
+
+@check
+def a_survey_that_found_the_field_but_not_the_number_is_not_measured():
+    # "tick rate found" was true and useless. The gate has to distinguish a
+    # derived number from a present field.
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        game = fake_install(d / 'install')
+        inv = inventory.scan(game)
+        (d / 'inventory.json').write_text(json.dumps(inv))
+        base = {'build_fingerprint': inv['build_fingerprint'], 'bodies': [],
+                'model_assets': [],
+                'settings': {'TimeManager': {'values': {'Maximum Allowed Timestep': 0.33}}}}
+
+        (d / 'static_survey.json').write_text(json.dumps(base))
+        detail = [r for r in check_artifacts.check(d)
+                  if r['artifact'] == 'static_survey.json'][0]['detail']
+        assert 'NOT DERIVED' in detail, detail
+
+        base['fixed_timestep'] = {'seconds': 0.02, 'hz': 50.0, 'source': 'x'}
+        (d / 'static_survey.json').write_text(json.dumps(base))
+        detail = [r for r in check_artifacts.check(d)
+                  if r['artifact'] == 'static_survey.json'][0]['detail']
+        assert '50 Hz' in detail, detail
+
+
+@check
 def a_missing_time_manager_is_reported_absent_not_defaulted():
     install_fake_unitypy([FakeObject('MonoBehaviour', {'m_Name': 'Thing'})])
     with tempfile.TemporaryDirectory() as d:

@@ -117,10 +117,19 @@ def check(directory: Path):
         else:
             fingerprints['static_survey.json'] = ss.get('build_fingerprint')
             tm = (ss.get('settings') or {}).get('TimeManager')
+            ft = ss.get('fixed_timestep') or {}
+            if ft.get('source'):
+                tick = f'{ft["hz"]:.4g} Hz'
+            elif tm:
+                # Present but not convertible is not the same as measured, and
+                # the tick rate is the unit everything else is expressed in.
+                tick = 'PRESENT BUT NOT DERIVED — re-run static_survey.py'
+            else:
+                tick = 'NOT FOUND'
             record('static_survey.json', 'PRESENT',
                    f'{len(ss.get("bodies", []))} body/joint components, '
                    f'{len(ss.get("model_assets", []))} model assets, '
-                   f'tick rate {"found" if tm else "NOT FOUND"}')
+                   f'tick rate {tick}')
 
     # 4c. Bounded native controller semantics. Presence means that exact client
     # method extents and serialized values were pinned. It does not mean those
