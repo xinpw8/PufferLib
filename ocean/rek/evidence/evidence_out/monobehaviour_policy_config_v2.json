@@ -1,0 +1,1405 @@
+{
+ "schema": 1,
+ "unity_version": "6000.5.8f1",
+ "data_root": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data",
+ "assemblies": "C:\\rekagent\\work\\rek-current-interop-b20ca0d\\cpp2il-dummy",
+ "excluded_assemblies": [
+  "Unity.XR.Simulation.dll"
+ ],
+ "loaded_assemblies": [
+  "__Generated.dll",
+  "Assembly-CSharp.dll",
+  "com.rlabrecque.steamworks.net.dll",
+  "Microsoft.ML.OnnxRuntime.dll",
+  "Mono.Security.dll",
+  "mscorlib.dll",
+  "Mujoco.Runtime.dll",
+  "Newtonsoft.Json.dll",
+  "Oculus.Platform.dll",
+  "REKApp.dll",
+  "SteamAudioUnity.dll",
+  "System.Configuration.dll",
+  "System.Core.dll",
+  "System.Data.dll",
+  "System.dll",
+  "System.Drawing.dll",
+  "System.IO.Compression.dll",
+  "System.Numerics.dll",
+  "System.Runtime.CompilerServices.Unsafe.dll",
+  "System.Runtime.Serialization.dll",
+  "System.Xml.dll",
+  "System.Xml.Linq.dll",
+  "unity-websocket-sharp.dll",
+  "Unity.Burst.dll",
+  "Unity.Burst.Unsafe.dll",
+  "Unity.Cinemachine.dll",
+  "Unity.Collections.dll",
+  "Unity.Collections.LowLevel.ILSupport.dll",
+  "Unity.DedicatedServer.MultiplayerRoles.dll",
+  "Unity.InferenceEngine.dll",
+  "Unity.InputSystem.dll",
+  "Unity.InputSystem.ForUI.dll",
+  "Unity.InternalAPIEngineBridge.004.dll",
+  "Unity.Multiplayer.Tools.Adapters.dll",
+  "Unity.Multiplayer.Tools.Adapters.Ngo1.dll",
+  "Unity.Multiplayer.Tools.Adapters.Ngo1WithUtp2.dll",
+  "Unity.Multiplayer.Tools.Adapters.Utp2.dll",
+  "Unity.Multiplayer.Tools.Common.dll",
+  "Unity.Multiplayer.Tools.Initialization.dll",
+  "Unity.Multiplayer.Tools.MetricEvents.dll",
+  "Unity.Multiplayer.Tools.MetricTypes.dll",
+  "Unity.Multiplayer.Tools.NetStats.dll",
+  "Unity.Multiplayer.Tools.NetStatsReporting.dll",
+  "Unity.Multiplayer.Tools.NetworkProfiler.Runtime.dll",
+  "Unity.Multiplayer.Tools.NetworkSolutionInterface.dll",
+  "Unity.Netcode.Runtime.dll",
+  "Unity.Networking.Transport.dll",
+  "Unity.PathTracing.Runtime.dll",
+  "Unity.Profiling.Core.dll",
+  "Unity.RenderPipeline.Universal.ShaderLibrary.dll",
+  "Unity.RenderPipelines.Core.Runtime.dll",
+  "Unity.RenderPipelines.Core.Runtime.Shared.dll",
+  "Unity.RenderPipelines.GPUDriven.Runtime.dll",
+  "Unity.RenderPipelines.Universal.2D.Runtime.dll",
+  "Unity.RenderPipelines.Universal.Runtime.dll",
+  "Unity.Scripting.dll",
+  "Unity.Services.Authentication.dll",
+  "Unity.Services.Authentication.PlayerAccounts.dll",
+  "Unity.Services.Core.Components.dll",
+  "Unity.Services.Core.Configuration.dll",
+  "Unity.Services.Core.Device.dll",
+  "Unity.Services.Core.dll",
+  "Unity.Services.Core.Environments.dll",
+  "Unity.Services.Core.Environments.Internal.dll",
+  "Unity.Services.Core.Internal.dll",
+  "Unity.Services.Core.Registration.dll",
+  "Unity.Services.Core.Scheduler.dll",
+  "Unity.Services.Core.Telemetry.dll",
+  "Unity.Services.Core.Threading.dll",
+  "Unity.Services.Multiplayer.dll",
+  "Unity.Services.QoS.dll",
+  "Unity.Services.Vivox.dll",
+  "Unity.Services.Wire.Internal.dll",
+  "Unity.Splines.dll",
+  "Unity.TextMeshPro.dll",
+  "Unity.Timeline.dll",
+  "Unity.UnifiedRayTracing.Runtime.dll",
+  "Unity.XR.AndroidOpenXR.dll",
+  "Unity.XR.ARFoundation.dll",
+  "Unity.XR.ARFoundation.InternalUtils.dll",
+  "Unity.XR.ARSubsystems.dll",
+  "Unity.XR.CompositionLayers.dll",
+  "Unity.XR.CoreUtils.dll",
+  "Unity.XR.Hands.dll",
+  "Unity.XR.Hands.Samples.VisualizerSample.dll",
+  "Unity.XR.Interaction.Toolkit.dll",
+  "Unity.XR.Interaction.Toolkit.Samples.DeviceSimulator.dll",
+  "Unity.XR.Interaction.Toolkit.Samples.Hands.dll",
+  "Unity.XR.Interaction.Toolkit.Samples.InteractionSimulator.dll",
+  "Unity.XR.Interaction.Toolkit.Samples.SpatialKeyboard.dll",
+  "Unity.XR.Interaction.Toolkit.Samples.StarterAssets.dll",
+  "Unity.XR.Interaction.Toolkit.Samples.WorldSpaceUI.dll",
+  "Unity.XR.Management.dll",
+  "Unity.XR.OpenXR.dll",
+  "Unity.XR.OpenXR.Features.ConformanceAutomation.dll",
+  "Unity.XR.OpenXR.Features.MetaQuestSupport.dll",
+  "Unity.XR.OpenXR.Features.MockRuntime.dll",
+  "Unity.XR.OpenXR.Features.OculusQuestSupport.dll",
+  "Unity.XR.OpenXR.Features.PICOSupport.dll",
+  "Unity.XR.OpenXR.Features.RuntimeDebugger.dll",
+  "Unity.XR.OpenXRPico.dll",
+  "UnityEngine.AccessibilityModule.dll",
+  "UnityEngine.AdaptivePerformanceModule.dll",
+  "UnityEngine.AIModule.dll",
+  "UnityEngine.AndroidJNIModule.dll",
+  "UnityEngine.AnimationModule.dll",
+  "UnityEngine.AssetBundleModule.dll",
+  "UnityEngine.AudioModule.dll",
+  "UnityEngine.ContentLoadModule.dll",
+  "UnityEngine.CoreModule.dll",
+  "UnityEngine.DirectorModule.dll",
+  "UnityEngine.dll",
+  "UnityEngine.GridModule.dll",
+  "UnityEngine.HierarchyCoreModule.dll",
+  "UnityEngine.IdentifiersModule.dll",
+  "UnityEngine.ImageConversionModule.dll",
+  "UnityEngine.IMGUIModule.dll",
+  "UnityEngine.InputForUIModule.dll",
+  "UnityEngine.InputLegacyModule.dll",
+  "UnityEngine.InputModule.dll",
+  "UnityEngine.JSONSerializeModule.dll",
+  "UnityEngine.MarshallingModule.dll",
+  "UnityEngine.MathematicsModule.dll",
+  "UnityEngine.MultiplayerModule.dll",
+  "UnityEngine.ParticleSystemModule.dll",
+  "UnityEngine.Physics2DModule.dll",
+  "UnityEngine.PhysicsCore2DModule.dll",
+  "UnityEngine.PhysicsModule.dll",
+  "UnityEngine.PropertiesModule.dll",
+  "UnityEngine.RenderAs2DModule.dll",
+  "UnityEngine.ScriptingModule.dll",
+  "UnityEngine.SharedInternalsModule.dll",
+  "UnityEngine.SpatialTracking.dll",
+  "UnityEngine.SpriteMaskModule.dll",
+  "UnityEngine.SpriteShapeModule.dll",
+  "UnityEngine.SubsystemsModule.dll",
+  "UnityEngine.TerrainModule.dll",
+  "UnityEngine.TextCoreFontEngineModule.dll",
+  "UnityEngine.TextCoreTextEngineModule.dll",
+  "UnityEngine.TextRenderingModule.dll",
+  "UnityEngine.TilemapModule.dll",
+  "UnityEngine.TLSModule.dll",
+  "UnityEngine.UI.dll",
+  "UnityEngine.UIElementsModule.dll",
+  "UnityEngine.UIModule.dll",
+  "UnityEngine.UnityAnalyticsCommonModule.dll",
+  "UnityEngine.UnityAnalyticsModule.dll",
+  "UnityEngine.UnityConsentModule.dll",
+  "UnityEngine.UnityWebRequestModule.dll",
+  "UnityEngine.VFXModule.dll",
+  "UnityEngine.VideoModule.dll",
+  "UnityEngine.XRModule.dll",
+  "websocket-sharp.dll"
+ ],
+ "containers": [
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\globalgamemanagers",
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\globalgamemanagers.assets",
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\level0",
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\level1",
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\level2",
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\level3",
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\resources.assets",
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\sharedassets0.assets",
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\sharedassets1.assets",
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\sharedassets2.assets",
+  "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\sharedassets3.assets"
+ ],
+ "script_usage": {
+  "": 3618
+ },
+ "interesting_objects": [
+  {
+   "asset_file": "globalgamemanagers.assets",
+   "path_id": 5849,
+   "object_name": "MotionBlur",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 0,
+    "path_id": 78819360768,
+    "resolve_error": "KeyError: 78819360768"
+   }
+  },
+  {
+   "asset_file": "globalgamemanagers.assets",
+   "path_id": 5860,
+   "object_name": "MicrosoftMotionControllerProfile Standalone",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 0,
+    "path_id": 45147488256,
+    "resolve_error": "KeyError: 45147488256"
+   }
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1942,
+   "object_name": "Roboto-Bold SDF",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 43469766656,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2620,
+   "object_name": "XRI Right Locomotion/Snap Turn",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2622,
+   "object_name": "XRI Right Locomotion/Move",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2626,
+   "object_name": "XRI Right Locomotion/Teleport Mode",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2629,
+   "object_name": "XRI Left Locomotion/Snap Turn",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2634,
+   "object_name": "XRI Right Locomotion/Turn",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2654,
+   "object_name": "XRI Right Locomotion/Jump",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2656,
+   "object_name": "XRI Left Locomotion/Grab Move",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2695,
+   "object_name": "RobotCatalog",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 15854469120,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2696,
+   "object_name": "RobotColorCatalog",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 77493960704,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2722,
+   "object_name": "RobotConfig_G1_UnitreeFighting",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 5905580032,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2739,
+   "object_name": "RobotConfig_T800_EngineAiFighting",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 5905580032,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2773,
+   "object_name": "XRI Right Locomotion/Grab Move",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2779,
+   "object_name": "XRI Left Locomotion/Teleport Mode Cancel",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2780,
+   "object_name": "XRI Left Locomotion/Turn",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2801,
+   "object_name": "XRI Left Locomotion/Teleport Mode",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2808,
+   "object_name": "XRI Right Locomotion/Teleport Mode Cancel",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2837,
+   "object_name": "XRI Left Locomotion/Move",
+   "script": {
+    "name": "",
+    "class": "",
+    "namespace": "",
+    "file_id": 16777216,
+    "path_id": 96049561600,
+    "resolve_error": "FileNotFoundError: Failed to resolve pointer - invalid m_FileID!"
+   }
+  }
+ ],
+ "decoded": [],
+ "errors": [
+  {
+   "asset_file": "globalgamemanagers.assets",
+   "path_id": 5809,
+   "stage": "read",
+   "error": "ValueError: Expected to read 328 bytes, but only read 276 bytes"
+  },
+  {
+   "asset_file": "globalgamemanagers.assets",
+   "path_id": 5836,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "globalgamemanagers.assets",
+   "path_id": 5837,
+   "stage": "read",
+   "error": "AssertionError: failed to dump nodes raw"
+  },
+  {
+   "asset_file": "level0",
+   "path_id": 1398,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level0",
+   "path_id": 1464,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level0",
+   "path_id": 1529,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level0",
+   "path_id": 1752,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 2923,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 2929,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 2932,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 2957,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 2998,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 2999,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3001,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3004,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3029,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3039,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3040,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3074,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3106,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3153,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3167,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3198,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3206,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3216,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3246,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3251,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3261,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3264,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3345,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3362,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3419,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3423,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3432,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3439,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level1",
+   "path_id": 3443,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 2927,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 2933,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 2936,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 2961,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3002,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3003,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3005,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3008,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3033,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3043,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3044,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3078,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3110,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3157,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3171,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3202,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3210,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3220,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3250,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3255,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3265,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3268,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3349,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3366,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3423,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3427,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3436,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3443,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level2",
+   "path_id": 3447,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 2924,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 2930,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 2933,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 2958,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 2999,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3000,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3002,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3005,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3030,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3040,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3041,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3075,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3107,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3154,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3168,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3199,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3207,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3217,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3247,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3252,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3262,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3265,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3346,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3363,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3420,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3424,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3433,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3440,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "level3",
+   "path_id": 3444,
+   "stage": "read",
+   "error": "ValueError: Expected to read 92 bytes, but only read 84 bytes"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1951,
+   "stage": "read",
+   "error": "AssertionError: failed to dump nodes raw"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1952,
+   "stage": "read",
+   "error": "AssertionError: failed to dump nodes raw"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1953,
+   "stage": "read",
+   "error": "ValueError: Expected to read 204 bytes, but only read 92 bytes"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1957,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1958,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1964,
+   "stage": "read",
+   "error": "AssertionError: failed to dump nodes raw"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1973,
+   "stage": "read",
+   "error": "AssertionError: failed to dump nodes raw"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1974,
+   "stage": "read",
+   "error": "AssertionError: failed to dump nodes raw"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1981,
+   "stage": "read",
+   "error": "AssertionError: failed to dump nodes raw"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1982,
+   "stage": "read",
+   "error": "AssertionError: failed to dump nodes raw"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1983,
+   "stage": "read",
+   "error": "AssertionError: failed to dump nodes raw"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1984,
+   "stage": "read",
+   "error": "AssertionError: failed to dump nodes raw"
+  },
+  {
+   "asset_file": "resources.assets",
+   "path_id": 1988,
+   "stage": "read",
+   "error": "AssertionError: failed to dump nodes raw"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2758,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2783,
+   "stage": "read",
+   "error": "EOFError: read_int out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2784,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2787,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2789,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2790,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2791,
+   "stage": "read",
+   "error": "EOFError: read_int out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2792,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2797,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2798,
+   "stage": "read",
+   "error": "EOFError: read_length out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2821,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2841,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2842,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2843,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2844,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2845,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2846,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2847,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2848,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2849,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2850,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2851,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2852,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2853,
+   "stage": "read",
+   "error": "EOFError: read___int64 out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2867,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2868,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2869,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2870,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2871,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2872,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2873,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2874,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2875,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2876,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2877,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2878,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2879,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2880,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2881,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2882,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2935,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2950,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 2976,
+   "stage": "read",
+   "error": "ValueError: Negative length read from TypeTree"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 3356,
+   "stage": "read",
+   "error": "ValueError: Expected to read 3420 bytes, but only read 3200 bytes"
+  },
+  {
+   "asset_file": "sharedassets0.assets",
+   "path_id": 3430,
+   "stage": "read",
+   "error": "ValueError: Negative length read from TypeTree"
+  },
+  {
+   "asset_file": "sharedassets1.assets",
+   "path_id": 204,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "sharedassets1.assets",
+   "path_id": 208,
+   "stage": "read",
+   "error": "EOFError: read_int out of bounds"
+  },
+  {
+   "asset_file": "sharedassets1.assets",
+   "path_id": 214,
+   "stage": "read",
+   "error": "ValueError: Failed to get ref type node"
+  },
+  {
+   "asset_file": "sharedassets2.assets",
+   "path_id": 901,
+   "stage": "read",
+   "error": "EOFError: read_str out of bounds"
+  },
+  {
+   "asset_file": "sharedassets2.assets",
+   "path_id": 964,
+   "stage": "read",
+   "error": "ValueError: Expected to read 3420 bytes, but only read 3200 bytes"
+  },
+  {
+   "asset_file": "sharedassets2.assets",
+   "path_id": 965,
+   "stage": "read",
+   "error": "ValueError: Expected to read 3420 bytes, but only read 3200 bytes"
+  },
+  {
+   "asset_file": "sharedassets2.assets",
+   "path_id": 1188,
+   "stage": "read",
+   "error": "ValueError: Negative length read from TypeTree"
+  },
+  {
+   "asset_file": "sharedassets2.assets",
+   "path_id": 1189,
+   "stage": "read",
+   "error": "ValueError: Negative length read from TypeTree"
+  }
+ ]
+}

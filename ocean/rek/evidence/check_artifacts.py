@@ -12,17 +12,20 @@ the parity test gates a clone.
 """
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from trace import Trace
+from controller_path import validate_report as validate_controller_path
 
 # Stages, in the order the sequence in README.md establishes them. Each depends
 # on the one before, so the first gap is the thing to go and do.
 STAGES = ('build pinned', 'authority determined', 'statics surveyed',
           'traces recorded', 'envelope established', 'parity tested')
+COMMAND_SEQUENCE_SCHEMA = 'rek.client_fixed.command_schedule.v2'
 
 
 def _load_json(path):
@@ -119,7 +122,56 @@ def check(directory: Path):
                    f'{len(ss.get("model_assets", []))} model assets, '
                    f'tick rate {"found" if tm else "NOT FOUND"}')
 
-    # 4. traces
+    # 4c. Bounded native controller semantics. Presence means that exact client
+    # method extents and serialized values were pinned. It does not mean those
+    # methods execute in the server-authoritative private-AI transition path.
+    controller_path = directory / 'controller_path.json'
+    if not controller_path.exists():
+        record('controller_path.json', 'MISSING',
+               'run controller_path.py over the pinned native and ISIL inputs')
+    else:
+        controller, err = _load_json(controller_path)
+        if err:
+            record('controller_path.json', 'INVALID', err)
+        else:
+            errors = validate_controller_path(controller)
+            sources = controller.get('sources') or {}
+            source_files = (
+                ('inventory', directory / 'inventory.json'),
+                ('il2cpp_recovery', directory / 'il2cpp_recovery.json'),
+                ('asset_probe', directory / str(
+                    (sources.get('asset_probe') or {}).get('filename', ''))),
+            )
+            for source_name, source_path in source_files:
+                expected = (sources.get(source_name) or {}).get('sha256')
+                if not source_path.is_file():
+                    errors.append(f'{source_name} source artifact is missing')
+                    continue
+                actual = hashlib.sha256(source_path.read_bytes()).hexdigest()
+                if actual != expected:
+                    errors.append(f'{source_name} source artifact hash mismatch')
+            if errors:
+                record('controller_path.json', 'INVALID', '; '.join(errors[:4]))
+            else:
+                fingerprints['controller_path.json'] = controller.get(
+                    'build_fingerprint')
+                methods = controller.get('native_methods') or []
+                moves = (((controller.get('serialized_t800') or {})
+                          .get('robot_config') or {}).get('move_map') or [])
+                non_null_moves = sum(
+                    ((row.get('pointer') or {}).get('path_id') or 0) != 0
+                    for row in moves)
+                resolved_objects = sum(
+                    isinstance(row.get('referenced_object'), dict)
+                    and row['referenced_object'].get('state') != 'unknown'
+                    for row in moves)
+                record('controller_path.json', 'PRESENT',
+                       f'{len(methods)} native methods, {non_null_moves}/'
+                       f'{len(moves)} non-null T800 move pointers, '
+                       f'{resolved_objects} referenced objects resolved; '
+                       f'private-AI activation UNKNOWN')
+
+    # 5. traces
     traces = sorted(directory.glob('*.trace'))
     rek_traces, clone_traces, bad = [], [], []
     for t in traces:
@@ -141,7 +193,23 @@ def check(directory: Path):
                f'{len(rek_traces)} run(s); at least 3 repeats of one experiment '
                'are needed before a quantile envelope means anything')
     else:
-        record('REK traces', 'PRESENT', f'{len(rek_traces)} runs')
+        command_sequences = [tr.header.get('command_sequence_sha256')
+                             for _, tr in rek_traces]
+        command_schemas = [tr.header.get('command_sequence_schema')
+                           for _, tr in rek_traces]
+        if not all(command_sequences):
+            record('REK traces', 'INCOMPLETE',
+                   'every run must identify its measured command sequence')
+        elif (not all(command_schemas)
+              or set(command_schemas) != {COMMAND_SEQUENCE_SCHEMA}):
+            record('REK traces', 'INCOMPLETE',
+                   f'runs must use command sequence schema '
+                   f'{COMMAND_SEQUENCE_SCHEMA}')
+        elif len(set(command_sequences)) != 1:
+            record('REK traces', 'INCOMPLETE',
+                   'runs used different command sequences; repeat one experiment')
+        else:
+            record('REK traces', 'PRESENT', f'{len(rek_traces)} runs')
 
     # A server-authoritative trace has to pin the server too, and every REK
     # channel has to say where it was read from.
@@ -166,6 +234,13 @@ def check(directory: Path):
         env, err = _load_json(env_path)
         if err:
             record('envelope.json', 'INVALID', err)
+        elif env.get('command_sequence_schema') != COMMAND_SEQUENCE_SCHEMA:
+            record('envelope.json', 'INVALID',
+                   f'envelope predates command sequence schema '
+                   f'{COMMAND_SEQUENCE_SCHEMA}; rebuild it from valid repeats')
+        elif not env.get('command_sequence_sha256'):
+            record('envelope.json', 'INVALID',
+                   'envelope has no measured command sequence identity')
         else:
             fingerprints['envelope.json'] = env.get('build_fingerprint')
             record('envelope.json', 'PRESENT',
@@ -218,6 +293,8 @@ def stage_of(results):
         return STAGES[0]
     if not ok('static_survey.json'):
         return STAGES[1]
+    if not ok('controller_path.json'):
+        return STAGES[2]
     if not ok('REK traces'):
         return STAGES[2]
     if not ok('envelope.json'):

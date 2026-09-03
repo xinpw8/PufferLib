@@ -71,6 +71,11 @@ def _via_netstat(name_filter, pid_filter):
     """Fallback when psutil is not installed. Windows netstat / Linux ss."""
     rows, pids = [], []
     if sys.platform.startswith('win'):
+        if name_filter and not pid_filter:
+            raise RuntimeError(
+                'Windows netstat cannot attribute sockets by process name. '
+                'Install psutil (pip install psutil), or pass --pid with the '
+                'exact game process id; refusing to sample every process.')
         out = subprocess.run(['netstat', '-ano'], capture_output=True, text=True).stdout
         for line in out.splitlines():
             f = line.split()

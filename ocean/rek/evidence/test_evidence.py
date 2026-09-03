@@ -32,6 +32,7 @@ static_survey = _load('static_survey')
 trace_mod = _load('trace')
 differ = _load('differ')
 authority = _load('authority_test')
+net_observe = _load('net_observe')
 check_artifacts = _load('check_artifacts')
 il2cpp = _load('il2cpp_probe')
 collect_mod = _load('collect')
@@ -43,6 +44,23 @@ checks = []
 def check(fn):
     checks.append(fn)
     return fn
+
+
+@check
+def windows_netstat_refuses_an_unattributed_name_filter():
+    original_platform = net_observe.sys.platform
+    try:
+        net_observe.sys.platform = 'win32'
+        try:
+            net_observe._via_netstat('REK', None)
+        except RuntimeError as exc:
+            message = str(exc)
+            assert 'pass --pid' in message, message
+            assert 'refusing to sample every process' in message, message
+        else:
+            raise AssertionError('Windows name-only fallback sampled the host')
+    finally:
+        net_observe.sys.platform = original_platform
 
 
 def fake_install(tmp: Path) -> Path:
@@ -1437,6 +1455,37 @@ def two_rek_runs_are_not_enough_for_an_envelope():
         assert _states(results)['REK traces'] == 'INCOMPLETE', results
         assert 'at least 3' in [r for r in results
                                 if r['artifact'] == 'REK traces'][0]['detail']
+
+
+@check
+def the_gate_rejects_legacy_command_identity():
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        for index in range(3):
+            path = d / f'r{index}.trace'
+            channels = ['root_x']
+            with trace_mod.TraceWriter(
+                    path, channels, 'fp0', 'rek',
+                    provenance=_prov(channels, 'rek'),
+                    command_sequence_sha256='a' * 64) as writer:
+                writer.append(0, {'root_x': 0.0})
+                writer.append(1, {'root_x': 0.0})
+        (d / 'envelope.json').write_text(json.dumps({
+            'schema': 2,
+            'build_fingerprint': 'fp0',
+            'command_sequence_sha256': 'a' * 64,
+            'runs': 3,
+            'channels': {},
+        }))
+
+        results = check_artifacts.check(d)
+        states = _states(results)
+        assert states['REK traces'] == 'INCOMPLETE', results
+        trace_detail = next(
+            result['detail'] for result in results
+            if result['artifact'] == 'REK traces')
+        assert check_artifacts.COMMAND_SEQUENCE_SCHEMA in trace_detail
+        assert states['envelope.json'] == 'INVALID', results
 
 
 def main() -> int:

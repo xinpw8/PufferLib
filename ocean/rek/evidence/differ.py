@@ -214,6 +214,15 @@ def baseline(paths, out_path, accept):
     fps = {t.build_fingerprint for t in traces}
     if len(fps) != 1:
         sys.exit(f'traces span {len(fps)} different builds: {sorted(fps)}')
+    command_sequences = [t.header.get('command_sequence_sha256') for t in traces]
+    if any(command_sequences):
+        if not all(command_sequences):
+            sys.exit('some repeated REK runs do not identify their command sequence')
+        distinct_commands = set(command_sequences)
+        if len(distinct_commands) != 1:
+            sys.exit(
+                'the REK runs used different command sequences; run-to-run '
+                'variance requires repeats of one experiment')
 
     channels = sorted(set(traces[0].channels) &
                       set.intersection(*[set(t.channels) for t in traces]))
@@ -224,6 +233,7 @@ def baseline(paths, out_path, accept):
     env = {
         'schema': 2,
         'build_fingerprint': traces[0].build_fingerprint,
+        'command_sequence_sha256': command_sequences[0],
         'runs': len(traces),
         'ticks_compared': len(ticks),
         'accept_at': accept,
@@ -337,6 +347,12 @@ def compare(rek_path, clone_path, envelope_path, report_path, horizon, window):
     env = json.loads(Path(envelope_path).read_text())
     if env['build_fingerprint'] != rek.build_fingerprint:
         sys.exit('envelope was measured on a different build than this reference trace')
+    expected_commands = env.get('command_sequence_sha256')
+    if expected_commands:
+        if rek.header.get('command_sequence_sha256') != expected_commands:
+            sys.exit('reference trace used a different command sequence than the envelope')
+        if clone.header.get('command_sequence_sha256') != expected_commands:
+            sys.exit('clone trace did not replay the envelope command sequence')
 
     shared = sorted(set(rek.channels) & set(clone.channels))
     missing = sorted(set(rek.channels) - set(clone.channels))

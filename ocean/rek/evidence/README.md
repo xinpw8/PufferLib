@@ -14,22 +14,47 @@ which is exactly how a plausible but wrong model passes everything.
 
 Throughput work begins after that test passes, not before.
 
-## Status: no evidence has been collected yet
+## Status: Windows prerequisites collected; replay gate incomplete
 
-This directory contains instrumentation, not results. None of the following
-exist, and until they do every substantive question about REK is unanswered:
+Evidence has now been collected from the pinned Windows installation. The
+package contains a build inventory, an inventory verification result, a static
+survey, IL2CPP probe and recovery artifacts, network reconnaissance, and a
+controlled private-AI authority experiment whose measured verdict is
+`remote_authority`. A passive client-fixed recorder has also produced runtime
+command and client-visible state captures from private AI rounds.
 
-```
-inventory.json                    static_survey.json
-inventory verification result     model/controller inventory
-practice-mode socket trace        live-mode socket trace
-network-interruption result       runtime command trace
-runtime state trace
-```
+The pinned client now also has a bounded native controller-path artifact. It
+records exact GameAssembly method extents, audited client-side controller
+formulas, serialized T800 move pointers, and the native force-limit construction.
+It explicitly leaves private-AI runtime activation and server equivalence
+unknown. The private-AI client is visual-only, so those static client methods
+cannot be promoted to the authoritative transition function without further
+evidence.
 
-The tools have to be run against the real Windows installation and their raw
-outputs committed. A package of scripts is not an evidence package, and that is
-checkable rather than a matter of opinion:
+Eight full `Sparring Bot 1` captures have been imported with the v2 command
+identity. They contain 7,135 server-snapshot callback events, 7,127 unique
+snapshot ticks, and 7,119 one-step transitions across two endpoint/session
+groups. `snapshot_transition_baseline.py` evaluates those groups with whole
+groups held out. This is a diagnostic dataset, not a canonical replay artifact.
+
+A separate replay-only staging component has derived one bounded schedule from
+concrete transport invocations in a finalized `Sparring Bot 1` capture. The
+schedule contains 400 observed velocity boundaries and six observed move calls.
+All 11,119 source sample records agree on local slot 0, opponent slot 1,
+`Sparring Bot 1`, and AI difficulty 0; those measured conditions are bound into
+the manifest. The component is not installed or armed, and its offline build
+and tests do not count as a controlled trace.
+
+That is prerequisite evidence, not clone validation. The existing canonical
+`.trace` files and `envelope.json` predate
+`rek.client_fixed.command_schedule.v2`; they do not bind repeats to the same
+measured command schedule and are therefore rejected. No canonical parity
+report exists. New command-identified repeats and held-out action sequences are
+still required.
+
+The tools must be run against the real Windows installation. A package of
+scripts is not an evidence package, and that remains checkable rather than a
+matter of opinion:
 
 ```
 python check_artifacts.py --dir evidence_out/
@@ -38,8 +63,9 @@ python check_artifacts.py --dir evidence_out/
 It reports which artifacts exist, whether each is well formed, and whether they
 all describe the same build — traces from one client build and a survey from
 another cannot be reasoned about together, and nothing else in the pipeline
-notices. It exits non-zero until the package is complete, and today it prints
-`stage: no evidence`.
+notices. It exits non-zero until the package is complete. On the current
+artifacts it prints `stage: statics surveyed` because the legacy traces and
+envelope fail the command-identity gate.
 
 ## Rules of evidence
 
@@ -56,20 +82,25 @@ notices. It exits non-zero until the package is complete, and today it prints
 
 | Step | State | Tool |
 |---|---|---|
-| 1. Pin and inventory one exact build | **tooled** | `inventory.py` |
-| 2. Determine where practice physics executes | **tooled** | `authority_test.py` (`net_observe.py` is recon only) |
-| 3. Recover the input → controller / network path | needs runtime instrumentation | — |
-| 4. Inventory physics, bodies, models, native code | **tooled** (static half) | `static_survey.py` |
-| 4b. IL2CPP names and inference runtime | **tooled** | `il2cpp_probe.py` |
-| 4c. IL2CPP type and method recovery | needs Il2CppDumper | — |
-| 5. Tick-level recorder | blocked on 2, 3, 4 | format in `trace.py` |
-| 6. Controlled traces and differential replay | **tooled** | `differ.py` |
+| 1. Pin and inventory one exact build | **collected** | `inventory.py` |
+| 2. Determine where private-AI physics executes | **collected: `remote_authority`** | `authority_test.py` (`net_observe.py` is recon only) |
+| 3. Recover the input → controller / network path | **partial: exact client request projections and native client semantics recovered; server acceptance and authoritative activation unknown** | passive recorder, `client_fixed_import.py`, `controller_path.py` |
+| 4. Inventory physics, bodies, models, native code | **collected** (static half) | `static_survey.py` |
+| 4b. IL2CPP names and inference runtime | **collected** | `il2cpp_probe.py` |
+| 4c. IL2CPP type and method recovery | artifact present; exact native controller extents pinned; runtime validation incomplete | Il2CppDumper output, `controller_path.py` |
+| 5. Tick-level recorder | **partial: client timing plus raw replicated pose/fight packets; no server tick** | passive recorder, `raw_bone_validate.py`, `client_fixed_import.py`, format in `trace.py` |
+| 6. Controlled traces and differential replay | action-rich traces and an offline replay schedule are present; runtime repeats and held-out clone replay are missing | `differ.py`, `calibrate_envelope.py`, `measured_parity.py` |
 | Completeness gate over all of the above | **tooled** | `check_artifacts.py` |
 
-Steps 3 and 5 are deliberately not written yet. Where the state lives, and what
-the command interface actually is, are the outputs of steps 2 and 4 — writing a
-recorder before those land would mean guessing at the very things this package
-exists to measure.
+Steps 3 and 5 are only partial. The passive recorder projects exact packed
+`REK_Input` and `REK_Move` request bodies from the send-method arguments and
+copies exact `REK_Bones`, `REK_FightState`, `REK_Score`, and `REK_Hit` bodies
+before the client consumes them. It does not control the keyboard or mouse.
+The request prefixes prove method invocation and projected bytes, not send
+completion, delivery, acceptance, or execution. The receive packets expose no
+server tick, command acknowledgement, active move/profile identity, joint
+velocity, torque, policy observation/output, or hidden controller state. Those
+unknowns remain absent rather than being filled with inferred values.
 
 ### Running the collection steps
 
@@ -204,16 +235,133 @@ binary proves a name is in a binary; every one is a `candidate_lead` and a
 target for instrumentation, which is exactly what step 3 needs in order to have
 somewhere to attach.
 
-The one near-decisive result it can produce is whether an inference runtime is
-linked at all. `Unity.Sentis`, `Barracuda` or `onnxruntime` symbols mean a neural
-controller runs in the client and its weights and tensor shapes are recoverable.
-Their absence across every native binary is evidence against, though not proof —
-it could be statically inlined, name-mangled, packed, or server-side only.
+Finding an inference runtime establishes only that the executable contains an
+inference path. It does not establish that a model is present or active. In this
+build, ONNX Runtime and the complete `EngineAIPolicyRunner` call path are present,
+but all 45 T800 ONNX/config/trajectory pointers are null. Runtime logs show the
+runner aborting initialization at the first missing profile before the client
+switches both fighters to network-driven visual-only mode.
+
+### 4c. Bounded native controller semantics
+
+`controller_path.py` turns the completed native audit into one reproducible,
+build-pinned JSON artifact. It requires every source explicitly and refuses any
+hash, build, RVA extent, ISIL method block, serialized object, move pointer, or
+force-limit input that differs from the audited Windows build:
+
+```
+python controller_path.py --inventory evidence_out/inventory.json --recovery evidence_out/il2cpp_recovery.json --probe evidence_out/mujoco_asset_probe_v8.json --game-assembly "C:/Program Files (x86)/Steam/steamapps/common/REK Alpha Test/GameAssembly.dll" --global-metadata "C:/Program Files (x86)/Steam/steamapps/common/REK Alpha Test/REK_Data/il2cpp_data/Metadata/global-metadata.dat" --isil-dir C:/rekagent/work/controller-audit-isil/IsilDump/REKApp/REKApp --out evidence_out/controller_path.json
+```
+
+Re-run the same inputs with `--verify evidence_out/controller_path.json` to
+require byte-for-byte reproduction. The artifact cites exact native bytes and
+normalized ISIL blocks for every formula. Cpp2IL dummy assemblies contribute
+names, signatures and Unity type trees only. Their restored method bodies are
+never consumed as semantic evidence.
+
+The recovered formulas describe output clipping, default-pose and residual
+joint targets, transition interpolation, per-joint and aggregate torque limits,
+walk target clamps, MuJoCo implicit-PD parameter writes, and runtime force-limit
+selection. The serialized T800 table preserves all twelve RobotConfig move
+pointers, including the exact six null and six non-null path IDs. The v8 probe
+also binds all six referenced `MocapClipConfig` objects and preserves their
+object hashes, names, profile strings, impact windows, blending, reversal
+settings, and null `npzFile` pointers. These configuration fields do not contain
+the move trajectories. The table also preserves that all 45 runner profiles
+have null serialized policy/config/trajectory pointers. No replacement values
+are inferred.
+
+This artifact remains static client evidence. It does not establish which
+runner the dedicated server executes, the server build, active profile assets,
+observation construction, model weights or hidden state, authoritative motor
+cache values, server-tick command alignment, or move-profile execution. Each of
+those is emitted as a hard unknown with the measurement needed to resolve it.
+`controller_path.py` is therefore separate from `collect.py`, whose inputs do
+not include the independently generated native analysis.
+
+`t800_runtime_boundary.py` combines that static artifact with the allowlisted
+Windows `Player.log` lifecycle and the remote-authority artifact. It verifies
+that each accepted missing-profile message has `LoadProfile` and `Init` stack
+frames, then counts the matching T800 visual-only and network-client
+transitions. The generated `t800_client_runtime_boundary.json` establishes that
+the observed client aborted local runner initialization and rendered network
+poses. It leaves the authoritative controller payload location unknown.
+
+```
+python t800_runtime_boundary.py --player-log C:/Users/Daniel/AppData/LocalLow/REK/REK/Player.log --controller-path evidence_out/controller_path.json --authority evidence_out/authority_private_ai.json --out evidence_out/t800_client_runtime_boundary.json
+```
 
 ### 5. Recorder
 
-Not written. `trace.py` defines the format it must write, so the recorder and
-the clone emit the same thing and are directly comparable.
+A passive Windows recorder and `client_fixed_import.py` now populate the
+`trace.py` format with client-fixed state and transport-call evidence. The
+importer uses `rek.client_fixed.command_schedule.v2`, which hashes measured
+velocity commands and discrete move, special, and emergency-stop invocation
+timing. Missing discrete action identity fails closed. Older imported traces do
+not satisfy this schema and cannot establish a repeat envelope.
+
+The staged v0.5.0 recorder adds a separate primary-evidence stream at the
+client protocol boundary. Prefixes copy `FastBufferReader` bytes without
+advancing the reader. For each `REK_Bones` packet it preserves the two-byte
+header and all 26 transmitted world positions and rotations; a postfix binds
+that body to the decoded snapshot ring entry. The native sender sets an
+intended interval of `0.02 s`, equivalent to 50 Hz, using unreliable delivery.
+
+The same recorder preserves raw `REK_FightState` (33 bytes, reliable, nominal
+10 Hz), `REK_Score` (7 bytes, reliable), and `REK_Hit` (29 bytes, unreliable)
+packets. A FightState postfix correlates each copied body with the applied
+client state. Score and referee fields are authoritative event labels, but the
+Hit packet is effects telemetry and has no fighter identity. Clearing a
+referee count is not uniquely a successful get-up event.
+
+On the outbound side, prefixes project the exact 13-byte `REK_Input` and
+two-byte `REK_Move` bodies, including float32 bit patterns and byte truncation.
+The actual boundary is the individual send methods called from `LateUpdate`;
+the unused `ClientSendFrame` helper is not hooked or treated as a cadence.
+Every outbound record is explicitly request-only with null server tick and
+acceptance fields and no observed acknowledgement.
+
+All packet timestamps remain client observation times. None of these bodies
+contains a server tick, server send timestamp, command sequence, move identity,
+acceptance result, active policy state, joint velocity, or torque.
+
+Validate a finalized v5 JSONL capture before any importer or model consumes it:
+
+```
+python raw_bone_validate.py --raw C:/rekagent/evidence/runtime/rek-private-ai-protocol-v5/<capture>.jsonl --out evidence_out/<capture>.protocol-validation.json
+```
+
+The validator reproduces each decoded float from each base64 body, checks body
+hashes and exact packet lengths, verifies all per-channel sequences, requires
+one-to-one FightState and bone postfix correlation, verifies request-only
+semantics, and rejects raw arena/session identifiers. Only an irreversible
+SHA-256 session identity is retained for repeat grouping. The staged DLL has
+been built and inspected offline, but it is not runtime-validated until REK is
+restarted with that exact DLL and a private Bot 1 round produces a complete
+capture.
+
+This recorder is not yet complete enough for clone acceptance. It observes the
+client boundary of a server-authoritative mode, not server-only physics or
+controller state, and it cannot make an incomplete channel set equivalent to
+the full transition state.
+
+`snapshot_transition_baseline.py` is a measured-input system-identification
+diagnostic over an exact allowlist of replicated root position, linear velocity,
+and angular velocity channels. Its inputs are only observed transport-call
+payloads and counts. It never treats controller status flags as actions. It
+coalesces duplicate callbacks at the same client tick while preserving and
+hashing their exact multiplicity, rejects decreasing ticks and callback sequence
+gaps, and evaluates with complete endpoint/session groups held out.
+
+On the current eight full traces, adding the nine measured input features did
+not improve held-out one-step error. At lag zero, pooled RMSE changed from
+`0.0213202742` for state-only autoregression to `0.0213991724` with inputs, a
+`0.3701%` degradation. Inputs lost on all eight held-out traces at lags zero,
+one, and two; the negative-lag placebo also degraded. Windows and DGX Spark
+reports matched in structure and all nonnumeric values, and all 3,042 numeric
+fields agreed within relative tolerance `1e-10` and absolute tolerance `1e-12`.
+This negative result does not establish action alignment, a simulator, or
+parity, and the generated report marks all three claims false.
 
 The format does not hardcode a channel list: the recorder declares what it
 actually captured, and a channel that was not captured is absent rather than

@@ -1,0 +1,64 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260831201417
+Username: D21\Daniel
+RunAs User: D21\Daniel
+Configuration Name: 
+Machine: D21 (Microsoft Windows NT 10.0.19045.0)
+Host Application: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\rekagent\tools\Run-RekAuthorityTestElevated.ps1 -Token 20260831-1946-a71c9f
+Process ID: 47720
+PSVersion: 5.1.19041.6456
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.19041.6456
+BuildVersion: 10.0.19041.6456
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+REK practice authority test is ready.
+Keep playing only against the AI. Wait five seconds, then type: block
+While blocked, issue inputs for at least 60 seconds and mark what you observe.
+Before done, type: unblock
+
+type marks and press Enter. The vocabulary is fixed so the
+interpretation is mechanical rather than a reading of free text:
+
+    input             you issued a movement or attack command
+    state-progressed  the robot visibly responded and the world kept stepping
+    frozen            the world stopped stepping, or inputs stopped taking effect
+    latency-up        it still responds, but visibly later than before
+    reset-ok          an arena reset completed
+    reset-failed      a reset was attempted and did not complete
+    score-ok          a hit registered on the scoreboard
+    score-failed      a hit landed visually and did not register
+    rollback          state visibly jumped or corrected itself
+    note <text>       anything else, free text, not used by the verdict
+
+    block / unblock   apply and lift the network block
+    done              finish
+
+Start practice mode and let the arena load. Then type: block
+(--block-cmd will be run for you: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -NonInteractive -
+ExecutionPolicy Bypass -File C:\rekagent\tools\Set-RekEvidenceFirewall.ps1 -Mode Block -Token 20260831-1946-a71c9f)
+block
+  -> phase blocked
+{"mode":"blocked","program":"C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK.exe","outbound_rule"
+:"REK-Evidence-20260831-1946-a71c9f-Outbound","inbound_rule":"REK-Evidence-20260831-1946-a71c9f-Inbound"}
+unblock
+  -> phase restored
+{"mode":"unblocked","program":"C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK.exe","outbound_rul
+e_present":false,"inbound_rule_present":false}
+
+block effective : True — 65 peer(s) before, 63 still present during the block; established 81 -> 77
+verdict         : inconclusive
+because         : nothing was marked during the blocked phase. Inputs have to be issued and the result marked while the
+block is up, or there is no observation.
+
+Wrote C:\Users\Daniel\codex-wr64-puffer-scenario-7cc6ce1\ocean\rek\evidence\evidence_out\authority_practice.json
+{"mode":"unblocked","program":"C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK.exe","outbound_rule_present":false,"inbound_rule_present":false}
+**********************
+Windows PowerShell transcript end
+End time: 20260831202919
+**********************

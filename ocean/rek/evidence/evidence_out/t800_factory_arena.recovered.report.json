@@ -1,0 +1,823 @@
+{
+  "arena_container_sha256": [
+    "d3aef29c86c5d072906d68cd938987b9bc84152a09653f10991f03c805b2ed13",
+    "132605943fc30b91ad45322f7fbe60f2fd0ae1024fa7844ef8823c20bebfe3af",
+    "620a6cd808945ebf335cdcde4b8c3e9e7ca30409e5cbd1b6ea1af6723f79ba52"
+  ],
+  "arena_containers": [
+    "level1",
+    "level2",
+    "level3"
+  ],
+  "arena_geom_count": 17,
+  "arena_geometry_identical_across_probes": true,
+  "arena_geometry_signature_sha256": "b95badfd29479bb9f4b6ba62370936ae83c5292183af33ba3d1f1cac7d82d7bc",
+  "arena_probe_paths": [
+    "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\arena_level1_unity_colliders.json",
+    "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\arena_level2_unity_colliders.json",
+    "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\arena_level3_unity_colliders.json"
+  ],
+  "arena_probe_sha256": [
+    "08916c3c31b667f7cb6d533bd038fee8418e82aa4b369d8274aca6760ba4b8e1",
+    "a44336ed61a4a2148092652e9cc0de10645b29352448f1ce24fdbcf43194d7b7",
+    "bdcd7ebc749452d943c513bf46c17a3b75c6ce008e7984eb656eb772df0dc8b4"
+  ],
+  "base_mjcf_path": "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\t800_factory.recovered.xml",
+  "base_mjcf_sha256": "83f36901afb2b773bdb7a0031b63640d148263862df0522af22976f9528c45a0",
+  "base_report_path": "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\t800_factory.recovered.report.json",
+  "base_report_sha256": "8dc47943d206981ec2a3c05eb4b0312d467257f1bc116b96dc00312cd4d90751",
+  "build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+  "composed_counts": {
+    "MjActuator": 25,
+    "MjBody": 30,
+    "MjFreeJoint": 1,
+    "MjGeom": 37,
+    "MjHingeJoint": 25,
+    "MjInertial": 30,
+    "MjStaticCollider": 17
+  },
+  "control_equivalent": false,
+  "derived_arena_geoms": [
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        2.2999999523162837,
+        2.2999999523162837,
+        0.05999999865889549
+      ],
+      "mujoco_position": [
+        0.0,
+        0.0,
+        -0.05000000074505806
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.7071067811865476,
+        0.0,
+        0.0,
+        0.7071067811865476
+      ],
+      "name": "arena_Collider_Floor_Rektagon",
+      "source_box_collider_path_id": 2407,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Floor_Rektagon",
+      "source_game_object_path_id": 89,
+      "unity_box_size": [
+        4.599999904632568,
+        0.11999999731779099,
+        4.599999904632568
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999998,
+        1.0,
+        0.9999999999999998
+      ],
+      "unity_world_center": [
+        0.0,
+        -0.05000000074505806,
+        0.0
+      ],
+      "unity_world_rotation_wxyz": [
+        0.7071067811865476,
+        0.0,
+        0.7071067811865476,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.10000000149011609,
+        0.20000000298023218,
+        1.100000023841858
+      ],
+      "mujoco_position": [
+        2.2635049557696094,
+        -0.9375742897800832,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.5555702583221854,
+        0.0,
+        0.0,
+        0.831469595395899
+      ],
+      "name": "arena_Collider_Pillar_01",
+      "source_box_collider_path_id": 2386,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_01",
+      "source_game_object_path_id": 865,
+      "unity_box_size": [
+        0.20000000298023224,
+        2.200000047683716,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999998,
+        1.0,
+        0.9999999999999998
+      ],
+      "unity_world_center": [
+        2.2635049557696094,
+        1.0,
+        -0.9375742897800832
+      ],
+      "unity_world_rotation_wxyz": [
+        0.5555702583221854,
+        0.0,
+        0.831469595395899,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.10000000149011609,
+        0.20000000298023218,
+        1.100000023841858
+      ],
+      "mujoco_position": [
+        2.2635049557696085,
+        0.9375742897800842,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.831469595395899,
+        0.0,
+        0.0,
+        0.5555702583221854
+      ],
+      "name": "arena_Collider_Pillar_02",
+      "source_box_collider_path_id": 2370,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_02",
+      "source_game_object_path_id": 349,
+      "unity_box_size": [
+        0.20000000298023224,
+        2.200000047683716,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999998,
+        1.0,
+        0.9999999999999998
+      ],
+      "unity_world_center": [
+        2.2635049557696085,
+        1.0,
+        0.9375742897800842
+      ],
+      "unity_world_rotation_wxyz": [
+        0.831469595395899,
+        0.0,
+        0.5555702583221854,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.1000000014901161,
+        0.2000000029802322,
+        1.100000023841858
+      ],
+      "mujoco_position": [
+        0.9375748649870059,
+        2.263504717511056,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.9807852615516555,
+        0.0,
+        0.0,
+        0.1950904167893721
+      ],
+      "name": "arena_Collider_Pillar_03",
+      "source_box_collider_path_id": 2378,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_03",
+      "source_game_object_path_id": 794,
+      "unity_box_size": [
+        0.20000000298023224,
+        2.200000047683716,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999999,
+        1.0,
+        0.9999999999999999
+      ],
+      "unity_world_center": [
+        0.9375748649870059,
+        1.0,
+        2.263504717511056
+      ],
+      "unity_world_rotation_wxyz": [
+        0.9807852615516555,
+        0.0,
+        0.1950904167893721,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.10000000149011609,
+        0.20000000298023218,
+        1.100000023841858
+      ],
+      "mujoco_position": [
+        -0.9375744907209611,
+        2.263504872537176,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.9807852776805597,
+        0.0,
+        0.0,
+        -0.1950903357039187
+      ],
+      "name": "arena_Collider_Pillar_04",
+      "source_box_collider_path_id": 2393,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_04",
+      "source_game_object_path_id": 764,
+      "unity_box_size": [
+        0.20000000298023224,
+        2.200000047683716,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999997,
+        1.0,
+        0.9999999999999997
+      ],
+      "unity_world_center": [
+        -0.9375744907209611,
+        1.0,
+        2.263504872537176
+      ],
+      "unity_world_rotation_wxyz": [
+        0.9807852776805597,
+        0.0,
+        -0.1950903357039187,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.10000000149011609,
+        0.20000000298023218,
+        1.100000023841858
+      ],
+      "mujoco_position": [
+        -2.263504802540059,
+        0.9375746597089198,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.8314696407948396,
+        0.0,
+        0.0,
+        -0.555570190377868
+      ],
+      "name": "arena_Collider_Pillar_05",
+      "source_box_collider_path_id": 2397,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_05",
+      "source_game_object_path_id": 640,
+      "unity_box_size": [
+        0.20000000298023224,
+        2.200000047683716,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999998,
+        1.0,
+        0.9999999999999998
+      ],
+      "unity_world_center": [
+        -2.263504802540059,
+        1.0,
+        0.9375746597089198
+      ],
+      "unity_world_rotation_wxyz": [
+        0.8314696407948396,
+        0.0,
+        -0.555570190377868,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.10000000149011612,
+        0.20000000298023224,
+        1.100000023841858
+      ],
+      "mujoco_position": [
+        -2.2635049557696094,
+        -0.9375742897800842,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.5555702583221854,
+        0.0,
+        0.0,
+        -0.831469595395899
+      ],
+      "name": "arena_Collider_Pillar_06",
+      "source_box_collider_path_id": 2384,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_06",
+      "source_game_object_path_id": 570,
+      "unity_box_size": [
+        0.20000000298023224,
+        2.200000047683716,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unity_world_center": [
+        -2.2635049557696094,
+        1.0,
+        -0.9375742897800842
+      ],
+      "unity_world_rotation_wxyz": [
+        0.5555702583221854,
+        0.0,
+        -0.831469595395899,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.10000000149011609,
+        0.20000000298023218,
+        1.100000023841858
+      ],
+      "mujoco_position": [
+        -0.9375754636091129,
+        -2.263504469553432,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.1950905464820032,
+        0.0,
+        0.0,
+        -0.9807852357541653
+      ],
+      "name": "arena_Collider_Pillar_07",
+      "source_box_collider_path_id": 2375,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_07",
+      "source_game_object_path_id": 383,
+      "unity_box_size": [
+        0.20000000298023224,
+        2.200000047683716,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999998,
+        1.0,
+        0.9999999999999998
+      ],
+      "unity_world_center": [
+        -0.9375754636091129,
+        1.0,
+        -2.263504469553432
+      ],
+      "unity_world_rotation_wxyz": [
+        0.1950905464820032,
+        0.0,
+        -0.9807852357541653,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.10000000149011609,
+        0.20000000298023218,
+        1.100000023841858
+      ],
+      "mujoco_position": [
+        0.937574864987007,
+        -2.2635047175110556,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        0.1950904167893721,
+        0.0,
+        0.0,
+        -0.9807852615516555
+      ],
+      "name": "arena_Collider_Pillar_08",
+      "source_box_collider_path_id": 2413,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_08",
+      "source_game_object_path_id": 557,
+      "unity_box_size": [
+        0.20000000298023224,
+        2.200000047683716,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999998,
+        1.0,
+        0.9999999999999998
+      ],
+      "unity_world_center": [
+        0.937574864987007,
+        1.0,
+        -2.2635047175110556
+      ],
+      "unity_world_rotation_wxyz": [
+        -0.1950904167893721,
+        0.0,
+        -0.9807852615516555,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.8399999737739561,
+        0.20000000298023218,
+        1.0
+      ],
+      "mujoco_position": [
+        2.339999914169311,
+        5.195843564663319e-16,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.7071067811865476,
+        0.0,
+        0.0,
+        0.7071067811865476
+      ],
+      "name": "arena_Collider_Wall_01",
+      "source_box_collider_path_id": 2410,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_01",
+      "source_game_object_path_id": 712,
+      "unity_box_size": [
+        1.6799999475479126,
+        2.0,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999998,
+        1.0,
+        0.9999999999999998
+      ],
+      "unity_world_center": [
+        2.339999914169311,
+        1.0,
+        5.195843564663319e-16
+      ],
+      "unity_world_rotation_wxyz": [
+        0.7071067811865476,
+        0.0,
+        0.7071067811865476,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.8399999737739561,
+        0.20000000298023218,
+        1.0
+      ],
+      "mujoco_position": [
+        1.6546306547274046,
+        1.6546289598422794,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.9238794345128319,
+        0.0,
+        0.0,
+        0.38268366895420286
+      ],
+      "name": "arena_Collider_Wall_02",
+      "source_box_collider_path_id": 2415,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_02",
+      "source_game_object_path_id": 674,
+      "unity_box_size": [
+        1.6799999475479126,
+        2.0,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999998,
+        1.0,
+        0.9999999999999998
+      ],
+      "unity_world_center": [
+        1.6546306547274046,
+        1.0,
+        1.6546289598422794
+      ],
+      "unity_world_rotation_wxyz": [
+        0.9238794345128319,
+        0.0,
+        0.38268366895420286,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.839999973773956,
+        0.20000000298023218,
+        1.0
+      ],
+      "mujoco_position": [
+        1.1834834827893186e-06,
+        2.3399999141690113,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.999999999999968,
+        0.0,
+        0.0,
+        2.5288109539722825e-07
+      ],
+      "name": "arena_Collider_Wall_03",
+      "source_box_collider_path_id": 2402,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_03",
+      "source_game_object_path_id": 496,
+      "unity_box_size": [
+        1.6799999475479126,
+        2.0,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999997,
+        1.0,
+        0.9999999999999997
+      ],
+      "unity_world_center": [
+        1.1834834827893186e-06,
+        1.0,
+        2.3399999141690113
+      ],
+      "unity_world_rotation_wxyz": [
+        0.999999999999968,
+        0.0,
+        2.5288109539722825e-07,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.8399999737739563,
+        0.20000000298023224,
+        1.0
+      ],
+      "mujoco_position": [
+        -1.6546288949328962,
+        1.6546307196367194,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.9238796380158061,
+        0.0,
+        0.0,
+        -0.3826831776545489
+      ],
+      "name": "arena_Collider_Wall_04",
+      "source_box_collider_path_id": 2396,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_04",
+      "source_game_object_path_id": 962,
+      "unity_box_size": [
+        1.6799999475479126,
+        2.0,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unity_world_center": [
+        -1.6546288949328962,
+        1.0,
+        1.6546307196367194
+      ],
+      "unity_world_rotation_wxyz": [
+        0.9238796380158061,
+        0.0,
+        -0.3826831776545489,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.8399999737739565,
+        0.2000000029802323,
+        1.0
+      ],
+      "mujoco_position": [
+        -2.3399999141681804,
+        2.3013349838180236e-06,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.7071071288979222,
+        0.0,
+        0.0,
+        -0.707106433475002
+      ],
+      "name": "arena_Collider_Wall_05",
+      "source_box_collider_path_id": 2377,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_05",
+      "source_game_object_path_id": 734,
+      "unity_box_size": [
+        1.6799999475479126,
+        2.0,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        1.0000000000000002,
+        1.0,
+        1.0000000000000002
+      ],
+      "unity_world_center": [
+        -2.3399999141681804,
+        1.0,
+        2.3013349838180236e-06
+      ],
+      "unity_world_rotation_wxyz": [
+        0.7071071288979222,
+        0.0,
+        -0.707106433475002,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.8399999737739561,
+        0.20000000298023218,
+        1.0
+      ],
+      "mujoco_position": [
+        -1.6546316413733664,
+        -1.6546279731947187,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -0.3826839444063287,
+        0.0,
+        0.0,
+        -0.923879320416695
+      ],
+      "name": "arena_Collider_Wall_06",
+      "source_box_collider_path_id": 2359,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_06",
+      "source_game_object_path_id": 1003,
+      "unity_box_size": [
+        1.6799999475479126,
+        2.0,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999998,
+        1.0,
+        0.9999999999999998
+      ],
+      "unity_world_center": [
+        -1.6546316413733664,
+        1.0,
+        -1.6546279731947187
+      ],
+      "unity_world_rotation_wxyz": [
+        0.3826839444063287,
+        0.0,
+        -0.923879320416695,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.839999973773956,
+        0.20000000298023218,
+        1.0
+      ],
+      "mujoco_position": [
+        -3.7476975373293713e-06,
+        -2.3399999141663095,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        -8.007901015627539e-07,
+        0.0,
+        0.0,
+        -0.9999999999996794
+      ],
+      "name": "arena_Collider_Wall_07",
+      "source_box_collider_path_id": 2414,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_07",
+      "source_game_object_path_id": 498,
+      "unity_box_size": [
+        1.6799999475479126,
+        2.0,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        0.9999999999999997,
+        1.0,
+        0.9999999999999997
+      ],
+      "unity_world_center": [
+        -3.7476975373293713e-06,
+        1.0,
+        -2.3399999141663095
+      ],
+      "unity_world_rotation_wxyz": [
+        8.007901015627539e-07,
+        0.0,
+        -0.9999999999996794,
+        0.0
+      ]
+    },
+    {
+      "max_transform_shear": 0.0,
+      "mujoco_half_extents": [
+        0.8399999737739563,
+        0.20000000298023224,
+        1.0
+      ],
+      "mujoco_position": [
+        1.6546254351887162,
+        -1.6546341793698496,
+        1.0
+      ],
+      "mujoco_quaternion_wxyz": [
+        0.3826822117639389,
+        0.0,
+        0.0,
+        -0.9238800380998932
+      ],
+      "name": "arena_Collider_Wall_08",
+      "source_box_collider_path_id": 2385,
+      "source_game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_08",
+      "source_game_object_path_id": 138,
+      "unity_box_size": [
+        1.6799999475479126,
+        2.0,
+        0.4000000059604645
+      ],
+      "unity_lossy_scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "unity_world_center": [
+        1.6546254351887162,
+        1.0,
+        -1.6546341793698496
+      ],
+      "unity_world_rotation_wxyz": [
+        -0.3826822117639389,
+        0.0,
+        -0.9238800380998932,
+        0.0
+      ]
+    }
+  ],
+  "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+  "inventory_path": "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\inventory.json",
+  "inventory_sha256": "ea932824c7f1fa9781ab816716d4bfca9ec22b14e754466941c8c157910eff79",
+  "limits": [
+    "static arena collision geometry is recovered; runtime private-arena scene identity is not measured",
+    "all three shipped level containers have the same normalized physical-collider signature",
+    "robot spawn poses, second robot, controllers, observations, rewards, damage, score, and round logic are absent",
+    "native code establishes collider-to-MJCF geometry inputs; exact server build equivalence remains unknown"
+  ],
+  "mjcf_path": "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\t800_factory_arena.recovered.xml",
+  "mjcf_sha256": "0a5fb688156fb57474056470c78e2209ebfff4e09e3935b73e3375c28d33ba93",
+  "native_mapping": {
+    "arena_defaults_rva": "0x23B3E60",
+    "class": "REKApp.MjStaticCollider",
+    "emit_box_inputs": [
+      "BoxCollider.size",
+      "BoxCollider.center",
+      "abs(Transform.lossyScale)",
+      "Transform.TransformPoint(center)",
+      "Transform.rotation"
+    ],
+    "emit_box_rva": "0x23B3F10",
+    "emit_world_pose_rva": "0x23B5290",
+    "on_generate_mjcf_rva": "0x23B5940"
+  },
+  "predicted_model_dimensions": {
+    "ngeom": 54,
+    "njnt": 26,
+    "nq": 32,
+    "nu": 25,
+    "nv": 31
+  },
+  "schema": "rek.mujoco_arena_composition.v1"
+}
