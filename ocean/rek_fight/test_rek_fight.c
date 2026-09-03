@@ -245,6 +245,92 @@ static void test_scripted_approach(RekFight* env) {
     assert(isfinite(env->data->qpos[0]));
 }
 
+static void assert_upright_for_steps(
+        RekFight* env,
+        float actions[REK_FIGHT_NUM_AGENTS * REK_FIGHT_NUM_ACTIONS],
+        int steps) {
+    for (int step = 0; step < steps; step++) {
+        c_step(env);
+        for (int agent = 0; agent < REK_FIGHT_NUM_AGENTS; agent++) {
+            assert(!env->agent[agent].fallen);
+            assert(!env->agent[agent].recovering);
+            assert(rek_fight_root_height(env, agent) > env->fall_height);
+            assert(rek_fight_root_up_z(env, agent) > env->fall_up_z);
+        }
+    }
+    idle_actions(actions);
+}
+
+static void test_framework_controller(RekFight* env) {
+    float observations[REK_FIGHT_NUM_AGENTS * REK_FIGHT_OBS_SIZE];
+    float actions[REK_FIGHT_NUM_AGENTS * REK_FIGHT_NUM_ACTIONS];
+    float rewards[REK_FIGHT_NUM_AGENTS];
+    float terminals[REK_FIGHT_NUM_AGENTS];
+    attach_buffers(env, observations, actions, rewards, terminals);
+    idle_actions(actions);
+    c_reset(env);
+
+    double idle_x = env->data->qpos[0];
+    double idle_y = env->data->qpos[1];
+    assert_upright_for_steps(env, actions, 500);
+    assert(fabs(env->data->qpos[0] - idle_x) < 1e-12);
+    assert(fabs(env->data->qpos[1] - idle_y) < 1e-12);
+
+    c_reset(env);
+    double forward_x = env->data->qpos[0];
+    actions[0] = 2.0f;
+    assert_upright_for_steps(env, actions, 100);
+    assert(env->data->qpos[0] - forward_x > 1.5);
+
+    c_reset(env);
+    double backward_x = env->data->qpos[0];
+    actions[0] = 0.0f;
+    assert_upright_for_steps(env, actions, 100);
+    assert(env->data->qpos[0] - backward_x < -1.5);
+
+    c_reset(env);
+    double strafe_y = env->data->qpos[1];
+    actions[1] = 2.0f;
+    assert_upright_for_steps(env, actions, 100);
+    assert(env->data->qpos[1] - strafe_y > 0.8);
+
+    c_reset(env);
+    double start_qpos[REK_FIGHT_JOINTS];
+    for (int action = 0; action < REK_FIGHT_JOINTS; action++) {
+        int qpos = REK_MATCH_LOCAL_JOINT_QPOS_ADDRESSES[action];
+        start_qpos[action] = env->data->qpos[qpos];
+    }
+    actions[3] = 2.0f;
+    c_step(env);
+    actions[3] = 0.0f;
+    for (int step = 0; step < 27; step++) c_step(env);
+    int moved_joint = 0;
+    for (int action = 0; action < REK_FIGHT_JOINTS; action++) {
+        int qpos = REK_MATCH_LOCAL_JOINT_QPOS_ADDRESSES[action];
+        if (fabs(env->data->qpos[qpos] - start_qpos[action]) > 0.01) {
+            moved_joint = 1;
+        }
+    }
+    assert(moved_joint);
+    assert_upright_for_steps(env, actions, 100);
+
+    c_reset(env);
+    env->data->qpos[2] = 0.2;
+    env->data->qpos[3] = 0.7071067811865476;
+    env->data->qpos[4] = 0.7071067811865476;
+    env->data->qpos[5] = 0.0;
+    env->data->qpos[6] = 0.0;
+    mju_zero(env->data->qvel, env->model->nv);
+    mj_forward(env->model, env->data);
+    c_step(env);
+    assert(env->agent[0].recovering);
+    for (int step = 0; step < 80; step++) c_step(env);
+    assert(!env->agent[0].recovering);
+    assert(!env->agent[0].fallen);
+    assert(rek_fight_root_height(env, 0) > env->fall_height);
+    assert(rek_fight_root_up_z(env, 0) > env->fall_up_z);
+}
+
 static void run_benchmark(RekFight* env, int steps) {
     float observations[REK_FIGHT_NUM_AGENTS * REK_FIGHT_OBS_SIZE];
     float actions[REK_FIGHT_NUM_AGENTS * REK_FIGHT_NUM_ACTIONS];
@@ -277,6 +363,84 @@ static void run_benchmark(RekFight* env, int steps) {
     );
 }
 
+static void run_control_diagnostic_case(
+        RekFight* env,
+        const char* name,
+        int forward,
+        int strafe,
+        int yaw,
+        int move,
+        int steps) {
+    float observations[REK_FIGHT_NUM_AGENTS * REK_FIGHT_OBS_SIZE];
+    float actions[REK_FIGHT_NUM_AGENTS * REK_FIGHT_NUM_ACTIONS];
+    float rewards[REK_FIGHT_NUM_AGENTS];
+    float terminals[REK_FIGHT_NUM_AGENTS];
+    attach_buffers(env, observations, actions, rewards, terminals);
+    idle_actions(actions);
+    env->max_steps = 0;
+    c_reset(env);
+
+    double start_x = env->data->qpos[0];
+    double start_y = env->data->qpos[1];
+    double minimum_height[2] = {
+        rek_fight_root_height(env, 0),
+        rek_fight_root_height(env, 1),
+    };
+    double minimum_up_z[2] = {
+        rek_fight_root_up_z(env, 0),
+        rek_fight_root_up_z(env, 1),
+    };
+    int first_fallen[2] = {-1, -1};
+    int terminal_tick = -1;
+    actions[0] = (float)forward;
+    actions[1] = (float)strafe;
+    actions[2] = (float)yaw;
+    actions[3] = (float)move;
+    for (int step = 1; step <= steps; step++) {
+        c_step(env);
+        for (int agent = 0; agent < 2; agent++) {
+            double height = rek_fight_root_height(env, agent);
+            double up_z = rek_fight_root_up_z(env, agent);
+            if (height < minimum_height[agent]) minimum_height[agent] = height;
+            if (up_z < minimum_up_z[agent]) minimum_up_z[agent] = up_z;
+            if (env->agent[agent].fallen && first_fallen[agent] < 0) {
+                first_fallen[agent] = step;
+            }
+        }
+        if (terminals[0] != 0.0f && terminal_tick < 0) terminal_tick = step;
+        actions[3] = 0.0f;
+    }
+    printf(
+        "{\"schema\":\"rek_fight.control_diagnostic.v1\","
+        "\"case\":\"%s\",\"steps\":%d,\"first_fallen\":[%d,%d],"
+        "\"terminal_tick\":%d,\"minimum_height\":[%.9g,%.9g],"
+        "\"minimum_up_z\":[%.9g,%.9g],\"root_delta_xy\":[%.9g,%.9g]}\n",
+        name,
+        steps,
+        first_fallen[0], first_fallen[1],
+        terminal_tick,
+        minimum_height[0], minimum_height[1],
+        minimum_up_z[0], minimum_up_z[1],
+        env->data->qpos[0] - start_x,
+        env->data->qpos[1] - start_y
+    );
+}
+
+static void run_control_diagnostics(RekFight* env) {
+    run_control_diagnostic_case(env, "idle", 1, 1, 1, 0, 500);
+    run_control_diagnostic_case(env, "forward", 2, 1, 1, 0, 500);
+    run_control_diagnostic_case(env, "backward", 0, 1, 1, 0, 500);
+    run_control_diagnostic_case(env, "strafe_positive", 1, 2, 1, 0, 500);
+    run_control_diagnostic_case(env, "strafe_negative", 1, 0, 1, 0, 500);
+    run_control_diagnostic_case(env, "yaw_positive", 1, 1, 2, 0, 500);
+    run_control_diagnostic_case(env, "yaw_negative", 1, 1, 0, 0, 500);
+    for (int move = 1; move <= 6; move++) {
+        char name[32];
+        snprintf(name, sizeof(name), "move_%d", move);
+        run_control_diagnostic_case(env, name, 1, 1, 1, move, 500);
+    }
+}
+
 int main(int argc, char** argv) {
     RekFight env;
     memset(&env, 0, sizeof(env));
@@ -289,6 +453,11 @@ int main(int argc, char** argv) {
         c_close(&env);
         return 0;
     }
+    if (argc == 2 && strcmp(argv[1], "--diagnose-controls") == 0) {
+        run_control_diagnostics(&env);
+        c_close(&env);
+        return 0;
+    }
     assert(REK_FIGHT_OBS_SIZE == 173);
     test_descendant_limb_geometries(&env);
     test_complete_state_observation(&env);
@@ -297,6 +466,7 @@ int main(int argc, char** argv) {
     test_router_and_idle(&env);
     test_move_request(&env);
     test_scripted_approach(&env);
+    test_framework_controller(&env);
     c_close(&env);
     printf("rek_fight tests passed\n");
     return 0;

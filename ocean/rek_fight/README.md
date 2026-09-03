@@ -5,11 +5,11 @@ MuJoCo plant recovered from the Steam client. Each policy currently outputs the
 measured keyboard encoding `MultiDiscrete{3,3,3,7}`: forward, strafe, yaw, and
 one of six move slots.
 
-This is the stripped training sim. It steps the recovered 50 Hz plant with
-PdStand implicit position actuators and a root-velocity tracker using the
-serialized Bot 1 walk/strafe/yaw speeds. Hits use MuJoCo contacts inside the
-serialized impact windows. It is not the Unity client and it does not contain
-the missing T800 ONNX payloads.
+This is the stripped state-based training sim. Its framework layer applies the
+measured standing pose, serialized Bot 1 walk/strafe/yaw speeds, move timing,
+and recovery duration directly at 50 Hz. MuJoCo supplies the recovered robot
+geometry and contact queries. It is not the Unity client and it does not
+contain the missing T800 ONNX or trajectory payloads.
 
 The observation is 173 floats. It contains ego-first `qpos + qvel` for both
 fighters, then ego-first discrete controller state for both fighters: recovery,
@@ -22,9 +22,10 @@ geometries are included in their parent limb's contact attribution.
 ## Evidence boundary
 
 This environment has not passed the held-out trajectory/event variance gate.
-The root tracker and distal-limb motion are reduced-order stand-ins. Contact to
-hit conversion, fall/recovery transitions, rewards, terminal/reset behavior,
-and spawn state remain provisional. The opponent is still a second policy, not
+Root locomotion and distal-limb motion are reduced-order reconstructions.
+Contact to hit conversion, knockdown causes, recovery poses, rewards,
+terminal/reset behavior, and spawn state remain provisional. The opponent is
+a deterministic sparring controller, not
 the recovered Private Bot 1 controller. The checked-in contract pins Bot 1
 tuning and parts of its control flow, but the complete transition table,
 authoritative decision cadence, server RNG state, and assigned move reservoir
@@ -69,9 +70,13 @@ provisional unless the caller explicitly sets
 `REK_FIGHT_ALLOW_PROVISIONAL_LONG_RUN=1`. That override permits experiments; it
 does not satisfy or bypass the held-out REK parity gate.
 
-Human eval of the same action interface is WASD/QE plus move categories 1-6,
-matching `T800_REKKeys` on the real client. Joint clips for those six moves
-are still absent from the Steam build; the current executor uses measured
+Human eval of the same action interface is WASD/QE plus move categories 1-6.
+It also exposes the user's observed U straight-kick and I right-side-kick
+aliases. The serialized `T800_REKKeys` debug map differs: U is
+`right_light_attack`, I is `switch_to_stance_idle`, and its kick bindings are
+Space+Y and Space+U. That conflict remains explicit until an input-to-executed-
+move capture resolves the active runtime map. Joint clips for the six policy
+categories are absent from the Steam build; the current executor uses measured
 timing and a distal-limb reach. Fit visual bone windows into joint playback
 before claiming trajectory parity.
 
@@ -83,7 +88,8 @@ bash ocean/rek_fight/run_human_eval_spark.sh
 
 The server binds to `127.0.0.1:8765`. Reach it through an SSH local forward;
 it does not expose a network listener beyond Spark loopback. The browser sends
-WASD/QE and 1-6 into agent 0 of the same `RekFight` C step function used by the
-PufferLib binding. Agent 1 is a deterministic standing move dummy. The viewer
+WASD/QE, U/I, and 1-6 into agent 0 of the same `RekFight` C step function used
+by the PufferLib binding. Agent 1 is a deterministic approach-and-move sparring
+dummy. The viewer
 copies the resulting MuJoCo state into a render-only model and never advances a
 second simulation.

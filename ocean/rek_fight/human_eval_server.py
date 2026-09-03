@@ -41,7 +41,7 @@ INDEX_HTML = r"""
 </style>
 <main>
   <h1>REK Fight Human Eval</h1>
-  <p class="notice">Provisional simulator. Blue is you. Orange is a deterministic move dummy, not recovered Bot 1.</p>
+  <p class="notice">Controller reconstruction under test. Blue is you. Orange is a deterministic sparring dummy, not recovered Bot 1.</p>
   <div class="viewport"><img id="frame" alt="Live REK fight simulator view"></div>
   <div class="hud" aria-live="polite">
     <div><span class="label">Tick</span><span id="tick">0</span></div>
@@ -53,7 +53,8 @@ INDEX_HTML = r"""
     <kbd>W</kbd>/<kbd>S</kbd> forward/back,
     <kbd>A</kbd>/<kbd>D</kbd> strafe,
     <kbd>Q</kbd>/<kbd>E</kbd> yaw,
-    <kbd>1</kbd>–<kbd>6</kbd> moves.
+    <kbd>U</kbd> straight kick, <kbd>I</kbd> right side kick.
+    Moves <kbd>1</kbd>–<kbd>6</kbd>: punch combo, right kick, left punch, right punch, dragon punch, left kick.
     Click this page once before using the keyboard.
   </p>
   <button id="reset" type="button">Reset round</button><span id="connection">connecting</span>
@@ -61,7 +62,7 @@ INDEX_HTML = r"""
 <script>
 (() => {
   const held = new Set();
-  const relevant = new Set(['KeyW','KeyS','KeyA','KeyD','KeyQ','KeyE','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6']);
+  const relevant = new Set(['KeyW','KeyS','KeyA','KeyD','KeyQ','KeyE','KeyU','KeyI','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6']);
   let queuedMove = 0;
   let inputSequence = 0;
   const axis = (negative, positive) => held.has(negative) === held.has(positive) ? 1 : held.has(positive) ? 2 : 0;
@@ -69,8 +70,8 @@ INDEX_HTML = r"""
     const payload = {
       sequence: ++inputSequence,
       forward: axis('KeyS', 'KeyW'),
-      strafe: axis('KeyA', 'KeyD'),
-      yaw: axis('KeyQ', 'KeyE'),
+      strafe: axis('KeyD', 'KeyA'),
+      yaw: axis('KeyE', 'KeyQ'),
       move: queuedMove
     };
     queuedMove = 0;
@@ -81,7 +82,11 @@ INDEX_HTML = r"""
   addEventListener('keydown', event => {
     if (!relevant.has(event.code)) return;
     event.preventDefault();
-    if (event.code.startsWith('Digit') && !event.repeat) queuedMove = Number(event.code.slice(5));
+    if (!event.repeat) {
+      if (event.code.startsWith('Digit')) queuedMove = Number(event.code.slice(5));
+      if (event.code === 'KeyU') queuedMove = 6;
+      if (event.code === 'KeyI') queuedMove = 2;
+    }
     held.add(event.code);
     sendInput();
   });
@@ -185,9 +190,9 @@ class HumanEval:
         self.renderer = mujoco.Renderer(self.model, height=360, width=640)
         self.camera = mujoco.MjvCamera()
         mujoco.mjv_defaultCamera(self.camera)
-        self.camera.distance = 6.5
+        self.camera.distance = 6.2
         self.camera.azimuth = 90.0
-        self.camera.elevation = -68.0
+        self.camera.elevation = -42.0
         self.nq = self.library.rek_human_nq(self.session)
         self.nv = self.library.rek_human_nv(self.session)
         if self.nq != self.model.nq or self.nv != self.model.nv:
@@ -272,7 +277,7 @@ class HumanEval:
                 "episode_return": [float(self.library.rek_human_episode_return(self.session, agent)) for agent in range(2)],
                 "input_sequence": self.action["sequence"],
                 "provisional": True,
-                "opponent": "deterministic_move_dummy",
+                "opponent": "deterministic_sparring_dummy",
             }
 
     def frame(self) -> bytes:

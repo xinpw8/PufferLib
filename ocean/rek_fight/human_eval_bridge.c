@@ -66,12 +66,29 @@ REK_HUMAN_API void rek_human_step(
     session->actions[2] = (float)rek_human_action_bin(yaw);
     session->actions[3] = (float)rek_human_move_category(move_category);
 
-    session->actions[4] = 1.0f;
+    double dx = session->env.data->qpos[0] - session->env.data->qpos[32];
+    double dy = session->env.data->qpos[1] - session->env.data->qpos[33];
+    double distance = sqrt(dx * dx + dy * dy);
+    double qw = session->env.data->qpos[35];
+    double qx = session->env.data->qpos[36];
+    double qy = session->env.data->qpos[37];
+    double qz = session->env.data->qpos[38];
+    double heading = atan2(
+        2.0 * (qw * qz + qx * qy),
+        1.0 - 2.0 * (qy * qy + qz * qz)
+    );
+    double heading_error = atan2(sin(atan2(dy, dx) - heading),
+                                 cos(atan2(dy, dx) - heading));
+    session->actions[4] = distance > 1.1 && fabs(heading_error) < 0.6
+        ? 2.0f : 1.0f;
     session->actions[5] = 1.0f;
-    session->actions[6] = 1.0f;
+    session->actions[6] = heading_error > 0.06
+        ? 2.0f : heading_error < -0.06 ? 0.0f : 1.0f;
     session->actions[7] = 0.0f;
-    if (session->env.tick > 0 && session->env.tick % 125 == 0) {
-        session->actions[7] = (float)(1 + (session->env.tick / 125) % 6);
+    if (distance < 1.4 && session->env.tick > 0
+            && session->env.tick % 90 == 0) {
+        static const int attack_cycle[4] = {3, 4, 2, 6};
+        session->actions[7] = (float)attack_cycle[(session->env.tick / 90) % 4];
     }
 
     c_step(&session->env);

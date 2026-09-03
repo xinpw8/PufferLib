@@ -2,13 +2,14 @@
 //
 // Physics, actuator limits, PdStand gains, keyboard action encoding, move
 // slots, impact times, and limb ids come from the pinned Steam client.
-// T800 ONNX/trajectory payloads are absent in that client, so locomotion is a
-// reduced-order executor: keyframe PdStand plus measured walk/strafe/yaw
-// speeds. Canned moves use measured timing and limb ids; joint motion is a
-// distal-limb reach, not a recovered FactoryPolicy clip. Replace that reach
-// with fitted visual trajectories when six-move windows exist.
+// T800 ONNX/trajectory payloads are absent in that client, so the framework
+// layer is a deterministic state executor: the measured standing pose,
+// walk/strafe/yaw speeds, move timing, and recovery duration are applied
+// directly. Canned joint motion remains a distal-limb reach, not a recovered
+// FactoryPolicy clip. Replace it with fitted visual trajectories as measured
+// windows become available.
 //
-// PROVISIONAL: the root tracker, distal-limb reach, contact-to-hit rule,
+// PROVISIONAL: the state executor, distal-limb reach, contact-to-hit rule,
 // fall/recovery transition timing, rewards, terminal/reset semantics, and the
 // second policy-controlled opponent have not passed the REK variance gate.
 
@@ -182,6 +183,7 @@ typedef struct RekFight {
     float episode_return[REK_FIGHT_NUM_AGENTS];
 
     RekFightAgent agent[REK_FIGHT_NUM_AGENTS];
+    double recovery_start_qpos[REK_FIGHT_NUM_AGENTS][REK_MATCH_QPOS_PER_AGENT];
     double root_pinv[REK_FIGHT_NUM_AGENTS][REK_FIGHT_ROOT_LEGS][REK_FIGHT_ROOT_DIMS];
     int limb_geom_count[REK_FIGHT_NUM_AGENTS][REK_FIGHT_LIMBS];
     int limb_geoms[REK_FIGHT_NUM_AGENTS][REK_FIGHT_LIMBS][REK_FIGHT_MAX_LIMB_GEOMS];
@@ -614,12 +616,6 @@ static void rek_fight_apply_reach(
 
 static void rek_fight_apply_root_command(
         RekFight* env, int agent, const RekStrategyOutput* command) {
-    if (env->root_stabilizer_scale <= 0.0f) return;
-    mjtNum tangent_error[REK_MATCH_NV];
-    const mjtNum* key_qpos = env->model->key_qpos
-        + REK_MATCH_KEYFRAME_ID * env->model->nq;
-    mj_differentiatePos(env->model, tangent_error, 1.0, env->data->qpos, key_qpos);
-
     int root_qpos = agent * REK_MATCH_QPOS_PER_AGENT;
     int root_dof = agent * REK_MATCH_QVEL_PER_AGENT;
     double qw = env->data->qpos[root_qpos + 3];
@@ -635,34 +631,89 @@ static void rek_fight_apply_root_command(
     double desired_y = sine * forward + cosine * strafe;
     double desired_yaw = command->velocity[2] * REK_FIGHT_YAW_SPEED;
 
-    double residual[REK_FIGHT_ROOT_DIMS];
-    double desired_vel[REK_FIGHT_ROOT_DIMS] = {
-        desired_x, desired_y, 0.0, 0.0, 0.0, desired_yaw,
-    };
-    for (int axis = 0; axis < REK_FIGHT_ROOT_DIMS; axis++) {
-        double position_term = REK_FIGHT_ROOT_KP[axis] * tangent_error[root_dof + axis];
-        if (axis == 0 || axis == 1 || axis == 5) {
-            position_term = 0.0;
-        }
-        double desired_acceleration = position_term
-            + REK_FIGHT_ROOT_KD[axis] * (
-                desired_vel[axis] - env->data->qvel[root_dof + axis]
-            );
-        residual[axis] = desired_acceleration - env->data->qacc[root_dof + axis];
+    env->data->qpos[root_qpos + 0] += desired_x * REK_FIGHT_DT;
+    env->data->qpos[root_qpos + 1] += desired_y * REK_FIGHT_DT;
+    env->data->qvel[root_dof + 0] = desired_x;
+    env->data->qvel[root_dof + 1] = desired_y;
+    env->data->qvel[root_dof + 2] = 0.0;
+
+    double half_delta = 0.5 * desired_yaw * REK_FIGHT_DT;
+    double delta_w = cos(half_delta);
+    double delta_z = sin(half_delta);
+    env->data->qpos[root_qpos + 3] = delta_w * qw - delta_z * qz;
+    env->data->qpos[root_qpos + 4] = delta_w * qx - delta_z * qy;
+    env->data->qpos[root_qpos + 5] = delta_w * qy + delta_z * qx;
+    env->data->qpos[root_qpos + 6] = delta_w * qz + delta_z * qw;
+    env->data->qvel[root_dof + 3] = 0.0;
+    env->data->qvel[root_dof + 4] = 0.0;
+    env->data->qvel[root_dof + 5] = desired_yaw;
+
+    for (int action = 0; action < REK_FIGHT_JOINTS; action++) {
+        int qpos = agent * REK_MATCH_QPOS_PER_AGENT
+            + REK_MATCH_LOCAL_JOINT_QPOS_ADDRESSES[action];
+        int qvel = agent * REK_MATCH_QVEL_PER_AGENT
+            + REK_MATCH_LOCAL_JOINT_DOF_ADDRESSES[action];
+        double target = env->data->ctrl[agent * REK_FIGHT_JOINTS + action];
+        env->data->qvel[qvel] = (target - env->data->qpos[qpos]) / REK_FIGHT_DT;
+        env->data->qpos[qpos] = target;
     }
-    for (int action = 0; action < REK_FIGHT_ROOT_LEGS; action++) {
-        double target_delta = 0.0;
-        for (int axis = 0; axis < REK_FIGHT_ROOT_DIMS; axis++) {
-            target_delta += env->root_pinv[agent][action][axis] * residual[axis];
-        }
-        double limit = 0.06425133234876036 * env->root_stabilizer_scale;
-        target_delta = rek_fight_clip(
-            target_delta * env->root_stabilizer_scale, -limit, limit
-        );
-        int actuator = agent * REK_FIGHT_JOINTS + action;
-        env->data->ctrl[actuator] = rek_fight_limit_joint(
-            env, agent, action, env->data->ctrl[actuator] + target_delta
-        );
+}
+
+static void rek_fight_begin_recovery(RekFight* env, int agent) {
+    RekFightAgent* state = &env->agent[agent];
+    int qpos = agent * REK_MATCH_QPOS_PER_AGENT;
+    memcpy(
+        env->recovery_start_qpos[agent],
+        env->data->qpos + qpos,
+        sizeof(env->recovery_start_qpos[agent])
+    );
+    state->fallen = 1;
+    state->recovering = 1;
+    state->recovery_ticks = 0;
+    state->move_in_progress = 0;
+    state->move_slot = -1;
+}
+
+static void rek_fight_apply_recovery(RekFight* env, int agent) {
+    RekFightAgent* state = &env->agent[agent];
+    if (!state->recovering) return;
+    int qpos = agent * REK_MATCH_QPOS_PER_AGENT;
+    int qvel = agent * REK_MATCH_QVEL_PER_AGENT;
+    const mjtNum* target = env->model->key_qpos
+        + REK_MATCH_KEYFRAME_ID * env->model->nq + qpos;
+    double phase = rek_fight_clip(
+        state->recovery_ticks * REK_FIGHT_DT / REK_FIGHT_RECOVERY_S,
+        0.0,
+        1.0
+    );
+    double blend = phase * phase * (3.0 - 2.0 * phase);
+    double quaternion_dot = 0.0;
+    for (int item = 3; item < 7; item++) {
+        quaternion_dot += env->recovery_start_qpos[agent][item] * target[item];
+    }
+    double target_sign = quaternion_dot < 0.0 ? -1.0 : 1.0;
+    for (int item = 0; item < REK_MATCH_QPOS_PER_AGENT; item++) {
+        double target_value = item >= 3 && item < 7
+            ? target_sign * target[item]
+            : target[item];
+        env->data->qpos[qpos + item] = env->recovery_start_qpos[agent][item]
+            + blend * (target_value - env->recovery_start_qpos[agent][item]);
+    }
+    double norm = sqrt(
+        env->data->qpos[qpos + 3] * env->data->qpos[qpos + 3]
+        + env->data->qpos[qpos + 4] * env->data->qpos[qpos + 4]
+        + env->data->qpos[qpos + 5] * env->data->qpos[qpos + 5]
+        + env->data->qpos[qpos + 6] * env->data->qpos[qpos + 6]
+    );
+    if (norm > 0.0) {
+        for (int item = 3; item < 7; item++) env->data->qpos[qpos + item] /= norm;
+    }
+    mju_zero(env->data->qvel + qvel, REK_MATCH_QVEL_PER_AGENT);
+    state->recovery_ticks += 1;
+    if (phase >= 1.0) {
+        state->recovering = 0;
+        state->recovery_ticks = 0;
+        state->fallen = 0;
     }
 }
 
@@ -713,15 +764,7 @@ static RekStrategyOutput rek_fight_plan_agent(RekFight* env, int agent) {
         command.move_slot = -1;
     }
 
-    if (state->recovering) {
-        state->recovery_ticks += 1;
-        if (state->recovery_ticks * REK_FIGHT_DT >= REK_FIGHT_RECOVERY_S
-                && !rek_fight_fallen(env, agent)) {
-            state->recovering = 0;
-            state->recovery_ticks = 0;
-            state->fallen = 0;
-        }
-    } else if (command.request_move && command.move_slot >= 0) {
+    if (!state->recovering && command.request_move && command.move_slot >= 0) {
         const RekFightMove* move = rek_fight_move_by_slot(command.move_slot);
         if (move != NULL) {
             state->move_in_progress = 1;
@@ -800,17 +843,27 @@ static void rek_fight_add_log(RekFight* env, int invalid, int timeout) {
 }
 
 void c_step(RekFight* env) {
+    int began_recovery[REK_FIGHT_NUM_AGENTS] = {0, 0};
+    for (int agent = 0; agent < REK_FIGHT_NUM_AGENTS; agent++) {
+        if (rek_fight_fallen(env, agent) && !env->agent[agent].fallen) {
+            rek_fight_begin_recovery(env, agent);
+            began_recovery[agent] = 1;
+        }
+    }
     RekStrategyOutput commands[REK_FIGHT_NUM_AGENTS];
     for (int agent = 0; agent < REK_FIGHT_NUM_AGENTS; agent++) {
         commands[agent] = rek_fight_plan_agent(env, agent);
     }
-    mj_forward(env->model, env->data);
     for (int agent = 0; agent < REK_FIGHT_NUM_AGENTS; agent++) {
         if (!env->agent[agent].recovering) {
             rek_fight_apply_root_command(env, agent, &commands[agent]);
+        } else {
+            rek_fight_apply_recovery(env, agent);
         }
     }
-    mj_step(env->model, env->data);
+    env->data->time += REK_FIGHT_DT;
+    mju_zero(env->data->qacc, env->model->nv);
+    mj_forward(env->model, env->data);
     env->tick += 1;
 
     float reward[REK_FIGHT_NUM_AGENTS] = {
@@ -819,12 +872,7 @@ void c_step(RekFight* env) {
     for (int agent = 0; agent < REK_FIGHT_NUM_AGENTS; agent++) {
         reward[agent] += rek_fight_score_hits(env, agent);
         rek_fight_advance_agent_timers(&env->agent[agent]);
-        int fallen = rek_fight_fallen(env, agent);
-        if (fallen && !env->agent[agent].fallen) {
-            env->agent[agent].fallen = 1;
-            env->agent[agent].recovering = 1;
-            env->agent[agent].recovery_ticks = 0;
-            env->agent[agent].move_in_progress = 0;
+        if (began_recovery[agent]) {
             reward[agent] -= REK_FIGHT_FALL_REWARD;
             reward[1 - agent] += REK_FIGHT_FALL_REWARD;
         }
@@ -832,8 +880,7 @@ void c_step(RekFight* env) {
 
     int invalid = !rek_fight_state_is_finite(env);
     int timeout = env->max_steps > 0 && env->tick >= env->max_steps;
-    int round_over = timeout || invalid
-        || (env->agent[0].fallen && env->agent[1].fallen);
+    int round_over = timeout || invalid;
     for (int agent = 0; agent < REK_FIGHT_NUM_AGENTS; agent++) {
         env->episode_return[agent] += reward[agent];
         env->rewards[agent] = reward[agent];
