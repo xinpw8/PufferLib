@@ -74,3 +74,16 @@ matching `T800_REKKeys` on the real client. Joint clips for those six moves
 are still absent from the Steam build; the current executor uses measured
 timing and a distal-limb reach. Fit visual bone windows into joint playback
 before claiming trajectory parity.
+
+On Spark, launch the human-controlled environment with:
+
+```bash
+bash ocean/rek_fight/run_human_eval_spark.sh
+```
+
+The server binds to `127.0.0.1:8765`. Reach it through an SSH local forward;
+it does not expose a network listener beyond Spark loopback. The browser sends
+WASD/QE and 1-6 into agent 0 of the same `RekFight` C step function used by the
+PufferLib binding. Agent 1 is a deterministic standing move dummy. The viewer
+copies the resulting MuJoCo state into a render-only model and never advances a
+second simulation.
