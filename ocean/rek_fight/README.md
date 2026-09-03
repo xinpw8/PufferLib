@@ -86,7 +86,7 @@ On Spark, launch the human-controlled environment with:
 bash ocean/rek_fight/run_human_eval_spark.sh
 ```
 
-The server binds to `127.0.0.1:8765`. Reach it through an SSH local forward;
+The server binds to `127.0.0.1:18766`. Reach it through an SSH local forward;
 it does not expose a network listener beyond Spark loopback. The browser sends
 WASD/QE, U/I, and 1-6 into agent 0 of the same `RekFight` C step function used
 by the PufferLib binding. Agent 1 is a deterministic approach-and-move sparring

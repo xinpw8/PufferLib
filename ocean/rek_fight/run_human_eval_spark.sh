@@ -30,7 +30,7 @@ cc -std=c11 -Wall -Wextra -O2 -fPIC -shared \
 
 exec "$REK_HUMAN_EVAL_PYTHON" ocean/rek_fight/human_eval_server.py \
     --host "${REK_HUMAN_EVAL_HOST:-127.0.0.1}" \
-    --port "${REK_HUMAN_EVAL_PORT:-8765}" \
+    --port "${REK_HUMAN_EVAL_PORT:-18766}" \
     --library "$library_path" \
     --model "$REK_MJCF_PATH" \
     --log "${REK_HUMAN_EVAL_LOG:-$output_dir/actions.jsonl}"
