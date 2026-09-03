@@ -24,9 +24,9 @@ from typing import Any
 
 
 SCHEMA = "rek.private_ai.protocol.v5"
-EXPECTED_PLUGIN_VERSION = "0.5.0"
+EXPECTED_PLUGIN_VERSION = "0.5.1"
 EXPECTED_PLUGIN_SHA256 = (
-    "66bdc121f25e54c48173bf30fcc799d4d56f015678944f5f045f59696fae7dc8"
+    "f9848c17a83ae011f046aa2baa1fdfd2377dfcfc6d287728265d2b28ea3ce0a2"
 )
 EXPECTED_GAME_ASSEMBLY_SHA256 = (
     "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412"
@@ -34,8 +34,86 @@ EXPECTED_GAME_ASSEMBLY_SHA256 = (
 EXPECTED_METADATA_SHA256 = (
     "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd"
 )
-EXPECTED_BONE_COUNT = 26
-EXPECTED_BODY_BYTES = 2 + 28 * EXPECTED_BONE_COUNT
+T800_BONE_NAMES = (
+    "LINK_BASE",
+    "LINK_HIP_PITCH_L",
+    "LINK_HIP_ROLL_L",
+    "LINK_HIP_YAW_L",
+    "LINK_KNEE_PITCH_L",
+    "LINK_ANKLE_PITCH_L",
+    "LINK_ANKLE_ROLL_L",
+    "LINK_HIP_PITCH_R",
+    "LINK_HIP_ROLL_R",
+    "LINK_HIP_YAW_R",
+    "LINK_KNEE_PITCH_R",
+    "LINK_ANKLE_PITCH_R",
+    "LINK_ANKLE_ROLL_R",
+    "LINK_WAIST_YAW",
+    "LINK_SHOULDER_PITCH_L",
+    "LINK_SHOULDER_ROLL_L",
+    "LINK_SHOULDER_YAW_L",
+    "LINK_ELBOW_PITCH_L",
+    "LINK_ELBOW_YAW_L",
+    "LINK_SHOULDER_PITCH_R",
+    "LINK_SHOULDER_ROLL_R",
+    "LINK_SHOULDER_YAW_R",
+    "LINK_ELBOW_PITCH_R",
+    "LINK_ELBOW_YAW_R",
+    "LINK_HEAD_PITCH",
+    "LINK_HEAD_YAW",
+)
+G1_BONE_NAMES = (
+    "pelvis",
+    "left_hip_pitch_link",
+    "left_hip_roll_link",
+    "left_hip_yaw_link",
+    "left_knee_link",
+    "left_ankle_pitch_link",
+    "left_ankle_roll_link",
+    "right_hip_pitch_link",
+    "right_hip_roll_link",
+    "right_hip_yaw_link",
+    "right_knee_link",
+    "right_ankle_pitch_link",
+    "right_ankle_roll_link",
+    "waist_yaw_link",
+    "waist_roll_link",
+    "torso_link",
+    "left_shoulder_pitch_link",
+    "left_shoulder_roll_link",
+    "left_shoulder_yaw_link",
+    "left_elbow_link",
+    "left_wrist_roll_link",
+    "left_wrist_pitch_link",
+    "left_wrist_yaw_link",
+    "right_shoulder_pitch_link",
+    "right_shoulder_roll_link",
+    "right_shoulder_yaw_link",
+    "right_elbow_link",
+    "right_wrist_roll_link",
+    "right_wrist_pitch_link",
+    "right_wrist_yaw_link",
+)
+T800_RUNTIME_OBJECT_NAME = "engineai_t800_FactoryPolicy(Clone)"
+G1_RUNTIME_OBJECT_NAME = "g1_29dof_Prefab_SONIC(Clone)"
+T800_BONE_COUNT = len(T800_BONE_NAMES)
+G1_BONE_COUNT = len(G1_BONE_NAMES)
+T800_BODY_BYTES = 2 + 28 * T800_BONE_COUNT
+G1_BODY_BYTES = 2 + 28 * G1_BONE_COUNT
+EXPECTED_BONE_LAYOUTS = {
+    "t800_26": {
+        "bone_names": T800_BONE_NAMES,
+        "bone_count": T800_BONE_COUNT,
+        "body_bytes": T800_BODY_BYTES,
+        "runtime_object_name": T800_RUNTIME_OBJECT_NAME,
+    },
+    "g1_30": {
+        "bone_names": G1_BONE_NAMES,
+        "bone_count": G1_BONE_COUNT,
+        "body_bytes": G1_BODY_BYTES,
+        "runtime_object_name": G1_RUNTIME_OBJECT_NAME,
+    },
+}
 EXPECTED_PROVENANCE = (
     "read-only copy of FastBufferReader at "
     "REKApp.Robot.OnBoneMessageReceived prefix"
@@ -56,8 +134,10 @@ EXPECTED_BONE_PROTOCOL = {
     "message": "REK_Bones",
     "body_layout": "uint8 networkIndex; uint8 boneCount; repeated float32 little-endian worldPosition.xyz and worldRotation.xyzw",
     "body_size_formula_bytes": "2 + 28 * boneCount",
-    "t800_bone_count": EXPECTED_BONE_COUNT,
-    "t800_body_bytes": EXPECTED_BODY_BYTES,
+    # Recorder v0.5.1 emitted these mislabelled literals. They are checked as
+    # pinned capture-format bytes, never used to classify either fighter.
+    "t800_bone_count": 30,
+    "t800_body_bytes": 842,
     "intended_send_interval_seconds": 0.02,
     "intended_send_rate_hz": 50,
     "delivery": "unreliable",
@@ -120,6 +200,13 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _parse_json_integer(text: str) -> int | float:
+    # System.Text.Json serializes Single negative zero as the valid JSON integer
+    # token -0. Python's default decoder turns that token into integer zero and
+    # loses the IEEE-754 sign bit needed for byte-exact redundant-field checks.
+    return -0.0 if text == "-0" else int(text)
+
+
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     with path.open(encoding="utf-8") as stream:
@@ -127,7 +214,7 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
             if not line.strip():
                 continue
             try:
-                record = json.loads(line)
+                record = json.loads(line, parse_int=_parse_json_integer)
             except json.JSONDecodeError as exc:
                 raise EvidenceError(
                     f"{path}:{line_number}: invalid JSON: {exc.msg}"
@@ -155,6 +242,21 @@ def _finite(value: Any, label: str) -> float:
     if not math.isfinite(result):
         raise EvidenceError(f"{label} is not finite")
     return result
+
+
+def _float32_bytes(value: Any, label: str) -> bytes:
+    number = _finite(value, label)
+    try:
+        return struct.pack("<f", number)
+    except (OverflowError, struct.error) as exc:
+        raise EvidenceError(f"{label} is outside finite float32 range") from exc
+
+
+def _require_float32_wire(value: Any, wire: bytes, label: str) -> None:
+    if _float32_bytes(value, label) != wire:
+        raise EvidenceError(
+            f"{label} does not round-trip to the authoritative wire float32"
+        )
 
 
 def _float_list(value: Any, length: int, label: str) -> list[float]:
@@ -222,8 +324,7 @@ def _exact_decoded(observed: Any, expected: Any, label: str) -> None:
             raise EvidenceError(f"{label} disagrees with the audited decoder")
         return
     if isinstance(expected, float):
-        if _finite(observed, label) != expected:
-            raise EvidenceError(f"{label} disagrees with the audited decoder")
+        _require_float32_wire(observed, struct.pack("<f", expected), label)
         return
     if observed != expected:
         raise EvidenceError(f"{label} disagrees with the audited decoder")
@@ -277,9 +378,12 @@ def _validate_request_projection(record: dict[str, Any], label: str) -> str:
         bit_patterns = [f"0x{value:08x}" for value in body_bits]
         if record.get("velocity_float32_bit_patterns") != bit_patterns:
             raise EvidenceError(f"{label} velocity bit patterns disagree with body")
-        body_velocity = struct.unpack("<3f", body[1:])
-        if velocity != list(body_velocity):
-            raise EvidenceError(f"{label} REK_Input body disagrees with source fields")
+        for index, value in enumerate(velocity):
+            _require_float32_wire(
+                value,
+                body[1 + 4 * index:1 + 4 * (index + 1)],
+                f"{label} velocity[{index}]",
+            )
         if record.get("wire_delivery") != "unreliable":
             raise EvidenceError(f"{label} REK_Input delivery semantics drifted")
         if record.get("native_method") != (
@@ -341,7 +445,19 @@ def _validate_invocation_only(record: dict[str, Any], label: str) -> str:
     return method
 
 
-def _decode_wire_body(record: dict[str, Any], bone_names: dict[int, list[str]]) -> None:
+def _match_bone_layout(value: Any, label: str) -> tuple[str, dict[str, Any]]:
+    if not isinstance(value, list):
+        raise EvidenceError(f"{label} is not an ordered bone-name list")
+    names = tuple(value)
+    for layout_id, layout in EXPECTED_BONE_LAYOUTS.items():
+        if names == layout["bone_names"]:
+            return layout_id, layout
+    raise EvidenceError(f"{label} does not match a pinned bone layout")
+
+
+def _decode_wire_body(
+    record: dict[str, Any], bone_layouts: dict[int, tuple[str, dict[str, Any]]]
+) -> None:
     sequence = _integer(
         record.get("raw_bone_packet_sequence"), "raw packet sequence", 1
     )
@@ -353,28 +469,26 @@ def _decode_wire_body(record: dict[str, Any], bone_names: dict[int, list[str]]) 
     )
     if not 0 <= network_index <= 255:
         raise EvidenceError(f"raw packet {sequence} network index is not uint8")
+    layout_id, layout = bone_layouts[slot]
     bone_count = _integer(
         record.get("bone_count"), f"raw packet {sequence} bone count", 1
     )
-    if bone_count != EXPECTED_BONE_COUNT:
+    if bone_count != layout["bone_count"]:
         raise EvidenceError(
-            f"raw packet {sequence} has {bone_count} bones; expected "
-            f"the pinned T800 count {EXPECTED_BONE_COUNT}"
+            f"raw packet {sequence} has {bone_count} bones; fighter {slot} "
+            f"declares {layout_id} with {layout['bone_count']}"
         )
-    expected_bytes = 2 + 28 * bone_count
-    body = _wire_body(record, expected_bytes, f"raw bone packet {sequence}")
+    body = _wire_body(
+        record, layout["body_bytes"], f"raw bone packet {sequence}"
+    )
     if body[0] != network_index or body[1] != bone_count:
         raise EvidenceError(f"raw packet {sequence} binary header disagrees with JSON")
 
-    positions: list[float] = []
-    rotations: list[float] = []
     offset = 2
     for _ in range(bone_count):
         values = FLOAT7.unpack_from(body, offset)
         if not all(math.isfinite(value) for value in values):
             raise EvidenceError(f"raw packet {sequence} binary body has non-finite float")
-        positions.extend(values[:3])
-        rotations.extend(values[3:])
         offset += FLOAT7.size
     recorded_positions = _float_list(
         record.get("world_positions_xyz"), bone_count * 3,
@@ -384,10 +498,24 @@ def _decode_wire_body(record: dict[str, Any], bone_names: dict[int, list[str]]) 
         record.get("world_rotations_xyzw"), bone_count * 4,
         f"raw packet {sequence} world rotations",
     )
-    if recorded_positions != positions or recorded_rotations != rotations:
+    reconstructed = bytearray((network_index, bone_count))
+    try:
+        for index in range(bone_count):
+            reconstructed.extend(FLOAT7.pack(
+                *recorded_positions[index * 3:(index + 1) * 3],
+                *recorded_rotations[index * 4:(index + 1) * 4],
+            ))
+    except (OverflowError, struct.error) as exc:
+        raise EvidenceError(
+            f"raw packet {sequence} decoded transforms are not float32"
+        ) from exc
+    if bytes(reconstructed) != body:
         raise EvidenceError(f"raw packet {sequence} decoded transforms disagree with body")
-    if record.get("bone_names") != bone_names[slot]:
-        raise EvidenceError(f"raw packet {sequence} bone names disagree with capture header")
+    if record.get("bone_names") != list(layout["bone_names"]):
+        raise EvidenceError(
+            f"raw packet {sequence} bone names disagree with fighter {slot} "
+            f"{layout_id} capture header"
+        )
     if _finite(record.get("intended_wire_interval_seconds"), "wire interval") != 0.02:
         raise EvidenceError(f"raw packet {sequence} intended interval drifted")
     if _finite(record.get("intended_wire_rate_hz"), "wire rate") != 50.0:
@@ -690,13 +818,12 @@ def validate(path: Path | str) -> dict[str, Any]:
             raise EvidenceError("outbound request realtime decreased")
         previous_request_time = request_time
 
-    bone_names = {
-        slot: start.get(f"fighter_{slot}_bones") for slot in (0, 1)
+    bone_layouts = {
+        slot: _match_bone_layout(
+            start.get(f"fighter_{slot}_bones"), f"fighter {slot} capture header"
+        )
+        for slot in (0, 1)
     }
-    for slot, names in bone_names.items():
-        if (not isinstance(names, list) or len(names) != EXPECTED_BONE_COUNT
-                or not all(isinstance(name, str) and name for name in names)):
-            raise EvidenceError(f"fighter {slot} does not declare 26 bone names")
 
     samples = [record for record in records if record.get("event") == "sample"]
     if len(samples) < 2:
@@ -722,7 +849,7 @@ def validate(path: Path | str) -> dict[str, Any]:
     receipt_by_slot: dict[int, list[float]] = {0: [], 1: []}
     raw_by_sequence: dict[int, dict[str, Any]] = {}
     for record in raw_packets:
-        _decode_wire_body(record, bone_names)
+        _decode_wire_body(record, bone_layouts)
         sequence = record["raw_bone_packet_sequence"]
         receipt = _finite(record["monotonic_receipt_time"], "monotonic receipt time")
         if previous_receipt is not None and receipt < previous_receipt:
@@ -752,10 +879,17 @@ def validate(path: Path | str) -> dict[str, Any]:
             raise EvidenceError("decoded snapshot fighter disagrees with raw packet")
         if record.get("network_index") != raw.get("network_index"):
             raise EvidenceError("decoded snapshot network index disagrees with raw packet")
+        slot = raw["fighter_slot"]
+        layout_id, layout = bone_layouts[slot]
+        if record.get("bone_names") != list(layout["bone_names"]):
+            raise EvidenceError(
+                f"decoded snapshot bone names disagree with fighter {slot} "
+                f"{layout_id} capture header"
+            )
         _float_list(record.get("root_world_position"), 3, "decoded root position")
         _float_list(record.get("root_world_rotation_xyzw"), 4, "decoded root rotation")
         _float_list(
-            record.get("child_local_rotations_xyzw"), EXPECTED_BONE_COUNT * 4,
+            record.get("child_local_rotations_xyzw"), layout["bone_count"] * 4,
             "decoded child local rotations",
         )
         correlated_raw.append(raw_sequence)
@@ -865,9 +999,21 @@ def validate(path: Path | str) -> dict[str, Any]:
     per_fighter: dict[str, Any] = {}
     for slot, receipts in receipt_by_slot.items():
         intervals = [right - left for left, right in zip(receipts, receipts[1:])]
+        layout_id, layout = bone_layouts[slot]
         per_fighter[str(slot)] = {
             "packets": len(receipts),
             "client_receipt_interval_seconds": _quantiles(intervals),
+            "bone_layout": {
+                "layout_id": layout_id,
+                "bone_count": layout["bone_count"],
+                "wire_body_bytes": layout["body_bytes"],
+                "identity_claimed": True,
+                "runtime_object_name": layout["runtime_object_name"],
+                "identity_basis": (
+                    "exact ordered bone-name layout mapped to the measured "
+                    "scoped Robot GameObject.name in the pinned Windows runtime"
+                ),
+            },
         }
     return {
         "schema": 1,
@@ -899,7 +1045,7 @@ def validate(path: Path | str) -> dict[str, Any]:
             "intended_interval_seconds": 0.02,
             "intended_rate_hz": 50,
             "delivery": "unreliable",
-            "body_bytes": EXPECTED_BODY_BYTES,
+            "body_size_formula_bytes": "2 + 28 * bone_count",
         },
         "server_identity": {
             "endpoint_present": True,

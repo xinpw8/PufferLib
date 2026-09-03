@@ -7,6 +7,7 @@ derives Merkle roots over the result.
 
     python inventory.py --out inventory.json
     python inventory.py --verify inventory.json      # has the build moved?
+    python inventory.py --verify-instrumented inventory.json --overlay-out instrumentation_overlay.json
 
 Three roots, because they answer different questions:
 
@@ -31,9 +32,11 @@ Read-only against the install.
 """
 
 import argparse
+import getpass
 import hashlib
 import json
 import os
+import platform
 import re
 import sys
 import time
@@ -320,26 +323,297 @@ def verify(old_path: Path, root: Path | None) -> int:
     return 1
 
 
+def host_identity() -> dict:
+    """Identity of the host which performed an inventory verification."""
+    return {
+        'hostname': platform.node(),
+        'user': getpass.getuser(),
+        'system': platform.system(),
+        'release': platform.release(),
+        'version': platform.version(),
+        'machine': platform.machine(),
+    }
+
+
+def _inventory_index(files: list[dict], label: str) -> tuple[dict, list[dict]]:
+    """Index manifest records without silently accepting duplicate paths."""
+    indexed = {}
+    violations = []
+    for offset, record in enumerate(files):
+        if not isinstance(record, dict) or not isinstance(record.get('path'), str):
+            violations.append({
+                'type': 'invalid_inventory_record',
+                'source': label,
+                'index': offset,
+            })
+            continue
+        path = record['path']
+        if path in indexed:
+            violations.append({
+                'type': 'duplicate_inventory_path',
+                'source': label,
+                'path': path,
+            })
+            continue
+        indexed[path] = record
+    return indexed, violations
+
+
+def _file_summary(files: list[dict]) -> tuple[dict, int]:
+    by_kind = {}
+    total_bytes = 0
+    for record in files:
+        kind = record.get('kind', 'other')
+        entry = by_kind.setdefault(kind, {'count': 0, 'bytes': 0})
+        entry['count'] += 1
+        size = record.get('size')
+        if isinstance(size, int):
+            entry['bytes'] += size
+            total_bytes += size
+    return dict(sorted(by_kind.items())), total_bytes
+
+
+def verify_instrumented(old_path: Path, root: Path | None,
+                        overlay_out: Path) -> int:
+    """Verify a shipped inventory while recording every subsequently added file.
+
+    The old inventory alone defines the shipped file set and build fingerprint.
+    Every original nonvolatile file must still be readable and byte-identical.
+    Files absent from the old manifest are an instrumentation overlay: they are
+    all hashed, recorded and rooted separately, including volatile files. They
+    never participate in the shipped build fingerprint.
+    """
+    old_path = old_path.resolve()
+    old = json.loads(old_path.read_text(encoding='utf-8'))
+    root = (root or Path(old['install'])).resolve()
+    overlay_out = overlay_out.resolve()
+    try:
+        overlay_out.relative_to(root)
+    except ValueError:
+        pass
+    else:
+        raise ValueError(
+            '--overlay-out must be outside the install: writing it inside the '
+            'tree would change the overlay after it was hashed')
+    new = scan(root)
+
+    old_files, violations = _inventory_index(old.get('files', []), 'base')
+    new_files, new_index_violations = _inventory_index(new.get('files', []), 'observed')
+    violations.extend(new_index_violations)
+
+    old_nonvolatile = {
+        path: record for path, record in old_files.items()
+        if record.get('kind') not in VOLATILE
+    }
+    old_volatile = {
+        path: record for path, record in old_files.items()
+        if record.get('kind') in VOLATILE
+    }
+
+    if old.get('errors'):
+        violations.append({
+            'type': 'base_inventory_has_errors',
+            'count': len(old['errors']),
+        })
+
+    baseline_leaves = []
+    for path, record in sorted(old_nonvolatile.items()):
+        digest = record.get('sha256')
+        if not isinstance(digest, str) or not digest:
+            violations.append({
+                'type': 'base_inventory_unreadable',
+                'path': path,
+            })
+            digest = 'UNREADABLE'
+        baseline_leaves.append((path, digest))
+    recorded_base_root = merkle_root(baseline_leaves)
+    if recorded_base_root != old.get('build_fingerprint'):
+        violations.append({
+            'type': 'base_inventory_fingerprint_mismatch',
+            'recorded': old.get('build_fingerprint'),
+            'recomputed': recorded_base_root,
+        })
+
+    verified_base_files = []
+    observed_base_leaves = []
+    for path, expected in sorted(old_nonvolatile.items()):
+        observed = new_files.get(path)
+        if observed is None:
+            violations.append({'type': 'base_file_removed', 'path': path})
+            observed_base_leaves.append((path, 'MISSING'))
+            verified_base_files.append({
+                'path': path,
+                'kind': expected.get('kind'),
+                'expected_size': expected.get('size'),
+                'expected_sha256': expected.get('sha256'),
+                'observed_size': None,
+                'observed_sha256': None,
+                'state': 'removed',
+            })
+            continue
+
+        observed_digest = observed.get('sha256')
+        observed_base_leaves.append((path, observed_digest or 'UNREADABLE'))
+        state = 'unchanged'
+        if observed_digest != expected.get('sha256'):
+            state = 'changed'
+            violations.append({
+                'type': 'base_file_changed',
+                'path': path,
+                'expected_size': expected.get('size'),
+                'observed_size': observed.get('size'),
+                'expected_sha256': expected.get('sha256'),
+                'observed_sha256': observed_digest,
+            })
+        verified_base_files.append({
+            'path': path,
+            'kind': expected.get('kind'),
+            'expected_size': expected.get('size'),
+            'expected_sha256': expected.get('sha256'),
+            'observed_size': observed.get('size'),
+            'observed_sha256': observed_digest,
+            'state': state,
+        })
+
+    added = [record for path, record in sorted(new_files.items())
+             if path not in old_files]
+    added_paths = {record['path'] for record in added}
+    overlay_errors = [error for error in new.get('errors', [])
+                      if error.get('path') in added_paths]
+    for error in overlay_errors:
+        violations.append({
+            'type': 'overlay_file_unreadable',
+            'path': error.get('path'),
+            'error': error.get('error'),
+        })
+
+    def leaves(group):
+        return ((record['path'], record.get('sha256') or 'UNREADABLE')
+                for record in group)
+
+    overlay_immutable = [record for record in added
+                         if record.get('kind') not in VOLATILE]
+    overlay_behavioural = [record for record in added
+                           if record.get('kind') in BEHAVIOURAL]
+    overlay_roots = {
+        'manifest': merkle_root(leaves(added)),
+        'immutable': merkle_root(leaves(overlay_immutable)),
+        'behavioural': merkle_root(leaves(overlay_behavioural)),
+    }
+    overlay_by_kind, overlay_bytes = _file_summary(added)
+
+    volatile_observations = []
+    for path, expected in sorted(old_volatile.items()):
+        observed = new_files.get(path)
+        volatile_observations.append({
+            'path': path,
+            'kind': expected.get('kind'),
+            'expected_size': expected.get('size'),
+            'expected_sha256': expected.get('sha256'),
+            'observed_size': observed.get('size') if observed else None,
+            'observed_sha256': observed.get('sha256') if observed else None,
+            'state': ('removed' if observed is None else
+                      'unchanged' if observed.get('sha256') == expected.get('sha256')
+                      else 'changed'),
+        })
+
+    artifact = {
+        'schema': 'rek.instrumentation_overlay.v1',
+        'recorded_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+        'status': 'verified' if not violations else 'failed',
+        'host': host_identity(),
+        'install': {
+            'base_recorded_path': old.get('install'),
+            'observed_path': str(root),
+            'base_steam': old.get('steam') or {},
+            'observed_steam': new.get('steam') or {},
+        },
+        'base_inventory': {
+            'path': str(old_path),
+            'sha256': sha256(old_path),
+            'schema': old.get('schema'),
+        },
+        # This remains the immutable fingerprint from the pre-instrumentation
+        # inventory. Overlay files are deliberately absent from this root.
+        'build_fingerprint': old.get('build_fingerprint'),
+        'base': {
+            'required_file_count': len(old_nonvolatile),
+            'verified_file_count': sum(
+                record['state'] == 'unchanged' for record in verified_base_files),
+            'recorded_merkle_root': recorded_base_root,
+            'observed_merkle_root': merkle_root(observed_base_leaves),
+            'files': verified_base_files,
+        },
+        'overlay': {
+            'file_count': len(added),
+            'bytes': overlay_bytes,
+            # The overlay fingerprint covers every addition. The other roots
+            # are diagnostic partitions and never replace the manifest root.
+            'fingerprint': overlay_roots['manifest'],
+            'merkle_roots': overlay_roots,
+            'by_kind': overlay_by_kind,
+            'files': added,
+        },
+        'original_volatile': {
+            'file_count': len(volatile_observations),
+            'files': volatile_observations,
+        },
+        'errors': new.get('errors', []),
+        'violations': violations,
+    }
+
+    overlay_out.parent.mkdir(parents=True, exist_ok=True)
+    overlay_out.write_text(json.dumps(artifact, indent=1), encoding='utf-8')
+
+    print(f'base build fingerprint: {artifact["build_fingerprint"]}')
+    print(f'base files            : {artifact["base"]["verified_file_count"]}/'
+          f'{artifact["base"]["required_file_count"]} unchanged')
+    print(f'overlay files         : {len(added)}')
+    print(f'overlay fingerprint   : {artifact["overlay"]["fingerprint"]}')
+    print(f'overlay artifact      : {overlay_out}')
+    if violations:
+        print(f'instrumented verification FAILED: {len(violations)} violation(s)')
+        for violation in violations:
+            path = violation.get('path')
+            print(f'  {violation["type"]}{f": {path}" if path else ""}')
+        return 1
+    print('instrumented verification passed')
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--path', help='install directory (auto-detected if omitted)')
     ap.add_argument('--appid', default=None, help='Steam appid, for auto-detection')
     ap.add_argument('--out', default='inventory.json', help='where to write the inventory')
-    ap.add_argument('--verify', metavar='INVENTORY',
+    verification = ap.add_mutually_exclusive_group()
+    verification.add_argument('--verify', metavar='INVENTORY',
         help='re-hash the install and report drift against this inventory')
+    verification.add_argument('--verify-instrumented', metavar='INVENTORY',
+        help='verify original shipped files and inventory every added file as an overlay')
+    ap.add_argument('--overlay-out',
+        help='JSON artifact written by --verify-instrumented (required in that mode)')
     args = ap.parse_args()
+
+    if args.verify_instrumented and not args.overlay_out:
+        ap.error('--verify-instrumented requires --overlay-out')
+    if args.overlay_out and not args.verify_instrumented:
+        ap.error('--overlay-out requires --verify-instrumented')
 
     root = None
     if args.path:
         root = Path(args.path)
-    elif not args.verify:
+    elif not args.verify and not args.verify_instrumented:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from install_discovery import find_install, DEFAULT_APPID
         root = find_install(None, args.appid or DEFAULT_APPID)
 
     if args.verify:
         return verify(Path(args.verify), root)
+    if args.verify_instrumented:
+        return verify_instrumented(
+            Path(args.verify_instrumented), root, Path(args.overlay_out))
 
     if not root.is_dir():
         sys.exit(f'{root} is not a directory')

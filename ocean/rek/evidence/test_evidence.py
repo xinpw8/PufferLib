@@ -10,10 +10,12 @@ about whether a clone is faithful — only REK can answer that.
 """
 
 import importlib.util
+import io
 import json
 import subprocess
 import sys
 import tempfile
+from contextlib import redirect_stdout
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -194,6 +196,143 @@ def scanning_reports_progress_and_survives_unreadable_files():
     assert all(isinstance(n, int) for n, _ in seen)
     # Everything else still hashed.
     assert any(f['path'] == 'GameAssembly.dll' for f in inv['files'])
+
+
+@check
+def instrumented_verification_separates_every_added_file_from_the_build():
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        game = fake_install(root)
+        base = inventory.scan(game)
+        base_path = root / 'base-inventory.json'
+        overlay_path = root / 'instrumentation-overlay.json'
+        base_path.write_text(json.dumps(base), encoding='utf-8')
+
+        plugin = game / 'BepInEx' / 'plugins' / 'Recorder.dll'
+        plugin.parent.mkdir(parents=True)
+        plugin.write_bytes(b'instrumentation')
+        added_log = game / 'BepInEx' / 'LogOutput.log'
+        added_log.write_text('runtime output', encoding='utf-8')
+
+        # The ordinary verifier retains its strict build-tree semantics: the
+        # added nonvolatile DLL moves the immutable build root.
+        with redirect_stdout(io.StringIO()):
+            assert inventory.verify(base_path, game) == 1
+
+        with redirect_stdout(io.StringIO()):
+            assert inventory.verify_instrumented(
+                base_path, game, overlay_path) == 0
+
+        result = json.loads(overlay_path.read_text(encoding='utf-8'))
+        assert result['schema'] == 'rek.instrumentation_overlay.v1'
+        assert result['status'] == 'verified'
+        assert result['build_fingerprint'] == base['build_fingerprint']
+        assert result['base']['recorded_merkle_root'] == base['build_fingerprint']
+        assert result['base']['observed_merkle_root'] == base['build_fingerprint']
+        assert result['base']['verified_file_count'] == base['immutable_file_count']
+        assert result['violations'] == []
+
+        additions = {record['path']: record for record in result['overlay']['files']}
+        assert set(additions) == {
+            'BepInEx/LogOutput.log',
+            'BepInEx/plugins/Recorder.dll',
+        }
+        assert additions['BepInEx/LogOutput.log']['kind'] == 'volatile'
+        assert additions['BepInEx/plugins/Recorder.dll']['kind'] == 'native_plugin'
+        assert all(record['size'] is not None and record['sha256']
+                   for record in additions.values())
+        assert result['overlay']['fingerprint'] == \
+            result['overlay']['merkle_roots']['manifest']
+        assert result['overlay']['fingerprint'] == inventory.merkle_root(
+            (path, record['sha256']) for path, record in additions.items())
+        assert result['host']['hostname']
+        assert result['host']['machine']
+        assert result['install']['base_recorded_path'] == str(game)
+        assert result['install']['observed_path'] == str(game.resolve())
+
+
+@check
+def instrumented_verification_rejects_changed_and_removed_base_files():
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        game = fake_install(root)
+        base = inventory.scan(game)
+        base_path = root / 'base-inventory.json'
+        overlay_path = root / 'instrumentation-overlay.json'
+        base_path.write_text(json.dumps(base), encoding='utf-8')
+
+        (game / 'GameAssembly.dll').write_bytes(b'changed')
+        (game / 'UnityPlayer.dll').unlink()
+        (game / 'BepInEx' / 'plugins').mkdir(parents=True)
+        (game / 'BepInEx' / 'plugins' / 'Recorder.dll').write_bytes(b'overlay')
+
+        with redirect_stdout(io.StringIO()):
+            assert inventory.verify_instrumented(
+                base_path, game, overlay_path) == 1
+
+        result = json.loads(overlay_path.read_text(encoding='utf-8'))
+        assert result['status'] == 'failed'
+        violations = {(entry['type'], entry.get('path'))
+                      for entry in result['violations']}
+        assert ('base_file_changed', 'GameAssembly.dll') in violations
+        assert ('base_file_removed', 'UnityPlayer.dll') in violations
+        assert result['base']['observed_merkle_root'] != base['build_fingerprint']
+        assert [record['path'] for record in result['overlay']['files']] == [
+            'BepInEx/plugins/Recorder.dll']
+
+
+@check
+def instrumented_verification_fails_on_an_unreadable_addition():
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        game = fake_install(root)
+        base = inventory.scan(game)
+        base_path = root / 'base-inventory.json'
+        overlay_path = root / 'instrumentation-overlay.json'
+        base_path.write_text(json.dumps(base), encoding='utf-8')
+        plugin = game / 'BepInEx' / 'plugins' / 'Recorder.dll'
+        plugin.parent.mkdir(parents=True)
+        plugin.write_bytes(b'instrumentation')
+
+        real = inventory.sha256
+
+        def refusing(path):
+            if path.name == 'Recorder.dll':
+                raise PermissionError(32, 'file in use by another process')
+            return real(path)
+
+        inventory.sha256 = refusing
+        try:
+            with redirect_stdout(io.StringIO()):
+                assert inventory.verify_instrumented(
+                    base_path, game, overlay_path) == 1
+        finally:
+            inventory.sha256 = real
+
+        result = json.loads(overlay_path.read_text(encoding='utf-8'))
+        assert result['status'] == 'failed'
+        assert result['errors'][0]['path'] == 'BepInEx/plugins/Recorder.dll'
+        assert any(entry['type'] == 'overlay_file_unreadable'
+                   for entry in result['violations'])
+        assert result['overlay']['files'][0]['unreadable'] is True
+        assert result['overlay']['files'][0]['sha256'] is None
+
+
+@check
+def instrumented_overlay_artifact_cannot_mutate_the_tree_it_describes():
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        game = fake_install(root)
+        base_path = root / 'base-inventory.json'
+        base_path.write_text(json.dumps(inventory.scan(game)), encoding='utf-8')
+
+        try:
+            inventory.verify_instrumented(
+                base_path, game, game / 'instrumentation-overlay.json')
+        except ValueError as exc:
+            assert 'outside the install' in str(exc), exc
+        else:
+            raise AssertionError('overlay artifact was written into the scanned tree')
 
 @check
 def a_merkle_root_is_order_independent_and_content_sensitive():
@@ -436,6 +575,64 @@ def baseline_measures_reks_spread_and_compare_gates_on_it():
         report = json.loads((d / 'bad.json').read_text())
         assert 'root_x' in report['failures'] and 'event:hit' in report['failures']
         assert report['first_divergent_tick'] is not None
+
+
+@check
+def baseline_refuses_rek_runs_sampled_at_different_fixed_substep_phases():
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        for index, phase in enumerate((2, 2, 3)):
+            channels = ['root_x']
+            with trace_mod.TraceWriter(
+                    d / f'r{index}.trace', channels, 'fp0', 'rek',
+                    provenance=_prov(channels, 'rek'),
+                    command_sample_phase_substeps=phase) as writer:
+                writer.append(0, {'root_x': 0.0})
+                writer.append(1, {'root_x': 0.0})
+
+        p = _run(
+            ['baseline', 'r0.trace', 'r1.trace', 'r2.trace',
+             '--out', 'env.json'], d)
+        assert p.returncode != 0, p.stdout + p.stderr
+        assert 'different fixed-substep phases' in p.stderr
+        assert not (d / 'env.json').exists()
+
+
+@check
+def compare_requires_the_clone_to_reproduce_the_envelope_sample_phase():
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        sequence_schema = check_artifacts.COMMAND_SEQUENCE_SCHEMA
+        sequence_hash = 'a' * 64
+        for index in range(3):
+            channels = ['root_x']
+            with trace_mod.TraceWriter(
+                    d / f'r{index}.trace', channels, 'fp0', 'rek',
+                    provenance=_prov(channels, 'rek'),
+                    command_sequence_schema=sequence_schema,
+                    command_sequence_sha256=sequence_hash,
+                    command_sample_phase_substeps=2) as writer:
+                writer.append(0, {'root_x': 0.0})
+                writer.append(1, {'root_x': 0.0})
+        p = _run(
+            ['baseline', 'r0.trace', 'r1.trace', 'r2.trace',
+             '--out', 'env.json'], d)
+        assert p.returncode == 0, p.stdout + p.stderr
+
+        channels = ['root_x']
+        with trace_mod.TraceWriter(
+                d / 'clone.trace', channels, 'fp0', 'clone:test',
+                command_sequence_schema=sequence_schema,
+                command_sequence_sha256=sequence_hash,
+                command_sample_phase_substeps=3) as writer:
+            writer.append(0, {'root_x': 0.0})
+            writer.append(1, {'root_x': 0.0})
+        p = _run(
+            ['compare', 'r0.trace', 'clone.trace', '--envelope', 'env.json',
+             '--report', 'report.json'], d)
+        assert p.returncode != 0, p.stdout + p.stderr
+        assert 'did not reproduce the envelope command sample phase' in p.stderr
+        assert not (d / 'report.json').exists()
 
 
 @check
@@ -1509,6 +1706,34 @@ def two_rek_runs_are_not_enough_for_an_envelope():
         assert _states(results)['REK traces'] == 'INCOMPLETE', results
         assert 'at least 3' in [r for r in results
                                 if r['artifact'] == 'REK traces'][0]['detail']
+
+
+@check
+def the_gate_rejects_rek_repeats_sampled_at_different_fixed_substep_phases():
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        pairing = {
+            'required_pairing': 't800_vs_t800',
+            'local_fighter': {'semantic_robot_id': 't800'},
+            'opponent_fighter': {'semantic_robot_id': 't800'},
+        }
+        for index, phase in enumerate((2, 2, 3)):
+            channels = ['root_x']
+            with trace_mod.TraceWriter(
+                    d / f'r{index}.trace', channels, 'fp0', 'rek',
+                    authority='local', provenance=_prov(channels, 'rek'),
+                    command_sequence_schema=check_artifacts.COMMAND_SEQUENCE_SCHEMA,
+                    command_sequence_sha256='a' * 64,
+                    fighter_pairing=pairing,
+                    command_sample_phase_substeps=phase) as writer:
+                writer.append(0, {'root_x': 0.0})
+                writer.append(1, {'root_x': 0.0})
+
+        results = check_artifacts.check(d)
+        trace_result = next(
+            result for result in results if result['artifact'] == 'REK traces')
+        assert trace_result['state'] == 'INCOMPLETE', results
+        assert 'different fixed-substep phases' in trace_result['detail']
 
 
 @check

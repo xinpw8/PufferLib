@@ -10,8 +10,76 @@ from pathlib import Path
 import raw_bone_validate
 
 
-def bone_names():
-    return [f"bone_{index:02d}" for index in range(26)]
+PINNED_TEST_LAYOUTS = {
+    "t800_26": (
+        "LINK_BASE",
+        "LINK_HIP_PITCH_L",
+        "LINK_HIP_ROLL_L",
+        "LINK_HIP_YAW_L",
+        "LINK_KNEE_PITCH_L",
+        "LINK_ANKLE_PITCH_L",
+        "LINK_ANKLE_ROLL_L",
+        "LINK_HIP_PITCH_R",
+        "LINK_HIP_ROLL_R",
+        "LINK_HIP_YAW_R",
+        "LINK_KNEE_PITCH_R",
+        "LINK_ANKLE_PITCH_R",
+        "LINK_ANKLE_ROLL_R",
+        "LINK_WAIST_YAW",
+        "LINK_SHOULDER_PITCH_L",
+        "LINK_SHOULDER_ROLL_L",
+        "LINK_SHOULDER_YAW_L",
+        "LINK_ELBOW_PITCH_L",
+        "LINK_ELBOW_YAW_L",
+        "LINK_SHOULDER_PITCH_R",
+        "LINK_SHOULDER_ROLL_R",
+        "LINK_SHOULDER_YAW_R",
+        "LINK_ELBOW_PITCH_R",
+        "LINK_ELBOW_YAW_R",
+        "LINK_HEAD_PITCH",
+        "LINK_HEAD_YAW",
+    ),
+    "g1_30": (
+        "pelvis",
+        "left_hip_pitch_link",
+        "left_hip_roll_link",
+        "left_hip_yaw_link",
+        "left_knee_link",
+        "left_ankle_pitch_link",
+        "left_ankle_roll_link",
+        "right_hip_pitch_link",
+        "right_hip_roll_link",
+        "right_hip_yaw_link",
+        "right_knee_link",
+        "right_ankle_pitch_link",
+        "right_ankle_roll_link",
+        "waist_yaw_link",
+        "waist_roll_link",
+        "torso_link",
+        "left_shoulder_pitch_link",
+        "left_shoulder_roll_link",
+        "left_shoulder_yaw_link",
+        "left_elbow_link",
+        "left_wrist_roll_link",
+        "left_wrist_pitch_link",
+        "left_wrist_yaw_link",
+        "right_shoulder_pitch_link",
+        "right_shoulder_roll_link",
+        "right_shoulder_yaw_link",
+        "right_elbow_link",
+        "right_wrist_roll_link",
+        "right_wrist_pitch_link",
+        "right_wrist_yaw_link",
+    ),
+}
+
+
+def bone_names(layout_id="t800_26"):
+    return list(PINNED_TEST_LAYOUTS[layout_id])
+
+
+def bone_count(layout_id="t800_26"):
+    return len(PINNED_TEST_LAYOUTS[layout_id])
 
 
 def encoded_body(body):
@@ -99,11 +167,12 @@ def invocation_request(method, sequence, timestamp):
     }
 
 
-def raw_packet(sequence, slot, receipt):
-    body = bytearray((slot, 26))
+def raw_packet(sequence, slot, receipt, layout_id="t800_26"):
+    count = bone_count(layout_id)
+    body = bytearray((slot, count))
     positions = []
     rotations = []
-    for index in range(26):
+    for index in range(count):
         values = (
             float(slot + index), float(index) / 10.0, -float(index),
             0.0, 0.0, 0.0, 1.0,
@@ -123,9 +192,9 @@ def raw_packet(sequence, slot, receipt):
         "monotonic_receipt_time": receipt,
         "fighter_slot": slot,
         "network_index": slot,
-        "bone_count": 26,
+        "bone_count": count,
         **encoded_body(encoded),
-        "bone_names": bone_names(),
+        "bone_names": bone_names(layout_id),
         "world_positions_xyz": positions,
         "world_rotations_xyzw": rotations,
         "intended_wire_interval_seconds": 0.02,
@@ -136,7 +205,7 @@ def raw_packet(sequence, slot, receipt):
     }
 
 
-def decoded_snapshot(sequence, slot, receipt):
+def decoded_snapshot(sequence, slot, receipt, layout_id="t800_26"):
     return {
         "event": "decoded_bone_snapshot",
         "bone_snapshot_sequence": sequence,
@@ -153,8 +222,11 @@ def decoded_snapshot(sequence, slot, receipt):
         "snapshot_received_at_client_time": receipt,
         "root_world_position": [float(slot), 0.0, 0.0],
         "root_world_rotation_xyzw": [0.0, 0.0, 0.0, 1.0],
-        "child_local_rotations_xyzw": [0.0, 0.0, 0.0, 1.0] * 26,
-        "bone_names": bone_names(),
+        "child_local_rotations_xyzw": (
+            [0.0, 0.0, 0.0, 1.0]
+            * bone_count(layout_id)
+        ),
+        "bone_names": bone_names(layout_id),
         "provenance": "fixture",
         "semantic_limit": "fixture",
     }
@@ -290,7 +362,7 @@ def hit_packet(protocol_sequence=3, type_sequence=1, receipt=3.02):
     }
 
 
-def fixture():
+def fixture(fighter_layouts=("t800_26", "t800_26")):
     targets = {
         "REKApp.RobotInputController.SendVelocityCommand": True,
         "REKApp.RobotInputController.SendMoveEvent": True,
@@ -342,8 +414,8 @@ def fixture():
             "fighter_1_visual_only": True,
             "sparring_bot_number": 1,
         },
-        "fighter_0_bones": bone_names(),
-        "fighter_1_bones": bone_names(),
+        "fighter_0_bones": bone_names(fighter_layouts[0]),
+        "fighter_1_bones": bone_names(fighter_layouts[1]),
     }
     return [
         start,
@@ -352,15 +424,15 @@ def fixture():
         move_request(),
         invocation_request("SendSpecialEvent", 3, 0.30),
         invocation_request("SendEStopToggle", 4, 0.40),
-        raw_packet(1, 0, 2.00),
-        decoded_snapshot(1, 0, 2.00),
+        raw_packet(1, 0, 2.00, fighter_layouts[0]),
+        decoded_snapshot(1, 0, 2.00, fighter_layouts[0]),
         fight_state_packet(),
         fight_state_snapshot(),
         score_packet(),
         hit_packet(),
         {"event": "sample", "sample_index": 1, "client_fixed_tick": 10},
-        raw_packet(2, 1, 3.03),
-        decoded_snapshot(2, 1, 3.03),
+        raw_packet(2, 1, 3.03, fighter_layouts[1]),
+        decoded_snapshot(2, 1, 3.03, fighter_layouts[1]),
         {
             "event": "capture_end",
             "sample_count": 2,
@@ -431,6 +503,168 @@ class RawBoneValidateTests(unittest.TestCase):
         self.assertFalse(report["claims"]["client_send_frame_observed"])
         self.assertFalse(report["server_identity"]["raw_session_identity_recorded"])
 
+    def test_pinned_wire_layout_contracts(self):
+        self.assertEqual(
+            raw_bone_validate.T800_BONE_NAMES, PINNED_TEST_LAYOUTS["t800_26"]
+        )
+        self.assertEqual(raw_bone_validate.G1_BONE_NAMES, PINNED_TEST_LAYOUTS["g1_30"])
+        self.assertEqual(raw_bone_validate.T800_BONE_COUNT, 26)
+        self.assertEqual(raw_bone_validate.T800_BODY_BYTES, 730)
+        self.assertEqual(raw_bone_validate.G1_BONE_COUNT, 30)
+        self.assertEqual(raw_bone_validate.G1_BODY_BYTES, 842)
+
+    def test_validates_t800_26_layout_with_measured_runtime_object_mapping(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_fixture(Path(directory), fixture())
+            report = raw_bone_validate.validate(path)
+        for fighter in report["fighters"].values():
+            self.assertEqual(fighter["bone_layout"]["layout_id"], "t800_26")
+            self.assertEqual(fighter["bone_layout"]["bone_count"], 26)
+            self.assertEqual(fighter["bone_layout"]["wire_body_bytes"], 730)
+            self.assertTrue(fighter["bone_layout"]["identity_claimed"])
+            self.assertEqual(
+                fighter["bone_layout"]["runtime_object_name"],
+                "engineai_t800_FactoryPolicy(Clone)",
+            )
+            self.assertIn("measured", fighter["bone_layout"]["identity_basis"])
+
+    def test_validates_g1_30_layout_with_measured_runtime_object_mapping(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_fixture(
+                Path(directory), fixture(("g1_30", "g1_30"))
+            )
+            report = raw_bone_validate.validate(path)
+        for fighter in report["fighters"].values():
+            self.assertEqual(fighter["bone_layout"]["layout_id"], "g1_30")
+            self.assertEqual(fighter["bone_layout"]["bone_count"], 30)
+            self.assertEqual(fighter["bone_layout"]["wire_body_bytes"], 842)
+            self.assertTrue(fighter["bone_layout"]["identity_claimed"])
+            self.assertEqual(
+                fighter["bone_layout"]["runtime_object_name"],
+                "g1_29dof_Prefab_SONIC(Clone)",
+            )
+            self.assertIn("measured", fighter["bone_layout"]["identity_basis"])
+
+    def test_validates_mixed_26_and_30_layouts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_fixture(
+                Path(directory), fixture(("t800_26", "g1_30"))
+            )
+            report = raw_bone_validate.validate(path)
+        self.assertEqual(
+            report["fighters"]["0"]["bone_layout"]["layout_id"], "t800_26"
+        )
+        self.assertEqual(
+            report["fighters"]["1"]["bone_layout"]["layout_id"], "g1_30"
+        )
+
+    def test_accepts_json_decimal_that_round_trips_to_same_float32(self):
+        records = fixture()
+        packet = event(records, "raw_bone_packet")
+        self.assertNotEqual(packet["world_positions_xyz"][4], 0.1)
+        packet["world_positions_xyz"][4] = 0.1
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_fixture(Path(directory), records)
+            raw_bone_validate.validate(path)
+
+    def test_accepts_shortest_decimal_for_fight_state_float32(self):
+        records = fixture()
+        packet = event(records, "raw_fight_state_packet")
+        body = bytearray(base64.b64decode(packet["wire_body_base64"]))
+        struct.pack_into("<f", body, 4, 119.83323)
+        packet.update(encoded_body(bytes(body)))
+        packet["decoded"]["time_remaining"] = 119.83323
+        self.assertNotEqual(
+            packet["decoded"]["time_remaining"], struct.unpack_from("<f", body, 4)[0]
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.write_fixture(Path(directory), records)
+            raw_bone_validate.validate(path)
+
+    def test_preserves_system_text_json_integer_negative_zero(self):
+        records = fixture()
+        encoded = "".join(
+            json.dumps(record, separators=(",", ":")) + "\n" for record in records
+        )
+        self.assertIn("-0.0", encoded)
+        encoded = encoded.replace("-0.0", "-0", 1)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture.jsonl"
+            path.write_text(encoded, encoding="utf-8")
+            raw_bone_validate.validate(path)
+
+    def test_rejects_lost_negative_zero_sign(self):
+        records = fixture()
+        encoded = "".join(
+            json.dumps(record, separators=(",", ":")) + "\n" for record in records
+        )
+        self.assertIn("-0.0", encoded)
+        encoded = encoded.replace("-0.0", "0", 1)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture.jsonl"
+            path.write_text(encoded, encoding="utf-8")
+            with self.assertRaisesRegex(
+                raw_bone_validate.EvidenceError, "decoded transforms disagree with body"
+            ):
+                raw_bone_validate.validate(path)
+
+    def test_rejects_json_decimal_that_maps_to_different_float32(self):
+        records = fixture()
+        event(records, "raw_fight_state_packet")["decoded"][
+            "time_remaining"
+        ] += 0.001
+        self.assert_rejected(records, "authoritative wire float32")
+
+    def test_rejects_unknown_header_layout(self):
+        records = fixture()
+        records[0]["fighter_0_bones"] = [f"unknown_{index}" for index in range(30)]
+        self.assert_rejected(records, "does not match a pinned bone layout")
+
+    def test_rejects_packet_layout_mismatched_to_fighter_header(self):
+        records = fixture()
+        packet_index = records.index(event(records, "raw_bone_packet"))
+        records[packet_index] = raw_packet(1, 0, 2.00, "g1_30")
+        self.assert_rejected(records, "has 30 bones.*declares t800_26 with 26")
+
+    def test_rejects_packet_name_order_mismatched_to_fighter_header(self):
+        records = fixture(("t800_26", "g1_30"))
+        packet = event(records, "raw_bone_packet")
+        packet["bone_names"][0], packet["bone_names"][1] = (
+            packet["bone_names"][1], packet["bone_names"][0]
+        )
+        self.assert_rejected(records, "raw packet 1 bone names disagree")
+
+    def test_rejects_packet_body_length_mismatched_to_layout(self):
+        records = fixture(("t800_26", "g1_30"))
+        packet = event(records, "raw_bone_packet")
+        body = base64.b64decode(packet["wire_body_base64"]) + bytes(28)
+        packet.update(encoded_body(body))
+        self.assert_rejected(records, "raw bone packet 1 byte count is not 730")
+
+    def test_rejects_packet_coordinate_length_mismatched_to_layout(self):
+        records = fixture(("t800_26", "g1_30"))
+        event(records, "raw_bone_packet")["world_positions_xyz"].extend(
+            [0.0, 0.0, 0.0]
+        )
+        self.assert_rejected(
+            records, "raw packet 1 world positions must contain exactly 78 values"
+        )
+
+    def test_rejects_decoded_layout_mismatched_to_fighter_header(self):
+        records = fixture()
+        snapshot = event(records, "decoded_bone_snapshot")
+        snapshot["bone_names"] = bone_names("g1_30")
+        snapshot["child_local_rotations_xyzw"] = [0.0, 0.0, 0.0, 1.0] * 30
+        self.assert_rejected(records, "decoded snapshot bone names disagree")
+
+    def test_rejects_decoded_coordinate_length_mismatch(self):
+        records = fixture(("t800_26", "g1_30"))
+        snapshot = event(records, "decoded_bone_snapshot")
+        snapshot["child_local_rotations_xyzw"].extend([0.0, 0.0, 0.0, 1.0])
+        self.assert_rejected(
+            records, "decoded child local rotations must contain exactly 104 values"
+        )
+
     def test_rejects_wrong_recorder_schema(self):
         records = fixture()
         records[0]["schema"] = "rek.private_ai.raw_snapshot.v4"
@@ -446,7 +680,7 @@ class RawBoneValidateTests(unittest.TestCase):
         event(records, "outbound_request_projection", "REK_Input")[
             "velocity_command_xyz"
         ][0] += 1.0
-        self.assert_rejected(records, "REK_Input body disagrees")
+        self.assert_rejected(records, "velocity\\[0\\].*authoritative wire float32")
 
     def test_rejects_input_bit_pattern_drift(self):
         records = fixture()
@@ -513,7 +747,7 @@ class RawBoneValidateTests(unittest.TestCase):
     def test_rejects_hit_decoded_drift(self):
         records = fixture()
         event(records, "raw_hit_packet")["decoded"]["relative_speed"] += 0.5
-        self.assert_rejected(records, "relative_speed.*audited decoder")
+        self.assert_rejected(records, "relative_speed.*authoritative wire float32")
 
     def test_rejects_raw_protocol_sequence_drift(self):
         records = fixture()

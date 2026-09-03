@@ -15,6 +15,8 @@ UNITY_FIXED_RATE_HZ = 500
 SCHEDULE_RATE_HZ = 50
 FIXED_SUBSTEPS_PER_TICK = 10
 DURATION_TICKS = 2601
+EXPECTED_SHA256 = (
+    '39aaab9c3156e8f4d114daac4d4328257b81230ec8b8a372ad2739d38754ec0d')
 EXPECTED_MOVES = (
     (900, 2),
     (1100, 3),
@@ -170,9 +172,12 @@ def validate_manifest(path):
     if tuple(observed_segments) != EXPECTED_VELOCITY_SEGMENTS:
         raise ValueError('schedule manifest velocity segment list mismatch')
 
+    digest = canonical_sha256(document)
+    if digest != EXPECTED_SHA256:
+        raise ValueError('schedule manifest canonical SHA-256 is not the pinned contract')
     return {
         'document': document,
-        'sha256': canonical_sha256(document),
+        'sha256': digest,
         'path': str(Path(path).resolve()),
     }
 
@@ -210,11 +215,16 @@ def _schedule_identity(record, label, manifest):
     return run_id
 
 
-def validate_control_log(path, manifest):
+def validate_control_log(path, manifest, unity_fixed_window=None):
     records = _read_jsonl(path)
     schedule_records = [
         record for record in records
-        if record.get('event') in {'schedule_step', 'schedule_end'}
+        if record.get('event') in {
+            'schedule_step',
+            'schedule_move_send_invoked',
+            'schedule_move_send_completed',
+            'schedule_end',
+        }
     ]
     if not schedule_records:
         raise ValueError('control log has no schedule records')
@@ -223,15 +233,64 @@ def validate_control_log(path, manifest):
         _schedule_identity(record, 'control schedule record', manifest)
         for record in schedule_records
     }
-    if len(run_ids) != 1:
-        raise ValueError('control log contains more than one schedule run')
-    run_id = next(iter(run_ids))
+    if unity_fixed_window is None:
+        if len(run_ids) != 1:
+            raise ValueError('control log contains more than one schedule run')
+        run_id = next(iter(run_ids))
+    else:
+        if (not isinstance(unity_fixed_window, tuple) or
+                len(unity_fixed_window) != 2):
+            raise ValueError('control-log Unity fixed-time window is malformed')
+        window_start = _number(unity_fixed_window[0], 'control window start')
+        window_end = _number(unity_fixed_window[1], 'control window end')
+        if window_end < window_start:
+            raise ValueError('control-log Unity fixed-time window is reversed')
+        candidates = []
+        for candidate_run_id in run_ids:
+            run_records = [
+                record for record in schedule_records
+                if record.get('schedule_run_id') == candidate_run_id
+            ]
+            first_steps = [
+                record for record in run_records
+                if record.get('event') == 'schedule_step' and
+                record.get('schedule_tick') == 0
+            ]
+            complete_ends = [
+                record for record in run_records
+                if record.get('event') == 'schedule_end' and
+                record.get('complete') is True and
+                record.get('reason') == 'complete'
+            ]
+            if len(first_steps) != 1 or len(complete_ends) != 1:
+                continue
+            candidate_start = _number(
+                first_steps[0].get('unity_fixed_time'),
+                f'control run {candidate_run_id} start fixed time')
+            candidate_end = _number(
+                complete_ends[0].get('unity_fixed_time'),
+                f'control run {candidate_run_id} end fixed time')
+            if (window_start - 1e-4 <= candidate_start and
+                    candidate_end <= window_end + 1e-4):
+                candidates.append(candidate_run_id)
+        if len(candidates) != 1:
+            raise ValueError(
+                'control log does not identify exactly one completed schedule '
+                f'run inside the raw capture window: found {len(candidates)}')
+        run_id = candidates[0]
+
+    schedule_records = [
+        record for record in schedule_records
+        if record.get('schedule_run_id') == run_id
+    ]
     steps = [record for record in schedule_records
              if record.get('event') == 'schedule_step']
     ends = [record for record in schedule_records
             if record.get('event') == 'schedule_end']
     if len(ends) != 1:
         raise ValueError(f'expected one schedule_end, found {len(ends)}')
+    if schedule_records[-1].get('event') != 'schedule_end':
+        raise ValueError('control log has a schedule step after schedule_end')
 
     expected_steps = _expected_steps()
     if len(steps) != len(expected_steps):
@@ -281,18 +340,48 @@ def validate_control_log(path, manifest):
     if tuple(accepted_moves) != EXPECTED_MOVES:
         raise ValueError('control log does not contain exactly eight accepted moves')
 
+    for event_name in ('schedule_move_send_invoked',
+                       'schedule_move_send_completed'):
+        sends = [record for record in schedule_records
+                 if record.get('event') == event_name]
+        if len(sends) != len(EXPECTED_MOVES):
+            raise ValueError(
+                f'control log does not contain exactly eight {event_name} events')
+        for index, (record, (tick, move_index)) in enumerate(
+                zip(sends, EXPECTED_MOVES)):
+            label = f'{event_name} {index}'
+            if _integer(record.get('schedule_tick'), f'{label} tick') != tick:
+                raise ValueError(f'{label} schedule tick mismatch')
+            if _integer(record.get('move_index'), f'{label} move') != move_index:
+                raise ValueError(f'{label} move index mismatch')
+            if record.get('pending_move_readback') is not True:
+                raise ValueError(f'{label} did not observe an armed pending move')
+            if _integer(
+                    record.get('pending_move_index_readback'),
+                    f'{label} pending move readback') != move_index:
+                raise ValueError(f'{label} pending move readback mismatch')
+            if record.get('server_acceptance_observed') is not False:
+                raise ValueError(f'{label} claims server acceptance')
+
     end = ends[0]
     if end.get('complete') is not True or end.get('reason') != 'complete':
         raise ValueError('control schedule does not have a successful complete marker')
     if _integer(end.get('schedule_tick'), 'schedule end tick') != DURATION_TICKS - 1:
         raise ValueError('control schedule ended at the wrong schedule tick')
+    final_completed_substep = DURATION_TICKS * FIXED_SUBSTEPS_PER_TICK - 1
     if _integer(end.get('client_fixed_substep'), 'schedule end substep') != (
-            (DURATION_TICKS - 1) * FIXED_SUBSTEPS_PER_TICK):
+            final_completed_substep):
         raise ValueError('control schedule ended at the wrong fixed substep')
+    if _integer(
+            end.get('move_send_completed_count'),
+            'schedule end completed-move count') != len(EXPECTED_MOVES):
+        raise ValueError('control schedule did not complete exactly eight move sends')
+    if end.get('final_neutral_send_observed') is not True:
+        raise ValueError('control schedule did not observe its final neutral send')
     if end.get('server_acceptance_observed') is not False:
         raise ValueError('control schedule end claims server acceptance')
     end_time = _number(end.get('unity_fixed_time'), 'schedule end fixed time')
-    expected_end_time = start_time + (DURATION_TICKS - 1) / SCHEDULE_RATE_HZ
+    expected_end_time = start_time + final_completed_substep / UNITY_FIXED_RATE_HZ
     if not math.isclose(end_time, expected_end_time, rel_tol=0.0, abs_tol=1e-4):
         raise ValueError('control schedule end fixed time does not match duration')
 
@@ -305,18 +394,55 @@ def validate_control_log(path, manifest):
         if (control.get('schedule_run_id') == run_id and
                 control.get('schedule_running') is True):
             matching_states.append(record)
-    if matching_states:
-        for record in matching_states:
-            build = record.get('build') or {}
-            private_ai = record.get('private_ai') or {}
-            if (str(build.get('game_assembly_sha256', '')).lower() !=
-                    '6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412'):
-                raise ValueError('control state GameAssembly hash mismatch')
-            if (str(build.get('global_metadata_sha256', '')).lower() !=
-                    'e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd'):
-                raise ValueError('control state metadata hash mismatch')
-            if private_ai.get('active_gameplay_proven') is not True:
-                raise ValueError('control state does not prove active private Bot 1 gameplay')
+    if not matching_states:
+        raise ValueError(
+            'control log has no state proving the active controlled schedule run')
+    required_private_scope = {
+        'proven': True,
+        'active_gameplay_proven': True,
+        'network_client_only': True,
+        'context_is_solo': True,
+        'opponent_is_ai': True,
+        'opponent_slot_is_ai': True,
+        'human_in_opponent_slot': False,
+        'opponent_slot_client_known': True,
+        'opponent_slot_has_client': False,
+        'opponent_human_bit_set': False,
+        'sparring_bot_number': 1,
+        'exact_sparring_bot_1': True,
+        'client_visual_only_fighter_pair': True,
+        'round_active': True,
+    }
+    for record in matching_states:
+        if record.get('protocol') != 'rek.ui_bridge.v1':
+            raise ValueError('control state bridge protocol mismatch')
+        build = record.get('build') or {}
+        private_ai = record.get('private_ai') or {}
+        state_control = record.get('control') or {}
+        if (str(build.get('game_assembly_sha256', '')).lower() !=
+                '6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412'):
+            raise ValueError('control state GameAssembly hash mismatch')
+        if (str(build.get('global_metadata_sha256', '')).lower() !=
+                'e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd'):
+            raise ValueError('control state metadata hash mismatch')
+        wrong_private_scope = {
+            name: {'expected': expected, 'observed': private_ai.get(name)}
+            for name, expected in required_private_scope.items()
+            if private_ai.get(name) is not expected
+        }
+        if wrong_private_scope:
+            raise ValueError(
+                'control state does not prove exact active private Bot 1 '
+                f'gameplay: {wrong_private_scope}')
+        if state_control.get('schedule_id') != SCHEDULE_ID:
+            raise ValueError('control state schedule id mismatch')
+        if state_control.get('command_sequence_schema') != SCHEMA:
+            raise ValueError('control state command sequence schema mismatch')
+        if state_control.get('command_sequence_sha256') != manifest['sha256']:
+            raise ValueError('control state schedule SHA-256 mismatch')
+        if (state_control.get('fixed_substeps_per_schedule_tick') !=
+                FIXED_SUBSTEPS_PER_TICK):
+            raise ValueError('control state fixed-substep ratio mismatch')
 
     return {
         'path': str(Path(path).resolve()),

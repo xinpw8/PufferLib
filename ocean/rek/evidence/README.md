@@ -300,12 +300,20 @@ velocity commands and discrete move, special, and emergency-stop invocation
 timing. Missing discrete action identity fails closed. Older imported traces do
 not satisfy this schema and cannot establish a repeat envelope.
 
-The staged v0.5.0 recorder adds a separate primary-evidence stream at the
+The staged v0.5.1 recorder adds a separate primary-evidence stream at the
 client protocol boundary. Prefixes copy `FastBufferReader` bytes without
 advancing the reader. For each `REK_Bones` packet it preserves the two-byte
-header and all 26 transmitted world positions and rotations; a postfix binds
-that body to the decoded snapshot ring entry. The native sender sets an
-intended interval of `0.02 s`, equivalent to 50 Hz, using unreliable delivery.
+header and every transmitted world position and rotation; a postfix binds that
+body to the decoded snapshot ring entry. The validator recognizes only the
+exact ordered `t800_26` and `g1_30` layouts, whose bodies are 730 and 842 bytes
+respectively. The mapping is measured from the scoped runtime objects:
+`engineai_t800_FactoryPolicy(Clone)` carries the 26-name `LINK_*` sequence, and
+`g1_29dof_Prefab_SONIC(Clone)` carries the 30-name `pelvis` through
+`right_wrist_yaw_link` sequence. Recorder v0.5.1's capture-level
+`t800_bone_count=30` and `t800_body_bytes=842` fields are known mislabels. The
+validator checks them only as pinned v0.5.1 format literals and never uses them
+for fighter classification. The native sender sets an intended interval of
+`0.02 s`, equivalent to 50 Hz, using unreliable delivery.
 
 The same recorder preserves raw `REK_FightState` (33 bytes, reliable, nominal
 10 Hz), `REK_Score` (7 bytes, reliable), and `REK_Hit` (29 bytes, unreliable)
@@ -331,14 +339,14 @@ Validate a finalized v5 JSONL capture before any importer or model consumes it:
 python raw_bone_validate.py --raw C:/rekagent/evidence/runtime/rek-private-ai-protocol-v5/<capture>.jsonl --out evidence_out/<capture>.protocol-validation.json
 ```
 
-The validator reproduces each decoded float from each base64 body, checks body
-hashes and exact packet lengths, verifies all per-channel sequences, requires
-one-to-one FightState and bone postfix correlation, verifies request-only
-semantics, and rejects raw arena/session identifiers. Only an irreversible
-SHA-256 session identity is retained for repeat grouping. The staged DLL has
-been built and inspected offline, but it is not runtime-validated until REK is
-restarted with that exact DLL and a private Bot 1 round produces a complete
-capture.
+The validator requires each redundant JSON number to round-trip to the exact
+IEEE-754 binary32 bits in the base64 body, including preserving a `-0` token's
+negative-zero sign. It checks body hashes and exact packet lengths, verifies all
+per-channel sequences, requires one-to-one FightState and bone postfix
+correlation, verifies request-only semantics, and rejects raw arena/session
+identifiers. Only an irreversible SHA-256 session identity is retained for
+repeat grouping. Three complete private Bot 1 captures from the staged DLL now
+pass this validator, including a mixed `t800_26` versus `g1_30` capture.
 
 This recorder is not yet complete enough for clone acceptance. It observes the
 client boundary of a server-authoritative mode, not server-only physics or
@@ -464,6 +472,14 @@ names any `ctrl.*.hidden` channel REK recorded that the clone did not.
 
 Use at least three REK runs. With two there is one difference per tick and the
 quantiles are indistinguishable from the max; `baseline` says so.
+
+All repeats must also use the same measured fixed-substep sample phase relative
+to the command schedule. A trace sampled before a 50 Hz command boundary is not
+interchangeable with one sampled after it. The importer records
+`command_sample_phase_substeps`, and both `check_artifacts.py` and `differ.py`
+reject mixed phases. Cropping, relabeling, interpolation, and last-value holding
+do not convert one phase into another because they would substitute unmeasured
+state for a missing sample.
 
 ### Experiment matrix
 

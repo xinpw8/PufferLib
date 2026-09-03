@@ -215,6 +215,9 @@ def baseline(paths, out_path, accept):
     if len(fps) != 1:
         sys.exit(f'traces span {len(fps)} different builds: {sorted(fps)}')
     command_sequences = [t.header.get('command_sequence_sha256') for t in traces]
+    command_schemas = [t.header.get('command_sequence_schema') for t in traces]
+    command_sample_phases = [
+        t.header.get('command_sample_phase_substeps') for t in traces]
     if any(command_sequences):
         if not all(command_sequences):
             sys.exit('some repeated REK runs do not identify their command sequence')
@@ -222,6 +225,30 @@ def baseline(paths, out_path, accept):
         if len(distinct_commands) != 1:
             sys.exit(
                 'the REK runs used different command sequences; run-to-run '
+                'variance requires repeats of one experiment')
+        if not all(command_schemas):
+            sys.exit('some repeated REK runs do not identify their command sequence schema')
+        if len(set(command_schemas)) != 1:
+            sys.exit('the REK runs used different command sequence schemas')
+        if any(phase is not None for phase in command_sample_phases):
+            if any(phase is None for phase in command_sample_phases):
+                sys.exit('some repeated REK runs do not identify command sample phase')
+            if len(set(command_sample_phases)) != 1:
+                sys.exit(
+                    'the REK runs sampled different fixed-substep phases; '
+                    'run-to-run variance requires one observation phase')
+
+    fighter_pairings = [t.header.get('fighter_pairing') for t in traces]
+    if any(fighter_pairings):
+        if not all(isinstance(pairing, dict) for pairing in fighter_pairings):
+            sys.exit('some repeated REK runs do not identify their fighter pairing')
+        canonical_pairings = {
+            json.dumps(pairing, sort_keys=True, separators=(',', ':'))
+            for pairing in fighter_pairings
+        }
+        if len(canonical_pairings) != 1:
+            sys.exit(
+                'the REK runs used different fighter pairings; run-to-run '
                 'variance requires repeats of one experiment')
 
     channels = sorted(set(traces[0].channels) &
@@ -234,6 +261,9 @@ def baseline(paths, out_path, accept):
         'schema': 2,
         'build_fingerprint': traces[0].build_fingerprint,
         'command_sequence_sha256': command_sequences[0],
+        'command_sequence_schema': command_schemas[0],
+        'command_sample_phase_substeps': command_sample_phases[0],
+        'fighter_pairing': fighter_pairings[0],
         'runs': len(traces),
         'ticks_compared': len(ticks),
         'accept_at': accept,
@@ -349,10 +379,30 @@ def compare(rek_path, clone_path, envelope_path, report_path, horizon, window):
         sys.exit('envelope was measured on a different build than this reference trace')
     expected_commands = env.get('command_sequence_sha256')
     if expected_commands:
+        expected_command_schema = env.get('command_sequence_schema')
+        if not expected_command_schema:
+            sys.exit('envelope does not identify its command sequence schema')
         if rek.header.get('command_sequence_sha256') != expected_commands:
             sys.exit('reference trace used a different command sequence than the envelope')
         if clone.header.get('command_sequence_sha256') != expected_commands:
             sys.exit('clone trace did not replay the envelope command sequence')
+        if rek.header.get('command_sequence_schema') != expected_command_schema:
+            sys.exit('reference trace used a different command sequence schema than the envelope')
+        if clone.header.get('command_sequence_schema') != expected_command_schema:
+            sys.exit('clone trace used a different command sequence schema than the envelope')
+        expected_phase = env.get('command_sample_phase_substeps')
+        if (expected_phase is not None and
+                rek.header.get('command_sample_phase_substeps') != expected_phase):
+            sys.exit('reference trace used a different command sample phase than the envelope')
+        if (expected_phase is not None and
+                clone.header.get('command_sample_phase_substeps') != expected_phase):
+            sys.exit('clone trace did not reproduce the envelope command sample phase')
+    expected_pairing = env.get('fighter_pairing')
+    if expected_pairing is not None:
+        if rek.header.get('fighter_pairing') != expected_pairing:
+            sys.exit('reference trace used a different fighter pairing than the envelope')
+        if clone.header.get('fighter_pairing') != expected_pairing:
+            sys.exit('clone trace did not reproduce the envelope fighter pairing')
 
     shared = sorted(set(rek.channels) & set(clone.channels))
     missing = sorted(set(rek.channels) - set(clone.channels))
@@ -427,6 +477,8 @@ def compare(rek_path, clone_path, envelope_path, report_path, horizon, window):
         'mode': horizon,
         'short_horizon': windowed,
         'build_fingerprint': rek.build_fingerprint,
+        'command_sequence_sha256': rek.header.get('command_sequence_sha256'),
+        'command_sequence_schema': rek.header.get('command_sequence_schema'),
         'reference': str(rek_path), 'candidate': str(clone_path),
         'clone': clone.source,
         'accept_at': accept,

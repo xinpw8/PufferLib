@@ -218,7 +218,31 @@ def check(directory: Path):
             record('REK traces', 'INCOMPLETE',
                    'runs used different command sequences; repeat one experiment')
         else:
-            record('REK traces', 'PRESENT', f'{len(rek_traces)} runs')
+            fighter_pairings = [tr.header.get('fighter_pairing')
+                                for _, tr in rek_traces]
+            if not all(isinstance(pairing, dict) for pairing in fighter_pairings):
+                record('REK traces', 'INCOMPLETE',
+                       'every run must identify its measured fighter pairing')
+            elif len({json.dumps(pairing, sort_keys=True, separators=(',', ':'))
+                      for pairing in fighter_pairings}) != 1:
+                record('REK traces', 'INCOMPLETE',
+                       'runs used different fighter pairings; repeat one experiment')
+            else:
+                sample_phases = [
+                    tr.header.get('command_sample_phase_substeps')
+                    for _, tr in rek_traces]
+                if any(phase is None for phase in sample_phases):
+                    record('REK traces', 'INCOMPLETE',
+                           'every run must identify its measured fixed-substep '
+                           'sample phase')
+                elif len(set(sample_phases)) != 1:
+                    record('REK traces', 'INCOMPLETE',
+                           'runs sampled different fixed-substep phases; '
+                           'repeat one experiment at one phase')
+                else:
+                    record('REK traces', 'PRESENT',
+                           f'{len(rek_traces)} runs at fixed-substep phase '
+                           f'{sample_phases[0]:+d}')
 
     # A server-authoritative trace has to pin the server too, and every REK
     # channel has to say where it was read from.

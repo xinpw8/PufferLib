@@ -7,6 +7,10 @@
 // speeds. Canned moves use measured timing and limb ids; joint motion is a
 // distal-limb reach, not a recovered FactoryPolicy clip. Replace that reach
 // with fitted visual trajectories when six-move windows exist.
+//
+// PROVISIONAL: the root tracker, distal-limb reach, contact-to-hit rule,
+// fall/recovery transition timing, rewards, terminal/reset semantics, and the
+// second policy-controlled opponent have not passed the REK variance gate.
 
 #pragma once
 
@@ -35,8 +39,11 @@
 #define REK_FIGHT_NUM_AGENTS 2
 #define REK_FIGHT_NUM_ACTIONS 4
 #define REK_FIGHT_ACT_SIZES REK_STRATEGY_ACT_SIZES
-#define REK_FIGHT_FLAG_COUNT 8
-#define REK_FIGHT_OBS_SIZE (REK_MATCH_OBS_SIZE + REK_FIGHT_FLAG_COUNT)
+#define REK_FIGHT_MOVE_MASK_SIZE REK_STRATEGY_MOVE_CATEGORIES
+#define REK_FIGHT_AGENT_STATE_OBS_SIZE 22
+#define REK_FIGHT_GLOBAL_STATE_OBS_SIZE 3
+#define REK_FIGHT_OBS_SIZE (REK_MATCH_OBS_SIZE \
+    + 2 * REK_FIGHT_AGENT_STATE_OBS_SIZE + REK_FIGHT_GLOBAL_STATE_OBS_SIZE)
 #define REK_FIGHT_JOINTS 25
 #define REK_FIGHT_LIMBS 4
 #define REK_FIGHT_MAX_IMPACTS 3
@@ -241,6 +248,15 @@ static int rek_fight_fallen(const RekFight* env, int agent) {
         || rek_fight_root_up_z(env, agent) < env->fall_up_z;
 }
 
+static int rek_fight_move_action_available(
+        const RekFightAgent* state, int move_category) {
+    if (move_category == 0) return 1;
+    return !state->recovering
+        && !state->move_in_progress
+        && !state->cooldown_active
+        && move_category != state->router.last_emitted_move_category;
+}
+
 static int rek_fight_inverse_6x6(const double input[36], double output[36]) {
     double augmented[REK_FIGHT_ROOT_DIMS][2 * REK_FIGHT_ROOT_DIMS];
     for (int row = 0; row < REK_FIGHT_ROOT_DIMS; row++) {
@@ -310,6 +326,20 @@ static void rek_fight_configure_actuators(mjModel* model) {
     }
 }
 
+static int rek_fight_body_descends_from_any(
+        const mjModel* model,
+        int body,
+        const int* ancestors,
+        int ancestor_count) {
+    while (body > 0) {
+        for (int item = 0; item < ancestor_count; item++) {
+            if (body == ancestors[item]) return 1;
+        }
+        body = model->body_parentid[body];
+    }
+    return 0;
+}
+
 static void rek_fight_collect_limb_geoms(RekFight* env) {
     for (int agent = 0; agent < REK_FIGHT_NUM_AGENTS; agent++) {
         for (int limb = 0; limb < REK_FIGHT_LIMBS; limb++) {
@@ -323,11 +353,12 @@ static void rek_fight_collect_limb_geoms(RekFight* env) {
             int geom_count = 0;
             for (int geom = 0; geom < env->model->ngeom; geom++) {
                 int body = env->model->geom_bodyid[geom];
-                for (int item = 0; item < body_count; item++) {
-                    if (body == bodies[item] && geom_count < REK_FIGHT_MAX_LIMB_GEOMS) {
-                        env->limb_geoms[agent][limb][geom_count++] = geom;
-                        break;
+                if (rek_fight_body_descends_from_any(
+                            env->model, body, bodies, body_count)) {
+                    if (geom_count >= REK_FIGHT_MAX_LIMB_GEOMS) {
+                        rek_fight_fail("limb geometry capacity is too small");
                     }
+                    env->limb_geoms[agent][limb][geom_count++] = geom;
                 }
             }
             env->limb_geom_count[agent][limb] = geom_count;
@@ -446,6 +477,29 @@ static int rek_fight_state_is_finite(const RekFight* env) {
     return isfinite(env->data->time);
 }
 
+static int rek_fight_write_agent_state_observation(
+        float* output, int cursor, const RekFightAgent* state) {
+    output[cursor++] = (float)state->recovering;
+    output[cursor++] = (float)state->move_in_progress;
+    output[cursor++] = (float)state->cooldown_active;
+    output[cursor++] = (float)state->fallen;
+    output[cursor++] = (float)state->move_slot;
+    output[cursor++] = (float)state->move_ticks;
+    output[cursor++] = (float)state->move_duration_ticks;
+    output[cursor++] = (float)state->cooldown_ticks;
+    output[cursor++] = (float)state->recovery_ticks;
+    output[cursor++] = (float)state->scored_impacts;
+    output[cursor++] = (float)state->hits;
+    output[cursor++] = (float)state->router.last_emitted_move_category;
+    for (int axis = 0; axis < REK_STRATEGY_VELOCITY_DIMS; axis++) {
+        output[cursor++] = state->router.held_velocity[axis];
+    }
+    for (int category = 0; category < REK_FIGHT_MOVE_MASK_SIZE; category++) {
+        output[cursor++] = (float)rek_fight_move_action_available(state, category);
+    }
+    return cursor;
+}
+
 static void rek_fight_compute_agent_observation(RekFight* env, int observer) {
     int opponent = 1 - observer;
     int qpos_offsets[2] = {
@@ -466,16 +520,20 @@ static void rek_fight_compute_agent_observation(RekFight* env, int observer) {
             output[cursor++] = (float)env->data->qvel[qvel_offsets[side] + i];
         }
     }
-    const RekFightAgent* self = &env->agent[observer];
-    const RekFightAgent* other = &env->agent[opponent];
-    output[cursor++] = (float)self->recovering;
-    output[cursor++] = (float)self->move_in_progress;
-    output[cursor++] = (float)self->cooldown_active;
-    output[cursor++] = (float)self->move_slot;
-    output[cursor++] = (float)self->move_ticks;
-    output[cursor++] = (float)self->hits;
-    output[cursor++] = (float)other->hits;
-    output[cursor++] = (float)other->fallen;
+    cursor = rek_fight_write_agent_state_observation(
+        output, cursor, &env->agent[observer]
+    );
+    cursor = rek_fight_write_agent_state_observation(
+        output, cursor, &env->agent[opponent]
+    );
+    output[cursor++] = (float)env->tick;
+    output[cursor++] = (float)env->data->time;
+    output[cursor++] = env->max_steps > 0
+        ? (float)(env->max_steps - env->tick)
+        : -1.0f;
+    if (cursor != REK_FIGHT_OBS_SIZE) {
+        rek_fight_fail("observation schema size mismatch");
+    }
 }
 
 static void rek_fight_compute_observations(RekFight* env) {
@@ -684,16 +742,6 @@ static RekStrategyOutput rek_fight_plan_agent(RekFight* env, int agent) {
             if (phase > 1.0f) phase = 1.0f;
         }
         rek_fight_apply_reach(env, agent, active, phase);
-        state->move_ticks += 1;
-        if (state->move_ticks >= state->move_duration_ticks) {
-            state->move_in_progress = 0;
-            state->move_slot = -1;
-            state->cooldown_active = 1;
-            state->cooldown_ticks = (int)ceil(REK_FIGHT_COOLDOWN_S / REK_FIGHT_DT);
-        }
-    } else if (state->cooldown_active) {
-        state->cooldown_ticks -= 1;
-        if (state->cooldown_ticks <= 0) state->cooldown_active = 0;
     }
     return command;
 }
@@ -718,6 +766,26 @@ static float rek_fight_score_hits(RekFight* env, int agent) {
         }
     }
     return reward;
+}
+
+static void rek_fight_advance_agent_timers(RekFightAgent* state) {
+    if (state->move_in_progress) {
+        state->move_ticks += 1;
+        if (state->move_ticks >= state->move_duration_ticks) {
+            state->move_in_progress = 0;
+            state->move_slot = -1;
+            state->cooldown_active = 1;
+            state->cooldown_ticks = (int)ceil(
+                REK_FIGHT_COOLDOWN_S / REK_FIGHT_DT
+            );
+        }
+    } else if (state->cooldown_active) {
+        state->cooldown_ticks -= 1;
+        if (state->cooldown_ticks <= 0) {
+            state->cooldown_active = 0;
+            state->cooldown_ticks = 0;
+        }
+    }
 }
 
 static void rek_fight_add_log(RekFight* env, int invalid, int timeout) {
@@ -750,6 +818,7 @@ void c_step(RekFight* env) {
     };
     for (int agent = 0; agent < REK_FIGHT_NUM_AGENTS; agent++) {
         reward[agent] += rek_fight_score_hits(env, agent);
+        rek_fight_advance_agent_timers(&env->agent[agent]);
         int fallen = rek_fight_fallen(env, agent);
         if (fallen && !env->agent[agent].fallen) {
             env->agent[agent].fallen = 1;
