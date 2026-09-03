@@ -1,14 +1,16 @@
 """Convert the Windows private-AI recorder JSONL into the common trace format.
 
-Legacy v1/v3 captures sample once per client Unity FixedUpdate. Protocol v5
+Legacy v1/v3 captures sample once per client Unity FixedUpdate. Protocol v5/v6
 captures compact state every ten FixedUpdate calls and exact protocol-boundary
-events. A v5 import additionally requires the completed semantic-control log and
-its canonical schedule manifest, then labels measured compact observations on
-the schedule's 50 Hz grid. The recovered packet layouts expose no server tick,
-so this importer never labels trace ticks as server ticks and never synthesizes
-one.
+events. A protocol import additionally requires the completed semantic-control
+log and its canonical schedule manifest. V5 labels measured compact observations
+on the schedule's 50 Hz grid. V6 instead emits the directly measured 500 Hz
+``root_pose_sample`` window, including both root transforms, screen projections,
+and the same-tick camera measurements. The recovered packet layouts expose no
+server tick, so this importer never labels trace ticks as server ticks and never
+synthesizes one.
 
-For v5 commands, the bridge log defines the accepted control-frame window and
+For v5/v6 commands, the bridge log defines the accepted control-frame window and
 the pinned schedule. RekEvidenceRecorder Send* prefix records are authoritative
 for the local outbound stream inside that window. Those records prove method
 invocation and projected REK_Input/REK_Move bodies. They do not prove method
@@ -39,9 +41,20 @@ from trace import Trace, TraceWriter
 SCHEMA_V1 = 'rek.private_ai.client_fixed.v1'
 SCHEMA_V3 = 'rek.private_ai.client_fixed.v3'
 SCHEMA_V5 = 'rek.private_ai.protocol.v5'
+SCHEMA_V6 = 'rek.private_ai.protocol.v6'
 SCHEMA = SCHEMA_V3
 SUPPORTED_SCHEMAS = {SCHEMA_V1, SCHEMA_V3}
+PROTOCOL_SCHEMAS = {SCHEMA_V5, SCHEMA_V6}
 COMMAND_SEQUENCE_SCHEMA = 'rek.client_fixed.command_schedule.v2'
+V6_COMMAND_EXECUTION_STATE = 'request_projected_server_execution_unknown'
+V6_VELOCITY_IDENTITIES = {
+    (1.0, 0.0, 0.0): 'walk_forward',
+    (-1.0, 0.0, 0.0): 'walk_backward',
+    (0.0, -1.0, 0.0): 'strafe_left',
+    (0.0, 1.0, 0.0): 'strafe_right',
+    (0.0, 0.0, -1.0): 'yaw_left',
+    (0.0, 0.0, 1.0): 'yaw_right',
+}
 TRANSPORT_METHODS = {
     'SendVelocityCommand',
     'SendMoveEvent',
@@ -525,7 +538,7 @@ def _flatten_sample(sample, bone_names, recorder_schema):
         elif recorder_schema == SCHEMA_V3:
             _put(frame, 'seq.client_transport_invoke',
                  transport.get('client_transport_invocation_sequence'))
-        elif recorder_schema == SCHEMA_V5:
+        elif recorder_schema in PROTOCOL_SCHEMAS:
             _put(frame, 'seq.client_transport_invoke',
                  transport.get('client_transport_invocation_sequence'))
             _put(frame, 'seq.raw_protocol_rx',
@@ -569,7 +582,7 @@ def _flatten_sample(sample, bone_names, recorder_schema):
 
 def _provenance(channel, recorder_schema):
     if channel == 'tick.client':
-        if recorder_schema == SCHEMA_V5:
+        if recorder_schema in PROTOCOL_SCHEMAS:
             return {
                 'kind': 'controlled_experiment',
                 'ref': 'RekEvidenceRecorder compact sample client_fixed_tick; '
@@ -578,7 +591,7 @@ def _provenance(channel, recorder_schema):
         return {'kind': 'controlled_experiment',
                 'ref': 'RekEvidenceRecorder RecorderBehaviour.FixedUpdate sample index'}
     if channel.startswith('cmd.'):
-        if recorder_schema == SCHEMA_V5:
+        if recorder_schema in PROTOCOL_SCHEMAS:
             observation = (
                 'exact REK_Input/REK_Move outbound request projections and '
                 'separate controlled schedule log')
@@ -653,6 +666,295 @@ def _provenance(channel, recorder_schema):
         return {'kind': 'class',
                 'ref': 'REKApp.Robot.boneTransforms populated by OnBoneMessageReceived and ClientApplyBones'}
     raise ValueError(f'no provenance rule for channel {channel}')
+
+
+def _v6_flatten_root_sample(sample):
+    """Flatten only values measured by one v6 ``root_pose_sample`` record."""
+    frame = {}
+    _put_int(frame, 'tick.client', sample.get('client_fixed_tick'))
+    _put_real(frame, 'time.unity_fixed', sample.get('unity_fixed_time'))
+    _put_int(
+        frame, 'clock.stopwatch_timestamp_ticks',
+        sample.get('stopwatch_timestamp_ticks'))
+
+    for slot in (0, 1):
+        root = sample.get(f'fighter_{slot}_root')
+        if not isinstance(root, dict):
+            raise ValueError(f'v6 root sample has no fighter {slot} root object')
+        for source, target, axes in (
+                ('world_position_xyz', f'root.{slot}.pos', 'xyz'),
+                ('world_rotation_xyzw', f'root.{slot}.quat', 'xyzw'),
+                ('screen_position_xyz', f'screen.{slot}.root', 'xyz')):
+            values = root.get(source)
+            for index, axis in enumerate(axes):
+                _put_real(frame, f'{target}.{axis}', _component(values, index))
+        _put_bool(
+            frame, f'screen.{slot}.root.in_front',
+            root.get('screen_in_front_of_camera'))
+        _put_bool(
+            frame, f'screen.{slot}.root.inside_pixel_rect',
+            root.get('screen_inside_camera_pixel_rect'))
+
+    camera = sample.get('camera')
+    if not isinstance(camera, dict):
+        raise ValueError('v6 root sample has no measured camera object')
+    for source, target, axes in (
+            ('world_position_xyz', 'camera.world.pos', 'xyz'),
+            ('world_rotation_xyzw', 'camera.world.quat', 'xyzw'),
+            ('normalized_viewport_rect_xywh', 'camera.viewport', 'xywh'),
+            ('pixel_rect_xywh', 'camera.pixel_rect', 'xywh'),
+            ('render_scale_xy', 'camera.render_scale', 'xy')):
+        values = camera.get(source)
+        for index, axis in enumerate(axes):
+            _put_real(frame, f'{target}.{axis}', _component(values, index))
+    for source, target in (
+            ('world_to_camera_matrix_row_major', 'camera.world_to_camera'),
+            ('projection_matrix_row_major', 'camera.projection'),
+            ('gpu_projection_matrix_row_major', 'camera.gpu_projection')):
+        values = camera.get(source)
+        for row in range(4):
+            for column in range(4):
+                _put_real(
+                    frame, f'{target}.m{row}{column}',
+                    _component(values, row * 4 + column))
+    for source, target in (
+            ('orthographic_size', 'camera.orthographic_size'),
+            ('field_of_view_degrees', 'camera.field_of_view_degrees'),
+            ('aspect', 'camera.aspect'),
+            ('near_clip_plane', 'camera.near_clip_plane'),
+            ('far_clip_plane', 'camera.far_clip_plane'),
+            ('screen_dpi', 'camera.screen_dpi')):
+        _put_real(frame, target, camera.get(source))
+    for source, target in (
+            ('instance_id', 'camera.instance_id'),
+            ('pixel_width', 'camera.pixel_width'),
+            ('pixel_height', 'camera.pixel_height'),
+            ('scaled_pixel_width', 'camera.scaled_pixel_width'),
+            ('scaled_pixel_height', 'camera.scaled_pixel_height'),
+            ('target_display', 'camera.target_display'),
+            ('screen_width', 'camera.screen_width'),
+            ('screen_height', 'camera.screen_height')):
+        _put_int(frame, target, camera.get(source))
+    for source, target in (
+            ('orthographic', 'camera.orthographic'),
+            ('render_into_texture', 'camera.render_into_texture'),
+            ('allow_hdr', 'camera.allow_hdr'),
+            ('allow_msaa', 'camera.allow_msaa')):
+        _put_bool(frame, target, camera.get(source))
+    return frame
+
+
+def _v6_provenance(channel):
+    if channel == 'tick.client':
+        return {
+            'kind': 'controlled_experiment',
+            'ref': 'RekEvidenceRecorder root_pose_sample.client_fixed_tick',
+            'raw_field': 'root_pose_sample.client_fixed_tick',
+        }
+    if channel == 'time.unity_fixed':
+        return {
+            'kind': 'method',
+            'ref': 'UnityEngine.Time.fixedTime read in RecorderBehaviour.FixedUpdate',
+            'raw_field': 'root_pose_sample.unity_fixed_time',
+        }
+    if channel == 'clock.stopwatch_timestamp_ticks':
+        return {
+            'kind': 'method',
+            'ref': 'System.Diagnostics.Stopwatch.GetTimestamp in RecorderBehaviour.FixedUpdate',
+            'raw_field': 'root_pose_sample.stopwatch_timestamp_ticks',
+        }
+    match = re.fullmatch(r'root\.([01])\.(pos|quat)\.([xyzw])', channel)
+    if match:
+        slot, kind, axis = match.groups()
+        source, axes = {
+            'pos': ('world_position_xyz', 'xyz'),
+            'quat': ('world_rotation_xyzw', 'xyzw'),
+        }[kind]
+        raw_field = (
+            f'root_pose_sample.fighter_{slot}_root.{source}'
+            f'[{axes.index(axis)}]')
+        return {
+            'kind': 'class',
+            'ref': (
+                f'RekEvidenceRecorder {raw_field} read from the scoped '
+                'REKApp.Robot RootTransform'),
+            'raw_field': raw_field,
+        }
+    match = re.fullmatch(
+        r'screen\.([01])\.root\.(x|y|z|in_front|inside_pixel_rect)', channel)
+    if match:
+        slot, component = match.groups()
+        raw_component = {
+            'x': 'screen_position_xyz[0]',
+            'y': 'screen_position_xyz[1]',
+            'z': 'screen_position_xyz[2]',
+            'in_front': 'screen_in_front_of_camera',
+            'inside_pixel_rect': 'screen_inside_camera_pixel_rect',
+        }[component]
+        raw_field = f'root_pose_sample.fighter_{slot}_root.{raw_component}'
+        return {
+            'kind': 'method',
+            'ref': (
+                f'RekEvidenceRecorder {raw_field}; coordinates are the direct '
+                'UnityEngine.Camera.WorldToScreenPoint result'),
+            'raw_field': raw_field,
+        }
+    if channel.startswith('camera.'):
+        return {
+            'kind': 'class',
+            'ref': (
+                'RekEvidenceRecorder root_pose_sample.camera measured from '
+                'UnityEngine.Camera.main in the same FixedUpdate as both roots'),
+            'raw_field': 'root_pose_sample.camera',
+        }
+    raise ValueError(f'no v6 root-stream provenance rule for channel {channel}')
+
+
+def _v6_screen_frame(start):
+    camera = start.get('initial_camera')
+    if not isinstance(camera, dict):
+        raise ValueError('v6 capture has no initial camera measurement')
+    identity_material = {
+        'schema': 'rek.unity_world_to_screen.frame.v1',
+        'selection': camera.get('selection'),
+        'target_display': camera.get('target_display'),
+        'screen_width': camera.get('screen_width'),
+        'screen_height': camera.get('screen_height'),
+        'pixel_rect_xywh': camera.get('pixel_rect_xywh'),
+        'render_into_texture': camera.get('render_into_texture'),
+        'target_texture': camera.get('target_texture'),
+        'coordinate_semantics': start.get('root_screen_coordinate_semantics'),
+    }
+    encoded = json.dumps(
+        identity_material, sort_keys=True, separators=(',', ':'),
+        ensure_ascii=True).encode('utf-8')
+    digest = hashlib.sha256(encoded).hexdigest()
+    width = camera.get('screen_width')
+    height = camera.get('screen_height')
+    if (not isinstance(width, int) or isinstance(width, bool) or width <= 0 or
+            not isinstance(height, int) or isinstance(height, bool) or height <= 0):
+        raise ValueError('v6 camera has no measured positive screen dimensions')
+    return {
+        'id': f'rek.unity_world_to_screen.frame.v1:{digest}',
+        'width_px': width,
+        'height_px': height,
+        'identity_sha256': digest,
+        'identity_material': identity_material,
+        'origin': 'bottom_left',
+        'provenance': {
+            'kind': 'method',
+            'ref': (
+                'capture_start.initial_camera plus the declared direct '
+                'UnityEngine.Camera.WorldToScreenPoint coordinate semantics'),
+        },
+    }
+
+
+def _v6_root_window(records, start_tick):
+    root_samples = [
+        record for record in records
+        if record.get('event') == 'root_pose_sample']
+    final_substep = _v5_final_controlled_substep()
+    by_tick = {
+        _required_int(record, 'client_fixed_tick', 'v6 root_pose_sample'): record
+        for record in root_samples
+    }
+    expected_source_ticks = list(
+        range(start_tick, start_tick + final_substep + 1))
+    if any(tick not in by_tick for tick in expected_source_ticks):
+        raise ValueError(
+            'v6 root stream does not cover the complete controlled schedule '
+            'fixed-substep window')
+    selected = [by_tick[tick] for tick in expected_source_ticks]
+    return selected, list(range(final_substep + 1))
+
+
+def _v6_command_edges(control):
+    """Name every measured schedule transition without conflating repeats."""
+    edges = []
+    occurrences = {}
+    previous_velocity = (0.0, 0.0, 0.0)
+
+    def append_edge(schedule_tick, base_name, action, source):
+        occurrence_key = (base_name, action)
+        occurrence = occurrences.get(occurrence_key, 0) + 1
+        occurrences[occurrence_key] = occurrence
+        selector = f'{base_name}.{action}.{occurrence}'
+        edges.append({
+            'selector': selector,
+            'event_kind': f'command_edge.{selector}',
+            'tick': (
+                schedule_tick * controlled_schedule.FIXED_SUBSTEPS_PER_TICK),
+            'schedule_tick': schedule_tick,
+            'command_identity': f'{base_name}:{action}:v1',
+            'execution_state': V6_COMMAND_EXECUTION_STATE,
+            'source': source,
+            'server_acceptance_observed': False,
+        })
+
+    for step in control['steps']:
+        schedule_tick = step['schedule_tick']
+        velocity = tuple(float(value) for value in step['velocity_command_xyz'])
+        if velocity != previous_velocity:
+            if previous_velocity != (0.0, 0.0, 0.0):
+                previous_name = V6_VELOCITY_IDENTITIES.get(previous_velocity)
+                if previous_name is None:
+                    raise ValueError(
+                        f'controlled schedule has an unnamed velocity {previous_velocity}')
+                append_edge(
+                    schedule_tick, previous_name, 'release',
+                    'validated semantic bridge velocity schedule transition')
+            if velocity != (0.0, 0.0, 0.0):
+                current_name = V6_VELOCITY_IDENTITIES.get(velocity)
+                if current_name is None:
+                    raise ValueError(
+                        f'controlled schedule has an unnamed velocity {velocity}')
+                append_edge(
+                    schedule_tick, current_name, 'press',
+                    'validated semantic bridge velocity schedule transition')
+            previous_velocity = velocity
+        move_index = step.get('move_index')
+        if move_index is not None:
+            append_edge(
+                schedule_tick, f'move_index_{move_index}', 'press',
+                'validated semantic bridge move schedule step and local readback')
+    return edges
+
+
+def _v6_schedule_step_edges(control):
+    """Give every validated schedule step its own comparator-addressable event."""
+    edges = []
+    for step in control['steps']:
+        schedule_tick = step['schedule_tick']
+        selector = f'schedule_step.{schedule_tick}'
+        edge = {
+            'selector': selector,
+            'event_kind': f'command_schedule_step.{schedule_tick}',
+            'tick': (
+                schedule_tick * controlled_schedule.FIXED_SUBSTEPS_PER_TICK),
+            'schedule_tick': schedule_tick,
+            'command_identity': (
+                f'{controlled_schedule.SCHEDULE_ID}:schedule_tick:'
+                f'{schedule_tick}:v1'),
+            'execution_state': V6_COMMAND_EXECUTION_STATE,
+            'velocity_command': step['velocity_command_xyz'],
+            'move_index': step.get('move_index'),
+            'server_acceptance_observed': False,
+        }
+        edges.append(edge)
+    return edges
+
+
+def _v6_select_command_edge(edges, selector):
+    if selector is None:
+        return None
+    matches = [edge for edge in edges if edge['selector'] == selector]
+    if len(matches) != 1:
+        available = ', '.join(edge['selector'] for edge in edges)
+        raise ValueError(
+            f'unknown or ambiguous v6 motion edge {selector!r}; '
+            f'available selectors: {available}')
+    return matches[0]
 
 
 def _events(records, samples, recorder_schema, complete_round):
@@ -1303,15 +1605,81 @@ def _v5_events(records, samples, normalized_ticks, control, start_tick,
     return events
 
 
+def _v6_events(records, samples, normalized_ticks, sample_phase, control,
+               start_tick, outbound_stream, command_edges, selected_edge):
+    """Translate v5 semantic events onto the measured 500 Hz v6 timebase."""
+    events = _v5_events(
+        records, samples, normalized_ticks, control, start_tick,
+        outbound_stream)
+    final_substep = _v5_final_controlled_substep()
+    for event in events:
+        kind = event['kind']
+        if kind == 'controlled_schedule_end':
+            event['tick'] = final_substep
+        elif kind == 'command_schedule_step':
+            schedule_tick = event['tick']
+            event['schedule_tick'] = schedule_tick
+            event['tick'] = (
+                schedule_tick * controlled_schedule.FIXED_SUBSTEPS_PER_TICK)
+        elif kind in {'controlled_schedule_start'}:
+            event['tick'] = 0
+        elif 'controlled_fixed_substep' in event:
+            event['tick'] = max(0, event['controlled_fixed_substep'])
+        elif 'client_fixed_tick_at_observation' in event:
+            event['tick'] = max(
+                0, event['client_fixed_tick_at_observation'] - start_tick)
+        else:
+            event['tick'] = max(
+                0,
+                event['tick'] * controlled_schedule.FIXED_SUBSTEPS_PER_TICK +
+                sample_phase)
+
+    for edge in command_edges:
+        events.append({
+            'tick': edge['tick'],
+            'kind': edge['event_kind'],
+            'selector': edge['selector'],
+            'schedule_tick': edge['schedule_tick'],
+            'command_identity': edge['command_identity'],
+            'command_execution_state': edge['execution_state'],
+            'source': edge['source'],
+            'server_acceptance_observed': False,
+        })
+    for edge in _v6_schedule_step_edges(control):
+        events.append({
+            'tick': edge['tick'],
+            'kind': edge['event_kind'],
+            'selector': edge['selector'],
+            'schedule_tick': edge['schedule_tick'],
+            'command_identity': edge['command_identity'],
+            'command_execution_state': edge['execution_state'],
+            'velocity_command': edge['velocity_command'],
+            'move_index': edge['move_index'],
+            'server_acceptance_observed': False,
+        })
+    if selected_edge is not None:
+        events.append({
+            'tick': selected_edge['tick'],
+            'kind': 'command_edge',
+            'selector': selected_edge['selector'],
+            'schedule_tick': selected_edge['schedule_tick'],
+            'command_identity': selected_edge['command_identity'],
+            'command_execution_state': selected_edge['execution_state'],
+            'source': selected_edge['source'],
+            'server_acceptance_observed': False,
+        })
+    return events
+
+
 def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
-                schedule_manifest_path, tick_limit=None):
+                schedule_manifest_path, tick_limit=None, motion_edge=None):
     raw_path = Path(raw_path)
     output_path = Path(output_path)
     if tick_limit is not None:
-        raise ValueError('v5 imports require the complete controlled schedule window')
+        raise ValueError('protocol imports require the complete controlled schedule window')
     if control_log_path is None or schedule_manifest_path is None:
         raise ValueError(
-            'v5 imports require --control-log and --schedule-manifest')
+            'protocol imports require --control-log and --schedule-manifest')
     if raw_path.name.endswith('.partial'):
         raise ValueError('refusing an unfinalized .partial recorder file')
     if output_path.exists():
@@ -1327,6 +1695,7 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
         raise ValueError('v5 raw capture does not have one start and one end record')
     start = starts[0]
     end = ends[0]
+    recorder_schema = start.get('schema')
     sample_fixed_times = [
         _real_number(sample.get('unity_fixed_time')) for sample in all_samples]
     if any(value is None for value in sample_fixed_times):
@@ -1340,8 +1709,10 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
         unity_fixed_window=(sample_fixed_times[0], capture_end_fixed_time))
 
     inventory, fingerprint = _inventory_identity(inventory_path)
-    if start.get('schema') != SCHEMA_V5:
-        raise ValueError(f'unsupported v5 recorder schema: {start.get("schema")!r}')
+    if recorder_schema not in PROTOCOL_SCHEMAS:
+        raise ValueError(f'unsupported protocol recorder schema: {recorder_schema!r}')
+    if recorder_schema != SCHEMA_V6 and motion_edge is not None:
+        raise ValueError('--motion-edge is available only for v6 root-stream imports')
     if str(start.get('game_assembly_sha256', '')).lower() != EXPECTED_GAME_ASSEMBLY_SHA256:
         raise ValueError('v5 raw trace GameAssembly hash does not match pinned build')
     if str(start.get('global_metadata_sha256', '')).lower() != EXPECTED_METADATA_SHA256:
@@ -1418,14 +1789,49 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
     if not all(isinstance(bone_names[slot], list) and bone_names[slot]
                for slot in (0, 1)):
         raise ValueError('v5 capture_start does not declare both fighter bone layouts')
-    frames = [_flatten_sample(sample, bone_names, SCHEMA_V5) for sample in samples]
+    command_edges = []
+    schedule_step_edges = []
+    selected_edge = None
+    screen_frame = None
+    if recorder_schema == SCHEMA_V6:
+        root_samples, output_ticks = _v6_root_window(
+            records, schedule_start_tick)
+        frames = [_v6_flatten_root_sample(sample) for sample in root_samples]
+        command_edges = _v6_command_edges(control)
+        schedule_step_edges = _v6_schedule_step_edges(control)
+        selected_edge = _v6_select_command_edge(command_edges, motion_edge)
+        screen_frame = _v6_screen_frame(start)
+    else:
+        root_samples = []
+        output_ticks = trace_ticks
+        frames = [
+            _flatten_sample(sample, bone_names, recorder_schema)
+            for sample in samples]
     channel_union = set().union(*(set(frame) for frame in frames))
     channels = sorted(set.intersection(*(set(frame) for frame in frames)))
-    required = {'tick.client', 'round.timer', 'root.0.pos.x', 'root.1.pos.x'}
+    if recorder_schema == SCHEMA_V6:
+        required = {
+            'tick.client',
+            *(f'root.{slot}.pos.{axis}'
+              for slot in (0, 1) for axis in 'xyz'),
+            *(f'root.{slot}.quat.{axis}'
+              for slot in (0, 1) for axis in 'xyzw'),
+            *(f'screen.{slot}.root.{axis}'
+              for slot in (0, 1) for axis in 'xy'),
+        }
+    else:
+        required = {'tick.client', 'round.timer', 'root.0.pos.x', 'root.1.pos.x'}
     missing_required = sorted(required - set(channels))
     if missing_required:
-        raise ValueError(f'v5 raw trace lacks required measured channels: {missing_required}')
-    provenance = {channel: _provenance(channel, SCHEMA_V5) for channel in channels}
+        raise ValueError(
+            f'{recorder_schema} raw trace lacks required measured channels: '
+            f'{missing_required}')
+    if recorder_schema == SCHEMA_V6:
+        provenance = {channel: _v6_provenance(channel) for channel in channels}
+    else:
+        provenance = {
+            channel: _provenance(channel, recorder_schema)
+            for channel in channels}
 
     server_record = {
         'endpoint': server['endpoint'],
@@ -1441,9 +1847,15 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
     raw_hash = _sha256(raw_path)
     if raw_validation.get('raw_sha256') != raw_hash:
         raise ValueError('v5 raw capture changed after protocol validation')
-    events = _v5_events(
-        records, samples, trace_ticks, control, schedule_start_tick,
-        outbound_stream)
+    if recorder_schema == SCHEMA_V6:
+        events = _v6_events(
+            records, samples, trace_ticks, sample_phase, control,
+            schedule_start_tick, outbound_stream, command_edges,
+            selected_edge)
+    else:
+        events = _v5_events(
+            records, samples, trace_ticks, control, schedule_start_tick,
+            outbound_stream)
     validated_fighters = raw_validation.get('fighters')
     if not isinstance(validated_fighters, dict):
         raise ValueError('raw protocol validation has no fighter layouts')
@@ -1473,6 +1885,32 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
         'opponent_fighter_index': scope.get('opponent_slot'),
         'fighters': fighter_layouts,
     }
+    v6_trace_metadata = {}
+    if recorder_schema == SCHEMA_V6:
+        v6_trace_metadata = {
+            'capture_id': f'raw-sha256:{raw_hash}',
+            'fixed_delta_time': fixed_delta_time,
+            'screen_frame': screen_frame,
+            'camera_stream': {
+                'source_event': 'root_pose_sample',
+                'sample_rate_hz': controlled_schedule.UNITY_FIXED_RATE_HZ,
+                'sample_stride_fixed_ticks': 1,
+                'selection': 'UnityEngine.Camera.main',
+                'initial_camera': start.get('initial_camera'),
+                'coordinate_semantics': start.get(
+                    'root_screen_coordinate_semantics'),
+                'matrix_semantics': start.get('camera_matrix_semantics'),
+                'provenance': (
+                    'camera fields measured in the same RecorderBehaviour.'
+                    'FixedUpdate record as both fighter roots'),
+            },
+            'command_edge_catalog': command_edges,
+            'schedule_step_edge_catalog': schedule_step_edges,
+            'selected_command_edge': selected_edge,
+            'command_execution_state': V6_COMMAND_EXECUTION_STATE,
+            'root_pose_source_tick_start': root_samples[0]['client_fixed_tick'],
+            'root_pose_source_tick_end': root_samples[-1]['client_fixed_tick'],
+        }
     temporary = output_path.with_name(output_path.name + '.tmp')
     if temporary.exists():
         raise FileExistsError(f'refusing existing temporary path {temporary}')
@@ -1485,8 +1923,14 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
                 authority='server',
                 server=server_record,
                 provenance=provenance,
-                tick_domain='controlled_schedule_50hz',
-                tick_rate_hz=controlled_schedule.SCHEDULE_RATE_HZ,
+                tick_domain=(
+                    'controlled_schedule_client_fixed_substep_500hz'
+                    if recorder_schema == SCHEMA_V6 else
+                    'controlled_schedule_50hz'),
+                tick_rate_hz=(
+                    controlled_schedule.UNITY_FIXED_RATE_HZ
+                    if recorder_schema == SCHEMA_V6 else
+                    controlled_schedule.SCHEDULE_RATE_HZ),
                 server_tick_available=False,
                 server_tick_reason=start.get('server_tick_reason'),
                 client_fixed_delta_time=fixed_delta_time,
@@ -1495,7 +1939,7 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
                 command_sample_phase_substeps=sample_phase,
                 schedule_start_client_fixed_tick=schedule_start_tick,
                 client_buildid=(inventory.get('steam') or {}).get('buildid'),
-                raw_recorder_schema=SCHEMA_V5,
+                raw_recorder_schema=recorder_schema,
                 raw_recorder_sha256=raw_hash,
                 recorder_plugin_sha256=start.get('plugin_sha256'),
                 command_sequence_sha256=manifest['sha256'],
@@ -1514,9 +1958,11 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
                     'complete zero-error recorder sequence of audited '
                     'RobotInputController Send* prefixes in the controlled window'),
                 outbound_command_stream=outbound_stream['summary'],
-                observation_window_ticks=len(samples),
+                observation_window_ticks=len(frames),
                 raw_sample_count=len(all_samples),
                 compact_samples_tick_complete=False,
+                root_pose_stream=raw_validation.get('root_pose_stream'),
+                root_pose_tick_level_claim=(recorder_schema == SCHEMA_V6),
                 complete_schedule=True,
                 complete_round=False,
                 fighter_pairing=fighter_pairing,
@@ -1533,8 +1979,9 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
                     'server_snapshot_rx': (
                         'FightCoordinator.ApplyFightStateSnapshot postfix'),
                     'score/fall/ko': 'changes in measured compact RoundState values',
-                }) as writer:
-            for tick, frame in zip(trace_ticks, frames):
+                },
+                **v6_trace_metadata) as writer:
+            for tick, frame in zip(output_ticks, frames):
                 writer.append(tick, frame)
             for event in events:
                 payload = dict(event)
@@ -1543,8 +1990,9 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
                 writer.event(event_tick, event_kind, **payload)
 
         loaded = Trace.load(temporary)
-        if len(loaded) != len(samples) or loaded.ticks != trace_ticks:
-            raise ValueError('written v5 trace failed tick/count verification')
+        if len(loaded) != len(frames) or loaded.ticks != output_ticks:
+            raise ValueError(
+                'written protocol trace failed tick/count verification')
         os.replace(temporary, output_path)
     except Exception:
         if temporary.exists():
@@ -1558,12 +2006,15 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
         'output_path': str(output_path.resolve()),
         'output_sha256': _sha256(output_path),
         'build_fingerprint': fingerprint,
-        'ticks': len(samples),
-        'first_tick': trace_ticks[0],
-        'last_tick': trace_ticks[-1],
+        'ticks': len(frames),
+        'first_tick': output_ticks[0],
+        'last_tick': output_ticks[-1],
         'channels': len(channels),
         'events': len(events),
-        'tick_domain': 'controlled_schedule_50hz',
+        'tick_domain': (
+            'controlled_schedule_client_fixed_substep_500hz'
+            if recorder_schema == SCHEMA_V6 else
+            'controlled_schedule_50hz'),
         'server_tick_available': False,
         'command_sequence_sha256': manifest['sha256'],
         'command_sequence_schema': controlled_schedule.SCHEMA,
@@ -1572,8 +2023,13 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
         'control_log_sha256': control['sha256'],
         'transport_observation_sha256': transport_sha256,
         'outbound_command_stream': outbound_stream['summary'],
-        'raw_recorder_schema': SCHEMA_V5,
+        'raw_recorder_schema': recorder_schema,
         'raw_protocol_validation_schema': raw_validation.get('schema'),
+        'root_pose_stream': raw_validation.get('root_pose_stream'),
+        'screen_frame': screen_frame,
+        'command_edge_catalog': command_edges,
+        'schedule_step_edge_catalog': schedule_step_edges,
+        'selected_command_edge': selected_edge,
         'fighter_pairing': fighter_pairing,
         'server_endpoint_present': True,
         'server_session_hash_present': True,
@@ -1833,7 +2289,8 @@ def _convert_legacy(raw_path, inventory_path, output_path, tick_limit=None):
 
 
 def convert(raw_path, inventory_path, output_path, tick_limit=None,
-            control_log_path=None, schedule_manifest_path=None):
+            control_log_path=None, schedule_manifest_path=None,
+            motion_edge=None):
     raw_path = Path(raw_path)
     output_path = Path(output_path)
     if raw_path.name.endswith('.partial'):
@@ -1843,14 +2300,17 @@ def convert(raw_path, inventory_path, output_path, tick_limit=None,
     records = _read_jsonl(raw_path)
     starts = [record for record in records if record.get('event') == 'capture_start']
     recorder_schema = starts[0].get('schema') if len(starts) == 1 else None
-    if recorder_schema == SCHEMA_V5:
+    if recorder_schema in PROTOCOL_SCHEMAS:
         return _convert_v5(
             raw_path,
             inventory_path,
             output_path,
             control_log_path,
             schedule_manifest_path,
-            tick_limit=tick_limit)
+            tick_limit=tick_limit,
+            motion_edge=motion_edge)
+    if motion_edge is not None:
+        raise ValueError('--motion-edge is available only for v6 root-stream imports')
     return _convert_legacy(
         raw_path, inventory_path, output_path, tick_limit=tick_limit)
 
@@ -1862,10 +2322,15 @@ def main(argv=None):
     parser.add_argument('--out', required=True)
     parser.add_argument(
         '--control-log',
-        help='v5 semantic bridge JSONL containing one completed schedule run')
+        help='v5/v6 semantic bridge JSONL containing one completed schedule run')
     parser.add_argument(
         '--schedule-manifest',
-        help='v5 canonical command schedule manifest')
+        help='v5/v6 canonical command schedule manifest')
+    parser.add_argument(
+        '--motion-edge',
+        help=(
+            'v6 only: select one command_edge catalog selector for the generic '
+            'comparator command_edge event; no edge is selected implicitly'))
     parser.add_argument(
         '--ticks', type=int,
         help='legacy v1/v3 only: emit this measured client-fixed-tick prefix')
@@ -1876,7 +2341,8 @@ def main(argv=None):
         args.out,
         tick_limit=args.ticks,
         control_log_path=args.control_log,
-        schedule_manifest_path=args.schedule_manifest)
+        schedule_manifest_path=args.schedule_manifest,
+        motion_edge=args.motion_edge)
     print(json.dumps(result, indent=1))
     return 0
 

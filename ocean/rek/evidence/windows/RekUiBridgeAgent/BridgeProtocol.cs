@@ -143,6 +143,11 @@ internal enum BridgeCommand
     ExitLostPrivateSession,
     StartMeasuredSchedule,
     StopMeasuredSchedule,
+    StartSingleMotionTrial,
+    StartContinuousBotController,
+    StopContinuousBotController,
+    StartAttackZoneTrial,
+    StopAttackZoneTrial,
 }
 
 internal enum RequestKind
@@ -157,7 +162,9 @@ internal sealed record BridgeRequest(
     RequestKind Kind,
     string RequestId,
     BridgeKey? Key,
-    BridgeCommand? Command);
+    BridgeCommand? Command,
+    string? Selector,
+    AttackZoneTrialTarget? AttackZoneTarget = null);
 
 internal sealed record OutboundMessage(long ConnectionId, object Payload);
 
@@ -204,6 +211,8 @@ internal static class BridgeProtocol
             string? type = null;
             string? key = null;
             string? command = null;
+            string? selector = null;
+            AttackZoneTrialTarget? attackZoneTarget = null;
             var names = new HashSet<string>(StringComparer.Ordinal);
             foreach (var property in document.RootElement.EnumerateObject())
             {
@@ -213,15 +222,27 @@ internal static class BridgeProtocol
                     return false;
                 }
 
-                if (property.Name is not ("type" or "request_id" or "key" or "command"))
+                if (property.Name is not ("type" or "request_id" or "key" or "command" or "selector" or "target"))
                 {
                     error = "unknown_property";
                     return false;
                 }
 
+                if (property.Name == "target")
+                {
+                    if (!AttackZoneTrialContract.TryParseTarget(
+                            property.Value,
+                            out attackZoneTarget,
+                            out error))
+                    {
+                        return false;
+                    }
+                    continue;
+                }
+
                 if (property.Value.ValueKind != JsonValueKind.String)
                 {
-                    error = "properties_must_be_strings";
+                    error = "properties_must_be_strings_except_target";
                     return false;
                 }
 
@@ -239,6 +260,9 @@ internal static class BridgeProtocol
                     case "command":
                         command = property.Value.GetString();
                         break;
+                    case "selector":
+                        selector = property.Value.GetString();
+                        break;
                 }
             }
 
@@ -251,38 +275,76 @@ internal static class BridgeProtocol
 
             if (string.Equals(type, "get_state", StringComparison.Ordinal))
             {
-                if (key is not null || command is not null || names.Count != 2)
+                if (key is not null || command is not null || selector is not null ||
+                    attackZoneTarget is not null || names.Count != 2)
                 {
                     error = "invalid_get_state_shape";
                     return false;
                 }
-                request = new BridgeRequest(connectionId, RequestKind.GetState, requestId!, null, null);
+                request = new BridgeRequest(connectionId, RequestKind.GetState, requestId!, null, null, null);
                 return true;
             }
 
             if (string.Equals(type, "input", StringComparison.Ordinal))
             {
-                if (key is null || command is not null || names.Count != 3 ||
+                if (key is null || command is not null || selector is not null ||
+                    attackZoneTarget is not null || names.Count != 3 ||
                     !Enum.GetNames<BridgeKey>().Contains(key, StringComparer.Ordinal))
                 {
                     error = "invalid_or_disallowed_key";
                     return false;
                 }
                 var parsedKey = Enum.Parse<BridgeKey>(key, ignoreCase: false);
-                request = new BridgeRequest(connectionId, RequestKind.Input, requestId!, parsedKey, null);
+                request = new BridgeRequest(connectionId, RequestKind.Input, requestId!, parsedKey, null, null);
                 return true;
             }
 
             if (string.Equals(type, "command", StringComparison.Ordinal))
             {
-                if (command is null || key is not null || names.Count != 3 ||
+                if (command is null || key is not null ||
                     !Enum.GetNames<BridgeCommand>().Contains(command, StringComparer.Ordinal))
                 {
                     error = "invalid_or_disallowed_command";
                     return false;
                 }
                 var parsedCommand = Enum.Parse<BridgeCommand>(command, ignoreCase: false);
-                request = new BridgeRequest(connectionId, RequestKind.Command, requestId!, null, parsedCommand);
+                var isSingleMotionTrial = parsedCommand == BridgeCommand.StartSingleMotionTrial;
+                var isAttackZoneTrial = parsedCommand == BridgeCommand.StartAttackZoneTrial;
+                if (isSingleMotionTrial)
+                {
+                    if (attackZoneTarget is not null || names.Count != 4 ||
+                        !SingleMotionTrialContract.TryGet(selector, out _))
+                    {
+                        error = "invalid_or_disallowed_selector";
+                        return false;
+                    }
+                }
+                else if (isAttackZoneTrial)
+                {
+                    if (selector is not null || attackZoneTarget is null || names.Count != 4 ||
+                        !AttackZoneTrialContract.TryValidateTarget(
+                            attackZoneTarget,
+                            out _,
+                            out error))
+                    {
+                        if (string.IsNullOrEmpty(error))
+                            error = "invalid_attack_zone_target";
+                        return false;
+                    }
+                }
+                else if (selector is not null || attackZoneTarget is not null || names.Count != 3)
+                {
+                    error = "invalid_command_shape";
+                    return false;
+                }
+                request = new BridgeRequest(
+                    connectionId,
+                    RequestKind.Command,
+                    requestId!,
+                    null,
+                    parsedCommand,
+                    selector,
+                    attackZoneTarget);
                 return true;
             }
 

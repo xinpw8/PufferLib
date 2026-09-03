@@ -76,6 +76,7 @@ HISTORY_STEPS = 15
 SINGLE_OBSERVATION_SIZE = 72
 POLICY_INPUT_SIZE = HISTORY_STEPS * SINGLE_OBSERVATION_SIZE + 3
 POLICY_OUTPUT_SIZE = 22
+OFFICIAL_DEFAULT_ROOT_CLEARANCE_M = 1.03
 
 
 def quaternion_matrix_wxyz(quaternion: np.ndarray) -> np.ndarray:
@@ -93,6 +94,37 @@ def quaternion_matrix_wxyz(quaternion: np.ndarray) -> np.ndarray:
         ],
         dtype=np.float64,
     )
+
+
+def upright_quaternion_at_heading_wxyz(quaternion: np.ndarray) -> np.ndarray:
+    """Remove roll and pitch while preserving a root pose's arena heading."""
+    rotation = quaternion_matrix_wxyz(quaternion)
+    yaw = math.atan2(rotation[1, 0], rotation[0, 0])
+    half_yaw = 0.5 * yaw
+    return np.array(
+        [math.cos(half_yaw), 0.0, 0.0, math.sin(half_yaw)],
+        dtype=np.float64,
+    )
+
+
+def world_box_top_height(model, mujoco_module, geom_name: str) -> float:
+    """Return the highest world-z point of a named static box geometry."""
+    geom_id = int(
+        mujoco_module.mj_name2id(
+            model,
+            mujoco_module.mjtObj.mjOBJ_GEOM,
+            geom_name,
+        )
+    )
+    if geom_id < 0:
+        raise ValueError(f"missing support geometry: {geom_name}")
+    if int(model.geom_bodyid[geom_id]) != 0:
+        raise ValueError(f"support geometry is not world-fixed: {geom_name}")
+    if int(model.geom_type[geom_id]) != int(mujoco_module.mjtGeom.mjGEOM_BOX):
+        raise ValueError(f"support geometry is not a box: {geom_name}")
+    rotation = quaternion_matrix_wxyz(model.geom_quat[geom_id])
+    world_z_extent = float(np.abs(rotation[2]) @ model.geom_size[geom_id])
+    return float(model.geom_pos[geom_id, 2] + world_z_extent)
 
 
 class FirstOrderLowPass:
@@ -268,7 +300,23 @@ class T800MuJoCoBinding:
         )
 
     def set_default_pose(self, data) -> None:
+        """Set SDK default joints only, without asserting a complete reset state."""
         data.qpos[self.qpos_addresses] = DEFAULT_Q
+
+    def set_sdk_standing_state(self, data, support_height_m: float) -> None:
+        """Apply the SDK walking policy's canonical state at the arena heading."""
+        root_qpos = self.root_qpos_address
+        root_dof = self.root_dof_address
+        heading = upright_quaternion_at_heading_wxyz(
+            data.qpos[root_qpos + 3 : root_qpos + 7]
+        )
+        data.qpos[root_qpos + 2] = (
+            float(support_height_m) + OFFICIAL_DEFAULT_ROOT_CLEARANCE_M
+        )
+        data.qpos[root_qpos + 3 : root_qpos + 7] = heading
+        data.qpos[self.qpos_addresses] = DEFAULT_Q
+        data.qvel[root_dof : root_dof + 6] = 0.0
+        data.qvel[self.dof_addresses] = 0.0
 
     def apply_torque(self, data, torque: np.ndarray) -> None:
         data.ctrl[self.actuator_ids] = torque
@@ -405,18 +453,36 @@ class T800SupineRecoveryController:
         if ratio < 1.0:
             target = ratio * target + (1.0 - ratio) * self.initial_joint_q
             self.transition_iteration += 1
-        torque = RECOVERY_KP * (target - joint_q) - RECOVERY_KD * joint_qd
+        return self.torque_limited_target(joint_q, joint_qd, target)
+
+    @staticmethod
+    def torque_limited_target(
+        joint_q: np.ndarray,
+        joint_qd: np.ndarray,
+        target_q: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Apply the SDK's once-per-control-cycle q_des torque limiting."""
+        joint_q = np.asarray(joint_q, dtype=np.float64)
+        joint_qd = np.asarray(joint_qd, dtype=np.float64)
+        torque = (
+            RECOVERY_KP * (np.asarray(target_q) - joint_q)
+            - RECOVERY_KD * joint_qd
+        )
         torque = np.clip(torque, -RECOVERY_TORQUE_LIMIT, RECOVERY_TORQUE_LIMIT)
         lower_sum = float(np.abs(torque[:12]).sum())
         if lower_sum > 1700.0:
             torque[:12] *= 1700.0 / lower_sum
-        return target, torque
+        limited_target = joint_q + (torque + RECOVERY_KD * joint_qd) / RECOVERY_KP
+        limited_target = np.minimum(limited_target, 6.5)
+        initial_torque = (
+            RECOVERY_KP * (limited_target - joint_q)
+            - RECOVERY_KD * joint_qd
+        )
+        return limited_target, initial_torque
 
     @staticmethod
     def pd_torque(joint_q: np.ndarray, joint_qd: np.ndarray, target_q: np.ndarray) -> np.ndarray:
-        torque = RECOVERY_KP * (np.asarray(target_q) - np.asarray(joint_q)) - RECOVERY_KD * np.asarray(joint_qd)
-        torque = np.clip(torque, -RECOVERY_TORQUE_LIMIT, RECOVERY_TORQUE_LIMIT)
-        lower_sum = float(np.abs(torque[:12]).sum())
-        if lower_sum > 1700.0:
-            torque[:12] *= 1700.0 / lower_sum
-        return torque
+        return (
+            RECOVERY_KP * (np.asarray(target_q) - np.asarray(joint_q))
+            - RECOVERY_KD * np.asarray(joint_qd)
+        )

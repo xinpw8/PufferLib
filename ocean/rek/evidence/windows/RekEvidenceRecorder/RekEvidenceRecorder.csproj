@@ -3,7 +3,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>RekEvidenceRecorder</AssemblyName>
     <RootNamespace>RekEvidenceRecorder</RootNamespace>
-    <Version>0.5.1</Version>
+    <Version>0.6.1</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
@@ -13,6 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Tests\**\*.cs" />
     <Reference Include="0Harmony">
       <HintPath>$(BepInExCoreDir)\0Harmony.dll</HintPath>
       <Private>false</Private>
@@ -43,6 +44,10 @@
     </Reference>
     <Reference Include="Unity.Netcode.Runtime">
       <HintPath>$(RekInteropDir)\Unity.Netcode.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.Services.Multiplayer">
+      <HintPath>$(RekInteropDir)\Unity.Services.Multiplayer.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Mujoco.Runtime">

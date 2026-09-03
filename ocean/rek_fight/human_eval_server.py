@@ -22,6 +22,7 @@ from engineai_t800_policy import (
     T800MuJoCoBinding,
     T800SupineRecoveryController,
     T800WalkingController,
+    world_box_top_height,
 )
 
 
@@ -320,6 +321,11 @@ class PolicyHumanEval:
         self.source_timestep = float(self.model.opt.timestep)
         self.model.opt.timestep = 0.002
         self.data = mujoco.MjData(self.model)
+        self.support_height_m = world_box_top_height(
+            self.model,
+            mujoco,
+            "arena_Collider_Floor_Rektagon",
+        )
         self.bindings = [T800MuJoCoBinding(mujoco, self.model, fighter=agent) for agent in range(2)]
         self.controllers = [T800WalkingController(policy_path) for _ in range(2)]
         self.recovery_controllers = [
@@ -364,7 +370,7 @@ class PolicyHumanEval:
     def _reset_unlocked(self) -> None:
         mujoco.mj_resetDataKeyframe(self.model, self.data, 0)
         for binding, controller in zip(self.bindings, self.controllers):
-            binding.set_default_pose(self.data)
+            binding.set_sdk_standing_state(self.data, self.support_height_m)
             controller.reset()
         self.recovering[:] = [False, False]
         mujoco.mj_forward(self.model, self.data)

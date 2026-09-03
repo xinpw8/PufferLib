@@ -39,14 +39,18 @@ def main() -> int:
     started = time.perf_counter()
 
     while not controller.finished:
-        target, torque = controller.step(
+        target, _ = controller.step(
             data.qpos[7:32],
             data.qvel[6:31],
             data.qpos[3:7],
             data.qvel[3:6],
         )
         for _ in range(substeps):
-            data.ctrl[:] = torque
+            data.ctrl[:] = controller.pd_torque(
+                data.qpos[7:32],
+                data.qvel[6:31],
+                target,
+            )
             mujoco.mj_step(model, data)
         minimum_height = min(minimum_height, float(data.qpos[2]))
         if controller.trajectory_index % 25 == 0 or controller.finished:

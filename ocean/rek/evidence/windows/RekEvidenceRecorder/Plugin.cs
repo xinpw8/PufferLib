@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -21,15 +22,18 @@ public sealed class Plugin : BasePlugin
 {
     public const string PluginGuid = "openai.rek.evidence.recorder";
     public const string PluginName = "REK Private AI Evidence Recorder";
-    public const string PluginVersion = "0.5.1";
+    public const string PluginVersion = RecorderContract.PluginVersion;
 
     private const string ExpectedGameAssemblySha256 =
         "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412";
     private const string ExpectedMetadataSha256 =
         "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd";
-    private const string DefaultOutputRoot = @"C:\rekagent\evidence\runtime\rek-private-ai-protocol-v5";
+    private const string DefaultOutputRoot = @"C:\rekagent\evidence\runtime\rek-private-ai-protocol-v6";
     private static readonly string OutputRoot = ResolveOutputRoot();
-    private const int ClientSampleStrideTicks = 10;
+    private const int CompactSampleStrideTicks = 10;
+    private const int RootPoseSampleStrideTicks = 1;
+    private const double ExpectedFixedDeltaTimeSeconds = 0.002;
+    private const double FixedDeltaTimeToleranceSeconds = 1e-9;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -47,6 +51,7 @@ public sealed class Plugin : BasePlugin
     private string? _partialPath;
     private string? _finalPath;
     private int _sampleCount;
+    private int _rootPoseSampleCount;
     private long _clientFixedTick;
     private int _captureErrorCount;
     private ulong _transportInvocationSequence;
@@ -150,9 +155,15 @@ public sealed class Plugin : BasePlugin
                 BeginCapture(scope);
             }
 
-            if (_clientFixedTick % ClientSampleStrideTicks == 0)
+            var clock = ClockStamp.Capture();
+            if (_clientFixedTick % RootPoseSampleStrideTicks == 0)
             {
-                WriteRecord(BuildSample(scope));
+                WriteRecord(BuildRootPoseSample(scope, clock));
+                _rootPoseSampleCount++;
+            }
+            if (_clientFixedTick % CompactSampleStrideTicks == 0)
+            {
+                WriteRecord(BuildSample(scope, clock));
                 _sampleCount++;
             }
             _clientFixedTick++;
@@ -236,6 +247,12 @@ public sealed class Plugin : BasePlugin
 
     private ScopeSnapshot EvaluateScope()
     {
+        if (Math.Abs((double)Time.fixedDeltaTime - ExpectedFixedDeltaTimeSeconds) >
+            FixedDeltaTimeToleranceSeconds)
+        {
+            return ScopeSnapshot.Denied($"fixed_delta_time_not_500_hz:{Time.fixedDeltaTime:R}");
+        }
+
         var coordinator = UnityEngine.Object.FindFirstObjectByType<FightCoordinator>();
         if (coordinator is null)
             return ScopeSnapshot.Denied("no_fight_coordinator");
@@ -247,6 +264,30 @@ public sealed class Plugin : BasePlugin
             return ScopeSnapshot.Denied("network_not_connected");
         if (!network.IsClient || network.IsServer)
             return ScopeSnapshot.Denied("not_client_only");
+        if (string.IsNullOrWhiteSpace(network.serverAddress) || network.port <= 0)
+            return ScopeSnapshot.Denied("network_endpoint_identity_not_proven");
+
+        var context = GameContext.Instance ?? UnityEngine.Object.FindFirstObjectByType<GameContext>();
+        if (context is null)
+            return ScopeSnapshot.Denied("no_game_context");
+        if (!context.IsSolo)
+            return ScopeSnapshot.Denied("solo_context_not_proven");
+        if (context.IsRanked || context.AutoFindMatch || string.IsNullOrWhiteSpace(context.ArenaID))
+            return ScopeSnapshot.Denied("private_unranked_arena_identity_not_proven");
+
+        var sessionManager = UnityEngine.Object.FindFirstObjectByType<XRMultiplayer.SessionManager>();
+        if (sessionManager is null)
+            return ScopeSnapshot.Denied("multiplayer_session_manager_not_found");
+        var currentSession = sessionManager.currentSession;
+        if (currentSession is null)
+            return ScopeSnapshot.Denied("multiplayer_current_session_not_found");
+        if (!currentSession.IsPrivate)
+            return ScopeSnapshot.Denied("multiplayer_session_public_rejected");
+
+        if (coordinator.IsRankedArena)
+            return ScopeSnapshot.Denied("ranked_coordinator_rejected");
+        if (coordinator.clientAiDifficultyLevel != 0)
+            return ScopeSnapshot.Denied("unexpected_sparring_bot_difficulty");
 
         var localSlot = coordinator.LocalFighterIndex;
         if (localSlot is < 0 or > 1)
@@ -281,16 +322,54 @@ public sealed class Plugin : BasePlugin
             return ScopeSnapshot.Denied("fighters_missing");
         if (!fighter0.IsVisualOnly || !fighter1.IsVisualOnly)
             return ScopeSnapshot.Denied("fighters_not_visual_only");
+        if (fighter0.RootTransform is null || fighter1.RootTransform is null)
+            return ScopeSnapshot.Denied("fighter_root_transform_missing");
+
+        var identities = coordinator.fighterIdentities;
+        if (identities is null || identities.Length < 2 ||
+            identities[0] is null || identities[1] is null)
+        {
+            return ScopeSnapshot.Denied("fighter_identities_missing");
+        }
+        var fighter0RobotId = identities[0].RobotID;
+        var fighter1RobotId = identities[1].RobotID;
+        var fighter0BoneNames = BoneNames(fighter0);
+        var fighter1BoneNames = BoneNames(fighter1);
+        var pairing = RecorderContract.ValidatePairing(
+            localSlot,
+            fighter0RobotId,
+            fighter0.name,
+            fighter0BoneNames,
+            fighter1RobotId,
+            fighter1.name,
+            fighter1BoneNames);
+        if (!pairing.ExactT800VersusT800)
+            return ScopeSnapshot.Denied($"pairing_rejected:{pairing.Reason}");
 
         var round = coordinator.CurrentRound;
-        if (round is null || !round.IsActive)
+        if (round is null || !round.IsActive || coordinator.CurrentPhase != FightPhase.RoundActive)
             return ScopeSnapshot.Denied("round_not_active");
+
+        var camera = Camera.main;
+        if (camera is null)
+            return ScopeSnapshot.Denied("main_camera_not_found");
+        if (!camera.enabled || !camera.gameObject.activeInHierarchy)
+            return ScopeSnapshot.Denied("main_camera_not_active");
+        if (camera.pixelWidth <= 0 || camera.pixelHeight <= 0)
+            return ScopeSnapshot.Denied("main_camera_pixel_extent_invalid");
 
         return ScopeSnapshot.AllowedScope(
             coordinator,
             network,
+            context,
             fighter0,
             fighter1,
+            fighter0RobotId,
+            fighter1RobotId,
+            fighter0BoneNames,
+            fighter1BoneNames,
+            pairing,
+            camera,
             localSlot,
             opponentSlot,
             coordinator.SparringBotNumber,
@@ -300,9 +379,10 @@ public sealed class Plugin : BasePlugin
     private void BeginCapture(ScopeSnapshot scope)
     {
         Directory.CreateDirectory(OutputRoot);
-        var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMddTHHmmss.fffffffZ");
+        var startClock = ClockStamp.Capture();
+        var stamp = startClock.Utc.ToString("yyyyMMddTHHmmss.fffffffZ");
         var identity = Guid.NewGuid().ToString("N");
-        var basename = $"rek-private-ai-raw-snapshot-{stamp}-pid{Environment.ProcessId}-{identity}.jsonl";
+        var basename = $"rek-private-ai-root-motion-{stamp}-pid{Environment.ProcessId}-{identity}.jsonl";
         _finalPath = Path.Combine(OutputRoot, basename);
         _partialPath = _finalPath + ".partial";
         _writer = new StreamWriter(
@@ -313,6 +393,7 @@ public sealed class Plugin : BasePlugin
             AutoFlush = false,
         };
         _sampleCount = 0;
+        _rootPoseSampleCount = 0;
         _clientFixedTick = 0;
         _captureErrorCount = 0;
         _transportInvocationSequence = 0;
@@ -336,8 +417,12 @@ public sealed class Plugin : BasePlugin
         WriteRecord(new Dictionary<string, object?>
         {
             ["event"] = "capture_start",
-            ["schema"] = "rek.private_ai.protocol.v5",
-            ["utc"] = DateTimeOffset.UtcNow,
+            ["schema"] = RecorderContract.Schema,
+            ["utc"] = startClock.Utc,
+            ["stopwatch_timestamp_ticks"] = startClock.StopwatchTicks,
+            ["stopwatch_frequency_hz"] = Stopwatch.Frequency,
+            ["stopwatch_is_high_resolution"] = Stopwatch.IsHighResolution,
+            ["stopwatch_clock_semantics"] = "System.Diagnostics.Stopwatch.GetTimestamp; QueryPerformanceCounter-backed on Windows when Stopwatch.IsHighResolution is true",
             ["pid"] = Environment.ProcessId,
             ["machine"] = Environment.MachineName,
             ["game_root"] = Paths.GameRootPath,
@@ -348,11 +433,18 @@ public sealed class Plugin : BasePlugin
             ["plugin_sha256"] = _pluginSha256,
             ["game_assembly_sha256"] = _gameAssemblySha256,
             ["global_metadata_sha256"] = _metadataSha256,
-            ["sampling_semantics"] = "compact_state_every_10_client_Unity_FixedUpdate_calls_plus_exact_receive-boundary protocol packets and decoded bone snapshots",
-            ["client_sample_stride_ticks"] = ClientSampleStrideTicks,
+            ["sampling_semantics"] = "compact_state_every_10_client_Unity_FixedUpdate_calls_plus_root_pose_and_camera_every_client_Unity_FixedUpdate_call_plus_exact_receive-boundary_protocol_packets_and_decoded_bone_snapshots",
+            ["client_sample_stride_ticks"] = CompactSampleStrideTicks,
             ["tick_level_claim"] = false,
             ["tick_domain"] = "client_fixed_update",
             ["fixed_delta_time"] = Time.fixedDeltaTime,
+            ["root_pose_sample_stride_ticks"] = RootPoseSampleStrideTicks,
+            ["root_pose_sample_rate_hz"] = 500,
+            ["root_pose_tick_level_claim"] = true,
+            ["root_pose_fields"] = "world root position/rotation plus Camera.WorldToScreenPoint only; no inferred joints, velocities, contacts, or server state",
+            ["root_screen_coordinate_semantics"] = "Unity Camera.WorldToScreenPoint pixels; origin bottom-left; z is world-unit distance from camera plane",
+            ["camera_selection_semantics"] = "UnityEngine.Camera.main; capture is denied when absent, inactive, or without a positive pixel extent",
+            ["camera_matrix_semantics"] = "16 float values in row-major m[row,column] order; world_to_camera is Unity view matrix; gpu_projection uses GL.GetGPUProjectionMatrix with render_into_texture",
             ["server_tick_available"] = false,
             ["server_tick_reason"] = "recovered FightStatePacket and BoneSnapshot layouts expose no server tick field",
             ["bone_wire_protocol"] = new Dictionary<string, object?>
@@ -360,8 +452,9 @@ public sealed class Plugin : BasePlugin
                 ["message"] = "REK_Bones",
                 ["body_layout"] = "uint8 networkIndex; uint8 boneCount; repeated float32 little-endian worldPosition.xyz and worldRotation.xyzw",
                 ["body_size_formula_bytes"] = "2 + 28 * boneCount",
-                ["t800_bone_count"] = 30,
-                ["t800_body_bytes"] = 842,
+                ["t800_bone_count"] = RecorderContract.T800BoneNames.Length,
+                ["t800_body_bytes"] = 2 + 28 * RecorderContract.T800BoneNames.Length,
+                ["t800_ordered_bone_signature_sha256"] = RecorderContract.T800BoneSignatureSha256,
                 ["intended_send_interval_seconds"] = 0.02,
                 ["intended_send_rate_hz"] = 50,
                 ["delivery"] = "unreliable",
@@ -402,14 +495,16 @@ public sealed class Plugin : BasePlugin
             ["authority_semantics"] = "client_observation_of_remote_authoritative_private_AI_mode",
             ["server"] = scope.Server,
             ["scope"] = ScopeRecord(scope),
-            ["fighter_0_bones"] = BoneNames(scope.Fighter0!),
-            ["fighter_1_bones"] = BoneNames(scope.Fighter1!),
+            ["pairing"] = PairingRecord(scope),
+            ["fighter_0_bones"] = scope.Fighter0BoneNames,
+            ["fighter_1_bones"] = scope.Fighter1BoneNames,
+            ["initial_camera"] = CameraRecord(scope.Camera!),
         });
         _writer.Flush();
         Log.LogInfo($"Private AI evidence capture started: {_partialPath}");
     }
 
-    private Dictionary<string, object?> BuildSample(ScopeSnapshot scope)
+    private Dictionary<string, object?> BuildSample(ScopeSnapshot scope, ClockStamp clock)
     {
         var coordinator = scope.Coordinator!;
         var input = coordinator.robotInput;
@@ -421,7 +516,8 @@ public sealed class Plugin : BasePlugin
             ["event"] = "sample",
             ["sample_index"] = _sampleCount,
             ["client_fixed_tick"] = _clientFixedTick,
-            ["utc"] = DateTimeOffset.UtcNow,
+            ["utc"] = clock.Utc,
+            ["stopwatch_timestamp_ticks"] = clock.StopwatchTicks,
             ["unity_frame"] = Time.frameCount,
             ["unity_time"] = Time.timeAsDouble,
             ["unity_fixed_time"] = Time.fixedTimeAsDouble,
@@ -457,12 +553,38 @@ public sealed class Plugin : BasePlugin
         return record;
     }
 
+    private Dictionary<string, object?> BuildRootPoseSample(ScopeSnapshot scope, ClockStamp clock)
+    {
+        var camera = scope.Camera!;
+        return new Dictionary<string, object?>
+        {
+            ["event"] = "root_pose_sample",
+            ["root_pose_sample_index"] = _rootPoseSampleCount,
+            ["client_fixed_tick"] = _clientFixedTick,
+            ["utc"] = clock.Utc,
+            ["stopwatch_timestamp_ticks"] = clock.StopwatchTicks,
+            ["unity_frame"] = Time.frameCount,
+            ["unity_time"] = Time.timeAsDouble,
+            ["unity_fixed_time"] = Time.fixedTimeAsDouble,
+            ["unity_unscaled_time"] = Time.unscaledTimeAsDouble,
+            ["scene"] = SceneManager.GetActiveScene().name,
+            ["fight_epoch"] = scope.Coordinator!.fightEpoch,
+            ["round_number"] = scope.Coordinator.CurrentRound?.RoundNumber,
+            ["local_fighter_index"] = scope.LocalSlot,
+            ["opponent_slot"] = scope.OpponentSlot,
+            ["camera"] = CameraRecord(camera),
+            ["fighter_0_root"] = RootPoseRecord(scope.Fighter0!, camera),
+            ["fighter_1_root"] = RootPoseRecord(scope.Fighter1!, camera),
+        };
+    }
+
     internal void ObserveVelocityCommandRequest(RobotInputController input)
     {
         if (_writer is null)
             return;
         try
         {
+            var clock = ClockStamp.Capture();
             if (!EvaluateScope().Allowed)
                 return;
 
@@ -490,6 +612,8 @@ public sealed class Plugin : BasePlugin
                 ["request_sequence"] = _transportInvocationSequence,
                 ["message_request_sequence"] = methodCount,
                 ["client_fixed_tick_at_observation"] = _clientFixedTick,
+                ["utc"] = clock.Utc,
+                ["stopwatch_timestamp_ticks"] = clock.StopwatchTicks,
                 ["unity_frame"] = _lastTransportInvocationFrame,
                 ["unity_realtime_since_startup"] = _lastTransportInvocationTime,
                 ["wire_delivery"] = "unreliable",
@@ -527,6 +651,7 @@ public sealed class Plugin : BasePlugin
             return;
         try
         {
+            var clock = ClockStamp.Capture();
             if (!EvaluateScope().Allowed)
                 return;
 
@@ -548,6 +673,8 @@ public sealed class Plugin : BasePlugin
                 ["request_sequence"] = _transportInvocationSequence,
                 ["message_request_sequence"] = methodCount,
                 ["client_fixed_tick_at_observation"] = _clientFixedTick,
+                ["utc"] = clock.Utc,
+                ["stopwatch_timestamp_ticks"] = clock.StopwatchTicks,
                 ["unity_frame"] = _lastTransportInvocationFrame,
                 ["unity_realtime_since_startup"] = _lastTransportInvocationTime,
                 ["wire_delivery"] = "reliable",
@@ -580,6 +707,7 @@ public sealed class Plugin : BasePlugin
             return;
         try
         {
+            var clock = ClockStamp.Capture();
             if (!EvaluateScope().Allowed)
                 return;
 
@@ -596,6 +724,8 @@ public sealed class Plugin : BasePlugin
                 ["request_sequence"] = _transportInvocationSequence,
                 ["method_request_sequence"] = methodCount,
                 ["client_fixed_tick_at_observation"] = _clientFixedTick,
+                ["utc"] = clock.Utc,
+                ["stopwatch_timestamp_ticks"] = clock.StopwatchTicks,
                 ["unity_frame"] = _lastTransportInvocationFrame,
                 ["unity_realtime_since_startup"] = _lastTransportInvocationTime,
                 ["method"] = methodName,
@@ -983,6 +1113,13 @@ public sealed class Plugin : BasePlugin
         ["network_connected"] = true,
         ["network_is_client"] = true,
         ["network_is_server"] = false,
+        ["context_is_solo"] = true,
+        ["context_is_ranked"] = false,
+        ["context_auto_find_match"] = false,
+        ["arena_id_present"] = true,
+        ["multiplayer_session_privacy_known"] = true,
+        ["multiplayer_session_is_private"] = true,
+        ["coordinator_is_ranked_arena"] = false,
         ["local_fighter_index"] = scope.LocalSlot,
         ["opponent_slot"] = scope.OpponentSlot,
         ["opponent_is_ai"] = true,
@@ -993,6 +1130,56 @@ public sealed class Plugin : BasePlugin
         ["fighter_0_visual_only"] = true,
         ["fighter_1_visual_only"] = true,
         ["sparring_bot_number"] = scope.SparringBotNumber,
+        ["client_ai_difficulty"] = 0,
+        ["exact_t800_vs_t800"] = scope.Pairing.ExactT800VersusT800,
+        ["local_semantic_t800"] = scope.Pairing.LocalSemanticT800,
+        ["opponent_runtime_t800_signature_exact"] =
+            scope.Pairing.OpponentExactT800BoneSignature,
+        ["opponent_semantic_runtime_mismatch"] =
+            scope.Pairing.OpponentSemanticRuntimeMismatch,
+        ["opponent_semantic_runtime_consistency"] =
+            scope.Pairing.OpponentSemanticRuntimeConsistency,
+    };
+
+    private static Dictionary<string, object?> PairingRecord(ScopeSnapshot scope) => new()
+    {
+        ["required_pairing"] = RecorderContract.RequiredPairing,
+        ["required_robot_id"] = RecorderContract.RequiredRobotId,
+        ["required_t800_bone_count"] = RecorderContract.T800BoneNames.Length,
+        ["required_t800_bone_signature_sha256"] = RecorderContract.T800BoneSignatureSha256,
+        ["semantic_identity_source"] = "FightCoordinator.fighterIdentities[slot].RobotID",
+        ["bone_signature_source"] = "FightCoordinator.Fighters[slot].boneTransforms[index].name",
+        ["exact_t800_vs_t800"] = scope.Pairing.ExactT800VersusT800,
+        ["reason"] = scope.Pairing.Reason,
+        ["local_slot"] = scope.Pairing.LocalSlot,
+        ["local_semantic_t800"] = scope.Pairing.LocalSemanticT800,
+        ["opponent_semantic_t800"] = scope.Pairing.OpponentSemanticT800,
+        ["opponent_runtime_t800_signature_exact"] =
+            scope.Pairing.OpponentExactT800BoneSignature,
+        ["opponent_semantic_runtime_mismatch"] =
+            scope.Pairing.OpponentSemanticRuntimeMismatch,
+        ["opponent_semantic_runtime_consistency"] =
+            scope.Pairing.OpponentSemanticRuntimeConsistency,
+        ["fighter_0"] = new Dictionary<string, object?>
+        {
+            ["semantic_robot_id"] = scope.Fighter0RobotId,
+            ["semantic_t800"] = scope.Pairing.Fighter0SemanticT800,
+            ["bone_count"] = scope.Fighter0BoneNames?.Count,
+            ["ordered_bone_signature_sha256"] = scope.Fighter0BoneNames is null
+                ? null
+                : RecorderContract.BoneSignatureSha256(scope.Fighter0BoneNames),
+            ["exact_t800_bone_signature"] = scope.Pairing.Fighter0ExactT800BoneSignature,
+        },
+        ["fighter_1"] = new Dictionary<string, object?>
+        {
+            ["semantic_robot_id"] = scope.Fighter1RobotId,
+            ["semantic_t800"] = scope.Pairing.Fighter1SemanticT800,
+            ["bone_count"] = scope.Fighter1BoneNames?.Count,
+            ["ordered_bone_signature_sha256"] = scope.Fighter1BoneNames is null
+                ? null
+                : RecorderContract.BoneSignatureSha256(scope.Fighter1BoneNames),
+            ["exact_t800_bone_signature"] = scope.Pairing.Fighter1ExactT800BoneSignature,
+        },
     };
 
     private static Dictionary<string, object?> ReadServerIdentity(NetworkSession network)
@@ -1077,6 +1264,162 @@ public sealed class Plugin : BasePlugin
             ["result_value"] = (int)fight.Result,
             ["winner_index"] = fight.WinnerIndex,
         };
+    }
+
+    private static Dictionary<string, object?> RootPoseRecord(Robot robot, Camera camera)
+    {
+        var root = robot.RootTransform ??
+            throw new InvalidDataException("Scoped fighter root transform disappeared.");
+        var worldPosition = root.position;
+        var worldRotation = root.rotation;
+        var screenPosition = camera.WorldToScreenPoint(worldPosition);
+        RequireFinite(worldPosition, "fighter root world position");
+        RequireFinite(worldRotation, "fighter root world rotation");
+        RequireFinite(screenPosition, "fighter root screen position");
+        var pixelRect = camera.pixelRect;
+        return new Dictionary<string, object?>
+        {
+            ["world_position_xyz"] = Vector(worldPosition),
+            ["world_rotation_xyzw"] = QuaternionRecord(worldRotation),
+            ["screen_position_xyz"] = Vector(screenPosition),
+            ["screen_in_front_of_camera"] = screenPosition.z > 0.0f,
+            ["screen_inside_camera_pixel_rect"] =
+                screenPosition.z > 0.0f && pixelRect.Contains(new Vector2(screenPosition.x, screenPosition.y)),
+        };
+    }
+
+    private static Dictionary<string, object?> CameraRecord(Camera camera)
+    {
+        var transform = camera.transform;
+        var worldPosition = transform.position;
+        var worldRotation = transform.rotation;
+        var view = camera.worldToCameraMatrix;
+        var projection = camera.projectionMatrix;
+        var renderIntoTexture = camera.targetTexture is not null;
+        var gpuProjection = GL.GetGPUProjectionMatrix(projection, renderIntoTexture);
+        var viewportRect = camera.rect;
+        var pixelRect = camera.pixelRect;
+        RequireFinite(worldPosition, "camera world position");
+        RequireFinite(worldRotation, "camera world rotation");
+        RequireFinite(view, "camera world-to-camera matrix");
+        RequireFinite(projection, "camera projection matrix");
+        RequireFinite(gpuProjection, "camera GPU projection matrix");
+        RequireFinite(viewportRect, "camera viewport rect");
+        RequireFinite(pixelRect, "camera pixel rect");
+        RequireFinite(camera.orthographicSize, "camera orthographic size");
+        RequireFinite(camera.fieldOfView, "camera field of view");
+        RequireFinite(camera.aspect, "camera aspect");
+        RequireFinite(camera.nearClipPlane, "camera near clip plane");
+        RequireFinite(camera.farClipPlane, "camera far clip plane");
+        RequireFinite(Screen.dpi, "screen DPI");
+        RequireFinite(ScalableBufferManager.widthScaleFactor, "render width scale");
+        RequireFinite(ScalableBufferManager.heightScaleFactor, "render height scale");
+
+        var targetTexture = camera.targetTexture;
+        return new Dictionary<string, object?>
+        {
+            ["selection"] = "UnityEngine.Camera.main",
+            ["instance_id"] = camera.GetInstanceID(),
+            ["name"] = camera.name,
+            ["enabled"] = camera.enabled,
+            ["active_in_hierarchy"] = camera.gameObject.activeInHierarchy,
+            ["camera_type"] = camera.cameraType.ToString(),
+            ["world_position_xyz"] = Vector(worldPosition),
+            ["world_rotation_xyzw"] = QuaternionRecord(worldRotation),
+            ["world_to_camera_matrix_row_major"] = MatrixRecord(view),
+            ["projection_matrix_row_major"] = MatrixRecord(projection),
+            ["gpu_projection_matrix_row_major"] = MatrixRecord(gpuProjection),
+            ["normalized_viewport_rect_xywh"] = RectRecord(viewportRect),
+            ["pixel_rect_xywh"] = RectRecord(pixelRect),
+            ["pixel_width"] = camera.pixelWidth,
+            ["pixel_height"] = camera.pixelHeight,
+            ["scaled_pixel_width"] = camera.scaledPixelWidth,
+            ["scaled_pixel_height"] = camera.scaledPixelHeight,
+            ["target_display"] = camera.targetDisplay,
+            ["orthographic"] = camera.orthographic,
+            ["orthographic_size"] = camera.orthographicSize,
+            ["field_of_view_degrees"] = camera.fieldOfView,
+            ["aspect"] = camera.aspect,
+            ["near_clip_plane"] = camera.nearClipPlane,
+            ["far_clip_plane"] = camera.farClipPlane,
+            ["render_into_texture"] = renderIntoTexture,
+            ["target_texture"] = targetTexture is null
+                ? null
+                : new Dictionary<string, object?>
+                {
+                    ["width"] = targetTexture.width,
+                    ["height"] = targetTexture.height,
+                    ["anti_aliasing"] = targetTexture.antiAliasing,
+                },
+            ["allow_hdr"] = camera.allowHDR,
+            ["allow_msaa"] = camera.allowMSAA,
+            ["screen_width"] = Screen.width,
+            ["screen_height"] = Screen.height,
+            ["screen_full_screen_mode"] = Screen.fullScreenMode.ToString(),
+            ["screen_dpi"] = Screen.dpi,
+            ["render_scale_xy"] = new[]
+            {
+                ScalableBufferManager.widthScaleFactor,
+                ScalableBufferManager.heightScaleFactor,
+            },
+        };
+    }
+
+    private static float[] MatrixRecord(Matrix4x4 value)
+    {
+        var result = new float[16];
+        var offset = 0;
+        for (var row = 0; row < 4; row++)
+        {
+            for (var column = 0; column < 4; column++)
+                result[offset++] = value[row, column];
+        }
+        return result;
+    }
+
+    private static float[] RectRecord(Rect value) =>
+        new[] { value.x, value.y, value.width, value.height };
+
+    private static void RequireFinite(Vector3 value, string label)
+    {
+        if (!float.IsFinite(value.x) || !float.IsFinite(value.y) || !float.IsFinite(value.z))
+            throw new InvalidDataException($"{label} is not finite.");
+    }
+
+    private static void RequireFinite(Quaternion value, string label)
+    {
+        if (!float.IsFinite(value.x) || !float.IsFinite(value.y) ||
+            !float.IsFinite(value.z) || !float.IsFinite(value.w))
+        {
+            throw new InvalidDataException($"{label} is not finite.");
+        }
+    }
+
+    private static void RequireFinite(Matrix4x4 value, string label)
+    {
+        for (var row = 0; row < 4; row++)
+        {
+            for (var column = 0; column < 4; column++)
+            {
+                if (!float.IsFinite(value[row, column]))
+                    throw new InvalidDataException($"{label} is not finite.");
+            }
+        }
+    }
+
+    private static void RequireFinite(Rect value, string label)
+    {
+        if (!float.IsFinite(value.x) || !float.IsFinite(value.y) ||
+            !float.IsFinite(value.width) || !float.IsFinite(value.height))
+        {
+            throw new InvalidDataException($"{label} is not finite.");
+        }
+    }
+
+    private static void RequireFinite(float value, string label)
+    {
+        if (!float.IsFinite(value))
+            throw new InvalidDataException($"{label} is not finite.");
     }
 
     private static Dictionary<string, object?> RobotRecord(Robot robot, bool includeBones = true)
@@ -1222,10 +1565,12 @@ public sealed class Plugin : BasePlugin
     {
         try
         {
+            var clock = ClockStamp.Capture();
             WriteRecord(new Dictionary<string, object?>
             {
                 ["event"] = "capture_error",
-                ["utc"] = DateTimeOffset.UtcNow,
+                ["utc"] = clock.Utc,
+                ["stopwatch_timestamp_ticks"] = clock.StopwatchTicks,
                 ["unity_frame"] = Time.frameCount,
                 ["stage"] = stage,
                 ["exception_type"] = exception.GetType().FullName,
@@ -1246,14 +1591,17 @@ public sealed class Plugin : BasePlugin
 
         try
         {
+            var clock = ClockStamp.Capture();
             WriteRecord(new Dictionary<string, object?>
             {
                 ["event"] = "capture_end",
-                ["utc"] = DateTimeOffset.UtcNow,
+                ["utc"] = clock.Utc,
+                ["stopwatch_timestamp_ticks"] = clock.StopwatchTicks,
                 ["reason"] = reason,
                 ["client_fixed_tick_at_end"] = _clientFixedTick,
                 ["unity_fixed_time_at_end"] = Time.fixedTimeAsDouble,
                 ["sample_count"] = _sampleCount,
+                ["root_pose_sample_count"] = _rootPoseSampleCount,
                 ["capture_error_count"] = _captureErrorCount,
                 ["client_transport_invocation_count"] = _transportInvocationSequence,
                 ["client_transport_method_counts"] = new Dictionary<string, ulong>(_transportInvocationCounts),
@@ -1292,6 +1640,7 @@ public sealed class Plugin : BasePlugin
             _partialPath = null;
             _finalPath = null;
             _sampleCount = 0;
+            _rootPoseSampleCount = 0;
             _clientFixedTick = 0;
             _captureErrorCount = 0;
         }
@@ -1402,8 +1751,15 @@ public sealed class Plugin : BasePlugin
         public string Reason { get; }
         public FightCoordinator? Coordinator { get; private init; }
         public NetworkSession? Network { get; private init; }
+        public GameContext? Context { get; private init; }
         public Robot? Fighter0 { get; private init; }
         public Robot? Fighter1 { get; private init; }
+        public string? Fighter0RobotId { get; private init; }
+        public string? Fighter1RobotId { get; private init; }
+        public IReadOnlyList<string?>? Fighter0BoneNames { get; private init; }
+        public IReadOnlyList<string?>? Fighter1BoneNames { get; private init; }
+        public PairingValidation Pairing { get; private init; }
+        public Camera? Camera { get; private init; }
         public int LocalSlot { get; private init; }
         public int OpponentSlot { get; private init; }
         public int SparringBotNumber { get; private init; }
@@ -1414,8 +1770,15 @@ public sealed class Plugin : BasePlugin
         public static ScopeSnapshot AllowedScope(
             FightCoordinator coordinator,
             NetworkSession network,
+            GameContext context,
             Robot fighter0,
             Robot fighter1,
+            string fighter0RobotId,
+            string fighter1RobotId,
+            IReadOnlyList<string?> fighter0BoneNames,
+            IReadOnlyList<string?> fighter1BoneNames,
+            PairingValidation pairing,
+            Camera camera,
             int localSlot,
             int opponentSlot,
             int sparringBotNumber,
@@ -1423,8 +1786,15 @@ public sealed class Plugin : BasePlugin
         {
             Coordinator = coordinator,
             Network = network,
+            Context = context,
             Fighter0 = fighter0,
             Fighter1 = fighter1,
+            Fighter0RobotId = fighter0RobotId,
+            Fighter1RobotId = fighter1RobotId,
+            Fighter0BoneNames = fighter0BoneNames,
+            Fighter1BoneNames = fighter1BoneNames,
+            Pairing = pairing,
+            Camera = camera,
             LocalSlot = localSlot,
             OpponentSlot = opponentSlot,
             SparringBotNumber = sparringBotNumber,
@@ -1433,6 +1803,12 @@ public sealed class Plugin : BasePlugin
     }
 
     private readonly record struct BoneSnapshotCursor(int Head, int Count, float ReceivedAt);
+
+    private readonly record struct ClockStamp(DateTimeOffset Utc, long StopwatchTicks)
+    {
+        public static ClockStamp Capture() =>
+            new(DateTimeOffset.UtcNow, Stopwatch.GetTimestamp());
+    }
 }
 
 public sealed class RecorderBehaviour : MonoBehaviour

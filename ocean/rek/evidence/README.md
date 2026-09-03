@@ -300,26 +300,62 @@ velocity commands and discrete move, special, and emergency-stop invocation
 timing. Missing discrete action identity fails closed. Older imported traces do
 not satisfy this schema and cannot establish a repeat envelope.
 
-The staged v0.5.1 recorder adds a separate primary-evidence stream at the
-client protocol boundary. Prefixes copy `FastBufferReader` bytes without
-advancing the reader. For each `REK_Bones` packet it preserves the two-byte
-header and every transmitted world position and rotation; a postfix binds that
-body to the decoded snapshot ring entry. The validator recognizes only the
-exact ordered `t800_26` and `g1_30` layouts, whose bodies are 730 and 842 bytes
-respectively. The mapping is measured from the scoped runtime objects:
+The staged v0.6.1 recorder emits `rek.private_ai.protocol.v6`. It fails closed
+before opening a capture unless the pinned client is running at a measured
+`0.002 s` fixed step in an active, unranked solo round; the current multiplayer
+session reports `IsPrivate`; the opponent is exactly `Sparring Bot 1` at client
+AI difficulty 0 with no human or client in that slot; and both visual-only
+fighters are exactly T800. Local identity requires the case-sensitive
+`fighterIdentities[localSlot].RobotID == "t800"` result and the exact ordered
+26-bone `LINK_*` runtime signature. Opponent identity requires the same exact
+runtime signature; a missing or stale opponent semantic ID is retained as an
+explicit mismatch instead of replacing the measured runtime identity. A
+non-T800 opponent runtime still fails closed. The recorder also rejects an
+absent, inactive, or zero-extent `Camera.main`. No finalized v6 capture is
+claimed here yet.
+
+Protocol v6 adds one `root_pose_sample` for every captured client
+`FixedUpdate`, declared and validated as a contiguous 500 Hz stream. Each
+sample preserves both fighters' measured world root position and rotation,
+their `Camera.WorldToScreenPoint` coordinates and visibility flags, plus the
+selected camera's transform, view and projection matrices, viewport and pixel
+geometry, render-target state, clip planes, display, and render scale. Matrix
+order and Unity's bottom-left screen-coordinate convention are explicit. These
+are root and camera measurements only, not inferred joint state, image-derived
+tracking, contacts, velocities, or server state.
+
+Capture bounds, compact samples, root samples, and outbound request edges carry
+both UTC and `System.Diagnostics.Stopwatch.GetTimestamp()` values. On
+high-resolution Windows systems the latter is QueryPerformanceCounter-backed;
+the capture records its frequency. The v6 validator requires explicit UTC,
+bounded monotonic Stopwatch values, a root sample for every fixed tick, the
+measured `0.002 s` fixed-time cadence, and an unchanged camera instance and
+render geometry. Outbound timestamps identify the client-observed `Send*`
+method edge. They do not establish network send completion or a server-side
+execution time.
+
+The staged recorder retains the protocol-boundary evidence introduced by v0.5.1.
+Prefixes copy `FastBufferReader` bytes without advancing the reader. For each
+`REK_Bones` packet it preserves the two-byte header and every transmitted world
+position and rotation; a postfix binds that body to the decoded snapshot ring
+entry. The validator recognizes only the exact ordered `t800_26` and `g1_30`
+layouts, whose bodies are 730 and 842 bytes respectively. The mapping is
+measured from the scoped runtime objects:
 `engineai_t800_FactoryPolicy(Clone)` carries the 26-name `LINK_*` sequence, and
 `g1_29dof_Prefab_SONIC(Clone)` carries the 30-name `pelvis` through
-`right_wrist_yaw_link` sequence. Recorder v0.5.1's capture-level
-`t800_bone_count=30` and `t800_body_bytes=842` fields are known mislabels. The
-validator checks them only as pinned v0.5.1 format literals and never uses them
-for fighter classification. The native sender sets an intended interval of
-`0.02 s`, equivalent to 50 Hz, using unreliable delivery.
+`right_wrist_yaw_link` sequence. The v6 header correctly declares T800 as 26
+bones and 730 bytes and pins the ordered-name signature. Historical v0.5.1
+headers declared `t800_bone_count=30` and `t800_body_bytes=842`; those are known
+format mislabels. Backward-compatible validation checks them only as pinned v5
+literals and never uses them for fighter classification. The native sender sets
+an intended interval of `0.02 s`, equivalent to 50 Hz, using unreliable
+delivery.
 
-The same recorder preserves raw `REK_FightState` (33 bytes, reliable, nominal
-10 Hz), `REK_Score` (7 bytes, reliable), and `REK_Hit` (29 bytes, unreliable)
-packets. A FightState postfix correlates each copied body with the applied
-client state. Score and referee fields are authoritative event labels, but the
-Hit packet is effects telemetry and has no fighter identity. Clearing a
+Both protocol schemas preserve raw `REK_FightState` (33 bytes, reliable,
+nominal 10 Hz), `REK_Score` (7 bytes, reliable), and `REK_Hit` (29 bytes,
+unreliable) packets. A FightState postfix correlates each copied body with the
+applied client state. Score and referee fields are authoritative event labels,
+but the Hit packet is effects telemetry and has no fighter identity. Clearing a
 referee count is not uniquely a successful get-up event.
 
 On the outbound side, prefixes project the exact 13-byte `REK_Input` and
@@ -329,28 +365,34 @@ the unused `ClientSendFrame` helper is not hooked or treated as a cadence.
 Every outbound record is explicitly request-only with null server tick and
 acceptance fields and no observed acknowledgement.
 
-All packet timestamps remain client observation times. None of these bodies
-contains a server tick, server send timestamp, command sequence, move identity,
-acceptance result, active policy state, joint velocity, or torque.
+All protocol and pose timestamps remain client observation times. None of the
+recovered packet bodies contains a server tick, server send timestamp, command
+sequence, move identity, acceptance result, active policy state, joint velocity,
+torque, controller observation or output, model weights, or hidden state.
 
-Validate a finalized v5 JSONL capture before any importer or model consumes it:
+Validate any finalized v6 or historical v5 JSONL capture before an importer or
+model consumes it:
 
 ```
+python raw_bone_validate.py --raw C:/rekagent/evidence/runtime/rek-private-ai-protocol-v6/<capture>.jsonl --out evidence_out/<capture>.protocol-validation.json
 python raw_bone_validate.py --raw C:/rekagent/evidence/runtime/rek-private-ai-protocol-v5/<capture>.jsonl --out evidence_out/<capture>.protocol-validation.json
 ```
 
-The validator requires each redundant JSON number to round-trip to the exact
-IEEE-754 binary32 bits in the base64 body, including preserving a `-0` token's
+The validator pins each schema to its exact recorder version and DLL hash. It
+requires each redundant JSON number to round-trip to the exact IEEE-754
+binary32 bits in the base64 body, including preserving a `-0` token's
 negative-zero sign. It checks body hashes and exact packet lengths, verifies all
 per-channel sequences, requires one-to-one FightState and bone postfix
 correlation, verifies request-only semantics, and rejects raw arena/session
 identifiers. Only an irreversible SHA-256 session identity is retained for
-repeat grouping. Three complete private Bot 1 captures from the staged DLL now
-pass this validator, including a mixed `t800_26` versus `g1_30` capture.
+repeat grouping. Three complete private Bot 1 captures from recorder v0.5.1
+remain validated historical evidence, including a mixed `t800_26` versus
+`g1_30` capture. They do not satisfy the stricter v6 private T800-vs-T800 and
+500 Hz root-stream claims.
 
-This recorder is not yet complete enough for clone acceptance. It observes the
-client boundary of a server-authoritative mode, not server-only physics or
-controller state, and it cannot make an incomplete channel set equivalent to
+Neither recorder schema is complete enough for clone acceptance. Both observe
+the client boundary of a server-authoritative mode, not server-only physics or
+controller state, and neither can make an incomplete channel set equivalent to
 the full transition state.
 
 `snapshot_transition_baseline.py` is a measured-input system-identification
