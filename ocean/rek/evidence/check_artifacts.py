@@ -19,6 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from trace import Trace
+from static_survey import derive_fixed_timestep
 from controller_path import validate_report as validate_controller_path
 
 # Stages, in the order the sequence in README.md establishes them. Each depends
@@ -118,12 +119,20 @@ def check(directory: Path):
             fingerprints['static_survey.json'] = ss.get('build_fingerprint')
             tm = (ss.get('settings') or {}).get('TimeManager')
             ft = ss.get('fixed_timestep') or {}
+            if not ft.get('source') and tm:
+                # A survey written before the derivation existed still recorded
+                # the raw TimeManager fields, and turning those into Hz is
+                # arithmetic over data already in hand. Deriving it here beats
+                # sending someone back to the install to recompute it.
+                ft = derive_fixed_timestep(tm.get('values') or {})
+                if ft.get('source'):
+                    ft = dict(ft, source=f'{ft["source"]}, derived at check time')
             if ft.get('source'):
                 tick = f'{ft["hz"]:.4g} Hz'
             elif tm:
                 # Present but not convertible is not the same as measured, and
                 # the tick rate is the unit everything else is expressed in.
-                tick = 'PRESENT BUT NOT DERIVED — re-run static_survey.py'
+                tick = 'PRESENT BUT NOT DERIVABLE'
             else:
                 tick = 'NOT FOUND'
             record('static_survey.json', 'PRESENT',

@@ -1342,7 +1342,19 @@ def a_survey_that_found_the_field_but_not_the_number_is_not_measured():
         (d / 'static_survey.json').write_text(json.dumps(base))
         detail = [r for r in check_artifacts.check(d)
                   if r['artifact'] == 'static_survey.json'][0]['detail']
-        assert 'NOT DERIVED' in detail, detail
+        assert 'NOT DERIVABLE' in detail, detail
+
+        # A survey that recorded the raw fields but predates the derivation is
+        # not sent back to the install: the number is arithmetic over data
+        # already committed.
+        base['settings']['TimeManager']['values'].update({
+            'Fixed Timestep.m_Count': 2822399,
+            'Fixed Timestep.m_Rate.m_Numerator': 141120000,
+            'Fixed Timestep.m_Rate.m_Denominator': 1})
+        (d / 'static_survey.json').write_text(json.dumps(base))
+        detail = [r for r in check_artifacts.check(d)
+                  if r['artifact'] == 'static_survey.json'][0]['detail']
+        assert '50 Hz' in detail, detail
 
         base['fixed_timestep'] = {'seconds': 0.02, 'hz': 50.0, 'source': 'x'}
         (d / 'static_survey.json').write_text(json.dumps(base))
