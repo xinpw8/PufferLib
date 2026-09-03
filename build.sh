@@ -46,23 +46,27 @@ if [ "$ENV" = "all" ]; then
 
     if [ -n "$FAILED" ]; then
         echo -e "\nFailed builds:$FAILED"
+        exit 1
     fi
     exit 0
 fi
 
 # Linux/mac
 PLATFORM="$(uname -s)"
+MACHINE="$(uname -m)"
 if [ "$PLATFORM" = "Linux" ]; then
     RAYLIB_NAME='raylib-5.5_linux_amd64'
     OMP_LIB=-lomp5
     SANITIZE_FLAGS=(-fsanitize=address,undefined,bounds,pointer-overflow,leak -fno-omit-frame-pointer)
-    STANDALONE_LDFLAGS=(-lGL)
+    STANDALONE_LDFLAGS=(-lGL -ldl -lrt -lX11)
+    PROFILE_GRAPHICS_LDFLAGS=(-lGL)
     SHARED_LDFLAGS=(-Bsymbolic-functions)
 else
     RAYLIB_NAME='raylib-5.5_macos'
     OMP_LIB=-lomp
     SANITIZE_FLAGS=()
     STANDALONE_LDFLAGS=(-framework Cocoa -framework IOKit -framework CoreVideo -framework OpenGL)
+    PROFILE_GRAPHICS_LDFLAGS=(-framework OpenGL)
     SHARED_LDFLAGS=(-framework Cocoa -framework OpenGL -framework IOKit -undefined dynamic_lookup)
 fi
 
@@ -87,16 +91,26 @@ download() {
 }
 
 RAYLIB_URL="https://github.com/raysan5/raylib/releases/download/5.5"
-if [ "$MODE" = "web" ]; then
+if [ "$ENV" = "rek" ] || [ "$ENV" = "rek_g1" ] || [ "$ENV" = "rek_match" ] || [ "$ENV" = "rek_sandbox" ] || [ "$ENV" = "rek_fight" ]; then
+    RAYLIB_A=""
+    RAYLIB_IFLAGS=()
+    INCLUDES=(-I./src -I./vendor)
+    LINK_ARCHIVES=()
+    PROFILE_GRAPHICS_LDFLAGS=()
+elif [ "$MODE" = "web" ]; then
     RAYLIB_NAME='raylib-5.5_webassembly'
     download "$RAYLIB_NAME" "$RAYLIB_URL/$RAYLIB_NAME.zip"
+    RAYLIB_A="$RAYLIB_NAME/lib/libraylib.a"
+    RAYLIB_IFLAGS=(-I./$RAYLIB_NAME/include)
+    INCLUDES=(-I./$RAYLIB_NAME/include -I./src -I./vendor)
+    LINK_ARCHIVES=("$RAYLIB_A")
 else
     download "$RAYLIB_NAME" "$RAYLIB_URL/$RAYLIB_NAME.tar.gz"
+    RAYLIB_A="$RAYLIB_NAME/lib/libraylib.a"
+    RAYLIB_IFLAGS=(-I./$RAYLIB_NAME/include)
+    INCLUDES=(-I./$RAYLIB_NAME/include -I./src -I./vendor)
+    LINK_ARCHIVES=("$RAYLIB_A")
 fi
-
-RAYLIB_A="$RAYLIB_NAME/lib/libraylib.a"
-INCLUDES=(-I./$RAYLIB_NAME/include -I./src -I./vendor)
-LINK_ARCHIVES=("$RAYLIB_A")
 EXTRA_SRC=""
 EXTRA_LDFLAGS=()
 
@@ -132,6 +146,29 @@ elif [ "$ENV" = "nethack" ]; then
     fi
     INCLUDES+=(-I./$NLE_DIR/include)
     EXTRA_LDFLAGS+=(-L"$NETHACK_LIB_DIR" -lnethack -Wl,-rpath,"$NETHACK_LIB_DIR" -ldl)
+elif [ "$ENV" = "rek" ] || [ "$ENV" = "rek_g1" ] || [ "$ENV" = "rek_match" ] || [ "$ENV" = "rek_sandbox" ] || [ "$ENV" = "rek_fight" ]; then
+    SRC_DIR="ocean/$ENV"
+    # The recovered plant has no renderer and does not link Raylib.
+    if [ "$MODE" = "web" ] || [ "$MODE" = "local" ] || [ "$MODE" = "fast" ]; then
+        if [ "$ENV" = "rek_sandbox" ]; then
+            echo "Error: use ocean/rek_sandbox/test_rek_sandbox.c for standalone checks"
+        elif [ "$ENV" = "rek_match" ]; then
+            echo "Error: use ocean/rek_match/test_rek_match.c for standalone checks"
+        elif [ "$ENV" = "rek_fight" ]; then
+            echo "Error: use ocean/rek_fight/test_rek_fight.c for standalone checks"
+        else
+            echo "Error: use ocean/rek/test_rek.c for standalone REK plant checks"
+        fi
+        exit 1
+    fi
+    MUJOCO_HOME=${MUJOCO_HOME:?set MUJOCO_HOME to a directory containing include/mujoco/mujoco.h}
+    MUJOCO_LIB=${MUJOCO_LIB:?set MUJOCO_LIB to the exact native libmujoco shared library}
+    [ -f "$MUJOCO_HOME/include/mujoco/mujoco.h" ] \
+        || { echo "Error: MuJoCo header missing below MUJOCO_HOME"; exit 1; }
+    [ -f "$MUJOCO_LIB" ] \
+        || { echo "Error: MUJOCO_LIB is not a file"; exit 1; }
+    INCLUDES+=(-I"$MUJOCO_HOME/include")
+    EXTRA_LDFLAGS+=("$MUJOCO_LIB" -Wl,-rpath,"$(dirname "$MUJOCO_LIB")")
 elif [ -d "ocean/$ENV" ]; then
     SRC_DIR="ocean/$ENV"
 else
@@ -143,7 +180,10 @@ OUTPUT_NAME=${OUTPUT_NAME:-$ENV}
 # Standalone environment build
 # -mavx2 enables AVX2 intrinsics (__m256, _mm256_*) which drive.h and
 # src/bf16.h use directly. x86_64 only — strip if porting to ARM/Apple Silicon.
-SIMD_FLAGS=(-mavx2 -mfma)
+SIMD_FLAGS=()
+if [ "$MACHINE" = "x86_64" ] || [ "$MACHINE" = "amd64" ]; then
+    SIMD_FLAGS=(-mavx2 -mfma)
+fi
 if [ -n "$DEBUG" ] || [ "$MODE" = "local" ]; then
     CLANG_OPT=(-g -O0 "${CLANG_WARN[@]}" "${SANITIZE_FLAGS[@]}" "${SIMD_FLAGS[@]}")
     NVCC_OPT="-O0 -g"
@@ -285,7 +325,7 @@ if [ -z "$MODE" ]; then
         -std=c++17 \
         -I. -Isrc \
         -I$PYTHON_INCLUDE -I$PYBIND_INCLUDE -I$NUMPY_INCLUDE \
-        -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG -I$RAYLIB_NAME/include \
+        -I$CUDA_HOME/include $CUDNN_IFLAG $NCCL_IFLAG "${RAYLIB_IFLAGS[@]}" \
         -Xcompiler=-fopenmp \
         -DOBS_TENSOR_T=$OBS_TENSOR_T \
         -DENV_NAME=$ENV \
@@ -294,7 +334,7 @@ if [ -z "$MODE" ]; then
 
     LINK_CMD=(
         ${CXX:-g++} -shared -fPIC -fopenmp
-        build/bindings.o "$STATIC_LIB" "$RAYLIB_A"
+        build/bindings.o "$STATIC_LIB" "${LINK_ARCHIVES[@]}"
         -L$CUDA_HOME/lib64 $CUDNN_LFLAG $NCCL_LFLAG
         "${WHEEL_RPATH_FLAGS[@]}"
         "${EXTRA_LDFLAGS[@]}"
@@ -320,7 +360,7 @@ elif [ "$MODE" = "cpu" ]; then
         src/bindings_cpu.cpp -o build/bindings_cpu.o
     LINK_CMD=(
         ${CXX:-g++} -shared -fPIC -fopenmp
-        build/bindings_cpu.o "$STATIC_LIB" "$RAYLIB_A"
+        build/bindings_cpu.o "$STATIC_LIB" "${LINK_ARCHIVES[@]}"
         "${EXTRA_LDFLAGS[@]}"
         -lm -lpthread $OMP_LIB $LINK_OPT
         "${SHARED_LDFLAGS[@]}"
@@ -340,9 +380,10 @@ elif [ "$MODE" = "profile" ]; then
         $PRECISION \
         -Xcompiler=-fopenmp \
         tests/profile_kernels.cu vendor/ini.c \
-        "$STATIC_LIB" "$RAYLIB_A" \
+        "$STATIC_LIB" "${LINK_ARCHIVES[@]}" \
+        "${EXTRA_LDFLAGS[@]}" \
         -lnccl -lnvidia-ml -lcublas -lcurand -lcudnn \
-        -lGL -lm -lpthread $OMP_LIB \
+        "${PROFILE_GRAPHICS_LDFLAGS[@]}" -lm -lpthread $OMP_LIB \
         -o profile
     echo "Built: ./profile"
 fi

@@ -1,0 +1,1283 @@
+{
+  "build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+  "hard_unknowns": [
+    {
+      "id": "t800_canned_trajectory_payloads",
+      "obtain_by": "recover accepted move-aligned T800 trajectories or the exact server policy payloads",
+      "state": "unknown"
+    },
+    {
+      "id": "move_acceptance_and_interrupt_state_machine",
+      "obtain_by": "align requested moves with authoritative accepted/executed transitions",
+      "state": "unknown"
+    },
+    {
+      "id": "server_transition_and_contact_dynamics",
+      "obtain_by": "validate the local MuJoCo plant against repeated authoritative trajectories",
+      "state": "unknown"
+    },
+    {
+      "id": "strategy_decision_cadence",
+      "obtain_by": "measure accepted command boundaries against authoritative simulation ticks",
+      "state": "unknown"
+    },
+    {
+      "id": "combat_reward_and_terminal_semantics",
+      "obtain_by": "recover and validate clean-hit, fall, knockout, round, and match transitions",
+      "state": "unknown"
+    }
+  ],
+  "measured_interface": {
+    "baseline_ai": {
+      "recovery_control": {
+        "citation": "AIOpponentController.txt",
+        "owner": "AIOpponentController.DriveRecovery",
+        "sequence": [
+          "Dampen",
+          "Straighten",
+          "GetUpProne_or_GetUpSupine"
+        ],
+        "state": "static_native_semantics"
+      },
+      "serialized_tuning": {
+        "difficultyAggressionPerLevel": 0.2800000011920929,
+        "difficultyKickPerLevel": 0.09000000357627869,
+        "difficultyRepositionPerLevel": 0.05999999865889549,
+        "downedBackOffSpeed": 0.25,
+        "downedOpponentSpace": 1.5,
+        "engageForwardSpeed": 0.800000011920929,
+        "engageStopDistance": 0.4180000126361847,
+        "engageYawSpeed": 1.5,
+        "facingThreshold": 35.0,
+        "faultEStopDelay": 3.0,
+        "getUpGraceTime": 1.0,
+        "initialDelay": 0.6600000262260437,
+        "kickChance": 0.25,
+        "maxEngageTime": 2.1500000953674316,
+        "maxPunchDuration": 3.0,
+        "maxRepositionTime": 1.4129999876022339,
+        "minFootworkTime": 0.20000000298023224,
+        "minRepositionTime": 0.35199999809265137,
+        "recoveryTime": 0.257999986410141,
+        "repositionBackSpeed": 0.15000000596046448,
+        "repositionChance": 0.05000000074505806,
+        "repositionStrafeSpeed": 0.4339999854564667,
+        "settleTime": 0.30000001192092896
+      },
+      "source_objects": [
+        {
+          "container": "level1",
+          "owner": "ServerAI_Fighter1",
+          "path_id": 3262,
+          "serialized_sha256": "4bed014dd587de50b4a30dfa6f96d5d6907183df31a58a1045f17a4adc0dfc50"
+        },
+        {
+          "container": "level1",
+          "owner": "ServerAI_Fighter0",
+          "path_id": 3332,
+          "serialized_sha256": "f9a2ff6eb5eb4ec4232cc26993149b64b1d1c78d3ce2c68533a2f899ef66b20a"
+        },
+        {
+          "container": "level2",
+          "owner": "ServerAI_Fighter1",
+          "path_id": 3266,
+          "serialized_sha256": "8fb1cd1fe7fe28493946df8b39d9f324c7c96f050808b2474ba0ca869b477617"
+        },
+        {
+          "container": "level2",
+          "owner": "ServerAI_Fighter0",
+          "path_id": 3336,
+          "serialized_sha256": "a87168a27ceb45432dd65ff6744d306e315b6044a383249d9b0e897c6149ad22"
+        },
+        {
+          "container": "level3",
+          "owner": "ServerAI_Fighter1",
+          "path_id": 3263,
+          "serialized_sha256": "823f2351cb76b6ed8a7eaf6ed8f4125bd27f6c355eb2e325a260a163f76e177c"
+        },
+        {
+          "container": "level3",
+          "owner": "ServerAI_Fighter0",
+          "path_id": 3333,
+          "serialized_sha256": "8915cde4310fd011cfcc05136fcfb917b38847ac9b6bb4eba01ef1ca70024784"
+        }
+      ]
+    },
+    "execution_gate": {
+      "allow_move_interrupt": false,
+      "citation": [
+        "RobotInputController.txt",
+        "RobotInputControllerCommand.txt",
+        "EngineAIPolicyRunner.txt"
+      ],
+      "client_send_order": [
+        "velocity",
+        "move",
+        "special",
+        "emergency_stop"
+      ],
+      "manual_switch_cooldown_s": 0.5,
+      "move_request_rejected_when": [
+        "recovering",
+        "punching_or_move_in_progress",
+        "manual_switch_cooldown_active"
+      ],
+      "pending_buffer": {
+        "fifo": false,
+        "move": "one integer register plus pending boolean",
+        "same_type_request_before_send": "overwrites prior pending value",
+        "special": "one integer register plus pending boolean"
+      }
+    },
+    "keyboard_schemes": [
+      {
+        "framework_bindings": {
+          "dampen_or_passive": [
+            {
+              "name": "LeftShift",
+              "value": 51
+            },
+            {
+              "name": "L",
+              "value": 26
+            },
+            {
+              "name": "None",
+              "value": 0
+            }
+          ],
+          "emergency_stop": [
+            {
+              "name": "Backspace",
+              "value": 65
+            },
+            {
+              "name": "Escape",
+              "value": 60
+            }
+          ],
+          "get_up_prone": [
+            {
+              "name": "LeftShift",
+              "value": 51
+            },
+            {
+              "name": "P",
+              "value": 30
+            },
+            {
+              "name": "None",
+              "value": 0
+            }
+          ],
+          "get_up_supine": [
+            {
+              "name": "LeftShift",
+              "value": 51
+            },
+            {
+              "name": "B",
+              "value": 16
+            },
+            {
+              "name": "None",
+              "value": 0
+            }
+          ],
+          "straighten": [
+            {
+              "name": "LeftShift",
+              "value": 51
+            },
+            {
+              "name": "K",
+              "value": 25
+            },
+            {
+              "name": "None",
+              "value": 0
+            }
+          ]
+        },
+        "locomotion": {
+          "backward": {
+            "name": "S",
+            "value": 33
+          },
+          "forward": {
+            "name": "W",
+            "value": 37
+          },
+          "strafe_left": {
+            "name": "A",
+            "value": 15
+          },
+          "strafe_right": {
+            "name": "D",
+            "value": 18
+          },
+          "yaw_left": {
+            "name": "Q",
+            "value": 31
+          },
+          "yaw_right": {
+            "name": "E",
+            "value": 19
+          }
+        },
+        "move_bindings": [
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "UpArrow",
+                "value": 63
+              },
+              {
+                "name": "K",
+                "value": 25
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "switch_to_stance_idle",
+            "move_path_id": 2737
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "UpArrow",
+                "value": 63
+              },
+              {
+                "name": "L",
+                "value": 26
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "fangsong3",
+            "move_path_id": 2728
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "UpArrow",
+                "value": 63
+              },
+              {
+                "name": "J",
+                "value": 24
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "debut",
+            "move_path_id": 2727
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "UpArrow",
+                "value": 63
+              },
+              {
+                "name": "Semicolon",
+                "value": 6
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "fangsong4",
+            "move_path_id": 2729
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "DownArrow",
+                "value": 64
+              },
+              {
+                "name": "L",
+                "value": 26
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "idle_moving",
+            "move_path_id": 2731
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "DownArrow",
+                "value": 64
+              },
+              {
+                "name": "J",
+                "value": 24
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "skill",
+            "move_path_id": 2736
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "DownArrow",
+                "value": 64
+              },
+              {
+                "name": "Semicolon",
+                "value": 6
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "right_shoryuken_lm",
+            "move_path_id": 2735
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "LeftArrow",
+                "value": 61
+              },
+              {
+                "name": "J",
+                "value": 24
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "left_light_attack",
+            "move_path_id": 2732
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "LeftArrow",
+                "value": 61
+              },
+              {
+                "name": "L",
+                "value": 26
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "left_side_front_kick_L",
+            "move_path_id": 2733
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "LeftArrow",
+                "value": 61
+              },
+              {
+                "name": "K",
+                "value": 25
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "front_kick_L",
+            "move_path_id": 2730
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "RightArrow",
+                "value": 62
+              },
+              {
+                "name": "K",
+                "value": 25
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "youbiantui",
+            "move_path_id": 2738
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "RightArrow",
+                "value": 62
+              },
+              {
+                "name": "J",
+                "value": 24
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "right_light_attack",
+            "move_path_id": 2734
+          }
+        ],
+        "name": "T800_EngineAiKeys",
+        "path_id": 2741,
+        "serialized_sha256": "4ce6c5b7528f24ae9f8df08b447d0531c0fde9d28b5b266f0c650e7221d8f711"
+      },
+      {
+        "framework_bindings": {
+          "dampen_or_passive": [
+            {
+              "name": "LeftShift",
+              "value": 51
+            },
+            {
+              "name": "L",
+              "value": 26
+            },
+            {
+              "name": "None",
+              "value": 0
+            }
+          ],
+          "emergency_stop": [
+            {
+              "name": "Backspace",
+              "value": 65
+            },
+            {
+              "name": "Escape",
+              "value": 60
+            }
+          ],
+          "get_up_prone": [
+            {
+              "name": "LeftShift",
+              "value": 51
+            },
+            {
+              "name": "P",
+              "value": 30
+            },
+            {
+              "name": "None",
+              "value": 0
+            }
+          ],
+          "get_up_supine": [
+            {
+              "name": "LeftShift",
+              "value": 51
+            },
+            {
+              "name": "B",
+              "value": 16
+            },
+            {
+              "name": "None",
+              "value": 0
+            }
+          ],
+          "straighten": [
+            {
+              "name": "LeftShift",
+              "value": 51
+            },
+            {
+              "name": "K",
+              "value": 25
+            },
+            {
+              "name": "None",
+              "value": 0
+            }
+          ]
+        },
+        "locomotion": {
+          "backward": {
+            "name": "S",
+            "value": 33
+          },
+          "forward": {
+            "name": "W",
+            "value": 37
+          },
+          "strafe_left": {
+            "name": "A",
+            "value": 15
+          },
+          "strafe_right": {
+            "name": "D",
+            "value": 18
+          },
+          "yaw_left": {
+            "name": "Q",
+            "value": 31
+          },
+          "yaw_right": {
+            "name": "E",
+            "value": 19
+          }
+        },
+        "move_bindings": [
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "Y",
+                "value": 39
+              },
+              {
+                "name": "None",
+                "value": 0
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "left_light_attack",
+            "move_path_id": 2732
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "U",
+                "value": 35
+              },
+              {
+                "name": "None",
+                "value": 0
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "right_light_attack",
+            "move_path_id": 2734
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "H",
+                "value": 22
+              },
+              {
+                "name": "None",
+                "value": 0
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "skill",
+            "move_path_id": 2736
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "J",
+                "value": 24
+              },
+              {
+                "name": "None",
+                "value": 0
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "debut",
+            "move_path_id": 2727
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "Y",
+                "value": 39
+              },
+              {
+                "name": "Space",
+                "value": 1
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "front_kick_L",
+            "move_path_id": 2730
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "U",
+                "value": 35
+              },
+              {
+                "name": "Space",
+                "value": 1
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "youbiantui",
+            "move_path_id": 2738
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "H",
+                "value": 22
+              },
+              {
+                "name": "Space",
+                "value": 1
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "left_side_front_kick_L",
+            "move_path_id": 2733
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "J",
+                "value": 24
+              },
+              {
+                "name": "Space",
+                "value": 1
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "right_shoryuken_lm",
+            "move_path_id": 2735
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "I",
+                "value": 23
+              },
+              {
+                "name": "None",
+                "value": 0
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "switch_to_stance_idle",
+            "move_path_id": 2737
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "O",
+                "value": 29
+              },
+              {
+                "name": "None",
+                "value": 0
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "idle_moving",
+            "move_path_id": 2731
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "K",
+                "value": 25
+              },
+              {
+                "name": "None",
+                "value": 0
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "fangsong3",
+            "move_path_id": 2728
+          },
+          {
+            "double_tap": false,
+            "keys": [
+              {
+                "name": "L",
+                "value": 26
+              },
+              {
+                "name": "None",
+                "value": 0
+              },
+              {
+                "name": "None",
+                "value": 0
+              }
+            ],
+            "move_name": "fangsong4",
+            "move_path_id": 2729
+          }
+        ],
+        "name": "T800_REKKeys",
+        "path_id": 2743,
+        "serialized_sha256": "1ad2e6337dc31f8b590ca65fefec0605737e8240555e132d4662f90862422b29"
+      }
+    ],
+    "move_slots": [
+      {
+        "move": null,
+        "path_id": null,
+        "slot": 0
+      },
+      {
+        "move": null,
+        "path_id": null,
+        "slot": 1
+      },
+      {
+        "move": {
+          "blend_in_s": 0.10000000149011612,
+          "blend_out_s": 0.10000000149011612,
+          "display_name": "Punch Combo",
+          "impact_events": [
+            {
+              "gainBoost": 1.0,
+              "impactTime": 0.7599999904632568,
+              "leadTime": 0.10000000149011612,
+              "limb": 1,
+              "releaseTime": 0.1899999976158142
+            },
+            {
+              "gainBoost": 1.0,
+              "impactTime": 1.149999976158142,
+              "leadTime": 0.10000000149011612,
+              "limb": 1,
+              "releaseTime": 0.10000000149011612
+            },
+            {
+              "gainBoost": 1.0,
+              "impactTime": 1.809999942779541,
+              "leadTime": 0.10000000149011612,
+              "limb": 1,
+              "releaseTime": 0.10000000149011612
+            }
+          ],
+          "impact_forgiveness_s": 0.6000000238418579,
+          "impact_reversal": {
+            "emaAlpha": 0.05000000074505806,
+            "enabled": 0,
+            "holdTime": 0.5,
+            "spikeFloorNm": 30.0,
+            "spikeRatio": 1.25
+          },
+          "name": "skill",
+          "path_id": 2736,
+          "playback_speed": 1.0,
+          "policy_profile": "skill",
+          "serialized_sha256": "233f952edecb7bf8d1959c6549c0edb95e1833451fff988f57a4b14d92b14dd4",
+          "trajectory_payload": {
+            "pointer": {
+              "file_id": 0,
+              "path_id": 0
+            },
+            "state": "absent_in_client_serialized_object"
+          }
+        },
+        "path_id": 2736,
+        "slot": 2
+      },
+      {
+        "move": {
+          "blend_in_s": 0.10000000149011612,
+          "blend_out_s": 0.10000000149011612,
+          "display_name": "Right Kick",
+          "impact_events": [
+            {
+              "gainBoost": 1.0,
+              "impactTime": 1.1100000143051147,
+              "leadTime": 0.25,
+              "limb": 4,
+              "releaseTime": 0.30000001192092896
+            }
+          ],
+          "impact_forgiveness_s": 0.6000000238418579,
+          "impact_reversal": {
+            "emaAlpha": 0.05000000074505806,
+            "enabled": 0,
+            "holdTime": 0.5,
+            "spikeFloorNm": 30.0,
+            "spikeRatio": 1.25
+          },
+          "name": "youbiantui",
+          "path_id": 2738,
+          "playback_speed": 1.0,
+          "policy_profile": "youbiantui",
+          "serialized_sha256": "70f36a2c7b9b53c10e47cc613d87a770eb86fb2e683ed64ee39efcccf2e75636",
+          "trajectory_payload": {
+            "pointer": {
+              "file_id": 0,
+              "path_id": 0
+            },
+            "state": "absent_in_client_serialized_object"
+          }
+        },
+        "path_id": 2738,
+        "slot": 3
+      },
+      {
+        "move": {
+          "blend_in_s": 0.10000000149011612,
+          "blend_out_s": 0.10000000149011612,
+          "display_name": "Left Punch",
+          "impact_events": [
+            {
+              "gainBoost": 1.0,
+              "impactTime": 0.38999998569488525,
+              "leadTime": 0.11999999731779099,
+              "limb": 1,
+              "releaseTime": 0.07999999821186066
+            }
+          ],
+          "impact_forgiveness_s": 0.6000000238418579,
+          "impact_reversal": {
+            "emaAlpha": 0.05000000074505806,
+            "enabled": 0,
+            "holdTime": 0.5,
+            "spikeFloorNm": 30.0,
+            "spikeRatio": 1.25
+          },
+          "name": "left_light_attack",
+          "path_id": 2732,
+          "playback_speed": 1.0,
+          "policy_profile": "left_light_attack",
+          "serialized_sha256": "32081b731a59b7553d94022ebff865764b34c83dbf274aadf26540fb17daad2e",
+          "trajectory_payload": {
+            "pointer": {
+              "file_id": 0,
+              "path_id": 0
+            },
+            "state": "absent_in_client_serialized_object"
+          }
+        },
+        "path_id": 2732,
+        "slot": 4
+      },
+      {
+        "move": {
+          "blend_in_s": 0.10000000149011612,
+          "blend_out_s": 0.10000000149011612,
+          "display_name": "Right Punch",
+          "impact_events": [
+            {
+              "gainBoost": 1.0,
+              "impactTime": 0.2199999988079071,
+              "leadTime": 0.11999999731779099,
+              "limb": 2,
+              "releaseTime": 0.20000000298023224
+            }
+          ],
+          "impact_forgiveness_s": 0.6000000238418579,
+          "impact_reversal": {
+            "emaAlpha": 0.05000000074505806,
+            "enabled": 0,
+            "holdTime": 0.5,
+            "spikeFloorNm": 30.0,
+            "spikeRatio": 1.25
+          },
+          "name": "right_light_attack",
+          "path_id": 2734,
+          "playback_speed": 1.0,
+          "policy_profile": "right_light_attack",
+          "serialized_sha256": "b1c1b2c000dd612e3eb4c33c5d90e03c2c9306e5cc194747c14248b0d77b7dea",
+          "trajectory_payload": {
+            "pointer": {
+              "file_id": 0,
+              "path_id": 0
+            },
+            "state": "absent_in_client_serialized_object"
+          }
+        },
+        "path_id": 2734,
+        "slot": 5
+      },
+      {
+        "move": null,
+        "path_id": null,
+        "slot": 6
+      },
+      {
+        "move": null,
+        "path_id": null,
+        "slot": 7
+      },
+      {
+        "move": null,
+        "path_id": null,
+        "slot": 8
+      },
+      {
+        "move": {
+          "blend_in_s": 0.10000000149011612,
+          "blend_out_s": 0.10000000149011612,
+          "display_name": "Dragon Punch",
+          "impact_events": [
+            {
+              "gainBoost": 1.0,
+              "impactTime": 0.0,
+              "leadTime": 0.0,
+              "limb": 2,
+              "releaseTime": 0.0
+            }
+          ],
+          "impact_forgiveness_s": 0.6000000238418579,
+          "impact_reversal": {
+            "emaAlpha": 0.05000000074505806,
+            "enabled": 0,
+            "holdTime": 0.5,
+            "spikeFloorNm": 30.0,
+            "spikeRatio": 1.25
+          },
+          "name": "right_shoryuken_lm",
+          "path_id": 2735,
+          "playback_speed": 1.0,
+          "policy_profile": "right_shoryuken_lm",
+          "serialized_sha256": "cc298f53d04ffd56be57ce3049559d3d30c7724fe4d2839a66ea8f3008ca8deb",
+          "trajectory_payload": {
+            "pointer": {
+              "file_id": 0,
+              "path_id": 0
+            },
+            "state": "absent_in_client_serialized_object"
+          }
+        },
+        "path_id": 2735,
+        "slot": 9
+      },
+      {
+        "move": {
+          "blend_in_s": 0.10000000149011612,
+          "blend_out_s": 0.10000000149011612,
+          "display_name": "Left Kick",
+          "impact_events": [
+            {
+              "gainBoost": 1.0,
+              "impactTime": 1.100000023841858,
+              "leadTime": 0.20000000298023224,
+              "limb": 3,
+              "releaseTime": 0.15000000596046448
+            }
+          ],
+          "impact_forgiveness_s": 0.6000000238418579,
+          "impact_reversal": {
+            "emaAlpha": 0.05000000074505806,
+            "enabled": 1,
+            "holdTime": 0.5,
+            "spikeFloorNm": 30.0,
+            "spikeRatio": 1.25
+          },
+          "name": "front_kick_L",
+          "path_id": 2730,
+          "playback_speed": 1.0,
+          "policy_profile": "front_kick_L",
+          "serialized_sha256": "cd5b286f6e4f5c3003cb0f5c9de5e5690ca92ed58e5a1b789f4394e4d7911ee8",
+          "trajectory_payload": {
+            "pointer": {
+              "file_id": 0,
+              "path_id": 0
+            },
+            "state": "absent_in_client_serialized_object"
+          }
+        },
+        "path_id": 2730,
+        "slot": 10
+      },
+      {
+        "move": null,
+        "path_id": null,
+        "slot": 11
+      }
+    ],
+    "special_commands": [
+      {
+        "name": "None",
+        "value": 0
+      },
+      {
+        "name": "Straighten",
+        "value": 1
+      },
+      {
+        "name": "GetUpProne",
+        "value": 2
+      },
+      {
+        "name": "GetUpSupine",
+        "value": 3
+      },
+      {
+        "name": "Dampen",
+        "value": 4
+      }
+    ],
+    "timing": {
+      "arena_manual_physics_step_rate_hz": 50.0,
+      "authoritative_strategy_decision_cadence": {
+        "state": "unknown"
+      },
+      "physics_step_sources": [
+        {
+          "container": "level1",
+          "manual_step_rate_hz": 50.0,
+          "path_id": 2883,
+          "serialized_sha256": "c8c7cfcd05061f50372ab65192f3b93c75c84c9dc881fd1f36d1ca30ceda2966"
+        },
+        {
+          "container": "level2",
+          "manual_step_rate_hz": 50.0,
+          "path_id": 2886,
+          "serialized_sha256": "ba9fe181951b5999044925dc5e736d977883355999fdc96bc4fb6b2300d87f01"
+        },
+        {
+          "container": "level3",
+          "manual_step_rate_hz": 50.0,
+          "path_id": 2883,
+          "serialized_sha256": "d5568acd9e5f3ed0a0ffac9afcb53d0ec6ea3f320e94ec743e8cd4cf4ae0e80f"
+        }
+      ]
+    },
+    "velocity_command": {
+      "components": [
+        {
+          "index": 0,
+          "keyboard_negative": "S",
+          "keyboard_positive": "W",
+          "name": "forward"
+        },
+        {
+          "index": 1,
+          "keyboard_negative": "D",
+          "keyboard_positive": "A",
+          "name": "strafe"
+        },
+        {
+          "index": 2,
+          "keyboard_negative": "E",
+          "keyboard_positive": "Q",
+          "name": "yaw"
+        }
+      ],
+      "keyboard_values": [
+        -1.0,
+        0.0,
+        1.0
+      ],
+      "robot_config": {
+        "deadZone": 0.10000000149011612,
+        "forwardSpeed": 1.0,
+        "keyboardYawRampTime": 0.5,
+        "locomotionTransitionSettle": 1,
+        "stopBrakeRate": 3.0,
+        "strafeSpeed": 1.0,
+        "transitionSettlePlanarSpeed": 0.15000000596046448,
+        "transitionSettleYawRate": 0.30000001192092896,
+        "yawSpeed": 1.0
+      },
+      "type": "UnityEngine.Vector3"
+    }
+  },
+  "schema": "rek.t800_strategy_contract.v1",
+  "scope": {
+    "layer": "T800 high-level strategy",
+    "parity_claim": false,
+    "simulator_ready": false,
+    "static_interface_measured": true,
+    "training_ready": false
+  },
+  "sources": {
+    "AIOpponentController.txt": {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\AIOpponentController.txt",
+      "sha256": "330956e4c257623fb78b0d619783c94b9a1f476bae4cf4e7c554491eb69c73e2"
+    },
+    "EngineAIPolicyRunner.txt": {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\EngineAIPolicyRunner.txt",
+      "sha256": "7fb4fe854362ead4b4ef04a06094180888906c4bee49a0e6149c0228206ccf31"
+    },
+    "KeyboardControlScheme.txt": {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\KeyboardControlScheme.txt",
+      "sha256": "16e03df273b8e55d3b805653038074c03dd4aae3e8c166e8bbcb92f653f8c553"
+    },
+    "RobotInputController.txt": {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\RobotInputController.txt",
+      "sha256": "f248df08449e3ff0706ce15ea07e4d58517f2fc9ed3f3143473fa48c4323bc21"
+    },
+    "RobotInputControllerCommand.txt": {
+      "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\RobotInputControllerCommand.txt",
+      "sha256": "21788b81903cc2659e7245ad064b06f9ff7ad0a49a9201310d4d6159e623cdea"
+    },
+    "asset_probe": {
+      "path": "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\mujoco_asset_probe_v8.json",
+      "sha256": "b132eb19cb7b223a87ee3885c16e521e82d7e99006c09ed63e8cc899ad057686"
+    },
+    "enum_evidence": {
+      "path": "C:\\rekagent\\evidence\\readme-gate-D21-20260831T233200Z\\commands\\545-high-level-enums-locomotion-constants\\stdout.txt",
+      "sha256": "21b07b64f4b4360bf33224dd08d8817ae8abda3367c56d5cf5cbfb654e739b89"
+    }
+  },
+  "strategy_design": {
+    "action_filter": {
+      "deduplicate_nonzero_attack_categories": true,
+      "hold_velocity_between_strategy_decisions": true,
+      "mask_nonzero_attack_during_measured_rejection_states": true,
+      "never_call_null_slot_for_no_attack": true
+    },
+    "framework_owned_not_learned": [
+      "joint-level balance and stability",
+      "joint target and torque generation",
+      "move trajectory execution",
+      "dampen, straighten, and oriented get-up recovery",
+      "emergency stop"
+    ],
+    "learned_action": {
+      "attack": {
+        "categories": [
+          {
+            "category": 0,
+            "meaning": "no_attack",
+            "move_slot": null
+          },
+          {
+            "category": 1,
+            "display_name": "Punch Combo",
+            "meaning": "execute_move_by_index",
+            "move_name": "skill",
+            "move_path_id": 2736,
+            "move_slot": 2
+          },
+          {
+            "category": 2,
+            "display_name": "Right Kick",
+            "meaning": "execute_move_by_index",
+            "move_name": "youbiantui",
+            "move_path_id": 2738,
+            "move_slot": 3
+          },
+          {
+            "category": 3,
+            "display_name": "Left Punch",
+            "meaning": "execute_move_by_index",
+            "move_name": "left_light_attack",
+            "move_path_id": 2732,
+            "move_slot": 4
+          },
+          {
+            "category": 4,
+            "display_name": "Right Punch",
+            "meaning": "execute_move_by_index",
+            "move_name": "right_light_attack",
+            "move_path_id": 2734,
+            "move_slot": 5
+          },
+          {
+            "category": 5,
+            "display_name": "Dragon Punch",
+            "meaning": "execute_move_by_index",
+            "move_name": "right_shoryuken_lm",
+            "move_path_id": 2735,
+            "move_slot": 9
+          },
+          {
+            "category": 6,
+            "display_name": "Left Kick",
+            "meaning": "execute_move_by_index",
+            "move_name": "front_kick_L",
+            "move_path_id": 2730,
+            "move_slot": 10
+          }
+        ],
+        "semantics": "one-shot request; category 0 sends no request",
+        "type": "categorical"
+      },
+      "velocity": {
+        "component_order": [
+          "forward",
+          "strafe",
+          "yaw"
+        ],
+        "range_role": "bounded design using measured keyboard endpoints",
+        "shape": [
+          3
+        ],
+        "training_range": [
+          -1.0,
+          1.0
+        ]
+      }
+    }
+  }
+}

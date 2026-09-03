@@ -1,0 +1,12 @@
+{
+  "schema": "rek.paired_motion_calibration.v1",
+  "mode": "identity",
+  "source_forward_vector": [1.0, 0.0, 0.0],
+  "provenance": {
+    "kind": "pinned_mujoco_arena_coordinate_definition",
+    "artifact": "evidence_out/t800_t800_factory_arena.diagnostic.xml",
+    "artifact_sha256": "01caa6ed90277a90fc71b4c16d7959fb70f7702fa15bea7c68d3eaa9d5f27b2c",
+    "source_report": "evidence_out/t800_t800_factory_arena.diagnostic.report.json",
+    "source_report_sha256": "fac3024f118eb3d8a61436b9a7c160a21e9062ec5591011deb6260169531427e"
+  }
+}

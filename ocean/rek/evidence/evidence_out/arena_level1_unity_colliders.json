@@ -1,0 +1,2995 @@
+{
+  "build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+  "container": "level1",
+  "container_inventory_sha256": "d3aef29c86c5d072906d68cd938987b9bc84152a09653f10991f03c805b2ed13",
+  "container_path": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\level1",
+  "container_sha256": "d3aef29c86c5d072906d68cd938987b9bc84152a09653f10991f03c805b2ed13",
+  "geometry_signature_sha256": "b95badfd29479bb9f4b6ba62370936ae83c5292183af33ba3d1f1cac7d82d7bc",
+  "inventory_sha256": "ea932824c7f1fa9781ab816716d4bfca9ec22b14e754466941c8c157910eff79",
+  "limits": [
+    "built-in Unity collider values are static serialized scene metadata",
+    "method names show MjStaticCollider can refit from Unity colliders",
+    "this probe does not establish which arena level private Bot 1 used at runtime",
+    "no Unity object or proprietary binary payload is exported"
+  ],
+  "mj_static_collider_count": 17,
+  "mujoco_probe_sha256": "2e94ebda205da7445c0767722250ddc1e1966a9a951a3a405e41822ac818ef36",
+  "records": [
+    {
+      "components": [
+        {
+          "path_id": 1780,
+          "serialized_bytes": 68,
+          "serialized_sha256": "68968c3c276cd5a14f3ec6e04b8eb09a81003fe4507247b40f2182876563cf18",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2407,
+          "serialized_bytes": 68,
+          "serialized_sha256": "84f39167b0cdf57b63e0f5f19668318035dae66feaf9bd86c4764b5e05b268d1",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": -0.05000000074505806,
+              "z": 0.0
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 89
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 4.599999904632568,
+              "y": 0.11999999731779099,
+              "z": 4.599999904632568
+            }
+          }
+        },
+        {
+          "path_id": 3096,
+          "serialized_bytes": 224,
+          "serialized_sha256": "d4374aa14f736d9a5855b51db5790064921a039b1e20bc511fe8c62e3187bd0f",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3222,
+          "serialized_bytes": 36,
+          "serialized_sha256": "7e8783508850ff953b7e5f704d7455a19ea9fefd11fb19c24dc519e7674655ca",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Floor_Rektagon",
+      "game_object_path_id": 89,
+      "mj_static_collider_path_id": 3096,
+      "mj_static_collider_serialized_sha256": "d4374aa14f736d9a5855b51db5790064921a039b1e20bc511fe8c62e3187bd0f",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Floor_Rektagon",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": -0.0,
+            "y": -0.0,
+            "z": -0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Floor_Rektagon",
+          "sibling_index": 43,
+          "transform_path_id": 1780
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1643,
+          "serialized_bytes": 68,
+          "serialized_sha256": "a405172ba0e49e0690ff735515607ce7ce99267af0688f20fd45db278a6a98bd",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2386,
+          "serialized_bytes": 68,
+          "serialized_sha256": "77f342305711c96aa95be322243bff9810a636450425e78c728a9918ba3e879a",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.450000047683716
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 865
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 0.20000000298023224,
+              "y": 2.200000047683716,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 3201,
+          "serialized_bytes": 224,
+          "serialized_sha256": "97cd6bdab3e28a315c85d119b2daff17f3beb1a88bbd910007c4ec90a65ae922",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3297,
+          "serialized_bytes": 36,
+          "serialized_sha256": "b83edaa8a01a7fc28ae5de8cfdc0f014a19089f0ba99f1e6e88a7bea7412bcdb",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_01",
+      "game_object_path_id": 865,
+      "mj_static_collider_path_id": 3201,
+      "mj_static_collider_serialized_sha256": "97cd6bdab3e28a315c85d119b2daff17f3beb1a88bbd910007c4ec90a65ae922",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Pillar_01",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.9807853698730469,
+            "x": 0.0,
+            "y": 0.19509030878543854,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Pillar_01",
+          "sibling_index": 35,
+          "transform_path_id": 1643
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1506,
+          "serialized_bytes": 68,
+          "serialized_sha256": "2661da31a5b421cc0e905319b6e8aab9f938a4b71a6d022776459445ae6313b9",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2370,
+          "serialized_bytes": 68,
+          "serialized_sha256": "cd341ce83566da2dba8d8a810d270ffd9767f2840679a5bc86f4cda358ab6133",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.450000047683716
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 349
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 0.20000000298023224,
+              "y": 2.200000047683716,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 3143,
+          "serialized_bytes": 224,
+          "serialized_sha256": "1c889fc72e6a233715a9be0569b3f2bf1cd1a898bc8ccb72a2cd49be5d2d35bf",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3207,
+          "serialized_bytes": 36,
+          "serialized_sha256": "5fe2963cd7c8b1a988ddbe0ae848ad4f1f1c691e9bd31fc7f27aa4c2b9be42da",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_02",
+      "game_object_path_id": 349,
+      "mj_static_collider_path_id": 3143,
+      "mj_static_collider_serialized_sha256": "1c889fc72e6a233715a9be0569b3f2bf1cd1a898bc8ccb72a2cd49be5d2d35bf",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Pillar_02",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.9807853698730469,
+            "x": 0.0,
+            "y": -0.19509030878543854,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Pillar_02",
+          "sibling_index": 36,
+          "transform_path_id": 1506
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1802,
+          "serialized_bytes": 68,
+          "serialized_sha256": "141b8c63b0ef89eac5ea0794ed644b8b4a089e5e89e7b9db389ba7c6a94e29e0",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2378,
+          "serialized_bytes": 68,
+          "serialized_sha256": "8c1215b1ec3844f8b6cc82a26971841d46bc064205044aa2cad891bc7a40be08",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.450000047683716
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 794
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 0.20000000298023224,
+              "y": 2.200000047683716,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 3058,
+          "serialized_bytes": 224,
+          "serialized_sha256": "10c1276e4d6c6058153999cd933717d607a0b1fd2de37badadd14df12cb2d9ac",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3018,
+          "serialized_bytes": 36,
+          "serialized_sha256": "abd0d115550b0c18806593c45b4a83d631151e6a4cd39a4163faaec9a94d1be6",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_03",
+      "game_object_path_id": 794,
+      "mj_static_collider_path_id": 3058,
+      "mj_static_collider_serialized_sha256": "10c1276e4d6c6058153999cd933717d607a0b1fd2de37badadd14df12cb2d9ac",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Pillar_03",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.831469714641571,
+            "x": 0.0,
+            "y": -0.5555701851844788,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Pillar_03",
+          "sibling_index": 37,
+          "transform_path_id": 1802
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1628,
+          "serialized_bytes": 68,
+          "serialized_sha256": "636cb2b523400c741af15328e6f0dd99f4afa46bdacbbd8379782cc949104e9b",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2393,
+          "serialized_bytes": 68,
+          "serialized_sha256": "cc4cf30ae042f0f0afb85c85416de72918009cbcaacd653370b55b2b8d70772d",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.450000047683716
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 764
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 0.20000000298023224,
+              "y": 2.200000047683716,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 3457,
+          "serialized_bytes": 224,
+          "serialized_sha256": "d3e5b3477e07dff8beb5f9108ae402f9d2609a14c93b8b7fe13c98720bd9b80b",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3403,
+          "serialized_bytes": 36,
+          "serialized_sha256": "1808ec899ac039f0bbd01cfd7ae6575fa2e1570c2d4bc6dab74976a7639383e3",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_04",
+      "game_object_path_id": 764,
+      "mj_static_collider_path_id": 3457,
+      "mj_static_collider_serialized_sha256": "d3e5b3477e07dff8beb5f9108ae402f9d2609a14c93b8b7fe13c98720bd9b80b",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Pillar_04",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.5555702447891235,
+            "x": 0.0,
+            "y": -0.8314696550369263,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Pillar_04",
+          "sibling_index": 38,
+          "transform_path_id": 1628
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1533,
+          "serialized_bytes": 68,
+          "serialized_sha256": "709ca2dea6db62eed47d2e01fd19a1f1ca9f3e242c7414e784f52228db6411c6",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2397,
+          "serialized_bytes": 68,
+          "serialized_sha256": "792626a48abf6f96364009e5c17c4faadd32f95b1efb60019a1de7cf3f1f1fa6",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.450000047683716
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 640
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 0.20000000298023224,
+              "y": 2.200000047683716,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 3295,
+          "serialized_bytes": 224,
+          "serialized_sha256": "b1cf8458e3ec13066cf9ab2593d5f4de64746d10d5e3e073418c53e82bf672f3",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3333,
+          "serialized_bytes": 36,
+          "serialized_sha256": "2773e802105a96163a1f7456eb000da99955c073ff63a972fb1acb06dab180ee",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_05",
+      "game_object_path_id": 640,
+      "mj_static_collider_path_id": 3295,
+      "mj_static_collider_serialized_sha256": "b1cf8458e3ec13066cf9ab2593d5f4de64746d10d5e3e073418c53e82bf672f3",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Pillar_05",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.1950903683900833,
+            "x": 0.0,
+            "y": -0.9807852506637573,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Pillar_05",
+          "sibling_index": 39,
+          "transform_path_id": 1533
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1503,
+          "serialized_bytes": 68,
+          "serialized_sha256": "14bcf154a5c07baa2e893abb67b1d3bc5604828325e75aa4b3eb020143e7f750",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2384,
+          "serialized_bytes": 68,
+          "serialized_sha256": "b3144c9fb5a0dd1e0a0e1699682cd506a6567dacd0f492196206996b9df2153c",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.450000047683716
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 570
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 0.20000000298023224,
+              "y": 2.200000047683716,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 3279,
+          "serialized_bytes": 224,
+          "serialized_sha256": "622152a07e5acc6df21390a75d7a403cda2e82b3a6d75bcab04a5b0294fc74f8",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 2942,
+          "serialized_bytes": 36,
+          "serialized_sha256": "628a2b2b65ad65e489ac61a010031c25d7e08cdff0ec6b00c9255409398c187c",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_06",
+      "game_object_path_id": 570,
+      "mj_static_collider_path_id": 3279,
+      "mj_static_collider_serialized_sha256": "622152a07e5acc6df21390a75d7a403cda2e82b3a6d75bcab04a5b0294fc74f8",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Pillar_06",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": -0.19509030878543854,
+            "x": -0.0,
+            "y": -0.9807853698730469,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Pillar_06",
+          "sibling_index": 40,
+          "transform_path_id": 1503
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1571,
+          "serialized_bytes": 68,
+          "serialized_sha256": "241a66de91843b4d7a5b2926c72d27f329791d6d055ccef39624a8debffd318c",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2375,
+          "serialized_bytes": 68,
+          "serialized_sha256": "d81b2bcece21903a768824f3a45b12732e04567bedec54fdcf53c1ad28763da9",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.450000047683716
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 383
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 0.20000000298023224,
+              "y": 2.200000047683716,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 3178,
+          "serialized_bytes": 224,
+          "serialized_sha256": "e8a9e8ef0a7932525030a3f244d783684504e7f046842265d8b6f3792a75afd0",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3280,
+          "serialized_bytes": 36,
+          "serialized_sha256": "207fd366c1931a59d7db8ba7542493f623445133117c24016b12347563722de6",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_07",
+      "game_object_path_id": 383,
+      "mj_static_collider_path_id": 3178,
+      "mj_static_collider_serialized_sha256": "e8a9e8ef0a7932525030a3f244d783684504e7f046842265d8b6f3792a75afd0",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Pillar_07",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": -0.5555700659751892,
+            "x": -0.0,
+            "y": -0.8314697742462158,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Pillar_07",
+          "sibling_index": 41,
+          "transform_path_id": 1571
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1797,
+          "serialized_bytes": 68,
+          "serialized_sha256": "bbcd2dabfc68f131ba42876b0393a1cf573e53af2e2411add9b82f2f226fd99f",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2413,
+          "serialized_bytes": 68,
+          "serialized_sha256": "edba1e87822dd790c9a649e5ee81f3aa45ae96234e156ffc53c54c5b682424a7",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.450000047683716
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 557
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 0.20000000298023224,
+              "y": 2.200000047683716,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 3119,
+          "serialized_bytes": 224,
+          "serialized_sha256": "36bda00b6761f094d0819706a4b908cecbb8e84a7dcb6e574b23ddc13ede21bb",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3182,
+          "serialized_bytes": 36,
+          "serialized_sha256": "f2cc63519c8005919d1a36b708c0c0dfe5add4ab42774b8d13d8f23d153c03e4",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_08",
+      "game_object_path_id": 557,
+      "mj_static_collider_path_id": 3119,
+      "mj_static_collider_serialized_sha256": "36bda00b6761f094d0819706a4b908cecbb8e84a7dcb6e574b23ddc13ede21bb",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Pillar_08",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": -0.831469714641571,
+            "x": -0.0,
+            "y": -0.5555701851844788,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Pillar_08",
+          "sibling_index": 42,
+          "transform_path_id": 1797
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1566,
+          "serialized_bytes": 68,
+          "serialized_sha256": "96afc34e66bf25367d425ff22ac069d95b8e8883d6624943207981df7e179b82",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2410,
+          "serialized_bytes": 68,
+          "serialized_sha256": "99f18dc66a0fdaaef0ce65097ce4959f746b7c3e76bfa52c6c55e144611a9e66",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.3399999141693115
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 712
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 1.6799999475479126,
+              "y": 2.0,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 2981,
+          "serialized_bytes": 224,
+          "serialized_sha256": "10e383c038bc5cd8473508aaad9f8b4f67b4e2e26475ce449dd6c3f72bc22980",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3105,
+          "serialized_bytes": 36,
+          "serialized_sha256": "16791367973352980b928b8817ca5926fe86853d0f89deabc19dd04721879308",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_01",
+      "game_object_path_id": 712,
+      "mj_static_collider_path_id": 2981,
+      "mj_static_collider_serialized_sha256": "10e383c038bc5cd8473508aaad9f8b4f67b4e2e26475ce449dd6c3f72bc22980",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Wall_01",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": -0.0,
+            "y": -0.0,
+            "z": -0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Wall_01",
+          "sibling_index": 27,
+          "transform_path_id": 1566
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1677,
+          "serialized_bytes": 68,
+          "serialized_sha256": "03821cc8c3f20137906bc8d6586ff3f7958d40edde0262614b33169a2a4d03a3",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2415,
+          "serialized_bytes": 68,
+          "serialized_sha256": "cf59d24408686ab4fcebc3cd9b4f6786b12fb9611b7d5c1485322b7140ba20f3",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.3399999141693115
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 674
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 1.6799999475479126,
+              "y": 2.0,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 2956,
+          "serialized_bytes": 224,
+          "serialized_sha256": "66eb5c267d73ef74050960a8b8464575b21d29c864cf6cb2c4ecd164c36f712d",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3114,
+          "serialized_bytes": 36,
+          "serialized_sha256": "9933e235a213e17df19f167324728728a34c5da373a9aecc969d62c1e3b68dbf",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_02",
+      "game_object_path_id": 674,
+      "mj_static_collider_path_id": 2956,
+      "mj_static_collider_serialized_sha256": "66eb5c267d73ef74050960a8b8464575b21d29c864cf6cb2c4ecd164c36f712d",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Wall_02",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.9238796830177307,
+            "x": -0.0,
+            "y": -0.3826832175254822,
+            "z": -0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Wall_02",
+          "sibling_index": 28,
+          "transform_path_id": 1677
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1486,
+          "serialized_bytes": 68,
+          "serialized_sha256": "500a9c98980e117411c31f531bd1b64d81bcc79e2821bef5043fb041695d2d27",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2402,
+          "serialized_bytes": 68,
+          "serialized_sha256": "4e79e06a4ed2f86eba2190f0b70d5fa980a6df886c717e816916e387277f88c5",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.3399999141693115
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 496
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 1.6799999475479126,
+              "y": 2.0,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 3041,
+          "serialized_bytes": 224,
+          "serialized_sha256": "de5d5e4efecb673660d63d1ca5ca4ad96f0a933bb8361e1bc19ccb78500fda72",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3192,
+          "serialized_bytes": 36,
+          "serialized_sha256": "9ea7bd15b2cb315d4e10b07d89e4040dca4d27c930d75d86634d637227a8b5a1",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_03",
+      "game_object_path_id": 496,
+      "mj_static_collider_path_id": 3041,
+      "mj_static_collider_serialized_sha256": "de5d5e4efecb673660d63d1ca5ca4ad96f0a933bb8361e1bc19ccb78500fda72",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Wall_03",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071069478988647,
+            "x": -0.0,
+            "y": -0.7071065902709961,
+            "z": -0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Wall_03",
+          "sibling_index": 29,
+          "transform_path_id": 1486
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1255,
+          "serialized_bytes": 68,
+          "serialized_sha256": "b3b455d4d48867c2c7e7d312ce42372de5c76c8542857b793b6a2c8bdb7722e5",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2396,
+          "serialized_bytes": 68,
+          "serialized_sha256": "e587f52eeaeda44b065c0ade2f5dc8ba66a84c914c25f6d732bd572b6ed92919",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.3399999141693115
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 962
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 1.6799999475479126,
+              "y": 2.0,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 3314,
+          "serialized_bytes": 224,
+          "serialized_sha256": "17fc0ce3a21cd50accc29c0cace05b81efc7101038156855539eed9f61e5bef9",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3284,
+          "serialized_bytes": 36,
+          "serialized_sha256": "f5c4fcff6c74280db8419522ddc74190ce17c1a8d031e9c974a1268de035dc4d",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_04",
+      "game_object_path_id": 962,
+      "mj_static_collider_path_id": 3314,
+      "mj_static_collider_serialized_sha256": "17fc0ce3a21cd50accc29c0cace05b81efc7101038156855539eed9f61e5bef9",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Wall_04",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.3826836943626404,
+            "x": -0.0,
+            "y": -0.9238794445991516,
+            "z": -0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Wall_04",
+          "sibling_index": 30,
+          "transform_path_id": 1255
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1691,
+          "serialized_bytes": 68,
+          "serialized_sha256": "c5eb700e817e472b35ebad70b46ee641f1347ae0b8bdeea0b1ad8029dce30815",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2377,
+          "serialized_bytes": 68,
+          "serialized_sha256": "b65f8739dbd56b8ea11ba5f325dd5b02c7fd8ecd0c80bcc8977f39c34ef9e395",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.3399999141693115
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 734
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 1.6799999475479126,
+              "y": 2.0,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 2982,
+          "serialized_bytes": 224,
+          "serialized_sha256": "2b83f636ea8fc892bebc0c5b5ae8312e6c0916cc89edaf69ab32e4f709e60472",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3202,
+          "serialized_bytes": 36,
+          "serialized_sha256": "4a3d46b741ba195ec98b38ed4470ca59f8c78cd9bccf96931bf71e32b49a2d98",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_05",
+      "game_object_path_id": 734,
+      "mj_static_collider_path_id": 2982,
+      "mj_static_collider_serialized_sha256": "2b83f636ea8fc892bebc0c5b5ae8312e6c0916cc89edaf69ab32e4f709e60472",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Wall_05",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 4.917382625535538e-07,
+            "x": -0.0,
+            "y": -1.0,
+            "z": -0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Wall_05",
+          "sibling_index": 31,
+          "transform_path_id": 1691
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1315,
+          "serialized_bytes": 68,
+          "serialized_sha256": "c427535328cbfc3ba5986aaa683f1bb581416238d2fe8e622c351a387d63f029",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2359,
+          "serialized_bytes": 68,
+          "serialized_sha256": "c2bd971a0d8065caf962907e1ee00a25e9f7948ed1514e238c7eaf27a7cd1f54",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.3399999141693115
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 1003
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 1.6799999475479126,
+              "y": 2.0,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 3097,
+          "serialized_bytes": 224,
+          "serialized_sha256": "90e24d8b8e03f07dc56be997723010a8ed7769727fdaa39e806ccd20a13303cc",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3260,
+          "serialized_bytes": 36,
+          "serialized_sha256": "25cc4db8774c8172e143f7c3b47dba7e423b144c95cc0076ebd9c18902601c81",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_06",
+      "game_object_path_id": 1003,
+      "mj_static_collider_path_id": 3097,
+      "mj_static_collider_serialized_sha256": "90e24d8b8e03f07dc56be997723010a8ed7769727fdaa39e806ccd20a13303cc",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Wall_06",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": -0.3826829195022583,
+            "x": -0.0,
+            "y": -0.9238797426223755,
+            "z": -0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Wall_06",
+          "sibling_index": 32,
+          "transform_path_id": 1315
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1045,
+          "serialized_bytes": 68,
+          "serialized_sha256": "05df84e10bf2a778cd7ae6e4669c56b8717fd24e9487dd2389469f2ec3693938",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2414,
+          "serialized_bytes": 68,
+          "serialized_sha256": "b9651ab701f231047fe849e9a327b5fbc4c13ae7926e86838e352904e86323e4",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.3399999141693115
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 498
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 1.6799999475479126,
+              "y": 2.0,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 2974,
+          "serialized_bytes": 224,
+          "serialized_sha256": "af16cacd910c0c25e02587b0217e56e75724ce9e8a793ca16a1085192a0189a7",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3410,
+          "serialized_bytes": 36,
+          "serialized_sha256": "4842ed1020e4a867dd40fc40517eee78c778112831c1a3b0cd23804daddf5c9f",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_07",
+      "game_object_path_id": 498,
+      "mj_static_collider_path_id": 2974,
+      "mj_static_collider_serialized_sha256": "af16cacd910c0c25e02587b0217e56e75724ce9e8a793ca16a1085192a0189a7",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Wall_07",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": -0.7071062326431274,
+            "x": -0.0,
+            "y": -0.7071073651313782,
+            "z": -0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Wall_07",
+          "sibling_index": 33,
+          "transform_path_id": 1045
+        }
+      ]
+    },
+    {
+      "components": [
+        {
+          "path_id": 1602,
+          "serialized_bytes": 68,
+          "serialized_sha256": "edcdc1c2b6dad22151fdd32e4ae41905aeb46f7540f8538443142abf8568148f",
+          "type": "Transform"
+        },
+        {
+          "path_id": 2385,
+          "serialized_bytes": 68,
+          "serialized_sha256": "24b7792c044ea03d69ee6cafa7c4206a263de312dac8f7c9a1f079d015c01b39",
+          "type": "BoxCollider",
+          "values": {
+            "m_Center": {
+              "x": 0.0,
+              "y": 1.0,
+              "z": 2.3399999141693115
+            },
+            "m_Enabled": true,
+            "m_ExcludeLayers": {
+              "m_Bits": 0
+            },
+            "m_GameObject": {
+              "m_FileID": 0,
+              "m_PathID": 138
+            },
+            "m_IncludeLayers": {
+              "m_Bits": 0
+            },
+            "m_IsTrigger": false,
+            "m_LayerOverridePriority": 0,
+            "m_Material": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "m_ProvidesContacts": false,
+            "m_Size": {
+              "x": 1.6799999475479126,
+              "y": 2.0,
+              "z": 0.4000000059604645
+            }
+          }
+        },
+        {
+          "path_id": 3199,
+          "serialized_bytes": 224,
+          "serialized_sha256": "ed427be1cc1690884a9d623e3672df1db9c1997939ddc31ba137d2b814eb28d5",
+          "type": "MonoBehaviour"
+        },
+        {
+          "path_id": 3338,
+          "serialized_bytes": 36,
+          "serialized_sha256": "0a73e890ad1987140f743c6f4e56e67c34a29ffbfa80cda9627e716f85f0a266",
+          "type": "MonoBehaviour"
+        }
+      ],
+      "game_object_active": true,
+      "game_object_layer": 3,
+      "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_08",
+      "game_object_path_id": 138,
+      "mj_static_collider_path_id": 3199,
+      "mj_static_collider_serialized_sha256": "ed427be1cc1690884a9d623e3672df1db9c1997939ddc31ba137d2b814eb28d5",
+      "mj_static_settings": {
+        "Filtering": {
+          "Conaffinity": 1,
+          "Contype": 2,
+          "Group": 0
+        },
+        "FluidCoefficients": {
+          "AngularDrag": 1.5,
+          "BluntDrag": 5.0,
+          "KuttaLift": 1.0,
+          "MagnusLift": 1.0,
+          "SlenderDrag": 0.25
+        },
+        "FluidShapeType": 0,
+        "Friction": {
+          "Rolling": 9.999999747378752e-05,
+          "Sliding": 1.0,
+          "Torsional": 0.004999999888241291
+        },
+        "Priority": 0,
+        "Solver": {
+          "ConDim": 3,
+          "Gap": 0.0,
+          "Margin": 0.0,
+          "SolImp": {
+            "DMax": 0.949999988079071,
+            "DMin": 0.8999999761581421,
+            "Midpoint": 0.5,
+            "Power": 2.0,
+            "Width": 0.0010000000474974513
+          },
+          "SolMix": 1.0,
+          "SolRef": {
+            "DampRatio": 1.0,
+            "TimeConst": 0.019999999552965164
+          }
+        }
+      },
+      "mj_static_shape_type": 4,
+      "name": "Collider_Wall_08",
+      "transform_chain": [
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 0.7071068286895752,
+            "x": 0.0,
+            "y": 0.7071068286895752,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Enviro_StoreOctagon",
+          "sibling_index": null,
+          "transform_path_id": 1601
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": 1.0,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Colliders",
+          "sibling_index": 4,
+          "transform_path_id": 1484
+        },
+        {
+          "active": true,
+          "container": "level1",
+          "local_position": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "local_rotation": {
+            "w": -0.923879086971283,
+            "x": -0.0,
+            "y": -0.3826846778392792,
+            "z": -0.0
+          },
+          "local_scale": {
+            "x": 1.0,
+            "y": 1.0,
+            "z": 1.0
+          },
+          "name": "Collider_Wall_08",
+          "sibling_index": 34,
+          "transform_path_id": 1602
+        }
+      ]
+    }
+  ],
+  "schema": "rek.arena_unity_collider_probe.v1"
+}

@@ -1,0 +1,360 @@
+{
+  "schema": 2,
+  "evidence_kind": "passive_runtime_log_authority",
+  "recorded_at": "2026-09-01T01:33:19.3105688+00:00",
+  "host": "D21",
+  "scope": {
+    "build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+    "steam_buildid": "24969755",
+    "mode_logged": "championship_ai",
+    "area_reported_by_operator": "private arena",
+    "opponent_reported_by_operator": "sparring bot 1",
+    "opponent_role_reported_by_operator": "AI opponent",
+    "live_player_modes_exercised": false
+  },
+  "process": {
+    "pid": 127532,
+    "executable": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK.exe",
+    "responding": true
+  },
+  "player_log_snapshot": {
+    "path": "C:\\Users\\Daniel\\AppData\\LocalLow\\REK\\REK\\Player.log",
+    "bytes": 174231,
+    "sha256": "d00a4847a0ffbadbab4204d61acbe96c40af418df528dc82c251d43ec646c48d",
+    "source_length_before": 174231,
+    "source_length_after": 174231,
+    "source_last_write_before": "2026-09-01T01:33:16.9696693Z",
+    "source_last_write_after": "2026-09-01T01:33:16.9696693Z",
+    "disclosure": "Only strict allowlisted runtime lines are copied below; the full log is not copied because it may contain account or service data."
+  },
+  "observations": {
+    "championship_ai": [
+      {
+        "line": 900,
+        "text": "[Analytics] queued 'fight_started' mode=championship_ai engagement=6057ms (pending=1)"
+      },
+      {
+        "line": 1941,
+        "text": "[Analytics] queued 'fight_started' mode=championship_ai engagement=9872ms (pending=1)"
+      },
+      {
+        "line": 2368,
+        "text": "[Analytics] queued 'fight_started' mode=championship_ai engagement=15203ms (pending=1)"
+      }
+    ],
+    "assigned_client_fighter": [
+      {
+        "line": 742,
+        "text": "[FightCoordinator.Network] Client assigned as fighter 0."
+      },
+      {
+        "line": 843,
+        "text": "[FightCoordinator.Network] Client assigned as fighter 0."
+      },
+      {
+        "line": 1783,
+        "text": "[FightCoordinator.Network] Client assigned as fighter 0."
+      },
+      {
+        "line": 1884,
+        "text": "[FightCoordinator.Network] Client assigned as fighter 0."
+      }
+    ],
+    "local_fight_logic_disabled": [
+      {
+        "line": 728,
+        "text": "[FightCoordinator.Network] Client: message handlers registered, local fight logic disabled."
+      },
+      {
+        "line": 1769,
+        "text": "[FightCoordinator.Network] Client: message handlers registered, local fight logic disabled."
+      }
+    ],
+    "visual_only_robot": [
+      {
+        "line": 968,
+        "text": "[Robot] Visual-only mode: disabled 148 MuJoCo components on engineai_t800_FactoryPolicy(Clone); colliders preserved for local VFX."
+      },
+      {
+        "line": 983,
+        "text": "[Robot] Visual-only mode: disabled 148 MuJoCo components on engineai_t800_FactoryPolicy(Clone); colliders preserved for local VFX."
+      },
+      {
+        "line": 2009,
+        "text": "[Robot] Visual-only mode: disabled 148 MuJoCo components on engineai_t800_FactoryPolicy(Clone); colliders preserved for local VFX."
+      },
+      {
+        "line": 2024,
+        "text": "[Robot] Visual-only mode: disabled 148 MuJoCo components on engineai_t800_FactoryPolicy(Clone); colliders preserved for local VFX."
+      },
+      {
+        "line": 2436,
+        "text": "[Robot] Visual-only mode: disabled 148 MuJoCo components on engineai_t800_FactoryPolicy(Clone); colliders preserved for local VFX."
+      },
+      {
+        "line": 2451,
+        "text": "[Robot] Visual-only mode: disabled 148 MuJoCo components on engineai_t800_FactoryPolicy(Clone); colliders preserved for local VFX."
+      }
+    ],
+    "network_bones_client": [
+      {
+        "line": 976,
+        "text": "[Robot.Network] Initialized on engineai_t800_FactoryPolicy(Clone): 26 bones, role=Client"
+      },
+      {
+        "line": 991,
+        "text": "[Robot.Network] Initialized on engineai_t800_FactoryPolicy(Clone): 26 bones, role=Client"
+      },
+      {
+        "line": 2017,
+        "text": "[Robot.Network] Initialized on engineai_t800_FactoryPolicy(Clone): 26 bones, role=Client"
+      },
+      {
+        "line": 2032,
+        "text": "[Robot.Network] Initialized on engineai_t800_FactoryPolicy(Clone): 26 bones, role=Client"
+      },
+      {
+        "line": 2444,
+        "text": "[Robot.Network] Initialized on engineai_t800_FactoryPolicy(Clone): 26 bones, role=Client"
+      },
+      {
+        "line": 2459,
+        "text": "[Robot.Network] Initialized on engineai_t800_FactoryPolicy(Clone): 26 bones, role=Client"
+      }
+    ],
+    "fighting_ai": [
+      {
+        "line": 2205,
+        "text": "[FightCoordinator.Network] Received notification: FightingAI"
+      },
+      {
+        "line": 2632,
+        "text": "[FightCoordinator.Network] Received notification: FightingAI"
+      }
+    ],
+    "input_network_index": [
+      {
+        "line": 1077,
+        "text": "[InputController.Network] Assigned network index 0: engineai_t800_FactoryPolicy(Clone)"
+      },
+      {
+        "line": 2118,
+        "text": "[InputController.Network] Assigned network index 0: engineai_t800_FactoryPolicy(Clone)"
+      },
+      {
+        "line": 2545,
+        "text": "[InputController.Network] Assigned network index 0: engineai_t800_FactoryPolicy(Clone)"
+      }
+    ],
+    "fight_state_snapshot": [
+      {
+        "line": 906,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 1947,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2224,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2240,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2263,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2278,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2293,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2309,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2324,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2374,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2651,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2674,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2689,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2704,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2720,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      },
+      {
+        "line": 2735,
+        "text": "REKApp.FightCoordinator:ApplyFightStateSnapshot(FastBufferReader)"
+      }
+    ],
+    "fight_state_received": [
+      {
+        "line": 907,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 1948,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2225,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2241,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2264,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2279,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2294,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2310,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2325,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2375,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2652,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2675,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2690,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2705,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2721,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      },
+      {
+        "line": 2736,
+        "text": "REKApp.FightCoordinator:OnFightStateReceived(UInt64, FastBufferReader)"
+      }
+    ],
+    "connection_reset": [
+      {
+        "line": 1179,
+        "text": "Curl error 55: Send failure: Connection was reset"
+      },
+      {
+        "line": 1189,
+        "text": "Curl error 55: Recv failure: Connection was reset"
+      }
+    ],
+    "client_disconnected": [
+      {
+        "line": 1250,
+        "text": "[FightCoordinator.Network] Client disconnected -- state reset for reconnect."
+      },
+      {
+        "line": 2866,
+        "text": "[FightCoordinator.Network] Client disconnected -- state reset for reconnect."
+      },
+      {
+        "line": 2936,
+        "text": "[FightCoordinator.Network] Client disconnected -- state reset for reconnect."
+      }
+    ],
+    "arena_connection_lost": [
+      {
+        "line": 1262,
+        "text": "[FightCoordinator.Network] Connection to arena lost -- returning to lobby."
+      }
+    ]
+  },
+  "intervention": {
+    "raw_recorder": {
+      "path": "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\authority_practice.json",
+      "sha256": "8029a35363dfc5551f7a30c9e682beac883e9dd44de9d160ed5bf232804c7305",
+      "phase_changes": [
+        {
+          "t": 0.0,
+          "phase": "baseline_online"
+        },
+        {
+          "t": 27.963,
+          "phase": "blocked"
+        },
+        {
+          "t": 61.483,
+          "phase": "restored"
+        }
+      ],
+      "command_return_codes": [
+        {
+          "t": 31.085,
+          "phase": "blocked",
+          "returncode": 0
+        },
+        {
+          "t": 63.591,
+          "phase": "restored",
+          "returncode": 0
+        }
+      ],
+      "tool_verdict": "inconclusive",
+      "socket_attribution_usable": false,
+      "attribution_limit": "authority_practice.json was recorded with --name REK in a virtual environment without psutil. The Windows netstat fallback did not apply name_filter, so its socket counts cover the host and its block-effective calculation is excluded from this verdict."
+    },
+    "operator_observation": {
+      "path": "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\raw\\authority-practice-20260831-1946-a71c9f-operator-observation.json",
+      "sha256": "ddc202772acdb73ad99faa5d07772b6a272b5b14eef852116ec5a24ec7185db3",
+      "blocked_duration_s_approx": 20,
+      "world_froze": true,
+      "inputs_accepted": false,
+      "returned_to_home_screen": true
+    }
+  },
+  "verdict": {
+    "verdict": "remote_authority",
+    "because": "In championship_ai, the Windows client logged that local fight logic was disabled, both fighters were visual-only with local MuJoCo components disabled, their bones were initialized with role=Client, fight-state snapshots were received, and the opponent notification was FightingAI.",
+    "limits": "This verdict applies to championship_ai on this pinned Windows build. It does not establish the authority of a distinct offline or local mode, and it does not expose server-only state."
+  }
+}

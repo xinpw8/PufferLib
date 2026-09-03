@@ -1,0 +1,122 @@
+# CI for ocean/rek.
+#
+# There is no REK env to build yet — see ocean/rek/README.md. What is here is
+# the evidence and differential-testing package, and the aarch64 build shim.
+# Both are checkable, and both were places where a silent break had already got
+# through once.
+
+name: rek
+
+on:
+  push:
+    paths:
+      - 'ocean/rek/**'
+      - 'build.sh'
+      - 'src/**'
+      - '.github/workflows/rek.yml'
+  pull_request:
+    paths:
+      - 'ocean/rek/**'
+      - 'build.sh'
+      - 'src/**'
+      - '.github/workflows/rek.yml'
+
+jobs:
+  evidence:
+    name: evidence package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check the evidence package
+        # Fingerprint stability and sensitivity, trace round-tripping, and that
+        # the differ fails a clone outside REK's own run-to-run spread —
+        # including one that simply omits state REK has.
+        run: python ocean/rek/evidence/test_evidence.py
+
+      - name: Check the AI-match keepalive logic
+        # Its Win32 half cannot run here. Its detection and press policy can,
+        # and a false positive there sends a space into a live round.
+        run: python ocean/rek/evidence/test_keep_in_ai_match.py
+
+      - name: Report evidence-package stage
+        # Informational, not a gate: it will say "no evidence" until artifacts
+        # from the real installation are committed. Surfacing it on every run
+        # keeps the honest answer visible instead of depending on someone
+        # remembering to say it.
+        run: |
+          python ocean/rek/evidence/check_artifacts.py --dir ocean/rek/evidence \
+            | tail -3 || true
+
+      - name: Byte-compile every tool
+        # These run on a machine we cannot reach, so a syntax error would only
+        # surface there.
+        run: python -m compileall -q ocean/rek/evidence
+
+      - name: Shell-check the tooling
+        run: |
+          for f in ocean/rek/tools/*.sh ocean/rek/tools/arm64/*.sh \
+                   ocean/rek/tools/arm64/puffer-cc; do
+            bash -n "$f"
+          done
+
+  aarch64:
+    name: cross-compile for aarch64
+    runs-on: ubuntu-latest
+    # Guards the CC shim against an upstream env rather than a REK one. The shim
+    # is env-agnostic, and this keeps it covered while ocean/rek has no env.
+    env:
+      GUARD_ENV: robocode
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cross toolchain
+        # libomp-dev is what puts omp.h in clang's resource directory on
+        # Ubuntu; clang alone does not ship it, and src/vecenv.h includes it
+        # unconditionally. The header is architecture independent, so it serves
+        # the cross target fine — this job compiles, it never links.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang gcc-aarch64-linux-gnu libomp-dev
+          test -f "$(clang --print-resource-dir)/include/omp.h" \
+            || { echo "omp.h still missing from $(clang --print-resource-dir)/include"; exit 1; }
+
+      - name: Fetch raylib headers
+        # Headers only, and they are architecture independent — this job never
+        # links. build.sh names this directory, and its download() skips when it
+        # already exists, which is the same hook prepare_arm64.sh uses.
+        run: |
+          curl -sL -o raylib.tar.gz \
+            https://github.com/raysan5/raylib/releases/download/5.5/raylib-5.5_linux_amd64.tar.gz
+          tar xf raylib.tar.gz && rm raylib.tar.gz
+
+      - name: Confirm the x86-only flags are still the blocker
+        # build.sh compiles with (-mavx2 -mfma) unconditionally. If this ever
+        # stops failing, the shim has become unnecessary and can go.
+        run: |
+          if clang --target=aarch64-linux-gnu --sysroot=/usr/aarch64-linux-gnu \
+              -mavx2 -mfma -O2 -I. -Isrc -Iocean/$GUARD_ENV -Ivendor \
+              -I./raylib-5.5_linux_amd64/include -DPLATFORM_DESKTOP -fopenmp \
+              -fPIC -c ocean/$GUARD_ENV/binding.c -o /dev/null 2>/dev/null; then
+            echo "::warning::-mavx2 no longer fails for aarch64; puffer-cc may be redundant"
+          else
+            echo "confirmed: -mavx2/-mfma reject the aarch64 target"
+          fi
+
+      - name: Compile through the shim
+        env:
+          REK_REAL_CC: clang --target=aarch64-linux-gnu --sysroot=/usr/aarch64-linux-gnu
+          REK_CC_VERBOSE: '1'
+        run: |
+          ./ocean/rek/tools/arm64/puffer-cc -O2 -DNDEBUG -mavx2 -mfma \
+            -I. -Isrc -Iocean/$GUARD_ENV -Ivendor -I./raylib-5.5_linux_amd64/include \
+            -DPLATFORM_DESKTOP -fPIC -fopenmp -c ocean/$GUARD_ENV/binding.c -o guard.o
+          file guard.o | grep -q 'ARM aarch64' \
+            || { echo "not an aarch64 object"; exit 1; }
+
+      - name: prepare_arm64.sh no-ops off arm
+        run: ./ocean/rek/tools/arm64/prepare_arm64.sh | grep -q 'not aarch64'
