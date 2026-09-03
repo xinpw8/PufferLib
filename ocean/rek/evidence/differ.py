@@ -230,13 +230,19 @@ def baseline(paths, out_path, accept):
             sys.exit('some repeated REK runs do not identify their command sequence schema')
         if len(set(command_schemas)) != 1:
             sys.exit('the REK runs used different command sequence schemas')
-        if any(phase is not None for phase in command_sample_phases):
-            if any(phase is None for phase in command_sample_phases):
-                sys.exit('some repeated REK runs do not identify command sample phase')
-            if len(set(command_sample_phases)) != 1:
-                sys.exit(
-                    'the REK runs sampled different fixed-substep phases; '
-                    'run-to-run variance requires one observation phase')
+
+    # Checked independently of the command sequence. Nested under it, a run set
+    # that identified its sample phase but not its command sequence was never
+    # phase-checked at all, and runs observed at different points within the
+    # fixed step would have been pooled into one envelope as though the spread
+    # between them were the simulator's own variance.
+    if any(phase is not None for phase in command_sample_phases):
+        if any(phase is None for phase in command_sample_phases):
+            sys.exit('some repeated REK runs do not identify command sample phase')
+        if len(set(command_sample_phases)) != 1:
+            sys.exit(
+                'the REK runs sampled different fixed-substep phases; '
+                'run-to-run variance requires one observation phase')
 
     fighter_pairings = [t.header.get('fighter_pairing') for t in traces]
     if any(fighter_pairings):

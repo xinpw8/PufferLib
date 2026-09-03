@@ -578,6 +578,30 @@ def baseline_measures_reks_spread_and_compare_gates_on_it():
 
 
 @check
+def the_phase_guard_does_not_depend_on_a_command_sequence():
+    # It was nested under the command-sequence check, so a run set that
+    # identified its sample phase but not its command sequence skipped the
+    # phase check entirely — and phases observed at different points within
+    # the fixed step would have been pooled as though the spread between them
+    # were the simulator's own variance.
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        for index, phase in enumerate((2, 3)):
+            with trace_mod.TraceWriter(
+                    d / f'r{index}.trace', ['root_x'], 'fp0', 'rek',
+                    provenance=_prov(['root_x'], 'rek'),
+                    command_sequence_sha256='deadbeef',
+                    command_sequence_schema=(
+                        check_artifacts.COMMAND_SEQUENCE_SCHEMA),
+                    command_sample_phase_substeps=phase) as writer:
+                writer.append(0, {'root_x': 0.0})
+                writer.append(1, {'root_x': 0.0})
+        p = _run(['baseline', 'r0.trace', 'r1.trace', '--out', 'env.json'], d)
+        assert p.returncode != 0, p.stdout
+        assert 'different fixed-substep phases' in p.stderr, p.stderr
+
+
+@check
 def baseline_refuses_rek_runs_sampled_at_different_fixed_substep_phases():
     with tempfile.TemporaryDirectory() as d:
         d = Path(d)
