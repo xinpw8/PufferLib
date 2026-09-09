@@ -11,11 +11,13 @@ enum {
     REK_G1_SEMANTIC_HELD_CODES = 27,
 };
 
-#define REK_G1_SEMANTIC_KICK_NONE UINT16_MAX
+#define REK_G1_SEMANTIC_MOVE_NONE UINT16_MAX
+#define REK_G1_SEMANTIC_KICK_NONE REK_G1_SEMANTIC_MOVE_NONE
 
 typedef enum RekG1SemanticKind {
     REK_G1_SEMANTIC_LOCOMOTION = 0,
-    REK_G1_SEMANTIC_KICK = 1,
+    REK_G1_SEMANTIC_DISCRETE_MOVE = 1,
+    REK_G1_SEMANTIC_KICK = REK_G1_SEMANTIC_DISCRETE_MOVE,
 } RekG1SemanticKind;
 
 typedef enum RekG1SemanticStatus {
@@ -25,10 +27,16 @@ typedef enum RekG1SemanticStatus {
     REK_G1_SEMANTIC_ZERO_DURATION = 3,
     REK_G1_SEMANTIC_INVALID_HELD_CODE = 4,
     REK_G1_SEMANTIC_INVALID_KIND = 5,
-    REK_G1_SEMANTIC_LOCOMOTION_HAS_KICK = 6,
-    REK_G1_SEMANTIC_KICK_INDEX_OUT_OF_RANGE = 7,
-    REK_G1_SEMANTIC_KICK_HAS_TRANSLATION = 8,
+    REK_G1_SEMANTIC_LOCOMOTION_HAS_MOVE = 6,
+    REK_G1_SEMANTIC_MOVE_INDEX_OUT_OF_RANGE = 7,
+    REK_G1_SEMANTIC_MOVE_HAS_TRANSLATION = 8,
     REK_G1_SEMANTIC_INVALID_INPUT_TIMING = 9,
+    REK_G1_SEMANTIC_LOCOMOTION_HAS_KICK =
+        REK_G1_SEMANTIC_LOCOMOTION_HAS_MOVE,
+    REK_G1_SEMANTIC_KICK_INDEX_OUT_OF_RANGE =
+        REK_G1_SEMANTIC_MOVE_INDEX_OUT_OF_RANGE,
+    REK_G1_SEMANTIC_KICK_HAS_TRANSLATION =
+        REK_G1_SEMANTIC_MOVE_HAS_TRANSLATION,
 } RekG1SemanticStatus;
 
 typedef struct RekG1SemanticCommand {
@@ -39,9 +47,10 @@ typedef struct RekG1SemanticCommand {
     // Supplied by a validated generated action table. The protocol has no
     // fallback duration and does not derive one from clip metadata.
     uint32_t duration_ticks;
-    // REK_G1_SEMANTIC_KICK_NONE for locomotion. For a kick, this indexes a
-    // validated runtime kick registry whose count is supplied at load time.
-    uint16_t kick_registry_index;
+    // REK_G1_SEMANTIC_MOVE_NONE for locomotion. For a discrete move, this
+    // indexes a validated runtime move registry whose count is supplied at
+    // load time.
+    uint16_t move_registry_index;
 } RekG1SemanticCommand;
 
 typedef struct RekG1SemanticScheduler {
@@ -50,20 +59,20 @@ typedef struct RekG1SemanticScheduler {
     uint32_t remaining_ticks;
     uint8_t active;
     uint8_t first_tick;
-    uint8_t kick_accepted;
+    uint8_t move_accepted;
 } RekG1SemanticScheduler;
 
 typedef struct RekG1SemanticTick {
     RekG1SemanticStatus status;
     RekG1InputDecision input;
     RekG1SemanticKind kind;
-    uint16_t kick_registry_index;
+    uint16_t move_registry_index;
     uint32_t remaining_ticks;
     uint8_t command_started;
     uint8_t segment_complete;
-    uint8_t kick_start_edge;
-    uint8_t kick_active;
-    uint8_t kick_blocked;
+    uint8_t move_start_edge;
+    uint8_t move_active;
+    uint8_t move_blocked;
 } RekG1SemanticTick;
 
 static inline RekG1SemanticStatus rek_g1_semantic_encode_held(
@@ -114,10 +123,10 @@ static inline void rek_g1_semantic_reset(RekG1SemanticScheduler* scheduler) {
 static inline RekG1SemanticStatus rek_g1_semantic_start(
         RekG1SemanticScheduler* scheduler,
         RekG1SemanticCommand command,
-        uint16_t kick_registry_count) {
+        uint16_t move_registry_count) {
     if (scheduler->active) return REK_G1_SEMANTIC_SEGMENT_ALREADY_ACTIVE;
     if (command.kind != REK_G1_SEMANTIC_LOCOMOTION &&
-            command.kind != REK_G1_SEMANTIC_KICK) {
+            command.kind != REK_G1_SEMANTIC_DISCRETE_MOVE) {
         return REK_G1_SEMANTIC_INVALID_KIND;
     }
     if (command.duration_ticks == 0) return REK_G1_SEMANTIC_ZERO_DURATION;
@@ -129,15 +138,15 @@ static inline RekG1SemanticStatus rek_g1_semantic_start(
     if (status != REK_G1_SEMANTIC_OK) return status;
 
     if (command.kind == REK_G1_SEMANTIC_LOCOMOTION) {
-        if (command.kick_registry_index != REK_G1_SEMANTIC_KICK_NONE) {
-            return REK_G1_SEMANTIC_LOCOMOTION_HAS_KICK;
+        if (command.move_registry_index != REK_G1_SEMANTIC_MOVE_NONE) {
+            return REK_G1_SEMANTIC_LOCOMOTION_HAS_MOVE;
         }
     } else {
-        if (command.kick_registry_index >= kick_registry_count) {
-            return REK_G1_SEMANTIC_KICK_INDEX_OUT_OF_RANGE;
+        if (command.move_registry_index >= move_registry_count) {
+            return REK_G1_SEMANTIC_MOVE_INDEX_OUT_OF_RANGE;
         }
         if ((held & REK_G1_HELD_TRANSLATION_MASK) != 0) {
-            return REK_G1_SEMANTIC_KICK_HAS_TRANSLATION;
+            return REK_G1_SEMANTIC_MOVE_HAS_TRANSLATION;
         }
     }
 
@@ -145,7 +154,7 @@ static inline RekG1SemanticStatus rek_g1_semantic_start(
     scheduler->remaining_ticks = command.duration_ticks;
     scheduler->active = 1;
     scheduler->first_tick = 1;
-    scheduler->kick_accepted = 0;
+    scheduler->move_accepted = 0;
     return REK_G1_SEMANTIC_OK;
 }
 
@@ -156,7 +165,7 @@ static inline RekG1SemanticTick rek_g1_semantic_tick(
         int action_busy) {
     RekG1SemanticTick result = {0};
     result.status = REK_G1_SEMANTIC_NO_ACTIVE_SEGMENT;
-    result.kick_registry_index = REK_G1_SEMANTIC_KICK_NONE;
+    result.move_registry_index = REK_G1_SEMANTIC_MOVE_NONE;
     if (!scheduler->active) return result;
     if (rek_g1_validate_input_timing(timing) != REK_G1_INPUT_ACCEPTED) {
         result.status = REK_G1_SEMANTIC_INVALID_INPUT_TIMING;
@@ -177,10 +186,10 @@ static inline RekG1SemanticTick rek_g1_semantic_tick(
 
     result.status = REK_G1_SEMANTIC_OK;
     result.kind = scheduler->command.kind;
-    result.kick_registry_index = scheduler->command.kick_registry_index;
+    result.move_registry_index = scheduler->command.move_registry_index;
     result.command_started = scheduler->first_tick;
     uint8_t attack_edge = scheduler->first_tick &&
-        scheduler->command.kind == REK_G1_SEMANTIC_KICK;
+        scheduler->command.kind == REK_G1_SEMANTIC_DISCRETE_MOVE;
     result.input = rek_g1_apply_input_frame(
         &scheduler->input_state,
         (RekG1InputFrame){.held = held, .attack_edge = attack_edge},
@@ -191,13 +200,13 @@ static inline RekG1SemanticTick rek_g1_semantic_tick(
     if (attack_edge) {
         scheduler->first_tick = 0;
         if (result.input.attack_gate == REK_G1_ATTACK_ACCEPTED_PREEMPT_YAW) {
-            scheduler->kick_accepted = 1;
-            result.kick_start_edge = 1;
+            scheduler->move_accepted = 1;
+            result.move_start_edge = 1;
         } else {
             // A blocked edge is never retried or queued. It completes this
-            // proposed kick segment immediately and leaves the caller to
+            // proposed move segment immediately and leaves the caller to
             // choose a new command on the next control tick.
-            result.kick_blocked = 1;
+            result.move_blocked = 1;
             result.segment_complete = 1;
             scheduler->active = 0;
             scheduler->remaining_ticks = 0;
@@ -207,9 +216,9 @@ static inline RekG1SemanticTick rek_g1_semantic_tick(
         scheduler->first_tick = 0;
     }
 
-    if (scheduler->command.kind == REK_G1_SEMANTIC_KICK &&
-            scheduler->kick_accepted) {
-        result.kick_active = 1;
+    if (scheduler->command.kind == REK_G1_SEMANTIC_DISCRETE_MOVE &&
+            scheduler->move_accepted) {
+        result.move_active = 1;
         result.input.yaw_suppressed_for_attack = result.input.yaw != 0 ||
             (held & REK_G1_HELD_YAW_MASK) != 0;
         result.input.yaw = 0.0f;

@@ -9,7 +9,7 @@ static int commands_equal(
     return left.kind == right.kind &&
         left.held_code == right.held_code &&
         left.duration_ticks == right.duration_ticks &&
-        left.kick_registry_index == right.kick_registry_index;
+        left.move_registry_index == right.move_registry_index;
 }
 
 static const uint8_t REQUIRED_HELD_MASKS[] = {
@@ -66,13 +66,13 @@ static int yaw_only_locomotion_held_code(
     return 1;
 }
 
-static int has_kick_registry_index(
+static int has_move_registry_index(
         const RekG1PufferActionTable* table,
-        uint16_t kick_registry_index) {
+        uint16_t move_registry_index) {
     for (uint32_t index = 1; index < table->count; index++) {
         const RekG1SemanticCommand* command = &table->categories[index].command;
-        if (command->kind == REK_G1_SEMANTIC_KICK &&
-                command->kick_registry_index == kick_registry_index) {
+        if (command->kind == REK_G1_SEMANTIC_DISCRETE_MOVE &&
+                command->move_registry_index == move_registry_index) {
             return 1;
         }
     }
@@ -95,20 +95,22 @@ RekG1PufferStatus rek_g1_puffer_validate_table(
     if (table->categories[0].kind != REK_G1_PUFFER_CONTINUE) {
         return REK_G1_PUFFER_TABLE_CONTINUE_INVALID;
     }
-    if (table->kick_registry_count != REK_G1_REQUIRED_KICK_COUNT ||
-            table->kick_move_indices == 0 ||
-            table->kick_duration_ticks == 0) {
-        return REK_G1_PUFFER_TABLE_KICK_REGISTRY_INVALID;
+    if (table->move_registry_count !=
+                REK_G1_REQUIRED_DISCRETE_MOVE_COUNT ||
+            table->move_indices == 0 ||
+            table->move_duration_ticks == 0) {
+        return REK_G1_PUFFER_TABLE_MOVE_REGISTRY_INVALID;
     }
-    static const uint16_t required_move_indices[REK_G1_REQUIRED_KICK_COUNT] = {
-        6, 7, 8, 9,
+    static const uint16_t required_move_indices[
+            REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {
+        6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16,
     };
-    for (uint16_t kick = 0; kick < table->kick_registry_count; kick++) {
-        if (table->kick_move_indices[kick] != required_move_indices[kick]) {
-            return REK_G1_PUFFER_TABLE_KICK_REGISTRY_INVALID;
+    for (uint16_t move = 0; move < table->move_registry_count; move++) {
+        if (table->move_indices[move] != required_move_indices[move]) {
+            return REK_G1_PUFFER_TABLE_MOVE_REGISTRY_INVALID;
         }
-        if (table->kick_duration_ticks[kick] == 0) {
-            return REK_G1_PUFFER_TABLE_KICK_DURATION_INVALID;
+        if (table->move_duration_ticks[move] == 0) {
+            return REK_G1_PUFFER_TABLE_MOVE_DURATION_INVALID;
         }
     }
 
@@ -122,16 +124,16 @@ RekG1PufferStatus rek_g1_puffer_validate_table(
         if (rek_g1_semantic_start(
                 &scratch,
                 category->command,
-                table->kick_registry_count) != REK_G1_SEMANTIC_OK) {
+                table->move_registry_count) != REK_G1_SEMANTIC_OK) {
             return REK_G1_PUFFER_TABLE_START_INVALID;
         }
-        if (category->command.kind == REK_G1_SEMANTIC_KICK &&
+        if (category->command.kind == REK_G1_SEMANTIC_DISCRETE_MOVE &&
                 category->command.duration_ticks !=
-                table->kick_duration_ticks[
-                    category->command.kick_registry_index]) {
-            return REK_G1_PUFFER_TABLE_KICK_DURATION_INVALID;
+                table->move_duration_ticks[
+                    category->command.move_registry_index]) {
+            return REK_G1_PUFFER_TABLE_MOVE_DURATION_INVALID;
         }
-        if (category->command.kind == REK_G1_SEMANTIC_KICK) {
+        if (category->command.kind == REK_G1_SEMANTIC_DISCRETE_MOVE) {
             uint8_t template_held = 0;
             if (rek_g1_semantic_decode_held(
                     category->command.held_code, &template_held) !=
@@ -157,9 +159,9 @@ RekG1PufferStatus rek_g1_puffer_validate_table(
             return REK_G1_PUFFER_TABLE_HELD_COVERAGE_INVALID;
         }
     }
-    for (uint16_t kick = 0; kick < table->kick_registry_count; kick++) {
-        if (!has_kick_registry_index(table, kick)) {
-            return REK_G1_PUFFER_TABLE_KICK_REGISTRY_INVALID;
+    for (uint16_t move = 0; move < table->move_registry_count; move++) {
+        if (!has_move_registry_index(table, move)) {
+            return REK_G1_PUFFER_TABLE_MOVE_REGISTRY_INVALID;
         }
     }
     return REK_G1_PUFFER_OK;
@@ -187,8 +189,9 @@ int rek_g1_puffer_category_legal(
     }
     if (adapter->scheduler.active) {
         if (category == 0) return 1;
-        if (adapter->scheduler.command.kind != REK_G1_SEMANTIC_KICK ||
-                !adapter->scheduler.kick_accepted) {
+        if (adapter->scheduler.command.kind !=
+                    REK_G1_SEMANTIC_DISCRETE_MOVE ||
+                !adapter->scheduler.move_accepted) {
             return 0;
         }
         uint8_t held_code = 0;
@@ -200,7 +203,7 @@ int rek_g1_puffer_category_legal(
     const RekG1PufferCategory* selected = &table->categories[category];
     if (selected->kind != REK_G1_PUFFER_START) return 0;
     if (selected->command.kind == REK_G1_SEMANTIC_LOCOMOTION) return 1;
-    if (selected->command.kind != REK_G1_SEMANTIC_KICK) return 0;
+    if (selected->command.kind != REK_G1_SEMANTIC_DISCRETE_MOVE) return 0;
 
     int translation_held =
         (adapter->scheduler.input_state.held &
@@ -273,25 +276,25 @@ RekG1PufferStep rek_g1_puffer_step(
         return result;
     }
 
-    uint8_t active_kick_held_code = 0;
-    int active_kick_input_update =
+    uint8_t active_move_held_code = 0;
+    int active_move_input_update =
         adapter->scheduler.active &&
-        adapter->scheduler.command.kind == REK_G1_SEMANTIC_KICK &&
-        adapter->scheduler.kick_accepted &&
+        adapter->scheduler.command.kind == REK_G1_SEMANTIC_DISCRETE_MOVE &&
+        adapter->scheduler.move_accepted &&
         yaw_only_locomotion_held_code(
-            table, result.category, &active_kick_held_code);
-    if (active_kick_input_update) {
+            table, result.category, &active_move_held_code);
+    if (active_move_input_update) {
         // Neutral/Q/E categories update desired keyboard state on this tick.
-        // The active kick's registry identity, cursor, and remaining duration
+        // The active move's registry identity, cursor, and remaining duration
         // are unchanged and the semantic tick still advances exactly once.
-        adapter->scheduler.command.held_code = active_kick_held_code;
+        adapter->scheduler.command.held_code = active_move_held_code;
     } else if (result.category != 0) {
         RekG1SemanticCommand command =
             table->categories[result.category].command;
-        if (command.kind == REK_G1_SEMANTIC_KICK) {
-            // A kick suppresses effective yaw, but it does not release a Q/E
+        if (command.kind == REK_G1_SEMANTIC_DISCRETE_MOVE) {
+            // A move suppresses effective yaw, but it does not release a Q/E
             // key that was already held. Carry the adapter's desired yaw into
-            // the finite kick segment so its ramp continues while suppressed
+            // the finite move segment so its ramp continues while suppressed
             // and resumes without a false release after the segment.
             uint8_t held_code = 0;
             uint8_t held_yaw = adapter->scheduler.input_state.held &
@@ -306,7 +309,7 @@ RekG1PufferStep rek_g1_puffer_step(
         RekG1SemanticStatus start_status = rek_g1_semantic_start(
             &adapter->scheduler,
             command,
-            table->kick_registry_count);
+            table->move_registry_count);
         if (start_status != REK_G1_SEMANTIC_OK) {
             result.status = REK_G1_PUFFER_PROTOCOL_ERROR;
             return result;

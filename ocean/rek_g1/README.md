@@ -13,25 +13,26 @@ arena-major, player then opponent. Every 50 Hz outer action advances ten 2 ms
 physics steps. Both fighters' controls are staged before the shared-contact
 step, so neither row receives an ordering advantage.
 
-The native observation ABI is schema 3 with 223 binary32 values per robot:
+The native observation ABI is schema 4 with 223 binary32 values per robot:
 
 * 86 values for self state;
 * 86 values for opponent state;
 * 12 command, heading, route, and composer values;
 * 39 score, fall, referee, round, and tick-event values.
 
-The one-head categorical action ABI has 20 categories:
+The one-head categorical action ABI has 33 categories:
 
 * continue the currently scheduled command;
 * neutral and the validated W, S, A, D, Q, and E held combinations;
-* the four recovered G1 kick routes for runtime moves 6 through 9.
+* all 17 build-pinned discrete routes in registry order 6, 7, 8, 9, 0 through
+  5, then 10 through 16.
 
 Held translation and yaw are represented every controller tick. Q or E can be
-held with a translation input. Translation blocks a new kick until the
-locomotion transition settles. An accepted kick suppresses effective yaw while
+held with a translation input. Translation blocks a new discrete move until
+the locomotion transition settles. An accepted move suppresses effective yaw while
 the desired yaw hold and ramp state continue. Neutral, Q, and E remain
-selectable during a kick to update that desired state without restarting the
-move. Retaining and advancing the ramp through a kick is provisional candidate
+selectable during a move to update that desired state without restarting the
+move. Retaining and advancing the ramp through a move is provisional candidate
 semantics. It has not been recovered as current REK runtime behavior. No F
 binding is present because the installed keyboard asset has no identified F
 locomotion field.
@@ -55,9 +56,10 @@ Pinned static evidence and recovered code establish these fall and reset facts:
   update later;
 * local `ResetAfterFall` instead gives 0.5 s of fall-detection grace.
 
-Runtime clip injection has not been excluded, so current REK `CanGetUp` remains
-unknown. This candidate provisionally selects `CanGetUp=false` and its 3.0 s
-referee branch. That selection is not a current-build parity fact. Staged
+The user-observed L100 behavior has no get-up action. This candidate selects
+`CanGetUp=false`, validates that fact in every native observation, and uses the
+3.0 s no-recovery referee branch. Repeated controlled capture is still required
+before timing parity is accepted. Staged
 actuator gains are inputs to the 0.1 retention rule. They are not represented
 as measurements of the current service's live gain table.
 
@@ -106,9 +108,10 @@ native eight-row batch contract is satisfied. The evaluator requires the exact
 native action-mask pointer. It will not replace a hidden legality fact with a
 local guess.
 
-W, S, A, D, Q, and E are held inputs. Move 6 through move 9 are discrete kick
-edges. U and I are evaluator convenience aliases for the user-confirmed
-left-front and right-side moves; they are not recovered keyboard-binding facts.
+W, S, A, D, Q, and E are held inputs. All 17 discrete routes are selectable by
+direct evaluator shortcuts. U and I retain evaluator convenience aliases for
+the user-confirmed left-front and right-side moves. The static build bindings
+are displayed separately and are not claimed as measured input timing.
 Every accepted browser input and every applied 50 Hz action is written to a
 create-new JSONL trace. Each control-step record includes the exact row actions,
 action-selection reasons, terminal bits, and the first arena's 223-value
@@ -118,7 +121,7 @@ accepted only at caller-supplied SHA-256 identities.
 The evaluator is a measurement instrument, not an acceptance result. The gold
 standard is a paired human evaluation in which authentic REK and this isolated
 environment start from matched state and receive the same tick-indexed held and
-discrete input trace. Each individual movement and kick must be compared for
+discrete input trace. Each individual movement and move must be compared for
 input latency, duration, root trajectory, orientation, fall and recovery state,
 contact and hit events, and round events. Acceptance requires held-out errors no
 larger than authentic REK's own repeated-run variance. A visual resemblance,

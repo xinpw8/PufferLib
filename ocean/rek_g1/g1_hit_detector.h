@@ -21,6 +21,8 @@ typedef struct RekG1ImpactEvent {
     float impact_time_seconds;
     float lead_time_seconds;
     float release_time_seconds;
+    /* Retained build metadata. Its current-build control effect is unknown. */
+    float gain_boost;
     RekG1AimLimb limb;
 } RekG1ImpactEvent;
 

@@ -29,10 +29,10 @@ typedef enum RekG1PufferCategoryKind {
 
 typedef struct RekG1PufferCategory {
     RekG1PufferCategoryKind kind;
-    // Adapter-table kick templates identify route and duration and must use a
+    // Adapter-table move templates identify route and duration and must use a
     // neutral held_code. This normalization does not restrict direct semantic
     // commands, which may carry yaw. At adapter dispatch, held_code is replaced
-    // with the current desired Q/E state. During the kick, validated yaw-only
+    // with the current desired Q/E state. During the move, validated yaw-only
     // locomotion categories may update it. Retaining and advancing the yaw ramp
     // is provisional candidate behavior, not recovered REK parity.
     RekG1SemanticCommand command;
@@ -42,14 +42,16 @@ typedef struct RekG1PufferActionTable {
     const RekG1PufferCategory* categories;
     uint32_t count;
     // Registry identity and duration are generated only after runtime capture.
-    // Every kick category must match the duration at its registry index.
-    const uint16_t* kick_move_indices;
-    const uint32_t* kick_duration_ticks;
-    uint16_t kick_registry_count;
+    // Every discrete-move category must match the duration at its registry
+    // index.
+    const uint16_t* move_indices;
+    const uint32_t* move_duration_ticks;
+    uint16_t move_registry_count;
 } RekG1PufferActionTable;
 
 enum {
-    REK_G1_REQUIRED_KICK_COUNT = 4,
+    REK_G1_REQUIRED_DISCRETE_MOVE_COUNT = 17,
+    REK_G1_REQUIRED_KICK_COUNT = REK_G1_REQUIRED_DISCRETE_MOVE_COUNT,
 };
 
 typedef enum RekG1PufferStatus {
@@ -65,9 +67,13 @@ typedef enum RekG1PufferStatus {
     REK_G1_PUFFER_ACTION_MASKED = 9,
     REK_G1_PUFFER_PROTOCOL_ERROR = 10,
     REK_G1_PUFFER_TABLE_HELD_COVERAGE_INVALID = 11,
-    REK_G1_PUFFER_TABLE_KICK_REGISTRY_INVALID = 12,
-    REK_G1_PUFFER_TABLE_KICK_DURATION_INVALID = 13,
+    REK_G1_PUFFER_TABLE_MOVE_REGISTRY_INVALID = 12,
+    REK_G1_PUFFER_TABLE_MOVE_DURATION_INVALID = 13,
     REK_G1_PUFFER_INPUT_TIMING_INVALID = 14,
+    REK_G1_PUFFER_TABLE_KICK_REGISTRY_INVALID =
+        REK_G1_PUFFER_TABLE_MOVE_REGISTRY_INVALID,
+    REK_G1_PUFFER_TABLE_KICK_DURATION_INVALID =
+        REK_G1_PUFFER_TABLE_MOVE_DURATION_INVALID,
 } RekG1PufferStatus;
 
 typedef struct RekG1PufferAdapter {

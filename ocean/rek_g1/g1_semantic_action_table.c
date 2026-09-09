@@ -20,13 +20,18 @@ static const uint8_t HELD_MASKS[15] = {
     REK_G1_HELD_STRAFE_RIGHT | REK_G1_HELD_YAW_RIGHT,
 };
 
+static const uint16_t MOVE_REGISTRY_ORDER[
+        REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {
+    6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16,
+};
+
 RekG1PufferStatus rek_g1_semantic_action_table_init(
         RekG1SemanticActionTableStorage* storage,
         uint32_t locomotion_segment_ticks,
-        const uint32_t configured_compositor_kick_duration_ticks[
-            REK_G1_REQUIRED_KICK_COUNT]) {
+        const uint32_t configured_compositor_move_duration_ticks[
+            REK_G1_REQUIRED_DISCRETE_MOVE_COUNT]) {
     if (storage == NULL
-            || configured_compositor_kick_duration_ticks == NULL) {
+            || configured_compositor_move_duration_ticks == NULL) {
         return REK_G1_PUFFER_TABLE_NULL;
     }
     if (locomotion_segment_ticks == 0u) {
@@ -46,39 +51,41 @@ RekG1PufferStatus rek_g1_semantic_action_table_init(
                 .kind = REK_G1_SEMANTIC_LOCOMOTION,
                 .held_code = held_code,
                 .duration_ticks = locomotion_segment_ticks,
-                .kick_registry_index = REK_G1_SEMANTIC_KICK_NONE,
+                .move_registry_index = REK_G1_SEMANTIC_MOVE_NONE,
             },
         };
     }
-    for (uint16_t index = 0; index < REK_G1_REQUIRED_KICK_COUNT; index++) {
-        if (configured_compositor_kick_duration_ticks[index] == 0u) {
-            return REK_G1_PUFFER_TABLE_KICK_DURATION_INVALID;
+    for (uint16_t index = 0;
+            index < REK_G1_REQUIRED_DISCRETE_MOVE_COUNT; index++) {
+        const uint16_t move_index = MOVE_REGISTRY_ORDER[index];
+        const uint32_t duration =
+            configured_compositor_move_duration_ticks[move_index];
+        if (duration == 0u) {
+            return REK_G1_PUFFER_TABLE_MOVE_DURATION_INVALID;
         }
         uint8_t neutral_code = 0u;
         if (rek_g1_semantic_encode_held(0u, &neutral_code)
                 != REK_G1_SEMANTIC_OK) {
             return REK_G1_PUFFER_TABLE_START_INVALID;
         }
-        storage->kick_move_indices[index] = (uint16_t)(6u + index);
-        storage->kick_duration_ticks[index] =
-            configured_compositor_kick_duration_ticks[index];
+        storage->move_indices[index] = move_index;
+        storage->move_duration_ticks[index] = duration;
         storage->categories[16u + index] = (RekG1PufferCategory){
             .kind = REK_G1_PUFFER_START,
             .command = {
-                .kind = REK_G1_SEMANTIC_KICK,
+                .kind = REK_G1_SEMANTIC_DISCRETE_MOVE,
                 .held_code = neutral_code,
-                .duration_ticks =
-                    configured_compositor_kick_duration_ticks[index],
-                .kick_registry_index = index,
+                .duration_ticks = duration,
+                .move_registry_index = index,
             },
         };
     }
     storage->table = (RekG1PufferActionTable){
         .categories = storage->categories,
         .count = REK_G1_SEMANTIC_ACTION_COUNT,
-        .kick_move_indices = storage->kick_move_indices,
-        .kick_duration_ticks = storage->kick_duration_ticks,
-        .kick_registry_count = REK_G1_REQUIRED_KICK_COUNT,
+        .move_indices = storage->move_indices,
+        .move_duration_ticks = storage->move_duration_ticks,
+        .move_registry_count = REK_G1_REQUIRED_DISCRETE_MOVE_COUNT,
     };
     return rek_g1_puffer_validate_table(&storage->table);
 }

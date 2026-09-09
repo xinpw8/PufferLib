@@ -40,28 +40,62 @@ ROBOT_ROWS = 8
 OBSERVATION_FLOATS = 223
 ENTITY_FLOATS = 86
 ACTION_HEADS = 1
-ACTION_CATEGORIES = 20
+ACTION_CATEGORIES = 33
 CONTINUE_CATEGORY = 0
 NEUTRAL_CATEGORY = 1
 YAW_LEFT_CATEGORY = 6
 YAW_RIGHT_CATEGORY = 7
-KICK_MOVE_9_CATEGORY = 19
-RENDER_CAMERA_DISTANCE_M = 3.8
+MOVE_16_CATEGORY = 32
+RENDER_CAMERA_MIN_DISTANCE_M = 3.8
+RENDER_CAMERA_FIT_MARGIN_M = 1.0
 RENDER_CAMERA_AZIMUTH_DEGREES = 90.0
-RENDER_CAMERA_ELEVATION_DEGREES = -60.0
+RENDER_CAMERA_ELEVATION_DEGREES = -45.0
 RENDER_CAMERA_MIN_LOOKAT_Z_M = 0.9
+RENDER_HIDDEN_ARENA_GEOM_PREFIXES = (
+    "arena_Collider_Pillar_",
+    "arena_Collider_Wall_",
+)
+RENDER_HIDDEN_ARENA_GEOM_COUNT = 16
+RENDER_PLAYER_GEOM_PREFIX = "player__"
+RENDER_OPPONENT_GEOM_PREFIX = "opponent__"
+RENDER_FIGHTER_GEOM_COUNT = 37
+RENDER_PLAYER_RGBA = (0.12, 0.42, 0.95, 1.0)
+RENDER_OPPONENT_RGBA = (1.0, 0.32, 0.06, 1.0)
 BUILD_CATALOG_ROBOT_ID = "g1"
 BUILD_CATALOG_DISPLAY_NAME = "L100"
 BUILD_CATALOG_TYPE_LABEL = "Lightweight"
 BUILD_CATALOG_DISCRETE_MOVE_COUNT = 17
-EVALUATOR_EXPOSED_MOVE_COUNT = 4
-KICK_DURATION_TICKS = (157, 145, 158, 139)
-KICK_MOVE_TO_CATEGORY = {6: 16, 7: 17, 8: 18, 9: 19}
-KICK_METADATA = (
-    {"move": 6, "category": 16, "identity": "left_side", "keys": ["6"]},
-    {"move": 7, "category": 17, "identity": "left_front", "keys": ["7", "U"]},
-    {"move": 8, "category": 18, "identity": "right_side", "keys": ["8", "I"]},
-    {"move": 9, "category": 19, "identity": "right_knee", "keys": ["9"]},
+EVALUATOR_EXPOSED_MOVE_COUNT = 17
+MOVE_DURATION_TICKS = (
+    35, 27, 31, 45, 32, 45, 157, 145, 158,
+    139, 134, 138, 73, 75, 68, 71, 103,
+)
+MOVE_REGISTRY_ORDER = (6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16)
+MOVE_TO_CATEGORY = {
+    move_index: 16 + registry_index
+    for registry_index, move_index in enumerate(MOVE_REGISTRY_ORDER)
+}
+MOVE_DURATION_BY_CATEGORY = tuple(
+    MOVE_DURATION_TICKS[move_index] for move_index in MOVE_REGISTRY_ORDER
+)
+MOVE_METADATA = (
+    {"move": 0, "category": 20, "identity": "left_hook", "keys": ["Y"]},
+    {"move": 1, "category": 21, "identity": "left_jab", "keys": ["H"]},
+    {"move": 2, "category": 22, "identity": "double_uppercut", "keys": ["Space+J"]},
+    {"move": 3, "category": 23, "identity": "right_hook", "keys": ["U"]},
+    {"move": 4, "category": 24, "identity": "right_jab", "keys": ["J"]},
+    {"move": 5, "category": 25, "identity": "left_jab_right_uppercut", "keys": ["Space+L"]},
+    {"move": 6, "category": 16, "identity": "left_side_kick", "keys": ["double Y"]},
+    {"move": 7, "category": 17, "identity": "left_front_kick", "keys": ["double H"]},
+    {"move": 8, "category": 18, "identity": "right_side_kick", "keys": ["double U"]},
+    {"move": 9, "category": 19, "identity": "right_knee", "keys": ["double J"]},
+    {"move": 10, "category": 26, "identity": "six_punch", "keys": ["Space+Y"]},
+    {"move": 11, "category": 27, "identity": "run_and_punch", "keys": ["Space+U"]},
+    {"move": 12, "category": 28, "identity": "left_right_jab", "keys": []},
+    {"move": 13, "category": 29, "identity": "left_right_hook", "keys": []},
+    {"move": 14, "category": 30, "identity": "left_hook_right_jab", "keys": ["Space+K"]},
+    {"move": 15, "category": 31, "identity": "double_hook", "keys": ["Space+H"]},
+    {"move": 16, "category": 32, "identity": "butt_smack_emote", "keys": ["Space+I"]},
 )
 
 SEMANTIC_OFFSET = 2 * ENTITY_FLOATS
@@ -76,6 +110,10 @@ COMPOSER_BUSY_INDEX = SEMANTIC_OFFSET + 11
 FIGHT_OFFSET = SEMANTIC_OFFSET + 12
 SELF_FALL_OFFSET = 71
 FALL_PHASE_OFFSET = SELF_FALL_OFFSET + 8
+BUILD_PINNED_CAN_GET_UP_OFFSET = SELF_FALL_OFFSET + 7
+OPPONENT_BUILD_PINNED_CAN_GET_UP_OFFSET = (
+    ENTITY_FLOATS + BUILD_PINNED_CAN_GET_UP_OFFSET
+)
 
 HELD_CATEGORY_BY_SYMBOLS: Mapping[frozenset[str], int] = {
     frozenset(): 1,
@@ -222,7 +260,7 @@ def _observation_f32_le_b64(value: np.ndarray) -> str:
 class JsonlTraceWriter:
     """Append-only control-tick trace for paired replay and trajectory comparison."""
 
-    SCHEMA = "rek.g1_human_eval_trace.v1"
+    SCHEMA = "rek.g1_human_eval_trace.v2"
 
     def __init__(self, path: Path, identity_report: Mapping[str, Any]) -> None:
         _require(not path.is_symlink(), "trace output must not be a symlink")
@@ -393,20 +431,42 @@ def _optional_action_mask(vector: Any) -> np.ndarray | None:
     return np.ctypeslib.as_array(storage).reshape(ROBOT_ROWS, stride)
 
 
+def _require_candidate_no_get_up(observations: np.ndarray) -> None:
+    rows = np.asarray(observations, dtype=np.float32)
+    _require(
+        rows.shape == (ROBOT_ROWS, OBSERVATION_FLOATS),
+        "candidate no-get-up observation shape mismatch",
+    )
+    flags = rows[
+        :,
+        [
+            BUILD_PINNED_CAN_GET_UP_OFFSET,
+            OPPONENT_BUILD_PINNED_CAN_GET_UP_OFFSET,
+        ],
+    ]
+    _require(
+        bool(np.equal(flags, 0.0).all()),
+        "native observation contradicts candidate no-get-up configuration",
+    )
+
+
 def vector_arguments(max_steps: int, physics_workers: int) -> dict[str, Any]:
     _require(max_steps > 0, "max_steps must be positive")
     _require(physics_workers > 0, "physics_workers must be positive")
+    environment: dict[str, int] = {
+        "max_steps": max_steps,
+        "physics_workers": physics_workers,
+        "locomotion_segment_ticks": 1,
+    }
+    environment.update(
+        {
+            f"move_{move_index}_duration_ticks": duration
+            for move_index, duration in enumerate(MOVE_DURATION_TICKS)
+        }
+    )
     return {
         "vec": {"total_agents": ROBOT_ROWS, "num_buffers": 1},
-        "env": {
-            "max_steps": max_steps,
-            "physics_workers": physics_workers,
-            "locomotion_segment_ticks": 1,
-            "kick_move_6_duration_ticks": KICK_DURATION_TICKS[0],
-            "kick_move_7_duration_ticks": KICK_DURATION_TICKS[1],
-            "kick_move_8_duration_ticks": KICK_DURATION_TICKS[2],
-            "kick_move_9_duration_ticks": KICK_DURATION_TICKS[3],
-        },
+        "env": environment,
     }
 
 
@@ -469,6 +529,7 @@ class NativeVectorBoundary:
     def reset(self) -> None:
         self.vector.reset()
         _require(bool(np.isfinite(self.observations).all()), "reset observations are nonfinite")
+        _require_candidate_no_get_up(self.observations)
         _require(bool(np.equal(self.rewards, 0.0).all()), "reset rewards are nonzero")
         _require(bool(np.equal(self.terminals, 0.0).all()), "reset terminals are nonzero")
 
@@ -492,6 +553,7 @@ class NativeVectorBoundary:
                 )
         self.vector.cpu_step(int(actions.ctypes.data))
         _require(bool(np.isfinite(self.observations).all()), "step observations are nonfinite")
+        _require_candidate_no_get_up(self.observations)
         _require(bool(np.isfinite(self.rewards).all()), "step rewards are nonfinite")
         _require(
             bool(np.logical_or(self.terminals == 0.0, self.terminals == 1.0).all()),
@@ -506,12 +568,12 @@ class BrowserInputState:
     def __init__(self) -> None:
         self.held: frozenset[str] = frozenset()
         self.sequence = 0
-        self.pending_kick_move: int | None = None
+        self.pending_move_index: int | None = None
 
     def reset(self) -> None:
         self.held = frozenset()
         self.sequence = 0
-        self.pending_kick_move = None
+        self.pending_move_index = None
 
     def update(self, payload: Mapping[str, Any]) -> bool:
         sequence = payload.get("sequence")
@@ -535,22 +597,26 @@ class BrowserInputState:
         )
         _require(len(held & YAW_SYMBOLS) <= 1, "held contains opposite yaw directions")
         _require(held in HELD_CATEGORY_BY_SYMBOLS, "held combination has no semantic category")
-        kick_move = payload.get("kick_move")
-        if kick_move is not None:
+        move_index = payload.get("move_index")
+        _require(
+            "kick_move" not in payload,
+            "legacy kick_move input is not accepted by the 17-move evaluator",
+        )
+        if move_index is not None:
             _require(
-                isinstance(kick_move, int)
-                and not isinstance(kick_move, bool)
-                and kick_move in KICK_MOVE_TO_CATEGORY,
-                "kick_move must be one of 6, 7, 8, or 9",
+                isinstance(move_index, int)
+                and not isinstance(move_index, bool)
+                and move_index in MOVE_TO_CATEGORY,
+                "move_index must be an integer from 0 through 16",
             )
-            self.pending_kick_move = kick_move
+            self.pending_move_index = move_index
         self.held = held
         self.sequence = sequence
         return True
 
-    def take_kick_edge(self) -> int | None:
-        move = self.pending_kick_move
-        self.pending_kick_move = None
+    def take_move_edge(self) -> int | None:
+        move = self.pending_move_index
+        self.pending_move_index = None
         return move
 
 
@@ -569,7 +635,7 @@ def _binary_observation_flag(row: np.ndarray, index: int, description: str) -> b
 class ConservativeActionPlanner:
     """Mirror mask behavior without guessing a hidden native fact."""
 
-    STABLE_TICKS_BEFORE_KICK = 5
+    STABLE_TICKS_BEFORE_MOVE = 5
 
     def __init__(self) -> None:
         self.continuation_ticks = 0
@@ -628,25 +694,26 @@ class ConservativeActionPlanner:
 
         if self.continuation_ticks > 0:
             self.continuation_ticks -= 1
-            return ActionChoice(0, "tracked_finite_kick_continue")
+            return ActionChoice(0, "tracked_finite_move_continue")
         if preferred >= 16:
-            if self.stable_ticks < self.STABLE_TICKS_BEFORE_KICK:
+            if self.stable_ticks < self.STABLE_TICKS_BEFORE_MOVE:
                 return ActionChoice(fallback_locomotion, "observed_settle_gate")
-            duration = KICK_DURATION_TICKS[preferred - 16]
+            duration = MOVE_DURATION_BY_CATEGORY[preferred - 16]
             self.continuation_ticks = duration - 1
             self.stable_ticks = 0
-            return ActionChoice(preferred, "observed_settle_kick_start")
+            return ActionChoice(preferred, "observed_settle_move_start")
         return ActionChoice(preferred, "locomotion_always_legal_when_idle")
 
 
 class CandidateApproachDummy:
-    LABEL = "deterministic_state_based_approach_facing_kick_candidate_dummy"
+    LABEL = "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy"
+    COMBAT_MOVE_CATEGORIES = tuple(range(16, MOVE_16_CATEGORY))
 
     def __init__(self) -> None:
-        self.next_kick_offset = 0
+        self.next_move_offset = 0
 
     def reset(self) -> None:
-        self.next_kick_offset = 0
+        self.next_move_offset = 0
 
     @staticmethod
     def _yaw(quaternion_wxyz: Sequence[float]) -> float:
@@ -675,11 +742,13 @@ class CandidateApproachDummy:
             return 2
         if distance < 0.72:
             return 3
-        return 16 + self.next_kick_offset
+        return self.COMBAT_MOVE_CATEGORIES[self.next_move_offset]
 
     def note_selected(self, category: int) -> None:
-        if 16 <= category <= 19:
-            self.next_kick_offset = (category - 16 + 1) % 4
+        if category in self.COMBAT_MOVE_CATEGORIES:
+            self.next_move_offset = (
+                self.COMBAT_MOVE_CATEGORIES.index(category) + 1
+            ) % len(self.COMBAT_MOVE_CATEGORIES)
 
 
 class SemanticHumanEvalCore:
@@ -696,7 +765,7 @@ class SemanticHumanEvalCore:
         self.tick = 0
         self.last_actions = [1] * ROBOT_ROWS
         self.last_action_reasons = ["reset"] * ROBOT_ROWS
-        self.last_kick_disposition = "none"
+        self.last_move_disposition = "none"
         self.reset()
 
     def reset(self) -> None:
@@ -712,7 +781,7 @@ class SemanticHumanEvalCore:
         self.tick = 0
         self.last_actions = [1] * ROBOT_ROWS
         self.last_action_reasons = ["reset"] * ROBOT_ROWS
-        self.last_kick_disposition = "none"
+        self.last_move_disposition = "none"
         if self.trace_writer is not None:
             self.trace_writer.write(
                 {
@@ -738,7 +807,7 @@ class SemanticHumanEvalCore:
                     "applies_no_earlier_than_tick": self.tick + 1,
                     "input_sequence": self.browser_input.sequence,
                     "held": sorted(self.browser_input.held),
-                    "kick_move": payload.get("kick_move"),
+                    "move_index": payload.get("move_index"),
                 }
             )
         return accepted
@@ -758,13 +827,13 @@ class SemanticHumanEvalCore:
             )
 
         held_category = HELD_CATEGORY_BY_SYMBOLS[self.browser_input.held]
-        kick_move = self.browser_input.take_kick_edge()
+        move_index = self.browser_input.take_move_edge()
         human_preferred = held_category
-        if kick_move is not None:
+        if move_index is not None:
             if self.browser_input.held & TRANSLATION_SYMBOLS:
-                self.last_kick_disposition = "discarded_translation_held"
+                self.last_move_disposition = "discarded_translation_held"
             else:
-                human_preferred = KICK_MOVE_TO_CATEGORY[kick_move]
+                human_preferred = MOVE_TO_CATEGORY[move_index]
 
         actions = np.full((ROBOT_ROWS, ACTION_HEADS), 1.0, dtype=np.float32)
         choices: list[ActionChoice] = []
@@ -775,8 +844,8 @@ class SemanticHumanEvalCore:
             None if masks is None else masks[0],
         )
         choices.append(human_choice)
-        if kick_move is not None and not (self.browser_input.held & TRANSLATION_SYMBOLS):
-            self.last_kick_disposition = (
+        if move_index is not None and not (self.browser_input.held & TRANSLATION_SYMBOLS):
+            self.last_move_disposition = (
                 "accepted" if human_choice.category == human_preferred else human_choice.reason
             )
 
@@ -823,8 +892,8 @@ class SemanticHumanEvalCore:
                     "tick": self.tick,
                     "input_sequence": self.browser_input.sequence,
                     "held": sorted(self.browser_input.held),
-                    "kick_move_edge": kick_move,
-                    "kick_disposition": self.last_kick_disposition,
+                    "move_index_edge": move_index,
+                    "move_disposition": self.last_move_disposition,
                     "actions": self.last_actions.copy(),
                     "action_reasons": self.last_action_reasons.copy(),
                     "arena_0_observation_f32_le_b64": _observation_f32_le_b64(
@@ -842,7 +911,7 @@ class SemanticHumanEvalCore:
     def state(self) -> dict[str, Any]:
         row = np.asarray(self.boundary.observations[0], dtype=np.float32)
         return {
-            "schema": "rek.g1_human_eval_state.v1",
+            "schema": "rek.g1_human_eval_state.v2",
             "tick": self.tick,
             "control_rate_hz": CONTROL_RATE_HZ,
             "classification": "public_family_semantic_candidate_human_evaluation",
@@ -866,12 +935,18 @@ class SemanticHumanEvalCore:
             "move_coverage": {
                 "build_catalog_discrete_moves": BUILD_CATALOG_DISCRETE_MOVE_COUNT,
                 "evaluator_exposed_moves": EVALUATOR_EXPOSED_MOVE_COUNT,
-                "scope": "measured_kick_subset",
+                "scope": "complete_build_pinned_static_discrete_catalog",
             },
             "opponent": CandidateApproachDummy.LABEL,
             "opponent_is_bot_1": False,
+            "opponent_move_scope": (
+                "combat moves 0 through 15; move 16 emote excluded"
+            ),
             "automatic_getup_enabled": False,
-            "runtime_get_up_authority": "unknown",
+            "runtime_get_up_authority": (
+                "user_observed_l100_no_getup_and_candidate_observation_guard"
+            ),
+            "authentic_three_down_terminal_rule": "unknown",
             "action_mask_source": (
                 "native_pointer"
                 if getattr(self.boundary, "action_masks", None) is not None
@@ -879,7 +954,7 @@ class SemanticHumanEvalCore:
             ),
             "input_sequence": self.browser_input.sequence,
             "held": sorted(self.browser_input.held),
-            "last_kick_disposition": self.last_kick_disposition,
+            "last_move_disposition": self.last_move_disposition,
             "last_actions": self.last_actions.copy(),
             "last_action_reasons": self.last_action_reasons.copy(),
             "player": {
@@ -903,14 +978,14 @@ class SemanticHumanEvalCore:
             "fight": {
                 "round": int(row[FIGHT_OFFSET + 2]),
                 "time_remaining_seconds": float(row[FIGHT_OFFSET + 5]),
-                "player_clean_hits": int(row[FIGHT_OFFSET + 6]),
-                "opponent_clean_hits": int(row[FIGHT_OFFSET + 7]),
+                "player_score": int(row[FIGHT_OFFSET + 6]),
+                "opponent_score": int(row[FIGHT_OFFSET + 7]),
                 "player_falls": int(row[FIGHT_OFFSET + 8]),
                 "opponent_falls": int(row[FIGHT_OFFSET + 9]),
             },
             "rewards": np.asarray(self.boundary.rewards, dtype=np.float32).astype(float).tolist(),
             "terminals": np.asarray(self.boundary.terminals, dtype=np.float32).astype(float).tolist(),
-            "kick_controls": [dict(value) for value in KICK_METADATA],
+            "move_controls": [dict(value) for value in MOVE_METADATA],
         }
 
 
@@ -1003,6 +1078,36 @@ def _tracking_camera_lookat(fighter_roots: np.ndarray) -> np.ndarray:
     return lookat
 
 
+def _tracking_camera_distance(
+    fighter_roots: np.ndarray,
+    vertical_fov_degrees: float,
+) -> float:
+    roots = np.asarray(fighter_roots, dtype=np.float64)
+    _require(roots.shape == (2, 3), "camera fighter roots shape mismatch")
+    _require(bool(np.isfinite(roots).all()), "camera fighter roots are nonfinite")
+    _require(
+        math.isfinite(vertical_fov_degrees)
+        and 0.0 < vertical_fov_degrees < 180.0,
+        "camera vertical field of view is invalid",
+    )
+    separation_m = float(np.linalg.norm(roots[0, :2] - roots[1, :2]))
+    required_half_span_m = 0.5 * separation_m + RENDER_CAMERA_FIT_MARGIN_M
+    required_distance_m = required_half_span_m / math.tan(
+        math.radians(0.5 * vertical_fov_degrees)
+    )
+    return max(RENDER_CAMERA_MIN_DISTANCE_M, required_distance_m)
+
+
+def _render_geom_rgba_override(name: str) -> tuple[float, float, float, float] | None:
+    if name.startswith(RENDER_HIDDEN_ARENA_GEOM_PREFIXES):
+        return (0.0, 0.0, 0.0, 0.0)
+    if name.startswith(RENDER_PLAYER_GEOM_PREFIX):
+        return RENDER_PLAYER_RGBA
+    if name.startswith(RENDER_OPPONENT_GEOM_PREFIX):
+        return RENDER_OPPONENT_RGBA
+    return None
+
+
 class PassiveObservationRenderer:
     def __init__(self, model_path: Path) -> None:
         try:
@@ -1011,6 +1116,32 @@ class PassiveObservationRenderer:
             raise HumanEvalFailure("mujoco Python package is required for rendering") from error
         self.mujoco = mujoco
         self.model = mujoco.MjModel.from_xml_path(str(model_path))
+        render_geom_counts = {"hidden": 0, "player": 0, "opponent": 0}
+        for geom_id in range(self.model.ngeom):
+            name = mujoco.mj_id2name(
+                self.model,
+                mujoco.mjtObj.mjOBJ_GEOM,
+                geom_id,
+            ) or ""
+            rgba = _render_geom_rgba_override(name)
+            if rgba is None:
+                continue
+            self.model.geom_rgba[geom_id] = rgba
+            if name.startswith(RENDER_HIDDEN_ARENA_GEOM_PREFIXES):
+                render_geom_counts["hidden"] += 1
+            elif name.startswith(RENDER_PLAYER_GEOM_PREFIX):
+                render_geom_counts["player"] += 1
+            else:
+                render_geom_counts["opponent"] += 1
+        _require(
+            render_geom_counts
+            == {
+                "hidden": RENDER_HIDDEN_ARENA_GEOM_COUNT,
+                "player": RENDER_FIGHTER_GEOM_COUNT,
+                "opponent": RENDER_FIGHTER_GEOM_COUNT,
+            },
+            "render geometry identity mismatch",
+        )
         self.data = mujoco.MjData(self.model)
         self.projector = ObservationQposProjector(self.model)
         # The pinned arena XML declares MuJoCo's default 640-pixel offscreen
@@ -1019,11 +1150,18 @@ class PassiveObservationRenderer:
         self.renderer = mujoco.Renderer(self.model, height=360, width=640)
         self.camera = mujoco.MjvCamera()
         mujoco.mjv_defaultCamera(self.camera)
-        # The camera remains rendering-only. It sits above and inside the
-        # arena wall radius so the fighters fill the frame without occlusion.
-        self.camera.distance = RENDER_CAMERA_DISTANCE_M
+        # The camera and geometry palette remain rendering-only. Arena wall and
+        # pillar geoms are transparent in this copy so an oblique view can show
+        # upright motion without occluding either fighter.
+        self.camera.distance = RENDER_CAMERA_MIN_DISTANCE_M
         self.camera.azimuth = RENDER_CAMERA_AZIMUTH_DEGREES
         self.camera.elevation = RENDER_CAMERA_ELEVATION_DEGREES
+        self.vertical_fov_degrees = float(self.model.vis.global_.fovy)
+        _require(
+            math.isfinite(self.vertical_fov_degrees)
+            and 0.0 < self.vertical_fov_degrees < 180.0,
+            "render model vertical field of view is invalid",
+        )
 
     def frame(self, player_observation: np.ndarray) -> bytes:
         self.data.qpos[:] = self.projector.project(player_observation)
@@ -1038,6 +1176,10 @@ class PassiveObservationRenderer:
             ]
         )
         self.camera.lookat[:] = _tracking_camera_lookat(roots)
+        self.camera.distance = _tracking_camera_distance(
+            roots,
+            self.vertical_fov_degrees,
+        )
         self.renderer.update_scene(self.data, camera=self.camera)
         return _png_bytes(self.renderer.render())
 
@@ -1063,31 +1205,48 @@ INDEX_HTML = r"""<!doctype html>
   kbd,button { border: 1px solid #484f58; border-radius: 4px; padding: 3px 7px; }
   button { background: #21262d; color: #e6edf3; margin: 3px; cursor: pointer; }
   .controls { line-height: 1.8; }
+  .moves { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; }
+  .moves button { text-align: left; }
   @media (max-width: 650px) { .hud { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+  @media (max-width: 650px) { .moves { grid-template-columns: 1fr; } }
 </style>
 <main>
   <h1>REK L100 Semantic Candidate Human Eval</h1>
-  <p class="warning">The inspected build catalog identifies this robot as L100, internal id g1. This is a four-kick evaluation subset of its 17 discrete moves, not accepted REK parity. Orange is a deterministic state-based candidate dummy, not Bot 1. A down is scored as a 5-point knockout followed by a paired spawn reset. The authentic three-down outcome remains unknown.</p>
+  <p class="warning">The inspected build catalog identifies this robot as L100, internal id g1. All 17 build-pinned discrete motion routes are exposed, but this is not accepted REK parity. Orange is a deterministic state-based candidate dummy, not Bot 1. It cycles the 16 combat moves and excludes move 16, which is an emote. A down is scored as a 5-point knockout followed by a paired spawn reset, with no get-up action. The authentic three-down outcome remains unknown.</p>
   <div class="viewport"><img id="frame" alt="Passive rendering of candidate observations"></div>
   <div class="hud">
     <div><span class="label">Tick</span><span id="tick">0</span></div>
     <div><span class="label">Held</span><span id="held">neutral</span></div>
     <div><span class="label">Player action</span><span id="playerAction">1</span></div>
     <div><span class="label">Dummy action</span><span id="dummyAction">1</span></div>
-    <div><span class="label">Player hits</span><span id="playerHits">0</span></div>
-    <div><span class="label">Dummy hits</span><span id="dummyHits">0</span></div>
+    <div><span class="label">Player score</span><span id="playerHits">0</span></div>
+    <div><span class="label">Dummy score</span><span id="dummyHits">0</span></div>
     <div><span class="label">Round time</span><span id="roundTime">0</span></div>
-    <div><span class="label">Kick edge</span><span id="kickDisposition">none</span></div>
+    <div><span class="label">Move edge</span><span id="moveDisposition">none</span></div>
   </div>
   <p class="controls"><kbd>W</kbd>/<kbd>S</kbd> forward/back, <kbd>A</kbd>/<kbd>D</kbd> strafe, <kbd>Q</kbd>/<kbd>E</kbd> yaw. Movement keys are held inputs.</p>
-  <div>
-    <button data-move="6">6: move 6, left-side</button>
-    <button data-move="7">7 or U: move 7, left-front</button>
-    <button data-move="8">8 or I: move 8, right-side</button>
-    <button data-move="9">9: move 9, right-knee</button>
-    <button id="reset">Reset all four candidate arenas</button>
+  <p class="controls"><kbd>0</kbd> through <kbd>9</kbd> directly select moves 0 through 9. <kbd>Shift+0</kbd> through <kbd>Shift+6</kbd> directly select moves 10 through 16. <kbd>U</kbd> and <kbd>I</kbd> retain the observed evaluator aliases for moves 7 and 8.</p>
+  <div class="moves">
+    <button data-move="0">0: left hook [build binding Y]</button>
+    <button data-move="1">1: left jab [build binding H]</button>
+    <button data-move="2">2: double uppercut [build binding Space+J]</button>
+    <button data-move="3">3: right hook [build binding U]</button>
+    <button data-move="4">4: right jab [build binding J]</button>
+    <button data-move="5">5: left jab, right uppercut [build binding Space+L]</button>
+    <button data-move="6">6: left-side kick [build binding double Y]</button>
+    <button data-move="7">7 or U: left-front kick [build binding double H]</button>
+    <button data-move="8">8 or I: right-side kick [build binding double U]</button>
+    <button data-move="9">9: right knee [build binding double J]</button>
+    <button data-move="10">Shift+0: six punch [build binding Space+Y]</button>
+    <button data-move="11">Shift+1: run and punch [build binding Space+U]</button>
+    <button data-move="12">Shift+2: left-right jab [no recovered keyboard binding]</button>
+    <button data-move="13">Shift+3: left-right hook [no recovered keyboard binding]</button>
+    <button data-move="14">Shift+4: left hook, right jab [build binding Space+K]</button>
+    <button data-move="15">Shift+5: double hook [build binding Space+H]</button>
+    <button data-move="16">Shift+6: butt-smack emote [build binding Space+I]</button>
   </div>
-  <p>The U and I aliases are user-confirmed convenience aliases. They are not a claim about the original REK keybind map.</p>
+  <button id="reset">Reset all four candidate arenas</button>
+  <p>Direct evaluator shortcuts are distinct from the build's static binding metadata. The authentic double-tap recognition interval and two unbound move inputs remain unknown.</p>
 </main>
 <script>
 (() => {
@@ -1097,29 +1256,96 @@ INDEX_HTML = r"""<!doctype html>
   const movement = new Map([
     ['KeyW','W'],['KeyS','S'],['KeyA','A'],['KeyD','D'],['KeyQ','Q'],['KeyE','E']
   ]);
-  const kicks = new Map([
-    ['Digit6',6],['Numpad6',6],['Digit7',7],['Numpad7',7],['KeyU',7],
-    ['Digit8',8],['Numpad8',8],['KeyI',8],['Digit9',9],['Numpad9',9]
+  const directMoves = new Map([
+    ['Digit0',0],['Numpad0',0],['Digit1',1],['Numpad1',1],
+    ['Digit2',2],['Numpad2',2],['Digit3',3],['Numpad3',3],
+    ['Digit4',4],['Numpad4',4],['Digit5',5],['Numpad5',5],
+    ['Digit6',6],['Numpad6',6],['Digit7',7],['Numpad7',7],
+    ['Digit8',8],['Numpad8',8],['Digit9',9],['Numpad9',9],
+    ['KeyU',7],['KeyI',8]
+  ]);
+  const shiftedMoves = new Map([
+    ['Digit0',10],['Digit1',11],['Digit2',12],['Digit3',13],
+    ['Digit4',14],['Digit5',15],['Digit6',16]
   ]);
   let sequence = 0;
-  async function sendInput(kickMove = null) {
-    const body = {sequence: ++sequence, held: Array.from(held).sort(), kick_move: kickMove};
-    await fetch('/input', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)});
+  async function synchronizeSequence() {
+    const response = await fetch('/state', {cache:'no-store'});
+    if (!response.ok) throw new Error('sequence synchronization failed');
+    const state = await response.json();
+    if (!Number.isSafeInteger(state.input_sequence) || state.input_sequence < 0) {
+      throw new Error('server input sequence is invalid');
+    }
+    sequence = state.input_sequence;
+  }
+  const initialHeldSnapshot = Array.from(held).sort();
+  let controlQueue = synchronizeSequence().then(async () => {
+    let body = {
+      sequence: ++sequence,
+      held: initialHeldSnapshot,
+      move_index: null
+    };
+    let result = await postControl('/input', body);
+    if (result.accepted !== true) {
+      await synchronizeSequence();
+      body = {...body, sequence: ++sequence};
+      result = await postControl('/input', body);
+      if (result.accepted !== true) {
+        throw new Error('reload input clear was rejected after synchronization');
+      }
+    }
+  });
+  async function postControl(path, body) {
+    const response = await fetch(path, {
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    const result = await response.json();
+    if (!response.ok || result.ok !== true) {
+      throw new Error('control request rejected');
+    }
+    return result;
+  }
+  function enqueueControl(path, bodyFactory) {
+    controlQueue = controlQueue.catch(() => synchronizeSequence()).then(async () => {
+      let body = bodyFactory();
+      let result = await postControl(path, body);
+      if (path === '/input' && result.accepted !== true) {
+        await synchronizeSequence();
+        body = {...body, sequence: ++sequence};
+        result = await postControl(path, body);
+        if (result.accepted !== true) {
+          throw new Error('input sequence was rejected after synchronization');
+        }
+      }
+    }).catch(() => {});
+    return controlQueue;
+  }
+  function sendInput(moveIndex = null) {
+    const heldSnapshot = Array.from(held).sort();
+    return enqueueControl('/input', () => ({
+      sequence: ++sequence,
+      held: heldSnapshot,
+      move_index: moveIndex
+    }));
   }
   addEventListener('keydown', event => {
     const symbol = movement.get(event.code);
     if (symbol) {
       event.preventDefault();
+      if (event.repeat || held.has(symbol)) return;
       if (translations.has(symbol)) for (const key of translations) held.delete(key);
       if (yaws.has(symbol)) for (const key of yaws) held.delete(key);
       held.add(symbol);
-      sendInput().catch(() => {});
+      sendInput();
       return;
     }
-    const kick = kicks.get(event.code);
-    if (kick && !event.repeat) {
+    const moveIndex = event.shiftKey && shiftedMoves.has(event.code)
+      ? shiftedMoves.get(event.code) : directMoves.get(event.code);
+    if (moveIndex !== undefined && !event.repeat) {
       event.preventDefault();
-      sendInput(kick).catch(() => {});
+      sendInput(moveIndex);
     }
   });
   addEventListener('keyup', event => {
@@ -1127,20 +1353,18 @@ INDEX_HTML = r"""<!doctype html>
     if (!symbol) return;
     event.preventDefault();
     held.delete(symbol);
-    sendInput().catch(() => {});
+    sendInput();
   });
-  addEventListener('blur', () => { held.clear(); sendInput().catch(() => {}); });
+  addEventListener('blur', () => { held.clear(); sendInput(); });
   for (const button of document.querySelectorAll('[data-move]')) {
-    button.addEventListener('click', () => sendInput(Number(button.dataset.move)).catch(() => {}));
+    button.addEventListener('click', () => sendInput(Number(button.dataset.move)));
   }
   document.getElementById('reset').addEventListener('click', async () => {
     held.clear();
-    await fetch('/reset', {
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body:'{}'
+    await enqueueControl('/reset', () => {
+      sequence = 0;
+      return {};
     });
-    sequence = 0;
   });
   const image = document.getElementById('frame');
   function nextFrame() { image.src = '/frame.png?t=' + Date.now(); }
@@ -1154,10 +1378,10 @@ INDEX_HTML = r"""<!doctype html>
       document.getElementById('held').textContent = state.held.join('+') || 'neutral';
       document.getElementById('playerAction').textContent = state.last_actions[0];
       document.getElementById('dummyAction').textContent = state.last_actions[1];
-      document.getElementById('playerHits').textContent = state.fight.player_clean_hits;
-      document.getElementById('dummyHits').textContent = state.fight.opponent_clean_hits;
+      document.getElementById('playerHits').textContent = state.fight.player_score;
+      document.getElementById('dummyHits').textContent = state.fight.opponent_score;
       document.getElementById('roundTime').textContent = state.fight.time_remaining_seconds.toFixed(2);
-      document.getElementById('kickDisposition').textContent = state.last_kick_disposition;
+      document.getElementById('moveDisposition').textContent = state.last_move_disposition;
     } catch (_) {}
     setTimeout(poll, 100);
   }

@@ -8,7 +8,7 @@
 enum {
     TEST_ENVS = 3,
     TEST_OBS_FLOATS = 4,
-    TEST_CATEGORIES = 20,
+    TEST_CATEGORIES = 33,
 };
 
 typedef struct FakeRuntime {
@@ -126,15 +126,15 @@ static int fake_advance(
         next_facts_out[index] = good_facts();
         next_facts_out[index].input_reset =
             (runtime->emit_input_reset_mask & (1u << index)) != 0u;
-        if (semantics[index].kind == REK_G1_SEMANTIC_KICK) {
-            require(semantics[index].kick_registry_index <
-                    action_table->kick_registry_count,
-                "kick_registry_index_in_callback_range");
-            uint16_t move_index = action_table->kick_move_indices[
-                semantics[index].kick_registry_index];
-            require(rek_g1_native_kick_route(
+        if (semantics[index].kind == REK_G1_SEMANTIC_DISCRETE_MOVE) {
+            require(semantics[index].move_registry_index <
+                    action_table->move_registry_count,
+                "move_registry_index_in_callback_range");
+            uint16_t move_index = action_table->move_indices[
+                semantics[index].move_registry_index];
+            require(rek_g1_native_discrete_move_route(
                     motion_routes, move_index) != NULL,
-                "kick_registry_resolves_exact_static_route");
+                "move_registry_resolves_exact_static_route");
         }
         if (runtime->emit_invalid_facts && index == 2) {
             next_facts_out[index].action_busy = 2;
@@ -188,8 +188,8 @@ static uint8_t held_code(uint8_t held) {
 
 static RekG1PufferActionTable make_table(
         RekG1PufferCategory* categories,
-        uint16_t* kick_indices,
-        uint32_t* kick_durations) {
+        uint16_t* move_indices,
+        uint32_t* move_durations) {
     static const uint8_t required_held[] = {
         0,
         REK_G1_HELD_FORWARD,
@@ -216,29 +216,34 @@ static RekG1PufferActionTable make_table(
                 .kind = REK_G1_SEMANTIC_LOCOMOTION,
                 .held_code = held_code(required_held[index]),
                 .duration_ticks = 2,
-                .kick_registry_index = REK_G1_SEMANTIC_KICK_NONE,
+                .move_registry_index = REK_G1_SEMANTIC_MOVE_NONE,
             },
         };
     }
-    for (uint16_t kick = 0; kick < REK_G1_REQUIRED_KICK_COUNT; kick++) {
-        kick_indices[kick] = (uint16_t)(6 + kick);
-        kick_durations[kick] = 6;
-        categories[16 + kick] = (RekG1PufferCategory){
+    static const uint16_t registry_order[
+            REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {
+        6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16,
+    };
+    for (uint16_t move = 0;
+            move < REK_G1_REQUIRED_DISCRETE_MOVE_COUNT; move++) {
+        move_indices[move] = registry_order[move];
+        move_durations[move] = 6;
+        categories[16 + move] = (RekG1PufferCategory){
             .kind = REK_G1_PUFFER_START,
             .command = {
-                .kind = REK_G1_SEMANTIC_KICK,
+                .kind = REK_G1_SEMANTIC_DISCRETE_MOVE,
                 .held_code = held_code(0),
                 .duration_ticks = 6,
-                .kick_registry_index = kick,
+                .move_registry_index = move,
             },
         };
     }
     return (RekG1PufferActionTable){
         .categories = categories,
         .count = TEST_CATEGORIES,
-        .kick_move_indices = kick_indices,
-        .kick_duration_ticks = kick_durations,
-        .kick_registry_count = REK_G1_REQUIRED_KICK_COUNT,
+        .move_indices = move_indices,
+        .move_duration_ticks = move_durations,
+        .move_registry_count = REK_G1_REQUIRED_DISCRETE_MOVE_COUNT,
     };
 }
 
@@ -319,19 +324,95 @@ static void test_static_motion_route_identity(void) {
             && turn_left->blend_out_seconds == 0.07100000232458115f
             && turn_left->yaw_blend == 1.0f,
         "turn_left_full_clip_config");
-    static const uint32_t expected_frames[REK_G1_REQUIRED_KICK_COUNT] = {
-        158, 146, 159, 140,
+    require(table->count == 24u, "complete_route_count");
+    require(REK_G1_NATIVE_KICK_MOVE_6_LEFT_SIDE == 7
+            && REK_G1_NATIVE_KICK_MOVE_9_RIGHT_KNEE == 10,
+        "legacy_kick_route_ids_preserved");
+    require(REK_G1_NATIVE_ROUTE_KICK
+            == REK_G1_NATIVE_ROUTE_DISCRETE_MOVE,
+        "legacy_route_kind_alias_preserved");
+    typedef struct ExpectedMoveRoute {
+        RekG1NativeRouteId route_id;
+        int32_t config_path_id;
+        int32_t npz_path_id;
+        float playback_speed;
+        uint32_t asset_frames;
+        float blend_in_seconds;
+        float blend_out_seconds;
+        float yaw_blend;
+        uint8_t mirror;
+    } ExpectedMoveRoute;
+    static const ExpectedMoveRoute expected_by_move[
+            REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {
+        {REK_G1_NATIVE_MOVE_0_LEFT_HOOK, 2704, 381, 1.0f, 36,
+         0.0f, 0.8479999899864197f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_1_LEFT_JAB, 2706, 379,
+         1.2599999904632568f, 34, 0.0f, 0.8870000243186951f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_2_DOUBLE_UPPERCUT, 2701, 374,
+         1.8200000524520874f, 57, 0.0f, 0.7480000257492065f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_3_RIGHT_HOOK, 2712, 373, 1.0f, 46,
+         0.0f, 0.6460000276565552f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_4_RIGHT_JAB, 2713, 387, 1.25f, 40,
+         0.0f, 0.781000018119812f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_5_LEFT_JAB_RIGHT_UPPERCUT, 2707, 376,
+         1.0f, 46, 0.0f, 0.8240000009536743f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_6_LEFT_SIDE, 2710, 392, 1.0f, 158,
+         0.035999998450279236f, 0.6899999976158142f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_7_LEFT_FRONT, 2703, 371, 1.0f, 146,
+         0.035999998450279236f, 0.6899999976158142f, 1.0f, 0},
+        {REK_G1_NATIVE_MOVE_8_RIGHT_SIDE, 2715, 372, 1.0f, 159,
+         0.035999998450279236f, 0.6899999976158142f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_9_RIGHT_KNEE, 2714, 380, 1.0f, 140,
+         0.05999999865889549f, 0.550000011920929f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_10_SIX_PUNCH, 2698, 378,
+         1.1200000047683716f, 151, 0.10000000149011612f,
+         0.10000000149011612f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_11_RUN_AND_PUNCH, 2717, 383, 1.0f, 139,
+         0.2750000059604645f, 0.8500000238418579f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_12_LEFT_RIGHT_JAB, 2709, 386, 1.0f, 74,
+         0.10000000149011612f, 0.10000000149011612f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_13_LEFT_RIGHT_HOOK, 2708, 384, 1.0f, 76,
+         0.10000000149011612f, 0.10000000149011612f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_14_LEFT_HOOK_RIGHT_JAB, 2705, 385,
+         1.0f, 69, 0.10000000149011612f, 0.10000000149011612f,
+         0.0f, 0},
+        {REK_G1_NATIVE_MOVE_15_DOUBLE_HOOK, 2700, 390, 1.0f, 72,
+         0.0f, 0.4699999988079071f, 0.0f, 0},
+        {REK_G1_NATIVE_MOVE_16_BUTT_SMACK_EMOTE, 2699, 382, 1.0f, 104,
+         0.03999999910593033f, 0.9819999933242798f, 0.0f, 0},
     };
-    for (uint16_t offset = 0; offset < REK_G1_REQUIRED_KICK_COUNT; offset++) {
-        uint16_t move_index = (uint16_t)(6 + offset);
-        const RekG1NativeMotionRoute* kick = rek_g1_native_kick_route(
+    for (uint16_t move_index = 0;
+            move_index < REK_G1_REQUIRED_DISCRETE_MOVE_COUNT; move_index++) {
+        const RekG1NativeMotionRoute* move =
+            rek_g1_native_discrete_move_route(
             table, move_index);
-        require(kick != NULL, "kick_route_present");
-        require(kick->runtime_move_index == move_index,
-            "kick_route_move_identity");
-        require(kick->asset_frames == expected_frames[offset],
-            "kick_asset_frame_count_pinned");
+        require(move != NULL, "discrete_move_route_present");
+        const ExpectedMoveRoute* expected = &expected_by_move[move_index];
+        require(move->id == expected->route_id,
+            "discrete_move_route_id_pinned");
+        require(move->runtime_move_index == move_index,
+            "discrete_move_route_identity");
+        require(move->mocap_clip_config_path_id == expected->config_path_id
+                && move->npz_path_id == expected->npz_path_id,
+            "discrete_move_asset_identity_pinned");
+        require(move->asset_fps == 50.0f
+                && move->playback_speed == expected->playback_speed
+                && move->asset_frames == expected->asset_frames,
+            "discrete_move_playback_pinned");
+        require(move->start_frame == 0 && move->end_frame == -1
+                && move->blend_in_seconds == expected->blend_in_seconds
+                && move->blend_out_seconds == expected->blend_out_seconds
+                && move->yaw_blend == expected->yaw_blend,
+            "discrete_move_compositor_config_pinned");
+        require(move->mirror == expected->mirror && move->loop == 0u
+                && move->kind == REK_G1_NATIVE_ROUTE_DISCRETE_MOVE,
+            "discrete_move_flags_pinned");
     }
+    require(rek_g1_native_kick_route(table, 6u) != NULL
+            && rek_g1_native_kick_route(table, 9u) != NULL
+            && rek_g1_native_kick_route(table, 5u) == NULL
+            && rek_g1_native_kick_route(table, 10u) == NULL,
+        "legacy_kick_lookup_remains_four_move_subset");
 
     RekG1NativeMotionRoute modified[REK_G1_STATIC_ROUTE_COUNT];
     memcpy(modified, table->routes, sizeof(modified));
@@ -340,6 +421,12 @@ static void test_static_motion_route_identity(void) {
     wrong.routes = modified;
     require(!rek_g1_native_validate_static_motion_routes(&wrong),
         "modified_route_table_rejected");
+    memcpy(modified, table->routes, sizeof(modified));
+    modified[REK_G1_NATIVE_MOVE_6_LEFT_SIDE].yaw_blend = -0.0f;
+    wrong = *table;
+    wrong.routes = modified;
+    require(!rek_g1_native_validate_static_motion_routes(&wrong),
+        "signed_zero_route_scalar_rejected");
     wrong = *table;
     wrong.source_probe_sha256 =
         "0000000000000000000000000000000000000000000000000000000000000000";
@@ -349,10 +436,10 @@ static void test_static_motion_route_identity(void) {
 
 static void test_runtime_facts_abi_gate(void) {
     RekG1PufferCategory categories[TEST_CATEGORIES];
-    uint16_t kick_indices[REK_G1_REQUIRED_KICK_COUNT];
-    uint32_t kick_durations[REK_G1_REQUIRED_KICK_COUNT];
+    uint16_t move_indices[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
+    uint32_t move_durations[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
     RekG1PufferActionTable table = make_table(
-        categories, kick_indices, kick_durations);
+        categories, move_indices, move_durations);
     FakeRuntime runtime = {0};
     RekG1NativePufferVector vector = {0};
 
@@ -377,10 +464,10 @@ static void test_runtime_facts_abi_gate(void) {
 
 static void test_batch_boundary_and_held_state(void) {
     RekG1PufferCategory categories[TEST_CATEGORIES];
-    uint16_t kick_indices[REK_G1_REQUIRED_KICK_COUNT];
-    uint32_t kick_durations[REK_G1_REQUIRED_KICK_COUNT];
+    uint16_t move_indices[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
+    uint32_t move_durations[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
     RekG1PufferActionTable table = make_table(
-        categories, kick_indices, kick_durations);
+        categories, move_indices, move_durations);
     FakeRuntime runtime = {0};
     RekG1NativePufferVector vector = {0};
     RekG1NativeBatchOps ops = fake_ops();
@@ -463,12 +550,13 @@ static void test_batch_boundary_and_held_state(void) {
     require(runtime.advance_calls == 3,
         "kick_batch_is_one_additional_advance");
     for (uint16_t index = 0; index < TEST_ENVS; index++) {
-        require(runtime.captured[index].kind == REK_G1_SEMANTIC_KICK,
-            "kick_kind_reaches_batch_runtime");
-        require(runtime.captured[index].kick_registry_index == index,
-            "kick_registry_order_reaches_batch_runtime");
-        require(runtime.captured[index].kick_start_edge,
-            "kick_start_edge_reaches_batch_runtime");
+        require(runtime.captured[index].kind ==
+                REK_G1_SEMANTIC_DISCRETE_MOVE,
+            "move_kind_reaches_batch_runtime");
+        require(runtime.captured[index].move_registry_index == index,
+            "move_registry_order_reaches_batch_runtime");
+        require(runtime.captured[index].move_start_edge,
+            "move_start_edge_reaches_batch_runtime");
         require(mask_count(masks[index]) == 4 && masks[index][0] &&
                 masks[index][1] && masks[index][6] && masks[index][7],
             "active_kick_mask_exposes_continue_neutral_q_e");
@@ -492,9 +580,10 @@ static void test_batch_boundary_and_held_state(void) {
             runtime.captured[2].input.pressed_edges == 0u,
         "active_kick_row_two_remains_neutral");
     for (uint16_t index = 0; index < TEST_ENVS; index++) {
-        require(runtime.captured[index].kind == REK_G1_SEMANTIC_KICK &&
-                runtime.captured[index].kick_registry_index == index &&
-                !runtime.captured[index].kick_start_edge &&
+        require(runtime.captured[index].kind ==
+                    REK_G1_SEMANTIC_DISCRETE_MOVE &&
+                runtime.captured[index].move_registry_index == index &&
+                !runtime.captured[index].move_start_edge &&
                 runtime.captured[index].remaining_ticks == 4u &&
                 runtime.captured[index].input.yaw == 0.0f,
             "active_kick_update_preserves_identity_duration_and_yaw_suppression");
@@ -528,10 +617,10 @@ static void test_batch_boundary_and_held_state(void) {
 
 static void test_terminal_resets_only_terminal_adapters(void) {
     RekG1PufferCategory categories[TEST_CATEGORIES];
-    uint16_t kick_indices[REK_G1_REQUIRED_KICK_COUNT];
-    uint32_t kick_durations[REK_G1_REQUIRED_KICK_COUNT];
+    uint16_t move_indices[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
+    uint32_t move_durations[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
     RekG1PufferActionTable table = make_table(
-        categories, kick_indices, kick_durations);
+        categories, move_indices, move_durations);
     FakeRuntime runtime = {0};
     RekG1NativePufferVector vector = {0};
     RekG1NativeBatchOps ops = fake_ops();
@@ -597,10 +686,10 @@ static void test_terminal_resets_only_terminal_adapters(void) {
 
 static void test_input_reset_resets_only_signaled_adapter(void) {
     RekG1PufferCategory categories[TEST_CATEGORIES];
-    uint16_t kick_indices[REK_G1_REQUIRED_KICK_COUNT];
-    uint32_t kick_durations[REK_G1_REQUIRED_KICK_COUNT];
+    uint16_t move_indices[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
+    uint32_t move_durations[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
     RekG1PufferActionTable table = make_table(
-        categories, kick_indices, kick_durations);
+        categories, move_indices, move_durations);
     FakeRuntime runtime = {0};
     RekG1NativePufferVector vector = {0};
     RekG1NativeBatchOps ops = fake_ops();
@@ -655,10 +744,10 @@ static void test_input_reset_resets_only_signaled_adapter(void) {
 
 static void test_fail_closed_and_reset_recovery(void) {
     RekG1PufferCategory categories[TEST_CATEGORIES];
-    uint16_t kick_indices[REK_G1_REQUIRED_KICK_COUNT];
-    uint32_t kick_durations[REK_G1_REQUIRED_KICK_COUNT];
+    uint16_t move_indices[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
+    uint32_t move_durations[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
     RekG1PufferActionTable table = make_table(
-        categories, kick_indices, kick_durations);
+        categories, move_indices, move_durations);
     FakeRuntime runtime = {0};
     RekG1NativePufferVector vector = {0};
     RekG1NativeBatchOps ops = fake_ops();
@@ -725,10 +814,10 @@ static void test_fail_closed_and_reset_recovery(void) {
 
 static void test_io_shape_is_exact(void) {
     RekG1PufferCategory categories[TEST_CATEGORIES];
-    uint16_t kick_indices[REK_G1_REQUIRED_KICK_COUNT];
-    uint32_t kick_durations[REK_G1_REQUIRED_KICK_COUNT];
+    uint16_t move_indices[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
+    uint32_t move_durations[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
     RekG1PufferActionTable table = make_table(
-        categories, kick_indices, kick_durations);
+        categories, move_indices, move_durations);
     FakeRuntime runtime = {0};
     RekG1NativePufferVector vector = {0};
     RekG1NativeBatchOps ops = fake_ops();
@@ -760,10 +849,10 @@ static void test_io_shape_is_exact(void) {
 
 static void test_runtime_output_validation(void) {
     RekG1PufferCategory categories[TEST_CATEGORIES];
-    uint16_t kick_indices[REK_G1_REQUIRED_KICK_COUNT];
-    uint32_t kick_durations[REK_G1_REQUIRED_KICK_COUNT];
+    uint16_t move_indices[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
+    uint32_t move_durations[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
     RekG1PufferActionTable table = make_table(
-        categories, kick_indices, kick_durations);
+        categories, move_indices, move_durations);
     FakeRuntime runtime = {0};
     RekG1NativePufferVector vector = {0};
     RekG1NativeBatchOps ops = fake_ops();

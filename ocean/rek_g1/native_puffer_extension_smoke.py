@@ -1,9 +1,8 @@
 """Exercise the native REK G1 Puffer candidate through its Python ABI.
 
 This is a diagnostic smoke test. It exercises build-pinned fall geometry,
-keeps training disabled, and makes no REK parity claim. Runtime G1 recovery
-availability is unknown, so this candidate provisionally selects no automatic
-get-up. Its fallen path retains 10 percent of the live joint drive, counts, and
+keeps training disabled, and makes no REK parity claim. The pinned G1 config
+disables get-up. Its fallen path retains 10 percent of the live joint drive, counts, and
 performs the recovered two-phase spawn reset. Heading forgiveness is the exact
 zero recovered for this client build.
 """
@@ -26,13 +25,21 @@ import numpy as np
 
 
 ROBOT_ROWS = 8
+REPORT_SCHEMA = "rek.g1_native_puffer_extension_smoke.v2"
 OBSERVATION_FLOATS = 223
 ENTITY_FLOATS = 86
 BASE_ENTITY_FLOATS = 71
 FALL_FLOATS = 15
 ACTION_HEADS = 1
-ACTION_CATEGORIES = 20
-KICK_DURATION_TICKS = (157, 145, 158, 139)
+ACTION_CATEGORIES = 33
+MOVE_DURATION_TICKS = (
+    35, 27, 31, 45, 32, 45, 157, 145, 158,
+    139, 134, 138, 73, 75, 68, 71, 103,
+)
+MOVE_REGISTRY_ORDER = (6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16)
+MOVE_DURATION_BY_CATEGORY = tuple(
+    MOVE_DURATION_TICKS[move_index] for move_index in MOVE_REGISTRY_ORDER
+)
 CONTINUE_CATEGORY = 0
 NEUTRAL_CATEGORY = 1
 YAW_LEFT_CATEGORY = 6
@@ -212,17 +219,20 @@ def run_smoke(locomotion_steps: int, throughput_steps: int) -> dict[str, object]
     decoder_path = _required_file("REK_G1_DECODER_ONNX")
     native = _load_extension(extension_path)
 
+    environment = {
+        "max_steps": 500,
+        "physics_workers": 4,
+        "locomotion_segment_ticks": 1,
+    }
+    environment.update(
+        {
+            f"move_{move_index}_duration_ticks": duration
+            for move_index, duration in enumerate(MOVE_DURATION_TICKS)
+        }
+    )
     arguments = {
         "vec": {"total_agents": ROBOT_ROWS, "num_buffers": 1},
-        "env": {
-            "max_steps": 500,
-            "physics_workers": 4,
-            "locomotion_segment_ticks": 1,
-            "kick_move_6_duration_ticks": KICK_DURATION_TICKS[0],
-            "kick_move_7_duration_ticks": KICK_DURATION_TICKS[1],
-            "kick_move_8_duration_ticks": KICK_DURATION_TICKS[2],
-            "kick_move_9_duration_ticks": KICK_DURATION_TICKS[3],
-        },
+        "env": environment,
     }
     vector = native.create_vec(arguments, 0)
     try:
@@ -319,8 +329,8 @@ def run_smoke(locomotion_steps: int, throughput_steps: int) -> dict[str, object]
             )
 
         continuation = np.zeros((ROBOT_ROWS, ACTION_HEADS), dtype=np.float32)
-        for kick_index, duration in enumerate(KICK_DURATION_TICKS):
-            category = 16 + kick_index
+        for move_offset, duration in enumerate(MOVE_DURATION_BY_CATEGORY):
+            category = 16 + move_offset
             vector.reset()
             _step(vector, _filled_action(category))
             for _ in range(duration - 1):
@@ -361,7 +371,7 @@ def run_smoke(locomotion_steps: int, throughput_steps: int) -> dict[str, object]
             "pre-kick neutral rows exposed yaw",
         )
 
-        kick_duration = KICK_DURATION_TICKS[3]
+        kick_duration = MOVE_DURATION_TICKS[9]
         _step(vector, _filled_action(KICK_MOVE_9_CATEGORY))
         _require_finite(observations, "held-yaw kick start")
         _require(
@@ -485,10 +495,10 @@ def run_smoke(locomotion_steps: int, throughput_steps: int) -> dict[str, object]
         _require(bool(np.equal(terminals, 0.0).all()), "diagnostic terminals changed")
 
         return {
-            "schema": "rek.g1_native_puffer_extension_smoke.v1",
+            "schema": REPORT_SCHEMA,
             "classification": (
                 "public_family_candidate_with_pinned_fall_geometry_"
-                "and_provisional_recovery"
+                "and_candidate_no_get_up"
             ),
             "rek_parity_claim": False,
             "training_enabled": False,
@@ -500,7 +510,7 @@ def run_smoke(locomotion_steps: int, throughput_steps: int) -> dict[str, object]
             },
             "runtime_configuration": {
                 "fall_measurement": "build_pinned_mujoco_root_floor_contacts",
-                "runtime_get_up_authority": "unknown",
+                "runtime_get_up_authority": "build_pinned_can_get_up_false",
                 "candidate_can_get_up": False,
                 "candidate_no_recovery_count_seconds": 3.0,
                 "fallen_live_drive_retention": 0.1,
@@ -509,8 +519,8 @@ def run_smoke(locomotion_steps: int, throughput_steps: int) -> dict[str, object]
                     "after_next_2ms_boundary"
                 ),
                 "locomotion_segment_ticks": 1,
-                "reconstructed_compositor_kick_duration_ticks": list(
-                    KICK_DURATION_TICKS
+                "reconstructed_compositor_move_duration_ticks": list(
+                    MOVE_DURATION_TICKS
                 ),
             },
             "checks": {
@@ -521,7 +531,7 @@ def run_smoke(locomotion_steps: int, throughput_steps: int) -> dict[str, object]
                 "held_forward_distinct_from_neutral_baseline": bool(
                     held_distinct_from_neutral.all()
                 ),
-                "all_20_action_categories_exercised": True,
+                "all_33_action_categories_exercised": True,
                 "active_kick_allowed_categories_exercised": True,
                 "active_kick_effective_yaw_suppressed": True,
                 "active_kick_route_identity_preserved": True,

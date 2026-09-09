@@ -7,7 +7,7 @@
 enum {
     TEST_VEC_ENVS = 2,
     TEST_VEC_OBS = 4,
-    TEST_VEC_CATEGORIES = 20,
+    TEST_VEC_CATEGORIES = 33,
 };
 
 typedef struct TestVecLog {
@@ -303,8 +303,8 @@ static uint8_t test_held_code(uint8_t held) {
 
 static RekG1PufferActionTable make_table(
         RekG1PufferCategory* categories,
-        uint16_t* kick_indices,
-        uint32_t* kick_durations) {
+        uint16_t* move_indices,
+        uint32_t* move_durations) {
     static const uint8_t required_held[] = {
         0,
         REK_G1_HELD_FORWARD,
@@ -331,29 +331,34 @@ static RekG1PufferActionTable make_table(
                 .kind = REK_G1_SEMANTIC_LOCOMOTION,
                 .held_code = test_held_code(required_held[index]),
                 .duration_ticks = 2,
-                .kick_registry_index = REK_G1_SEMANTIC_KICK_NONE,
+                .move_registry_index = REK_G1_SEMANTIC_MOVE_NONE,
             },
         };
     }
-    for (uint16_t kick = 0; kick < REK_G1_REQUIRED_KICK_COUNT; kick++) {
-        kick_indices[kick] = (uint16_t)(6 + kick);
-        kick_durations[kick] = 2;
-        categories[16 + kick] = (RekG1PufferCategory){
+    static const uint16_t registry_order[
+            REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {
+        6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16,
+    };
+    for (uint16_t move = 0;
+            move < REK_G1_REQUIRED_DISCRETE_MOVE_COUNT; move++) {
+        move_indices[move] = registry_order[move];
+        move_durations[move] = 2;
+        categories[16 + move] = (RekG1PufferCategory){
             .kind = REK_G1_PUFFER_START,
             .command = {
-                .kind = REK_G1_SEMANTIC_KICK,
+                .kind = REK_G1_SEMANTIC_DISCRETE_MOVE,
                 .held_code = test_held_code(0),
                 .duration_ticks = 2,
-                .kick_registry_index = kick,
+                .move_registry_index = move,
             },
         };
     }
     return (RekG1PufferActionTable){
         .categories = categories,
         .count = TEST_VEC_CATEGORIES,
-        .kick_move_indices = kick_indices,
-        .kick_duration_ticks = kick_durations,
-        .kick_registry_count = REK_G1_REQUIRED_KICK_COUNT,
+        .move_indices = move_indices,
+        .move_duration_ticks = move_durations,
+        .move_registry_count = REK_G1_REQUIRED_DISCRETE_MOVE_COUNT,
     };
 }
 
@@ -382,10 +387,10 @@ static void reset_native_vector(
 
 int main(void) {
     RekG1PufferCategory categories[TEST_VEC_CATEGORIES];
-    uint16_t kick_indices[REK_G1_REQUIRED_KICK_COUNT];
-    uint32_t kick_durations[REK_G1_REQUIRED_KICK_COUNT];
+    uint16_t move_indices[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
+    uint32_t move_durations[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
     RekG1PufferActionTable table = make_table(
-        categories, kick_indices, kick_durations);
+        categories, move_indices, move_durations);
 
     TestVecEnv envs[TEST_VEC_ENVS] = {0};
     float observations[TEST_VEC_ENVS][TEST_VEC_OBS] = {{0}};

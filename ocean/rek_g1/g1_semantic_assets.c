@@ -31,9 +31,15 @@ typedef struct RekG1PinnedClip {
     RekG1PinnedFile root_wxyz;
 } RekG1PinnedClip;
 
+const uint32_t REK_G1_PINNED_COMPOSITOR_MOVE_DURATION_TICKS[
+        REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {
+    35u, 27u, 31u, 45u, 32u, 45u, 157u, 145u, 158u,
+    139u, 134u, 138u, 73u, 75u, 68u, 71u, 103u,
+};
+
 static const RekG1PinnedFile MANIFEST_FILE = {
     "semantic_duel_assets_manifest.json",
-    14951u,
+    36015u,
     REK_G1_SEMANTIC_ASSET_MANIFEST_SHA256,
 };
 
@@ -78,11 +84,32 @@ static const RekG1PinnedClip PINNED_CLIPS[REK_G1_SEMANTIC_UNIQUE_CLIP_COUNT] = {
          "6f430735d1ccff64148d3856e725f1def853b5f920882efc31e8163dead5c508"},
     },
     {
+        373, 46u,
+        {"motion_373_dof_position.f32le", 5336u,
+         "e86a39ae594c3ab9bdf7edb2333427cfa3dfd4f992d7089859bda14fedd412a0"},
+        {"motion_373_root_rotation_wxyz.f32le", 736u,
+         "a55d6d04c2a24bad7609763c5db0c7b157030816cb4a6b33ed97be76976ea9a1"},
+    },
+    {
+        374, 57u,
+        {"motion_374_dof_position.f32le", 6612u,
+         "69048c2e9f9dae8f152fdc3c9baefbc0e230dfe80c5de04fdea711786951ce1c"},
+        {"motion_374_root_rotation_wxyz.f32le", 912u,
+         "356f8245d72a4baa88cb6b0343919d358f35257e1db1d4d8c83112b461ec440e"},
+    },
+    {
         375, 47u,
         {"motion_375_dof_position.f32le", 5452u,
          "cffc77fc223bfdf8a58f8231c80e4ca910c4ff63b1a9cea6f86432ff01113315"},
         {"motion_375_root_rotation_wxyz.f32le", 752u,
          "4d7ce0d78b52dc1787cc15dfa14607d55f0ecf1a0627d661c4df793c51a8184a"},
+    },
+    {
+        376, 46u,
+        {"motion_376_dof_position.f32le", 5336u,
+         "608f0af34670dc454b76702629160f9ad336b829ad65e4e69d97f2de5124cd8b"},
+        {"motion_376_root_rotation_wxyz.f32le", 736u,
+         "9510872dc908d878c861771a8b974476894089cf0a08273a205a9a8711607a02"},
     },
     {
         377, 39u,
@@ -92,6 +119,20 @@ static const RekG1PinnedClip PINNED_CLIPS[REK_G1_SEMANTIC_UNIQUE_CLIP_COUNT] = {
          "bf4bc5a1fbcf24a84174b8bd7c52c9c553bca01032514eae7ec3d47bd2485e60"},
     },
     {
+        378, 151u,
+        {"motion_378_dof_position.f32le", 17516u,
+         "ed283920271cb1edf7aa7e5bc6ef226799ba8f4b4ecc44110dcb78427dd1e2c3"},
+        {"motion_378_root_rotation_wxyz.f32le", 2416u,
+         "bbe5a7b117dbc56a0a72712db6bfd96b9c89f05a096dd4ad54162700dab86fe0"},
+    },
+    {
+        379, 34u,
+        {"motion_379_dof_position.f32le", 3944u,
+         "c2807fa5e7ba498fde634415464349ead2d28ca475cc4dab1c2e9e5438315302"},
+        {"motion_379_root_rotation_wxyz.f32le", 544u,
+         "2e7c938e3dbe9f80d3b4d43e562917862bb9aa16e76c8a54e8890e0791b394e6"},
+    },
+    {
         380, 140u,
         {"motion_380_dof_position.f32le", 16240u,
          "c25665584ed58e79d28b62903e1a387e488064b909901e7745ec7f9f06749e90"},
@@ -99,11 +140,67 @@ static const RekG1PinnedClip PINNED_CLIPS[REK_G1_SEMANTIC_UNIQUE_CLIP_COUNT] = {
          "8753568140a5e913aa16d1d0b6af52b00b3bb1fe2886e3ce79f93b2484201f2a"},
     },
     {
+        381, 36u,
+        {"motion_381_dof_position.f32le", 4176u,
+         "adc4f46302faddc78e22bf37fcaff8615eeb6f5399970627a481bde804eb91fb"},
+        {"motion_381_root_rotation_wxyz.f32le", 576u,
+         "94a4cc26f628253eca433c5d213c12686aae693846dbce702c095619d94606c9"},
+    },
+    {
+        382, 104u,
+        {"motion_382_dof_position.f32le", 12064u,
+         "a5d0dddc725999b21b53284a72037bedafbd7bbfc3413fc77fef41c37f334641"},
+        {"motion_382_root_rotation_wxyz.f32le", 1664u,
+         "c9747318e21746aa72bd88586bc206f009f952000ce7dda3dea75d92ce03849a"},
+    },
+    {
+        383, 139u,
+        {"motion_383_dof_position.f32le", 16124u,
+         "37b2504e4aa663fa87a46f94b97d0cc7e0d801d5841bff3e98067379a788a4d3"},
+        {"motion_383_root_rotation_wxyz.f32le", 2224u,
+         "c68a79db70cfc60d73e7f5dabb041fb296776737929087eadfe37c9464709f0e"},
+    },
+    {
+        384, 76u,
+        {"motion_384_dof_position.f32le", 8816u,
+         "3a6def7c6ebb0085f1ba02cdf45523029b18c532c68598e31a33386a54a29c9f"},
+        {"motion_384_root_rotation_wxyz.f32le", 1216u,
+         "12cfa342318128415058bb98998d12f7c30d717fce41ac9f9cb1255a84fafc09"},
+    },
+    {
+        385, 69u,
+        {"motion_385_dof_position.f32le", 8004u,
+         "52d62b8ea2849a89f64a6a0318b205088332eacf1a7f1a485015aef09ca87bce"},
+        {"motion_385_root_rotation_wxyz.f32le", 1104u,
+         "90890a8a9347f6368a4f3167e0d78a58db0b2af564ea263034a7f19fc86ebf80"},
+    },
+    {
+        386, 74u,
+        {"motion_386_dof_position.f32le", 8584u,
+         "edfedb66e5d1fd44a253956920859bdc7c35413e1cc1ef09ffc858c2877af618"},
+        {"motion_386_root_rotation_wxyz.f32le", 1184u,
+         "46b63afc9697d32e71edb68777033d4590d49ff8bcd0a882cd55c6e060bca2bf"},
+    },
+    {
+        387, 40u,
+        {"motion_387_dof_position.f32le", 4640u,
+         "559b51d87f9c3390c231606e9a341711ab5da42b5efa68d7bd2acc88046f6868"},
+        {"motion_387_root_rotation_wxyz.f32le", 640u,
+         "a4e97148f35cff2db004b12ee98159df46eb5fd4bfad7354f5e4ebe7e62e60ef"},
+    },
+    {
         388, 35u,
         {"motion_388_dof_position.f32le", 4060u,
          "95f60a264f8e5f6b106bad1236a2fc171a35492f825220a2ec8fca0cd7ba8d57"},
         {"motion_388_root_rotation_wxyz.f32le", 560u,
          "97a3adfb93ea341792dc457af0ee331fbc5dced29989a6b676562f955d5f4abb"},
+    },
+    {
+        390, 72u,
+        {"motion_390_dof_position.f32le", 8352u,
+         "b92ed7e7b7f15442481658cbe77559db8eeb187ce717db9b2ed63a8c20d914c4"},
+        {"motion_390_root_rotation_wxyz.f32le", 1152u,
+         "14008762d96200098d70a9305bd47ecce8e23b1ba4b99e14e079bd5f1cfb984e"},
     },
     {
         392, 158u,
@@ -337,13 +434,13 @@ const char* rek_g1_semantic_assets_status_string(
 RekG1SemanticAssetsStatus rek_g1_semantic_assets_load(
         RekG1SemanticAssets* assets,
         const char* root,
-        const uint32_t configured_compositor_kick_duration_ticks[
-            REK_G1_REQUIRED_KICK_COUNT],
+        const uint32_t configured_compositor_move_duration_ticks[
+            REK_G1_REQUIRED_DISCRETE_MOVE_COUNT],
         char* error,
         size_t error_capacity) {
     RekG1SemanticAssetsStatus status;
     if (assets == NULL || root == NULL
-            || configured_compositor_kick_duration_ticks == NULL) {
+            || configured_compositor_move_duration_ticks == NULL) {
         set_error(error, error_capacity, "load G1 semantic assets", "null argument");
         return REK_G1_SEMANTIC_ASSETS_NULL_ARGUMENT;
     }
@@ -358,9 +455,14 @@ RekG1SemanticAssetsStatus rek_g1_semantic_assets_load(
         set_error(error, error_capacity, "load G1 semantic assets", "root path is invalid");
         return REK_G1_SEMANTIC_ASSETS_PATH_INVALID;
     }
-    for (size_t index = 0; index < REK_G1_REQUIRED_KICK_COUNT; index++) {
-        if (configured_compositor_kick_duration_ticks[index] == 0u) {
-            set_error(error, error_capacity, "load G1 semantic assets", "kick duration missing");
+    for (size_t index = 0;
+            index < REK_G1_REQUIRED_DISCRETE_MOVE_COUNT;
+            index++) {
+        if (configured_compositor_move_duration_ticks[index]
+                != REK_G1_PINNED_COMPOSITOR_MOVE_DURATION_TICKS[index]) {
+            set_error(error, error_capacity,
+                "load G1 semantic assets",
+                "move duration does not match pinned compositor traversal");
             return REK_G1_SEMANTIC_ASSETS_CONTENT_INVALID;
         }
     }
@@ -368,8 +470,21 @@ RekG1SemanticAssetsStatus rek_g1_semantic_assets_load(
     status = read_pinned_file(
         root, &MANIFEST_FILE, NULL, NULL, error, error_capacity);
     if (status != REK_G1_SEMANTIC_ASSETS_OK) goto fail;
+    assets->model_xml_data = malloc(MODEL_FILE.bytes);
+    if (assets->model_xml_data == NULL) {
+        set_error(error, error_capacity,
+            "load G1 semantic assets", "model XML allocation failed");
+        status = REK_G1_SEMANTIC_ASSETS_ALLOCATION_FAILED;
+        goto fail;
+    }
+    assets->model_xml_byte_count = MODEL_FILE.bytes;
     status = read_pinned_file(
-        root, &MODEL_FILE, NULL, assets->model_path, error, error_capacity);
+        root,
+        &MODEL_FILE,
+        assets->model_xml_data,
+        assets->model_path,
+        error,
+        error_capacity);
     if (status != REK_G1_SEMANTIC_ASSETS_OK) goto fail;
 
     for (size_t index = 0; index < REK_G1_SEMANTIC_UNIQUE_CLIP_COUNT; index++) {
@@ -465,14 +580,16 @@ RekG1SemanticAssetsStatus rek_g1_semantic_assets_load(
             goto fail;
         }
         uint32_t duration = 0u;
-        if (route->kind == REK_G1_NATIVE_ROUTE_KICK) {
-            if (route->runtime_move_index < 6u || route->runtime_move_index > 9u) {
-                set_error(error, error_capacity, "load G1 semantic assets", "kick index mismatch");
+        if (route->kind == REK_G1_NATIVE_ROUTE_DISCRETE_MOVE) {
+            if (route->runtime_move_index
+                    >= REK_G1_REQUIRED_DISCRETE_MOVE_COUNT) {
+                set_error(error, error_capacity,
+                    "load G1 semantic assets", "move index mismatch");
                 status = REK_G1_SEMANTIC_ASSETS_ROUTE_MISMATCH;
                 goto fail;
             }
-            duration = configured_compositor_kick_duration_ticks[
-                (size_t)route->runtime_move_index - 6u];
+            duration = configured_compositor_move_duration_ticks[
+                (size_t)route->runtime_move_index];
         }
         assets->route_assets[(size_t)route->id] =
             (RekG1SemanticDuelRouteAsset){
@@ -527,5 +644,6 @@ void rek_g1_semantic_assets_close(RekG1SemanticAssets* assets) {
     }
     free(assets->idle_root_position_m);
     free(assets->idle_root_rotation_xyzw);
+    free(assets->model_xml_data);
     memset(assets, 0, sizeof(*assets));
 }

@@ -37,7 +37,7 @@ class FakeBoundary:
         )
         self.reset_calls = 0
         self.step_calls = 0
-        self.active_kicks = np.zeros(human.ROBOT_ROWS, dtype=np.int32)
+        self.active_moves = np.zeros(human.ROBOT_ROWS, dtype=np.int32)
         self.reset()
 
     def _write_masks(self) -> None:
@@ -45,7 +45,7 @@ class FakeBoundary:
             return
         self.action_masks.fill(0)
         for row in range(human.ROBOT_ROWS):
-            if self.active_kicks[row] > 0:
+            if self.active_moves[row] > 0:
                 self.action_masks[
                     row,
                     [
@@ -63,7 +63,7 @@ class FakeBoundary:
         self.observations[:] = observation_rows()
         self.rewards.fill(0)
         self.terminals.fill(0)
-        self.active_kicks.fill(0)
+        self.active_moves.fill(0)
         self._write_masks()
 
     def step(self, actions: np.ndarray) -> None:
@@ -71,10 +71,10 @@ class FakeBoundary:
         self.last_actions = actions.copy()
         categories = actions[:, 0].astype(np.int32)
         for row, category in enumerate(categories.tolist()):
-            if self.active_kicks[row] > 0:
-                self.active_kicks[row] -= 1
+            if self.active_moves[row] > 0:
+                self.active_moves[row] -= 1
             elif category >= 16:
-                self.active_kicks[row] = 2
+                self.active_moves[row] = 2
         self._write_masks()
 
 
@@ -91,27 +91,27 @@ class FakeMaskVector:
 
 
 class BrowserInputTests(unittest.TestCase):
-    def test_held_combinations_and_kick_edge_are_explicit(self) -> None:
+    def test_held_combinations_and_move_edge_are_explicit(self) -> None:
         state = human.BrowserInputState()
         self.assertTrue(
-            state.update({"sequence": 1, "held": ["W", "Q"], "kick_move": 8})
+            state.update({"sequence": 1, "held": ["W", "Q"], "move_index": 16})
         )
         self.assertEqual(
             human.HELD_CATEGORY_BY_SYMBOLS[state.held], 8
         )
-        self.assertEqual(state.take_kick_edge(), 8)
-        self.assertIsNone(state.take_kick_edge())
+        self.assertEqual(state.take_move_edge(), 16)
+        self.assertIsNone(state.take_move_edge())
 
     def test_duplicate_or_stale_sequence_cannot_reinject_an_edge(self) -> None:
         state = human.BrowserInputState()
         self.assertTrue(
-            state.update({"sequence": 1, "held": ["Q"], "kick_move": None})
+            state.update({"sequence": 1, "held": ["Q"], "move_index": None})
         )
         self.assertFalse(
-            state.update({"sequence": 1, "held": ["E"], "kick_move": 9})
+            state.update({"sequence": 1, "held": ["E"], "move_index": 9})
         )
         self.assertEqual(state.held, frozenset({"Q"}))
-        self.assertIsNone(state.take_kick_edge())
+        self.assertIsNone(state.take_move_edge())
         state.reset()
         self.assertEqual(state.sequence, 0)
 
@@ -119,8 +119,15 @@ class BrowserInputTests(unittest.TestCase):
         state = human.BrowserInputState()
         with self.assertRaisesRegex(human.HumanEvalFailure, "multiple translation"):
             state.update(
-                {"sequence": 1, "held": ["W", "S"], "kick_move": None}
+                {"sequence": 1, "held": ["W", "S"], "move_index": None}
             )
+
+    def test_legacy_or_out_of_range_move_identity_is_rejected(self) -> None:
+        state = human.BrowserInputState()
+        with self.assertRaisesRegex(human.HumanEvalFailure, "legacy kick_move"):
+            state.update({"sequence": 1, "held": [], "kick_move": 7})
+        with self.assertRaisesRegex(human.HumanEvalFailure, "0 through 16"):
+            state.update({"sequence": 2, "held": [], "move_index": 17})
 
 
 class NativeMaskTests(unittest.TestCase):
@@ -137,6 +144,55 @@ class NativeMaskTests(unittest.TestCase):
         del vector.action_mask_size
         with self.assertRaisesRegex(human.HumanEvalFailure, "incomplete"):
             human._optional_action_mask(vector)
+
+    def test_candidate_no_get_up_guard_checks_self_and_opponent_rows(self) -> None:
+        rows = observation_rows()
+        human._require_candidate_no_get_up(rows)
+        for offset in (
+            human.BUILD_PINNED_CAN_GET_UP_OFFSET,
+            human.OPPONENT_BUILD_PINNED_CAN_GET_UP_OFFSET,
+        ):
+            contradictory = rows.copy()
+            contradictory[3, offset] = 1.0
+            with self.assertRaisesRegex(
+                human.HumanEvalFailure,
+                "contradicts candidate no-get-up",
+            ):
+                human._require_candidate_no_get_up(contradictory)
+
+
+class FullMoveContractTests(unittest.TestCase):
+    def test_all_17_runtime_moves_have_exact_categories_and_durations(self) -> None:
+        self.assertEqual(human.ACTION_CATEGORIES, 33)
+        self.assertEqual(
+            human.MOVE_REGISTRY_ORDER,
+            (6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16),
+        )
+        self.assertEqual(set(human.MOVE_TO_CATEGORY), set(range(17)))
+        self.assertEqual(set(human.MOVE_TO_CATEGORY.values()), set(range(16, 33)))
+        self.assertEqual(
+            human.MOVE_DURATION_TICKS,
+            (35, 27, 31, 45, 32, 45, 157, 145, 158, 139, 134, 138, 73, 75, 68, 71, 103),
+        )
+        self.assertEqual(len(human.MOVE_METADATA), 17)
+        for metadata in human.MOVE_METADATA:
+            self.assertEqual(
+                metadata["category"], human.MOVE_TO_CATEGORY[metadata["move"]]
+            )
+
+    def test_vector_arguments_supply_every_required_move_duration(self) -> None:
+        arguments = human.vector_arguments(123, 7)
+        self.assertEqual(arguments["vec"], {"total_agents": 8, "num_buffers": 1})
+        self.assertEqual(arguments["env"]["max_steps"], 123)
+        self.assertEqual(arguments["env"]["physics_workers"], 7)
+        self.assertEqual(arguments["env"]["locomotion_segment_ticks"], 1)
+        for move_index, duration in enumerate(human.MOVE_DURATION_TICKS):
+            self.assertEqual(
+                arguments["env"][f"move_{move_index}_duration_ticks"], duration
+            )
+        self.assertFalse(
+            any(key.startswith("kick_move_") for key in arguments["env"])
+        )
 
 
 class TrackingCameraTests(unittest.TestCase):
@@ -159,21 +215,41 @@ class TrackingCameraTests(unittest.TestCase):
             human._tracking_camera_lookat(elevated_roots)[2], 1.2
         )
 
-    def test_elevation_clears_center_sightline_over_arena_wall(self) -> None:
-        # The pinned XML walls have radius 2.34 m, half-thickness 0.2 m,
-        # center height 1 m, and half-height 1 m.
-        wall_inner_face_radius_m = 2.34 - 0.2
-        wall_top_m = 1.0 + 1.0
-        sightline_height_at_wall_m = wall_inner_face_radius_m * np.tan(
-            np.deg2rad(abs(human.RENDER_CAMERA_ELEVATION_DEGREES))
+    def test_oblique_camera_hides_walls_and_distinguishes_fighters(self) -> None:
+        self.assertEqual(human.RENDER_CAMERA_MIN_DISTANCE_M, 3.8)
+        self.assertEqual(human.RENDER_CAMERA_ELEVATION_DEGREES, -45.0)
+        self.assertEqual(
+            human._render_geom_rgba_override("arena_Collider_Wall_01"),
+            (0.0, 0.0, 0.0, 0.0),
+        )
+        self.assertEqual(
+            human._render_geom_rgba_override("arena_Collider_Pillar_08"),
+            (0.0, 0.0, 0.0, 0.0),
+        )
+        self.assertEqual(
+            human._render_geom_rgba_override("player__mjgeom_3021"),
+            human.RENDER_PLAYER_RGBA,
+        )
+        self.assertEqual(
+            human._render_geom_rgba_override("opponent__mjgeom_3021"),
+            human.RENDER_OPPONENT_RGBA,
+        )
+        self.assertIsNone(
+            human._render_geom_rgba_override("arena_Collider_Floor_Rektagon")
         )
 
-        self.assertGreater(sightline_height_at_wall_m, wall_top_m)
-        self.assertEqual(human.RENDER_CAMERA_DISTANCE_M, 3.8)
-        horizontal_camera_offset_m = human.RENDER_CAMERA_DISTANCE_M * np.cos(
-            np.deg2rad(abs(human.RENDER_CAMERA_ELEVATION_DEGREES))
+    def test_distance_expands_to_keep_separated_fighters_in_frame(self) -> None:
+        close = np.asarray([[-0.5, 0.0, 0.9], [0.5, 0.0, 0.9]])
+        wide = np.asarray([[-2.3, 0.0, 0.9], [2.3, 0.0, 0.9]])
+        self.assertEqual(human._tracking_camera_distance(close, 45.0), 3.8)
+        wide_distance = human._tracking_camera_distance(wide, 45.0)
+        visible_vertical_span_m = 2.0 * wide_distance * np.tan(
+            np.deg2rad(22.5)
         )
-        self.assertLess(horizontal_camera_offset_m, wall_inner_face_radius_m)
+        self.assertGreaterEqual(
+            visible_vertical_span_m,
+            4.6 + 2.0 * human.RENDER_CAMERA_FIT_MARGIN_M,
+        )
 
 
 class ShutdownSignalTests(unittest.TestCase):
@@ -229,12 +305,12 @@ class ShutdownSignalTests(unittest.TestCase):
 
 
 class HumanEvalCoreTests(unittest.TestCase):
-    def test_q_to_kick_is_dispatched_without_neutral_and_q_updates_kick(self) -> None:
+    def test_q_to_move_is_dispatched_without_neutral_and_q_resumes(self) -> None:
         boundary = FakeBoundary()
         core = human.SemanticHumanEvalCore(boundary)
         self.assertTrue(
             core.update_input(
-                {"sequence": 1, "held": ["Q"], "kick_move": None}
+                {"sequence": 1, "held": ["Q"], "move_index": None}
             )
         )
         first = core.step_once()
@@ -242,31 +318,31 @@ class HumanEvalCoreTests(unittest.TestCase):
 
         self.assertTrue(
             core.update_input(
-                {"sequence": 2, "held": ["Q"], "kick_move": 9}
+                {"sequence": 2, "held": ["Q"], "move_index": 16}
             )
         )
         second = core.step_once()
-        self.assertEqual(second[0, 0], human.KICK_MOVE_9_CATEGORY)
-        self.assertEqual(core.last_kick_disposition, "accepted")
+        self.assertEqual(second[0, 0], human.MOVE_TO_CATEGORY[16])
+        self.assertEqual(core.last_move_disposition, "accepted")
 
         self.assertTrue(
             core.update_input(
-                {"sequence": 3, "held": ["Q"], "kick_move": None}
+                {"sequence": 3, "held": ["Q"], "move_index": None}
             )
         )
         third = core.step_once()
         self.assertEqual(third[0, 0], human.YAW_LEFT_CATEGORY)
 
-    def test_translation_held_discards_kick_edge(self) -> None:
+    def test_translation_held_discards_move_edge(self) -> None:
         core = human.SemanticHumanEvalCore(FakeBoundary())
-        core.update_input({"sequence": 1, "held": ["W"], "kick_move": 7})
+        core.update_input({"sequence": 1, "held": ["W"], "move_index": 7})
         actions = core.step_once()
         self.assertEqual(actions[0, 0], 2)
-        self.assertEqual(core.last_kick_disposition, "discarded_translation_held")
+        self.assertEqual(core.last_move_disposition, "discarded_translation_held")
 
     def test_only_first_arena_is_interactive(self) -> None:
         core = human.SemanticHumanEvalCore(FakeBoundary())
-        core.update_input({"sequence": 1, "held": ["D", "E"], "kick_move": None})
+        core.update_input({"sequence": 1, "held": ["D", "E"], "move_index": None})
         actions = core.step_once()
         self.assertEqual(actions[0, 0], 15)
         self.assertEqual(actions[1, 0], 16)
@@ -275,10 +351,19 @@ class HumanEvalCoreTests(unittest.TestCase):
     def test_state_disclaims_bot_identity_training_and_parity(self) -> None:
         core = human.SemanticHumanEvalCore(FakeBoundary())
         state = core.state()
+        self.assertEqual(state["schema"], "rek.g1_human_eval_state.v2")
         self.assertFalse(state["opponent_is_bot_1"])
         self.assertFalse(state["training_enabled"])
         self.assertFalse(state["rek_parity_claim"])
-        self.assertEqual(state["runtime_get_up_authority"], "unknown")
+        self.assertEqual(
+            state["runtime_get_up_authority"],
+            "user_observed_l100_no_getup_and_candidate_observation_guard",
+        )
+        self.assertEqual(state["authentic_three_down_terminal_rule"], "unknown")
+        self.assertEqual(
+            state["opponent_move_scope"],
+            "combat moves 0 through 15; move 16 emote excluded",
+        )
         self.assertIsNone(state["paired_replay_trace"])
         self.assertEqual(
             state["robot_identity"],
@@ -292,10 +377,15 @@ class HumanEvalCoreTests(unittest.TestCase):
             state["move_coverage"],
             {
                 "build_catalog_discrete_moves": 17,
-                "evaluator_exposed_moves": 4,
-                "scope": "measured_kick_subset",
+                "evaluator_exposed_moves": 17,
+                "scope": "complete_build_pinned_static_discrete_catalog",
             },
         )
+        self.assertEqual(len(state["move_controls"]), 17)
+        self.assertIn("player_score", state["fight"])
+        self.assertIn("opponent_score", state["fight"])
+        self.assertNotIn("player_clean_hits", state["fight"])
+        self.assertNotIn("opponent_clean_hits", state["fight"])
 
 
 class TraceTests(unittest.TestCase):
@@ -304,7 +394,7 @@ class TraceTests(unittest.TestCase):
             path = Path(directory) / "eval.jsonl"
             writer = human.JsonlTraceWriter(path, {"extension": {"sha256": "0" * 64}})
             core = human.SemanticHumanEvalCore(FakeBoundary(), writer)
-            core.update_input({"sequence": 1, "held": ["E"], "kick_move": None})
+            core.update_input({"sequence": 1, "held": ["E"], "move_index": None})
             actions = core.step_once()
             core.close_trace()
             records = [json.loads(line) for line in path.read_text().splitlines()]
@@ -321,6 +411,12 @@ class TraceTests(unittest.TestCase):
         )
         self.assertEqual(
             [record["trace_sequence"] for record in records], list(range(5))
+        )
+        self.assertTrue(
+            all(
+                record["schema"] == "rek.g1_human_eval_trace.v2"
+                for record in records
+            )
         )
         step = records[3]
         self.assertEqual(step["tick"], 1)
@@ -343,9 +439,34 @@ class HttpBoundaryTests(unittest.TestCase):
         reset_handler = human.INDEX_HTML.split(
             "document.getElementById('reset').addEventListener", 1
         )[1].split("const image", 1)[0]
-        self.assertIn("headers:{'content-type':'application/json'}", reset_handler)
-        self.assertIn("body:'{}'", reset_handler)
+        self.assertIn("enqueueControl('/reset', () => {", reset_handler)
         self.assertIn("sequence = 0", reset_handler)
+
+    def test_browser_serializes_control_posts(self) -> None:
+        self.assertIn("let controlQueue = synchronizeSequence()", human.INDEX_HTML)
+        self.assertIn("controlQueue = controlQueue.catch", human.INDEX_HTML)
+        self.assertIn("return enqueueControl('/input', () => ({", human.INDEX_HTML)
+
+    def test_browser_reload_synchronizes_server_input_sequence(self) -> None:
+        self.assertIn("sequence = state.input_sequence", human.INDEX_HTML)
+        self.assertIn("fetch('/state', {cache:'no-store'})", human.INDEX_HTML)
+        self.assertIn("const initialHeldSnapshot = Array.from(held).sort()", human.INDEX_HTML)
+        self.assertIn("held: initialHeldSnapshot", human.INDEX_HTML)
+        self.assertIn("reload input clear was rejected", human.INDEX_HTML)
+        self.assertIn("result.accepted !== true", human.INDEX_HTML)
+        self.assertIn("body = {...body, sequence: ++sequence}", human.INDEX_HTML)
+
+    def test_browser_exposes_all_moves_with_explicit_edge_field(self) -> None:
+        self.assertEqual(human.INDEX_HTML.count('data-move="'), 17)
+        self.assertIn("move_index: moveIndex", human.INDEX_HTML)
+        self.assertIn("['Digit0',10]", human.INDEX_HTML)
+        self.assertIn("['Digit6',16]", human.INDEX_HTML)
+        self.assertNotIn("kick_move: kickMove", human.INDEX_HTML)
+
+    def test_browser_suppresses_held_movement_key_autorepeat(self) -> None:
+        self.assertIn(
+            "if (event.repeat || held.has(symbol)) return;", human.INDEX_HTML
+        )
 
     def test_exact_loopback_host_and_origin_are_accepted(self) -> None:
         human._require_http_request_boundary(

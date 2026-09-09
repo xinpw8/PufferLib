@@ -13,16 +13,19 @@
 #define REK_G1_STRIKE_CATALOG_BUILD_FINGERPRINT \
     "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659"
 #define REK_G1_STRIKE_CATALOG_SOURCE_SHA256 \
-    "d8e6fa141a3520bb6c22aac11966649f1b2b96fa4fbaee443b3b1eb02d583828"
+    "b566d1064452558f4cddeeb9953007154f3dd8e3b4eb6de73bf8deebcacf7bb7"
 
 enum {
-    REK_G1_STRIKE_CATALOG_ENTRY_COUNT = 4,
+    REK_G1_STRIKE_CATALOG_ENTRY_COUNT = 17,
+    REK_G1_STRIKE_CATALOG_IMPACT_EVENT_COUNT = 29,
+    REK_G1_STRIKE_CATALOG_MAX_EVENTS_PER_MOVE = 10,
 };
 
 typedef struct RekG1StrikeCatalogEntry {
     RekG1NativeRouteId route_id;
     uint16_t runtime_move_index;
-    RekG1ImpactEvent impact_event;
+    uint16_t impact_event_offset;
+    uint16_t impact_event_count;
 } RekG1StrikeCatalogEntry;
 
 typedef struct RekG1StrikeCatalog {
@@ -30,6 +33,8 @@ typedef struct RekG1StrikeCatalog {
     const char* source_sha256;
     const RekG1StrikeCatalogEntry* entries;
     size_t count;
+    const RekG1ImpactEvent* impact_events;
+    size_t impact_event_count;
 } RekG1StrikeCatalog;
 
 /*
@@ -41,6 +46,7 @@ typedef struct RekG1StrikeComposerSnapshot {
     RekG1NativeRouteId active_route_id;
     float clip_cursor_frames;
     float clip_fps;
+    /* Wrapping composer invocation identity, not the zero-based move index. */
     int32_t action_move_id;
     uint8_t action_playing;
     uint8_t current_layer_has_clip;
@@ -59,7 +65,7 @@ const RekG1StrikeCatalogEntry* rek_g1_strike_catalog_entry_by_route(
 );
 
 /*
- * Returns one only for a complete, active, non-looping kick snapshot whose
+ * Returns one only for a complete, active, non-looping discrete-move snapshot whose
  * route and 50 Hz clip identity are present in the pinned catalog. The output
  * is cleared on every rejected input.
  */

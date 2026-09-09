@@ -26,7 +26,7 @@
  * identity and delayed spawn-reset parity remain gated.
  */
 
-#define REK_G1_SEMANTIC_DUEL_SCHEMA_VERSION 3u
+#define REK_G1_SEMANTIC_DUEL_SCHEMA_VERSION 4u
 #define REK_G1_SEMANTIC_DUEL_CONTROLLER_RATE_HZ 50u
 #define REK_G1_SEMANTIC_DUEL_CONTROL_DELTA_SECONDS 0.02f
 #define REK_G1_SEMANTIC_DUEL_PHYSICS_DELTA_SECONDS 0.002f
@@ -41,10 +41,12 @@ enum {
     REK_G1_SEMANTIC_DUEL_REWARDS_IMPLEMENTED = 1,
     REK_G1_SEMANTIC_DUEL_TERMINALS_IMPLEMENTED = 1,
     /*
-     * Provisional candidate selection. Build-pinned f84f1874 static evidence
-     * has null prone and supine get-up clips on SonicPolicyRunner path 3188,
-     * but runtime clip injection has not been excluded. Current REK CanGetUp
-     * must be measured before this branch can support a parity claim.
+     * Candidate selection. Build-pinned f84f1874 static evidence has null
+     * prone and supine get-up clips on SonicPolicyRunner path 3188. In the
+     * user-observed authentic L100 session, a down awarded five points and
+     * reset both fighters instead of invoking a get-up. Runtime injection in
+     * other builds remains unknown, and this observation alone cannot support
+     * a parity claim.
      */
     REK_G1_SEMANTIC_DUEL_PROVISIONAL_CAN_GET_UP = 0,
 };
@@ -72,11 +74,11 @@ typedef enum RekG1SemanticDuelStatus {
 } RekG1SemanticDuelStatus;
 
 /*
- * Clip sample arrays remain caller-owned for the runtime lifetime. Kick
+ * Clip sample arrays remain caller-owned for the runtime lifetime. Move
  * duration is a separately configured compositor traversal length in
  * controller ticks. It is never inferred from asset frame count. It must be
- * zero for non-kicks and nonzero for kicks, then match the generated Puffer
- * action table at reset. It is not a measured physical completion time.
+ * zero for locomotion and nonzero for discrete moves, then match the generated
+ * Puffer action table at reset. It is not a measured physical completion time.
  */
 typedef struct RekG1SemanticDuelRouteAsset {
     RekG1NativeRouteId route_id;

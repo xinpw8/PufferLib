@@ -135,7 +135,7 @@ int main(void) {
         .kind = REK_G1_SEMANTIC_LOCOMOTION,
         .held_code = held_code(REK_G1_HELD_YAW_LEFT),
         .duration_ticks = 10,
-        .kick_registry_index = REK_G1_SEMANTIC_KICK_NONE,
+        .move_registry_index = REK_G1_SEMANTIC_MOVE_NONE,
     };
     require(rek_g1_semantic_start(&scheduler, command, 4) ==
         REK_G1_SEMANTIC_OK, "pre_kick_yaw_segment_starts");
@@ -149,17 +149,17 @@ int main(void) {
         "pre_kick_ramp_progress_is_known");
 
     command = (RekG1SemanticCommand){
-        .kind = REK_G1_SEMANTIC_KICK,
+        .kind = REK_G1_SEMANTIC_DISCRETE_MOVE,
         .held_code = held_code(REK_G1_HELD_YAW_LEFT),
         .duration_ticks = 3,
-        .kick_registry_index = 0,
+        .move_registry_index = 0,
     };
     require(rek_g1_semantic_start(&scheduler, command, 4) ==
         REK_G1_SEMANTIC_OK, "yaw_kick_segment_starts");
     for (int tick = 0; tick < 3; tick++) {
         RekG1SemanticTick result = rek_g1_semantic_tick(
             &scheduler, timing_50_hz_half_second, 1, tick > 0);
-        require(result.kick_active, "accepted_kick_stays_active");
+        require(result.move_active, "accepted_move_stays_active");
         require(result.input.desired_yaw == 1,
             "accepted_kick_retains_desired_yaw");
         require_close(result.input.yaw, 0.0f,
@@ -174,7 +174,7 @@ int main(void) {
         .kind = REK_G1_SEMANTIC_LOCOMOTION,
         .held_code = held_code(REK_G1_HELD_YAW_LEFT),
         .duration_ticks = 1,
-        .kick_registry_index = REK_G1_SEMANTIC_KICK_NONE,
+        .move_registry_index = REK_G1_SEMANTIC_MOVE_NONE,
     };
     require(rek_g1_semantic_start(&scheduler, command, 4) ==
         REK_G1_SEMANTIC_OK, "post_kick_yaw_segment_starts");
@@ -246,7 +246,7 @@ int main(void) {
         .kind = REK_G1_SEMANTIC_LOCOMOTION,
         .held_code = held_code(REK_G1_HELD_YAW_LEFT),
         .duration_ticks = 2,
-        .kick_registry_index = REK_G1_SEMANTIC_KICK_NONE,
+        .move_registry_index = REK_G1_SEMANTIC_MOVE_NONE,
     };
     require(rek_g1_semantic_start(&scheduler, command, 4) ==
         REK_G1_SEMANTIC_OK, "invalid_timing_segment_starts");

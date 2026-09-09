@@ -10,7 +10,7 @@
 
 static int assertions;
 static const char* const EXPECTED_FEATURE_SHA256 =
-    "f744df28c39c48fc6ccc8d779582d6952359593b63dd374b71f6481c2c1381c5";
+    "a1ac27c3e8331e9b383e676f78c4721c9b609f6b4daccc7254c8424057ecdc09";
 
 static void require(int condition, const char* name) {
     assertions += 1;
@@ -79,15 +79,11 @@ int main(int argc, char** argv) {
         return 64;
     }
     char error[1024] = {0};
-    /* Loader sentinels only. Feature baking never reads action durations. */
-    const uint32_t duration_sentinels[REK_G1_REQUIRED_KICK_COUNT] = {
-        1u, 1u, 1u, 1u,
-    };
     RekG1SemanticAssets assets = {0};
     RekG1SemanticAssetsStatus asset_status = rek_g1_semantic_assets_load(
         &assets,
         argv[1],
-        duration_sentinels,
+        REK_G1_PINNED_COMPOSITOR_MOVE_DURATION_TICKS,
         error,
         sizeof(error));
     if (asset_status != REK_G1_SEMANTIC_ASSETS_OK) {
@@ -174,8 +170,8 @@ int main(int argc, char** argv) {
     require(first.ready == 1u, "registry_ready");
     require(first.matcher.slot_count == REK_G1_MUJOCO_FEATURE_CLIP_COUNT,
         "all_unique_clips_registered");
-    require(first.total_frame_count == 760u, "all_frames_baked");
-    require(first.total_feature_count == 4560u, "six_values_per_frame");
+    require(first.total_frame_count == 1704u, "all_frames_baked");
+    require(first.total_feature_count == 10224u, "six_values_per_frame");
     require(first.scratch != duel.data[0], "scratch_not_live_data");
     require(memcmp(qpos_before, duel.data[0]->qpos, sizeof(qpos_before)) == 0,
         "live_qpos_unchanged");
@@ -286,6 +282,10 @@ int main(int argc, char** argv) {
         first.total_feature_count * sizeof(float),
         digest),
         "feature_sha256");
+    if (strcmp(digest, EXPECTED_FEATURE_SHA256) != 0) {
+        fprintf(stderr, "feature digest mismatch: actual=%s expected=%s\n",
+            digest, EXPECTED_FEATURE_SHA256);
+    }
     require(strcmp(digest, EXPECTED_FEATURE_SHA256) == 0,
         "feature_sha256_regression");
     printf(

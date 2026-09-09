@@ -37,8 +37,11 @@ TRACE_RATE_HZ = 50
 ROBOT_ROWS = 8
 OBSERVATION_FLOATS = 223
 ACTION_HEADS = 1
-ACTION_CATEGORIES = 20
-KICK_DURATION_TICKS = (157, 145, 158, 139)
+ACTION_CATEGORIES = 33
+MOVE_DURATION_TICKS = (
+    35, 27, 31, 45, 32, 45, 157, 145, 158,
+    139, 134, 138, 73, 75, 68, 71, 103,
+)
 
 HELD_CATEGORY_BY_LABEL = {
     "neutral": 1,
@@ -483,17 +486,20 @@ def _candidate_samples(
 ) -> tuple[dict[int, dict[str, Any]], dict[str, Any]]:
     native = _load_extension(extension_path)
     categories = _expand_categories(contract["action_contract"])
+    environment = {
+        "max_steps": len(categories) + 1,
+        "physics_workers": 4,
+        "locomotion_segment_ticks": 1,
+    }
+    environment.update(
+        {
+            f"move_{move_index}_duration_ticks": duration
+            for move_index, duration in enumerate(MOVE_DURATION_TICKS)
+        }
+    )
     arguments = {
         "vec": {"total_agents": ROBOT_ROWS, "num_buffers": 1},
-        "env": {
-            "max_steps": len(categories) + 1,
-            "physics_workers": 4,
-            "locomotion_segment_ticks": 1,
-            "kick_move_6_duration_ticks": KICK_DURATION_TICKS[0],
-            "kick_move_7_duration_ticks": KICK_DURATION_TICKS[1],
-            "kick_move_8_duration_ticks": KICK_DURATION_TICKS[2],
-            "kick_move_9_duration_ticks": KICK_DURATION_TICKS[3],
-        },
+        "env": environment,
     }
     vector = native.create_vec(arguments, 0)
     try:

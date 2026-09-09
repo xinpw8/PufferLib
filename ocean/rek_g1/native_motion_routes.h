@@ -16,14 +16,15 @@
 
 enum {
     REK_G1_STATIC_ROBOT_CONFIG_PATH_ID = 2722,
-    REK_G1_STATIC_ROUTE_COUNT = 11,
+    REK_G1_STATIC_ROUTE_COUNT = 24,
 };
 
 typedef enum RekG1NativeRouteKind {
     REK_G1_NATIVE_ROUTE_IDLE = 0,
     REK_G1_NATIVE_ROUTE_TRANSLATION = 1,
     REK_G1_NATIVE_ROUTE_TURN = 2,
-    REK_G1_NATIVE_ROUTE_KICK = 3,
+    REK_G1_NATIVE_ROUTE_DISCRETE_MOVE = 3,
+    REK_G1_NATIVE_ROUTE_KICK = REK_G1_NATIVE_ROUTE_DISCRETE_MOVE,
 } RekG1NativeRouteKind;
 
 typedef enum RekG1NativeRouteId {
@@ -34,10 +35,27 @@ typedef enum RekG1NativeRouteId {
     REK_G1_NATIVE_STRAFE_RIGHT = 4,
     REK_G1_NATIVE_TURN_LEFT = 5,
     REK_G1_NATIVE_TURN_RIGHT = 6,
-    REK_G1_NATIVE_KICK_MOVE_6_LEFT_SIDE = 7,
-    REK_G1_NATIVE_KICK_MOVE_7_LEFT_FRONT = 8,
-    REK_G1_NATIVE_KICK_MOVE_8_RIGHT_SIDE = 9,
-    REK_G1_NATIVE_KICK_MOVE_9_RIGHT_KNEE = 10,
+    REK_G1_NATIVE_MOVE_6_LEFT_SIDE = 7,
+    REK_G1_NATIVE_MOVE_7_LEFT_FRONT = 8,
+    REK_G1_NATIVE_MOVE_8_RIGHT_SIDE = 9,
+    REK_G1_NATIVE_MOVE_9_RIGHT_KNEE = 10,
+    REK_G1_NATIVE_MOVE_0_LEFT_HOOK = 11,
+    REK_G1_NATIVE_MOVE_1_LEFT_JAB = 12,
+    REK_G1_NATIVE_MOVE_2_DOUBLE_UPPERCUT = 13,
+    REK_G1_NATIVE_MOVE_3_RIGHT_HOOK = 14,
+    REK_G1_NATIVE_MOVE_4_RIGHT_JAB = 15,
+    REK_G1_NATIVE_MOVE_5_LEFT_JAB_RIGHT_UPPERCUT = 16,
+    REK_G1_NATIVE_MOVE_10_SIX_PUNCH = 17,
+    REK_G1_NATIVE_MOVE_11_RUN_AND_PUNCH = 18,
+    REK_G1_NATIVE_MOVE_12_LEFT_RIGHT_JAB = 19,
+    REK_G1_NATIVE_MOVE_13_LEFT_RIGHT_HOOK = 20,
+    REK_G1_NATIVE_MOVE_14_LEFT_HOOK_RIGHT_JAB = 21,
+    REK_G1_NATIVE_MOVE_15_DOUBLE_HOOK = 22,
+    REK_G1_NATIVE_MOVE_16_BUTT_SMACK_EMOTE = 23,
+    REK_G1_NATIVE_KICK_MOVE_6_LEFT_SIDE = REK_G1_NATIVE_MOVE_6_LEFT_SIDE,
+    REK_G1_NATIVE_KICK_MOVE_7_LEFT_FRONT = REK_G1_NATIVE_MOVE_7_LEFT_FRONT,
+    REK_G1_NATIVE_KICK_MOVE_8_RIGHT_SIDE = REK_G1_NATIVE_MOVE_8_RIGHT_SIDE,
+    REK_G1_NATIVE_KICK_MOVE_9_RIGHT_KNEE = REK_G1_NATIVE_MOVE_9_RIGHT_KNEE,
 } RekG1NativeRouteId;
 
 typedef struct RekG1NativeMotionRoute {
@@ -56,7 +74,8 @@ typedef struct RekG1NativeMotionRoute {
     float yaw_blend;
     uint8_t mirror;
     uint8_t loop;
-    // UINT16_MAX for non-kick routes. Kicks use exact runtime move indices 6..9.
+    // UINT16_MAX for locomotion routes. Discrete moves use exact runtime move
+    // indices 0..16.
     uint16_t runtime_move_index;
 } RekG1NativeMotionRoute;
 
@@ -77,6 +96,11 @@ const RekG1NativeMotionRoute* rek_g1_native_route_by_id(
     const RekG1NativeMotionRouteTable* table,
     RekG1NativeRouteId id);
 
+const RekG1NativeMotionRoute* rek_g1_native_discrete_move_route(
+    const RekG1NativeMotionRouteTable* table,
+    uint16_t runtime_move_index);
+
+/* Compatibility lookup for the original four-route subset. */
 const RekG1NativeMotionRoute* rek_g1_native_kick_route(
     const RekG1NativeMotionRouteTable* table,
     uint16_t runtime_move_index);

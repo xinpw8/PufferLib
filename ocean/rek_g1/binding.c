@@ -26,8 +26,8 @@ _Static_assert(
         == REK_G1_SEMANTIC_DUEL_OBSERVATION_FLOATS * sizeof(float),
     "the semantic G1 observation ABI must remain 223 binary32 values");
 _Static_assert(
-    REK_G1_ACTION_CATEGORIES == 20,
-    "the semantic G1 action ABI must remain one 20-way categorical head");
+    REK_G1_ACTION_CATEGORIES == 33,
+    "the semantic G1 action ABI must remain one 33-way categorical head");
 _Static_assert(
     REK_G1_GENERATED_MODEL_ROBOT_BATCH > 0u
         && REK_G1_GENERATED_MODEL_ROBOT_BATCH % GEAR_SONIC_DUEL_FIGHTERS == 0u,
@@ -290,12 +290,25 @@ Env* my_vec_init(
     uint32_t num_buffers = 0u;
     uint32_t physics_workers = 0u;
     uint32_t locomotion_segment_ticks = 0u;
-    uint32_t kick_ticks[REK_G1_REQUIRED_KICK_COUNT] = {0u};
-    const char* const kick_keys[REK_G1_REQUIRED_KICK_COUNT] = {
-        "kick_move_6_duration_ticks",
-        "kick_move_7_duration_ticks",
-        "kick_move_8_duration_ticks",
-        "kick_move_9_duration_ticks",
+    uint32_t move_ticks[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {0u};
+    const char* const move_keys[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {
+        "move_0_duration_ticks",
+        "move_1_duration_ticks",
+        "move_2_duration_ticks",
+        "move_3_duration_ticks",
+        "move_4_duration_ticks",
+        "move_5_duration_ticks",
+        "move_6_duration_ticks",
+        "move_7_duration_ticks",
+        "move_8_duration_ticks",
+        "move_9_duration_ticks",
+        "move_10_duration_ticks",
+        "move_11_duration_ticks",
+        "move_12_duration_ticks",
+        "move_13_duration_ticks",
+        "move_14_duration_ticks",
+        "move_15_duration_ticks",
+        "move_16_duration_ticks",
     };
     if (!exact_u32_config(
             vector_kwargs, "total_agents", 2u, (uint32_t)INT_MAX, &total_agents)
@@ -319,16 +332,17 @@ Env* my_vec_init(
             "invalid vector shape or required numeric configuration");
     }
     (void)num_buffers;
-    for (size_t index = 0; index < REK_G1_REQUIRED_KICK_COUNT; index++) {
+    for (size_t index = 0;
+            index < REK_G1_REQUIRED_DISCRETE_MOVE_COUNT; index++) {
         if (!exact_u32_config(
                 environment_kwargs,
-                kick_keys[index],
+                move_keys[index],
                 1u,
                 UINT32_MAX,
-                &kick_ticks[index])) {
+                &move_ticks[index])) {
             rek_g1_binding_fail(
                 "initialize REK G1 semantic vector",
-                "a required kick duration is absent or invalid");
+                "a required discrete-move duration is absent or invalid");
         }
     }
 
@@ -354,7 +368,7 @@ Env* my_vec_init(
     context->robot_count = total_agents;
 
     RekG1PufferStatus table_status = rek_g1_semantic_action_table_init(
-        &context->action_table, locomotion_segment_ticks, kick_ticks);
+        &context->action_table, locomotion_segment_ticks, move_ticks);
     if (table_status != REK_G1_PUFFER_OK) {
         free(environments);
         free(context);
@@ -364,7 +378,7 @@ Env* my_vec_init(
     RekG1SemanticAssetsStatus asset_status = rek_g1_semantic_assets_load(
         &context->assets,
         asset_root,
-        kick_ticks,
+        move_ticks,
         context->error,
         sizeof(context->error));
     if (asset_status != REK_G1_SEMANTIC_ASSETS_OK) {
@@ -400,7 +414,8 @@ Env* my_vec_init(
 
     const int duel_opened = gear_sonic_native_duel_open_from_memory(
             &context->duel,
-            context->assets.model_path,
+            context->assets.model_xml_data,
+            context->assets.model_xml_byte_count,
             verified_models.encoder.data,
             verified_models.encoder.byte_count,
             verified_models.decoder.data,
@@ -534,7 +549,7 @@ Env* my_vec_init(
 
     (void)fprintf(
         stderr,
-        "rek_g1 semantic candidate: rows=%u arenas=%u actions=%u observation=%u; model_manifest_sha256=%s model_classification=%s rek_parity_claim=false current_steam_authority=false runtime_can_get_up_authority=unknown training_enabled=false; 2 ms contact, fall, score, round-terminal, fallen-policy suspension, and two-phase spawn-reset state are wired; score-delta reward is an unapproved candidate contract; same-tick ordering and held-out trajectory parity remain gated\n",
+        "rek_g1 semantic candidate: rows=%u arenas=%u actions=%u observation=%u; model_manifest_sha256=%s model_classification=%s rek_parity_claim=false current_steam_authority=false authentic_l100_no_getup=user_observed candidate_can_get_up=false training_enabled=false; 2 ms contact, fall, score, round-terminal, fallen-policy suspension, and two-phase spawn-reset state are wired; score-delta reward is an unapproved candidate contract; same-tick ordering and held-out trajectory parity remain gated\n",
         total_agents,
         total_agents / GEAR_SONIC_DUEL_FIGHTERS,
         (unsigned int)REK_G1_ACTION_CATEGORIES,

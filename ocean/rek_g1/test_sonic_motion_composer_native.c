@@ -662,6 +662,30 @@ static int test_loop_entry_matcher_and_independent_state(void) {
         SONIC_MOTION_COMPOSER_NATIVE_OK);
     CHECK(same_float(second.current_layer.cursor, 1.0f));
     CHECK(same_float(first.current_layer.cursor, 8.25f));
+
+    /* A looping cursor is valid through the fractional interval after its
+     * final integer frame.  The next advance wraps at end_frame + 1. */
+    context.matched_cursor = 9.75f;
+    CHECK_STATUS(
+        sonic_motion_composer_native_play_action(
+            &first,
+            &first_storage.clip,
+            &loop_config),
+        SONIC_MOTION_COMPOSER_NATIVE_OK);
+    CHECK(same_float(first.current_layer.cursor, 9.75f));
+    CHECK_STATUS(
+        sonic_motion_composer_native_advance(&first, &advance),
+        SONIC_MOTION_COMPOSER_NATIVE_OK);
+    CHECK(same_float(first.current_layer.cursor, 0.75f));
+
+    context.matched_cursor = 10.0f;
+    CHECK_STATUS(
+        sonic_motion_composer_native_play_action(
+            &first,
+            &next_storage.clip,
+            &loop_config),
+        SONIC_MOTION_COMPOSER_NATIVE_OUT_OF_RANGE);
+    CHECK(same_float(first.current_layer.cursor, 0.75f));
     return 1;
 }
 

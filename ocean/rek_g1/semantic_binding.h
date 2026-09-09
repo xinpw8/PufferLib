@@ -13,8 +13,8 @@
 
 enum {
     REK_G1_PUFFER_ACTION_HEADS = 1,
-    // continue + 15 required held masks + four required kick registry entries
-    REK_G1_PUFFER_MIN_CATEGORIES = 20,
+    // continue + 15 required held masks + 17 discrete-move registry entries
+    REK_G1_PUFFER_MIN_CATEGORIES = 33,
 };
 
 typedef struct RekG1RuntimeFacts {

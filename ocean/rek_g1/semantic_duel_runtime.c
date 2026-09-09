@@ -297,7 +297,7 @@ static int route_asset_valid(
             || asset->clip.root_quaternion_count != root_count
             || asset->clip.frame_count != route->asset_frames
             || asset->clip.fps != route->asset_fps
-            || (route->kind == REK_G1_NATIVE_ROUTE_KICK
+            || (route->kind == REK_G1_NATIVE_ROUTE_DISCRETE_MOVE
                 ? asset->configured_compositor_duration_ticks == 0u
                 : asset->configured_compositor_duration_ticks != 0u)) {
         return 0;
@@ -519,6 +519,13 @@ RekG1SemanticDuelStatus rek_g1_semantic_duel_open(
             runtime, REK_G1_SEMANTIC_DUEL_INVALID_ROUTE_ASSET,
             error, error_capacity, "open semantic duel", "route table mismatch");
     }
+    if (!rek_g1_validate_strike_catalog(
+            rek_g1_current_build_strike_catalog())) {
+        return latch_failure(
+            runtime, REK_G1_SEMANTIC_DUEL_COMBAT_FAILED,
+            error, error_capacity,
+            "open semantic duel", "strike catalog mismatch");
+    }
     if (!command_config_valid(config)) {
         return latch_failure(
             runtime, REK_G1_SEMANTIC_DUEL_INVALID_CONFIG,
@@ -627,13 +634,15 @@ static int action_table_matches_assets(
             || rek_g1_puffer_validate_table(action_table) != REK_G1_PUFFER_OK) {
         return 0;
     }
-    for (uint16_t index = 0; index < action_table->kick_registry_count; index++) {
-        const RekG1NativeMotionRoute* route = rek_g1_native_kick_route(
-            runtime->motion_routes, action_table->kick_move_indices[index]);
+    for (uint16_t index = 0;
+            index < action_table->move_registry_count; index++) {
+        const RekG1NativeMotionRoute* route =
+            rek_g1_native_discrete_move_route(
+                runtime->motion_routes, action_table->move_indices[index]);
         const RekG1SemanticDuelRouteAsset* asset = route == NULL
             ? NULL : asset_by_id(runtime, route->id);
         if (asset == NULL || asset->configured_compositor_duration_ticks
-                != action_table->kick_duration_ticks[index]) {
+                != action_table->move_duration_ticks[index]) {
             return 0;
         }
     }
@@ -1308,7 +1317,7 @@ int rek_g1_semantic_duel_reset_batch(
 static int semantic_valid(const RekG1SemanticTick* semantic) {
     if (semantic == NULL || semantic->status != REK_G1_SEMANTIC_OK
             || semantic->input.status != REK_G1_INPUT_ACCEPTED
-            || semantic->kind > REK_G1_SEMANTIC_KICK
+            || semantic->kind > REK_G1_SEMANTIC_DISCRETE_MOVE
             || (semantic->input.held & ~REK_G1_HELD_VALID_MASK) != 0u
             || rek_g1_has_opposite_translation(semantic->input.held)
             || rek_g1_has_opposite_yaw(semantic->input.held)
@@ -1322,20 +1331,20 @@ static int semantic_valid(const RekG1SemanticTick* semantic) {
             || semantic->input.yaw_ramp > 1.0f
             || semantic->command_started > 1u
             || semantic->segment_complete > 1u
-            || semantic->kick_start_edge > 1u
-            || semantic->kick_active > 1u
-            || semantic->kick_blocked > 1u) {
+            || semantic->move_start_edge > 1u
+            || semantic->move_active > 1u
+            || semantic->move_blocked > 1u) {
         return 0;
     }
     if (semantic->kind == REK_G1_SEMANTIC_LOCOMOTION) {
-        return semantic->kick_registry_index == REK_G1_SEMANTIC_KICK_NONE
-            && !semantic->kick_start_edge && !semantic->kick_active
-            && !semantic->kick_blocked
+        return semantic->move_registry_index == REK_G1_SEMANTIC_MOVE_NONE
+            && !semantic->move_start_edge && !semantic->move_active
+            && !semantic->move_blocked
             && semantic->input.attack_gate == REK_G1_ATTACK_NOT_REQUESTED;
     }
-    return semantic->kick_registry_index != REK_G1_SEMANTIC_KICK_NONE
-        && semantic->kick_active && !semantic->kick_blocked
-        && (semantic->kick_start_edge
+    return semantic->move_registry_index != REK_G1_SEMANTIC_MOVE_NONE
+        && semantic->move_active && !semantic->move_blocked
+        && (semantic->move_start_edge
             ? (semantic->command_started
                 && semantic->input.attack_gate
                     == REK_G1_ATTACK_ACCEPTED_PREEMPT_YAW)
@@ -1491,31 +1500,32 @@ static int compose_row(
         .yaw = semantic->input.yaw,
     };
 
-    if (semantic->kind == REK_G1_SEMANTIC_KICK
-            && !semantic->kick_start_edge
+    if (semantic->kind == REK_G1_SEMANTIC_DISCRETE_MOVE
+            && !semantic->move_start_edge
             && !composer->action_playing) {
         (void)latch_failure(
             runtime, REK_G1_SEMANTIC_DUEL_PROTOCOL_INVALID,
             error, error_capacity,
             "compose semantic row",
-            "configured kick segment outlived composer action");
+            "configured discrete-move segment outlived composer action");
         return 0;
     }
 
-    if (semantic->kind == REK_G1_SEMANTIC_KICK
-            && semantic->kick_start_edge) {
-        if (semantic->kick_registry_index >= action_table->kick_registry_count
+    if (semantic->kind == REK_G1_SEMANTIC_DISCRETE_MOVE
+            && semantic->move_start_edge) {
+        if (semantic->move_registry_index >= action_table->move_registry_count
                 || composer->action_playing) {
             (void)latch_failure(
                 runtime, REK_G1_SEMANTIC_DUEL_PROTOCOL_INVALID,
                 error, error_capacity,
-                "compose semantic row", "invalid kick start edge");
+                "compose semantic row", "invalid discrete-move start edge");
             return 0;
         }
-        const uint16_t move_index = action_table->kick_move_indices[
-            semantic->kick_registry_index];
-        const RekG1NativeMotionRoute* route = rek_g1_native_kick_route(
-            runtime->motion_routes, move_index);
+        const uint16_t move_index = action_table->move_indices[
+            semantic->move_registry_index];
+        const RekG1NativeMotionRoute* route =
+            rek_g1_native_discrete_move_route(
+                runtime->motion_routes, move_index);
         if (route == NULL || !apply_route(
                 runtime, composer, route->id, error, error_capacity)) {
             return 0;
@@ -1748,7 +1758,7 @@ static int strike_intent_for_row(
             "measure strike intent", "active route is unavailable");
         return 0;
     }
-    if (route->kind != REK_G1_NATIVE_ROUTE_KICK
+    if (route->kind != REK_G1_NATIVE_ROUTE_DISCRETE_MOVE
             || !composer->action_playing) {
         return 1;
     }
@@ -1772,7 +1782,8 @@ static int strike_intent_for_row(
         (void)latch_failure(
             runtime, REK_G1_SEMANTIC_DUEL_COMBAT_FAILED,
             error, error_capacity,
-            "measure strike intent", "active kick snapshot is incomplete");
+            "measure strike intent",
+            "active discrete-move snapshot is incomplete");
         return 0;
     }
     return 1;
@@ -2322,9 +2333,9 @@ int rek_g1_semantic_duel_advance_batch(
 
     for (size_t row = 0; row < runtime->robot_count; row++) {
         if (!semantic_valid(&semantics[row])
-                || (semantics[row].kind == REK_G1_SEMANTIC_KICK
-                    && semantics[row].kick_registry_index
-                        >= action_table->kick_registry_count)) {
+                || (semantics[row].kind == REK_G1_SEMANTIC_DISCRETE_MOVE
+                    && semantics[row].move_registry_index
+                        >= action_table->move_registry_count)) {
             (void)latch_failure(
                 runtime, REK_G1_SEMANTIC_DUEL_PROTOCOL_INVALID,
                 error, error_capacity,
@@ -2426,7 +2437,7 @@ int rek_g1_semantic_duel_advance_batch(
         }
         if (!runtime->arena_reset_events[arena]
                 && !suspended
-                && semantics[row].kind == REK_G1_SEMANTIC_KICK
+                && semantics[row].kind == REK_G1_SEMANTIC_DISCRETE_MOVE
                 && ((semantics[row].segment_complete
                         && runtime->scratch_composers[row].action_playing)
                     || (!semantics[row].segment_complete
@@ -2435,7 +2446,7 @@ int rek_g1_semantic_duel_advance_batch(
                 runtime, REK_G1_SEMANTIC_DUEL_PROTOCOL_INVALID,
                 error, error_capacity,
                 "advance semantic duel",
-                "configured kick duration does not match composer completion");
+                "configured discrete-move duration does not match composer completion");
             return 0;
         }
     }

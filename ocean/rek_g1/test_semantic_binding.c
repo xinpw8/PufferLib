@@ -67,7 +67,7 @@ static int fake_advance(
     float marker = 100.0f * (float)semantic->input.forward +
         10.0f * (float)semantic->input.strafe +
         semantic->input.yaw;
-    if (semantic->kick_start_edge) marker += 1000.0f;
+    if (semantic->move_start_edge) marker += 1000.0f;
     for (int probe = 0; probe < FAKE_OUTPUT_PROBES; probe++) {
         runtime->semantic_output_probes[probe] = marker + (float)probe / 100.0f;
     }
@@ -95,8 +95,14 @@ static void build_table(
         REK_G1_HELD_STRAFE_RIGHT | REK_G1_HELD_YAW_LEFT,
         REK_G1_HELD_STRAFE_RIGHT | REK_G1_HELD_YAW_RIGHT,
     };
-    static const uint16_t kick_move_indices[] = {6, 7, 8, 9};
-    static const uint32_t kick_duration_ticks[] = {2, 3, 4, 5};
+    static const uint16_t move_indices[
+            REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {
+        6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16,
+    };
+    static const uint32_t move_duration_ticks[
+            REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {
+        2, 3, 4, 5, 2, 3, 4, 5, 2, 3, 4, 5, 2, 3, 4, 5, 2,
+    };
 
     memset(
         categories,
@@ -112,27 +118,28 @@ static void build_table(
                 .kind = REK_G1_SEMANTIC_LOCOMOTION,
                 .held_code = held_code(locomotion_masks[index]),
                 .duration_ticks = index == 0 ? 1 : 2,
-                .kick_registry_index = REK_G1_SEMANTIC_KICK_NONE,
+                .move_registry_index = REK_G1_SEMANTIC_MOVE_NONE,
             },
         };
     }
-    for (uint16_t kick = 0; kick < REK_G1_REQUIRED_KICK_COUNT; kick++) {
-        categories[16 + kick] = (RekG1PufferCategory){
+    for (uint16_t move = 0;
+            move < REK_G1_REQUIRED_DISCRETE_MOVE_COUNT; move++) {
+        categories[16 + move] = (RekG1PufferCategory){
             .kind = REK_G1_PUFFER_START,
             .command = {
-                .kind = REK_G1_SEMANTIC_KICK,
+                .kind = REK_G1_SEMANTIC_DISCRETE_MOVE,
                 .held_code = held_code(0),
-                .duration_ticks = kick_duration_ticks[kick],
-                .kick_registry_index = kick,
+                .duration_ticks = move_duration_ticks[move],
+                .move_registry_index = move,
             },
         };
     }
     *table = (RekG1PufferActionTable){
         .categories = categories,
         .count = REK_G1_PUFFER_MIN_CATEGORIES,
-        .kick_move_indices = kick_move_indices,
-        .kick_duration_ticks = kick_duration_ticks,
-        .kick_registry_count = REK_G1_REQUIRED_KICK_COUNT,
+        .move_indices = move_indices,
+        .move_duration_ticks = move_duration_ticks,
+        .move_registry_count = REK_G1_REQUIRED_DISCRETE_MOVE_COUNT,
     };
 }
 
@@ -340,8 +347,8 @@ int main(void) {
     step = step_category(&binding, 19.0f);
     require(step.status == REK_G1_BINDING_OK,
         "kick_category_dispatched");
-    require(runtime.last_semantic.kick_start_edge &&
-            runtime.last_semantic.kick_registry_index == 3u &&
+    require(runtime.last_semantic.move_start_edge &&
+            runtime.last_semantic.move_registry_index == 3u &&
             runtime.last_semantic.input.held == REK_G1_HELD_YAW_LEFT &&
             runtime.last_semantic.input.desired_yaw == 1 &&
             fabsf(runtime.last_semantic.input.yaw_ramp - 0.12f) < 1.0e-6f &&
@@ -360,8 +367,8 @@ int main(void) {
 
     step = step_category(&binding, 0.0f);
     require(step.status == REK_G1_BINDING_OK &&
-            !runtime.last_semantic.kick_start_edge &&
-            runtime.last_semantic.kick_registry_index == 3u &&
+            !runtime.last_semantic.move_start_edge &&
+            runtime.last_semantic.move_registry_index == 3u &&
             runtime.last_semantic.remaining_ticks == 3u &&
             runtime.last_semantic.input.pressed_edges == 0u &&
             runtime.last_semantic.input.released_edges == 0u &&
@@ -370,7 +377,7 @@ int main(void) {
         "binding_continue_retains_suppressed_q");
     step = step_category(&binding, 1.0f);
     require(step.status == REK_G1_BINDING_OK &&
-            runtime.last_semantic.kick_registry_index == 3u &&
+            runtime.last_semantic.move_registry_index == 3u &&
             runtime.last_semantic.remaining_ticks == 2u &&
             runtime.last_semantic.input.held == 0u &&
             runtime.last_semantic.input.released_edges ==
@@ -379,7 +386,7 @@ int main(void) {
         "binding_neutral_updates_active_kick");
     step = step_category(&binding, 7.0f);
     require(step.status == REK_G1_BINDING_OK &&
-            runtime.last_semantic.kick_registry_index == 3u &&
+            runtime.last_semantic.move_registry_index == 3u &&
             runtime.last_semantic.remaining_ticks == 1u &&
             runtime.last_semantic.input.held == REK_G1_HELD_YAW_RIGHT &&
             runtime.last_semantic.input.pressed_edges ==
@@ -389,7 +396,7 @@ int main(void) {
     step = step_category(&binding, 6.0f);
     require(step.status == REK_G1_BINDING_OK &&
             step.puffer.semantic.segment_complete &&
-            runtime.last_semantic.kick_registry_index == 3u &&
+            runtime.last_semantic.move_registry_index == 3u &&
             runtime.last_semantic.input.held == REK_G1_HELD_YAW_LEFT &&
             runtime.last_semantic.input.pressed_edges ==
                 REK_G1_HELD_YAW_LEFT &&

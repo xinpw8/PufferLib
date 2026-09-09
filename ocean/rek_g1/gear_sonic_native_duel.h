@@ -123,13 +123,14 @@ int gear_sonic_native_duel_open(
 );
 
 /*
- * Equivalent to gear_sonic_native_duel_open except that the ONNX Runtime
- * sessions are constructed directly from the supplied model arrays. The
- * arrays need only remain valid through this call.
+ * Equivalent to gear_sonic_native_duel_open except that the MuJoCo XML and
+ * ONNX Runtime sessions are constructed directly from the supplied arrays.
+ * The arrays need only remain valid through this call.
  */
 int gear_sonic_native_duel_open_from_memory(
     GearSonicNativeDuelVector* vector,
-    const char* model_path,
+    const void* model_xml_data,
+    size_t model_xml_byte_count,
     const void* encoder_data,
     size_t encoder_byte_count,
     const void* decoder_data,

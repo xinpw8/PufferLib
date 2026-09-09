@@ -9,6 +9,12 @@
 
 static int assertions;
 
+static const int32_t EXPECTED_CLIP_PATH_IDS[
+        REK_G1_SEMANTIC_UNIQUE_CLIP_COUNT] = {
+    370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380,
+    381, 382, 383, 384, 385, 386, 387, 388, 390, 392,
+};
+
 static void require(int condition, const char* name) {
     assertions += 1;
     if (!condition) {
@@ -90,15 +96,21 @@ static uint32_t measure_composer_completion_ticks(
 }
 
 int main(int argc, char** argv) {
-    if (argc != 6) {
+    if (argc != 2 + REK_G1_REQUIRED_DISCRETE_MOVE_COUNT) {
         fprintf(stderr,
-            "usage: %s ASSET_DIR MOVE6_TICKS MOVE7_TICKS MOVE8_TICKS MOVE9_TICKS\n",
+            "usage: %s ASSET_DIR MOVE0_TICKS ... MOVE16_TICKS\n",
             argv[0]);
         return 2;
     }
-    uint32_t durations[REK_G1_REQUIRED_KICK_COUNT];
-    for (size_t index = 0; index < REK_G1_REQUIRED_KICK_COUNT; index++) {
+    uint32_t durations[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
+    for (size_t index = 0;
+            index < REK_G1_REQUIRED_DISCRETE_MOVE_COUNT;
+            index++) {
         durations[index] = parse_ticks(argv[index + 2]);
+        require(
+            durations[index]
+                == REK_G1_PINNED_COMPOSITOR_MOVE_DURATION_TICKS[index],
+            "argument_duration_matches_pinned_traversal");
     }
 
     RekG1SemanticAssets assets;
@@ -125,6 +137,27 @@ int main(int argc, char** argv) {
     require(assets.route_assets[REK_G1_NATIVE_TURN_LEFT].clip.dof_position_mujoco
         == assets.route_assets[REK_G1_NATIVE_TURN_RIGHT].clip.dof_position_mujoco,
         "turn_route_alias");
+    for (size_t clip_index = 0;
+            clip_index < REK_G1_SEMANTIC_UNIQUE_CLIP_COUNT;
+            clip_index++) {
+        require(assets.clips[clip_index].npz_path_id
+            == EXPECTED_CLIP_PATH_IDS[clip_index], "clip_path_id_order");
+        require(assets.clips[clip_index].dof_position_mujoco != NULL,
+            "clip_dof_loaded");
+        require(assets.clips[clip_index].root_quaternion_wxyz != NULL,
+            "clip_root_loaded");
+        size_t route_alias_count = 0u;
+        for (size_t route_index = 0;
+                route_index < REK_G1_STATIC_ROUTE_COUNT;
+                route_index++) {
+            if (assets.route_assets[route_index].clip.dof_position_mujoco
+                    == assets.clips[clip_index].dof_position_mujoco) {
+                route_alias_count += 1u;
+            }
+        }
+        require(route_alias_count > 0u, "clip_has_route");
+    }
+    uint8_t seen_moves[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {0};
     for (size_t index = 0; index < REK_G1_STATIC_ROUTE_COUNT; index++) {
         require(assets.route_assets[index].route_id == (RekG1NativeRouteId)index,
             "route_id_order");
@@ -138,35 +171,56 @@ int main(int argc, char** argv) {
         require(fabsf(heading_wxyz(
             assets.route_assets[index].clip.root_quaternion_wxyz)) <= 2.0e-6f,
             "clip_frame_zero_heading_normalized");
-        if (route->kind == REK_G1_NATIVE_ROUTE_KICK) {
+        if (route->kind == REK_G1_NATIVE_ROUTE_DISCRETE_MOVE) {
+            require(route->runtime_move_index
+                < REK_G1_REQUIRED_DISCRETE_MOVE_COUNT,
+                "move_index_bounded");
+            seen_moves[route->runtime_move_index] += 1u;
             require(assets.route_assets[index].configured_compositor_duration_ticks
-                == durations[route->runtime_move_index - 6u],
-                "kick_duration_identity");
+                == durations[route->runtime_move_index],
+                "move_duration_identity");
             require(measure_composer_completion_ticks(
                 &assets.route_assets[index], route)
-                == durations[route->runtime_move_index - 6u],
-                "kick_duration_matches_composer_terminal");
+                == durations[route->runtime_move_index],
+                "move_duration_matches_composer_terminal");
         } else {
             require(assets.route_assets[index].configured_compositor_duration_ticks == 0u,
-                "nonkick_duration_zero");
+                "nonmove_duration_zero");
         }
+    }
+    for (size_t move_index = 0;
+            move_index < REK_G1_REQUIRED_DISCRETE_MOVE_COUNT;
+            move_index++) {
+        require(seen_moves[move_index] == 1u,
+            "move_has_one_compositor_traversal");
     }
     require(fabsf(heading_xyzw(assets.fixed_idle.root_rotation_xyzw))
         <= 2.0e-6f, "fixed_idle_frame_zero_heading_normalized");
     require(strstr(assets.model_path, "model.two_fighter_arena.xml") != NULL,
         "model_path");
+    require(assets.model_xml_data != NULL, "model_xml_data");
+    require(assets.model_xml_byte_count > 0u, "model_xml_byte_count");
     rek_g1_semantic_assets_close(&assets);
     require(assets.loaded == 0u, "close_clears_state");
 
-    uint32_t invalid_durations[REK_G1_REQUIRED_KICK_COUNT] = {
-        durations[0], durations[1], 0u, durations[3],
-    };
+    uint32_t invalid_durations[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
+    memcpy(invalid_durations, durations, sizeof(invalid_durations));
+    invalid_durations[12] = 0u;
     memset(error, 0, sizeof(error));
     status = rek_g1_semantic_assets_load(
         &assets, argv[1], invalid_durations, error, sizeof(error));
     require(status == REK_G1_SEMANTIC_ASSETS_CONTENT_INVALID,
         "missing_duration_rejected");
     require(assets.loaded == 0u, "missing_duration_not_loaded");
+
+    memcpy(invalid_durations, durations, sizeof(invalid_durations));
+    invalid_durations[12] += 1u;
+    memset(error, 0, sizeof(error));
+    status = rek_g1_semantic_assets_load(
+        &assets, argv[1], invalid_durations, error, sizeof(error));
+    require(status == REK_G1_SEMANTIC_ASSETS_CONTENT_INVALID,
+        "nonzero_mismatched_duration_rejected_at_load");
+    require(assets.loaded == 0u, "mismatched_duration_not_loaded");
 
     printf(
         "G1 semantic asset loader passed: assertions=%d manifest_sha256=%s\n",

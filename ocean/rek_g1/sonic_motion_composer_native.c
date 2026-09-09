@@ -1180,8 +1180,10 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_play_action(
         if (!isfinite(matched_cursor)) {
             return SONIC_MOTION_COMPOSER_NATIVE_NON_FINITE;
         }
+        const float matched_upper_exclusive =
+            (float)(next.current_layer.end_frame + 1);
         if (matched_cursor < (float)next.current_layer.start_frame
-                || matched_cursor > (float)next.current_layer.end_frame) {
+                || matched_cursor >= matched_upper_exclusive) {
             return SONIC_MOTION_COMPOSER_NATIVE_OUT_OF_RANGE;
         }
         next.current_layer.cursor = matched_cursor;

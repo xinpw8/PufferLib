@@ -4,7 +4,7 @@
 
 The current `rek_g1` binding is a native semantic two-robot environment. The
 trainable policy does not command 29 actuators. It selects a held locomotion
-state or one of the recovered G1 kick routes. A build-pinned Sonic adapter then
+state or one of the 17 recovered G1 discrete routes. A build-pinned Sonic adapter then
 constructs policy observations, executes the supplied encoder and decoder, and
 converts the output into joint targets for MuJoCo.
 
@@ -17,14 +17,14 @@ The Puffer action is one categorical value. Multiple heads are not used because
 independent direction, duration, and attack heads would generate combinations
 whose legality depends on hidden scheduler state.
 
-The 20 categories are:
+The 33 categories are:
 
 | Category | Meaning |
 | --- | --- |
 | 0 | continue active segment |
 | 1 | neutral |
 | 2 to 15 | validated W, S, A, D, Q, and E held combinations |
-| 16 to 19 | kick routes for runtime moves 6 to 9 |
+| 16 to 32 | discrete routes in registry order 6, 7, 8, 9, 0 to 5, 10 to 16 |
 
 The held combinations are neutral, W, S, A, D, Q, E, and Q/E paired with one
 cardinal translation. Contradictory pairs such as W+S, A+D, and Q+E are
@@ -47,27 +47,27 @@ old accumulation before advancing the new sign. Release clears the ramp.
 
 Translation can be held for multiple actions and cannot be reduced to an input
 edge. This is required for appreciable movement. Q or E can coexist with a
-translation hold. If a kick is accepted, effective yaw becomes zero while the
-desired yaw state and ramp continue. During the kick, category 0 retains that
+translation hold. If a discrete move is accepted, effective yaw becomes zero while the
+desired yaw state and ramp continue. During the move, category 0 retains that
 state and the existing neutral, Q, and E categories update it without
-restarting or extending the kick. All translation and kick-start categories
-remain masked. Effective yaw resumes after the kick from the retained ramp.
-Ramp retention and mid-kick desired-yaw updates are provisional candidate
+restarting or extending the move. All translation and move-start categories
+remain masked. Effective yaw resumes after the move from the retained ramp.
+Ramp retention and mid-move desired-yaw updates are provisional candidate
 semantics. They are not recovered current REK parity facts.
 
-A kick cannot start while translation is active, the locomotion transition is
+A discrete move cannot start while translation is active, the locomotion transition is
 unsettled, another action is busy, or fall/reset state suspends the runner. A
 rejected attack edge is currently dropped. Whether the current REK service
 queues such an edge is unknown. A controlled input and acknowledgement capture
 must resolve it before parity acceptance.
 
-Locomotion segment length is an explicit training-interface parameter. Kick
+Locomotion segment length is an explicit training-interface parameter. Discrete-move
 segment lengths are configured compositor traversal ticks. The current values
 come from the reconstructed compositor state machine and are not measurements
 of physical action completion, hit latency, or attack effectiveness.
 
-Puffer adapter tables normalize kick-template `held_code` to neutral. The
-adapter replaces it with current desired Q/E state when dispatching the kick.
+Puffer adapter tables normalize move-template `held_code` to neutral. The
+adapter replaces it with current desired Q/E state when dispatching the move.
 This table normalization does not restrict direct semantic commands, which may
 carry a yaw-only held code.
 
@@ -96,7 +96,7 @@ binary32 0.1.
 `native_motion_routes.c` pins RobotConfig path 2722 and the exact static
 MocapClipConfig, NPZ identity, direction, mirror flag, frame count, and runtime
 move index for idle, forward, backward, left/right strafe, left/right turn, and
-four kicks. `g1_semantic_assets.c` loads only the generated binary32 bundle
+all 17 discrete moves. `g1_semantic_assets.c` loads only the generated binary32 bundle
 whose byte sizes and SHA-256 values match its compiled manifest.
 
 Asset frame count is metadata. It does not by itself define action duration.
@@ -140,7 +140,7 @@ the validated public GEAR-SONIC family candidate.
 
 ## Observation, reward, and terminal contract
 
-Schema 3 exposes 223 binary32 values per robot. It includes both complete robot
+Schema 4 exposes 223 binary32 values per robot. It includes both complete robot
 states, fall state, relative command and composer state, scores, attribution,
 referee state, round state, and per-action events. Paired rows observe the same
 arena with self and opponent exchanged.
@@ -156,7 +156,7 @@ Implementation correctness and REK parity are separate gates:
 
 1. Strict C tests, sanitizers, static analysis, deterministic reset, row-local
    isolation, and complete ABI tests must pass on x86-64 and Spark aarch64.
-2. Every held category and kick route must execute through the native binding.
+2. Every held category and discrete route must execute through the native binding.
 3. Controlled Windows captures must include matched initial physical state,
    actual accepted inputs, opponent actions, contact/fall/score events, and
    multiple repeats.

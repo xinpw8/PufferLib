@@ -1,4 +1,5 @@
 #include "semantic_duel_runtime.h"
+#include "g1_semantic_action_table.h"
 #include "sonic_motion_composer_libm_candidate.h"
 
 #include <errno.h>
@@ -20,6 +21,10 @@ typedef struct TestProbeContext {
     int fail_forgiveness;
     size_t matcher_calls;
 } TestProbeContext;
+
+enum {
+    TEST_UNIQUE_CLIP_COUNT = 21,
+};
 
 static int checks = 0;
 
@@ -91,34 +96,42 @@ static void free_storage(TestClipStorage* storage, size_t count) {
 static int load_assets(
         const char* asset_dir,
         const RekG1NativeMotionRouteTable* routes,
-        TestClipStorage storage[8],
+        TestClipStorage storage[TEST_UNIQUE_CLIP_COUNT],
         RekG1SemanticDuelRouteAsset assets[REK_G1_STATIC_ROUTE_COUNT]) {
-    const int32_t ids[8] = {370, 371, 372, 375, 377, 380, 388, 392};
-    const size_t frames[8] = {36, 146, 159, 47, 39, 140, 35, 158};
     char path[1024];
-    for (size_t index = 0; index < 8; index++) {
-        storage[index].npz_path_id = ids[index];
-        storage[index].frames = frames[index];
-        if (!make_path(path, sizeof(path), asset_dir, ids[index],
+    size_t storage_count = 0u;
+    for (size_t route_index = 0u; route_index < routes->count; route_index++) {
+        const RekG1NativeMotionRoute* route = &routes->routes[route_index];
+        if (storage_by_npz(storage, storage_count, route->npz_path_id) != NULL) {
+            continue;
+        }
+        if (storage_count >= TEST_UNIQUE_CLIP_COUNT) return 0;
+        TestClipStorage* clip = &storage[storage_count++];
+        clip->npz_path_id = route->npz_path_id;
+        clip->frames = route->asset_frames;
+        if (!make_path(path, sizeof(path), asset_dir, clip->npz_path_id,
                 "dof_position")) return 0;
-        storage[index].dof = read_f32(
-            path, frames[index] * GEAR_SONIC_ACTION_DIM);
-        if (!make_path(path, sizeof(path), asset_dir, ids[index],
+        clip->dof = read_f32(
+            path, clip->frames * GEAR_SONIC_ACTION_DIM);
+        if (!make_path(path, sizeof(path), asset_dir, clip->npz_path_id,
                 "root_position")) return 0;
-        storage[index].root_position = read_f32(path, frames[index] * 3u);
-        if (!make_path(path, sizeof(path), asset_dir, ids[index],
+        clip->root_position = read_f32(path, clip->frames * 3u);
+        if (!make_path(path, sizeof(path), asset_dir, clip->npz_path_id,
                 "root_rotation_wxyz")) return 0;
-        storage[index].root_wxyz = read_f32(path, frames[index] * 4u);
-        if (!make_path(path, sizeof(path), asset_dir, ids[index],
+        clip->root_wxyz = read_f32(path, clip->frames * 4u);
+        if (!make_path(path, sizeof(path), asset_dir, clip->npz_path_id,
                 "root_rotation_xyzw")) return 0;
-        storage[index].root_xyzw = read_f32(path, frames[index] * 4u);
-        if (storage[index].dof == NULL || storage[index].root_position == NULL
-                || storage[index].root_wxyz == NULL
-                || storage[index].root_xyzw == NULL) return 0;
+        clip->root_xyzw = read_f32(path, clip->frames * 4u);
+        if (clip->dof == NULL || clip->root_position == NULL
+                || clip->root_wxyz == NULL || clip->root_xyzw == NULL) {
+            return 0;
+        }
     }
+    if (storage_count != TEST_UNIQUE_CLIP_COUNT) return 0;
     for (size_t index = 0; index < routes->count; index++) {
         const RekG1NativeMotionRoute* route = &routes->routes[index];
-        TestClipStorage* clip = storage_by_npz(storage, 8, route->npz_path_id);
+        TestClipStorage* clip = storage_by_npz(
+            storage, storage_count, route->npz_path_id);
         if (clip == NULL || clip->frames != route->asset_frames) return 0;
         assets[index] = (RekG1SemanticDuelRouteAsset){
             .route_id = route->id,
@@ -132,8 +145,11 @@ static int load_assets(
             },
             /* Test fixture only. This value is not a REK timing measurement. */
             .configured_compositor_duration_ticks =
-                route->kind == REK_G1_NATIVE_ROUTE_KICK
-                    ? (uint32_t)(clip->frames - 1u) : 0u,
+                route->kind == REK_G1_NATIVE_ROUTE_DISCRETE_MOVE
+                    ? (uint32_t)ceilf(
+                        (float)(clip->frames - 1u) /
+                        fabsf(route->playback_speed))
+                    : 0u,
         };
     }
     return 1;
@@ -171,9 +187,9 @@ static int test_forgiveness(
 }
 
 static int make_action_table(
-        RekG1PufferCategory categories[20],
-        uint16_t kick_indices[4],
-        uint32_t kick_durations[4],
+        RekG1PufferCategory categories[REK_G1_SEMANTIC_ACTION_COUNT],
+        uint16_t move_indices[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT],
+        uint32_t move_durations[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT],
         const RekG1SemanticDuelRouteAsset assets[REK_G1_STATIC_ROUTE_COUNT],
         RekG1PufferActionTable* table) {
     static const uint8_t held_masks[15] = {
@@ -193,7 +209,12 @@ static int make_action_table(
         REK_G1_HELD_STRAFE_RIGHT | REK_G1_HELD_YAW_LEFT,
         REK_G1_HELD_STRAFE_RIGHT | REK_G1_HELD_YAW_RIGHT,
     };
-    memset(categories, 0, 20u * sizeof(*categories));
+    static const uint16_t registry_order[
+            REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {
+        6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16,
+    };
+    memset(
+        categories, 0, REK_G1_SEMANTIC_ACTION_COUNT * sizeof(*categories));
     categories[0].kind = REK_G1_PUFFER_CONTINUE;
     for (size_t index = 0; index < 15; index++) {
         uint8_t held_code = 0;
@@ -207,31 +228,36 @@ static int make_action_table(
                 .kind = REK_G1_SEMANTIC_LOCOMOTION,
                 .held_code = held_code,
                 .duration_ticks = 3u,
-                .kick_registry_index = REK_G1_SEMANTIC_KICK_NONE,
+                .move_registry_index = REK_G1_SEMANTIC_MOVE_NONE,
             },
         };
     }
-    for (size_t index = 0; index < 4; index++) {
-        const size_t route_index = REK_G1_NATIVE_KICK_MOVE_6_LEFT_SIDE + index;
-        kick_indices[index] = (uint16_t)(6u + index);
-        kick_durations[index] =
-            assets[route_index].configured_compositor_duration_ticks;
+    for (size_t index = 0;
+            index < REK_G1_REQUIRED_DISCRETE_MOVE_COUNT; index++) {
+        const uint16_t move_index = registry_order[index];
+        const RekG1NativeMotionRoute* route =
+            rek_g1_native_discrete_move_route(
+                rek_g1_native_static_motion_routes(), move_index);
+        if (route == NULL) return 0;
+        move_indices[index] = move_index;
+        move_durations[index] =
+            assets[(size_t)route->id].configured_compositor_duration_ticks;
         categories[16u + index] = (RekG1PufferCategory){
             .kind = REK_G1_PUFFER_START,
             .command = {
-                .kind = REK_G1_SEMANTIC_KICK,
+                .kind = REK_G1_SEMANTIC_DISCRETE_MOVE,
                 .held_code = 0u,
-                .duration_ticks = kick_durations[index],
-                .kick_registry_index = (uint16_t)index,
+                .duration_ticks = move_durations[index],
+                .move_registry_index = (uint16_t)index,
             },
         };
     }
     *table = (RekG1PufferActionTable){
         .categories = categories,
-        .count = 20u,
-        .kick_move_indices = kick_indices,
-        .kick_duration_ticks = kick_durations,
-        .kick_registry_count = 4u,
+        .count = REK_G1_SEMANTIC_ACTION_COUNT,
+        .move_indices = move_indices,
+        .move_duration_ticks = move_durations,
+        .move_registry_count = REK_G1_REQUIRED_DISCRETE_MOVE_COUNT,
     };
     return rek_g1_puffer_validate_table(table) == REK_G1_PUFFER_OK;
 }
@@ -248,12 +274,12 @@ static RekG1SemanticTick locomotion_tick(uint8_t held) {
             1,
             0),
         .kind = REK_G1_SEMANTIC_LOCOMOTION,
-        .kick_registry_index = REK_G1_SEMANTIC_KICK_NONE,
+        .move_registry_index = REK_G1_SEMANTIC_MOVE_NONE,
         .command_started = 1u,
     };
 }
 
-static RekG1SemanticTick kick_tick(
+static RekG1SemanticTick move_tick(
         uint16_t registry_index,
         int first,
         int complete,
@@ -266,13 +292,13 @@ static RekG1SemanticTick kick_tick(
                 ? REK_G1_ATTACK_ACCEPTED_PREEMPT_YAW
                 : REK_G1_ATTACK_NOT_REQUESTED,
         },
-        .kind = REK_G1_SEMANTIC_KICK,
-        .kick_registry_index = registry_index,
+        .kind = REK_G1_SEMANTIC_DISCRETE_MOVE,
+        .move_registry_index = registry_index,
         .remaining_ticks = remaining_ticks,
         .command_started = (uint8_t)first,
         .segment_complete = (uint8_t)complete,
-        .kick_start_edge = (uint8_t)first,
-        .kick_active = 1u,
+        .move_start_edge = (uint8_t)first,
+        .move_active = 1u,
     };
 }
 
@@ -329,7 +355,7 @@ static int run_test(
         const char* decoder,
         const char* multi_encoder,
         const char* multi_decoder) {
-    CHECK(REK_G1_SEMANTIC_DUEL_SCHEMA_VERSION == 3u);
+    CHECK(REK_G1_SEMANTIC_DUEL_SCHEMA_VERSION == 4u);
     CHECK(REK_G1_SEMANTIC_DUEL_FALL_OBSERVATION_FLOATS == 15);
     CHECK(REK_G1_SEMANTIC_DUEL_ENTITY_OBSERVATION_FLOATS == 86);
     CHECK(REK_G1_SEMANTIC_DUEL_FIGHT_OBSERVATION_FLOATS == 39);
@@ -339,11 +365,14 @@ static int run_test(
     const RekG1NativeMotionRouteTable* routes =
         rek_g1_native_static_motion_routes();
     CHECK(rek_g1_native_validate_static_motion_routes(routes));
+    CHECK(rek_g1_validate_strike_catalog(
+        rek_g1_current_build_strike_catalog()));
 
-    TestClipStorage storage[8] = {0};
+    TestClipStorage storage[TEST_UNIQUE_CLIP_COUNT] = {0};
     RekG1SemanticDuelRouteAsset assets[REK_G1_STATIC_ROUTE_COUNT] = {0};
     CHECK(load_assets(asset_dir, routes, storage, assets));
-    TestClipStorage* idle = storage_by_npz(storage, 8, 377);
+    TestClipStorage* idle = storage_by_npz(
+        storage, TEST_UNIQUE_CLIP_COUNT, 377);
     CHECK(idle != NULL);
 
     char model_path[1024];
@@ -490,12 +519,12 @@ static int run_test(
     CHECK(runtime.initialized && !runtime.failed);
     CHECK(runtime.entity_observations == observations_before_reopen);
 
-    RekG1PufferCategory categories[20];
-    uint16_t kick_indices[4];
-    uint32_t kick_durations[4];
+    RekG1PufferCategory categories[REK_G1_SEMANTIC_ACTION_COUNT];
+    uint16_t move_indices[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
+    uint32_t move_durations[REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
     RekG1PufferActionTable table = {0};
     CHECK(make_action_table(
-        categories, kick_indices, kick_durations, assets, &table));
+        categories, move_indices, move_durations, assets, &table));
 
     RekG1RuntimeFacts facts[2] = {0};
     RekG1SemanticDuelObservation observations[2] = {0};
@@ -551,9 +580,40 @@ static int run_test(
         &observations[1].self,
         sizeof(observations[0].opponent)) == 0);
 
+    /* Every registry entry must start its exact pinned native route. */
+    for (uint16_t registry_index = 0u;
+            registry_index < table.move_registry_count; registry_index++) {
+        const uint16_t runtime_move_index =
+            table.move_indices[registry_index];
+        const RekG1NativeMotionRoute* expected_route =
+            rek_g1_native_discrete_move_route(routes, runtime_move_index);
+        CHECK(expected_route != NULL);
+        const RekG1SemanticTick move_semantics[2] = {
+            move_tick(
+                registry_index,
+                1,
+                0,
+                move_durations[registry_index] - 1u),
+            locomotion_tick(0u),
+        };
+        CHECK(rek_g1_semantic_duel_advance_batch(
+            &runtime, routes, &table, move_semantics, 2u, facts,
+            observations, sizeof(observations[0]), rewards, terminals,
+            error, sizeof(error)));
+        CHECK(runtime.active_route_ids[0] == expected_route->id);
+        CHECK(runtime.composers[0].action_playing);
+        CHECK(runtime.composers[0].current_layer.clip.frame_count
+            == expected_route->asset_frames);
+        CHECK(rek_g1_semantic_duel_reset_batch(
+            &runtime, routes, &table, 2u, facts,
+            observations, sizeof(observations[0]), rewards, terminals,
+            error, sizeof(error)));
+    }
+
     /*
      * The attack gate is translation-specific. A held Q or E turn remains
-     * preemptible by a kick without an intervening neutral tick. A combined
+         * preemptible by a discrete move without an intervening neutral tick.
+         * A combined
      * W+Q command still carries translation and must keep the gate closed.
      */
     {
@@ -574,12 +634,12 @@ static int run_test(
         CHECK(facts[0].translation_transition_settled
             && facts[1].translation_transition_settled);
 
-        const RekG1SemanticTick kick_from_yaw[2] = {
-            kick_tick(3u, 1, 0, kick_durations[3] - 1u),
-            kick_tick(3u, 1, 0, kick_durations[3] - 1u),
+        const RekG1SemanticTick move_from_yaw[2] = {
+            move_tick(3u, 1, 0, move_durations[3] - 1u),
+            move_tick(3u, 1, 0, move_durations[3] - 1u),
         };
         CHECK(rek_g1_semantic_duel_advance_batch(
-            &runtime, routes, &table, kick_from_yaw, 2u, facts,
+            &runtime, routes, &table, move_from_yaw, 2u, facts,
             observations, sizeof(observations[0]), rewards, terminals,
             error, sizeof(error)));
         CHECK(runtime.active_route_ids[0]
@@ -1312,19 +1372,19 @@ static int run_test(
      * stays active and busy until the next zero-command stop update plays
      * idle. The supplied duration must align with composer completion.
      */
-    const uint32_t kick_ticks = kick_durations[0];
-    CHECK(kick_ticks == 157u);
-    for (uint32_t tick = 0; tick < kick_ticks; tick++) {
-        RekG1SemanticTick kick_semantics[2] = {
-            kick_tick(
+    const uint32_t move_ticks = move_durations[0];
+    CHECK(move_ticks == 157u);
+    for (uint32_t tick = 0; tick < move_ticks; tick++) {
+        RekG1SemanticTick move_semantics[2] = {
+            move_tick(
                 0u,
                 tick == 0u,
-                tick + 1u == kick_ticks,
-                kick_ticks - tick - 1u),
+                tick + 1u == move_ticks,
+                move_ticks - tick - 1u),
             locomotion_tick(0u),
         };
         CHECK(rek_g1_semantic_duel_advance_batch(
-            &runtime, routes, &table, kick_semantics, 2u, facts,
+            &runtime, routes, &table, move_semantics, 2u, facts,
             observations, sizeof(observations[0]), rewards, terminals,
             error, sizeof(error)));
     }
@@ -1334,12 +1394,12 @@ static int run_test(
     CHECK(facts[0].action_busy);
     CHECK(runtime.active_route_ids[0]
         == REK_G1_NATIVE_KICK_MOVE_6_LEFT_SIDE);
-    RekG1SemanticTick post_kick_idle[2] = {
+    RekG1SemanticTick post_move_idle[2] = {
         locomotion_tick(0u),
         locomotion_tick(0u),
     };
     CHECK(rek_g1_semantic_duel_advance_batch(
-        &runtime, routes, &table, post_kick_idle, 2u, facts,
+        &runtime, routes, &table, post_move_idle, 2u, facts,
         observations, sizeof(observations[0]), rewards, terminals,
         error, sizeof(error)));
     CHECK(runtime.active_route_ids[0] == REK_G1_NATIVE_IDLE);
@@ -1356,7 +1416,7 @@ static int run_test(
         rek_g1_semantic_duel_batch_ops(), &runtime)
         == REK_G1_NATIVE_PUFFER_OK);
     float actions[2] = {0.0f, 0.0f};
-    uint8_t masks[2][20] = {{0}};
+    uint8_t masks[2][REK_G1_SEMANTIC_ACTION_COUNT] = {{0}};
     RekG1NativePufferIO io = {
         .actions = actions,
         .action_rows = 2u,
@@ -1370,7 +1430,7 @@ static int run_test(
         .terminal_rows = 2u,
         .action_masks = &masks[0][0],
         .action_mask_rows = 2u,
-        .action_mask_stride_bytes = 20u,
+        .action_mask_stride_bytes = REK_G1_SEMANTIC_ACTION_COUNT,
     };
     CHECK(rek_g1_native_puffer_reset(
         &vector, io, error, sizeof(error)) == REK_G1_NATIVE_PUFFER_OK);
@@ -1397,7 +1457,8 @@ static int run_test(
         == runtime.fall_measurements[1].fall_sample.tilt_degrees);
     CHECK(observations[1].self.fall.phase
         == (float)runtime.fall_states[1].phase);
-    for (size_t category = 16u; category < 20u; category++) {
+    for (size_t category = 16u;
+            category < REK_G1_SEMANTIC_ACTION_COUNT; category++) {
         CHECK(masks[0][category] == 0u);
         CHECK(masks[1][category] == 0u);
     }
@@ -1414,7 +1475,8 @@ static int run_test(
         &vector, io, error, sizeof(error)) == REK_G1_NATIVE_PUFFER_OK);
     CHECK(duel.policy_ticks[0] == 3u && duel.policy_ticks[1] == 3u);
     CHECK(masks[0][1] == 1u && masks[1][1] == 1u);
-    for (size_t category = 16u; category < 20u; category++) {
+    for (size_t category = 16u;
+            category < REK_G1_SEMANTIC_ACTION_COUNT; category++) {
         CHECK(masks[0][category] == 0u);
         CHECK(masks[1][category] == 0u);
     }
@@ -1642,7 +1704,7 @@ static int run_test(
         gear_sonic_native_duel_close(&multi_duel);
     }
     gear_sonic_native_duel_close(&duel);
-    free_storage(storage, 8);
+    free_storage(storage, TEST_UNIQUE_CLIP_COUNT);
     return 1;
 }
 
@@ -1671,6 +1733,6 @@ int main(int argc, char** argv) {
     printf("test_forgiveness: explicit_zero_fixture_not_runtime_measurement\n");
     printf("fall_detection: build_pinned_mujoco_root_floor_contact_measurement\n");
     printf("suspension_execution: policy_and_motion_ticks_frozen\n");
-    printf("recovery_execution: provisional_can_get_up_false_count_then_two_phase_spawn_reset\n");
+    printf("recovery_execution: candidate_can_get_up_false_count_then_two_phase_spawn_reset\n");
     return 0;
 }

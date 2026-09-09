@@ -14,10 +14,10 @@ currently required so both fighters are staged before the same physics step.
 
 The binding exposes:
 
-* observation schema 3, 223 binary32 values per row;
-* one 20-category action head;
+* observation schema 4, 223 binary32 values per row;
+* one 33-category action head;
 * one binary32 reward and terminal per row;
-* a 20-byte action-validity mask per row.
+* a 33-byte action-validity mask per row.
 
 `MY_VEC_STEP` invokes one complete batch transition. The scalar `c_step` and
 `c_reset` entry points fail closed because scalar stepping cannot preserve the
@@ -27,22 +27,23 @@ shared-contact barrier. `MY_VEC_STEP_RANGE` accepts only the complete buffer.
 
 Category 0 continues the active scheduled command. Categories 1 through 15
 start neutral or a validated held W, S, A, D, Q, and E combination. Categories
-16 through 19 start runtime moves 6 through 9. The four kick durations supplied
-to the constructor are configured compositor traversal lengths. They must be
+16 through 32 start all 17 recovered runtime moves in preserved registry order:
+6, 7, 8, 9, 0 through 5, then 10 through 16. The 17 move durations supplied to
+the constructor are configured compositor traversal lengths. They must be
 positive and must match the route assets. They are not measurements of physical
-completion or attack effectiveness.
+completion, input latency, or attack effectiveness.
 
 The scheduler retains desired held input across continuation ticks. While a
-kick is active, category 0 retains desired yaw and the neutral, Q, and E
-categories update it without restarting the kick. Effective yaw remains zero
-until the kick completes; translation and kick-start categories stay masked.
+move is active, category 0 retains desired yaw and the neutral, Q, and E
+categories update it without restarting the move. Effective yaw remains zero
+until the move completes; translation and move-start categories stay masked.
 Retaining and advancing the ramp is provisional candidate behavior, not a
-recovered current REK parity fact. Adapter-table kick templates are normalized
+recovered current REK parity fact. Adapter-table move templates are normalized
 to neutral and inherit current desired Q/E at dispatch; direct semantic
 commands remain permitted to carry yaw.
 
 The idle action mask rejects starts that violate translation-settle, busy, or
-kick-preemption rules. Invalid categorical floats, partial callbacks, invalid
+move-preemption rules. Invalid categorical floats, partial callbacks, invalid
 next facts, and mask-generation failures poison the vector. Batch callbacks
 declare both the runtime-facts ABI version and `sizeof(RekG1RuntimeFacts)`; a
 stale callback is rejected before invocation. Callback rewards must be finite
@@ -78,10 +79,11 @@ Only the affected arena is reset after a terminal event.
 
 ## Fall and reset execution
 
-The selected serialized G1 prefab has no prone or supine recovery clips, but
-runtime clip injection has not been excluded. Current REK `CanGetUp` therefore
-remains unknown. The candidate provisionally selects `CanGetUp=false` and the
-3.0 s no-recovery referee branch. Under that candidate selection, a committed
+The selected serialized G1 prefab has no prone or supine recovery clips. In the
+user-observed authentic L100 session, a down awarded five points and reset both
+fighters instead of invoking a get-up. Runtime clip injection in other builds
+remains unknown. The candidate selects `CanGetUp=false` and the 3.0 s
+no-recovery referee branch. Under that candidate selection, a committed
 fall suspends policy and compositor progress while holding the last joint
 targets under exact binary32 0.1 retained gain, damping, and effort limits.
 MuJoCo physics continues, while the suspended native 50 Hz policy-evaluation
@@ -121,7 +123,7 @@ public-family candidate until current-build capture proves a stronger identity.
 The remaining acceptance work is empirical:
 
 1. collect repeated controlled REK trajectories for every held movement and
-   kick, including matched initial state and opponent timeline;
+   discrete move, including matched initial state and opponent timeline;
 2. preserve action acceptance, contact, fall, score, and reset event timing;
 3. construct the repeated-run variance envelope;
 4. replay held-out sequences through this binding;

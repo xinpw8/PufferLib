@@ -1,5 +1,6 @@
 #include "gear_sonic_native_duel.h"
 
+#include <limits.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -575,6 +576,8 @@ static int allocate_buffers(
 static int gear_sonic_native_duel_open_internal(
         GearSonicNativeDuelVector* vector,
         const char* model_path,
+        const void* model_xml_data,
+        size_t model_xml_byte_count,
         const char* encoder_path,
         const char* decoder_path,
         const void* encoder_data,
@@ -600,11 +603,13 @@ static int gear_sonic_native_duel_open_internal(
         return 0;
     }
     size_t robot_count = 0;
-    if (model_path == NULL
-            || (from_memory
-                ? encoder_data == NULL || encoder_byte_count == 0u
+    if ((from_memory
+                ? model_xml_data == NULL || model_xml_byte_count == 0u
+                    || model_xml_byte_count > (size_t)INT_MAX
+                    || encoder_data == NULL || encoder_byte_count == 0u
                     || decoder_data == NULL || decoder_byte_count == 0u
-                : encoder_path == NULL || decoder_path == NULL)
+                : model_path == NULL || encoder_path == NULL
+                    || decoder_path == NULL)
             || arena_count == 0 || physics_workers < 1
             || !checked_product(
                 arena_count, GEAR_SONIC_DUEL_FIGHTERS, &robot_count)
@@ -621,8 +626,33 @@ static int gear_sonic_native_duel_open_internal(
     vector->physics_workers = physics_workers;
     vector->fixed_motion = fixed_motion;
     char mujoco_error[1024] = {0};
-    vector->model = mj_loadXML(
-        model_path, NULL, mujoco_error, (int)sizeof(mujoco_error));
+    if (from_memory) {
+        static const char MODEL_VFS_NAME[] = "model.two_fighter_arena.xml";
+        mjVFS vfs;
+        mj_defaultVFS(&vfs);
+        const int vfs_status = mj_addBufferVFS(
+            &vfs,
+            MODEL_VFS_NAME,
+            model_xml_data,
+            (int)model_xml_byte_count);
+        if (vfs_status == 0) {
+            vector->model = mj_loadXML(
+                MODEL_VFS_NAME,
+                &vfs,
+                mujoco_error,
+                (int)sizeof(mujoco_error));
+        }
+        mj_deleteVFS(&vfs);
+        if (vfs_status != 0) {
+            set_error(error, error_capacity,
+                "load duel MuJoCo model", "add model XML to VFS failed");
+            gear_sonic_native_duel_close(vector);
+            return 0;
+        }
+    } else {
+        vector->model = mj_loadXML(
+            model_path, NULL, mujoco_error, (int)sizeof(mujoco_error));
+    }
     if (vector->model == NULL) {
         set_error(error, error_capacity, "load duel MuJoCo model", mujoco_error);
         gear_sonic_native_duel_close(vector);
@@ -680,6 +710,8 @@ int gear_sonic_native_duel_open(
     return gear_sonic_native_duel_open_internal(
         vector,
         model_path,
+        NULL,
+        0u,
         encoder_path,
         decoder_path,
         NULL,
@@ -696,7 +728,8 @@ int gear_sonic_native_duel_open(
 
 int gear_sonic_native_duel_open_from_memory(
         GearSonicNativeDuelVector* vector,
-        const char* model_path,
+        const void* model_xml_data,
+        size_t model_xml_byte_count,
         const void* encoder_data,
         size_t encoder_byte_count,
         const void* decoder_data,
@@ -708,7 +741,9 @@ int gear_sonic_native_duel_open_from_memory(
         size_t error_capacity) {
     return gear_sonic_native_duel_open_internal(
         vector,
-        model_path,
+        NULL,
+        model_xml_data,
+        model_xml_byte_count,
         NULL,
         NULL,
         encoder_data,

@@ -6,12 +6,15 @@
 #include "semantic_duel_runtime.h"
 
 #define REK_G1_SEMANTIC_ASSET_MANIFEST_SHA256 \
-    "b305abade35ffc01ccf284a5d81d88fa9c2bcd0204d8e7b98b5778289197e0b6"
+    "8cb82c0e96b8f4c1fba642bc740ab81fe1d4b43f70a756f3e56eefab4d1e16d4"
 
 enum {
-    REK_G1_SEMANTIC_UNIQUE_CLIP_COUNT = 8,
+    REK_G1_SEMANTIC_UNIQUE_CLIP_COUNT = 21,
     REK_G1_SEMANTIC_ASSET_PATH_CAPACITY = 4096,
 };
+
+extern const uint32_t REK_G1_PINNED_COMPOSITOR_MOVE_DURATION_TICKS[
+    REK_G1_REQUIRED_DISCRETE_MOVE_COUNT];
 
 typedef enum RekG1SemanticAssetsStatus {
     REK_G1_SEMANTIC_ASSETS_OK = 0,
@@ -41,6 +44,8 @@ typedef struct RekG1SemanticClipStorage {
 typedef struct RekG1SemanticAssets {
     char root[REK_G1_SEMANTIC_ASSET_PATH_CAPACITY];
     char model_path[REK_G1_SEMANTIC_ASSET_PATH_CAPACITY];
+    unsigned char* model_xml_data;
+    size_t model_xml_byte_count;
     RekG1SemanticClipStorage clips[REK_G1_SEMANTIC_UNIQUE_CLIP_COUNT];
     float* idle_root_position_m;
     float* idle_root_rotation_xyzw;
@@ -53,16 +58,17 @@ const char* rek_g1_semantic_assets_status_string(
     RekG1SemanticAssetsStatus status);
 
 /*
- * configured_compositor_kick_duration_ticks is indexed by runtime move id
- * minus six. The loader requires four nonzero traversal lengths and never
- * derives one from NPZ frame count. These values describe scheduler and
- * compositor traversal, not measured physical completion.
+ * configured_compositor_move_duration_ticks is indexed by runtime move id
+ * 0..16. The loader requires exact equality to the compiled 17-value pinned
+ * traversal vector and never derives one from NPZ frame count. These values
+ * describe scheduler and compositor traversal, not measured physical
+ * completion.
  */
 RekG1SemanticAssetsStatus rek_g1_semantic_assets_load(
     RekG1SemanticAssets* assets,
     const char* root,
-    const uint32_t configured_compositor_kick_duration_ticks[
-        REK_G1_REQUIRED_KICK_COUNT],
+    const uint32_t configured_compositor_move_duration_ticks[
+        REK_G1_REQUIRED_DISCRETE_MOVE_COUNT],
     char* error,
     size_t error_capacity);
 
