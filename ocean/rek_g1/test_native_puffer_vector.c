@@ -222,13 +222,13 @@ static RekG1PufferActionTable make_table(
     }
     for (uint16_t kick = 0; kick < REK_G1_REQUIRED_KICK_COUNT; kick++) {
         kick_indices[kick] = (uint16_t)(6 + kick);
-        kick_durations[kick] = 2;
+        kick_durations[kick] = 6;
         categories[16 + kick] = (RekG1PufferCategory){
             .kind = REK_G1_PUFFER_START,
             .command = {
                 .kind = REK_G1_SEMANTIC_KICK,
                 .held_code = held_code(0),
-                .duration_ticks = 2,
+                .duration_ticks = 6,
                 .kick_registry_index = kick,
             },
         };
@@ -469,6 +469,57 @@ static void test_batch_boundary_and_held_state(void) {
             "kick_registry_order_reaches_batch_runtime");
         require(runtime.captured[index].kick_start_edge,
             "kick_start_edge_reaches_batch_runtime");
+        require(mask_count(masks[index]) == 4 && masks[index][0] &&
+                masks[index][1] && masks[index][6] && masks[index][7],
+            "active_kick_mask_exposes_continue_neutral_q_e");
+    }
+
+    actions[0] = 6.0f;
+    actions[1] = 7.0f;
+    actions[2] = 1.0f;
+    require(rek_g1_native_puffer_step(
+        &vector, io, error, sizeof(error)) == REK_G1_NATIVE_PUFFER_OK,
+        "active_kick_batch_accepts_q_e_neutral_updates");
+    require(runtime.advance_calls == 4,
+        "active_kick_input_update_is_one_batch_advance");
+    require(runtime.captured[0].input.held == REK_G1_HELD_YAW_LEFT &&
+            runtime.captured[0].input.pressed_edges == REK_G1_HELD_YAW_LEFT,
+        "active_kick_row_zero_presses_q");
+    require(runtime.captured[1].input.held == REK_G1_HELD_YAW_RIGHT &&
+            runtime.captured[1].input.pressed_edges == REK_G1_HELD_YAW_RIGHT,
+        "active_kick_row_one_presses_e");
+    require(runtime.captured[2].input.held == 0u &&
+            runtime.captured[2].input.pressed_edges == 0u,
+        "active_kick_row_two_remains_neutral");
+    for (uint16_t index = 0; index < TEST_ENVS; index++) {
+        require(runtime.captured[index].kind == REK_G1_SEMANTIC_KICK &&
+                runtime.captured[index].kick_registry_index == index &&
+                !runtime.captured[index].kick_start_edge &&
+                runtime.captured[index].remaining_ticks == 4u &&
+                runtime.captured[index].input.yaw == 0.0f,
+            "active_kick_update_preserves_identity_duration_and_yaw_suppression");
+    }
+
+    actions[0] = 0.0f;
+    actions[1] = 1.0f;
+    actions[2] = 7.0f;
+    require(rek_g1_native_puffer_step(
+        &vector, io, error, sizeof(error)) == REK_G1_NATIVE_PUFFER_OK,
+        "active_kick_batch_retains_releases_and_presses_yaw");
+    require(runtime.captured[0].input.held == REK_G1_HELD_YAW_LEFT &&
+            runtime.captured[0].input.pressed_edges == 0u &&
+            runtime.captured[0].input.released_edges == 0u,
+        "active_kick_continue_retains_q");
+    require(runtime.captured[1].input.held == 0u &&
+            runtime.captured[1].input.released_edges == REK_G1_HELD_YAW_RIGHT,
+        "active_kick_neutral_releases_e");
+    require(runtime.captured[2].input.held == REK_G1_HELD_YAW_RIGHT &&
+            runtime.captured[2].input.pressed_edges == REK_G1_HELD_YAW_RIGHT,
+        "active_kick_e_update_is_row_local");
+    for (uint16_t index = 0; index < TEST_ENVS; index++) {
+        require(runtime.captured[index].remaining_ticks == 3u &&
+                runtime.captured[index].input.yaw == 0.0f,
+            "second_active_kick_update_advances_once_and_stays_suppressed");
     }
 
     rek_g1_native_puffer_close(&vector);

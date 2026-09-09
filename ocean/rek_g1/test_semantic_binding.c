@@ -121,7 +121,7 @@ static void build_table(
             .kind = REK_G1_PUFFER_START,
             .command = {
                 .kind = REK_G1_SEMANTIC_KICK,
-                .held_code = held_code(kick == 0 ? REK_G1_HELD_YAW_LEFT : 0),
+                .held_code = held_code(0),
                 .duration_ticks = kick_duration_ticks[kick],
                 .kick_registry_index = kick,
             },
@@ -326,16 +326,84 @@ int main(void) {
     require_idle_mask(mask);
     runtime.facts.input_reset = 0;
 
-    step = step_category(&binding, 16.0f);
+    step = step_category(&binding, 6.0f);
+    require(step.status == REK_G1_BINDING_OK &&
+            runtime.last_semantic.input.held == REK_G1_HELD_YAW_LEFT &&
+            fabsf(runtime.last_semantic.input.yaw - 0.04f) < 1.0e-6f,
+        "pre_kick_q_ramp_starts");
+    step = step_category(&binding, 0.0f);
+    require(step.status == REK_G1_BINDING_OK &&
+            step.puffer.semantic.segment_complete &&
+            fabsf(runtime.last_semantic.input.yaw - 0.08f) < 1.0e-6f,
+        "pre_kick_q_ramp_advances");
+
+    step = step_category(&binding, 19.0f);
     require(step.status == REK_G1_BINDING_OK,
         "kick_category_dispatched");
     require(runtime.last_semantic.kick_start_edge &&
+            runtime.last_semantic.kick_registry_index == 3u &&
+            runtime.last_semantic.input.held == REK_G1_HELD_YAW_LEFT &&
+            runtime.last_semantic.input.desired_yaw == 1 &&
+            fabsf(runtime.last_semantic.input.yaw_ramp - 0.12f) < 1.0e-6f &&
             runtime.last_semantic.input.yaw == 0.0f,
         "runtime_received_preempted_kick_semantics");
     require(runtime.semantic_output_probes[0] == 1000.0f,
         "kick_output_probe_uses_semantic_edge");
-    require(mask[0] == 1 && mask[16] == 0,
-        "kick_forces_continue_mask");
+    for (int category = 0;
+            category < REK_G1_PUFFER_MIN_CATEGORIES;
+            category++) {
+        const int expected = category == 0 || category == 1 ||
+            category == 6 || category == 7;
+        require(mask[category] == expected,
+            "kick_exposes_only_continue_neutral_q_e");
+    }
+
+    step = step_category(&binding, 0.0f);
+    require(step.status == REK_G1_BINDING_OK &&
+            !runtime.last_semantic.kick_start_edge &&
+            runtime.last_semantic.kick_registry_index == 3u &&
+            runtime.last_semantic.remaining_ticks == 3u &&
+            runtime.last_semantic.input.pressed_edges == 0u &&
+            runtime.last_semantic.input.released_edges == 0u &&
+            fabsf(runtime.last_semantic.input.yaw_ramp - 0.16f) < 1.0e-6f &&
+            runtime.last_semantic.input.yaw == 0.0f,
+        "binding_continue_retains_suppressed_q");
+    step = step_category(&binding, 1.0f);
+    require(step.status == REK_G1_BINDING_OK &&
+            runtime.last_semantic.kick_registry_index == 3u &&
+            runtime.last_semantic.remaining_ticks == 2u &&
+            runtime.last_semantic.input.held == 0u &&
+            runtime.last_semantic.input.released_edges ==
+                REK_G1_HELD_YAW_LEFT &&
+            runtime.last_semantic.input.yaw_ramp == 0.0f,
+        "binding_neutral_updates_active_kick");
+    step = step_category(&binding, 7.0f);
+    require(step.status == REK_G1_BINDING_OK &&
+            runtime.last_semantic.kick_registry_index == 3u &&
+            runtime.last_semantic.remaining_ticks == 1u &&
+            runtime.last_semantic.input.held == REK_G1_HELD_YAW_RIGHT &&
+            runtime.last_semantic.input.pressed_edges ==
+                REK_G1_HELD_YAW_RIGHT &&
+            runtime.last_semantic.input.yaw == 0.0f,
+        "binding_e_updates_active_kick");
+    step = step_category(&binding, 6.0f);
+    require(step.status == REK_G1_BINDING_OK &&
+            step.puffer.semantic.segment_complete &&
+            runtime.last_semantic.kick_registry_index == 3u &&
+            runtime.last_semantic.input.held == REK_G1_HELD_YAW_LEFT &&
+            runtime.last_semantic.input.pressed_edges ==
+                REK_G1_HELD_YAW_LEFT &&
+            runtime.last_semantic.input.released_edges ==
+                REK_G1_HELD_YAW_RIGHT &&
+            fabsf(runtime.last_semantic.input.yaw_ramp - 0.04f) < 1.0e-6f &&
+            runtime.last_semantic.input.yaw == 0.0f,
+        "binding_q_reversal_completes_same_kick");
+    step = step_category(&binding, 6.0f);
+    require(step.status == REK_G1_BINDING_OK &&
+            runtime.last_semantic.input.pressed_edges == 0u &&
+            runtime.last_semantic.input.released_edges == 0u &&
+            fabsf(runtime.last_semantic.input.yaw - 0.08f) < 1.0e-6f,
+        "binding_q_resumes_after_kick_without_false_edge");
 
     int calls_before_invalid = runtime.advance_calls;
     float probes_before_invalid[FAKE_OUTPUT_PROBES];

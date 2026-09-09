@@ -43,6 +43,29 @@ static int has_locomotion_held_code(
     return 0;
 }
 
+static int yaw_only_locomotion_held_code(
+        const RekG1PufferActionTable* table,
+        uint32_t category,
+        uint8_t* held_code_out) {
+    if (table == 0 || table->categories == 0 || category == 0 ||
+            category >= table->count || held_code_out == 0) {
+        return 0;
+    }
+    const RekG1PufferCategory* selected = &table->categories[category];
+    if (selected->kind != REK_G1_PUFFER_START ||
+            selected->command.kind != REK_G1_SEMANTIC_LOCOMOTION) {
+        return 0;
+    }
+    uint8_t held = 0;
+    if (rek_g1_semantic_decode_held(selected->command.held_code, &held) !=
+            REK_G1_SEMANTIC_OK ||
+            (held & (uint8_t)~REK_G1_HELD_YAW_MASK) != 0) {
+        return 0;
+    }
+    *held_code_out = selected->command.held_code;
+    return 1;
+}
+
 static int has_kick_registry_index(
         const RekG1PufferActionTable* table,
         uint16_t kick_registry_index) {
@@ -108,6 +131,14 @@ RekG1PufferStatus rek_g1_puffer_validate_table(
                     category->command.kick_registry_index]) {
             return REK_G1_PUFFER_TABLE_KICK_DURATION_INVALID;
         }
+        if (category->command.kind == REK_G1_SEMANTIC_KICK) {
+            uint8_t template_held = 0;
+            if (rek_g1_semantic_decode_held(
+                    category->command.held_code, &template_held) !=
+                    REK_G1_SEMANTIC_OK || template_held != 0) {
+                return REK_G1_PUFFER_TABLE_START_INVALID;
+            }
+        }
         for (uint32_t prior = 1; prior < index; prior++) {
             if (commands_equal(
                     category->command,
@@ -155,7 +186,14 @@ int rek_g1_puffer_category_legal(
         return 0;
     }
     if (adapter->scheduler.active) {
-        return category == 0;
+        if (category == 0) return 1;
+        if (adapter->scheduler.command.kind != REK_G1_SEMANTIC_KICK ||
+                !adapter->scheduler.kick_accepted) {
+            return 0;
+        }
+        uint8_t held_code = 0;
+        return yaw_only_locomotion_held_code(
+            table, category, &held_code);
     }
     if (category == 0) return 0;
 
@@ -235,10 +273,39 @@ RekG1PufferStep rek_g1_puffer_step(
         return result;
     }
 
-    if (result.category != 0) {
+    uint8_t active_kick_held_code = 0;
+    int active_kick_input_update =
+        adapter->scheduler.active &&
+        adapter->scheduler.command.kind == REK_G1_SEMANTIC_KICK &&
+        adapter->scheduler.kick_accepted &&
+        yaw_only_locomotion_held_code(
+            table, result.category, &active_kick_held_code);
+    if (active_kick_input_update) {
+        // Neutral/Q/E categories update desired keyboard state on this tick.
+        // The active kick's registry identity, cursor, and remaining duration
+        // are unchanged and the semantic tick still advances exactly once.
+        adapter->scheduler.command.held_code = active_kick_held_code;
+    } else if (result.category != 0) {
+        RekG1SemanticCommand command =
+            table->categories[result.category].command;
+        if (command.kind == REK_G1_SEMANTIC_KICK) {
+            // A kick suppresses effective yaw, but it does not release a Q/E
+            // key that was already held. Carry the adapter's desired yaw into
+            // the finite kick segment so its ramp continues while suppressed
+            // and resumes without a false release after the segment.
+            uint8_t held_code = 0;
+            uint8_t held_yaw = adapter->scheduler.input_state.held &
+                REK_G1_HELD_YAW_MASK;
+            if (rek_g1_semantic_encode_held(held_yaw, &held_code) !=
+                    REK_G1_SEMANTIC_OK) {
+                result.status = REK_G1_PUFFER_PROTOCOL_ERROR;
+                return result;
+            }
+            command.held_code = held_code;
+        }
         RekG1SemanticStatus start_status = rek_g1_semantic_start(
             &adapter->scheduler,
-            table->categories[result.category].command,
+            command,
             table->kick_registry_count);
         if (start_status != REK_G1_SEMANTIC_OK) {
             result.status = REK_G1_PUFFER_PROTOCOL_ERROR;

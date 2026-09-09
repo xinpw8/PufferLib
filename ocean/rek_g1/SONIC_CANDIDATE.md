@@ -122,9 +122,11 @@ It replaces `--motion-role` and `--steps`.
 
 Kinds use the C enum values: `0` for locomotion and `1` for kick. Locomotion
 uses the `UINT16_MAX` kick sentinel `65535`. A kick held code may contain yaw
-and cannot contain translation. The envelope supplies the motion-role binding.
-That binding is recorded as caller supplied because the available evidence
-does not recover REK runtime clip selection.
+and cannot contain translation. This is the direct semantic segment envelope.
+Puffer adapter-table kick templates are instead normalized to neutral and
+inherit the adapter's current desired yaw when dispatched. The envelope
+supplies the motion-role binding. That binding is recorded as caller supplied
+because the available evidence does not recover REK runtime clip selection.
 
 ## Explicit derivations and remaining gaps
 

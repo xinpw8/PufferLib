@@ -1351,12 +1351,84 @@ static int transition_gate_open(
         const RekG1NativeLocomotionState* state,
         uint8_t* gate_open) {
     if (runtime == NULL || state == NULL || gate_open == NULL) return 0;
-    if (state->locomotion_active || state->transition_settling
-            || state->stop_braking) {
+
+    /*
+     * This fact gates attacks on translation, not on yaw-only locomotion.
+     * Classify every retained route and its matching velocity state so corrupt
+     * or internally inconsistent state cannot accidentally open the gate.
+     */
+    const RekG1NativeMotionRoute* current_route =
+        rek_g1_native_route_by_id(
+            runtime->motion_routes, state->current_route_id);
+    const RekG1NativeMotionRoute* transition_route =
+        rek_g1_native_route_by_id(
+            runtime->motion_routes, state->transition_from_route_id);
+    const RekG1NativeMotionRoute* momentum_route =
+        rek_g1_native_route_by_id(
+            runtime->motion_routes, state->momentum_route_id);
+    if (current_route == NULL || transition_route == NULL
+            || momentum_route == NULL
+            || current_route->kind > REK_G1_NATIVE_ROUTE_TURN
+            || transition_route->kind > REK_G1_NATIVE_ROUTE_TURN
+            || momentum_route->kind > REK_G1_NATIVE_ROUTE_TURN
+            || state->locomotion_active > 1u
+            || state->transition_settling > 1u
+            || state->stop_braking > 1u
+            || state->has_momentum > 1u
+            || !isfinite(state->last_driven_command.forward)
+            || !isfinite(state->last_driven_command.strafe)
+            || !isfinite(state->last_driven_command.yaw)
+            || !isfinite(state->stop_brake_command.forward)
+            || !isfinite(state->stop_brake_command.strafe)
+            || !isfinite(state->stop_brake_command.yaw)
+            || (state->locomotion_active && state->transition_settling)
+            || (state->locomotion_active && state->has_momentum)
+            || (state->transition_settling && state->has_momentum)
+            || (state->transition_settling && state->stop_braking)
+            || (state->locomotion_active
+                && current_route->kind != REK_G1_NATIVE_ROUTE_TRANSLATION
+                && current_route->kind != REK_G1_NATIVE_ROUTE_TURN)
+            || (state->transition_settling
+                && transition_route->kind != REK_G1_NATIVE_ROUTE_TRANSLATION
+                && transition_route->kind != REK_G1_NATIVE_ROUTE_TURN)
+            || (state->has_momentum
+                && momentum_route->kind != REK_G1_NATIVE_ROUTE_TRANSLATION
+                && momentum_route->kind != REK_G1_NATIVE_ROUTE_TURN)
+            || (state->stop_braking
+                && current_route->kind != REK_G1_NATIVE_ROUTE_TRANSLATION
+                && current_route->kind != REK_G1_NATIVE_ROUTE_TURN)) {
+        return 0;
+    }
+
+    const uint8_t last_driven_has_translation =
+        fabsf(state->last_driven_command.forward)
+                >= REK_G1_NATIVE_COMMAND_EPSILON
+            || fabsf(state->last_driven_command.strafe)
+                >= REK_G1_NATIVE_COMMAND_EPSILON;
+    const uint8_t stop_brake_has_translation =
+        fabsf(state->stop_brake_command.forward)
+                >= REK_G1_NATIVE_COMMAND_EPSILON
+            || fabsf(state->stop_brake_command.strafe)
+                >= REK_G1_NATIVE_COMMAND_EPSILON;
+
+    if ((state->locomotion_active
+            && (current_route->kind == REK_G1_NATIVE_ROUTE_TRANSLATION
+                || last_driven_has_translation))
+            || (state->transition_settling
+                && (transition_route->kind
+                        == REK_G1_NATIVE_ROUTE_TRANSLATION
+                    || last_driven_has_translation))
+            || (state->stop_braking
+                && (current_route->kind == REK_G1_NATIVE_ROUTE_TRANSLATION
+                    || stop_brake_has_translation))) {
         *gate_open = 0u;
         return 1;
     }
     if (!state->has_momentum) {
+        *gate_open = 1u;
+        return 1;
+    }
+    if (momentum_route->kind == REK_G1_NATIVE_ROUTE_TURN) {
         *gate_open = 1u;
         return 1;
     }

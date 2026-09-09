@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "puffer_action_adapter.h"
 
@@ -46,10 +47,10 @@ int main(void) {
     const uint16_t kick_move_indices[] = {6, 7, 8, 9};
     const uint32_t kick_duration_ticks[] = {3, 4, 5, 6};
     const uint8_t kick_held_masks[] = {
-        REK_G1_HELD_YAW_RIGHT,
         0,
-        REK_G1_HELD_YAW_LEFT,
-        REK_G1_HELD_YAW_RIGHT,
+        0,
+        0,
+        0,
     };
     enum {
         LOCOMOTION_COUNT = sizeof(locomotion_masks) / sizeof(locomotion_masks[0]),
@@ -193,10 +194,177 @@ int main(void) {
         require(step.status == REK_G1_PUFFER_OK && step.semantic.kick_active,
             "continue_advances_accepted_kick");
         require(step.semantic.input.yaw == 0 &&
-            step.semantic.input.yaw_suppressed_for_attack,
-            "kick_preempts_yaw_for_every_duration_tick");
+            !step.semantic.input.yaw_suppressed_for_attack,
+            "neutral_kick_keeps_effective_yaw_zero");
     }
     require(step.semantic.segment_complete, "kick_exact_duration_complete");
+
+    const RekG1InputTiming ramp_timing = {
+        .elapsed_seconds = 0.02f,
+        .yaw_ramp_seconds = 0.10f,
+    };
+    for (uint16_t kick = 0; kick < REK_G1_REQUIRED_KICK_COUNT; kick++) {
+        rek_g1_puffer_reset(&adapter);
+        const uint8_t desired_held = (kick & 1u) ?
+            REK_G1_HELD_YAW_RIGHT : REK_G1_HELD_YAW_LEFT;
+        const uint32_t yaw_category = (kick & 1u) ? 8u : 7u;
+        const float expected_sign = (kick & 1u) ? -1.0f : 1.0f;
+
+        step = rek_g1_puffer_step(
+            &adapter, (float)yaw_category, ramp_timing, 1, 0);
+        require(step.status == REK_G1_PUFFER_OK &&
+                step.semantic.input.held == desired_held &&
+                fabsf(step.semantic.input.yaw - expected_sign * 0.2f) <
+                    1.0e-6f,
+            "yaw_ramp_starts_before_kick");
+        step = rek_g1_puffer_step(&adapter, 0.0f, ramp_timing, 1, 0);
+        require(step.status == REK_G1_PUFFER_OK &&
+                step.semantic.segment_complete &&
+                fabsf(step.semantic.input.yaw - expected_sign * 0.4f) <
+                    1.0e-6f,
+            "yaw_ramp_advances_before_kick");
+
+        step = rek_g1_puffer_step(
+            &adapter, (float)(kick_category + kick), ramp_timing, 1, 0);
+        require(step.status == REK_G1_PUFFER_OK &&
+                step.semantic.kick_start_edge &&
+                step.semantic.input.held == desired_held &&
+                step.semantic.input.desired_yaw == (int8_t)expected_sign &&
+                step.semantic.input.yaw == 0.0f &&
+                step.semantic.input.yaw_suppressed_for_attack &&
+                fabsf(step.semantic.input.yaw_ramp - 0.6f) < 1.0e-6f,
+            "kick_preserves_desired_yaw_and_suppresses_effective_yaw");
+
+        float prior_ramp = step.semantic.input.yaw_ramp;
+        while (!step.semantic.segment_complete) {
+            step = rek_g1_puffer_step(&adapter, 0.0f, ramp_timing, 1, 1);
+            require(step.status == REK_G1_PUFFER_OK &&
+                    step.semantic.input.held == desired_held &&
+                    step.semantic.input.desired_yaw == (int8_t)expected_sign &&
+                    step.semantic.input.yaw == 0.0f &&
+                    step.semantic.input.yaw_suppressed_for_attack &&
+                    step.semantic.input.yaw_ramp + 1.0e-6f >= prior_ramp,
+                "kick_retains_yaw_state_and_advances_ramp");
+            prior_ramp = step.semantic.input.yaw_ramp;
+        }
+
+        step = rek_g1_puffer_step(
+            &adapter, (float)yaw_category, ramp_timing, 1, 0);
+        require(step.status == REK_G1_PUFFER_OK &&
+                step.semantic.input.held == desired_held &&
+                step.semantic.input.pressed_edges == 0 &&
+                step.semantic.input.released_edges == 0 &&
+                fabsf(step.semantic.input.yaw - expected_sign) < 1.0e-6f,
+            "held_yaw_resumes_after_kick_without_false_edge");
+    }
+
+    rek_g1_puffer_reset(&adapter);
+    step = rek_g1_puffer_step(&adapter, 7.0f, ramp_timing, 1, 0);
+    require(step.status == REK_G1_PUFFER_OK &&
+            step.semantic.input.held == REK_G1_HELD_YAW_LEFT,
+        "mid_kick_fixture_q_start");
+    step = rek_g1_puffer_step(&adapter, 0.0f, ramp_timing, 1, 0);
+    require(step.status == REK_G1_PUFFER_OK && step.semantic.segment_complete &&
+            fabsf(step.semantic.input.yaw_ramp - 0.4f) < 1.0e-6f,
+        "mid_kick_fixture_q_ramped");
+    step = rek_g1_puffer_step(
+        &adapter,
+        (float)(kick_category + REK_G1_REQUIRED_KICK_COUNT - 1u),
+        ramp_timing,
+        1,
+        0);
+    require(step.status == REK_G1_PUFFER_OK &&
+            step.semantic.kick_start_edge &&
+            step.semantic.kick_registry_index ==
+                REK_G1_REQUIRED_KICK_COUNT - 1u &&
+            step.semantic.remaining_ticks == 5u &&
+            step.semantic.input.held == REK_G1_HELD_YAW_LEFT &&
+            fabsf(step.semantic.input.yaw_ramp - 0.6f) < 1.0e-6f,
+        "mid_kick_fixture_started_without_releasing_q");
+    require(rek_g1_puffer_write_mask(
+            &adapter, 0, 1, mask, sizeof(mask)) == REK_G1_PUFFER_OK,
+        "active_kick_input_update_mask_written");
+    for (uint32_t category = 0; category < table.count; category++) {
+        const int expected = category == 0u || category == 2u ||
+            category == 7u || category == 8u;
+        require(mask[category] == expected,
+            "active_kick_mask_exposes_only_continue_neutral_q_e");
+    }
+
+    RekG1SemanticScheduler before_masked_active_kick = adapter.scheduler;
+    step = rek_g1_puffer_step(&adapter, 1.0f, ramp_timing, 0, 1);
+    require(step.status == REK_G1_PUFFER_ACTION_MASKED,
+        "active_kick_masks_translation_selection");
+    require(memcmp(
+            &adapter.scheduler,
+            &before_masked_active_kick,
+            sizeof(adapter.scheduler)) == 0,
+        "masked_translation_preserves_full_active_kick_scheduler");
+    step = rek_g1_puffer_step(
+        &adapter, (float)kick_category, ramp_timing, 0, 1);
+    require(step.status == REK_G1_PUFFER_ACTION_MASKED,
+        "active_kick_masks_second_kick_selection");
+    require(memcmp(
+            &adapter.scheduler,
+            &before_masked_active_kick,
+            sizeof(adapter.scheduler)) == 0,
+        "masked_second_kick_preserves_full_active_kick_scheduler");
+
+    step = rek_g1_puffer_step(&adapter, 0.0f, ramp_timing, 0, 1);
+    require(step.status == REK_G1_PUFFER_OK &&
+            !step.semantic.command_started && !step.semantic.kick_start_edge &&
+            step.semantic.kick_registry_index ==
+                REK_G1_REQUIRED_KICK_COUNT - 1u &&
+            step.semantic.remaining_ticks == 4u &&
+            step.semantic.input.pressed_edges == 0u &&
+            step.semantic.input.released_edges == 0u &&
+            fabsf(step.semantic.input.yaw_ramp - 0.8f) < 1.0e-6f &&
+            step.semantic.input.yaw == 0.0f,
+        "active_kick_continue_retains_q_without_restart");
+    step = rek_g1_puffer_step(&adapter, 2.0f, ramp_timing, 0, 1);
+    require(step.status == REK_G1_PUFFER_OK &&
+            step.semantic.remaining_ticks == 3u &&
+            step.semantic.input.held == 0u &&
+            step.semantic.input.released_edges == REK_G1_HELD_YAW_LEFT &&
+            step.semantic.input.pressed_edges == 0u &&
+            step.semantic.input.yaw_ramp == 0.0f &&
+            step.semantic.input.yaw == 0.0f,
+        "active_kick_neutral_releases_q_without_restart");
+    step = rek_g1_puffer_step(&adapter, 8.0f, ramp_timing, 0, 1);
+    require(step.status == REK_G1_PUFFER_OK &&
+            step.semantic.remaining_ticks == 2u &&
+            step.semantic.input.held == REK_G1_HELD_YAW_RIGHT &&
+            step.semantic.input.pressed_edges == REK_G1_HELD_YAW_RIGHT &&
+            step.semantic.input.released_edges == 0u &&
+            step.semantic.input.desired_yaw == -1 &&
+            fabsf(step.semantic.input.yaw_ramp - 0.2f) < 1.0e-6f &&
+            step.semantic.input.yaw == 0.0f,
+        "active_kick_e_press_starts_suppressed_ramp");
+    step = rek_g1_puffer_step(&adapter, 7.0f, ramp_timing, 0, 1);
+    require(step.status == REK_G1_PUFFER_OK &&
+            step.semantic.remaining_ticks == 1u &&
+            step.semantic.input.held == REK_G1_HELD_YAW_LEFT &&
+            step.semantic.input.pressed_edges == REK_G1_HELD_YAW_LEFT &&
+            step.semantic.input.released_edges == REK_G1_HELD_YAW_RIGHT &&
+            step.semantic.input.desired_yaw == 1 &&
+            fabsf(step.semantic.input.yaw_ramp - 0.2f) < 1.0e-6f &&
+            step.semantic.input.yaw == 0.0f,
+        "active_kick_e_to_q_reversal_resets_suppressed_ramp");
+    step = rek_g1_puffer_step(&adapter, 0.0f, ramp_timing, 0, 1);
+    require(step.status == REK_G1_PUFFER_OK &&
+            step.semantic.segment_complete &&
+            step.semantic.remaining_ticks == 0u &&
+            step.semantic.input.pressed_edges == 0u &&
+            step.semantic.input.released_edges == 0u &&
+            fabsf(step.semantic.input.yaw_ramp - 0.4f) < 1.0e-6f &&
+            step.semantic.input.yaw == 0.0f,
+        "active_kick_final_continue_retains_reversed_q");
+    step = rek_g1_puffer_step(&adapter, 7.0f, ramp_timing, 1, 0);
+    require(step.status == REK_G1_PUFFER_OK &&
+            step.semantic.input.pressed_edges == 0u &&
+            step.semantic.input.released_edges == 0u &&
+            fabsf(step.semantic.input.yaw - 0.6f) < 1.0e-6f,
+        "reversed_q_resumes_after_kick_without_false_edge");
 
     step = rek_g1_puffer_step(&adapter, 1.5f, timing, 1, 0);
     require(step.status == REK_G1_PUFFER_ACTION_NOT_INTEGRAL,
@@ -238,6 +406,18 @@ int main(void) {
     require(rek_g1_puffer_validate_table(&wrong_duration_table) ==
         REK_G1_PUFFER_TABLE_KICK_DURATION_INVALID,
         "kick_duration_must_match_configured_compositor_registry");
+
+    RekG1PufferCategory nonneutral_kick_categories[CATEGORY_COUNT];
+    for (uint32_t index = 0; index < CATEGORY_COUNT; index++) {
+        nonneutral_kick_categories[index] = categories[index];
+    }
+    nonneutral_kick_categories[kick_category].command.held_code =
+        code(REK_G1_HELD_YAW_LEFT);
+    RekG1PufferActionTable nonneutral_kick_table = table;
+    nonneutral_kick_table.categories = nonneutral_kick_categories;
+    require(rek_g1_puffer_validate_table(&nonneutral_kick_table) ==
+        REK_G1_PUFFER_TABLE_START_INVALID,
+        "kick_template_must_be_neutral_before_dynamic_yaw_inheritance");
 
     uint16_t wrong_move_indices[] = {6, 7, 8, 10};
     RekG1PufferActionTable wrong_move_table = table;

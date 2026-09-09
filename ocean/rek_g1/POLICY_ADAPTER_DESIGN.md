@@ -48,7 +48,12 @@ old accumulation before advancing the new sign. Release clears the ramp.
 Translation can be held for multiple actions and cannot be reduced to an input
 edge. This is required for appreciable movement. Q or E can coexist with a
 translation hold. If a kick is accepted, effective yaw becomes zero while the
-desired yaw state and ramp continue. Yaw resumes after the kick.
+desired yaw state and ramp continue. During the kick, category 0 retains that
+state and the existing neutral, Q, and E categories update it without
+restarting or extending the kick. All translation and kick-start categories
+remain masked. Effective yaw resumes after the kick from the retained ramp.
+Ramp retention and mid-kick desired-yaw updates are provisional candidate
+semantics. They are not recovered current REK parity facts.
 
 A kick cannot start while translation is active, the locomotion transition is
 unsettled, another action is busy, or fall/reset state suspends the runner. A
@@ -60,6 +65,11 @@ Locomotion segment length is an explicit training-interface parameter. Kick
 segment lengths are configured compositor traversal ticks. The current values
 come from the reconstructed compositor state machine and are not measurements
 of physical action completion, hit latency, or attack effectiveness.
+
+Puffer adapter tables normalize kick-template `held_code` to neutral. The
+adapter replaces it with current desired Q/E state when dispatching the kick.
+This table normalization does not restrict direct semantic commands, which may
+carry a yaw-only held code.
 
 ## Low-level policy adapter
 

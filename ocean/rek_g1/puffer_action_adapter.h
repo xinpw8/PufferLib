@@ -29,6 +29,12 @@ typedef enum RekG1PufferCategoryKind {
 
 typedef struct RekG1PufferCategory {
     RekG1PufferCategoryKind kind;
+    // Adapter-table kick templates identify route and duration and must use a
+    // neutral held_code. This normalization does not restrict direct semantic
+    // commands, which may carry yaw. At adapter dispatch, held_code is replaced
+    // with the current desired Q/E state. During the kick, validated yaw-only
+    // locomotion categories may update it. Retaining and advancing the yaw ramp
+    // is provisional candidate behavior, not recovered REK parity.
     RekG1SemanticCommand command;
 } RekG1PufferCategory;
 

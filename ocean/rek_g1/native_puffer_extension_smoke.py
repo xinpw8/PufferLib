@@ -33,6 +33,17 @@ FALL_FLOATS = 15
 ACTION_HEADS = 1
 ACTION_CATEGORIES = 20
 KICK_DURATION_TICKS = (157, 145, 158, 139)
+CONTINUE_CATEGORY = 0
+NEUTRAL_CATEGORY = 1
+YAW_LEFT_CATEGORY = 6
+YAW_RIGHT_CATEGORY = 7
+KICK_MOVE_9_CATEGORY = 19
+KICK_MOVE_9_ROUTE_ID = 10
+SEMANTIC_OFFSET = 2 * ENTITY_FLOATS
+EFFECTIVE_YAW_INDEX = SEMANTIC_OFFSET + 6
+ACTIVE_ROUTE_INDEX = SEMANTIC_OFFSET + 7
+ACTION_PLAYING_INDEX = SEMANTIC_OFFSET + 10
+COMPOSER_BUSY_INDEX = SEMANTIC_OFFSET + 11
 
 
 class SmokeFailure(RuntimeError):
@@ -87,6 +98,13 @@ def _float_view(pointer: int, rows: int, columns: int = 1) -> np.ndarray:
         raise SmokeFailure("native vector exposed a null buffer")
     values = rows * columns
     storage = (ctypes.c_float * values).from_address(pointer)
+    return np.ctypeslib.as_array(storage).reshape(rows, columns)
+
+
+def _byte_view(pointer: int, rows: int, columns: int) -> np.ndarray:
+    if pointer == 0:
+        raise SmokeFailure("native vector exposed a null byte buffer")
+    storage = (ctypes.c_uint8 * (rows * columns)).from_address(pointer)
     return np.ctypeslib.as_array(storage).reshape(rows, columns)
 
 
@@ -176,6 +194,17 @@ def _filled_action(category: int) -> np.ndarray:
     )
 
 
+def _row_actions(categories: Sequence[int]) -> np.ndarray:
+    _require(len(categories) == ROBOT_ROWS, "row action count mismatch")
+    _require(
+        all(0 <= category < ACTION_CATEGORIES for category in categories),
+        "row action category is out of range",
+    )
+    return np.asarray(categories, dtype=np.float32).reshape(
+        ROBOT_ROWS, ACTION_HEADS
+    )
+
+
 def run_smoke(locomotion_steps: int, throughput_steps: int) -> dict[str, object]:
     extension_path = _required_file("REK_G1_PUFFER_EXTENSION")
     asset_root = _required_directory("REK_G1_SEMANTIC_ASSETS_DIR")
@@ -210,6 +239,17 @@ def run_smoke(locomotion_steps: int, throughput_steps: int) -> dict[str, object]
         )
         rewards = _float_view(int(vector.rewards_ptr), ROBOT_ROWS)
         terminals = _float_view(int(vector.terminals_ptr), ROBOT_ROWS)
+        _require(
+            hasattr(vector, "action_mask_ptr") and hasattr(vector, "action_mask_size"),
+            "Python vector ABI does not expose the native action mask",
+        )
+        _require(
+            int(vector.action_mask_size) == ACTION_CATEGORIES,
+            "native action-mask stride mismatch",
+        )
+        action_masks = _byte_view(
+            int(vector.action_mask_ptr), ROBOT_ROWS, ACTION_CATEGORIES
+        )
 
         vector.reset()
         reset_first = observations.copy()
@@ -292,6 +332,146 @@ def run_smoke(locomotion_steps: int, throughput_steps: int) -> dict[str, object]
                 observations, f"post-kick category {category}"
             )
 
+        # Exercise row-local held-yaw updates against the exact native mask.
+        # The adapter's remaining-tick counter is not part of the Python ABI,
+        # so the configured duration boundary is checked through observations.
+        vector.reset()
+        pre_kick_categories = (
+            YAW_LEFT_CATEGORY,
+            YAW_RIGHT_CATEGORY,
+            YAW_LEFT_CATEGORY,
+            YAW_RIGHT_CATEGORY,
+            NEUTRAL_CATEGORY,
+            NEUTRAL_CATEGORY,
+            YAW_LEFT_CATEGORY,
+            YAW_RIGHT_CATEGORY,
+        )
+        _step(vector, _row_actions(pre_kick_categories))
+        pre_kick_yaw = observations[:, EFFECTIVE_YAW_INDEX].copy()
+        _require(
+            bool(np.greater(pre_kick_yaw[[0, 2, 6]], 0.0).all()),
+            "pre-kick Q rows did not expose positive effective yaw",
+        )
+        _require(
+            bool(np.less(pre_kick_yaw[[1, 3, 7]], 0.0).all()),
+            "pre-kick E rows did not expose negative effective yaw",
+        )
+        _require(
+            bool(np.equal(pre_kick_yaw[[4, 5]], 0.0).all()),
+            "pre-kick neutral rows exposed yaw",
+        )
+
+        kick_duration = KICK_DURATION_TICKS[3]
+        _step(vector, _filled_action(KICK_MOVE_9_CATEGORY))
+        _require_finite(observations, "held-yaw kick start")
+        _require(
+            bool(np.equal(terminals, 0.0).all()),
+            "held-yaw kick start terminated an arena",
+        )
+        _require(
+            bool(np.equal(observations[:, EFFECTIVE_YAW_INDEX], 0.0).all()),
+            "kick start did not suppress effective yaw",
+        )
+        _require(
+            bool(
+                np.equal(
+                    observations[:, ACTIVE_ROUTE_INDEX],
+                    float(KICK_MOVE_9_ROUTE_ID),
+                ).all()
+            ),
+            "kick start did not select the move-9 route",
+        )
+        _require(
+            bool(np.equal(observations[:, ACTION_PLAYING_INDEX], 1.0).all()),
+            "move-9 action was not playing after its start tick",
+        )
+        expected_active_kick_mask = np.zeros(ACTION_CATEGORIES, dtype=np.uint8)
+        expected_active_kick_mask[
+            [CONTINUE_CATEGORY, NEUTRAL_CATEGORY, YAW_LEFT_CATEGORY, YAW_RIGHT_CATEGORY]
+        ] = 1
+        _require(
+            bool(np.equal(action_masks, expected_active_kick_mask).all()),
+            "active-kick native action mask is not exactly continue/neutral/Q/E",
+        )
+
+        active_kick_categories = (
+            CONTINUE_CATEGORY,
+            CONTINUE_CATEGORY,
+            NEUTRAL_CATEGORY,
+            NEUTRAL_CATEGORY,
+            YAW_LEFT_CATEGORY,
+            YAW_RIGHT_CATEGORY,
+            YAW_RIGHT_CATEGORY,
+            YAW_LEFT_CATEGORY,
+        )
+        active_kick_actions = _row_actions(active_kick_categories)
+        for elapsed_tick in range(1, kick_duration):
+            _step(vector, active_kick_actions)
+            _require_finite(observations, "held-yaw active kick")
+            _require(
+                bool(np.equal(terminals, 0.0).all()),
+                "held-yaw active kick terminated an arena",
+            )
+            _require(
+                bool(
+                    np.equal(
+                        observations[:, EFFECTIVE_YAW_INDEX], 0.0
+                    ).all()
+                ),
+                "active kick exposed effective yaw",
+            )
+            _require(
+                bool(
+                    np.equal(
+                        observations[:, ACTIVE_ROUTE_INDEX],
+                        float(KICK_MOVE_9_ROUTE_ID),
+                    ).all()
+                ),
+                "active-kick yaw update changed route identity",
+            )
+            expected_playing = 1.0 if elapsed_tick + 1 < kick_duration else 0.0
+            _require(
+                bool(
+                    np.equal(
+                        observations[:, ACTION_PLAYING_INDEX],
+                        expected_playing,
+                    ).all()
+                ),
+                "move-9 traversal did not complete at its configured boundary",
+            )
+            if elapsed_tick + 1 < kick_duration:
+                _require(
+                    bool(np.equal(action_masks, expected_active_kick_mask).all()),
+                    "active-kick action mask changed before the duration boundary",
+                )
+
+        _require(
+            bool(np.equal(observations[:, COMPOSER_BUSY_INDEX], 1.0).all()),
+            "completed non-loop kick layer stopped being busy before replacement",
+        )
+        post_kick_categories = (
+            YAW_LEFT_CATEGORY,
+            YAW_RIGHT_CATEGORY,
+            NEUTRAL_CATEGORY,
+            NEUTRAL_CATEGORY,
+            YAW_LEFT_CATEGORY,
+            YAW_RIGHT_CATEGORY,
+            YAW_RIGHT_CATEGORY,
+            YAW_LEFT_CATEGORY,
+        )
+        _step(vector, _row_actions(post_kick_categories))
+        _require_finite(observations, "held-yaw post-kick resume")
+        post_kick_yaw = observations[:, EFFECTIVE_YAW_INDEX].copy()
+        expected_post_kick_yaw = np.asarray(
+            (1.0, -1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 1.0),
+            dtype=np.float32,
+        )
+        _require(
+            bool(np.array_equal(post_kick_yaw, expected_post_kick_yaw)),
+            "post-kick desired yaw did not resume row-locally",
+        )
+        _require_shared_pair_views(observations, "held-yaw post-kick resume")
+
         vector.reset()
         long_neutral_reset = observations.copy()
         start = time.perf_counter()
@@ -342,8 +522,52 @@ def run_smoke(locomotion_steps: int, throughput_steps: int) -> dict[str, object]
                     held_distinct_from_neutral.all()
                 ),
                 "all_20_action_categories_exercised": True,
+                "active_kick_allowed_categories_exercised": True,
+                "active_kick_effective_yaw_suppressed": True,
+                "active_kick_route_identity_preserved": True,
+                "active_kick_configured_duration_boundary_observed": True,
+                "post_kick_candidate_yaw_state_row_local": True,
+                "python_extension_action_mask_exact": True,
                 "zero_diagnostic_rewards": True,
                 "zero_diagnostic_terminals": True,
+            },
+            "active_kick_adapter_probe": {
+                "kick_category": KICK_MOVE_9_CATEGORY,
+                "kick_route_id": KICK_MOVE_9_ROUTE_ID,
+                "configured_duration_ticks": kick_duration,
+                "accepted_categories_exercised": sorted(
+                    set(active_kick_categories)
+                ),
+                "accepted_category_meanings": [
+                    "continue",
+                    "neutral",
+                    "Q",
+                    "E",
+                ],
+                "pre_kick_effective_yaw": pre_kick_yaw.tolist(),
+                "post_kick_effective_yaw": post_kick_yaw.tolist(),
+                "python_extension_action_mask": {
+                    "status": "exposed_and_checked",
+                    "exact_mask_claim": True,
+                    "stride": ACTION_CATEGORIES,
+                    "active_kick_allowed_categories": [
+                        CONTINUE_CATEGORY,
+                        NEUTRAL_CATEGORY,
+                        YAW_LEFT_CATEGORY,
+                        YAW_RIGHT_CATEGORY,
+                    ],
+                },
+                "remaining_tick_counter": {
+                    "status": "not_exposed",
+                    "exact_counter_claim": False,
+                    "observed_boundary": (
+                        "kick action-playing stayed active before the configured "
+                        "boundary, cleared on it, and yaw resumed on the next tick"
+                    ),
+                },
+                "authority": (
+                    "provisional candidate adapter behavior; not recovered REK parity"
+                ),
             },
             "motion": {
                 "locomotion_steps": locomotion_steps,

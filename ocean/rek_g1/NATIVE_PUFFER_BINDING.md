@@ -32,14 +32,29 @@ to the constructor are configured compositor traversal lengths. They must be
 positive and must match the route assets. They are not measurements of physical
 completion or attack effectiveness.
 
-The scheduler retains desired held input across continuation ticks. The action
-mask rejects starts that violate translation-settle, busy, or kick-preemption
-rules. Invalid categorical floats, partial callbacks, invalid next facts, and
-mask-generation failures poison the vector. Batch callbacks declare both the
-runtime-facts ABI version and `sizeof(RekG1RuntimeFacts)`; a stale callback is
-rejected before invocation. Callback rewards must be finite and terminals must
-be exactly 0 or 1 before terminal-driven scheduler resets are accepted. Only a
-complete batch reset can recover a poisoned vector.
+The scheduler retains desired held input across continuation ticks. While a
+kick is active, category 0 retains desired yaw and the neutral, Q, and E
+categories update it without restarting the kick. Effective yaw remains zero
+until the kick completes; translation and kick-start categories stay masked.
+Retaining and advancing the ramp is provisional candidate behavior, not a
+recovered current REK parity fact. Adapter-table kick templates are normalized
+to neutral and inherit current desired Q/E at dispatch; direct semantic
+commands remain permitted to carry yaw.
+
+The idle action mask rejects starts that violate translation-settle, busy, or
+kick-preemption rules. Invalid categorical floats, partial callbacks, invalid
+next facts, and mask-generation failures poison the vector. Batch callbacks
+declare both the runtime-facts ABI version and `sizeof(RekG1RuntimeFacts)`; a
+stale callback is rejected before invocation. Callback rewards must be finite
+and terminals must be exactly 0 or 1 before terminal-driven scheduler resets
+are accepted. Only a complete batch reset can recover a poisoned vector.
+
+The Python `VecEnv` binding exposes the host mask through the read-only
+`action_mask_ptr` and `action_mask_size` properties. The CUDA binding also
+exposes `gpu_action_mask_ptr`. `action_mask_size` is the per-row byte stride;
+the host allocation contains `total_agents * action_mask_size` bytes and stays
+valid only until `VecEnv.close()`. These are views of the mask already owned and
+updated by `StaticVec`; the binding does not allocate a second policy mask.
 
 ## Native transition
 

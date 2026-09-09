@@ -551,6 +551,68 @@ static int run_test(
         &observations[1].self,
         sizeof(observations[0].opponent)) == 0);
 
+    /*
+     * The attack gate is translation-specific. A held Q or E turn remains
+     * preemptible by a kick without an intervening neutral tick. A combined
+     * W+Q command still carries translation and must keep the gate closed.
+     */
+    {
+        const RekG1SemanticTick yaw_semantics[2] = {
+            locomotion_tick(REK_G1_HELD_YAW_LEFT),
+            locomotion_tick(REK_G1_HELD_YAW_RIGHT),
+        };
+        CHECK(rek_g1_semantic_duel_advance_batch(
+            &runtime, routes, &table, yaw_semantics, 2u, facts,
+            observations, sizeof(observations[0]), rewards, terminals,
+            error, sizeof(error)));
+        CHECK(runtime.locomotion_states[0].locomotion_active
+            && runtime.locomotion_states[1].locomotion_active);
+        CHECK(runtime.locomotion_states[0].current_route_id
+            == REK_G1_NATIVE_TURN_LEFT);
+        CHECK(runtime.locomotion_states[1].current_route_id
+            == REK_G1_NATIVE_TURN_RIGHT);
+        CHECK(facts[0].translation_transition_settled
+            && facts[1].translation_transition_settled);
+
+        const RekG1SemanticTick kick_from_yaw[2] = {
+            kick_tick(3u, 1, 0, kick_durations[3] - 1u),
+            kick_tick(3u, 1, 0, kick_durations[3] - 1u),
+        };
+        CHECK(rek_g1_semantic_duel_advance_batch(
+            &runtime, routes, &table, kick_from_yaw, 2u, facts,
+            observations, sizeof(observations[0]), rewards, terminals,
+            error, sizeof(error)));
+        CHECK(runtime.active_route_ids[0]
+            == REK_G1_NATIVE_KICK_MOVE_9_RIGHT_KNEE);
+        CHECK(runtime.active_route_ids[1]
+            == REK_G1_NATIVE_KICK_MOVE_9_RIGHT_KNEE);
+        CHECK(runtime.composers[0].action_playing
+            && runtime.composers[1].action_playing);
+
+        CHECK(rek_g1_semantic_duel_reset_batch(
+            &runtime, routes, &table, 2u, facts,
+            observations, sizeof(observations[0]), rewards, terminals,
+            error, sizeof(error)));
+        const RekG1SemanticTick translation_yaw_semantics[2] = {
+            locomotion_tick(REK_G1_HELD_FORWARD | REK_G1_HELD_YAW_LEFT),
+            locomotion_tick(REK_G1_HELD_FORWARD | REK_G1_HELD_YAW_RIGHT),
+        };
+        CHECK(rek_g1_semantic_duel_advance_batch(
+            &runtime, routes, &table, translation_yaw_semantics, 2u, facts,
+            observations, sizeof(observations[0]), rewards, terminals,
+            error, sizeof(error)));
+        CHECK(runtime.locomotion_states[0].current_route_id
+            == REK_G1_NATIVE_FORWARD);
+        CHECK(runtime.locomotion_states[1].current_route_id
+            == REK_G1_NATIVE_FORWARD);
+        CHECK(!facts[0].translation_transition_settled
+            && !facts[1].translation_transition_settled);
+        CHECK(rek_g1_semantic_duel_reset_batch(
+            &runtime, routes, &table, 2u, facts,
+            observations, sizeof(observations[0]), rewards, terminals,
+            error, sizeof(error)));
+    }
+
     /* Corruption after open rejects before policy or physics can advance. */
     {
         const uint64_t guarded_policy_tick = duel.policy_ticks[0];

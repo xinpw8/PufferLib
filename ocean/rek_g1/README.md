@@ -29,8 +29,12 @@ The one-head categorical action ABI has 20 categories:
 Held translation and yaw are represented every controller tick. Q or E can be
 held with a translation input. Translation blocks a new kick until the
 locomotion transition settles. An accepted kick suppresses effective yaw while
-the desired yaw hold and ramp state continue. No F binding is present because
-the installed keyboard asset has no identified F locomotion field.
+the desired yaw hold and ramp state continue. Neutral, Q, and E remain
+selectable during a kick to update that desired state without restarting the
+move. Retaining and advancing the ramp through a kick is provisional candidate
+semantics. It has not been recovered as current REK runtime behavior. No F
+binding is present because the installed keyboard asset has no identified F
+locomotion field.
 
 ## Implemented REK semantics
 
@@ -86,6 +90,41 @@ Useful entry points are:
 * `semantic_duel_runtime.c` for the 50 Hz semantic and 500 Hz combat loop;
 * `gear_sonic_native_duel.c` for batched policy and shared MuJoCo execution;
 * `native_puffer_extension_smoke.py` for deterministic ABI and runtime checks;
+* `human_eval_server.py` and `run_human_eval_spark.sh` for isolated human
+  control and an append-only applied-action trace;
 * `held_trace_candidate_replay.py` for the measured Windows trace replay;
 * `POLICY_ADAPTER_DESIGN.md` and `NATIVE_PUFFER_BINDING.md` for detailed
   contracts and remaining gates.
+
+## Human evaluation and acceptance
+
+The human evaluator binds only to `127.0.0.1`. Browser key events control row 0
+inside the Spark process and never become operating-system keyboard, mouse, or
+gamepad events. Row 1 is an explicitly labeled deterministic candidate dummy.
+It is not a reconstruction of REK Bot 1. Rows 2 through 7 remain neutral so the
+native eight-row batch contract is satisfied. The evaluator requires the exact
+native action-mask pointer. It will not replace a hidden legality fact with a
+local guess.
+
+W, S, A, D, Q, and E are held inputs. Move 6 through move 9 are discrete kick
+edges. U and I are evaluator convenience aliases for the user-confirmed
+left-front and right-side moves; they are not recovered keyboard-binding facts.
+Every accepted browser input and every applied 50 Hz action is written to a
+create-new JSONL trace. Each control-step record includes the exact row actions,
+action-selection reasons, terminal bits, and the first arena's 223-value
+binary32 observation in little-endian base64. Runtime binaries and assets are
+accepted only at caller-supplied SHA-256 identities.
+
+The evaluator is a measurement instrument, not an acceptance result. The gold
+standard is a paired human evaluation in which authentic REK and this isolated
+environment start from matched state and receive the same tick-indexed held and
+discrete input trace. Each individual movement and kick must be compared for
+input latency, duration, root trajectory, orientation, fall and recovery state,
+contact and hit events, and round events. Acceptance requires held-out errors no
+larger than authentic REK's own repeated-run variance. A visual resemblance,
+successful training run, or single 50 Hz trace cannot satisfy that gate.
+
+`run_human_eval_spark.sh` requires explicit paths and expected hashes through
+its `REK_G1_*` environment variables, plus a create-new
+`REK_G1_HUMAN_EVAL_TRACE` path. `REK_G1_HUMAN_EVAL_PYTHON`,
+`REK_G1_HUMAN_EVAL_PORT`, and `REK_G1_HUMAN_EVAL_PHYSICS_WORKERS` are optional.
