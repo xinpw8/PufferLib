@@ -1,0 +1,283 @@
+{
+  "schema": "rek.g1_runtime_assets.manifest.v1",
+  "build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+  "parser": {
+    "name": "UnityPy",
+    "version": "1.25.2"
+  },
+  "source": {
+    "name": "sharedassets0.assets",
+    "bytes": 31315504,
+    "sha256": "37f7a476c56caae37f5a04d4fa1acf5954fdc2b90f20f521830369ecff05f355"
+  },
+  "provenance": {
+    "processed_textasset_schema": "evidence_out/processed_textasset_schema_v3.json",
+    "inventory": "evidence_out/inventory.json"
+  },
+  "assets": [
+    {
+      "role": "walk",
+      "path_id": 370,
+      "name": "walking_processed",
+      "output": "walking_processed.npz",
+      "bytes": 5351,
+      "sha256": "eeae301b6891ecc2a3f5c1d0706081946c1bf9e8c58d2c4b942649b1671e8974",
+      "frames": 36,
+      "dof": 29,
+      "fps": 50.0,
+      "members": [
+        {
+          "name": "dof_pos.npy",
+          "bytes": 4304,
+          "sha256": "f41f48c373a9a03d3e8cfe9afd039ca80c3c2d4820274628fc841aad8c426bf9"
+        },
+        {
+          "name": "fps.npy",
+          "bytes": 132,
+          "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72"
+        },
+        {
+          "name": "root_pos.npy",
+          "bytes": 560,
+          "sha256": "c9fceacedcac02db0af5edf4f17d677664d974c219c6a04bc13b663f80cd7f7f"
+        },
+        {
+          "name": "root_rot.npy",
+          "bytes": 704,
+          "sha256": "d7af76f302b187a44bf405a6cc745a5c13390ab51c11847271cdc232c35c9f37"
+        }
+      ]
+    },
+    {
+      "role": "kick_left_front",
+      "path_id": 371,
+      "name": "left_front_kick_processed",
+      "output": "left_front_kick_processed.npz",
+      "bytes": 19616,
+      "sha256": "3db29034517acc376c16ce5bc04f923803a48367ad58a5c65a314123639815c1",
+      "frames": 146,
+      "dof": 29,
+      "fps": 50.0,
+      "members": [
+        {
+          "name": "dof_pos.npy",
+          "bytes": 17064,
+          "sha256": "9337d4bc6be83a81bd923d57f7a7f1253aeb5749909742515503f29eecbeefbb"
+        },
+        {
+          "name": "fps.npy",
+          "bytes": 132,
+          "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72"
+        },
+        {
+          "name": "root_pos.npy",
+          "bytes": 1880,
+          "sha256": "e923940d654a632800e0696a64ae13a5a704b7248ee35b82d789cc1f9cb480ce"
+        },
+        {
+          "name": "root_rot.npy",
+          "bytes": 2464,
+          "sha256": "5a4ebed5d5b8e74192cdbe7f20669f9395d6741afc82bb7a1ff77faab03d6b4e"
+        }
+      ]
+    },
+    {
+      "role": "kick_right_side",
+      "path_id": 372,
+      "name": "right_side_kick_processed",
+      "output": "right_side_kick_processed.npz",
+      "bytes": 20887,
+      "sha256": "4d16c2d07848713713f8252e21fc2893462052f6ee3e157e9c364c03769de6a6",
+      "frames": 159,
+      "dof": 29,
+      "fps": 50.0,
+      "members": [
+        {
+          "name": "dof_pos.npy",
+          "bytes": 18572,
+          "sha256": "94b02aa205b762b9d6f6bcad2f9427d4127cf715eccb425014aab2d03f081e5a"
+        },
+        {
+          "name": "fps.npy",
+          "bytes": 132,
+          "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72"
+        },
+        {
+          "name": "root_pos.npy",
+          "bytes": 2036,
+          "sha256": "b9521981b459fc01a06266cf28d1175d45b4ec7b50e54a24a199bde79f05456d"
+        },
+        {
+          "name": "root_rot.npy",
+          "bytes": 2672,
+          "sha256": "c3a0ae2eea7e0b0a3e98c64b5043f61b0a8765c5f2c30b96052091dfa5a3c65d"
+        }
+      ]
+    },
+    {
+      "role": "turn_right",
+      "path_id": 375,
+      "name": "turn_in_place_right_processed",
+      "output": "turn_in_place_right_processed.npz",
+      "bytes": 6770,
+      "sha256": "be2b96be14cfcbc63b7e84bf28bd5c50f1c355a26dd6ba113753103cfcf99c6d",
+      "frames": 47,
+      "dof": 29,
+      "fps": 50.0,
+      "members": [
+        {
+          "name": "dof_pos.npy",
+          "bytes": 5580,
+          "sha256": "1ced15aa81d8db4c8ff2b4a4094117f29d3d757e6f53b6f56495743b6bebc0dd"
+        },
+        {
+          "name": "fps.npy",
+          "bytes": 132,
+          "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72"
+        },
+        {
+          "name": "root_pos.npy",
+          "bytes": 692,
+          "sha256": "ec43f7b2f3a0d4b4e3b53d09af52f4c01f37932ce1bdd1bab898408576b4c5bb"
+        },
+        {
+          "name": "root_rot.npy",
+          "bytes": 880,
+          "sha256": "21d0037e7077e434d1a5c3d94a1a10e4898efd270f34712373927ff74c6f1c68"
+        }
+      ]
+    },
+    {
+      "role": "idle",
+      "path_id": 377,
+      "name": "idle_processed",
+      "output": "idle_processed.npz",
+      "bytes": 2841,
+      "sha256": "2fd9ca753183566cceaff3ff10ae54b1a7167986297524a9d24d970d57aee969",
+      "frames": 39,
+      "dof": 29,
+      "fps": 50.0,
+      "members": [
+        {
+          "name": "dof_pos.npy",
+          "bytes": 4652,
+          "sha256": "be5b2d2064e2978f9b75cec06c07fee45f55fc60aef4e4f136b5a4b95bc45cff"
+        },
+        {
+          "name": "fps.npy",
+          "bytes": 132,
+          "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72"
+        },
+        {
+          "name": "root_pos.npy",
+          "bytes": 596,
+          "sha256": "42a62e707ef3502d5af609a4961e86c3e5a51ae4094fc919fde923b082328a5a"
+        },
+        {
+          "name": "root_rot.npy",
+          "bytes": 752,
+          "sha256": "c772e543e3f9a7c396ac4ec41ee859db908bcf552ade0bc7357ea87f50174aa5"
+        }
+      ]
+    },
+    {
+      "role": "kick_right_knee",
+      "path_id": 380,
+      "name": "right_knee_processed",
+      "output": "right_knee_processed.npz",
+      "bytes": 18805,
+      "sha256": "08bba86c004d99e61d53997cd31223b8cfde67c019506267339e146dd771097f",
+      "frames": 140,
+      "dof": 29,
+      "fps": 50.0,
+      "members": [
+        {
+          "name": "dof_pos.npy",
+          "bytes": 16368,
+          "sha256": "e92470deb08119e658779650de251a9a3e0cc792e3d6d08e3e334120e7759497"
+        },
+        {
+          "name": "fps.npy",
+          "bytes": 132,
+          "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72"
+        },
+        {
+          "name": "root_pos.npy",
+          "bytes": 1808,
+          "sha256": "226fd2f64a6531cdd92c197142a02224bd984e54510afc4a585e5f8219ed480a"
+        },
+        {
+          "name": "root_rot.npy",
+          "bytes": 2368,
+          "sha256": "8c94bd8b204c71861194c1092a82257a1eb095e7f24932f5bcaa3f8bb47ce296"
+        }
+      ]
+    },
+    {
+      "role": "strafe_left",
+      "path_id": 388,
+      "name": "left_strafe_processed",
+      "output": "left_strafe_processed.npz",
+      "bytes": 5246,
+      "sha256": "57c9bb7b66cda5ea7654aa2581a785fe1250095ab40029b9f9dbcb8cea0ac780",
+      "frames": 35,
+      "dof": 29,
+      "fps": 50.0,
+      "members": [
+        {
+          "name": "dof_pos.npy",
+          "bytes": 4188,
+          "sha256": "97c3ef9ba154811cc3dedc416247fc7bccfc4a84195d7ac3b0a20d5dd0756569"
+        },
+        {
+          "name": "fps.npy",
+          "bytes": 132,
+          "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72"
+        },
+        {
+          "name": "root_pos.npy",
+          "bytes": 548,
+          "sha256": "2dc564c8af43f702d221fe327f9958d5fd16ec971249ea67e4e4f86d75aae96a"
+        },
+        {
+          "name": "root_rot.npy",
+          "bytes": 688,
+          "sha256": "91fb9405a094907d7a1676511052632302d192441efded222e9ac960ccf8439d"
+        }
+      ]
+    },
+    {
+      "role": "kick_left_side",
+      "path_id": 392,
+      "name": "left_side_kick_processed",
+      "output": "left_side_kick_processed.npz",
+      "bytes": 21047,
+      "sha256": "854e5bbf91b325288ed0f63e43f65355aa5b1a15fe43a8fd940b4efb6ed6a465",
+      "frames": 158,
+      "dof": 29,
+      "fps": 50.0,
+      "members": [
+        {
+          "name": "dof_pos.npy",
+          "bytes": 18456,
+          "sha256": "f47591396ad2b35f5e055c76a48ebce6e8cb84f532898158fd94980e38a295b0"
+        },
+        {
+          "name": "fps.npy",
+          "bytes": 132,
+          "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72"
+        },
+        {
+          "name": "root_pos.npy",
+          "bytes": 2024,
+          "sha256": "9f5097668bbf8515a7c3d59434a195327fa6e2bf0ebb4b2f4b4977cd80de1e0e"
+        },
+        {
+          "name": "root_rot.npy",
+          "bytes": 2656,
+          "sha256": "08e6c26d020c42e89d93755d6507a387fec70cb3b4bb1c79d91c4843e06b34ad"
+        }
+      ]
+    }
+  ]
+}

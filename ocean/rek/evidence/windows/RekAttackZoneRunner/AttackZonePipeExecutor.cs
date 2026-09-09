@@ -12,9 +12,9 @@ internal static class AttackZonePipeExecutor
     private const string TrialResultSchema = "rek.attack_zone_trial_transcript_result.v1";
     private const string ExpectedApplicationVersion = "0.0.119";
     private const string ExpectedUnityVersion = "6000.5.8f1";
-    private const string ExpectedBridgeVersion = "0.4.0";
+    private const string ExpectedBridgeVersion = "0.4.4";
     internal const string ExpectedBridgeSha256 =
-        "fb9e3c0a4994eafc6a45f83a32c907f5eee5f9a4d6997d5bf10d863f27faab55";
+        "0f2bfdd1a2ce187ccfece5ea89f91e5a8215b0a3e7e939bc7248172739a92331";
     private const string T800BoneSignatureSha256 =
         "ec0f8d0ae5bd170464f5393f9860959e47a54b8e73e4dc259a6fb955f46d3dab";
 
@@ -966,6 +966,16 @@ internal static class AttackZonePipeExecutor
         RequireTrue(hello, "current_user_only");
         RequireTrue(hello, "local_computer_verified");
         var capabilities = hello.GetProperty("capabilities");
+        RequireString(
+            capabilities,
+            "private_ai_proof_basis",
+            "build_pinned_REK_FindMatch_solo_ConnectToArena_EnterChampionship_non_koth_solo_same_runtime_session");
+        RequireString(capabilities, "solo_route_required_flow", "solo");
+        RequireFalse(capabilities, "solo_route_arena_identifier_recorded");
+        RequireFalse(capabilities, "solo_route_connection_ticket_recorded");
+        RequireFalse(capabilities, "solo_route_endpoint_recorded");
+        RequireFalse(capabilities, "server_private_proven");
+        RequireString(capabilities, "server_private_status", "unknown");
         RequireFalse(capabilities, "input_available");
         RequireTrue(capabilities, "exclusive_control_lease_required");
         RequireTrue(capabilities, "autonomous_semantic_controller");
@@ -1040,6 +1050,10 @@ internal static class AttackZonePipeExecutor
             build,
             "global_metadata_sha256",
             AttackZoneTrialContract.ExpectedGlobalMetadataSha256);
+        RequireString(
+            build,
+            "sharedassets0_sha256",
+            ContinuousBotControllerContract.SharedAssets0Sha256);
         RequireString(build, "plugin_version", ExpectedBridgeVersion);
         RequireString(build, "plugin_sha256", ExpectedBridgeSha256);
         var foreground = state.GetProperty("foreground");
@@ -1087,8 +1101,19 @@ internal static class AttackZonePipeExecutor
         RequireTrue(value, "proven");
         RequireTrue(value, "network_client_only");
         RequireTrue(value, "context_is_solo");
-        RequireTrue(value, "multiplayer_session_privacy_known");
-        RequireTrue(value, "multiplayer_session_is_private");
+        RequireTrue(value, "solo_route_hooks_verified");
+        RequireTrue(value, "solo_route_proven");
+        RequireString(value, "solo_route_flow", "solo");
+        RequireTrue(value, "solo_route_connect_to_arena_observed");
+        RequireTrue(value, "solo_route_enter_championship_observed");
+        RequireFalse(value, "solo_route_enter_championship_koth");
+        RequireTrue(value, "solo_route_enter_championship_solo");
+        RequireTrue(value, "solo_route_arena_identity_consistent");
+        RequireTrue(value, "solo_route_runtime_session_identity_consistent");
+        RequireString(value, "solo_route_reason", "solo_route_proven");
+        RequireFalse(value, "server_private_proven");
+        RequireString(value, "server_private_status", "unknown");
+        RequireString(value, "reason", "solo_route_proven");
         RequireTrue(value, "opponent_is_ai");
         RequireTrue(value, "opponent_slot_is_ai");
         RequireFalse(value, "human_in_opponent_slot");

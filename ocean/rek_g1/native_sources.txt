@@ -1,0 +1,23 @@
+# Additional translation units for the REK G1 Puffer binding.
+g1_combat_tick.c
+g1_fall_state.c
+g1_fall_mujoco.c
+g1_fight_state.c
+g1_hit_detector.c
+g1_hit_mujoco.c
+g1_semantic_action_table.c
+g1_semantic_assets.c
+g1_strike_catalog.c
+g1_mujoco_feature_registry.c
+g1_model_identity.c
+gear_sonic_ort.c
+gear_sonic_native_batch.c
+gear_sonic_native_duel.c
+native_locomotion_command.c
+native_motion_routes.c
+native_puffer_vector.c
+puffer_action_adapter.c
+semantic_duel_runtime.c
+sonic_motion_composer_native.c
+sonic_motion_composer_libm_candidate.c
+sonic_motion_entry_matcher_native.c

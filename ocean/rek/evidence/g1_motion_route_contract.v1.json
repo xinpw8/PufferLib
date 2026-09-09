@@ -1,0 +1,597 @@
+{
+  "build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+  "classification": "build-pinned static motion-route identity",
+  "parity_validated": false,
+  "routes": [
+    {
+      "kind": "idle",
+      "mocap_clip_config": {
+        "blendInTime": 1.0,
+        "blendOutTime": 0.5139999985694885,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "m_Name": "idle_processed",
+        "mirror": 0,
+        "path_id": 2702,
+        "playbackSpeed": 1.0,
+        "policyProfile": "",
+        "serialized_bytes": 136,
+        "serialized_sha256": "a6da9b526f55f86e3c2ab5a460ac81d0f02e4eab15afb316dd3402de0ea5b76b",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "name": "idle",
+      "npz": {
+        "bytes": 2841,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 39,
+        "name": "idle_processed",
+        "output": "idle_processed.npz",
+        "path_id": 377,
+        "role": "idle",
+        "sha256": "2fd9ca753183566cceaff3ff10ae54b1a7167986297524a9d24d970d57aee969"
+      },
+      "robot_config_binding": {
+        "field": "idle",
+        "index": null
+      },
+      "route_id": 0,
+      "runtime_move_index": null
+    },
+    {
+      "kind": "translation",
+      "mocap_clip_config": {
+        "blendInTime": 1.0,
+        "blendOutTime": 1.0,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "m_Name": "walking_processed",
+        "mirror": 0,
+        "path_id": 2720,
+        "playbackSpeed": 1.0,
+        "policyProfile": "",
+        "serialized_bytes": 140,
+        "serialized_sha256": "8507e4e6a6c42afa6ee795bfaa4711040ecfbf87ac328014335342ab84b01128",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "name": "forward",
+      "npz": {
+        "bytes": 5351,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 36,
+        "name": "walking_processed",
+        "output": "walking_processed.npz",
+        "path_id": 370,
+        "role": "walk",
+        "sha256": "eeae301b6891ecc2a3f5c1d0706081946c1bf9e8c58d2c4b942649b1671e8974"
+      },
+      "robot_config_binding": {
+        "field": "walkForward",
+        "index": null
+      },
+      "route_id": 1,
+      "runtime_move_index": null
+    },
+    {
+      "kind": "translation",
+      "mocap_clip_config": {
+        "blendInTime": 1.0,
+        "blendOutTime": 1.0,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "m_Name": "walking_processed_rev",
+        "mirror": 0,
+        "path_id": 2721,
+        "playbackSpeed": -1.0,
+        "policyProfile": "",
+        "serialized_bytes": 144,
+        "serialized_sha256": "64817f2d2cd3345a41d1580cf67fda12db9b0cd000b9b9d6e5fa01d992093c63",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "name": "backward",
+      "npz": {
+        "bytes": 5351,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 36,
+        "name": "walking_processed",
+        "output": "walking_processed.npz",
+        "path_id": 370,
+        "role": "walk",
+        "sha256": "eeae301b6891ecc2a3f5c1d0706081946c1bf9e8c58d2c4b942649b1671e8974"
+      },
+      "robot_config_binding": {
+        "field": "walkBackward",
+        "index": null
+      },
+      "route_id": 2,
+      "runtime_move_index": null
+    },
+    {
+      "kind": "translation",
+      "mocap_clip_config": {
+        "blendInTime": 0.09399999678134918,
+        "blendOutTime": 0.29499998688697815,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "m_Name": "left_strafe_processed",
+        "mirror": 0,
+        "path_id": 2711,
+        "playbackSpeed": 1.0,
+        "policyProfile": "",
+        "serialized_bytes": 144,
+        "serialized_sha256": "f618f9ca40f4457108dd763408d49f37dbbae6a6b1a38cda57581539336dfcdd",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "name": "strafe_left",
+      "npz": {
+        "bytes": 5246,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 35,
+        "name": "left_strafe_processed",
+        "output": "left_strafe_processed.npz",
+        "path_id": 388,
+        "role": "strafe_left",
+        "sha256": "57c9bb7b66cda5ea7654aa2581a785fe1250095ab40029b9f9dbcb8cea0ac780"
+      },
+      "robot_config_binding": {
+        "field": "strafeLeft",
+        "index": null
+      },
+      "route_id": 3,
+      "runtime_move_index": null
+    },
+    {
+      "kind": "translation",
+      "mocap_clip_config": {
+        "blendInTime": 0.09399999678134918,
+        "blendOutTime": 0.29499998688697815,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "m_Name": "right_strafe_processed",
+        "mirror": 0,
+        "path_id": 2716,
+        "playbackSpeed": -1.0,
+        "policyProfile": "",
+        "serialized_bytes": 144,
+        "serialized_sha256": "24c78b1614af3f5dcb476c09507b6ef17dcdc0d30d3695a727d2b9ecc34f4b1a",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "name": "strafe_right",
+      "npz": {
+        "bytes": 5246,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 35,
+        "name": "left_strafe_processed",
+        "output": "left_strafe_processed.npz",
+        "path_id": 388,
+        "role": "strafe_left",
+        "sha256": "57c9bb7b66cda5ea7654aa2581a785fe1250095ab40029b9f9dbcb8cea0ac780"
+      },
+      "robot_config_binding": {
+        "field": "strafeRight",
+        "index": null
+      },
+      "route_id": 4,
+      "runtime_move_index": null
+    },
+    {
+      "kind": "turn",
+      "mocap_clip_config": {
+        "blendInTime": 0.06499999761581421,
+        "blendOutTime": 0.07100000232458115,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "m_Name": "turn_in_place_right_processed_rev",
+        "mirror": 0,
+        "path_id": 2719,
+        "playbackSpeed": -1.0,
+        "policyProfile": "",
+        "serialized_bytes": 156,
+        "serialized_sha256": "1cc9d1ced0e202fc1ddab2c10e0c446b60dfd28fdb2d9af20fa602252effc075",
+        "startFrame": 0,
+        "yawBlend": 1.0,
+        "yawForgiveness": 0.0
+      },
+      "name": "turn_left",
+      "npz": {
+        "bytes": 6770,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 47,
+        "name": "turn_in_place_right_processed",
+        "output": "turn_in_place_right_processed.npz",
+        "path_id": 375,
+        "role": "turn_right",
+        "sha256": "be2b96be14cfcbc63b7e84bf28bd5c50f1c355a26dd6ba113753103cfcf99c6d"
+      },
+      "robot_config_binding": {
+        "field": "turnLeft",
+        "index": null
+      },
+      "route_id": 5,
+      "runtime_move_index": null
+    },
+    {
+      "kind": "turn",
+      "mocap_clip_config": {
+        "blendInTime": 0.06499999761581421,
+        "blendOutTime": 0.07100000232458115,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "m_Name": "turn_in_place_right_processed",
+        "mirror": 0,
+        "path_id": 2718,
+        "playbackSpeed": 1.0,
+        "policyProfile": "",
+        "serialized_bytes": 152,
+        "serialized_sha256": "68b5d8fe53d8d77d3dd1a0acbc448de9827dc9a96b51f3d36b2f1b7427eac185",
+        "startFrame": 0,
+        "yawBlend": 1.0,
+        "yawForgiveness": 0.0
+      },
+      "name": "turn_right",
+      "npz": {
+        "bytes": 6770,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 47,
+        "name": "turn_in_place_right_processed",
+        "output": "turn_in_place_right_processed.npz",
+        "path_id": 375,
+        "role": "turn_right",
+        "sha256": "be2b96be14cfcbc63b7e84bf28bd5c50f1c355a26dd6ba113753103cfcf99c6d"
+      },
+      "robot_config_binding": {
+        "field": "turnRight",
+        "index": null
+      },
+      "route_id": 6,
+      "runtime_move_index": null
+    },
+    {
+      "kind": "kick",
+      "mocap_clip_config": {
+        "blendInTime": 0.035999998450279236,
+        "blendOutTime": 0.6899999976158142,
+        "displayName": "Left Side Kick",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 2.0,
+            "impactTime": 1.100000023841858,
+            "leadTime": 0.30000001192092896,
+            "limb": 3,
+            "releaseTime": 0.5
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 500.0,
+        "loop": 0,
+        "m_Name": "left_side_kick_processed",
+        "mirror": 0,
+        "path_id": 2710,
+        "playbackSpeed": 1.0,
+        "policyProfile": "",
+        "serialized_bytes": 180,
+        "serialized_sha256": "fb5c3938396c789020003634b0dc76d2319ea3df33ec2fa2927a2e4e24a070a0",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "name": "kick_move_6_left_side",
+      "npz": {
+        "bytes": 21047,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 158,
+        "name": "left_side_kick_processed",
+        "output": "left_side_kick_processed.npz",
+        "path_id": 392,
+        "role": "kick_left_side",
+        "sha256": "854e5bbf91b325288ed0f63e43f65355aa5b1a15fe43a8fd940b4efb6ed6a465"
+      },
+      "robot_config_binding": {
+        "field": "moves",
+        "index": 6
+      },
+      "route_id": 7,
+      "runtime_move_index": 6
+    },
+    {
+      "kind": "kick",
+      "mocap_clip_config": {
+        "blendInTime": 0.035999998450279236,
+        "blendOutTime": 0.6899999976158142,
+        "displayName": "Left Front Kick",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 2.0,
+            "impactTime": 1.0,
+            "leadTime": 0.20000000298023224,
+            "limb": 3,
+            "releaseTime": 0.5
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "m_Name": "left_front_kick_processed",
+        "mirror": 0,
+        "path_id": 2703,
+        "playbackSpeed": 1.0,
+        "policyProfile": "",
+        "serialized_bytes": 184,
+        "serialized_sha256": "5f61681420dbd84ce046f68770b73d2ed9e845d38cacd4e37d1f704bcb5f9241",
+        "startFrame": 0,
+        "yawBlend": 1.0,
+        "yawForgiveness": 500.0
+      },
+      "name": "kick_move_7_left_front",
+      "npz": {
+        "bytes": 19616,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 146,
+        "name": "left_front_kick_processed",
+        "output": "left_front_kick_processed.npz",
+        "path_id": 371,
+        "role": "kick_left_front",
+        "sha256": "3db29034517acc376c16ce5bc04f923803a48367ad58a5c65a314123639815c1"
+      },
+      "robot_config_binding": {
+        "field": "moves",
+        "index": 7
+      },
+      "route_id": 8,
+      "runtime_move_index": 7
+    },
+    {
+      "kind": "kick",
+      "mocap_clip_config": {
+        "blendInTime": 0.035999998450279236,
+        "blendOutTime": 0.6899999976158142,
+        "displayName": "Right Side Kick",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 2.0,
+            "impactTime": 1.1399999856948853,
+            "leadTime": 0.4000000059604645,
+            "limb": 4,
+            "releaseTime": 0.15000000596046448
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 500.0,
+        "loop": 0,
+        "m_Name": "right_side_kick_processed",
+        "mirror": 0,
+        "path_id": 2715,
+        "playbackSpeed": 1.0,
+        "policyProfile": "",
+        "serialized_bytes": 184,
+        "serialized_sha256": "6c4a414aa3c6860f30b28d65e6ef7c18d5e6bf9331ab69215ded03cf82c560ac",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "name": "kick_move_8_right_side",
+      "npz": {
+        "bytes": 20887,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 159,
+        "name": "right_side_kick_processed",
+        "output": "right_side_kick_processed.npz",
+        "path_id": 372,
+        "role": "kick_right_side",
+        "sha256": "4d16c2d07848713713f8252e21fc2893462052f6ee3e157e9c364c03769de6a6"
+      },
+      "robot_config_binding": {
+        "field": "moves",
+        "index": 8
+      },
+      "route_id": 9,
+      "runtime_move_index": 8
+    },
+    {
+      "kind": "kick",
+      "mocap_clip_config": {
+        "blendInTime": 0.05999999865889549,
+        "blendOutTime": 0.550000011920929,
+        "displayName": "Right Knee",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 3.0,
+            "impactTime": 0.6499999761581421,
+            "leadTime": 0.4000000059604645,
+            "limb": 4,
+            "releaseTime": 0.15000000596046448
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 800.0,
+        "loop": 0,
+        "m_Name": "right_knee_processed",
+        "mirror": 0,
+        "path_id": 2714,
+        "playbackSpeed": 1.0,
+        "policyProfile": "",
+        "serialized_bytes": 172,
+        "serialized_sha256": "04dbcb4b28f617912c7ac5c452a23969c5bc17ac745571c35d29ebea03b2733b",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "name": "kick_move_9_right_knee",
+      "npz": {
+        "bytes": 18805,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 140,
+        "name": "right_knee_processed",
+        "output": "right_knee_processed.npz",
+        "path_id": 380,
+        "role": "kick_right_knee",
+        "sha256": "08bba86c004d99e61d53997cd31223b8cfde67c019506267339e146dd771097f"
+      },
+      "robot_config_binding": {
+        "field": "moves",
+        "index": 9
+      },
+      "route_id": 10,
+      "runtime_move_index": 9
+    }
+  ],
+  "runtime_selection_observed": false,
+  "schema": "rek.g1_motion_route_contract.v1",
+  "source": {
+    "probe": {
+      "bytes": 4568314,
+      "inventory_sha256": "ea932824c7f1fa9781ab816716d4bfca9ec22b14e754466941c8c157910eff79",
+      "name": "mujoco_asset_probe_v8.json",
+      "schema": "rek.mujoco_asset_probe.v1",
+      "sha256": "b132eb19cb7b223a87ee3885c16e521e82d7e99006c09ed63e8cc899ad057686",
+      "unity_version": "6000.5.8f1",
+      "unitypy_version": "1.25.2"
+    },
+    "robot_config": {
+      "name": "RobotConfig_G1_UnitreeFighting",
+      "path_id": 2722,
+      "robot_id": "g1",
+      "serialized_bytes": 472,
+      "serialized_sha256": "3b0f5dfa78591b384ab022d85c4f3027182c8c4cf48f0c325a3b5170c5ebf1eb"
+    },
+    "runtime_assets_manifest": {
+      "canonical_sha256": "06aa831f9ee6a094660df90085a03c2d8ef331137f74d6bb18849716e29c9eae",
+      "name": "g1_runtime_assets.v1.json",
+      "schema": "rek.g1_runtime_assets.manifest.v1"
+    },
+    "unity_container": {
+      "bytes": 31315504,
+      "name": "sharedassets0.assets",
+      "sha256": "37f7a476c56caae37f5a04d4fa1acf5954fdc2b90f20f521830369ecff05f355"
+    }
+  }
+}

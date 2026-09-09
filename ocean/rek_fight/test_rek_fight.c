@@ -37,6 +37,18 @@ static void idle_actions(float* actions) {
     }
 }
 
+static double agent_root_yaw(const RekFight* env, int agent) {
+    int root_qpos = agent * REK_MATCH_QPOS_PER_AGENT;
+    double qw = env->data->qpos[root_qpos + 3];
+    double qx = env->data->qpos[root_qpos + 4];
+    double qy = env->data->qpos[root_qpos + 5];
+    double qz = env->data->qpos[root_qpos + 6];
+    return atan2(
+        2.0 * (qw * qz + qx * qy),
+        1.0 - 2.0 * (qy * qy + qz * qz)
+    );
+}
+
 static int first_geom_for_agent(const RekFight* env, int agent) {
     for (int geom = 0; geom < env->model->ngeom; geom++) {
         int body = env->model->geom_bodyid[geom];
@@ -99,20 +111,21 @@ static void test_complete_state_observation(RekFight* env) {
     state->router.held_velocity[0] = -1.0f;
     state->router.held_velocity[1] = 0.0f;
     state->router.held_velocity[2] = 1.0f;
+    state->translation_settle_axes = 3;
     env->tick = 19;
     env->data->time = 0.38;
     rek_fight_compute_observations(env);
 
     const int state_start = REK_MATCH_OBS_SIZE;
-    const float expected_prefix[15] = {
-        1, 1, 1, 1, 4, 7, 29, 11, 13, 5, 17, 3, -1, 0, 1,
+    const float expected_prefix[16] = {
+        1, 1, 1, 1, 4, 7, 29, 11, 13, 5, 17, 3, -1, 0, 1, 3,
     };
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < 16; i++) {
         assert(observations[state_start + i] == expected_prefix[i]);
     }
-    assert(observations[state_start + 15] == 1.0f);
+    assert(observations[state_start + 16] == 1.0f);
     for (int category = 1; category < REK_FIGHT_MOVE_MASK_SIZE; category++) {
-        assert(observations[state_start + 15 + category] == 0.0f);
+        assert(observations[state_start + 16 + category] == 0.0f);
     }
     int global_start = REK_MATCH_OBS_SIZE
         + 2 * REK_FIGHT_AGENT_STATE_OBS_SIZE;
@@ -122,7 +135,7 @@ static void test_complete_state_observation(RekFight* env) {
 
     const float* opponent_view = observations + REK_FIGHT_OBS_SIZE;
     int other_state_start = REK_MATCH_OBS_SIZE + REK_FIGHT_AGENT_STATE_OBS_SIZE;
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < 16; i++) {
         assert(opponent_view[other_state_start + i] == expected_prefix[i]);
     }
 }
@@ -136,6 +149,21 @@ static void test_move_action_mask(void) {
         assert(rek_fight_move_action_available(&state, category) == (category != 3));
     }
     state.cooldown_active = 1;
+    for (int category = 1; category < REK_FIGHT_MOVE_MASK_SIZE; category++) {
+        assert(!rek_fight_move_action_available(&state, category));
+    }
+
+    state.cooldown_active = 0;
+    state.router.held_velocity[0] = 1.0f;
+    for (int category = 1; category < REK_FIGHT_MOVE_MASK_SIZE; category++) {
+        assert(!rek_fight_move_action_available(&state, category));
+    }
+    state.router.held_velocity[0] = 0.0f;
+    state.router.held_velocity[2] = 1.0f;
+    for (int category = 1; category < REK_FIGHT_MOVE_MASK_SIZE; category++) {
+        assert(rek_fight_move_action_available(&state, category) == (category != 3));
+    }
+    state.translation_settle_axes = 1;
     for (int category = 1; category < REK_FIGHT_MOVE_MASK_SIZE; category++) {
         assert(!rek_fight_move_action_available(&state, category));
     }
@@ -210,6 +238,123 @@ static void test_move_request(RekFight* env) {
         if (env->agent[0].move_in_progress) guarded += 1;
     }
     assert(guarded == 5);
+}
+
+static void assert_held_axis_moves_then_stops(
+        RekFight* env,
+        float actions[REK_FIGHT_NUM_AGENTS * REK_FIGHT_NUM_ACTIONS],
+        int action_head,
+        float held_bin,
+        int root_qpos,
+        int direction) {
+    idle_actions(actions);
+    c_reset(env);
+    double start = env->data->qpos[root_qpos];
+    double previous = start;
+    double first_step_distance = 0.0;
+    actions[action_head] = held_bin;
+    for (int step = 0; step < 6; step++) {
+        c_step(env);
+        double step_distance = direction * (env->data->qpos[root_qpos] - previous);
+        assert(step_distance > 0.0);
+        if (step == 0) first_step_distance = step_distance;
+        previous = env->data->qpos[root_qpos];
+    }
+    assert(direction * (previous - start) > 5.0 * first_step_distance);
+
+    actions[action_head] = 1.0f;
+    for (int step = 0; step < 6; step++) {
+        c_step(env);
+        assert(fabs(env->data->qpos[root_qpos] - previous) < 1e-15);
+        assert(env->data->qvel[root_qpos] == 0.0);
+    }
+}
+
+static void test_held_translation_duration(RekFight* env) {
+    float observations[REK_FIGHT_NUM_AGENTS * REK_FIGHT_OBS_SIZE];
+    float actions[REK_FIGHT_NUM_AGENTS * REK_FIGHT_NUM_ACTIONS];
+    float rewards[REK_FIGHT_NUM_AGENTS];
+    float terminals[REK_FIGHT_NUM_AGENTS];
+    attach_buffers(env, observations, actions, rewards, terminals);
+
+    assert_held_axis_moves_then_stops(env, actions, 0, 2.0f, 0, 1);
+    assert_held_axis_moves_then_stops(env, actions, 0, 0.0f, 0, -1);
+    assert_held_axis_moves_then_stops(env, actions, 1, 2.0f, 1, 1);
+    assert_held_axis_moves_then_stops(env, actions, 1, 0.0f, 1, -1);
+}
+
+static void test_held_control_priority(RekFight* env) {
+    float observations[REK_FIGHT_NUM_AGENTS * REK_FIGHT_OBS_SIZE];
+    float actions[REK_FIGHT_NUM_AGENTS * REK_FIGHT_NUM_ACTIONS];
+    float rewards[REK_FIGHT_NUM_AGENTS];
+    float terminals[REK_FIGHT_NUM_AGENTS];
+    attach_buffers(env, observations, actions, rewards, terminals);
+    idle_actions(actions);
+    c_reset(env);
+
+    double start_x = env->data->qpos[0];
+    double previous_x = start_x;
+    double start_yaw = agent_root_yaw(env, 0);
+    double previous_yaw = start_yaw;
+    actions[0] = 2.0f;
+    actions[2] = 2.0f;
+    actions[3] = 2.0f;
+    for (int step = 0; step < 6; step++) {
+        c_step(env);
+        double yaw = agent_root_yaw(env, 0);
+        assert(!env->agent[0].move_in_progress);
+        assert(env->agent[0].router.last_emitted_move_category == 0);
+        assert(env->data->qpos[0] > previous_x);
+        assert(yaw > previous_yaw);
+        previous_x = env->data->qpos[0];
+        previous_yaw = yaw;
+    }
+    assert(env->data->qpos[0] > start_x);
+    assert(agent_root_yaw(env, 0) > start_yaw);
+
+    // The first neutral translation command clears the commanded velocity, but
+    // the measured local velocity is still above the pinned strict threshold at
+    // the planning boundary. The held attack remains deferred while yaw runs.
+    actions[0] = 1.0f;
+    double attack_x = env->data->qpos[0];
+    c_step(env);
+    assert(!env->agent[0].move_in_progress);
+    assert(env->agent[0].translation_settle_axes == 1);
+    assert(env->data->qpos[0] == attack_x);
+    assert(agent_root_yaw(env, 0) > previous_yaw);
+    assert(env->data->qvel[0] == 0.0);
+
+    // At the next planning boundary local forward speed is strictly below the
+    // threshold. The attack begins and cancels the still-held yaw that tick.
+    previous_yaw = agent_root_yaw(env, 0);
+    double attack_quaternion[4];
+    memcpy(attack_quaternion, env->data->qpos + 3, sizeof(attack_quaternion));
+    c_step(env);
+    assert(env->agent[0].move_in_progress);
+    assert(env->agent[0].move_slot == 3);
+    assert(env->agent[0].translation_settle_axes == 0);
+    assert(env->data->qpos[0] == attack_x);
+    assert(agent_root_yaw(env, 0) == previous_yaw);
+    assert(env->data->qvel[5] == 0.0);
+    for (int item = 0; item < 4; item++) {
+        assert(fabs(attack_quaternion[item] - env->data->qpos[3 + item]) < 1e-15);
+    }
+
+    // Held input remains observable during a move, while physical root motion
+    // stays neutral until the move executor releases control.
+    actions[0] = 2.0f;
+    actions[2] = 2.0f;
+    actions[3] = 0.0f;
+    attack_x = env->data->qpos[0];
+    memcpy(attack_quaternion, env->data->qpos + 3, sizeof(attack_quaternion));
+    c_step(env);
+    assert(env->agent[0].move_in_progress);
+    assert(env->agent[0].router.held_velocity[0] == 1.0f);
+    assert(env->agent[0].router.held_velocity[2] == 1.0f);
+    assert(env->data->qpos[0] == attack_x);
+    for (int item = 0; item < 4; item++) {
+        assert(fabs(attack_quaternion[item] - env->data->qpos[3 + item]) < 1e-15);
+    }
 }
 
 static void test_scripted_approach(RekFight* env) {
@@ -458,13 +603,15 @@ int main(int argc, char** argv) {
         c_close(&env);
         return 0;
     }
-    assert(REK_FIGHT_OBS_SIZE == 173);
+    assert(REK_FIGHT_OBS_SIZE == 175);
     test_descendant_limb_geometries(&env);
     test_complete_state_observation(&env);
     test_move_action_mask();
     test_zero_time_impact(&env);
     test_router_and_idle(&env);
     test_move_request(&env);
+    test_held_translation_duration(&env);
+    test_held_control_priority(&env);
     test_scripted_approach(&env);
     test_framework_controller(&env);
     c_close(&env);

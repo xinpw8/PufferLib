@@ -77,7 +77,15 @@ class TraceWriter:
         if authority == 'server':
             # The client hash does not pin the simulator that produced this.
             server = server or {}
-            missing = [k for k in ('endpoint', 'session_id') if not server.get(k)]
+            endpoint_identified = bool(server.get('endpoint')) or (
+                server.get('endpoint_present') is True and
+                server.get('endpoint_recorded') is False and
+                'endpoint' not in server)
+            missing = []
+            if not endpoint_identified:
+                missing.append('endpoint')
+            if not server.get('session_id'):
+                missing.append('session_id')
             if missing:
                 raise ValueError(
                     'a server-authoritative trace must identify the server: '

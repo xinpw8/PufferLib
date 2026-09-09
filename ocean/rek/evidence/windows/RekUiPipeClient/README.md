@@ -13,6 +13,7 @@ RekUiPipeClient.exe enter-private output.jsonl [timeout_seconds]
 RekUiPipeClient.exe schedule output.jsonl [timeout_seconds]
 RekUiPipeClient.exe trial selector output.jsonl [timeout_seconds]
 RekUiPipeClient.exe controller output.jsonl [run_seconds|until-ended]
+RekUiPipeClient.exe g1-held output.jsonl [timeout_seconds]
 ```
 
 `enter-private` uses only the recovered Unity main-thread methods for Login,
@@ -48,6 +49,20 @@ The transcript validates controller, round, request, local-motion, recovery,
 and telemetry records, but can establish only that client methods returned and
 that local state transitions were observed. It cannot establish server
 acceptance or authoritative execution.
+
+`g1-held` is the machine command for a fresh-round G1 held-input measurement.
+It requires an inactive proven solo Sparring Bot 1 session, sends only the
+existing semantic `StartRound` request, waits for a new active round, and then
+requires exact G1 versus G1 runtime signatures before starting the schedule.
+The default timeout is 150 seconds. The client verifies every 50 Hz schedule
+tick, every 500 Hz kick lifecycle observation, each translation release and
+direction-specific `TransitionSettled` result, every local return and request
+lifecycle record, the immutable round identity, the exact schedule hash, and
+terminal coverage. Translation remains held at its kick edge, releases 100 ms
+later, and stays neutral for the rest of the four-second observation window.
+It publishes a validated partial transcript and returns nonzero if the round
+ends or lifecycle coverage is incomplete. It does not emit keyboard, mouse, or
+gamepad input.
 
 Mutation modes require a new transcript path. Records are flushed as they arrive
 to a uniquely named `.partial-*` file. A complete run is flushed to disk and

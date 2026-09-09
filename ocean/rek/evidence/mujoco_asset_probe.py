@@ -17,7 +17,10 @@ from typing import Any
 
 REK_TARGET_CLASSES = {
     "AIOpponentController",
+    "BodyPartTag",
     "EngineAIPolicyRunner",
+    "FightCoordinator",
+    "HitDetector",
     "KeyboardControlScheme",
     "MjImpactForce",
     "MjSimConfig",
@@ -25,6 +28,7 @@ REK_TARGET_CLASSES = {
     "MujocoPolicyRunner",
     "MocapClipConfig",
     "PhysXStepPolicy",
+    "PointTracker",
     "Robot",
     "RobotCatalog",
     "RobotConfig",

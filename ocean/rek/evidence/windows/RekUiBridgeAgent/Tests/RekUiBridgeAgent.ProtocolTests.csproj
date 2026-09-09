@@ -9,12 +9,16 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="..\BridgeProtocol.cs" Link="BridgeProtocol.cs" />
+    <Compile Include="..\G1HeldInputScheduleContract.cs" Link="G1HeldInputScheduleContract.cs" />
     <Compile Include="..\RenderedCommandMarkerContract.cs" Link="RenderedCommandMarkerContract.cs" />
     <Compile Include="..\SingleMotionTrialContract.cs" Link="SingleMotionTrialContract.cs" />
     <Compile Include="..\ContinuousBotControllerContract.cs" Link="ContinuousBotControllerContract.cs" />
+    <Compile Include="..\..\SoloRouteProofContract.cs" Link="SoloRouteProofContract.cs" />
     <Compile Include="..\AttackZoneTrialContract.cs" Link="AttackZoneTrialContract.cs" />
     <Compile Include="..\LocalPipeServer.cs" Link="LocalPipeServer.cs" />
     <Compile Include="..\..\RekUiPipeClient\ControllerRunModeContract.cs" Link="ControllerRunModeContract.cs" />
+    <Compile Include="..\..\RekUiPipeClient\G1HeldEventReconciler.cs" Link="G1HeldEventReconciler.cs" />
+    <Compile Include="..\..\RekUiPipeClient\JsonBinary32Contract.cs" Link="JsonBinary32Contract.cs" />
     <Compile Include="..\..\RekUiPipeClient\LostSessionExitModeContract.cs" Link="LostSessionExitModeContract.cs" />
   </ItemGroup>
 </Project>

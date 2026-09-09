@@ -3,6 +3,7 @@ using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using RekEvidence;
 
 namespace RekUiBridgeAgent;
 
@@ -92,6 +93,14 @@ internal sealed class LocalPipeServer : IDisposable
                     capabilities = new
                     {
                         state = true,
+                        private_ai_proof_basis =
+                            "build_pinned_REK_FindMatch_solo_ConnectToArena_EnterChampionship_non_koth_solo_same_runtime_session",
+                        solo_route_required_flow = SoloRouteProofContract.ExactFlow,
+                        solo_route_arena_identifier_recorded = false,
+                        solo_route_connection_ticket_recorded = false,
+                        solo_route_endpoint_recorded = false,
+                        server_private_proven = false,
+                        server_private_status = SoloRouteProofContract.ServerPrivateStatusUnknown,
                         input_available = false,
                         parsed_but_rejected_input = new[] { "Left", "Right", "Up", "Down", "Enter", "Escape", "Space" },
                         input_unavailable_reason = "verified_process_targeted_unity_input_delivery_not_implemented",
@@ -119,6 +128,58 @@ internal sealed class LocalPipeServer : IDisposable
                         single_motion_trial_locomotion_release_tick =
                             SingleMotionTrialContract.LocomotionReleaseTick,
                         single_motion_trial_duration_ticks = SingleMotionTrialContract.DurationTrialTicks,
+                        g1_held_schedule_schema = G1HeldInputScheduleContract.Schema,
+                        g1_held_schedule_id = G1HeldInputScheduleContract.ScheduleId,
+                        g1_held_schedule_sha256 = G1HeldInputScheduleContract.ExpectedSha256,
+                        g1_held_schedule_authority_scope =
+                            G1HeldInputScheduleContract.AuthorityScope,
+                        g1_held_schedule_authority_caveat =
+                            G1HeldInputScheduleContract.AuthorityCaveat,
+                        g1_held_schedule_required_isolation_proof =
+                            G1HeldInputScheduleContract.RequiredIsolationProof,
+                        g1_held_schedule_pose_response_source =
+                            G1HeldInputScheduleContract.PoseResponseSource,
+                        g1_held_schedule_unity_fixed_rate_hz =
+                            G1HeldInputScheduleContract.UnityFixedRateHz,
+                        g1_held_schedule_rate_hz =
+                            G1HeldInputScheduleContract.ScheduleRateHz,
+                        g1_held_schedule_fixed_substeps_per_tick =
+                            G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick,
+                        g1_held_schedule_duration_ticks =
+                            G1HeldInputScheduleContract.DurationScheduleTicks,
+                        g1_held_schedule_kick_observation_ticks =
+                            G1HeldInputScheduleContract.KickObservationTicks,
+                        g1_held_schedule_translation_release_offset_ticks =
+                            G1HeldInputScheduleContract.TranslationReleaseOffsetTicks,
+                        g1_held_schedule_transition_settled_provenance =
+                            G1HeldInputScheduleContract.TransitionSettledProvenance,
+                        g1_held_schedule_transition_settle_base_velocity_provenance =
+                            G1HeldInputScheduleContract.TransitionSettleBaseVelocityProvenance,
+                        g1_held_schedule_transition_settle_planar_speed_m_s =
+                            G1HeldInputScheduleContract.ExpectedTransitionSettlePlanarSpeed,
+                        g1_held_schedule_transition_settle_yaw_rate_rad_s =
+                            G1HeldInputScheduleContract.ExpectedTransitionSettleYawRate,
+                        g1_held_schedule_post_release_settled_kick_control_included = false,
+                        g1_held_schedule_lifecycle_observation_rate_hz =
+                            G1HeldInputScheduleContract.UnityFixedRateHz,
+                        g1_held_schedule_keyboard_yaw_ramp_time_seconds =
+                            G1HeldInputScheduleContract.ExpectedKeyboardYawRampTimeSeconds,
+                        g1_held_schedule_keyboard_yaw_speed =
+                            G1HeldInputScheduleContract.ExpectedYawSpeed,
+                        g1_held_schedule_required_run_seconds =
+                            G1HeldInputScheduleContract.RequiredRunSeconds,
+                        g1_held_schedule_round_capacity_safety_seconds =
+                            G1HeldInputScheduleContract.RoundCapacitySafetySeconds,
+                        g1_held_schedule_required_round_capacity_seconds =
+                            G1HeldInputScheduleContract.RequiredRoundCapacitySeconds,
+                        g1_held_schedule_held_condition_count =
+                            G1HeldInputScheduleContract.HeldConditions.Length,
+                        g1_held_schedule_kick_move_indices =
+                            G1HeldInputScheduleContract.KickMoveIndices,
+                        g1_held_schedule_f_binding_included = false,
+                        g1_held_schedule_queue_or_retry_used = false,
+                        g1_held_schedule_sonic_action_composer_lifecycle_used = false,
+                        g1_held_schedule_global_input_emitted = false,
                         continuous_controller_schema = ContinuousBotControllerContract.Schema,
                         continuous_controller_sha256 = ContinuousBotControllerContract.ExpectedSha256,
                         continuous_controller_authority_scope =
@@ -146,6 +207,18 @@ internal sealed class LocalPipeServer : IDisposable
                         continuous_controller_move_indices = ContinuousBotControllerContract.Attacks
                             .Select(value => value.MoveIndex)
                             .ToArray(),
+                        continuous_controller_g1_move_indices = ContinuousBotControllerContract.G1Attacks
+                            .Select(value => value.MoveIndex)
+                            .ToArray(),
+                        continuous_controller_supported_runtime_models = new[]
+                        {
+                            BridgePairingContract.T800RobotId,
+                            BridgePairingContract.G1RobotId,
+                        },
+                        continuous_controller_t800_recovery_mode =
+                            ContinuousBotControllerContract.T800RecoveryMode,
+                        continuous_controller_g1_recovery_mode =
+                            ContinuousBotControllerContract.G1RecoveryMode,
                         continuous_controller_recovery_guard_provenance =
                             ContinuousBotControllerContract.RecoveryGuardProvenance,
                         continuous_controller_fault_estop_provenance =
@@ -183,6 +256,25 @@ internal sealed class LocalPipeServer : IDisposable
                             false,
                         continuous_controller_attack_profiles =
                             ContinuousBotControllerContract.Attacks.Select(attack => new
+                            {
+                                move_index = attack.MoveIndex,
+                                move_name = attack.MoveName,
+                                display_name = attack.DisplayName,
+                                maximum_distance_m = attack.MaximumDistanceMeters,
+                                maximum_abs_bearing_degrees =
+                                    attack.MaximumAbsBearingDegrees,
+                                serialized_asset_sha256 = attack.SerializedAssetSha256,
+                                static_impact_events = attack.StaticImpactEvents.Select(value => new
+                                {
+                                    impact_time_s = value.ImpactTimeSeconds,
+                                    lead_time_s = value.LeadTimeSeconds,
+                                    release_time_s = value.ReleaseTimeSeconds,
+                                    limb = value.Limb,
+                                    gain_boost = value.GainBoost,
+                                }).ToArray(),
+                            }).ToArray(),
+                        continuous_controller_g1_attack_profiles =
+                            ContinuousBotControllerContract.G1Attacks.Select(attack => new
                             {
                                 move_index = attack.MoveIndex,
                                 move_name = attack.MoveName,

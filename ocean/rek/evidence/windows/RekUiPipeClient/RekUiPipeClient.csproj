@@ -8,4 +8,8 @@
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\RekUiBridgeAgent\G1HeldInputScheduleContract.cs"
+             Link="G1HeldInputScheduleContract.cs" />
+  </ItemGroup>
 </Project>

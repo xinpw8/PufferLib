@@ -9,6 +9,8 @@ using System.Text.Json.Serialization;
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
+using Il2CppInterop.Runtime;
+using RekEvidence;
 using REKApp;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -28,7 +30,8 @@ public sealed class Plugin : BasePlugin
         "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412";
     private const string ExpectedMetadataSha256 =
         "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd";
-    private const string DefaultOutputRoot = @"C:\rekagent\evidence\runtime\rek-private-ai-protocol-v6";
+    private const string SoloRouteHarmonyId = PluginGuid + ".solo-route";
+    private const string DefaultOutputRoot = @"C:\rekagent\evidence\runtime\rek-private-ai-protocol-v7";
     private static readonly string OutputRoot = ResolveOutputRoot();
     private const int CompactSampleStrideTicks = 10;
     private const int RootPoseSampleStrideTicks = 1;
@@ -46,7 +49,10 @@ public sealed class Plugin : BasePlugin
 
     private RecorderBehaviour? _behaviour;
     private Harmony? _harmony;
+    private Harmony? _soloRouteHarmony;
     private bool _harmonyArmed;
+    private bool _soloRoutePatchesVerified;
+    private readonly SoloRouteProofTracker _soloRouteProofTracker = new();
     private StreamWriter? _writer;
     private string? _partialPath;
     private string? _finalPath;
@@ -107,6 +113,12 @@ public sealed class Plugin : BasePlugin
         }
 
         Instance = this;
+        if (!ArmSoloRouteHarmony())
+        {
+            Log.LogError("Recorder disabled: build-pinned solo-route observation hooks were not verified.");
+            Instance = null;
+            return;
+        }
         _behaviour = AddComponent<RecorderBehaviour>();
         Log.LogInfo(
             $"Recorder armed for private Sparring Bot 1 scope only. Output root: {OutputRoot}. " +
@@ -117,6 +129,9 @@ public sealed class Plugin : BasePlugin
     {
         FinishCapture("plugin_unload");
         DisarmHarmony();
+        _soloRouteHarmony?.UnpatchSelf();
+        _soloRouteHarmony = null;
+        _soloRoutePatchesVerified = false;
         if (_behaviour is not null)
         {
             UnityEngine.Object.Destroy(_behaviour);
@@ -185,6 +200,121 @@ public sealed class Plugin : BasePlugin
                 DisarmHarmony();
             }
         }
+    }
+
+    private bool ArmSoloRouteHarmony()
+    {
+        _soloRouteHarmony = new Harmony(SoloRouteHarmonyId);
+        try
+        {
+            PatchSoloRoutePrefix(typeof(CentralApiClient), "FindMatch", nameof(ObserveFindMatchPrefix));
+            PatchSoloRoutePrefix(
+                typeof(CentralApiClient),
+                "ConnectToArena",
+                nameof(ObserveConnectToArenaPrefix));
+            PatchSoloRoutePostfix(
+                typeof(LobbyController),
+                "EnterChampionship",
+                nameof(ObserveEnterChampionshipPostfix));
+            PatchSoloRoutePrefix(
+                typeof(NetworkSession),
+                "HandleClientConnected",
+                nameof(ObserveClientConnectedPrefix));
+            PatchSoloRoutePrefix(
+                typeof(NetworkSession),
+                "HandleClientDisconnected",
+                nameof(ObserveClientDisconnectedPrefix));
+            PatchSoloRoutePrefix(
+                typeof(NetworkSession),
+                "StopSession",
+                nameof(ObserveSessionStoppedPrefix));
+            _soloRoutePatchesVerified =
+                HasOwnedSoloRoutePatch(typeof(CentralApiClient), "FindMatch") &&
+                HasOwnedSoloRoutePatch(typeof(CentralApiClient), "ConnectToArena") &&
+                HasOwnedSoloRoutePatch(typeof(LobbyController), "EnterChampionship") &&
+                HasOwnedSoloRoutePatch(typeof(NetworkSession), "HandleClientConnected") &&
+                HasOwnedSoloRoutePatch(typeof(NetworkSession), "HandleClientDisconnected") &&
+                HasOwnedSoloRoutePatch(typeof(NetworkSession), "StopSession");
+            if (_soloRoutePatchesVerified)
+                return true;
+        }
+        catch (Exception exception)
+        {
+            Log.LogError($"Solo-route observation patch failure: {exception.GetType().Name}");
+        }
+
+        _soloRouteHarmony.UnpatchSelf();
+        _soloRouteHarmony = null;
+        _soloRoutePatchesVerified = false;
+        return false;
+    }
+
+    private void PatchSoloRoutePrefix(Type declaringType, string methodName, string patchName)
+    {
+        var target = AccessTools.DeclaredMethod(declaringType, methodName) ??
+            throw new MissingMethodException(declaringType.FullName, methodName);
+        var patch = AccessTools.DeclaredMethod(typeof(Plugin), patchName) ??
+            throw new MissingMethodException(typeof(Plugin).FullName, patchName);
+        _soloRouteHarmony!.Patch(target, prefix: new HarmonyMethod(patch));
+    }
+
+    private void PatchSoloRoutePostfix(Type declaringType, string methodName, string patchName)
+    {
+        var target = AccessTools.DeclaredMethod(declaringType, methodName) ??
+            throw new MissingMethodException(declaringType.FullName, methodName);
+        var patch = AccessTools.DeclaredMethod(typeof(Plugin), patchName) ??
+            throw new MissingMethodException(typeof(Plugin).FullName, patchName);
+        _soloRouteHarmony!.Patch(target, postfix: new HarmonyMethod(patch));
+    }
+
+    private static bool HasOwnedSoloRoutePatch(Type declaringType, string methodName)
+    {
+        var target = AccessTools.DeclaredMethod(declaringType, methodName);
+        var patchInfo = target is null ? null : Harmony.GetPatchInfo(target);
+        return patchInfo?.Owners?.Contains(SoloRouteHarmonyId, StringComparer.Ordinal) == true;
+    }
+
+    private static void ObserveFindMatchPrefix(string flow)
+    {
+        Instance?._soloRouteProofTracker.ObserveFindMatch(flow);
+    }
+
+    private static void ObserveConnectToArenaPrefix(string arenaID)
+    {
+        Instance?._soloRouteProofTracker.ObserveConnectToArena(arenaID);
+    }
+
+    private static void ObserveEnterChampionshipPostfix(
+        string arenaID,
+        string ip,
+        int port,
+        bool koth,
+        bool solo)
+    {
+        Instance?._soloRouteProofTracker.ObserveEnterChampionship(
+            arenaID,
+            ip,
+            port,
+            koth,
+            solo);
+    }
+
+    private static void ObserveClientConnectedPrefix()
+    {
+        Instance?._soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+            "network_client_connected_after_solo_route_binding");
+    }
+
+    private static void ObserveClientDisconnectedPrefix()
+    {
+        Instance?._soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+            "network_client_disconnected_after_solo_route_binding");
+    }
+
+    private static void ObserveSessionStoppedPrefix()
+    {
+        Instance?._soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+            "network_session_stopped_after_solo_route_binding");
     }
 
     private void ArmHarmony()
@@ -259,35 +389,59 @@ public sealed class Plugin : BasePlugin
 
         var network = UnityEngine.Object.FindFirstObjectByType<NetworkSession>();
         if (network is null)
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound("no_network_session");
             return ScopeSnapshot.Denied("no_network_session");
+        }
         if (!network.IsConnected)
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound("network_not_connected");
             return ScopeSnapshot.Denied("network_not_connected");
+        }
         if (!network.IsClient || network.IsServer)
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound("not_client_only");
             return ScopeSnapshot.Denied("not_client_only");
+        }
         if (string.IsNullOrWhiteSpace(network.serverAddress) || network.port <= 0)
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+                "network_endpoint_identity_not_proven");
             return ScopeSnapshot.Denied("network_endpoint_identity_not_proven");
+        }
 
         var context = GameContext.Instance ?? UnityEngine.Object.FindFirstObjectByType<GameContext>();
         if (context is null)
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound("no_game_context");
             return ScopeSnapshot.Denied("no_game_context");
+        }
         if (!context.IsSolo)
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound("solo_context_not_proven");
             return ScopeSnapshot.Denied("solo_context_not_proven");
-        if (context.IsRanked || context.AutoFindMatch || string.IsNullOrWhiteSpace(context.ArenaID))
+        }
+        if (context.Mode != GameContext.SessionMode.Championship ||
+            context.IsKotH || context.IsRanked || context.AutoFindMatch ||
+            string.IsNullOrWhiteSpace(context.ArenaID))
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+                "private_unranked_arena_identity_not_proven");
             return ScopeSnapshot.Denied("private_unranked_arena_identity_not_proven");
-
-        var sessionManager = UnityEngine.Object.FindFirstObjectByType<XRMultiplayer.SessionManager>();
-        if (sessionManager is null)
-            return ScopeSnapshot.Denied("multiplayer_session_manager_not_found");
-        var currentSession = sessionManager.currentSession;
-        if (currentSession is null)
-            return ScopeSnapshot.Denied("multiplayer_current_session_not_found");
-        if (!currentSession.IsPrivate)
-            return ScopeSnapshot.Denied("multiplayer_session_public_rejected");
+        }
 
         if (coordinator.IsRankedArena)
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+                "ranked_coordinator_rejected");
             return ScopeSnapshot.Denied("ranked_coordinator_rejected");
+        }
         if (coordinator.clientAiDifficultyLevel != 0)
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+                "unexpected_sparring_bot_difficulty");
             return ScopeSnapshot.Denied("unexpected_sparring_bot_difficulty");
+        }
 
         var localSlot = coordinator.LocalFighterIndex;
         if (localSlot is < 0 or > 1)
@@ -295,23 +449,63 @@ public sealed class Plugin : BasePlugin
         var opponentSlot = 1 - localSlot;
 
         if (!coordinator.OpponentIsAI)
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound("opponent_not_ai");
             return ScopeSnapshot.Denied("opponent_not_ai");
+        }
         if (coordinator.SparringBotNumber != 1)
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+                "opponent_not_sparring_bot_1");
             return ScopeSnapshot.Denied("opponent_not_sparring_bot_1");
+        }
         if (!coordinator.SlotIsAI(opponentSlot))
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+                "opponent_slot_not_ai");
             return ScopeSnapshot.Denied("opponent_slot_not_ai");
+        }
         if (coordinator.HumanInSlot(opponentSlot))
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+                "human_in_opponent_slot");
             return ScopeSnapshot.Denied("human_in_opponent_slot");
+        }
 
         var slotHasClient = coordinator.slotHasClient;
         if (slotHasClient is null || slotHasClient.Length <= opponentSlot)
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+                "opponent_client_state_unknown");
             return ScopeSnapshot.Denied("opponent_client_state_unknown");
+        }
         if (slotHasClient[opponentSlot])
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+                "opponent_slot_has_client");
             return ScopeSnapshot.Denied("opponent_slot_has_client");
+        }
 
         var opponentHumanBit = (coordinator.clientHumanSlotMask & (1 << opponentSlot)) != 0;
         if (opponentHumanBit)
+        {
+            _soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
+                "opponent_human_bit_set");
             return ScopeSnapshot.Denied("opponent_human_bit_set");
+        }
+
+        var routeProof = _soloRouteProofTracker.SnapshotForRuntimeSession(
+            context.ArenaID,
+            context.ArenaIP,
+            context.ArenaPort,
+            network.serverAddress,
+            network.port,
+            IL2CPP.Il2CppObjectBaseToPtr(network).ToInt64());
+        var privacyDecision = SoloRouteProofContract.EvaluateScope(
+            exactBotOneNoHumanProofEstablished: true,
+            routeProof);
+        if (!privacyDecision.Allowed)
+            return ScopeSnapshot.Denied(privacyDecision.Reason);
 
         var fighters = coordinator.Fighters;
         if (fighters is null || fighters.Length < 2)
@@ -343,7 +537,7 @@ public sealed class Plugin : BasePlugin
             fighter1RobotId,
             fighter1.name,
             fighter1BoneNames);
-        if (!pairing.ExactT800VersusT800)
+        if (!pairing.ExactSupportedRuntimePairing)
             return ScopeSnapshot.Denied($"pairing_rejected:{pairing.Reason}");
 
         var round = coordinator.CurrentRound;
@@ -373,6 +567,8 @@ public sealed class Plugin : BasePlugin
             localSlot,
             opponentSlot,
             coordinator.SparringBotNumber,
+            routeProof,
+            privacyDecision,
             ReadServerIdentity(network));
     }
 
@@ -455,6 +651,10 @@ public sealed class Plugin : BasePlugin
                 ["t800_bone_count"] = RecorderContract.T800BoneNames.Length,
                 ["t800_body_bytes"] = 2 + 28 * RecorderContract.T800BoneNames.Length,
                 ["t800_ordered_bone_signature_sha256"] = RecorderContract.T800BoneSignatureSha256,
+                ["g1_bone_count"] = RecorderContract.G1BoneNames.Length,
+                ["g1_body_bytes"] = 2 + 28 * RecorderContract.G1BoneNames.Length,
+                ["g1_ordered_bone_signature_sha256"] = RecorderContract.G1BoneSignatureSha256,
+                ["accepted_runtime_layouts"] = new[] { "t800_26", "g1_30" },
                 ["intended_send_interval_seconds"] = 0.02,
                 ["intended_send_rate_hz"] = 50,
                 ["delivery"] = "unreliable",
@@ -482,6 +682,12 @@ public sealed class Plugin : BasePlugin
             },
             ["instrumentation_hooks"] = new[]
             {
+                "REKApp.CentralApiClient.FindMatch:prefix_exact_flow_observation",
+                "REKApp.CentralApiClient.ConnectToArena:prefix_hashed_arena_correlation",
+                "REKApp.LobbyController.EnterChampionship:postfix_mode_and_hashed_arena_correlation",
+                "REKApp.NetworkSession.HandleClientConnected:prefix_bound_route_invalidation",
+                "REKApp.NetworkSession.HandleClientDisconnected:prefix_bound_route_invalidation",
+                "REKApp.NetworkSession.StopSession:prefix_bound_route_invalidation",
                 "REKApp.RobotInputController.SendVelocityCommand:prefix_exact_REK_Input_request_projection",
                 "REKApp.RobotInputController.SendMoveEvent:prefix_exact_REK_Move_request_projection",
                 "REKApp.RobotInputController.SendSpecialEvent:prefix_observation",
@@ -1117,8 +1323,26 @@ public sealed class Plugin : BasePlugin
         ["context_is_ranked"] = false,
         ["context_auto_find_match"] = false,
         ["arena_id_present"] = true,
-        ["multiplayer_session_privacy_known"] = true,
-        ["multiplayer_session_is_private"] = true,
+        ["solo_route_hooks_verified"] = true,
+        ["solo_route_proven"] = scope.RouteProof.SoloRouteProven,
+        ["solo_route_flow"] = scope.RouteProof.FlowSoloObserved
+            ? SoloRouteProofContract.ExactFlow
+            : null,
+        ["solo_route_connect_to_arena_observed"] =
+            scope.RouteProof.ConnectToArenaObserved,
+        ["solo_route_enter_championship_observed"] =
+            scope.RouteProof.EnterChampionshipObserved,
+        ["solo_route_enter_championship_koth"] =
+            scope.RouteProof.EnterChampionshipKoth,
+        ["solo_route_enter_championship_solo"] =
+            scope.RouteProof.EnterChampionshipSolo,
+        ["solo_route_arena_identity_consistent"] =
+            scope.RouteProof.ArenaIdentityConsistent,
+        ["solo_route_runtime_session_identity_consistent"] =
+            scope.RouteProof.RuntimeSessionIdentityConsistent,
+        ["solo_route_reason"] = scope.RouteProof.Reason,
+        ["server_private_proven"] = scope.RouteProof.ServerPrivateProven,
+        ["server_private_status"] = scope.RouteProof.ServerPrivateStatus,
         ["coordinator_is_ranked_arena"] = false,
         ["local_fighter_index"] = scope.LocalSlot,
         ["opponent_slot"] = scope.OpponentSlot,
@@ -1131,10 +1355,16 @@ public sealed class Plugin : BasePlugin
         ["fighter_1_visual_only"] = true,
         ["sparring_bot_number"] = scope.SparringBotNumber,
         ["client_ai_difficulty"] = 0,
+        ["exact_supported_runtime_pairing"] = scope.Pairing.ExactSupportedRuntimePairing,
+        ["runtime_model"] = scope.Pairing.RuntimeModel,
         ["exact_t800_vs_t800"] = scope.Pairing.ExactT800VersusT800,
+        ["exact_g1_vs_g1"] = scope.Pairing.ExactG1VersusG1,
         ["local_semantic_t800"] = scope.Pairing.LocalSemanticT800,
-        ["opponent_runtime_t800_signature_exact"] =
-            scope.Pairing.OpponentExactT800BoneSignature,
+        ["local_semantic_g1"] = scope.Pairing.LocalSemanticG1,
+        ["local_semantic_runtime_mismatch"] =
+            scope.Pairing.LocalSemanticRuntimeMismatch,
+        ["local_semantic_runtime_consistency"] =
+            scope.Pairing.LocalSemanticRuntimeConsistency,
         ["opponent_semantic_runtime_mismatch"] =
             scope.Pairing.OpponentSemanticRuntimeMismatch,
         ["opponent_semantic_runtime_consistency"] =
@@ -1144,18 +1374,33 @@ public sealed class Plugin : BasePlugin
     private static Dictionary<string, object?> PairingRecord(ScopeSnapshot scope) => new()
     {
         ["required_pairing"] = RecorderContract.RequiredPairing,
-        ["required_robot_id"] = RecorderContract.RequiredRobotId,
+        ["required_robot_id"] = null,
+        ["supported_runtime_models"] = new[]
+        {
+            RecorderContract.T800RobotId,
+            RecorderContract.G1RobotId,
+        },
+        ["semantic_robot_id_required_for_acceptance"] = false,
         ["required_t800_bone_count"] = RecorderContract.T800BoneNames.Length,
         ["required_t800_bone_signature_sha256"] = RecorderContract.T800BoneSignatureSha256,
+        ["required_g1_bone_count"] = RecorderContract.G1BoneNames.Length,
+        ["required_g1_bone_signature_sha256"] = RecorderContract.G1BoneSignatureSha256,
         ["semantic_identity_source"] = "FightCoordinator.fighterIdentities[slot].RobotID",
         ["bone_signature_source"] = "FightCoordinator.Fighters[slot].boneTransforms[index].name",
+        ["exact_supported_runtime_pairing"] = scope.Pairing.ExactSupportedRuntimePairing,
+        ["runtime_model"] = scope.Pairing.RuntimeModel,
         ["exact_t800_vs_t800"] = scope.Pairing.ExactT800VersusT800,
+        ["exact_g1_vs_g1"] = scope.Pairing.ExactG1VersusG1,
         ["reason"] = scope.Pairing.Reason,
         ["local_slot"] = scope.Pairing.LocalSlot,
         ["local_semantic_t800"] = scope.Pairing.LocalSemanticT800,
+        ["local_semantic_g1"] = scope.Pairing.LocalSemanticG1,
         ["opponent_semantic_t800"] = scope.Pairing.OpponentSemanticT800,
-        ["opponent_runtime_t800_signature_exact"] =
-            scope.Pairing.OpponentExactT800BoneSignature,
+        ["opponent_semantic_g1"] = scope.Pairing.OpponentSemanticG1,
+        ["local_semantic_runtime_mismatch"] =
+            scope.Pairing.LocalSemanticRuntimeMismatch,
+        ["local_semantic_runtime_consistency"] =
+            scope.Pairing.LocalSemanticRuntimeConsistency,
         ["opponent_semantic_runtime_mismatch"] =
             scope.Pairing.OpponentSemanticRuntimeMismatch,
         ["opponent_semantic_runtime_consistency"] =
@@ -1164,21 +1409,25 @@ public sealed class Plugin : BasePlugin
         {
             ["semantic_robot_id"] = scope.Fighter0RobotId,
             ["semantic_t800"] = scope.Pairing.Fighter0SemanticT800,
+            ["semantic_g1"] = scope.Pairing.Fighter0SemanticG1,
             ["bone_count"] = scope.Fighter0BoneNames?.Count,
             ["ordered_bone_signature_sha256"] = scope.Fighter0BoneNames is null
                 ? null
                 : RecorderContract.BoneSignatureSha256(scope.Fighter0BoneNames),
             ["exact_t800_bone_signature"] = scope.Pairing.Fighter0ExactT800BoneSignature,
+            ["exact_g1_bone_signature"] = scope.Pairing.Fighter0ExactG1BoneSignature,
         },
         ["fighter_1"] = new Dictionary<string, object?>
         {
             ["semantic_robot_id"] = scope.Fighter1RobotId,
             ["semantic_t800"] = scope.Pairing.Fighter1SemanticT800,
+            ["semantic_g1"] = scope.Pairing.Fighter1SemanticG1,
             ["bone_count"] = scope.Fighter1BoneNames?.Count,
             ["ordered_bone_signature_sha256"] = scope.Fighter1BoneNames is null
                 ? null
                 : RecorderContract.BoneSignatureSha256(scope.Fighter1BoneNames),
             ["exact_t800_bone_signature"] = scope.Pairing.Fighter1ExactT800BoneSignature,
+            ["exact_g1_bone_signature"] = scope.Pairing.Fighter1ExactG1BoneSignature,
         },
     };
 
@@ -1186,12 +1435,12 @@ public sealed class Plugin : BasePlugin
     {
         var context = GameContext.Instance ?? UnityEngine.Object.FindFirstObjectByType<GameContext>();
         var address = string.IsNullOrWhiteSpace(network.serverAddress) ? null : network.serverAddress;
-        var endpoint = address is null ? null : $"{address}:{network.port}";
         var sessionIdentifier = string.IsNullOrWhiteSpace(context?.ArenaID) ? null : context.ArenaID;
         return new Dictionary<string, object?>
         {
-            ["endpoint"] = endpoint,
-            ["endpoint_provenance"] = "REKApp.NetworkSession.serverAddress+port",
+            ["endpoint_present"] = address is not null && network.port > 0,
+            ["endpoint_recorded"] = false,
+            ["endpoint_reason"] = "omitted as connection-sensitive data",
             ["session_identifier_recorded"] = false,
             ["session_identifier_reason"] = "omitted as sensitive session data",
             ["session_id_sha256"] = sessionIdentifier is null ? null : HashText(sessionIdentifier),
@@ -1763,6 +2012,8 @@ public sealed class Plugin : BasePlugin
         public int LocalSlot { get; private init; }
         public int OpponentSlot { get; private init; }
         public int SparringBotNumber { get; private init; }
+        public SoloRouteProofSnapshot RouteProof { get; private init; }
+        public SoloRouteScopeDecision PrivacyDecision { get; private init; }
         public Dictionary<string, object?>? Server { get; private init; }
 
         public static ScopeSnapshot Denied(string reason) => new(false, reason);
@@ -1782,7 +2033,9 @@ public sealed class Plugin : BasePlugin
             int localSlot,
             int opponentSlot,
             int sparringBotNumber,
-            Dictionary<string, object?> server) => new(true, "allowed")
+            SoloRouteProofSnapshot routeProof,
+            SoloRouteScopeDecision privacyDecision,
+            Dictionary<string, object?> server) => new(true, privacyDecision.Reason)
         {
             Coordinator = coordinator,
             Network = network,
@@ -1798,6 +2051,8 @@ public sealed class Plugin : BasePlugin
             LocalSlot = localSlot,
             OpponentSlot = opponentSlot,
             SparringBotNumber = sparringBotNumber,
+            RouteProof = routeProof,
+            PrivacyDecision = privacyDecision,
             Server = server,
         };
     }

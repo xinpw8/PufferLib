@@ -59,8 +59,8 @@ def _root_pose_sample(tick, camera):
     }
 
 
-def v6_schedule_records():
-    records = v5_records()
+def v6_schedule_records(fighter_layouts=("t800_26", "t800_26")):
+    records = v5_records(fighter_layouts)
     start = records[0]
     end = records[-1]
     camera = camera_record()

@@ -5,9 +5,12 @@ The v5 recorder projects exact REK_Input and REK_Move request bodies, copies
 fight and bone FastBufferReader bodies before REK consumes them, and observes
 the corresponding post-receive state. V6 preserves those boundaries and adds
 a fail-closed private T800-vs-T800 scope plus a 500 Hz root/camera stream with
-UTC and Stopwatch timestamps. This validator checks those measurements. It
-does not infer send completion, a server tick, a server timestamp, move
-acceptance, execution, or request-to-pose causality.
+UTC and Stopwatch timestamps. V7 preserves the same measured stream while
+accepting only an exact homogeneous T800 or G1 runtime pairing and retaining
+semantic-ID consistency as evidence rather than an identity fallback. This
+validator checks those measurements. It does not infer send completion, a
+server tick, a server timestamp, move acceptance, execution, or
+request-to-pose causality.
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ from typing import Any
 
 SCHEMA_V5 = "rek.private_ai.protocol.v5"
 SCHEMA_V6 = "rek.private_ai.protocol.v6"
+SCHEMA_V7 = "rek.private_ai.protocol.v7"
 SCHEMA = SCHEMA_V5
 EXPECTED_PLUGIN_VERSION_V5 = "0.5.1"
 EXPECTED_PLUGIN_SHA256_V5 = (
@@ -36,6 +40,10 @@ EXPECTED_PLUGIN_SHA256_V5 = (
 EXPECTED_PLUGIN_VERSION_V6 = "0.6.1"
 EXPECTED_PLUGIN_SHA256_V6 = (
     "24cbea0a149589b71c093e989f43b8dac4862e73d103c323f0f9472a38355e0b"
+)
+EXPECTED_PLUGIN_VERSION_V7 = "0.7.2"
+EXPECTED_PLUGIN_SHA256_V7 = (
+    "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95"
 )
 EXPECTED_PLUGIN_VERSION = EXPECTED_PLUGIN_VERSION_V5
 EXPECTED_PLUGIN_SHA256 = EXPECTED_PLUGIN_SHA256_V5
@@ -114,6 +122,9 @@ G1_BODY_BYTES = 2 + 28 * G1_BONE_COUNT
 T800_BONE_SIGNATURE_SHA256 = (
     "ec0f8d0ae5bd170464f5393f9860959e47a54b8e73e4dc259a6fb955f46d3dab"
 )
+G1_BONE_SIGNATURE_SHA256 = (
+    "9d18e697233d9578b398fbe849cd59d65cb27a5c2223b2602db66a82a410e987"
+)
 EXPECTED_BONE_LAYOUTS = {
     "t800_26": {
         "bone_names": T800_BONE_NAMES,
@@ -164,6 +175,13 @@ EXPECTED_BONE_PROTOCOL_V6 = {
     "t800_body_bytes": T800_BODY_BYTES,
     "t800_ordered_bone_signature_sha256": T800_BONE_SIGNATURE_SHA256,
 }
+EXPECTED_BONE_PROTOCOL_V7 = {
+    **EXPECTED_BONE_PROTOCOL_V6,
+    "g1_bone_count": G1_BONE_COUNT,
+    "g1_body_bytes": G1_BODY_BYTES,
+    "g1_ordered_bone_signature_sha256": G1_BONE_SIGNATURE_SHA256,
+    "accepted_runtime_layouts": ["t800_26", "g1_30"],
+}
 EXPECTED_FIGHT_PROTOCOL = {
     "fight_state": "REK_FightState: packed 33-byte little-endian memcpy; reliable; nominal 0.1 s interval",
     "score": "REK_Score: packed 7-byte little-endian memcpy; reliable; emitted per scoring event",
@@ -190,6 +208,15 @@ EXPECTED_HOOKS = [
     "REKApp.FightCoordinator.OnScoreReceived:prefix_raw_packet_copy",
     "REKApp.FightCoordinator.OnHitReceived:prefix_raw_packet_copy",
     "REKApp.Robot.OnBoneMessageReceived:prefix_raw_packet_copy_and_postfix_decoded_snapshot_observation",
+]
+EXPECTED_HOOKS_V7 = [
+    "REKApp.CentralApiClient.FindMatch:prefix_exact_flow_observation",
+    "REKApp.CentralApiClient.ConnectToArena:prefix_hashed_arena_correlation",
+    "REKApp.LobbyController.EnterChampionship:postfix_mode_and_hashed_arena_correlation",
+    "REKApp.NetworkSession.HandleClientConnected:prefix_bound_route_invalidation",
+    "REKApp.NetworkSession.HandleClientDisconnected:prefix_bound_route_invalidation",
+    "REKApp.NetworkSession.StopSession:prefix_bound_route_invalidation",
+    *EXPECTED_HOOKS,
 ]
 FIGHT_PHASE_NAMES = {
     0: "Idle", 1: "RoundActive", 2: "RoundEnd", 3: "BetweenRounds",
@@ -350,6 +377,18 @@ def _exact_decoded(observed: Any, expected: Any, label: str) -> None:
         raise EvidenceError(f"{label} disagrees with the audited decoder")
 
 
+def _exact_scalar_equal(observed: Any, expected: Any) -> bool:
+    if isinstance(expected, bool):
+        return observed is expected
+    if isinstance(expected, int):
+        return (
+            isinstance(observed, int)
+            and not isinstance(observed, bool)
+            and observed == expected
+        )
+    return observed == expected
+
+
 def _contains_client_send_frame(value: Any) -> bool:
     if isinstance(value, str):
         return "ClientSendFrame" in value
@@ -398,7 +437,7 @@ def _validate_stopwatch_clock(
     return ticks
 
 
-def _validate_pairing(start: dict[str, Any]) -> None:
+def _validate_v6_pairing(start: dict[str, Any]) -> None:
     pairing = start.get("pairing")
     if not isinstance(pairing, dict):
         raise EvidenceError("v6 capture has no measured fighter pairing")
@@ -438,6 +477,161 @@ def _validate_pairing(start: dict[str, Any]) -> None:
                 raise EvidenceError(
                     f"v6 pairing fighter {slot} field {field} is not exact"
                 )
+
+
+def _semantic_runtime_consistency(
+    semantic_robot_id: str | None, runtime_model: str
+) -> str:
+    if semantic_robot_id is None or not semantic_robot_id.strip():
+        return f"semantic_robot_id_unavailable_runtime_{runtime_model}_exact"
+    if semantic_robot_id == runtime_model:
+        return f"semantic_and_runtime_{runtime_model}_exact"
+    return f"semantic_robot_id_mismatch_runtime_{runtime_model}_exact"
+
+
+def _validate_v7_pairing(start: dict[str, Any]) -> dict[str, Any]:
+    pairing = start.get("pairing")
+    if not isinstance(pairing, dict):
+        raise EvidenceError("v7 capture has no measured fighter pairing")
+
+    layout_ids: list[str] = []
+    layouts: list[dict[str, Any]] = []
+    for slot in (0, 1):
+        layout_id, layout = _match_bone_layout(
+            start.get(f"fighter_{slot}_bones"),
+            f"fighter {slot} capture header",
+        )
+        layout_ids.append(layout_id)
+        layouts.append(layout)
+    if layout_ids[0] != layout_ids[1]:
+        raise EvidenceError("v7 pairing is not an exact homogeneous runtime model")
+    runtime_model = {
+        "t800_26": "t800",
+        "g1_30": "g1",
+    }[layout_ids[0]]
+
+    local_slot = _integer(pairing.get("local_slot"), "v7 pairing local slot", 0)
+    if local_slot not in (0, 1):
+        raise EvidenceError("v7 pairing local slot is not zero or one")
+    opponent_slot = 1 - local_slot
+
+    semantic_ids: list[str | None] = []
+    semantic_t800: list[bool] = []
+    semantic_g1: list[bool] = []
+    for slot, layout in enumerate(layouts):
+        fighter = pairing.get(f"fighter_{slot}")
+        if not isinstance(fighter, dict):
+            raise EvidenceError(f"v7 pairing fighter {slot} is absent")
+        if "semantic_robot_id" not in fighter:
+            raise EvidenceError(
+                f"v7 pairing fighter {slot} semantic robot ID is absent"
+            )
+        semantic_robot_id = fighter.get("semantic_robot_id")
+        if semantic_robot_id is not None and not isinstance(semantic_robot_id, str):
+            raise EvidenceError(
+                f"v7 pairing fighter {slot} semantic robot ID is not text or null"
+            )
+        semantic_ids.append(semantic_robot_id)
+        semantic_t800.append(semantic_robot_id == "t800")
+        semantic_g1.append(semantic_robot_id == "g1")
+        exact_t800 = runtime_model == "t800"
+        exact_g1 = runtime_model == "g1"
+        signature = (
+            T800_BONE_SIGNATURE_SHA256
+            if exact_t800
+            else G1_BONE_SIGNATURE_SHA256
+        )
+        fighter_expected = {
+            "semantic_t800": semantic_t800[slot],
+            "semantic_g1": semantic_g1[slot],
+            "bone_count": layout["bone_count"],
+            "ordered_bone_signature_sha256": signature,
+            "exact_t800_bone_signature": exact_t800,
+            "exact_g1_bone_signature": exact_g1,
+        }
+        for field, value in fighter_expected.items():
+            if field not in fighter:
+                raise EvidenceError(
+                    f"v7 pairing fighter {slot} field {field} is absent"
+                )
+            _exact_decoded(
+                fighter[field],
+                value,
+                f"v7 pairing fighter {slot} field {field}",
+            )
+
+    local_semantic_id = semantic_ids[local_slot]
+    opponent_semantic_id = semantic_ids[opponent_slot]
+    local_consistency = _semantic_runtime_consistency(
+        local_semantic_id, runtime_model
+    )
+    opponent_consistency = _semantic_runtime_consistency(
+        opponent_semantic_id, runtime_model
+    )
+    local_mismatch = local_consistency.startswith("semantic_robot_id_mismatch_")
+    opponent_mismatch = opponent_consistency.startswith(
+        "semantic_robot_id_mismatch_"
+    )
+    if runtime_model == "t800":
+        reason = (
+            "exact_t800_vs_t800_runtime_pairing_proven_semantic_mismatch_recorded"
+            if local_mismatch or opponent_mismatch
+            else "exact_t800_vs_t800_pairing_proven"
+        )
+    else:
+        reason = "exact_g1_vs_g1_runtime_pairing_proven_semantic_ids_recorded_not_trusted"
+
+    expected = {
+        "required_pairing": "exact_homogeneous_supported_runtime_pair",
+        "required_robot_id": None,
+        "supported_runtime_models": ["t800", "g1"],
+        "semantic_robot_id_required_for_acceptance": False,
+        "required_t800_bone_count": T800_BONE_COUNT,
+        "required_t800_bone_signature_sha256": T800_BONE_SIGNATURE_SHA256,
+        "required_g1_bone_count": G1_BONE_COUNT,
+        "required_g1_bone_signature_sha256": G1_BONE_SIGNATURE_SHA256,
+        "semantic_identity_source": (
+            "FightCoordinator.fighterIdentities[slot].RobotID"
+        ),
+        "bone_signature_source": (
+            "FightCoordinator.Fighters[slot].boneTransforms[index].name"
+        ),
+        "exact_supported_runtime_pairing": True,
+        "runtime_model": runtime_model,
+        "exact_t800_vs_t800": runtime_model == "t800",
+        "exact_g1_vs_g1": runtime_model == "g1",
+        "reason": reason,
+        "local_semantic_t800": semantic_t800[local_slot],
+        "local_semantic_g1": semantic_g1[local_slot],
+        "opponent_semantic_t800": semantic_t800[opponent_slot],
+        "opponent_semantic_g1": semantic_g1[opponent_slot],
+        "local_semantic_runtime_mismatch": local_mismatch,
+        "local_semantic_runtime_consistency": local_consistency,
+        "opponent_semantic_runtime_mismatch": opponent_mismatch,
+        "opponent_semantic_runtime_consistency": opponent_consistency,
+    }
+    for field, value in expected.items():
+        if field not in pairing:
+            raise EvidenceError(f"v7 pairing field {field} is absent")
+        _exact_decoded(pairing[field], value, f"v7 pairing field {field}")
+    return {
+        "runtime_model": runtime_model,
+        "local_slot": local_slot,
+        "opponent_slot": opponent_slot,
+        **{
+            field: expected[field]
+            for field in (
+                "exact_t800_vs_t800",
+                "exact_g1_vs_g1",
+                "local_semantic_t800",
+                "local_semantic_g1",
+                "local_semantic_runtime_mismatch",
+                "local_semantic_runtime_consistency",
+                "opponent_semantic_runtime_mismatch",
+                "opponent_semantic_runtime_consistency",
+            )
+        },
+    }
 
 
 def _validate_camera(camera: Any, label: str) -> dict[str, Any]:
@@ -564,17 +758,17 @@ def _validate_v6_root_stream(
     if declared_count != len(root_samples):
         raise EvidenceError("capture_end root pose count disagrees with records")
     if len(root_samples) != end_tick:
-        raise EvidenceError("v6 root stream does not cover every captured client fixed tick")
+        raise EvidenceError("v6/v7 root stream does not cover every captured client fixed tick")
     indices = [record.get("root_pose_sample_index") for record in root_samples]
     ticks = [record.get("client_fixed_tick") for record in root_samples]
     expected_ticks = list(range(end_tick))
     if indices != expected_ticks or ticks != expected_ticks:
-        raise EvidenceError("v6 root samples are not contiguous from fixed tick zero")
+        raise EvidenceError("v6/v7 root samples are not contiguous from fixed tick zero")
 
     initial_camera = _validate_camera(start.get("initial_camera"), "capture start")
     expected_scene = start.get("scene")
     if not isinstance(expected_scene, str) or not expected_scene:
-        raise EvidenceError("v6 capture start scene is absent")
+        raise EvidenceError("v6/v7 capture start scene is absent")
     previous_stopwatch: int | None = None
     previous_fixed_time: float | None = None
     expected_fight_epoch: int | None = None
@@ -586,7 +780,7 @@ def _validate_v6_root_stream(
             record, label, start_ticks, end_ticks
         )
         if previous_stopwatch is not None and stopwatch <= previous_stopwatch:
-            raise EvidenceError("v6 root sample Stopwatch ticks are not strictly increasing")
+            raise EvidenceError("v6/v7 root sample Stopwatch ticks are not strictly increasing")
         previous_stopwatch = stopwatch
         _integer(record.get("unity_frame"), f"{label} Unity frame", 0)
         _finite(record.get("unity_time"), f"{label} Unity time")
@@ -598,7 +792,7 @@ def _validate_v6_root_stream(
             rel_tol=0.0,
             abs_tol=1e-6,
         ):
-            raise EvidenceError("v6 root sample fixed-time cadence is not 500 Hz")
+            raise EvidenceError("v6/v7 root sample fixed-time cadence is not 500 Hz")
         previous_fixed_time = fixed_time
         if record.get("scene") != expected_scene:
             raise EvidenceError(f"{label} scene changed")
@@ -976,15 +1170,16 @@ def validate(path: Path | str) -> dict[str, Any]:
     end = ends[0]
 
     recorder_schema = start.get("schema")
-    if recorder_schema not in {SCHEMA_V5, SCHEMA_V6}:
+    if recorder_schema not in {SCHEMA_V5, SCHEMA_V6, SCHEMA_V7}:
         raise EvidenceError(f"unsupported recorder schema {recorder_schema!r}")
     is_v6 = recorder_schema == SCHEMA_V6
-    expected_plugin_version = (
-        EXPECTED_PLUGIN_VERSION_V6 if is_v6 else EXPECTED_PLUGIN_VERSION_V5
-    )
-    expected_plugin_sha256 = (
-        EXPECTED_PLUGIN_SHA256_V6 if is_v6 else EXPECTED_PLUGIN_SHA256_V5
-    )
+    is_v7 = recorder_schema == SCHEMA_V7
+    has_root_stream = is_v6 or is_v7
+    expected_plugin_version, expected_plugin_sha256 = {
+        SCHEMA_V5: (EXPECTED_PLUGIN_VERSION_V5, EXPECTED_PLUGIN_SHA256_V5),
+        SCHEMA_V6: (EXPECTED_PLUGIN_VERSION_V6, EXPECTED_PLUGIN_SHA256_V6),
+        SCHEMA_V7: (EXPECTED_PLUGIN_VERSION_V7, EXPECTED_PLUGIN_SHA256_V7),
+    }[recorder_schema]
     if start.get("plugin_version") != expected_plugin_version:
         raise EvidenceError("recorder plugin version mismatch")
     if _require_hex64(start.get("plugin_sha256"), "plugin hash") != expected_plugin_sha256:
@@ -1007,7 +1202,7 @@ def validate(path: Path | str) -> dict[str, Any]:
 
     start_ticks = 0
     end_ticks = (1 << 63) - 1
-    if is_v6:
+    if has_root_stream:
         start_ticks = _integer(
             start.get("stopwatch_timestamp_ticks"), "capture start Stopwatch ticks", 0
         )
@@ -1016,12 +1211,12 @@ def validate(path: Path | str) -> dict[str, Any]:
             start.get("stopwatch_frequency_hz"), "Stopwatch frequency", 1
         )
         if frequency <= 0 or start.get("stopwatch_is_high_resolution") is not True:
-            raise EvidenceError("v6 Stopwatch clock is not high resolution")
+            raise EvidenceError("v6/v7 Stopwatch clock is not high resolution")
         if start.get("stopwatch_clock_semantics") != (
             "System.Diagnostics.Stopwatch.GetTimestamp; QueryPerformanceCounter-backed "
             "on Windows when Stopwatch.IsHighResolution is true"
         ):
-            raise EvidenceError("v6 Stopwatch clock semantics are not pinned")
+            raise EvidenceError("v6/v7 Stopwatch clock semantics are not pinned")
         end_ticks = _integer(
             end.get("stopwatch_timestamp_ticks"), "capture end Stopwatch ticks", 0
         )
@@ -1031,13 +1226,13 @@ def validate(path: Path | str) -> dict[str, Any]:
         if _integer(
             start.get("root_pose_sample_stride_ticks"), "root pose sample stride", 1
         ) != 1:
-            raise EvidenceError("v6 root pose sample stride is not one fixed substep")
+            raise EvidenceError("v6/v7 root pose sample stride is not one fixed substep")
         if _integer(
             start.get("root_pose_sample_rate_hz"), "root pose sample rate", 1
         ) != 500:
-            raise EvidenceError("v6 root pose sample rate is not 500 Hz")
+            raise EvidenceError("v6/v7 root pose sample rate is not 500 Hz")
         if start.get("root_pose_tick_level_claim") is not True:
-            raise EvidenceError("v6 root pose stream does not declare tick completeness")
+            raise EvidenceError("v6/v7 root pose stream does not declare tick completeness")
         expected_root_metadata = {
             "root_pose_fields": (
                 "world root position/rotation plus Camera.WorldToScreenPoint only; "
@@ -1059,31 +1254,44 @@ def validate(path: Path | str) -> dict[str, Any]:
         }
         for field, value in expected_root_metadata.items():
             if start.get(field) != value:
-                raise EvidenceError(f"v6 {field} metadata is not pinned")
+                raise EvidenceError(f"v6/v7 {field} metadata is not pinned")
         if not math.isclose(
             _finite(start.get("fixed_delta_time"), "fixed delta time"),
             0.002,
             rel_tol=0.0,
             abs_tol=1e-9,
         ):
-            raise EvidenceError("v6 fixed delta time is not 0.002 seconds")
+            raise EvidenceError("v6/v7 fixed delta time is not 0.002 seconds")
 
-    expected_bone_protocol = (
-        EXPECTED_BONE_PROTOCOL_V6 if is_v6 else EXPECTED_BONE_PROTOCOL
-    )
+    expected_bone_protocol = {
+        SCHEMA_V5: EXPECTED_BONE_PROTOCOL,
+        SCHEMA_V6: EXPECTED_BONE_PROTOCOL_V6,
+        SCHEMA_V7: EXPECTED_BONE_PROTOCOL_V7,
+    }[recorder_schema]
     _exact_decoded(start.get("bone_wire_protocol"), expected_bone_protocol,
                    "capture bone protocol declaration")
     _exact_decoded(start.get("fight_wire_protocol"), EXPECTED_FIGHT_PROTOCOL,
                    "capture fight protocol declaration")
     _exact_decoded(start.get("outbound_request_protocol"), EXPECTED_OUTBOUND_PROTOCOL,
                    "capture outbound protocol declaration")
-    if start.get("instrumentation_hooks") != EXPECTED_HOOKS:
+    expected_hooks = EXPECTED_HOOKS_V7 if is_v7 else EXPECTED_HOOKS
+    if start.get("instrumentation_hooks") != expected_hooks:
         raise EvidenceError("capture instrumentation-hook declaration mismatch")
+    pairing_summary = None
     if is_v6:
-        _validate_pairing(start)
+        _validate_v6_pairing(start)
+    elif is_v7:
+        pairing_summary = _validate_v7_pairing(start)
 
     server = start.get("server") or {}
-    if not server.get("endpoint"):
+    if is_v7:
+        if server.get("endpoint_present") is not True:
+            raise EvidenceError("capture has no measured server endpoint presence")
+        if server.get("endpoint_recorded") is not False:
+            raise EvidenceError("capture did not declare raw endpoint omission")
+        if "endpoint" in server:
+            raise EvidenceError("capture persisted a raw server endpoint")
+    elif not server.get("endpoint"):
         raise EvidenceError("capture has no server endpoint identity")
     forbidden_server_fields = {"session_id", "session_token", "arena_id"}
     if forbidden_server_fields.intersection(key.lower() for key in server):
@@ -1136,9 +1344,51 @@ def validate(path: Path | str) -> dict[str, Any]:
             "client_ai_difficulty": 0,
             "exact_t800_vs_t800": True,
         })
+    elif is_v7:
+        expected_scope.update({
+            "context_is_solo": True,
+            "context_is_ranked": False,
+            "context_auto_find_match": False,
+            "arena_id_present": True,
+            "solo_route_hooks_verified": True,
+            "solo_route_proven": True,
+            "solo_route_flow": "solo",
+            "solo_route_connect_to_arena_observed": True,
+            "solo_route_enter_championship_observed": True,
+            "solo_route_enter_championship_koth": False,
+            "solo_route_enter_championship_solo": True,
+            "solo_route_arena_identity_consistent": True,
+            "solo_route_runtime_session_identity_consistent": True,
+            "solo_route_reason": "solo_route_proven",
+            "server_private_proven": False,
+            "server_private_status": "unknown",
+            "coordinator_is_ranked_arena": False,
+            "client_ai_difficulty": 0,
+            "local_fighter_index": pairing_summary["local_slot"],
+            "opponent_slot": pairing_summary["opponent_slot"],
+            "exact_supported_runtime_pairing": True,
+            "runtime_model": pairing_summary["runtime_model"],
+            "exact_t800_vs_t800": pairing_summary["exact_t800_vs_t800"],
+            "exact_g1_vs_g1": pairing_summary["exact_g1_vs_g1"],
+            "local_semantic_t800": pairing_summary["local_semantic_t800"],
+            "local_semantic_g1": pairing_summary["local_semantic_g1"],
+            "local_semantic_runtime_mismatch": pairing_summary[
+                "local_semantic_runtime_mismatch"
+            ],
+            "local_semantic_runtime_consistency": pairing_summary[
+                "local_semantic_runtime_consistency"
+            ],
+            "opponent_semantic_runtime_mismatch": pairing_summary[
+                "opponent_semantic_runtime_mismatch"
+            ],
+            "opponent_semantic_runtime_consistency": pairing_summary[
+                "opponent_semantic_runtime_consistency"
+            ],
+        })
     wrong_scope = {
         key: {"expected": value, "observed": scope.get(key)}
-        for key, value in expected_scope.items() if scope.get(key) != value
+        for key, value in expected_scope.items()
+        if not _exact_scalar_equal(scope.get(key), value)
     }
     if wrong_scope:
         raise EvidenceError(f"capture is outside private Bot 1 scope: {wrong_scope}")
@@ -1192,7 +1442,7 @@ def validate(path: Path | str) -> dict[str, Any]:
         if previous_request_time is not None and request_time < previous_request_time:
             raise EvidenceError("outbound request realtime decreased")
         previous_request_time = request_time
-        if is_v6:
+        if has_root_stream:
             request_stopwatch = _validate_stopwatch_clock(
                 record, label, start_ticks, end_ticks
             )
@@ -1209,6 +1459,19 @@ def validate(path: Path | str) -> dict[str, Any]:
     }
     if is_v6 and any(layout_id != "t800_26" for layout_id, _ in bone_layouts.values()):
         raise EvidenceError("v6 capture is not an exact T800-vs-T800 bone pairing")
+    if is_v7:
+        expected_layout_id = (
+            "t800_26"
+            if pairing_summary["runtime_model"] == "t800"
+            else "g1_30"
+        )
+        if any(
+            layout_id != expected_layout_id
+            for layout_id, _ in bone_layouts.values()
+        ):
+            raise EvidenceError(
+                "v7 capture header disagrees with its validated runtime pairing"
+            )
 
     samples = [record for record in records if record.get("event") == "sample"]
     if len(samples) < 2:
@@ -1221,7 +1484,7 @@ def validate(path: Path | str) -> dict[str, Any]:
     observed_client_ticks = [record.get("client_fixed_tick") for record in samples]
     if observed_client_ticks != expected_client_ticks:
         raise EvidenceError("compact samples do not follow the declared client tick stride")
-    if is_v6:
+    if has_root_stream:
         previous_sample_stopwatch: int | None = None
         for index, record in enumerate(samples):
             sample_stopwatch = _validate_stopwatch_clock(
@@ -1230,7 +1493,7 @@ def validate(path: Path | str) -> dict[str, Any]:
             if (previous_sample_stopwatch is not None
                     and sample_stopwatch <= previous_sample_stopwatch):
                 raise EvidenceError(
-                    "v6 compact sample Stopwatch ticks are not strictly increasing"
+                    "v6/v7 compact sample Stopwatch ticks are not strictly increasing"
                 )
             previous_sample_stopwatch = sample_stopwatch
 
@@ -1376,7 +1639,7 @@ def validate(path: Path | str) -> dict[str, Any]:
         "raw_score_packet_count": len(raw_type_sequences["score"]),
         "raw_hit_packet_count": len(raw_type_sequences["hit"]),
     }
-    if is_v6:
+    if has_root_stream:
         declared["root_pose_sample_count"] = root_stream["samples"]
     for field, observed in declared.items():
         if _integer(end.get(field), f"capture_end {field}", 0) != observed:
@@ -1475,10 +1738,24 @@ def validate(path: Path | str) -> dict[str, Any]:
             "raw_score_payloads_validated": bool(raw_type_sequences["score"]),
             "raw_hit_payloads_validated": bool(raw_type_sequences["hit"]),
             "raw_wire_pose_payload_validated": True,
-            "exact_private_session_validated": is_v6,
-            "exact_t800_vs_t800_validated": is_v6,
-            "root_pose_500hz_validated": is_v6,
-            "root_world_to_screen_validated": is_v6,
+            "exact_private_session_validated": has_root_stream,
+            "exact_homogeneous_supported_runtime_pairing_validated": (
+                has_root_stream
+            ),
+            "validated_runtime_model": (
+                pairing_summary["runtime_model"] if is_v7 else
+                "t800" if is_v6 else None
+            ),
+            "exact_t800_vs_t800_validated": (
+                is_v6 or (
+                    is_v7 and pairing_summary["runtime_model"] == "t800"
+                )
+            ),
+            "exact_g1_vs_g1_validated": (
+                is_v7 and pairing_summary["runtime_model"] == "g1"
+            ),
+            "root_pose_500hz_validated": has_root_stream,
+            "root_world_to_screen_validated": has_root_stream,
             "client_send_frame_observed": False,
         },
     }

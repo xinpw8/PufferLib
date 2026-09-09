@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using RekUiBridgeAgent;
 
 const string PipeName = "rek-ui-bridge-v1";
 const string Protocol = "rek.ui_bridge.v1";
@@ -14,15 +15,19 @@ const string ExpectedGameAssemblySha256 =
     "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412";
 const string ExpectedMetadataSha256 =
     "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd";
-const string ExpectedBridgeVersion = "0.4.0";
+const string ExpectedSharedAssets0Sha256 =
+    "37f7a476c56caae37f5a04d4fa1acf5954fdc2b90f20f521830369ecff05f355";
+const string ExpectedBridgeVersion = "0.4.6";
 const string ExpectedBridgeSha256 =
-    "fb9e3c0a4994eafc6a45f83a32c907f5eee5f9a4d6997d5bf10d863f27faab55";
+    "6a46af475041f7fc42bb38d51e294699bcc6f98b823e56fea356878adcde3149";
 const string ScheduleId = "rek.private_bot1.baseline.v1";
 const string ScheduleSchema = "rek.client_fixed.command_schedule.v2";
 const string ScheduleSha256 =
     "39aaab9c3156e8f4d114daac4d4328257b81230ec8b8a372ad2739d38754ec0d";
 const string T800BoneSignatureSha256 =
     "ec0f8d0ae5bd170464f5393f9860959e47a54b8e73e4dc259a6fb955f46d3dab";
+const string G1BoneSignatureSha256 =
+    "9d18e697233d9578b398fbe849cd59d65cb27a5c2223b2602db66a82a410e987";
 const string MarkerSchema = "rek.rendered_command_marker.v1";
 const string MarkerRenderBinding =
     "first_post_marker_frame_is_first_rendered_frame_after_command_edge";
@@ -36,7 +41,7 @@ const string TrialAuthorityCaveat =
     "client request edge observed; server acceptance and authoritative execution are unknown";
 const string ContinuousSchema = "rek.continuous_private_bot_controller.v1";
 const string ContinuousSha256 =
-    "c19ee1cc02111426db7a58cd648e244e1106842d86caaba3dc729edf4640b92e";
+    "7254c2e9291520a7d78967193f05c3b8d1fce32afa63926d2388e51ed6764ca0";
 const string ContinuousAuthorityScope =
     "client_request_edges_and_local_observations_only";
 const string ContinuousAuthorityCaveat =
@@ -48,32 +53,36 @@ const string ContinuousFacingYawProvenance =
 const string ContinuousAttackSelectionProvenance =
     "audit_controller_deterministic_round_robin_diverges_from_build_pinned_AIOpponentController_random_category_and_clip_selection";
 const string ContinuousStaticImpactTimingProvenance =
-    "build_pinned_serialized_t800_move_asset_metadata_not_measured_runtime_timing";
+    "build_pinned_serialized_robot_move_asset_metadata_not_measured_input_to_completion_timing";
 const string ContinuousRoundRestartLimitation =
     "build_pinned_post_fight_continue_restarts_only_after_win_and_exits_to_lobby_after_loss";
 const string ContinuousRoundRestartStaticEvidence =
     "GameMenuController.HandlePostFightContinue_rva_0x23aae90_branches_on_postFightIsWinner_false_ExitToLobby_true_SendPostFightIntent_stay_true";
 const string ContinuousRecoveryGuardProvenance =
-    "build_pinned_AIOpponentController.DriveRecovery_rva_0x2367430_fallen_not_dampened_Dampen_4_then_Straighten_1_once_then_RecoveryArmed_SuggestedGetUpOrientation_2_or_3";
+    "build_pinned_t800_AIOpponentController.DriveRecovery_rva_0x2367430_fallen_not_dampened_Dampen_4_then_Straighten_1_once_then_RecoveryArmed_SuggestedGetUpOrientation_2_or_3_unitree_g1_recovery_unproven_fail_closed";
 const string ContinuousFaultEStopProvenance =
-    "build_pinned_AIOpponentController.UpdateFaultEStopCycle_rva_0x23680e0_motorShutdownHold_faultEStopDelay_then_0.5_second_estop_hold";
+    "build_pinned_t800_AIOpponentController.UpdateFaultEStopCycle_rva_0x23680e0_motorShutdownHold_faultEStopDelay_then_0.5_second_estop_hold_unitree_g1_hasEStop_false_fail_closed";
 const string ContinuousDampenGuard = "fallen_and_not_dampened";
 const string ContinuousStraightenGuard =
     "fallen_and_dampened_and_not_already_issued";
 const string ContinuousOpponentRuntimeRequirement =
-    "exact_t800_runtime_bone_signature_required_semantic_robot_id_recorded_but_not_trusted";
+    "exact_homogeneous_t800_or_unitree_g1_runtime_bone_signatures_required_semantic_robot_ids_recorded_but_not_trusted";
+const string ContinuousT800RecoveryMode =
+    "build_pinned_t800_special_commands_and_fault_estop_enabled";
+const string ContinuousG1RecoveryMode =
+    "unitree_g1_hasSpecialCommands_false_hasEStop_false_recovery_semantics_unproven_fail_closed";
 const string AttackZoneSchema = "rek.attack_zone_trial.v1";
 const string AttackZoneSha256 =
-    "1c55900c766aac8cf3382c389b297be6324b3ca19c4a5de6d25f17a7ee217278";
+    "195ff18ba30097fa5575b36c6d9fdd4a4a2499e73803d0e04c7e53203cb530cf";
 const string AttackZoneAuthorityScope =
     "client_request_edges_and_local_observations_only";
 const string AttackZoneAuthorityCaveat =
     "client request edge and local observations only; server acceptance, authoritative execution, and causal hit attribution are unknown";
 const string AttackZoneIsolationProof =
     "wine_get_version=11.13;display=:98;prefix=/opt/codexrook/wineprefix;marker=spark-x98";
-const string AttackZoneRecorderVersion = "0.6.1";
+const string AttackZoneRecorderVersion = "0.7.2";
 const string AttackZoneRecorderSha256 =
-    "24cbea0a149589b71c093e989f43b8dac4862e73d103c323f0f9472a38355e0b";
+    "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95";
 const int TrialFixedSubstepsPerTick = 10;
 const int TrialNeutralPreRollTicks = 50;
 const int TrialActionTick = 50;
@@ -164,11 +173,11 @@ var expectedTrialSelectors = new[]
 };
 
 if (args.Length < 1 ||
-    args[0] is not ("state" or "enter-private" or "exit-lost" or "schedule" or "trial" or "controller"))
+    args[0] is not ("state" or "enter-private" or "exit-lost" or "schedule" or "trial" or "controller" or "g1-held"))
 {
     Console.Error.WriteLine(
         "usage: RekUiPipeClient state [output.jsonl] [timeout_seconds] | " +
-        "enter-private|exit-lost|schedule output.jsonl [timeout_seconds] | " +
+        "enter-private|exit-lost|schedule|g1-held output.jsonl [timeout_seconds] | " +
         "controller output.jsonl [run_seconds|until-ended] | " +
         "trial selector output.jsonl [timeout_seconds]");
     return 2;
@@ -230,7 +239,8 @@ var timeoutSeconds = mode == "controller"
     ? controllerRunMode.RunSeconds
     : timeoutArgument is not null
         ? int.Parse(timeoutArgument)
-    : mode == "schedule" ? 90 : mode is "enter-private" or "exit-lost" or "trial" ? 60 :
+    : mode == "g1-held" ? 150 : mode == "schedule" ? 90 :
+        mode is "enter-private" or "exit-lost" or "trial" ? 60 :
         15;
 if (!controllerUntilEnded && timeoutSeconds is < 1 or > 600)
 {
@@ -321,6 +331,13 @@ try
     string? completedTrialRoundIdentitySha256 = null;
     string? completedTrialInitialStateSha256 = null;
     string? completedControllerRunId = null;
+    string? completedControllerRuntimeModel = null;
+    string? completedG1HeldRunId = null;
+    string? completedG1HeldFreshRoundRequestId = null;
+    string? completedG1HeldRoundIdentitySha256 = null;
+    int? completedG1HeldFinalTick = null;
+    int? completedG1HeldFinalSubstep = null;
+    string? g1HeldPartialReason = null;
     if (mode == "state")
     {
         using var state = await RequestState(deadline.Token);
@@ -522,6 +539,226 @@ try
                 break;
             }
         }
+        else if (mode == "g1-held")
+        {
+            var freshRoundRequestId = await StartFreshPrivateRound(
+                connectionId,
+                deadline.Token,
+                requireStrictParityPairing: false);
+            string g1HeldRunId;
+            string g1HeldRoundIdentitySha256;
+            using (var start = await RequireAcceptedCommand(
+                       "StartG1HeldInputSchedule",
+                       "g1_held_input_schedule_started",
+                       expectedApplied: true,
+                       expectedRequestIssued: false,
+                       deadline.Token))
+            {
+                RequireInt64(start.RootElement, "lease_connection_id", connectionId);
+                ValidateG1HeldIdentity(start.RootElement);
+                RequireTrue(start.RootElement, "g1_held_schedule_running");
+                RequireTrue(start.RootElement, "g1_held_schedule_round_capacity_proven");
+                var roundDuration = start.RootElement.GetProperty(
+                    "g1_held_schedule_round_duration_seconds").GetSingle();
+                var timeRemaining = start.RootElement.GetProperty(
+                    "g1_held_schedule_initial_time_remaining_seconds").GetSingle();
+                if (!G1HeldInputScheduleContract.HasRoundCapacity(
+                        roundDuration,
+                        timeRemaining))
+                {
+                    throw new InvalidDataException(
+                        "G1 held-input start did not prove fresh-round capacity");
+                }
+                RequireFalse(start.RootElement, "fresh_round_armed");
+                RequireNull(start.RootElement, "fresh_round_invalid_reason");
+                g1HeldRunId = RequireHexString(
+                    start.RootElement,
+                    "g1_held_schedule_run_id",
+                    32);
+                RequireString(
+                    start.RootElement,
+                    "g1_held_schedule_fresh_round_request_id",
+                    freshRoundRequestId);
+                g1HeldRoundIdentitySha256 = RequireHexString(
+                    start.RootElement,
+                    "g1_held_schedule_round_identity_sha256",
+                    64);
+                if (ValidateSupportedMeasuredPairing(
+                        start.RootElement.GetProperty("measured_pairing")) != "g1")
+                {
+                    throw new InvalidDataException(
+                        "G1 held-input schedule requires exact G1/G1 runtime pairing");
+                }
+                completedG1HeldRunId = g1HeldRunId;
+                completedG1HeldFreshRoundRequestId = freshRoundRequestId;
+                completedG1HeldRoundIdentitySha256 = g1HeldRoundIdentitySha256;
+            }
+
+            var nextEventSequence = 1;
+            var nextScheduleTick = 0;
+            var kickExecuteReturnSeen = new bool[G1HeldInputScheduleContract.KickProbes.Length];
+            var kickTerminalSeen = new bool[G1HeldInputScheduleContract.KickProbes.Length];
+            var kickSummarySeen = new bool[G1HeldInputScheduleContract.KickProbes.Length];
+            var yawPreemptionSeen = new bool[G1HeldInputScheduleContract.KickProbes.Length];
+            var translationReleaseSeen =
+                new bool[G1HeldInputScheduleContract.KickProbes.Length];
+            var kickFixedObservationCounts =
+                new int[G1HeldInputScheduleContract.KickProbes.Length];
+            var kickEventReconciler = new G1HeldEventReconciler();
+            while (true)
+            {
+                using var message = await ReadMessage(deadline.Token);
+                var eventName = OptionalString(message.RootElement, "event");
+                if (eventName == "g1_held_schedule_end")
+                {
+                    for (var ordinal = 0;
+                         ordinal < G1HeldInputScheduleContract.KickProbes.Length;
+                         ordinal++)
+                    {
+                        if (kickEventReconciler.TerminalSeen(ordinal) !=
+                                kickTerminalSeen[ordinal] ||
+                            kickEventReconciler.SummarySeen(ordinal) !=
+                                kickSummarySeen[ordinal])
+                        {
+                            throw new InvalidDataException(
+                                "G1 event reconciliation differed from validated coverage");
+                        }
+                    }
+                    var endComplete = ValidateG1HeldEnd(
+                        message.RootElement,
+                        g1HeldRunId,
+                        freshRoundRequestId,
+                        g1HeldRoundIdentitySha256,
+                        nextScheduleTick,
+                        kickExecuteReturnSeen,
+                        kickTerminalSeen,
+                        kickSummarySeen,
+                        yawPreemptionSeen,
+                        translationReleaseSeen,
+                        kickFixedObservationCounts);
+                    completedG1HeldFinalTick = RequireInt32Value(
+                        message.RootElement,
+                        "schedule_tick");
+                    completedG1HeldFinalSubstep = RequireInt32Value(
+                        message.RootElement,
+                        "client_fixed_substep");
+                    if (!endComplete)
+                    {
+                        g1HeldPartialReason = RequireNonemptyString(
+                            message.RootElement,
+                            "reason");
+                    }
+                    resultJson = message.RootElement.GetRawText();
+                    break;
+                }
+                if (eventName?.StartsWith("g1_", StringComparison.Ordinal) != true)
+                    continue;
+
+                ValidateG1HeldEventIdentity(
+                    message.RootElement,
+                    g1HeldRunId,
+                    freshRoundRequestId,
+                    g1HeldRoundIdentitySha256,
+                    nextEventSequence);
+                nextEventSequence++;
+                switch (eventName)
+                {
+                    case "g1_held_schedule_tick":
+                        ValidateG1HeldTick(message.RootElement, nextScheduleTick);
+                        nextScheduleTick++;
+                        break;
+                    case "g1_yaw_kick_preemption":
+                        kickEventReconciler.ObserveProbeEvent(
+                            eventName,
+                            RequireG1Probe(
+                                message.RootElement.GetProperty("detail"),
+                                G1KickProbeKind.YawPreempted).Ordinal);
+                        ValidateG1YawPreemption(
+                            message.RootElement,
+                            yawPreemptionSeen);
+                        break;
+                    case "g1_translation_release":
+                        kickEventReconciler.ObserveProbeEvent(
+                            eventName,
+                            RequireG1Probe(
+                                message.RootElement.GetProperty("detail"),
+                                G1KickProbeKind.TranslationHeld).Ordinal);
+                        ValidateG1TranslationRelease(
+                            message.RootElement,
+                            translationReleaseSeen);
+                        break;
+                    case "g1_kick_request_lifecycle":
+                    {
+                        var probeOrdinal = RequireG1Probe(
+                            message.RootElement.GetProperty("detail"),
+                            null).Ordinal;
+                        kickEventReconciler.ObserveProbeEvent(eventName, probeOrdinal);
+                        var terminalWasSeen = kickTerminalSeen[probeOrdinal];
+                        ValidateG1KickRequestLifecycle(
+                            message.RootElement,
+                            kickExecuteReturnSeen,
+                            kickTerminalSeen);
+                        if (!terminalWasSeen && kickTerminalSeen[probeOrdinal])
+                            kickEventReconciler.ObserveTerminal(probeOrdinal);
+                        break;
+                    }
+                    case "g1_kick_local_state_transition":
+                        kickEventReconciler.ObserveProbeEvent(
+                            eventName,
+                            RequireG1Probe(
+                                message.RootElement.GetProperty("detail"),
+                                null).Ordinal);
+                        ValidateG1KickLocalStateTransition(message.RootElement);
+                        break;
+                    case "g1_kick_fixed_observation":
+                        kickEventReconciler.ObserveProbeEvent(
+                            eventName,
+                            RequireG1Probe(
+                                message.RootElement.GetProperty("detail"),
+                                null).Ordinal);
+                        ValidateG1KickFixedObservation(
+                            message.RootElement,
+                            kickFixedObservationCounts);
+                        break;
+                    case "g1_kick_measurement_summary":
+                    {
+                        var detail = message.RootElement.GetProperty("detail");
+                        var probeOrdinal = RequireG1Probe(detail, null).Ordinal;
+                        var observationWindowComplete = RequireBooleanValue(
+                            detail,
+                            "observation_window_complete");
+                        ValidateG1KickMeasurementSummary(
+                            message.RootElement,
+                            kickSummarySeen,
+                            kickFixedObservationCounts);
+                        kickEventReconciler.ObserveSummary(
+                            probeOrdinal,
+                            observationWindowComplete);
+                        break;
+                    }
+                    case "g1_yaw_ramp_update":
+                        ValidateG1YawRampUpdate(message.RootElement);
+                        break;
+                    case "g1_kick_dispatch_opportunity":
+                        kickEventReconciler.ObserveProbeEvent(
+                            eventName,
+                            RequireG1Probe(
+                                message.RootElement.GetProperty("detail"),
+                                null).Ordinal);
+                        ValidateG1KickDispatchOpportunity(message.RootElement);
+                        break;
+                    case "g1_velocity_request_lifecycle":
+                        ValidateG1VelocityRequestLifecycle(message.RootElement);
+                        break;
+                    case "g1_unexpected_local_request_blocked":
+                        ValidateG1UnexpectedRequestBlocked(message.RootElement);
+                        break;
+                    default:
+                        throw new InvalidDataException(
+                            $"unrecognized G1 held-input event {eventName}");
+                }
+            }
+        }
         else if (mode == "controller")
         {
             await EnsureActivePrivateRound(
@@ -547,8 +784,20 @@ try
                     start.RootElement,
                     "continuous_controller_round_identity_sha256",
                     64);
-                ValidateContinuousMeasuredPairing(
+                completedControllerRuntimeModel = ValidateContinuousMeasuredPairing(
                     start.RootElement.GetProperty("measured_pairing"));
+                RequireString(
+                    start.RootElement,
+                    "continuous_controller_runtime_model",
+                    completedControllerRuntimeModel);
+                RequireString(
+                    start.RootElement,
+                    "continuous_controller_recovery_mode",
+                    RecoveryModeForRuntimeModel(completedControllerRuntimeModel));
+                RequireIntArray(
+                    start.RootElement,
+                    "continuous_controller_attack_move_indices",
+                    AttackMoveIndicesForRuntimeModel(completedControllerRuntimeModel));
                 resultJson = start.RootElement.GetRawText();
             }
 
@@ -573,7 +822,8 @@ try
                         {
                             ValidateContinuousEvent(
                                 message.RootElement,
-                                completedControllerRunId);
+                                completedControllerRunId,
+                                completedControllerRuntimeModel);
                             resultJson = message.RootElement.GetRawText();
                         }
                     }
@@ -618,7 +868,8 @@ try
                             {
                                 ValidateContinuousEvent(
                                     message.RootElement,
-                                    completedControllerRunId);
+                                    completedControllerRunId,
+                                    completedControllerRuntimeModel);
                                 resultJson = message.RootElement.GetRawText();
                             }
                         }
@@ -771,6 +1022,8 @@ try
         RequireFalse(releasedControl, "continuous_controller_authorized_while_background");
         RequireFalse(releasedControl, "attack_zone_trial_running");
         RequireFalse(releasedControl, "attack_zone_recovery_only_running");
+        RequireFalse(releasedControl, "g1_held_schedule_running");
+        RequireFalse(releasedControl, "g1_held_schedule_authorized_while_background");
         if (mode == "exit-lost")
         {
             RequireString(releasedState.RootElement, "scene", "Lobby");
@@ -827,8 +1080,45 @@ try
                     "completed continuous controller run ID was unavailable"));
             RequireString(releasedControl, "continuous_controller_phase", "inactive");
         }
+        else if (mode == "g1-held")
+        {
+            RequireString(
+                releasedControl,
+                "g1_held_schedule_run_id",
+                completedG1HeldRunId ?? throw new InvalidDataException(
+                    "completed G1 held-input run ID was unavailable"));
+            RequireString(
+                releasedControl,
+                "g1_held_schedule_fresh_round_request_id",
+                completedG1HeldFreshRoundRequestId ?? throw new InvalidDataException(
+                    "completed G1 held-input fresh-round request ID was unavailable"));
+            RequireString(
+                releasedControl,
+                "g1_held_schedule_round_identity_sha256",
+                completedG1HeldRoundIdentitySha256 ?? throw new InvalidDataException(
+                    "completed G1 held-input round identity was unavailable"));
+            RequireInt32(
+                releasedControl,
+                "g1_held_schedule_tick",
+                completedG1HeldFinalTick ?? throw new InvalidDataException(
+                    "completed G1 held-input final tick was unavailable"));
+            RequireInt32(
+                releasedControl,
+                "g1_held_schedule_client_fixed_substep",
+                completedG1HeldFinalSubstep ?? throw new InvalidDataException(
+                    "completed G1 held-input final substep was unavailable"));
+        }
     }
 
+    if (g1HeldPartialReason is not null)
+    {
+        await WriteClientResult("partial", g1HeldPartialReason);
+        await PublishTranscript();
+        Console.WriteLine(resultJson);
+        Console.Error.WriteLine(
+            $"G1 held-input schedule ended with partial coverage: {g1HeldPartialReason}");
+        return 1;
+    }
     await WriteClientResult("complete", null);
     await PublishTranscript();
     Console.WriteLine(resultJson);
@@ -911,6 +1201,7 @@ async Task<JsonDocument> RequireAcceptedCommand(
         ValidateTrialIdentity(response.RootElement);
         ValidateContinuousContractIdentity(response.RootElement);
         ValidateAttackZoneAckIdentity(response.RootElement);
+        ValidateG1HeldAckIdentity(response.RootElement);
         return response;
     }
     catch
@@ -930,6 +1221,58 @@ static void ValidateAttackZoneAckIdentity(JsonElement value)
     if (readyTicks is < 0 or > 15)
         throw new InvalidDataException("attack-zone recovery-ready tick count was invalid");
     _ = RequireNonemptyString(value, "attack_zone_trial_phase");
+}
+
+static void ValidateG1HeldIdentity(JsonElement value)
+{
+    RequireString(
+        value,
+        "g1_held_schedule_schema",
+        G1HeldInputScheduleContract.Schema);
+    RequireString(
+        value,
+        "g1_held_schedule_id",
+        G1HeldInputScheduleContract.ScheduleId);
+    RequireString(
+        value,
+        "g1_held_schedule_sha256",
+        G1HeldInputScheduleContract.ExpectedSha256);
+    RequireString(
+        value,
+        "g1_held_schedule_authority_scope",
+        G1HeldInputScheduleContract.AuthorityScope);
+    RequireString(
+        value,
+        "g1_held_schedule_authority_caveat",
+        G1HeldInputScheduleContract.AuthorityCaveat);
+}
+
+static void ValidateG1HeldAckIdentity(JsonElement value)
+{
+    ValidateG1HeldIdentity(value);
+    _ = RequireBooleanValue(value, "g1_held_schedule_running");
+    ValidateOptionalHex(value, "g1_held_schedule_run_id", 32);
+    ValidateOptionalString(value, "g1_held_schedule_fresh_round_request_id");
+    ValidateOptionalHex(value, "g1_held_schedule_round_identity_sha256", 64);
+    var tick = RequireInt32Value(value, "g1_held_schedule_tick");
+    var substep = RequireInt32Value(value, "g1_held_schedule_client_fixed_substep");
+    if (tick is < 0 or > G1HeldInputScheduleContract.FinalScheduleTick || substep < 0)
+        throw new InvalidDataException("G1 held-input ack counters were invalid");
+    RequireFiniteNumber(value, "g1_held_schedule_round_duration_seconds");
+    RequireFiniteNumber(value, "g1_held_schedule_initial_time_remaining_seconds");
+    RequireFiniteExactNumber(
+        value,
+        "g1_held_schedule_required_run_seconds",
+        G1HeldInputScheduleContract.RequiredRunSeconds);
+    RequireFiniteExactSingle(
+        value,
+        "g1_held_schedule_round_capacity_safety_seconds",
+        G1HeldInputScheduleContract.RoundCapacitySafetySeconds);
+    RequireFiniteExactNumber(
+        value,
+        "g1_held_schedule_required_round_capacity_seconds",
+        G1HeldInputScheduleContract.RequiredRoundCapacitySeconds);
+    _ = RequireBooleanValue(value, "g1_held_schedule_round_capacity_proven");
 }
 
 async Task<JsonDocument> RequireAcceptedControllerStop(
@@ -1004,7 +1347,8 @@ async Task<JsonDocument> RequireAcceptedControllerStop(
 
 async Task<string> StartFreshPrivateRound(
     long expectedConnectionId,
-    CancellationToken cancellationToken)
+    CancellationToken cancellationToken,
+    bool requireStrictParityPairing = true)
 {
     using (var initial = await RequestState(cancellationToken))
     {
@@ -1032,6 +1376,7 @@ async Task<string> StartFreshPrivateRound(
         RequireInt64(response.RootElement, "lease_connection_id", expectedConnectionId);
         ValidateScheduleIdentity(response.RootElement);
         ValidateTrialIdentity(response.RootElement);
+        ValidateG1HeldAckIdentity(response.RootElement);
         RequireTrue(response.RootElement, "fresh_round_armed");
         RequireString(response.RootElement, "fresh_round_request_id", requestId);
         RequireNull(response.RootElement, "fresh_round_invalid_reason");
@@ -1068,7 +1413,10 @@ async Task<string> StartFreshPrivateRound(
         {
             continue;
         }
-        ValidatePrivateBotOne(state.RootElement, requireActiveRound: true);
+        ValidatePrivateBotOne(
+            state.RootElement,
+            requireActiveRound: true,
+            requireStrictParityPairing: requireStrictParityPairing);
         return requestId;
     }
 }
@@ -1295,6 +1643,1047 @@ static PipeServerProof ValidatePipeServer(NamedPipeClientStream pipe)
     }
 }
 
+static void ValidateG1HeldEventIdentity(
+    JsonElement value,
+    string runId,
+    string freshRoundRequestId,
+    string roundIdentitySha256,
+    int expectedEventSequence)
+{
+    RequireString(value, "protocol", Protocol);
+    RequireString(value, "g1_held_schedule_schema", G1HeldInputScheduleContract.Schema);
+    RequireString(value, "g1_held_schedule_id", G1HeldInputScheduleContract.ScheduleId);
+    RequireString(
+        value,
+        "g1_held_schedule_sha256",
+        G1HeldInputScheduleContract.ExpectedSha256);
+    RequireString(value, "g1_held_schedule_run_id", runId);
+    RequireString(value, "fresh_round_request_id", freshRoundRequestId);
+    RequireString(value, "round_identity_sha256", roundIdentitySha256);
+    RequireInt32(value, "event_sequence", expectedEventSequence);
+    var scheduleTick = RequireInt32Value(value, "schedule_tick");
+    var fixedSubstep = RequireInt32Value(value, "client_fixed_substep");
+    if (scheduleTick is < 0 or > G1HeldInputScheduleContract.FinalScheduleTick ||
+        fixedSubstep < scheduleTick * G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick ||
+        fixedSubstep > (scheduleTick + 1) * G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick)
+    {
+        throw new InvalidDataException("G1 held-input event clock was inconsistent");
+    }
+    RequireInt32(
+        value,
+        "fixed_substeps_per_schedule_tick",
+        G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick);
+    RequireInt32(value, "schedule_rate_hz", G1HeldInputScheduleContract.ScheduleRateHz);
+    RequireInt32(value, "unity_fixed_rate_hz", G1HeldInputScheduleContract.UnityFixedRateHz);
+    RequireString(value, "authority_scope", G1HeldInputScheduleContract.AuthorityScope);
+    RequireString(value, "authority_caveat", G1HeldInputScheduleContract.AuthorityCaveat);
+    RequireTrue(value, "request_only");
+    RequireString(value, "server_acceptance", "unknown");
+    RequireFalse(value, "server_acceptance_observed");
+    RequireFalse(value, "authoritative_execution_observed");
+    RequireFalse(value, "global_input_emitted");
+    ValidateG1RecorderCorrelation(
+        value.GetProperty("recorder_correlation"),
+        scheduleTick,
+        fixedSubstep);
+}
+
+static void ValidateG1RecorderCorrelation(
+    JsonElement value,
+    int scheduleTick,
+    int fixedSubstep)
+{
+    RequireString(value, "recorder_schema", "rek.private_ai.protocol.v7");
+    RequireString(value, "clock", "client_fixed_tick_500hz");
+    RequireInt32(value, "client_fixed_substep", fixedSubstep);
+    RequireInt32(value, "schedule_tick", scheduleTick);
+    if (value.GetProperty("unity_fixed_time").ValueKind != JsonValueKind.Number)
+        throw new InvalidDataException("G1 recorder correlation fixed time was unavailable");
+    RequireFalse(value, "pose_payload_in_pipe");
+    RequireString(
+        value,
+        "pose_response_source",
+        G1HeldInputScheduleContract.PoseResponseSource);
+}
+
+static void ValidateG1HeldTick(JsonElement value, int expectedTick)
+{
+    RequireInt32(value, "schedule_tick", expectedTick);
+    RequireInt32(
+        value,
+        "client_fixed_substep",
+        expectedTick * G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick);
+    var expected = G1HeldInputScheduleContract.FrameAtTick(expectedTick);
+    var previous = expectedTick == 0
+        ? G1HeldInputScheduleContract.FrameAtTick(0) with
+        {
+            DesiredHeldMask = G1HeldMask.None,
+            EffectiveHeldMask = G1HeldMask.None,
+        }
+        : G1HeldInputScheduleContract.FrameAtTick(expectedTick - 1);
+    var detail = value.GetProperty("detail");
+    RequireString(detail, "phase", expected.Phase);
+    RequireInt32(detail, "desired_held_mask", (byte)expected.DesiredHeldMask);
+    RequireStringArray(
+        detail,
+        "desired_held",
+        G1HeldInputScheduleContract.HeldNames(expected.DesiredHeldMask));
+    RequireInt32(detail, "effective_held_mask", (byte)expected.EffectiveHeldMask);
+    RequireStringArray(
+        detail,
+        "effective_held",
+        G1HeldInputScheduleContract.HeldNames(expected.EffectiveHeldMask));
+    RequireInt32(
+        detail,
+        "desired_pressed_mask",
+        (byte)(expected.DesiredHeldMask & ~previous.DesiredHeldMask));
+    RequireInt32(
+        detail,
+        "desired_released_mask",
+        (byte)(previous.DesiredHeldMask & ~expected.DesiredHeldMask));
+    RequireInt32(
+        detail,
+        "effective_pressed_mask",
+        (byte)(expected.EffectiveHeldMask & ~previous.EffectiveHeldMask));
+    RequireInt32(
+        detail,
+        "effective_released_mask",
+        (byte)(previous.EffectiveHeldMask & ~expected.EffectiveHeldMask));
+    RequireFloatVector(
+        detail,
+        "desired_raw_controller_target_xyz",
+        expected.Forward,
+        expected.Strafe,
+        expected.RawYaw);
+    RequireFiniteExactSingle(detail, "previous_raw_yaw_target", previous.RawYaw);
+    var velocity = detail.GetProperty("effective_controller_vector_xyz");
+    if (velocity.ValueKind != JsonValueKind.Array || velocity.GetArrayLength() != 3 ||
+        !SameFloatBits(velocity[0].GetSingle(), expected.Forward) ||
+        !SameFloatBits(velocity[1].GetSingle(), expected.Strafe) ||
+        !float.IsFinite(velocity[2].GetSingle()) ||
+        Math.Abs(velocity[2].GetSingle()) > G1HeldInputScheduleContract.ExpectedYawSpeed ||
+        expected.KickEdge && expected.YawPreempted &&
+        !SameFloatBits(velocity[2].GetSingle(), 0f))
+    {
+        throw new InvalidDataException(
+            "G1 held-input effective controller vector differed from its contract");
+    }
+    RequireFiniteNumber(detail, "yaw_ramp");
+    RequireFiniteNumber(detail, "yaw_sign");
+    var yawUpdatePhase = RequireNonemptyString(detail, "yaw_update_phase");
+    if (yawUpdatePhase is not (
+            "fixed_boundary_kick_preemption_reset" or
+            "next_rendered_late_update"))
+    {
+        throw new InvalidDataException("unknown G1 yaw update phase");
+    }
+    RequireString(
+        detail,
+        "keyboard_yaw_ramp_provenance",
+        G1HeldInputScheduleContract.KeyboardYawRampProvenance);
+    RequireTrue(detail, "velocity_property_write_returned");
+    RequireTrue(detail, "velocity_readback_exact");
+    RequireNullableInt32(detail, "held_condition_ordinal", expected.HeldConditionOrdinal);
+    RequireNullableInt32(detail, "kick_probe_ordinal", expected.KickProbe?.Ordinal);
+    RequireBool(detail, "kick_edge", expected.KickEdge);
+    RequireBool(detail, "yaw_preempted", expected.YawPreempted);
+    RequireBool(detail, "translation_released", expected.TranslationReleased);
+    ValidateG1LocalLifecycle(detail.GetProperty("local_lifecycle"));
+}
+
+static void ValidateG1TranslationRelease(JsonElement value, bool[] seen)
+{
+    var detail = value.GetProperty("detail");
+    var probe = RequireG1Probe(detail, G1KickProbeKind.TranslationHeld);
+    if (seen[probe.Ordinal])
+        throw new InvalidDataException("duplicate G1 translation release event");
+    seen[probe.Ordinal] = true;
+    if (probe.TranslationReleaseTick is not int releaseTick)
+        throw new InvalidDataException("G1 translation probe had no release tick");
+    RequireInt32(value, "schedule_tick", releaseTick);
+    RequireInt32(detail, "release_tick", releaseTick);
+    RequireInt32(
+        detail,
+        "release_fixed_substep",
+        releaseTick * G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick);
+    RequireInt32(
+        detail,
+        "fixed_substeps_since_edge",
+        (releaseTick - probe.EdgeTick) *
+        G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick);
+    RequireInt32(detail, "desired_held_mask", 0);
+    RequireInt32(detail, "effective_held_mask", 0);
+    RequireFloatVector(detail, "effective_controller_vector_xyz", 0f, 0f, 0f);
+    if (RequireInt64Value(detail, "release_qpc_ticks") <= 0 ||
+        RequireInt64Value(detail, "qpc_frequency_hz") <= 0)
+    {
+        throw new InvalidDataException("invalid G1 translation release QPC anchor");
+    }
+    RequireTrue(detail, "velocity_property_write_returned");
+    RequireTrue(detail, "velocity_readback_exact");
+    ValidateG1TranslationSettleDiagnostic(
+        detail.GetProperty("transition_settled_diagnostic"),
+        G1HeldInputScheduleContract.TranslationOutgoingLocomotion(
+            probe.DesiredHeldMask));
+    RequireFalse(detail, "retry_scheduled");
+    RequireFalse(detail, "second_kick_edge_scheduled");
+}
+
+static void ValidateG1YawPreemption(JsonElement value, bool[] seen)
+{
+    var detail = value.GetProperty("detail");
+    var probe = RequireG1Probe(detail, G1KickProbeKind.YawPreempted);
+    if (seen[probe.Ordinal])
+        throw new InvalidDataException("duplicate G1 yaw preemption event");
+    seen[probe.Ordinal] = true;
+    RequireInt32(value, "schedule_tick", probe.EdgeTick);
+    RequireInt32(detail, "desired_held_mask", (byte)probe.DesiredHeldMask);
+    RequireInt32(detail, "effective_held_mask", 0);
+    RequireInt32(detail, "raw_yaw_before_edge", probe.RawYawBeforeEdge);
+    RequireInt32(detail, "raw_yaw_at_edge", 0);
+    RequireFiniteExactSingle(detail, "effective_yaw_at_edge", 0f);
+    RequireTrue(detail, "yaw_neutralized_before_execute_move");
+    RequireTrue(detail, "velocity_property_write_returned");
+    RequireTrue(detail, "velocity_readback_exact");
+    RequireInt32(detail, "preemption_persists_until_tick", probe.StopTick - 1);
+}
+
+static void ValidateG1KickRequestLifecycle(
+    JsonElement value,
+    bool[] executeReturnSeen,
+    bool[] terminalSeen)
+{
+    var detail = value.GetProperty("detail");
+    var probe = RequireG1Probe(detail, null);
+    var stage = RequireNonemptyString(detail, "lifecycle_stage");
+    if (stage == "execute_move_returned")
+    {
+        if (executeReturnSeen[probe.Ordinal])
+            throw new InvalidDataException("duplicate G1 ExecuteMove return event");
+        executeReturnSeen[probe.Ordinal] = true;
+        _ = RequireBooleanValue(detail, "execute_move_returned");
+        _ = RequireBooleanValue(detail, "pending_move_before_call");
+        _ = RequireBooleanValue(detail, "pending_move_after_call");
+        _ = RequireInt32Value(detail, "pending_move_index_before_call");
+        _ = RequireInt32Value(detail, "pending_move_index_after_call");
+        var classification = RequireNonemptyString(detail, "local_classification");
+        if (classification is not (
+                "conflicting_pending_move_after_call" or
+                "accepted_locally_and_armed" or
+                "accepted_locally_without_pending_observation" or
+                "returned_false_but_armed" or
+                "rejected_locally"))
+        {
+            throw new InvalidDataException("unknown G1 local kick classification");
+        }
+        RequireFalse(detail, "retry_scheduled");
+        RequireFalse(detail, "queue_owned_by_schedule");
+        RequireInt32(detail, "attempt_count", 1);
+        ValidateG1LocalLifecycle(detail.GetProperty("local_lifecycle_before_call"));
+        ValidateG1LocalLifecycle(detail.GetProperty("local_lifecycle_after_call"));
+        return;
+    }
+    if (stage == "send_move_invoked")
+    {
+        RequireTrue(detail, "pending_move");
+        RequireInt32(detail, "pending_move_index", probe.MoveIndex);
+        var sendPrefixFixedSubstep = RequireInt32Value(
+            detail,
+            "send_prefix_fixed_substep");
+        var sendPrefixScheduleTick = RequireInt32Value(
+            detail,
+            "send_prefix_schedule_tick");
+        G1HeldEventReconciler.ValidateSendAnchor(
+            probe,
+            sendPrefixFixedSubstep,
+            sendPrefixScheduleTick);
+        if (RequireInt32Value(detail, "send_prefix_unity_frame") < 0 ||
+            RequireInt64Value(detail, "send_prefix_qpc_ticks") <= 0 ||
+            RequireInt64Value(detail, "qpc_frequency_hz") <= 0 ||
+            RequireInt32Value(detail, "late_update_opportunities") < 1)
+        {
+            throw new InvalidDataException("invalid G1 SendMoveEvent prefix anchor");
+        }
+        RequireFiniteNumber(detail, "send_prefix_unity_fixed_time");
+        RequireFalse(detail, "retry_scheduled");
+        RequireFalse(detail, "queue_owned_by_schedule");
+        RequireInt32(detail, "attempt_count", 1);
+        return;
+    }
+    if (stage == "pending_awaiting_render_dispatch_opportunity")
+    {
+        RequireTrue(detail, "pending_move");
+        RequireInt32(detail, "pending_move_index", probe.MoveIndex);
+        RequireFalse(detail, "cancelled_at_fixed_boundary");
+        RequireFalse(detail, "retry_scheduled");
+        RequireFalse(detail, "queue_owned_by_schedule");
+        return;
+    }
+    var terminalStages = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "rejected_locally_no_retry",
+        "accepted_return_without_pending_or_send_observation",
+        "client_request_method_returned",
+    };
+    if (terminalStages.Contains(stage))
+    {
+        if (terminalSeen[probe.Ordinal])
+            throw new InvalidDataException("duplicate G1 terminal kick lifecycle event");
+        terminalSeen[probe.Ordinal] = true;
+        RequireFalse(detail, "retry_scheduled");
+        RequireFalse(detail, "queue_owned_by_schedule");
+        RequireFalse(detail, "pending_cancelled_by_schedule");
+        RequireInt32(detail, "attempt_count", 1);
+        return;
+    }
+    if (stage is "execute_move_threw" or "send_move_threw")
+    {
+        RequireFalse(detail, "retry_scheduled");
+        RequireFalse(detail, "queue_owned_by_schedule");
+        return;
+    }
+    throw new InvalidDataException($"unknown G1 kick lifecycle stage {stage}");
+}
+
+static void ValidateG1KickLocalStateTransition(JsonElement value)
+{
+    var detail = value.GetProperty("detail");
+    var probe = RequireG1Probe(detail, null);
+    RequireInt32(detail, "edge_tick", probe.EdgeTick);
+    RequireInt32(
+        detail,
+        "edge_fixed_substep",
+        probe.EdgeTick * G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick);
+    if (RequireInt32Value(detail, "fixed_substeps_since_edge") < 0)
+        throw new InvalidDataException("negative G1 lifecycle transition offset");
+    RequireNullOrNonnegativeInt32(detail, "fixed_substeps_since_send");
+    if (detail.GetProperty("previous").ValueKind is not (JsonValueKind.Null or JsonValueKind.Object))
+        throw new InvalidDataException("invalid prior G1 lifecycle state");
+    if (detail.GetProperty("previous").ValueKind == JsonValueKind.Object)
+        ValidateG1LocalLifecycle(detail.GetProperty("previous"));
+    ValidateG1LocalLifecycle(detail.GetProperty("current"));
+    RequireTrue(detail, "local_visual_only_diagnostic");
+    RequireString(detail, "server_acceptance", "unknown");
+}
+
+static void ValidateG1KickFixedObservation(JsonElement value, int[] counts)
+{
+    var detail = value.GetProperty("detail");
+    var probe = RequireG1Probe(detail, null);
+    var expectedSubstep =
+        probe.EdgeTick * G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick +
+        counts[probe.Ordinal];
+    RequireInt32(value, "client_fixed_substep", expectedSubstep);
+    RequireInt32(
+        detail,
+        "edge_fixed_substep",
+        probe.EdgeTick * G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick);
+    RequireInt32(detail, "fixed_substeps_since_edge", counts[probe.Ordinal]);
+    RequireNullOrNonnegativeInt32(detail, "fixed_substeps_since_send");
+    _ = RequireBooleanValue(detail, "send_anchor_observed");
+    if (probe.Kind == G1KickProbeKind.TranslationHeld)
+    {
+        if (probe.TranslationReleaseTick is not int releaseTick)
+            throw new InvalidDataException("translation probe lacked release tick");
+        RequireInt32(detail, "translation_release_tick", releaseTick);
+        var releaseSubstep = releaseTick *
+            G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick;
+        var released = expectedSubstep > releaseSubstep;
+        RequireBool(detail, "translation_released", released);
+        if (released)
+        {
+            RequireInt32(
+                detail,
+                "fixed_substeps_since_translation_release",
+                expectedSubstep - releaseSubstep);
+            ValidateG1TranslationSettleDiagnostic(
+                detail.GetProperty("transition_settled_diagnostic"),
+                G1HeldInputScheduleContract.TranslationOutgoingLocomotion(
+                    probe.DesiredHeldMask));
+        }
+        else
+        {
+            RequireNull(detail, "fixed_substeps_since_translation_release");
+            RequireNull(detail, "transition_settled_diagnostic");
+        }
+    }
+    else
+    {
+        RequireNull(detail, "translation_release_tick");
+        RequireNull(detail, "translation_released");
+        RequireNull(detail, "fixed_substeps_since_translation_release");
+        RequireNull(detail, "transition_settled_diagnostic");
+    }
+    _ = RequireBooleanValue(detail, "pending_move");
+    _ = RequireInt32Value(detail, "pending_move_index");
+    ValidateG1LocalLifecycle(detail.GetProperty("local_visual_only_diagnostic"));
+    ValidateG1RecorderCorrelation(
+        detail.GetProperty("recorder_correlation"),
+        RequireInt32Value(value, "schedule_tick"),
+        expectedSubstep);
+    RequireString(detail, "server_acceptance", "unknown");
+    RequireFalse(detail, "authoritative_execution_observed");
+    counts[probe.Ordinal]++;
+    var expectedCount =
+        G1HeldInputScheduleContract.KickObservationTicks *
+        G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick;
+    if (counts[probe.Ordinal] > expectedCount)
+        throw new InvalidDataException("extra G1 500 Hz kick observation");
+}
+
+static void ValidateG1YawRampUpdate(JsonElement value)
+{
+    var detail = value.GetProperty("detail");
+    RequireString(detail, "phase", "RobotInputController.LateUpdate.prefix");
+    var scheduleTick = RequireInt32Value(value, "schedule_tick");
+    var frame = G1HeldInputScheduleContract.FrameAtTick(scheduleTick);
+    RequireInt32(detail, "desired_key_mask", (byte)frame.DesiredHeldMask);
+    RequireInt32(detail, "effective_held_mask", (byte)frame.EffectiveHeldMask);
+    RequireFiniteExactSingle(detail, "raw_yaw_target", frame.RawYaw);
+    RequireFiniteExactSingle(
+        detail,
+        "keyboard_yaw_ramp_time",
+        G1HeldInputScheduleContract.ExpectedKeyboardYawRampTimeSeconds);
+    RequireFiniteExactSingle(
+        detail,
+        "yaw_speed",
+        G1HeldInputScheduleContract.ExpectedYawSpeed);
+    var delta = detail.GetProperty("rendered_delta_time").GetSingle();
+    var before = new G1KeyboardYawState(
+        detail.GetProperty("ramp_before").GetSingle(),
+        detail.GetProperty("sign_before").GetSingle());
+    var expected = G1HeldInputScheduleContract.AdvanceKeyboardYaw(
+        before,
+        frame.RawYaw,
+        delta,
+        G1HeldInputScheduleContract.ExpectedKeyboardYawRampTimeSeconds,
+        G1HeldInputScheduleContract.ExpectedYawSpeed);
+    if (!SameFloatBits(detail.GetProperty("ramp_after").GetSingle(), expected.State.Ramp) ||
+        !SameFloatBits(detail.GetProperty("sign_after").GetSingle(), expected.State.Sign) ||
+        !SameFloatBits(detail.GetProperty("effective_yaw").GetSingle(), expected.EffectiveYaw))
+    {
+        throw new InvalidDataException("G1 rendered yaw ramp step differed from native semantics");
+    }
+    RequireFloatVector(
+        detail,
+        "effective_controller_vector_xyz",
+        frame.Forward,
+        frame.Strafe,
+        expected.EffectiveYaw);
+    if (RequireInt64Value(detail, "qpc_ticks") <= 0 ||
+        RequireInt64Value(detail, "qpc_frequency_hz") <= 0)
+    {
+        throw new InvalidDataException("invalid G1 yaw ramp QPC anchor");
+    }
+    RequireString(
+        detail,
+        "provenance",
+        G1HeldInputScheduleContract.KeyboardYawRampProvenance);
+}
+
+static void ValidateG1KickDispatchOpportunity(JsonElement value)
+{
+    var detail = value.GetProperty("detail");
+    var ordinal = RequireInt32Value(detail, "probe_ordinal");
+    if (ordinal is < 0 || ordinal >= G1HeldInputScheduleContract.KickProbes.Length)
+        throw new InvalidDataException("invalid G1 dispatch probe ordinal");
+    var probe = G1HeldInputScheduleContract.KickProbes[ordinal];
+    RequireInt32(detail, "move_index", probe.MoveIndex);
+    var stage = RequireNonemptyString(detail, "stage");
+    RequireFalse(detail, "cancelled_by_schedule");
+    if (stage == "matching_late_update_prefix_entered")
+    {
+        RequireTrue(detail, "pending_move");
+        RequireInt32(detail, "pending_move_index", probe.MoveIndex);
+        if (RequireInt32Value(detail, "late_update_opportunities") < 1 ||
+            RequireInt32Value(detail, "fixed_updates_since_arm") < 0)
+        {
+            throw new InvalidDataException("invalid G1 matching dispatch opportunity");
+        }
+    }
+    else if (stage == "matching_late_update_postfix_completed")
+    {
+        if (RequireInt32Value(detail, "late_update_opportunities") < 1)
+            throw new InvalidDataException("invalid G1 completed dispatch opportunity");
+        _ = RequireBooleanValue(detail, "send_prefix_seen");
+        _ = RequireBooleanValue(detail, "send_postfix_seen");
+        _ = RequireBooleanValue(detail, "pending_move_after_late_update");
+        _ = RequireInt32Value(detail, "pending_move_index_after_late_update");
+        _ = RequireBooleanValue(
+            detail,
+            "missing_dispatch_after_completed_opportunity");
+    }
+    else if (stage == "pending_missing_before_first_matching_late_update")
+    {
+        if (RequireInt32Value(detail, "late_update_opportunities") != 0)
+            throw new InvalidDataException("invalid G1 missing-pending opportunity count");
+    }
+    else
+    {
+        throw new InvalidDataException($"unknown G1 dispatch opportunity stage {stage}");
+    }
+}
+
+static void ValidateG1KickMeasurementSummary(
+    JsonElement value,
+    bool[] seen,
+    int[] fixedObservationCounts)
+{
+    var detail = value.GetProperty("detail");
+    var probe = RequireG1Probe(detail, null);
+    if (seen[probe.Ordinal])
+        throw new InvalidDataException("duplicate G1 kick measurement summary");
+    seen[probe.Ordinal] = true;
+    RequireInt32(detail, "edge_tick", probe.EdgeTick);
+    RequireInt32(detail, "observation_stop_tick", probe.StopTick);
+    RequireInt32(
+        detail,
+        "observation_ticks_scheduled",
+        probe.StopTick - probe.EdgeTick);
+    var observationComplete = RequireBooleanValue(detail, "observation_window_complete");
+    var expectedFixedObservations =
+        G1HeldInputScheduleContract.KickObservationTicks *
+        G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick;
+    RequireInt32(detail, "fixed_observations_expected", expectedFixedObservations);
+    RequireInt32(
+        detail,
+        "fixed_observations_observed",
+        fixedObservationCounts[probe.Ordinal]);
+    RequireInt32(
+        detail,
+        "lifecycle_observation_rate_hz",
+        G1HeldInputScheduleContract.UnityFixedRateHz);
+    if (observationComplete && fixedObservationCounts[probe.Ordinal] != expectedFixedObservations)
+        throw new InvalidDataException("complete G1 kick window lacked exact 500 Hz observations");
+    _ = RequireBooleanValue(detail, "baseline_neutral_settled");
+    int? firstTransitionSettledSubstep = null;
+    if (probe.Kind == G1KickProbeKind.TranslationHeld)
+    {
+        if (probe.TranslationReleaseTick is not int releaseTick)
+            throw new InvalidDataException("translation probe lacked release tick");
+        RequireInt32(detail, "translation_release_tick", releaseTick);
+        var releaseObserved = RequireBooleanValue(
+            detail,
+            "translation_release_observed");
+        RequireFalse(detail, "translation_post_release_settled_kick_control_included");
+        RequireString(
+            detail,
+            "translation_post_release_settled_kick_remaining_unknown",
+            "single_edge_no_retry_schedule_observes_the_original_request_only");
+        if (releaseObserved)
+        {
+            var releaseSubstep = releaseTick *
+                G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick;
+            RequireInt32(detail, "translation_release_fixed_substep", releaseSubstep);
+            if (RequireInt32Value(detail, "translation_release_event_sequence") <= 0 ||
+                RequireInt64Value(detail, "translation_release_qpc_ticks") <= 0 ||
+                RequireInt64Value(detail, "translation_release_qpc_frequency_hz") <= 0)
+            {
+                throw new InvalidDataException("invalid G1 translation release anchor");
+            }
+            ValidateG1TranslationSettleDiagnostic(
+                detail.GetProperty("translation_release_settle_diagnostic"),
+                G1HeldInputScheduleContract.TranslationOutgoingLocomotion(
+                    probe.DesiredHeldMask));
+            var settledElement = detail.GetProperty(
+                "translation_first_transition_settled_fixed_substep");
+            if (settledElement.ValueKind != JsonValueKind.Null)
+            {
+                firstTransitionSettledSubstep = settledElement.GetInt32();
+                if (firstTransitionSettledSubstep < releaseSubstep)
+                {
+                    throw new InvalidDataException(
+                        "G1 transition settled before translation release");
+                }
+                RequireInt32(
+                    detail,
+                    "translation_fixed_substeps_release_to_settled",
+                    firstTransitionSettledSubstep.Value - releaseSubstep);
+            }
+            else
+            {
+                RequireNull(detail, "translation_fixed_substeps_release_to_settled");
+            }
+            var lastSettle = detail.GetProperty("translation_last_settle_diagnostic");
+            if (lastSettle.ValueKind == JsonValueKind.Object)
+                ValidateG1TranslationSettleDiagnostic(
+                    lastSettle,
+                    G1HeldInputScheduleContract.TranslationOutgoingLocomotion(
+                        probe.DesiredHeldMask));
+            else if (lastSettle.ValueKind != JsonValueKind.Null)
+                throw new InvalidDataException("invalid last G1 transition-settle diagnostic");
+        }
+        else
+        {
+            RequireNull(detail, "translation_release_fixed_substep");
+            RequireNull(detail, "translation_release_event_sequence");
+            RequireNull(detail, "translation_release_qpc_ticks");
+            RequireNull(detail, "translation_release_qpc_frequency_hz");
+            RequireNull(detail, "translation_first_transition_settled_fixed_substep");
+            RequireNull(detail, "translation_fixed_substeps_release_to_settled");
+            RequireNull(detail, "translation_release_settle_diagnostic");
+            RequireNull(detail, "translation_last_settle_diagnostic");
+        }
+    }
+    else
+    {
+        RequireNull(detail, "translation_release_tick");
+        RequireNull(detail, "translation_release_fixed_substep");
+        RequireNull(detail, "translation_release_event_sequence");
+        RequireNull(detail, "translation_release_qpc_ticks");
+        RequireNull(detail, "translation_release_qpc_frequency_hz");
+        RequireNull(detail, "translation_release_observed");
+        RequireNull(detail, "translation_first_transition_settled_fixed_substep");
+        RequireNull(detail, "translation_fixed_substeps_release_to_settled");
+        RequireNull(detail, "translation_request_send_timing_classification");
+        RequireNull(detail, "translation_release_settle_diagnostic");
+        RequireNull(detail, "translation_last_settle_diagnostic");
+        RequireNull(detail, "translation_post_release_settled_kick_control_included");
+        RequireNull(detail, "translation_post_release_settled_kick_remaining_unknown");
+    }
+    var moveSendInvoked = RequireBooleanValue(detail, "move_send_invoked");
+    var moveSendReturned = RequireBooleanValue(detail, "move_send_method_returned");
+    _ = RequireBooleanValue(detail, "yaw_neutralization_preceded_move_send");
+    var asset = G1HeldInputScheduleContract.AssetForMove(probe.MoveIndex);
+    var requestedAsset = detail.GetProperty("requested_move_asset");
+    RequireInt32(requestedAsset, "move_index", asset.MoveIndex);
+    RequireString(requestedAsset, "runtime_name", asset.RuntimeName);
+    RequireString(requestedAsset, "npz_sha256", asset.NpzSha256);
+    RequireInt32(requestedAsset, "recovered_controller_ticks", asset.ControllerTicks);
+    _ = RequireNonemptyString(requestedAsset, "mocap_clip_config_pointer");
+    var outgoing = detail.GetProperty("outgoing_projection");
+    RequireString(outgoing, "method", "RobotInputController.SendMoveEvent");
+    RequireInt32(outgoing, "move_index", probe.MoveIndex);
+    RequireBool(outgoing, "send_invoked", moveSendInvoked);
+    RequireBool(outgoing, "method_returned", moveSendReturned);
+    RequireTrue(outgoing, "request_only");
+    RequireString(outgoing, "server_acceptance", "unknown");
+    ValidateG1SendAnchor(detail.GetProperty("send_prefix_anchor"), moveSendInvoked, probe);
+    ValidateG1SendAnchor(detail.GetProperty("send_postfix_anchor"), moveSendReturned, probe);
+    if (probe.Kind == G1KickProbeKind.TranslationHeld)
+    {
+        var releaseFixedSubstep = detail.GetProperty("translation_release_fixed_substep");
+        if (releaseFixedSubstep.ValueKind == JsonValueKind.Null)
+        {
+            RequireNull(detail, "translation_request_send_timing_classification");
+        }
+        else
+        {
+            var sendAnchor = detail.GetProperty("send_prefix_anchor");
+            var sendSubstep = sendAnchor.ValueKind == JsonValueKind.Object
+                ? RequireInt32Value(sendAnchor, "client_fixed_substep")
+                : (int?)null;
+            RequireString(
+                detail,
+                "translation_request_send_timing_classification",
+                G1HeldInputScheduleContract.ClassifyTranslationSendTiming(
+                    sendSubstep,
+                    releaseFixedSubstep.GetInt32(),
+                    firstTransitionSettledSubstep));
+        }
+    }
+    RequireString(
+        detail,
+        "motion_identity_status",
+        G1HeldInputScheduleContract.MotionIdentityStatus);
+    RequireFalse(detail, "requested_asset_to_runner_motion_identity_proven");
+    RequireNull(detail, "certified_input_delay_ticks");
+    RequireNull(detail, "certified_entry_to_completion_ticks");
+    RequireFalse(detail, "certified_duration_available");
+    _ = RequireNonemptyString(detail, "timing_certification_reason");
+    if (probe.Kind == G1KickProbeKind.TranslationHeld)
+    {
+        var localGateResult = RequireNonemptyString(
+            detail,
+            "translation_local_gate_result");
+        if (localGateResult is not ("supported" or "contradicted" or "unknown"))
+            throw new InvalidDataException("invalid G1 translation local-gate result");
+        RequireString(detail, "translation_behavior_result", "unknown");
+        _ = RequireNonemptyString(detail, "translation_response_classification");
+        RequireString(
+            detail,
+            "translation_result_criteria",
+            G1HeldInputScheduleContract.TranslationBehaviorCriteria);
+    }
+    else
+    {
+        RequireNull(detail, "translation_local_gate_result");
+        RequireNull(detail, "translation_behavior_result");
+        RequireNull(detail, "translation_response_classification");
+        RequireNull(detail, "translation_result_criteria");
+    }
+    RequireString(detail, "physical_response_result", "unknown");
+    _ = RequireNonemptyString(detail, "physical_response_result_criteria");
+    RequireTrue(detail, "local_diagnostics_only");
+    RequireTrue(detail, "request_only");
+    RequireString(detail, "server_acceptance", "unknown");
+    ValidateG1RecorderCorrelation(
+        detail.GetProperty("recorder_correlation"),
+        RequireInt32Value(value, "schedule_tick"),
+        RequireInt32Value(value, "client_fixed_substep"));
+}
+
+static void ValidateG1SendAnchor(
+    JsonElement value,
+    bool expectedPresent,
+    G1KickProbe probe)
+{
+    if (!expectedPresent)
+    {
+        if (value.ValueKind != JsonValueKind.Null)
+            throw new InvalidDataException("unexpected G1 SendMoveEvent timing anchor");
+        return;
+    }
+    if (value.ValueKind != JsonValueKind.Object)
+        throw new InvalidDataException("invalid G1 SendMoveEvent timing anchor");
+    var fixedSubstep = RequireInt32Value(value, "client_fixed_substep");
+    var scheduleTick = RequireInt32Value(value, "schedule_tick");
+    G1HeldEventReconciler.ValidateSendAnchor(probe, fixedSubstep, scheduleTick);
+    if (RequireInt32Value(value, "unity_frame") < 0 ||
+        RequireInt64Value(value, "qpc_ticks") <= 0 ||
+        RequireInt64Value(value, "qpc_frequency_hz") <= 0)
+    {
+        throw new InvalidDataException("invalid G1 SendMoveEvent timing anchor");
+    }
+    RequireFiniteNumber(value, "unity_fixed_time");
+}
+
+static void ValidateG1VelocityRequestLifecycle(JsonElement value)
+{
+    var detail = value.GetProperty("detail");
+    RequireString(detail, "method", "RobotInputController.SendVelocityCommand");
+    var stage = RequireNonemptyString(detail, "lifecycle_stage");
+    if (stage == "send_velocity_invoked")
+        RequireFalse(detail, "method_returned");
+    else if (stage == "client_request_method_returned")
+    {
+        RequireTrue(detail, "method_returned");
+        RequireString(detail, "local_return_value", "void_returned_normally");
+    }
+    else
+        throw new InvalidDataException($"unknown G1 velocity lifecycle stage {stage}");
+}
+
+static void ValidateG1UnexpectedRequestBlocked(JsonElement value)
+{
+    var detail = value.GetProperty("detail");
+    var requestKind = RequireNonemptyString(detail, "request_kind");
+    if (requestKind is not ("special" or "estop"))
+        throw new InvalidDataException("unknown blocked G1 request kind");
+    RequireTrue(detail, "original_method_skipped");
+}
+
+static void ValidateG1LocalLifecycle(JsonElement value)
+{
+    _ = RequireBooleanValue(value, "input_is_punching");
+    _ = RequireBooleanValue(value, "input_is_recovering");
+    _ = RequireBooleanValue(value, "action_busy");
+    _ = RequireBooleanValue(value, "sonic_policy_runner_available");
+    RequireNullOrBoolean(value, "sonic_policy_runner_is_done");
+    RequireNullOrBoolean(value, "sonic_policy_runner_is_recovering");
+    RequireNullOrString(value, "sonic_current_motion_pointer");
+    if (RequireInt32Value(value, "sonic_motion_frame_index") < -1)
+        throw new InvalidDataException("invalid G1 motion frame index");
+    RequireNullOrString(value, "probe_reason");
+    RequireFalse(value, "sonic_action_composer_used");
+}
+
+static void ValidateG1TranslationSettleDiagnostic(
+    JsonElement value,
+    string expectedOutgoingLocomotion)
+{
+    var methodInvoked = RequireBooleanValue(
+        value,
+        "transition_settled_method_invoked");
+    var methodReturned = RequireBooleanValue(
+        value,
+        "transition_settled_method_returned");
+    if (methodReturned && !methodInvoked)
+        throw new InvalidDataException("G1 TransitionSettled returned without invocation");
+    RequireString(value, "outgoing_locomotion", expectedOutgoingLocomotion);
+    RequireFalse(value, "predicate_mirrored_from_pinned_native_code");
+    RequireString(
+        value,
+        "provenance",
+        G1HeldInputScheduleContract.TransitionSettledProvenance);
+    RequireString(
+        value,
+        "base_velocity_provenance",
+        G1HeldInputScheduleContract.TransitionSettleBaseVelocityProvenance);
+    if (methodReturned)
+        _ = RequireBooleanValue(value, "transition_settled");
+    else
+        RequireNull(value, "transition_settled");
+
+    var baseVelocityAvailable = RequireBooleanValue(
+        value,
+        "base_velocity_available");
+    if (!baseVelocityAvailable)
+    {
+        RequireNull(value, "base_linear_velocity_local_m_s");
+        RequireNull(value, "base_angular_velocity_local_rad_s");
+        _ = RequireNonemptyString(value, "probe_reason");
+    }
+    else
+    {
+        ValidateFiniteVector3(value.GetProperty("base_linear_velocity_local_m_s"));
+        ValidateFiniteVector3(value.GetProperty("base_angular_velocity_local_rad_s"));
+        RequireNull(value, "probe_reason");
+    }
+    RequireFiniteExactSingle(
+        value,
+        "transition_settle_planar_speed_m_s",
+        G1HeldInputScheduleContract.ExpectedTransitionSettlePlanarSpeed);
+    RequireFiniteExactSingle(
+        value,
+        "transition_settle_yaw_rate_rad_s",
+        G1HeldInputScheduleContract.ExpectedTransitionSettleYawRate);
+}
+
+static void ValidateFiniteVector3(JsonElement value)
+{
+    if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() != 3 ||
+        value.EnumerateArray().Any(component =>
+            component.ValueKind != JsonValueKind.Number ||
+            !float.IsFinite(component.GetSingle())))
+    {
+        throw new InvalidDataException("invalid finite 3-vector");
+    }
+}
+
+static G1KickProbe RequireG1Probe(JsonElement detail, G1KickProbeKind? expectedKind)
+{
+    var ordinal = RequireInt32Value(detail, "probe_ordinal");
+    if (ordinal is < 0 || ordinal >= G1HeldInputScheduleContract.KickProbes.Length)
+        throw new InvalidDataException("G1 kick probe ordinal was invalid");
+    var probe = G1HeldInputScheduleContract.KickProbes[ordinal];
+    RequireString(detail, "probe_label", probe.Label);
+    RequireString(
+        detail,
+        "probe_kind",
+        probe.Kind == G1KickProbeKind.TranslationHeld
+            ? "translation_held"
+            : "yaw_preempted");
+    RequireInt32(detail, "move_index", probe.MoveIndex);
+    if (expectedKind is not null && probe.Kind != expectedKind.Value)
+        throw new InvalidDataException("G1 kick probe kind was unexpected");
+    return probe;
+}
+
+static bool ValidateG1HeldEnd(
+    JsonElement value,
+    string runId,
+    string freshRoundRequestId,
+    string roundIdentitySha256,
+    int observedScheduleTicks,
+    bool[] executeReturnSeen,
+    bool[] terminalSeen,
+    bool[] summarySeen,
+    bool[] yawPreemptionSeen,
+    bool[] translationReleaseSeen,
+    int[] fixedObservationCounts)
+{
+    RequireString(value, "protocol", Protocol);
+    RequireString(value, "g1_held_schedule_schema", G1HeldInputScheduleContract.Schema);
+    RequireString(value, "g1_held_schedule_id", G1HeldInputScheduleContract.ScheduleId);
+    RequireString(
+        value,
+        "g1_held_schedule_sha256",
+        G1HeldInputScheduleContract.ExpectedSha256);
+    RequireString(value, "g1_held_schedule_run_id", runId);
+    RequireString(value, "fresh_round_request_id", freshRoundRequestId);
+    RequireString(value, "round_identity_sha256", roundIdentitySha256);
+    var scheduleTick = RequireInt32Value(value, "schedule_tick");
+    var fixedSubstep = RequireInt32Value(value, "client_fixed_substep");
+    if (scheduleTick is < 0 or > G1HeldInputScheduleContract.FinalScheduleTick || fixedSubstep < 0)
+        throw new InvalidDataException("G1 held-input end clock was invalid");
+    var complete = RequireBooleanValue(value, "complete");
+    RequireBool(value, "experiment_coverage_complete", complete);
+    RequireBool(value, "partial_coverage", !complete);
+    RequireTrue(value, "authorized_while_background");
+    _ = RequireBooleanValue(value, "final_neutral_send_method_returned");
+    _ = RequireBooleanValue(value, "owned_pending_cleared_only_during_stop");
+    var capacity = value.GetProperty("round_capacity_preflight");
+    RequireFiniteExactNumber(
+        capacity,
+        "required_run_seconds",
+        G1HeldInputScheduleContract.RequiredRunSeconds);
+    RequireFiniteExactSingle(
+        capacity,
+        "safety_seconds",
+        G1HeldInputScheduleContract.RoundCapacitySafetySeconds);
+    RequireFiniteExactNumber(
+        capacity,
+        "required_capacity_seconds",
+        G1HeldInputScheduleContract.RequiredRoundCapacitySeconds);
+    RequireTrue(capacity, "capacity_proven");
+    RequireString(
+        value,
+        "pose_response_source",
+        G1HeldInputScheduleContract.PoseResponseSource);
+    RequireFalse(value, "pose_response_in_pipe_transcript");
+    RequireFalse(value, "sonic_action_composer_lifecycle_used");
+    RequireFalse(value, "global_input_emitted");
+    RequireTrue(value, "request_only");
+    RequireString(value, "server_acceptance", "unknown");
+    RequireFalse(value, "server_acceptance_observed");
+    RequireFalse(value, "authoritative_execution_observed");
+
+    var coverage = value.GetProperty("coverage");
+    RequireBool(coverage, "Complete", complete);
+    RequireInt32(
+        coverage,
+        "HeldConditionsExpected",
+        G1HeldInputScheduleContract.HeldConditions.Length);
+    var heldObserved = RequireInt32Value(
+        coverage,
+        "HeldConditionsObservedForExactDuration");
+    if (heldObserved < 0 ||
+        heldObserved > G1HeldInputScheduleContract.HeldConditions.Length)
+        throw new InvalidDataException("G1 held-condition coverage count was invalid");
+    var heldTicks = coverage.GetProperty("HeldConditionObservedTicks");
+    if (heldTicks.ValueKind != JsonValueKind.Array ||
+        heldTicks.GetArrayLength() != G1HeldInputScheduleContract.HeldConditions.Length ||
+        heldTicks.EnumerateArray().Any(item =>
+            item.GetInt32() is < 0 or > G1HeldInputScheduleContract.HeldDurationTicks))
+    {
+        throw new InvalidDataException("G1 held-condition coverage vector was invalid");
+    }
+    RequireInt32(coverage, "TranslationKickProbesExpected", 4);
+    RequireInt32(coverage, "YawKickProbesExpected", 4);
+    var translationEdges = RequireInt32Value(coverage, "TranslationKickEdgesObserved");
+    var translationTerminal = RequireInt32Value(
+        coverage,
+        "TranslationKickTerminalOutcomesObserved");
+    var translationReleases = RequireInt32Value(
+        coverage,
+        "TranslationReleasesObserved");
+    var yawEdges = RequireInt32Value(coverage, "YawKickEdgesObserved");
+    var yawTerminal = RequireInt32Value(coverage, "YawKickTerminalOutcomesObserved");
+    var yawPreemptions = RequireInt32Value(coverage, "YawPreemptionsObserved");
+    var summaries = RequireInt32Value(coverage, "KickMeasurementSummariesObserved");
+    var windows = RequireInt32Value(coverage, "KickObservationWindowsComplete");
+    var fixedWindows = RequireInt32Value(
+        coverage,
+        "KickFixedObservationWindowsComplete");
+    if (translationEdges is < 0 or > 4 || translationTerminal is < 0 or > 4 ||
+        translationReleases is < 0 or > 4 ||
+        yawEdges is < 0 or > 4 || yawTerminal is < 0 or > 4 ||
+        yawPreemptions is < 0 or > 4 || summaries is < 0 or > 8 ||
+        windows is < 0 or > 8 || fixedWindows is < 0 or > 8)
+    {
+        throw new InvalidDataException("G1 kick coverage count was invalid");
+    }
+    if (summaries != summarySeen.Count(item => item) ||
+        translationTerminal + yawTerminal != terminalSeen.Count(item => item) ||
+        yawPreemptions != yawPreemptionSeen.Count(item => item) ||
+        translationReleases != translationReleaseSeen.Count(item => item))
+    {
+        throw new InvalidDataException("G1 bridge and client coverage observations differed");
+    }
+    RequireIntArray(
+        coverage,
+        "KickMoveIndices",
+        G1HeldInputScheduleContract.KickMoveIndices);
+    RequireFalse(coverage, "FBindingIncluded");
+    RequireFalse(coverage, "QueueOrRetryUsed");
+    RequireFalse(coverage, "SonicActionComposerLifecycleUsed");
+    RequireFalse(coverage, "PhysicalBehaviorCertified");
+    RequireString(
+        coverage,
+        "PoseResponseSource",
+        G1HeldInputScheduleContract.PoseResponseSource);
+    var measurements = coverage.GetProperty("KickMeasurements");
+    if (measurements.ValueKind != JsonValueKind.Array || measurements.GetArrayLength() != 8)
+        throw new InvalidDataException("G1 kick measurement coverage vector was invalid");
+    for (var ordinal = 0; ordinal < measurements.GetArrayLength(); ordinal++)
+    {
+        var measurement = measurements[ordinal];
+        var probe = G1HeldInputScheduleContract.KickProbes[ordinal];
+        RequireInt32(measurement, "probe_ordinal", ordinal);
+        RequireString(measurement, "probe_label", probe.Label);
+        RequireInt32(measurement, "move_index", probe.MoveIndex);
+        RequireInt32(measurement, "edge_tick", probe.EdgeTick);
+        RequireNullableInt32(
+            measurement,
+            "translation_release_tick",
+            probe.TranslationReleaseTick);
+        RequireInt32(measurement, "observation_stop_tick", probe.StopTick);
+        RequireBool(measurement, "edge_observed", executeReturnSeen[ordinal]);
+        RequireBool(measurement, "terminal_outcome_observed", terminalSeen[ordinal]);
+        RequireBool(
+            measurement,
+            "translation_release_observed",
+            translationReleaseSeen[ordinal]);
+        RequireBool(
+            measurement,
+            "yaw_preemption_observed",
+            yawPreemptionSeen[ordinal]);
+        RequireBool(measurement, "summary_emitted", summarySeen[ordinal]);
+        RequireInt32(
+            measurement,
+            "fixed_observations",
+            fixedObservationCounts[ordinal]);
+        RequireInt32(
+            measurement,
+            "fixed_observations_expected",
+            G1HeldInputScheduleContract.KickObservationTicks *
+            G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick);
+        RequireString(
+            measurement,
+            "motion_identity_status",
+            G1HeldInputScheduleContract.MotionIdentityStatus);
+        RequireFalse(measurement, "certified_duration_available");
+        RequireString(measurement, "physical_behavior_result", "unknown");
+        RequireTrue(measurement, "request_only");
+        RequireString(measurement, "server_acceptance", "unknown");
+    }
+
+    if (!complete)
+    {
+        if (RequireNonemptyString(value, "reason") == "complete")
+            throw new InvalidDataException("partial G1 end used complete reason");
+        if (observedScheduleTicks > G1HeldInputScheduleContract.DurationScheduleTicks)
+            throw new InvalidDataException("partial G1 schedule emitted too many ticks");
+        return false;
+    }
+
+    RequireString(value, "reason", "complete");
+    RequireTrue(value, "final_neutral_send_method_returned");
+    if (observedScheduleTicks != G1HeldInputScheduleContract.DurationScheduleTicks ||
+        scheduleTick != G1HeldInputScheduleContract.FinalScheduleTick ||
+        fixedSubstep !=
+        G1HeldInputScheduleContract.DurationScheduleTicks *
+        G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick - 1 ||
+        heldObserved != G1HeldInputScheduleContract.HeldConditions.Length ||
+        heldTicks.EnumerateArray().Any(item =>
+            item.GetInt32() != G1HeldInputScheduleContract.HeldDurationTicks) ||
+        translationEdges != 4 || translationTerminal != 4 || translationReleases != 4 ||
+        yawEdges != 4 ||
+        yawTerminal != 4 || yawPreemptions != 4 || summaries != 8 || windows != 8 ||
+        fixedWindows != 8 || !executeReturnSeen.All(item => item) ||
+        !terminalSeen.All(item => item) || !summarySeen.All(item => item) ||
+        fixedObservationCounts.Any(item => item !=
+            G1HeldInputScheduleContract.KickObservationTicks *
+            G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick) ||
+        G1HeldInputScheduleContract.KickProbes
+            .Where(item => item.Kind == G1KickProbeKind.YawPreempted)
+            .Any(item => !yawPreemptionSeen[item.Ordinal]) ||
+        G1HeldInputScheduleContract.KickProbes
+            .Where(item => item.Kind == G1KickProbeKind.TranslationHeld)
+            .Any(item => !translationReleaseSeen[item.Ordinal]))
+    {
+        throw new InvalidDataException("complete G1 held-input end had incomplete coverage");
+    }
+    for (var ordinal = 0; ordinal < measurements.GetArrayLength(); ordinal++)
+    {
+        var measurement = measurements[ordinal];
+        RequireTrue(measurement, "measurement_started");
+        RequireTrue(measurement, "observation_window_complete");
+    }
+    return true;
+}
+
 static void ValidateHello(
     JsonElement hello,
     IReadOnlyList<ExpectedTrialSelector> expectedTrialSelectors)
@@ -1314,6 +2703,16 @@ static void ValidateHello(
     }
     var capabilities = hello.GetProperty("capabilities");
     RequireTrue(capabilities, "state");
+    RequireString(
+        capabilities,
+        "private_ai_proof_basis",
+        "build_pinned_REK_FindMatch_solo_ConnectToArena_EnterChampionship_non_koth_solo_same_runtime_session");
+    RequireString(capabilities, "solo_route_required_flow", "solo");
+    RequireFalse(capabilities, "solo_route_arena_identifier_recorded");
+    RequireFalse(capabilities, "solo_route_connection_ticket_recorded");
+    RequireFalse(capabilities, "solo_route_endpoint_recorded");
+    RequireFalse(capabilities, "server_private_proven");
+    RequireString(capabilities, "server_private_status", "unknown");
     RequireFalse(capabilities, "input_available");
     RequireStringArray(
         capabilities,
@@ -1343,6 +2742,8 @@ static void ValidateHello(
             "StopContinuousBotController",
             "StartAttackZoneTrial",
             "StopAttackZoneTrial",
+            "StartG1HeldInputSchedule",
+            "StopG1HeldInputSchedule",
         });
     RequireTrue(capabilities, "exclusive_control_lease_required");
     RequireFalse(capabilities, "autonomous_input");
@@ -1424,6 +2825,22 @@ static void ValidateHello(
         capabilities,
         "continuous_controller_move_indices",
         new[] { 2, 3, 4, 5, 9, 10 });
+    RequireIntArray(
+        capabilities,
+        "continuous_controller_g1_move_indices",
+        new[] { 6, 7, 8, 9 });
+    RequireStringArray(
+        capabilities,
+        "continuous_controller_supported_runtime_models",
+        new[] { "t800", "g1" });
+    RequireString(
+        capabilities,
+        "continuous_controller_t800_recovery_mode",
+        ContinuousT800RecoveryMode);
+    RequireString(
+        capabilities,
+        "continuous_controller_g1_recovery_mode",
+        ContinuousG1RecoveryMode);
     RequireString(
         capabilities,
         "continuous_controller_recovery_guard_provenance",
@@ -1521,38 +2938,174 @@ static void ValidateHello(
         "attack_zone_trial_recorder_plugin_sha256",
         AttackZoneRecorderSha256);
     RequireFalse(capabilities, "attack_zone_trial_global_input_emitted");
-    var attackProfiles = capabilities.GetProperty("continuous_controller_attack_profiles");
-    if (attackProfiles.ValueKind != JsonValueKind.Array || attackProfiles.GetArrayLength() != 6)
-        throw new InvalidDataException("expected six continuous_controller_attack_profiles");
-    var expectedProfiles = new[]
+    RequireString(
+        capabilities,
+        "g1_held_schedule_schema",
+        G1HeldInputScheduleContract.Schema);
+    RequireString(
+        capabilities,
+        "g1_held_schedule_id",
+        G1HeldInputScheduleContract.ScheduleId);
+    RequireString(
+        capabilities,
+        "g1_held_schedule_sha256",
+        G1HeldInputScheduleContract.ExpectedSha256);
+    RequireString(
+        capabilities,
+        "g1_held_schedule_authority_scope",
+        G1HeldInputScheduleContract.AuthorityScope);
+    RequireString(
+        capabilities,
+        "g1_held_schedule_authority_caveat",
+        G1HeldInputScheduleContract.AuthorityCaveat);
+    RequireString(
+        capabilities,
+        "g1_held_schedule_required_isolation_proof",
+        G1HeldInputScheduleContract.RequiredIsolationProof);
+    RequireString(
+        capabilities,
+        "g1_held_schedule_pose_response_source",
+        G1HeldInputScheduleContract.PoseResponseSource);
+    RequireInt32(
+        capabilities,
+        "g1_held_schedule_unity_fixed_rate_hz",
+        G1HeldInputScheduleContract.UnityFixedRateHz);
+    RequireInt32(
+        capabilities,
+        "g1_held_schedule_rate_hz",
+        G1HeldInputScheduleContract.ScheduleRateHz);
+    RequireInt32(
+        capabilities,
+        "g1_held_schedule_fixed_substeps_per_tick",
+        G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick);
+    RequireInt32(
+        capabilities,
+        "g1_held_schedule_duration_ticks",
+        G1HeldInputScheduleContract.DurationScheduleTicks);
+    RequireInt32(
+        capabilities,
+        "g1_held_schedule_kick_observation_ticks",
+        G1HeldInputScheduleContract.KickObservationTicks);
+    RequireInt32(
+        capabilities,
+        "g1_held_schedule_translation_release_offset_ticks",
+        G1HeldInputScheduleContract.TranslationReleaseOffsetTicks);
+    RequireString(
+        capabilities,
+        "g1_held_schedule_transition_settled_provenance",
+        G1HeldInputScheduleContract.TransitionSettledProvenance);
+    RequireString(
+        capabilities,
+        "g1_held_schedule_transition_settle_base_velocity_provenance",
+        G1HeldInputScheduleContract.TransitionSettleBaseVelocityProvenance);
+    RequireFiniteExactSingle(
+        capabilities,
+        "g1_held_schedule_transition_settle_planar_speed_m_s",
+        G1HeldInputScheduleContract.ExpectedTransitionSettlePlanarSpeed);
+    RequireFiniteExactSingle(
+        capabilities,
+        "g1_held_schedule_transition_settle_yaw_rate_rad_s",
+        G1HeldInputScheduleContract.ExpectedTransitionSettleYawRate);
+    RequireFalse(
+        capabilities,
+        "g1_held_schedule_post_release_settled_kick_control_included");
+    RequireInt32(
+        capabilities,
+        "g1_held_schedule_lifecycle_observation_rate_hz",
+        G1HeldInputScheduleContract.UnityFixedRateHz);
+    RequireFiniteExactSingle(
+        capabilities,
+        "g1_held_schedule_keyboard_yaw_ramp_time_seconds",
+        G1HeldInputScheduleContract.ExpectedKeyboardYawRampTimeSeconds);
+    RequireFiniteExactSingle(
+        capabilities,
+        "g1_held_schedule_keyboard_yaw_speed",
+        G1HeldInputScheduleContract.ExpectedYawSpeed);
+    RequireFiniteExactNumber(
+        capabilities,
+        "g1_held_schedule_required_run_seconds",
+        G1HeldInputScheduleContract.RequiredRunSeconds);
+    RequireFiniteExactSingle(
+        capabilities,
+        "g1_held_schedule_round_capacity_safety_seconds",
+        G1HeldInputScheduleContract.RoundCapacitySafetySeconds);
+    RequireFiniteExactNumber(
+        capabilities,
+        "g1_held_schedule_required_round_capacity_seconds",
+        G1HeldInputScheduleContract.RequiredRoundCapacitySeconds);
+    RequireInt32(
+        capabilities,
+        "g1_held_schedule_held_condition_count",
+        G1HeldInputScheduleContract.HeldConditions.Length);
+    RequireIntArray(
+        capabilities,
+        "g1_held_schedule_kick_move_indices",
+        G1HeldInputScheduleContract.KickMoveIndices);
+    RequireFalse(capabilities, "g1_held_schedule_f_binding_included");
+    RequireFalse(capabilities, "g1_held_schedule_queue_or_retry_used");
+    RequireFalse(capabilities, "g1_held_schedule_sonic_action_composer_lifecycle_used");
+    RequireFalse(capabilities, "g1_held_schedule_global_input_emitted");
+    ValidateContinuousAttackProfiles(
+        capabilities.GetProperty("continuous_controller_attack_profiles"),
+        new[]
     {
         (2, "skill", "Punch Combo",
             "233f952edecb7bf8d1959c6549c0edb95e1833451fff988f57a4b14d92b14dd4",
-            new[] { (0.76f, 0.1f, 0.19f, 1), (1.15f, 0.1f, 0.1f, 1), (1.81f, 0.1f, 0.1f, 1) }),
+            new[] { (0.76f, 0.1f, 0.19f, 1, 1f), (1.15f, 0.1f, 0.1f, 1, 1f), (1.81f, 0.1f, 0.1f, 1, 1f) }),
         (3, "youbiantui", "Right Kick",
             "70f36a2c7b9b53c10e47cc613d87a770eb86fb2e683ed64ee39efcccf2e75636",
-            new[] { (1.11f, 0.25f, 0.3f, 4) }),
+            new[] { (1.11f, 0.25f, 0.3f, 4, 1f) }),
         (4, "left_light_attack", "Left Punch",
             "32081b731a59b7553d94022ebff865764b34c83dbf274aadf26540fb17daad2e",
-            new[] { (0.39f, 0.12f, 0.08f, 1) }),
+            new[] { (0.39f, 0.12f, 0.08f, 1, 1f) }),
         (5, "right_light_attack", "Right Punch",
             "b1c1b2c000dd612e3eb4c33c5d90e03c2c9306e5cc194747c14248b0d77b7dea",
-            new[] { (0.22f, 0.12f, 0.2f, 2) }),
+            new[] { (0.22f, 0.12f, 0.2f, 2, 1f) }),
         (9, "right_shoryuken_lm", "Dragon Punch",
             "cc298f53d04ffd56be57ce3049559d3d30c7724fe4d2839a66ea8f3008ca8deb",
-            new[] { (0f, 0f, 0f, 2) }),
+            new[] { (0f, 0f, 0f, 2, 1f) }),
         (10, "front_kick_L", "Left Kick",
             "cd5b286f6e4f5c3003cb0f5c9de5e5690ca92ed58e5a1b789f4394e4d7911ee8",
-            new[] { (1.1f, 0.2f, 0.15f, 3) }),
-    };
+            new[] { (1.1f, 0.2f, 0.15f, 3, 1f) }),
+    });
+    ValidateContinuousAttackProfiles(
+        capabilities.GetProperty("continuous_controller_g1_attack_profiles"),
+        new[]
+    {
+        (6, "left_side_kick_processed", "Left Side Kick",
+            "fb5c3938396c789020003634b0dc76d2319ea3df33ec2fa2927a2e4e24a070a0",
+            new[] { (1.1f, 0.3f, 0.5f, 3, 2f) }),
+        (7, "left_front_kick_processed", "Left Front Kick",
+            "5f61681420dbd84ce046f68770b73d2ed9e845d38cacd4e37d1f704bcb5f9241",
+            new[] { (1f, 0.2f, 0.5f, 3, 2f) }),
+        (8, "right_side_kick_processed", "Right Side Kick",
+            "6c4a414aa3c6860f30b28d65e6ef7c18d5e6bf9331ab69215ded03cf82c560ac",
+            new[] { (1.14f, 0.4f, 0.15f, 4, 2f) }),
+        (9, "right_knee_processed", "Right Knee",
+            "04dbcb4b28f617912c7ac5c452a23969c5bc17ac745571c35d29ebea03b2733b",
+            new[] { (0.65f, 0.4f, 0.15f, 4, 3f) }),
+    });
+}
+
+static void ValidateContinuousAttackProfiles(
+    JsonElement attackProfiles,
+    (int MoveIndex, string MoveName, string DisplayName, string AssetSha256,
+        (float Impact, float Lead, float Release, int Limb, float Gain)[] Impacts)[]
+        expectedProfiles)
+{
+    if (attackProfiles.ValueKind != JsonValueKind.Array ||
+        attackProfiles.GetArrayLength() != expectedProfiles.Length)
+    {
+        throw new InvalidDataException("continuous attack profile count mismatch");
+    }
     for (var profileIndex = 0; profileIndex < expectedProfiles.Length; profileIndex++)
     {
         var expected = expectedProfiles[profileIndex];
         var actual = attackProfiles[profileIndex];
-        RequireInt32(actual, "move_index", expected.Item1);
-        RequireString(actual, "move_name", expected.Item2);
-        RequireString(actual, "display_name", expected.Item3);
-        RequireString(actual, "serialized_asset_sha256", expected.Item4);
+        RequireInt32(actual, "move_index", expected.MoveIndex);
+        RequireString(actual, "move_name", expected.MoveName);
+        RequireString(actual, "display_name", expected.DisplayName);
+        RequireString(actual, "serialized_asset_sha256", expected.AssetSha256);
         if (!SameFloatBits(
                 actual.GetProperty("maximum_distance_m").GetSingle(),
                 0.5180000126361847f) ||
@@ -1564,19 +3117,19 @@ static void ValidateHello(
         }
         var impacts = actual.GetProperty("static_impact_events");
         if (impacts.ValueKind != JsonValueKind.Array ||
-            impacts.GetArrayLength() != expected.Item5.Length)
+            impacts.GetArrayLength() != expected.Impacts.Length)
         {
             throw new InvalidDataException("continuous static impact event count mismatch");
         }
-        for (var impactIndex = 0; impactIndex < expected.Item5.Length; impactIndex++)
+        for (var impactIndex = 0; impactIndex < expected.Impacts.Length; impactIndex++)
         {
-            var expectedImpact = expected.Item5[impactIndex];
+            var expectedImpact = expected.Impacts[impactIndex];
             var actualImpact = impacts[impactIndex];
-            if (!SameFloatBits(actualImpact.GetProperty("impact_time_s").GetSingle(), expectedImpact.Item1) ||
-                !SameFloatBits(actualImpact.GetProperty("lead_time_s").GetSingle(), expectedImpact.Item2) ||
-                !SameFloatBits(actualImpact.GetProperty("release_time_s").GetSingle(), expectedImpact.Item3) ||
-                !SameFloatBits(actualImpact.GetProperty("gain_boost").GetSingle(), 1f) ||
-                actualImpact.GetProperty("limb").GetInt32() != expectedImpact.Item4)
+            if (!SameFloatBits(actualImpact.GetProperty("impact_time_s").GetSingle(), expectedImpact.Impact) ||
+                !SameFloatBits(actualImpact.GetProperty("lead_time_s").GetSingle(), expectedImpact.Lead) ||
+                !SameFloatBits(actualImpact.GetProperty("release_time_s").GetSingle(), expectedImpact.Release) ||
+                !SameFloatBits(actualImpact.GetProperty("gain_boost").GetSingle(), expectedImpact.Gain) ||
+                actualImpact.GetProperty("limb").GetInt32() != expectedImpact.Limb)
             {
                 throw new InvalidDataException("continuous static impact event mismatch");
             }
@@ -1592,6 +3145,7 @@ static void ValidatePinnedState(JsonElement state, bool requireLease, long conne
     var build = state.GetProperty("build");
     RequireString(build, "game_assembly_sha256", ExpectedGameAssemblySha256);
     RequireString(build, "global_metadata_sha256", ExpectedMetadataSha256);
+    RequireString(build, "sharedassets0_sha256", ExpectedSharedAssets0Sha256);
     RequireString(build, "plugin_version", ExpectedBridgeVersion);
     RequireString(build, "plugin_sha256", ExpectedBridgeSha256);
 
@@ -1610,6 +3164,7 @@ static void ValidatePinnedState(JsonElement state, bool requireLease, long conne
     ValidateTrialIdentity(control);
     ValidateContinuousIdentity(control);
     ValidateAttackZoneIdentity(control);
+    ValidateG1HeldStateIdentity(control);
     RequireTrue(control, "send_boundary_patches_verified");
     RequireTrue(control, "trial_isolation_patches_verified");
     RequireString(control, "rendered_command_marker_schema", MarkerSchema);
@@ -1692,6 +3247,109 @@ static void ValidateAttackZoneIdentity(JsonElement value)
         RequireNull(availability, "session_identity_sha256");
         RequireNull(availability, "round_identity_sha256");
     }
+}
+
+static void ValidateG1HeldStateIdentity(JsonElement value)
+{
+    ValidateG1HeldIdentity(value);
+    RequireString(
+        value,
+        "g1_held_schedule_required_isolation_proof",
+        G1HeldInputScheduleContract.RequiredIsolationProof);
+    RequireString(
+        value,
+        "g1_held_schedule_pose_response_source",
+        G1HeldInputScheduleContract.PoseResponseSource);
+    RequireInt32(
+        value,
+        "g1_held_schedule_unity_fixed_rate_hz",
+        G1HeldInputScheduleContract.UnityFixedRateHz);
+    RequireInt32(
+        value,
+        "g1_held_schedule_rate_hz",
+        G1HeldInputScheduleContract.ScheduleRateHz);
+    RequireInt32(
+        value,
+        "g1_held_schedule_fixed_substeps_per_tick",
+        G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick);
+    RequireInt32(
+        value,
+        "g1_held_schedule_duration_ticks",
+        G1HeldInputScheduleContract.DurationScheduleTicks);
+    RequireInt32(
+        value,
+        "g1_held_schedule_kick_observation_ticks",
+        G1HeldInputScheduleContract.KickObservationTicks);
+    RequireInt32(
+        value,
+        "g1_held_schedule_translation_release_offset_ticks",
+        G1HeldInputScheduleContract.TranslationReleaseOffsetTicks);
+    RequireString(
+        value,
+        "g1_held_schedule_transition_settled_provenance",
+        G1HeldInputScheduleContract.TransitionSettledProvenance);
+    RequireString(
+        value,
+        "g1_held_schedule_transition_settle_base_velocity_provenance",
+        G1HeldInputScheduleContract.TransitionSettleBaseVelocityProvenance);
+    RequireFiniteExactSingle(
+        value,
+        "g1_held_schedule_transition_settle_planar_speed_m_s",
+        G1HeldInputScheduleContract.ExpectedTransitionSettlePlanarSpeed);
+    RequireFiniteExactSingle(
+        value,
+        "g1_held_schedule_transition_settle_yaw_rate_rad_s",
+        G1HeldInputScheduleContract.ExpectedTransitionSettleYawRate);
+    RequireFalse(
+        value,
+        "g1_held_schedule_post_release_settled_kick_control_included");
+    RequireInt32(
+        value,
+        "g1_held_schedule_lifecycle_observation_rate_hz",
+        G1HeldInputScheduleContract.UnityFixedRateHz);
+    RequireFiniteExactSingle(
+        value,
+        "g1_held_schedule_keyboard_yaw_ramp_time_seconds",
+        G1HeldInputScheduleContract.ExpectedKeyboardYawRampTimeSeconds);
+    RequireFiniteExactSingle(
+        value,
+        "g1_held_schedule_keyboard_yaw_speed",
+        G1HeldInputScheduleContract.ExpectedYawSpeed);
+    RequireFiniteExactNumber(
+        value,
+        "g1_held_schedule_required_run_seconds",
+        G1HeldInputScheduleContract.RequiredRunSeconds);
+    RequireFiniteExactSingle(
+        value,
+        "g1_held_schedule_round_capacity_safety_seconds",
+        G1HeldInputScheduleContract.RoundCapacitySafetySeconds);
+    RequireFiniteExactNumber(
+        value,
+        "g1_held_schedule_required_round_capacity_seconds",
+        G1HeldInputScheduleContract.RequiredRoundCapacitySeconds);
+    RequireInt32(
+        value,
+        "g1_held_schedule_held_condition_count",
+        G1HeldInputScheduleContract.HeldConditions.Length);
+    RequireIntArray(
+        value,
+        "g1_held_schedule_kick_move_indices",
+        G1HeldInputScheduleContract.KickMoveIndices);
+    RequireFalse(value, "g1_held_schedule_f_binding_included");
+    RequireFalse(value, "g1_held_schedule_queue_or_retry_used");
+    RequireFalse(value, "g1_held_schedule_sonic_action_composer_lifecycle_used");
+    _ = RequireBooleanValue(value, "g1_held_schedule_running");
+    _ = RequireBooleanValue(value, "g1_held_schedule_authorized_while_background");
+    ValidateOptionalHex(value, "g1_held_schedule_run_id", 32);
+    ValidateOptionalString(value, "g1_held_schedule_fresh_round_request_id");
+    ValidateOptionalHex(value, "g1_held_schedule_round_identity_sha256", 64);
+    var tick = RequireInt32Value(value, "g1_held_schedule_tick");
+    var substep = RequireInt32Value(value, "g1_held_schedule_client_fixed_substep");
+    if (tick is < 0 or > G1HeldInputScheduleContract.FinalScheduleTick || substep < 0)
+        throw new InvalidDataException("G1 held-input state counters were invalid");
+    RequireFiniteNumber(value, "g1_held_schedule_round_duration_seconds");
+    RequireFiniteNumber(value, "g1_held_schedule_initial_time_remaining_seconds");
+    _ = RequireBooleanValue(value, "g1_held_schedule_round_capacity_proven");
 }
 
 static void ValidateContinuousIdentity(JsonElement value)
@@ -1795,8 +3453,19 @@ static void ValidatePrivateBotOne(
     RequireTrue(privateAi, "proven");
     RequireTrue(privateAi, "network_client_only");
     RequireTrue(privateAi, "context_is_solo");
-    RequireTrue(privateAi, "multiplayer_session_privacy_known");
-    RequireTrue(privateAi, "multiplayer_session_is_private");
+    RequireTrue(privateAi, "solo_route_hooks_verified");
+    RequireTrue(privateAi, "solo_route_proven");
+    RequireString(privateAi, "solo_route_flow", "solo");
+    RequireTrue(privateAi, "solo_route_connect_to_arena_observed");
+    RequireTrue(privateAi, "solo_route_enter_championship_observed");
+    RequireFalse(privateAi, "solo_route_enter_championship_koth");
+    RequireTrue(privateAi, "solo_route_enter_championship_solo");
+    RequireTrue(privateAi, "solo_route_arena_identity_consistent");
+    RequireTrue(privateAi, "solo_route_runtime_session_identity_consistent");
+    RequireString(privateAi, "solo_route_reason", "solo_route_proven");
+    RequireFalse(privateAi, "server_private_proven");
+    RequireString(privateAi, "server_private_status", "unknown");
+    RequireString(privateAi, "reason", "solo_route_proven");
     RequireTrue(privateAi, "opponent_is_ai");
     RequireTrue(privateAi, "opponent_slot_is_ai");
     RequireFalse(privateAi, "human_in_opponent_slot");
@@ -1819,80 +3488,86 @@ static void ValidatePrivateBotOne(
 
 static void ValidateMeasuredPairing(JsonElement pairing)
 {
-    RequireTrue(pairing, "exact_t800_vs_t800");
-    RequireString(pairing, "required_pairing", "t800_vs_t800");
-    RequireString(pairing, "required_robot_id", "t800");
-    RequireInt32(pairing, "required_t800_bone_count", 26);
-    RequireString(pairing, "required_t800_bone_signature_sha256", T800BoneSignatureSha256);
+    if (ValidateSupportedMeasuredPairing(pairing) != "t800")
+        throw new InvalidDataException("strict parity mode requires exact T800 runtime pairing");
 }
 
-static void ValidateContinuousMeasuredPairing(JsonElement pairing)
+static string ValidateContinuousMeasuredPairing(JsonElement pairing) =>
+    ValidateSupportedMeasuredPairing(pairing);
+
+static string ValidateSupportedMeasuredPairing(JsonElement pairing)
 {
-    _ = RequireBooleanValue(pairing, "exact_t800_vs_t800");
-    RequireString(pairing, "required_pairing", "t800_vs_t800");
-    RequireString(pairing, "required_robot_id", "t800");
+    RequireString(pairing, "required_pairing", "exact_homogeneous_supported_runtime_pair");
+    RequireNull(pairing, "required_robot_id");
+    RequireStringArray(pairing, "supported_runtime_models", new[] { "t800", "g1" });
+    RequireFalse(pairing, "semantic_robot_id_required_for_acceptance");
     RequireInt32(pairing, "required_t800_bone_count", 26);
     RequireString(pairing, "required_t800_bone_signature_sha256", T800BoneSignatureSha256);
-    var local = pairing.GetProperty("local_fighter");
-    RequireString(local, "semantic_robot_id", "t800");
-    RequireTrue(local, "semantic_t800");
-    RequireTrue(local, "exact_t800_bone_signature");
-    RequireInt32(local, "bone_count", 26);
-    RequireString(local, "runtime_bone_signature_sha256", T800BoneSignatureSha256);
-    RequireFalse(local, "semantic_robot_id_used_for_continuous_acceptance");
-    var localBoneNames = RequireNonemptyUniqueStringArray(local, "bone_names", 26);
-    if (!string.Equals(
-            HashUtf8Text(string.Join("\n", localBoneNames)),
-            T800BoneSignatureSha256,
-            StringComparison.Ordinal))
-    {
-        throw new InvalidDataException("continuous local runtime bone payload hash mismatch");
-    }
-
-    var opponent = pairing.GetProperty("opponent_fighter");
-    _ = RequireNonemptyString(opponent, "runtime_object_name");
-    var opponentBoneCount = RequireInt32Value(opponent, "bone_count");
-    if (opponentBoneCount != 26)
-        throw new InvalidDataException("continuous opponent runtime T800 bone count was not exact");
-    var opponentBoneSignature = RequireHexString(
-        opponent,
-        "runtime_bone_signature_sha256",
-        64);
-    var opponentBoneNames = RequireNonemptyUniqueStringArray(
-        opponent,
-        "bone_names",
-        opponentBoneCount);
-    if (!string.Equals(
-            HashUtf8Text(string.Join("\n", opponentBoneNames)),
-            opponentBoneSignature,
-            StringComparison.Ordinal))
-    {
-        throw new InvalidDataException("continuous opponent runtime bone payload hash mismatch");
-    }
-    var opponentSemanticT800 = RequireBooleanValue(opponent, "semantic_t800");
-    var opponentExactT800 = RequireBooleanValue(opponent, "exact_t800_bone_signature");
-    var derivedSemanticT800 = string.Equals(
-        OptionalString(opponent, "semantic_robot_id"),
-        "t800",
-        StringComparison.Ordinal);
-    var derivedExactT800 = opponentBoneCount == 26 && string.Equals(
-        opponentBoneSignature,
-        T800BoneSignatureSha256,
-        StringComparison.Ordinal);
-    if (opponentSemanticT800 != derivedSemanticT800 ||
-        opponentExactT800 != derivedExactT800 ||
-        RequireBooleanValue(opponent, "semantic_runtime_mismatch") !=
-        (derivedSemanticT800 != derivedExactT800))
-    {
-        throw new InvalidDataException(
-            "continuous opponent semantic/runtime classification mismatch");
-    }
-    if (!opponentExactT800 || !derivedExactT800)
-        throw new InvalidDataException("continuous opponent runtime T800 signature was not exact");
-    RequireFalse(opponent, "semantic_robot_id_used_for_continuous_acceptance");
+    RequireInt32(pairing, "required_g1_bone_count", 30);
+    RequireString(pairing, "required_g1_bone_signature_sha256", G1BoneSignatureSha256);
+    RequireTrue(pairing, "exact_supported_runtime_pairing");
+    var runtimeModel = RequireNonemptyString(pairing, "runtime_model");
+    if (runtimeModel is not ("t800" or "g1"))
+        throw new InvalidDataException("unsupported continuous runtime model");
+    RequireBool(pairing, "exact_t800_vs_t800", runtimeModel == "t800");
+    RequireBool(pairing, "exact_g1_vs_g1", runtimeModel == "g1");
+    RequireString(
+        pairing,
+        "reason",
+        runtimeModel == "t800"
+            ? "exact_t800_vs_t800_pairing_proven"
+            : "exact_g1_vs_g1_runtime_pairing_proven_semantic_ids_recorded_not_trusted");
+    ValidateMeasuredFighterIdentity(pairing.GetProperty("local_fighter"), runtimeModel);
+    ValidateMeasuredFighterIdentity(pairing.GetProperty("opponent_fighter"), runtimeModel);
+    return runtimeModel;
 }
 
-static void ValidateContinuousEvent(JsonElement value, string runId)
+static void ValidateMeasuredFighterIdentity(JsonElement fighter, string runtimeModel)
+{
+    _ = RequireNonemptyString(fighter, "runtime_object_name");
+    var boneCount = BoneCountForRuntimeModel(runtimeModel);
+    var boneSignature = BoneSignatureForRuntimeModel(runtimeModel);
+    RequireInt32(fighter, "bone_count", boneCount);
+    RequireString(fighter, "runtime_bone_signature_sha256", boneSignature);
+    var boneNames = RequireNonemptyUniqueStringArray(fighter, "bone_names", boneCount);
+    if (HashUtf8Text(string.Join("\n", boneNames)) != boneSignature)
+        throw new InvalidDataException("continuous runtime bone payload hash mismatch");
+    var semanticRobotId = OptionalString(fighter, "semantic_robot_id");
+    RequireBool(fighter, "semantic_t800", semanticRobotId == "t800");
+    RequireBool(fighter, "semantic_g1", semanticRobotId == "g1");
+    RequireBool(fighter, "exact_t800_bone_signature", runtimeModel == "t800");
+    RequireBool(fighter, "exact_g1_bone_signature", runtimeModel == "g1");
+    ValidateSemanticRuntimeConsistency(fighter, semanticRobotId, runtimeModel);
+    RequireFalse(fighter, "semantic_robot_id_used_for_continuous_acceptance");
+}
+
+static void ValidateSemanticRuntimeConsistency(
+    JsonElement value,
+    string? semanticRobotId,
+    string runtimeModel)
+{
+    var unavailable = string.IsNullOrWhiteSpace(semanticRobotId);
+    var matches = semanticRobotId == runtimeModel;
+    RequireBool(value, "semantic_runtime_mismatch", !unavailable && !matches);
+    RequireString(
+        value,
+        "semantic_runtime_consistency",
+        unavailable
+            ? $"semantic_robot_id_unavailable_runtime_{runtimeModel}_exact"
+            : matches
+                ? $"semantic_and_runtime_{runtimeModel}_exact"
+                : $"semantic_robot_id_mismatch_runtime_{runtimeModel}_exact");
+}
+
+static int BoneCountForRuntimeModel(string runtimeModel) => runtimeModel == "t800" ? 26 : 30;
+static string BoneSignatureForRuntimeModel(string runtimeModel) =>
+    runtimeModel == "t800" ? T800BoneSignatureSha256 : G1BoneSignatureSha256;
+static int[] AttackMoveIndicesForRuntimeModel(string runtimeModel) =>
+    runtimeModel == "t800" ? new[] { 2, 3, 4, 5, 9, 10 } : new[] { 6, 7, 8, 9 };
+static string RecoveryModeForRuntimeModel(string runtimeModel) =>
+    runtimeModel == "t800" ? ContinuousT800RecoveryMode : ContinuousG1RecoveryMode;
+
+static void ValidateContinuousEvent(JsonElement value, string runId, string runtimeModel)
 {
     var eventName = RequireNonemptyString(value, "event");
     if (eventName is not (
@@ -1939,6 +3614,8 @@ static void ValidateContinuousEvent(JsonElement value, string runId)
         value,
         "opponent_runtime_requirement",
         ContinuousOpponentRuntimeRequirement);
+    RequireString(value, "runtime_model", runtimeModel);
+    RequireString(value, "recovery_mode", RecoveryModeForRuntimeModel(runtimeModel));
     RequireString(value, "continuous_controller_run_id", runId);
     _ = RequireNonemptyString(value, "controller_phase");
     _ = RequireNonemptyString(value, "controller_reason");
@@ -1970,45 +3647,36 @@ static void ValidateContinuousEvent(JsonElement value, string runId)
     if (measured.ValueKind != JsonValueKind.Object)
         throw new InvalidDataException("continuous measured_state was not object or null");
     var local = measured.GetProperty("local_identity");
-    RequireString(local, "semantic_robot_id", "t800");
+    RequireString(local, "runtime_model", runtimeModel);
     _ = RequireNonemptyString(local, "runtime_object_name");
-    RequireInt32(local, "runtime_bone_count", 26);
-    RequireString(local, "runtime_bone_signature_sha256", T800BoneSignatureSha256);
-    RequireTrue(local, "exact_local_t800_proven");
-    var opponent = measured.GetProperty("opponent_identity");
-    var opponentRuntimeName = RequireNonemptyString(opponent, "runtime_object_name");
-    var opponentBoneCount = RequireInt32Value(opponent, "runtime_bone_count");
-    if (opponentBoneCount <= 0)
-        throw new InvalidDataException("continuous measured opponent bone count not positive");
-    var opponentBoneSignature = RequireHexString(
-        opponent,
+    RequireInt32(local, "runtime_bone_count", BoneCountForRuntimeModel(runtimeModel));
+    RequireString(
+        local,
         "runtime_bone_signature_sha256",
-        64);
+        BoneSignatureForRuntimeModel(runtimeModel));
+    RequireTrue(local, "exact_local_supported_runtime_proven");
+    RequireBool(local, "exact_local_t800_proven", runtimeModel == "t800");
+    RequireBool(local, "exact_local_g1_proven", runtimeModel == "g1");
+    ValidateSemanticRuntimeConsistency(
+        local,
+        OptionalString(local, "semantic_robot_id"),
+        runtimeModel);
+    RequireFalse(local, "semantic_robot_id_used_for_acceptance");
+    var opponent = measured.GetProperty("opponent_identity");
+    RequireString(opponent, "runtime_model", runtimeModel);
+    var opponentRuntimeName = RequireNonemptyString(opponent, "runtime_object_name");
+    RequireInt32(opponent, "runtime_bone_count", BoneCountForRuntimeModel(runtimeModel));
+    var opponentBoneSignature = BoneSignatureForRuntimeModel(runtimeModel);
+    RequireString(opponent, "runtime_bone_signature_sha256", opponentBoneSignature);
     RequireString(
         opponent,
         "runtime_identity_sha256",
         HashUtf8Text($"{opponentRuntimeName}\n{opponentBoneSignature}"));
-    var semanticDeclaresT800 = string.Equals(
+    ValidateSemanticRuntimeConsistency(
+        opponent,
         OptionalString(opponent, "semantic_robot_id_untrusted_for_runtime_acceptance"),
-        "t800",
-        StringComparison.Ordinal);
-    var runtimeIsExactT800 = opponentBoneCount == 26 && string.Equals(
-        opponentBoneSignature,
-        T800BoneSignatureSha256,
-        StringComparison.Ordinal);
-    if (RequireBooleanValue(opponent, "semantic_runtime_mismatch") !=
-        (semanticDeclaresT800 != runtimeIsExactT800))
-    {
-        throw new InvalidDataException(
-            "continuous measured opponent semantic/runtime mismatch flag invalid");
-    }
+        runtimeModel);
     RequireFalse(opponent, "semantic_robot_id_used_for_acceptance");
-    var expectedConsistency = semanticDeclaresT800 != runtimeIsExactT800
-        ? "semantic_t800_flag_disagrees_with_runtime_t800_signature"
-        : runtimeIsExactT800
-            ? "semantic_and_runtime_both_exact_t800"
-            : "semantic_and_runtime_not_comparable_beyond_t800_signature";
-    RequireString(opponent, "semantic_runtime_consistency", expectedConsistency);
     var geometry = measured.GetProperty("geometry");
     RequirePositiveFiniteNumber(geometry, "planar_distance_m");
     RequireFiniteNumber(geometry, "local_bearing_to_opponent_deg");
@@ -2685,6 +4353,9 @@ static void RequireFiniteExactNumber(JsonElement parent, string name, double exp
     }
 }
 
+static void RequireFiniteExactSingle(JsonElement parent, string name, float expected) =>
+    JsonBinary32Contract.RequireExact(parent, name, expected);
+
 static void RequireInt64(JsonElement parent, string name, long expected)
 {
     if (RequireInt64Value(parent, name) != expected)
@@ -2713,6 +4384,60 @@ static void RequireNullOrString(JsonElement parent, string name)
     {
         throw new InvalidDataException($"expected {name} to be null or string");
     }
+}
+
+static void RequireNullOrBoolean(JsonElement parent, string name)
+{
+    if (!parent.TryGetProperty(name, out var value) ||
+        value.ValueKind is not (
+            JsonValueKind.Null or JsonValueKind.True or JsonValueKind.False))
+    {
+        throw new InvalidDataException($"expected {name} to be null or boolean");
+    }
+}
+
+static void RequireNullableInt32(JsonElement parent, string name, int? expected)
+{
+    if (!parent.TryGetProperty(name, out var value))
+        throw new InvalidDataException($"expected nullable integer {name}");
+    if (expected is null)
+    {
+        if (value.ValueKind != JsonValueKind.Null)
+            throw new InvalidDataException($"expected {name}=null");
+        return;
+    }
+    if (!value.TryGetInt32(out var actual) || actual != expected.Value)
+        throw new InvalidDataException($"expected {name}={expected.Value}");
+}
+
+static void RequireNullOrNonnegativeInt32(JsonElement parent, string name)
+{
+    if (!parent.TryGetProperty(name, out var value))
+        throw new InvalidDataException($"expected nullable nonnegative integer {name}");
+    if (value.ValueKind == JsonValueKind.Null)
+        return;
+    if (!value.TryGetInt32(out var actual) || actual < 0)
+        throw new InvalidDataException($"expected nullable nonnegative integer {name}");
+}
+
+static void ValidateOptionalString(JsonElement parent, string name)
+{
+    if (!parent.TryGetProperty(name, out var value) ||
+        value.ValueKind is not (JsonValueKind.Null or JsonValueKind.String))
+    {
+        throw new InvalidDataException($"expected optional string {name}");
+    }
+    if (value.ValueKind == JsonValueKind.String && string.IsNullOrEmpty(value.GetString()))
+        throw new InvalidDataException($"expected optional string {name} to be nonempty");
+}
+
+static void ValidateOptionalHex(JsonElement parent, string name, int length)
+{
+    if (!parent.TryGetProperty(name, out var value))
+        throw new InvalidDataException($"expected optional hexadecimal string {name}");
+    if (value.ValueKind == JsonValueKind.Null)
+        return;
+    _ = RequireHexString(parent, name, length);
 }
 
 internal sealed record ExpectedStep(

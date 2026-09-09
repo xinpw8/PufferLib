@@ -87,8 +87,8 @@ def root_pose_sample(tick):
     }
 
 
-def v6_fixture():
-    records = fixture()
+def v6_fixture(fighter_layouts=("t800_26", "t800_26")):
+    records = fixture(fighter_layouts)
     start = records[0]
     end = records[-1]
     start.update({

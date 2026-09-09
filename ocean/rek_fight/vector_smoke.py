@@ -79,7 +79,7 @@ def run(mode, total_agents, num_threads, steps, warmup):
             raise RuntimeError(
                 f"training requires float32, precision_bytes={_C.precision_bytes}"
             )
-        if vec.obs_size != 173 or vec.num_atns != 4:
+        if vec.obs_size != 175 or vec.num_atns != 4:
             raise RuntimeError(
                 f"unexpected schema: obs={vec.obs_size}, atns={vec.num_atns}"
             )

@@ -8,5 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\RecorderContract.cs" Link="RecorderContract.cs" />
+    <Compile Include="..\..\SoloRouteProofContract.cs" Link="SoloRouteProofContract.cs" />
   </ItemGroup>
 </Project>

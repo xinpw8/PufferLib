@@ -288,7 +288,7 @@ the observed client aborted local runner initialization and rendered network
 poses. It leaves the authoritative controller payload location unknown.
 
 ```
-python t800_runtime_boundary.py --player-log C:/Users/Daniel/AppData/LocalLow/REK/REK/Player.log --controller-path evidence_out/controller_path.json --authority evidence_out/authority_private_ai.json --out evidence_out/t800_client_runtime_boundary.json
+python t800_runtime_boundary.py --player-log "$env:USERPROFILE/AppData/LocalLow/REK/REK/Player.log" --controller-path evidence_out/controller_path.json --authority evidence_out/authority_private_ai.json --out evidence_out/t800_client_runtime_boundary.json
 ```
 
 ### 5. Recorder
@@ -300,21 +300,29 @@ velocity commands and discrete move, special, and emergency-stop invocation
 timing. Missing discrete action identity fails closed. Older imported traces do
 not satisfy this schema and cannot establish a repeat envelope.
 
-The staged v0.6.1 recorder emits `rek.private_ai.protocol.v6`. It fails closed
+The staged v0.7.2 recorder emits `rek.private_ai.protocol.v7`. It fails closed
 before opening a capture unless the pinned client is running at a measured
-`0.002 s` fixed step in an active, unranked solo round; the current multiplayer
-session reports `IsPrivate`; the opponent is exactly `Sparring Bot 1` at client
-AI difficulty 0 with no human or client in that slot; and both visual-only
-fighters are exactly T800. Local identity requires the case-sensitive
-`fighterIdentities[localSlot].RobotID == "t800"` result and the exact ordered
-26-bone `LINK_*` runtime signature. Opponent identity requires the same exact
-runtime signature; a missing or stale opponent semantic ID is retained as an
-explicit mismatch instead of replacing the measured runtime identity. A
-non-T800 opponent runtime still fails closed. The recorder also rejects an
-absent, inactive, or zero-extent `Camera.main`. No finalized v6 capture is
-claimed here yet.
+`0.002 s` fixed step in an active, unranked solo round; the build-pinned REK
+route `FindMatch(flow="solo")` through `ConnectToArena` completes via
+`EnterChampionship(koth:false, solo:true)` for the same internally hashed arena
+identity; the opponent is exactly `Sparring Bot 1` at client AI difficulty 0
+with no human or client in that slot; and both visual-only fighters have the
+same exact supported runtime signature. The proof records
+`solo_route_proven:true` and `server_private_proven:false` with status `unknown`.
+It does not expose the arena ID, connection ticket, or endpoint. Supported
+homogeneous pairings are T800/T800 with the exact ordered
+26-bone `LINK_*` signature and G1/G1 with the exact ordered 30-bone `pelvis`
+through `right_wrist_yaw_link` signature. Mixed runtime models fail closed.
 
-Protocol v6 adds one `root_pose_sample` for every captured client
+Protocol v7 records each case-sensitive
+`fighterIdentities[slot].RobotID`, its consistency with the exact runtime bone
+signature, and any mismatch. Semantic IDs are evidence, not acceptance
+authority, and are never substituted for an unmeasured runtime identity. The
+historical v0.6.1 `rek.private_ai.protocol.v6` contract remains restricted to
+an exact T800/T800 pairing. The recorder also rejects an absent, inactive, or
+zero-extent `Camera.main`. No finalized v7 capture is claimed here yet.
+
+Protocols v6 and v7 add one `root_pose_sample` for every captured client
 `FixedUpdate`, declared and validated as a contiguous 500 Hz stream. Each
 sample preserves both fighters' measured world root position and rotation,
 their `Camera.WorldToScreenPoint` coordinates and visibility flags, plus the
@@ -327,7 +335,7 @@ tracking, contacts, velocities, or server state.
 Capture bounds, compact samples, root samples, and outbound request edges carry
 both UTC and `System.Diagnostics.Stopwatch.GetTimestamp()` values. On
 high-resolution Windows systems the latter is QueryPerformanceCounter-backed;
-the capture records its frequency. The v6 validator requires explicit UTC,
+the capture records its frequency. The v6/v7 validator requires explicit UTC,
 bounded monotonic Stopwatch values, a root sample for every fixed tick, the
 measured `0.002 s` fixed-time cadence, and an unchanged camera instance and
 render geometry. Outbound timestamps identify the client-observed `Send*`
@@ -343,15 +351,15 @@ layouts, whose bodies are 730 and 842 bytes respectively. The mapping is
 measured from the scoped runtime objects:
 `engineai_t800_FactoryPolicy(Clone)` carries the 26-name `LINK_*` sequence, and
 `g1_29dof_Prefab_SONIC(Clone)` carries the 30-name `pelvis` through
-`right_wrist_yaw_link` sequence. The v6 header correctly declares T800 as 26
-bones and 730 bytes and pins the ordered-name signature. Historical v0.5.1
-headers declared `t800_bone_count=30` and `t800_body_bytes=842`; those are known
-format mislabels. Backward-compatible validation checks them only as pinned v5
-literals and never uses them for fighter classification. The native sender sets
-an intended interval of `0.02 s`, equivalent to 50 Hz, using unreliable
-delivery.
+`right_wrist_yaw_link` sequence. The v7 header declares and pins both layouts:
+T800 is 26 bones and 730 bytes; G1 is 30 bones and 842 bytes. The v6 header
+declares only the pinned T800 layout. Historical v0.5.1 headers declared
+`t800_bone_count=30` and `t800_body_bytes=842`; those are known format mislabels.
+Backward-compatible validation checks them only as pinned v5 literals and never
+uses them for fighter classification. The native sender sets an intended
+interval of `0.02 s`, equivalent to 50 Hz, using unreliable delivery.
 
-Both protocol schemas preserve raw `REK_FightState` (33 bytes, reliable,
+All three protocol schemas preserve raw `REK_FightState` (33 bytes, reliable,
 nominal 10 Hz), `REK_Score` (7 bytes, reliable), and `REK_Hit` (29 bytes,
 unreliable) packets. A FightState postfix correlates each copied body with the
 applied client state. Score and referee fields are authoritative event labels,
@@ -370,16 +378,19 @@ recovered packet bodies contains a server tick, server send timestamp, command
 sequence, move identity, acceptance result, active policy state, joint velocity,
 torque, controller observation or output, model weights, or hidden state.
 
-Validate any finalized v6 or historical v5 JSONL capture before an importer or
-model consumes it:
+Validate any finalized v7 or v6 capture, or historical v5 JSONL capture, before
+an importer or model consumes it:
 
 ```
+python raw_bone_validate.py --raw C:/rekagent/evidence/runtime/rek-private-ai-protocol-v7/<capture>.jsonl --out evidence_out/<capture>.protocol-validation.json
 python raw_bone_validate.py --raw C:/rekagent/evidence/runtime/rek-private-ai-protocol-v6/<capture>.jsonl --out evidence_out/<capture>.protocol-validation.json
 python raw_bone_validate.py --raw C:/rekagent/evidence/runtime/rek-private-ai-protocol-v5/<capture>.jsonl --out evidence_out/<capture>.protocol-validation.json
 ```
 
-The validator pins each schema to its exact recorder version and DLL hash. It
-requires each redundant JSON number to round-trip to the exact IEEE-754
+The validator pins each schema to its exact recorder version and DLL hash,
+including v7 to v0.7.2 and
+`a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95`.
+It requires each redundant JSON number to round-trip to the exact IEEE-754
 binary32 bits in the base64 body, including preserving a `-0` token's
 negative-zero sign. It checks body hashes and exact packet lengths, verifies all
 per-channel sequences, requires one-to-one FightState and bone postfix
@@ -387,13 +398,15 @@ correlation, verifies request-only semantics, and rejects raw arena/session
 identifiers. Only an irreversible SHA-256 session identity is retained for
 repeat grouping. Three complete private Bot 1 captures from recorder v0.5.1
 remain validated historical evidence, including a mixed `t800_26` versus
-`g1_30` capture. They do not satisfy the stricter v6 private T800-vs-T800 and
-500 Hz root-stream claims.
+`g1_30` capture. They do not satisfy the stricter v6 private T800/T800 or v7
+private homogeneous-runtime and 500 Hz root-stream claims.
 
-Neither recorder schema is complete enough for clone acceptance. Both observe
-the client boundary of a server-authoritative mode, not server-only physics or
-controller state, and neither can make an incomplete channel set equivalent to
-the full transition state.
+No recorder schema is complete enough for clone acceptance. They observe the
+client boundary of a server-authoritative mode, not server-only physics or
+controller state, and cannot make an incomplete channel set equivalent to the
+full transition state. V7 parser compatibility with G1 also does not establish
+that a T800-oriented controlled move schedule has G1 action identity or parity;
+that requires a separately measured G1 schedule.
 
 `snapshot_transition_baseline.py` is a measured-input system-identification
 diagnostic over an exact allowlist of replicated root position, linear velocity,

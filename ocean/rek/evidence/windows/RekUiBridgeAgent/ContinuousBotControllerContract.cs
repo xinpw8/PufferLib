@@ -4,6 +4,8 @@ namespace RekUiBridgeAgent;
 
 internal static class ContinuousBotControllerContract
 {
+    internal const string T800RuntimeModel = "t800";
+    internal const string G1RuntimeModel = "g1";
     internal const string Schema = "rek.continuous_private_bot_controller.v1";
     internal const string AuthorityScope = "client_request_edges_and_local_observations_only";
     internal const string AuthorityCaveat =
@@ -15,23 +17,39 @@ internal static class ContinuousBotControllerContract
     internal const string AttackSelectionProvenance =
         "audit_controller_deterministic_round_robin_diverges_from_build_pinned_AIOpponentController_random_category_and_clip_selection";
     internal const string StaticImpactTimingProvenance =
-        "build_pinned_serialized_t800_move_asset_metadata_not_measured_runtime_timing";
+        "build_pinned_serialized_robot_move_asset_metadata_not_measured_input_to_completion_timing";
     internal const string RoundRestartLimitation =
         "build_pinned_post_fight_continue_restarts_only_after_win_and_exits_to_lobby_after_loss";
     internal const string RoundRestartStaticEvidence =
         "GameMenuController.HandlePostFightContinue_rva_0x23aae90_branches_on_postFightIsWinner_false_ExitToLobby_true_SendPostFightIntent_stay_true";
     internal const string RecoveryGuardProvenance =
-        "build_pinned_AIOpponentController.DriveRecovery_rva_0x2367430_fallen_not_dampened_Dampen_4_then_Straighten_1_once_then_RecoveryArmed_SuggestedGetUpOrientation_2_or_3";
+        "build_pinned_t800_AIOpponentController.DriveRecovery_rva_0x2367430_fallen_not_dampened_Dampen_4_then_Straighten_1_once_then_RecoveryArmed_SuggestedGetUpOrientation_2_or_3_unitree_g1_recovery_unproven_fail_closed";
     internal const string FaultEStopProvenance =
-        "build_pinned_AIOpponentController.UpdateFaultEStopCycle_rva_0x23680e0_motorShutdownHold_faultEStopDelay_then_0.5_second_estop_hold";
+        "build_pinned_t800_AIOpponentController.UpdateFaultEStopCycle_rva_0x23680e0_motorShutdownHold_faultEStopDelay_then_0.5_second_estop_hold_unitree_g1_hasEStop_false_fail_closed";
     internal const string DampenGuard =
         "fallen_and_not_dampened";
     internal const string StraightenGuard =
         "fallen_and_dampened_and_not_already_issued";
     internal const string OpponentRuntimeRequirement =
-        "exact_t800_runtime_bone_signature_required_semantic_robot_id_recorded_but_not_trusted";
+        "exact_homogeneous_t800_or_unitree_g1_runtime_bone_signatures_required_semantic_robot_ids_recorded_but_not_trusted";
+    internal const string SharedAssets0Sha256 =
+        "37f7a476c56caae37f5a04d4fa1acf5954fdc2b90f20f521830369ecff05f355";
+    internal const string T800RecoveryMode =
+        "build_pinned_t800_special_commands_and_fault_estop_enabled";
+    internal const string G1RecoveryMode =
+        "unitree_g1_hasSpecialCommands_false_hasEStop_false_recovery_semantics_unproven_fail_closed";
     internal const string MoveSendFreshGuard =
         "fresh_pre_send_frame_blocks_local_fall_dampen_recovery_reset_motor_or_input_recovery_and_opponent_fall_dampen_recovery_reset_or_motor_state";
+    internal const string HeldVelocityBoundaryRule =
+        "native_keyboard_update_exact_neutral_overwrite_is_reasserted_at_late_update_nonzero_or_nonfinite_drift_fails_closed";
+    internal const string TranslationSettleProvenance =
+        "build_pinned_RobotInputController.TransitionSettled_rva_0x226f6f0_strict_less_than_RobotConfig_transitionSettlePlanarSpeed_g1_0.03_t800_0.15_using_Robot.TryGetBaseVelocityLocal_rva_0x23db6f0";
+    internal const string TranslationReleaseMinimumDwellRule =
+        "controller_safety_dwell_15_control_ticks_after_translation_release_then_build_pinned_velocity_predicate";
+    internal const string YawAttackPreemptionRule =
+        "human_observed_g1_yaw_may_overlap_translation_and_does_not_defer_attack_controller_releases_yaw_and_arms_attack_same_control_tick_pending_instrumented_confirmation";
+    internal const string MoveProfileBindingRule =
+        "runtime_move_index_and_clip_name_bound_to_pinned_gameassembly_global_metadata_and_sharedassets0_container";
     internal const string FaultPreemptionStraightenRule =
         "preserve_straighten_issued_within_existing_recovery_episode_reset_only_for_new_episode_or_verified_upright";
     internal const int UnityFixedRateHz = 500;
@@ -59,8 +77,12 @@ internal static class ContinuousBotControllerContract
     internal const float EngageForwardCommand = 0.8f;
     internal const float DownedBackOffCommand = -0.25f;
     internal const float DownedOpponentSpaceMeters = 1.5f;
+    internal const float G1LocomotionTransitionVelocityThresholdMetersPerSecond = 0.03f;
+    internal const float G1LocomotionTransitionYawThresholdRadiansPerSecond = 0.03f;
+    internal const float T800LocomotionTransitionVelocityThresholdMetersPerSecond = 0.15f;
+    internal const float T800LocomotionTransitionYawThresholdRadiansPerSecond = 0.3f;
     internal const string ExpectedSha256 =
-        "c19ee1cc02111426db7a58cd648e244e1106842d86caaba3dc729edf4640b92e";
+        "7254c2e9291520a7d78967193f05c3b8d1fce32afa63926d2388e51ed6764ca0";
 
     internal static readonly ContinuousAttackProfile[] Attacks =
     {
@@ -117,12 +139,84 @@ internal static class ContinuousBotControllerContract
             }),
     };
 
+    internal static readonly ContinuousAttackProfile[] G1Attacks =
+    {
+        new(6, "left_side_kick_processed", "Left Side Kick", MaximumAttackDistanceMeters,
+            FacingThresholdDegrees,
+            "fb5c3938396c789020003634b0dc76d2319ea3df33ec2fa2927a2e4e24a070a0",
+            new[]
+            {
+                new ContinuousImpactEvent(1.100000023841858f, 0.30000001192092896f,
+                    0.5f, 3, 2f),
+            }),
+        new(7, "left_front_kick_processed", "Left Front Kick", MaximumAttackDistanceMeters,
+            FacingThresholdDegrees,
+            "5f61681420dbd84ce046f68770b73d2ed9e845d38cacd4e37d1f704bcb5f9241",
+            new[]
+            {
+                new ContinuousImpactEvent(1f, 0.20000000298023224f,
+                    0.5f, 3, 2f),
+            }),
+        new(8, "right_side_kick_processed", "Right Side Kick", MaximumAttackDistanceMeters,
+            FacingThresholdDegrees,
+            "6c4a414aa3c6860f30b28d65e6ef7c18d5e6bf9331ab69215ded03cf82c560ac",
+            new[]
+            {
+                new ContinuousImpactEvent(1.1399999856948853f, 0.4000000059604645f,
+                    0.15000000596046448f, 4, 2f),
+            }),
+        new(9, "right_knee_processed", "Right Knee", MaximumAttackDistanceMeters,
+            FacingThresholdDegrees,
+            "04dbcb4b28f617912c7ac5c452a23969c5bc17ac745571c35d29ebea03b2733b",
+            new[]
+            {
+                new ContinuousImpactEvent(0.6499999761581421f, 0.4000000059604645f,
+                    0.15000000596046448f, 4, 3f),
+            }),
+    };
+
+    internal static ContinuousAttackProfile[]? AttacksForRuntimeModel(string? runtimeModel) =>
+        runtimeModel switch
+        {
+            T800RuntimeModel => Attacks,
+            G1RuntimeModel => G1Attacks,
+            _ => null,
+        };
+
+    internal static string? RecoveryModeForRuntimeModel(string? runtimeModel) =>
+        runtimeModel switch
+        {
+            T800RuntimeModel => T800RecoveryMode,
+            G1RuntimeModel => G1RecoveryMode,
+            _ => null,
+        };
+
+    internal static bool SupportsAutonomousRecovery(string? runtimeModel) =>
+        string.Equals(runtimeModel, T800RuntimeModel, StringComparison.Ordinal);
+
     internal static readonly string CanonicalJson = BuildCanonicalJson();
 
     private static string BuildCanonicalJson() => JsonSerializer.Serialize(new
     {
         action_completion_timeout_ticks = ActionCompletionTimeoutTicks,
         attacks = Attacks.Select(attack => new
+        {
+            display_name = attack.DisplayName,
+            maximum_abs_bearing_degrees = attack.MaximumAbsBearingDegrees,
+            maximum_distance_m = attack.MaximumDistanceMeters,
+            move_index = attack.MoveIndex,
+            move_name = attack.MoveName,
+            serialized_asset_sha256 = attack.SerializedAssetSha256,
+            static_impact_events = attack.StaticImpactEvents.Select(value => new
+            {
+                gain_boost = value.GainBoost,
+                impact_time_s = value.ImpactTimeSeconds,
+                lead_time_s = value.LeadTimeSeconds,
+                limb = value.Limb,
+                release_time_s = value.ReleaseTimeSeconds,
+            }).ToArray(),
+        }).ToArray(),
+        g1_attacks = G1Attacks.Select(attack => new
         {
             display_name = attack.DisplayName,
             maximum_abs_bearing_degrees = attack.MaximumAbsBearingDegrees,
@@ -156,6 +250,19 @@ internal static class ContinuousBotControllerContract
         fault_estop_hold_ticks = FaultEStopHoldTicks,
         fault_estop_provenance = FaultEStopProvenance,
         fixed_substeps_per_control_tick = FixedSubstepsPerControlTick,
+        held_velocity_boundary_rule = HeldVelocityBoundaryRule,
+        translation_settle_provenance = TranslationSettleProvenance,
+        translation_release_minimum_dwell_rule = TranslationReleaseMinimumDwellRule,
+        yaw_attack_preemption_rule = YawAttackPreemptionRule,
+        move_profile_binding_rule = MoveProfileBindingRule,
+        g1_locomotion_transition_velocity_threshold_m_s =
+            G1LocomotionTransitionVelocityThresholdMetersPerSecond,
+        g1_locomotion_transition_yaw_threshold_rad_s =
+            G1LocomotionTransitionYawThresholdRadiansPerSecond,
+        t800_locomotion_transition_velocity_threshold_m_s =
+            T800LocomotionTransitionVelocityThresholdMetersPerSecond,
+        t800_locomotion_transition_yaw_threshold_rad_s =
+            T800LocomotionTransitionYawThresholdRadiansPerSecond,
         positioned_margin_m = PositionedMarginMeters,
         range_angle_provenance = RangeAngleProvenance,
         recovery_observation_timeout_ticks = RecoveryObservationTimeoutTicks,
@@ -181,6 +288,11 @@ internal static class ContinuousBotControllerContract
         fault_preemption_straighten_rule = FaultPreemptionStraightenRule,
         move_send_fresh_guard = MoveSendFreshGuard,
         opponent_runtime_requirement = OpponentRuntimeRequirement,
+        runtime_recovery_modes = new
+        {
+            g1 = G1RecoveryMode,
+            t800 = T800RecoveryMode,
+        },
         recovery_guard_provenance = RecoveryGuardProvenance,
         recovery_retry_ticks = RecoveryRetryTicks,
         request_start_timeout_ticks = RequestStartTimeoutTicks,
@@ -189,6 +301,7 @@ internal static class ContinuousBotControllerContract
         round_start_observation_timeout_ticks = RoundStartObservationTimeoutTicks,
         round_start_prompt_delay_ticks = RoundStartPromptDelayTicks,
         schema = Schema,
+        sharedassets0_sha256 = SharedAssets0Sha256,
         settle_ticks = SettleTicks,
         static_impact_timing_provenance = StaticImpactTimingProvenance,
         straighten_guard = StraightenGuard,
@@ -259,24 +372,39 @@ internal static class ContinuousBotControllerContract
         recoveryEpisodeAlreadyActive && straightenAlreadyIssued;
 
     internal static ContinuousSemanticRuntimeConsistency ClassifySemanticRuntimeConsistency(
-        bool semanticDeclaresT800,
-        bool runtimeIsExactT800)
+        string? semanticRobotId,
+        string? exactRuntimeModel)
     {
-        var mismatch = semanticDeclaresT800 != runtimeIsExactT800;
+        if (exactRuntimeModel is not (T800RuntimeModel or G1RuntimeModel))
+        {
+            return new ContinuousSemanticRuntimeConsistency(
+                false,
+                "runtime_model_not_proven");
+        }
+
+        if (string.IsNullOrWhiteSpace(semanticRobotId))
+        {
+            return new ContinuousSemanticRuntimeConsistency(
+                false,
+                $"semantic_robot_id_unavailable_runtime_{exactRuntimeModel}_exact");
+        }
+
+        var mismatch = !string.Equals(
+            semanticRobotId,
+            exactRuntimeModel,
+            StringComparison.Ordinal);
         return new ContinuousSemanticRuntimeConsistency(
             mismatch,
             mismatch
-                ? "semantic_t800_flag_disagrees_with_runtime_t800_signature"
-                : runtimeIsExactT800
-                    ? "semantic_and_runtime_both_exact_t800"
-                    : "semantic_and_runtime_not_comparable_beyond_t800_signature");
+                ? $"semantic_robot_id_mismatch_runtime_{exactRuntimeModel}_exact"
+                : $"semantic_and_runtime_{exactRuntimeModel}_exact");
     }
 
-    internal static bool HasRequiredT800Pairing(
-        bool localSemanticT800,
-        bool localExactT800Runtime,
-        bool opponentExactT800Runtime) =>
-        localSemanticT800 && localExactT800Runtime && opponentExactT800Runtime;
+    internal static bool HasRequiredRuntimePairing(
+        bool exactSupportedRuntimePairing,
+        string? exactRuntimeModel) =>
+        exactSupportedRuntimePairing &&
+        exactRuntimeModel is T800RuntimeModel or G1RuntimeModel;
 
     internal static ContinuousEStopHandshakeDecision DecideFaultEStopHandshake(
         ContinuousEStopRecoveryStage stage,
@@ -441,6 +569,113 @@ internal static class ContinuousBotControllerContract
             "attack_window_observed");
     }
 
+    internal static ContinuousAttackMotionGate DecideAttackMotionGate(
+        bool attackWindow,
+        float activeForward,
+        float activeStrafe,
+        float activeYaw,
+        string? runtimeModel,
+        ContinuousTranslationSettleAxes settleAxes,
+        float measuredLocalForwardVelocity,
+        float measuredLocalStrafeVelocity,
+        int currentTick,
+        int settleUntilTick)
+    {
+        if (!attackWindow)
+            return ContinuousAttackMotionGate.Repositioning;
+        if (!Finite(
+                activeForward,
+                activeStrafe,
+                activeYaw,
+                measuredLocalForwardVelocity,
+                measuredLocalStrafeVelocity))
+            return ContinuousAttackMotionGate.Invalid;
+        if (activeForward != 0f || activeStrafe != 0f)
+            return ContinuousAttackMotionGate.ReleaseTranslationAndSettle;
+        if (currentTick < settleUntilTick ||
+            !IsTranslationSettled(
+                runtimeModel,
+                settleAxes,
+                measuredLocalForwardVelocity,
+                measuredLocalStrafeVelocity))
+        {
+            return ContinuousAttackMotionGate.Settling;
+        }
+        if (activeYaw != 0f)
+            return ContinuousAttackMotionGate.ReleaseYawAndAttack;
+        return ContinuousAttackMotionGate.Ready;
+    }
+
+    internal static bool IsTranslationSettled(
+        string? runtimeModel,
+        ContinuousTranslationSettleAxes settleAxes,
+        float measuredLocalForwardVelocity,
+        float measuredLocalStrafeVelocity)
+    {
+        if (!Finite(measuredLocalForwardVelocity, measuredLocalStrafeVelocity))
+            return false;
+        var limit = runtimeModel switch
+        {
+            G1RuntimeModel => G1LocomotionTransitionVelocityThresholdMetersPerSecond,
+            T800RuntimeModel => T800LocomotionTransitionVelocityThresholdMetersPerSecond,
+            _ => float.NaN,
+        };
+        if (!float.IsFinite(limit))
+            return false;
+        return (!settleAxes.HasFlag(ContinuousTranslationSettleAxes.Forward) ||
+                MathF.Abs(measuredLocalForwardVelocity) < limit) &&
+               (!settleAxes.HasFlag(ContinuousTranslationSettleAxes.Strafe) ||
+                MathF.Abs(measuredLocalStrafeVelocity) < limit);
+    }
+
+    internal static ContinuousTranslationSettleAxes TranslationAxesForVelocity(
+        float forward,
+        float strafe)
+    {
+        var axes = ContinuousTranslationSettleAxes.None;
+        if (forward != 0f)
+            axes |= ContinuousTranslationSettleAxes.Forward;
+        if (strafe != 0f)
+            axes |= ContinuousTranslationSettleAxes.Strafe;
+        return axes;
+    }
+
+    internal static ContinuousVelocityBoundaryDecision DecideVelocityBoundary(
+        float actualForward,
+        float actualStrafe,
+        float actualYaw,
+        float expectedForward,
+        float expectedStrafe,
+        float expectedYaw)
+    {
+        if (!Finite(
+                actualForward,
+                actualStrafe,
+                actualYaw,
+                expectedForward,
+                expectedStrafe,
+                expectedYaw))
+        {
+            return ContinuousVelocityBoundaryDecision.Invalid;
+        }
+
+        if (SameFloatBits(actualForward, expectedForward) &&
+            SameFloatBits(actualStrafe, expectedStrafe) &&
+            SameFloatBits(actualYaw, expectedYaw))
+        {
+            return ContinuousVelocityBoundaryDecision.OwnedExact;
+        }
+
+        if (SameFloatBits(actualForward, 0f) &&
+            SameFloatBits(actualStrafe, 0f) &&
+            SameFloatBits(actualYaw, 0f))
+        {
+            return ContinuousVelocityBoundaryDecision.ReassertNativeNeutralOverwrite;
+        }
+
+        return ContinuousVelocityBoundaryDecision.RejectUnownedNonNeutral;
+    }
+
     internal static ContinuousRecoveryCommand SelectRecoveryCommand(
         bool fallen,
         bool dampened,
@@ -490,6 +725,9 @@ internal static class ContinuousBotControllerContract
 
     private static bool Finite(params float[] values) =>
         values.All(float.IsFinite);
+
+    private static bool SameFloatBits(float left, float right) =>
+        BitConverter.SingleToInt32Bits(left) == BitConverter.SingleToInt32Bits(right);
 }
 
 internal sealed record ContinuousAttackProfile(
@@ -559,4 +797,31 @@ internal enum ContinuousRecoveryCommand
     WaitForDampenedOrRecoveryArmed,
     GetUpProne,
     GetUpSupine,
+}
+
+internal enum ContinuousAttackMotionGate
+{
+    Invalid,
+    Repositioning,
+    ReleaseTranslationAndSettle,
+    ReleaseYawAndAttack,
+    Settling,
+    Ready,
+}
+
+[Flags]
+internal enum ContinuousTranslationSettleAxes
+{
+    None = 0,
+    Forward = 1,
+    Strafe = 2,
+    Planar = Forward | Strafe,
+}
+
+internal enum ContinuousVelocityBoundaryDecision
+{
+    Invalid,
+    OwnedExact,
+    ReassertNativeNeutralOverwrite,
+    RejectUnownedNonNeutral,
 }

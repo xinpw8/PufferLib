@@ -63,9 +63,13 @@ only from the observed Free Play screen, with no connected session and the
 visible enabled `soloButton`. Current-build localization identifies this route
 as `PRACTICE ALONE`, `Claim an arena to yourself`, and `Private Practice`.
 Issuing the request is not proof that the server accepted it. Controlled
-acquisition still requires the active Unity multiplayer session's measured
-`ISession.IsPrivate` property to be true. Session IDs and room codes are not read
-or published.
+acquisition requires the build-pinned REK route sequence
+`FindMatch(flow="solo")`, `ConnectToArena`, and successful
+`EnterChampionship(koth:false, solo:true)` for the same internally hashed arena
+identity. The current `GameContext.ArenaID` must continue to match that identity.
+No arena ID, ticket, or endpoint is published by the route proof. This proves
+the REK solo route and current zero-human Bot 1 occupancy, not backend admission
+policy, so `server_private_proven` remains false with status `unknown`.
 
 Semantic mutation is disabled on native Windows regardless of foreground
 state. The isolated Spark X session is the only enabled execution surface, and
@@ -113,6 +117,44 @@ Trial records carry UTC, Stopwatch, Unity frame and time fields compatible with
 the evidence recorder's clocks. A `single_motion_trial_client_request` record
 means only that the recovered client send method returned. Every record states
 that server acceptance and authoritative execution are unknown.
+
+## G1 held-input measurement schedule
+
+`StartG1HeldInputSchedule` runs only after the same pipe connection has armed a
+fresh round with the semantic `StartRound` command. Start requires active
+gameplay, a new immutable round identity, exact G1 versus G1 runtime bone
+signatures, the proven solo Sparring Bot 1 route, zero human occupancy, and the
+exact Spark X isolation marker. These predicates are rechecked on each 500 Hz
+boundary. A round end or identity change stops the schedule, clears its owned
+pending move, neutralizes its local velocity property, and emits an explicit
+partial-coverage end record.
+
+The hash-bound schedule uses 10 fixed substeps per 50 Hz tick. It holds W, S,
+A, D, Q, E, and every translation plus Q/E pair for 100 ticks each. It then
+places one kick edge for G1 move indices 6, 7, 8, and 9 while translation is
+held. Translation releases 100 ms after the edge and the remaining four-second
+observation window is neutral, limiting sustained arena travel. The schedule
+does not queue or retry a rejected or deferred request. A second probe for each
+move holds Q or E, neutralizes yaw at the kick edge, and observes local
+`RobotInputController` action flags and `SonicPolicyRunner.currentMotion`
+through a 200-tick completion window. F is excluded because no binding evidence
+exists.
+
+Events identify exact property writes, `ExecuteMoveByIndex` boolean returns,
+pending state, outgoing `SendMoveEvent` projections, void method returns, local
+action lifecycle transitions, and recorder correlation ticks. They never infer
+acceptance from a move projection. Server acceptance and authoritative
+execution remain unknown. Pose response remains exclusively in the separate
+`rek.private_ai.protocol.v7` recorder stream, and no SonicActionComposer state
+is used.
+
+Each released translation is anchored by fixed substep and QPC. At every later
+500 Hz observation the bridge calls the recovered direction-specific
+`TransitionSettled` method with `Forward`, `Backward`, `StrafeLeft`, or
+`StrafeRight`, and separately records the local base linear and angular
+velocity components and configured thresholds. It does not substitute planar
+speed for the native predicate. The original pending move survives any number
+of fixed updates until a matching rendered LateUpdate dispatch opportunity.
 
 ## Continuous private Bot 1 controller
 

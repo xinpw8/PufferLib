@@ -41,7 +41,8 @@ public sealed partial class Plugin
     {
         if (!RequireBackgroundControl(out var reason))
             return CommandResult.Rejected(reason);
-        if (_scheduleRunning || _singleMotionTrialRunning || _continuousControllerRunning)
+        if (_scheduleRunning || _singleMotionTrialRunning || _continuousControllerRunning ||
+            _g1HeldScheduleRunning)
             return CommandResult.Rejected("another_control_mode_already_running");
         if (!SameFloatBits(Time.fixedDeltaTime, BridgeScheduleContract.ExpectedFixedDeltaTime))
             return CommandResult.Rejected($"unexpected_fixed_delta_time:{Time.fixedDeltaTime:R}");
@@ -76,7 +77,17 @@ public sealed partial class Plugin
                 $"attack_zone_runtime_pairing_not_proven:{reason}",
                 measuredPairingPayload);
         }
-        if (scope.Input is null || !TryValidateContinuousMoveMap(scope.Input, out reason))
+        if (!measuredPairing.Validation.ExactT800VersusT800)
+        {
+            return CommandResult.Rejected(
+                "attack_zone_requires_exact_t800_runtime_pairing",
+                measuredPairingPayload);
+        }
+        if (scope.Input is null ||
+            !TryValidateContinuousMoveMap(
+                scope.Input,
+                ContinuousBotControllerContract.Attacks,
+                out reason))
             return CommandResult.Rejected(reason, measuredPairingPayload);
         if (scope.Input.hasPendingMove || scope.Input.hasPendingSpecial || scope.Input.hasPendingEStop)
             return CommandResult.Rejected("attack_zone_initial_pending_command", measuredPairingPayload);
@@ -146,8 +157,10 @@ public sealed partial class Plugin
         _continuousControllerPhase = "attack_zone_target_acquisition";
         _continuousControllerSuspendReason = null;
         _continuousControllerActionSequence = target.Request.ActionSequence - 1;
+        _continuousControllerRuntimeModel = BridgePairingContract.T800RobotId;
+        _continuousControllerAttacks = ContinuousBotControllerContract.Attacks;
         _continuousControllerNextAttackIndex = Array.FindIndex(
-            ContinuousBotControllerContract.Attacks,
+            _continuousControllerAttacks,
             value => value.MoveIndex == target.Request.MoveIndex);
         _continuousControllerLastFrame = frame;
         _continuousControllerLastRoundMetrics = frame.RoundMetrics;

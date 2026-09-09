@@ -3,7 +3,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>RekEvidenceRecorder</AssemblyName>
     <RootNamespace>RekEvidenceRecorder</RootNamespace>
-    <Version>0.6.1</Version>
+    <Version>0.7.2</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <Compile Remove="Tests\**\*.cs" />
+    <Compile Include="..\SoloRouteProofContract.cs" Link="SoloRouteProofContract.cs" />
     <Reference Include="0Harmony">
       <HintPath>$(BepInExCoreDir)\0Harmony.dll</HintPath>
       <Private>false</Private>
@@ -44,10 +45,6 @@
     </Reference>
     <Reference Include="Unity.Netcode.Runtime">
       <HintPath>$(RekInteropDir)\Unity.Netcode.Runtime.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="Unity.Services.Multiplayer">
-      <HintPath>$(RekInteropDir)\Unity.Services.Multiplayer.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Mujoco.Runtime">

@@ -113,6 +113,7 @@ else
 fi
 EXTRA_SRC=""
 EXTRA_LDFLAGS=()
+NATIVE_SOURCES=()
 
 if [ "$ENV" = "constellation" ]; then
     SRC_DIR="constellation"
@@ -169,6 +170,18 @@ elif [ "$ENV" = "rek" ] || [ "$ENV" = "rek_g1" ] || [ "$ENV" = "rek_match" ] || 
         || { echo "Error: MUJOCO_LIB is not a file"; exit 1; }
     INCLUDES+=(-I"$MUJOCO_HOME/include")
     EXTRA_LDFLAGS+=("$MUJOCO_LIB" -Wl,-rpath,"$(dirname "$MUJOCO_LIB")")
+    if [ "$ENV" = "rek_g1" ]; then
+        ONNXRUNTIME_HOME=${ONNXRUNTIME_HOME:?set ONNXRUNTIME_HOME to a directory containing include/onnxruntime_c_api.h}
+        ONNXRUNTIME_LIB=${ONNXRUNTIME_LIB:?set ONNXRUNTIME_LIB to the exact native libonnxruntime shared library}
+        REK_G1_PUBLIC_MODEL_BUNDLE=${REK_G1_PUBLIC_MODEL_BUNDLE:?set REK_G1_PUBLIC_MODEL_BUNDLE to the pinned public-family source model directory}
+        REK_G1_EXPLICIT_BATCH_MANIFEST=${REK_G1_EXPLICIT_BATCH_MANIFEST:?set REK_G1_EXPLICIT_BATCH_MANIFEST to the validated exact-batch manifest}
+        [ -f "$ONNXRUNTIME_HOME/include/onnxruntime_c_api.h" ] \
+            || { echo "Error: ONNX Runtime C API header missing below ONNXRUNTIME_HOME"; exit 1; }
+        [ -f "$ONNXRUNTIME_LIB" ] \
+            || { echo "Error: ONNXRUNTIME_LIB is not a file"; exit 1; }
+        INCLUDES+=(-I"$ONNXRUNTIME_HOME/include")
+        EXTRA_LDFLAGS+=("$ONNXRUNTIME_LIB" -Wl,-rpath,"$(dirname "$ONNXRUNTIME_LIB")" -lcrypto -lm)
+    fi
 elif [ -d "ocean/$ENV" ]; then
     SRC_DIR="ocean/$ENV"
 else
@@ -290,7 +303,7 @@ OUTPUT="pufferlib/_C${EXT_SUFFIX}"
 
 BINDING_SRC="$SRC_DIR/binding.c"
 mkdir -p build
-STATIC_OBJ="build/libstatic_${ENV}.o"
+STATIC_OBJ_DIR="build/static_${ENV}"
 STATIC_LIB="build/libstatic_${ENV}.a"
 
 if [ ! -f "$BINDING_SRC" ]; then
@@ -298,16 +311,56 @@ if [ ! -f "$BINDING_SRC" ]; then
     exit 1
 fi
 
+NATIVE_SOURCES+=("$BINDING_SRC")
+NATIVE_SOURCE_MANIFEST="$SRC_DIR/native_sources.txt"
+if [ -f "$NATIVE_SOURCE_MANIFEST" ]; then
+    while IFS= read -r native_source || [ -n "$native_source" ]; do
+        native_source=${native_source%$'\r'}
+        case "$native_source" in
+            ""|\#*) continue ;;
+        esac
+        if [[ ! "$native_source" =~ ^[A-Za-z0-9_-]+\.c$ ]]; then
+            echo "Error: invalid native source entry '$native_source' in $NATIVE_SOURCE_MANIFEST"
+            exit 1
+        fi
+        native_source="$SRC_DIR/$native_source"
+        [ -f "$native_source" ] \
+            || { echo "Error: native source from manifest is missing: $native_source"; exit 1; }
+        NATIVE_SOURCES+=("$native_source")
+    done < "$NATIVE_SOURCE_MANIFEST"
+fi
+
 echo "Compiling static library for $ENV..."
-${CC:-clang} -c "${CLANG_OPT[@]}" $EXTRA_CFLAGS \
-    -I. -Isrc -I$SRC_DIR -Ivendor \
-    "${INCLUDES[@]}" \
-    -I./$RAYLIB_NAME/include -I$CUDA_HOME/include \
-    -DPLATFORM_DESKTOP \
-    -fno-semantic-interposition -fvisibility=hidden \
-    -fPIC -fopenmp \
-    "$BINDING_SRC" -o "$STATIC_OBJ"
-ar rcs "$STATIC_LIB" "$STATIC_OBJ"
+mkdir -p "$STATIC_OBJ_DIR"
+if [ "$ENV" = "rek_g1" ]; then
+    REK_G1_MODEL_GATE_PYTHON=${REK_G1_MODEL_GATE_PYTHON:-python}
+    command -v "$REK_G1_MODEL_GATE_PYTHON" >/dev/null 2>&1 \
+        || { echo "Error: REK_G1_MODEL_GATE_PYTHON is not executable"; exit 1; }
+    "$REK_G1_MODEL_GATE_PYTHON" \
+        "$SRC_DIR/generate_g1_model_identity_header.py" \
+        --source-bundle "$REK_G1_PUBLIC_MODEL_BUNDLE" \
+        --manifest "$REK_G1_EXPLICIT_BATCH_MANIFEST" \
+        --out "$STATIC_OBJ_DIR/g1_model_identity_generated.h"
+    INCLUDES+=(-I"$STATIC_OBJ_DIR")
+fi
+STATIC_OBJECTS=()
+native_source_index=0
+for native_source in "${NATIVE_SOURCES[@]}"; do
+    native_object="$STATIC_OBJ_DIR/$(printf '%03d' "$native_source_index")_$(basename "${native_source%.c}").o"
+    ${CC:-clang} -c "${CLANG_OPT[@]}" $EXTRA_CFLAGS \
+        -I. -Isrc -I$SRC_DIR -Ivendor \
+        "${INCLUDES[@]}" \
+        -I./$RAYLIB_NAME/include -I$CUDA_HOME/include \
+        -DPLATFORM_DESKTOP \
+        -fno-semantic-interposition -fvisibility=hidden \
+        -fPIC -fopenmp \
+        "$native_source" -o "$native_object"
+    STATIC_OBJECTS+=("$native_object")
+    native_source_index=$((native_source_index + 1))
+done
+STATIC_LIB_TMP="$STATIC_LIB.tmp.$$"
+ar rcs "$STATIC_LIB_TMP" "${STATIC_OBJECTS[@]}"
+mv -f "$STATIC_LIB_TMP" "$STATIC_LIB"
 
 # Brittle hack: have to extract the tensor type from the static lib to build trainer
 OBS_TENSOR_T=$(awk '/^#define OBS_TENSOR_T/{print $3}' "$BINDING_SRC")

@@ -18,13 +18,27 @@ over 500 Hz MuJoCo physics. When a robot falls, it switches to EngineAI's
 The six REK attack trajectories are still unknown and are disabled in this
 controller-validation evaluator. No synthetic reach animation is used.
 
-The observation is 173 floats. It contains ego-first `qpos + qvel` for both
+The observation is 175 floats. It contains ego-first `qpos + qvel` for both
 fighters, then ego-first discrete controller state for both fighters: recovery,
 move, cooldown and fallen flags; current move and all remaining counters;
-scored-impact bits; hit count; the router's last move and held velocity; and a
-seven-entry move-request availability mask. Episode tick, MuJoCo time, and
-remaining configured ticks complete the state. Terminal wrist and foot body
-geometries are included in their parent limb's contact attribution.
+scored-impact bits; hit count; the router's last move, held velocity, pending
+translation-settle axis mask, and a seven-entry move-request availability mask.
+Episode tick, MuJoCo time, and remaining configured ticks complete the state.
+Terminal wrist and foot body geometries are included in their parent limb's
+contact attribution.
+
+Forward, strafe, and yaw action heads model held controls. Forward or strafe
+holds defer a simultaneous move category until translation is released and the
+measured local velocity on each released axis is strictly below the pinned T800
+`0.15 m/s` transition threshold. The current direct root executor reaches that
+condition after one neutral integration step; the real deceleration curve is
+still unmeasured. Yaw can overlap translation and does not defer a move. Once a
+move starts, its executor owns the root command and forward, strafe, and yaw
+remain physically neutral through the move, even though held inputs remain in
+the observation. A brief attack tap is not buffered because real tap buffering
+has not been measured.
+The action space does not expose an `F` control. Current evidence provides no
+verified G1 binding or controller meaning for `F`.
 
 ## Evidence boundary
 

@@ -1,23 +1,23 @@
 """Convert the Windows private-AI recorder JSONL into the common trace format.
 
-Legacy v1/v3 captures sample once per client Unity FixedUpdate. Protocol v5/v6
-captures compact state every ten FixedUpdate calls and exact protocol-boundary
-events. A protocol import additionally requires the completed semantic-control
-log and its canonical schedule manifest. V5 labels measured compact observations
-on the schedule's 50 Hz grid. V6 instead emits the directly measured 500 Hz
-``root_pose_sample`` window, including both root transforms, screen projections,
-and the same-tick camera measurements. The recovered packet layouts expose no
-server tick, so this importer never labels trace ticks as server ticks and never
-synthesizes one.
+Legacy v1/v3 captures sample once per client Unity FixedUpdate. Protocol
+v5/v6/v7 captures compact state every ten FixedUpdate calls and exact
+protocol-boundary events. A protocol import additionally requires the completed
+semantic-control log and its canonical schedule manifest. V5 labels measured
+compact observations on the schedule's 50 Hz grid. V6 and v7 instead emit the
+directly measured 500 Hz ``root_pose_sample`` window, including both root
+transforms, screen projections, and the same-tick camera measurements. The
+recovered packet layouts expose no server tick, so this importer never labels
+trace ticks as server ticks and never synthesizes one.
 
-For v5/v6 commands, the bridge log defines the accepted control-frame window and
-the pinned schedule. RekEvidenceRecorder Send* prefix records are authoritative
-for the local outbound stream inside that window. Those records prove method
-invocation and projected REK_Input/REK_Move bodies. They do not prove method
-completion, network delivery, server acceptance or execution, and they cannot
-exclude an uninstrumented lower-level transmission path. Hook ownership is
-attested at capture start, not continuously for each hook, so absence claims
-mean zero recorder observations at the audited prefixes.
+For v5/v6/v7 commands, the bridge log defines the accepted control-frame window
+and the pinned schedule. RekEvidenceRecorder Send* prefix records are
+authoritative for the local outbound stream inside that window. Those records
+prove method invocation and projected REK_Input/REK_Move bodies. They do not
+prove method completion, network delivery, server acceptance or execution, and
+they cannot exclude an uninstrumented lower-level transmission path. Hook
+ownership is attested at capture start, not continuously for each hook, so
+absence claims mean zero recorder observations at the audited prefixes.
 
 Only numeric values present in every sample become channels. A field that is
 missing or null in any sample is absent from the trace instead of being filled
@@ -42,9 +42,11 @@ SCHEMA_V1 = 'rek.private_ai.client_fixed.v1'
 SCHEMA_V3 = 'rek.private_ai.client_fixed.v3'
 SCHEMA_V5 = 'rek.private_ai.protocol.v5'
 SCHEMA_V6 = 'rek.private_ai.protocol.v6'
+SCHEMA_V7 = 'rek.private_ai.protocol.v7'
 SCHEMA = SCHEMA_V3
 SUPPORTED_SCHEMAS = {SCHEMA_V1, SCHEMA_V3}
-PROTOCOL_SCHEMAS = {SCHEMA_V5, SCHEMA_V6}
+PROTOCOL_SCHEMAS = {SCHEMA_V5, SCHEMA_V6, SCHEMA_V7}
+ROOT_STREAM_SCHEMAS = {SCHEMA_V6, SCHEMA_V7}
 COMMAND_SEQUENCE_SCHEMA = 'rek.client_fixed.command_schedule.v2'
 V6_COMMAND_EXECUTION_STATE = 'request_projected_server_execution_unknown'
 V6_VELOCITY_IDENTITIES = {
@@ -669,7 +671,7 @@ def _provenance(channel, recorder_schema):
 
 
 def _v6_flatten_root_sample(sample):
-    """Flatten only values measured by one v6 ``root_pose_sample`` record."""
+    """Flatten only values measured by one v6/v7 root-pose record."""
     frame = {}
     _put_int(frame, 'tick.client', sample.get('client_fixed_tick'))
     _put_real(frame, 'time.unity_fixed', sample.get('unity_fixed_time'))
@@ -680,7 +682,7 @@ def _v6_flatten_root_sample(sample):
     for slot in (0, 1):
         root = sample.get(f'fighter_{slot}_root')
         if not isinstance(root, dict):
-            raise ValueError(f'v6 root sample has no fighter {slot} root object')
+            raise ValueError(f'v6/v7 root sample has no fighter {slot} root object')
         for source, target, axes in (
                 ('world_position_xyz', f'root.{slot}.pos', 'xyz'),
                 ('world_rotation_xyzw', f'root.{slot}.quat', 'xyzw'),
@@ -697,7 +699,7 @@ def _v6_flatten_root_sample(sample):
 
     camera = sample.get('camera')
     if not isinstance(camera, dict):
-        raise ValueError('v6 root sample has no measured camera object')
+        raise ValueError('v6/v7 root sample has no measured camera object')
     for source, target, axes in (
             ('world_position_xyz', 'camera.world.pos', 'xyz'),
             ('world_rotation_xyzw', 'camera.world.quat', 'xyzw'),
@@ -807,13 +809,13 @@ def _v6_provenance(channel):
                 'UnityEngine.Camera.main in the same FixedUpdate as both roots'),
             'raw_field': 'root_pose_sample.camera',
         }
-    raise ValueError(f'no v6 root-stream provenance rule for channel {channel}')
+    raise ValueError(f'no v6/v7 root-stream provenance rule for channel {channel}')
 
 
 def _v6_screen_frame(start):
     camera = start.get('initial_camera')
     if not isinstance(camera, dict):
-        raise ValueError('v6 capture has no initial camera measurement')
+        raise ValueError('v6/v7 capture has no initial camera measurement')
     identity_material = {
         'schema': 'rek.unity_world_to_screen.frame.v1',
         'selection': camera.get('selection'),
@@ -833,7 +835,7 @@ def _v6_screen_frame(start):
     height = camera.get('screen_height')
     if (not isinstance(width, int) or isinstance(width, bool) or width <= 0 or
             not isinstance(height, int) or isinstance(height, bool) or height <= 0):
-        raise ValueError('v6 camera has no measured positive screen dimensions')
+        raise ValueError('v6/v7 camera has no measured positive screen dimensions')
     return {
         'id': f'rek.unity_world_to_screen.frame.v1:{digest}',
         'width_px': width,
@@ -856,14 +858,14 @@ def _v6_root_window(records, start_tick):
         if record.get('event') == 'root_pose_sample']
     final_substep = _v5_final_controlled_substep()
     by_tick = {
-        _required_int(record, 'client_fixed_tick', 'v6 root_pose_sample'): record
+        _required_int(record, 'client_fixed_tick', 'v6/v7 root_pose_sample'): record
         for record in root_samples
     }
     expected_source_ticks = list(
         range(start_tick, start_tick + final_substep + 1))
     if any(tick not in by_tick for tick in expected_source_ticks):
         raise ValueError(
-            'v6 root stream does not cover the complete controlled schedule '
+            'v6/v7 root stream does not cover the complete controlled schedule '
             'fixed-substep window')
     selected = [by_tick[tick] for tick in expected_source_ticks]
     return selected, list(range(final_substep + 1))
@@ -952,7 +954,7 @@ def _v6_select_command_edge(edges, selector):
     if len(matches) != 1:
         available = ', '.join(edge['selector'] for edge in edges)
         raise ValueError(
-            f'unknown or ambiguous v6 motion edge {selector!r}; '
+            f'unknown or ambiguous v6/v7 motion edge {selector!r}; '
             f'available selectors: {available}')
     return matches[0]
 
@@ -1607,7 +1609,7 @@ def _v5_events(records, samples, normalized_ticks, control, start_tick,
 
 def _v6_events(records, samples, normalized_ticks, sample_phase, control,
                start_tick, outbound_stream, command_edges, selected_edge):
-    """Translate v5 semantic events onto the measured 500 Hz v6 timebase."""
+    """Translate v5 semantic events onto the measured 500 Hz v6/v7 timebase."""
     events = _v5_events(
         records, samples, normalized_ticks, control, start_tick,
         outbound_stream)
@@ -1711,8 +1713,8 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
     inventory, fingerprint = _inventory_identity(inventory_path)
     if recorder_schema not in PROTOCOL_SCHEMAS:
         raise ValueError(f'unsupported protocol recorder schema: {recorder_schema!r}')
-    if recorder_schema != SCHEMA_V6 and motion_edge is not None:
-        raise ValueError('--motion-edge is available only for v6 root-stream imports')
+    if recorder_schema not in ROOT_STREAM_SCHEMAS and motion_edge is not None:
+        raise ValueError('--motion-edge is available only for v6/v7 root-stream imports')
     if str(start.get('game_assembly_sha256', '')).lower() != EXPECTED_GAME_ASSEMBLY_SHA256:
         raise ValueError('v5 raw trace GameAssembly hash does not match pinned build')
     if str(start.get('global_metadata_sha256', '')).lower() != EXPECTED_METADATA_SHA256:
@@ -1735,7 +1737,15 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
 
     server = start.get('server') or {}
     session_hash = str(server.get('session_id_sha256', '')).lower()
-    if (not server.get('endpoint') or
+    if recorder_schema == SCHEMA_V7:
+        endpoint_identity_present = (
+            server.get('endpoint_present') is True and
+            server.get('endpoint_recorded') is False and
+            'endpoint' not in server
+        )
+    else:
+        endpoint_identity_present = bool(server.get('endpoint'))
+    if (not endpoint_identity_present or
             not re.fullmatch(r'[0-9a-f]{64}', session_hash)):
         raise ValueError('v5 raw trace has no endpoint or hashed session identity')
     if server.get('session_identifier_recorded') is not False or server.get('session_id'):
@@ -1793,7 +1803,7 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
     schedule_step_edges = []
     selected_edge = None
     screen_frame = None
-    if recorder_schema == SCHEMA_V6:
+    if recorder_schema in ROOT_STREAM_SCHEMAS:
         root_samples, output_ticks = _v6_root_window(
             records, schedule_start_tick)
         frames = [_v6_flatten_root_sample(sample) for sample in root_samples]
@@ -1809,7 +1819,7 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
             for sample in samples]
     channel_union = set().union(*(set(frame) for frame in frames))
     channels = sorted(set.intersection(*(set(frame) for frame in frames)))
-    if recorder_schema == SCHEMA_V6:
+    if recorder_schema in ROOT_STREAM_SCHEMAS:
         required = {
             'tick.client',
             *(f'root.{slot}.pos.{axis}'
@@ -1826,7 +1836,7 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
         raise ValueError(
             f'{recorder_schema} raw trace lacks required measured channels: '
             f'{missing_required}')
-    if recorder_schema == SCHEMA_V6:
+    if recorder_schema in ROOT_STREAM_SCHEMAS:
         provenance = {channel: _v6_provenance(channel) for channel in channels}
     else:
         provenance = {
@@ -1834,7 +1844,6 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
             for channel in channels}
 
     server_record = {
-        'endpoint': server['endpoint'],
         'session_id': f'sha256:{session_hash}',
         'session_id_sha256': session_hash,
         'session_identifier_recorded': False,
@@ -1844,10 +1853,17 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
         'endpoint_provenance': server.get('endpoint_provenance'),
         'session_id_sha256_provenance': server.get('session_id_sha256_provenance'),
     }
+    if recorder_schema == SCHEMA_V7:
+        server_record.update({
+            'endpoint_present': True,
+            'endpoint_recorded': False,
+        })
+    else:
+        server_record['endpoint'] = server['endpoint']
     raw_hash = _sha256(raw_path)
     if raw_validation.get('raw_sha256') != raw_hash:
         raise ValueError('v5 raw capture changed after protocol validation')
-    if recorder_schema == SCHEMA_V6:
+    if recorder_schema in ROOT_STREAM_SCHEMAS:
         events = _v6_events(
             records, samples, trace_ticks, sample_phase, control,
             schedule_start_tick, outbound_stream, command_edges,
@@ -1885,8 +1901,24 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
         'opponent_fighter_index': scope.get('opponent_slot'),
         'fighters': fighter_layouts,
     }
+    if recorder_schema == SCHEMA_V7:
+        pairing = start['pairing']
+        fighter_pairing.update({
+            'required_pairing': pairing.get('required_pairing'),
+            'runtime_model': pairing.get('runtime_model'),
+            'exact_supported_runtime_pairing': pairing.get(
+                'exact_supported_runtime_pairing'),
+            'exact_t800_vs_t800': pairing.get('exact_t800_vs_t800'),
+            'exact_g1_vs_g1': pairing.get('exact_g1_vs_g1'),
+            'semantic_robot_id_required_for_acceptance': pairing.get(
+                'semantic_robot_id_required_for_acceptance'),
+            'local_semantic_runtime_consistency': pairing.get(
+                'local_semantic_runtime_consistency'),
+            'opponent_semantic_runtime_consistency': pairing.get(
+                'opponent_semantic_runtime_consistency'),
+        })
     v6_trace_metadata = {}
-    if recorder_schema == SCHEMA_V6:
+    if recorder_schema in ROOT_STREAM_SCHEMAS:
         v6_trace_metadata = {
             'capture_id': f'raw-sha256:{raw_hash}',
             'fixed_delta_time': fixed_delta_time,
@@ -1911,6 +1943,35 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
             'root_pose_source_tick_start': root_samples[0]['client_fixed_tick'],
             'root_pose_source_tick_end': root_samples[-1]['client_fixed_tick'],
         }
+        if recorder_schema == SCHEMA_V7:
+            v6_trace_metadata['private_ai_scope'] = {
+                'solo_route_hooks_verified': scope.get(
+                    'solo_route_hooks_verified'),
+                'solo_route_proven': scope.get('solo_route_proven'),
+                'solo_route_flow': scope.get('solo_route_flow'),
+                'solo_route_connect_to_arena_observed': scope.get(
+                    'solo_route_connect_to_arena_observed'),
+                'solo_route_enter_championship_observed': scope.get(
+                    'solo_route_enter_championship_observed'),
+                'solo_route_enter_championship_koth': scope.get(
+                    'solo_route_enter_championship_koth'),
+                'solo_route_enter_championship_solo': scope.get(
+                    'solo_route_enter_championship_solo'),
+                'solo_route_arena_identity_consistent': scope.get(
+                    'solo_route_arena_identity_consistent'),
+                'solo_route_runtime_session_identity_consistent': scope.get(
+                    'solo_route_runtime_session_identity_consistent'),
+                'solo_route_reason': scope.get('solo_route_reason'),
+                'server_private_proven': scope.get('server_private_proven'),
+                'server_private_status': scope.get('server_private_status'),
+                'opponent_is_ai': scope.get('opponent_is_ai'),
+                'sparring_bot_number': scope.get('sparring_bot_number'),
+                'human_in_opponent_slot': scope.get('human_in_opponent_slot'),
+                'opponent_slot_has_client': scope.get(
+                    'opponent_slot_has_client'),
+                'opponent_human_bit_set': scope.get(
+                    'opponent_human_bit_set'),
+            }
     temporary = output_path.with_name(output_path.name + '.tmp')
     if temporary.exists():
         raise FileExistsError(f'refusing existing temporary path {temporary}')
@@ -1925,11 +1986,11 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
                 provenance=provenance,
                 tick_domain=(
                     'controlled_schedule_client_fixed_substep_500hz'
-                    if recorder_schema == SCHEMA_V6 else
+                    if recorder_schema in ROOT_STREAM_SCHEMAS else
                     'controlled_schedule_50hz'),
                 tick_rate_hz=(
                     controlled_schedule.UNITY_FIXED_RATE_HZ
-                    if recorder_schema == SCHEMA_V6 else
+                    if recorder_schema in ROOT_STREAM_SCHEMAS else
                     controlled_schedule.SCHEDULE_RATE_HZ),
                 server_tick_available=False,
                 server_tick_reason=start.get('server_tick_reason'),
@@ -1962,7 +2023,8 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
                 raw_sample_count=len(all_samples),
                 compact_samples_tick_complete=False,
                 root_pose_stream=raw_validation.get('root_pose_stream'),
-                root_pose_tick_level_claim=(recorder_schema == SCHEMA_V6),
+                root_pose_tick_level_claim=(
+                    recorder_schema in ROOT_STREAM_SCHEMAS),
                 complete_schedule=True,
                 complete_round=False,
                 fighter_pairing=fighter_pairing,
@@ -2013,7 +2075,7 @@ def _convert_v5(raw_path, inventory_path, output_path, control_log_path,
         'events': len(events),
         'tick_domain': (
             'controlled_schedule_client_fixed_substep_500hz'
-            if recorder_schema == SCHEMA_V6 else
+            if recorder_schema in ROOT_STREAM_SCHEMAS else
             'controlled_schedule_50hz'),
         'server_tick_available': False,
         'command_sequence_sha256': manifest['sha256'],
@@ -2310,7 +2372,7 @@ def convert(raw_path, inventory_path, output_path, tick_limit=None,
             tick_limit=tick_limit,
             motion_edge=motion_edge)
     if motion_edge is not None:
-        raise ValueError('--motion-edge is available only for v6 root-stream imports')
+        raise ValueError('--motion-edge is available only for v6/v7 root-stream imports')
     return _convert_legacy(
         raw_path, inventory_path, output_path, tick_limit=tick_limit)
 
@@ -2322,14 +2384,14 @@ def main(argv=None):
     parser.add_argument('--out', required=True)
     parser.add_argument(
         '--control-log',
-        help='v5/v6 semantic bridge JSONL containing one completed schedule run')
+        help='v5/v6/v7 semantic bridge JSONL containing one completed schedule run')
     parser.add_argument(
         '--schedule-manifest',
-        help='v5/v6 canonical command schedule manifest')
+        help='v5/v6/v7 canonical command schedule manifest')
     parser.add_argument(
         '--motion-edge',
         help=(
-            'v6 only: select one command_edge catalog selector for the generic '
+            'v6/v7 only: select one command_edge catalog selector for the generic '
             'comparator command_edge event; no edge is selected implicitly'))
     parser.add_argument(
         '--ticks', type=int,

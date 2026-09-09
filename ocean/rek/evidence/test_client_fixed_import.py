@@ -398,8 +398,8 @@ def _rewrite_move_request(record, network_index, move_index):
     record['move_index_wire_uint8'] = move_index & 0xff
 
 
-def v5_records():
-    base = raw_fixture.fixture()
+def v5_records(fighter_layouts=("t800_26", "t800_26")):
+    base = raw_fixture.fixture(fighter_layouts)
     start = copy.deepcopy(base[0])
     end = copy.deepcopy(base[-1])
     start['fixed_delta_time'] = 1.0 / controlled_schedule.UNITY_FIXED_RATE_HZ

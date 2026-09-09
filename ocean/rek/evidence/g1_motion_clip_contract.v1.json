@@ -1,0 +1,363 @@
+{
+  "build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+  "clips": [
+    {
+      "mocap_clip_config": {
+        "blendInTime": 1.0,
+        "blendOutTime": 0.5139999985694885,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "mirror": 0,
+        "path_id": 2702,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 136,
+        "serialized_sha256": "a6da9b526f55f86e3c2ab5a460ac81d0f02e4eab15afb316dd3402de0ea5b76b",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 2841,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 39,
+        "name": "idle_processed",
+        "output": "idle_processed.npz",
+        "path_id": 377,
+        "sha256": "2fd9ca753183566cceaff3ff10ae54b1a7167986297524a9d24d970d57aee969"
+      },
+      "role": "idle"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.035999998450279236,
+        "blendOutTime": 0.6899999976158142,
+        "displayName": "Left Front Kick",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 2.0,
+            "impactTime": 1.0,
+            "leadTime": 0.20000000298023224,
+            "limb": 3,
+            "releaseTime": 0.5
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2703,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 184,
+        "serialized_sha256": "5f61681420dbd84ce046f68770b73d2ed9e845d38cacd4e37d1f704bcb5f9241",
+        "startFrame": 0,
+        "yawBlend": 1.0,
+        "yawForgiveness": 500.0
+      },
+      "npz": {
+        "bytes": 19616,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 146,
+        "name": "left_front_kick_processed",
+        "output": "left_front_kick_processed.npz",
+        "path_id": 371,
+        "sha256": "3db29034517acc376c16ce5bc04f923803a48367ad58a5c65a314123639815c1"
+      },
+      "role": "kick_left_front"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.035999998450279236,
+        "blendOutTime": 0.6899999976158142,
+        "displayName": "Left Side Kick",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 2.0,
+            "impactTime": 1.100000023841858,
+            "leadTime": 0.30000001192092896,
+            "limb": 3,
+            "releaseTime": 0.5
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 500.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2710,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 180,
+        "serialized_sha256": "fb5c3938396c789020003634b0dc76d2319ea3df33ec2fa2927a2e4e24a070a0",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 21047,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 158,
+        "name": "left_side_kick_processed",
+        "output": "left_side_kick_processed.npz",
+        "path_id": 392,
+        "sha256": "854e5bbf91b325288ed0f63e43f65355aa5b1a15fe43a8fd940b4efb6ed6a465"
+      },
+      "role": "kick_left_side"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.05999999865889549,
+        "blendOutTime": 0.550000011920929,
+        "displayName": "Right Knee",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 3.0,
+            "impactTime": 0.6499999761581421,
+            "leadTime": 0.4000000059604645,
+            "limb": 4,
+            "releaseTime": 0.15000000596046448
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 800.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2714,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 172,
+        "serialized_sha256": "04dbcb4b28f617912c7ac5c452a23969c5bc17ac745571c35d29ebea03b2733b",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 18805,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 140,
+        "name": "right_knee_processed",
+        "output": "right_knee_processed.npz",
+        "path_id": 380,
+        "sha256": "08bba86c004d99e61d53997cd31223b8cfde67c019506267339e146dd771097f"
+      },
+      "role": "kick_right_knee"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.035999998450279236,
+        "blendOutTime": 0.6899999976158142,
+        "displayName": "Right Side Kick",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 2.0,
+            "impactTime": 1.1399999856948853,
+            "leadTime": 0.4000000059604645,
+            "limb": 4,
+            "releaseTime": 0.15000000596046448
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 500.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2715,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 184,
+        "serialized_sha256": "6c4a414aa3c6860f30b28d65e6ef7c18d5e6bf9331ab69215ded03cf82c560ac",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 20887,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 159,
+        "name": "right_side_kick_processed",
+        "output": "right_side_kick_processed.npz",
+        "path_id": 372,
+        "sha256": "4d16c2d07848713713f8252e21fc2893462052f6ee3e157e9c364c03769de6a6"
+      },
+      "role": "kick_right_side"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.09399999678134918,
+        "blendOutTime": 0.29499998688697815,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "mirror": 0,
+        "path_id": 2711,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 144,
+        "serialized_sha256": "f618f9ca40f4457108dd763408d49f37dbbae6a6b1a38cda57581539336dfcdd",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 5246,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 35,
+        "name": "left_strafe_processed",
+        "output": "left_strafe_processed.npz",
+        "path_id": 388,
+        "sha256": "57c9bb7b66cda5ea7654aa2581a785fe1250095ab40029b9f9dbcb8cea0ac780"
+      },
+      "role": "strafe_left"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.06499999761581421,
+        "blendOutTime": 0.07100000232458115,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "mirror": 0,
+        "path_id": 2718,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 152,
+        "serialized_sha256": "68b5d8fe53d8d77d3dd1a0acbc448de9827dc9a96b51f3d36b2f1b7427eac185",
+        "startFrame": 0,
+        "yawBlend": 1.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 6770,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 47,
+        "name": "turn_in_place_right_processed",
+        "output": "turn_in_place_right_processed.npz",
+        "path_id": 375,
+        "sha256": "be2b96be14cfcbc63b7e84bf28bd5c50f1c355a26dd6ba113753103cfcf99c6d"
+      },
+      "role": "turn_right"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 1.0,
+        "blendOutTime": 1.0,
+        "displayName": "",
+        "endFrame": -1,
+        "impactEvents": [],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 1,
+        "mirror": 0,
+        "path_id": 2720,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 140,
+        "serialized_sha256": "8507e4e6a6c42afa6ee795bfaa4711040ecfbf87ac328014335342ab84b01128",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 5351,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 36,
+        "name": "walking_processed",
+        "output": "walking_processed.npz",
+        "path_id": 370,
+        "sha256": "eeae301b6891ecc2a3f5c1d0706081946c1bf9e8c58d2c4b942649b1671e8974"
+      },
+      "role": "walk"
+    }
+  ],
+  "schema": "rek.g1_motion_clip_contract.v1",
+  "source": {
+    "probe": {
+      "bytes": 4568314,
+      "inventory_sha256": "ea932824c7f1fa9781ab816716d4bfca9ec22b14e754466941c8c157910eff79",
+      "name": "mujoco_asset_probe_v8.json",
+      "schema": "rek.mujoco_asset_probe.v1",
+      "sha256": "b132eb19cb7b223a87ee3885c16e521e82d7e99006c09ed63e8cc899ad057686",
+      "unity_version": "6000.5.8f1",
+      "unitypy_version": "1.25.2"
+    },
+    "runtime_assets_manifest": {
+      "canonical_sha256": "06aa831f9ee6a094660df90085a03c2d8ef331137f74d6bb18849716e29c9eae",
+      "name": "g1_runtime_assets.v1.json",
+      "schema": "rek.g1_runtime_assets.manifest.v1"
+    },
+    "unity_container": {
+      "bytes": 31315504,
+      "name": "sharedassets0.assets",
+      "sha256": "37f7a476c56caae37f5a04d4fa1acf5954fdc2b90f20f521830369ecff05f355"
+    }
+  }
+}

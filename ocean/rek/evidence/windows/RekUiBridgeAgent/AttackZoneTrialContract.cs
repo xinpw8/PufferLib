@@ -25,9 +25,9 @@ internal static class AttackZoneTrialContract
         "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412";
     internal const string ExpectedGlobalMetadataSha256 =
         "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd";
-    internal const string ExpectedRecorderVersion = "0.6.1";
+    internal const string ExpectedRecorderVersion = "0.7.2";
     internal const string ExpectedRecorderPluginSha256 =
-        "24cbea0a149589b71c093e989f43b8dac4862e73d103c323f0f9472a38355e0b";
+        "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95";
     internal const int UnityFixedRateHz = 500;
     internal const int ControlRateHz = 50;
     internal const int FixedSubstepsPerControlTick = UnityFixedRateHz / ControlRateHz;
@@ -50,7 +50,7 @@ internal static class AttackZoneTrialContract
     internal const float MaximumYawCommand = 1f;
     internal const float YawCommandScaleDegrees = 35f;
     internal const string ExpectedSha256 =
-        "1c55900c766aac8cf3382c389b297be6324b3ca19c4a5de6d25f17a7ee217278";
+        "195ff18ba30097fa5575b36c6d9fdd4a4a2499e73803d0e04c7e53203cb530cf";
 
     internal static readonly AttackZoneBin[] DistanceBins =
     {

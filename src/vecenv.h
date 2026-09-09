@@ -209,6 +209,18 @@ extern const char* cudaGetErrorString(cudaError_t);
 void my_init(Env* env, Dict* kwargs);
 void my_log(Log* log, Dict* out);
 
+#ifdef MY_VEC_STEP
+void MY_VEC_STEP(StaticVec* vec);
+#endif
+
+#ifdef MY_VEC_STEP_RANGE
+void MY_VEC_STEP_RANGE(StaticVec* vec, int env_start, int env_count, int num_workers);
+#endif
+
+#ifdef MY_VEC_RESET
+void MY_VEC_RESET(StaticVec* vec);
+#endif
+
 #ifdef MY_USES_PERM
 // Env-provided: populate per-slot pointer arrays on env, given the global slot
 // base for slot 0. Reads vec->agent_perm (NULL = identity) to compute physical
@@ -258,8 +270,6 @@ static void* static_omp_threadmanager(void* arg) {
     int num_workers = threading->num_threads / vec->buffers;
     if (num_workers < 1) num_workers = 1;
 
-    Env* envs = (Env*)vec->envs;
-
     printf("Num workers: %d\n", num_workers);
     while (true) {
         while (atomic_load(&buffer_states[buf]) != OMP_RUNNING) {
@@ -288,10 +298,15 @@ static void* static_omp_threadmanager(void* arg) {
             memset(&vec->rewards[agent_start], 0, agents_per_buffer * sizeof(float));
             memset(&vec->terminals[agent_start], 0, agents_per_buffer * sizeof(float));
             clock_gettime(CLOCK_MONOTONIC, &t0);
+#ifdef MY_VEC_STEP_RANGE
+            MY_VEC_STEP_RANGE(vec, env_start, env_count, num_workers);
+#else
+            Env* envs = (Env*)vec->envs;
             #pragma omp parallel for schedule(static) num_threads(num_workers)
             for (int i = env_start; i < env_start + env_count; i++) {
                 c_step(&envs[i]);
             }
+#endif
             clock_gettime(CLOCK_MONOTONIC, &t1);
             my_accum[EVAL_ENV_STEP] += (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_nsec - t0.tv_nsec) / 1e6f;
 
@@ -395,6 +410,7 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
 void my_vec_close(Env* envs);
 #else
 void my_vec_close(Env* envs) {
+    (void)envs;
     return;
 }
 #endif
@@ -562,10 +578,14 @@ int static_vec_count_aligned(StaticVec* vec, int tag_value, int reset_flags) {
 #endif
 
 void static_vec_reset(StaticVec* vec) {
+#ifdef MY_VEC_RESET
+    MY_VEC_RESET(vec);
+#else
     Env* envs = (Env*)vec->envs;
     for (int i = 0; i < vec->size; i++) {
         c_reset(&envs[i]);
     }
+#endif
     if (vec->gpu) {
         cudaMemcpy(vec->gpu_observations, vec->observations,
             vec->total_agents * OBS_SIZE * obs_element_size(), cudaMemcpyHostToDevice);
@@ -738,6 +758,11 @@ int get_num_act_sizes(void) { return (int)(sizeof(_act_sizes) / sizeof(_act_size
 const char* get_obs_dtype(void) { return dtype_symbol; }
 size_t get_obs_elem_size(void) { return obs_element_size(); }
 
+#ifdef MY_VEC_STEP
+static inline void _static_vec_env_step(StaticVec* vec) {
+    MY_VEC_STEP(vec);
+}
+#else
 static inline void _static_vec_env_step(StaticVec* vec) {
     memset(vec->rewards, 0, vec->total_agents * sizeof(float));
     memset(vec->terminals, 0, vec->total_agents * sizeof(float));
@@ -747,6 +772,7 @@ static inline void _static_vec_env_step(StaticVec* vec) {
         c_step(&envs[i]);
     }
 }
+#endif
 
 void gpu_vec_step(StaticVec* vec) {
     assert(vec->buffers == 1);
@@ -761,6 +787,11 @@ void gpu_vec_step(StaticVec* vec) {
         vec->total_agents * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(vec->gpu_terminals, vec->terminals,
         vec->total_agents * sizeof(float), cudaMemcpyHostToDevice);
+#ifdef MY_ACTION_MASK
+    cudaMemcpy(vec->gpu_action_mask, vec->action_mask,
+        (size_t)vec->total_agents * MY_ACTION_MASK * sizeof(unsigned char),
+        cudaMemcpyHostToDevice);
+#endif
 }
 
 void cpu_vec_step(StaticVec* vec) {
@@ -776,22 +807,30 @@ void static_vec_step(StaticVec* vec) {
 // Optional shared state functions - default implementations
 #ifndef MY_SHARED
 void* my_shared(void* env, Dict* kwargs) {
+    (void)env;
+    (void)kwargs;
     return NULL;
 }
 #endif
 
 #ifndef MY_SHARED_CLOSE
-void my_shared_close(void* env) {}
+void my_shared_close(void* env) {
+    (void)env;
+}
 #endif
 
 #ifndef MY_GET
 void* my_get(void* env, Dict* out) {
+    (void)env;
+    (void)out;
     return NULL;
 }
 #endif
 
 #ifndef MY_PUT
 int my_put(void* env, Dict* kwargs) {
+    (void)env;
+    (void)kwargs;
     return 0;
 }
 #endif

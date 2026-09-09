@@ -9,6 +9,7 @@ using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.InteropTypes;
+using RekEvidence;
 using REKApp;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -25,7 +26,7 @@ public sealed partial class Plugin : BasePlugin
 {
     public const string PluginGuid = "rek.evidence.control.bridge";
     public const string PluginName = "REK Evidence Control Bridge";
-    public const string PluginVersion = "0.4.0";
+    public const string PluginVersion = "0.4.6";
 
     private const string PipeName = "rek-ui-bridge-v1";
     private const string IsolatedSessionMarker = "spark-x98";
@@ -66,6 +67,7 @@ public sealed partial class Plugin : BasePlugin
     private readonly ConcurrentQueue<BridgeRequest> _pending = new();
     private readonly ConcurrentDictionary<string, byte> _remembered = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<string> _rememberedOrder = new();
+    private readonly SoloRouteProofTracker _soloRouteProofTracker = new();
     private LocalPipeServer? _pipe;
     private BridgeBehaviour? _behaviour;
     private Harmony? _harmony;
@@ -75,7 +77,11 @@ public sealed partial class Plugin : BasePlugin
     private string? _lastStateIdentity;
     private string _gameAssemblySha256 = string.Empty;
     private string _metadataSha256 = string.Empty;
+    private string _sharedAssets0Sha256 = string.Empty;
     private string _pluginSha256 = string.Empty;
+    private RuntimePolicyCaptureResult _g1RuntimePolicyCapture =
+        RuntimePolicyCaptureResult.Failed("not_attempted");
+    private int _nextG1RuntimePolicyCaptureFrame;
     private string _scheduleSha256 = string.Empty;
     private string _singleMotionTrialSha256 = string.Empty;
     private string _continuousControllerSha256 = string.Empty;
@@ -102,6 +108,7 @@ public sealed partial class Plugin : BasePlugin
     private RuntimeIdentity? _scheduleIdentity;
     private bool _sendBoundaryPatchesVerified;
     private bool _trialIsolationPatchesVerified;
+    private bool _soloRoutePatchesVerified;
     private readonly bool[] _renderedCommandMarkers =
         new bool[RenderedCommandMarkerContract.Specs.Length];
     private bool _renderedMarkerStripVisible;
@@ -144,6 +151,7 @@ public sealed partial class Plugin : BasePlugin
     private RobotInputController? _continuousControllerInput;
     private IntPtr _continuousControllerInputPointer;
     private Vector3 _continuousControllerVelocity = Vector3.zero;
+    private int _continuousControllerNativeNeutralReassertions;
     private int _continuousControllerFixedSubstep;
     private int _continuousControllerTick;
     private int _continuousControllerRoundTick;
@@ -155,6 +163,9 @@ public sealed partial class Plugin : BasePlugin
     private int _continuousControllerRoundInactiveTick;
     private bool _continuousControllerRoundStartRequestIssued;
     private int _continuousControllerRoundStartRequestTick;
+    private string? _continuousControllerRuntimeModel;
+    private ContinuousAttackProfile[] _continuousControllerAttacks =
+        Array.Empty<ContinuousAttackProfile>();
     private int _continuousControllerNextAttackIndex;
     private int _continuousControllerActionSequence;
     private ContinuousAttackProfile? _continuousControllerActiveAttack;
@@ -168,6 +179,7 @@ public sealed partial class Plugin : BasePlugin
     private int _continuousControllerActionRequestTick;
     private int _continuousControllerActionStartTick;
     private int _continuousControllerSettleUntilTick;
+    private ContinuousTranslationSettleAxes _continuousControllerTranslationSettleAxes;
     private string? _continuousControllerVelocityPurposeAwaitingSend;
     private bool _continuousControllerVelocityInvocationObserved;
     private SpecialCommand? _continuousControllerSpecialAwaitingSend;
@@ -197,8 +209,13 @@ public sealed partial class Plugin : BasePlugin
             "il2cpp_data",
             "Metadata",
             "global-metadata.dat");
+        var sharedAssets0Path = Path.Combine(
+            Paths.GameRootPath,
+            "REK_Data",
+            "sharedassets0.assets");
         _gameAssemblySha256 = HashFile(gameAssemblyPath);
         _metadataSha256 = HashFile(metadataPath);
+        _sharedAssets0Sha256 = HashFile(sharedAssets0Path);
         _pluginSha256 = HashFile(Assembly.GetExecutingAssembly().Location);
         _scheduleSha256 = HashText(BridgeScheduleContract.CanonicalJson);
         _singleMotionTrialSha256 = HashText(SingleMotionTrialContract.CanonicalJson);
@@ -235,11 +252,16 @@ public sealed partial class Plugin : BasePlugin
         }
 
         if (!string.Equals(_gameAssemblySha256, ExpectedGameAssemblySha256, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(_metadataSha256, ExpectedMetadataSha256, StringComparison.OrdinalIgnoreCase))
+            !string.Equals(_metadataSha256, ExpectedMetadataSha256, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(
+                _sharedAssets0Sha256,
+                ContinuousBotControllerContract.SharedAssets0Sha256,
+                StringComparison.OrdinalIgnoreCase))
         {
             Log.LogError(
                 $"UI bridge disabled: build hash mismatch. " +
-                $"GameAssembly={_gameAssemblySha256} metadata={_metadataSha256}");
+                $"GameAssembly={_gameAssemblySha256} metadata={_metadataSha256} " +
+                $"sharedassets0={_sharedAssets0Sha256}");
             return;
         }
 
@@ -254,9 +276,19 @@ public sealed partial class Plugin : BasePlugin
             HasOwnedPatch(typeof(RobotInputController), "SendSpecialEvent") &&
             HasOwnedPatch(typeof(RobotInputController), "SendEStopToggle") &&
             HasOwnedPatch(typeof(FightCoordinator), "OnHitReceived");
-        if (!_sendBoundaryPatchesVerified)
+        _soloRoutePatchesVerified =
+            HasOwnedPatch(typeof(CentralApiClient), "FindMatch") &&
+            HasOwnedPatch(typeof(CentralApiClient), "ConnectToArena") &&
+            HasOwnedPatch(typeof(LobbyController), "EnterChampionship") &&
+            HasOwnedPatch(typeof(NetworkSession), "HandleClientConnected") &&
+            HasOwnedPatch(typeof(NetworkSession), "HandleClientDisconnected") &&
+            HasOwnedPatch(typeof(NetworkSession), "StopSession");
+        if (!_sendBoundaryPatchesVerified || !_soloRoutePatchesVerified)
         {
-            Log.LogError("Control bridge disabled: exact send-boundary Harmony ownership was not verified.");
+            Log.LogError(
+                "Control bridge disabled: required Harmony ownership was not verified. " +
+                $"send_boundary={_sendBoundaryPatchesVerified} " +
+                $"solo_route={_soloRoutePatchesVerified}.");
             _harmony.UnpatchSelf();
             _harmony = null;
             Instance = null;
@@ -282,11 +314,13 @@ public sealed partial class Plugin : BasePlugin
         StopSchedule("plugin_unload");
         StopSingleMotionTrial("plugin_unload");
         StopContinuousController("plugin_unload");
+        StopG1HeldSchedule("plugin_unload");
         _freshRoundArm = null;
         _harmony?.UnpatchSelf();
         _harmony = null;
         _sendBoundaryPatchesVerified = false;
         _trialIsolationPatchesVerified = false;
+        _soloRoutePatchesVerified = false;
         _leaseConnectionId = 0;
         _renderedMarkerStripVisible = false;
         Array.Clear(_renderedCommandMarkers);
@@ -351,7 +385,8 @@ public sealed partial class Plugin : BasePlugin
                 if ((request.Command.Value is BridgeCommand.StartMeasuredSchedule or
                         BridgeCommand.StartSingleMotionTrial or
                         BridgeCommand.StartContinuousBotController or
-                        BridgeCommand.StartAttackZoneTrial) &&
+                        BridgeCommand.StartAttackZoneTrial or
+                        BridgeCommand.StartG1HeldInputSchedule) &&
                     measuredPairing is null)
                     measuredPairing = MeasuredPairingPayload(ReadMeasuredPairing(gameMenu: null));
                 _pipe?.Send(request.ConnectionId, new
@@ -395,6 +430,14 @@ public sealed partial class Plugin : BasePlugin
                         ContinuousBotControllerContract.AttackSelectionProvenance,
                     continuous_controller_static_impact_timing_provenance =
                         ContinuousBotControllerContract.StaticImpactTimingProvenance,
+                    continuous_controller_translation_settle_provenance =
+                        ContinuousBotControllerContract.TranslationSettleProvenance,
+                    continuous_controller_translation_release_minimum_dwell_rule =
+                        ContinuousBotControllerContract.TranslationReleaseMinimumDwellRule,
+                    continuous_controller_yaw_attack_preemption_rule =
+                        ContinuousBotControllerContract.YawAttackPreemptionRule,
+                    continuous_controller_move_profile_binding_rule =
+                        ContinuousBotControllerContract.MoveProfileBindingRule,
                     continuous_controller_round_restart_limitation =
                         ContinuousBotControllerContract.RoundRestartLimitation,
                     continuous_controller_recovery_guard_provenance =
@@ -410,8 +453,44 @@ public sealed partial class Plugin : BasePlugin
                     continuous_controller_run_id = _continuousControllerRunId,
                     continuous_controller_running = _continuousControllerRunning,
                     continuous_controller_phase = _continuousControllerPhase,
+                    continuous_controller_runtime_model = _continuousControllerRuntimeModel,
+                    continuous_controller_recovery_mode =
+                        ContinuousBotControllerContract.RecoveryModeForRuntimeModel(
+                            _continuousControllerRuntimeModel),
+                    continuous_controller_attack_move_indices =
+                        _continuousControllerAttacks.Select(value => value.MoveIndex).ToArray(),
                     continuous_controller_round_identity_sha256 =
                         _continuousControllerRoundIdentitySha256,
+                    g1_held_schedule_schema = G1HeldInputScheduleContract.Schema,
+                    g1_held_schedule_id = G1HeldInputScheduleContract.ScheduleId,
+                    g1_held_schedule_sha256 = G1HeldInputScheduleContract.ExpectedSha256,
+                    g1_held_schedule_authority_scope =
+                        G1HeldInputScheduleContract.AuthorityScope,
+                    g1_held_schedule_authority_caveat =
+                        G1HeldInputScheduleContract.AuthorityCaveat,
+                    g1_held_schedule_run_id = _g1HeldScheduleRunId,
+                    g1_held_schedule_fresh_round_request_id =
+                        _g1HeldScheduleFreshRoundRequestId,
+                    g1_held_schedule_round_identity_sha256 =
+                        _g1HeldScheduleRoundIdentitySha256,
+                    g1_held_schedule_running = _g1HeldScheduleRunning,
+                    g1_held_schedule_tick = _g1HeldScheduleTick,
+                    g1_held_schedule_client_fixed_substep = _g1HeldScheduleFixedSubstep,
+                    g1_held_schedule_round_duration_seconds =
+                        _g1HeldRoundDurationSeconds,
+                    g1_held_schedule_initial_time_remaining_seconds =
+                        _g1HeldInitialTimeRemainingSeconds,
+                    g1_held_schedule_required_run_seconds =
+                        G1HeldInputScheduleContract.RequiredRunSeconds,
+                    g1_held_schedule_round_capacity_safety_seconds =
+                        G1HeldInputScheduleContract.RoundCapacitySafetySeconds,
+                    g1_held_schedule_required_round_capacity_seconds =
+                        G1HeldInputScheduleContract.RequiredRoundCapacitySeconds,
+                    g1_held_schedule_round_capacity_proven =
+                        _g1HeldScheduleRunning &&
+                        G1HeldInputScheduleContract.HasRoundCapacity(
+                            _g1HeldRoundDurationSeconds,
+                            _g1HeldInitialTimeRemainingSeconds),
                     attack_zone_trial_schema = AttackZoneTrialContract.Schema,
                     attack_zone_trial_sha256 = _attackZoneContractSha256,
                     attack_zone_trial_running = _attackZoneTrialRunning,
@@ -431,6 +510,7 @@ public sealed partial class Plugin : BasePlugin
                     {
                         game_assembly_sha256 = _gameAssemblySha256,
                         global_metadata_sha256 = _metadataSha256,
+                        sharedassets0_sha256 = _sharedAssets0Sha256,
                         plugin_sha256 = _pluginSha256,
                         plugin_version = PluginVersion,
                     },
@@ -456,6 +536,8 @@ public sealed partial class Plugin : BasePlugin
                 unity_thread = "main",
             });
         }
+
+        TryCaptureG1RuntimePolicyAssets();
     }
 
     internal void OnUnityFixedUpdate()
@@ -468,6 +550,7 @@ public sealed partial class Plugin : BasePlugin
                 StopSchedule("lease_connection_lost");
                 StopSingleMotionTrial("lease_connection_lost");
                 StopContinuousController("lease_connection_lost");
+                StopG1HeldSchedule("lease_connection_lost");
                 _freshRoundArm = null;
                 _leaseConnectionId = 0;
             }
@@ -477,6 +560,9 @@ public sealed partial class Plugin : BasePlugin
 
             if (_continuousControllerRunning)
                 AdvanceContinuousController();
+
+            if (_g1HeldScheduleRunning)
+                AdvanceG1HeldInputSchedule();
 
             if (!_scheduleRunning)
                 return;
@@ -610,6 +696,7 @@ public sealed partial class Plugin : BasePlugin
         }
         catch (Exception exception)
         {
+            StopG1HeldSchedule($"fixed_update_control_failed:{exception.GetType().Name}");
             StopContinuousController($"fixed_update_control_failed:{exception.GetType().Name}");
             StopSingleMotionTrial($"fixed_update_control_failed:{exception.GetType().Name}");
             StopSchedule($"fixed_update_control_failed:{exception.GetType().Name}");
@@ -642,6 +729,7 @@ public sealed partial class Plugin : BasePlugin
                 StopSchedule("lease_released");
                 StopSingleMotionTrial("lease_released");
                 StopContinuousController("lease_released");
+                StopG1HeldSchedule("lease_released");
                 _freshRoundArm = null;
                 _leaseConnectionId = 0;
                 return CommandResult.AppliedResult("exclusive_control_lease_released");
@@ -665,6 +753,8 @@ public sealed partial class Plugin : BasePlugin
                 BridgeCommand.StopContinuousBotController => StopContinuousBotController(),
                 BridgeCommand.StartAttackZoneTrial => StartAttackZoneTrial(request.AttackZoneTarget),
                 BridgeCommand.StopAttackZoneTrial => StopAttackZoneTrial(),
+                BridgeCommand.StartG1HeldInputSchedule => StartG1HeldInputSchedule(),
+                BridgeCommand.StopG1HeldInputSchedule => StopG1HeldInputSchedule(),
                 _ => CommandResult.Rejected("unknown_semantic_command"),
             };
         }
@@ -749,7 +839,8 @@ public sealed partial class Plugin : BasePlugin
     {
         if (!RequireBackgroundControl(out var foregroundReason))
             return CommandResult.Rejected(foregroundReason);
-        if (_scheduleRunning || _singleMotionTrialRunning || _continuousControllerRunning)
+        if (_scheduleRunning || _singleMotionTrialRunning || _continuousControllerRunning ||
+            _g1HeldScheduleRunning)
             return CommandResult.Rejected("controlled_run_already_active");
         if (_freshRoundArm is not null)
             return CommandResult.Rejected("fresh_round_already_armed");
@@ -882,7 +973,7 @@ public sealed partial class Plugin : BasePlugin
             return CommandResult.Rejected(foregroundReason);
         if (_scheduleRunning)
             return CommandResult.Rejected("schedule_already_running");
-        if (_singleMotionTrialRunning || _continuousControllerRunning)
+        if (_singleMotionTrialRunning || _continuousControllerRunning || _g1HeldScheduleRunning)
             return CommandResult.Rejected("another_control_mode_already_running");
         if (!SameFloatBits(Time.fixedDeltaTime, BridgeScheduleContract.ExpectedFixedDeltaTime))
             return CommandResult.Rejected($"unexpected_fixed_delta_time:{Time.fixedDeltaTime:R}");
@@ -1011,6 +1102,8 @@ public sealed partial class Plugin : BasePlugin
             return CommandResult.Rejected("single_motion_trial_already_running");
         if (_continuousControllerRunning)
             return CommandResult.Rejected("continuous_bot_controller_already_running");
+        if (_g1HeldScheduleRunning)
+            return CommandResult.Rejected("g1_held_input_schedule_already_running");
         if (!SingleMotionTrialContract.TryGet(selectorName, out var selector))
             return CommandResult.Rejected("invalid_or_disallowed_selector");
         if (!SameFloatBits(Time.fixedDeltaTime, BridgeScheduleContract.ExpectedFixedDeltaTime))
@@ -1473,7 +1566,7 @@ public sealed partial class Plugin : BasePlugin
     {
         if (!RequireBackgroundControl(out var controlReason))
             return CommandResult.Rejected(controlReason);
-        if (_scheduleRunning || _singleMotionTrialRunning)
+        if (_scheduleRunning || _singleMotionTrialRunning || _g1HeldScheduleRunning)
             return CommandResult.Rejected("another_control_mode_already_running");
         if (_continuousControllerRunning)
             return CommandResult.Rejected("continuous_bot_controller_already_running");
@@ -1495,7 +1588,12 @@ public sealed partial class Plugin : BasePlugin
                 $"continuous_runtime_pairing_not_proven:{reason}",
                 measuredPairingPayload);
         }
-        if (scope.Input is null || !TryValidateContinuousMoveMap(scope.Input, out reason))
+        var controllerAttacks = ContinuousBotControllerContract.AttacksForRuntimeModel(
+            measuredPairing.Validation.RuntimeModel);
+        if (controllerAttacks is null || controllerAttacks.Length == 0)
+            return CommandResult.Rejected("continuous_runtime_attack_profile_not_available");
+        if (scope.Input is null ||
+            !TryValidateContinuousMoveMap(scope.Input, controllerAttacks, out reason))
             return CommandResult.Rejected(reason, measuredPairingPayload);
         if (scope.Input.hasPendingMove || scope.Input.hasPendingSpecial || scope.Input.hasPendingEStop)
             return CommandResult.Rejected("continuous_controller_initial_pending_command", measuredPairingPayload);
@@ -1530,6 +1628,7 @@ public sealed partial class Plugin : BasePlugin
         _continuousControllerInput = scope.Input;
         _continuousControllerInputPointer = NativePointer(scope.Input);
         _continuousControllerVelocity = Vector3.zero;
+        _continuousControllerNativeNeutralReassertions = 0;
         _continuousControllerFixedSubstep = 0;
         _continuousControllerTick = 0;
         _continuousControllerRoundTick = 0;
@@ -1541,11 +1640,15 @@ public sealed partial class Plugin : BasePlugin
         _continuousControllerRoundInactiveTick = -1;
         _continuousControllerRoundStartRequestIssued = false;
         _continuousControllerRoundStartRequestTick = -1;
+        _continuousControllerRuntimeModel = measuredPairing.Validation.RuntimeModel;
+        _continuousControllerAttacks = controllerAttacks;
         _continuousControllerNextAttackIndex = 0;
         _continuousControllerActionSequence = 0;
         _continuousControllerRecoverySequence = 0;
         _continuousControllerRecoveryEpisodeActive = false;
         _continuousControllerSettleUntilTick = ContinuousBotControllerContract.SettleTicks;
+        _continuousControllerTranslationSettleAxes =
+            ContinuousTranslationSettleAxes.Planar;
         _continuousControllerLastRecoveryRequestTick = int.MinValue;
         _continuousControllerStraightenIssued = false;
         _continuousControllerRecoveryStage = "inactive";
@@ -1565,9 +1668,15 @@ public sealed partial class Plugin : BasePlugin
             {
                 initial_active_round_required = true,
                 exact_private_sparring_bot_1_scope_proven = true,
-                exact_local_t800_proven = true,
-                exact_opponent_runtime_t800_proven = true,
-                opponent_semantic_robot_id_used_for_acceptance = false,
+                exact_homogeneous_supported_runtime_pair_proven = true,
+                runtime_model = _continuousControllerRuntimeModel,
+                recovery_mode = ContinuousBotControllerContract.RecoveryModeForRuntimeModel(
+                    _continuousControllerRuntimeModel),
+                semantic_robot_ids_used_for_acceptance = false,
+                attack_move_indices =
+                    _continuousControllerAttacks.Select(value => value.MoveIndex).ToArray(),
+                attack_move_names =
+                    _continuousControllerAttacks.Select(value => value.MoveName).ToArray(),
                 controller_has_finite_schedule = false,
                 attack_selection_provenance =
                     ContinuousBotControllerContract.AttackSelectionProvenance,
@@ -1747,6 +1856,13 @@ public sealed partial class Plugin : BasePlugin
 
         if (frame.LocalMotorShutdown)
         {
+            if (!ContinuousBotControllerContract.SupportsAutonomousRecovery(
+                    _continuousControllerRuntimeModel))
+            {
+                StopContinuousController(
+                    "unitree_g1_motor_shutdown_recovery_semantics_unproven_fail_closed");
+                return;
+            }
             InterruptContinuousAction("motor_shutdown_fault_preempted_action", frame);
             SetContinuousVelocity(frame.Input, Vector3.zero, "motor_shutdown_fault_neutral");
             _continuousControllerPhase = "round_active_motor_shutdown_fault";
@@ -1776,6 +1892,13 @@ public sealed partial class Plugin : BasePlugin
 
         if (frame.LocalFallen)
         {
+            if (!ContinuousBotControllerContract.SupportsAutonomousRecovery(
+                    _continuousControllerRuntimeModel))
+            {
+                StopContinuousController(
+                    "unitree_g1_fall_recovery_semantics_unproven_fail_closed");
+                return;
+            }
             InterruptContinuousAction("local_fall_recovery_preempted_action", frame);
             SetContinuousVelocity(frame.Input, Vector3.zero, "fall_recovery_neutral");
             _continuousControllerPhase = "round_active_recovery";
@@ -1791,6 +1914,8 @@ public sealed partial class Plugin : BasePlugin
             _continuousControllerSettleUntilTick = Math.Max(
                 _continuousControllerSettleUntilTick,
                 _continuousControllerTick + ContinuousBotControllerContract.SettleTicks);
+            _continuousControllerTranslationSettleAxes =
+                ContinuousTranslationSettleAxes.Planar;
             EmitContinuousEvent(
                 "continuous_recovery_lifecycle",
                 "local_upright_readiness_observed",
@@ -1828,29 +1953,82 @@ public sealed partial class Plugin : BasePlugin
             return;
         }
 
-        var attack = ContinuousBotControllerContract.Attacks[_continuousControllerNextAttackIndex];
+        if (_continuousControllerAttacks.Length == 0 ||
+            _continuousControllerNextAttackIndex < 0 ||
+            _continuousControllerNextAttackIndex >= _continuousControllerAttacks.Length)
+        {
+            StopContinuousController("continuous_runtime_attack_profile_lost");
+            return;
+        }
+        var attack = _continuousControllerAttacks[_continuousControllerNextAttackIndex];
         var locomotion = ContinuousBotControllerContract.DecideLocomotion(
             frame.Geometry,
             attack,
             frame.OpponentFalling || frame.OpponentFallen);
-        SetContinuousVelocity(
-            frame.Input,
-            new Vector3(locomotion.Forward, locomotion.Strafe, locomotion.Yaw),
-            locomotion.Reason);
-
-        if (locomotion.AttackWindow &&
-            _continuousControllerTick >= _continuousControllerSettleUntilTick &&
-            ContinuousLocalActionReady(frame))
+        var motionGate = ContinuousBotControllerContract.DecideAttackMotionGate(
+            locomotion.AttackWindow,
+            frame.Input.VelocityCommand.x,
+            frame.Input.VelocityCommand.y,
+            frame.Input.VelocityCommand.z,
+            frame.RuntimeModel,
+            _continuousControllerTranslationSettleAxes,
+            frame.LocalBaseLinearVelocity.x,
+            frame.LocalBaseLinearVelocity.y,
+            _continuousControllerTick,
+            _continuousControllerSettleUntilTick);
+        switch (motionGate)
         {
-            TryStartContinuousAttack(frame, attack);
-        }
-        else if (_continuousControllerTick < _continuousControllerSettleUntilTick)
-        {
-            _continuousControllerPhase = "round_active_settling";
-        }
-        else
-        {
-            _continuousControllerPhase = $"round_active_{locomotion.Reason}";
+            case ContinuousAttackMotionGate.Invalid:
+                StopContinuousController("continuous_attack_motion_gate_nonfinite");
+                return;
+            case ContinuousAttackMotionGate.Repositioning:
+                SetContinuousVelocity(
+                    frame.Input,
+                    new Vector3(locomotion.Forward, locomotion.Strafe, locomotion.Yaw),
+                    locomotion.Reason);
+                _continuousControllerPhase = $"round_active_{locomotion.Reason}";
+                break;
+            case ContinuousAttackMotionGate.ReleaseTranslationAndSettle:
+                var releasedTranslationAxes =
+                    ContinuousBotControllerContract.TranslationAxesForVelocity(
+                        frame.Input.VelocityCommand.x,
+                        frame.Input.VelocityCommand.y);
+                SetContinuousVelocity(
+                    frame.Input,
+                    Vector3.zero,
+                    "attack_window_translation_release");
+                _continuousControllerSettleUntilTick = Math.Max(
+                    _continuousControllerSettleUntilTick,
+                    _continuousControllerTick + ContinuousBotControllerContract.SettleTicks);
+                _continuousControllerTranslationSettleAxes = releasedTranslationAxes;
+                _continuousControllerPhase =
+                    "round_active_translation_settling_before_attack";
+                break;
+            case ContinuousAttackMotionGate.ReleaseYawAndAttack:
+                SetContinuousVelocity(
+                    frame.Input,
+                    Vector3.zero,
+                    "attack_edge_yaw_release");
+                if (_continuousControllerRunning && ContinuousLocalActionReady(frame))
+                    TryStartContinuousAttack(frame, attack);
+                else
+                    _continuousControllerPhase =
+                        "round_active_await_local_motion_readiness";
+                break;
+            case ContinuousAttackMotionGate.Settling:
+                SetContinuousVelocity(frame.Input, Vector3.zero, "attack_window_settling");
+                _continuousControllerPhase = "round_active_settling";
+                break;
+            case ContinuousAttackMotionGate.Ready:
+                SetContinuousVelocity(frame.Input, Vector3.zero, "attack_edge_neutral");
+                if (_continuousControllerRunning && ContinuousLocalActionReady(frame))
+                    TryStartContinuousAttack(frame, attack);
+                else
+                    _continuousControllerPhase = "round_active_await_local_motion_readiness";
+                break;
+            default:
+                StopContinuousController("continuous_attack_motion_gate_invalid");
+                return;
         }
 
         if (previousPhase.StartsWith("suspended", StringComparison.Ordinal) ||
@@ -1879,7 +2057,8 @@ public sealed partial class Plugin : BasePlugin
         if (!TryCaptureContinuousFrame(scope, measuredPairing, out var frame, out reason))
             return false;
         var input = frame.Input;
-        if (!TryValidateContinuousMoveMap(input, out reason))
+        if (_continuousControllerAttacks.Length == 0 ||
+            !TryValidateContinuousMoveMap(input, _continuousControllerAttacks, out reason))
             return false;
         if (input.hasPendingMove || input.hasPendingSpecial || input.hasPendingEStop)
         {
@@ -1905,6 +2084,8 @@ public sealed partial class Plugin : BasePlugin
         _continuousControllerRoundStartRequestTick = -1;
         _continuousControllerSettleUntilTick =
             _continuousControllerTick + ContinuousBotControllerContract.SettleTicks;
+        _continuousControllerTranslationSettleAxes =
+            ContinuousTranslationSettleAxes.Planar;
         _continuousControllerLastFrame = frame;
         _continuousControllerLastRoundMetrics = null;
         _continuousControllerStraightenIssued = false;
@@ -2136,6 +2317,8 @@ public sealed partial class Plugin : BasePlugin
         _continuousControllerRoundInactiveObserved = false;
         _continuousControllerRecoveryEpisodeActive = false;
         _attackZoneRecoveryReadyTicks = 0;
+        _continuousControllerRuntimeModel = null;
+        _continuousControllerAttacks = Array.Empty<ContinuousAttackProfile>();
     }
 
     private static bool TryValidateContinuousPairing(
@@ -2149,44 +2332,47 @@ public sealed partial class Plugin : BasePlugin
             reason = "continuous_pairing_slots_or_fighters_missing";
             return false;
         }
-        if (!ContinuousBotControllerContract.HasRequiredT800Pairing(
-                pairing.Validation.LocalSemanticT800,
-                pairing.Validation.LocalExactT800BoneSignature,
-                pairing.Validation.OpponentExactT800BoneSignature))
+        if (!ContinuousBotControllerContract.HasRequiredRuntimePairing(
+                pairing.Validation.ExactSupportedRuntimePairing,
+                pairing.Validation.RuntimeModel))
         {
-            reason = !pairing.Validation.LocalSemanticT800
-                ? "continuous_local_semantic_robot_id_not_exact_t800"
-                : !pairing.Validation.LocalExactT800BoneSignature
-                    ? "continuous_local_runtime_t800_signature_not_exact"
-                    : "continuous_opponent_runtime_t800_signature_not_exact";
+            reason = $"continuous_exact_supported_runtime_pairing_not_proven:{pairing.Validation.Reason}";
             return false;
         }
 
+        var local = pairing.LocalFighter;
         var opponent = pairing.OpponentFighter;
-        if (string.IsNullOrWhiteSpace(opponent.RuntimeObjectName))
+        if (string.IsNullOrWhiteSpace(local.RuntimeObjectName) ||
+            string.IsNullOrWhiteSpace(opponent.RuntimeObjectName))
         {
-            reason = "continuous_opponent_runtime_object_name_missing";
+            reason = "continuous_runtime_object_name_missing";
             return false;
         }
-        if (opponent.BoneNames is null || opponent.BoneNames.Count == 0 ||
+        if (local.BoneNames is null || local.BoneNames.Count == 0 ||
+            local.BoneNames.Any(string.IsNullOrWhiteSpace) ||
+            opponent.BoneNames is null || opponent.BoneNames.Count == 0 ||
             opponent.BoneNames.Any(string.IsNullOrWhiteSpace))
         {
-            reason = "continuous_opponent_runtime_bone_identity_missing_or_nonunique";
+            reason = "continuous_runtime_bone_identity_missing_or_nonunique";
             return false;
         }
-        if (opponent.BoneNames.Distinct(StringComparer.Ordinal).Count() !=
-            opponent.BoneNames.Count)
+        if (local.BoneNames.Distinct(StringComparer.Ordinal).Count() !=
+                local.BoneNames.Count ||
+            opponent.BoneNames.Distinct(StringComparer.Ordinal).Count() !=
+                opponent.BoneNames.Count)
         {
-            reason = "continuous_opponent_runtime_bone_identity_nonunique";
+            reason = "continuous_runtime_bone_identity_nonunique";
             return false;
         }
 
-        reason = "continuous_exact_runtime_t800_pairing_proven_with_opponent_semantic_id_non_authoritative";
+        reason =
+            $"continuous_exact_runtime_{pairing.Validation.RuntimeModel}_pairing_proven_semantic_ids_non_authoritative";
         return true;
     }
 
     private static bool TryValidateContinuousMoveMap(
         RobotInputController input,
+        IReadOnlyList<ContinuousAttackProfile> attacks,
         out string reason)
     {
         reason = string.Empty;
@@ -2196,7 +2382,12 @@ public sealed partial class Plugin : BasePlugin
             reason = "continuous_local_robot_config_missing";
             return false;
         }
-        foreach (var attack in ContinuousBotControllerContract.Attacks)
+        if (attacks.Count == 0)
+        {
+            reason = "continuous_runtime_attack_profile_empty";
+            return false;
+        }
+        foreach (var attack in attacks)
         {
             var clip = config.GetMove(attack.MoveIndex);
             if (clip is null ||
@@ -2209,7 +2400,7 @@ public sealed partial class Plugin : BasePlugin
         return true;
     }
 
-    private static bool TryCaptureContinuousFrame(
+    private bool TryCaptureContinuousFrame(
         PrivateAiContext scope,
         MeasuredPairing pairing,
         out ContinuousFrame frame,
@@ -2218,6 +2409,15 @@ public sealed partial class Plugin : BasePlugin
         frame = null!;
         if (!TryValidateContinuousPairing(pairing, out reason))
             return false;
+        if (_continuousControllerRuntimeModel is not null &&
+            !string.Equals(
+                pairing.Validation.RuntimeModel,
+                _continuousControllerRuntimeModel,
+                StringComparison.Ordinal))
+        {
+            reason = "continuous_runtime_model_changed";
+            return false;
+        }
         var fighters = scope.Coordinator.Fighters;
         var input = scope.Input;
         if (fighters is null || fighters.Length != 2 ||
@@ -2255,10 +2455,18 @@ public sealed partial class Plugin : BasePlugin
         var localAngularVelocity = localRobot.RootAngularVelocity;
         var opponentLinearVelocity = opponentRobot.RootLinearVelocity;
         var opponentAngularVelocity = opponentRobot.RootAngularVelocity;
+        if (!localRobot.TryGetBaseVelocityLocal(
+                out var localBaseAngularVelocity,
+                out var localBaseLinearVelocity))
+        {
+            reason = "continuous_local_base_velocity_unavailable";
+            return false;
+        }
         if (!Finite(localPosition) || !Finite(opponentPosition) ||
             !Finite(localRotation) || !Finite(opponentRotation) ||
             !Finite(localForward) || !Finite(opponentForward) ||
             !Finite(localLinearVelocity) || !Finite(localAngularVelocity) ||
+            !Finite(localBaseLinearVelocity) || !Finite(localBaseAngularVelocity) ||
             !Finite(opponentLinearVelocity) || !Finite(opponentAngularVelocity) ||
             !ContinuousBotControllerContract.TryComputePlanarGeometry(
                 localPosition.x,
@@ -2281,12 +2489,15 @@ public sealed partial class Plugin : BasePlugin
         var opponentBoneSignature = HashText(string.Join("\n", opponent.BoneNames!));
         var opponentRuntimeIdentity = HashText(
             $"{opponent.RuntimeObjectName}\n{opponentBoneSignature}");
-        var opponentRuntimeIsT800 = pairing.Validation.OpponentExactT800BoneSignature;
-        var opponentSemanticDeclaresT800 = pairing.Validation.OpponentSemanticT800;
+        var runtimeModel = pairing.Validation.RuntimeModel!;
+        var localSemanticRuntimeConsistency =
+            ContinuousBotControllerContract.ClassifySemanticRuntimeConsistency(
+                local.SemanticRobotId,
+                runtimeModel);
         var semanticRuntimeConsistency =
             ContinuousBotControllerContract.ClassifySemanticRuntimeConsistency(
-                opponentSemanticDeclaresT800,
-                opponentRuntimeIsT800);
+                opponent.SemanticRobotId,
+                runtimeModel);
 
         var round = scope.Round;
         var cleanHits = round?.CleanHits;
@@ -2302,10 +2513,13 @@ public sealed partial class Plugin : BasePlugin
             input,
             localRobot,
             opponentRobot,
+            runtimeModel,
             local.SemanticRobotId,
             local.RuntimeObjectName!,
             local.BoneNames!.Count,
             localBoneSignature,
+            localSemanticRuntimeConsistency.Mismatch,
+            localSemanticRuntimeConsistency.Classification,
             opponent.SemanticRobotId,
             opponent.RuntimeObjectName!,
             opponent.BoneNames!.Count,
@@ -2321,6 +2535,8 @@ public sealed partial class Plugin : BasePlugin
             opponentForward,
             localLinearVelocity,
             localAngularVelocity,
+            localBaseLinearVelocity,
+            localBaseAngularVelocity,
             opponentLinearVelocity,
             opponentAngularVelocity,
             geometry,
@@ -2441,9 +2657,11 @@ public sealed partial class Plugin : BasePlugin
                 ContinuousActionDetail("local_motion_completion_and_readiness_observed"));
             _continuousControllerNextAttackIndex =
                 (_continuousControllerNextAttackIndex + 1) %
-                ContinuousBotControllerContract.Attacks.Length;
+                _continuousControllerAttacks.Length;
             _continuousControllerSettleUntilTick =
                 _continuousControllerTick + ContinuousBotControllerContract.SettleTicks;
+            _continuousControllerTranslationSettleAxes =
+                ContinuousTranslationSettleAxes.Planar;
             ClearContinuousActionState();
             return true;
         }
@@ -2607,6 +2825,13 @@ public sealed partial class Plugin : BasePlugin
 
     private void DriveContinuousRecovery(ContinuousFrame frame)
     {
+        if (!ContinuousBotControllerContract.SupportsAutonomousRecovery(
+                _continuousControllerRuntimeModel))
+        {
+            StopContinuousController(
+                "unitree_g1_fall_recovery_semantics_unproven_fail_closed");
+            return;
+        }
         if (!_continuousControllerRecoveryEpisodeActive)
         {
             _continuousControllerRecoveryEpisodeActive = true;
@@ -2706,6 +2931,13 @@ public sealed partial class Plugin : BasePlugin
 
     private void DriveContinuousFaultEStopCycle(ContinuousFrame frame)
     {
+        if (!ContinuousBotControllerContract.SupportsAutonomousRecovery(
+                _continuousControllerRuntimeModel))
+        {
+            StopContinuousController(
+                "unitree_g1_motor_shutdown_recovery_semantics_unproven_fail_closed");
+            return;
+        }
         var straightenIssuedOnFaultEntry =
             ContinuousBotControllerContract.ResolveStraightenIssuedOnFaultEntry(
                 _continuousControllerRecoveryEpisodeActive,
@@ -3025,8 +3257,12 @@ public sealed partial class Plugin : BasePlugin
                 active_attack = _continuousControllerActiveAttack is null
                     ? null
                     : ContinuousAttackProfilePayload(_continuousControllerActiveAttack),
-                next_attack = ContinuousAttackProfilePayload(
-                    ContinuousBotControllerContract.Attacks[_continuousControllerNextAttackIndex]),
+                next_attack = _continuousControllerAttacks.Length == 0 ||
+                              _continuousControllerNextAttackIndex < 0 ||
+                              _continuousControllerNextAttackIndex >= _continuousControllerAttacks.Length
+                    ? null
+                    : ContinuousAttackProfilePayload(
+                        _continuousControllerAttacks[_continuousControllerNextAttackIndex]),
             });
     }
 
@@ -3084,6 +3320,14 @@ public sealed partial class Plugin : BasePlugin
                     ContinuousBotControllerContract.AttackSelectionProvenance,
                 static_impact_timing_provenance =
                     ContinuousBotControllerContract.StaticImpactTimingProvenance,
+                translation_settle_provenance =
+                    ContinuousBotControllerContract.TranslationSettleProvenance,
+                translation_release_minimum_dwell_rule =
+                    ContinuousBotControllerContract.TranslationReleaseMinimumDwellRule,
+                yaw_attack_preemption_rule =
+                    ContinuousBotControllerContract.YawAttackPreemptionRule,
+                move_profile_binding_rule =
+                    ContinuousBotControllerContract.MoveProfileBindingRule,
                 round_restart_limitation =
                     ContinuousBotControllerContract.RoundRestartLimitation,
                 recovery_guard_provenance =
@@ -3094,7 +3338,10 @@ public sealed partial class Plugin : BasePlugin
                 straighten_guard = ContinuousBotControllerContract.StraightenGuard,
                 opponent_runtime_requirement =
                     ContinuousBotControllerContract.OpponentRuntimeRequirement,
+                recovery_mode = ContinuousBotControllerContract.RecoveryModeForRuntimeModel(
+                    _continuousControllerRuntimeModel),
                 continuous_controller_run_id = _continuousControllerRunId,
+                runtime_model = _continuousControllerRuntimeModel,
                 controller_phase = _continuousControllerPhase,
                 controller_reason = reason,
                 round_sequence = _continuousControllerRoundSequence,
@@ -3136,14 +3383,27 @@ public sealed partial class Plugin : BasePlugin
     {
         local_identity = new
         {
+            runtime_model = frame.RuntimeModel,
             semantic_robot_id = frame.LocalSemanticRobotId,
             runtime_object_name = frame.LocalRuntimeObjectName,
             runtime_bone_count = frame.LocalBoneCount,
             runtime_bone_signature_sha256 = frame.LocalBoneSignatureSha256,
-            exact_local_t800_proven = true,
+            exact_local_supported_runtime_proven = true,
+            exact_local_t800_proven = string.Equals(
+                frame.RuntimeModel,
+                BridgePairingContract.T800RobotId,
+                StringComparison.Ordinal),
+            exact_local_g1_proven = string.Equals(
+                frame.RuntimeModel,
+                BridgePairingContract.G1RobotId,
+                StringComparison.Ordinal),
+            semantic_runtime_mismatch = frame.LocalSemanticRuntimeMismatch,
+            semantic_runtime_consistency = frame.LocalSemanticRuntimeConsistency,
+            semantic_robot_id_used_for_acceptance = false,
         },
         opponent_identity = new
         {
+            runtime_model = frame.RuntimeModel,
             semantic_robot_id_untrusted_for_runtime_acceptance = frame.OpponentSemanticRobotId,
             runtime_object_name = frame.OpponentRuntimeObjectName,
             runtime_bone_count = frame.OpponentBoneCount,
@@ -3195,6 +3455,18 @@ public sealed partial class Plugin : BasePlugin
                 frame.LocalAngularVelocity.x,
                 frame.LocalAngularVelocity.y,
                 frame.LocalAngularVelocity.z,
+            },
+            base_linear_velocity_local_xyz_m_s = new[]
+            {
+                frame.LocalBaseLinearVelocity.x,
+                frame.LocalBaseLinearVelocity.y,
+                frame.LocalBaseLinearVelocity.z,
+            },
+            base_angular_velocity_local_xyz_rad_s = new[]
+            {
+                frame.LocalBaseAngularVelocity.x,
+                frame.LocalBaseAngularVelocity.y,
+                frame.LocalBaseAngularVelocity.z,
             },
         },
         opponent_root = new
@@ -3415,6 +3687,14 @@ public sealed partial class Plugin : BasePlugin
 
     internal void OnRobotInputLateUpdatePrefix(RobotInputController input)
     {
+        if (_g1HeldScheduleRunning &&
+            _g1HeldScheduleInputPointer != IntPtr.Zero &&
+            NativePointer(input) == _g1HeldScheduleInputPointer)
+        {
+            OnG1HeldInputLateUpdatePrefix(input);
+            return;
+        }
+
         if (_continuousControllerRunning &&
             _continuousControllerInputPointer != IntPtr.Zero &&
             NativePointer(input) == _continuousControllerInputPointer)
@@ -3490,6 +3770,16 @@ public sealed partial class Plugin : BasePlugin
         catch (Exception exception)
         {
             StopSchedule($"late_update_control_failed:{exception.GetType().Name}");
+        }
+    }
+
+    internal void OnRobotInputLateUpdatePostfix(RobotInputController input)
+    {
+        if (_g1HeldScheduleRunning &&
+            _g1HeldScheduleInputPointer != IntPtr.Zero &&
+            NativePointer(input) == _g1HeldScheduleInputPointer)
+        {
+            OnG1HeldInputLateUpdatePostfix(input);
         }
     }
 
@@ -3582,11 +3872,82 @@ public sealed partial class Plugin : BasePlugin
                     roundInactive: false);
                 return;
             }
-            if (!VelocityEquals(input.VelocityCommand, _continuousControllerVelocity) ||
-                !SetVelocityExact(input, _continuousControllerVelocity))
+            var observedVelocity = input.VelocityCommand;
+            var velocityBoundary = ContinuousBotControllerContract.DecideVelocityBoundary(
+                observedVelocity.x,
+                observedVelocity.y,
+                observedVelocity.z,
+                _continuousControllerVelocity.x,
+                _continuousControllerVelocity.y,
+                _continuousControllerVelocity.z);
+            if (velocityBoundary is ContinuousVelocityBoundaryDecision.Invalid or
+                ContinuousVelocityBoundaryDecision.RejectUnownedNonNeutral)
             {
-                StopContinuousController("continuous_velocity_mismatch_at_late_update_boundary");
+                EmitContinuousEvent(
+                    "continuous_velocity_lifecycle",
+                    velocityBoundary == ContinuousVelocityBoundaryDecision.Invalid
+                        ? "nonfinite_velocity_at_late_update_boundary"
+                        : "unowned_non_neutral_velocity_at_late_update_boundary",
+                    _continuousControllerLastFrame,
+                    new
+                    {
+                        lifecycle_stage = "late_update_velocity_boundary_rejected",
+                        decision = velocityBoundary.ToString(),
+                        observed_velocity_command_xyz = new[]
+                        {
+                            observedVelocity.x,
+                            observedVelocity.y,
+                            observedVelocity.z,
+                        },
+                        expected_velocity_command_xyz = new[]
+                        {
+                            _continuousControllerVelocity.x,
+                            _continuousControllerVelocity.y,
+                            _continuousControllerVelocity.z,
+                        },
+                    });
+                StopContinuousController(
+                    velocityBoundary == ContinuousVelocityBoundaryDecision.Invalid
+                        ? "continuous_nonfinite_velocity_at_late_update_boundary"
+                        : "continuous_unowned_non_neutral_velocity_at_late_update_boundary");
                 return;
+            }
+            if (!SetVelocityExact(input, _continuousControllerVelocity))
+            {
+                StopContinuousController("continuous_velocity_reassertion_failed_at_late_update_boundary");
+                return;
+            }
+            if (velocityBoundary ==
+                ContinuousVelocityBoundaryDecision.ReassertNativeNeutralOverwrite)
+            {
+                _continuousControllerNativeNeutralReassertions++;
+                if (_continuousControllerNativeNeutralReassertions == 1 ||
+                    _continuousControllerNativeNeutralReassertions %
+                    ContinuousBotControllerContract.ControlRateHz == 0)
+                {
+                    EmitContinuousEvent(
+                        "continuous_velocity_lifecycle",
+                        "native_neutral_overwrite_reasserted_at_late_update_boundary",
+                        _continuousControllerLastFrame,
+                        new
+                        {
+                            lifecycle_stage = "held_velocity_reasserted",
+                            native_neutral_reassertion_count =
+                                _continuousControllerNativeNeutralReassertions,
+                            observed_velocity_command_xyz = new[]
+                            {
+                                observedVelocity.x,
+                                observedVelocity.y,
+                                observedVelocity.z,
+                            },
+                            reasserted_velocity_command_xyz = new[]
+                            {
+                                _continuousControllerVelocity.x,
+                                _continuousControllerVelocity.y,
+                                _continuousControllerVelocity.z,
+                            },
+                        });
+                }
             }
 
             if (_continuousControllerMoveAwaitingSend is not null)
@@ -3673,6 +4034,13 @@ public sealed partial class Plugin : BasePlugin
     internal void OnSendVelocityCommandPrefix(RobotInputController input)
     {
         InvalidateFreshRoundArmFromVelocityRequest(input);
+        if (_g1HeldScheduleRunning &&
+            _g1HeldScheduleInputPointer != IntPtr.Zero &&
+            NativePointer(input) == _g1HeldScheduleInputPointer)
+        {
+            OnG1HeldVelocityPrefix(input);
+            return;
+        }
         if (_continuousControllerRunning &&
             _continuousControllerInputPointer != IntPtr.Zero &&
             NativePointer(input) == _continuousControllerInputPointer)
@@ -3811,6 +4179,15 @@ public sealed partial class Plugin : BasePlugin
 
     internal void OnSendVelocityCommandPostfix(RobotInputController input)
     {
+        if (_g1HeldScheduleRunning &&
+            _g1VelocityInvocationObserved &&
+            _g1HeldScheduleInputPointer != IntPtr.Zero &&
+            NativePointer(input) == _g1HeldScheduleInputPointer)
+        {
+            OnG1HeldVelocityPostfix(input);
+            return;
+        }
+
         if (_continuousControllerRunning &&
             _continuousControllerVelocityInvocationObserved &&
             _continuousControllerInputPointer != IntPtr.Zero &&
@@ -3904,6 +4281,16 @@ public sealed partial class Plugin : BasePlugin
 
     internal void OnSendVelocityCommandFailure(RobotInputController input, Exception exception)
     {
+        if (_g1HeldScheduleRunning &&
+            _g1VelocityInvocationObserved &&
+            _g1HeldScheduleInputPointer != IntPtr.Zero &&
+            NativePointer(input) == _g1HeldScheduleInputPointer)
+        {
+            _g1VelocityInvocationObserved = false;
+            StopG1HeldSchedule($"g1_velocity_send_failed:{exception.GetType().Name}");
+            return;
+        }
+
         if (_continuousControllerRunning &&
             _continuousControllerVelocityInvocationObserved &&
             _continuousControllerInputPointer != IntPtr.Zero &&
@@ -3936,6 +4323,12 @@ public sealed partial class Plugin : BasePlugin
     internal bool OnSendMoveEventPrefix(RobotInputController input)
     {
         InvalidateFreshRoundArmFromMoveRequest(input);
+        if (_g1HeldScheduleRunning &&
+            _g1HeldScheduleInputPointer != IntPtr.Zero &&
+            NativePointer(input) == _g1HeldScheduleInputPointer)
+        {
+            return OnG1HeldMovePrefix(input);
+        }
         if (_continuousControllerRunning &&
             _continuousControllerInputPointer != IntPtr.Zero &&
             NativePointer(input) == _continuousControllerInputPointer)
@@ -4111,6 +4504,14 @@ public sealed partial class Plugin : BasePlugin
 
     internal void OnSendMoveEventPostfix(RobotInputController input)
     {
+        if (_g1HeldScheduleRunning &&
+            _g1HeldScheduleInputPointer != IntPtr.Zero &&
+            NativePointer(input) == _g1HeldScheduleInputPointer)
+        {
+            OnG1HeldMovePostfix(input);
+            return;
+        }
+
         if (_continuousControllerRunning &&
             _continuousControllerMoveInvocationObserved &&
             _continuousControllerMoveAwaitingSend is not null &&
@@ -4174,6 +4575,13 @@ public sealed partial class Plugin : BasePlugin
 
     internal void OnSendMoveEventFailure(RobotInputController input, Exception exception)
     {
+        if (_g1HeldScheduleRunning &&
+            _g1HeldScheduleInputPointer != IntPtr.Zero &&
+            NativePointer(input) == _g1HeldScheduleInputPointer)
+        {
+            OnG1HeldMoveFailure(input, exception);
+            return;
+        }
         if (_continuousControllerRunning &&
             _continuousControllerMoveInvocationObserved &&
             _continuousControllerInputPointer != IntPtr.Zero &&
@@ -4204,6 +4612,8 @@ public sealed partial class Plugin : BasePlugin
     internal bool OnSendSpecialEventPrefix(RobotInputController input)
     {
         InvalidateFreshRoundArmFromUnexpectedRequest(input, "special");
+        if (RejectUnexpectedG1SpecialOrEStop(input, "special"))
+            return false;
         if (_singleMotionTrialRunning &&
             _singleMotionTrialInputPointer != IntPtr.Zero &&
             NativePointer(input) == _singleMotionTrialInputPointer)
@@ -4334,6 +4744,8 @@ public sealed partial class Plugin : BasePlugin
     internal bool OnSendEStopTogglePrefix(RobotInputController input)
     {
         InvalidateFreshRoundArmFromUnexpectedRequest(input, "estop");
+        if (RejectUnexpectedG1SpecialOrEStop(input, "estop"))
+            return false;
         if (_singleMotionTrialRunning &&
             _singleMotionTrialInputPointer != IntPtr.Zero &&
             NativePointer(input) == _singleMotionTrialInputPointer)
@@ -4705,6 +5117,16 @@ public sealed partial class Plugin : BasePlugin
                     ContinuousBotControllerContract.AttackSelectionProvenance ||
                 root.GetProperty("static_impact_timing_provenance").GetString() !=
                     ContinuousBotControllerContract.StaticImpactTimingProvenance ||
+                root.GetProperty("translation_settle_provenance").GetString() !=
+                    ContinuousBotControllerContract.TranslationSettleProvenance ||
+                root.GetProperty("translation_release_minimum_dwell_rule").GetString() !=
+                    ContinuousBotControllerContract.TranslationReleaseMinimumDwellRule ||
+                root.GetProperty("yaw_attack_preemption_rule").GetString() !=
+                    ContinuousBotControllerContract.YawAttackPreemptionRule ||
+                root.GetProperty("move_profile_binding_rule").GetString() !=
+                    ContinuousBotControllerContract.MoveProfileBindingRule ||
+                root.GetProperty("sharedassets0_sha256").GetString() !=
+                    ContinuousBotControllerContract.SharedAssets0Sha256 ||
                 root.GetProperty("round_restart_limitation").GetString() !=
                     ContinuousBotControllerContract.RoundRestartLimitation ||
                 root.GetProperty("round_restart_static_evidence").GetString() !=
@@ -4717,8 +5139,12 @@ public sealed partial class Plugin : BasePlugin
                     ContinuousBotControllerContract.DampenGuard ||
                 root.GetProperty("straighten_guard").GetString() !=
                     ContinuousBotControllerContract.StraightenGuard ||
-                root.GetProperty("opponent_runtime_requirement").GetString() !=
-                    ContinuousBotControllerContract.OpponentRuntimeRequirement ||
+                 root.GetProperty("opponent_runtime_requirement").GetString() !=
+                     ContinuousBotControllerContract.OpponentRuntimeRequirement ||
+                 root.GetProperty("runtime_recovery_modes").GetProperty("t800").GetString() !=
+                     ContinuousBotControllerContract.T800RecoveryMode ||
+                 root.GetProperty("runtime_recovery_modes").GetProperty("g1").GetString() !=
+                     ContinuousBotControllerContract.G1RecoveryMode ||
                 !SameFloatBits(
                     root.GetProperty("facing_deadband_factor").GetSingle(),
                     ContinuousBotControllerContract.FacingDeadbandFactor) ||
@@ -4731,6 +5157,26 @@ public sealed partial class Plugin : BasePlugin
                 !SameFloatBits(
                     root.GetProperty("engage_yaw_command").GetSingle(),
                     ContinuousBotControllerContract.EngageYawCommand) ||
+                !SameFloatBits(
+                    root.GetProperty(
+                        "g1_locomotion_transition_velocity_threshold_m_s").GetSingle(),
+                    ContinuousBotControllerContract
+                        .G1LocomotionTransitionVelocityThresholdMetersPerSecond) ||
+                !SameFloatBits(
+                    root.GetProperty(
+                        "g1_locomotion_transition_yaw_threshold_rad_s").GetSingle(),
+                    ContinuousBotControllerContract
+                        .G1LocomotionTransitionYawThresholdRadiansPerSecond) ||
+                !SameFloatBits(
+                    root.GetProperty(
+                        "t800_locomotion_transition_velocity_threshold_m_s").GetSingle(),
+                    ContinuousBotControllerContract
+                        .T800LocomotionTransitionVelocityThresholdMetersPerSecond) ||
+                !SameFloatBits(
+                    root.GetProperty(
+                        "t800_locomotion_transition_yaw_threshold_rad_s").GetSingle(),
+                    ContinuousBotControllerContract
+                        .T800LocomotionTransitionYawThresholdRadiansPerSecond) ||
                 root.GetProperty("unity_fixed_rate_hz").GetInt32() !=
                     ContinuousBotControllerContract.UnityFixedRateHz ||
                 root.GetProperty("control_rate_hz").GetInt32() !=
@@ -4747,57 +5193,16 @@ public sealed partial class Plugin : BasePlugin
                 return false;
             }
 
-            var manifestAttacks = root.GetProperty("attacks").EnumerateArray().ToArray();
-            if (manifestAttacks.Length != ContinuousBotControllerContract.Attacks.Length ||
-                ContinuousBotControllerContract.Attacks.Select(value => value.MoveIndex)
-                    .Distinct().Count() != manifestAttacks.Length)
+            if (!ValidateContinuousAttackManifest(
+                    root,
+                    "attacks",
+                    ContinuousBotControllerContract.Attacks) ||
+                !ValidateContinuousAttackManifest(
+                    root,
+                    "g1_attacks",
+                    ContinuousBotControllerContract.G1Attacks))
             {
                 return false;
-            }
-            for (var attackIndex = 0; attackIndex < manifestAttacks.Length; attackIndex++)
-            {
-                var manifest = manifestAttacks[attackIndex];
-                var attack = ContinuousBotControllerContract.Attacks[attackIndex];
-                if (manifest.GetProperty("move_index").GetInt32() != attack.MoveIndex ||
-                    manifest.GetProperty("move_name").GetString() != attack.MoveName ||
-                    manifest.GetProperty("display_name").GetString() != attack.DisplayName ||
-                    manifest.GetProperty("serialized_asset_sha256").GetString() !=
-                        attack.SerializedAssetSha256 ||
-                    !SameFloatBits(
-                        manifest.GetProperty("maximum_distance_m").GetSingle(),
-                        attack.MaximumDistanceMeters) ||
-                    !SameFloatBits(
-                        manifest.GetProperty("maximum_abs_bearing_degrees").GetSingle(),
-                        attack.MaximumAbsBearingDegrees))
-                {
-                    return false;
-                }
-
-                var manifestImpacts = manifest.GetProperty("static_impact_events")
-                    .EnumerateArray().ToArray();
-                if (manifestImpacts.Length != attack.StaticImpactEvents.Count)
-                    return false;
-                for (var impactIndex = 0; impactIndex < manifestImpacts.Length; impactIndex++)
-                {
-                    var impactManifest = manifestImpacts[impactIndex];
-                    var impact = attack.StaticImpactEvents[impactIndex];
-                    if (!SameFloatBits(
-                            impactManifest.GetProperty("impact_time_s").GetSingle(),
-                            impact.ImpactTimeSeconds) ||
-                        !SameFloatBits(
-                            impactManifest.GetProperty("lead_time_s").GetSingle(),
-                            impact.LeadTimeSeconds) ||
-                        !SameFloatBits(
-                            impactManifest.GetProperty("release_time_s").GetSingle(),
-                            impact.ReleaseTimeSeconds) ||
-                        !SameFloatBits(
-                            impactManifest.GetProperty("gain_boost").GetSingle(),
-                            impact.GainBoost) ||
-                        impactManifest.GetProperty("limb").GetInt32() != impact.Limb)
-                    {
-                        return false;
-                    }
-                }
             }
             return true;
         }
@@ -4805,6 +5210,65 @@ public sealed partial class Plugin : BasePlugin
         {
             return false;
         }
+    }
+
+    private static bool ValidateContinuousAttackManifest(
+        JsonElement root,
+        string propertyName,
+        IReadOnlyList<ContinuousAttackProfile> attacks)
+    {
+        var manifestAttacks = root.GetProperty(propertyName).EnumerateArray().ToArray();
+        if (manifestAttacks.Length != attacks.Count ||
+            attacks.Select(value => value.MoveIndex).Distinct().Count() != manifestAttacks.Length)
+        {
+            return false;
+        }
+        for (var attackIndex = 0; attackIndex < manifestAttacks.Length; attackIndex++)
+        {
+            var manifest = manifestAttacks[attackIndex];
+            var attack = attacks[attackIndex];
+            if (manifest.GetProperty("move_index").GetInt32() != attack.MoveIndex ||
+                manifest.GetProperty("move_name").GetString() != attack.MoveName ||
+                manifest.GetProperty("display_name").GetString() != attack.DisplayName ||
+                manifest.GetProperty("serialized_asset_sha256").GetString() !=
+                    attack.SerializedAssetSha256 ||
+                !SameFloatBits(
+                    manifest.GetProperty("maximum_distance_m").GetSingle(),
+                    attack.MaximumDistanceMeters) ||
+                !SameFloatBits(
+                    manifest.GetProperty("maximum_abs_bearing_degrees").GetSingle(),
+                    attack.MaximumAbsBearingDegrees))
+            {
+                return false;
+            }
+
+            var manifestImpacts = manifest.GetProperty("static_impact_events")
+                .EnumerateArray().ToArray();
+            if (manifestImpacts.Length != attack.StaticImpactEvents.Count)
+                return false;
+            for (var impactIndex = 0; impactIndex < manifestImpacts.Length; impactIndex++)
+            {
+                var impactManifest = manifestImpacts[impactIndex];
+                var impact = attack.StaticImpactEvents[impactIndex];
+                if (!SameFloatBits(
+                        impactManifest.GetProperty("impact_time_s").GetSingle(),
+                        impact.ImpactTimeSeconds) ||
+                    !SameFloatBits(
+                        impactManifest.GetProperty("lead_time_s").GetSingle(),
+                        impact.LeadTimeSeconds) ||
+                    !SameFloatBits(
+                        impactManifest.GetProperty("release_time_s").GetSingle(),
+                        impact.ReleaseTimeSeconds) ||
+                    !SameFloatBits(
+                        impactManifest.GetProperty("gain_boost").GetSingle(),
+                        impact.GainBoost) ||
+                    impactManifest.GetProperty("limb").GetInt32() != impact.Limb)
+                {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private static bool HasOwnedPatch(Type declaringType, string methodName)
@@ -5376,6 +5840,31 @@ public sealed partial class Plugin : BasePlugin
         }
     }
 
+    internal void ObserveSoloRouteFindMatch(string? flow) =>
+        _soloRouteProofTracker.ObserveFindMatch(flow);
+
+    internal void ObserveSoloRouteConnectToArena(string? arenaId) =>
+        _soloRouteProofTracker.ObserveConnectToArena(arenaId);
+
+    internal void ObserveSoloRouteEnterChampionship(
+        string? arenaId,
+        string? endpointHost,
+        int endpointPort,
+        bool koth,
+        bool solo) =>
+        _soloRouteProofTracker.ObserveEnterChampionship(
+            arenaId,
+            endpointHost,
+            endpointPort,
+            koth,
+            solo);
+
+    internal void ObserveSoloRouteNetworkLifecycleChange(string reason) =>
+        _soloRouteProofTracker.InvalidateIfRuntimeSessionBound(reason);
+
+    private static void InvalidateSoloRoute(string reason) =>
+        Instance?._soloRouteProofTracker.InvalidateIfRuntimeSessionBound(reason);
+
     private static bool TryGetPrivateAiContext(
         bool requireActiveRound,
         out PrivateAiContext scope,
@@ -5400,37 +5889,39 @@ public sealed partial class Plugin : BasePlugin
             if (network is null || !network.IsConnected || !network.IsClient || network.IsServer)
             {
                 reason = "client_only_connected_network_session_not_proven";
+                InvalidateSoloRoute(reason);
                 return false;
             }
             if (context is null || !context.IsSolo)
             {
                 reason = "solo_context_not_proven";
+                InvalidateSoloRoute(reason);
                 return false;
             }
-            if (context.IsRanked || context.AutoFindMatch || string.IsNullOrWhiteSpace(context.ArenaID))
+            if (context.Mode != GameContext.SessionMode.Championship ||
+                context.IsKotH || context.IsRanked || context.AutoFindMatch ||
+                string.IsNullOrWhiteSpace(context.ArenaID))
             {
                 reason = "private_unranked_arena_identity_not_proven";
-                return false;
-            }
-            if (!TryReadMultiplayerSessionPrivate(out var sessionIsPrivate, out var sessionPrivacyReason) ||
-                !sessionIsPrivate)
-            {
-                reason = sessionPrivacyReason;
+                InvalidateSoloRoute(reason);
                 return false;
             }
             if (coordinator.IsRankedArena)
             {
                 reason = "ranked_coordinator_rejected";
+                InvalidateSoloRoute(reason);
                 return false;
             }
             if (coordinator.clientAiDifficultyLevel != 0)
             {
                 reason = "unexpected_sparring_bot_difficulty";
+                InvalidateSoloRoute(reason);
                 return false;
             }
             if (string.IsNullOrWhiteSpace(network.serverAddress) || network.port <= 0)
             {
                 reason = "network_endpoint_identity_not_proven";
+                InvalidateSoloRoute(reason);
                 return false;
             }
 
@@ -5445,6 +5936,7 @@ public sealed partial class Plugin : BasePlugin
             if (slotHasClient is null || slotHasClient.Length <= opponentSlot)
             {
                 reason = "opponent_client_occupancy_unknown";
+                InvalidateSoloRoute(reason);
                 return false;
             }
             if (slotHasClient[opponentSlot] ||
@@ -5455,6 +5947,30 @@ public sealed partial class Plugin : BasePlugin
                 coordinator.SparringBotNumber != 1)
             {
                 reason = "exact_sparring_bot_1_scope_not_proven";
+                InvalidateSoloRoute(reason);
+                return false;
+            }
+
+            var routeProof = Instance?._soloRouteProofTracker.SnapshotForRuntimeSession(
+                    context.ArenaID,
+                    context.ArenaIP,
+                    context.ArenaPort,
+                    network.serverAddress,
+                    network.port,
+                    NativePointer(network).ToInt64()) ??
+                SoloRouteProofSnapshot.Unavailable("solo_route_tracker_unavailable");
+            var privacyDecision = SoloRouteProofContract.EvaluateScope(
+                exactBotOneNoHumanProofEstablished:
+                    !slotHasClient[opponentSlot] &&
+                    (coordinator.clientHumanSlotMask & (1 << opponentSlot)) == 0 &&
+                    !coordinator.HumanInSlot(opponentSlot) &&
+                    coordinator.OpponentIsAI &&
+                    coordinator.SlotIsAI(opponentSlot) &&
+                    coordinator.SparringBotNumber == 1,
+                routeProof);
+            if (!privacyDecision.Allowed)
+            {
+                reason = privacyDecision.Reason;
                 return false;
             }
 
@@ -5512,7 +6028,7 @@ public sealed partial class Plugin : BasePlugin
                 network,
                 context,
                 round);
-            reason = "exact_sparring_bot_1_scope_proven";
+            reason = privacyDecision.Reason;
             return true;
         }
         catch (Exception exception)
@@ -5540,35 +6056,64 @@ public sealed partial class Plugin : BasePlugin
         _pipe?.Send(connectionId, state.Payload);
     }
 
-    private static bool TryReadMultiplayerSessionPrivate(
-        out bool isPrivate,
-        out string reason)
+    private void TryCaptureG1RuntimePolicyAssets()
     {
-        isPrivate = false;
-        try
+        if (_g1RuntimePolicyCapture.Captured ||
+            Time.frameCount < _nextG1RuntimePolicyCaptureFrame)
         {
-            var manager = UnityEngine.Object.FindFirstObjectByType<XRMultiplayer.SessionManager>();
-            if (manager is null)
-            {
-                reason = "multiplayer_session_manager_not_found";
-                return false;
-            }
-            var session = manager.currentSession;
-            if (session is null)
-            {
-                reason = "multiplayer_current_session_not_found";
-                return false;
-            }
-            isPrivate = session.IsPrivate;
-            reason = isPrivate
-                ? "multiplayer_session_private"
-                : "multiplayer_session_public_rejected";
-            return true;
+            return;
         }
-        catch (Exception exception)
+        _nextG1RuntimePolicyCaptureFrame = Time.frameCount + 60;
+
+        if (!TryVerifyExplicitIsolatedSession(out _))
         {
-            reason = $"multiplayer_session_privacy_probe_failed:{exception.GetType().Name}";
-            return false;
+            _g1RuntimePolicyCapture =
+                RuntimePolicyCaptureResult.Failed("isolated_spark_session_not_verified");
+            return;
+        }
+        if (!TryGetPrivateAiContext(
+                requireActiveRound: true,
+                out var scope,
+                out var scopeReason))
+        {
+            _g1RuntimePolicyCapture = RuntimePolicyCaptureResult.Failed(scopeReason);
+            return;
+        }
+
+        var pairing = ReadMeasuredPairing(scope.GameMenu);
+        if (!pairing.Validation.ExactG1VersusG1)
+        {
+            _g1RuntimePolicyCapture = RuntimePolicyCaptureResult.Failed(
+                $"exact_g1_pairing_required:{pairing.Validation.Reason}");
+            return;
+        }
+        if (scope.Input is null)
+        {
+            _g1RuntimePolicyCapture =
+                RuntimePolicyCaptureResult.Failed("local_input_controller_unavailable");
+            return;
+        }
+        var fighters = scope.Coordinator.Fighters;
+        if (fighters is null || fighters.Length < 2 ||
+            fighters[scope.LocalSlot] is null || fighters[scope.OpponentSlot] is null)
+        {
+            _g1RuntimePolicyCapture =
+                RuntimePolicyCaptureResult.Failed("exact_g1_fighters_unavailable");
+            return;
+        }
+
+        _g1RuntimePolicyCapture = G1RuntimePolicyCapture.Capture(
+            scope.Input,
+            fighters[scope.LocalSlot],
+            fighters[scope.OpponentSlot],
+            _gameAssemblySha256,
+            _metadataSha256,
+            _sharedAssets0Sha256);
+        if (_g1RuntimePolicyCapture.Captured)
+        {
+            Log.LogInfo(
+                "Captured active G1 runtime policy assets and metadata outside the source tree; " +
+                "only hashes and paths are exposed through the local bridge.");
         }
     }
 
@@ -5621,6 +6166,16 @@ public sealed partial class Plugin : BasePlugin
             continuous_controller_suspend_reason = _continuousControllerSuspendReason,
             continuous_controller_round_identity_sha256 =
                 _continuousControllerRoundIdentitySha256,
+            g1_held_schedule_running = _g1HeldScheduleRunning,
+            g1_held_schedule_authorized_while_background =
+                _g1HeldScheduleAuthorizedWhileBackground,
+            g1_held_schedule_run_id = _g1HeldScheduleRunId,
+            g1_held_schedule_fresh_round_request_id =
+                _g1HeldScheduleFreshRoundRequestId,
+            g1_held_schedule_round_identity_sha256 =
+                _g1HeldScheduleRoundIdentitySha256,
+            g1_held_schedule_tick = _g1HeldScheduleTick,
+            g1_held_schedule_client_fixed_substep = _g1HeldScheduleFixedSubstep,
             attack_zone_trial_running = _attackZoneTrialRunning,
             attack_zone_recovery_only_running = _attackZoneRecoveryOnlyRunning,
             attack_zone_recovery_ready_ticks = _attackZoneRecoveryReadyTicks,
@@ -5640,6 +6195,12 @@ public sealed partial class Plugin : BasePlugin
             home,
             private_ai = privateAi,
             measured_pairing = measuredPairing,
+            g1_runtime_policy_capture = new
+            {
+                captured = _g1RuntimePolicyCapture.Captured,
+                reason = _g1RuntimePolicyCapture.Reason,
+                payload = _g1RuntimePolicyCapture.Payload,
+            },
             foreground_known = foregroundKnown,
             rek_is_foreground = foregroundKnown ? rekForeground : (bool?)null,
             control = controlIdentity,
@@ -5664,6 +6225,7 @@ public sealed partial class Plugin : BasePlugin
             {
                 game_assembly_sha256 = _gameAssemblySha256,
                 global_metadata_sha256 = _metadataSha256,
+                sharedassets0_sha256 = _sharedAssets0Sha256,
                 plugin_sha256 = _pluginSha256,
                 plugin_version = PluginVersion,
             },
@@ -5679,6 +6241,12 @@ public sealed partial class Plugin : BasePlugin
             home,
             private_ai = privateAi,
             measured_pairing = measuredPairing,
+            g1_runtime_policy_capture = new
+            {
+                captured = _g1RuntimePolicyCapture.Captured,
+                reason = _g1RuntimePolicyCapture.Reason,
+                payload = _g1RuntimePolicyCapture.Payload,
+            },
             foreground = new
             {
                 known = foregroundKnown,
@@ -5735,6 +6303,75 @@ public sealed partial class Plugin : BasePlugin
                 fresh_round_request_id = _freshRoundArm?.RequestId,
                 fresh_round_invalid_reason = _freshRoundArm?.InvalidReason,
                 trial_isolation_patches_verified = _trialIsolationPatchesVerified,
+                g1_held_schedule_schema = G1HeldInputScheduleContract.Schema,
+                g1_held_schedule_id = G1HeldInputScheduleContract.ScheduleId,
+                g1_held_schedule_sha256 = G1HeldInputScheduleContract.ExpectedSha256,
+                g1_held_schedule_authority_scope =
+                    G1HeldInputScheduleContract.AuthorityScope,
+                g1_held_schedule_authority_caveat =
+                    G1HeldInputScheduleContract.AuthorityCaveat,
+                g1_held_schedule_required_isolation_proof =
+                    G1HeldInputScheduleContract.RequiredIsolationProof,
+                g1_held_schedule_pose_response_source =
+                    G1HeldInputScheduleContract.PoseResponseSource,
+                g1_held_schedule_unity_fixed_rate_hz =
+                    G1HeldInputScheduleContract.UnityFixedRateHz,
+                g1_held_schedule_rate_hz = G1HeldInputScheduleContract.ScheduleRateHz,
+                g1_held_schedule_fixed_substeps_per_tick =
+                    G1HeldInputScheduleContract.FixedSubstepsPerScheduleTick,
+                g1_held_schedule_duration_ticks =
+                    G1HeldInputScheduleContract.DurationScheduleTicks,
+                g1_held_schedule_kick_observation_ticks =
+                    G1HeldInputScheduleContract.KickObservationTicks,
+                g1_held_schedule_translation_release_offset_ticks =
+                    G1HeldInputScheduleContract.TranslationReleaseOffsetTicks,
+                g1_held_schedule_transition_settled_provenance =
+                    G1HeldInputScheduleContract.TransitionSettledProvenance,
+                g1_held_schedule_transition_settle_base_velocity_provenance =
+                    G1HeldInputScheduleContract.TransitionSettleBaseVelocityProvenance,
+                g1_held_schedule_transition_settle_planar_speed_m_s =
+                    G1HeldInputScheduleContract.ExpectedTransitionSettlePlanarSpeed,
+                g1_held_schedule_transition_settle_yaw_rate_rad_s =
+                    G1HeldInputScheduleContract.ExpectedTransitionSettleYawRate,
+                g1_held_schedule_post_release_settled_kick_control_included = false,
+                g1_held_schedule_lifecycle_observation_rate_hz =
+                    G1HeldInputScheduleContract.UnityFixedRateHz,
+                g1_held_schedule_keyboard_yaw_ramp_time_seconds =
+                    G1HeldInputScheduleContract.ExpectedKeyboardYawRampTimeSeconds,
+                g1_held_schedule_keyboard_yaw_speed =
+                    G1HeldInputScheduleContract.ExpectedYawSpeed,
+                g1_held_schedule_required_run_seconds =
+                    G1HeldInputScheduleContract.RequiredRunSeconds,
+                g1_held_schedule_round_capacity_safety_seconds =
+                    G1HeldInputScheduleContract.RoundCapacitySafetySeconds,
+                g1_held_schedule_required_round_capacity_seconds =
+                    G1HeldInputScheduleContract.RequiredRoundCapacitySeconds,
+                g1_held_schedule_held_condition_count =
+                    G1HeldInputScheduleContract.HeldConditions.Length,
+                g1_held_schedule_kick_move_indices =
+                    G1HeldInputScheduleContract.KickMoveIndices,
+                g1_held_schedule_f_binding_included = false,
+                g1_held_schedule_queue_or_retry_used = false,
+                g1_held_schedule_sonic_action_composer_lifecycle_used = false,
+                g1_held_schedule_running = _g1HeldScheduleRunning,
+                g1_held_schedule_authorized_while_background =
+                    _g1HeldScheduleAuthorizedWhileBackground,
+                g1_held_schedule_run_id = _g1HeldScheduleRunId,
+                g1_held_schedule_fresh_round_request_id =
+                    _g1HeldScheduleFreshRoundRequestId,
+                g1_held_schedule_round_identity_sha256 =
+                    _g1HeldScheduleRoundIdentitySha256,
+                g1_held_schedule_tick = _g1HeldScheduleTick,
+                g1_held_schedule_client_fixed_substep = _g1HeldScheduleFixedSubstep,
+                g1_held_schedule_round_duration_seconds =
+                    _g1HeldRoundDurationSeconds,
+                g1_held_schedule_initial_time_remaining_seconds =
+                    _g1HeldInitialTimeRemainingSeconds,
+                g1_held_schedule_round_capacity_proven =
+                    _g1HeldScheduleRunning &&
+                    G1HeldInputScheduleContract.HasRoundCapacity(
+                        _g1HeldRoundDurationSeconds,
+                        _g1HeldInitialTimeRemainingSeconds),
                 continuous_controller_schema = ContinuousBotControllerContract.Schema,
                 continuous_controller_sha256 = _continuousControllerSha256,
                 continuous_controller_authority_scope =
@@ -5749,6 +6386,17 @@ public sealed partial class Plugin : BasePlugin
                     ContinuousBotControllerContract.AttackSelectionProvenance,
                 continuous_controller_static_impact_timing_provenance =
                     ContinuousBotControllerContract.StaticImpactTimingProvenance,
+                continuous_controller_translation_settle_provenance =
+                    ContinuousBotControllerContract.TranslationSettleProvenance,
+                continuous_controller_translation_release_minimum_dwell_rule =
+                    ContinuousBotControllerContract.TranslationReleaseMinimumDwellRule,
+                continuous_controller_yaw_attack_preemption_rule =
+                    ContinuousBotControllerContract.YawAttackPreemptionRule,
+                continuous_controller_move_profile_binding_rule =
+                    ContinuousBotControllerContract.MoveProfileBindingRule,
+                continuous_controller_g1_translation_settle_threshold_m_s =
+                    ContinuousBotControllerContract
+                        .G1LocomotionTransitionVelocityThresholdMetersPerSecond,
                 continuous_controller_round_restart_limitation =
                     ContinuousBotControllerContract.RoundRestartLimitation,
                 continuous_controller_running = _continuousControllerRunning,
@@ -5762,6 +6410,16 @@ public sealed partial class Plugin : BasePlugin
                 continuous_controller_round_sequence = _continuousControllerRoundSequence,
                 continuous_controller_round_identity_sha256 =
                     _continuousControllerRoundIdentitySha256,
+                continuous_controller_translation_settle_axes =
+                    _continuousControllerTranslationSettleAxes.ToString(),
+                continuous_controller_runtime_model = _continuousControllerRuntimeModel,
+                continuous_controller_recovery_mode =
+                    ContinuousBotControllerContract.RecoveryModeForRuntimeModel(
+                        _continuousControllerRuntimeModel),
+                continuous_controller_attack_move_indices =
+                    _continuousControllerAttacks.Select(value => value.MoveIndex).ToArray(),
+                continuous_controller_attack_move_names =
+                    _continuousControllerAttacks.Select(value => value.MoveName).ToArray(),
                 continuous_controller_next_attack_index = _continuousControllerNextAttackIndex,
                 continuous_controller_action_sequence = _continuousControllerActionSequence,
                 continuous_controller_recovery_sequence = _continuousControllerRecoverySequence,
@@ -6024,38 +6682,67 @@ public sealed partial class Plugin : BasePlugin
             null,
             new PairingValidation(
                 reason,
+                ExactSupportedRuntimePairing: false,
+                RuntimeModel: null,
                 ExactT800VersusT800: false,
+                ExactG1VersusG1: false,
                 LocalSemanticT800: false,
                 OpponentSemanticT800: false,
+                LocalSemanticG1: false,
+                OpponentSemanticG1: false,
                 LocalExactT800BoneSignature: false,
-                OpponentExactT800BoneSignature: false));
+                OpponentExactT800BoneSignature: false,
+                LocalExactG1BoneSignature: false,
+                OpponentExactG1BoneSignature: false,
+                LocalSemanticRuntimeConsistency: "runtime_model_not_proven",
+                OpponentSemanticRuntimeConsistency: "runtime_model_not_proven"));
 
     private static object MeasuredPairingPayload(MeasuredPairing pairing) => new
     {
         required_pairing = BridgePairingContract.RequiredPairing,
-        required_robot_id = BridgePairingContract.RequiredRobotId,
+        required_robot_id = (string?)null,
+        supported_runtime_models = new[]
+        {
+            BridgePairingContract.T800RobotId,
+            BridgePairingContract.G1RobotId,
+        },
+        semantic_robot_id_required_for_acceptance = false,
         required_t800_bone_count = BridgePairingContract.T800BoneNames.Length,
         required_t800_bone_signature_sha256 = BridgePairingContract.T800BoneSignatureSha256,
+        required_g1_bone_count = BridgePairingContract.G1BoneNames.Length,
+        required_g1_bone_signature_sha256 = BridgePairingContract.G1BoneSignatureSha256,
         semantic_identity_source = "FightCoordinator.fighterIdentities[slot].RobotID",
         bone_signature_source = "FightCoordinator.Fighters[slot].boneTransforms[index].name",
+        exact_supported_runtime_pairing = pairing.Validation.ExactSupportedRuntimePairing,
+        runtime_model = pairing.Validation.RuntimeModel,
         exact_t800_vs_t800 = pairing.Validation.ExactT800VersusT800,
+        exact_g1_vs_g1 = pairing.Validation.ExactG1VersusG1,
         reason = pairing.Validation.Reason,
         local_slot = pairing.LocalSlot,
         opponent_slot = pairing.OpponentSlot,
         local_fighter = MeasuredFighterPayload(
             pairing.LocalFighter,
             pairing.Validation.LocalSemanticT800,
-            pairing.Validation.LocalExactT800BoneSignature),
+            pairing.Validation.LocalSemanticG1,
+            pairing.Validation.LocalExactT800BoneSignature,
+            pairing.Validation.LocalExactG1BoneSignature,
+            pairing.Validation.LocalSemanticRuntimeConsistency),
         opponent_fighter = MeasuredFighterPayload(
             pairing.OpponentFighter,
             pairing.Validation.OpponentSemanticT800,
-            pairing.Validation.OpponentExactT800BoneSignature),
+            pairing.Validation.OpponentSemanticG1,
+            pairing.Validation.OpponentExactT800BoneSignature,
+            pairing.Validation.OpponentExactG1BoneSignature,
+            pairing.Validation.OpponentSemanticRuntimeConsistency),
     };
 
     private static object MeasuredFighterPayload(
         MeasuredFighter? fighter,
         bool semanticT800,
-        bool exactT800BoneSignature)
+        bool semanticG1,
+        bool exactT800BoneSignature,
+        bool exactG1BoneSignature,
+        string semanticRuntimeConsistency)
     {
         var runtimeBoneSignature = fighter?.BoneNames is { Count: > 0 } boneNames &&
                                    boneNames.All(value => !string.IsNullOrWhiteSpace(value))
@@ -6070,8 +6757,13 @@ public sealed partial class Plugin : BasePlugin
             bone_names = fighter?.BoneNames,
             runtime_bone_signature_sha256 = runtimeBoneSignature,
             semantic_t800 = semanticT800,
+            semantic_g1 = semanticG1,
             exact_t800_bone_signature = exactT800BoneSignature,
-            semantic_runtime_mismatch = semanticT800 != exactT800BoneSignature,
+            exact_g1_bone_signature = exactG1BoneSignature,
+            semantic_runtime_mismatch = semanticRuntimeConsistency.StartsWith(
+                "semantic_robot_id_mismatch_",
+                StringComparison.Ordinal),
+            semantic_runtime_consistency = semanticRuntimeConsistency,
             semantic_robot_id_used_for_continuous_acceptance = false,
         };
     }
@@ -6102,9 +6794,6 @@ public sealed partial class Plugin : BasePlugin
             var humanInOpponentSlot = coordinator.HumanInSlot(opponentSlot);
             var networkClientOnly = network is not null && network.IsConnected && network.IsClient && !network.IsServer;
             var solo = context is not null && context.IsSolo;
-            var sessionPrivacyKnown = TryReadMultiplayerSessionPrivate(
-                out var sessionIsPrivate,
-                out var sessionPrivacyReason);
             var exactBotOne = coordinator.clientAiDifficultyLevel == 0 &&
                               coordinator.SparringBotNumber == 1;
             var fighters = coordinator.Fighters;
@@ -6115,6 +6804,17 @@ public sealed partial class Plugin : BasePlugin
                 requireActiveRound: false,
                 out _,
                 out var sessionProofReason);
+            var routeProof = Instance is null
+                ? SoloRouteProofSnapshot.Unavailable("solo_route_tracker_unavailable")
+                : sessionProven && network is not null
+                    ? Instance._soloRouteProofTracker.SnapshotForRuntimeSession(
+                        context?.ArenaID,
+                        context?.ArenaIP,
+                        context?.ArenaPort ?? 0,
+                        network.serverAddress,
+                        network.port,
+                        NativePointer(network).ToInt64())
+                    : Instance._soloRouteProofTracker.SnapshotForArena(context?.ArenaID);
             var roundActive = coordinator.CurrentRound is not null && coordinator.CurrentRound.IsActive;
             var activeGameplayProven = TryGetPrivateAiContext(
                 requireActiveRound: true,
@@ -6136,9 +6836,21 @@ public sealed partial class Plugin : BasePlugin
                 opponent_slot = opponentSlot,
                 network_client_only = networkClientOnly,
                 context_is_solo = solo,
-                multiplayer_session_privacy_known = sessionPrivacyKnown,
-                multiplayer_session_is_private = sessionPrivacyKnown ? sessionIsPrivate : null as bool?,
-                multiplayer_session_privacy_reason = sessionPrivacyReason,
+                solo_route_hooks_verified = Instance?._soloRoutePatchesVerified == true,
+                solo_route_proven = routeProof.SoloRouteProven,
+                solo_route_flow = routeProof.FlowSoloObserved
+                    ? SoloRouteProofContract.ExactFlow
+                    : null,
+                solo_route_connect_to_arena_observed = routeProof.ConnectToArenaObserved,
+                solo_route_enter_championship_observed = routeProof.EnterChampionshipObserved,
+                solo_route_enter_championship_koth = routeProof.EnterChampionshipKoth,
+                solo_route_enter_championship_solo = routeProof.EnterChampionshipSolo,
+                solo_route_arena_identity_consistent = routeProof.ArenaIdentityConsistent,
+                solo_route_runtime_session_identity_consistent =
+                    routeProof.RuntimeSessionIdentityConsistent,
+                solo_route_reason = routeProof.Reason,
+                server_private_proven = routeProof.ServerPrivateProven,
+                server_private_status = routeProof.ServerPrivateStatus,
                 opponent_is_ai = opponentIsAi,
                 opponent_slot_is_ai = opponentSlotIsAi,
                 human_in_opponent_slot = humanInOpponentSlot,
@@ -6301,10 +7013,13 @@ public sealed partial class Plugin : BasePlugin
         RobotInputController Input,
         Robot LocalRobot,
         Robot OpponentRobot,
+        string RuntimeModel,
         string? LocalSemanticRobotId,
         string LocalRuntimeObjectName,
         int LocalBoneCount,
         string LocalBoneSignatureSha256,
+        bool LocalSemanticRuntimeMismatch,
+        string LocalSemanticRuntimeConsistency,
         string? OpponentSemanticRobotId,
         string OpponentRuntimeObjectName,
         int OpponentBoneCount,
@@ -6320,6 +7035,8 @@ public sealed partial class Plugin : BasePlugin
         Vector3 OpponentForward,
         Vector3 LocalLinearVelocity,
         Vector3 LocalAngularVelocity,
+        Vector3 LocalBaseLinearVelocity,
+        Vector3 LocalBaseAngularVelocity,
         Vector3 OpponentLinearVelocity,
         Vector3 OpponentAngularVelocity,
         PlanarCombatGeometry Geometry,
@@ -6474,6 +7191,79 @@ public sealed partial class Plugin : BasePlugin
     }
 }
 
+[HarmonyPatch(typeof(CentralApiClient), "FindMatch")]
+internal static class SoloRouteFindMatchObservationPatch
+{
+    [HarmonyPrefix]
+    internal static void Prefix(string flow)
+    {
+        Plugin.Instance?.ObserveSoloRouteFindMatch(flow);
+    }
+}
+
+[HarmonyPatch(typeof(CentralApiClient), "ConnectToArena")]
+internal static class SoloRouteConnectToArenaObservationPatch
+{
+    [HarmonyPrefix]
+    internal static void Prefix(string arenaID)
+    {
+        Plugin.Instance?.ObserveSoloRouteConnectToArena(arenaID);
+    }
+}
+
+[HarmonyPatch(typeof(LobbyController), "EnterChampionship")]
+internal static class SoloRouteEnterChampionshipObservationPatch
+{
+    [HarmonyPostfix]
+    internal static void Postfix(
+        string arenaID,
+        string ip,
+        int port,
+        bool koth,
+        bool solo)
+    {
+        Plugin.Instance?.ObserveSoloRouteEnterChampionship(
+            arenaID,
+            ip,
+            port,
+            koth,
+            solo);
+    }
+}
+
+[HarmonyPatch(typeof(NetworkSession), "HandleClientConnected")]
+internal static class SoloRouteClientConnectedObservationPatch
+{
+    [HarmonyPrefix]
+    internal static void Prefix()
+    {
+        Plugin.Instance?.ObserveSoloRouteNetworkLifecycleChange(
+            "network_client_connected_after_solo_route_binding");
+    }
+}
+
+[HarmonyPatch(typeof(NetworkSession), "HandleClientDisconnected")]
+internal static class SoloRouteClientDisconnectedObservationPatch
+{
+    [HarmonyPrefix]
+    internal static void Prefix()
+    {
+        Plugin.Instance?.ObserveSoloRouteNetworkLifecycleChange(
+            "network_client_disconnected_after_solo_route_binding");
+    }
+}
+
+[HarmonyPatch(typeof(NetworkSession), "StopSession")]
+internal static class SoloRouteSessionStoppedObservationPatch
+{
+    [HarmonyPrefix]
+    internal static void Prefix()
+    {
+        Plugin.Instance?.ObserveSoloRouteNetworkLifecycleChange(
+            "network_session_stopped_after_solo_route_binding");
+    }
+}
+
 [HarmonyPatch(typeof(RobotInputController), "LateUpdate")]
 internal static class RobotInputControllerLateUpdateControlPatch
 {
@@ -6482,6 +7272,13 @@ internal static class RobotInputControllerLateUpdateControlPatch
     internal static void Prefix(RobotInputController __instance)
     {
         Plugin.Instance?.OnRobotInputLateUpdatePrefix(__instance);
+    }
+
+    [HarmonyPostfix]
+    [HarmonyPriority(Priority.Last)]
+    internal static void Postfix(RobotInputController __instance)
+    {
+        Plugin.Instance?.OnRobotInputLateUpdatePostfix(__instance);
     }
 }
 

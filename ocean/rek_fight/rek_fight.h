@@ -41,7 +41,7 @@
 #define REK_FIGHT_NUM_ACTIONS 4
 #define REK_FIGHT_ACT_SIZES REK_STRATEGY_ACT_SIZES
 #define REK_FIGHT_MOVE_MASK_SIZE REK_STRATEGY_MOVE_CATEGORIES
-#define REK_FIGHT_AGENT_STATE_OBS_SIZE 22
+#define REK_FIGHT_AGENT_STATE_OBS_SIZE 23
 #define REK_FIGHT_GLOBAL_STATE_OBS_SIZE 3
 #define REK_FIGHT_OBS_SIZE (REK_MATCH_OBS_SIZE \
     + 2 * REK_FIGHT_AGENT_STATE_OBS_SIZE + REK_FIGHT_GLOBAL_STATE_OBS_SIZE)
@@ -56,6 +56,7 @@
 #define REK_FIGHT_FORWARD_SPEED 0.800000011920929
 #define REK_FIGHT_STRAFE_SPEED 0.4339999854564667
 #define REK_FIGHT_YAW_SPEED 1.5
+#define REK_FIGHT_TRANSITION_SETTLE_PLANAR_SPEED 0.15
 #define REK_FIGHT_COOLDOWN_S 0.5
 #define REK_FIGHT_RECOVERY_S 1.257999986410141
 #define REK_FIGHT_HIT_REWARD 1.0f
@@ -160,6 +161,7 @@ typedef struct RekFightAgent {
     int scored_impacts;
     int hits;
     int fallen;
+    int translation_settle_axes;
 } RekFightAgent;
 
 typedef struct RekFight {
@@ -256,6 +258,8 @@ static int rek_fight_move_action_available(
     return !state->recovering
         && !state->move_in_progress
         && !state->cooldown_active
+        && !rek_strategy_translation_held(&state->router)
+        && state->translation_settle_axes == 0
         && move_category != state->router.last_emitted_move_category;
 }
 
@@ -496,6 +500,7 @@ static int rek_fight_write_agent_state_observation(
     for (int axis = 0; axis < REK_STRATEGY_VELOCITY_DIMS; axis++) {
         output[cursor++] = state->router.held_velocity[axis];
     }
+    output[cursor++] = (float)state->translation_settle_axes;
     for (int category = 0; category < REK_FIGHT_MOVE_MASK_SIZE; category++) {
         output[cursor++] = (float)rek_fight_move_action_available(state, category);
     }
@@ -560,6 +565,7 @@ static void rek_fight_reset_agent(RekFightAgent* agent) {
     agent->router.held_velocity[0] = 0.0f;
     agent->router.held_velocity[1] = 0.0f;
     agent->router.held_velocity[2] = 0.0f;
+    agent->translation_settle_axes = 0;
 }
 
 static void rek_fight_reset_state(RekFight* env) {
@@ -749,14 +755,59 @@ static int rek_fight_contact_hit(const RekFight* env, int attacker, int limb) {
     return 0;
 }
 
+static int rek_fight_requested_translation_axes(const RekStrategyAction* action) {
+    int axes = 0;
+    if (action->velocity_bins[0] != 1) axes |= 1;
+    if (action->velocity_bins[1] != 1) axes |= 2;
+    return axes;
+}
+
+static void rek_fight_update_translation_settle(
+        RekFight* env, int agent, const RekStrategyAction* action) {
+    RekFightAgent* state = &env->agent[agent];
+    int previous_axes = 0;
+    if (state->router.held_velocity[0] != 0.0f) previous_axes |= 1;
+    if (state->router.held_velocity[1] != 0.0f) previous_axes |= 2;
+    int requested_axes = rek_fight_requested_translation_axes(action);
+    state->translation_settle_axes |= previous_axes & ~requested_axes;
+    state->translation_settle_axes &= ~requested_axes;
+
+    int root_qpos = agent * REK_MATCH_QPOS_PER_AGENT;
+    int root_dof = agent * REK_MATCH_QVEL_PER_AGENT;
+    double qw = env->data->qpos[root_qpos + 3];
+    double qx = env->data->qpos[root_qpos + 4];
+    double qy = env->data->qpos[root_qpos + 5];
+    double qz = env->data->qpos[root_qpos + 6];
+    double yaw = atan2(
+        2.0 * (qw * qz + qx * qy),
+        1.0 - 2.0 * (qy * qy + qz * qz)
+    );
+    double cosine = cos(yaw);
+    double sine = sin(yaw);
+    double global_x = env->data->qvel[root_dof + 0];
+    double global_y = env->data->qvel[root_dof + 1];
+    double local_forward = cosine * global_x + sine * global_y;
+    double local_strafe = -sine * global_x + cosine * global_y;
+    if ((state->translation_settle_axes & 1)
+            && fabs(local_forward) < REK_FIGHT_TRANSITION_SETTLE_PLANAR_SPEED) {
+        state->translation_settle_axes &= ~1;
+    }
+    if ((state->translation_settle_axes & 2)
+            && fabs(local_strafe) < REK_FIGHT_TRANSITION_SETTLE_PLANAR_SPEED) {
+        state->translation_settle_axes &= ~2;
+    }
+}
+
 static RekStrategyOutput rek_fight_plan_agent(RekFight* env, int agent) {
     RekFightAgent* state = &env->agent[agent];
     RekStrategyAction action;
     rek_fight_read_action(env, agent, &action);
+    rek_fight_update_translation_settle(env, agent, &action);
     RekStrategyGates gates = {
-        state->recovering,
-        state->move_in_progress,
-        state->cooldown_active,
+        .recovering = state->recovering,
+        .move_in_progress = state->move_in_progress,
+        .manual_switch_cooldown_active = state->cooldown_active,
+        .translation_not_settled = state->translation_settle_axes != 0,
     };
     RekStrategyOutput command;
     if (!rek_strategy_route(&state->router, &action, &gates, &command)) {
