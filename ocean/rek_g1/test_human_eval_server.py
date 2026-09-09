@@ -139,6 +139,95 @@ class NativeMaskTests(unittest.TestCase):
             human._optional_action_mask(vector)
 
 
+class TrackingCameraTests(unittest.TestCase):
+    def test_lookat_tracks_fighter_midpoint_without_mutating_roots(self) -> None:
+        roots = np.asarray(
+            [[-1.4, 0.5, 0.4], [0.8, -0.3, 0.8]], dtype=np.float64
+        )
+        original = roots.copy()
+
+        lookat = human._tracking_camera_lookat(roots)
+
+        np.testing.assert_array_equal(roots, original)
+        np.testing.assert_allclose(
+            lookat,
+            [-0.3, 0.1, human.RENDER_CAMERA_MIN_LOOKAT_Z_M],
+        )
+        elevated_roots = roots.copy()
+        elevated_roots[:, 2] = [1.1, 1.3]
+        self.assertAlmostEqual(
+            human._tracking_camera_lookat(elevated_roots)[2], 1.2
+        )
+
+    def test_elevation_clears_center_sightline_over_arena_wall(self) -> None:
+        # The pinned XML walls have radius 2.34 m, half-thickness 0.2 m,
+        # center height 1 m, and half-height 1 m.
+        wall_inner_face_radius_m = 2.34 - 0.2
+        wall_top_m = 1.0 + 1.0
+        sightline_height_at_wall_m = wall_inner_face_radius_m * np.tan(
+            np.deg2rad(abs(human.RENDER_CAMERA_ELEVATION_DEGREES))
+        )
+
+        self.assertGreater(sightline_height_at_wall_m, wall_top_m)
+        self.assertEqual(human.RENDER_CAMERA_DISTANCE_M, 3.8)
+        horizontal_camera_offset_m = human.RENDER_CAMERA_DISTANCE_M * np.cos(
+            np.deg2rad(abs(human.RENDER_CAMERA_ELEVATION_DEGREES))
+        )
+        self.assertLess(horizontal_camera_offset_m, wall_inner_face_radius_m)
+
+
+class ShutdownSignalTests(unittest.TestCase):
+    def test_int_and_term_request_one_graceful_server_shutdown(self) -> None:
+        installed = {}
+        restored = []
+
+        class FakeSignal:
+            SIGINT = 2
+            SIGTERM = 15
+
+            @staticmethod
+            def getsignal(signum):
+                return f"previous-{signum}"
+
+            @staticmethod
+            def signal(signum, handler):
+                if callable(handler):
+                    installed[signum] = handler
+                else:
+                    restored.append((signum, handler))
+
+        class FakeServer:
+            shutdown_calls = 0
+
+            def shutdown(self):
+                self.shutdown_calls += 1
+
+        class InlineThread:
+            def __init__(self, *, target, name, daemon):
+                self.target = target
+                self.name = name
+                self.daemon = daemon
+
+            def start(self):
+                self.target()
+
+        server = FakeServer()
+        restore = human._install_shutdown_signal_handlers(
+            server,
+            signal_module=FakeSignal,
+            thread_factory=InlineThread,
+        )
+        installed[FakeSignal.SIGTERM](FakeSignal.SIGTERM, None)
+        installed[FakeSignal.SIGINT](FakeSignal.SIGINT, None)
+
+        self.assertEqual(server.shutdown_calls, 1)
+        restore()
+        self.assertEqual(
+            restored,
+            [(2, "previous-2"), (15, "previous-15")],
+        )
+
+
 class HumanEvalCoreTests(unittest.TestCase):
     def test_q_to_kick_is_dispatched_without_neutral_and_q_updates_kick(self) -> None:
         boundary = FakeBoundary()
@@ -191,6 +280,22 @@ class HumanEvalCoreTests(unittest.TestCase):
         self.assertFalse(state["rek_parity_claim"])
         self.assertEqual(state["runtime_get_up_authority"], "unknown")
         self.assertIsNone(state["paired_replay_trace"])
+        self.assertEqual(
+            state["robot_identity"],
+            {
+                "build_catalog_id": "g1",
+                "build_catalog_display_name": "L100",
+                "build_catalog_type_label": "Lightweight",
+            },
+        )
+        self.assertEqual(
+            state["move_coverage"],
+            {
+                "build_catalog_discrete_moves": 17,
+                "evaluator_exposed_moves": 4,
+                "scope": "measured_kick_subset",
+            },
+        )
 
 
 class TraceTests(unittest.TestCase):

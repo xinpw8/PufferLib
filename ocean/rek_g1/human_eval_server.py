@@ -21,6 +21,7 @@ import json
 import math
 import os
 from pathlib import Path
+import signal
 import struct
 import threading
 import time
@@ -45,6 +46,15 @@ NEUTRAL_CATEGORY = 1
 YAW_LEFT_CATEGORY = 6
 YAW_RIGHT_CATEGORY = 7
 KICK_MOVE_9_CATEGORY = 19
+RENDER_CAMERA_DISTANCE_M = 3.8
+RENDER_CAMERA_AZIMUTH_DEGREES = 90.0
+RENDER_CAMERA_ELEVATION_DEGREES = -60.0
+RENDER_CAMERA_MIN_LOOKAT_Z_M = 0.9
+BUILD_CATALOG_ROBOT_ID = "g1"
+BUILD_CATALOG_DISPLAY_NAME = "L100"
+BUILD_CATALOG_TYPE_LABEL = "Lightweight"
+BUILD_CATALOG_DISCRETE_MOVE_COUNT = 17
+EVALUATOR_EXPOSED_MOVE_COUNT = 4
 KICK_DURATION_TICKS = (157, 145, 158, 139)
 KICK_MOVE_TO_CATEGORY = {6: 16, 7: 17, 8: 18, 9: 19}
 KICK_METADATA = (
@@ -848,6 +858,16 @@ class SemanticHumanEvalCore:
                 }
             ),
             "controller": "native_rek_g1_semantic_candidate",
+            "robot_identity": {
+                "build_catalog_id": BUILD_CATALOG_ROBOT_ID,
+                "build_catalog_display_name": BUILD_CATALOG_DISPLAY_NAME,
+                "build_catalog_type_label": BUILD_CATALOG_TYPE_LABEL,
+            },
+            "move_coverage": {
+                "build_catalog_discrete_moves": BUILD_CATALOG_DISCRETE_MOVE_COUNT,
+                "evaluator_exposed_moves": EVALUATOR_EXPOSED_MOVE_COUNT,
+                "scope": "measured_kick_subset",
+            },
             "opponent": CandidateApproachDummy.LABEL,
             "opponent_is_bot_1": False,
             "automatic_getup_enabled": False,
@@ -974,6 +994,15 @@ def _png_bytes(rgb: np.ndarray) -> bytes:
     )
 
 
+def _tracking_camera_lookat(fighter_roots: np.ndarray) -> np.ndarray:
+    roots = np.asarray(fighter_roots, dtype=np.float64)
+    _require(roots.shape == (2, 3), "camera fighter roots shape mismatch")
+    _require(bool(np.isfinite(roots).all()), "camera fighter roots are nonfinite")
+    lookat = roots.mean(axis=0)
+    lookat[2] = max(RENDER_CAMERA_MIN_LOOKAT_Z_M, float(lookat[2]))
+    return lookat
+
+
 class PassiveObservationRenderer:
     def __init__(self, model_path: Path) -> None:
         try:
@@ -990,9 +1019,11 @@ class PassiveObservationRenderer:
         self.renderer = mujoco.Renderer(self.model, height=360, width=640)
         self.camera = mujoco.MjvCamera()
         mujoco.mjv_defaultCamera(self.camera)
-        self.camera.distance = 5.4
-        self.camera.azimuth = 90.0
-        self.camera.elevation = -30.0
+        # The camera remains rendering-only. It sits above and inside the
+        # arena wall radius so the fighters fill the frame without occlusion.
+        self.camera.distance = RENDER_CAMERA_DISTANCE_M
+        self.camera.azimuth = RENDER_CAMERA_AZIMUTH_DEGREES
+        self.camera.elevation = RENDER_CAMERA_ELEVATION_DEGREES
 
     def frame(self, player_observation: np.ndarray) -> bytes:
         self.data.qpos[:] = self.projector.project(player_observation)
@@ -1006,8 +1037,7 @@ class PassiveObservationRenderer:
                 for mapping in self.projector.maps
             ]
         )
-        self.camera.lookat[:] = roots.mean(axis=0)
-        self.camera.lookat[2] = max(0.75, float(self.camera.lookat[2]))
+        self.camera.lookat[:] = _tracking_camera_lookat(roots)
         self.renderer.update_scene(self.data, camera=self.camera)
         return _png_bytes(self.renderer.render())
 
@@ -1018,7 +1048,7 @@ class PassiveObservationRenderer:
 INDEX_HTML = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>REK G1 Semantic Candidate Human Eval</title>
+<title>REK L100 Semantic Candidate Human Eval</title>
 <style>
   :root { color-scheme: dark; font-family: system-ui, sans-serif; }
   body { margin: 0; background: #0d1117; color: #e6edf3; }
@@ -1036,8 +1066,8 @@ INDEX_HTML = r"""<!doctype html>
   @media (max-width: 650px) { .hud { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 </style>
 <main>
-  <h1>REK G1 Semantic Candidate Human Eval</h1>
-  <p class="warning">This is the public-family candidate, not accepted REK parity. Orange is a deterministic state-based approach/facing/kick candidate dummy, not Bot 1. Automatic get-up is disabled because current runtime get-up authority is unknown.</p>
+  <h1>REK L100 Semantic Candidate Human Eval</h1>
+  <p class="warning">The inspected build catalog identifies this robot as L100, internal id g1. This is a four-kick evaluation subset of its 17 discrete moves, not accepted REK parity. Orange is a deterministic state-based candidate dummy, not Bot 1. A down is scored as a 5-point knockout followed by a paired spawn reset. The authentic three-down outcome remains unknown.</p>
   <div class="viewport"><img id="frame" alt="Passive rendering of candidate observations"></div>
   <div class="hud">
     <div><span class="label">Tick</span><span id="tick">0</span></div>
@@ -1309,6 +1339,38 @@ def make_http_server(
     return server_factory((LOOPBACK_HOST, port), BoundHandler)
 
 
+def _install_shutdown_signal_handlers(
+    server: HTTPServer,
+    *,
+    signal_module: Any = signal,
+    thread_factory: Callable[..., threading.Thread] = threading.Thread,
+) -> Callable[[], None]:
+    """Translate process stop signals into HTTPServer's graceful shutdown."""
+    requested = threading.Event()
+    previous: dict[int, Any] = {}
+
+    def request_shutdown(signum: int, frame: Any) -> None:
+        del signum, frame
+        if requested.is_set():
+            return
+        requested.set()
+        thread_factory(
+            target=server.shutdown,
+            name="rek-g1-human-eval-shutdown",
+            daemon=True,
+        ).start()
+
+    for signum in (signal_module.SIGINT, signal_module.SIGTERM):
+        previous[signum] = signal_module.getsignal(signum)
+        signal_module.signal(signum, request_shutdown)
+
+    def restore() -> None:
+        for signum, handler in previous.items():
+            signal_module.signal(signum, handler)
+
+    return restore
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--extension", type=Path, required=True)
@@ -1349,6 +1411,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     trace_writer: JsonlTraceWriter | None = None
     evaluator: SemanticHumanEvaluator | None = None
     server: HTTPServer | None = None
+    restore_signal_handlers: Callable[[], None] | None = None
     try:
         renderer = PassiveObservationRenderer(boundary.identity.model)
         trace_writer = JsonlTraceWriter(args.trace_out, boundary.identity.report())
@@ -1358,6 +1421,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             boundary.identity.report(),
         )
         server = make_http_server(evaluator, args.port)
+        restore_signal_handlers = _install_shutdown_signal_handlers(server)
         evaluator.start()
         print(
             json.dumps(
@@ -1382,6 +1446,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         except KeyboardInterrupt:
             pass
     finally:
+        if restore_signal_handlers is not None:
+            restore_signal_handlers()
         if server is not None:
             server.server_close()
         if evaluator is not None:
