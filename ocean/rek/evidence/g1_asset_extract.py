@@ -553,6 +553,32 @@ def validate_loaded_assets(
     return tuple(result)
 
 
+def _inventory_asset_record(spec: AssetSpec) -> dict[str, object]:
+    record: dict[str, object] = {
+        "role": spec.role,
+        "path_id": spec.path_id,
+        "name": spec.name,
+        "output": spec.output,
+        "bytes": spec.size,
+        "sha256": spec.sha256,
+        "frames": spec.frames,
+        "dof": spec.dof,
+        "fps": spec.fps,
+        "members": [
+            {
+                "name": member.name,
+                "bytes": member.size,
+                "sha256": member.sha256,
+            }
+            for member in spec.members
+        ],
+    }
+    if spec.robot_config_move_index is not None:
+        record["robot_config_move_index"] = spec.robot_config_move_index
+        record["mocap_clip_config_path_id"] = spec.mocap_clip_config_path_id
+    return record
+
+
 def build_inventory(
     manifest: Manifest,
     manifest_sha256: str,
@@ -575,30 +601,7 @@ def build_inventory(
             "serialized_sha256": manifest.robot_config_sha256,
             "move_count": manifest.robot_config_move_count,
         },
-        "assets": [
-            {
-                "role": spec.role,
-                "path_id": spec.path_id,
-                "name": spec.name,
-                "output": spec.output,
-                "bytes": spec.size,
-                "sha256": spec.sha256,
-                "frames": spec.frames,
-                "dof": spec.dof,
-                "fps": spec.fps,
-                "robot_config_move_index": spec.robot_config_move_index,
-                "mocap_clip_config_path_id": spec.mocap_clip_config_path_id,
-                "members": [
-                    {
-                        "name": member.name,
-                        "bytes": member.size,
-                        "sha256": member.sha256,
-                    }
-                    for member in spec.members
-                ],
-            }
-            for spec in manifest.assets
-        ],
+        "assets": [_inventory_asset_record(spec) for spec in manifest.assets],
     }
     return (json.dumps(report, indent=2, sort_keys=True) + "\n").encode("utf-8")
 

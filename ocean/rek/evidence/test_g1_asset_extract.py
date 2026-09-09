@@ -107,6 +107,15 @@ class PinnedManifestTests(unittest.TestCase):
             extractor.manifest_sha256(data), extractor.PINNED_MANIFEST_SHA256
         )
         manifest = extractor.parse_manifest(data)
+        generated_inventory = json.loads(
+            extractor.build_inventory(
+                manifest,
+                extractor.PINNED_MANIFEST_SHA256,
+                manifest.source_size,
+                manifest.source_sha256,
+            )
+        )
+        self.assertEqual(generated_inventory["assets"], data["assets"])
 
         schema = json.loads(
             (HERE / "evidence_out" / "processed_textasset_schema_v3.json").read_text(
@@ -250,7 +259,8 @@ class PayloadValidationTests(unittest.TestCase):
         inventory_by_role = {
             item["role"]: item for item in inventory_data["assets"]
         }
-        self.assertIsNone(inventory_by_role["idle"]["robot_config_move_index"])
+        self.assertNotIn("robot_config_move_index", inventory_by_role["idle"])
+        self.assertNotIn("mocap_clip_config_path_id", inventory_by_role["idle"])
         self.assertEqual(
             inventory_by_role["left_hook"]["robot_config_move_index"], 0
         )
