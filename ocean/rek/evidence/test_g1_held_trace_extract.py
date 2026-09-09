@@ -333,6 +333,22 @@ class G1HeldTraceExtractTests(unittest.TestCase):
             disk_coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
             self.assertEqual(disk_coverage["source"]["sha256"], coverage["source"]["sha256"])
 
+    def test_accepts_v0_7_3_recorder_identity(self):
+        records = fixture()
+        records[0]["plugin_version"] = held.EXPECTED_RECOVERY_PLUGIN_VERSION
+        records[0]["plugin_sha256"] = held.EXPECTED_RECOVERY_PLUGIN_SHA256
+        with tempfile.TemporaryDirectory() as temporary:
+            raw = Path(temporary) / "capture.jsonl"
+            write_jsonl(raw, records)
+            coverage = held.extract(
+                raw,
+                coverage_out=Path(temporary) / "coverage.json",
+            )
+        self.assertEqual(
+            coverage["source"]["recorder_plugin_version"],
+            held.EXPECTED_RECOVERY_PLUGIN_VERSION,
+        )
+
     def test_rejects_non_g1_scope(self):
         records = fixture()
         records[0]["scope"]["runtime_model"] = "t800"

@@ -3,7 +3,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>RekEvidenceRecorder</AssemblyName>
     <RootNamespace>RekEvidenceRecorder</RootNamespace>
-    <Version>0.7.2</Version>
+    <Version>0.7.3</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>

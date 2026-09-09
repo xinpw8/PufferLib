@@ -574,24 +574,15 @@ public sealed class Plugin : BasePlugin
 
     private void BeginCapture(ScopeSnapshot scope)
     {
-        Directory.CreateDirectory(OutputRoot);
         var startClock = ClockStamp.Capture();
         var stamp = startClock.Utc.ToString("yyyyMMddTHHmmss.fffffffZ");
         var identity = Guid.NewGuid().ToString("N");
         var basename = $"rek-private-ai-root-motion-{stamp}-pid{Environment.ProcessId}-{identity}.jsonl";
         _finalPath = Path.Combine(OutputRoot, basename);
         _partialPath = _finalPath + ".partial";
-        _writer = new StreamWriter(
-            new FileStream(_partialPath, FileMode.CreateNew, FileAccess.Write, FileShare.Read, 1 << 20),
-            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
-            1 << 20)
-        {
-            AutoFlush = false,
-        };
         _sampleCount = 0;
         _rootPoseSampleCount = 0;
         _clientFixedTick = 0;
-        _captureErrorCount = 0;
         _transportInvocationSequence = 0;
         _fightSnapshotSequence = 0;
         _rawProtocolSequence = 0;
@@ -608,9 +599,11 @@ public sealed class Plugin : BasePlugin
         _boneSnapshotCursors.Clear();
         PrimeBoneSnapshotCursor(scope.Fighter0!);
         PrimeBoneSnapshotCursor(scope.Fighter1!);
-        _lastFlushTime = Time.realtimeSinceStartupAsDouble;
 
-        WriteRecord(new Dictionary<string, object?>
+        var initialCamera = CameraRecord(scope.Camera!);
+        var initialState = BuildInitialState(scope, startClock);
+        _captureErrorCount = 0;
+        var captureStartRecord = new Dictionary<string, object?>
         {
             ["event"] = "capture_start",
             ["schema"] = RecorderContract.Schema,
@@ -704,10 +697,69 @@ public sealed class Plugin : BasePlugin
             ["pairing"] = PairingRecord(scope),
             ["fighter_0_bones"] = scope.Fighter0BoneNames,
             ["fighter_1_bones"] = scope.Fighter1BoneNames,
-            ["initial_camera"] = CameraRecord(scope.Camera!),
-        });
+            ["initial_camera"] = initialCamera,
+            ["initial_state"] = initialState,
+        };
+
+        Directory.CreateDirectory(OutputRoot);
+        _writer = new StreamWriter(
+            new FileStream(_partialPath, FileMode.CreateNew, FileAccess.Write, FileShare.Read, 1 << 20),
+            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+            1 << 20)
+        {
+            AutoFlush = false,
+        };
+        _lastFlushTime = Time.realtimeSinceStartupAsDouble;
+        WriteRecord(captureStartRecord);
         _writer.Flush();
         Log.LogInfo($"Private AI evidence capture started: {_partialPath}");
+    }
+
+    private static Dictionary<string, object?> BuildInitialState(
+        ScopeSnapshot scope,
+        ClockStamp beginClock)
+    {
+        var coordinator = scope.Coordinator!;
+        var beginUnityFrame = Time.frameCount;
+        var beginUnityFixedTime = Time.fixedTimeAsDouble;
+        var fighter0 = InitialRobotStateRecord(scope, 0, scope.Fighter0!);
+        var fighter1 = InitialRobotStateRecord(scope, 1, scope.Fighter1!);
+        var endClock = ClockStamp.Capture();
+        var endUnityFrame = Time.frameCount;
+        var endUnityFixedTime = Time.fixedTimeAsDouble;
+
+        if (endUnityFrame != beginUnityFrame || endUnityFixedTime != beginUnityFixedTime)
+        {
+            throw new InvalidDataException(
+                "Unity observation boundary changed while reading the two initial fighters.");
+        }
+
+        return new Dictionary<string, object?>
+        {
+            ["atomic_both_fighters"] = true,
+            ["observation_boundary"] = RecorderContract.InitialStateObservationBoundary,
+            ["publication_unit"] = RecorderContract.InitialStatePublicationUnit,
+            ["read_order"] = new[] { "fighter_0", "fighter_1" },
+            ["simultaneous_hardware_sample_claim"] = false,
+            ["stopwatch_begin_timestamp_ticks"] = beginClock.StopwatchTicks,
+            ["stopwatch_end_timestamp_ticks"] = endClock.StopwatchTicks,
+            ["utc_begin"] = beginClock.Utc,
+            ["utc_end"] = endClock.Utc,
+            ["unity_frame"] = beginUnityFrame,
+            ["unity_fixed_time"] = beginUnityFixedTime,
+            ["client_fixed_tick"] = 0,
+            ["scene"] = SceneManager.GetActiveScene().name,
+            ["fight_epoch"] = coordinator.fightEpoch,
+            ["phase"] = coordinator.CurrentPhase.ToString(),
+            ["phase_value"] = (int)coordinator.CurrentPhase,
+            ["local_fighter_index"] = scope.LocalSlot,
+            ["opponent_slot"] = scope.OpponentSlot,
+            ["input"] = InputRecord(coordinator.robotInput),
+            ["round"] = RoundRecord(coordinator.CurrentRound),
+            ["fight"] = FightRecord(coordinator.Fight),
+            ["fighter_0"] = fighter0,
+            ["fighter_1"] = fighter1,
+        };
     }
 
     private Dictionary<string, object?> BuildSample(ScopeSnapshot scope, ClockStamp clock)
@@ -1669,6 +1721,175 @@ public sealed class Plugin : BasePlugin
     {
         if (!float.IsFinite(value))
             throw new InvalidDataException($"{label} is not finite.");
+    }
+
+    private static Dictionary<string, object?> InitialRobotStateRecord(
+        ScopeSnapshot scope,
+        int fighterSlot,
+        Robot robot)
+    {
+        var root = robot.RootTransform ??
+            throw new InvalidDataException($"Fighter {fighterSlot} root transform disappeared.");
+        var rootPosition = root.position;
+        var rootRotation = root.rotation;
+        var rootLinearVelocity = robot.RootLinearVelocity;
+        var rootAngularVelocity = robot.RootAngularVelocity;
+        var tiltAngle = robot.TiltAngle;
+        var pelvisHeightRatio = robot.PelvisHeightRatio;
+        RequireFinite(rootPosition, $"fighter {fighterSlot} initial root position");
+        RequireFinite(rootRotation, $"fighter {fighterSlot} initial root rotation");
+        RequireFinite(rootLinearVelocity, $"fighter {fighterSlot} initial root linear velocity");
+        RequireFinite(rootAngularVelocity, $"fighter {fighterSlot} initial root angular velocity");
+        RequireFinite(tiltAngle, $"fighter {fighterSlot} initial tilt angle");
+        RequireFinite(pelvisHeightRatio, $"fighter {fighterSlot} initial pelvis height ratio");
+
+        return new Dictionary<string, object?>
+        {
+            ["fighter_slot"] = fighterSlot,
+            ["network_index"] = robot.networkIndex,
+            ["visual_only"] = robot.IsVisualOnly,
+            ["player_controlled"] = robot.IsPlayerControlled,
+            ["falling"] = robot.IsFalling,
+            ["fallen"] = robot.IsFallen,
+            ["dampened"] = robot.IsDampened,
+            ["resetting"] = robot.IsResetting,
+            ["motor_shutdown"] = robot.IsMotorShutdown,
+            ["policy_suspended"] = robot.IsPolicySuspended,
+            ["tilt_angle"] = tiltAngle,
+            ["pelvis_height_ratio"] = pelvisHeightRatio,
+            ["floor_contact_count"] = robot.FloorContactCount,
+            ["both_feet_off_floor"] = robot.BothFeetOffFloor,
+            ["root_position"] = Vector(rootPosition),
+            ["root_rotation"] = QuaternionRecord(rootRotation),
+            ["root_linear_velocity"] = Vector(rootLinearVelocity),
+            ["root_angular_velocity"] = Vector(rootAngularVelocity),
+            ["bones"] = InitialBonePoseRecord(robot, fighterSlot),
+            ["recovery_authority"] = RuntimeRecoveryAuthorityRecord(
+                scope,
+                fighterSlot,
+                robot),
+        };
+    }
+
+    private static Dictionary<string, object?> RuntimeRecoveryAuthorityRecord(
+        ScopeSnapshot scope,
+        int fighterSlot,
+        Robot robot)
+    {
+        var coordinator = scope.Coordinator!;
+        var policyRunner = robot.PolicyRunner;
+        var policyRunnerComponent = robot.policyRunner;
+        var policyRunnerCanGetUp = policyRunner?.CanGetUp;
+        var coordinatorCanFighterGetUp = coordinator.CanFighterGetUp(fighterSlot);
+        var sonicPolicyRunner = robot.GetComponent<SonicPolicyRunner>();
+        var sonicPolicyRunnerCanGetUp = sonicPolicyRunner?.CanGetUp;
+        var sonicPolicyRunnerAssignedToRobot =
+            policyRunnerComponent is not null &&
+            sonicPolicyRunner is not null &&
+            policyRunnerComponent.GetInstanceID() == sonicPolicyRunner.GetInstanceID();
+        var suggestedGetUpOrientation = robot.SuggestedGetUpOrientation;
+        var validation = RecorderContract.ValidateRecoveryAuthority(
+            scope.Pairing.RuntimeModel,
+            policyRunner is not null,
+            policyRunnerCanGetUp,
+            coordinatorCanFighterGetUp,
+            sonicPolicyRunner is not null,
+            sonicPolicyRunnerCanGetUp,
+            sonicPolicyRunnerAssignedToRobot);
+        if (!validation.Complete || !validation.CanGetUp.HasValue)
+        {
+            throw new InvalidDataException(
+                $"Fighter {fighterSlot} runtime recovery authority incomplete: {validation.Reason}.");
+        }
+
+        return new Dictionary<string, object?>
+        {
+            ["complete"] = true,
+            ["reason"] = validation.Reason,
+            ["source"] = RecorderContract.RuntimeCanGetUpAuthoritySource,
+            ["runtime_model"] = scope.Pairing.RuntimeModel,
+            ["fighter_slot"] = fighterSlot,
+            ["can_get_up"] = validation.CanGetUp.Value,
+            ["fight_coordinator_can_fighter_get_up"] = coordinatorCanFighterGetUp,
+            ["robot_policy_runner_present"] = policyRunner is not null,
+            ["robot_policy_runner_component_present"] = policyRunnerComponent is not null,
+            ["robot_policy_runner_component_managed_type"] = policyRunnerComponent?.GetType().FullName,
+            ["robot_policy_runner_component_name"] = policyRunnerComponent?.name,
+            ["robot_policy_runner_can_get_up"] = policyRunnerCanGetUp,
+            ["robot_policy_runner_is_initialized"] = policyRunner?.IsInitialized,
+            ["robot_policy_runner_is_paused"] = policyRunner?.IsPaused,
+            ["robot_policy_runner_is_recovering"] = policyRunner?.IsRecovering,
+            ["robot_policy_runner_is_done"] = policyRunner?.IsDone,
+            ["robot_get_up_pending"] = robot.GetUpPending,
+            ["robot_recovery_armed"] = robot.RecoveryArmed,
+            ["robot_suggested_get_up_orientation"] = suggestedGetUpOrientation.ToString(),
+            ["robot_suggested_get_up_orientation_value"] = (int)suggestedGetUpOrientation,
+            ["g1_sonic_policy_runner"] = sonicPolicyRunner is null
+                ? null
+                : new Dictionary<string, object?>
+                {
+                    ["present"] = true,
+                    ["assigned_to_robot_policy_runner"] = sonicPolicyRunnerAssignedToRobot,
+                    ["can_get_up"] = sonicPolicyRunnerCanGetUp,
+                    ["init_complete"] = sonicPolicyRunner.initComplete,
+                    ["paused"] = sonicPolicyRunner.paused,
+                    ["motion_composer_present"] = sonicPolicyRunner.motionComposer is not null,
+                    ["get_up_prone_clip_present"] = sonicPolicyRunner.getUpProneClip is not null,
+                    ["get_up_supine_clip_present"] = sonicPolicyRunner.getUpSupineClip is not null,
+                },
+            ["server_acceptance_available"] = false,
+            ["server_acceptance"] = null,
+            ["server_authority_claim"] = false,
+        };
+    }
+
+    private static Dictionary<string, object?> InitialBonePoseRecord(
+        Robot robot,
+        int fighterSlot)
+    {
+        var positions = new List<float?>();
+        var rotations = new List<float?>();
+        var localPositions = new List<float?>();
+        var localRotations = new List<float?>();
+        var names = new List<string?>();
+        var bones = robot.boneTransforms ??
+            throw new InvalidDataException($"Fighter {fighterSlot} initial bones disappeared.");
+
+        for (var index = 0; index < bones.Length; index++)
+        {
+            var bone = bones[index] ??
+                throw new InvalidDataException(
+                    $"Fighter {fighterSlot} initial bone {index} disappeared.");
+            var worldPosition = bone.position;
+            var worldRotation = bone.rotation;
+            var localPosition = bone.localPosition;
+            var localRotation = bone.localRotation;
+            RequireFinite(worldPosition, $"fighter {fighterSlot} bone {index} world position");
+            RequireFinite(worldRotation, $"fighter {fighterSlot} bone {index} world rotation");
+            RequireFinite(localPosition, $"fighter {fighterSlot} bone {index} local position");
+            RequireFinite(localRotation, $"fighter {fighterSlot} bone {index} local rotation");
+            if (string.IsNullOrWhiteSpace(bone.name))
+            {
+                throw new InvalidDataException(
+                    $"Fighter {fighterSlot} initial bone {index} has no name.");
+            }
+            names.Add(bone.name);
+            Append(positions, worldPosition);
+            Append(rotations, worldRotation);
+            Append(localPositions, localPosition);
+            Append(localRotations, localRotation);
+        }
+
+        return new Dictionary<string, object?>
+        {
+            ["count"] = bones.Length,
+            ["ordered_names"] = names,
+            ["ordered_name_signature_sha256"] = RecorderContract.BoneSignatureSha256(names),
+            ["world_positions_xyz"] = positions,
+            ["world_rotations_xyzw"] = rotations,
+            ["local_positions_xyz"] = localPositions,
+            ["local_rotations_xyzw"] = localRotations,
+        };
     }
 
     private static Dictionary<string, object?> RobotRecord(Robot robot, bool includeBones = true)

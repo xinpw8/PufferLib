@@ -300,7 +300,8 @@ velocity commands and discrete move, special, and emergency-stop invocation
 timing. Missing discrete action identity fails closed. Older imported traces do
 not satisfy this schema and cannot establish a repeat envelope.
 
-The staged v0.7.2 recorder emits `rek.private_ai.protocol.v7`. It fails closed
+The staged v0.7.3 recorder emits the additive `rek.private_ai.protocol.v7`
+contract. It fails closed
 before opening a capture unless the pinned client is running at a measured
 `0.002 s` fixed step in an active, unranked solo round; the build-pinned REK
 route `FindMatch(flow="solo")` through `ConnectToArena` completes via
@@ -318,9 +319,30 @@ Protocol v7 records each case-sensitive
 `fighterIdentities[slot].RobotID`, its consistency with the exact runtime bone
 signature, and any mismatch. Semantic IDs are evidence, not acceptance
 authority, and are never substituted for an unmeasured runtime identity. The
-historical v0.6.1 `rek.private_ai.protocol.v6` contract remains restricted to
-an exact T800/T800 pairing. The recorder also rejects an absent, inactive, or
-zero-extent `Camera.main`. No finalized v7 capture is claimed here yet.
+historical v0.7.2 recorder identity remains valid without the v0.7.3 initial
+state extension. The historical v0.6.1 `rek.private_ai.protocol.v6` contract
+remains restricted to an exact T800/T800 pairing. The recorder also rejects an
+absent, inactive, or zero-extent `Camera.main`. No finalized v0.7.3 capture is
+claimed here yet.
+
+Recorder v0.7.3 builds `initial_state` completely before it opens a capture
+file. Both fighters are read synchronously in one `RecorderBehaviour.FixedUpdate`
+callback, with an unchanged Unity frame and fixed-time value, and published in
+the single `capture_start` JSONL record. Each fighter record requires finite root
+pose, root linear and angular velocity, fall and contact flags, and the complete
+ordered finite world and local bone transforms. The reads are ordered, so the
+record explicitly makes no simultaneous hardware-sample claim.
+
+The same preflight reads `Robot.PolicyRunner.CanGetUp` and
+`FightCoordinator.CanFighterGetUp(slot)` for both fighters. A G1 capture also
+requires that `Robot.policyRunner` is the observed `SonicPolicyRunner`
+component and that its direct `SonicPolicyRunner.CanGetUp` value agrees. Missing
+runners, unavailable getters, assignment mismatch, or any value disagreement
+reject the capture before file creation. The record preserves the
+runner initialization, pause, recovery, G1 clip-presence, and Robot recovery
+flags that existed at that boundary. These are direct client-runtime readings.
+They do not prove server authority, opponent actions, command acceptance, or
+environment parity.
 
 Protocols v6 and v7 add one `root_pose_sample` for every captured client
 `FixedUpdate`, declared and validated as a contiguous 500 Hz stream. Each
@@ -387,9 +409,13 @@ python raw_bone_validate.py --raw C:/rekagent/evidence/runtime/rek-private-ai-pr
 python raw_bone_validate.py --raw C:/rekagent/evidence/runtime/rek-private-ai-protocol-v5/<capture>.jsonl --out evidence_out/<capture>.protocol-validation.json
 ```
 
-The validator pins each schema to its exact recorder version and DLL hash,
-including v7 to v0.7.2 and
-`a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95`.
+The validator pins each schema to an exact recorder version and DLL hash. The
+accepted v7 identities are v0.7.2 at
+`a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95`
+and v0.7.3 at
+`842ed03d2028c1e67275e9a533bfe3e11126c5b4d93a43c672b8a6d97b60113b`.
+Only v0.7.3 is accepted as direct runtime recovery and atomic initial-state
+evidence.
 It requires each redundant JSON number to round-trip to the exact IEEE-754
 binary32 bits in the base64 body, including preserving a `-0` token's
 negative-zero sign. It checks body hashes and exact packet lengths, verifies all

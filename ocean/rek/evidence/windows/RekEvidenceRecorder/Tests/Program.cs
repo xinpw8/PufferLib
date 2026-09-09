@@ -17,7 +17,7 @@ var g1Bones = RecorderContract.G1BoneNames
     .Select(name => (string?)name)
     .ToArray();
 Expect("schema_v7", RecorderContract.Schema == "rek.private_ai.protocol.v7");
-Expect("plugin_version_0_7_2", RecorderContract.PluginVersion == "0.7.2");
+Expect("plugin_version_0_7_3", RecorderContract.PluginVersion == "0.7.3");
 Expect("t800_bone_count_26", t800Bones.Length == 26);
 Expect("g1_bone_count_30", g1Bones.Length == 30);
 Expect(
@@ -28,6 +28,62 @@ Expect(
     "g1_signature_hash",
     RecorderContract.BoneSignatureSha256(g1Bones) ==
     RecorderContract.G1BoneSignatureSha256);
+Expect(
+    "initial_state_boundary_is_single_fixed_update",
+    RecorderContract.InitialStateObservationBoundary ==
+    "single_synchronous_RecorderBehaviour.FixedUpdate_callback_before_capture_file_open");
+Expect(
+    "initial_state_publication_is_single_record",
+    RecorderContract.InitialStatePublicationUnit ==
+    "single_capture_start_JSONL_record_built_completely_before_StreamWriter_open");
+
+var g1RecoveryFalse = RecorderContract.ValidateRecoveryAuthority(
+    "g1", true, false, false, true, false, true);
+Expect("g1_false_recovery_authority_complete", g1RecoveryFalse.Complete);
+Expect("g1_false_recovery_value_preserved", g1RecoveryFalse.CanGetUp is false);
+var g1RecoveryTrue = RecorderContract.ValidateRecoveryAuthority(
+    "g1", true, true, true, true, true, true);
+Expect("g1_true_recovery_authority_complete", g1RecoveryTrue.Complete);
+Expect("g1_true_recovery_value_preserved", g1RecoveryTrue.CanGetUp is true);
+Expect(
+    "g1_missing_policy_runner_fails_closed",
+    RecorderContract.ValidateRecoveryAuthority(
+        "g1", false, null, null, false, null, false).Reason ==
+    "robot_policy_runner_unavailable");
+Expect(
+    "g1_missing_sonic_runner_fails_closed",
+    RecorderContract.ValidateRecoveryAuthority(
+        "g1", true, false, false, false, null, false).Reason ==
+    "g1_sonic_policy_runner_unavailable");
+Expect(
+    "g1_unassigned_sonic_runner_fails_closed",
+    RecorderContract.ValidateRecoveryAuthority(
+        "g1", true, false, false, true, false, false).Reason ==
+    "g1_sonic_policy_runner_not_assigned_to_robot");
+Expect(
+    "g1_missing_direct_value_fails_closed",
+    RecorderContract.ValidateRecoveryAuthority(
+        "g1", true, null, false, true, false, true).Reason ==
+    "robot_policy_runner_can_get_up_unavailable");
+Expect(
+    "g1_coordinator_disagreement_fails_closed",
+    RecorderContract.ValidateRecoveryAuthority(
+        "g1", true, false, true, true, false, true).Reason ==
+    "policy_runner_and_fight_coordinator_can_get_up_disagree");
+Expect(
+    "g1_sonic_disagreement_fails_closed",
+    RecorderContract.ValidateRecoveryAuthority(
+        "g1", true, false, false, true, true, true).Reason ==
+    "g1_sonic_and_fight_coordinator_can_get_up_disagree");
+Expect(
+    "t800_does_not_infer_sonic_runner",
+    RecorderContract.ValidateRecoveryAuthority(
+        "t800", true, true, true, false, null, false).Complete);
+Expect(
+    "unsupported_runtime_model_fails_closed",
+    RecorderContract.ValidateRecoveryAuthority(
+        null, true, true, true, true, true, true).Reason ==
+    "supported_runtime_model_not_proven");
 
 var exactT800 = RecorderContract.ValidatePairing(
     0, "t800", "T800_Local", t800Bones, "t800", "T800_Opponent", t800Bones);

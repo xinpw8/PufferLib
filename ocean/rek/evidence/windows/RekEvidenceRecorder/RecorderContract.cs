@@ -6,7 +6,7 @@ namespace RekEvidenceRecorder;
 internal static class RecorderContract
 {
     internal const string Schema = "rek.private_ai.protocol.v7";
-    internal const string PluginVersion = "0.7.2";
+    internal const string PluginVersion = "0.7.3";
     internal const string RequiredPairing = "exact_homogeneous_supported_runtime_pair";
     internal const string T800RobotId = "t800";
     internal const string G1RobotId = "g1";
@@ -19,6 +19,12 @@ internal static class RecorderContract
         "ec0f8d0ae5bd170464f5393f9860959e47a54b8e73e4dc259a6fb955f46d3dab";
     internal const string G1BoneSignatureSha256 =
         "9d18e697233d9578b398fbe849cd59d65cb27a5c2223b2602db66a82a410e987";
+    internal const string RuntimeCanGetUpAuthoritySource =
+        "direct_REKApp.FightCoordinator.CanFighterGetUp_slot_cross_checked_against_REKApp.Robot.PolicyRunner.CanGetUp";
+    internal const string InitialStateObservationBoundary =
+        "single_synchronous_RecorderBehaviour.FixedUpdate_callback_before_capture_file_open";
+    internal const string InitialStatePublicationUnit =
+        "single_capture_start_JSONL_record_built_completely_before_StreamWriter_open";
 
     internal static readonly string[] T800BoneNames =
     {
@@ -184,6 +190,55 @@ internal static class RecorderContract
     internal static bool IsExactG1BoneSignature(IReadOnlyList<string?>? actual) =>
         ExactNames(actual, G1BoneNames);
 
+    internal static RecoveryAuthorityValidation ValidateRecoveryAuthority(
+        string? runtimeModel,
+        bool policyRunnerPresent,
+        bool? policyRunnerCanGetUp,
+        bool? coordinatorCanFighterGetUp,
+        bool sonicPolicyRunnerPresent,
+        bool? sonicPolicyRunnerCanGetUp,
+        bool sonicPolicyRunnerAssignedToRobot)
+    {
+        if (runtimeModel is not (T800RobotId or G1RobotId))
+            return new RecoveryAuthorityValidation(
+                "supported_runtime_model_not_proven", false, null);
+        if (!policyRunnerPresent)
+            return new RecoveryAuthorityValidation(
+                "robot_policy_runner_unavailable", false, null);
+        if (!policyRunnerCanGetUp.HasValue)
+            return new RecoveryAuthorityValidation(
+                "robot_policy_runner_can_get_up_unavailable", false, null);
+        if (!coordinatorCanFighterGetUp.HasValue)
+            return new RecoveryAuthorityValidation(
+                "fight_coordinator_can_fighter_get_up_unavailable", false, null);
+        if (policyRunnerCanGetUp.Value != coordinatorCanFighterGetUp.Value)
+            return new RecoveryAuthorityValidation(
+                "policy_runner_and_fight_coordinator_can_get_up_disagree", false, null);
+
+        if (runtimeModel == G1RobotId)
+        {
+            if (!sonicPolicyRunnerPresent)
+                return new RecoveryAuthorityValidation(
+                    "g1_sonic_policy_runner_unavailable", false, null);
+            if (!sonicPolicyRunnerAssignedToRobot)
+                return new RecoveryAuthorityValidation(
+                    "g1_sonic_policy_runner_not_assigned_to_robot", false, null);
+            if (!sonicPolicyRunnerCanGetUp.HasValue)
+                return new RecoveryAuthorityValidation(
+                    "g1_sonic_policy_runner_can_get_up_unavailable", false, null);
+            if (sonicPolicyRunnerCanGetUp.Value != coordinatorCanFighterGetUp.Value)
+            {
+                return new RecoveryAuthorityValidation(
+                    "g1_sonic_and_fight_coordinator_can_get_up_disagree", false, null);
+            }
+        }
+
+        return new RecoveryAuthorityValidation(
+            "direct_runtime_can_get_up_authority_complete",
+            true,
+            coordinatorCanFighterGetUp.Value);
+    }
+
     internal static string BoneSignatureSha256(IReadOnlyList<string?> names)
     {
         var joined = string.Join("\n", names.Select(name => name ?? string.Empty));
@@ -266,3 +321,8 @@ internal readonly record struct PairingValidation(
     bool OpponentSemanticRuntimeMismatch,
     string LocalSemanticRuntimeConsistency,
     string OpponentSemanticRuntimeConsistency);
+
+internal readonly record struct RecoveryAuthorityValidation(
+    string Reason,
+    bool Complete,
+    bool? CanGetUp);

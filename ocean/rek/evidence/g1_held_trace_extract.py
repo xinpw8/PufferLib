@@ -35,6 +35,14 @@ EXPECTED_PLUGIN_VERSION = "0.7.2"
 EXPECTED_PLUGIN_SHA256 = (
     "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95"
 )
+EXPECTED_RECOVERY_PLUGIN_VERSION = "0.7.3"
+EXPECTED_RECOVERY_PLUGIN_SHA256 = (
+    "842ed03d2028c1e67275e9a533bfe3e11126c5b4d93a43c672b8a6d97b60113b"
+)
+EXPECTED_PLUGIN_IDENTITIES = {
+    (EXPECTED_PLUGIN_VERSION, EXPECTED_PLUGIN_SHA256),
+    (EXPECTED_RECOVERY_PLUGIN_VERSION, EXPECTED_RECOVERY_PLUGIN_SHA256),
+}
 EXPECTED_GAME_ASSEMBLY_SHA256 = (
     "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412"
 )
@@ -169,8 +177,12 @@ def _require_bool(container: dict[str, Any], name: str, expected: bool, context:
 def _validate_start(start: dict[str, Any]) -> tuple[int, int]:
     _require(start.get("event") == "capture_start", "first_record_not_capture_start")
     _require(start.get("schema") == RECORDER_SCHEMA, "unsupported_recorder_schema")
-    _require(start.get("plugin_version") == EXPECTED_PLUGIN_VERSION, "recorder_version_mismatch")
-    _require(start.get("plugin_sha256") == EXPECTED_PLUGIN_SHA256, "recorder_sha256_mismatch")
+    plugin_version = start.get("plugin_version")
+    plugin_sha256 = start.get("plugin_sha256")
+    _require(isinstance(plugin_version, str), "recorder_version_malformed")
+    _require(isinstance(plugin_sha256, str), "recorder_sha256_malformed")
+    plugin_identity = (plugin_version, plugin_sha256)
+    _require(plugin_identity in EXPECTED_PLUGIN_IDENTITIES, "recorder_identity_mismatch")
     _require(
         start.get("game_assembly_sha256") == EXPECTED_GAME_ASSEMBLY_SHA256,
         "game_assembly_sha256_mismatch",

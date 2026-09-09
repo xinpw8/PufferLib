@@ -45,6 +45,14 @@ EXPECTED_PLUGIN_VERSION_V7 = "0.7.2"
 EXPECTED_PLUGIN_SHA256_V7 = (
     "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95"
 )
+EXPECTED_PLUGIN_VERSION_V7_RECOVERY = "0.7.3"
+EXPECTED_PLUGIN_SHA256_V7_RECOVERY = (
+    "842ed03d2028c1e67275e9a533bfe3e11126c5b4d93a43c672b8a6d97b60113b"
+)
+EXPECTED_PLUGIN_IDENTITIES_V7 = {
+    (EXPECTED_PLUGIN_VERSION_V7, EXPECTED_PLUGIN_SHA256_V7): False,
+    (EXPECTED_PLUGIN_VERSION_V7_RECOVERY, EXPECTED_PLUGIN_SHA256_V7_RECOVERY): True,
+}
 EXPECTED_PLUGIN_VERSION = EXPECTED_PLUGIN_VERSION_V5
 EXPECTED_PLUGIN_SHA256 = EXPECTED_PLUGIN_SHA256_V5
 EXPECTED_GAME_ASSEMBLY_SHA256 = (
@@ -218,6 +226,16 @@ EXPECTED_HOOKS_V7 = [
     "REKApp.NetworkSession.StopSession:prefix_bound_route_invalidation",
     *EXPECTED_HOOKS,
 ]
+INITIAL_STATE_OBSERVATION_BOUNDARY = (
+    "single_synchronous_RecorderBehaviour.FixedUpdate_callback_before_capture_file_open"
+)
+INITIAL_STATE_PUBLICATION_UNIT = (
+    "single_capture_start_JSONL_record_built_completely_before_StreamWriter_open"
+)
+RUNTIME_CAN_GET_UP_AUTHORITY_SOURCE = (
+    "direct_REKApp.FightCoordinator.CanFighterGetUp_slot_cross_checked_against_"
+    "REKApp.Robot.PolicyRunner.CanGetUp"
+)
 FIGHT_PHASE_NAMES = {
     0: "Idle", 1: "RoundActive", 2: "RoundEnd", 3: "BetweenRounds",
     4: "FightOver", 5: "Setup", 6: "Sandbox",
@@ -289,6 +307,12 @@ def _finite(value: Any, label: str) -> float:
     if not math.isfinite(result):
         raise EvidenceError(f"{label} is not finite")
     return result
+
+
+def _boolean(value: Any, label: str) -> bool:
+    if not isinstance(value, bool):
+        raise EvidenceError(f"{label} is not boolean")
+    return value
 
 
 def _float32_bytes(value: Any, label: str) -> bytes:
@@ -631,6 +655,246 @@ def _validate_v7_pairing(start: dict[str, Any]) -> dict[str, Any]:
                 "opponent_semantic_runtime_consistency",
             )
         },
+    }
+
+
+def _validate_initial_recovery_authority(
+    value: Any,
+    slot: int,
+    runtime_model: str,
+) -> bool:
+    label = f"initial fighter {slot} recovery authority"
+    if not isinstance(value, dict):
+        raise EvidenceError(f"{label} is absent")
+    expected = {
+        "complete": True,
+        "reason": "direct_runtime_can_get_up_authority_complete",
+        "source": RUNTIME_CAN_GET_UP_AUTHORITY_SOURCE,
+        "runtime_model": runtime_model,
+        "fighter_slot": slot,
+        "robot_policy_runner_present": True,
+        "server_acceptance_available": False,
+        "server_acceptance": None,
+        "server_authority_claim": False,
+    }
+    for field, expected_value in expected.items():
+        if field not in value:
+            raise EvidenceError(f"{label} field {field} is absent")
+        _exact_decoded(value[field], expected_value, f"{label} field {field}")
+
+    can_get_up = _boolean(value.get("can_get_up"), f"{label} can_get_up")
+    coordinator_value = _boolean(
+        value.get("fight_coordinator_can_fighter_get_up"),
+        f"{label} FightCoordinator value",
+    )
+    policy_value = _boolean(
+        value.get("robot_policy_runner_can_get_up"),
+        f"{label} Robot.PolicyRunner value",
+    )
+    if can_get_up != coordinator_value or can_get_up != policy_value:
+        raise EvidenceError(f"{label} direct CanGetUp values disagree")
+
+    component_present = _boolean(
+        value.get("robot_policy_runner_component_present"),
+        f"{label} robot_policy_runner_component_present",
+    )
+    for field in (
+        "robot_policy_runner_is_initialized",
+        "robot_policy_runner_is_paused",
+        "robot_policy_runner_is_recovering",
+        "robot_policy_runner_is_done",
+        "robot_get_up_pending",
+        "robot_recovery_armed",
+    ):
+        _boolean(value.get(field), f"{label} {field}")
+    component_fields = (
+        "robot_policy_runner_component_managed_type",
+        "robot_policy_runner_component_name",
+    )
+    for field in component_fields:
+        if component_present and (
+            not isinstance(value.get(field), str) or not value[field].strip()
+        ):
+            raise EvidenceError(f"{label} {field} is absent")
+        if not component_present and value.get(field) is not None:
+            raise EvidenceError(f"{label} {field} exists without a component")
+    for field in ("robot_suggested_get_up_orientation",):
+        if not isinstance(value.get(field), str) or not value[field].strip():
+            raise EvidenceError(f"{label} {field} is absent")
+    _integer(
+        value.get("robot_suggested_get_up_orientation_value"),
+        f"{label} suggested get-up orientation value",
+    )
+
+    sonic = value.get("g1_sonic_policy_runner")
+    if runtime_model == "g1":
+        if not isinstance(sonic, dict):
+            raise EvidenceError(f"{label} G1 SonicPolicyRunner record is absent")
+        for field in (
+            "present",
+            "assigned_to_robot_policy_runner",
+            "can_get_up",
+            "init_complete",
+            "paused",
+            "motion_composer_present",
+            "get_up_prone_clip_present",
+            "get_up_supine_clip_present",
+        ):
+            _boolean(sonic.get(field), f"{label} SonicPolicyRunner {field}")
+        if sonic["present"] is not True:
+            raise EvidenceError(f"{label} G1 SonicPolicyRunner is not present")
+        if sonic["assigned_to_robot_policy_runner"] is not True:
+            raise EvidenceError(
+                f"{label} G1 SonicPolicyRunner is not assigned to Robot.policyRunner"
+            )
+        if sonic["can_get_up"] != can_get_up:
+            raise EvidenceError(f"{label} SonicPolicyRunner CanGetUp disagrees")
+    elif sonic is not None and not isinstance(sonic, dict):
+        raise EvidenceError(f"{label} SonicPolicyRunner record is malformed")
+    return can_get_up
+
+
+def _validate_v7_recovery_initial_state(
+    start: dict[str, Any],
+    pairing: dict[str, Any],
+    start_ticks: int,
+    end_ticks: int,
+) -> dict[str, Any]:
+    state = start.get("initial_state")
+    if not isinstance(state, dict):
+        raise EvidenceError("v0.7.3 capture has no atomic initial-state record")
+    expected = {
+        "atomic_both_fighters": True,
+        "observation_boundary": INITIAL_STATE_OBSERVATION_BOUNDARY,
+        "publication_unit": INITIAL_STATE_PUBLICATION_UNIT,
+        "read_order": ["fighter_0", "fighter_1"],
+        "simultaneous_hardware_sample_claim": False,
+        "client_fixed_tick": 0,
+        "local_fighter_index": pairing["local_slot"],
+        "opponent_slot": pairing["opponent_slot"],
+    }
+    for field, expected_value in expected.items():
+        if field not in state:
+            raise EvidenceError(f"initial state field {field} is absent")
+        _exact_decoded(state[field], expected_value, f"initial state field {field}")
+
+    begin = _integer(
+        state.get("stopwatch_begin_timestamp_ticks"),
+        "initial-state begin Stopwatch ticks",
+        0,
+    )
+    finish = _integer(
+        state.get("stopwatch_end_timestamp_ticks"),
+        "initial-state end Stopwatch ticks",
+        0,
+    )
+    if begin != start_ticks or finish < begin or finish > end_ticks:
+        raise EvidenceError("initial-state Stopwatch bounds are invalid")
+    begin_utc = _utc_timestamp(state.get("utc_begin"), "initial-state begin")
+    finish_utc = _utc_timestamp(state.get("utc_end"), "initial-state end")
+    if finish_utc < begin_utc:
+        raise EvidenceError("initial-state UTC time decreased")
+    _integer(state.get("unity_frame"), "initial-state Unity frame", 0)
+    _finite(state.get("unity_fixed_time"), "initial-state Unity fixed time")
+    _integer(state.get("fight_epoch"), "initial-state fight epoch", 0)
+    phase_value = _integer(state.get("phase_value"), "initial-state phase value", 0)
+    if state.get("phase") != FIGHT_PHASE_NAMES.get(phase_value):
+        raise EvidenceError("initial-state phase name and value disagree")
+    if not isinstance(state.get("scene"), str) or not state["scene"].strip():
+        raise EvidenceError("initial-state scene is absent")
+    for field in ("input", "round", "fight"):
+        if not isinstance(state.get(field), dict):
+            raise EvidenceError(f"initial-state {field} record is absent")
+
+    runtime_model = pairing["runtime_model"]
+    expected_names = (
+        list(T800_BONE_NAMES) if runtime_model == "t800" else list(G1_BONE_NAMES)
+    )
+    expected_signature = (
+        T800_BONE_SIGNATURE_SHA256
+        if runtime_model == "t800"
+        else G1_BONE_SIGNATURE_SHA256
+    )
+    recovery_values: list[bool] = []
+    for slot in (0, 1):
+        fighter = state.get(f"fighter_{slot}")
+        label = f"initial fighter {slot}"
+        if not isinstance(fighter, dict):
+            raise EvidenceError(f"{label} record is absent")
+        if _integer(fighter.get("fighter_slot"), f"{label} slot", 0) != slot:
+            raise EvidenceError(f"{label} slot disagrees")
+        network_index = _integer(fighter.get("network_index"), f"{label} network index", 0)
+        if network_index > 255:
+            raise EvidenceError(f"{label} network index is not uint8")
+        for field in (
+            "visual_only",
+            "player_controlled",
+            "falling",
+            "fallen",
+            "dampened",
+            "resetting",
+            "motor_shutdown",
+            "policy_suspended",
+            "both_feet_off_floor",
+        ):
+            _boolean(fighter.get(field), f"{label} {field}")
+        if fighter["visual_only"] is not True:
+            raise EvidenceError(f"{label} is not the scoped visual-only fighter")
+        _finite(fighter.get("tilt_angle"), f"{label} tilt angle")
+        _finite(fighter.get("pelvis_height_ratio"), f"{label} pelvis height ratio")
+        _integer(fighter.get("floor_contact_count"), f"{label} floor contact count", 0)
+        _float_list(fighter.get("root_position"), 3, f"{label} root position")
+        _float_list(fighter.get("root_rotation"), 4, f"{label} root rotation")
+        _float_list(
+            fighter.get("root_linear_velocity"), 3, f"{label} root linear velocity"
+        )
+        _float_list(
+            fighter.get("root_angular_velocity"), 3, f"{label} root angular velocity"
+        )
+
+        bones = fighter.get("bones")
+        if not isinstance(bones, dict):
+            raise EvidenceError(f"{label} bone record is absent")
+        if _integer(bones.get("count"), f"{label} bone count", 1) != len(expected_names):
+            raise EvidenceError(f"{label} bone count disagrees with runtime model")
+        if bones.get("ordered_names") != expected_names:
+            raise EvidenceError(f"{label} ordered bone names disagree with runtime model")
+        if _require_hex64(
+            bones.get("ordered_name_signature_sha256"),
+            f"{label} bone signature",
+        ) != expected_signature:
+            raise EvidenceError(f"{label} bone signature disagrees with runtime model")
+        _float_list(
+            bones.get("world_positions_xyz"),
+            len(expected_names) * 3,
+            f"{label} bone world positions",
+        )
+        _float_list(
+            bones.get("world_rotations_xyzw"),
+            len(expected_names) * 4,
+            f"{label} bone world rotations",
+        )
+        _float_list(
+            bones.get("local_positions_xyz"),
+            len(expected_names) * 3,
+            f"{label} bone local positions",
+        )
+        _float_list(
+            bones.get("local_rotations_xyzw"),
+            len(expected_names) * 4,
+            f"{label} bone local rotations",
+        )
+        recovery_values.append(_validate_initial_recovery_authority(
+            fighter.get("recovery_authority"), slot, runtime_model
+        ))
+
+    return {
+        "validated": True,
+        "observation_boundary": INITIAL_STATE_OBSERVATION_BOUNDARY,
+        "publication_unit": INITIAL_STATE_PUBLICATION_UNIT,
+        "fighter_0_can_get_up": recovery_values[0],
+        "fighter_1_can_get_up": recovery_values[1],
+        "server_authority_claimed": False,
     }
 
 
@@ -1175,15 +1439,29 @@ def validate(path: Path | str) -> dict[str, Any]:
     is_v6 = recorder_schema == SCHEMA_V6
     is_v7 = recorder_schema == SCHEMA_V7
     has_root_stream = is_v6 or is_v7
-    expected_plugin_version, expected_plugin_sha256 = {
-        SCHEMA_V5: (EXPECTED_PLUGIN_VERSION_V5, EXPECTED_PLUGIN_SHA256_V5),
-        SCHEMA_V6: (EXPECTED_PLUGIN_VERSION_V6, EXPECTED_PLUGIN_SHA256_V6),
-        SCHEMA_V7: (EXPECTED_PLUGIN_VERSION_V7, EXPECTED_PLUGIN_SHA256_V7),
-    }[recorder_schema]
-    if start.get("plugin_version") != expected_plugin_version:
+    observed_plugin_version = start.get("plugin_version")
+    if not isinstance(observed_plugin_version, str):
         raise EvidenceError("recorder plugin version mismatch")
-    if _require_hex64(start.get("plugin_sha256"), "plugin hash") != expected_plugin_sha256:
-        raise EvidenceError("recorder plugin hash mismatch")
+    observed_plugin_sha256 = _require_hex64(start.get("plugin_sha256"), "plugin hash")
+    requires_initial_state = False
+    if is_v7:
+        identity = (observed_plugin_version, observed_plugin_sha256)
+        known_versions = {version for version, _ in EXPECTED_PLUGIN_IDENTITIES_V7}
+        if observed_plugin_version not in known_versions:
+            raise EvidenceError("recorder plugin version mismatch")
+        if identity not in EXPECTED_PLUGIN_IDENTITIES_V7:
+            raise EvidenceError("recorder plugin hash mismatch")
+        requires_initial_state = EXPECTED_PLUGIN_IDENTITIES_V7[identity]
+        expected_plugin_sha256 = observed_plugin_sha256
+    else:
+        expected_plugin_version, expected_plugin_sha256 = {
+            SCHEMA_V5: (EXPECTED_PLUGIN_VERSION_V5, EXPECTED_PLUGIN_SHA256_V5),
+            SCHEMA_V6: (EXPECTED_PLUGIN_VERSION_V6, EXPECTED_PLUGIN_SHA256_V6),
+        }[recorder_schema]
+        if observed_plugin_version != expected_plugin_version:
+            raise EvidenceError("recorder plugin version mismatch")
+        if observed_plugin_sha256 != expected_plugin_sha256:
+            raise EvidenceError("recorder plugin hash mismatch")
     if str(start.get("game_assembly_sha256", "")).lower() != EXPECTED_GAME_ASSEMBLY_SHA256:
         raise EvidenceError("GameAssembly hash mismatch")
     if str(start.get("global_metadata_sha256", "")).lower() != EXPECTED_METADATA_SHA256:
@@ -1278,10 +1556,18 @@ def validate(path: Path | str) -> dict[str, Any]:
     if start.get("instrumentation_hooks") != expected_hooks:
         raise EvidenceError("capture instrumentation-hook declaration mismatch")
     pairing_summary = None
+    initial_state_summary = None
     if is_v6:
         _validate_v6_pairing(start)
     elif is_v7:
         pairing_summary = _validate_v7_pairing(start)
+        if requires_initial_state:
+            initial_state_summary = _validate_v7_recovery_initial_state(
+                start,
+                pairing_summary,
+                start_ticks,
+                end_ticks,
+            )
 
     server = start.get("server") or {}
     if is_v7:
@@ -1709,6 +1995,7 @@ def validate(path: Path | str) -> dict[str, Any]:
         "compact_samples": len(samples),
         "client_sample_stride_ticks": stride,
         "root_pose_stream": root_stream,
+        "initial_state": initial_state_summary,
         "fighters": per_fighter,
         "wire": {
             "intended_interval_seconds": 0.02,
