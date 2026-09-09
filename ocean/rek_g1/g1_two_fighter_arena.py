@@ -1,4 +1,4 @@
-"""Build-pinned two-G1 initial-spawn arena without combat semantics.
+"""Build-pinned two-G1 initial-spawn arena with candidate role contacts.
 
 The exact static prefab-root-to-pelvis contract composes each arena spawn root
 with the G1 pelvis local transform.  The resulting player and opponent pelvis
@@ -6,11 +6,14 @@ poses initialize their respective MuJoCo free joints.  Static world-relative
 spawn-root frames remain in the model as inspectable source references.
 
 Names, name-valued references, and each cloned root body's spawn ``pos`` and
-``quat`` are the only robot XML changes.  Every other numeric and Boolean
-robot XML attribute is retained byte-for-byte.  The 17 arena boxes come from
-the hash-pinned arena contract through ``sonic_candidate.add_arena_geoms``.
-This reference makes no claim about later dynamics, control parity, server
-build equality, networking, or combat behavior.
+``quat`` are changed during composition.  The recovered single-robot contact
+bits are then remapped into disjoint player and opponent namespaces.  This
+preserves each robot's self/arena collision matrix while enabling physical
+contacts between the two copies.  Every other numeric and Boolean robot XML
+attribute is retained byte-for-byte.  The 17 arena boxes come from the
+hash-pinned arena contract through ``sonic_candidate.add_arena_geoms``.  This
+reference makes no claim about control parity, server build equality,
+networking, or authentic combat response parameters.
 """
 
 from __future__ import annotations
@@ -32,8 +35,10 @@ import numpy as np
 import sonic_candidate as plant_contract
 
 
-SCHEMA = "rek.g1_two_fighter_arena_reference.v2"
-CLASSIFICATION = "build_pinned_static_initial_spawn_reference"
+SCHEMA = "rek.g1_two_fighter_arena_reference.v3"
+CLASSIFICATION = (
+    "build_pinned_static_initial_spawn_with_candidate_cross_fighter_contacts"
+)
 ROLES = ("player", "opponent")
 NAMESPACE_SEPARATOR = "__"
 MODEL_NAME = "rek_g1_two_fighter_arena_reference"
@@ -45,6 +50,17 @@ EXPECTED_MODEL_DIMENSIONS = {
     "nu": 58,
     "ngeom": 91,
 }
+PLAYER_CONTACT_BIT = 1
+ARENA_CONTACT_BIT = 2
+PLAYER_CROSS_CONTACT_BIT = 4
+OPPONENT_CROSS_CONTACT_BIT = 8
+SOURCE_CONTACT_MASK_COUNTS = MappingProxyType({(1, 1): 12, (1, 2): 25})
+EXPECTED_ROLE_CONTACT_MASK_COUNTS = MappingProxyType(
+    {
+        "player": MappingProxyType({(5, 9): 12, (5, 10): 25}),
+        "opponent": MappingProxyType({(9, 5): 12, (9, 6): 25}),
+    }
+)
 SPAWN_FRAME_NAMES = {
     "player": "arena_spawn_reference__player",
     "opponent": "arena_spawn_reference__opponent",
@@ -664,8 +680,10 @@ def _load_runtime_manifest(path: Path) -> _RuntimeManifestFacts:
     if value.get("build_fingerprint") != plant_contract.BUILD_FINGERPRINT:
         raise TwoFighterArenaError("G1 runtime asset manifest build fingerprint mismatch")
     assets = value.get("assets")
-    if not isinstance(assets, list) or len(assets) != 8:
-        raise TwoFighterArenaError("G1 runtime asset manifest must contain eight assets")
+    if not isinstance(assets, list) or len(assets) != 21:
+        raise TwoFighterArenaError(
+            "G1 runtime asset manifest must contain 21 pinned assets"
+        )
     roles: list[str] = []
     for index, asset in enumerate(assets):
         if not isinstance(asset, dict):
@@ -807,6 +825,91 @@ def _namespace_robot(
                     raise TwoFighterArenaError(
                         f"unresolved namespaced reference {element.tag}.{attribute}={value!r}"
                     )
+
+
+def _contact_mask_pair(geom: ET.Element) -> tuple[int, int]:
+    name = geom.get("name")
+    try:
+        contype = int(str(geom.get("contype")), 10)
+        conaffinity = int(str(geom.get("conaffinity")), 10)
+    except (TypeError, ValueError) as exc:
+        raise TwoFighterArenaError(
+            f"robot geom {name!r} has an invalid explicit contact mask"
+        ) from exc
+    if contype < 0 or conaffinity < 0:
+        raise TwoFighterArenaError(
+            f"robot geom {name!r} has a negative contact mask"
+        )
+    return contype, conaffinity
+
+
+def _role_contact_mask(
+    role: str,
+    source_contype: int,
+    source_conaffinity: int,
+) -> tuple[int, int]:
+    if source_contype != PLAYER_CONTACT_BIT or source_conaffinity not in (
+        PLAYER_CONTACT_BIT,
+        ARENA_CONTACT_BIT,
+    ):
+        raise TwoFighterArenaError("recovered robot contact-mask contract changed")
+    if role == "player":
+        return (
+            source_contype | PLAYER_CROSS_CONTACT_BIT,
+            source_conaffinity | OPPONENT_CROSS_CONTACT_BIT,
+        )
+    if role == "opponent":
+        return (
+            source_contype | OPPONENT_CROSS_CONTACT_BIT,
+            source_conaffinity | PLAYER_CROSS_CONTACT_BIT,
+        )
+    raise TwoFighterArenaError(f"unknown fighter role {role!r}")
+
+
+def _configure_role_contact_masks(root_body: ET.Element, role: str) -> None:
+    geoms = tuple(root_body.iter("geom"))
+    source_counts: dict[tuple[int, int], int] = {}
+    for geom in geoms:
+        source = _contact_mask_pair(geom)
+        source_counts[source] = source_counts.get(source, 0) + 1
+        contype, conaffinity = _role_contact_mask(role, *source)
+        geom.set("contype", str(contype))
+        geom.set("conaffinity", str(conaffinity))
+    if source_counts != dict(SOURCE_CONTACT_MASK_COUNTS):
+        raise TwoFighterArenaError("recovered robot contact-mask counts changed")
+    observed: dict[tuple[int, int], int] = {}
+    for geom in geoms:
+        contact = _contact_mask_pair(geom)
+        observed[contact] = observed.get(contact, 0) + 1
+    if observed != dict(EXPECTED_ROLE_CONTACT_MASK_COUNTS[role]):
+        raise TwoFighterArenaError(f"{role} contact-mask remap mismatch")
+
+
+def _robot_projection_without_contact_masks_sha256(
+    root_body: ET.Element,
+    motors: Sequence[ET.Element],
+    namespace: str | None,
+) -> str:
+    projected_body = copy.deepcopy(root_body)
+    for geom in projected_body.iter("geom"):
+        geom.attrib.pop("contype", None)
+        geom.attrib.pop("conaffinity", None)
+    return _robot_projection_sha256(projected_body, motors, namespace)
+
+
+def _robot_nonspawn_projection_without_contact_masks_sha256(
+    root_body: ET.Element,
+    motors: Sequence[ET.Element],
+    namespace: str | None,
+) -> str:
+    projected_body = copy.deepcopy(root_body)
+    if "pos" not in projected_body.attrib or "quat" not in projected_body.attrib:
+        raise TwoFighterArenaError("recovered root body omits its serialized pose")
+    del projected_body.attrib["pos"]
+    del projected_body.attrib["quat"]
+    return _robot_projection_without_contact_masks_sha256(
+        projected_body, motors, namespace
+    )
 
 
 def _element_projection(element: ET.Element, namespace: str | None) -> Mapping[str, Any]:
@@ -1052,6 +1155,11 @@ def compose_two_fighter_mjcf(
     source_nonspawn_projection_sha256 = _robot_nonspawn_projection_sha256(
         source_body, source_motors, None
     )
+    source_nonspawn_without_contact_masks_sha256 = (
+        _robot_nonspawn_projection_without_contact_masks_sha256(
+            source_body, source_motors, None
+        )
+    )
     try:
         arena_xml = plant_contract.add_arena_geoms(
             xml_contract.source_bytes, arena_contract
@@ -1122,6 +1230,16 @@ def compose_two_fighter_mjcf(
             raise TwoFighterArenaError(
                 f"{role} robot copy changed outside names, references, and root pose"
             )
+        _configure_role_contact_masks(cloned_body, role)
+        if (
+            _robot_nonspawn_projection_without_contact_masks_sha256(
+                cloned_body, cloned_motors, namespace
+            )
+            != source_nonspawn_without_contact_masks_sha256
+        ):
+            raise TwoFighterArenaError(
+                f"{role} contact remap changed another robot attribute"
+            )
         fighter = _fighter_namespace(
             role, namespace, source_body, source_motors, xml_contract
         )
@@ -1151,7 +1269,8 @@ def compose_two_fighter_mjcf(
     unknowns = retained_arena_unknowns + (
         "the prefab clone root transform lacks an independent passive runtime observation",
         "server build equality is unobserved",
-        "post-spawn physics, resets, networking, and controller mutations are outside this reference",
+        "the cross-fighter contact-bit namespace is a candidate because authentic runtime layer masks are unobserved",
+        "authentic contact response, resets, networking, and controller mutations are outside this reference",
     )
     return TwoFighterArenaContract(
         schema=SCHEMA,

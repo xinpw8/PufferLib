@@ -765,6 +765,135 @@ int main(int argc, char** argv) {
         unchanged_bytes,
         sizeof(unchanged_contact)) == 0);
 
+    const RekG1ImpactEvent move_7_event = {
+        .impact_time_seconds = 1.0f,
+        .lead_time_seconds = 0.2f,
+        .release_time_seconds = 0.5f,
+        .limb = REK_G1_AIM_LIMB_LEFT_LOWER_BODY,
+    };
+    RekG1HitMujocoCallerFacts move_7_facts = {
+        .strike_intent = {
+            .impact_events = &move_7_event,
+            .impact_event_count = 1u,
+            .clip_fps = 50.0f,
+            .move_id = 7,
+            .action_playing = 1u,
+            .layer_active = 1u,
+            .layer_loop = 0u,
+        },
+        .round_active = 1u,
+        .fighter_upright = {1u, 1u},
+        .fighter_standing = {1u, 1u},
+    };
+    const RekG1HitDetectorConfig move_7_config =
+        rek_g1_current_build_hit_detector_config();
+    RekG1HitDetectorState move_7_state;
+    RekG1HitResult move_7_result;
+    mjContact move_7_contact =
+        make_contact(player_left_ankle, opponent_torso);
+    CHECK(rek_g1_hit_mujoco_reset(
+        &adapter, error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    CHECK(replace_contacts(model, arena_data[0], &move_7_contact, 1u));
+
+    observation = observation_for(&duel, 0u, 0u);
+    CHECK(rek_g1_hit_mujoco_scan_substep(
+        &adapter, &observation, candidates, TEST_CANDIDATE_CAPACITY,
+        &candidate_count, error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    CHECK(candidate_count == 1u);
+    CHECK(candidates[0].striker_part == REK_G1_BODY_PART_FOOT);
+    CHECK(candidates[0].striker_side == REK_G1_HAND_LEFT);
+    CHECK(candidates[0].target_zone == REK_G1_BODY_ZONE_TORSO);
+    move_7_facts.strike_intent.clip_cursor_frames = 42.0f;
+    move_7_facts.time_seconds = 42.0f / 50.0f;
+    CHECK(rek_g1_hit_mujoco_candidate_to_contact(
+        &candidates[0], &move_7_facts, &measured_contact,
+        error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    rek_g1_hit_detector_reset(&move_7_state);
+    CHECK(rek_g1_hit_detector_process(
+        &move_7_state, &move_7_config, &measured_contact, &move_7_result));
+    CHECK(move_7_result.score_accepted == 0u);
+
+    move_7_facts.strike_intent.clip_cursor_frames = 43.0f;
+    move_7_facts.time_seconds = 43.0f / 50.0f;
+    observation = observation_for(&duel, 0u, 1u);
+    CHECK(rek_g1_hit_mujoco_scan_substep(
+        &adapter, &observation, candidates, TEST_CANDIDATE_CAPACITY,
+        &candidate_count, error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    CHECK(candidate_count == 0u);
+
+    CHECK(replace_contacts(model, arena_data[0], NULL, 0u));
+    observation = observation_for(&duel, 0u, 2u);
+    CHECK(rek_g1_hit_mujoco_scan_substep(
+        &adapter, &observation, candidates, TEST_CANDIDATE_CAPACITY,
+        &candidate_count, error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    CHECK(candidate_count == 0u);
+    CHECK(replace_contacts(model, arena_data[0], &move_7_contact, 1u));
+    observation = observation_for(&duel, 0u, 3u);
+    CHECK(rek_g1_hit_mujoco_scan_substep(
+        &adapter, &observation, candidates, TEST_CANDIDATE_CAPACITY,
+        &candidate_count, error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    CHECK(candidate_count == 1u);
+    CHECK(rek_g1_hit_mujoco_candidate_to_contact(
+        &candidates[0], &move_7_facts, &measured_contact,
+        error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    CHECK(rek_g1_hit_detector_process(
+        &move_7_state, &move_7_config, &measured_contact, &move_7_result));
+    CHECK(move_7_result.score_accepted == 1u);
+    CHECK(move_7_result.points_awarded == 2.0f);
+
+    CHECK(replace_contacts(model, arena_data[0], NULL, 0u));
+    observation = observation_for(&duel, 0u, 4u);
+    CHECK(rek_g1_hit_mujoco_scan_substep(
+        &adapter, &observation, candidates, TEST_CANDIDATE_CAPACITY,
+        &candidate_count, error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    CHECK(candidate_count == 0u);
+    CHECK(replace_contacts(model, arena_data[0], &move_7_contact, 1u));
+    observation = observation_for(&duel, 0u, 5u);
+    CHECK(rek_g1_hit_mujoco_scan_substep(
+        &adapter, &observation, candidates, TEST_CANDIDATE_CAPACITY,
+        &candidate_count, error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    CHECK(candidate_count == 1u);
+    move_7_facts.strike_intent.clip_cursor_frames = 67.0f;
+    move_7_facts.time_seconds = 67.0f / 50.0f;
+    CHECK(rek_g1_hit_mujoco_candidate_to_contact(
+        &candidates[0], &move_7_facts, &measured_contact,
+        error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    rek_g1_hit_detector_reset(&move_7_state);
+    CHECK(rek_g1_hit_detector_process(
+        &move_7_state, &move_7_config, &measured_contact, &move_7_result));
+    CHECK(move_7_result.score_accepted == 1u);
+
+    CHECK(replace_contacts(model, arena_data[0], NULL, 0u));
+    observation = observation_for(&duel, 0u, 6u);
+    CHECK(rek_g1_hit_mujoco_scan_substep(
+        &adapter, &observation, candidates, TEST_CANDIDATE_CAPACITY,
+        &candidate_count, error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    CHECK(candidate_count == 0u);
+    CHECK(replace_contacts(model, arena_data[0], &move_7_contact, 1u));
+    observation = observation_for(&duel, 0u, 7u);
+    CHECK(rek_g1_hit_mujoco_scan_substep(
+        &adapter, &observation, candidates, TEST_CANDIDATE_CAPACITY,
+        &candidate_count, error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    CHECK(candidate_count == 1u);
+    move_7_facts.strike_intent.clip_cursor_frames = 68.0f;
+    move_7_facts.time_seconds = 68.0f / 50.0f;
+    CHECK(rek_g1_hit_mujoco_candidate_to_contact(
+        &candidates[0], &move_7_facts, &measured_contact,
+        error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    rek_g1_hit_detector_reset(&move_7_state);
+    CHECK(rek_g1_hit_detector_process(
+        &move_7_state, &move_7_config, &measured_contact, &move_7_result));
+    CHECK(move_7_result.score_accepted == 0u);
+
+    CHECK(rek_g1_hit_mujoco_clear_arena_contacts(
+        &adapter, 0u, error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    CHECK(adapter.expected_substep[0] == 8u);
+    observation = observation_for(&duel, 0u, 8u);
+    CHECK(rek_g1_hit_mujoco_scan_substep(
+        &adapter, &observation, candidates, TEST_CANDIDATE_CAPACITY,
+        &candidate_count, error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    CHECK(candidate_count == 1u);
+
     CHECK(strcmp(
         rek_g1_hit_mujoco_status_string(REK_G1_HIT_MUJOCO_OK),
         "ok") == 0);

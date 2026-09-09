@@ -45,8 +45,8 @@ static const RekG1PinnedFile MANIFEST_FILE = {
 
 static const RekG1PinnedFile MODEL_FILE = {
     "model.two_fighter_arena.xml",
-    131586u,
-    "d7320a568a40c6aa4cce2bbefbcf3430d626db3b6c5f57ec8ac6a49dc12bc4f2",
+    131611u,
+    "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
 };
 
 static const RekG1PinnedFile IDLE_ROOT_POSITION_FILE = {

@@ -6,7 +6,7 @@
 #include "semantic_duel_runtime.h"
 
 #define REK_G1_SEMANTIC_ASSET_MANIFEST_SHA256 \
-    "8cb82c0e96b8f4c1fba642bc740ab81fe1d4b43f70a756f3e56eefab4d1e16d4"
+    "7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28"
 
 enum {
     REK_G1_SEMANTIC_UNIQUE_CLIP_COUNT = 21,

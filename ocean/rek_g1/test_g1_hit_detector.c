@@ -128,6 +128,41 @@ static void test_intent_rounding_and_limb(void) {
         0.2f, &index, &ramp), "loop rejected");
 }
 
+static void test_move_7_frame_window(void) {
+    const RekG1HitDetectorConfig config =
+        rek_g1_current_build_hit_detector_config();
+    const RekG1ImpactEvent event = {
+        .impact_time_seconds = 1.0f,
+        .lead_time_seconds = 0.2f,
+        .release_time_seconds = 0.5f,
+        .limb = REK_G1_AIM_LIMB_LEFT_LOWER_BODY,
+    };
+    const struct {
+        float clip_frame;
+        uint8_t score_expected;
+        const char* process_message;
+        const char* score_message;
+    } cases[] = {
+        {42.0f, 0u, "move 7 frame 42 process", "move 7 frame 42 rejected"},
+        {43.0f, 1u, "move 7 frame 43 process", "move 7 frame 43 accepted"},
+        {67.0f, 1u, "move 7 frame 67 process", "move 7 frame 67 accepted"},
+        {68.0f, 0u, "move 7 frame 68 process", "move 7 frame 68 rejected"},
+    };
+    for (size_t index = 0u; index < sizeof(cases) / sizeof(cases[0]); index++) {
+        RekG1HitDetectorState state;
+        rek_g1_hit_detector_reset(&state);
+        RekG1HitContact contact = base_contact(
+            &event, REK_G1_BODY_PART_FOOT, REK_G1_HAND_LEFT);
+        contact.strike_intent.clip_cursor_frames = cases[index].clip_frame;
+        contact.time_seconds = cases[index].clip_frame / 50.0f;
+        RekG1HitResult result;
+        require(rek_g1_hit_detector_process(
+            &state, &config, &contact, &result), cases[index].process_message);
+        require(result.score_accepted == cases[index].score_expected,
+            cases[index].score_message);
+    }
+}
+
 static void test_acceptance_order_and_state(void) {
     const RekG1HitDetectorConfig config =
         rek_g1_current_build_hit_detector_config();
@@ -245,6 +280,7 @@ int main(void) {
     test_current_config();
     test_ramp();
     test_intent_rounding_and_limb();
+    test_move_7_frame_window();
     test_acceptance_order_and_state();
     test_hand_points_and_qualifiers();
     test_invalid_input();

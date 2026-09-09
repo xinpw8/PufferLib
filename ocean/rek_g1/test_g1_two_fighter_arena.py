@@ -54,7 +54,7 @@ class TwoFighterCompositionTests(unittest.TestCase):
         self.assertEqual(contract.schema, duel.SCHEMA)
         self.assertEqual(
             contract.classification,
-            "build_pinned_static_initial_spawn_reference",
+            duel.CLASSIFICATION,
         )
         self.assertEqual(contract.build_fingerprint, plant.BUILD_FINGERPRINT)
         self.assertFalse(contract.control_equivalent)
@@ -81,11 +81,11 @@ class TwoFighterCompositionTests(unittest.TestCase):
         )
         self.assertNotIn(duel.STALE_ARENA_SPAWN_UNKNOWN, contract.unknowns)
 
-    def test_two_namespaced_robot_copies_match_the_source_projection(self):
+    def test_two_namespaced_robot_copies_only_change_spawn_and_contact_masks(self):
         _source_root, source_body, source_motors = duel._source_robot_elements(
             PINNED_XML.read_bytes()
         )
-        expected = duel._robot_nonspawn_projection_sha256(
+        expected = duel._robot_nonspawn_projection_without_contact_masks_sha256(
             source_body, source_motors, None
         )
         worldbody = self.root.find("worldbody")
@@ -101,7 +101,7 @@ class TwoFighterCompositionTests(unittest.TestCase):
             )
             fighter_motors = motors[index * 29 : (index + 1) * 29]
             self.assertEqual(
-                duel._robot_nonspawn_projection_sha256(
+                duel._robot_nonspawn_projection_without_contact_masks_sha256(
                     body, fighter_motors, fighter.namespace
                 ),
                 expected,
@@ -471,8 +471,6 @@ class TwoFighterCompiledModelTests(unittest.TestCase):
                     )
                 for field in (
                     "geom_type",
-                    "geom_contype",
-                    "geom_conaffinity",
                     "geom_condim",
                     "geom_group",
                     "geom_priority",
@@ -481,6 +479,108 @@ class TwoFighterCompiledModelTests(unittest.TestCase):
                         getattr(dual, field)[dual_geom],
                         getattr(base, field)[base_geom],
                     )
+                expected_contype, expected_conaffinity = duel._role_contact_mask(
+                    role,
+                    int(base.geom_contype[base_geom]),
+                    int(base.geom_conaffinity[base_geom]),
+                )
+                self.assertEqual(
+                    int(dual.geom_contype[dual_geom]), expected_contype
+                )
+                self.assertEqual(
+                    int(dual.geom_conaffinity[dual_geom]), expected_conaffinity
+                )
+
+    @staticmethod
+    def _collision_enabled(model, left, right):
+        return bool(
+            int(model.geom_contype[left]) & int(model.geom_conaffinity[right])
+            or int(model.geom_contype[right]) & int(model.geom_conaffinity[left])
+        )
+
+    def test_contact_namespace_preserves_self_matrix_and_enables_every_cross_pair(self):
+        base = self.base_model
+        dual = self.model
+        arena_contract = plant.load_arena_contract(PINNED_ARENA)
+        source_names = [
+            element.get("name")
+            for element in ET.fromstring(PINNED_XML.read_bytes()).findall(".//geom")
+        ]
+        self.assertNotIn(None, source_names)
+        for role in duel.ROLES:
+            fighter = self.reference.contract.fighter(role)
+            for left_index, left_name in enumerate(source_names):
+                base_left = int(base.geom(left_name).id)
+                dual_left = int(dual.geom(fighter.geom_names[left_index]).id)
+                for right_index, right_name in enumerate(source_names):
+                    base_right = int(base.geom(right_name).id)
+                    dual_right = int(dual.geom(fighter.geom_names[right_index]).id)
+                    self.assertEqual(
+                        self._collision_enabled(base, base_left, base_right),
+                        self._collision_enabled(dual, dual_left, dual_right),
+                    )
+                for arena_geom in arena_contract.geoms:
+                    arena_id = int(dual.geom(str(arena_geom["name"])).id)
+                    expected = bool(
+                        int(base.geom_contype[base_left])
+                        & int(dual.geom_conaffinity[arena_id])
+                        or int(dual.geom_contype[arena_id])
+                        & int(base.geom_conaffinity[base_left])
+                    )
+                    self.assertEqual(
+                        expected,
+                        self._collision_enabled(dual, dual_left, arena_id),
+                        (role, left_name, arena_geom["name"]),
+                    )
+
+        player = self.reference.contract.fighter("player")
+        opponent = self.reference.contract.fighter("opponent")
+        for player_name in player.geom_names:
+            player_geom = int(dual.geom(player_name).id)
+            for opponent_name in opponent.geom_names:
+                opponent_geom = int(dual.geom(opponent_name).id)
+                self.assertTrue(
+                    self._collision_enabled(dual, player_geom, opponent_geom),
+                    (player_name, opponent_name),
+                )
+
+    def test_compiled_overlap_produces_real_cross_fighter_contacts(self):
+        data = self.mujoco.MjData(self.model)
+        data.qpos[:] = self.model.qpos0
+        player = self.reference.runtime_map("player")
+        opponent = self.reference.runtime_map("opponent")
+        player_root = player.root_qpos_address
+        opponent_root = opponent.root_qpos_address
+        data.qpos[opponent_root : opponent_root + 3] = data.qpos[
+            player_root : player_root + 3
+        ]
+        data.qpos[opponent_root] += 0.3
+        self.mujoco.mj_forward(self.model, data)
+        names = [
+            self.mujoco.mj_id2name(
+                self.model, self.mujoco.mjtObj.mjOBJ_GEOM, geom_id
+            )
+            or ""
+            for geom_id in range(self.model.ngeom)
+        ]
+        cross_contacts = []
+        for contact in data.contact[: data.ncon]:
+            pair = (names[int(contact.geom[0])], names[int(contact.geom[1])])
+            owners = {
+                "player" if name.startswith("player__") else
+                "opponent" if name.startswith("opponent__") else
+                "arena"
+                for name in pair
+            }
+            if owners == {"player", "opponent"}:
+                cross_contacts.append(pair)
+        self.assertTrue(cross_contacts)
+        self.assertTrue(
+            any(
+                "mjgeom_authored" not in left or "mjgeom_authored" not in right
+                for left, right in cross_contacts
+            )
+        )
 
 
 if __name__ == "__main__":
