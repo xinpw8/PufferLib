@@ -21,6 +21,9 @@ static const char* const FIGHTER_PREFIXES[GEAR_SONIC_DUEL_FIGHTERS] = {
     "opponent__",
 };
 
+static const char* const HEAD_GEOM_SUFFIX = "mjgeom_3064";
+static const char* const TORSO_GEOM_SUFFIX = "mjgeom_3285";
+
 static const RekG1PinnedBodyDescriptor PINNED_BODIES
         [REK_G1_HIT_MUJOCO_FIGHTER_BODY_COUNT] = {
     {"pelvis_3266", REK_G1_BODY_ZONE_PELVIS,
@@ -154,6 +157,13 @@ static int exact_body_name(
         const mjModel* model, int object_id, const char* expected) {
     if (model == NULL || object_id < 0 || expected == NULL) return 0;
     const char* actual = mj_id2name(model, (int)mjOBJ_BODY, object_id);
+    return actual != NULL && strcmp(actual, expected) == 0;
+}
+
+static int exact_geom_name(
+        const mjModel* model, int object_id, const char* expected) {
+    if (model == NULL || object_id < 0 || expected == NULL) return 0;
+    const char* actual = mj_id2name(model, (int)mjOBJ_GEOM, object_id);
     return actual != NULL && strcmp(actual, expected) == 0;
 }
 
@@ -396,6 +406,68 @@ static RekG1HitMujocoStatus map_exact_bodies(
     return REK_G1_HIT_MUJOCO_OK;
 }
 
+static RekG1HitMujocoStatus map_exact_geom_zones(
+        RekG1HitMujocoAdapter* adapter,
+        char* error,
+        size_t error_capacity) {
+    const mjModel* model = adapter->duel->model;
+    for (int geom_id = 0; geom_id < model->ngeom; geom_id++) {
+        const int body_id = model->geom_bodyid[geom_id];
+        if (body_id < 0 || (size_t)body_id >= adapter->body_count) {
+            return fail(
+                adapter, REK_G1_HIT_MUJOCO_MAPPING_MISMATCH,
+                error, error_capacity, "map hit geoms",
+                "geom resolves to an invalid body");
+        }
+        adapter->geom_zone[geom_id] = adapter->body_zone[body_id];
+    }
+
+    for (size_t fighter = 0u;
+            fighter < GEAR_SONIC_DUEL_FIGHTERS;
+            fighter++) {
+        char head_name[96];
+        char torso_name[96];
+        const int head_written = snprintf(
+            head_name, sizeof(head_name), "%s%s",
+            FIGHTER_PREFIXES[fighter], HEAD_GEOM_SUFFIX);
+        const int torso_written = snprintf(
+            torso_name, sizeof(torso_name), "%s%s",
+            FIGHTER_PREFIXES[fighter], TORSO_GEOM_SUFFIX);
+        if (head_written <= 0 || (size_t)head_written >= sizeof(head_name)
+                || torso_written <= 0
+                || (size_t)torso_written >= sizeof(torso_name)) {
+            return fail(
+                adapter, REK_G1_HIT_MUJOCO_MAPPING_MISMATCH,
+                error, error_capacity, "map hit geoms",
+                "geom name construction failed");
+        }
+        const int head_geom = mj_name2id(model, mjOBJ_GEOM, head_name);
+        const int torso_geom = mj_name2id(model, mjOBJ_GEOM, torso_name);
+        if (head_geom < 0 || torso_geom < 0) {
+            return fail(
+                adapter, REK_G1_HIT_MUJOCO_MAPPING_MISSING,
+                error, error_capacity, "map hit geoms",
+                "pinned head or torso geom is missing");
+        }
+        const int torso_body = adapter->body_ids[fighter]
+            [REK_G1_HIT_MUJOCO_TORSO_BODY];
+        if (head_geom == torso_geom
+                || !exact_geom_name(model, head_geom, head_name)
+                || !exact_geom_name(model, torso_geom, torso_name)
+                || model->geom_bodyid[head_geom] != torso_body
+                || model->geom_bodyid[torso_geom] != torso_body
+                || adapter->geom_zone[head_geom] != REK_G1_BODY_ZONE_TORSO
+                || adapter->geom_zone[torso_geom] != REK_G1_BODY_ZONE_TORSO) {
+            return fail(
+                adapter, REK_G1_HIT_MUJOCO_MAPPING_MISMATCH,
+                error, error_capacity, "map hit geoms",
+                "pinned head or torso geom identity differs");
+        }
+        adapter->geom_zone[head_geom] = REK_G1_BODY_ZONE_HEAD;
+    }
+    return REK_G1_HIT_MUJOCO_OK;
+}
+
 const char* rek_g1_hit_mujoco_status_string(
         RekG1HitMujocoStatus status) {
     switch (status) {
@@ -445,6 +517,7 @@ RekG1HitMujocoStatus rek_g1_hit_mujoco_open(
     size_t scratch_capacity = 0u;
     size_t candidate_bytes = 0u;
     size_t body_zone_bytes = 0u;
+    size_t geom_zone_bytes = 0u;
     size_t striker_part_bytes = 0u;
     if (!checked_product(
             adapter->geom_count, adapter->geom_count, &adapter->pair_span)
@@ -461,6 +534,10 @@ RekG1HitMujocoStatus rek_g1_hit_mujoco_open(
                 sizeof(*adapter->body_zone),
                 &body_zone_bytes)
             || !checked_product(
+                adapter->geom_count,
+                sizeof(*adapter->geom_zone),
+                &geom_zone_bytes)
+            || !checked_product(
                 adapter->body_count,
                 sizeof(*adapter->striker_part),
                 &striker_part_bytes)) {
@@ -473,6 +550,7 @@ RekG1HitMujocoStatus rek_g1_hit_mujoco_open(
     adapter->body_owner = malloc(
         adapter->body_count * sizeof(*adapter->body_owner));
     adapter->body_zone = calloc(1u, body_zone_bytes);
+    adapter->geom_zone = calloc(1u, geom_zone_bytes);
     adapter->striker_part = calloc(1u, striker_part_bytes);
     adapter->striker_side = malloc(
         adapter->body_count * sizeof(*adapter->striker_side));
@@ -486,6 +564,7 @@ RekG1HitMujocoStatus rek_g1_hit_mujoco_open(
         adapter->arena_count, sizeof(*adapter->expected_substep));
     adapter->candidate_scratch = malloc(candidate_bytes);
     if (adapter->body_owner == NULL || adapter->body_zone == NULL
+            || adapter->geom_zone == NULL
             || adapter->striker_part == NULL
             || adapter->striker_side == NULL
             || adapter->striker_slot == NULL
@@ -500,6 +579,9 @@ RekG1HitMujocoStatus rek_g1_hit_mujoco_open(
     }
     RekG1HitMujocoStatus status = map_exact_bodies(
         adapter, error, error_capacity);
+    if (status == REK_G1_HIT_MUJOCO_OK) {
+        status = map_exact_geom_zones(adapter, error, error_capacity);
+    }
     if (status != REK_G1_HIT_MUJOCO_OK) {
         rek_g1_hit_mujoco_close(adapter);
         adapter->last_status = status;
@@ -520,6 +602,7 @@ static int adapter_ready(const RekG1HitMujocoAdapter* adapter) {
         && adapter->geom_count == (size_t)adapter->duel->model->ngeom
         && adapter->pair_span == adapter->geom_count * adapter->geom_count
         && adapter->body_owner != NULL && adapter->body_zone != NULL
+        && adapter->geom_zone != NULL
         && adapter->striker_part != NULL && adapter->striker_side != NULL
         && adapter->striker_slot != NULL
         && adapter->previous_pairs != NULL
@@ -632,9 +715,9 @@ static RekG1HitMujocoStatus append_directed_candidate(
                     != REK_G1_BODY_PART_SHIN)
             || (adapter->striker_side[striker_body] != 0
                 && adapter->striker_side[striker_body] != 1)
-            || (int)adapter->body_zone[target_body]
+            || (int)adapter->geom_zone[target_geom]
                 < (int)REK_G1_BODY_ZONE_UNKNOWN
-            || adapter->body_zone[target_body]
+            || adapter->geom_zone[target_geom]
                 > REK_G1_BODY_ZONE_RIGHT_ANKLE) {
         return fail(
             adapter, REK_G1_HIT_MUJOCO_MAPPING_MISMATCH,
@@ -678,7 +761,7 @@ static RekG1HitMujocoStatus append_directed_candidate(
         .striker_body_slot = (uint32_t)slot,
         .striker_part = adapter->striker_part[striker_body],
         .striker_side = (RekG1HandSide)adapter->striker_side[striker_body],
-        .target_zone = adapter->body_zone[target_body],
+        .target_zone = adapter->geom_zone[target_geom],
     };
     float norm_squared = 0.0f;
     for (size_t axis = 0u; axis < 3u; axis++) {
@@ -946,6 +1029,7 @@ void rek_g1_hit_mujoco_close(RekG1HitMujocoAdapter* adapter) {
     free(adapter->striker_slot);
     free(adapter->striker_side);
     free(adapter->striker_part);
+    free(adapter->geom_zone);
     free(adapter->body_zone);
     free(adapter->body_owner);
     memset(adapter, 0, sizeof(*adapter));

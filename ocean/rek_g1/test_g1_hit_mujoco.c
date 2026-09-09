@@ -310,6 +310,7 @@ int main(int argc, char** argv) {
     CHECK(adapter.arena_count == TEST_ARENAS);
     CHECK(adapter.body_count == (size_t)model->nbody);
     CHECK(adapter.geom_count == (size_t)model->ngeom);
+    CHECK(adapter.geom_zone != NULL);
     CHECK(adapter.pair_span
         == (size_t)model->ngeom * (size_t)model->ngeom);
 
@@ -359,14 +360,19 @@ int main(int argc, char** argv) {
         sizeof(error)) == REK_G1_HIT_MUJOCO_MAPPING_MISMATCH);
     CHECK(rejected_adapter.ready == 0u);
     CHECK(rejected_adapter.body_owner == NULL);
+    CHECK(rejected_adapter.geom_zone == NULL);
     rek_g1_hit_mujoco_close(&rejected_adapter);
 
     const int player_left_wrist = first_body_geom(
         model,
         adapter.body_ids[0][REK_G1_HIT_MUJOCO_LEFT_WRIST_YAW_BODY]);
-    const int opponent_torso = first_body_geom(
+    const int player_left_knee = first_body_geom(
         model,
-        adapter.body_ids[1][REK_G1_HIT_MUJOCO_TORSO_BODY]);
+        adapter.body_ids[0][REK_G1_HIT_MUJOCO_LEFT_KNEE_BODY]);
+    const int opponent_head = mj_name2id(
+        model, mjOBJ_GEOM, "opponent__mjgeom_3064");
+    const int opponent_torso = mj_name2id(
+        model, mjOBJ_GEOM, "opponent__mjgeom_3285");
     const int player_pelvis = first_body_geom(
         model,
         adapter.body_ids[0][REK_G1_HIT_MUJOCO_PELVIS_BODY]);
@@ -380,11 +386,61 @@ int main(int argc, char** argv) {
         model,
         adapter.body_ids[0][REK_G1_HIT_MUJOCO_LEFT_ANKLE_ROLL_BODY]);
     CHECK(player_left_wrist >= 0);
+    CHECK(player_left_knee >= 0);
+    CHECK(opponent_head >= 0);
     CHECK(opponent_torso >= 0);
     CHECK(player_pelvis >= 0);
     CHECK(opponent_right_ankle >= 0);
     CHECK(opponent_right_knee >= 0);
     CHECK(player_left_ankle >= 0);
+    CHECK(model->geom_bodyid[opponent_head]
+        == adapter.body_ids[1][REK_G1_HIT_MUJOCO_TORSO_BODY]);
+    CHECK(model->geom_bodyid[opponent_torso]
+        == adapter.body_ids[1][REK_G1_HIT_MUJOCO_TORSO_BODY]);
+    CHECK(adapter.geom_zone[opponent_head] == REK_G1_BODY_ZONE_HEAD);
+    CHECK(adapter.geom_zone[opponent_torso] == REK_G1_BODY_ZONE_TORSO);
+
+    {
+        const mjContact head_zone_contacts[4] = {
+            make_contact(player_left_wrist, opponent_head),
+            make_contact(player_left_ankle, opponent_head),
+            make_contact(player_left_knee, opponent_head),
+            make_contact(player_left_wrist, opponent_torso),
+        };
+        CHECK(replace_contacts(model, arena_data[1], head_zone_contacts, 4u));
+        GearSonicNativeDuelPostStepObservation head_zone_observation =
+            observation_for(&duel, 1u, 0u);
+        RekG1HitMujocoCandidate head_zone_candidates[4];
+        size_t head_zone_count = 0u;
+        CHECK(rek_g1_hit_mujoco_scan_substep(
+            &adapter,
+            &head_zone_observation,
+            head_zone_candidates,
+            4u,
+            &head_zone_count,
+            error,
+            sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+        CHECK(head_zone_count == 4u);
+        const RekG1BodyPartType expected_head_parts[3] = {
+            REK_G1_BODY_PART_HAND,
+            REK_G1_BODY_PART_FOOT,
+            REK_G1_BODY_PART_SHIN,
+        };
+        for (size_t index = 0u; index < 3u; index++) {
+            CHECK(head_zone_candidates[index].striker_part
+                == expected_head_parts[index]);
+            CHECK(head_zone_candidates[index].target_geom_id == opponent_head);
+            CHECK(head_zone_candidates[index].target_zone
+                == REK_G1_BODY_ZONE_HEAD);
+        }
+        CHECK(head_zone_candidates[3].striker_part
+            == REK_G1_BODY_PART_HAND);
+        CHECK(head_zone_candidates[3].target_geom_id == opponent_torso);
+        CHECK(head_zone_candidates[3].target_zone
+            == REK_G1_BODY_ZONE_TORSO);
+        CHECK(rek_g1_hit_mujoco_reset(
+            &adapter, error, sizeof(error)) == REK_G1_HIT_MUJOCO_OK);
+    }
 
     mjContact four_contacts[4] = {
         make_contact(player_left_wrist, opponent_torso),

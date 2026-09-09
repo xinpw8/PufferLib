@@ -107,6 +107,7 @@ typedef struct RekG1HitMujocoAdapter {
         [REK_G1_HIT_MUJOCO_FIGHTER_BODY_COUNT];
     int8_t* body_owner;
     RekG1BodyZone* body_zone;
+    RekG1BodyZone* geom_zone;
     RekG1BodyPartType* striker_part;
     int8_t* striker_side;
     int8_t* striker_slot;

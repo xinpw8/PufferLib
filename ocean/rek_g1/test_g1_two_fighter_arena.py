@@ -582,6 +582,98 @@ class TwoFighterCompiledModelTests(unittest.TestCase):
             )
         )
 
+    def test_every_scoring_striker_target_pair_generates_exact_contact(self):
+        model = self.model
+        mujoco = self.mujoco
+
+        def body_geoms(role, suffixes):
+            body_ids = {
+                int(model.body(f"{role}__{suffix}").id)
+                for suffix in suffixes
+            }
+            return [
+                geom_id
+                for geom_id in range(model.ngeom)
+                if int(model.geom_bodyid[geom_id]) in body_ids
+            ]
+
+        striker_bodies = {
+            "hand": ("left_wrist_yaw_link_3467", "right_wrist_yaw_link_3293"),
+            "foot": ("left_ankle_roll_link_3045", "right_ankle_roll_link_3090"),
+            "shin": ("left_knee_link_3106", "right_knee_link_3429"),
+        }
+        target_bodies = {
+            "pelvis": ("pelvis_3266",),
+            "left_hip": (
+                "left_hip_pitch_link_3457",
+                "left_hip_roll_link_3425",
+                "left_hip_yaw_link_2943",
+            ),
+            "right_hip": (
+                "right_hip_pitch_link_3469",
+                "right_hip_roll_link_3345",
+                "right_hip_yaw_link_3191",
+            ),
+        }
+        tested_pairs = 0
+        for attacker_role, target_role in (
+            ("player", "opponent"),
+            ("opponent", "player"),
+        ):
+            striker_geoms = {
+                part: body_geoms(attacker_role, suffixes)
+                for part, suffixes in striker_bodies.items()
+            }
+            target_geoms = {
+                "head": [int(model.geom(f"{target_role}__mjgeom_3064").id)],
+                "torso": [int(model.geom(f"{target_role}__mjgeom_3285").id)],
+                **{
+                    zone: body_geoms(target_role, suffixes)
+                    for zone, suffixes in target_bodies.items()
+                },
+            }
+            self.assertEqual(
+                {part: len(geoms) for part, geoms in striker_geoms.items()},
+                {"hand": 2, "foot": 8, "shin": 2},
+            )
+            self.assertEqual(
+                {zone: len(geoms) for zone, geoms in target_geoms.items()},
+                {"head": 1, "torso": 1, "pelvis": 1, "left_hip": 3, "right_hip": 3},
+            )
+            target_root = self.reference.runtime_map(target_role).root_qpos_address
+            for part, part_geoms in striker_geoms.items():
+                for zone, zone_geoms in target_geoms.items():
+                    for striker_geom in part_geoms:
+                        for target_geom in zone_geoms:
+                            self.assertTrue(
+                                self._collision_enabled(
+                                    model, striker_geom, target_geom
+                                ),
+                                (attacker_role, part, target_role, zone),
+                            )
+                            data = mujoco.MjData(model)
+                            data.qpos[:] = model.qpos0
+                            mujoco.mj_forward(model, data)
+                            data.qpos[target_root : target_root + 3] += (
+                                data.geom_xpos[striker_geom]
+                                - data.geom_xpos[target_geom]
+                            )
+                            mujoco.mj_forward(model, data)
+                            exact_pair = {striker_geom, target_geom}
+                            self.assertTrue(
+                                any(
+                                    {
+                                        int(contact.geom[0]),
+                                        int(contact.geom[1]),
+                                    }
+                                    == exact_pair
+                                    for contact in data.contact[: data.ncon]
+                                ),
+                                (attacker_role, part, target_role, zone),
+                            )
+                            tested_pairs += 1
+        self.assertEqual(tested_pairs, 216)
+
 
 if __name__ == "__main__":
     unittest.main()
