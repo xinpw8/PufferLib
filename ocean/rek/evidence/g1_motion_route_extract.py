@@ -2,8 +2,8 @@
 
 The route table joins the G1 RobotConfig references in the byte-pinned static
 probe to the byte-pinned NPZ runtime-asset manifest.  Each of the seven idle or
-locomotion routes is selected through its exact RobotConfig field.  Each of the
-four supported kicks is selected through its exact position in RobotConfig's
+locomotion routes is selected through its exact RobotConfig field. Each of the
+17 discrete moves is selected through its exact position in RobotConfig's
 ``moves`` array.  Every route then resolves one MocapClipConfig path ID and one
 NPZ TextAsset identity.  Missing values, substituted identities, and ambiguous
 matches fail instead of receiving defaults.
@@ -128,31 +128,96 @@ ROUTE_SPECS = (
         "turn_in_place_right_processed",
     ),
     RouteSpec(
-        7, "kick_move_6_left_side", "kick", "moves", 6, 2710,
+        7, "kick_move_6_left_side", "discrete_move", "moves", 6, 2710,
         "left_side_kick_processed", "kick_left_side", 392,
         "left_side_kick_processed",
     ),
     RouteSpec(
-        8, "kick_move_7_left_front", "kick", "moves", 7, 2703,
+        8, "kick_move_7_left_front", "discrete_move", "moves", 7, 2703,
         "left_front_kick_processed", "kick_left_front", 371,
         "left_front_kick_processed",
     ),
     RouteSpec(
-        9, "kick_move_8_right_side", "kick", "moves", 8, 2715,
+        9, "kick_move_8_right_side", "discrete_move", "moves", 8, 2715,
         "right_side_kick_processed", "kick_right_side", 372,
         "right_side_kick_processed",
     ),
     RouteSpec(
-        10, "kick_move_9_right_knee", "kick", "moves", 9, 2714,
+        10, "kick_move_9_right_knee", "discrete_move", "moves", 9, 2714,
         "right_knee_processed", "kick_right_knee", 380,
         "right_knee_processed",
     ),
+    RouteSpec(
+        11, "move_0_left_hook", "discrete_move", "moves", 0, 2704,
+        "left_hook_processed", "left_hook", 381, "left_hook_processed",
+    ),
+    RouteSpec(
+        12, "move_1_left_jab", "discrete_move", "moves", 1, 2706,
+        "left_jab_processed", "left_jab", 379, "left_jab_processed",
+    ),
+    RouteSpec(
+        13, "move_2_double_uppercut", "discrete_move", "moves", 2, 2701,
+        "double_uppercut_processed", "double_uppercut", 374,
+        "double_uppercut_processed",
+    ),
+    RouteSpec(
+        14, "move_3_right_hook", "discrete_move", "moves", 3, 2712,
+        "right_hook_processed", "right_hook", 373, "right_hook_processed",
+    ),
+    RouteSpec(
+        15, "move_4_right_jab", "discrete_move", "moves", 4, 2713,
+        "right_jab_processed", "right_jab", 387, "right_jab_processed",
+    ),
+    RouteSpec(
+        16, "move_5_left_jab_right_uppercut", "discrete_move", "moves", 5,
+        2707, "left_jab_right_uppercut_processed", "left_jab_right_uppercut",
+        376, "left_jab_right_uppercut_processed",
+    ),
+    RouteSpec(
+        17, "move_10_six_punch", "discrete_move", "moves", 10, 2698,
+        "6_punch_processed", "six_punch", 378, "6_punch_processed",
+    ),
+    RouteSpec(
+        18, "move_11_run_and_punch", "discrete_move", "moves", 11, 2717,
+        "run_and_punch_processed", "run_and_punch", 383,
+        "run_and_punch_processed",
+    ),
+    RouteSpec(
+        19, "move_12_left_right_jab", "discrete_move", "moves", 12, 2709,
+        "left_right_jab_processed", "left_right_jab", 386,
+        "left_right_jab_processed",
+    ),
+    RouteSpec(
+        20, "move_13_left_right_hook", "discrete_move", "moves", 13, 2708,
+        "left_right_hook_processed", "left_right_hook", 384,
+        "left_right_hook_processed",
+    ),
+    RouteSpec(
+        21, "move_14_left_hook_right_jab", "discrete_move", "moves", 14,
+        2705, "left_hook_right_jab_processed", "left_hook_right_jab", 385,
+        "left_hook_right_jab_processed",
+    ),
+    RouteSpec(
+        22, "move_15_double_hook", "discrete_move", "moves", 15, 2700,
+        "double_hook_processed", "double_hook", 390, "double_hook_processed",
+    ),
+    RouteSpec(
+        23, "move_16_butt_smack_emote", "discrete_move", "moves", 16, 2699,
+        "butt_smack_emote_processed", "butt_smack_emote", 382,
+        "butt_smack_emote_processed",
+    ),
+)
+
+RUNTIME_MOVE_ROUTE_ORDER = (
+    6, 7, 8, 9,
+    0, 1, 2, 3, 4, 5,
+    10, 11, 12, 13, 14, 15, 16,
 )
 
 
 def _validate_route_specs() -> None:
-    if tuple(spec.route_id for spec in ROUTE_SPECS) != tuple(range(11)):
-        raise ExtractionError("route IDs must be the exact contiguous range 0..10")
+    if tuple(spec.route_id for spec in ROUTE_SPECS) != tuple(range(24)):
+        raise ExtractionError("route IDs must be the exact contiguous range 0..23")
     if len({spec.name for spec in ROUTE_SPECS}) != len(ROUTE_SPECS):
         raise ExtractionError("route names must be unique")
     if len({spec.mocap_clip_config_path_id for spec in ROUTE_SPECS}) != len(
@@ -163,17 +228,21 @@ def _validate_route_specs() -> None:
         spec.runtime_move_index
         for spec in ROUTE_SPECS
         if spec.runtime_move_index is not None
-    ) != (6, 7, 8, 9):
-        raise ExtractionError("kick runtime move indices must be exactly 6..9")
+    ) != RUNTIME_MOVE_ROUTE_ORDER:
+        raise ExtractionError("runtime move route order mismatch")
+    if set(RUNTIME_MOVE_ROUTE_ORDER) != set(range(17)):
+        raise ExtractionError("runtime move indices must cover exactly 0..16")
     for spec in ROUTE_SPECS:
-        if spec.kind == "kick":
+        if spec.kind == "discrete_move":
             if spec.robot_config_field != "moves" or spec.runtime_move_index is None:
-                raise ExtractionError(f"kick route {spec.name!r} binding is invalid")
+                raise ExtractionError(
+                    f"discrete-move route {spec.name!r} binding is invalid"
+                )
         elif spec.kind not in {"idle", "translation", "turn"}:
             raise ExtractionError(f"route {spec.name!r} kind is invalid")
         elif spec.runtime_move_index is not None:
             raise ExtractionError(
-                f"non-kick route {spec.name!r} has a runtime move index"
+                f"non-move route {spec.name!r} has a runtime move index"
             )
 
 

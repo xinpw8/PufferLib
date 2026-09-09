@@ -18,10 +18,13 @@ class SemanticDuelAssetTests(unittest.TestCase):
     def test_checked_in_route_contract_is_complete(self) -> None:
         contract, raw = subject.load_route_contract(ROUTE_CONTRACT)
         self.assertGreater(len(raw), 0)
-        self.assertEqual([route["route_id"] for route in contract["routes"]], list(range(11)))
+        self.assertEqual(
+            [route["route_id"] for route in contract["routes"]],
+            list(range(24)),
+        )
         self.assertEqual(
             [route["runtime_move_index"] for route in contract["routes"][7:]],
-            [6, 7, 8, 9],
+            [6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16],
         )
 
     def test_route_config_projection_preserves_binary32_values(self) -> None:

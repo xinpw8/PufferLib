@@ -20,7 +20,7 @@ import sonic_candidate as plant
 
 SCHEMA = "rek.g1_semantic_duel_assets.v1"
 ROUTE_SCHEMA = "rek.g1_motion_route_contract.v1"
-ROUTE_COUNT = 11
+ROUTE_COUNT = 24
 
 
 class SemanticDuelAssetError(RuntimeError):
@@ -77,10 +77,12 @@ def load_route_contract(path: Path) -> tuple[dict[str, Any], bytes]:
         raise SemanticDuelAssetError("route contract must not assert parity")
     routes = contract.get("routes")
     if not isinstance(routes, list) or len(routes) != ROUTE_COUNT:
-        raise SemanticDuelAssetError("route contract must contain exactly 11 routes")
+        raise SemanticDuelAssetError(
+            f"route contract must contain exactly {ROUTE_COUNT} routes"
+        )
     route_ids = [route.get("route_id") for route in routes if isinstance(route, dict)]
     if route_ids != list(range(ROUTE_COUNT)):
-        raise SemanticDuelAssetError("route contract IDs must be ordered 0 through 10")
+        raise SemanticDuelAssetError("route contract IDs must be ordered 0 through 23")
     source = contract.get("source")
     runtime_manifest = source.get("runtime_assets_manifest") if isinstance(source, dict) else None
     if not isinstance(runtime_manifest, dict) or runtime_manifest.get(

@@ -49,7 +49,7 @@ class MotionRouteContractTests(unittest.TestCase):
                 and target.get("path_id") in self.config_path_ids
             )
         ]
-        self.assertEqual(len(root["targets"]), 12)
+        self.assertEqual(len(root["targets"]), 25)
         self.sync_counts(root)
         return root
 
@@ -86,10 +86,19 @@ class MotionRouteContractTests(unittest.TestCase):
     def test_all_route_ids_bindings_configs_and_npz_identities_are_exact(self):
         contract = self.build(self.minimal_probe())
         routes = contract["routes"]
-        self.assertEqual([route["route_id"] for route in routes], list(range(11)))
+        self.assertEqual([route["route_id"] for route in routes], list(range(24)))
         self.assertEqual(
             [route["runtime_move_index"] for route in routes],
-            [None, None, None, None, None, None, None, 6, 7, 8, 9],
+            [
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                *extractor.RUNTIME_MOVE_ROUTE_ORDER,
+            ],
         )
         assets = {asset.role: asset for asset in self.manifest.assets}
         source_targets = {target["path_id"]: target for target in self.probe["targets"]}
@@ -135,6 +144,26 @@ class MotionRouteContractTests(unittest.TestCase):
         )
         self.assertEqual(
             by_name["turn_left"]["npz"], by_name["turn_right"]["npz"]
+        )
+        self.assertEqual(
+            len(
+                by_name["move_10_six_punch"]["mocap_clip_config"][
+                    "impactEvents"
+                ]
+            ),
+            10,
+        )
+        self.assertEqual(
+            len(
+                by_name["move_2_double_uppercut"]["mocap_clip_config"][
+                    "impactEvents"
+                ]
+            ),
+            2,
+        )
+        self.assertEqual(
+            by_name["move_16_butt_smack_emote"]["robot_config_binding"],
+            {"field": "moves", "index": 16},
         )
 
     def test_robot_config_field_and_move_index_changes_fail_closed(self):

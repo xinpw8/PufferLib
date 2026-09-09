@@ -18,7 +18,7 @@ The runner accepts paths to those files and validates them before inference.
 | `unified_pipeline.yaml` | `9b7896f3355a9d9d5e7d3139b83924eeb2e45c62c30bfda44afe996cfc6cf01c` |
 | `g1_29dof.recovered.xml` | `811fdc1e5bee74026b780974207cbcd628cdd83a249d3f76b75a668d71aad835` |
 | `g1_arena_physics_contract.v1.json` | `67128d45f8b5995d57b5ca925a2db7b2d613ede15bfa19f8df46c4e01c60e3e8` |
-| canonical G1 asset manifest | `06aa831f9ee6a094660df90085a03c2d8ef331137f74d6bb18849716e29c9eae` |
+| canonical G1 asset manifest | `09973b2793f5b3e546a4f32cbf6128a13100c2332e3ed18c7e3eb46398618367` |
 
 The source XML contains one free joint, 29 hinge joints, and 29 direct motor
 actuators with scalar gear 1. Its actuator control and force limit flags are

@@ -46,20 +46,25 @@ def synthetic_manifest(extra_member_role: str | None = None):
     for path_id, role in enumerate(sorted(extractor.EXPECTED_ROLES), start=100):
         payload, members = make_npz(role, extra_member=role == extra_member_role)
         name = role + "_processed"
-        assets.append(
-            {
-                "role": role,
-                "path_id": path_id,
-                "name": name,
-                "output": name + ".npz",
-                "bytes": len(payload),
-                "sha256": extractor.sha256_bytes(payload),
-                "frames": path_id,
-                "dof": 29,
-                "fps": 50.0,
-                "members": members,
-            }
-        )
+        asset = {
+            "role": role,
+            "path_id": path_id,
+            "name": name,
+            "output": name + ".npz",
+            "bytes": len(payload),
+            "sha256": extractor.sha256_bytes(payload),
+            "frames": path_id,
+            "dof": 29,
+            "fps": 50.0,
+            "members": members,
+        }
+        if role in extractor.MOVE_INDEX_BY_ROLE:
+            move_index = extractor.MOVE_INDEX_BY_ROLE[role]
+            asset["robot_config_move_index"] = move_index
+            asset["mocap_clip_config_path_id"] = (
+                extractor.MOVE_CONFIG_PATH_ID_BY_INDEX[move_index]
+            )
+        assets.append(asset)
         payloads[path_id] = payload
     manifest = {
         "schema": extractor.MANIFEST_SCHEMA,
@@ -69,6 +74,13 @@ def synthetic_manifest(extra_member_role: str | None = None):
             "name": "sharedassets0.assets",
             "bytes": len(source),
             "sha256": extractor.sha256_bytes(source),
+        },
+        "robot_config": {
+            "robot_id": extractor.ROBOT_ID,
+            "path_id": extractor.ROBOT_CONFIG_PATH_ID,
+            "name": extractor.ROBOT_CONFIG_NAME,
+            "serialized_sha256": extractor.ROBOT_CONFIG_SHA256,
+            "move_count": len(extractor.MOVE_BINDINGS),
         },
         "assets": assets,
     }
@@ -102,6 +114,7 @@ class PinnedManifestTests(unittest.TestCase):
             )
         )
         evidence_by_id = {item["path_id"]: item for item in schema["assets"]}
+        self.assertEqual(len(manifest.assets), 21)
         for spec in manifest.assets:
             evidence = evidence_by_id[spec.path_id]
             self.assertEqual(evidence["container"], manifest.source_name)
@@ -121,6 +134,53 @@ class PinnedManifestTests(unittest.TestCase):
                 member.name: (member.size, member.sha256) for member in spec.members
             }
             self.assertEqual(evidence_members, spec_members)
+
+        probe = json.loads(
+            (HERE / "evidence_out" / "mujoco_asset_probe_v8.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        robot_configs = [
+            target
+            for target in probe["targets"]
+            if target["container"] == manifest.source_name
+            and target["class"] == "RobotConfig"
+            and target["path_id"] == manifest.robot_config_path_id
+        ]
+        self.assertEqual(len(robot_configs), 1)
+        robot_config = robot_configs[0]
+        self.assertEqual(robot_config["serialized_sha256"], manifest.robot_config_sha256)
+        self.assertEqual(robot_config["values"]["robotId"], manifest.robot_id)
+        self.assertEqual(robot_config["values"]["m_Name"], manifest.robot_config_name)
+        move_bindings = robot_config["values"]["moves"]
+        self.assertEqual(len(move_bindings), manifest.robot_config_move_count)
+        mocap_by_id = {
+            target["path_id"]: target
+            for target in probe["targets"]
+            if target["container"] == manifest.source_name
+            and target["class"] == "MocapClipConfig"
+        }
+        move_specs = [
+            spec
+            for spec in manifest.assets
+            if spec.robot_config_move_index is not None
+        ]
+        self.assertEqual(
+            sorted(spec.robot_config_move_index for spec in move_specs),
+            list(range(17)),
+        )
+        for spec in move_specs:
+            move_index = spec.robot_config_move_index
+            self.assertIsNotNone(move_index)
+            config_path_id = spec.mocap_clip_config_path_id
+            self.assertIsNotNone(config_path_id)
+            self.assertEqual(
+                move_bindings[move_index]["m_PathID"],
+                config_path_id,
+            )
+            mocap = mocap_by_id[config_path_id]
+            self.assertEqual(mocap["values"]["m_Name"], spec.name)
+            self.assertEqual(mocap["values"]["npzFile"]["m_PathID"], spec.path_id)
 
         inventory = json.loads(
             (HERE / "evidence_out" / "inventory.json").read_text(encoding="utf-8")
@@ -146,6 +206,21 @@ class PinnedManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(extractor.ExtractionError, "roles must be exactly"):
             extractor.parse_manifest(missing)
 
+        wrong_config = copy.deepcopy(data)
+        move = next(
+            item
+            for item in wrong_config["assets"]
+            if item.get("robot_config_move_index") == 0
+        )
+        move["mocap_clip_config_path_id"] += 1
+        with self.assertRaisesRegex(extractor.ExtractionError, "MocapClipConfig mismatch"):
+            extractor.parse_manifest(wrong_config)
+
+        wrong_robot = copy.deepcopy(data)
+        wrong_robot["robot_config"]["robot_id"] = "unknown"
+        with self.assertRaisesRegex(extractor.ExtractionError, "identity mismatch"):
+            extractor.parse_manifest(wrong_robot)
+
 
 class PayloadValidationTests(unittest.TestCase):
     def test_valid_payloads_publish_byte_exact_deterministic_inventory(self):
@@ -167,6 +242,21 @@ class PayloadValidationTests(unittest.TestCase):
             extractor.sha256_bytes(source),
         )
         self.assertEqual(inventory_a, inventory_b)
+        inventory_data = json.loads(inventory_a)
+        self.assertEqual(
+            inventory_data["robot_config"]["move_count"],
+            len(extractor.MOVE_BINDINGS),
+        )
+        inventory_by_role = {
+            item["role"]: item for item in inventory_data["assets"]
+        }
+        self.assertIsNone(inventory_by_role["idle"]["robot_config_move_index"])
+        self.assertEqual(
+            inventory_by_role["left_hook"]["robot_config_move_index"], 0
+        )
+        self.assertEqual(
+            inventory_by_role["left_hook"]["mocap_clip_config_path_id"], 2704
+        )
 
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "g1-assets"

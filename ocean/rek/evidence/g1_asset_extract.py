@@ -29,22 +29,44 @@ from typing import Callable, Iterable, Mapping, Sequence
 
 MANIFEST_PATH = Path(__file__).with_name("g1_runtime_assets.v1.json")
 PINNED_MANIFEST_SHA256 = (
-    "06aa831f9ee6a094660df90085a03c2d8ef331137f74d6bb18849716e29c9eae"
+    "09973b2793f5b3e546a4f32cbf6128a13100c2332e3ed18c7e3eb46398618367"
 )
 MANIFEST_SCHEMA = "rek.g1_runtime_assets.manifest.v1"
 INVENTORY_SCHEMA = "rek.g1_runtime_assets.inventory.v1"
-EXPECTED_ROLES = frozenset(
-    {
-        "idle",
-        "kick_left_front",
-        "kick_left_side",
-        "kick_right_knee",
-        "kick_right_side",
-        "strafe_left",
-        "turn_right",
-        "walk",
-    }
+ROBOT_ID = "g1"
+ROBOT_CONFIG_PATH_ID = 2722
+ROBOT_CONFIG_NAME = "RobotConfig_G1_UnitreeFighting"
+ROBOT_CONFIG_SHA256 = (
+    "3b0f5dfa78591b384ab022d85c4f3027182c8c4cf48f0c325a3b5170c5ebf1eb"
 )
+LOCOMOTION_ROLES = frozenset({"idle", "strafe_left", "turn_right", "walk"})
+MOVE_BINDINGS = (
+    ("left_hook", 2704),
+    ("left_jab", 2706),
+    ("double_uppercut", 2701),
+    ("right_hook", 2712),
+    ("right_jab", 2713),
+    ("left_jab_right_uppercut", 2707),
+    ("kick_left_side", 2710),
+    ("kick_left_front", 2703),
+    ("kick_right_side", 2715),
+    ("kick_right_knee", 2714),
+    ("six_punch", 2698),
+    ("run_and_punch", 2717),
+    ("left_right_jab", 2709),
+    ("left_right_hook", 2708),
+    ("left_hook_right_jab", 2705),
+    ("double_hook", 2700),
+    ("butt_smack_emote", 2699),
+)
+MOVE_ROLE_BY_INDEX = {
+    index: binding[0] for index, binding in enumerate(MOVE_BINDINGS)
+}
+MOVE_INDEX_BY_ROLE = {role: index for index, role in MOVE_ROLE_BY_INDEX.items()}
+MOVE_CONFIG_PATH_ID_BY_INDEX = {
+    index: binding[1] for index, binding in enumerate(MOVE_BINDINGS)
+}
+EXPECTED_ROLES = LOCOMOTION_ROLES | frozenset(MOVE_ROLE_BY_INDEX.values())
 EXPECTED_ARCHIVE_MEMBERS = frozenset(
     {"dof_pos.npy", "fps.npy", "root_pos.npy", "root_rot.npy"}
 )
@@ -74,6 +96,8 @@ class AssetSpec:
     frames: int
     dof: int
     fps: float
+    robot_config_move_index: int | None
+    mocap_clip_config_path_id: int | None
     members: tuple[MemberSpec, ...]
 
 
@@ -85,6 +109,11 @@ class Manifest:
     source_name: str
     source_size: int
     source_sha256: str
+    robot_id: str
+    robot_config_path_id: int
+    robot_config_name: str
+    robot_config_sha256: str
+    robot_config_move_count: int
     assets: tuple[AssetSpec, ...]
 
 
@@ -180,6 +209,30 @@ def parse_manifest(data: object) -> Manifest:
     source_size = _require_int(source.get("bytes"), "source.bytes", 1)
     source_sha256 = _require_sha256(source.get("sha256"), "source.sha256")
 
+    robot_config = _require_dict(root.get("robot_config"), "robot_config")
+    robot_id = _require_str(robot_config.get("robot_id"), "robot_config.robot_id")
+    robot_config_path_id = _require_int(
+        robot_config.get("path_id"), "robot_config.path_id", 1
+    )
+    robot_config_name = _require_str(
+        robot_config.get("name"), "robot_config.name"
+    )
+    robot_config_sha256 = _require_sha256(
+        robot_config.get("serialized_sha256"),
+        "robot_config.serialized_sha256",
+    )
+    robot_config_move_count = _require_int(
+        robot_config.get("move_count"), "robot_config.move_count", 1
+    )
+    if (
+        robot_id != ROBOT_ID
+        or robot_config_path_id != ROBOT_CONFIG_PATH_ID
+        or robot_config_name != ROBOT_CONFIG_NAME
+        or robot_config_sha256 != ROBOT_CONFIG_SHA256
+        or robot_config_move_count != len(MOVE_BINDINGS)
+    ):
+        raise ExtractionError("robot_config identity mismatch")
+
     specs: list[AssetSpec] = []
     for index, raw_asset in enumerate(_require_list(root.get("assets"), "assets")):
         item = _require_dict(raw_asset, f"assets[{index}]")
@@ -194,6 +247,26 @@ def parse_manifest(data: object) -> Manifest:
         frames = _require_int(item.get("frames"), f"assets[{index}].frames", 1)
         dof = _require_int(item.get("dof"), f"assets[{index}].dof", 1)
         fps = _require_float(item.get("fps"), f"assets[{index}].fps")
+
+        raw_move_index = item.get("robot_config_move_index")
+        raw_config_path_id = item.get("mocap_clip_config_path_id")
+        if raw_move_index is None and raw_config_path_id is None:
+            move_index = None
+            config_path_id = None
+        elif raw_move_index is None or raw_config_path_id is None:
+            raise ExtractionError(
+                f"assets[{index}] must provide both move binding fields"
+            )
+        else:
+            move_index = _require_int(
+                raw_move_index,
+                f"assets[{index}].robot_config_move_index",
+            )
+            config_path_id = _require_int(
+                raw_config_path_id,
+                f"assets[{index}].mocap_clip_config_path_id",
+                1,
+            )
 
         members: list[MemberSpec] = []
         for member_index, raw_member in enumerate(
@@ -237,6 +310,8 @@ def parse_manifest(data: object) -> Manifest:
                 frames=frames,
                 dof=dof,
                 fps=fps,
+                robot_config_move_index=move_index,
+                mocap_clip_config_path_id=config_path_id,
                 members=tuple(sorted(members, key=lambda value: value.name)),
             )
         )
@@ -259,6 +334,41 @@ def parse_manifest(data: object) -> Manifest:
     if any(spec.fps != 50.0 for spec in specs):
         raise ExtractionError("every pinned G1 motion must be sampled at 50 Hz")
 
+    move_specs = {
+        spec.robot_config_move_index: spec
+        for spec in specs
+        if spec.robot_config_move_index is not None
+    }
+    if set(move_specs) != set(MOVE_ROLE_BY_INDEX):
+        raise ExtractionError("manifest move indices must be exactly 0..16")
+    if len(move_specs) != len(
+        [spec for spec in specs if spec.robot_config_move_index is not None]
+    ):
+        raise ExtractionError("manifest has duplicate RobotConfig move indices")
+    for move_index, spec in move_specs.items():
+        if spec.role != MOVE_ROLE_BY_INDEX[move_index]:
+            raise ExtractionError(
+                f"RobotConfig move {move_index} role mismatch"
+            )
+        if (
+            spec.mocap_clip_config_path_id
+            != MOVE_CONFIG_PATH_ID_BY_INDEX[move_index]
+        ):
+            raise ExtractionError(
+                f"RobotConfig move {move_index} MocapClipConfig mismatch"
+            )
+    for spec in specs:
+        if spec.role in LOCOMOTION_ROLES:
+            if (
+                spec.robot_config_move_index is not None
+                or spec.mocap_clip_config_path_id is not None
+            ):
+                raise ExtractionError(
+                    f"locomotion role {spec.role!r} must not claim a move index"
+                )
+        elif spec.robot_config_move_index is None:
+            raise ExtractionError(f"move role {spec.role!r} is missing its binding")
+
     return Manifest(
         build_fingerprint=build_fingerprint,
         parser=parser_name,
@@ -266,6 +376,11 @@ def parse_manifest(data: object) -> Manifest:
         source_name=source_name,
         source_size=source_size,
         source_sha256=source_sha256,
+        robot_id=robot_id,
+        robot_config_path_id=robot_config_path_id,
+        robot_config_name=robot_config_name,
+        robot_config_sha256=robot_config_sha256,
+        robot_config_move_count=robot_config_move_count,
         assets=tuple(sorted(specs, key=lambda value: value.path_id)),
     )
 
@@ -453,6 +568,13 @@ def build_inventory(
             "bytes": source_size,
             "sha256": source_sha256,
         },
+        "robot_config": {
+            "robot_id": manifest.robot_id,
+            "path_id": manifest.robot_config_path_id,
+            "name": manifest.robot_config_name,
+            "serialized_sha256": manifest.robot_config_sha256,
+            "move_count": manifest.robot_config_move_count,
+        },
         "assets": [
             {
                 "role": spec.role,
@@ -464,6 +586,8 @@ def build_inventory(
                 "frames": spec.frames,
                 "dof": spec.dof,
                 "fps": spec.fps,
+                "robot_config_move_index": spec.robot_config_move_index,
+                "mocap_clip_config_path_id": spec.mocap_clip_config_path_id,
                 "members": [
                     {
                         "name": member.name,

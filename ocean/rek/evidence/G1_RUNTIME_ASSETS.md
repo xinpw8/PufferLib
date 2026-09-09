@@ -13,11 +13,20 @@ The allowlist is build-bound by all of the following:
 - exact NPZ member names, byte counts, and SHA-256 values
 - UnityPy version `1.25.2`
 
-The eight payloads are the four G1 kicks plus the processed walk, idle, left
-strafe, and right turn references. The pinned build does not provide separately
-named processed right-strafe or left-turn TextAssets. This extractor does not
-mirror a trajectory or infer that one reference implements the opposite
-direction.
+The 21 payloads are all 17 entries in the pinned G1 `RobotConfig.moves` array
+plus the four unique processed locomotion references: walk, idle, left strafe,
+and right turn. Each move row records its exact array index and referenced
+`MocapClipConfig` path ID. The pinned build does not provide separately named
+processed right-strafe or left-turn TextAssets. Its serialized configuration
+references the left-strafe and right-turn payloads with negative playback speed
+for the opposite directions. The extractor preserves only the original payload
+bytes and does not synthesize a mirrored trajectory.
+
+Move-array membership is static asset evidence. It does not establish input
+reachability, active server behavior, hit semantics, or trajectory parity.
+Input bindings are outside this asset manifest. The pinned static keyboard
+scheme does not bind move indices 12 or 13; reachability through any other input
+surface remains unasserted.
 
 Install the pinned parser, then select a new output directory outside every Git
 work tree:
@@ -30,7 +39,7 @@ python .\g1_asset_extract.py `
 ```
 
 The command validates every payload in memory before publishing anything. The
-output directory must not already exist. On success it contains eight byte-exact
+output directory must not already exist. On success it contains 21 byte-exact
 `.npz` files and `g1_runtime_assets.inventory.json`. The inventory contains no
 timestamp or host-specific input path, so an extraction of the same pinned build
 is deterministic.

@@ -3,6 +3,158 @@
   "clips": [
     {
       "mocap_clip_config": {
+        "blendInTime": 0.03999999910593033,
+        "blendOutTime": 0.9819999933242798,
+        "displayName": "Butt Smack Emote",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 5.0,
+            "impactTime": 0.14000000059604645,
+            "leadTime": 0.4300000071525574,
+            "limb": 1,
+            "releaseTime": 11.600000381469727
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2699,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 184,
+        "serialized_sha256": "980f5869a57cc60eb2738be814d734b7a20481748a7c9dbefcb739dd9c635282",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 13866,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 104,
+        "name": "butt_smack_emote_processed",
+        "output": "butt_smack_emote_processed.npz",
+        "path_id": 382,
+        "sha256": "b061d742eac4bb5a972e46599ff4f987dd47f34be2f029fb882a317a5362f35f"
+      },
+      "role": "butt_smack_emote"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.0,
+        "blendOutTime": 0.4699999988079071,
+        "displayName": "Double Hook",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.5960000157356262,
+            "leadTime": 0.4000000059604645,
+            "limb": 1,
+            "releaseTime": 0.15000000596046448
+          },
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.8429999947547913,
+            "leadTime": 0.4000000059604645,
+            "limb": 2,
+            "releaseTime": 0.15000000596046448
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2700,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 196,
+        "serialized_sha256": "05e41f4a11a27bf0dc32502ed7a76a80387fc584698c8e611313015324688fc5",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 9917,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 72,
+        "name": "double_hook_processed",
+        "output": "double_hook_processed.npz",
+        "path_id": 390,
+        "sha256": "865c3115c605853cc94240c1c8e45d69ab1970dac11be8fe5e45456b397aab02"
+      },
+      "role": "double_hook"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.0,
+        "blendOutTime": 0.7480000257492065,
+        "displayName": "Double Uppercut",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.3959999978542328,
+            "leadTime": 0.20000000298023224,
+            "limb": 1,
+            "releaseTime": 0.4000000059604645
+          },
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.7350000143051147,
+            "leadTime": 0.20000000298023224,
+            "limb": 2,
+            "releaseTime": 0.4000000059604645
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2701,
+        "playbackSpeed": 1.8200000524520874,
+        "serialized_bytes": 204,
+        "serialized_sha256": "204e51da69de8bb6fcdfdad4a6bd360c833fc3a530e37532d032196f44937eeb",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 8229,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 57,
+        "name": "double_uppercut_processed",
+        "output": "double_uppercut_processed.npz",
+        "path_id": 374,
+        "sha256": "46ff89648c44cbd49093a7639ffea2893f87700a0d42aa50eb623439b3639211"
+      },
+      "role": "double_uppercut"
+    },
+    {
+      "mocap_clip_config": {
         "blendInTime": 1.0,
         "blendOutTime": 0.5139999985694885,
         "displayName": "",
@@ -225,6 +377,536 @@
     },
     {
       "mocap_clip_config": {
+        "blendInTime": 0.0,
+        "blendOutTime": 0.8479999899864197,
+        "displayName": "Left Hook",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.3799999952316284,
+            "leadTime": 0.25,
+            "limb": 1,
+            "releaseTime": 0.25
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2704,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 172,
+        "serialized_sha256": "aefe7a44e939138602c98d55759da812522ea20113d4b713594cfed5321c5a81",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 5345,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 36,
+        "name": "left_hook_processed",
+        "output": "left_hook_processed.npz",
+        "path_id": 381,
+        "sha256": "c8840cffa87d5d30ba1117ea404d5cea7644154e538aed1afffc2280cfc964f5"
+      },
+      "role": "left_hook"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.10000000149011612,
+        "blendOutTime": 0.10000000149011612,
+        "displayName": "Left Hook Right Jab",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 2.0,
+            "impactTime": 0.30000001192092896,
+            "leadTime": 0.4000000059604645,
+            "limb": 1,
+            "releaseTime": 0.15000000596046448
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2705,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 192,
+        "serialized_sha256": "e786fa688b0bd3f2f987a5c057fb3b59ef7268cdcc4c465c2f620f349efdef96",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 9514,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 69,
+        "name": "left_hook_right_jab_processed",
+        "output": "left_hook_right_jab_processed.npz",
+        "path_id": 385,
+        "sha256": "0966415dc08a555cf8b66e401c345c4c586a29d759ad489f7eb65b152be8bcd1"
+      },
+      "role": "left_hook_right_jab"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.0,
+        "blendOutTime": 0.8870000243186951,
+        "displayName": "Left Jab",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.1850000023841858,
+            "leadTime": 0.20000000298023224,
+            "limb": 1,
+            "releaseTime": 0.33000001311302185
+          }
+        ],
+        "impactForgivenessDuration": 0.0,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2706,
+        "playbackSpeed": 1.2599999904632568,
+        "serialized_bytes": 168,
+        "serialized_sha256": "6d1f08b7836f15acfb92200fe932bc38720e00570b2aaa76e9c7a60754f0590c",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 5093,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 34,
+        "name": "left_jab_processed",
+        "output": "left_jab_processed.npz",
+        "path_id": 379,
+        "sha256": "936f697e75f5c364878e7866851fb062b71e9f59bf57e783fbd55be9dee259d3"
+      },
+      "role": "left_jab"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.0,
+        "blendOutTime": 0.8240000009536743,
+        "displayName": "Left Jab Right Uppercut",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 4.0,
+            "impactTime": 0.30000001192092896,
+            "leadTime": 0.20000000298023224,
+            "limb": 1,
+            "releaseTime": 0.0
+          },
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.5799999833106995,
+            "leadTime": 0.2199999988079071,
+            "limb": 2,
+            "releaseTime": 0.6899999976158142
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2707,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 220,
+        "serialized_sha256": "f9e93eb9cda5ec06084cea1e66ede72d1cf0fc324fcac85581e45a812d2422ea",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 6776,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 46,
+        "name": "left_jab_right_uppercut_processed",
+        "output": "left_jab_right_uppercut_processed.npz",
+        "path_id": 376,
+        "sha256": "0d160f588307b494a4f9609cbe06b59154741944fff07ba41e57f0cb53c0ac07"
+      },
+      "role": "left_jab_right_uppercut"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.10000000149011612,
+        "blendOutTime": 0.10000000149011612,
+        "displayName": "Left Right Hook",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 2.0,
+            "impactTime": 0.30000001192092896,
+            "leadTime": 0.4000000059604645,
+            "limb": 1,
+            "releaseTime": 0.15000000596046448
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2708,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 184,
+        "serialized_sha256": "4c0dc3ea89f453b56d6ee08139bc7398e63baabedd202aecb6da424857c0893a",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 10484,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 76,
+        "name": "left_right_hook_processed",
+        "output": "left_right_hook_processed.npz",
+        "path_id": 384,
+        "sha256": "65a6e98b165ecaa3dc9f8a949cdbfa182a55ade7ff7fcca62ffb6c04fdf2e80e"
+      },
+      "role": "left_right_hook"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.10000000149011612,
+        "blendOutTime": 0.10000000149011612,
+        "displayName": "Left Right Jab",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 2.0,
+            "impactTime": 0.30000001192092896,
+            "leadTime": 0.4000000059604645,
+            "limb": 1,
+            "releaseTime": 0.15000000596046448
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2709,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 180,
+        "serialized_sha256": "d7439c20c51ff66fcdef22669b5bb94407a9c407f86e00b2165cf62362c2f3b8",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 10200,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 74,
+        "name": "left_right_jab_processed",
+        "output": "left_right_jab_processed.npz",
+        "path_id": 386,
+        "sha256": "80ec1171c29f0e2e77a9abeec573321aa3d8abc110f2693a5661d0a02b2a7658"
+      },
+      "role": "left_right_jab"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.0,
+        "blendOutTime": 0.6460000276565552,
+        "displayName": "Right Hook",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.49000000953674316,
+            "leadTime": 0.30000001192092896,
+            "limb": 2,
+            "releaseTime": 0.30000001192092896
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2712,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 172,
+        "serialized_sha256": "aedc17b7510f1dbfb46e612e05660ad463eab1bf92564abf63ef7aa19e35953a",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 6731,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 46,
+        "name": "right_hook_processed",
+        "output": "right_hook_processed.npz",
+        "path_id": 373,
+        "sha256": "c3a8bf701955601023bdd4e3828c0fcccc25b071da550b78bcb9246452a69da4"
+      },
+      "role": "right_hook"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.0,
+        "blendOutTime": 0.781000018119812,
+        "displayName": "Right Jab",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.20000000298023224,
+            "leadTime": 0.20000000298023224,
+            "limb": 2,
+            "releaseTime": 0.30000001192092896
+          }
+        ],
+        "impactForgivenessDuration": 0.0,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2713,
+        "playbackSpeed": 1.25,
+        "serialized_bytes": 172,
+        "serialized_sha256": "9bede4c53c2b4dbe1a65008944bdbdc3a03b2093019bc14ffca6586bcf6cf080",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 5913,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 40,
+        "name": "right_jab_processed",
+        "output": "right_jab_processed.npz",
+        "path_id": 387,
+        "sha256": "8d27051db4a7ba054e8fcedb7957c9d64883faa33a9d6f720a63e181767c5393"
+      },
+      "role": "right_jab"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.2750000059604645,
+        "blendOutTime": 0.8500000238418579,
+        "displayName": "Run And Punch",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 8.0,
+            "impactTime": 1.7999999523162842,
+            "leadTime": 0.4000000059604645,
+            "limb": 2,
+            "releaseTime": 0.15000000596046448
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2717,
+        "playbackSpeed": 1.0,
+        "serialized_bytes": 180,
+        "serialized_sha256": "253abf5d02d91f43e9c2b7fe8f955473102519c7af8c0e0dd16062605ea7c591",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 18217,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 139,
+        "name": "run_and_punch_processed",
+        "output": "run_and_punch_processed.npz",
+        "path_id": 383,
+        "sha256": "c22ce12336de948cecde43876cb8fb5d9a9d82aa0784f65b34426cd86f01b596"
+      },
+      "role": "run_and_punch"
+    },
+    {
+      "mocap_clip_config": {
+        "blendInTime": 0.10000000149011612,
+        "blendOutTime": 0.10000000149011612,
+        "displayName": "6 Punch",
+        "endFrame": -1,
+        "impactEvents": [
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.16099999845027924,
+            "leadTime": 0.20000000298023224,
+            "limb": 1,
+            "releaseTime": 0.10000000149011612
+          },
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.3529999852180481,
+            "leadTime": 0.20000000298023224,
+            "limb": 2,
+            "releaseTime": 0.10000000149011612
+          },
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.5879999995231628,
+            "leadTime": 0.20000000298023224,
+            "limb": 1,
+            "releaseTime": 0.10000000149011612
+          },
+          {
+            "gainBoost": 8.0,
+            "impactTime": 0.8169999718666077,
+            "leadTime": 0.20000000298023224,
+            "limb": 2,
+            "releaseTime": 0.10000000149011612
+          },
+          {
+            "gainBoost": 8.0,
+            "impactTime": 1.0,
+            "leadTime": 0.20000000298023224,
+            "limb": 1,
+            "releaseTime": 0.10000000149011612
+          },
+          {
+            "gainBoost": 8.0,
+            "impactTime": 1.2599999904632568,
+            "leadTime": 0.20000000298023224,
+            "limb": 2,
+            "releaseTime": 0.10000000149011612
+          },
+          {
+            "gainBoost": 8.0,
+            "impactTime": 1.5700000524520874,
+            "leadTime": 0.20000000298023224,
+            "limb": 1,
+            "releaseTime": 0.10000000149011612
+          },
+          {
+            "gainBoost": 8.0,
+            "impactTime": 1.7000000476837158,
+            "leadTime": 0.20000000298023224,
+            "limb": 2,
+            "releaseTime": 0.10000000149011612
+          },
+          {
+            "gainBoost": 8.0,
+            "impactTime": 2.0,
+            "leadTime": 0.20000000298023224,
+            "limb": 1,
+            "releaseTime": 0.10000000149011612
+          },
+          {
+            "gainBoost": 8.0,
+            "impactTime": 2.3429999351501465,
+            "leadTime": 0.20000000298023224,
+            "limb": 2,
+            "releaseTime": 0.10000000149011612
+          }
+        ],
+        "impactForgivenessDuration": 0.6000000238418579,
+        "impactReversal": {
+          "emaAlpha": 0.05000000074505806,
+          "enabled": 0,
+          "holdTime": 0.5,
+          "spikeFloorNm": 30.0,
+          "spikeRatio": 1.25
+        },
+        "impactYawForgiveness": 0.0,
+        "loop": 0,
+        "mirror": 0,
+        "path_id": 2698,
+        "playbackSpeed": 1.1200000047683716,
+        "serialized_bytes": 348,
+        "serialized_sha256": "f53b79244ca67e8ff5f24cac5efce2af4ccb3855d22828ffcba7aa8fc948841b",
+        "startFrame": 0,
+        "yawBlend": 0.0,
+        "yawForgiveness": 0.0
+      },
+      "npz": {
+        "bytes": 20057,
+        "dof": 29,
+        "fps": 50.0,
+        "frames": 151,
+        "name": "6_punch_processed",
+        "output": "6_punch_processed.npz",
+        "path_id": 378,
+        "sha256": "451cbfb3c66bcff13cf34ae7624f8f8d006121545f73422390d79bfc1ead1a8f"
+      },
+      "role": "six_punch"
+    },
+    {
+      "mocap_clip_config": {
         "blendInTime": 0.09399999678134918,
         "blendOutTime": 0.29499998688697815,
         "displayName": "",
@@ -350,7 +1032,7 @@
       "unitypy_version": "1.25.2"
     },
     "runtime_assets_manifest": {
-      "canonical_sha256": "06aa831f9ee6a094660df90085a03c2d8ef331137f74d6bb18849716e29c9eae",
+      "canonical_sha256": "09973b2793f5b3e546a4f32cbf6128a13100c2332e3ed18c7e3eb46398618367",
       "name": "g1_runtime_assets.v1.json",
       "schema": "rek.g1_runtime_assets.manifest.v1"
     },
