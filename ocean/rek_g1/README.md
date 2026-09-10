@@ -8,6 +8,40 @@ errors are no greater than REK's repeated-run variance.
 
 ## Runtime boundary
 
+### CUDA candidate
+
+`gpu_semantic_duel.py` runs controller inference, motion scheduling, MuJoCo
+Warp physics, contact measurement, fall/referee state, rewards, and observations
+on CUDA. Model parsing, asset hash verification, and initial uploads occur once
+on the host. The step path does not run CPU physics or CPU controller inference.
+Python still orchestrates graph launches; this does not mean zero CPU usage.
+
+`GpuDuelConfig` requires the model and asset-manifest hashes, exact-batch
+controller manifest and source bundle, baked motion-foot features, and compiled
+motion/combat library paths. Asset payloads remain external. Build the native
+libraries with `build_g1_motion_cuda.sh` and `build_g1_combat_cuda.sh`, using
+separate output directories. The controller batch must contain complete pairs.
+Call `capture_step()` before stepping the environment.
+
+`verify_gpu_duel.py --config CONFIG.json --scenario approach-kick --out REPORT.json`
+runs the complete GPU candidate and saves observations, applied/requested
+actions, masks, motion starts, reference roots, body positions, and arena clocks
+in a hashed NPZ trace. `turn-kick` checks a move after held Q; `front-kick`
+isolates one kick and accepts an explicitly reported fixture starting distance.
+Probe throughput is environment control-step throughput, not training SPS.
+
+The GPU loader performs the same per-clip heading normalization as
+`g1_semantic_assets.c`. Active actuator controls use the native joint-limit
+clamp without clipping filter history or retained fall/reset controls. The
+contact adapter samples every 2 ms and preserves directed contact ordering.
+
+GPU execution does not establish authentic REK parity. The candidate retains
+the public-family controller identity and round-terminal episode limitation
+described below. A successful kick or held-input probe is a regression result,
+not evidence that all moves or trajectories match authentic REK.
+
+### Shared state and action contract
+
 One arena contains two physical G1 robots in one MuJoCo model. Puffer rows are
 arena-major, player then opponent. Every 50 Hz outer action advances ten 2 ms
 physics steps. Both fighters' controls are staged before the shared-contact

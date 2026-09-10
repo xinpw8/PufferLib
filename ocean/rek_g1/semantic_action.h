@@ -75,7 +75,7 @@ typedef struct RekG1SemanticTick {
     uint8_t move_blocked;
 } RekG1SemanticTick;
 
-static inline RekG1SemanticStatus rek_g1_semantic_encode_held(
+static REK_G1_FN inline RekG1SemanticStatus rek_g1_semantic_encode_held(
         uint8_t held,
         uint8_t* code_out) {
     if (code_out == 0 || (held & ~REK_G1_HELD_VALID_MASK) != 0 ||
@@ -95,7 +95,7 @@ static inline RekG1SemanticStatus rek_g1_semantic_encode_held(
     return REK_G1_SEMANTIC_OK;
 }
 
-static inline RekG1SemanticStatus rek_g1_semantic_decode_held(
+static REK_G1_FN inline RekG1SemanticStatus rek_g1_semantic_decode_held(
         uint8_t code,
         uint8_t* held_out) {
     if (held_out == 0 || code >= REK_G1_SEMANTIC_HELD_CODES) {
@@ -116,11 +116,11 @@ static inline RekG1SemanticStatus rek_g1_semantic_decode_held(
     return REK_G1_SEMANTIC_OK;
 }
 
-static inline void rek_g1_semantic_reset(RekG1SemanticScheduler* scheduler) {
-    *scheduler = (RekG1SemanticScheduler){0};
+static REK_G1_FN inline void rek_g1_semantic_reset(RekG1SemanticScheduler* scheduler) {
+    *scheduler = (RekG1SemanticScheduler)REK_G1_ZERO_INIT;
 }
 
-static inline RekG1SemanticStatus rek_g1_semantic_start(
+static REK_G1_FN inline RekG1SemanticStatus rek_g1_semantic_start(
         RekG1SemanticScheduler* scheduler,
         RekG1SemanticCommand command,
         uint16_t move_registry_count) {
@@ -158,12 +158,12 @@ static inline RekG1SemanticStatus rek_g1_semantic_start(
     return REK_G1_SEMANTIC_OK;
 }
 
-static inline RekG1SemanticTick rek_g1_semantic_tick(
+static REK_G1_FN inline RekG1SemanticTick rek_g1_semantic_tick(
         RekG1SemanticScheduler* scheduler,
         RekG1InputTiming timing,
         int translation_transition_settled,
         int action_busy) {
-    RekG1SemanticTick result = {0};
+    RekG1SemanticTick result = REK_G1_ZERO_INIT;
     result.status = REK_G1_SEMANTIC_NO_ACTIVE_SEGMENT;
     result.move_registry_index = REK_G1_SEMANTIC_MOVE_NONE;
     if (!scheduler->active) return result;

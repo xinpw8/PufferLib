@@ -1,5 +1,7 @@
 #pragma once
 
+#include "g1_cuda_qualifiers.h"
+
 #include <stdint.h>
 
 #include "native_motion_routes.h"
@@ -136,18 +138,18 @@ typedef struct RekG1NativeLocomotionStepResult {
     uint8_t transition_settled;
 } RekG1NativeLocomotionStepResult;
 
-RekG1NativeCommandStatus rek_g1_native_select_locomotion_route(
+REK_G1_FN RekG1NativeCommandStatus rek_g1_native_select_locomotion_route(
     RekG1NativeVelocityCommand command,
     RekG1NativeRouteSelection* selection
 );
 
-RekG1NativeCommandStatus rek_g1_native_playback_update(
+REK_G1_FN RekG1NativeCommandStatus rek_g1_native_playback_update(
     RekG1NativeVelocityCommand command,
     const RekG1NativeCommandConfig* config,
     RekG1NativePlaybackUpdate* update
 );
 
-RekG1NativeCommandStatus rek_g1_native_heading_update(
+REK_G1_FN RekG1NativeCommandStatus rek_g1_native_heading_update(
     RekG1NativeVelocityCommand command,
     const RekG1NativeCommandConfig* config,
     float heading_clip_ownership,
@@ -156,7 +158,7 @@ RekG1NativeCommandStatus rek_g1_native_heading_update(
     RekG1NativeHeadingUpdate* update
 );
 
-RekG1NativeCommandStatus rek_g1_native_transition_settled(
+REK_G1_FN RekG1NativeCommandStatus rek_g1_native_transition_settled(
     RekG1NativeRouteId outgoing_route_id,
     const RekG1NativeLocomotionConfig* config,
     const RekG1NativeBaseVelocitySample* base_velocity,
@@ -173,7 +175,7 @@ RekG1NativeCommandStatus rek_g1_native_transition_settled(
  * selected_route_playable is true, matching the native clip and motion
  * presence checks.  This component does not establish trajectory parity.
  */
-RekG1NativeCommandStatus rek_g1_native_locomotion_step(
+REK_G1_FN RekG1NativeCommandStatus rek_g1_native_locomotion_step(
     const RekG1NativeLocomotionState* state,
     const RekG1NativeLocomotionConfig* config,
     const RekG1NativeLocomotionStepInput* input,

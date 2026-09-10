@@ -1,5 +1,7 @@
 #pragma once
 
+#include "g1_cuda_qualifiers.h"
+
 #include "sonic_motion_composer_native.h"
 
 #include <stddef.h>
@@ -73,11 +75,11 @@ typedef int (*SonicMotionEntryMatcherNativeKinematicsSampler)(
         SONIC_MOTION_ENTRY_MATCHER_NATIVE_FEATURE_WIDTH]
 );
 
-const char* sonic_motion_entry_matcher_native_status_string(
+REK_G1_FN const char* sonic_motion_entry_matcher_native_status_string(
     SonicMotionEntryMatcherNativeStatus status
 );
 
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_init(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_init(
     SonicMotionEntryMatcherNative* matcher,
     int32_t controller_rate_hz,
     SonicMotionEntryMatcherNativeFeatureSlot* slots,
@@ -85,7 +87,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_init(
 );
 
 /* Exact current-build MakeFeat mirror and left/right exchange. */
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_make_feature(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_make_feature(
     const float raw_root_local_foot_xyz[
         SONIC_MOTION_ENTRY_MATCHER_NATIVE_FEATURE_WIDTH],
     int mirror,
@@ -93,7 +95,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_make_featu
 );
 
 /* Exact clamped integer sampler used by MatchEntryCursor. */
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_sample_at(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_sample_at(
     const float* root_local_foot_xyz,
     size_t frame_count,
     int32_t frame,
@@ -102,7 +104,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_sample_at(
 );
 
 /* Exact clamped binary32 linear sampler used for the outgoing feature. */
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_sample_lerp(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_sample_lerp(
     const float* root_local_foot_xyz,
     size_t frame_count,
     float cursor,
@@ -114,7 +116,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_sample_ler
  * Exposes the C equivalent of GetClipIlDofPos without decoding or copying.
  * Returned storage remains owned by clip.
  */
-SonicMotionEntryMatcherNativeStatus
+REK_G1_FN SonicMotionEntryMatcherNativeStatus
 sonic_motion_entry_matcher_native_clip_dof_positions(
     const SonicMotionComposerNativeClip* clip,
     const float** dof_position_mujoco,
@@ -128,7 +130,7 @@ sonic_motion_entry_matcher_native_clip_dof_positions(
  * not inferred from joint samples.  Rows written before a callback failure
  * remain written, matching the imperative current-runner bake order.
  */
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_bake_features(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_bake_features(
     const SonicMotionComposerNativeClip* clip,
     SonicMotionEntryMatcherNativeKinematicsSampler sampler,
     void* sampler_context,
@@ -137,7 +139,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_bake_featu
 );
 
 /* Current-build RegisterFootFeatures dictionary replacement semantics. */
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_register(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_register(
     SonicMotionEntryMatcherNative* matcher,
     const SonicMotionComposerNativeClip* clip,
     const float* root_local_foot_xyz,
@@ -149,7 +151,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_register(
  * game UI, missing features fail closed instead of selecting an authored entry
  * cursor, so an unknown kinematic dependency cannot become simulator data.
  */
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_match(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_match(
     SonicMotionEntryMatcherNative* matcher,
     const SonicMotionComposerNativeLayer* target,
     const SonicMotionComposerNativeLayer* outgoing,
@@ -157,7 +159,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_match(
 );
 
 /* Drop-in SonicMotionComposerNativeLoopEntryMatcher callback. */
-int sonic_motion_entry_matcher_native_callback(
+REK_G1_FN int sonic_motion_entry_matcher_native_callback(
     void* context,
     const SonicMotionComposerNativeLayer* target,
     const SonicMotionComposerNativeLayer* outgoing,

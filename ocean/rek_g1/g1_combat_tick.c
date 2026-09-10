@@ -4,21 +4,21 @@
 #include <math.h>
 #include <string.h>
 
-static int binary_flag(uint8_t value) {
+static REK_G1_FN int binary_flag(uint8_t value) {
     return value == 0u || value == 1u;
 }
 
-static int valid_phase(RekG1FallPhase phase) {
+static REK_G1_FN int valid_phase(RekG1FallPhase phase) {
     return phase == REK_G1_FALL_UPRIGHT
         || phase == REK_G1_FALL_FALLING
         || phase == REK_G1_FALL_FALLEN;
 }
 
-static int initialized_state(const RekG1CombatArenaState* state) {
+static REK_G1_FN int initialized_state(const RekG1CombatArenaState* state) {
     return state != NULL && state->initialized == 1u;
 }
 
-const char* rek_g1_combat_tick_status_string(RekG1CombatTickStatus status) {
+REK_G1_FN const char* rek_g1_combat_tick_status_string(RekG1CombatTickStatus status) {
     switch (status) {
         case REK_G1_COMBAT_TICK_OK: return "ok";
         case REK_G1_COMBAT_TICK_NULL_ARGUMENT: return "null argument";
@@ -31,12 +31,12 @@ const char* rek_g1_combat_tick_status_string(RekG1CombatTickStatus status) {
     }
 }
 
-RekG1CombatTickStatus rek_g1_combat_arena_init(
+REK_G1_FN RekG1CombatTickStatus rek_g1_combat_arena_init(
         RekG1CombatArenaState* state) {
     if (state == NULL) return REK_G1_COMBAT_TICK_NULL_ARGUMENT;
     RekG1CombatArenaState local;
     memset(&local, 0, sizeof(local));
-    RekG1FightStepResult step = {0};
+    RekG1FightStepResult step = REK_G1_ZERO_INIT;
     if (rek_g1_fight_state_init(&local.fight) != REK_G1_FIGHT_OK
             || rek_g1_fight_prepare_first_round(
                 &local.fight, &step) != REK_G1_FIGHT_OK) {
@@ -54,7 +54,7 @@ RekG1CombatTickStatus rek_g1_combat_arena_init(
     return REK_G1_COMBAT_TICK_OK;
 }
 
-static int input_valid(
+static REK_G1_FN int input_valid(
         const RekG1CombatArenaState* state,
         const RekG1CombatSubstepInput* input) {
     if (!initialized_state(state) || input == NULL
@@ -83,13 +83,13 @@ static int input_valid(
     return 1;
 }
 
-static int add_positive_i32(int32_t* target, int32_t value) {
+static REK_G1_FN int add_positive_i32(int32_t* target, int32_t value) {
     if (target == NULL || value < 0 || *target > INT32_MAX - value) return 0;
     *target += value;
     return 1;
 }
 
-static int merge_fight_result(
+static REK_G1_FN int merge_fight_result(
         RekG1CombatSubstepResult* output,
         const RekG1FightStepResult* step) {
     if (output == NULL || step == NULL) return 0;
@@ -108,7 +108,7 @@ static int merge_fight_result(
     return 1;
 }
 
-static RekG1CombatTickStatus apply_fight_step(
+static REK_G1_FN RekG1CombatTickStatus apply_fight_step(
         RekG1CombatSubstepResult* output,
         RekG1FightStatus status,
         const RekG1FightStepResult* step) {
@@ -119,7 +119,7 @@ static RekG1CombatTickStatus apply_fight_step(
         ? REK_G1_COMBAT_TICK_OK : REK_G1_COMBAT_TICK_OVERFLOW;
 }
 
-RekG1CombatTickStatus rek_g1_combat_arena_substep(
+REK_G1_FN RekG1CombatTickStatus rek_g1_combat_arena_substep(
         const RekG1CombatArenaState* state,
         const RekG1HitDetectorConfig* hit_config,
         const RekG1CombatSubstepInput* input,
@@ -152,7 +152,7 @@ RekG1CombatTickStatus rek_g1_combat_arena_substep(
             input->fighter_can_get_up[1],
         },
     };
-    RekG1FightStepResult fight_step = {0};
+    RekG1FightStepResult fight_step = REK_G1_ZERO_INIT;
     RekG1CombatTickStatus status = REK_G1_COMBAT_TICK_OK;
     if (round_active) {
         status = apply_fight_step(
@@ -167,7 +167,7 @@ RekG1CombatTickStatus rek_g1_combat_arena_substep(
         if (contact->round_active != round_active) {
             return REK_G1_COMBAT_TICK_INPUT_INVALID;
         }
-        RekG1HitResult hit = {0};
+        RekG1HitResult hit = REK_G1_ZERO_INIT;
         if (!rek_g1_hit_detector_process(
                 &local.next_state.hit_detector,
                 hit_config,
@@ -273,7 +273,7 @@ RekG1CombatTickStatus rek_g1_combat_arena_substep(
     return REK_G1_COMBAT_TICK_OK;
 }
 
-RekG1CombatTickStatus rek_g1_combat_arena_apply_spawn_reset(
+REK_G1_FN RekG1CombatTickStatus rek_g1_combat_arena_apply_spawn_reset(
         const RekG1CombatArenaState* state,
         RekG1CombatArenaState* next_state) {
     if (state == NULL || next_state == NULL) {
@@ -281,7 +281,7 @@ RekG1CombatTickStatus rek_g1_combat_arena_apply_spawn_reset(
     }
     if (!initialized_state(state)) return REK_G1_COMBAT_TICK_NOT_READY;
     RekG1CombatArenaState local = *state;
-    RekG1FightStepResult fight_step = {0};
+    RekG1FightStepResult fight_step = REK_G1_ZERO_INIT;
     if (rek_g1_fight_apply_spawn_reset(
             &local.fight, &fight_step) != REK_G1_FIGHT_OK) {
         return REK_G1_COMBAT_TICK_FIGHT_REJECTED;

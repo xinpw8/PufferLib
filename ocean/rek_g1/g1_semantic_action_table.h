@@ -21,7 +21,7 @@ typedef struct RekG1SemanticActionTableStorage {
  * loaded route assets. They are not measured physical completion times.
  * The configured duration array is indexed by runtime move index 0..16.
  */
-RekG1PufferStatus rek_g1_semantic_action_table_init(
+REK_G1_FN RekG1PufferStatus rek_g1_semantic_action_table_init(
     RekG1SemanticActionTableStorage* storage,
     uint32_t locomotion_segment_ticks,
     const uint32_t configured_compositor_move_duration_ticks[

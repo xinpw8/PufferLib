@@ -7,45 +7,45 @@
 #include <stdint.h>
 #include <string.h>
 
-_Static_assert(sizeof(float) == 4, "binary32 float is required");
-_Static_assert(FLT_RADIX == 2, "binary floating point is required");
-_Static_assert(FLT_MANT_DIG == 24, "binary32 precision is required");
-_Static_assert(FLT_MAX_EXP == 128, "binary32 exponent range is required");
+REK_G1_STATIC_ASSERT(sizeof(float) == 4, "binary32 float is required");
+REK_G1_STATIC_ASSERT(FLT_RADIX == 2, "binary floating point is required");
+REK_G1_STATIC_ASSERT(FLT_MANT_DIG == 24, "binary32 precision is required");
+REK_G1_STATIC_ASSERT(FLT_MAX_EXP == 128, "binary32 exponent range is required");
 
 enum {
     SONIC_MOTION_ENTRY_MATCHER_NATIVE_MAX_EXACT_FRAME_COUNT = 16777216
 };
 
-static float f32_add(float a, float b) {
+static REK_G1_FN float f32_add(float a, float b) {
     volatile float result = a + b;
     return result;
 }
 
-static float f32_sub(float a, float b) {
+static REK_G1_FN float f32_sub(float a, float b) {
     volatile float result = a - b;
     return result;
 }
 
-static float f32_mul(float a, float b) {
+static REK_G1_FN float f32_mul(float a, float b) {
     volatile float result = a * b;
     return result;
 }
 
-static float f32_div(float a, float b) {
+static REK_G1_FN float f32_div(float a, float b) {
     volatile float result = a / b;
     return result;
 }
 
-static float f32_from_i32(int32_t value) {
+static REK_G1_FN float f32_from_i32(int32_t value) {
     volatile float result = (float)value;
     return result;
 }
 
-static int valid_flag(int value) {
+static REK_G1_FN int valid_flag(int value) {
     return value == 0 || value == 1;
 }
 
-static int checked_product(size_t a, size_t b, size_t* result) {
+static REK_G1_FN int checked_product(size_t a, size_t b, size_t* result) {
     if (result == NULL || (a != 0 && b > SIZE_MAX / a)) {
         return 0;
     }
@@ -53,7 +53,7 @@ static int checked_product(size_t a, size_t b, size_t* result) {
     return 1;
 }
 
-static int finite_floats(const float* values, size_t count) {
+static REK_G1_FN int finite_floats(const float* values, size_t count) {
     if (values == NULL) {
         return 0;
     }
@@ -65,13 +65,18 @@ static int finite_floats(const float* values, size_t count) {
     return 1;
 }
 
-static SonicMotionEntryMatcherNativeStatus validate_float_environment(void) {
+static REK_G1_FN SonicMotionEntryMatcherNativeStatus validate_float_environment(void) {
+#if defined(REK_G1_CUDA_DEVICE)
+    /* CUDA arithmetic is compiled RN; there is no mutable host fenv. */
+    return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
+#else
     return fegetround() == FE_TONEAREST
         ? SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK
         : SONIC_MOTION_ENTRY_MATCHER_NATIVE_UNSUPPORTED_FLOAT_ENVIRONMENT;
+#endif
 }
 
-static SonicMotionEntryMatcherNativeStatus validate_clip_identity(
+static REK_G1_FN SonicMotionEntryMatcherNativeStatus validate_clip_identity(
         const SonicMotionComposerNativeClip* clip,
         int validate_dof_values) {
     size_t expected_dof_count = 0;
@@ -105,7 +110,7 @@ static SonicMotionEntryMatcherNativeStatus validate_clip_identity(
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }
 
-static SonicMotionEntryMatcherNativeStatus validate_layer(
+static REK_G1_FN SonicMotionEntryMatcherNativeStatus validate_layer(
         const SonicMotionComposerNativeLayer* layer,
         int require_active) {
     SonicMotionEntryMatcherNativeStatus status;
@@ -135,7 +140,7 @@ static SonicMotionEntryMatcherNativeStatus validate_layer(
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }
 
-static SonicMotionEntryMatcherNativeStatus blend_frames(
+static REK_G1_FN SonicMotionEntryMatcherNativeStatus blend_frames(
         int32_t controller_rate_hz,
         float seconds,
         int32_t* result) {
@@ -171,7 +176,7 @@ static SonicMotionEntryMatcherNativeStatus blend_frames(
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }
 
-static int same_clip_identity(
+static REK_G1_FN int same_clip_identity(
         const SonicMotionEntryMatcherNativeFeatureSlot* slot,
         const SonicMotionComposerNativeClip* clip) {
     return slot->registered
@@ -180,7 +185,7 @@ static int same_clip_identity(
         && slot->clip_frame_count == clip->frame_count;
 }
 
-static SonicMotionEntryMatcherNativeFeatureSlot* find_slot(
+static REK_G1_FN SonicMotionEntryMatcherNativeFeatureSlot* find_slot(
         SonicMotionEntryMatcherNative* matcher,
         const SonicMotionComposerNativeClip* clip) {
     for (size_t index = 0; index < matcher->slot_count; index++) {
@@ -191,7 +196,7 @@ static SonicMotionEntryMatcherNativeFeatureSlot* find_slot(
     return NULL;
 }
 
-static SonicMotionEntryMatcherNativeStatus wrap_cursor(
+static REK_G1_FN SonicMotionEntryMatcherNativeStatus wrap_cursor(
         const SonicMotionComposerNativeLayer* layer,
         float cursor,
         float* result) {
@@ -240,7 +245,7 @@ static SonicMotionEntryMatcherNativeStatus wrap_cursor(
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }
 
-static SonicMotionEntryMatcherNativeStatus squared_distance(
+static REK_G1_FN SonicMotionEntryMatcherNativeStatus squared_distance(
         const SonicMotionEntryMatcherNativeFootFeature* a,
         const SonicMotionEntryMatcherNativeFootFeature* b,
         float* result) {
@@ -270,7 +275,7 @@ static SonicMotionEntryMatcherNativeStatus squared_distance(
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }
 
-const char* sonic_motion_entry_matcher_native_status_string(
+REK_G1_FN const char* sonic_motion_entry_matcher_native_status_string(
         SonicMotionEntryMatcherNativeStatus status) {
     switch (status) {
         case SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK:
@@ -296,7 +301,7 @@ const char* sonic_motion_entry_matcher_native_status_string(
     }
 }
 
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_init(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_init(
         SonicMotionEntryMatcherNative* matcher,
         int32_t controller_rate_hz,
         SonicMotionEntryMatcherNativeFeatureSlot* slots,
@@ -323,7 +328,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_init(
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }
 
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_make_feature(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_make_feature(
         const float raw[SONIC_MOTION_ENTRY_MATCHER_NATIVE_FEATURE_WIDTH],
         int mirror,
         SonicMotionEntryMatcherNativeFootFeature* output) {
@@ -349,7 +354,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_make_featu
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }
 
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_sample_at(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_sample_at(
         const float* features,
         size_t frame_count,
         int32_t frame,
@@ -375,7 +380,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_sample_at(
         output);
 }
 
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_sample_lerp(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_sample_lerp(
         const float* features,
         size_t frame_count,
         float cursor,
@@ -435,7 +440,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_sample_ler
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }
 
-SonicMotionEntryMatcherNativeStatus
+REK_G1_FN SonicMotionEntryMatcherNativeStatus
 sonic_motion_entry_matcher_native_clip_dof_positions(
         const SonicMotionComposerNativeClip* clip,
         const float** dof_position_mujoco,
@@ -456,7 +461,7 @@ sonic_motion_entry_matcher_native_clip_dof_positions(
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }
 
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_bake_features(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_bake_features(
         const SonicMotionComposerNativeClip* clip,
         SonicMotionEntryMatcherNativeKinematicsSampler sampler,
         void* sampler_context,
@@ -504,7 +509,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_bake_featu
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }
 
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_register(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_register(
         SonicMotionEntryMatcherNative* matcher,
         const SonicMotionComposerNativeClip* clip,
         const float* features,
@@ -552,7 +557,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_register(
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }
 
-SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_match(
+REK_G1_FN SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_match(
         SonicMotionEntryMatcherNative* matcher,
         const SonicMotionComposerNativeLayer* target,
         const SonicMotionComposerNativeLayer* outgoing,
@@ -682,7 +687,7 @@ SonicMotionEntryMatcherNativeStatus sonic_motion_entry_matcher_native_match(
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }
 
-int sonic_motion_entry_matcher_native_callback(
+REK_G1_FN int sonic_motion_entry_matcher_native_callback(
         void* context,
         const SonicMotionComposerNativeLayer* target,
         const SonicMotionComposerNativeLayer* outgoing,

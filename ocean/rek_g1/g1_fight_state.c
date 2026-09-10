@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <string.h>
 
-const RekG1FightConfig REK_G1_FIGHT_CONFIG_F84F1874 = {
+REK_G1_CONSTANT const RekG1FightConfig REK_G1_FIGHT_CONFIG_F84F1874 = {
     .normal_round_seconds = 120.0f,
     .redo_round_seconds = 30.0f,
     .between_round_seconds = 5.0f,
@@ -26,38 +26,38 @@ const RekG1FightConfig REK_G1_FIGHT_CONFIG_F84F1874 = {
     .rounds_to_win = 2u,
 };
 
-static int valid_flag(uint8_t value) {
+static REK_G1_FN int valid_flag(uint8_t value) {
     return value == 0u || value == 1u;
 }
 
-static int valid_fighter_index(uint32_t value) {
+static REK_G1_FN int valid_fighter_index(uint32_t value) {
     return value < 2u;
 }
 
-static int valid_round_result(RekG1RoundResult value) {
+static REK_G1_FN int valid_round_result(RekG1RoundResult value) {
     return value >= REK_G1_ROUND_IN_PROGRESS
         && value <= REK_G1_ROUND_TIE;
 }
 
-static int valid_fight_result(RekG1FightResult value) {
+static REK_G1_FN int valid_fight_result(RekG1FightResult value) {
     return value >= REK_G1_FIGHT_IN_PROGRESS
         && value <= REK_G1_FIGHT_WON_BY_TKO;
 }
 
-static int valid_fall_classification(RekG1FallClassification value) {
+static REK_G1_FN int valid_fall_classification(RekG1FallClassification value) {
     return value >= REK_G1_FALL_UNCLASSIFIED
         && value <= REK_G1_FALL_KNOCKDOWN;
 }
 
-static int valid_winner(int32_t value) {
+static REK_G1_FN int valid_winner(int32_t value) {
     return value == -1 || value == 0 || value == 1;
 }
 
-static int any_count_active(const RekG1FightState* state) {
+static REK_G1_FN int any_count_active(const RekG1FightState* state) {
     return state->count_active[0] || state->count_active[1];
 }
 
-static RekG1FightStatus validate_state(const RekG1FightState* state) {
+static REK_G1_FN RekG1FightStatus validate_state(const RekG1FightState* state) {
     if (state->phase < REK_G1_FIGHT_IDLE
             || state->phase > REK_G1_FIGHT_OVER
             || !valid_round_result(state->round_result)
@@ -167,7 +167,7 @@ static RekG1FightStatus validate_state(const RekG1FightState* state) {
     return REK_G1_FIGHT_OK;
 }
 
-static void initialize_result(
+static REK_G1_FN void initialize_result(
     const RekG1FightState* state,
     RekG1FightStepResult* result
 ) {
@@ -177,7 +177,7 @@ static void initialize_result(
     result->fall_classification = REK_G1_FALL_UNCLASSIFIED;
 }
 
-static int add_score(
+static REK_G1_FN int add_score(
     RekG1FightStepResult* result,
     uint32_t fighter,
     int32_t points
@@ -193,7 +193,7 @@ static int add_score(
     return 1;
 }
 
-static int add_round_win(
+static REK_G1_FN int add_round_win(
     RekG1FightStepResult* result,
     uint32_t fighter
 ) {
@@ -206,7 +206,7 @@ static int add_round_win(
     return 1;
 }
 
-static void clear_referee_state(RekG1FightState* state) {
+static REK_G1_FN void clear_referee_state(RekG1FightState* state) {
     state->fall_classification[0] = REK_G1_FALL_UNCLASSIFIED;
     state->fall_classification[1] = REK_G1_FALL_UNCLASSIFIED;
     state->fall_forced_by_estop[0] = 0u;
@@ -219,7 +219,7 @@ static void clear_referee_state(RekG1FightState* state) {
     state->count_duration_seconds = 0.0f;
 }
 
-static RekG1FightStatus advance_last_strikes(
+static REK_G1_FN RekG1FightStatus advance_last_strikes(
     RekG1FightState* state,
     float delta_seconds
 ) {
@@ -237,7 +237,7 @@ static RekG1FightStatus advance_last_strikes(
     return REK_G1_FIGHT_OK;
 }
 
-static void prepare_round(
+static REK_G1_FN void prepare_round(
     RekG1FightStepResult* result,
     uint32_t round_number,
     uint8_t is_redo
@@ -263,7 +263,7 @@ static void prepare_round(
         | REK_G1_FIGHT_SIGNAL_RESET_BOTH_TO_SPAWN;
 }
 
-RekG1FightStatus rek_g1_fight_state_init(RekG1FightState* state) {
+REK_G1_FN RekG1FightStatus rek_g1_fight_state_init(RekG1FightState* state) {
     if (state == NULL) {
         return REK_G1_FIGHT_NULL_ARGUMENT;
     }
@@ -280,7 +280,7 @@ RekG1FightStatus rek_g1_fight_state_init(RekG1FightState* state) {
     return REK_G1_FIGHT_OK;
 }
 
-RekG1FightStatus rek_g1_fight_prepare_first_round(
+REK_G1_FN RekG1FightStatus rek_g1_fight_prepare_first_round(
     const RekG1FightState* state,
     RekG1FightStepResult* result
 ) {
@@ -301,7 +301,7 @@ RekG1FightStatus rek_g1_fight_prepare_first_round(
     return REK_G1_FIGHT_OK;
 }
 
-RekG1FightStatus rek_g1_fight_activate_round(
+REK_G1_FN RekG1FightStatus rek_g1_fight_activate_round(
     const RekG1FightState* state,
     RekG1FightStepResult* result
 ) {
@@ -321,18 +321,18 @@ RekG1FightStatus rek_g1_fight_activate_round(
     return REK_G1_FIGHT_OK;
 }
 
-static int valid_striker_part(RekG1BodyPartType part) {
+static REK_G1_FN int valid_striker_part(RekG1BodyPartType part) {
     return part == REK_G1_BODY_PART_HAND
         || part == REK_G1_BODY_PART_FOOT
         || part == REK_G1_BODY_PART_SHIN;
 }
 
-static int valid_body_zone(RekG1BodyZone zone) {
+static REK_G1_FN int valid_body_zone(RekG1BodyZone zone) {
     return zone >= REK_G1_BODY_ZONE_UNKNOWN
         && zone <= REK_G1_BODY_ZONE_RIGHT_ANKLE;
 }
 
-static int scoring_body_zone(RekG1BodyZone zone) {
+static REK_G1_FN int scoring_body_zone(RekG1BodyZone zone) {
     return zone == REK_G1_BODY_ZONE_HEAD
         || zone == REK_G1_BODY_ZONE_TORSO
         || zone == REK_G1_BODY_ZONE_PELVIS
@@ -340,7 +340,7 @@ static int scoring_body_zone(RekG1BodyZone zone) {
         || zone == REK_G1_BODY_ZONE_RIGHT_HIP;
 }
 
-RekG1FightStatus rek_g1_fight_record_strike(
+REK_G1_FN RekG1FightStatus rek_g1_fight_record_strike(
     const RekG1FightState* state,
     const RekG1StrikeEvent* event,
     RekG1FightStepResult* result
@@ -393,7 +393,7 @@ RekG1FightStatus rek_g1_fight_record_strike(
     return REK_G1_FIGHT_OK;
 }
 
-static float knockdown_window(float strike_speed) {
+static REK_G1_FN float knockdown_window(float strike_speed) {
     const RekG1FightConfig* config = &REK_G1_FIGHT_CONFIG_F84F1874;
     float t = (strike_speed - config->knockdown_weak_speed)
         / (config->knockdown_strong_speed - config->knockdown_weak_speed);
@@ -407,7 +407,7 @@ static float knockdown_window(float strike_speed) {
             - config->knockdown_window_min_seconds);
 }
 
-RekG1FightStatus rek_g1_fight_on_falling(
+REK_G1_FN RekG1FightStatus rek_g1_fight_on_falling(
     const RekG1FightState* state,
     uint32_t fighter_index,
     uint8_t force_slip_estop,
@@ -451,7 +451,7 @@ RekG1FightStatus rek_g1_fight_on_falling(
     return REK_G1_FIGHT_OK;
 }
 
-RekG1FightStatus rek_g1_fight_on_fallen(
+REK_G1_FN RekG1FightStatus rek_g1_fight_on_fallen(
     const RekG1FightState* state,
     uint32_t fighter_index,
     const uint8_t fighter_can_get_up[2],
@@ -527,7 +527,7 @@ RekG1FightStatus rek_g1_fight_on_fallen(
     return REK_G1_FIGHT_OK;
 }
 
-RekG1FightStatus rek_g1_fight_on_reset_due(
+REK_G1_FN RekG1FightStatus rek_g1_fight_on_reset_due(
     const RekG1FightState* state,
     uint32_t fighter_index,
     RekG1FightStepResult* result
@@ -550,7 +550,7 @@ RekG1FightStatus rek_g1_fight_on_reset_due(
     return REK_G1_FIGHT_OK;
 }
 
-RekG1FightStatus rek_g1_fight_apply_spawn_reset(
+REK_G1_FN RekG1FightStatus rek_g1_fight_apply_spawn_reset(
     const RekG1FightState* state,
     RekG1FightStepResult* result
 ) {
@@ -570,7 +570,7 @@ RekG1FightStatus rek_g1_fight_apply_spawn_reset(
     return REK_G1_FIGHT_OK;
 }
 
-static RekG1FightStatus end_round(RekG1FightStepResult* result) {
+static REK_G1_FN RekG1FightStatus end_round(RekG1FightStepResult* result) {
     RekG1FightState* next = &result->next_state;
     if (!next->knockout_occurred) {
         if (next->clean_hits[0] > next->clean_hits[1]) {
@@ -631,7 +631,7 @@ static RekG1FightStatus end_round(RekG1FightStepResult* result) {
     return REK_G1_FIGHT_OK;
 }
 
-static RekG1FightStatus resolve_count_expiry(
+static REK_G1_FN RekG1FightStatus resolve_count_expiry(
     const RekG1FightResolveInput* input,
     RekG1FightStepResult* result
 ) {
@@ -687,7 +687,7 @@ static RekG1FightStatus resolve_count_expiry(
     return end_round(result);
 }
 
-static int valid_fighter_resolution(
+static REK_G1_FN int valid_fighter_resolution(
     const uint8_t fighter_is_fallen[2],
     const uint8_t fighter_is_recovering[2],
     const uint8_t fighter_can_get_up[2]
@@ -706,7 +706,7 @@ static int valid_fighter_resolution(
     return 1;
 }
 
-RekG1FightStatus rek_g1_fight_begin_active_step(
+REK_G1_FN RekG1FightStatus rek_g1_fight_begin_active_step(
     const RekG1FightState* state,
     const RekG1FightAdvanceInput* input,
     RekG1FightStepResult* result
@@ -785,7 +785,7 @@ RekG1FightStatus rek_g1_fight_begin_active_step(
     return REK_G1_FIGHT_OK;
 }
 
-RekG1FightStatus rek_g1_fight_resolve_active_step(
+REK_G1_FN RekG1FightStatus rek_g1_fight_resolve_active_step(
     const RekG1FightState* state,
     const RekG1FightResolveInput* input,
     RekG1FightStepResult* result
@@ -820,7 +820,7 @@ RekG1FightStatus rek_g1_fight_resolve_active_step(
     return REK_G1_FIGHT_OK;
 }
 
-static int merge_step_results(
+static REK_G1_FN int merge_step_results(
     const RekG1FightStepResult* first,
     RekG1FightStepResult* second
 ) {
@@ -848,7 +848,7 @@ static int merge_step_results(
     return 1;
 }
 
-RekG1FightStatus rek_g1_fight_advance_active(
+REK_G1_FN RekG1FightStatus rek_g1_fight_advance_active(
     const RekG1FightState* state,
     const RekG1FightAdvanceInput* input,
     RekG1FightStepResult* result
@@ -856,7 +856,7 @@ RekG1FightStatus rek_g1_fight_advance_active(
     if (state == NULL || input == NULL || result == NULL) {
         return REK_G1_FIGHT_NULL_ARGUMENT;
     }
-    RekG1FightStepResult begun = {0};
+    RekG1FightStepResult begun = REK_G1_ZERO_INIT;
     RekG1FightStatus status = rek_g1_fight_begin_active_step(
         state, input, &begun);
     if (status != REK_G1_FIGHT_OK) return status;
@@ -876,7 +876,7 @@ RekG1FightStatus rek_g1_fight_advance_active(
         ? REK_G1_FIGHT_OK : REK_G1_FIGHT_OVERFLOW;
 }
 
-RekG1FightStatus rek_g1_fight_advance_transition(
+REK_G1_FN RekG1FightStatus rek_g1_fight_advance_transition(
     const RekG1FightState* state,
     float delta_seconds,
     RekG1FightStepResult* result

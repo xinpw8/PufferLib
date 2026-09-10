@@ -1,5 +1,7 @@
 #pragma once
 
+#include "g1_cuda_qualifiers.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -56,7 +58,7 @@ typedef struct RekG1CombatSubstepResult {
  * episode boundary. The external REK countdown Timeline duration is unknown
  * and is not inferred here.
  */
-RekG1CombatTickStatus rek_g1_combat_arena_init(
+REK_G1_FN RekG1CombatTickStatus rek_g1_combat_arena_init(
     RekG1CombatArenaState* state
 );
 
@@ -64,7 +66,7 @@ RekG1CombatTickStatus rek_g1_combat_arena_init(
  * Applies one post-mj_step state in recovered order. On failure neither state
  * nor result is modified.
  */
-RekG1CombatTickStatus rek_g1_combat_arena_substep(
+REK_G1_FN RekG1CombatTickStatus rek_g1_combat_arena_substep(
     const RekG1CombatArenaState* state,
     const RekG1HitDetectorConfig* hit_config,
     const RekG1CombatSubstepInput* input,
@@ -72,9 +74,9 @@ RekG1CombatTickStatus rek_g1_combat_arena_substep(
 );
 
 /* Commit the caller-owned physical ResetBothToSpawn boundary. */
-RekG1CombatTickStatus rek_g1_combat_arena_apply_spawn_reset(
+REK_G1_FN RekG1CombatTickStatus rek_g1_combat_arena_apply_spawn_reset(
     const RekG1CombatArenaState* state,
     RekG1CombatArenaState* next_state
 );
 
-const char* rek_g1_combat_tick_status_string(RekG1CombatTickStatus status);
+REK_G1_FN const char* rek_g1_combat_tick_status_string(RekG1CombatTickStatus status);

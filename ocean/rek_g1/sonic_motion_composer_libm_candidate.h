@@ -1,5 +1,7 @@
 #pragma once
 
+#include "g1_cuda_qualifiers.h"
+
 #include "sonic_motion_composer_native.h"
 
 /*
@@ -12,7 +14,7 @@
  * supplied loop-entry matcher.
  */
 
-int sonic_motion_composer_libm_candidate_quaternion_slerp(
+REK_G1_FN int sonic_motion_composer_libm_candidate_quaternion_slerp(
     void* context,
     const float a_wxyz[4],
     const float b_wxyz[4],
@@ -20,14 +22,14 @@ int sonic_motion_composer_libm_candidate_quaternion_slerp(
     float output_wxyz[4]
 );
 
-int sonic_motion_composer_libm_candidate_atan2_f(
+REK_G1_FN int sonic_motion_composer_libm_candidate_atan2_f(
     void* context,
     float numerator,
     float denominator,
     float* output
 );
 
-int sonic_motion_composer_libm_candidate_sin_cos_f(
+REK_G1_FN int sonic_motion_composer_libm_candidate_sin_cos_f(
     void* context,
     float angle,
     float* sine,

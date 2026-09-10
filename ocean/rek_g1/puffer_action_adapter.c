@@ -3,7 +3,7 @@
 #include <math.h>
 #include <string.h>
 
-static int commands_equal(
+static REK_G1_FN int commands_equal(
         RekG1SemanticCommand left,
         RekG1SemanticCommand right) {
     return left.kind == right.kind &&
@@ -12,7 +12,7 @@ static int commands_equal(
         left.move_registry_index == right.move_registry_index;
 }
 
-static const uint8_t REQUIRED_HELD_MASKS[] = {
+static REK_G1_CONSTANT const uint8_t REQUIRED_HELD_MASKS[] = {
     0,
     REK_G1_HELD_FORWARD,
     REK_G1_HELD_BACKWARD,
@@ -30,7 +30,7 @@ static const uint8_t REQUIRED_HELD_MASKS[] = {
     REK_G1_HELD_STRAFE_RIGHT | REK_G1_HELD_YAW_RIGHT,
 };
 
-static int has_locomotion_held_code(
+static REK_G1_FN int has_locomotion_held_code(
         const RekG1PufferActionTable* table,
         uint8_t held_code) {
     for (uint32_t index = 1; index < table->count; index++) {
@@ -43,7 +43,7 @@ static int has_locomotion_held_code(
     return 0;
 }
 
-static int yaw_only_locomotion_held_code(
+static REK_G1_FN int yaw_only_locomotion_held_code(
         const RekG1PufferActionTable* table,
         uint32_t category,
         uint8_t* held_code_out) {
@@ -66,7 +66,7 @@ static int yaw_only_locomotion_held_code(
     return 1;
 }
 
-static int has_move_registry_index(
+static REK_G1_FN int has_move_registry_index(
         const RekG1PufferActionTable* table,
         uint16_t move_registry_index) {
     for (uint32_t index = 1; index < table->count; index++) {
@@ -79,11 +79,11 @@ static int has_move_registry_index(
     return 0;
 }
 
-void rek_g1_puffer_reset(RekG1PufferAdapter* adapter) {
+REK_G1_FN void rek_g1_puffer_reset(RekG1PufferAdapter* adapter) {
     rek_g1_semantic_reset(&adapter->scheduler);
 }
 
-RekG1PufferStatus rek_g1_puffer_validate_table(
+REK_G1_FN RekG1PufferStatus rek_g1_puffer_validate_table(
         const RekG1PufferActionTable* table) {
     if (table == 0 || table->categories == 0) {
         return REK_G1_PUFFER_TABLE_NULL;
@@ -167,18 +167,18 @@ RekG1PufferStatus rek_g1_puffer_validate_table(
     return REK_G1_PUFFER_OK;
 }
 
-RekG1PufferStatus rek_g1_puffer_init(
+REK_G1_FN RekG1PufferStatus rek_g1_puffer_init(
         RekG1PufferAdapter* adapter,
         const RekG1PufferActionTable* table) {
     RekG1PufferStatus status = rek_g1_puffer_validate_table(table);
     if (status != REK_G1_PUFFER_OK) return status;
-    *adapter = (RekG1PufferAdapter){0};
+    *adapter = (RekG1PufferAdapter)REK_G1_ZERO_INIT;
     adapter->table = table;
     rek_g1_semantic_reset(&adapter->scheduler);
     return REK_G1_PUFFER_OK;
 }
 
-int rek_g1_puffer_category_legal(
+REK_G1_FN int rek_g1_puffer_category_legal(
         const RekG1PufferAdapter* adapter,
         uint32_t category,
         int translation_transition_settled,
@@ -211,7 +211,7 @@ int rek_g1_puffer_category_legal(
     return !translation_held && translation_transition_settled && !action_busy;
 }
 
-RekG1PufferStatus rek_g1_puffer_write_mask(
+REK_G1_FN RekG1PufferStatus rek_g1_puffer_write_mask(
         const RekG1PufferAdapter* adapter,
         int translation_transition_settled,
         int action_busy,
@@ -236,13 +236,13 @@ RekG1PufferStatus rek_g1_puffer_write_mask(
         REK_G1_PUFFER_OK : REK_G1_PUFFER_PROTOCOL_ERROR;
 }
 
-RekG1PufferStep rek_g1_puffer_step(
+REK_G1_FN RekG1PufferStep rek_g1_puffer_step(
         RekG1PufferAdapter* adapter,
         float action,
         RekG1InputTiming timing,
         int translation_transition_settled,
         int action_busy) {
-    RekG1PufferStep result = {0};
+    RekG1PufferStep result = REK_G1_ZERO_INIT;
     const RekG1PufferActionTable* table = adapter->table;
     if (table == 0) {
         result.status = REK_G1_PUFFER_TABLE_NULL;

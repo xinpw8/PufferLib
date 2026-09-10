@@ -2,13 +2,13 @@
 
 #include <math.h>
 
-static int command_finite(RekG1NativeVelocityCommand command) {
+static REK_G1_FN int command_finite(RekG1NativeVelocityCommand command) {
     return isfinite(command.forward)
         && isfinite(command.strafe)
         && isfinite(command.yaw);
 }
 
-static int config_valid(const RekG1NativeCommandConfig* config) {
+static REK_G1_FN int config_valid(const RekG1NativeCommandConfig* config) {
     return config != NULL
         && isfinite(config->locomotion_speed_scale)
         && isfinite(config->command_yaw_rate_scale)
@@ -16,21 +16,21 @@ static int config_valid(const RekG1NativeCommandConfig* config) {
         && config->controller_rate_hz > 0;
 }
 
-static int boolean_valid(uint8_t value) {
+static REK_G1_FN int boolean_valid(uint8_t value) {
     return value <= 1u;
 }
 
-static int locomotion_route_valid(RekG1NativeRouteId route_id) {
+static REK_G1_FN int locomotion_route_valid(RekG1NativeRouteId route_id) {
     return route_id >= REK_G1_NATIVE_FORWARD
         && route_id <= REK_G1_NATIVE_TURN_RIGHT;
 }
 
-static int route_slot_valid(RekG1NativeRouteId route_id) {
+static REK_G1_FN int route_slot_valid(RekG1NativeRouteId route_id) {
     return route_id >= REK_G1_NATIVE_IDLE
         && route_id <= REK_G1_NATIVE_TURN_RIGHT;
 }
 
-static int locomotion_config_valid(
+static REK_G1_FN int locomotion_config_valid(
         const RekG1NativeLocomotionConfig* config) {
     return config != NULL
         && isfinite(config->settle_linear_speed)
@@ -42,7 +42,7 @@ static int locomotion_config_valid(
         && boolean_valid(config->transition_settle);
 }
 
-static int locomotion_state_valid(
+static REK_G1_FN int locomotion_state_valid(
         const RekG1NativeLocomotionState* state) {
     if (state == NULL
             || !command_finite(state->stop_brake_command)
@@ -77,7 +77,7 @@ static int locomotion_state_valid(
     return 1;
 }
 
-static RekG1NativeCommandStatus vector_magnitude(
+static REK_G1_FN RekG1NativeCommandStatus vector_magnitude(
         RekG1NativeVelocityCommand value,
         float* magnitude) {
     if (magnitude == NULL) return REK_G1_NATIVE_COMMAND_NULL_ARGUMENT;
@@ -96,7 +96,7 @@ static RekG1NativeCommandStatus vector_magnitude(
 }
 
 /* UnityEngine.Vector3.MoveTowards(current, Vector3.zero, max_delta). */
-static RekG1NativeCommandStatus move_towards_zero(
+static REK_G1_FN RekG1NativeCommandStatus move_towards_zero(
         RekG1NativeVelocityCommand current,
         float max_delta,
         RekG1NativeVelocityCommand* next) {
@@ -117,7 +117,7 @@ static RekG1NativeCommandStatus move_towards_zero(
     }
     const float max_delta_squared = max_delta * max_delta;
     if (squared == 0.0f || max_delta_squared >= squared) {
-        *next = (RekG1NativeVelocityCommand){0};
+        *next = (RekG1NativeVelocityCommand)REK_G1_ZERO_INIT;
         return REK_G1_NATIVE_COMMAND_OK;
     }
 
@@ -136,7 +136,7 @@ static RekG1NativeCommandStatus move_towards_zero(
     return REK_G1_NATIVE_COMMAND_OK;
 }
 
-RekG1NativeCommandStatus rek_g1_native_select_locomotion_route(
+REK_G1_FN RekG1NativeCommandStatus rek_g1_native_select_locomotion_route(
         RekG1NativeVelocityCommand command,
         RekG1NativeRouteSelection* selection) {
     if (selection == NULL) return REK_G1_NATIVE_COMMAND_NULL_ARGUMENT;
@@ -180,7 +180,7 @@ RekG1NativeCommandStatus rek_g1_native_select_locomotion_route(
     return REK_G1_NATIVE_COMMAND_OK;
 }
 
-RekG1NativeCommandStatus rek_g1_native_playback_update(
+REK_G1_FN RekG1NativeCommandStatus rek_g1_native_playback_update(
         RekG1NativeVelocityCommand command,
         const RekG1NativeCommandConfig* config,
         RekG1NativePlaybackUpdate* update) {
@@ -191,7 +191,7 @@ RekG1NativeCommandStatus rek_g1_native_playback_update(
     if (!config_valid(config)) return REK_G1_NATIVE_COMMAND_CONFIG_INVALID;
 
     if (config->locomotion_speed_scale == 0.0f) {
-        *update = (RekG1NativePlaybackUpdate){0};
+        *update = (RekG1NativePlaybackUpdate)REK_G1_ZERO_INIT;
         return REK_G1_NATIVE_COMMAND_OK;
     }
     const float squared = command.forward * command.forward
@@ -212,7 +212,7 @@ RekG1NativeCommandStatus rek_g1_native_playback_update(
     return REK_G1_NATIVE_COMMAND_OK;
 }
 
-RekG1NativeCommandStatus rek_g1_native_heading_update(
+REK_G1_FN RekG1NativeCommandStatus rek_g1_native_heading_update(
         RekG1NativeVelocityCommand command,
         const RekG1NativeCommandConfig* config,
         float heading_clip_ownership,
@@ -254,7 +254,7 @@ RekG1NativeCommandStatus rek_g1_native_heading_update(
     return REK_G1_NATIVE_COMMAND_OK;
 }
 
-RekG1NativeCommandStatus rek_g1_native_transition_settled(
+REK_G1_FN RekG1NativeCommandStatus rek_g1_native_transition_settled(
         RekG1NativeRouteId outgoing_route_id,
         const RekG1NativeLocomotionConfig* config,
         const RekG1NativeBaseVelocitySample* base_velocity,
@@ -304,7 +304,7 @@ RekG1NativeCommandStatus rek_g1_native_transition_settled(
     return REK_G1_NATIVE_COMMAND_OK;
 }
 
-static RekG1NativeCommandStatus check_transition(
+static REK_G1_FN RekG1NativeCommandStatus check_transition(
         RekG1NativeRouteId outgoing_route_id,
         const RekG1NativeLocomotionConfig* config,
         const RekG1NativeLocomotionStepInput* input,
@@ -324,12 +324,12 @@ static RekG1NativeCommandStatus check_transition(
     return REK_G1_NATIVE_COMMAND_OK;
 }
 
-static void emit_idle(RekG1NativeLocomotionStepResult* result) {
+static REK_G1_FN void emit_idle(RekG1NativeLocomotionStepResult* result) {
     result->event = REK_G1_NATIVE_LOCOMOTION_EVENT_PLAY_IDLE;
     result->event_route_id = REK_G1_NATIVE_IDLE;
 }
 
-static RekG1NativeCommandStatus update_stop_brake(
+static REK_G1_FN RekG1NativeCommandStatus update_stop_brake(
         const RekG1NativeLocomotionConfig* config,
         const RekG1NativeLocomotionStepInput* input,
         RekG1NativeLocomotionStepResult* result) {
@@ -344,7 +344,7 @@ static RekG1NativeCommandStatus update_stop_brake(
         const float max_delta = input->delta_seconds
             * config->stop_brake_rate;
         if (!isfinite(max_delta)) return REK_G1_NATIVE_COMMAND_NON_FINITE;
-        RekG1NativeVelocityCommand next_brake = {0};
+        RekG1NativeVelocityCommand next_brake = REK_G1_ZERO_INIT;
         RekG1NativeCommandStatus status = move_towards_zero(
             state->stop_brake_command,
             max_delta,
@@ -374,7 +374,7 @@ static RekG1NativeCommandStatus update_stop_brake(
     return REK_G1_NATIVE_COMMAND_OK;
 }
 
-RekG1NativeCommandStatus rek_g1_native_locomotion_step(
+REK_G1_FN RekG1NativeCommandStatus rek_g1_native_locomotion_step(
         const RekG1NativeLocomotionState* state,
         const RekG1NativeLocomotionConfig* config,
         const RekG1NativeLocomotionStepInput* input,
@@ -433,7 +433,7 @@ RekG1NativeCommandStatus rek_g1_native_locomotion_step(
         return REK_G1_NATIVE_COMMAND_OK;
     }
 
-    RekG1NativeRouteSelection selection = {0};
+    RekG1NativeRouteSelection selection = REK_G1_ZERO_INIT;
     RekG1NativeCommandStatus status = rek_g1_native_select_locomotion_route(
         local.effective_velocity,
         &selection);
@@ -461,7 +461,7 @@ RekG1NativeCommandStatus rek_g1_native_locomotion_step(
             &settled);
         if (status != REK_G1_NATIVE_COMMAND_OK) return status;
         if (!settled) {
-            local.effective_velocity = (RekG1NativeVelocityCommand){0};
+            local.effective_velocity = (RekG1NativeVelocityCommand)REK_G1_ZERO_INIT;
             local.velocity_write = 1u;
             *result = local;
             return REK_G1_NATIVE_COMMAND_OK;
@@ -502,7 +502,7 @@ RekG1NativeCommandStatus rek_g1_native_locomotion_step(
                     outgoing_route_id;
                 local.next_state.has_momentum = 0u;
                 local.effective_velocity =
-                    (RekG1NativeVelocityCommand){0};
+                    (RekG1NativeVelocityCommand)REK_G1_ZERO_INIT;
                 local.velocity_write = 1u;
                 if (was_active) emit_idle(&local);
                 *result = local;

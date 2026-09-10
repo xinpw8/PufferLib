@@ -6,22 +6,22 @@
 #include <math.h>
 #include <string.h>
 
-_Static_assert(sizeof(float) == 4, "binary32 float is required");
-_Static_assert(FLT_RADIX == 2, "binary floating point is required");
-_Static_assert(FLT_MANT_DIG == 24, "binary32 precision is required");
-_Static_assert(FLT_MAX_EXP == 128, "binary32 exponent range is required");
+REK_G1_STATIC_ASSERT(sizeof(float) == 4, "binary32 float is required");
+REK_G1_STATIC_ASSERT(FLT_RADIX == 2, "binary floating point is required");
+REK_G1_STATIC_ASSERT(FLT_MANT_DIG == 24, "binary32 precision is required");
+REK_G1_STATIC_ASSERT(FLT_MAX_EXP == 128, "binary32 exponent range is required");
 
 enum {
     SONIC_MOTION_COMPOSER_NATIVE_MAX_EXACT_FRAME_COUNT = 16777216
 };
 
-static const float MIN_ABS_PLAYBACK_SPEED = 0.01f;
-static const float MIN_LOCOMOTION_SCALE = 0.05f;
-static const float HALF = 0.5f;
-static const float PI_F32 = 3.1415927f;
-static const float NEG_PI_F32 = -3.1415927f;
-static const float TWO_PI_F32 = 6.2831855f;
-static const float NEG_TWO_PI_F32 = -6.2831855f;
+static REK_G1_CONSTANT const float MIN_ABS_PLAYBACK_SPEED = 0.01f;
+static REK_G1_CONSTANT const float MIN_LOCOMOTION_SCALE = 0.05f;
+static REK_G1_CONSTANT const float HALF = 0.5f;
+static REK_G1_CONSTANT const float PI_F32 = 3.1415927f;
+static REK_G1_CONSTANT const float NEG_PI_F32 = -3.1415927f;
+static REK_G1_CONSTANT const float TWO_PI_F32 = 6.2831855f;
+static REK_G1_CONSTANT const float NEG_TWO_PI_F32 = -6.2831855f;
 
 typedef struct SonicMotionComposerNativePose {
     float joint_positions[SONIC_MOTION_COMPOSER_NATIVE_DOF_COUNT];
@@ -33,27 +33,27 @@ typedef struct SonicMotionComposerNativeRootHeading {
     int seam;
 } SonicMotionComposerNativeRootHeading;
 
-static float f32_add(float a, float b) {
+static REK_G1_FN float f32_add(float a, float b) {
     volatile float result = a + b;
     return result;
 }
 
-static float f32_sub(float a, float b) {
+static REK_G1_FN float f32_sub(float a, float b) {
     volatile float result = a - b;
     return result;
 }
 
-static float f32_mul(float a, float b) {
+static REK_G1_FN float f32_mul(float a, float b) {
     volatile float result = a * b;
     return result;
 }
 
-static float f32_div(float a, float b) {
+static REK_G1_FN float f32_div(float a, float b) {
     volatile float result = a / b;
     return result;
 }
 
-static int checked_product(size_t a, size_t b, size_t* result) {
+static REK_G1_FN int checked_product(size_t a, size_t b, size_t* result) {
     if (result == NULL || (a != 0 && b > SIZE_MAX / a)) {
         return 0;
     }
@@ -61,7 +61,7 @@ static int checked_product(size_t a, size_t b, size_t* result) {
     return 1;
 }
 
-static int finite_floats(const float* values, size_t count) {
+static REK_G1_FN int finite_floats(const float* values, size_t count) {
     if (values == NULL) {
         return 0;
     }
@@ -73,17 +73,22 @@ static int finite_floats(const float* values, size_t count) {
     return 1;
 }
 
-static int valid_flag(int value) {
+static REK_G1_FN int valid_flag(int value) {
     return value == 0 || value == 1;
 }
 
-static SonicMotionComposerNativeStatus validate_float_environment(void) {
+static REK_G1_FN SonicMotionComposerNativeStatus validate_float_environment(void) {
+#if defined(REK_G1_CUDA_DEVICE)
+    /* CUDA arithmetic is compiled RN; there is no mutable host fenv. */
+    return SONIC_MOTION_COMPOSER_NATIVE_OK;
+#else
     return fegetround() == FE_TONEAREST
         ? SONIC_MOTION_COMPOSER_NATIVE_OK
         : SONIC_MOTION_COMPOSER_NATIVE_UNSUPPORTED_FLOAT_ENVIRONMENT;
+#endif
 }
 
-static int32_t i32_add(int32_t a, int32_t b) {
+static REK_G1_FN int32_t i32_add(int32_t a, int32_t b) {
     uint32_t sum = (uint32_t)a + (uint32_t)b;
     if (sum <= (uint32_t)INT32_MAX) {
         return (int32_t)sum;
@@ -91,7 +96,7 @@ static int32_t i32_add(int32_t a, int32_t b) {
     return (int32_t)((int64_t)sum - INT64_C(4294967296));
 }
 
-static SonicMotionComposerNativeStatus clamp01(float value, float* result) {
+static REK_G1_FN SonicMotionComposerNativeStatus clamp01(float value, float* result) {
     if (result == NULL) {
         return SONIC_MOTION_COMPOSER_NATIVE_INVALID_ARGUMENT;
     }
@@ -108,7 +113,7 @@ static SonicMotionComposerNativeStatus clamp01(float value, float* result) {
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus lerp_f32(
+static REK_G1_FN SonicMotionComposerNativeStatus lerp_f32(
         float a,
         float b,
         float t,
@@ -128,7 +133,7 @@ static SonicMotionComposerNativeStatus lerp_f32(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus validate_clip_shape(
+static REK_G1_FN SonicMotionComposerNativeStatus validate_clip_shape(
         const SonicMotionComposerNativeClip* clip,
         int validate_values) {
     size_t expected_dofs = 0;
@@ -165,7 +170,7 @@ static SonicMotionComposerNativeStatus validate_clip_shape(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus validate_config(
+static REK_G1_FN SonicMotionComposerNativeStatus validate_config(
         const SonicMotionComposerNativeConfig* config) {
     if (config == NULL || !valid_flag(config->mirror)
             || !valid_flag(config->loop)) {
@@ -180,7 +185,7 @@ static SonicMotionComposerNativeStatus validate_config(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus validate_active_layer(
+static REK_G1_FN SonicMotionComposerNativeStatus validate_active_layer(
         const SonicMotionComposerNativeLayer* layer) {
     SonicMotionComposerNativeStatus status;
     if (layer == NULL || !valid_flag(layer->has_clip)
@@ -215,7 +220,7 @@ static SonicMotionComposerNativeStatus validate_active_layer(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus validate_resolvable_layer(
+static REK_G1_FN SonicMotionComposerNativeStatus validate_resolvable_layer(
         const SonicMotionComposerNativeLayer* layer) {
     SonicMotionComposerNativeStatus status;
     if (layer == NULL || !valid_flag(layer->has_clip)
@@ -245,7 +250,7 @@ static SonicMotionComposerNativeStatus validate_resolvable_layer(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus validate_composer(
+static REK_G1_FN SonicMotionComposerNativeStatus validate_composer(
         const SonicMotionComposerNative* composer) {
     SonicMotionComposerNativeStatus status;
     status = validate_float_environment();
@@ -267,7 +272,7 @@ static SonicMotionComposerNativeStatus validate_composer(
     return validate_active_layer(&composer->from_layer);
 }
 
-static SonicMotionComposerNativeStatus sanitize_playback_speed(
+static REK_G1_FN SonicMotionComposerNativeStatus sanitize_playback_speed(
         float speed,
         float* result) {
     float magnitude;
@@ -285,13 +290,13 @@ static SonicMotionComposerNativeStatus sanitize_playback_speed(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static float entry_cursor(const SonicMotionComposerNativeLayer* layer) {
+static REK_G1_FN float entry_cursor(const SonicMotionComposerNativeLayer* layer) {
     return layer->per_tick >= 0.0f
         ? (float)layer->start_frame
         : (float)layer->end_frame;
 }
 
-static SonicMotionComposerNativeStatus wrap_loop_cursor(
+static REK_G1_FN SonicMotionComposerNativeStatus wrap_loop_cursor(
         SonicMotionComposerNativeLayer* layer,
         int* wrapped) {
     int32_t span;
@@ -327,7 +332,7 @@ static SonicMotionComposerNativeStatus wrap_loop_cursor(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus wrapped_cursor(
+static REK_G1_FN SonicMotionComposerNativeStatus wrapped_cursor(
         const SonicMotionComposerNativeLayer* layer,
         float cursor,
         float* result) {
@@ -356,7 +361,7 @@ static SonicMotionComposerNativeStatus wrapped_cursor(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus resolve_frames_impl(
+static REK_G1_FN SonicMotionComposerNativeStatus resolve_frames_impl(
         const SonicMotionComposerNativeLayer* layer,
         int32_t frames_ahead,
         SonicMotionComposerNativeResolvedFrames* result) {
@@ -392,7 +397,7 @@ static SonicMotionComposerNativeStatus resolve_frames_impl(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus advance_layer(
+static REK_G1_FN SonicMotionComposerNativeStatus advance_layer(
         SonicMotionComposerNativeLayer* layer,
         SonicMotionComposerNativeLayerAdvanceResult* result) {
     SonicMotionComposerNativeStatus status;
@@ -425,14 +430,14 @@ static SonicMotionComposerNativeStatus advance_layer(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static void copy_layer(
+static REK_G1_FN void copy_layer(
         const SonicMotionComposerNativeLayer* source,
         SonicMotionComposerNativeLayer* destination) {
     *destination = *source;
     destination->active = 1;
 }
 
-static SonicMotionComposerNativeStatus blend_frames(
+static REK_G1_FN SonicMotionComposerNativeStatus blend_frames(
         int32_t controller_rate_hz,
         float seconds,
         int32_t* result) {
@@ -468,7 +473,7 @@ static SonicMotionComposerNativeStatus blend_frames(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus weight_current_impl(
+static REK_G1_FN SonicMotionComposerNativeStatus weight_current_impl(
         float tt,
         int32_t w_in,
         int32_t w_out,
@@ -496,7 +501,7 @@ static SonicMotionComposerNativeStatus weight_current_impl(
         : SONIC_MOTION_COMPOSER_NATIVE_NON_FINITE;
 }
 
-static SonicMotionComposerNativeStatus xfade_at_impl(
+static REK_G1_FN SonicMotionComposerNativeStatus xfade_at_impl(
         int32_t xt,
         int32_t frames_ahead,
         int32_t w_in,
@@ -506,7 +511,7 @@ static SonicMotionComposerNativeStatus xfade_at_impl(
     return weight_current_impl(tt, w_in, w_out, result);
 }
 
-static SonicMotionComposerNativeStatus validate_mirror_table(
+static REK_G1_FN SonicMotionComposerNativeStatus validate_mirror_table(
         const SonicMotionComposerNativeMirrorTable* table) {
     if (table == NULL || table->source_indices == NULL || table->negate == NULL) {
         return SONIC_MOTION_COMPOSER_NATIVE_UNSUPPORTED_MIRROR_TABLE;
@@ -527,7 +532,7 @@ static SonicMotionComposerNativeStatus validate_mirror_table(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus slerp_wxyz(
+static REK_G1_FN SonicMotionComposerNativeStatus slerp_wxyz(
         const SonicMotionComposerNative* composer,
         const float a[4],
         const float b[4],
@@ -553,7 +558,7 @@ static SonicMotionComposerNativeStatus slerp_wxyz(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus calc_heading_wxyz(
+static REK_G1_FN SonicMotionComposerNativeStatus calc_heading_wxyz(
         const SonicMotionComposerNative* composer,
         const float quaternion[4],
         float* result) {
@@ -595,7 +600,7 @@ static SonicMotionComposerNativeStatus calc_heading_wxyz(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus sample_root_wxyz(
+static REK_G1_FN SonicMotionComposerNativeStatus sample_root_wxyz(
         const SonicMotionComposerNative* composer,
         const SonicMotionComposerNativeLayer* layer,
         const SonicMotionComposerNativeResolvedFrames* frames,
@@ -620,7 +625,7 @@ static SonicMotionComposerNativeStatus sample_root_wxyz(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus remove_sampled_yaw(
+static REK_G1_FN SonicMotionComposerNativeStatus remove_sampled_yaw(
         const SonicMotionComposerNative* composer,
         const SonicMotionComposerNativeLayer* layer,
         float root[4]) {
@@ -670,7 +675,7 @@ static SonicMotionComposerNativeStatus remove_sampled_yaw(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus sample_layer(
+static REK_G1_FN SonicMotionComposerNativeStatus sample_layer(
         const SonicMotionComposerNative* composer,
         const SonicMotionComposerNativeLayer* layer,
         int32_t frames_ahead,
@@ -715,7 +720,7 @@ static SonicMotionComposerNativeStatus sample_layer(
     return remove_sampled_yaw(composer, layer, result->root_quaternion_wxyz);
 }
 
-static SonicMotionComposerNativeStatus get_reference_frame(
+static REK_G1_FN SonicMotionComposerNativeStatus get_reference_frame(
         const SonicMotionComposerNative* composer,
         int32_t frames_ahead,
         const SonicMotionComposerNativeMirrorTable* mirror_table,
@@ -783,7 +788,7 @@ static SonicMotionComposerNativeStatus get_reference_frame(
         result->root_quaternion_wxyz);
 }
 
-static SonicMotionComposerNativeStatus wrap_pi(float angle, float* result) {
+static REK_G1_FN SonicMotionComposerNativeStatus wrap_pi(float angle, float* result) {
     if (result == NULL) {
         return SONIC_MOTION_COMPOSER_NATIVE_INVALID_ARGUMENT;
     }
@@ -808,7 +813,7 @@ static SonicMotionComposerNativeStatus wrap_pi(float angle, float* result) {
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus layer_root_heading(
+static REK_G1_FN SonicMotionComposerNativeStatus layer_root_heading(
         const SonicMotionComposerNative* composer,
         const SonicMotionComposerNativeLayer* layer,
         SonicMotionComposerNativeRootHeading* result) {
@@ -831,7 +836,7 @@ static SonicMotionComposerNativeStatus layer_root_heading(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus layer_heading_contribution(
+static REK_G1_FN SonicMotionComposerNativeStatus layer_heading_contribution(
         const SonicMotionComposerNative* composer,
         SonicMotionComposerNativeLayer* layer,
         int wrapped,
@@ -882,7 +887,7 @@ static SonicMotionComposerNativeStatus layer_heading_contribution(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus require_heading_backends(
+static REK_G1_FN SonicMotionComposerNativeStatus require_heading_backends(
         const SonicMotionComposerNative* composer) {
     const SonicMotionComposerNativeLayer* layers[2];
     size_t layer_count = 1;
@@ -907,7 +912,7 @@ static SonicMotionComposerNativeStatus require_heading_backends(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-static SonicMotionComposerNativeStatus yaw_ownership(
+static REK_G1_FN SonicMotionComposerNativeStatus yaw_ownership(
         const SonicMotionComposerNativeLayer* layer,
         float* result) {
     float nonnegative;
@@ -924,7 +929,7 @@ static SonicMotionComposerNativeStatus yaw_ownership(
     return clamp01(nonnegative, result);
 }
 
-const char* sonic_motion_composer_native_status_string(
+REK_G1_FN const char* sonic_motion_composer_native_status_string(
         SonicMotionComposerNativeStatus status) {
     switch (status) {
         case SONIC_MOTION_COMPOSER_NATIVE_OK:
@@ -956,7 +961,7 @@ const char* sonic_motion_composer_native_status_string(
     }
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_init(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_init(
         SonicMotionComposerNative* composer,
         int32_t controller_rate_hz,
         const SonicMotionComposerNativeBackends* backends) {
@@ -977,7 +982,7 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_init(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_install_layer(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_install_layer(
         SonicMotionComposerNativeLayer* layer,
         const SonicMotionComposerNativeClip* clip,
         const SonicMotionComposerNativeConfig* config,
@@ -1045,7 +1050,7 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_install_layer(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_resolve_frames(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_resolve_frames(
         const SonicMotionComposerNativeLayer* layer,
         int32_t frames_ahead,
         SonicMotionComposerNativeResolvedFrames* result) {
@@ -1064,7 +1069,7 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_resolve_frames(
     return resolve_frames_impl(layer, frames_ahead, result);
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_weight_current(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_weight_current(
         float tt,
         int32_t w_in,
         int32_t w_out,
@@ -1083,7 +1088,7 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_weight_current(
     return weight_current_impl(tt, w_in, w_out, result);
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_xfade_at(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_xfade_at(
         int32_t xt,
         int32_t frames_ahead,
         int32_t w_in,
@@ -1100,7 +1105,7 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_xfade_at(
     return xfade_at_impl(xt, frames_ahead, w_in, w_out, result);
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_play_action(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_play_action(
         SonicMotionComposerNative* composer,
         const SonicMotionComposerNativeClip* clip,
         const SonicMotionComposerNativeConfig* config) {
@@ -1196,7 +1201,7 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_play_action(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_play_action_immediate(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_play_action_immediate(
         SonicMotionComposerNative* composer,
         const SonicMotionComposerNativeClip* clip,
         const SonicMotionComposerNativeConfig* config) {
@@ -1212,7 +1217,7 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_play_action_immedia
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_cancel_action(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_cancel_action(
         SonicMotionComposerNative* composer) {
     SonicMotionComposerNativeStatus status = validate_composer(composer);
     if (status != SONIC_MOTION_COMPOSER_NATIVE_OK) {
@@ -1226,7 +1231,7 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_cancel_action(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_set_locomotion_speed(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_set_locomotion_speed(
         SonicMotionComposerNative* composer,
         float scale) {
     SonicMotionComposerNativeLayer* layer;
@@ -1257,7 +1262,7 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_set_locomotion_spee
         : SONIC_MOTION_COMPOSER_NATIVE_NON_FINITE;
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_advance(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_advance(
         SonicMotionComposerNative* composer,
         SonicMotionComposerNativeAdvanceResult* result) {
     SonicMotionComposerNative next;
@@ -1342,7 +1347,7 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_advance(
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_consume_heading_delta(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_consume_heading_delta(
         SonicMotionComposerNative* composer,
         float* result) {
     SonicMotionComposerNativeStatus status = validate_composer(composer);
@@ -1356,7 +1361,7 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_consume_heading_del
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_heading_clip_ownership(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_heading_clip_ownership(
         const SonicMotionComposerNative* composer,
         float* result) {
     float weight = 1.0f;
@@ -1395,7 +1400,7 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_heading_clip_owners
     return clamp01(combined, result);
 }
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_build_reference_rows(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_build_reference_rows(
         const SonicMotionComposerNative* composer,
         const SonicMotionComposerNativeReferenceTiming* timing,
         const SonicMotionComposerNativeMirrorTable* mirror_table,

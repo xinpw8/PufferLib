@@ -1,5 +1,7 @@
 #pragma once
 
+#include "g1_cuda_qualifiers.h"
+
 #include <stdint.h>
 
 /*
@@ -52,7 +54,7 @@ typedef struct RekG1FallConfig {
 } RekG1FallConfig;
 
 /* Serialized Robot values for build fingerprint f84f1874... */
-extern const RekG1FallConfig REK_G1_FALL_CONFIG_F84F1874;
+extern REK_G1_CONSTANT const RekG1FallConfig REK_G1_FALL_CONFIG_F84F1874;
 
 typedef struct RekG1FallState {
     RekG1FallPhase phase;
@@ -82,7 +84,7 @@ typedef struct RekG1FallStepResult {
 } RekG1FallStepResult;
 
 /* Initialize an upright state.  On error, state is not modified. */
-RekG1FallStatus rek_g1_fall_state_init(
+REK_G1_FN RekG1FallStatus rek_g1_fall_state_init(
     const RekG1FallConfig* config,
     RekG1FallState* state
 );
@@ -102,7 +104,7 @@ RekG1FallStatus rek_g1_fall_state_init(
  *
  * On error, result is not modified.
  */
-RekG1FallStatus rek_g1_fall_state_step(
+REK_G1_FN RekG1FallStatus rek_g1_fall_state_step(
     const RekG1FallConfig* config,
     const RekG1FallState* state,
     const RekG1FallSample* sample,
@@ -115,7 +117,7 @@ RekG1FallStatus rek_g1_fall_state_step(
  * pinned 0.5 s grace gate and returns the detector to upright.  The input state
  * must be FALLEN.  On error, next_state is not modified.
  */
-RekG1FallStatus rek_g1_fall_state_apply_reset_after_fall(
+REK_G1_FN RekG1FallStatus rek_g1_fall_state_apply_reset_after_fall(
     const RekG1FallConfig* config,
     const RekG1FallState* state,
     RekG1FallState* next_state
@@ -128,7 +130,7 @@ RekG1FallStatus rek_g1_fall_state_apply_reset_after_fall(
  * 2.0 s fall-detection suppression interval.  Physical root and joint reset
  * timing remains caller-owned.
  */
-RekG1FallStatus rek_g1_fall_state_apply_fight_spawn_reset(
+REK_G1_FN RekG1FallStatus rek_g1_fall_state_apply_fight_spawn_reset(
     const RekG1FallConfig* config,
     const RekG1FallState* state,
     RekG1FallState* next_state

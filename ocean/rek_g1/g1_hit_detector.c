@@ -3,28 +3,28 @@
 #include <math.h>
 #include <string.h>
 
-static int finite_vector3(const float value[3]) {
+static REK_G1_FN int finite_vector3(const float value[3]) {
     return value != NULL && isfinite(value[0])
         && isfinite(value[1]) && isfinite(value[2]);
 }
 
-static int binary_flag(uint8_t value) {
+static REK_G1_FN int binary_flag(uint8_t value) {
     return value == 0u || value == 1u;
 }
 
-static int valid_side(RekG1HandSide side) {
+static REK_G1_FN int valid_side(RekG1HandSide side) {
     return side == REK_G1_HAND_LEFT || side == REK_G1_HAND_RIGHT;
 }
 
-static int kick_striker(RekG1BodyPartType part) {
+static REK_G1_FN int kick_striker(RekG1BodyPartType part) {
     return part == REK_G1_BODY_PART_FOOT || part == REK_G1_BODY_PART_SHIN;
 }
 
-static int valid_striker(RekG1BodyPartType part) {
+static REK_G1_FN int valid_striker(RekG1BodyPartType part) {
     return part == REK_G1_BODY_PART_HAND || kick_striker(part);
 }
 
-static int scoring_zone(RekG1BodyZone zone) {
+static REK_G1_FN int scoring_zone(RekG1BodyZone zone) {
     return zone == REK_G1_BODY_ZONE_HEAD
         || zone == REK_G1_BODY_ZONE_TORSO
         || zone == REK_G1_BODY_ZONE_PELVIS
@@ -32,7 +32,7 @@ static int scoring_zone(RekG1BodyZone zone) {
         || zone == REK_G1_BODY_ZONE_RIGHT_HIP;
 }
 
-static int limb_matches(
+static REK_G1_FN int limb_matches(
         RekG1AimLimb limb,
         RekG1BodyPartType part,
         RekG1HandSide side) {
@@ -50,7 +50,7 @@ static int limb_matches(
     return limb_side == side && limb_is_kick == kick_striker(part);
 }
 
-static int valid_event(const RekG1ImpactEvent* event) {
+static REK_G1_FN int valid_event(const RekG1ImpactEvent* event) {
     return event != NULL
         && isfinite(event->impact_time_seconds)
         && isfinite(event->lead_time_seconds)
@@ -62,7 +62,7 @@ static int valid_event(const RekG1ImpactEvent* event) {
         && event->limb <= REK_G1_AIM_LIMB_RIGHT_LOWER_BODY;
 }
 
-RekG1HitDetectorConfig rek_g1_current_build_hit_detector_config(void) {
+REK_G1_FN RekG1HitDetectorConfig rek_g1_current_build_hit_detector_config(void) {
     return (RekG1HitDetectorConfig){
         .speed_threshold_mps = 1.75f,
         .knockdown_strike_approach_mps = 2.0f,
@@ -71,11 +71,11 @@ RekG1HitDetectorConfig rek_g1_current_build_hit_detector_config(void) {
     };
 }
 
-void rek_g1_hit_detector_reset(RekG1HitDetectorState* state) {
+REK_G1_FN void rek_g1_hit_detector_reset(RekG1HitDetectorState* state) {
     if (state != NULL) memset(state, 0, sizeof(*state));
 }
 
-float rek_g1_impact_event_ramp_at(
+REK_G1_FN float rek_g1_impact_event_ramp_at(
         const RekG1ImpactEvent* event,
         float clip_time_seconds) {
     if (!valid_event(event) || !isfinite(clip_time_seconds)) return 0.0f;
@@ -99,7 +99,7 @@ float rek_g1_impact_event_ramp_at(
     return squared * factor;
 }
 
-int rek_g1_strike_intent_apex(
+REK_G1_FN int rek_g1_strike_intent_apex(
         const RekG1StrikeIntent* intent,
         RekG1BodyPartType striker_part,
         RekG1HandSide striker_side,
@@ -153,7 +153,7 @@ int rek_g1_strike_intent_apex(
     return 0;
 }
 
-static int attribution_accepted(
+static REK_G1_FN int attribution_accepted(
         const RekG1HitDetectorConfig* config,
         const RekG1HitContact* contact) {
     if (!contact->target_standing) return 0;
@@ -179,7 +179,7 @@ static int attribution_accepted(
         && striker_approach > target_approach;
 }
 
-static int valid_config(const RekG1HitDetectorConfig* config) {
+static REK_G1_FN int valid_config(const RekG1HitDetectorConfig* config) {
     return config != NULL
         && isfinite(config->speed_threshold_mps)
         && isfinite(config->knockdown_strike_approach_mps)
@@ -191,7 +191,7 @@ static int valid_config(const RekG1HitDetectorConfig* config) {
         && config->apex_min_ramp >= 0.0f;
 }
 
-static int valid_contact(const RekG1HitContact* contact) {
+static REK_G1_FN int valid_contact(const RekG1HitContact* contact) {
     return contact != NULL
         && contact->striker_fighter < REK_G1_HIT_FIGHTERS
         && contact->target_fighter < REK_G1_HIT_FIGHTERS
@@ -216,7 +216,7 @@ static int valid_contact(const RekG1HitContact* contact) {
         && finite_vector3(contact->target_body_linear_velocity_world);
 }
 
-int rek_g1_hit_detector_process(
+REK_G1_FN int rek_g1_hit_detector_process(
         RekG1HitDetectorState* state,
         const RekG1HitDetectorConfig* config,
         const RekG1HitContact* contact,

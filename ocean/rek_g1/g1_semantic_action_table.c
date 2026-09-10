@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-static const uint8_t HELD_MASKS[15] = {
+static REK_G1_CONSTANT const uint8_t HELD_MASKS[15] = {
     0,
     REK_G1_HELD_FORWARD,
     REK_G1_HELD_BACKWARD,
@@ -20,12 +20,12 @@ static const uint8_t HELD_MASKS[15] = {
     REK_G1_HELD_STRAFE_RIGHT | REK_G1_HELD_YAW_RIGHT,
 };
 
-static const uint16_t MOVE_REGISTRY_ORDER[
+static REK_G1_CONSTANT const uint16_t MOVE_REGISTRY_ORDER[
         REK_G1_REQUIRED_DISCRETE_MOVE_COUNT] = {
     6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16,
 };
 
-RekG1PufferStatus rek_g1_semantic_action_table_init(
+REK_G1_FN RekG1PufferStatus rek_g1_semantic_action_table_init(
         RekG1SemanticActionTableStorage* storage,
         uint32_t locomotion_segment_ticks,
         const uint32_t configured_compositor_move_duration_ticks[

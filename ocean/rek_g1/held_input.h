@@ -1,5 +1,7 @@
 #pragma once
 
+#include "g1_cuda_qualifiers.h"
+
 #include <math.h>
 #include <stdint.h>
 
@@ -80,12 +82,12 @@ typedef struct RekG1InputDecision {
     uint8_t blocked_attack_retention_unknown;
 } RekG1InputDecision;
 
-static inline int8_t rek_g1_desired_yaw(uint8_t held) {
+static REK_G1_FN inline int8_t rek_g1_desired_yaw(uint8_t held) {
     return (held & REK_G1_HELD_YAW_LEFT) ? 1 :
         (held & REK_G1_HELD_YAW_RIGHT) ? -1 : 0;
 }
 
-static inline RekG1InputStatus rek_g1_validate_input_timing(
+static REK_G1_FN inline RekG1InputStatus rek_g1_validate_input_timing(
         RekG1InputTiming timing) {
     if (!isfinite(timing.elapsed_seconds) || timing.elapsed_seconds <= 0.0f) {
         return REK_G1_INPUT_REJECTED_INVALID_ELAPSED_SECONDS;
@@ -97,7 +99,7 @@ static inline RekG1InputStatus rek_g1_validate_input_timing(
     return REK_G1_INPUT_ACCEPTED;
 }
 
-static inline void rek_g1_fill_effective_axes(
+static REK_G1_FN inline void rek_g1_fill_effective_axes(
         RekG1InputDecision* result,
         const RekG1HeldInputState* state) {
     result->held = state->held;
@@ -110,7 +112,7 @@ static inline void rek_g1_fill_effective_axes(
     result->yaw = state->yaw_ramp * (float)state->yaw_sign;
 }
 
-static inline void rek_g1_advance_yaw_ramp(
+static REK_G1_FN inline void rek_g1_advance_yaw_ramp(
         RekG1HeldInputState* state,
         RekG1InputTiming timing) {
     int8_t desired_yaw = rek_g1_desired_yaw(state->held);
@@ -131,25 +133,25 @@ static inline void rek_g1_advance_yaw_ramp(
     state->yaw_ramp = next_ramp >= 1.0f ? 1.0f : next_ramp;
 }
 
-static inline int rek_g1_has_opposite_translation(uint8_t held) {
+static REK_G1_FN inline int rek_g1_has_opposite_translation(uint8_t held) {
     return ((held & REK_G1_HELD_FORWARD) &&
             (held & REK_G1_HELD_BACKWARD)) ||
         ((held & REK_G1_HELD_STRAFE_LEFT) &&
          (held & REK_G1_HELD_STRAFE_RIGHT));
 }
 
-static inline int rek_g1_has_opposite_yaw(uint8_t held) {
+static REK_G1_FN inline int rek_g1_has_opposite_yaw(uint8_t held) {
     return (held & REK_G1_HELD_YAW_LEFT) &&
         (held & REK_G1_HELD_YAW_RIGHT);
 }
 
-static inline RekG1InputDecision rek_g1_apply_input_frame(
+static REK_G1_FN inline RekG1InputDecision rek_g1_apply_input_frame(
         RekG1HeldInputState* state,
         RekG1InputFrame frame,
         RekG1InputTiming timing,
         int translation_transition_settled,
         int action_busy) {
-    RekG1InputDecision result = {0};
+    RekG1InputDecision result = REK_G1_ZERO_INIT;
     result.status = REK_G1_INPUT_ACCEPTED;
     result.attack_gate = REK_G1_ATTACK_NOT_REQUESTED;
 

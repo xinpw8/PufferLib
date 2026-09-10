@@ -3,7 +3,7 @@
 #include <math.h>
 #include <stddef.h>
 
-const RekG1FallConfig REK_G1_FALL_CONFIG_F84F1874 = {
+REK_G1_CONSTANT const RekG1FallConfig REK_G1_FALL_CONFIG_F84F1874 = {
     .falling_tilt_degrees = 42.0f,
     .falling_height_ratio = 0.6000000238418579f,
     .fallen_tilt_degrees = 69.30000305175781f,
@@ -16,11 +16,11 @@ const RekG1FallConfig REK_G1_FALL_CONFIG_F84F1874 = {
     .fight_spawn_reset_grace_seconds = 2.0f,
 };
 
-static int valid_flag(uint8_t value) {
+static REK_G1_FN int valid_flag(uint8_t value) {
     return value == 0u || value == 1u;
 }
 
-static RekG1FallStatus validate_config(const RekG1FallConfig* config) {
+static REK_G1_FN RekG1FallStatus validate_config(const RekG1FallConfig* config) {
     if (!isfinite(config->falling_tilt_degrees)
             || !isfinite(config->falling_height_ratio)
             || !isfinite(config->fallen_tilt_degrees)
@@ -47,7 +47,7 @@ static RekG1FallStatus validate_config(const RekG1FallConfig* config) {
     return REK_G1_FALL_OK;
 }
 
-static RekG1FallStatus validate_state(const RekG1FallState* state) {
+static REK_G1_FN RekG1FallStatus validate_state(const RekG1FallState* state) {
     if (state->phase != REK_G1_FALL_UPRIGHT
             && state->phase != REK_G1_FALL_FALLING
             && state->phase != REK_G1_FALL_FALLEN) {
@@ -68,7 +68,7 @@ static RekG1FallStatus validate_state(const RekG1FallState* state) {
     return REK_G1_FALL_OK;
 }
 
-static RekG1FallStatus validate_sample(const RekG1FallSample* sample) {
+static REK_G1_FN RekG1FallStatus validate_sample(const RekG1FallSample* sample) {
     if (!isfinite(sample->tilt_degrees)
             || !isfinite(sample->pelvis_height_ratio)
             || !isfinite(sample->fixed_delta_seconds)) {
@@ -84,7 +84,7 @@ static RekG1FallStatus validate_sample(const RekG1FallSample* sample) {
     return REK_G1_FALL_OK;
 }
 
-static RekG1FallStatus validate_common(
+static REK_G1_FN RekG1FallStatus validate_common(
     const RekG1FallConfig* config,
     const RekG1FallState* state
 ) {
@@ -95,7 +95,7 @@ static RekG1FallStatus validate_common(
     return validate_state(state);
 }
 
-RekG1FallStatus rek_g1_fall_state_init(
+REK_G1_FN RekG1FallStatus rek_g1_fall_state_init(
     const RekG1FallConfig* config,
     RekG1FallState* state
 ) {
@@ -118,7 +118,7 @@ RekG1FallStatus rek_g1_fall_state_init(
     return REK_G1_FALL_OK;
 }
 
-static int update_fallen_qualifiers(
+static REK_G1_FN int update_fallen_qualifiers(
     const RekG1FallConfig* config,
     RekG1FallState* state,
     const RekG1FallSample* sample
@@ -153,7 +153,7 @@ static int update_fallen_qualifiers(
     return state->fallen_hold_seconds >= hold_seconds;
 }
 
-static void become_fallen(
+static REK_G1_FN void become_fallen(
     const RekG1FallConfig* config,
     RekG1FallState* state,
     const RekG1FallSample* sample
@@ -165,7 +165,7 @@ static void become_fallen(
     state->recovery_armed = sample->can_get_up;
 }
 
-RekG1FallStatus rek_g1_fall_state_step(
+REK_G1_FN RekG1FallStatus rek_g1_fall_state_step(
     const RekG1FallConfig* config,
     const RekG1FallState* state,
     const RekG1FallSample* sample,
@@ -232,7 +232,7 @@ RekG1FallStatus rek_g1_fall_state_step(
     return REK_G1_FALL_OK;
 }
 
-RekG1FallStatus rek_g1_fall_state_apply_reset_after_fall(
+REK_G1_FN RekG1FallStatus rek_g1_fall_state_apply_reset_after_fall(
     const RekG1FallConfig* config,
     const RekG1FallState* state,
     RekG1FallState* next_state
@@ -260,7 +260,7 @@ RekG1FallStatus rek_g1_fall_state_apply_reset_after_fall(
     return REK_G1_FALL_OK;
 }
 
-RekG1FallStatus rek_g1_fall_state_apply_fight_spawn_reset(
+REK_G1_FN RekG1FallStatus rek_g1_fall_state_apply_fight_spawn_reset(
     const RekG1FallConfig* config,
     const RekG1FallState* state,
     RekG1FallState* next_state

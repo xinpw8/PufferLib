@@ -1,5 +1,7 @@
 #pragma once
 
+#include "g1_cuda_qualifiers.h"
+
 #include <stdint.h>
 
 #include "g1_combat_types.h"
@@ -103,7 +105,7 @@ typedef struct RekG1FightConfig {
 } RekG1FightConfig;
 
 /* Exact level1/level2/level3 current-build values. */
-extern const RekG1FightConfig REK_G1_FIGHT_CONFIG_F84F1874;
+extern REK_G1_CONSTANT const RekG1FightConfig REK_G1_FIGHT_CONFIG_F84F1874;
 
 typedef struct RekG1FightState {
     RekG1FightPhase phase;
@@ -177,7 +179,7 @@ typedef struct RekG1FightStepResult {
 } RekG1FightStepResult;
 
 /* Initialize an idle BestOf3 fight. On error, state is not modified. */
-RekG1FightStatus rek_g1_fight_state_init(RekG1FightState* state);
+REK_G1_FN RekG1FightStatus rek_g1_fight_state_init(RekG1FightState* state);
 
 /*
  * Prepare round 1 from IDLE. Between-round preparation is automatic after the
@@ -185,26 +187,26 @@ RekG1FightStatus rek_g1_fight_state_init(RekG1FightState* state);
  * enters ROUND_COUNTDOWN. Countdown duration is caller-owned because that
  * external Timeline duration remains outside this fight-state contract.
  */
-RekG1FightStatus rek_g1_fight_prepare_first_round(
+REK_G1_FN RekG1FightStatus rek_g1_fight_prepare_first_round(
     const RekG1FightState* state,
     RekG1FightStepResult* result
 );
 
 /* Activate a prepared round at the caller-measured countdown completion. */
-RekG1FightStatus rek_g1_fight_activate_round(
+REK_G1_FN RekG1FightStatus rek_g1_fight_activate_round(
     const RekG1FightState* state,
     RekG1FightStepResult* result
 );
 
 /* Apply one measured HitDetector/PointTracker strike event. */
-RekG1FightStatus rek_g1_fight_record_strike(
+REK_G1_FN RekG1FightStatus rek_g1_fight_record_strike(
     const RekG1FightState* state,
     const RekG1StrikeEvent* event,
     RekG1FightStepResult* result
 );
 
 /* Latch slip versus knockdown at Robot.OnFalling. */
-RekG1FightStatus rek_g1_fight_on_falling(
+REK_G1_FN RekG1FightStatus rek_g1_fight_on_falling(
     const RekG1FightState* state,
     uint32_t fighter_index,
     uint8_t force_slip_estop,
@@ -212,7 +214,7 @@ RekG1FightStatus rek_g1_fight_on_falling(
 );
 
 /* Increment Falls and start or restart the shared count at Robot.OnFallen. */
-RekG1FightStatus rek_g1_fight_on_fallen(
+REK_G1_FN RekG1FightStatus rek_g1_fight_on_fallen(
     const RekG1FightState* state,
     uint32_t fighter_index,
     const uint8_t fighter_can_get_up[2],
@@ -223,7 +225,7 @@ RekG1FightStatus rek_g1_fight_on_fallen(
  * Apply Robot.OnResetDue routing. The active-round path deliberately emits no
  * reset. The pre-round countdown path requests a two-fighter spawn reset.
  */
-RekG1FightStatus rek_g1_fight_on_reset_due(
+REK_G1_FN RekG1FightStatus rek_g1_fight_on_reset_due(
     const RekG1FightState* state,
     uint32_t fighter_index,
     RekG1FightStepResult* result
@@ -234,7 +236,7 @@ RekG1FightStatus rek_g1_fight_on_reset_due(
  * both fighters to spawn. Score, falls, round time, and match progress remain
  * unchanged. This is separate from Robot.ResetAfterFall state.
  */
-RekG1FightStatus rek_g1_fight_apply_spawn_reset(
+REK_G1_FN RekG1FightStatus rek_g1_fight_apply_spawn_reset(
     const RekG1FightState* state,
     RekG1FightStepResult* result
 );
@@ -247,13 +249,13 @@ RekG1FightStatus rek_g1_fight_apply_spawn_reset(
  * from that same state and calls resolve. A count created between these calls
  * begins at zero and is not aged by the preceding physics interval.
  */
-RekG1FightStatus rek_g1_fight_begin_active_step(
+REK_G1_FN RekG1FightStatus rek_g1_fight_begin_active_step(
     const RekG1FightState* state,
     const RekG1FightAdvanceInput* input,
     RekG1FightStepResult* result
 );
 
-RekG1FightStatus rek_g1_fight_resolve_active_step(
+REK_G1_FN RekG1FightStatus rek_g1_fight_resolve_active_step(
     const RekG1FightState* state,
     const RekG1FightResolveInput* input,
     RekG1FightStepResult* result
@@ -264,7 +266,7 @@ RekG1FightStatus rek_g1_fight_resolve_active_step(
  * RefereeCountRoutine. time_remaining_seconds is the caller-measured clamped
  * round clock. On a reset signal the caller performs the physical reset.
  */
-RekG1FightStatus rek_g1_fight_advance_active(
+REK_G1_FN RekG1FightStatus rek_g1_fight_advance_active(
     const RekG1FightState* state,
     const RekG1FightAdvanceInput* input,
     RekG1FightStepResult* result
@@ -274,7 +276,7 @@ RekG1FightStatus rek_g1_fight_advance_active(
  * Advance countdown, between-round, or fight-over wall time. Countdown never
  * activates itself. Between-round expiry prepares the next 120 s or 30 s round.
  */
-RekG1FightStatus rek_g1_fight_advance_transition(
+REK_G1_FN RekG1FightStatus rek_g1_fight_advance_transition(
     const RekG1FightState* state,
     float delta_seconds,
     RekG1FightStepResult* result

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "g1_cuda_qualifiers.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -83,16 +85,16 @@ typedef struct RekG1HitResult {
     uint8_t score_accepted;
 } RekG1HitResult;
 
-RekG1HitDetectorConfig rek_g1_current_build_hit_detector_config(void);
+REK_G1_FN RekG1HitDetectorConfig rek_g1_current_build_hit_detector_config(void);
 
-void rek_g1_hit_detector_reset(RekG1HitDetectorState* state);
+REK_G1_FN void rek_g1_hit_detector_reset(RekG1HitDetectorState* state);
 
-float rek_g1_impact_event_ramp_at(
+REK_G1_FN float rek_g1_impact_event_ramp_at(
     const RekG1ImpactEvent* event,
     float clip_time_seconds
 );
 
-int rek_g1_strike_intent_apex(
+REK_G1_FN int rek_g1_strike_intent_apex(
     const RekG1StrikeIntent* intent,
     RekG1BodyPartType striker_part,
     RekG1HandSide striker_side,
@@ -106,7 +108,7 @@ int rek_g1_strike_intent_apex(
  * contact-enter candidate. Geometry identities and velocities are measured by
  * the caller. On success, state is changed only for an accepted score.
  */
-int rek_g1_hit_detector_process(
+REK_G1_FN int rek_g1_hit_detector_process(
     RekG1HitDetectorState* state,
     const RekG1HitDetectorConfig* config,
     const RekG1HitContact* contact,

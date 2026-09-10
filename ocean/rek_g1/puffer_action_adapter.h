@@ -87,29 +87,29 @@ typedef struct RekG1PufferStep {
     RekG1SemanticTick semantic;
 } RekG1PufferStep;
 
-RekG1PufferStatus rek_g1_puffer_validate_table(
+REK_G1_FN RekG1PufferStatus rek_g1_puffer_validate_table(
     const RekG1PufferActionTable* table);
 
-RekG1PufferStatus rek_g1_puffer_init(
+REK_G1_FN RekG1PufferStatus rek_g1_puffer_init(
     RekG1PufferAdapter* adapter,
     const RekG1PufferActionTable* table);
 
-void rek_g1_puffer_reset(RekG1PufferAdapter* adapter);
+REK_G1_FN void rek_g1_puffer_reset(RekG1PufferAdapter* adapter);
 
-int rek_g1_puffer_category_legal(
+REK_G1_FN int rek_g1_puffer_category_legal(
     const RekG1PufferAdapter* adapter,
     uint32_t category,
     int translation_transition_settled,
     int action_busy);
 
-RekG1PufferStatus rek_g1_puffer_write_mask(
+REK_G1_FN RekG1PufferStatus rek_g1_puffer_write_mask(
     const RekG1PufferAdapter* adapter,
     int translation_transition_settled,
     int action_busy,
     uint8_t* mask,
     size_t mask_bytes);
 
-RekG1PufferStep rek_g1_puffer_step(
+REK_G1_FN RekG1PufferStep rek_g1_puffer_step(
     RekG1PufferAdapter* adapter,
     float action,
     RekG1InputTiming timing,

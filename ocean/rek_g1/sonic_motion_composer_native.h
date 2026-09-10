@@ -1,5 +1,7 @@
 #pragma once
 
+#include "g1_cuda_qualifiers.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -174,7 +176,7 @@ typedef struct SonicMotionComposerNativeReferenceOutput {
     size_t root_rotation_capacity;
 } SonicMotionComposerNativeReferenceOutput;
 
-const char* sonic_motion_composer_native_status_string(
+REK_G1_FN const char* sonic_motion_composer_native_status_string(
     SonicMotionComposerNativeStatus status
 );
 
@@ -184,13 +186,13 @@ const char* sonic_motion_composer_native_status_string(
  * preserve the binary32 operation boundaries pinned by the Python contract.
  */
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_init(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_init(
     SonicMotionComposerNative* composer,
     int32_t controller_rate_hz,
     const SonicMotionComposerNativeBackends* backends
 );
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_install_layer(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_install_layer(
     /* Must point to a zero-initialized or previously valid layer. */
     SonicMotionComposerNativeLayer* layer,
     const SonicMotionComposerNativeClip* clip,
@@ -198,20 +200,20 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_install_layer(
     int32_t controller_rate_hz
 );
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_resolve_frames(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_resolve_frames(
     const SonicMotionComposerNativeLayer* layer,
     int32_t frames_ahead,
     SonicMotionComposerNativeResolvedFrames* result
 );
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_weight_current(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_weight_current(
     float tt,
     int32_t w_in,
     int32_t w_out,
     float* result
 );
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_xfade_at(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_xfade_at(
     int32_t xt,
     int32_t frames_ahead,
     int32_t w_in,
@@ -219,43 +221,43 @@ SonicMotionComposerNativeStatus sonic_motion_composer_native_xfade_at(
     float* result
 );
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_play_action(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_play_action(
     SonicMotionComposerNative* composer,
     const SonicMotionComposerNativeClip* clip,
     const SonicMotionComposerNativeConfig* config
 );
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_play_action_immediate(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_play_action_immediate(
     SonicMotionComposerNative* composer,
     const SonicMotionComposerNativeClip* clip,
     const SonicMotionComposerNativeConfig* config
 );
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_cancel_action(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_cancel_action(
     SonicMotionComposerNative* composer
 );
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_set_locomotion_speed(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_set_locomotion_speed(
     SonicMotionComposerNative* composer,
     float scale
 );
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_advance(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_advance(
     SonicMotionComposerNative* composer,
     SonicMotionComposerNativeAdvanceResult* result
 );
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_consume_heading_delta(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_consume_heading_delta(
     SonicMotionComposerNative* composer,
     float* result
 );
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_heading_clip_ownership(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_heading_clip_ownership(
     const SonicMotionComposerNative* composer,
     float* result
 );
 
-SonicMotionComposerNativeStatus sonic_motion_composer_native_build_reference_rows(
+REK_G1_FN SonicMotionComposerNativeStatus sonic_motion_composer_native_build_reference_rows(
     const SonicMotionComposerNative* composer,
     const SonicMotionComposerNativeReferenceTiming* timing,
     const SonicMotionComposerNativeMirrorTable* mirror_table,

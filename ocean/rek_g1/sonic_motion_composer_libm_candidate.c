@@ -3,17 +3,17 @@
 #include <math.h>
 #include <stddef.h>
 
-static float f32_add(float a, float b) {
+static REK_G1_FN float f32_add(float a, float b) {
     volatile float result = a + b;
     return result;
 }
 
-static float f32_mul(float a, float b) {
+static REK_G1_FN float f32_mul(float a, float b) {
     volatile float result = a * b;
     return result;
 }
 
-static int quaternion_finite(const float value[4]) {
+static REK_G1_FN int quaternion_finite(const float value[4]) {
     if (value == NULL) return 0;
     for (size_t axis = 0; axis < 4; axis++) {
         if (!isfinite(value[axis])) return 0;
@@ -21,7 +21,7 @@ static int quaternion_finite(const float value[4]) {
     return 1;
 }
 
-static int normalize(float value[4]) {
+static REK_G1_FN int normalize(float value[4]) {
     float squared = 0.0f;
     for (size_t axis = 0; axis < 4; axis++) {
         squared = f32_add(squared, f32_mul(value[axis], value[axis]));
@@ -37,7 +37,7 @@ static int normalize(float value[4]) {
     return quaternion_finite(value);
 }
 
-int sonic_motion_composer_libm_candidate_quaternion_slerp(
+REK_G1_FN int sonic_motion_composer_libm_candidate_quaternion_slerp(
         void* context,
         const float a_wxyz[4],
         const float b_wxyz[4],
@@ -100,7 +100,7 @@ int sonic_motion_composer_libm_candidate_quaternion_slerp(
     return 1;
 }
 
-int sonic_motion_composer_libm_candidate_atan2_f(
+REK_G1_FN int sonic_motion_composer_libm_candidate_atan2_f(
         void* context,
         float numerator,
         float denominator,
@@ -115,7 +115,7 @@ int sonic_motion_composer_libm_candidate_atan2_f(
     return 1;
 }
 
-int sonic_motion_composer_libm_candidate_sin_cos_f(
+REK_G1_FN int sonic_motion_composer_libm_candidate_sin_cos_f(
         void* context,
         float angle,
         float* sine,
