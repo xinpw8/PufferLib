@@ -569,12 +569,14 @@ class BrowserInputState:
         self.held: frozenset[str] = frozenset()
         self.sequence = 0
         self.move_edge_index: int | None = None
+        self.move_edge_held: frozenset[str] = frozenset()
         self.pending_move_index: int | None = None
 
     def reset(self) -> None:
         self.held = frozenset()
         self.sequence = 0
         self.move_edge_index = None
+        self.move_edge_held = frozenset()
         self.pending_move_index = None
 
     def update(self, payload: Mapping[str, Any]) -> bool:
@@ -611,8 +613,11 @@ class BrowserInputState:
                 and move_index in MOVE_TO_CATEGORY,
                 "move_index must be an integer from 0 through 16",
             )
-            self.move_edge_index = move_index
-            self.pending_move_index = move_index
+            # Keep at most one unconsumed edge. A second attack neither queues
+            # nor replaces an attack already waiting for a yaw interruption.
+            if self.move_edge_index is None and self.pending_move_index is None:
+                self.move_edge_index = move_index
+                self.move_edge_held = held
         self.held = held
         self.sequence = sequence
         return True
@@ -621,6 +626,10 @@ class BrowserInputState:
         move = self.move_edge_index
         self.move_edge_index = None
         return move
+
+    def buffer_yaw_move(self, move_index: int) -> None:
+        _require(self.pending_move_index is None, "yaw interruption already pending")
+        self.pending_move_index = move_index
 
     def peek_pending_move(self) -> int | None:
         return self.pending_move_index
@@ -847,24 +856,39 @@ class SemanticHumanEvalCore:
 
         held = self.browser_input.held
         held_category = HELD_CATEGORY_BY_SYMBOLS[held]
+        move_edge_held = self.browser_input.move_edge_held
         move_index_edge = self.browser_input.take_move_edge()
         buffered_move_index = self.browser_input.peek_pending_move()
         translation_held = held & TRANSLATION_SYMBOLS
         human_preferred = held_category
         human_fallback = held_category
         pending_disposition: str | None = None
-        if buffered_move_index is not None:
-            if translation_held:
-                # Translation remains the exclusive active locomotion command,
-                # but yaw yields as soon as a move is buffered.
-                human_fallback = HELD_CATEGORY_BY_SYMBOLS[frozenset(translation_held)]
-                human_preferred = human_fallback
-                pending_disposition = "buffered_translation_held"
+        requested_move_index = (
+            buffered_move_index if buffered_move_index is not None else move_index_edge
+        )
+        yaw_interruption = buffered_move_index is not None or bool(
+            move_edge_held & YAW_SYMBOLS
+        )
+        action_playing = _binary_observation_flag(
+            observations[0], ACTION_PLAYING_INDEX, "action_playing"
+        ) or self.planners[0].continuation_ticks > 0
+        if requested_move_index is not None:
+            if action_playing:
+                pending_disposition = "discarded_move_in_progress"
+            elif translation_held or (
+                move_index_edge is not None and move_edge_held & TRANSLATION_SYMBOLS
+            ):
+                pending_disposition = "discarded_translation_held"
+            elif float(observations[0, FALL_PHASE_OFFSET]) != 0.0:
+                pending_disposition = "discarded_fall_state"
+            if pending_disposition is not None:
+                self.browser_input.clear_pending_move()
+                requested_move_index = None
             else:
-                # A held Q/E is retained in browser state for post-move resume,
-                # while neutral is the only fallback until the move can start.
+                # Only a yaw interruption may survive a masked dispatch. It
+                # yields Q/E while settling; no attack-to-attack queue exists.
                 human_fallback = NEUTRAL_CATEGORY
-                human_preferred = MOVE_TO_CATEGORY[buffered_move_index]
+                human_preferred = MOVE_TO_CATEGORY[requested_move_index]
 
         actions = np.full((ROBOT_ROWS, ACTION_HEADS), 1.0, dtype=np.float32)
         choices: list[ActionChoice] = []
@@ -876,9 +900,8 @@ class SemanticHumanEvalCore:
         )
         choices.append(human_choice)
         move_dispatched = (
-            buffered_move_index is not None
-            and not translation_held
-            and human_choice.category == MOVE_TO_CATEGORY[buffered_move_index]
+            requested_move_index is not None
+            and human_choice.category == MOVE_TO_CATEGORY[requested_move_index]
         )
 
         dummy_preferred = self.dummy.preferred_action(observations[1])
@@ -904,14 +927,19 @@ class SemanticHumanEvalCore:
             actions[row, 0] = float(choice.category)
 
         self.boundary.step(actions)
-        if buffered_move_index is not None:
+        if requested_move_index is not None:
             if move_dispatched:
-                self.browser_input.consume_pending_move(buffered_move_index)
+                if buffered_move_index is not None:
+                    self.browser_input.consume_pending_move(buffered_move_index)
                 self.last_move_disposition = "accepted"
-            elif pending_disposition is not None:
-                self.last_move_disposition = pending_disposition
+            elif yaw_interruption:
+                if buffered_move_index is None:
+                    self.browser_input.buffer_yaw_move(requested_move_index)
+                self.last_move_disposition = "buffered_yaw_interruption"
             else:
-                self.last_move_disposition = f"buffered_{human_choice.reason}"
+                self.last_move_disposition = "discarded_masked_move"
+        elif pending_disposition is not None:
+            self.last_move_disposition = pending_disposition
         self.tick += 1
         self.last_actions = [choice.category for choice in choices]
         self.last_action_reasons = [choice.reason for choice in choices]
@@ -999,6 +1027,7 @@ class SemanticHumanEvalCore:
             "input_sequence": self.browser_input.sequence,
             "held": sorted(self.browser_input.held),
             "pending_move_index": self.browser_input.peek_pending_move(),
+            "move_buffer_rule": "single_yaw_interruption_only_no_attack_queue",
             "last_move_disposition": self.last_move_disposition,
             "last_actions": self.last_actions.copy(),
             "last_action_reasons": self.last_action_reasons.copy(),
@@ -1315,6 +1344,7 @@ INDEX_HTML = r"""<!doctype html>
     ['Digit4',14],['Digit5',15],['Digit6',16]
   ]);
   let sequence = 0;
+  let moveRequestPending = false;
   async function synchronizeSequence() {
     const response = await fetch('/state', {cache:'no-store'});
     if (!response.ok) throw new Error('sequence synchronization failed');
@@ -1369,12 +1399,17 @@ INDEX_HTML = r"""<!doctype html>
     return controlQueue;
   }
   function sendInput(moveIndex = null) {
+    if (moveIndex !== null && moveRequestPending) return Promise.resolve();
+    if (moveIndex !== null) moveRequestPending = true;
     const heldSnapshot = Array.from(held).sort();
-    return enqueueControl('/input', () => ({
+    const request = enqueueControl('/input', () => ({
       sequence: ++sequence,
       held: heldSnapshot,
       move_index: moveIndex
     }));
+    return request.finally(() => {
+      if (moveIndex !== null) moveRequestPending = false;
+    });
   }
   addEventListener('keydown', event => {
     const symbol = movement.get(event.code);

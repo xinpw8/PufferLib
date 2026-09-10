@@ -41,6 +41,7 @@ class FakeBoundary:
         self.reset()
 
     def _write_masks(self) -> None:
+        self.observations[:, human.ACTION_PLAYING_INDEX] = self.active_moves > 0
         if self.action_masks is None:
             return
         self.action_masks.fill(0)
@@ -101,11 +102,12 @@ class BrowserInputTests(unittest.TestCase):
         )
         self.assertEqual(state.take_move_edge(), 16)
         self.assertIsNone(state.take_move_edge())
-        self.assertEqual(state.peek_pending_move(), 16)
+        self.assertIsNone(state.peek_pending_move())
+        state.buffer_yaw_move(16)
         state.consume_pending_move(16)
         self.assertIsNone(state.peek_pending_move())
 
-    def test_latest_move_replaces_buffer_without_null_or_stale_rearming(self) -> None:
+    def test_repeated_move_edges_neither_stack_nor_replace(self) -> None:
         state = human.BrowserInputState()
         self.assertTrue(
             state.update({"sequence": 1, "held": ["Q"], "move_index": 7})
@@ -113,8 +115,9 @@ class BrowserInputTests(unittest.TestCase):
         self.assertTrue(
             state.update({"sequence": 2, "held": ["E"], "move_index": 8})
         )
-        self.assertEqual(state.take_move_edge(), 8)
-        self.assertEqual(state.peek_pending_move(), 8)
+        self.assertEqual(state.take_move_edge(), 7)
+        self.assertIsNone(state.peek_pending_move())
+        state.buffer_yaw_move(7)
         self.assertFalse(
             state.update({"sequence": 1, "held": ["Q"], "move_index": 9})
         )
@@ -122,7 +125,10 @@ class BrowserInputTests(unittest.TestCase):
             state.update({"sequence": 3, "held": [], "move_index": None})
         )
         self.assertIsNone(state.take_move_edge())
-        self.assertEqual(state.peek_pending_move(), 8)
+        self.assertEqual(state.peek_pending_move(), 7)
+        state.update({"sequence": 4, "held": ["E"], "move_index": 9})
+        self.assertIsNone(state.take_move_edge())
+        self.assertEqual(state.peek_pending_move(), 7)
         state.reset()
         self.assertIsNone(state.take_move_edge())
         self.assertIsNone(state.peek_pending_move())
@@ -358,21 +364,20 @@ class HumanEvalCoreTests(unittest.TestCase):
         third = core.step_once()
         self.assertEqual(third[0, 0], human.YAW_LEFT_CATEGORY)
 
-    def test_translation_held_buffers_move_and_yaw_yields_until_release(self) -> None:
+    def test_translation_held_discards_move_without_deferred_attack(self) -> None:
         core = human.SemanticHumanEvalCore(FakeBoundary())
         core.update_input({"sequence": 1, "held": ["W", "Q"], "move_index": 7})
         actions = core.step_once()
-        self.assertEqual(actions[0, 0], 2)
-        self.assertEqual(core.last_move_disposition, "buffered_translation_held")
-        self.assertEqual(core.browser_input.peek_pending_move(), 7)
+        self.assertEqual(actions[0, 0], 8)
+        self.assertEqual(core.last_move_disposition, "discarded_translation_held")
+        self.assertIsNone(core.browser_input.peek_pending_move())
 
         core.update_input({"sequence": 2, "held": ["Q"], "move_index": None})
         actions = core.step_once()
-        self.assertEqual(actions[0, 0], human.MOVE_TO_CATEGORY[7])
-        self.assertEqual(core.last_move_disposition, "accepted")
+        self.assertEqual(actions[0, 0], human.YAW_LEFT_CATEGORY)
         self.assertIsNone(core.browser_input.peek_pending_move())
 
-    def test_move_during_active_action_buffers_once_and_stops_held_yaw(self) -> None:
+    def test_move_during_active_action_is_discarded_even_with_held_yaw(self) -> None:
         for symbol, yaw_category, first_move, buffered_move in (
             ("Q", human.YAW_LEFT_CATEGORY, 0, 1),
             ("E", human.YAW_RIGHT_CATEGORY, 8, 9),
@@ -392,20 +397,18 @@ class HumanEvalCoreTests(unittest.TestCase):
                 )
                 for _ in range(2):
                     actions = core.step_once()
-                    self.assertEqual(actions[0, 0], human.NEUTRAL_CATEGORY)
+                    self.assertEqual(actions[0, 0], yaw_category)
                     self.assertEqual(
                         core.last_move_disposition,
-                        "buffered_native_mask_fallback",
+                        "discarded_move_in_progress",
                     )
-                    self.assertEqual(
-                        core.browser_input.peek_pending_move(), buffered_move
-                    )
+                    self.assertIsNone(core.browser_input.peek_pending_move())
 
                 actions = core.step_once()
                 self.assertEqual(
-                    actions[0, 0], human.MOVE_TO_CATEGORY[buffered_move]
+                    actions[0, 0], yaw_category
                 )
-                self.assertEqual(core.last_move_disposition, "accepted")
+                self.assertEqual(core.last_move_disposition, "discarded_move_in_progress")
                 self.assertIsNone(core.browser_input.peek_pending_move())
 
                 core.update_input(
@@ -413,12 +416,38 @@ class HumanEvalCoreTests(unittest.TestCase):
                 )
                 self.assertEqual(core.step_once()[0, 0], yaw_category)
 
+    def test_only_yaw_interruption_survives_a_masked_dispatch(self) -> None:
+        for held in ([], ["Q"], ["E"]):
+            with self.subTest(held=held):
+                boundary = FakeBoundary()
+                core = human.SemanticHumanEvalCore(boundary)
+                boundary.action_masks[0, 16:] = 0
+                core.update_input({"sequence": 1, "held": held, "move_index": 7})
+                self.assertEqual(core.step_once()[0, 0], human.NEUTRAL_CATEGORY)
+                self.assertEqual(core.browser_input.peek_pending_move(), 7 if held else None)
+                core.update_input({"sequence": 2, "held": held, "move_index": None})
+                expected = human.MOVE_TO_CATEGORY[7] if held else human.NEUTRAL_CATEGORY
+                self.assertEqual(core.step_once()[0, 0], expected)
+                self.assertIsNone(core.browser_input.peek_pending_move())
+
+    def test_yaw_pending_move_cannot_be_replaced_by_another_attack(self) -> None:
+        boundary = FakeBoundary()
+        core = human.SemanticHumanEvalCore(boundary)
+        boundary.action_masks[0, 16:] = 0
+        core.update_input({"sequence": 1, "held": ["Q"], "move_index": 7})
+        core.step_once()
+        core.update_input({"sequence": 2, "held": ["Q"], "move_index": 8})
+        self.assertEqual(core.step_once()[0, 0], human.MOVE_TO_CATEGORY[7])
+        for _ in range(4):
+            self.assertLess(core.step_once()[0, 0], 16)
+        self.assertIsNone(core.browser_input.peek_pending_move())
+
     def test_terminal_clears_a_masked_move_buffer(self) -> None:
         boundary = FakeBoundary()
         core = human.SemanticHumanEvalCore(boundary)
-        boundary.active_moves[0] = 2
         boundary.terminals[0] = 1.0
         boundary._write_masks()
+        boundary.action_masks[0, 16:] = 0
         core.update_input({"sequence": 1, "held": ["Q"], "move_index": 7})
 
         self.assertEqual(core.step_once()[0, 0], human.NEUTRAL_CATEGORY)
@@ -485,7 +514,9 @@ class TraceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "buffered.jsonl"
             writer = human.JsonlTraceWriter(path, {"extension": {"sha256": "0" * 64}})
-            core = human.SemanticHumanEvalCore(FakeBoundary(), writer)
+            boundary = FakeBoundary()
+            core = human.SemanticHumanEvalCore(boundary, writer)
+            boundary.action_masks[0, 16:] = 0
             core.update_input({"sequence": 1, "held": ["Q"], "move_index": 0})
             core.step_once()
             core.update_input({"sequence": 2, "held": ["Q"], "move_index": 1})
@@ -496,21 +527,21 @@ class TraceTests(unittest.TestCase):
             records = [json.loads(line) for line in path.read_text().splitlines()]
 
         steps = [record for record in records if record["event"] == "control_step"]
-        self.assertEqual([step["move_index_edge"] for step in steps], [0, 1, None, None])
+        self.assertEqual([step["move_index_edge"] for step in steps], [0, None, None, None])
         self.assertEqual(
             [step["move_index_buffer_before_step"] for step in steps],
-            [0, 1, 1, 1],
+            [None, 0, None, None],
         )
         self.assertEqual(
             [step["move_index_buffer_after_step"] for step in steps],
-            [None, 1, 1, None],
+            [0, None, None, None],
         )
         self.assertEqual(
             [step["move_disposition"] for step in steps],
             [
+                "buffered_yaw_interruption",
                 "accepted",
-                "buffered_native_mask_fallback",
-                "buffered_native_mask_fallback",
+                "accepted",
                 "accepted",
             ],
         )
@@ -574,7 +605,9 @@ class HttpBoundaryTests(unittest.TestCase):
     def test_browser_serializes_control_posts(self) -> None:
         self.assertIn("let controlQueue = synchronizeSequence()", human.INDEX_HTML)
         self.assertIn("controlQueue = controlQueue.catch", human.INDEX_HTML)
-        self.assertIn("return enqueueControl('/input', () => ({", human.INDEX_HTML)
+        self.assertIn("const request = enqueueControl('/input', () => ({", human.INDEX_HTML)
+        self.assertIn("moveIndex !== null && moveRequestPending", human.INDEX_HTML)
+        self.assertIn("return request.finally(() => {", human.INDEX_HTML)
 
     def test_browser_reload_synchronizes_server_input_sequence(self) -> None:
         self.assertIn("sequence = state.input_sequence", human.INDEX_HTML)

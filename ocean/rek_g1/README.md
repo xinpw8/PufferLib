@@ -194,6 +194,10 @@ W, S, A, D, Q, and E are held inputs. All 17 discrete routes are selectable by
 direct evaluator shortcuts. U and I retain evaluator convenience aliases for
 the user-confirmed left-front and right-side moves. The static build bindings
 are displayed separately and are not claimed as measured input timing.
+An attack pressed during another attack or held translation is discarded.
+Only an attack interrupting held Q/E can remain pending while yaw settles.
+That pending slot cannot be replaced or followed by queued attacks. These input
+rules implement the user's observed contract; they do not establish REK parity.
 Every accepted browser input and every applied 50 Hz action is written to a
 create-new JSONL trace. Each control-step record includes the exact row actions,
 action-selection reasons, terminal bits, and the first arena's 223-value
