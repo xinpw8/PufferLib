@@ -177,6 +177,39 @@ void puf_close(pybind11::object pufferl_obj) {
     close_impl(pufferl);
 }
 
+static cudaStream_t external_stream(uintptr_t pointer) {
+    return reinterpret_cast<cudaStream_t>(pointer);
+}
+
+void py_external_rollout_begin(
+        pybind11::object pufferl_obj, uintptr_t stream_pointer) {
+    PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    external_rollout_begin(pufferl, external_stream(stream_pointer));
+}
+
+void py_external_rollout_step(
+        pybind11::object pufferl_obj, int step, uintptr_t stream_pointer) {
+    PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    external_rollout_step(pufferl, step, external_stream(stream_pointer));
+}
+
+void py_external_actions_to_int32(
+        pybind11::object pufferl_obj,
+        uintptr_t destination_pointer,
+        uintptr_t stream_pointer) {
+    PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    external_actions_to_int32(
+        pufferl,
+        reinterpret_cast<int32_t*>(destination_pointer),
+        external_stream(stream_pointer));
+}
+
+void py_external_rollout_finish(
+        pybind11::object pufferl_obj, uintptr_t stream_pointer) {
+    PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    external_rollout_finish(pufferl, external_stream(stream_pointer));
+}
+
 void save_weights(pybind11::object pufferl_obj, const std::string& path) {
     PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
     int64_t nbytes = numel(pufferl.master_weights.shape) * sizeof(float);
@@ -290,6 +323,20 @@ Dict* py_dict_to_c_dict(py::dict py_dict) {
     Dict* c_dict = create_dict(py_dict.size());
     for (auto item : py_dict) {
         const char* key = PyUnicode_AsUTF8(item.first.ptr());
+        if (strcmp(key, "external_observations_ptr") == 0
+                || strcmp(key, "external_rewards_ptr") == 0
+                || strcmp(key, "external_terminals_ptr") == 0
+                || strcmp(key, "external_action_mask_ptr") == 0) {
+            try {
+                uintptr_t pointer = item.second.cast<uintptr_t>();
+                dict_set_ptr(c_dict, key, reinterpret_cast<void*>(pointer));
+            } catch (const py::cast_error& e) {
+                throw std::runtime_error(
+                    std::string("Failed to cast CUDA pointer '") + key
+                    + "': " + e.what());
+            }
+            continue;
+        }
         try {
             dict_set(c_dict, key, item.second.cast<double>());
         } catch (const py::cast_error&) {
@@ -414,6 +461,11 @@ std::unique_ptr<PuffeRL> create_pufferl(py::dict args) {
     hypers.replay_ratio = get_config(train_kwargs, "replay_ratio");
     hypers.total_timesteps = get_config(train_kwargs, "total_timesteps");
     hypers.max_grad_norm = get_config(train_kwargs, "max_grad_norm");
+    hypers.reward_clip = train_kwargs.contains("reward_clip")
+        ? get_config(train_kwargs, "reward_clip") : 1.0;
+    if (hypers.reward_clip < 0.0f) {
+        throw std::runtime_error("train.reward_clip must be nonnegative");
+    }
     // PPO
     hypers.clip_coef = get_config(train_kwargs, "clip_coef");
     hypers.vf_clip_coef = get_config(train_kwargs, "vf_clip_coef");
@@ -519,6 +571,10 @@ PYBIND11_MODULE(_C, m) {
     m.def("rollouts", &rollouts);
     m.def("train", &train);
     m.def("close", &puf_close);
+    m.def("external_rollout_begin", &py_external_rollout_begin);
+    m.def("external_rollout_step", &py_external_rollout_step);
+    m.def("external_actions_to_int32", &py_external_actions_to_int32);
+    m.def("external_rollout_finish", &py_external_rollout_finish);
     m.def("save_weights", &save_weights);
     m.def("load_weights", &load_weights);
     m.def("add_frozen_bank", &py_add_frozen_bank);
@@ -543,6 +599,7 @@ PYBIND11_MODULE(_C, m) {
 
         .def_readwrite("replay_ratio", &HypersT::replay_ratio)
         .def_readwrite("num_layers", &HypersT::num_layers)
+        .def_readwrite("reward_clip", &HypersT::reward_clip)
         .def_readwrite("lr", &HypersT::lr)
         .def_readwrite("min_lr_ratio", &HypersT::min_lr_ratio)
         .def_readwrite("anneal_lr", &HypersT::anneal_lr)
@@ -631,6 +688,50 @@ PYBIND11_MODULE(_C, m) {
         .def_readonly("epoch", &PuffeRL::epoch)
         .def_readonly("global_step", &PuffeRL::global_step)
         .def_readonly("last_log_time", &PuffeRL::last_log_time)
+        .def_property_readonly("external_gpu", [](PuffeRL& self) {
+            return self.vec != nullptr && self.vec->external_gpu != 0;
+        })
+        .def_property_readonly("total_agents", [](PuffeRL& self) {
+            return self.vec->total_agents;
+        })
+        .def_property_readonly("obs_size", [](PuffeRL& self) {
+            return get_obs_size();
+        })
+        .def_property_readonly("num_atns", [](PuffeRL& self) {
+            return get_num_atns();
+        })
+        .def_property_readonly("act_sizes", [](PuffeRL& self) {
+            int* values = get_act_sizes();
+            int count = get_num_act_sizes();
+            return std::vector<int>(values, values + count);
+        })
+        .def_property_readonly("action_mask_size", [](PuffeRL& self) {
+            return self.vec->action_mask_size;
+        })
+        .def_property_readonly("native_env_count", [](PuffeRL& self) {
+            return self.vec->size;
+        })
+        .def_property_readonly("has_env_threads", [](PuffeRL& self) {
+            return self.vec->threading != nullptr;
+        })
+        .def_property_readonly("recurrent_state_nonzero_count", [](PuffeRL& self) {
+            return external_recurrent_state_nonzero_count(self);
+        })
+        .def_property_readonly("gpu_observations_ptr", [](PuffeRL& self) {
+            return reinterpret_cast<uintptr_t>(self.env.obs.data);
+        })
+        .def_property_readonly("gpu_actions_ptr", [](PuffeRL& self) {
+            return reinterpret_cast<uintptr_t>(self.env.actions.data);
+        })
+        .def_property_readonly("gpu_rewards_ptr", [](PuffeRL& self) {
+            return reinterpret_cast<uintptr_t>(self.env.rewards.data);
+        })
+        .def_property_readonly("gpu_terminals_ptr", [](PuffeRL& self) {
+            return reinterpret_cast<uintptr_t>(self.env.terminals.data);
+        })
+        .def_property_readonly("gpu_action_mask_ptr", [](PuffeRL& self) {
+            return reinterpret_cast<uintptr_t>(self.env.action_mask.data);
+        })
         .def("num_params", [](PuffeRL& self) -> int64_t {
             return numel(self.master_weights.shape);
         });

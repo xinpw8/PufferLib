@@ -30,6 +30,19 @@ in a hashed NPZ trace. `turn-kick` checks a move after held Q; `front-kick`
 isolates one kick and accepts an explicitly reported fixture starting distance.
 Probe throughput is environment control-step throughput, not training SPS.
 
+`gpu_native_puffer.py` connects these CUDA buffers to the original native
+PufferLib policy, prioritized replay, PPO, Muon optimizer, and checkpoint
+format. External GPU mode allocates no CPU environments or environment worker
+threads. `train_gpu_duel.py` requires an explicit positive training-step count
+and create-new run/report paths. Its report records measured training SPS,
+host CPU time, completed-round combat metrics, precision, and checkpoint and
+extension hashes. The default reward transform for this path is no clipping;
+the legacy training path retains its existing default.
+
+Native shared-policy self-play statistics do not measure superiority to a
+human or a frozen opponent. Fighter rows are interleaved within arenas, so a
+contiguous frozen-policy bank split alone is not an opponent evaluation.
+
 The GPU loader performs the same per-clip heading normalization as
 `g1_semantic_assets.c`. Active actuator controls use the native joint-limit
 clamp without clipping filter history or retained fall/reset controls. The

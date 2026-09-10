@@ -87,3 +87,25 @@ class GpuDuelReset:
         self._restore_roots(mask)
         self.pending.logical_and_(~mask)
         physics.forward_selected(mask)
+
+    def after_substep(self, begin, complete):
+        """Apply disjoint native reset events with one derived-state refresh.
+
+        Both masks come from the combat post-step result. Its pending-reset
+        branch cannot also begin a reset in the same arena. No physical reader
+        is consumed between the two mutations, and each selected arena still
+        receives exactly one forward at this same 2 ms boundary.
+        """
+        self._validate(begin)
+        self._validate(complete)
+        physics = self.physics
+        joints = physics.qpos[:, self.qindices]
+        velocities = physics.qvel[:, self.dqindices]
+        physics.qpos[:, self.qindices] = torch.where(complete[:, None, None], 0.0, joints)
+        physics.qvel[:, self.dqindices] = torch.where(complete[:, None, None], 0.0, velocities)
+        physics.ctrl.masked_fill_(complete[:, None], 0)
+        selected = begin | complete
+        self._restore_roots(selected)
+        self.pending.logical_or_(begin)
+        self.pending.logical_and_(~complete)
+        physics.forward_selected(selected)

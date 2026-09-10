@@ -154,11 +154,10 @@ class GpuSemanticDuel:
             begin = output.begin_reset != 0
             begin_rows = begin.repeat_interleave(2)
             self.drive.begin_reset(begin_rows, live_controls)
-            self.physical_reset.begin(begin)
             self.completed_reset_in_tick.bitwise_or_(begin_rows.to(torch.uint8))
             complete = output.complete_reset != 0
             complete_rows = complete.repeat_interleave(2)
-            self.physical_reset.complete(complete)
+            self.physical_reset.after_substep(begin, complete)
             self.drive.complete_reset(complete_rows)
             self.robot_state.reset(complete_rows)
             self.scheduler.reset_rows(

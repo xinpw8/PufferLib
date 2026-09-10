@@ -3,6 +3,7 @@
 #include <nvtx3/nvToolsExt.h>
 #include <nvml.h>
 #include <nccl.h>
+#include <cstdint>
 #include <vector>
 
 #include <time.h>
@@ -240,7 +241,14 @@ struct EnvBuf {
 
 StaticVec* create_environments(int num_buffers, int total_agents,
         const std::string& env_name, Dict* vec_kwargs, Dict* env_kwargs, EnvBuf& env) {
-    StaticVec* vec = create_static_vec(total_agents, num_buffers, 1, vec_kwargs, env_kwargs);
+    DictItem* external_item = dict_get_unsafe(vec_kwargs, "external_gpu");
+    bool external_gpu = external_item != nullptr && external_item->value != 0.0;
+    StaticVec* vec = external_gpu
+        ? create_external_gpu_vec(total_agents, num_buffers, vec_kwargs)
+        : create_static_vec(total_agents, num_buffers, 1, vec_kwargs, env_kwargs);
+    if (vec == nullptr) {
+        throw std::runtime_error("failed to create CUDA environment buffers");
+    }
     env.obs = {
         .data = (decltype(env.obs.data))vec->gpu_observations,
         .shape = {total_agents, get_obs_size()},
@@ -279,6 +287,9 @@ typedef struct {
     float replay_ratio;
     long total_timesteps;
     float max_grad_norm;
+    // Positive values symmetrically clamp rewards before advantage estimation.
+    // Zero disables the legacy reward clamp.
+    float reward_clip;
     // PPO
     float clip_coef;
     float vf_clip_coef;
@@ -382,6 +393,9 @@ typedef struct {
     // worker thread only writes inside its own physical chunk.
     // Bank 0 = primary (learner). NULL = no layout set (primary owns full chunk).
     int* bank_layout;
+    bool external_rollout_active;
+    int external_rollout_next_step;
+    cudaStream_t external_rollout_stream;
 } PuffeRL;
 
 Dict* log_environments_impl(PuffeRL& pufferl) {
@@ -414,6 +428,86 @@ __global__ void rng_init(curandStatePhilox4_32_10_t* states, uint64_t seed, int 
     if (idx < n) {
         curand_init(seed, idx, 0, &states[idx]);
     }
+}
+
+__global__ void reset_recurrent_rows(
+        precision_t* state, const float* terminals,
+        int num_layers, int agents, int hidden_size) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int count = num_layers * agents * hidden_size;
+    if (index >= count) {
+        return;
+    }
+    int agent = (index / hidden_size) % agents;
+    if (terminals[agent] != 0.0f) {
+        state[index] = from_float(0.0f);
+    }
+}
+
+static void reset_external_terminal_states(PuffeRL& pufferl, cudaStream_t stream) {
+    int hidden = pufferl.hypers.hidden_size;
+    int layers = pufferl.hypers.num_layers;
+    PrecisionTensor& primary_state = pufferl.buffer_states[0];
+    int primary_agents = primary_state.shape[1];
+    int primary_count = layers * primary_agents * hidden;
+    reset_recurrent_rows<<<grid_size(primary_count), BLOCK_SIZE, 0, stream>>>(
+        primary_state.data, pufferl.env.terminals.data,
+        layers, primary_agents, hidden);
+
+    for (int bank_index = 0; bank_index < pufferl.num_frozen_banks; bank_index++) {
+        WeightBank& bank = pufferl.frozen_banks[bank_index];
+        PrecisionTensor& bank_state = bank.buffer_states[0];
+        int terminal_offset = pufferl.bank_layout == nullptr
+            ? 0 : pufferl.bank_layout[bank_index + 1];
+        int bank_count = bank.num_layers * bank.slice_size * bank.hidden_size;
+        reset_recurrent_rows<<<grid_size(bank_count), BLOCK_SIZE, 0, stream>>>(
+            bank_state.data, pufferl.env.terminals.data + terminal_offset,
+            bank.num_layers, bank.slice_size, bank.hidden_size);
+    }
+}
+
+__global__ void count_nonzero_recurrent_state_kernel(
+        const precision_t* state, int count, unsigned long long* result) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < count && to_float(state[index]) != 0.0f) {
+        atomicAdd(result, 1ULL);
+    }
+}
+
+uint64_t external_recurrent_state_nonzero_count(PuffeRL& pufferl) {
+    if (!pufferl.vec->external_gpu) {
+        throw std::runtime_error(
+            "recurrent-state inspection requires vec.external_gpu=1");
+    }
+    cudaStream_t stream = pufferl.default_stream;
+    unsigned long long* device_count = nullptr;
+    cudaMalloc(&device_count, sizeof(unsigned long long));
+    cudaMemsetAsync(device_count, 0, sizeof(unsigned long long), stream);
+    for (int buffer = 0; buffer < pufferl.hypers.num_buffers; buffer++) {
+        PrecisionTensor& state = pufferl.buffer_states[buffer];
+        int count = numel(state.shape);
+        count_nonzero_recurrent_state_kernel<<<
+            grid_size(count), BLOCK_SIZE, 0, stream>>>(
+            state.data, count, device_count);
+    }
+    for (int bank_index = 0;
+            bank_index < pufferl.num_frozen_banks; bank_index++) {
+        WeightBank& bank = pufferl.frozen_banks[bank_index];
+        for (int buffer = 0; buffer < pufferl.hypers.num_buffers; buffer++) {
+            PrecisionTensor& state = bank.buffer_states[buffer];
+            int count = numel(state.shape);
+            count_nonzero_recurrent_state_kernel<<<
+                grid_size(count), BLOCK_SIZE, 0, stream>>>(
+                state.data, count, device_count);
+        }
+    }
+    unsigned long long host_count = 0;
+    cudaMemcpyAsync(
+        &host_count, device_count, sizeof(host_count),
+        cudaMemcpyDeviceToHost, stream);
+    cudaStreamSynchronize(stream);
+    cudaFree(device_count);
+    return (uint64_t)host_count;
 }
 
 __device__ __forceinline__ float safe_logit(const precision_t* logits,
@@ -716,6 +810,99 @@ extern "C" void net_callback_wrapper(void* ctx, int buf, int t) {
         cudaDeviceSynchronize();
     }
     profile_end(hypers.profile);
+}
+
+void external_rollout_begin(PuffeRL& pufferl, cudaStream_t stream) {
+    if (!pufferl.vec->external_gpu) {
+        throw std::runtime_error(
+            "external_rollout_begin requires vec.external_gpu=1");
+    }
+    if (pufferl.external_rollout_active) {
+        throw std::runtime_error("external rollout is already active");
+    }
+    pufferl.external_rollout_active = true;
+    pufferl.external_rollout_next_step = 0;
+    pufferl.external_rollout_stream = stream;
+    pufferl.default_stream = stream;
+    if (pufferl.hypers.reset_state) {
+        for (int index = 0; index < pufferl.hypers.num_buffers; index++) {
+            puf_zero(&pufferl.buffer_states[index], stream);
+        }
+        for (int bank_index = 0;
+                bank_index < pufferl.num_frozen_banks; bank_index++) {
+            WeightBank& bank = pufferl.frozen_banks[bank_index];
+            for (int index = 0;
+                    index < pufferl.hypers.num_buffers; index++) {
+                puf_zero(&bank.buffer_states[index], stream);
+            }
+        }
+    }
+}
+
+void external_rollout_step(
+        PuffeRL& pufferl, int step, cudaStream_t stream) {
+    if (!pufferl.external_rollout_active) {
+        throw std::runtime_error("external rollout has not begun");
+    }
+    if (stream != pufferl.external_rollout_stream) {
+        throw std::runtime_error("external rollout CUDA stream changed mid-horizon");
+    }
+    if (step != pufferl.external_rollout_next_step
+            || step < 0 || step >= pufferl.hypers.horizon) {
+        throw std::runtime_error("external rollout step is out of sequence");
+    }
+    reset_external_terminal_states(pufferl, stream);
+    tl_stream = stream;
+    net_callback_wrapper(&pufferl, 0, step);
+    pufferl.external_rollout_next_step++;
+}
+
+__global__ void external_actions_to_int32_kernel(
+        const float* source, int32_t* destination, int count) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < count) {
+        destination[index] = (int32_t)source[index];
+    }
+}
+
+void external_actions_to_int32(
+        PuffeRL& pufferl, int32_t* destination, cudaStream_t stream) {
+    if (!pufferl.external_rollout_active) {
+        throw std::runtime_error("external rollout has not begun");
+    }
+    if (stream != pufferl.external_rollout_stream) {
+        throw std::runtime_error("external rollout CUDA stream changed mid-horizon");
+    }
+    if (destination == nullptr) {
+        throw std::runtime_error("external integer action buffer is null");
+    }
+    int count = numel(pufferl.env.actions.shape);
+    external_actions_to_int32_kernel<<<
+        grid_size(count), BLOCK_SIZE, 0, stream>>>(
+        pufferl.env.actions.data, destination, count);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::runtime_error(
+            std::string("external action conversion launch failed: ")
+            + cudaGetErrorString(error));
+    }
+}
+
+void external_rollout_finish(PuffeRL& pufferl, cudaStream_t stream) {
+    if (!pufferl.external_rollout_active) {
+        throw std::runtime_error("external rollout has not begun");
+    }
+    if (stream != pufferl.external_rollout_stream) {
+        throw std::runtime_error("external rollout CUDA stream changed mid-horizon");
+    }
+    if (pufferl.external_rollout_next_step != pufferl.hypers.horizon) {
+        throw std::runtime_error("external rollout ended before its horizon");
+    }
+    pufferl.global_step +=
+        pufferl.hypers.horizon * pufferl.hypers.total_agents;
+    pufferl.external_rollout_active = false;
+    pufferl.external_rollout_next_step = 0;
+    pufferl.external_rollout_stream = nullptr;
 }
 
 
@@ -1526,9 +1713,11 @@ void train_impl(PuffeRL& pufferl) {
             rollouts.action_mask.data, src.action_mask.data, T, B, mask_size);
     }
 
-    // We hard-clamp rewards to -1, 1. Our envs are mostly designed to respect this range
-    clamp_precision_kernel<<<grid_size(numel(rollouts.rewards.shape)), BLOCK_SIZE, 0, train_stream>>>(
-        rollouts.rewards.data, -1.0f, 1.0f, numel(rollouts.rewards.shape));
+    if (hypers.reward_clip > 0.0f) {
+        clamp_precision_kernel<<<grid_size(numel(rollouts.rewards.shape)), BLOCK_SIZE, 0, train_stream>>>(
+            rollouts.rewards.data, -hypers.reward_clip, hypers.reward_clip,
+            numel(rollouts.rewards.shape));
+    }
 
     // Set importance weights to 1.0
     fill_precision_kernel<<<grid_size(numel(rollouts.ratio.shape)), BLOCK_SIZE, 0, train_stream>>>(
@@ -2198,9 +2387,28 @@ std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
         }
     }
 
-    create_static_threads(vec, hypers.num_threads, horizon, pufferl.get(),
-        net_callback_wrapper, thread_init_wrapper);
-    static_vec_reset(vec);
+    // Init-time CUDA graph warmup advances recurrent state. External GPU
+    // callers can legitimately preserve state across horizons, so their first
+    // real rollout must still begin from the documented zero state.
+    if (vec->external_gpu) {
+        for (int buffer = 0; buffer < hypers.num_buffers; buffer++) {
+            puf_zero(&pufferl->buffer_states[buffer], pufferl->default_stream);
+        }
+        for (int bank_index = 0;
+                bank_index < pufferl->num_frozen_banks; bank_index++) {
+            WeightBank& bank = pufferl->frozen_banks[bank_index];
+            for (int buffer = 0; buffer < hypers.num_buffers; buffer++) {
+                puf_zero(&bank.buffer_states[buffer], pufferl->default_stream);
+            }
+        }
+        cudaStreamSynchronize(pufferl->default_stream);
+    }
+
+    if (!vec->external_gpu) {
+        create_static_threads(vec, hypers.num_threads, horizon, pufferl.get(),
+            net_callback_wrapper, thread_init_wrapper);
+        static_vec_reset(vec);
+    }
 
     if (hypers.profile) {
         cudaDeviceSynchronize();
