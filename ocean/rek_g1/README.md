@@ -71,6 +71,18 @@ dummy, illustrate the current performance limitation:
 | CUDA simulation, matched initial weights and rollout settings | 4 | 4,096 | 126.05 | 252.10 |
 | CUDA simulation training smoke | 128 | 8,192 | 2,260.60 | 4,521.20 |
 
+After the loop-boundary correction, matched 131,072-learner-step runs measured
+1,926.12 learner SPS at 128 arenas and 3,152.39 at 512 arenas (68.05 s versus
+41.58 s). Both used the same initial policy, horizon 64, minibatch 4,096,
+scripted opponent, unmodified physics settings and original native CUDA
+learner backend. Four times the arena count yielded 1.63665 times throughput.
+The larger controller bundle passed exact CPU-ORT batch equivalence checks.
+Per-arena simulated duration differs at a fixed total sample budget, so these
+runs do not compare policy quality. Neither completed a round. CPU physics and
+controller execution counts were zero; host submission still consumed about
+92% of one CPU core. The rollout occupied 99.8% of the measured CUDA stream
+envelope, with PPO updates accounting for 0.13 to 0.20%.
+
 The 128-arena run covers only 1.28 simulated seconds per arena. It is a
 throughput/training smoke test, with no completed rounds. A separate 50-tick
 environment component profile attributed 71.30% of its CUDA stream interval
@@ -80,11 +92,35 @@ intervals, not hardware kernel-utilization percentages or an end-to-end PPO
 breakdown. The runtime still simulates both articulated bodies at 500 Hz;
 placing this workload on CUDA does not make it a lightweight semantic simulator.
 
+A separate exclusive Nsight Systems capture of ten 128-arena control ticks
+recorded 104,522 kernels and 4,190 device-to-device copies. There were no
+host-to-device or device-to-host copies in the measured range. Kernels were
+active during 84.31% of the 559.31 ms range; any GPU work was active during
+86.80%. This measures activity, not SM occupancy or arithmetic utilization.
+On the host, CUDA runtime calls covered 99.43% of the range on one thread:
+30 graph launches took 444.96 ms and the final synchronization took 110.27 ms.
+These host intervals overlap GPU work and cannot be added to it. The trace
+localizes host cost to driver submission/backpressure and synchronization;
+it does not separate driver spinning from other driver work. Instrumentation
+changes timing, so these values are not an uninstrumented SPS benchmark.
+A cleaned five-tick component smoke separately measured 31.11% physics step,
+34.81% reset-state forward refresh, and 22.25% combat work in its instrumented
+graph interval. The reset refresh currently runs even with an empty reset mask.
+An experimental conditional skip was excluded because its mixed-reset
+additional-error bound exceeded measured baseline repeat variation. No solver
+tolerances or iteration limits were reduced. A whole-horizon capture prototype
+was also excluded after CUDA rejected executable graph nesting. Both failed
+experiments remain archived outside the working source tree.
+
 The longer requested 1,572,864-learner-step run failed a native motion scheduler
 check with status 311 after its last successful 393,216-step progress report.
 Its roughly 1,916 learner SPS was an intermediate measurement, not a completed
 training result. No final policy or completed-run report was produced for that
 attempt. The short completed measurements above remain separate results.
+An independently reproduced reverse-loop frame-boundary bug that can produce
+311 has since been corrected and tested on CPU and CUDA. Its connection to the
+original training incident is unconfirmed: a synchronized rerun passed 589,824
+steps before being deliberately interrupted, preserving its periodic weights.
 
 Training now saves policy-only checkpoints every 16 epochs by default after a
 successful status check (`--checkpoint-every 0` disables this). These do not
@@ -99,6 +135,8 @@ facing within 30 degrees, and horizontal root separation in metre bins. Facing
 and range are sampled after each control step. Points include referee awards;
 arena hit counts do not identify which player scored. Training statistics alone
 do not establish an improvement over a frozen initial policy or a human.
+Attributed-contact counts mean knockdown-attribution-qualified contacts;
+scoring uses a separate filter, so scored hits can exceed attributed contacts.
 
 The GPU loader performs the same per-clip heading normalization as
 `g1_semantic_assets.c`. Active actuator controls use the native joint-limit

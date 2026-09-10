@@ -154,6 +154,7 @@ class GpuBehaviorMetricCollector:
             "limits": [
                 "Points include referee awards and are not scored-hit counts.",
                 "Scored-hit and contact metadata are arena totals; learner attribution is unavailable.",
+                "Attributed contacts qualify for knockdown attribution; scoring is independent and scored hits may exceed attributed contacts.",
                 "Discrete starts are sampled native move_start_edge flags; input requests are counted separately.",
                 "Completed rounds are not full best-of-three fights or human-performance comparisons.",
             ],

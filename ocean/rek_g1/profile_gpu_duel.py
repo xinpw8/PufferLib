@@ -106,7 +106,8 @@ class ComponentEventProfiler:
     """Insert external event nodes around leaf operations in one CUDA graph."""
 
     METHODS = {
-        "physics_step_and_forward": (("physics", "step"), ("physics", "forward")),
+        "physics_step": (("physics", "step"),),
+        "reset_forward_selected": (("physics", "forward_selected"),),
         "controller_inference": (("controller", "encode"), ("controller", "decode")),
         "semantic_motion": (("scheduler", "pre_step"), ("scheduler", "post_step"), ("scheduler", "reset_rows")),
         "combat_measurement_and_referee": (
@@ -236,6 +237,7 @@ def profile(args):
         raise FileExistsError(args.output)
     if args.steps < 1 or args.steps > 500:
         raise ValueError("bounded profiling requires 1 to 500 control steps")
+    nsight_range_only = getattr(args, "nsight_range_only", False)
     duel = GpuSemanticDuel(load_config(args.gpu_duel_config))
     duel.capture_step()
     wrapper = GpuCandidateDummyDuel(duel)
@@ -252,23 +254,29 @@ def profile(args):
             step()
         wrapper.reset()
         torch.cuda.synchronize(duel.actions.device)
+        if nsight_range_only:
+            torch.cuda.nvtx.range_push("rek_baseline_rollout")
         started, cpu_started = time.perf_counter(), time.process_time()
         for _ in range(args.steps):
             step()
         torch.cuda.synchronize(duel.actions.device)
         wall = time.perf_counter() - started
         cpu = time.process_time() - cpu_started
+        if nsight_range_only:
+            torch.cuda.nvtx.range_pop()
         baseline_metrics = wrapper.behavior_metrics.snapshot(clear=False)
-        instrumentation = ComponentEventProfiler(duel)
-        try:
-            duel.capture_step()
-            wrapper.reset()
-            for _ in range(args.steps):
-                step()
-                instrumentation.sample()
-            components = instrumentation.snapshot()
-        finally:
-            instrumentation.restore()
+        components = None
+        if not nsight_range_only:
+            instrumentation = ComponentEventProfiler(duel)
+            try:
+                duel.capture_step()
+                wrapper.reset()
+                for _ in range(args.steps):
+                    step()
+                    instrumentation.sample()
+                components = instrumentation.snapshot()
+            finally:
+                instrumentation.restore()
         duel.check_status()
         wrapper.dummy.check_status()
         report = {
@@ -277,7 +285,9 @@ def profile(args):
             "config_path": str(args.gpu_duel_config),
             "config_sha256": hashlib.sha256(args.gpu_duel_config.read_bytes()).hexdigest(),
             "scenario": "neutral learner versus human-evaluator candidate approach dummy",
-            "uninstrumented_baseline": {
+            "nsight_capture_range": "rek_baseline_rollout" if nsight_range_only else None,
+            "external_profiler_capture_requested": nsight_range_only,
+            ("external_profiler_baseline" if nsight_range_only else "uninstrumented_baseline"): {
                 "control_ticks": args.steps, "learner_rows": wrapper.rows,
                 "simulated_fighter_rows": duel.rows,
                 "learner_control_steps_per_second": wrapper.rows * args.steps / wall,
@@ -304,6 +314,7 @@ def main():
     parser.add_argument("--gpu-duel-config", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--steps", type=int, default=50)
+    parser.add_argument("--nsight-range-only", action="store_true")
     profile(parser.parse_args())
 
 
