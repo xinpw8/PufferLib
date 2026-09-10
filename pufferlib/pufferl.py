@@ -301,9 +301,6 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
         if verbose:
             print_dashboard(args, model_size, flat_logs)
 
-        if target_key not in flat_logs and not league_mode:
-            continue
-
         if args['wandb'] and artifact_owner:
             wandb.log(flat_logs, step=flat_logs['agent_steps'])
 
@@ -312,10 +309,11 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
 
             if (sweep_obj is not None
                     and not league_mode
+                    and target_key in flat_logs
                     and pufferl.global_step > min(0.20*total_timesteps, 100_000_000) and
                     sweep_obj.early_stop(flat_logs, target_key)):
                 break
-        elif flat_logs['env/n'] > args['eval_episodes']:
+        elif flat_logs.get('env/n', 0) > args['eval_episodes']:
             break
 
 
@@ -333,11 +331,6 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
 
     backend.close(pufferl)
 
-    if target_key not in flat_logs and not league_mode:
-        if artifact_owner and result_queue is not None:
-            result_queue.put((args['gpu_id'], None, None, None))
-        return
-
     if not artifact_owner:
         return
 
@@ -347,7 +340,7 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
     # Downsample results. Log keys can appear late, e.g. env/perf only after
     # eval epochs. For downsample=1, keep exactly the final point.
     n = args['sweep']['downsample']
-    if n <= 1:
+    if not all_logs[-1] or n <= 1:
         metrics = {k: [v] for k, v in all_logs[-1].items()}
     else:
         def _reduce(values):
@@ -403,7 +396,12 @@ def _train(env_name, args, sweep_obj=None, result_queue=None, verbose=False):
 
         wandb.run.finish()
 
-    if artifact_owner and result_queue is not None:
+    if target_key not in metrics:
+        if sweep_obj is not None or result_queue is not None:
+            print(f'WARNING: sweep metric {target_key!r} was not reported; trial has no score')
+        if result_queue is not None:
+            result_queue.put((args['gpu_id'], [], [], []))
+    elif result_queue is not None:
         result_queue.put((args['gpu_id'], metrics[target_key], metrics['uptime'], metrics['agent_steps']))
 
 

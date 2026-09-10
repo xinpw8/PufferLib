@@ -1,4 +1,5 @@
 #include "g1_mujoco_feature_registry.h"
+#include "g1_combat_metrics.h"
 #include "g1_model_identity.h"
 #include "g1_model_identity_generated.h"
 #include "g1_semantic_action_table.h"
@@ -54,10 +55,7 @@ static const RekG1ModelIdentityContract COMPILED_MODEL_IDENTITY = {
     },
 };
 
-typedef struct Log {
-    float semantic_steps;
-    float n;
-} Log;
+typedef RekG1CombatMetricLog Log;
 
 typedef struct RekG1SemanticVectorContext {
     RekG1SemanticAssets assets;
@@ -66,6 +64,7 @@ typedef struct RekG1SemanticVectorContext {
     RekG1SemanticDuelRuntime semantic_runtime;
     RekG1NativePufferVector puffer;
     RekG1SemanticActionTableStorage action_table;
+    RekG1CombatMetricAccumulator* combat_metrics;
     size_t robot_count;
     uint64_t semantic_steps;
     uint8_t assets_open;
@@ -178,6 +177,8 @@ static void close_context(RekG1SemanticVectorContext* context) {
         rek_g1_semantic_assets_close(&context->assets);
         context->assets_open = 0u;
     }
+    free(context->combat_metrics);
+    context->combat_metrics = NULL;
 }
 
 /*
@@ -232,6 +233,35 @@ static RekG1SemanticVectorContext* vector_context(StaticVec* vector) {
     return context;
 }
 
+static void record_completed_round_metrics(
+        StaticVec* vector,
+        RekG1SemanticVectorContext* context) {
+    Env* environments = vector->envs;
+    const size_t arena_count = context->robot_count / GEAR_SONIC_DUEL_FIGHTERS;
+    for (size_t arena = 0u; arena < arena_count; arena++) {
+        RekG1CombatMetricLog completed = {0};
+        const RekG1SemanticDuelRuntime* runtime = &context->semantic_runtime;
+        if (!rek_g1_combat_metrics_record_step(
+                &context->combat_metrics[arena],
+                &runtime->combat_states[arena].fight,
+                runtime->scored_contact_counts[arena],
+                runtime->attributed_contact_counts[arena],
+                REK_G1_SEMANTIC_DUEL_CONTROL_DELTA_SECONDS,
+                runtime->arena_terminals[arena],
+                &completed)) {
+            rek_g1_binding_fail(
+                "record REK G1 combat metrics", "metric state rejected");
+        }
+        if (completed.n != 0.0f
+                && !rek_g1_combat_metrics_merge_completed(
+                    &environments[arena * GEAR_SONIC_DUEL_FIGHTERS].log,
+                    &completed)) {
+            rek_g1_binding_fail(
+                "record REK G1 combat metrics", "completed log overflow");
+        }
+    }
+}
+
 void rek_g1_vec_reset(StaticVec* vector) {
     RekG1SemanticVectorContext* context = vector_context(vector);
     context->error[0] = '\0';
@@ -243,6 +273,11 @@ void rek_g1_vec_reset(StaticVec* vector) {
     if (status != REK_G1_NATIVE_PUFFER_OK) {
         rek_g1_binding_fail("reset REK G1 semantic vector", context->error);
     }
+    const size_t arena_count = context->robot_count / GEAR_SONIC_DUEL_FIGHTERS;
+    memset(
+        context->combat_metrics,
+        0,
+        arena_count * sizeof(*context->combat_metrics));
     context->semantic_steps = 0u;
 }
 
@@ -257,6 +292,7 @@ void rek_g1_vec_step(StaticVec* vector) {
     if (status != REK_G1_NATIVE_PUFFER_OK) {
         rek_g1_binding_fail("step REK G1 semantic vector", context->error);
     }
+    record_completed_round_metrics(vector, context);
     context->semantic_steps += 1u;
 }
 
@@ -366,10 +402,20 @@ Env* my_vec_init(
         rek_g1_binding_fail("initialize REK G1 semantic vector", "allocation failed");
     }
     context->robot_count = total_agents;
+    context->combat_metrics = calloc(
+        (size_t)total_agents / GEAR_SONIC_DUEL_FIGHTERS,
+        sizeof(*context->combat_metrics));
+    if (context->combat_metrics == NULL) {
+        free(environments);
+        free(context);
+        rek_g1_binding_fail(
+            "initialize REK G1 combat metrics", "allocation failed");
+    }
 
     RekG1PufferStatus table_status = rek_g1_semantic_action_table_init(
         &context->action_table, locomotion_segment_ticks, move_ticks);
     if (table_status != REK_G1_PUFFER_OK) {
+        close_context(context);
         free(environments);
         free(context);
         rek_g1_binding_fail("initialize semantic action table", "table rejected");
@@ -384,6 +430,7 @@ Env* my_vec_init(
     if (asset_status != REK_G1_SEMANTIC_ASSETS_OK) {
         char error_copy[REK_G1_ERROR_CAPACITY];
         (void)snprintf(error_copy, sizeof(error_copy), "%s", context->error);
+        close_context(context);
         free(environments);
         free(context);
         rek_g1_binding_fail("load REK G1 semantic assets", error_copy);
@@ -577,8 +624,29 @@ void my_init(Env* environment, Dict* kwargs) {
 
 void my_log(Log* log, Dict* output) {
     if (log == NULL || output == NULL) return;
-    dict_set(output, "semantic_steps", log->semantic_steps);
-    dict_set(output, "n", log->n);
+    dict_set(output, "side0_round_win_rate", log->side0_round_win_rate);
+    dict_set(output, "side1_round_win_rate", log->side1_round_win_rate);
+    dict_set(output, "round_tie_rate", log->round_tie_rate);
+    dict_set(output, "round_redo_result_rate", log->round_redo_result_rate);
+    dict_set(output, "redo_round_rate", log->redo_round_rate);
+    dict_set(output, "ko_round_rate", log->ko_round_rate);
+    dict_set(output, "side0_points_per_round", log->side0_points_per_round);
+    dict_set(output, "side1_points_per_round", log->side1_points_per_round);
+    dict_set(output, "side0_falls_per_round", log->side0_falls_per_round);
+    dict_set(output, "side1_falls_per_round", log->side1_falls_per_round);
+    dict_set(output, "scored_hits_per_round", log->scored_hits_per_round);
+    dict_set(
+        output,
+        "attributed_contacts_per_round",
+        log->attributed_contacts_per_round);
+    dict_set(
+        output,
+        "elapsed_seconds_per_round",
+        log->elapsed_seconds_per_round);
+    dict_set(
+        output,
+        "semantic_steps_per_round",
+        log->semantic_steps_per_round);
 }
 
 void c_reset(Env* environment) {

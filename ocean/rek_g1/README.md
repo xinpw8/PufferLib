@@ -63,6 +63,41 @@ before timing parity is accepted. Staged
 actuator gains are inputs to the 0.1 retention rule. They are not represented
 as measurements of the current service's live gain table.
 
+## Completed-round metrics
+
+The Puffer episode boundary is the recovered round-end event, not the end of a
+Best-of-3 fight. The following user statistics are published once per completed
+arena round from its side-0 row. Publishing both fighter rows would make every
+decisive self-play round appear to have a pooled 50 percent win rate. `n` is
+therefore the number of completed rounds, and each reported value is averaged
+over those rounds:
+
+* `side0_round_win_rate` and `side1_round_win_rate` use the terminal
+  `round_winner_index`;
+* `round_tie_rate` records terminal `round_result=3`, while
+  `round_redo_result_rate` records `round_result=4` and `redo_round_rate`
+  records that the completed round itself started as a redo. These are separate
+  states and none is treated as a win or loss. The current state machine does
+  not emit result 4, so that diagnostic remains zero for current-runtime runs;
+* `side0_points_per_round`, `side1_points_per_round`,
+  `side0_falls_per_round`, and `side1_falls_per_round` are the terminal round
+  state;
+* `scored_hits_per_round` counts arena contacts accepted by every scoring gate,
+  and `attributed_contacts_per_round` counts the independent aggressor-strike
+  attribution gate;
+* `elapsed_seconds_per_round` and `semantic_steps_per_round` measure the 50 Hz
+  Puffer episode through its terminal control step;
+* `ko_round_rate` records the terminal `knockout_occurred` flag, including a
+  double-KO tie.
+
+Points are not hit counts. One accepted hand hit awards one point, one accepted
+kick awards two, and referee outcomes can award three or five points without a
+scored hit. The runtime exposes accepted-hit and attributed-contact counts only
+for the complete arena, so the metrics do not invent per-fighter hit counts.
+Likewise, no fight-win statistic is emitted: the current Puffer reset starts a
+new round-one fight after every round terminal, before a multi-round fight
+winner can be measured.
+
 ## Asset and authority boundary
 
 `g1_semantic_assets.c` accepts only the generated semantic bundle whose model,
