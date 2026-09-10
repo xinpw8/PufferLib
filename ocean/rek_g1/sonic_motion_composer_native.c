@@ -329,6 +329,12 @@ static REK_G1_FN SonicMotionComposerNativeStatus wrap_loop_cursor(
         layer->cursor = next;
         *wrapped = 1;
     }
+    /* Adding a tiny negative cursor to the binary32 span can round to the
+     * exclusive upper endpoint. That endpoint denotes the loop start. */
+    if (layer->cursor >= upper_exclusive) {
+        layer->cursor = (float)layer->start_frame;
+        *wrapped = 1;
+    }
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 
@@ -358,6 +364,11 @@ static REK_G1_FN SonicMotionComposerNativeStatus wrapped_cursor(
         remainder = f32_add(remainder, span_f);
     }
     *result = f32_add((float)layer->start_frame, remainder);
+    /* Preserve the half-open interval even when remainder + span rounded up.
+     * Otherwise resolve_frames_impl can produce f0 == clip.frame_count. */
+    if (*result >= (float)(layer->end_frame + 1)) {
+        *result = (float)layer->start_frame;
+    }
     return SONIC_MOTION_COMPOSER_NATIVE_OK;
 }
 

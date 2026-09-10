@@ -587,6 +587,38 @@ static int test_float_environment_guard(void) {
     return 1;
 }
 
+static int test_match_entry_rounded_upper_boundary(void) {
+    TestClipStorage outgoing_storage, target_storage;
+    SonicMotionComposerNativeLayer outgoing, target;
+    SonicMotionEntryMatcherNativeFeatureSlot slots[2];
+    SonicMotionEntryMatcherNative matcher;
+    float outgoing_features[TEST_FRAMES * 6] = {0};
+    float target_features[TEST_FRAMES * 6];
+    float matched = -1.0f;
+    CHECK(setup_layers(&outgoing_storage, &target_storage, &outgoing, &target));
+    for (int i = 0; i < TEST_FRAMES * 6; ++i) target_features[i] = 1.0f;
+    memset(target_features + 6, 0, 6 * sizeof(float));
+    outgoing.config.blend_out_seconds = target.config.blend_in_seconds = 0.08f;
+    target.start_frame = 0;
+    target.end_frame = TEST_FRAMES - 1;
+    target.config.loop = 1;
+    target.per_tick = nextafterf(0.5f, 1.0f);
+    CHECK_STATUS(sonic_motion_entry_matcher_native_init(&matcher, 50, slots, 2),
+        SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK);
+    CHECK_STATUS(sonic_motion_entry_matcher_native_register(
+        &matcher, &outgoing_storage.clip, outgoing_features, TEST_FRAMES * 6),
+        SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK);
+    CHECK_STATUS(sonic_motion_entry_matcher_native_register(
+        &matcher, &target_storage.clip, target_features, TEST_FRAMES * 6),
+        SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK);
+    CHECK_STATUS(sonic_motion_entry_matcher_native_match(
+        &matcher, &target, &outgoing, &matched), SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK);
+    CHECK(matcher.diagnostics.target_best_frame == 1);
+    CHECK(same_float(matcher.diagnostics.transition_center_ticks, 2.0f));
+    CHECK(same_float(matched, 0.0f));
+    return 1;
+}
+
 int main(void) {
     CHECK(test_make_and_sample());
     CHECK(test_clip_view_and_bake());
@@ -594,6 +626,7 @@ int main(void) {
     CHECK(test_mirror_tie_and_nonloop_clamp());
     CHECK(test_distance_operation_order_and_saturation());
     CHECK(test_composer_callback_integration());
+    CHECK(test_match_entry_rounded_upper_boundary());
     CHECK(test_float_environment_guard());
     puts("sonic_motion_entry_matcher_native: all checks passed");
     return 0;

@@ -394,6 +394,37 @@ static int test_loop_wrap_and_weight_bits(void) {
     return 1;
 }
 
+static int test_reverse_loop_rounded_upper_boundary(void) {
+    TestClipStorage storage;
+    SonicMotionComposerNative composer;
+    SonicMotionComposerNativeResolvedFrames frames;
+    SonicMotionComposerNativeAdvanceResult advance;
+    init_test_clip(&storage, TEST_FRAMES, 50.0f);
+    CHECK_STATUS(sonic_motion_composer_native_init(&composer, 50, NULL),
+        SONIC_MOTION_COMPOSER_NATIVE_OK);
+    SonicMotionComposerNativeConfig config = make_config(
+        0, 1, -0.5f, 0, TEST_FRAMES - 1, 0.1f, 0.1f, 0.0f);
+    CHECK_STATUS(sonic_motion_composer_native_play_action(
+        &composer, &storage.clip, &config), SONIC_MOTION_COMPOSER_NATIVE_OK);
+    composer.current_layer.cursor = nextafterf(0.5f, 0.0f);
+    CHECK_STATUS(sonic_motion_composer_native_resolve_frames(
+        &composer.current_layer, 1, &frames), SONIC_MOTION_COMPOSER_NATIVE_OK);
+    CHECK(frames.f0 == 0 && frames.f1 == 1 && same_float(frames.t, 0.0f));
+    CHECK_STATUS(sonic_motion_composer_native_advance(&composer, &advance),
+        SONIC_MOTION_COMPOSER_NATIVE_OK);
+    CHECK(advance.current.wrapped);
+    CHECK(same_float(composer.current_layer.cursor, 0.0f));
+
+    /* The same rounding occurs at a nonzero authored start frame. */
+    composer.current_layer.start_frame = 2;
+    composer.current_layer.config.start_frame = 2;
+    composer.current_layer.cursor = nextafterf(2.5f, 2.0f);
+    CHECK_STATUS(sonic_motion_composer_native_resolve_frames(
+        &composer.current_layer, 1, &frames), SONIC_MOTION_COMPOSER_NATIVE_OK);
+    CHECK(frames.f0 == 2 && frames.f1 == 3 && same_float(frames.t, 0.0f));
+    return 1;
+}
+
 static int test_reference_fixture_values(void) {
     ReferenceFixture fixture;
     CHECK(setup_reference_fixture(&fixture));
@@ -760,6 +791,7 @@ static int test_nondefault_rounding_mode_fails_closed(void) {
 static int run_all_tests(void) {
     CHECK(test_install_resolve_and_completion());
     CHECK(test_loop_wrap_and_weight_bits());
+    CHECK(test_reverse_loop_rounded_upper_boundary());
     CHECK(test_reference_fixture_values());
     CHECK(test_fractional_and_explicit_reference_timing());
     CHECK(test_fail_closed_backends_and_atomic_output());

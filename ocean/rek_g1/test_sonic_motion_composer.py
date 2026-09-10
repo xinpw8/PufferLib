@@ -137,6 +137,17 @@ class SonicMotionComposerTests(unittest.TestCase):
         self.assertEqual(composer.resolve_frames(layer, 1), (2, 3, 0.75))
         self.assertEqual(composer.resolve_frames(layer, -4), (3, 4, 0.75))
 
+    def test_reverse_loop_rounding_preserves_half_open_interval(self):
+        for start, cursor in ((0, 0.4999999701976776), (2, 2.499999761581421)):
+            with self.subTest(start=start):
+                layer = composer.Layer(
+                    clip=composer.NpzClip(frame_count=10, fps=50.0),
+                    active=True, loop=True, per_tick=-0.5,
+                    cursor=cursor, start_frame=start, end_frame=9)
+                self.assertEqual(composer.resolve_frames(layer, 1), (start, start + 1, 0.0))
+                self.assertEqual(composer.advance_layer(layer), (True, False))
+                self.assertEqual(layer.cursor, float(start))
+
     def test_advance_wraps_loop_cursor(self):
         layer = composer.Layer(
             clip=composer.NpzClip(frame_count=5, fps=50.0),

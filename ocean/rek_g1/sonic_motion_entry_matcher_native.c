@@ -241,6 +241,11 @@ static REK_G1_FN SonicMotionEntryMatcherNativeStatus wrap_cursor(
             remainder = f32_add(remainder, span_f);
         }
         *result = f32_add(start, remainder);
+        /* Float32 addition can round a negative near-zero remainder to the
+         * exclusive upper endpoint. Canonical loop cursors remain half-open. */
+        if (*result >= f32_from_i32(layer->end_frame + 1)) {
+            *result = start;
+        }
     }
     return SONIC_MOTION_ENTRY_MATCHER_NATIVE_OK;
 }

@@ -287,7 +287,7 @@ def install_contract_clip(
 
 
 def wrap_loop_cursor(layer: Layer) -> bool:
-    """Mutate a loop cursor into the inclusive native frame interval."""
+    """Mutate a loop cursor into the half-open interval ending at end + 1."""
 
     span = layer.end_frame - layer.start_frame + 1
     if span <= 0:
@@ -301,6 +301,9 @@ def wrap_loop_cursor(layer: Layer) -> bool:
     while layer.cursor < float(layer.start_frame):
         layer.cursor = _f32(layer.cursor + span_f)
         wrapped = True
+    if layer.cursor >= upper_exclusive:
+        layer.cursor = float(layer.start_frame)
+        wrapped = True
     return wrapped
 
 
@@ -312,7 +315,12 @@ def _wrapped_cursor(layer: Layer, cursor: float) -> float:
     remainder = _f32(math.fmod(delta, _f32(span)))
     if remainder < 0.0:
         remainder = _f32(remainder + _f32(span))
-    return _f32(_f32(layer.start_frame) + remainder)
+    result = _f32(_f32(layer.start_frame) + remainder)
+    # Match the native bounds correction when binary32 addition rounds up to
+    # end + 1. This is a candidate safety correction, not measured REK parity.
+    if result >= float(layer.end_frame + 1):
+        result = float(layer.start_frame)
+    return result
 
 
 def resolve_frames(layer: Layer, frames_ahead: int = 0) -> ResolvedFrames:
