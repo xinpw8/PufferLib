@@ -43,6 +43,32 @@ Native shared-policy self-play statistics do not measure superiority to a
 human or a frozen opponent. Fighter rows are interleaved within arenas, so a
 contiguous frozen-policy bank split alone is not an opponent evaluation.
 
+`train_gpu_duel.py --opponent candidate-dummy` instead trains each even player
+row against the human evaluator's fixed `CandidateApproachDummy` on the odd
+row. Its approach, facing, range thresholds and 16-move cycle are unchanged;
+this opponent is not authentic REK Bot 1. The CUDA implementation is compared
+directly with the original Python decisions. Opponent samples never enter PPO.
+`--total-agents` remains the physical fighter count, so 256 fighters produce
+128 learners. Reports distinguish learner SPS from physical fighter SPS.
+
+`benchmark_cpu_dummy.py` is the explicitly labeled CPU reference benchmark:
+native CPU simulation and Sonic inference, the same scripted opponent, and
+native CUDA Puffer learning. Its per-step downloads/uploads and worker IPC are
+intentional baseline costs, not part of the production CUDA environment.
+`profile_gpu_duel.py` separately measures an uninstrumented environment run and
+an instrumented CUDA graph. Training phase intervals and graph component
+intervals have different denominators; host and GPU durations overlap and must
+not be added. Physics, controller, opponent decisions and metric accumulation
+stay on CUDA in the production path. Host launches and report/checkpoint I/O
+still use the CPU.
+
+Fixed-opponent reports include action-category counts, native discrete-move
+starts, completed-round wins and points, arena scored contacts, active-round
+facing within 30 degrees, and horizontal root separation in metre bins. Facing
+and range are sampled after each control step. Points include referee awards;
+arena hit counts do not identify which player scored. Training statistics alone
+do not establish an improvement over a frozen initial policy or a human.
+
 The GPU loader performs the same per-clip heading normalization as
 `g1_semantic_assets.c`. Active actuator controls use the native joint-limit
 clamp without clipping filter history or retained fall/reset controls. The

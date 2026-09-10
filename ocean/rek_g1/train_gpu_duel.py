@@ -13,8 +13,9 @@ import time
 
 import torch
 
-from gpu_native_puffer import create_rek_g1_native_puffer
+from gpu_native_puffer import NativeExternalGpuPuffer, create_rek_g1_native_puffer
 from gpu_semantic_duel import GpuSemanticDuel
+from profile_gpu_duel import TrainingPhaseTimer
 from verify_gpu_duel import load_config as load_gpu_duel_config
 
 
@@ -76,7 +77,11 @@ def train(args: argparse.Namespace) -> dict:
     total_agents = args.total_agents or int(native_args["vec"]["total_agents"])
     if total_agents <= 0 or total_agents % 2:
         raise ValueError("total_agents must be a positive even fighter count")
-    batch_steps = total_agents * args.horizon
+    opponent = getattr(args, "opponent", "self-play")
+    if opponent not in ("self-play", "candidate-dummy"):
+        raise ValueError("unknown opponent")
+    learning_agents = total_agents // 2 if opponent == "candidate-dummy" else total_agents
+    batch_steps = learning_agents * args.horizon
     if args.total_timesteps % batch_steps:
         raise ValueError(
             f"total_timesteps must be divisible by agents*horizon={batch_steps}"
@@ -87,7 +92,7 @@ def train(args: argparse.Namespace) -> dict:
             "minibatch_size must be divisible by horizon and no larger than one rollout"
         )
 
-    native_args["vec"]["total_agents"] = total_agents
+    native_args["vec"]["total_agents"] = learning_agents
     native_args["vec"]["num_buffers"] = 1
     native_args["vec"]["num_threads"] = 0
     native_args["train"]["total_timesteps"] = args.total_timesteps
@@ -110,11 +115,33 @@ def train(args: argparse.Namespace) -> dict:
             f"total_agents={total_agents} does not match GPU duel rows={environment.rows}"
         )
     environment.capture_step()
-    trainer = create_rek_g1_native_puffer(
-        native_args,
-        environment,
-        reward_clip=args.reward_clip,
-    )
+    if opponent == "candidate-dummy":
+        from gpu_candidate_dummy import DUMMY_LABEL, GpuCandidateDummyDuel
+        from gpu_puffer_env import CudaTensorEnvAdapter
+
+        candidate_environment = GpuCandidateDummyDuel(environment)
+        adapter = CudaTensorEnvAdapter(
+            candidate_environment, (33,),
+            metric_plugins=(candidate_environment.metric_plugin,),
+        )
+        opponent_label = DUMMY_LABEL
+        opponent_sources = {
+            "human_eval_reference": _checkpoint_record(
+                Path(__file__).resolve().with_name("human_eval_server.py")
+            ),
+            "cuda_opponent": _checkpoint_record(
+                Path(__file__).resolve().with_name("gpu_candidate_dummy.py")
+            ),
+        }
+        trainer = NativeExternalGpuPuffer(
+            native_args, adapter, reward_clip=args.reward_clip,
+        )
+    else:
+        trainer = create_rek_g1_native_puffer(
+            native_args, environment, reward_clip=args.reward_clip,
+        )
+        opponent_label = "shared_policy_self_play"
+        opponent_sources = None
     try:
         if args.load_checkpoint is not None:
             trainer.load_weights(args.load_checkpoint)
@@ -122,15 +149,16 @@ def train(args: argparse.Namespace) -> dict:
         torch.cuda.synchronize(environment.actions.device)
         setup_seconds = time.perf_counter() - setup_start
 
+        phase_timer = TrainingPhaseTimer(environment.actions.device)
         train_wall_start = time.perf_counter()
         train_cpu_start = time.process_time()
         epochs = args.total_timesteps // batch_steps
         latest_log: dict = {}
         for epoch in range(1, epochs + 1):
-            trainer.rollouts()
-            trainer.train()
+            phase_timer.call("rollout", trainer.rollouts)
+            phase_timer.call("ppo_update", trainer.train)
             if epoch % args.log_every == 0 or epoch == epochs:
-                latest_log = trainer.log(clear_metrics=False)
+                latest_log = phase_timer.call("reporting", trainer.log, clear_metrics=False)
                 elapsed = time.perf_counter() - train_wall_start
                 print(
                     json.dumps(
@@ -151,7 +179,8 @@ def train(args: argparse.Namespace) -> dict:
         train_wall_seconds = time.perf_counter() - train_wall_start
         host_cpu_seconds = time.process_time() - train_cpu_start
         if not latest_log:
-            latest_log = trainer.log(clear_metrics=False)
+            latest_log = phase_timer.call("reporting", trainer.log, clear_metrics=False)
+        phase_timing = phase_timer.snapshot()
         final_manifest = trainer.save_weights(final_path)
         environment.check_status()
 
@@ -169,6 +198,7 @@ def train(args: argparse.Namespace) -> dict:
                 "precision_bytes": int(trainer.backend.precision_bytes),
             },
             "inputs": {
+                "opponent_sources": opponent_sources,
                 "gpu_duel_config": {
                     "path": str(args.gpu_duel_config),
                     "sha256": _sha256(args.gpu_duel_config),
@@ -194,15 +224,24 @@ def train(args: argparse.Namespace) -> dict:
                 "optimizer": "native-muon",
                 "prioritized_replay": "native",
                 "total_agents": total_agents,
+                "physical_fighters": total_agents,
+                "learning_agents": learning_agents,
                 "arenas": total_agents // 2,
+                "opponent": opponent_label,
+                "opponent_is_bot_1": False,
+                "opponent_samples_in_ppo": opponent == "self-play",
                 "horizon": args.horizon,
                 "epochs": epochs,
                 "agent_steps": trainer.global_step,
+                "physical_fighter_steps": trainer.global_step * total_agents // learning_agents,
                 "setup_seconds": setup_seconds,
                 "wall_seconds": train_wall_seconds,
                 "host_cpu_seconds": host_cpu_seconds,
                 "host_cpu_to_wall_ratio": host_cpu_seconds / train_wall_seconds,
                 "agent_steps_per_second": trainer.global_step / train_wall_seconds,
+                "physical_fighter_steps_per_second": (
+                    trainer.global_step * total_agents / learning_agents / train_wall_seconds
+                ),
                 "cpu_physics_steps": 0,
                 "cpu_controller_inferences": 0,
                 "native_cpu_environment_count": int(
@@ -222,9 +261,10 @@ def train(args: argparse.Namespace) -> dict:
                 "final_manifest": final_manifest,
             },
             "final_native_log": latest_log,
+            "phase_timing": phase_timing,
             "completed_combat_metrics": latest_log.get("env", {}),
             "claim_limits": {
-                "shared_policy_self_play": True,
+                "shared_policy_self_play": opponent == "self-play",
                 "human_baseline_measured": False,
                 "authentic_rek_parity_established": False,
                 "superhuman_claim_supported": False,
@@ -260,6 +300,10 @@ def main() -> None:
     parser.add_argument("--log-every", type=int, default=10)
     parser.add_argument("--reward-clip", type=float, default=0.0)
     parser.add_argument("--load-checkpoint", type=Path)
+    parser.add_argument(
+        "--opponent", choices=("self-play", "candidate-dummy"), default="self-play",
+        help="candidate-dummy trains even learner rows against the human-eval opponent",
+    )
     train(parser.parse_args())
 
 
