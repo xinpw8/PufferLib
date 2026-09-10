@@ -62,6 +62,37 @@ not be added. Physics, controller, opponent decisions and metric accumulation
 stay on CUDA in the production path. Host launches and report/checkpoint I/O
 still use the CPU.
 
+Completed Spark measurements on 2026-09-10, against the evaluator's fixed
+dummy, illustrate the current performance limitation:
+
+| Run | Arenas / learners | Learner steps | Learner SPS | Physical fighter SPS |
+| --- | ---: | ---: | ---: | ---: |
+| CPU simulation baseline | 4 | 4,096 | 473.03 | 946.06 |
+| CUDA simulation, matched initial weights and rollout settings | 4 | 4,096 | 126.05 | 252.10 |
+| CUDA simulation training smoke | 128 | 8,192 | 2,260.60 | 4,521.20 |
+
+The 128-arena run covers only 1.28 simulated seconds per arena. It is a
+throughput/training smoke test, with no completed rounds. A separate 50-tick
+environment component profile attributed 71.30% of its CUDA stream interval
+to physics plus reset forward recomputation, 17.93% to combat measurement and
+referee work, and 1.82% to controller inference. These are instrumented stream
+intervals, not hardware kernel-utilization percentages or an end-to-end PPO
+breakdown. The runtime still simulates both articulated bodies at 500 Hz;
+placing this workload on CUDA does not make it a lightweight semantic simulator.
+
+The longer requested 1,572,864-learner-step run failed a native motion scheduler
+check with status 311 after its last successful 393,216-step progress report.
+Its roughly 1,916 learner SPS was an intermediate measurement, not a completed
+training result. No final policy or completed-run report was produced for that
+attempt. The short completed measurements above remain separate results.
+
+Training now saves policy-only checkpoints every 16 epochs by default after a
+successful status check (`--checkpoint-every 0` disables this). These do not
+contain optimizer or environment state. An exception produces `failure.json`,
+individual state arrays and a diagnostic-only failed policy in the run
+directory, where capture remains possible. `--check-every-step` adds explicit
+synchronization for fault reproduction and invalidates throughput comparisons.
+
 Fixed-opponent reports include action-category counts, native discrete-move
 starts, completed-round wins and points, arena scored contacts, active-round
 facing within 30 degrees, and horizontal root separation in metre bins. Facing

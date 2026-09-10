@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 import socket
 import time
+import traceback
 
 import torch
 
@@ -58,6 +59,59 @@ def _checkpoint_record(path: Path) -> dict:
     }
 
 
+def save_failure(args, environment, trainer, error, epoch, checked_ticks) -> dict:
+    """Preserve a failed trajectory for diagnosis; never label it a valid run."""
+    import numpy as np
+
+    report = {
+        "schema": "rek.g1_gpu_training_failure.v1",
+        "status": "failed", "host": socket.gethostname(),
+        "error": repr(error), "traceback": traceback.format_exc(),
+        "epoch": epoch, "agent_steps": trainer.global_step,
+        "diagnostic_checked_ticks": checked_ticks,
+        "diagnostic_step_checks": getattr(args, "check_every_step", False),
+        "diagnostic_only": True, "capture_errors": [],
+        "sources": {}, "snapshots": {},
+        "device_addresses": {
+            "matchers": environment.motion.matchers.tensor.data_ptr(),
+            "slots": environment.motion.slots.tensor.data_ptr(),
+        },
+    }
+    for name in ("train_gpu_duel.py", "gpu_semantic_scheduler.py",
+                 "gpu_native_motion.py", "gpu_semantic_duel.py"):
+        report["sources"][name] = _checkpoint_record(Path(__file__).with_name(name))
+    tensors = {
+        "scheduler_rows": environment.scheduler.rows.tensor,
+        "scheduler_status": environment.scheduler.statuses,
+        "composers": environment.motion.composers.tensor,
+        "matchers": environment.motion.matchers.tensor,
+        "slots": environment.motion.slots.tensor,
+        "route_commands": environment.motion.route_commands,
+        "matcher_status": environment.motion.matchers.field("last_status"),
+        "actions": environment.actions,
+        "action_mask": environment.action_mask,
+        "observations": environment.observations,
+        "qpos": environment.physics.qpos,
+        "qvel": environment.physics.qvel,
+    }
+    for name, tensor in tensors.items():
+        try:
+            path = args.run_dir / f"failure-{name}.npy"
+            with path.open("xb") as stream:
+                np.save(stream, tensor.detach().cpu().numpy(), allow_pickle=False)
+            report["snapshots"][name] = _checkpoint_record(path)
+        except Exception as capture_error:
+            report["capture_errors"].append(f"{name}: {capture_error!r}")
+    try:
+        report["diagnostic_policy"] = trainer.save_weights(args.run_dir / "failed-policy.bin")
+    except Exception as capture_error:
+        report["capture_errors"].append(f"policy: {capture_error!r}")
+    with (args.run_dir / "failure.json").open("x", encoding="utf-8") as stream:
+        json.dump(report, stream, indent=2, sort_keys=True, allow_nan=False)
+        stream.write("\n")
+    return report
+
+
 def train(args: argparse.Namespace) -> dict:
     if args.output.exists():
         raise FileExistsError(args.output)
@@ -69,6 +123,9 @@ def train(args: argparse.Namespace) -> dict:
         raise ValueError("horizon must be greater than one")
     if args.log_every <= 0:
         raise ValueError("log_every must be positive")
+    checkpoint_every = getattr(args, "checkpoint_every", 16)
+    if checkpoint_every < 0:
+        raise ValueError("checkpoint_every must be nonnegative")
     if args.reward_clip < 0.0:
         raise ValueError("reward_clip must be nonnegative")
 
@@ -142,6 +199,20 @@ def train(args: argparse.Namespace) -> dict:
         )
         opponent_label = "shared_policy_self_play"
         opponent_sources = None
+    epoch = 0
+    checked_ticks = 0
+    failed = False
+    periodic_checkpoints = []
+    if getattr(args, "check_every_step", False):
+        original_step = trainer.env.step
+
+        def diagnostic_step(actions):
+            nonlocal checked_ticks
+            original_step(actions)
+            checked_ticks += 1
+            environment.check_status()
+
+        trainer.env.step = diagnostic_step
     try:
         if args.load_checkpoint is not None:
             trainer.load_weights(args.load_checkpoint)
@@ -174,6 +245,12 @@ def train(args: argparse.Namespace) -> dict:
                     ),
                     flush=True,
                 )
+            if checkpoint_every and epoch % checkpoint_every == 0 and epoch != epochs:
+                environment.check_status()
+                periodic_checkpoints.append(phase_timer.call(
+                    "checkpoint", trainer.save_weights,
+                    args.run_dir / f"verified-{trainer.global_step:016d}.bin",
+                ))
 
         torch.cuda.synchronize(environment.actions.device)
         train_wall_seconds = time.perf_counter() - train_wall_start
@@ -248,6 +325,7 @@ def train(args: argparse.Namespace) -> dict:
                     trainer.pufferl.native_env_count
                 ),
                 "native_environment_threads": bool(trainer.pufferl.has_env_threads),
+                "diagnostic_step_checks": getattr(args, "check_every_step", False),
                 "reward_transform": (
                     "none" if args.reward_clip == 0.0 else "symmetric_clamp"
                 ),
@@ -259,6 +337,8 @@ def train(args: argparse.Namespace) -> dict:
                 "weights_changed": initial_record["sha256"] != final_record["sha256"],
                 "initial_manifest": initial_manifest,
                 "final_manifest": final_manifest,
+                "periodic": periodic_checkpoints,
+                "periodic_resume_scope": "policy weights only; optimizer and environment state excluded",
             },
             "final_native_log": latest_log,
             "phase_timing": phase_timing,
@@ -270,8 +350,20 @@ def train(args: argparse.Namespace) -> dict:
                 "superhuman_claim_supported": False,
             },
         }
+    except Exception as error:
+        failed = True
+        try:
+            save_failure(args, environment, trainer, error, epoch, checked_ticks)
+        except Exception as capture_error:
+            print(f"failure evidence capture also failed: {capture_error!r}", flush=True)
+        raise
     finally:
-        trainer.close()
+        try:
+            trainer.close()
+        except Exception as close_error:
+            if not failed:
+                raise
+            print(f"failed-run cleanup also failed: {close_error!r}", flush=True)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("x", encoding="utf-8") as stream:
@@ -298,6 +390,10 @@ def main() -> None:
     parser.add_argument("--horizon", type=int, default=64)
     parser.add_argument("--minibatch-size", type=int, default=0)
     parser.add_argument("--log-every", type=int, default=10)
+    parser.add_argument("--checkpoint-every", type=int, default=16,
+                        help="save verified policy weights every N epochs; zero disables")
+    parser.add_argument("--check-every-step", action="store_true",
+                        help="synchronize status each tick for fault diagnosis, invalidating throughput comparisons")
     parser.add_argument("--reward-clip", type=float, default=0.0)
     parser.add_argument("--load-checkpoint", type=Path)
     parser.add_argument(

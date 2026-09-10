@@ -187,4 +187,24 @@ class GpuSemanticScheduler:
         """Explicit synchronization for initialization/tests/reporting, not hot path."""
         statuses = self.statuses.cpu()
         if torch.any(statuses != 0):
-            raise RuntimeError(f'native CUDA semantic scheduler failed: {statuses.tolist()}')
+            rows = self.rows.host()
+            composers = self.motion.composers.host()
+            matchers = self.motion.matchers.host()
+            details = []
+            for index in torch.nonzero(statuses, as_tuple=False).flatten().tolist():
+                row, composer, matcher = rows[index], composers[index], matchers[index]
+                details.append({
+                    'fighter_row': index,
+                    'status': int(row.status),
+                    'loop_matcher_status': int(matcher.last_status),
+                    'semantic_kind': int(row.semantic.kind),
+                    'move_registry_index': int(row.semantic.move_registry_index),
+                    'move_start_edge': int(row.semantic.move_start_edge),
+                    'active_route_id': int(row.active_route_id),
+                    'current_cursor': float(composer.current_layer.cursor),
+                    'current_active': int(composer.current_layer.active),
+                    'current_loop': int(composer.current_layer.config.loop),
+                    'from_cursor': float(composer.from_layer.cursor),
+                    'action_playing': int(composer.action_playing),
+                })
+            raise RuntimeError(f'native CUDA semantic scheduler failed: {details}')
