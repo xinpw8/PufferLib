@@ -568,11 +568,13 @@ class BrowserInputState:
     def __init__(self) -> None:
         self.held: frozenset[str] = frozenset()
         self.sequence = 0
+        self.move_edge_index: int | None = None
         self.pending_move_index: int | None = None
 
     def reset(self) -> None:
         self.held = frozenset()
         self.sequence = 0
+        self.move_edge_index = None
         self.pending_move_index = None
 
     def update(self, payload: Mapping[str, Any]) -> bool:
@@ -609,13 +611,30 @@ class BrowserInputState:
                 and move_index in MOVE_TO_CATEGORY,
                 "move_index must be an integer from 0 through 16",
             )
+            self.move_edge_index = move_index
             self.pending_move_index = move_index
         self.held = held
         self.sequence = sequence
         return True
 
     def take_move_edge(self) -> int | None:
+        move = self.move_edge_index
+        self.move_edge_index = None
+        return move
+
+    def peek_pending_move(self) -> int | None:
+        return self.pending_move_index
+
+    def consume_pending_move(self, expected_move_index: int) -> None:
+        _require(
+            self.pending_move_index == expected_move_index,
+            "pending move changed before successful dispatch",
+        )
+        self.pending_move_index = None
+
+    def clear_pending_move(self) -> int | None:
         move = self.pending_move_index
+        self.move_edge_index = None
         self.pending_move_index = None
         return move
 
@@ -826,28 +845,41 @@ class SemanticHumanEvalCore:
                 "boundary action-mask shape mismatch",
             )
 
-        held_category = HELD_CATEGORY_BY_SYMBOLS[self.browser_input.held]
-        move_index = self.browser_input.take_move_edge()
+        held = self.browser_input.held
+        held_category = HELD_CATEGORY_BY_SYMBOLS[held]
+        move_index_edge = self.browser_input.take_move_edge()
+        buffered_move_index = self.browser_input.peek_pending_move()
+        translation_held = held & TRANSLATION_SYMBOLS
         human_preferred = held_category
-        if move_index is not None:
-            if self.browser_input.held & TRANSLATION_SYMBOLS:
-                self.last_move_disposition = "discarded_translation_held"
+        human_fallback = held_category
+        pending_disposition: str | None = None
+        if buffered_move_index is not None:
+            if translation_held:
+                # Translation remains the exclusive active locomotion command,
+                # but yaw yields as soon as a move is buffered.
+                human_fallback = HELD_CATEGORY_BY_SYMBOLS[frozenset(translation_held)]
+                human_preferred = human_fallback
+                pending_disposition = "buffered_translation_held"
             else:
-                human_preferred = MOVE_TO_CATEGORY[move_index]
+                # A held Q/E is retained in browser state for post-move resume,
+                # while neutral is the only fallback until the move can start.
+                human_fallback = NEUTRAL_CATEGORY
+                human_preferred = MOVE_TO_CATEGORY[buffered_move_index]
 
         actions = np.full((ROBOT_ROWS, ACTION_HEADS), 1.0, dtype=np.float32)
         choices: list[ActionChoice] = []
         human_choice = self.planners[0].select(
             human_preferred,
-            held_category,
+            human_fallback,
             observations[0],
             None if masks is None else masks[0],
         )
         choices.append(human_choice)
-        if move_index is not None and not (self.browser_input.held & TRANSLATION_SYMBOLS):
-            self.last_move_disposition = (
-                "accepted" if human_choice.category == human_preferred else human_choice.reason
-            )
+        move_dispatched = (
+            buffered_move_index is not None
+            and not translation_held
+            and human_choice.category == MOVE_TO_CATEGORY[buffered_move_index]
+        )
 
         dummy_preferred = self.dummy.preferred_action(observations[1])
         dummy_choice = self.planners[1].select(
@@ -872,6 +904,14 @@ class SemanticHumanEvalCore:
             actions[row, 0] = float(choice.category)
 
         self.boundary.step(actions)
+        if buffered_move_index is not None:
+            if move_dispatched:
+                self.browser_input.consume_pending_move(buffered_move_index)
+                self.last_move_disposition = "accepted"
+            elif pending_disposition is not None:
+                self.last_move_disposition = pending_disposition
+            else:
+                self.last_move_disposition = f"buffered_{human_choice.reason}"
         self.tick += 1
         self.last_actions = [choice.category for choice in choices]
         self.last_action_reasons = [choice.reason for choice in choices]
@@ -881,6 +921,8 @@ class SemanticHumanEvalCore:
             _require(terminal in (0.0, 1.0), "boundary terminal is not Boolean")
             if terminal == 1.0:
                 self.planners[row].reset()
+                if row == 0 and self.browser_input.clear_pending_move() is not None:
+                    self.last_move_disposition = "cleared_terminal"
                 if row == 1:
                     self.dummy.reset()
         if self.trace_writer is not None:
@@ -892,7 +934,9 @@ class SemanticHumanEvalCore:
                     "tick": self.tick,
                     "input_sequence": self.browser_input.sequence,
                     "held": sorted(self.browser_input.held),
-                    "move_index_edge": move_index,
+                    "move_index_edge": move_index_edge,
+                    "move_index_buffer_before_step": buffered_move_index,
+                    "move_index_buffer_after_step": self.browser_input.peek_pending_move(),
                     "move_disposition": self.last_move_disposition,
                     "actions": self.last_actions.copy(),
                     "action_reasons": self.last_action_reasons.copy(),
@@ -954,6 +998,7 @@ class SemanticHumanEvalCore:
             ),
             "input_sequence": self.browser_input.sequence,
             "held": sorted(self.browser_input.held),
+            "pending_move_index": self.browser_input.peek_pending_move(),
             "last_move_disposition": self.last_move_disposition,
             "last_actions": self.last_actions.copy(),
             "last_action_reasons": self.last_action_reasons.copy(),
@@ -1222,7 +1267,8 @@ INDEX_HTML = r"""<!doctype html>
     <div><span class="label">Player score</span><span id="playerHits">0</span></div>
     <div><span class="label">Dummy score</span><span id="dummyHits">0</span></div>
     <div><span class="label">Round time</span><span id="roundTime">0</span></div>
-    <div><span class="label">Move edge</span><span id="moveDisposition">none</span></div>
+    <div><span class="label">Move input</span><span id="moveDisposition">none</span></div>
+    <div><span class="label">Move buffer</span><span id="moveBuffer">empty</span></div>
   </div>
   <p class="controls"><kbd>W</kbd>/<kbd>S</kbd> forward/back, <kbd>A</kbd>/<kbd>D</kbd> strafe, <kbd>Q</kbd>/<kbd>E</kbd> yaw. Movement keys are held inputs.</p>
   <p class="controls"><kbd>0</kbd> through <kbd>9</kbd> directly select moves 0 through 9. <kbd>Shift+0</kbd> through <kbd>Shift+6</kbd> directly select moves 10 through 16. <kbd>U</kbd> and <kbd>I</kbd> retain the observed evaluator aliases for moves 7 and 8.</p>
@@ -1382,6 +1428,7 @@ INDEX_HTML = r"""<!doctype html>
       document.getElementById('dummyHits').textContent = state.fight.opponent_score;
       document.getElementById('roundTime').textContent = state.fight.time_remaining_seconds.toFixed(2);
       document.getElementById('moveDisposition').textContent = state.last_move_disposition;
+      document.getElementById('moveBuffer').textContent = state.pending_move_index ?? 'empty';
     } catch (_) {}
     setTimeout(poll, 100);
   }
