@@ -308,7 +308,22 @@ void py_puff_advantage(
         (const precision_t*)values_ptr, (const precision_t*)rewards_ptr,
         (const precision_t*)dones_ptr,  (const precision_t*)importance_ptr,
         (precision_t*)advantages_ptr,
-        gamma, lambda, rho_clip, c_clip, num_steps, horizon);
+        gamma, lambda, rho_clip, c_clip, num_steps, horizon, nullptr, nullptr, nullptr);
+}
+
+void py_puff_advantage_bootstrap(
+        uintptr_t values, uintptr_t rewards, uintptr_t dones, uintptr_t importance,
+        uintptr_t advantages, uintptr_t final_values, uintptr_t final_rewards,
+        uintptr_t final_dones, int rows, int horizon, float gamma, float lambda,
+        float rho_clip, float c_clip, uintptr_t stream_pointer) {
+    constexpr int N = 16 / sizeof(precision_t);
+    auto kernel = (horizon % N == 0) ? puff_advantage : puff_advantage_scalar;
+    kernel<<<grid_size(rows), 256, 0, external_stream(stream_pointer)>>>(
+        reinterpret_cast<const precision_t*>(values), reinterpret_cast<const precision_t*>(rewards),
+        reinterpret_cast<const precision_t*>(dones), reinterpret_cast<const precision_t*>(importance),
+        reinterpret_cast<precision_t*>(advantages), gamma, lambda, rho_clip, c_clip, rows, horizon,
+        reinterpret_cast<const precision_t*>(final_values), reinterpret_cast<const precision_t*>(final_rewards),
+        reinterpret_cast<const precision_t*>(final_dones));
 }
 
 double get_config(py::dict& kwargs, const char* key) {
@@ -569,6 +584,7 @@ PYBIND11_MODULE(_C, m) {
     m.attr("env_name") = PUFFER_STRINGIFY(ENV_NAME);
     m.attr("gpu") = 1;
     m.attr("supports_greedy_evaluation") = true;
+    m.attr("supports_external_rollout_bootstrap") = true;
 
     // Core functions
     m.def("log", &puf_log);
@@ -636,6 +652,7 @@ PYBIND11_MODULE(_C, m) {
 
     py::class_<PrecisionTensor>(m, "PrecisionTensor")
         .def("__repr__", [](const PrecisionTensor& t) { return std::string(puf_repr(&t)); })
+        .def("data_ptr", [](const PrecisionTensor& t) { return reinterpret_cast<uintptr_t>(t.data); })
         .def("ndim", [](const PrecisionTensor& t) { return ndim(t.shape); })
         .def("numel", [](const PrecisionTensor& t) { return numel(t.shape); });
     py::class_<FloatTensor>(m, "FloatTensor")
@@ -659,6 +676,7 @@ PYBIND11_MODULE(_C, m) {
         return now - pufferl.start_time;
     });
     m.def("puff_advantage", &py_puff_advantage);
+    m.def("puff_advantage_bootstrap", &py_puff_advantage_bootstrap);
     m.def("create_vec", &create_vec, py::arg("args"), py::arg("gpu") = 1);
     py::class_<VecEnv, std::unique_ptr<VecEnv>>(m, "VecEnv")
         .def_readonly("total_agents",  &VecEnv::total_agents)
@@ -692,6 +710,19 @@ PYBIND11_MODULE(_C, m) {
         .def_readwrite("muon", &PuffeRL::muon)
         .def_readwrite("hypers", &PuffeRL::hypers)
         .def_readwrite("rollouts", &PuffeRL::rollouts)
+        .def_readonly("external_bootstrap_values", &PuffeRL::external_bootstrap_values)
+        .def_readonly("external_bootstrap_rewards", &PuffeRL::external_bootstrap_rewards)
+        .def_readonly("external_bootstrap_terminals", &PuffeRL::external_bootstrap_terminals)
+        .def_readonly("external_bootstrap_ready", &PuffeRL::external_bootstrap_ready)
+        .def_property_readonly("external_primary_recurrent_state", [](PuffeRL& self) {
+            return self.buffer_states[0];
+        })
+        .def_property_readonly("external_sampling_rng_ptr", [](PuffeRL& self) {
+            return reinterpret_cast<uintptr_t>(self.rng_states[0]);
+        })
+        .def_property_readonly("external_sampling_rng_bytes", [](PuffeRL& self) {
+            return self.hypers.total_agents * sizeof(curandStatePhilox4_32_10_t);
+        })
         .def_readonly("epoch", &PuffeRL::epoch)
         .def_readonly("global_step", &PuffeRL::global_step)
         .def_readonly("last_log_time", &PuffeRL::last_log_time)

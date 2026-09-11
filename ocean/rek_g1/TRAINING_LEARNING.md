@@ -217,6 +217,39 @@ and clip fraction 0.21147; the longer horizon extends temporal credit.
 These are experimentally motivated settings, not demonstrated improvements.
 Seven CPU runner tests passed, including exact rollout and minibatch counts.
 
+### External rollout boundary correction
+
+The original external bridge recorded incoming reward/done before selecting
+each action, then stepped the environment. It did not retain the outcome of
+the final action. The advantage loop stopped at H-2, leaving the final
+advantage zero. That outcome became row-zero incoming reward in the next
+rollout, which the loop also never consumed. A CPU C++ reproduction using
+the actual native function demonstrated complete loss of a terminal reward
+placed at this boundary for H64, H256 and H1024. The affected transition
+fraction is 1/H; this does not prove it caused the observed combat regression.
+
+External mode now retains final reward/done and performs a value-only forward
+of the next observation into owned scratch state. With `reset_state=True`,
+this uses the same zero memory as the next rollout. Sampling state, live
+recurrent state and action buffers are unchanged. GAE includes the final
+transition, masks terminal bootstrap, and applies the existing reward-clipping
+rule when enabled. The non-external default advantage path is preserved.
+
+The isolated `native-external-bootstrap-v2` extension passed actual Spark
+CUDA tests. At H64/H256/H1024, maximum GAE errors versus the independent
+FP32 oracle were 2.98e-8, 4.47e-8 and 2.98e-8. Bootstrap values exactly matched
+the next rollout's first values. Both initial and captured PPO replay retained
+the diagnostic weight hashes and zero clipping fraction; maximum absolute KL
+was 3.64e-9. Hidden state, RNG bytes and actions remained exact. A nonzero
+0.25 reward-clipping case also passed. The extension SHA-256 is
+`c9adb6fd581fad9a874dc3ddd72caef21fa0b68964cd9918404243b8296dc637`.
+
+Evidence: `external-bootstrap-v2/cuda-regression.json` and
+`commands/external-bootstrap-*` under the current evidence root. This proves
+the boundary correction, not improved combat performance. The old H1024
+launcher was not executed; `bootstrap-h1024-r1` uses this corrected extension
+with the same declared settings and original physical simulator/opponent.
+
 ## Frozen evaluation and scripted diagnostics
 
 `evaluate_gpu_dummy.py --greedy` selects the highest-logit legal action.

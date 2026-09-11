@@ -416,6 +416,40 @@ Its summary SHA-256 is
 Complete commands/stdout/stderr are retained in that evidence root's
 `commands/deferred-*` directories. No active training stage was overwritten.
 
+## Sparse contact-index cache experiment
+
+The v3 cache replaces repeated sparse-column searches inside the existing
+JTCJ contact-Hessian kernel. It retains the original contact/pair work mapping
+and scalar expressions, while adding a cache construction after constraints.
+The installed backend is untouched. A synthetic six-Hessian component test
+suggested a 1.70x gain including the builder, which did not predict the full
+environment result below.
+
+The initial four-repeat full replay failed the body-position criterion. A
+predeclared follow-up increased only repeats to 16 for each of two independent
+original graphs and the candidate, retaining the same 256-tick, four-arena
+action trace and comparison criteria. All seven numerical fields passed:
+body-position RMS was 0.0380410 m between originals and 0.0333041 m for the
+candidate, with bootstrap upper-extra RMS 0.0190131 m. The strict overall
+report still exits 1 for fall phase/event exactness. Those fields differed
+in 6/12 elements between originals and also 6/12 between candidate and
+original A. The other 24 exact fields matched. No authentic REK parity is
+established, and the bounded trace has no physical scored-hit or terminal
+coverage. Invariant flags stayed zero over 41,093 constraint constructions.
+
+Subsequent alternating 512-arena environment timings used the identical
+recorded fighter-input trace from restored state, 128 control ticks per run.
+Reference SPS was 6,815.09/6,798.35; candidate SPS was 6,872.29/6,843.00.
+Medians were 6,806.72 and 6,857.65, a 0.75% difference. Cache construction
+and its diagnostics were included. PPO, policy inference, live dummy
+selection and wrapper metrics were outside this denominator. This small
+two-pair result does not justify activation or a training-speedup claim.
+The cache stays disabled. Its 512-arena storage cost was 18,350,080 bytes.
+
+Commands and complete results are retained under
+`C:/rekagent/evidence/rek-training-opt-20260911/`, command IDs
+`jtcj-inverse-full-replay16-01` and `jtcj-inverse-bench512-01`.
+
 ## Rejected approaches
 
 The installed backend rejects dense Jacobians above 60 velocity degrees of

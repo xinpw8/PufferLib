@@ -245,6 +245,8 @@ class NativeExternalGpuPuffer:
                 "native_ppo": True,
                 "native_muon": True,
                 "native_checkpoint_layout": True,
+                "external_bootstrap": bool(getattr(
+                    self.backend, "supports_external_rollout_bootstrap", False)),
             },
             "reward": {
                 "transform": (
