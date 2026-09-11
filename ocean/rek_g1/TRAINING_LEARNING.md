@@ -52,6 +52,23 @@ PPO occupied 1.563% and rollout 98.400% of the measured CUDA stream envelope.
 Physics and controller execution remained on CUDA with no native CPU
 environment workers. Host orchestration still uses CPU time.
 
+The completed raw long-credit run executed the same 3,276,800 steps in
+584.430 s, or 5,606.83 learner steps/s. Its changing-policy outcomes were
+323 wins, 162 losses and 27 ties. Mean points increased from 11.68164 to
+13.27930, but conceded points increased from 7.64258 to 10.19141. Facing
+within 30 degrees increased from 26.784% to 35.069%. These observations do
+not establish a better final policy. Its final checkpoint SHA-256 is
+`81cb797090e329a02408c966cd30765ed16eceb9c2d97658c3394423210417b2`.
+PPO occupied 2.134% and rollout 97.857% of its CUDA stream envelope.
+
+Each run supplied only 128 simulated seconds per arena, while a completed
+round averaged approximately 120.15 s. Most first-round completions appeared
+at short epoch 94/100 or long epoch 24/25. Replay increases reuse, not the
+number of fresh rounds experienced. Any longer-budget experiment should
+retain its optimizer within the same process and evaluate frozen checkpoints
+separately. Disabling recurrent horizon resets is not a compatible shortcut:
+the current learner does not store replay-window initial recurrent states.
+
 ## Policy input coordinates and units
 
 The raw 223-float simulator observation contains world coordinates and
@@ -82,7 +99,64 @@ CPU geometry, inverse-coordinate, metadata and integration tests pass. Both
 views also passed a CUDA capture fixture with changing observations, stable
 buffers and invalid-input status checks. That fixture observed zero CPU/CUDA
 output difference and unchanged raw state, opponent actions, rewards and
-masks. Learned combat outcomes for these views remain to be measured.
+masks.
+
+The completed `scaled_polar_xy_v1` long-credit run held the raw long arm's
+initial weights, learner parameters, reward and environment fixed. It used
+3,276,800 learner steps in 580.354 s, or 5,646.21 learner steps/s. Its online
+round win percentage was 60.547%, with mean points 15.99219 against 13.02930.
+Facing was 37.652% and attack-facing 50.523%. Own falls increased to 1.68359
+per round. These changing-policy outcomes are separate from the frozen
+screening below. The final checkpoint SHA-256 is
+`0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154`.
+
+## Optional training-only facing potential
+
+`--facing-potential-scale` defaults to zero and allocates no shaper at zero.
+A positive value applies `raw_reward + gamma*Phi(next) - Phi(current)` only
+to the learner reward buffer, where `Phi=scale*cos(ego opponent bearing)`.
+Raw game scores, opponent inputs, simulation state and evaluation rewards
+remain unchanged. The scale is a training choice, not an extracted game rule.
+Both current and next terminal potentials are zero, preserving the actual
+delayed-reset transition boundary. The discount must match the native
+learner's float32 gamma; combined reward clipping is prohibited.
+
+In real arithmetic the discounted shaping sum telescopes to
+`-Phi(initial) + gamma**T*Phi(final)`. This does not guarantee improvement
+under finite-window, approximate PPO learning. CPU tests cover this identity,
+reset boundaries, immutable raw buffers and independent checkpoint metadata.
+An actual CUDA capture fixture passed 12 synthetic transitions with mixed
+terminals and an explicit reset; CPU/CUDA reward error was zero. No learning
+run has used this optional reward yet.
+
+## Optional round-win training objective
+
+`--reward-objective round-win` changes the learner's optimization target to
+the completed round's win indicator. It requires native gamma exactly one
+and zero reward clipping. The base reward is one only when the published
+terminal outcome is a points or knockout win for the learner's side. Losses,
+ties and redos return zero. Raw game scoring and evaluation are unchanged.
+
+The training-only potential is
+`Phi = margin_potential_scale*tanh((own_points-opponent_points)/margin_points)`;
+the added reward is `Phi(next)-Phi(current)`. Both terminal potentials are
+zero. Therefore a full round beginning at zero score returns its win
+indicator in real arithmetic, independently of its length or winning margin.
+Finite-window PPO, numerical arithmetic and bootstrapped values remain
+approximate. This reward does not guarantee that PPO finds a winning policy.
+
+`config/rek_g1_round_win.ini` uses constant learning rate 0.003, horizon 256,
+lambda 0.995 and replay ratio four. Margin scale 0.5 and margin points 5 are
+explicit training choices. Nonzero facing shaping cannot be combined with
+this objective. Existing score-delta training remains the default. Checkpoint
+sidecars record the reward objective independently of the input encoder.
+
+CPU tests classified 384 previously recorded round outcomes. A CUDA fixture
+covered 24 synthetic transitions and two captured graphs, then 18 transitions
+through the production wrapper including an explicit reset. Reward error
+against the CPU reference was zero. Game state, opponent actions, scores,
+masks and metrics remained unchanged. This is a tensor/wrapper test; it does
+not establish improved learning or exercise physical trajectories.
 
 ## Frozen evaluation and scripted diagnostics
 
@@ -98,6 +172,41 @@ policies select actions before the shared environment advances once. Its
 synthetic CUDA regression matched all 512 actions against separate native
 instances, including interior terminals and changing legal masks. Reported
 wall time is shared batch time and must not be added across policy groups.
+
+The first complete grouped stochastic screening used 32 arenas per policy,
+128 arenas total, seed 73, and 6,400 control ticks per arena. Every policy's
+training horizon was retained; no updates occurred and every checkpoint hash
+remained unchanged. Each group completed 32 rounds.
+
+| Frozen policy | Wins / losses / ties | Win percentage | Own / opponent points |
+| --- | ---: | ---: | ---: |
+| Initial, raw | 22 / 6 / 4 | 68.750% | 13.06250 / 8.18750 |
+| Short credit, raw | 23 / 7 / 2 | 71.875% | 12.21875 / 7.62500 |
+| Long credit, raw | 21 / 11 / 0 | 65.625% | 13.21875 / 8.75000 |
+| Long credit, scaled polar | 27 / 4 / 1 | 84.375% | 18.65625 / 11.46875 |
+
+This small, shared-start screening favors the scaled-polar checkpoint. It
+does not establish a robust multi-seed improvement or meet the 100% target.
+Three of its four lost rounds included learner falls; the remaining loss
+occurred without a learner fall. The tie had no points or contacts.
+The evaluation is in `grouped-stochastic-r1/evaluations/` under the current
+evidence root. Its instrumented evaluation speed is not training SPS.
+
+The matching greedy screening completed 32 rounds per policy with unchanged
+weights and the same seed, horizons and shared physical batch dimensions:
+
+| Frozen policy | Wins / losses / ties | Win percentage | Own / opponent points |
+| --- | ---: | ---: | ---: |
+| Initial, raw | 31 / 1 / 0 | 96.875% | 11.40625 / 4.43750 |
+| Short credit, raw | 23 / 9 / 0 | 71.875% | 11.90625 / 7.87500 |
+| Long credit, raw | 23 / 7 / 2 | 71.875% | 9.90625 / 5.46875 |
+| Long credit, scaled polar | 29 / 0 / 3 | 90.625% | 19.65625 / 10.40625 |
+
+The scaled-polar policy's ties were 4-4, 13-13 and 15-15. Zero losses is not
+100% wins. Its higher scoring does not beat the initial policy's 31/32 win
+count. These small screenings justify neither superhuman performance nor
+an established improvement across independent starting conditions. Full
+reports are under `grouped-greedy-r1/evaluations/` in the evidence root.
 
 The separately labeled scripted diagnostic tested eight strategies with
 16 completed rounds each. Facing without attacking won 15/16; facing and

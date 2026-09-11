@@ -39,6 +39,7 @@ class GpuDuelConfig:
     device: str = "cuda:0"
     conditional_reset_forward: bool = False
     fused_combat_library: Path | None = None
+    defer_substep_combat_observations: bool = False
 
 
 class GpuSemanticDuel:
@@ -87,6 +88,10 @@ class GpuSemanticDuel:
                 config.combat_library, self.measurement, self.motion,
                 active_route_ids=self.scheduler.active_route_ids,
             )
+            if not isinstance(config.defer_substep_combat_observations, bool):
+                raise ValueError("defer_substep_combat_observations must be a Boolean")
+            if config.defer_substep_combat_observations and self.combat._deferred_post_step is None:
+                raise RuntimeError("requested deferred packing is missing from the native combat library")
             self.actions = torch.ones(self.rows, device=config.device)
             self.can_get_up = torch.zeros(self.rows, dtype=torch.uint8, device=config.device)
             self.local_velocity = torch.empty((self.rows, 6), device=config.device)
@@ -164,7 +169,10 @@ class GpuSemanticDuel:
             self.physics.ctrl.copy_(controls.reshape(self.arenas, 58))
             self.physics.step()
             measurement = self.measurement.sample(substep, self.can_get_up)
-            output = self.combat.post_step(measurement)
+            if self.config.defer_substep_combat_observations:
+                output = self.combat.post_step(measurement, pack_observation=False)
+            else:
+                output = self.combat.post_step(measurement)
             live_controls = self.physics.ctrl.reshape(self.rows, 29)
             self.drive.set_dampened(self.drive.dampened | output.dampened, live_controls)
             begin = output.begin_reset != 0

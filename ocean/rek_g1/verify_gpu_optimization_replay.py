@@ -4,6 +4,8 @@ Four arenas share one scripted trace. No production class is modified. The
 fourth arena substitutes explicitly synthetic fall measurements to exercise
 the unchanged native counted-fall and mixed physical-reset path. All remaining
 measurements, controllers, physics, rewards and event transitions are live.
+The deferred-combat mode keeps the configured reset and measurement options
+identical in both branches and changes only intermediate observation packing.
 """
 
 from __future__ import annotations
@@ -77,6 +79,18 @@ def pairwise_exact(a, b, c):
     }
 
 
+def replay_configs(config, *, conditional_reset_forward, deferred_combat_library=None):
+    """Select one explicit intervention without changing the existing default."""
+    if deferred_combat_library is not None:
+        original = dataclasses.replace(
+            config, combat_library=deferred_combat_library,
+            defer_substep_combat_observations=False)
+        return original, dataclasses.replace(original, defer_substep_combat_observations=True)
+    original = dataclasses.replace(config, conditional_reset_forward=False, fused_combat_library=None)
+    candidate = dataclasses.replace(config, conditional_reset_forward=conditional_reset_forward)
+    return original, candidate
+
+
 def digest(path):
     h = hashlib.sha256()
     with Path(path).open("rb") as stream:
@@ -94,7 +108,8 @@ def source_manifest(config, config_path):
                "gpu_combat_measurement_fused.py", "gpu_combat_measurement_fused.cu",
                "gpu_semantic_scheduler.py", "gpu_robot_state.py", "gpu_actuator_drive.py",
                "gpu_observation.py", "gpu_native_motion.py", "gpu_controller.py",
-               "g1_semantic_action_table.c", "g1_fall_state.c", "g1_fight_state.c")
+               "g1_semantic_action_table.c", "g1_fall_state.c", "g1_fight_state.c",
+               "g1_native_combat_cuda.cu", "g1_native_combat_cuda.h")
     paths = [config_path]
     for name in sources:
         if name.endswith(".py"):
@@ -148,8 +163,8 @@ class ReplayHarness:
                 selected, self.fall_integers, batch.fall.integers))
             return batch
 
-        def post(batch):
-            output = original_post(batch)
+        def post(batch, **kwargs):
+            output = original_post(batch, **kwargs)
             self.begin[self.substep].copy_(output.begin_reset)
             self.complete[self.substep].copy_(output.complete_reset)
             self.status[self.substep].copy_(output.statuses)
@@ -325,9 +340,12 @@ def run(args):
     config = load_config(args.config)
     if args.fused_combat_library is not None:
         config = dataclasses.replace(config, fused_combat_library=args.fused_combat_library)
+    original_config, candidate_config = replay_configs(
+        config, conditional_reset_forward=args.conditional_reset_forward,
+        deferred_combat_library=args.deferred_combat_library)
     torch.manual_seed(args.seed)
     order_rng = np.random.default_rng(args.seed)
-    manifest = source_manifest(config, args.config)
+    manifest = source_manifest(candidate_config, args.config)
     setup_start = time.perf_counter()
     harnesses = {}
     branches = [("original_a", False)]
@@ -335,9 +353,7 @@ def run(args):
         branches.append(("original_b", False))
     branches.append(("gated", True))
     for label, enabled in branches:
-        env = GpuSemanticDuel(dataclasses.replace(
-            config, conditional_reset_forward=enabled and args.conditional_reset_forward,
-            fused_combat_library=config.fused_combat_library if enabled else None))
+        env = GpuSemanticDuel(candidate_config if enabled else original_config)
         if env.arenas != 4:
             raise ValueError("this bounded four-scenario replay requires exactly eight fighters")
         harness = ReplayHarness(env)
@@ -391,8 +407,13 @@ def run(args):
         "repeats_per_branch": args.repeats, "ticks_per_replay": args.steps,
         "simulated_seconds_per_replay": args.steps * .02, "arenas": 4,
         "scenario_by_arena": SCENARIOS,
-        "candidate_conditional_reset_forward": args.conditional_reset_forward,
-        "candidate_fused_combat_library": str(config.fused_combat_library) if config.fused_combat_library else None,
+        "candidate_conditional_reset_forward": candidate_config.conditional_reset_forward,
+        "candidate_fused_combat_library": str(candidate_config.fused_combat_library) if candidate_config.fused_combat_library else None,
+        "candidate_defer_substep_combat_observations": candidate_config.defer_substep_combat_observations,
+        "original_conditional_reset_forward": original_config.conditional_reset_forward,
+        "original_fused_combat_library": str(original_config.fused_combat_library) if original_config.fused_combat_library else None,
+        "original_defer_substep_combat_observations": original_config.defer_substep_combat_observations,
+        "intervention": "deferred_combat_observation_only" if args.deferred_combat_library else "reset_forward_and_measurement_options",
         "actions_from": str(args.actions_from) if args.actions_from else None,
         "actions_from_sha256": digest(args.actions_from) if args.actions_from else None,
         "independent_original_graphs": args.independent_original_graphs,
@@ -433,6 +454,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--fused-combat-library", type=Path)
+    parser.add_argument("--deferred-combat-library", type=Path,
+                        help="Compare only deferred observation packing; preserve configured reset/fusion in both branches")
     parser.add_argument("--conditional-reset-forward", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--actions-from", type=Path)
     parser.add_argument("--independent-original-graphs", action="store_true")

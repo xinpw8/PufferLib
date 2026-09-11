@@ -114,7 +114,8 @@ class GpuCandidateDummyDuel:
 
     def __init__(self, duel, *, capture=True, policy_observation_encoder="raw",
                  checkpoint_manifest=None, checkpoint_sha256=None,
-                 policy_observation_initialization="matching-checkpoint"):
+                 policy_observation_initialization="matching-checkpoint",
+                 facing_potential_config=None, round_win_reward_config=None):
         from gpu_behavior_metrics import GpuBehaviorMetricCollector
         from gpu_metrics import RekG1GpuMetricCollector
 
@@ -126,6 +127,22 @@ class GpuCandidateDummyDuel:
         if device.type != "cuda":
             raise ValueError("candidate dummy training requires CUDA physics")
         self.dummy = GpuCandidateApproachDummy(self.rows, device)
+        self.facing_potential = None
+        if facing_potential_config is not None:
+            from gpu_facing_potential import FacingPotentialConfig, GpuFacingPotential
+
+            if not isinstance(facing_potential_config, FacingPotentialConfig):
+                raise ValueError("facing potential requires an explicit validated config")
+            if facing_potential_config.scale > 0:
+                self.facing_potential = GpuFacingPotential(self.rows, device, facing_potential_config)
+        self.round_win_reward = None
+        if round_win_reward_config is not None:
+            from gpu_round_win_reward import GpuRoundWinReward
+
+            if self.facing_potential is not None:
+                raise ValueError("round-win and nonzero facing potential are mutually exclusive")
+            self.round_win_reward = GpuRoundWinReward(self.rows, device, round_win_reward_config)
+        self.reward_shaper = self.round_win_reward or self.facing_potential
         self.policy_encoder = None
         if policy_observation_encoder != "raw":
             from gpu_policy_observation_encoder import GpuPolarXYPolicyEncoder, GpuScaledPolarXYPolicyEncoder
@@ -171,11 +188,16 @@ class GpuCandidateDummyDuel:
     def _copy_learner_buffers(self):
         raw = self.duel.observations[0::2]
         self.observations.copy_(raw if self.policy_encoder is None else self.policy_encoder.encode(raw))
-        self.rewards.copy_(self.duel.rewards[0::2])
+        self.rewards.copy_(self.duel.rewards[0::2] if self.reward_shaper is None
+                           else self.reward_shaper.rewards)
         self.terminals.copy_(self.duel.terminals[0::2])
         self.action_mask.copy_(self.duel.action_mask[0::2])
 
     def _select(self):
+        if self.reward_shaper is not None:
+            self.reward_shaper.begin_transition(
+                self.duel.observations[0::2], self.duel.terminals[0::2],
+            )
         self.full_actions[0::2].copy_(self.learner_actions)
         self.full_actions[1::2, 0].copy_(self.dummy.select(
             self.duel.observations[1::2], self.duel.action_mask[1::2],
@@ -188,11 +210,17 @@ class GpuCandidateDummyDuel:
             self.duel.scheduler.move_start_edge, self.duel.combat.tick_score_delta,
         )
         self.dummy.reset(self.duel.terminals[1::2])
+        if self.reward_shaper is not None:
+            self.reward_shaper.finish_transition(
+                self.duel.observations[0::2], self.duel.rewards[0::2], self.duel.terminals[0::2],
+            )
         self._copy_learner_buffers()
 
     def reset(self):
         self.duel.reset()
         self.dummy.reset()
+        if self.reward_shaper is not None:
+            self.reward_shaper.reset()
         if self.policy_encoder is not None:
             self.policy_encoder.reset_status()
         self.combat_metrics.reset()
@@ -220,6 +248,8 @@ class GpuCandidateDummyDuel:
         self.dummy.check_status()
         if self.policy_encoder is not None:
             self.policy_encoder.check_status()
+        if self.reward_shaper is not None:
+            self.reward_shaper.check_status()
         return {}
 
     def close(self):

@@ -187,6 +187,11 @@ class GpuNativeCombat:
         post = self.library.rek_g1_cuda_native_combat_post_step
         post.argtypes = [P] * 31 + [Z, Z, P]
         post.restype = ct.c_int
+        self._deferred_post_step = getattr(
+            self.library, "rek_g1_cuda_native_combat_post_step_deferred", None)
+        if self._deferred_post_step is not None:
+            self._deferred_post_step.argtypes = post.argtypes
+            self._deferred_post_step.restype = ct.c_int
         observe = self.library.rek_g1_cuda_native_combat_observe
         observe.argtypes = [P] * 16 + [Z, P]
         observe.restype = ct.c_int
@@ -289,8 +294,26 @@ class GpuNativeCombat:
     def post_step(
         self,
         batch: GpuCombatMeasurementBatch,
+        *,
+        pack_observation: bool = True,
     ) -> GpuNativeCombatOutputs:
-        """Advance exact native state after one individual 2 ms physics step."""
+        """Advance exact native state after one individual 2 ms physics step.
+
+        Deferred packing is an opt-in for consumers that use only state/reset
+        events until a later observe call. Its native entrypoint preserves all
+        validation and status latches, including the reset-completion branch.
+        The default continues to support the original deployed library ABI.
+        Failed arenas can retain older diagnostic packed values; their latched
+        status invalidates the whole run. No accepted result may use those
+        values. Native reset/referee state and valid arenas are unaffected.
+        """
+        if not isinstance(pack_observation, bool):
+            raise ValueError("pack_observation must be a Boolean")
+        native_post_step = self.library.rek_g1_cuda_native_combat_post_step
+        if not pack_observation:
+            native_post_step = self._deferred_post_step
+            if native_post_step is None:
+                raise RuntimeError("deferred observation packing requires the opt-in native combat library")
         self._validate_measurement(batch)
         fall = batch.fall
         hits = batch.hits
@@ -329,14 +352,14 @@ class GpuNativeCombat:
             self.statuses,
         )
         with torch.cuda.device(self.device):
-            self._check_launch(self.library.rek_g1_cuda_native_combat_post_step(
+            self._check_launch(native_post_step(
                 *(tensor.data_ptr() for tensor in pointers),
                 self.arenas,
                 self.candidate_capacity,
                 self.stream,
             ))
         self.measurement.clear_arena_contacts(self.clear_contacts)
-        return self.observe(fall)
+        return self.observe(fall) if pack_observation else self.outputs
 
     def sample_and_post_step(
         self,

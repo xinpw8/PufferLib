@@ -109,6 +109,8 @@ class PublishIntegrationTests(unittest.TestCase):
         # Production constructor still rejects CPU execution.
         owner = object.__new__(GpuCandidateDummyDuel)
         owner.rows = 2
+        owner.facing_potential = None
+        owner.reward_shaper = None
         raw = torch.zeros((4, 223), dtype=torch.float32)
         raw[:, 3] = 1
         raw[:, 86] = 1

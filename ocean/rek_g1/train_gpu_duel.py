@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import ast
 import configparser
+from copy import deepcopy
 import hashlib
 import json
+import math
 from pathlib import Path
 import socket
 import time
@@ -22,6 +24,7 @@ from gpu_policy_observation_encoder import (
     ENCODER_CHOICES, INITIALIZATION_CHOICES, load_policy_encoder_checkpoint,
     policy_encoder_report, save_policy_weights,
 )
+from gpu_round_win_reward import resolve_reward_objective
 
 
 def _sha256(path: Path) -> str:
@@ -63,7 +66,59 @@ def _checkpoint_record(path: Path) -> dict:
     }
 
 
-def save_failure(args, environment, trainer, error, epoch, checked_ticks) -> dict:
+def training_progress(*, epoch: int, agent_steps: int, elapsed: float, latest_log: dict) -> dict:
+    """Format already-collected host metrics without reading the environment."""
+    def value(*keys):
+        item = latest_log
+        for key in keys:
+            if not isinstance(item, dict):
+                return None
+            item = item.get(key)
+        return item if isinstance(item, (int, float)) and not isinstance(item, bool) and math.isfinite(item) else None
+
+    behavior = ("env", "behavior")
+    return {
+        "epoch": epoch, "agent_steps": agent_steps,
+        "measured_cumulative_agent_steps_per_second": agent_steps / elapsed if math.isfinite(elapsed) and elapsed > 0 else None,
+        "completed_rounds": value("env", "n"),
+        "metrics_scope": "cumulative_online_changing_policy",
+        "online": {
+            "wins": value(*behavior, "learner_round_wins"),
+            "losses": value(*behavior, "learner_round_losses"),
+            "ties": value(*behavior, "round_ties"),
+            "win_percent": value(*behavior, "learner_round_win_percent"),
+            "learner_points_per_completed_round": value(*behavior, "learner_points_per_completed_round"),
+            "opponent_points_per_completed_round": value(*behavior, "opponent_points_per_completed_round"),
+            "facing_percent": value(*behavior, "facing", "percent"),
+            "attack_facing_percent": value(*behavior, "facing", "attack_requested_facing_percent"),
+        },
+        "native_loss": {"kl": value("loss", "kl"), "entropy": value("loss", "entropy")},
+    }
+
+
+def save_training_weights(trainer, path, policy_encoding="raw",
+                          policy_initialization="matching-checkpoint", reward_transform=None):
+    """Keep checkpoint input-encoding and training-reward provenance separate."""
+    manifest = save_policy_weights(trainer, path, policy_encoding, policy_initialization)
+    if reward_transform is None:
+        return manifest
+    path = Path(path)
+    if manifest.get("checkpoint", {}).get("sha256") != _sha256(path):
+        raise RuntimeError("saved training checkpoint hash does not match its manifest")
+    manifest["training_reward_transform"] = deepcopy(reward_transform)
+    reward = manifest.setdefault("reward", {})
+    reward["native_transform"] = reward.get("transform", "none")
+    reward["transform"] = reward_transform["name"]
+    for name in ("facing_potential_scale", "margin_potential_scale", "margin_points"):
+        if name in reward_transform:
+            reward[name] = reward_transform[name]
+    reward["gamma"] = reward_transform["gamma"]
+    path.with_suffix(path.suffix + ".manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8")
+    return manifest
+
+
+def save_failure(args, environment, trainer, error, epoch, checked_ticks, reward_transform=None) -> dict:
     """Preserve a failed trajectory for diagnosis; never label it a valid run."""
     import numpy as np
 
@@ -76,6 +131,7 @@ def save_failure(args, environment, trainer, error, epoch, checked_ticks) -> dic
         "diagnostic_step_checks": getattr(args, "check_every_step", False),
         "diagnostic_only": True, "capture_errors": [],
         "sources": {}, "snapshots": {},
+        "training_reward_transform": reward_transform,
         "device_addresses": {
             "matchers": environment.motion.matchers.tensor.data_ptr(),
             "slots": environment.motion.slots.tensor.data_ptr(),
@@ -107,10 +163,11 @@ def save_failure(args, environment, trainer, error, epoch, checked_ticks) -> dic
         except Exception as capture_error:
             report["capture_errors"].append(f"{name}: {capture_error!r}")
     try:
-        report["diagnostic_policy"] = save_policy_weights(
+        report["diagnostic_policy"] = save_training_weights(
             trainer, args.run_dir / "failed-policy.bin",
             getattr(args, "policy_observation_encoder", "raw"),
             getattr(args, "policy_observation_warm_start", "matching-checkpoint"),
+            reward_transform,
         )
     except Exception as capture_error:
         report["capture_errors"].append(f"policy: {capture_error!r}")
@@ -144,6 +201,12 @@ def train(args: argparse.Namespace) -> dict:
     )
 
     native_args = load_native_config(args.default_config, args.native_config)
+    reward_objective = getattr(args, "reward_objective", "score-delta")
+    facing_potential_config, round_win_reward_config, reward_transform = resolve_reward_objective(
+        native_args, objective=reward_objective, facing_scale=getattr(args, "facing_potential_scale", 0.0),
+        margin_potential_scale=getattr(args, "margin_potential_scale", 0.5),
+        margin_points=getattr(args, "margin_points", 5.0), reward_clip=args.reward_clip,
+    )
     duel_config = load_gpu_duel_config(args.gpu_duel_config)
     total_agents = args.total_agents or int(native_args["vec"]["total_agents"])
     if total_agents <= 0 or total_agents % 2:
@@ -153,6 +216,10 @@ def train(args: argparse.Namespace) -> dict:
         raise ValueError("unknown opponent")
     if policy_encoding != "raw" and opponent != "candidate-dummy":
         raise ValueError("policy observation encoders currently require candidate-dummy")
+    if facing_potential_config is not None and opponent != "candidate-dummy":
+        raise ValueError("facing potential currently requires candidate-dummy")
+    if round_win_reward_config is not None and opponent != "candidate-dummy":
+        raise ValueError("round-win reward currently requires candidate-dummy")
     learning_agents = total_agents // 2 if opponent == "candidate-dummy" else total_agents
     batch_steps = learning_agents * args.horizon
     if args.total_timesteps % batch_steps:
@@ -196,6 +263,8 @@ def train(args: argparse.Namespace) -> dict:
             environment, policy_observation_encoder=policy_encoding,
             checkpoint_manifest=policy_manifest, checkpoint_sha256=policy_checkpoint_sha,
             policy_observation_initialization=policy_initialization,
+            facing_potential_config=facing_potential_config,
+            round_win_reward_config=round_win_reward_config,
         )
         adapter = CudaTensorEnvAdapter(
             candidate_environment, (33,),
@@ -234,9 +303,14 @@ def train(args: argparse.Namespace) -> dict:
 
         trainer.env.step = diagnostic_step
     try:
+        active_reward_config = round_win_reward_config or facing_potential_config
+        if active_reward_config is not None:
+            active_reward_config.validate_training_discount(
+                float(trainer.pufferl.hypers.gamma), reward_clip=float(trainer.pufferl.hypers.reward_clip),
+            )
         if args.load_checkpoint is not None:
             trainer.load_weights(args.load_checkpoint)
-        initial_manifest = save_policy_weights(trainer, initial_path, policy_encoding, policy_initialization)
+        initial_manifest = save_training_weights(trainer, initial_path, policy_encoding, policy_initialization, reward_transform)
         torch.cuda.synchronize(environment.actions.device)
         setup_seconds = time.perf_counter() - setup_start
 
@@ -253,24 +327,19 @@ def train(args: argparse.Namespace) -> dict:
                 elapsed = time.perf_counter() - train_wall_start
                 print(
                     json.dumps(
-                        {
-                            "epoch": epoch,
-                            "agent_steps": trainer.global_step,
-                            "measured_cumulative_agent_steps_per_second": (
-                                trainer.global_step / elapsed
-                            ),
-                            "completed_rounds": latest_log["env"]["n"],
-                        },
+                        training_progress(epoch=epoch, agent_steps=trainer.global_step,
+                                          elapsed=elapsed, latest_log=latest_log),
                         sort_keys=True,
+                        allow_nan=False,
                     ),
                     flush=True,
                 )
             if checkpoint_every and epoch % checkpoint_every == 0 and epoch != epochs:
                 environment.check_status()
                 periodic_checkpoints.append(phase_timer.call(
-                    "checkpoint", save_policy_weights, trainer,
+                    "checkpoint", save_training_weights, trainer,
                     args.run_dir / f"verified-{trainer.global_step:016d}.bin",
-                    policy_encoding, policy_initialization,
+                    policy_encoding, policy_initialization, reward_transform,
                 ))
 
         torch.cuda.synchronize(environment.actions.device)
@@ -279,7 +348,7 @@ def train(args: argparse.Namespace) -> dict:
         if not latest_log:
             latest_log = phase_timer.call("reporting", trainer.log, clear_metrics=False)
         phase_timing = phase_timer.snapshot()
-        final_manifest = save_policy_weights(trainer, final_path, policy_encoding, policy_initialization)
+        final_manifest = save_training_weights(trainer, final_path, policy_encoding, policy_initialization, reward_transform)
         environment.check_status()
 
         extension_path = Path(trainer.backend.__file__).resolve()
@@ -288,6 +357,7 @@ def train(args: argparse.Namespace) -> dict:
         report = {
             "schema": "rek.g1_native_external_gpu_training.v1",
             **policy_encoder_report(policy_encoding, policy_initialization),
+            "training_reward_transform": reward_transform,
             "host": socket.gethostname(),
             "gpu": torch.cuda.get_device_name(environment.actions.device),
             "cuda_device": str(environment.actions.device),
@@ -302,6 +372,10 @@ def train(args: argparse.Namespace) -> dict:
                     else _checkpoint_record(environment.config.fused_combat_library)
                 ),
                 "opponent_sources": opponent_sources,
+                "facing_potential_source": (_checkpoint_record(Path(__file__).with_name("gpu_facing_potential.py"))
+                                             if facing_potential_config is not None else None),
+                "round_win_reward_source": (_checkpoint_record(Path(__file__).with_name("gpu_round_win_reward.py"))
+                                             if round_win_reward_config is not None else None),
                 "gpu_duel_config": {
                     "path": str(args.gpu_duel_config),
                     "sha256": _sha256(args.gpu_duel_config),
@@ -349,15 +423,19 @@ def train(args: argparse.Namespace) -> dict:
                 "cpu_controller_inferences": 0,
                 "physics_sparse_jacobian": bool(environment.physics.model.is_sparse),
                 "conditional_reset_forward": environment.reset_forward_gate is not None,
+                "defer_substep_combat_observations": environment.config.defer_substep_combat_observations,
                 "combat_measurement_backend": type(environment.measurement).__name__,
                 "native_cpu_environment_count": int(
                     trainer.pufferl.native_env_count
                 ),
                 "native_environment_threads": bool(trainer.pufferl.has_env_threads),
                 "diagnostic_step_checks": getattr(args, "check_every_step", False),
-                "reward_transform": (
-                    "none" if args.reward_clip == 0.0 else "symmetric_clamp"
-                ),
+                "reward_transform": reward_transform["name"],
+                "reward_objective": reward_objective,
+                "facing_potential_scale": reward_transform.get("facing_potential_scale", 0.0),
+                "facing_potential_gamma": reward_transform["gamma"] if facing_potential_config is not None else None,
+                "margin_potential_scale": reward_transform.get("margin_potential_scale"),
+                "margin_points": reward_transform.get("margin_points"),
                 "reward_clip": args.reward_clip,
             },
             "checkpoints": {
@@ -382,7 +460,7 @@ def train(args: argparse.Namespace) -> dict:
     except Exception as error:
         failed = True
         try:
-            save_failure(args, environment, trainer, error, epoch, checked_ticks)
+            save_failure(args, environment, trainer, error, epoch, checked_ticks, reward_transform)
         except Exception as capture_error:
             print(f"failure evidence capture also failed: {capture_error!r}", flush=True)
         raise
@@ -424,6 +502,11 @@ def main() -> None:
     parser.add_argument("--check-every-step", action="store_true",
                         help="synchronize status each tick for fault diagnosis, invalidating throughput comparisons")
     parser.add_argument("--reward-clip", type=float, default=0.0)
+    parser.add_argument("--reward-objective", choices=("score-delta", "round-win"), default="score-delta")
+    parser.add_argument("--margin-potential-scale", type=float, default=0.5)
+    parser.add_argument("--margin-points", type=float, default=5.0)
+    parser.add_argument("--facing-potential-scale", type=float, default=0.0,
+                        help="training-only potential scale; zero disables, positive requires unclipped rewards")
     parser.add_argument("--load-checkpoint", type=Path)
     parser.add_argument("--load-checkpoint-sha256", default=None,
                         help="required pinned raw checkpoint hash for raw-initial-weights")

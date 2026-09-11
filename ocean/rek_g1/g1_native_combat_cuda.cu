@@ -9,6 +9,8 @@ extern "C" {
 #include <string.h>
 
 namespace {
+static_assert(offsetof(RekG1CudaNativeCombatState, reset_pending) == 248,
+              "deferred-observation regression state layout changed");
 constexpr unsigned THREADS = 128;
 constexpr float PHYSICS_DELTA_SECONDS = 0.002f;
 constexpr int ROUTE_COUNT = REK_G1_STATIC_ROUTE_COUNT;
@@ -246,6 +248,7 @@ __global__ void pack_contacts_kernel(
     }
 }
 
+template <bool DEFER_OBSERVATION>
 __global__ void post_step_kernel(
         RekG1CudaNativeCombatState* states,
         const float* fall_floats,
@@ -292,6 +295,26 @@ __global__ void post_step_kernel(
             states[arena] = value;
             complete_reset[arena] = 1;
             input_reset[row] = input_reset[row + 1] = 1;
+            if constexpr (DEFER_OBSERVATION) {
+                // The original observe call validates even this early-return
+                // branch. Preserve its status AFTER the original state/flag
+                // writes, which are visible even when observation rejects.
+                bool valid = true;
+                for (size_t fighter = 0; fighter < 2; fighter++) {
+                    const size_t fighter_row = row + fighter;
+                    const int64_t* integers = fall_integers
+                        + fighter_row * FALL_INTEGER_FIELDS;
+                    valid = valid && fall_valid[fighter_row]
+                        && (integers[0] == 0 || integers[0] == 1)
+                        && (integers[1] == 0 || integers[1] == 1)
+                        && (integers[2] == 0 || integers[2] == 1)
+                        && integers[3] >= 0 && uint64_t(integers[3]) <= UINT32_MAX
+                        && (integers[4] == 0 || integers[4] == 1)
+                        && (integers[5] == 0 || integers[5] == 1)
+                        && (integers[6] == 0 || integers[6] == 1);
+                }
+                if (!valid) statuses[arena] = REK_G1_CUDA_NATIVE_COMBAT_INPUT_INVALID;
+            }
             continue;
         }
 
@@ -637,7 +660,8 @@ extern "C" cudaError_t rek_g1_cuda_native_combat_begin_tick(
     return cudaGetLastError();
 }
 
-extern "C" cudaError_t rek_g1_cuda_native_combat_post_step(
+template <bool DEFER_OBSERVATION>
+static cudaError_t post_step_dispatch(
         RekG1CudaNativeCombatState* states,
         const float* fall_floats,
         const int64_t* fall_integers,
@@ -692,7 +716,7 @@ extern "C" cudaError_t rek_g1_cuda_native_combat_post_step(
         arena_count, directed_candidate_capacity);
     cudaError_t status = cudaGetLastError();
     if (status != cudaSuccess) return status;
-    post_step_kernel<<<blocks_for(arena_count), THREADS, 0, stream>>>(
+    post_step_kernel<DEFER_OBSERVATION><<<blocks_for(arena_count), THREADS, 0, stream>>>(
         states, fall_floats, fall_integers, fall_valid, candidate_offsets,
         candidate_counts, arena_time_seconds, packed_contacts,
         tick_fall_events, tick_signals, tick_referee_calls, tick_score_delta,
@@ -700,6 +724,100 @@ extern "C" cudaError_t rek_g1_cuda_native_combat_post_step(
         dampened, begin_reset, complete_reset, clear_contacts, statuses,
         arena_count);
     return cudaGetLastError();
+}
+
+extern "C" cudaError_t rek_g1_cuda_native_combat_post_step(
+        RekG1CudaNativeCombatState* states,
+        const float* fall_floats,
+        const int64_t* fall_integers,
+        const uint8_t* fall_valid,
+        const int64_t* hit_integers,
+        const float* hit_floats,
+        const uint8_t* candidate_valid,
+        const int64_t* candidate_order,
+        const int64_t* candidate_offsets,
+        const int64_t* candidate_counts,
+        const uint8_t* arena_scan_valid,
+        const float* arena_time_seconds,
+        const SonicMotionComposerNative* composers,
+        const int32_t* active_route_ids,
+        const RekG1ImpactEvent* impact_events,
+        const int32_t* route_event_offsets,
+        const int32_t* route_event_counts,
+        RekG1HitContact* packed_contacts,
+        uint32_t* tick_fall_events,
+        uint32_t* tick_signals,
+        uint32_t* tick_referee_calls,
+        int32_t* tick_score_delta,
+        uint32_t* tick_attributed_contacts,
+        uint32_t* tick_scored_contacts,
+        uint8_t* terminals,
+        uint8_t* input_reset,
+        uint8_t* dampened,
+        uint8_t* begin_reset,
+        uint8_t* complete_reset,
+        uint8_t* clear_contacts,
+        int32_t* statuses,
+        size_t arena_count,
+        size_t directed_candidate_capacity,
+        cudaStream_t stream) {
+    return post_step_dispatch<false>(
+        states, fall_floats, fall_integers, fall_valid,
+        hit_integers, hit_floats, candidate_valid, candidate_order,
+        candidate_offsets, candidate_counts, arena_scan_valid, arena_time_seconds,
+        composers, active_route_ids, impact_events, route_event_offsets,
+        route_event_counts, packed_contacts, tick_fall_events, tick_signals,
+        tick_referee_calls, tick_score_delta, tick_attributed_contacts, tick_scored_contacts,
+        terminals, input_reset, dampened, begin_reset,
+        complete_reset, clear_contacts, statuses, arena_count,
+        directed_candidate_capacity, stream);
+}
+
+extern "C" cudaError_t rek_g1_cuda_native_combat_post_step_deferred(
+        RekG1CudaNativeCombatState* states,
+        const float* fall_floats,
+        const int64_t* fall_integers,
+        const uint8_t* fall_valid,
+        const int64_t* hit_integers,
+        const float* hit_floats,
+        const uint8_t* candidate_valid,
+        const int64_t* candidate_order,
+        const int64_t* candidate_offsets,
+        const int64_t* candidate_counts,
+        const uint8_t* arena_scan_valid,
+        const float* arena_time_seconds,
+        const SonicMotionComposerNative* composers,
+        const int32_t* active_route_ids,
+        const RekG1ImpactEvent* impact_events,
+        const int32_t* route_event_offsets,
+        const int32_t* route_event_counts,
+        RekG1HitContact* packed_contacts,
+        uint32_t* tick_fall_events,
+        uint32_t* tick_signals,
+        uint32_t* tick_referee_calls,
+        int32_t* tick_score_delta,
+        uint32_t* tick_attributed_contacts,
+        uint32_t* tick_scored_contacts,
+        uint8_t* terminals,
+        uint8_t* input_reset,
+        uint8_t* dampened,
+        uint8_t* begin_reset,
+        uint8_t* complete_reset,
+        uint8_t* clear_contacts,
+        int32_t* statuses,
+        size_t arena_count,
+        size_t directed_candidate_capacity,
+        cudaStream_t stream) {
+    return post_step_dispatch<true>(
+        states, fall_floats, fall_integers, fall_valid,
+        hit_integers, hit_floats, candidate_valid, candidate_order,
+        candidate_offsets, candidate_counts, arena_scan_valid, arena_time_seconds,
+        composers, active_route_ids, impact_events, route_event_offsets,
+        route_event_counts, packed_contacts, tick_fall_events, tick_signals,
+        tick_referee_calls, tick_score_delta, tick_attributed_contacts, tick_scored_contacts,
+        terminals, input_reset, dampened, begin_reset,
+        complete_reset, clear_contacts, statuses, arena_count,
+        directed_candidate_capacity, stream);
 }
 
 extern "C" cudaError_t rek_g1_cuda_native_combat_observe(

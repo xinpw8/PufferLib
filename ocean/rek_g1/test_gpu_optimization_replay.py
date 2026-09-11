@@ -1,14 +1,42 @@
 import unittest
+from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
 from verify_gpu_optimization_replay import (
     EXACT_FIELDS, NUMERIC_FIELDS, compare, exact_difference, pairwise_exact,
-    requested_actions,
+    requested_actions, replay_configs,
 )
 
 
 class OptimizationReplayTests(unittest.TestCase):
+    def test_deferred_intervention_preserves_other_configured_options(self):
+        @dataclass
+        class Config:
+            combat_library: Path = Path("original.so")
+            conditional_reset_forward: bool = True
+            fused_combat_library: Path = Path("fused.so")
+            defer_substep_combat_observations: bool = False
+
+        source = Config()
+        original, candidate = replay_configs(
+            source, conditional_reset_forward=False, deferred_combat_library=Path("new.so"))
+        self.assertEqual(original.combat_library, Path("new.so"))
+        self.assertEqual(candidate.combat_library, original.combat_library)
+        self.assertTrue(original.conditional_reset_forward)
+        self.assertTrue(candidate.conditional_reset_forward)
+        self.assertEqual(original.fused_combat_library, source.fused_combat_library)
+        self.assertEqual(candidate.fused_combat_library, source.fused_combat_library)
+        self.assertFalse(original.defer_substep_combat_observations)
+        self.assertTrue(candidate.defer_substep_combat_observations)
+        self.assertEqual(source.combat_library, Path("original.so"))
+        legacy_original, legacy_candidate = replay_configs(source, conditional_reset_forward=True)
+        self.assertFalse(legacy_original.conditional_reset_forward)
+        self.assertIsNone(legacy_original.fused_combat_library)
+        self.assertTrue(legacy_candidate.conditional_reset_forward)
+        self.assertFalse(legacy_candidate.defer_substep_combat_observations)
+
     def test_script_has_eight_fighters_and_declared_yaw_requests(self):
         actions = requested_actions(256)
         self.assertEqual(actions.shape, (256, 8))

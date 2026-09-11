@@ -353,6 +353,69 @@ articulated-physics step. Solver/kernel changes need their own trajectory
 comparisons; neither reducing physics frequency nor substituting an
 unvalidated engine is included in the reported speedup.
 
+## Deferred combat observation packing experiment
+
+The separate opt-in `defer_substep_combat_observations` remains **false by
+default**. It removes ten unused intermediate observation packs per 50 Hz
+control tick while retaining the final pack, all 500 Hz native combat updates,
+reset flags and input validation. Its new native entry point preserves the
+original API. Enabling it requires the corresponding rebuilt combat library;
+an older library raises an error before execution.
+
+All 22 CUDA native fixtures passed exact state, status and reset-flag checks
+at every substep, with exact control-boundary packed outputs for valid arenas.
+Intentionally failed arenas can retain different stale diagnostic outputs; both paths abort
+through the original status check. Four-arena, 256-tick full replay with four
+repeats per independent graph passed all seven unchanged numerical variance
+criteria. The strict diagnostic still failed `fall_phase` and
+`tick_fall_events`: original A/B differed in 3/6 elements, A/candidate in 2/4,
+and B/candidate in 1/2. Every differing candidate value occurred at the same
+fighter and tick in unchanged original repeats. All other 24 discrete fields
+matched exactly. This supports the observed-original-variation distinction;
+it establishes neither bit-exact trajectories nor authentic REK parity. The
+short replay covered a synthetic five-point KO/reset and E-to-kick input,
+but no physical scored hit or terminal. The original mask rejected its early
+Q-to-front-kick request.
+
+Two alternating neutral-learner versus candidate-dummy control probes per arm
+used 512 arenas and 128 ticks. Reference control SPS was 6,783.84/6,775.12;
+deferred control SPS was 7,129.08/7,119.65, a 5.09% median difference. These
+figures exclude PPO.
+
+The subsequent actual native training comparison used 262,144 learner steps
+per run, 512 arenas, horizon 256, minibatch 4,096, constant LR 0.003, gamma
+0.999, lambda 0.995 and replay ratio 4. Each loaded the same normalized policy
+`0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154`,
+with matching `scaled_polar_xy_v1` metadata and a fresh optimizer. Both arms
+used identical frozen source, the corrected native learner and the new
+combat library. Only the deferred-packing flag differed. Reward remained the
+original unclipped learner-minus-opponent score delta, without shaping.
+
+| Version | Run 1 training learner SPS | Run 2 training learner SPS | Median |
+| --- | ---: | ---: | ---: |
+| Reference packing | 5,958.64 | 5,844.36 | 5,901.50 |
+| Deferred packing | 5,969.34 | 5,962.45 | 5,965.89 |
+
+The median difference was 1.09%; the first pair differed by only 0.18%,
+while the two reference runs varied by approximately 1.9%. This bounded test
+does not demonstrate a reliable training gain, so the option stays disabled.
+All four runs completed, recording zero CPU physics steps, CPU controller
+inferences and native CPU environments. Rollout occupied approximately 97.7%
+of the CUDA stream envelope and PPO 2.3%; CPU orchestration consumed about
+99.6% of one core. These overlapping timings do not measure kernel occupancy.
+Each run simulated 10.24 s per arena, insufficient for a completed-round
+win-rate comparison. Training checkpoints differed even between references.
+
+Evidence is under `C:/rekagent/evidence/rek-training-winrate-20260911-v1/`:
+`deferred-observe-001/{report-001,summary-001}.json`,
+`deferred-observe-replay-001/{replay,analysis}.json` and `replay.npz`, and
+`deferred-training-benchmark-v1/{plan,summary}.json`. The latter retains all
+four report paths, phase timings, raw combat metrics and checkpoint hashes.
+Its summary SHA-256 is
+`49e90ba8b02aa1bc789734cc8a0db83d9b0899d7aa036ac37634c6bf35a87b89`.
+Complete commands/stdout/stderr are retained in that evidence root's
+`commands/deferred-*` directories. No active training stage was overwritten.
+
 ## Rejected approaches
 
 Dense Jacobians are unsupported by this installed backend for the model's

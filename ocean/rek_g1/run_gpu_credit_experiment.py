@@ -1,7 +1,8 @@
 """Matched native-Muon credit-span experiment using the production duel trainer.
 
 The short/long arms differ only in gamma, lambda and rollout/RNN horizon.
-Both hold LR constant, use identical rewards/masks/opponent, and pin input weights.
+Both hold LR constant, use identical base rewards/masks/opponent, and pin input
+weights. Potential shaping is a separately declared opt-in experiment factor.
 No claim about policy quality is inferred from the online training win rate.
 """
 from __future__ import annotations
@@ -36,7 +37,7 @@ def numeric_plan(parser, *, physical_fighters, total_timesteps, minibatch_size):
     horizon = int(train["horizon"])
     gamma, lam = float(train["gamma"]), float(train["gae_lambda"])
     lr = float(train["learning_rate"])
-    if not 0 < gamma < 1 or not 0 < lam < 1 or not math.isfinite(lr) or lr <= 0:
+    if not 0 < gamma <= 1 or not 0 < lam < 1 or not math.isfinite(lr) or lr <= 0:
         raise ValueError("discounts and learning rate must be finite and positive")
     if ast.literal_eval(train["anneal_lr"]) or not ast.literal_eval(parser["base"]["reset_state"]):
         raise ValueError("matched experiment requires constant LR and horizon memory reset")
@@ -55,7 +56,8 @@ def numeric_plan(parser, *, physical_fighters, total_timesteps, minibatch_size):
         "learner_steps": total_timesteps, "horizon_ticks": horizon,
         "horizon_seconds": horizon * .02,
         "reset_state_each_horizon": True, "gamma": gamma, "gae_lambda": lam,
-        "discount_efold_seconds": -.02 / math.log(gamma),
+        "discount_efold_seconds": None if gamma == 1 else -.02 / math.log(gamma),
+        "undiscounted": gamma == 1,
         "gae_efold_seconds": -.02 / math.log(gamma * lam),
         "direct_gae_weight_at_3_seconds": (gamma * lam) ** 150,
         "direct_gae_has_3_second_span": horizon > 150,
@@ -103,6 +105,21 @@ def run(args):
     parser = resolved_config(args.default_config, args.native_config, args.credit_config)
     plan = numeric_plan(parser, physical_fighters=args.total_agents,
                         total_timesteps=args.total_timesteps, minibatch_size=args.minibatch_size)
+    from gpu_round_win_reward import resolve_reward_objective
+
+    facing_scale = getattr(args, "facing_potential_scale", 0.0)
+    objective = getattr(args, "reward_objective", "score-delta")
+    margin_scale, margin_points = getattr(args, "margin_potential_scale", .5), getattr(args, "margin_points", 5.0)
+    _, _, reward_transform = resolve_reward_objective(
+        {"train": {"gamma": plan["gamma"]}}, objective=objective, facing_scale=facing_scale,
+        margin_potential_scale=margin_scale, margin_points=margin_points, reward_clip=0.0,
+    )
+    plan["training_reward_transform"] = reward_transform
+    if facing_scale > 0:
+        plan["reward"] = "unclipped native score-delta reward plus declared terminal-masked facing potential"
+    if objective == "round-win":
+        plan["reward"] = "terminal win indicator plus declared terminal-masked bounded margin potential; gamma 1"
+    plan["reward_objective"] = objective
     inputs = args.run_dir.with_name(args.run_dir.name + ".inputs")
     inputs.mkdir(parents=True, exist_ok=False)
     materialized = inputs / "resolved-native.ini"
@@ -135,6 +152,8 @@ def run(args):
         load_checkpoint_sha256=expected_sha,
         policy_observation_encoder=getattr(args, "policy_observation_encoder", "raw"),
         policy_observation_warm_start=getattr(args, "policy_observation_warm_start", "matching-checkpoint"),
+        facing_potential_scale=facing_scale,
+        reward_objective=objective, margin_potential_scale=margin_scale, margin_points=margin_points,
         run_dir=args.run_dir, output=args.output,
     )
     result = train(training_args)
@@ -153,6 +172,11 @@ if __name__ == "__main__":
                   "load-checkpoint", "run-dir", "output"):
         parser.add_argument("--" + field, type=Path, required=True)
     parser.add_argument("--checkpoint-sha256", required=True)
+    parser.add_argument("--reward-objective", choices=("score-delta", "round-win"), default="score-delta")
+    parser.add_argument("--margin-potential-scale", type=float, default=0.5)
+    parser.add_argument("--margin-points", type=float, default=5.0)
+    parser.add_argument("--facing-potential-scale", type=float, default=0.0,
+                        help="separate training-only reward experiment; zero preserves the base reward")
     parser.add_argument("--policy-observation-encoder", default="raw",
                         choices=("raw", "polar_xy_v1", "scaled_polar_xy_v1"))
     parser.add_argument("--policy-observation-warm-start", default="matching-checkpoint",

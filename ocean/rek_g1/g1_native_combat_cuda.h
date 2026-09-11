@@ -110,6 +110,45 @@ cudaError_t rek_g1_cuda_native_combat_post_step(
     cudaStream_t stream
 );
 
+/* Opt-in unobserved substep: preserve observe's validation before deferring
+ * only its packed outputs. Call observe before consuming packed outputs. */
+cudaError_t rek_g1_cuda_native_combat_post_step_deferred(
+    RekG1CudaNativeCombatState* states,
+    const float* fall_floats,
+    const int64_t* fall_integers,
+    const uint8_t* fall_valid,
+    const int64_t* hit_integers,
+    const float* hit_floats,
+    const uint8_t* candidate_valid,
+    const int64_t* candidate_order,
+    const int64_t* candidate_offsets,
+    const int64_t* candidate_counts,
+    const uint8_t* arena_scan_valid,
+    const float* arena_time_seconds,
+    const SonicMotionComposerNative* composers,
+    const int32_t* active_route_ids,
+    const RekG1ImpactEvent* impact_events,
+    const int32_t* route_event_offsets,
+    const int32_t* route_event_counts,
+    RekG1HitContact* packed_contacts,
+    uint32_t* tick_fall_events,
+    uint32_t* tick_signals,
+    uint32_t* tick_referee_calls,
+    int32_t* tick_score_delta,
+    uint32_t* tick_attributed_contacts,
+    uint32_t* tick_scored_contacts,
+    uint8_t* terminals,
+    uint8_t* input_reset,
+    uint8_t* dampened,
+    uint8_t* begin_reset,
+    uint8_t* complete_reset,
+    uint8_t* clear_contacts,
+    int32_t* statuses,
+    size_t arena_count,
+    size_t directed_candidate_capacity,
+    cudaStream_t stream
+);
+
 /* Pack the existing fall15/fight39 row ABIs and reward/terminal vectors. */
 cudaError_t rek_g1_cuda_native_combat_observe(
     const RekG1CudaNativeCombatState* states,
