@@ -105,10 +105,11 @@ struct TrainGraph {
     PrecisionTensor mb_newvalue;
     PrecisionTensor mb_prio;        // (B,)
     PrecisionTensor mb_action_mask; // (B, T, mask_size); .data=nullptr when disabled
+    PrecisionTensor mb_terminals;   // (B, T); external GPU recurrent reset boundaries only
 };
 
 void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, int input_size,
-        int hidden_size, int num_atns, int num_layers, int mask_size) {
+        int hidden_size, int num_atns, int num_layers, int mask_size, bool external_gpu) {
     bufs = (TrainGraph){
         .mb_state =         {.shape = {num_layers, B, hidden_size}},
         .mb_obs =           {.shape = {B, T, input_size}},
@@ -121,6 +122,7 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, in
         .mb_newvalue =      {.shape = {B, T}},
         .mb_prio =          {.shape = {B}},
         .mb_action_mask =   {},
+        .mb_terminals =     {},
     };
     alloc_register(alloc, &bufs.mb_obs);
     alloc_register(alloc, &bufs.mb_state);
@@ -135,6 +137,10 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, in
     if (mask_size > 0) {
         bufs.mb_action_mask = {.shape = {B, T, mask_size}};
         alloc_register(alloc, &bufs.mb_action_mask);
+    }
+    if (external_gpu) {
+        bufs.mb_terminals = {.shape = {B, T}};
+        alloc_register(alloc, &bufs.mb_terminals);
     }
 }
 
@@ -1667,6 +1673,13 @@ __global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
                        (char*)graph.mb_action_mask.data, src_row, mb, mask_row_bytes);
         }
         break;
+    case 6:
+        if (graph.mb_terminals.data != nullptr) {
+            copy_bytes((const char*)rollouts.terminals.data,
+                       (char*)graph.mb_terminals.data, src_row, mb,
+                       horizon * sizeof(precision_t));
+        }
+        break;
     }
 }
 
@@ -1754,6 +1767,8 @@ void train_impl(PuffeRL& pufferl) {
     // Annealed priority exponent
     float anneal_beta = prio_beta0 + (1.0f - prio_beta0) * prio_alpha * (float)current_epoch/(float)total_epochs;
     TrainGraph& graph = pufferl.train_buf;
+    policy_set_training_terminals(&pufferl.policy, pufferl.train_activations,
+                                  graph.mb_terminals.data);
     cudaEventRecord(pufferl.profile.events[1]);  // pre-loop end
 
     int total_minibatches = hypers.replay_ratio * batch_size / hypers.minibatch_size;
@@ -1786,7 +1801,8 @@ void train_impl(PuffeRL& pufferl) {
             RolloutBuf sel_src = rollouts;
             sel_src.values = rollouts.values;
             int mb_segs = pufferl.prio_bufs.idx.shape[0];
-            int channels = (graph.mb_action_mask.data != nullptr) ? 6 : 5;
+            int channels = graph.mb_terminals.data != nullptr ? 7
+                : ((graph.mb_action_mask.data != nullptr) ? 6 : 5);
             select_copy<<<dim3(mb_segs, channels), SELECT_COPY_THREADS, 0, train_stream>>>(
                 sel_src, graph, pufferl.prio_bufs.idx.data,
                 advantages_puf.data, pufferl.prio_bufs.mb_prio.data);
@@ -2213,7 +2229,8 @@ std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
         acts, horizon, total_agents, input_size, num_action_heads, mask_size);
     register_train_buffers(pufferl->train_buf,
         acts, minibatch_segments, horizon, input_size,
-        hidden_size, num_action_heads, num_layers, mask_size);
+        hidden_size, num_action_heads, num_layers, mask_size,
+        pufferl->vec->external_gpu && pufferl->policy.network.forward_train == mingru_forward_train);
     register_rollout_buffers(pufferl->train_rollouts,
         acts, total_agents, horizon, input_size, num_action_heads, mask_size);
     register_ppo_buffers(pufferl->ppo_bufs_puf,

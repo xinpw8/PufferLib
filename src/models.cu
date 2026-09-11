@@ -141,6 +141,7 @@ struct PrefixScan {
     precision_t* combined_ptr = nullptr;
     precision_t* state_ptr = nullptr;
     precision_t* input_ptr = nullptr;  // (B, T, H) original input before projection (for highway gate)
+    const precision_t* terminal_ptr = nullptr;  // (B, T), reset before the corresponding observation
     int B = 0, T = 0, H = 0;
     FloatTensor a_star, s_vals, log_values_buf;
     PrecisionTensor out, next_state;
@@ -207,6 +208,11 @@ __global__ void mingru_scan_forward(PrefixScan scan) {
 
         float log_coeff_val;
         log_coeffs_and_values_fwd(gate_val, hidden_val, &log_coeff_val, &log_value);
+
+        if (scan.terminal_ptr != nullptr && to_float(scan.terminal_ptr[b * T_seq + t - 1]) != 0.0f) {
+            a_star = 0.0f;
+            s = -INFINITY;
+        }
 
         // a_star[t] = sum_{i=0}^t log_coeffs[i]
         a_star += log_coeff_val;
@@ -306,6 +312,10 @@ __global__ void mingru_scan_backward(PrefixScan scan,
 
             float lc;
             log_coeffs_and_values_fwd(gv, hv, &lc, &recomp_log_value);
+            if (scan.terminal_ptr != nullptr && to_float(scan.terminal_ptr[b * T_seq + t - 1]) != 0.0f) {
+                recomp_a_star = 0.0f;
+                recomp_s = -INFINITY;
+            }
             recomp_a_star += lc;
 
             float z = recomp_log_value - recomp_a_star;
@@ -347,7 +357,12 @@ __global__ void mingru_scan_backward(PrefixScan scan,
             float grad_log_h = grad_scan_result * scan_result;
             float grad_s = grad_log_h;
 
-            if (t == T_seq) {
+            bool next_reset = scan.terminal_ptr != nullptr && t < T_seq
+                && to_float(scan.terminal_ptr[b * T_seq + t]) != 0.0f;
+            if (next_reset) {
+                carry_grad_a = 0.0f;
+            }
+            if (t == T_seq || next_reset) {
                 acc = grad_s;
             } else {
                 acc = grad_s + acc * __expf(s_t - s_val_next);
@@ -356,6 +371,10 @@ __global__ void mingru_scan_backward(PrefixScan scan,
             s_val_next = s_t;
 
             float grad_a = grad_log_h + carry_grad_a - grad_z;
+            if (scan.terminal_ptr != nullptr && to_float(scan.terminal_ptr[b * T_seq + t - 1]) != 0.0f) {
+                // This coefficient multiplies a reset state of zero.
+                grad_a = 0.0f;
+            }
             carry_grad_a = grad_a;
 
             float grad_g, grad_h;
@@ -364,6 +383,19 @@ __global__ void mingru_scan_backward(PrefixScan scan,
             grad_combined_h_base[t_offset] = from_float(grad_h);
             grad_combined_g_base[t_offset] = from_float(grad_g);
             grad_combined_p_base[t_offset] = from_float(grad_proj);
+        }
+    }
+
+    if (scan.terminal_ptr != nullptr) {
+        if (to_float(scan.terminal_ptr[b * T_seq]) != 0.0f) {
+            grad_state[state_idx] = from_float(0.0f);
+            return;
+        }
+        if (to_float(state[state_idx]) == 0.0f) {
+            // Exact limit after cancelling exp(log(h0)) / h0. The legacy
+            // null-mask path below is retained, including its arithmetic.
+            grad_state[state_idx] = from_float(acc * __expf(-s_val_next));
+            return;
         }
     }
 
@@ -772,6 +804,17 @@ struct PolicyWeights {
     void* decoder;
     void* network;
 };
+
+static void policy_set_training_terminals(Policy* p, PolicyActivations& activations,
+        const precision_t* terminals) {
+    if (p->network.forward_train != mingru_forward_train) {
+        return;
+    }
+    auto* a = (MinGRUActivations*)activations.network;
+    for (int i = 0; i < a->num_layers; ++i) {
+        a->scan_bufs[i].terminal_ptr = terminals;
+    }
+}
 
 static void policy_activations_free(Policy* p, PolicyActivations& a) {
     p->encoder.free_activations(a.encoder);
