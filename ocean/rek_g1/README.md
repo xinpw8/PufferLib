@@ -14,6 +14,12 @@ The explicit optimized training configuration, implementation details and
 numerical replay limits are documented in [TRAINING_PERFORMANCE.md](TRAINING_PERFORMANCE.md).
 It skips empty reset-only forward passes and uses fused CUDA contact
 bookkeeping while retaining the current physics and controller contract.
+Three matched Spark training pairs measured 2,990.12 to 5,973.30 learner
+steps/s, a 1.99768-times improvement. A separate native MinGRU correction
+preserves round-reset boundaries during PPO replay; its short training check
+measured 6,041.68 learner steps/s. These use 512 learner arenas and 1,024
+physical fighters. The report distinguishes throughput from frozen-policy
+fighting results; faster training alone establishes neither skill nor parity.
 
 `gpu_semantic_duel.py` runs controller inference, motion scheduling, MuJoCo
 Warp physics, contact measurement, fall/referee state, rewards, and observations
