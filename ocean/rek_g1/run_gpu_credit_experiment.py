@@ -41,8 +41,8 @@ def numeric_plan(parser, *, physical_fighters, total_timesteps, minibatch_size):
         raise ValueError("discounts and learning rate must be finite and positive")
     if ast.literal_eval(train["anneal_lr"]) or not ast.literal_eval(parser["base"]["reset_state"]):
         raise ValueError("matched experiment requires constant LR and horizon memory reset")
-    if horizon not in (64, 256):
-        raise ValueError("only the declared 64/256-tick credit arms are supported")
+    if horizon not in (64, 256, 1024):
+        raise ValueError("only the declared 64/256/1024-tick credit arms are supported")
     rollout_steps = learners * horizon
     if total_timesteps <= 0 or total_timesteps % rollout_steps:
         raise ValueError("total timesteps must contain complete rollouts")

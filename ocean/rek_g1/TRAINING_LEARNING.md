@@ -158,6 +158,65 @@ against the CPU reference was zero. Game state, opponent actions, scores,
 masks and metrics remained unchanged. This is a tensor/wrapper test; it does
 not establish improved learning or exercise physical trajectories.
 
+The first completed round-win run warm-started the scaled-polar checkpoint
+`0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154`,
+with a fresh optimizer retained for all 100 rollouts. It executed 13,107,200
+additional learner steps in 2,320.452 s, or 5,648.56 steps/s. Physics and
+controller execution remained CUDA-only; CPU environment workers, physics
+steps and controller inferences were zero. Host orchestration consumed
+approximately one CPU core. PPO occupied 2.160% of the measured CUDA stream
+envelope; rollout occupied 97.825%.
+
+Its changing-policy outcomes were 1,393 wins, 550 losses and 105 ties across
+2,048 completed rounds, or 68.018% wins. Mean points were 14.78662 versus
+10.63721; learner/opponent falls were 1.19141/1.80908 per round. Facing was
+32.264%, attack-facing 46.919%, and mean root separation 1.10301 m. The
+recorded 12,247 scored hits are arena totals, not learner-attributed hits.
+
+At the completed 512-round boundaries, successive online win counts were
+369, 353, 370 and 301. The last cohort was weaker. These observations do not
+show consistent learning improvement and cannot replace frozen evaluation.
+The final checkpoint SHA-256 is
+`e71febdacba546dad91c5fe20cfa0f64a493d8fd3e4281a353fccda79757e316`.
+Earlier verified checkpoints are retained for separately labeled selection.
+
+The Python training process wrote the complete report and all checkpoints.
+An edit to its running outer Bash launcher caused a trailing syntax error
+after training. That shell failure is preserved in `round-win-long-run-01`.
+The independent `round-win-completion-collect-01` command recovered the full
+unchanged output under `round-win-long-r1-completion-recovery-v1/` in the
+current evidence root. It is not recorded as a successful outer launch.
+
+The completed greedy screening selected recorded checkpoints nearest 25%,
+50% and 75% of this run, plus its final checkpoint. Each used 32 arenas,
+6,400 control ticks, the actual 256-tick training horizon and unchanged
+weights against the original candidate dummy.
+
+| Additional trained steps | Wins / losses / ties | Own / opponent points |
+| ---: | ---: | ---: |
+| 3,145,728 | 25 / 7 / 0 | 20.59375 / 14.87500 |
+| 6,291,456 | 23 / 6 / 3 | 14.96875 / 9.43750 |
+| 9,437,184 | 27 / 5 / 0 | 17.62500 / 10.96875 |
+| 13,107,200 | 26 / 5 / 1 | 14.37500 / 7.68750 |
+
+None meets the 100% target. The best count in this selection is 27/32,
+below the earlier scaled-polar screen's 29/32 and the raw initial screen's
+31/32. These small, separately executed screenings do not isolate a causal
+policy-strength difference. The selected round-win checkpoint is
+`e8041a203d1588b2ddab10edf9fe3eb0742424ec07df13bf08bd31c73cf9756d`.
+Selection is not held-out validation. Reports and immutable weight hashes
+are under `round-win-screen-r1/evaluations/` in the current evidence root.
+
+The declared next credit-assignment trial is
+`config/rek_g1_round_win_lr0003_h1024.ini`: constant LR 0.0003, gamma 1,
+lambda 0.999, horizon 1,024 ticks (20.48 s), replay ratio 4 and the existing
+horizon memory reset. Its 7,340,032-step plan contains 14 complete rollouts
+with 512 learner arenas and 7,168 optimizer minibatches of 4,096 samples.
+The lower LR responds to the previous run's final approximate KL of 0.03278
+and clip fraction 0.21147; the longer horizon extends temporal credit.
+These are experimentally motivated settings, not demonstrated improvements.
+Seven CPU runner tests passed, including exact rollout and minibatch counts.
+
 ## Frozen evaluation and scripted diagnostics
 
 `evaluate_gpu_dummy.py --greedy` selects the highest-logit legal action.

@@ -66,6 +66,35 @@ class CreditExperimentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             numeric_plan(self.config("long"), physical_fighters=1024, total_timesteps=1024, minibatch_size=4096)
 
+    def test_declared_round_win_h1024_numeric_plan(self):
+        directory = Path(__file__).resolve().parents[2] / "config"
+        config = resolved_config(directory / "default.ini", directory / "rek_g1.ini",
+                                 directory / "rek_g1_round_win_lr0003_h1024.ini")
+        plan = numeric_plan(config, physical_fighters=1024,
+                            total_timesteps=7340032, minibatch_size=4096)
+        effective = effective_native_parameters(config, plan)
+        self.assertEqual(plan["horizon_ticks"], 1024)
+        self.assertEqual(plan["horizon_seconds"], 20.48)
+        self.assertEqual(plan["rollouts"], 14)
+        self.assertEqual(plan["optimizer_minibatches"], 7168)
+        self.assertEqual(plan["simulated_seconds_per_arena"], 286.72)
+        self.assertEqual(plan["learning_rate"], .0003)
+        self.assertEqual(plan["gamma"], 1)
+        self.assertEqual(plan["gae_lambda"], .999)
+        self.assertFalse(plan["anneal_lr"])
+        self.assertTrue(plan["reset_state_each_horizon"])
+        self.assertEqual(effective["train"]["horizon"], 1024)
+        self.assertEqual(effective["train"]["total_timesteps"], 7340032)
+        self.assertEqual(effective["vec"]["num_threads"], 0)
+        for total, batch in ((7340031, 4096), (7340032, 1536), (7340032, 3072)):
+            with self.subTest(total=total, batch=batch), self.assertRaises(ValueError):
+                numeric_plan(config, physical_fighters=1024,
+                             total_timesteps=total, minibatch_size=batch)
+        config["train"]["horizon"] = "512"
+        with self.assertRaisesRegex(ValueError, "declared"):
+            numeric_plan(config, physical_fighters=1024,
+                         total_timesteps=7340032, minibatch_size=4096)
+
     def test_prepare_only_materializes_without_importing_gpu_trainer(self):
         config_dir = Path(__file__).resolve().parents[2] / "config"
         with tempfile.TemporaryDirectory() as temporary:

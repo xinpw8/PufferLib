@@ -418,11 +418,25 @@ Complete commands/stdout/stderr are retained in that evidence root's
 
 ## Rejected approaches
 
-Dense Jacobians are unsupported by this installed backend for the model's
-70 velocity degrees of freedom; its limit is 60. The default sparse solver
-was retained. Increasing beyond 512 arenas and reducing constraint capacity
-had already shown no useful training throughput gain. No solver iteration
-limit, tolerance, contact capacity or simulation timestep was reduced.
+The installed backend rejects dense Jacobians above 60 velocity degrees of
+freedom at model conversion. A separate, scoped experiment raised that
+Python guard for this 70-DoF model without changing installed files. Its
+80-wide tiled kernels compiled, captured and ran successfully. The compiled
+dense JTDAJ forward kernel used 35,904 bytes of shared memory, within GB10's
+per-block limit. Thus the guard alone does not establish a hardware limit.
+
+The full four-arena, 256-tick, four-repeat comparison nevertheless failed the
+unchanged body-position criterion: original-repeat RMS was 0.0176906 m,
+versus 0.0279048 m for dense. The bootstrap upper-extra RMS was 0.0319755 m.
+Fall-event exact mismatches also occurred between unchanged references. All
+replays completed without nonfinite states, illegal inputs or runtime status
+errors. Dense mode remains disabled; no 512-arena timing or training gain was
+claimed. Evidence is in
+`C:/rekagent/evidence/rek-dense-jacobian-feasibility-20260911/dense-nv70-combined4-full-v2/`.
+
+Increasing beyond 512 arenas and reducing constraint capacity had already
+shown no useful training throughput gain. No solver iteration limit,
+tolerance, contact capacity or simulation timestep was reduced.
 
 Runtime assets, checkpoints, raw traces, commands and complete output remain
 in the external evidence directory `C:/rekagent/evidence/rek-training-opt-20260911`.
