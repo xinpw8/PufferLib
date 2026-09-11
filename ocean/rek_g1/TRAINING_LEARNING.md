@@ -250,6 +250,62 @@ the boundary correction, not improved combat performance. The old H1024
 launcher was not executed; `bootstrap-h1024-r1` uses this corrected extension
 with the same declared settings and original physical simulator/opponent.
 
+`bootstrap-h1024-r1` completed 7,340,032 learner steps in 1,308.119 s,
+excluding 57.953 s setup: 5,611.14 learner SPS. All simulator, controller,
+opponent and learner computation remained on CUDA; host orchestration used
+approximately one CPU core. Rollout occupied 94.93% and PPO 5.06% of the
+measured sequential stream envelope. Its 1,024 changing-policy training
+rounds were 496 wins, 474 losses and 54 ties (48.4375% wins), with mean
+own/opponent points 12.9502/12.7842. The two complete 512-round cohorts
+won 298 and 198 rounds. This is a failed learning improvement, regardless
+of the independently verified rollout-boundary bug fix. Its final checkpoint
+is `2553a87fb6c9c196d66d63b623ea4ed81e46df325472a2e8d8e4c1d29b4251b8`.
+The command and output transfer both completed successfully. Frozen
+checkpoint screening is a separate measurement.
+
+### Strike-age input scaling experiment
+
+A 128 s, four-arena frozen-policy diagnostic recorded 516 actual observation
+rows, including completed rounds. In the existing scaled-polar policy view,
+the two elapsed strike-age fields (198/199) contributed 71.42% of squared
+input energy. Opponent strike age reached 118.03 s. Offline evaluation of the
+checkpoint's first recurrent gate projections showed update/highway gate
+saturation of 7.80%/24.10%. Dividing only these two inputs by the fixed 120 s
+round reference reduced those diagnostic fractions to 4.82%/17.80%. These
+are projections of recorded states, not improved-policy outcomes.
+
+The opt-in `strike_age_scaled_polar_xy_v1` encoder implements precisely that
+additional fixed scaling. It preserves raw observations, physical state,
+scores, strike speeds, action masks, rewards and opponent inputs. Existing
+encoder descriptors and fingerprints remain unchanged. Values are not
+clipped. The new descriptor fingerprint is
+`64f46c52a98effeaf29867270d7fe174db177092fde6477d04bbb33dd4b415ba`.
+
+An existing scaled-polar checkpoint can initialize this experiment only with
+the explicit `scaled-polar-initial-weights` option and a pinned checkpoint
+hash. The source encoder is verified; the resulting report records changed
+policy inputs and unchanged weights. This is not a matching-encoder resume.
+Subsequent checkpoints carry the new descriptor for strict evaluation.
+
+The matched trial uses the same e804 checkpoint, corrected native extension,
+H1024 configuration, 7,340,032-step budget, physics and candidate dummy as
+`bootstrap-h1024-r1`. Only this encoder, explicit warm-start mode and output
+paths differ. No strength improvement is established before training and
+frozen evaluation complete.
+
+The implementation passed 44 CPU tests and a separate actual Spark CUDA
+graph fixture at 1,024 rows. Three replays preserved the raw input bytes,
+output allocation and every other policy column exactly; the two changed
+columns equaled float64 division by 120 followed by float32 storage. The
+fixture changes input values between replays and checks the existing status
+buffers. Command: `strike-age-cuda-fixture-01` in the current evidence root.
+
+Actual-state diagnostics are retained under
+`C:/rekagent/evidence/rek-training-opt-20260911/quarter3-long-observations-v1/`
+and `quarter3-long-observations-encoding-variants-v1/` in the same evidence
+root. The diagnostic raw trace SHA-256 is
+`e59f9bfff211831ab69869567f566c21efcc5c1d912ef0b46076bd7c2645ea60`.
+
 ## Frozen evaluation and scripted diagnostics
 
 `evaluate_gpu_dummy.py --greedy` selects the highest-logit legal action.

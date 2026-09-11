@@ -46,6 +46,32 @@ def fake_groups():
 
 
 class GroupedOrderingTests(unittest.TestCase):
+    def test_strike_age_policy_rows_refresh_retains_other_groups_raw_fields(self):
+        import torch
+        from gpu_policy_observation_encoder import GpuStrikeAgeScaledPolarXYPolicyEncoder
+
+        raw = torch.zeros((4,223), dtype=torch.float32)
+        raw[:,3] = 1
+        raw[:,86] = 1
+        raw[:,198:200] = torch.tensor([60.,120.])
+        raw[:,190:192] = torch.tensor([23.,14.])
+        original = raw.clone()
+        candidate = SimpleNamespace(observations=raw, rewards=torch.arange(4.), terminals=torch.zeros(4),
+                                    action_mask=torch.ones((4,33), dtype=torch.uint8))
+        encoder = GpuStrikeAgeScaledPolarXYPolicyEncoder(2, "cpu", initialization="fresh-random", allow_cpu_for_tests=True)
+        rows = _PolicyRows(candidate, 1, 2, encoder)
+        self.assertEqual(rows.raw.data_ptr(), raw[1:].data_ptr())
+        self.assertTrue(torch.equal(rows.observations[:,198:200], torch.tensor([[.5,1.],[.5,1.]])))
+        self.assertTrue(torch.equal(rows.observations[:,190:192], raw[1:3,190:192]))
+        self.assertTrue(torch.equal(raw, original))
+        raw[1:3,198:200].fill_(240.)
+        rows.refresh()
+        self.assertTrue(torch.equal(rows.observations[:,198:200], torch.full((2,2),2.)))
+        self.assertTrue(torch.equal(raw[[0,3]], original[[0,3]]))
+        self.assertEqual(rows.rewards.data_ptr(), candidate.rewards[1:].data_ptr())
+        self.assertEqual(rows.terminals.data_ptr(), candidate.terminals[1:].data_ptr())
+        self.assertEqual(rows.action_mask.data_ptr(), candidate.action_mask[1:].data_ptr())
+
     def test_all_policies_select_before_one_physical_advance(self):
         groups, log = fake_groups()
         physical, observed = [], []

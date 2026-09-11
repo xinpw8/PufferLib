@@ -20,9 +20,11 @@ import torch
 
 ENCODER_NAME = "polar_xy_v1"
 SCALED_ENCODER_NAME = "scaled_polar_xy_v1"
+STRIKE_AGE_ENCODER_NAME = "strike_age_scaled_polar_xy_v1"
+SCALED_POLAR_INITIALIZATION = "scaled-polar-initial-weights"
 OBSERVATION_FLOATS = 223
-ENCODER_CHOICES = ("raw", ENCODER_NAME, SCALED_ENCODER_NAME)
-INITIALIZATION_CHOICES = ("matching-checkpoint", "fresh-random", "raw-initial-weights")
+ENCODER_CHOICES = ("raw", ENCODER_NAME, SCALED_ENCODER_NAME, STRIKE_AGE_ENCODER_NAME)
+INITIALIZATION_CHOICES = ("matching-checkpoint", "fresh-random", "raw-initial-weights", SCALED_POLAR_INITIALIZATION)
 _ENCODER_METADATA = {
     "schema": "rek.g1.policy_observation_encoder.v1",
     "name": ENCODER_NAME,
@@ -44,10 +46,10 @@ _ENCODER_METADATA = {
 
 def encoder_metadata(encoder_name=ENCODER_NAME):
     """Return a fresh, versioned descriptor for explicit checkpoint manifests."""
-    if encoder_name not in (ENCODER_NAME, SCALED_ENCODER_NAME):
+    if encoder_name not in (ENCODER_NAME, SCALED_ENCODER_NAME, STRIKE_AGE_ENCODER_NAME):
         raise ValueError("unknown policy observation encoder")
     descriptor = deepcopy(_ENCODER_METADATA)
-    if encoder_name == SCALED_ENCODER_NAME:
+    if encoder_name in (SCALED_ENCODER_NAME, STRIKE_AGE_ENCODER_NAME):
         descriptor["name"] = encoder_name
         descriptor["replaced_policy_columns"]["87"] = "opponent ego-yaw bearing, half-turns (radians divided by pi)"
         descriptor["angle_interval"] = "[-1, 1] half-turns"
@@ -61,6 +63,13 @@ def encoder_metadata(encoder_name=ENCODER_NAME):
         }
         descriptor["time_reference_source"] = "g1_fight_state.c REK_G1_FIGHT_CONFIG_F84F1874.normal_round_seconds = 120.0f"
         descriptor["fixed_scaling"] = "float64 division followed by float32 storage; no clipping or adaptive statistics"
+    if encoder_name == STRIKE_AGE_ENCODER_NAME:
+        descriptor["unchanged_column_intervals_half_open"] = [[0, 72], [73, 86], [88, 158], [159, 188], [190, 198], [200, 223]]
+        descriptor["fixed_scale_divisors"].update({"198": 120.0, "199": 120.0})
+        descriptor["rescaled_policy_columns"].update({
+            "198": "self last-struck age seconds divided by the fixed 120 s reference",
+            "199": "opponent last-struck age seconds divided by the fixed 120 s reference",
+        })
     return descriptor
 
 
@@ -93,10 +102,30 @@ def require_checkpoint_encoder_metadata(manifest: Mapping, checkpoint_sha256: st
 def policy_encoder_report(encoder_name, initialization="matching-checkpoint"):
     if encoder_name not in ENCODER_CHOICES or initialization not in INITIALIZATION_CHOICES:
         raise ValueError("unknown policy observation encoder or initialization")
-    return {"policy_observation_encoder": ({"name": "raw", "input_floats": 223, "output_floats": 223}
+    if initialization == SCALED_POLAR_INITIALIZATION and encoder_name != STRIKE_AGE_ENCODER_NAME:
+        raise ValueError("scaled-polar-initial-weights requires the strike-age scaled-polar target")
+    report = {"policy_observation_encoder": ({"name": "raw", "input_floats": 223, "output_floats": 223}
                                             if encoder_name == "raw" else encoder_metadata(encoder_name)),
             "policy_observation_encoder_sha256": None if encoder_name == "raw" else encoder_fingerprint(encoder_name),
             "policy_observation_initialization": initialization}
+    if initialization == SCALED_POLAR_INITIALIZATION:
+        report["policy_observation_input_change"] = {
+            "source_encoder": SCALED_ENCODER_NAME,
+            "source_encoder_sha256": encoder_fingerprint(SCALED_ENCODER_NAME),
+            "target_encoder": STRIKE_AGE_ENCODER_NAME,
+            "target_encoder_sha256": encoder_fingerprint(STRIKE_AGE_ENCODER_NAME),
+            "additional_fixed_scale_divisors": {"198": 120.0, "199": 120.0},
+            "semantically_changed_policy_inputs": True,
+            "checkpoint_weights_transformed": False,
+            "matching_encoder_resume": False,
+        }
+    return report
+
+
+def _require_scaled_polar_initial_weights(manifest, checkpoint_sha256, encoder_name):
+    if encoder_name != STRIKE_AGE_ENCODER_NAME:
+        raise ValueError("scaled-polar-initial-weights only supports scaled-polar to strike-age scaled-polar")
+    require_checkpoint_encoder_metadata(manifest, checkpoint_sha256, encoder_name=SCALED_ENCODER_NAME)
 
 
 def load_policy_encoder_checkpoint(path, encoder_name, *, initialization="matching-checkpoint", expected_sha256=None):
@@ -119,7 +148,11 @@ def load_policy_encoder_checkpoint(path, encoder_name, *, initialization="matchi
     if manifest.get("checkpoint", {}).get("sha256") != actual:
         raise ValueError("checkpoint manifest hash does not match the actual weights")
     declared = manifest.get("policy_observation_encoder", {}).get("name", "raw")
-    if initialization == "raw-initial-weights":
+    if initialization == SCALED_POLAR_INITIALIZATION:
+        if expected_sha256 is None:
+            raise ValueError("scaled-polar-initial-weights requires an explicitly pinned source checkpoint")
+        _require_scaled_polar_initial_weights(manifest, actual, encoder_name)
+    elif initialization == "raw-initial-weights":
         if encoder_name == "raw" or expected_sha256 is None or declared != "raw":
             raise ValueError("raw-initial-weights requires an explicitly pinned raw checkpoint and a transformed target")
     elif encoder_name == "raw":
@@ -183,6 +216,8 @@ class GpuPolarXYPolicyEncoder:
                 raise ValueError("raw initialization needs validated source checkpoint provenance")
             if checkpoint_manifest.get("policy_observation_encoder", {}).get("name", "raw") != "raw":
                 raise ValueError("raw initialization source must declare raw inputs")
+        elif initialization == SCALED_POLAR_INITIALIZATION:
+            _require_scaled_polar_initial_weights(checkpoint_manifest, checkpoint_sha256, self.encoder_name)
         else:
             raise ValueError("unknown policy initialization")
         if rows < 1:
@@ -195,7 +230,7 @@ class GpuPolarXYPolicyEncoder:
         self.device = self.observations.device
         self.status = torch.zeros(rows, dtype=torch.int32, device=self.device)
         self.scale_indices = None
-        if self.encoder_name == SCALED_ENCODER_NAME:
+        if self.encoder_name in (SCALED_ENCODER_NAME, STRIKE_AGE_ENCODER_NAME):
             divisors = encoder_metadata(self.encoder_name)["fixed_scale_divisors"]
             self.scale_indices = torch.tensor([int(index) for index in divisors], dtype=torch.int64, device=self.device)
             self.scale_divisors = torch.tensor(list(divisors.values()), dtype=torch.float64, device=self.device)
@@ -253,6 +288,18 @@ class GpuScaledPolarXYPolicyEncoder(GpuPolarXYPolicyEncoder):
     encoder_name = SCALED_ENCODER_NAME
 
 
+class GpuStrikeAgeScaledPolarXYPolicyEncoder(GpuScaledPolarXYPolicyEncoder):
+    """Opt-in scaled-polar view additionally dividing only strike ages by120 s.
+
+    Scores, strike speeds, route IDs and every other existing policy column
+    retain their current meaning. Changing an existing scaled-polar policy's
+    input distribution requires explicit pinned warm-start initialization;
+    it is not a matching-encoder resume or a weight conversion.
+    """
+
+    encoder_name = STRIKE_AGE_ENCODER_NAME
+
+
 def reconstruct_opponent_world_xy(policy_view, *, encoder_name=ENCODER_NAME):
     """Coordinate-inverse diagnostic, not a simulation or observation fallback."""
     if policy_view.ndim != 2 or policy_view.shape[1] != OBSERVATION_FLOATS:
@@ -261,7 +308,7 @@ def reconstruct_opponent_world_xy(policy_view, *, encoder_name=ENCODER_NAME):
     length = torch.sqrt(fx*fx + fy*fy)
     yaw = torch.atan2(fy, fx)
     distance, bearing = policy_view[:, 86].double(), policy_view[:, 87].double()
-    if encoder_name == SCALED_ENCODER_NAME:
+    if encoder_name in (SCALED_ENCODER_NAME, STRIKE_AGE_ENCODER_NAME):
         bearing = bearing * math.pi
     elif encoder_name != ENCODER_NAME:
         raise ValueError("unknown policy observation encoder")

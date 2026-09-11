@@ -84,6 +84,7 @@ def evaluate_grouped(candidate, specs, native_args, *, ticks, output, provenance
     from gpu_metrics import RekG1GpuMetricCollector
     from gpu_native_puffer import NativeExternalGpuPuffer
     from gpu_policy_observation_encoder import (GpuPolarXYPolicyEncoder, GpuScaledPolarXYPolicyEncoder,
+                                               GpuStrikeAgeScaledPolarXYPolicyEncoder, STRIKE_AGE_ENCODER_NAME,
                                                load_policy_encoder_checkpoint, policy_encoder_report)
     from gpu_puffer_env import CudaTensorEnvAdapter
 
@@ -96,7 +97,8 @@ def evaluate_grouped(candidate, specs, native_args, *, ticks, output, provenance
     checked = [(pinned_checkpoint(s.checkpoint, s.checkpoint_sha256),
                 load_policy_encoder_checkpoint(s.checkpoint, s.encoder, expected_sha256=s.checkpoint_sha256)) for s in specs]
     device, duel = candidate.observations.device, candidate.duel
-    encoders = {"polar_xy_v1": GpuPolarXYPolicyEncoder, "scaled_polar_xy_v1": GpuScaledPolarXYPolicyEncoder}
+    encoders = {"polar_xy_v1": GpuPolarXYPolicyEncoder, "scaled_polar_xy_v1": GpuScaledPolarXYPolicyEncoder,
+                STRIKE_AGE_ENCODER_NAME: GpuStrikeAgeScaledPolarXYPolicyEncoder}
     output.mkdir(parents=True)
     candidate.reset()
     actions = torch.empty_like(candidate.learner_actions)

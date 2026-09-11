@@ -2,10 +2,14 @@
 
 import hashlib
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 import torch
 
@@ -13,6 +17,8 @@ from evaluate_gpu_dummy import save_frozen_weights
 from gpu_candidate_dummy import GpuCandidateApproachDummy, GpuCandidateDummyDuel
 from gpu_policy_observation_encoder import (
     GpuScaledPolarXYPolicyEncoder, SCALED_ENCODER_NAME,
+    GpuStrikeAgeScaledPolarXYPolicyEncoder, STRIKE_AGE_ENCODER_NAME, SCALED_POLAR_INITIALIZATION,
+    encoder_fingerprint,
     load_policy_encoder_checkpoint, policy_encoder_report, save_policy_weights,
 )
 
@@ -30,6 +36,122 @@ class SavingTrainer:
 
 
 class CheckpointIntegrationTests(unittest.TestCase):
+    def test_credit_cli_prepares_strike_age_without_early_torch_or_cuda_initialization(self):
+        source_dir = Path(__file__).resolve().parent
+        config_dir = source_dir.parents[1]/"config"
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            checkpoint, physics = directory/"source.bin", directory/"physics.json"
+            saved = save_policy_weights(SavingTrainer(), checkpoint, SCALED_ENCODER_NAME)
+            physics.write_text("{}")
+            cli = [str(source_dir/"run_gpu_credit_experiment.py"),
+                   "--default-config", str(config_dir/"default.ini"), "--native-config", str(config_dir/"rek_g1.ini"),
+                   "--credit-config", str(config_dir/"rek_g1_round_win.ini"), "--gpu-duel-config", str(physics),
+                   "--load-checkpoint", str(checkpoint), "--checkpoint-sha256", saved["checkpoint"]["sha256"],
+                   "--run-dir", str(directory/"trial"), "--output", str(directory/"report.json"),
+                   "--total-agents", "8", "--total-timesteps", "1024", "--minibatch-size", "1024",
+                   "--reward-objective", "round-win", "--policy-observation-encoder", STRIKE_AGE_ENCODER_NAME,
+                   "--policy-observation-warm-start", SCALED_POLAR_INITIALIZATION, "--prepare-only"]
+            program = ("import pathlib,runpy,sys; sys.argv=sys.argv[1:]; "
+                       "sys.path.insert(0,str(pathlib.Path(sys.argv[0]).parent)); "
+                       "import run_gpu_credit_experiment; assert 'torch' not in sys.modules; "
+                       "runpy.run_path(sys.argv[0],run_name='__main__'); "
+                       "assert 'train_gpu_duel' not in sys.modules; import torch; assert not torch.cuda.is_initialized()")
+            result = subprocess.run([sys.executable, "-B", "-c", program, *cli],
+                                    env={**os.environ, "CUDA_VISIBLE_DEVICES": "-1"},
+                                    capture_output=True, text=True, timeout=20)
+            self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
+            plan = json.loads((directory/"trial.inputs/experiment.json").read_text())
+            self.assertEqual(plan["policy_observation_encoder_name"], STRIKE_AGE_ENCODER_NAME)
+            self.assertEqual(plan["policy_observation_initialization"], SCALED_POLAR_INITIALIZATION)
+            self.assertEqual(plan["initial_checkpoint_sha256"], saved["checkpoint"]["sha256"])
+            self.assertFalse((directory/"trial").exists())
+
+    def test_training_and_evaluation_cli_accept_explicit_new_encoder(self):
+        import train_gpu_duel
+        import evaluate_gpu_dummy
+
+        argv = ["train_gpu_duel", "--gpu-duel-config", "unused.json", "--run-dir", "unused-run",
+                "--output", "unused-output.json", "--total-timesteps", "4096",
+                "--policy-observation-encoder", STRIKE_AGE_ENCODER_NAME,
+                "--policy-observation-warm-start", SCALED_POLAR_INITIALIZATION,
+                "--load-checkpoint", "unused.bin", "--load-checkpoint-sha256", "a"*64]
+        with patch("sys.argv", argv), patch.object(train_gpu_duel, "train") as train:
+            train_gpu_duel.main()
+            parsed = train.call_args.args[0]
+            self.assertEqual(parsed.policy_observation_encoder, STRIKE_AGE_ENCODER_NAME)
+            self.assertEqual(parsed.policy_observation_warm_start, SCALED_POLAR_INITIALIZATION)
+        argv = ["evaluate_gpu_dummy", "--checkpoint", "unused.bin", "--checkpoint-sha256", "a"*64,
+                "--gpu-duel-config", "unused.json", "--total-agents", "8", "--ticks", "256",
+                "--run-dir", "unused-run", "--policy-observation-encoder", STRIKE_AGE_ENCODER_NAME]
+        with patch("sys.argv", argv), patch.object(evaluate_gpu_dummy, "evaluate") as evaluate:
+            evaluate_gpu_dummy.main()
+            self.assertEqual(evaluate.call_args.args[0].policy_observation_encoder, STRIKE_AGE_ENCODER_NAME)
+
+    def test_strike_age_warm_start_is_pinned_and_does_not_relabel_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source, target = Path(directory)/"source.bin", Path(directory)/"target.bin"
+            trainer = SavingTrainer()
+            saved = save_policy_weights(trainer, source, SCALED_ENCODER_NAME)
+            sha = saved["checkpoint"]["sha256"]
+            sidecar = source.with_suffix(".bin.manifest.json")
+            original = sidecar.read_bytes()
+            for initialization, pin in (("matching-checkpoint", sha), (SCALED_POLAR_INITIALIZATION, None),
+                                         (SCALED_POLAR_INITIALIZATION, "0"*64)):
+                with self.subTest(initialization=initialization, pin=pin), self.assertRaises(ValueError):
+                    load_policy_encoder_checkpoint(source, STRIKE_AGE_ENCODER_NAME, initialization=initialization,
+                                                   expected_sha256=pin)
+            loaded, actual = load_policy_encoder_checkpoint(source, STRIKE_AGE_ENCODER_NAME,
+                initialization=SCALED_POLAR_INITIALIZATION, expected_sha256=sha)
+            self.assertEqual(loaded, saved)
+            self.assertEqual(sidecar.read_bytes(), original)
+            encoder = GpuStrikeAgeScaledPolarXYPolicyEncoder(1, "cpu", checkpoint_manifest=loaded,
+                checkpoint_sha256=actual, initialization=SCALED_POLAR_INITIALIZATION, allow_cpu_for_tests=True)
+            self.assertEqual(encoder.encoder_name, STRIKE_AGE_ENCODER_NAME)
+            target_manifest = save_policy_weights(trainer, target, STRIKE_AGE_ENCODER_NAME, SCALED_POLAR_INITIALIZATION)
+            self.assertEqual(target.read_bytes(), source.read_bytes())
+            self.assertEqual(sidecar.read_bytes(), original)
+            self.assertEqual(load_policy_encoder_checkpoint(target, STRIKE_AGE_ENCODER_NAME)[1], sha)
+            self.assertEqual(target_manifest["policy_observation_input_change"]["source_encoder_sha256"],
+                             encoder_fingerprint(SCALED_ENCODER_NAME))
+            self.assertTrue(target_manifest["policy_observation_input_change"]["semantically_changed_policy_inputs"])
+            self.assertFalse(target_manifest["policy_observation_input_change"]["checkpoint_weights_transformed"])
+            with self.assertRaises(ValueError):
+                load_policy_encoder_checkpoint(target, SCALED_ENCODER_NAME)
+
+    def test_strike_age_warm_start_rejects_other_source_target_pairs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for source_name in ("raw", "polar_xy_v1", STRIKE_AGE_ENCODER_NAME):
+                source = Path(directory)/f"{source_name}.bin"
+                saved = save_policy_weights(SavingTrainer(), source, source_name)
+                with self.subTest(source=source_name), self.assertRaises(ValueError):
+                    load_policy_encoder_checkpoint(source, STRIKE_AGE_ENCODER_NAME, initialization=SCALED_POLAR_INITIALIZATION,
+                        expected_sha256=saved["checkpoint"]["sha256"])
+            for target in ("raw", "polar_xy_v1", SCALED_ENCODER_NAME):
+                with self.subTest(target=target), self.assertRaises(ValueError):
+                    policy_encoder_report(target, SCALED_POLAR_INITIALIZATION)
+
+    def test_strike_age_warm_start_rejects_tampered_descriptor_fingerprint_and_hash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory)/"source.bin"
+            saved = save_policy_weights(SavingTrainer(), source, SCALED_ENCODER_NAME)
+            sha = saved["checkpoint"]["sha256"]
+            for field in ("descriptor", "fingerprint", "checkpoint"):
+                bad = json.loads(json.dumps(saved))
+                if field == "descriptor":
+                    bad["policy_observation_encoder"]["fixed_scale_divisors"]["189"] = 60.
+                elif field == "fingerprint":
+                    bad["policy_observation_encoder_sha256"] = "0"*64
+                else:
+                    bad["checkpoint"]["sha256"] = "0"*64
+                source.with_suffix(".bin.manifest.json").write_text(json.dumps(bad))
+                with self.subTest(field=field), self.assertRaises(ValueError):
+                    load_policy_encoder_checkpoint(source, STRIKE_AGE_ENCODER_NAME, initialization=SCALED_POLAR_INITIALIZATION,
+                                                   expected_sha256=sha)
+                with self.subTest(constructor=field), self.assertRaises(ValueError):
+                    GpuStrikeAgeScaledPolarXYPolicyEncoder(1, "cpu", checkpoint_manifest=bad, checkpoint_sha256=sha,
+                        initialization=SCALED_POLAR_INITIALIZATION, allow_cpu_for_tests=True)
+
     def test_raw_default_keeps_native_manifest_and_old_checkpoint_compatibility(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "raw.bin"
@@ -104,6 +226,26 @@ class CheckpointIntegrationTests(unittest.TestCase):
 
 
 class PublishIntegrationTests(unittest.TestCase):
+    def test_strike_age_view_preserves_raw_dummy_actions_rewards_and_events(self):
+        old, new = self.fixture(True), self.fixture(True)
+        old.duel.observations[:, 198:200] = torch.tensor([42.76975, 118.02839])
+        new.duel.observations.copy_(old.duel.observations)
+        new.policy_encoder = GpuStrikeAgeScaledPolarXYPolicyEncoder(2, "cpu", initialization="fresh-random",
+                                                                  allow_cpu_for_tests=True)
+        original = new.duel.observations.clone()
+        for _ in range(3):
+            old._select()
+            new._select()
+            self.assertTrue(torch.equal(old.full_actions, new.full_actions))
+            old._publish()
+            new._publish()
+            for name in ("rewards", "terminals", "action_mask"):
+                self.assertTrue(torch.equal(getattr(old, name), getattr(new, name)))
+            self.assertTrue(torch.equal(new.duel.observations, original))
+            cols = [i for i in range(223) if i not in (198,199)]
+            self.assertTrue(torch.equal(old.observations[:,cols], new.observations[:,cols]))
+            self.assertTrue(torch.equal(new.observations[:,198:200], (old.observations[:,198:200].double()/120).float()))
+
     def fixture(self, encoded):
         # Bypass only the CUDA constructor for a CPU method-level fixture.
         # Production constructor still rejects CPU execution.

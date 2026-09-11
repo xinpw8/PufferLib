@@ -8,6 +8,7 @@ import torch
 
 from gpu_policy_observation_encoder import (
     GpuPolarXYPolicyEncoder, GpuScaledPolarXYPolicyEncoder, SCALED_ENCODER_NAME,
+    GpuStrikeAgeScaledPolarXYPolicyEncoder, STRIKE_AGE_ENCODER_NAME,
     encoder_fingerprint, encoder_metadata, reconstruct_opponent_world_xy,
     reconstruct_raw_observations, require_checkpoint_encoder_metadata,
 )
@@ -212,6 +213,52 @@ class ScaledPolarXYTests(unittest.TestCase):
         reconstructed = reconstruct_raw_observations(output, encoder_name=SCALED_ENCODER_NAME)
         torch.testing.assert_close(reconstructed, raw, rtol=0, atol=3.1e-5)
         torch.testing.assert_close(reconstruct_opponent_world_xy(output, encoder_name=SCALED_ENCODER_NAME), raw[:, 86:88], rtol=0, atol=2e-6)
+
+
+class StrikeAgeScaledPolarXYTests(unittest.TestCase):
+    def encoder(self, rows):
+        return GpuStrikeAgeScaledPolarXYPolicyEncoder(rows, "cpu", checkpoint_manifest=manifest(STRIKE_AGE_ENCODER_NAME),
+                                                      checkpoint_sha256=CHECKPOINT_SHA, allow_cpu_for_tests=True)
+
+    def test_new_descriptor_preserves_existing_descriptor_and_changes_only_age_units(self):
+        self.assertEqual(encoder_fingerprint(SCALED_ENCODER_NAME),
+                         "8b24ff625aa2f3a2916920255ea38efb54e597095078bb298257d99f5b512c6b")
+        old, new = encoder_metadata(SCALED_ENCODER_NAME), encoder_metadata(STRIKE_AGE_ENCODER_NAME)
+        self.assertNotEqual(encoder_fingerprint(STRIKE_AGE_ENCODER_NAME), encoder_fingerprint(SCALED_ENCODER_NAME))
+        self.assertEqual(new["fixed_scale_divisors"], {**old["fixed_scale_divisors"], "198":120., "199":120.})
+        unchanged = [i for low, high in new["unchanged_column_intervals_half_open"] for i in range(low, high)]
+        self.assertEqual(unchanged, [i for i in range(223) if i not in (72,86,87,158,188,189,198,199)])
+
+    def test_only_two_additional_columns_change_and_scores_remain_exact(self):
+        raw = raw_fixture(5)
+        raw[:, 198] = torch.tensor([0., 1., 42.76975, 120., 240.])
+        raw[:, 199] = torch.tensor([118.02839, .002, 60., 180., 360.])
+        raw[:, 190:192] = torch.tensor([23., 14.])
+        original = raw.clone()
+        base = ScaledPolarXYTests().encoder(5).encode(raw).clone()
+        encoder = self.encoder(5)
+        pointer = encoder.observations.data_ptr()
+        for _ in range(3):
+            output = encoder.encode(raw)
+            self.assertEqual(output.data_ptr(), pointer)
+            self.assertTrue(torch.equal(raw, original))
+            cols = [i for i in range(223) if i not in (198,199)]
+            self.assertTrue(torch.equal(output[:, cols], base[:, cols]))
+            self.assertTrue(torch.equal(output[:, 198:200], (raw[:, 198:200].double()/120).float()))
+            self.assertEqual(output[4, 199].item(), 3.)
+            encoder.check_status()
+        torch.testing.assert_close(reconstruct_raw_observations(output, encoder_name=STRIKE_AGE_ENCODER_NAME),
+                                   raw, rtol=0, atol=3.1e-5)
+        torch.testing.assert_close(reconstruct_opponent_world_xy(output, encoder_name=STRIKE_AGE_ENCODER_NAME),
+                                   raw[:,86:88], rtol=0, atol=2e-6)
+
+    def test_old_checkpoint_is_not_matching_resume(self):
+        with self.assertRaises(ValueError):
+            GpuStrikeAgeScaledPolarXYPolicyEncoder(1, "cpu", checkpoint_manifest=manifest(SCALED_ENCODER_NAME),
+                                                  checkpoint_sha256=CHECKPOINT_SHA, allow_cpu_for_tests=True)
+        with self.assertRaises(ValueError):
+            GpuScaledPolarXYPolicyEncoder(1, "cpu", checkpoint_manifest=manifest(STRIKE_AGE_ENCODER_NAME),
+                                         checkpoint_sha256=CHECKPOINT_SHA, allow_cpu_for_tests=True)
 
 
 if __name__ == "__main__":

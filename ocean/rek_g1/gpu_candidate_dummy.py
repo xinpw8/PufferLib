@@ -145,9 +145,13 @@ class GpuCandidateDummyDuel:
         self.reward_shaper = self.round_win_reward or self.facing_potential
         self.policy_encoder = None
         if policy_observation_encoder != "raw":
-            from gpu_policy_observation_encoder import GpuPolarXYPolicyEncoder, GpuScaledPolarXYPolicyEncoder
+            from gpu_policy_observation_encoder import (
+                GpuPolarXYPolicyEncoder, GpuScaledPolarXYPolicyEncoder,
+                GpuStrikeAgeScaledPolarXYPolicyEncoder, STRIKE_AGE_ENCODER_NAME,
+            )
 
-            encoders = {"polar_xy_v1": GpuPolarXYPolicyEncoder, "scaled_polar_xy_v1": GpuScaledPolarXYPolicyEncoder}
+            encoders = {"polar_xy_v1": GpuPolarXYPolicyEncoder, "scaled_polar_xy_v1": GpuScaledPolarXYPolicyEncoder,
+                        STRIKE_AGE_ENCODER_NAME: GpuStrikeAgeScaledPolarXYPolicyEncoder}
             if policy_observation_encoder not in encoders:
                 raise ValueError("unknown policy observation encoder")
             self.policy_encoder = encoders[policy_observation_encoder](

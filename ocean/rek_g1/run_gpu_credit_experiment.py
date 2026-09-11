@@ -178,9 +178,9 @@ if __name__ == "__main__":
     parser.add_argument("--facing-potential-scale", type=float, default=0.0,
                         help="separate training-only reward experiment; zero preserves the base reward")
     parser.add_argument("--policy-observation-encoder", default="raw",
-                        choices=("raw", "polar_xy_v1", "scaled_polar_xy_v1"))
+                        choices=("raw", "polar_xy_v1", "scaled_polar_xy_v1", "strike_age_scaled_polar_xy_v1"))
     parser.add_argument("--policy-observation-warm-start", default="matching-checkpoint",
-                        choices=("matching-checkpoint", "raw-initial-weights"))
+                        choices=("matching-checkpoint", "raw-initial-weights", "scaled-polar-initial-weights"))
     parser.add_argument("--total-agents", type=int, default=1024)
     parser.add_argument("--total-timesteps", type=int, default=3276800)
     parser.add_argument("--minibatch-size", type=int, default=4096)
