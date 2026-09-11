@@ -83,6 +83,43 @@ controller execution counts were zero; host submission still consumed about
 92% of one CPU core. The rollout occupied 99.8% of the measured CUDA stream
 envelope, with PPO updates accounting for 0.13 to 0.20%.
 
+An equal-duration follow-up used 128 control ticks (2.56 simulated seconds)
+per arena, the same initial policy, horizon 64, minibatch 4,096 and unchanged
+physics/controller/native learner settings:
+
+| Arenas / learners | Learner steps | Training seconds | Learner SPS |
+| ---: | ---: | ---: | ---: |
+| 512 | 65,536 | 20.22 | 3,241.38 |
+| 1,024 | 131,072 | 41.31 | 3,173.03 |
+| 4,096 | 524,288 | 173.72 | 3,017.99 |
+
+Increasing beyond 512 arenas did not improve measured throughput. These are
+short training benchmarks, with no completed rounds or policy-quality claim.
+They do not prove full GPU occupancy. The exact-batch 8,192-fighter controller
+bundle retained zero float32 output error against its batch-one source.
+Unrelated resident GPU processes were preserved; endpoint utilization checks
+cannot exclude all external contention. Memory figures on Spark overlap
+because the CPU and GPU share physical memory.
+
+The offline controller-bundle diversity check now computes its same exhaustive
+float64 pairwise minimum in bounded NumPy blocks. The measured 2,048-by-64
+check fell from 10.070 s to 0.515 s with an identical result. This reduces
+setup time only; it does not contribute to the training SPS above.
+
+`gpu_physics_capacity.py` is an opt-in diagnostic for the inspected, pinned
+MuJoCo-Warp constraint source. It captures CUDA high-water counters and sticky
+overflow flags, including the temporary sparse-nonzero allocator that the
+installed backend does not expose in its persistent data. Default physics is
+unchanged. A 512-arena, two-scenario probe observed at most 160 constraint rows
+and 1,549 sparse nonzeros per arena, against allocations of 1,024 and 32,884.
+The same probe at 256 constraint rows completed without overflow. A separate
+four-arena matched-state comparison preserved contact and constraint multisets,
+including a fallen state with contacts, but some continuous-field error bounds
+did not pass the predeclared same-capacity repeat-variance criterion. The
+256-row allocation remains experimental; it is not the training default or
+an accepted numerical-parity result. Solver settings and timestep were not
+changed in these experiments.
+
 The 128-arena run covers only 1.28 simulated seconds per arena. It is a
 throughput/training smoke test, with no completed rounds. A separate 50-tick
 environment component profile attributed 71.30% of its CUDA stream interval

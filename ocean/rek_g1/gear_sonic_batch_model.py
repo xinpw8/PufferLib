@@ -365,6 +365,42 @@ def rewrite_model(source: Path, target: Path, batch_size: int) -> Mapping[str, A
     }
 
 
+def _minimum_pairwise_output_linf(
+    values: np.ndarray, *, block_rows: int = 128,
+) -> float | None:
+    """Exact exhaustive row-distance minimum with bounded pairwise scratch.
+
+    Float32 outputs are promoted before subtraction, matching the scalar
+    reference. Every unordered pair is covered. Scratch is O(block_rows² *
+    output_width), plus one O(batch_size * output_width) float64 conversion.
+    """
+    if values.ndim != 2 or values.dtype != np.float32:
+        raise ValueError("output rows must be a rank-two float32 array")
+    if isinstance(block_rows, bool) or not isinstance(block_rows, int) or block_rows < 1:
+        raise ValueError("block_rows must be a positive integer")
+    rows, width = values.shape
+    if rows < 2:
+        return None
+    converted = values.astype(np.float64)
+    size = min(block_rows, rows)
+    scratch = np.empty((size, size, width), dtype=np.float64)
+    minimum = math.inf
+    for left_start in range(0, rows, size):
+        left = converted[left_start : left_start + size]
+        for right_start in range(left_start, rows, size):
+            right = converted[right_start : right_start + size]
+            differences = scratch[:len(left), :len(right)]
+            np.subtract(left[:, None, :], right[None, :, :], out=differences)
+            np.abs(differences, out=differences)
+            distances = np.max(differences, axis=2)
+            if left_start == right_start:
+                # Self-pairs are excluded; symmetric off-diagonal entries
+                # have identical L-infinity distances and do not change min.
+                np.fill_diagonal(distances, math.inf)
+            minimum = min(minimum, float(np.min(distances)))
+    return minimum
+
+
 def verify_equivalence(
     source: Path,
     target: Path,
@@ -432,21 +468,7 @@ def verify_equivalence(
         raise BatchRewriteError(
             f"batched output differs from batch-one baseline: {max_abs} > {atol}"
         )
-    pairwise_output_linf = [
-        float(
-            np.max(
-                np.abs(
-                    actual[left].astype(np.float64)
-                    - actual[right].astype(np.float64)
-                )
-            )
-        )
-        for left in range(batch_size)
-        for right in range(left + 1, batch_size)
-    ]
-    minimum_pairwise_output_linf = (
-        min(pairwise_output_linf) if pairwise_output_linf else None
-    )
+    minimum_pairwise_output_linf = _minimum_pairwise_output_linf(actual)
     if (
         minimum_pairwise_output_linf is not None
         and minimum_pairwise_output_linf <= 0.0
