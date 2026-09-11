@@ -1,0 +1,12 @@
+{
+  "schema": "rek.g1_sonic_candidate.segment.v1",
+  "classification": "diagnostic_candidate",
+  "motion_role": "idle",
+  "duration_ticks": 5,
+  "semantic_command": {
+    "kind": 0,
+    "held_code": 0,
+    "duration_ticks": 5,
+    "kick_registry_index": 65535
+  }
+}

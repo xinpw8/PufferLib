@@ -1,0 +1,340 @@
+{
+  "build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+  "limits": [
+    "The result applies to the pinned Windows client and observed remote-authority mode.",
+    "It does not prove which server build, weights, configuration, or hidden state produced the poses.",
+    "Absent client payloads cannot be recovered by additional client file scanning."
+  ],
+  "runtime_observations": {
+    "missing_profile_init_failures": [
+      {
+        "init_stack_observed": true,
+        "line": 700,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 709,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 1056,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 1065,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 1412,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 1421,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 1991,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 2294,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 2303,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 2864,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 3451,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 3810,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 4139,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 4422,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 4731,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 4740,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      },
+      {
+        "init_stack_observed": true,
+        "line": 5639,
+        "load_profile_stack_observed": true,
+        "profile": "switch_to_boxing_idle@default"
+      }
+    ],
+    "network_client_initializations": [
+      {
+        "bones": 26,
+        "line": 726,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 741,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 1082,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 1097,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 1438,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 1453,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 2017,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 2320,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 2335,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 2890,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 3475,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 3834,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 4163,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 4446,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 4757,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 4772,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      },
+      {
+        "bones": 26,
+        "line": 5665,
+        "robot": "engineai_t800_FactoryPolicy",
+        "role": "Client"
+      }
+    ],
+    "visual_only_transitions": [
+      {
+        "disabled_mujoco_components": 148,
+        "line": 718,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 733,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 1074,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 1089,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 1430,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 1445,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 2009,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 2312,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 2327,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 2882,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 3467,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 3826,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 4155,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 4438,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 4749,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 4764,
+        "robot": "engineai_t800_FactoryPolicy"
+      },
+      {
+        "disabled_mujoco_components": 148,
+        "line": 5657,
+        "robot": "engineai_t800_FactoryPolicy"
+      }
+    ]
+  },
+  "schema": "rek.t800_client_runtime_boundary.v1",
+  "serialized_client": {
+    "payload_fields": [
+      "onnxBytes",
+      "configJson",
+      "trajectoryCsv"
+    ],
+    "profile_payload_sets_all_null": true,
+    "profiles_in_factory_runner": 45,
+    "runner_count_in_bound_probe": 1
+  },
+  "sources": {
+    "authority": {
+      "path": "/mnt/c/Users/Daniel/codex-wr64-puffer-scenario-7cc6ce1/ocean/rek/evidence/evidence_out/authority_private_ai.json",
+      "sha256": "bfff81222deef48ef0a7dbc9ae1b2f86cc70436f646a562fcfa327f3f080a5d6",
+      "verdict": "remote_authority"
+    },
+    "controller_path": {
+      "path": "/mnt/c/Users/Daniel/codex-wr64-puffer-scenario-7cc6ce1/ocean/rek/evidence/evidence_out/controller_path.json",
+      "schema": "rek.controller_path.v2",
+      "sha256": "377d8f852507d7526c8364322e47867964d415ae91f1ad933271711eaac3f6d4"
+    },
+    "player_log": {
+      "disclosure": "Only strict allowlisted facts are copied; no session or account data is emitted.",
+      "path": "/mnt/c/Users/Daniel/AppData/LocalLow/REK/REK/Player.log",
+      "sha256": "6e0a7608308bee4eecb0b2e30efc25cca2c319169c7ebe95e89444d69de8ea6e"
+    }
+  },
+  "verdict": {
+    "authoritative_controller_payload_location": "unknown",
+    "client_contains_authoritative_t800_policy_payload": false,
+    "client_t800_physics_state": "disabled_in_observed_remote_authority_mode",
+    "client_t800_render_state": "network_driven_visual_replica",
+    "client_t800_runner_state": "initialization_aborted_on_missing_profile_payload"
+  }
+}

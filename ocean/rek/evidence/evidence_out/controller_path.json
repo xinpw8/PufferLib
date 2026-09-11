@@ -1,0 +1,6456 @@
+{
+  "build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+  "hard_unknowns": [
+    {
+      "because": "the private Bot1 client is visual-only and remotely authoritative",
+      "id": "authoritative_active_runner",
+      "obtain_by": "authoritative runtime instrumentation or controlled black-box replay",
+      "state": "unknown"
+    },
+    {
+      "because": "the client inventory does not pin the dedicated server binary",
+      "id": "server_implementation_and_build",
+      "obtain_by": "a server artifact/version identity or measured behavioral replay",
+      "state": "unknown"
+    },
+    {
+      "because": "all 45 serialized client profile payload pointers are null",
+      "id": "active_profile_assets_and_parameters",
+      "obtain_by": "hash and inspect the runtime-loaded profile bundle if it becomes observable",
+      "state": "unknown"
+    },
+    {
+      "because": "no active ONNX/config payload or authoritative controller trace is present",
+      "id": "observation_model_and_hidden_state",
+      "obtain_by": "capture the active observation, output, and recurrent-state boundary",
+      "state": "unknown"
+    },
+    {
+      "because": "client static construction does not establish server runtime values",
+      "id": "authoritative_joint_cache_and_limits",
+      "obtain_by": "authoritative joint-cache readback or differential system identification",
+      "state": "unknown"
+    },
+    {
+      "because": "the client trace has no server tick or command acknowledgement",
+      "id": "command_to_server_tick_alignment",
+      "obtain_by": "capture an acknowledged server tick or estimate delay from controlled repeats",
+      "state": "unknown"
+    },
+    {
+      "because": "the six move configuration objects are recovered, but their npz pointers and all matching T800 ONNX/config/trajectory pointers are null and no authoritative execution trace exposes the selected profile state",
+      "id": "move_profile_execution_semantics",
+      "obtain_by": "capture controlled move requests and the authoritative pose response, or inspect an authorized server-side controller package",
+      "state": "unknown"
+    }
+  ],
+  "limits": [
+    "Native client semantics do not establish private-AI runtime activation.",
+    "The dedicated server implementation and build are not pinned.",
+    "Serialized null payload pointers are preserved and never replaced with defaults.",
+    "All six referenced move objects are bound; their serialized npzFile pointers are null.",
+    "Move configuration fields do not establish authoritative motion trajectories or policy weights.",
+    "No dummy or interop method body is semantic evidence.",
+    "No proprietary binary payload is copied into this artifact."
+  ],
+  "native_methods": [
+    {
+      "evidence_role": "static_native_semantics",
+      "file_offset": "0x236C400",
+      "id": "engine_ai.fixed_update",
+      "isil_method_block_sha256": "2c580cb2cf0c45ee89e459a1bb0b871b621b9ff9a97b7fd1f90138fcce40a0fe",
+      "isil_normalization": "UTF-8; CRLF/CR to LF; rstrip; one final LF",
+      "isil_source": "EngineAIPolicyRunner.txt",
+      "metadata_token": "0x0600091D",
+      "name": "FixedUpdate",
+      "native_body_sha256": "7e8425cf31350195c13c2660152b2802bd36ba7da01535b734e2a415b30646b9",
+      "pe_section": "il2cpp",
+      "rva": "0x236D000",
+      "signature": "System.Void FixedUpdate()",
+      "size_bytes": 114,
+      "type": "REKApp.EngineAIPolicyRunner"
+    },
+    {
+      "evidence_role": "static_native_semantics",
+      "file_offset": "0x236A680",
+      "id": "engine_ai.control_tick",
+      "isil_method_block_sha256": "39d373f118bf993c0ea48a1b0751ca9f9b787612950a381e18830bfe11d6c4ac",
+      "isil_normalization": "UTF-8; CRLF/CR to LF; rstrip; one final LF",
+      "isil_source": "EngineAIPolicyRunner.txt",
+      "metadata_token": "0x0600091E",
+      "name": "ControlTick",
+      "native_body_sha256": "c2b700b929618949727d6ce7776d01abfd88b9aab03c9028381b9493a9918ab4",
+      "pe_section": "il2cpp",
+      "rva": "0x236B280",
+      "signature": "System.Void ControlTick()",
+      "size_bytes": 5704,
+      "type": "REKApp.EngineAIPolicyRunner"
+    },
+    {
+      "evidence_role": "static_native_semantics",
+      "file_offset": "0x23694B0",
+      "id": "engine_ai.apply_mimic_torque_limits",
+      "isil_method_block_sha256": "cda35e7a9699fa6115a9d0b119a33b869ac130213c6492207c155c4ff6b52609",
+      "isil_normalization": "UTF-8; CRLF/CR to LF; rstrip; one final LF",
+      "isil_source": "EngineAIPolicyRunner.txt",
+      "metadata_token": "0x06000920",
+      "name": "ApplyMimicTorqueLimits",
+      "native_body_sha256": "d79a381296ad94a8bbce01e5ed58de4326b8465c6eed47d69a95c76065a497ba",
+      "pe_section": "il2cpp",
+      "rva": "0x236A0B0",
+      "signature": "System.Void ApplyMimicTorqueLimits(REKApp.EngineAIPolicyRunner+ProfileConfig cfg)",
+      "size_bytes": 769,
+      "type": "REKApp.EngineAIPolicyRunner"
+    },
+    {
+      "evidence_role": "static_native_semantics",
+      "file_offset": "0x2369F20",
+      "id": "engine_ai.build_joint_mapping",
+      "isil_method_block_sha256": "a9ebed644868efff5c6b8e4919e56c2f52341bd0ad48fb98eeb56b46628a7e15",
+      "isil_normalization": "UTF-8; CRLF/CR to LF; rstrip; one final LF",
+      "isil_source": "EngineAIPolicyRunner.txt",
+      "metadata_token": "0x06000918",
+      "name": "BuildJointMapping",
+      "native_body_sha256": "c604713da394f261dbf0e576d0d75583187978212c506dfea68728fb21131510",
+      "pe_section": "il2cpp",
+      "rva": "0x236AB20",
+      "signature": "System.Boolean BuildJointMapping()",
+      "size_bytes": 1175,
+      "type": "REKApp.EngineAIPolicyRunner"
+    },
+    {
+      "evidence_role": "static_native_semantics",
+      "file_offset": "0x23CDF70",
+      "id": "robot.build_mujoco_joint_motor_cache",
+      "isil_method_block_sha256": "7dec392315fde10f0fdf98200d68d0deccbb699b198f6981096d1dea65a035ec",
+      "isil_normalization": "UTF-8; CRLF/CR to LF; rstrip; one final LF",
+      "isil_source": "Robot.txt",
+      "metadata_token": "0x06000F9F",
+      "name": "BuildMujocoJointMotorCache",
+      "native_body_sha256": "0caa38b48f84ebd403b47c7d0cb9c0ec45f55ea0be5d6de818febe723808c932",
+      "pe_section": "il2cpp",
+      "rva": "0x23CEB70",
+      "signature": "System.Void BuildMujocoJointMotorCache()",
+      "size_bytes": 2181,
+      "type": "REKApp.Robot"
+    },
+    {
+      "evidence_role": "static_native_semantics",
+      "file_offset": "0x23CFA80",
+      "id": "robot.configure_implicit_pd_actuators",
+      "isil_method_block_sha256": "3fa7ec34034bc128b41a2c002d08d4df324406e4590088246e5d81cfca4ba889",
+      "isil_normalization": "UTF-8; CRLF/CR to LF; rstrip; one final LF",
+      "isil_source": "Robot.txt",
+      "metadata_token": "0x06000FC1",
+      "name": "ConfigureImplicitPdActuators",
+      "native_body_sha256": "4285c1e71b70f10eb158082a3941f610e771504df335d96db34d338f2c0ed6db",
+      "pe_section": "il2cpp",
+      "rva": "0x23D0680",
+      "signature": "System.Void ConfigureImplicitPdActuators(Mujoco.MujocoLib+mjModel_* model)",
+      "size_bytes": 511,
+      "type": "REKApp.Robot"
+    },
+    {
+      "evidence_role": "static_native_semantics",
+      "file_offset": "0x23CCB40",
+      "id": "robot.apply_joint_controls",
+      "isil_method_block_sha256": "a63967f9952d47c3cc693605b56d245e05647b143c5e821fd6ba9b266897a18e",
+      "isil_normalization": "UTF-8; CRLF/CR to LF; rstrip; one final LF",
+      "isil_source": "Robot.txt",
+      "metadata_token": "0x06000FC2",
+      "name": "ApplyJointControls",
+      "native_body_sha256": "4c732769dd129c3bb2314414acf50cbb8048f01a57e8e15158c42e53a49a3026",
+      "pe_section": "il2cpp",
+      "rva": "0x23CD740",
+      "signature": "System.Void ApplyJointControls(Mujoco.MjStepArgs args)",
+      "size_bytes": 670,
+      "type": "REKApp.Robot"
+    },
+    {
+      "evidence_role": "static_native_semantics",
+      "file_offset": "0x23DE760",
+      "id": "robot.write_position_actuator_gains",
+      "isil_method_block_sha256": "c7bcefb37f6c10ecd85718ea775a2adc50e31d1519b9b230abc5798d75f49e6d",
+      "isil_normalization": "UTF-8; CRLF/CR to LF; rstrip; one final LF",
+      "isil_source": "Robot.txt",
+      "metadata_token": "0x06000FC3",
+      "name": "WritePositionActuatorGains",
+      "native_body_sha256": "064b3648806e9c11005499142636019416259190de34bda4741ca74bab4df7de",
+      "pe_section": "il2cpp",
+      "rva": "0x23DF360",
+      "signature": "System.Void WritePositionActuatorGains(Mujoco.MujocoLib+mjModel_* model, System.Int32 actuatorId, System.Single kp, System.Single kd)",
+      "size_bytes": 130,
+      "type": "REKApp.Robot"
+    },
+    {
+      "evidence_role": "static_native_semantics",
+      "file_offset": "0x23DE6E0",
+      "id": "robot.write_actuator_force_limit",
+      "isil_method_block_sha256": "f7e7118ce105857869db6e4d1f49dabd54467f60623934fc510a51a7dccaddc5",
+      "isil_normalization": "UTF-8; CRLF/CR to LF; rstrip; one final LF",
+      "isil_source": "Robot.txt",
+      "metadata_token": "0x06000FC4",
+      "name": "WriteActuatorForceLimit",
+      "native_body_sha256": "d295f5907154916ef328d400dfecc0e4ce4c1a1862aea8d11eace129745c8866",
+      "pe_section": "il2cpp",
+      "rva": "0x23DF2E0",
+      "signature": "System.Void WriteActuatorForceLimit(Mujoco.MujocoLib+mjModel_* model, System.Int32 actuatorId, System.Single limit)",
+      "size_bytes": 120,
+      "type": "REKApp.Robot"
+    },
+    {
+      "evidence_role": "static_native_semantics",
+      "file_offset": "0x226CDB0",
+      "id": "robot_input.late_update",
+      "isil_method_block_sha256": "3e1c26e185729b173372c49c2511ecfab43ed2d09d71c144cdb27fb8b03698e2",
+      "isil_normalization": "UTF-8; CRLF/CR to LF; rstrip; one final LF",
+      "isil_source": "RobotInputController.txt",
+      "metadata_token": "0x060010FC",
+      "name": "LateUpdate",
+      "native_body_sha256": "b500252de8fb4c9ebc6a6848be71600f7920a2de8c8c4e2cb4927e4c37711992",
+      "pe_section": "il2cpp",
+      "rva": "0x226D9B0",
+      "signature": "System.Void LateUpdate()",
+      "size_bytes": 226,
+      "type": "REKApp.RobotInputController"
+    },
+    {
+      "evidence_role": "static_native_semantics",
+      "file_offset": "0x226E510",
+      "id": "robot_input.send_velocity_command",
+      "isil_method_block_sha256": "907e532b7b54e016e8fee9ce6a66c51f4ab6f51f76d86a124aae762957da1cde",
+      "isil_normalization": "UTF-8; CRLF/CR to LF; rstrip; one final LF",
+      "isil_source": "RobotInputController.txt",
+      "metadata_token": "0x06001102",
+      "name": "SendVelocityCommand",
+      "native_body_sha256": "245c5591d89d313f829cae3862a3041868bb5a71c89ae79a6c88320881b00974",
+      "pe_section": "il2cpp",
+      "rva": "0x226F110",
+      "signature": "System.Void SendVelocityCommand(Unity.Netcode.CustomMessagingManager cmm)",
+      "size_bytes": 602,
+      "type": "REKApp.RobotInputController"
+    },
+    {
+      "evidence_role": "static_native_semantics",
+      "file_offset": "0x226BF10",
+      "id": "robot_input.execute_move_by_index",
+      "isil_method_block_sha256": "3e831efba10dfd76cbbd7005fb545930077c519dff8d7ccfa60a25038b54797e",
+      "isil_normalization": "UTF-8; CRLF/CR to LF; rstrip; one final LF",
+      "isil_source": "RobotInputController.txt",
+      "metadata_token": "0x0600111B",
+      "name": "ExecuteMoveByIndex",
+      "native_body_sha256": "515eef982712dcc66ccef3e4b2f4e8d4da349232dfd6bbe74b5e8ea6ac0571d4",
+      "pe_section": "il2cpp",
+      "rva": "0x226CB10",
+      "signature": "System.Boolean ExecuteMoveByIndex(System.Int32 index)",
+      "size_bytes": 411,
+      "type": "REKApp.RobotInputController"
+    }
+  ],
+  "schema": "rek.controller_path.v2",
+  "scope": {
+    "control_equivalent": false,
+    "evidence_role": "static_native_semantics",
+    "move_object_fields": {
+      "count": 6,
+      "evidence_role": "serialized_object_fields",
+      "state": "measured"
+    },
+    "private_ai_runtime_active": {
+      "state": "unknown"
+    },
+    "robot_id": "t800",
+    "server_equivalent": {
+      "state": "unknown"
+    }
+  },
+  "serialized_t800": {
+    "actuators": [
+      {
+        "control_range": [
+          -415.0,
+          415.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 415.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 0,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J00_HIP_PITCH_L",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -415.0,
+              "y": 415.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3202
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 1274
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3349,
+          "serialized_sha256": "e5921dc880696677a47f991f38544d2f3f28fa0c133626076aa0d35baa5e68dc"
+        }
+      },
+      {
+        "control_range": [
+          -370.0,
+          370.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 370.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 1,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J01_HIP_ROLL_L",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -370.0,
+              "y": 370.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3156
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 657
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 2893,
+          "serialized_sha256": "cb50b34168ad9cd13244d0ef85956e8db27fe7572eff76546f9f6e2690c04a53"
+        }
+      },
+      {
+        "control_range": [
+          -222.0,
+          222.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 222.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 2,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J02_HIP_YAW_L",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -222.0,
+              "y": 222.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3403
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 720
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3046,
+          "serialized_sha256": "b3f5ea39f97b5034ddc9658e9b77e23601eec47dabaf4d525c397fbbf82cdbf3"
+        }
+      },
+      {
+        "control_range": [
+          -415.0,
+          415.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 415.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 3,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J03_KNEE_PITCH_L",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -415.0,
+              "y": 415.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3448
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 997
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3145,
+          "serialized_sha256": "dae1115c438cf58326b196a827c7ae1b8e5e1d716021bafcfd9f870b4a5c4277"
+        }
+      },
+      {
+        "control_range": [
+          -160.0,
+          160.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 160.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 4,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J04_ANKLE_PITCH_L",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -160.0,
+              "y": 160.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3132
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 514
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3070,
+          "serialized_sha256": "60f97cd782283785fc5319f41fa5d9bbb6db80371d006e4f7aa98837fd719e98"
+        }
+      },
+      {
+        "control_range": [
+          -160.0,
+          160.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 160.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 5,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J05_ANKLE_ROLL_L",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -160.0,
+              "y": 160.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3431
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 892
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3237,
+          "serialized_sha256": "33f70cbe3ee98c2ac0fc9bc902f9f2ef5fa7486ee7b740c03e25b1ba824c748e"
+        }
+      },
+      {
+        "control_range": [
+          -415.0,
+          415.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 415.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 6,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J06_HIP_PITCH_R",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -415.0,
+              "y": 415.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3167
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 1217
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3163,
+          "serialized_sha256": "751e02d2a7d678cb182aadcd7388ff30ceb994b3b6a7181aaa0fe138b0a36cad"
+        }
+      },
+      {
+        "control_range": [
+          -370.0,
+          370.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 370.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 7,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J07_HIP_ROLL_R",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -370.0,
+              "y": 370.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 2962
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 492
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3295,
+          "serialized_sha256": "c9f49485fb16dd41272e4706624c31bb140cb69109c3b168d0a1d637c897a5de"
+        }
+      },
+      {
+        "control_range": [
+          -222.0,
+          222.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 222.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 8,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J08_HIP_YAW_R",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -222.0,
+              "y": 222.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3013
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 757
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3108,
+          "serialized_sha256": "339745110748be324b57912edf045f246eca6d82a2545f918f2ec263734820eb"
+        }
+      },
+      {
+        "control_range": [
+          -415.0,
+          415.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 415.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 9,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J09_KNEE_PITCH_R",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -415.0,
+              "y": 415.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3252
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 1042
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 2993,
+          "serialized_sha256": "7a3fca8caae4a553cd5b0acb09d573ef1f83911688b15e4e14a16778d80f2eb5"
+        }
+      },
+      {
+        "control_range": [
+          -160.0,
+          160.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 160.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 10,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J10_ANKLE_PITCH_R",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -160.0,
+              "y": 160.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3006
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 501
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3180,
+          "serialized_sha256": "7889045d546852339b5f76db4866da25c9bd37f2d89c1c7b3496663fbf129590"
+        }
+      },
+      {
+        "control_range": [
+          -160.0,
+          160.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 160.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 11,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J11_ANKLE_ROLL_R",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -160.0,
+              "y": 160.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3208
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 1049
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3034,
+          "serialized_sha256": "50cdfb285e5c10e668c2178b5804faca9b496cfe84d39817df7f7cbd04fb010b"
+        }
+      },
+      {
+        "control_range": [
+          -222.0,
+          222.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 222.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 12,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J12_TORSO_YAW",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -222.0,
+              "y": 222.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3458
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 1088
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3129,
+          "serialized_sha256": "f06bb6fbfd3ec08db94626b2d3efd01d2a8b26255912463844de7c2712869af7"
+        }
+      },
+      {
+        "control_range": [
+          -160.0,
+          160.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 160.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 13,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J13_SHOULDER_PITCH_L",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -160.0,
+              "y": 160.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3494
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 943
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3205,
+          "serialized_sha256": "9fb8cdcce1284f5bfaaf25a6f028719e8033af08ef6b54eff5a8b8a3b4f2f64e"
+        }
+      },
+      {
+        "control_range": [
+          -160.0,
+          160.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 160.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 14,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J14_SHOULDER_ROLL_L",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -160.0,
+              "y": 160.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3297
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 1095
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3178,
+          "serialized_sha256": "e8de0ceee1cba7205b2719f1aafb470a42d7bd154a395936db70c1d032b85971"
+        }
+      },
+      {
+        "control_range": [
+          -160.0,
+          160.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 160.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 15,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J15_SHOULDER_YAW_L",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -160.0,
+              "y": 160.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3493
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 853
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3321,
+          "serialized_sha256": "4a17cf25e7ab05a5b05c3b13171fa5192d66b558cfd672be27eaa9456fde5816"
+        }
+      },
+      {
+        "control_range": [
+          -160.0,
+          160.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 160.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 16,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J16_ELBOW_PITCH_L",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -160.0,
+              "y": 160.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3166
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 541
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3225,
+          "serialized_sha256": "80eadb9da64ab756e33dcdff6548128e5471be94c344299e5e30a97a905b340a"
+        }
+      },
+      {
+        "control_range": [
+          -52.0,
+          52.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 52.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 17,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J17_ELBOW_YAW_L",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -52.0,
+              "y": 52.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 2903
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 1162
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3216,
+          "serialized_sha256": "d4d3df106e45e2ea12538c473b2eac9826a5d47753d8c322f4e58080eebea7b9"
+        }
+      },
+      {
+        "control_range": [
+          -160.0,
+          160.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 160.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 18,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J18_SHOULDER_PITCH_R",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -160.0,
+              "y": 160.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 2922
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 497
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3402,
+          "serialized_sha256": "94ebadf2d6aba0133cf5c619f72b4175c6c266a8c0acf431c9ed0cef72dbe4b5"
+        }
+      },
+      {
+        "control_range": [
+          -160.0,
+          160.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 160.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 19,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J19_SHOULDER_ROLL_R",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -160.0,
+              "y": 160.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3116
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 1275
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3276,
+          "serialized_sha256": "ac57ddff23941e639a10331e7977a808fde476b00c4c55647c3305e79b442df2"
+        }
+      },
+      {
+        "control_range": [
+          -160.0,
+          160.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 160.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 20,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J20_SHOULDER_YAW_R",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -160.0,
+              "y": 160.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3028
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 636
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3238,
+          "serialized_sha256": "b1400f061c95a34d485e2dc5c1d41aa0a9206c831cbb1d9ba36be8b53fea7294"
+        }
+      },
+      {
+        "control_range": [
+          -160.0,
+          160.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 160.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 21,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J21_ELBOW_PITCH_R",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -160.0,
+              "y": 160.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3018
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 784
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3165,
+          "serialized_sha256": "21a848d86b17cf571c3398d8e88d99ea1a3f1c2e8813ab0e688da4cf84976494"
+        }
+      },
+      {
+        "control_range": [
+          -52.0,
+          52.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 52.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 22,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J22_ELBOW_YAW_R",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -52.0,
+              "y": 52.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3481
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 1072
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3195,
+          "serialized_sha256": "33f318555cd8631d7ebb1bfb5b470a954bad15d9ff1983c19a8b46427dc7cb2a"
+        }
+      },
+      {
+        "control_range": [
+          -52.0,
+          52.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 52.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 23,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J23_HEAD_PITCH",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -52.0,
+              "y": 52.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3223
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 630
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3147,
+          "serialized_sha256": "2e4af115b23b4e092fc4f9b0d4b4a1582568eb54941210410b0d587f13bbd2e5"
+        }
+      },
+      {
+        "control_range": [
+          -52.0,
+          52.0
+        ],
+        "derived_initial_force_limit": {
+          "source": "control_range",
+          "state": "measured",
+          "value": 52.0
+        },
+        "force_range": [
+          0.0,
+          0.0
+        ],
+        "index": 24,
+        "joint_fingerprint_effort": {
+          "state": "not_needed_for_this_input"
+        },
+        "name": "motor_J24_HEAD_YAW",
+        "serialized_values": {
+          "CommonParams": {
+            "CtrlLimited": 1,
+            "CtrlRange": {
+              "x": -52.0,
+              "y": 52.0
+            },
+            "ForceLimited": 0,
+            "ForceRange": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "Gear": [
+              1.0
+            ],
+            "LengthRange": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "Control": 0.0,
+          "CustomParams": {
+            "Area": 1.0,
+            "Bias": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasPrm": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "BiasType": 0,
+            "CylinderTimeConst": 1.0,
+            "Diameter": 0.0,
+            "DynPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "DynType": 0,
+            "Force": -1.0,
+            "FpMax": 1.2999999523162842,
+            "FvMax": 1.2000000476837158,
+            "GainPrm": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "GainType": 0,
+            "Kp": 1.0,
+            "Kv": 1.0,
+            "Kvp": 0.0,
+            "LMax": 1.600000023841858,
+            "LMin": 0.5,
+            "MuscleTimeConst": {
+              "x": 0.009999999776482582,
+              "y": 0.03999999910593033
+            },
+            "Range": {
+              "x": 0.75,
+              "y": 1.0499999523162842
+            },
+            "Scale": 200.0,
+            "VMax": 1.5
+          },
+          "Joint": {
+            "m_FileID": 0,
+            "m_PathID": 3294
+          },
+          "Tendon": {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          "Type": 1,
+          "m_Enabled": 1,
+          "m_GameObject": {
+            "m_FileID": 0,
+            "m_PathID": 1011
+          },
+          "m_Name": "",
+          "m_Script": {
+            "m_FileID": 16777216,
+            "m_PathID": 75363254272
+          }
+        },
+        "source": {
+          "container": "sharedassets0.assets",
+          "kind": "serialized_object",
+          "path_id": 3477,
+          "serialized_sha256": "1fdee964664eff16b7a97a6b0f1081f2ec883f7cc559f10e4124878d296402c1"
+        }
+      }
+    ],
+    "derived_force_limit_vector": [
+      415.0,
+      370.0,
+      222.0,
+      415.0,
+      160.0,
+      160.0,
+      415.0,
+      370.0,
+      222.0,
+      415.0,
+      160.0,
+      160.0,
+      222.0,
+      160.0,
+      160.0,
+      160.0,
+      160.0,
+      52.0,
+      160.0,
+      160.0,
+      160.0,
+      160.0,
+      52.0,
+      52.0,
+      52.0
+    ],
+    "robot": {
+      "source": {
+        "container": "sharedassets0.assets",
+        "kind": "serialized_object",
+        "path_id": 2976,
+        "serialized_sha256": "db13d1bdf99e79957c07338f8b71a5470754531186b7db9dd80b9fd5fec3830a"
+      },
+      "values": {
+        "<VelocityCommand>k__BackingField": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "autoDampenOnFallen": 0,
+        "bypassTorqueLimits": 0,
+        "commandController": {
+          "m_FileID": 0,
+          "m_PathID": 3416
+        },
+        "dampenMotorRetention": 0.10000000149011612,
+        "enableDebugLogs": 1,
+        "fallenContactPoints": 3,
+        "fallenHeightRatio": 0.4000000059604645,
+        "fallenHoldFast": 0.15000000596046448,
+        "fallenHoldSlow": 0.5,
+        "fallenResetTimeout": 7.0,
+        "fallenTiltThreshold": 77.9000015258789,
+        "fallingHeightRatio": 0.6000000238418579,
+        "fallingTiltThreshold": 42.0,
+        "floorNormalMaxAngle": 50.0,
+        "forwardYawOffset": -180.0,
+        "getUpCommandTimeout": 10.0,
+        "importData": {
+          "bodyZones": [
+            {
+              "boneName": "LINK_BASE",
+              "zone": 3
+            },
+            {
+              "boneName": "LINK_HIP_PITCH_L",
+              "zone": 12
+            },
+            {
+              "boneName": "LINK_HIP_ROLL_L",
+              "zone": 12
+            },
+            {
+              "boneName": "LINK_HIP_YAW_L",
+              "zone": 12
+            },
+            {
+              "boneName": "LINK_KNEE_PITCH_L",
+              "zone": 14
+            },
+            {
+              "boneName": "LINK_ANKLE_PITCH_L",
+              "zone": 16
+            },
+            {
+              "boneName": "LINK_ANKLE_ROLL_L",
+              "zone": 16
+            },
+            {
+              "boneName": "joint__J05_ANKLE_ROLL_L",
+              "zone": 16
+            },
+            {
+              "boneName": "joint__J04_ANKLE_PITCH_L",
+              "zone": 16
+            },
+            {
+              "boneName": "joint__J03_KNEE_PITCH_L",
+              "zone": 14
+            },
+            {
+              "boneName": "joint__J02_HIP_YAW_L",
+              "zone": 12
+            },
+            {
+              "boneName": "joint__J01_HIP_ROLL_L",
+              "zone": 12
+            },
+            {
+              "boneName": "joint__J00_HIP_PITCH_L",
+              "zone": 12
+            },
+            {
+              "boneName": "LINK_HIP_PITCH_R",
+              "zone": 13
+            },
+            {
+              "boneName": "LINK_HIP_ROLL_R",
+              "zone": 13
+            },
+            {
+              "boneName": "LINK_HIP_YAW_R",
+              "zone": 13
+            },
+            {
+              "boneName": "LINK_KNEE_PITCH_R",
+              "zone": 15
+            },
+            {
+              "boneName": "LINK_ANKLE_PITCH_R",
+              "zone": 17
+            },
+            {
+              "boneName": "LINK_ANKLE_ROLL_R",
+              "zone": 17
+            },
+            {
+              "boneName": "joint__J11_ANKLE_ROLL_R",
+              "zone": 17
+            },
+            {
+              "boneName": "joint__J10_ANKLE_PITCH_R",
+              "zone": 17
+            },
+            {
+              "boneName": "joint__J09_KNEE_PITCH_R",
+              "zone": 15
+            },
+            {
+              "boneName": "joint__J08_HIP_YAW_R",
+              "zone": 13
+            },
+            {
+              "boneName": "joint__J07_HIP_ROLL_R",
+              "zone": 13
+            },
+            {
+              "boneName": "joint__J06_HIP_PITCH_R",
+              "zone": 13
+            },
+            {
+              "boneName": "LINK_WAIST_YAW",
+              "zone": 2
+            },
+            {
+              "boneName": "LINK_HEAD_PITCH",
+              "zone": 1
+            },
+            {
+              "boneName": "LINK_HEAD_YAW",
+              "zone": 1
+            },
+            {
+              "boneName": "joint__J24_HEAD_YAW",
+              "zone": 1
+            },
+            {
+              "boneName": "joint__J23_HEAD_PITCH",
+              "zone": 1
+            },
+            {
+              "boneName": "LINK_SHOULDER_PITCH_L",
+              "zone": 4
+            },
+            {
+              "boneName": "LINK_SHOULDER_ROLL_L",
+              "zone": 4
+            },
+            {
+              "boneName": "LINK_SHOULDER_YAW_L",
+              "zone": 4
+            },
+            {
+              "boneName": "LINK_ELBOW_PITCH_L",
+              "zone": 6
+            },
+            {
+              "boneName": "LINK_ELBOW_YAW_L",
+              "zone": 6
+            },
+            {
+              "boneName": "LINK_WRIST_END_L",
+              "zone": 10
+            },
+            {
+              "boneName": "joint__J17_ELBOW_YAW_L",
+              "zone": 6
+            },
+            {
+              "boneName": "joint__J16_ELBOW_PITCH_L",
+              "zone": 6
+            },
+            {
+              "boneName": "joint__J15_SHOULDER_YAW_L",
+              "zone": 4
+            },
+            {
+              "boneName": "joint__J14_SHOULDER_ROLL_L",
+              "zone": 4
+            },
+            {
+              "boneName": "joint__J13_SHOULDER_PITCH_L",
+              "zone": 4
+            },
+            {
+              "boneName": "LINK_SHOULDER_PITCH_R",
+              "zone": 5
+            },
+            {
+              "boneName": "LINK_SHOULDER_ROLL_R",
+              "zone": 5
+            },
+            {
+              "boneName": "LINK_SHOULDER_YAW_R",
+              "zone": 5
+            },
+            {
+              "boneName": "LINK_ELBOW_PITCH_R",
+              "zone": 7
+            },
+            {
+              "boneName": "LINK_ELBOW_YAW_R",
+              "zone": 7
+            },
+            {
+              "boneName": "LINK_WRIST_END_R",
+              "zone": 11
+            },
+            {
+              "boneName": "joint__J22_ELBOW_YAW_R",
+              "zone": 7
+            },
+            {
+              "boneName": "joint__J21_ELBOW_PITCH_R",
+              "zone": 7
+            },
+            {
+              "boneName": "joint__J20_SHOULDER_YAW_R",
+              "zone": 5
+            },
+            {
+              "boneName": "joint__J19_SHOULDER_ROLL_R",
+              "zone": 5
+            },
+            {
+              "boneName": "joint__J18_SHOULDER_PITCH_R",
+              "zone": 5
+            },
+            {
+              "boneName": "joint__J12_TORSO_YAW",
+              "zone": 2
+            },
+            {
+              "boneName": "joint__LINK_BASE_freejoint",
+              "zone": 3
+            },
+            {
+              "boneName": "motor_J00_HIP_PITCH_L",
+              "zone": 12
+            },
+            {
+              "boneName": "motor_J01_HIP_ROLL_L",
+              "zone": 12
+            },
+            {
+              "boneName": "motor_J02_HIP_YAW_L",
+              "zone": 12
+            },
+            {
+              "boneName": "motor_J03_KNEE_PITCH_L",
+              "zone": 14
+            },
+            {
+              "boneName": "motor_J04_ANKLE_PITCH_L",
+              "zone": 16
+            },
+            {
+              "boneName": "motor_J05_ANKLE_ROLL_L",
+              "zone": 16
+            },
+            {
+              "boneName": "motor_J06_HIP_PITCH_R",
+              "zone": 13
+            },
+            {
+              "boneName": "motor_J07_HIP_ROLL_R",
+              "zone": 13
+            },
+            {
+              "boneName": "motor_J08_HIP_YAW_R",
+              "zone": 13
+            },
+            {
+              "boneName": "motor_J09_KNEE_PITCH_R",
+              "zone": 15
+            },
+            {
+              "boneName": "motor_J10_ANKLE_PITCH_R",
+              "zone": 17
+            },
+            {
+              "boneName": "motor_J11_ANKLE_ROLL_R",
+              "zone": 17
+            },
+            {
+              "boneName": "motor_J12_TORSO_YAW",
+              "zone": 2
+            },
+            {
+              "boneName": "motor_J13_SHOULDER_PITCH_L",
+              "zone": 4
+            },
+            {
+              "boneName": "motor_J14_SHOULDER_ROLL_L",
+              "zone": 4
+            },
+            {
+              "boneName": "motor_J15_SHOULDER_YAW_L",
+              "zone": 4
+            },
+            {
+              "boneName": "motor_J16_ELBOW_PITCH_L",
+              "zone": 6
+            },
+            {
+              "boneName": "motor_J17_ELBOW_YAW_L",
+              "zone": 6
+            },
+            {
+              "boneName": "motor_J18_SHOULDER_PITCH_R",
+              "zone": 5
+            },
+            {
+              "boneName": "motor_J19_SHOULDER_ROLL_R",
+              "zone": 5
+            },
+            {
+              "boneName": "motor_J20_SHOULDER_YAW_R",
+              "zone": 5
+            },
+            {
+              "boneName": "motor_J21_ELBOW_PITCH_R",
+              "zone": 7
+            },
+            {
+              "boneName": "motor_J22_ELBOW_YAW_R",
+              "zone": 7
+            },
+            {
+              "boneName": "motor_J23_HEAD_PITCH",
+              "zone": 1
+            },
+            {
+              "boneName": "motor_J24_HEAD_YAW",
+              "zone": 1
+            }
+          ],
+          "ignoredCollisionPairs": [],
+          "importTimestampTicks": 639220789594100655,
+          "joints": [
+            {
+              "actuatorGear": 0.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "",
+              "armature": 0.0,
+              "childLink": "LINK_BASE",
+              "ctrlRangeLower": 0.0,
+              "ctrlRangeUpper": 0.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 0,
+              "jointAxis": {
+                "x": 1.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "LINK_BASE_freejoint",
+              "parentLink": "",
+              "rangeLower": 0.0,
+              "rangeUpper": 0.0,
+              "stiffness": 0.0,
+              "type": "free",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.2427264004945755,
+              "childLink": "LINK_HIP_PITCH_L",
+              "ctrlRangeLower": -415.0,
+              "ctrlRangeUpper": 415.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 0.9659259915351868,
+                "z": -0.25881901383399963
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J00_HIP_PITCH_L",
+              "parentLink": "LINK_BASE",
+              "rangeLower": -3.315999984741211,
+              "rangeUpper": 2.2690000534057617,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.14110848307609558,
+              "childLink": "LINK_HIP_ROLL_L",
+              "ctrlRangeLower": -370.0,
+              "ctrlRangeUpper": 370.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 1.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J01_HIP_ROLL_L",
+              "parentLink": "LINK_HIP_PITCH_L",
+              "rangeLower": -1.0820000171661377,
+              "rangeUpper": 2.059000015258789,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.04487369954586029,
+              "childLink": "LINK_HIP_YAW_L",
+              "ctrlRangeLower": -222.0,
+              "ctrlRangeUpper": 222.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 1.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J02_HIP_YAW_L",
+              "parentLink": "LINK_HIP_ROLL_L",
+              "rangeLower": -1.4224499464035034,
+              "rangeUpper": 3.6022799015045166,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.2427264004945755,
+              "childLink": "LINK_KNEE_PITCH_L",
+              "ctrlRangeLower": -415.0,
+              "ctrlRangeUpper": 415.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 1.0,
+                "z": 0.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J03_KNEE_PITCH_L",
+              "parentLink": "LINK_HIP_YAW_L",
+              "rangeLower": -0.26166701316833496,
+              "rangeUpper": 2.3550000190734863,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.03546249866485596,
+              "childLink": "LINK_ANKLE_PITCH_L",
+              "ctrlRangeLower": -160.0,
+              "ctrlRangeUpper": 160.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 1.0,
+                "z": 0.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J04_ANKLE_PITCH_L",
+              "parentLink": "LINK_KNEE_PITCH_L",
+              "rangeLower": -0.680679976940155,
+              "rangeUpper": 0.680679976940155,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.03546249866485596,
+              "childLink": "LINK_ANKLE_ROLL_L",
+              "ctrlRangeLower": -160.0,
+              "ctrlRangeUpper": 160.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 1.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J05_ANKLE_ROLL_L",
+              "parentLink": "LINK_ANKLE_PITCH_L",
+              "rangeLower": -0.3490999937057495,
+              "rangeUpper": 0.1745000034570694,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.2427264004945755,
+              "childLink": "LINK_HIP_PITCH_R",
+              "ctrlRangeLower": -415.0,
+              "ctrlRangeUpper": 415.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 0.9659259915351868,
+                "z": 0.25881901383399963
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J06_HIP_PITCH_R",
+              "parentLink": "LINK_BASE",
+              "rangeLower": -3.315999984741211,
+              "rangeUpper": 2.2690000534057617,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.14110848307609558,
+              "childLink": "LINK_HIP_ROLL_R",
+              "ctrlRangeLower": -370.0,
+              "ctrlRangeUpper": 370.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 1.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J07_HIP_ROLL_R",
+              "parentLink": "LINK_HIP_PITCH_R",
+              "rangeLower": -2.059000015258789,
+              "rangeUpper": 1.0820000171661377,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.04487369954586029,
+              "childLink": "LINK_HIP_YAW_R",
+              "ctrlRangeLower": -222.0,
+              "ctrlRangeUpper": 222.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 1.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J08_HIP_YAW_R",
+              "parentLink": "LINK_HIP_ROLL_R",
+              "rangeLower": -3.6022799015045166,
+              "rangeUpper": 1.4224499464035034,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.2427264004945755,
+              "childLink": "LINK_KNEE_PITCH_R",
+              "ctrlRangeLower": -415.0,
+              "ctrlRangeUpper": 415.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 1.0,
+                "z": 0.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J09_KNEE_PITCH_R",
+              "parentLink": "LINK_HIP_YAW_R",
+              "rangeLower": -0.26166701316833496,
+              "rangeUpper": 2.3550000190734863,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.03546249866485596,
+              "childLink": "LINK_ANKLE_PITCH_R",
+              "ctrlRangeLower": -160.0,
+              "ctrlRangeUpper": 160.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 1.0,
+                "z": 0.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J10_ANKLE_PITCH_R",
+              "parentLink": "LINK_KNEE_PITCH_R",
+              "rangeLower": -0.680679976940155,
+              "rangeUpper": 0.680679976940155,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.03546249866485596,
+              "childLink": "LINK_ANKLE_ROLL_R",
+              "ctrlRangeLower": -160.0,
+              "ctrlRangeUpper": 160.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 1.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J11_ANKLE_ROLL_R",
+              "parentLink": "LINK_ANKLE_PITCH_R",
+              "rangeLower": -0.1745000034570694,
+              "rangeUpper": 0.3490999937057495,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.04487369954586029,
+              "childLink": "LINK_WAIST_YAW",
+              "ctrlRangeLower": -222.0,
+              "ctrlRangeUpper": 222.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 1.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J12_TORSO_YAW",
+              "parentLink": "LINK_BASE",
+              "rangeLower": -4.38100004196167,
+              "rangeUpper": 1.2391999959945679,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.03546249866485596,
+              "childLink": "LINK_SHOULDER_PITCH_L",
+              "ctrlRangeLower": -160.0,
+              "ctrlRangeUpper": 160.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 0.9967790246009827,
+                "z": 0.08019889891147614
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J13_SHOULDER_PITCH_L",
+              "parentLink": "LINK_WAIST_YAW",
+              "rangeLower": -2.9670000076293945,
+              "rangeUpper": 2.7929999828338623,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.03546249866485596,
+              "childLink": "LINK_SHOULDER_ROLL_L",
+              "ctrlRangeLower": -160.0,
+              "ctrlRangeUpper": 160.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 1.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J14_SHOULDER_ROLL_L",
+              "parentLink": "LINK_SHOULDER_PITCH_L",
+              "rangeLower": -0.3840000033378601,
+              "rangeUpper": 2.443000078201294,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.03546249866485596,
+              "childLink": "LINK_SHOULDER_YAW_L",
+              "ctrlRangeLower": -160.0,
+              "ctrlRangeUpper": 160.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": -0.07149709761142731,
+                "z": 0.9974409937858582
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J15_SHOULDER_YAW_L",
+              "parentLink": "LINK_SHOULDER_ROLL_L",
+              "rangeLower": -2.618000030517578,
+              "rangeUpper": 2.618000030517578,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.03546249866485596,
+              "childLink": "LINK_ELBOW_PITCH_L",
+              "ctrlRangeLower": -160.0,
+              "ctrlRangeUpper": 160.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 0.9974409937858582,
+                "z": 0.07149709761142731
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J16_ELBOW_PITCH_L",
+              "parentLink": "LINK_SHOULDER_YAW_L",
+              "rangeLower": -2.2860000133514404,
+              "rangeUpper": 0.2619999945163727,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.006716249976307154,
+              "childLink": "LINK_ELBOW_YAW_L",
+              "ctrlRangeLower": -52.0,
+              "ctrlRangeUpper": 52.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": -0.21643899381160736,
+                "y": -0.06980279833078384,
+                "z": 0.9737970232963562
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J17_ELBOW_YAW_L",
+              "parentLink": "LINK_ELBOW_PITCH_L",
+              "rangeLower": -2.618000030517578,
+              "rangeUpper": 2.618000030517578,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.03546249866485596,
+              "childLink": "LINK_SHOULDER_PITCH_R",
+              "ctrlRangeLower": -160.0,
+              "ctrlRangeUpper": 160.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 0.9967790246009827,
+                "z": -0.08019889891147614
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J18_SHOULDER_PITCH_R",
+              "parentLink": "LINK_WAIST_YAW",
+              "rangeLower": -2.9670000076293945,
+              "rangeUpper": 2.7929999828338623,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.03546249866485596,
+              "childLink": "LINK_SHOULDER_ROLL_R",
+              "ctrlRangeLower": -160.0,
+              "ctrlRangeUpper": 160.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 1.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J19_SHOULDER_ROLL_R",
+              "parentLink": "LINK_SHOULDER_PITCH_R",
+              "rangeLower": -2.443000078201294,
+              "rangeUpper": 0.3840000033378601,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.03546249866485596,
+              "childLink": "LINK_SHOULDER_YAW_R",
+              "ctrlRangeLower": -160.0,
+              "ctrlRangeUpper": 160.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 0.07149709761142731,
+                "z": 0.9974409937858582
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J20_SHOULDER_YAW_R",
+              "parentLink": "LINK_SHOULDER_ROLL_R",
+              "rangeLower": -2.618000030517578,
+              "rangeUpper": 2.618000030517578,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.03546249866485596,
+              "childLink": "LINK_ELBOW_PITCH_R",
+              "ctrlRangeLower": -160.0,
+              "ctrlRangeUpper": 160.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 0.9974409937858582,
+                "z": -0.07149709761142731
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J21_ELBOW_PITCH_R",
+              "parentLink": "LINK_SHOULDER_YAW_R",
+              "rangeLower": -2.2860000133514404,
+              "rangeUpper": 0.2619999945163727,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.006716249976307154,
+              "childLink": "LINK_ELBOW_YAW_R",
+              "ctrlRangeLower": -52.0,
+              "ctrlRangeUpper": 52.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": -0.21643899381160736,
+                "y": 0.06980279833078384,
+                "z": 0.9737970232963562
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J22_ELBOW_YAW_R",
+              "parentLink": "LINK_ELBOW_PITCH_R",
+              "rangeLower": -2.618000030517578,
+              "rangeUpper": 2.618000030517578,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.006716249976307154,
+              "childLink": "LINK_HEAD_PITCH",
+              "ctrlRangeLower": -52.0,
+              "ctrlRangeUpper": 52.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 1.0,
+                "z": 0.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J23_HEAD_PITCH",
+              "parentLink": "LINK_WAIST_YAW",
+              "rangeLower": -0.5230000019073486,
+              "rangeUpper": 0.5230000019073486,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            },
+            {
+              "actuatorGear": 1.0,
+              "actuatorKp": 0.0,
+              "actuatorKv": 0.0,
+              "actuatorType": "motor",
+              "armature": 0.006716249976307154,
+              "childLink": "LINK_HEAD_YAW",
+              "ctrlRangeLower": -52.0,
+              "ctrlRangeUpper": 52.0,
+              "damping": 0.0,
+              "defaultAngleRad": 0.0,
+              "effort": 0.0,
+              "forceRangeLower": 0.0,
+              "forceRangeUpper": 0.0,
+              "frictionloss": 0.0,
+              "hasActuator": 1,
+              "jointAxis": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 1.0
+              },
+              "jointPos": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "kd": 0.0,
+              "kp": 0.0,
+              "name": "J24_HEAD_YAW",
+              "parentLink": "LINK_HEAD_PITCH",
+              "rangeLower": -1.222000002861023,
+              "rangeUpper": 1.222000002861023,
+              "stiffness": 0.0,
+              "type": "hinge",
+              "velocity": 0.0
+            }
+          ],
+          "limbAimJoints": [
+            {
+              "joints": [
+                "LINK_SHOULDER_PITCH_L",
+                "LINK_SHOULDER_ROLL_L",
+                "LINK_SHOULDER_YAW_L"
+              ],
+              "limb": 1
+            },
+            {
+              "joints": [
+                "LINK_SHOULDER_PITCH_R",
+                "LINK_SHOULDER_ROLL_R",
+                "LINK_SHOULDER_YAW_R"
+              ],
+              "limb": 2
+            },
+            {
+              "joints": [
+                "LINK_HIP_PITCH_L",
+                "LINK_HIP_ROLL_L",
+                "LINK_HIP_YAW_L"
+              ],
+              "limb": 3
+            },
+            {
+              "joints": [
+                "LINK_HIP_PITCH_R",
+                "LINK_HIP_ROLL_R",
+                "LINK_HIP_YAW_R"
+              ],
+              "limb": 4
+            }
+          ],
+          "links": [
+            {
+              "centerOfMass": {
+                "x": 0.014872089959681034,
+                "y": -0.000119420001283288,
+                "z": 0.16732439398765564
+              },
+              "inertiaTensor": {
+                "x": 0.0010000000474974513,
+                "y": 0.0010000000474974513,
+                "z": 0.0010000000474974513
+              },
+              "massKg": 10.0830717086792,
+              "name": "LINK_BASE"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.00619139987975359,
+                "y": 0.03919399902224541,
+                "z": -0.09899760037660599
+              },
+              "inertiaTensor": {
+                "x": 0.007957319729030132,
+                "y": 0.007161519955843687,
+                "z": 0.004764250013977289
+              },
+              "massKg": 3.5361900329589844,
+              "name": "LINK_HIP_PITCH_L"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.03753089904785156,
+                "y": 4.949999947712058e-06,
+                "z": -0.0348455011844635
+              },
+              "inertiaTensor": {
+                "x": 0.0029199400451034307,
+                "y": 0.002572369994595647,
+                "z": 0.00145650003105402
+              },
+              "massKg": 0.8514419794082642,
+              "name": "LINK_HIP_ROLL_L"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.018298400565981865,
+                "y": 0.0023612300865352154,
+                "z": -0.17634700238704681
+              },
+              "inertiaTensor": {
+                "x": 0.11565600335597992,
+                "y": 0.11401999741792679,
+                "z": 0.010776599869132042
+              },
+              "massKg": 7.194819927215576,
+              "name": "LINK_HIP_YAW_L"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.01974489912390709,
+                "y": 0.0013916200259700418,
+                "z": -0.21190699934959412
+              },
+              "inertiaTensor": {
+                "x": 0.08584540337324142,
+                "y": 0.08565109968185425,
+                "z": 0.011571500450372696
+              },
+              "massKg": 5.995029926300049,
+              "name": "LINK_KNEE_PITCH_L"
+            },
+            {
+              "centerOfMass": {
+                "x": -3.677999848150648e-05,
+                "y": 0.0,
+                "z": -0.008870329707860947
+              },
+              "inertiaTensor": {
+                "x": 8.492999768350273e-05,
+                "y": 6.787679740227759e-05,
+                "z": 3.824320083367638e-05
+              },
+              "massKg": 0.1442209929227829,
+              "name": "LINK_ANKLE_PITCH_L"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.001287380000576377,
+                "y": -0.001206379965879023,
+                "z": -0.022955799475312233
+              },
+              "inertiaTensor": {
+                "x": 0.007070729974657297,
+                "y": 0.006914900150150061,
+                "z": 0.002027740003541112
+              },
+              "massKg": 1.4943900108337402,
+              "name": "LINK_ANKLE_ROLL_L"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "inertiaTensor": {
+                "x": 9.999999960041972e-13,
+                "y": 9.999999960041972e-13,
+                "z": 9.999999960041972e-13
+              },
+              "massKg": 0.0010000000474974513,
+              "name": "LINK_FOOT_L"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.00619139987975359,
+                "y": -0.03919399902224541,
+                "z": -0.09899760037660599
+              },
+              "inertiaTensor": {
+                "x": 0.007957319729030132,
+                "y": 0.007161519955843687,
+                "z": 0.004764250013977289
+              },
+              "massKg": 3.5361900329589844,
+              "name": "LINK_HIP_PITCH_R"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.03753089904785156,
+                "y": -4.949999947712058e-06,
+                "z": -0.0348455011844635
+              },
+              "inertiaTensor": {
+                "x": 0.0029199400451034307,
+                "y": 0.002572369994595647,
+                "z": 0.00145650003105402
+              },
+              "massKg": 0.8514419794082642,
+              "name": "LINK_HIP_ROLL_R"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.018298400565981865,
+                "y": -0.0023612300865352154,
+                "z": -0.17634700238704681
+              },
+              "inertiaTensor": {
+                "x": 0.11565600335597992,
+                "y": 0.11401999741792679,
+                "z": 0.010776599869132042
+              },
+              "massKg": 7.194819927215576,
+              "name": "LINK_HIP_YAW_R"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.01974489912390709,
+                "y": -0.0013916200259700418,
+                "z": -0.21190699934959412
+              },
+              "inertiaTensor": {
+                "x": 0.08584540337324142,
+                "y": 0.08565109968185425,
+                "z": 0.011571500450372696
+              },
+              "massKg": 5.995029926300049,
+              "name": "LINK_KNEE_PITCH_R"
+            },
+            {
+              "centerOfMass": {
+                "x": -3.677999848150648e-05,
+                "y": 0.0,
+                "z": -0.008870329707860947
+              },
+              "inertiaTensor": {
+                "x": 8.492999768350273e-05,
+                "y": 6.787679740227759e-05,
+                "z": 3.824320083367638e-05
+              },
+              "massKg": 0.1442209929227829,
+              "name": "LINK_ANKLE_PITCH_R"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.001287380000576377,
+                "y": 0.001206379965879023,
+                "z": -0.022955799475312233
+              },
+              "inertiaTensor": {
+                "x": 0.007070729974657297,
+                "y": 0.006914900150150061,
+                "z": 0.002027740003541112
+              },
+              "massKg": 1.4943900108337402,
+              "name": "LINK_ANKLE_ROLL_R"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "inertiaTensor": {
+                "x": 9.999999960041972e-13,
+                "y": 9.999999960041972e-13,
+                "z": 9.999999960041972e-13
+              },
+              "massKg": 0.0010000000474974513,
+              "name": "LINK_FOOT_R"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.00880844984203577,
+                "y": -0.000686099985614419,
+                "z": 0.22276200354099274
+              },
+              "inertiaTensor": {
+                "x": 0.256742000579834,
+                "y": 0.2075120061635971,
+                "z": 0.15304000675678253
+              },
+              "massKg": 19.41080093383789,
+              "name": "LINK_WAIST_YAW"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.006154569797217846,
+                "y": 0.052841801196336746,
+                "z": -0.012487100437283516
+              },
+              "inertiaTensor": {
+                "x": 0.0024097799323499203,
+                "y": 0.0021395098883658648,
+                "z": 0.0013071800349280238
+              },
+              "massKg": 1.7688299417495728,
+              "name": "LINK_SHOULDER_PITCH_L"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.005571919959038496,
+                "y": 0.004466590005904436,
+                "z": -0.02712929993867874
+              },
+              "inertiaTensor": {
+                "x": 0.0021681899670511484,
+                "y": 0.0015994500136002898,
+                "z": 0.0014132000505924225
+              },
+              "massKg": 0.6828929781913757,
+              "name": "LINK_SHOULDER_ROLL_L"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.0006221400108188391,
+                "y": 0.005549809895455837,
+                "z": -0.08980560302734375
+              },
+              "inertiaTensor": {
+                "x": 0.009979610331356525,
+                "y": 0.009834189899265766,
+                "z": 0.0011442500399425626
+              },
+              "massKg": 2.5520200729370117,
+              "name": "LINK_SHOULDER_YAW_L"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.00883497018367052,
+                "y": 0.0029520299285650253,
+                "z": -0.07333339750766754
+              },
+              "inertiaTensor": {
+                "x": 0.003196669975295663,
+                "y": 0.0031064599752426147,
+                "z": 0.0012679300270974636
+              },
+              "massKg": 1.1952699422836304,
+              "name": "LINK_ELBOW_PITCH_L"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.013009400106966496,
+                "y": 0.00447975005954504,
+                "z": -0.05843840166926384
+              },
+              "inertiaTensor": {
+                "x": 0.002150170039385557,
+                "y": 0.0020166700705885887,
+                "z": 0.0008540729759261012
+              },
+              "massKg": 1.078819990158081,
+              "name": "LINK_ELBOW_YAW_L"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "inertiaTensor": {
+                "x": 9.999999960041972e-13,
+                "y": 9.999999960041972e-13,
+                "z": 9.999999960041972e-13
+              },
+              "massKg": 0.0010000000474974513,
+              "name": "LINK_WRIST_END_L"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.006154569797217846,
+                "y": -0.052841801196336746,
+                "z": -0.012487100437283516
+              },
+              "inertiaTensor": {
+                "x": 0.0024097799323499203,
+                "y": 0.0021395098883658648,
+                "z": 0.0013071800349280238
+              },
+              "massKg": 1.7688299417495728,
+              "name": "LINK_SHOULDER_PITCH_R"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.005571919959038496,
+                "y": -0.004466590005904436,
+                "z": -0.02712929993867874
+              },
+              "inertiaTensor": {
+                "x": 0.0021681899670511484,
+                "y": 0.0015994500136002898,
+                "z": 0.0014132000505924225
+              },
+              "massKg": 0.6828929781913757,
+              "name": "LINK_SHOULDER_ROLL_R"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.0006221400108188391,
+                "y": -0.005549809895455837,
+                "z": -0.08980560302734375
+              },
+              "inertiaTensor": {
+                "x": 0.009979610331356525,
+                "y": 0.009834189899265766,
+                "z": 0.0011442500399425626
+              },
+              "massKg": 2.5520200729370117,
+              "name": "LINK_SHOULDER_YAW_R"
+            },
+            {
+              "centerOfMass": {
+                "x": -0.00883497018367052,
+                "y": -0.0029520299285650253,
+                "z": -0.07333339750766754
+              },
+              "inertiaTensor": {
+                "x": 0.003196669975295663,
+                "y": 0.0031064599752426147,
+                "z": 0.0012679300270974636
+              },
+              "massKg": 1.1952699422836304,
+              "name": "LINK_ELBOW_PITCH_R"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.013009400106966496,
+                "y": -0.00447975005954504,
+                "z": -0.05843840166926384
+              },
+              "inertiaTensor": {
+                "x": 0.002150170039385557,
+                "y": 0.0020166700705885887,
+                "z": 0.0008540729759261012
+              },
+              "massKg": 1.078819990158081,
+              "name": "LINK_ELBOW_YAW_R"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "inertiaTensor": {
+                "x": 9.999999960041972e-13,
+                "y": 9.999999960041972e-13,
+                "z": 9.999999960041972e-13
+              },
+              "massKg": 0.0010000000474974513,
+              "name": "LINK_WRIST_END_R"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.00012688999413512647,
+                "y": 0.00010014000145019963,
+                "z": 0.06729529798030853
+              },
+              "inertiaTensor": {
+                "x": 0.000660474004689604,
+                "y": 0.0005642779869958758,
+                "z": 0.0004550890007521957
+              },
+              "massKg": 0.7079660296440125,
+              "name": "LINK_HEAD_PITCH"
+            },
+            {
+              "centerOfMass": {
+                "x": 0.01813259907066822,
+                "y": 4.919999810226727e-06,
+                "z": 0.09289439767599106
+              },
+              "inertiaTensor": {
+                "x": 0.008485130034387112,
+                "y": 0.00826129037886858,
+                "z": 0.006539599969983101
+              },
+              "massKg": 1.723770022392273,
+              "name": "LINK_HEAD_YAW"
+            }
+          ],
+          "robotName": "engineai_robotics",
+          "rootBodies": [
+            "LINK_BASE"
+          ],
+          "rootImmovable": 0,
+          "schemaVersion": "11.0",
+          "sourceFbxGuid": "ea09bf6c7958079469c2a61b9de7db7c",
+          "sourceJsonGuid": "fdd5a74a07966b14995e2ea12253522d"
+        },
+        "isPlayerControlled": 0,
+        "m_Enabled": 1,
+        "m_GameObject": {
+          "m_FileID": 0,
+          "m_PathID": 1118
+        },
+        "m_Name": "",
+        "m_Script": {
+          "m_FileID": 16777216,
+          "m_PathID": 93214212096
+        },
+        "networkIndex": -1,
+        "policyRunner": {
+          "m_FileID": 0,
+          "m_PathID": 3356
+        },
+        "recoverySettleAngularVel": 0.5,
+        "recoverySettleHold": 0.15000000596046448,
+        "recoverySettleJointVel": 1.0,
+        "recoverySettleLinearVel": 0.15000000596046448,
+        "recoverySettleMinTime": 0.30000001192092896,
+        "showTeleopDebug": 1,
+        "vrController": {
+          "m_FileID": 0,
+          "m_PathID": 2898
+        }
+      }
+    },
+    "robot_config": {
+      "move_map": [
+        {
+          "index": 0,
+          "pointer": {
+            "file_id": 0,
+            "path_id": 0
+          },
+          "referenced_object": null
+        },
+        {
+          "index": 1,
+          "pointer": {
+            "file_id": 0,
+            "path_id": 0
+          },
+          "referenced_object": null
+        },
+        {
+          "index": 2,
+          "pointer": {
+            "file_id": 0,
+            "path_id": 2736
+          },
+          "referenced_object": {
+            "evidence_role": "serialized_object_fields",
+            "execution_state": "not_established_by_static_object",
+            "fields": {
+              "blendInTime": 0.10000000149011612,
+              "blendOutTime": 0.10000000149011612,
+              "displayName": "Punch Combo",
+              "endFrame": -1,
+              "impactEvents": [
+                {
+                  "gainBoost": 1.0,
+                  "impactTime": 0.7599999904632568,
+                  "leadTime": 0.10000000149011612,
+                  "limb": 1,
+                  "releaseTime": 0.1899999976158142
+                },
+                {
+                  "gainBoost": 1.0,
+                  "impactTime": 1.149999976158142,
+                  "leadTime": 0.10000000149011612,
+                  "limb": 1,
+                  "releaseTime": 0.10000000149011612
+                },
+                {
+                  "gainBoost": 1.0,
+                  "impactTime": 1.809999942779541,
+                  "leadTime": 0.10000000149011612,
+                  "limb": 1,
+                  "releaseTime": 0.10000000149011612
+                }
+              ],
+              "impactForgivenessDuration": 0.6000000238418579,
+              "impactReversal": {
+                "emaAlpha": 0.05000000074505806,
+                "enabled": 0,
+                "holdTime": 0.5,
+                "spikeFloorNm": 30.0,
+                "spikeRatio": 1.25
+              },
+              "impactYawForgiveness": 0.0,
+              "loop": 0,
+              "m_Enabled": 1,
+              "m_Name": "skill",
+              "mirror": 0,
+              "npzFile": {
+                "m_FileID": 0,
+                "m_PathID": 0
+              },
+              "playbackSpeed": 1.0,
+              "policyProfile": "skill",
+              "startFrame": 0,
+              "yawBlend": 0.0,
+              "yawForgiveness": 0.0
+            },
+            "motion_payload_state": "npz_pointer_null_in_serialized_client_object",
+            "source": {
+              "container": "sharedassets0.assets",
+              "kind": "serialized_object",
+              "path_id": 2736,
+              "serialized_sha256": "233f952edecb7bf8d1959c6549c0edb95e1833451fff988f57a4b14d92b14dd4"
+            },
+            "state": "measured"
+          }
+        },
+        {
+          "index": 3,
+          "pointer": {
+            "file_id": 0,
+            "path_id": 2738
+          },
+          "referenced_object": {
+            "evidence_role": "serialized_object_fields",
+            "execution_state": "not_established_by_static_object",
+            "fields": {
+              "blendInTime": 0.10000000149011612,
+              "blendOutTime": 0.10000000149011612,
+              "displayName": "Right Kick",
+              "endFrame": -1,
+              "impactEvents": [
+                {
+                  "gainBoost": 1.0,
+                  "impactTime": 1.1100000143051147,
+                  "leadTime": 0.25,
+                  "limb": 4,
+                  "releaseTime": 0.30000001192092896
+                }
+              ],
+              "impactForgivenessDuration": 0.6000000238418579,
+              "impactReversal": {
+                "emaAlpha": 0.05000000074505806,
+                "enabled": 0,
+                "holdTime": 0.5,
+                "spikeFloorNm": 30.0,
+                "spikeRatio": 1.25
+              },
+              "impactYawForgiveness": 0.0,
+              "loop": 0,
+              "m_Enabled": 1,
+              "m_Name": "youbiantui",
+              "mirror": 0,
+              "npzFile": {
+                "m_FileID": 0,
+                "m_PathID": 0
+              },
+              "playbackSpeed": 1.0,
+              "policyProfile": "youbiantui",
+              "startFrame": 0,
+              "yawBlend": 0.0,
+              "yawForgiveness": 0.0
+            },
+            "motion_payload_state": "npz_pointer_null_in_serialized_client_object",
+            "source": {
+              "container": "sharedassets0.assets",
+              "kind": "serialized_object",
+              "path_id": 2738,
+              "serialized_sha256": "70f36a2c7b9b53c10e47cc613d87a770eb86fb2e683ed64ee39efcccf2e75636"
+            },
+            "state": "measured"
+          }
+        },
+        {
+          "index": 4,
+          "pointer": {
+            "file_id": 0,
+            "path_id": 2732
+          },
+          "referenced_object": {
+            "evidence_role": "serialized_object_fields",
+            "execution_state": "not_established_by_static_object",
+            "fields": {
+              "blendInTime": 0.10000000149011612,
+              "blendOutTime": 0.10000000149011612,
+              "displayName": "Left Punch",
+              "endFrame": -1,
+              "impactEvents": [
+                {
+                  "gainBoost": 1.0,
+                  "impactTime": 0.38999998569488525,
+                  "leadTime": 0.11999999731779099,
+                  "limb": 1,
+                  "releaseTime": 0.07999999821186066
+                }
+              ],
+              "impactForgivenessDuration": 0.6000000238418579,
+              "impactReversal": {
+                "emaAlpha": 0.05000000074505806,
+                "enabled": 0,
+                "holdTime": 0.5,
+                "spikeFloorNm": 30.0,
+                "spikeRatio": 1.25
+              },
+              "impactYawForgiveness": 0.0,
+              "loop": 0,
+              "m_Enabled": 1,
+              "m_Name": "left_light_attack",
+              "mirror": 0,
+              "npzFile": {
+                "m_FileID": 0,
+                "m_PathID": 0
+              },
+              "playbackSpeed": 1.0,
+              "policyProfile": "left_light_attack",
+              "startFrame": 0,
+              "yawBlend": 0.0,
+              "yawForgiveness": 0.0
+            },
+            "motion_payload_state": "npz_pointer_null_in_serialized_client_object",
+            "source": {
+              "container": "sharedassets0.assets",
+              "kind": "serialized_object",
+              "path_id": 2732,
+              "serialized_sha256": "32081b731a59b7553d94022ebff865764b34c83dbf274aadf26540fb17daad2e"
+            },
+            "state": "measured"
+          }
+        },
+        {
+          "index": 5,
+          "pointer": {
+            "file_id": 0,
+            "path_id": 2734
+          },
+          "referenced_object": {
+            "evidence_role": "serialized_object_fields",
+            "execution_state": "not_established_by_static_object",
+            "fields": {
+              "blendInTime": 0.10000000149011612,
+              "blendOutTime": 0.10000000149011612,
+              "displayName": "Right Punch",
+              "endFrame": -1,
+              "impactEvents": [
+                {
+                  "gainBoost": 1.0,
+                  "impactTime": 0.2199999988079071,
+                  "leadTime": 0.11999999731779099,
+                  "limb": 2,
+                  "releaseTime": 0.20000000298023224
+                }
+              ],
+              "impactForgivenessDuration": 0.6000000238418579,
+              "impactReversal": {
+                "emaAlpha": 0.05000000074505806,
+                "enabled": 0,
+                "holdTime": 0.5,
+                "spikeFloorNm": 30.0,
+                "spikeRatio": 1.25
+              },
+              "impactYawForgiveness": 0.0,
+              "loop": 0,
+              "m_Enabled": 1,
+              "m_Name": "right_light_attack",
+              "mirror": 0,
+              "npzFile": {
+                "m_FileID": 0,
+                "m_PathID": 0
+              },
+              "playbackSpeed": 1.0,
+              "policyProfile": "right_light_attack",
+              "startFrame": 0,
+              "yawBlend": 0.0,
+              "yawForgiveness": 0.0
+            },
+            "motion_payload_state": "npz_pointer_null_in_serialized_client_object",
+            "source": {
+              "container": "sharedassets0.assets",
+              "kind": "serialized_object",
+              "path_id": 2734,
+              "serialized_sha256": "b1c1b2c000dd612e3eb4c33c5d90e03c2c9306e5cc194747c14248b0d77b7dea"
+            },
+            "state": "measured"
+          }
+        },
+        {
+          "index": 6,
+          "pointer": {
+            "file_id": 0,
+            "path_id": 0
+          },
+          "referenced_object": null
+        },
+        {
+          "index": 7,
+          "pointer": {
+            "file_id": 0,
+            "path_id": 0
+          },
+          "referenced_object": null
+        },
+        {
+          "index": 8,
+          "pointer": {
+            "file_id": 0,
+            "path_id": 0
+          },
+          "referenced_object": null
+        },
+        {
+          "index": 9,
+          "pointer": {
+            "file_id": 0,
+            "path_id": 2735
+          },
+          "referenced_object": {
+            "evidence_role": "serialized_object_fields",
+            "execution_state": "not_established_by_static_object",
+            "fields": {
+              "blendInTime": 0.10000000149011612,
+              "blendOutTime": 0.10000000149011612,
+              "displayName": "Dragon Punch",
+              "endFrame": -1,
+              "impactEvents": [
+                {
+                  "gainBoost": 1.0,
+                  "impactTime": 0.0,
+                  "leadTime": 0.0,
+                  "limb": 2,
+                  "releaseTime": 0.0
+                }
+              ],
+              "impactForgivenessDuration": 0.6000000238418579,
+              "impactReversal": {
+                "emaAlpha": 0.05000000074505806,
+                "enabled": 0,
+                "holdTime": 0.5,
+                "spikeFloorNm": 30.0,
+                "spikeRatio": 1.25
+              },
+              "impactYawForgiveness": 0.0,
+              "loop": 0,
+              "m_Enabled": 1,
+              "m_Name": "right_shoryuken_lm",
+              "mirror": 0,
+              "npzFile": {
+                "m_FileID": 0,
+                "m_PathID": 0
+              },
+              "playbackSpeed": 1.0,
+              "policyProfile": "right_shoryuken_lm",
+              "startFrame": 0,
+              "yawBlend": 0.0,
+              "yawForgiveness": 0.0
+            },
+            "motion_payload_state": "npz_pointer_null_in_serialized_client_object",
+            "source": {
+              "container": "sharedassets0.assets",
+              "kind": "serialized_object",
+              "path_id": 2735,
+              "serialized_sha256": "cc298f53d04ffd56be57ce3049559d3d30c7724fe4d2839a66ea8f3008ca8deb"
+            },
+            "state": "measured"
+          }
+        },
+        {
+          "index": 10,
+          "pointer": {
+            "file_id": 0,
+            "path_id": 2730
+          },
+          "referenced_object": {
+            "evidence_role": "serialized_object_fields",
+            "execution_state": "not_established_by_static_object",
+            "fields": {
+              "blendInTime": 0.10000000149011612,
+              "blendOutTime": 0.10000000149011612,
+              "displayName": "Left Kick",
+              "endFrame": -1,
+              "impactEvents": [
+                {
+                  "gainBoost": 1.0,
+                  "impactTime": 1.100000023841858,
+                  "leadTime": 0.20000000298023224,
+                  "limb": 3,
+                  "releaseTime": 0.15000000596046448
+                }
+              ],
+              "impactForgivenessDuration": 0.6000000238418579,
+              "impactReversal": {
+                "emaAlpha": 0.05000000074505806,
+                "enabled": 1,
+                "holdTime": 0.5,
+                "spikeFloorNm": 30.0,
+                "spikeRatio": 1.25
+              },
+              "impactYawForgiveness": 0.0,
+              "loop": 0,
+              "m_Enabled": 1,
+              "m_Name": "front_kick_L",
+              "mirror": 0,
+              "npzFile": {
+                "m_FileID": 0,
+                "m_PathID": 0
+              },
+              "playbackSpeed": 1.0,
+              "policyProfile": "front_kick_L",
+              "startFrame": 0,
+              "yawBlend": 0.0,
+              "yawForgiveness": 0.0
+            },
+            "motion_payload_state": "npz_pointer_null_in_serialized_client_object",
+            "source": {
+              "container": "sharedassets0.assets",
+              "kind": "serialized_object",
+              "path_id": 2730,
+              "serialized_sha256": "cd5b286f6e4f5c3003cb0f5c9de5e5690ca92ed58e5a1b789f4394e4d7911ee8"
+            },
+            "state": "measured"
+          }
+        },
+        {
+          "index": 11,
+          "pointer": {
+            "file_id": 0,
+            "path_id": 0
+          },
+          "referenced_object": null
+        }
+      ],
+      "source": {
+        "container": "sharedassets0.assets",
+        "kind": "serialized_object",
+        "path_id": 2739,
+        "serialized_sha256": "4cfc389375f3a80e778eb4ac73b7ea52ef58da0b12764a0848576894a532a405"
+      },
+      "values": {
+        "allowMoveInterrupt": 0,
+        "deadZone": 0.10000000149011612,
+        "forwardSpeed": 1.0,
+        "gamepadControlSchemes": [
+          {
+            "m_FileID": 0,
+            "m_PathID": 2740
+          }
+        ],
+        "hasEStop": 1,
+        "hasSpecialCommands": 1,
+        "idle": {
+          "m_FileID": 0,
+          "m_PathID": 0
+        },
+        "keyboardControlSchemes": [
+          {
+            "m_FileID": 0,
+            "m_PathID": 2743
+          },
+          {
+            "m_FileID": 0,
+            "m_PathID": 2741
+          }
+        ],
+        "keyboardYawRampTime": 0.5,
+        "locomotionTransitionSettle": 1,
+        "m_Enabled": 1,
+        "m_GameObject": {
+          "m_FileID": 0,
+          "m_PathID": 0
+        },
+        "m_Name": "RobotConfig_T800_EngineAiFighting",
+        "m_Script": {
+          "m_FileID": 16777216,
+          "m_PathID": 5905580032
+        },
+        "moves": [
+          {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          {
+            "m_FileID": 0,
+            "m_PathID": 2736
+          },
+          {
+            "m_FileID": 0,
+            "m_PathID": 2738
+          },
+          {
+            "m_FileID": 0,
+            "m_PathID": 2732
+          },
+          {
+            "m_FileID": 0,
+            "m_PathID": 2734
+          },
+          {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          {
+            "m_FileID": 0,
+            "m_PathID": 0
+          },
+          {
+            "m_FileID": 0,
+            "m_PathID": 2735
+          },
+          {
+            "m_FileID": 0,
+            "m_PathID": 2730
+          },
+          {
+            "m_FileID": 0,
+            "m_PathID": 0
+          }
+        ],
+        "robotId": "t800",
+        "stopBrakeRate": 3.0,
+        "strafeLeft": {
+          "m_FileID": 0,
+          "m_PathID": 0
+        },
+        "strafeRight": {
+          "m_FileID": 0,
+          "m_PathID": 0
+        },
+        "strafeSpeed": 1.0,
+        "transitionSettlePlanarSpeed": 0.15000000596046448,
+        "transitionSettleYawRate": 0.30000001192092896,
+        "turnLeft": {
+          "m_FileID": 0,
+          "m_PathID": 0
+        },
+        "turnRight": {
+          "m_FileID": 0,
+          "m_PathID": 0
+        },
+        "vrControlSchemes": [
+          {
+            "m_FileID": 0,
+            "m_PathID": 2744
+          }
+        ],
+        "walkBackward": {
+          "m_FileID": 0,
+          "m_PathID": 0
+        },
+        "walkForward": {
+          "m_FileID": 0,
+          "m_PathID": 0
+        },
+        "yawSpeed": 1.0
+      }
+    },
+    "runner": {
+      "profile_count": 45,
+      "profile_payload_pointer_state": "all_null_in_serialized_client_object",
+      "source": {
+        "container": "sharedassets0.assets",
+        "kind": "serialized_object",
+        "path_id": 3356,
+        "serialized_sha256": "5919088fb298d1dddbc563495240025307255aad8715d6af8f7df8fe3d139e66"
+      },
+      "values": {
+        "activateOnStart": 1,
+        "catalogOnActivate": 0,
+        "catalogRepetitions": 3,
+        "catalogSettleTime": 1.5,
+        "catalogSkipProfiles": [],
+        "debugImpactForceFrame": -1,
+        "debugKeyboardControl": 0,
+        "debugProfileHotkeys": [
+          "switch_to_boxing_idle@default",
+          "rl_saw_locomotion@default",
+          "left_light_attack",
+          "right_light_attack",
+          "right_shoryuken_lm",
+          "front_kick_L",
+          "youbiantui",
+          "skill",
+          "debut",
+          "switch_to_stance_idle@default"
+        ],
+        "enableDebugLogs": 0,
+        "enableImpactReversal": 0,
+        "faultGravityScale": 4.0,
+        "faultJointScale": 3.5999999046325684,
+        "faultTriggerScale": 12.0,
+        "impactEpisodeGap": 0.11999999731779099,
+        "impactMetricsEnabled": 0,
+        "logFaultChecks": 1,
+        "m_Enabled": 1,
+        "m_GameObject": {
+          "m_FileID": 0,
+          "m_PathID": 1118
+        },
+        "m_Name": "",
+        "m_Script": {
+          "m_FileID": 16777216,
+          "m_PathID": 70967623680
+        },
+        "manualSwitchCooldown": 0.5,
+        "passiveDamping": [
+          4.0,
+          4.0,
+          4.0,
+          4.0,
+          3.0,
+          3.0,
+          4.0,
+          4.0,
+          4.0,
+          4.0,
+          3.0,
+          3.0,
+          2.0,
+          3.0,
+          3.0,
+          3.0,
+          3.0,
+          3.0,
+          3.0,
+          3.0,
+          3.0,
+          3.0,
+          3.0,
+          1.0,
+          1.0
+        ],
+        "pdStandDuration": 3.0,
+        "pdStandKd": [
+          25.0,
+          25.0,
+          25.0,
+          25.0,
+          2.0,
+          2.0,
+          25.0,
+          25.0,
+          25.0,
+          25.0,
+          2.0,
+          2.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          0.20000000298023224,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          0.20000000298023224,
+          1.0,
+          1.0
+        ],
+        "pdStandKp": [
+          1080.0,
+          480.0,
+          880.0,
+          1000.0,
+          800.0,
+          100.0,
+          1080.0,
+          480.0,
+          880.0,
+          1000.0,
+          800.0,
+          100.0,
+          200.0,
+          120.0,
+          120.0,
+          120.0,
+          120.0,
+          120.0,
+          120.0,
+          120.0,
+          120.0,
+          120.0,
+          120.0,
+          100.0,
+          100.0
+        ],
+        "pdStandPose": [
+          -0.10499999672174454,
+          0.10499999672174454,
+          0.2630000114440918,
+          0.17499999701976776,
+          -0.050999999046325684,
+          -0.07400000095367432,
+          -0.10499999672174454,
+          -0.10499999672174454,
+          -0.2630000114440918,
+          0.17499999701976776,
+          -0.050999999046325684,
+          0.07400000095367432,
+          0.0,
+          0.0,
+          0.05000000074505806,
+          0.0,
+          -0.10000000149011612,
+          0.0,
+          0.0,
+          -0.05000000074505806,
+          0.0,
+          -0.10000000149011612,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "profiles": [
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "switch_to_boxing_idle@default",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "switch_to_stance_idle@default",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "idle_moving",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "youbiantui",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "flying_kick",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "debut",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "left_light_attack",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "right_light_attack",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "right_shoryuken_lm",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "fangsong3",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "fangsong4",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "left_side_front_kick_L",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "front_kick_L",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "skill",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "rl_saw_locomotion@default",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "getup_supine",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "getup_prone",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "getup_front",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "getup_back",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "getup_left",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "getup_right",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "switch_to_boxing_idle@thai_no_idelswitch",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "switch_to_stance_idle@thai_no_idelswitch",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "rl_saw_locomotion@thai_no_idelswitch",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "huabu_F_1steps",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "huabu_F_2steps",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "huabu_F_3steps",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "huabu_B_1steps",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "huabu_B_2steps",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "huabu_B_3steps",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "Saotangtui",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "kick_Roundhouse_L_Low",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "kick_Roundhouse_R_Mid",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "kick_Thrust",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "Punch_Turn",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "Punch_Cross_L",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "Punch_Cross_R",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "Punch_Swing_L",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "Punch_Uppercut_Up",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "Elbow_Smashing",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "quanshen1",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "quanshen2",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "riot_combo",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "mvp",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          },
+          {
+            "configJson": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "name": "Defense_Dodge_Back",
+            "onnxBytes": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            },
+            "trajectoryCsv": {
+              "m_FileID": 0,
+              "m_PathID": 0
+            }
+          }
+        ],
+        "recoveryProfileProne": "getup_prone",
+        "recoveryProfileSupine": "getup_supine",
+        "recoveryTimeout": 12.0,
+        "recoveryUprightTilt": 35.0,
+        "robot": {
+          "m_FileID": 0,
+          "m_PathID": 2976
+        },
+        "startProfile": "switch_to_boxing_idle@default"
+      }
+    }
+  },
+  "sources": {
+    "asset_probe": {
+      "filename": "mujoco_asset_probe_v8.json",
+      "sha256": "b132eb19cb7b223a87ee3885c16e521e82d7e99006c09ed63e8cc899ad057686"
+    },
+    "game_assembly": {
+      "inventory_path": "GameAssembly.dll",
+      "kind": "native_binary",
+      "sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412"
+    },
+    "global_metadata": {
+      "inventory_path": "REK_Data/il2cpp_data/Metadata/global-metadata.dat",
+      "kind": "metadata_identity_only",
+      "semantic_claims_allowed": false,
+      "sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd"
+    },
+    "il2cpp_recovery": {
+      "cpp2il_commit": "b20ca0d04f9d4deaf04636428b3c116589b2a167",
+      "dummy_method_bodies_consumed": false,
+      "filename": "il2cpp_recovery.json",
+      "kind": "identity_and_signature_catalog",
+      "runtime_validation_completed": false,
+      "semantic_claims_allowed": false,
+      "sha256": "1fd542cd9421f95b668ba5acf5599ae1fe6435d64137292f9e3d1aae698c3372"
+    },
+    "inventory": {
+      "filename": "inventory.json",
+      "sha256": "ea932824c7f1fa9781ab816716d4bfca9ec22b14e754466941c8c157910eff79"
+    },
+    "isil": {
+      "EngineAIPolicyRunner.txt": {
+        "filename": "EngineAIPolicyRunner.txt",
+        "kind": "native_isil_disassembly",
+        "role": "native_semantic_source",
+        "semantic_claims_allowed": true,
+        "sha256": "7fb4fe854362ead4b4ef04a06094180888906c4bee49a0e6149c0228206ccf31"
+      },
+      "Robot.txt": {
+        "filename": "Robot.txt",
+        "kind": "native_isil_disassembly",
+        "role": "native_semantic_source",
+        "semantic_claims_allowed": true,
+        "sha256": "4f61233092542b15773e49d8404790a8ed89352d3b656fa41b75bab9c8283ded"
+      },
+      "RobotInputController.txt": {
+        "filename": "RobotInputController.txt",
+        "kind": "native_isil_disassembly",
+        "role": "native_semantic_source",
+        "semantic_claims_allowed": true,
+        "sha256": "f248df08449e3ff0706ce15ea07e4d58517f2fc9ed3f3143473fa48c4323bc21"
+      },
+      "SonicPolicyRunner.txt": {
+        "filename": "SonicPolicyRunner.txt",
+        "kind": "native_isil_disassembly",
+        "role": "alternative_controller_context_only",
+        "semantic_claims_allowed": false,
+        "sha256": "5c7668aa79591cd84dfd120856ecdf96554309c85a2d5a425e8f42636381ab58"
+      }
+    }
+  },
+  "static_semantics": {
+    "engine_ai_action_to_target": {
+      "activation": {
+        "context": "server-authoritative private Bot1",
+        "state": "unknown"
+      },
+      "citations": [
+        "engine_ai.control_tick",
+        "engine_ai.build_joint_mapping"
+      ],
+      "conditions": [
+        "active_joint_indices maps controller elements to robot motors",
+        "the trajectory branch applies only when its recovered configuration selects it",
+        "entry transition interpolates from the preceding target to the selected target"
+      ],
+      "equations": [
+        "a[i] = clamp(output[i], -action_clip, action_clip)",
+        "target[i] = default_joint_q[i] + action_scale[i] * a[i]",
+        "residual_target[i] = trajectory_pose[i] + action_scale[i] * a[i]"
+      ],
+      "evidence_role": "static_native_semantics",
+      "writes": "Robot.SetJointTargetRadiansUnclamped"
+    },
+    "engine_ai_mimic_torque_limit": {
+      "activation": {
+        "context": "server-authoritative private Bot1",
+        "state": "unknown"
+      },
+      "citations": [
+        "engine_ai.apply_mimic_torque_limits"
+      ],
+      "equations": [
+        "tau[i] = joint_kp[i] * (target[i] - q[i]) - joint_kd[i] * qd[i]",
+        "tau[i] = clamp(tau[i], -max_torque[i], max_torque[i]) when max_torque[i] > 0",
+        "lower_count = min(lower_body_joint_count > 0 ? lower_body_joint_count : 12, joint_count)",
+        "budget = max_lower_body_torque > 0 ? max_lower_body_torque : 1700",
+        "scale = budget / sum(abs(tau[0:lower_count])) when that sum exceeds budget",
+        "target[i] = q[i] + (tau[i] + joint_kd[i] * qd[i]) / joint_kp[i] when joint_kp[i] > 1e-6"
+      ],
+      "evidence_role": "static_native_semantics"
+    },
+    "engine_ai_walk_target_clamp": {
+      "activation": {
+        "context": "server-authoritative private Bot1",
+        "state": "unknown"
+      },
+      "citations": [
+        "engine_ai.control_tick"
+      ],
+      "equations": [
+        "denom[i] = max(joint_kp[i], 0.001)",
+        "center[i] = q[i] + joint_kd[i] * qd[i] / denom[i]",
+        "radius[i] = max_torque[i] / denom[i]",
+        "target[i] = clamp(target[i], center[i] - radius[i], center[i] + radius[i])"
+      ],
+      "evidence_role": "static_native_semantics"
+    },
+    "robot_force_limit_construction": {
+      "activation": {
+        "context": "server-authoritative private Bot1",
+        "state": "unknown"
+      },
+      "citations": [
+        "robot.build_mujoco_joint_motor_cache",
+        "robot.configure_implicit_pd_actuators",
+        "robot.write_actuator_force_limit"
+      ],
+      "conditional_write": "a positive selected limit sets forcelimited=1 and forcerange=[-limit,+limit]; otherwise force limiting is disabled",
+      "evidence_role": "static_native_semantics",
+      "precedence": [
+        "max(abs(force_range_lower), abs(force_range_upper)) when positive",
+        "max(abs(control_range_lower), abs(control_range_upper)) when positive",
+        "JointFingerprint.effort when positive",
+        "unknown when no positive measured source exists"
+      ]
+    },
+    "robot_implicit_pd_configuration": {
+      "activation": {
+        "context": "server-authoritative private Bot1",
+        "state": "unknown"
+      },
+      "citations": [
+        "robot.configure_implicit_pd_actuators",
+        "robot.apply_joint_controls",
+        "robot.write_position_actuator_gains"
+      ],
+      "evidence_role": "static_native_semantics",
+      "writes": [
+        "gainprm[0] = kp",
+        "biasprm[1] = -kp",
+        "biasprm[2] = -kd",
+        "ctrl = target"
+      ]
+    },
+    "robot_input_move_dispatch": {
+      "activation": {
+        "context": "server-authoritative private Bot1",
+        "state": "unknown"
+      },
+      "citations": [
+        "robot_input.late_update",
+        "robot_input.execute_move_by_index"
+      ],
+      "evidence_role": "static_native_semantics",
+      "semantics": [
+        "ExecuteMoveByIndex performs a bounds-checked RobotConfig.moves lookup",
+        "a nonvisual local request passes the selected clip to ExecuteMove",
+        "a visual-only client request queues REK_Move with networkIndex and moveIndex bytes"
+      ]
+    }
+  }
+}

@@ -164,6 +164,9 @@ void rollouts(pybind11::object pufferl_obj) {
 
 pybind11::dict train(pybind11::object pufferl_obj) {
     PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    if (pufferl.hypers.greedy_evaluation) {
+        throw std::runtime_error("greedy evaluation rollouts cannot be used for PPO training");
+    }
     {
         pybind11::gil_scoped_release no_gil;
         train_impl(pufferl);
@@ -175,6 +178,39 @@ pybind11::dict train(pybind11::object pufferl_obj) {
 void puf_close(pybind11::object pufferl_obj) {
     PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
     close_impl(pufferl);
+}
+
+static cudaStream_t external_stream(uintptr_t pointer) {
+    return reinterpret_cast<cudaStream_t>(pointer);
+}
+
+void py_external_rollout_begin(
+        pybind11::object pufferl_obj, uintptr_t stream_pointer) {
+    PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    external_rollout_begin(pufferl, external_stream(stream_pointer));
+}
+
+void py_external_rollout_step(
+        pybind11::object pufferl_obj, int step, uintptr_t stream_pointer) {
+    PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    external_rollout_step(pufferl, step, external_stream(stream_pointer));
+}
+
+void py_external_actions_to_int32(
+        pybind11::object pufferl_obj,
+        uintptr_t destination_pointer,
+        uintptr_t stream_pointer) {
+    PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    external_actions_to_int32(
+        pufferl,
+        reinterpret_cast<int32_t*>(destination_pointer),
+        external_stream(stream_pointer));
+}
+
+void py_external_rollout_finish(
+        pybind11::object pufferl_obj, uintptr_t stream_pointer) {
+    PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    external_rollout_finish(pufferl, external_stream(stream_pointer));
 }
 
 void save_weights(pybind11::object pufferl_obj, const std::string& path) {
@@ -272,7 +308,22 @@ void py_puff_advantage(
         (const precision_t*)values_ptr, (const precision_t*)rewards_ptr,
         (const precision_t*)dones_ptr,  (const precision_t*)importance_ptr,
         (precision_t*)advantages_ptr,
-        gamma, lambda, rho_clip, c_clip, num_steps, horizon);
+        gamma, lambda, rho_clip, c_clip, num_steps, horizon, nullptr, nullptr, nullptr);
+}
+
+void py_puff_advantage_bootstrap(
+        uintptr_t values, uintptr_t rewards, uintptr_t dones, uintptr_t importance,
+        uintptr_t advantages, uintptr_t final_values, uintptr_t final_rewards,
+        uintptr_t final_dones, int rows, int horizon, float gamma, float lambda,
+        float rho_clip, float c_clip, uintptr_t stream_pointer) {
+    constexpr int N = 16 / sizeof(precision_t);
+    auto kernel = (horizon % N == 0) ? puff_advantage : puff_advantage_scalar;
+    kernel<<<grid_size(rows), 256, 0, external_stream(stream_pointer)>>>(
+        reinterpret_cast<const precision_t*>(values), reinterpret_cast<const precision_t*>(rewards),
+        reinterpret_cast<const precision_t*>(dones), reinterpret_cast<const precision_t*>(importance),
+        reinterpret_cast<precision_t*>(advantages), gamma, lambda, rho_clip, c_clip, rows, horizon,
+        reinterpret_cast<const precision_t*>(final_values), reinterpret_cast<const precision_t*>(final_rewards),
+        reinterpret_cast<const precision_t*>(final_dones));
 }
 
 double get_config(py::dict& kwargs, const char* key) {
@@ -290,6 +341,20 @@ Dict* py_dict_to_c_dict(py::dict py_dict) {
     Dict* c_dict = create_dict(py_dict.size());
     for (auto item : py_dict) {
         const char* key = PyUnicode_AsUTF8(item.first.ptr());
+        if (strcmp(key, "external_observations_ptr") == 0
+                || strcmp(key, "external_rewards_ptr") == 0
+                || strcmp(key, "external_terminals_ptr") == 0
+                || strcmp(key, "external_action_mask_ptr") == 0) {
+            try {
+                uintptr_t pointer = item.second.cast<uintptr_t>();
+                dict_set_ptr(c_dict, key, reinterpret_cast<void*>(pointer));
+            } catch (const py::cast_error& e) {
+                throw std::runtime_error(
+                    std::string("Failed to cast CUDA pointer '") + key
+                    + "': " + e.what());
+            }
+            continue;
+        }
         try {
             dict_set(c_dict, key, item.second.cast<double>());
         } catch (const py::cast_error&) {
@@ -414,6 +479,11 @@ std::unique_ptr<PuffeRL> create_pufferl(py::dict args) {
     hypers.replay_ratio = get_config(train_kwargs, "replay_ratio");
     hypers.total_timesteps = get_config(train_kwargs, "total_timesteps");
     hypers.max_grad_norm = get_config(train_kwargs, "max_grad_norm");
+    hypers.reward_clip = train_kwargs.contains("reward_clip")
+        ? get_config(train_kwargs, "reward_clip") : 1.0;
+    if (hypers.reward_clip < 0.0f) {
+        throw std::runtime_error("train.reward_clip must be nonnegative");
+    }
     // PPO
     hypers.clip_coef = get_config(train_kwargs, "clip_coef");
     hypers.vf_clip_coef = get_config(train_kwargs, "vf_clip_coef");
@@ -431,6 +501,8 @@ std::unique_ptr<PuffeRL> create_pufferl(py::dict args) {
     hypers.prio_alpha = get_config(train_kwargs, "prio_alpha");
     hypers.prio_beta0 = get_config(train_kwargs, "prio_beta0");
     hypers.reset_state = get_config(args, "reset_state");
+    hypers.greedy_evaluation = args.contains("greedy_evaluation")
+        ? args["greedy_evaluation"].cast<bool>() : false;
     // Base-level config ([base] section becomes top-level in args)
     hypers.cudagraphs = get_config(args, "cudagraphs");
     hypers.profile = get_config(args, "profile");
@@ -511,6 +583,8 @@ PYBIND11_MODULE(_C, m) {
     m.attr("precision_bytes") = (int)sizeof(precision_t);
     m.attr("env_name") = PUFFER_STRINGIFY(ENV_NAME);
     m.attr("gpu") = 1;
+    m.attr("supports_greedy_evaluation") = true;
+    m.attr("supports_external_rollout_bootstrap") = true;
 
     // Core functions
     m.def("log", &puf_log);
@@ -519,6 +593,10 @@ PYBIND11_MODULE(_C, m) {
     m.def("rollouts", &rollouts);
     m.def("train", &train);
     m.def("close", &puf_close);
+    m.def("external_rollout_begin", &py_external_rollout_begin);
+    m.def("external_rollout_step", &py_external_rollout_step);
+    m.def("external_actions_to_int32", &py_external_actions_to_int32);
+    m.def("external_rollout_finish", &py_external_rollout_finish);
     m.def("save_weights", &save_weights);
     m.def("load_weights", &load_weights);
     m.def("add_frozen_bank", &py_add_frozen_bank);
@@ -535,6 +613,7 @@ PYBIND11_MODULE(_C, m) {
         .def(py::init<>());
 
     py::class_<HypersT>(m, "HypersT")
+        .def_readonly("greedy_evaluation", &HypersT::greedy_evaluation)
         .def_readwrite("horizon", &HypersT::horizon)
         .def_readwrite("total_agents", &HypersT::total_agents)
         .def_readwrite("num_buffers", &HypersT::num_buffers)
@@ -543,6 +622,7 @@ PYBIND11_MODULE(_C, m) {
 
         .def_readwrite("replay_ratio", &HypersT::replay_ratio)
         .def_readwrite("num_layers", &HypersT::num_layers)
+        .def_readwrite("reward_clip", &HypersT::reward_clip)
         .def_readwrite("lr", &HypersT::lr)
         .def_readwrite("min_lr_ratio", &HypersT::min_lr_ratio)
         .def_readwrite("anneal_lr", &HypersT::anneal_lr)
@@ -572,6 +652,7 @@ PYBIND11_MODULE(_C, m) {
 
     py::class_<PrecisionTensor>(m, "PrecisionTensor")
         .def("__repr__", [](const PrecisionTensor& t) { return std::string(puf_repr(&t)); })
+        .def("data_ptr", [](const PrecisionTensor& t) { return reinterpret_cast<uintptr_t>(t.data); })
         .def("ndim", [](const PrecisionTensor& t) { return ndim(t.shape); })
         .def("numel", [](const PrecisionTensor& t) { return numel(t.shape); });
     py::class_<FloatTensor>(m, "FloatTensor")
@@ -595,6 +676,7 @@ PYBIND11_MODULE(_C, m) {
         return now - pufferl.start_time;
     });
     m.def("puff_advantage", &py_puff_advantage);
+    m.def("puff_advantage_bootstrap", &py_puff_advantage_bootstrap);
     m.def("create_vec", &create_vec, py::arg("args"), py::arg("gpu") = 1);
     py::class_<VecEnv, std::unique_ptr<VecEnv>>(m, "VecEnv")
         .def_readonly("total_agents",  &VecEnv::total_agents)
@@ -608,10 +690,13 @@ PYBIND11_MODULE(_C, m) {
         .def_property_readonly("gpu_obs_ptr",       [](VecEnv& ve) { return (long long)ve.vec->gpu_observations; })
         .def_property_readonly("gpu_rewards_ptr",   [](VecEnv& ve) { return (long long)ve.vec->gpu_rewards; })
         .def_property_readonly("gpu_terminals_ptr", [](VecEnv& ve) { return (long long)ve.vec->gpu_terminals; })
+        .def_property_readonly("gpu_action_mask_ptr", [](VecEnv& ve) { return (long long)ve.vec->gpu_action_mask; })
         // CPU buffer pointers (same as gpu_ in CPU mode since they alias)
         .def_property_readonly("obs_ptr",       [](VecEnv& ve) { return (long long)ve.vec->observations; })
         .def_property_readonly("rewards_ptr",   [](VecEnv& ve) { return (long long)ve.vec->rewards; })
         .def_property_readonly("terminals_ptr", [](VecEnv& ve) { return (long long)ve.vec->terminals; })
+        .def_property_readonly("action_mask_ptr", [](VecEnv& ve) { return (long long)ve.vec->action_mask; })
+        .def_property_readonly("action_mask_size", [](VecEnv& ve) { return ve.vec->action_mask_size; })
         .def("reset", &vec_reset)
         .def("gpu_step", &gpu_vec_step_py)
         .def("cpu_step", &cpu_vec_step_py)
@@ -625,9 +710,66 @@ PYBIND11_MODULE(_C, m) {
         .def_readwrite("muon", &PuffeRL::muon)
         .def_readwrite("hypers", &PuffeRL::hypers)
         .def_readwrite("rollouts", &PuffeRL::rollouts)
+        .def_readonly("external_bootstrap_values", &PuffeRL::external_bootstrap_values)
+        .def_readonly("external_bootstrap_rewards", &PuffeRL::external_bootstrap_rewards)
+        .def_readonly("external_bootstrap_terminals", &PuffeRL::external_bootstrap_terminals)
+        .def_readonly("external_bootstrap_ready", &PuffeRL::external_bootstrap_ready)
+        .def_property_readonly("external_primary_recurrent_state", [](PuffeRL& self) {
+            return self.buffer_states[0];
+        })
+        .def_property_readonly("external_sampling_rng_ptr", [](PuffeRL& self) {
+            return reinterpret_cast<uintptr_t>(self.rng_states[0]);
+        })
+        .def_property_readonly("external_sampling_rng_bytes", [](PuffeRL& self) {
+            return self.hypers.total_agents * sizeof(curandStatePhilox4_32_10_t);
+        })
         .def_readonly("epoch", &PuffeRL::epoch)
         .def_readonly("global_step", &PuffeRL::global_step)
         .def_readonly("last_log_time", &PuffeRL::last_log_time)
+        .def_property_readonly("external_gpu", [](PuffeRL& self) {
+            return self.vec != nullptr && self.vec->external_gpu != 0;
+        })
+        .def_property_readonly("total_agents", [](PuffeRL& self) {
+            return self.vec->total_agents;
+        })
+        .def_property_readonly("obs_size", [](PuffeRL& self) {
+            return get_obs_size();
+        })
+        .def_property_readonly("num_atns", [](PuffeRL& self) {
+            return get_num_atns();
+        })
+        .def_property_readonly("act_sizes", [](PuffeRL& self) {
+            int* values = get_act_sizes();
+            int count = get_num_act_sizes();
+            return std::vector<int>(values, values + count);
+        })
+        .def_property_readonly("action_mask_size", [](PuffeRL& self) {
+            return self.vec->action_mask_size;
+        })
+        .def_property_readonly("native_env_count", [](PuffeRL& self) {
+            return self.vec->size;
+        })
+        .def_property_readonly("has_env_threads", [](PuffeRL& self) {
+            return self.vec->threading != nullptr;
+        })
+        .def_property_readonly("recurrent_state_nonzero_count", [](PuffeRL& self) {
+            return external_recurrent_state_nonzero_count(self);
+        })
+        .def_property_readonly("gpu_observations_ptr", [](PuffeRL& self) {
+            return reinterpret_cast<uintptr_t>(self.env.obs.data);
+        })
+        .def_property_readonly("gpu_actions_ptr", [](PuffeRL& self) {
+            return reinterpret_cast<uintptr_t>(self.env.actions.data);
+        })
+        .def_property_readonly("gpu_rewards_ptr", [](PuffeRL& self) {
+            return reinterpret_cast<uintptr_t>(self.env.rewards.data);
+        })
+        .def_property_readonly("gpu_terminals_ptr", [](PuffeRL& self) {
+            return reinterpret_cast<uintptr_t>(self.env.terminals.data);
+        })
+        .def_property_readonly("gpu_action_mask_ptr", [](PuffeRL& self) {
+            return reinterpret_cast<uintptr_t>(self.env.action_mask.data);
+        })
         .def("num_params", [](PuffeRL& self) -> int64_t {
             return numel(self.master_weights.shape);
         });

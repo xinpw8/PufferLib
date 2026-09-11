@@ -1,0 +1,1245 @@
+{
+ "schema": 1,
+ "container": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\sharedassets0.assets",
+ "assets": [
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 370,
+   "name": "walking_processed",
+   "bytes": 5351,
+   "sha256": "eeae301b6891ecc2a3f5c1d0706081946c1bf9e8c58d2c4b942649b1671e8974",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 4304,
+     "sha256": "f41f48c373a9a03d3e8cfe9afd039ca80c3c2d4820274628fc841aad8c426bf9",
+     "serialization": "npy",
+     "shape": [
+      36,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 1044
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 560,
+     "sha256": "c9fceacedcac02db0af5edf4f17d677664d974c219c6a04bc13b663f80cd7f7f",
+     "serialization": "npy",
+     "shape": [
+      36,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 108
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 704,
+     "sha256": "d7af76f302b187a44bf405a6cc745a5c13390ab51c11847271cdc232c35c9f37",
+     "serialization": "npy",
+     "shape": [
+      36,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 144
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 371,
+   "name": "left_front_kick_processed",
+   "bytes": 19616,
+   "sha256": "3db29034517acc376c16ce5bc04f923803a48367ad58a5c65a314123639815c1",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 17064,
+     "sha256": "9337d4bc6be83a81bd923d57f7a7f1253aeb5749909742515503f29eecbeefbb",
+     "serialization": "npy",
+     "shape": [
+      146,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 4234
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 1880,
+     "sha256": "e923940d654a632800e0696a64ae13a5a704b7248ee35b82d789cc1f9cb480ce",
+     "serialization": "npy",
+     "shape": [
+      146,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 438
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 2464,
+     "sha256": "5a4ebed5d5b8e74192cdbe7f20669f9395d6741afc82bb7a1ff77faab03d6b4e",
+     "serialization": "npy",
+     "shape": [
+      146,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 584
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 372,
+   "name": "right_side_kick_processed",
+   "bytes": 20887,
+   "sha256": "4d16c2d07848713713f8252e21fc2893462052f6ee3e157e9c364c03769de6a6",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 18572,
+     "sha256": "94b02aa205b762b9d6f6bcad2f9427d4127cf715eccb425014aab2d03f081e5a",
+     "serialization": "npy",
+     "shape": [
+      159,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 4611
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 2036,
+     "sha256": "b9521981b459fc01a06266cf28d1175d45b4ec7b50e54a24a199bde79f05456d",
+     "serialization": "npy",
+     "shape": [
+      159,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 477
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 2672,
+     "sha256": "c3a0ae2eea7e0b0a3e98c64b5043f61b0a8765c5f2c30b96052091dfa5a3c65d",
+     "serialization": "npy",
+     "shape": [
+      159,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 636
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 373,
+   "name": "right_hook_processed",
+   "bytes": 6731,
+   "sha256": "c3a8bf701955601023bdd4e3828c0fcccc25b071da550b78bcb9246452a69da4",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 5464,
+     "sha256": "f92f7f0455053822832ea1d5579d4d0203c9884f49dc6fd90cda2a5ccec1471c",
+     "serialization": "npy",
+     "shape": [
+      46,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 1334
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 680,
+     "sha256": "531f2493c05dc0cf96acf48fc0177226113a95e12d5143e3d7205ea86cd434b9",
+     "serialization": "npy",
+     "shape": [
+      46,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 138
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 864,
+     "sha256": "f48982f046ca84377d00b45b1fc7565a94235e904a2741dc9d24bb48be09933b",
+     "serialization": "npy",
+     "shape": [
+      46,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 184
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 374,
+   "name": "double_uppercut_processed",
+   "bytes": 8229,
+   "sha256": "46ff89648c44cbd49093a7639ffea2893f87700a0d42aa50eb623439b3639211",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 6740,
+     "sha256": "ddfd40a52dcf862e07a2f83e9cc2083f747530e764ee1601eb87f60dc6bb84fd",
+     "serialization": "npy",
+     "shape": [
+      57,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 1653
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 812,
+     "sha256": "2f2d73289fd2634458fa6b28b471433f7accdc41488cd5b6dd475c76b31016fa",
+     "serialization": "npy",
+     "shape": [
+      57,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 171
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 1040,
+     "sha256": "9b76f5b111a7e66192c9427168465ad209b9d2741d02f962484e969e1e13016c",
+     "serialization": "npy",
+     "shape": [
+      57,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 228
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 375,
+   "name": "turn_in_place_right_processed",
+   "bytes": 6770,
+   "sha256": "be2b96be14cfcbc63b7e84bf28bd5c50f1c355a26dd6ba113753103cfcf99c6d",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 5580,
+     "sha256": "1ced15aa81d8db4c8ff2b4a4094117f29d3d757e6f53b6f56495743b6bebc0dd",
+     "serialization": "npy",
+     "shape": [
+      47,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 1363
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 692,
+     "sha256": "ec43f7b2f3a0d4b4e3b53d09af52f4c01f37932ce1bdd1bab898408576b4c5bb",
+     "serialization": "npy",
+     "shape": [
+      47,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 141
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 880,
+     "sha256": "21d0037e7077e434d1a5c3d94a1a10e4898efd270f34712373927ff74c6f1c68",
+     "serialization": "npy",
+     "shape": [
+      47,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 188
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 376,
+   "name": "left_jab_right_uppercut_processed",
+   "bytes": 6776,
+   "sha256": "0d160f588307b494a4f9609cbe06b59154741944fff07ba41e57f0cb53c0ac07",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 5464,
+     "sha256": "190329439c61c1bbde89c9a8a0f5b663c643ca0be5518fe8b65406bf763f1243",
+     "serialization": "npy",
+     "shape": [
+      46,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 1334
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 680,
+     "sha256": "93908212dae48dabcb26294e1f96dfc2aed67553a16a3eba3601bfb30cc751fd",
+     "serialization": "npy",
+     "shape": [
+      46,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 138
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 864,
+     "sha256": "6040a473eb511ecb8e81123606ac4a8c5edb94a44ae366aa8fe8a3c3704d290f",
+     "serialization": "npy",
+     "shape": [
+      46,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 184
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 377,
+   "name": "idle_processed",
+   "bytes": 2841,
+   "sha256": "2fd9ca753183566cceaff3ff10ae54b1a7167986297524a9d24d970d57aee969",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 4652,
+     "sha256": "be5b2d2064e2978f9b75cec06c07fee45f55fc60aef4e4f136b5a4b95bc45cff",
+     "serialization": "npy",
+     "shape": [
+      39,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 1131
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 596,
+     "sha256": "42a62e707ef3502d5af609a4961e86c3e5a51ae4094fc919fde923b082328a5a",
+     "serialization": "npy",
+     "shape": [
+      39,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 117
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 752,
+     "sha256": "c772e543e3f9a7c396ac4ec41ee859db908bcf552ade0bc7357ea87f50174aa5",
+     "serialization": "npy",
+     "shape": [
+      39,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 156
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 378,
+   "name": "6_punch_processed",
+   "bytes": 20057,
+   "sha256": "451cbfb3c66bcff13cf34ae7624f8f8d006121545f73422390d79bfc1ead1a8f",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 17644,
+     "sha256": "750a7174cf541de283ea8175b1ef1815da1149bd37075e4101f86157aa13e87b",
+     "serialization": "npy",
+     "shape": [
+      151,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 4379
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 1940,
+     "sha256": "886591c06ddd08c8d89c5cc5526dd9dfe15632b27892092eed4e6c47efa297d4",
+     "serialization": "npy",
+     "shape": [
+      151,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 453
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 2544,
+     "sha256": "0b8c3334865e3d876021f3124b347210f6513f415ed7c9b6f46b39005776129d",
+     "serialization": "npy",
+     "shape": [
+      151,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 604
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 379,
+   "name": "left_jab_processed",
+   "bytes": 5093,
+   "sha256": "936f697e75f5c364878e7866851fb062b71e9f59bf57e783fbd55be9dee259d3",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 4072,
+     "sha256": "dc67771de5aefd2d4a2d31ba17c12a7eadffab851dfca7b0c720f19302507ec3",
+     "serialization": "npy",
+     "shape": [
+      34,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 986
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 536,
+     "sha256": "1c59d18e4a93f443937ad12c10a8f106d04859be7d6aeb19ec258d0531eb05ca",
+     "serialization": "npy",
+     "shape": [
+      34,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 102
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 672,
+     "sha256": "2c237c08d6b7a5728444ec849054f464c670037c882c7df1afd2a41bee55d8dc",
+     "serialization": "npy",
+     "shape": [
+      34,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 136
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 380,
+   "name": "right_knee_processed",
+   "bytes": 18805,
+   "sha256": "08bba86c004d99e61d53997cd31223b8cfde67c019506267339e146dd771097f",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 16368,
+     "sha256": "e92470deb08119e658779650de251a9a3e0cc792e3d6d08e3e334120e7759497",
+     "serialization": "npy",
+     "shape": [
+      140,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 4060
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 1808,
+     "sha256": "226fd2f64a6531cdd92c197142a02224bd984e54510afc4a585e5f8219ed480a",
+     "serialization": "npy",
+     "shape": [
+      140,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 420
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 2368,
+     "sha256": "8c94bd8b204c71861194c1092a82257a1eb095e7f24932f5bcaa3f8bb47ce296",
+     "serialization": "npy",
+     "shape": [
+      140,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 560
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 381,
+   "name": "left_hook_processed",
+   "bytes": 5345,
+   "sha256": "c8840cffa87d5d30ba1117ea404d5cea7644154e538aed1afffc2280cfc964f5",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 4304,
+     "sha256": "0c0646c9ff988da8a58eaae38c5f4558fa53a9c36eaca901af28a58b140383cd",
+     "serialization": "npy",
+     "shape": [
+      36,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 1044
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 560,
+     "sha256": "db53b4348e9807bbd1b1e6740653110b3de6aabf07afb9e32573118bc68ab704",
+     "serialization": "npy",
+     "shape": [
+      36,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 108
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 704,
+     "sha256": "0dddbdef20f743a3a3697f4a2c5b9d268500f7e7f5b67fe6e9a507c79b7b9122",
+     "serialization": "npy",
+     "shape": [
+      36,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 144
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 382,
+   "name": "butt_smack_emote_processed",
+   "bytes": 13866,
+   "sha256": "b061d742eac4bb5a972e46599ff4f987dd47f34be2f029fb882a317a5362f35f",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 12192,
+     "sha256": "8b95bedeec256fab6d029db800b6539e2a281048a44e5b808092c0a073c8f426",
+     "serialization": "npy",
+     "shape": [
+      104,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 3016
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 1376,
+     "sha256": "c0c399b35a28402b4fca739b9da6e202338bca28dcd5905bbcb22c143b432799",
+     "serialization": "npy",
+     "shape": [
+      104,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 312
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 1792,
+     "sha256": "ccc8568944ea1fac436927ddaf62e47b0d80de46f7eaa58315573ea710b0da59",
+     "serialization": "npy",
+     "shape": [
+      104,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 416
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 383,
+   "name": "run_and_punch_processed",
+   "bytes": 18217,
+   "sha256": "c22ce12336de948cecde43876cb8fb5d9a9d82aa0784f65b34426cd86f01b596",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 16252,
+     "sha256": "99807f7a996bfcba4a3ce4755510f505e9f6ded66165fd9b2ad75f5f41c5e3e9",
+     "serialization": "npy",
+     "shape": [
+      139,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 4031
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 1796,
+     "sha256": "31a59f444ac2244d92c7e0d3061a361a211e4bb4fcab852f05ac83bd8f67b69f",
+     "serialization": "npy",
+     "shape": [
+      139,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 417
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 2352,
+     "sha256": "6406776dae7a6050e15f84abab6d0b956cd05a0a58adda698e02e78c8eae06db",
+     "serialization": "npy",
+     "shape": [
+      139,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 556
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 384,
+   "name": "left_right_hook_processed",
+   "bytes": 10484,
+   "sha256": "65a6e98b165ecaa3dc9f8a949cdbfa182a55ade7ff7fcca62ffb6c04fdf2e80e",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 8944,
+     "sha256": "5cdb3f56e7af4b80235119071562684b166ae287229e0fceef45bd8b76d3ffaf",
+     "serialization": "npy",
+     "shape": [
+      76,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 2204
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 1040,
+     "sha256": "06b0f6fca9f88eba59a380b4ef293ab843e260cecf1a5b571763ae3cdeaec080",
+     "serialization": "npy",
+     "shape": [
+      76,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 228
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 1344,
+     "sha256": "f035f25290193885a5d7d85b18d527d934ded574d9cddf8e76b88b0cf172195d",
+     "serialization": "npy",
+     "shape": [
+      76,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 304
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 385,
+   "name": "left_hook_right_jab_processed",
+   "bytes": 9514,
+   "sha256": "0966415dc08a555cf8b66e401c345c4c586a29d759ad489f7eb65b152be8bcd1",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 8132,
+     "sha256": "b49687e88dd2fba508c379f9ea948e582f871673601adb52a52779fd45d83273",
+     "serialization": "npy",
+     "shape": [
+      69,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 2001
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 956,
+     "sha256": "7d161c68d1ead2138476504272ee5be87117b67bea8c2cc5440edd3d76317dac",
+     "serialization": "npy",
+     "shape": [
+      69,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 207
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 1232,
+     "sha256": "b233b2ae0bff9ec6260f3e346d871200d151a8ca8be8d9b4b2435609f3ae3ff0",
+     "serialization": "npy",
+     "shape": [
+      69,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 276
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 386,
+   "name": "left_right_jab_processed",
+   "bytes": 10200,
+   "sha256": "80ec1171c29f0e2e77a9abeec573321aa3d8abc110f2693a5661d0a02b2a7658",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 8712,
+     "sha256": "e123d9bdd98bf5c4c4edf437f3ed85b39dec1527a963d063ee68bdafa92f5993",
+     "serialization": "npy",
+     "shape": [
+      74,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 2146
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 1016,
+     "sha256": "0462623b81717a53f941d4c0c35f67d21d26674cafb7837ec40ce4b243854bf9",
+     "serialization": "npy",
+     "shape": [
+      74,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 222
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 1312,
+     "sha256": "0fdd06359bfab810e6afa726f58634c1f9574e022badb2745541a14c7871ba51",
+     "serialization": "npy",
+     "shape": [
+      74,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 296
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 387,
+   "name": "right_jab_processed",
+   "bytes": 5913,
+   "sha256": "8d27051db4a7ba054e8fcedb7957c9d64883faa33a9d6f720a63e181767c5393",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 4768,
+     "sha256": "00ff8f26f5dc891f3022d4abb01bffec28e0df94d20b7fae3e0b57add138cc36",
+     "serialization": "npy",
+     "shape": [
+      40,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 1160
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 608,
+     "sha256": "6b17c67964dbce99e3b2f348e3a9caba26410159be94cdf8fafa2607e4d33a00",
+     "serialization": "npy",
+     "shape": [
+      40,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 120
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 768,
+     "sha256": "b9001f081ec4ec706683bc84a9de04721c1613ff9fe6738262635be9048e0d15",
+     "serialization": "npy",
+     "shape": [
+      40,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 160
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 388,
+   "name": "left_strafe_processed",
+   "bytes": 5246,
+   "sha256": "57c9bb7b66cda5ea7654aa2581a785fe1250095ab40029b9f9dbcb8cea0ac780",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 4188,
+     "sha256": "97c3ef9ba154811cc3dedc416247fc7bccfc4a84195d7ac3b0a20d5dd0756569",
+     "serialization": "npy",
+     "shape": [
+      35,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 1015
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 548,
+     "sha256": "2dc564c8af43f702d221fe327f9958d5fd16ec971249ea67e4e4f86d75aae96a",
+     "serialization": "npy",
+     "shape": [
+      35,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 105
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 688,
+     "sha256": "91fb9405a094907d7a1676511052632302d192441efded222e9ac960ccf8439d",
+     "serialization": "npy",
+     "shape": [
+      35,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 140
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 390,
+   "name": "double_hook_processed",
+   "bytes": 9917,
+   "sha256": "865c3115c605853cc94240c1c8e45d69ab1970dac11be8fe5e45456b397aab02",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 8480,
+     "sha256": "574519e2b99b3502faa3e3c12b7de77117e4f448cf27f90c6d8ecf5ec4666946",
+     "serialization": "npy",
+     "shape": [
+      72,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 2088
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 992,
+     "sha256": "37a05d3d09e25b9a3607780cfa2a7414a7937710088cbb67c6f89b3376d2bc7e",
+     "serialization": "npy",
+     "shape": [
+      72,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 216
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 1280,
+     "sha256": "9c4094dfd403a2d3112ed5c9d40668e0bb4d8dba09906f3830dd8bf8ad84f134",
+     "serialization": "npy",
+     "shape": [
+      72,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 288
+    }
+   ],
+   "measured_fps": 50.0
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 392,
+   "name": "left_side_kick_processed",
+   "bytes": 21047,
+   "sha256": "854e5bbf91b325288ed0f63e43f65355aa5b1a15fe43a8fd940b4efb6ed6a465",
+   "encoding": "binary",
+   "serialization": "zip-npy",
+   "members": [
+    {
+     "name": "dof_pos.npy",
+     "bytes": 18456,
+     "sha256": "f47591396ad2b35f5e055c76a48ebce6e8cb84f532898158fd94980e38a295b0",
+     "serialization": "npy",
+     "shape": [
+      158,
+      29
+     ],
+     "dtype": "float32",
+     "elements": 4582
+    },
+    {
+     "name": "fps.npy",
+     "bytes": 132,
+     "sha256": "6663872cbbc6266d5b920505705bf2d12be86903a07985a1732add9e62b5bf72",
+     "serialization": "npy",
+     "shape": [
+      1
+     ],
+     "dtype": "float32",
+     "elements": 1
+    },
+    {
+     "name": "root_pos.npy",
+     "bytes": 2024,
+     "sha256": "9f5097668bbf8515a7c3d59434a195327fa6e2bf0ebb4b2f4b4977cd80de1e0e",
+     "serialization": "npy",
+     "shape": [
+      158,
+      3
+     ],
+     "dtype": "float32",
+     "elements": 474
+    },
+    {
+     "name": "root_rot.npy",
+     "bytes": 2656,
+     "sha256": "08e6c26d020c42e89d93755d6507a387fec70cb3b4bb1c79d91c4843e06b34ad",
+     "serialization": "npy",
+     "shape": [
+      158,
+      4
+     ],
+     "dtype": "float32",
+     "elements": 632
+    }
+   ],
+   "measured_fps": 50.0
+  }
+ ]
+}

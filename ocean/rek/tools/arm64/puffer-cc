@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Compiler shim that makes PufferLib's build.sh work on aarch64.
+#
+# build.sh compiles with (-mavx2 -mfma) unconditionally, and says so in its own
+# comment: "x86_64 only — strip if porting to ARM/Apple Silicon". On aarch64
+# those are not ignored, they are a hard clang error, so nothing builds:
+#
+#     clang: error: unsupported option '-mavx2' for target 'aarch64-...'
+#
+# build.sh already offers the hook needed to fix that without editing it: both
+# of its compile lines invoke ${CC:-clang}. Pointing CC at this script strips
+# the x86-only flags on the way through and leaves PufferLib untouched.
+#
+# Dropping them is safe for this env specifically. The AVX2 intrinsics live in
+# src/bf16.h and ocean/drive's drive.h, and neither is in ocean/rek's include
+# graph (checked with clang -H), so rek compiles to the same program without
+# them.
+#
+#   export CC="$PWD/ocean/rek/tools/arm64/puffer-cc"
+#   ./build.sh rek
+#
+# Env:
+#   REK_REAL_CC    compiler to hand off to (default: clang, or "ccache clang")
+#   REK_CC_EXTRA   flags appended after stripping, e.g. "-mcpu=native"
+
+set -euo pipefail
+
+REAL_CC=${REK_REAL_CC:-clang}
+
+# The libomp SONAME differs by distro. build.sh asks for -lomp5, which is what
+# Debian's libomp5-* ships; LLVM's own packages and most aarch64 images install
+# libomp.so instead, and the link fails on the name rather than on anything real.
+omp_flag() {
+    if ldconfig -p 2>/dev/null | grep -q 'libomp5\.so'; then
+        echo '-lomp5'
+    elif ldconfig -p 2>/dev/null | grep -q 'libomp\.so'; then
+        echo '-lomp'
+    else
+        echo '-lomp5'   # let the linker report the real problem
+    fi
+}
+
+args=()
+stripped=()
+for a in "$@"; do
+    case "$a" in
+        # x86 ISA selection. Nothing else in the command line is arch-specific.
+        -mavx|-mavx2|-mavx512*|-mfma|-mf16c|-msse|-msse2|-msse3|-mssse3|\
+        -msse4|-msse4.1|-msse4.2|-mbmi|-mbmi2|-mpopcnt|-mlzcnt|-maes|-mpclmul)
+            stripped+=("$a")
+            ;;
+        -lomp5)
+            args+=("$(omp_flag)")
+            ;;
+        *)
+            args+=("$a")
+            ;;
+    esac
+done
+
+if [ -n "${REK_CC_EXTRA:-}" ]; then
+    # Intentionally word-split: this carries a flag list, not a filename.
+    # shellcheck disable=SC2206
+    args+=(${REK_CC_EXTRA})
+fi
+
+if [ -n "${REK_CC_VERBOSE:-}" ] && [ ${#stripped[@]} -gt 0 ]; then
+    echo "puffer-cc: dropped x86-only flags: ${stripped[*]}" >&2
+fi
+
+# shellcheck disable=SC2086
+exec $REAL_CC "${args[@]}"

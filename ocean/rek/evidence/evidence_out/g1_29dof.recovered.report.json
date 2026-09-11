@@ -1,0 +1,69 @@
+{
+  "build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+  "container": "sharedassets0.assets",
+  "control_equivalent": false,
+  "counts": {
+    "MjActuator": 29,
+    "MjBody": 30,
+    "MjFreeJoint": 1,
+    "MjGeom": 37,
+    "MjHingeJoint": 29,
+    "MjInertial": 30
+  },
+  "global_configuration": {
+    "mujoco_gravity": [
+      0.0,
+      0.0,
+      -9.8100004196167
+    ],
+    "timestep": 0.0199999929138322,
+    "unity_gravity": [
+      0.0,
+      -9.8100004196167,
+      0.0
+    ]
+  },
+  "limits": [
+    "plant values are recovered from serialized client assets, not server runtime state",
+    "REKApp.Robot runtime PD gains, force limits, and passive damping are not applied",
+    "prefab-root transform is serialized asset state, not a measured arena spawn pose",
+    "game controller, observations, rewards, contacts, damage, and opponent logic are absent",
+    "Unity-to-MJCF mapping matches official MuJoCo tag 3.7.0; exact shipped managed-assembly equivalence is not established"
+  ],
+  "max_transform_shear": 5.359414626503189e-16,
+  "mjcf_path": "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\g1_29dof.recovered.xml",
+  "mjcf_sha256": "811fdc1e5bee74026b780974207cbcd628cdd83a249d3f76b75a668d71aad835",
+  "predicted_model_dimensions": {
+    "njnt": 30,
+    "nq": 36,
+    "nu": 29,
+    "nv": 35
+  },
+  "probe_path": "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\mujoco_asset_probe_v7.json",
+  "probe_sha256": "2e94ebda205da7445c0767722250ddc1e1966a9a951a3a405e41822ac818ef36",
+  "root_body_count": 1,
+  "root_name": "g1_29dof_Prefab_SONIC",
+  "schema": "rek.mujoco_plant_generation.v1",
+  "skipped_disabled_count": 0,
+  "static_survey_path": "C:\\Users\\Daniel\\codex-wr64-puffer-scenario-7cc6ce1\\ocean\\rek\\evidence\\evidence_out\\static_survey.json",
+  "static_survey_sha256": "13d7761926ff19ee6852c895b7d8fd6be4651de85c08830f0f272655ad779eb3",
+  "unity_mapping_source": {
+    "commit": "72cb2b210da666617924de709406d6aadbe60c71",
+    "path": "unity/Runtime/Tools/MjEngineTool.cs",
+    "repository": "https://github.com/google-deepmind/mujoco",
+    "source_blob_sha1": "bf27a1d950099b11a38fcb83d3e03763a5592166",
+    "tag": "3.7.0",
+    "unity_quaternion_to_mujoco_wxyz": [
+      "-w",
+      "x",
+      "z",
+      "y"
+    ],
+    "unity_vector_to_mujoco": [
+      "x",
+      "z",
+      "y"
+    ]
+  },
+  "unresolved_actuator_count": 0
+}

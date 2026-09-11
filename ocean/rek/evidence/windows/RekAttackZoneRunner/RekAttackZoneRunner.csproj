@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="AttackZonePipeExecutor.cs" />
+    <Compile Include="..\RekUiBridgeAgent\AttackZoneTrialContract.cs" Link="AttackZoneTrialContract.cs" />
+    <Compile Include="..\RekUiBridgeAgent\AttackZoneSettleTracker.cs" Link="AttackZoneSettleTracker.cs" />
+    <Compile Include="..\RekUiBridgeAgent\ContinuousBotControllerContract.cs" Link="ContinuousBotControllerContract.cs" />
+  </ItemGroup>
+</Project>

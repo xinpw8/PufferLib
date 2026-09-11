@@ -1,0 +1,28 @@
+{
+  "schema": "rek.paired_motion_calibration.v1",
+  "mode": "explicit_similarity_3d",
+  "position_matrix": [
+    [1.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0],
+    [0.0, 1.0, 0.0]
+  ],
+  "position_offset": [0.0, 0.0, 0.0],
+  "source_forward_vector": [1.0, 0.0, 0.0],
+  "direct_yaw_sign": -1,
+  "direct_yaw_offset_rad": 0.0,
+  "provenance": {
+    "kind": "pinned_unity_to_mujoco_coordinate_conversion",
+    "artifact": "evidence_out/t800_t800_factory_arena.diagnostic.report.json",
+    "artifact_sha256": "fac3024f118eb3d8a61436b9a7c160a21e9062ec5591011deb6260169531427e",
+    "mapping_field": "unity_mapping",
+    "mapping": {
+      "mujoco_position_xyz": ["x", "z", "y"],
+      "mujoco_quaternion_wxyz": ["-w", "x", "z", "y"]
+    },
+    "source_repository": "https://github.com/google-deepmind/mujoco",
+    "source_tag": "3.7.0",
+    "source_commit": "72cb2b210da666617924de709406d6aadbe60c71",
+    "source_path": "unity/Runtime/Tools/MjEngineTool.cs",
+    "source_blob_sha1": "bf27a1d950099b11a38fcb83d3e03763a5592166"
+  }
+}

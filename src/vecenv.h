@@ -63,6 +63,18 @@ static inline void dict_set(Dict* dict, const char* key, double value) {
     dict->size++;
 }
 
+static inline void dict_set_ptr(Dict* dict, const char* key, void* ptr) {
+    assert(dict->size < dict->capacity);
+    DictItem* item = dict_get_unsafe(dict, key);
+    if (item != NULL) {
+        item->ptr = ptr;
+        return;
+    }
+    dict->items[dict->size].key = key;
+    dict->items[dict->size].ptr = ptr;
+    dict->size++;
+}
+
 // Forward declare CUDA stream type
 typedef struct CUstream_st* cudaStream_t;
 
@@ -94,6 +106,9 @@ typedef struct StaticVec {
     int num_atns;
     int action_mask_size;        // 0 unless env defines MY_ACTION_MASK
     int gpu;
+    // External mode owns only gpu_actions. The caller owns and mutates the
+    // remaining CUDA buffers and drives rollout steps explicitly.
+    int external_gpu;
     // Optional permutation: agent_perm[slot] = physical agent index in global buffers.
     // NULL = identity (current behavior). Only valid when env defines MY_USES_PERM.
     int* agent_perm;
@@ -112,6 +127,7 @@ enum EvalProfileIdx {
 
 // Functions implemented by env's static library
 StaticVec* create_static_vec(int total_agents, int num_buffers, int gpu, Dict* vec_kwargs, Dict* env_kwargs);
+StaticVec* create_external_gpu_vec(int total_agents, int num_buffers, Dict* vec_kwargs);
 void static_vec_reset(StaticVec* vec);
 void static_vec_close(StaticVec* vec);
 void static_vec_log(StaticVec* vec, Dict* out);
@@ -130,6 +146,7 @@ int* get_act_sizes(void);
 int get_num_act_sizes(void);
 const char* get_obs_dtype(void);
 size_t get_obs_elem_size(void);
+int get_action_mask_size(void);
 
 // Synchronous single-step
 void static_vec_step(StaticVec* vec);
@@ -209,6 +226,18 @@ extern const char* cudaGetErrorString(cudaError_t);
 void my_init(Env* env, Dict* kwargs);
 void my_log(Log* log, Dict* out);
 
+#ifdef MY_VEC_STEP
+void MY_VEC_STEP(StaticVec* vec);
+#endif
+
+#ifdef MY_VEC_STEP_RANGE
+void MY_VEC_STEP_RANGE(StaticVec* vec, int env_start, int env_count, int num_workers);
+#endif
+
+#ifdef MY_VEC_RESET
+void MY_VEC_RESET(StaticVec* vec);
+#endif
+
 #ifdef MY_USES_PERM
 // Env-provided: populate per-slot pointer arrays on env, given the global slot
 // base for slot 0. Reads vec->agent_perm (NULL = identity) to compute physical
@@ -258,8 +287,6 @@ static void* static_omp_threadmanager(void* arg) {
     int num_workers = threading->num_threads / vec->buffers;
     if (num_workers < 1) num_workers = 1;
 
-    Env* envs = (Env*)vec->envs;
-
     printf("Num workers: %d\n", num_workers);
     while (true) {
         while (atomic_load(&buffer_states[buf]) != OMP_RUNNING) {
@@ -288,10 +315,15 @@ static void* static_omp_threadmanager(void* arg) {
             memset(&vec->rewards[agent_start], 0, agents_per_buffer * sizeof(float));
             memset(&vec->terminals[agent_start], 0, agents_per_buffer * sizeof(float));
             clock_gettime(CLOCK_MONOTONIC, &t0);
+#ifdef MY_VEC_STEP_RANGE
+            MY_VEC_STEP_RANGE(vec, env_start, env_count, num_workers);
+#else
+            Env* envs = (Env*)vec->envs;
             #pragma omp parallel for schedule(static) num_threads(num_workers)
             for (int i = env_start; i < env_start + env_count; i++) {
                 c_step(&envs[i]);
             }
+#endif
             clock_gettime(CLOCK_MONOTONIC, &t1);
             my_accum[EVAL_ENV_STEP] += (t1.tv_sec - t0.tv_sec) * 1000.0f + (t1.tv_nsec - t0.tv_nsec) / 1e6f;
 
@@ -324,6 +356,8 @@ static void* static_omp_threadmanager(void* arg) {
 }
 
 void static_vec_omp_step(StaticVec* vec) {
+    assert(!vec->external_gpu
+        && "external GPU environments require explicit rollout stepping");
     StaticThreading* threading = vec->threading;
     for (int buf = 0; buf < vec->buffers; buf++) {
         atomic_store(&threading->buffer_states[buf], OMP_RUNNING);
@@ -334,6 +368,8 @@ void static_vec_omp_step(StaticVec* vec) {
 }
 
 void static_vec_seq_step(StaticVec* vec) {
+    assert(!vec->external_gpu
+        && "external GPU environments require explicit rollout stepping");
     StaticThreading* threading = vec->threading;
     for (int buf = 0; buf < vec->buffers; buf++) {
         atomic_store(&threading->buffer_states[buf], OMP_RUNNING);
@@ -395,6 +431,7 @@ Env* my_vec_init(int* num_envs_out, int* buffer_env_starts, int* buffer_env_coun
 void my_vec_close(Env* envs);
 #else
 void my_vec_close(Env* envs) {
+    (void)envs;
     return;
 }
 #endif
@@ -493,6 +530,74 @@ StaticVec* create_static_vec(int total_agents, int num_buffers, int gpu, Dict* v
     return vec;
 }
 
+static inline void* external_gpu_buffer(Dict* kwargs, const char* key) {
+    DictItem* item = dict_get_unsafe(kwargs, key);
+    if (item == NULL || item->ptr == NULL) {
+        fprintf(stderr, "create_external_gpu_vec: missing CUDA buffer %s\n", key);
+        return NULL;
+    }
+    return item->ptr;
+}
+
+StaticVec* create_external_gpu_vec(
+        int total_agents, int num_buffers, Dict* vec_kwargs) {
+    if (total_agents <= 0 || num_buffers != 1) {
+        fprintf(stderr,
+            "create_external_gpu_vec: requires positive total_agents and num_buffers=1\n");
+        return NULL;
+    }
+
+    void* observations = external_gpu_buffer(
+        vec_kwargs, "external_observations_ptr");
+    float* rewards = (float*)external_gpu_buffer(
+        vec_kwargs, "external_rewards_ptr");
+    float* terminals = (float*)external_gpu_buffer(
+        vec_kwargs, "external_terminals_ptr");
+    if (observations == NULL || rewards == NULL || terminals == NULL) {
+        return NULL;
+    }
+
+    StaticVec* vec = (StaticVec*)calloc(1, sizeof(StaticVec));
+    if (vec == NULL) {
+        return NULL;
+    }
+    vec->total_agents = total_agents;
+    vec->buffers = num_buffers;
+    vec->agents_per_buffer = total_agents;
+    vec->obs_size = OBS_SIZE;
+    vec->num_atns = NUM_ATNS;
+    vec->gpu = 1;
+    vec->external_gpu = 1;
+    vec->gpu_observations = observations;
+    vec->gpu_rewards = rewards;
+    vec->gpu_terminals = terminals;
+    vec->streams = (cudaStream_t*)calloc(1, sizeof(cudaStream_t));
+    if (vec->streams == NULL
+            || cudaMalloc((void**)&vec->gpu_actions,
+                (size_t)total_agents * NUM_ATNS * sizeof(float)) != cudaSuccess) {
+        free(vec->streams);
+        free(vec);
+        return NULL;
+    }
+    cudaMemset(
+        vec->gpu_actions,
+        0,
+        (size_t)total_agents * NUM_ATNS * sizeof(float));
+
+#ifdef MY_ACTION_MASK
+    vec->action_mask_size = MY_ACTION_MASK;
+    vec->gpu_action_mask = (unsigned char*)external_gpu_buffer(
+        vec_kwargs, "external_action_mask_ptr");
+    if (vec->gpu_action_mask == NULL) {
+        cudaFree(vec->gpu_actions);
+        free(vec->streams);
+        free(vec);
+        return NULL;
+    }
+#endif
+    return vec;
+}
+
 void static_vec_set_perm(StaticVec* vec, const int* perm) {
 #ifndef MY_USES_PERM
     (void)vec; (void)perm;
@@ -562,10 +667,19 @@ int static_vec_count_aligned(StaticVec* vec, int tag_value, int reset_flags) {
 #endif
 
 void static_vec_reset(StaticVec* vec) {
+    if (vec->external_gpu) {
+        cudaMemset(vec->gpu_actions, 0,
+            (size_t)vec->total_agents * NUM_ATNS * sizeof(float));
+        return;
+    }
+#ifdef MY_VEC_RESET
+    MY_VEC_RESET(vec);
+#else
     Env* envs = (Env*)vec->envs;
     for (int i = 0; i < vec->size; i++) {
         c_reset(&envs[i]);
     }
+#endif
     if (vec->gpu) {
         cudaMemcpy(vec->gpu_observations, vec->observations,
             vec->total_agents * OBS_SIZE * obs_element_size(), cudaMemcpyHostToDevice);
@@ -608,6 +722,13 @@ void create_static_threads(StaticVec* vec, int num_threads, int horizon,
 }
 
 void static_vec_close(StaticVec* vec) {
+    if (vec->external_gpu) {
+        cudaDeviceSynchronize();
+        cudaFree(vec->gpu_actions);
+        free(vec->streams);
+        free(vec);
+        return;
+    }
     Env* envs = (Env*)vec->envs;
 
     if (vec->threading != NULL) {
@@ -686,6 +807,9 @@ static inline float static_vec_aggregate_logs(StaticVec* vec, Log* out) {
 }
 
 void static_vec_log(StaticVec* vec, Dict* out) {
+    if (vec->external_gpu) {
+        return;
+    }
     Env* envs = (Env*)vec->envs;
     Log aggregate;
     float n = static_vec_aggregate_logs(vec, &aggregate);
@@ -700,6 +824,9 @@ void static_vec_log(StaticVec* vec, Dict* out) {
 }
 
 void static_vec_eval_log(StaticVec* vec, Dict* out) {
+    if (vec->external_gpu) {
+        return;
+    }
     Log aggregate;
     float n = static_vec_aggregate_logs(vec, &aggregate);
     if (n == 0) {
@@ -712,6 +839,9 @@ void static_vec_eval_log(StaticVec* vec, Dict* out) {
 void static_vec_read_profile(StaticVec* vec, float out[NUM_EVAL_PROF]) {
     StaticThreading* threading = vec->threading;
     memset(out, 0, NUM_EVAL_PROF * sizeof(float));
+    if (threading == NULL) {
+        return;
+    }
     for (int buf = 0; buf < threading->num_buffers; buf++) {
         float* src = &threading->accum[buf * NUM_EVAL_PROF];
         for (int i = 0; i < NUM_EVAL_PROF; i++) {
@@ -726,6 +856,9 @@ void static_vec_read_profile(StaticVec* vec, float out[NUM_EVAL_PROF]) {
 }
 
 void static_vec_render(StaticVec* vec, int env_id) {
+    if (vec->external_gpu) {
+        return;
+    }
     Env* envs = (Env*)vec->envs;
     c_render(&envs[env_id]);
 }
@@ -737,7 +870,19 @@ int* get_act_sizes(void) { return _act_sizes; }
 int get_num_act_sizes(void) { return (int)(sizeof(_act_sizes) / sizeof(_act_sizes[0])); }
 const char* get_obs_dtype(void) { return dtype_symbol; }
 size_t get_obs_elem_size(void) { return obs_element_size(); }
+int get_action_mask_size(void) {
+#ifdef MY_ACTION_MASK
+    return MY_ACTION_MASK;
+#else
+    return 0;
+#endif
+}
 
+#ifdef MY_VEC_STEP
+static inline void _static_vec_env_step(StaticVec* vec) {
+    MY_VEC_STEP(vec);
+}
+#else
 static inline void _static_vec_env_step(StaticVec* vec) {
     memset(vec->rewards, 0, vec->total_agents * sizeof(float));
     memset(vec->terminals, 0, vec->total_agents * sizeof(float));
@@ -747,6 +892,7 @@ static inline void _static_vec_env_step(StaticVec* vec) {
         c_step(&envs[i]);
     }
 }
+#endif
 
 void gpu_vec_step(StaticVec* vec) {
     assert(vec->buffers == 1);
@@ -761,6 +907,11 @@ void gpu_vec_step(StaticVec* vec) {
         vec->total_agents * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(vec->gpu_terminals, vec->terminals,
         vec->total_agents * sizeof(float), cudaMemcpyHostToDevice);
+#ifdef MY_ACTION_MASK
+    cudaMemcpy(vec->gpu_action_mask, vec->action_mask,
+        (size_t)vec->total_agents * MY_ACTION_MASK * sizeof(unsigned char),
+        cudaMemcpyHostToDevice);
+#endif
 }
 
 void cpu_vec_step(StaticVec* vec) {
@@ -776,22 +927,30 @@ void static_vec_step(StaticVec* vec) {
 // Optional shared state functions - default implementations
 #ifndef MY_SHARED
 void* my_shared(void* env, Dict* kwargs) {
+    (void)env;
+    (void)kwargs;
     return NULL;
 }
 #endif
 
 #ifndef MY_SHARED_CLOSE
-void my_shared_close(void* env) {}
+void my_shared_close(void* env) {
+    (void)env;
+}
 #endif
 
 #ifndef MY_GET
 void* my_get(void* env, Dict* out) {
+    (void)env;
+    (void)out;
     return NULL;
 }
 #endif
 
 #ifndef MY_PUT
 int my_put(void* env, Dict* kwargs) {
+    (void)env;
+    (void)kwargs;
     return 0;
 }
 #endif

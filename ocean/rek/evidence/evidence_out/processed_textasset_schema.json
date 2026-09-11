@@ -1,0 +1,195 @@
+{
+ "schema": 1,
+ "container": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test\\REK_Data\\sharedassets0.assets",
+ "assets": [
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 370,
+   "name": "walking_processed",
+   "bytes": 9633,
+   "sha256": "6b65417dcb16c69e851a7b6d675425ac5f87f0714882a48850cc03a547154ab5",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 12"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 371,
+   "name": "left_front_kick_processed",
+   "bytes": 36524,
+   "sha256": "90c53c34f691188fb502ea63c5b9a1421d097481adc323dc06840bfc3d130d9a",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 11"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 372,
+   "name": "right_side_kick_processed",
+   "bytes": 38787,
+   "sha256": "ea6b1b09f034221832df3ab22bc2584032d0094c0296a81708e56c6515be801a",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 10"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 373,
+   "name": "right_hook_processed",
+   "bytes": 12267,
+   "sha256": "4643fae0e2a07585987bc7d3d02360956966ee4ffef1c0aff0b04afbb7db7748",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 10"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 374,
+   "name": "double_uppercut_processed",
+   "bytes": 15057,
+   "sha256": "9a97850c219b3e1fbac95ac216d78e942728884da26831b26a5afa2bb3661f54",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 12"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 375,
+   "name": "turn_in_place_right_processed",
+   "bytes": 12408,
+   "sha256": "3022d18e6255963ce5b4d8b8ae893b068a773b4767fc616829e8308de63eb309",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 11"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 376,
+   "name": "left_jab_right_uppercut_processed",
+   "bytes": 12276,
+   "sha256": "c54d06c3812d376d2ad648815e71247de1fd847ecbccaae0bfaeb40ff495e58a",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 12"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 377,
+   "name": "idle_processed",
+   "bytes": 5005,
+   "sha256": "58857bf39703ae6a8afac920685b2ae92fe60e68ff607c48bb0ff879c6bea144",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 12"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 378,
+   "name": "6_punch_processed",
+   "bytes": 37555,
+   "sha256": "00c84b19a331cca2294efc0c0b009017d33c90a175e51c86fdb178213393fba2",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 12"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 379,
+   "name": "left_jab_processed",
+   "bytes": 9327,
+   "sha256": "3595c06e837f140f7b4852a56b224a4e3760b3bb6501904b01cccb2c984b6d4e",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 10"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 380,
+   "name": "right_knee_processed",
+   "bytes": 34785,
+   "sha256": "c8be8f6e73c33c79a769e6f7c0641ce752f8478ee9fd99009212d069f048649f",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 11"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 381,
+   "name": "left_hook_processed",
+   "bytes": 9771,
+   "sha256": "204aff2f1095e9a9c2f34865eb5f1b27fb780f7880e369eb039ab14897ccc282",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 10"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 382,
+   "name": "butt_smack_emote_processed",
+   "bytes": 25710,
+   "sha256": "2e7fc5c7d818d8798919b3f342d0dab85a1d51db1d155cf0e91195639117317e",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 12"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 383,
+   "name": "run_and_punch_processed",
+   "bytes": 33663,
+   "sha256": "d22582561013c3cc16204f0bf567362fbf66faebdf0ddfa98c5ba1f76300bbc5",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 12"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 384,
+   "name": "left_right_hook_processed",
+   "bytes": 19230,
+   "sha256": "1ef4000d8e63676f0f3e4ce975e3f96003aacc8608ad701071847d1ac61f21c2",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 12"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 385,
+   "name": "left_hook_right_jab_processed",
+   "bytes": 17536,
+   "sha256": "05106082d5733053c212e6a10bef8f96511ed7db83e700be83cb738bfdb53447",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 12"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 386,
+   "name": "left_right_jab_processed",
+   "bytes": 18878,
+   "sha256": "06a215c269e45ef601a229c259f1ee8cc0e7647f131fe178699f4eaea3e724ee",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 12"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 387,
+   "name": "right_jab_processed",
+   "bytes": 10797,
+   "sha256": "c455ccb02f5fca0e6067fde93b70fa56ec92f698e3da325464beb3deb6ece233",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 12"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 388,
+   "name": "left_strafe_processed",
+   "bytes": 9662,
+   "sha256": "29b0894d061f7f548e77827886692f36917d048fd9f557262695c2c7257f5b6f",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 12"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 390,
+   "name": "double_hook_processed",
+   "bytes": 18369,
+   "sha256": "9edacb6d077b0ef226eac21ccb5f0bfd0955c40fdd6c15e3c13ac3e79284dfbc",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 10"
+  },
+  {
+   "container": "sharedassets0.assets",
+   "path_id": 392,
+   "name": "left_side_kick_processed",
+   "bytes": 38915,
+   "sha256": "37ff55334ee4c9ea5aa20207ada15aeeacacca168d8cb41630788194add8b2e7",
+   "encoding": "binary",
+   "parse_error": "UnicodeDecodeError at byte 11"
+  }
+ ]
+}

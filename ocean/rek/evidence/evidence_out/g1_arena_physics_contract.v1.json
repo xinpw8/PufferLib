@@ -1,0 +1,1562 @@
+{
+  "arena": {
+    "derived_geometry_sha256": "39aa951681f929f2580e723ecf133cabbfe310aa6a344627c639f9db8fc03e5b",
+    "floor_top_z_m": 0.009999997913837433,
+    "geom_count": 17,
+    "geometry_identical_across_level_containers": true,
+    "geoms": [
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          2.2999999523162837,
+          2.2999999523162837,
+          0.05999999865889549
+        ],
+        "name": "arena_Collider_Floor_Rektagon",
+        "position_m": [
+          0.0,
+          0.0,
+          -0.05000000074505806
+        ],
+        "quaternion_wxyz": [
+          -0.7071067811865476,
+          0.0,
+          0.0,
+          0.7071067811865476
+        ],
+        "role": "floor",
+        "source": {
+          "box_collider_path_id": 2407,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Floor_Rektagon",
+          "game_object_path_id": 89,
+          "mj_static_collider_path_id": 3096,
+          "mj_static_collider_serialized_sha256": "d4374aa14f736d9a5855b51db5790064921a039b1e20bc511fe8c62e3187bd0f"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.10000000149011609,
+          0.20000000298023218,
+          1.100000023841858
+        ],
+        "name": "arena_Collider_Pillar_01",
+        "position_m": [
+          2.2635049557696094,
+          -0.9375742897800832,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.5555702583221854,
+          0.0,
+          0.0,
+          0.831469595395899
+        ],
+        "role": "pillar",
+        "source": {
+          "box_collider_path_id": 2386,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_01",
+          "game_object_path_id": 865,
+          "mj_static_collider_path_id": 3201,
+          "mj_static_collider_serialized_sha256": "97cd6bdab3e28a315c85d119b2daff17f3beb1a88bbd910007c4ec90a65ae922"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.10000000149011609,
+          0.20000000298023218,
+          1.100000023841858
+        ],
+        "name": "arena_Collider_Pillar_02",
+        "position_m": [
+          2.2635049557696085,
+          0.9375742897800842,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.831469595395899,
+          0.0,
+          0.0,
+          0.5555702583221854
+        ],
+        "role": "pillar",
+        "source": {
+          "box_collider_path_id": 2370,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_02",
+          "game_object_path_id": 349,
+          "mj_static_collider_path_id": 3143,
+          "mj_static_collider_serialized_sha256": "1c889fc72e6a233715a9be0569b3f2bf1cd1a898bc8ccb72a2cd49be5d2d35bf"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.1000000014901161,
+          0.2000000029802322,
+          1.100000023841858
+        ],
+        "name": "arena_Collider_Pillar_03",
+        "position_m": [
+          0.9375748649870059,
+          2.263504717511056,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.9807852615516555,
+          0.0,
+          0.0,
+          0.1950904167893721
+        ],
+        "role": "pillar",
+        "source": {
+          "box_collider_path_id": 2378,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_03",
+          "game_object_path_id": 794,
+          "mj_static_collider_path_id": 3058,
+          "mj_static_collider_serialized_sha256": "10c1276e4d6c6058153999cd933717d607a0b1fd2de37badadd14df12cb2d9ac"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.10000000149011609,
+          0.20000000298023218,
+          1.100000023841858
+        ],
+        "name": "arena_Collider_Pillar_04",
+        "position_m": [
+          -0.9375744907209611,
+          2.263504872537176,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.9807852776805597,
+          0.0,
+          0.0,
+          -0.1950903357039187
+        ],
+        "role": "pillar",
+        "source": {
+          "box_collider_path_id": 2393,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_04",
+          "game_object_path_id": 764,
+          "mj_static_collider_path_id": 3457,
+          "mj_static_collider_serialized_sha256": "d3e5b3477e07dff8beb5f9108ae402f9d2609a14c93b8b7fe13c98720bd9b80b"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.10000000149011609,
+          0.20000000298023218,
+          1.100000023841858
+        ],
+        "name": "arena_Collider_Pillar_05",
+        "position_m": [
+          -2.263504802540059,
+          0.9375746597089198,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.8314696407948396,
+          0.0,
+          0.0,
+          -0.555570190377868
+        ],
+        "role": "pillar",
+        "source": {
+          "box_collider_path_id": 2397,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_05",
+          "game_object_path_id": 640,
+          "mj_static_collider_path_id": 3295,
+          "mj_static_collider_serialized_sha256": "b1cf8458e3ec13066cf9ab2593d5f4de64746d10d5e3e073418c53e82bf672f3"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.10000000149011612,
+          0.20000000298023224,
+          1.100000023841858
+        ],
+        "name": "arena_Collider_Pillar_06",
+        "position_m": [
+          -2.2635049557696094,
+          -0.9375742897800842,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.5555702583221854,
+          0.0,
+          0.0,
+          -0.831469595395899
+        ],
+        "role": "pillar",
+        "source": {
+          "box_collider_path_id": 2384,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_06",
+          "game_object_path_id": 570,
+          "mj_static_collider_path_id": 3279,
+          "mj_static_collider_serialized_sha256": "622152a07e5acc6df21390a75d7a403cda2e82b3a6d75bcab04a5b0294fc74f8"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.10000000149011609,
+          0.20000000298023218,
+          1.100000023841858
+        ],
+        "name": "arena_Collider_Pillar_07",
+        "position_m": [
+          -0.9375754636091129,
+          -2.263504469553432,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.1950905464820032,
+          0.0,
+          0.0,
+          -0.9807852357541653
+        ],
+        "role": "pillar",
+        "source": {
+          "box_collider_path_id": 2375,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_07",
+          "game_object_path_id": 383,
+          "mj_static_collider_path_id": 3178,
+          "mj_static_collider_serialized_sha256": "e8a9e8ef0a7932525030a3f244d783684504e7f046842265d8b6f3792a75afd0"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.10000000149011609,
+          0.20000000298023218,
+          1.100000023841858
+        ],
+        "name": "arena_Collider_Pillar_08",
+        "position_m": [
+          0.937574864987007,
+          -2.2635047175110556,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          0.1950904167893721,
+          0.0,
+          0.0,
+          -0.9807852615516555
+        ],
+        "role": "pillar",
+        "source": {
+          "box_collider_path_id": 2413,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Pillar_08",
+          "game_object_path_id": 557,
+          "mj_static_collider_path_id": 3119,
+          "mj_static_collider_serialized_sha256": "36bda00b6761f094d0819706a4b908cecbb8e84a7dcb6e574b23ddc13ede21bb"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.8399999737739561,
+          0.20000000298023218,
+          1.0
+        ],
+        "name": "arena_Collider_Wall_01",
+        "position_m": [
+          2.339999914169311,
+          5.195843564663319e-16,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.7071067811865476,
+          0.0,
+          0.0,
+          0.7071067811865476
+        ],
+        "role": "wall",
+        "source": {
+          "box_collider_path_id": 2410,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_01",
+          "game_object_path_id": 712,
+          "mj_static_collider_path_id": 2981,
+          "mj_static_collider_serialized_sha256": "10e383c038bc5cd8473508aaad9f8b4f67b4e2e26475ce449dd6c3f72bc22980"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.8399999737739561,
+          0.20000000298023218,
+          1.0
+        ],
+        "name": "arena_Collider_Wall_02",
+        "position_m": [
+          1.6546306547274046,
+          1.6546289598422794,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.9238794345128319,
+          0.0,
+          0.0,
+          0.38268366895420286
+        ],
+        "role": "wall",
+        "source": {
+          "box_collider_path_id": 2415,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_02",
+          "game_object_path_id": 674,
+          "mj_static_collider_path_id": 2956,
+          "mj_static_collider_serialized_sha256": "66eb5c267d73ef74050960a8b8464575b21d29c864cf6cb2c4ecd164c36f712d"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.839999973773956,
+          0.20000000298023218,
+          1.0
+        ],
+        "name": "arena_Collider_Wall_03",
+        "position_m": [
+          1.1834834827893186e-06,
+          2.3399999141690113,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.999999999999968,
+          0.0,
+          0.0,
+          2.5288109539722825e-07
+        ],
+        "role": "wall",
+        "source": {
+          "box_collider_path_id": 2402,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_03",
+          "game_object_path_id": 496,
+          "mj_static_collider_path_id": 3041,
+          "mj_static_collider_serialized_sha256": "de5d5e4efecb673660d63d1ca5ca4ad96f0a933bb8361e1bc19ccb78500fda72"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.8399999737739563,
+          0.20000000298023224,
+          1.0
+        ],
+        "name": "arena_Collider_Wall_04",
+        "position_m": [
+          -1.6546288949328962,
+          1.6546307196367194,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.9238796380158061,
+          0.0,
+          0.0,
+          -0.3826831776545489
+        ],
+        "role": "wall",
+        "source": {
+          "box_collider_path_id": 2396,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_04",
+          "game_object_path_id": 962,
+          "mj_static_collider_path_id": 3314,
+          "mj_static_collider_serialized_sha256": "17fc0ce3a21cd50accc29c0cace05b81efc7101038156855539eed9f61e5bef9"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.8399999737739565,
+          0.2000000029802323,
+          1.0
+        ],
+        "name": "arena_Collider_Wall_05",
+        "position_m": [
+          -2.3399999141681804,
+          2.3013349838180236e-06,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.7071071288979222,
+          0.0,
+          0.0,
+          -0.707106433475002
+        ],
+        "role": "wall",
+        "source": {
+          "box_collider_path_id": 2377,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_05",
+          "game_object_path_id": 734,
+          "mj_static_collider_path_id": 2982,
+          "mj_static_collider_serialized_sha256": "2b83f636ea8fc892bebc0c5b5ae8312e6c0916cc89edaf69ab32e4f709e60472"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.8399999737739561,
+          0.20000000298023218,
+          1.0
+        ],
+        "name": "arena_Collider_Wall_06",
+        "position_m": [
+          -1.6546316413733664,
+          -1.6546279731947187,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -0.3826839444063287,
+          0.0,
+          0.0,
+          -0.923879320416695
+        ],
+        "role": "wall",
+        "source": {
+          "box_collider_path_id": 2359,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_06",
+          "game_object_path_id": 1003,
+          "mj_static_collider_path_id": 3097,
+          "mj_static_collider_serialized_sha256": "90e24d8b8e03f07dc56be997723010a8ed7769727fdaa39e806ccd20a13303cc"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.839999973773956,
+          0.20000000298023218,
+          1.0
+        ],
+        "name": "arena_Collider_Wall_07",
+        "position_m": [
+          -3.7476975373293713e-06,
+          -2.3399999141663095,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          -8.007901015627539e-07,
+          0.0,
+          0.0,
+          -0.9999999999996794
+        ],
+        "role": "wall",
+        "source": {
+          "box_collider_path_id": 2414,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_07",
+          "game_object_path_id": 498,
+          "mj_static_collider_path_id": 2974,
+          "mj_static_collider_serialized_sha256": "af16cacd910c0c25e02587b0217e56e75724ce9e8a793ca16a1085192a0189a7"
+        },
+        "type": "box"
+      },
+      {
+        "contact": {
+          "conaffinity": 1,
+          "condim": 3,
+          "contype": 2,
+          "fluidcoef": [
+            5.0,
+            0.25,
+            1.5,
+            1.0,
+            1.0
+          ],
+          "fluidshape": "none",
+          "friction": [
+            1.0,
+            0.004999999888241291,
+            9.999999747378752e-05
+          ],
+          "gap_m": 0.0,
+          "group": 0,
+          "margin_m": 0.0,
+          "priority": 0,
+          "solimp": [
+            0.8999999761581421,
+            0.949999988079071,
+            0.0010000000474974513,
+            0.5,
+            2.0
+          ],
+          "solmix": 1.0,
+          "solref": [
+            0.019999999552965164,
+            1.0
+          ]
+        },
+        "half_extents_m": [
+          0.8399999737739563,
+          0.20000000298023224,
+          1.0
+        ],
+        "name": "arena_Collider_Wall_08",
+        "position_m": [
+          1.6546254351887162,
+          -1.6546341793698496,
+          1.0
+        ],
+        "quaternion_wxyz": [
+          0.3826822117639389,
+          0.0,
+          0.0,
+          -0.9238800380998932
+        ],
+        "role": "wall",
+        "source": {
+          "box_collider_path_id": 2385,
+          "game_object_path": "Enviro_StoreOctagon/Colliders/Collider_Wall_08",
+          "game_object_path_id": 138,
+          "mj_static_collider_path_id": 3199,
+          "mj_static_collider_serialized_sha256": "ed427be1cc1690884a9d623e3672df1db9c1997939ddc31ba137d2b814eb28d5"
+        },
+        "type": "box"
+      }
+    ],
+    "probe_geometry_signature_sha256": "b95badfd29479bb9f4b6ba62370936ae83c5292183af33ba3d1f1cac7d82d7bc",
+    "role_counts": {
+      "floor": 1,
+      "pillar": 8,
+      "wall": 8
+    },
+    "shape": "box",
+    "shape_type_serialized": 4,
+    "shared_contact": {
+      "conaffinity": 1,
+      "condim": 3,
+      "contype": 2,
+      "fluidcoef": [
+        5.0,
+        0.25,
+        1.5,
+        1.0,
+        1.0
+      ],
+      "fluidshape": "none",
+      "friction": [
+        1.0,
+        0.004999999888241291,
+        9.999999747378752e-05
+      ],
+      "gap_m": 0.0,
+      "group": 0,
+      "margin_m": 0.0,
+      "priority": 0,
+      "solimp": [
+        0.8999999761581421,
+        0.949999988079071,
+        0.0010000000474974513,
+        0.5,
+        2.0
+      ],
+      "solmix": 1.0,
+      "solref": [
+        0.019999999552965164,
+        1.0
+      ]
+    },
+    "source_component": "REKApp.MjStaticCollider",
+    "source_hierarchy_root": "Enviro_StoreOctagon/Colliders"
+  },
+  "build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+  "contact_mask_check": {
+    "all_g1_pairs_can_contact_arena": true,
+    "arena": {
+      "conaffinity": 1,
+      "contype": 2
+    },
+    "g1_geom_pairs": [
+      {
+        "conaffinity": 1,
+        "contype": 1,
+        "count": 12
+      },
+      {
+        "conaffinity": 2,
+        "contype": 1,
+        "count": 25
+      }
+    ]
+  },
+  "control_equivalent": false,
+  "coordinate_mapping": {
+    "provenance": {
+      "commit": "72cb2b210da666617924de709406d6aadbe60c71",
+      "path": "unity/Runtime/Tools/MjEngineTool.cs",
+      "repository": "https://github.com/google-deepmind/mujoco",
+      "source_blob_sha1": "bf27a1d950099b11a38fcb83d3e03763a5592166",
+      "tag": "3.7.0",
+      "unity_quaternion_to_mujoco_wxyz": [
+        "-w",
+        "x",
+        "z",
+        "y"
+      ],
+      "unity_vector_to_mujoco": [
+        "x",
+        "z",
+        "y"
+      ]
+    },
+    "units": "metres",
+    "unity_position_xyz_to_mujoco_xyz": [
+      "x",
+      "z",
+      "y"
+    ],
+    "unity_quaternion_wxyz_to_mujoco_wxyz": [
+      "-w",
+      "x",
+      "z",
+      "y"
+    ]
+  },
+  "g1_plant_boundary": {
+    "arena_named_geom_count": 0,
+    "composed_ngeom": 54,
+    "direct_world_geom_count": 0,
+    "reason": "mujoco_plant selects the g1_29dof_Prefab_SONIC hierarchy; the arena colliders live under a separate level-scene hierarchy",
+    "recovered_counts": {
+      "MjActuator": 29,
+      "MjBody": 30,
+      "MjFreeJoint": 1,
+      "MjGeom": 37,
+      "MjHingeJoint": 29,
+      "MjInertial": 30
+    },
+    "recovery_hierarchy_root": "g1_29dof_Prefab_SONIC",
+    "robot_geom_contact_pair_counts": [
+      {
+        "conaffinity": 1,
+        "contype": 1,
+        "count": 12
+      },
+      {
+        "conaffinity": 2,
+        "contype": 1,
+        "count": 25
+      }
+    ],
+    "root_body_name": "pelvis_3266",
+    "separate_scene_geometry_was_omitted": true,
+    "serialized_asset_pose_is_not_an_arena_spawn_pose": true,
+    "serialized_asset_pose_mujoco": {
+      "position_m": [
+        18.2549991607666,
+        0.36000001430511475,
+        -8.599000215530396
+      ],
+      "quaternion_wxyz": [
+        0.5054116216053354,
+        0.0,
+        0.0,
+        0.8628783765666314
+      ]
+    },
+    "spawn_rebase_required": true
+  },
+  "global_options": {
+    "ccd_iterations": 50,
+    "ccd_tolerance": 9.999999974752427e-07,
+    "cone": {
+      "mujoco": "elliptic",
+      "serialized": 1
+    },
+    "density": 0.0,
+    "flags": {
+      "disabled": [
+        "energy",
+        "fwdinv",
+        "multiccd",
+        "override"
+      ],
+      "enabled": [
+        "actuation",
+        "clampctrl",
+        "constraint",
+        "contact",
+        "damper",
+        "equality",
+        "filterparent",
+        "frictionloss",
+        "gravity",
+        "limit",
+        "refsafe",
+        "spring",
+        "warmstart"
+      ],
+      "raw": {
+        "Actuation": 0,
+        "ClampCtrl": 0,
+        "Constraint": 0,
+        "Contact": 0,
+        "Damper": 0,
+        "Energy": 1,
+        "Equality": 0,
+        "FilterParent": 0,
+        "FrictionLoss": 0,
+        "FwdInv": 1,
+        "Gravity": 0,
+        "Limit": 0,
+        "MultiCCD": 1,
+        "Override": 1,
+        "RefSafe": 0,
+        "Spring": 0,
+        "WarmStart": 0
+      },
+      "serialized_zero_means_enable": true
+    },
+    "impratio": 1.0,
+    "integrator": {
+      "mujoco": "implicitfast",
+      "serialized": 3
+    },
+    "iterations": 100,
+    "jacobian": {
+      "mujoco": "auto",
+      "serialized": 2
+    },
+    "magnetic": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "noslip_iterations": 0,
+    "noslip_tolerance": 9.999999974752427e-07,
+    "override_margin": 0.0,
+    "override_solimp": [
+      0.8999999761581421,
+      0.949999988079071,
+      0.0010000000474974513,
+      0.5,
+      2.0
+    ],
+    "override_solref": [
+      0.019999999552965164,
+      1.0
+    ],
+    "solver": {
+      "mujoco": "Newton",
+      "serialized": 2
+    },
+    "tolerance": 9.99999993922529e-09,
+    "viscosity": 0.0,
+    "wind": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "schema": "rek.g1_arena_physics_contract.v1",
+  "scope": "static client-build G1 MuJoCo arena contract",
+  "sources": {
+    "arena_containers": [
+      {
+        "name": "level1",
+        "probe_geometry_signature_sha256": "b95badfd29479bb9f4b6ba62370936ae83c5292183af33ba3d1f1cac7d82d7bc",
+        "sha256": "d3aef29c86c5d072906d68cd938987b9bc84152a09653f10991f03c805b2ed13"
+      },
+      {
+        "name": "level2",
+        "probe_geometry_signature_sha256": "b95badfd29479bb9f4b6ba62370936ae83c5292183af33ba3d1f1cac7d82d7bc",
+        "sha256": "132605943fc30b91ad45322f7fbe60f2fd0ae1024fa7844ef8823c20bebfe3af"
+      },
+      {
+        "name": "level3",
+        "probe_geometry_signature_sha256": "b95badfd29479bb9f4b6ba62370936ae83c5292183af33ba3d1f1cac7d82d7bc",
+        "sha256": "620a6cd808945ebf335cdcde4b8c3e9e7ca30409e5cbd1b6ea1af6723f79ba52"
+      }
+    ],
+    "input_sha256": {
+      "arena_probes": [
+        "08916c3c31b667f7cb6d533bd038fee8418e82aa4b369d8274aca6760ba4b8e1",
+        "a44336ed61a4a2148092652e9cc0de10645b29352448f1ce24fdbcf43194d7b7",
+        "bdcd7ebc749452d943c513bf46c17a3b75c6ce008e7984eb656eb772df0dc8b4"
+      ],
+      "g1_base_mjcf": "811fdc1e5bee74026b780974207cbcd628cdd83a249d3f76b75a668d71aad835",
+      "g1_base_report": "5c8e3490cf9b5ba8f5a4a1277d516ed0c59b19162928f5497a29cd643257cea1",
+      "inventory": "ea932824c7f1fa9781ab816716d4bfca9ec22b14e754466941c8c157910eff79",
+      "static_survey": "13d7761926ff19ee6852c895b7d8fd6be4651de85c08830f0f272655ad779eb3"
+    },
+    "installed_files": {
+      "GameAssembly.dll": {
+        "sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+        "size": 93300224,
+        "verified": true
+      },
+      "REK_Data/globalgamemanagers": {
+        "sha256": "8f4107c56da769fc6a5d146d74f2c3acf0ec663dc7b3c845ae0157653af37701",
+        "size": 455636,
+        "verified": true
+      },
+      "REK_Data/level1": {
+        "sha256": "d3aef29c86c5d072906d68cd938987b9bc84152a09653f10991f03c805b2ed13",
+        "size": 1097192,
+        "verified": true
+      },
+      "REK_Data/level2": {
+        "sha256": "132605943fc30b91ad45322f7fbe60f2fd0ae1024fa7844ef8823c20bebfe3af",
+        "size": 1073896,
+        "verified": true
+      },
+      "REK_Data/level3": {
+        "sha256": "620a6cd808945ebf335cdcde4b8c3e9e7ca30409e5cbd1b6ea1af6723f79ba52",
+        "size": 1095992,
+        "verified": true
+      },
+      "REK_Data/sharedassets0.assets": {
+        "sha256": "37f7a476c56caae37f5a04d4fa1acf5954fdc2b90f20f521830369ecff05f355",
+        "size": 31315504,
+        "verified": true
+      }
+    },
+    "native": {
+      "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+      "methods": {
+        "Mujoco.MjScene.FixedUpdate": {
+          "length_bytes": 324,
+          "rva": "0x20DDEB0",
+          "sha256": "eda02c2c7df99f2c2ba0f918870b38164682c8f771251624b26a969e202a92ab",
+          "verified": true
+        },
+        "Mujoco.MjScene.StepScene": {
+          "length_bytes": 606,
+          "rva": "0x20E0040",
+          "sha256": "48c70e8043aa8527a325140efbd60202c221b3e49ccf070335e61a89c0ba2321",
+          "verified": true
+        },
+        "REKApp.FightCoordinator.SpawnSlot.MoveNext": {
+          "length_bytes": 1459,
+          "rva": "0x23A2FB0",
+          "sha256": "e53c79ed8308cab002c5b348c5f5423887130d189c73b38dd5f2074ec7279596",
+          "verified": true
+        },
+        "REKApp.RobotSpawner.SpawnLive.MoveNext": {
+          "length_bytes": 654,
+          "rva": "0x23A2CE0",
+          "sha256": "8028333e49b2045204706ca2be9d54f248c27a26b2d9cc293cd8b2d849fff5c7",
+          "verified": true
+        },
+        "REKApp.RobotSpawner.TryInstantiate": {
+          "length_bytes": 757,
+          "rva": "0x239DB40",
+          "sha256": "1cbcc27d3d1a2ea44f2f694eb236b0fa55e58765fc64e3e0708726c11b78ef14",
+          "verified": true
+        }
+      }
+    }
+  },
+  "spawn_points": {
+    "evidence_kind": "serialized scene references with build-pinned native application path",
+    "identical_pose_across_level_containers": true,
+    "native_application": {
+      "flow": [
+        "FightCoordinator.SpawnSlot selects the Transform by slot",
+        "RobotSpawner.SpawnLive passes the selected Transform to TryInstantiate",
+        "TryInstantiate reads Transform.position and Transform.rotation",
+        "TryInstantiate passes both values to UnityEngine.Object.Instantiate"
+      ],
+      "proven_for_pinned_client_build": true,
+      "slot_0_field": "FightCoordinator.playerSpawnPoint at native field offset 0x1A0",
+      "slot_1_field": "FightCoordinator.opponentSpawnPoint at native field offset 0x1B0"
+    },
+    "opponent": {
+      "fallback_robot_id": "g1",
+      "game_object_active": true,
+      "game_object_path": "OpponentSpawnPoint",
+      "mujoco_world_position_m": [
+        0.8999999761581421,
+        0.0,
+        0.009999999776482582
+      ],
+      "mujoco_world_quaternion_wxyz": [
+        1.1026858146572184e-06,
+        0.0,
+        0.0,
+        -0.999999999999392
+      ],
+      "serialized_field": "opponentSpawnPoint",
+      "serialized_references": [
+        {
+          "container": "level1",
+          "fight_coordinator_path_id": 3001,
+          "game_object_path_id": 61,
+          "m_FileID": 0,
+          "m_PathID": 1029,
+          "transform_path_id": 1029
+        },
+        {
+          "container": "level2",
+          "fight_coordinator_path_id": 3005,
+          "game_object_path_id": 63,
+          "m_FileID": 0,
+          "m_PathID": 1032,
+          "transform_path_id": 1032
+        },
+        {
+          "container": "level3",
+          "fight_coordinator_path_id": 3002,
+          "game_object_path_id": 60,
+          "m_FileID": 0,
+          "m_PathID": 1029,
+          "transform_path_id": 1029
+        }
+      ],
+      "slot": 1,
+      "unity_world_position_m": [
+        0.8999999761581421,
+        0.009999999776482582,
+        0.0
+      ],
+      "unity_world_quaternion_wxyz": [
+        -1.1026858146572184e-06,
+        0.0,
+        -0.999999999999392,
+        0.0
+      ]
+    },
+    "player": {
+      "fallback_robot_id": "g1",
+      "game_object_active": true,
+      "game_object_path": "PlayerSpawnPoint",
+      "mujoco_world_position_m": [
+        -0.9000000357627869,
+        0.0,
+        0.009999999776482582
+      ],
+      "mujoco_world_quaternion_wxyz": [
+        -0.9999999999998863,
+        0.0,
+        0.0,
+        4.7683710135965193e-07
+      ],
+      "serialized_field": "playerSpawnPoint",
+      "serialized_references": [
+        {
+          "container": "level1",
+          "fight_coordinator_path_id": 3001,
+          "game_object_path_id": 58,
+          "m_FileID": 0,
+          "m_PathID": 1026,
+          "transform_path_id": 1026
+        },
+        {
+          "container": "level2",
+          "fight_coordinator_path_id": 3005,
+          "game_object_path_id": 60,
+          "m_FileID": 0,
+          "m_PathID": 1029,
+          "transform_path_id": 1029
+        },
+        {
+          "container": "level3",
+          "fight_coordinator_path_id": 3002,
+          "game_object_path_id": 57,
+          "m_FileID": 0,
+          "m_PathID": 1026,
+          "transform_path_id": 1026
+        }
+      ],
+      "slot": 0,
+      "unity_world_position_m": [
+        -0.9000000357627869,
+        0.009999999776482582,
+        0.0
+      ],
+      "unity_world_quaternion_wxyz": [
+        0.9999999999998863,
+        0.0,
+        4.7683710135965193e-07,
+        0.0
+      ]
+    },
+    "runtime_observation": false
+  },
+  "step_execution": {
+    "application_level_substeps": 1,
+    "mj_step1_and_mj_step2_are_phases_of_one_step": true,
+    "mujoco_steps_per_fixed_update": 1,
+    "post_step": [
+      "CheckForPhysicsException",
+      "SyncUnityToMjState"
+    ],
+    "step_scene_calls_per_fixed_update": 1,
+    "unity_callback": "Mujoco.MjScene.FixedUpdate",
+    "with_control_callback": [
+      "mj_step1",
+      "control callback",
+      "mj_step2"
+    ],
+    "without_control_callback": [
+      "mj_step"
+    ]
+  },
+  "timestep": {
+    "frequency_hz_float": 50.00001771542578,
+    "g1_mjcf_option_matches": true,
+    "seconds_exact": {
+      "denominator": 141120000,
+      "fraction": "2822399/141120000",
+      "numerator": 2822399
+    },
+    "seconds_float": 0.0199999929138322,
+    "unity_serialized": {
+      "count": 2822399,
+      "rate_denominator": 1,
+      "rate_numerator": 141120000
+    }
+  },
+  "unknowns": [
+    "server-side build equality and server-authoritative physics were not measured",
+    "a runtime observation of the instantiated Transform was not made",
+    "the serialized spawn references establish arena anchors; this contract does not infer a replacement free-joint pelvis height",
+    "game controller, observations, rewards, damage, score, round logic, and opponent policy remain outside this contract"
+  ]
+}

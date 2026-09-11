@@ -1,0 +1,564 @@
+{
+ "schema": 1,
+ "recorded_at": "2026-09-01T00:45:29Z",
+ "install": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\REK Alpha Test",
+ "steam": {
+  "manifest_file": "appmanifest_4600200.acf",
+  "manifest_sha256": "d5f9a6ab1cfd20ba949606c141370f3190cb3dd7b9c4bb260da4683b95136bea",
+  "appid": "4600200",
+  "name": "REK Alpha Test",
+  "buildid": "24969755",
+  "LastUpdated": "1787869377",
+  "SizeOnDisk": "587994541",
+  "installdir": "REK Alpha Test",
+  "StateFlags": "4"
+ },
+ "build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+ "merkle_roots": {
+  "manifest": "8195a755c6dbe64b0f766a7db27d867f237ad19075d27969ec89b2a3d077c89f",
+  "immutable": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+  "behavioural": "ac4346490923bd8448588245c1e734d93fe49a744daea96217ecf1a4145f881c"
+ },
+ "immutable_file_count": 79,
+ "behavioural_file_count": 50,
+ "file_count": 81,
+ "by_kind": {
+  "asset_container": {
+   "count": 20,
+   "bytes": 297546776
+  },
+  "burst_library": {
+   "count": 1,
+   "bytes": 1951744
+  },
+  "config": {
+   "count": 7,
+   "bytes": 46367
+  },
+  "executable": {
+   "count": 2,
+   "bytes": 2404264
+  },
+  "il2cpp_code": {
+   "count": 1,
+   "bytes": 93300224
+  },
+  "il2cpp_metadata": {
+   "count": 1,
+   "bytes": 20648920
+  },
+  "managed_or_native": {
+   "count": 5,
+   "bytes": 20675680
+  },
+  "native_plugin": {
+   "count": 17,
+   "bytes": 101103264
+  },
+  "other": {
+   "count": 22,
+   "bytes": 10298686
+  },
+  "unity_runtime": {
+   "count": 1,
+   "bytes": 37370792
+  },
+  "unity_settings": {
+   "count": 2,
+   "bytes": 2645428
+  },
+  "volatile": {
+   "count": 2,
+   "bytes": 2396
+  }
+ },
+ "files": [
+  {
+   "path": ".gitignore",
+   "kind": "other",
+   "size": 23,
+   "sha256": "dc4212f37a0fc2b95bfb10211abd0ddaf273f691bbd1356054906101d4fdcd30"
+  },
+  {
+   "path": "DirectML.dll",
+   "kind": "managed_or_native",
+   "size": 14021152,
+   "sha256": "5ab77cc5db8e1544d386fd28586598317da8dcbef098fb86d8d8a60e739e0e5d"
+  },
+  {
+   "path": "GameAssembly.dll",
+   "kind": "il2cpp_code",
+   "size": 93300224,
+   "sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412"
+  },
+  {
+   "path": "REK.exe",
+   "kind": "executable",
+   "size": 667648,
+   "sha256": "5fe6a5c3da371cb7b75a1795eb073b2e69ec718197cf68826bdcd461dcd986c1"
+  },
+  {
+   "path": "UnityCrashHandler64.exe",
+   "kind": "executable",
+   "size": 1736616,
+   "sha256": "75fd85565d9a7efec8930bbd80d19686c8fc2c85731153f22f2ca6daee609976"
+  },
+  {
+   "path": "UnityPlayer.dll",
+   "kind": "unity_runtime",
+   "size": 37370792,
+   "sha256": "277953a7035b1633c239904853bfbea7b2948937ef5567e70c1911c260dd1414"
+  },
+  {
+   "path": "app_build_4600200.vdf",
+   "kind": "other",
+   "size": 289,
+   "sha256": "a67d2f011fc83d87f536d4b1045fb71eafb9ea4a4dca84cac454cd3534b8e6c1"
+  },
+  {
+   "path": "baselib.dll",
+   "kind": "managed_or_native",
+   "size": 239536,
+   "sha256": "5b4ac89349c0b57e2a78f3378a727a6f6110ca7a458bde3004600d57911a82fa"
+  },
+  {
+   "path": "depot_build_4600201.vdf",
+   "kind": "other",
+   "size": 337,
+   "sha256": "1eb26f01da9a92e1bc063efcca71b24920d2dfdcb2ba275ce9cc9a797429be22"
+  },
+  {
+   "path": "dstorage.dll",
+   "kind": "managed_or_native",
+   "size": 206904,
+   "sha256": "cae65787f61514bec6f012f44546e68b19e39d8854a9ab52af813370d44b272a"
+  },
+  {
+   "path": "dstoragecore.dll",
+   "kind": "managed_or_native",
+   "size": 1482784,
+   "sha256": "cf85b19a92a8276f8baca0db9bbcd60735bad50768deb303d310e84d5f4fdd11"
+  },
+  {
+   "path": "rekbuildinfo.json",
+   "kind": "config",
+   "size": 171,
+   "sha256": "6a0a9e02a5190f97104f699c2be16116be17959874dbf410392f373346bd9047"
+  },
+  {
+   "path": "D3D12/D3D12Core.dll",
+   "kind": "managed_or_native",
+   "size": 4725304,
+   "sha256": "625bd40005b1c3708695d5256ecf230d278e6b8edba5a88af70f3d91324f3052"
+  },
+  {
+   "path": "REK_Data/RuntimeInitializeOnLoads.json",
+   "kind": "config",
+   "size": 34482,
+   "sha256": "44c6f2ec37076f039a4bb39dedcbc6181403686147227d67e0a552dc878cd142"
+  },
+  {
+   "path": "REK_Data/ScriptingAssemblies.json",
+   "kind": "config",
+   "size": 8009,
+   "sha256": "d03780813ec950583a88d05ec6fcea6262d6f3c73c170be2bc0187e935a40260"
+  },
+  {
+   "path": "REK_Data/app.info",
+   "kind": "other",
+   "size": 7,
+   "sha256": "a5ba30a1f63a152e62e5412b0a52c53993090ff3d6e6c4a7077930b51de62550"
+  },
+  {
+   "path": "REK_Data/boot.config",
+   "kind": "config",
+   "size": 154,
+   "sha256": "f6f6a3dff5ffe4167151479c050ecbc63ea21aab96d47ba55e093ff03e70f8b0"
+  },
+  {
+   "path": "REK_Data/globalgamemanagers",
+   "kind": "unity_settings",
+   "size": 455636,
+   "sha256": "8f4107c56da769fc6a5d146d74f2c3acf0ec663dc7b3c845ae0157653af37701"
+  },
+  {
+   "path": "REK_Data/globalgamemanagers.assets",
+   "kind": "unity_settings",
+   "size": 2189792,
+   "sha256": "39d776b2eff4cfb5bb59e65d31a2f5dc1e891559a01c0c04c1977329521208cf"
+  },
+  {
+   "path": "REK_Data/globalgamemanagers.assets.resS",
+   "kind": "asset_container",
+   "size": 5716192,
+   "sha256": "f2e891f1a2eca090fd71651b299b57c89b6f16599aee6dd338e290ba791e314b"
+  },
+  {
+   "path": "REK_Data/level0",
+   "kind": "asset_container",
+   "size": 278488,
+   "sha256": "c96011a2b54ab1f6853bc27cb8fc10d9b7296d806b71da3dd49ed18bcd6183fb"
+  },
+  {
+   "path": "REK_Data/level0.resS",
+   "kind": "asset_container",
+   "size": 34448,
+   "sha256": "d8fbee6491ebc15e167a6857b0fb1643aa586b50d6fc6bcb8eafff9a68a02fff"
+  },
+  {
+   "path": "REK_Data/level1",
+   "kind": "asset_container",
+   "size": 1097192,
+   "sha256": "d3aef29c86c5d072906d68cd938987b9bc84152a09653f10991f03c805b2ed13"
+  },
+  {
+   "path": "REK_Data/level1.resS",
+   "kind": "asset_container",
+   "size": 3777488,
+   "sha256": "48bb4c65c5956a6bee07e88c3e7118824129f987cf5e77a3d292dc56ea8e985c"
+  },
+  {
+   "path": "REK_Data/level2",
+   "kind": "asset_container",
+   "size": 1073896,
+   "sha256": "132605943fc30b91ad45322f7fbe60f2fd0ae1024fa7844ef8823c20bebfe3af"
+  },
+  {
+   "path": "REK_Data/level2.resS",
+   "kind": "asset_container",
+   "size": 3798992,
+   "sha256": "bc3ae075bbf402553158ea512ac9292382e0796eb12e5d74b3a2c32780b37d2b"
+  },
+  {
+   "path": "REK_Data/level3",
+   "kind": "asset_container",
+   "size": 1095992,
+   "sha256": "620a6cd808945ebf335cdcde4b8c3e9e7ca30409e5cbd1b6ea1af6723f79ba52"
+  },
+  {
+   "path": "REK_Data/level3.resS",
+   "kind": "asset_container",
+   "size": 3778240,
+   "sha256": "34ec59dc223f5d7be4a83b655b7970e78f17209a56638c70b338a35a1fe0bfaa"
+  },
+  {
+   "path": "REK_Data/resources.assets",
+   "kind": "asset_container",
+   "size": 14345824,
+   "sha256": "626d2babd7209d8b39af0b8a6edcc6cb9c0fa3efdff86be75ede230f5dbaef46"
+  },
+  {
+   "path": "REK_Data/resources.assets.resS",
+   "kind": "asset_container",
+   "size": 9975808,
+   "sha256": "c7acf4a3e5b6cf7dc2b82ed0342ce22d810830c5c1895e5d2702783c339a1ee6"
+  },
+  {
+   "path": "REK_Data/sharedassets0.assets",
+   "kind": "asset_container",
+   "size": 31315504,
+   "sha256": "37f7a476c56caae37f5a04d4fa1acf5954fdc2b90f20f521830369ecff05f355"
+  },
+  {
+   "path": "REK_Data/sharedassets0.assets.resS",
+   "kind": "asset_container",
+   "size": 52276880,
+   "sha256": "49d614cc720229f667ff677f972903be37dc6fb9f8f39cc46f13e6d1b9ec1bfc"
+  },
+  {
+   "path": "REK_Data/sharedassets0.resource",
+   "kind": "asset_container",
+   "size": 69708063,
+   "sha256": "1e8f288a7f05c6e3c5f6b22acd438c35131d606f210457fcb84ff604ccdb724d"
+  },
+  {
+   "path": "REK_Data/sharedassets1.assets",
+   "kind": "asset_container",
+   "size": 4860176,
+   "sha256": "9a780ffcce97bb47744494a0eee0f69bd2cf4d70c6adff7fe0344d06ba119c82"
+  },
+  {
+   "path": "REK_Data/sharedassets1.assets.resS",
+   "kind": "asset_container",
+   "size": 54474640,
+   "sha256": "b7fd3b46b42667fdfab1c3b465ef20398cb00ce58851e3c4659dab4a2de24a68"
+  },
+  {
+   "path": "REK_Data/sharedassets1.resource",
+   "kind": "asset_container",
+   "size": 726944,
+   "sha256": "642cdba7ccb767697c4988f5de2d8bca3fd4b0fbb7852af4d2de4e2d18e5d500"
+  },
+  {
+   "path": "REK_Data/sharedassets2.assets",
+   "kind": "asset_container",
+   "size": 670144,
+   "sha256": "3a17d6dd040c5200d79b6f9453241fb987b253f5c83da9c5e1c0a3f9e29db615"
+  },
+  {
+   "path": "REK_Data/sharedassets2.assets.resS",
+   "kind": "asset_container",
+   "size": 38517184,
+   "sha256": "e973aa1627f96b4cc801806ce9c3ce84be1150f71383bf18e0544a37465dfad8"
+  },
+  {
+   "path": "REK_Data/sharedassets3.assets",
+   "kind": "asset_container",
+   "size": 24681,
+   "sha256": "980d49ee3b7410d77363b78ff3cebe26870c43f30dda0e20d60a8efcd4b73540"
+  },
+  {
+   "path": "REK_Data/Plugins/Steamworks.NET.txt",
+   "kind": "volatile",
+   "size": 243,
+   "sha256": "61b338adccd28fc685c1e242a5a2365591b49c4d3928242a3b58cd73d399f63a"
+  },
+  {
+   "path": "REK_Data/Plugins/ARM64/AppUINativePlugin.dll",
+   "kind": "native_plugin",
+   "size": 53680,
+   "sha256": "e4b3dbd3aba678fa36eb614aea98c4b9a197686394704e8196ff71ec7a8a2ac8"
+  },
+  {
+   "path": "REK_Data/Plugins/ARM64/VivoxNative.dll",
+   "kind": "native_plugin",
+   "size": 735656,
+   "sha256": "dd1b16cc1fa40074f7dc951a62ccd6a0e83054a40f16acde52007ae8e051a6dc"
+  },
+  {
+   "path": "REK_Data/Plugins/ARM64/XRSimulationSubsystem.dll",
+   "kind": "native_plugin",
+   "size": 214528,
+   "sha256": "112dcf44cf903949cf21c04dcda8a41943105aa5bf8c30e0833d9173b45d9226"
+  },
+  {
+   "path": "REK_Data/Plugins/ARM64/vivoxsdk.dll",
+   "kind": "native_plugin",
+   "size": 12233960,
+   "sha256": "5df99d090e90f001c01c3ee668f9f8a1bee2782a9183cc16f4439c19292b2d27"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/AppUINativePlugin.dll",
+   "kind": "native_plugin",
+   "size": 52136,
+   "sha256": "5146c630fba5492b67511befec09bac90618f59d803d245f47a7bf369ccf5e82"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/GPUUtilities.dll",
+   "kind": "native_plugin",
+   "size": 72192,
+   "sha256": "e858bf4514aca48eab762adcecaeda1edeccdddfbe97feb8e67795329b2f37d2"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/TrueAudioNext.dll",
+   "kind": "native_plugin",
+   "size": 1772032,
+   "sha256": "44e94a5de6345ffb2968fb1781e7edaab3ec3d2c0854f93be0bb581b94c5d48c"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/VivoxNative.dll",
+   "kind": "native_plugin",
+   "size": 738736,
+   "sha256": "5c9e1a8d5edfdf399173212665fe4cfc9805cd1ae4e5fa008b5e9d37d6e12c51"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/XRSimulationSubsystem.dll",
+   "kind": "native_plugin",
+   "size": 255488,
+   "sha256": "39c1de1b5222027b2db11b4e1dab95575784cc5d7a1c9deb902b6d0db1db1f26"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/audioplugin_phonon.dll",
+   "kind": "native_plugin",
+   "size": 168960,
+   "sha256": "90aa3e56f459308c4b39ff16bd87f447e8b9f3af35f23106180d0696dcd0064f"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/libUnityARFoundationAndroidXR.dll",
+   "kind": "native_plugin",
+   "size": 359936,
+   "sha256": "31e24fe5193129dcc217c3c4e3f832abc5fdfe50bd2934c9c1177d1c7344c74e"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/lib_burst_generated.dll",
+   "kind": "burst_library",
+   "size": 1951744,
+   "sha256": "60096869d1b07f1917796b784d54c1a0b6f928b63de174d743022373f0d86abc"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/mujoco.dll",
+   "kind": "native_plugin",
+   "size": 3556352,
+   "sha256": "a6f6b6fd6f0cc35923f57fdc43e18a5cfa43b451fc719bfa355c71c745b43eea"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/onnxruntime.dll",
+   "kind": "native_plugin",
+   "size": 14897976,
+   "sha256": "b2ba7ca16e0e4fe71ad5148744ab885a2f5809e52a0c3de4d9ba3853a03977f9"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/onnxruntime_providers_shared.dll",
+   "kind": "native_plugin",
+   "size": 21816,
+   "sha256": "679ca9a81354d15e150f885a3ce1b52e08e05d2f7e8d8cb5fab32be1f1f9eecb"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/phonon.dll",
+   "kind": "native_plugin",
+   "size": 52938752,
+   "sha256": "957e8667d9d5b0e532334ec744c8897c9c09c4ec895d51a4a3faa3c8b033a2af"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/steam_api64.dll",
+   "kind": "native_plugin",
+   "size": 317080,
+   "sha256": "e3fe06e2d802c2f753aeb46869e2af898f34715ce85f08001456fd8a80ecd21e"
+  },
+  {
+   "path": "REK_Data/Plugins/x86_64/vivoxsdk.dll",
+   "kind": "native_plugin",
+   "size": 12713984,
+   "sha256": "33a7f704eda23dda9ccbd9eba1fda2f0589211e9c61ec9d1f9c797acc624ea44"
+  },
+  {
+   "path": "REK_Data/Resources/unity default resources",
+   "kind": "other",
+   "size": 5881648,
+   "sha256": "1fbaff511bdec6cf276529de02215fee9fdcf7298ea9d7c49dc6b984ee73a7f5"
+  },
+  {
+   "path": "REK_Data/Resources/unity_builtin_extra",
+   "kind": "other",
+   "size": 510044,
+   "sha256": "08551f7414e873d6b9a5d2ab22b67a367f1e943aad9a86f39342e96d0b39247c"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/THIRD-PARTY-NOTICES.txt",
+   "kind": "volatile",
+   "size": 2153,
+   "sha256": "03c043a3c8b91ce47170ba7e6560fba58787346083a3348b3fe3b9783a6c2d84"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/UnityServicesProjectConfiguration.json",
+   "kind": "config",
+   "size": 3122,
+   "sha256": "5890f89f1a7b6bd61f53e849d2020cf02cebcbc0abd9004bd139da3f5d213347"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/APVStreamingAssets/224bc33991ee9eb409a329aa17d5a3ad/5cab2a2549137694daeae098b660daed.bytes",
+   "kind": "other",
+   "size": 524288,
+   "sha256": "d8b1f3c245dc0dc147bcd075c41e1baf491dfc3a3a1b21ed1e08aa1bd710b301"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/APVStreamingAssets/224bc33991ee9eb409a329aa17d5a3ad/9649626571e09124fb21ef8a2729f639.bytes",
+   "kind": "other",
+   "size": 32768,
+   "sha256": "a969a075baef6cf8b16df43d670438588b0049280c8a699373c3641eaf1fffce"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/APVStreamingAssets/224bc33991ee9eb409a329aa17d5a3ad/b3dc09073e479fd4e85688896952ca81.bytes",
+   "kind": "other",
+   "size": 131072,
+   "sha256": "d5fb2f0b8b74c5eb9f18cf92739bd6366b78bdf030a852b147b697d0df0e832a"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/APVStreamingAssets/224bc33991ee9eb409a329aa17d5a3ad/cdf0c830a7e97e04bbb51cd9dcafae44.bytes",
+   "kind": "other",
+   "size": 768,
+   "sha256": "17e7461f68229b4f5193be2eae991b18005a6be599842483a2cf7cb05e7b189d"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/APVStreamingAssets/40aece9d142cec74ca7322f5734a5196/39789acbb2d128248ad8e0d6918a8c98.bytes",
+   "kind": "other",
+   "size": 3648,
+   "sha256": "425a8bedfdcd25920aebb303df0ca453d0bd50e7da662f481592fdcae7f01a5b"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/APVStreamingAssets/40aece9d142cec74ca7322f5734a5196/8dafa774185b8de488f4fe47b037902d.bytes",
+   "kind": "other",
+   "size": 262144,
+   "sha256": "7a14c48ddf0708955b2aa6f48efad0bfe3894f91ce1e08211cd2eff41f77b7d9"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/APVStreamingAssets/40aece9d142cec74ca7322f5734a5196/a42c48ca618bce249aaff66417d82ca7.bytes",
+   "kind": "other",
+   "size": 1048576,
+   "sha256": "7e918342f7791fbb99847340955a5ba6b45aa7605d19e03063b33bd76a8ce989"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/APVStreamingAssets/40aece9d142cec74ca7322f5734a5196/b67825b3afc4ed1439e60102d4b7916d.bytes",
+   "kind": "other",
+   "size": 65536,
+   "sha256": "b692068006efe4bccdef1d7f29b522b5c8f4ededb32fcd3c9b79c3f9f9ee088c"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/APVStreamingAssets/e8771dee24500e4409693479de49c2cc/3d0bc662b19bf4941af9788d003fff36.bytes",
+   "kind": "other",
+   "size": 262144,
+   "sha256": "7a14c48ddf0708955b2aa6f48efad0bfe3894f91ce1e08211cd2eff41f77b7d9"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/APVStreamingAssets/e8771dee24500e4409693479de49c2cc/a057954c239aa2d4d8612d2a46812e63.bytes",
+   "kind": "other",
+   "size": 3648,
+   "sha256": "425a8bedfdcd25920aebb303df0ca453d0bd50e7da662f481592fdcae7f01a5b"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/APVStreamingAssets/e8771dee24500e4409693479de49c2cc/a753503aa95e5f646915611bb2ff2920.bytes",
+   "kind": "other",
+   "size": 1048576,
+   "sha256": "7fa0d41d668ef8b641cca1508ad9a3cdf935a356836bb3b261ec5cdcf87f1dca"
+  },
+  {
+   "path": "REK_Data/StreamingAssets/APVStreamingAssets/e8771dee24500e4409693479de49c2cc/d7910b35adead0445aa7b766dd2e99c2.bytes",
+   "kind": "other",
+   "size": 65536,
+   "sha256": "b692068006efe4bccdef1d7f29b522b5c8f4ededb32fcd3c9b79c3f9f9ee088c"
+  },
+  {
+   "path": "REK_Data/UnitySubsystems/UnityOpenXR/UnitySubsystemsManifest.json",
+   "kind": "config",
+   "size": 250,
+   "sha256": "f24892afd62c2eda0bb92457f8356b814baeed5e308b5e95b54dc743ca0f710e"
+  },
+  {
+   "path": "REK_Data/UnitySubsystems/libUnityARFoundationAndroidXR/UnitySubsystemsManifest.json",
+   "kind": "config",
+   "size": 179,
+   "sha256": "49e832fb81c19a60b9b5e525aaaed8b845d0ae6968c69491a568e3a97d38cd2d"
+  },
+  {
+   "path": "REK_Data/il2cpp_data/Metadata/global-metadata.dat",
+   "kind": "il2cpp_metadata",
+   "size": 20648920,
+   "sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd"
+  },
+  {
+   "path": "REK_Data/il2cpp_data/Resources/Newtonsoft.Json.dll-resources.dat",
+   "kind": "other",
+   "size": 900,
+   "sha256": "531de49e73ddea25554c9f656f54da2a665946f3fec57048e0cfe3b9e49b03f8"
+  },
+  {
+   "path": "REK_Data/il2cpp_data/Resources/System.Data.dll-resources.dat",
+   "kind": "other",
+   "size": 93718,
+   "sha256": "98a7950ec6de3242c2e190dfa630188dfa32511a125542b94baa952d1c757d49"
+  },
+  {
+   "path": "REK_Data/il2cpp_data/Resources/System.Drawing.dll-resources.dat",
+   "kind": "other",
+   "size": 25453,
+   "sha256": "7c33aa707bc3fdc83991b81a97d6fc622b140762a767300f08f616c2c0a91255"
+  },
+  {
+   "path": "REK_Data/il2cpp_data/Resources/mscorlib.dll-resources.dat",
+   "kind": "other",
+   "size": 337563,
+   "sha256": "c5baa176a5b72cd545266340e42102d393a5e43d38c95796bc828918bb95277f"
+  }
+ ],
+ "errors": []
+}

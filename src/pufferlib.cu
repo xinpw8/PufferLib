@@ -3,6 +3,7 @@
 #include <nvtx3/nvToolsExt.h>
 #include <nvml.h>
 #include <nccl.h>
+#include <cstdint>
 #include <vector>
 
 #include <time.h>
@@ -104,10 +105,11 @@ struct TrainGraph {
     PrecisionTensor mb_newvalue;
     PrecisionTensor mb_prio;        // (B,)
     PrecisionTensor mb_action_mask; // (B, T, mask_size); .data=nullptr when disabled
+    PrecisionTensor mb_terminals;   // (B, T); external GPU recurrent reset boundaries only
 };
 
 void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, int input_size,
-        int hidden_size, int num_atns, int num_layers, int mask_size) {
+        int hidden_size, int num_atns, int num_layers, int mask_size, bool external_gpu) {
     bufs = (TrainGraph){
         .mb_state =         {.shape = {num_layers, B, hidden_size}},
         .mb_obs =           {.shape = {B, T, input_size}},
@@ -120,6 +122,7 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, in
         .mb_newvalue =      {.shape = {B, T}},
         .mb_prio =          {.shape = {B}},
         .mb_action_mask =   {},
+        .mb_terminals =     {},
     };
     alloc_register(alloc, &bufs.mb_obs);
     alloc_register(alloc, &bufs.mb_state);
@@ -134,6 +137,10 @@ void register_train_buffers(TrainGraph& bufs, Allocator* alloc, int B, int T, in
     if (mask_size > 0) {
         bufs.mb_action_mask = {.shape = {B, T, mask_size}};
         alloc_register(alloc, &bufs.mb_action_mask);
+    }
+    if (external_gpu) {
+        bufs.mb_terminals = {.shape = {B, T}};
+        alloc_register(alloc, &bufs.mb_terminals);
     }
 }
 
@@ -240,7 +247,14 @@ struct EnvBuf {
 
 StaticVec* create_environments(int num_buffers, int total_agents,
         const std::string& env_name, Dict* vec_kwargs, Dict* env_kwargs, EnvBuf& env) {
-    StaticVec* vec = create_static_vec(total_agents, num_buffers, 1, vec_kwargs, env_kwargs);
+    DictItem* external_item = dict_get_unsafe(vec_kwargs, "external_gpu");
+    bool external_gpu = external_item != nullptr && external_item->value != 0.0;
+    StaticVec* vec = external_gpu
+        ? create_external_gpu_vec(total_agents, num_buffers, vec_kwargs)
+        : create_static_vec(total_agents, num_buffers, 1, vec_kwargs, env_kwargs);
+    if (vec == nullptr) {
+        throw std::runtime_error("failed to create CUDA environment buffers");
+    }
     env.obs = {
         .data = (decltype(env.obs.data))vec->gpu_observations,
         .shape = {total_agents, get_obs_size()},
@@ -279,6 +293,9 @@ typedef struct {
     float replay_ratio;
     long total_timesteps;
     float max_grad_norm;
+    // Positive values symmetrically clamp rewards before advantage estimation.
+    // Zero disables the legacy reward clamp.
+    float reward_clip;
     // PPO
     float clip_coef;
     float vf_clip_coef;
@@ -300,6 +317,7 @@ typedef struct {
     float prio_beta0;
     // Flags
     bool reset_state;
+    bool greedy_evaluation = false;
     int cudagraphs;
     bool profile;
     // Multi-GPU
@@ -382,6 +400,17 @@ typedef struct {
     // worker thread only writes inside its own physical chunk.
     // Bank 0 = primary (learner). NULL = no layout set (primary owns full chunk).
     int* bank_layout;
+    bool external_rollout_active;
+    int external_rollout_next_step;
+    cudaStream_t external_rollout_stream;
+    // The final external env.step occurs after the last stored policy row.
+    // Retain its outcome and next-observation value without taking another action.
+    PrecisionTensor external_bootstrap_obs;
+    PrecisionTensor external_bootstrap_state;
+    PrecisionTensor external_bootstrap_values;
+    PrecisionTensor external_bootstrap_rewards;
+    PrecisionTensor external_bootstrap_terminals;
+    bool external_bootstrap_ready;
 } PuffeRL;
 
 Dict* log_environments_impl(PuffeRL& pufferl) {
@@ -414,6 +443,86 @@ __global__ void rng_init(curandStatePhilox4_32_10_t* states, uint64_t seed, int 
     if (idx < n) {
         curand_init(seed, idx, 0, &states[idx]);
     }
+}
+
+__global__ void reset_recurrent_rows(
+        precision_t* state, const float* terminals,
+        int num_layers, int agents, int hidden_size) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int count = num_layers * agents * hidden_size;
+    if (index >= count) {
+        return;
+    }
+    int agent = (index / hidden_size) % agents;
+    if (terminals[agent] != 0.0f) {
+        state[index] = from_float(0.0f);
+    }
+}
+
+static void reset_external_terminal_states(PuffeRL& pufferl, cudaStream_t stream) {
+    int hidden = pufferl.hypers.hidden_size;
+    int layers = pufferl.hypers.num_layers;
+    PrecisionTensor& primary_state = pufferl.buffer_states[0];
+    int primary_agents = primary_state.shape[1];
+    int primary_count = layers * primary_agents * hidden;
+    reset_recurrent_rows<<<grid_size(primary_count), BLOCK_SIZE, 0, stream>>>(
+        primary_state.data, pufferl.env.terminals.data,
+        layers, primary_agents, hidden);
+
+    for (int bank_index = 0; bank_index < pufferl.num_frozen_banks; bank_index++) {
+        WeightBank& bank = pufferl.frozen_banks[bank_index];
+        PrecisionTensor& bank_state = bank.buffer_states[0];
+        int terminal_offset = pufferl.bank_layout == nullptr
+            ? 0 : pufferl.bank_layout[bank_index + 1];
+        int bank_count = bank.num_layers * bank.slice_size * bank.hidden_size;
+        reset_recurrent_rows<<<grid_size(bank_count), BLOCK_SIZE, 0, stream>>>(
+            bank_state.data, pufferl.env.terminals.data + terminal_offset,
+            bank.num_layers, bank.slice_size, bank.hidden_size);
+    }
+}
+
+__global__ void count_nonzero_recurrent_state_kernel(
+        const precision_t* state, int count, unsigned long long* result) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < count && to_float(state[index]) != 0.0f) {
+        atomicAdd(result, 1ULL);
+    }
+}
+
+uint64_t external_recurrent_state_nonzero_count(PuffeRL& pufferl) {
+    if (!pufferl.vec->external_gpu) {
+        throw std::runtime_error(
+            "recurrent-state inspection requires vec.external_gpu=1");
+    }
+    cudaStream_t stream = pufferl.default_stream;
+    unsigned long long* device_count = nullptr;
+    cudaMalloc(&device_count, sizeof(unsigned long long));
+    cudaMemsetAsync(device_count, 0, sizeof(unsigned long long), stream);
+    for (int buffer = 0; buffer < pufferl.hypers.num_buffers; buffer++) {
+        PrecisionTensor& state = pufferl.buffer_states[buffer];
+        int count = numel(state.shape);
+        count_nonzero_recurrent_state_kernel<<<
+            grid_size(count), BLOCK_SIZE, 0, stream>>>(
+            state.data, count, device_count);
+    }
+    for (int bank_index = 0;
+            bank_index < pufferl.num_frozen_banks; bank_index++) {
+        WeightBank& bank = pufferl.frozen_banks[bank_index];
+        for (int buffer = 0; buffer < pufferl.hypers.num_buffers; buffer++) {
+            PrecisionTensor& state = bank.buffer_states[buffer];
+            int count = numel(state.shape);
+            count_nonzero_recurrent_state_kernel<<<
+                grid_size(count), BLOCK_SIZE, 0, stream>>>(
+                state.data, count, device_count);
+        }
+    }
+    unsigned long long host_count = 0;
+    cudaMemcpyAsync(
+        &host_count, device_count, sizeof(host_count),
+        cudaMemcpyDeviceToHost, stream);
+    cudaStreamSynchronize(stream);
+    cudaFree(device_count);
+    return (uint64_t)host_count;
 }
 
 __device__ __forceinline__ float safe_logit(const precision_t* logits,
@@ -458,6 +567,7 @@ __device__ __forceinline__ float masked_logit(const precision_t* logits,
 }
 
 // Expects action logits and values to be in the same contiguous buffer. See default decoder
+template<bool GREEDY = false>
 __global__ void sample_logits(
         PrecisionTensor dec_out,              // (B, logits_dim + 1 for values)
         PrecisionTensor logstd_puf,           // (1, od) - continuous actions only
@@ -502,7 +612,7 @@ __global__ void sample_logits(
             float std = expf(log_std);
 
             // Sample from N(0,1) and transform: action = mean + std * noise
-            float noise = curand_normal(&state);
+            float noise = GREEDY ? 0.0f : curand_normal(&state);
             float action = finite_or_clamp(mean + std * noise, -1.0e6f, 1.0e6f);
 
             precision_t stored_action_p = from_float(action);
@@ -536,12 +646,26 @@ __global__ void sample_logits(
             float logsumexp = max_val + logf(sum_exp);
 
             // Step 3: Generate random value for this action head
-            float rand_val = curand_uniform(&state);
+            float rand_val = GREEDY ? 0.0f : curand_uniform(&state);
 
             // Step 4: Multinomial sampling using inverse CDF
             float cumsum = 0.0f;
             int sampled_action = -1;  // sentinel: no action chosen yet
 
+            if constexpr (GREEDY) {
+                float best = -INFINITY;
+                for (int a = 0; a < A; ++a) {
+                    if (action_mask != nullptr
+                            && to_float(action_mask[mask_base + logits_offset + a]) == 0.0f) {
+                        continue;
+                    }
+                    float l = safe_logit(logits, logits_base, logits_offset, a);
+                    if (sampled_action < 0 || l > best) {
+                        sampled_action = a;
+                        best = l;
+                    }
+                }
+            } else {
             for (int a = 0; a < A; ++a) {
                 float l = masked_logit(logits, logits_base, logits_offset, a, action_mask, mask_base);
                 float prob = expf(l - logsumexp);
@@ -550,6 +674,7 @@ __global__ void sample_logits(
                     sampled_action = a;
                     break;
                 }
+            }
             }
 
             // Float rounding can leave cumsum < 1.0; fall back to the last legal action.
@@ -695,11 +820,19 @@ extern "C" void net_callback_wrapper(void* ctx, int buf, int t) {
         }
 
         // Offset RNG by bank_off so banks don't collide on per-buffer rng slots.
-        sample_logits<<<grid_size(bank_size), BLOCK_SIZE, 0, stream>>>(
-            dec_puf, p_logstd, pufferl->act_sizes_puf,
-            act_b.data, lp_b.data, val_b.data,
-            pufferl->rng_states[buf] + bank_off,
-            mask_b.data, mask_stride_b);
+        if (hypers.greedy_evaluation) {
+            sample_logits<true><<<grid_size(bank_size), BLOCK_SIZE, 0, stream>>>(
+                dec_puf, p_logstd, pufferl->act_sizes_puf,
+                act_b.data, lp_b.data, val_b.data,
+                pufferl->rng_states[buf] + bank_off,
+                mask_b.data, mask_stride_b);
+        } else {
+            sample_logits<false><<<grid_size(bank_size), BLOCK_SIZE, 0, stream>>>(
+                dec_puf, p_logstd, pufferl->act_sizes_puf,
+                act_b.data, lp_b.data, val_b.data,
+                pufferl->rng_states[buf] + bank_off,
+                mask_b.data, mask_stride_b);
+        }
 
         cast<<<grid_size(numel(act_b.shape)), BLOCK_SIZE, 0, stream>>>(
                 env.actions.data + (long)sub_start * act_cols,
@@ -716,6 +849,147 @@ extern "C" void net_callback_wrapper(void* ctx, int buf, int t) {
         cudaDeviceSynchronize();
     }
     profile_end(hypers.profile);
+}
+
+void external_rollout_begin(PuffeRL& pufferl, cudaStream_t stream) {
+    if (!pufferl.vec->external_gpu) {
+        throw std::runtime_error(
+            "external_rollout_begin requires vec.external_gpu=1");
+    }
+    if (pufferl.external_rollout_active) {
+        throw std::runtime_error("external rollout is already active");
+    }
+    pufferl.external_rollout_active = true;
+    pufferl.external_bootstrap_ready = false;
+    pufferl.external_rollout_next_step = 0;
+    pufferl.external_rollout_stream = stream;
+    pufferl.default_stream = stream;
+    if (pufferl.hypers.reset_state) {
+        for (int index = 0; index < pufferl.hypers.num_buffers; index++) {
+            puf_zero(&pufferl.buffer_states[index], stream);
+        }
+        for (int bank_index = 0;
+                bank_index < pufferl.num_frozen_banks; bank_index++) {
+            WeightBank& bank = pufferl.frozen_banks[bank_index];
+            for (int index = 0;
+                    index < pufferl.hypers.num_buffers; index++) {
+                puf_zero(&bank.buffer_states[index], stream);
+            }
+        }
+    }
+}
+
+void external_rollout_step(
+        PuffeRL& pufferl, int step, cudaStream_t stream) {
+    if (!pufferl.external_rollout_active) {
+        throw std::runtime_error("external rollout has not begun");
+    }
+    if (stream != pufferl.external_rollout_stream) {
+        throw std::runtime_error("external rollout CUDA stream changed mid-horizon");
+    }
+    if (step != pufferl.external_rollout_next_step
+            || step < 0 || step >= pufferl.hypers.horizon) {
+        throw std::runtime_error("external rollout step is out of sequence");
+    }
+    reset_external_terminal_states(pufferl, stream);
+    tl_stream = stream;
+    net_callback_wrapper(&pufferl, 0, step);
+    pufferl.external_rollout_next_step++;
+}
+
+__global__ void external_actions_to_int32_kernel(
+        const float* source, int32_t* destination, int count) {
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < count) {
+        destination[index] = (int32_t)source[index];
+    }
+}
+
+void external_actions_to_int32(
+        PuffeRL& pufferl, int32_t* destination, cudaStream_t stream) {
+    if (!pufferl.external_rollout_active) {
+        throw std::runtime_error("external rollout has not begun");
+    }
+    if (stream != pufferl.external_rollout_stream) {
+        throw std::runtime_error("external rollout CUDA stream changed mid-horizon");
+    }
+    if (destination == nullptr) {
+        throw std::runtime_error("external integer action buffer is null");
+    }
+    int count = numel(pufferl.env.actions.shape);
+    external_actions_to_int32_kernel<<<
+        grid_size(count), BLOCK_SIZE, 0, stream>>>(
+        pufferl.env.actions.data, destination, count);
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        throw std::runtime_error(
+            std::string("external action conversion launch failed: ")
+            + cudaGetErrorString(error));
+    }
+}
+
+__global__ void external_bootstrap_value_kernel(
+        PrecisionTensor decoder, precision_t* values) {
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row < decoder.shape[0]) {
+        int cols = decoder.shape[1];
+        values[row] = decoder.data[row * cols + cols - 1];
+    }
+}
+
+static void external_rollout_bootstrap(PuffeRL& pufferl, cudaStream_t stream) {
+    int rows = pufferl.hypers.total_agents;
+    cast<<<grid_size(rows), BLOCK_SIZE, 0, stream>>>(
+        pufferl.external_bootstrap_rewards.data, pufferl.env.rewards.data, rows);
+    cast<<<grid_size(rows), BLOCK_SIZE, 0, stream>>>(
+        pufferl.external_bootstrap_terminals.data, pufferl.env.terminals.data, rows);
+    int obs_count = numel(pufferl.external_bootstrap_obs.shape);
+    cast<<<grid_size(obs_count), BLOCK_SIZE, 0, stream>>>(
+        pufferl.external_bootstrap_obs.data, pufferl.env.obs.data, obs_count);
+
+    // Only the primary bank is learned. Frozen-bank advantages are zeroed in
+    // train_impl, and their bootstrap values need no additional inference.
+    PrecisionTensor state = pufferl.external_bootstrap_state;
+    memcpy(state.shape, pufferl.buffer_states[0].shape, sizeof(state.shape));
+    if (pufferl.hypers.reset_state) {
+        // Match the next external_rollout_begin, including horizon memory reset.
+        puf_zero(&state, stream);
+    } else {
+        puf_copy(&state, &pufferl.buffer_states[0], stream);
+    }
+    int primary_rows = state.shape[1];
+    int state_count = numel(state.shape);
+    reset_recurrent_rows<<<grid_size(state_count), BLOCK_SIZE, 0, stream>>>(
+        state.data, pufferl.env.terminals.data,
+        state.shape[0], primary_rows, state.shape[2]);
+    PrecisionTensor obs = pufferl.external_bootstrap_obs;
+    obs.shape[0] = primary_rows;
+    puf_zero(&pufferl.external_bootstrap_values, stream);
+    PrecisionTensor decoder = policy_forward(
+        &pufferl.policy, pufferl.weights, pufferl.buffer_activations[0], obs, state, stream);
+    external_bootstrap_value_kernel<<<grid_size(primary_rows), BLOCK_SIZE, 0, stream>>>(
+        decoder, pufferl.external_bootstrap_values.data);
+    // Scratch state and inference activations may change; live recurrent state,
+    // action buffers, rollout rows and sampling RNG are untouched.
+    pufferl.external_bootstrap_ready = true;
+}
+
+void external_rollout_finish(PuffeRL& pufferl, cudaStream_t stream) {
+    if (!pufferl.external_rollout_active) {
+        throw std::runtime_error("external rollout has not begun");
+    }
+    if (stream != pufferl.external_rollout_stream) {
+        throw std::runtime_error("external rollout CUDA stream changed mid-horizon");
+    }
+    if (pufferl.external_rollout_next_step != pufferl.hypers.horizon) {
+        throw std::runtime_error("external rollout ended before its horizon");
+    }
+    external_rollout_bootstrap(pufferl, stream);
+    pufferl.global_step +=
+        pufferl.hypers.horizon * pufferl.hypers.total_agents;
+    pufferl.external_rollout_active = false;
+    pufferl.external_rollout_next_step = 0;
+    pufferl.external_rollout_stream = nullptr;
 }
 
 
@@ -1260,18 +1534,23 @@ void prio_replay_cuda(PrecisionTensor& advantages, float prio_alpha,
 __device__ void puff_advantage_row_scalar(
         const precision_t* values, const precision_t* rewards, const precision_t* dones,
         const precision_t* importance, precision_t* advantages, float gamma, float lambda,
-        float rho_clip, float c_clip, int horizon) {
+        float rho_clip, float c_clip, int horizon, bool has_bootstrap = false,
+        float final_value = 0, float final_reward = 0, float final_done = 0) {
     float lastpufferlam = 0;
-    for (int t = horizon-2; t >= 0; t--) {
+    for (int t = horizon - (has_bootstrap ? 1 : 2); t >= 0; t--) {
         int t_next = t + 1;
-        float nextnonterminal = 1.0f - to_float(dones[t_next]);
+        bool boundary = t_next == horizon;
+        float nextnonterminal = 1.0f - (boundary ? final_done : to_float(dones[t_next]));
         float imp = to_float(importance[t]);
         float rho_t = fminf(imp, rho_clip);
         float c_t = fminf(imp, c_clip);
-        float r_nxt = to_float(rewards[t_next]);
+        float r_nxt = boundary ? final_reward : to_float(rewards[t_next]);
         float v = to_float(values[t]);
-        float v_nxt = to_float(values[t_next]);
-        float delta = rho_t*r_nxt + gamma*v_nxt*nextnonterminal - v;
+        float v_nxt = boundary ? final_value : to_float(values[t_next]);
+        // Preserve the legacy scalar path; external mode matches the vector
+        // V-trace formula, multiplying the complete TD residual by rho.
+        float delta = has_bootstrap ? rho_t * (r_nxt + gamma*v_nxt*nextnonterminal - v)
+                                    : rho_t*r_nxt + gamma*v_nxt*nextnonterminal - v;
         lastpufferlam = delta + gamma*lambda*c_t*lastpufferlam*nextnonterminal;
         advantages[t] = from_float(lastpufferlam);
     }
@@ -1309,15 +1588,16 @@ __device__ __forceinline__ void adv_vec_store(__nv_bfloat16* ptr, const float* v
 __device__ __forceinline__ void puff_advantage_row_vec(
         const precision_t* values, const precision_t* rewards, const precision_t* dones,
         const precision_t* importance, precision_t* advantages, float gamma, float lambda,
-        float rho_clip, float c_clip, int horizon) {
+        float rho_clip, float c_clip, int horizon, bool has_bootstrap = false,
+        float final_value = 0, float final_reward = 0, float final_done = 0) {
     constexpr int N = 16 / sizeof(precision_t);
 
     float lastpufferlam = 0.0f;
     int num_chunks = horizon / N;
 
-    float next_value = to_float(values[horizon - 1]);
-    float next_done = to_float(dones[horizon - 1]);
-    float next_reward = to_float(rewards[horizon - 1]);
+    float next_value = has_bootstrap ? final_value : to_float(values[horizon - 1]);
+    float next_done = has_bootstrap ? final_done : to_float(dones[horizon - 1]);
+    float next_reward = has_bootstrap ? final_reward : to_float(rewards[horizon - 1]);
 
     for (int chunk = num_chunks - 1; chunk >= 0; chunk--) {
         int base = chunk * N;
@@ -1329,7 +1609,7 @@ __device__ __forceinline__ void puff_advantage_row_vec(
         adv_vec_load(importance + base, imp);
 
         float adv[N] = {0};
-        int start_idx = (chunk == num_chunks - 1) ? (N - 2) : (N - 1);
+        int start_idx = (chunk == num_chunks - 1 && !has_bootstrap) ? (N - 2) : (N - 1);
 
         #pragma unroll
         for (int i = start_idx; i >= 0; i--) {
@@ -1350,38 +1630,47 @@ __device__ __forceinline__ void puff_advantage_row_vec(
 
 __global__ void puff_advantage(const precision_t* values, const precision_t* rewards,
         const precision_t* dones, const precision_t* importance, precision_t* advantages, float gamma,
-        float lambda, float rho_clip, float c_clip, int num_steps, int horizon) {
+        float lambda, float rho_clip, float c_clip, int num_steps, int horizon,
+        const precision_t* final_values, const precision_t* final_rewards, const precision_t* final_dones) {
     int row = blockIdx.x*blockDim.x + threadIdx.x;
     if (row >= num_steps) {
         return;
     }
     int offset = row*horizon;
     puff_advantage_row_vec(values + offset, rewards + offset, dones + offset,
-        importance + offset, advantages + offset, gamma, lambda, rho_clip, c_clip, horizon);
+        importance + offset, advantages + offset, gamma, lambda, rho_clip, c_clip, horizon,
+        final_values != nullptr, final_values ? to_float(final_values[row]) : 0,
+        final_rewards ? to_float(final_rewards[row]) : 0, final_dones ? to_float(final_dones[row]) : 0);
 }
 
 __global__ void puff_advantage_scalar(const precision_t* values, const precision_t* rewards,
         const precision_t* dones, const precision_t* importance, precision_t* advantages, float gamma,
-        float lambda, float rho_clip, float c_clip, int num_steps, int horizon) {
+        float lambda, float rho_clip, float c_clip, int num_steps, int horizon,
+        const precision_t* final_values, const precision_t* final_rewards, const precision_t* final_dones) {
     int row = blockIdx.x*blockDim.x + threadIdx.x;
     if (row >= num_steps) {
         return;
     }
     int offset = row*horizon;
     puff_advantage_row_scalar(values + offset, rewards + offset, dones + offset,
-        importance + offset, advantages + offset, gamma, lambda, rho_clip, c_clip, horizon);
+        importance + offset, advantages + offset, gamma, lambda, rho_clip, c_clip, horizon,
+        final_values != nullptr, final_values ? to_float(final_values[row]) : 0,
+        final_rewards ? to_float(final_rewards[row]) : 0, final_dones ? to_float(final_dones[row]) : 0);
 }
 
 void puff_advantage_cuda(PrecisionTensor& values, PrecisionTensor& rewards,
         PrecisionTensor& dones, PrecisionTensor& importance, PrecisionTensor& advantages,
-        float gamma, float lambda, float rho_clip, float c_clip, cudaStream_t stream) {
+        float gamma, float lambda, float rho_clip, float c_clip, cudaStream_t stream,
+        const precision_t* final_values = nullptr, const precision_t* final_rewards = nullptr,
+        const precision_t* final_dones = nullptr) {
     int num_steps = values.shape[0], horizon = values.shape[1];
     int blocks = grid_size(num_steps);
     constexpr int N = 16 / sizeof(precision_t);
     auto kernel = (horizon % N == 0) ? puff_advantage : puff_advantage_scalar;
     kernel<<<blocks, 256, 0, stream>>>(
         values.data, rewards.data, dones.data, importance.data,
-        advantages.data, gamma, lambda, rho_clip, c_clip, num_steps, horizon);
+        advantages.data, gamma, lambda, rho_clip, c_clip, num_steps, horizon,
+        final_values, final_rewards, final_dones);
 }
 
 // Zero advantages on frozen-bank rows so prio_replay never samples them. Frozen
@@ -1480,6 +1769,13 @@ __global__ void select_copy(RolloutBuf rollouts, TrainGraph graph,
                        (char*)graph.mb_action_mask.data, src_row, mb, mask_row_bytes);
         }
         break;
+    case 6:
+        if (graph.mb_terminals.data != nullptr) {
+            copy_bytes((const char*)rollouts.terminals.data,
+                       (char*)graph.mb_terminals.data, src_row, mb,
+                       horizon * sizeof(precision_t));
+        }
+        break;
     }
 }
 
@@ -1526,9 +1822,16 @@ void train_impl(PuffeRL& pufferl) {
             rollouts.action_mask.data, src.action_mask.data, T, B, mask_size);
     }
 
-    // We hard-clamp rewards to -1, 1. Our envs are mostly designed to respect this range
-    clamp_precision_kernel<<<grid_size(numel(rollouts.rewards.shape)), BLOCK_SIZE, 0, train_stream>>>(
-        rollouts.rewards.data, -1.0f, 1.0f, numel(rollouts.rewards.shape));
+    if (hypers.reward_clip > 0.0f) {
+        clamp_precision_kernel<<<grid_size(numel(rollouts.rewards.shape)), BLOCK_SIZE, 0, train_stream>>>(
+            rollouts.rewards.data, -hypers.reward_clip, hypers.reward_clip,
+            numel(rollouts.rewards.shape));
+        if (pufferl.external_bootstrap_ready) {
+            clamp_precision_kernel<<<grid_size(hypers.total_agents), BLOCK_SIZE, 0, train_stream>>>(
+                pufferl.external_bootstrap_rewards.data, -hypers.reward_clip,
+                hypers.reward_clip, hypers.total_agents);
+        }
+    }
 
     // Set importance weights to 1.0
     fill_precision_kernel<<<grid_size(numel(rollouts.ratio.shape)), BLOCK_SIZE, 0, train_stream>>>(
@@ -1565,6 +1868,8 @@ void train_impl(PuffeRL& pufferl) {
     // Annealed priority exponent
     float anneal_beta = prio_beta0 + (1.0f - prio_beta0) * prio_alpha * (float)current_epoch/(float)total_epochs;
     TrainGraph& graph = pufferl.train_buf;
+    policy_set_training_terminals(&pufferl.policy, pufferl.train_activations,
+                                  graph.mb_terminals.data);
     cudaEventRecord(pufferl.profile.events[1]);  // pre-loop end
 
     int total_minibatches = hypers.replay_ratio * batch_size / hypers.minibatch_size;
@@ -1575,7 +1880,10 @@ void train_impl(PuffeRL& pufferl) {
         profile_begin("compute_advantage", hypers.profile);
         puff_advantage_cuda(rollouts.values, rollouts.rewards, rollouts.terminals,
             rollouts.ratio, advantages_puf, hypers.gamma, hypers.gae_lambda,
-            hypers.vtrace_rho_clip, hypers.vtrace_c_clip, train_stream);
+            hypers.vtrace_rho_clip, hypers.vtrace_c_clip, train_stream,
+            pufferl.external_bootstrap_ready ? pufferl.external_bootstrap_values.data : nullptr,
+            pufferl.external_bootstrap_ready ? pufferl.external_bootstrap_rewards.data : nullptr,
+            pufferl.external_bootstrap_ready ? pufferl.external_bootstrap_terminals.data : nullptr);
         if (pufferl.num_frozen_banks > 0 && pufferl.bank_layout != NULL) {
             int apb = hypers.total_agents / hypers.num_buffers;
             zero_frozen_advantages_cuda(advantages_puf, apb,
@@ -1597,7 +1905,8 @@ void train_impl(PuffeRL& pufferl) {
             RolloutBuf sel_src = rollouts;
             sel_src.values = rollouts.values;
             int mb_segs = pufferl.prio_bufs.idx.shape[0];
-            int channels = (graph.mb_action_mask.data != nullptr) ? 6 : 5;
+            int channels = graph.mb_terminals.data != nullptr ? 7
+                : ((graph.mb_action_mask.data != nullptr) ? 6 : 5);
             select_copy<<<dim3(mb_segs, channels), SELECT_COPY_THREADS, 0, train_stream>>>(
                 sel_src, graph, pufferl.prio_bufs.idx.data,
                 advantages_puf.data, pufferl.prio_bufs.mb_prio.data);
@@ -2022,9 +2331,22 @@ std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
     int mask_size = pufferl->vec->action_mask_size;
     register_rollout_buffers(pufferl->rollouts,
         acts, horizon, total_agents, input_size, num_action_heads, mask_size);
+    if (pufferl->vec->external_gpu) {
+        pufferl->external_bootstrap_obs = {.shape = {total_agents, input_size}};
+        pufferl->external_bootstrap_state = {.shape = {num_layers, total_agents, hidden_size}};
+        pufferl->external_bootstrap_values = {.shape = {total_agents}};
+        pufferl->external_bootstrap_rewards = {.shape = {total_agents}};
+        pufferl->external_bootstrap_terminals = {.shape = {total_agents}};
+        alloc_register(acts, &pufferl->external_bootstrap_obs);
+        alloc_register(acts, &pufferl->external_bootstrap_state);
+        alloc_register(acts, &pufferl->external_bootstrap_values);
+        alloc_register(acts, &pufferl->external_bootstrap_rewards);
+        alloc_register(acts, &pufferl->external_bootstrap_terminals);
+    }
     register_train_buffers(pufferl->train_buf,
         acts, minibatch_segments, horizon, input_size,
-        hidden_size, num_action_heads, num_layers, mask_size);
+        hidden_size, num_action_heads, num_layers, mask_size,
+        pufferl->vec->external_gpu && pufferl->policy.network.forward_train == mingru_forward_train);
     register_rollout_buffers(pufferl->train_rollouts,
         acts, total_agents, horizon, input_size, num_action_heads, mask_size);
     register_ppo_buffers(pufferl->ppo_bufs_puf,
@@ -2198,9 +2520,28 @@ std::unique_ptr<PuffeRL> create_pufferl_impl(HypersT& hypers,
         }
     }
 
-    create_static_threads(vec, hypers.num_threads, horizon, pufferl.get(),
-        net_callback_wrapper, thread_init_wrapper);
-    static_vec_reset(vec);
+    // Init-time CUDA graph warmup advances recurrent state. External GPU
+    // callers can legitimately preserve state across horizons, so their first
+    // real rollout must still begin from the documented zero state.
+    if (vec->external_gpu) {
+        for (int buffer = 0; buffer < hypers.num_buffers; buffer++) {
+            puf_zero(&pufferl->buffer_states[buffer], pufferl->default_stream);
+        }
+        for (int bank_index = 0;
+                bank_index < pufferl->num_frozen_banks; bank_index++) {
+            WeightBank& bank = pufferl->frozen_banks[bank_index];
+            for (int buffer = 0; buffer < hypers.num_buffers; buffer++) {
+                puf_zero(&bank.buffer_states[buffer], pufferl->default_stream);
+            }
+        }
+        cudaStreamSynchronize(pufferl->default_stream);
+    }
+
+    if (!vec->external_gpu) {
+        create_static_threads(vec, hypers.num_threads, horizon, pufferl.get(),
+            net_callback_wrapper, thread_init_wrapper);
+        static_vec_reset(vec);
+    }
 
     if (hypers.profile) {
         cudaDeviceSynchronize();
@@ -2221,9 +2562,15 @@ void close_impl(PuffeRL& pufferl) {
         cudaProfilerStop();
     }
 
-    cudaGraphExecDestroy(pufferl.train_cudagraph);
-    for (int i = 0; i < pufferl.hypers.horizon * pufferl.hypers.num_buffers; i++) {
-        cudaGraphExecDestroy(pufferl.fused_rollout_cudagraphs[i]);
+    if (pufferl.train_cudagraph != nullptr) {
+        cudaGraphExecDestroy(pufferl.train_cudagraph);
+    }
+    if (pufferl.fused_rollout_cudagraphs != nullptr) {
+        for (int i = 0; i < pufferl.hypers.horizon * pufferl.hypers.num_buffers; i++) {
+            if (pufferl.fused_rollout_cudagraphs[i] != nullptr) {
+                cudaGraphExecDestroy(pufferl.fused_rollout_cudagraphs[i]);
+            }
+        }
     }
 
     policy_weights_free(&pufferl.policy, &pufferl.weights);

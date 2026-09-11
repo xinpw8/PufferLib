@@ -1,0 +1,585 @@
+{
+  "schema": "rek.g1_sonic_policy_contract.v1",
+  "scope": {
+    "authority": "decoded TextAssets from the named non-Steam staging build only",
+    "current_steam_authority": false,
+    "source_root": "C:/rekagent/rek-agent-build",
+    "build_info": {
+      "branch": "release",
+      "commit": "6e9ac99b2440-dirty",
+      "build_source": "cli-build",
+      "build_time_utc": "2026-07-18T14:07:18Z"
+    },
+    "native_isil_reference": {
+      "same_as_contract_build": false,
+      "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+      "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+      "defaults": {
+        "command_lpf_cutoff_hz": 50.0,
+        "source": "SonicPolicyRunner.txt constructor, native RVA 0x23DC760"
+      }
+    },
+    "current_steam_build": {
+      "source_root": "C:/Program Files (x86)/Steam/steamapps/common/REK Alpha Test",
+      "same_as_native_isil_inputs": true,
+      "build_info": {
+        "branch": "release",
+        "commit": "3d0affacb8ed-dirty",
+        "build_source": "cli-build",
+        "build_time_utc": "2026-08-27T06:35:11Z",
+        "text_asset_sha256": "ec6e0800eea06eabb79c9297c030a8c1e61a6a5ccc58ddf82cb5ebdb33bd2f4b"
+      },
+      "files": {
+        "rek_exe": {
+          "bytes": 667648,
+          "sha256": "5fe6a5c3da371cb7b75a1795eb073b2e69ec718197cf68826bdcd461dcd986c1"
+        },
+        "game_assembly": {
+          "bytes": 93300224,
+          "sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412"
+        },
+        "global_metadata": {
+          "bytes": 20648920,
+          "sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd"
+        },
+        "sharedassets1": {
+          "bytes": 4860176,
+          "sha256": "9a780ffcce97bb47744494a0eee0f69bd2cf4d70c6adff7fe0344d06ba119c82"
+        }
+      },
+      "sonic_text_assets": {
+        "present_in_top_level_unity_containers": false,
+        "searched_names": [
+          "sonic_config",
+          "model_encoder.onnx",
+          "model_decoder.onnx"
+        ]
+      }
+    }
+  },
+  "parser": {
+    "name": "UnityPy",
+    "version": "1.25.2"
+  },
+  "files": {
+    "rek_exe": {
+      "path": "REK.exe",
+      "bytes": 667648,
+      "sha256": "d6c5723dce4300e5904154e234784ff8f2fb36041b514a354638a05061a76c21"
+    },
+    "game_assembly": {
+      "path": "GameAssembly.dll",
+      "bytes": 92014080,
+      "sha256": "90ab0339baab511c33f1100deaa85d70060c0cf291e3b9dc13c71a0814e8955b"
+    },
+    "global_metadata": {
+      "path": "REK_Data/il2cpp_data/Metadata/global-metadata.dat",
+      "bytes": 21726524,
+      "sha256": "01c5999bc51b4c8c92672119419f0b8e377fcaa468deb120451134492e1d9b7b"
+    },
+    "source_container": {
+      "path": "REK_Data/sharedassets1.assets",
+      "bytes": 104084608,
+      "sha256": "a47d6fc85303142975ae825bb5fb7a893d2026efdadc4600e5252fe17547cd9b"
+    }
+  },
+  "text_assets": [
+    {
+      "path_id": 186,
+      "name": "model_decoder.onnx",
+      "bytes": 40900688,
+      "sha256": "c7241a123eaa36b5d64bad19540efde93cac1ad443bd4572fd12ca99898118ed",
+      "payload_committed": false
+    },
+    {
+      "path_id": 187,
+      "name": "sonic_config",
+      "bytes": 11880,
+      "sha256": "9e8e18d763adfdce094ece2061a42acf4b48e43f89b62ccea3d8b7ba25c2a355",
+      "payload_committed": true
+    },
+    {
+      "path_id": 188,
+      "name": "model_encoder.onnx",
+      "bytes": 50100513,
+      "sha256": "013ab0287236aa2721e13f1e936d699db982302d0de0bfcdae76d5c3245362d3",
+      "payload_committed": false
+    }
+  ],
+  "config": {
+    "schema_version": "1.0",
+    "robot_name": "g1",
+    "timing": {
+      "physics_dt": 0.02,
+      "planner_rate_hz": 10,
+      "controller_rate_hz": 50,
+      "planner_output_rate_hz": 30,
+      "planner_blend_frames": 8,
+      "planner_look_ahead_steps": 2
+    },
+    "action": {
+      "clip_actions": 100.0
+    },
+    "encoder": {
+      "mode": 0,
+      "token_dimension": 64,
+      "input_tensor_name": "obs_dict",
+      "output_tensor_name": "encoded_tokens",
+      "mode_encoding": "raw_int_padded",
+      "observations": [
+        {
+          "name": "encoder_mode_4",
+          "dim": 4,
+          "active_modes": [0, 1, 2]
+        },
+        {
+          "name": "motion_joint_positions_10frame_step5",
+          "dim": 290,
+          "active_modes": [0]
+        },
+        {
+          "name": "motion_joint_velocities_10frame_step5",
+          "dim": 290,
+          "active_modes": [0]
+        },
+        {
+          "name": "motion_root_z_position_10frame_step5",
+          "dim": 10,
+          "active_modes": []
+        },
+        {
+          "name": "motion_root_z_position",
+          "dim": 1,
+          "active_modes": []
+        },
+        {
+          "name": "motion_anchor_orientation",
+          "dim": 6,
+          "active_modes": [1]
+        },
+        {
+          "name": "motion_anchor_orientation_10frame_step5",
+          "dim": 60,
+          "active_modes": [0]
+        },
+        {
+          "name": "motion_joint_positions_lowerbody_10frame_step5",
+          "dim": 120,
+          "active_modes": [1]
+        },
+        {
+          "name": "motion_joint_velocities_lowerbody_10frame_step5",
+          "dim": 120,
+          "active_modes": [1]
+        },
+        {
+          "name": "vr_3point_local_target",
+          "dim": 9,
+          "active_modes": [1]
+        },
+        {
+          "name": "vr_3point_local_orn_target",
+          "dim": 12,
+          "active_modes": [1]
+        },
+        {
+          "name": "smpl_joints_10frame_step1",
+          "dim": 720,
+          "active_modes": [2]
+        },
+        {
+          "name": "smpl_anchor_orientation_10frame_step1",
+          "dim": 60,
+          "active_modes": [2]
+        },
+        {
+          "name": "motion_joint_positions_wrists_10frame_step1",
+          "dim": 60,
+          "active_modes": [2]
+        }
+      ]
+    },
+    "decoder": {
+      "input_tensor_name": "obs_dict",
+      "output_tensor_name": "action",
+      "observations": [
+        {
+          "name": "token_state",
+          "dim": 64,
+          "type": "encoder_output"
+        },
+        {
+          "name": "his_base_angular_velocity_10frame_step1",
+          "dim_per_frame": 3,
+          "num_frames": 10,
+          "step": 1,
+          "type": "history"
+        },
+        {
+          "name": "his_body_joint_positions_10frame_step1",
+          "dim_per_frame": 29,
+          "num_frames": 10,
+          "step": 1,
+          "type": "history"
+        },
+        {
+          "name": "his_body_joint_velocities_10frame_step1",
+          "dim_per_frame": 29,
+          "num_frames": 10,
+          "step": 1,
+          "type": "history"
+        },
+        {
+          "name": "his_last_actions_10frame_step1",
+          "dim_per_frame": 29,
+          "num_frames": 10,
+          "step": 1,
+          "type": "history"
+        },
+        {
+          "name": "his_gravity_dir_10frame_step1",
+          "dim_per_frame": 3,
+          "num_frames": 10,
+          "step": 1,
+          "type": "history"
+        }
+      ]
+    },
+    "planner": {
+      "context_frames": 4,
+      "context_frame_spacing_hz": 30,
+      "qpos_dim": 36,
+      "input_tensors": {
+        "context_mujoco_qpos": {
+          "shape": [4, 36],
+          "dtype": "float"
+        },
+        "mode": {
+          "shape": [1],
+          "dtype": "int64"
+        },
+        "target_vel": {
+          "shape": [1],
+          "dtype": "float"
+        },
+        "movement_direction": {
+          "shape": [3],
+          "dtype": "float"
+        },
+        "facing_direction": {
+          "shape": [3],
+          "dtype": "float"
+        },
+        "random_seed": {
+          "shape": [1],
+          "dtype": "int64"
+        }
+      },
+      "output_tensors": {
+        "mujoco_qpos": {
+          "dtype": "float"
+        },
+        "num_pred_frames": {
+          "dtype": "int32"
+        }
+      }
+    },
+    "vr_tracking": {
+      "points": [
+        {
+          "name": "left_wrist",
+          "xr_node": "LeftHand",
+          "offset": [0.0, 0.0, 0.0],
+          "robot_neutral_pos": [0.2, 0.2, 0.25],
+          "robot_neutral_rot": [1.0, 0.0, 0.0, 0.0]
+        },
+        {
+          "name": "right_wrist",
+          "xr_node": "RightHand",
+          "offset": [0.0, 0.0, 0.0],
+          "robot_neutral_pos": [0.2, -0.2, 0.25],
+          "robot_neutral_rot": [1.0, 0.0, 0.0, 0.0]
+        },
+        {
+          "name": "torso",
+          "xr_node": "Head",
+          "offset": [0.0, 0.0, 0.35],
+          "robot_neutral_pos": [0.0, 0.0, 0.5],
+          "robot_neutral_rot": [1.0, 0.0, 0.0, 0.0]
+        }
+      ]
+    },
+    "isaaclab_to_mujoco": [
+      0, 3, 6, 9, 13, 17, 1, 4, 7, 10, 14, 18, 2, 5, 8,
+      11, 15, 19, 21, 23, 25, 27, 12, 16, 20, 22, 24, 26, 28
+    ],
+    "mujoco_to_isaaclab": [
+      0, 6, 12, 1, 7, 13, 2, 8, 14, 3, 9, 15, 22, 4, 10,
+      16, 23, 5, 11, 17, 24, 18, 25, 19, 26, 20, 27, 21, 28
+    ],
+    "joints": [
+      {
+        "name": "left_hip_pitch_joint",
+        "default_pos": -0.312,
+        "kp": 99.098428,
+        "kd": 6.308802,
+        "effort_limit": 139.0,
+        "action_scale": 0.350661
+      },
+      {
+        "name": "left_hip_roll_joint",
+        "default_pos": 0.0,
+        "kp": 99.098428,
+        "kd": 6.308802,
+        "effort_limit": 139.0,
+        "action_scale": 0.350661
+      },
+      {
+        "name": "left_hip_yaw_joint",
+        "default_pos": 0.0,
+        "kp": 40.179238,
+        "kd": 2.55789,
+        "effort_limit": 88.0,
+        "action_scale": 0.547546
+      },
+      {
+        "name": "left_knee_joint",
+        "default_pos": 0.669,
+        "kp": 99.098428,
+        "kd": 6.308802,
+        "effort_limit": 139.0,
+        "action_scale": 0.350661
+      },
+      {
+        "name": "left_ankle_pitch_joint",
+        "default_pos": -0.363,
+        "kp": 28.501246,
+        "kd": 1.814446,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "left_ankle_roll_joint",
+        "default_pos": 0.0,
+        "kp": 28.501246,
+        "kd": 1.814446,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "right_hip_pitch_joint",
+        "default_pos": -0.312,
+        "kp": 99.098428,
+        "kd": 6.308802,
+        "effort_limit": 139.0,
+        "action_scale": 0.350661
+      },
+      {
+        "name": "right_hip_roll_joint",
+        "default_pos": 0.0,
+        "kp": 99.098428,
+        "kd": 6.308802,
+        "effort_limit": 139.0,
+        "action_scale": 0.350661
+      },
+      {
+        "name": "right_hip_yaw_joint",
+        "default_pos": 0.0,
+        "kp": 40.179238,
+        "kd": 2.55789,
+        "effort_limit": 88.0,
+        "action_scale": 0.547546
+      },
+      {
+        "name": "right_knee_joint",
+        "default_pos": 0.669,
+        "kp": 99.098428,
+        "kd": 6.308802,
+        "effort_limit": 139.0,
+        "action_scale": 0.350661
+      },
+      {
+        "name": "right_ankle_pitch_joint",
+        "default_pos": -0.363,
+        "kp": 28.501246,
+        "kd": 1.814446,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "right_ankle_roll_joint",
+        "default_pos": 0.0,
+        "kp": 28.501246,
+        "kd": 1.814446,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "waist_yaw_joint",
+        "default_pos": 0.0,
+        "kp": 40.179238,
+        "kd": 2.55789,
+        "effort_limit": 88.0,
+        "action_scale": 0.547546
+      },
+      {
+        "name": "waist_roll_joint",
+        "default_pos": 0.0,
+        "kp": 28.501246,
+        "kd": 1.814446,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "waist_pitch_joint",
+        "default_pos": 0.0,
+        "kp": 28.501246,
+        "kd": 1.814446,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "left_shoulder_pitch_joint",
+        "default_pos": 0.2,
+        "kp": 14.250623,
+        "kd": 0.907223,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "left_shoulder_roll_joint",
+        "default_pos": 0.2,
+        "kp": 14.250623,
+        "kd": 0.907223,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "left_shoulder_yaw_joint",
+        "default_pos": 0.0,
+        "kp": 14.250623,
+        "kd": 0.907223,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "left_elbow_joint",
+        "default_pos": 0.6,
+        "kp": 14.250623,
+        "kd": 0.907223,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "left_wrist_roll_joint",
+        "default_pos": 0.0,
+        "kp": 14.250623,
+        "kd": 0.907223,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "left_wrist_pitch_joint",
+        "default_pos": 0.0,
+        "kp": 16.778327,
+        "kd": 1.068142,
+        "effort_limit": 5.0,
+        "action_scale": 0.074501
+      },
+      {
+        "name": "left_wrist_yaw_joint",
+        "default_pos": 0.0,
+        "kp": 16.778327,
+        "kd": 1.068142,
+        "effort_limit": 5.0,
+        "action_scale": 0.074501
+      },
+      {
+        "name": "right_shoulder_pitch_joint",
+        "default_pos": 0.2,
+        "kp": 14.250623,
+        "kd": 0.907223,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "right_shoulder_roll_joint",
+        "default_pos": -0.2,
+        "kp": 14.250623,
+        "kd": 0.907223,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "right_shoulder_yaw_joint",
+        "default_pos": 0.0,
+        "kp": 14.250623,
+        "kd": 0.907223,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "right_elbow_joint",
+        "default_pos": 0.6,
+        "kp": 14.250623,
+        "kd": 0.907223,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "right_wrist_roll_joint",
+        "default_pos": 0.0,
+        "kp": 14.250623,
+        "kd": 0.907223,
+        "effort_limit": 25.0,
+        "action_scale": 0.438577
+      },
+      {
+        "name": "right_wrist_pitch_joint",
+        "default_pos": 0.0,
+        "kp": 16.778327,
+        "kd": 1.068142,
+        "effort_limit": 5.0,
+        "action_scale": 0.074501
+      },
+      {
+        "name": "right_wrist_yaw_joint",
+        "default_pos": 0.0,
+        "kp": 16.778327,
+        "kd": 1.068142,
+        "effort_limit": 5.0,
+        "action_scale": 0.074501
+      }
+    ],
+    "_onnx_metadata": {
+      "encoder": {
+        "inputs": [
+          {
+            "name": "obs_dict",
+            "shape": [1, 1762]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "encoded_tokens",
+            "shape": [1, 64]
+          }
+        ]
+      },
+      "decoder": {
+        "inputs": [
+          {
+            "name": "obs_dict",
+            "shape": [1, 994]
+          }
+        ],
+        "outputs": [
+          {
+            "name": "action",
+            "shape": [1, 29]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -6,7 +6,7 @@ on:
 
 jobs:
   test:
-    name: test ${{ matrix.py }} - ${{ matrix.os }} - ${{ matrix.env }}
+    name: test ${{ matrix.py }} - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -17,24 +17,11 @@ jobs:
         py:
           - "3.11"
           - "3.10"
-        env:
-          - pip
-          - conda
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Conda
-        if: matrix.env == 'conda'
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          python-version: ${{ matrix.py }}
-          miniconda-version: "latest"
-          activate-environment: test-env
-          auto-update-conda: true
-
-      - name: Setup Python for pip
-        if: matrix.env == 'pip'
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.py }}
