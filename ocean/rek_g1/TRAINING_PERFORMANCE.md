@@ -472,6 +472,46 @@ Increasing beyond 512 arenas and reducing constraint capacity had already
 shown no useful training throughput gain. No solver iteration limit,
 tolerance, contact capacity or simulation timestep was reduced.
 
+### Solver algorithm comparison
+
+A process-local experiment selected the existing CG solver instead of Newton,
+without modifying installed sources, model XML, 500 Hz integration, tolerance,
+iteration cap, line-search settings, controller or input trace. All 90 Data
+arrays, including warm starts, were restored byte-exact from the same initial
+snapshot. The four-arena, 256-tick, four-repeat full replay failed six numerical
+criteria and introduced action-mask/referee differences absent from original
+repeats. Body-position RMS was 0.0805903 m for CG versus 0.0297853 m between
+originals. Final-substep iteration means were 16.01 to 16.33 for CG versus
+2.81 to 2.94 for Newton; no sampled final substep reached the unchanged cap100.
+This does not support a cap-exhaustion explanation. CG is rejected; timing
+was withheld after the failed physical comparison. Complete evidence is in
+`C:/rekagent/evidence/rek-cg-solver-20260911-v1/cg-combined4-full-v1/`.
+
+### Contact-matrix assembly experiment
+
+A private assembly-only CUDA implementation retains the original Warp
+factorization, solve, line search and contact model. It changes contact
+summation scheduling. In a 512-world synthetic component probe, block256
+assembly plus original factorization took a median 0.704566 ms versus
+1.271704 ms for the original, a 1.805x component ratio. Assembly alone was
+0.450722 ms versus 1.103850 ms. These measurements exclude physical
+integration, controller inference, the policy and PPO, and are not training
+SPS. The maximum Mgrad difference was 1.78814e-7, above original-repeat
+4.47035e-8. Full physical replay is required before considering activation.
+Evidence: `C:/rekagent/evidence/rek-arena-jtcj-20260911-v1/`.
+
+A separate per-contact elliptic-coefficient cache preserved scalar
+coefficients byte-exact on both CPU and Spark CUDA. The multicontact CUDA
+Hessian nevertheless differed beyond measured original-repeat variation:
+maximum candidate RMS 1.33337e-7 versus original-repeat 2.95422e-8. More
+decisively, six cached gradient dispatches, including six refreshes, took
+157.408 ms versus 9.639 ms for the original in the synthetic probe. This
+implementation is rejected; algebraic redundancy alone did not predict
+performance. Production remains unchanged. Command `cone-cache-cuda-001`
+and its complete output are in the current win-rate evidence root; raw
+component results are retained in
+`C:/rekagent/work/rek-jtcj-cone-cache-20260911/results-gpu-v1/`.
+
 Runtime assets, checkpoints, raw traces, commands and complete output remain
 in the external evidence directory `C:/rekagent/evidence/rek-training-opt-20260911`.
 They are not distributed with the repository.
