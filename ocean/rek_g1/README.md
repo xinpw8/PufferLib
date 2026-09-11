@@ -10,6 +10,11 @@ errors are no greater than REK's repeated-run variance.
 
 ### CUDA candidate
 
+The explicit optimized training configuration, implementation details and
+numerical replay limits are documented in [TRAINING_PERFORMANCE.md](TRAINING_PERFORMANCE.md).
+It skips empty reset-only forward passes and uses fused CUDA contact
+bookkeeping while retaining the current physics and controller contract.
+
 `gpu_semantic_duel.py` runs controller inference, motion scheduling, MuJoCo
 Warp physics, contact measurement, fall/referee state, rewards, and observations
 on CUDA. Model parsing, asset hash verification, and initial uploads occur once
@@ -168,12 +173,15 @@ it does not separate driver spinning from other driver work. Instrumentation
 changes timing, so these values are not an uninstrumented SPS benchmark.
 A cleaned five-tick component smoke separately measured 31.11% physics step,
 34.81% reset-state forward refresh, and 22.25% combat work in its instrumented
-graph interval. The reset refresh currently runs even with an empty reset mask.
-An experimental conditional skip was excluded because its mixed-reset
+graph interval. The reference reset refresh runs even with an empty reset mask.
+The initial experimental conditional skip was excluded because its mixed-reset
 additional-error bound exceeded measured baseline repeat variation. No solver
 tolerances or iteration limits were reduced. A whole-horizon capture prototype
 was also excluded after CUDA rejected executable graph nesting. Both failed
-experiments remain archived outside the working source tree.
+experiments remain archived outside the working source tree. A later
+persistent-scratch implementation and independent-original-graph comparison
+are described in the optimization report linked above; the initial failed
+experiment remains a separate result.
 
 The longer requested 1,572,864-learner-step run failed a native motion scheduler
 check with status 311 after its last successful 393,216-step progress report.

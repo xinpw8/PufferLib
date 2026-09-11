@@ -275,6 +275,10 @@ def train(args: argparse.Namespace) -> dict:
                 "precision_bytes": int(trainer.backend.precision_bytes),
             },
             "inputs": {
+                "fused_combat_library": (
+                    None if environment.config.fused_combat_library is None
+                    else _checkpoint_record(environment.config.fused_combat_library)
+                ),
                 "opponent_sources": opponent_sources,
                 "gpu_duel_config": {
                     "path": str(args.gpu_duel_config),
@@ -321,6 +325,9 @@ def train(args: argparse.Namespace) -> dict:
                 ),
                 "cpu_physics_steps": 0,
                 "cpu_controller_inferences": 0,
+                "physics_sparse_jacobian": bool(environment.physics.model.is_sparse),
+                "conditional_reset_forward": environment.reset_forward_gate is not None,
+                "combat_measurement_backend": type(environment.measurement).__name__,
                 "native_cpu_environment_count": int(
                     trainer.pufferl.native_env_count
                 ),

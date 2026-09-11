@@ -92,7 +92,7 @@ class GpuBehaviorMetricCollector:
         facing_valid = range_valid & (distance > 1e-8) & torch.isfinite(forward).all(dim=1) & (forward_norm > 1e-8) & ((quaternion_norm - 1).abs() < 1e-3)
         cosine = (forward * delta).sum(dim=1) / (forward_norm * distance).clamp_min(1e-8)
         facing = facing_valid & (cosine >= self.cos_threshold)
-        attack = category_valid & (action >= 16)
+        attack = category_valid & (action >= 16) & (action < 32)
         decisive = (obs[:, 210] == 1) | (obs[:, 210] == 2)
         won = terminal & decisive & (obs[:, 211] == self.sides)
         lost = terminal & decisive & (obs[:, 211] != self.sides)

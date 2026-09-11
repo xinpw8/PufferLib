@@ -37,6 +37,8 @@ class GpuDuelConfig:
     move_duration_ticks: tuple[int, ...]
     locomotion_segment_ticks: int = 1
     device: str = "cuda:0"
+    conditional_reset_forward: bool = False
+    fused_combat_library: Path | None = None
 
 
 class GpuSemanticDuel:
@@ -73,7 +75,14 @@ class GpuSemanticDuel:
             self.scheduler = GpuSemanticScheduler(
                 self.motion, config.locomotion_segment_ticks, config.move_duration_ticks,
             )
-            self.measurement = RekG1GpuCombatMeasurement.from_physics(self.physics)
+            if config.fused_combat_library is None:
+                self.measurement = RekG1GpuCombatMeasurement.from_physics(self.physics)
+            else:
+                from gpu_combat_measurement_fused import FusedGpuCombatMeasurement
+
+                self.measurement = FusedGpuCombatMeasurement.from_physics(
+                    self.physics, library=config.fused_combat_library,
+                )
             self.combat = GpuNativeCombat(
                 config.combat_library, self.measurement, self.motion,
                 active_route_ids=self.scheduler.active_route_ids,
@@ -89,6 +98,13 @@ class GpuSemanticDuel:
             self._graph = None
             self._warp_capture = None
             self._reset_impl()
+            self.reset_forward_gate = None
+            if config.conditional_reset_forward:
+                from gpu_reset_forward_gate import ResetForwardGate
+
+                self.reset_forward_gate = ResetForwardGate(self.physics)
+                self.physics.forward_selected = self.reset_forward_gate.forward_selected
+                self._reset_impl()
         self.stream.synchronize()
 
     def _gather(self):

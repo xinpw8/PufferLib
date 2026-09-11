@@ -38,6 +38,22 @@ class BehaviorMetricTests(unittest.TestCase):
         self.assertIsNone(report["learner_round_win_percent"])
         self.assertIsNone(report["learner_points_per_completed_round"])
 
+    def test_emote_is_counted_as_input_and_move_but_not_attack_facing(self):
+        collector = GpuBehaviorMetricCollector(4, "cpu", learner_rows=(0, 2))
+        obs, terminal, action, starts, delta = fixture()
+        action[0, 0] = 32  # Emote, facing the opponent.
+        action[2, 0] = 16  # Combat move, facing away from the opponent.
+        starts[0] = starts[2] = 1
+        collector.update(obs, terminal, action, starts, delta)
+        report = collector.snapshot()
+        self.assertEqual(report["learner_control_steps"], 2)
+        self.assertEqual(report["discrete_move_starts"], 2)
+        self.assertEqual(report["action_category_counts"][32], 1)
+        self.assertEqual(report["action_category_counts"][16], 1)
+        self.assertEqual(report["facing"]["percent"], 50)
+        self.assertEqual(report["facing"]["attack_requested_eligible_samples"], 1)
+        self.assertEqual(report["facing"]["attack_requested_facing_percent"], 0)
+
     def test_side_relative_points_and_absolute_winner(self):
         collector = GpuBehaviorMetricCollector(4, "cpu", learner_rows=(1, 2))
         obs, terminal, action, starts, delta = fixture()

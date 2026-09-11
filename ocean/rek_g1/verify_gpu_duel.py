@@ -23,6 +23,8 @@ def load_config(path):
                 "motion_features", "motion_library", "combat_library"):
         values[key] = Path(values[key])
     values["move_duration_ticks"] = tuple(values["move_duration_ticks"])
+    if values.get("fused_combat_library") is not None:
+        values["fused_combat_library"] = Path(values["fused_combat_library"])
     return GpuDuelConfig(**values)
 
 
