@@ -462,11 +462,6 @@ class RekG1GpuCombatMeasurement:
             dtype=torch.bool,
             device=self.device,
         )
-        self._current_pair_counts = torch.zeros(
-            (self.arena_count, self.pair_span),
-            dtype=torch.int32,
-            device=self.device,
-        )
         self._first_pair_slot = torch.empty(
             (self.arena_count, self.pair_span),
             dtype=torch.int32,
@@ -638,7 +633,6 @@ class RekG1GpuCombatMeasurement:
     def reset(self) -> torch.Tensor:
         """Clear hit history/substep sequence and calibrate current reset pose."""
         self._previous_pairs.zero_()
-        self._current_pair_counts.zero_()
         self._expected_substep.zero_()
         return self.calibrate_reset()
 
@@ -842,10 +836,6 @@ class RekG1GpuCombatMeasurement:
         second_geom = torch.maximum(contacts.geom0_safe, contacts.geom1_safe)
         pair = first_geom * model.geom_count + second_geom
         pair_key = contacts.world_safe * self.pair_span + pair
-        self._current_pair_counts.zero_()
-        self._current_pair_counts.reshape(-1).scatter_add_(
-            0, pair_key, pair_valid.to(dtype=torch.int32))
-        current_pairs = self._current_pair_counts > 0
         self._first_pair_slot.fill_(self.contact_capacity)
         first_source = torch.where(
             pair_valid,
@@ -855,6 +845,10 @@ class RekG1GpuCombatMeasurement:
         )
         self._first_pair_slot.reshape(-1).scatter_reduce_(
             0, pair_key, first_source, reduce="amin", include_self=True)
+        # A pair is present exactly when its minimum valid slot is below the
+        # sentinel. Reuse the required first-slot reduction instead of also
+        # clearing and atomically counting a full arena-by-geom-pair table.
+        current_pairs = self._first_pair_slot < self.contact_capacity
         is_first = pair_valid & (
             self._first_pair_slot.reshape(-1)[pair_key].to(dtype=torch.long)
             == self._contact_slots

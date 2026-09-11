@@ -105,6 +105,38 @@ def valid_candidate_rows(batch):
 
 
 class GpuCombatMeasurementTests(unittest.TestCase):
+    def test_first_slot_presence_matches_count_reduction(self):
+        generator = torch.Generator().manual_seed(20260910)
+        for device in (["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]):
+            for capacity in (1, 8, 128, 4096):
+                for active_count in (0, capacity // 2, capacity):
+                    keys = torch.randint(0, 91 * 91, (capacity,), generator=generator).to(device)
+                    # Include many duplicate keys and stale inactive slots.
+                    keys[::3] = 17
+                    slots = torch.arange(capacity, device=device, dtype=torch.int32)
+                    valid = slots < active_count
+                    counts = torch.zeros(91 * 91, dtype=torch.int32, device=device)
+                    counts.scatter_add_(0, keys, valid.to(torch.int32))
+                    first = torch.full_like(counts, capacity)
+                    first.scatter_reduce_(0, keys, torch.where(valid, slots, capacity),
+                                          reduce="amin", include_self=True)
+                    self.assertTrue(torch.equal(first < capacity, counts > 0))
+
+    def test_duplicate_and_reversed_contacts_use_only_first_enter_slot(self):
+        sampler, source = synthetic_fixture("cpu")
+        sampler.reset()
+        can_get_up = torch.zeros(4, dtype=torch.long)
+        set_contacts(source, [(0, 4, 8), (0, 4, 8), (0, 8, 4), (1, 10, 1)])
+        first = sampler.sample(0, can_get_up)
+        self.assertEqual(first.hits.candidate_counts.tolist(), [1, 1])
+        self.assertEqual(first.hits.candidate_valid.nonzero().flatten().tolist(), [0, 6])
+        set_contacts(source, [])
+        empty = sampler.sample(1, can_get_up)
+        self.assertEqual(empty.hits.candidate_counts.tolist(), [0, 0])
+        set_contacts(source, [(0, 8, 4)])
+        reenter = sampler.sample(2, can_get_up)
+        self.assertEqual(reenter.hits.candidate_counts.tolist(), [1, 0])
+
     def test_fall_rows_match_native_tilt_height_and_distinct_body_facts(self):
         sampler, source = synthetic_fixture("cpu")
         self.assertTrue(bool(sampler.reset().all()))

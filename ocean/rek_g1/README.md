@@ -120,6 +120,32 @@ did not pass the predeclared same-capacity repeat-variance criterion. The
 an accepted numerical-parity result. Solver settings and timestep were not
 changed in these experiments.
 
+A subsequent 65,536-learner-step run with the 256-row allocation and CUDA
+overflow monitor enabled measured 3,258.17 SPS, versus the unmonitored
+1,024-row baseline's 3,241.38 SPS. This single, differently instrumented
+comparison demonstrated no meaningful throughput improvement. Its logical
+Warp model/data backing capacity fell from 193,360,271 to 73,822,607 bytes;
+that is not an allocator-peak measurement. No overflow occurred during the
+timing run, which reached 152 constraint rows and 1,871 sparse nonzeros per
+arena. The default remains unchanged.
+
+The contact adapter now reuses its required first-contact-slot minimum to
+determine pair presence, removing a duplicate integer count reduction and
+16,959,488 bytes of persistent counter storage at 512 arenas. CPU and CUDA
+comparisons against the previous adapter passed 3,360 tensor comparisons per
+device over 240 synthetic ticks, with zero absolute or relative tolerance.
+Observed Torch allocation peaks fell from 238,963,712 to 221,648,384 bytes.
+The single training comparison, 3,106.38 versus 3,241.38 SPS, demonstrated no
+throughput improvement. This is a memory/work-removal change, not an SPS fix.
+
+An additional exact integer-identity write redistribution was tested and
+excluded from the working runtime. Alternating baseline/candidate pairs gave
+3,007.81/3,033.68 and 2,938.32/2,985.31 SPS. The pooled difference was only
+1.23%, too small to establish a useful speedup from two runs amid baseline
+variation. That larger candidate also saved less memory than count elision
+alone. Its source, tests and raw results remain in the external evidence
+archive; it did not change physics settings or floating-point calculations.
+
 The 128-arena run covers only 1.28 simulated seconds per arena. It is a
 throughput/training smoke test, with no completed rounds. A separate 50-tick
 environment component profile attributed 71.30% of its CUDA stream interval
