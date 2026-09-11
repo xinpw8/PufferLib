@@ -164,6 +164,9 @@ void rollouts(pybind11::object pufferl_obj) {
 
 pybind11::dict train(pybind11::object pufferl_obj) {
     PuffeRL& pufferl = pufferl_obj.cast<PuffeRL&>();
+    if (pufferl.hypers.greedy_evaluation) {
+        throw std::runtime_error("greedy evaluation rollouts cannot be used for PPO training");
+    }
     {
         pybind11::gil_scoped_release no_gil;
         train_impl(pufferl);
@@ -483,6 +486,8 @@ std::unique_ptr<PuffeRL> create_pufferl(py::dict args) {
     hypers.prio_alpha = get_config(train_kwargs, "prio_alpha");
     hypers.prio_beta0 = get_config(train_kwargs, "prio_beta0");
     hypers.reset_state = get_config(args, "reset_state");
+    hypers.greedy_evaluation = args.contains("greedy_evaluation")
+        ? args["greedy_evaluation"].cast<bool>() : false;
     // Base-level config ([base] section becomes top-level in args)
     hypers.cudagraphs = get_config(args, "cudagraphs");
     hypers.profile = get_config(args, "profile");
@@ -563,6 +568,7 @@ PYBIND11_MODULE(_C, m) {
     m.attr("precision_bytes") = (int)sizeof(precision_t);
     m.attr("env_name") = PUFFER_STRINGIFY(ENV_NAME);
     m.attr("gpu") = 1;
+    m.attr("supports_greedy_evaluation") = true;
 
     // Core functions
     m.def("log", &puf_log);
@@ -591,6 +597,7 @@ PYBIND11_MODULE(_C, m) {
         .def(py::init<>());
 
     py::class_<HypersT>(m, "HypersT")
+        .def_readonly("greedy_evaluation", &HypersT::greedy_evaluation)
         .def_readwrite("horizon", &HypersT::horizon)
         .def_readwrite("total_agents", &HypersT::total_agents)
         .def_readwrite("num_buffers", &HypersT::num_buffers)

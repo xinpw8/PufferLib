@@ -317,6 +317,7 @@ typedef struct {
     float prio_beta0;
     // Flags
     bool reset_state;
+    bool greedy_evaluation = false;
     int cudagraphs;
     bool profile;
     // Multi-GPU
@@ -558,6 +559,7 @@ __device__ __forceinline__ float masked_logit(const precision_t* logits,
 }
 
 // Expects action logits and values to be in the same contiguous buffer. See default decoder
+template<bool GREEDY = false>
 __global__ void sample_logits(
         PrecisionTensor dec_out,              // (B, logits_dim + 1 for values)
         PrecisionTensor logstd_puf,           // (1, od) - continuous actions only
@@ -602,7 +604,7 @@ __global__ void sample_logits(
             float std = expf(log_std);
 
             // Sample from N(0,1) and transform: action = mean + std * noise
-            float noise = curand_normal(&state);
+            float noise = GREEDY ? 0.0f : curand_normal(&state);
             float action = finite_or_clamp(mean + std * noise, -1.0e6f, 1.0e6f);
 
             precision_t stored_action_p = from_float(action);
@@ -636,12 +638,26 @@ __global__ void sample_logits(
             float logsumexp = max_val + logf(sum_exp);
 
             // Step 3: Generate random value for this action head
-            float rand_val = curand_uniform(&state);
+            float rand_val = GREEDY ? 0.0f : curand_uniform(&state);
 
             // Step 4: Multinomial sampling using inverse CDF
             float cumsum = 0.0f;
             int sampled_action = -1;  // sentinel: no action chosen yet
 
+            if constexpr (GREEDY) {
+                float best = -INFINITY;
+                for (int a = 0; a < A; ++a) {
+                    if (action_mask != nullptr
+                            && to_float(action_mask[mask_base + logits_offset + a]) == 0.0f) {
+                        continue;
+                    }
+                    float l = safe_logit(logits, logits_base, logits_offset, a);
+                    if (sampled_action < 0 || l > best) {
+                        sampled_action = a;
+                        best = l;
+                    }
+                }
+            } else {
             for (int a = 0; a < A; ++a) {
                 float l = masked_logit(logits, logits_base, logits_offset, a, action_mask, mask_base);
                 float prob = expf(l - logsumexp);
@@ -650,6 +666,7 @@ __global__ void sample_logits(
                     sampled_action = a;
                     break;
                 }
+            }
             }
 
             // Float rounding can leave cumsum < 1.0; fall back to the last legal action.
@@ -795,11 +812,19 @@ extern "C" void net_callback_wrapper(void* ctx, int buf, int t) {
         }
 
         // Offset RNG by bank_off so banks don't collide on per-buffer rng slots.
-        sample_logits<<<grid_size(bank_size), BLOCK_SIZE, 0, stream>>>(
-            dec_puf, p_logstd, pufferl->act_sizes_puf,
-            act_b.data, lp_b.data, val_b.data,
-            pufferl->rng_states[buf] + bank_off,
-            mask_b.data, mask_stride_b);
+        if (hypers.greedy_evaluation) {
+            sample_logits<true><<<grid_size(bank_size), BLOCK_SIZE, 0, stream>>>(
+                dec_puf, p_logstd, pufferl->act_sizes_puf,
+                act_b.data, lp_b.data, val_b.data,
+                pufferl->rng_states[buf] + bank_off,
+                mask_b.data, mask_stride_b);
+        } else {
+            sample_logits<false><<<grid_size(bank_size), BLOCK_SIZE, 0, stream>>>(
+                dec_puf, p_logstd, pufferl->act_sizes_puf,
+                act_b.data, lp_b.data, val_b.data,
+                pufferl->rng_states[buf] + bank_off,
+                mask_b.data, mask_stride_b);
+        }
 
         cast<<<grid_size(numel(act_b.shape)), BLOCK_SIZE, 0, stream>>>(
                 env.actions.data + (long)sub_start * act_cols,

@@ -18,6 +18,10 @@ from gpu_native_puffer import NativeExternalGpuPuffer, create_rek_g1_native_puff
 from gpu_semantic_duel import GpuSemanticDuel
 from profile_gpu_duel import TrainingPhaseTimer
 from verify_gpu_duel import load_config as load_gpu_duel_config
+from gpu_policy_observation_encoder import (
+    ENCODER_CHOICES, INITIALIZATION_CHOICES, load_policy_encoder_checkpoint,
+    policy_encoder_report, save_policy_weights,
+)
 
 
 def _sha256(path: Path) -> str:
@@ -103,7 +107,11 @@ def save_failure(args, environment, trainer, error, epoch, checked_ticks) -> dic
         except Exception as capture_error:
             report["capture_errors"].append(f"{name}: {capture_error!r}")
     try:
-        report["diagnostic_policy"] = trainer.save_weights(args.run_dir / "failed-policy.bin")
+        report["diagnostic_policy"] = save_policy_weights(
+            trainer, args.run_dir / "failed-policy.bin",
+            getattr(args, "policy_observation_encoder", "raw"),
+            getattr(args, "policy_observation_warm_start", "matching-checkpoint"),
+        )
     except Exception as capture_error:
         report["capture_errors"].append(f"policy: {capture_error!r}")
     with (args.run_dir / "failure.json").open("x", encoding="utf-8") as stream:
@@ -128,6 +136,12 @@ def train(args: argparse.Namespace) -> dict:
         raise ValueError("checkpoint_every must be nonnegative")
     if args.reward_clip < 0.0:
         raise ValueError("reward_clip must be nonnegative")
+    policy_encoding = getattr(args, "policy_observation_encoder", "raw")
+    policy_initialization = getattr(args, "policy_observation_warm_start", "matching-checkpoint")
+    policy_manifest, policy_checkpoint_sha = load_policy_encoder_checkpoint(
+        args.load_checkpoint, policy_encoding, initialization=policy_initialization,
+        expected_sha256=getattr(args, "load_checkpoint_sha256", None),
+    )
 
     native_args = load_native_config(args.default_config, args.native_config)
     duel_config = load_gpu_duel_config(args.gpu_duel_config)
@@ -137,6 +151,8 @@ def train(args: argparse.Namespace) -> dict:
     opponent = getattr(args, "opponent", "self-play")
     if opponent not in ("self-play", "candidate-dummy"):
         raise ValueError("unknown opponent")
+    if policy_encoding != "raw" and opponent != "candidate-dummy":
+        raise ValueError("policy observation encoders currently require candidate-dummy")
     learning_agents = total_agents // 2 if opponent == "candidate-dummy" else total_agents
     batch_steps = learning_agents * args.horizon
     if args.total_timesteps % batch_steps:
@@ -176,7 +192,11 @@ def train(args: argparse.Namespace) -> dict:
         from gpu_candidate_dummy import DUMMY_LABEL, GpuCandidateDummyDuel
         from gpu_puffer_env import CudaTensorEnvAdapter
 
-        candidate_environment = GpuCandidateDummyDuel(environment)
+        candidate_environment = GpuCandidateDummyDuel(
+            environment, policy_observation_encoder=policy_encoding,
+            checkpoint_manifest=policy_manifest, checkpoint_sha256=policy_checkpoint_sha,
+            policy_observation_initialization=policy_initialization,
+        )
         adapter = CudaTensorEnvAdapter(
             candidate_environment, (33,),
             metric_plugins=(candidate_environment.metric_plugin,),
@@ -216,7 +236,7 @@ def train(args: argparse.Namespace) -> dict:
     try:
         if args.load_checkpoint is not None:
             trainer.load_weights(args.load_checkpoint)
-        initial_manifest = trainer.save_weights(initial_path)
+        initial_manifest = save_policy_weights(trainer, initial_path, policy_encoding, policy_initialization)
         torch.cuda.synchronize(environment.actions.device)
         setup_seconds = time.perf_counter() - setup_start
 
@@ -248,8 +268,9 @@ def train(args: argparse.Namespace) -> dict:
             if checkpoint_every and epoch % checkpoint_every == 0 and epoch != epochs:
                 environment.check_status()
                 periodic_checkpoints.append(phase_timer.call(
-                    "checkpoint", trainer.save_weights,
+                    "checkpoint", save_policy_weights, trainer,
                     args.run_dir / f"verified-{trainer.global_step:016d}.bin",
+                    policy_encoding, policy_initialization,
                 ))
 
         torch.cuda.synchronize(environment.actions.device)
@@ -258,7 +279,7 @@ def train(args: argparse.Namespace) -> dict:
         if not latest_log:
             latest_log = phase_timer.call("reporting", trainer.log, clear_metrics=False)
         phase_timing = phase_timer.snapshot()
-        final_manifest = trainer.save_weights(final_path)
+        final_manifest = save_policy_weights(trainer, final_path, policy_encoding, policy_initialization)
         environment.check_status()
 
         extension_path = Path(trainer.backend.__file__).resolve()
@@ -266,6 +287,7 @@ def train(args: argparse.Namespace) -> dict:
         final_record = _checkpoint_record(final_path)
         report = {
             "schema": "rek.g1_native_external_gpu_training.v1",
+            **policy_encoder_report(policy_encoding, policy_initialization),
             "host": socket.gethostname(),
             "gpu": torch.cuda.get_device_name(environment.actions.device),
             "cuda_device": str(environment.actions.device),
@@ -403,6 +425,12 @@ def main() -> None:
                         help="synchronize status each tick for fault diagnosis, invalidating throughput comparisons")
     parser.add_argument("--reward-clip", type=float, default=0.0)
     parser.add_argument("--load-checkpoint", type=Path)
+    parser.add_argument("--load-checkpoint-sha256", default=None,
+                        help="required pinned raw checkpoint hash for raw-initial-weights")
+    parser.add_argument("--policy-observation-encoder", choices=ENCODER_CHOICES, default="raw")
+    parser.add_argument("--policy-observation-warm-start", choices=INITIALIZATION_CHOICES,
+                        default="matching-checkpoint",
+                        help="transformed policy initialization must be explicit; raw-initial-weights is a deliberate coordinate change")
     parser.add_argument(
         "--opponent", choices=("self-play", "candidate-dummy"), default="self-play",
         help="candidate-dummy trains even learner rows against the human-eval opponent",

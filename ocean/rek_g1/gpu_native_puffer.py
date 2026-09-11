@@ -80,6 +80,9 @@ class NativeExternalGpuPuffer:
             )
 
         self.args = deepcopy(args)
+        self.greedy_evaluation = bool(self.args.get("greedy_evaluation", False))
+        if self.greedy_evaluation and not getattr(self.backend, "supports_greedy_evaluation", False):
+            raise RuntimeError("native backend must be rebuilt for greedy evaluation")
         vec = self.args.setdefault("vec", {})
         train = self.args.setdefault("train", {})
         configured_agents = int(vec.get("total_agents", env.total_agents))
@@ -194,6 +197,8 @@ class NativeExternalGpuPuffer:
     def train(self) -> dict[str, Any]:
         if self._closed:
             raise RuntimeError("native external trainer is closed")
+        if self.greedy_evaluation:
+            raise RuntimeError("greedy evaluation rollouts cannot be used for PPO training")
         caller_stream = torch.cuda.current_stream(self.env.device)
         self.stream.wait_stream(caller_stream)
         with torch.cuda.stream(self.stream):

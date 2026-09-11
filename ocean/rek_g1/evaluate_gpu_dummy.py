@@ -21,6 +21,9 @@ import traceback
 
 import numpy as np
 import torch
+from gpu_policy_observation_encoder import (
+    ENCODER_CHOICES, load_policy_encoder_checkpoint, policy_encoder_report, save_policy_weights,
+)
 
 from gpu_metrics import (
     CONTROL_DELTA_SECONDS, CURRENT_ROUND_IS_REDO, KNOCKOUT_OCCURRED,
@@ -48,7 +51,8 @@ def pinned_checkpoint(path, expected):
     return record
 
 
-def evaluation_config(native, *, fighters, horizon, ticks, seed, minibatch_size=0):
+def evaluation_config(native, *, fighters, horizon, ticks, seed, minibatch_size=0,
+                      greedy=False):
     if fighters < 2 or fighters % 2:
         raise ValueError("fighters must be a positive even count")
     if horizon <= 1 or ticks <= 0 or ticks % horizon:
@@ -66,6 +70,7 @@ def evaluation_config(native, *, fighters, horizon, ticks, seed, minibatch_size=
                            minibatch_size=minibatch, gpus=1)
     # Native bindings read the base seed, not train.seed.
     result.update(seed=seed, world_size=1, rank=0, nccl_id=b"")
+    result["greedy_evaluation"] = bool(greedy)
     return result
 
 
@@ -147,8 +152,8 @@ def frozen_rollouts(trainer, duel, journal, *, ticks, horizon, on_horizon):
         trainer.env.step = original_step
 
 
-def save_frozen_weights(trainer, path, expected_sha256):
-    trainer.save_weights(path)
+def save_frozen_weights(trainer, path, expected_sha256, policy_observation_encoder="raw"):
+    save_policy_weights(trainer, path, policy_observation_encoder)
     record = file_record(path)
     if record["sha256"] != expected_sha256:
         raise RuntimeError("evaluation policy weights differ from the pinned checkpoint")
@@ -187,6 +192,10 @@ def evaluate(args):
     from verify_gpu_duel import load_config
 
     checkpoint = pinned_checkpoint(args.checkpoint, args.checkpoint_sha256)
+    policy_encoding = getattr(args, "policy_observation_encoder", "raw")
+    policy_manifest, policy_checkpoint_sha = load_policy_encoder_checkpoint(
+        args.checkpoint, policy_encoding, expected_sha256=checkpoint["sha256"],
+    )
     if args.run_dir.exists():
         raise FileExistsError(args.run_dir)
     if args.log_every < 1:
@@ -194,7 +203,8 @@ def evaluate(args):
     native = load_native_config(args.default_config, args.native_config)
     native = evaluation_config(native, fighters=args.total_agents, horizon=args.horizon,
                                ticks=args.ticks, seed=args.seed,
-                               minibatch_size=args.minibatch_size)
+                               minibatch_size=args.minibatch_size,
+                               greedy=getattr(args, "greedy", False))
     config = load_config(args.gpu_duel_config)
     native["gpu_id"] = torch.device(config.device).index or 0
     module_name, separator, attribute = args.environment_factory.partition(":")
@@ -211,11 +221,14 @@ def evaluate(args):
         if duel.rows != args.total_agents:
             raise ValueError("configured fighter count disagrees with CUDA controller batch")
         duel.capture_step()
-        candidate = GpuCandidateDummyDuel(duel)
+        candidate = GpuCandidateDummyDuel(
+            duel, policy_observation_encoder=policy_encoding,
+            checkpoint_manifest=policy_manifest, checkpoint_sha256=policy_checkpoint_sha,
+        )
         adapter = CudaTensorEnvAdapter(candidate, (33,), metric_plugins=(candidate.metric_plugin,))
         trainer = NativeExternalGpuPuffer(native, adapter, reward_clip=0.0)
         trainer.load_weights(args.checkpoint)
-        initial = save_frozen_weights(trainer, args.run_dir / "policy-before.bin", checkpoint["sha256"])
+        initial = save_frozen_weights(trainer, args.run_dir / "policy-before.bin", checkpoint["sha256"], policy_encoding)
         journal = RoundJournal(duel.rows // 2, args.horizon, config.device)
         initial_state = duel.physics.qpos.detach().cpu().contiguous().numpy()
         initial_state_sha = hashlib.sha256(initial_state.tobytes()).hexdigest()
@@ -233,6 +246,8 @@ def evaluate(args):
                 if ticks // args.horizon % args.log_every == 0 or ticks == args.ticks:
                     duel.check_status()
                     candidate.dummy.check_status()
+                    if candidate.policy_encoder is not None:
+                        candidate.policy_encoder.check_status()
                     print(json.dumps({"control_ticks_per_arena": ticks,
                                       "completed_rounds": event_count}), flush=True)
             frozen_rollouts(trainer, duel, journal, ticks=args.ticks,
@@ -241,7 +256,7 @@ def evaluate(args):
         wall, cpu = time.perf_counter() - start, time.process_time() - cpu_start
         final_log = trainer.eval_log(clear_metrics=False)
         ongoing = ongoing_snapshot(duel, journal)
-        final = save_frozen_weights(trainer, args.run_dir / "policy-after.bin", checkpoint["sha256"])
+        final = save_frozen_weights(trainer, args.run_dir / "policy-after.bin", checkpoint["sha256"], policy_encoding)
         pinned_checkpoint(args.checkpoint, checkpoint["sha256"])
         behavior = final_log["env"]["behavior"]
         if event_count != behavior["completed_rounds"] or event_count != final_log["env"]["n"]:
@@ -252,13 +267,14 @@ def evaluate(args):
         sources = {}
         for name in ("gpu_native_puffer", "gpu_semantic_duel", "gpu_candidate_dummy",
                      "gpu_metrics", "gpu_behavior_metrics", "gpu_combat_measurement",
-                     "gpu_duel_physics", "gpu_controller", module_name):
+                     "gpu_duel_physics", "gpu_controller", "gpu_policy_observation_encoder", module_name):
             module = sys.modules.get(name)
             if module is not None and getattr(module, "__file__", None):
                 sources[name] = file_record(module.__file__)
         sources["evaluate_gpu_dummy"] = file_record(__file__)
         report = {
             "schema": "rek.g1_frozen_native_candidate_dummy_evaluation.v1",
+            **policy_encoder_report(policy_encoding),
             "status": "completed", "host": socket.gethostname(),
             "gpu": torch.cuda.get_device_name(config.device), "sources": sources,
             "native_extension": file_record(trainer.backend.__file__),
@@ -268,7 +284,9 @@ def evaluate(args):
                        "environment_factory": args.environment_factory},
             "evaluation": {
                 "opponent": DUMMY_LABEL, "opponent_is_authentic_bot_1": False,
-                "policy_side": 0, "dummy_side": 1, "sampling": "native stochastic categorical",
+                "policy_side": 0, "dummy_side": 1,
+                "sampling": ("native masked argmax" if getattr(args, "greedy", False)
+                             else "native stochastic categorical"),
                 "seed": args.seed, "horizon": args.horizon,
                 "reset_state_each_horizon": bool(native["reset_state"]),
                 "native_policy_configuration": native["policy"],
@@ -324,6 +342,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--checkpoint-sha256", required=True)
+    parser.add_argument("--policy-observation-encoder", choices=ENCODER_CHOICES, default="raw")
     parser.add_argument("--gpu-duel-config", type=Path, required=True)
     parser.add_argument("--default-config", type=Path, default=root / "config/default.ini")
     parser.add_argument("--native-config", type=Path, default=root / "config/rek_g1.ini")
@@ -332,6 +351,8 @@ def main():
     parser.add_argument("--horizon", type=int, default=64)
     parser.add_argument("--minibatch-size", type=int, default=0, help="native setup only; no PPO updates")
     parser.add_argument("--seed", type=int, default=73)
+    parser.add_argument("--greedy", action="store_true",
+                        help="evaluate each highest-logit legal action without exploration; disables training")
     parser.add_argument("--log-every", type=int, default=10)
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--environment-factory", default="gpu_semantic_duel:GpuSemanticDuel")

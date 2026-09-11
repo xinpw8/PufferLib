@@ -33,6 +33,13 @@ def terminal(duel, arena, result=1, winner=0, points=(9, 4)):
 
 
 class EvaluationConfigTests(unittest.TestCase):
+    def test_greedy_evaluation_is_explicit_and_does_not_leak_from_config(self):
+        original = {"vec": {}, "train": {}, "greedy_evaluation": True}
+        common = dict(fighters=8, horizon=64, ticks=128, seed=73)
+        self.assertFalse(evaluation_config(original, **common)["greedy_evaluation"])
+        self.assertTrue(evaluation_config(original, **common, greedy=True)["greedy_evaluation"])
+        self.assertTrue(original["greedy_evaluation"])
+
     def test_native_seed_is_base_seed_and_original_is_preserved(self):
         original = {"vec": {"total_agents": 8}, "train": {"seed": 42}, "seed": 73,
                     "reset_state": True, "policy": {"hidden_size": 256}}

@@ -112,7 +112,9 @@ class _FullDuelMetricPlugin:
 class GpuCandidateDummyDuel:
     """Stable contiguous learner-only boundary around complete GPU duels."""
 
-    def __init__(self, duel, *, capture=True):
+    def __init__(self, duel, *, capture=True, policy_observation_encoder="raw",
+                 checkpoint_manifest=None, checkpoint_sha256=None,
+                 policy_observation_initialization="matching-checkpoint"):
         from gpu_behavior_metrics import GpuBehaviorMetricCollector
         from gpu_metrics import RekG1GpuMetricCollector
 
@@ -124,6 +126,18 @@ class GpuCandidateDummyDuel:
         if device.type != "cuda":
             raise ValueError("candidate dummy training requires CUDA physics")
         self.dummy = GpuCandidateApproachDummy(self.rows, device)
+        self.policy_encoder = None
+        if policy_observation_encoder != "raw":
+            from gpu_policy_observation_encoder import GpuPolarXYPolicyEncoder, GpuScaledPolarXYPolicyEncoder
+
+            encoders = {"polar_xy_v1": GpuPolarXYPolicyEncoder, "scaled_polar_xy_v1": GpuScaledPolarXYPolicyEncoder}
+            if policy_observation_encoder not in encoders:
+                raise ValueError("unknown policy observation encoder")
+            self.policy_encoder = encoders[policy_observation_encoder](
+                self.rows, device, checkpoint_manifest=checkpoint_manifest,
+                checkpoint_sha256=checkpoint_sha256,
+                initialization=policy_observation_initialization,
+            )
         self.learner_actions = torch.ones((self.rows, 1), dtype=torch.int32, device=device)
         self.full_actions = torch.ones((duel.rows, 1), dtype=torch.int32, device=device)
         self.observations = torch.empty((self.rows, 223), dtype=torch.float32, device=device)
@@ -155,7 +169,8 @@ class GpuCandidateDummyDuel:
             self.reset()
 
     def _copy_learner_buffers(self):
-        self.observations.copy_(self.duel.observations[0::2])
+        raw = self.duel.observations[0::2]
+        self.observations.copy_(raw if self.policy_encoder is None else self.policy_encoder.encode(raw))
         self.rewards.copy_(self.duel.rewards[0::2])
         self.terminals.copy_(self.duel.terminals[0::2])
         self.action_mask.copy_(self.duel.action_mask[0::2])
@@ -178,6 +193,8 @@ class GpuCandidateDummyDuel:
     def reset(self):
         self.duel.reset()
         self.dummy.reset()
+        if self.policy_encoder is not None:
+            self.policy_encoder.reset_status()
         self.combat_metrics.reset()
         self.behavior_metrics.reset()
         self.learner_actions.fill_(1)
@@ -201,6 +218,8 @@ class GpuCandidateDummyDuel:
     def log(self):
         self.duel.check_status()
         self.dummy.check_status()
+        if self.policy_encoder is not None:
+            self.policy_encoder.check_status()
         return {}
 
     def close(self):
