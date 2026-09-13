@@ -1,0 +1,10 @@
+native_sonic_test_failed: native SONIC numerical comparison failed
+native_onnx_inspection batch=1024 coefficients=14415581 float32_bytes=57662324 wrong_batch_rejected=1 truncated_rejected=1
+encoder_vs_ort_cpu mismatch index=49214 actual=0.4375 expected=0.375
+encoder_vs_ort_cpu max_abs=0.0625 outside_tolerance=1 tolerance=2e-05
+decoder_vs_ort_cpu max_abs=1.33514404e-05 outside_tolerance=0 tolerance=2e-05
+packed_vs_full_encoder max_abs=0 outside_tolerance=0 tolerance=0
+graph_vs_eager_encoder max_abs=0 outside_tolerance=0 tolerance=0
+graph_vs_eager_decoder max_abs=0 outside_tolerance=0 tolerance=0
+Command exited with non-zero status 1
+elapsed_s=1.05

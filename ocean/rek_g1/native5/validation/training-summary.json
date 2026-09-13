@@ -1,0 +1,45 @@
+{
+  "date_utc": "2026-09-13",
+  "host": "spark-4ae3",
+  "gpu": "NVIDIA GB10",
+  "shared_gpu": true,
+  "pufferlib_commit": "773f923d80e73bdc255a2ba730c918b28e416aa1",
+  "native_executable_sha256": "c5c328a0c70b54415b91772a75aac2a46229cb347343b655052d3b4868cecde6",
+  "python_in_training_path": false,
+  "python_invoked_by_build": false,
+  "physics_backend": "CUDA Puffysics mode 0, B3_ART_CONTACTS=0, capsule diagnostic",
+  "physics_cpu_steps": 0,
+  "headless": true,
+  "sps_unit": "one learner transition, including both robots, rollout, policy inference and PPO/Muon",
+  "decision_dt_seconds": 0.02,
+  "physics_dt_seconds": 0.002,
+  "physics_steps_per_decision": 10,
+  "policy": {"architecture": "MinGRU", "hidden_size": 256, "layers": 2, "initialization": "fresh"},
+  "horizon": 16,
+  "replay_ratio": 1,
+  "initial_unprofiled_measurements": [
+    {"arenas": 512, "fighters": 1024, "exit_code": 0, "warm_transitions": 16384, "warm_seconds": 2.9334826469421387, "warm_pooled_training_sps": 5585.170247070892},
+    {"arenas": 4096, "fighters": 8192, "exit_code": 0, "warm_transitions": 131072, "warm_seconds": 10.805494546890259, "warm_pooled_training_sps": 12130.125042515667}
+  ],
+  "final_build_runs": [
+    {"path": "final-512", "arenas": 512, "exit_code": 0, "completed_ppo_epochs": 3, "trained_transitions": 24576, "last_interval_training_sps": 5461.05990952309, "completed_rounds": 0},
+    {"path": "final-4096", "arenas": 4096, "exit_code": 0, "completed_ppo_epochs": 3, "trained_transitions": 196608, "last_interval_training_sps": 12032.669811579686, "completed_rounds": 0},
+    {"path": "final-extended", "arenas": 512, "exit_code": 134, "completed_ppo_epochs": 4, "trained_transitions": 32768, "failed_rollout": 5, "failure_arena": 1, "failure_bits": 15, "invalid_rollout_rejected_before_ppo": true}
+  ],
+  "separate_profile": {
+    "arenas": 512,
+    "training_epochs": 3,
+    "kernel_calls": 26569,
+    "summed_gpu_kernel_seconds": 4.142174,
+    "rp_step_kernel_percent": 79.28,
+    "rps_body_kernel_percent": 8.17,
+    "physics_grid_blocks": 16,
+    "physics_threads_per_block": 32,
+    "physics_registers_per_thread": 128
+  },
+  "sustained_training_valid": false,
+  "parity_established": false,
+  "superhuman_policy_established": false,
+  "win_rate": null,
+  "isolated_maximum_training_sps": null
+}

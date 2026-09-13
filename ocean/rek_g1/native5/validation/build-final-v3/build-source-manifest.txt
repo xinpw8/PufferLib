@@ -1,0 +1,40 @@
+pufferlib_commit=773f923d80e73bdc255a2ba730c918b28e416aa1
+architecture=sm_121
+public_repository=https://github.com/xinpw8/PufferLib.git
+equivalent_local_src_and_default_ini_commit=84a89728fafd4034ae3c386a9e0665d62310780b
+trainer_source=/home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/trainer/src/pufferl.cu
+validation=compile_and_link_only
+runtime_validation=not_run
+7b4f03d76b7bc30849ef588301a052742052bfc95b8b62068a5d1f1e5ea3bb0b  /home/spark-advantage/rek-training/native5-rek-20260913-v1/pufferlib5/src/pufferl.cu
+9fbf234ad505dec809634ebaee305f65b9dfc687c6c6671da709c9786bfae693  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/trainer/src/pufferl.cu
+f175726095863750f41be9be0bdd1111888d63b2849ea27ffb92a2e672e28252  /home/spark-advantage/rek-training/native5-rek-20260913-v1/source-final-v3/ocean/rek_g1/native5/pufferlib5_action_mask.patch
+20c5f33b036ad43c66492ca6be82265675b8f620bfcb989eb433d2f04f27cd98  /home/spark-advantage/rek-training/native5-rek-20260913-v1/pufferlib5/src/algo.cu
+bd9c956a9a584796aa233d5b554a6a4d0e591950b43acea54c9c0cf872ce0702  /home/spark-advantage/rek-training/native5-rek-20260913-v1/source-final-v3/ocean/rek_g1/native5/puffer_env.cu
+5dc5ed291eda1dc957de9fa3f87bcf712fb01e78b516596a59d4664743a099c8  /home/spark-advantage/rek-training/native5-rek-20260913-v1/source-final-v3/ocean/rek_g1/native5/runtime_api.h
+1e22d53de8ef189c1997465140be6306005e0852f1bee00cb91ccc2e3541a231  /home/spark-advantage/rek-training/native5-rek-20260913-v1/source-final-v3/ocean/rek_g1/native5/native5.ini
+11f2f73f58c41a4ef8fe6fd5d20edafaf2fb54497e993126effeca0654782c6b  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/pufferl.o
+8e3390658d5a226cae3009a03f77d1d216701fafaa174aa2cd8130745207b46f  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/runtime.o
+57d28a9814d4f3a9094fab7d8cbee77a76629474a4788dd01d56dd1db9b4befd  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/measurement.o
+9c4abfd907854502cc0d2b46355638779d27800a94db14e1887180155630e3c1  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/motion_assets.o
+9ec6a364fd5bff941c4204d829a5c48ede8af64544db62f0e1b865005de5c9ae  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/physics.o
+545c009775392345aa4206031815278eef04f0fbda25008e85db360ec1c974af  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/sonic_controller.o
+5b93c72cde4e3fe2b098c92c42b0b12709d7cf3fecff0d91bdd88e7fcb451288  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/robot_state.o
+d54e77aedfd8aa99eb58a69c7fd0038332173bcb367bac8ccb048d519b4a616a  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/native_motion_routes.host.o
+5896261334c7003d79e04d6e50651e76aae2ae4c5010021db91fba83727a180d  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/g1_strike_catalog.host.o
+eb41568eaa0dfee60e0b31cbc7b607365d4c93dfe46c0dafac6b131ec22b91a1  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/cJSON.o
+9c9356ff8314152b37fbe64c35a377018a13cbf82187933af2b7bab866cd2e5f  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/puffer_action_adapter.device.o
+28aeb2a81e2c7a1a52fbaf53e30964424c537191f3fe590ca5495884e216da62  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/g1_semantic_action_table.device.o
+3986ebd7a4d6e9c9a9c05b856c21bfdf7d4711292be91b8ab270606788ac5735  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/native_locomotion_command.device.o
+9a73a628dab00396d560f9ce13c12ab84f14667e6d9a996a79764d9f422304e4  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/sonic_motion_composer_native.device.o
+d1860d4936a8be446561b113f977cbff643702b2638a91b158245c59c6fc6822  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/sonic_motion_composer_libm_candidate.device.o
+c05caabfedd7c63dcc15e19e46f19042e387926e7f57cd015943ea7cdacbc4b1  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/sonic_motion_entry_matcher_native.device.o
+d2f2d7e2c363226f8f96ed61f698758d42bab4d96ee5c9cf84032e608e5b901c  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/g1_combat_tick.device.o
+8375d7aced3450b8304576476e5936eaab0af55bc7903e597125cfe2807003ca  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/g1_fight_state.device.o
+2181c3c12d0530dd9d957c26dfc064a1d8bd7e0661d90f7e14f55ab7ec3067ac  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/g1_fall_state.device.o
+da06ada41e446226fc837e6140cf797fa79b65ca0339e1e272c0d296e2ca11fe  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/g1_hit_detector.device.o
+6f5f9d1f5aee73aea5745c79b134d6f5e8ec8f78e51ccf53385ac65462f2b019  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/g1_motion_cuda.o
+95bd7a0bd09332004f2fc86217f884f7ca657f6624d12a64c5542d96ee2a316b  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/g1_semantic_scheduler_cuda.o
+dc985554ed13cef43bcd71fa7b29f90e0b340f406ebc7ef1708f91c1ac54043e  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/g1_combat_cuda.o
+d96db5dbe9075a025e561c24f9d586717345ab69248aa38d75a4bbbd2271d3d5  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/g1_native_combat_cuda.o
+c5c328a0c70b54415b91772a75aac2a46229cb347343b655052d3b4868cecde6  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/puffer-rek-native5
+link_validation=passed

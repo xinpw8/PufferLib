@@ -1,0 +1,60 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ PufferLib 5.0               🐡 GPU:  96%   VRAM:106.7/120G    RAM:  0.8G     │
+│                                                                              │
+│ Env         rek_native5    Evaluate        0ms   0%    Losses     322.843    │
+│ Params           459.0K      Model         0ms   0%    policy       2.043    │
+│ Steps              8.2K      Env           0ms   0%    value      641.602    │
+│ SPS                6.7K      Copy          0ms   0%    entropy      0.342    │
+│ Epoch                 1    Train           2ms 100%    old_kl       0.007    │
+│ Uptime         1s 220ms      Model         2ms  97%    kl           0.006    │
+│ To go         23s 175ms      Misc          0ms   2%    clipfrac     0.015    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ PufferLib 5.0              🐡  GPU:  96%   VRAM:106.7/120G    RAM:  0.8G     │
+│                                                                              │
+│ Env         rek_native5    Evaluate     1s 441  99%    Losses     1956.75    │
+│ Params           459.0K      Model         0ms   0%    policy       7.006    │
+│ Steps             16.4K      Env           0ms   0%    value      3899.50    │
+│ SPS                5.7K      Copy          0ms   0%    entropy      0.092    │
+│ Epoch                 2    Train           2ms   0%    old_kl       0.183    │
+│ Uptime         2s 669ms      Model         2ms   0%    kl           0.176    │
+│ To go         26s 092ms      Misc          0ms   0%    clipfrac     0.032    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ PufferLib 5.0             🐡   GPU:  96%   VRAM:106.7/120G    RAM:  0.8G     │
+│                                                                              │
+│ Env         rek_native5    Evaluate     1s 492  99%    Losses     4013.28    │
+│ Params           459.0K      Model         0ms   0%    policy       5.907    │
+│ Steps             24.6K      Env           0ms   0%    value      8014.74    │
+│ SPS                5.5K      Copy          0ms   0%    entropy      0.127    │
+│ Epoch                 3    Train           2ms   0%    old_kl       0.254    │
+│ Uptime         4s 168ms      Model         2ms   0%    kl           0.240    │
+│ To go         25s 480ms      Misc          0ms   0%    clipfrac     0.035    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ PufferLib 5.0            🐡    GPU:  96%   VRAM:106.7/120G    RAM:  0.8G     │
+│                                                                              │
+│ Env         rek_native5    Evaluate     1s 587  99%    Losses     13394.4    │
+│ Params           459.0K      Model         0ms   0%    policy     -16.079    │
+│ Steps             32.8K      Env           0ms   0%    value      26820.9    │
+│ SPS                5.1K      Copy          0ms   0%    entropy      0.217    │
+│ Epoch                 4    Train           2ms   0%    old_kl       1.146    │
+│ Uptime         5s 762ms      Model         2ms   0%    kl           1.125    │
+│ To go         25s 496ms      Misc          0ms   0%    clipfrac     0.046    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ PufferLib 5.0           🐡     GPU:  96%   VRAM:106.7/120G    RAM:  0.8G     │
+│                                                                              │
+│ Env         rek_native5    Evaluate     1s 567  99%    Losses         nan    │
+│ Params           459.0K      Model         0ms   0%    policy         nan    │
+│ Steps             41.0K      Env           0ms   0%    value          nan    │
+│ SPS                5.2K      Copy          0ms   0%    entropy        nan    │
+│ Epoch                 5    Train           2ms   0%    old_kl         nan    │
+│ Uptime         7s 336ms      Model         2ms   0%    kl             nan    │
+│ To go         23s 618ms      Misc          0ms   0%    clipfrac     0.034    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯

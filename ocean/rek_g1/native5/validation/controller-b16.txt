@@ -1,0 +1,8 @@
+native_onnx_inspection batch=16 coefficients=14415581 float32_bytes=57662324 wrong_batch_rejected=1 truncated_rejected=1
+encoder_vs_ort_cpu max_abs=0 outside_tolerance=0 tolerance=2e-05
+decoder_vs_ort_cpu max_abs=8.82148743e-06 outside_tolerance=0 tolerance=2e-05
+packed_vs_full_encoder max_abs=0 outside_tolerance=0 tolerance=0
+graph_vs_eager_encoder max_abs=0 outside_tolerance=0 tolerance=0
+graph_vs_eager_decoder max_abs=0 outside_tolerance=0 tolerance=0
+native_sonic_pass batch=16 resident_bytes=57965428 ort_version=1.24.4 python_used=0 inference_backend=cublas_fp32_pedantic
+elapsed_s=0.68

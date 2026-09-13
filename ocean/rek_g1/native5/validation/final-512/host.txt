@@ -1,0 +1,5 @@
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+aarch64
+GPU 0: NVIDIA GB10 (UUID: GPU-c10f6617-d6dc-c3c2-3069-3dcc3f506b75)
+c5c328a0c70b54415b91772a75aac2a46229cb347343b655052d3b4868cecde6  /home/spark-advantage/rek-training/native5-rek-20260913-v1/build-final-v3/puffer-rek-native5

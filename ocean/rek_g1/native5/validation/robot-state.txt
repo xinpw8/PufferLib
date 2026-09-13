@@ -1,0 +1,2 @@
+native_robot_state_pass checked_values=414212 rows=8 ticks=18 history_capture_replays=3 python_used=0
+elapsed_s=0.31

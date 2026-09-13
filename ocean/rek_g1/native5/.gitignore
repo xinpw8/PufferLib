@@ -1,0 +1,8 @@
+*.o
+*.bin
+*.onnx
+*.nsys-rep
+*.sqlite
+core
+core.*
+checkpoints/

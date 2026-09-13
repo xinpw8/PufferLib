@@ -1,0 +1,36 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ PufferLib 5.0               🐡 GPU:  96%   VRAM:109.4/120G    RAM:  0.8G     │
+│                                                                              │
+│ Env         rek_native5    Evaluate        0ms   0%    Losses     514.738    │
+│ Params           459.0K      Model         0ms   0%    policy      -4.102    │
+│ Steps             65.5K      Env           0ms   0%    value      1037.68    │
+│ SPS               12.7K      Copy          0ms   0%    entropy      0.346    │
+│ Epoch                 1    Train          14ms 100%    old_kl       0.000    │
+│ Uptime         5s 155ms      Model        14ms  97%    kl           0.000    │
+│ To go         10s 310ms      Misc          0ms   2%    clipfrac     0.000    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ PufferLib 5.0              🐡  GPU:  96%   VRAM:109.3/120G    RAM:  0.8G     │
+│                                                                              │
+│ Env         rek_native5    Evaluate     5s 423  99%    Losses     3653.49    │
+│ Params           459.0K      Model         0ms   0%    policy      -4.335    │
+│ Steps            131.1K      Env           0ms   0%    value      7315.65    │
+│ SPS               12.0K      Copy          0ms   0%    entropy      0.048    │
+│ Epoch                 2    Train          13ms   0%    old_kl      -0.000    │
+│ Uptime        10s 599ms      Model        12ms   0%    kl           0.000    │
+│ To go          5s 444ms      Misc          0ms   0%    clipfrac     0.000    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ PufferLib 5.0             🐡   GPU:  96%   VRAM:109.4/120G    RAM:  0.8G     │
+│                                                                              │
+│ Env         rek_native5    Evaluate     5s 423  99%    Losses     4704.50    │
+│ Params           459.0K      Model         0ms   0%    policy      10.633    │
+│ Steps            196.6K      Env           0ms   0%    value      9387.74    │
+│ SPS               12.0K      Copy          0ms   0%    entropy      0.053    │
+│ Epoch                 3    Train          13ms   0%    old_kl       0.000    │
+│ Uptime        16s 045ms      Model        12ms   0%    kl           0.000    │
+│ To go               0ms      Misc          0ms   0%    clipfrac     0.000    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯

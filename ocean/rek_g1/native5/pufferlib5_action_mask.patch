@@ -1,0 +1,23 @@
+diff --git a/src/pufferl.cu b/src/pufferl.cu
+--- a/src/pufferl.cu
++++ b/src/pufferl.cu
+@@ -1017,6 +1017,9 @@ static void env_setup(PuffeRL* p, VecEnv* vec, Dict* vk, Dict* ek) {
+         vec->envs = puf_vec_create(vec->total_agents, ek,
+             p->env.obs.data, p->env.actions.data,
+             p->env.rewards.data, p->env.terminals.data);
++#ifdef PUFFER_ENV_GPU_ACTION_MASK
++        puf_bind_action_mask(p->env.action_mask.data);
++#endif
+         cudaMalloc((void**)&vec->log_scratch, sizeof(Log));
+         cudaMemset(vec->log_scratch, 0, sizeof(Log));
+         vec->policy_layout[0] = 0;
+@@ -1322,6 +1325,9 @@ void rollout_finish(PuffeRL* p, double t0) {
+ void rollout_finish(PuffeRL* p, double t0) {
+     if (PUF_BACKEND == PUF_GPU) {
+         cudaStreamSynchronize(p->streams[0]);
++#ifdef PUFFER_ENV_GPU_ROLLOUT_CHECK
++        puf_check_rollout();
++#endif
+         float model_ms = 0.0f, env_ms = 0.0f, ms;
+         cudaEvent_t* ev = p->profile.rollout_ev;
+         if (p->profile.skip_rollout_time) {
