@@ -1,0 +1,862 @@
+{
+  "current_production_h256": {
+    "difference_from_matched_pair": "horizon256 and conditional reset forward enabled; separate baseline",
+    "per_run_training_sps": [
+      6114.6651119667,
+      6061.922465652901,
+      6185.16082185454
+    ],
+    "runs": [
+      {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/current-production/report-r1.json",
+        "sha256": "cb11c574aa8de2ae73cd9bba1386f6f8da19c4c1b0d6dde4528efd9043902d54"
+      },
+      {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/current-production/report-r2.json",
+        "sha256": "84caa4a93f052bb52cb12edc56094a74213517f319f7dc567dcb4953097e153a"
+      },
+      {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/current-production/report-r3.json",
+        "sha256": "f6eb831c84174cd914c37a7f16fa9c5e350f1c93081c5591dae91b6d7fd66e41"
+      }
+    ],
+    "timing_scope": "existing production loop including periodic reporting; setup and final checkpoint excluded",
+    "training_sps": 6120.16695452626
+  },
+  "host": "spark-4ae3",
+  "instrumented_training_breakdown": {
+    "mujoco": {
+      "percent_total_cuda_stream": {
+        "action_conversion": 0.0029511195214794905,
+        "bootstrap_and_rollout_finish": 0.006875921163433116,
+        "environment_with_dummy_and_metrics": 98.7711531236366,
+        "policy_inference_and_storage": 0.10143447096061058,
+        "rollout_begin": 0.000593312367671201
+      },
+      "ppo_percent_total_cuda_stream": 1.1110920284526842,
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/mujoco-events-h16-v1/report.json",
+        "sha256": "c491b0cbb738ab5e2562f82f604385bdeea7ef9b571c002862ba6bd4c7b239ee"
+      },
+      "status": "passed"
+    },
+    "puffysics": {
+      "percent_total_cuda_stream": {
+        "action_conversion": 0.0003703283518217519,
+        "bootstrap_and_rollout_finish": 0.0008954866380558627,
+        "environment_with_dummy_and_metrics": 99.85171856156475,
+        "policy_inference_and_storage": 0.013476522310982819,
+        "rollout_begin": 6.628406399773097e-05
+      },
+      "ppo_percent_total_cuda_stream": 0.13237248400312537,
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-events-h16-v1/report.json",
+        "sha256": "c1ff2345079b7fd445adfafd847fc475022b149ab9661e968dd5779472bf7af2"
+      },
+      "status": "passed"
+    }
+  },
+  "limits": [
+    "Matched short runs span 0.32 simulated seconds of warmup plus 0.64 measured seconds per arena.",
+    "Physics trajectories differ, so this measures the same task implementation with different solvers, not parity.",
+    "No learning quality or superhuman conclusion follows from short training throughput.",
+    "Current production and short matched comparisons have different horizons; do not call their ratio a physics-only effect."
+  ],
+  "matched_512_arena_h16": {
+    "mujoco": {
+      "all_weights_changed": true,
+      "arenas": 512,
+      "horizon": 16,
+      "learner_transitions": 49152,
+      "per_run_training_sps": [
+        4035.983365401656,
+        4111.2956251618,
+        4144.301351519102
+      ],
+      "ppo_percent_cuda_stream": 1.0787385576305142,
+      "rollout_percent_cuda_stream": 98.92126241214157,
+      "runs": [
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/mujoco-final-h16-r1/report.json",
+          "sha256": "5838dd0e858d015c3d845e91e3a5d0f929ea4e96c40731c36477999977c6d188"
+        },
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/mujoco-final-h16-r2/report.json",
+          "sha256": "f56662789ff473ba94212dc7c7656d3717800db7653bc92495d67f25599a2571"
+        },
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/mujoco-final-h16-r3/report.json",
+          "sha256": "e5c3f69ef4568618269040e15c5ed547c86c5aa5c4e7d5c194f6a2cb3793a987"
+        }
+      ],
+      "training_sps": 4096.689455749756,
+      "training_wall_seconds": 11.99798045004718
+    },
+    "puffysics": {
+      "all_weights_changed": true,
+      "arenas": 512,
+      "horizon": 16,
+      "learner_transitions": 49152,
+      "per_run_training_sps": [
+        518.2813549048371,
+        515.960712004625,
+        514.9233399555151
+      ],
+      "ppo_percent_cuda_stream": 0.13385676766894122,
+      "rollout_percent_cuda_stream": 99.86614380944333,
+      "runs": [
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-final-h16-r1/report.json",
+          "sha256": "dc9afc9f1f95578cf26fb08c1e14cca9470f1ba6710c54181de227e1670be372"
+        },
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-final-h16-r2/report.json",
+          "sha256": "dc38329d95f4294de6229df618652df550df4b0837e8abf7c918bbeeb13d19f8"
+        },
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-final-h16-r3/report.json",
+          "sha256": "f4c705f98d652f4889dcba71ad92af58751f803a98a91bac3ab6539260451663"
+        }
+      ],
+      "training_sps": 516.3846567564618,
+      "training_wall_seconds": 95.18485756090377
+    }
+  },
+  "mujoco_over_puffysics_training_sps_ratio": 7.933406622656187,
+  "nsight": {
+    "mujoco": {
+      "adapter_percent_sum_kernel_time": 0,
+      "kernel_calls": 301434,
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/mujoco-nsys-summary.json",
+        "sha256": "3f4fa8de19845e96032001b3137e0204f2a2662e1d2b9169e7ec20d592587020"
+      },
+      "sum_kernel_ms": 3738.15601800001,
+      "top_kernels": [
+        {
+          "calls": 5560,
+          "launch_configurations": [
+            {
+              "block_x": 256,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 292,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 48
+            }
+          ],
+          "name": "update_gradient_JTCJ_sparse_8a11766b_cuda_kernel_forward",
+          "percent_sum_kernel_time": 24.840245579070373,
+          "sum_kernel_ms": 928.5671350000006
+        },
+        {
+          "calls": 5560,
+          "launch_configurations": [
+            {
+              "block_x": 32,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 512,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 168
+            }
+          ],
+          "name": "update_gradient_cholesky_blocked__locals__kernel_3b712445_cuda_kernel_forward",
+          "percent_sum_kernel_time": 11.821675442975003,
+          "sum_kernel_ms": 441.9126719999995
+        },
+        {
+          "calls": 9776,
+          "launch_configurations": [
+            {
+              "block_x": 512,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 17,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 16
+            },
+            {
+              "block_x": 512,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 1600,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 16
+            }
+          ],
+          "name": "memset32",
+          "percent_sum_kernel_time": 5.9191168034337815,
+          "sum_kernel_ms": 221.26582100000974
+        },
+        {
+          "calls": 5560,
+          "launch_configurations": [
+            {
+              "block_x": 256,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 2048,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 30
+            }
+          ],
+          "name": "_JTDAJ_sparse_74a213ab_cuda_kernel_forward",
+          "percent_sum_kernel_time": 4.519565667844724,
+          "sum_kernel_ms": 168.9484159999999
+        },
+        {
+          "calls": 4888,
+          "launch_configurations": [
+            {
+              "block_x": 32,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 512,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 91
+            }
+          ],
+          "name": "linesearch_iterative__locals__kernel_f0104db3_cuda_kernel_forward",
+          "percent_sum_kernel_time": 4.483934758016817,
+          "sum_kernel_ms": 167.61647699999983
+        }
+      ]
+    },
+    "puffysics": {
+      "adapter_percent_sum_kernel_time": 0.9545173827034561,
+      "kernel_calls": 116816,
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-nsys-summary.json",
+        "sha256": "f5fbcdc6109c3d452e8eb946b2b84cf1eb11712e5b61ab68ef286f1d87391551"
+      },
+      "sum_kernel_ms": 31841.334427999984,
+      "top_kernels": [
+        {
+          "calls": 320,
+          "launch_configurations": [
+            {
+              "block_x": 32,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 16,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 196
+            }
+          ],
+          "name": "rp_step_kernel(RpHandle, const float *, float *, float *, float *, float *, float *)",
+          "percent_sum_kernel_time": 97.55359078382405,
+          "sum_kernel_ms": 31062.365087999984
+        },
+        {
+          "calls": 672,
+          "launch_configurations": [
+            {
+              "block_x": 32,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 16,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 40
+            }
+          ],
+          "name": "rps_body_kernel(RpHandle, RpsDescriptor)",
+          "percent_sum_kernel_time": 0.7324816631896721,
+          "sum_kernel_ms": 233.23193599999996
+        },
+        {
+          "calls": 672,
+          "launch_configurations": [
+            {
+              "block_x": 32,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 16,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 40
+            }
+          ],
+          "name": "rps_contacts_kernel(RpHandle, RpsDescriptor)",
+          "percent_sum_kernel_time": 0.14085731269026203,
+          "sum_kernel_ms": 44.850848
+        },
+        {
+          "calls": 32,
+          "launch_configurations": [
+            {
+              "block_x": 128,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 8,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 253
+            }
+          ],
+          "name": "<unnamed>::pre_kernel(const RekG1CudaSemanticBuffers *, const float *, const float *, const unsigned char *, unsigned long)",
+          "percent_sum_kernel_time": 0.1357919973416009,
+          "sum_kernel_ms": 43.237984
+        },
+        {
+          "calls": 96,
+          "launch_configurations": [
+            {
+              "block_x": 256,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 32,
+              "grid_y": 1,
+              "grid_z": 6,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 210
+            },
+            {
+              "block_x": 256,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 64,
+              "grid_y": 1,
+              "grid_z": 3,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 210
+            }
+          ],
+          "name": "void cutlass::Kernel2<cutlass_80_simt_sgemm_256x128_8x4_nn_align1>(T1::Params)",
+          "percent_sum_kernel_time": 0.1065219677796351,
+          "sum_kernel_ms": 33.918016
+        }
+      ]
+    }
+  },
+  "paired_inputs": {
+    "benchmark_sha256": "84bf1053e4ee18800bd308fc9ea6e7b06e9c74d713afdd05fafa269a57e1e86f",
+    "controller_sha256": {
+      "decoder": "20a09e30bf4febe415e8584538edce5a1ce2b031c83ce20c43fa8f7f246bb0c7",
+      "encoder": "32fbbc26185e6ad7083842ad8137436a0df6dcc31eafb3ce9c14c552eb2026c3"
+    },
+    "duel": {
+      "assets": "/home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact",
+      "assets_sha256": "7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28",
+      "combat_library": "/home/spark-advantage/rek-training/deferred-observe-20260911-v1/build/librek_g1_combat_cuda.so",
+      "conditional_reset_forward": false,
+      "controller_manifest": "/home/spark-advantage/rek-training/gpu-runtime-20260910/controller-batch1024-20260910/explicit_batch_manifest.json",
+      "controller_source": "/home/spark-advantage/codexrook-runtime/upstream/GEAR-SONIC-6733128a3d8a523b1418b06bca3cdf61c8b0987f",
+      "defer_substep_combat_observations": true,
+      "device": "cuda:0",
+      "fused_combat_library": "/home/spark-advantage/rek-training/combat-fusion-20260911-v1/libmeasurement.so",
+      "locomotion_segment_ticks": 1,
+      "model": "/home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml",
+      "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+      "motion_features": "/home/spark-advantage/rek-training/gpu-runtime-20260910/motion-foot-features",
+      "motion_library": "/home/spark-advantage/rek-training/gpu-runtime-20260910/motion-build-v3-loop-boundary/librek_g1_motion_cuda.so",
+      "move_duration_ticks": [
+        35,
+        27,
+        31,
+        45,
+        32,
+        45,
+        157,
+        145,
+        158,
+        139,
+        134,
+        138,
+        73,
+        75,
+        68,
+        71,
+        103
+      ]
+    },
+    "gpu": "NVIDIA GB10",
+    "host": "spark-4ae3",
+    "initial_weights_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+    "learner": {
+      "checkpoint_dir": "checkpoints",
+      "checkpoint_interval": 500,
+      "cudagraphs": 10,
+      "env": {
+        "locomotion_segment_ticks": 1,
+        "max_steps": 500,
+        "move_0_duration_ticks": 35,
+        "move_10_duration_ticks": 134,
+        "move_11_duration_ticks": 138,
+        "move_12_duration_ticks": 73,
+        "move_13_duration_ticks": 75,
+        "move_14_duration_ticks": 68,
+        "move_15_duration_ticks": 71,
+        "move_16_duration_ticks": 103,
+        "move_1_duration_ticks": 27,
+        "move_2_duration_ticks": 31,
+        "move_3_duration_ticks": 45,
+        "move_4_duration_ticks": 32,
+        "move_5_duration_ticks": 45,
+        "move_6_duration_ticks": 157,
+        "move_7_duration_ticks": 145,
+        "move_8_duration_ticks": 158,
+        "move_9_duration_ticks": 139,
+        "physics_workers": 4
+      },
+      "env_name": "rek_g1",
+      "eval_episodes": 10000,
+      "gpu_id": 0,
+      "log_dir": "logs",
+      "nccl_id": {
+        "hex": ""
+      },
+      "policy": {
+        "expansion_factor": 1,
+        "hidden_size": 256,
+        "num_layers": 2
+      },
+      "profile": false,
+      "rank": 0,
+      "reset_state": true,
+      "seed": 73,
+      "selfplay": {
+        "elo_init": 0.0,
+        "elo_k": 16.0,
+        "enabled": 0,
+        "max_size": 16,
+        "opp_timeout_steps": 500000000,
+        "opponent_pool": "",
+        "seed": 42,
+        "snapshot_interval": 1000000000
+      },
+      "sweep": {
+        "downsample": 5,
+        "early_stop_quantile": 0.3,
+        "goal": "maximize",
+        "gpus": 0,
+        "league": false,
+        "league_anchor_prob": 0.12,
+        "league_match_eval_agents": 8192,
+        "league_match_games": 4096,
+        "league_state_path": "",
+        "max_runs": 1200,
+        "max_suggestion_cost": 3600,
+        "method": "Protein",
+        "metric": "score",
+        "metric_distribution": "linear",
+        "prune_pareto": true,
+        "use_gpu": true
+      },
+      "sweep.policy.hidden_size": {
+        "distribution": "uniform_pow2",
+        "max": 1024,
+        "min": 32,
+        "scale": "auto"
+      },
+      "sweep.policy.num_layers": {
+        "distribution": "uniform",
+        "max": 8,
+        "min": 1,
+        "scale": "auto"
+      },
+      "sweep.train.beta1": {
+        "distribution": "logit_normal",
+        "max": 0.999,
+        "min": 0.5,
+        "scale": "auto"
+      },
+      "sweep.train.beta2": {
+        "distribution": "logit_normal",
+        "max": 0.99999,
+        "min": 0.9,
+        "scale": "auto"
+      },
+      "sweep.train.clip_coef": {
+        "distribution": "uniform",
+        "max": 1.0,
+        "min": 0.01,
+        "scale": "auto"
+      },
+      "sweep.train.ent_coef": {
+        "distribution": "log_normal",
+        "max": 0.2,
+        "min": 1e-05,
+        "scale": "auto"
+      },
+      "sweep.train.eps": {
+        "distribution": "log_normal",
+        "max": 0.0001,
+        "min": 1e-14,
+        "scale": "auto"
+      },
+      "sweep.train.gae_lambda": {
+        "distribution": "logit_normal",
+        "max": 0.995,
+        "min": 0.2,
+        "scale": "auto"
+      },
+      "sweep.train.gamma": {
+        "distribution": "logit_normal",
+        "max": 0.9999,
+        "min": 0.8,
+        "scale": "auto"
+      },
+      "sweep.train.horizon": {
+        "distribution": "uniform_pow2",
+        "max": 1024,
+        "min": 16,
+        "scale": "auto"
+      },
+      "sweep.train.learning_rate": {
+        "distribution": "log_normal",
+        "max": 0.1,
+        "min": 1e-05,
+        "scale": 0.5
+      },
+      "sweep.train.max_grad_norm": {
+        "distribution": "uniform",
+        "max": 5.0,
+        "min": 0.1,
+        "scale": "auto"
+      },
+      "sweep.train.minibatch_size": {
+        "distribution": "uniform_pow2",
+        "max": 65536,
+        "min": 4096,
+        "scale": "auto"
+      },
+      "sweep.train.prio_alpha": {
+        "distribution": "uniform",
+        "max": 1.0,
+        "min": 0.0,
+        "scale": "auto"
+      },
+      "sweep.train.prio_beta0": {
+        "distribution": "uniform",
+        "max": 1.0,
+        "min": 0.0,
+        "scale": "auto"
+      },
+      "sweep.train.replay_ratio": {
+        "distribution": "uniform",
+        "max": 4.0,
+        "min": 0.25,
+        "scale": "auto"
+      },
+      "sweep.train.total_timesteps": {
+        "distribution": "log_normal",
+        "max": 100000000000.0,
+        "min": 30000000.0,
+        "scale": "time"
+      },
+      "sweep.train.vf_clip_coef": {
+        "distribution": "uniform",
+        "max": 5.0,
+        "min": 0.01,
+        "scale": "auto"
+      },
+      "sweep.train.vf_coef": {
+        "distribution": "uniform",
+        "max": 5.0,
+        "min": 0.1,
+        "scale": "auto"
+      },
+      "sweep.train.vtrace_c_clip": {
+        "distribution": "uniform",
+        "max": 5.0,
+        "min": 0.1,
+        "scale": "auto"
+      },
+      "sweep.train.vtrace_rho_clip": {
+        "distribution": "uniform",
+        "max": 5.0,
+        "min": 0.1,
+        "scale": "auto"
+      },
+      "sweep.vec.total_agents": {
+        "distribution": "uniform_pow2",
+        "max": 16384,
+        "min": 256,
+        "scale": "auto"
+      },
+      "torch": {
+        "decoder": "DefaultDecoder",
+        "encoder": "DefaultEncoder",
+        "network": "MLP"
+      },
+      "train": {
+        "anneal_ent_coef": 0,
+        "anneal_lr": false,
+        "beta1": 0.9,
+        "beta2": 0.999,
+        "clip_coef": 0.2,
+        "ent_coef": 0.001,
+        "eps": 1e-08,
+        "gae_lambda": 0.995,
+        "gamma": 0.999,
+        "gpus": 1,
+        "horizon": 16,
+        "learning_rate": 0.003,
+        "max_grad_norm": 0.5,
+        "min_ent_coef_ratio": 0.1,
+        "min_lr_ratio": 0.0,
+        "minibatch_size": 4096,
+        "prio_alpha": 0.5,
+        "prio_beta0": 0.5,
+        "replay_ratio": 4,
+        "seed": 42,
+        "total_timesteps": 24576,
+        "vf_clip_coef": 1.0,
+        "vf_coef": 0.5,
+        "vtrace_c_clip": 1.0,
+        "vtrace_rho_clip": 1.0
+      },
+      "vec": {
+        "num_buffers": 1,
+        "num_threads": 0,
+        "total_agents": 512
+      },
+      "world_size": 1
+    },
+    "native_extension_sha256": "c9adb6fd581fad9a874dc3ddd72caef21fa0b68964cd9918404243b8296dc637",
+    "shared_inputs_sha256": {
+      "combat_library": "f545607241b6f04e6ed9057ebece3cb41536027e8124f8e61f317a80ade14bd0",
+      "controller_manifest": "d8a48138a8276dda2c101b9b58a64652c33c32d499b8dbd8b5cf7588201c23eb",
+      "default_config": "b0d58e486ece966d6a92b1e32c6ddc6bf7bbbb8d8adeffa2feeb5b63b750c492",
+      "fused_combat_library": "9bcf429adb9fdc842360c1e3f5e4aec9412f8ec6f2e00eb84483ca3890fdab55",
+      "gpu_duel_config": "f686dfa73ef567deed2a9f6b62a8071f8fb941ae65bb165cf39f8222c83d9140",
+      "loaded_checkpoint": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "loaded_checkpoint_manifest": "629e1ac72e67d569bfdcf46bee83dd48d49397d5cd9281bec0ce76d50113a448",
+      "model": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+      "motion_feature_manifest": "3b69127f5004574057a6b99a976a31c0e3ed3489c22c193b94a0c4e5b4aa59bc",
+      "motion_library": "809837a480d18266f7bad6a51fb43e15aae4b96fcfb90b13697af2cc88ef81f4",
+      "motion_manifest": "7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28",
+      "native_config": "6a93859bad765faaa10b76d0d0378e456e29f292c12e4065148a42572bfd2c71"
+    }
+  },
+  "paired_inputs_equal": true,
+  "scaling_4096": {
+    "mujoco": {
+      "all_weights_changed": true,
+      "arenas": 4096,
+      "horizon": 16,
+      "learner_transitions": 131072,
+      "per_run_training_sps": [
+        3991.690259214604
+      ],
+      "ppo_percent_cuda_stream": 1.0655495297653583,
+      "rollout_percent_cuda_stream": 98.93445284020403,
+      "runs": [
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/mujoco-4096-h16-v1/report.json",
+          "sha256": "cddf692999c67e5758ee2cac4d4278020c0a8631e38512c600a0dbd4fde84f84"
+        }
+      ],
+      "training_sps": 3991.690259214604,
+      "training_wall_seconds": 32.83621510898229
+    },
+    "puffysics": {
+      "failure_stages": [
+        "warmup"
+      ],
+      "physics": {
+        "articulated_solver_failure_arenas": 3,
+        "contact_capacity_reached_arenas": 0,
+        "first_collision_failure": {
+          "arena": 1467,
+          "meta": [
+            2,
+            38,
+            48,
+            2,
+            3,
+            9,
+            0
+          ],
+          "meta_fields": [
+            "status",
+            "shape_a",
+            "shape_b",
+            "type_a",
+            "type_b",
+            "gjk_iterations",
+            "epa_iterations"
+          ],
+          "per_shape_fields": [
+            "body_position_xyz",
+            "body_quaternion_xyzw",
+            "shape_local_position_xyz",
+            "shape_local_quaternion_xyzw",
+            "radius",
+            "half_xyz"
+          ],
+          "shape_a": [
+            -0.8738018274307251,
+            0.007752861827611923,
+            0.9021846055984497,
+            0.020843300968408585,
+            0.1175437644124031,
+            -0.04628512263298035,
+            0.9917694926261902,
+            0.006556020583957434,
+            -0.00019917922327294946,
+            -0.03808702155947685,
+            -0.01539129950106144,
+            0.7072533369064331,
+            0.706721305847168,
+            0.010049696080386639,
+            0.06766705214977264,
+            0.06766705214977264,
+            0.13565881550312042,
+            0.09690737724304199
+          ],
+          "shape_b": [
+            -0.8144100308418274,
+            -0.12600217759609222,
+            0.9140561819076538,
+            -0.2320462465286255,
+            -0.362201452255249,
+            0.7183648943901062,
+            0.5467326045036316,
+            0.0013947745319455862,
+            0.0034050331450998783,
+            0.010355089791119099,
+            0.5089098215103149,
+            -0.4819878339767456,
+            -0.5097379684448242,
+            0.49886444211006165,
+            0.029999999329447746,
+            0.0,
+            0.014999999664723873,
+            0.0
+          ]
+        },
+        "max_contact_count": 21,
+        "nonfinite_arenas": 0,
+        "per_arena_columns": [
+          "max_contacts",
+          "nonfinite",
+          "solver_failure",
+          "predictive_limit_impulses"
+        ],
+        "predictive_joint_limit_impulses": 6091858
+      },
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-4096-h16-v1/report.json",
+        "sha256": "24a4a15da2151cc8220ac5f56ff380f4cb9efa0ce6d869a32eaeb5059e4cebda"
+      },
+      "status": "failed"
+    }
+  },
+  "schema": "rek.matched_native_ppo_training_summary.v1",
+  "sustained_puffysics": {
+    "failure_stage": "warmup",
+    "native_counters": {
+      "epoch": 1,
+      "global_step": 131072
+    },
+    "physics": {
+      "arenas_with_any_solver_or_nonfinite_failure": 512,
+      "articulated_solver_failure_arenas": 27,
+      "contact_capacity_reached_arenas": 0,
+      "first_collision_failure": {
+        "arena": 13,
+        "meta": [
+          16,
+          75,
+          78,
+          2,
+          3,
+          6,
+          0
+        ],
+        "meta_fields": [
+          "status",
+          "shape_a",
+          "shape_b",
+          "type_a",
+          "type_b",
+          "gjk_iterations",
+          "epa_iterations"
+        ],
+        "per_shape_fields": [
+          "body_position_xyz",
+          "body_quaternion_xyzw",
+          "shape_local_position_xyz",
+          "shape_local_quaternion_xyzw",
+          "radius",
+          "half_xyz"
+        ],
+        "shape_a": [
+          -1.5456469058990479,
+          1.1087734699249268,
+          0.17301250994205475,
+          0.6563360095024109,
+          -0.13146920502185822,
+          -0.7399259805679321,
+          0.06669735908508301,
+          0.006556020583957434,
+          -0.00019917922327294946,
+          -0.03808702155947685,
+          -0.01539129950106144,
+          0.7072533369064331,
+          0.706721305847168,
+          0.010049696080386639,
+          0.06766705214977264,
+          0.06766705214977264,
+          0.13565881550312042,
+          0.09690737724304199
+        ],
+        "shape_b": [
+          -1.5533701181411743,
+          0.9810402989387512,
+          0.19037631154060364,
+          0.37187299132347107,
+          -0.3559538424015045,
+          -0.5208182334899902,
+          0.6809961795806885,
+          -0.0013947745319455862,
+          0.0034050331450998783,
+          0.010355089791119099,
+          0.5097379684448242,
+          -0.49886444211006165,
+          -0.5089098215103149,
+          0.4819878339767456,
+          0.029999999329447746,
+          0.0,
+          0.014999999664723873,
+          0.0
+        ]
+      },
+      "max_contact_count": 68,
+      "nonfinite_arenas": 486,
+      "per_arena_columns": [
+        "max_contacts",
+        "nonfinite",
+        "solver_failure",
+        "predictive_limit_impulses"
+      ],
+      "predictive_joint_limit_impulses": 4682720
+    },
+    "report": {
+      "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-sustained-h256-v1/report.json",
+      "sha256": "5555441e7397ca3ab2d1410b9c7ea2aa7024f5dccaa037ecded4fe4a9a19fed6"
+    },
+    "status": "failed",
+    "valid_training_sps": null
+  }
+}

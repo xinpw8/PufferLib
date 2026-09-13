@@ -1,0 +1,140 @@
+{
+  "schema": "rek.puffysics_semantic_adapter_verification.v1",
+  "cpu_physics_steps": 0,
+  "original_v8_step_bitwise_equal": true,
+  "original_v8_step_max_abs_error": 0.0,
+  "original_status": {
+    "max_contact_count": 2,
+    "contact_capacity_reached_arenas": 0,
+    "nonfinite_arenas": 0,
+    "articulated_solver_failure_arenas": 0,
+    "predictive_joint_limit_impulses": 280,
+    "per_arena_columns": [
+      "max_contacts",
+      "nonfinite",
+      "solver_failure",
+      "predictive_limit_impulses"
+    ],
+    "per_arena": [
+      [
+        2,
+        0,
+        0,
+        70
+      ],
+      [
+        2,
+        0,
+        0,
+        70
+      ],
+      [
+        2,
+        0,
+        0,
+        70
+      ],
+      [
+        2,
+        0,
+        0,
+        70
+      ]
+    ]
+  },
+  "zero_mask_fields_unchanged": {
+    "qpos": true,
+    "qvel": true,
+    "base": true,
+    "angular": true,
+    "time": true,
+    "xpos": true,
+    "xquat": true,
+    "xmat": true,
+    "xipos": true,
+    "ximat": true,
+    "com": true,
+    "cvel": true,
+    "geom_xpos": true,
+    "geom_xmat": true,
+    "contact_geom": true,
+    "contact_world": true,
+    "nacon": true,
+    "contact_dist": true,
+    "contact_pos": true,
+    "contact_frame": true,
+    "counts": true,
+    "offsets": true,
+    "body_map": true,
+    "geom_map": true,
+    "pre_centers": true
+  },
+  "masked_reset_unselected_qpos_unchanged": true,
+  "masked_reset_unselected_qvel_unchanged": true,
+  "masked_reset_clock_unchanged": true,
+  "generalized_qpos_roundtrip_max_abs_error": 2.384185791015625e-07,
+  "generalized_qvel_roundtrip_max_abs_error": 1.30385160446167e-08,
+  "mujoco_kinematics_max_abs_error": {
+    "xpos": 2.0837318839145302e-06,
+    "xipos": 2.503049546048741e-06,
+    "xmat": 6.430222372384373e-06,
+    "ximat": 6.43252267074762e-06,
+    "com": 2.503049546048741e-06,
+    "cvel": 1.7990319849649217e-05,
+    "geom_xpos": 2.8865139378615734e-06,
+    "geom_xmat": 6.455022837914548e-06
+  },
+  "full_idle_reset_max_abs_error": 1.9371509552001953e-07,
+  "counted_reset_preserves_free_velocity_max_abs_error": 0.0,
+  "counted_reset_joint_qpos_max_abs": 1.7881393432617188e-07,
+  "counted_reset_joint_qvel_max_abs": 0.0,
+  "unchanged_observation_and_measurement_constructed": true,
+  "unchanged_fused_measurement_constructed": true,
+  "native_status": {
+    "max_contact_count": 4,
+    "contact_capacity_reached_arenas": 0,
+    "nonfinite_arenas": 0,
+    "articulated_solver_failure_arenas": 0,
+    "predictive_joint_limit_impulses": 280,
+    "per_arena_columns": [
+      "max_contacts",
+      "nonfinite",
+      "solver_failure",
+      "predictive_limit_impulses"
+    ],
+    "per_arena": [
+      [
+        4,
+        0,
+        0,
+        70
+      ],
+      [
+        2,
+        0,
+        0,
+        70
+      ],
+      [
+        4,
+        0,
+        0,
+        70
+      ],
+      [
+        2,
+        0,
+        0,
+        70
+      ]
+    ]
+  },
+  "real_native_manifold_contact_points": 12,
+  "real_contact_counts_per_arena": [
+    4,
+    2,
+    4,
+    2
+  ],
+  "passed": true
+}

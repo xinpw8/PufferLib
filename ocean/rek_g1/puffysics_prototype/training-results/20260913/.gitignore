@@ -1,0 +1,11 @@
+*
+!.gitignore
+!README.md
+!training-summary.json
+!SHA256SUMS.txt
+!raw-reports.tar.gz
+!solver-diagnostics.tar.gz
+!solver-diagnostics-summary-v2.json
+!SOLVER_SHA256SUMS.txt
+!reports/
+!reports/semantic-adapter-verification-v1.json

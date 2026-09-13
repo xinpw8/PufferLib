@@ -1,0 +1,2741 @@
+{
+  "groups": {
+    "independent_capsule_4096_h16": {
+      "all_weights_changed": true,
+      "arenas": 4096,
+      "horizon": 16,
+      "learner_transitions": 393216,
+      "measurement_regime": "after_warmup",
+      "per_run_training_sps": [
+        10635.71193947934,
+        10582.672706469362,
+        10610.647830040336
+      ],
+      "ppo_percent_cuda_stream": 2.885849270086711,
+      "rollout_percent_cuda_stream": 97.11414834196445,
+      "runs": [
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-4096-h16-v1/report.json",
+          "sha256": "cb6d62dec50b7c2592c99d3d8279422374b126174e95e6ff5baa62bf7060c9bd"
+        },
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-4096-h16-v2/report.json",
+          "sha256": "c5f229caa1e73dffa453ff6d537e45178f00fb86268dfdd0ae6ea46714080397"
+        },
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-4096-h16-v3/report.json",
+          "sha256": "6baebcb052f905e09d47dfc9bee968a714b2c77d1d3428385e4be79532c0988a"
+        }
+      ],
+      "training_sps": 10609.63324973767,
+      "training_wall_seconds": 37.06216706498526
+    },
+    "independent_capsule_512_h16": {
+      "all_weights_changed": true,
+      "arenas": 512,
+      "horizon": 16,
+      "learner_transitions": 49152,
+      "measurement_regime": "after_warmup",
+      "per_run_training_sps": [
+        5120.9562458927485,
+        5078.023337208916,
+        5057.892992464029
+      ],
+      "ppo_percent_cuda_stream": 1.3261063710936178,
+      "rollout_percent_cuda_stream": 98.67389536561092,
+      "runs": [
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-h16-r1/report.json",
+          "sha256": "f7f14def7c3cd59e59bdf72d1076a4f3eac940f80f00e8526366bc6c3b594d78"
+        },
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-h16-r2/report.json",
+          "sha256": "0269809d2b1a74aabd09957831fd38fbc5670823e5dcb1763bf937e286df957c"
+        },
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-h16-r3/report.json",
+          "sha256": "00e8a8a0ad77e51d6b3d98a0952f0d4a25b9403a30e511f30706d67803a69da9"
+        }
+      ],
+      "training_sps": 5085.488464105313,
+      "training_wall_seconds": 9.66514826391358
+    },
+    "standard_cold_512_h8": {
+      "all_weights_changed": true,
+      "arenas": 512,
+      "horizon": 8,
+      "learner_transitions": 12288,
+      "measurement_regime": "cold_start_diagnostic",
+      "per_run_training_sps": [
+        2426.975999943954,
+        2439.405714389863,
+        2426.4398084013596
+      ],
+      "ppo_percent_cuda_stream": 0.6389866985336569,
+      "rollout_percent_cuda_stream": 99.36101637683525,
+      "runs": [
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-standard-cold-h8-v2-r1/report.json",
+          "sha256": "3e5b7fbe42954aa2946a353615d8a1fba5e237d7f722b95902fbe1083935cc8c"
+        },
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-standard-cold-h8-v2-r2/report.json",
+          "sha256": "d9c735f8ef0000745ee670c1c9f96575f73792a5b12b411dc74cf47957452da6"
+        },
+        {
+          "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-standard-cold-h8-v2-r3/report.json",
+          "sha256": "2c2b5b87d4bcd26a434e9287b538f9322679be5641cc93d61d821bed4d174b0c"
+        }
+      ],
+      "training_sps": 2430.92577428721,
+      "training_wall_seconds": 5.054864336038008
+    }
+  },
+  "limits": [
+    "Cold-start eight-tick runs are not sustained throughput.",
+    "Capsule substitutions change geometry and make no parity claim.",
+    "Mode 0 selects b3_step in the modified REK fork; it does not imply unmodified upstream.",
+    "Failure flags are never cleared to inflate SPS; failed runs retain null SPS."
+  ],
+  "runs": [
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [
+        "warmup"
+      ],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-capsule-h256-r1",
+      "learner_transitions": 0,
+      "measured_updates": 0,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {
+        "articulated_solver_failure_arenas": 0,
+        "contact_capacity_reached_arenas": 0,
+        "max_contact_count": 23,
+        "nonfinite_arenas": 235,
+        "per_arena_columns": [
+          "max_contacts",
+          "nonfinite",
+          "solver_failure",
+          "predictive_limit_impulses"
+        ],
+        "predictive_joint_limit_impulses": 0
+      },
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-capsule-h256-r1/report.json",
+        "sha256": "15cfd7e481e654b373d9de30275c2e361ca439060bfd49989b96351e6fbd09cf"
+      },
+      "status": "failed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "after_warmup",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 512,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 256,
+        "learner_rows": 512,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 1024,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "diagnostic_geometry_substitution": {
+            "changed_source_geom_ids": [
+              40,
+              41,
+              47,
+              48,
+              77,
+              78,
+              84,
+              85
+            ],
+            "geometry_effect": "round ends extend the axial bound by radius at each end",
+            "masses_and_inertias": "unchanged from source, not recomputed for capsules",
+            "name": "cylinders_to_capsules_same_radius_and_centerline_half_length",
+            "parity_claim": false,
+            "purpose": "exclude the locally added cylinder GJK/EPA path from a performance diagnostic",
+            "source_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed"
+          },
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": true,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "d9f33b962b11c795a3da3c0f0e9c264cbd5320a1570a62771fbad2b33698a889"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_semantic_v1.so",
+          "library_sha256": "9bc1d70de43260cadb09bb6cc5919fff46f2af970589a3dfa00dad8d213847e4",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json",
+          "model_export_sha256": "1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 65536,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": null,
+      "training_wall_seconds": 0,
+      "warmup_updates": 1,
+      "warmup_wall_seconds": 38.41597216296941,
+      "weights_changed": null
+    },
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-independent-capsule-4096-h16-v1",
+      "learner_transitions": 131072,
+      "measured_updates": 2,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {},
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-4096-h16-v1/report.json",
+        "sha256": "cb6d62dec50b7c2592c99d3d8279422374b126174e95e6ff5baa62bf7060c9bd"
+      },
+      "status": "passed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "after_warmup",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 4096,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 16,
+        "learner_rows": 4096,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 8192,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "articulated_contact_response_enabled": false,
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "contact_solver": "independent_maximal_coordinates",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "diagnostic_geometry_substitution": {
+            "changed_source_geom_ids": [
+              40,
+              41,
+              47,
+              48,
+              77,
+              78,
+              84,
+              85
+            ],
+            "geometry_effect": "round ends extend the axial bound by radius at each end",
+            "masses_and_inertias": "unchanged from source, not recomputed for capsules",
+            "name": "cylinders_to_capsules_same_radius_and_centerline_half_length",
+            "parity_claim": false,
+            "purpose": "exclude the locally added cylinder GJK/EPA path from a performance diagnostic",
+            "source_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed"
+          },
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": false,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "d9f33b962b11c795a3da3c0f0e9c264cbd5320a1570a62771fbad2b33698a889"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_independent_v1.so",
+          "library_sha256": "7e0d4bb0546445f8b91236aaba9fdd5391b52c7f46683b73a0b0155a9d361911",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json",
+          "model_export_sha256": "1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 524288,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": 10635.71193947934,
+      "training_wall_seconds": 12.323763631982729,
+      "warmup_updates": 1,
+      "warmup_wall_seconds": 5.857686245930381,
+      "weights_changed": true
+    },
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-independent-capsule-4096-h16-v2",
+      "learner_transitions": 131072,
+      "measured_updates": 2,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {},
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-4096-h16-v2/report.json",
+        "sha256": "c5f229caa1e73dffa453ff6d537e45178f00fb86268dfdd0ae6ea46714080397"
+      },
+      "status": "passed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "after_warmup",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 4096,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 16,
+        "learner_rows": 4096,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 8192,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "articulated_contact_response_enabled": false,
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "contact_solver": "independent_maximal_coordinates",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "diagnostic_geometry_substitution": {
+            "changed_source_geom_ids": [
+              40,
+              41,
+              47,
+              48,
+              77,
+              78,
+              84,
+              85
+            ],
+            "geometry_effect": "round ends extend the axial bound by radius at each end",
+            "masses_and_inertias": "unchanged from source, not recomputed for capsules",
+            "name": "cylinders_to_capsules_same_radius_and_centerline_half_length",
+            "parity_claim": false,
+            "purpose": "exclude the locally added cylinder GJK/EPA path from a performance diagnostic",
+            "source_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed"
+          },
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": false,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "d9f33b962b11c795a3da3c0f0e9c264cbd5320a1570a62771fbad2b33698a889"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_independent_v1.so",
+          "library_sha256": "7e0d4bb0546445f8b91236aaba9fdd5391b52c7f46683b73a0b0155a9d361911",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json",
+          "model_export_sha256": "1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 524288,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": 10582.672706469362,
+      "training_wall_seconds": 12.385529028018937,
+      "warmup_updates": 1,
+      "warmup_wall_seconds": 5.865475273923948,
+      "weights_changed": true
+    },
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-independent-capsule-4096-h16-v3",
+      "learner_transitions": 131072,
+      "measured_updates": 2,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {},
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-4096-h16-v3/report.json",
+        "sha256": "6baebcb052f905e09d47dfc9bee968a714b2c77d1d3428385e4be79532c0988a"
+      },
+      "status": "passed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "after_warmup",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 4096,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 16,
+        "learner_rows": 4096,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 8192,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "articulated_contact_response_enabled": false,
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "contact_solver": "independent_maximal_coordinates",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "diagnostic_geometry_substitution": {
+            "changed_source_geom_ids": [
+              40,
+              41,
+              47,
+              48,
+              77,
+              78,
+              84,
+              85
+            ],
+            "geometry_effect": "round ends extend the axial bound by radius at each end",
+            "masses_and_inertias": "unchanged from source, not recomputed for capsules",
+            "name": "cylinders_to_capsules_same_radius_and_centerline_half_length",
+            "parity_claim": false,
+            "purpose": "exclude the locally added cylinder GJK/EPA path from a performance diagnostic",
+            "source_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed"
+          },
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": false,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "d9f33b962b11c795a3da3c0f0e9c264cbd5320a1570a62771fbad2b33698a889"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_independent_v1.so",
+          "library_sha256": "7e0d4bb0546445f8b91236aaba9fdd5391b52c7f46683b73a0b0155a9d361911",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json",
+          "model_export_sha256": "1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 524288,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": 10610.647830040336,
+      "training_wall_seconds": 12.352874404983595,
+      "warmup_updates": 1,
+      "warmup_wall_seconds": 5.859663620009087,
+      "weights_changed": true
+    },
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-independent-capsule-h16-r1",
+      "learner_transitions": 16384,
+      "measured_updates": 2,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {},
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-h16-r1/report.json",
+        "sha256": "f7f14def7c3cd59e59bdf72d1076a4f3eac940f80f00e8526366bc6c3b594d78"
+      },
+      "status": "passed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "after_warmup",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 512,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 16,
+        "learner_rows": 512,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 1024,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "articulated_contact_response_enabled": false,
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "contact_solver": "independent_maximal_coordinates",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "diagnostic_geometry_substitution": {
+            "changed_source_geom_ids": [
+              40,
+              41,
+              47,
+              48,
+              77,
+              78,
+              84,
+              85
+            ],
+            "geometry_effect": "round ends extend the axial bound by radius at each end",
+            "masses_and_inertias": "unchanged from source, not recomputed for capsules",
+            "name": "cylinders_to_capsules_same_radius_and_centerline_half_length",
+            "parity_claim": false,
+            "purpose": "exclude the locally added cylinder GJK/EPA path from a performance diagnostic",
+            "source_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed"
+          },
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": false,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "d9f33b962b11c795a3da3c0f0e9c264cbd5320a1570a62771fbad2b33698a889"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_independent_v1.so",
+          "library_sha256": "7e0d4bb0546445f8b91236aaba9fdd5391b52c7f46683b73a0b0155a9d361911",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json",
+          "model_export_sha256": "1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 65536,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": 5120.9562458927485,
+      "training_wall_seconds": 3.1994024579180405,
+      "warmup_updates": 1,
+      "warmup_wall_seconds": 1.3952674140455201,
+      "weights_changed": true
+    },
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-independent-capsule-h16-r2",
+      "learner_transitions": 16384,
+      "measured_updates": 2,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {},
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-h16-r2/report.json",
+        "sha256": "0269809d2b1a74aabd09957831fd38fbc5670823e5dcb1763bf937e286df957c"
+      },
+      "status": "passed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "after_warmup",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 512,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 16,
+        "learner_rows": 512,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 1024,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "articulated_contact_response_enabled": false,
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "contact_solver": "independent_maximal_coordinates",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "diagnostic_geometry_substitution": {
+            "changed_source_geom_ids": [
+              40,
+              41,
+              47,
+              48,
+              77,
+              78,
+              84,
+              85
+            ],
+            "geometry_effect": "round ends extend the axial bound by radius at each end",
+            "masses_and_inertias": "unchanged from source, not recomputed for capsules",
+            "name": "cylinders_to_capsules_same_radius_and_centerline_half_length",
+            "parity_claim": false,
+            "purpose": "exclude the locally added cylinder GJK/EPA path from a performance diagnostic",
+            "source_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed"
+          },
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": false,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "d9f33b962b11c795a3da3c0f0e9c264cbd5320a1570a62771fbad2b33698a889"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_independent_v1.so",
+          "library_sha256": "7e0d4bb0546445f8b91236aaba9fdd5391b52c7f46683b73a0b0155a9d361911",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json",
+          "model_export_sha256": "1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 65536,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": 5078.023337208916,
+      "training_wall_seconds": 3.226452285074629,
+      "warmup_updates": 1,
+      "warmup_wall_seconds": 1.4084301389520988,
+      "weights_changed": true
+    },
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-independent-capsule-h16-r3",
+      "learner_transitions": 16384,
+      "measured_updates": 2,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {},
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-h16-r3/report.json",
+        "sha256": "00e8a8a0ad77e51d6b3d98a0952f0d4a25b9403a30e511f30706d67803a69da9"
+      },
+      "status": "passed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "after_warmup",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 512,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 16,
+        "learner_rows": 512,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 1024,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "articulated_contact_response_enabled": false,
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "contact_solver": "independent_maximal_coordinates",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "diagnostic_geometry_substitution": {
+            "changed_source_geom_ids": [
+              40,
+              41,
+              47,
+              48,
+              77,
+              78,
+              84,
+              85
+            ],
+            "geometry_effect": "round ends extend the axial bound by radius at each end",
+            "masses_and_inertias": "unchanged from source, not recomputed for capsules",
+            "name": "cylinders_to_capsules_same_radius_and_centerline_half_length",
+            "parity_claim": false,
+            "purpose": "exclude the locally added cylinder GJK/EPA path from a performance diagnostic",
+            "source_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed"
+          },
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": false,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "d9f33b962b11c795a3da3c0f0e9c264cbd5320a1570a62771fbad2b33698a889"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_independent_v1.so",
+          "library_sha256": "7e0d4bb0546445f8b91236aaba9fdd5391b52c7f46683b73a0b0155a9d361911",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json",
+          "model_export_sha256": "1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 65536,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": 5057.892992464029,
+      "training_wall_seconds": 3.23929352092091,
+      "warmup_updates": 1,
+      "warmup_wall_seconds": 1.3987143699778244,
+      "weights_changed": true
+    },
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [
+        "warmup"
+      ],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-independent-capsule-h256-r1",
+      "learner_transitions": 0,
+      "measured_updates": 0,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {
+        "articulated_solver_failure_arenas": 0,
+        "contact_capacity_reached_arenas": 0,
+        "max_contact_count": 48,
+        "nonfinite_arenas": 84,
+        "per_arena_columns": [
+          "max_contacts",
+          "nonfinite",
+          "solver_failure",
+          "predictive_limit_impulses"
+        ],
+        "predictive_joint_limit_impulses": 0
+      },
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-h256-r1/report.json",
+        "sha256": "37b950cf88d8b7d7cac9399af1471c2f6747f413361e7423552c0fe8d528a3cc"
+      },
+      "status": "failed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "after_warmup",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 512,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 256,
+        "learner_rows": 512,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 1024,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "articulated_contact_response_enabled": false,
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "contact_solver": "independent_maximal_coordinates",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "diagnostic_geometry_substitution": {
+            "changed_source_geom_ids": [
+              40,
+              41,
+              47,
+              48,
+              77,
+              78,
+              84,
+              85
+            ],
+            "geometry_effect": "round ends extend the axial bound by radius at each end",
+            "masses_and_inertias": "unchanged from source, not recomputed for capsules",
+            "name": "cylinders_to_capsules_same_radius_and_centerline_half_length",
+            "parity_claim": false,
+            "purpose": "exclude the locally added cylinder GJK/EPA path from a performance diagnostic",
+            "source_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed"
+          },
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": false,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "d9f33b962b11c795a3da3c0f0e9c264cbd5320a1570a62771fbad2b33698a889"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_independent_v1.so",
+          "library_sha256": "7e0d4bb0546445f8b91236aaba9fdd5391b52c7f46683b73a0b0155a9d361911",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json",
+          "model_export_sha256": "1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 65536,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": null,
+      "training_wall_seconds": 0,
+      "warmup_updates": 1,
+      "warmup_wall_seconds": 26.452816175995395,
+      "weights_changed": null
+    },
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-independent-capsule-nsys-h16-v1",
+      "learner_transitions": 16384,
+      "measured_updates": 2,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {},
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-nsys-h16-v1/report.json",
+        "sha256": "02794c08c11abb7824cdca58ea73ed75676d9b034ae0ef694a0c40cd99b507a8"
+      },
+      "status": "passed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "after_warmup",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 512,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 16,
+        "learner_rows": 512,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 1024,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "articulated_contact_response_enabled": false,
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "contact_solver": "independent_maximal_coordinates",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "diagnostic_geometry_substitution": {
+            "changed_source_geom_ids": [
+              40,
+              41,
+              47,
+              48,
+              77,
+              78,
+              84,
+              85
+            ],
+            "geometry_effect": "round ends extend the axial bound by radius at each end",
+            "masses_and_inertias": "unchanged from source, not recomputed for capsules",
+            "name": "cylinders_to_capsules_same_radius_and_centerline_half_length",
+            "parity_claim": false,
+            "purpose": "exclude the locally added cylinder GJK/EPA path from a performance diagnostic",
+            "source_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed"
+          },
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": false,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "d9f33b962b11c795a3da3c0f0e9c264cbd5320a1570a62771fbad2b33698a889"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_independent_v1.so",
+          "library_sha256": "7e0d4bb0546445f8b91236aaba9fdd5391b52c7f46683b73a0b0155a9d361911",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json",
+          "model_export_sha256": "1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 65536,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": 5027.191267277817,
+      "training_wall_seconds": 3.259076316957362,
+      "warmup_updates": 1,
+      "warmup_wall_seconds": 1.4056754960911348,
+      "weights_changed": true
+    },
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-standard-cold-h8-v2-r1",
+      "learner_transitions": 4096,
+      "measured_updates": 1,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {},
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-standard-cold-h8-v2-r1/report.json",
+        "sha256": "3e5b7fbe42954aa2946a353615d8a1fba5e237d7f722b95902fbe1083935cc8c"
+      },
+      "status": "passed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "cold_start_diagnostic",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 512,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 8,
+        "learner_rows": 512,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 1024,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": true,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "78af75db4664c2110bc5eac0d30976e575250b055ceb4ba9ed5bf965e2e6ee03"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_semantic_v1.so",
+          "library_sha256": "9bc1d70de43260cadb09bb6cc5919fff46f2af970589a3dfa00dad8d213847e4",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/rek-puffysics-prototype-20260911/model-export.json",
+          "model_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 65536,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": 2426.975999943954,
+      "training_wall_seconds": 1.687696952954866,
+      "warmup_updates": 0,
+      "warmup_wall_seconds": 0,
+      "weights_changed": true
+    },
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-standard-cold-h8-v2-r2",
+      "learner_transitions": 4096,
+      "measured_updates": 1,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {},
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-standard-cold-h8-v2-r2/report.json",
+        "sha256": "d9c735f8ef0000745ee670c1c9f96575f73792a5b12b411dc74cf47957452da6"
+      },
+      "status": "passed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "cold_start_diagnostic",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 512,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 8,
+        "learner_rows": 512,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 1024,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": true,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "78af75db4664c2110bc5eac0d30976e575250b055ceb4ba9ed5bf965e2e6ee03"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_semantic_v1.so",
+          "library_sha256": "9bc1d70de43260cadb09bb6cc5919fff46f2af970589a3dfa00dad8d213847e4",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/rek-puffysics-prototype-20260911/model-export.json",
+          "model_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 65536,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": 2439.405714389863,
+      "training_wall_seconds": 1.67909748503007,
+      "warmup_updates": 0,
+      "warmup_wall_seconds": 0,
+      "weights_changed": true
+    },
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-standard-cold-h8-v2-r3",
+      "learner_transitions": 4096,
+      "measured_updates": 1,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {},
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-standard-cold-h8-v2-r3/report.json",
+        "sha256": "2c2b5b87d4bcd26a434e9287b538f9322679be5641cc93d61d821bed4d174b0c"
+      },
+      "status": "passed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "cold_start_diagnostic",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 512,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 8,
+        "learner_rows": 512,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 1024,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": true,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "78af75db4664c2110bc5eac0d30976e575250b055ceb4ba9ed5bf965e2e6ee03"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_semantic_v1.so",
+          "library_sha256": "9bc1d70de43260cadb09bb6cc5919fff46f2af970589a3dfa00dad8d213847e4",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/rek-puffysics-prototype-20260911/model-export.json",
+          "model_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 65536,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": 2426.4398084013596,
+      "training_wall_seconds": 1.6880698980530724,
+      "warmup_updates": 0,
+      "warmup_wall_seconds": 0,
+      "weights_changed": true
+    },
+    {
+      "benchmark_source": {
+        "bytes": 35055,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "bb5e4ca5ab55ecfc6fba004aec5bd8a17102ff7480f2c3ab508b47a86f0a091c"
+      },
+      "failure_stages": [],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-standard-cold-nsys-h8-v2",
+      "learner_transitions": 4096,
+      "measured_updates": 1,
+      "nonzero_solver_status_counts": {},
+      "physics_failure": {},
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-standard-cold-nsys-h8-v2/report.json",
+        "sha256": "9504731b617953417157918e4229c60f1eab06785c93fbe95df44aec007cdde1"
+      },
+      "status": "passed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "measurement_regime": "cold_start_diagnostic",
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 512,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 8,
+        "learner_rows": 512,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 1024,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": true,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "78af75db4664c2110bc5eac0d30976e575250b055ceb4ba9ed5bf965e2e6ee03"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_semantic_v1.so",
+          "library_sha256": "9bc1d70de43260cadb09bb6cc5919fff46f2af970589a3dfa00dad8d213847e4",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/rek-puffysics-prototype-20260911/model-export.json",
+          "model_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 65536,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": 2401.570484514409,
+      "training_wall_seconds": 1.7055506079923362,
+      "warmup_updates": 0,
+      "warmup_wall_seconds": 0,
+      "weights_changed": true
+    },
+    {
+      "benchmark_source": {
+        "bytes": 34826,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "84bf1053e4ee18800bd308fc9ea6e7b06e9c74d713afdd05fafa269a57e1e86f"
+      },
+      "failure_stages": [
+        "warmup"
+      ],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-standard-h16-r1",
+      "learner_transitions": 0,
+      "measured_updates": 0,
+      "nonzero_solver_status_counts": {
+        "2": 3,
+        "16": 6
+      },
+      "physics_failure": {
+        "articulated_solver_failure_arenas": 9,
+        "contact_capacity_reached_arenas": 0,
+        "first_collision_failure": {
+          "arena": 140,
+          "meta": [
+            16,
+            14,
+            40,
+            2,
+            3,
+            6,
+            0
+          ],
+          "meta_fields": [
+            "status",
+            "shape_a",
+            "shape_b",
+            "type_a",
+            "type_b",
+            "gjk_iterations",
+            "epa_iterations"
+          ],
+          "per_shape_fields": [
+            "body_position_xyz",
+            "body_quaternion_xyzw",
+            "shape_local_position_xyz",
+            "shape_local_quaternion_xyzw",
+            "radius",
+            "half_xyz"
+          ],
+          "shape_a": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            -1.6546316146850586,
+            -1.6546279191970825,
+            1.0,
+            0.0,
+            0.0,
+            0.9238793253898621,
+            0.3826839327812195,
+            0.8399999737739563,
+            0.8399999737739563,
+            0.20000000298023224,
+            1.0
+          ],
+          "shape_b": [
+            -1.2501157522201538,
+            -1.7214422225952148,
+            0.6942744255065918,
+            -0.4436926543712616,
+            0.2849937081336975,
+            -0.4024416208267212,
+            0.7483022809028625,
+            0.004355692304670811,
+            -0.00041464349487796426,
+            -0.000618116173427552,
+            -0.4985445439815521,
+            -0.14256155490875244,
+            0.8378573060035706,
+            0.170659601688385,
+            0.029999999329447746,
+            0.0,
+            0.02500000037252903,
+            0.0
+          ]
+        },
+        "max_contact_count": 16,
+        "nonfinite_arenas": 0,
+        "per_arena_columns": [
+          "max_contacts",
+          "nonfinite",
+          "solver_failure",
+          "predictive_limit_impulses"
+        ],
+        "predictive_joint_limit_impulses": 0
+      },
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-standard-h16-r1/report.json",
+        "sha256": "6fd851d3457a06ffc1f2ae0b2059fa3f9379c64bf1ce2436c79743ed67e9572a"
+      },
+      "status": "failed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 512,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 16,
+        "learner_rows": 512,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 1024,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": true,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "78af75db4664c2110bc5eac0d30976e575250b055ceb4ba9ed5bf965e2e6ee03"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_semantic_v1.so",
+          "library_sha256": "9bc1d70de43260cadb09bb6cc5919fff46f2af970589a3dfa00dad8d213847e4",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/rek-puffysics-prototype-20260911/model-export.json",
+          "model_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 65536,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": null,
+      "training_wall_seconds": 0,
+      "warmup_updates": 1,
+      "warmup_wall_seconds": 4.233556032995693,
+      "weights_changed": null
+    },
+    {
+      "benchmark_source": {
+        "bytes": 34826,
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/profile_training.py",
+        "sha256": "84bf1053e4ee18800bd308fc9ea6e7b06e9c74d713afdd05fafa269a57e1e86f"
+      },
+      "failure_stages": [
+        "measured"
+      ],
+      "initial_checkpoint_sha256": "0f53d7fc0018dee0756b90a0fc4f7f0577964cfd73aa0d5e3f2815c75f687154",
+      "label": "puffysics-standard-h8-r1",
+      "learner_transitions": 0,
+      "measured_updates": 0,
+      "nonzero_solver_status_counts": {
+        "2": 3,
+        "16": 6
+      },
+      "physics_failure": {
+        "articulated_solver_failure_arenas": 9,
+        "contact_capacity_reached_arenas": 0,
+        "first_collision_failure": {
+          "arena": 140,
+          "meta": [
+            16,
+            14,
+            40,
+            2,
+            3,
+            6,
+            0
+          ],
+          "meta_fields": [
+            "status",
+            "shape_a",
+            "shape_b",
+            "type_a",
+            "type_b",
+            "gjk_iterations",
+            "epa_iterations"
+          ],
+          "per_shape_fields": [
+            "body_position_xyz",
+            "body_quaternion_xyzw",
+            "shape_local_position_xyz",
+            "shape_local_quaternion_xyzw",
+            "radius",
+            "half_xyz"
+          ],
+          "shape_a": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            -1.6546316146850586,
+            -1.6546279191970825,
+            1.0,
+            0.0,
+            0.0,
+            0.9238793253898621,
+            0.3826839327812195,
+            0.8399999737739563,
+            0.8399999737739563,
+            0.20000000298023224,
+            1.0
+          ],
+          "shape_b": [
+            -1.2501157522201538,
+            -1.7214422225952148,
+            0.6942744255065918,
+            -0.4436926543712616,
+            0.2849937081336975,
+            -0.4024416208267212,
+            0.7483022809028625,
+            0.004355692304670811,
+            -0.00041464349487796426,
+            -0.000618116173427552,
+            -0.4985445439815521,
+            -0.14256155490875244,
+            0.8378573060035706,
+            0.170659601688385,
+            0.029999999329447746,
+            0.0,
+            0.02500000037252903,
+            0.0
+          ]
+        },
+        "max_contact_count": 16,
+        "nonfinite_arenas": 0,
+        "per_arena_columns": [
+          "max_contacts",
+          "nonfinite",
+          "solver_failure",
+          "predictive_limit_impulses"
+        ],
+        "predictive_joint_limit_impulses": 0
+      },
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-standard-h8-r1/report.json",
+        "sha256": "8f5af9ab5bfe287cf208b04bcc75fe8cfef30b483781429782a85c26b7632f32"
+      },
+      "status": "failed",
+      "timing_contract": {
+        "cuda_events": "elapsed sequential stream intervals including dependencies and host submission gaps",
+        "denominator": "sum of rollout plus native PPO plus final device synchronization wall intervals",
+        "environment_reset_each_horizon": false,
+        "excluded": [
+          "setup",
+          "warmup updates",
+          "status checks",
+          "logs",
+          "checkpoint I/O",
+          "hashing",
+          "diagnostic capture"
+        ],
+        "kernel_busy_time_measured": false,
+        "numerator": "learner rows times horizon for completed native PPO updates",
+        "step_events_instrument_primary_run": false
+      },
+      "training": {
+        "arenas": 512,
+        "cpu_controller_inferences": 0,
+        "cpu_physics_steps": 0,
+        "horizon": 8,
+        "learner_rows": 512,
+        "minibatch_size": 4096,
+        "native_cpu_environment_count": 0,
+        "native_environment_threads": false,
+        "opponent": "deterministic_state_based_approach_facing_16_combat_move_candidate_dummy",
+        "opponent_samples_in_ppo": false,
+        "physical_fighters": 1024,
+        "physics_metadata": {
+          "angular_velocity": "pelvis_inertial_local_xyz",
+          "authentic_rek_parity_established": false,
+          "backend": "puffysics_native_prototype",
+          "base_quaternion": "floating_root_wxyz",
+          "body_frame": "principal_inertial_center_of_mass",
+          "counts": {
+            "actuators": 58,
+            "free_bases": 2,
+            "hinges": 58,
+            "nq": 72,
+            "nv": 70,
+            "rigid_bodies": 60,
+            "shapes": 91,
+            "source_bodies": 63
+          },
+          "cpu_kinematic_mapping_calls_at_setup": 1,
+          "cpu_physics_steps": 0,
+          "ctrl_semantics": "position_target_after_existing_250Hz_filter",
+          "engine_parity_required_for_this_diagnostic": false,
+          "fixed_pose_mass_factor_cache": true,
+          "flat_array_sha256_float32": {
+            "bodies": "35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08",
+            "joints": "25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b",
+            "roots": "f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53",
+            "shapes": "78af75db4664c2110bc5eac0d30976e575250b055ceb4ba9ed5bf965e2e6ee03"
+          },
+          "flat_array_shapes": {
+            "bodies": [
+              60,
+              11
+            ],
+            "joints": [
+              58,
+              22
+            ],
+            "roots": [
+              2,
+              12
+            ],
+            "shapes": [
+              91,
+              17
+            ]
+          },
+          "gravity_xyz_m_s2_float32": [
+            0.0,
+            0.0,
+            -9.8100004196167
+          ],
+          "kernel_launches_per_physics_step": 1,
+          "library_path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/source/ocean/rek_g1/puffysics_prototype/librek_puffysics_semantic_v1.so",
+          "library_sha256": "9bc1d70de43260cadb09bb6cc5919fff46f2af970589a3dfa00dad8d213847e4",
+          "masked_reset": "generalized state reconstruction; selected solver warm starts cleared",
+          "model_export_path": "/home/spark-advantage/rek-training/rek-puffysics-prototype-20260911/model-export.json",
+          "model_export_sha256": "c4682bebf71c56535e9bdf058bac5becc1131a06d123c6f8503f9b5444fdbfed",
+          "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+          "native_contact_capacity_per_arena": 128,
+          "native_solver_scope": "standard Puffysics maximal-coordinate solver",
+          "native_step_function": "b3_step",
+          "physics_timestep_seconds": 0.002,
+          "rotor_armature_in_free_integration": false,
+          "semantic_body_velocity_time": "after the 2 ms integration",
+          "semantic_contact_capacity": 65536,
+          "semantic_contact_export": "all native manifold points, packed in arena/shape/point order",
+          "semantic_contact_position_time": "collision detection before the 2 ms integration",
+          "semantic_native_launches_per_step": 5,
+          "semantic_tensor_adapter": "puffysics_semantic_native.v1",
+          "solver_mode": 0,
+          "solver_name": "maximal_coordinates",
+          "support_gaps": [
+            "MuJoCo implicitfast integration is not reproduced by this native solver",
+            "MuJoCo contact solref/solimp softness is retained in the export but not mapped",
+            "joint frictionloss uses moving Coulomb friction; static friction is unimplemented",
+            "Puffysics cylinder contact uses a single contact point rather than a MuJoCo manifold",
+            "restitution is explicitly zero; source soft-contact damping is not mapped to restitution",
+            "MuJoCo-equivalent complete collision filtering and numeric trajectories remain unverified",
+            "maximal-coordinate mode ignores rotor armature in free integration"
+          ]
+        },
+        "policy_parameters": 459008
+      },
+      "training_sps": null,
+      "training_wall_seconds": 2.5319498259341344,
+      "warmup_updates": 1,
+      "warmup_wall_seconds": 1.6876378620509058,
+      "weights_changed": null
+    }
+  ],
+  "schema": "rek.puffysics_solver_diagnostics.v1",
+  "traces": [
+    {
+      "kernel_calls": 116816,
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-independent-capsule-nsys-summary.json",
+        "sha256": "3e6278510b09ce8bc0fcf397b46bdfd74150e4cb9705409ebcb063816b068210"
+      },
+      "sum_kernel_ms": 3222.551708,
+      "top_kernels": [
+        {
+          "calls": 320,
+          "launch_configurations": [
+            {
+              "block_x": 32,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 16,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 128
+            }
+          ],
+          "name": "rp_step_kernel(RpHandle, const float *, float *, float *, float *, float *, float *)",
+          "percent_sum_kernel_time": 75.20718919679163,
+          "sum_kernel_ms": 2423.59056
+        },
+        {
+          "calls": 672,
+          "launch_configurations": [
+            {
+              "block_x": 32,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 16,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 40
+            }
+          ],
+          "name": "rps_body_kernel(RpHandle, RpsDescriptor)",
+          "percent_sum_kernel_time": 7.3790786167891005,
+          "sum_kernel_ms": 237.7946239999999
+        },
+        {
+          "calls": 672,
+          "launch_configurations": [
+            {
+              "block_x": 32,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 16,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 40
+            }
+          ],
+          "name": "rps_contacts_kernel(RpHandle, RpsDescriptor)",
+          "percent_sum_kernel_time": 1.8961043774196606,
+          "sum_kernel_ms": 61.10294400000004
+        },
+        {
+          "calls": 32,
+          "launch_configurations": [
+            {
+              "block_x": 128,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 8,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 253
+            }
+          ],
+          "name": "<unnamed>::pre_kernel(const RekG1CudaSemanticBuffers *, const float *, const float *, const unsigned char *, unsigned long)",
+          "percent_sum_kernel_time": 1.2381442910892155,
+          "sum_kernel_ms": 39.899840000000005
+        },
+        {
+          "calls": 96,
+          "launch_configurations": [
+            {
+              "block_x": 256,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 32,
+              "grid_y": 1,
+              "grid_z": 6,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 210
+            },
+            {
+              "block_x": 256,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 64,
+              "grid_y": 1,
+              "grid_z": 3,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 210
+            }
+          ],
+          "name": "void cutlass::Kernel2<cutlass_80_simt_sgemm_256x128_8x4_nn_align1>(T1::Params)",
+          "percent_sum_kernel_time": 1.0372967458370415,
+          "sum_kernel_ms": 33.427423999999995
+        }
+      ]
+    },
+    {
+      "kernel_calls": 29308,
+      "report": {
+        "path": "/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/puffysics-standard-cold-nsys-summary.json",
+        "sha256": "349be88527c3dbbc246a9c9b508905820361264378aa4b447cb7647d570f0707"
+      },
+      "sum_kernel_ms": 1696.5999009999996,
+      "top_kernels": [
+        {
+          "calls": 80,
+          "launch_configurations": [
+            {
+              "block_x": 32,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 16,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 196
+            }
+          ],
+          "name": "rp_step_kernel(RpHandle, const float *, float *, float *, float *, float *, float *)",
+          "percent_sum_kernel_time": 88.9307042344334,
+          "sum_kernel_ms": 1508.7982399999996
+        },
+        {
+          "calls": 168,
+          "launch_configurations": [
+            {
+              "block_x": 32,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 16,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 40
+            }
+          ],
+          "name": "rps_body_kernel(RpHandle, RpsDescriptor)",
+          "percent_sum_kernel_time": 3.456024721293439,
+          "sum_kernel_ms": 58.63491199999999
+        },
+        {
+          "calls": 8,
+          "launch_configurations": [
+            {
+              "block_x": 128,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 8,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 253
+            }
+          ],
+          "name": "<unnamed>::pre_kernel(const RekG1CudaSemanticBuffers *, const float *, const float *, const unsigned char *, unsigned long)",
+          "percent_sum_kernel_time": 0.6793861058936842,
+          "sum_kernel_ms": 11.526463999999999
+        },
+        {
+          "calls": 24,
+          "launch_configurations": [
+            {
+              "block_x": 256,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 32,
+              "grid_y": 1,
+              "grid_z": 6,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 210
+            },
+            {
+              "block_x": 256,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 64,
+              "grid_y": 1,
+              "grid_z": 3,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 210
+            }
+          ],
+          "name": "void cutlass::Kernel2<cutlass_80_simt_sgemm_256x128_8x4_nn_align1>(T1::Params)",
+          "percent_sum_kernel_time": 0.509050129904493,
+          "sum_kernel_ms": 8.636543999999999
+        },
+        {
+          "calls": 80,
+          "launch_configurations": [
+            {
+              "block_x": 128,
+              "block_y": 1,
+              "block_z": 1,
+              "grid_x": 33124,
+              "grid_y": 1,
+              "grid_z": 1,
+              "local_bytes_per_thread": 0,
+              "registers_per_thread": 40
+            }
+          ],
+          "name": "commit_hits(Measurement, int)",
+          "percent_sum_kernel_time": 0.38866818252867535,
+          "sum_kernel_ms": 6.594144000000004
+        }
+      ]
+    }
+  ]
+}

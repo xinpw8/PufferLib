@@ -32,3 +32,9 @@ Local experimental modifications:
 `b3_art.cuh` is the corrected uncached comparator. The cached header is an
 explicit separate experimental copy. These files are not claimed to match
 MuJoCo dynamics or authentic REK trajectories.
+
+The later training diagnostics optionally replace the eight cylinders with
+capsules and disable articulated contacts through the public compile-time
+option `B3_ART_CONTACTS=0`. These runs explicitly waive geometry/engine parity.
+They do not modify the engine headers. See `TRAINING_PROFILE.md` for their
+separate configuration, throughput and stability results.

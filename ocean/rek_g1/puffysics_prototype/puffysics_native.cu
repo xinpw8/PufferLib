@@ -36,6 +36,7 @@ extern "C" int rp_cache_enabled() {
     return 0;
 #endif
 }
+extern "C" int rp_art_contacts_enabled() { return B3_ART_CONTACTS; }
 static B3Vec3 rp_vec(const float* p) { return b3_v(p[0], p[1], p[2]); }
 static B3Quat rp_quat(const float* p) { return b3_q(p[0], p[1], p[2], p[3]); }
 
@@ -104,6 +105,7 @@ __device__ static void rp_forces(B3World* w, const float* ctrl) {
 
 // Reduced-coordinate diagnostic preserves rotor inertia in the ABA operator.
 // The contact solver and predictive joint stops are not MuJoCo-equivalent.
+#if B3_ART_CONTACTS
 __device__ static bool rp_art_step(B3World* w, int* stats) {
     B3Art art;
     if (!b3_art_bind(&art, w)) { stats[2] = 1 << 24; return false; }
@@ -137,6 +139,7 @@ __device__ static bool rp_art_step(B3World* w, int* stats) {
     b3_finalize_transforms(w);
     return true;
 }
+#endif
 
 __global__ void rp_reset_kernel(RpHandle h, float* qp, float* qv,
         float* base, float* angular, float* time) {
@@ -153,9 +156,12 @@ __global__ void rp_step_kernel(RpHandle h, const float* ctrl, float* qp,
     if (i >= h.arenas || h.stats[i*4+1] || h.stats[i*4+2]) return;
     B3World* w = h.worlds+i;
     rp_forces(w, ctrl+i*58);
+#if B3_ART_CONTACTS
     if (h.mode == 1) {
         if (!rp_art_step(w, h.stats+i*4)) return;
-    } else b3_step(w, 0.002f, 1);
+    } else
+#endif
+        b3_step(w, 0.002f, 1);
     h.stats[i*4+2] |= w->collision_status;
     time[i] += 0.002f;
     rp_gather(w, i, qp, qv, base, angular, h.stats);
@@ -164,6 +170,12 @@ __global__ void rp_step_kernel(RpHandle h, const float* ctrl, float* qp,
 extern "C" void* rp_create(int arenas, const float* bodies, int nb,
         const float* shapes, int ns, const float* joints, int nj,
         const float* roots, int nr, int mode) {
+#if !B3_ART_CONTACTS
+    if (mode != 0) {
+        std::snprintf(rp_error, sizeof(rp_error), "solver mode 1 requires B3_ART_CONTACTS=1");
+        return nullptr;
+    }
+#endif
     if (rp_live || arenas < 1 || nb != 60 || ns != 91 || nj != 58 || nr != 2 || (mode != 0 && mode != 1)) {
         std::snprintf(rp_error, sizeof(rp_error), "invalid model dimensions/mode or concurrent handle"); return nullptr;
     }

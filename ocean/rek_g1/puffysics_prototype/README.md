@@ -1,6 +1,11 @@
 # Puffysics backend experiment
 
-Status: experimental, not a training environment and not accepted REK parity.
+Actual headless PPO training has now been compared through an experimental
+full semantic adapter. See [TRAINING_PROFILE.md](TRAINING_PROFILE.md) for
+training SPS, device traces and the failed sustained-training result. The
+fixed-reference measurements below retain their original rollout-only scope.
+
+Status: experimental backend, not accepted for production training or REK parity.
 Production `gpu_duel_physics.py` and the human evaluator are unchanged.
 
 The final v8 motion probes fail: walking produces nonfinite states near
