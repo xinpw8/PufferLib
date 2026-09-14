@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <memory>
@@ -18,7 +19,7 @@
 #ifndef B3_ART_CONTACTS
 #define B3_ART_CONTACTS 0
 #endif
-#if B3_ART_CONTACTS != 0
+#if B3_ART_CONTACTS != 0 && !defined(REK_NATIVE5_EXPERIMENTAL_ARTICULATED)
 #error "native5 physics requires the approved independent-contact baseline"
 #endif
 namespace rek5_native {
@@ -432,6 +433,55 @@ __global__ void finite_fields_kernel(PhysicsDescriptor descriptor,int* result) {
         if (index<lengths[field] && !isfinite(fields[field][index])) atomicOr(result,1<<field);
 }
 
+void evaluation_boundary(Physics* physics) {
+    cudaStreamCaptureStatus capture;
+    cuda_check(cudaStreamIsCapturing(physics->stream,&capture),"inspect evaluation stream");
+    require(capture==cudaStreamCaptureStatusNone,"CPU evaluation cannot participate in CUDA graph capture or GPU training");
+    cuda_check(cudaStreamSynchronize(physics->stream),"CPU evaluation transfer boundary");
+}
+
+#include "physics_cpu_puffysics.cuh"
+
+void evaluation_export(Physics* p) {
+    auto& d=p->data;const int arenas=d.arenas;
+    auto copy_field=[&](float* target,int width,mjtNum* mjData::* member){
+        std::vector<float> values(size_t(arenas)*width);
+        for(int a=0;a<arenas;a++)for(int k=0;k<width;k++)values[size_t(a)*width+k]=float((p->evaluation_data[a]->*member)[k]);
+        cuda_check(cudaMemcpy(target,values.data(),values.size()*sizeof(float),cudaMemcpyHostToDevice),"upload MuJoCo evaluation field");
+    };
+    copy_field(d.qpos,72,&mjData::qpos);copy_field(d.qvel,70,&mjData::qvel);
+    copy_field(d.xpos,d.bodies*3,&mjData::xpos);copy_field(d.xquat,d.bodies*4,&mjData::xquat);
+    copy_field(d.xmat,d.bodies*9,&mjData::xmat);copy_field(d.xipos,d.bodies*3,&mjData::xipos);
+    copy_field(d.ximat,d.bodies*9,&mjData::ximat);copy_field(d.com,d.bodies*3,&mjData::subtree_com);
+    copy_field(d.cvel,d.bodies*6,&mjData::cvel);copy_field(d.geom_xpos,d.geoms*3,&mjData::geom_xpos);
+    copy_field(d.geom_xmat,d.geoms*9,&mjData::geom_xmat);
+    std::vector<float> clock(arenas),base(arenas*8),angular(arenas*6),distance(d.capacity),position(d.capacity*3),frame(d.capacity*9);
+    std::vector<int> counts(arenas),offsets(arenas),geom(d.capacity*2),world(d.capacity);
+    int total=0;
+    for(int a=0;a<arenas;a++){
+        const mjData* data=p->evaluation_data[a];clock[a]=float(data->time);counts[a]=data->ncon;offsets[a]=total;
+        p->evaluation_stats[a*4]=std::max(p->evaluation_stats[a*4],data->ncon);
+        for(int k=0;k<72;k++)if(!std::isfinite(data->qpos[k]))p->evaluation_stats[a*4+1]=1;
+        for(int k=0;k<70;k++)if(!std::isfinite(data->qvel[k]))p->evaluation_stats[a*4+1]=1;
+        for(int side=0;side<2;side++){
+            for(int k=0;k<4;k++)base[a*8+side*4+k]=float(data->qpos[side*36+3+k]);
+            mjtNum velocity[6];mj_objectVelocity(p->model,data,mjOBJ_BODY,p->root_bodies[side],velocity,1);
+            for(int k=0;k<3;k++)angular[a*6+side*3+k]=float(velocity[k]);
+        }
+        for(int k=0;k<data->ncon;k++,total++)if(total<d.capacity){
+            const mjContact& contact=data->contact[k];geom[total*2]=contact.geom[0];geom[total*2+1]=contact.geom[1];world[total]=a;
+            distance[total]=float(contact.dist);
+            for(int j=0;j<3;j++)position[total*3+j]=float(contact.pos[j]);
+            for(int j=0;j<9;j++)frame[total*9+j]=float(contact.frame[j]);
+        }
+    }
+    auto upload=[&](auto* target,const auto& values){cuda_check(cudaMemcpy(target,values.data(),values.size()*sizeof(values[0]),cudaMemcpyHostToDevice),"upload MuJoCo evaluation contacts");};
+    upload(d.time,clock);upload(d.base,base);upload(d.angular,angular);upload(d.counts,counts);upload(d.offsets,offsets);
+    upload(d.contact_geom,geom);upload(d.contact_world,world);upload(d.contact_dist,distance);upload(d.contact_pos,position);upload(d.contact_frame,frame);
+    upload(p->stats,p->evaluation_stats);
+    cuda_check(cudaMemcpy(d.nacon,&total,sizeof(total),cudaMemcpyHostToDevice),"upload MuJoCo evaluation count");
+}
+
 } // namespace
 
 Physics* physics_load_model(const char* xml_path, const char* export_json_path) {
@@ -470,8 +520,34 @@ Physics* physics_create(const char* xml_path, const char* export_json_path, int 
     allocate(*output,output->finite_status,1);
     cuda_check(cudaMemcpyAsync(d.body_map,output->host_body_map.data(),b*18*sizeof(float),cudaMemcpyHostToDevice,stream),"upload body map");
     cuda_check(cudaMemcpyAsync(d.geom_map,output->host_geom_map.data(),g*8*sizeof(float),cudaMemcpyHostToDevice,stream),"upload geometry map");
+    const char* selected=std::getenv("REK_PHYSICS_BACKEND");
+    const bool cpu_puffysics=selected && !std::strcmp(selected,"puffysics_cpu_eval");
+    if(selected && selected[0] && std::strcmp(selected,"puffysics")){
+        require(cpu_puffysics || !std::strcmp(selected,"mujoco_cpu_eval"),"unknown REK_PHYSICS_BACKEND");
+        require(arenas<=8,"mujoco_cpu_eval is restricted to at most eight viewer arenas; it is not a GPU training backend");
+        const char* allow=std::getenv("REK_ALLOW_CPU_EVALUATION");
+        require(allow && !std::strcmp(allow,"1"),"mujoco_cpu_eval requires explicit REK_ALLOW_CPU_EVALUATION=1");
+        if(!cpu_puffysics){
+        output->cpu_evaluation=true;output->evaluation_stats.resize(size_t(arenas)*4);
+        allocate(*output,output->stats,size_t(arenas)*4);
+        for(int a=0;a<arenas;a++){
+            auto* state=mj_makeData(output->model);require(state!=nullptr,"allocate MuJoCo evaluation data");
+            output->evaluation_data.push_back(state);mj_forward(output->model,state);
+        }
+        std::fprintf(stderr,"physics_backend=mujoco_cpu_eval cpu_physics=1 training_backend=0 arenas=%d\n",arenas);
+        evaluation_boundary(output.get());evaluation_export(output.get());return output.release();
+        }
+    }
+    constexpr int solver_mode =
+#ifdef REK_NATIVE5_EXPERIMENTAL_ARTICULATED
+        1;
+#else
+        0;
+#endif
+    std::fprintf(stderr,"puffysics_solver_mode=%d rotor_armature_in_free_integration=%d experimental=%d\n",
+        solver_mode,solver_mode==1,solver_mode==1);
     output->native_handle=rek5_native::rp_create(arenas,output->packed_bodies.data(),60,
-            output->packed_shapes.data(),91,output->packed_joints.data(),58,output->packed_roots.data(),2,0);
+            output->packed_shapes.data(),91,output->packed_joints.data(),58,output->packed_roots.data(),2,solver_mode);
     require(output->native_handle!=nullptr,std::string("native create failed: ")+rek5_native::rp_last_error());
     // The included rp_create uploads its immutable world on the default stream.
     // Establish startup ordering before resetting on a caller-owned stream.
@@ -480,28 +556,67 @@ Physics* physics_create(const char* xml_path, const char* export_json_path, int 
     native_check(rek5_native::rp_reset(output->native_handle,d.qpos,d.qvel,d.base,d.angular,d.time,stream),"native initial reset");
     physics_refresh(output.get());
     cuda_check(cudaStreamSynchronize(stream),"complete physics initialization");
+    if(cpu_puffysics)cpu_puffysics_create(output.get());
     return output.release();
 }
 
 void physics_step(Physics* physics, const float* device_ctrl) {
+    if(physics && physics->puffysics_evaluation){cpu_puffysics_step(physics,device_ctrl);return;}
+    if(physics && physics->cpu_evaluation){
+        require(device_ctrl!=nullptr,"null evaluation controls");evaluation_boundary(physics);
+        std::vector<float> controls(size_t(physics->data.arenas)*58);
+        cuda_check(cudaMemcpy(controls.data(),device_ctrl,controls.size()*sizeof(float),cudaMemcpyDeviceToHost),"download evaluation controls");
+        for(int a=0;a<physics->data.arenas;a++){
+            auto* data=physics->evaluation_data[a];for(int k=0;k<58;k++){
+                require(std::isfinite(controls[a*58+k]),"nonfinite MuJoCo evaluation control");
+                data->ctrl[k]=controls[a*58+k];
+            }
+            mj_step(physics->model,data);
+            if(data->warning[mjWARN_BADQPOS].number || data->warning[mjWARN_BADQVEL].number || data->warning[mjWARN_BADQACC].number)
+                physics->evaluation_stats[a*4+1]=1;
+            // mj_step integrates qpos after forward dynamics; refresh derived
+            // fields so the CUDA measurement sees the current integrated pose.
+            mj_forward(physics->model,data);
+        }
+        evaluation_export(physics);return;
+    }
     require(physics && physics->native_handle && device_ctrl,"closed physics or null control buffer");
     const auto descriptor=native_descriptor(physics->data);
     native_check(rek5_native::rps_step_controls(physics->native_handle,&descriptor,device_ctrl,physics->stream),"semantic step");
 }
 
 void physics_forward_selected(Physics* physics, const uint8_t* device_mask) {
+    if(physics && physics->puffysics_evaluation){cpu_puffysics_forward(physics,device_mask);return;}
+    if(physics && physics->cpu_evaluation){
+        require(device_mask!=nullptr,"null evaluation reset mask");evaluation_boundary(physics);
+        const int a=physics->data.arenas;std::vector<uint8_t> mask(a);std::vector<float> qpos(a*72),qvel(a*70),clock(a);
+        cuda_check(cudaMemcpy(mask.data(),device_mask,a,cudaMemcpyDeviceToHost),"download evaluation reset mask");
+        if(std::none_of(mask.begin(),mask.end(),[](uint8_t value){return value!=0;}))return;
+        cuda_check(cudaMemcpy(qpos.data(),physics->data.qpos,qpos.size()*sizeof(float),cudaMemcpyDeviceToHost),"download evaluation reset qpos");
+        cuda_check(cudaMemcpy(qvel.data(),physics->data.qvel,qvel.size()*sizeof(float),cudaMemcpyDeviceToHost),"download evaluation reset qvel");
+        cuda_check(cudaMemcpy(clock.data(),physics->data.time,a*sizeof(float),cudaMemcpyDeviceToHost),"download evaluation clock");
+        for(int i=0;i<a;i++)if(mask[i]){
+            auto* data=physics->evaluation_data[i];mj_resetData(physics->model,data);
+            for(int k=0;k<72;k++)data->qpos[k]=qpos[i*72+k];for(int k=0;k<70;k++)data->qvel[k]=qvel[i*70+k];data->time=clock[i];
+            mj_forward(physics->model,data);
+        }
+        evaluation_export(physics);return;
+    }
     require(physics && physics->native_handle && device_mask,"closed physics or null reset mask");
     const auto descriptor=native_descriptor(physics->data);
     native_check(rek5_native::rps_forward_selected(physics->native_handle,&descriptor,device_mask,physics->stream),"semantic masked forward");
 }
 
 void physics_refresh(Physics* physics) {
+    if(physics && physics->puffysics_evaluation){evaluation_boundary(physics);cpu_puffysics_export(physics);return;}
+    if(physics && physics->cpu_evaluation){evaluation_boundary(physics);evaluation_export(physics);return;}
     require(physics && physics->native_handle,"closed physics");
     const auto descriptor=native_descriptor(physics->data);
     native_check(rek5_native::rps_refresh(physics->native_handle,&descriptor,physics->stream),"semantic refresh");
 }
 
 std::vector<int> physics_stats(Physics* physics) {
+    if(physics && physics->cpu_evaluation){evaluation_boundary(physics);return physics->evaluation_stats;}
     require(physics && physics->native_handle,"closed physics");
     cuda_check(cudaStreamSynchronize(physics->stream),"physics reporting boundary");
     std::vector<int> stats(size_t(physics->data.arenas)*4);
@@ -535,8 +650,20 @@ void physics_close(Physics* physics) noexcept {
     if (physics->native_handle || !physics->allocations.empty()) cudaStreamSynchronize(physics->stream);
     if (physics->native_handle) rek5_native::rp_destroy(physics->native_handle);
     for (void* allocation:physics->allocations) cudaFree(allocation);
+    delete static_cast<CpuPuffysicsEvaluation*>(physics->puffysics_evaluation);
+    for (mjData* data:physics->evaluation_data) mj_deleteData(data);
     if (physics->model) mj_deleteModel(physics->model);
     delete physics;
+}
+
+const char* physics_backend_name(const Physics* physics){
+#ifdef REK_NATIVE5_EXPERIMENTAL_ARTICULATED
+    if(physics && physics->puffysics_evaluation)return "puffysics_cpu_eval_articulated_candidate";
+    return physics && physics->cpu_evaluation?"mujoco_cpu_eval":"puffysics_cuda_articulated_candidate";
+#else
+    if(physics && physics->puffysics_evaluation)return "puffysics_cpu_eval";
+    return physics && physics->cpu_evaluation?"mujoco_cpu_eval":"puffysics_cuda";
+#endif
 }
 
 } // namespace rek5

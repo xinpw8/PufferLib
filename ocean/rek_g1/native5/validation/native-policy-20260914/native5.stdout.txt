@@ -1,0 +1,2 @@
+native_policy_test precision=bf16 batch=4 ticks=12 logits_compared=1632 max_abs_error=0 masked_argmax=exact stochastic_philox=exact terminal_reset=passed explicit_reset=passed graph=passed row_isolation=passed invalid_mask=passed
+native_policy_test precision=fp32 batch=4 ticks=12 logits_compared=1632 max_abs_error=0 masked_argmax=exact stochastic_philox=exact terminal_reset=passed explicit_reset=passed graph=passed row_isolation=passed invalid_mask=passed

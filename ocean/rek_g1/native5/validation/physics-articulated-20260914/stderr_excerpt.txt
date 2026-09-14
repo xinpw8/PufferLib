@@ -1,0 +1,7 @@
+puffysics_solver_mode=1 rotor_armature_in_free_integration=1 experimental=1
+physics_backend=puffysics_cpu_eval cpu_physics=1 training_backend=0 arenas=4
+native5 runtime: physics_backend=puffysics_cpu_eval_articulated_candidate arenas=4 fighters=8 controller_bytes=57813876
+puffysics_failure arena=1 time=2.41000056 mode=1 max_contacts=34 nonfinite=1 solver_status=0 limit_impulses=9600
+collision_meta 0 0 0 0 0 0 0
+
+Excerpt only. Model hashes, repeated failures, and complete qpos/qvel arrays remain in eval-round-r4-diag/stderr.txt on Spark.

@@ -46,7 +46,7 @@ task_g1=$(cd "$task_source/.." && pwd)
 task_root=$(cd "$task_source/../../.." && pwd)
 
 if (( task_build_runtime )); then
-    for task_module in runtime measurement motion_assets physics sonic_controller robot_state; do
+    for task_module in runtime measurement motion_assets physics sonic_controller robot_state native_policy; do
         [[ -f "$task_source/$task_module.cu" ]] || {
             printf 'Native runtime module missing: %s.cu\n' "$task_module" >&2
             exit 2
@@ -112,14 +112,14 @@ if (( task_build_runtime )); then
         --prec-div=true --prec-sqrt=true --ftz=false -Xcompiler=-fPIC
         -Xcompiler=-ffp-contract=off -I"$task_g1" -I"$task_source"
         -I"$task_mujoco/include" -I"$task_cuda/include/cccl")
-    for task_module in runtime measurement motion_assets physics sonic_controller robot_state; do
+    for task_module in runtime measurement motion_assets physics sonic_controller robot_state native_policy; do
         printf 'Compiling native module %s\n' "$task_module"
-        if [[ "$task_module" == physics ]]; then
+        if [[ "$task_module" == physics || "$task_module" == native_policy ]]; then
             # Preserve the existing Puffysics kernel's default FMA behavior.
             "$task_nvcc" -std=c++17 -O3 "-arch=$task_arch" -Xcompiler=-fPIC \
                 -I"$task_g1" -I"$task_source" -I"$task_mujoco/include" \
-                -I"$task_cuda/include/cccl" -c "$task_source/physics.cu" \
-                -o "$task_build/physics.o"
+                -I"$task_cuda/include/cccl" -c "$task_source/$task_module.cu" \
+                -o "$task_build/$task_module.o"
         else
             "$task_nvcc" "${task_module_flags[@]}" -c "$task_source/$task_module.cu" \
                 -o "$task_build/$task_module.o"

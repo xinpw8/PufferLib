@@ -1,0 +1,4 @@
+# Only code and documentation belong in Git. Put runtime manifests and model
+# checkpoints in an explicitly configured private directory outside this tree.
+*.private.json
+*.private.json.*

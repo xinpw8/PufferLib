@@ -1,0 +1,1 @@
+{"ticks":10,"arenas":4,"simulated_seconds_per_arena":0.200,"wall_seconds":0.253698,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}

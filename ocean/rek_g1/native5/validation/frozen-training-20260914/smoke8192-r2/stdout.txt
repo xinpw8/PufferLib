@@ -1,0 +1,14 @@
+puffysics_stabilization=joint_cold_start parity_relaxed=1
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ PufferLib 5.0               🐡 GPU:  96%   VRAM:111.0/120G    RAM:  0.8G     │
+│                                                                              │
+│ Env         rek_native5    Evaluate        0ms   0%    Losses      26.799    │
+│ Params           459.0K      Model         0ms   0%    policy       1.801    │
+│ Steps              8.2K      Env           0ms   0%    value       49.998    │
+│ SPS                6.0K      Copy          0ms   0%    entropy      0.369    │
+│ Epoch                 1    Train           2ms 100%    old_kl       0.000    │
+│ Uptime         1s 375ms      Model         2ms  97%    kl           0.001    │
+│ To go               0ms      Misc          0ms   2%    clipfrac     0.006    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+native5_round_summary={"arenas":512,"completed_rounds":0,"fighter0_wins":0,"fighter1_wins":0,"ties":0,"redos":0,"unclassified":0,"fighter0_completed_points":0,"fighter1_completed_points":0,"failure_bits":0}

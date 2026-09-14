@@ -1,0 +1,5 @@
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+aarch64
+GPU 0: NVIDIA GB10 (UUID: GPU-c10f6617-d6dc-c3c2-3069-3dcc3f506b75)
+69301ba0eb2cf12cec8351e2dd039e17375c53e5ceceaf485e782cf58a636e6a  /home/spark-advantage/rek-training/native5-stability-20260914/puffer-cold-v1

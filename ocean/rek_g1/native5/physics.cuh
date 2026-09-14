@@ -43,6 +43,10 @@ struct Physics {
     std::vector<float> packed_bodies, packed_shapes, packed_joints, packed_roots;
     std::string model_sha256, export_sha256, assets_sha256;
     std::vector<void*> allocations;
+    bool cpu_evaluation = false;
+    std::vector<mjData*> evaluation_data;
+    std::vector<int> evaluation_stats;
+    void* puffysics_evaluation = nullptr;
 };
 
 // Host-only compilation and frame mapping. Calls mj_kinematics once; performs
@@ -58,6 +62,7 @@ Physics* physics_create(const char* xml_path, const char* export_json_path,
 void physics_step(Physics* physics, const float* device_ctrl);
 void physics_forward_selected(Physics* physics, const uint8_t* device_mask);
 void physics_refresh(Physics* physics);
+const char* physics_backend_name(const Physics* physics);
 
 // Explicit reporting boundary, synchronizes this physics stream. Cumulative
 // failure counters survive every masked forward/reset.

@@ -1,0 +1,25 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {HumanInput}=require('./input.cjs');
+function state(){return {mask:Array(66).fill(1),raw:Array(446).fill(0)};}
+test('held inputs persist and release',()=>{const i=new HumanInput(),s=state();
+  i.update({seq:1,held:['W','Q']});assert.equal(i.next(s),8);assert.equal(i.next(s),8);
+  i.update({seq:2,held:[]});assert.equal(i.next(s),1);});
+test('attack during attack is discarded',()=>{const i=new HumanInput(),s=state();s.raw[182]=1;
+  i.update({seq:1,held:[],move:17});assert.equal(i.next(s),1);s.raw[182]=0;assert.equal(i.next(s),1);});
+test('one yaw interruption buffers without stacking',()=>{const i=new HumanInput(),s=state();s.mask[17]=0;
+  i.update({seq:1,held:['Q'],move:17});assert.equal(i.next(s),1);assert.equal(i.pending.category,17);
+  i.update({seq:2,held:['Q'],move:18});s.mask[17]=1;assert.equal(i.next(s),17);
+  assert.equal(i.next(s),6);assert.equal(i.pending,null);});
+test('translation prevents attack buffering',()=>{const i=new HumanInput(),s=state();
+  i.update({seq:1,held:['W','E'],move:17});assert.equal(i.next(s),9);
+  i.update({seq:2,held:[]});assert.equal(i.next(s),1);});
+test('no quit action and stale sequence ignored',()=>{const i=new HumanInput();
+  assert.throws(()=>i.update({seq:1,held:[],move:33}));
+  i.update({seq:2,held:['D']});assert.equal(i.update({seq:1,held:[]}),false);});
+test('orange human uses orange busy state and legal mask',()=>{const i=new HumanInput(),s=state();
+  s.raw[182]=1;s.mask[17]=0;
+  i.update({seq:1,held:[],move:17});assert.equal(i.next(s,1),17);
+  s.raw[223+182]=1;i.update({seq:2,held:[],move:18});assert.equal(i.next(s,1),1);
+  assert.throws(()=>i.next(s,2));});

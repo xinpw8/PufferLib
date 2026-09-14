@@ -13,10 +13,10 @@ struct RpsDescriptor {
     float *body_map, *geom_map, *pre_centers;
 };
 
-__device__ static B3Vec3 rps_v(const float* p) { return b3_v(p[0], p[1], p[2]); }
-__device__ static B3Quat rps_q(const float* p) { return b3_q(p[0], p[1], p[2], p[3]); }
-__device__ static void rps_store(float* p, B3Vec3 v) { p[0]=v.x; p[1]=v.y; p[2]=v.z; }
-__device__ static void rps_matrix(float* p, B3Quat q) {
+__host__ __device__ static B3Vec3 rps_v(const float* p) { return b3_v(p[0], p[1], p[2]); }
+__host__ __device__ static B3Quat rps_q(const float* p) { return b3_q(p[0], p[1], p[2], p[3]); }
+__host__ __device__ static void rps_store(float* p, B3Vec3 v) { p[0]=v.x; p[1]=v.y; p[2]=v.z; }
+__host__ __device__ static void rps_matrix(float* p, B3Quat q) {
     B3Vec3 x=b3_rotate(q,b3_v(1,0,0)), y=b3_rotate(q,b3_v(0,1,0)), z=b3_rotate(q,b3_v(0,0,1));
     p[0]=x.x; p[1]=y.x; p[2]=z.x;
     p[3]=x.y; p[4]=y.y; p[5]=z.y;
@@ -25,7 +25,7 @@ __device__ static void rps_matrix(float* p, B3Quat q) {
 
 // Export native body state in the source model's frames. Spatial velocity uses
 // MuJoCo's root-subtree COM origin so unchanged observation/hit readers apply.
-__device__ static void rps_body_fields(B3World* w, int a, RpsDescriptor d) {
+__host__ __device__ __forceinline__ static void rps_body_fields(B3World* w, int a, RpsDescriptor d) {
     float* xpos=d.xpos+a*d.bodies*3;
     float* xipos=d.xipos+a*d.bodies*3;
     float* com=d.com+a*d.bodies*3;
@@ -85,9 +85,7 @@ __global__ static void rps_offsets_kernel(RpsDescriptor d) {
     for (int a=0;a<d.arenas;++a) { d.offsets[a]=total; total+=d.counts[a]; }
     *d.nacon=total;
 }
-__global__ static void rps_contacts_kernel(RpHandle h, RpsDescriptor d) {
-    int a=blockIdx.x*blockDim.x+threadIdx.x;
-    if (a>=h.arenas) return;
+__host__ __device__ __forceinline__ static void rps_contacts_one(RpHandle h,RpsDescriptor d,int a) {
     B3World* w=h.worlds+a;
     int slot=d.offsets[a];
     const float* centers=d.pre_centers+a*61*3;
@@ -109,6 +107,10 @@ __global__ static void rps_contacts_kernel(RpHandle h, RpsDescriptor d) {
         }
     }
 }
+__global__ static void rps_contacts_kernel(RpHandle h, RpsDescriptor d) {
+    int a=blockIdx.x*blockDim.x+threadIdx.x;
+    if(a<h.arenas)rps_contacts_one(h,d,a);
+}
 
 __global__ static void rps_before_kernel(RpHandle h,RpsDescriptor d) {
     int a=blockIdx.x*blockDim.x+threadIdx.x;
@@ -119,15 +121,13 @@ __global__ static void rps_before_kernel(RpHandle h,RpsDescriptor d) {
 // Reconstruct selected worlds from generalized state. No integration occurs.
 // Copying the initial world clears solver/contact warm starts only in reset
 // worlds. Cumulative failure counters in h.stats are deliberately preserved.
-__global__ static void rps_forward_kernel(RpHandle h,RpsDescriptor d,const unsigned char* mask) {
-    int a=blockIdx.x*blockDim.x+threadIdx.x;
-    if (a>=h.arenas || !mask[a]) return;
+__host__ __device__ __forceinline__ static void rps_forward_one(RpHandle h,RpsDescriptor d,int a) {
     B3World* w=h.worlds+a;
     *w=*h.initial;
     const float* qp=d.qpos+a*72;
     const float* qv=d.qvel+a*70;
     for (int r=0;r<2;++r) {
-        const float* p=rp_device_parameters.root[r];
+        const float* p=rp_parameters().root[r];
         B3Body& b=w->bodies[int(p[0])+1];
         int qi=int(p[1]),vi=int(p[2]);
         B3Quat root=b3_q(qp[qi+4],qp[qi+5],qp[qi+6],qp[qi+3]);
@@ -138,7 +138,7 @@ __global__ static void rps_forward_kernel(RpHandle h,RpsDescriptor d,const unsig
         b.lin_vel=b3_sub(rps_v(qv+vi),b3_cross(b.ang_vel,offset));
     }
     for (int j=0;j<58;++j) {
-        const float* p=rp_device_parameters.joint[j];
+        const float* p=rp_parameters().joint[j];
         const B3Joint& joint=w->joints[j];
         const B3Body& pa=w->bodies[joint.body_a];
         B3Body& child=w->bodies[joint.body_b];
@@ -161,6 +161,10 @@ __global__ static void rps_forward_kernel(RpHandle h,RpsDescriptor d,const unsig
     b3_find_contacts(w);
     h.stats[a*4+2]|=w->collision_status;
     rp_gather(w,a,d.qpos,d.qvel,d.base,d.angular,h.stats);
+}
+__global__ static void rps_forward_kernel(RpHandle h,RpsDescriptor d,const unsigned char* mask) {
+    int a=blockIdx.x*blockDim.x+threadIdx.x;
+    if(a<h.arenas && mask[a])rps_forward_one(h,d,a);
 }
 
 static int rps_export(RpHandle h,RpsDescriptor d,cudaStream_t stream) {

@@ -1,0 +1,14 @@
+puffysics_stabilization=joint_cold_start parity_relaxed=1
+{"ticks":100,"arenas":8,"simulated_seconds_per_arena":2.000,"wall_seconds":10.639956,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}
+{"ticks":200,"arenas":8,"simulated_seconds_per_arena":4.000,"wall_seconds":22.584213,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}
+{"ticks":300,"arenas":8,"simulated_seconds_per_arena":6.000,"wall_seconds":32.808418,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}
+{"ticks":400,"arenas":8,"simulated_seconds_per_arena":8.000,"wall_seconds":43.015579,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}
+{"ticks":500,"arenas":8,"simulated_seconds_per_arena":10.000,"wall_seconds":47.960193,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}
+{"ticks":600,"arenas":8,"simulated_seconds_per_arena":12.000,"wall_seconds":52.567625,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}
+{"ticks":700,"arenas":8,"simulated_seconds_per_arena":14.000,"wall_seconds":59.446828,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}
+{"ticks":800,"arenas":8,"simulated_seconds_per_arena":16.000,"wall_seconds":71.308718,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}
+{"ticks":900,"arenas":8,"simulated_seconds_per_arena":18.000,"wall_seconds":81.962966,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}
+{"ticks":1000,"arenas":8,"simulated_seconds_per_arena":20.000,"wall_seconds":87.159843,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}
+{"ticks":1100,"arenas":8,"simulated_seconds_per_arena":22.000,"wall_seconds":91.960247,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}
+{"ticks":1200,"arenas":8,"simulated_seconds_per_arena":24.000,"wall_seconds":100.255746,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}
+{"ticks":1300,"arenas":8,"simulated_seconds_per_arena":26.000,"wall_seconds":112.569353,"completed_episodes":0,"wins":0,"losses":0,"draws":0,"score_sum":0,"falls_sum":0,"ppo_updates":0}

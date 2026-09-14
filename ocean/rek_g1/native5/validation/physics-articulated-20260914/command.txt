@@ -1,0 +1,7 @@
+Executed on spark-4ae3 through Windows PowerShell -> wsl bash -> ssh spark:
+
+bash /home/spark-advantage/rek-training/native5-articulated-20260914-v1/ocean/rek_g1/native5/physics_articulated_eval_probe.sh /home/spark-advantage/rek-training/native5-articulated-20260914-v1/build-diag/rek-eval-worker /home/spark-advantage/rek-training/native5-league-20260914/run-v2/puffysics-worker.json /home/spark-advantage/rek-training/native5-articulated-20260914-v1/eval-round-r4-diag
+
+The harness sets REK_PHYSICS_BACKEND=puffysics_cpu_eval, REK_ALLOW_CPU_EVALUATION=1, REK_PUFFYSICS_STABILIZATION=joint_cold_start.
+It selects a scripted player, requests eight 128-tick chunks with stopAtRound=true, and checks terminal success independently of process exit.
+No native training executable was launched with this candidate.

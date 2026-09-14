@@ -1,0 +1,19 @@
+{
+  "schema": "rek.native_frozen_policy_oracle_tests.v1",
+  "host": "spark-4ae3",
+  "gpu": "NVIDIA GB10",
+  "date_utc": "2026-09-14",
+  "python_executed": false,
+  "cpu_policy_inference": false,
+  "environment_steps": 0,
+  "policy_updates": 0,
+  "native5_source_commit": "773f923d80e73bdc255a2ba730c918b28e416aa1",
+  "private_result_directory": "/home/spark-advantage/rek-training/native5-eval-policy-20260914-v1/validation-v3",
+  "tests": [
+    {"name": "native5-bf16", "exit_code": 0, "logits_compared": 1632, "maximum_absolute_error": 0},
+    {"name": "native5-fp32", "exit_code": 0, "logits_compared": 1632, "maximum_absolute_error": 0},
+    {"name": "legacy-corrected-fp32", "exit_code": 0, "logits_compared": 9520, "maximum_absolute_error": 0},
+    {"name": "legacy-combined-fp32", "exit_code": 0, "logits_compared": 9520, "maximum_absolute_error": 0}
+  ],
+  "claim_limit": "Frozen policy inference only; no new tournament results, solver validation, or REK parity established."
+}

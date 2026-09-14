@@ -39,7 +39,18 @@ struct RuntimeView {
     uint8_t *suspended,*enabled,*row_mask,*union_mask,*completed,*terminal_rows;
     uint8_t *robot_dampened,*robot_resetting,*masks;
     uint8_t* learner_masks;
+    const float* external_actions;
+    const uint8_t* external_override;
+    RekNative5RoundResult* round_results;
+    float round_seconds;
 };
+__global__ void apply_round_duration(RuntimeView v) {
+    int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=v.p.arenas)return;
+    auto& fight=v.c.states[a].combat.fight;
+    if(fight.round_result==REK_G1_ROUND_IN_PROGRESS&&fight.time_remaining_seconds==fight.round_duration_seconds){
+        fight.round_duration_seconds=v.round_seconds;fight.time_remaining_seconds=v.round_seconds;
+    }
+}
 __global__ void reset_pose(RuntimeView v,const uint8_t* mask,bool reset_clock) {
     int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=v.p.arenas||!mask[a])return;
     for(int k=0;k<72;k++)v.p.qpos[a*72+k]=v.initial_qpos[k];
@@ -113,12 +124,36 @@ __device__ void direction(const float* o,double& fx,double& fy,double& norm,doub
     bearing=distance==0?0:atan2(-fy*dx+fx*dy,fx*dx+fy*dy);
     if(fx*fx+fy*fy==0&&distance!=0)bearing=NAN;
 }
+__device__ bool encode_observation(const float* o,float* dst) {
+    double fx,fy,norm,distance,bearing;direction(o,fx,fy,norm,distance,bearing);
+    for(int k=0;k<223;k++)dst[k]=o[k];
+    dst[86]=float(distance);dst[87]=float(double(float(bearing))/3.14159265358979323846);
+    dst[72]=float(double(dst[72])/180);dst[158]=float(double(dst[158])/180);
+    dst[188]=float(double(dst[188])/120);dst[189]=float(double(dst[189])/120);
+    bool finite=isfinite(norm)&&norm>0&&isfinite(bearing);
+    for(int k=0;k<223;k++)finite=finite&&isfinite(o[k])&&isfinite(dst[k]);
+    return finite;
+}
+__global__ void encode_fighters(RuntimeView v,float* dst) {
+    int row=blockIdx.x*blockDim.x+threadIdx.x;if(row>=v.p.arenas*2)return;
+    if(!encode_observation(v.observations+row*223,dst+row*223))atomicOr(v.failures+row/2,1);
+}
+__device__ void validate_external_action(RuntimeView v,int row,float action) {
+    int category=isfinite(action)?int(action):-1;
+    if(category<0||category>=33||float(category)!=action)atomicOr(v.failures+row/2,16);
+    else if(!v.masks[row*33+category])v.invalid_totals[row/2]+=1;
+}
 __global__ void choose_actions(RuntimeView v) {
     int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=v.p.arenas)return;
-    float learner=v.out.actions[a];int category=isfinite(learner)?int(learner):-1;
+    float learner=v.external_override&&v.external_override[a*2]
+        ?v.external_actions[a*2]:v.out.actions[a];int category=isfinite(learner)?int(learner):-1;
     if(category<0||category>=33||float(category)!=learner){atomicOr(v.failures+a,16);category=0;}
     v.actions[a*2]=learner;
     if(category>=0&&category<33&&!v.masks[a*66+category])v.invalid_totals[a]+=1;
+    if(v.external_override&&v.external_override[a*2+1]){
+        float action=v.external_actions[a*2+1];validate_external_action(v,a*2+1,action);
+        v.actions[a*2+1]=action;return;
+    }
     if(v.c.terminals[a*2]!=0)v.dummy_offset[a]=0;
     const float* o=v.observations+(a*2+1)*223;
     const uint8_t* masks=v.masks+(a*2+1)*33;
@@ -154,12 +189,7 @@ __global__ void export_observation(RuntimeView v,bool transition) {
     int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=v.p.arenas)return;
     const float* o=v.observations+a*446;float* dst=v.out.observations+a*223;
     if(v.learner_masks)for(int k=0;k<33;k++)v.learner_masks[a*33+k]=v.masks[a*66+k];
-    double fx,fy,norm,distance,bearing;direction(o,fx,fy,norm,distance,bearing);
-    for(int k=0;k<223;k++)dst[k]=o[k];
-    dst[86]=float(distance);dst[87]=float(double(float(bearing))/3.14159265358979323846);
-    dst[72]=float(double(dst[72])/180);dst[158]=float(double(dst[158])/180);
-    dst[188]=float(double(dst[188])/120);dst[189]=float(double(dst[189])/120);
-    bool finite=isfinite(norm)&&norm>0&&isfinite(bearing);
+    bool finite=encode_observation(o,dst);
     for(int k=0;k<446;k++)finite=finite&&isfinite(o[k]);
     for(int k=0;k<223;k++)finite=finite&&isfinite(dst[k]);
     if(!finite)atomicOr(v.failures+a,1);
@@ -168,6 +198,22 @@ __global__ void export_observation(RuntimeView v,bool transition) {
     if(v.physics_stats[a*4]>=128||v.physics_stats[a*4+1]||v.physics_stats[a*4+2])atomicOr(v.failures+a,8);
     v.out.rewards[a]=transition?v.c.rewards[a*2]:0;
     v.out.terminals[a]=transition?v.c.terminals[a*2]:0;
+    const auto& fight=v.c.states[a].combat.fight;
+    auto& result=v.round_results[a];bool terminal=transition&&v.c.terminals[a*2]!=0;
+    if(terminal&&!result.terminal&&v.failures[a]==0){
+        result.completed_rounds++;
+        if(fight.round_result==REK_G1_ROUND_TIE)result.ties++;
+        else if(fight.round_result==REK_G1_ROUND_REDO)result.redos++;
+        else if((fight.round_result==REK_G1_ROUND_WON_BY_POINTS||fight.round_result==REK_G1_ROUND_WON_BY_KO)
+                &&fight.round_winner_index>=0&&fight.round_winner_index<2)result.wins[fight.round_winner_index]++;
+        else result.unclassified++;
+        for(int s=0;s<2;s++)result.completed_points[s]+=fight.clean_hits[s];
+    }
+    result.phase=fight.phase;result.round_number=fight.current_round_number;
+    result.round_result=fight.round_result;result.round_winner=fight.round_winner_index;
+    result.fight_result=fight.fight_result;result.fight_winner=fight.fight_winner_index;
+    for(int s=0;s<2;s++){result.points[s]=fight.clean_hits[s];result.falls[s]=fight.falls[s];}
+    result.time_remaining_seconds=fight.time_remaining_seconds;result.failure_bits=v.failures[a];result.terminal=terminal;
     if(!transition)return;
     v.returns[a]+=v.c.rewards[a*2];v.lengths[a]+=1;v.hit_totals[a]+=v.c.scored[a];
     if(v.c.terminals[a*2]!=0&&v.failures[a]==0) {
@@ -219,6 +265,7 @@ struct RekNative5Runtime {
         physical_full(all_arenas,true);rek5::measurement_reset(measurement,stream);
         auto& c=view.c;size_t a=view.p.arenas,rows=a*2;
         cuda_check(rek_g1_cuda_native_combat_init(c.states,c.statuses,a,stream));
+        if(view.round_seconds>0)apply_round_duration<<<arena_grid(),128,0,stream>>>(view);
         for(auto p:{c.fall_events})cuda_check(cudaMemsetAsync(p,0,rows*sizeof(uint32_t),stream));
         for(auto p:{c.signals,c.referee,c.attributed,c.scored})cuda_check(cudaMemsetAsync(p,0,a*sizeof(uint32_t),stream));
         cuda_check(cudaMemsetAsync(c.score_delta,0,rows*sizeof(int32_t),stream));
@@ -226,6 +273,7 @@ struct RekNative5Runtime {
         for(auto p:{c.input_reset,c.dampened,view.completed})cuda_check(cudaMemsetAsync(p,0,rows,stream));
         for(auto p:{view.returns,view.lengths,view.hit_totals,view.invalid_totals})cuda_check(cudaMemsetAsync(p,0,a*sizeof(float),stream));
         cuda_check(cudaMemsetAsync(view.dummy_offset,0,a*sizeof(int),stream));
+        cuda_check(cudaMemsetAsync(view.round_results,0,a*sizeof(RekNative5RoundResult),stream));
         rek5::measurement_sample_reset_fall(measurement,motion->all_flags,stream);observe();
         gather<<<rows_grid(),128,0,stream>>>(view,true);observation_pack<<<rows_grid(),128,0,stream>>>(view,motion->observation12);
         export_observation<<<arena_grid(),128,0,stream>>>(view,false);cuda_check(cudaGetLastError());
@@ -235,6 +283,7 @@ struct RekNative5Runtime {
         choose_actions<<<arena_grid(),128,0,stream>>>(view);
         cuda_check(rek_g1_cuda_native_combat_begin_tick(c.states,c.fall_events,c.signals,c.referee,c.score_delta,
             c.attributed,c.scored,c.terminal,c.episode_reset,c.input_reset,c.statuses,a,stream));
+        if(view.round_seconds>0)apply_round_duration<<<arena_grid(),128,0,stream>>>(view);
         rek5::measurement_clear_contacts(m,c.episode_reset,stream);physical_full(c.episode_reset,false);
         cuda_check(cudaMemsetAsync(view.completed,0,rows,stream));
         gather<<<rows_grid(),128,0,stream>>>(view,true);flags<<<rows_grid(),128,0,stream>>>(view,false);
@@ -283,6 +332,9 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
            ||!out->rewards||!out->terminals||!out->logs||out->log_stride_bytes<sizeof(RekNative5Log))
             throw std::runtime_error("Invalid native5 configuration or device buffers");
         auto r=std::make_unique<RekNative5Runtime>();auto& v=r->view;auto& d=r->storage;int a=cfg->arenas,rows=a*2;
+        if(!std::isfinite(cfg->round_seconds)||cfg->round_seconds<0||cfg->round_seconds>3600)
+            throw std::runtime_error("round_seconds must be zero or finite in (0,3600]");
+        v.round_seconds=cfg->round_seconds;
         r->physics=rek5::physics_create(cfg->model_path,cfg->physics_export_path,a,s);v.p=r->physics->data;v.out=*out;
         r->motion=new RekNative5Motion(*cfg,s);r->measurement=rek5::measurement_create(r->physics);
         auto* p=r->physics;auto* model=p->model;
@@ -316,6 +368,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         v.local_velocity=d.alloc<float>(rows*6);v.entities=d.alloc<float>(rows*86);v.observations=d.alloc<float>(rows*223);v.actions=d.alloc<float>(rows);
         v.returns=d.alloc<float>(a);v.lengths=d.alloc<float>(a);v.hit_totals=d.alloc<float>(a);v.invalid_totals=d.alloc<float>(a);
         v.dummy_offset=d.alloc<int>(a);v.failures=d.alloc<int>(a);v.phase=d.alloc<int>(rows);v.physics_stats=p->stats;
+        v.round_results=d.alloc<RekNative5RoundResult>(a);
         v.suspended=d.alloc<uint8_t>(rows);v.enabled=d.alloc<uint8_t>(rows);v.row_mask=d.alloc<uint8_t>(rows);v.union_mask=d.alloc<uint8_t>(a);
         v.completed=d.alloc<uint8_t>(rows);v.terminal_rows=d.alloc<uint8_t>(rows);r->all_arenas=d.alloc<uint8_t>(a);cuda_check(cudaMemset(r->all_arenas,1,a));
         r->tokens=d.alloc<float>(rows*64);r->raw_actions=d.alloc<float>(rows*29);auto& c=v.c;
@@ -328,7 +381,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         c.fall=d.alloc<float>(rows*15);c.fight=d.alloc<float>(rows*39);c.rewards=d.alloc<float>(rows);c.terminals=d.alloc<float>(rows);
         cuda_check(rek_g1_cuda_native_combat_upload_catalog(c.impacts,c.route_offsets,c.route_counts));r->bind(s);r->reset();
         cuda_check(cudaStreamSynchronize(s));
-        std::fprintf(stderr,"native5 runtime: CUDA Puffysics independent contacts; arenas=%d fighters=%d controller_bytes=%zu\n",a,rows,sonic_controller_resident_bytes(r->controller));
+        std::fprintf(stderr,"native5 runtime: physics_backend=%s arenas=%d fighters=%d controller_bytes=%zu\n",rek5::physics_backend_name(p),a,rows,sonic_controller_resident_bytes(r->controller));
         std::fprintf(stderr,"model_sha256=%s export_sha256=%s motion_manifest_sha256=%s\n",p->model_sha256.c_str(),p->export_sha256.c_str(),r->motion->manifest_sha256.c_str());
         std::fprintf(stderr,"encoder_sha256=%s decoder_sha256=%s\n",sonic_controller_encoder_sha256(r->controller),sonic_controller_decoder_sha256(r->controller));
         return r.release();
@@ -346,6 +399,41 @@ extern "C" int rek_native5_bind_action_mask(RekNative5Runtime* r,uint8_t* mask,c
     try{
         if(!r||!mask)throw std::runtime_error("Null native5 mask binding");r->view.learner_masks=mask;
         export_masks<<<(r->view.p.arenas*33+127)/128,128,0,s>>>(r->view);cuda_check(cudaGetLastError());return 0;
+    }catch(const std::exception& e){runtime_error=e.what();return 1;}
+}
+extern "C" int rek_native5_bind_external_actions(RekNative5Runtime* r,const float* actions,const uint8_t* overrides,cudaStream_t s){
+    try{
+        if(!r||bool(actions)!=bool(overrides))throw std::runtime_error("External actions and overrides must be supplied together");
+        cudaStreamCaptureStatus capture;cuda_check(cudaStreamIsCapturing(s,&capture));
+        if(capture!=cudaStreamCaptureStatusNone)throw std::runtime_error("Cannot change external action binding during graph capture");
+        r->view.external_actions=actions;r->view.external_override=overrides;return 0;
+    }catch(const std::exception& e){runtime_error=e.what();return 1;}
+}
+extern "C" int rek_native5_get_device_view(RekNative5Runtime* r,RekNative5DeviceView* out){
+    try{
+        if(!r||!out)throw std::runtime_error("Null native5 device view argument");auto& v=r->view;
+        *out={v.p.arenas,72,70,v.observations,v.masks,v.p.qpos,v.p.qvel,v.actions,v.c.rewards,v.c.terminals,v.round_results};return 0;
+    }catch(const std::exception& e){runtime_error=e.what();return 1;}
+}
+extern "C" int rek_native5_encode_fighter_observations(RekNative5Runtime* r,float* out,cudaStream_t s){
+    try{
+        if(!r||!out)throw std::runtime_error("Null native5 encoded observation argument");
+        encode_fighters<<<r->rows_grid(),128,0,s>>>(r->view,out);cuda_check(cudaGetLastError());return 0;
+    }catch(const std::exception& e){runtime_error=e.what();return 1;}
+}
+extern "C" int rek_native5_read_snapshot(RekNative5Runtime* r,int arena,RekNative5Snapshot* out,cudaStream_t s){
+    try{
+        if(!r||!out||arena<0||arena>=r->view.p.arenas)throw std::runtime_error("Invalid native5 snapshot argument");
+        cudaStreamCaptureStatus capture;cuda_check(cudaStreamIsCapturing(s,&capture));
+        if(capture!=cudaStreamCaptureStatusNone)throw std::runtime_error("Snapshot is not capture-safe");
+        auto& v=r->view;out->arena=arena;
+        auto copy=[&](void* dst,const void* src,size_t n){cuda_check(cudaMemcpyAsync(dst,src,n,cudaMemcpyDeviceToHost,s));};
+        copy(out->raw_observations,v.observations+arena*446,sizeof(out->raw_observations));
+        copy(out->action_masks,v.masks+arena*66,sizeof(out->action_masks));
+        copy(out->qpos,v.p.qpos+arena*72,sizeof(out->qpos));copy(out->qvel,v.p.qvel+arena*70,sizeof(out->qvel));
+        copy(out->actions,v.actions+arena*2,sizeof(out->actions));copy(out->rewards,v.c.rewards+arena*2,sizeof(out->rewards));
+        copy(out->terminals,v.c.terminals+arena*2,sizeof(out->terminals));copy(&out->round,v.round_results+arena,sizeof(out->round));
+        cuda_check(cudaStreamSynchronize(s));return 0;
     }catch(const std::exception& e){runtime_error=e.what();return 1;}
 }
 extern "C" int rek_native5_check_status(RekNative5Runtime* r,cudaStream_t s){

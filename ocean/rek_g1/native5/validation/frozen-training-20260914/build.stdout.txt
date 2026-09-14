@@ -1,0 +1,25 @@
+Compiling native module runtime
+Compiling native module measurement
+Compiling native module motion_assets
+Compiling native module physics
+Compiling native module sonic_controller
+Compiling native module robot_state
+Compiling native module native_policy
+Compiling recovered device module puffer_action_adapter
+Compiling recovered device module g1_semantic_action_table
+Compiling recovered device module native_locomotion_command
+Compiling recovered device module sonic_motion_composer_native
+Compiling recovered device module sonic_motion_composer_libm_candidate
+Compiling recovered device module sonic_motion_entry_matcher_native
+Compiling recovered device module g1_combat_tick
+Compiling recovered device module g1_fight_state
+Compiling recovered device module g1_fall_state
+Compiling recovered device module g1_hit_detector
+Compiling recovered CUDA module g1_motion_cuda
+Compiling recovered CUDA module g1_semantic_scheduler_cuda
+Compiling recovered CUDA module g1_combat_cuda
+Compiling recovered CUDA module g1_native_combat_cuda
+Compiling PufferLib 5.0 773f923d80e73bdc255a2ba730c918b28e416aa1 for sm_121
+Built native executable: /home/spark-advantage/rek-training/native5-frozen-league-20260914-v1/build/puffer-rek-native5
+Run from /home/spark-advantage/rek-training/native5-frozen-league-20260914-v1/build so the native config loader finds config/.
+Compilation and linking do not validate environment behavior or training.

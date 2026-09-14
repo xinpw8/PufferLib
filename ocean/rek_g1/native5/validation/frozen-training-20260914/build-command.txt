@@ -1,0 +1,1 @@
+bash ocean/rek_g1/native5/build_native.sh build --build-runtime

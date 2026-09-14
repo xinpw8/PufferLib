@@ -1,0 +1,1846 @@
+{
+  "schema": "rek-native-policy-league-results-v1",
+  "exportedAt": "2026-09-14T05:41:15.180Z",
+  "execution": "Interactive and tournament CPU physics, CUDA controller/policy inference; zero PPO updates in tournaments",
+  "rounds": "20-second official clock; physics time includes measured reset pauses",
+  "policies": [
+    {
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "id": "scripted",
+      "kind": "scripted",
+      "label": "Scripted approach / 16 moves | #1 | provisional | 25.0% wins, 2W/5D/1L",
+      "rank": 1,
+      "strengthStatus": "provisional",
+      "stats": {
+        "games": 8,
+        "wins": 2,
+        "draws": 5,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 6,
+        "pointsAgainst": 5,
+        "winRate": 0.25,
+        "winRate95": [
+          0.071479212752109,
+          0.5907245696898311
+        ],
+        "scoreRate": 0.5625
+      },
+      "pairedStats": {
+        "games": 8,
+        "wins": 2,
+        "draws": 5,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 6,
+        "pointsAgainst": 5,
+        "winRate": 0.25,
+        "winRate95": [
+          0.071479212752109,
+          0.5907245696898311
+        ],
+        "scoreRate": 0.5625
+      },
+      "invalidTrials": 0,
+      "pending": 0,
+      "checkpoint": null
+    },
+    {
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "id": "combined-sampled",
+      "kind": "trained",
+      "label": "MuJoCo PPO combined 3.28M · sampled | #2 | provisional | 25.0% wins, 1W/2D/1L",
+      "rank": 2,
+      "strengthStatus": "provisional",
+      "stats": {
+        "games": 4,
+        "wins": 1,
+        "draws": 2,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 5,
+        "pointsAgainst": 2,
+        "winRate": 0.25,
+        "winRate95": [
+          0.04558726080970055,
+          0.6993581574175981
+        ],
+        "scoreRate": 0.5
+      },
+      "pairedStats": {
+        "games": 4,
+        "wins": 1,
+        "draws": 2,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 5,
+        "pointsAgainst": 2,
+        "winRate": 0.25,
+        "winRate95": [
+          0.04558726080970055,
+          0.6993581574175981
+        ],
+        "scoreRate": 0.5
+      },
+      "invalidTrials": 0,
+      "pending": 0,
+      "checkpoint": {
+        "sha256": "7575182d6b4c2bf0fa7fa558e9210cea2d0c7a8832fd4d279335eb646dfffd77",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 3276800,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "fp32",
+          "observationEncoding": "raw223",
+          "recurrentResetTicks": 64,
+          "legacyFastHidden": 1,
+          "actionSelection": "sampled",
+          "trainingBackend": "mujoco_gpu"
+        }
+      }
+    },
+    {
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "id": "corrected-sampled",
+      "kind": "trained",
+      "label": "MuJoCo PPO corrected 3.28M · sampled | #3 | provisional | 25.0% wins, 1W/2D/1L",
+      "rank": 3,
+      "strengthStatus": "provisional",
+      "stats": {
+        "games": 4,
+        "wins": 1,
+        "draws": 2,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 5,
+        "pointsAgainst": 5,
+        "winRate": 0.25,
+        "winRate95": [
+          0.04558726080970055,
+          0.6993581574175981
+        ],
+        "scoreRate": 0.5
+      },
+      "pairedStats": {
+        "games": 4,
+        "wins": 1,
+        "draws": 2,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 5,
+        "pointsAgainst": 5,
+        "winRate": 0.25,
+        "winRate95": [
+          0.04558726080970055,
+          0.6993581574175981
+        ],
+        "scoreRate": 0.5
+      },
+      "invalidTrials": 0,
+      "pending": 0,
+      "checkpoint": {
+        "sha256": "87d9ef33f2893ad8b369783e8fecbd95afc4a4793cce8d701adf0423b933a544",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 3276800,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "fp32",
+          "observationEncoding": "raw223",
+          "recurrentResetTicks": 64,
+          "legacyFastHidden": 1,
+          "actionSelection": "sampled",
+          "trainingBackend": "mujoco_gpu"
+        }
+      }
+    },
+    {
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "id": "combined-3m",
+      "kind": "trained",
+      "label": "MuJoCo PPO · 3.28M transitions | #4 | provisional | 0.0% wins, 0W/4D/0L",
+      "rank": 4,
+      "strengthStatus": "provisional",
+      "stats": {
+        "games": 4,
+        "wins": 0,
+        "draws": 4,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 0,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.5
+      },
+      "pairedStats": {
+        "games": 4,
+        "wins": 0,
+        "draws": 4,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 0,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.5
+      },
+      "invalidTrials": 0,
+      "pending": 0,
+      "checkpoint": {
+        "sha256": "7575182d6b4c2bf0fa7fa558e9210cea2d0c7a8832fd4d279335eb646dfffd77",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 3276800,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "fp32",
+          "observationEncoding": "raw223",
+          "recurrentResetTicks": 64,
+          "legacyFastHidden": 1,
+          "originalTrainingBackend": "mujoco_gpu",
+          "originalRoundSeconds": 120
+        }
+      }
+    },
+    {
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "id": "corrected-3m",
+      "kind": "trained",
+      "label": "MuJoCo PPO · continued +3.28M transitions | #5 | provisional | 0.0% wins, 0W/3D/1L",
+      "rank": 5,
+      "strengthStatus": "provisional",
+      "stats": {
+        "games": 4,
+        "wins": 0,
+        "draws": 3,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 4,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.375
+      },
+      "pairedStats": {
+        "games": 4,
+        "wins": 0,
+        "draws": 3,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 4,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.375
+      },
+      "invalidTrials": 0,
+      "pending": 0,
+      "checkpoint": {
+        "sha256": "87d9ef33f2893ad8b369783e8fecbd95afc4a4793cce8d701adf0423b933a544",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 3276800,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "fp32",
+          "observationEncoding": "raw223",
+          "recurrentResetTicks": 64,
+          "legacyFastHidden": 1,
+          "originalTrainingBackend": "mujoco_gpu",
+          "originalRoundSeconds": 120
+        }
+      }
+    },
+    {
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "id": "frozen-smoke-8k",
+      "kind": "trained",
+      "label": "Native PPO frozen-opponent smoke 8.2k · sampled | #1 | provisional | 0.0% wins, 0W/4D/0L",
+      "rank": 1,
+      "strengthStatus": "provisional",
+      "stats": {
+        "games": 5,
+        "wins": 0,
+        "draws": 5,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 100,
+        "pointsAgainst": 100,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.43448246478317476
+        ],
+        "scoreRate": 0.5
+      },
+      "pairedStats": {
+        "games": 4,
+        "wins": 0,
+        "draws": 4,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 80,
+        "pointsAgainst": 80,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.5
+      },
+      "invalidTrials": 1,
+      "pending": 0,
+      "checkpoint": {
+        "sha256": "7bd285cd30e8f14ba4b3b580bea0c9f93cd4ab581d79ad0822250b13b1070c6b",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 8192,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "bf16",
+          "observationEncoding": "scaled_polar_xy",
+          "recurrentResetTicks": 0,
+          "legacyFastHidden": 0,
+          "actionSelection": "sampled",
+          "trainingBackend": "puffysics_cuda"
+        }
+      }
+    },
+    {
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "id": "native-196k",
+      "kind": "trained",
+      "label": "Native PPO · 196.6k transitions | #2 | provisional | 0.0% wins, 0W/4D/0L",
+      "rank": 2,
+      "strengthStatus": "provisional",
+      "stats": {
+        "games": 5,
+        "wins": 0,
+        "draws": 5,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 100,
+        "pointsAgainst": 100,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.43448246478317476
+        ],
+        "scoreRate": 0.5
+      },
+      "pairedStats": {
+        "games": 4,
+        "wins": 0,
+        "draws": 4,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 80,
+        "pointsAgainst": 80,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.5
+      },
+      "invalidTrials": 1,
+      "pending": 0,
+      "checkpoint": {
+        "sha256": "0b6acd72fd1a26117e60d5e717e316342f73d490b94d60eecc3f49a9544fa4f3",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 196608,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "bf16",
+          "observationEncoding": "scaled_polar_xy",
+          "originalTrainingBackend": "puffysics_gpu",
+          "originalRoundSeconds": 120
+        }
+      }
+    },
+    {
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "id": "native-24k",
+      "kind": "trained",
+      "label": "Native PPO · 24.6k transitions | #3 | provisional | 0.0% wins, 0W/4D/0L",
+      "rank": 3,
+      "strengthStatus": "provisional",
+      "stats": {
+        "games": 5,
+        "wins": 0,
+        "draws": 5,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 100,
+        "pointsAgainst": 100,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.43448246478317476
+        ],
+        "scoreRate": 0.5
+      },
+      "pairedStats": {
+        "games": 4,
+        "wins": 0,
+        "draws": 4,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 80,
+        "pointsAgainst": 80,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.5
+      },
+      "invalidTrials": 1,
+      "pending": 0,
+      "checkpoint": {
+        "sha256": "388e54a8621f6842cfdae85493ba2c01445ef0e3abd37868f699bcf754841ee3",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 24576,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "bf16",
+          "observationEncoding": "scaled_polar_xy",
+          "originalTrainingBackend": "puffysics_gpu",
+          "originalRoundSeconds": 120
+        }
+      }
+    },
+    {
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "id": "scripted",
+      "kind": "scripted",
+      "label": "Scripted approach / 16 moves | unranked | provisional | 0.0% wins, 0W/3D/0L",
+      "rank": null,
+      "strengthStatus": "provisional",
+      "stats": {
+        "games": 3,
+        "wins": 0,
+        "draws": 3,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 60,
+        "pointsAgainst": 60,
+        "winRate": 0,
+        "winRate95": [
+          5.551115123125783e-17,
+          0.5614970317550454
+        ],
+        "scoreRate": 0.5
+      },
+      "pairedStats": {
+        "games": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 0,
+        "winRate": null,
+        "winRate95": [
+          0,
+          1
+        ],
+        "scoreRate": null
+      },
+      "invalidTrials": 3,
+      "pending": 0,
+      "checkpoint": null
+    }
+  ],
+  "matches": [
+    {
+      "id": "rr-fb02d3d25f5c59a2f10fa03f63212680.0",
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "players": [
+        "combined-3m",
+        "corrected-3m"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-fb02d3d25f5c59a2f10fa03f63212680.1",
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "players": [
+        "corrected-3m",
+        "combined-3m"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-d338f174c82f193a763808d12b704ad6.0",
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "players": [
+        "combined-3m",
+        "scripted"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-d338f174c82f193a763808d12b704ad6.1",
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "players": [
+        "scripted",
+        "combined-3m"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-f42b7f255f13056fc27b7b0c18f0d326.0",
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "players": [
+        "corrected-3m",
+        "scripted"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        0,
+        4
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "scripted",
+      "roundResult": 1,
+      "winnerSide": 1
+    },
+    {
+      "id": "rr-f42b7f255f13056fc27b7b0c18f0d326.1",
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "players": [
+        "scripted",
+        "corrected-3m"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-5fed2cc4554bb7db0babf8f83da9dbb1.0",
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "players": [
+        "combined-sampled",
+        "corrected-sampled"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        5,
+        0
+      ],
+      "durationMs": 20020,
+      "winnerPolicyId": "combined-sampled",
+      "roundResult": 1,
+      "winnerSide": 0
+    },
+    {
+      "id": "rr-5fed2cc4554bb7db0babf8f83da9dbb1.1",
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "players": [
+        "corrected-sampled",
+        "combined-sampled"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-18a357917618547d0a12768d4691477d.0",
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "players": [
+        "combined-sampled",
+        "scripted"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        0,
+        2
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "scripted",
+      "roundResult": 1,
+      "winnerSide": 1
+    },
+    {
+      "id": "rr-18a357917618547d0a12768d4691477d.1",
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "players": [
+        "scripted",
+        "combined-sampled"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-33eaf052307480b64c1e6331fb972ae6.0",
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "players": [
+        "corrected-sampled",
+        "scripted"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        5,
+        0
+      ],
+      "durationMs": 20020,
+      "winnerPolicyId": "corrected-sampled",
+      "roundResult": 1,
+      "winnerSide": 0
+    },
+    {
+      "id": "rr-33eaf052307480b64c1e6331fb972ae6.1",
+      "backend": "mujoco",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "players": [
+        "scripted",
+        "corrected-sampled"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-a768617923e12ced8003f315b4c3ebba.0",
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "players": [
+        "native-24k",
+        "native-196k"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        20,
+        20
+      ],
+      "durationMs": 20120,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-a768617923e12ced8003f315b4c3ebba.1",
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "players": [
+        "native-196k",
+        "native-24k"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        20,
+        20
+      ],
+      "durationMs": 20020,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-1f75305307c070294337de7739dbf1f0.0",
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "players": [
+        "native-24k",
+        "frozen-smoke-8k"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        20,
+        20
+      ],
+      "durationMs": 20760,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-1f75305307c070294337de7739dbf1f0.1",
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "players": [
+        "frozen-smoke-8k",
+        "native-24k"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        20,
+        20
+      ],
+      "durationMs": 20160,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-748d824e6d32f4047167344d0f4b48e0.0",
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "players": [
+        "native-24k",
+        "scripted"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        20,
+        20
+      ],
+      "durationMs": 21540,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-748d824e6d32f4047167344d0f4b48e0.1",
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "players": [
+        "scripted",
+        "native-24k"
+      ],
+      "seed": 1,
+      "status": "engine_error",
+      "reason": "physics_nonfinite",
+      "scores": [
+        5,
+        5
+      ],
+      "durationMs": 8960,
+      "winnerPolicyId": null
+    },
+    {
+      "id": "rr-80cf46bc174f412a635f939efe62ed7b.0",
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "players": [
+        "native-196k",
+        "frozen-smoke-8k"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        20,
+        20
+      ],
+      "durationMs": 20640,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-80cf46bc174f412a635f939efe62ed7b.1",
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "players": [
+        "frozen-smoke-8k",
+        "native-196k"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        20,
+        20
+      ],
+      "durationMs": 21720,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-109cc9da5b1ab3ee960a87b3fbfb0f9b.0",
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "players": [
+        "native-196k",
+        "scripted"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        20,
+        20
+      ],
+      "durationMs": 21540,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-109cc9da5b1ab3ee960a87b3fbfb0f9b.1",
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "players": [
+        "scripted",
+        "native-196k"
+      ],
+      "seed": 1,
+      "status": "engine_error",
+      "reason": "physics_nonfinite",
+      "scores": [
+        5,
+        5
+      ],
+      "durationMs": 8960,
+      "winnerPolicyId": null
+    },
+    {
+      "id": "rr-4563bdac8670d07b926def85ba0ecb99.0",
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "players": [
+        "frozen-smoke-8k",
+        "scripted"
+      ],
+      "seed": 1,
+      "status": "completed",
+      "reason": "time_limit",
+      "scores": [
+        20,
+        20
+      ],
+      "durationMs": 21280,
+      "winnerPolicyId": null,
+      "roundResult": 3,
+      "winnerSide": -1
+    },
+    {
+      "id": "rr-4563bdac8670d07b926def85ba0ecb99.1",
+      "backend": "puffysics",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "players": [
+        "scripted",
+        "frozen-smoke-8k"
+      ],
+      "seed": 1,
+      "status": "engine_error",
+      "reason": "physics_nonfinite",
+      "scores": [
+        5,
+        5
+      ],
+      "durationMs": 8960,
+      "winnerPolicyId": null
+    }
+  ],
+  "standings": [
+    {
+      "backend": "mujoco",
+      "id": "scripted",
+      "label": "Scripted approach / 16 moves",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "kind": "scripted",
+      "createdAt": "2026-09-14T05:22:01.274Z",
+      "scriptedVersion": "native5-approach-facing-16moves-v1",
+      "total": {
+        "games": 8,
+        "wins": 2,
+        "draws": 5,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 6,
+        "pointsAgainst": 5,
+        "winRate": 0.25,
+        "winRate95": [
+          0.071479212752109,
+          0.5907245696898311
+        ],
+        "scoreRate": 0.5625
+      },
+      "paired": {
+        "games": 8,
+        "wins": 2,
+        "draws": 5,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 6,
+        "pointsAgainst": 5,
+        "winRate": 0.25,
+        "winRate95": [
+          0.071479212752109,
+          0.5907245696898311
+        ],
+        "scoreRate": 0.5625
+      },
+      "headToHead": {
+        "combined-3m": {
+          "games": 2,
+          "wins": 0,
+          "draws": 2,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 0,
+          "pointsAgainst": 0,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.5
+        },
+        "corrected-3m": {
+          "games": 2,
+          "wins": 1,
+          "draws": 1,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 4,
+          "pointsAgainst": 0,
+          "winRate": 0.5,
+          "winRate95": [
+            0.09453120573423074,
+            0.9054687942657693
+          ],
+          "scoreRate": 0.75
+        },
+        "combined-sampled": {
+          "games": 2,
+          "wins": 1,
+          "draws": 1,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 2,
+          "pointsAgainst": 0,
+          "winRate": 0.5,
+          "winRate95": [
+            0.09453120573423074,
+            0.9054687942657693
+          ],
+          "scoreRate": 0.75
+        },
+        "corrected-sampled": {
+          "games": 2,
+          "wins": 0,
+          "draws": 1,
+          "losses": 1,
+          "forfeits": 0,
+          "pointsFor": 0,
+          "pointsAgainst": 5,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.25
+        }
+      },
+      "pending": 0,
+      "invalidTrials": 0,
+      "leftGames": 4,
+      "rightGames": 4,
+      "rank": 1,
+      "strengthStatus": "provisional",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs",
+      "checkpoint": null
+    },
+    {
+      "backend": "mujoco",
+      "id": "combined-sampled",
+      "label": "MuJoCo PPO combined 3.28M · sampled",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "kind": "trained",
+      "createdAt": "2026-09-14T05:33:19.775Z",
+      "total": {
+        "games": 4,
+        "wins": 1,
+        "draws": 2,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 5,
+        "pointsAgainst": 2,
+        "winRate": 0.25,
+        "winRate95": [
+          0.04558726080970055,
+          0.6993581574175981
+        ],
+        "scoreRate": 0.5
+      },
+      "paired": {
+        "games": 4,
+        "wins": 1,
+        "draws": 2,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 5,
+        "pointsAgainst": 2,
+        "winRate": 0.25,
+        "winRate95": [
+          0.04558726080970055,
+          0.6993581574175981
+        ],
+        "scoreRate": 0.5
+      },
+      "headToHead": {
+        "corrected-sampled": {
+          "games": 2,
+          "wins": 1,
+          "draws": 1,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 5,
+          "pointsAgainst": 0,
+          "winRate": 0.5,
+          "winRate95": [
+            0.09453120573423074,
+            0.9054687942657693
+          ],
+          "scoreRate": 0.75
+        },
+        "scripted": {
+          "games": 2,
+          "wins": 0,
+          "draws": 1,
+          "losses": 1,
+          "forfeits": 0,
+          "pointsFor": 0,
+          "pointsAgainst": 2,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.25
+        }
+      },
+      "pending": 0,
+      "invalidTrials": 0,
+      "leftGames": 2,
+      "rightGames": 2,
+      "rank": 2,
+      "strengthStatus": "provisional",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs",
+      "checkpoint": {
+        "sha256": "7575182d6b4c2bf0fa7fa558e9210cea2d0c7a8832fd4d279335eb646dfffd77",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 3276800,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "fp32",
+          "observationEncoding": "raw223",
+          "recurrentResetTicks": 64,
+          "legacyFastHidden": 1,
+          "actionSelection": "sampled",
+          "trainingBackend": "mujoco_gpu"
+        }
+      }
+    },
+    {
+      "backend": "mujoco",
+      "id": "corrected-sampled",
+      "label": "MuJoCo PPO corrected 3.28M · sampled",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "kind": "trained",
+      "createdAt": "2026-09-14T05:33:19.851Z",
+      "total": {
+        "games": 4,
+        "wins": 1,
+        "draws": 2,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 5,
+        "pointsAgainst": 5,
+        "winRate": 0.25,
+        "winRate95": [
+          0.04558726080970055,
+          0.6993581574175981
+        ],
+        "scoreRate": 0.5
+      },
+      "paired": {
+        "games": 4,
+        "wins": 1,
+        "draws": 2,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 5,
+        "pointsAgainst": 5,
+        "winRate": 0.25,
+        "winRate95": [
+          0.04558726080970055,
+          0.6993581574175981
+        ],
+        "scoreRate": 0.5
+      },
+      "headToHead": {
+        "combined-sampled": {
+          "games": 2,
+          "wins": 0,
+          "draws": 1,
+          "losses": 1,
+          "forfeits": 0,
+          "pointsFor": 0,
+          "pointsAgainst": 5,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.25
+        },
+        "scripted": {
+          "games": 2,
+          "wins": 1,
+          "draws": 1,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 5,
+          "pointsAgainst": 0,
+          "winRate": 0.5,
+          "winRate95": [
+            0.09453120573423074,
+            0.9054687942657693
+          ],
+          "scoreRate": 0.75
+        }
+      },
+      "pending": 0,
+      "invalidTrials": 0,
+      "leftGames": 2,
+      "rightGames": 2,
+      "rank": 3,
+      "strengthStatus": "provisional",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs",
+      "checkpoint": {
+        "sha256": "87d9ef33f2893ad8b369783e8fecbd95afc4a4793cce8d701adf0423b933a544",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 3276800,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "fp32",
+          "observationEncoding": "raw223",
+          "recurrentResetTicks": 64,
+          "legacyFastHidden": 1,
+          "actionSelection": "sampled",
+          "trainingBackend": "mujoco_gpu"
+        }
+      }
+    },
+    {
+      "backend": "mujoco",
+      "id": "combined-3m",
+      "label": "MuJoCo PPO · 3.28M transitions",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "kind": "trained",
+      "createdAt": "2026-09-14T05:22:01.349Z",
+      "total": {
+        "games": 4,
+        "wins": 0,
+        "draws": 4,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 0,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.5
+      },
+      "paired": {
+        "games": 4,
+        "wins": 0,
+        "draws": 4,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 0,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.5
+      },
+      "headToHead": {
+        "corrected-3m": {
+          "games": 2,
+          "wins": 0,
+          "draws": 2,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 0,
+          "pointsAgainst": 0,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.5
+        },
+        "scripted": {
+          "games": 2,
+          "wins": 0,
+          "draws": 2,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 0,
+          "pointsAgainst": 0,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.5
+        }
+      },
+      "pending": 0,
+      "invalidTrials": 0,
+      "leftGames": 2,
+      "rightGames": 2,
+      "rank": 4,
+      "strengthStatus": "provisional",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs",
+      "checkpoint": {
+        "sha256": "7575182d6b4c2bf0fa7fa558e9210cea2d0c7a8832fd4d279335eb646dfffd77",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 3276800,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "fp32",
+          "observationEncoding": "raw223",
+          "recurrentResetTicks": 64,
+          "legacyFastHidden": 1,
+          "originalTrainingBackend": "mujoco_gpu",
+          "originalRoundSeconds": 120
+        }
+      }
+    },
+    {
+      "backend": "mujoco",
+      "id": "corrected-3m",
+      "label": "MuJoCo PPO · continued +3.28M transitions",
+      "configHash": "6e6db9aa96da1c1d16309fedad95500ebf0f2493f3ab3dda200a24f98cc2bdd9",
+      "kind": "trained",
+      "createdAt": "2026-09-14T05:22:01.356Z",
+      "total": {
+        "games": 4,
+        "wins": 0,
+        "draws": 3,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 4,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.375
+      },
+      "paired": {
+        "games": 4,
+        "wins": 0,
+        "draws": 3,
+        "losses": 1,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 4,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.375
+      },
+      "headToHead": {
+        "combined-3m": {
+          "games": 2,
+          "wins": 0,
+          "draws": 2,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 0,
+          "pointsAgainst": 0,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.5
+        },
+        "scripted": {
+          "games": 2,
+          "wins": 0,
+          "draws": 1,
+          "losses": 1,
+          "forfeits": 0,
+          "pointsFor": 0,
+          "pointsAgainst": 4,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.25
+        }
+      },
+      "pending": 0,
+      "invalidTrials": 0,
+      "leftGames": 2,
+      "rightGames": 2,
+      "rank": 5,
+      "strengthStatus": "provisional",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs",
+      "checkpoint": {
+        "sha256": "87d9ef33f2893ad8b369783e8fecbd95afc4a4793cce8d701adf0423b933a544",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 3276800,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "fp32",
+          "observationEncoding": "raw223",
+          "recurrentResetTicks": 64,
+          "legacyFastHidden": 1,
+          "originalTrainingBackend": "mujoco_gpu",
+          "originalRoundSeconds": 120
+        }
+      }
+    },
+    {
+      "backend": "puffysics",
+      "id": "frozen-smoke-8k",
+      "label": "Native PPO frozen-opponent smoke 8.2k · sampled",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "kind": "trained",
+      "createdAt": "2026-09-14T05:36:11.417Z",
+      "total": {
+        "games": 5,
+        "wins": 0,
+        "draws": 5,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 100,
+        "pointsAgainst": 100,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.43448246478317476
+        ],
+        "scoreRate": 0.5
+      },
+      "paired": {
+        "games": 4,
+        "wins": 0,
+        "draws": 4,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 80,
+        "pointsAgainst": 80,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.5
+      },
+      "headToHead": {
+        "native-24k": {
+          "games": 2,
+          "wins": 0,
+          "draws": 2,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 40,
+          "pointsAgainst": 40,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.5
+        },
+        "native-196k": {
+          "games": 2,
+          "wins": 0,
+          "draws": 2,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 40,
+          "pointsAgainst": 40,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.5
+        },
+        "scripted": {
+          "games": 1,
+          "wins": 0,
+          "draws": 1,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 20,
+          "pointsAgainst": 20,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.7934506856227626
+          ],
+          "scoreRate": 0.5
+        }
+      },
+      "pending": 0,
+      "invalidTrials": 1,
+      "leftGames": 3,
+      "rightGames": 2,
+      "rank": 1,
+      "strengthStatus": "provisional",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs",
+      "checkpoint": {
+        "sha256": "7bd285cd30e8f14ba4b3b580bea0c9f93cd4ab581d79ad0822250b13b1070c6b",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 8192,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "bf16",
+          "observationEncoding": "scaled_polar_xy",
+          "recurrentResetTicks": 0,
+          "legacyFastHidden": 0,
+          "actionSelection": "sampled",
+          "trainingBackend": "puffysics_cuda"
+        }
+      }
+    },
+    {
+      "backend": "puffysics",
+      "id": "native-196k",
+      "label": "Native PPO · 196.6k transitions",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "kind": "trained",
+      "createdAt": "2026-09-14T05:22:01.344Z",
+      "total": {
+        "games": 5,
+        "wins": 0,
+        "draws": 5,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 100,
+        "pointsAgainst": 100,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.43448246478317476
+        ],
+        "scoreRate": 0.5
+      },
+      "paired": {
+        "games": 4,
+        "wins": 0,
+        "draws": 4,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 80,
+        "pointsAgainst": 80,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.5
+      },
+      "headToHead": {
+        "native-24k": {
+          "games": 2,
+          "wins": 0,
+          "draws": 2,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 40,
+          "pointsAgainst": 40,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.5
+        },
+        "frozen-smoke-8k": {
+          "games": 2,
+          "wins": 0,
+          "draws": 2,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 40,
+          "pointsAgainst": 40,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.5
+        },
+        "scripted": {
+          "games": 1,
+          "wins": 0,
+          "draws": 1,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 20,
+          "pointsAgainst": 20,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.7934506856227626
+          ],
+          "scoreRate": 0.5
+        }
+      },
+      "pending": 0,
+      "invalidTrials": 1,
+      "leftGames": 3,
+      "rightGames": 2,
+      "rank": 2,
+      "strengthStatus": "provisional",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs",
+      "checkpoint": {
+        "sha256": "0b6acd72fd1a26117e60d5e717e316342f73d490b94d60eecc3f49a9544fa4f3",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 196608,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "bf16",
+          "observationEncoding": "scaled_polar_xy",
+          "originalTrainingBackend": "puffysics_gpu",
+          "originalRoundSeconds": 120
+        }
+      }
+    },
+    {
+      "backend": "puffysics",
+      "id": "native-24k",
+      "label": "Native PPO · 24.6k transitions",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "kind": "trained",
+      "createdAt": "2026-09-14T05:22:01.338Z",
+      "total": {
+        "games": 5,
+        "wins": 0,
+        "draws": 5,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 100,
+        "pointsAgainst": 100,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.43448246478317476
+        ],
+        "scoreRate": 0.5
+      },
+      "paired": {
+        "games": 4,
+        "wins": 0,
+        "draws": 4,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 80,
+        "pointsAgainst": 80,
+        "winRate": 0,
+        "winRate95": [
+          0,
+          0.4898908364545973
+        ],
+        "scoreRate": 0.5
+      },
+      "headToHead": {
+        "native-196k": {
+          "games": 2,
+          "wins": 0,
+          "draws": 2,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 40,
+          "pointsAgainst": 40,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.5
+        },
+        "frozen-smoke-8k": {
+          "games": 2,
+          "wins": 0,
+          "draws": 2,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 40,
+          "pointsAgainst": 40,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.6576197724933469
+          ],
+          "scoreRate": 0.5
+        },
+        "scripted": {
+          "games": 1,
+          "wins": 0,
+          "draws": 1,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 20,
+          "pointsAgainst": 20,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.7934506856227626
+          ],
+          "scoreRate": 0.5
+        }
+      },
+      "pending": 0,
+      "invalidTrials": 1,
+      "leftGames": 3,
+      "rightGames": 2,
+      "rank": 3,
+      "strengthStatus": "provisional",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs",
+      "checkpoint": {
+        "sha256": "388e54a8621f6842cfdae85493ba2c01445ef0e3abd37868f699bcf754841ee3",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 24576,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "bf16",
+          "observationEncoding": "scaled_polar_xy",
+          "originalTrainingBackend": "puffysics_gpu",
+          "originalRoundSeconds": 120
+        }
+      }
+    },
+    {
+      "backend": "puffysics",
+      "id": "scripted",
+      "label": "Scripted approach / 16 moves",
+      "configHash": "4cbe870f9578937995be797d751e3f5e7573d99f13eac54a64d9f41be3bea3ad",
+      "kind": "scripted",
+      "createdAt": "2026-09-14T05:22:01.332Z",
+      "scriptedVersion": "native5-approach-facing-16moves-v1",
+      "total": {
+        "games": 3,
+        "wins": 0,
+        "draws": 3,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 60,
+        "pointsAgainst": 60,
+        "winRate": 0,
+        "winRate95": [
+          5.551115123125783e-17,
+          0.5614970317550454
+        ],
+        "scoreRate": 0.5
+      },
+      "paired": {
+        "games": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 0,
+        "winRate": null,
+        "winRate95": [
+          0,
+          1
+        ],
+        "scoreRate": null
+      },
+      "headToHead": {
+        "native-24k": {
+          "games": 1,
+          "wins": 0,
+          "draws": 1,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 20,
+          "pointsAgainst": 20,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.7934506856227626
+          ],
+          "scoreRate": 0.5
+        },
+        "native-196k": {
+          "games": 1,
+          "wins": 0,
+          "draws": 1,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 20,
+          "pointsAgainst": 20,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.7934506856227626
+          ],
+          "scoreRate": 0.5
+        },
+        "frozen-smoke-8k": {
+          "games": 1,
+          "wins": 0,
+          "draws": 1,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 20,
+          "pointsAgainst": 20,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.7934506856227626
+          ],
+          "scoreRate": 0.5
+        }
+      },
+      "pending": 0,
+      "invalidTrials": 3,
+      "leftGames": 0,
+      "rightGames": 3,
+      "rank": null,
+      "strengthStatus": "provisional",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs",
+      "checkpoint": null
+    }
+  ]
+}

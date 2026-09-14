@@ -2,10 +2,18 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 
 struct RpParameters { float joint[64][22]; float root[2][12]; int nj; int nr; };
 static RpParameters rp_host_parameters;
 __constant__ RpParameters rp_device_parameters;
+__host__ __device__ __forceinline__ static const RpParameters& rp_parameters() {
+#ifdef __CUDA_ARCH__
+    return rp_device_parameters;
+#else
+    return rp_host_parameters;
+#endif
+}
 __host__ __device__ static float rp_armature(int joint) {
     if (joint < 0) return 0;
 #ifdef __CUDA_ARCH__
@@ -20,7 +28,7 @@ __host__ __device__ static float rp_armature(int joint) {
 #define B3_MUJOCO_COLLISION_FILTER 1
 #include "engine/puffysics.cuh"
 
-struct RpHandle { B3World* worlds; B3World* initial; int* stats; int arenas; int mode; };
+struct RpHandle { B3World* worlds; B3World* initial; int* stats; int arenas; int mode; int stabilization; };
 static char rp_error[512];
 static bool rp_live = false;
 static bool rp_check(cudaError_t err, const char* where) {
@@ -40,25 +48,25 @@ extern "C" int rp_art_contacts_enabled() { return B3_ART_CONTACTS; }
 static B3Vec3 rp_vec(const float* p) { return b3_v(p[0], p[1], p[2]); }
 static B3Quat rp_quat(const float* p) { return b3_q(p[0], p[1], p[2], p[3]); }
 
-__device__ static float rp_joint_angle(B3World* w, int joint) {
-    const float* p = rp_device_parameters.joint[joint];
+__host__ __device__ __forceinline__ static float rp_joint_angle(B3World* w, int joint) {
+    const float* p = rp_parameters().joint[joint];
     const float raw = b3_joint_angle(w, joint);
     const float midpoint = 0.5f * (p[14] + p[15]);
     // Every exported limited interval is narrower than 2*pi. Select its branch.
     return raw + 2.0f*B3_PI*nearbyintf((midpoint-raw)/(2.0f*B3_PI));
 }
 
-__device__ static void rp_gather(B3World* w, int arena, float* qpos,
+__host__ __device__ __forceinline__ static void rp_gather(B3World* w, int arena, float* qpos,
         float* qvel, float* base, float* angular, int* stats) {
     float* qp = qpos + arena * 72;
     float* qv = qvel + arena * 70;
-    for (int j = 0; j < rp_device_parameters.nj; ++j) {
-        const float* p = rp_device_parameters.joint[j];
+    for (int j = 0; j < rp_parameters().nj; ++j) {
+        const float* p = rp_parameters().joint[j];
         qp[int(p[2])] = p[13] + rp_joint_angle(w, j);
         qv[int(p[3])] = b3_joint_speed(w, j);
     }
     for (int r = 0; r < 2; ++r) {
-        const float* p = rp_device_parameters.root[r];
+        const float* p = rp_parameters().root[r];
         const B3Body* b = &w->bodies[int(p[0]) + 1];
         B3Vec3 offset = b3_rotate(b->rotation, b3_v(p[3], p[4], p[5]));
         B3Vec3 origin = b3_add(b->position, offset);
@@ -79,16 +87,16 @@ __device__ static void rp_gather(B3World* w, int arena, float* qpos,
     }
     for (int k = 0; k < 72; ++k) if (!isfinite(qp[k])) stats[arena*4+1] = 1;
     for (int k = 0; k < 70; ++k) if (!isfinite(qv[k])) stats[arena*4+1] = 1;
-    stats[arena*4] = max(stats[arena*4], w->contact_count);
+    stats[arena*4] = stats[arena*4]>w->contact_count?stats[arena*4]:w->contact_count;
 }
 
-__device__ static void rp_forces(B3World* w, const float* ctrl) {
+__host__ __device__ __forceinline__ static void rp_forces(B3World* w, const float* ctrl) {
     for (int b = 0; b < w->body_count; ++b) {
         w->bodies[b].force = b3_v(0,0,0);
         w->bodies[b].torque = b3_v(0,0,0);
     }
-    for (int j = 0; j < rp_device_parameters.nj; ++j) {
-        const float* p = rp_device_parameters.joint[j];
+    for (int j = 0; j < rp_parameters().nj; ++j) {
+        const float* p = rp_parameters().joint[j];
         B3Joint* joint = &w->joints[j];
         float angle = p[13] + rp_joint_angle(w, j), velocity = b3_joint_speed(w, j);
         float force = b3_clamp(p[16]*(ctrl[j]-angle)-p[17]*velocity, -p[18], p[18]);
@@ -106,7 +114,7 @@ __device__ static void rp_forces(B3World* w, const float* ctrl) {
 // Reduced-coordinate diagnostic preserves rotor inertia in the ABA operator.
 // The contact solver and predictive joint stops are not MuJoCo-equivalent.
 #if B3_ART_CONTACTS
-__device__ static bool rp_art_step(B3World* w, int* stats) {
+__host__ __device__ __forceinline__ static bool rp_art_step(B3World* w, int* stats) {
     B3Art art;
     if (!b3_art_bind(&art, w)) { stats[2] = 1 << 24; return false; }
     constexpr float h = 0.002f, inv_h = 500.0f;
@@ -118,8 +126,8 @@ __device__ static bool rp_art_step(B3World* w, int* stats) {
     b3_warm_start(w);
     b3_art_integrate_vel(&art, w, h);
     b3_art_solve_contacts(&art, w, inv_h, w->contact_speed, 1, B3_ART_CONTACT_ITERS);
-    for (int j = 0; j < rp_device_parameters.nj; ++j) {
-        const float* p = rp_device_parameters.joint[j];
+    for (int j = 0; j < rp_parameters().nj; ++j) {
+        const float* p = rp_parameters().joint[j];
         B3Joint* joint = &w->joints[j];
         float angle = rp_joint_angle(w, j), velocity = b3_joint_speed(w, j);
         float target = b3_clamp(velocity, (p[14]-angle)*inv_h, (p[15]-angle)*inv_h);
@@ -150,11 +158,28 @@ __global__ void rp_reset_kernel(RpHandle h, float* qp, float* qv,
     time[i] = 0;
     rp_gather(h.worlds+i, i, qp, qv, base, angular, h.stats);
 }
+__host__ __device__ __forceinline__ static void rp_cold_start_joints(B3World* w) {
+    for (int j=0;j<w->joint_count;++j) {
+        B3Joint& joint=w->joints[j];
+        joint.linear_impulse=b3_v(0,0,0);
+        joint.perp_impulse={0,0};
+        joint.spring_impulse=joint.lower_impulse=joint.upper_impulse=0;
+#ifndef B3_REVOLUTE_ONLY
+        joint.angular_impulse=b3_v(0,0,0);joint.motor_impulse=0;
+#endif
+    }
+}
 __global__ void rp_step_kernel(RpHandle h, const float* ctrl, float* qp,
         float* qv, float* base, float* angular, float* time) {
     int i = blockIdx.x*blockDim.x+threadIdx.x;
     if (i >= h.arenas || h.stats[i*4+1] || h.stats[i*4+2]) return;
     B3World* w = h.worlds+i;
+    // Explicit parity-relaxed experiment: solve current joint constraints from
+    // zero cached impulses. This does not clear failures, reset body state, or
+    // suppress nonfinite output. The unchanged baseline remains the default.
+    if (h.stabilization & 1) {
+        rp_cold_start_joints(w);
+    }
     rp_forces(w, ctrl+i*58);
 #if B3_ART_CONTACTS
     if (h.mode == 1) {
@@ -215,6 +240,15 @@ extern "C" void* rp_create(int arenas, const float* bodies, int nb,
         initial->joints[j].upper_angle = p[15];
     }
     RpHandle* h = new RpHandle{}; h->arenas = arenas; h->mode = mode;
+    const char* stabilization=std::getenv("REK_PUFFYSICS_STABILIZATION");
+    if (stabilization && stabilization[0] && std::strcmp(stabilization,"baseline")) {
+        if (!std::strcmp(stabilization,"joint_cold_start")) h->stabilization=1;
+        else {
+            std::snprintf(rp_error,sizeof(rp_error),"unknown REK_PUFFYSICS_STABILIZATION profile");
+            delete h;delete initial;return nullptr;
+        }
+    }
+    std::printf("puffysics_stabilization=%s parity_relaxed=%d\n",h->stabilization?"joint_cold_start":"baseline",h->stabilization!=0);
     bool ok = rp_check(cudaMalloc(&h->worlds, arenas*sizeof(B3World)), "allocate worlds") &&
         rp_check(cudaMalloc(&h->initial, sizeof(B3World)), "allocate initial") &&
         rp_check(cudaMalloc(&h->stats, arenas*4*sizeof(int)), "allocate stats") &&

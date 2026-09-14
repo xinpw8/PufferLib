@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REK G1 · Human evaluation</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <div><p class="eyebrow">REK G1 / HUMAN EVALUATION</p><h1>You versus the policy.</h1></div>
+      <span id="connection" class="status" role="status">Connecting</span>
+    </header>
+    <section class="selection" aria-label="Evaluation configuration">
+      <label>Physics backend<select id="backend" disabled></select></label>
+      <label class="opponent-select">Opponent<select id="opponent" disabled></select></label>
+      <label class="side-select">Your robot<select id="human-side" disabled><option value="0">Blue · side 0</option><option value="1">Orange · side 1</option></select></label>
+      <button id="load" class="primary" disabled>Load evaluation</button>
+      <button id="reset" disabled>Reset match</button>
+    </section>
+    <p id="selection-info" class="muted">Fetching available backends and checkpoints.</p>
+    <p class="runtime-note"><strong>Interactive viewer:</strong> CPU physics with CUDA policy/controller. Headless CUDA training runs separately. <span>Experimental 20-second rounds.</span></p>
+    <p id="backend-warning" class="backend-warning" hidden>Puffysics is experimental. Frequent robot falls have been observed in this runtime. Scores may largely reflect fall/knockout awards; wins currently provide limited evidence of combat skill.</p>
+    <p id="error" class="error" role="alert" hidden></p>
+    <section class="arena-card" aria-label="Human evaluation arena">
+      <div class="scoreboard">
+        <div class="fighter blue"><span id="blue-name">BLUE</span><div class="fighter-result"><strong id="blue-score">0</strong><small>POINTS</small><span id="blue-falls" class="fall-count">Falls: unknown</span></div></div>
+        <div class="round-info"><span id="remaining">--:--</span><small id="match-status">Waiting for simulator</small></div>
+        <div class="fighter orange"><span id="orange-name">ORANGE</span><div class="fighter-result"><strong id="orange-score">0</strong><small>POINTS</small><span id="orange-falls" class="fall-count">Falls: unknown</span></div></div>
+      </div>
+      <div id="arena" class="arena" tabindex="0" role="application" aria-label="Game controls. Click or focus here to play. W A S D movement, Q E turn, U straight kick, I side kick." aria-describedby="control-help">
+        <img id="frame" alt="Live frame from the selected native physics backend" draggable="false">
+        <div id="focus-prompt" class="focus-prompt">Click the arena to enable controls</div>
+      </div>
+      <div class="arena-footer"><span id="active-config">No evaluation loaded</span><span id="tick">Tick 0</span></div>
+    </section>
+    <p class="score-note">Points can include knockout awards. Each robot's fall count is separate from its match losses.</p>
+    <section class="controls" aria-label="Controls">
+      <div><h2 id="control-role">Choose your robot above</h2><p id="control-help"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hold to move · <kbd>Q</kbd><kbd>E</kbd> hold to turn · <kbd>U</kbd> straight kick · <kbd>I</kbd> side kick</p><p class="muted">Click outside the arena to release controls. Move selection and input locking are handled by the simulator.</p></div>
+      <div class="touch-controls" aria-label="On-screen controls">
+        <button data-held="Q" aria-label="Hold turn left">Q ↶</button><button data-held="W" aria-label="Hold forward">W ↑</button><button data-held="E" aria-label="Hold turn right">E ↷</button>
+        <button data-held="A" aria-label="Hold strafe left">A ←</button><button data-held="S" aria-label="Hold backward">S ↓</button><button data-held="D" aria-label="Hold strafe right">D →</button>
+        <button data-move="17" class="kick">U · Straight kick</button><button data-move="18" class="kick">I · Side kick</button>
+      </div>
+    </section>
+    <section class="standings-card" aria-label="Policy standings">
+      <div class="section-title"><div><h2>Measured opponent strength</h2><p class="muted">Ranked within this physics backend. Winning completed matches determines strength.</p></div><button id="refresh">Refresh results</button></div>
+      <div class="table-scroll"><table><thead><tr><th>Rank</th><th>Opponent</th><th>Type</th><th>Wins</th><th>Draws</th><th>Losses</th><th>Win rate</th><th>Evidence</th></tr></thead><tbody id="standings"><tr><td colspan="8" class="muted">No recorded results loaded.</td></tr></tbody></table></div>
+      <p id="ranking-note" class="muted">Untested checkpoints have no measured strength. Training steps and training loss are not a ranking.</p>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,5 @@
+puffysics_stabilization=joint_cold_start parity_relaxed=1
+{"event":"ready"}
+{"id":2,"ok":false,"error":"native5 physics: previous CPU Puffysics failure arena=1 time=2.410001 nonfinite=1 solver_status=0"}
+
+Excerpt only. The initial full-state reply and subsequent repeated errors remain in eval-round-r4-diag/raw.ndjson on Spark.

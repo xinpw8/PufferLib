@@ -1,0 +1,68 @@
+:root { color-scheme: dark; --bg:#11151d; --panel:#1a202b; --line:#303b4d; --text:#edf2fa; --muted:#a5b3c7; --blue:#79b5ff; --orange:#ffb070; --error:#ffb9b9; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--text); }
+main { max-width:1440px; margin:auto; padding:28px 32px 48px; }
+.page-header,.section-title { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.eyebrow { color:var(--blue); font-size:11px; font-weight:700; letter-spacing:.14em; margin:0 0 8px; }
+h1 { font-size:clamp(25px,3vw,34px); letter-spacing:-.025em; margin:0; font-weight:650; }
+h2 { font-size:16px; margin:0 0 7px; font-weight:650; }
+p { font-size:13px; line-height:1.65; }
+.muted { color:var(--muted); }
+.status { border:1px solid var(--line); border-radius:30px; padding:7px 12px; font-size:12px; white-space:nowrap; color:var(--muted); }
+.status.live { color:#9ee1b6; border-color:#3b6550; }
+.status.failed { color:var(--error); border-color:#6e4248; }
+.selection { display:flex; align-items:flex-end; gap:12px; margin-top:24px; }
+label { display:flex; flex-direction:column; gap:7px; font-size:12px; font-weight:600; color:var(--muted); min-width:190px; }
+.opponent-select { flex:1; }
+.side-select { min-width:150px; width:150px; }
+.runtime-note { margin:0 0 14px; padding:9px 12px; color:var(--muted); background:#182333; border:1px solid #32455d; border-radius:7px; font-size:12px; }
+.runtime-note strong { color:#d6e5fa; font-weight:600; }
+.runtime-note span { white-space:nowrap; }
+.backend-warning { margin:0 0 14px; padding:9px 12px; color:#f2cea0; background:#2a241b; border:1px solid #655238; border-radius:7px; font-size:12px; }
+.score-note { color:var(--muted); font-size:11px; margin:8px 2px 0; }
+select,button { font:inherit; color:var(--text); border:1px solid var(--line); background:var(--panel); border-radius:7px; min-height:41px; padding:9px 12px; }
+select { width:100%; font-size:13px; }
+button { cursor:pointer; white-space:nowrap; font-size:13px; font-weight:600; }
+button:hover:not(:disabled) { border-color:#7d93b1; background:#253044; }
+button:disabled,select:disabled { opacity:.45; cursor:default; }
+button.primary { background:#478fe4; border-color:#478fe4; color:#071a32; }
+button.primary:hover:not(:disabled) { background:#79b5ff; }
+button:focus-visible,select:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+.error { border:1px solid #723d44; background:#351f27; color:var(--error); padding:10px 13px; border-radius:7px; overflow-wrap:anywhere; }
+.arena-card,.standings-card { background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+.scoreboard { display:grid; grid-template-columns:1fr 170px 1fr; align-items:center; padding:14px 20px; }
+.fighter { display:flex; align-items:center; gap:20px; font-size:11px; font-weight:700; letter-spacing:.06em; min-width:0; }
+.fighter span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.fighter strong { font-size:30px; font-variant-numeric:tabular-nums; }
+.fighter-result { display:flex; flex-direction:column; align-items:center; flex-shrink:0; gap:1px; }
+.fighter-result small { font-size:9px; font-weight:500; letter-spacing:.08em; color:var(--muted); }
+.fighter-result .fall-count { font-size:10px; font-weight:500; letter-spacing:0; margin-top:5px; color:var(--muted); }
+.fighter.blue { color:var(--blue); }
+.fighter.orange { color:var(--orange); flex-direction:row-reverse; text-align:right; }
+.round-info { text-align:center; }
+.round-info span { font-size:19px; font-variant-numeric:tabular-nums; }
+.round-info small { color:var(--muted); display:block; font-size:11px; padding-top:4px; }
+.arena { position:relative; background:#090d13; height:clamp(240px,40vh,560px); outline:0; cursor:crosshair; }
+.arena:focus { box-shadow:inset 0 0 0 3px var(--blue); }
+.arena img { display:block; width:100%; height:100%; object-fit:contain; pointer-events:none; }
+.focus-prompt { position:absolute; bottom:16px; left:50%; transform:translateX(-50%); border:1px solid #7184a2; color:var(--text); background:#111a2bea; padding:8px 14px; border-radius:6px; font-size:12px; max-width:90%; text-align:center; pointer-events:none; }
+.arena:focus .focus-prompt { display:none; }
+.arena-footer { display:flex; justify-content:space-between; gap:16px; padding:10px 17px; font-size:11px; color:var(--muted); border-top:1px solid var(--line); }
+.controls { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:20px 0 24px; }
+.controls p { margin:8px 0 0; }
+kbd { font:600 11px ui-monospace,monospace; display:inline-block; min-width:21px; text-align:center; padding:2px 5px; margin-right:3px; border:1px solid #3c4960; border-radius:4px; background:#202a3a; color:#d7e5fa; }
+.touch-controls { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; width:330px; flex-shrink:0; }
+.touch-controls button[data-held] { grid-column:span 2; min-height:31px; padding:5px 9px; touch-action:none; user-select:none; }
+.touch-controls button.kick { grid-column:span 3; min-height:33px; padding:5px 9px; touch-action:none; }
+.touch-controls button.pressed { background:#355b87; border-color:var(--blue); }
+.standings-card { padding:20px; }
+.section-title p { margin:0; }
+.table-scroll { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; margin-top:18px; text-align:left; font-size:12px; }
+th { color:var(--muted); font-size:10px; letter-spacing:.045em; text-transform:uppercase; font-weight:650; border-bottom:1px solid #465269; padding:10px; }
+td { border-bottom:1px solid #2a3444; padding:12px 10px; font-variant-numeric:tabular-nums; }
+tbody tr:last-child td { border-bottom:0; }
+td:first-child { color:var(--blue); }
+.evidence { color:var(--muted); }
+@media (max-width:850px) { main { padding:20px 15px; } .selection { flex-wrap:wrap; } label { flex:1; min-width:180px; } .opponent-select { flex-basis:calc(100% - 220px); } .controls { align-items:flex-start; flex-direction:column; } .touch-controls { width:330px; max-width:100%; } .section-title { align-items:flex-start; } }
+@media (max-width:500px) { .page-header { align-items:flex-start; } .status { font-size:10px; padding:6px 9px; } .eyebrow { font-size:9px; } .scoreboard { grid-template-columns:1fr 80px 1fr; padding:12px 10px; } .fighter { gap:8px; font-size:9px; } .fighter strong { font-size:24px; } .round-info span { font-size:15px; } .arena-footer { padding:9px; } .selection label { flex-basis:100%; } .standings-card { padding:13px; } }

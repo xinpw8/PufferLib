@@ -1,0 +1,1 @@
+native_policy_legacy_test fp32 batch=4 ticks=70 logits_compared=9520 max_abs_error=0 masked_argmax=exact reset64=passed legacy_fast_hidden=passed

@@ -1,0 +1,2 @@
+puffysics_stabilization=baseline parity_relaxed=0
+{"gpu":true,"packed_sha256":{"bodies":"35862eac1c0d36c3313d570397d75ae987642463b5feb0698eaab999130e7c08","shapes":"d9f33b962b11c795a3da3c0f0e9c264cbd5320a1570a62771fbad2b33698a889","joints":"25c498005b43326f6a3dceafed6a6e921ae9b21b3943ab953f85b36d23f02f9b","roots":"f2508f9ab746f01c76c63131d66971848027d6dc2db7b7953cfe01c9a3236d53"},"source_position_max_error_m":6.65033231e-08,"source_rotation_max_error":7.76629155e-08
