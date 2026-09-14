@@ -20,7 +20,7 @@ class Element {
   focus() {}
   async trigger(name) { return this.events[name]?.({preventDefault() {}}); }
 }
-async function setup(active = null, state = null) {
+async function setup(active = null, state = null, inputStatus = 200) {
   const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   const elements = Object.fromEntries([...html.matchAll(/<([a-z][a-z0-9-]*)\b[^>]*\bid="([^"]+)"/g)].map(match => [match[2], new Element(match[1])]));
   const catalog = {backends: [{id: 'mujoco', label: 'MuJoCo', available: true}], policies: [
@@ -31,6 +31,7 @@ async function setup(active = null, state = null) {
   const timers = [];
   const fetch = async (url, options = {}) => {
     calls.push({url, body: options.body && JSON.parse(options.body)});
+    if (url === '/api/input') return {ok: inputStatus === 200, status: inputStatus, json: async () => ({ok: inputStatus === 200})};
     if (url === '/api/select') catalog.active = JSON.parse(options.body);
     const value = url === '/api/state' ? state || {ok: true}
       : url === '/api/standings' ? [{backend: 'mujoco', standings: catalog.policies}]
@@ -75,6 +76,15 @@ test('viewer and training execution paths and short rounds are explicitly labele
   assert.match(html, /CPU physics with CUDA policy\/controller/);
   assert.match(html, /Headless CUDA training runs separately/);
   assert.match(html, /Experimental 20-second rounds/);
+});
+
+test('switching release is harmless but rejected held input remains visible', async () => {
+  const {elements: ui} = await setup({backend: 'mujoco', opponent: 'trained', humanSide: 1}, null, 409);
+  await ui.backend.trigger('change'); await new Promise(setImmediate);
+  assert.equal(ui.error.textContent || '', '');
+  ui.arena.events.keydown({key: 'W', repeat: false, preventDefault() {}});
+  await new Promise(setImmediate);
+  assert.equal(ui.error.textContent, 'Input rejected (409)');
 });
 
 test('rank uses paired evidence and remains provisional even with a rank number', async () => {

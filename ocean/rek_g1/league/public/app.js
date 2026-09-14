@@ -36,7 +36,12 @@
     // The native server owns move locking and the one yaw-to-attack transition.
     // The page sends edges immediately and never replays attacks on a timer.
     fetch('/api/input', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(packet), keepalive: true})
-      .then(response => { if (!response.ok) throw new Error(`Input rejected (${response.status})`); })
+      .then(response => {
+        // Switching already clears server inputs. A late blur/release packet
+        // can receive 409 during that transition without losing a user action.
+        if (response.status === 409 && packet.held.length === 0 && packet.move === null) return;
+        if (!response.ok) throw new Error(`Input rejected (${response.status})`);
+      })
       .catch(error => showError(error.message));
   }
   function release() {
