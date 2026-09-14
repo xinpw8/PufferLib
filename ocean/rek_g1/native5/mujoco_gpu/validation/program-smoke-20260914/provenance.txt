@@ -1,0 +1,27 @@
+2026-09-14T11:49:43+00:00
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+aarch64
+GPU 0: NVIDIA GB10 (UUID: GPU-c10f6617-d6dc-c3c2-3069-3dcc3f506b75)
+6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa  /home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml
+912649df8b98bf7c033e115aed238250971b4ee5b99a8944fcb312c9e964513a  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/kernel-catalog-smoke-v2.json
+1a9c0ed51cc1059efc72fe2eb6d3d39b0bbc0bdea2ea9d63d84d8f3fa7f402ba  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/program-smoke-r1/program-smoke
+ef77a7d7d1e5a83197674170b296d0ea072376db89edbf161cc0637508d7642f  /home/spark-advantage/rek-training/gpu-runtime-20260910/deps/mujoco/libmujoco.so.3.7.0
+bed4fadc855a3e1f76a8ceb97837b6ece10a0641cd4e6b8334686e701224479b  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/schedule.cpp
+b144f1e75319b44dcb18c9a1657d5d30fa7e599a8f383cc5739adb41be68398c  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/model_fields.inc
+f16f3716a116a4326d4ab3da5fc33493fde15ac73b2a9038c510de4ee2773ec6  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/warp_abi.h
+4582ecbb53c6584d5907c3cf01532f15f39fddaeb4c74ac69786933e16a1ec6d  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/kernel_smoke.cpp
+5197ad52eda87723d2e5d648908e600c5d9b76b7e82727a7b33d2db1b7c412a6  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/model_data_probe.cpp
+5bc0eadebec64afdec05a70411b2d4550e46b3194be550a22a017202663af03b  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/program_smoke.cpp
+0dd5df4d1904d9ddf73b423c44c6f55300df8ddb8815c7a78a1a074c2ededc41  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/catalog_kernels.mjs
+75b570f7c93c23b28a54127c9eed93201c48c47a466edb3440a5fad7e5a62791  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/program_smoke.sh
+3e8126bfae7621249a885f987a3260ce381709f8cb6eba6406999832d86686b3  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/model_data.h
+1240f93efa4afa6174395ea1b223f37984debd0a4d6169b7e51b25020ea2aa66  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/kernel_smoke.md
+542c264319387e1a516196e1aed6f2709e359a7c7927af336f160a58f1ce8044  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/model_data.cpp
+b2e0e0fde10b81a6efc43dfea9362a96386472b0000b93d3a0eef0ed4937bc35  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/native_module.cpp
+23f6c5991f6047d87dbbcef6cc59217c3a9e421d37e82140ab5b51494f115a1b  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/schedule.h
+11e2116a60bc1cbd8cbe383f7f50b2d85964fad13f8819f40293c11e2d92a283  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/kernel_program.cpp
+aaed23347b53a1b35d76bd46e110e7e9859cd53d72994851efea142b57fe3d1e  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/kernel_smoke.sh
+550414da24517a9335c0193a63be754d45446bc22c89bc31d03d4b3723455ede  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/catalog_kernels.test.mjs
+3b0df891168b4ed7d89645f57624725a81589f9e5ef7a3b003c23dae92a6f1b3  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/kernel_program.h
+f440dda51e20229d75ae4c137b544df95498ae5bbecea85818e792feabe8de3f  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/native_module.h

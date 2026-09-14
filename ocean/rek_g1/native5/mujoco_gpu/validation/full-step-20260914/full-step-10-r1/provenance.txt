@@ -1,0 +1,39 @@
+2026-09-14T12:06:04+00:00
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+aarch64
+GPU 0: NVIDIA GB10 (UUID: GPU-c10f6617-d6dc-c3c2-3069-3dcc3f506b75)
+6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa  /home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml
+b4992544094fa6fdf72a951ec8e9a38721c5db28831273244633076d602706ac  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/kernel-catalog-v3.json
+b5d8d8a4e99ad441e1a8b6a44fb47329c68b500c97838755133150f7284714cb  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-10-r1/full-step-probe
+a5407f81272516c9c70c34eaca447dc793f6ba4022dec7cf2f895a66ae30162c  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-10-r1/conditional.ptx
+ef77a7d7d1e5a83197674170b296d0ea072376db89edbf161cc0637508d7642f  /home/spark-advantage/rek-training/gpu-runtime-20260910/deps/mujoco/libmujoco.so.3.7.0
+2dba51348f021a379bfa0a51e92c421ccdb30bab38befcffdc8a194b0937d42d  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/schedule.cpp
+d3a0e5f8d72a4defbcaac374aa7541a5538c03a851115d12e8820e72725981bc  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/native_step.cpp
+b144f1e75319b44dcb18c9a1657d5d30fa7e599a8f383cc5739adb41be68398c  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/model_fields.inc
+98f42aad3de697645ce80ed267f7a20e7987218271f5327d3e7782da940458ad  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/full_step_probe.cpp
+eeb214a609393328e163bc4cc50d2213ed1fad48fd7a25214fa1f56e0c96bb31  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/conditional_probe.cpp
+b4fc8ff7c1df7bf39dc3993289918b0fa4e0521ea7a3d1b352a3f24067dd00fc  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/constraint_schedule.h
+f16f3716a116a4326d4ab3da5fc33493fde15ac73b2a9038c510de4ee2773ec6  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/warp_abi.h
+4582ecbb53c6584d5907c3cf01532f15f39fddaeb4c74ac69786933e16a1ec6d  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/kernel_smoke.cpp
+bbb5911e31ef773d4e25c5a3ae7f214d1d661f5c09638b4120b7d96a68e9dd5f  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/full_step_probe.sh
+e6f531816c1cf5cc7334fb9d775e081f06250f5d2edc503349b1871fb2530803  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/model_data_probe.cpp
+5bc0eadebec64afdec05a70411b2d4550e46b3194be550a22a017202663af03b  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/program_smoke.cpp
+c4ac445ea82afe8a32baec58811cd8c962094a3d2ce0f3ee258b2e3d0a51b280  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/model_data.h
+c95f09e10db615534ef747113ca3525fa56e769ff43d664e5fdf22d43427281e  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/native_step.h
+70b15354b44dfaee20a78612c04b4c9b1b411aa0c23cfd65f56a8faeeb8ea85f  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/model_data.cpp
+2ffce0a3a5690be570d3ed793f3acba8e0e759a9ab1cfc906b45e26e6e951ac1  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/constraint_schedule.cpp
+8ade2ccf2b3dfc9e5011ccf9950f84ca750df7e9f8303c535624bf30b650c7bf  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/forward_probe.cpp
+b2e0e0fde10b81a6efc43dfea9362a96386472b0000b93d3a0eef0ed4937bc35  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/native_module.cpp
+595b55c87a1ebea837e2c0e8036eb935081a70d9a1e99ea2e786df4d120cc5dc  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/solver_schedule.h
+b92c9cba702eb7b20d437cb13560801ae4209b185965b7038dbd3b065cd06e95  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/constraint_smoke.cpp
+ab4482be37845e277f229060086102e4c841bdbbe26a89d24f2f779d46c7d0d1  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/schedule.h
+17f3e0926465b118db2b1f9a7f4dd567755fa1dc7dc89375a1488e82ecc05d03  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/kernel_program.cpp
+c3a2e2a7443e771245f793f762f2ac057d2518025c8e8715bf5c19311c401b5e  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/solver_schedule.cpp
+8c242f455695c1d28b2e1d1dbef8a90c4ed3ed032d5630dddc594c097a8b0f40  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/collision_schedule.h
+5dc9e582230a6dc209657136ded3be4895fcd1aa179dc36cc89e7b1383c03051  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/collision_schedule.cpp
+6ea5fd04ee44195476ae733ffe8f016d4135878a8ec473238163c4f0271dbf7e  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/conditional.cpp
+024862f149c56a7d97eef7973a19344024432dc55e16cf41e0239035ea7c3933  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/conditional.h
+880375564538a2c1a7bd6fca566124b0464a307360cc102eabaeba94419073d0  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/conditional.cu
+a426eacdc079b31cc8446c59ff1301d001f81c60b7f241ddc2ff9fd179469030  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/kernel_program.h
+f440dda51e20229d75ae4c137b544df95498ae5bbecea85818e792feabe8de3f  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/native_module.h

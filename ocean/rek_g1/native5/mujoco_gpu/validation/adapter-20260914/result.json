@@ -1,0 +1,1 @@
+{"test":"native_mujoco_physics_adapter_wrapped_cpu_calls","status":"passed","backend":"mujoco_cuda","worlds":4,"gpu_substeps":10,"simulated_seconds":0.020,"cpu_step_forward_kinematics_calls":0,"python_runtime":false,"selected_reset_isolated":true,"empty_reset_preserved_integration_state":true,"peak_contacts_per_arena":0,"training_sps":null}

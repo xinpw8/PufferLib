@@ -13,6 +13,10 @@
 #include <memory>
 #include <stdexcept>
 #include <type_traits>
+#ifdef REK_NATIVE5_MUJOCO_GPU
+#include "mujoco_gpu/native_step.h"
+#include "mujoco_gpu/conditional_if.h"
+#endif
 
 // Compile the exact baseline solver in this translation unit. Nothing in the
 // native5 environment header imports B3 declarations or its global symbols.
@@ -307,7 +311,7 @@ void pack_export(Physics& output, Json root) {
             && output.packed_joints.size()==58*22 && output.packed_roots.size()==2*12,"packed ABI layout mismatch");
 }
 
-void build_frame_maps(Physics& output, Json root) {
+void build_frame_maps(Physics& output, Json root, bool native_cuda) {
     mjModel* model=output.model;
     require(model && model->nq==72 && model->nv==70 && model->nu==58
             && model->nbody==63 && model->ngeom==91 && model->njnt==60,"compiled model dimensions mismatch");
@@ -345,6 +349,27 @@ void build_frame_maps(Physics& output, Json root) {
         output.root_bodies[side]=mj_name2id(model,mjOBJ_BODY,names[side]);
         require(output.root_bodies[side]>0,"missing fighter root body");
         for (int k=0;k<4;++k) output.initial_heading_wxyz[side*4+k]=float(model->qpos0[side*36+3+k]);
+    }
+    if(native_cuda){
+        // Native MuJoCo owns original bodies and cylinder geometry. It does not
+        // use the reduced Puffysics rigid-frame maps or their CPU kinematics.
+        Json bodies=member(root,"bodies");
+        for(int i=0;i<count(bodies);i++){
+            Json body=item(bodies,i);int b=integer(body,"source_body_id");
+            require(b>0&&b<model->nbody,"invalid exported body");
+            require(model->body_mass[b]==number(body,"mass_kg"),"compiled mass differs from export");
+            const auto inertia=numbers(body,"principal_inertia_kg_m2",3);
+            for(int k=0;k<3;k++)require(inertia[k]==model->body_inertia[b*3+k],"compiled inertia differs from export");
+        }
+        Json shapes=member(root,"shapes");
+        for(int g=0;g<model->ngeom;g++){
+            require(integer(item(shapes,g),"source_geom_id")==g,"exported geometry ordering mismatch");
+            require(integer(item(shapes,g),"source_body_id")==model->geom_bodyid[g],"geometry source body mismatch");
+            output.geom_bodyid.push_back(model->geom_bodyid[g]);output.geom_type.push_back(model->geom_type[g]);
+            output.geom_contype.push_back(model->geom_contype[g]);output.geom_conaffinity.push_back(model->geom_conaffinity[g]);
+            for(int k=0;k<3;k++)append(output.geom_size,model->geom_size[g*3+k]);
+        }
+        output.data.bodies=model->nbody;output.data.geoms=model->ngeom;return;
     }
     DataOwner source(mj_makeData(model),mj_deleteData);
     require(bool(source),"mj_makeData failed");
@@ -441,6 +466,9 @@ void evaluation_boundary(Physics* physics) {
 }
 
 #include "physics_cpu_puffysics.cuh"
+#ifdef REK_NATIVE5_MUJOCO_GPU
+#include "physics_mujoco_gpu.cuh"
+#endif
 
 void evaluation_export(Physics* p) {
     auto& d=p->data;const int arenas=d.arenas;
@@ -496,7 +524,12 @@ Physics* physics_load_model(const char* xml_path, const char* export_json_path) 
     char error[1024]={};
     output->model=mj_loadXML(xml_path,nullptr,error,sizeof(error));
     require(output->model!=nullptr,std::string("MuJoCo model compilation failed: ")+error);
-    build_frame_maps(*output,root.get());
+    const char* backend=std::getenv("REK_PHYSICS_BACKEND");
+    const bool native_cuda=backend&&!std::strcmp(backend,"mujoco_cuda");
+#ifndef REK_NATIVE5_MUJOCO_GPU
+    require(!native_cuda,"mujoco_cuda requires a build with REK_NATIVE5_ENABLE_MUJOCO_GPU=1");
+#endif
+    build_frame_maps(*output,root.get(),native_cuda);
     return output.release();
 }
 
@@ -505,7 +538,10 @@ Physics* physics_create(const char* xml_path, const char* export_json_path, int 
     auto output=std::unique_ptr<Physics,decltype(&physics_close)>(physics_load_model(xml_path,export_json_path),physics_close);
     output->stream=stream;
     PhysicsDescriptor& d=output->data;
-    d.arenas=arenas; d.capacity=arenas*128;
+    const char* selected=std::getenv("REK_PHYSICS_BACKEND");
+    const bool native_cuda=selected&&!std::strcmp(selected,"mujoco_cuda");
+    require(!native_cuda||arenas<=std::numeric_limits<int>::max()/512,"native MuJoCo contact capacity overflow");
+    d.arenas=arenas; d.capacity=arenas*(native_cuda?512:128);
     const size_t a=arenas, b=d.bodies, g=d.geoms, c=d.capacity;
     output->allocations.reserve(28);
     allocate(*output,d.qpos,a*72); allocate(*output,d.qvel,a*70); allocate(*output,output->ctrl,a*58);
@@ -518,9 +554,11 @@ Physics* physics_create(const char* xml_path, const char* export_json_path, int 
     allocate(*output,d.counts,a); allocate(*output,d.offsets,a);
     allocate(*output,d.body_map,b*18); allocate(*output,d.geom_map,g*8); allocate(*output,d.pre_centers,a*61*3);
     allocate(*output,output->finite_status,1);
+#ifdef REK_NATIVE5_MUJOCO_GPU
+    if(native_cuda){mujoco_gpu_create(output.get());return output.release();}
+#endif
     cuda_check(cudaMemcpyAsync(d.body_map,output->host_body_map.data(),b*18*sizeof(float),cudaMemcpyHostToDevice,stream),"upload body map");
     cuda_check(cudaMemcpyAsync(d.geom_map,output->host_geom_map.data(),g*8*sizeof(float),cudaMemcpyHostToDevice,stream),"upload geometry map");
-    const char* selected=std::getenv("REK_PHYSICS_BACKEND");
     const bool cpu_puffysics=selected && !std::strcmp(selected,"puffysics_cpu_eval");
     if(selected && selected[0] && std::strcmp(selected,"puffysics")){
         require(cpu_puffysics || !std::strcmp(selected,"mujoco_cpu_eval"),"unknown REK_PHYSICS_BACKEND");
@@ -561,6 +599,9 @@ Physics* physics_create(const char* xml_path, const char* export_json_path, int 
 }
 
 void physics_step(Physics* physics, const float* device_ctrl) {
+#ifdef REK_NATIVE5_MUJOCO_GPU
+    if(physics&&physics->mujoco_gpu){mujoco_gpu_step(physics,device_ctrl);return;}
+#endif
     if(physics && physics->puffysics_evaluation){cpu_puffysics_step(physics,device_ctrl);return;}
     if(physics && physics->cpu_evaluation){
         require(device_ctrl!=nullptr,"null evaluation controls");evaluation_boundary(physics);
@@ -586,6 +627,9 @@ void physics_step(Physics* physics, const float* device_ctrl) {
 }
 
 void physics_forward_selected(Physics* physics, const uint8_t* device_mask) {
+#ifdef REK_NATIVE5_MUJOCO_GPU
+    if(physics&&physics->mujoco_gpu){mujoco_gpu_forward_selected(physics,device_mask);return;}
+#endif
     if(physics && physics->puffysics_evaluation){cpu_puffysics_forward(physics,device_mask);return;}
     if(physics && physics->cpu_evaluation){
         require(device_mask!=nullptr,"null evaluation reset mask");evaluation_boundary(physics);
@@ -608,6 +652,9 @@ void physics_forward_selected(Physics* physics, const uint8_t* device_mask) {
 }
 
 void physics_refresh(Physics* physics) {
+#ifdef REK_NATIVE5_MUJOCO_GPU
+    if(physics&&physics->mujoco_gpu){mujoco_gpu_refresh(physics);return;}
+#endif
     if(physics && physics->puffysics_evaluation){evaluation_boundary(physics);cpu_puffysics_export(physics);return;}
     if(physics && physics->cpu_evaluation){evaluation_boundary(physics);evaluation_export(physics);return;}
     require(physics && physics->native_handle,"closed physics");
@@ -616,6 +663,13 @@ void physics_refresh(Physics* physics) {
 }
 
 std::vector<int> physics_stats(Physics* physics) {
+#ifdef REK_NATIVE5_MUJOCO_GPU
+    if(physics&&physics->mujoco_gpu){
+        cuda_check(cudaStreamSynchronize(physics->stream),"native MuJoCo reporting boundary");
+        std::vector<int> stats(size_t(physics->data.arenas)*4);
+        cuda_check(cudaMemcpy(stats.data(),physics->stats,stats.size()*sizeof(int),cudaMemcpyDeviceToHost),"native MuJoCo statistics");return stats;
+    }
+#endif
     if(physics && physics->cpu_evaluation){evaluation_boundary(physics);return physics->evaluation_stats;}
     require(physics && physics->native_handle,"closed physics");
     cuda_check(cudaStreamSynchronize(physics->stream),"physics reporting boundary");
@@ -627,7 +681,7 @@ std::vector<int> physics_stats(Physics* physics) {
 void physics_check_status(Physics* physics) {
     const auto stats=physics_stats(physics);
     for (int a=0;a<physics->data.arenas;++a) {
-        require(stats[a*4]<128,"native contact capacity reached in arena "+std::to_string(a));
+        require(physics->mujoco_gpu||stats[a*4]<128,"native contact capacity reached in arena "+std::to_string(a));
         require(!stats[a*4+1],"nonfinite physics state in arena "+std::to_string(a));
         require(!stats[a*4+2],"persistent collision/solver failure in arena "+std::to_string(a)
                 +", code "+std::to_string(stats[a*4+2]));
@@ -649,6 +703,9 @@ void physics_close(Physics* physics) noexcept {
     if (!physics) return;
     if (physics->native_handle || !physics->allocations.empty()) cudaStreamSynchronize(physics->stream);
     if (physics->native_handle) rek5_native::rp_destroy(physics->native_handle);
+#ifdef REK_NATIVE5_MUJOCO_GPU
+    delete static_cast<NativeMujocoGpu*>(physics->mujoco_gpu);
+#endif
     for (void* allocation:physics->allocations) cudaFree(allocation);
     delete static_cast<CpuPuffysicsEvaluation*>(physics->puffysics_evaluation);
     for (mjData* data:physics->evaluation_data) mj_deleteData(data);
@@ -657,6 +714,7 @@ void physics_close(Physics* physics) noexcept {
 }
 
 const char* physics_backend_name(const Physics* physics){
+    if(physics&&physics->mujoco_gpu)return "mujoco_cuda";
 #ifdef REK_NATIVE5_EXPERIMENTAL_ARTICULATED
     if(physics && physics->puffysics_evaluation)return "puffysics_cpu_eval_articulated_candidate";
     return physics && physics->cpu_evaluation?"mujoco_cpu_eval":"puffysics_cuda_articulated_candidate";

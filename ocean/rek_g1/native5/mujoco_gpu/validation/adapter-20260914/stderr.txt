@@ -1,0 +1,1 @@
+physics_backend=mujoco_cuda cpu_physics=0 python_runtime=0 arenas=4 contact_pool=2048 constraint_rows_per_arena=512 native_phase_nodes=164

@@ -1,0 +1,9 @@
+spark-4ae3
+aarch64
+GPU 0: NVIDIA GB10 (UUID: GPU-c10f6617-d6dc-c3c2-3069-3dcc3f506b75)
+51b70a7e2794650b23b356b9edf1ae4633c1f59bf85b7c0c0055286577321392  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/conditional.cu
+e412dd061601e593d3ae5af6a0adc9ec6c6b2fdbe37d87e61671288073aa4d0f  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/conditional_if.cpp
+e9eba8cfe57fced9c394d6d47f3ea4b56a88cd297210de1115c195916909bd8e  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/conditional_if.h
+bc2c9cc768f4586ddfef6db8f4b430f11c5ee0045324eefdac7e5982136de179  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/source/ocean/rek_g1/native5/mujoco_gpu/conditional_if_probe.cpp
+78ebaf28914b0cd8d835244f5620197638c19bdba698285c21d3f833dfb1e6f8  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/conditional-if-r1/conditional-test.ptx
+f3dfe576f45ec5c1cfd616c4834d2a5ee252382f571d4d644a5fc446bfbf0a5d  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/conditional-if-r1/conditional-if-probe

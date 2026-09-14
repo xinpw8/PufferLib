@@ -1,0 +1,26 @@
+{
+  "timestamp_utc": "2026-09-14T12:20:32+00:00",
+  "host": "spark-4ae3",
+  "architecture": "aarch64",
+  "gpu": "NVIDIA GB10",
+  "exit_code": 0,
+  "process_wall_seconds": 0.89,
+  "process_user_seconds": 0.51,
+  "process_system_seconds": 0.38,
+  "maximum_process_rss_kib": 315708,
+  "hash_algorithm": "sha256",
+  "hashes": {
+    "private_source_model_xml": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+    "private_prepared_parameter_export_json": "1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3",
+    "kernel-catalog-v3.json": "b4992544094fa6fdf72a951ec8e9a38721c5db28831273244633076d602706ac",
+    "mujoco-conditional.ptx": "2300284dfc4f4560234ef6ffe8a3fab8c918a1abc8ffcdcf270e180042837b21",
+    "physics-mujoco-gpu-probe": "375e84d633e3c264e5ac21c2733323627b3198703352f24295b7b2695128b8fa",
+    "physics.cu": "4ab6b630f0bd7def77bc7bc4a7a02e7f1e27edc8bfb28d42def8bffb80284729",
+    "physics.cuh": "9d591703ccc756daa8520727298dd3421e94375eacb3640e79c80d066fa8e922",
+    "physics_mujoco_gpu.cuh": "ae6d1cd974a6ce0f67291447a160bb51eaae27e6c127e7d111076e9425c9b75d",
+    "physics_mujoco_gpu_probe.cu": "1d0014f54f920f2f777e7aa414333764851f37713bfb9c616510306b56cd9210",
+    "physics.o": "bb513139b7bb6cc28ba0a660287580ec57d04c69645ade7e693e3b160277e24a"
+  },
+  "private_raw_artifacts": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/adapter-wrapped-probe-r1",
+  "sanitization": "GPU UUID, account group membership, full model state, binaries, and private model/export contents are omitted. Raw commands, build output, dependency records, timing and hashes remain at the recorded host path."
+}

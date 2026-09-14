@@ -1,9 +1,16 @@
-# Native PufferLib 5.0 REK/Puffysics training
+# Native PufferLib 5.0 REK training
+
+The opt-in [native MuJoCo CUDA integration](mujoco_gpu/README.md) now executes
+complete physics steps without Python or CPU physics. Its corrected PufferLib
+training run completed 1,048,576 transitions at 6,020 mean training SPS, with
+946 completed rounds and zero reported runtime failures. See its training
+evidence for the strength and throughput limitations. The historical Puffysics
+measurements below retain their original scope and limitations.
 
 This is the standalone C++/CUDA training path. Build, model loading, fixed
 controller inference, environment stepping, policy rollout, and PPO/Muon updates
 execute without Python or Torch. Native MuJoCo loads the XML and computes startup
-kinematics; all simulated physics steps use the CUDA Puffysics adapter. The host
+kinematics for the legacy Puffysics route; its simulated physics steps use the CUDA Puffysics adapter. The host
 still performs native configuration, allocation, graph launch, reporting, and
 checkpoint I/O. Training is headless. Raylib draws no frames.
 

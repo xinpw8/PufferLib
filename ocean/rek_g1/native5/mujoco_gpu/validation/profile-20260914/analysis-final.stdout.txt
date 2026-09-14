@@ -1,0 +1,98 @@
+{
+  "output": "/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/train65536-native-profile-r1/summary-final.json",
+  "roi": {
+    "definition": "after first complete PPO epoch through final complete PPO epoch",
+    "startNs": 3557335232,
+    "endNs": 13306873632,
+    "wallSeconds": 9.7495384,
+    "completePpoEpochs": 8,
+    "measuredPpoEpochs": 7,
+    "agents": 512,
+    "horizon": 16,
+    "requestedSteps": 65536,
+    "learnerSampleKernelCalls": 112,
+    "expectedSampleKernelCalls": 112,
+    "measuredActionTransitions": 57344,
+    "profiledSteadyStateTrainingSps": 5881.714358907494,
+    "physicsBatchStepKernelCalls": 1120,
+    "observedPhysicsSubstepsPerActionBatch": 10,
+    "newtonIterationBatchKernelCalls": 9183,
+    "observedNewtonIterationsPerPhysicsBatchStep": 8.199107142857143
+  },
+  "categories": [
+    {
+      "key": "physics",
+      "calls": 347069,
+      "maxRegistersPerThread": 175,
+      "maxLocalMemoryPerThread": 0,
+      "milliseconds": 6734.286527,
+      "averageMicrosecondsPerCall": 19.403307489288874,
+      "percentOfSummedKernelTime": 75.78539141640135
+    },
+    {
+      "key": "environment_semantics",
+      "calls": 36848,
+      "maxRegistersPerThread": 253,
+      "maxLocalMemoryPerThread": 0,
+      "milliseconds": 1369.187805,
+      "averageMicrosecondsPerCall": 37.15772375705602,
+      "percentOfSummedKernelTime": 15.408378201382163
+    },
+    {
+      "key": "gpu_memory_maintenance",
+      "calls": 18366,
+      "maxRegistersPerThread": 16,
+      "maxLocalMemoryPerThread": 0,
+      "milliseconds": 460.674493,
+      "averageMicrosecondsPerCall": 25.083006261570294,
+      "percentOfSummedKernelTime": 5.184275517173468
+    },
+    {
+      "key": "robot_controller",
+      "calls": 8736,
+      "maxRegistersPerThread": 210,
+      "maxLocalMemoryPerThread": 0,
+      "milliseconds": 298.420287,
+      "averageMicrosecondsPerCall": 34.15983138736264,
+      "percentOfSummedKernelTime": 3.3583213553826603
+    },
+    {
+      "key": "ppo_training",
+      "calls": 847,
+      "maxRegistersPerThread": 255,
+      "maxLocalMemoryPerThread": 0,
+      "milliseconds": 9.657184,
+      "averageMicrosecondsPerCall": 11.401634002361275,
+      "percentOfSummedKernelTime": 0.10867869468961318
+    },
+    {
+      "key": "unclassified",
+      "calls": 4186,
+      "maxRegistersPerThread": 255,
+      "maxLocalMemoryPerThread": 0,
+      "milliseconds": 8.035102,
+      "averageMicrosecondsPerCall": 1.919517916865743,
+      "percentOfSummedKernelTime": 0.0904243304319251
+    },
+    {
+      "key": "learner_inference",
+      "calls": 455,
+      "maxRegistersPerThread": 48,
+      "maxLocalMemoryPerThread": 0,
+      "milliseconds": 3.432736,
+      "averageMicrosecondsPerCall": 7.544474725274726,
+      "percentOfSummedKernelTime": 0.03863085426290355
+    },
+    {
+      "key": "unclassified_gemm",
+      "calls": 336,
+      "maxRegistersPerThread": 80,
+      "maxLocalMemoryPerThread": 0,
+      "milliseconds": 2.30144,
+      "averageMicrosecondsPerCall": 6.849523809523809,
+      "percentOfSummedKernelTime": 0.025899630275913077
+    }
+  ],
+  "unclassifiedPercent": 0.11632396070783818,
+  "warnings": []
+}

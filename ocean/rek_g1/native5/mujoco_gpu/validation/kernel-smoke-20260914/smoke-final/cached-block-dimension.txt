@@ -1,0 +1,1 @@
+2:#define WP_TILE_BLOCK_DIM 32

@@ -44,6 +44,14 @@ task_arch=${REK_CUDA_ARCH:-sm_121}
 task_mujoco=${REK_NATIVE5_MUJOCO:-/home/spark-advantage/rek-training/gpu-runtime-20260910/deps/mujoco}
 task_g1=$(cd "$task_source/.." && pwd)
 task_root=$(cd "$task_source/../../.." && pwd)
+task_mujoco_gpu=${REK_NATIVE5_ENABLE_MUJOCO_GPU:-0}
+[[ "$task_mujoco_gpu" == 0 || "$task_mujoco_gpu" == 1 ]] || { printf 'REK_NATIVE5_ENABLE_MUJOCO_GPU must be 0 or 1\n' >&2; exit 2; }
+task_backend_flags=()
+task_backend_links=()
+if (( task_mujoco_gpu )); then
+    task_backend_flags=(-DREK_NATIVE5_MUJOCO_GPU=1)
+    task_backend_links=(-L"$task_cuda/lib64/stubs" -lcuda)
+fi
 
 if (( task_build_runtime )); then
     for task_module in runtime measurement motion_assets physics sonic_controller robot_state native_policy; do
@@ -111,13 +119,14 @@ if (( task_build_runtime )); then
     task_module_flags=(-std=c++17 -O2 "-arch=$task_arch" --fmad=false
         --prec-div=true --prec-sqrt=true --ftz=false -Xcompiler=-fPIC
         -Xcompiler=-ffp-contract=off -I"$task_g1" -I"$task_source"
-        -I"$task_mujoco/include" -I"$task_cuda/include/cccl")
+        -I"$task_mujoco/include" -I"$task_cuda/include/cccl" "${task_backend_flags[@]}")
     for task_module in runtime measurement motion_assets physics sonic_controller robot_state native_policy; do
         printf 'Compiling native module %s\n' "$task_module"
         if [[ "$task_module" == physics || "$task_module" == native_policy ]]; then
             # Preserve the existing Puffysics kernel's default FMA behavior.
             "$task_nvcc" -std=c++17 -O3 "-arch=$task_arch" -Xcompiler=-fPIC \
                 -I"$task_g1" -I"$task_source" -I"$task_mujoco/include" \
+                "${task_backend_flags[@]}" \
                 -I"$task_cuda/include/cccl" -c "$task_source/$task_module.cu" \
                 -o "$task_build/$task_module.o"
         else
@@ -126,6 +135,18 @@ if (( task_build_runtime )); then
         fi
         task_objects+=("$task_build/$task_module.o")
     done
+    if (( task_mujoco_gpu )); then
+        for task_module in model_data native_module kernel_program conditional conditional_if schedule collision_schedule constraint_schedule solver_schedule native_step; do
+            printf 'Compiling native MuJoCo GPU module %s\n' "$task_module"
+            "${CXX:-g++}" -std=c++17 -O2 -fPIC -ffp-contract=off \
+                -I"$task_cuda/include" -I"$task_mujoco/include" -I"$task_root/vendor" \
+                -c "$task_source/mujoco_gpu/$task_module.cpp" -o "$task_build/mujoco_$task_module.o"
+            task_objects+=("$task_build/mujoco_$task_module.o")
+        done
+        "$task_nvcc" -std=c++17 "-arch=$task_arch" -ptx "$task_source/mujoco_gpu/conditional.cu" \
+            -o "$task_build/mujoco-conditional.ptx"
+        sha256sum "$task_build/mujoco-conditional.ptx" > "$task_build/mujoco-conditional.sha256"
+    fi
     for task_module in native_motion_routes g1_strike_catalog; do
         "${CC:-gcc}" -std=c11 -O2 -fPIC -ffp-contract=off -I"$task_g1" \
             -c "$task_g1/$task_module.c" -o "$task_build/$task_module.host.o"
@@ -174,6 +195,7 @@ printf 'Compiling PufferLib 5.0 %s for %s\n' "$task_commit" "$task_arch"
         printf 'validation=compile_and_link_only\n'
     fi
     printf 'runtime_validation=not_run\n'
+    printf 'native_mujoco_gpu_compiled=%s\n' "$task_mujoco_gpu"
     sha256sum "$task_stage/src/pufferl.cu" "$task_runner" "$task_source/pufferlib5_action_mask.patch" \
         "$task_stage/src/algo.cu" \
         "$task_source/puffer_env.cu" "$task_source/runtime_api.h" \
@@ -194,6 +216,7 @@ fi
     -Xlinker=-rpath -Xlinker="$task_mujoco" \
     -lcudart -lnccl -lnvidia-ml -lcublas -lcusolver -lcurand \
     -l:libmujoco.so.3.7.0 -lcrypto -lGL -lm -lpthread -lomp5 \
+    "${task_backend_links[@]}" \
     -o "$task_build/puffer-rek-native5"
 
 readelf -d "$task_build/puffer-rek-native5" > "$task_build/elf-dependencies.txt"

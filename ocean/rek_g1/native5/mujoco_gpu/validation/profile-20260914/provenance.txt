@@ -1,0 +1,16 @@
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+2026-09-14T12:27:27+00:00
+GPU 0: NVIDIA GB10 (UUID: GPU-c10f6617-d6dc-c3c2-3069-3dcc3f506b75)
+pid, process_name, used_gpu_memory [MiB]
+2325, /home/spark-advantage/cuda_course/.venv/bin/python, 5096 MiB
+17363, python3, 1350 MiB
+17512, sglang::scheduler, 50959 MiB
+66395, /home/spark-advantage/rek-training/native5-league-20260914/build-eval-v2/rek-eval-worker, 562 MiB
+NVIDIA Nsight Systems version 2025.3.2.474-253236389321v0
+3.45.1 2024-01-30 16:01:20 e876e51a0ed5c5b3126f52e532044363a014bc594cfefa87ffb5b82257ccalt1 (64-bit)
+v18.19.1
+73f45eb70ec0327f28cf0f933d155db021c6f3e0147abd706f2e8d7e47eb20a0  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/puffer-rek-native5
+b85dc6b4f3b31acf4257680bd368308a103b693865dbcc9ee70616a59a6257ba  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/run_frozen_training.sh
+b4992544094fa6fdf72a951ec8e9a38721c5db28831273244633076d602706ac  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/kernel-catalog-v3.json
+a3f9a47c2425cf3ea9a031b9271c9b270df45ed6b307ad87f864d1d1124a95c3  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/full-step-src/profile_training.mjs

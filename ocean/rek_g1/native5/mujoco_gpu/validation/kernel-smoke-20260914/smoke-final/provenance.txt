@@ -1,0 +1,21 @@
+2026-09-14T11:44:20+00:00
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+aarch64
+GPU 0: NVIDIA GB10 (UUID: GPU-c10f6617-d6dc-c3c2-3069-3dcc3f506b75)
+pid, process_name, used_gpu_memory [MiB]
+2325, /home/spark-advantage/cuda_course/.venv/bin/python, 5096 MiB
+17363, python3, 1350 MiB
+17512, sglang::scheduler, 50959 MiB
+66395, /home/spark-advantage/rek-training/native5-league-20260914/build-eval-v2/rek-eval-worker, 562 MiB
+f440dda51e20229d75ae4c137b544df95498ae5bbecea85818e792feabe8de3f  /home/spark-advantage/rek-training/native-mujoco-kernel-20260914-v1/ocean/rek_g1/native5/mujoco_gpu/native_module.h
+b2e0e0fde10b81a6efc43dfea9362a96386472b0000b93d3a0eef0ed4937bc35  /home/spark-advantage/rek-training/native-mujoco-kernel-20260914-v1/ocean/rek_g1/native5/mujoco_gpu/native_module.cpp
+f16f3716a116a4326d4ab3da5fc33493fde15ac73b2a9038c510de4ee2773ec6  /home/spark-advantage/rek-training/native-mujoco-kernel-20260914-v1/ocean/rek_g1/native5/mujoco_gpu/warp_abi.h
+4582ecbb53c6584d5907c3cf01532f15f39fddaeb4c74ac69786933e16a1ec6d  /home/spark-advantage/rek-training/native-mujoco-kernel-20260914-v1/ocean/rek_g1/native5/mujoco_gpu/kernel_smoke.cpp
+aaed23347b53a1b35d76bd46e110e7e9859cd53d72994851efea142b57fe3d1e  /home/spark-advantage/rek-training/native-mujoco-kernel-20260914-v1/ocean/rek_g1/native5/mujoco_gpu/kernel_smoke.sh
+4bc425edd80a3316882d8b1e6c893ffcd5dcadbd64981523dffe653a8a920707  /home/spark-advantage/rek-training/gpu-runtime-20260910/deps/warp/native/array.h
+1a9f56467382132f8c82064244cb605308e05e066c51d3f9389074f65b2bd61c  /home/spark-advantage/rek-training/gpu-runtime-20260910/deps/warp/native/builtin.h
+332d80eed8635021b2fa7f4651d3ea909f50d32e169549260c73e6e4db8d5d19  /home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_16fbac8/wp_mujoco_warp._src.forward_16fbac8.sm121.ptx
+4341582461488d0094ef3a335996db7a98038d7ff350e4be0375ac6546d9ecd2  /home/spark-advantage/rek-training/native-mujoco-kernel-20260914-v1/smoke-final/kernel-smoke
+722a0f5a24dd51502f2b8554b2a3995b1adac7a6eabdbab098959dba430f7ce0  /home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_16fbac8/wp_mujoco_warp._src.forward_16fbac8.cu
+9f1e16bfdd055c23cb5b4ec7fa0cc0f71cb92ec43ace39701b0ccf58c4508830  /home/spark-advantage/.cache/warp/1.12.0/wp_mujoco_warp._src.forward_16fbac8/wp_mujoco_warp._src.forward_16fbac8.meta

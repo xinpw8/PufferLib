@@ -43,13 +43,16 @@ work fits a 50 Hz interactive budget, before rendering and HTTP overhead.
 These are viewer/control-loop timings with zero PPO updates, not training SPS.
 Large-batch headless training remains CUDA, not this CPU-only viewer path.
 
-The installed MuJoCo Warp implementation has cached generated CUDA source and
+At the initial investigation, the installed MuJoCo Warp implementation had
+cached generated CUDA source and
 PTX under `/home/spark-advantage/.cache/warp/1.12.0`, but its existing model/data
 initialization and launch scheduling are Python code. No reusable native
 launch/data manifest was found in the targeted existing REK experiment search.
 The cached kernels alone do not provide a native equivalent of `mujoco_warp.step`.
-Native GPU rehosting would require the model/data ABI and ordered launch
-schedule to be implemented and validated. No such backend is claimed here.
+Native GPU rehosting required implementation and validation of the model/data
+ABI and ordered launch schedule. That work is now complete for the pinned REK
+model; see the native CUDA section below. The earlier CPU viewer results remain
+historical evidence and are not the selected GPU training path.
 
 ## Executed tests
 
@@ -185,3 +188,37 @@ SHA-256 is
 The bounded command harness is `physics_articulated_eval_probe.sh`; it performs
 zero PPO updates and treats protocol errors as a failed round independently
 of the worker process exit code.
+
+## Native MuJoCo-Warp CUDA opt-in
+
+`REK_NATIVE5_ENABLE_MUJOCO_GPU=1` builds the additional native backend;
+`REK_PHYSICS_BACKEND=mujoco_cuda` selects it. Catalog, conditional PTX, and
+PTX hash paths are explicit inputs. Legacy Puffysics and CPU-only viewer
+selectors retain their existing paths.
+
+The native backend packs the compiled XML's original model constants and
+existing prepared actuator parameters into persistent GPU arrays. Its step
+and Newton convergence loop execute original cached MuJoCo-Warp CUDA kernels
+through the CUDA Driver API and GPU conditional graphs. Python, Torch,
+`libwarp`, and CPU dynamics are absent from this execution path. XML parsing
+and metadata preparation remain native host setup work. Unlike the legacy
+Puffysics frame-map path, native MuJoCo startup does not call CPU kinematics.
+
+The `PhysicsDescriptor` aliases those GPU arrays, including qpos, qvel,
+body/geometry transforms, controls, and the pooled contacts. Per-step state
+transfers to the host are unnecessary. CUDA kernels maintain persistent
+nonfinite and capacity flags. Selected resets clear solver warmstarts on
+the GPU and regenerate current contacts without advancing time. A GPU
+mask-any conditional skips that reset work for empty masks.
+
+The four-arena adapter probe passed ten 0.002 s substeps and selected-reset
+isolation with zero linker-wrapped CPU step/forward/kinematics calls. See
+[`mujoco_gpu/validation/adapter-20260914`](mujoco_gpu/validation/adapter-20260914).
+Its 0.020 s run is a routing and reset check, not a training throughput or
+gameplay-parity result. The independent 1,000-step native CUDA diagnostic
+exercised active contacts and remained finite. The subsequent native trainer
+completed 1,048,576 transitions and 946 rounds at 6,020 mean training SPS,
+with zero reported runtime failures. See
+[complete training evidence](mujoco_gpu/validation/training-20260914/README.md).
+This establishes an executed native GPU training path, without establishing
+maximum throughput, final-policy strength or gameplay parity.

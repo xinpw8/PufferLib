@@ -1,0 +1,23 @@
+	Command being timed: "timeout --signal=TERM --kill-after=15s 480s /usr/local/bin/nsys profile --trace=cuda,nvtx,cublas --cuda-graph-trace=node --sample=none --cpuctxsw=none --backtrace=none --cuda-memory-usage=false --stats=false --force-overwrite=false --output=/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/train65536-native-profile-r1/training bash /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/run_frozen_training.sh /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2 /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/train65536-native-profile-r1/run 65536"
+	User time (seconds): 0.03
+	System time (seconds): 0.14
+	Percent of CPU this job got: 0%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:17.34
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 63288
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 1
+	Minor (reclaiming a frame) page faults: 12503
+	Voluntary context switches: 464
+	Involuntary context switches: 6
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 72
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

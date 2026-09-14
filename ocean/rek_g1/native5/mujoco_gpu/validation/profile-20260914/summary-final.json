@@ -1,0 +1,851 @@
+{
+  "schemaVersion": 1,
+  "measurement": "instrumented_native_headless_training",
+  "pythonExecuted": false,
+  "roi": {
+    "definition": "after first complete PPO epoch through final complete PPO epoch",
+    "startNs": 3557335232,
+    "endNs": 13306873632,
+    "wallSeconds": 9.7495384,
+    "completePpoEpochs": 8,
+    "measuredPpoEpochs": 7,
+    "agents": 512,
+    "horizon": 16,
+    "requestedSteps": 65536,
+    "learnerSampleKernelCalls": 112,
+    "expectedSampleKernelCalls": 112,
+    "measuredActionTransitions": 57344,
+    "profiledSteadyStateTrainingSps": 5881.714358907494,
+    "physicsBatchStepKernelCalls": 1120,
+    "observedPhysicsSubstepsPerActionBatch": 10,
+    "newtonIterationBatchKernelCalls": 9183,
+    "observedNewtonIterationsPerPhysicsBatchStep": 8.199107142857143
+  },
+  "gpu": {
+    "kernelCalls": 416843,
+    "summedKernelMilliseconds": 8885.995574,
+    "kernelBusy": [
+      {
+        "deviceId": 0,
+        "milliseconds": 8884.73455,
+        "percentOfRoiWall": 91.12979697582401
+      }
+    ],
+    "unclassifiedPercentOfKernelTime": 0.11632396070783818,
+    "categories": [
+      {
+        "key": "physics",
+        "calls": 347069,
+        "maxRegistersPerThread": 175,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 6734.286527,
+        "averageMicrosecondsPerCall": 19.403307489288874,
+        "percentOfSummedKernelTime": 75.78539141640135
+      },
+      {
+        "key": "environment_semantics",
+        "calls": 36848,
+        "maxRegistersPerThread": 253,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 1369.187805,
+        "averageMicrosecondsPerCall": 37.15772375705602,
+        "percentOfSummedKernelTime": 15.408378201382163
+      },
+      {
+        "key": "gpu_memory_maintenance",
+        "calls": 18366,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 460.674493,
+        "averageMicrosecondsPerCall": 25.083006261570294,
+        "percentOfSummedKernelTime": 5.184275517173468
+      },
+      {
+        "key": "robot_controller",
+        "calls": 8736,
+        "maxRegistersPerThread": 210,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 298.420287,
+        "averageMicrosecondsPerCall": 34.15983138736264,
+        "percentOfSummedKernelTime": 3.3583213553826603
+      },
+      {
+        "key": "ppo_training",
+        "calls": 847,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 9.657184,
+        "averageMicrosecondsPerCall": 11.401634002361275,
+        "percentOfSummedKernelTime": 0.10867869468961318
+      },
+      {
+        "key": "unclassified",
+        "calls": 4186,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 8.035102,
+        "averageMicrosecondsPerCall": 1.919517916865743,
+        "percentOfSummedKernelTime": 0.0904243304319251
+      },
+      {
+        "key": "learner_inference",
+        "calls": 455,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 3.432736,
+        "averageMicrosecondsPerCall": 7.544474725274726,
+        "percentOfSummedKernelTime": 0.03863085426290355
+      },
+      {
+        "key": "unclassified_gemm",
+        "calls": 336,
+        "maxRegistersPerThread": 80,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 2.30144,
+        "averageMicrosecondsPerCall": 6.849523809523809,
+        "percentOfSummedKernelTime": 0.025899630275913077
+      }
+    ],
+    "subcategories": [
+      {
+        "key": "physics/constraint_solver",
+        "calls": 182094,
+        "maxRegistersPerThread": 168,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 5212.375382,
+        "averageMicrosecondsPerCall": 28.62464102057179,
+        "percentOfSummedKernelTime": 58.6583162077096
+      },
+      {
+        "key": "physics/dynamics_and_spatial_refresh",
+        "calls": 133280,
+        "maxRegistersPerThread": 100,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 1140.215178,
+        "averageMicrosecondsPerCall": 8.555035849339736,
+        "percentOfSummedKernelTime": 12.83159741083166
+      },
+      {
+        "key": "environment_semantics/combat_motion_observation",
+        "calls": 23408,
+        "maxRegistersPerThread": 253,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 905.892413,
+        "averageMicrosecondsPerCall": 38.70012017259057,
+        "percentOfSummedKernelTime": 10.19460796999042
+      },
+      {
+        "key": "environment_semantics/contact_sort_reduce",
+        "calls": 13440,
+        "maxRegistersPerThread": 98,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 463.295392,
+        "averageMicrosecondsPerCall": 34.47138333333333,
+        "percentOfSummedKernelTime": 5.213770231391745
+      },
+      {
+        "key": "gpu_memory_maintenance/generic_memset",
+        "calls": 18366,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 460.674493,
+        "averageMicrosecondsPerCall": 25.083006261570294,
+        "percentOfSummedKernelTime": 5.184275517173468
+      },
+      {
+        "key": "robot_controller/sonic_network_and_io",
+        "calls": 3920,
+        "maxRegistersPerThread": 210,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 275.849663,
+        "averageMicrosecondsPerCall": 70.3698119897959,
+        "percentOfSummedKernelTime": 3.10431915819453
+      },
+      {
+        "key": "physics/collision",
+        "calls": 6720,
+        "maxRegistersPerThread": 175,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 178.197312,
+        "averageMicrosecondsPerCall": 26.517457142857143,
+        "percentOfSummedKernelTime": 2.0053725045890958
+      },
+      {
+        "key": "physics/constraint_assembly",
+        "calls": 4480,
+        "maxRegistersPerThread": 64,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 109.64608,
+        "averageMicrosecondsPerCall": 24.474571428571426,
+        "percentOfSummedKernelTime": 1.2339200384121192
+      },
+      {
+        "key": "physics/integration",
+        "calls": 6720,
+        "maxRegistersPerThread": 44,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 55.053279,
+        "averageMicrosecondsPerCall": 8.192452232142857,
+        "percentOfSummedKernelTime": 0.61955105133164
+      },
+      {
+        "key": "physics/graph_control_and_export",
+        "calls": 13775,
+        "maxRegistersPerThread": 40,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 38.799296,
+        "averageMicrosecondsPerCall": 2.8166458076225043,
+        "percentOfSummedKernelTime": 0.4366342035272321
+      },
+      {
+        "key": "robot_controller/controller_or_servo",
+        "calls": 4816,
+        "maxRegistersPerThread": 46,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 22.570624,
+        "averageMicrosecondsPerCall": 4.686591362126246,
+        "percentOfSummedKernelTime": 0.2540021971881302
+      },
+      {
+        "key": "unclassified/needs_source_attribution",
+        "calls": 4186,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 8.035102,
+        "averageMicrosecondsPerCall": 1.919517916865743,
+        "percentOfSummedKernelTime": 0.0904243304319251
+      },
+      {
+        "key": "ppo_training/network_loss_optimizer",
+        "calls": 756,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 6.176736,
+        "averageMicrosecondsPerCall": 8.170285714285715,
+        "percentOfSummedKernelTime": 0.06951090565555575
+      },
+      {
+        "key": "learner_inference/categorical_policy",
+        "calls": 455,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 3.432736,
+        "averageMicrosecondsPerCall": 7.544474725274726,
+        "percentOfSummedKernelTime": 0.03863085426290355
+      },
+      {
+        "key": "ppo_training/training_auxiliary",
+        "calls": 14,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 2.725312,
+        "averageMicrosecondsPerCall": 194.66514285714288,
+        "percentOfSummedKernelTime": 0.030669742937686498
+      },
+      {
+        "key": "unclassified_gemm/shared_library_kernel",
+        "calls": 336,
+        "maxRegistersPerThread": 80,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 2.30144,
+        "averageMicrosecondsPerCall": 6.849523809523809,
+        "percentOfSummedKernelTime": 0.025899630275913077
+      },
+      {
+        "key": "ppo_training/training_stream_gemm",
+        "calls": 21,
+        "maxRegistersPerThread": 218,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 0.421536,
+        "averageMicrosecondsPerCall": 20.07314285714286,
+        "percentOfSummedKernelTime": 0.0047438241049027104
+      },
+      {
+        "key": "ppo_training/rollout_relayout",
+        "calls": 56,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 0.3336,
+        "averageMicrosecondsPerCall": 5.957142857142857,
+        "percentOfSummedKernelTime": 0.003754221991468212
+      }
+    ],
+    "attributionEvidence": [
+      {
+        "key": "exact_cached_kernel_catalog",
+        "calls": 333294,
+        "maxRegistersPerThread": 175,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 6695.487231,
+        "averageMicrosecondsPerCall": 20.08883217519667,
+        "percentOfSummedKernelTime": 75.34875721287412
+      },
+      {
+        "key": "native_environment_signature",
+        "calls": 23408,
+        "maxRegistersPerThread": 253,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 905.892413,
+        "averageMicrosecondsPerCall": 38.70012017259057,
+        "percentOfSummedKernelTime": 10.19460796999042
+      },
+      {
+        "key": "current_runtime_uses_CUB_for_contact_measurement",
+        "calls": 13440,
+        "maxRegistersPerThread": 98,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 463.295392,
+        "averageMicrosecondsPerCall": 34.47138333333333,
+        "percentOfSummedKernelTime": 5.213770231391745
+      },
+      {
+        "key": "driver_memset_kernel_owner_unspecified",
+        "calls": 18366,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 460.674493,
+        "averageMicrosecondsPerCall": 25.083006261570294,
+        "percentOfSummedKernelTime": 5.184275517173468
+      },
+      {
+        "key": "pack_encoder_to_robot_apply_actions_same_stream",
+        "calls": 3920,
+        "maxRegistersPerThread": 210,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 275.849663,
+        "averageMicrosecondsPerCall": 70.3698119897959,
+        "percentOfSummedKernelTime": 3.10431915819453
+      },
+      {
+        "key": "native_mujoco_wrapper",
+        "calls": 13775,
+        "maxRegistersPerThread": 40,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 38.799296,
+        "averageMicrosecondsPerCall": 2.8166458076225043,
+        "percentOfSummedKernelTime": 0.4366342035272321
+      },
+      {
+        "key": "native_controller_function_signature",
+        "calls": 4816,
+        "maxRegistersPerThread": 46,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 22.570624,
+        "averageMicrosecondsPerCall": 4.686591362126246,
+        "percentOfSummedKernelTime": 0.2540021971881302
+      },
+      {
+        "key": "unknown",
+        "calls": 4186,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 8.035102,
+        "averageMicrosecondsPerCall": 1.919517916865743,
+        "percentOfSummedKernelTime": 0.0904243304319251
+      },
+      {
+        "key": "three_puf_stamp_markers_same_stream",
+        "calls": 812,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 6.510336,
+        "averageMicrosecondsPerCall": 8.017655172413793,
+        "percentOfSummedKernelTime": 0.07326512764702396
+      },
+      {
+        "key": "native_rollout_function",
+        "calls": 455,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 3.432736,
+        "averageMicrosecondsPerCall": 7.544474725274726,
+        "percentOfSummedKernelTime": 0.03863085426290355
+      },
+      {
+        "key": "training_only_kernel",
+        "calls": 14,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 2.725312,
+        "averageMicrosecondsPerCall": 194.66514285714288,
+        "percentOfSummedKernelTime": 0.030669742937686498
+      },
+      {
+        "key": "no_verified_phase_boundary",
+        "calls": 336,
+        "maxRegistersPerThread": 80,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 2.30144,
+        "averageMicrosecondsPerCall": 6.849523809523809,
+        "percentOfSummedKernelTime": 0.025899630275913077
+      },
+      {
+        "key": "dedicated_stream_has_training_only_kernel",
+        "calls": 21,
+        "maxRegistersPerThread": 218,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 0.421536,
+        "averageMicrosecondsPerCall": 20.07314285714286,
+        "percentOfSummedKernelTime": 0.0047438241049027104
+      }
+    ],
+    "topKernels": [
+      {
+        "key": "update_gradient_JTCJ_sparse_8a11766b_cuda_kernel_forward",
+        "calls": 10303,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 2439.950836,
+        "averageMicrosecondsPerCall": 236.819454139571,
+        "percentOfSummedKernelTime": 27.458384552195593
+      },
+      {
+        "key": "update_gradient_cholesky_blocked__locals__kernel_3b712445_cuda_kernel_forward",
+        "calls": 10303,
+        "maxRegistersPerThread": 168,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 861.087799,
+        "averageMicrosecondsPerCall": 83.57641453945453,
+        "percentOfSummedKernelTime": 9.690391941219303
+      },
+      {
+        "key": "memset32",
+        "calls": 18366,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 460.674493,
+        "averageMicrosecondsPerCall": 25.083006261570294,
+        "percentOfSummedKernelTime": 5.184275517173468
+      },
+      {
+        "key": "_JTDAJ_sparse_74a213ab_cuda_kernel_forward",
+        "calls": 10303,
+        "maxRegistersPerThread": 30,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 460.3015,
+        "averageMicrosecondsPerCall": 44.67645346015724,
+        "percentOfSummedKernelTime": 5.180077979633709
+      },
+      {
+        "key": "void cub::CUB_300001_SM_1210::detail::radix_sort::DeviceRadixSortOnesweepKernel<cub::CUB_300001_SM_1210::detail::radix::policy_hub<long, long, unsigned int>::Policy1000, (cub::CUB_300001_SM_1210::SortOrder)0, long, long, unsigned int, int, int, cub::CUB_300001_SM_1210::detail::identity_decomposer_t>(T7 *, T7 *, T5 *, const T5 *, T3 *, const T3 *, T4 *, const T4 *, T6, int, int, T8)",
+        "calls": 8960,
+        "maxRegistersPerThread": 98,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 431.113344,
+        "averageMicrosecondsPerCall": 48.11532857142858,
+        "percentOfSummedKernelTime": 4.8516043071348935
+      },
+      {
+        "key": "linesearch_iterative__locals__kernel_2e02bc1f_cuda_kernel_forward",
+        "calls": 9183,
+        "maxRegistersPerThread": 91,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 359.764224,
+        "averageMicrosecondsPerCall": 39.17719960797125,
+        "percentOfSummedKernelTime": 4.0486653521711515
+      },
+      {
+        "key": "_qLD_acc_25842a75_cuda_kernel_forward",
+        "calls": 33600,
+        "maxRegistersPerThread": 28,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 311.098329,
+        "averageMicrosecondsPerCall": 9.258878839285716,
+        "percentOfSummedKernelTime": 3.500995768107953
+      },
+      {
+        "key": "rek5::<unnamed>::speeds(Measurement, float *)",
+        "calls": 1120,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 253.733952,
+        "averageMicrosecondsPerCall": 226.54817142857144,
+        "percentOfSummedKernelTime": 2.855436398622721
+      },
+      {
+        "key": "linesearch_jv_fused__locals__kernel_2d0c3c0f_cuda_kernel_forward",
+        "calls": 9183,
+        "maxRegistersPerThread": 40,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 195.81168,
+        "averageMicrosecondsPerCall": 21.32327997386475,
+        "percentOfSummedKernelTime": 2.203598666793574
+      },
+      {
+        "key": "update_constraint_efc__locals__kernel_9a9ed9bb_cuda_kernel_forward",
+        "calls": 10303,
+        "maxRegistersPerThread": 36,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 178.193277,
+        "averageMicrosecondsPerCall": 17.29528069494322,
+        "percentOfSummedKernelTime": 2.0053270960587133
+      },
+      {
+        "key": "<unnamed>::pre_kernel(const RekG1CudaSemanticBuffers *, const float *, const float *, const unsigned char *, unsigned long)",
+        "calls": 112,
+        "maxRegistersPerThread": 253,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 170.94464,
+        "averageMicrosecondsPerCall": 1526.2914285714287,
+        "percentOfSummedKernelTime": 1.9237533777326639
+      },
+      {
+        "key": "_kinematics_branch_95f8028e_cuda_kernel_forward",
+        "calls": 2240,
+        "maxRegistersPerThread": 63,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 133.351039,
+        "averageMicrosecondsPerCall": 59.531713839285715,
+        "percentOfSummedKernelTime": 1.5006876594692302
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_80_simt_sgemm_256x128_8x4_nn_align1>(T1::Params)",
+        "calls": 336,
+        "maxRegistersPerThread": 210,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 125.131008,
+        "averageMicrosecondsPerCall": 372.41371428571426,
+        "percentOfSummedKernelTime": 1.408182200384247
+      },
+      {
+        "key": "update_gradient_set_h_qM_lower_sparse_9caabb03_cuda_kernel_forward",
+        "calls": 10303,
+        "maxRegistersPerThread": 28,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 121.469696,
+        "averageMicrosecondsPerCall": 11.78974046394254,
+        "percentOfSummedKernelTime": 1.366979028837405
+      },
+      {
+        "key": "clear_facts(Measurement)",
+        "calls": 1232,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 117.431456,
+        "averageMicrosecondsPerCall": 95.31774025974025,
+        "percentOfSummedKernelTime": 1.3215340365867259
+      },
+      {
+        "key": "mul_m_sparse__locals___mul_m_sparse_6b17933c_cuda_kernel_forward",
+        "calls": 10303,
+        "maxRegistersPerThread": 40,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 112.83075,
+        "averageMicrosecondsPerCall": 10.951252062506066,
+        "percentOfSummedKernelTime": 1.2697592414983572
+      },
+      {
+        "key": "commit_hits(Measurement, int)",
+        "calls": 1120,
+        "maxRegistersPerThread": 40,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 102.963264,
+        "averageMicrosecondsPerCall": 91.93148571428571,
+        "percentOfSummedKernelTime": 1.1587138789632712
+      },
+      {
+        "key": "_comvel_branch_77de59e6_cuda_kernel_forward",
+        "calls": 2240,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 98.169888,
+        "averageMicrosecondsPerCall": 43.82584285714286,
+        "percentOfSummedKernelTime": 1.104770840616221
+      },
+      {
+        "key": "update_constraint_init_qfrc_constraint_sparse_77da3ea2_cuda_kernel_forward",
+        "calls": 10303,
+        "maxRegistersPerThread": 38,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 94.917149,
+        "averageMicrosecondsPerCall": 9.212573910511502,
+        "percentOfSummedKernelTime": 1.0681656119402427
+      },
+      {
+        "key": "_solve_LD_sparse_fused__locals__kernel_ed64ef36_cuda_kernel_forward",
+        "calls": 2240,
+        "maxRegistersPerThread": 33,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 74.64368,
+        "averageMicrosecondsPerCall": 33.323071428571424,
+        "percentOfSummedKernelTime": 0.8400148230818824
+      },
+      {
+        "key": "_contact_elliptic_dcb0f059_cuda_kernel_forward",
+        "calls": 1120,
+        "maxRegistersPerThread": 64,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 71.768864,
+        "averageMicrosecondsPerCall": 64.07934285714286,
+        "percentOfSummedKernelTime": 0.8076626125044704
+      },
+      {
+        "key": "update_gradient_grad_19709deb_cuda_kernel_forward",
+        "calls": 10303,
+        "maxRegistersPerThread": 32,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 70.505598,
+        "averageMicrosecondsPerCall": 6.843210521207416,
+        "percentOfSummedKernelTime": 0.7934462426055672
+      },
+      {
+        "key": "update_constraint_gauss_cost__locals__kernel_706504b4_cuda_kernel_forward",
+        "calls": 10303,
+        "maxRegistersPerThread": 40,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 68.850623,
+        "averageMicrosecondsPerCall": 6.682580122294477,
+        "percentOfSummedKernelTime": 0.7748217116093737
+      },
+      {
+        "key": "_subtree_com_acc_350f0560_cuda_kernel_forward",
+        "calls": 26880,
+        "maxRegistersPerThread": 28,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 68.690684,
+        "averageMicrosecondsPerCall": 2.555456994047619,
+        "percentOfSummedKernelTime": 0.7730218119957843
+      },
+      {
+        "key": "void <unnamed>::post_step_kernel<(bool)1>(RekG1CudaNativeCombatState *, const float *, const long *, const unsigned char *, const long *, const long *, const float *, const RekG1HitContact *, unsigned int *, unsigned int *, unsigned int *, int *, unsigned int *, unsigned int *, unsigned char *, unsigned char *, unsigned char *, unsigned char *, unsigned char *, unsigned char *, int *, unsigned long)",
+        "calls": 1120,
+        "maxRegistersPerThread": 142,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 63.148608,
+        "averageMicrosecondsPerCall": 56.382685714285714,
+        "percentOfSummedKernelTime": 0.7106531561277143
+      },
+      {
+        "key": "solve_search_update_ae582eee_cuda_kernel_forward",
+        "calls": 9183,
+        "maxRegistersPerThread": 36,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 58.084128,
+        "averageMicrosecondsPerCall": 6.325180006533812,
+        "percentOfSummedKernelTime": 0.6536592047147918
+      },
+      {
+        "key": "_nxn_broadphase__locals__kernel_af3abdea_cuda_kernel_forward",
+        "calls": 1120,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 57.143872,
+        "averageMicrosecondsPerCall": 51.02131428571429,
+        "percentOfSummedKernelTime": 0.6430778805157212
+      },
+      {
+        "key": "ccd_kernel_builder__locals__ccd_kernel_a1dafc55_cuda_kernel_forward",
+        "calls": 1120,
+        "maxRegistersPerThread": 172,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 54.926528,
+        "averageMicrosecondsPerCall": 49.04154285714286,
+        "percentOfSummedKernelTime": 0.6181246382871539
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x256_8x4_tn_align1>(T1::Params)",
+        "calls": 224,
+        "maxRegistersPerThread": 210,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 53.712192,
+        "averageMicrosecondsPerCall": 239.78657142857142,
+        "percentOfSummedKernelTime": 0.6044589101209921
+      },
+      {
+        "key": "_crb_accumulate_073a11b8_cuda_kernel_forward",
+        "calls": 13440,
+        "maxRegistersPerThread": 38,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 52.350783,
+        "averageMicrosecondsPerCall": 3.895147544642857,
+        "percentOfSummedKernelTime": 0.5891380719699647
+      },
+      {
+        "key": "solve_init_jaref__locals__kernel_110c885f_cuda_kernel_forward",
+        "calls": 1120,
+        "maxRegistersPerThread": 40,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 44.899104,
+        "averageMicrosecondsPerCall": 40.08848571428572,
+        "percentOfSummedKernelTime": 0.5052793873921414
+      },
+      {
+        "key": "linesearch_zero_jv_3d6e7eb5_cuda_kernel_forward",
+        "calls": 9183,
+        "maxRegistersPerThread": 28,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 42.634943,
+        "averageMicrosecondsPerCall": 4.642812043994338,
+        "percentOfSummedKernelTime": 0.47979928242084446
+      },
+      {
+        "key": "_cfrc_backward_72237d38_cuda_kernel_forward",
+        "calls": 13440,
+        "maxRegistersPerThread": 28,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 40.371775,
+        "averageMicrosecondsPerCall": 3.0038523065476195,
+        "percentOfSummedKernelTime": 0.4543303523369502
+      },
+      {
+        "key": "ccd_kernel_builder__locals__ccd_kernel_4e16c44b_cuda_kernel_forward",
+        "calls": 1120,
+        "maxRegistersPerThread": 175,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 40.093792,
+        "averageMicrosecondsPerCall": 35.798028571428574,
+        "percentOfSummedKernelTime": 0.4512020253229984
+      },
+      {
+        "key": "_cinert_1261260c_cuda_kernel_forward",
+        "calls": 2240,
+        "maxRegistersPerThread": 38,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 39.861376,
+        "averageMicrosecondsPerCall": 17.795257142857142,
+        "percentOfSummedKernelTime": 0.44858649397297123
+      },
+      {
+        "key": "_geom_local_to_global_e28b714c_cuda_kernel_forward",
+        "calls": 2240,
+        "maxRegistersPerThread": 40,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 38.015967,
+        "averageMicrosecondsPerCall": 16.971413839285713,
+        "percentOfSummedKernelTime": 0.4278188829086626
+      },
+      {
+        "key": "_compute_body_inertial_frames_d3bdd81a_cuda_kernel_forward",
+        "calls": 2240,
+        "maxRegistersPerThread": 37,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 36.101888,
+        "averageMicrosecondsPerCall": 16.116914285714284,
+        "percentOfSummedKernelTime": 0.40627848280312456
+      },
+      {
+        "key": "_qM_sparse_6b376672_cuda_kernel_forward",
+        "calls": 1120,
+        "maxRegistersPerThread": 40,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 32.029152,
+        "averageMicrosecondsPerCall": 28.597457142857145,
+        "percentOfSummedKernelTime": 0.36044528419208055
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_80_simt_sgemm_128x64_8x5_nn_align1>(T1::Params)",
+        "calls": 336,
+        "maxRegistersPerThread": 128,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 31.916384,
+        "averageMicrosecondsPerCall": 94.9892380952381,
+        "percentOfSummedKernelTime": 0.3591762311179382
+      },
+      {
+        "key": "_compute_body_matrices_27760750_cuda_kernel_forward",
+        "calls": 2240,
+        "maxRegistersPerThread": 30,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 30.191488,
+        "averageMicrosecondsPerCall": 13.478342857142858,
+        "percentOfSummedKernelTime": 0.3397648327480475
+      }
+    ]
+  },
+  "cudaApi": [
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaGraphLaunch_v10000",
+      "calls": 14,
+      "milliseconds": 6490.106736
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaStreamSynchronize_v3020",
+      "calls": 41,
+      "milliseconds": 3239.989472
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaMemcpy_v3020",
+      "calls": 56,
+      "milliseconds": 7.93448
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaMemcpyAsync_v3020",
+      "calls": 14,
+      "milliseconds": 1.660288
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaMemGetInfo_v3020",
+      "calls": 7,
+      "milliseconds": 0.370752
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaLaunchKernel_v7000",
+      "calls": 14,
+      "milliseconds": 0.326992
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaEventRecord_v3020",
+      "calls": 14,
+      "milliseconds": 0.106832
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaMemsetAsync_v3020",
+      "calls": 7,
+      "milliseconds": 0.094496
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaMemset_v3020",
+      "calls": 7,
+      "milliseconds": 0.06896
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cuKernelGetName",
+      "calls": 14,
+      "milliseconds": 0.00664
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cuLibraryGetKernel",
+      "calls": 1,
+      "milliseconds": 0.000768
+    }
+  ],
+  "memcopies": [
+    {
+      "copyKind": 1,
+      "calls": 14,
+      "bytes": 56,
+      "milliseconds": 0.016992
+    },
+    {
+      "copyKind": 2,
+      "calls": 56,
+      "bytes": 1276688,
+      "milliseconds": 0.19616
+    },
+    {
+      "copyKind": 8,
+      "calls": 5033,
+      "bytes": 1989591702,
+      "milliseconds": 13.40704
+    }
+  ],
+  "warnings": [],
+  "interpretation": [
+    "Training SPS includes environment, inference, PPO, and between-epoch host gaps inside the measured interval.",
+    "Nsight node tracing adds overhead. Compare speed against an unprofiled run with the same configuration.",
+    "Category percentages use summed kernel durations, not wall time. Concurrent kernels can overlap.",
+    "Kernel-uncovered wall time can include copies, synchronization, scheduling, or CPU work; it is not automatically CPU compute.",
+    "Shared GEMMs without a verified controller/training boundary remain unclassified. Raw traces stay private."
+  ]
+}

@@ -36,6 +36,7 @@ struct RuntimeView {
     float *actions,*returns,*lengths,*hit_totals,*invalid_totals;
     int *dummy_offset,*failures,*phase;
     int* physics_stats;
+    bool pooled_physics_contacts;
     uint8_t *suspended,*enabled,*row_mask,*union_mask,*completed,*terminal_rows;
     uint8_t *robot_dampened,*robot_resetting,*masks;
     uint8_t* learner_masks;
@@ -195,7 +196,9 @@ __global__ void export_observation(RuntimeView v,bool transition) {
     if(!finite)atomicOr(v.failures+a,1);
     if(v.c.statuses[a])atomicOr(v.failures+a,2);
     if(v.scheduler[a*2].status||v.scheduler[a*2+1].status)atomicOr(v.failures+a,4);
-    if(v.physics_stats[a*4]>=128||v.physics_stats[a*4+1]||v.physics_stats[a*4+2])atomicOr(v.failures+a,8);
+    // MuJoCo uses pooled contact storage; its GPU status records pool and
+    // constraint overflows. Puffysics retains its per-arena 128-slot limit.
+    if((!v.pooled_physics_contacts&&v.physics_stats[a*4]>=128)||v.physics_stats[a*4+1]||v.physics_stats[a*4+2])atomicOr(v.failures+a,8);
     v.out.rewards[a]=transition?v.c.rewards[a*2]:0;
     v.out.terminals[a]=transition?v.c.terminals[a*2]:0;
     const auto& fight=v.c.states[a].combat.fight;
@@ -368,6 +371,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         v.local_velocity=d.alloc<float>(rows*6);v.entities=d.alloc<float>(rows*86);v.observations=d.alloc<float>(rows*223);v.actions=d.alloc<float>(rows);
         v.returns=d.alloc<float>(a);v.lengths=d.alloc<float>(a);v.hit_totals=d.alloc<float>(a);v.invalid_totals=d.alloc<float>(a);
         v.dummy_offset=d.alloc<int>(a);v.failures=d.alloc<int>(a);v.phase=d.alloc<int>(rows);v.physics_stats=p->stats;
+        v.pooled_physics_contacts=std::string(rek5::physics_backend_name(p)).rfind("mujoco_cuda",0)==0;
         v.round_results=d.alloc<RekNative5RoundResult>(a);
         v.suspended=d.alloc<uint8_t>(rows);v.enabled=d.alloc<uint8_t>(rows);v.row_mask=d.alloc<uint8_t>(rows);v.union_mask=d.alloc<uint8_t>(a);
         v.completed=d.alloc<uint8_t>(rows);v.terminal_rows=d.alloc<uint8_t>(rows);r->all_arenas=d.alloc<uint8_t>(a);cuda_check(cudaMemset(r->all_arenas,1,a));

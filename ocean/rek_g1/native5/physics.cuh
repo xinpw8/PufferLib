@@ -47,10 +47,12 @@ struct Physics {
     std::vector<mjData*> evaluation_data;
     std::vector<int> evaluation_stats;
     void* puffysics_evaluation = nullptr;
+    void* mujoco_gpu = nullptr;             // optional native CUDA schedule/model owner
 };
 
-// Host-only compilation and frame mapping. Calls mj_kinematics once; performs
-// no CPU physics steps, CUDA initialization, or Python invocation.
+// Host model compilation and parameter preparation. Legacy Puffysics frame
+// mapping calls mj_kinematics once; selected mujoco_cuda skips that mapping and
+// obtains every dynamic transform from its GPU schedule.
 Physics* physics_load_model(const char* xml_path, const char* export_json_path);
 
 // Creates the existing independent-contact Puffysics solver (mode 0) and all
