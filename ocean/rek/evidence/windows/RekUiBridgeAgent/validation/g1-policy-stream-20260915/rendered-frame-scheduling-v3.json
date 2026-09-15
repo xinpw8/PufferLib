@@ -1,0 +1,83 @@
+{
+  "schema": "rek.policy_bridge.rendered_frame_scheduling.v1",
+  "baseline_plugin_version": "0.4.8",
+  "baseline_trial_path": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/trial-r3/relay.stdout.jsonl",
+  "baseline_trace_reported_by_trial_operator": {
+    "repeated_unity_frame": 9360,
+    "observations_in_that_frame": 14,
+    "stop_reason": "policy_action_watchdog_expired",
+    "gpu_inference_milliseconds": 0.644,
+    "interpretation": "Expensive source capture ran inside fixed-step catch-up, producing repeated rendered states before the queued action could reach Update."
+  },
+  "correction": {
+    "plugin_version": "0.4.9",
+    "plugin_path": "C:/rekagent/build/g1-policy-stream-v3/RekUiBridgeAgent.dll",
+    "plugin_sha256": "5754ea9f818ba27b24c6f8be25978ab59a772ab23d4f260e6f257aaff627d67c",
+    "client_path": "C:/rekagent/build/g1-policy-pipe-v3/publish/RekUiPipeClient.exe",
+    "client_sha256": "c0d4e522805cd8da0ae32827e9bcf4b5b9e59214f3259a919122901234dc85fd",
+    "continuous_publish_callback": "BridgeBehaviour.LateUpdate -> Plugin.OnUnityLateUpdate -> PublishG1PolicyFrame",
+    "continuous_maximum_hz": 50,
+    "continuous_same_frame_republish": false,
+    "fixed_step_hz": 500,
+    "fixed_step_velocity_and_scope_checks_preserved": true,
+    "watchdog_callback": "Plugin.OnUnityUpdate after pending request dispatch",
+    "startup_grace_seconds": 1,
+    "established_watchdog_seconds": 0.25,
+    "per_action_source_age_limit_seconds": 0.25,
+    "focused_tests_passed": 83,
+    "protocol_cases_passed": 266,
+    "local_pipe_roundtrip": true,
+    "build_exit_code": 0,
+    "warnings": 0,
+    "errors": 0
+  },
+  "commands": [
+    "dotnet build ocean/rek/evidence/windows/RekUiBridgeAgent/RekUiBridgeAgent.csproj -c Release --nologo -o C:/rekagent/build/g1-policy-stream-v3",
+    "dotnet publish ocean/rek/evidence/windows/RekUiPipeClient/RekUiPipeClient.csproj -c Release --nologo -o C:/rekagent/build/g1-policy-pipe-v3/publish",
+    "dotnet run --project ocean/rek/evidence/windows/RekUiPipeClient/Tests/PolicyRelayTests.csproj -c Release --nologo",
+    "dotnet run --project ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/RekUiBridgeAgent.ProtocolTests.csproj -c Release --nologo",
+    "git diff --check"
+  ],
+  "live_followup": {
+    "host": "spark-4ae3",
+    "path": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/trial-r4/relay.stdout.jsonl",
+    "sha256": "7c6acbe14065cce61196e926c3d18370a433d571487c65a5b03418c8d2d17db5",
+    "first_source_utc": "2026-09-15T06:59:13.749386+00:00",
+    "last_source_utc": "2026-09-15T07:01:15.397977+00:00",
+    "source_records": 3689,
+    "unique_unity_frames": 3689,
+    "maximum_sources_per_unity_frame": 1,
+    "source_qpc_span_seconds": 121.657689,
+    "minimum_source_qpc_interval_ms": 19.7973,
+    "maximum_source_qpc_interval_ms": 270.9294,
+    "timestamp_note": "The 20ms gate is at scheduling entry. Source QPC is captured after scope and identity validation, so measured source timestamp intervals can differ slightly from scheduling-entry intervals.",
+    "action_acknowledgements": 3686,
+    "locally_applied_actions": 3477,
+    "native_move_send_returns": 81,
+    "action_reasons": {
+      "held_state_applied_locally": 2550,
+      "rejected_client_transport_or_command_gate_no_queue": 208,
+      "accepted_locally_and_armed": 81,
+      "held_state_unchanged": 846,
+      "policy_stream_not_owned": 1
+    },
+    "watchdog_failures": 0,
+    "source_age_rejections": 0,
+    "stream_errors": 0,
+    "end_reason": "active_round_not_observed",
+    "owned_velocity_neutralized": true,
+    "local_slot": 0,
+    "native_round": {
+      "number": 1,
+      "duration_seconds": 120,
+      "time_remaining_seconds": 0,
+      "clean_hits": [15, 32],
+      "falls": [0, 0],
+      "result": "WonByPoints",
+      "winner_index": 1,
+      "knockout": false
+    },
+    "conclusion": "Full authentic private round completed with one source record per rendered frame and no watchdog or source-age failure. The controlled policy lost this round. This validates the scheduling correction and measured transport, not simulator parity or policy superiority."
+  },
+  "raw_joint_arrays_or_proprietary_binaries_in_report": false
+}

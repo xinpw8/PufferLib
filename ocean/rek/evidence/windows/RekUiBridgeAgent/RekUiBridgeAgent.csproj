@@ -3,7 +3,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>RekUiBridgeAgent</AssemblyName>
     <RootNamespace>RekUiBridgeAgent</RootNamespace>
-    <Version>0.4.6</Version>
+    <Version>0.4.9</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>

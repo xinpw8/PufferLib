@@ -1448,6 +1448,18 @@ void ExpectParse(
 }
 
 ExpectParse("get_state", "{\"type\":\"get_state\",\"request_id\":\"r-1\"}", true);
+ExpectParse("get_policy_state", "{\"type\":\"get_policy_state\",\"request_id\":\"r-2\"}", true);
+var policyHash = new string('a', 64);
+var policyRequest = JsonSerializer.Serialize(new {
+    type = "policy_action", request_id = "policy-1", round_identity_sha256 = policyHash,
+    observation_sequence = 9, action = 17 });
+Expect("policy_action_routes_to_dedicated_kind", BridgeProtocol.TryParse(
+    Encoding.UTF8.GetBytes(policyRequest), 7, out var parsedPolicy, out _, out _) &&
+    parsedPolicy?.Kind == RequestKind.PolicyAction && parsedPolicy.PolicyAction == new G1PolicyAction(policyHash, 9, 17));
+ExpectParse("policy_bad_action_type", policyRequest.Replace("\"action\":17", "\"action\":null"), false);
+ExpectParse("policy_duplicate_type", policyRequest.Replace("\"type\":\"policy_action\"", "\"type\":\"policy_action\",\"type\":\"policy_action\""), false);
+ExpectParse("policy_duplicate_action", policyRequest.Replace("\"action\":17", "\"action\":17,\"action\":17"), false);
+ExpectParse("policy_extra_opponent", policyRequest.Replace("\"action\":17", "\"action\":17,\"opponent\":1"), false);
 foreach (var key in Enum.GetValues<BridgeKey>())
 {
     ExpectParse(

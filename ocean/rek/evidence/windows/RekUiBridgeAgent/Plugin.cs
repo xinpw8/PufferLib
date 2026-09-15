@@ -26,7 +26,7 @@ public sealed partial class Plugin : BasePlugin
 {
     public const string PluginGuid = "rek.evidence.control.bridge";
     public const string PluginName = "REK Evidence Control Bridge";
-    public const string PluginVersion = "0.4.6";
+    public const string PluginVersion = "0.4.9";
 
     private const string PipeName = "rek-ui-bridge-v1";
     private const string IsolatedSessionMarker = "spark-x98";
@@ -315,6 +315,7 @@ public sealed partial class Plugin : BasePlugin
         StopSingleMotionTrial("plugin_unload");
         StopContinuousController("plugin_unload");
         StopG1HeldSchedule("plugin_unload");
+        StopG1PolicyStream("plugin_unload");
         _freshRoundArm = null;
         _harmony?.UnpatchSelf();
         _harmony = null;
@@ -375,6 +376,17 @@ public sealed partial class Plugin : BasePlugin
             {
                 var state = CaptureState(request.RequestId);
                 _pipe?.Send(request.ConnectionId, state.Payload);
+                continue;
+            }
+
+            if (request.Kind == RequestKind.GetPolicyState)
+            {
+                PublishG1PolicyState(request.ConnectionId, request.RequestId);
+                continue;
+            }
+            if (request.Kind == RequestKind.PolicyAction)
+            {
+                ApplyG1PolicyAction(request);
                 continue;
             }
 
@@ -537,6 +549,7 @@ public sealed partial class Plugin : BasePlugin
             });
         }
 
+        CheckG1PolicyWatchdog();
         TryCaptureG1RuntimePolicyAssets();
     }
 
@@ -551,6 +564,7 @@ public sealed partial class Plugin : BasePlugin
                 StopSingleMotionTrial("lease_connection_lost");
                 StopContinuousController("lease_connection_lost");
                 StopG1HeldSchedule("lease_connection_lost");
+                StopG1PolicyStream("lease_connection_lost");
                 _freshRoundArm = null;
                 _leaseConnectionId = 0;
             }
@@ -563,6 +577,9 @@ public sealed partial class Plugin : BasePlugin
 
             if (_g1HeldScheduleRunning)
                 AdvanceG1HeldInputSchedule();
+
+            if (_g1PolicyRunning)
+                AdvanceG1PolicyStream();
 
             if (!_scheduleRunning)
                 return;
@@ -696,6 +713,7 @@ public sealed partial class Plugin : BasePlugin
         }
         catch (Exception exception)
         {
+            StopG1PolicyStream($"fixed_update_control_failed:{exception.GetType().Name}");
             StopG1HeldSchedule($"fixed_update_control_failed:{exception.GetType().Name}");
             StopContinuousController($"fixed_update_control_failed:{exception.GetType().Name}");
             StopSingleMotionTrial($"fixed_update_control_failed:{exception.GetType().Name}");
@@ -730,6 +748,7 @@ public sealed partial class Plugin : BasePlugin
                 StopSingleMotionTrial("lease_released");
                 StopContinuousController("lease_released");
                 StopG1HeldSchedule("lease_released");
+                StopG1PolicyStream("lease_released");
                 _freshRoundArm = null;
                 _leaseConnectionId = 0;
                 return CommandResult.AppliedResult("exclusive_control_lease_released");
@@ -737,6 +756,9 @@ public sealed partial class Plugin : BasePlugin
 
             if (_leaseConnectionId != connectionId)
                 return CommandResult.Rejected("exclusive_control_lease_required");
+
+            if (_g1PolicyRunning && command is not (BridgeCommand.StopG1PolicyStream or BridgeCommand.StartG1PolicyStream))
+                return CommandResult.Rejected("g1_policy_stream_has_exclusive_control");
 
             return command switch
             {
@@ -755,6 +777,8 @@ public sealed partial class Plugin : BasePlugin
                 BridgeCommand.StopAttackZoneTrial => StopAttackZoneTrial(),
                 BridgeCommand.StartG1HeldInputSchedule => StartG1HeldInputSchedule(),
                 BridgeCommand.StopG1HeldInputSchedule => StopG1HeldInputSchedule(),
+                BridgeCommand.StartG1PolicyStream => StartG1PolicyStream(),
+                BridgeCommand.StopG1PolicyStream => StopG1PolicyStreamCommand(),
                 _ => CommandResult.Rejected("unknown_semantic_command"),
             };
         }
@@ -3687,6 +3711,11 @@ public sealed partial class Plugin : BasePlugin
 
     internal void OnRobotInputLateUpdatePrefix(RobotInputController input)
     {
+        if (OwnsPolicyInput(input))
+        {
+            OnG1PolicyLateUpdate(input);
+            return;
+        }
         if (_g1HeldScheduleRunning &&
             _g1HeldScheduleInputPointer != IntPtr.Zero &&
             NativePointer(input) == _g1HeldScheduleInputPointer)
@@ -4033,6 +4062,11 @@ public sealed partial class Plugin : BasePlugin
 
     internal void OnSendVelocityCommandPrefix(RobotInputController input)
     {
+        if (OwnsPolicyInput(input))
+        {
+            if (!TryPolicyScope(out _, out var policyReason)) StopG1PolicyStream(policyReason);
+            return;
+        }
         InvalidateFreshRoundArmFromVelocityRequest(input);
         if (_g1HeldScheduleRunning &&
             _g1HeldScheduleInputPointer != IntPtr.Zero &&
@@ -4281,6 +4315,7 @@ public sealed partial class Plugin : BasePlugin
 
     internal void OnSendVelocityCommandFailure(RobotInputController input, Exception exception)
     {
+        if (OwnsPolicyInput(input)) { StopG1PolicyStream("velocity_send_failed:" + exception.GetType().Name); return; }
         if (_g1HeldScheduleRunning &&
             _g1VelocityInvocationObserved &&
             _g1HeldScheduleInputPointer != IntPtr.Zero &&
@@ -4322,6 +4357,7 @@ public sealed partial class Plugin : BasePlugin
 
     internal bool OnSendMoveEventPrefix(RobotInputController input)
     {
+        if (OwnsPolicyInput(input)) return OnG1PolicyMovePrefix(input);
         InvalidateFreshRoundArmFromMoveRequest(input);
         if (_g1HeldScheduleRunning &&
             _g1HeldScheduleInputPointer != IntPtr.Zero &&
@@ -4504,6 +4540,7 @@ public sealed partial class Plugin : BasePlugin
 
     internal void OnSendMoveEventPostfix(RobotInputController input)
     {
+        if (OwnsPolicyInput(input)) { OnG1PolicyMovePostfix(input); return; }
         if (_g1HeldScheduleRunning &&
             _g1HeldScheduleInputPointer != IntPtr.Zero &&
             NativePointer(input) == _g1HeldScheduleInputPointer)
@@ -4575,6 +4612,7 @@ public sealed partial class Plugin : BasePlugin
 
     internal void OnSendMoveEventFailure(RobotInputController input, Exception exception)
     {
+        if (OwnsPolicyInput(input)) { StopG1PolicyStream("move_send_failed:" + exception.GetType().Name); return; }
         if (_g1HeldScheduleRunning &&
             _g1HeldScheduleInputPointer != IntPtr.Zero &&
             NativePointer(input) == _g1HeldScheduleInputPointer)
@@ -4611,6 +4649,7 @@ public sealed partial class Plugin : BasePlugin
 
     internal bool OnSendSpecialEventPrefix(RobotInputController input)
     {
+        if (OwnsPolicyInput(input)) { StopG1PolicyStream("unowned_special_send"); return false; }
         InvalidateFreshRoundArmFromUnexpectedRequest(input, "special");
         if (RejectUnexpectedG1SpecialOrEStop(input, "special"))
             return false;
@@ -4743,6 +4782,7 @@ public sealed partial class Plugin : BasePlugin
 
     internal bool OnSendEStopTogglePrefix(RobotInputController input)
     {
+        if (OwnsPolicyInput(input)) { StopG1PolicyStream("unowned_estop_send"); return false; }
         InvalidateFreshRoundArmFromUnexpectedRequest(input, "estop");
         if (RejectUnexpectedG1SpecialOrEStop(input, "estop"))
             return false;
@@ -6044,6 +6084,12 @@ public sealed partial class Plugin : BasePlugin
         if (connectionId <= 0)
             return;
 
+        if (_g1PolicyRunning)
+        {
+            PublishG1PolicyFrame();
+            return;
+        }
+
         var state = CaptureState(requestId: null);
         if (connectionId == _lastPublishedConnection &&
             string.Equals(state.Identity, _lastStateIdentity, StringComparison.Ordinal))
@@ -6265,6 +6311,8 @@ public sealed partial class Plugin : BasePlugin
                 command_sequence_schema = BridgeScheduleContract.Schema,
                 command_sequence_sha256 = _scheduleSha256,
                 schedule_running = _scheduleRunning,
+                g1_policy_stream_running = _g1PolicyRunning,
+                g1_policy_round_identity_sha256 = _g1PolicyRunning ? _g1PolicyRound : null,
                 schedule_authorized_while_background = _scheduleAuthorizedWhileBackground,
                 schedule_tick = _scheduleTick,
                 client_fixed_substep = _scheduleFixedSubstep,

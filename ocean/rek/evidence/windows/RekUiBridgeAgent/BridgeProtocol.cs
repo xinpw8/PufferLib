@@ -264,11 +264,15 @@ internal enum BridgeCommand
     StopAttackZoneTrial,
     StartG1HeldInputSchedule,
     StopG1HeldInputSchedule,
+    StartG1PolicyStream,
+    StopG1PolicyStream,
 }
 
 internal enum RequestKind
 {
     GetState,
+    GetPolicyState,
+    PolicyAction,
     Input,
     Command,
 }
@@ -280,7 +284,8 @@ internal sealed record BridgeRequest(
     BridgeKey? Key,
     BridgeCommand? Command,
     string? Selector,
-    AttackZoneTrialTarget? AttackZoneTarget = null);
+    AttackZoneTrialTarget? AttackZoneTarget = null,
+    G1PolicyAction? PolicyAction = null);
 
 internal sealed record OutboundMessage(long ConnectionId, object Payload);
 
@@ -322,6 +327,16 @@ internal static class BridgeProtocol
             {
                 error = "request_must_be_object";
                 return false;
+            }
+
+            if (document.RootElement.TryGetProperty("type", out var policyType) &&
+                policyType.ValueKind == JsonValueKind.String && policyType.GetString() == "policy_action")
+            {
+                if (!G1PolicyStreamContract.TryParse(document.RootElement, out var action, out requestId, out error))
+                    return false;
+                request = new BridgeRequest(connectionId, RequestKind.PolicyAction, requestId!, null, null, null,
+                    PolicyAction: action);
+                return true;
             }
 
             string? type = null;
@@ -389,7 +404,7 @@ internal static class BridgeProtocol
                 return false;
             }
 
-            if (string.Equals(type, "get_state", StringComparison.Ordinal))
+            if (type is "get_state" or "get_policy_state")
             {
                 if (key is not null || command is not null || selector is not null ||
                     attackZoneTarget is not null || names.Count != 2)
@@ -397,7 +412,8 @@ internal static class BridgeProtocol
                     error = "invalid_get_state_shape";
                     return false;
                 }
-                request = new BridgeRequest(connectionId, RequestKind.GetState, requestId!, null, null, null);
+                request = new BridgeRequest(connectionId,
+                    type == "get_state" ? RequestKind.GetState : RequestKind.GetPolicyState, requestId!, null, null, null);
                 return true;
             }
 

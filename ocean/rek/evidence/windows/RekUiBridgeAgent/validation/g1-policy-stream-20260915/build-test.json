@@ -1,0 +1,44 @@
+{
+  "date": "2026-09-15",
+  "scope": "native G1 source telemetry and semantic request bridge; compilation and host unit tests only",
+  "plugin_version": "0.4.7",
+  "plugin": {
+    "path": "C:/rekagent/build/g1-policy-stream-v1/RekUiBridgeAgent.dll",
+    "sha256": "6663829d641d601abdd5b1bd3e2c2a30dfe89b22494ff837edf225c691c5b333",
+    "command": "dotnet build ocean/rek/evidence/windows/RekUiBridgeAgent/RekUiBridgeAgent.csproj -c Release --nologo -o C:/rekagent/build/g1-policy-stream-v1",
+    "exit_code": 0,
+    "warnings": 0,
+    "errors": 0
+  },
+  "pipe_client": {
+    "path": "C:/rekagent/build/g1-policy-pipe-v1/publish/RekUiPipeClient.exe",
+    "sha256": "817d421ac4dde9c88e7073669a10958798cdd76f26b6ba55eed1cff0feb21db8",
+    "command": "dotnet publish ocean/rek/evidence/windows/RekUiPipeClient/RekUiPipeClient.csproj -c Release --nologo -o C:/rekagent/build/g1-policy-pipe-v1/publish",
+    "exit_code": 0
+  },
+  "tests": [
+    {
+      "command": "dotnet run --project ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/RekUiBridgeAgent.ProtocolTests.csproj -c Release --nologo",
+      "exit_code": 0,
+      "stdout": "PIPE_INFO Accepted local current-user pipe client, connection 1.\nPASS protocol_cases=266 local_pipe_roundtrip=true",
+      "stderr": ""
+    },
+    {
+      "command": "dotnet run --project ocean/rek/evidence/windows/RekUiPipeClient/Tests/PolicyRelayTests.csproj -c Release --nologo",
+      "exit_code": 0,
+      "stdout": "{\"passed\":69,\"native_game_invocations\":0,\"global_input_invocations\":0}",
+      "stderr": ""
+    }
+  ],
+  "tested_cases": [
+    "33 valid action categories and exact native G1 move order",
+    "invalid action category, numeric type, duplicate fields, unknown field and opponent steering rejected",
+    "250 ms freshness boundary, stale or reused observation, wrong round, reverse clock rejected",
+    "persistent buffered JSON-line framing, bounded length and unterminated input rejection",
+    "existing named-pipe protocol regression suite"
+  ],
+  "runtime_execution": "not performed by these unit tests; separate live deployment evidence required",
+  "proprietary_binary_or_pose_data_in_report": false,
+  "server_acceptance": "unknown",
+  "authentic_simulator_parity": "unproven"
+}

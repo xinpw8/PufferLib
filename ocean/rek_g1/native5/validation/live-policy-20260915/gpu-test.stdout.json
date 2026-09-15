@@ -1,0 +1,303 @@
+{
+  "test": "live-policy-worker",
+  "mode": "gpu",
+  "synthetic_observations": true,
+  "authentic_game_control": false,
+  "assertions": 121,
+  "responses": 35,
+  "actions": 5,
+  "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+  "latency_ms": {
+    "min": 0.114097,
+    "median": 0.176066,
+    "max": 0.370836
+  },
+  "exit_code": 0,
+  "stderr": "",
+  "transcript": [
+    {
+      "type": "ready",
+      "protocol": "rek.live_policy.v1",
+      "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+      "observation_schema": "rek.native5.scaled_polar_xy.v1",
+      "selection": "sampled",
+      "precision": "bf16",
+      "device": "NVIDIA GB10",
+      "seed": 73,
+      "observations": 223,
+      "actions": 33,
+      "hidden_size": 256,
+      "num_layers": 2,
+      "native_cuda": true,
+      "environment_stepping": false
+    },
+    {
+      "type": "action",
+      "protocol": "rek.live_policy.v1",
+      "seq": 1,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": true,
+      "round_changed": true,
+      "legal_actions": 1,
+      "action": 1,
+      "gpu_ms": 0.151871994137764,
+      "decision_index": 1,
+      "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+      "observation_schema": "rek.native5.scaled_polar_xy.v1",
+      "selection": "sampled",
+      "precision": "bf16",
+      "latency_ms": 0.370836
+    },
+    {
+      "type": "action",
+      "protocol": "rek.live_policy.v1",
+      "seq": 2,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "action": 1,
+      "gpu_ms": 0.12089599668979645,
+      "decision_index": 2,
+      "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+      "observation_schema": "rek.native5.scaled_polar_xy.v1",
+      "selection": "sampled",
+      "precision": "bf16",
+      "latency_ms": 0.163441
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "seq": 2,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "code": "stale_seq",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_shape",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_shape",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "mask_shape",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "mask_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "mask_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "empty_action_mask",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "terminal_boolean_required",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_round_id",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_round_id",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_schema_mismatch",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "missing_field",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "unsupported_field",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_seq",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_seq",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_seq",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "unknown_type",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_json_object",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_json_object",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "duplicate_field",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "embedded_nul",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "line_too_long",
+      "action_available": false
+    },
+    {
+      "type": "action",
+      "protocol": "rek.live_policy.v1",
+      "seq": 3,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "action": 17,
+      "gpu_ms": 0.20364800095558167,
+      "decision_index": 3,
+      "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+      "observation_schema": "rek.native5.scaled_polar_xy.v1",
+      "selection": "sampled",
+      "precision": "bf16",
+      "latency_ms": 0.260578
+    },
+    {
+      "type": "reset",
+      "protocol": "rek.live_policy.v1",
+      "seq": 4,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": true,
+      "round_changed": false,
+      "legal_actions": 0,
+      "latency_ms": 0.02208
+    },
+    {
+      "type": "action",
+      "protocol": "rek.live_policy.v1",
+      "seq": 5,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": true,
+      "round_changed": false,
+      "legal_actions": 1,
+      "action": 1,
+      "gpu_ms": 0.07654400169849396,
+      "decision_index": 4,
+      "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+      "observation_schema": "rek.native5.scaled_polar_xy.v1",
+      "selection": "sampled",
+      "precision": "bf16",
+      "latency_ms": 0.114097
+    },
+    {
+      "type": "terminal",
+      "protocol": "rek.live_policy.v1",
+      "seq": 6,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": true,
+      "round_changed": false,
+      "legal_actions": 0,
+      "latency_ms": 0.035776
+    },
+    {
+      "type": "action",
+      "protocol": "rek.live_policy.v1",
+      "seq": 7,
+      "round_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "recurrent_reset": true,
+      "round_changed": true,
+      "legal_actions": 1,
+      "action": 1,
+      "gpu_ms": 0.08723200112581253,
+      "decision_index": 5,
+      "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+      "observation_schema": "rek.native5.scaled_polar_xy.v1",
+      "selection": "sampled",
+      "precision": "bf16",
+      "latency_ms": 0.176066
+    },
+    {
+      "type": "closed",
+      "protocol": "rek.live_policy.v1",
+      "seq": 8
+    }
+  ]
+}

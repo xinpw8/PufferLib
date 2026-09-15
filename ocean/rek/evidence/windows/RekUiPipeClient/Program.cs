@@ -7,6 +7,9 @@ using System.Text;
 using System.Text.Json;
 using RekUiBridgeAgent;
 
+if (args.Length > 0 && args[0] == "policy-relay")
+    return await PolicyRelay.Run(args);
+
 const string PipeName = "rek-ui-bridge-v1";
 const string Protocol = "rek.ui_bridge.v1";
 const string ExpectedApplicationVersion = "0.0.119";
@@ -17,9 +20,9 @@ const string ExpectedMetadataSha256 =
     "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd";
 const string ExpectedSharedAssets0Sha256 =
     "37f7a476c56caae37f5a04d4fa1acf5954fdc2b90f20f521830369ecff05f355";
-const string ExpectedBridgeVersion = "0.4.6";
+const string ExpectedBridgeVersion = "0.4.9";
 const string ExpectedBridgeSha256 =
-    "6a46af475041f7fc42bb38d51e294699bcc6f98b823e56fea356878adcde3149";
+    "5754ea9f818ba27b24c6f8be25978ab59a772ab23d4f260e6f257aaff627d67c";
 const string ScheduleId = "rek.private_bot1.baseline.v1";
 const string ScheduleSchema = "rek.client_fixed.command_schedule.v2";
 const string ScheduleSha256 =
@@ -2744,6 +2747,8 @@ static void ValidateHello(
             "StopAttackZoneTrial",
             "StartG1HeldInputSchedule",
             "StopG1HeldInputSchedule",
+            "StartG1PolicyStream",
+            "StopG1PolicyStream",
         });
     RequireTrue(capabilities, "exclusive_control_lease_required");
     RequireFalse(capabilities, "autonomous_input");

@@ -1,5 +1,15 @@
 # REK UI State Bridge Agent prototype
 
+## Native-policy transfer stream
+
+Version0.4.8 provides the explicitly started G1 policy stream described in
+[G1_POLICY_STREAM.md](G1_POLICY_STREAM.md). The persistent pipe relay starts
+read-only. It can provide source telemetry before an exclusive controller lease
+is acquired. The policy stream supports33 categories through recovered game
+methods, with per-observation freshness, private Bot1/G1 pairing and Spark-only
+isolation checks. Missing source measurements remain null. This interface does
+not establish transfer performance or authentic-REK parity.
+
 This directory contains an uninstalled BepInEx IL2CPP plugin prototype for the current Windows REK build. It is a local state-observation bridge for a separate UI mirror. It does not reproduce the REK visuals by itself.
 
 ## Build binding

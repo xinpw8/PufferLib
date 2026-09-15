@@ -93,6 +93,9 @@ internal sealed class LocalPipeServer : IDisposable
                     capabilities = new
                     {
                         state = true,
+                        g1_policy_source_schema = G1PolicyStreamContract.Schema,
+                        g1_policy_action_count = 33,
+                        g1_policy_action_maximum_age_ms = 250,
                         private_ai_proof_basis =
                             "build_pinned_REK_FindMatch_solo_ConnectToArena_EnterChampionship_non_koth_solo_same_runtime_session",
                         solo_route_required_flow = SoloRouteProofContract.ExactFlow,

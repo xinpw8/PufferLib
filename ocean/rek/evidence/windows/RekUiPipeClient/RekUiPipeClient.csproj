@@ -9,7 +9,9 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Tests\**\*.cs" />
     <Compile Include="..\RekUiBridgeAgent\G1HeldInputScheduleContract.cs"
              Link="G1HeldInputScheduleContract.cs" />
+    <Compile Include="..\RekUiBridgeAgent\G1PolicyStreamContract.cs" Link="G1PolicyStreamContract.cs" />
   </ItemGroup>
 </Project>

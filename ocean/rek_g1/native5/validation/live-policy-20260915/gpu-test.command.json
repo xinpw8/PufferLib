@@ -1,0 +1,10 @@
+{
+  "executable": "/usr/bin/node",
+  "args": [
+    "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/live-policy-20260915/source/ocean/rek_g1/native5/live_policy_worker.test.cjs",
+    "gpu",
+    "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/live-policy-20260915/build-r1/live-policy-worker",
+    "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-mixed-r1/checkpoints/rek_native5/train-v4-mixed-r1/0000000268435456.bin",
+    "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b"
+  ]
+}

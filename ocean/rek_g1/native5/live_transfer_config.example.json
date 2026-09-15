@@ -1,0 +1,30 @@
+{
+  "projection": "client_pose_projection_v1",
+  "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+  "max_seconds": 30,
+  "enter_private": true,
+  "out": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/trial-r1",
+  "encoder": [
+    "/home/spark-advantage/rek-training/live-transfer-20260915/encoder-build/encode-live",
+    "--model",
+    "/home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml",
+    "--projection", "client_pose_projection_v1",
+    "--busy-projection", "dispatched_request_v4_duration"
+  ],
+  "worker": [
+    "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/live-policy-20260915/build-r1/live-policy-worker",
+    "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-mixed-r1/checkpoints/rek_native5/train-v4-mixed-r1/0000000268435456.bin",
+    "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b", "73"
+  ],
+  "relay": [
+    "docker", "exec", "-i", "--user", "1000:1000",
+    "-e", "DISPLAY=:98", "-e", "HOME=/opt/codexrook/home",
+    "-e", "WINEPREFIX=/opt/codexrook/wineprefix", "-e", "WINEDEBUG=-all",
+    "-e", "BOX64_NOBANNER=1", "-e", "BOX64_NOVULKAN=1",
+    "-e", "BOX64_LD_LIBRARY_PATH=/opt/codexrook/x64root-ubuntu-24.04/lib/x86_64-linux-gnu:/opt/codexrook/x64root-ubuntu-24.04/usr/lib/x86_64-linux-gnu:/opt/codexrook/wine-11.13/lib:/opt/codexrook/wine-11.13/lib/wine/x86_64-unix",
+    "codexrook-xserver", "/opt/codexrook/box64/bin/box64",
+    "/opt/codexrook/wine-11.13/bin/wine",
+    "/opt/codexrook/live-transfer-20260915/RekUiPipeClient-v049.exe",
+    "policy-relay", "REPLACE_WITH_DEPLOYED_BRIDGE_SHA256"
+  ]
+}

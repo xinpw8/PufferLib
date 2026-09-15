@@ -1,5 +1,12 @@
 # REK UI pipe client
 
+`RekUiPipeClient.exe policy-relay <expected-bridge-sha256>` provides a persistent
+stdin/stdout JSON-line connection for the G1 transfer experiment. It initially
+requests state only, verifies the live REK process, build, bridge hash and
+isolated Spark session, then accepts explicit requests. It never acquires a
+lease or starts a match by itself. See
+[the source/action contract](../RekUiBridgeAgent/G1_POLICY_STREAM.md).
+
 This build-pinned client is the only supported caller for
 `RekUiBridgeAgent` on the isolated Spark REK runtime. It opens the local
 current-user pipe, proves that the server process is the live `REK.exe`, and

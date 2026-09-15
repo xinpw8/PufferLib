@@ -1,0 +1,30 @@
+TAP version 13
+# Subtest: worker readiness pins the full selected inference contract
+ok 1 - worker readiness pins the full selected inference contract
+  ---
+  duration_ms: 0.886345
+  ...
+# Subtest: action identity and categorical range are checked before relay
+ok 2 - action identity and categorical range are checked before relay
+  ---
+  duration_ms: 0.204002
+  ...
+# Subtest: callback write failures are routed through shutdown instead of escaping
+ok 3 - callback write failures are routed through shutdown instead of escaping
+  ---
+  duration_ms: 0.104769
+  ...
+# Subtest: worker startup fatal rejects promptly, without waiting for ready timeout
+ok 4 - worker startup fatal rejects promptly, without waiting for ready timeout
+  ---
+  duration_ms: 68.799928
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 167.046859

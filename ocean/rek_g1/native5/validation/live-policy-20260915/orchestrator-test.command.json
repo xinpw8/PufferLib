@@ -1,0 +1,7 @@
+{
+  "executable": "/usr/bin/node",
+  "args": [
+    "--test",
+    "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/live-policy-20260915/source/ocean/rek_g1/native5/live_transfer_run.test.cjs"
+  ]
+}

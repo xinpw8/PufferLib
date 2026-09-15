@@ -1,0 +1,47 @@
+{
+  "schema": "rek.policy_bridge.visual_transport_fix.v1",
+  "baseline_plugin_version": "0.4.7",
+  "baseline_trial_path": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/trial-r2/relay.stdout.jsonl",
+  "baseline_measurements": {
+    "source_states": 426,
+    "policy_actions": 423,
+    "locally_applied_actions": 416,
+    "fixed_time_duration_seconds": 8.482,
+    "local_slot": 0,
+    "final_clean_hits": [0, 2],
+    "final_falls": [0, 0],
+    "accepted_move": {"observation_sequence": 324, "action": 26, "move_index": 10},
+    "all_input_punching_false": true,
+    "all_input_recovering_false": true,
+    "runner_motion_frame_index_distinct": [0],
+    "stop_reason": "requested_move_local_lifecycle_not_observed"
+  },
+  "native_source_findings": {
+    "private_disassembly_path": "C:/rekagent/work/controller-audit-isil/IsilDump/REKApp/REKApp/RobotInputController.txt",
+    "private_disassembly_sha256": "f248df08449e3ff0706ce15ea07e4d58517f2fc9ed3f3143473fa48c4323bc21",
+    "ExecuteMove_visual_only_branch_line": 6805,
+    "visual_pending_assignment_lines": [7437, 7438],
+    "nonvisual_allow_interrupt_and_IsPunching_guard_lines": [6901, 6905],
+    "OnMoveMessageReceived_calls_ExecuteMove_line": 3638,
+    "summary": "Visual-only ExecuteMove arms an outgoing request instead of executing local motion. The actual server controller receives the move and retains the native playback/interruption gates. Replicated bone snapshots contain poses without authoritative move or busy identity."
+  },
+  "correction": {
+    "plugin_version": "0.4.8",
+    "plugin_path": "C:/rekagent/build/g1-policy-stream-v2/RekUiBridgeAgent.dll",
+    "plugin_sha256": "f606da836c21cec3e12484371713f0a05ba7edc7f2efa0f02ae2f75de3205054",
+    "client_path": "C:/rekagent/build/g1-policy-pipe-v2/publish/RekUiPipeClient.exe",
+    "client_sha256": "6d5a9f61217c403b6ad8e5ed491bdbc92d12b43dc9d347f8421ab1d0a3347655",
+    "visual_transport_complete_requires": ["matching native SendMoveEvent method returned", "native hasPendingMove is false"],
+    "visual_action_busy": null,
+    "server_execution": "unknown",
+    "playback_completion": "unknown",
+    "synthetic_busy_timer_added": false,
+    "focused_tests_passed": 73,
+    "protocol_cases_passed": 266,
+    "build_exit_code": 0,
+    "warnings": 0,
+    "errors": 0
+  },
+  "live_followup": "Separate live trial required; this report does not claim successful transfer or parity.",
+  "raw_joint_arrays_or_proprietary_binaries_in_report": false
+}

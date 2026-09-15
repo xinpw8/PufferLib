@@ -1,0 +1,258 @@
+{
+  "test": "live-policy-worker",
+  "mode": "protocol",
+  "synthetic_observations": true,
+  "authentic_game_control": false,
+  "assertions": 109,
+  "responses": 35,
+  "actions": 0,
+  "checkpoint_sha256": null,
+  "latency_ms": null,
+  "exit_code": 0,
+  "stderr": "",
+  "transcript": [
+    {
+      "type": "protocol_ready",
+      "protocol": "rek.live_policy.v1",
+      "inference_available": false
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 1,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": true,
+      "round_changed": true,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.001296
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 2,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.00024
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "seq": 2,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "code": "stale_seq",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_shape",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_shape",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "mask_shape",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "mask_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "mask_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "empty_action_mask",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "terminal_boolean_required",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_round_id",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_round_id",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_schema_mismatch",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "missing_field",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "unsupported_field",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_seq",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_seq",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_seq",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "unknown_type",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_json_object",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "invalid_json_object",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "observation_value",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "duplicate_field",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "embedded_nul",
+      "action_available": false
+    },
+    {
+      "type": "error",
+      "protocol": "rek.live_policy.v1",
+      "code": "line_too_long",
+      "action_available": false
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 3,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": false,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.000224
+    },
+    {
+      "type": "reset",
+      "protocol": "rek.live_policy.v1",
+      "seq": 4,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": true,
+      "round_changed": false,
+      "legal_actions": 0,
+      "latency_ms": 0.000176
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 5,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": true,
+      "round_changed": false,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.000224
+    },
+    {
+      "type": "terminal",
+      "protocol": "rek.live_policy.v1",
+      "seq": 6,
+      "round_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recurrent_reset": true,
+      "round_changed": false,
+      "legal_actions": 0,
+      "latency_ms": 0.000224
+    },
+    {
+      "type": "validated",
+      "protocol": "rek.live_policy.v1",
+      "seq": 7,
+      "round_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "recurrent_reset": true,
+      "round_changed": true,
+      "legal_actions": 1,
+      "inference_available": false,
+      "latency_ms": 0.000224
+    },
+    {
+      "type": "closed",
+      "protocol": "rek.live_policy.v1",
+      "seq": 8
+    }
+  ]
+}

@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="..\BridgeProtocol.cs" Link="BridgeProtocol.cs" />
+    <Compile Include="..\G1PolicyStreamContract.cs" Link="G1PolicyStreamContract.cs" />
     <Compile Include="..\G1HeldInputScheduleContract.cs" Link="G1HeldInputScheduleContract.cs" />
     <Compile Include="..\RenderedCommandMarkerContract.cs" Link="RenderedCommandMarkerContract.cs" />
     <Compile Include="..\SingleMotionTrialContract.cs" Link="SingleMotionTrialContract.cs" />
