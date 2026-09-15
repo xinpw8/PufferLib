@@ -56,7 +56,7 @@ function prepare(run,executable,runtimeConfig){
     workerConfig:path.join(run,'semantic_cuda-worker.json'),logFile:path.join(run,'semantic_cuda-worker.stderr.log'),
     env:{REK_PHYSICS_BACKEND:'semantic_cuda',...Object.fromEntries(
       Object.entries(fast).map(([key,value])=>[`REK_FAST_${key.toUpperCase()}`,String(value)]))},
-    runtimeNote:`Same 50 Hz CUDA environment for training and evaluation. Native CUDA policy inference. CPU kinematics renders pictures only. Experimental ${base.round_seconds}-second rounds.`,
+    runtimeNote:`50 Hz CUDA simulation and native CUDA policy inference. CPU kinematics renders pictures only. Training and league use ${base.round_seconds}-second rounds; human round duration is selectable.`,
     warning:'Reduced-model experiment: canned joint poses with approximate root movement, strike/target volumes and collision response. Full rigid-body dynamics and shipped balance policies are absent. Authentic REK motion and contact parity are unverified.'};
   fs.writeFileSync(backend.workerConfig,JSON.stringify(base,null,2)+'\n',{mode:0o600,flag:'wx'});
   league.registerPolicy({backend:backend.id,id:'scripted',label:'Scripted approach / 16 moves',

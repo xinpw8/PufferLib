@@ -17,33 +17,54 @@
       <label>Physics backend<select id="backend" disabled></select></label>
       <label class="opponent-select">Opponent<select id="opponent" disabled></select></label>
       <label class="side-select">Your robot<select id="human-side" disabled><option value="0">Blue · side 0</option><option value="1">Orange · side 1</option></select></label>
+      <label class="round-select">Round limit<select id="round-seconds" disabled></select></label>
       <button id="load" class="primary" disabled>Load evaluation</button>
-      <button id="reset" disabled>Reset match</button>
+      <button id="play" disabled>Resume</button>
+      <button id="reset" disabled>Reset round</button>
     </section>
     <p id="selection-info" class="muted">Fetching available backends and checkpoints.</p>
-    <p id="runtime-note" class="runtime-note"><strong>Interactive viewer:</strong> CPU physics with CUDA policy/controller. Headless CUDA training runs separately. <span>Experimental 20-second rounds.</span></p>
+    <p id="training-summary" class="training-summary">Recorded training statistics unavailable.</p>
+    <p id="runtime-note" class="runtime-note">Fetching the selected runtime's execution details.</p>
+    <p id="round-protocol" class="muted">Human rounds default to 300 seconds. Three knockdowns can end a round earlier.</p>
     <p id="backend-warning" class="backend-warning" hidden>Puffysics is experimental. Frequent robot falls have been observed in this runtime. Scores may largely reflect fall/knockout awards; wins currently provide limited evidence of combat skill.</p>
     <p id="error" class="error" role="alert" hidden></p>
     <section class="arena-card" aria-label="Human evaluation arena">
       <div class="scoreboard">
-        <div class="fighter blue"><span id="blue-name">BLUE</span><div class="fighter-result"><strong id="blue-score">0</strong><small>POINTS</small><span id="blue-falls" class="fall-count">Falls: unknown</span></div></div>
+        <div class="fighter blue"><span id="blue-name">BLUE</span><div class="fighter-result"><strong id="blue-score">0</strong><small>ROUND POINTS</small><span id="blue-falls" class="fall-count">Falls: unknown</span></div></div>
         <div class="round-info"><span id="remaining">--:--</span><small id="match-status">Waiting for simulator</small></div>
-        <div class="fighter orange"><span id="orange-name">ORANGE</span><div class="fighter-result"><strong id="orange-score">0</strong><small>POINTS</small><span id="orange-falls" class="fall-count">Falls: unknown</span></div></div>
+        <div class="fighter orange"><span id="orange-name">ORANGE</span><div class="fighter-result"><strong id="orange-score">0</strong><small>ROUND POINTS</small><span id="orange-falls" class="fall-count">Falls: unknown</span></div></div>
       </div>
       <div id="arena" class="arena" tabindex="0" role="application" aria-label="Game controls. Click or focus here to play. W A S D movement, Q E turn, U straight kick, I side kick." aria-describedby="control-help">
         <img id="frame" alt="Live frame from the selected native physics backend" draggable="false">
-        <div id="focus-prompt" class="focus-prompt">Click the arena to enable controls</div>
+        <div id="focus-prompt" class="focus-prompt">Paused. Click the arena to play.</div>
       </div>
       <div class="arena-footer"><span id="active-config">No evaluation loaded</span><span id="tick">Tick 0</span></div>
+      <div class="session-board" aria-label="Session totals">
+        <div class="session-blue"><h2>Blue session</h2><strong id="session-blue-points">Unknown</strong><span>cumulative points</span><p id="session-blue-wld">W / L / D unavailable</p></div>
+        <div class="session-summary"><h2>Session results</h2><p id="session-rounds">Completed rounds unavailable</p><p id="session-last">No result loaded</p></div>
+        <div class="session-orange"><h2>Orange session</h2><strong id="session-orange-points">Unknown</strong><span>cumulative points</span><p id="session-orange-wld">W / L / D unavailable</p></div>
+      </div>
     </section>
-    <p class="score-note">Points can include knockout awards. Each robot's fall count is separate from its match losses.</p>
+    <p class="score-note">Round points reset each round. Session totals include completed rounds and survive Reset round. Loading an evaluation starts a new session. Knockout awards count as points; falls are separate from match losses.</p>
     <section class="controls" aria-label="Controls">
-      <div><h2 id="control-role">Choose your robot above</h2><p id="control-help"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hold to move · <kbd>Q</kbd><kbd>E</kbd> hold to turn · <kbd>U</kbd> straight kick · <kbd>I</kbd> side kick</p><p class="muted">Click outside the arena to release controls. Move selection and input locking are handled by the simulator.</p></div>
+      <div><h2 id="control-role">Choose your robot above</h2><p id="control-help"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hold to move · <kbd>Q</kbd><kbd>E</kbd> hold to turn · <kbd>U</kbd> straight kick · <kbd>I</kbd> side kick</p><p class="muted">W/S takes priority over A/D because the 33-action interface has no diagonal movement. Opposing keys cancel. Click outside the arena to release controls; leaving the window pauses play.</p></div>
       <div class="touch-controls" aria-label="On-screen controls">
         <button data-held="Q" aria-label="Hold turn left">Q ↶</button><button data-held="W" aria-label="Hold forward">W ↑</button><button data-held="E" aria-label="Hold turn right">E ↷</button>
         <button data-held="A" aria-label="Hold strafe left">A ←</button><button data-held="S" aria-label="Hold backward">S ↓</button><button data-held="D" aria-label="Hold strafe right">D →</button>
         <button data-move="17" class="kick">U · Straight kick</button><button data-move="18" class="kick">I · Side kick</button>
       </div>
+    </section>
+    <section class="training-card" aria-label="Recorded training statistics">
+      <div class="section-title"><h2>Recorded training run</h2><span id="training-status" class="muted">Unavailable</span></div>
+      <div class="training-grid">
+        <div><span>Training transitions</span><strong id="training-steps">Unknown</strong></div>
+        <div><span>Headless training SPS</span><strong id="training-sps">Unknown</strong></div>
+        <div><span>Training loop time</span><strong id="training-seconds">Unknown</strong></div>
+        <div><span>Whole process time</span><strong id="training-process-seconds">Unknown</strong></div>
+      </div>
+      <p id="training-selected" class="muted">Selected checkpoint information unavailable.</p>
+      <p id="training-evaluation" class="muted">No frozen evaluation loaded.</p>
+      <p id="training-note" class="muted">These are recorded headless training measurements, not browser frame rate or current training progress.</p>
     </section>
     <section class="standings-card" aria-label="Policy standings">
       <div class="section-title"><div><h2>Measured opponent strength</h2><p class="muted">Ranked within this physics backend. Winning completed matches determines strength.</p></div><button id="refresh">Refresh results</button></div>

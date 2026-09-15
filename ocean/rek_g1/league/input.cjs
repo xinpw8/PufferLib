@@ -4,6 +4,18 @@ const HELD = new Map([
   ['',1],['W',2],['S',3],['A',4],['D',5],['Q',6],['E',7],
   ['QW',8],['EW',9],['QS',10],['ES',11],['AQ',12],['AE',13],['DQ',14],['DE',15],
 ]);
+function resolveHeld(keys){
+  const held=new Set(keys);
+  // Opposing keys cancel independently. The 33-action runtime has no diagonal
+  // translation category: prefer forward/back over strafe when both remain.
+  // This is a deterministic human-adapter convention, not measured REK input
+  // behavior. Yaw remains independent and combines with the chosen translation.
+  for(const [a,b] of [['W','S'],['A','D'],['Q','E']]){
+    if(held.has(a)&&held.has(b)){held.delete(a);held.delete(b);}
+  }
+  if(held.has('W')||held.has('S')){held.delete('A');held.delete('D');}
+  return [...held].sort();
+}
 class HumanInput {
   constructor(){ this.reset(); }
   reset(){this.held=[];this.edge=null;this.pending=null;this.seq=-1;this.disposition='none';}
@@ -11,8 +23,7 @@ class HumanInput {
     if(!Number.isSafeInteger(value.seq)||value.seq<=this.seq)return false;
     if(!Array.isArray(value.held)||value.held.some(k=>!['W','S','A','D','Q','E'].includes(k)))
       throw new Error('Held input must contain W/S/A/D/Q/E only');
-    const held=[...new Set(value.held)].sort();
-    if(!HELD.has(held.join('')))throw new Error('Conflicting held inputs');
+    const held=resolveHeld(value.held);
     if(value.move!=null&&(!Number.isInteger(value.move)||value.move<16||value.move>32))
       throw new Error('Move must be an attack category 16 through 32');
     this.held=held;this.seq=value.seq;

@@ -1,0 +1,162 @@
+{
+  "schema": "rek.human_viewer.native_smoke.v1",
+  "host": "spark-4ae3",
+  "architecture": "arm64",
+  "tested_port": 18770,
+  "production_ports_touched": [],
+  "python_runtime": false,
+  "cpu_physics_steps": false,
+  "training_benchmark": false,
+  "script_sha256": "f6ed30588f74a88b99a44251d96d0df6046c837f8da587a4585229efa195a495",
+  "native_worker_sha256": "4a31b5ab14f7c447f292addd4dabb7b0d56dc2c0e48493c1caf430ab3cea8124",
+  "initial": {
+    "tick": 0,
+    "time_remaining_seconds": 300,
+    "paused": true,
+    "actions": [
+      0,
+      0
+    ],
+    "score": [
+      0,
+      0
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "failure_bits": 0,
+    "move_disposition": null,
+    "route": 0,
+    "move_busy": 0
+  },
+  "paused_input": {
+    "accepted_chords": 64,
+    "total_chords": 64,
+    "rejections": 0,
+    "gpu_state_steps": 0
+  },
+  "held_diagonal_yaw": {
+    "tick": 10,
+    "time_remaining_seconds": 299.79998779296875,
+    "paused": false,
+    "actions": [
+      8,
+      7
+    ],
+    "score": [
+      0,
+      0
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "failure_bits": 0,
+    "move_disposition": "none",
+    "route": 1,
+    "move_busy": 0
+  },
+  "attack": {
+    "tick": 21,
+    "time_remaining_seconds": 299.5799865722656,
+    "paused": false,
+    "actions": [
+      17,
+      0
+    ],
+    "score": [
+      0,
+      0
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "failure_bits": 0,
+    "move_disposition": "accepted",
+    "route": 8,
+    "move_busy": 1,
+    "translation_released_before_edge": true,
+    "held_yaw_before_attack": {
+      "tick": 20,
+      "time_remaining_seconds": 299.6000061035156,
+      "paused": false,
+      "actions": [
+        6,
+        0
+      ],
+      "score": [
+        0,
+        0
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "failure_bits": 0,
+      "move_disposition": "none",
+      "route": 5,
+      "move_busy": 0
+    },
+    "attack_edges_sent": 1,
+    "attack_category": 17
+  },
+  "final_paused": {
+    "tick": 21,
+    "time_remaining_seconds": 299.5799865722656,
+    "paused": true,
+    "actions": [
+      17,
+      0
+    ],
+    "score": [
+      0,
+      0
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "failure_bits": 0,
+    "move_disposition": "accepted",
+    "route": 8,
+    "move_busy": 1
+  },
+  "native_terminal": {
+    "requests": 2,
+    "chunk_limit": 512,
+    "stop_at_round": true,
+    "tick": 1000,
+    "round_number": 1,
+    "round_result": 1,
+    "winner": 1,
+    "score": [
+      0,
+      1
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "failure_bits": 0,
+    "scoreboard": {
+      "completedRounds": 1,
+      "bluePoints": 0,
+      "orangePoints": 1,
+      "blueWins": 0,
+      "orangeWins": 1,
+      "draws": 0,
+      "invalidRounds": 0,
+      "lastRound": {
+        "bluePoints": 0,
+        "orangePoints": 1,
+        "winner": 1,
+        "reason": "points"
+      }
+    },
+    "duplicate_record_counted": false,
+    "original_worker_config_sha256": "2f373c507736338e04e9389f9ebc6aad782a52b69f8e85e8bb002914ed6f8c73"
+  },
+  "ok": true
+}

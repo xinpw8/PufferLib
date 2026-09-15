@@ -1,0 +1,29 @@
+{
+  "status": "completed",
+  "steps": 33554432,
+  "trainingSps": 2508920.2201066464,
+  "trainingSeconds": 13.374053001403809,
+  "processWallSeconds": 13.98,
+  "benchmarkRoundSeconds": 20,
+  "checkpointSha256": "0fa325324083023d69f6e5b489792880e423b5b7c7bd06387eaf2c6007018fe2",
+  "frozenEvaluation": {
+    "wins": 1007,
+    "losses": 4,
+    "draws": 13,
+    "games": 1024,
+    "actionSelection": "sampled",
+    "precision": "bf16",
+    "opponent": "scripted",
+    "note": "Final 33M checkpoint only: 128 arenas, four rounds per arena on each fighter side, with fresh Philox action RNG seed 10001 and recurrent resets at terminals. Arena starts are fixed; seeds vary policy action draws, not geometry. No diagnostic observation override. This is the 20-second protocol, not a result for longer human rounds or the earlier 1M checkpoint."
+  },
+  "note": "Completed historical full-run headless C++/CUDA benchmark on Spark; this report does not indicate a live training job. SPS counts learner transitions across 512 arenas, including rollout and PPO, and excludes startup. Whole-process wall time is reported separately. Frozen strength belongs to the exact final checkpoint and sampled BF16 mode above; it must not be assigned to the earlier 1M checkpoint, greedy mode, or another opponent. High scripted win rate does not establish human-level strength or authentic REK parity. All 20 trained-versus-trained league matches ended 0-0.",
+  "evidenceSources": [
+    "ocean/rek_g1/native5/validation/semantic-fast-20260914/v2/training-v2-summary.json",
+    "ocean/rek_g1/native5/validation/semantic-fast-20260914/v2/train-v2-33m/stdout.txt",
+    "ocean/rek_g1/native5/validation/semantic-fast-20260914/v2/train-v2-33m/process-timing.txt",
+    "ocean/rek_g1/native5/validation/semantic-fast-20260914/v2/train-v2-33m/checkpoint-hashes.txt",
+    "ocean/rek_g1/native5/validation/compact-policy-v2-20260914/33m-sampled/summary.jsonl",
+    "ocean/rek_g1/native5/validation/compact-policy-v2-20260914/33m-sampled/command.txt",
+    "ocean/rek_g1/native5/validation/compact-policy-v2-20260914/league-summary.json"
+  ]
+}

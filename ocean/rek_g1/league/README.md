@@ -217,6 +217,35 @@ rather than a network share if strict crash consistency is needed.
 ## Human evaluation page
 
 `public/` contains the browser frontend for the root native-worker server.
+Human rounds default to 300 seconds, with 20/120/300-second options. Selection
+and manual reset start paused. Clicking the arena or an on-screen control
+resumes; the pause button, hidden tab, lost window focus, or missing client
+heartbeat can pause. Three knockdowns can still end a round early. The server
+retains each native terminal score, shows a three-second intermission, and
+keeps cumulative completed-round points and W/L/D through automatic and manual
+resets. Loading another evaluation starts a new session scoreboard. Manual
+resets do not count as wins or losses; human tests never update league rankings.
+
+The human duration is applied to a private temporary worker-config copy. The
+training configuration and league hash stay unchanged. Duration is part of
+the policy observation, so longer human rounds are explicitly a different,
+unranked protocol. Selecting 20 seconds restores the measured timer setting.
+
+Every valid WASDQE held-key combination is accepted. Opposing pairs cancel.
+Since the existing 33-category action space has no diagonal translation,
+forward/back takes priority over strafe when both survive cancellation. Yaw
+combines independently. This adapter convention is not measured REK parity.
+Attacks still do not stack; only yaw-interruption buffering is supported.
+
+An optional backend `trainingFile` resolves relative to the server config and
+loads a public, sanitized JSON report into `backend.training`. For the compact
+V2 checkpoint, use `league/training/semantic-cuda-v2.json`. It links the measured
+headless training run and frozen results to their repository evidence paths.
+The page separates full-run SPS from selected checkpoint age and checks both
+checkpoint SHA and inference mode before attributing frozen win/loss results.
+Missing training evidence stays unmeasured. Completed training is not displayed
+as a live training job.
+
 Backend and opponent selectors show measured ranking and explicit untested
 status. Keyboard handlers activate only while the arena itself is focused.
 Blur, hidden tab, selection changes, reset, and window exit release held keys.
