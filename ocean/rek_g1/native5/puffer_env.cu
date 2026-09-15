@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 typedef float obs_t;
 #include "pufferenv.h"
@@ -69,6 +70,43 @@ static void rek_native5_require_policy(int result,const char* operation) {
     if(result){fprintf(stderr,"REK frozen opponent %s: %s\n",operation,rek_native_policy_error());abort();}
 }
 
+// BEGIN REK_FROZEN_MIX_HOST_HELPERS
+// Startup-only selection. No CPU work is added to a rollout step.
+static bool rek_native5_parse_frozen_fraction(const char* text,double* fraction) {
+    if(!text){*fraction=1.0;return true;}
+    char* end=NULL;errno=0;
+    const double value=strtod(text,&end);
+    if(end==text||*end!='\0'||errno==ERANGE||!isfinite(value)||value<0||value>1)return false;
+    *fraction=value;return true;
+}
+static uint32_t rek_native5_mix_random(uint32_t* state) {
+    uint32_t value=(*state+=0x9e3779b9u);
+    value=(value^(value>>16))*0x85ebca6bu;
+    value=(value^(value>>13))*0xc2b2ae35u;
+    return value^(value>>16);
+}
+static int rek_native5_frozen_override_rows(uint8_t* overrides,int n,uint32_t seed,double fraction) {
+    if(!overrides||n<=0||!isfinite(fraction)||fraction<0||fraction>1)return -1;
+    memset(overrides,0,(size_t)n*2);
+    int count=fraction==1.0?n:(int)floor((double)n*fraction);
+    if(fraction>0&&count==0)count=1;
+    if(count==0)return 0;
+    if(count==n){for(int a=0;a<n;a++)overrides[2*(size_t)a+1]=1;return n;}
+    auto* order=(uint32_t*)malloc((size_t)n*sizeof(uint32_t));
+    if(!order)return -1;
+    for(int a=0;a<n;a++)order[a]=(uint32_t)a;
+    // A seeded partial Fisher-Yates shuffle chooses unique arena rows.
+    // The realized count is floor(n*fraction), with one positive-fraction minimum.
+    uint32_t state=seed;
+    for(int a=0;a<count;a++){
+        const int pick=a+(int)(rek_native5_mix_random(&state)%(uint32_t)(n-a));
+        const uint32_t arena=order[pick];order[pick]=order[a];order[a]=arena;
+        overrides[2*(size_t)arena+1]=1;
+    }
+    free(order);return count;
+}
+// END REK_FROZEN_MIX_HOST_HELPERS
+
 static const char* rek_native5_required_path(Dict* kwargs, const char* key) {
     DictItem* item = dict_find(kwargs, key);
     if (item == NULL || item->str == NULL || item->str[0] == '\0'
@@ -81,6 +119,10 @@ static const char* rek_native5_required_path(Dict* kwargs, const char* key) {
 
 Env* puf_vec_create(int n, Dict* kwargs, obs_t* observations,
         float* actions, float* rewards, float* terminals) {
+    double opponent_fraction;
+    if(!rek_native5_parse_frozen_fraction(getenv("REK_FROZEN_OPPONENT_FRACTION"),&opponent_fraction)){
+        fprintf(stderr,"REK_FROZEN_OPPONENT_FRACTION must be finite and in [0,1]\n");abort();
+    }
     const char* selected_backend=getenv("REK_PHYSICS_BACKEND");
     if(selected_backend&&(strcmp(selected_backend,"mujoco_cpu_eval")==0||strcmp(selected_backend,"puffysics_cpu_eval")==0)){
         fprintf(stderr,"CPU evaluation backends are restricted to the standalone viewer and cannot run through the native trainer\n");abort();
@@ -176,10 +218,12 @@ Env* puf_vec_create(int n, Dict* kwargs, obs_t* observations,
         rek_native5_require_cuda(cudaMalloc(&rek_native5_binding.external_overrides,(size_t)n*2),"allocate frozen overrides");
         uint8_t* overrides=(uint8_t*)calloc((size_t)n*2,1);
         if(!overrides){fprintf(stderr,"Frozen opponent override allocation failed\n");abort();}
-        for(int a=0;a<n;a++)overrides[2*a+1]=1;
+        const int frozen_arenas=rek_native5_frozen_override_rows(overrides,n,config.seed,opponent_fraction);
+        if(frozen_arenas<0){free(overrides);fprintf(stderr,"Frozen opponent row selection failed\n");abort();}
         rek_native5_require_cuda(cudaMemcpy(rek_native5_binding.external_overrides,overrides,(size_t)n*2,cudaMemcpyHostToDevice),"upload frozen overrides");free(overrides);
         rek_native5_require_runtime(rek_native5_bind_external_actions(runtime,rek_native5_binding.external_actions,rek_native5_binding.external_overrides,0),"bind frozen opponent");
         fprintf(stderr,"native5 frozen opponent: sha256=%s precision=%d deterministic=%d\n",rek_native_policy_sha256(rek_native5_binding.opponent),policy.precision,rek_native5_binding.opponent_deterministic);
+        fprintf(stderr,"native5_frozen_opponent_mix={\"requested_fraction\":%.17g,\"frozen_arenas\":%d,\"runtime_opponent_arenas\":%d,\"seed\":%u,\"selection\":\"seeded_fixed_rows_floor_positive_minimum_one\",\"inference_batch\":%d}\n",opponent_fraction,frozen_arenas,n-frozen_arenas,config.seed,n);
     }
     return envs;
 }

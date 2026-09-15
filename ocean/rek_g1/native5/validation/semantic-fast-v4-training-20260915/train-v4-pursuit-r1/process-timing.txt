@@ -1,0 +1,23 @@
+	Command being timed: "timeout --signal=TERM --kill-after=10s 900 env REK_PHYSICS_BACKEND=semantic_cuda REK_ALLOW_CPU_EVALUATION=0 REK_FAST_OPPONENT_MODE=neutral REK_FAST_RANDOM_RESETS=1 REK_FAST_RESET_GAP_MIN=1.25 REK_FAST_RESET_GAP_MAX=2.5 REK_FAST_RESET_HEADING_SPREAD_RAD=0.35 REK_FAST_SHAPING_WEIGHT=10 REK_FAST_SHAPING_GAMMA=0.999 REK_FAST_SHAPING_TARGET=0.65 REK_FAST_SHAPING_BEARING_WEIGHT=0.5 /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4-warm/puffer-rek-native5 train --headless --vec.total_agents=512 --train.horizon=128 --train.minibatch_size=8192 --train.total_timesteps=134217728 --train.gamma=0.999 --train.gae_lambda=0.995 --train.learning_rate=0.0003 --train.ent_coef=0.02 --sweep.metric=perf/train --sweep.downsample=64 --base.run_id=train-v4-pursuit-r1 --base.checkpoint_interval=64 --base.log_dir=/home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-pursuit-r1/logs --base.checkpoint_dir=/home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-pursuit-r1/checkpoints --env.round_seconds=20 --env.seed=79 --env.model_path=/home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml --env.physics_export_path=/home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json --env.assets_path=/home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact --env.motion_features_path=/home/spark-advantage/rek-training/gpu-runtime-20260910/motion-foot-features --base.load_model_path=/home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-close-r1/checkpoints/rek_native5/train-v4-close-r1/0000000033554432.bin --env.opponent_checkpoint=None"
+	User time (seconds): 0.71
+	System time (seconds): 0.84
+	Percent of CPU this job got: 3%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:49.75
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 661756
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 118971
+	Voluntary context switches: 17892
+	Involuntary context switches: 101
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 118880
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

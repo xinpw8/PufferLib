@@ -1,0 +1,61 @@
+{
+  "schema": "rek.compact.curriculum.training.v4",
+  "stages": [
+    {
+      "run": "train-v4-close-r1",
+      "steps": 33554432,
+      "trainingSps": 2741437.531855911,
+      "trainingSeconds": 12.239721536636353,
+      "processWallSeconds": 12.9,
+      "checkpointSha256": "93f767f6fcc72738cb5e310ef351f8d3f3635a2e8d70a6129d88857b408fa48a",
+      "summary": "train-v4-close-r1/summary.json"
+    },
+    {
+      "run": "train-v4-pursuit-r1",
+      "steps": 134217728,
+      "trainingSps": 2732726.44983316,
+      "trainingSeconds": 49.114951848983765,
+      "processWallSeconds": 49.75,
+      "checkpointSha256": "49216e495051709e1d148f9e4ebc3a01b95ffadd87a0c85ef27821f6d2623e59",
+      "summary": "train-v4-pursuit-r1/summary.json"
+    },
+    {
+      "run": "train-v4-orientation-r1",
+      "steps": 268435456,
+      "trainingSps": 2717493.0155370184,
+      "trainingSeconds": 98.78055047988892,
+      "processWallSeconds": 99.42,
+      "checkpointSha256": "65d1d31e8d99df825a0db5e34b370a697b4b26476f9a73b8db63f7fed87080a8",
+      "summary": "train-v4-orientation-r1/summary.json"
+    },
+    {
+      "run": "train-v4-mixed-r1",
+      "steps": 268435456,
+      "trainingSps": 1715495.3378505833,
+      "trainingSeconds": 156.47693705558777,
+      "processWallSeconds": 157.14,
+      "checkpointSha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+      "summary": "train-v4-mixed-r1/summary.json"
+    }
+  ],
+  "cumulativeLearnerTransitions": 704643072,
+  "cumulativeTrainingSeconds": 316.6121609210968,
+  "cumulativeTrainingSps": 2225571.721408404,
+  "cumulativeProcessSeconds": 319.21,
+  "cumulativeProcessInclusiveSps": 2207459.2650606185,
+  "rejectedExperiments": [
+    {
+      "run": "train-v4-long-r1",
+      "steps": 134217728,
+      "trainingSps": 1623537.2991086547,
+      "trainingSeconds": 82.66993808746338,
+      "processWallSeconds": 83.32,
+      "checkpointSha256": "b20831647814b0336e582ae3c513543d3b65d8064359e635e6b38b92001104e4",
+      "selection": "rejected_experiment",
+      "reason": "The long-round fine-tune regressed in independent frozen evaluation. It is excluded from selected-checkpoint transition and timing totals.",
+      "summary": "train-v4-long-r1/summary.json"
+    }
+  ],
+  "strengthConclusion": null,
+  "note": "Four selected weights-linked curriculum stages; rejected experiments are separate and excluded from selected totals. This report measures training execution and initialization, not policy strength. Frozen evaluation is maintained separately."
+}

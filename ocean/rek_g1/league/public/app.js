@@ -5,7 +5,8 @@
     'error', 'arena', 'frame', 'blue-score', 'orange-score', 'blue-falls', 'orange-falls', 'blue-name', 'orange-name', 'remaining', 'match-status',
     'active-config', 'tick', 'standings', 'ranking-note', 'control-role', 'backend-warning', 'runtime-note', 'round-protocol', 'focus-prompt',
     'session-blue-points', 'session-orange-points', 'session-blue-wld', 'session-orange-wld', 'session-rounds', 'session-last',
-    'training-status', 'training-steps', 'training-sps', 'training-seconds', 'training-process-seconds', 'training-selected', 'training-evaluation', 'training-note', 'training-summary'].map(id => [id, $(id)]));
+    'training-status', 'training-steps', 'training-sps', 'training-seconds', 'training-process-seconds', 'training-selected', 'training-evaluation',
+    'training-conditions-wrap', 'training-conditions', 'training-note', 'training-summary'].map(id => [id, $(id)]));
   let catalog = {backends: [], policies: [], active: null};
   let active = null;
   // Monotonic across page reloads for a server that rejects stale input packets.
@@ -114,6 +115,50 @@
   function number(value, digits = 0) {
     return Number.isFinite(value) && value >= 0 ? value.toLocaleString('en-US', {maximumFractionDigits: digits}) : 'Unknown';
   }
+  function knownOutcome(result) {
+    return result && [result.wins, result.losses, result.draws, result.games].every(v => Number.isSafeInteger(v) && v >= 0)
+      && result.games > 0 && result.wins + result.losses + result.draws === result.games;
+  }
+  function frozenProtocol(training, result) {
+    const shared = training?.frozenEvaluationProtocol || training?.frozenEvaluation;
+    return {checkpointSha256: result?.checkpointSha256 ?? shared?.checkpointSha256 ?? training?.checkpointSha256,
+      precision: result?.precision ?? shared?.precision, actionSelection: result?.actionSelection ?? shared?.actionSelection};
+  }
+  function matchesFrozenPolicy(policy, protocol) {
+    return policy?.kind === 'trained' && typeof protocol.checkpointSha256 === 'string' && protocol.checkpointSha256.length > 0
+      && policy.checkpoint?.sha256 === protocol.checkpointSha256 && ['bf16', 'fp32'].includes(protocol.precision)
+      && policy.checkpoint?.model?.precision === protocol.precision && ['sampled', 'greedy'].includes(protocol.actionSelection)
+      && (policy.checkpoint?.model?.actionSelection || 'greedy') === protocol.actionSelection;
+  }
+  function renderFrozenConditions(training, policy) {
+    const conditions = Array.isArray(training?.frozenEvaluationConditions) ? training.frozenEvaluationConditions : [];
+    ui['training-conditions'].replaceChildren();
+    ui['training-conditions-wrap'].hidden = conditions.length === 0;
+    const matchedSeconds = new Set(); let valid = 0;
+    for (const condition of conditions) {
+      const result = condition || {};
+      const known = knownOutcome(result);
+      const protocol = frozenProtocol(training, result);
+      const matches = known && matchesFrozenPolicy(policy, protocol);
+      const seconds = Number.isFinite(result.roundSeconds) && result.roundSeconds > 0 ? result.roundSeconds : null;
+      if (known) valid++;
+      if (matches && seconds !== null) matchedSeconds.add(seconds);
+      const text = value => typeof value === 'string' && value.trim() ? value : 'Unknown';
+      const zeroHits = known && Number.isSafeInteger(result.zeroHitGames) && result.zeroHitGames >= 0 && result.zeroHitGames <= result.games
+        ? number(result.zeroHitGames) : 'Unknown';
+      const digest = typeof protocol.checkpointSha256 === 'string' && protocol.checkpointSha256 ? protocol.checkpointSha256.slice(0, 12) : 'hash unknown';
+      const label = `${text(protocol.actionSelection)} / ${text(protocol.precision).toUpperCase()} · ${digest}`;
+      const row = document.createElement('tr');
+      for (const value of [text(result.opponent), text(result.geometry), seconds === null ? 'Unknown' : `${number(seconds)} s`,
+        known ? `${result.wins} / ${result.losses} / ${result.draws}` : 'Invalid or missing results', known ? number(result.games) : 'Unknown',
+        zeroHits, `${number(result.meanPoints, 2)} / ${number(result.meanOpponentPoints, 2)}`,
+        `${label}. ${matches ? 'Matches loaded checkpoint and inference mode.' : 'Does not establish results for the loaded opponent.'}`]) {
+        const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
+      }
+      ui['training-conditions'].append(row);
+    }
+    return {count: conditions.length, valid, matchedSeconds};
+  }
   function renderTraining(backend, policy) {
     const training = backend?.training;
     ui['training-summary'].textContent = training
@@ -129,12 +174,15 @@
       ? `Loaded checkpoint: ${number(policy.checkpoint?.trainingSteps)} transitions · ${model?.precision?.toUpperCase() || 'unknown precision'} inference · ${model?.actionSelection || 'greedy'} actions. Checkpoint ${policy.checkpoint?.sha256?.slice(0, 12) || 'hash unavailable'}.`
       : policy ? 'Scripted opponent selected. It has no trained checkpoint.' : 'No trained checkpoint selected.';
     const frozen = training?.frozenEvaluation;
-    const known = frozen && [frozen.wins, frozen.losses, frozen.draws, frozen.games].every(v => Number.isSafeInteger(v) && v >= 0)
-      && frozen.games > 0 && frozen.wins + frozen.losses + frozen.draws === frozen.games;
-    if (known) {
-      const matches = policy?.checkpoint?.sha256 === training.checkpointSha256 && model?.precision === frozen.precision
-        && (model?.actionSelection || 'greedy') === frozen.actionSelection;
-      ui['training-evaluation'].textContent = `Recorded frozen ${frozen.actionSelection} evaluation: ${frozen.wins} W / ${frozen.losses} L / ${frozen.draws} D in ${frozen.games} games (${(100 * frozen.wins / frozen.games).toFixed(2)}% wins), using ${number(training.benchmarkRoundSeconds)} s rounds.`
+    const conditions = renderFrozenConditions(training, policy);
+    if (conditions.count) {
+      ui['training-evaluation'].textContent = `Recorded frozen conditions: ${conditions.valid} with validated outcome counts of ${conditions.count} listed. Each row identifies its opponent, starts and duration. These tests do not measure strength against a human; no overall win rate is inferred.`;
+    } else if (knownOutcome(frozen)) {
+      const protocol = frozenProtocol(training, frozen);
+      const matches = matchesFrozenPolicy(policy, protocol);
+      const frozenSeconds = frozen.roundSeconds ?? training.benchmarkRoundSeconds;
+      if (matches && Number.isFinite(frozenSeconds) && frozenSeconds > 0) conditions.matchedSeconds.add(frozenSeconds);
+      ui['training-evaluation'].textContent = `Recorded frozen ${protocol.actionSelection} evaluation: ${frozen.wins} W / ${frozen.losses} L / ${frozen.draws} D in ${frozen.games} games (${(100 * frozen.wins / frozen.games).toFixed(2)}% wins), using ${number(frozenSeconds)} s rounds${frozen.opponent ? ` versus ${frozen.opponent}` : ''}.`
         + (matches ? ' Checkpoint, precision and action mode match the loaded opponent.' : ' This result belongs to the benchmark checkpoint, precision and action mode, not the loaded opponent.');
     } else ui['training-evaluation'].textContent = 'No verified frozen evaluation supplied for the recorded training run.';
     ui['training-note'].textContent = `Recorded headless training measurements, not browser frame rate or current training progress.${training?.note ? ` ${training.note}` : ''}`;
@@ -143,7 +191,10 @@
     const roundEndNote = typeof backend?.roundEndNote === 'string' && backend.roundEndNote.trim()
       ? backend.roundEndNote : 'Round-end rules depend on the selected backend.';
     ui['round-protocol'].textContent = `Human round limit: ${Number.isFinite(seconds) ? `${seconds} s` : 'not loaded'}. Training/benchmark round limit: ${Number.isFinite(trainedSeconds) ? `${trainedSeconds} s` : 'unknown'}. ${roundEndNote}`
-      + (Number.isFinite(seconds) && Number.isFinite(trainedSeconds) && seconds !== trainedSeconds ? ' Strength at this longer or shorter duration has not been measured.' : '');
+      + (conditions.matchedSeconds.has(seconds)
+        ? ` Matching frozen tests at ${seconds} s are listed for this checkpoint and inference mode; their opponents and starts do not establish human strength.`
+        : Number.isFinite(seconds) && Number.isFinite(trainedSeconds) && seconds !== trainedSeconds
+          ? ' Strength at this longer or shorter duration has not been measured in the loaded evidence for this checkpoint and inference mode.' : '');
   }
   function renderSession(session) {
     ui['session-blue-points'].textContent = number(session?.bluePoints);

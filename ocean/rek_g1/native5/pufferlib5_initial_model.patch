@@ -1,0 +1,37 @@
+diff --git a/src/pufferl.cu b/src/pufferl.cu
+--- a/src/pufferl.cu
++++ b/src/pufferl.cu
+@@ -3187,3 +3187,33 @@ TrainResult run_train(Ini* ini, TrainContext* ctx) {
+     PuffeRL* pufferl = create_pufferl(ini, ctx);
++    char initial_model_buf[4096];
++    const char* initial_model = puf_checkpoint_path_key(
++        ini, "load_model_path", initial_model_buf, sizeof(initial_model_buf));
++    if (initial_model) {
++        // Weights-only initialization: fresh optimizer, RNG, RNN and step count.
++        struct stat initial_stat;
++        const int64_t expected_bytes =
++            numel(pufferl->policies[0].master_weights.shape) * sizeof(float);
++        if (stat(initial_model, &initial_stat) != 0
++                || !S_ISREG(initial_stat.st_mode)
++                || initial_stat.st_size != expected_bytes) {
++            fprintf(stderr, "Initial policy file size does not match this architecture\n");
++            abort();
++        }
++        pufferl_load_policy(pufferl, 0, initial_model);
++        if (pufferl->hypers.async) {
++            puf_copy(&pufferl->actor_param, &pufferl->policies[0].param,
++                pufferl->default_stream);
++            cudaStreamSynchronize(pufferl->default_stream);
++        }
++        if (ctx->artifact_owner) {
++            // Exact step-zero readback supports external SHA-256 verification.
++            char verified_initial[4096];
++            snprintf(verified_initial, sizeof(verified_initial),
++                "%s/%016ld.bin", checkpoint_dir, pufferl->global_step);
++            puf_save_weights(pufferl, verified_initial);
++            fprintf(stderr, "Loaded initial policy: %s; step=%ld; fresh_optimizer=1; step_zero_readback=%s\n",
++                initial_model, pufferl->global_step, verified_initial);
++        }
++    }
+     Selfplay selfplay = {0};
+     if (use_selfplay) {

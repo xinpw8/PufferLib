@@ -1,0 +1,3 @@
+{"test":"v4_seeded_resets_and_modes","status":"passed","arenas":64,"seed":73,"changed_seed":74,"mixed_counts":[14,17,16,17],"explicit_reset_bitwise_replay":true,"fixed_defaults_preserved":true,"bounds_checked":true}
+{"test":"v4_potential_shaping","status":"passed","maximum_reward_error":1.76395014e-08,"terminal_potential_zero":true,"discounted_telescoping":true,"state_masks_scores_unchanged":true,"weight":0.7,"gamma":0.999}
+{"test":"v4_parameter_rejection","status":"passed","invalid_cases":10}

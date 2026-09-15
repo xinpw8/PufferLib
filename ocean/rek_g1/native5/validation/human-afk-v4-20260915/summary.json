@@ -1,0 +1,618 @@
+{
+  "status": "completed",
+  "host": "spark-4ae3",
+  "private_evidence_directory": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/human-afk-v4-mixed-r1",
+  "full_trace_sha256": {
+    "side0-20s.trace.jsonl": "54c3307a92c5453d93f9d33f4ba9317bc3637405450cc420af31cdbe3c9e2c8b",
+    "side0-300s.trace.jsonl": "90ca92d1ac7254a32706ed07cd8ecdad6afaeef1280d13d1657982ebfd3040ed",
+    "side1-20s.trace.jsonl": "d9b0d8c93556767d434b381058cb25a743e9f32068cf863af6a92e83e9cee2f1",
+    "side1-300s.trace.jsonl": "361fa7b00e1d3d6b912910ebf32e8fecaaf8a2a49cda08d9a238e079e440e854",
+    "summary.json": "7e1e5eb4f4467333b4bfeb639e7016b10a344bd1175f638d87e215e5ac5848e4"
+  },
+  "cases": [
+    {
+      "runtime": "semantic_cuda_v4",
+      "worker_sha256": "4942240cf9f5dd40900260ee679e891a60ea5fffe6713064bb9a5a2b0c122858",
+      "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+      "policy_side": 0,
+      "opponent": "external neutral category1",
+      "round_seconds": 20,
+      "seed": 73,
+      "arenas": 1,
+      "precision": "bf16",
+      "action_selection": "sampled",
+      "observation_encoding": "scaled_polar_xy",
+      "reset_randomization": false,
+      "terminal_tick": 1000,
+      "score": [
+        78,
+        0
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "winner": 0,
+      "round_result": 1,
+      "policy_contact_points": 78,
+      "first_policy_hit_tick": 146,
+      "first_policy_hit_seconds": 2.92,
+      "action_counts": [
+        163,
+        266,
+        11,
+        12,
+        0,
+        3,
+        142,
+        288,
+        28,
+        39,
+        5,
+        8,
+        5,
+        1,
+        0,
+        11,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        17,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "route_ticks": {
+        "0": 9,
+        "1": 80,
+        "2": 25,
+        "3": 6,
+        "4": 15,
+        "5": 7,
+        "6": 3,
+        "16": 721,
+        "17": 134
+      },
+      "attack_entries": 18,
+      "attack_entry_categories": {
+        "25": 17,
+        "26": 1
+      },
+      "busy_ticks": 838,
+      "facing_within_0_16_rad_ticks": 925,
+      "facing_fraction": 0.925,
+      "min_gap_m": 0.4399999487368074,
+      "max_gap_m": 1.800800203170366,
+      "policy_root_path_length_m": 1.6582948012585506,
+      "initial_roots": [
+        [
+          -0.900000035762787,
+          0
+        ],
+        [
+          0.899999976158142,
+          0
+        ]
+      ],
+      "final_roots": [
+        [
+          0.7333386540412903,
+          0.20330609381198883
+        ],
+        [
+          1.0543241500854492,
+          -0.09763959795236588
+        ]
+      ],
+      "protocol_wall_seconds": 1.495646024,
+      "failure_bits": 0,
+      "shaping_weight": 0,
+      "cpu_physics": false,
+      "python_runtime": false,
+      "live_user_interaction": false,
+      "training_sps": null,
+      "score_event_count": 78,
+      "first_score_event": {
+        "tick": 146,
+        "score": [
+          1,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "actions": [
+          26,
+          1
+        ],
+        "roots": [
+          [
+            0.7333386540412903,
+            0.20330607891082764
+          ],
+          [
+            1.0543241500854492,
+            -0.09763959050178528
+          ]
+        ],
+        "gap_m": 0.43999998251013656,
+        "facing_error_rad": 0.06329331139340544,
+        "policy_contact_points": 1,
+        "busy": true,
+        "route": 17,
+        "terminal": 0
+      },
+      "uniform_5hz_facing": {
+        "samples": 100,
+        "median_abs_bearing_rad": 0.06329327433459729,
+        "p90_abs_bearing_rad": 0.09256853667706327,
+        "within45deg": 1,
+        "within90deg": 1
+      }
+    },
+    {
+      "runtime": "semantic_cuda_v4",
+      "worker_sha256": "4942240cf9f5dd40900260ee679e891a60ea5fffe6713064bb9a5a2b0c122858",
+      "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+      "policy_side": 1,
+      "opponent": "external neutral category1",
+      "round_seconds": 20,
+      "seed": 73,
+      "arenas": 1,
+      "precision": "bf16",
+      "action_selection": "sampled",
+      "observation_encoding": "scaled_polar_xy",
+      "reset_randomization": false,
+      "terminal_tick": 1000,
+      "score": [
+        0,
+        69
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "winner": 1,
+      "round_result": 1,
+      "policy_contact_points": 69,
+      "first_policy_hit_tick": 170,
+      "first_policy_hit_seconds": 3.4,
+      "action_counts": [
+        199,
+        232,
+        12,
+        9,
+        1,
+        3,
+        126,
+        289,
+        30,
+        40,
+        7,
+        8,
+        6,
+        1,
+        3,
+        17,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        16,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "route_ticks": {
+        "0": 8,
+        "1": 90,
+        "2": 24,
+        "3": 8,
+        "4": 23,
+        "5": 11,
+        "6": 5,
+        "16": 697,
+        "17": 134
+      },
+      "attack_entries": 17,
+      "attack_entry_categories": {
+        "25": 16,
+        "26": 1
+      },
+      "busy_ticks": 815,
+      "facing_within_0_16_rad_ticks": 64,
+      "facing_fraction": 0.064,
+      "min_gap_m": 0.43999994186329267,
+      "max_gap_m": 1.8008000839730356,
+      "policy_root_path_length_m": 1.827083631825235,
+      "initial_roots": [
+        [
+          -0.900000035762787,
+          0
+        ],
+        [
+          0.899999976158142,
+          0
+        ]
+      ],
+      "final_roots": [
+        [
+          -1.040289044380188,
+          0.1745396852493286
+        ],
+        [
+          -0.8413304686546326,
+          -0.21790838241577148
+        ]
+      ],
+      "protocol_wall_seconds": 1.471814425,
+      "failure_bits": 0,
+      "shaping_weight": 0,
+      "cpu_physics": false,
+      "python_runtime": false,
+      "live_user_interaction": false,
+      "training_sps": null,
+      "score_event_count": 69,
+      "first_score_event": {
+        "tick": 170,
+        "score": [
+          0,
+          1
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "actions": [
+          1,
+          26
+        ],
+        "roots": [
+          [
+            -1.040289044380188,
+            0.1745396852493286
+          ],
+          [
+            -0.8413304686546326,
+            -0.21790838241577148
+          ]
+        ],
+        "gap_m": 0.4400000007600143,
+        "facing_error_rad": 0.38736952276843395,
+        "policy_contact_points": 1,
+        "busy": true,
+        "route": 17,
+        "terminal": 0
+      },
+      "uniform_5hz_facing": {
+        "samples": 100,
+        "median_abs_bearing_rad": 0.38736952276843395,
+        "p90_abs_bearing_rad": 0.38736952276843395,
+        "within45deg": 1,
+        "within90deg": 1
+      }
+    },
+    {
+      "runtime": "semantic_cuda_v4",
+      "worker_sha256": "4942240cf9f5dd40900260ee679e891a60ea5fffe6713064bb9a5a2b0c122858",
+      "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+      "policy_side": 0,
+      "opponent": "external neutral category1",
+      "round_seconds": 300,
+      "seed": 73,
+      "arenas": 1,
+      "precision": "bf16",
+      "action_selection": "sampled",
+      "observation_encoding": "scaled_polar_xy",
+      "reset_randomization": false,
+      "terminal_tick": 15000,
+      "score": [
+        533,
+        0
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "winner": 0,
+      "round_result": 1,
+      "policy_contact_points": 533,
+      "first_policy_hit_tick": 155,
+      "first_policy_hit_seconds": 3.1,
+      "action_counts": [
+        389,
+        1802,
+        14,
+        10,
+        5106,
+        2,
+        1229,
+        6124,
+        34,
+        39,
+        8,
+        7,
+        2,
+        1,
+        1,
+        17,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        214,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "route_ticks": {
+        "0": 6,
+        "1": 90,
+        "2": 25,
+        "3": 5109,
+        "4": 20,
+        "5": 6,
+        "6": 5,
+        "16": 9605,
+        "17": 134
+      },
+      "attack_entries": 215,
+      "attack_entry_categories": {
+        "25": 214,
+        "26": 1
+      },
+      "busy_ticks": 9525,
+      "facing_within_0_16_rad_ticks": 77,
+      "facing_fraction": 0.0051333333333333335,
+      "min_gap_m": 0.43999994149618193,
+      "max_gap_m": 2.508623908562813,
+      "policy_root_path_length_m": 4.886478623727356,
+      "initial_roots": [
+        [
+          -0.900000035762787,
+          0
+        ],
+        [
+          0.899999976158142,
+          0
+        ]
+      ],
+      "final_roots": [
+        [
+          2.0799999237060547,
+          2.0799999237060547
+        ],
+        [
+          1.1460477113723755,
+          -0.24828854203224182
+        ]
+      ],
+      "protocol_wall_seconds": 15.766911485,
+      "failure_bits": 0,
+      "shaping_weight": 0,
+      "cpu_physics": false,
+      "python_runtime": false,
+      "live_user_interaction": false,
+      "training_sps": null,
+      "score_event_count": 532,
+      "first_score_event": {
+        "tick": 155,
+        "score": [
+          1,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "actions": [
+          26,
+          1
+        ],
+        "roots": [
+          [
+            0.8719003200531006,
+            0.139959380030632
+          ],
+          [
+            1.1316221952438354,
+            -0.2152090072631836
+          ]
+        ],
+        "gap_m": 0.440000040665318,
+        "facing_error_rad": 0.5956472231970508,
+        "policy_contact_points": 1,
+        "busy": true,
+        "route": 17,
+        "terminal": 0
+      },
+      "uniform_5hz_facing": {
+        "samples": 1500,
+        "median_abs_bearing_rad": 0.5956472231970508,
+        "p90_abs_bearing_rad": 0.5956472231970508,
+        "within45deg": 0.9486666666666667,
+        "within90deg": 1
+      }
+    },
+    {
+      "runtime": "semantic_cuda_v4",
+      "worker_sha256": "4942240cf9f5dd40900260ee679e891a60ea5fffe6713064bb9a5a2b0c122858",
+      "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+      "policy_side": 1,
+      "opponent": "external neutral category1",
+      "round_seconds": 300,
+      "seed": 73,
+      "arenas": 1,
+      "precision": "bf16",
+      "action_selection": "sampled",
+      "observation_encoding": "scaled_polar_xy",
+      "reset_randomization": false,
+      "terminal_tick": 15000,
+      "score": [
+        0,
+        530
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "winner": 1,
+      "round_result": 1,
+      "policy_contact_points": 530,
+      "first_policy_hit_tick": 153,
+      "first_policy_hit_seconds": 3.06,
+      "action_counts": [
+        406,
+        1725,
+        13,
+        9,
+        4911,
+        1,
+        1212,
+        6395,
+        30,
+        43,
+        5,
+        9,
+        5,
+        2,
+        2,
+        13,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        218,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "route_ticks": {
+        "0": 5,
+        "1": 90,
+        "2": 23,
+        "3": 4918,
+        "4": 16,
+        "5": 6,
+        "6": 6,
+        "16": 9802,
+        "17": 134
+      },
+      "attack_entries": 219,
+      "attack_entry_categories": {
+        "25": 218,
+        "26": 1
+      },
+      "busy_ticks": 9718,
+      "facing_within_0_16_rad_ticks": 66,
+      "facing_fraction": 0.0044,
+      "min_gap_m": 0.43999995147696747,
+      "max_gap_m": 2.0866687864723965,
+      "policy_root_path_length_m": 5.177272140650173,
+      "initial_roots": [
+        [
+          -0.900000035762787,
+          0
+        ],
+        [
+          0.899999976158142,
+          0
+        ]
+      ],
+      "final_roots": [
+        [
+          -1.0823075771331787,
+          0.247297927737236
+        ],
+        [
+          -2.0799999237060547,
+          2.0799999237060547
+        ]
+      ],
+      "protocol_wall_seconds": 16.853344777,
+      "failure_bits": 0,
+      "shaping_weight": 0,
+      "cpu_physics": false,
+      "python_runtime": false,
+      "live_user_interaction": false,
+      "training_sps": null,
+      "score_event_count": 529,
+      "first_score_event": {
+        "tick": 153,
+        "score": [
+          0,
+          1
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "actions": [
+          1,
+          26
+        ],
+        "roots": [
+          [
+            -1.06437349319458,
+            0.1890343576669693
+          ],
+          [
+            -0.8634148240089417,
+            -0.2023933082818985
+          ]
+        ],
+        "gap_m": 0.44000000498981956,
+        "facing_error_rad": 0.615669475802574,
+        "policy_contact_points": 1,
+        "busy": true,
+        "route": 17,
+        "terminal": 0
+      },
+      "uniform_5hz_facing": {
+        "samples": 1500,
+        "median_abs_bearing_rad": 0.615669475802574,
+        "p90_abs_bearing_rad": 2.5017118998969545,
+        "within45deg": 0.5413333333333333,
+        "within90deg": 0.554
+      }
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"tests":3,"status":"passed","delayedVerificationWaited":true,"failedTrainingRejected":true,"alreadyReadyAccepted":true,"gpuInvocations":0,"command":"wsl -e bash -lc 'node /mnt/c/Users/Daniel/codex-rek-puffysics-training-profile/ocean/rek_g1/native5/run_checkpoint_screen.test.cjs'"}

@@ -253,6 +253,64 @@ test('recorded training and frozen evaluation identify checkpoint, precision, ac
   assert.equal(ui['training-steps'].textContent, '33,554,432');
 });
 
+test('frozen conditions retain opponent, geometry, duration and behavioral results without an overall strength percentage', async () => {
+  const {elements: ui, catalog} = await setup({backend: 'mujoco', opponent: 'trained', humanSide: 1, roundSeconds: 300, trainingRoundSeconds: 20});
+  catalog.policies[1].checkpoint = {sha256:'v4-sha',model:{precision:'bf16',actionSelection:'sampled'}};
+  catalog.backends[0].training = {status:'completed',checkpointSha256:'v4-sha',benchmarkRoundSeconds:20,
+    frozenEvaluationProtocol:{precision:'bf16',actionSelection:'sampled'},
+    frozenEvaluationConditions:[
+      {opponent:'neutral',geometry:'fixed starts',roundSeconds:300,wins:62,losses:0,draws:2,games:64,zeroHitGames:2,meanPoints:17.5,meanOpponentPoints:0},
+      {opponent:'retreat',geometry:'held-out seed10001',roundSeconds:20,wins:3,losses:4,draws:57,games:64,zeroHitGames:57,meanPoints:0.2,meanOpponentPoints:0.3},
+    ]};
+  await ui.refresh.trigger('click');
+  assert.equal(ui['training-conditions-wrap'].hidden,false);
+  assert.equal(ui['training-conditions'].children.length,2);
+  const first = ui['training-conditions'].children[0].cells;
+  assert.deepEqual(first.slice(0,7).map(cell=>cell.textContent),['neutral','fixed starts','300 s','62 / 0 / 2','64','2','17.5 / 0']);
+  assert.match(first[7].textContent,/sampled \/ BF16.*v4-sha.*Matches loaded checkpoint/);
+  const second = ui['training-conditions'].children[1].cells;
+  assert.equal(second[0].textContent,'retreat');assert.equal(second[1].textContent,'held-out seed10001');
+  assert.match(ui['training-evaluation'].textContent,/2 with validated outcome counts of 2 listed/);
+  assert.doesNotMatch(ui['training-evaluation'].textContent,/% wins/);
+  assert.match(ui['round-protocol'].textContent,/Matching frozen tests at 300 s.*do not establish human strength/);
+  assert.doesNotMatch(ui['round-protocol'].textContent,/has not been measured/);
+  assert.equal(ui['round-seconds'].value,'300');
+});
+
+test('frozen condition applicability rejects checkpoint, precision and action-mode mismatches', async () => {
+  const {elements: ui, catalog} = await setup({backend:'mujoco',opponent:'trained',humanSide:1,roundSeconds:300,trainingRoundSeconds:20});
+  const checkpoint = {sha256:'selected',model:{precision:'bf16',actionSelection:'sampled'}};
+  catalog.policies[1].checkpoint = checkpoint;
+  const result = {opponent:'scripted',geometry:'fixed starts',roundSeconds:300,wins:1,losses:0,draws:0,games:1,
+    checkpointSha256:'other',precision:'bf16',actionSelection:'sampled'};
+  catalog.backends[0].training = {checkpointSha256:'selected',frozenEvaluationConditions:[result]};
+  for (const variant of [{checkpointSha256:'other',precision:'bf16',actionSelection:'sampled'},
+      {checkpointSha256:'selected',precision:'fp32',actionSelection:'sampled'},
+      {checkpointSha256:'selected',precision:'bf16',actionSelection:'greedy'},
+      {checkpointSha256:'selected',precision:undefined,actionSelection:undefined}]) {
+    Object.assign(result,variant);await ui.refresh.trigger('click');
+    assert.match(ui['training-conditions'].children[0].cells[7].textContent,/Does not establish results for the loaded opponent/);
+    assert.match(ui['round-protocol'].textContent,/has not been measured in the loaded evidence/);
+    assert.doesNotMatch(ui['round-protocol'].textContent,/Matching frozen tests/);
+  }
+});
+
+test('invalid condition counts and absent optional metrics remain unknown and cannot certify a duration', async () => {
+  const {elements: ui, catalog} = await setup({backend:'mujoco',opponent:'trained',humanSide:1,roundSeconds:300,trainingRoundSeconds:20});
+  catalog.policies[1].checkpoint = {sha256:'x',model:{precision:'bf16',actionSelection:'sampled'}};
+  catalog.backends[0].training = {checkpointSha256:'x',frozenEvaluationProtocol:{precision:'bf16',actionSelection:'sampled'},
+    frozenEvaluationConditions:[{opponent:'neutral',geometry:'fixed',roundSeconds:300,wins:2,losses:0,draws:0,games:1,zeroHitGames:3},null]};
+  await ui.refresh.trigger('click');
+  const cells = ui['training-conditions'].children[0].cells;
+  assert.equal(cells[3].textContent,'Invalid or missing results');assert.equal(cells[5].textContent,'Unknown');
+  assert.equal(cells[6].textContent,'Unknown / Unknown');
+  assert.match(ui['training-evaluation'].textContent,/0 with validated outcome counts of 2/);
+  assert.doesNotMatch(ui['round-protocol'].textContent,/Matching frozen tests/);
+  delete catalog.backends[0].training;await ui.refresh.trigger('click');
+  assert.equal(ui['training-conditions-wrap'].hidden,true);assert.equal(ui['training-conditions'].children.length,0);
+  assert.match(ui['training-evaluation'].textContent,/No verified frozen evaluation/);
+});
+
 test('actual input error JSON is shown and a later accepted input clears only that input error', async () => {
   const {elements: ui, inputReply} = await setup({backend: 'mujoco', opponent: 'trained', humanSide: 1}, null,
     {status: 422, error: 'Move is unavailable during translation'});

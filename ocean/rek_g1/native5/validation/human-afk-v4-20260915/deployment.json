@@ -1,0 +1,93 @@
+{
+  "host": "spark-4ae3",
+  "observed_at_utc": "2026-09-15T05:57:30.555Z",
+  "port": 18769,
+  "server": {
+    "pid": 151625,
+    "command": [
+      "node",
+      "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/human-viewer-v4-20260915/league/server.cjs",
+      "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/human-viewer-v4-20260915/live-run/server.json"
+    ],
+    "cwd": "/home/spark-advantage"
+  },
+  "server_config_path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/human-viewer-v4-20260915/live-run/server.json",
+  "server_config_sha256": "b5a5884512c0af34fb465d276e705f1366444b923be54ced7c5b2767834cd50f",
+  "backend_config_hash": "78e1d623906959a9f954fd08be87a50c9ee94f3d2c74a4eca86e8913868c2e61",
+  "worker": {
+    "pid": 151637,
+    "command": [
+      "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/eval-build-v4/rek-eval-worker",
+      "--config",
+      "/tmp/rek-human-tiDf7g/worker.json"
+    ],
+    "cwd": "/home/spark-advantage"
+  },
+  "worker_sha256": "4942240cf9f5dd40900260ee679e891a60ea5fffe6713064bb9a5a2b0c122858",
+  "selected_policy": {
+    "id": "compact-v4-curriculum-bf16-sampled",
+    "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+    "checkpoint_path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-mixed-r1/checkpoints/rek_native5/train-v4-mixed-r1/0000000268435456.bin",
+    "precision": "bf16",
+    "action_selection": "sampled"
+  },
+  "frozen_evaluation_condition_count": 12,
+  "health_status": 200,
+  "health_ok": true,
+  "active": {
+    "backend": "semantic_cuda",
+    "opponent": "compact-v4-curriculum-bf16-sampled",
+    "humanSide": 1,
+    "roundSeconds": 300,
+    "trainingRoundSeconds": 20
+  },
+  "observed_state": {
+    "score": [
+      0,
+      0
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "tick": 0,
+    "paused": true
+  },
+  "listeners": [
+    {
+      "port": 18769,
+      "listener": "State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess\nLISTEN 0      511        127.0.0.1:18769      0.0.0.0:*    users:((\"node\",pid=151625,fd=23))"
+    },
+    {
+      "port": 18766,
+      "listener": "State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess\nLISTEN 0      5          127.0.0.1:18766      0.0.0.0:*    users:((\"python\",pid=55768,fd=22))"
+    },
+    {
+      "port": 18768,
+      "listener": "State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess\nLISTEN 0      511        127.0.0.1:18768      0.0.0.0:*    users:((\"node\",pid=66367,fd=23))"
+    },
+    {
+      "port": 8899,
+      "listener": "State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess\nLISTEN 0      5            0.0.0.0:8899      0.0.0.0:*    users:((\"python\",pid=140553,fd=3))"
+    }
+  ],
+  "previous_node_145654_present": false,
+  "staged_test_node_151402_present": false,
+  "read_only_checks": true,
+  "windows_input": false,
+  "live_state_read_count": 1,
+  "deployment_source_files": [
+    {
+      "file": "rek-human-viewer-v4.cjs",
+      "original_path": "C:\\Users\\Daniel\\.codex\\scratch\\rek-human-viewer-v4.cjs",
+      "sha256": "be8e3a7fabf54a7c6c3ee06ac31ca1d76695f5855dd1dd9212f357202191a934",
+      "copy_byte_identical": true
+    },
+    {
+      "file": "rek-viewer-v4-service.sh",
+      "original_path": "C:\\Users\\Daniel\\.codex\\scratch\\rek-viewer-v4-service.sh",
+      "sha256": "8b24c09123385796d6bcbdd98605182e7b32cc8e3192f99a820cee10ec8cf016",
+      "copy_byte_identical": true
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+e3ebdc5a14fb5d9edf487e29730063f01b4cee6f52f9e5cb5266be57c88fa1c6  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-close-r1/checkpoints/rek_native5/train-v4-close-r1/0000000016777216.bin
+af1754300c35cc6d35f6e71af8554d0df66dc0856423173a4ea5c2027a071bde  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-close-r1/checkpoints/rek_native5/train-v4-close-r1/0000000020971520.bin
+640e2dc01668fe45f237011adc4033dd32924f4a0001d3772d39df32b533620b  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-close-r1/checkpoints/rek_native5/train-v4-close-r1/0000000029360128.bin
+b6da90781eecab8a001f0bdbcee4c514fcc394f1a3036e90b0751f629dabcc9e  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-close-r1/checkpoints/rek_native5/train-v4-close-r1/0000000012582912.bin
+ae81edee175fecbad9a221c62b1fadf0edc2fda113319ff73b0e40cc131200b2  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-close-r1/checkpoints/rek_native5/train-v4-close-r1/0000000025165824.bin
+95ddc58f108507ae7aa1cfbf00f682d51dbe06db1a27b18b6e7225878b271365  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-close-r1/checkpoints/rek_native5/train-v4-close-r1/0000000008388608.bin
+93f767f6fcc72738cb5e310ef351f8d3f3635a2e8d70a6129d88857b408fa48a  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-close-r1/checkpoints/rek_native5/train-v4-close-r1/0000000033554432.bin
+e12a111246b839ccf054d9da816bbc37ef1f6dad38209ef664fe784f621f1c14  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-close-r1/checkpoints/rek_native5/train-v4-close-r1/0000000004194304.bin

@@ -32,7 +32,8 @@ struct Fighter {
 struct Arena {
     Fighter fighter[2];
     float elapsed,episode_return,episode_hits,invalid;
-    int tick,reset_wait,dummy_move[2];
+    float reward[2];
+    int tick,reset_wait,dummy_move[2],opponent_mode;
     int delta[2],hit_count,down_event[2];
     unsigned failures;
 };
@@ -43,6 +44,10 @@ struct Parameters {
     float initial_qpos[72],spawn[2][2],heading[2],half_extent[2];
     float floor,round_seconds,move_speed,yaw_speed,brake_rate,yaw_ramp,settle_speed;
     float body_radius,hit_speed;
+    uint32_t seed;
+    int opponent_mode,random_resets;
+    float reset_gap_min,reset_gap_max,reset_heading_spread;
+    float shaping_weight,shaping_gamma,shaping_target,shaping_bearing_weight;
 };
 struct View {
     int arenas;
@@ -97,10 +102,36 @@ __device__ void pose_reset(const Parameters& p,Arena& a){
         f.yaw=f.old_yaw=p.heading[side];f.held=1;
     }
 }
-__device__ void round_reset(const Parameters& p,Arena& a,RekNative5RoundResult& result,bool full){
+__device__ uint32_t reset_hash(uint32_t value){
+    value^=value>>16;value*=0x7feb352du;value^=value>>15;value*=0x846ca68bu;return value^(value>>16);
+}
+__device__ float reset_uniform(uint32_t key,uint32_t field){
+    return float(reset_hash(key^field)>>8)*(1.f/16777216.f);
+}
+__device__ void round_reset(const Parameters& p,Arena& a,RekNative5RoundResult& result,bool full,int index){
     if(full){result={};result.round_number=1;}
     else result.round_number++;
     a={};pose_reset(p,a);
+    a.opponent_mode=p.opponent_mode;
+    if(p.random_resets||p.opponent_mode==4){
+        const uint32_t key=reset_hash(p.seed^reset_hash(uint32_t(index)+0x9e3779b9u)^reset_hash(result.round_number+0x85ebca6bu));
+        if(p.opponent_mode==4)a.opponent_mode=int(reset_hash(key^0xa511e9b3u)&3u);
+        if(p.random_resets){
+            const float gap=p.reset_gap_min+(p.reset_gap_max-p.reset_gap_min)*reset_uniform(key,1);
+            const float axis=2*PI*reset_uniform(key,2);float sn,cs;sincosf(axis,&sn,&cs);
+            const float dx=.5f*gap*cs,dy=.5f*gap*sn;
+            // Host validation guarantees a feasible midpoint for every axis.
+            // Do not clamp sampled roots, which would silently change the gap.
+            const float ex=p.half_extent[0]-p.body_radius-.01f-fabsf(dx);
+            const float ey=p.half_extent[1]-p.body_radius-.01f-fabsf(dy);
+            const float cx=(2*reset_uniform(key,3)-1)*ex,cy=(2*reset_uniform(key,4)-1)*ey;
+            for(int side=0;side<2;side++){
+                Fighter& f=a.fighter[side];const float sign=side?1.f:-1.f;
+                f.x=f.old_x=cx+sign*dx;f.y=f.old_y=cy+sign*dy;
+                f.yaw=f.old_yaw=angle(axis+(side?PI:0)+(2*reset_uniform(key,5+side)-1)*p.reset_heading_spread);
+            }
+        }
+    }
     result.phase=2;result.round_result=0;result.round_winner=-1;
     result.fight_result=0;result.fight_winner=-1;
     result.time_remaining_seconds=p.round_seconds;result.terminal=0;
@@ -123,6 +154,25 @@ __device__ int scripted_action(const Parameters& p,Arena& a,int side){
     if(distance<.55f)return 3;
     if(!settled(p,f))return 1;
     return 16+(a.dummy_move[side]++%16);
+}
+__device__ int opponent_action(const Parameters& p,Arena& a,int side){
+    if(a.opponent_mode==0)return scripted_action(p,a,side);
+    if(a.opponent_mode==1)return 1;
+    const Fighter& f=a.fighter[side];const Fighter& other=a.fighter[side^1];
+    if(attacking(f))return 0;
+    const float dx=other.x-f.x,dy=other.y-f.y;
+    const float bearing=angle(atan2f(dy,dx)-f.yaw);
+    if(fabsf(bearing)>.16f)return bearing>0?6:7;
+    if(a.opponent_mode==2)return hypotf(dx,dy)<1.25f?3:1;
+    // The strafe target does not attack. Its direction changes every second.
+    return (a.tick/50)&1?4:5;
+}
+__device__ float shaping_potential(const Parameters& p,const Arena& a,int side){
+    const Fighter& f=a.fighter[side];const Fighter& other=a.fighter[side^1];
+    const float dx=other.x-f.x,dy=other.y-f.y;
+    const float error=fabsf(hypotf(dx,dy)-p.shaping_target);
+    const float bearing=fabsf(angle(atan2f(dy,dx)-f.yaw))/PI;
+    return -(error/(1+error)+p.shaping_bearing_weight*bearing)/(1+p.shaping_bearing_weight);
 }
 __device__ void held_command(int category,float& forward,float& strafe,float& yaw){
     forward=strafe=yaw=0;
@@ -242,17 +292,20 @@ __device__ void finish_round(View v,int index,Arena& a,RekNative5RoundResult& r)
 }
 __device__ void advance_arena(View v,int index){
     Arena& a=v.state[index];auto& r=v.rounds[index];const Parameters& p=*v.p;
-    if(r.terminal)round_reset(p,a,r,false);
+    if(r.terminal)round_reset(p,a,r,false,index);
     a.delta[0]=a.delta[1]=a.hit_count=a.down_event[0]=a.down_event[1]=0;
+    a.reward[0]=a.reward[1]=0;
+    float previous_potential[2]={};
+    if(p.shaping_weight>0)for(int side=0;side<2;side++)previous_potential[side]=shaping_potential(p,a,side);
     int actions[2];
     for(int side=0;side<2;side++){
         int row=index*2+side;
-        // semantic_cuda extends the inspection override with 2=the same GPU
-        // scripted baseline on either side, for side-balanced evaluation.
+        // Override 2 invokes the configured GPU opponent on either side.
+        // Override 1 remains an external action, including frozen opponents.
         int override_value=v.override_rows?v.override_rows[row]:0;
         if(override_value>2){a.failures|=16;override_value=0;}
-        float value=override_value==2?float(scripted_action(p,a,side)):
-            (override_value==1?v.external[row]:(side?float(scripted_action(p,a,side)):v.out.actions[index]));
+        float value=override_value==2?float(opponent_action(p,a,side)):
+            (override_value==1?v.external[row]:(side?float(opponent_action(p,a,side)):v.out.actions[index]));
         actions[side]=action_value(a,value);v.actions[row]=float(actions[side]);
     }
     if(a.failures){r.failure_bits=a.failures;return;}
@@ -284,9 +337,16 @@ __device__ void advance_arena(View v,int index){
         if(!isfinite(f.x)||!isfinite(f.y)||!isfinite(f.yaw)||!isfinite(f.phase)||f.route<0||f.route>=24)a.failures|=1;
         r.points[s]=f.points;r.falls[s]=f.falls;
     }
-    a.episode_return+=float(a.delta[0]-a.delta[1]);a.episode_hits+=a.hit_count;
     r.time_remaining_seconds=fmaxf(0,p.round_seconds-a.elapsed);r.failure_bits=a.failures;
     bool terminal=a.elapsed>=p.round_seconds;
+    for(int side=0;side<2;side++){
+        a.reward[side]=float(a.delta[side]-a.delta[side^1]);
+        if(p.shaping_weight>0){
+            const float next_potential=terminal?0:shaping_potential(p,a,side);
+            a.reward[side]+=p.shaping_weight*(p.shaping_gamma*next_potential-previous_potential[side]);
+        }
+    }
+    a.episode_return+=a.reward[0];a.episode_hits+=a.hit_count;
     if(terminal&&!a.failures)finish_round(v,index,a,r);
 }
 __device__ float entity_value(View v,const Arena& a,int side,int field){
@@ -377,15 +437,15 @@ __device__ void export_arena(View v,int index,int lane){
             float* q=v.qpos+index*72+side*36;float* dq=v.qvel+index*70+side*35;
             q[0]=f.x;q[1]=f.y;q[2]=frame.root_z;root_quaternion(f,frame,q+3);
             dq[0]=f.vx;dq[1]=f.vy;dq[2]=dq[3]=dq[4]=0;dq[5]=f.omega;
-            v.rewards[row]=float(a.delta[side]-a.delta[side^1]);v.terminals[row]=r.terminal?1.f:0.f;
+            v.rewards[row]=a.reward[side];v.terminals[row]=r.terminal?1.f:0.f;
         }
     }
-    if(lane==0){v.out.rewards[index]=float(a.delta[0]-a.delta[1]);v.out.terminals[index]=r.terminal?1.f:0.f;}
+    if(lane==0){v.out.rewards[index]=a.reward[0];v.out.terminals[index]=r.terminal?1.f:0.f;}
 }
 __global__ void fast_reset(View v){
     int lane=threadIdx.x&31,index=(blockIdx.x*blockDim.x+threadIdx.x)>>5;
     if(index>=v.arenas)return;
-    if(lane==0){round_reset(*v.p,v.state[index],v.rounds[index],true);v.actions[index*2]=v.actions[index*2+1]=0;}
+    if(lane==0){round_reset(*v.p,v.state[index],v.rounds[index],true,index);v.actions[index*2]=v.actions[index*2+1]=0;}
     __syncwarp();export_arena(v,index,lane);
 }
 __global__ void fast_step(View v){
@@ -406,6 +466,17 @@ float environment_float(const char* key,float fallback,float lo,float hi){
     char* end=nullptr;float result=strtof(value,&end);
     if(!end||*end||!std::isfinite(result)||result<lo||result>hi)throw std::runtime_error(std::string("Invalid ")+key);
     return result;
+}
+int opponent_mode_from_environment(){
+    const char* value=getenv("REK_FAST_OPPONENT_MODE");if(!value)return 0;
+    const char* modes[]={"scripted","neutral","retreat","strafe","mixed"};
+    for(int i=0;i<5;i++)if(!strcmp(value,modes[i]))return i;
+    throw std::runtime_error("Invalid REK_FAST_OPPONENT_MODE");
+}
+int random_resets_from_environment(){
+    const char* value=getenv("REK_FAST_RANDOM_RESETS");if(!value||!strcmp(value,"0"))return 0;
+    if(!strcmp(value,"1"))return 1;
+    throw std::runtime_error("REK_FAST_RANDOM_RESETS must be 0 or 1");
 }
 void valid_runtime(RekNative5Runtime* runtime){if(!runtime)throw std::runtime_error("Null semantic CUDA runtime");}
 }
@@ -434,9 +505,22 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         p.settle_speed=std::max(.001f,assets.settle_linear_speed);
         p.body_radius=environment_float("REK_FAST_BODY_RADIUS",.22f,.05f,1.f);
         p.hit_speed=environment_float("REK_FAST_HIT_SPEED",.35f,0,20);
+        p.seed=config->seed;p.opponent_mode=opponent_mode_from_environment();p.random_resets=random_resets_from_environment();
+        p.reset_gap_min=environment_float("REK_FAST_RESET_GAP_MIN",.55f,.001f,100.f);
+        p.reset_gap_max=environment_float("REK_FAST_RESET_GAP_MAX",2.5f,.001f,100.f);
+        p.reset_heading_spread=environment_float("REK_FAST_RESET_HEADING_SPREAD_RAD",PI,0,PI);
+        if(p.reset_gap_min>p.reset_gap_max)throw std::runtime_error("Reset gap minimum exceeds maximum");
+        if(p.random_resets&&(p.reset_gap_min<2*p.body_radius||p.reset_gap_max>2*(std::min(p.half_extent[0],p.half_extent[1])-p.body_radius-.01f)))
+            throw std::runtime_error("Random reset gaps must be nonoverlapping and fit every sampled axis inside the arena");
+        p.shaping_weight=environment_float("REK_FAST_SHAPING_WEIGHT",0,0,100.f);
+        if(p.shaping_weight>0&&!getenv("REK_FAST_SHAPING_GAMMA"))throw std::runtime_error("Positive shaping weight requires explicit REK_FAST_SHAPING_GAMMA matching learner discount");
+        p.shaping_gamma=environment_float("REK_FAST_SHAPING_GAMMA",1.f,.000001f,1.f);
+        p.shaping_target=environment_float("REK_FAST_SHAPING_TARGET",.65f,.001f,100.f);
+        p.shaping_bearing_weight=environment_float("REK_FAST_SHAPING_BEARING_WEIGHT",0,0,100.f);
+        if(p.shaping_weight>0&&p.shaping_target<2*p.body_radius)throw std::runtime_error("Shaping target is inside the nonoverlap distance");
         // Existing private V2 configs may still carry this setting. It has no
-        // effect in V3; retain an explicit diagnostic rather than using it.
-        if(getenv("REK_FAST_DOWN_DAMAGE"))fprintf(stderr,"REK_FAST_DOWN_DAMAGE ignored: compact v3 has no synthetic hit-damage knockdowns\n");
+        // effect in V4; retain an explicit diagnostic rather than using it.
+        if(getenv("REK_FAST_DOWN_DAMAGE"))fprintf(stderr,"REK_FAST_DOWN_DAMAGE ignored: compact v4 has no synthetic hit-damage knockdowns\n");
         if(!std::isfinite(p.round_seconds)||p.round_seconds<DT||assets.frames.empty())throw std::runtime_error("Invalid semantic CUDA duration/assets");
         for(int k=0;k<24;k++)if(p.routes[k].count<=0||p.routes[k].offset<0||size_t(p.routes[k].offset+p.routes[k].count)>assets.frames.size())throw std::runtime_error("Invalid baked route extent");
         for(int k=16;k<33;k++)if(p.action_to_route[k]<7||p.action_to_route[k]>=24||p.routes[p.action_to_route[k]].move<0||p.routes[p.action_to_route[k]].move>=17)throw std::runtime_error("Invalid baked action mapping");
@@ -448,9 +532,15 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         v.actions=result->storage.alloc<float>(size_t(a)*2);v.rewards=result->storage.alloc<float>(size_t(a)*2);v.terminals=result->storage.alloc<float>(size_t(a)*2);
         fast_reset<<<(a+WARPS_PER_BLOCK-1)/WARPS_PER_BLOCK,THREADS,0,stream>>>(v);
         rek5::cuda_check(cudaGetLastError());rek5::cuda_check(cudaStreamSynchronize(stream));
-        fprintf(stderr,"semantic_cuda_v3: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; points-only slider/sphere dynamics; knockdowns unmodeled; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed);
+        fprintf(stderr,"semantic_cuda_v4: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; points-only slider/sphere dynamics; knockdowns unmodeled; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed);
         fprintf(stderr,"semantic_cuda_assets=%s\n",assets.provenance_json.c_str());
-        fprintf(stderr,"semantic_cuda_parameters={\"version\":3,\"policy_round_feature\":\"episode_local_constant_1\",\"diagnostic_round_counter\":\"cumulative_session\",\"dt_seconds\":%.9g,\"round_seconds\":%.9g,\"move_speed_m_s\":%.9g,\"yaw_speed_rad_s\":%.9g,\"brake_rate_m_s2\":%.9g,\"yaw_ramp_seconds\":%.9g,\"settle_speed_m_s\":%.9g,\"body_radius_m\":%.9g,\"hit_speed_m_s\":%.9g,\"knockdowns_modeled\":false,\"hit_damage_resets\":false,\"hit_cooldown_ticks\":10,\"floor_z_m\":%.9g,\"arena_half_extent_m\":[%.9g,%.9g],\"physics_parity\":false}\n",DT,p.round_seconds,p.move_speed,p.yaw_speed,p.brake_rate,p.yaw_ramp,p.settle_speed,p.body_radius,p.hit_speed,p.floor,p.half_extent[0],p.half_extent[1]);
+        const char* modes[]={"scripted","neutral","retreat","strafe","mixed"};
+        fprintf(stderr,"semantic_cuda_parameters={\"version\":4,\"policy_round_feature\":\"episode_local_constant_1\",\"diagnostic_round_counter\":\"cumulative_session\",\"dt_seconds\":%.9g,\"round_seconds\":%.9g,\"move_speed_m_s\":%.9g,\"yaw_speed_rad_s\":%.9g,\"brake_rate_m_s2\":%.9g,\"yaw_ramp_seconds\":%.9g,\"settle_speed_m_s\":%.9g,\"body_radius_m\":%.9g,\"hit_speed_m_s\":%.9g,\"knockdowns_modeled\":false,\"hit_damage_resets\":false,\"hit_cooldown_ticks\":10,\"floor_z_m\":%.9g,\"arena_half_extent_m\":[%.9g,%.9g],\"physics_parity\":false,"
+            "\"seed\":%u,\"opponent_mode\":\"%s\",\"mixed_weights\":[0.25,0.25,0.25,0.25],\"random_resets\":%s,\"reset_gap_min_m\":%.9g,\"reset_gap_max_m\":%.9g,\"reset_heading_spread_rad\":%.9g,"
+            "\"shaping_weight\":%.9g,\"shaping_gamma\":%.9g,\"shaping_target_m\":%.9g,\"shaping_bearing_weight\":%.9g,\"shaping_terminal_potential\":0,\"shaping_changes_points\":false}\n",
+            DT,p.round_seconds,p.move_speed,p.yaw_speed,p.brake_rate,p.yaw_ramp,p.settle_speed,p.body_radius,p.hit_speed,p.floor,p.half_extent[0],p.half_extent[1],
+            p.seed,modes[p.opponent_mode],p.random_resets?"true":"false",p.reset_gap_min,p.reset_gap_max,p.reset_heading_spread,
+            p.shaping_weight,p.shaping_gamma,p.shaping_target,p.shaping_bearing_weight);
         return result.release();
     }catch(const std::exception& e){error_text=e.what();return nullptr;}
 }

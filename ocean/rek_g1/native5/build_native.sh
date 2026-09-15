@@ -113,6 +113,8 @@ git -C "$task_repository" archive "$task_commit" src config/default.ini \
     | tar -xf - -C "$task_build/trainer"
 git -C "$task_build/trainer" apply --check "$task_source/pufferlib5_action_mask.patch"
 git -C "$task_build/trainer" apply "$task_source/pufferlib5_action_mask.patch"
+git -C "$task_build/trainer" apply --check "$task_source/pufferlib5_initial_model.patch"
+git -C "$task_build/trainer" apply "$task_source/pufferlib5_initial_model.patch"
 task_runner="$task_build/trainer/src/pufferl.cu"
 
 if (( task_build_runtime )); then

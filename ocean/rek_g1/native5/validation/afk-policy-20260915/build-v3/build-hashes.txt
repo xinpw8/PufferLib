@@ -1,0 +1,8 @@
+01885781f8f39a0881e9c7ac7b85c8564bfbaaad9ad1acafca47b9a9a83d6b9e  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/afk-policy-source-20260915/afk_policy_eval.cu
+1d39c5cd0687c88c2adcdd0b0d64605950f3149d6e70308ca2a4d160e4dc8cbc  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v3/ocean/rek_g1/native5/fast_policy_eval.cu
+88c97ba250b2b21aab56a0749bbc7e0fef74dd930929c60f8620ac5bf696470a  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v3/fast_runtime.o
+ca8117506cd78e7cb45b146d79b657d2c653554a75bccaecb1e7979e7f54a2ff  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v3/fast_assets.o
+4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v3/native_policy.o
+eb41568eaa0dfee60e0b31cbc7b607365d4c93dfe46c0dafac6b131ec22b91a1  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v3/cJSON.o
+1c9fd597d10d2d8f560005b77448402a61537b0d3fae4119b5df32b63a35e8bf  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/afk-policy-20260915/build-v3/eval-neutral
+f50408f0d2a9df1743e551845af7d276d2143abbca155d95a6d8d515cbb2c3d2  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/afk-policy-20260915/build-v3/eval-scripted

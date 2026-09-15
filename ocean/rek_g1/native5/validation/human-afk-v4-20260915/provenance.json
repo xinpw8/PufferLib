@@ -1,0 +1,32 @@
+{
+  "command": [
+    "/usr/bin/node",
+    "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v4/ocean/rek_g1/native5/fast_worker_afk_probe.cjs",
+    "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/eval-build-v4/rek-eval-worker",
+    "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/eval-run-v2/semantic_cuda-worker.json",
+    "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-mixed-r1/checkpoints/rek_native5/train-v4-mixed-r1/0000000268435456.bin",
+    "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+    "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/human-afk-v4-mixed-r1"
+  ],
+  "host": "spark-4ae3",
+  "executable_sha256": "4942240cf9f5dd40900260ee679e891a60ea5fffe6713064bb9a5a2b0c122858",
+  "source_sha256": "be98110d16d600840bc237d1e247ff9a13224a315fa710a1e86f5ec7b71d1fa1",
+  "base_config_sha256": "2f373c507736338e04e9389f9ebc6aad782a52b69f8e85e8bb002914ed6f8c73",
+  "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+  "environment": {
+    "REK_PHYSICS_BACKEND": "semantic_cuda",
+    "REK_FAST_OPPONENT_MODE": "neutral",
+    "REK_FAST_RANDOM_RESETS": "0",
+    "REK_FAST_SHAPING_WEIGHT": "0",
+    "REK_FAST_SHAPING_GAMMA": ".999",
+    "REK_FAST_SHAPING_TARGET": ".65",
+    "REK_FAST_SHAPING_BEARING_WEIGHT": "0",
+    "REK_FAST_RESET_GAP_MIN": ".55",
+    "REK_FAST_RESET_GAP_MAX": "2.5",
+    "REK_FAST_RESET_HEADING_SPREAD_RAD": "3.14159265",
+    "REK_FAST_MOVE_SPEED": "1",
+    "REK_FAST_YAW_SPEED": "1.8",
+    "REK_FAST_BODY_RADIUS": ".22",
+    "REK_FAST_HIT_SPEED": ".35"
+  }
+}

@@ -1,0 +1,23 @@
+	Command being timed: "timeout --signal=TERM --kill-after=10s 300s /home/spark-advantage/rek-training/semantic-fast-20260914-v1/diverse-eval-build-v4/diverse-policy-eval /home/spark-advantage/rek-training/semantic-fast-20260914-v1/eval-run-v3/semantic_cuda-worker.json /home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-mixed-r1/checkpoints/rek_native5/train-v4-mixed-r1/0000000268435456.bin 0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b 128 4 10001 sampled bf16 /home/spark-advantage/rek-training/semantic-fast-20260914-v1/mixed-r1-diverse-suite/fixed-neutral-20/matches.private.jsonl neutral fixed 20"
+	User time (seconds): 0.18
+	System time (seconds): 0.41
+	Percent of CPU this job got: 42%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:01.41
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 524980
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 96831
+	Voluntary context switches: 472
+	Involuntary context switches: 4
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 1424
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

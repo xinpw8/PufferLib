@@ -1,0 +1,131 @@
+{
+  "summary": {
+    "status": "completed",
+    "runtime": "semantic_cuda",
+    "round_seconds": 300,
+    "arenas": 1,
+    "expected_no_hit_resets": true,
+    "mode": "paired_i",
+    "controlled_side": 1,
+    "opponent": "neutral external category1",
+    "far_attacks_checked": 0,
+    "far_attacks_with_warps": 0,
+    "close_single_attack_trials": 0,
+    "close_single_attacks_with_multiple_hits": 0,
+    "close_single_attacks_with_knockdowns": 0,
+    "close_single_attacks_with_spawn_warps": 0,
+    "cpu_physics": false,
+    "python_runtime": false,
+    "production_interaction": false
+  },
+  "trials": [
+    {
+      "trial": "paired_i_first_attack",
+      "action": 18,
+      "single_input_edge": true,
+      "initial_gap_m": 0.6400001347120426,
+      "initial_spawn_distance_m": 1.159999877217491,
+      "ticks_observed": 300,
+      "first_busy_tick": 99,
+      "last_busy_tick": 255,
+      "total_hits": 1,
+      "hit_events": [
+        {
+          "tick": 147,
+          "offset": 49,
+          "hits": 1,
+          "score": [
+            0,
+            1
+          ]
+        }
+      ],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        1
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.159999877217491
+    },
+    {
+      "trial": "paired_i_second_attack",
+      "action": 18,
+      "single_input_edge": true,
+      "initial_gap_m": 0.6400001347120426,
+      "initial_spawn_distance_m": 1.159999877217491,
+      "ticks_observed": 300,
+      "first_busy_tick": 499,
+      "last_busy_tick": 655,
+      "total_hits": 1,
+      "hit_events": [
+        {
+          "tick": 547,
+          "offset": 49,
+          "hits": 1,
+          "score": [
+            0,
+            2
+          ]
+        }
+      ],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        2
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.159999877217491
+    }
+  ],
+  "normal_timed_reset": {
+    "terminal_tick": 15000,
+    "terminal_time_remaining": 0,
+    "terminal_score": [
+      0,
+      2
+    ],
+    "terminal_falls": [
+      0,
+      0
+    ],
+    "completed_rounds": 1,
+    "terminal_roots": [
+      [
+        -0.900000035762787,
+        0
+      ],
+      [
+        -0.2599999010562897,
+        -0.000002664243993422133
+      ]
+    ],
+    "reset_tick": 15001,
+    "reset_round_number": 2,
+    "reset_score": [
+      0,
+      0
+    ],
+    "reset_roots": [
+      [
+        -0.900000035762787,
+        0
+      ],
+      [
+        0.899999976158142,
+        0
+      ]
+    ],
+    "passed": true
+  }
+}

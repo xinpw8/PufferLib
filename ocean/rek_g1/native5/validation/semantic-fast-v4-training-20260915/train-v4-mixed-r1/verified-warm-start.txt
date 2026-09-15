@@ -1,0 +1,2 @@
+65d1d31e8d99df825a0db5e34b370a697b4b26476f9a73b8db63f7fed87080a8  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-orientation-r1/checkpoints/rek_native5/train-v4-orientation-r1/0000000268435456.bin
+65d1d31e8d99df825a0db5e34b370a697b4b26476f9a73b8db63f7fed87080a8  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v4-mixed-r1/checkpoints/rek_native5/train-v4-mixed-r1/0000000000000000.bin

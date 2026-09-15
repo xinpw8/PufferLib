@@ -1,0 +1,8 @@
+2026-09-15T05:27:55+00:00
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+aarch64
+GPU 0: NVIDIA GB10 (UUID: GPU-c10f6617-d6dc-c3c2-3069-3dcc3f506b75)
+5bc3b08c787f002ebdd573129a5698290e11f5e3189a1b00484f37d011904436  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/puffer-rek-native5
+b6e0f3d6fe8489d99a44d6990371e94f76508363202130eae5c4f98ce8f37982  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/pufferl.o
+e8753863690bf76b6b599ae9df5cab5b5b2496b2725251207e26c203dc513b88  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/fast_runtime.o

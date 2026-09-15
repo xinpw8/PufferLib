@@ -1,0 +1,8 @@
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+2026-09-15T05:29:25+00:00
+a2ea29e318d5031b663b2e1fe29dc0e5a92410b879e2764b1eae6327008eebfd  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v4/ocean/rek_g1/native5/fast_diversity_probe.cu
+fa9c99de4b9764db443d81a1bd2fd5dbb78fcee6eee626d1be86a10cf659b092  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v4/ocean/rek_g1/native5/fast_diversity_probe.sh
+e8753863690bf76b6b599ae9df5cab5b5b2496b2725251207e26c203dc513b88  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/fast_runtime.o
+ca8117506cd78e7cb45b146d79b657d2c653554a75bccaecb1e7979e7f54a2ff  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/fast_assets.o
+3523c4cc25c30fd77a56a8fe6f34716a925aaa102facfd2d14d6fc152bcb9b2a  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/diversity-probe-v4-r1/fast-diversity-probe
