@@ -1,0 +1,8 @@
+backend=semantic_cuda
+control_hz=50
+cpu_physics=0
+python_runtime=0
+7e4648f29e962e78b72c27fd0078578e1e6e68ac4b6bd5a951f0d5db6264de13  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v2/ocean/rek_g1/native5/fast_runtime.cu
+c542422215ac5a3832036b9761a1e2be6fe62be0276840e6513e81e846abb98f  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v2/ocean/rek_g1/native5/fast_assets.cpp
+bbd659134a2fe6b8e8c06bca8ef995b8523f689f0bf9fa9f269ebed432564104  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v2/ocean/rek_g1/native5/fast_assets.h
+7a90b1a58f8a04e313c345d73d1d62059ca52c285a6330776b8b8d0de6d60f21  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/puffer-rek-native5

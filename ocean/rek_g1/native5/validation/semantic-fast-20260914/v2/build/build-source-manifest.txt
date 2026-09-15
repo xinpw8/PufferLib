@@ -1,0 +1,16 @@
+pufferlib_commit=773f923d80e73bdc255a2ba730c918b28e416aa1
+architecture=sm_121
+public_repository=https://github.com/xinpw8/PufferLib.git
+equivalent_local_src_and_default_ini_commit=84a89728fafd4034ae3c386a9e0665d62310780b
+trainer_source=/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/trainer/src/pufferl.cu
+validation=compile_only
+runtime_validation=not_run
+native_mujoco_gpu_compiled=0
+7b4f03d76b7bc30849ef588301a052742052bfc95b8b62068a5d1f1e5ea3bb0b  /home/spark-advantage/rek-training/native5-rek-20260913-v1/pufferlib5/src/pufferl.cu
+9fbf234ad505dec809634ebaee305f65b9dfc687c6c6671da709c9786bfae693  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/trainer/src/pufferl.cu
+f175726095863750f41be9be0bdd1111888d63b2849ea27ffb92a2e672e28252  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v2/ocean/rek_g1/native5/pufferlib5_action_mask.patch
+20c5f33b036ad43c66492ca6be82265675b8f620bfcb989eb433d2f04f27cd98  /home/spark-advantage/rek-training/native5-rek-20260913-v1/pufferlib5/src/algo.cu
+d3d45da4616d0aa863d5bfecf2ca6acc614a5e1c6ab8330e5c6bf7745bc70eb2  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v2/ocean/rek_g1/native5/puffer_env.cu
+7a272a596c8467ac686a6be1a90543a6021c1ce17a0223bfc1411688e1a26f05  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v2/ocean/rek_g1/native5/runtime_api.h
+18cc073ca56396a209390e131720ba6c8aeceb71ba7f2a8ba5d3751042abbbb5  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v2/ocean/rek_g1/native5/native5.ini
+56da61477826ea70a35c45d7db743148aaca2945b31ac0f53e2b547ed18670f4  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/pufferl.o
