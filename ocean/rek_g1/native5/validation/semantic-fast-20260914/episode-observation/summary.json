@@ -1,0 +1,59 @@
+{
+  "schema": "rek.semantic_cuda.episode_observation_regression.v1",
+  "host": "spark-4ae3",
+  "source": "fast_input_probe.cu",
+  "arenas": 4,
+  "rounds_tested": 3,
+  "neutral_ticks_per_round": 1000,
+  "seconds_per_round": 20,
+  "comparison": {
+    "v1": {
+      "exit_code": 2,
+      "expected_failure": true,
+      "raw_observation_186_at_round_boundaries": [
+        2,
+        3,
+        4
+      ],
+      "gpu_failure_bits": 7
+    },
+    "v2": {
+      "exit_code": 0,
+      "raw_observation_186_at_round_boundaries": [
+        1,
+        1,
+        1
+      ],
+      "diagnostic_round_number_at_boundaries": [
+        2,
+        3,
+        4
+      ],
+      "gpu_failure_bits": 0
+    }
+  },
+  "gpu_failure_bit_meanings": {
+    "1": "raw fighter observation",
+    "2": "encoded fighter observation",
+    "4": "learner observation"
+  },
+  "invariants": [
+    "both fighter sides and all four arenas checked on GPU",
+    "terminal after exactly 1000 neutral ticks",
+    "cumulative diagnostic counters preserved across automatic episode resets",
+    "explicit reset clears diagnostic counters",
+    "input/yaw/attack buffering regression passes",
+    "two 6400-tick contact replays retain bit-identical qpos and completed outcomes"
+  ],
+  "v2_contact_outcomes": {
+    "maximum_points_in_round": 21,
+    "maximum_opponent_falls": 2,
+    "completed_rounds": 9,
+    "completed_player_points": 220
+  },
+  "cpu_physics": false,
+  "python_runtime": false,
+  "training_benchmark": false,
+  "authentic_rek_parity_claim": false,
+  "binaries_included": false
+}

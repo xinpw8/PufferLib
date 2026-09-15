@@ -1,0 +1,4 @@
+{"event":"episode_observation_boundary","completed_rounds":1,"diagnostic_round_number":2,"raw_round_feature":2}
+{"event":"episode_observation_boundary","completed_rounds":2,"diagnostic_round_number":3,"raw_round_feature":3}
+{"event":"episode_observation_boundary","completed_rounds":3,"diagnostic_round_number":4,"raw_round_feature":4}
+{"event":"episode_observation_gpu_check","failure_bits":7,"bit1":"raw","bit2":"encoded","bit4":"learner"}

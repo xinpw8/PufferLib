@@ -1,0 +1,6 @@
+1d39c5cd0687c88c2adcdd0b0d64605950f3149d6e70308ca2a4d160e4dc8cbc  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v2/ocean/rek_g1/native5/fast_policy_eval.cu
+88cb5e6181069c35dd1140c4211ad0797e9b00fb810b3444e6a87ed94e3417fe  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/fast_runtime.o
+ca8117506cd78e7cb45b146d79b657d2c653554a75bccaecb1e7979e7f54a2ff  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/fast_assets.o
+4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/native_policy.o
+eb41568eaa0dfee60e0b31cbc7b607365d4c93dfe46c0dafac6b131ec22b91a1  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/cJSON.o
+909c63858ece1eec0caf18b6e2756e5760aadca4320481e5e03d00e8afa1c98c  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/policy-eval-build-physics-v2/fast-policy-eval

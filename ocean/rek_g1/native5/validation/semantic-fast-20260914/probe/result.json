@@ -1,0 +1,1 @@
+{"test":"reduced_gpu_semantic_runtime","status":"passed","arenas":4,"control_hz":50,"one_second_ticks":50,"held_walk_displacement_m":0.167999983,"attack_duration_ticks":157,"no_attack_autorepeat":true,"graph_replay_ticks":16,"completed_rounds_arena0":1,"failure_bits":0,"python_runtime":false,"cpu_physics":false,"training_sps":null}

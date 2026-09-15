@@ -1,0 +1,613 @@
+{
+  "schemaVersion": 1,
+  "measurement": "instrumented_native_headless_training",
+  "pythonExecuted": false,
+  "roi": {
+    "definition": "after first complete PPO epoch through final complete PPO epoch",
+    "startNs": 858654352,
+    "endNs": 1400670608,
+    "wallSeconds": 0.542016256,
+    "completePpoEpochs": 128,
+    "measuredPpoEpochs": 127,
+    "agents": 512,
+    "horizon": 16,
+    "requestedSteps": 1048576,
+    "learnerSampleKernelCalls": 2032,
+    "expectedSampleKernelCalls": 2032,
+    "measuredActionTransitions": 1040384,
+    "profiledSteadyStateTrainingSps": 1919470.1053394235,
+    "physicsBatchStepKernelCalls": 0,
+    "observedPhysicsSubstepsPerActionBatch": 0,
+    "newtonIterationBatchKernelCalls": 0,
+    "observedNewtonIterationsPerPhysicsBatchStep": null,
+    "fusedEnvironmentKernelCalls": 2032,
+    "environmentKernelsPerActionBatch": 1
+  },
+  "gpu": {
+    "kernelCalls": 42419,
+    "summedKernelMilliseconds": 349.073684,
+    "kernelBusy": [
+      {
+        "deviceId": 0,
+        "milliseconds": 343.336948,
+        "percentOfRoiWall": 63.344400504474905
+      }
+    ],
+    "unclassifiedPercentOfKernelTime": 0.00206260177435776,
+    "categories": [
+      {
+        "key": "ppo_training",
+        "calls": 15875,
+        "milliseconds": 199.40843999999998,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "averageMicrosecondsPerCall": 12.56116157480315,
+        "percentOfSummedKernelTime": 57.125028078599
+      },
+      {
+        "key": "learner_inference_and_rollout_io",
+        "calls": 24511,
+        "milliseconds": 96.16658799999999,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "averageMicrosecondsPerCall": 3.923405328219982,
+        "percentOfSummedKernelTime": 27.54907986704606
+      },
+      {
+        "key": "fused_environment_step",
+        "calls": 2032,
+        "milliseconds": 53.491456,
+        "maxRegistersPerThread": 72,
+        "maxLocalMemoryPerThread": 0,
+        "averageMicrosecondsPerCall": 26.324535433070867,
+        "percentOfSummedKernelTime": 15.323829452580561
+      },
+      {
+        "key": "unclassified",
+        "calls": 1,
+        "milliseconds": 0.0072,
+        "maxRegistersPerThread": 32,
+        "maxLocalMemoryPerThread": 0,
+        "averageMicrosecondsPerCall": 7.2,
+        "percentOfSummedKernelTime": 0.00206260177435776
+      }
+    ],
+    "attributionEvidence": [
+      {
+        "key": "exact_fast_step_function",
+        "calls": 2032,
+        "milliseconds": 53.491456,
+        "maxRegistersPerThread": 72,
+        "maxLocalMemoryPerThread": 0
+      },
+      {
+        "key": "verified_disjoint_stream",
+        "deviceId": 0,
+        "contextId": 1,
+        "streamId": 7,
+        "env": 0,
+        "rollout": 0,
+        "training": 0
+      },
+      {
+        "key": "verified_disjoint_stream",
+        "deviceId": 0,
+        "contextId": 1,
+        "streamId": 14,
+        "env": 0,
+        "rollout": 0,
+        "training": 1
+      },
+      {
+        "key": "verified_disjoint_stream",
+        "deviceId": 0,
+        "contextId": 1,
+        "streamId": 15,
+        "env": 1,
+        "rollout": 1,
+        "training": 0
+      },
+      {
+        "key": "verified_disjoint_stream",
+        "deviceId": 0,
+        "contextId": 1,
+        "streamId": 18,
+        "env": 0,
+        "rollout": 0,
+        "training": 1
+      }
+    ],
+    "topKernels": [
+      {
+        "key": "<unnamed>::fast_step(<unnamed>::View)",
+        "calls": 2032,
+        "maxRegistersPerThread": 72,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 53.491456,
+        "averageMicrosecondsPerCall": 26.324535433070864,
+        "percentOfSummedKernelTime": 15.323829452580561
+      },
+      {
+        "key": "mingru_scan_backward(PrefixScan, const __nv_bfloat16 *, const __nv_bfloat16 *)",
+        "calls": 254,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 49.516512,
+        "averageMicrosecondsPerCall": 194.94689763779527,
+        "percentOfSummedKernelTime": 14.185117432112126
+      },
+      {
+        "key": "nvjet_sm121_tst_mma_192x56x64_3_32x56x64_tmaAB_bz_TNNN",
+        "calls": 4064,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 31.011456,
+        "averageMicrosecondsPerCall": 7.630771653543308,
+        "percentOfSummedKernelTime": 8.883928357085779
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_tn_align8>(T1::Params)",
+        "calls": 254,
+        "maxRegistersPerThread": 232,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 19.887008,
+        "averageMicrosecondsPerCall": 78.29530708661417,
+        "percentOfSummedKernelTime": 5.697080276037079
+      },
+      {
+        "key": "nvjet_sm121_tst_mma_32x128x64_4_16x64x64_tmaAB_bz_NTNN",
+        "calls": 254,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 18.355552,
+        "averageMicrosecondsPerCall": 72.26595275590552,
+        "percentOfSummedKernelTime": 5.258360295071684
+      },
+      {
+        "key": "mingru_scan_forward(PrefixScan)",
+        "calls": 254,
+        "maxRegistersPerThread": 38,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 16.185952,
+        "averageMicrosecondsPerCall": 63.72422047244095,
+        "percentOfSummedKernelTime": 4.636829627065213
+      },
+      {
+        "key": "nvjet_sm121_tst_mma_64x152x64_3_16x152x64_tmaAB_bz_NNNN",
+        "calls": 254,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 15.811264,
+        "averageMicrosecondsPerCall": 62.24907086614173,
+        "percentOfSummedKernelTime": 4.529491830727635
+      },
+      {
+        "key": "mingru_gate(__nv_bfloat16 *, __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, int, int)",
+        "calls": 4064,
+        "maxRegistersPerThread": 21,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 13.59091,
+        "averageMicrosecondsPerCall": 3.3442199803149606,
+        "percentOfSummedKernelTime": 3.8934215390467535
+      },
+      {
+        "key": "sample_logits(Prec, Prec, int *, float *, float *, __nv_bfloat16 *, __nv_bfloat16 *, curandStatePhilox4_32_10 *, __nv_bfloat16 *, int, bool)",
+        "calls": 2032,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 12.921854,
+        "averageMicrosecondsPerCall": 6.3591801181102365,
+        "percentOfSummedKernelTime": 3.701755415054433
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_75_tensorop_bf16_s1688gemm_bf16_64x64_tn_align1>(T1::Params)",
+        "calls": 2032,
+        "maxRegistersPerThread": 80,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 11.307552,
+        "averageMicrosecondsPerCall": 5.5647401574803155,
+        "percentOfSummedKernelTime": 3.239302335950366
+      },
+      {
+        "key": "void cublasLt::splitKreduce_kernel<(int)32, (int)16, int, __nv_bfloat16, __nv_bfloat16, float, __nv_bfloat16, (bool)0, __nv_bfloat16, __nv_bfloat16, __nv_bfloat16, (bool)1, (bool)0, (bool)0, (bool)0>(cublasLt::cublasSplitKParams<T6>, const T4 *, const T10 *, T9 *, T5 *, const T6 *, const T6 *, const T11 *, const T4 *, T11 *, void *, long, T6 *, int *, T6 *, T6 *, const T6 *, const T6 *, const T6 *, const T6 *, const T6 *)",
+        "calls": 3556,
+        "maxRegistersPerThread": 42,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 10.811936,
+        "averageMicrosecondsPerCall": 3.040476940382452,
+        "percentOfSummedKernelTime": 3.097321996922575
+      },
+      {
+        "key": "add_kernel(__nv_bfloat16 *, const __nv_bfloat16 *, int)",
+        "calls": 254,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 8.904288,
+        "averageMicrosecondsPerCall": 35.056251968503936,
+        "percentOfSummedKernelTime": 2.5508333650267376
+      },
+      {
+        "key": "nvjet_sm121_tst_mma_32x128x64_4_16x64x64_tmaAB_bx_NNNN",
+        "calls": 1270,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 7.001086,
+        "averageMicrosecondsPerCall": 5.512666141732284,
+        "percentOfSummedKernelTime": 2.005618389726566
+      },
+      {
+        "key": "zero_term_state(Prec, Float, int, int, int)",
+        "calls": 2032,
+        "maxRegistersPerThread": 17,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 6.62416,
+        "averageMicrosecondsPerCall": 3.25992125984252,
+        "percentOfSummedKernelTime": 1.8976394680041249
+      },
+      {
+        "key": "nvjet_sm121_tst_mma_32x64x64_8_32x16x64_tmaAB_bz_NTNN",
+        "calls": 1270,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 6.59136,
+        "averageMicrosecondsPerCall": 5.1900472440944885,
+        "percentOfSummedKernelTime": 1.8882431710320506
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_32x32_128x2_tn_align2>(T1::Params)",
+        "calls": 2032,
+        "maxRegistersPerThread": 78,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 5.37728,
+        "averageMicrosecondsPerCall": 2.646299212598425,
+        "percentOfSummedKernelTime": 1.5404426762803465
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_75_tensorop_bf16_s1688gemm_bf16_128x128_tn_align1>(T1::Params)",
+        "calls": 127,
+        "maxRegistersPerThread": 246,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 4.880768,
+        "averageMicrosecondsPerCall": 38.431244094488186,
+        "percentOfSummedKernelTime": 1.3982056579206354
+      },
+      {
+        "key": "cast(__nv_bfloat16 *, float *, int)",
+        "calls": 2159,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 4.63552,
+        "averageMicrosecondsPerCall": 2.1470680870773506,
+        "percentOfSummedKernelTime": 1.3279488579265115
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_75_tensorop_bf16_s1688gemm_bf16_64x64_nn_align1>(T1::Params)",
+        "calls": 1270,
+        "maxRegistersPerThread": 96,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 4.56384,
+        "averageMicrosecondsPerCall": 3.593574803149606,
+        "percentOfSummedKernelTime": 1.3074145113729054
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_75_tensorop_bf16_s1688gemm_bf16_64x128_nt_align1>(T1::Params)",
+        "calls": 127,
+        "maxRegistersPerThread": 156,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 4.311328,
+        "averageMicrosecondsPerCall": 33.947464566929135,
+        "percentOfSummedKernelTime": 1.2350767753664293
+      },
+      {
+        "key": "cache_imp_and_v(Prec, const float *, const __nv_bfloat16 *, const __nv_bfloat16 *, Prec, const int *, __nv_bfloat16 *, __nv_bfloat16 *, float *, float *)",
+        "calls": 127,
+        "maxRegistersPerThread": 40,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 3.900448,
+        "averageMicrosecondsPerCall": 30.712188976377956,
+        "percentOfSummedKernelTime": 1.11737096744308
+      },
+      {
+        "key": "transpose_102(__nv_bfloat16 *, const __nv_bfloat16 *, int, int, int)",
+        "calls": 762,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 3.87283,
+        "averageMicrosecondsPerCall": 5.08245406824147,
+        "percentOfSummedKernelTime": 1.1094591708036061
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_32x32_128x1_tn_align2>(T1::Params)",
+        "calls": 762,
+        "maxRegistersPerThread": 72,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 3.564224,
+        "averageMicrosecondsPerCall": 4.677459317585302,
+        "percentOfSummedKernelTime": 1.0210520481400711
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_75_wmma_tensorop_bf16_s161616gemm_bf16_32x32_32x1_nt_align1>(T1::Params)",
+        "calls": 635,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 3.5264,
+        "averageMicrosecondsPerCall": 5.553385826771653,
+        "percentOfSummedKernelTime": 1.010216513485445
+      },
+      {
+        "key": "nvjet_sm121_tst_mma_64x32x64_8_16x32x64_tmaAB_bx_NNNN",
+        "calls": 1270,
+        "maxRegistersPerThread": 255,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 3.505632,
+        "averageMicrosecondsPerCall": 2.7603401574803152,
+        "percentOfSummedKernelTime": 1.0042670532562976
+      },
+      {
+        "key": "ppo_loss_compute(float *, PPOKernelArgs, PPOGraphArgs)",
+        "calls": 127,
+        "maxRegistersPerThread": 48,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 3.392288,
+        "averageMicrosecondsPerCall": 26.710929133858265,
+        "percentOfSummedKernelTime": 0.9717971177684078
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_bf16_256x128_32x3_nn_align2>(T1::Params)",
+        "calls": 127,
+        "maxRegistersPerThread": 218,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 2.87616,
+        "averageMicrosecondsPerCall": 22.646929133858265,
+        "percentOfSummedKernelTime": 0.8239406554634464
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_32x32_128x2_nn_align2>(T1::Params)",
+        "calls": 1270,
+        "maxRegistersPerThread": 86,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 2.660895,
+        "averageMicrosecondsPerCall": 2.0951929133858265,
+        "percentOfSummedKernelTime": 0.7622731594971793
+      },
+      {
+        "key": "cast_rew_term(__nv_bfloat16 *, const float *, __nv_bfloat16 *, const float *, int)",
+        "calls": 2032,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 2.209696,
+        "averageMicrosecondsPerCall": 1.0874488188976377,
+        "percentOfSummedKernelTime": 0.6330170681098951
+      },
+      {
+        "key": "cast(__nv_bfloat16 *, unsigned char *, int)",
+        "calls": 2032,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 2.04016,
+        "averageMicrosecondsPerCall": 1.004015748031496,
+        "percentOfSummedKernelTime": 0.5844496716630178
+      },
+      {
+        "key": "muon_clip_nesterov(float *, __nv_bfloat16 *, const float *, float, float, float, int)",
+        "calls": 127,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 1.931776,
+        "averageMicrosecondsPerCall": 15.21083464566929,
+        "percentOfSummedKernelTime": 0.5534006396196856
+      },
+      {
+        "key": "muon_sum_sq_partials(float *, const __nv_bfloat16 *, int)",
+        "calls": 635,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 1.884544,
+        "averageMicrosecondsPerCall": 2.9677858267716535,
+        "percentOfSummedKernelTime": 0.5398699719798987
+      },
+      {
+        "key": "muon_weight_update(float *, const __nv_bfloat16 *, const float *, float, int)",
+        "calls": 127,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 1.672352,
+        "averageMicrosecondsPerCall": 13.168125984251969,
+        "percentOfSummedKernelTime": 0.4790828059098262
+      },
+      {
+        "key": "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_bf16_64x64_32x6_nt_align2>(T1::Params)",
+        "calls": 127,
+        "maxRegistersPerThread": 90,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 1.071712,
+        "averageMicrosecondsPerCall": 8.438677165354331,
+        "percentOfSummedKernelTime": 0.30701598233340327
+      },
+      {
+        "key": "muon_l2_normalize(__nv_bfloat16 *, const float *, float, int)",
+        "calls": 508,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 0.918688,
+        "averageMicrosecondsPerCall": 1.8084409448818897,
+        "percentOfSummedKernelTime": 0.263178819289053
+      },
+      {
+        "key": "snapshot_state(Prec, Prec, int, int)",
+        "calls": 127,
+        "maxRegistersPerThread": 19,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 0.886944,
+        "averageMicrosecondsPerCall": 6.983811023622048,
+        "percentOfSummedKernelTime": 0.2540850372438846
+      },
+      {
+        "key": "muon_sum_sq_reduce(float *, const float *, int)",
+        "calls": 635,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 0.871168,
+        "averageMicrosecondsPerCall": 1.3719181102362203,
+        "percentOfSummedKernelTime": 0.2495656475782918
+      },
+      {
+        "key": "muon_store_update(__nv_bfloat16 *, const __nv_bfloat16 *, float, int)",
+        "calls": 508,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 0.803136,
+        "averageMicrosecondsPerCall": 1.580976377952756,
+        "percentOfSummedKernelTime": 0.23007635259036027
+      },
+      {
+        "key": "puf_stamp(unsigned long long *)",
+        "calls": 381,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 0.45504,
+        "averageMicrosecondsPerCall": 1.1943307086614172,
+        "percentOfSummedKernelTime": 0.13035643213941045
+      },
+      {
+        "key": "assemble_decoder_grad(__nv_bfloat16 *, const float *, const float *, int, int, int)",
+        "calls": 127,
+        "maxRegistersPerThread": 16,
+        "maxLocalMemoryPerThread": 0,
+        "milliseconds": 0.39952,
+        "averageMicrosecondsPerCall": 3.1458267716535433,
+        "percentOfSummedKernelTime": 0.11445148067936281
+      }
+    ],
+    "streamAttribution": {
+      "anchors": [
+        {
+          "deviceId": 0,
+          "contextId": 1,
+          "streamId": 7,
+          "env": 0,
+          "rollout": 0,
+          "training": 0
+        },
+        {
+          "deviceId": 0,
+          "contextId": 1,
+          "streamId": 14,
+          "env": 0,
+          "rollout": 0,
+          "training": 1
+        },
+        {
+          "deviceId": 0,
+          "contextId": 1,
+          "streamId": 15,
+          "env": 1,
+          "rollout": 1,
+          "training": 0
+        },
+        {
+          "deviceId": 0,
+          "contextId": 1,
+          "streamId": 18,
+          "env": 0,
+          "rollout": 0,
+          "training": 1
+        }
+      ],
+      "method": "Disjoint GPU streams identified by fast_step+sample_logits versus PPO-loss/backward anchors; exact fast_step duration removed from rollout stream."
+    }
+  },
+  "cudaApi": [
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaStreamSynchronize_v3020",
+      "calls": 380,
+      "milliseconds": 405.590752
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaMemcpyAsync_v3020",
+      "calls": 254,
+      "milliseconds": 50.192688
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaGraphLaunch_v10000",
+      "calls": 254,
+      "milliseconds": 48.79
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaMemcpy_v3020",
+      "calls": 257,
+      "milliseconds": 27.560416
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaEventRecord_v3020",
+      "calls": 254,
+      "milliseconds": 1.149872
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaLaunchKernel_v7000",
+      "calls": 1,
+      "milliseconds": 0.021136
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaMemGetInfo_v3020",
+      "calls": 1,
+      "milliseconds": 0.01656
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cudaMemset_v3020",
+      "calls": 1,
+      "milliseconds": 0.006832
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cuLibraryGetKernel",
+      "calls": 1,
+      "milliseconds": 0.000736
+    },
+    {
+      "source": "CUPTI_ACTIVITY_KIND_RUNTIME",
+      "api": "cuKernelGetName",
+      "calls": 1,
+      "milliseconds": 0.000288
+    }
+  ],
+  "memcopies": [
+    {
+      "copyKind": 1,
+      "calls": 254,
+      "bytes": 1016,
+      "milliseconds": 0.072064
+    },
+    {
+      "copyKind": 2,
+      "calls": 257,
+      "bytes": 9642040,
+      "milliseconds": 48.948704
+    },
+    {
+      "copyKind": 8,
+      "calls": 9779,
+      "bytes": 3921117380,
+      "milliseconds": 17.794649
+    }
+  ],
+  "warnings": [],
+  "interpretation": [
+    "Training SPS includes environment, inference, PPO, and between-epoch host gaps inside the measured interval.",
+    "Nsight node tracing adds overhead. Compare speed against an unprofiled run with the same configuration.",
+    "Category percentages use summed kernel durations, not wall time. Concurrent kernels can overlap.",
+    "Kernel-uncovered wall time can include copies, synchronization, scheduling, or CPU work; it is not automatically CPU compute.",
+    "Shared GEMMs without a verified controller/training boundary remain unclassified. Raw traces stay private.",
+    "Fast environment attribution is the exact fast_step function. It includes both fighters, input scheduling, slider integration, contacts, points, resets and observation/pose export."
+  ],
+  "backend": "semantic_cuda_v1",
+  "physicsParityClaim": false
+}

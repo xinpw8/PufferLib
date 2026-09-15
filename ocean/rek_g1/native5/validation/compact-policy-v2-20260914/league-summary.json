@@ -1,0 +1,1435 @@
+{
+  "backend": "semantic_cuda",
+  "configHash": "ef31abc5889635d7386a07a436596bf8553d7e2dd09b964b1541dfb1fc624f76",
+  "policies": [
+    "compact-v2-33m-bf16-sampled",
+    "compact-v2-1m-bf16-sampled",
+    "scripted"
+  ],
+  "seeds": [
+    20001,
+    20002,
+    20003,
+    20004,
+    20005,
+    20006,
+    20007,
+    20008,
+    20009,
+    20010
+  ],
+  "roundSeconds": 20,
+  "resetBudgetSeconds": 20,
+  "maximumSimulatedDurationMs": 40020,
+  "matches": [
+    {
+      "id": "rr-2e036242967491f7319d8f841c667785.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20001,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-2e036242967491f7319d8f841c667785.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20001,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-59a65318859ce81c19b2fc94dce60dac.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20002,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-59a65318859ce81c19b2fc94dce60dac.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20002,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-e569543396b9242424d0f489bca6e3c6.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20003,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-e569543396b9242424d0f489bca6e3c6.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20003,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-1ab768c5b1530e9cb555a4bee6a70dcc.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20004,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-1ab768c5b1530e9cb555a4bee6a70dcc.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20004,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-7ce528c2f167bc05c60fea1a7e60bc56.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20005,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-7ce528c2f167bc05c60fea1a7e60bc56.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20005,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-5a0936e4ed6126c29f660b1a56a12531.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20006,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-5a0936e4ed6126c29f660b1a56a12531.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20006,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-aa1f0a0b98da705b5b766c84639a3fbb.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20007,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-aa1f0a0b98da705b5b766c84639a3fbb.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20007,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-b2b0887a053795e248070307e685691f.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20008,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-b2b0887a053795e248070307e685691f.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20008,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-ee413563378641f7f4efece42b07f48f.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20009,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-ee413563378641f7f4efece42b07f48f.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20009,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-791efeaaad2cf2802a5525121738a22f.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20010,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-791efeaaad2cf2802a5525121738a22f.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20010,
+      "status": "completed",
+      "scores": [
+        0,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-4ae88564fd17afc13bc67e5566a09b4d.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20001,
+      "status": "completed",
+      "scores": [
+        15,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-4ae88564fd17afc13bc67e5566a09b4d.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20001,
+      "status": "completed",
+      "scores": [
+        1,
+        15
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-3f8ad43c8cdb82853d7b106316d4be50.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20002,
+      "status": "completed",
+      "scores": [
+        15,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-3f8ad43c8cdb82853d7b106316d4be50.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20002,
+      "status": "completed",
+      "scores": [
+        1,
+        15
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-bfef2415b5c0127ab01ecf7ba5fbdb77.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20003,
+      "status": "completed",
+      "scores": [
+        15,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-bfef2415b5c0127ab01ecf7ba5fbdb77.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20003,
+      "status": "completed",
+      "scores": [
+        1,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-100af2417e7e963155b991c3d0189872.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20004,
+      "status": "completed",
+      "scores": [
+        21,
+        1
+      ],
+      "durationMs": 17200,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "round_limit"
+    },
+    {
+      "id": "rr-100af2417e7e963155b991c3d0189872.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20004,
+      "status": "completed",
+      "scores": [
+        1,
+        8
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-c5fa1ce872c64f15d0e86ffc46bbef17.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20005,
+      "status": "completed",
+      "scores": [
+        21,
+        1
+      ],
+      "durationMs": 19360,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "round_limit"
+    },
+    {
+      "id": "rr-c5fa1ce872c64f15d0e86ffc46bbef17.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20005,
+      "status": "completed",
+      "scores": [
+        1,
+        15
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-6d92efa62dd519bf1812c850a7c44b24.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20006,
+      "status": "completed",
+      "scores": [
+        15,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-6d92efa62dd519bf1812c850a7c44b24.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20006,
+      "status": "completed",
+      "scores": [
+        1,
+        21
+      ],
+      "durationMs": 17540,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "round_limit"
+    },
+    {
+      "id": "rr-7e6654e1bcb48f5cebc8e7049649f5b5.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20007,
+      "status": "completed",
+      "scores": [
+        14,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-7e6654e1bcb48f5cebc8e7049649f5b5.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20007,
+      "status": "completed",
+      "scores": [
+        1,
+        14
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-3121f6a11232821c3d963b2a00f5ddb3.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20008,
+      "status": "completed",
+      "scores": [
+        21,
+        1
+      ],
+      "durationMs": 14600,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "round_limit"
+    },
+    {
+      "id": "rr-3121f6a11232821c3d963b2a00f5ddb3.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20008,
+      "status": "completed",
+      "scores": [
+        1,
+        21
+      ],
+      "durationMs": 18300,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "round_limit"
+    },
+    {
+      "id": "rr-a504214bdb918c46134918eb49718ced.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20009,
+      "status": "completed",
+      "scores": [
+        15,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-a504214bdb918c46134918eb49718ced.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20009,
+      "status": "completed",
+      "scores": [
+        1,
+        8
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-24341aa8d7638899e237b44004d58ce9.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-33m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20010,
+      "status": "completed",
+      "scores": [
+        15,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-24341aa8d7638899e237b44004d58ce9.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-33m-bf16-sampled"
+      ],
+      "seed": 20010,
+      "status": "completed",
+      "scores": [
+        1,
+        8
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-33m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-0d42735b7a1a302c93e0fa1f4534acfc.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20001,
+      "status": "completed",
+      "scores": [
+        1,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-0d42735b7a1a302c93e0fa1f4534acfc.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20001,
+      "status": "completed",
+      "scores": [
+        1,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "scripted",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-a71000d6f1b7e12ca2a7b8b9cb270e68.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20002,
+      "status": "completed",
+      "scores": [
+        0,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "scripted",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-a71000d6f1b7e12ca2a7b8b9cb270e68.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20002,
+      "status": "completed",
+      "scores": [
+        1,
+        8
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-1m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-d65b22c9c3631be84de7177ad63c45e3.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20003,
+      "status": "completed",
+      "scores": [
+        8,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-1m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-d65b22c9c3631be84de7177ad63c45e3.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20003,
+      "status": "completed",
+      "scores": [
+        7,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "scripted",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-906b328a63f9af9e4954845e7674a466.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20004,
+      "status": "completed",
+      "scores": [
+        0,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "scripted",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-906b328a63f9af9e4954845e7674a466.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20004,
+      "status": "completed",
+      "scores": [
+        1,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "scripted",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-a22a41bee09098d04960d0eb25806bad.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20005,
+      "status": "completed",
+      "scores": [
+        1,
+        7
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "scripted",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-a22a41bee09098d04960d0eb25806bad.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20005,
+      "status": "completed",
+      "scores": [
+        7,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "scripted",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-1e8757501968c91111b34132a300940f.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20006,
+      "status": "completed",
+      "scores": [
+        7,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-1m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-1e8757501968c91111b34132a300940f.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20006,
+      "status": "completed",
+      "scores": [
+        1,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-c2d47ef4ee4fef791129242d899bc30f.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20007,
+      "status": "completed",
+      "scores": [
+        1,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-c2d47ef4ee4fef791129242d899bc30f.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20007,
+      "status": "completed",
+      "scores": [
+        1,
+        7
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "compact-v2-1m-bf16-sampled",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-ff4dab721affb990fe3010fcdee3a4c7.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20008,
+      "status": "completed",
+      "scores": [
+        1,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-ff4dab721affb990fe3010fcdee3a4c7.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20008,
+      "status": "completed",
+      "scores": [
+        1,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "scripted",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-0b1f2b724d5f8ff3c64c113cf166fa4c.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20009,
+      "status": "completed",
+      "scores": [
+        1,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-0b1f2b724d5f8ff3c64c113cf166fa4c.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20009,
+      "status": "completed",
+      "scores": [
+        1,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": null,
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-bc7b73f1e3d0c57e865f3f1245fd9592.0",
+      "backend": "semantic_cuda",
+      "players": [
+        "compact-v2-1m-bf16-sampled",
+        "scripted"
+      ],
+      "seed": 20010,
+      "status": "completed",
+      "scores": [
+        0,
+        1
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "scripted",
+      "reason": "time_limit"
+    },
+    {
+      "id": "rr-bc7b73f1e3d0c57e865f3f1245fd9592.1",
+      "backend": "semantic_cuda",
+      "players": [
+        "scripted",
+        "compact-v2-1m-bf16-sampled"
+      ],
+      "seed": 20010,
+      "status": "completed",
+      "scores": [
+        1,
+        0
+      ],
+      "durationMs": 20000,
+      "winnerPolicyId": "scripted",
+      "reason": "time_limit"
+    }
+  ],
+  "standings": [
+    {
+      "backend": "semantic_cuda",
+      "id": "compact-v2-33m-bf16-sampled",
+      "label": "Compact v2 33.6M | BF16 sampled",
+      "configHash": "ef31abc5889635d7386a07a436596bf8553d7e2dd09b964b1541dfb1fc624f76",
+      "kind": "trained",
+      "createdAt": "2026-09-15T03:59:00.030Z",
+      "checkpoint": {
+        "sha256": "0fa325324083023d69f6e5b489792880e423b5b7c7bd06387eaf2c6007018fe2",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 33554432,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "bf16",
+          "observationEncoding": "scaled_polar_xy",
+          "recurrentResetTicks": 0,
+          "legacyFastHidden": 0,
+          "actionSelection": "sampled",
+          "trainingBackend": "semantic_cuda"
+        }
+      },
+      "total": {
+        "games": 40,
+        "wins": 19,
+        "draws": 21,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 293,
+        "pointsAgainst": 20,
+        "winRate": 0.475,
+        "winRate95": [
+          0.329354701126789,
+          0.6250263789330753
+        ],
+        "scoreRate": 0.7375
+      },
+      "paired": {
+        "games": 40,
+        "wins": 19,
+        "draws": 21,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 293,
+        "pointsAgainst": 20,
+        "winRate": 0.475,
+        "winRate95": [
+          0.329354701126789,
+          0.6250263789330753
+        ],
+        "scoreRate": 0.7375
+      },
+      "headToHead": {
+        "compact-v2-1m-bf16-sampled": {
+          "games": 20,
+          "wins": 0,
+          "draws": 20,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 0,
+          "pointsAgainst": 0,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.16112515805281938
+          ],
+          "scoreRate": 0.5
+        },
+        "scripted": {
+          "games": 20,
+          "wins": 19,
+          "draws": 1,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 293,
+          "pointsAgainst": 20,
+          "winRate": 0.95,
+          "winRate95": [
+            0.763868806553258,
+            0.9911185511992047
+          ],
+          "scoreRate": 0.975
+        }
+      },
+      "pending": 0,
+      "invalidTrials": 0,
+      "leftGames": 20,
+      "rightGames": 20,
+      "rank": 1,
+      "strengthStatus": "measured",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs"
+    },
+    {
+      "backend": "semantic_cuda",
+      "id": "scripted",
+      "label": "Scripted approach / 16 moves",
+      "configHash": "ef31abc5889635d7386a07a436596bf8553d7e2dd09b964b1541dfb1fc624f76",
+      "kind": "scripted",
+      "createdAt": "2026-09-15T03:58:59.708Z",
+      "checkpoint": null,
+      "scriptedVersion": "semantic-cuda-approach-facing-88cb5e6181069c35dd1140c4211ad0797e9b00fb810b3444e6a87ed94e3417fe",
+      "total": {
+        "games": 40,
+        "wins": 10,
+        "draws": 7,
+        "losses": 23,
+        "forfeits": 0,
+        "pointsFor": 58,
+        "pointsAgainst": 331,
+        "winRate": 0.25,
+        "winRate95": [
+          0.14187118639096302,
+          0.40193961420768026
+        ],
+        "scoreRate": 0.3375
+      },
+      "paired": {
+        "games": 40,
+        "wins": 10,
+        "draws": 7,
+        "losses": 23,
+        "forfeits": 0,
+        "pointsFor": 58,
+        "pointsAgainst": 331,
+        "winRate": 0.25,
+        "winRate95": [
+          0.14187118639096302,
+          0.40193961420768026
+        ],
+        "scoreRate": 0.3375
+      },
+      "headToHead": {
+        "compact-v2-33m-bf16-sampled": {
+          "games": 20,
+          "wins": 0,
+          "draws": 1,
+          "losses": 19,
+          "forfeits": 0,
+          "pointsFor": 20,
+          "pointsAgainst": 293,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.16112515805281938
+          ],
+          "scoreRate": 0.025
+        },
+        "compact-v2-1m-bf16-sampled": {
+          "games": 20,
+          "wins": 10,
+          "draws": 6,
+          "losses": 4,
+          "forfeits": 0,
+          "pointsFor": 38,
+          "pointsAgainst": 38,
+          "winRate": 0.5,
+          "winRate95": [
+            0.2992980081982123,
+            0.7007019918017877
+          ],
+          "scoreRate": 0.65
+        }
+      },
+      "pending": 0,
+      "invalidTrials": 0,
+      "leftGames": 20,
+      "rightGames": 20,
+      "rank": 2,
+      "strengthStatus": "measured",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs"
+    },
+    {
+      "backend": "semantic_cuda",
+      "id": "compact-v2-1m-bf16-sampled",
+      "label": "Compact v2 1.05M | BF16 sampled",
+      "configHash": "ef31abc5889635d7386a07a436596bf8553d7e2dd09b964b1541dfb1fc624f76",
+      "kind": "trained",
+      "createdAt": "2026-09-15T03:58:59.867Z",
+      "checkpoint": {
+        "sha256": "7c4507537df7a5b82d06caa72c5d1987f231706b94fdca38dca9f9e99916067e",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 1048576,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "bf16",
+          "observationEncoding": "scaled_polar_xy",
+          "recurrentResetTicks": 0,
+          "legacyFastHidden": 0,
+          "actionSelection": "sampled",
+          "trainingBackend": "semantic_cuda"
+        }
+      },
+      "total": {
+        "games": 40,
+        "wins": 4,
+        "draws": 26,
+        "losses": 10,
+        "forfeits": 0,
+        "pointsFor": 38,
+        "pointsAgainst": 38,
+        "winRate": 0.1,
+        "winRate95": [
+          0.03957952868260638,
+          0.23051775227522298
+        ],
+        "scoreRate": 0.425
+      },
+      "paired": {
+        "games": 40,
+        "wins": 4,
+        "draws": 26,
+        "losses": 10,
+        "forfeits": 0,
+        "pointsFor": 38,
+        "pointsAgainst": 38,
+        "winRate": 0.1,
+        "winRate95": [
+          0.03957952868260638,
+          0.23051775227522298
+        ],
+        "scoreRate": 0.425
+      },
+      "headToHead": {
+        "compact-v2-33m-bf16-sampled": {
+          "games": 20,
+          "wins": 0,
+          "draws": 20,
+          "losses": 0,
+          "forfeits": 0,
+          "pointsFor": 0,
+          "pointsAgainst": 0,
+          "winRate": 0,
+          "winRate95": [
+            0,
+            0.16112515805281938
+          ],
+          "scoreRate": 0.5
+        },
+        "scripted": {
+          "games": 20,
+          "wins": 4,
+          "draws": 6,
+          "losses": 10,
+          "forfeits": 0,
+          "pointsFor": 38,
+          "pointsAgainst": 38,
+          "winRate": 0.2,
+          "winRate95": [
+            0.08065766257979806,
+            0.41601743225189364
+          ],
+          "scoreRate": 0.35
+        }
+      },
+      "pending": 0,
+      "invalidTrials": 0,
+      "leftGames": 20,
+      "rightGames": 20,
+      "rank": 3,
+      "strengthStatus": "measured",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs"
+    },
+    {
+      "backend": "semantic_cuda",
+      "id": "compact-v2-1m-bf16-greedy",
+      "label": "Compact v2 1.05M | BF16 greedy",
+      "configHash": "ef31abc5889635d7386a07a436596bf8553d7e2dd09b964b1541dfb1fc624f76",
+      "kind": "trained",
+      "createdAt": "2026-09-15T03:58:59.778Z",
+      "checkpoint": {
+        "sha256": "7c4507537df7a5b82d06caa72c5d1987f231706b94fdca38dca9f9e99916067e",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 1048576,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "bf16",
+          "observationEncoding": "scaled_polar_xy",
+          "recurrentResetTicks": 0,
+          "legacyFastHidden": 0,
+          "actionSelection": "greedy",
+          "trainingBackend": "semantic_cuda"
+        }
+      },
+      "total": {
+        "games": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 0,
+        "winRate": null,
+        "winRate95": [
+          0,
+          1
+        ],
+        "scoreRate": null
+      },
+      "paired": {
+        "games": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 0,
+        "winRate": null,
+        "winRate95": [
+          0,
+          1
+        ],
+        "scoreRate": null
+      },
+      "headToHead": {},
+      "pending": 0,
+      "invalidTrials": 0,
+      "leftGames": 0,
+      "rightGames": 0,
+      "rank": null,
+      "strengthStatus": "untested",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs"
+    },
+    {
+      "backend": "semantic_cuda",
+      "id": "compact-v2-33m-bf16-greedy",
+      "label": "Compact v2 33.6M | BF16 greedy",
+      "configHash": "ef31abc5889635d7386a07a436596bf8553d7e2dd09b964b1541dfb1fc624f76",
+      "kind": "trained",
+      "createdAt": "2026-09-15T03:58:59.939Z",
+      "checkpoint": {
+        "sha256": "0fa325324083023d69f6e5b489792880e423b5b7c7bd06387eaf2c6007018fe2",
+        "format": "pufferlib-native-flat-fp32",
+        "trainingSteps": 33554432,
+        "model": {
+          "hiddenSize": 256,
+          "layers": 2,
+          "precision": "bf16",
+          "observationEncoding": "scaled_polar_xy",
+          "recurrentResetTicks": 0,
+          "legacyFastHidden": 0,
+          "actionSelection": "greedy",
+          "trainingBackend": "semantic_cuda"
+        }
+      },
+      "total": {
+        "games": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 0,
+        "winRate": null,
+        "winRate95": [
+          0,
+          1
+        ],
+        "scoreRate": null
+      },
+      "paired": {
+        "games": 0,
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "forfeits": 0,
+        "pointsFor": 0,
+        "pointsAgainst": 0,
+        "winRate": null,
+        "winRate95": [
+          0,
+          1
+        ],
+        "scoreRate": null
+      },
+      "headToHead": {},
+      "pending": 0,
+      "invalidTrials": 0,
+      "leftGames": 0,
+      "rightGames": 0,
+      "rank": null,
+      "strengthStatus": "untested",
+      "rankingMethod": "95% Wilson lower bound on win rate over completed side-reversed pairs"
+    }
+  ],
+  "environment_randomizes_seed": false,
+  "fixture_note": "Seeds change sampled policy draws; geometry/start state is fixed. Two checkpoint policies drew all20 direct matches0-0."
+}

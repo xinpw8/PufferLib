@@ -1,0 +1,7 @@
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+2026-09-15T03:43:12+00:00
+GPU 0: NVIDIA GB10 (UUID: GPU-c10f6617-d6dc-c3c2-3069-3dcc3f506b75)
+9e64a2207add9d002bc6149e8c79a92555562c686c047f6e216f1b3e02626f39  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/runtime-config.json
+fcc5bcac7a7dabb36ebb79fcf13ca5dae640377287e4409a9ac69b4e24b9444b  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-512-r1/checkpoints/rek_native5/semantic-cuda-512-16/0000000033554432.bin
+c4b8ec45b06a823215364a3fbf4d7da7e98fd9e92bb5cd4b7867c4c301c8cdb9  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/policy-eval-build-v1/fast-policy-eval

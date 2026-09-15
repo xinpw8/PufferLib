@@ -1,0 +1,7 @@
+{"event":"episode_observation_boundary","completed_rounds":1,"diagnostic_round_number":2,"raw_round_feature":1}
+{"event":"episode_observation_boundary","completed_rounds":2,"diagnostic_round_number":3,"raw_round_feature":1}
+{"event":"episode_observation_boundary","completed_rounds":3,"diagnostic_round_number":4,"raw_round_feature":1}
+{"event":"episode_observation_gpu_check","failure_bits":0,"bit1":"raw","bit2":"encoded","bit4":"learner"}
+{"test":"fast_episode_observation","status":"passed","contract_version":2,"arenas":4,"independent_rounds":3,"ticks_per_round":1000,"round_seconds":20,"policy_round_feature":1,"raw_encoded_learner_checked_on_gpu":true,"diagnostic_round_counter_cumulative":true}
+{"test":"fast_input_semantics","status":"passed","held_q_pause_resume":true,"desired_yaw_replace_release":true,"masked_attack_translation_discarded":true,"duration_ticks":157,"translation_settle_gate":true}
+{"test":"fast_contact_replay","status":"passed","ticks_per_replay":6400,"maximum_points_in_round":21,"maximum_opponent_falls":2,"completed_rounds":9,"completed_player_points":220,"bitwise_qpos_replay":true,"cpu_physics":false,"python_runtime":false}

@@ -78,6 +78,39 @@ test('viewer and training execution paths and short rounds are explicitly labele
   assert.match(html, /Experimental 20-second rounds/);
 });
 
+test('compact GPU backend exposes its own execution boundary and approximation warning', async () => {
+  const {elements: ui, catalog} = await setup();
+  catalog.backends.push({id: 'semantic_cuda', label: 'Reduced GPU candidate', available: true,
+    runtimeNote: 'Same CUDA environment for training and evaluation. CPU kinematics renders pictures only.',
+    warning: 'Approximate root movement and collision response. Authentic REK parity is unverified.'});
+  catalog.policies.push({backend: 'semantic_cuda', id: 'scripted', label: 'Scripted', kind: 'scripted', rank: null});
+  await ui.refresh.trigger('click');
+  ui.backend.value = 'semantic_cuda'; await ui.backend.trigger('change');
+  await ui.load.trigger('click');
+  assert.equal(ui['runtime-note'].textContent, catalog.backends[1].runtimeNote);
+  assert.equal(ui['backend-warning'].textContent, catalog.backends[1].warning);
+  assert.equal(ui['backend-warning'].hidden, false);
+  ui.backend.value = 'mujoco'; await ui.backend.trigger('change');
+  await ui.load.trigger('click');
+  assert.match(ui['runtime-note'].textContent, /CPU physics/);
+  assert.equal(ui['backend-warning'].hidden, true);
+});
+
+test('compact FP32 computation variants are labeled independently of checkpoint storage', async () => {
+  const {elements: ui, catalog} = await setup();
+  catalog.backends.push({id: 'semantic_cuda', label: 'Reduced GPU candidate', available: true});
+  catalog.policies.push({backend: 'semantic_cuda', id: 'compact-33m', label: 'Compact 33.6M', kind: 'trained',
+    checkpoint: {format: 'pufferlib-native-flat-fp32', model: {precision: 'fp32'}}});
+  catalog.policies.push({backend: 'semantic_cuda', id: 'compact-33m-bf16-greedy', label: 'Compact 33.6M BF16 greedy', kind: 'trained',
+    checkpoint: {format: 'pufferlib-native-flat-fp32', model: {precision: 'bf16'}}});
+  await ui.refresh.trigger('click');
+  ui.backend.value = 'semantic_cuda'; await ui.backend.trigger('change');
+  ui.opponent.value = 'compact-33m'; await ui.load.trigger('click');
+  assert.match(ui['active-config'].textContent, /FP32 inference variant/);
+  assert.match(ui.opponent.options.find(o => o.value === 'compact-33m').textContent, /FP32 inference variant/);
+  assert.doesNotMatch(ui.opponent.options.find(o => o.value === 'compact-33m-bf16-greedy').textContent, /FP32 inference variant/);
+});
+
 test('switching release is harmless but rejected held input remains visible', async () => {
   const {elements: ui} = await setup({backend: 'mujoco', opponent: 'trained', humanSide: 1}, null, 409);
   await ui.backend.trigger('change'); await new Promise(setImmediate);

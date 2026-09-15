@@ -1,0 +1,13 @@
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+2026-09-15T03:36:16+00:00
+NVIDIA Nsight Systems version 2025.3.2.474-253236389321v0
+pid, process_name, used_gpu_memory [MiB]
+2325, /home/spark-advantage/cuda_course/.venv/bin/python, 5096 MiB
+17363, python3, 1350 MiB
+17512, sglang::scheduler, 50981 MiB
+66395, /home/spark-advantage/rek-training/native5-league-20260914/build-eval-v2/rek-eval-worker, 562 MiB
+dee73812d96ed2a176b0712df4dda354bbc31f0fb7a3ce5456113f2858f69975  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source/ocean/rek_g1/native5/run_fast_training.sh
+d408915bf83d6a8c27e4aaa56fb0485f0b56b9a6e497ca018162b8292b35414f  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source/ocean/rek_g1/native5/fast_profile.sh
+1ce5df8c1308cac8197c8309a981503a1f7a76b00a246f67a48d2ee92134286f  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source/ocean/rek_g1/native5/fast_profile.mjs
+086a925bed02a70e50c3af1765849353aac3b2cea73d5efc75b9b8b7f40c912b  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v1/puffer-rek-native5

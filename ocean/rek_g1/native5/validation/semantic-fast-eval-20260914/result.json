@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "backend": "semantic_cuda",
+  "status": "passed",
+  "host": "spark-4ae3",
+  "port": 18769,
+  "worker_sha256": "5a1e0388dbec42e921e6fa7de368282bdf0f5fc052abd77278d1be30a0a3406a",
+  "config_sha256": "292189c76763a406e442f97126123383ab815401e3c3efe2095da4f495dc269c",
+  "training_runtime_objects_identical": true,
+  "control_hz": 50,
+  "arenas": 1,
+  "cpu_physics": false,
+  "python_runtime": false,
+  "renderer_cpu_kinematics": true,
+  "authentic_rek_parity_established": false,
+  "checks": {
+    "png_width": 640,
+    "png_height": 360,
+    "png_bytes": 13558,
+    "held_walk_ticks": 20,
+    "held_walk_displacement_m": 0.1679999828342955,
+    "gpu_scripted_fighter0_ticks": 100,
+    "completed_round_ticks": 1000,
+    "completed_round_score": [0, 1],
+    "completed_round_falls": [0, 0],
+    "completed_round_winner": 1,
+    "trained_inference_ticks_per_side": 100,
+    "runtime_failure_bits": 0,
+    "windows_http_health_status": 200,
+    "windows_png_http_status": 200,
+    "node_tests_passed": 48
+  },
+  "checkpoints": [
+    {
+      "id": "compact-33m",
+      "sha256": "fcc5bcac7a7dabb36ebb79fcf13ca5dae640377287e4409a9ac69b4e24b9444b",
+      "training_transitions": 33554432,
+      "native_inference_smoke_passed_both_sides": true
+    },
+    {
+      "id": "compact-1m",
+      "sha256": "d771d84965f7c4fd364a8ab8e2863991e8194932b54934ac6750c34508331543",
+      "training_transitions": 1048576,
+      "native_inference_smoke_passed_both_sides": null
+    }
+  ],
+  "policy_contract": {
+    "hidden_size": 256,
+    "layers": 2,
+    "precision": "fp32",
+    "checkpoint_weight_storage": "fp32",
+    "smoke_inference_computation": "fp32",
+    "trainer_inference_computation": "bf16",
+    "matches_trainer_inference_precision": false,
+    "observation_encoding": "scaled_polar_xy",
+    "action_selection": "greedy"
+  },
+  "bf16_followup_smoke": {
+    "id": "compact-33m-bf16-greedy",
+    "sha256": "fcc5bcac7a7dabb36ebb79fcf13ca5dae640377287e4409a9ac69b4e24b9444b",
+    "checkpoint_weight_storage": "fp32",
+    "inference_computation": "bf16",
+    "trainer_inference_computation": "bf16",
+    "matches_trainer_inference_precision": true,
+    "action_selection": "greedy",
+    "ticks_per_side": 100,
+    "sides": [0, 1],
+    "status": "passed",
+    "runtime_failure_bits": 0,
+    "other_initial_checks_repeated": true
+  },
+  "strength_claim": null
+}

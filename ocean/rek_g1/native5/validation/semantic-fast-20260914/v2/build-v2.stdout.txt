@@ -1,0 +1,4 @@
+Compiling PufferLib 5.0 773f923d80e73bdc255a2ba730c918b28e416aa1 for sm_121
+Compiled trainer object: /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/pufferl.o
+The runtime remains unresolved; no executable or GPU test was produced.
+Built reduced GPU trainer: /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/puffer-rek-native5

@@ -1,0 +1,8 @@
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+2026-09-15T03:34:49+00:00
+4a63f23387aeca182d7d0e438de0f5894fa43e932973f67d909e7fcf21d3f6ad  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source/ocean/rek_g1/native5/fast_input_probe.cu
+1f3a54e8682229e31c243ec40683b7d5eea178679a8eeab5bb202851b4538b61  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source/ocean/rek_g1/native5/fast_input_probe.sh
+ce382be0e2494072e7bd0f1395d4f27887aa43642f0c038435975ab647e3ff12  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v1/fast_runtime.o
+ca8117506cd78e7cb45b146d79b657d2c653554a75bccaecb1e7979e7f54a2ff  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v1/fast_assets.o
+7a2b274b31547a8f3516adc53099894588e1c250bfe62108132a1da81d8ac71d  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/input-probe-v1/fast-input-probe

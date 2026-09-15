@@ -24,7 +24,8 @@ async function serve(configPath){
       ...(p.pairedStats.games?p.pairedStats:p.stats),ranked:p.rank!==null,
     }));
   }
-  function catalog(){return {backends:backends.map(({id,label,available=true,error})=>({id,label,available,error})),
+  function catalog(){return {backends:backends.map(({id,label,available=true,error,runtimeNote,warning})=>
+    ({id,label,available,error,runtimeNote,warning})),
     policies:backends.flatMap(b=>options(b.id)),active};}
   async function select(value){
     if(switching)throw new Error('Backend switch already in progress');

@@ -1,0 +1,16 @@
+af99aac5db7adca9e7065843a41c0c0bdd0fb5a76c3b4d14de84067274bda584  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000002097152.bin
+449efcd44d0b57b8d2d8f7237567b155345b1df91d0b0ff950fc42cdf2b28600  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000016777216.bin
+cdff0ae3d764b06d4fbfb49d4439e51c88cb770bd7c6b262a11ac241549ee1ce  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000020971520.bin
+6d2e455ef7b771513fb77b3a60b48681f9ff29446351f9ba8fb97bd1a0f2f85f  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000014680064.bin
+2f8877fcfeaac7544e6ed23eecf4696b29826f5f880fa172ec378198225764e2  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000006291456.bin
+f2de131029ee0cdbb767dc881184ffbeb1d3dff7a8974fe95ba0aad610f28e85  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000031457280.bin
+4cd3cb1272fc9c2b630de27075558af8b4c96dc6f59684bcfd17472524454528  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000018874368.bin
+852a3ed56bb792914d3794a3f7c8502dd3d327ad31d5a76542d56f6e625965dd  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000029360128.bin
+2773dba81a07a1cead641702514586417898419833326dfead636f2418016b48  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000012582912.bin
+7630583d6ef619cb981208965179147e3973a7463e9841d73b18c5359d5cb631  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000010485760.bin
+37b4fbee949a703d8b446a02c0571a2c531432a92891329b4e270a19e5479f57  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000025165824.bin
+dcc9e6153e84edc609a5dbdbab20098d4beab368dc2db1d64d651ec04dac0493  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000023068672.bin
+40a43d2e8032f2645e4fc2231863529ee6b28a015a7e9537d295b072db68f899  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000008388608.bin
+fad1aa1e168df1b8542108ff432e0e6e36ac21f0c204dd2c2e4da2a428e4a018  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000033554432.bin
+725699058ec3aed4cd671eb2512150703ad88777435d91298bf29a267134eb81  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000027262976.bin
+ac634704196e1745f768756f3e8321703338f18fb0ae45fbb8a142e0854cbca0  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/bench-2048-r1/checkpoints/rek_native5/semantic-cuda-2048-16/0000000004194304.bin

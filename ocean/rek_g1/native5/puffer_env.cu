@@ -91,12 +91,13 @@ Env* puf_vec_create(int n, Dict* kwargs, obs_t* observations,
     }
     RekNative5Config config = {};
     config.abi_version = REK_NATIVE5_RUNTIME_ABI;
+    const bool compact_backend=selected_backend&&strcmp(selected_backend,"semantic_cuda")==0;
     config.model_path = rek_native5_required_path(kwargs, "model_path");
     config.physics_export_path = rek_native5_required_path(kwargs, "physics_export_path");
     config.assets_path = rek_native5_required_path(kwargs, "assets_path");
     config.motion_features_path = rek_native5_required_path(kwargs, "motion_features_path");
-    config.controller_encoder_path = rek_native5_required_path(kwargs, "controller_encoder_path");
-    config.controller_decoder_path = rek_native5_required_path(kwargs, "controller_decoder_path");
+    config.controller_encoder_path = compact_backend ? nullptr : rek_native5_required_path(kwargs, "controller_encoder_path");
+    config.controller_decoder_path = compact_backend ? nullptr : rek_native5_required_path(kwargs, "controller_decoder_path");
     config.arenas = n;
     DictItem* round_seconds=dict_find(kwargs,"round_seconds");
     config.round_seconds=round_seconds?(float)round_seconds->value:0;

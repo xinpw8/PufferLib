@@ -39,6 +39,45 @@ paths. New checkpoints can be registered with `register_checkpoint.cjs`.
 Use distinct IDs for sampled and greedy evaluation variants; never replace
 the protocol behind an ID with recorded results.
 
+## Reduced CUDA candidate on port 18769
+
+This separate viewer uses the exact `fast_runtime.o` and `fast_assets.o` from
+the compact GPU trainer. Evaluation advances the same 50 Hz CUDA simulation.
+CPU MuJoCo kinematics is used only to render its 72-value GPU pose snapshot.
+There is no Python runtime or CPU physics integration.
+
+```sh
+REK_EVAL_RUNTIME=semantic_cuda bash ocean/rek_g1/native5/build_eval.sh /absolute/fast-build /absolute/new-fast-eval
+node ocean/rek_g1/league/prepare_fast.cjs /private/new-fast-league /absolute/new-fast-eval/rek-eval-worker /private/fast-runtime.json
+node ocean/rek_g1/league/server.cjs /private/new-fast-league/server.json
+```
+
+The runtime JSON explicitly selects `backend: "semantic_cuda"`, the same
+`model_path`, `assets_path`, `motion_features_path`, `round_seconds`, optional
+17 `move_duration_ticks`, and `locomotion_segment_ticks` used in training.
+Its optional `fast` object supplies `move_speed`, `yaw_speed`, `body_radius`,
+`hit_speed`, and `down_damage`. Defaults match the compact runtime; every value
+is explicitly passed to the worker and included in its configuration hash.
+Only the number of parallel arenas changes to one for human evaluation.
+Existing ports 18766 and 18768 remain independent.
+
+The compact model uses prerecorded joint poses, approximate planar root
+movement, strike/target volumes and collision response. It omits full
+rigid-body dynamics and the shipped balance policies. Authentic REK parity
+has not been established. The page labels these limitations. A good policy
+in this model establishes performance within this model only.
+
+The new league starts with its scripted opponent. Register only checkpoints
+trained on this compact runtime using `register_checkpoint.cjs --backend
+semantic_cuda` and their actual observation encoding and precision. Existing
+MuJoCo/Puffysics checkpoints are deliberately excluded, despite matching
+tensor dimensions. Configuration hashes include the exact runtime objects,
+model, both asset manifests and behavior settings; rankings remain separate.
+Checkpoint files contain FP32 weights, while the compact trainer's default
+policy computation is BF16. Register that computation as `--precision bf16`.
+An FP32-compute evaluation is a separate numerical variant, labeled accordingly
+in the viewer; matching checkpoint storage does not establish matching inference.
+
 ## Tests
 
 ```sh

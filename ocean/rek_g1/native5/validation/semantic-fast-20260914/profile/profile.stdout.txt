@@ -1,0 +1,30 @@
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ PufferLib 5.0              🐡  GPU:  42%   VRAM:117.4/120G    RAM:  1.1G     │
+│                                                                              │
+│ Env         rek_native5    Evaluate      185ms  46%    Losses       0.022    │
+│ Params           459.0K      Model         0ms   0%    policy       0.002    │
+│ Steps              1.0M      Env           0ms   0%    value        0.044    │
+│ SPS                1.9M      Copy          0ms   0%    entropy      1.475    │
+│ Epoch               128    Train         210ms  53%    old_kl       0.000    │
+│ Uptime            566ms      Model       205ms  51%    kl           0.000    │
+│ To go               0ms      Misc          5ms   1%    clipfrac     0.000    │
+│                                                                              │
+│ score                         1.378   episode_return               -1.034    │
+│ episode_length             1000.000   hits                          2.101    │
+│ falls                         0.218   wins                          0.126    │
+│ losses                        0.571   draws                         0.303    │
+│ actions_invalid               0.000   finite_failures               0.000    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+native5_round_summary={"arenas":512,"completed_rounds":1024,"fighter0_wins":129,"fighter1_wins":585,"ties":310,"redos":0,"unclassified":0,"fighter0_completed_points":1411,"fighter1_completed_points":2470,"failure_bits":0}
+semantic_cuda_v1: 512 arenas; 50 Hz; one fused GPU step; canned poses=1768; move_speed=1 m/s yaw_speed=1.8 rad/s; approximate slider/sphere/balance dynamics; parity=false
+semantic_cuda_assets={"schema":"rek.fast_assets.v1","classification":"approximate_kinematic_candidate","rek_parity_claim":false,"model_sha256":"6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa","asset_manifest_sha256":"7d4719a3ca1e9e5a8faf571bc3c5c70e2b4c9e841be34303fa0a3f47d3692a28","features_manifest_sha256":"3b69127f5004574057a6b99a976a31c0e3ed3489c22c193b94a0c4e5b4aa59bc","routes":24,"source_clips":21,"baked_frames":1768,"frame_bytes":284,"sample_hz":50,"max_source_root_xy_span_m":2.256279998e-07,"root_translation_model":"external_explicit_approximation","root_height_source":"clip_xyz_m","collision_proxy":"bounding_sphere_union_of_named_model_geoms","offline_fk":"mj_kinematics","cpu_physics_steps":0}
+semantic_cuda_parameters={"version":1,"dt_seconds":0.0199999996,"round_seconds":20,"move_speed_m_s":1,"yaw_speed_rad_s":1.79999995,"brake_rate_m_s2":2,"yaw_ramp_seconds":0.5,"settle_speed_m_s":0.0299999993,"body_radius_m":0.219999999,"hit_speed_m_s":0.349999994,"down_damage":4,"knockdowns_to_win":3,"down_points":5,"reset_ticks":25,"hit_cooldown_ticks":10,"floor_z_m":0.00999999791,"arena_half_extent_m":[2.29999995,2.29999995],"physics_parity":false}
+training_exit_code=0
+output=/home/spark-advantage/rek-training/semantic-fast-20260914-v1/profile-512-r1/run
+Collecting data...
+Generating '/tmp/nsys-report-07f6.qdstrm'
+[1/1] [0%                          ] training.nsys-rep[1/1] [0%                          ] training.nsys-rep[1/1] [==20%                       ] training.nsys-rep[1/1] [======34%                   ] training.nsys-rep[1/1] [==========48%               ] training.nsys-rep[1/1] [============55%             ] training.nsys-rep[1/1] [============56%             ] training.nsys-rep[1/1] [========================100%] training.nsys-rep[1/1] [========================100%] training.nsys-rep
+Generated:
+	/home/spark-advantage/rek-training/semantic-fast-20260914-v1/profile-512-r1/training.nsys-rep

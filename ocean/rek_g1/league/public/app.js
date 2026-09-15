@@ -3,7 +3,7 @@
   const $ = id => document.getElementById(id);
   const ui = Object.fromEntries(['backend', 'opponent', 'human-side', 'load', 'reset', 'refresh', 'connection', 'selection-info',
     'error', 'arena', 'frame', 'blue-score', 'orange-score', 'blue-falls', 'orange-falls', 'blue-name', 'orange-name', 'remaining', 'match-status',
-    'active-config', 'tick', 'standings', 'ranking-note', 'control-role', 'backend-warning'].map(id => [id, $(id)]));
+    'active-config', 'tick', 'standings', 'ranking-note', 'control-role', 'backend-warning', 'runtime-note'].map(id => [id, $(id)]));
   let catalog = {backends: [], policies: [], active: null};
   let active = null;
   // Monotonic across page reloads for a server that rejects stale input packets.
@@ -52,13 +52,18 @@
   function measuredStats(policy) {
     return policy.paired?.games ? policy.paired : policy.pairedStats?.games ? policy.pairedStats : policy.total || policy.stats || policy;
   }
+  function policyLabel(policy) {
+    const label = policy.label || policy.id;
+    return policy.backend === 'semantic_cuda' && policy.checkpoint?.model?.precision === 'fp32'
+      ? `${label} · FP32 inference variant` : label;
+  }
   function policyName(policy) {
     const stats = measuredStats(policy);
     const games = Number(stats.wins || 0) + Number(stats.draws || 0) + Number(stats.losses || 0);
     const winRate = Number.isFinite(stats.winRate) ? stats.winRate : games ? Number(stats.wins || 0) / games : null;
     const rank = policy.rank != null ? `#${policy.rank}` : 'unranked';
     const evidence = games ? `${(winRate * 100).toFixed(1)}% wins · ${games} matches${policy.strengthStatus === 'measured' ? '' : ' · provisional'}` : 'untested';
-    return `${policy.label || policy.id} · ${policy.kind === 'scripted' ? 'scripted' : 'RL'} · ${rank} · ${evidence}`;
+    return `${policyLabel(policy)} · ${policy.kind === 'scripted' ? 'scripted' : 'RL'} · ${rank} · ${evidence}`;
   }
   function selectedPolicies() { return catalog.policies.filter(policy => policy.backend === ui.backend.value); }
   function refreshSideSelection() {
@@ -96,12 +101,16 @@
     const backend = catalog.backends.find(item => item.id === active?.backend);
     const policy = catalog.policies.find(item => item.id === active?.opponent && item.backend === active?.backend);
     const humanColor = active?.humanSide === 1 ? 'orange' : 'blue';
-    const opponentLabel = policy?.label || active?.opponent || 'OPPONENT';
+    const opponentLabel = policy ? policyLabel(policy) : active?.opponent || 'OPPONENT';
     ui['active-config'].textContent = active ? `${backend?.label || active.backend} · ${opponentLabel} · You: ${humanColor}` : 'No evaluation loaded';
     ui['blue-name'].textContent = active ? active.humanSide === 0 ? 'YOU · BLUE' : `${opponentLabel} · BLUE` : 'BLUE';
     ui['orange-name'].textContent = active ? active.humanSide === 1 ? 'YOU · ORANGE' : `${opponentLabel} · ORANGE` : 'ORANGE';
     ui['control-role'].textContent = active ? `Play as ${humanColor}` : 'Choose your robot above';
-    ui['backend-warning'].hidden = !active || !/puff/i.test(active.backend);
+    const warning = backend?.warning || (active && /puff/i.test(active.backend)
+      ? 'Puffysics is experimental. Frequent robot falls have been observed in this runtime. Scores may largely reflect fall/knockout awards; wins currently provide limited evidence of combat skill.' : '');
+    ui['backend-warning'].hidden = !warning;
+    ui['backend-warning'].textContent = warning;
+    ui['runtime-note'].textContent = backend?.runtimeNote || 'Interactive viewer: CPU physics with CUDA policy/controller. Headless CUDA training runs separately. Experimental 20-second rounds.';
     ui.arena.setAttribute('aria-label', `Game controls${active ? ` for your ${humanColor} robot` : ''}. Click or focus here to play. W A S D movement, Q E turn, U straight kick, I side kick.`);
   }
   async function refreshCatalog() {
@@ -144,7 +153,7 @@
       if (policy.invalidTrials) evidence += ` · ${policy.invalidTrials} invalid`;
       if (policy.pending) evidence += ` · ${policy.pending} pending`;
       const row = document.createElement('tr');
-      cells(row, [policy.rank ?? '-', policy.label || policy.id, policy.kind === 'scripted' ? 'Scripted' : 'Trained RL',
+      cells(row, [policy.rank ?? '-', policyLabel(policy), policy.kind === 'scripted' ? 'Scripted' : 'Trained RL',
         stats.wins || 0, stats.draws || 0, stats.losses || 0, rate === null ? 'Unmeasured' : `${(rate * 100).toFixed(1)}%`, evidence]);
       const interval = stats.winRate95;
       if (Array.isArray(interval) && games) row.cells[6].title = `95% win-rate interval: ${(interval[0] * 100).toFixed(1)}% to ${(interval[1] * 100).toFixed(1)}%`;

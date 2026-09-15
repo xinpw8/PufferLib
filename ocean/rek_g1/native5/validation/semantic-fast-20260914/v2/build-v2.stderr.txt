@@ -1,0 +1,20 @@
+/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/trainer/src/pufferl.cu(1319): warning #128-D: loop is not reachable
+      for (int buf = 0; buf < p->vec->buffers; buf++) {
+      ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/trainer/src/pufferl.cu(1355): warning #128-D: loop is not reachable
+      for (int buf = 0; buf < p->vec->buffers; buf++) {
+      ^
+
+/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/trainer/src/pufferl.cu(1319): warning #128-D: loop is not reachable
+      for (int buf = 0; buf < p->vec->buffers; buf++) {
+      ^
+
+Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+
+/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v2/trainer/src/pufferl.cu(1355): warning #128-D: loop is not reachable
+      for (int buf = 0; buf < p->vec->buffers; buf++) {
+      ^
+

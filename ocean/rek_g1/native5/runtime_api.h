@@ -109,7 +109,8 @@ extern "C" {
 /* Creation may read files, allocate memory, and synchronize. Reset and step
  * enqueue all GPU work on stream without host reads or dynamic allocation;
  * they must also work while that stream is being captured into a CUDA graph.
- * Each step is one 50 Hz semantic tick containing ten 2 ms physics steps.
+ * Each step is one 50 Hz semantic tick. Articulated backends execute ten 2 ms
+ * physics substeps; semantic_cuda advances its reduced combat state directly.
  * A successful reset writes real initial observations and clears transition
  * outputs. A successful step writes the resulting observations and outputs.
  * Paths and configuration need only remain valid through create(). */
@@ -119,15 +120,18 @@ int rek_native5_bind_action_mask(RekNative5Runtime* runtime,
     uint8_t* action_mask, cudaStream_t stream);
 int rek_native5_reset(RekNative5Runtime* runtime, cudaStream_t stream);
 int rek_native5_step(RekNative5Runtime* runtime, cudaStream_t stream);
-/* Bind device [arenas * 2] arrays before graph capture. A nonzero override byte
- * selects that exact external action; other rows retain their original source
+/* Bind device [arenas * 2] arrays before graph capture. Override byte 1
+ * selects that exact external action; byte 0 retains the original source
  * (learner fighter 0, scripted fighter 1). Invalid/masked actions fail normally.
+ * semantic_cuda additionally accepts byte 2 for its GPU scripted policy on
+ * either fighter. Other backends retain their existing nonzero-byte behavior.
  * Passing two null pointers restores original behavior. Changing the binding
  * requires recapture of any graph that embeds the old pointer values. */
 int rek_native5_bind_external_actions(RekNative5Runtime* runtime,
     const float* device_actions, const uint8_t* device_override, cudaStream_t stream);
 int rek_native5_get_device_view(RekNative5Runtime* runtime, RekNative5DeviceView* view);
-/* Exact native5 scaled_polar_xy observation transform for both fighters. */
+/* Backend's scaled_polar_xy observation transform for both fighters.
+ * Compact models use their logical root heading for the polar transform. */
 int rek_native5_encode_fighter_observations(RekNative5Runtime* runtime,
     float* device_encoded_observations, cudaStream_t stream);
 /* Inspection boundary only, not capture-safe. Includes invalid-state flags;

@@ -9,6 +9,10 @@
 #include <sstream>
 #include <vector>
 
+#ifndef REK_EVAL_BACKEND
+#define REK_EVAL_BACKEND ""
+#endif
+
 namespace {
 struct JsonDelete{void operator()(cJSON* p)const{cJSON_Delete(p);}};
 using Json=std::unique_ptr<cJSON,JsonDelete>;
@@ -46,6 +50,7 @@ class Worker {
     bool raw_policy[2]={false,false};
     int recurrent_reset_ticks[2]={0,0};
     bool scripted_player=false;
+    const bool gpu_scripted=std::string(REK_EVAL_BACKEND)=="semantic_cuda";
     int scripted_move=0;
     RekNative5DeviceView view{};
     RekNative5Buffers buffers{};
@@ -66,6 +71,7 @@ class Worker {
     }
     Json state(const RekNative5Snapshot& s){
         auto o=object();cJSON_AddBoolToObject(o.get(),"ok",!failed&&!s.round.failure_bits);
+        if(REK_EVAL_BACKEND[0])text(o.get(),"runtimeBackend",REK_EVAL_BACKEND);
         num(o.get(),"tick",double(tick));num(o.get(),"timeRemaining",s.round.time_remaining_seconds);
         num(o.get(),"completedRounds",double(s.round.completed_rounds));
         num(o.get(),"terminal",s.round.terminal);num(o.get(),"winner",s.round.round_winner);
@@ -81,6 +87,8 @@ class Worker {
     }
 public:
     explicit Worker(const cJSON* config){
+        if(REK_EVAL_BACKEND[0]&&str(config,"backend")!=REK_EVAL_BACKEND)
+            throw std::runtime_error("Evaluator binary/backend configuration mismatch");
         arenas=integer(config,"arenas",4);if(arenas<=0)throw std::runtime_error("Invalid arena count");
         cuda_ok(cudaStreamCreate(&stream));
         buffers.observations=allocate<float>(arenas*223);buffers.actions=allocate<float>(arenas);
@@ -95,10 +103,23 @@ public:
         RekNative5Config cfg{};cfg.abi_version=REK_NATIVE5_RUNTIME_ABI;
         cfg.model_path=model_path.c_str();cfg.physics_export_path=physics.c_str();cfg.assets_path=assets.c_str();
         cfg.motion_features_path=features.c_str();cfg.controller_encoder_path=encoder.c_str();cfg.controller_decoder_path=decoder.c_str();
-        cfg.arenas=arenas;cfg.seed=integer(config,"seed",73);cfg.locomotion_segment_ticks=1;
+        cfg.arenas=arenas;cfg.seed=integer(config,"seed",73);
+        const int segment_ticks=integer(config,"locomotion_segment_ticks",1);
+        if(segment_ticks<=0)throw std::runtime_error("Invalid locomotion segment ticks");
+        cfg.locomotion_segment_ticks=uint32_t(segment_ticks);
         cfg.round_seconds=float(integer(config,"round_seconds",0));
         const uint32_t durations[]={35,27,31,45,32,45,157,145,158,139,134,138,73,75,68,71,103};
         std::copy(durations,durations+17,cfg.move_duration_ticks);
+        if(auto* configured=field(config,"move_duration_ticks")){
+            if(!cJSON_IsArray(configured)||cJSON_GetArraySize(configured)!=17)
+                throw std::runtime_error("Expected 17 move durations");
+            for(int i=0;i<17;i++){
+                auto* value=cJSON_GetArrayItem(configured,i);
+                if(!cJSON_IsNumber(value)||value->valuedouble!=value->valueint||value->valueint<=0)
+                    throw std::runtime_error("Invalid move duration");
+                cfg.move_duration_ticks[i]=uint32_t(value->valueint);
+            }
+        }
         runtime=rek_native5_create(&cfg,&buffers,stream);if(!runtime)throw std::runtime_error(rek_native5_error());
         runtime_ok(rek_native5_bind_external_actions(runtime,external,override_rows,stream));
         runtime_ok(rek_native5_get_device_view(runtime,&view));
@@ -150,7 +171,7 @@ public:
             const bool stop_at_round=cJSON_IsTrue(field(command,"stopAtRound"));
             for(int i=0;i<steps;i++){
                 int actual_action=action;
-                if(scripted_player&&!policies[0]){
+                if(scripted_player&&!policies[0]&&!gpu_scripted){
                     const auto current=snapshot();const float* o=current.raw_observations;
                     const double n=std::sqrt(double(o[3])*o[3]+double(o[4])*o[4]+double(o[5])*o[5]+double(o[6])*o[6]);
                     const double w=o[3]/n,x=o[4]/n,y=o[5]/n,z=o[6]/n;
@@ -167,7 +188,10 @@ public:
                     host_actions[a*2]=a==0&&human_side==0?float(actual_action):1.f;
                     if(scripted_player&&!policies[0])host_actions[a*2]=a==0?float(actual_action):1.f;
                     host_actions[a*2+1]=a==0&&human_side==1?float(action):1.f;
-                    host_override[a*2]=1;host_override[a*2+1]=policies[1]||human_side==1?1:0;
+                    // Compact runtime override2 invokes the identical GPU
+                    // scripted opponent on fighter0 for side-reversed tests.
+                    host_override[a*2]=gpu_scripted&&scripted_player&&!policies[0]?2:1;
+                    host_override[a*2+1]=policies[1]||human_side==1?1:0;
                 }
                 cuda_ok(cudaMemcpyAsync(external,host_actions.data(),host_actions.size()*sizeof(float),cudaMemcpyHostToDevice,stream));
                 cuda_ok(cudaMemcpyAsync(override_rows,host_override.data(),host_override.size(),cudaMemcpyHostToDevice,stream));
@@ -212,7 +236,9 @@ int main(int argc,char** argv){
         std::ifstream file(argv[2]);if(!file)throw std::runtime_error("Cannot open evaluator config");
         std::stringstream content;content<<file.rdbuf();Json config(cJSON_Parse(content.str().c_str()));
         if(!config)throw std::runtime_error("Invalid evaluator config");
-        Worker worker(config.get());auto ready=object();text(ready.get(),"event","ready");output(ready.get());
+        Worker worker(config.get());auto ready=object();text(ready.get(),"event","ready");
+        if(REK_EVAL_BACKEND[0])text(ready.get(),"runtimeBackend",REK_EVAL_BACKEND);
+        output(ready.get());
         std::string line;
         while(std::getline(std::cin,line)){
             if(line.size()>16384)throw std::runtime_error("Worker command too large");

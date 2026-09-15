@@ -1,0 +1,2 @@
+{"test":"fast_input_semantics","status":"passed","held_q_pause_resume":true,"desired_yaw_replace_release":true,"masked_attack_translation_discarded":true,"duration_ticks":157,"translation_settle_gate":true}
+{"test":"fast_contact_replay","status":"passed","ticks_per_replay":6400,"maximum_points_in_round":21,"maximum_opponent_falls":2,"completed_rounds":9,"completed_player_points":220,"bitwise_qpos_replay":true,"cpu_physics":false,"python_runtime":false}

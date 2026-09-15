@@ -1,0 +1,30 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ PufferLib 5.0               🐡 GPU:   0%   VRAM:116.8/120G    RAM:  0.6G     │
+│                                                                              │
+│ Env         rek_native5    Evaluate        0ms   0%    Losses       0.063    │
+│ Params           459.0K      Model         0ms   0%    policy       0.053    │
+│ Steps              8.2K      Env           0ms   0%    value        0.027    │
+│ SPS                1.6M      Copy          0ms   0%    entropy      1.874    │
+│ Epoch                 1    Train           2ms 100%    old_kl       0.000    │
+│ Uptime              5ms      Model         2ms  97%    kl           0.000    │
+│ To go             644ms      Misc          0ms   2%    clipfrac     0.000    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ PufferLib 5.0              🐡  GPU:  67%   VRAM:116.8/120G    RAM:  0.6G     │
+│                                                                              │
+│ Env         rek_native5    Evaluate      152ms  42%    Losses       0.022    │
+│ Params           459.0K      Model         0ms   0%    policy       0.002    │
+│ Steps              1.0M      Env           0ms   0%    value        0.044    │
+│ SPS                2.5M      Copy          0ms   0%    entropy      1.475    │
+│ Epoch               128    Train         205ms  57%    old_kl       0.000    │
+│ Uptime            425ms      Model       201ms  56%    kl           0.000    │
+│ To go               0ms      Misc          4ms   1%    clipfrac     0.000    │
+│                                                                              │
+│ score                         1.378   episode_return               -1.034    │
+│ episode_length             1000.000   hits                          2.101    │
+│ falls                         0.218   wins                          0.126    │
+│ losses                        0.571   draws                         0.303    │
+│ actions_invalid               0.000   finite_failures               0.000    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+native5_round_summary={"arenas":512,"completed_rounds":1024,"fighter0_wins":129,"fighter1_wins":585,"ties":310,"redos":0,"unclassified":0,"fighter0_completed_points":1411,"fighter1_completed_points":2470,"failure_bits":0}
