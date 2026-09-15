@@ -1,0 +1,13 @@
+2026-09-15T04:57:23+00:00
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+aarch64
+GPU 0: NVIDIA GB10 (UUID: GPU-c10f6617-d6dc-c3c2-3069-3dcc3f506b75)
+pid, process_name, used_gpu_memory [MiB]
+2325, /home/spark-advantage/cuda_course/.venv/bin/python, 5096 MiB
+17363, python3, 1350 MiB
+17512, sglang::scheduler, 50981 MiB
+66395, /home/spark-advantage/rek-training/native5-league-20260914/build-eval-v2/rek-eval-worker, 562 MiB
+142809, /home/spark-advantage/rek-training/semantic-fast-20260914-v1/eval-build-v2/rek-eval-worker, 327 MiB
+d960c7d5b2367bd961c3fa6cdfa351a56023e96db3ee4eae650e00e7a8eed5b3  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v3/puffer-rek-native5
+6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa  /home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml

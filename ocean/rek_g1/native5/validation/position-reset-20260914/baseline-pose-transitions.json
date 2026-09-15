@@ -1,0 +1,554 @@
+{
+  "trials": [
+    {
+      "name": "far_action_16",
+      "maximum_height_step_m": 0.036481976509094016,
+      "maximum_orientation_step_deg": 10.793739723830816,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.008176028728485218,
+          "orientation_step_deg": 2.039630780179799,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6444649696350098
+        },
+        {
+          "kind": "exit",
+          "tick": 267,
+          "height_step_m": 0.0026459693908690296,
+          "orientation_step_deg": 0.9751885915520206,
+          "previous_root_z_m": 0.68647700548172,
+          "next_root_z_m": 0.689122974872589
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 268,
+          "height_step_m": 0.036481976509094016,
+          "orientation_step_deg": 7.734948992554655,
+          "previous_root_z_m": 0.689122974872589,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_17",
+      "maximum_height_step_m": 0.032248973846435436,
+      "maximum_orientation_step_deg": 3.878961919597605,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.0005469918251039818,
+          "orientation_step_deg": 1.7786531440257392,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.652094006538391
+        },
+        {
+          "kind": "exit",
+          "tick": 255,
+          "height_step_m": 0.0030530095100403942,
+          "orientation_step_deg": 1.177788436238936,
+          "previous_root_z_m": 0.68183696269989,
+          "next_root_z_m": 0.6848899722099304
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 256,
+          "height_step_m": 0.032248973846435436,
+          "orientation_step_deg": 3.0025816888309658,
+          "previous_root_z_m": 0.6848899722099304,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_18",
+      "maximum_height_step_m": 0.037788987159729004,
+      "maximum_orientation_step_deg": 10.596901625412313,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.01080298423767101,
+          "orientation_step_deg": 0.8297788429905343,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.641838014125824
+        },
+        {
+          "kind": "exit",
+          "tick": 268,
+          "height_step_m": 0.00277799367904652,
+          "orientation_step_deg": 0.4512710599346393,
+          "previous_root_z_m": 0.6932079792022705,
+          "next_root_z_m": 0.690429985523224
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 269,
+          "height_step_m": 0.037788987159729004,
+          "orientation_step_deg": 5.729660199529075,
+          "previous_root_z_m": 0.690429985523224,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_19",
+      "maximum_height_step_m": 0.018864989280700795,
+      "maximum_orientation_step_deg": 9.434573767697632,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.018864989280700795,
+          "orientation_step_deg": 1.6938281952809728,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6337760090827942
+        },
+        {
+          "kind": "exit",
+          "tick": 249,
+          "height_step_m": 0.0002110004425047718,
+          "orientation_step_deg": 0.166492793669416,
+          "previous_root_z_m": 0.63502299785614,
+          "next_root_z_m": 0.6348119974136353
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 250,
+          "height_step_m": 0.01782900094985973,
+          "orientation_step_deg": 2.703118358976056,
+          "previous_root_z_m": 0.6348119974136353,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_20",
+      "maximum_height_step_m": 0.01416999101638794,
+      "maximum_orientation_step_deg": 3.8220706991429303,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.0055564045906068005,
+          "orientation_step_deg": 0.695333632305455,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6470845937728882
+        },
+        {
+          "kind": "exit",
+          "tick": 145,
+          "height_step_m": 0.003744482994079701,
+          "orientation_step_deg": 3.7967177653329385,
+          "previous_root_z_m": 0.6347265243530273,
+          "next_root_z_m": 0.638471007347107
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 146,
+          "height_step_m": 0.01416999101638794,
+          "orientation_step_deg": 1.3740079523583475,
+          "previous_root_z_m": 0.638471007347107,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_21",
+      "maximum_height_step_m": 0.020464718341827504,
+      "maximum_orientation_step_deg": 10.722156492109765,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.020464718341827504,
+          "orientation_step_deg": 1.5802469978707607,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6321762800216675
+        },
+        {
+          "kind": "exit",
+          "tick": 137,
+          "height_step_m": 0.001271367073059193,
+          "orientation_step_deg": 2.037837581230696,
+          "previous_root_z_m": 0.6561385989189148,
+          "next_root_z_m": 0.657409965991974
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 138,
+          "height_step_m": 0.004768967628479004,
+          "orientation_step_deg": 0.6214974166018311,
+          "previous_root_z_m": 0.657409965991974,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_22",
+      "maximum_height_step_m": 0.04039001464843761,
+      "maximum_orientation_step_deg": 13.838869665528351,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.01615285873413075,
+          "orientation_step_deg": 0.6766710316430753,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6687938570976257
+        },
+        {
+          "kind": "exit",
+          "tick": 141,
+          "height_step_m": 0.010675966739654541,
+          "orientation_step_deg": 4.3857627978519185,
+          "previous_root_z_m": 0.6015750169754028,
+          "next_root_z_m": 0.6122509837150574
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 142,
+          "height_step_m": 0.04039001464843761,
+          "orientation_step_deg": 10.738955458443403,
+          "previous_root_z_m": 0.6122509837150574,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_23",
+      "maximum_height_step_m": 0.03549200296402,
+      "maximum_orientation_step_deg": 17.69412871846958,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.012307822704315297,
+          "orientation_step_deg": 4.547929870502608,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6403331756591797
+        },
+        {
+          "kind": "exit",
+          "tick": 155,
+          "height_step_m": 0.0016695857048033558,
+          "orientation_step_deg": 2.536215520131066,
+          "previous_root_z_m": 0.6154794096946716,
+          "next_root_z_m": 0.617148995399475
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 156,
+          "height_step_m": 0.03549200296402,
+          "orientation_step_deg": 17.69412871846958,
+          "previous_root_z_m": 0.617148995399475,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_24",
+      "maximum_height_step_m": 0.023293018341064564,
+      "maximum_orientation_step_deg": 23.42386487771135,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.023293018341064564,
+          "orientation_step_deg": 2.026512406511345,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6293479800224304
+        },
+        {
+          "kind": "exit",
+          "tick": 142,
+          "height_step_m": 0.0007590651512145996,
+          "orientation_step_deg": 0.7400784703783467,
+          "previous_root_z_m": 0.6312259435653687,
+          "next_root_z_m": 0.6319850087165833
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 143,
+          "height_step_m": 0.020655989646911732,
+          "orientation_step_deg": 23.42386487771135,
+          "previous_root_z_m": 0.6319850087165833,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_25",
+      "maximum_height_step_m": 0.06510001420974743,
+      "maximum_orientation_step_deg": 40.30051804414191,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.02986598014831554,
+          "orientation_step_deg": 1.2551932487007038,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6227750182151794
+        },
+        {
+          "kind": "exit",
+          "tick": 155,
+          "height_step_m": 0.002961575984954834,
+          "orientation_step_deg": 2.7301881104576897,
+          "previous_root_z_m": 0.5845794081687927,
+          "next_root_z_m": 0.5875409841537476
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 156,
+          "height_step_m": 0.06510001420974743,
+          "orientation_step_deg": 40.30051804414191,
+          "previous_root_z_m": 0.5875409841537476,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_26",
+      "maximum_height_step_m": 0.021177172660827526,
+      "maximum_orientation_step_deg": 14.176005743583506,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.021177172660827526,
+          "orientation_step_deg": 4.921141731616125,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6738181710243225
+        },
+        {
+          "kind": "exit",
+          "tick": 244,
+          "height_step_m": 0.0009334087371826172,
+          "orientation_step_deg": 0.1958665316369016,
+          "previous_root_z_m": 0.670280396938324,
+          "next_root_z_m": 0.6693469882011414
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 245,
+          "height_step_m": 0.016705989837646373,
+          "orientation_step_deg": 14.176005743583506,
+          "previous_root_z_m": 0.6693469882011414,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_27",
+      "maximum_height_step_m": 0.03243601322174061,
+      "maximum_orientation_step_deg": 7.397944114711258,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.03243601322174061,
+          "orientation_step_deg": 1.8007981375890698,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6850770115852356
+        },
+        {
+          "kind": "exit",
+          "tick": 248,
+          "height_step_m": 0.000012993812561035156,
+          "orientation_step_deg": 0.09037026756282424,
+          "previous_root_z_m": 0.6711120009422302,
+          "next_root_z_m": 0.6710990071296692
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 249,
+          "height_step_m": 0.018458008766174205,
+          "orientation_step_deg": 3.473935452566179,
+          "previous_root_z_m": 0.6710990071296692,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_28",
+      "maximum_height_step_m": 0.020934998989105336,
+      "maximum_orientation_step_deg": 8.7786574681259,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.0005549788475035511,
+          "orientation_step_deg": 1.2580846164964086,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6531959772109985
+        },
+        {
+          "kind": "exit",
+          "tick": 183,
+          "height_step_m": 0.0007420182228088379,
+          "orientation_step_deg": 0.13796377125466674,
+          "previous_root_z_m": 0.6324480175971985,
+          "next_root_z_m": 0.6317059993743896
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 184,
+          "height_step_m": 0.020934998989105336,
+          "orientation_step_deg": 8.00910266928764,
+          "previous_root_z_m": 0.6317059993743896,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_29",
+      "maximum_height_step_m": 0.026826024055480957,
+      "maximum_orientation_step_deg": 11.115981247155451,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.013227999210357777,
+          "orientation_step_deg": 3.5784685855224034,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6394129991531372
+        },
+        {
+          "kind": "exit",
+          "tick": 185,
+          "height_step_m": 0.0030249953269957386,
+          "orientation_step_deg": 0.768364732633435,
+          "previous_root_z_m": 0.6288399696350098,
+          "next_root_z_m": 0.625814974308014
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 186,
+          "height_step_m": 0.026826024055480957,
+          "orientation_step_deg": 11.115981247155451,
+          "previous_root_z_m": 0.625814974308014,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_30",
+      "maximum_height_step_m": 0.03093898296356201,
+      "maximum_orientation_step_deg": 11.58228454077995,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.012109994888305775,
+          "orientation_step_deg": 1.6623549962242192,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6405310034751892
+        },
+        {
+          "kind": "exit",
+          "tick": 178,
+          "height_step_m": 0.003323972225188987,
+          "orientation_step_deg": 0.7586562866090161,
+          "previous_root_z_m": 0.625025987625122,
+          "next_root_z_m": 0.621702015399933
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 179,
+          "height_step_m": 0.03093898296356201,
+          "orientation_step_deg": 4.319069118559497,
+          "previous_root_z_m": 0.621702015399933,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_31",
+      "maximum_height_step_m": 0.008807003498077504,
+      "maximum_orientation_step_deg": 8.82915360118719,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.002786993980407604,
+          "orientation_step_deg": 1.758604894015835,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.6554279923439026
+        },
+        {
+          "kind": "exit",
+          "tick": 181,
+          "height_step_m": 0.003077983856201172,
+          "orientation_step_deg": 0.23197586156007746,
+          "previous_root_z_m": 0.6469119787216187,
+          "next_root_z_m": 0.6438339948654175
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 182,
+          "height_step_m": 0.008807003498077504,
+          "orientation_step_deg": 8.82915360118719,
+          "previous_root_z_m": 0.6438339948654175,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    },
+    {
+      "name": "far_action_32",
+      "maximum_height_step_m": 0.041819989681243785,
+      "maximum_orientation_step_deg": 5.395934142957219,
+      "maximum_logical_yaw_step_rad": 0,
+      "handoffs": [
+        {
+          "kind": "entry",
+          "tick": 111,
+          "height_step_m": 0.038479983806609996,
+          "orientation_step_deg": 5.395934142957219,
+          "previous_root_z_m": 0.652640998363495,
+          "next_root_z_m": 0.691120982170105
+        },
+        {
+          "kind": "exit",
+          "tick": 213,
+          "height_step_m": 0.0013009905815124512,
+          "orientation_step_deg": 1.9926476492480423,
+          "previous_root_z_m": 0.6957619786262512,
+          "next_root_z_m": 0.6944609880447388
+        },
+        {
+          "kind": "pose_to_idle",
+          "tick": 214,
+          "height_step_m": 0.041819989681243785,
+          "orientation_step_deg": 5.0688556415558415,
+          "previous_root_z_m": 0.6944609880447388,
+          "next_root_z_m": 0.652640998363495
+        }
+      ]
+    }
+  ],
+  "maximum_height_step_m": 0.06510001420974743,
+  "maximum_orientation_step_deg": 40.30051804414191,
+  "maximum_exit_height_step_m": 0.010675966739654541,
+  "maximum_exit_orientation_step_deg": 4.3857627978519185,
+  "maximum_pose_to_idle_height_step_m": 0.06510001420974743,
+  "maximum_pose_to_idle_orientation_step_deg": 40.30051804414191
+}

@@ -161,7 +161,7 @@ int main(int argc,char** argv){try{
     Probe probe(argv+1);episode_observation(probe);yaw_and_buffering(probe);
     ContactResult a=contacts(probe),b=contacts(probe);
     require(a.max_points>0,"no scripted attacks produced any contact score");
-    require(a.max_falls>0,"scripted contacts never produced a knockdown");
+    require(a.max_falls==0,"contact scores fabricated a knockdown in the points-only compact model");
     require(a.max_falls==b.max_falls&&a.max_points==b.max_points&&
         a.final.round.completed_rounds==b.final.round.completed_rounds&&
         a.final.round.completed_points[0]==b.final.round.completed_points[0]&&

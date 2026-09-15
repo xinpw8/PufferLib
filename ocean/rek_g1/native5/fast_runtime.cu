@@ -12,7 +12,7 @@
 #include <string>
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
-// trajectories; slider motion, sphere contacts and balance damage are modeling
+// trajectories; slider motion and sphere contacts are modeling
 // choices, not recovered REK dynamics. No full-physics backend is called here.
 namespace {
 constexpr float DT=.02f, PI=3.14159265358979323846f;
@@ -23,7 +23,7 @@ struct Fighter {
     float x,y,yaw,vx,vy,omega;
     float old_x,old_y,old_yaw;
     float phase,old_phase;
-    float damage,last_hit_age,last_hit_speed;
+    float last_hit_age,last_hit_speed;
     int route,old_route,held,move_tick,attack_duration,strike_active,last_hit_valid;
     int cooldown[6];
     unsigned contact_latched;
@@ -42,8 +42,7 @@ struct Parameters {
     unsigned durations[17];
     float initial_qpos[72],spawn[2][2],heading[2],half_extent[2];
     float floor,round_seconds,move_speed,yaw_speed,brake_rate,yaw_ramp,settle_speed;
-    float body_radius,hit_speed,damage_limit;
-    int knockdowns_to_win;
+    float body_radius,hit_speed;
 };
 struct View {
     int arenas;
@@ -201,7 +200,7 @@ __device__ float sweep_distance2(const float* from,const float* to){
     float t=denom>1e-12f?clampf(-(from[0]*x+from[1]*y+from[2]*z)/denom,0,1):0;
     x=from[0]+t*x;y=from[1]+t*y;z=from[2]+t*z;return x*x+y*y+z*z;
 }
-__device__ void strike_contacts(View v,Arena& a,int side,int* hits,float* damage){
+__device__ void strike_contacts(View v,Arena& a,int side,int* hits){
     const Parameters& p=*v.p;Fighter& f=a.fighter[side];Fighter& enemy=a.fighter[side^1];
     if(!f.strike_active||f.route==23)return;
     const FastFrame& now=v.frames[frame_index(p,f,false)];
@@ -223,17 +222,15 @@ __device__ void strike_contacts(View v,Arena& a,int side,int* hits,float* damage
         }
         unsigned bit=1u<<limb;
         if(touch&&!(f.contact_latched&bit)&&f.cooldown[limb]==0&&speed>=p.hit_speed){
-            hits[side]++;damage[side^1]+=(limb<2||limb>=4)?2.0f:1.0f;
+            hits[side]++;
             enemy.last_hit_valid=1;enemy.last_hit_age=0;enemy.last_hit_speed=speed;f.cooldown[limb]=10;
         }
         if(touch)f.contact_latched|=bit;else f.contact_latched&=~bit;
     }
 }
 __device__ void finish_round(View v,int index,Arena& a,RekNative5RoundResult& r){
-    bool ko=a.fighter[0].falls>=v.p->knockdowns_to_win||a.fighter[1].falls>=v.p->knockdowns_to_win;
     int winner=a.fighter[0].points==a.fighter[1].points?-1:(a.fighter[0].points>a.fighter[1].points?0:1);
-    if(ko&&a.fighter[0].falls!=a.fighter[1].falls)winner=a.fighter[0].falls<a.fighter[1].falls?0:1;
-    r.round_result=winner<0?3:(ko?2:1);r.round_winner=winner;
+    r.round_result=winner<0?3:1;r.round_winner=winner;
     r.fight_result=winner<0?0:1;r.fight_winner=winner;r.phase=4;r.terminal=1;
     r.completed_rounds++;if(winner<0)r.ties++;else r.wins[winner]++;
     for(int s=0;s<2;s++)r.completed_points[s]+=a.fighter[s].points;
@@ -272,16 +269,14 @@ __device__ void advance_arena(View v,int index){
             for(int s=0;s<2;s++){float sign=s?1.f:-1.f;a.fighter[s].x+=sign*correction*dx/distance;a.fighter[s].y+=sign*correction*dy/distance;}
         }
         for(int s=0;s<2;s++)confine(p,a.fighter[s]);
-        int hits[2]={};float damage[2]={};
-        strike_contacts(v,a,0,hits,damage);strike_contacts(v,a,1,hits,damage);
+        int hits[2]={};
+        strike_contacts(v,a,0,hits);strike_contacts(v,a,1,hits);
         for(int s=0;s<2;s++)a.delta[s]=hits[s];
-        for(int s=0;s<2;s++){
-            auto& f=a.fighter[s];a.hit_count+=hits[s];
-            f.damage+=damage[s];
-            if(f.damage>=p.damage_limit){
-                f.falls++;f.down=1;a.down_event[s]=1;a.delta[s^1]+=5;a.reset_wait=25;
-            }
-        }
+        // V3: contact scores are not measured falls. The compact candidate
+        // does not integrate balance/fall dynamics, so accumulating two kick
+        // hits must not fabricate a knockdown and teleport both fighters.
+        // A future knockdown model needs an explicit state/geometry contract.
+        for(int s=0;s<2;s++)a.hit_count+=hits[s];
         for(int s=0;s<2;s++)a.fighter[s].points+=a.delta[s];
     }
     for(int s=0;s<2;s++){
@@ -291,7 +286,7 @@ __device__ void advance_arena(View v,int index){
     }
     a.episode_return+=float(a.delta[0]-a.delta[1]);a.episode_hits+=a.hit_count;
     r.time_remaining_seconds=fmaxf(0,p.round_seconds-a.elapsed);r.failure_bits=a.failures;
-    bool terminal=a.elapsed>=p.round_seconds||a.fighter[0].falls>=p.knockdowns_to_win||a.fighter[1].falls>=p.knockdowns_to_win;
+    bool terminal=a.elapsed>=p.round_seconds;
     if(terminal&&!a.failures)finish_round(v,index,a,r);
 }
 __device__ float entity_value(View v,const Arena& a,int side,int field){
@@ -439,8 +434,9 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         p.settle_speed=std::max(.001f,assets.settle_linear_speed);
         p.body_radius=environment_float("REK_FAST_BODY_RADIUS",.22f,.05f,1.f);
         p.hit_speed=environment_float("REK_FAST_HIT_SPEED",.35f,0,20);
-        p.damage_limit=environment_float("REK_FAST_DOWN_DAMAGE",4.f,1,100);
-        p.knockdowns_to_win=3;
+        // Existing private V2 configs may still carry this setting. It has no
+        // effect in V3; retain an explicit diagnostic rather than using it.
+        if(getenv("REK_FAST_DOWN_DAMAGE"))fprintf(stderr,"REK_FAST_DOWN_DAMAGE ignored: compact v3 has no synthetic hit-damage knockdowns\n");
         if(!std::isfinite(p.round_seconds)||p.round_seconds<DT||assets.frames.empty())throw std::runtime_error("Invalid semantic CUDA duration/assets");
         for(int k=0;k<24;k++)if(p.routes[k].count<=0||p.routes[k].offset<0||size_t(p.routes[k].offset+p.routes[k].count)>assets.frames.size())throw std::runtime_error("Invalid baked route extent");
         for(int k=16;k<33;k++)if(p.action_to_route[k]<7||p.action_to_route[k]>=24||p.routes[p.action_to_route[k]].move<0||p.routes[p.action_to_route[k]].move>=17)throw std::runtime_error("Invalid baked action mapping");
@@ -452,9 +448,9 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         v.actions=result->storage.alloc<float>(size_t(a)*2);v.rewards=result->storage.alloc<float>(size_t(a)*2);v.terminals=result->storage.alloc<float>(size_t(a)*2);
         fast_reset<<<(a+WARPS_PER_BLOCK-1)/WARPS_PER_BLOCK,THREADS,0,stream>>>(v);
         rek5::cuda_check(cudaGetLastError());rek5::cuda_check(cudaStreamSynchronize(stream));
-        fprintf(stderr,"semantic_cuda_v2: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; approximate slider/sphere/balance dynamics; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed);
+        fprintf(stderr,"semantic_cuda_v3: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; points-only slider/sphere dynamics; knockdowns unmodeled; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed);
         fprintf(stderr,"semantic_cuda_assets=%s\n",assets.provenance_json.c_str());
-        fprintf(stderr,"semantic_cuda_parameters={\"version\":2,\"policy_round_feature\":\"episode_local_constant_1\",\"diagnostic_round_counter\":\"cumulative_session\",\"dt_seconds\":%.9g,\"round_seconds\":%.9g,\"move_speed_m_s\":%.9g,\"yaw_speed_rad_s\":%.9g,\"brake_rate_m_s2\":%.9g,\"yaw_ramp_seconds\":%.9g,\"settle_speed_m_s\":%.9g,\"body_radius_m\":%.9g,\"hit_speed_m_s\":%.9g,\"down_damage\":%.9g,\"knockdowns_to_win\":%d,\"down_points\":5,\"reset_ticks\":25,\"hit_cooldown_ticks\":10,\"floor_z_m\":%.9g,\"arena_half_extent_m\":[%.9g,%.9g],\"physics_parity\":false}\n",DT,p.round_seconds,p.move_speed,p.yaw_speed,p.brake_rate,p.yaw_ramp,p.settle_speed,p.body_radius,p.hit_speed,p.damage_limit,p.knockdowns_to_win,p.floor,p.half_extent[0],p.half_extent[1]);
+        fprintf(stderr,"semantic_cuda_parameters={\"version\":3,\"policy_round_feature\":\"episode_local_constant_1\",\"diagnostic_round_counter\":\"cumulative_session\",\"dt_seconds\":%.9g,\"round_seconds\":%.9g,\"move_speed_m_s\":%.9g,\"yaw_speed_rad_s\":%.9g,\"brake_rate_m_s2\":%.9g,\"yaw_ramp_seconds\":%.9g,\"settle_speed_m_s\":%.9g,\"body_radius_m\":%.9g,\"hit_speed_m_s\":%.9g,\"knockdowns_modeled\":false,\"hit_damage_resets\":false,\"hit_cooldown_ticks\":10,\"floor_z_m\":%.9g,\"arena_half_extent_m\":[%.9g,%.9g],\"physics_parity\":false}\n",DT,p.round_seconds,p.move_speed,p.yaw_speed,p.brake_rate,p.yaw_ramp,p.settle_speed,p.body_radius,p.hit_speed,p.floor,p.half_extent[0],p.half_extent[1]);
         return result.release();
     }catch(const std::exception& e){error_text=e.what();return nullptr;}
 }

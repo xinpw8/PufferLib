@@ -1,0 +1,11 @@
+REK_EXPECT_NO_HIT_RESETS=0 node /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v2/ocean/rek_g1/native5/fast_position_probe.cjs /home/spark-advantage/rek-training/semantic-fast-20260914-v1/eval-build-v2/rek-eval-worker /home/spark-advantage/rek-training/semantic-fast-20260914-v1/eval-run-v2/semantic_cuda-worker.json /home/spark-advantage/rek-training/semantic-fast-20260914-v1/position-reset-v2-assert-r1 paired_i 
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+2026-09-15T04:56:54+00:00
+46432133868cc3dfff59cd4b5405a07bd470ed2c3f4735aa74c23c628a5c1e9b  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v2/ocean/rek_g1/native5/fast_position_probe.cjs
+ce4cd027dfb1e51164f96fb8c5df3e04a7710af6602b582d0ee38907cad49833  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/source-v2/ocean/rek_g1/native5/fast_position_probe.sh
+2f373c507736338e04e9389f9ebc6aad782a52b69f8e85e8bb002914ed6f8c73  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/eval-run-v2/semantic_cuda-worker.json
+4a31b5ab14f7c447f292addd4dabb7b0d56dc2c0e48493c1caf430ab3cea8124  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/eval-build-v2/rek-eval-worker
+88cb5e6181069c35dd1140c4211ad0797e9b00fb810b3444e6a87ed94e3417fe  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/eval-build-v2/fast_runtime.o
+ca8117506cd78e7cb45b146d79b657d2c653554a75bccaecb1e7979e7f54a2ff  /home/spark-advantage/rek-training/semantic-fast-20260914-v1/eval-build-v2/fast_assets.o
+exit_code=0

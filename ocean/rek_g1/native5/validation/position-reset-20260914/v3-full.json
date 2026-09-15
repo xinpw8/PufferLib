@@ -1,0 +1,856 @@
+{
+  "summary": {
+    "status": "completed",
+    "runtime": "semantic_cuda",
+    "round_seconds": 300,
+    "arenas": 1,
+    "expected_no_hit_resets": null,
+    "mode": "all",
+    "controlled_side": 1,
+    "opponent": "neutral external category1",
+    "far_attacks_checked": 17,
+    "far_attacks_with_warps": 0,
+    "close_single_attack_trials": 16,
+    "close_single_attacks_with_multiple_hits": 0,
+    "close_single_attacks_with_knockdowns": 0,
+    "close_single_attacks_with_spawn_warps": 0,
+    "cpu_physics": false,
+    "python_runtime": false,
+    "production_interaction": false
+  },
+  "trials": [
+    {
+      "trial": "far_action_16",
+      "action": 16,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 266,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_17",
+      "action": 17,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 254,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_18",
+      "action": 18,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 267,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_19",
+      "action": 19,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 248,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_20",
+      "action": 20,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 144,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_21",
+      "action": 21,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 136,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_22",
+      "action": 22,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 140,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_23",
+      "action": 23,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 154,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_24",
+      "action": 24,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 141,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_25",
+      "action": 25,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 154,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_26",
+      "action": 26,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 243,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_27",
+      "action": 27,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 247,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_28",
+      "action": 28,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 182,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_29",
+      "action": 29,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 184,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_30",
+      "action": 30,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 177,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_31",
+      "action": 31,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 180,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "far_action_32",
+      "action": 32,
+      "single_input_edge": true,
+      "initial_gap_m": 2.9799999594705757,
+      "initial_spawn_distance_m": 1.1799999475522935,
+      "ticks_observed": 230,
+      "first_busy_tick": 111,
+      "last_busy_tick": 212,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.1799999475522935
+    },
+    {
+      "trial": "close_action_17_gap_0.45",
+      "action": 17,
+      "single_input_edge": true,
+      "initial_gap_m": 0.440000176440836,
+      "initial_spawn_distance_m": 1.3599998354947673,
+      "ticks_observed": 300,
+      "first_busy_tick": 109,
+      "last_busy_tick": 252,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.3599998354947673
+    },
+    {
+      "trial": "close_action_17_gap_0.55",
+      "action": 17,
+      "single_input_edge": true,
+      "initial_gap_m": 0.5400001406747162,
+      "initial_spawn_distance_m": 1.2599998712572904,
+      "ticks_observed": 300,
+      "first_busy_tick": 104,
+      "last_busy_tick": 247,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.2599998712572904
+    },
+    {
+      "trial": "close_action_17_gap_0.65",
+      "action": 17,
+      "single_input_edge": true,
+      "initial_gap_m": 0.6400001347120426,
+      "initial_spawn_distance_m": 1.159999877217491,
+      "ticks_observed": 300,
+      "first_busy_tick": 99,
+      "last_busy_tick": 242,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.159999877217491
+    },
+    {
+      "trial": "close_action_17_gap_0.75",
+      "action": 17,
+      "single_input_edge": true,
+      "initial_gap_m": 0.7400001734535212,
+      "initial_spawn_distance_m": 1.0599998384742084,
+      "ticks_observed": 300,
+      "first_busy_tick": 94,
+      "last_busy_tick": 237,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.0599998384742084
+    },
+    {
+      "trial": "close_action_17_gap_0.85",
+      "action": 17,
+      "single_input_edge": true,
+      "initial_gap_m": 0.840000133964333,
+      "initial_spawn_distance_m": 0.9599998779620217,
+      "ticks_observed": 300,
+      "first_busy_tick": 89,
+      "last_busy_tick": 232,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 0.9599998779620217
+    },
+    {
+      "trial": "close_action_17_gap_0.95",
+      "action": 17,
+      "single_input_edge": true,
+      "initial_gap_m": 0.9400001317283402,
+      "initial_spawn_distance_m": 0.8599998801969321,
+      "ticks_observed": 300,
+      "first_busy_tick": 84,
+      "last_busy_tick": 227,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 0.8599998801969321
+    },
+    {
+      "trial": "close_action_17_gap_1.1",
+      "action": 17,
+      "single_input_edge": true,
+      "initial_gap_m": 1.1000002175581283,
+      "initial_spawn_distance_m": 0.6999997943658216,
+      "ticks_observed": 300,
+      "first_busy_tick": 76,
+      "last_busy_tick": 219,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 0.6999997943658216
+    },
+    {
+      "trial": "close_action_17_gap_1.3",
+      "action": 17,
+      "single_input_edge": true,
+      "initial_gap_m": 1.3000000715260809,
+      "initial_spawn_distance_m": 0.49999994039667384,
+      "ticks_observed": 300,
+      "first_busy_tick": 66,
+      "last_busy_tick": 209,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 0.49999994039667384
+    },
+    {
+      "trial": "close_action_18_gap_0.45",
+      "action": 18,
+      "single_input_edge": true,
+      "initial_gap_m": 0.440000176440836,
+      "initial_spawn_distance_m": 1.3599998354947673,
+      "ticks_observed": 300,
+      "first_busy_tick": 109,
+      "last_busy_tick": 265,
+      "total_hits": 1,
+      "hit_events": [
+        {
+          "tick": 156,
+          "offset": 48,
+          "hits": 1,
+          "score": [
+            0,
+            1
+          ]
+        }
+      ],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        1
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.3599998354947673
+    },
+    {
+      "trial": "close_action_18_gap_0.55",
+      "action": 18,
+      "single_input_edge": true,
+      "initial_gap_m": 0.5400001406747162,
+      "initial_spawn_distance_m": 1.2599998712572904,
+      "ticks_observed": 300,
+      "first_busy_tick": 104,
+      "last_busy_tick": 260,
+      "total_hits": 1,
+      "hit_events": [
+        {
+          "tick": 152,
+          "offset": 49,
+          "hits": 1,
+          "score": [
+            0,
+            1
+          ]
+        }
+      ],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        1
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.2599998712572904
+    },
+    {
+      "trial": "close_action_18_gap_0.65",
+      "action": 18,
+      "single_input_edge": true,
+      "initial_gap_m": 0.6400001347120426,
+      "initial_spawn_distance_m": 1.159999877217491,
+      "ticks_observed": 300,
+      "first_busy_tick": 99,
+      "last_busy_tick": 255,
+      "total_hits": 1,
+      "hit_events": [
+        {
+          "tick": 147,
+          "offset": 49,
+          "hits": 1,
+          "score": [
+            0,
+            1
+          ]
+        }
+      ],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        1
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.159999877217491
+    },
+    {
+      "trial": "close_action_18_gap_0.75",
+      "action": 18,
+      "single_input_edge": true,
+      "initial_gap_m": 0.7400001734535212,
+      "initial_spawn_distance_m": 1.0599998384742084,
+      "ticks_observed": 300,
+      "first_busy_tick": 94,
+      "last_busy_tick": 250,
+      "total_hits": 1,
+      "hit_events": [
+        {
+          "tick": 143,
+          "offset": 50,
+          "hits": 1,
+          "score": [
+            0,
+            1
+          ]
+        }
+      ],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        1
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 1.0599998384742084
+    },
+    {
+      "trial": "close_action_18_gap_0.85",
+      "action": 18,
+      "single_input_edge": true,
+      "initial_gap_m": 0.840000133964333,
+      "initial_spawn_distance_m": 0.9599998779620217,
+      "ticks_observed": 300,
+      "first_busy_tick": 89,
+      "last_busy_tick": 245,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 0.9599998779620217
+    },
+    {
+      "trial": "close_action_18_gap_0.95",
+      "action": 18,
+      "single_input_edge": true,
+      "initial_gap_m": 0.9400001317283402,
+      "initial_spawn_distance_m": 0.8599998801969321,
+      "ticks_observed": 300,
+      "first_busy_tick": 84,
+      "last_busy_tick": 240,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 0.8599998801969321
+    },
+    {
+      "trial": "close_action_18_gap_1.1",
+      "action": 18,
+      "single_input_edge": true,
+      "initial_gap_m": 1.1000002175581283,
+      "initial_spawn_distance_m": 0.6999997943658216,
+      "ticks_observed": 300,
+      "first_busy_tick": 76,
+      "last_busy_tick": 232,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 0.6999997943658216
+    },
+    {
+      "trial": "close_action_18_gap_1.3",
+      "action": 18,
+      "single_input_edge": true,
+      "initial_gap_m": 1.3000000715260809,
+      "initial_spawn_distance_m": 0.49999994039667384,
+      "ticks_observed": 300,
+      "first_busy_tick": 66,
+      "last_busy_tick": 222,
+      "total_hits": 0,
+      "hit_events": [],
+      "fall_events": [],
+      "maximum_planar_step_m": 0,
+      "warps": [],
+      "final_score": [
+        0,
+        0
+      ],
+      "final_falls": [
+        0,
+        0
+      ],
+      "final_spawn_distance_m": 0.49999994039667384
+    }
+  ],
+  "normal_timed_reset": null
+}

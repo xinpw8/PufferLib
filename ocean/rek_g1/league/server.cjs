@@ -29,8 +29,8 @@ async function serve(configPath,{Worker=NativeWorker,intermissionMs=3000}={}){
       ...(p.pairedStats.games?p.pairedStats:p.stats),ranked:p.rank!==null,
     }));
   }
-  function catalog(){return {backends:backends.map(({id,label,available=true,error,runtimeNote,warning,training})=>
-    ({id,label,available,error,runtimeNote,warning,training})),
+  function catalog(){return {backends:backends.map(({id,label,available=true,error,runtimeNote,warning,roundEndNote,training})=>
+    ({id,label,available,error,runtimeNote,warning,roundEndNote,training})),
     policies:backends.flatMap(b=>options(b.id)),active,
     humanRoundSeconds:HUMAN_ROUND_SECONDS,defaultHumanRoundSeconds:DEFAULT_HUMAN_ROUND_SECONDS};}
   async function select(value){

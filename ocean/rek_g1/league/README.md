@@ -220,7 +220,9 @@ rather than a network share if strict crash consistency is needed.
 Human rounds default to 300 seconds, with 20/120/300-second options. Selection
 and manual reset start paused. Clicking the arena or an on-screen control
 resumes; the pause button, hidden tab, lost window focus, or missing client
-heartbeat can pause. Three knockdowns can still end a round early. The server
+heartbeat can pause. The page reports backend-specific round-ending rules.
+The V3 compact candidate is points-only and cannot fabricate knockdowns from
+hit counts. The server
 retains each native terminal score, shows a three-second intermission, and
 keeps cumulative completed-round points and W/L/D through automatic and manual
 resets. Loading another evaluation starts a new session scoreboard. Manual

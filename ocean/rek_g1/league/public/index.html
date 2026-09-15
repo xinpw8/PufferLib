@@ -25,7 +25,7 @@
     <p id="selection-info" class="muted">Fetching available backends and checkpoints.</p>
     <p id="training-summary" class="training-summary">Recorded training statistics unavailable.</p>
     <p id="runtime-note" class="runtime-note">Fetching the selected runtime's execution details.</p>
-    <p id="round-protocol" class="muted">Human rounds default to 300 seconds. Three knockdowns can end a round earlier.</p>
+    <p id="round-protocol" class="muted">Human rounds default to 300 seconds. Round-end rules depend on the selected backend.</p>
     <p id="backend-warning" class="backend-warning" hidden>Puffysics is experimental. Frequent robot falls have been observed in this runtime. Scores may largely reflect fall/knockout awards; wins currently provide limited evidence of combat skill.</p>
     <p id="error" class="error" role="alert" hidden></p>
     <section class="arena-card" aria-label="Human evaluation arena">
@@ -45,7 +45,7 @@
         <div class="session-orange"><h2>Orange session</h2><strong id="session-orange-points">Unknown</strong><span>cumulative points</span><p id="session-orange-wld">W / L / D unavailable</p></div>
       </div>
     </section>
-    <p class="score-note">Round points reset each round. Session totals include completed rounds and survive Reset round. Loading an evaluation starts a new session. Knockout awards count as points; falls are separate from match losses.</p>
+    <p class="score-note">Round points reset each round. Session totals include completed rounds and survive Reset round. Loading an evaluation starts a new session. Points and falls follow the selected backend's rules; falls are separate from match losses.</p>
     <section class="controls" aria-label="Controls">
       <div><h2 id="control-role">Choose your robot above</h2><p id="control-help"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> hold to move · <kbd>Q</kbd><kbd>E</kbd> hold to turn · <kbd>U</kbd> straight kick · <kbd>I</kbd> side kick</p><p class="muted">W/S takes priority over A/D because the 33-action interface has no diagonal movement. Opposing keys cancel. Click outside the arena to release controls; leaving the window pauses play.</p></div>
       <div class="touch-controls" aria-label="On-screen controls">

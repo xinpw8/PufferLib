@@ -1,0 +1,85 @@
+{
+  "schema": "rek.semantic_cuda.v3.training.v1",
+  "host": "spark-4ae3",
+  "gpu": "NVIDIA GB10",
+  "backend": "semantic_cuda",
+  "runtime_version": 3,
+  "classification": "approximate_points_only_action_level_candidate",
+  "physics_parity_claim": false,
+  "cpu_physics_steps": 0,
+  "python_training_runtime": false,
+  "headless": true,
+  "arenas": 512,
+  "control_hz": 50,
+  "horizon": 16,
+  "minibatch_size": 8192,
+  "seed": 73,
+  "round_seconds": 20,
+  "opponent": "GPU scripted standard opponent",
+  "completed_transitions": 33554432,
+  "completed_epochs": 4096,
+  "measured_training_uptime_seconds": 13.751488208770752,
+  "full_run_training_sps": 2440058.2315591746,
+  "measured_process_wall_seconds": 14.36,
+  "process_inclusive_sps": 2336659.6100278553,
+  "final_interval": {
+    "transitions": 1236992,
+    "elapsed_seconds": 0.5032217502593994,
+    "reported_sps": 2458144.9417922786,
+    "rollout_seconds": 0.18324266374111176,
+    "train_seconds": 0.2450263947248459,
+    "train_model_seconds": 0.2402152568101883,
+    "train_misc_seconds": 0.0048111360520124435,
+    "rollout_share_of_accounted_percent": 42.78680892742509,
+    "train_share_of_accounted_percent": 57.21319107257491,
+    "unaccounted_interval_seconds": 0.07495269179344177,
+    "timing_caveat": "Native timer categories for the final reporting window; not an independent CUDA profile. Rollout includes inference and environment. Zero detailed eval_env timer is uninstrumented, not zero environment cost."
+  },
+  "final_rolling_dashboard_rounded": {
+    "wins": 0.998,
+    "losses": 0.001,
+    "draws": 0.001,
+    "mean_score": 4.7,
+    "mean_hits": 5.738,
+    "mean_episode_length": 1000,
+    "falls": 0,
+    "actions_invalid": 0,
+    "finite_failures": 0
+  },
+  "cumulative_training_rounds": {
+    "arenas": 512,
+    "completed_rounds": 33280,
+    "fighter0_wins": 21129,
+    "fighter1_wins": 6121,
+    "ties": 6030,
+    "redos": 0,
+    "unclassified": 0,
+    "fighter0_completed_points": 93267,
+    "fighter1_completed_points": 43290,
+    "failure_bits": 0
+  },
+  "training_metrics_caveat": "Online training history includes changing policies. Final rolling metrics are rounded. Frozen checkpoint strength is measured in separately recorded policy evaluations.",
+  "exit_code": 0,
+  "checkpoints": [
+    {
+      "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v3-33m/checkpoints/rek_native5/semantic-cuda-v3-512-16/0000000001048576.bin",
+      "sha256": "e041aa11932fd9898631d6429c7bfaf3250491d5cbc2f0515ab5e66361066c1f",
+      "transitions": 1048576
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/train-v3-33m/checkpoints/rek_native5/semantic-cuda-v3-512-16/0000000033554432.bin",
+      "sha256": "e209edd0d1301170c5253f622f5f11aabccb57daf7fd4117983942bccb989fc6",
+      "transitions": 33554432
+    }
+  ],
+  "input_probe_passed": true,
+  "retained_v2_objects_byte_identical": [
+    "pufferl.o",
+    "fast_assets.o",
+    "native_policy.o",
+    "cJSON.o"
+  ],
+  "source_sha256": "db78067c9142f178e3bdbe80aa55bc132868cf98eabee003371ddeab734d6871",
+  "other_gpu_processes_present": true,
+  "private_assets_and_checkpoints_in_git": false
+}

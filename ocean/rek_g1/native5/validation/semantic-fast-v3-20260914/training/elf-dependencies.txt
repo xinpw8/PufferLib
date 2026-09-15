@@ -1,0 +1,43 @@
+
+Dynamic section at offset 0x1ef550 contains 40 entries:
+  Tag        Type                         Name/Value
+ 0x0000000000000001 (NEEDED)             Shared library: [libcudart.so.13]
+ 0x0000000000000001 (NEEDED)             Shared library: [libnccl.so.2]
+ 0x0000000000000001 (NEEDED)             Shared library: [libnvidia-ml.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libcublas.so.13]
+ 0x0000000000000001 (NEEDED)             Shared library: [libcusolver.so.12]
+ 0x0000000000000001 (NEEDED)             Shared library: [libcurand.so.10]
+ 0x0000000000000001 (NEEDED)             Shared library: [libmujoco.so.3.7.0]
+ 0x0000000000000001 (NEEDED)             Shared library: [libcrypto.so.3]
+ 0x0000000000000001 (NEEDED)             Shared library: [libstdc++.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [libm.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [libgcc_s.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [ld-linux-aarch64.so.1]
+ 0x000000000000001d (RUNPATH)            Library runpath: [/usr/local/cuda/lib64:/home/spark-advantage/.venv/lib/python3.12/site-packages/nvidia/nccl/lib:/home/spark-advantage/rek-training/gpu-runtime-20260910/deps/mujoco]
+ 0x000000000000000c (INIT)               0x5c48
+ 0x000000000000000d (FINI)               0x4102c
+ 0x0000000000000019 (INIT_ARRAY)         0x1ff520
+ 0x000000000000001b (INIT_ARRAYSZ)       40 (bytes)
+ 0x000000000000001a (FINI_ARRAY)         0x1ff548
+ 0x000000000000001c (FINI_ARRAYSZ)       8 (bytes)
+ 0x000000006ffffef5 (GNU_HASH)           0x2d0
+ 0x0000000000000005 (STRTAB)             0x1af8
+ 0x0000000000000006 (SYMTAB)             0x310
+ 0x000000000000000a (STRSZ)              5713 (bytes)
+ 0x000000000000000b (SYMENT)             24 (bytes)
+ 0x0000000000000015 (DEBUG)              0x0
+ 0x0000000000000003 (PLTGOT)             0x1ff810
+ 0x0000000000000002 (PLTRELSZ)           5424 (bytes)
+ 0x0000000000000014 (PLTREL)             RELA
+ 0x0000000000000017 (JMPREL)             0x4718
+ 0x0000000000000007 (RELA)               0x3548
+ 0x0000000000000008 (RELASZ)             4560 (bytes)
+ 0x0000000000000009 (RELAENT)            24 (bytes)
+ 0x000000000000001e (FLAGS)              BIND_NOW
+ 0x000000006ffffffb (FLAGS_1)            Flags: NOW PIE
+ 0x000000006ffffffe (VERNEED)            0x3348
+ 0x000000006fffffff (VERNEEDNUM)         10
+ 0x000000006ffffff0 (VERSYM)             0x314a
+ 0x000000006ffffff9 (RELACOUNT)          163
+ 0x0000000000000000 (NULL)               0x0

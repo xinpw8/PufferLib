@@ -140,7 +140,9 @@
     ui['training-note'].textContent = `Recorded headless training measurements, not browser frame rate or current training progress.${training?.note ? ` ${training.note}` : ''}`;
     const seconds = active?.roundSeconds;
     const trainedSeconds = active?.trainingRoundSeconds ?? training?.benchmarkRoundSeconds;
-    ui['round-protocol'].textContent = `Human round limit: ${Number.isFinite(seconds) ? `${seconds} s` : 'not loaded'}. Training/benchmark round limit: ${Number.isFinite(trainedSeconds) ? `${trainedSeconds} s` : 'unknown'}. Three knockdowns can end a round earlier.`
+    const roundEndNote = typeof backend?.roundEndNote === 'string' && backend.roundEndNote.trim()
+      ? backend.roundEndNote : 'Round-end rules depend on the selected backend.';
+    ui['round-protocol'].textContent = `Human round limit: ${Number.isFinite(seconds) ? `${seconds} s` : 'not loaded'}. Training/benchmark round limit: ${Number.isFinite(trainedSeconds) ? `${trainedSeconds} s` : 'unknown'}. ${roundEndNote}`
       + (Number.isFinite(seconds) && Number.isFinite(trainedSeconds) && seconds !== trainedSeconds ? ' Strength at this longer or shorter duration has not been measured.' : '');
   }
   function renderSession(session) {

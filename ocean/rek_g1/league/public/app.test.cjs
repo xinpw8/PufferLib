@@ -80,6 +80,35 @@ test('round and session points, recorded training and human duration are explici
   assert.match(html, /Session totals/);
   assert.match(html, /Recorded training run/);
   assert.match(html, /Human rounds default to 300 seconds/);
+  assert.doesNotMatch(html, /Three knockdowns|Knockout awards count as points/);
+});
+
+test('round-end text follows backend metadata and does not invent compact knockouts', async () => {
+  const {elements: ui, catalog} = await setup();
+  const roundEndNote = 'Points decide timed rounds. Physical knockdowns are not modeled; hits do not reset positions.';
+  const warning = 'Points-only reduced-model experiment. Physical knockdowns are not modeled.';
+  catalog.backends.push({id: 'semantic_cuda', label: 'Reduced GPU candidate', available: true, roundEndNote, warning});
+  catalog.policies.push({backend: 'semantic_cuda', id: 'scripted', label: 'Scripted', kind: 'scripted'});
+  await ui.refresh.trigger('click');
+  ui.backend.value = 'semantic_cuda'; await ui.backend.trigger('change');
+  await ui.load.trigger('click');
+  assert.ok(ui['round-protocol'].textContent.includes(roundEndNote));
+  assert.doesNotMatch(ui['round-protocol'].textContent, /Three knockdowns|knockout/i);
+  assert.equal(ui['backend-warning'].textContent, warning);
+  ui.backend.value = 'mujoco'; await ui.backend.trigger('change');
+  await ui.load.trigger('click');
+  assert.match(ui['round-protocol'].textContent, /Round-end rules depend on the selected backend/);
+  assert.doesNotMatch(ui['round-protocol'].textContent, /Three knockdowns|Physical knockdowns are not modeled/);
+});
+
+test('missing or blank round metadata uses generic rules rather than a knockout threshold', async () => {
+  const {elements: ui, catalog} = await setup({backend: 'mujoco', opponent: 'script', humanSide: 0});
+  for (const roundEndNote of [undefined, '', '   ', null]) {
+    catalog.backends[0].roundEndNote = roundEndNote;
+    await ui.refresh.trigger('click');
+    assert.match(ui['round-protocol'].textContent, /Round-end rules depend on the selected backend/);
+    assert.doesNotMatch(ui['round-protocol'].textContent, /Three knockdowns|knockout/i);
+  }
 });
 
 test('compact GPU backend exposes its own execution boundary and approximation warning', async () => {

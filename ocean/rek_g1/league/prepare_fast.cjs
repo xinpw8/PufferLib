@@ -57,7 +57,8 @@ function prepare(run,executable,runtimeConfig){
     env:{REK_PHYSICS_BACKEND:'semantic_cuda',...Object.fromEntries(
       Object.entries(fast).map(([key,value])=>[`REK_FAST_${key.toUpperCase()}`,String(value)]))},
     runtimeNote:`50 Hz CUDA simulation and native CUDA policy inference. CPU kinematics renders pictures only. Training and league use ${base.round_seconds}-second rounds; human round duration is selectable.`,
-    warning:'Reduced-model experiment: canned joint poses with approximate root movement, strike/target volumes and collision response. Full rigid-body dynamics and shipped balance policies are absent. Authentic REK motion and contact parity are unverified.'};
+    roundEndNote:'Points decide timed rounds. Physical knockdowns are not modeled; hits do not reset positions.',
+    warning:'Points-only reduced-model experiment: canned joint poses with approximate root movement, strike/target volumes and collision response. Physical knockdowns, full rigid-body dynamics and shipped balance policies are absent. Authentic REK motion and contact parity are unverified.'};
   fs.writeFileSync(backend.workerConfig,JSON.stringify(base,null,2)+'\n',{mode:0o600,flag:'wx'});
   league.registerPolicy({backend:backend.id,id:'scripted',label:'Scripted approach / 16 moves',
     configHash,kind:'scripted',scriptedVersion:`semantic-cuda-approach-facing-${identity.runtimeObject}`});

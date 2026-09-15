@@ -1,0 +1,29 @@
+{
+  "status": "completed",
+  "steps": 33554432,
+  "trainingSps": 2440058.2315591746,
+  "trainingSeconds": 13.751488208770752,
+  "processWallSeconds": 14.36,
+  "benchmarkRoundSeconds": 20,
+  "checkpointSha256": "e209edd0d1301170c5253f622f5f11aabccb57daf7fd4117983942bccb989fc6",
+  "frozenEvaluation": {
+    "wins": 1021,
+    "losses": 0,
+    "draws": 3,
+    "games": 1024,
+    "actionSelection": "sampled",
+    "precision": "bf16",
+    "opponent": "scripted",
+    "note": "V3 final 33M checkpoint only: 128 arenas, four 20-second rounds per arena on each fighter side, with fresh Philox action RNG seed 10001 and recurrent resets at terminals. Arena starts are fixed; seeds vary action draws, not geometry. No diagnostic override. Results do not apply to longer human rounds, the early 1M checkpoint, greedy inference, or another physics version."
+  },
+  "note": "Completed historical V3 points-only headless C++/CUDA training on Spark; this is not a live training job. Full-run SPS is 33,554,432 learner transitions divided by 13.751488208770752 training-loop seconds, including rollout and PPO across 512 arenas and excluding startup. It is not the final rolling-window SPS or browser frame rate. Physical knockdowns are not modeled; hits do not reset positions. Frozen strength belongs to the exact final checkpoint and sampled BF16 mode above. High scripted win rate does not establish human-level strength, generalization to other opponents, or authentic REK parity. V2 checkpoints and results are separate historical artifacts, not V3 results. No V3 league ranking has yet been measured.",
+  "evidenceSources": [
+    "ocean/rek_g1/native5/validation/semantic-fast-v3-20260914/summary.json",
+    "ocean/rek_g1/native5/validation/semantic-fast-v3-20260914/training/stdout.txt",
+    "ocean/rek_g1/native5/validation/semantic-fast-v3-20260914/training/semantic-cuda-v3-512-16.ini",
+    "ocean/rek_g1/native5/validation/semantic-fast-v3-20260914/training/process-timing.txt",
+    "ocean/rek_g1/native5/validation/semantic-fast-v3-20260914/training/checkpoint-hashes.txt",
+    "ocean/rek_g1/native5/validation/compact-policy-v3-20260915/33m-sampled/summary.jsonl",
+    "ocean/rek_g1/native5/validation/compact-policy-v3-20260915/33m-sampled/command.txt"
+  ]
+}
