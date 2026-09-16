@@ -1,0 +1,94 @@
+{
+  "stop_reason": "source_stream_missing",
+  "source_count": 3210,
+  "skipped_sources": 0,
+  "dropped_sources": {},
+  "unmatched_action_acks": 0,
+  "action_inflight_at_stop": false,
+  "last_ack_qpc_ticks": "2886276625237",
+  "predictions": 3209,
+  "applied": 3209,
+  "rejected": 0,
+  "actions": [
+    640,
+    690,
+    33,
+    4,
+    82,
+    13,
+    637,
+    806,
+    44,
+    39,
+    13,
+    27,
+    12,
+    52,
+    25,
+    17,
+    6,
+    0,
+    0,
+    0,
+    1,
+    1,
+    0,
+    48,
+    3,
+    6,
+    3,
+    0,
+    0,
+    1,
+    5,
+    1,
+    0
+  ],
+  "reasons": {
+    "held_state_applied_locally": 2494,
+    "held_state_unchanged": 640,
+    "accepted_locally_and_armed": 75
+  },
+  "initial_round": {
+    "number": 1,
+    "duration": 120,
+    "time_remaining": 119.96667,
+    "active": true,
+    "redo": false,
+    "clean_hits": [
+      0,
+      0
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "InProgress",
+    "result_value": 0,
+    "winner_index": -1,
+    "knockout": false
+  },
+  "final_round": {
+    "number": 1,
+    "duration": 120,
+    "time_remaining": 13.772251,
+    "active": true,
+    "redo": false,
+    "clean_hits": [
+      16,
+      18
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "InProgress",
+    "result_value": 0,
+    "winner_index": -1,
+    "knockout": false
+  },
+  "projection": "client_pose_projection_v1",
+  "checkpoint_sha256": "af84c4ec92e953e72c6bf4cde9ccb8cf80258a91dbf01947312e622dd492876e",
+  "authentic_client": true,
+  "global_input_emitted": false
+}

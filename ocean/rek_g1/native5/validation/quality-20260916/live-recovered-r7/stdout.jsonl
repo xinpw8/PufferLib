@@ -1,0 +1,8 @@
+{"utc":"2026-09-16T23:13:47.478Z","event":"inference_ready","checkpoint_sha256":"af84c4ec92e953e72c6bf4cde9ccb8cf80258a91dbf01947312e622dd492876e","device":"NVIDIA GB10","precision":"bf16","selection":"sampled","projection":"client_pose_projection_v1"}
+{"utc":"2026-09-16T23:13:47.509Z","event":"command_result","command":"AcquireExclusiveControl","status":"accepted","reason":"exclusive_control_lease_acquired"}
+{"utc":"2026-09-16T23:13:47.509Z","event":"waiting_for_automatic_round_transition","phase":"BetweenRounds"}
+{"utc":"2026-09-16T23:13:50.939Z","event":"command_result","command":"StartRound","status":"rejected","reason":"fight_phase_not_idle:observed_RoundActive"}
+{"utc":"2026-09-16T23:13:50.940Z","event":"error","message":"StartRound: fight_phase_not_idle:observed_RoundActive"}
+{"utc":"2026-09-16T23:13:50.956Z","event":"command_result","command":"StopG1PolicyStream","status":"accepted","reason":"g1_policy_stream_stopped"}
+{"utc":"2026-09-16T23:13:50.971Z","event":"command_result","command":"ReleaseExclusiveControl","status":"accepted","reason":"exclusive_control_lease_released"}
+{"utc":"2026-09-16T23:13:50.971Z","event":"summary","stop_reason":"StartRound: fight_phase_not_idle:observed_RoundActive","source_count":0,"skipped_sources":0,"dropped_sources":{},"unmatched_action_acks":0,"action_inflight_at_stop":false,"last_ack_qpc_ticks":null,"predictions":0,"applied":0,"rejected":0,"actions":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"reasons":{},"initial_round":null,"final_round":null,"projection":"client_pose_projection_v1","checkpoint_sha256":"af84c4ec92e953e72c6bf4cde9ccb8cf80258a91dbf01947312e622dd492876e","authentic_client":true,"global_input_emitted":false}

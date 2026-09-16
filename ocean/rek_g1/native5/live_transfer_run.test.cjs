@@ -5,11 +5,39 @@ const os=require('node:os');
 const path=require('node:path');
 const {test}=require('node:test');
 const {once}=require('node:events');
-const {validateWorkerReady,validateWorkerAction,guardedCallback,childEndpoint,LiveActionPacer,canExitLostPrivateSession}=require('./live_transfer_run.cjs');
+const {validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer,canExitLostPrivateSession,betweenPrivateRounds,canRequestPrivateRound}=require('./live_transfer_run.cjs');
 const sha='a'.repeat(64),round='b'.repeat(64);
 const ready=()=>({type:'ready',checkpoint_sha256:sha,native_cuda:true,environment_stepping:false,
   observation_schema:'rek.native5.scaled_polar_xy.v1',precision:'bf16',selection:'sampled',
   observations:223,actions:33,hidden_size:256,num_layers:2});
+
+test('automatic between-round transition waits without sending StartRound',()=>{
+  const private_ai={proven:true,solo_route_proven:true,context_is_solo:true,exact_sparring_bot_1:true,
+    opponent_is_ai:true,human_in_opponent_slot:false,round_active:false,phase:'BetweenRounds'};
+  assert.equal(betweenPrivateRounds({private_ai}),true);
+  assert.equal(betweenPrivateRounds({private_ai:{...private_ai,phase:'FightOver'}}),true);
+  for(const changed of [{phase:'Idle'},{phase:'RoundActive',round_active:true},{human_in_opponent_slot:true},{proven:false}])
+    assert.equal(betweenPrivateRounds({private_ai:{...private_ai,...changed}}),false);
+  assert.equal(betweenPrivateRounds({}),false);
+});
+
+test('round start uses the native Idle path; post-win space flag is not an idle prerequisite',()=>{
+  const private_ai={proven:true,solo_route_proven:true,context_is_solo:true,exact_sparring_bot_1:true,
+    opponent_is_ai:true,human_in_opponent_slot:false,round_active:false,phase:'Idle',space_gate_would_allow:true};
+  assert.equal(canRequestPrivateRound({private_ai}),true);
+  for(const phase of ['RoundActive','BetweenRounds','FightOver'])
+    assert.equal(canRequestPrivateRound({private_ai:{...private_ai,phase,active_gameplay_proven:false}}),false);
+  assert.equal(canRequestPrivateRound({private_ai:{...private_ai,space_gate_would_allow:false}}),true);
+  assert.equal(canRequestPrivateRound({private_ai:{...private_ai,post_fight_prompt:true,post_fight_is_winner:false}}),false);
+  assert.equal(canRequestPrivateRound({private_ai:{...private_ai,post_fight_prompt:true,post_fight_is_winner:true}}),true);
+});
+
+test('send failure consumes the pending response rejection during disconnect cleanup',async()=>{
+  const endpoint={wait:()=>new Promise((resolve,reject)=>setImmediate(()=>reject(Error('late response timeout')))),
+    send:()=>{throw Error('relay is not writable');}};
+  await assert.rejects(sendAndWait(endpoint,{},()=>true),/relay is not writable/);
+  await new Promise(resolve=>setImmediate(resolve));
+});
 test('lost-session exit requires proven solo AI scope, explicit inactivity, and a loss prompt',()=>{
   const private_ai={proven:true,solo_route_proven:true,context_is_solo:true,exact_sparring_bot_1:true,
     opponent_is_ai:true,human_in_opponent_slot:false,round_active:false,round_inactive:true,

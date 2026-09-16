@@ -20,6 +20,15 @@ function canExitLostPrivateSession(s) {
     s.private_ai.round_inactive===true && s.private_ai.post_fight_prompt===true &&
     s.private_ai.post_fight_is_winner===false;
 }
+function betweenPrivateRounds(s) {
+  return privateArena(s) && ['BetweenRounds','FightOver'].includes(s.private_ai.phase) &&
+    s.private_ai.round_active===false;
+}
+function canRequestPrivateRound(s) {
+  return privateArena(s) && s.private_ai.phase==='Idle' &&
+    s.private_ai.round_active===false &&
+    (s.private_ai.post_fight_prompt!==true || s.private_ai.post_fight_is_winner===true);
+}
 function validateWorkerReady(ready, sha) {
   requireValue(ready?.type==='ready' && ready.checkpoint_sha256===sha &&
     ready.native_cuda===true && ready.environment_stepping===false &&
@@ -37,6 +46,15 @@ function validateWorkerAction(prediction, source, sha) {
 }
 function guardedCallback(handler, onFailure) {
   return value => {try {handler(value);} catch(error) {onFailure(error instanceof Error ? error : new Error(String(error)));}};
+}
+async function sendAndWait(endpoint,message,predicate) {
+  const response=endpoint.wait(predicate);
+  try {endpoint.send(message);} catch(error) {
+    // A disconnected pipe can throw before the caller receives the pending
+    // response. Its eventual timeout/exit must not become unhandled.
+    response.catch(()=>{});throw error;
+  }
+  return response;
 }
 function measuredQpc(clock) {
   const ticks=clock?.qpc_ticks;
@@ -135,8 +153,7 @@ async function run(configPath) {
   let timer, watchdog;
   async function request(type, fields={}, event='ack') {
     const request_id=`live-${++nextId}`;
-    const response=relay.wait(x => x.event===event && x.request_id===request_id);
-    relay.send({type,request_id,...fields}); return response;
+    return sendAndWait(relay,{type,request_id,...fields},x => x.event===event && x.request_id===request_id);
   }
   async function command(command) {
     const ack=await request('command',{command});
@@ -160,6 +177,16 @@ async function run(configPath) {
     log('inference_ready',{checkpoint_sha256:ready.checkpoint_sha256,device:ready.device,precision:ready.precision,selection:ready.selection,projection:config.projection});
     let state=await request('get_state',{},'state');
     await command('AcquireExclusiveControl'); leased=true;
+    if(betweenPrivateRounds(state)) {
+      log('waiting_for_automatic_round_transition',{phase:state.private_ai.phase});
+      const deadline=Date.now()+30000;
+      do {
+        await new Promise(r=>setTimeout(r,100));
+        state=await request('get_state',{},'state');
+        requireValue(privateArena(state),'private arena proof lost between rounds');
+        requireValue(Date.now()<deadline,'automatic round transition timeout');
+      } while(betweenPrivateRounds(state));
+    }
     if(canExitLostPrivateSession(state)) {
       requireValue(config.enter_private===true, 'lost private session requires explicit private-entry recovery');
       await command('ExitLostPrivateSession');
@@ -184,12 +211,13 @@ async function run(configPath) {
       log('private_practice_observed',{opponent:'Sparring Bot 1',human_opponent:false});
     }
     if(!state.private_ai.active_gameplay_proven || state.private_ai.round_active!==true) {
-      await command('StartRound');
       const deadline=Date.now()+30000;
+      let startRequested=false;
       while(Date.now()<deadline) {
-        const s=await request('get_state',{},'state');
-        requireValue(privateArena(s),'private arena proof lost');
-        if(s.private_ai.active_gameplay_proven && s.private_ai.round_active)break;
+        if(canRequestPrivateRound(state)&&!startRequested){await command('StartRound');startRequested=true;}
+        state=await request('get_state',{},'state');
+        requireValue(privateArena(state),'private arena proof lost');
+        if(state.private_ai.active_gameplay_proven && state.private_ai.round_active)break;
         await new Promise(r=>setTimeout(r,100));
         requireValue(Date.now()<deadline,'active round timeout');
       }
@@ -257,4 +285,4 @@ async function run(configPath) {
   }
 }
 if(require.main===module) {requireValue(process.argv.length===3,'usage: node live_transfer_run.cjs config.json');run(process.argv[2]).catch(e=>{console.error(e.message);process.exitCode=2;});}
-module.exports={privateArena,canExitLostPrivateSession,validateWorkerReady,validateWorkerAction,guardedCallback,childEndpoint,LiveActionPacer};
+module.exports={privateArena,canExitLostPrivateSession,betweenPrivateRounds,canRequestPrivateRound,validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer};

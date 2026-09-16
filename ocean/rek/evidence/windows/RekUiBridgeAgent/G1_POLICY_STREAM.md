@@ -100,7 +100,9 @@ strafe/yaw, D and E use negative. Keyboard yaw ramp uses the measured native
 configuration. Categories16..32 map to move indices
 `6,7,8,9,0,1,2,3,4,5,10,11,12,13,14,15,16`.
 Translation must be released and its native TransitionSettled predicate true
-before an attack is requested. Attack requests preempt outgoing yaw while their
+before an attack is requested. The attack mask checks retained held translation
+as well as instantaneous native velocity: a transient zero in the latter does
+not release a retained W/S/A/D command. Attack requests preempt outgoing yaw while their
 transport is pending. On visual-only clients, desired yaw may resume when the
 send returns and pending clears. The authentic server retains its own action
 execution gates. The bridge never queues or retries a rejected request.

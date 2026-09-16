@@ -33,6 +33,28 @@ Check(G1PolicyStreamContract.MoveOrder.SequenceEqual(new[] {6,7,8,9,0,1,2,3,4,5,
 Check(G1PolicyStreamContract.Strafe(G1PolicyStreamContract.Held[4]) == 1, "native A sign");
 Check(G1PolicyStreamContract.Yaw(G1PolicyStreamContract.Held[6]) == 1, "native Q sign");
 Check(G1PolicyStreamContract.Held[8] == (G1HeldMask.W|G1HeldMask.Q), "WQ mapping");
+// A visual client's native command can transiently read zero while the owned
+// desired translation is still held. The next fixed update restores it.
+for (var category = 1; category < 16; category++)
+{
+    var held = G1PolicyStreamContract.Held[category];
+    var translationReleased = category is 1 or 6 or 7;
+    Check(G1PolicyStreamContract.AttackTranslationReady(held, 0f, 0f) == translationReleased,
+        $"attack eligibility uses desired category {category} during transient native zero");
+    Check(G1PolicyStreamContract.AttackTranslationReady(held,
+            G1PolicyStreamContract.Forward(held), G1PolicyStreamContract.Strafe(held)) == translationReleased,
+        $"attack eligibility is unchanged after native velocity restores category {category}");
+}
+foreach (var held in new[] { G1HeldMask.None, G1HeldMask.Q, G1HeldMask.E })
+{
+    foreach (var residual in new[] { -1f, 1f, float.Epsilon, float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+    {
+        Check(!G1PolicyStreamContract.AttackTranslationReady(held, residual, 0f),
+            $"native forward residual still blocks attack after release or yaw {held}");
+        Check(!G1PolicyStreamContract.AttackTranslationReady(held, 0f, residual),
+            $"native strafe residual still blocks attack after release or yaw {held}");
+    }
+}
 Check(G1PolicyStreamContract.VisualTransportComplete(true, true, false), "visual send completed with pending clear");
 Check(!G1PolicyStreamContract.VisualTransportComplete(true, true, true), "visual pending remains owned");
 Check(!G1PolicyStreamContract.VisualTransportComplete(true, false, false), "visual clearing alone is not send completion");

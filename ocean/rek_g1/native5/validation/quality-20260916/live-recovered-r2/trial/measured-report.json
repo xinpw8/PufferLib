@@ -1,0 +1,134 @@
+{
+  "stop_reason": "stream_end:active_round_not_observed",
+  "source_count": 2632,
+  "skipped_sources": 1,
+  "dropped_sources": {
+    "action_inflight": 1
+  },
+  "unmatched_action_acks": 0,
+  "action_inflight_at_stop": false,
+  "last_ack_qpc_ticks": "2881150297589",
+  "predictions": 2630,
+  "applied": 2629,
+  "rejected": 1,
+  "actions": [
+    711,
+    542,
+    1,
+    2,
+    20,
+    1,
+    508,
+    729,
+    5,
+    6,
+    1,
+    11,
+    4,
+    38,
+    0,
+    3,
+    13,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    17,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    11,
+    5,
+    0
+  ],
+  "reasons": {
+    "held_state_applied_locally": 1871,
+    "held_state_unchanged": 710,
+    "accepted_locally_and_armed": 48,
+    "policy_stream_not_owned": 1
+  },
+  "initial_round": {
+    "number": 1,
+    "duration": 120,
+    "time_remaining": 87.17482,
+    "active": true,
+    "redo": false,
+    "clean_hits": [
+      0,
+      2
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "InProgress",
+    "result_value": 0,
+    "winner_index": -1,
+    "knockout": false
+  },
+  "final_round": {
+    "number": 1,
+    "duration": 120,
+    "time_remaining": 0,
+    "active": false,
+    "redo": false,
+    "clean_hits": [
+      9,
+      21
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "WonByPoints",
+    "result_value": 1,
+    "winner_index": 1,
+    "knockout": false
+  },
+  "projection": "client_pose_projection_v1",
+  "checkpoint_sha256": "af84c4ec92e953e72c6bf4cde9ccb8cf80258a91dbf01947312e622dd492876e",
+  "authentic_client": true,
+  "global_input_emitted": false,
+  "source_elapsed_wall_seconds": 87.162387,
+  "observed_round_elapsed_seconds": 87.17482,
+  "live_decisions_per_second": 30.173565577087743,
+  "distinct_render_frames": 2632,
+  "local_slot": 0,
+  "local_attack_requests": 48,
+  "local_attack_applied_returns": 48,
+  "native_move_send_returns": 48,
+  "maximum_root_displacement_metres": [
+    2.145107557818928,
+    2.017249482003641
+  ],
+  "worker_latency_ms": {
+    "median": 0.292435,
+    "p95": 0.455493,
+    "max": 2.496811
+  },
+  "gpu_event_ms": {
+    "median": 0.2197120040655136,
+    "p95": 0.3161599934101105
+  },
+  "evidence_limits": [
+    "Received client poses and replicated round counters; no authoritative server action-acceptance field.",
+    "Client-pose feature projection and opt-in V4 requested-duration timing estimate are explicitly used.",
+    "CleanHits are reported as clean-hit counters, not an invented points total.",
+    "Live decision rate is real-time client control rate, not headless training SPS."
+  ],
+  "artifact_sha256": {
+    "run-config.json": "67161a88221e9f28680a736e8ae166f096004c9c883a58ae6d52077e8cc5af6a",
+    "relay.stdin.jsonl": "91e827e8a30038c529c9a7494bffd695d5ec580523b4870558e60adfc274c3d4",
+    "relay.stdout.jsonl": "c8dc14b5d3a9a0daeeab8fb6e8c083607409b7da816422efd00b4a21c30e4a58",
+    "encoder.stdin.jsonl": "fe1d0701bdfc86e478d233db211971e2049d9e250c686a02257576330c7f1971",
+    "encoder.stdout.jsonl": "4e772b92076932aa2d35ed5ea9a19a57c9d751498e834bb5552c1ae1fad2fcf1",
+    "worker.stdin.jsonl": "f51e9d274ad1e9db5847e02c415150cb1cafb01c38632d3cdbb1edae0df6462e",
+    "worker.stdout.jsonl": "07ea9960fbe68bb703c4aa20537bf841b8a9a96e5364560d56916c6be1d64e61",
+    "summary.json": "34644cb6167d6134a0c182404514cde76fe2b6d5d7f08e7f4755b48b081145b0"
+  }
+}

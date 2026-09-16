@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime_api.h"
+#include "../g1_hit_detector.h"
 #include <array>
 #include <cstdint>
 #include <string>
@@ -56,6 +57,11 @@ struct FastAssets {
     std::string manifest_sha256;
     std::string features_sha256;
     std::string provenance_json;
+    // Verified recovered metadata. Geometry and velocity remain kinematic proxies.
+    std::array<RekG1ImpactEvent,29> impact_events{};
+    int impact_offsets[24]{},impact_counts[24]{};
+    RekG1HitDetectorConfig recovered_hit_config{};
+    bool recovered_catalog_compatible=false;
 };
 
 // CPU work is restricted to loading and forward kinematics before training.

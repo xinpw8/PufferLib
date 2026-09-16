@@ -52,6 +52,24 @@ void tests(const Calibration& c){
  lock=dispatched(seq++,3940,true,3930);result=locked.process(lock.get());check(feature(result.get(),182)==1,"same_move_new_request_restarts_projection");
  auto* death=cJSON_GetArrayItem(cJSON_GetObjectItemCaseSensitive(lock.get(),"fighters"),0);cJSON_ReplaceItemInObjectCaseSensitive(death,"fallen",cJSON_CreateTrue());cJSON_ReplaceItemInObjectCaseSensitive(lock.get(),"observation_sequence",cJSON_CreateNumber(seq++));cJSON_ReplaceItemInObjectCaseSensitive(cJSON_GetObjectItemCaseSensitive(lock.get(),"clock"),"qpc_ticks",cJSON_CreateNumber(3960));result=locked.process(lock.get());check(feature(result.get(),182)==0,"measured_death_cancels_request_lock");
  Encoder unknown_busy(c);auto unknown1=dispatched(1,1000,true);unknown_busy.process(unknown1.get());auto unknown2=dispatched(2,1020,true);result=unknown_busy.process(unknown2.get());check(!boolean(get(result.get(),"ready")),"unknown_native_busy_requires_opt_in");
+ // A visual client's transient zero VelocityCommand is not a release of the
+ // bridge-owned held input. Do not offer attacks that dispatch will reject.
+ for(int test_category=0;test_category<16;test_category++){
+  const int desired=(test_category+2)%16;
+  Encoder held_encoder(c);auto first=fixture(c,1,1000);held_encoder.process(first.get());
+  auto held_source=fixture(c,2,1020);auto* input=cJSON_GetObjectItemCaseSensitive(held_source.get(),"input");
+  number(input,"desired_action",desired);result=held_encoder.process(held_source.get());
+  const bool translation=(desired>=2&&desired<=5)||desired>=8;
+  const auto* mask=get(get(result.get(),"worker_request"),"mask");
+  for(int k=0;k<33;k++)check(num(cJSON_GetArrayItem(mask,k))==double(k<16||!translation),"held_translation_blocks_attacks_despite_zero_native_velocity");
+  check(boolean(get(get(result.get(),"provenance"),"attack_mask_held_translation_blocked"))==translation,"held_mask_provenance");
+ }
+ // Mask intersection must not open a source-disallowed attack on release/yaw.
+ Encoder release_encoder(c);auto first_release=fixture(c,1,1000);release_encoder.process(first_release.get());
+ auto release=fixture(c,2,1020);number(cJSON_GetObjectItemCaseSensitive(release.get(),"input"),"desired_action",6);
+ cJSON_ReplaceItemInArray(cJSON_GetObjectItemCaseSensitive(release.get(),"action_mask"),16,cJSON_CreateFalse());
+ result=release_encoder.process(release.get());
+ check(num(cJSON_GetArrayItem(get(get(result.get(),"worker_request"),"mask"),16))==0,"source_restriction_preserved");
  auto out=object();text(out.get(),"event","encoder_tests");flag(out.get(),"ok",true);number(out.get(),"assertions",checks);flag(out.get(),"simulation_stepped",false);emit(out.get());
 }
 }

@@ -8,8 +8,11 @@ task_mujoco=${REK_NATIVE5_MUJOCO:-/home/spark-advantage/rek-training/gpu-runtime
 mkdir "$1"
 task_output=$(realpath "$1")
 task_cjson=(gcc -std=c11 -O2 -c "$task_root/vendor/cJSON.c" -o "$task_output/cJSON.o")
+for task_unit in g1_strike_catalog native_motion_routes;do
+  gcc -std=c11 -O2 -c "$task_source/../$task_unit.c" -o "$task_output/$task_unit.o"
+done
 task_compile=(g++ -std=c++17 -O2 -Wall -Wextra -I"$task_cuda/include" -I"$task_mujoco/include"
-  "$task_source/fast_assets.cpp" "$task_source/fast_assets_probe.cpp" "$task_output/cJSON.o"
+  "$task_source/fast_assets.cpp" "$task_source/fast_assets_probe.cpp" "$task_output/cJSON.o" "$task_output/g1_strike_catalog.o" "$task_output/native_motion_routes.o"
   -L"$task_mujoco" -Wl,-rpath,"$task_mujoco" -l:libmujoco.so.3.7.0 -lcrypto
   -Wl,--wrap=mj_step,--wrap=mj_forward,--wrap=mj_step1,--wrap=mj_step2 -o "$task_output/fast-assets-probe")
 task_command=("$task_output/fast-assets-probe" "$(realpath "$2")" "$(realpath "$3")" "$(realpath "$4")")

@@ -1,0 +1,97 @@
+{
+  "stop_reason": "stream_end:active_round_not_observed",
+  "source_count": 2632,
+  "skipped_sources": 1,
+  "dropped_sources": {
+    "action_inflight": 1
+  },
+  "unmatched_action_acks": 0,
+  "action_inflight_at_stop": false,
+  "last_ack_qpc_ticks": "2881150297589",
+  "predictions": 2630,
+  "applied": 2629,
+  "rejected": 1,
+  "actions": [
+    711,
+    542,
+    1,
+    2,
+    20,
+    1,
+    508,
+    729,
+    5,
+    6,
+    1,
+    11,
+    4,
+    38,
+    0,
+    3,
+    13,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    17,
+    0,
+    1,
+    1,
+    0,
+    0,
+    0,
+    11,
+    5,
+    0
+  ],
+  "reasons": {
+    "held_state_applied_locally": 1871,
+    "held_state_unchanged": 710,
+    "accepted_locally_and_armed": 48,
+    "policy_stream_not_owned": 1
+  },
+  "initial_round": {
+    "number": 1,
+    "duration": 120,
+    "time_remaining": 87.17482,
+    "active": true,
+    "redo": false,
+    "clean_hits": [
+      0,
+      2
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "InProgress",
+    "result_value": 0,
+    "winner_index": -1,
+    "knockout": false
+  },
+  "final_round": {
+    "number": 1,
+    "duration": 120,
+    "time_remaining": 0,
+    "active": false,
+    "redo": false,
+    "clean_hits": [
+      9,
+      21
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "WonByPoints",
+    "result_value": 1,
+    "winner_index": 1,
+    "knockout": false
+  },
+  "projection": "client_pose_projection_v1",
+  "checkpoint_sha256": "af84c4ec92e953e72c6bf4cde9ccb8cf80258a91dbf01947312e622dd492876e",
+  "authentic_client": true,
+  "global_input_emitted": false
+}

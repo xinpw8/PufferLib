@@ -1,0 +1,10 @@
+/home/spark-advantage/rek-training/policy-quality-20260916-r1/source/ocean/rek_g1/native5/live_transfer_run.cjs:111
+      const timer=setTimeout(() => finish(new Error(`${name} response timeout`)), timeout);
+                                          ^
+
+Error: relay response timeout
+    at Timeout.<anonymous> (/home/spark-advantage/rek-training/policy-quality-20260916-r1/source/ocean/rek_g1/native5/live_transfer_run.cjs:111:43)
+    at listOnTimeout (node:internal/timers:569:17)
+    at process.processTimers (node:internal/timers:512:7)
+
+Node.js v18.19.1

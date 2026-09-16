@@ -1,0 +1,75 @@
+TAP version 13
+# Subtest: held categories distinguish translation from neutral and yaw
+ok 1 - held categories distinguish translation from neutral and yaw
+  ---
+  duration_ms: 0.674838
+  ...
+# Subtest: replay counts source-mask defect without claiming counterfactual outcomes
+ok 2 - replay counts source-mask defect without claiming counterfactual outcomes
+  ---
+  duration_ms: 14.30941
+  ...
+# Subtest: automatic between-round transition waits without sending StartRound
+ok 3 - automatic between-round transition waits without sending StartRound
+  ---
+  duration_ms: 0.774298
+  ...
+# Subtest: round start uses the native Idle path; post-win space flag is not an idle prerequisite
+ok 4 - round start uses the native Idle path; post-win space flag is not an idle prerequisite
+  ---
+  duration_ms: 0.194898
+  ...
+# Subtest: send failure consumes the pending response rejection during disconnect cleanup
+ok 5 - send failure consumes the pending response rejection during disconnect cleanup
+  ---
+  duration_ms: 4.309939
+  ...
+# Subtest: lost-session exit requires proven solo AI scope, explicit inactivity, and a loss prompt
+ok 6 - lost-session exit requires proven solo AI scope, explicit inactivity, and a loss prompt
+  ---
+  duration_ms: 0.225011
+  ...
+# Subtest: worker readiness pins the full selected inference contract
+ok 7 - worker readiness pins the full selected inference contract
+  ---
+  duration_ms: 0.438939
+  ...
+# Subtest: action identity and categorical range are checked before relay
+ok 8 - action identity and categorical range are checked before relay
+  ---
+  duration_ms: 0.262088
+  ...
+# Subtest: callback write failures are routed through shutdown instead of escaping
+ok 9 - callback write failures are routed through shutdown instead of escaping
+  ---
+  duration_ms: 0.188621
+  ...
+# Subtest: one decision stays inflight until the matching Unity action acknowledgment
+ok 10 - one decision stays inflight until the matching Unity action acknowledgment
+  ---
+  duration_ms: 0.388719
+  ...
+# Subtest: rejected game actions advance the measured boundary without action replay
+ok 11 - rejected game actions advance the measured boundary without action replay
+  ---
+  duration_ms: 0.312799
+  ...
+# Subtest: missing or regressing measured clocks cannot be replaced with host time
+ok 12 - missing or regressing measured clocks cannot be replaced with host time
+  ---
+  duration_ms: 0.395192
+  ...
+# Subtest: worker startup fatal rejects promptly, without waiting for ready timeout
+ok 13 - worker startup fatal rejects promptly, without waiting for ready timeout
+  ---
+  duration_ms: 19.308311
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 79.242752

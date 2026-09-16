@@ -73,6 +73,11 @@ int main(int argc,char** argv){
         for(int i=0;i<17;i++)cfg.move_duration_ticks[i]=durations?integer(cJSON_GetArrayItem(durations,i)):defaults[i];
         setenv("REK_PHYSICS_BACKEND","semantic_cuda",1);
         auto* fast=cJSON_GetObjectItemCaseSensitive(json.get(),"fast");
+        auto* scoring=fast?cJSON_GetObjectItemCaseSensitive(fast,"scoring_mode"):nullptr;
+        const std::string scoring_mode=scoring?string(scoring):"v4_spheres";
+        require(scoring_mode=="v4_spheres"||scoring_mode=="recovered_hit_rules_v1","Invalid explicit scoring mode");
+        setenv("REK_FAST_SCORING",scoring_mode.c_str(),1);
+        std::printf("{\"event\":\"scoring_identity\",\"scoring_mode\":\"%s\",\"source\":\"runtime_config\"}\n",scoring_mode.c_str());
         const char* keys[]={"move_speed","yaw_speed","body_radius","hit_speed","down_damage"};
         const char* env[]={"REK_FAST_MOVE_SPEED","REK_FAST_YAW_SPEED","REK_FAST_BODY_RADIUS","REK_FAST_HIT_SPEED","REK_FAST_DOWN_DAMAGE"};
         for(const char* key:env)unsetenv(key); // Config controls behavior, not ambient shell overrides.

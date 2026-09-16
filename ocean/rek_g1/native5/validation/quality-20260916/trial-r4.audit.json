@@ -1,0 +1,251 @@
+{
+  "schema": "rek.live_policy_quality_audit.v1",
+  "trial": "trial-r4",
+  "checkpoint_sha256": "0d612521839298ffbe5783ed4fa449286a940b62a3a6768da7cc5ab248eb843b",
+  "observations": 3686,
+  "attacks_requested": 289,
+  "attacks_applied": 81,
+  "attacks_rejected": 208,
+  "attack_source_advertised_while_translation_held": 208,
+  "rejected_attacks_while_translation_held": 208,
+  "facing_within_0_16_rad_fraction": 0.1454150841020076,
+  "projected_busy_fraction": 0.890124796527401,
+  "root_gap_below_compact_minimum_fraction": 0.04530656538252849,
+  "final_round": {
+    "number": 1,
+    "duration": 120,
+    "time_remaining": 0,
+    "active": false,
+    "redo": false,
+    "clean_hits": [
+      15,
+      32
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "WonByPoints",
+    "result_value": 1,
+    "winner_index": 1,
+    "knockout": false
+  },
+  "action_counts": [
+    {
+      "requests": 846,
+      "applied": 846,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 958,
+      "applied": 958,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 14,
+      "applied": 14,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 1,
+      "applied": 1,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 0,
+      "applied": 0,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 6,
+      "applied": 6,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 641,
+      "applied": 640,
+      "rejected": 1,
+      "held_translation": 0
+    },
+    {
+      "requests": 877,
+      "applied": 877,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 11,
+      "applied": 11,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 18,
+      "applied": 18,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 15,
+      "applied": 15,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 2,
+      "applied": 2,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 3,
+      "applied": 3,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 1,
+      "applied": 1,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 0,
+      "applied": 0,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 4,
+      "applied": 4,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 18,
+      "applied": 14,
+      "rejected": 4,
+      "held_translation": 4
+    },
+    {
+      "requests": 0,
+      "applied": 0,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 0,
+      "applied": 0,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 0,
+      "applied": 0,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 1,
+      "applied": 0,
+      "rejected": 1,
+      "held_translation": 1
+    },
+    {
+      "requests": 1,
+      "applied": 0,
+      "rejected": 1,
+      "held_translation": 1
+    },
+    {
+      "requests": 0,
+      "applied": 0,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 4,
+      "applied": 2,
+      "rejected": 2,
+      "held_translation": 2
+    },
+    {
+      "requests": 2,
+      "applied": 2,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 107,
+      "applied": 60,
+      "rejected": 47,
+      "held_translation": 47
+    },
+    {
+      "requests": 153,
+      "applied": 1,
+      "rejected": 152,
+      "held_translation": 152
+    },
+    {
+      "requests": 1,
+      "applied": 1,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 0,
+      "applied": 0,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 0,
+      "applied": 0,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 0,
+      "applied": 0,
+      "rejected": 0,
+      "held_translation": 0
+    },
+    {
+      "requests": 1,
+      "applied": 0,
+      "rejected": 1,
+      "held_translation": 1
+    },
+    {
+      "requests": 1,
+      "applied": 1,
+      "rejected": 0,
+      "held_translation": 0
+    }
+  ],
+  "corrected_replay": {
+    "compared_observations": 3686,
+    "changed_observations": 0,
+    "changed_masks": 289,
+    "recorded_rejected_actions_now_masked": 208,
+    "recorded_applied_actions_now_masked": 0
+  },
+  "limits": [
+    "Offline replay measures mask changes, not counterfactual wins or new policy actions.",
+    "Facing uses measured root yaw; compact training uses logical heading.",
+    "Applied is a local acknowledgment, not authoritative server acceptance."
+  ],
+  "artifact_sha256": {
+    "relay.stdout.jsonl": "7c6acbe14065cce61196e926c3d18370a433d571487c65a5b03418c8d2d17db5",
+    "encoder.stdout.jsonl": "4b113f62e039cb1928d30c884e22f404c10c4a2f966ee8b92ce2d9789903fb0a",
+    "summary.json": "e406534698cdd4a0c951bd775d1adcfa926441f2de3fc68136f143b553f03483",
+    "corrected_encoder": "4a6ed6552256f7e500c3f6232134661560f5e1940ba6b82d90e602edaa4a18f1"
+  }
+}

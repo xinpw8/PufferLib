@@ -20,7 +20,7 @@ task_output=$(realpath "$task_output")
 task_run=$(basename "$task_output")
 task_environment=(REK_PHYSICS_BACKEND=semantic_cuda REK_ALLOW_CPU_EVALUATION=0)
 # Only these task-specific values are recorded. Never dump the shell environment.
-for task_key in REK_FAST_OPPONENT_MODE REK_FAST_RANDOM_RESETS REK_FAST_RESET_GAP_MIN REK_FAST_RESET_GAP_MAX REK_FAST_RESET_HEADING_SPREAD_RAD REK_FAST_SHAPING_WEIGHT REK_FAST_SHAPING_GAMMA REK_FAST_SHAPING_TARGET REK_FAST_SHAPING_BEARING_WEIGHT REK_FROZEN_OPPONENT_FRACTION;do
+for task_key in REK_FAST_SCORING REK_FAST_OPPONENT_MODE REK_FAST_RANDOM_RESETS REK_FAST_RESET_GAP_MIN REK_FAST_RESET_GAP_MAX REK_FAST_RESET_HEADING_SPREAD_RAD REK_FAST_SHAPING_WEIGHT REK_FAST_SHAPING_GAMMA REK_FAST_SHAPING_TARGET REK_FAST_SHAPING_BEARING_WEIGHT REK_FROZEN_OPPONENT_FRACTION;do
     if [[ -v "$task_key" ]];then task_environment+=("$task_key=${!task_key}");fi
 done
 task_command=(env "${task_environment[@]}" "$task_build/puffer-rek-native5" train --headless

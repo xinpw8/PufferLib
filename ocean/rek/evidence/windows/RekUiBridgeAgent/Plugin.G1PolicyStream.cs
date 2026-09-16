@@ -253,7 +253,8 @@ public sealed partial class Plugin
         if (input.IsPunching || input.IsRecovering || input.hasPendingMove || _g1PolicyMoveInFlight) return mask;
         for (var i = 2; i < 16; i++) mask[i] = true;
         var velocity = input.VelocityCommand;
-        if (!Finite(velocity) || velocity.x != 0 || velocity.y != 0) return mask;
+        if (!Finite(velocity) || !G1PolicyStreamContract.AttackTranslationReady(
+                _g1PolicyHeld, velocity.x, velocity.y)) return mask;
         bool settled;
         if (_g1PolicyOutgoing == G1HeldMask.None)
             settled = input.TransitionSettled(LocomotionDir.Forward) && input.TransitionSettled(LocomotionDir.Backward) &&

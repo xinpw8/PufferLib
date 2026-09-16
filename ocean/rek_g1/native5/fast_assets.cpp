@@ -12,6 +12,11 @@
 #include <sstream>
 #include <stdexcept>
 
+extern "C" {
+#include "../g1_strike_catalog.h"
+}
+#include "recovered_contact_rules.cuh"
+
 namespace {
 void require(bool ok,const std::string& message) { if(!ok)throw std::runtime_error("fast assets: "+message); }
 using Json=std::unique_ptr<cJSON,decltype(&cJSON_Delete)>;
@@ -77,6 +82,16 @@ FastAssets load_fast_assets(const RekNative5Config& config) {
     const std::uint16_t endian=1;require(*reinterpret_cast<const unsigned char*>(&endian)==1,"float32_le needs a little-endian host");
     FastAssets out;auto mb=bytes(filename(config.assets_path,"semantic_duel_assets_manifest.json"));out.manifest_sha256=sha(mb);auto manifest=json(mb);
     require(string(field(manifest.get(),"schema"))=="rek.g1_semantic_duel_assets.v1","unsupported semantic manifest");
+    const auto* catalog=rek_g1_current_build_strike_catalog();
+    require(rek_g1_validate_strike_catalog(catalog),"invalid recovered strike catalog");
+    const auto* build=cJSON_GetObjectItemCaseSensitive(manifest.get(),"build_fingerprint");
+    const auto* contracts=cJSON_GetObjectItemCaseSensitive(manifest.get(),"source_contracts");
+    const auto* contract=contracts?cJSON_GetObjectItemCaseSensitive(contracts,"route_contract_file_sha256"):nullptr;
+    out.recovered_catalog_compatible=build&&contract&&cJSON_IsString(build)&&cJSON_IsString(contract)&&
+        string(build)==catalog->build_fingerprint&&string(contract)==catalog->source_sha256;
+    std::copy(catalog->impact_events,catalog->impact_events+catalog->impact_event_count,out.impact_events.begin());
+    for(size_t i=0;i<catalog->count;i++){const auto& e=catalog->entries[i];out.impact_offsets[e.route_id]=e.impact_event_offset;out.impact_counts[e.route_id]=e.impact_event_count;}
+    out.recovered_hit_config=rek5_recovered::rek_g1_current_build_hit_detector_config();
     auto fb=bytes(filename(config.motion_features_path,"foot_features_manifest.json"));out.features_sha256=sha(fb);auto features=json(fb);
     require(string(field(features.get(),"asset_manifest_sha256"))==out.manifest_sha256,"feature manifest mismatch");
     std::map<std::string,Array> arrays;const cJSON* files=field(manifest.get(),"files");require(cJSON_IsObject(files),"files must be object");
@@ -129,6 +144,11 @@ FastAssets load_fast_assets(const RekNative5Config& config) {
         route.blend_in_seconds=float(number(field(rc,"blend_in_seconds")));route.blend_out_seconds=float(number(field(rc,"blend_out_seconds")));route.yaw_blend=float(number(field(rc,"yaw_blend")));
         require(route.blend_in_seconds>=0&&route.blend_out_seconds>=0&&route.yaw_blend>=0&&route.yaw_blend<=1,"invalid blending values");
         int mirror=integer(field(rc,"mirror"));require(mirror==0||mirror==1,"invalid mirror flag");auto* move=field(r,"runtime_move_index");route.move=cJSON_IsNull(move)?-1:integer(move);
+        const auto& expected=rek_g1_native_static_motion_routes()->routes[ri];
+        out.recovered_catalog_compatible=out.recovered_catalog_compatible&&c.id==expected.npz_path_id&&c.count==int(expected.asset_frames)&&c.fps==expected.asset_fps&&
+            route.playback_speed==expected.playback_speed&&integer(field(rc,"start_frame"))==expected.start_frame&&integer(field(rc,"end_frame"))==expected.end_frame&&
+            route.blend_in_seconds==expected.blend_in_seconds&&route.blend_out_seconds==expected.blend_out_seconds&&route.yaw_blend==expected.yaw_blend&&
+            mirror==expected.mirror&&route.loop==expected.loop&&(ri<7?route.move<0:route.move==expected.runtime_move_index);
         route.offset=int(out.frames.size());route.fps=50;
         if(route.move>=0){require(route.move<17&&move_route[route.move]<0,"duplicate move");move_route[route.move]=ri;require(config.move_duration_ticks[route.move]>0&&config.move_duration_ticks[route.move]<100000,"invalid explicit move duration");out.move_duration_ticks[route.move]=config.move_duration_ticks[route.move];route.count=int(config.move_duration_ticks[route.move])+1;}
         else route.count=std::max(2,int(std::ceil((route.end_frame-route.start_frame+1)*50.0/(c.fps*std::abs(route.playback_speed)))));

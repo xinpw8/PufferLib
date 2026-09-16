@@ -19,11 +19,15 @@ task_build=$(realpath "$task_build")
     -I"$task_cuda/include/cccl" -c "$task_source/fast_runtime.cu" -o "$task_build/fast_runtime.o"
 "${CXX:-g++}" -std=c++17 -O3 -fPIC -I"$task_source" -I"$task_g1" \
     -I"$task_root/vendor" -I"$task_mujoco/include" -I"$task_cuda/include" \
-    -c "$task_source/fast_assets.cpp" -o "$task_build/fast_assets.o"
+    -c "$task_source/fast_assets.cpp" -o "$task_build/fast_assets_loader.o"
 "$task_nvcc" -std=c++17 -O3 "-arch=$task_arch" -Xcompiler=-fPIC \
     -I"$task_source" -I"$task_g1" -I"$task_cuda/include/cccl" \
     -c "$task_source/native_policy.cu" -o "$task_build/native_policy.o"
 "${CC:-gcc}" -std=c11 -O2 -fPIC -c "$task_root/vendor/cJSON.c" -o "$task_build/cJSON.o"
+for task_unit in g1_strike_catalog native_motion_routes; do
+    "${CC:-gcc}" -std=c11 -O2 -fPIC -c "$task_g1/$task_unit.c" -o "$task_build/$task_unit.o"
+done
+"${LD:-ld}" -r "$task_build/fast_assets_loader.o" "$task_build/g1_strike_catalog.o" "$task_build/native_motion_routes.o" -o "$task_build/fast_assets.o"
 task_objects=("$task_build/fast_runtime.o" "$task_build/fast_assets.o" "$task_build/native_policy.o" "$task_build/cJSON.o")
 "$task_nvcc" "-arch=$task_arch" -Xcompiler=-fopenmp "$task_build/pufferl.o" \
     "${task_objects[@]}" "$task_raylib/lib/libraylib.a" \

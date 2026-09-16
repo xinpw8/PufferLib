@@ -61,6 +61,9 @@ internal static class G1PolicyStreamContract
     internal static float Yaw(G1HeldMask held) => (held & G1HeldMask.Q) != 0 ? 1 : (held & G1HeldMask.E) != 0 ? -1 : 0;
     internal static G1HeldMask Translation(G1HeldMask held) => held & (G1HeldMask.W|G1HeldMask.S|G1HeldMask.A|G1HeldMask.D);
 
+    internal static bool AttackTranslationReady(G1HeldMask desiredHeld, float forward, float strafe) =>
+        Translation(desiredHeld) == G1HeldMask.None && forward == 0f && strafe == 0f;
+
     internal static bool VisualTransportComplete(bool visualOnly, bool sendReturned, bool pending) =>
         visualOnly && sendReturned && !pending;
 

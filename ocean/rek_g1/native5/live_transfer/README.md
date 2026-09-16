@@ -3,7 +3,10 @@
 `encode-live` translates actual REK client telemetry into the selected V4
 policy's 223-value `scaled_polar_xy` observation and starts with the source's
 33-action transport mask. An optional declared request-duration projection
-further restricts that mask during projected attacks. It does not step MuJoCo,
+further restricts that mask during projected attacks. Retained held translation
+also closes attack entries, even when the visual client's instantaneous velocity
+has been cleared. This matches the training action contract and only removes
+eligibility; source restrictions are never relaxed. It does not step MuJoCo,
 the compact candidate, or any other
 physics environment. MuJoCo is used once at startup to compile the private
 recovered XML and read body rest orientations, hinge axes, and actuator order.
@@ -103,8 +106,9 @@ Without this opt-in, unavailable native busy state prevents inference.
   --projection client_pose_projection_v1 --self-test
 ```
 
-The native test checks 145 mathematical hinge cases and 345 observation/JSON
-assertions, including warmup, missing-field rejection, timestamp bounds,
+The native test checks 145 mathematical hinge cases and 890 observation/JSON
+assertions, including all held categories with transient zero native velocity,
+source-mask restriction preservation, warmup, missing-field rejection, timestamp bounds,
 duplicates, terminal handoff, route provenance, request-duration locks and mask
 restrictions, measured death, repeated identical requests, and reset history. It uses
 synthetic source poses constructed from the private model calibration and
