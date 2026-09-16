@@ -4,12 +4,19 @@ namespace RekUiBridgeAgent;
 
 internal sealed record G1PolicyAction(string RoundIdentity, long ObservationSequence, int Action);
 
+internal struct G1PolicyPublicationClock
+{
+    internal int LastPublishedFrame;
+    internal long LastObservedQpc, Frequency;
+    internal decimal NextDeadlineQpc;
+}
+
 internal static class G1PolicyStreamContract
 {
     internal const string Schema = "rek.g1_policy_source.v1";
     internal const double MaximumAgeSeconds = 0.250;
     internal const double StartupGraceSeconds = 1.0;
-    internal const double MinimumPublishIntervalSeconds = 0.020;
+    internal const int PublishRateHz = 50;
     internal static readonly int[] MoveOrder = { 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16 };
     internal static readonly G1HeldMask[] Held = {
         G1HeldMask.None, G1HeldMask.None, G1HeldMask.W, G1HeldMask.S,
@@ -67,10 +74,28 @@ internal static class G1PolicyStreamContract
     internal static bool VisualTransportComplete(bool visualOnly, bool sendReturned, bool pending) =>
         visualOnly && sendReturned && !pending;
 
-    internal static bool ShouldPublish(int frame, int lastFrame, long now, long lastPublished, long frequency) =>
-        frame != lastFrame && frequency > 0 && now > 0 &&
-        (lastPublished == 0 || (now >= lastPublished &&
-            (now - lastPublished) / (double)frequency >= MinimumPublishIntervalSeconds));
+    internal static bool ShouldPublish(ref G1PolicyPublicationClock clock, int frame, long now, long frequency)
+    {
+        if (frequency <= 0 || now <= 0 || (clock.Frequency != 0 &&
+                (frequency != clock.Frequency || now < clock.LastObservedQpc))) return false;
+        clock.LastObservedQpc = now;
+        // Decimal preserves integer QPC values and the exact frequency / 50 period.
+        var interval = (decimal)frequency / PublishRateHz;
+        if (clock.Frequency == 0)
+        {
+            clock.Frequency = frequency;
+            clock.LastPublishedFrame = frame;
+            clock.NextDeadlineQpc = now + interval;
+            return true;
+        }
+        if (frame == clock.LastPublishedFrame || now < clock.NextDeadlineQpc) return false;
+        // Carry normal frame lateness forward, but discard every missed deadline
+        // after a stall. Only this measured frame can produce an observation.
+        var missed = decimal.Floor((now - clock.NextDeadlineQpc) / interval);
+        clock.NextDeadlineQpc += (missed + 1) * interval;
+        clock.LastPublishedFrame = frame;
+        return true;
+    }
 
     internal static bool WatchdogExpired(bool receivedAction, long lastAction, long now, long frequency) =>
         frequency <= 0 || now < lastAction ||

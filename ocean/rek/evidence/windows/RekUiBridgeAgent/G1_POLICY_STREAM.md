@@ -29,9 +29,15 @@ neutralizes the stream. Startup has a bounded 1 s grace period while commands
 remain neutral. The per-action 250 ms source-age limit applies during startup
 as well.
 
-Version0.4.9 publishes continuous telemetry from the actual Unity LateUpdate
-callback, once per rendered frame at most, with a producer-QPC minimum interval
-of 20 ms. Fixed-step catch-up never republishes the same rendered pose. Native
+Continuous telemetry is published from the actual Unity LateUpdate callback,
+once per rendered frame at most, against accumulated 20 ms producer-QPC
+deadlines. Frame lateness carries into the next deadline, giving 50 publications
+per second at steady 60 or 100 FPS, and 30 at 30 FPS. After a stall, missed
+deadlines are discarded and only the current measured frame is published;
+there is no catch-up queue. The publication clock resets at stream start and
+stop, and rejects backward QPC or a changed frequency until reset. Deadlines
+never replace actual observation timestamps. Fixed-step catch-up never
+republishes the same rendered pose. Native
 held velocity and scope checks remain in the 500 Hz fixed-step path. The
 watchdog is checked in Update after queued commands have been validated and
 dispatched. During an active policy stream, ordinary automatic UI-state

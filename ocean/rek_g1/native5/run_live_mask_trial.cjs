@@ -1,11 +1,12 @@
 'use strict';
-// Preserve the bridge and protocol; optionally test an explicitly named checkpoint.
+// Preserve the protocol; optionally test an explicitly pinned checkpoint and bridge.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
-const [original,encoder,driver,out,checkpoint]=process.argv.slice(2);
+const [original,encoder,driver,out,checkpoint,bridgeSha]=process.argv.slice(2);
 if(!original||!encoder||!driver||!out||![original,encoder,driver,out].every(path.isAbsolute))
-  throw Error('Usage: node run_live_mask_trial.cjs ORIGINAL_CONFIG NEW_ENCODER ORIGINAL_DRIVER NEW_OUTPUT [CHECKPOINT]');
+  throw Error('Usage: node run_live_mask_trial.cjs ORIGINAL_CONFIG NEW_ENCODER ORIGINAL_DRIVER NEW_OUTPUT [CHECKPOINT] [BRIDGE_SHA256]');
 if(checkpoint&&!path.isAbsolute(checkpoint))throw Error('Checkpoint must be an absolute path');
+if(bridgeSha&&!/^[a-f0-9]{64}$/.test(bridgeSha))throw Error('Bridge SHA256 must be lowercase hexadecimal');
 const config=JSON.parse(fs.readFileSync(original,'utf8'));
 if(!Array.isArray(config.encoder)||config.projection!=='client_pose_projection_v1'||config.enter_private!==true)
   throw Error('Expected existing explicit private-trial configuration');
@@ -20,6 +21,12 @@ if(checkpoint){
   adapted.worker=[config.worker[0],checkpoint,adapted.checkpoint_sha256,config.worker[3]];
   changed.push('checkpoint_sha256','worker[1]','worker[2]');
 }
+if(bridgeSha){
+  if(!Array.isArray(config.relay)||!/^[a-f0-9]{64}$/.test(config.relay.at(-1)))
+    throw Error('Expected bridge SHA256 as final relay argument');
+  adapted.relay=[...config.relay.slice(0,-1),bridgeSha];
+  changed.push('relay[last]');
+}
 const adaptedPath=path.join(out,'trial.config.json');
 fs.writeFileSync(adaptedPath,JSON.stringify(adapted,null,2)+'\n',{flag:'wx',mode:0o600});
 fs.writeFileSync(path.join(out,'provenance.json'),JSON.stringify({host:require('node:os').hostname(),
@@ -27,6 +34,7 @@ fs.writeFileSync(path.join(out,'provenance.json'),JSON.stringify({host:require('
   original_config_sha256:hash(original),adapted_config_sha256:hash(adaptedPath),encoder_sha256:hash(encoder),
   driver_sha256:hash(driver),checkpoint_sha256:adapted.checkpoint_sha256,
   original_checkpoint_sha256:config.checkpoint_sha256,
+  bridge_sha256:adapted.relay?.at(-1),original_bridge_sha256:config.relay?.at(-1),
   changed_fields:changed,global_input_emitted:false},null,2)+'\n',{flag:'wx',mode:0o600});
 const child=spawn(process.execPath,[driver,adaptedPath],{stdio:['ignore','pipe','pipe']});
 const stdout=fs.createWriteStream(path.join(out,'stdout.jsonl'),{flags:'wx'}),stderr=fs.createWriteStream(path.join(out,'stderr.txt'),{flags:'wx'});

@@ -1,0 +1,112 @@
+{
+  "schema": "rek.cadence_comparison.v1",
+  "rows": [
+    {
+      "trial": "live-recovered-r13",
+      "checkpoint_sha256": "af84c4ec92e953e72c6bf4cde9ccb8cf80258a91dbf01947312e622dd492876e",
+      "first_qpc": 2889444899062,
+      "last_qpc": 2890640407082,
+      "qpc_frequency_hz": 10000000,
+      "measured_source_window_seconds": 119.550802,
+      "source_intervals_per_second": 30.129450741785906,
+      "decision_count": 3600,
+      "decisions_per_source_window_second": 30.112721452090298,
+      "unity_frames_per_second": 57.105430375950135,
+      "initial_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 119.68325,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          9,
+          16
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "WonByPoints",
+        "result_value": 1,
+        "winner_index": 1,
+        "knockout": false
+      },
+      "skipped_sources": 1
+    },
+    {
+      "trial": "live-cadence-r1",
+      "checkpoint_sha256": "af84c4ec92e953e72c6bf4cde9ccb8cf80258a91dbf01947312e622dd492876e",
+      "first_qpc": 2899591192241,
+      "last_qpc": 2900786411610,
+      "qpc_frequency_hz": 10000000,
+      "measured_source_window_seconds": 119.5219369,
+      "source_intervals_per_second": 48.35932340048951,
+      "decision_count": 5778,
+      "decisions_per_source_window_second": 48.34259007059314,
+      "unity_frames_per_second": 55.755455214682016,
+      "initial_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 119.666595,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          13,
+          24
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "WonByPoints",
+        "result_value": 1,
+        "winner_index": 1,
+        "knockout": false
+      },
+      "skipped_sources": 1
+    }
+  ],
+  "limits": [
+    "Independent sampled rounds; this is not an identical-RNG paired strength experiment.",
+    "Source window denominator includes derivative warmup; rates are window averages.",
+    "No evidence of improved authentic win rate."
+  ]
+}

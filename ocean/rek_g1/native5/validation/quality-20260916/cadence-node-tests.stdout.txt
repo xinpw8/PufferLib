@@ -1,0 +1,24 @@
+✔ held categories distinguish translation from neutral and yaw (0.6905ms)
+✔ replay counts source-mask defect without claiming counterfactual outcomes (17.3496ms)
+✔ automatic between-round transition waits without sending StartRound (0.8541ms)
+✔ round start uses the native Idle path; post-win space flag is not an idle prerequisite (0.179ms)
+✔ send failure consumes the pending response rejection during disconnect cleanup (4.449ms)
+✔ lost-session exit requires proven solo AI scope, explicit inactivity, and a loss prompt (0.2976ms)
+✔ worker readiness pins the full selected inference contract (0.5199ms)
+✔ action identity and categorical range are checked before relay (0.4216ms)
+✔ callback write failures are routed through shutdown instead of escaping (0.4176ms)
+✔ one decision stays inflight until the matching Unity action acknowledgment (0.5911ms)
+✔ rejected game actions advance the measured boundary without action replay (0.2506ms)
+✔ missing or regressing measured clocks cannot be replaced with host time (0.32ms)
+✔ worker startup fatal rejects promptly, without waiting for ready timeout (40.7213ms)
+✔ unpinned adaptation preserves checkpoint and bridge (91.7302ms)
+✔ explicit bridge changes only final relay argument and records both hashes (86.9955ms)
+✔ invalid bridge identity fails before creating a trial (45.7175ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 303.6272

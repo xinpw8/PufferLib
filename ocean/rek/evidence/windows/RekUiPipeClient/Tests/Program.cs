@@ -59,11 +59,54 @@ Check(G1PolicyStreamContract.VisualTransportComplete(true, true, false), "visual
 Check(!G1PolicyStreamContract.VisualTransportComplete(true, true, true), "visual pending remains owned");
 Check(!G1PolicyStreamContract.VisualTransportComplete(true, false, false), "visual clearing alone is not send completion");
 Check(!G1PolicyStreamContract.VisualTransportComplete(false, true, false), "nonvisual playback remains separate");
-Check(G1PolicyStreamContract.ShouldPublish(10, -1, 1000, 0, 1000), "first rendered source allowed");
-Check(!G1PolicyStreamContract.ShouldPublish(10, 10, 1300, 1000, 1000), "same frame never publishes twice even after catch-up");
-Check(!G1PolicyStreamContract.ShouldPublish(11, 10, 1019, 1000, 1000), "new frame under20ms throttled");
-Check(G1PolicyStreamContract.ShouldPublish(11, 10, 1020, 1000, 1000), "new frame at20ms allowed");
-Check(!G1PolicyStreamContract.ShouldPublish(11, 10, 999, 1000, 1000), "reverse publish clock rejected");
+int CountPublications(int framesPerSecond, long frequency = 10_000_000)
+{
+    var clock = new G1PolicyPublicationClock();
+    var count = 0;
+    for (var frame = 0; frame < framesPerSecond * 10; frame++)
+    {
+        var now = frequency + (long)frame * frequency / framesPerSecond;
+        var published = G1PolicyStreamContract.ShouldPublish(ref clock, frame, now, frequency);
+        Check(!G1PolicyStreamContract.ShouldPublish(ref clock, frame, now, frequency), "same measured frame cannot publish twice");
+        if (!published) continue;
+        Check(clock.LastObservedQpc == now && clock.NextDeadlineQpc > now, "actual QPC retained and next deadline is in the future");
+        count++;
+    }
+    return count;
+}
+var publicationCounts = new { fps60 = CountPublications(60), fps100 = CountPublications(100), fps30 = CountPublications(30) };
+Check(publicationCounts.fps60 == 500, $"60 FPS produces 500 publications in ten seconds, observed {publicationCounts.fps60}");
+Check(publicationCounts.fps100 == 500, "100 FPS produces 500 publications in ten seconds");
+Check(publicationCounts.fps30 == 300, "30 FPS publishes every available frame without fabricating observations");
+Check(CountPublications(60, 1001) == 500, "fractional QPC tick periods retain 50 Hz phase");
+var publishClock = new G1PolicyPublicationClock();
+Check(G1PolicyStreamContract.ShouldPublish(ref publishClock, 10, 1000, 1000), "first rendered source allowed");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 11, 1019, 1000), "first deadline under20ms not due");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 11, 1018, 1000), "clock regression after an unpublished frame rejected");
+Check(G1PolicyStreamContract.ShouldPublish(ref publishClock, 11, 1020, 1000), "first deadline at20ms allowed");
+Check(G1PolicyStreamContract.ShouldPublish(ref publishClock, 12, 3007, 1000), "long stall emits one current source");
+Check(publishClock.NextDeadlineQpc == 3020, "long stall discards missed deadlines and retains original phase");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 12, 3007, 1000), "stall cannot duplicate the measured frame");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 13, 3008, 1000), "no next-frame catch-up burst after stall");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 14, 3019, 1000), "no residual catch-up debt after stall");
+Check(G1PolicyStreamContract.ShouldPublish(ref publishClock, 15, 3020, 1000), "normal phase resumes after stall");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 15, 3300, 1000), "same frame never republishes even after multiple deadlines");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 16, 3299, 1000), "backward clock after duplicate-frame callback rejected");
+Check(G1PolicyStreamContract.ShouldPublish(ref publishClock, 16, 3300, 1000), "fresh frame may use the current measured deadline");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 17, 3320, 1001), "frequency changes require an explicit reset");
+publishClock = default;
+Check(G1PolicyStreamContract.ShouldPublish(ref publishClock, 16, 100, 1001), "reset clears frame, clock, phase and frequency history");
+Check(publishClock.NextDeadlineQpc == 120.02m, "nondivisible clock frequency retains fractional deadline");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 17, 120, 1001), "fractional deadline cannot publish early");
+Check(G1PolicyStreamContract.ShouldPublish(ref publishClock, 17, 121, 1001), "first measured tick after fractional deadline publishes");
+publishClock = default;
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 0, 0, 1000), "zero QPC rejected");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 0, -1, 1000), "negative QPC rejected");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 0, 1000, 0), "zero clock frequency rejected");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 0, 1000, -1), "negative clock frequency rejected");
+Check(G1PolicyStreamContract.ShouldPublish(ref publishClock, 0, long.MaxValue - 30, 1000), "large measured QPC preserves integer precision");
+Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 1, long.MaxValue - 11, 1000), "large QPC deadline is not rounded early");
+Check(G1PolicyStreamContract.ShouldPublish(ref publishClock, 1, long.MaxValue - 10, 1000), "large QPC exact deadline publishes");
 Check(!G1PolicyStreamContract.WatchdogExpired(false, 1000, 2000, 1000), "startup1s grace");
 Check(G1PolicyStreamContract.WatchdogExpired(false, 1000, 2001, 1000), "startup grace bounded");
 Check(!G1PolicyStreamContract.WatchdogExpired(true, 1000, 1250, 1000), "established watchdog250ms");
@@ -75,7 +118,7 @@ Check(await PolicyRelay.ReadBoundedLine(lines, 10, default) == "second", "buffer
 Check(await PolicyRelay.ReadBoundedLine(lines, 10, default) is null, "buffer EOF");
 try { await PolicyRelay.ReadBoundedLine(new StringReader("123456\n"), 5, default); throw new Exception("overlength accepted"); } catch (InvalidDataException) { cases++; }
 try { await PolicyRelay.ReadBoundedLine(new StringReader("abc"), 5, default); throw new Exception("unterminated accepted"); } catch (InvalidDataException) { cases++; }
-Console.WriteLine(JsonSerializer.Serialize(new { passed = cases, native_game_invocations = 0, global_input_invocations = 0 }));
+Console.WriteLine(JsonSerializer.Serialize(new { passed = cases, publication_counts_per_ten_seconds = publicationCounts, native_game_invocations = 0, global_input_invocations = 0 }));
 
 // The test never connects to a game; connection-only platform API is deliberately unavailable.
 internal static class NativeMethods

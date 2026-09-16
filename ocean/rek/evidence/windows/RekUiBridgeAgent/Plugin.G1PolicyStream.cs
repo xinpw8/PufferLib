@@ -11,8 +11,8 @@ public sealed partial class Plugin
     private TrialRoundIdentity? _g1PolicyIdentity;
     private string? _g1PolicyRound;
     private long _g1PolicySequence, _g1PolicyConsumed, _g1PolicyLastAction;
-    private int _g1PolicyDesiredAction = 1, _g1PolicyLastPublishedFrame = -1;
-    private long _g1PolicyLastPublishedQpc;
+    private int _g1PolicyDesiredAction = 1;
+    private G1PolicyPublicationClock _g1PolicyPublicationClock;
     private bool _g1PolicyReceivedAction;
     private readonly Dictionary<long, long> _g1PolicyObservations = new();
     private G1HeldMask _g1PolicyHeld, _g1PolicyOutgoing;
@@ -71,7 +71,7 @@ public sealed partial class Plugin
         _g1PolicyRound = HashTrialRoundIdentity(identity);
         _g1PolicyObservations.Clear(); _g1PolicyConsumed = _g1PolicySequence;
         _g1PolicyLastAction = Stopwatch.GetTimestamp(); _g1PolicyReceivedAction = false;
-        _g1PolicyLastPublishedQpc = 0; _g1PolicyLastPublishedFrame = -1;
+        _g1PolicyPublicationClock = default;
         _g1PolicyHeld = _g1PolicyOutgoing = G1HeldMask.None;
         _g1PolicyDesiredAction = 1; _g1PolicyVelocity = Vector3.zero;
         _g1PolicyYaw = new(0, 0); _g1PolicyPendingMove = null;
@@ -91,6 +91,7 @@ public sealed partial class Plugin
     {
         if (!_g1PolicyRunning) return;
         _g1PolicyRunning = false;
+        _g1PolicyPublicationClock = default;
         var neutral = false; var sent = false; var pendingCleared = false;
         try
         {
@@ -165,9 +166,8 @@ public sealed partial class Plugin
     {
         var now = Stopwatch.GetTimestamp();
         var frame = Time.frameCount;
-        if (!_g1PolicyRunning || !G1PolicyStreamContract.ShouldPublish(frame,
-                _g1PolicyLastPublishedFrame, now, _g1PolicyLastPublishedQpc, Stopwatch.Frequency)) return;
-        _g1PolicyLastPublishedFrame = frame; _g1PolicyLastPublishedQpc = now;
+        if (!_g1PolicyRunning || !G1PolicyStreamContract.ShouldPublish(
+                ref _g1PolicyPublicationClock, frame, now, Stopwatch.Frequency)) return;
         PublishG1PolicyState(_leaseConnectionId, null);
     }
 

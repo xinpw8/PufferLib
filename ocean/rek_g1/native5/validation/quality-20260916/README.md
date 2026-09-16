@@ -198,3 +198,50 @@ root. Public copies of the two training command lines and bridge-test stdout
 normalize trailing whitespace only; original logs remain unchanged on Spark
 or in the captured command output. No game binary, clip array or checkpoint
 payload is included in this directory.
+
+## Publication cadence repair and second complete round
+
+The old publication deadline restarted from every emitted frame. With a
+roughly 60 FPS client, its nominal 20 ms interval commonly emitted every
+second frame. The repaired deadline retains its phase, drops missed-frame
+debt, and publishes at most one real observation per Unity frame. It never
+fabricates intermediate observations. Offline clock/relay tests pass 4,473
+assertions: 500 publications in ten seconds at 60 and 100 FPS, and 300 at
+30 FPS. Sixteen Node transport/configuration tests also pass.
+
+The new bridge DLL has SHA-256
+`40109bdcb2b84fabb2d66b8c995855fee1253a2c7ca943382aff8dbd7dc4eb99`.
+At 23:39 UTC, only the verified task-owned Spark `:98` game was stopped. Its
+previous DLL was backed up outside the plugin directory, the installed hash
+was verified, and the same isolated launcher restarted it. Windows input,
+the container, Wine services, and unrelated Spark jobs were untouched. The
+trial config explicitly pins the new bridge hash and the unchanged r2
+checkpoint. The deployed DLL also includes the already-tested held-input
+source-mask correction; previously the encoder alone enforced that repair.
+
+| Complete trial | Measured decisions/s | Accepted attacks | Final native counter | Winner |
+| --- | ---: | ---: | ---: | --- |
+| recovered-r13, old deadline | 30.113 | 78/78 | 9:16 | Bot 1 |
+| cadence-r1, repaired deadline | 48.343 | 70/70 | 13:24 | Bot 1 |
+
+`cadence-comparison.json` records the actual QPC windows and frame rates.
+The new round began at 119.667 s remaining, 0:0, and ended normally at zero.
+One terminal-boundary nonattack was rejected. Control was neutralized and
+released. These are independent sampled rounds, so their scores do not
+establish that cadence increased or decreased strength. They establish that
+the repaired cadence runs substantially closer to the training frequency
+and does not by itself make the candidate beat Bot 1.
+
+### Native score terminology correction
+
+The replicated field is named `RoundState.CleanHits`, but recovered
+`PointTracker.RecordHit` adds the limb's point award into it: hand 1,
+foot/shin 2. The native counters above are therefore weighted point counters
+according to that recovered implementation, not necessarily numbers of
+individual contacts. Earlier tables retain the literal source-field name.
+The recovered training scorer already uses these weights. A separate
+observation mismatch remains: live features 221/222 use the weighted counter
+delta, while the original compact runtime uses an unweighted contact count.
+
+The source-grounded opponent audit is in [NATIVE_BOT1_GAP.md](NATIVE_BOT1_GAP.md).
+The existing compact script is not the recovered native Bot 1 controller.
