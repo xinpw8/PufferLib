@@ -16,6 +16,9 @@ function run(input, summaryFile, output) {
   assert(!fs.existsSync(output), 'output must be new');
   const inputBytes = fs.readFileSync(input), summaryBytes = fs.readFileSync(summaryFile);
   const summary = JSON.parse(summaryBytes), rows = inputBytes.toString('utf8').trim().split(/\r?\n/).map(s => JSON.parse(s));
+  const fullTargets = summary.target_primitives === 9;
+  assert(fullTargets || summary.target_primitives === undefined);
+  if (fullTargets) assert.equal(summary.core_target_primitives, 3);
   assert.equal(summary.event, 'pose_contact_replay');
   assert.equal(summary.rounds, 2); assert.equal(summary.paired_strikes, 33);
   assert.equal(summary.authoritative_contact_time, false);
@@ -40,7 +43,7 @@ function run(input, summaryFile, output) {
       assert(row.mean_ratio >= row.min_ratio - 1e-8 && row.mean_ratio <= row.max_ratio + 1e-8);
       integer(row.samples); assert(row.samples > 0); links.push(row); continue;
     }
-    keys(row, 'event round hit_sequence score_sequence scorer points is_kick receipt_lag_seconds pose_sequences pose_unity_frames pose_age_seconds primitive_pair_mask part_compatible_pair_mask legacy_pair_count legacy_part_compatible_count hit_point_striker_distance_m hit_point_target_distance_m');
+    keys(row, 'event round hit_sequence score_sequence scorer points is_kick receipt_lag_seconds pose_sequences pose_unity_frames pose_age_seconds primitive_pair_mask part_compatible_pair_mask legacy_pair_count legacy_part_compatible_count hit_point_striker_distance_m hit_point_target_distance_m' + (fullTargets ? ' all_target_pair_count all_target_part_compatible_count target_part_compatible_counts' : ''));
     assert.equal(row.event, 'pose_contact_query');
     for (const k of ['round', 'hit_sequence', 'score_sequence', 'scorer', 'points', 'is_kick', 'primitive_pair_mask', 'part_compatible_pair_mask', 'legacy_pair_count', 'legacy_part_compatible_count']) integer(row[k]);
     assert([1, 2].includes(row.round)); assert([0, 1].includes(row.scorer)); assert([0, 1].includes(row.is_kick));
@@ -52,6 +55,15 @@ function run(input, summaryFile, output) {
     assert(Math.abs(row.receipt_lag_seconds * 120 - Math.round(row.receipt_lag_seconds * 120)) < 1e-6);
     assert(row.primitive_pair_mask < 2 ** 36 && row.part_compatible_pair_mask < 2 ** 36);
     assert.equal(BigInt(row.part_compatible_pair_mask) & BigInt(row.primitive_pair_mask), BigInt(row.part_compatible_pair_mask));
+    if (fullTargets) {
+      integer(row.all_target_pair_count); integer(row.all_target_part_compatible_count);
+      assert(row.all_target_pair_count <= 108 && row.all_target_part_compatible_count <= row.all_target_pair_count);
+      vector(row.target_part_compatible_counts, 9, n => { integer(n); assert(n <= 12); });
+      assert.equal(row.target_part_compatible_counts.reduce((a, b) => a + b, 0), row.all_target_part_compatible_count);
+      const pop = n => [...BigInt(n).toString(2)].filter(c => c === '1').length;
+      assert(pop(row.primitive_pair_mask) <= row.all_target_pair_count);
+      assert.equal(pop(row.part_compatible_pair_mask), row.target_part_compatible_counts.slice(0, 3).reduce((a, b) => a + b, 0));
+    }
     assert(row.legacy_pair_count <= 18 && row.legacy_part_compatible_count <= row.legacy_pair_count);
     const key = `${row.round}:${row.hit_sequence}:${row.score_sequence}`;
     if (!grouped.has(key)) grouped.set(key, []);
@@ -70,8 +82,13 @@ function run(input, summaryFile, output) {
       assert(subset.length > 0);
       return {
         receipt_window_half_width_seconds: window, queries: subset.length,
-        primitive_overlap: subset.some(s => s.primitive_pair_mask > 0),
-        part_compatible_primitive_overlap: subset.some(s => s.part_compatible_pair_mask > 0),
+        primitive_overlap: subset.some(s => fullTargets ? s.all_target_pair_count > 0 : s.primitive_pair_mask > 0),
+        part_compatible_primitive_overlap: subset.some(s => fullTargets ? s.all_target_part_compatible_count > 0 : s.part_compatible_pair_mask > 0),
+        ...(fullTargets ? {
+          core_only_primitive_overlap: subset.some(s => s.primitive_pair_mask > 0),
+          core_only_part_compatible_primitive_overlap: subset.some(s => s.part_compatible_pair_mask > 0),
+          target_part_compatible_overlaps: Array.from({ length: 9 }, (_, j) => subset.some(s => s.target_part_compatible_counts[j] > 0)),
+        } : {}),
         legacy_sphere_overlap: subset.some(s => s.legacy_pair_count > 0),
         part_compatible_legacy_sphere_overlap: subset.some(s => s.legacy_part_compatible_count > 0),
         minimum_hit_point_striker_distance_model_m: Math.min(...subset.map(s => s.hit_point_striker_distance_m)),
@@ -89,6 +106,11 @@ function run(input, summaryFile, output) {
       const values = selected.map(e => e.windows[i]);
       const out = { receipt_window_half_width_seconds: window };
       for (const k of ['primitive_overlap', 'part_compatible_primitive_overlap', 'legacy_sphere_overlap', 'part_compatible_legacy_sphere_overlap']) out[k + '_events'] = values.filter(v => v[k]).length;
+      if (fullTargets) {
+        for (const k of ['core_only_primitive_overlap', 'core_only_part_compatible_primitive_overlap']) out[k + '_events'] = values.filter(v => v[k]).length;
+        out.newly_covered_by_hip_targets_events = values.filter(v => v.part_compatible_primitive_overlap && !v.core_only_part_compatible_primitive_overlap).length;
+        out.target_part_compatible_overlap_events = Array.from({ length: 9 }, (_, j) => values.filter(v => v.target_part_compatible_overlaps[j]).length);
+      }
       return out;
     }) });
   }
@@ -98,7 +120,7 @@ function run(input, summaryFile, output) {
       maximum_observed_length_ratio: Math.max(...values.map(r => r.max_ratio)), mean_of_per_link_mean_ratios: mean(values.map(r => r.mean_ratio)) };
   }));
   const report = {
-    schema: 'rek.recorded_pose_contact_diagnostic.v1', model_sha256: summary.model_sha256,
+    schema: fullTargets ? 'rek.recorded_pose_contact_diagnostic.v2' : 'rek.recorded_pose_contact_diagnostic.v1', model_sha256: summary.model_sha256,
     capture_sha256: summary.capture_sha256, query_sha256: digest(inputBytes), run_summary_sha256: digest(summaryBytes),
     paired_strikes: 33, queries, pose_counts: summary.pose_counts, unpaired_five_point_awards: summary.unpaired_scores,
     contact_execution: 'CUDA_static_overlap', cpu_physics: false, python_runtime: false,
@@ -106,6 +128,10 @@ function run(input, summaryFile, output) {
     pose_sampling: 'nearest_preceding_client_receipt_pose_per_fighter', max_pose_age_seconds: .075,
     lag_windows_selected_before_results: true, authoritative_contact_time: false, authentic_parity: false,
     negative_outcome_labels: 0, events, aggregates, link_length_checks: linkSummary,
+    ...(fullTargets ? { target_primitives: 9, legacy_comparison_target_primitives: 3,
+      target_names: ['mjgeom_3021', 'mjgeom_3285', 'mjgeom_3064', 'mjgeom_3337', 'mjgeom_3141', 'mjgeom_3399', 'mjgeom_3024', 'mjgeom_3062', 'mjgeom_3406'],
+      target_zones: [3, 2, 2, 12, 12, 12, 13, 13, 13],
+      target_contract: 'g1_scoring_bodyzones_1_2_3_12_13_v1' } : {}),
     limitations: [
       'Packet receipt times do not identify the server collision time; each fighter pose may have independent delay.',
       'Overlap at a nearby receipt time is a geometric diagnostic, not a reconstructed accepted scoring event.',

@@ -26,11 +26,33 @@ int main(int argc,char** argv) {
             finite(frame.root_z);finite(frame.clip_yaw);
             for(int j=0;j<6;j++){for(float x:frame.strike_xyz[j])finite(x);finite(frame.strike_radius[j]);min_radius=std::min(min_radius,double(frame.strike_radius[j]));max_radius=std::max(max_radius,double(frame.strike_radius[j]));}
             for(int j=0;j<3;j++){for(float x:frame.target_xyz[j])finite(x);finite(frame.target_radius[j]);}
+            auto check_shape=[&](const rek5_primitive::Shape& shape){
+                if(shape.kind<rek5_primitive::Sphere||shape.kind>rek5_primitive::Box)throw std::runtime_error("Invalid primitive kind");
+                for(float value:shape.center)finite(value);
+                for(float value:shape.axes)finite(value);
+                for(float value:shape.size)finite(value);
+                if(shape.size[0]<=0||(shape.kind==rek5_primitive::Capsule&&shape.size[1]<=0)||
+                    (shape.kind==rek5_primitive::Box&&(shape.size[1]<=0||shape.size[2]<=0)))throw std::runtime_error("Invalid primitive dimensions");
+                for(int axis=0;axis<3;axis++)for(int other=0;other<3;other++){
+                    double dot=0;for(int row=0;row<3;row++)dot+=double(shape.axes[row*3+axis])*shape.axes[row*3+other];
+                    if(std::abs(dot-(axis==other?1.0:0.0))>1e-5)throw std::runtime_error("Nonorthonormal primitive axes");
+                }
+            };
+            for(const auto& shape:frame.strike_shapes)check_shape(shape);
+            for(int target=0;target<rek5_native_contact::TargetCount;target++){
+                const auto& shape=frame.target_shapes[target];check_shape(shape);
+                if(shape.kind!=rek5_native_contact::TargetKinds[target])throw std::runtime_error("Target primitive kind mismatch");
+                const float radius=frame.target_shape_radius[target];finite(radius);
+                double expected=shape.kind==rek5_primitive::Capsule?double(shape.size[0])+shape.size[1]:
+                    std::sqrt(double(shape.size[0])*shape.size[0]+double(shape.size[1])*shape.size[1]+double(shape.size[2])*shape.size[2]);
+                if(radius<=0||std::abs(radius-expected)>1e-6)throw std::runtime_error("Target primitive bound mismatch");
+            }
         }
         if(max_q_error>1e-5||forbidden_calls)throw std::runtime_error("Quaternion or CPU execution invariant failed");
         for(int category=16;category<33;category++){const auto& route=assets.routes.at(assets.action_to_route[category]);if(route.count!=int(cfg.move_duration_ticks[route.move])+1)throw std::runtime_error("Duration mapping mismatch");}
         std::puts(assets.provenance_json.c_str());
         std::printf("{\"test\":\"fast_asset_offline_fk\",\"passed\":true,\"checked_finite_values\":%zu,\"max_root_quaternion_norm_error\":%.9g,\"min_striker_proxy_radius_m\":%.9g,\"max_striker_proxy_radius_m\":%.9g,\"forbidden_cpu_physics_calls\":%u,\"python_runtime\":false}\n",values,max_q_error,min_radius,max_radius,forbidden_calls);
+        std::printf("{\"test\":\"native_scoring_target_geometry\",\"passed\":true,\"target_contract\":\"%s\",\"primitive_target_count\":%d,\"legacy_target_count\":3,\"striker_count\":12,\"body_zones\":[3,2,2,12,12,12,13,13,13],\"authentic_parity\":false}\n",rek5_native_contact::TargetContract,rek5_native_contact::TargetCount);
         return 0;
     }catch(const std::exception& error){std::fprintf(stderr,"%s\n",error.what());return 1;}
 }

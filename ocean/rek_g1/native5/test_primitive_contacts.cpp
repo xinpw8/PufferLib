@@ -1,9 +1,11 @@
 #include "primitive_contacts.cuh"
 #include "primitive_motion.cuh"
+#include "native_contact_geometry.h"
 
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <random>
 
 namespace {
@@ -246,9 +248,23 @@ void motion() {
     require(!rek5_primitive::sampled_overlap(tiny_start,tiny_end,tiny_target,tiny_target,4),"four samples retain a between-sample miss");
     require(rek5_primitive::sampled_overlap(tiny_start,tiny_end,tiny_target,tiny_target,8),"eight samples see that specific crossing");
 }
+void native_targets() {
+    using namespace rek5_native_contact;
+    require(TargetCount==9&&LegacyTargetCount==3,"native target counts");
+    const char* expected[]={"mjgeom_3021","mjgeom_3285","mjgeom_3064","mjgeom_3337","mjgeom_3141","mjgeom_3399","mjgeom_3024","mjgeom_3062","mjgeom_3406"};
+    const int zones[]={3,2,2,12,12,12,13,13,13};
+    for(int target=0;target<TargetCount;target++) {
+        require(std::strcmp(TargetNames[target],expected[target])==0,"native target identity and order");
+        require(TargetZones[target]==zones[target],"native target body zone");
+        require(TargetKinds[target]==(target%3==2?Capsule:Box),"native target primitive kind");
+        const Shape target_shape=shape(TargetKinds[target],0,0,0,.04f,.06f,.03f);
+        expect(shape(Sphere,0,0,0,.005f),target_shape,true,"each native scoring target accepts geometric overlap");
+        expect(shape(Sphere,1,0,0,.005f),target_shape,false,"each native scoring target rejects separated geometry");
+    }
+}
 } // namespace
 
 int main() {
-    analytic();distance_cases();independent_distance_oracle();invariance();motion();
+    analytic();distance_cases();independent_distance_oracle();invariance();motion();native_targets();
     std::printf("{\"event\":\"primitive_contacts_tests\",\"checks\":%d,\"passed\":true,\"contact_margin_m\":0,\"static_geometry_only\":true,\"dynamic_parity_claim\":false}\n",checks);
 }

@@ -342,13 +342,18 @@ __device__ void strike_contacts(const View& v,Arena& a,int side,int* hits,int* p
         float dx=tip[0]-old_tip[0],dy=tip[1]-old_tip[1],dz=tip[2]-old_tip[2];
         float speed=sqrtf(dx*dx+dy*dy+dz*dz)/DT;
         bool touch=false;float max_relative_speed=0;
-        for(int zone=0;zone<3;zone++){
+        const int target_count=p.primitive_contacts?rek5_native_contact::TargetCount:3;
+        for(int zone=0;zone<target_count;zone++){
             float dst[3],old_dst[3],from[3],to[3];
-            point(enemy,target.target_xyz[zone],false,dst);point(enemy,old_target.target_xyz[zone],true,old_dst);
+            const float* target_center=p.primitive_contacts?target.target_shapes[zone].center:target.target_xyz[zone];
+            const float* old_target_center=p.primitive_contacts?old_target.target_shapes[zone].center:old_target.target_xyz[zone];
+            point(enemy,target_center,false,dst);point(enemy,old_target_center,true,old_dst);
             for(int k=0;k<3;k++){from[k]=old_tip[k]-old_dst[k];to[k]=tip[k]-dst[k];}
-            float radius=now.strike_radius[limb]+target.target_radius[zone];
-            if(p.primitive_contacts)radius=fmaxf(before.strike_radius[limb],now.strike_radius[limb])+
-                fmaxf(old_target.target_radius[zone],target.target_radius[zone]);
+            // Keep legacy arithmetic and its original three targets unchanged.
+            const float radius=p.primitive_contacts?
+                fmaxf(before.strike_radius[limb],now.strike_radius[limb])+
+                    fmaxf(old_target.target_shape_radius[zone],target.target_shape_radius[zone]):
+                now.strike_radius[limb]+target.target_radius[zone];
             bool intersects=sweep_distance2(from,to)<=radius*radius;
             if(intersects&&p.primitive_contacts)intersects=primitive_touch(p,f,enemy,before,now,old_target,target,limb,zone);
             touch=touch||intersects;
@@ -680,9 +685,11 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         fprintf(stderr,"semantic_cuda_opponent={\"implementation\":\"%s\",\"replaces\":\"scripted_rows_only\",\"difficulty\":0,\"decision_hz\":50,\"native_update_fixedupdate_equivalence\":false,\"rng\":\"%s\",\"continuous_commands\":%s,\"pose_route\":\"dominant_translation_canned_proxy\",\"actuator_model\":\"compact_slider\",\"own_recovery\":\"unsupported_fail_closed\",\"server_parity\":false}\n",
             p.recovered_bot?"recovered_bot1_v1":"v4_scripted",p.recovered_bot?"candidate_private_xorshift32":"legacy_stateless_reset_hash",p.recovered_bot?"true":"false");
         fprintf(stderr,"semantic_cuda_parameters={\"version\":4,\"scoring_mode\":\"%s\",\"policy_round_feature\":\"episode_local_constant_1\",\"diagnostic_round_counter\":\"cumulative_session\",\"dt_seconds\":%.9g,\"round_seconds\":%.9g,\"move_speed_m_s\":%.9g,\"yaw_speed_rad_s\":%.9g,\"brake_rate_m_s2\":%.9g,\"yaw_ramp_seconds\":%.9g,\"settle_speed_m_s\":%.9g,\"body_radius_m\":%.9g,\"hit_speed_m_s\":%.9g,\"knockdowns_modeled\":false,\"hit_damage_resets\":false,\"hit_cooldown_ticks\":%d,\"floor_z_m\":%.9g,\"arena_half_extent_m\":[%.9g,%.9g],\"physics_parity\":false,"
+            "\"target_contract\":\"%s\",\"target_count\":%d,\"legacy_target_count\":3,"
             "\"seed\":%u,\"opponent_mode\":\"%s\",\"opponent_controller\":\"%s\",\"observation_mode\":\"%s\",\"mixed_weights\":[0.25,0.25,0.25,0.25],\"random_resets\":%s,\"reset_gap_min_m\":%.9g,\"reset_gap_max_m\":%.9g,\"reset_heading_spread_rad\":%.9g,"
             "\"shaping_weight\":%.9g,\"shaping_gamma\":%.9g,\"shaping_target_m\":%.9g,\"shaping_bearing_weight\":%.9g,\"shaping_terminal_potential\":0,\"shaping_changes_points\":false}\n",
             p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",DT,p.round_seconds,p.move_speed,p.yaw_speed,p.brake_rate,p.yaw_ramp,p.settle_speed,p.body_radius,p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?15:10,p.floor,p.half_extent[0],p.half_extent[1],
+            p.primitive_contacts?rek5_native_contact::TargetContract:"legacy_three_target_spheres_v1",p.primitive_contacts?rek5_native_contact::TargetCount:3,
             p.seed,modes[p.opponent_mode],p.recovered_bot?"recovered_bot1_v1":"v4_scripted",p.rendered_observation?"rendered_pose_v1":"v4_logical",p.random_resets?"true":"false",p.reset_gap_min,p.reset_gap_max,p.reset_heading_spread,
             p.shaping_weight,p.shaping_gamma,p.shaping_target,p.shaping_bearing_weight);
         return result.release();

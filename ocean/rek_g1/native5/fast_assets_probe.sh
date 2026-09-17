@@ -19,7 +19,7 @@ task_command=("$task_output/fast-assets-probe" "$(realpath "$2")" "$(realpath "$
 { printf '%q ' "${task_cjson[@]}";printf '\n';printf '%q ' "${task_compile[@]}";printf '\n';printf '%q ' "${task_command[@]}";printf '\n'; } > "$task_output/commands.txt"
 "${task_cjson[@]}" > "$task_output/build.stdout.txt" 2> "$task_output/build.stderr.txt"
 "${task_compile[@]}" >> "$task_output/build.stdout.txt" 2>> "$task_output/build.stderr.txt"
-{ hostname;id;date -u --iso-8601=seconds;sha256sum "$task_source/fast_assets.h" "$task_source/fast_assets.cpp" "$task_source/fast_assets_probe.cpp" "$task_output/fast-assets-probe"; } > "$task_output/provenance.txt"
+{ hostname;id;date -u --iso-8601=seconds;sha256sum "$task_source/fast_assets.h" "$task_source/fast_assets.cpp" "$task_source/fast_assets_probe.cpp" "$task_source/native_contact_geometry.h" "$task_output/fast-assets-probe"; } > "$task_output/provenance.txt"
 readelf -d "$task_output/fast-assets-probe" > "$task_output/dependencies.txt"
 if rg -qi '(libpython|libtorch|libcuda|libcudart)' "$task_output/dependencies.txt";then printf 'Unexpected execution dependency\n' >&2;exit 2;fi
 set +e

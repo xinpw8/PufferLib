@@ -2,6 +2,7 @@
 
 #include "runtime_api.h"
 #include "primitive_contacts.cuh"
+#include "native_contact_geometry.h"
 #include "../g1_hit_detector.h"
 #include <array>
 #include <cstdint>
@@ -17,12 +18,13 @@ struct FastFrame {
     float root_wxyz[4];
     float strike_xyz[6][3]; // feet L/R, hands L/R, knees L/R
     float strike_radius[6];
-    float target_xyz[3][3]; // pelvis, torso, head
+    float target_xyz[3][3]; // legacy pelvis, torso box, head-shaped torso capsule
     float target_radius[3];
     float root_z;
     float clip_yaw; // normalized source yaw before configured yaw removal
     rek5_primitive::Shape strike_shapes[12]; // four spheres per foot, hands, shins
-    rek5_primitive::Shape target_shapes[3]; // pelvis, torso, head
+    rek5_primitive::Shape target_shapes[rek5_native_contact::TargetCount];
+    float target_shape_radius[rek5_native_contact::TargetCount]; // conservative bounds for primitive broadphase
 };
 
 struct FastRoute {

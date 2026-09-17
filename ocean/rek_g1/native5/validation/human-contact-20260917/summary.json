@@ -13,7 +13,8 @@
     "fit_on_human_rounds": false,
     "round2_reserved_for_replay_validation": false,
     "round2_used_for_unfitted_replay_validation": true,
-    "recorded_pose_replay_summary": "pose-contact-summary.json"
+    "recorded_pose_replay_summary": "pose-contact-summary.json",
+    "corrected_target_replay_summary": "pose-contact-all-targets-summary.json"
   },
   "runtime": {
     "backend": "semantic_cuda",
@@ -22,7 +23,8 @@
     "control_hz": 50,
     "python_runtime": false,
     "cpu_physics": false,
-    "authentic_parity": false
+    "authentic_parity": false,
+    "training_results_predate_nine_target_correction": true
   },
   "training": {
     "transitions": 67108864,

@@ -9,6 +9,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 
@@ -168,8 +169,8 @@ FastAssets load_fast_assets(const RekNative5Config& config) {
     const std::vector<int> targets[]={body_geoms(m,"pelvis_3266"),{identity(m,mjOBJ_GEOM,"player__mjgeom_3285")},{identity(m,mjOBJ_GEOM,"player__mjgeom_3064")}};
     const int strike_group_counts[6]={4,4,1,1,1,1};
     const int strike_group_kinds[6]={rek5_primitive::Sphere,rek5_primitive::Sphere,rek5_primitive::Box,rek5_primitive::Box,rek5_primitive::Capsule,rek5_primitive::Capsule};
-    const int target_kinds[3]={rek5_primitive::Box,rek5_primitive::Box,rek5_primitive::Capsule};
-    std::array<int,12> strike_geoms{};std::array<int,3> target_geoms{};int strike_count=0;
+    std::array<int,12> strike_geoms{};
+    std::array<int,rek5_native_contact::TargetCount> target_geoms{};int strike_count=0;
     for(int limb=0;limb<6;limb++){
         require(strikes[limb].size()==size_t(strike_group_counts[limb]),"native striker group count mismatch");
         for(int geom:strikes[limb]){
@@ -178,10 +179,22 @@ FastAssets load_fast_assets(const RekNative5Config& config) {
         }
     }
     require(strike_count==int(strike_geoms.size()),"expected 12 native striker primitives");
-    for(int target=0;target<3;target++){
-        require(targets[target].size()==1,"expected one native primitive per target");
-        target_geoms[target]=targets[target][0];validate_primitive(m,target_geoms[target],target_kinds[target]);
+    for(int target=0;target<3;target++)require(targets[target].size()==1,"expected one primitive per legacy target");
+    for(const char* prefix:{"player__","opponent__"}){
+        std::set<int> target_ids,target_bodies;
+        for(int target=0;target<rek5_native_contact::TargetCount;target++){
+            const int geom=identity(m,mjOBJ_GEOM,std::string(prefix)+rek5_native_contact::TargetNames[target]);
+            const int body=identity(m,mjOBJ_BODY,std::string(prefix)+rek5_native_contact::TargetBodies[target]);
+            validate_primitive(m,geom,rek5_native_contact::TargetKinds[target]);
+            require(m->geom_bodyid[geom]==body,"native scoring target body mismatch");
+            require(target_ids.insert(geom).second,"duplicate native scoring target");target_bodies.insert(body);
+            if(!std::strcmp(prefix,"player__"))target_geoms[target]=geom;
+            else for(int axis=0;axis<3;axis++)require(m->geom_size[3*geom+axis]==m->geom_size[3*target_geoms[target]+axis],"asymmetric native scoring target dimensions");
+        }
+        for(int geom=0;geom<m->ngeom;geom++)if(target_bodies.count(m->geom_bodyid[geom]))
+            require(target_ids.count(geom)==1,"unlisted geometry on native scoring target body");
     }
+    for(int target=0;target<3;target++)require(targets[target][0]==target_geoms[target],"legacy target ordering changed");
     const int mirror_indices[29]={6,7,8,9,10,11,0,1,2,3,4,5,12,13,14,22,23,24,25,26,27,28,15,16,17,18,19,20,21};
     const int mirror_negate[29]={0,1,1,0,0,1,0,1,1,0,0,1,1,1,0,0,1,1,0,1,0,1,0,1,1,0,1,0,1};
     auto* routes=field(manifest.get(),"routes");require(cJSON_IsArray(routes)&&cJSON_GetArraySize(routes)==24,"expected 24 routes");
@@ -219,7 +232,11 @@ FastAssets load_fast_assets(const RekNative5Config& config) {
             for(int k=0;k<6;k++)sphere(m,d,strikes[k],frame.strike_xyz[k],frame.strike_radius[k]);
             for(int k=0;k<3;k++)sphere(m,d,targets[k],frame.target_xyz[k],frame.target_radius[k]);
             for(int k=0;k<12;k++)primitive(m,d,strike_geoms[k],frame.strike_shapes[k]);
-            for(int k=0;k<3;k++)primitive(m,d,target_geoms[k],frame.target_shapes[k]);
+            for(int k=0;k<rek5_native_contact::TargetCount;k++){
+                primitive(m,d,target_geoms[k],frame.target_shapes[k]);
+                frame.target_shape_radius[k]=float(bounding_radius(m,target_geoms[k]));
+                require(std::isfinite(frame.target_shape_radius[k])&&frame.target_shape_radius[k]>0,"invalid primitive target bound");
+            }
             for(float v:frame.q)require(std::isfinite(v),"nonfinite baked pose");
             out.frames.push_back(frame);
         }
@@ -231,8 +248,8 @@ FastAssets load_fast_assets(const RekNative5Config& config) {
     for(int side=0;side<2;side++){out.initial_qpos[side*36+2]=idle.root_z;for(int j=0;j<29;j++)out.initial_qpos[out.qindices[side][j]]=idle.q[j];}
     std::ostringstream info;info.precision(10);info<<"{\"schema\":\"rek.fast_assets.v1\",\"classification\":\"approximate_kinematic_candidate\",\"rek_parity_claim\":false,\"model_sha256\":\""<<out.model_sha256<<"\",\"asset_manifest_sha256\":\""<<out.manifest_sha256<<"\",\"features_manifest_sha256\":\""<<out.features_sha256<<"\",\"routes\":24,\"source_clips\":"<<clips.size()<<",\"baked_frames\":"<<out.frames.size()<<",\"frame_bytes\":"<<sizeof(FastFrame)<<",\"sample_hz\":50,\"max_source_root_xy_span_m\":"<<largest_xy_span<<",\"root_translation_model\":\"external_explicit_approximation\",\"root_height_source\":\"clip_xyz_m\",\"collision_proxy\":\"bounding_sphere_union_of_named_model_geoms\",\"offline_fk\":\"mj_kinematics\",\"cpu_physics_steps\":0,\"retained_native_primitives\":{\"legacy_sphere_fields_preserved\":true,\"axes_layout\":\"row_major_local_axes_in_columns\",\"size_semantics\":\"sphere_radius_capsule_radius_halfsegment_box_halfsizes\",\"kind_enum\":{\"sphere\":0,\"capsule\":1,\"box\":2},\"strikers\":[";
     for(int k=0;k<12;k++){if(k)info<<',';info<<"{\"geom\":"<<quoted_geom_name(m,strike_geoms[k])<<",\"kind\":"<<primitive_kind(m,strike_geoms[k])<<",\"limb\":"<<out.strike_limb[k]<<'}';}
-    info<<"],\"targets\":[";
-    for(int k=0;k<3;k++){if(k)info<<',';info<<"{\"geom\":"<<quoted_geom_name(m,target_geoms[k])<<",\"kind\":"<<primitive_kind(m,target_geoms[k])<<",\"target\":"<<k<<'}';}
+    info<<"],\"target_contract\":\""<<rek5_native_contact::TargetContract<<"\",\"target_count\":"<<rek5_native_contact::TargetCount<<",\"legacy_target_count\":3,\"targets\":[";
+    for(int k=0;k<rek5_native_contact::TargetCount;k++){if(k)info<<',';info<<"{\"geom\":"<<quoted_geom_name(m,target_geoms[k])<<",\"kind\":"<<primitive_kind(m,target_geoms[k])<<",\"target\":"<<k<<",\"body_zone\":"<<rek5_native_contact::TargetZones[k]<<'}';}
     info<<"]}}";out.provenance_json=info.str();
     return out;
 }

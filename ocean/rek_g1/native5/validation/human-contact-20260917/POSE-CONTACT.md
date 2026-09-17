@@ -2,7 +2,7 @@
 
 Executed on `spark-4ae3` on 17 September 2026. Both completed human rounds were used, without fitting either round. The same fixed diagnostic was applied to round two.
 
-**First-pass limitation discovered after execution:** native scoring also accepts body zones 12 and 13, the left and right hips. This pass only tests the three original core targets. Its results are retained as a diagnostic of that incomplete candidate, not a complete reconstruction of native eligible contacts. The next replay must include the recovered hip-zone geoms. The pinned XML has zero `margin` and `gap` on all 91 geoms.
+**First-pass limitation discovered after execution:** native scoring also accepts body zones 12 and 13, the left and right hips. This pass only tests the three original core targets. Its results are retained as a diagnostic of that incomplete candidate, not a complete reconstruction of native eligible contacts. The [corrected nine-target replay](ALL-SCORING-TARGETS.md) increased compatible overlaps within 250 ms from 19/33 to 31/33. The pinned XML has zero `margin` and `gap` on all 91 geoms.
 
 ## Finding
 
