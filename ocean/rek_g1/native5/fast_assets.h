@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime_api.h"
+#include "primitive_contacts.cuh"
 #include "../g1_hit_detector.h"
 #include <array>
 #include <cstdint>
@@ -20,6 +21,8 @@ struct FastFrame {
     float target_radius[3];
     float root_z;
     float clip_yaw; // normalized source yaw before configured yaw removal
+    rek5_primitive::Shape strike_shapes[12]; // four spheres per foot, hands, shins
+    rek5_primitive::Shape target_shapes[3]; // pelvis, torso, head
 };
 
 struct FastRoute {
@@ -53,6 +56,7 @@ struct FastAssets {
     float settle_linear_speed=.03f;
     float settle_yaw_rate=.03f;
     float stop_brake_rate=2;
+    int strike_limb[12]{0,0,0,0,1,1,1,1,2,3,4,5}; // feet L/R, hands L/R, shins L/R
     std::string model_sha256;
     std::string manifest_sha256;
     std::string features_sha256;

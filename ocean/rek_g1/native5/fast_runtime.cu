@@ -13,9 +13,10 @@
 #include "recovered_contact_rules.cuh"
 #include "native_bot1.cuh"
 #include "rendered_pose_observation.h"
+#include "primitive_motion.cuh"
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
-// trajectories; slider motion and sphere contacts are modeling
+// trajectories; slider motion and temporally sampled contacts are modeling
 // choices, not recovered REK dynamics. No full-physics backend is called here.
 namespace {
 constexpr float DT=.02f, PI=3.14159265358979323846f;
@@ -67,6 +68,7 @@ struct Parameters {
     rek5_bot1::Catalog bot_catalog;
     int move_to_action[17];
     int rendered_observation;
+    int primitive_contacts,contact_substeps,strike_limb[12];
 };
 struct View {
     int arenas;
@@ -119,7 +121,7 @@ __device__ void capture_observed_pose(const Parameters& p,Arena& a){
         f.observed_old_x=f.x;f.observed_old_y=f.y;f.observed_old_yaw=f.yaw;
     }
 }
-__device__ void update_observed_pose(View v,Arena& a){
+__device__ void update_observed_pose(const View& v,Arena& a){
     for(int side=0;side<2;side++){
         Fighter& f=a.fighter[side];const auto& frame=v.frames[frame_index(*v.p,f,false)];
         const auto& old=v.frames[f.observed_old_frame];float q[4],previous[4];
@@ -314,7 +316,20 @@ __device__ float sweep_distance2(const float* from,const float* to){
     float t=denom>1e-12f?clampf(-(from[0]*x+from[1]*y+from[2]*z)/denom,0,1):0;
     x=from[0]+t*x;y=from[1]+t*y;z=from[2]+t*z;return x*x+y*y+z*z;
 }
-__device__ void strike_contacts(View v,Arena& a,int side,int* hits,int* points){
+__device__ bool primitive_touch(const Parameters& p,const Fighter& f,const Fighter& enemy,
+        const FastFrame& before,const FastFrame& now,const FastFrame& old_target,
+        const FastFrame& target,int limb,int zone){
+    using namespace rek5_primitive;
+    const Shape old_dst=world_shape(old_target.target_shapes[zone],enemy.old_x,enemy.old_y,enemy.old_yaw);
+    const Shape dst=world_shape(target.target_shapes[zone],enemy.x,enemy.y,enemy.yaw);
+    for(int i=0;i<12;i++)if(p.strike_limb[i]==limb){
+        const Shape old_tip=world_shape(before.strike_shapes[i],f.old_x,f.old_y,f.old_yaw);
+        const Shape tip=world_shape(now.strike_shapes[i],f.x,f.y,f.yaw);
+        if(sampled_overlap(old_tip,tip,old_dst,dst,p.contact_substeps))return true;
+    }
+    return false;
+}
+__device__ void strike_contacts(const View& v,Arena& a,int side,int* hits,int* points){
     const Parameters& p=*v.p;Fighter& f=a.fighter[side];Fighter& enemy=a.fighter[side^1];
     if(!f.strike_active||(p.recovered_scoring<2&&f.route==23))return;
     const FastFrame& now=v.frames[frame_index(p,f,false)];
@@ -332,7 +347,10 @@ __device__ void strike_contacts(View v,Arena& a,int side,int* hits,int* points){
             point(enemy,target.target_xyz[zone],false,dst);point(enemy,old_target.target_xyz[zone],true,old_dst);
             for(int k=0;k<3;k++){from[k]=old_tip[k]-old_dst[k];to[k]=tip[k]-dst[k];}
             float radius=now.strike_radius[limb]+target.target_radius[zone];
+            if(p.primitive_contacts)radius=fmaxf(before.strike_radius[limb],now.strike_radius[limb])+
+                fmaxf(old_target.target_radius[zone],target.target_radius[zone]);
             bool intersects=sweep_distance2(from,to)<=radius*radius;
+            if(intersects&&p.primitive_contacts)intersects=primitive_touch(p,f,enemy,before,now,old_target,target,limb,zone);
             touch=touch||intersects;
             if(p.recovered_scoring&&intersects){float d2=0;for(int k=0;k<3;k++){float d=to[k]-from[k];d2+=d*d;}max_relative_speed=fmaxf(max_relative_speed,sqrtf(d2)/DT);}
         }
@@ -352,7 +370,7 @@ __device__ void strike_contacts(View v,Arena& a,int side,int* hits,int* points){
         if(touch)f.contact_latched|=bit;else f.contact_latched&=~bit;
     }
 }
-__device__ void finish_round(View v,int index,Arena& a,RekNative5RoundResult& r){
+__device__ void finish_round(const View& v,int index,Arena& a,RekNative5RoundResult& r){
     int winner=a.fighter[0].points==a.fighter[1].points?-1:(a.fighter[0].points>a.fighter[1].points?0:1);
     r.round_result=winner<0?3:1;r.round_winner=winner;
     r.fight_result=winner<0?0:1;r.fight_winner=winner;r.phase=4;r.terminal=1;
@@ -364,7 +382,7 @@ __device__ void finish_round(View v,int index,Arena& a,RekNative5RoundResult& r)
     log->wins+=winner==0;log->losses+=winner==1;log->draws+=winner<0;
     log->actions_invalid+=a.invalid;log->n+=1;
 }
-__device__ void advance_arena(View v,int index){
+__device__ void advance_arena(const View& v,int index){
     Arena& a=v.state[index];auto& r=v.rounds[index];const Parameters& p=*v.p;
     if(r.terminal)round_reset(p,a,r,false,index);
     if(p.rendered_observation)capture_observed_pose(p,a);
@@ -442,7 +460,7 @@ __device__ void advance_arena(View v,int index){
     a.episode_return+=a.reward[0];a.episode_hits+=a.hit_count;
     if(terminal&&!a.failures)finish_round(v,index,a,r);
 }
-__device__ float entity_value(View v,const Arena& a,int side,int field){
+__device__ float entity_value(const View& v,const Arena& a,int side,int field){
     const Fighter& f=a.fighter[side];const Parameters& p=*v.p;
     const FastFrame& frame=v.frames[frame_index(p,f,false)];
     if(field==0)return f.x;if(field==1)return f.y;if(field==2)return frame.root_z;
@@ -462,7 +480,7 @@ __device__ float entity_value(View v,const Arena& a,int side,int field){
     if(field==85)return float(a.down_event[side]);
     return 0;
 }
-__device__ float raw_value(View v,int index,int side,int field){
+__device__ float raw_value(const View& v,int index,int side,int field){
     const Arena& a=v.state[index];const auto& r=v.rounds[index];const Fighter& f=a.fighter[side];
     if(field<172)return entity_value(v,a,field<86?side:side^1,field%86);
     if(field<184){
@@ -499,7 +517,7 @@ __device__ float raw_value(View v,int index,int side,int field){
     }
     return 0;
 }
-__device__ float scaled_value(View v,int index,int side,int field,float raw){
+__device__ float scaled_value(const View& v,int index,int side,int field,float raw){
     const Fighter& f=v.state[index].fighter[side];const Fighter& enemy=v.state[index].fighter[side^1];
     if(field==86)return hypotf(enemy.x-f.x,enemy.y-f.y);
     if(field==87)return v.p->rendered_observation?rek_rendered_pose::bearing(f.x,f.y,enemy.x,enemy.y,f.observed_heading):angle(atan2f(enemy.y-f.y,enemy.x-f.x)-f.yaw)/PI;
@@ -507,7 +525,7 @@ __device__ float scaled_value(View v,int index,int side,int field,float raw){
     if(field==188||field==189)return raw/120;
     return raw;
 }
-__device__ void export_arena(View v,int index,int lane){
+__device__ void export_arena(const View& v,int index,int lane){
     const Arena& a=v.state[index];const Parameters& p=*v.p;const auto& r=v.rounds[index];
     for(int side=0;side<2;side++){
         int row=2*index+side;const Fighter& f=a.fighter[side];
@@ -536,23 +554,25 @@ __device__ void export_arena(View v,int index,int lane){
     }
     if(lane==0){v.out.rewards[index]=a.reward[0];v.out.terminals[index]=r.terminal?1.f:0.f;}
 }
-__global__ void fast_reset(View v){
+__global__ void fast_reset(const __grid_constant__ View v){
     int lane=threadIdx.x&31,index=(blockIdx.x*blockDim.x+threadIdx.x)>>5;
     if(index>=v.arenas)return;
     if(lane==0){round_reset(*v.p,v.state[index],v.rounds[index],true,index);if(v.p->rendered_observation){capture_observed_pose(*v.p,v.state[index]);update_observed_pose(v,v.state[index]);}v.actions[index*2]=v.actions[index*2+1]=0;}
     __syncwarp();export_arena(v,index,lane);
 }
-__global__ void fast_step(View v){
+// Keep the address-taken view in the kernel parameter space. The larger
+// primitive path must not require a per-thread local copy of this descriptor.
+__global__ void fast_step(const __grid_constant__ View v){
     int lane=threadIdx.x&31,index=(blockIdx.x*blockDim.x+threadIdx.x)>>5;
     if(index>=v.arenas)return;
     if(lane==0)advance_arena(v,index);
     __syncwarp();export_arena(v,index,lane);
 }
-__global__ void encode_rows(View v,float* out){
+__global__ void encode_rows(const __grid_constant__ View v,float* out){
     int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=v.arenas*446)return;
     int row=i/223,field=i%223;out[i]=scaled_value(v,row/2,row%2,field,v.raw[i]);
 }
-__global__ void copy_masks(View v){
+__global__ void copy_masks(const __grid_constant__ View v){
     int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<v.arenas*33)v.learner_masks[i]=v.masks[(i/33)*66+i%33];
 }
 float environment_float(const char* key,float fallback,float lo,float hi){
@@ -595,6 +615,13 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         const char* observation=getenv("REK_FAST_OBSERVATION");
         if(observation&&strcmp(observation,"v4_logical")&&strcmp(observation,"rendered_pose_v1"))throw std::runtime_error("Invalid REK_FAST_OBSERVATION");
         p.rendered_observation=observation&&!strcmp(observation,"rendered_pose_v1");
+        const char* geometry=getenv("REK_FAST_GEOMETRY");
+        if(geometry&&strcmp(geometry,"bounding_spheres")&&strcmp(geometry,"primitive_samples_v1"))throw std::runtime_error("Invalid REK_FAST_GEOMETRY");
+        p.primitive_contacts=geometry&&!strcmp(geometry,"primitive_samples_v1");
+        float substeps=environment_float("REK_FAST_CONTACT_SUBSTEPS",4,1,16);
+        if(substeps!=floorf(substeps))throw std::runtime_error("REK_FAST_CONTACT_SUBSTEPS must be an integer");
+        p.contact_substeps=int(substeps);
+        memcpy(p.strike_limb,assets.strike_limb,sizeof(p.strike_limb));
         if(p.recovered_bot&&!assets.recovered_catalog_compatible)throw std::runtime_error("Recovered Bot1 requires exact verified G1 route and impact metadata");
         if(p.recovered_scoring&&!assets.recovered_catalog_compatible)throw std::runtime_error("Recovered scoring requires exact verified build, strike catalog, route and clip metadata");
         std::copy(assets.impact_events.begin(),assets.impact_events.end(),p.impact_events);
@@ -645,10 +672,10 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         v.actions=result->storage.alloc<float>(size_t(a)*2);v.rewards=result->storage.alloc<float>(size_t(a)*2);v.terminals=result->storage.alloc<float>(size_t(a)*2);
         fast_reset<<<(a+WARPS_PER_BLOCK-1)/WARPS_PER_BLOCK,THREADS,0,stream>>>(v);
         rek5::cuda_check(cudaGetLastError());rek5::cuda_check(cudaStreamSynchronize(stream));
-        fprintf(stderr,"semantic_cuda_v4: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; points-only slider/sphere dynamics; knockdowns unmodeled; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed);
+        fprintf(stderr,"semantic_cuda_v4: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; points-only slider dynamics; knockdowns unmodeled; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed);
         fprintf(stderr,"semantic_cuda_assets=%s\n",assets.provenance_json.c_str());
-        fprintf(stderr,"semantic_cuda_scoring={\"mode\":\"%s\",\"geometry\":\"unchanged_bounding_sphere_union\",\"speed\":\"%s\",\"speed_threshold_m_s\":%.9g,\"cooldown_seconds\":%.9g,\"apex_gate\":%s,\"per_invocation_apex_dedup\":%s,\"hand_points\":1,\"foot_shin_points\":%d,\"hit_count_is_unweighted\":true,\"upright_model\":\"constant_upright_no_balance_dynamics\",\"contact_enter_model\":\"compact_per_limb_union_latch_reset_at_move_start\",\"authentic_parity\":false}\n",
-            p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",p.recovered_scoring?"maximum_relative_sphere_center_finite_difference_proxy":"absolute_striker_sphere_center_finite_difference",p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?p.recovered_hit_config.per_body_cooldown_seconds:10*DT,p.recovered_scoring?"true":"false",p.recovered_scoring?"true":"false",p.recovered_scoring?2:1);
+        fprintf(stderr,"semantic_cuda_scoring={\"mode\":\"%s\",\"geometry\":\"%s\",\"contact_substeps\":%d,\"continuous_collision_detection\":false,\"speed\":\"%s\",\"speed_threshold_m_s\":%.9g,\"cooldown_seconds\":%.9g,\"apex_gate\":%s,\"per_invocation_apex_dedup\":%s,\"hand_points\":1,\"foot_shin_points\":%d,\"hit_count_is_unweighted\":true,\"upright_model\":\"constant_upright_no_balance_dynamics\",\"contact_enter_model\":\"compact_per_limb_union_latch_reset_at_move_start\",\"authentic_parity\":false}\n",
+            p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",p.primitive_contacts?"primitive_samples_v1":"bounding_spheres",p.primitive_contacts?p.contact_substeps:0,p.recovered_scoring?"maximum_relative_sphere_center_finite_difference_proxy":"absolute_striker_sphere_center_finite_difference",p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?p.recovered_hit_config.per_body_cooldown_seconds:10*DT,p.recovered_scoring?"true":"false",p.recovered_scoring?"true":"false",p.recovered_scoring?2:1);
         const char* modes[]={"scripted","neutral","retreat","strafe","mixed"};
         fprintf(stderr,"semantic_cuda_opponent={\"implementation\":\"%s\",\"replaces\":\"scripted_rows_only\",\"difficulty\":0,\"decision_hz\":50,\"native_update_fixedupdate_equivalence\":false,\"rng\":\"%s\",\"continuous_commands\":%s,\"pose_route\":\"dominant_translation_canned_proxy\",\"actuator_model\":\"compact_slider\",\"own_recovery\":\"unsupported_fail_closed\",\"server_parity\":false}\n",
             p.recovered_bot?"recovered_bot1_v1":"v4_scripted",p.recovered_bot?"candidate_private_xorshift32":"legacy_stateless_reset_hash",p.recovered_bot?"true":"false");

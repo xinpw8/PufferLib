@@ -75,6 +75,40 @@ void sphere(const mjModel* m,const mjData* d,const std::vector<int>& geoms,float
     double bound=0;for(int g:geoms){double d2=0;for(int k=0;k<3;k++)d2+=std::pow(d->geom_xpos[g*3+k]-center[k],2);bound=std::max(bound,std::sqrt(d2)+bounding_radius(m,g));}
     require(std::isfinite(bound)&&bound>0&&bound<2,"invalid proxy radius");radius=float(bound);
 }
+int primitive_kind(const mjModel* m,int geom) {
+    switch(m->geom_type[geom]) {
+    case mjGEOM_SPHERE:return rek5_primitive::Sphere;
+    case mjGEOM_CAPSULE:return rek5_primitive::Capsule;
+    case mjGEOM_BOX:return rek5_primitive::Box;
+    default:throw std::runtime_error("fast assets: unsupported native contact primitive");
+    }
+}
+void validate_primitive(const mjModel* m,int geom,int expected_kind) {
+    const char* name=mj_id2name(m,mjOBJ_GEOM,geom);require(name&&*name,"unnamed native contact primitive");
+    require(primitive_kind(m,geom)==expected_kind,std::string("native contact primitive type mismatch: ")+name);
+    const mjtNum* size=m->geom_size+3*geom;
+    for(int k=0;k<3;k++)require(std::isfinite(size[k])&&size[k]>=0&&size[k]<=std::numeric_limits<float>::max(),std::string("invalid native primitive dimension: ")+name);
+    require(size[0]>0,std::string("zero native primitive radius or half-size: ")+name);
+    if(expected_kind==rek5_primitive::Capsule)require(size[1]>0,std::string("zero native capsule half-segment: ")+name);
+    if(expected_kind==rek5_primitive::Box)require(size[1]>0&&size[2]>0,std::string("zero native box half-size: ")+name);
+}
+void primitive(const mjModel* m,const mjData* d,int geom,rek5_primitive::Shape& shape) {
+    shape.kind=primitive_kind(m,geom);
+    for(int k=0;k<3;k++){
+        shape.center[k]=float(d->geom_xpos[geom*3+k]);
+        shape.size[k]=float(m->geom_size[geom*3+k]);
+        require(std::isfinite(shape.center[k])&&std::isfinite(shape.size[k]),"nonfinite baked native primitive");
+    }
+    for(int k=0;k<9;k++){
+        shape.axes[k]=float(d->geom_xmat[geom*9+k]);
+        require(std::isfinite(shape.axes[k]),"nonfinite baked native primitive orientation");
+    }
+}
+std::string quoted_geom_name(const mjModel* m,int geom) {
+    Json value(cJSON_CreateString(mj_id2name(m,mjOBJ_GEOM,geom)),cJSON_Delete);require(bool(value),"cannot allocate primitive provenance name");
+    std::unique_ptr<char,decltype(&cJSON_free)> text(cJSON_PrintUnformatted(value.get()),cJSON_free);
+    require(bool(text),"cannot encode primitive provenance name");return text.get();
+}
 }
 
 FastAssets load_fast_assets(const RekNative5Config& config) {
@@ -132,6 +166,22 @@ FastAssets load_fast_assets(const RekNative5Config& config) {
     const std::vector<int> strikes[]={body_geoms(m,"left_ankle_roll_link_3045"),body_geoms(m,"right_ankle_roll_link_3090"),
         body_geoms(m,"left_wrist_yaw_link_3467"),body_geoms(m,"right_wrist_yaw_link_3293"),body_geoms(m,"left_knee_link_3106"),body_geoms(m,"right_knee_link_3429")};
     const std::vector<int> targets[]={body_geoms(m,"pelvis_3266"),{identity(m,mjOBJ_GEOM,"player__mjgeom_3285")},{identity(m,mjOBJ_GEOM,"player__mjgeom_3064")}};
+    const int strike_group_counts[6]={4,4,1,1,1,1};
+    const int strike_group_kinds[6]={rek5_primitive::Sphere,rek5_primitive::Sphere,rek5_primitive::Box,rek5_primitive::Box,rek5_primitive::Capsule,rek5_primitive::Capsule};
+    const int target_kinds[3]={rek5_primitive::Box,rek5_primitive::Box,rek5_primitive::Capsule};
+    std::array<int,12> strike_geoms{};std::array<int,3> target_geoms{};int strike_count=0;
+    for(int limb=0;limb<6;limb++){
+        require(strikes[limb].size()==size_t(strike_group_counts[limb]),"native striker group count mismatch");
+        for(int geom:strikes[limb]){
+            require(strike_count<int(strike_geoms.size())&&out.strike_limb[strike_count]==limb,"native striker limb mapping mismatch");
+            validate_primitive(m,geom,strike_group_kinds[limb]);strike_geoms[strike_count++]=geom;
+        }
+    }
+    require(strike_count==int(strike_geoms.size()),"expected 12 native striker primitives");
+    for(int target=0;target<3;target++){
+        require(targets[target].size()==1,"expected one native primitive per target");
+        target_geoms[target]=targets[target][0];validate_primitive(m,target_geoms[target],target_kinds[target]);
+    }
     const int mirror_indices[29]={6,7,8,9,10,11,0,1,2,3,4,5,12,13,14,22,23,24,25,26,27,28,15,16,17,18,19,20,21};
     const int mirror_negate[29]={0,1,1,0,0,1,0,1,1,0,0,1,1,1,0,0,1,1,0,1,0,1,0,1,1,0,1,0,1};
     auto* routes=field(manifest.get(),"routes");require(cJSON_IsArray(routes)&&cJSON_GetArraySize(routes)==24,"expected 24 routes");
@@ -168,6 +218,8 @@ FastAssets load_fast_assets(const RekNative5Config& config) {
             mj_kinematics(m,d); // Forward geometry only; no physics step/solver.
             for(int k=0;k<6;k++)sphere(m,d,strikes[k],frame.strike_xyz[k],frame.strike_radius[k]);
             for(int k=0;k<3;k++)sphere(m,d,targets[k],frame.target_xyz[k],frame.target_radius[k]);
+            for(int k=0;k<12;k++)primitive(m,d,strike_geoms[k],frame.strike_shapes[k]);
+            for(int k=0;k<3;k++)primitive(m,d,target_geoms[k],frame.target_shapes[k]);
             for(float v:frame.q)require(std::isfinite(v),"nonfinite baked pose");
             out.frames.push_back(frame);
         }
@@ -177,6 +229,10 @@ FastAssets load_fast_assets(const RekNative5Config& config) {
     for(int i=0;i<17;i++){require(move_route[i]>=0,"missing discrete move");out.action_to_route[16+i]=move_route[move_order[i]];}
     const FastFrame& idle=out.frames.at(out.routes[0].offset);
     for(int side=0;side<2;side++){out.initial_qpos[side*36+2]=idle.root_z;for(int j=0;j<29;j++)out.initial_qpos[out.qindices[side][j]]=idle.q[j];}
-    std::ostringstream info;info.precision(10);info<<"{\"schema\":\"rek.fast_assets.v1\",\"classification\":\"approximate_kinematic_candidate\",\"rek_parity_claim\":false,\"model_sha256\":\""<<out.model_sha256<<"\",\"asset_manifest_sha256\":\""<<out.manifest_sha256<<"\",\"features_manifest_sha256\":\""<<out.features_sha256<<"\",\"routes\":24,\"source_clips\":"<<clips.size()<<",\"baked_frames\":"<<out.frames.size()<<",\"frame_bytes\":"<<sizeof(FastFrame)<<",\"sample_hz\":50,\"max_source_root_xy_span_m\":"<<largest_xy_span<<",\"root_translation_model\":\"external_explicit_approximation\",\"root_height_source\":\"clip_xyz_m\",\"collision_proxy\":\"bounding_sphere_union_of_named_model_geoms\",\"offline_fk\":\"mj_kinematics\",\"cpu_physics_steps\":0}";out.provenance_json=info.str();
+    std::ostringstream info;info.precision(10);info<<"{\"schema\":\"rek.fast_assets.v1\",\"classification\":\"approximate_kinematic_candidate\",\"rek_parity_claim\":false,\"model_sha256\":\""<<out.model_sha256<<"\",\"asset_manifest_sha256\":\""<<out.manifest_sha256<<"\",\"features_manifest_sha256\":\""<<out.features_sha256<<"\",\"routes\":24,\"source_clips\":"<<clips.size()<<",\"baked_frames\":"<<out.frames.size()<<",\"frame_bytes\":"<<sizeof(FastFrame)<<",\"sample_hz\":50,\"max_source_root_xy_span_m\":"<<largest_xy_span<<",\"root_translation_model\":\"external_explicit_approximation\",\"root_height_source\":\"clip_xyz_m\",\"collision_proxy\":\"bounding_sphere_union_of_named_model_geoms\",\"offline_fk\":\"mj_kinematics\",\"cpu_physics_steps\":0,\"retained_native_primitives\":{\"legacy_sphere_fields_preserved\":true,\"axes_layout\":\"row_major_local_axes_in_columns\",\"size_semantics\":\"sphere_radius_capsule_radius_halfsegment_box_halfsizes\",\"kind_enum\":{\"sphere\":0,\"capsule\":1,\"box\":2},\"strikers\":[";
+    for(int k=0;k<12;k++){if(k)info<<',';info<<"{\"geom\":"<<quoted_geom_name(m,strike_geoms[k])<<",\"kind\":"<<primitive_kind(m,strike_geoms[k])<<",\"limb\":"<<out.strike_limb[k]<<'}';}
+    info<<"],\"targets\":[";
+    for(int k=0;k<3;k++){if(k)info<<',';info<<"{\"geom\":"<<quoted_geom_name(m,target_geoms[k])<<",\"kind\":"<<primitive_kind(m,target_geoms[k])<<",\"target\":"<<k<<'}';}
+    info<<"]}}";out.provenance_json=info.str();
     return out;
 }

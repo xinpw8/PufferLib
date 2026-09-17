@@ -45,5 +45,6 @@ if rg -qi '(libpython|libtorch)' "$task_build/elf-dependencies.txt"; then
 fi
 { printf 'backend=semantic_cuda\ncontrol_hz=50\ncpu_physics=0\npython_runtime=0\n';
   sha256sum "$task_source/fast_runtime.cu" "$task_source/fast_assets.cpp" \
-    "$task_source/fast_assets.h" "$task_build/puffer-rek-native5"; } > "$task_build/fast-build.txt"
+    "$task_source/fast_assets.h" "$task_source/primitive_contacts.cuh" \
+    "$task_source/primitive_motion.cuh" "$task_build/puffer-rek-native5"; } > "$task_build/fast-build.txt"
 printf 'Built reduced GPU trainer: %s/puffer-rek-native5\n' "$task_build"

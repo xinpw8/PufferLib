@@ -5,6 +5,17 @@ binary. It requires `REK_PHYSICS_BACKEND=semantic_cuda`. The existing
 MuJoCo/Puffysics runtime remains unchanged. Policies for this candidate must
 have a separate configuration identity from full-physics policies.
 
+The 17 September primitive-contact experiment adds opt-in
+`REK_FAST_GEOMETRY=primitive_samples_v1` and
+`REK_FAST_CONTACT_SUBSTEPS=1..16` (default 4 when selected). It retains the
+12 individual authored striker shapes and three target shapes, with exact
+static narrowphase and sampled rigid-pose interpolation. The legacy enclosing
+sphere mode remains the default. This is separate from the scoring selection;
+the experiment uses `recovered_hit_rules_v2`, `recovered_bot1_v1` and
+`rendered_pose_v1`. Current measurements, limitations and checkpoint identity
+are in [the experiment report](validation/human-contact-20260917/RESULTS.md).
+The historical version-specific results below do not describe that new mode.
+
 ## What runs
 
 Each step advances 0.02 simulated seconds. One CUDA warp owns an arena with
