@@ -7,6 +7,14 @@ using System.Text;
 using System.Text.Json;
 using RekUiBridgeAgent;
 
+if (!StateReadModeOptions.TryExtract(args, out var remainingArguments,
+        out var stateBridgeSha256, out var stateOptionError))
+{
+    Console.Error.WriteLine(stateOptionError);
+    return 2;
+}
+args = remainingArguments;
+
 if (args.Length > 0 && args[0] == "policy-relay")
     return await PolicyRelay.Run(args);
 
@@ -179,7 +187,7 @@ if (args.Length < 1 ||
     args[0] is not ("state" or "enter-private" or "exit-lost" or "schedule" or "trial" or "controller" or "g1-held"))
 {
     Console.Error.WriteLine(
-        "usage: RekUiPipeClient state [output.jsonl] [timeout_seconds] | " +
+        "usage: RekUiPipeClient state [--bridge-sha256=HASH] [output.jsonl] [timeout_seconds] | " +
         "enter-private|exit-lost|schedule|g1-held output.jsonl [timeout_seconds] | " +
         "controller output.jsonl [run_seconds|until-ended] | " +
         "trial selector output.jsonl [timeout_seconds]");
@@ -344,7 +352,7 @@ try
     if (mode == "state")
     {
         using var state = await RequestState(deadline.Token);
-        ValidatePinnedState(state.RootElement, requireLease: false, connectionId);
+        ValidatePinnedState(state.RootElement, requireLease: false, connectionId, stateBridgeSha256);
         resultJson = state.RootElement.GetRawText();
     }
     else
@@ -3146,7 +3154,8 @@ static void ValidateContinuousAttackProfiles(
     }
 }
 
-static void ValidatePinnedState(JsonElement state, bool requireLease, long connectionId)
+static void ValidatePinnedState(JsonElement state, bool requireLease, long connectionId,
+    string? readOnlyBridgeSha256 = null)
 {
     RequireString(state, "protocol", Protocol);
     RequireString(state, "application_version", ExpectedApplicationVersion);
@@ -3156,7 +3165,8 @@ static void ValidatePinnedState(JsonElement state, bool requireLease, long conne
     RequireString(build, "global_metadata_sha256", ExpectedMetadataSha256);
     RequireString(build, "sharedassets0_sha256", ExpectedSharedAssets0Sha256);
     RequireString(build, "plugin_version", ExpectedBridgeVersion);
-    RequireString(build, "plugin_sha256", ExpectedBridgeSha256);
+    RequireString(build, "plugin_sha256",
+        StateReadModeOptions.ExpectedHash(requireLease, readOnlyBridgeSha256, ExpectedBridgeSha256));
 
     var foreground = state.GetProperty("foreground");
     RequireTrue(foreground, "mutation_allowed");

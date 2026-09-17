@@ -1427,7 +1427,8 @@ public sealed partial class Plugin
                     round_identity_sha256 = (string?)null,
                 };
             }
-            if (!TryGetPrivateAiContext(requireActiveRound: true, out var scope, out var reason) ||
+            if (!TryGetPrivateAiContext(requireActiveRound: true, out var scope, out var reason,
+                    bindRuntimeSession: false) ||
                 !TryCreateTrialRoundIdentity(scope, out var roundIdentity, out reason))
             {
                 return new

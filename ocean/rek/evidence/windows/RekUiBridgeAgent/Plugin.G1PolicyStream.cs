@@ -29,24 +29,25 @@ public sealed partial class Plugin
     private long _g1PolicyMoveAt;
 
     private static bool TryGetG1PolicyContext(bool active, out PrivateAiContext scope,
-        out string reason, bool allowAnyAi = false)
+        out string reason, bool allowAnyAi = false, bool bindRuntimeSession = true)
     {
         scope = null!;
         if (!RequireBackgroundControl(out reason) ||
             !TryVerifyExplicitIsolatedSession(out var proof) ||
             proof != G1HeldInputScheduleContract.RequiredIsolationProof)
         { reason = "exact_isolated_spark_marker_not_proven"; return false; }
-        if (!TryGetPrivateAiContext(active, out scope, out reason, allowAnyAi: allowAnyAi)) return false;
+        if (!TryGetPrivateAiContext(active, out scope, out reason, allowAnyAi: allowAnyAi,
+                bindRuntimeSession: bindRuntimeSession)) return false;
         if (active && !ReadMeasuredPairing(scope.Coordinator, scope.LocalSlot, scope.OpponentSlot).Validation.ExactG1VersusG1)
         { reason = "exact_g1_pairing_not_proven"; return false; }
         return true;
     }
 
     private bool TryPolicyScope(out PrivateAiContext scope, out string reason,
-        bool active = true, bool? allowAnyAi = null)
+        bool active = true, bool? allowAnyAi = null, bool bindRuntimeSession = true)
     {
         if (!TryGetG1PolicyContext(active, out scope, out reason,
-                allowAnyAi ?? (_g1PolicyRunning && _g1PolicyAllowAnyAi))) return false;
+                allowAnyAi ?? (_g1PolicyRunning && _g1PolicyAllowAnyAi), bindRuntimeSession)) return false;
         var pair = ReadMeasuredPairing(scope.Coordinator, scope.LocalSlot, scope.OpponentSlot);
         if (!pair.Validation.ExactG1VersusG1)
         { reason = "exact_g1_pairing_not_proven"; return false; }
@@ -345,7 +346,7 @@ public sealed partial class Plugin
         try
         {
             if (!TryPolicyScope(out var scope, out var reason, active: false,
-                    allowAnyAi: !_g1PolicyRunning || _g1PolicyAllowAnyAi))
+                    allowAnyAi: !_g1PolicyRunning || _g1PolicyAllowAnyAi, bindRuntimeSession: false))
             {
                 diagnostic = reason;
                 throw new InvalidDataException(reason);

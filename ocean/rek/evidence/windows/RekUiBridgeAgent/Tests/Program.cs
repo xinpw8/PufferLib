@@ -543,6 +543,92 @@ Expect("probe_cannot_override_existing_binding", !bootstrapRoute.SnapshotForRunt
 Expect("bound_route_invalidation_unchanged", bootstrapRoute.InvalidateIfRuntimeSessionBound("fixture_disconnect"));
 Expect("invalidated_probe_stays_rejected", !bootstrapRoute.SnapshotForRuntimeSession(
     "bootstrap-fixture-arena", "fixture-host", 7777, "fixture-host", 7777, 101, bindRuntimeSession:false).SoloRouteProven);
+
+// R10 observed AI=false/SlotAI=false before ready, then a valid passive probe.
+// The exact field at the later invalidation is unknown. Cover each rejected fact.
+SoloRouteProofTracker FreshProbeRoute()
+{
+    var tracker = new SoloRouteProofTracker();
+    tracker.ObserveFindMatch("solo");
+    tracker.ObserveConnectToArena("readonly-ready-fixture");
+    tracker.ObserveEnterChampionship("readonly-ready-fixture", "fixture-host", 7777, false, true);
+    return tracker;
+}
+bool ProbeReadyRoute(SoloRouteProofTracker tracker, G1PolicyOpponentFacts facts, bool bind)
+{
+    var reason = G1PolicyOpponentContract.RejectReason(facts, allowAnyAi:true);
+    if (reason is not null)
+    {
+        if (G1PolicyOpponentContract.InvalidatesRoute(facts))
+            tracker.InvalidateIfRuntimeSessionBound(reason);
+        return false;
+    }
+    var route = tracker.SnapshotForRuntimeSession(
+        "readonly-ready-fixture", "fixture-host", 7777, "fixture-host", 7777, 201, bindRuntimeSession:bind);
+    return SoloRouteProofContract.EvaluatePolicyScope(facts.NoHumanAi && facts.Identity.Known, route).Allowed;
+}
+var readyFacts = new G1PolicyOpponentFacts(true,false,false,false,true,true,new(0,1));
+var rejectedReadyFacts = new[]
+{
+    readyFacts with { OpponentIsAi=false },
+    readyFacts with { SlotIsAi=false },
+    readyFacts with { OpponentIsAi=false, SlotIsAi=false },
+    readyFacts with { OccupancyKnown=false },
+    readyFacts with { HasClient=true },
+    readyFacts with { HumanBit=true },
+    readyFacts with { HumanInSlot=true },
+    readyFacts with { Identity=new(-1,0) },
+};
+for (var index = 0; index < rejectedReadyFacts.Length; index++)
+{
+    var tracker = FreshProbeRoute();
+    for (var query = 0; query < 8; query++)
+        Expect($"readonly_ready_query_{index}_{query}", ProbeReadyRoute(tracker,readyFacts,bind:false));
+    Expect($"readonly_ready_rejects_fact_{index}", !ProbeReadyRoute(tracker,rejectedReadyFacts[index],bind:false));
+    Expect($"rejected_control_cannot_bind_{index}", !ProbeReadyRoute(tracker,rejectedReadyFacts[index],bind:true));
+    Expect($"readonly_ready_history_unbound_{index}", tracker.SnapshotForArena("readonly-ready-fixture").SoloRouteProven);
+    Expect($"readonly_active_eligibility_can_recover_{index}", ProbeReadyRoute(tracker,readyFacts,bind:false));
+    Expect($"active_control_can_bind_{index}", ProbeReadyRoute(tracker,readyFacts,bind:true));
+    Expect($"bound_active_rejects_fact_{index}", !ProbeReadyRoute(tracker,rejectedReadyFacts[index],bind:false));
+    Expect($"bound_active_invalidates_route_{index}", !tracker.SnapshotForArena("readonly-ready-fixture").SoloRouteProven);
+    Expect($"bound_active_cannot_recover_without_route_{index}", !ProbeReadyRoute(tracker,readyFacts,bind:true));
+}
+var oldReadBinding = FreshProbeRoute();
+Expect("old_read_binding_reproduces_successful_idle_query", ProbeReadyRoute(oldReadBinding,readyFacts,bind:true));
+Expect("old_read_binding_reproduces_transient_denial", !ProbeReadyRoute(oldReadBinding,rejectedReadyFacts[2],bind:false));
+Expect("old_read_binding_reproduces_sticky_route_loss", !ProbeReadyRoute(oldReadBinding,readyFacts,bind:false));
+
+// Unity-free tests also check production call wiring, the omission that caused R10.
+string PluginSource(string file, [System.Runtime.CompilerServices.CallerFilePath] string testFile = "") =>
+    File.ReadAllText(Path.Combine(Path.GetDirectoryName(testFile)!, "..", file));
+string MethodSource(string text, string start, string end)
+{
+    var first = text.IndexOf(start,StringComparison.Ordinal);
+    if (first < 0) throw new InvalidDataException($"source method missing:{start}");
+    var last = text.IndexOf(end,first+start.Length,StringComparison.Ordinal);
+    if (last < 0) throw new InvalidDataException($"source method end missing:{end}");
+    return text[first..last];
+}
+int NonbindingCalls(string text) => System.Text.RegularExpressions.Regex.Matches(
+    text,@"bindRuntimeSession:\s*false").Count;
+var scopePluginSource = PluginSource("Plugin.cs");
+var policyPluginSource = PluginSource("Plugin.G1PolicyStream.cs");
+var attackPluginSource = PluginSource("Plugin.AttackZone.cs");
+Expect("readonly_state_all_five_calls_nonbinding", NonbindingCalls(MethodSource(scopePluginSource,
+    "private static object ReadPrivateAiProof(", "private static IntPtr NativePointer(")) == 5);
+Expect("readonly_asset_observation_nonbinding", NonbindingCalls(MethodSource(scopePluginSource,
+    "private void TryCaptureG1RuntimePolicyAssets(", "private CapturedState CaptureState(")) == 1);
+Expect("readonly_attack_availability_nonbinding", NonbindingCalls(MethodSource(attackPluginSource,
+    "private object CaptureAttackZoneAvailability(", "private static string HashTrialSessionIdentity(")) == 1);
+Expect("readonly_policy_publication_nonbinding", NonbindingCalls(MethodSource(policyPluginSource,
+    "private void PublishG1PolicyState(", "private static G1PolicyOpponentIdentity PolicyOpponentIdentity(")) == 1);
+Expect("control_private_context_keeps_binding_default", MethodSource(scopePluginSource,
+    "private static bool TryGetPrivateAiContext(", "internal void OnUnityLateUpdate(")
+    .Contains("bool bindRuntimeSession = true",StringComparison.Ordinal));
+Expect("control_policy_helpers_keep_binding_defaults", System.Text.RegularExpressions.Regex.Matches(
+    policyPluginSource,@"bool bindRuntimeSession = true").Count == 2);
+Expect("control_policy_start_keeps_binding", NonbindingCalls(MethodSource(policyPluginSource,
+    "private CommandResult StartG1PolicyStream(", "private CommandResult StopG1PolicyStreamCommand(")) == 0);
 var soloRoute = new SoloRouteProofTracker();
 var initialSoloRoute = soloRoute.SnapshotForArena("arena-private-1");
 Expect(

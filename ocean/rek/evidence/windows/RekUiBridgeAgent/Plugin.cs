@@ -5923,12 +5923,15 @@ public sealed partial class Plugin : BasePlugin
     private static void InvalidateSoloRoute(string reason) =>
         Instance?._soloRouteProofTracker.InvalidateIfRuntimeSessionBound(reason);
 
+    // Read-only probes validate the same guards without binding a pre-ready session.
+    // Control callers retain sticky binding and its existing invalidation rules.
     private static bool TryGetPrivateAiContext(
         bool requireActiveRound,
         out PrivateAiContext scope,
         out string reason,
         bool allowOwnedPendingEStop = false,
-        bool allowAnyAi = false)
+        bool allowAnyAi = false,
+        bool bindRuntimeSession = true)
     {
         scope = null!;
         reason = "private_ai_scope_not_proven";
@@ -6008,7 +6011,8 @@ public sealed partial class Plugin : BasePlugin
                     context.ArenaPort,
                     network.serverAddress,
                     network.port,
-                    NativePointer(network).ToInt64()) ??
+                    NativePointer(network).ToInt64(),
+                    bindRuntimeSession: bindRuntimeSession) ??
                 SoloRouteProofSnapshot.Unavailable("solo_route_tracker_unavailable");
             var privacyDecision = allowAnyAi
                 ? SoloRouteProofContract.EvaluatePolicyScope(
@@ -6127,7 +6131,8 @@ public sealed partial class Plugin : BasePlugin
         if (!TryGetPrivateAiContext(
                 requireActiveRound: true,
                 out var scope,
-                out var scopeReason))
+                out var scopeReason,
+                bindRuntimeSession: false))
         {
             _g1RuntimePolicyCapture = RuntimePolicyCaptureResult.Failed(scopeReason);
             return;
@@ -6858,9 +6863,11 @@ public sealed partial class Plugin : BasePlugin
             var sessionProven = TryGetPrivateAiContext(
                 requireActiveRound: false,
                 out _,
-                out var sessionProofReason);
+                out var sessionProofReason,
+                bindRuntimeSession: false);
             var policyProven = TryGetG1PolicyContext(
-                false, out _, out var policyProofReason, allowAnyAi: true);
+                false, out _, out var policyProofReason, allowAnyAi: true,
+                bindRuntimeSession: false);
             var routeProof = Instance is null
                 ? SoloRouteProofSnapshot.Unavailable("solo_route_tracker_unavailable")
                 : (sessionProven || policyProven) && network is not null
@@ -6870,15 +6877,18 @@ public sealed partial class Plugin : BasePlugin
                         context?.ArenaPort ?? 0,
                         network.serverAddress,
                         network.port,
-                        NativePointer(network).ToInt64())
+                        NativePointer(network).ToInt64(),
+                        bindRuntimeSession: false)
                     : Instance._soloRouteProofTracker.SnapshotForArena(context?.ArenaID);
             var roundActive = coordinator.CurrentRound is not null && coordinator.CurrentRound.IsActive;
             var activeGameplayProven = TryGetPrivateAiContext(
                 requireActiveRound: true,
                 out _,
-                out var activeGameplayProofReason);
+                out var activeGameplayProofReason,
+                bindRuntimeSession: false);
             var policyActiveGameplayProven = TryGetG1PolicyContext(
-                true, out _, out var policyActiveProofReason, allowAnyAi: true);
+                true, out _, out var policyActiveProofReason, allowAnyAi: true,
+                bindRuntimeSession: false);
             var roundInactive = coordinator.CurrentRound is null || !coordinator.CurrentRound.IsActive;
             var postFightPrompt = gameMenu is not null && gameMenu.IsMenuOpen && view is not null &&
                                   view.CurrentPane == GameMenuView.Pane.PostFight &&

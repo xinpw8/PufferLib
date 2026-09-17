@@ -15,13 +15,23 @@ schedule, private-session state, Bot 1 identity, and exact T800 pairing before
 allowing a measured schedule.
 
 ```powershell
-RekUiPipeClient.exe state [output.jsonl] [timeout_seconds]
+RekUiPipeClient.exe state [--bridge-sha256=HASH] [output.jsonl] [timeout_seconds]
 RekUiPipeClient.exe enter-private output.jsonl [timeout_seconds]
 RekUiPipeClient.exe schedule output.jsonl [timeout_seconds]
 RekUiPipeClient.exe trial selector output.jsonl [timeout_seconds]
 RekUiPipeClient.exe controller output.jsonl [run_seconds|until-ended]
 RekUiPipeClient.exe g1-held output.jsonl [timeout_seconds]
 ```
+
+The optional `--bridge-sha256=` argument applies only to `state` and requires
+exactly 64 lowercase hexadecimal characters. It replaces only that invocation's
+expected bridge SHA256; all existing hello, REK process, game build, bridge version,
+isolated Spark host and absent-lease checks remain required. Other modes reject
+the option before connecting. Omitting it preserves the legacy compiled hash.
+`state` sends one `get_state` request and never acquires a lease, starts a stream,
+or sends Stop/Release cleanup commands. With no output path it writes no transcript.
+The persistent `policy-relay` mode sends Stop/Release on normal stdin closure and
+must not be used for a strictly read-only state query.
 
 `enter-private` uses only the recovered Unity main-thread methods for Login,
 Free Play, and `KothScreenController.OnSoloClicked()`. The request acknowledgement
