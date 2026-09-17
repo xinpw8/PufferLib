@@ -1,0 +1,47 @@
+2026-09-17T00:42:29+00:00
+spark-4ae3
+aarch64
+b2d981919ab2da28506b7457c4adf39c1b3cc202b5769377e8de0698b3e47ae9  /home/spark-advantage/rek-training/policy-quality-20260916-r1/physical-quality-probe-r2/physical-quality-probe
+8e44e1f30a25521c2aa5b5719d94e011da9a565753c3aaba96dd757e51253b06  /home/spark-advantage/rek-training/policy-quality-20260916-r1/physical-quality-probe-r2/physical_quality_probe.cpp
+0563b8cc0c8b049734ea8eee41a105028c3c39aaf4e456b656d2e568d13a3718  /home/spark-advantage/rek-training/policy-quality-20260916-r1/physical-quality-probe-r2/physical_quality_probe.sh
+f652944a40e6fb6b19a788da1836c96fa013810ce0e4c9b6cccb2464211d2dee  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/native-source/ocean/rek_g1/native5/runtime_api.h
+6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa  /home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml
+1c1f86f2ba40aa1a87632b16a548386255e0d756b4a922d2f0db56cd919feaf3  /home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json
+7f4cb9a01bd21bbd0ef96e3c82d2ee1fc015e7a31dfb032d5e844719af3e9de2  /home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_decoder.batch8.onnx
+2befe0f7be8e72a33824f04fd39c191287e1e9aab05807012d6ceeb3f688ff40  /home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_encoder.batch8.onnx
+b4992544094fa6fdf72a951ec8e9a38721c5db28831273244633076d602706ac  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/kernel-catalog-v3.json
+2300284dfc4f4560234ef6ffe8a3fab8c918a1abc8ffcdcf270e180042837b21  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco-conditional.ptx
+eb41568eaa0dfee60e0b31cbc7b607365d4c93dfe46c0dafac6b131ec22b91a1  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/cJSON.o
+4aae9f5069468ffb8e8cf21e9917aead778e2f8911574796e24b4061a5416149  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_combat_cuda.o
+00a36ea18eb2083ff2f8ac16c84af8b7df69f2072d46a630567aa19b1f27261e  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_combat_tick.device.o
+d2f4572ef3f2344386742187abfa996e4fc994d7fe224d1a462cfc2ad7888630  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_fall_state.device.o
+2212c8ac76ad55ae6ccb6d07b8d2b72c928438194bf0c2a6577cf5248f771879  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_fight_state.device.o
+c3add8f44337f0ee54e6c95d31d2c3992d243302ee87c9ff9c297ef3818e20c9  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_hit_detector.device.o
+807b6276b48f55305a8741818ce5896d7d1b55afe3521573537de8632a990096  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_motion_cuda.o
+f11201b138265c0736382ac0109fcb7e3083ce32341ac138b99c6b2099264007  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_native_combat_cuda.o
+b0e1a75056e9d07c542c16397f7f12155e3be16d842af6b12fbf88a8925ba5f5  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_semantic_action_table.device.o
+6ca82d9f8549ac485f8430b95c03ade4a7c0550c1030297b67fd86f084277bae  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_semantic_scheduler_cuda.o
+5896261334c7003d79e04d6e50651e76aae2ae4c5010021db91fba83727a180d  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/g1_strike_catalog.host.o
+de0c5f963a092da3297d80505f2e6632821de564f24da678b5c0568e0ff39472  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/measurement.o
+02b1efa974f9d2e92ab468125930944242e35340d78fc20b7d8cdabec20676a7  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/motion_assets.o
+d2a01f47566c87fbea836bc028b80d4b48a927d7aae5d4c3ce8e8384d88019bc  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_collision_schedule.o
+da32dc58123ce53390347a63f0b52b3fb1b5ed17e025007bda74853a5727b066  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_conditional_if.o
+7df30ffd42ca73f86351d9494b0d77db93f1ec226f301305d89aeae7d1ce4730  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_conditional.o
+79a16da1933de0fa8146c469424faa138588472da667576ff99339fba37e7ffc  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_constraint_schedule.o
+d9ea3a6fe3b9479e13941fc3137dea9e180962ccbf224bde16959a9f79e96efa  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_kernel_program.o
+fedfb7bbd21bc83fc2af65b96b32817ca97db4bd8305dfe34b614504d7cf107a  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_model_data.o
+30219494060914803c5420b5e3d3a3d683dcaf71bfe7632f9c4c136b21ab110a  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_native_module.o
+2a75dbe7383033ec2f4be38c35369919a87100154fac14d2f947e83ea2308b6b  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_native_step.o
+4d086f9c0e5ac0a982ef3f07e005b6738f42828242399a3e8f998d35e9c1ae4e  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_schedule.o
+9c06c8d78c8f8cd01258281f4d86d1ced22d62ed6dbed5629b7875844b5cfcf3  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco_solver_schedule.o
+9621d46788ea42aba380959766089e6001e63a6eb19fad9f7ad762ed60f27c5f  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/native_locomotion_command.device.o
+d54e77aedfd8aa99eb58a69c7fd0038332173bcb367bac8ccb048d519b4a616a  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/native_motion_routes.host.o
+2776a1d7703f3db317670b7b66a4c3817f6aaf68349ee8990ac493d85f8790a5  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/native_policy.o
+bb513139b7bb6cc28ba0a660287580ec57d04c69645ade7e693e3b160277e24a  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/physics.o
+a7b2e37cc89e90780f7d9cac92c7f7ec6ebea44f9f2c47fc3539e49322330aaa  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/puffer_action_adapter.device.o
+a0727b95c88cc859a45be301709db97bb946bf337f3b1a68a4452fb42371230f  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/robot_state.o
+7a8e45924385d76b6eb950c29ef1bec593470820d20cfdbdb185c0e71b72c6d8  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/runtime.o
+22f87a417bd5ed43fabae1188ed3cd444571e55f6af26e0ea34ac085bdeb4bc4  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/sonic_controller.o
+cb401103831be80ecc1144314658a465afddb47125acd9815a8520fd1f786399  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/sonic_motion_composer_libm_candidate.device.o
+d64ca47aa1194b15a4987902d0be03ebfffb28c6303819e991e887c9ee859d59  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/sonic_motion_composer_native.device.o
+80bcf24ff26384ddd1103a26d804bcdded6f699f456b712a957c978204eac2d7  /home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/sonic_motion_entry_matcher_native.device.o

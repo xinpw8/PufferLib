@@ -1,0 +1,6 @@
+REK_PHYSICS_BACKEND=mujoco_cuda
+REK_ALLOW_CPU_EVALUATION=0
+REK_MUJOCO_KERNEL_CATALOG=/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/kernel-catalog-v3.json
+REK_MUJOCO_CONDITIONAL_PTX=/home/spark-advantage/rek-training/native-mujoco-gpu-20260914/build-native-v2/mujoco-conditional.ptx
+REK_MUJOCO_CONDITIONAL_SHA256=2300284dfc4f4560234ef6ffe8a3fab8c918a1abc8ffcdcf270e180042837b21
+timeout 120s /home/spark-advantage/rek-training/policy-quality-20260916-r1/physical-quality-probe-r2/physical-quality-probe /home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml /home/spark-advantage/rek-training/paired-physics-training-20260913T0423Z/model-export-capsule-diagnostic.json /home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact /home/spark-advantage/rek-training/gpu-runtime-20260910/motion-foot-features /home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_encoder.batch8.onnx /home/spark-advantage/codexrook-runtime/generated/gear-sonic-g1batch8-mode0-20260909T0203Z/model_decoder.batch8.onnx

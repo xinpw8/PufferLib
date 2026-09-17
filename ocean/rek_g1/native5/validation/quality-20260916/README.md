@@ -373,3 +373,25 @@ Deployed bridge SHA-256:
 `2edf75c65e6693db28eb7e87c45d88522668f549c7b457cdf0aa108582667952`.
 Relay SHA-256:
 `0438528bbda9ad736b10bd68a1d2dbfee8f1f555f74e1e6b73b4a61799d8a674`.
+
+## Existing physical CUDA backend verified
+
+The [completed physical probe](PHYSICAL_QUALITY_PROBE.md) links the preserved
+native MuJoCo CUDA implementation and shipped SONIC tracking controller.
+Four arenas each advanced 20 simulated seconds with no PPO updates, no learned
+policy loaded and zero CPU physics calls or runtime failure flags. Idle robots
+remained upright. The two-sided scripted attack lane produced a measured fall,
+a three-second referee count, a five-point knockout award and bilateral reset.
+These physical/referee capabilities already exist; they were bypassed by the
+fast runtime. The diagnostic's 15.487 s wall time includes per-tick host action
+selection, synchronization and logging and must not be called training SPS.
+
+The [detailed authentic audit](PRIVATE_READY_AND_LIVE_R3.md) also shows that
+the new 4:14 loss had ordinary score increments and no KO-like pose/reset
+sequence. It therefore cannot be explained by knockouts alone. Recorded right-
+hook request windows contain root movement absent from the frozen-root fast
+attack branch. The physical diagnostic likewise moves during attack windows,
+but its combined hook/yaw inputs prevent treating those as matched authentic
+motion measurements. Neither backend nor the new checkpoint is promoted as
+parity-validated. The evidence establishes concrete outcome and movement gaps,
+and a runnable physical reference; a reliable authentic fighter remains unmet.
