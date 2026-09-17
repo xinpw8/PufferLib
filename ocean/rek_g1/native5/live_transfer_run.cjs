@@ -11,22 +11,34 @@ const readline = require('node:readline');
 function requireValue(ok, message) { if (!ok) throw new Error(message); }
 function privateArena(s) {
   const p = s?.private_ai;
-  return p?.proven === true && p.solo_route_proven === true &&
-    p.context_is_solo === true && p.exact_sparring_bot_1 === true &&
-    p.opponent_is_ai === true && p.human_in_opponent_slot === false;
+  return privateAiRouteNoHuman(s) && p.policy_proven === true && knownBot(p);
+}
+function knownBot(p) {
+  return Number.isInteger(p?.client_ai_difficulty) && p.client_ai_difficulty>=0 &&
+    p.client_ai_difficulty<=255 && p.sparring_bot_number===p.client_ai_difficulty+1;
+}
+function botIdentity(p) {
+  requireValue(knownBot(p),'unknown_private_ai_identity');
+  return {client_ai_difficulty:p.client_ai_difficulty,sparring_bot_number:p.sparring_bot_number};
+}
+function validateBotIdentity(opponent, expected) {
+  requireValue(knownBot(opponent) && opponent.opponent_is_ai===true &&
+    opponent.human_in_opponent_slot===false &&
+    opponent.client_ai_difficulty===expected.client_ai_difficulty &&
+    opponent.sparring_bot_number===expected.sparring_bot_number,
+    'private_ai_identity_changed_or_unproven');
+}
+function trialExitCode(summary) {
+  if(summary.predictions<=0 || summary.applied<=0)return 2;
+  if(summary.stop_reason==='requested_duration_complete')return 0;
+  const terminal=summary.final_round?.active===false &&
+    Number.isInteger(summary.final_round.result_value) && summary.final_round.result_value>0;
+  return terminal && ['source_round_terminal','stream_end:active_round_not_observed'].includes(summary.stop_reason)?0:2;
 }
 function canExitLostPrivateSession(s) {
   return privateArena(s) && s.private_ai.round_active===false &&
     s.private_ai.round_inactive===true && s.private_ai.post_fight_prompt===true &&
     s.private_ai.post_fight_is_winner===false;
-}
-function canExitUnexpectedPrivateAiSession(s) {
-  const p=s?.private_ai;
-  return privateAiRouteNoHuman(s) &&
-    p.proven===false && p.reason==='unexpected_sparring_bot_difficulty' &&
-    p.exact_sparring_bot_1===false && Number.isInteger(p.client_ai_difficulty) &&
-    p.client_ai_difficulty>0 && p.client_ai_difficulty<=255 && p.sparring_bot_number===p.client_ai_difficulty+1 &&
-    p.phase==='Idle' && p.round_active===false && p.round_inactive===true;
 }
 function privateAiRouteNoHuman(s) {
   const p=s?.private_ai;
@@ -37,18 +49,20 @@ function privateAiRouteNoHuman(s) {
     p.opponent_slot_client_known===true && p.opponent_slot_has_client===false && p.opponent_human_bit_set===false;
 }
 function canReadyPrivateAiSession(s) {
-  return canExitUnexpectedPrivateAiSession(s) && s.private_ai.client_visual_only_fighter_pair===false;
+  const p=s?.private_ai;
+  return privateAiRouteNoHuman(s) && knownBot(p) && p.phase==='Idle' &&
+    p.round_active===false && p.round_inactive===true && p.client_visual_only_fighter_pair===false;
 }
 async function ensurePrivateArena(state,{enterPrivate,command,getState,
     wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),now=Date.now,log=()=>{}}) {
-  if(privateArena(state))return state;
-  requireValue(enterPrivate===true,'current client is not verified solo Bot1 arena');
-  const entered=new Set();let deadline=now()+45000,recoveryAttempted=false;
-  while(!privateArena(state)) {
+  if(privateArena(state) && !canReadyPrivateAiSession(state))return state;
+  requireValue(enterPrivate===true,'current client is not verified ready private AI arena');
+  const entered=new Set();const deadline=now()+45000;
+  while(!privateArena(state) || canReadyPrivateAiSession(state)) {
     if(canReadyPrivateAiSession(state)) {
       // Idle AI difficulty can precede the server's new-pilot ownership reset.
-      // One native ready request reveals the active opponent; no policy action
-      // is sent until the unchanged active exact-Bot1 scope is established.
+      // One native ready request reveals the active opponent; policy actions
+      // require active private AI scope after the fighters spawn.
       await command('ReadyPrivateAiSession');
       log('private_ai_ready_probe',{opponent_identity:'unverified_until_active_spawn'});
       const readyDeadline=now()+30000;
@@ -57,31 +71,14 @@ async function ensurePrivateArena(state,{enterPrivate,command,getState,
         requireValue(privateAiRouteNoHuman(state),'private no-human route proof lost during ready bootstrap');
         const p=state.private_ai;
         if(p.phase==='RoundActive' && p.round_active===true && p.client_visual_only_fighter_pair===true) {
-          requireValue(p.exact_sparring_bot_1===true && p.client_ai_difficulty===0 && p.sparring_bot_number===1,
-            'ready bootstrap active opponent is not exact Bot1; policy input withheld');
-          if(privateArena(state) && p.active_gameplay_proven===true) {
-            log('private_practice_observed',{opponent:'Sparring Bot 1',human_opponent:false,after_native_ready:true});
+          requireValue(knownBot(p),'ready bootstrap active opponent identity unavailable; policy input withheld');
+          if(privateArena(state) && p.policy_active_gameplay_proven===true) {
+            log('private_practice_observed',{opponent:botIdentity(p),human_opponent:false,after_native_ready:true});
             return state;
           }
         }
         requireValue(now()<readyDeadline,'private AI ready bootstrap timeout; policy input withheld');
       }
-    }
-    if(canExitUnexpectedPrivateAiSession(state)) {
-      requireValue(!recoveryAttempted,'unexpected private AI remained after one exit/reentry');
-      recoveryAttempted=true;
-      log('unexpected_private_ai_recovery',{attempt:1,client_ai_difficulty:state.private_ai.client_ai_difficulty,
-        sparring_bot_number:state.private_ai.sparring_bot_number});
-      // The installed bridge rechecks private/no-human/Idle/inactive scope.
-      // No difficulty setter or alternate opponent acceptance is introduced.
-      await command('ExitUnexpectedPrivateAiSession');
-      const exitDeadline=now()+15000;
-      do {
-        await wait(100);state=await getState();
-        requireValue(now()<exitDeadline,'unexpected private AI exit timeout');
-      } while(state.scene!=='Lobby'||state.lobby_screen!=='Home');
-      entered.clear();deadline=now()+45000;
-      continue;
     }
     const menu={Login:'ConfirmLoggedIn',Home:'NavigateFreePlay',FreePlay:'EnterSolo'}[state.lobby_screen];
     if(menu&&!entered.has(menu)){await command(menu);entered.add(menu);}
@@ -89,7 +86,7 @@ async function ensurePrivateArena(state,{enterPrivate,command,getState,
     await wait(150);state=await getState();
     requireValue(now()<deadline,'private-practice entry timeout');
   }
-  log('private_practice_observed',{opponent:'Sparring Bot 1',human_opponent:false});
+  log('private_practice_observed',{opponent:botIdentity(state.private_ai),human_opponent:false});
   return state;
 }
 function betweenPrivateRounds(s) {
@@ -219,7 +216,7 @@ async function run(configPath) {
   const log=(event, detail={}) => {const value={utc:new Date().toISOString(),event,...detail};events.write(JSON.stringify(value)+'\n');console.log(JSON.stringify(value));};
   const endpoints=[]; let relay,encoder,worker, leased=false, streaming=false, stopping=false;
   let nextId=0, sourceCount=0, skipped=0, predictions=0, applied=0, rejected=0, unmatchedAcks=0;
-  let firstRound=null,lastRound=null,lastSourceAt=0,stopReason='not_started';
+  let firstRound=null,lastRound=null,lastSourceAt=0,stopReason='not_started',opponent=null;
   const actions=Array(33).fill(0), reasons={}, droppedSources={}, pacer=new LiveActionPacer();
   let doneResolve; const done=new Promise(resolve => doneResolve=resolve);
   let timer, watchdog;
@@ -261,7 +258,7 @@ async function run(configPath) {
     }
     if(canExitLostPrivateSession(state)) {
       requireValue(config.enter_private===true, 'lost private session requires explicit private-entry recovery');
-      await command('ExitLostPrivateSession');
+      await command('ExitLostG1PolicySession');
       const deadline=Date.now()+15000;
       do {
         await new Promise(r=>setTimeout(r,100));
@@ -271,18 +268,22 @@ async function run(configPath) {
     }
     state=await ensurePrivateArena(state,{enterPrivate:config.enter_private,command,
       getState:()=>request('get_state',{},'state'),log});
-    if(!state.private_ai.active_gameplay_proven || state.private_ai.round_active!==true) {
+    if(!state.private_ai.policy_active_gameplay_proven || state.private_ai.round_active!==true) {
       const deadline=Date.now()+30000;
       let startRequested=false;
       while(Date.now()<deadline) {
-        if(canRequestPrivateRound(state)&&!startRequested){await command('StartRound');startRequested=true;}
+        if(canRequestPrivateRound(state)&&!startRequested){await command('StartG1PolicyRound');startRequested=true;}
         state=await request('get_state',{},'state');
         requireValue(privateArena(state),'private arena proof lost');
-        if(state.private_ai.active_gameplay_proven && state.private_ai.round_active)break;
+        if(state.private_ai.policy_active_gameplay_proven && state.private_ai.round_active)break;
         await new Promise(r=>setTimeout(r,100));
         requireValue(Date.now()<deadline,'active round timeout');
       }
     }
+    requireValue(privateArena(state) && state.private_ai.policy_active_gameplay_proven===true &&
+      state.private_ai.round_active===true,'active private AI scope required before policy stream');
+    opponent=botIdentity(state.private_ai);
+    log('active_private_ai_opponent',opponent);
     relay.bus.on('message',guardedCallback(source => {
       if(source.event==='g1_policy_end') {log('stream_end',source); finish(`stream_end:${source.reason}`);return;}
       if(source.event==='g1_policy_action') {
@@ -292,6 +293,7 @@ async function run(configPath) {
         return;
       }
       if(source.event!=='g1_policy_state'||stopping)return;
+      validateBotIdentity(source.opponent,opponent);
       sourceCount++;lastSourceAt=Date.now();
       if(source.round){firstRound??=source.round;lastRound=source.round;}
       if(!streaming)return;
@@ -321,7 +323,7 @@ async function run(configPath) {
       relay.send({type:'policy_action',request_id,round_identity_sha256:source.round,observation_sequence:source.sequence,action:prediction.action});
     },error=>finish(`worker_callback:${error.message}`)));
     streaming=true;
-    await command('StartG1PolicyStream');
+    await command('StartG1PolicyStreamAnyAi');
     log('live_policy_started');
     timer=setTimeout(()=>finish('requested_duration_complete'),config.max_seconds*1000);
     watchdog=setInterval(()=>{
@@ -337,13 +339,13 @@ async function run(configPath) {
     if(leased){try{await command('StopG1PolicyStream');}catch(e){log('stop_error',{message:e.message});}try{await command('ReleaseExclusiveControl');}catch(e){log('release_error',{message:e.message});}}
     const summary={stop_reason:stopReason,source_count:sourceCount,skipped_sources:skipped,dropped_sources:droppedSources,
       unmatched_action_acks:unmatchedAcks,action_inflight_at_stop:pacer.pending?.requestId!==null&&pacer.pending?.requestId!==undefined,
-      last_ack_qpc_ticks:pacer.lastAckQpc?.toString()??null,predictions,applied,rejected,actions,reasons,initial_round:firstRound,final_round:lastRound,projection:config.projection,checkpoint_sha256:config.checkpoint_sha256,authentic_client:true,global_input_emitted:false};
+      last_ack_qpc_ticks:pacer.lastAckQpc?.toString()??null,predictions,applied,rejected,actions,reasons,opponent,initial_round:firstRound,final_round:lastRound,projection:config.projection,checkpoint_sha256:config.checkpoint_sha256,authentic_client:true,global_input_emitted:false};
     fs.writeFileSync(path.join(config.out,'summary.json'),JSON.stringify(summary,null,2)+'\n',{flag:'wx'});log('summary',summary);
     for(const e of endpoints)e.close();
     setTimeout(()=>{for(const e of endpoints)if(e.child.exitCode===null)e.child.kill('SIGTERM');},2000).unref();
     events.end();
-    if(predictions===0 || applied===0)process.exitCode=2;
+    process.exitCode=trialExitCode(summary);
   }
 }
 if(require.main===module) {requireValue(process.argv.length===3,'usage: node live_transfer_run.cjs config.json');run(process.argv[2]).catch(e=>{console.error(e.message);process.exitCode=2;});}
-module.exports={privateArena,canExitLostPrivateSession,canExitUnexpectedPrivateAiSession,canReadyPrivateAiSession,ensurePrivateArena,betweenPrivateRounds,canRequestPrivateRound,validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer};
+module.exports={privateArena,botIdentity,validateBotIdentity,trialExitCode,canExitLostPrivateSession,canReadyPrivateAiSession,ensurePrivateArena,betweenPrivateRounds,canRequestPrivateRound,validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer};

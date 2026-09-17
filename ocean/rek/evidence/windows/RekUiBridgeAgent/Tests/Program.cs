@@ -54,6 +54,43 @@ Expect(
         "StartUnexpectedPrivateAiRound",
         StringComparer.Ordinal));
 
+foreach (var command in new[] { "StartG1PolicyRound", "ExitLostG1PolicySession", "StartG1PolicyStreamAnyAi" })
+{
+    var commandJson = JsonSerializer.SerializeToUtf8Bytes(new { type="command", request_id="any-ai", command });
+    Expect($"explicit_any_ai_command_{command}", BridgeProtocol.TryParse(commandJson, 1, out var parsed, out _, out _) &&
+        parsed?.Command?.ToString()==command);
+    Expect($"any_ai_command_cannot_set_difficulty_{command}", !BridgeProtocol.TryParse(
+        JsonSerializer.SerializeToUtf8Bytes(new { type="command", request_id="any-ai", command, difficulty=2 }),
+        1, out _, out _, out _));
+}
+var anyAiTracker = new SoloRouteProofTracker();
+anyAiTracker.ObserveFindMatch("solo");
+anyAiTracker.ObserveConnectToArena("private-test-arena");
+anyAiTracker.ObserveEnterChampionship("private-test-arena", "test-endpoint", 1234, false, true);
+var anyAiRoute = anyAiTracker.SnapshotForRuntimeSession("private-test-arena", "test-endpoint",1234,"test-endpoint",1234,17);
+var botThreeFacts = new G1PolicyOpponentFacts(true,false,false,false,true,true,new(2,3));
+Expect("any_ai_policy_scope_uses_existing_route", SoloRouteProofContract.EvaluatePolicyScope(
+    G1PolicyOpponentContract.RejectReason(botThreeFacts,true) is null, anyAiRoute).Allowed);
+Expect("legacy_bot1_evidence_stays_false_for_bot3", !SoloRouteProofContract.EvaluateScope(
+    G1PolicyOpponentContract.RejectReason(botThreeFacts,false) is null, anyAiRoute).Allowed);
+if (G1PolicyOpponentContract.InvalidatesRoute(botThreeFacts))
+    anyAiTracker.InvalidateIfRuntimeSessionBound("unexpected_sparring_bot_difficulty");
+Expect("reading_legacy_bot1_proof_preserves_any_ai_route", anyAiTracker.SnapshotForRuntimeSession(
+    "private-test-arena","test-endpoint",1234,"test-endpoint",1234,17).SoloRouteProven);
+Expect("any_ai_policy_scope_rejects_unknown_occupancy", !SoloRouteProofContract.EvaluatePolicyScope(false, anyAiRoute).Allowed);
+Expect("any_ai_policy_scope_rejects_missing_route", !SoloRouteProofContract.EvaluatePolicyScope(
+    true, SoloRouteProofSnapshot.Unavailable("missing")).Allowed);
+Expect("any_ai_policy_scope_rejects_unbound_runtime", !SoloRouteProofContract.EvaluatePolicyScope(
+    true, anyAiRoute with { RuntimeSessionIdentityConsistent=false }).Allowed);
+Expect("any_ai_policy_scope_rejects_endpoint_change", !SoloRouteProofContract.EvaluatePolicyScope(true,
+    anyAiTracker.SnapshotForRuntimeSession("private-test-arena","test-endpoint",1234,"other-endpoint",1234,17)).Allowed);
+Expect("any_ai_policy_scope_rejects_runtime_replacement", !SoloRouteProofContract.EvaluatePolicyScope(true,
+    anyAiTracker.SnapshotForRuntimeSession("private-test-arena","test-endpoint",1234,"test-endpoint",1234,18)).Allowed);
+var humanFacts = botThreeFacts with { HasClient=true };
+if (G1PolicyOpponentContract.InvalidatesRoute(humanFacts))
+    anyAiTracker.InvalidateIfRuntimeSessionBound("human_occupancy_changed");
+Expect("human_change_still_invalidates_bound_route", !anyAiTracker.SnapshotForArena("private-test-arena").SoloRouteProven);
+
 Expect("g1_held_schema", G1HeldInputScheduleContract.Schema == "rek.g1_held_input_schedule.v2");
 Expect("g1_held_fixed_rate", G1HeldInputScheduleContract.UnityFixedRateHz == 500);
 Expect("g1_held_rate", G1HeldInputScheduleContract.ScheduleRateHz == 50);
@@ -1816,6 +1853,73 @@ using (var server = new LocalPipeServer(
     }
 }
 
+// Real local pipe: a serialization failure must retire the connection even
+// while its client keeps the read side open, then permit a fresh client.
+Expect("paired_faulted_task_drain_returns", await LocalPipeServer.DrainConnectionAsync(
+    Task.FromException(new IOException("fixture-reader")),
+    Task.FromException(new NullReferenceException("fixture-writer")), TimeSpan.FromSeconds(1)));
+var stuckRead = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+Expect("paired_stuck_task_drain_is_bounded", !await LocalPipeServer.DrainConnectionAsync(
+    stuckRead.Task, Task.FromException(new NullReferenceException("fixture-writer")), TimeSpan.FromMilliseconds(20)));
+stuckRead.TrySetResult(true);
+var faultPipeName = $"rek-ui-bridge-fault-test-{Environment.ProcessId}-{Guid.NewGuid():N}";
+var transportWarnings = new ConcurrentQueue<string>();
+using (var server = new LocalPipeServer(faultPipeName,
+           request => request.RequestId=="read-fault"
+               ? throw new InvalidOperationException("fixture-payload-message-must-not-be-logged") : true,
+           _ => { }, warning => transportWarnings.Enqueue(warning)))
+{
+    server.Start();
+    try
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        using var brokenClient = new NamedPipeClientStream(".", faultPipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await brokenClient.ConnectAsync(timeout.Token);
+        using var brokenReader = new StreamReader(brokenClient, Encoding.UTF8, false, 4096, leaveOpen:true);
+        using var hello = JsonDocument.Parse((await brokenReader.ReadLineAsync().WaitAsync(timeout.Token))!);
+        var brokenId = hello.RootElement.GetProperty("connection_id").GetInt64();
+        server.Send(brokenId, new ThrowingPipePayload());
+        while (server.CurrentConnectionId != 0)
+            await Task.Delay(10, timeout.Token);
+        Expect("writer_failure_clears_current_connection_before_peer_disconnect", true);
+        Expect("writer_failure_diagnostic_has_direction_and_type_only",
+            transportWarnings.Contains("Pipe write loop failed: NullReferenceException"));
+        Expect("writer_failure_diagnostic_excludes_payload_exception_message",
+            transportWarnings.All(value => !value.Contains("fixture-payload-message", StringComparison.Ordinal)));
+
+        using var nextClient = new NamedPipeClientStream(".", faultPipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await nextClient.ConnectAsync(timeout.Token);
+        using var nextReader = new StreamReader(nextClient, Encoding.UTF8, false, 4096, leaveOpen:true);
+        using var nextHello = JsonDocument.Parse((await nextReader.ReadLineAsync().WaitAsync(timeout.Token))!);
+        var nextId = nextHello.RootElement.GetProperty("connection_id").GetInt64();
+        Expect("writer_failure_next_client_gets_new_identity", nextId > brokenId && server.CurrentConnectionId==nextId);
+        server.Send(nextId, new { @event="after_writer_failure" });
+        var delivered = await nextReader.ReadLineAsync().WaitAsync(timeout.Token);
+        Expect("writer_failure_next_client_receives_outbound_message", delivered?.Contains("after_writer_failure",StringComparison.Ordinal)==true);
+        await nextClient.WriteAsync(Encoding.UTF8.GetBytes("{\"type\":\"get_state\",\"request_id\":\"read-fault\"}\n"), timeout.Token);
+        while (server.CurrentConnectionId != 0)
+            await Task.Delay(10, timeout.Token);
+        Expect("reader_failure_clears_current_connection_before_peer_disconnect", true);
+        Expect("reader_failure_diagnostic_has_direction_and_type_only",
+            transportWarnings.Contains("Pipe read loop failed: InvalidOperationException"));
+        Expect("reader_failure_diagnostic_excludes_payload_exception_message",
+            transportWarnings.All(value => !value.Contains("fixture-payload-message", StringComparison.Ordinal)));
+        using var finalClient = new NamedPipeClientStream(".", faultPipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+        await finalClient.ConnectAsync(timeout.Token);
+        using var finalReader = new StreamReader(finalClient, Encoding.UTF8, false, 4096, leaveOpen:true);
+        using var finalHello = JsonDocument.Parse((await finalReader.ReadLineAsync().WaitAsync(timeout.Token))!);
+        var finalId = finalHello.RootElement.GetProperty("connection_id").GetInt64();
+        Expect("reader_failure_next_client_gets_new_identity", finalId > nextId && server.CurrentConnectionId==finalId);
+        server.Send(finalId, new { @event="after_reader_failure" });
+        Expect("reader_failure_next_client_receives_outbound_message",
+            (await finalReader.ReadLineAsync().WaitAsync(timeout.Token))?.Contains("after_reader_failure",StringComparison.Ordinal)==true);
+    }
+    catch (Exception exception)
+    {
+        failures.Enqueue($"writer_failure_reconnect:{exception.GetType().Name}");
+    }
+}
+
 if (!failures.IsEmpty)
 {
     Console.Error.WriteLine($"FAIL {failures.Count}: {string.Join(",", failures)}");
@@ -1826,3 +1930,8 @@ Console.WriteLine(
     $"PASS protocol_cases={protocolCases} " +
     "local_pipe_roundtrip=true");
 return 0;
+
+internal sealed class ThrowingPipePayload
+{
+    public string Value => throw new NullReferenceException("fixture-payload-message-must-not-be-logged");
+}

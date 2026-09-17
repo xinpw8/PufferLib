@@ -1,0 +1,21 @@
+{
+  "command": [
+    "dotnet",
+    "publish",
+    "ocean/rek/evidence/windows/RekUiPipeClient/RekUiPipeClient.csproj",
+    "-c",
+    "Release",
+    "-r",
+    "win-x64",
+    "--self-contained",
+    "true",
+    "-o",
+    "C:\\rekagent\\work\\g1-any-ai-20260917\\verification\\relay"
+  ],
+  "working_directory": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile",
+  "began_utc": "2026-09-17T00:59:54.8373622+00:00",
+  "finished_utc": "2026-09-17T00:59:56.8910631+00:00",
+  "exit_code": 0,
+  "stdout": "MSBuild version 17.8.3+195e7f5a3 for .NET\r\n  Determining projects to restore...\r\n  All projects are up-to-date for restore.\r\n  RekUiPipeClient -> C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek\\evidence\\windows\\RekUiPipeClient\\bin\\Release\\net8.0\\win-x64\\RekUiPipeClient.dll\r\n  RekUiPipeClient -> C:\\rekagent\\work\\g1-any-ai-20260917\\verification\\relay\\\r\n",
+  "stderr": ""
+}

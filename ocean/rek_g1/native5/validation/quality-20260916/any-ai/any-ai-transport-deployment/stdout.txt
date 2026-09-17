@@ -1,0 +1,12 @@
+2026-09-17T01:11:53Z
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+/home/spark-advantage/codexrook-runtime/rek-policy-transfer-20260915/BepInEx/plugins/RekUiBridgeAgent.dll: OK
+/home/spark-advantage/codexrook-runtime/live-transfer-20260915/RekUiBridgeAgent-any-ai-transport-20260917.dll: OK
+/home/spark-advantage/codexrook-runtime/live-transfer-20260915/RekUiPipeClient-any-ai-20260917.exe: OK
+/home/spark-advantage/codexrook-runtime/live-transfer-20260915/RekUiBridgeAgent-pre-any-ai-transport-20260917.dll: OK
+verified_owned_pid=4111 display=:98 isolated_session=spark-x98
+/home/spark-advantage/codexrook-runtime/rek-policy-transfer-20260915/BepInEx/plugins/RekUiBridgeAgent.dll: OK
+launch_requested_utc=20260917T011154Z
+controller_started=false
+2026-09-17T01:11:54Z

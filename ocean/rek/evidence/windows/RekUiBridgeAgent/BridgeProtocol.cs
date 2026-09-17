@@ -267,6 +267,9 @@ internal enum BridgeCommand
     StartG1PolicyStream,
     StopG1PolicyStream,
     ReadyPrivateAiSession,
+    StartG1PolicyRound,
+    ExitLostG1PolicySession,
+    StartG1PolicyStreamAnyAi,
 }
 
 internal enum RequestKind

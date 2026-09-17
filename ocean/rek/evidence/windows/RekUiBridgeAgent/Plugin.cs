@@ -760,7 +760,8 @@ public sealed partial class Plugin : BasePlugin
             if (_leaseConnectionId != connectionId)
                 return CommandResult.Rejected("exclusive_control_lease_required");
 
-            if (_g1PolicyRunning && command is not (BridgeCommand.StopG1PolicyStream or BridgeCommand.StartG1PolicyStream))
+            if (_g1PolicyRunning && command is not (BridgeCommand.StopG1PolicyStream or
+                    BridgeCommand.StartG1PolicyStream or BridgeCommand.StartG1PolicyStreamAnyAi))
                 return CommandResult.Rejected("g1_policy_stream_has_exclusive_control");
 
             return command switch
@@ -770,8 +771,10 @@ public sealed partial class Plugin : BasePlugin
                 BridgeCommand.EnterSolo => EnterSolo(),
                 BridgeCommand.ReadyPrivateAiSession => ReadyPrivateAiSession(),
                 BridgeCommand.StartRound => StartRound(connectionId, request.RequestId),
+                BridgeCommand.StartG1PolicyRound => StartRound(connectionId, request.RequestId, allowAnyAi: true),
                 BridgeCommand.ExitUnexpectedPrivateAiSession => ExitUnexpectedPrivateAiSession(),
                 BridgeCommand.ExitLostPrivateSession => ExitLostPrivateSession(),
+                BridgeCommand.ExitLostG1PolicySession => ExitLostPrivateSession(allowAnyAi: true),
                 BridgeCommand.StartMeasuredSchedule => StartMeasuredSchedule(),
                 BridgeCommand.StopMeasuredSchedule => StopMeasuredSchedule(),
                 BridgeCommand.StartSingleMotionTrial => StartSingleMotionTrial(request.Selector),
@@ -782,13 +785,14 @@ public sealed partial class Plugin : BasePlugin
                 BridgeCommand.StartG1HeldInputSchedule => StartG1HeldInputSchedule(),
                 BridgeCommand.StopG1HeldInputSchedule => StopG1HeldInputSchedule(),
                 BridgeCommand.StartG1PolicyStream => StartG1PolicyStream(),
+                BridgeCommand.StartG1PolicyStreamAnyAi => StartG1PolicyStream(allowAnyAi: true),
                 BridgeCommand.StopG1PolicyStream => StopG1PolicyStreamCommand(),
                 _ => CommandResult.Rejected("unknown_semantic_command"),
             };
         }
         catch (Exception exception)
         {
-            if (request.Command == BridgeCommand.StartRound)
+            if (request.Command is BridgeCommand.StartRound or BridgeCommand.StartG1PolicyRound)
                 _freshRoundArm = null;
             return CommandResult.Rejected($"command_failed:{exception.GetType().Name}");
         }
@@ -863,16 +867,20 @@ public sealed partial class Plugin : BasePlugin
             : CommandResult.Rejected("private_practice_reservation_postcondition_not_observed");
     }
 
-    private CommandResult StartRound(long connectionId, string requestId)
+    private CommandResult StartRound(long connectionId, string requestId, bool allowAnyAi = false)
     {
         if (!RequireBackgroundControl(out var foregroundReason))
             return CommandResult.Rejected(foregroundReason);
         if (_scheduleRunning || _singleMotionTrialRunning || _continuousControllerRunning ||
             _g1HeldScheduleRunning)
             return CommandResult.Rejected("controlled_run_already_active");
+        if (allowAnyAi && (_g1PolicyRunning || _attackZoneTrialRunning || _attackZoneRecoveryOnlyRunning))
+            return CommandResult.Rejected("controlled_run_already_active");
         if (_freshRoundArm is not null)
             return CommandResult.Rejected("fresh_round_already_armed");
-        if (!TryGetPrivateAiContext(requireActiveRound: false, out var scope, out var reason))
+        if (!(allowAnyAi
+                ? TryGetG1PolicyContext(false, out var scope, out var reason, allowAnyAi: true)
+                : TryGetPrivateAiContext(false, out scope, out reason)))
             return CommandResult.Rejected(reason);
         if (scope.RoundActive)
             return CommandResult.Rejected("round_already_active");
@@ -930,11 +938,17 @@ public sealed partial class Plugin : BasePlugin
             $"fight_phase_not_idle:observed_{scope.Coordinator.CurrentPhase}");
     }
 
-    private static CommandResult ExitLostPrivateSession()
+    private CommandResult ExitLostPrivateSession(bool allowAnyAi = false)
     {
         if (!RequireBackgroundControl(out var foregroundReason))
             return CommandResult.Rejected(foregroundReason);
-        if (!TryGetPrivateAiContext(requireActiveRound: false, out var scope, out var reason))
+        if (allowAnyAi && (_g1PolicyRunning || _scheduleRunning || _singleMotionTrialRunning ||
+                _continuousControllerRunning || _g1HeldScheduleRunning ||
+                _attackZoneTrialRunning || _attackZoneRecoveryOnlyRunning))
+            return CommandResult.Rejected("controlled_run_already_active");
+        if (!(allowAnyAi
+                ? TryGetG1PolicyContext(false, out var scope, out var reason, allowAnyAi: true)
+                : TryGetPrivateAiContext(false, out scope, out reason)))
             return CommandResult.Rejected(reason);
         if (scope.RoundActive)
             return CommandResult.Rejected("round_still_active");
@@ -5913,7 +5927,8 @@ public sealed partial class Plugin : BasePlugin
         bool requireActiveRound,
         out PrivateAiContext scope,
         out string reason,
-        bool allowOwnedPendingEStop = false)
+        bool allowOwnedPendingEStop = false,
+        bool allowAnyAi = false)
     {
         scope = null!;
         reason = "private_ai_scope_not_proven";
@@ -5956,12 +5971,6 @@ public sealed partial class Plugin : BasePlugin
                 InvalidateSoloRoute(reason);
                 return false;
             }
-            if (coordinator.clientAiDifficultyLevel != 0)
-            {
-                reason = "unexpected_sparring_bot_difficulty";
-                InvalidateSoloRoute(reason);
-                return false;
-            }
             if (string.IsNullOrWhiteSpace(network.serverAddress) || network.port <= 0)
             {
                 reason = "network_endpoint_identity_not_proven";
@@ -5977,21 +5986,19 @@ public sealed partial class Plugin : BasePlugin
             }
             var opponentSlot = 1 - localSlot;
             var slotHasClient = coordinator.slotHasClient;
-            if (slotHasClient is null || slotHasClient.Length <= opponentSlot)
+            var occupancyKnown = slotHasClient is not null && slotHasClient.Length > opponentSlot;
+            var opponentFacts = new G1PolicyOpponentFacts(
+                occupancyKnown, occupancyKnown && slotHasClient![opponentSlot],
+                (coordinator.clientHumanSlotMask & (1 << opponentSlot)) != 0,
+                coordinator.HumanInSlot(opponentSlot), coordinator.OpponentIsAI,
+                coordinator.SlotIsAI(opponentSlot),
+                new G1PolicyOpponentIdentity(coordinator.clientAiDifficultyLevel, coordinator.SparringBotNumber));
+            var opponentRejection = G1PolicyOpponentContract.RejectReason(opponentFacts, allowAnyAi);
+            if (opponentRejection is not null)
             {
-                reason = "opponent_client_occupancy_unknown";
-                InvalidateSoloRoute(reason);
-                return false;
-            }
-            if (slotHasClient[opponentSlot] ||
-                (coordinator.clientHumanSlotMask & (1 << opponentSlot)) != 0 ||
-                coordinator.HumanInSlot(opponentSlot) ||
-                !coordinator.OpponentIsAI ||
-                !coordinator.SlotIsAI(opponentSlot) ||
-                coordinator.SparringBotNumber != 1)
-            {
-                reason = "exact_sparring_bot_1_scope_not_proven";
-                InvalidateSoloRoute(reason);
+                reason = opponentRejection;
+                if (G1PolicyOpponentContract.InvalidatesRoute(opponentFacts))
+                    InvalidateSoloRoute(reason);
                 return false;
             }
 
@@ -6003,15 +6010,11 @@ public sealed partial class Plugin : BasePlugin
                     network.port,
                     NativePointer(network).ToInt64()) ??
                 SoloRouteProofSnapshot.Unavailable("solo_route_tracker_unavailable");
-            var privacyDecision = SoloRouteProofContract.EvaluateScope(
-                exactBotOneNoHumanProofEstablished:
-                    !slotHasClient[opponentSlot] &&
-                    (coordinator.clientHumanSlotMask & (1 << opponentSlot)) == 0 &&
-                    !coordinator.HumanInSlot(opponentSlot) &&
-                    coordinator.OpponentIsAI &&
-                    coordinator.SlotIsAI(opponentSlot) &&
-                    coordinator.SparringBotNumber == 1,
-                routeProof);
+            var privacyDecision = allowAnyAi
+                ? SoloRouteProofContract.EvaluatePolicyScope(
+                    opponentFacts.NoHumanAi && opponentFacts.Identity.Known, routeProof)
+                : SoloRouteProofContract.EvaluateScope(
+                    opponentFacts.NoHumanAi && opponentFacts.Identity.ExactBotOne, routeProof);
             if (!privacyDecision.Allowed)
             {
                 reason = privacyDecision.Reason;
@@ -6856,9 +6859,11 @@ public sealed partial class Plugin : BasePlugin
                 requireActiveRound: false,
                 out _,
                 out var sessionProofReason);
+            var policyProven = TryGetG1PolicyContext(
+                false, out _, out var policyProofReason, allowAnyAi: true);
             var routeProof = Instance is null
                 ? SoloRouteProofSnapshot.Unavailable("solo_route_tracker_unavailable")
-                : sessionProven && network is not null
+                : (sessionProven || policyProven) && network is not null
                     ? Instance._soloRouteProofTracker.SnapshotForRuntimeSession(
                         context?.ArenaID,
                         context?.ArenaIP,
@@ -6872,6 +6877,8 @@ public sealed partial class Plugin : BasePlugin
                 requireActiveRound: true,
                 out _,
                 out var activeGameplayProofReason);
+            var policyActiveGameplayProven = TryGetG1PolicyContext(
+                true, out _, out var policyActiveProofReason, allowAnyAi: true);
             var roundInactive = coordinator.CurrentRound is null || !coordinator.CurrentRound.IsActive;
             var postFightPrompt = gameMenu is not null && gameMenu.IsMenuOpen && view is not null &&
                                   view.CurrentPane == GameMenuView.Pane.PostFight &&
@@ -6884,6 +6891,10 @@ public sealed partial class Plugin : BasePlugin
                 active_gameplay_proven = activeGameplayProven,
                 reason = sessionProofReason,
                 active_gameplay_reason = activeGameplayProofReason,
+                policy_proven = policyProven,
+                policy_reason = policyProofReason,
+                policy_active_gameplay_proven = policyActiveGameplayProven,
+                policy_active_gameplay_reason = policyActiveProofReason,
                 local_slot = localSlot,
                 opponent_slot = opponentSlot,
                 network_client_only = networkClientOnly,

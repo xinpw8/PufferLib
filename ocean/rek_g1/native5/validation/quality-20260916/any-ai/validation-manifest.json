@@ -1,0 +1,245 @@
+{
+  "schema": "rek.g1_any_ai_build_validation.v1",
+  "utc": "2026-09-17T01:00:37.5253529+00:00",
+  "git_head": "9ade530aff75302380cd5903fb6a1b2759f1dc12",
+  "source_files": [
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/AttackZoneSettleTracker.cs",
+      "sha256": "20103b550c191ce1c528fd9a2fb6a639c74d22169aa271ceb2f3bb95fd86ecc8"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/AttackZoneTrialContract.cs",
+      "sha256": "9aba919b79ba6882094e1f5598665b55fb5812a3617d0838b805702dbdfc7705"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/BridgeProtocol.cs",
+      "sha256": "05c10293c1ba0cd441308e483fc61932c4790dca4073db16eb98fd356bdd8deb"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/ContinuousBotControllerContract.cs",
+      "sha256": "47af6ca4518094dbc073f16f4fe7f1481a7809113852cbc71a614d6f7e87f9b6"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/G1HeldInputScheduleContract.cs",
+      "sha256": "c090a7483387a961418bb364acacdb5f9d6b42e87fa55408049ea03fa916dbb3"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/G1PolicyStreamContract.cs",
+      "sha256": "0335b0a99cb2a09afffa8c18918181859246b7a204c47bf0c9a89bc9db6eb5df"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/G1RuntimePolicyCapture.cs",
+      "sha256": "28c963ae620c73c9a56e2b0a1bdf2f205ecdcd8e9e1afeb1c0595924e388ad0f"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/G1RuntimePolicyCaptureContract.cs",
+      "sha256": "b224d3ba86a8178f0b5281339c56fe8c537e21b246564dc55dfc43368bd8fdaf"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/LocalPipeServer.cs",
+      "sha256": "53e4e711bf2285b69b9ade0ed4f8233607daca17d67f3e9530e8ff981262805d"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Plugin.AttackZone.cs",
+      "sha256": "fdf16885cbd643d0488d7c7d15b491dc71e0d1a6d2739605423ca32f0fee7f85"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Plugin.cs",
+      "sha256": "494247003dd569262f0b2eec2d5a174e22ed0627b523cd888603932b90811cfe"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Plugin.G1HeldInputSchedule.cs",
+      "sha256": "89f2142d6be5829d0f55dc9285acf7b87eae98c42dfaf7138b87d2361e47deb2"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Plugin.G1PolicyStream.cs",
+      "sha256": "732719f1037af93a98fa4d0d6e4fc88de15ab0f40bd50e57d155d59f77573c81"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Plugin.PrivateAiBootstrap.cs",
+      "sha256": "5711d883274716da6558084e7a87597380b72a7e108ea89be3be90f6e50d3a3f"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/RekUiBridgeAgent.csproj",
+      "sha256": "7c8a04ef4e011af43aadb1c5d221c787c9c048e80fcd4c0eeb8df0b404461e06"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/RenderedCommandMarkerContract.cs",
+      "sha256": "c15ec324e77199d530ced53fc312844243578a4ef2595f0fc1a889fec5b8ac30"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/SingleMotionTrialContract.cs",
+      "sha256": "8644836714fb42bcc6289413b04d3ee14ecd8b1dc6f089e084a1e7e1db25bd8a"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/AttackZoneProgram.cs",
+      "sha256": "b7076b7c213e789c431942ba1f104b6fb121658111904ca7b7f09f3f578e1899"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/G1RuntimePolicyCaptureContractTests/G1RuntimePolicyCapture.ContractTests.csproj",
+      "sha256": "301327aa4265ac97ef969a3f19ab391f9f9cfe59274f209d1e0bf963b6de247a"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/G1RuntimePolicyCaptureContractTests/Program.cs",
+      "sha256": "ed1fc12066e6a07e9606a552ec4199cd63a91c3c97da7c7ccea5d250a6dcd483"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/Program.cs",
+      "sha256": "49acb12ae6b92143100da36ea05ac37086861094bcb3170c7738e6d69ae709e1"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/RekUiBridgeAgent.AttackZoneTests.csproj",
+      "sha256": "a85960dd68fbbe941f5cb7e445ce0f53db3a898fe11d538eeefb99955104ab82"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/RekUiBridgeAgent.ProtocolTests.csproj",
+      "sha256": "5b23858cb14043a5a1dbb41817f9ad6c213778346abcd361d9d1286e811212af"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiPipeClient/ControllerRunModeContract.cs",
+      "sha256": "468b08126b8c301fce6cbb12f22ce8eaa6ccf27b1dcfa5e7ff790aeee723f4da"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiPipeClient/G1HeldEventReconciler.cs",
+      "sha256": "ebf337d2b71dd8be168461db1571183c8d46a81f4f12fe45869ee581a3dff935"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiPipeClient/JsonBinary32Contract.cs",
+      "sha256": "449c0113fc00d3fea3b0ed1039044a850ac46aab1d62a2a6d56386509aa38c14"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiPipeClient/LostSessionExitModeContract.cs",
+      "sha256": "9f68aee7ea3e19252be6965cb15ed07a68314acf28b7379fcfe28dc9041c07fd"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiPipeClient/PolicyRelay.cs",
+      "sha256": "599aa18a7dcc1ba3facca8be26a9ee76b033160fa664468a74d5898a912363e1"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiPipeClient/Program.cs",
+      "sha256": "7920ae3eae5e38a7d2750a4b5e06e7b0edec3422d14c3a5fb375e1ef7d7c98d0"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiPipeClient/RekUiPipeClient.csproj",
+      "sha256": "1a9afef0b093254973c345f12e20ab03f50121c57c80fdf09043ef58c8cbae47"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiPipeClient/Tests/PolicyRelayTests.csproj",
+      "sha256": "d2e9113061d9037e6b59062067747827654ea1b8b8ff03a68e03a4de77101363"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiPipeClient/Tests/Program.cs",
+      "sha256": "906d1929e8e883813147b4e6644405e7d1fb5f7e263bd93a504289b47798c79e"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/SoloRouteProofContract.cs",
+      "sha256": "d87b53b948d2c79d2381dade8c6b1dc9abfd4ea286c79ba91d080d351284dac1"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\rekagent\\work\\g1-any-ai-20260917\\bridge\\RekUiBridgeAgent.dll",
+      "sha256": "6d2be4dd37207a2ac609547a4af21ac917aeef4ade21d7bcdccdc9b7c1572c1f",
+      "bytes": 1403904
+    },
+    {
+      "path": "C:\\rekagent\\work\\g1-any-ai-20260917\\relay\\RekUiPipeClient.exe",
+      "sha256": "835e7792d7b20d6ae9ff3c49d4d0f99ad38a63af36b0b6c7bfd1b30550aca7a1",
+      "bytes": 67753364
+    },
+    {
+      "path": "C:\\rekagent\\work\\g1-any-ai-20260917\\verification\\bridge\\RekUiBridgeAgent.dll",
+      "sha256": "6d2be4dd37207a2ac609547a4af21ac917aeef4ade21d7bcdccdc9b7c1572c1f",
+      "bytes": 1403904
+    },
+    {
+      "path": "C:\\rekagent\\work\\g1-any-ai-20260917\\verification\\relay\\RekUiPipeClient.exe",
+      "sha256": "835e7792d7b20d6ae9ff3c49d4d0f99ad38a63af36b0b6c7bfd1b30550aca7a1",
+      "bytes": 67753364
+    }
+  ],
+  "commands": [
+    {
+      "name": "relay-tests",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "ocean/rek/evidence/windows/RekUiPipeClient/Tests/PolicyRelayTests.csproj",
+        "-c",
+        "Release"
+      ],
+      "working_directory": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile",
+      "began_utc": "2026-09-17T00:59:39.9768459+00:00",
+      "finished_utc": "2026-09-17T00:59:41.1218210+00:00",
+      "exit_code": 0,
+      "stdout": "logs/relay-tests.stdout.txt",
+      "stderr": "logs/relay-tests.stderr.txt"
+    },
+    {
+      "name": "protocol-tests",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/RekUiBridgeAgent.ProtocolTests.csproj",
+        "-c",
+        "Release"
+      ],
+      "working_directory": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile",
+      "began_utc": "2026-09-17T00:59:44.9353374+00:00",
+      "finished_utc": "2026-09-17T00:59:46.1361730+00:00",
+      "exit_code": 0,
+      "stdout": "logs/protocol-tests.stdout.txt",
+      "stderr": "logs/protocol-tests.stderr.txt"
+    },
+    {
+      "name": "bridge-verification-build",
+      "command": [
+        "dotnet",
+        "build",
+        "ocean/rek/evidence/windows/RekUiBridgeAgent/RekUiBridgeAgent.csproj",
+        "-c",
+        "Release",
+        "-o",
+        "C:\\rekagent\\work\\g1-any-ai-20260917\\verification\\bridge"
+      ],
+      "working_directory": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile",
+      "began_utc": "2026-09-17T00:59:51.0415944+00:00",
+      "finished_utc": "2026-09-17T00:59:51.9969422+00:00",
+      "exit_code": 0,
+      "stdout": "logs/bridge-verification-build.stdout.txt",
+      "stderr": "logs/bridge-verification-build.stderr.txt"
+    },
+    {
+      "name": "relay-verification-publish",
+      "command": [
+        "dotnet",
+        "publish",
+        "ocean/rek/evidence/windows/RekUiPipeClient/RekUiPipeClient.csproj",
+        "-c",
+        "Release",
+        "-r",
+        "win-x64",
+        "--self-contained",
+        "true",
+        "-o",
+        "C:\\rekagent\\work\\g1-any-ai-20260917\\verification\\relay"
+      ],
+      "working_directory": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile",
+      "began_utc": "2026-09-17T00:59:54.8373622+00:00",
+      "finished_utc": "2026-09-17T00:59:56.8910631+00:00",
+      "exit_code": 0,
+      "stdout": "logs/relay-verification-publish.stdout.txt",
+      "stderr": "logs/relay-verification-publish.stderr.txt"
+    }
+  ],
+  "expected_deployment_hashes": {
+    "bridge": "6d2be4dd37207a2ac609547a4af21ac917aeef4ade21d7bcdccdc9b7c1572c1f",
+    "relay": "835e7792d7b20d6ae9ff3c49d4d0f99ad38a63af36b0b6c7bfd1b30550aca7a1"
+  },
+  "original_artifacts_unchanged": true,
+  "verification_artifacts_match_original": true,
+  "game_or_global_input_invocations": 0,
+  "deployment_performed_by_this_build_task": false
+}

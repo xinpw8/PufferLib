@@ -1,5 +1,11 @@
 # September 16 policy-quality investigation
 
+Latest follow-up: [any private REK AI evaluation](ANY_AI_EVALUATION.md) removes
+the Bot1-only policy restriction while preserving private/no-human scope.
+It records authentic 18:10 and 5:17 round results, an incomplete follow-up,
+and a reproduced/fixed pipe-writer failure mode. A reliable win rate and parity
+remain unproven.
+
 Started from fetched GitHub branch `codex/puffysics-training-profile`, commit
 `82c40510b136e05b6e883b428c1cab4f9cbf17d2`. The earlier throughput and stationary
 target failures were already repaired. The selected V4 checkpoint trains at

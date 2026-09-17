@@ -1,0 +1,16 @@
+{
+  "command": [
+    "dotnet",
+    "run",
+    "--project",
+    "ocean/rek/evidence/windows/RekUiPipeClient/Tests/PolicyRelayTests.csproj",
+    "-c",
+    "Release"
+  ],
+  "working_directory": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile",
+  "began_utc": "2026-09-17T00:59:39.9768459+00:00",
+  "finished_utc": "2026-09-17T00:59:41.1218210+00:00",
+  "exit_code": 0,
+  "stdout": "{\"passed\":6433,\"publication_counts_per_ten_seconds\":{\"fps60\":500,\"fps100\":500,\"fps30\":300},\"native_game_invocations\":0,\"global_input_invocations\":0}\r\n",
+  "stderr": ""
+}

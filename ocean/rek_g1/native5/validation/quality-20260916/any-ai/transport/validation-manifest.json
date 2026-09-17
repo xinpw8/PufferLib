@@ -1,0 +1,165 @@
+{
+  "schema": "rek.pipe_liveness_build_validation.v1",
+  "utc": "2026-09-17T01:12:16.2901168+00:00",
+  "git_head": "9ade530aff75302380cd5903fb6a1b2759f1dc12",
+  "baseline_pipe_source_git_blob": "779f02222e2a6a39513e76f81d2b5c6e3d2d31ba",
+  "source_files": [
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/AttackZoneSettleTracker.cs",
+      "sha256": "20103b550c191ce1c528fd9a2fb6a639c74d22169aa271ceb2f3bb95fd86ecc8"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/AttackZoneTrialContract.cs",
+      "sha256": "9aba919b79ba6882094e1f5598665b55fb5812a3617d0838b805702dbdfc7705"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/BridgeProtocol.cs",
+      "sha256": "05c10293c1ba0cd441308e483fc61932c4790dca4073db16eb98fd356bdd8deb"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/ContinuousBotControllerContract.cs",
+      "sha256": "47af6ca4518094dbc073f16f4fe7f1481a7809113852cbc71a614d6f7e87f9b6"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/G1HeldInputScheduleContract.cs",
+      "sha256": "c090a7483387a961418bb364acacdb5f9d6b42e87fa55408049ea03fa916dbb3"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/G1PolicyStreamContract.cs",
+      "sha256": "0335b0a99cb2a09afffa8c18918181859246b7a204c47bf0c9a89bc9db6eb5df"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/G1RuntimePolicyCapture.cs",
+      "sha256": "28c963ae620c73c9a56e2b0a1bdf2f205ecdcd8e9e1afeb1c0595924e388ad0f"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/G1RuntimePolicyCaptureContract.cs",
+      "sha256": "b224d3ba86a8178f0b5281339c56fe8c537e21b246564dc55dfc43368bd8fdaf"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/LocalPipeServer.cs",
+      "sha256": "71eda28511e9a8d583d6e32a69f5fa75610625d443d4d17b03eb8c3a0f506685"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Plugin.AttackZone.cs",
+      "sha256": "fdf16885cbd643d0488d7c7d15b491dc71e0d1a6d2739605423ca32f0fee7f85"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Plugin.cs",
+      "sha256": "494247003dd569262f0b2eec2d5a174e22ed0627b523cd888603932b90811cfe"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Plugin.G1HeldInputSchedule.cs",
+      "sha256": "89f2142d6be5829d0f55dc9285acf7b87eae98c42dfaf7138b87d2361e47deb2"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Plugin.G1PolicyStream.cs",
+      "sha256": "732719f1037af93a98fa4d0d6e4fc88de15ab0f40bd50e57d155d59f77573c81"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Plugin.PrivateAiBootstrap.cs",
+      "sha256": "5711d883274716da6558084e7a87597380b72a7e108ea89be3be90f6e50d3a3f"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/RekUiBridgeAgent.csproj",
+      "sha256": "7c8a04ef4e011af43aadb1c5d221c787c9c048e80fcd4c0eeb8df0b404461e06"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/RenderedCommandMarkerContract.cs",
+      "sha256": "c15ec324e77199d530ced53fc312844243578a4ef2595f0fc1a889fec5b8ac30"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/SingleMotionTrialContract.cs",
+      "sha256": "8644836714fb42bcc6289413b04d3ee14ecd8b1dc6f089e084a1e7e1db25bd8a"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/AttackZoneProgram.cs",
+      "sha256": "b7076b7c213e789c431942ba1f104b6fb121658111904ca7b7f09f3f578e1899"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/G1RuntimePolicyCaptureContractTests/G1RuntimePolicyCapture.ContractTests.csproj",
+      "sha256": "301327aa4265ac97ef969a3f19ab391f9f9cfe59274f209d1e0bf963b6de247a"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/G1RuntimePolicyCaptureContractTests/Program.cs",
+      "sha256": "ed1fc12066e6a07e9606a552ec4199cd63a91c3c97da7c7ccea5d250a6dcd483"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/Program.cs",
+      "sha256": "cafc23efe42ab2561e19ff769bd0a3fde595cd149fa0b642b0589eb5f9c0afcd"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/RekUiBridgeAgent.AttackZoneTests.csproj",
+      "sha256": "a85960dd68fbbe941f5cb7e445ce0f53db3a898fe11d538eeefb99955104ab82"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/RekUiBridgeAgent.ProtocolTests.csproj",
+      "sha256": "5b23858cb14043a5a1dbb41817f9ad6c213778346abcd361d9d1286e811212af"
+    },
+    {
+      "path": "ocean/rek/evidence/windows/SoloRouteProofContract.cs",
+      "sha256": "d87b53b948d2c79d2381dade8c6b1dc9abfd4ea286c79ba91d080d351284dac1"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\rekagent\\work\\g1-any-ai-20260917\\transport\\bridge\\RekUiBridgeAgent.dll",
+      "sha256": "6c88b9e3718f5549c146865a4a336515385e5b019fd8321a6f5e1fec4253a5e4",
+      "bytes": 1406976
+    },
+    {
+      "path": "C:\\rekagent\\work\\g1-any-ai-20260917\\bridge\\RekUiBridgeAgent.dll",
+      "sha256": "6d2be4dd37207a2ac609547a4af21ac917aeef4ade21d7bcdccdc9b7c1572c1f",
+      "bytes": 1403904
+    },
+    {
+      "path": "C:\\rekagent\\work\\g1-any-ai-20260917\\relay\\RekUiPipeClient.exe",
+      "sha256": "835e7792d7b20d6ae9ff3c49d4d0f99ad38a63af36b0b6c7bfd1b30550aca7a1",
+      "bytes": 67753364
+    }
+  ],
+  "commands": [
+    {
+      "name": "protocol-tests",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/RekUiBridgeAgent.ProtocolTests.csproj",
+        "-c",
+        "Release"
+      ],
+      "working_directory": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile",
+      "began_utc": "2026-09-17T01:11:08.9632530+00:00",
+      "finished_utc": "2026-09-17T01:11:11.1088005+00:00",
+      "exit_code": 0,
+      "stdout": "logs/protocol-tests.stdout.txt",
+      "stderr": "logs/protocol-tests.stderr.txt"
+    },
+    {
+      "name": "bridge-build",
+      "command": [
+        "dotnet",
+        "build",
+        "ocean/rek/evidence/windows/RekUiBridgeAgent/RekUiBridgeAgent.csproj",
+        "-c",
+        "Release",
+        "-o",
+        "C:\\rekagent\\work\\g1-any-ai-20260917\\transport\\bridge"
+      ],
+      "working_directory": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile",
+      "began_utc": "2026-09-17T01:11:15.4924408+00:00",
+      "finished_utc": "2026-09-17T01:11:17.0092110+00:00",
+      "exit_code": 0,
+      "stdout": "logs/bridge-build.stdout.txt",
+      "stderr": "logs/bridge-build.stderr.txt"
+    }
+  ],
+  "red_test": "logs/writer-failure-before.json",
+  "reproduced_defect": "Original server awaits the reader alone; writer serialization failure while the peer stays open leaves the connection ID set and prevents reconnect. New paired completion retires ownership before cancellation, pipe close, and bounded draining.",
+  "production_evidence_limit": "The live-r2 game log reported Pipe server connection failed: NullReferenceException followed by a successful connection 3. Its exact read/write/serialization origin is unknown. The local regression reproduces a liveness defect, not the origin of the production exception.",
+  "scope": "Transport liveness and sanitized loop direction/type diagnostics only. No policy scope, action, model, relay, or game changes.",
+  "prior_artifacts_unchanged": true,
+  "game_or_global_input_invocations": 0,
+  "deployment_performed_by_this_build_task": false
+}

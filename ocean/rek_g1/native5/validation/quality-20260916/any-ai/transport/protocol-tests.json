@@ -1,0 +1,16 @@
+{
+  "command": [
+    "dotnet",
+    "run",
+    "--project",
+    "ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/RekUiBridgeAgent.ProtocolTests.csproj",
+    "-c",
+    "Release"
+  ],
+  "working_directory": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile",
+  "began_utc": "2026-09-17T01:11:08.9632530+00:00",
+  "finished_utc": "2026-09-17T01:11:11.1088005+00:00",
+  "exit_code": 0,
+  "stdout": "PIPE_INFO Accepted local current-user pipe client, connection 1.\r\nPIPE_INFO Pipe client disconnected, connection 1.\r\nPASS protocol_cases=302 local_pipe_roundtrip=true\r\n",
+  "stderr": ""
+}

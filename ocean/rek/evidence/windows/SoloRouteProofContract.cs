@@ -49,6 +49,17 @@ internal static class SoloRouteProofContract
                 "exact_sparring_bot_1_no_human_scope_not_proven");
         }
 
+        return EvaluateRoute(route);
+    }
+
+    internal static SoloRouteScopeDecision EvaluatePolicyScope(
+        bool knownAiNoHumanProofEstablished, SoloRouteProofSnapshot route) =>
+        knownAiNoHumanProofEstablished
+            ? EvaluateRoute(route)
+            : new SoloRouteScopeDecision(false, "known_ai_no_human_scope_not_proven");
+
+    private static SoloRouteScopeDecision EvaluateRoute(SoloRouteProofSnapshot route)
+    {
         if (!route.SoloRouteProven)
             return new SoloRouteScopeDecision(false, route.Reason);
         return route.RuntimeSessionIdentityConsistent

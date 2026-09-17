@@ -1,0 +1,22 @@
++ date -u +%FT%TZ
++ hostname
++ id
++ printf '%s  %s\n' 6d2be4dd37207a2ac609547a4af21ac917aeef4ade21d7bcdccdc9b7c1572c1f /home/spark-advantage/codexrook-runtime/rek-policy-transfer-20260915/BepInEx/plugins/RekUiBridgeAgent.dll
++ sha256sum -c -
++ printf '%s  %s\n' 6c88b9e3718f5549c146865a4a336515385e5b019fd8321a6f5e1fec4253a5e4 /home/spark-advantage/codexrook-runtime/live-transfer-20260915/RekUiBridgeAgent-any-ai-transport-20260917.dll
++ sha256sum -c -
++ printf '%s  %s\n' 835e7792d7b20d6ae9ff3c49d4d0f99ad38a63af36b0b6c7bfd1b30550aca7a1 /home/spark-advantage/codexrook-runtime/live-transfer-20260915/RekUiPipeClient-any-ai-20260917.exe
++ sha256sum -c -
++ test '!' -e /home/spark-advantage/codexrook-runtime/live-transfer-20260915/RekUiBridgeAgent-pre-any-ai-transport-20260917.dll
++ cp -p -- /home/spark-advantage/codexrook-runtime/rek-policy-transfer-20260915/BepInEx/plugins/RekUiBridgeAgent.dll /home/spark-advantage/codexrook-runtime/live-transfer-20260915/RekUiBridgeAgent-pre-any-ai-transport-20260917.dll
++ printf '%s  %s\n' 6d2be4dd37207a2ac609547a4af21ac917aeef4ade21d7bcdccdc9b7c1572c1f /home/spark-advantage/codexrook-runtime/live-transfer-20260915/RekUiBridgeAgent-pre-any-ai-transport-20260917.dll
++ sha256sum -c -
+++ cat /home/spark-advantage/codexrook-runtime/live-transfer-20260915/game.pid
++ owned_pid=4111
++ [[ 4111 =~ ^[1-9][0-9]*$ ]]
++ docker exec -i codexrook-xserver bash -s -- 4111
++ install -m 644 -- /home/spark-advantage/codexrook-runtime/live-transfer-20260915/RekUiBridgeAgent-any-ai-transport-20260917.dll /home/spark-advantage/codexrook-runtime/rek-policy-transfer-20260915/BepInEx/plugins/RekUiBridgeAgent.dll
++ printf '%s  %s\n' 6c88b9e3718f5549c146865a4a336515385e5b019fd8321a6f5e1fec4253a5e4 /home/spark-advantage/codexrook-runtime/rek-policy-transfer-20260915/BepInEx/plugins/RekUiBridgeAgent.dll
++ sha256sum -c -
++ bash /home/spark-advantage/codexrook-runtime/live-transfer-20260915/live_transfer_runtime.sh start
++ date -u +%FT%TZ

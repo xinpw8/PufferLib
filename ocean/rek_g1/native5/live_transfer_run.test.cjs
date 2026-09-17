@@ -5,30 +5,28 @@ const os=require('node:os');
 const path=require('node:path');
 const {test}=require('node:test');
 const {once}=require('node:events');
-const {validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer,canExitLostPrivateSession,betweenPrivateRounds,canRequestPrivateRound,canExitUnexpectedPrivateAiSession,canReadyPrivateAiSession,ensurePrivateArena}=require('./live_transfer_run.cjs');
+const {validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer,canExitLostPrivateSession,betweenPrivateRounds,canRequestPrivateRound,privateArena,botIdentity,validateBotIdentity,trialExitCode,canReadyPrivateAiSession,ensurePrivateArena}=require('./live_transfer_run.cjs');
 const sha='a'.repeat(64),round='b'.repeat(64);
 const ready=()=>({type:'ready',checkpoint_sha256:sha,native_cuda:true,environment_stepping:false,
   observation_schema:'rek.native5.scaled_polar_xy.v1',precision:'bf16',selection:'sampled',
   observations:223,actions:33,hidden_size:256,num_layers:2});
 
-function unexpectedPrivateAi() {
+function privateAi(difficulty=0) {
   return {scene:'Arena',lobby_screen:null,foreground:{isolated_session_verified:true},private_ai:{
-    proven:false,reason:'unexpected_sparring_bot_difficulty',network_client_only:true,
+    proven:difficulty===0,policy_proven:true,network_client_only:true,
     context_is_solo:true,solo_route_proven:true,opponent_is_ai:true,opponent_slot_is_ai:true,
     human_in_opponent_slot:false,opponent_slot_client_known:true,opponent_slot_has_client:false,
-    opponent_human_bit_set:false,exact_sparring_bot_1:false,client_ai_difficulty:2,sparring_bot_number:3,
-    phase:'Idle',round_active:false,round_inactive:true}};
+    opponent_human_bit_set:false,exact_sparring_bot_1:difficulty===0,
+    client_ai_difficulty:difficulty,sparring_bot_number:difficulty+1,
+    phase:'Idle',round_active:false,round_inactive:true,client_visual_only_fighter_pair:true}};
 }
-function exactPrivateAi() {
-  const s=unexpectedPrivateAi();Object.assign(s.private_ai,{proven:true,reason:'private_ai_session_proven',
-    exact_sparring_bot_1:true,client_ai_difficulty:0,sparring_bot_number:1});return s;
+function bootstrapPrivateAi(difficulty=2) {
+  const s=privateAi(difficulty);s.private_ai.client_visual_only_fighter_pair=false;
+  s.private_ai.policy_proven=false;return s;
 }
-function bootstrapPrivateAi() {
-  const s=unexpectedPrivateAi();s.private_ai.client_visual_only_fighter_pair=false;return s;
-}
-function activePrivateAi(exact=true) {
-  const s=exact?exactPrivateAi():unexpectedPrivateAi();Object.assign(s.private_ai,{phase:'RoundActive',
-    round_active:true,round_inactive:false,client_visual_only_fighter_pair:true,active_gameplay_proven:exact});return s;
+function activePrivateAi(difficulty=0) {
+  const s=privateAi(difficulty);Object.assign(s.private_ai,{phase:'RoundActive',
+    round_active:true,round_inactive:false,policy_active_gameplay_proven:true});return s;
 }
 const homeState=()=>({scene:'Lobby',lobby_screen:'Home'});
 const freePlayState=()=>({scene:'Lobby',lobby_screen:'FreePlay'});
@@ -38,92 +36,91 @@ function recoveryFixture(states,extra={}) {
     command:async command=>commands.push(command),getState:async()=>states[Math.min(index++,states.length-1)],
     wait:async ms=>{clock+=ms;},now:()=>clock,log:(event,detail)=>events.push({event,...detail}),...extra}};
 }
-test('unexpected-AI exit requires isolated solo, known no-human occupancy, inactive Idle, and a measured nonzero difficulty',()=>{
-  const s=unexpectedPrivateAi();assert.equal(canExitUnexpectedPrivateAiSession(s),true);
-  for(const key of Object.keys(s.private_ai)) {
-    const p={...s.private_ai};delete p[key];
-    assert.equal(canExitUnexpectedPrivateAiSession({...s,private_ai:p}),false,`missing ${key}`);
+
+test('any known private bot is accepted, with measured identity and independent legacy Bot1 proof',()=>{
+  for(const difficulty of [0,1,2,7,254,255]) {
+    const s=privateAi(difficulty);assert.equal(privateArena(s),true);
+    assert.deepEqual(botIdentity(s.private_ai),{client_ai_difficulty:difficulty,sparring_bot_number:difficulty+1});
+    assert.equal(s.private_ai.proven,difficulty===0);
   }
-  for(const patch of [{proven:true},{reason:'solo_route_not_proven'},{network_client_only:false},
-    {context_is_solo:false},{solo_route_proven:false},{opponent_is_ai:false},{opponent_slot_is_ai:false},
+});
+
+test('unknown bot identity, public route, humans, occupancy uncertainty and missing isolation reject scope',()=>{
+  const s=privateAi(2);
+  for(const patch of [{policy_proven:false},{network_client_only:false},{context_is_solo:false},
+    {solo_route_proven:false},{opponent_is_ai:false},{opponent_slot_is_ai:false},
     {human_in_opponent_slot:true},{opponent_slot_client_known:false},{opponent_slot_has_client:true},
-    {opponent_human_bit_set:true},{exact_sparring_bot_1:true},{client_ai_difficulty:0},{client_ai_difficulty:1.5},
-    {client_ai_difficulty:256,sparring_bot_number:257},{sparring_bot_number:2},{phase:'RoundActive'},
-    {round_active:true},{round_inactive:false}])
-    assert.equal(canExitUnexpectedPrivateAiSession({...s,private_ai:{...s.private_ai,...patch}}),false,JSON.stringify(patch));
-  assert.equal(canExitUnexpectedPrivateAiSession({...s,scene:'Lobby'}),false);
-  assert.equal(canExitUnexpectedPrivateAiSession({...s,foreground:{isolated_session_verified:false}}),false);
-  assert.equal(canExitUnexpectedPrivateAiSession(exactPrivateAi()),false);
-  assert.equal(canExitUnexpectedPrivateAiSession({}),false);
+    {opponent_human_bit_set:true},{client_ai_difficulty:null},{client_ai_difficulty:-1},
+    {client_ai_difficulty:1.5},{client_ai_difficulty:256,sparring_bot_number:257},{sparring_bot_number:2}])
+    assert.equal(privateArena({...s,private_ai:{...s.private_ai,...patch}}),false,JSON.stringify(patch));
+  for(const key of ['policy_proven','network_client_only','context_is_solo','solo_route_proven',
+    'opponent_is_ai','opponent_slot_is_ai','human_in_opponent_slot','opponent_slot_client_known',
+    'opponent_slot_has_client','opponent_human_bit_set','client_ai_difficulty','sparring_bot_number']) {
+    const p={...s.private_ai};delete p[key];
+    assert.equal(privateArena({...s,private_ai:p}),false,key);
+  }
+  assert.equal(privateArena({...s,scene:'Lobby'}),false);
+  assert.equal(privateArena({...s,foreground:{isolated_session_verified:false}}),false);
+  assert.equal(privateArena({}),false);
 });
-test('existing wrong-bot Idle arena exits once, observes Lobby Home, then reenters through native menus',async()=>{
-  const good=exactPrivateAi(),f=recoveryFixture([unexpectedPrivateAi(),homeState(),freePlayState(),good]);
-  assert.equal(await ensurePrivateArena(unexpectedPrivateAi(),f.options),good);
-  assert.deepEqual(f.commands,['ExitUnexpectedPrivateAiSession','NavigateFreePlay','EnterSolo']);
-  assert.equal(f.events.filter(x=>x.event==='unexpected_private_ai_recovery').length,1);
-});
-test('wrong-bot result during entry permits one fresh menu-route attempt and still demands exact Bot1',async()=>{
-  const good=exactPrivateAi(),f=recoveryFixture([freePlayState(),unexpectedPrivateAi(),homeState(),freePlayState(),good]);
-  assert.equal(await ensurePrivateArena(homeState(),f.options),good);
-  assert.deepEqual(f.commands,['NavigateFreePlay','EnterSolo','ExitUnexpectedPrivateAiSession','NavigateFreePlay','EnterSolo']);
-});
-test('a second wrong-bot reservation stops without a second exit or any StartRound request',async()=>{
-  const f=recoveryFixture([homeState(),freePlayState(),unexpectedPrivateAi()]);
-  await assert.rejects(ensurePrivateArena(unexpectedPrivateAi(),f.options),/unexpected private AI remained after one exit\/reentry/);
-  assert.deepEqual(f.commands,['ExitUnexpectedPrivateAiSession','NavigateFreePlay','EnterSolo']);
-});
-test('recovery requires explicit private entry and never changes difficulty',async()=>{
-  const f=recoveryFixture([exactPrivateAi()],{enterPrivate:false});
-  await assert.rejects(ensurePrivateArena(unexpectedPrivateAi(),f.options),/current client is not verified solo Bot1 arena/);
-  assert.deepEqual(f.commands,[]);
-  const good=exactPrivateAi();assert.equal(await ensurePrivateArena(good,f.options),good);
-});
-test('unexpected active AI or human occupancy cannot invoke the exit command',async()=>{
-  for(const patch of [{phase:'RoundActive',round_active:true,round_inactive:false},{human_in_opponent_slot:true}]) {
-    const s=unexpectedPrivateAi();Object.assign(s.private_ai,patch);const f=recoveryFixture([s]);
-    await assert.rejects(ensurePrivateArena(s,f.options),/private-practice entry timeout/);
-    assert.deepEqual(f.commands,[]);
+
+test('existing higher-bot arena is retained without exit, reentry, difficulty mutation or input',async()=>{
+  for(const good of [privateAi(2),activePrivateAi(7)]) {
+    const f=recoveryFixture([good],{enterPrivate:false});
+    assert.equal(await ensurePrivateArena(good,f.options),good);assert.deepEqual(f.commands,[]);
   }
 });
-test('native exit rejection or missing Lobby Home postcondition prevents reentry',async()=>{
-  const rejected=recoveryFixture([homeState()],{command:async()=>{throw Error('native exit rejected');}});
-  await assert.rejects(ensurePrivateArena(unexpectedPrivateAi(),rejected.options),/native exit rejected/);
-  const stuck=recoveryFixture([{scene:'Arena',lobby_screen:null}]);
-  await assert.rejects(ensurePrivateArena(unexpectedPrivateAi(),stuck.options),/unexpected private AI exit timeout/);
-  assert.deepEqual(stuck.commands,['ExitUnexpectedPrivateAiSession']);
+
+test('private entry accepts the assigned higher bot through the native private menu route',async()=>{
+  const good=privateAi(2),f=recoveryFixture([freePlayState(),good]);
+  assert.equal(await ensurePrivateArena(homeState(),f.options),good);
+  assert.deepEqual(f.commands,['NavigateFreePlay','EnterSolo']);
+  assert.deepEqual(f.events[0].opponent,{client_ai_difficulty:2,sparring_bot_number:3});
 });
-test('ready bootstrap requires explicitly absent visual pair and preserves the existing exact-Bot1 start path',()=>{
-  assert.equal(canReadyPrivateAiSession(bootstrapPrivateAi()),true);
-  assert.equal(canReadyPrivateAiSession(unexpectedPrivateAi()),false,'missing pair measurement is not absence');
-  const pair=bootstrapPrivateAi();pair.private_ai.client_visual_only_fighter_pair=true;
-  assert.equal(canReadyPrivateAiSession(pair),false);
-  assert.equal(canReadyPrivateAiSession(exactPrivateAi()),false);
-  assert.equal(canReadyPrivateAiSession(activePrivateAi(false)),false);
+
+test('unproven entry requires explicit authorization and does not control a human arena',async()=>{
+  const f=recoveryFixture([privateAi()],{enterPrivate:false});
+  await assert.rejects(ensurePrivateArena(homeState(),f.options),/not verified ready private AI arena/);
+  assert.deepEqual(f.commands,[]);
+  const s=privateAi(2);s.private_ai.human_in_opponent_slot=true;const human=recoveryFixture([s]);
+  await assert.rejects(ensurePrivateArena(s,human.options),/private-practice entry timeout/);
+  assert.deepEqual(human.commands,[]);
 });
-test('Idle inherited difficulty may bootstrap once into active exact Bot1 without exit or policy input',async()=>{
-  const good=activePrivateAi(),f=recoveryFixture([bootstrapPrivateAi(),good]);
+
+test('ready bootstrap requires measured absent visual pair and inactive private Idle',()=>{
+  for(const difficulty of [0,2,255])assert.equal(canReadyPrivateAiSession(bootstrapPrivateAi(difficulty)),true);
+  const missing=bootstrapPrivateAi();delete missing.private_ai.client_visual_only_fighter_pair;
+  assert.equal(canReadyPrivateAiSession(missing),false);
+  assert.equal(canReadyPrivateAiSession(privateAi()),false);
+  assert.equal(canReadyPrivateAiSession(activePrivateAi(2)),false);
+});
+
+test('native ready accepts any spawned private AI without an exit or difficulty mutation',async()=>{
+  for(const difficulty of [0,2,255]) {
+    const good=activePrivateAi(difficulty),f=recoveryFixture([bootstrapPrivateAi(),good]);
+    assert.equal(await ensurePrivateArena(bootstrapPrivateAi(),f.options),good);
+    assert.deepEqual(f.commands,['ReadyPrivateAiSession']);
+    assert.equal(f.events[0].opponent_identity,'unverified_until_active_spawn');
+    assert.deepEqual(f.events[1].opponent,botIdentity(good.private_ai));
+  }
+});
+
+test('ready bootstrap waits for spawned active policy proof even if legacy Bot1 scope is false',async()=>{
+  const waiting=activePrivateAi(2);waiting.private_ai.policy_active_gameplay_proven=false;
+  const unspawned=activePrivateAi(2);unspawned.private_ai.client_visual_only_fighter_pair=false;
+  const good=activePrivateAi(2),f=recoveryFixture([unspawned,waiting,good]);
   assert.equal(await ensurePrivateArena(bootstrapPrivateAi(),f.options),good);
   assert.deepEqual(f.commands,['ReadyPrivateAiSession']);
-  assert.equal(f.events[0].opponent_identity,'unverified_until_active_spawn');
 });
-test('ready bootstrap withholds policy until active spawned exact-Bot1 proof and input readiness',async()=>{
-  const waiting=activePrivateAi();waiting.private_ai.active_gameplay_proven=false;
-  const unspawned=activePrivateAi(false);unspawned.private_ai.client_visual_only_fighter_pair=false;
-  const good=activePrivateAi(),f=recoveryFixture([unspawned,waiting,good]);
-  assert.equal(await ensurePrivateArena(bootstrapPrivateAi(),f.options),good);
-  assert.deepEqual(f.commands,['ReadyPrivateAiSession']);
-});
-test('active spawned Bot3 after readiness stops with no policy stream, attack, retry, or difficulty mutation',async()=>{
-  const f=recoveryFixture([activePrivateAi(false)]);
-  await assert.rejects(ensurePrivateArena(bootstrapPrivateAi(),f.options),/active opponent is not exact Bot1; policy input withheld/);
-  assert.deepEqual(f.commands,['ReadyPrivateAiSession']);
-});
-test('ready bootstrap stops on human/route changes, native rejection, and timeout without another request',async()=>{
+
+test('ready bootstrap stops on human/route changes, unknown identity, rejection and timeout',async()=>{
   for(const change of [{human_in_opponent_slot:true},{solo_route_proven:false},{network_client_only:false}]) {
     const s=bootstrapPrivateAi();Object.assign(s.private_ai,change);const f=recoveryFixture([s]);
     await assert.rejects(ensurePrivateArena(bootstrapPrivateAi(),f.options),/route proof lost/);
     assert.deepEqual(f.commands,['ReadyPrivateAiSession']);
   }
+  const unknown=activePrivateAi(2);unknown.private_ai.client_ai_difficulty=null;
+  await assert.rejects(ensurePrivateArena(bootstrapPrivateAi(),recoveryFixture([unknown]).options),/identity unavailable/);
   const f=recoveryFixture([bootstrapPrivateAi()]);
   await assert.rejects(ensurePrivateArena(bootstrapPrivateAi(),f.options),/ready bootstrap timeout/);
   assert.deepEqual(f.commands,['ReadyPrivateAiSession']);
@@ -131,25 +128,55 @@ test('ready bootstrap stops on human/route changes, native rejection, and timeou
   await assert.rejects(ensurePrivateArena(bootstrapPrivateAi(),rejected.options),/ready rejected/);
 });
 
-test('automatic between-round transition waits without sending StartRound',()=>{
-  const private_ai={proven:true,solo_route_proven:true,context_is_solo:true,exact_sparring_bot_1:true,
-    opponent_is_ai:true,human_in_opponent_slot:false,round_active:false,phase:'BetweenRounds'};
-  assert.equal(betweenPrivateRounds({private_ai}),true);
-  assert.equal(betweenPrivateRounds({private_ai:{...private_ai,phase:'FightOver'}}),true);
-  for(const changed of [{phase:'Idle'},{phase:'RoundActive',round_active:true},{human_in_opponent_slot:true},{proven:false}])
-    assert.equal(betweenPrivateRounds({private_ai:{...private_ai,...changed}}),false);
+test('a stream pins bot identity and rejects mid-round changes or human occupancy',()=>{
+  const expected=botIdentity(privateAi(2).private_ai);
+  const measured={...expected,opponent_is_ai:true,human_in_opponent_slot:false};
+  assert.doesNotThrow(()=>validateBotIdentity(measured,expected));
+  for(const patch of [{client_ai_difficulty:0,sparring_bot_number:1},{client_ai_difficulty:null},
+    {sparring_bot_number:4},{opponent_is_ai:false},{human_in_opponent_slot:true}])
+    assert.throws(()=>validateBotIdentity({...measured,...patch},expected),/identity_changed_or_unproven/);
+  assert.throws(()=>validateBotIdentity(undefined,expected),/identity_changed_or_unproven/);
+});
+
+test('earlier successful actions cannot turn a later scope failure into a successful exit',()=>{
+  const s={predictions:100,applied:99,final_round:{active:false,result_value:1}};
+  for(const stop_reason of ['source_round_terminal','stream_end:active_round_not_observed','requested_duration_complete'])
+    assert.equal(trialExitCode({...s,stop_reason}),0);
+  for(const stop_reason of ['relay_callback:private_ai_identity_changed_or_unproven',
+    'stream_end:policy_opponent_identity_changed','private arena proof lost','source_stream_missing'])
+    assert.equal(trialExitCode({...s,stop_reason}),2);
+  assert.equal(trialExitCode({...s,stop_reason:'source_round_terminal',final_round:{active:true,result_value:0}}),2);
+  assert.equal(trialExitCode({...s,stop_reason:'requested_duration_complete',applied:0}),2);
+});
+
+test('automatic between-round transition waits without sending a round request',()=>{
+  const s=privateAi(2);
+  for(const phase of ['BetweenRounds','FightOver'])
+    assert.equal(betweenPrivateRounds({...s,private_ai:{...s.private_ai,phase}}),true);
+  assert.equal(betweenPrivateRounds(s),false);
+  assert.equal(betweenPrivateRounds(activePrivateAi(2)),false);
   assert.equal(betweenPrivateRounds({}),false);
 });
 
-test('round start uses the native Idle path; post-win space flag is not an idle prerequisite',()=>{
-  const private_ai={proven:true,solo_route_proven:true,context_is_solo:true,exact_sparring_bot_1:true,
-    opponent_is_ai:true,human_in_opponent_slot:false,round_active:false,phase:'Idle',space_gate_would_allow:true};
-  assert.equal(canRequestPrivateRound({private_ai}),true);
+test('any private AI round starts through native Idle; a loss prompt requires exit',()=>{
+  const s=privateAi(2);
+  assert.equal(canRequestPrivateRound(s),true);
   for(const phase of ['RoundActive','BetweenRounds','FightOver'])
-    assert.equal(canRequestPrivateRound({private_ai:{...private_ai,phase,active_gameplay_proven:false}}),false);
-  assert.equal(canRequestPrivateRound({private_ai:{...private_ai,space_gate_would_allow:false}}),true);
-  assert.equal(canRequestPrivateRound({private_ai:{...private_ai,post_fight_prompt:true,post_fight_is_winner:false}}),false);
-  assert.equal(canRequestPrivateRound({private_ai:{...private_ai,post_fight_prompt:true,post_fight_is_winner:true}}),true);
+    assert.equal(canRequestPrivateRound({...s,private_ai:{...s.private_ai,phase}}),false);
+  assert.equal(canRequestPrivateRound({...s,private_ai:{...s.private_ai,post_fight_prompt:true,post_fight_is_winner:false}}),false);
+  assert.equal(canRequestPrivateRound({...s,private_ai:{...s.private_ai,post_fight_prompt:true,post_fight_is_winner:true}}),true);
+});
+
+test('lost-session exit requires proven private AI, explicit inactivity, and a loss prompt',()=>{
+  const s=privateAi(2);Object.assign(s.private_ai,{post_fight_prompt:true,post_fight_is_winner:false});
+  assert.equal(canExitLostPrivateSession(s),true);
+  for(const patch of [{policy_proven:false},{human_in_opponent_slot:true},{round_active:true},
+    {round_inactive:false},{post_fight_prompt:false},{post_fight_is_winner:true}])
+    assert.equal(canExitLostPrivateSession({...s,private_ai:{...s.private_ai,...patch}}),false);
+  for(const key of ['round_active','round_inactive','post_fight_prompt','post_fight_is_winner']) {
+    const p={...s.private_ai};delete p[key];assert.equal(canExitLostPrivateSession({...s,private_ai:p}),false,key);
+  }
+  assert.equal(canExitLostPrivateSession({}),false);
 });
 
 test('send failure consumes the pending response rejection during disconnect cleanup',async()=>{
@@ -158,18 +185,7 @@ test('send failure consumes the pending response rejection during disconnect cle
   await assert.rejects(sendAndWait(endpoint,{},()=>true),/relay is not writable/);
   await new Promise(resolve=>setImmediate(resolve));
 });
-test('lost-session exit requires proven solo AI scope, explicit inactivity, and a loss prompt',()=>{
-  const private_ai={proven:true,solo_route_proven:true,context_is_solo:true,exact_sparring_bot_1:true,
-    opponent_is_ai:true,human_in_opponent_slot:false,round_active:false,round_inactive:true,
-    post_fight_prompt:true,post_fight_is_winner:false};
-  assert.equal(canExitLostPrivateSession({private_ai}),true);
-  for(const key of Object.keys(private_ai)) {
-    const changed={...private_ai};delete changed[key];
-    assert.equal(canExitLostPrivateSession({private_ai:changed}),false,key);
-    assert.equal(canExitLostPrivateSession({private_ai:{...private_ai,[key]:!private_ai[key]}}),false,key);
-  }
-  assert.equal(canExitLostPrivateSession({}),false);
-});
+
 test('worker readiness pins the full selected inference contract',()=>{
   assert.doesNotThrow(()=>validateWorkerReady(ready(),sha));
   for(const key of Object.keys(ready())) {

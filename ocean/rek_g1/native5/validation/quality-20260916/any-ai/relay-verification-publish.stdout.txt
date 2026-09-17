@@ -1,0 +1,5 @@
+MSBuild version 17.8.3+195e7f5a3 for .NET
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  RekUiPipeClient -> C:\Users\Daniel\codex-rek-puffysics-training-profile\ocean\rek\evidence\windows\RekUiPipeClient\bin\Release\net8.0\win-x64\RekUiPipeClient.dll
+  RekUiPipeClient -> C:\rekagent\work\g1-any-ai-20260917\verification\relay\

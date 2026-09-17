@@ -11,7 +11,8 @@ internal static class PolicyRelay
     private static readonly HashSet<string> Commands = new(StringComparer.Ordinal) {
         "AcquireExclusiveControl", "ReleaseExclusiveControl", "StartG1PolicyStream", "StopG1PolicyStream",
         "StartRound", "ConfirmLoggedIn", "NavigateFreePlay", "EnterSolo", "ExitLostPrivateSession",
-        "ExitUnexpectedPrivateAiSession", "ReadyPrivateAiSession" };
+        "ExitUnexpectedPrivateAiSession", "ReadyPrivateAiSession",
+        "StartG1PolicyRound", "ExitLostG1PolicySession", "StartG1PolicyStreamAnyAi" };
 
     internal static async Task<int> Run(string[] args)
     {

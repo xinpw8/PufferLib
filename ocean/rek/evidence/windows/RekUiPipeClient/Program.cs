@@ -2750,6 +2750,9 @@ static void ValidateHello(
             "StartG1PolicyStream",
             "StopG1PolicyStream",
             "ReadyPrivateAiSession",
+            "StartG1PolicyRound",
+            "ExitLostG1PolicySession",
+            "StartG1PolicyStreamAnyAi",
         });
     RequireTrue(capabilities, "exclusive_control_lease_required");
     RequireFalse(capabilities, "autonomous_input");

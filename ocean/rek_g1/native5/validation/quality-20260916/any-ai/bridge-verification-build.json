@@ -1,0 +1,17 @@
+{
+  "command": [
+    "dotnet",
+    "build",
+    "ocean/rek/evidence/windows/RekUiBridgeAgent/RekUiBridgeAgent.csproj",
+    "-c",
+    "Release",
+    "-o",
+    "C:\\rekagent\\work\\g1-any-ai-20260917\\verification\\bridge"
+  ],
+  "working_directory": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile",
+  "began_utc": "2026-09-17T00:59:51.0415944+00:00",
+  "finished_utc": "2026-09-17T00:59:51.9969422+00:00",
+  "exit_code": 0,
+  "stdout": "MSBuild version 17.8.3+195e7f5a3 for .NET\r\n  Determining projects to restore...\r\n  All projects are up-to-date for restore.\r\n  RekUiBridgeAgent -> C:\\rekagent\\work\\g1-any-ai-20260917\\verification\\bridge\\RekUiBridgeAgent.dll\r\n\r\nBuild succeeded.\r\n    0 Warning(s)\r\n    0 Error(s)\r\n\r\nTime Elapsed 00:00:00.72\r\n",
+  "stderr": ""
+}

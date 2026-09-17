@@ -1,0 +1,8 @@
+{
+  "command": "dotnet run --project ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/RekUiBridgeAgent.ProtocolTests.csproj -c Release",
+  "working_directory": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile",
+  "exit_code": 1,
+  "combined_stdout_stderr": "PIPE_INFO Accepted local current-user pipe client, connection 1.\r\nFAIL 1: writer_failure_reconnect:TaskCanceledException\r\n",
+  "elapsed_seconds": 5.5928647,
+  "observation": "Writer serialization failure with the original reader-only wait leaves CurrentConnectionId nonzero while the peer remains open; local reconnect fixture timed out."
+}

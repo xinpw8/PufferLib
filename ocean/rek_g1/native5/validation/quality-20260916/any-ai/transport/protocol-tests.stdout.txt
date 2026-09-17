@@ -1,0 +1,3 @@
+PIPE_INFO Accepted local current-user pipe client, connection 1.
+PIPE_INFO Pipe client disconnected, connection 1.
+PASS protocol_cases=302 local_pipe_roundtrip=true

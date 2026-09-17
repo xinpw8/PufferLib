@@ -1,0 +1,32 @@
+✔ held categories distinguish translation from neutral and yaw (0.6699ms)
+✔ replay counts source-mask defect without claiming counterfactual outcomes (15.1465ms)
+✔ any known private bot is accepted, with measured identity and independent legacy Bot1 proof (1.4679ms)
+✔ unknown bot identity, public route, humans, occupancy uncertainty and missing isolation reject scope (0.2604ms)
+✔ existing higher-bot arena is retained without exit, reentry, difficulty mutation or input (0.3549ms)
+✔ private entry accepts the assigned higher bot through the native private menu route (0.2595ms)
+✔ unproven entry requires explicit authorization and does not control a human arena (2.8348ms)
+✔ ready bootstrap requires measured absent visual pair and inactive private Idle (0.1743ms)
+✔ native ready accepts any spawned private AI without an exit or difficulty mutation (0.2147ms)
+✔ ready bootstrap waits for spawned active policy proof even if legacy Bot1 scope is false (0.1405ms)
+✔ ready bootstrap stops on human/route changes, unknown identity, rejection and timeout (1.2293ms)
+✔ a stream pins bot identity and rejects mid-round changes or human occupancy (0.3969ms)
+✔ earlier successful actions cannot turn a later scope failure into a successful exit (0.1504ms)
+✔ automatic between-round transition waits without sending a round request (0.1233ms)
+✔ any private AI round starts through native Idle; a loss prompt requires exit (0.1075ms)
+✔ lost-session exit requires proven private AI, explicit inactivity, and a loss prompt (0.1541ms)
+✔ send failure consumes the pending response rejection during disconnect cleanup (5.4606ms)
+✔ worker readiness pins the full selected inference contract (0.4812ms)
+✔ action identity and categorical range are checked before relay (0.3336ms)
+✔ callback write failures are routed through shutdown instead of escaping (0.1345ms)
+✔ one decision stays inflight until the matching Unity action acknowledgment (0.4552ms)
+✔ rejected game actions advance the measured boundary without action replay (0.149ms)
+✔ missing or regressing measured clocks cannot be replaced with host time (0.2371ms)
+✔ worker startup fatal rejects promptly, without waiting for ready timeout (45.008ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 125.2126

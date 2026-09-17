@@ -1,0 +1,10 @@
+MSBuild version 17.8.3+195e7f5a3 for .NET
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  RekUiBridgeAgent -> C:\rekagent\work\g1-any-ai-20260917\verification\bridge\RekUiBridgeAgent.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.72

@@ -4,6 +4,38 @@ namespace RekUiBridgeAgent;
 
 internal sealed record G1PolicyAction(string RoundIdentity, long ObservationSequence, int Action);
 
+internal readonly record struct G1PolicyOpponentIdentity(int Difficulty, int BotNumber)
+{
+    internal bool Known => Difficulty is >= 0 and <= 255 && BotNumber == Difficulty + 1;
+    internal bool ExactBotOne => Difficulty == 0 && BotNumber == 1;
+}
+
+internal readonly record struct G1PolicyOpponentFacts(
+    bool OccupancyKnown, bool HasClient, bool HumanBit, bool HumanInSlot,
+    bool OpponentIsAi, bool SlotIsAi, G1PolicyOpponentIdentity Identity)
+{
+    internal bool NoHumanAi => OccupancyKnown && !HasClient && !HumanBit &&
+        !HumanInSlot && OpponentIsAi && SlotIsAi;
+}
+
+internal static class G1PolicyOpponentContract
+{
+    internal static string? RejectReason(G1PolicyOpponentFacts f, bool allowAnyAi) =>
+        !f.OccupancyKnown ? "opponent_client_occupancy_unknown" :
+        !f.NoHumanAi ? "exact_sparring_bot_1_scope_not_proven" :
+        !f.Identity.Known ? "ai_opponent_identity_not_proven" :
+        !allowAnyAi && !f.Identity.ExactBotOne ? "unexpected_sparring_bot_difficulty" : null;
+
+    // Difficulty is policy eligibility, not evidence of a route/occupancy change.
+    internal static bool InvalidatesRoute(G1PolicyOpponentFacts f) =>
+        !f.NoHumanAi || !f.Identity.Known;
+
+    internal static string? PinnedRejectReason(
+        G1PolicyOpponentIdentity current, G1PolicyOpponentIdentity? pinned) =>
+        !current.Known || pinned is null || current != pinned.Value
+            ? "policy_opponent_identity_changed" : null;
+}
+
 internal readonly record struct PrivateAiBootstrapFacts(
     bool Isolated, bool ControlsIdle, bool ClientOnly, bool PrivateSolo,
     bool SlotsKnownNoHumanAi, bool RemoteDriven, bool IdleInactive,

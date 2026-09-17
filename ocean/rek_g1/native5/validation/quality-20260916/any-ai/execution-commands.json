@@ -1,0 +1,82 @@
+[
+  {
+    "kind": "deployment",
+    "host": "spark-4ae3",
+    "command": "set -eu\nb=/home/spark-advantage/rek-training/policy-quality-20260916-r1\nbash \"$b/deploy-any-ai.sh\" 2edf75c65e6693db28eb7e87c45d88522668f549c7b457cdf0aa108582667952 6d2be4dd37207a2ac609547a4af21ac917aeef4ade21d7bcdccdc9b7c1572c1f 835e7792d7b20d6ae9ff3c49d4d0f99ad38a63af36b0b6c7bfd1b30550aca7a1\n",
+    "exit_code": 0
+  },
+  {
+    "kind": "live_trial_r1",
+    "host": "spark-4ae3",
+    "command": "set -eu\nb=/home/spark-advantage/rek-training/policy-quality-20260916-r1\nnode \"$b/source/ocean/rek_g1/native5/run_live_mask_trial.cjs\" \"$b/live-any-ai-base.json\" \"$b/encoder-after/encode-live\" \"$b/live_transfer_run.cjs\" \"$b/live-any-ai-r1\" \"$b/train-bot1-rendered-r1/checkpoints/rek_native5/train-bot1-rendered-r1/0000000536870912.bin\" 6d2be4dd37207a2ac609547a4af21ac917aeef4ade21d7bcdccdc9b7c1572c1f\n",
+    "exit_code": 0
+  },
+  {
+    "kind": "live_trial_r2",
+    "host": "spark-4ae3",
+    "command": "set -eu\nb=/home/spark-advantage/rek-training/policy-quality-20260916-r1\nnode \"$b/source/ocean/rek_g1/native5/run_live_mask_trial.cjs\" \"$b/live-any-ai-base.json\" \"$b/encoder-after/encode-live\" \"$b/live_transfer_run.cjs\" \"$b/live-any-ai-r2\" \"$b/train-bot1-rendered-r1/checkpoints/rek_native5/train-bot1-rendered-r1/0000000536870912.bin\" 6d2be4dd37207a2ac609547a4af21ac917aeef4ade21d7bcdccdc9b7c1572c1f\n",
+    "exit_code": 2
+  },
+  {
+    "kind": "audit_r1_incorrect_optional_argument",
+    "host": "spark-4ae3",
+    "command": "set -eu\nb=/home/spark-advantage/rek-training/policy-quality-20260916-r1\nnode \"$b/audit_live_policy_quality_modes.cjs\" \"$b/live-any-ai-r1/trial\" \"$b/live-any-ai-r1.audit.json\" \"$b/encoder-after/encode-live\"\nsha256sum \"$b/live-any-ai-r1/trial/relay.stdout.jsonl\" \"$b/live-any-ai-r1/trial/encoder.stdout.jsonl\" \"$b/live-any-ai-r1/trial/summary.json\"\n",
+    "exit_code": 1,
+    "reason": "Passed native encoder binary where optional corrected JSONL path was expected; report not created."
+  },
+  {
+    "kind": "audit_r1_corrected",
+    "host": "spark-4ae3",
+    "command": "set -eu\nb=/home/spark-advantage/rek-training/policy-quality-20260916-r1\nnode \"$b/audit_live_policy_quality_modes.cjs\" \"$b/live-any-ai-r1/trial\" \"$b/live-any-ai-r1.audit.json\"\n",
+    "exit_code": 0
+  },
+  {
+    "kind": "audit_r2",
+    "host": "spark-4ae3",
+    "command": "set -eu\nb=/home/spark-advantage/rek-training/policy-quality-20260916-r1\nnode \"$b/audit_live_policy_quality_modes.cjs\" \"$b/live-any-ai-r2/trial\" \"$b/live-any-ai-r2.audit.json\"\n",
+    "exit_code": 0
+  },
+  {
+    "kind": "post_stall_passive_ownership",
+    "host": "spark-4ae3",
+    "command": "set -eu\nb=/home/spark-advantage/rek-training/policy-quality-20260916-r1\nnode <<'JS' | tee \"$b/any-ai-recovery-state.json\"\nconst c=require('/home/spark-advantage/rek-training/policy-quality-20260916-r1/live-any-ai-base.json');\nconst {spawn}=require('node:child_process'),p=spawn(c.relay[0],c.relay.slice(1),{stdio:['pipe','pipe','ignore']});\nconst lines=require('node:readline').createInterface({input:p.stdout});let done=false;\nlines.on('line',s=>{try {const x=JSON.parse(s);\nif(x.event==='hello')p.stdin.write(JSON.stringify({type:'get_state',request_id:'post-stall-ownership'})+'\\n');\nif(x.event==='state'&&!done){done=true;console.log(JSON.stringify({utc:new Date().toISOString(),host:require('node:os').hostname(),scene:x.scene,lobby_screen:x.lobby_screen,lease_held:x.control?.lease_held,g1_policy_stream_running:x.control?.g1_policy_stream_running,private_ai:x.private_ai,isolated_session_verified:x.foreground?.isolated_session_verified}));p.stdin.end();}\n}catch {}});\nsetTimeout(()=>{p.kill('SIGTERM');process.exitCode=done?0:2;},10000).unref();\nJS\n",
+    "exit_code": 0
+  },
+  {
+    "kind": "node_tests",
+    "host": "D21",
+    "command": "node --test ocean/rek_g1/native5/live_transfer_run.test.cjs ocean/rek_g1/native5/audit_live_policy_quality.test.cjs",
+    "exit_code": 0,
+    "passed": 24
+  },
+  {
+    "kind": "transport_deployment",
+    "host": "spark-4ae3",
+    "command": "set -eu\nb=/home/spark-advantage/rek-training/policy-quality-20260916-r1\nbash \"$b/deploy-any-ai-transport.sh\" 6d2be4dd37207a2ac609547a4af21ac917aeef4ade21d7bcdccdc9b7c1572c1f 6c88b9e3718f5549c146865a4a336515385e5b019fd8321a6f5e1fec4253a5e4 835e7792d7b20d6ae9ff3c49d4d0f99ad38a63af36b0b6c7bfd1b30550aca7a1\n",
+    "exit_code": 0
+  },
+  {
+    "kind": "live_trial_r3_startup_failure",
+    "host": "spark-4ae3",
+    "command": "set -eu\nb=/home/spark-advantage/rek-training/policy-quality-20260916-r1\nnode \"$b/source/ocean/rek_g1/native5/run_live_mask_trial.cjs\" \"$b/live-any-ai-base.json\" \"$b/encoder-after/encode-live\" \"$b/live_transfer_run.cjs\" \"$b/live-any-ai-r3\" \"$b/train-bot1-rendered-r1/checkpoints/rek_native5/train-bot1-rendered-r1/0000000536870912.bin\" 6c88b9e3718f5549c146865a4a336515385e5b019fd8321a6f5e1fec4253a5e4\n",
+    "exit_code": 2
+  },
+  {
+    "kind": "owned_isolated_relaunch",
+    "host": "spark-4ae3",
+    "command": "set -eu\nrun=/home/spark-advantage/codexrook-runtime/live-transfer-20260915\nbash \"$run/live_transfer_runtime.sh\" start\n",
+    "exit_code": 0
+  },
+  {
+    "kind": "live_trial_r4_after_transport_fix",
+    "host": "spark-4ae3",
+    "command": "set -eu\nb=/home/spark-advantage/rek-training/policy-quality-20260916-r1\nnode \"$b/source/ocean/rek_g1/native5/run_live_mask_trial.cjs\" \"$b/live-any-ai-base.json\" \"$b/encoder-after/encode-live\" \"$b/live_transfer_run.cjs\" \"$b/live-any-ai-r4\" \"$b/train-bot1-rendered-r1/checkpoints/rek_native5/train-bot1-rendered-r1/0000000536870912.bin\" 6c88b9e3718f5549c146865a4a336515385e5b019fd8321a6f5e1fec4253a5e4\n",
+    "exit_code": 0
+  },
+  {
+    "kind": "audit_r4",
+    "host": "spark-4ae3",
+    "command": "set -eu\nb=/home/spark-advantage/rek-training/policy-quality-20260916-r1\nnode \"$b/audit_live_policy_quality_modes.cjs\" \"$b/live-any-ai-r4/trial\" \"$b/live-any-ai-r4.audit.json\"\n",
+    "exit_code": 0
+  }
+]

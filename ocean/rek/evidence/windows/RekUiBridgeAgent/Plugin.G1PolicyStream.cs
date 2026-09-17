@@ -7,6 +7,8 @@ namespace RekUiBridgeAgent;
 public sealed partial class Plugin
 {
     private bool _g1PolicyRunning;
+    private bool _g1PolicyAllowAnyAi;
+    private G1PolicyOpponentIdentity? _g1PolicyOpponent;
     private RobotInputController? _g1PolicyInput;
     private TrialRoundIdentity? _g1PolicyIdentity;
     private string? _g1PolicyRound;
@@ -26,19 +28,34 @@ public sealed partial class Plugin
     private string? _g1PolicyMoveRequestId;
     private long _g1PolicyMoveAt;
 
-    private bool TryPolicyScope(out PrivateAiContext scope, out string reason, bool active = true)
+    private static bool TryGetG1PolicyContext(bool active, out PrivateAiContext scope,
+        out string reason, bool allowAnyAi = false)
     {
         scope = null!;
         if (!RequireBackgroundControl(out reason) ||
             !TryVerifyExplicitIsolatedSession(out var proof) ||
             proof != G1HeldInputScheduleContract.RequiredIsolationProof)
         { reason = "exact_isolated_spark_marker_not_proven"; return false; }
-        if (!TryGetPrivateAiContext(active, out scope, out reason)) return false;
+        if (!TryGetPrivateAiContext(active, out scope, out reason, allowAnyAi: allowAnyAi)) return false;
+        if (active && !ReadMeasuredPairing(scope.Coordinator, scope.LocalSlot, scope.OpponentSlot).Validation.ExactG1VersusG1)
+        { reason = "exact_g1_pairing_not_proven"; return false; }
+        return true;
+    }
+
+    private bool TryPolicyScope(out PrivateAiContext scope, out string reason,
+        bool active = true, bool? allowAnyAi = null)
+    {
+        if (!TryGetG1PolicyContext(active, out scope, out reason,
+                allowAnyAi ?? (_g1PolicyRunning && _g1PolicyAllowAnyAi))) return false;
         var pair = ReadMeasuredPairing(scope.Coordinator, scope.LocalSlot, scope.OpponentSlot);
         if (!pair.Validation.ExactG1VersusG1)
         { reason = "exact_g1_pairing_not_proven"; return false; }
         if (_g1PolicyRunning)
         {
+            var opponentReason = G1PolicyOpponentContract.PinnedRejectReason(
+                PolicyOpponentIdentity(scope), _g1PolicyOpponent);
+            if (opponentReason is not null)
+            { reason = opponentReason; return false; }
             if (_leaseConnectionId == 0 || _leaseConnectionId != (_pipe?.CurrentConnectionId ?? 0))
             { reason = "policy_lease_lost"; return false; }
             if (active && (!TryCreateTrialRoundIdentity(scope, out var identity, out reason) ||
@@ -48,7 +65,7 @@ public sealed partial class Plugin
         return true;
     }
 
-    private CommandResult StartG1PolicyStream()
+    private CommandResult StartG1PolicyStream(bool allowAnyAi = false)
     {
         if (_g1PolicyRunning || _scheduleRunning || _singleMotionTrialRunning ||
             _continuousControllerRunning || _g1HeldScheduleRunning ||
@@ -56,7 +73,8 @@ public sealed partial class Plugin
             return CommandResult.Rejected("another_control_mode_already_running");
         if (!SameFloatBits(Time.fixedDeltaTime, 0.002f) || !_sendBoundaryPatchesVerified)
             return CommandResult.Rejected("policy_fixed_rate_or_send_hooks_not_verified");
-        if (!TryPolicyScope(out var scope, out var reason)) return CommandResult.Rejected(reason);
+        if (!TryPolicyScope(out var scope, out var reason, allowAnyAi: allowAnyAi))
+            return CommandResult.Rejected(reason);
         var input = scope.Input!;
         if (input.hasPendingMove || input.hasPendingSpecial || input.hasPendingEStop ||
             input.IsPunching || input.IsRecovering || !VelocityEquals(input.VelocityCommand, Vector3.zero))
@@ -68,6 +86,8 @@ public sealed partial class Plugin
         if (moves is null || moves.Count != 17 || Enumerable.Range(0, 17).Any(i => moves[i] is null))
             return CommandResult.Rejected("g1_17_move_map_not_available");
         _g1PolicyInput = input; _g1PolicyIdentity = identity;
+        _g1PolicyAllowAnyAi = allowAnyAi;
+        _g1PolicyOpponent = PolicyOpponentIdentity(scope);
         _g1PolicyRound = HashTrialRoundIdentity(identity);
         _g1PolicyObservations.Clear(); _g1PolicyConsumed = _g1PolicySequence;
         _g1PolicyLastAction = Stopwatch.GetTimestamp(); _g1PolicyReceivedAction = false;
@@ -115,6 +135,7 @@ public sealed partial class Plugin
             owned_pending_move_cleared = pendingCleared, global_input_emitted = false,
             server_acceptance = "unknown", clock = PolicyClock() });
         _g1PolicyInput = null; _g1PolicyIdentity = null; _g1PolicyPendingMove = null;
+        _g1PolicyOpponent = null; _g1PolicyAllowAnyAi = false;
         _g1PolicyHeld = G1HeldMask.None; _g1PolicyVelocity = Vector3.zero;
         _g1PolicyObservations.Clear();
     }
@@ -323,7 +344,8 @@ public sealed partial class Plugin
         string? diagnostic = null;
         try
         {
-            if (!TryPolicyScope(out var scope, out var reason, active: false))
+            if (!TryPolicyScope(out var scope, out var reason, active: false,
+                    allowAnyAi: !_g1PolicyRunning || _g1PolicyAllowAnyAi))
             {
                 diagnostic = reason;
                 throw new InvalidDataException(reason);
@@ -350,6 +372,13 @@ public sealed partial class Plugin
                 @event = "g1_policy_state", protocol = "rek.ui_bridge.v1", schema = G1PolicyStreamContract.Schema,
                 request_id = requestId, observation_sequence = sequence, round_identity_sha256 = hash,
                 local_slot = scope.LocalSlot, phase = (int)scope.Coordinator.CurrentPhase,
+                opponent = new {
+                    client_ai_difficulty = scope.Coordinator.clientAiDifficultyLevel,
+                    sparring_bot_number = scope.Coordinator.SparringBotNumber,
+                    opponent_is_ai = scope.Coordinator.OpponentIsAI,
+                    human_in_opponent_slot = scope.Coordinator.HumanInSlot(scope.OpponentSlot),
+                    exact_sparring_bot_1 = PolicyOpponentIdentity(scope).ExactBotOne },
+                policy_opponent_scope = _g1PolicyRunning && !_g1PolicyAllowAnyAi ? "exact_bot_1" : "known_private_ai",
                 stream_active = _g1PolicyRunning, authority_scope = "client_replicated_and_local_observations",
                 global_input_emitted = false, server_acceptance = "unknown", clock = PolicyClock(now),
                 fighters = new[] { PolicyFighter(fighters[0], input), PolicyFighter(fighters[1], input) },
@@ -395,6 +424,9 @@ public sealed partial class Plugin
             if (_g1PolicyRunning) StopG1PolicyStream("policy_state_unavailable:" + e.GetType().Name);
         }
     }
+
+    private static G1PolicyOpponentIdentity PolicyOpponentIdentity(PrivateAiContext scope) =>
+        new(scope.Coordinator.clientAiDifficultyLevel, scope.Coordinator.SparringBotNumber);
 
     private static object PolicyFighter(Robot robot, RobotInputController input)
     {

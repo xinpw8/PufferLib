@@ -1,0 +1,1 @@
+{"passed":6433,"publication_counts_per_ten_seconds":{"fps60":500,"fps100":500,"fps30":300},"native_game_invocations":0,"global_input_invocations":0}

@@ -20,11 +20,41 @@ Reject("{\"type\":\"input\",\"request_id\":\"x\",\"key\":\"Space\"}");
 Reject("{\"type\":\"command\",\"request_id\":\"x\",\"command\":\"StartContinuousBotController\"}");
 foreach (var type in new[] { "get_state", "get_policy_state" })
 { PolicyRelay.ValidateRequest(JsonSerializer.Serialize(new { type, request_id = "read1" })); cases++; }
-foreach (var command in new[] { "AcquireExclusiveControl", "StartG1PolicyStream", "StopG1PolicyStream", "ReleaseExclusiveControl", "StartRound", "ExitUnexpectedPrivateAiSession", "ReadyPrivateAiSession" })
+foreach (var command in new[] { "AcquireExclusiveControl", "StartG1PolicyStream", "StopG1PolicyStream", "ReleaseExclusiveControl", "StartRound", "ExitUnexpectedPrivateAiSession", "ReadyPrivateAiSession", "StartG1PolicyRound", "ExitLostG1PolicySession", "StartG1PolicyStreamAnyAi" })
 { PolicyRelay.ValidateRequest(JsonSerializer.Serialize(new { type = "command", request_id = "c1", command })); cases++; }
 Reject("{\"type\":\"command\",\"request_id\":\"x\",\"command\":\"ExitUnexpectedPrivateAiSession\",\"difficulty\":0}");
 Reject("{\"type\":\"command\",\"request_id\":\"x\",\"command\":\"SetAiDifficulty\"}");
 Reject("{\"type\":\"command\",\"request_id\":\"x\",\"command\":\"ReadyPrivateAiSession\",\"difficulty\":0}");
+foreach (var command in new[] { "StartG1PolicyRound", "ExitLostG1PolicySession", "StartG1PolicyStreamAnyAi" })
+    Reject(JsonSerializer.Serialize(new { type="command", request_id="x", command, difficulty=2 }));
+var botOne = new G1PolicyOpponentIdentity(0, 1);
+for (var difficulty=0; difficulty<=255; difficulty++)
+{
+    var identity = new G1PolicyOpponentIdentity(difficulty, difficulty+1);
+    var facts = new G1PolicyOpponentFacts(true,false,false,false,true,true,identity);
+    Check(identity.Known && identity.ExactBotOne == (difficulty==0), "known AI identity does not imply exact Bot1");
+    Check(G1PolicyOpponentContract.RejectReason(facts, true) is null, "opt-in accepts every measured byte difficulty");
+    Check((G1PolicyOpponentContract.RejectReason(facts, false) is null) == (difficulty==0), "legacy scope remains exact Bot1");
+    Check(!G1PolicyOpponentContract.InvalidatesRoute(facts), "legacy eligibility rejection cannot erase valid higher-bot route");
+    Check(G1PolicyOpponentContract.PinnedRejectReason(identity, identity) is null, "current stream retains measured identity");
+    Check((G1PolicyOpponentContract.PinnedRejectReason(identity, botOne) is null) == (difficulty==0), "in-stream bot change rejected");
+    Check(G1PolicyOpponentContract.PinnedRejectReason(identity, null) is not null, "missing stream identity rejected");
+}
+foreach (var identity in new[] { new G1PolicyOpponentIdentity(-1,0), new(256,257), new(2,1), new(0,3), new(int.MaxValue,int.MinValue) })
+{
+    var facts = new G1PolicyOpponentFacts(true,false,false,false,true,true,identity);
+    Check(!identity.Known && G1PolicyOpponentContract.RejectReason(facts, true) is not null, "unknown/inconsistent AI identity rejected");
+    Check(G1PolicyOpponentContract.InvalidatesRoute(facts), "invalid identity does not preserve route eligibility");
+    Check(G1PolicyOpponentContract.PinnedRejectReason(identity, identity) is not null, "an invalid pin cannot authorize a stream");
+}
+for (var bits=0; bits<64; bits++)
+{
+    var facts = new G1PolicyOpponentFacts((bits&1)!=0,(bits&2)!=0,(bits&4)!=0,
+        (bits&8)!=0,(bits&16)!=0,(bits&32)!=0,new(2,3));
+    var safe = bits==(1|16|32);
+    Check((G1PolicyOpponentContract.RejectReason(facts,true) is null)==safe, "all no-human occupancy facts remain necessary");
+    Check(G1PolicyOpponentContract.InvalidatesRoute(facts)==!safe, "unknown/client/human/non-AI occupancy invalidates route");
+}
 var bootstrap = new PrivateAiBootstrapFacts(true,true,true,true,true,true,true,true,true,true,true,true,false);
 Check(PrivateAiBootstrapContract.RejectReason(bootstrap) is null, "fully scoped native ready allowed");
 foreach (var rejected in new[] { bootstrap with { Isolated=false }, bootstrap with { ControlsIdle=false },

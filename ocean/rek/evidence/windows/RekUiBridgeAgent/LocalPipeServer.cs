@@ -64,6 +64,7 @@ internal sealed class LocalPipeServer : IDisposable
         while (!_stop.IsCancellationRequested)
         {
             NamedPipeServerStream? pipe = null;
+            long connectionId = 0;
             try
             {
                 pipe = CreatePipe();
@@ -78,9 +79,8 @@ internal sealed class LocalPipeServer : IDisposable
                     continue;
                 }
 
-                var connectionId = Interlocked.Increment(ref _nextConnectionId);
+                connectionId = Interlocked.Increment(ref _nextConnectionId);
                 using var connectionStop = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
-                var writerTask = WriteLoopAsync(pipe, connectionId, connectionStop.Token);
                 Send(connectionId, new
                 {
                     @event = "hello",
@@ -323,22 +323,31 @@ internal sealed class LocalPipeServer : IDisposable
                 Interlocked.Exchange(ref _currentConnectionId, connectionId);
                 _logInfo($"Accepted local current-user pipe client, connection {connectionId}.");
 
+                var readerTask = ReadLoopAsync(pipe, connectionId, connectionStop.Token);
+                var writerTask = WriteLoopAsync(pipe, connectionId, connectionStop.Token);
+                var completed = await Task.WhenAny(readerTask, writerTask).ConfigureAwait(false);
                 try
                 {
-                    await ReadLoopAsync(pipe, connectionId, connectionStop.Token).ConfigureAwait(false);
+                    await completed.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (connectionStop.IsCancellationRequested)
+                {
+                }
+                catch (Exception exception)
+                {
+                    var direction = completed == readerTask ? "read" : "write";
+                    _logWarning($"Pipe {direction} loop failed: {exception.GetType().Name}");
                 }
                 finally
                 {
-                    connectionStop.Cancel();
-                    try
-                    {
-                        await writerTask.ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                    }
+                    // Clear ownership before cancellation or faulted-task draining.
+                    // The Unity fixed-update lease guard can then neutralize control.
                     if (Interlocked.CompareExchange(ref _currentConnectionId, 0, connectionId) == connectionId)
                         _logInfo($"Pipe client disconnected, connection {connectionId}.");
+                    connectionStop.Cancel();
+                    pipe.Dispose();
+                    if (!await DrainConnectionAsync(readerTask, writerTask, TimeSpan.FromSeconds(1)).ConfigureAwait(false))
+                        _logWarning("Pipe connection cleanup timed out.");
                 }
             }
             catch (OperationCanceledException) when (_stop.IsCancellationRequested)
@@ -367,6 +376,8 @@ internal sealed class LocalPipeServer : IDisposable
             }
             finally
             {
+                if (connectionId > 0)
+                    Interlocked.CompareExchange(ref _currentConnectionId, 0, connectionId);
                 lock (_activePipeLock)
                 {
                     if (ReferenceEquals(_activePipe, pipe))
@@ -375,6 +386,22 @@ internal sealed class LocalPipeServer : IDisposable
                 pipe?.Dispose();
             }
         }
+    }
+
+    internal static async Task<bool> DrainConnectionAsync(Task readerTask, Task writerTask, TimeSpan timeout)
+    {
+        var paired = Task.WhenAll(readerTask, writerTask);
+        if (await Task.WhenAny(paired, Task.Delay(timeout)).ConfigureAwait(false) != paired)
+        {
+            // Observe any eventual failure without blocking a new connection.
+            _ = paired.ContinueWith(task => { _ = task.Exception; }, CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            return false;
+        }
+        try { await paired.ConfigureAwait(false); }
+        catch { /* The terminating loop's sanitized diagnostic was emitted above. */ }
+        return true;
     }
 
     private NamedPipeServerStream CreatePipe() => new(
@@ -454,7 +481,7 @@ internal sealed class LocalPipeServer : IDisposable
         while (!cancellationToken.IsCancellationRequested && pipe.IsConnected)
         {
             await _outboundSignal.WaitAsync(cancellationToken).ConfigureAwait(false);
-            while (_outbound.TryDequeue(out var message))
+            while (!cancellationToken.IsCancellationRequested && _outbound.TryDequeue(out var message))
             {
                 if (message.ConnectionId != connectionId)
                     continue;
