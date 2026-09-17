@@ -17,13 +17,15 @@ The [numeric result bundle](results/README.md) contains all 1,024 held-out match
 
 The before/after runs share the seed and all 512 match keys. Six recorded `initial_xy` rows differ by at most 0.001600027 m. They must not be described as byte-identical recorded starting positions. The four geometry variants have identical recorded initial coordinates. See the result bundle for the measurement qualification.
 
+Source tracing subsequently resolved the coordinate-recording qualification: `diverse_policy_eval.cu` calls `rek_native5_step` before its first `collect_captured` invocation. The latter initializes `initial_xy` from that post-step observation. A first-step displacement is 0.0008 m with the recorded 2 m/s² acceleration and 0.02 s step; opposite actions can differ by 0.0016 m. The deployed and local evaluator source share SHA-256 `b5075b456e1eb297226fcccedebea2a655fd8a50529f9e70c7ba880235bdbc5a`. The exported original values remain unchanged.
+
 ## Human evidence
 
 Both completed Windows human rounds were retained: 186 named move requests, 22 local strike/score pairs, 11 AI strike/score pairs and six additional five-point awards without paired strike effects. The unique same-client-frame pairs are useful observations, not a server action/causality acknowledgement.
 
 The measured local successful-contact separation was 0.454 to 0.683 Unity units for one-point contacts and 0.416 to 0.681 for two-point contacts. These are sample extrema across different moves and poses, **not validated hit boundaries**. Unity-unit to metre calibration was not independently measured. The native G1 ground forward convention resolves to horizontal pelvis-local +X.
 
-Four relatively isolated request/contact candidates were identified. Four other strikes contradict the nominal limb category of the most recent request, so latest-request labeling is unsafe. Absence of a hit packet was not converted into a miss. These rounds were not fitted to PPO or used as imitation labels. Round two remains reserved for future replay validation.
+Four relatively isolated request/contact candidates were identified. Four other strikes contradict the nominal limb category of the most recent request, so latest-request labeling is unsafe. Absence of a hit packet was not converted into a miss. These rounds were not fitted to PPO or used as imitation labels. Round two was subsequently evaluated with the same fixed, unfitted recorded-pose replay as round one.
 
 Private human report:
 `\\192.168.0.19\MyShare\pufferlib\rek-evidence\2026-09-17\human-gameplay-win10-0731\training-signal-analysis\contact-signal-report.md`
@@ -86,6 +88,6 @@ For a fresh source stage, build with `build_fast.sh NEW_BUILD`, then use `run-ch
 
 ## Next empirical work
 
-Replay the recorded bone poses and score events through the contact detector, reserving round two as holdout. Use the measured positive events and preserve ambiguous action attribution. This checks geometry against actual observed motion rather than assuming canned poses coincide with the client.
+The [recorded-pose replay](POSE-CONTACT.md) has now run on both rounds, with no fitting. All 33 strike/score pairs were processed. Only 3/33 had a kick/punch-compatible primitive overlap at score receipt; 19/33 had one in the fixed plus/minus 250 ms scan. These receipt-time diagnostics do not establish server collision timing or definitive hit regions. The next task is to explain the remaining contact-reconstruction gap while preserving ambiguous action attribution.
 
 Then evaluate the frozen checkpoint against an actual private-arena REK AI, recording score, confirmed hits, facing error, distance and accepted actions. The compact environment still lacks observed root displacement during attacks, physical balance/falls/KO and authoritative contact-point velocity/contact-enter timing. Additional PPO cannot establish those missing mechanics. Authentic transfer remains the criterion.

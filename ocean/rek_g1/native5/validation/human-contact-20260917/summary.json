@@ -11,7 +11,9 @@
     "unpaired_five_point_awards": 6,
     "definitive_hit_regions": false,
     "fit_on_human_rounds": false,
-    "round2_reserved_for_replay_validation": true
+    "round2_reserved_for_replay_validation": false,
+    "round2_used_for_unfitted_replay_validation": true,
+    "recorded_pose_replay_summary": "pose-contact-summary.json"
   },
   "runtime": {
     "backend": "semantic_cuda",

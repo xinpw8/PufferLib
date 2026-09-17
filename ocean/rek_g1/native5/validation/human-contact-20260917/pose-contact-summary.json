@@ -1,0 +1,2050 @@
+{
+  "schema": "rek.recorded_pose_contact_diagnostic.v1",
+  "model_sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+  "capture_sha256": [
+    "547cec42f700e97b9594f8d2c6df88f966052c0e0e5ce7395c4862b619fb6d7f",
+    "ec55c32a6e2272a8e7656d73260ca35876be2cd6c8d8d6fe8c9dfe77cd25a309"
+  ],
+  "query_sha256": "9c45c4c518b09ea00ac6504b0984aa8a174b55eb5151feb5e3ef61e63a5f2eae",
+  "run_summary_sha256": "5c9ce6d9b06ddbaeab912b8d8d568058c0bdd69cb1a3a778d3b5d211aff2c7e4",
+  "paired_strikes": 33,
+  "queries": 2013,
+  "pose_counts": [
+    [
+      3598,
+      3598
+    ],
+    [
+      3598,
+      3598
+    ]
+  ],
+  "unpaired_five_point_awards": [
+    4,
+    2
+  ],
+  "contact_execution": "CUDA_static_overlap",
+  "cpu_physics": false,
+  "python_runtime": false,
+  "canned_motion_used": false,
+  "fit_on_human_rounds": false,
+  "round2_fit": false,
+  "pose_sampling": "nearest_preceding_client_receipt_pose_per_fighter",
+  "max_pose_age_seconds": 0.075,
+  "lag_windows_selected_before_results": true,
+  "authoritative_contact_time": false,
+  "authentic_parity": false,
+  "negative_outcome_labels": 0,
+  "events": [
+    {
+      "round": 1,
+      "hit_sequence": 1,
+      "score_sequence": 1,
+      "scorer": 0,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0231961124,
+          "minimum_hit_point_target_distance_model_m": 0.261101365
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.251218468
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.234514669
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.200324893
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 2,
+      "score_sequence": 2,
+      "scorer": 0,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0146069648,
+          "minimum_hit_point_target_distance_model_m": 0.131027013
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0146069648,
+          "minimum_hit_point_target_distance_model_m": 0.0992556289
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0146069648,
+          "minimum_hit_point_target_distance_model_m": 0.0761433616
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0146069648,
+          "minimum_hit_point_target_distance_model_m": 0.0329789855
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 3,
+      "score_sequence": 3,
+      "scorer": 1,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00659716083,
+          "minimum_hit_point_target_distance_model_m": 0.005533427
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.005533427
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.005533427
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.005533427
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 4,
+      "score_sequence": 4,
+      "scorer": 0,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0765003115,
+          "minimum_hit_point_target_distance_model_m": 0.165821224
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.153136685
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.130868867
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.120643042
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 5,
+      "score_sequence": 5,
+      "scorer": 1,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00782155339,
+          "minimum_hit_point_target_distance_model_m": 0.00349418819
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00235757977,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00235757977,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00235757977,
+          "minimum_hit_point_target_distance_model_m": 0
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 6,
+      "score_sequence": 6,
+      "scorer": 1,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.014999019,
+          "minimum_hit_point_target_distance_model_m": 0.0282233879
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.000848770142
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.000848770142
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 7,
+      "score_sequence": 8,
+      "scorer": 1,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0676425621,
+          "minimum_hit_point_target_distance_model_m": 0.268880248
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.25099504
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.23621583
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.219244808
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 8,
+      "score_sequence": 10,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00665966794,
+          "minimum_hit_point_target_distance_model_m": 0.00467354804
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00665966794,
+          "minimum_hit_point_target_distance_model_m": 0.0013615042
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00665966794,
+          "minimum_hit_point_target_distance_model_m": 0.0013615042
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00665966794,
+          "minimum_hit_point_target_distance_model_m": 0.0013615042
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 9,
+      "score_sequence": 11,
+      "scorer": 1,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.039058812,
+          "minimum_hit_point_target_distance_model_m": 0.309453756
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0136295715,
+          "minimum_hit_point_target_distance_model_m": 0.282075584
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0136295715,
+          "minimum_hit_point_target_distance_model_m": 0.251483202
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0136295715,
+          "minimum_hit_point_target_distance_model_m": 0.2459483
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 10,
+      "score_sequence": 13,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00899132993,
+          "minimum_hit_point_target_distance_model_m": 0.0031799688
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00178740732,
+          "minimum_hit_point_target_distance_model_m": 0.00164967775
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00178740732,
+          "minimum_hit_point_target_distance_model_m": 0.00164967775
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00178740732,
+          "minimum_hit_point_target_distance_model_m": 0.00164967775
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 11,
+      "score_sequence": 14,
+      "scorer": 0,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0569653846,
+          "minimum_hit_point_target_distance_model_m": 0.268885255
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.266941458
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.264798284
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.252317071
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 12,
+      "score_sequence": 15,
+      "scorer": 0,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0651645884,
+          "minimum_hit_point_target_distance_model_m": 0.299363822
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.018939428,
+          "minimum_hit_point_target_distance_model_m": 0.285980165
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.018939428,
+          "minimum_hit_point_target_distance_model_m": 0.280548066
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.018939428,
+          "minimum_hit_point_target_distance_model_m": 0.275718272
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 13,
+      "score_sequence": 16,
+      "scorer": 1,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.053056322,
+          "minimum_hit_point_target_distance_model_m": 0.172321603
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.152365431
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.135329649
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.128772199
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 14,
+      "score_sequence": 17,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.103546478,
+          "minimum_hit_point_target_distance_model_m": 0.00118947029
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0020700153,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 15,
+      "score_sequence": 18,
+      "scorer": 0,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0283276588,
+          "minimum_hit_point_target_distance_model_m": 0.260991573
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.013642706,
+          "minimum_hit_point_target_distance_model_m": 0.217486337
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.013642706,
+          "minimum_hit_point_target_distance_model_m": 0.206569269
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.013642706,
+          "minimum_hit_point_target_distance_model_m": 0.195515603
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 16,
+      "score_sequence": 20,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0145895332,
+          "minimum_hit_point_target_distance_model_m": 0.00627271831
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0110569447,
+          "minimum_hit_point_target_distance_model_m": 0.00627271831
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0110569447,
+          "minimum_hit_point_target_distance_model_m": 0.00554216513
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0110569447,
+          "minimum_hit_point_target_distance_model_m": 0.00554216513
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 17,
+      "score_sequence": 21,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0289568957,
+          "minimum_hit_point_target_distance_model_m": 0.00739278644
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.000808883458,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.000808883458,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.000808883458,
+          "minimum_hit_point_target_distance_model_m": 0
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "hit_sequence": 18,
+      "score_sequence": 22,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00347528677,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00347528677,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00347528677,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00347528677,
+          "minimum_hit_point_target_distance_model_m": 0
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 1,
+      "score_sequence": 1,
+      "scorer": 1,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.05951735,
+          "minimum_hit_point_target_distance_model_m": 0.323660254
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.05951735,
+          "minimum_hit_point_target_distance_model_m": 0.315169752
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.05951735,
+          "minimum_hit_point_target_distance_model_m": 0.292530149
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.05951735,
+          "minimum_hit_point_target_distance_model_m": 0.270826846
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 2,
+      "score_sequence": 3,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0230238158,
+          "minimum_hit_point_target_distance_model_m": 0.0038658008
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.0038658008
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.0038658008
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.0038658008
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 3,
+      "score_sequence": 4,
+      "scorer": 1,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0216592886,
+          "minimum_hit_point_target_distance_model_m": 0.173426315
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0216592886,
+          "minimum_hit_point_target_distance_model_m": 0.160493806
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0216592886,
+          "minimum_hit_point_target_distance_model_m": 0.136482462
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.019520428,
+          "minimum_hit_point_target_distance_model_m": 0.116841853
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 4,
+      "score_sequence": 6,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0570838116,
+          "minimum_hit_point_target_distance_model_m": 0.00714351237
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 5,
+      "score_sequence": 7,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00852230377,
+          "minimum_hit_point_target_distance_model_m": 0.00205495954
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00852230377,
+          "minimum_hit_point_target_distance_model_m": 0.00205495954
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00852230377,
+          "minimum_hit_point_target_distance_model_m": 0.00205495954
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00852230377,
+          "minimum_hit_point_target_distance_model_m": 0.00205495954
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 6,
+      "score_sequence": 8,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00869959965,
+          "minimum_hit_point_target_distance_model_m": 0.00300041959
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00869959965,
+          "minimum_hit_point_target_distance_model_m": 0.00172130764
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00869959965,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00869959965,
+          "minimum_hit_point_target_distance_model_m": 0
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 7,
+      "score_sequence": 9,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00365772098,
+          "minimum_hit_point_target_distance_model_m": 0.000224344432
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00365772098,
+          "minimum_hit_point_target_distance_model_m": 0.000224344432
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00365772098,
+          "minimum_hit_point_target_distance_model_m": 0.000224344432
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00365772098,
+          "minimum_hit_point_target_distance_model_m": 0
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 8,
+      "score_sequence": 10,
+      "scorer": 1,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00552706048,
+          "minimum_hit_point_target_distance_model_m": 0.157788321
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.151872113
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.131202713
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.0847953036
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 9,
+      "score_sequence": 11,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0117584877,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00067666173,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 10,
+      "score_sequence": 12,
+      "scorer": 0,
+      "points": 1,
+      "is_kick": 0,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.00402664021,
+          "minimum_hit_point_target_distance_model_m": 0.00283540785
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.000995520502,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.000995520502,
+          "minimum_hit_point_target_distance_model_m": 0
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.000995520502,
+          "minimum_hit_point_target_distance_model_m": 0
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 11,
+      "score_sequence": 13,
+      "scorer": 1,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0220740214,
+          "minimum_hit_point_target_distance_model_m": 0.166715309
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.151584819
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.136022553
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.098712042
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 12,
+      "score_sequence": 14,
+      "scorer": 1,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0525754988,
+          "minimum_hit_point_target_distance_model_m": 0.291334003
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0332497545,
+          "minimum_hit_point_target_distance_model_m": 0.270061731
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0332497545,
+          "minimum_hit_point_target_distance_model_m": 0.242119893
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0332497545,
+          "minimum_hit_point_target_distance_model_m": 0.211326107
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 13,
+      "score_sequence": 15,
+      "scorer": 0,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0157909133,
+          "minimum_hit_point_target_distance_model_m": 0.267336994
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0157909133,
+          "minimum_hit_point_target_distance_model_m": 0.26535517
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0157909133,
+          "minimum_hit_point_target_distance_model_m": 0.26535517
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0157909133,
+          "minimum_hit_point_target_distance_model_m": 0.26535517
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 14,
+      "score_sequence": 16,
+      "scorer": 0,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0.0338716656,
+          "minimum_hit_point_target_distance_model_m": 0.171240106
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.134985805
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.134985805
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": true,
+          "part_compatible_primitive_overlap": true,
+          "legacy_sphere_overlap": true,
+          "part_compatible_legacy_sphere_overlap": true,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.134985805
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "hit_sequence": 15,
+      "score_sequence": 17,
+      "scorer": 0,
+      "points": 2,
+      "is_kick": 1,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "queries": 1,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0.0109038278,
+          "minimum_hit_point_target_distance_model_m": 0.284292459
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "queries": 13,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.250330091
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "queries": 25,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.228993908
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "queries": 61,
+          "primitive_overlap": false,
+          "part_compatible_primitive_overlap": false,
+          "legacy_sphere_overlap": false,
+          "part_compatible_legacy_sphere_overlap": false,
+          "minimum_hit_point_striker_distance_model_m": 0,
+          "minimum_hit_point_target_distance_model_m": 0.209882423
+        }
+      ]
+    }
+  ],
+  "aggregates": [
+    {
+      "round": null,
+      "scorer": null,
+      "observed_scoring_events": 33,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "primitive_overlap_events": 5,
+          "part_compatible_primitive_overlap_events": 3,
+          "legacy_sphere_overlap_events": 25,
+          "part_compatible_legacy_sphere_overlap_events": 21
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "primitive_overlap_events": 19,
+          "part_compatible_primitive_overlap_events": 17,
+          "legacy_sphere_overlap_events": 25,
+          "part_compatible_legacy_sphere_overlap_events": 22
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "primitive_overlap_events": 20,
+          "part_compatible_primitive_overlap_events": 17,
+          "legacy_sphere_overlap_events": 27,
+          "part_compatible_legacy_sphere_overlap_events": 24
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "primitive_overlap_events": 22,
+          "part_compatible_primitive_overlap_events": 19,
+          "legacy_sphere_overlap_events": 28,
+          "part_compatible_legacy_sphere_overlap_events": 24
+        }
+      ]
+    },
+    {
+      "round": null,
+      "scorer": 0,
+      "observed_scoring_events": 22,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "primitive_overlap_events": 4,
+          "part_compatible_primitive_overlap_events": 3,
+          "legacy_sphere_overlap_events": 19,
+          "part_compatible_legacy_sphere_overlap_events": 16
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "primitive_overlap_events": 15,
+          "part_compatible_primitive_overlap_events": 14,
+          "legacy_sphere_overlap_events": 19,
+          "part_compatible_legacy_sphere_overlap_events": 17
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "primitive_overlap_events": 16,
+          "part_compatible_primitive_overlap_events": 14,
+          "legacy_sphere_overlap_events": 20,
+          "part_compatible_legacy_sphere_overlap_events": 18
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "primitive_overlap_events": 17,
+          "part_compatible_primitive_overlap_events": 15,
+          "legacy_sphere_overlap_events": 21,
+          "part_compatible_legacy_sphere_overlap_events": 18
+        }
+      ]
+    },
+    {
+      "round": null,
+      "scorer": 1,
+      "observed_scoring_events": 11,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "primitive_overlap_events": 1,
+          "part_compatible_primitive_overlap_events": 0,
+          "legacy_sphere_overlap_events": 6,
+          "part_compatible_legacy_sphere_overlap_events": 5
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "primitive_overlap_events": 4,
+          "part_compatible_primitive_overlap_events": 3,
+          "legacy_sphere_overlap_events": 6,
+          "part_compatible_legacy_sphere_overlap_events": 5
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "primitive_overlap_events": 4,
+          "part_compatible_primitive_overlap_events": 3,
+          "legacy_sphere_overlap_events": 7,
+          "part_compatible_legacy_sphere_overlap_events": 6
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "primitive_overlap_events": 5,
+          "part_compatible_primitive_overlap_events": 4,
+          "legacy_sphere_overlap_events": 7,
+          "part_compatible_legacy_sphere_overlap_events": 6
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "scorer": null,
+      "observed_scoring_events": 18,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "primitive_overlap_events": 2,
+          "part_compatible_primitive_overlap_events": 1,
+          "legacy_sphere_overlap_events": 13,
+          "part_compatible_legacy_sphere_overlap_events": 10
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "primitive_overlap_events": 11,
+          "part_compatible_primitive_overlap_events": 10,
+          "legacy_sphere_overlap_events": 13,
+          "part_compatible_legacy_sphere_overlap_events": 11
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "primitive_overlap_events": 12,
+          "part_compatible_primitive_overlap_events": 10,
+          "legacy_sphere_overlap_events": 14,
+          "part_compatible_legacy_sphere_overlap_events": 12
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "primitive_overlap_events": 12,
+          "part_compatible_primitive_overlap_events": 10,
+          "legacy_sphere_overlap_events": 15,
+          "part_compatible_legacy_sphere_overlap_events": 12
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "scorer": 0,
+      "observed_scoring_events": 12,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "primitive_overlap_events": 2,
+          "part_compatible_primitive_overlap_events": 1,
+          "legacy_sphere_overlap_events": 10,
+          "part_compatible_legacy_sphere_overlap_events": 7
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "primitive_overlap_events": 8,
+          "part_compatible_primitive_overlap_events": 7,
+          "legacy_sphere_overlap_events": 10,
+          "part_compatible_legacy_sphere_overlap_events": 8
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "primitive_overlap_events": 9,
+          "part_compatible_primitive_overlap_events": 7,
+          "legacy_sphere_overlap_events": 11,
+          "part_compatible_legacy_sphere_overlap_events": 9
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "primitive_overlap_events": 9,
+          "part_compatible_primitive_overlap_events": 7,
+          "legacy_sphere_overlap_events": 12,
+          "part_compatible_legacy_sphere_overlap_events": 9
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "scorer": 1,
+      "observed_scoring_events": 6,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "primitive_overlap_events": 0,
+          "part_compatible_primitive_overlap_events": 0,
+          "legacy_sphere_overlap_events": 3,
+          "part_compatible_legacy_sphere_overlap_events": 3
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "primitive_overlap_events": 3,
+          "part_compatible_primitive_overlap_events": 3,
+          "legacy_sphere_overlap_events": 3,
+          "part_compatible_legacy_sphere_overlap_events": 3
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "primitive_overlap_events": 3,
+          "part_compatible_primitive_overlap_events": 3,
+          "legacy_sphere_overlap_events": 3,
+          "part_compatible_legacy_sphere_overlap_events": 3
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "primitive_overlap_events": 3,
+          "part_compatible_primitive_overlap_events": 3,
+          "legacy_sphere_overlap_events": 3,
+          "part_compatible_legacy_sphere_overlap_events": 3
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "scorer": null,
+      "observed_scoring_events": 15,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "primitive_overlap_events": 3,
+          "part_compatible_primitive_overlap_events": 2,
+          "legacy_sphere_overlap_events": 12,
+          "part_compatible_legacy_sphere_overlap_events": 11
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "primitive_overlap_events": 8,
+          "part_compatible_primitive_overlap_events": 7,
+          "legacy_sphere_overlap_events": 12,
+          "part_compatible_legacy_sphere_overlap_events": 11
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "primitive_overlap_events": 8,
+          "part_compatible_primitive_overlap_events": 7,
+          "legacy_sphere_overlap_events": 13,
+          "part_compatible_legacy_sphere_overlap_events": 12
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "primitive_overlap_events": 10,
+          "part_compatible_primitive_overlap_events": 9,
+          "legacy_sphere_overlap_events": 13,
+          "part_compatible_legacy_sphere_overlap_events": 12
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "scorer": 0,
+      "observed_scoring_events": 10,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "primitive_overlap_events": 2,
+          "part_compatible_primitive_overlap_events": 2,
+          "legacy_sphere_overlap_events": 9,
+          "part_compatible_legacy_sphere_overlap_events": 9
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "primitive_overlap_events": 7,
+          "part_compatible_primitive_overlap_events": 7,
+          "legacy_sphere_overlap_events": 9,
+          "part_compatible_legacy_sphere_overlap_events": 9
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "primitive_overlap_events": 7,
+          "part_compatible_primitive_overlap_events": 7,
+          "legacy_sphere_overlap_events": 9,
+          "part_compatible_legacy_sphere_overlap_events": 9
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "primitive_overlap_events": 8,
+          "part_compatible_primitive_overlap_events": 8,
+          "legacy_sphere_overlap_events": 9,
+          "part_compatible_legacy_sphere_overlap_events": 9
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "scorer": 1,
+      "observed_scoring_events": 5,
+      "windows": [
+        {
+          "receipt_window_half_width_seconds": 0,
+          "primitive_overlap_events": 1,
+          "part_compatible_primitive_overlap_events": 0,
+          "legacy_sphere_overlap_events": 3,
+          "part_compatible_legacy_sphere_overlap_events": 2
+        },
+        {
+          "receipt_window_half_width_seconds": 0.05,
+          "primitive_overlap_events": 1,
+          "part_compatible_primitive_overlap_events": 0,
+          "legacy_sphere_overlap_events": 3,
+          "part_compatible_legacy_sphere_overlap_events": 2
+        },
+        {
+          "receipt_window_half_width_seconds": 0.1,
+          "primitive_overlap_events": 1,
+          "part_compatible_primitive_overlap_events": 0,
+          "legacy_sphere_overlap_events": 4,
+          "part_compatible_legacy_sphere_overlap_events": 3
+        },
+        {
+          "receipt_window_half_width_seconds": 0.25,
+          "primitive_overlap_events": 2,
+          "part_compatible_primitive_overlap_events": 1,
+          "legacy_sphere_overlap_events": 4,
+          "part_compatible_legacy_sphere_overlap_events": 3
+        }
+      ]
+    }
+  ],
+  "link_length_checks": [
+    {
+      "round": 1,
+      "side": 0,
+      "tested_links": 28,
+      "minimum_observed_length_ratio": 0.999981546,
+      "maximum_observed_length_ratio": 1.00002166,
+      "mean_of_per_link_mean_ratios": 1.0000002079285715
+    },
+    {
+      "round": 1,
+      "side": 1,
+      "tested_links": 28,
+      "minimum_observed_length_ratio": 0.999978845,
+      "maximum_observed_length_ratio": 1.00003443,
+      "mean_of_per_link_mean_ratios": 1.000000364892857
+    },
+    {
+      "round": 2,
+      "side": 0,
+      "tested_links": 28,
+      "minimum_observed_length_ratio": 0.999983118,
+      "maximum_observed_length_ratio": 1.00002395,
+      "mean_of_per_link_mean_ratios": 1.0000002203214284
+    },
+    {
+      "round": 2,
+      "side": 1,
+      "tested_links": 28,
+      "minimum_observed_length_ratio": 0.999976983,
+      "maximum_observed_length_ratio": 1.00002772,
+      "mean_of_per_link_mean_ratios": 1.0000003992142859
+    }
+  ],
+  "limitations": [
+    "Packet receipt times do not identify the server collision time; each fighter pose may have independent delay.",
+    "Overlap at a nearby receipt time is a geometric diagnostic, not a reconstructed accepted scoring event.",
+    "No overlap at sampled receipt poses is not a miss label or proof that the original contact was invalid.",
+    "The is_kick flag limits limb category only; move attribution remains ambiguous.",
+    "Distances use recovered model coordinates without fitted spatial scaling; independent physical metre calibration is absent.",
+    "Collision eligibility masks, contact velocity, entry history, balance and scoring gates are not tested here.",
+    "Point-to-striker and point-to-target minima within a window may occur at different poses."
+  ]
+}
