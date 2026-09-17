@@ -1,0 +1,3207 @@
+{
+  "schema": "rek.passive_defender_paired_recovery.v1",
+  "date_utc": "2026-09-17",
+  "source_root": "C:\\rekagent\\work\\passive-defender-20260917-r1",
+  "scope": "R11 safe_start and R12 follow_on only; separate from the eight-capture recovery aggregate.",
+  "runs": [
+    {
+      "id": "round-r11",
+      "mode": "safe_start",
+      "trial_directory": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r11",
+      "artifacts": {
+        "audit-r1/kinematics.jsonl": {
+          "bytes": 32166008,
+          "sha256": "bdc8d63614f678810fa4f41a6cd44b3303dcc9503b9b6ecd7b0d80a91c011330"
+        },
+        "audit-r1/motion_intervals.jsonl": {
+          "bytes": 381674,
+          "sha256": "94e00c2fae0206349eda3130a9091651331af3f20b4f46e18ee2ae3ed4f215df"
+        },
+        "audit-r1/score_events.jsonl": {
+          "bytes": 42779,
+          "sha256": "69e2be4b14c25a809f1f388e58c0386ced1ddb6f90e010783d2a045e1e03070a"
+        },
+        "audit-r1/summary.json": {
+          "bytes": 2981,
+          "sha256": "d1ec42505925c6c70b95aea886c4ac355d324677207c3ac994f2a5cbb9171a10"
+        },
+        "command.json": {
+          "bytes": 465,
+          "sha256": "3b5f7d617a63c1fac514097fb0db06a7f602c6e8e6c2dc1e37e7ebc9c4a82368"
+        },
+        "config.json": {
+          "bytes": 1222,
+          "sha256": "151cddc8f5124eed58d7825c804dc5a0d3c6b34b26dc3e45bfd07a52fd2fba6a"
+        },
+        "exit.json": {
+          "bytes": 34,
+          "sha256": "6380f7ebf1263a94abaaef4f5a1323cf0f4fbc88e37d8f1792ae68f163e18807"
+        },
+        "media/authentic-rek-passive-defender.mp4": {
+          "bytes": 11033849,
+          "sha256": "6a375602b93d5f08c7766c4ff0442760b90d8b062bed81db65aaf52f90c56268"
+        },
+        "media/capture-command.json": {
+          "bytes": 1050,
+          "sha256": "6a9eb25c2306e9146951b7d97b8530402a10db431ed68741cd8fa2381d1b9217"
+        },
+        "media/capture-manifest.json": {
+          "bytes": 1546,
+          "sha256": "d7bb340953b5c5a571a75ffb3dc5366bce79e32513a9da837ce5f21240405aac"
+        },
+        "media/capture.stderr.txt": {
+          "bytes": 100,
+          "sha256": "0ad5a99450e9c2a3ac886f88cceb658bd1e915b75737a032b790fa705afec32f"
+        },
+        "media/capture.stdout.txt": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "media/decode.stderr.txt": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "media/driver-command.json": {
+          "bytes": 505,
+          "sha256": "2ec839d2e4c74464393696d34608c366a160d17f79c3b9e1af3b6192af233fda"
+        },
+        "media/driver.stderr.txt": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "media/driver.stdout.jsonl": {
+          "bytes": 4915,
+          "sha256": "d4ae1b71465f97504ee867c2929bff02a22416a42624a1e4b5dd38a59cac5580"
+        },
+        "media/terminal-review.png": {
+          "bytes": 333916,
+          "sha256": "03d8191138ce3637d791ef19dc95268a2dba1ebb5c72794399314a27acd8286b"
+        },
+        "native-hit-join-r1/five_point_awards.jsonl": {
+          "bytes": 7183,
+          "sha256": "a772cf5b2a3e6d32cacb15999a0d9dddc8ff25860bbf284c86390ab6390eb86b"
+        },
+        "native-hit-join-r1/hit_events.jsonl": {
+          "bytes": 53094,
+          "sha256": "4e71b2fb84f059c6ea510dc005609736cd48eb6d28db6d752301606ccfebeabc"
+        },
+        "native-hit-join-r1/score_events.jsonl": {
+          "bytes": 50397,
+          "sha256": "c42c1e1914374fa39e8d352c2ada296999dbb9eb148dfb43f8bb23e4db4b90d6"
+        },
+        "native-hit-join-r1/summary.json": {
+          "bytes": 3851,
+          "sha256": "5edf7cb4954974988806bf52e9fadf7c8dfd6abd2dc9ed504edab4af28681d0b"
+        },
+        "provenance.json": {
+          "bytes": 1300,
+          "sha256": "14e3eca7e55186f2713e170f38b0a5cb38817ba0a66a889be036e8931d168afa"
+        },
+        "stderr.txt": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.jsonl": {
+          "bytes": 5236,
+          "sha256": "5db2c011777bb52cb2e9ee54b9171c1d195e1b7a517b63bfedc5bd8d7d020cb6"
+        },
+        "trial/active-state.json": {
+          "bytes": 17648,
+          "sha256": "0f5d254a66693d83462a0d98a3eab8ac60a507d746f7e21d473366875235e2fb"
+        },
+        "trial/exit.json": {
+          "bytes": 143,
+          "sha256": "fe940567d788aa4f2def7862078d49a046d72e66142360ab432bfa32aca09d32"
+        },
+        "trial/final-state.json": {
+          "bytes": 19811,
+          "sha256": "d03c3dc4e45d94e60e78fbf1a27d1b00475c32d7518a065421f6e65887010b0f"
+        },
+        "trial/g1_policy_state.jsonl": {
+          "bytes": 55983296,
+          "sha256": "4ed8bba870cbeca13d6421c874e2234dcf829d5d14dfefd9eaa60e36f44fbb1a"
+        },
+        "trial/initial-state.json": {
+          "bytes": 16359,
+          "sha256": "bc493a567b44f197db902c3d09c887bf5d965ad00475dfc012f9f8dd38015e13"
+        },
+        "trial/orchestrator.jsonl": {
+          "bytes": 4915,
+          "sha256": "d4ae1b71465f97504ee867c2929bff02a22416a42624a1e4b5dd38a59cac5580"
+        },
+        "trial/provenance.json": {
+          "bytes": 1691,
+          "sha256": "1a24a4450a59b32a5d00c8fda1237e21b28b97664ca64eb58c804d26463326ff"
+        },
+        "trial/relay.stderr.txt": {
+          "bytes": 156,
+          "sha256": "49a6e77c9042d31d81d231392469182bcd0e240a52f43291f38911018fa472e1"
+        },
+        "trial/relay.stdin.jsonl": {
+          "bytes": 1075602,
+          "sha256": "f1c3cbad0a2f29743de3f455566a9141b44696737f8669dfc62a150052dd6d89"
+        },
+        "trial/relay.stdout.jsonl": {
+          "bytes": 61769417,
+          "sha256": "92c9842ffb0934b2eb5113f24925139c19a59f5b57f6ec52c578f5d13d020ddf"
+        },
+        "trial/run-config.json": {
+          "bytes": 1222,
+          "sha256": "151cddc8f5124eed58d7825c804dc5a0d3c6b34b26dc3e45bfd07a52fd2fba6a"
+        },
+        "trial/summary.json": {
+          "bytes": 2729,
+          "sha256": "aca3cb034b2ad79dca65bf2417a059a20ce21521d138e3154c4e9985a69a5c92"
+        }
+      },
+      "inputs": {
+        "native": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T082930.7952252Z-pid1216-4c2c69d64b6a4c649011c6c01f0aa180.jsonl",
+          "bytes": 209269494,
+          "sha256": "aaeec92119dcc193fb09be382d24db78cce5a0182dbd42543b117d48326d6b54",
+          "lines": 89045
+        },
+        "relay_source": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r11\\trial\\g1_policy_state.jsonl",
+          "bytes": 55983296,
+          "sha256": "4ed8bba870cbeca13d6421c874e2234dcf829d5d14dfefd9eaa60e36f44fbb1a",
+          "lines": 5649
+        }
+      },
+      "runner_provenance": {
+        "runner_sha256": "e846e6cfd8beabf538ceade612149e3932b1dc58de93f6a1c6213c764abec1d1",
+        "helpers_sha256": "872646f69daf56658e56c677b4a487bb977a055157ef975e8994d50ad17f79ba",
+        "relay_expected_bridge_sha256": "6e15abbde6fdcd07f5ac71c632fd67cc2553d0a5cc35de34c9c81603c9880276",
+        "control": "only action 1, neutral held controls",
+        "policy_used": false,
+        "encoder_used": false,
+        "checkpoint_used": false,
+        "global_input_emitted": false
+      },
+      "capture": {
+        "start": {
+          "schema": "rek.private_ai.protocol.v7",
+          "utc": "2026-09-17T08:29:30.7952252+00:00",
+          "stopwatch_timestamp_ticks": 3217231615176,
+          "stopwatch_frequency_hz": 10000000,
+          "pid": 1216,
+          "plugin_version": "0.7.2",
+          "plugin_sha256": "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95",
+          "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+          "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd"
+        },
+        "end": {
+          "utc": "2026-09-17T08:31:30.688531+00:00",
+          "stopwatch_timestamp_ticks": 3218430543944,
+          "reason": "scope_exit:round_not_active",
+          "capture_error_count": 0,
+          "raw_hit_packet_count": 6,
+          "raw_score_packet_count": 7,
+          "sample_count": 6002,
+          "root_pose_sample_count": 60015,
+          "client_transport_invocation_count": 6213,
+          "client_transport_method_counts": {
+            "SendVelocityCommand": 6213
+          }
+        },
+        "finalized": true,
+        "packet_counts_match_footer": true,
+        "error_records": 0,
+        "qpc_bounds_applied": true
+      },
+      "native_capture_qpc_seconds": 119.8928768,
+      "trial": {
+        "mode": "safe_start",
+        "stop_reason": "source_round_terminal",
+        "round_completed": true,
+        "outcome": "completed_round",
+        "collection_seconds": 119.823,
+        "max_seconds": 130,
+        "source_count": 5649,
+        "validated_source_count": 5649,
+        "dropped_sources": {},
+        "requested": 5648,
+        "applied": 5646,
+        "rejected": 2,
+        "unmatched_action_acks": 0,
+        "action_inflight_at_stop": false,
+        "only_requested_action": 1,
+        "neutral_source_count": 5649,
+        "post_ack_source_count": 5647,
+        "post_ack_neutral_source_count": 5647,
+        "neutral_command_verified": true,
+        "last_ack_qpc_ticks": "3218431598579",
+        "reasons": {
+          "stale_observation": 1,
+          "held_state_applied_locally": 5646,
+          "policy_stream_not_owned": 1
+        },
+        "opponent": {
+          "client_ai_difficulty": 0,
+          "sparring_bot_number": 1
+        },
+        "local_slot": 0,
+        "round_identity_sha256": "bb47808c718ca1d1795c35c71d20e7872318315538a0fef3c83222b174a5c629",
+        "initial_round": {
+          "number": 1,
+          "duration": 120,
+          "time_remaining": 119.6666,
+          "active": true,
+          "redo": false,
+          "clean_hits": [
+            0,
+            0
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "InProgress",
+          "result_value": 0,
+          "winner_index": -1,
+          "knockout": false
+        },
+        "final_round": {
+          "number": 1,
+          "duration": 120,
+          "time_remaining": 0,
+          "active": false,
+          "redo": false,
+          "clean_hits": [
+            5,
+            7
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "WonByPoints",
+          "result_value": 1,
+          "winner_index": 1,
+          "knockout": false
+        },
+        "stream_end": {
+          "event": "g1_policy_end",
+          "protocol": "rek.ui_bridge.v1",
+          "schema": "rek.g1_policy_source.v1",
+          "round_identity_sha256": "bb47808c718ca1d1795c35c71d20e7872318315538a0fef3c83222b174a5c629",
+          "reason": "active_round_not_observed",
+          "owned_velocity_neutralized": true,
+          "neutral_send_method_returned": true,
+          "owned_pending_move_cleared": false,
+          "global_input_emitted": false,
+          "server_acceptance": "unknown",
+          "clock": {
+            "utc": "2026-09-17T08:31:30.7868221+00:00",
+            "unity_frame": 8954,
+            "unity_time": 167.82999999999998,
+            "unity_fixed_time": 167.82999999999998,
+            "qpc_ticks": 3218431526930,
+            "qpc_frequency_hz": 10000000
+          }
+        },
+        "cleanup": {
+          "stop_accepted": true,
+          "release_accepted": true,
+          "verified": true
+        },
+        "relay_exit": {
+          "code": 0,
+          "signal": null
+        },
+        "attach_status": "native_start_requested_or_ready_bootstrap",
+        "whole_round_from_first_tick": false,
+        "policy_used": false,
+        "encoder_used": false,
+        "checkpoint_used": false,
+        "neutral_control_does_not_freeze_physics": true,
+        "server_acceptance": "unknown",
+        "global_input_emitted": false,
+        "exit_code": 0
+      },
+      "relay_observation_bounds": {
+        "first_clock": {
+          "utc": "2026-09-17T08:29:31.2749836+00:00",
+          "unity_frame": 2742,
+          "unity_time": 48.145479620181405,
+          "unity_fixed_time": 48.144,
+          "qpc_ticks": 3217236306250,
+          "qpc_frequency_hz": 10000000
+        },
+        "last_clock": {
+          "utc": "2026-09-17T08:31:30.7759993+00:00",
+          "unity_frame": 8954,
+          "unity_time": 167.82999999999998,
+          "unity_fixed_time": 167.82999999999998,
+          "qpc_ticks": 3218431418178,
+          "qpc_frequency_hz": 10000000
+        },
+        "first_round": {
+          "number": 1,
+          "duration": 120,
+          "time_remaining": 119.6666,
+          "active": true,
+          "redo": false,
+          "clean_hits": [
+            0,
+            0
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "InProgress",
+          "result_value": 0,
+          "winner_index": -1,
+          "knockout": false
+        },
+        "last_round": {
+          "number": 1,
+          "duration": 120,
+          "time_remaining": 0,
+          "active": false,
+          "redo": false,
+          "clean_hits": [
+            5,
+            7
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "WonByPoints",
+          "result_value": 1,
+          "winner_index": 1,
+          "knockout": false
+        },
+        "first_source_minus_capture_start_qpc_seconds": 0.4691074,
+        "pre_attach_hit_count": 0,
+        "pre_attach_score_count": 0
+      },
+      "native_observations": {
+        "root_pose_samples": 60015,
+        "compact_samples": 6002,
+        "measured_velocity_zero_samples": 6002,
+        "no_pending_move_samples": 6002,
+        "punching_false_samples": 6002,
+        "all_three_neutral_samples": 6002,
+        "outbound_velocity_requests": 6213,
+        "outbound_velocity_zero_requests": 6213
+      },
+      "source_verification": {
+        "samples": 5649,
+        "all_three_neutral": 5649,
+        "desired_action_1": 5649,
+        "active_samples": 5649
+      },
+      "native_raw_verification": {
+        "event_counts": {
+          "capture_start": 1,
+          "root_pose_sample": 60015,
+          "sample": 6002,
+          "outbound_request_projection": 6213,
+          "raw_bone_packet": 7202,
+          "decoded_bone_snapshot": 7202,
+          "raw_fight_state_packet": 1198,
+          "fight_state_snapshot_applied": 1198,
+          "raw_hit_packet": 6,
+          "raw_score_packet": 7,
+          "capture_end": 1
+        },
+        "samples": 6002,
+        "all_three_neutral": 6002,
+        "outbound_velocity_requests": 6213,
+        "outbound_velocity_zero_requests": 6213,
+        "raw_hit_records_equal_join": true,
+        "raw_score_records_equal_join": true,
+        "input_hashes_equal_join": true
+      },
+      "recorded_command_counts": {
+        "get_state": 83,
+        "AcquireExclusiveControl": 1,
+        "ConfirmLoggedIn": 1,
+        "NavigateFreePlay": 1,
+        "EnterSolo": 1,
+        "ReadyPrivateAiSession": 1,
+        "StartG1PolicyStreamAnyAi": 1,
+        "policy_action": 5648,
+        "StopG1PolicyStream": 1,
+        "ReleaseExclusiveControl": 1
+      },
+      "requested_action_counts": {
+        "1": 5648
+      },
+      "native_packet_counts": {
+        "received_hit_packets": 6,
+        "is_kick": {
+          "0": 5,
+          "1": 1
+        },
+        "score_packets": 7,
+        "five_point_awards": 1,
+        "score_slot_and_award": {
+          "1:1": 5,
+          "1:2": 1,
+          "0:5": 1
+        },
+        "awarded_points_by_slot": [
+          5,
+          7
+        ],
+        "all_five_point_awards_have_no_same_frame_hit": true
+      },
+      "pose_join_status_counts": {
+        "bracketed": 6
+      },
+      "audit": {
+        "schema": "rek.passive_defender_audit.v1",
+        "options": {
+          "warmupSeconds": 1,
+          "windowSeconds": 1,
+          "motionSpeedMps": 1.75,
+          "maxGapSeconds": 0.25
+        },
+        "coordinate_system": "Unity world XYZ, Y up; root rotations XYZW",
+        "source_lines": 11407,
+        "source_state_records": 5649,
+        "samples": 5649,
+        "invalid_records": 0,
+        "error_counts": {},
+        "boundaries": {
+          "first_valid_sample": 1,
+          "sample_gap": 1
+        },
+        "score_events": 7,
+        "counter_decrease_events": 0,
+        "positive_point_updates": {
+          "actor": 5,
+          "opponent": 7
+        },
+        "score_update_sizes": {
+          "actor": {
+            "5": 1
+          },
+          "opponent": {
+            "1": 5,
+            "2": 1
+          }
+        },
+        "motion_intervals": 605,
+        "motion_intervals_no_score_observed": 523,
+        "active_stream_neutral": {
+          "samples": 5648,
+          "desired_action_1": 5648,
+          "desired_action_other": 0,
+          "desired_action_unknown": 0,
+          "velocity_command_zero": 5648,
+          "velocity_command_nonzero": 0,
+          "velocity_command_unknown": 0,
+          "both_neutral": 5648
+        },
+        "after_warmup_neutral": {
+          "samples": 5630,
+          "desired_action_1": 5630,
+          "desired_action_other": 0,
+          "desired_action_unknown": 0,
+          "velocity_command_zero": 5630,
+          "velocity_command_nonzero": 0,
+          "velocity_command_unknown": 0,
+          "both_neutral": 5630
+        },
+        "acknowledgments": {
+          "action_1_applied": 5646,
+          "action_1_not_applied": 2,
+          "other_actions": 0
+        },
+        "maximum_actor_root_step_m": 0.7750347657695057,
+        "maximum_opponent_root_step_m": 1.090343766233458,
+        "limits": [
+          "Client-rendered/replicated observations, not authoritative server contact state.",
+          "Limb positions are named bone origins, not collider surfaces or contact points.",
+          "Variable-QPC finite differences measure displacement; impacts, interpolation and position resets can all contribute.",
+          "Diagnostic speed-threshold intervals are motion, not identified attacks.",
+          "no_score_observed does not mean a missed or rejected attack; native active-clip/apex and contact-enter state are unavailable.",
+          "One-, two- and five-point updates describe counter increments only; batches and authoritative causes are not resolved.",
+          "Neutral commands do not hold the robot stationary or disable physical response.",
+          "Score/window comparisons stop at round, slot, clock, sequence and sampling-gap boundaries.",
+          "Requested action and measured command checks are sampled evidence, not proof of every intervening command."
+        ],
+        "segments": 2,
+        "complete": true,
+        "sampled_neutral_confirmed_after_warmup": true,
+        "source": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r11\\trial\\relay.stdout.jsonl",
+          "bytes": 61769417,
+          "sha256": "92c9842ffb0934b2eb5113f24925139c19a59f5b57f6ec52c578f5d13d020ddf",
+          "modified_utc": "2026-09-17T08:31:30.000Z"
+        },
+        "outputs": {
+          "kinematics": "kinematics.jsonl",
+          "score_events": "score_events.jsonl",
+          "motion_intervals": "motion_intervals.jsonl"
+        }
+      },
+      "media": {
+        "schema": "rek.passive_defender.capture.v1",
+        "host": "spark-4ae3",
+        "trial_output": "/home/spark-advantage/rek-training/passive-defender-20260917-r1/round-r11/trial",
+        "config_path": "/home/spark-advantage/rek-training/passive-defender-20260917-r1/round-r11/config.json",
+        "controller": "neutral_action_1",
+        "checkpoint_sha256": null,
+        "capture_source": "authentic REK framebuffer on isolated X11 :98",
+        "global_input_emitted": false,
+        "pointer_capture": false,
+        "synthetic_frames": false,
+        "recording_started_utc": "2026-09-17T08:29:30.956Z",
+        "trigger": "active_private_ai_opponent",
+        "driver_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "recording_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": "requested_stop",
+          "timed_out": false,
+          "signals_sent": [],
+          "utc": "2026-09-17T08:31:36.123Z"
+        },
+        "recording_size_limit_reached": false,
+        "recording_size_limit_evidence": null,
+        "video": "/home/spark-advantage/rek-training/passive-defender-20260917-r1/round-r11/media/authentic-rek-passive-defender.mp4",
+        "video_bytes": 11033849,
+        "video_sha256": "6a375602b93d5f08c7766c4ff0442760b90d8b062bed81db65aaf52f90c56268",
+        "decode_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "delivery_status": "validated_mp4",
+        "delivery_max_bytes_exclusive": 20000000
+      },
+      "hit_events": [
+        {
+          "index": 0,
+          "recorder_line": 21943,
+          "wire_body_sha256": "e0c3a942376a07d22c6f67980f3aef1002da544ca69aa96c211daf0a7dd32dc1",
+          "receipt_clock": {
+            "unity_frame": 4212,
+            "unity_time_seconds": 77.48742555980725,
+            "unity_unscaled_time_seconds": 79.88014370039683,
+            "monotonic_receipt_time_seconds": 79.89023320504535,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "position_xyz": [
+              -1.9699641,
+              0.8221282,
+              0.26537275
+            ],
+            "surface_normal_xyz": [
+              0.98088837,
+              -0.16715963,
+              0.09957762
+            ],
+            "relative_speed": 4.466103,
+            "is_kick": 0
+          },
+          "precedes_first_relay_frame": false,
+          "receipt_unity_time_minus_first_relay_seconds": 29.341945939625845,
+          "same_frame_score_association": {
+            "status": "unique_same_frame_association_noncausal",
+            "is_causal": false,
+            "score_indices": [
+              0
+            ],
+            "decoded": [
+              {
+                "fighter_index": 1,
+                "new_hit_count": 1,
+                "points_awarded": 1
+              }
+            ]
+          },
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:00.3178478+00:00",
+                      "unity_frame": 4211,
+                      "unity_time": 77.4671166595805,
+                      "unity_fixed_time": 77.466,
+                      "qpc_ticks": 3217526836842,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.020308900226751803,
+                    "root_distance_ground_xz_m": 0.51044195746533,
+                    "opponent_bearing_to_local_rad": -0.6516275083369705
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:00.3985107+00:00",
+                      "unity_frame": 4213,
+                      "unity_time": 77.52907336309524,
+                      "unity_fixed_time": 77.52799999999999,
+                      "qpc_ticks": 3217527643463,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.04164780328798656
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "recorder_line": 22800,
+          "wire_body_sha256": "11e57853849189107df4cd9df5d1a3ad61032434ea1c38aa2bbebf0a1bc3077a",
+          "receipt_clock": {
+            "unity_frame": 4264,
+            "unity_time_seconds": 78.64763095946712,
+            "unity_unscaled_time_seconds": 81.04034910005669,
+            "monotonic_receipt_time_seconds": 81.04259260504536,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "position_xyz": [
+              -1.9099904,
+              1.0158244,
+              0.21295528
+            ],
+            "surface_normal_xyz": [
+              0.99801034,
+              0.023654368,
+              -0.058445092
+            ],
+            "relative_speed": 3.8275785,
+            "is_kick": 0
+          },
+          "precedes_first_relay_frame": false,
+          "receipt_unity_time_minus_first_relay_seconds": 30.502151339285717,
+          "same_frame_score_association": {
+            "status": "unique_same_frame_association_noncausal",
+            "is_causal": false,
+            "score_indices": [
+              1
+            ],
+            "decoded": [
+              {
+                "fighter_index": 1,
+                "new_hit_count": 2,
+                "points_awarded": 1
+              }
+            ]
+          },
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:01.4783804+00:00",
+                      "unity_frame": 4263,
+                      "unity_time": 78.62900566184807,
+                      "unity_fixed_time": 78.628,
+                      "qpc_ticks": 3217538442155,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.01862529761905307,
+                    "root_distance_ground_xz_m": 0.43167933225356614,
+                    "opponent_bearing_to_local_rad": -0.10245444557331275
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:01.5253027+00:00",
+                      "unity_frame": 4265,
+                      "unity_time": 78.67096026077097,
+                      "unity_fixed_time": 78.67,
+                      "qpc_ticks": 3217538911368,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.02332930130384625
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 2,
+          "recorder_line": 49537,
+          "wire_body_sha256": "eb7734cd285dc20513eb28abef83f5a6ca696e1c66edf3a0bdfdb040d4ea972c",
+          "receipt_clock": {
+            "unity_frame": 6158,
+            "unity_time_seconds": 114.65250916241496,
+            "unity_unscaled_time_seconds": 117.04522730300452,
+            "monotonic_receipt_time_seconds": 117.04627330504536,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "position_xyz": [
+              -1.8696886,
+              0.9313871,
+              0.07503264
+            ],
+            "surface_normal_xyz": [
+              0.99292165,
+              -0.08446178,
+              0.08350334
+            ],
+            "relative_speed": 2.3978796,
+            "is_kick": 0
+          },
+          "precedes_first_relay_frame": false,
+          "receipt_unity_time_minus_first_relay_seconds": 66.50702954223355,
+          "same_frame_score_association": {
+            "status": "unique_same_frame_association_noncausal",
+            "is_causal": false,
+            "score_indices": [
+              2
+            ],
+            "decoded": [
+              {
+                "fighter_index": 1,
+                "new_hit_count": 3,
+                "points_awarded": 1
+              }
+            ]
+          },
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:37.4645235+00:00",
+                      "unity_frame": 6156,
+                      "unity_time": 114.61850826247165,
+                      "unity_fixed_time": 114.618,
+                      "qpc_ticks": 3217898303657,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.03400089994330813,
+                    "root_distance_ground_xz_m": 0.5613915841790649,
+                    "opponent_bearing_to_local_rad": -0.3091313050880938
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:37.5206436+00:00",
+                      "unity_frame": 6159,
+                      "unity_time": 114.67167716128118,
+                      "unity_fixed_time": 114.67,
+                      "qpc_ticks": 3217898864826,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.019167998866223
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 3,
+          "recorder_line": 50977,
+          "wire_body_sha256": "6b0c00cbea99c6c9d04c2e632aa1479f727b5d553eb6119d897a711a82817aac",
+          "receipt_clock": {
+            "unity_frame": 6260,
+            "unity_time_seconds": 116.5911581632653,
+            "unity_unscaled_time_seconds": 118.98387630385487,
+            "monotonic_receipt_time_seconds": 118.98484820504535,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "position_xyz": [
+              -1.7809664,
+              0.42601725,
+              0.10307816
+            ],
+            "surface_normal_xyz": [
+              0.7426599,
+              0.10739895,
+              -0.6610005
+            ],
+            "relative_speed": 2.4537754,
+            "is_kick": 1
+          },
+          "precedes_first_relay_frame": false,
+          "receipt_unity_time_minus_first_relay_seconds": 68.4456785430839,
+          "same_frame_score_association": {
+            "status": "unique_same_frame_association_noncausal",
+            "is_causal": false,
+            "score_indices": [
+              3
+            ],
+            "decoded": [
+              {
+                "fighter_index": 1,
+                "new_hit_count": 5,
+                "points_awarded": 2
+              }
+            ]
+          },
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:39.4210669+00:00",
+                      "unity_frame": 6259,
+                      "unity_time": 116.57272755810658,
+                      "unity_fixed_time": 116.57199999999999,
+                      "qpc_ticks": 3217917869025,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.018430605158727076,
+                    "root_distance_ground_xz_m": 0.4810154339780235,
+                    "opponent_bearing_to_local_rad": -0.6150840345171675
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:39.461749+00:00",
+                      "unity_frame": 6261,
+                      "unity_time": 116.6129381590136,
+                      "unity_fixed_time": 116.612,
+                      "qpc_ticks": 3217918275864,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.021779995748289593
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 4,
+          "recorder_line": 63854,
+          "wire_body_sha256": "4cedd94077466c456584d4f6c3934317dc61a085000a9912ab3ff8f2888e9d42",
+          "receipt_clock": {
+            "unity_frame": 7179,
+            "unity_time_seconds": 133.91706245748298,
+            "unity_unscaled_time_seconds": 136.30978059807256,
+            "monotonic_receipt_time_seconds": 136.31061570504536,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "position_xyz": [
+              -1.1027354,
+              0.76280075,
+              -0.020033985
+            ],
+            "surface_normal_xyz": [
+              0.80732876,
+              -0.5860523,
+              0.06901395
+            ],
+            "relative_speed": 3.666331,
+            "is_kick": 0
+          },
+          "precedes_first_relay_frame": false,
+          "receipt_unity_time_minus_first_relay_seconds": 85.77158283730158,
+          "same_frame_score_association": {
+            "status": "unique_same_frame_association_noncausal",
+            "is_causal": false,
+            "score_indices": [
+              5
+            ],
+            "decoded": [
+              {
+                "fighter_index": 1,
+                "new_hit_count": 6,
+                "points_awarded": 1
+              }
+            ]
+          },
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:56.7478234+00:00",
+                      "unity_frame": 7178,
+                      "unity_time": 133.89934646400226,
+                      "unity_fixed_time": 133.898,
+                      "qpc_ticks": 3218091136618,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.017715993480720726,
+                    "root_distance_ground_xz_m": 0.5401320292774207,
+                    "opponent_bearing_to_local_rad": -0.6335070461436523
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:56.7880117+00:00",
+                      "unity_frame": 7180,
+                      "unity_time": 133.93711116071427,
+                      "unity_fixed_time": 133.936,
+                      "qpc_ticks": 3218091538497,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.02004870323128216
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 5,
+          "recorder_line": 85166,
+          "wire_body_sha256": "b404b9f6c42427de4ce5c06004344956f7c11782b50fb58e9b99888961708801",
+          "receipt_clock": {
+            "unity_frame": 8683,
+            "unity_time_seconds": 162.6246930626417,
+            "unity_unscaled_time_seconds": 165.0174112032313,
+            "monotonic_receipt_time_seconds": 165.01834900504537,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "position_xyz": [
+              0.4478472,
+              0.78957206,
+              -1.361899
+            ],
+            "surface_normal_xyz": [
+              -0.043188367,
+              -0.005381647,
+              0.99905246
+            ],
+            "relative_speed": 2.9134076,
+            "is_kick": 0
+          },
+          "precedes_first_relay_frame": false,
+          "receipt_unity_time_minus_first_relay_seconds": 114.4792134424603,
+          "same_frame_score_association": {
+            "status": "unique_same_frame_association_noncausal",
+            "is_causal": false,
+            "score_indices": [
+              6
+            ],
+            "decoded": [
+              {
+                "fighter_index": 1,
+                "new_hit_count": 7,
+                "points_awarded": 1
+              }
+            ]
+          },
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:31:25.4550643+00:00",
+                      "unity_frame": 8682,
+                      "unity_time": 162.60612575821995,
+                      "unity_fixed_time": 162.606,
+                      "qpc_ticks": 3218378209024,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.01856730442176513,
+                    "root_distance_ground_xz_m": 0.40702279880493497,
+                    "opponent_bearing_to_local_rad": 0.46253307384993886
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:31:25.5266146+00:00",
+                      "unity_frame": 8684,
+                      "unity_time": 162.66377726048754,
+                      "unity_fixed_time": 162.662,
+                      "qpc_ticks": 3218378924494,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.039084197845824065
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        }
+      ],
+      "score_events": [
+        {
+          "index": 0,
+          "recorder_line": 21948,
+          "wire_body_sha256": "4166ac0aa1a2803054228b2204c0933dac01233e6210ce0b804398e8315eeb96",
+          "receipt_clock": {
+            "unity_frame": 4212,
+            "unity_time_seconds": 77.48742555980725,
+            "unity_unscaled_time_seconds": 79.88014370039683,
+            "monotonic_receipt_time_seconds": 79.89905100504535,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 1,
+            "new_hit_count": 1,
+            "points_awarded": 1
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [
+            0
+          ],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:00.3178478+00:00",
+                      "unity_frame": 4211,
+                      "unity_time": 77.4671166595805,
+                      "unity_fixed_time": 77.466,
+                      "qpc_ticks": 3217526836842,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.020308900226751803,
+                    "root_distance_ground_xz_m": 0.51044195746533,
+                    "opponent_bearing_to_local_rad": -0.6516275083369705
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:00.3985107+00:00",
+                      "unity_frame": 4213,
+                      "unity_time": 77.52907336309524,
+                      "unity_fixed_time": 77.52799999999999,
+                      "qpc_ticks": 3217527643463,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.04164780328798656
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "recorder_line": 22801,
+          "wire_body_sha256": "3fc622538abd50891a23645177efb18266e39cdbc17ad5bbec3fc51c97f6fe29",
+          "receipt_clock": {
+            "unity_frame": 4264,
+            "unity_time_seconds": 78.64763095946712,
+            "unity_unscaled_time_seconds": 81.04034910005669,
+            "monotonic_receipt_time_seconds": 81.04426110504535,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 1,
+            "new_hit_count": 2,
+            "points_awarded": 1
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [
+            1
+          ],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:01.4783804+00:00",
+                      "unity_frame": 4263,
+                      "unity_time": 78.62900566184807,
+                      "unity_fixed_time": 78.628,
+                      "qpc_ticks": 3217538442155,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.01862529761905307,
+                    "root_distance_ground_xz_m": 0.43167933225356614,
+                    "opponent_bearing_to_local_rad": -0.10245444557331275
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:01.5253027+00:00",
+                      "unity_frame": 4265,
+                      "unity_time": 78.67096026077097,
+                      "unity_fixed_time": 78.67,
+                      "qpc_ticks": 3217538911368,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.02332930130384625
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 2,
+          "recorder_line": 49538,
+          "wire_body_sha256": "ad1bb500d2af0cfe5722a54ca23a1355eeb9c12bd619c68da0c1dbb52bcf211a",
+          "receipt_clock": {
+            "unity_frame": 6158,
+            "unity_time_seconds": 114.65250916241496,
+            "unity_unscaled_time_seconds": 117.04522730300452,
+            "monotonic_receipt_time_seconds": 117.04700570504535,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 1,
+            "new_hit_count": 3,
+            "points_awarded": 1
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [
+            2
+          ],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:37.4645235+00:00",
+                      "unity_frame": 6156,
+                      "unity_time": 114.61850826247165,
+                      "unity_fixed_time": 114.618,
+                      "qpc_ticks": 3217898303657,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.03400089994330813,
+                    "root_distance_ground_xz_m": 0.5613915841790649,
+                    "opponent_bearing_to_local_rad": -0.3091313050880938
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:37.5206436+00:00",
+                      "unity_frame": 6159,
+                      "unity_time": 114.67167716128118,
+                      "unity_fixed_time": 114.67,
+                      "qpc_ticks": 3217898864826,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.019167998866223
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 3,
+          "recorder_line": 50982,
+          "wire_body_sha256": "d2e7ca6a526485e6390795d603629c8c14331bb1d1db0aa8327d7bd740217e91",
+          "receipt_clock": {
+            "unity_frame": 6260,
+            "unity_time_seconds": 116.5911581632653,
+            "unity_unscaled_time_seconds": 118.98387630385487,
+            "monotonic_receipt_time_seconds": 118.98822170504536,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 1,
+            "new_hit_count": 5,
+            "points_awarded": 2
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [
+            3
+          ],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:39.4210669+00:00",
+                      "unity_frame": 6259,
+                      "unity_time": 116.57272755810658,
+                      "unity_fixed_time": 116.57199999999999,
+                      "qpc_ticks": 3217917869025,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.018430605158727076,
+                    "root_distance_ground_xz_m": 0.4810154339780235,
+                    "opponent_bearing_to_local_rad": -0.6150840345171675
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:39.461749+00:00",
+                      "unity_frame": 6261,
+                      "unity_time": 116.6129381590136,
+                      "unity_fixed_time": 116.612,
+                      "qpc_ticks": 3217918275864,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.021779995748289593
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 4,
+          "recorder_line": 53896,
+          "wire_body_sha256": "e43a8821219fdd6e82b7ed0bfb0b8ffe4cacd78ab435812dd05fb28df7f4a942",
+          "receipt_clock": {
+            "unity_frame": 6464,
+            "unity_time_seconds": 120.52542555980725,
+            "unity_unscaled_time_seconds": 122.91814370039683,
+            "monotonic_receipt_time_seconds": 122.92324050504534,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 0,
+            "new_hit_count": 5,
+            "points_awarded": 5
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:43.3552571+00:00",
+                      "unity_frame": 6463,
+                      "unity_time": 120.49492266156462,
+                      "unity_fixed_time": 120.494,
+                      "qpc_ticks": 3217957210928,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.03050289824263075,
+                    "root_distance_ground_xz_m": 1.537470255030252,
+                    "opponent_bearing_to_local_rad": 1.507876762492659
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:43.4087001+00:00",
+                      "unity_frame": 6465,
+                      "unity_time": 120.55548976048752,
+                      "unity_fixed_time": 120.554,
+                      "qpc_ticks": 3217957745359,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.030064200680271824
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 5,
+          "recorder_line": 63855,
+          "wire_body_sha256": "ae074aff62f092d7e9c1a111ff998dad5781f1564e33a06487947d9155e6f858",
+          "receipt_clock": {
+            "unity_frame": 7179,
+            "unity_time_seconds": 133.91706245748298,
+            "unity_unscaled_time_seconds": 136.30978059807256,
+            "monotonic_receipt_time_seconds": 136.31134850504537,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 1,
+            "new_hit_count": 6,
+            "points_awarded": 1
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [
+            4
+          ],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:56.7478234+00:00",
+                      "unity_frame": 7178,
+                      "unity_time": 133.89934646400226,
+                      "unity_fixed_time": 133.898,
+                      "qpc_ticks": 3218091136618,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.017715993480720726,
+                    "root_distance_ground_xz_m": 0.5401320292774207,
+                    "opponent_bearing_to_local_rad": -0.6335070461436523
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:30:56.7880117+00:00",
+                      "unity_frame": 7180,
+                      "unity_time": 133.93711116071427,
+                      "unity_fixed_time": 133.936,
+                      "qpc_ticks": 3218091538497,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.02004870323128216
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 6,
+          "recorder_line": 85167,
+          "wire_body_sha256": "751f536beb3fa75d78331aa395e2984491b0e113fe255ca0f6f8d9b875c859f1",
+          "receipt_clock": {
+            "unity_frame": 8683,
+            "unity_time_seconds": 162.6246930626417,
+            "unity_unscaled_time_seconds": 165.0174112032313,
+            "monotonic_receipt_time_seconds": 165.01913860504536,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 1,
+            "new_hit_count": 7,
+            "points_awarded": 1
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [
+            5
+          ],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:31:25.4550643+00:00",
+                      "unity_frame": 8682,
+                      "unity_time": 162.60612575821995,
+                      "unity_fixed_time": 162.606,
+                      "qpc_ticks": 3218378209024,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.01856730442176513,
+                    "root_distance_ground_xz_m": 0.40702279880493497,
+                    "opponent_bearing_to_local_rad": 0.46253307384993886
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:31:25.5266146+00:00",
+                      "unity_frame": 8684,
+                      "unity_time": 162.66377726048754,
+                      "unity_fixed_time": 162.662,
+                      "qpc_ticks": 3218378924494,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.039084197845824065
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "round-r12",
+      "mode": "follow_on",
+      "trial_directory": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r12",
+      "artifacts": {
+        "audit-r1/kinematics.jsonl": {
+          "bytes": 30196144,
+          "sha256": "20aa6858921f0cfbcaa2a8b29faf3e81c54ce1f4ee51f95e0a21e11b2b7228ac"
+        },
+        "audit-r1/motion_intervals.jsonl": {
+          "bytes": 427619,
+          "sha256": "0921684361e9cf9aa052caffd8e61b11eed216adb83225e8fb75e5509bb1ad57"
+        },
+        "audit-r1/score_events.jsonl": {
+          "bytes": 55222,
+          "sha256": "1a61578087aed355101bdf2b3a0fa5f91c9a0a0a5133b1a3b076022ac63cade7"
+        },
+        "audit-r1/summary.json": {
+          "bytes": 2962,
+          "sha256": "b810a171209959cf221b2cccefb211a06faa2394a9914498f29e87fbcb52170e"
+        },
+        "command.json": {
+          "bytes": 465,
+          "sha256": "687c42c6e736dd04a41766487e4f7c8fe90c9b06ce397183ae1edffe31637608"
+        },
+        "config.json": {
+          "bytes": 1221,
+          "sha256": "20b8b71ae737a834cb664dfdc86a979a7093725f80c4ad7cf18d326d106df9e4"
+        },
+        "exit.json": {
+          "bytes": 34,
+          "sha256": "6380f7ebf1263a94abaaef4f5a1323cf0f4fbc88e37d8f1792ae68f163e18807"
+        },
+        "media/authentic-rek-passive-defender.mp4": {
+          "bytes": 10272387,
+          "sha256": "cc99bb05572e8efb6ebd2dc45d4154b345335d14c8a50748e6bcc9088e80a727"
+        },
+        "media/capture-command.json": {
+          "bytes": 1050,
+          "sha256": "8a7acd372e51fb5d5eb384051239cf036c627ba319d89e84931568b2c7bb68f8"
+        },
+        "media/capture-manifest.json": {
+          "bytes": 1546,
+          "sha256": "f2923b890098c2dfc2182d2a1d831e9d8c306770b7ad77d43fdab40bd7dcca68"
+        },
+        "media/capture.stderr.txt": {
+          "bytes": 100,
+          "sha256": "e3831bec28a8f19e26583608ae738b1cf4db979a4e57135af86fe799bf3f6762"
+        },
+        "media/capture.stdout.txt": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "media/decode.stderr.txt": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "media/driver-command.json": {
+          "bytes": 505,
+          "sha256": "52c58a4fe3dacb6f0aaab6ae2d3524848e8ef059312553670cfefd422207adbf"
+        },
+        "media/driver.stderr.txt": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "media/driver.stdout.jsonl": {
+          "bytes": 4087,
+          "sha256": "cb216563ef3b05255409cc40a293ad7e1f8617d89223bd1650b208964b5f9147"
+        },
+        "native-hit-join-r1/five_point_awards.jsonl": {
+          "bytes": 28885,
+          "sha256": "e8c2d9043bcb5800a2c44bbcd4c77c24d090a6794abe4de9f7202ed80b0e4533"
+        },
+        "native-hit-join-r1/hit_events.jsonl": {
+          "bytes": 48973,
+          "sha256": "b558de9188b593ba30e87a4fbe6e44a1a581053f35def6019a6c5210ff1f4f3e"
+        },
+        "native-hit-join-r1/score_events.jsonl": {
+          "bytes": 67973,
+          "sha256": "c200c33ecf5b17018311bd1cf09205bb9c5f4ec2d60c6bf71373643c7e7e6fa4"
+        },
+        "native-hit-join-r1/summary.json": {
+          "bytes": 3854,
+          "sha256": "d4dc8ac6cf62d1a9f5dea256fa6d0082b2dd1fc04d9db6840f4fb4f1d9113934"
+        },
+        "provenance.json": {
+          "bytes": 1299,
+          "sha256": "243dead872ba0abc1d8019fdc7b92c5f9f31909a2bfcf4028db05799916d633a"
+        },
+        "stderr.txt": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stdout.jsonl": {
+          "bytes": 4734,
+          "sha256": "2ea2f4eb8ba5f1ba3d4977b683d328db30057fbced6b86832f99cbd41ac2d384"
+        },
+        "trial/active-state.json": {
+          "bytes": 19933,
+          "sha256": "28652248f5676e3fbd3cd4b9ea61217d008028f9a295013c91184c3013d4f783"
+        },
+        "trial/exit.json": {
+          "bytes": 143,
+          "sha256": "fe940567d788aa4f2def7862078d49a046d72e66142360ab432bfa32aca09d32"
+        },
+        "trial/final-state.json": {
+          "bytes": 19810,
+          "sha256": "e23d791e7e7c6f838598f78eb42f5dae0c8f9f33e104098cd8eb144c948834a2"
+        },
+        "trial/g1_policy_state.jsonl": {
+          "bytes": 52482959,
+          "sha256": "bc5238aefeef583823abf962310701bb604820af6c982a2464fff196726e7fc0"
+        },
+        "trial/initial-state.json": {
+          "bytes": 19933,
+          "sha256": "28652248f5676e3fbd3cd4b9ea61217d008028f9a295013c91184c3013d4f783"
+        },
+        "trial/orchestrator.jsonl": {
+          "bytes": 4087,
+          "sha256": "cb216563ef3b05255409cc40a293ad7e1f8617d89223bd1650b208964b5f9147"
+        },
+        "trial/provenance.json": {
+          "bytes": 1691,
+          "sha256": "46ee02fe56c1dcb9b7f4d37dae8295fa19a9bd7d32a68573f37419747ea9e33b"
+        },
+        "trial/relay.stderr.txt": {
+          "bytes": 156,
+          "sha256": "49a6e77c9042d31d81d231392469182bcd0e240a52f43291f38911018fa472e1"
+        },
+        "trial/relay.stdin.jsonl": {
+          "bytes": 1006505,
+          "sha256": "9194c7e2dab970fd1e378c12e01b492ebdd86ad2b763863610b66c9aaea75c44"
+        },
+        "trial/relay.stdout.jsonl": {
+          "bytes": 56704389,
+          "sha256": "872a0a4026d015c9365e25848873c9e80fb33c282ea45606b4deacb57ff06cc5"
+        },
+        "trial/run-config.json": {
+          "bytes": 1221,
+          "sha256": "20b8b71ae737a834cb664dfdc86a979a7093725f80c4ad7cf18d326d106df9e4"
+        },
+        "trial/summary.json": {
+          "bytes": 2876,
+          "sha256": "d979155f7bc12b1d095c4c19bffccaedbe92aef384fb3e1f183ebc07e910da7e"
+        }
+      },
+      "inputs": {
+        "native": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T083140.5010283Z-pid1216-2781a646178f41ca9d3e44b146b3d24d.jsonl",
+          "bytes": 209544007,
+          "sha256": "b271470c0516cd44fc5b5f6da7598bceea6f32d884ee5c7cb41e9f95aab85a0c",
+          "lines": 89175
+        },
+        "relay_source": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r12\\trial\\g1_policy_state.jsonl",
+          "bytes": 52482959,
+          "sha256": "bc5238aefeef583823abf962310701bb604820af6c982a2464fff196726e7fc0",
+          "lines": 5297
+        }
+      },
+      "runner_provenance": {
+        "runner_sha256": "e846e6cfd8beabf538ceade612149e3932b1dc58de93f6a1c6213c764abec1d1",
+        "helpers_sha256": "872646f69daf56658e56c677b4a487bb977a055157ef975e8994d50ad17f79ba",
+        "relay_expected_bridge_sha256": "6e15abbde6fdcd07f5ac71c632fd67cc2553d0a5cc35de34c9c81603c9880276",
+        "control": "only action 1, neutral held controls",
+        "policy_used": false,
+        "encoder_used": false,
+        "checkpoint_used": false,
+        "global_input_emitted": false
+      },
+      "capture": {
+        "start": {
+          "schema": "rek.private_ai.protocol.v7",
+          "utc": "2026-09-17T08:31:40.5010283+00:00",
+          "stopwatch_timestamp_ticks": 3218528668896,
+          "stopwatch_frequency_hz": 10000000,
+          "pid": 1216,
+          "plugin_version": "0.7.2",
+          "plugin_sha256": "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95",
+          "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+          "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd"
+        },
+        "end": {
+          "utc": "2026-09-17T08:33:40.4254853+00:00",
+          "stopwatch_timestamp_ticks": 3219727913477,
+          "reason": "scope_exit:round_not_active",
+          "capture_error_count": 0,
+          "raw_hit_packet_count": 6,
+          "raw_score_packet_count": 10,
+          "sample_count": 6001,
+          "root_pose_sample_count": 60010,
+          "client_transport_invocation_count": 6350,
+          "client_transport_method_counts": {
+            "SendVelocityCommand": 6350
+          }
+        },
+        "finalized": true,
+        "packet_counts_match_footer": true,
+        "error_records": 0,
+        "qpc_bounds_applied": true
+      },
+      "native_capture_qpc_seconds": 119.9244581,
+      "trial": {
+        "mode": "follow_on",
+        "stop_reason": "source_round_terminal",
+        "round_completed": true,
+        "outcome": "completed_round",
+        "collection_seconds": 110.596,
+        "max_seconds": 130,
+        "source_count": 5297,
+        "validated_source_count": 5297,
+        "dropped_sources": {},
+        "requested": 5296,
+        "applied": 5295,
+        "rejected": 1,
+        "unmatched_action_acks": 0,
+        "action_inflight_at_stop": false,
+        "only_requested_action": 1,
+        "neutral_source_count": 5297,
+        "post_ack_source_count": 5296,
+        "post_ack_neutral_source_count": 5296,
+        "neutral_command_verified": true,
+        "last_ack_qpc_ticks": "3219728680899",
+        "reasons": {
+          "held_state_applied_locally": 5295,
+          "policy_stream_not_owned": 1
+        },
+        "opponent": {
+          "client_ai_difficulty": 0,
+          "sparring_bot_number": 1
+        },
+        "local_slot": 0,
+        "round_identity_sha256": "a4e1b1ade876e2c7966a76dd768bba1255d7540cf2b19083f8b4b63801635072",
+        "initial_round": {
+          "number": 2,
+          "duration": 120,
+          "time_remaining": 110.497284,
+          "active": true,
+          "redo": false,
+          "clean_hits": [
+            0,
+            2
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "InProgress",
+          "result_value": 0,
+          "winner_index": -1,
+          "knockout": false
+        },
+        "final_round": {
+          "number": 2,
+          "duration": 120,
+          "time_remaining": 0,
+          "active": false,
+          "redo": false,
+          "clean_hits": [
+            20,
+            10
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "WonByPoints",
+          "result_value": 1,
+          "winner_index": 0,
+          "knockout": false
+        },
+        "stream_end": {
+          "event": "g1_policy_end",
+          "protocol": "rek.ui_bridge.v1",
+          "schema": "rek.g1_policy_source.v1",
+          "round_identity_sha256": "a4e1b1ade876e2c7966a76dd768bba1255d7540cf2b19083f8b4b63801635072",
+          "reason": "active_round_not_observed",
+          "owned_velocity_neutralized": true,
+          "neutral_send_method_returned": true,
+          "owned_pending_move_cleared": false,
+          "global_input_emitted": false,
+          "server_acceptance": "unknown",
+          "clock": {
+            "utc": "2026-09-17T08:33:40.4975475+00:00",
+            "unity_frame": 15871,
+            "unity_time": 297.57,
+            "unity_fixed_time": 297.57,
+            "qpc_ticks": 3219728634135,
+            "qpc_frequency_hz": 10000000
+          }
+        },
+        "cleanup": {
+          "stop_accepted": true,
+          "release_accepted": true,
+          "verified": true
+        },
+        "relay_exit": {
+          "code": 0,
+          "signal": null
+        },
+        "attach_status": "follow_on_attached_to_preexisting_active_round",
+        "follow_on": {
+          "initial_state": "active",
+          "transition_wait_ms": 0,
+          "attach_status": "follow_on_attached_to_preexisting_active_round",
+          "partial_round_attachment": true
+        },
+        "whole_round_from_first_tick": false,
+        "policy_used": false,
+        "encoder_used": false,
+        "checkpoint_used": false,
+        "neutral_control_does_not_freeze_physics": true,
+        "server_acceptance": "unknown",
+        "global_input_emitted": false,
+        "exit_code": 0
+      },
+      "relay_observation_bounds": {
+        "first_clock": {
+          "utc": "2026-09-17T08:31:49.9234005+00:00",
+          "unity_frame": 10073,
+          "unity_time": 187.07363825821994,
+          "unity_fixed_time": 187.072,
+          "qpc_ticks": 3218622892236,
+          "qpc_frequency_hz": 10000000
+        },
+        "last_clock": {
+          "utc": "2026-09-17T08:33:40.494109+00:00",
+          "unity_frame": 15871,
+          "unity_time": 297.57,
+          "unity_fixed_time": 297.57,
+          "qpc_ticks": 3219728599336,
+          "qpc_frequency_hz": 10000000
+        },
+        "first_round": {
+          "number": 2,
+          "duration": 120,
+          "time_remaining": 110.497284,
+          "active": true,
+          "redo": false,
+          "clean_hits": [
+            0,
+            2
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "InProgress",
+          "result_value": 0,
+          "winner_index": -1,
+          "knockout": false
+        },
+        "last_round": {
+          "number": 2,
+          "duration": 120,
+          "time_remaining": 0,
+          "active": false,
+          "redo": false,
+          "clean_hits": [
+            20,
+            10
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "WonByPoints",
+          "result_value": 1,
+          "winner_index": 0,
+          "knockout": false
+        },
+        "first_source_minus_capture_start_qpc_seconds": 9.422334,
+        "pre_attach_hit_count": 1,
+        "pre_attach_score_count": 1
+      },
+      "native_observations": {
+        "root_pose_samples": 60010,
+        "compact_samples": 6001,
+        "measured_velocity_zero_samples": 6001,
+        "no_pending_move_samples": 6001,
+        "punching_false_samples": 6001,
+        "all_three_neutral_samples": 6001,
+        "outbound_velocity_requests": 6350,
+        "outbound_velocity_zero_requests": 6350
+      },
+      "source_verification": {
+        "samples": 5297,
+        "all_three_neutral": 5297,
+        "desired_action_1": 5297,
+        "active_samples": 5297
+      },
+      "native_raw_verification": {
+        "event_counts": {
+          "capture_start": 1,
+          "root_pose_sample": 60010,
+          "sample": 6001,
+          "outbound_request_projection": 6350,
+          "raw_bone_packet": 7200,
+          "decoded_bone_snapshot": 7200,
+          "raw_fight_state_packet": 1198,
+          "fight_state_snapshot_applied": 1198,
+          "raw_hit_packet": 6,
+          "raw_score_packet": 10,
+          "capture_end": 1
+        },
+        "samples": 6001,
+        "all_three_neutral": 6001,
+        "outbound_velocity_requests": 6350,
+        "outbound_velocity_zero_requests": 6350,
+        "raw_hit_records_equal_join": true,
+        "raw_score_records_equal_join": true,
+        "input_hashes_equal_join": true
+      },
+      "recorded_command_counts": {
+        "get_state": 2,
+        "AcquireExclusiveControl": 1,
+        "StartG1PolicyStreamAnyAi": 1,
+        "policy_action": 5296,
+        "StopG1PolicyStream": 1,
+        "ReleaseExclusiveControl": 1
+      },
+      "requested_action_counts": {
+        "1": 5296
+      },
+      "native_packet_counts": {
+        "received_hit_packets": 6,
+        "is_kick": {
+          "0": 2,
+          "1": 4
+        },
+        "score_packets": 10,
+        "five_point_awards": 4,
+        "score_slot_and_award": {
+          "1:2": 4,
+          "0:5": 4,
+          "1:1": 2
+        },
+        "awarded_points_by_slot": [
+          20,
+          10
+        ],
+        "all_five_point_awards_have_no_same_frame_hit": true
+      },
+      "pose_join_status_counts": {
+        "partial_bracket": 1,
+        "bracketed": 5
+      },
+      "audit": {
+        "schema": "rek.passive_defender_audit.v1",
+        "options": {
+          "warmupSeconds": 1,
+          "windowSeconds": 1,
+          "motionSpeedMps": 1.75,
+          "maxGapSeconds": 0.25
+        },
+        "coordinate_system": "Unity world XYZ, Y up; root rotations XYZW",
+        "source_lines": 10609,
+        "source_state_records": 5297,
+        "samples": 5297,
+        "invalid_records": 0,
+        "error_counts": {},
+        "boundaries": {
+          "first_valid_sample": 1
+        },
+        "score_events": 9,
+        "counter_decrease_events": 0,
+        "positive_point_updates": {
+          "actor": 20,
+          "opponent": 8
+        },
+        "score_update_sizes": {
+          "actor": {
+            "5": 4
+          },
+          "opponent": {
+            "1": 2,
+            "2": 3
+          }
+        },
+        "motion_intervals": 677,
+        "motion_intervals_no_score_observed": 544,
+        "active_stream_neutral": {
+          "samples": 5296,
+          "desired_action_1": 5296,
+          "desired_action_other": 0,
+          "desired_action_unknown": 0,
+          "velocity_command_zero": 5296,
+          "velocity_command_nonzero": 0,
+          "velocity_command_unknown": 0,
+          "both_neutral": 5296
+        },
+        "after_warmup_neutral": {
+          "samples": 5248,
+          "desired_action_1": 5248,
+          "desired_action_other": 0,
+          "desired_action_unknown": 0,
+          "velocity_command_zero": 5248,
+          "velocity_command_nonzero": 0,
+          "velocity_command_unknown": 0,
+          "both_neutral": 5248
+        },
+        "acknowledgments": {
+          "action_1_applied": 5295,
+          "action_1_not_applied": 1,
+          "other_actions": 0
+        },
+        "maximum_actor_root_step_m": 1.3236257179684527,
+        "maximum_opponent_root_step_m": 0.9592749892911172,
+        "limits": [
+          "Client-rendered/replicated observations, not authoritative server contact state.",
+          "Limb positions are named bone origins, not collider surfaces or contact points.",
+          "Variable-QPC finite differences measure displacement; impacts, interpolation and position resets can all contribute.",
+          "Diagnostic speed-threshold intervals are motion, not identified attacks.",
+          "no_score_observed does not mean a missed or rejected attack; native active-clip/apex and contact-enter state are unavailable.",
+          "One-, two- and five-point updates describe counter increments only; batches and authoritative causes are not resolved.",
+          "Neutral commands do not hold the robot stationary or disable physical response.",
+          "Score/window comparisons stop at round, slot, clock, sequence and sampling-gap boundaries.",
+          "Requested action and measured command checks are sampled evidence, not proof of every intervening command."
+        ],
+        "segments": 1,
+        "complete": true,
+        "sampled_neutral_confirmed_after_warmup": true,
+        "source": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r12\\trial\\relay.stdout.jsonl",
+          "bytes": 56704389,
+          "sha256": "872a0a4026d015c9365e25848873c9e80fb33c282ea45606b4deacb57ff06cc5",
+          "modified_utc": "2026-09-17T08:33:41.000Z"
+        },
+        "outputs": {
+          "kinematics": "kinematics.jsonl",
+          "score_events": "score_events.jsonl",
+          "motion_intervals": "motion_intervals.jsonl"
+        }
+      },
+      "media": {
+        "schema": "rek.passive_defender.capture.v1",
+        "host": "spark-4ae3",
+        "trial_output": "/home/spark-advantage/rek-training/passive-defender-20260917-r1/round-r12/trial",
+        "config_path": "/home/spark-advantage/rek-training/passive-defender-20260917-r1/round-r12/config.json",
+        "controller": "neutral_action_1",
+        "checkpoint_sha256": null,
+        "capture_source": "authentic REK framebuffer on isolated X11 :98",
+        "global_input_emitted": false,
+        "pointer_capture": false,
+        "synthetic_frames": false,
+        "recording_started_utc": "2026-09-17T08:31:49.903Z",
+        "trigger": "active_private_ai_opponent",
+        "driver_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "recording_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": "requested_stop",
+          "timed_out": false,
+          "signals_sent": [],
+          "utc": "2026-09-17T08:33:46.067Z"
+        },
+        "recording_size_limit_reached": false,
+        "recording_size_limit_evidence": null,
+        "video": "/home/spark-advantage/rek-training/passive-defender-20260917-r1/round-r12/media/authentic-rek-passive-defender.mp4",
+        "video_bytes": 10272387,
+        "video_sha256": "cc99bb05572e8efb6ebd2dc45d4154b345335d14c8a50748e6bcc9088e80a727",
+        "decode_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "delivery_status": "validated_mp4",
+        "delivery_max_bytes_exclusive": 20000000
+      },
+      "hit_events": [
+        {
+          "index": 0,
+          "recorder_line": 5834,
+          "wire_body_sha256": "58c919ddceb0283c5821c667612f84845a9836144499b47bc944511ccfc9ad42",
+          "receipt_clock": {
+            "unity_frame": 9973,
+            "unity_time_seconds": 185.37119095804988,
+            "unity_unscaled_time_seconds": 187.76390909863946,
+            "monotonic_receipt_time_seconds": 187.76751300504537,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "position_xyz": [
+              -1.1031089,
+              0.7705508,
+              -0.105584875
+            ],
+            "surface_normal_xyz": [
+              -0.7490231,
+              0.5337686,
+              0.39249906
+            ],
+            "relative_speed": 4.4598885,
+            "is_kick": 1
+          },
+          "precedes_first_relay_frame": true,
+          "receipt_unity_time_minus_first_relay_seconds": -1.7024473001700642,
+          "same_frame_score_association": {
+            "status": "unique_same_frame_association_noncausal",
+            "is_causal": false,
+            "score_indices": [
+              0
+            ],
+            "decoded": [
+              {
+                "fighter_index": 1,
+                "new_hit_count": 2,
+                "points_awarded": 2
+              }
+            ]
+          },
+          "pose": {
+            "status": "partial_bracket",
+            "candidates": [
+              {
+                "prior": [],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:31:49.9234005+00:00",
+                      "unity_frame": 10073,
+                      "unity_time": 187.07363825821994,
+                      "unity_fixed_time": 187.072,
+                      "qpc_ticks": 3218622892236,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 1.7024473001700642
+                  }
+                ],
+                "same_frame_count": 0
+              }
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "recorder_line": 22687,
+          "wire_body_sha256": "a2f648bb561f240ceb14bee89457c25893add11ff2b0b544102da09698f7019d",
+          "receipt_clock": {
+            "unity_frame": 11175,
+            "unity_time_seconds": 208.0503851615646,
+            "unity_unscaled_time_seconds": 210.44310330215419,
+            "monotonic_receipt_time_seconds": 210.44430670504536,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "position_xyz": [
+              -1.0817446,
+              0.3667113,
+              -0.27180836
+            ],
+            "surface_normal_xyz": [
+              -0.87682235,
+              -0.17704615,
+              -0.44703156
+            ],
+            "relative_speed": 2.259777,
+            "is_kick": 1
+          },
+          "precedes_first_relay_frame": false,
+          "receipt_unity_time_minus_first_relay_seconds": 20.97674690334466,
+          "same_frame_score_association": {
+            "status": "unique_same_frame_association_noncausal",
+            "is_causal": false,
+            "score_indices": [
+              3
+            ],
+            "decoded": [
+              {
+                "fighter_index": 1,
+                "new_hit_count": 4,
+                "points_awarded": 2
+              }
+            ]
+          },
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:10.8640978+00:00",
+                      "unity_frame": 11173,
+                      "unity_time": 208.01320496031744,
+                      "unity_fixed_time": 208.012,
+                      "qpc_ticks": 3218832299365,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.03718020124716759,
+                    "root_distance_ground_xz_m": 0.41151358810364014,
+                    "opponent_bearing_to_local_rad": 0.22018775655624043
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:10.9250523+00:00",
+                      "unity_frame": 11176,
+                      "unity_time": 208.07292825963717,
+                      "unity_fixed_time": 208.072,
+                      "qpc_ticks": 3218832908915,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.022543098072560497
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 2,
+          "recorder_line": 31332,
+          "wire_body_sha256": "f539f10065d234dff35af27e080518057d73064f45fa1942aaa300d641cc94c9",
+          "receipt_clock": {
+            "unity_frame": 11792,
+            "unity_time_seconds": 219.68478306405896,
+            "unity_unscaled_time_seconds": 222.0775012046485,
+            "monotonic_receipt_time_seconds": 222.07862080504538,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "position_xyz": [
+              -0.964938,
+              0.54497737,
+              -0.5344378
+            ],
+            "surface_normal_xyz": [
+              0.5233278,
+              0.23565747,
+              -0.8188978
+            ],
+            "relative_speed": 5.1912255,
+            "is_kick": 1
+          },
+          "precedes_first_relay_frame": false,
+          "receipt_unity_time_minus_first_relay_seconds": 32.61114480583902,
+          "same_frame_score_association": {
+            "status": "unique_same_frame_association_noncausal",
+            "is_causal": false,
+            "score_indices": [
+              4
+            ],
+            "decoded": [
+              {
+                "fighter_index": 1,
+                "new_hit_count": 6,
+                "points_awarded": 2
+              }
+            ]
+          },
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:22.5155321+00:00",
+                      "unity_frame": 11791,
+                      "unity_time": 219.6669620606576,
+                      "unity_fixed_time": 219.666,
+                      "qpc_ticks": 3218948813672,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.017821003401365942,
+                    "root_distance_ground_xz_m": 0.37360881570938015,
+                    "opponent_bearing_to_local_rad": -1.0234162047156752
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:22.5565452+00:00",
+                      "unity_frame": 11793,
+                      "unity_time": 219.70577716128116,
+                      "unity_fixed_time": 219.70399999999998,
+                      "qpc_ticks": 3218949223810,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.020994097222200025
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 3,
+          "recorder_line": 35693,
+          "wire_body_sha256": "df4374d6f7e3c136fa564aa2cc556a2c863da2f39bb95a7698389d99ddf5891a",
+          "receipt_clock": {
+            "unity_frame": 12096,
+            "unity_time_seconds": 225.55577886196144,
+            "unity_unscaled_time_seconds": 227.94849700255102,
+            "monotonic_receipt_time_seconds": 227.94926710504538,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "position_xyz": [
+              -0.52791154,
+              0.3836371,
+              -0.66433406
+            ],
+            "surface_normal_xyz": [
+              0.8889302,
+              0.45467377,
+              -0.055451486
+            ],
+            "relative_speed": 2.9189038,
+            "is_kick": 1
+          },
+          "precedes_first_relay_frame": false,
+          "receipt_unity_time_minus_first_relay_seconds": 38.4821406037415,
+          "same_frame_score_association": {
+            "status": "unique_same_frame_association_noncausal",
+            "is_causal": false,
+            "score_indices": [
+              5
+            ],
+            "decoded": [
+              {
+                "fighter_index": 1,
+                "new_hit_count": 8,
+                "points_awarded": 2
+              }
+            ]
+          },
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:28.386883+00:00",
+                      "unity_frame": 12095,
+                      "unity_time": 225.5379076601474,
+                      "unity_fixed_time": 225.536,
+                      "qpc_ticks": 3219007527233,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.01787120181404589,
+                    "root_distance_ground_xz_m": 0.5835632446395592,
+                    "opponent_bearing_to_local_rad": 0.726474444632949
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:28.425269+00:00",
+                      "unity_frame": 12097,
+                      "unity_time": 225.57447356150792,
+                      "unity_fixed_time": 225.57399999999998,
+                      "qpc_ticks": 3219007911063,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.018694699546472293
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 4,
+          "recorder_line": 57348,
+          "wire_body_sha256": "162439055860f632c63be9d44493aecc6e6007a3821bfbbd2dc6ce00c7fd4fb8",
+          "receipt_clock": {
+            "unity_frame": 13611,
+            "unity_time_seconds": 254.7534497590703,
+            "unity_unscaled_time_seconds": 257.1461678996599,
+            "monotonic_receipt_time_seconds": 257.1479208050453,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "position_xyz": [
+              -0.6917793,
+              0.8325943,
+              -1.3461013
+            ],
+            "surface_normal_xyz": [
+              -0.2848431,
+              0.020724753,
+              0.9583501
+            ],
+            "relative_speed": 2.4688444,
+            "is_kick": 0
+          },
+          "precedes_first_relay_frame": false,
+          "receipt_unity_time_minus_first_relay_seconds": 67.67981150085035,
+          "same_frame_score_association": {
+            "status": "unique_same_frame_association_noncausal",
+            "is_causal": false,
+            "score_indices": [
+              7
+            ],
+            "decoded": [
+              {
+                "fighter_index": 1,
+                "new_hit_count": 9,
+                "points_awarded": 1
+              }
+            ]
+          },
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:57.5832921+00:00",
+                      "unity_frame": 13610,
+                      "unity_time": 254.72801155753967,
+                      "unity_fixed_time": 254.72799999999998,
+                      "qpc_ticks": 3219299491266,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.025438201530619153,
+                    "root_distance_ground_xz_m": 0.4809318232277441,
+                    "opponent_bearing_to_local_rad": -0.960294360208426
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:57.6358677+00:00",
+                      "unity_frame": 13612,
+                      "unity_time": 254.78062006094103,
+                      "unity_fixed_time": 254.78,
+                      "qpc_ticks": 3219300017037,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.027170301870739877
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 5,
+          "recorder_line": 76382,
+          "wire_body_sha256": "61b6d0288a34b19a2ce4e5db3ba9bd379779cbb7633ad7b2869c8142b40ae80c",
+          "receipt_clock": {
+            "unity_frame": 14967,
+            "unity_time_seconds": 280.3781625637755,
+            "unity_unscaled_time_seconds": 282.7708807043651,
+            "monotonic_receipt_time_seconds": 282.7717446050453,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "position_xyz": [
+              0.70587677,
+              0.8618359,
+              -1.685467
+            ],
+            "surface_normal_xyz": [
+              -0.1342806,
+              0.0027076134,
+              0.9909397
+            ],
+            "relative_speed": 2.287461,
+            "is_kick": 0
+          },
+          "precedes_first_relay_frame": false,
+          "receipt_unity_time_minus_first_relay_seconds": 93.30452430555556,
+          "same_frame_score_association": {
+            "status": "unique_same_frame_association_noncausal",
+            "is_causal": false,
+            "score_indices": [
+              8
+            ],
+            "decoded": [
+              {
+                "fighter_index": 1,
+                "new_hit_count": 10,
+                "points_awarded": 1
+              }
+            ]
+          },
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:33:23.2084763+00:00",
+                      "unity_frame": 14966,
+                      "unity_time": 280.3469918579932,
+                      "unity_fixed_time": 280.346,
+                      "qpc_ticks": 3219555743155,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.03117070578230141,
+                    "root_distance_ground_xz_m": 0.5596800569910009,
+                    "opponent_bearing_to_local_rad": -0.4792769622435232
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:33:23.2593413+00:00",
+                      "unity_frame": 14968,
+                      "unity_time": 280.40589116354874,
+                      "unity_fixed_time": 280.404,
+                      "qpc_ticks": 3219556251779,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.027728599773240603
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        }
+      ],
+      "score_events": [
+        {
+          "index": 0,
+          "recorder_line": 5839,
+          "wire_body_sha256": "12ff10f42a32f13c1e6e0fc34ffd63d634245edf81a819b1eaef619ed16e99ea",
+          "receipt_clock": {
+            "unity_frame": 9973,
+            "unity_time_seconds": 185.37119095804988,
+            "unity_unscaled_time_seconds": 187.76390909863946,
+            "monotonic_receipt_time_seconds": 187.77293510504538,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 1,
+            "new_hit_count": 2,
+            "points_awarded": 2
+          },
+          "precedes_first_relay_frame": true,
+          "same_frame_hit_indices": [
+            0
+          ],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "partial_bracket",
+            "candidates": [
+              {
+                "prior": [],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:31:49.9234005+00:00",
+                      "unity_frame": 10073,
+                      "unity_time": 187.07363825821994,
+                      "unity_fixed_time": 187.072,
+                      "qpc_ticks": 3218622892236,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 1.7024473001700642
+                  }
+                ],
+                "same_frame_count": 0
+              }
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "recorder_line": 8757,
+          "wire_body_sha256": "e43a8821219fdd6e82b7ed0bfb0b8ffe4cacd78ab435812dd05fb28df7f4a942",
+          "receipt_clock": {
+            "unity_frame": 10188,
+            "unity_time_seconds": 189.29498805980725,
+            "unity_unscaled_time_seconds": 191.6877062003968,
+            "monotonic_receipt_time_seconds": 191.68915310504536,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 0,
+            "new_hit_count": 5,
+            "points_awarded": 5
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:31:52.125289+00:00",
+                      "unity_frame": 10187,
+                      "unity_time": 189.27597866354876,
+                      "unity_fixed_time": 189.274,
+                      "qpc_ticks": 3218644911247,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.019009396258496736,
+                    "root_distance_ground_xz_m": 0.7332608748556365,
+                    "opponent_bearing_to_local_rad": 0.5674787543461177
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:31:52.1905929+00:00",
+                      "unity_frame": 10189,
+                      "unity_time": 189.33051356292518,
+                      "unity_fixed_time": 189.32999999999998,
+                      "qpc_ticks": 3218645564292,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.03552550311792402
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 2,
+          "recorder_line": 19251,
+          "wire_body_sha256": "9258fee21b62556e4250c6f8893e4bd7eb44c38b5d53ab1c113873c2aae75e42",
+          "receipt_clock": {
+            "unity_frame": 10932,
+            "unity_time_seconds": 203.42314686082764,
+            "unity_unscaled_time_seconds": 205.81586500141722,
+            "monotonic_receipt_time_seconds": 205.81677620504536,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 0,
+            "new_hit_count": 10,
+            "points_awarded": 5
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:06.2535006+00:00",
+                      "unity_frame": 10931,
+                      "unity_time": 203.4045256590136,
+                      "unity_fixed_time": 203.404,
+                      "qpc_ticks": 3218786193414,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.018621201814056576,
+                    "root_distance_ground_xz_m": 1.7756415339315796,
+                    "opponent_bearing_to_local_rad": 2.9363296100442917
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:06.2868889+00:00",
+                      "unity_frame": 10933,
+                      "unity_time": 203.4408506590136,
+                      "unity_fixed_time": 203.44,
+                      "qpc_ticks": 3218786527278,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.01770379818594847
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 3,
+          "recorder_line": 22692,
+          "wire_body_sha256": "4bc3eeadb5884ac049b852bb79108212614eaf1a5825f5a4e1578fa60a1c18f4",
+          "receipt_clock": {
+            "unity_frame": 11175,
+            "unity_time_seconds": 208.0503851615646,
+            "unity_unscaled_time_seconds": 210.44310330215419,
+            "monotonic_receipt_time_seconds": 210.44776850504536,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 1,
+            "new_hit_count": 4,
+            "points_awarded": 2
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [
+            1
+          ],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:10.8640978+00:00",
+                      "unity_frame": 11173,
+                      "unity_time": 208.01320496031744,
+                      "unity_fixed_time": 208.012,
+                      "qpc_ticks": 3218832299365,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.03718020124716759,
+                    "root_distance_ground_xz_m": 0.41151358810364014,
+                    "opponent_bearing_to_local_rad": 0.22018775655624043
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:10.9250523+00:00",
+                      "unity_frame": 11176,
+                      "unity_time": 208.07292825963717,
+                      "unity_fixed_time": 208.072,
+                      "qpc_ticks": 3218832908915,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.022543098072560497
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 4,
+          "recorder_line": 31337,
+          "wire_body_sha256": "c4ffc2e3578cc970449d919ca069305cedb40149aaece80c1c45700b2f09cb9c",
+          "receipt_clock": {
+            "unity_frame": 11792,
+            "unity_time_seconds": 219.68478306405896,
+            "unity_unscaled_time_seconds": 222.0775012046485,
+            "monotonic_receipt_time_seconds": 222.08211250504536,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 1,
+            "new_hit_count": 6,
+            "points_awarded": 2
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [
+            2
+          ],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:22.5155321+00:00",
+                      "unity_frame": 11791,
+                      "unity_time": 219.6669620606576,
+                      "unity_fixed_time": 219.666,
+                      "qpc_ticks": 3218948813672,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.017821003401365942,
+                    "root_distance_ground_xz_m": 0.37360881570938015,
+                    "opponent_bearing_to_local_rad": -1.0234162047156752
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:22.5565452+00:00",
+                      "unity_frame": 11793,
+                      "unity_time": 219.70577716128116,
+                      "unity_fixed_time": 219.70399999999998,
+                      "qpc_ticks": 3218949223810,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.020994097222200025
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 5,
+          "recorder_line": 35694,
+          "wire_body_sha256": "e66d211d5a21886bc2d3278f4290fe2a93137eca19e4ca35b8f4d5c3ebf2f830",
+          "receipt_clock": {
+            "unity_frame": 12096,
+            "unity_time_seconds": 225.55577886196144,
+            "unity_unscaled_time_seconds": 227.94849700255102,
+            "monotonic_receipt_time_seconds": 227.94995370504537,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 1,
+            "new_hit_count": 8,
+            "points_awarded": 2
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [
+            3
+          ],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:28.386883+00:00",
+                      "unity_frame": 12095,
+                      "unity_time": 225.5379076601474,
+                      "unity_fixed_time": 225.536,
+                      "qpc_ticks": 3219007527233,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.01787120181404589,
+                    "root_distance_ground_xz_m": 0.5835632446395592,
+                    "opponent_bearing_to_local_rad": 0.726474444632949
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:28.425269+00:00",
+                      "unity_frame": 12097,
+                      "unity_time": 225.57447356150792,
+                      "unity_fixed_time": 225.57399999999998,
+                      "qpc_ticks": 3219007911063,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.018694699546472293
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 6,
+          "recorder_line": 38702,
+          "wire_body_sha256": "55801da732cd2dbab92b36083c5761f2b27c7cbccfc1f20ec2dafe0c7477a4e7",
+          "receipt_clock": {
+            "unity_frame": 12305,
+            "unity_time_seconds": 229.60788576388887,
+            "unity_unscaled_time_seconds": 232.00060390447845,
+            "monotonic_receipt_time_seconds": 232.00429590504538,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 0,
+            "new_hit_count": 15,
+            "points_awarded": 5
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:32.4383391+00:00",
+                      "unity_frame": 12304,
+                      "unity_time": 229.59088876133785,
+                      "unity_fixed_time": 229.59,
+                      "qpc_ticks": 3219048041762,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.016997002551022433,
+                    "root_distance_ground_xz_m": 1.6793232705721197,
+                    "opponent_bearing_to_local_rad": 0.119322943098652
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:32.4744727+00:00",
+                      "unity_frame": 12306,
+                      "unity_time": 229.6266695578231,
+                      "unity_fixed_time": 229.626,
+                      "qpc_ticks": 3219048403075,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.018783793934233017
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 7,
+          "recorder_line": 57353,
+          "wire_body_sha256": "12e9c31f00e3eb70e6c7f4baeb16b0c2bd5e1bd6df04273eac769bc121b44945",
+          "receipt_clock": {
+            "unity_frame": 13611,
+            "unity_time_seconds": 254.7534497590703,
+            "unity_unscaled_time_seconds": 257.1461678996599,
+            "monotonic_receipt_time_seconds": 257.1513404050453,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 1,
+            "new_hit_count": 9,
+            "points_awarded": 1
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [
+            4
+          ],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:57.5832921+00:00",
+                      "unity_frame": 13610,
+                      "unity_time": 254.72801155753967,
+                      "unity_fixed_time": 254.72799999999998,
+                      "qpc_ticks": 3219299491266,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.025438201530619153,
+                    "root_distance_ground_xz_m": 0.4809318232277441,
+                    "opponent_bearing_to_local_rad": -0.960294360208426
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:32:57.6358677+00:00",
+                      "unity_frame": 13612,
+                      "unity_time": 254.78062006094103,
+                      "unity_fixed_time": 254.78,
+                      "qpc_ticks": 3219300017037,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.027170301870739877
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 8,
+          "recorder_line": 76383,
+          "wire_body_sha256": "40adbc1a95cf377be1279de8d108c7ad5cc3f530267889d360c010f95bc8f4b0",
+          "receipt_clock": {
+            "unity_frame": 14967,
+            "unity_time_seconds": 280.3781625637755,
+            "unity_unscaled_time_seconds": 282.7708807043651,
+            "monotonic_receipt_time_seconds": 282.7725024050453,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 1,
+            "new_hit_count": 10,
+            "points_awarded": 1
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [
+            5
+          ],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:33:23.2084763+00:00",
+                      "unity_frame": 14966,
+                      "unity_time": 280.3469918579932,
+                      "unity_fixed_time": 280.346,
+                      "qpc_ticks": 3219555743155,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.03117070578230141,
+                    "root_distance_ground_xz_m": 0.5596800569910009,
+                    "opponent_bearing_to_local_rad": -0.4792769622435232
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:33:23.2593413+00:00",
+                      "unity_frame": 14968,
+                      "unity_time": 280.40589116354874,
+                      "unity_fixed_time": 280.404,
+                      "qpc_ticks": 3219556251779,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.027728599773240603
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        },
+        {
+          "index": 9,
+          "recorder_line": 86147,
+          "wire_body_sha256": "e51c98dcd8aca1718f1ea1b368898c7962dfd5b7d82049d62777b304e9000857",
+          "receipt_clock": {
+            "unity_frame": 15648,
+            "unity_time_seconds": 293.5230026643991,
+            "unity_unscaled_time_seconds": 295.91572080498867,
+            "monotonic_receipt_time_seconds": 295.9193456050453,
+            "qpc_ticks": null,
+            "utc": null,
+            "server_impact_time": null
+          },
+          "decoded": {
+            "fighter_index": 0,
+            "new_hit_count": 20,
+            "points_awarded": 5
+          },
+          "precedes_first_relay_frame": false,
+          "same_frame_hit_indices": [],
+          "same_frame_association_is_causal": false,
+          "pose": {
+            "status": "bracketed",
+            "candidates": [
+              {
+                "prior": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:33:36.3528841+00:00",
+                      "unity_frame": 15647,
+                      "unity_time": 293.50632996031743,
+                      "unity_fixed_time": 293.506,
+                      "qpc_ticks": 3219687187253,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": -0.016672704081656775,
+                    "root_distance_ground_xz_m": 0.855239215386785,
+                    "opponent_bearing_to_local_rad": 0.3149399069805946
+                  }
+                ],
+                "next": [
+                  {
+                    "clock": {
+                      "utc": "2026-09-17T08:33:36.3880983+00:00",
+                      "unity_frame": 15649,
+                      "unity_time": 293.54195865929705,
+                      "unity_fixed_time": 293.53999999999996,
+                      "qpc_ticks": 3219687539394,
+                      "qpc_frequency_hz": 10000000
+                    },
+                    "pose_minus_event_unity_seconds": 0.018955994897964956
+                  }
+                ],
+                "same_frame_count": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "mismatches": [],
+  "totals": {
+    "paired_runs": 2,
+    "received_hit_packets": 12,
+    "nonkick_packets": 7,
+    "kick_packets": 5,
+    "score_packets": 17,
+    "five_point_awards": 5,
+    "native_compact_samples": 12003,
+    "native_all_three_neutral_samples": 12003,
+    "native_zero_velocity_requests": 12563,
+    "relay_sources": 10946,
+    "requested_neutral_actions": 10944,
+    "applied_neutral_actions": 10941,
+    "rejected_requests": 3
+  },
+  "r12_score20_explanation": {
+    "recorded_fighter_index": 0,
+    "award_size": 5,
+    "packet_count": 4,
+    "recorded_new_hit_counts": [
+      5,
+      10,
+      15,
+      20
+    ],
+    "sum": 20,
+    "cause": "unknown",
+    "knockout_inferred": false
+  },
+  "limits": [
+    "These are client-native received effects/score packets and replicated poses, without authoritative impact time or collision causality.",
+    "All same-frame hit/score associations are noncausal. Hit packets identify no fighter, clip, strike side or body zone.",
+    "Five-point awards are retained as decoded awards only; no fall, knockout, push or strike cause is assigned.",
+    "The hit channel is unreliable, so absent receipts leave contact unknown.",
+    "Hit/score receipt clocks contain Unity frame/time and realtime receipt time, but no QPC, UTC or server impact time. Pose QPC stays separate.",
+    "R12 is a partial relay attachment. Its pre-attachment hit and score have no prior/same-frame relay pose. The next pose is a later observation, not a reconstructed event pose. Native root records exist separately and have not been substituted into this paired join.",
+    "Neutral action 1 releases held controls; it does not freeze physics. Sampled neutral state and method invocations do not prove every intervening state or server delivery.",
+    "R11 and R12 use no policy, encoder or checkpoint. Repeated hit receipt is established; exact known-action/position repeatability and causal attribution are not."
+  ],
+  "validation": {
+    "raw_native_files_rehashed": 2,
+    "raw_hit_records_compared": 12,
+    "raw_score_records_compared": 17,
+    "paired_source_streams_checked": 2,
+    "artifact_files_rehashed": 71,
+    "stdin_action_requests_checked": 10944,
+    "all_requested_actions_equal_1": true,
+    "all_input_and_media_hashes_match": true,
+    "r12_remote_source_rehash_matches": true,
+    "mismatches": []
+  },
+  "commands": {
+    "r12_copy": "ssh -n spark tar with exact finalized round-r12 folder and 083140 native filename; extracted without overwriting existing files",
+    "r12_audit": "node ocean/rek_g1/native5/audit_passive_defender.cjs C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r12\\trial\\relay.stdout.jsonl C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r12\\audit-r1",
+    "r12_join": "node ocean/rek_g1/native5/join_passive_hit_events.cjs C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T083140.5010283Z-pid1216-2781a646178f41ca9d3e44b146b3d24d.jsonl C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r12\\trial\\g1_policy_state.jsonl C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r12\\native-hit-join-r1"
+  },
+  "commands_results": {
+    "copy_exit_code": 0,
+    "audit": {
+      "exit_code": 0,
+      "complete": true,
+      "samples": 5297,
+      "score_events": 9,
+      "motion_intervals": 677
+    },
+    "join": {
+      "exit_code": 0,
+      "complete": true,
+      "received_hit_packets": 6,
+      "score_packets": 10,
+      "five_point_awards": 4
+    }
+  },
+  "tools": [
+    {
+      "path": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native5\\audit_passive_defender.cjs",
+      "sha256": "326e7b0badac4d76570749e36bccf1d7616701dd7d2d44f97ebc5e0074a4d00b"
+    },
+    {
+      "path": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek_g1\\native5\\join_passive_hit_events.cjs",
+      "sha256": "1a58b2867c825e2a8bd57c234f7052f47c84f0ea1fd0b81c504c3dbb26b408ee"
+    }
+  ]
+}

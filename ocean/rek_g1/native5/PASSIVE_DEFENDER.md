@@ -7,8 +7,9 @@ active. A neutral command does not fix the robot's position or orientation.
 
 Execution is restricted to the owned Spark Wine display `:98`, with the existing
 native private/no-human, known AI identity, exact G1 pairing and exclusive-lease
-checks. Any known bot number is acceptable. Windows receives no input. The game
-and installed bridge do not need modification for this experiment.
+checks. Any known bot number is acceptable. Windows receives no input. This
+uses the native recorder and bridge; the later observer-binding fix is
+documented in the repeat-validation report.
 
 ## One bounded collection
 
@@ -26,7 +27,8 @@ Idle/loss states use the existing start/recovery commands. It sends no inputs
 during the transition wait, pins the bot and fighter slots, and aborts on a
 scope change. Its collection cap is 130 seconds. It records whether attachment
 occurred partway through a round; it does not claim first-tick coverage. This
-mode has offline fixture coverage but has not yet completed a live trial.
+mode has offline fixture coverage and a completed active-attach live trial
+(R12). Its transition-wait branch has not yet completed a live trial.
 
 The production command runs through `wsl -e bash -lc 'ssh spark ...'`. The
 wrapper currently selects a 130-second collection cap and a verified existing
@@ -134,5 +136,8 @@ private-AI round: 5,674 live source samples, neutral player commands, final scor
 are retained separately. Both Windows and Spark passed all 61 tests.
 
 See `validation/passive-defender-repeat-20260917/README.md` for the user's
-annotations, four completed native captures with 31 hit receipts, three newly
-captured rounds, geometry counterexamples, and subsequent client-exit failures.
+annotations, eight approximately 120 s captures with 65 hit receipts, a
+separate short capture, geometry counterexamples, client-exit diagnostics and
+the later R11/R12 paired collections. The observability report identifies the
+missing opponent attack label. None of these proves exact action-position
+repeatability.

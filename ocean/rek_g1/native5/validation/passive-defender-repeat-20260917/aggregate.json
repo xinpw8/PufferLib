@@ -102,7 +102,8 @@
       "comparison_to_join_r1": {
         "hit_records_identical_except_relay_line": true,
         "reason_for_relay_line_change": "r2 reads trial/g1_policy_state.jsonl; r1 read trial/relay.stdout.jsonl."
-      }
+      },
+      "cohort": "pre_recovery"
     },
     {
       "id": "round-r5",
@@ -201,7 +202,8 @@
       "comparison_to_join_r1": {
         "hit_records_identical_except_relay_line": true,
         "reason_for_relay_line_change": "r2 reads trial/g1_policy_state.jsonl; r1 read trial/relay.stdout.jsonl."
-      }
+      },
+      "cohort": "pre_recovery"
     },
     {
       "id": "native-followup-round2",
@@ -297,7 +299,8 @@
         [10,80949,503788,8516.275801913265,8518.283793898809,8518.28603620448,0,[0.81759703,0.8582198,-1.8488907],[-0.0615748,0.06720565,0.99583733],4.9898167,[[1,1,13]],3167938025858,-0.0018019132658082526,0.5245659796436789,-0.29879413856672865,3167938098757,0.000198086734599201,8,"inconsistent_unity_frame_time"],
         [11,84468,504067,8520.968108715986,8522.97610070153,8522.97808820448,0,[0.65146357,0.8410403,-1.6031969],[-0.01646864,-0.029334495,0.999434],2.8326619,[[1,1,14]],3167984921275,-0.00010871598715311848,0.48861760034161694,0.4322690439534396,3167985045435,0.0018912840132543352,9,"inconsistent_unity_frame_time"],
         [12,88992,504426,8527.001198511904,8529.009190497449,8529.01069890448,0,[0.512116,0.7782087,-1.3974735],[-0.4176406,0.03130894,0.9080727],2.5191932,[[1,1,15]],3168045245959,-0.0011985119035671232,0.3971792576872193,0.4228691216331233,3168045382751,0.0008014880968403304,8,"inconsistent_unity_frame_time"]
-      ]
+      ],
+      "cohort": "pre_recovery"
     },
     {
       "id": "native-followup-round3",
@@ -386,20 +389,488 @@
         [2,28028,507506,8579.10135641298,8581.109348398526,8581.11117330448,1,[-0.8994562,0.5303244,-1.4293606],[-0.91733193,-0.38096574,0.11561679],4.9413524,[[1,2,6]],3168566279333,-0.0013564129803853575,0.583588845782955,-1.074957165948167,3168566354175,0.0006435870182031067,8,"inconsistent_unity_frame_time"],
         [3,82958,511860,8652.398315114795,8654.40630710034,8654.41075300448,1,[-0.6476504,0.40175593,-1.8320411],[0.19073889,0.23529615,0.9530238],2.5720842,[[1,2,8]],3169299265085,-0.00031511479573964607,0.4506401258335797,0.21754318885445878,3169299329499,0.0016848852046678076,9,"inconsistent_unity_frame_time"],
         [4,86652,512153,8657.331130817744,8659.339122803287,8659.34117590448,0,[-0.73800963,0.9208879,-1.8033113],[0.012952668,0.010924153,0.9998564],3.9007723,[[1,1,9]],3169348574666,-0.001130817743614898,0.5891473924306018,-0.19544547964848524,3169348650586,0.0008691822567925556,8,"inconsistent_unity_frame_time"]
+      ],
+      "cohort": "pre_recovery"
+    },
+    {
+      "id": "recovery-native-round1",
+      "cohort": "post_startup_recovery",
+      "join_directory": "C:\\rekagent\\work\\passive-defender-20260917-r1\\recovery-native-round1",
+      "join_artifacts": {
+        "summary.json": {
+          "sha256": "14afbfaf8683d2dee85f03a24aa278eee0ee47d3c74d86d1f812600da9f109e9",
+          "bytes": 3566
+        },
+        "hit_events.jsonl": {
+          "sha256": "02696494af6f83750f03ebdceb56b95de10f79ed0565460db81899b6deaa3083",
+          "bytes": 186992
+        },
+        "score_events.jsonl": {
+          "sha256": "5a0d3f96eb006b152251f6084b40eb1adc271b7f05242904953d2c0b306de028",
+          "bytes": 199186
+        },
+        "five_point_awards.jsonl": {
+          "sha256": "694230ec53a7c6d384708edb333af7b019f3f7e689538959fba2227e111c9132",
+          "bytes": 30294
+        }
+      },
+      "inputs": {
+        "recorder": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T080950.5090999Z-pid32-bc8d98cf78034f4ca834cb8cdac85569.jsonl",
+          "bytes": 210012547,
+          "sha256": "c2c62c4e24255584bc0de80ad79105dc7c8fdb10029accba30faed4a412a9036",
+          "join_hash_matches": true
+        },
+        "relay": null
+      },
+      "capture_utc": {
+        "start": "2026-09-17T08:09:50.5090999+00:00",
+        "end": "2026-09-17T08:11:50.3715452+00:00"
+      },
+      "capture_duration_qpc_seconds": 119.8619443,
+      "recorder_plugin_sha256": "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95",
+      "finalized": true,
+      "capture_error_count": 0,
+      "footer_packet_counts_match": true,
+      "received_hit_packets": 11,
+      "is_kick_counts": {
+        "0": 8,
+        "1": 3
+      },
+      "score_packets": 13,
+      "score_fighter_and_award_counts": {
+        "1:1": 8,
+        "0:5": 2,
+        "1:2": 3
+      },
+      "awarded_points_by_slot": [
+        10,
+        14
+      ],
+      "five_point_awards": 2,
+      "five_point_awards_with_same_frame_hit": 0,
+      "pose_source": "native_root_pose_sample",
+      "pose_records": 60004,
+      "pose_join_status_counts": {
+        "inconsistent_unity_frame_time": 11
+      },
+      "same_frame_association_counts": {
+        "unique_same_frame_association_noncausal": 11
+      },
+      "native_observations": {
+        "root_pose_samples": 60004,
+        "compact_samples": 6001,
+        "measured_velocity_zero_samples": 6001,
+        "no_pending_move_samples": 6001,
+        "punching_false_samples": 6001,
+        "all_three_neutral_samples": 6001,
+        "outbound_velocity_requests": 7056,
+        "outbound_velocity_zero_requests": 7056
+      },
+      "native_transport_method_counts": {
+        "SendVelocityCommand": 7056
+      },
+      "hit_native_qpc_available": 0,
+      "hit_native_utc_available": 0,
+      "hits_with_position_normal_relative_speed": 11,
+      "hits_with_prior_next_and_same_frame_poses": 11,
+      "raw_file_reverification": {
+        "event_counts": {
+          "capture_start": 1,
+          "root_pose_sample": 60004,
+          "sample": 6001,
+          "outbound_request_projection": 7056,
+          "raw_bone_packet": 7200,
+          "decoded_bone_snapshot": 7200,
+          "raw_fight_state_packet": 1198,
+          "fight_state_snapshot_applied": 1198,
+          "raw_score_packet": 13,
+          "raw_hit_packet": 11,
+          "capture_end": 1
+        },
+        "compact_samples": 6001,
+        "all_three_neutral_samples": 6001,
+        "outbound_velocity_requests": 7056,
+        "outbound_velocity_zero_requests": 7056,
+        "raw_hits_match_join": true,
+        "raw_scores_match_join": true,
+        "mismatches": []
+      },
+      "per_hit_rows": [
+        [0,5987,30795,521.6862331207483,524.0303947987528,524.0430431026645,0,[-0.9006146,1.0222768,-0.017506812],[-0.98635507,0.15422802,-0.057597026],2.6016667,[[1,1,1]],3205507925744,-0.00023312074824843876,0.6498253756819017,-0.2642174506684434,3205508032976,0.0017668792517042675,9,"inconsistent_unity_frame_time"],
+        [1,23720,32194,545.3581133219955,547.702275,547.7054373026644,0,[-1.6385751,0.8151079,0.27746442],[-0.99680763,0.07904541,-0.011242885],1.7969751,[[1,1,2]],3205744566866,-0.00011332199551361555,0.5567221138459568,0.11328826683344007,3205744670714,0.0018866780045527776,9,"inconsistent_unity_frame_time"],
+        [2,30470,32727,554.3604158234127,556.7045775014172,556.7093078026644,0,[-1.8751388,0.8376043,0.49493468],[-0.9988058,0.034913376,-0.034175053],4.3478503,[[1,1,3]],3205834556664,-0.00041582341270895995,0.48302517954479346,0.06295389289484499,3205834632508,0.0015841765872437463,9,"inconsistent_unity_frame_time"],
+        [3,37276,33263,563.4457787202381,565.7899403982426,565.7946876026645,1,[-1.7491452,0.37087086,-0.102738984],[0.12591335,0.44764385,-0.88530266],1.935984,[[1,2,5]],3205925403766,-0.0017787202381214229,0.5070368966779,0.21015679787213637,3205925500133,0.00022127976194497023,8,"inconsistent_unity_frame_time"],
+        [4,46700,34007,576.026078422619,578.3702401006235,578.3726011026644,0,[-0.8597622,1.0189605,-0.1168276],[-0.9946062,-0.087225944,-0.056126554],1.85386,[[1,1,6]],3206051221713,-0.00007842261902624159,0.7002324608152865,-0.358917205183678,3206051299783,0.0019215773810401515,9,"inconsistent_unity_frame_time"],
+        [5,47412,34063,576.9683282242063,579.3124899022108,579.3143930026644,0,[-0.8968379,1.0579947,-0.071075566],[0.7394734,-0.66989857,-0.066445686],2.0242789,[[1,1,7]],3206060607506,-0.0003282242063278318,0.6854660709330336,-0.457263074900113,3206060730884,0.0016717757937385613,9,"inconsistent_unity_frame_time"],
+        [6,62648,35266,597.3042366213151,599.6483982993198,599.6498252026644,0,[-0.70719415,0.92316914,-0.72493017],[0.2515266,-0.03513724,-0.9672124],3.569374,[[1,1,8]],3206263955004,-0.0002366213151390184,0.5977998500597272,0.3928705648465889,3206264085304,0.0017633786848136879,9,"inconsistent_unity_frame_time"],
+        [7,66577,35577,602.5468127196712,604.8909743976757,604.8929411026644,0,[-0.25956208,0.78004265,-1.0576268],[0.12652127,0.99195343,-0.004557633],4.44607,[[1,1,9]],3206316417018,-0.0008127196712166551,0.514663059546473,0.3465505703359627,3206316491041,0.001187280328849738,8,"inconsistent_unity_frame_time"],
+        [8,71623,35975,609.2812062216553,611.6253678996599,611.6275555026644,0,[0.90582085,0.98634654,-1.6045018],[0.94666773,-0.32089382,0.02910996],1.95062,[[1,1,10]],3206383727845,-0.00120622165536588,0.4763160427435575,-0.049445993563188295,3206383863466,0.0007937783445868263,8,"inconsistent_unity_frame_time"],
+        [9,82906,36866,624.3499387188208,626.6941003968253,626.6962089026645,1,[0.9771249,0.46027103,-1.6349262],[0.46904373,-0.20398518,-0.85929507],4.056863,[[1,2,12]],3206534492866,-0.0019387188208384032,0.3345118366200216,-0.6306153938865893,3206534558332,0.00006128117922798992,14,"inconsistent_unity_frame_time"],
+        [10,88659,37321,632.0185899234693,634.3627516014739,634.3644216026644,1,[1.1358442,0.47867563,-1.4280262],[0.9238527,-0.14666127,0.35353455],4.585167,[[1,2,14]],3206611107657,-0.0005899234693060862,0.2507819390182228,-0.35749446127017576,3206611227610,0.00141007653064662,9,"inconsistent_unity_frame_time"]
+      ],
+      "capture_end_reason": "scope_exit:round_not_active"
+    },
+    {
+      "id": "recovery-native-round2",
+      "cohort": "post_startup_recovery",
+      "join_directory": "C:\\rekagent\\work\\passive-defender-20260917-r1\\recovery-native-round2",
+      "join_artifacts": {
+        "summary.json": {
+          "sha256": "862ed37f5a0d4b8008f50a34958bf55db8efd7d14ee10f3a33fa92d2e63888c0",
+          "bytes": 3562
+        },
+        "hit_events.jsonl": {
+          "sha256": "7641b1bf2b2f8018ed68cd0440f1d51a200e1a70d904a154c2d695bcdfa0b889",
+          "bytes": 46758
+        },
+        "score_events.jsonl": {
+          "sha256": "657702a525ca096143f3406531ddd00f1cc3e083a98181c0c7497305f1616468",
+          "bytes": 70875
+        },
+        "five_point_awards.jsonl": {
+          "sha256": "1cadb7a22c4e9755373a6aff35343811361df3cee9d0f6f28fa8af67cadc7b44",
+          "bytes": 29057
+        }
+      },
+      "inputs": {
+        "recorder": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T081200.2989358Z-pid32-29c09e0abb0f4bdda08c99b137ff45ad.jsonl",
+          "bytes": 210019901,
+          "sha256": "3cb48cfc68f261aba58f738127a24c74b6cb5204afd372881aa91c458b7053a6",
+          "join_hash_matches": true
+        },
+        "relay": null
+      },
+      "capture_utc": {
+        "start": "2026-09-17T08:12:00.2989358+00:00",
+        "end": "2026-09-17T08:14:00.1488811+00:00"
+      },
+      "capture_duration_qpc_seconds": 119.8499484,
+      "recorder_plugin_sha256": "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95",
+      "finalized": true,
+      "capture_error_count": 0,
+      "footer_packet_counts_match": true,
+      "received_hit_packets": 3,
+      "is_kick_counts": {
+        "0": 2,
+        "1": 1
+      },
+      "score_packets": 5,
+      "score_fighter_and_award_counts": {
+        "0:5": 2,
+        "1:1": 2,
+        "1:2": 1
+      },
+      "awarded_points_by_slot": [
+        10,
+        4
+      ],
+      "five_point_awards": 2,
+      "five_point_awards_with_same_frame_hit": 0,
+      "pose_source": "native_root_pose_sample",
+      "pose_records": 59969,
+      "pose_join_status_counts": {
+        "inconsistent_unity_frame_time": 3
+      },
+      "same_frame_association_counts": {
+        "unique_same_frame_association_noncausal": 3
+      },
+      "native_observations": {
+        "root_pose_samples": 59969,
+        "compact_samples": 5997,
+        "measured_velocity_zero_samples": 5997,
+        "no_pending_move_samples": 5997,
+        "punching_false_samples": 5997,
+        "all_three_neutral_samples": 5997,
+        "outbound_velocity_requests": 7085,
+        "outbound_velocity_zero_requests": 7085
+      },
+      "native_transport_method_counts": {
+        "SendVelocityCommand": 7085
+      },
+      "hit_native_qpc_available": 0,
+      "hit_native_utc_available": 0,
+      "hits_with_position_normal_relative_speed": 3,
+      "hits_with_prior_next_and_same_frame_poses": 3,
+      "raw_file_reverification": {
+        "event_counts": {
+          "capture_start": 1,
+          "root_pose_sample": 59969,
+          "sample": 5997,
+          "outbound_request_projection": 7085,
+          "raw_bone_packet": 7194,
+          "decoded_bone_snapshot": 7194,
+          "raw_fight_state_packet": 1198,
+          "fight_state_snapshot_applied": 1198,
+          "raw_score_packet": 5,
+          "raw_hit_packet": 3,
+          "capture_end": 1
+        },
+        "compact_samples": 5997,
+        "all_three_neutral_samples": 5997,
+        "outbound_velocity_requests": 7085,
+        "outbound_velocity_zero_requests": 7085,
+        "raw_hits_match_join": true,
+        "raw_scores_match_join": true,
+        "mismatches": []
+      },
+      "per_hit_rows": [
+        [0,43099,41388,701.0414507227891,703.3856124007937,703.3912951026645,0,[-1.3129464,0.8667657,-0.028646717],[-0.029374326,-0.033890016,0.9989938],2.7404199,[[1,1,1]],3207301399415,-0.001450722789172687,0.4922762942860883,-0.5362025790012905,3207301460395,0.0005492772107800192,8,"inconsistent_unity_frame_time"],
+        [1,47327,41721,706.6759434240363,709.0201051020408,709.0257472026644,1,[-1.3415595,0.3217133,0.00038115575],[0.5877998,0.7324945,0.34342867],2.4128108,[[1,2,3]],3207357709422,-0.0019434240363125355,0.4770571482087056,-0.6472566715886015,3207357771917,0.00005657596364017081,8,"inconsistent_unity_frame_time"],
+        [2,84720,44675,756.5896158234127,758.9337775014172,758.9357843026644,0,[-1.2165228,0.79848546,-1.5193121],[0.99742866,-0.071269,-0.007534631],2.174408,[[1,1,4]],3207856810780,-0.0016158234127487958,0.4932721624033735,-0.3843211101589401,3207856949846,0.00038417658720391046,8,"inconsistent_unity_frame_time"]
+      ],
+      "capture_end_reason": "scope_exit:round_not_active"
+    },
+    {
+      "id": "recovery-native-round3",
+      "cohort": "post_startup_recovery",
+      "join_directory": "C:\\rekagent\\work\\passive-defender-20260917-r1\\recovery-native-round3",
+      "join_artifacts": {
+        "summary.json": {
+          "sha256": "e06ee68db8b756286ba87dc6fa374917cc7ef56f860d7a68d4adc9346100f914",
+          "bytes": 3563
+        },
+        "hit_events.jsonl": {
+          "sha256": "425bb0039050a583440da2fc6fb216b06e09c05aeda001f73bed8a56e52bead8",
+          "bytes": 129717
+        },
+        "score_events.jsonl": {
+          "sha256": "e6bf68a2723e2bdb7772ab72a5562f7606e7210d7568d167f0a893a97937b508",
+          "bytes": 158346
+        },
+        "five_point_awards.jsonl": {
+          "sha256": "afed4ffac31e98a705eb23f2d6de4680c1f988b0db575fff7420b12f21c0387b",
+          "bytes": 41784
+        }
+      },
+      "inputs": {
+        "recorder": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T081410.0315950Z-pid32-60e29d0332bb40ce8da07991b393a66c.jsonl",
+          "bytes": 210447925,
+          "sha256": "0432a0bfd71ada991f82a208811c2a95d3ca3370da07e5bb0bfafb650d58ad07",
+          "join_hash_matches": true
+        },
+        "relay": null
+      },
+      "capture_utc": {
+        "start": "2026-09-17T08:14:10.031595+00:00",
+        "end": "2026-09-17T08:16:10.0277032+00:00"
+      },
+      "capture_duration_qpc_seconds": 119.9961104,
+      "recorder_plugin_sha256": "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95",
+      "finalized": true,
+      "capture_end_reason": "scope_exit:round_not_active",
+      "capture_error_count": 0,
+      "footer_packet_counts_match": true,
+      "received_hit_packets": 8,
+      "is_kick_counts": {
+        "0": 6,
+        "1": 2
+      },
+      "score_packets": 11,
+      "score_fighter_and_award_counts": {
+        "0:5": 2,
+        "1:1": 6,
+        "1:2": 2,
+        "1:5": 1
+      },
+      "awarded_points_by_slot": [
+        10,
+        15
+      ],
+      "five_point_awards": 3,
+      "five_point_awards_with_same_frame_hit": 0,
+      "pose_source": "native_root_pose_sample",
+      "pose_records": 60038,
+      "pose_join_status_counts": {
+        "inconsistent_unity_frame_time": 8
+      },
+      "same_frame_association_counts": {
+        "unique_same_frame_association_noncausal": 8
+      },
+      "native_observations": {
+        "root_pose_samples": 60038,
+        "compact_samples": 6004,
+        "measured_velocity_zero_samples": 6004,
+        "no_pending_move_samples": 6004,
+        "punching_false_samples": 6004,
+        "all_three_neutral_samples": 6004,
+        "outbound_velocity_requests": 7114,
+        "outbound_velocity_zero_requests": 7114
+      },
+      "native_transport_method_counts": {
+        "SendVelocityCommand": 7114
+      },
+      "hit_native_qpc_available": 0,
+      "hit_native_utc_available": 0,
+      "hits_with_position_normal_relative_speed": 8,
+      "hits_with_prior_next_and_same_frame_poses": 8,
+      "raw_file_reverification": {
+        "event_counts": {
+          "capture_start": 1,
+          "root_pose_sample": 60038,
+          "sample": 6004,
+          "outbound_request_projection": 7114,
+          "raw_bone_packet": 7202,
+          "decoded_bone_snapshot": 7202,
+          "raw_fight_state_packet": 1199,
+          "fight_state_snapshot_applied": 1199,
+          "raw_score_packet": 11,
+          "raw_hit_packet": 8,
+          "capture_end": 1
+        },
+        "compact_samples": 6004,
+        "all_three_neutral_samples": 6004,
+        "outbound_velocity_requests": 7114,
+        "outbound_velocity_zero_requests": 7114,
+        "raw_hits_match_join": true,
+        "raw_scores_match_join": true,
+        "mismatches": []
+      },
+      "per_hit_rows": [
+        [0,21736,47369,802.2469707199546,804.5911323979592,804.5950489026644,0,[-1.0259022,0.8103546,0.020280708],[-0.9860358,0.14311454,-0.08515596],1.9434431,[[1,1,1]],3208313430766,-0.0009707199545800904,0.582126745260674,0.028058091241422556,3208313490638,0.0010292800453726159,8,"inconsistent_unity_frame_time"],
+        [1,31006,48103,814.6158443239796,816.9600060019841,816.9629985026644,1,[-1.892339,0.4852155,-0.19685186],[-0.6348861,-0.7724364,-0.016176177],2.448256,[[1,2,3]],3208437120518,-0.0018443239796397393,0.5211439822622518,-0.7802580908787746,3208437189469,0.00015567602042665385,8,"inconsistent_unity_frame_time"],
+        [2,48680,49502,838.1986207199546,840.5427823979592,840.5442136026644,0,[-0.8513703,0.77994215,-0.9453979],[0.7784535,0.61886483,0.1049594],1.9262313,[[1,1,4]],3208672900781,-0.0006207199546679476,0.39460512504033696,-0.3410373600452319,3208673024136,0.0013792800452847587,9,"inconsistent_unity_frame_time"],
+        [3,53333,49871,844.4062385204081,846.7504001984126,846.7527268026644,0,[-0.4368197,0.8387687,-1.2515116],[0.86718416,-0.11986341,0.4833471],3.5587478,[[1,1,5]],3208735015891,-0.00023852040817473608,0.3984853169877379,-0.4059549906237907,3208735076512,0.001761479591891657,9,"inconsistent_unity_frame_time"],
+        [4,62605,50605,856.7764080215419,859.1205696995464,859.1219206026644,0,[0.5883021,0.893152,-1.795971],[0.023579922,0.03264749,-0.9991887],1.8611372,[[1,1,6]],3208858677121,-0.00040802154194352624,0.5693211194888763,-0.43339969079400675,3208858802207,0.0015919784581228669,9,"inconsistent_unity_frame_time"],
+        [5,66456,50910,861.913602324263,864.2577640022675,864.2598414026644,0,[0.48316872,0.8533193,-1.742811],[0.14012007,-0.012524896,-0.9900553],2.462185,[[1,1,7]],3208910076508,-0.0016023242631035828,0.5373038212226271,-0.3320683820331305,3208910161037,0.00039767573696281033,8,"inconsistent_unity_frame_time"],
+        [6,74812,51572,873.0643943239795,875.408556001984,875.4110474026644,1,[0.4882954,0.53701144,-1.9604491],[0.22211133,0.2473752,-0.9431183],2.5651517,[[1,2,9]],3209021610984,-0.0003943239795489717,0.33412194945444473,0.9126186714439264,3209021695734,0.0016056760204037346,9,"inconsistent_unity_frame_time"],
+        [7,85705,52434,887.597093119331,889.9412547973355,889.9434687026644,0,[-0.9062482,0.77854365,-0.056150623],[0.13775906,-0.031056473,-0.98997873],2.5111501,[[1,1,15]],3209166917180,-0.0010931193310170784,0.43082744388260513,-0.2028841189373285,3209166989864,0.0009068806689356279,8,"inconsistent_unity_frame_time"]
+      ]
+    },
+    {
+      "id": "recovery-native-round4",
+      "cohort": "post_startup_recovery",
+      "join_directory": "C:\\rekagent\\work\\passive-defender-20260917-r1\\recovery-native-round4",
+      "join_artifacts": {
+        "summary.json": {
+          "sha256": "2c9d21223930ce5a75d0b74950312b30bfe0a6eceab559127f96d8fc79030c4b",
+          "bytes": 3566
+        },
+        "hit_events.jsonl": {
+          "sha256": "470a810a3580346f3108b1ae2b51fc6d8f6a7a0b0c24260a43f9b55bfd175164",
+          "bytes": 195845
+        },
+        "score_events.jsonl": {
+          "sha256": "3ea390fe4e13368e166bff248ff148ec0fa814add043595a209468c9a48f9d84",
+          "bytes": 220507
+        },
+        "five_point_awards.jsonl": {
+          "sha256": "111efbcda1c8c57db8757b034c44c38572c0d2b9d787a3156ac8c4f2cc330495",
+          "bytes": 44426
+        }
+      },
+      "inputs": {
+        "recorder": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T081623.4161467Z-pid32-02c810b1a203427294fa77800d9f62e7.jsonl",
+          "bytes": 210323048,
+          "sha256": "29e02a20b0b98bd074b4199ebe9776d9e08d282636f818140cfaf8e886a3ce67",
+          "join_hash_matches": true
+        },
+        "relay": null
+      },
+      "capture_utc": {
+        "start": "2026-09-17T08:16:23.4161467+00:00",
+        "end": "2026-09-17T08:18:23.3946136+00:00"
+      },
+      "capture_duration_qpc_seconds": 119.978469,
+      "recorder_plugin_sha256": "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95",
+      "finalized": true,
+      "capture_end_reason": "scope_exit:round_not_active",
+      "capture_error_count": 0,
+      "footer_packet_counts_match": true,
+      "received_hit_packets": 12,
+      "is_kick_counts": {
+        "0": 9,
+        "1": 3
+      },
+      "score_packets": 15,
+      "score_fighter_and_award_counts": {
+        "1:1": 9,
+        "1:2": 3,
+        "0:5": 3
+      },
+      "awarded_points_by_slot": [
+        15,
+        15
+      ],
+      "five_point_awards": 3,
+      "five_point_awards_with_same_frame_hit": 0,
+      "pose_source": "native_root_pose_sample",
+      "pose_records": 60030,
+      "pose_join_status_counts": {
+        "inconsistent_unity_frame_time": 12
+      },
+      "same_frame_association_counts": {
+        "unique_same_frame_association_noncausal": 12
+      },
+      "native_observations": {
+        "root_pose_samples": 60030,
+        "compact_samples": 6003,
+        "measured_velocity_zero_samples": 6003,
+        "no_pending_move_samples": 6003,
+        "punching_false_samples": 6003,
+        "all_three_neutral_samples": 6003,
+        "outbound_velocity_requests": 7115,
+        "outbound_velocity_zero_requests": 7115
+      },
+      "native_transport_method_counts": {
+        "SendVelocityCommand": 7115
+      },
+      "hit_native_qpc_available": 0,
+      "hit_native_utc_available": 0,
+      "hits_with_position_normal_relative_speed": 12,
+      "hits_with_prior_next_and_same_frame_poses": 12,
+      "raw_file_reverification": {
+        "event_counts": {
+          "capture_start": 1,
+          "root_pose_sample": 60030,
+          "sample": 6003,
+          "outbound_request_projection": 7115,
+          "raw_bone_packet": 7200,
+          "decoded_bone_snapshot": 7200,
+          "raw_fight_state_packet": 1198,
+          "fight_state_snapshot_applied": 1198,
+          "raw_score_packet": 15,
+          "raw_hit_packet": 12,
+          "capture_end": 1
+        },
+        "compact_samples": 6003,
+        "all_three_neutral_samples": 6003,
+        "outbound_velocity_requests": 7115,
+        "outbound_velocity_zero_requests": 7115,
+        "raw_hits_match_join": true,
+        "raw_scores_match_join": true,
+        "mismatches": []
+      },
+      "per_hit_rows": [
+        [0,3632,53834,911.471426523526,913.8155882015305,913.8195079026644,0,[-0.90589213,0.8347722,0.026657388],[0.35060626,-0.012141202,0.9364443],2.1737714,[[1,1,1]],3209405645414,-0.0014265235261063935,0.5792219467561485,-0.209104411360987,3209405754036,0.0005734764739599996,8,"inconsistent_unity_frame_time"],
+        [1,7569,54146,916.7242616213151,919.0684232993196,919.0730019026644,1,[-1.0076917,0.36753863,-0.4267168],[-0.8315562,0.12007173,-0.5423072],5.711352,[[1,2,3]],3209458235317,-0.0002616213151895863,0.4715675908317601,0.1957698228682658,3209458298325,0.0017383786848768068,9,"inconsistent_unity_frame_time"],
+        [2,19553,55094,932.7167521187641,935.0609137967687,935.0638665026644,0,[-0.56693625,0.78726894,-0.9469213],[-0.70138615,-0.5586396,-0.44269553],2.571752,[[1,1,4]],3209618127777,-0.000752118764125953,0.3756745856477977,-0.37159247752333946,3209618187187,0.0012478812358267533,9,"inconsistent_unity_frame_time"],
+        [3,20660,55182,934.1926471230158,936.5368088010204,936.5385893026644,0,[-0.56882185,0.7893004,-0.9610545],[-0.7398055,-0.5577747,-0.37626472],1.8820539,[[1,1,5]],3209632867736,-0.000647123015824036,0.3722446730991519,-0.42396479607231735,3209632943015,0.0013528769841286703,9,"inconsistent_unity_frame_time"],
+        [4,26761,55666,942.3313277210884,944.675489399093,944.6779293026644,1,[0.3680772,0.49935725,-1.2851105],[-0.46872392,0.51644725,0.71664506],2.4311457,[[1,2,7]],3209714257157,-0.0013277210885007662,0.6442296976998189,-0.7533352053669002,3209714329064,0.0006722789115656269,8,"inconsistent_unity_frame_time"],
+        [5,35445,56353,953.9133225198412,956.2574841978458,956.2600650026644,0,[0.5339853,0.85330063,-1.9051859],[-0.9907441,0.06165692,-0.12093183],4.7611227,[[1,1,8]],3209830055806,-0.0013225198413238104,0.4201838362680911,-0.770006623844502,3209830190691,0.0006774801587425827,8,"inconsistent_unity_frame_time"],
+        [6,37747,56536,956.9860387188209,959.3302003968254,959.3319838026645,0,[0.7445257,0.8378165,-1.6714392],[-0.86838454,0.37296864,0.32680684],2.4295251,[[1,1,9]],3209860805360,-0.00003871882086059486,0.5313308472288523,-0.9425817671902147,3209860887417,0.0019612811790921114,9,"inconsistent_unity_frame_time"],
+        [7,41547,56836,962.0540830215419,964.3982446995465,964.4004718026645,0,[0.76272297,0.85838383,-1.7497292],[-0.9898581,0.085555114,-0.11340771],2.4120135,[[1,1,10]],3209911490973,-0.0000830215419682645,0.3920622279491992,-0.11668357309308419,3209911556196,0.0019169784579844418,9,"inconsistent_unity_frame_time"],
+        [8,43778,57012,965.0325408234127,967.3767025014172,967.3797552026645,0,[0.9465872,0.8547759,-1.6526998],[0.11974361,-0.019935973,0.9926047],2.111512,[[1,1,11]],3209941287474,-0.0005408234127344258,0.6141586445351991,-0.695861739960201,3209941393532,0.0014591765873319673,9,"inconsistent_unity_frame_time"],
+        [9,65007,58693,993.3588954223355,995.7030571003401,995.7067231026645,0,[-0.9456031,1.0421207,-0.078910075],[0.97272784,0.10903004,0.20472665],1.8962889,[[1,1,12]],3210224553535,-0.0008954223355885915,0.5997296496374637,-0.44907895566565653,3210224610771,0.0011045776644778016,8,"inconsistent_unity_frame_time"],
+        [10,74976,59482,1006.6616379180839,1009.0057995960884,1009.0076635026644,0,[-1.0420083,0.8127541,-0.2789011],[0.9918788,-0.020410802,0.12553823],3.8473473,[[1,1,13]],3210357554692,-0.001637918083929435,0.5677860397440976,-0.10434165198193712,3210357628564,0.00036208191602327133,8,"inconsistent_unity_frame_time"],
+        [11,76651,59614,1008.8963485189909,1011.2405101969954,1011.2427947026645,1,[-0.93300486,0.34757596,-0.28950295],[-0.22732097,0.91394055,-0.33621097],3.4925365,[[1,2,15]],3210379925365,-0.0003485189909042674,0.47874161308470714,-0.7241389657452484,3210379990940,0.0016514810090484389,9,"inconsistent_unity_frame_time"]
       ]
     }
   ],
   "totals": {
-    "captures": 4,
-    "received_hit_packets": 31,
-    "nonkick_packets": 24,
-    "kick_packets": 7,
-    "score_packets": 35,
-    "five_point_awards": 4,
-    "neutral_compact_samples": 24012,
-    "compact_samples": 24012,
-    "zero_velocity_requests": 27074,
-    "outbound_velocity_requests": 27074,
+    "captures": 8,
+    "received_hit_packets": 65,
+    "nonkick_packets": 49,
+    "kick_packets": 16,
+    "score_packets": 79,
+    "five_point_awards": 14,
+    "neutral_compact_samples": 48017,
+    "compact_samples": 48017,
+    "zero_velocity_requests": 55444,
+    "outbound_velocity_requests": 55444,
     "capture_errors": 0
   },
   "geometry_context": [
@@ -764,22 +1235,27 @@
     "path": "runtime-exits.json",
     "sha256": "8e989b2f48993fa1315af6e68016ad8404c8e06d4f2a9364261a1a32e2646106",
     "source": "Docker exec_create/exec_start/exec_die matched by exec ID",
-    "recorded_exit_codes": [5, 29, 5, 29],
+    "recorded_exit_codes": [
+      5,
+      29,
+      5,
+      29
+    ],
     "latest_start_utc": "2026-09-17T07:22:12Z",
     "latest_exit_utc": "2026-09-17T07:22:28Z",
     "latest_failed_before_runner_started": true,
     "cause": "unknown"
   },
   "limits": [
-    "31 received REK_Hit effects packets confirm receipt, not complete enumeration of all server contacts; delivery is unreliable. No received hit leaves contact unknown.",
+    "Received REK_Hit effects packets confirm client receipt, not complete enumeration of all server contacts; delivery is unreliable. No received hit leaves contact unknown.",
     "Decoded is_kick 0/1 is retained; no known canned clip ID, hand/foot side, target body zone, rejected attempt, pair key, or authoritative collider manifold is present.",
     "All observed hit-score pairs share one Unity frame, but even a unique pairing is noncausal and supplies only a scoring-slot attacker candidate.",
-    "Four +5 awards are separate. None has a same-frame received hit; that absence does not prove absence of contact or identify the award cause.",
+    "Five-point awards are separate. None in these full or short capture rows has a same-frame received hit; absence does not prove absence of contact or identify the award cause.",
     "Packets have Unity frame, Unity time, unscaled time and realtime receipt time. No per-hit QPC/UTC or server impact time is available.",
-    "18 native-only joins report inconsistent_unity_frame_time. FixedUpdate time and receive-callback frame time differ; each preserves 8-9 same-frame roots. A sub-2 ms Unity-time offset is not impact-time precision.",
+    "Native-only joins report inconsistent_unity_frame_time. FixedUpdate time and receive-callback frame time differ; each preserves 8, 9 or 14 same-frame roots in these captures. A sub-2 ms Unity-time offset is not impact-time precision.",
     "Heading is projected root-local +X in Unity XZ, not Unity +Z forward, controller heading or aiming intent. All geometry is rendered/replicated client context.",
     "Neutral velocity, pending-move false and punching false are sampled evidence. Neutral control leaves physics and opponent AI active; it does not immobilize the defender.",
-    "Native-only follow-up rounds have no paired runner/relay proof of a fresh neutral request; their recorded compact input and outbound transport observations are reported directly.",
+    "Native-only follow-up and recovery captures have no paired runner/relay proof of a fresh neutral request; their recorded compact input and outbound transport observations are reported directly.",
     "No exact action-position repeatability, failed-contact classifier, policy improvement or hitbox model has been established."
   ],
   "per_hit_columns": [
@@ -824,5 +1300,188 @@
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "basis": "local saved stdout checked"
     }
+  },
+  "recovery_extension": {
+    "version": 1,
+    "scope": "Four finalized approximately 120-second native-only captures after isolated lazy-preload startup recovery. One finalized approximately 30-second capture is separate and excluded from full-capture totals.",
+    "remote_recorder_directory": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/",
+    "join_command": "node ocean/rek_g1/native5/join_passive_hit_events.cjs NATIVE_JSONL - NEW_OUTPUT_DIRECTORY",
+    "join_tool": {
+      "path": "ocean/rek_g1/native5/join_passive_hit_events.cjs",
+      "sha256": "1a58b2867c825e2a8bd57c234f7052f47c84f0ea1fd0b81c504c3dbb26b408ee"
+    },
+    "raw_file_reverification": "All five recovery files were streamed and rehashed independently of the joins; event counts, neutral samples, zero velocity requests and exact decoded hit/score raw records match the join outputs.",
+    "copied_finalized_files_remote_sha256": [
+      {
+        "filename": "rek-private-ai-root-motion-20260917T081410.0315950Z-pid32-60e29d0332bb40ce8da07991b393a66c.jsonl",
+        "sha256": "0432a0bfd71ada991f82a208811c2a95d3ca3370da07e5bb0bfafb650d58ad07",
+        "remote_sha256_matches_local": true
+      },
+      {
+        "filename": "rek-private-ai-root-motion-20260917T081623.4161467Z-pid32-02c810b1a203427294fa77800d9f62e7.jsonl",
+        "sha256": "29e02a20b0b98bd074b4199ebe9776d9e08d282636f818140cfaf8e886a3ce67",
+        "remote_sha256_matches_local": true
+      },
+      {
+        "filename": "rek-private-ai-root-motion-20260917T081833.2718815Z-pid32-b85054f60aea42d1ad1b95692d45b3a8.jsonl",
+        "sha256": "a0dfac958b054d18973fa59cb8c56539fecbd053cfeec5110243421ccc258e83",
+        "remote_sha256_matches_local": true
+      }
+    ],
+    "active_partial_accessed": false,
+    "other_recordings": "Other finalized recordings exist but are unprocessed and excluded here. R11 and R12 collections are outside this recovery extension.",
+    "historical_evidence_note": "Original four capture rows, hashes and cohort totals are retained. runtime_exit_evidence and user_annotations hashes describe the historical report inputs; those separately owned files may receive later additions."
+  },
+  "cohort_totals": {
+    "pre_recovery": {
+      "captures": 4,
+      "received_hit_packets": 31,
+      "nonkick_packets": 24,
+      "kick_packets": 7,
+      "score_packets": 35,
+      "five_point_awards": 4,
+      "neutral_compact_samples": 24012,
+      "compact_samples": 24012,
+      "zero_velocity_requests": 27074,
+      "outbound_velocity_requests": 27074,
+      "capture_errors": 0
+    },
+    "post_startup_recovery": {
+      "captures": 4,
+      "received_hit_packets": 34,
+      "nonkick_packets": 25,
+      "kick_packets": 9,
+      "score_packets": 44,
+      "five_point_awards": 10,
+      "neutral_compact_samples": 24005,
+      "compact_samples": 24005,
+      "zero_velocity_requests": 28370,
+      "outbound_velocity_requests": 28370,
+      "capture_errors": 0
+    }
+  },
+  "totals_scope": "Eight finalized approximately 120-second captures only. Short recovery capture and incomplete runner attempts are excluded.",
+  "short_captures": [
+    {
+      "id": "recovery-native-short1",
+      "cohort": "post_startup_recovery_short",
+      "join_directory": "C:\\rekagent\\work\\passive-defender-20260917-r1\\recovery-native-short1",
+      "join_artifacts": {
+        "summary.json": {
+          "sha256": "ec066051c3f7654177aec5974b6ee07124cfcc857f77222bf5cdf34df35db312",
+          "bytes": 3561
+        },
+        "hit_events.jsonl": {
+          "sha256": "fbf1d636462465ab2f83735a14f0c24cb3a8698526f0f5a84b055fb354740ab2",
+          "bytes": 48002
+        },
+        "score_events.jsonl": {
+          "sha256": "3f64992f3980d16ee8a70cd7ea3c9321783f802ce03862d308ab4559bbbca51e",
+          "bytes": 43060
+        },
+        "five_point_awards.jsonl": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      },
+      "inputs": {
+        "recorder": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T081833.2718815Z-pid32-b85054f60aea42d1ad1b95692d45b3a8.jsonl",
+          "bytes": 52615591,
+          "sha256": "a0dfac958b054d18973fa59cb8c56539fecbd053cfeec5110243421ccc258e83",
+          "join_hash_matches": true
+        },
+        "relay": null
+      },
+      "capture_utc": {
+        "start": "2026-09-17T08:18:33.2718815+00:00",
+        "end": "2026-09-17T08:19:03.1710875+00:00"
+      },
+      "capture_duration_qpc_seconds": 29.8992073,
+      "recorder_plugin_sha256": "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95",
+      "finalized": true,
+      "capture_end_reason": "scope_exit:round_not_active",
+      "capture_error_count": 0,
+      "footer_packet_counts_match": true,
+      "received_hit_packets": 3,
+      "is_kick_counts": {
+        "0": 3
+      },
+      "score_packets": 3,
+      "score_fighter_and_award_counts": {
+        "1:1": 3
+      },
+      "awarded_points_by_slot": [
+        0,
+        3
+      ],
+      "five_point_awards": 0,
+      "five_point_awards_with_same_frame_hit": 0,
+      "pose_source": "native_root_pose_sample",
+      "pose_records": 14989,
+      "pose_join_status_counts": {
+        "inconsistent_unity_frame_time": 3
+      },
+      "same_frame_association_counts": {
+        "unique_same_frame_association_noncausal": 3
+      },
+      "native_observations": {
+        "root_pose_samples": 14989,
+        "compact_samples": 1499,
+        "measured_velocity_zero_samples": 1499,
+        "no_pending_move_samples": 1499,
+        "punching_false_samples": 1499,
+        "all_three_neutral_samples": 1499,
+        "outbound_velocity_requests": 1770,
+        "outbound_velocity_zero_requests": 1770
+      },
+      "native_transport_method_counts": {
+        "SendVelocityCommand": 1770
+      },
+      "hit_native_qpc_available": 0,
+      "hit_native_utc_available": 0,
+      "hits_with_position_normal_relative_speed": 3,
+      "hits_with_prior_next_and_same_frame_poses": 3,
+      "raw_file_reverification": {
+        "event_counts": {
+          "capture_start": 1,
+          "root_pose_sample": 14989,
+          "sample": 1499,
+          "outbound_request_projection": 1770,
+          "raw_bone_packet": 1798,
+          "decoded_bone_snapshot": 1798,
+          "raw_fight_state_packet": 299,
+          "fight_state_snapshot_applied": 299,
+          "raw_score_packet": 3,
+          "raw_hit_packet": 3,
+          "capture_end": 1
+        },
+        "compact_samples": 1499,
+        "all_three_neutral_samples": 1499,
+        "outbound_velocity_requests": 1770,
+        "outbound_velocity_zero_requests": 1770,
+        "raw_hits_match_join": true,
+        "raw_scores_match_join": true,
+        "mismatches": []
+      },
+      "per_hit_rows": [
+        [0,5459,61674,1043.772981420068,1046.1171430980726,1046.1216090026644,0,[-0.906182,1.0696274,-0.09173334],[0.5410656,-0.8051421,0.24288735],2.0895479,[[1,1,1]],3210728692311,-0.0009814200680011709,0.6359526944744234,-0.4151260782432344,3210728750714,0.0010185799319515354,8,"inconsistent_unity_frame_time"],
+        [1,6178,61730,1044.7272913194445,1047.071452997449,1047.0743473026644,0,[-0.92666566,1.0311333,-0.04630952],[0.99820685,-0.05404744,0.025728196],2.8131866,[[1,1,2]],3210738197053,-0.0012913194445900444,0.627823528020646,-0.46756108636626426,3210738315182,0.0007086805555900355,8,"inconsistent_unity_frame_time"],
+        [2,19767,62806,1062.860258319161,1065.2044199971656,1065.2064040026644,0,[-0.99466693,0.8486205,-0.1347519],[0.1242104,-0.04442532,-0.9912609],4.5383863,[[1,1,3]],3210919522186,-0.0002583191610483482,0.3816348966027143,-0.6379903554164764,3210919651731,0.001741680838904358,9,"inconsistent_unity_frame_time"]
+      ]
+    }
+  ],
+  "short_capture_totals": {
+    "captures": 1,
+    "received_hit_packets": 3,
+    "nonkick_packets": 3,
+    "kick_packets": 0,
+    "score_packets": 3,
+    "five_point_awards": 0,
+    "neutral_compact_samples": 1499,
+    "compact_samples": 1499,
+    "zero_velocity_requests": 1770,
+    "outbound_velocity_requests": 1770,
+    "capture_errors": 0
   }
 }

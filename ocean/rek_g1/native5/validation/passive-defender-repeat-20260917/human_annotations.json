@@ -30,7 +30,7 @@
         "remaining_seconds": 64.94734,
         "actor_point_increment": 5,
         "opponent_point_increment": 5,
-        "classification": "separate push/fall context; score cause not established by this packet-free recording"
+        "classification": "separate push/fall context; score cause not established by the captured fields"
       }
     },
     {

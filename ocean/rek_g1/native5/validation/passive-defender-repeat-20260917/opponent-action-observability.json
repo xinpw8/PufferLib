@@ -1,0 +1,233 @@
+{
+  "schema": "rek.opponent_action_observability.v1",
+  "inspection_date_utc": "2026-09-17",
+  "repository_head_observed": "ba07f928f14a77588c1408d26091a641a094603b",
+  "scope": "Source and existing-record inspection; only these reports were written. No game input, deployment, new hooks or runtime changes.",
+  "conclusion": {
+    "neutral_local_commands_observed": true,
+    "repeated_received_hit_effects_observed": true,
+    "named_opponent_attack_observed": false,
+    "authoritative_opponent_action_windows_observed": false,
+    "native_hit_to_action_identifier_observed": false,
+    "scored_vs_unscored_named_action_windows_established": false,
+    "requirement": "Named attack causality requires authoritative opponent execution telemetry or a separately authorized controlled-player-attack design, not more passive repetition alone.",
+    "unknown": "Whether an uninspected protocol or otherwise unavailable authoritative server observer exposes opponent action identity."
+  },
+  "artifacts": {
+    "native_record": {
+      "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T080950.5090999Z-pid32-bc8d98cf78034f4ca834cb8cdac85569.jsonl",
+      "sha256": "c2c62c4e24255584bc0de80ad79105dc7c8fdb10029accba30faed4a412a9036",
+      "bytes": 210012547,
+      "lines": 89883
+    },
+    "existing_analysis_summary": {
+      "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\recovery-native-round1\\summary.json",
+      "sha256": "14afbfaf8683d2dee85f03a24aa278eee0ee47d3c74d86d1f812600da9f109e9"
+    },
+    "recorder_source": {
+      "path": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek\\evidence\\windows\\RekEvidenceRecorder\\Plugin.cs",
+      "sha256": "1ae4ed6b4d28f8bf0d99c290a74f48b30687fe8b1f61f8df67b4c539b47ea694",
+      "build_identity_limit": "Current inspected source is not asserted to be the exact build input of the deployed 0.7.2 DLL. Raw field claims were also checked in actual records."
+    },
+    "native_sources": [
+      { "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\Robot.txt", "sha256": "4f61233092542b15773e49d8404790a8ed89352d3b656fa41b75bab9c8283ded" },
+      { "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\RobotInputController.txt", "sha256": "f248df08449e3ff0706ce15ea07e4d58517f2fc9ed3f3143473fa48c4323bc21" },
+      { "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\SonicMotionComposer.txt", "sha256": "b59ba1dfc9ce6072b61088b36ee5dd469e09899e82dfe5b7bb49cd27edebf954" },
+      { "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\FightCoordinator.txt", "sha256": "9e847da90b34d96db852cf06c3dcd04760d92f4b4f84f525a2de140bbe6d42f5" },
+      { "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\HitEvent.txt", "sha256": "edccf1e488aa9034ad82e2a9e369c2c0e0b49478727c7b30865ab17294d58d2c" },
+      { "path": "C:\\rekagent\\work\\controller-audit-isil\\IsilDump\\REKApp\\REKApp\\ContactInfo.txt", "sha256": "f6f74440bab218803caa2a6f41bc8903a28e8e109a301c578bb3278b81576a6d" }
+    ],
+    "native_build_provenance_reference": "ocean/rek_g1/native5/validation/quality-20260916/NATIVE_BOT1_GAP.md:82"
+  },
+  "capture": {
+    "start_utc": "2026-09-17T08:09:50.5090999+00:00",
+    "end_utc": "2026-09-17T08:11:50.3715452+00:00",
+    "finalized": true,
+    "end_reason": "scope_exit:round_not_active",
+    "capture_errors": 0,
+    "recorder_version": "0.7.2",
+    "recorder_dll_sha256": "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95",
+    "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+    "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+    "local_slot": 0,
+    "opponent_slot": 1,
+    "local_compact_samples": 6001,
+    "local_zero_velocity_samples": 6001,
+    "local_no_pending_move_samples": 6001,
+    "local_punching_false_samples": 6001,
+    "local_non_null_action_clip_samples": 0,
+    "outbound_velocity_requests": 7056,
+    "outbound_nonzero_velocity_requests": 0,
+    "outbound_move_requests": 0,
+    "client_root_pose_samples": 60004,
+    "received_hit_packets": 11,
+    "is_kick_0_packets": 8,
+    "is_kick_1_packets": 3,
+    "received_score_packets": 13,
+    "score_awards": [
+      { "fighter_index": 1, "points_awarded": 1, "count": 8 },
+      { "fighter_index": 1, "points_awarded": 2, "count": 3 },
+      { "fighter_index": 0, "points_awarded": 5, "count": 2 }
+    ],
+    "hit_receipts_with_same_frame_score": 11,
+    "association_limit": "Unity receipt-frame association is not a causal hit-to-score or named-action identifier. Five-point awards are kept separate.",
+    "opponent_compact_fields": ["visual_only", "player_controlled", "falling", "fallen", "dampened", "resetting", "motor_shutdown", "tilt_angle", "floor_contact_count", "root_position", "root_rotation", "root_linear_velocity", "root_angular_velocity", "bones"],
+    "local_action_state_semantics": "local client composer observation only; no server acknowledgement or acceptance is exposed"
+  },
+  "packet_schemas": [
+    {
+      "name": "REK_Hit",
+      "bytes": 29,
+      "delivery": "unreliable",
+      "sender": "REKApp.FightCoordinator.OnHitDetectedNetwork",
+      "sender_rva": "0x2385500",
+      "receiver": "REKApp.FightCoordinator.OnHitReceived",
+      "receiver_rva": "0x2385810",
+      "recorder_method": "ObserveRawHit",
+      "fields": [
+        { "offset": "0x00", "type": "3xf32le", "name": "position_xyz" },
+        { "offset": "0x0C", "type": "3xf32le", "name": "surface_normal_xyz" },
+        { "offset": "0x18", "type": "f32le", "name": "relative_speed" },
+        { "offset": "0x1C", "type": "u8", "name": "is_kick" }
+      ],
+      "absent": ["fighter identity", "victim", "move identity", "action instance", "body zone", "impulse", "server timestamp", "native sequence", "action acceptance"]
+    },
+    {
+      "name": "REK_Score",
+      "bytes": 7,
+      "delivery": "reliable",
+      "sender": "REKApp.FightCoordinator.OnPointScoredNetwork",
+      "sender_rva": "0x23867D0",
+      "receiver": "REKApp.FightCoordinator.OnScoreReceived",
+      "receiver_rva": "0x2387010",
+      "recorder_method": "ObserveRawScore",
+      "fields": [
+        { "offset": "0x00", "type": "u8", "name": "fighter_index" },
+        { "offset": "0x01", "type": "i16le", "name": "new_hit_count" },
+        { "offset": "0x03", "type": "f32le", "name": "points_awarded" }
+      ],
+      "absent": ["hit ID", "move identity", "action instance", "server timestamp", "action acceptance"]
+    },
+    {
+      "name": "REK_Bones",
+      "bytes_formula": "2 + 28 * bone_count",
+      "delivery": "unreliable",
+      "receiver": "REKApp.Robot.OnBoneMessageReceived",
+      "recorder_method": "ObserveRawBoneMessage",
+      "fields": [
+        { "offset": "0x00", "type": "u8", "name": "network_index" },
+        { "offset": "0x01", "type": "u8", "name": "bone_count" },
+        { "offset": "0x02 + 28*i", "type": "3xf32le", "name": "bone_position_xyz" },
+        { "offset": "0x0E + 28*i", "type": "4xf32le", "name": "bone_rotation_xyzw" }
+      ],
+      "absent": ["action identity", "action acceptance", "source tick", "source timestamp", "source sequence"]
+    },
+    {
+      "name": "REK_FightState",
+      "bytes": 33,
+      "delivery": "reliable",
+      "sender": "REKApp.FightCoordinator.ServerSendFightState",
+      "sender_rva": "0x238BFA0",
+      "receiver": "REKApp.FightCoordinator.ApplyFightStateSnapshot",
+      "receiver_rva": "0x2379E00",
+      "recorder_method": "ObserveRawFightState",
+      "selected_fields": [
+        { "offset": "0x00", "type": "u8", "name": "phase" },
+        { "offset": "0x01", "type": "u8", "name": "round_number" },
+        { "offset": "0x02", "type": "u8", "name": "round_active" },
+        { "offset": "0x04", "type": "f32le", "name": "time_remaining" },
+        { "offset": "0x08", "type": "i16le", "name": "hits_0" },
+        { "offset": "0x0A", "type": "i16le", "name": "hits_1" },
+        { "offset": "0x14", "type": "u8", "name": "human_slot_mask" },
+        { "offset": "0x19", "type": "u8", "name": "referee_count_mask" },
+        { "offset": "0x1B", "type": "u8", "name": "referee_call_sequence" },
+        { "offset": "0x1F", "type": "u8", "name": "ai_level" }
+      ],
+      "other_fields": ["redo", "knockout", "round and fight results and winners", "rounds won", "format", "champion", "fault flags and stress", "other referee call data", "decided winner bits"],
+      "absent": ["move identity", "action instance", "command sequence", "action acceptance", "source tick", "monotonic server timestamp"],
+      "sequence_limit": "referee_call_sequence is not an attack ID"
+    },
+    {
+      "name": "REK_Move",
+      "bytes": 2,
+      "sender": "REKApp.RobotInputController.SendMoveEvent",
+      "sender_rva": "0x226ECB0",
+      "receiver": "REKApp.RobotInputController.OnMoveMessageReceived",
+      "fields": [
+        { "offset": "0x00", "type": "u8", "name": "network_index" },
+        { "offset": "0x01", "type": "u8", "name": "move_index" }
+      ],
+      "observation_limit": "Local outbound move request. Inspected handler registration is server-only; no opponent-execution broadcast or acknowledgement established."
+    }
+  ],
+  "native_method_evidence": [
+    {
+      "artifact": "Robot.txt",
+      "line": 34591,
+      "method": "Robot.EnterVisualOnlyMode()",
+      "finding": "Disables policy runner, SonicMotionComposer, synchronization and local MuJoCo components; unregisters local contact tracking. A visual opponent's local composer is not established as its authoritative remote action state."
+    },
+    {
+      "artifact": "RobotInputController.txt",
+      "line": 5244,
+      "method": "RobotInputController.get_IsPunching()",
+      "finding": "Reads local composer.actionPlaying or EngineAIPolicyRunner.IsMoveInProgress, not an inspected received opponent-action flag."
+    },
+    {
+      "artifact": "SonicMotionComposer.txt",
+      "line": 681,
+      "method": "SonicMotionComposer.get_ActiveActionClip()",
+      "finding": "Returns the local current-layer config for an active non-looping layer; otherwise null."
+    },
+    {
+      "artifact": "RobotInputController.txt",
+      "line": 466,
+      "method": "RobotInputController.TryNetworkInit()",
+      "finding": "Registers REK_Input, REK_Move, REK_EStop and REK_Special handlers only on the NetworkDetect.IsServer branch."
+    },
+    {
+      "artifact": "RobotInputController.txt",
+      "line": 3182,
+      "method": "RobotInputController.OnMoveMessageReceived",
+      "finding": "Decodes the two-byte request and executes a library move locally on the inspected server receive path."
+    },
+    {
+      "artifact": "RobotInputController.txt",
+      "line": 5640,
+      "method": "RobotInputController.add_OnMoveExecuted",
+      "finding": "MocapClipConfig callback is invoked by local execution paths. No authoritative remote-AI action callback established."
+    },
+    {
+      "artifact": "HitEvent.txt",
+      "line": 44,
+      "method": "HitEvent constructor",
+      "fields": ["attackerIndex", "hand", "zone", "strikerPart", "impulse", "relativeSpeed", "timestamp"],
+      "finding": "Richer server hit metadata exists, but this constructor does not supply a named clip or action-instance ID."
+    },
+    {
+      "artifact": "ContactInfo.txt",
+      "line": 3,
+      "method": "ContactInfo constructor",
+      "fields": ["geomA", "geomB", "bodyA", "bodyB", "normal", "point", "relativeSpeed", "relativeVelocity", "impulseSum", "isEnter", "isExit", "robotA", "robotB", "pairKey"]
+    },
+    {
+      "artifact": "FightCoordinator.txt",
+      "line": 24857,
+      "method": "FightCoordinator.OnHitDetectedNetwork(HitEvent, ContactInfo)",
+      "rva": "0x2385500",
+      "finding": "Projects hit/contact data into 29-byte REK_Hit. Attacker, hand, zone, striker identity, impulse, source timestamp and contact-pair identity are absent from that projection."
+    }
+  ],
+  "limits": [
+    "Recovered server-designated paths belong to the pinned client image. The live server build and implementation remain unverified; static field projection is not evidence of its internal runtime state.",
+    "Inbound coverage is bounded to REK_Bones, REK_FightState, REK_Hit and REK_Score, plus the examined move path and relevant local getters/visual setup.",
+    "Other families including impact sound, notification, fighter identity and assignment were not exhaustively audited; this is not universal proof of protocol absence.",
+    "No inspected PhysicsState or physical-robot transport path was established as a remote AI action stream.",
+    "Recorder sequence counters are local bookkeeping; wire hashes are payload hashes, not native action-instance IDs.",
+    "is_kick=0 is described as non-kick-tagged, not promoted to a named punch.",
+    "An absent unreliable hit receipt does not establish no contact, a miss, or an unscored attack.",
+    "Pose brackets describe client-rendered observations around receipt, not authoritative contact-time geometry or aiming intent.",
+    "The deployed raw hit/score packets have no QPC or UTC fields. Unity receipt times are not converted to invented server timestamps.",
+    "Named attack windows and causal outcomes require additional authoritative execution evidence; poses alone cannot supply the missing labels."
+  ]
+}
