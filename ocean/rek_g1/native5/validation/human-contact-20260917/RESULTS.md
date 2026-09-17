@@ -13,6 +13,10 @@ The frozen checkpoint evaluation used 64 arenas, four rounds per arena on each s
 
 This is simulator evaluation. **No authentic REK match has been run with the new checkpoint.** The observed 512/512 result does not establish a perfect population win rate, superhuman play, or transfer to REK.
 
+The [numeric result bundle](results/README.md) contains all 1,024 held-out match records, all 64 geometry-comparison matches, 64 native training metric samples, checkpoint identities and verification results. The [exporter](export-results.cjs) checks schemas and recomputes totals before writing the public subset. Private captures, game assets and checkpoint binaries are excluded.
+
+The before/after runs share the seed and all 512 match keys. Six recorded `initial_xy` rows differ by at most 0.001600027 m. They must not be described as byte-identical recorded starting positions. The four geometry variants have identical recorded initial coordinates. See the result bundle for the measurement qualification.
+
 ## Human evidence
 
 Both completed Windows human rounds were retained: 186 named move requests, 22 local strike/score pairs, 11 AI strike/score pairs and six additional five-point awards without paired strike effects. The unique same-client-frame pairs are useful observations, not a server action/causality acknowledgement.

@@ -1,0 +1,14 @@
+{
+  "measurement_domain": "reconstructed_ai_simulator",
+  "authentic_parity": false,
+  "arenas": 512,
+  "completed_rounds": 10752,
+  "fighter0_wins": 10708,
+  "fighter1_wins": 42,
+  "ties": 2,
+  "redos": 0,
+  "unclassified": 0,
+  "fighter0_completed_points": 1495617,
+  "fighter1_completed_points": 376936,
+  "failure_bits": 0
+}

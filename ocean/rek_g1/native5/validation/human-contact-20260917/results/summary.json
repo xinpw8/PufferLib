@@ -1,0 +1,152 @@
+{
+  "measurement_domain": "reconstructed_ai_simulator",
+  "authentic_parity": false,
+  "evaluations": [
+    {
+      "measurement_domain": "reconstructed_ai_simulator",
+      "authentic_parity": false,
+      "name": "heldout-before",
+      "games": 512,
+      "wins": 510,
+      "losses": 2,
+      "draws": 0,
+      "points": 67649,
+      "opponent_points": 18357,
+      "checkpoint_sha256": "f87dae69a777e4ac28782bdee89b30d7434208d773be75bf97f56fba4a52b07e",
+      "geometry_mode": "primitive_samples_v1",
+      "contact_substeps": 8,
+      "seed": 200019,
+      "execution_wall_seconds": 9.15515978
+    },
+    {
+      "measurement_domain": "reconstructed_ai_simulator",
+      "authentic_parity": false,
+      "name": "heldout-after",
+      "games": 512,
+      "wins": 512,
+      "losses": 0,
+      "draws": 0,
+      "points": 75189,
+      "opponent_points": 18329,
+      "checkpoint_sha256": "5989fa23e6ead72a20fa94a55ce4fb5da2db8631d4f2d2fb038a57c02f95ae85",
+      "geometry_mode": "primitive_samples_v1",
+      "contact_substeps": 8,
+      "seed": 200019,
+      "execution_wall_seconds": 9.13835903
+    },
+    {
+      "measurement_domain": "reconstructed_ai_simulator",
+      "authentic_parity": false,
+      "name": "geometry-spheres",
+      "games": 16,
+      "wins": 16,
+      "losses": 0,
+      "draws": 0,
+      "points": 2924,
+      "opponent_points": 764,
+      "checkpoint_sha256": "f87dae69a777e4ac28782bdee89b30d7434208d773be75bf97f56fba4a52b07e",
+      "geometry_mode": "bounding_spheres",
+      "contact_substeps": 0,
+      "seed": 9171058,
+      "execution_wall_seconds": 3.32265281
+    },
+    {
+      "measurement_domain": "reconstructed_ai_simulator",
+      "authentic_parity": false,
+      "name": "geometry-primitive-1",
+      "games": 16,
+      "wins": 16,
+      "losses": 0,
+      "draws": 0,
+      "points": 1717,
+      "opponent_points": 475,
+      "checkpoint_sha256": "f87dae69a777e4ac28782bdee89b30d7434208d773be75bf97f56fba4a52b07e",
+      "geometry_mode": "primitive_samples_v1",
+      "contact_substeps": 1,
+      "seed": 9171058,
+      "execution_wall_seconds": 3.40186172
+    },
+    {
+      "measurement_domain": "reconstructed_ai_simulator",
+      "authentic_parity": false,
+      "name": "geometry-primitive-4",
+      "games": 16,
+      "wins": 16,
+      "losses": 0,
+      "draws": 0,
+      "points": 1861,
+      "opponent_points": 504,
+      "checkpoint_sha256": "f87dae69a777e4ac28782bdee89b30d7434208d773be75bf97f56fba4a52b07e",
+      "geometry_mode": "primitive_samples_v1",
+      "contact_substeps": 4,
+      "seed": 9171058,
+      "execution_wall_seconds": 3.56142862
+    },
+    {
+      "measurement_domain": "reconstructed_ai_simulator",
+      "authentic_parity": false,
+      "name": "geometry-primitive-8",
+      "games": 16,
+      "wins": 16,
+      "losses": 0,
+      "draws": 0,
+      "points": 1880,
+      "opponent_points": 513,
+      "checkpoint_sha256": "f87dae69a777e4ac28782bdee89b30d7434208d773be75bf97f56fba4a52b07e",
+      "geometry_mode": "primitive_samples_v1",
+      "contact_substeps": 8,
+      "seed": 9171058,
+      "execution_wall_seconds": 3.74647914
+    }
+  ],
+  "training": {
+    "measurement_domain": "reconstructed_ai_simulator",
+    "authentic_parity": false,
+    "initial_checkpoint_sha256": "f87dae69a777e4ac28782bdee89b30d7434208d773be75bf97f56fba4a52b07e",
+    "final_checkpoint_sha256": "5989fa23e6ead72a20fa94a55ce4fb5da2db8631d4f2d2fb038a57c02f95ae85",
+    "transitions": 67108864,
+    "training_uptime_seconds": 54.43491005897522,
+    "mean_transitions_per_training_second": 1232827.6822225612,
+    "process_wall_seconds": 55.16,
+    "metric_samples": 64,
+    "final_logged_SPS": 1221024.9813583274,
+    "final_logged_epoch": 1024,
+    "metric_samples_are_aggregates": true,
+    "final_sample_duplicate_retained": true,
+    "exit_code": 0,
+    "geometry_mode": "primitive_samples_v1",
+    "contact_substeps": 8
+  },
+  "matched_seeds_and_match_keys_verified": true,
+  "recorded_initial_coordinate_comparisons": [
+    {
+      "left": "heldout-before",
+      "right": "heldout-after",
+      "matched_keys": 512,
+      "recorded_initial_xy_different_rows": 6,
+      "maximum_absolute_coordinate_difference_m": 0.0016000269999999484
+    },
+    {
+      "left": "geometry-spheres",
+      "right": "geometry-primitive-1",
+      "matched_keys": 16,
+      "recorded_initial_xy_different_rows": 0,
+      "maximum_absolute_coordinate_difference_m": 0
+    },
+    {
+      "left": "geometry-spheres",
+      "right": "geometry-primitive-4",
+      "matched_keys": 16,
+      "recorded_initial_xy_different_rows": 0,
+      "maximum_absolute_coordinate_difference_m": 0
+    },
+    {
+      "left": "geometry-spheres",
+      "right": "geometry-primitive-8",
+      "matched_keys": 16,
+      "recorded_initial_xy_different_rows": 0,
+      "maximum_absolute_coordinate_difference_m": 0
+    }
+  ],
+  "geometry_comparison_is_action_replay": false
+}

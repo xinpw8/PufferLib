@@ -1,0 +1,411 @@
+{
+  "measurement_domain": "reconstructed_ai_simulator",
+  "authentic_parity": false,
+  "exporter_sha256": "0f05dd61cc05038de01e69278ac7f7c86a45708a32462fe8219449376b321c93",
+  "schema_version": 1,
+  "sources": [
+    {
+      "relative_path": "assets-probe/result.jsonl",
+      "bytes": 2048,
+      "sha256": "8ca9b03a8fd00065d71536f4434d680353bd48b73cbc7ff17f482282da187276"
+    },
+    {
+      "relative_path": "checks/stdout.txt",
+      "bytes": 2805,
+      "sha256": "4698b562d3c3a84b912e5a6c708c235105d7375f857ce425a882c7105cc4dac1"
+    },
+    {
+      "relative_path": "eval-baseline-r3/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "relative_path": "eval-baseline-r3/matches.private.jsonl",
+      "bytes": 14454,
+      "sha256": "8e82168402ddfa03ecf235435fb24b108c654e607c138f3757cfd9acb84c9088"
+    },
+    {
+      "relative_path": "eval-baseline-r3/summary.jsonl",
+      "bytes": 2247,
+      "sha256": "ae955d3c828ea87641e3c5a91fdc7e6eaeb2fe77bd7a69b2d783621731b2727f"
+    },
+    {
+      "relative_path": "eval-heldout512-new/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "relative_path": "eval-heldout512-new/matches.private.jsonl",
+      "bytes": 465541,
+      "sha256": "ee259a26ec2639177b56431e31ca4ef5083b5c4b0c739646ee6a4b17995e2f54"
+    },
+    {
+      "relative_path": "eval-heldout512-new/summary.jsonl",
+      "bytes": 2273,
+      "sha256": "480bcb50290dea769d4d81b188de4aae78944f46564838d0e512258298e65285"
+    },
+    {
+      "relative_path": "eval-heldout512-old/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "relative_path": "eval-heldout512-old/matches.private.jsonl",
+      "bytes": 465278,
+      "sha256": "bfa9b973d3fd2a0ec87770bdc1ae0479885df193628faace7a3a5cba36edde08"
+    },
+    {
+      "relative_path": "eval-heldout512-old/summary.jsonl",
+      "bytes": 2277,
+      "sha256": "b45fd329ece883418591bea4bdf78d3d4c7c70624da8ab8aa381d3c0eef69133"
+    },
+    {
+      "relative_path": "eval-primitive-1-r3/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "relative_path": "eval-primitive-1-r3/matches.private.jsonl",
+      "bytes": 14511,
+      "sha256": "ed4a29f28adfaad5bfaf041567519bd2e5a20b6c50496cc409b3831602c78306"
+    },
+    {
+      "relative_path": "eval-primitive-1-r3/summary.jsonl",
+      "bytes": 2254,
+      "sha256": "d43314a7f7ea173cb0e4cc8459406db728053e4013966ab08322f80658e9141a"
+    },
+    {
+      "relative_path": "eval-primitive-4-r3/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "relative_path": "eval-primitive-4-r3/matches.private.jsonl",
+      "bytes": 14524,
+      "sha256": "a44fba6a560d157ae8be8fee1f4d952881a7c0ecbe726f8340a740c3c6e45b32"
+    },
+    {
+      "relative_path": "eval-primitive-4-r3/summary.jsonl",
+      "bytes": 2255,
+      "sha256": "865b4efdc974bdbfc2a9c81e2ea4abcc333bdbe6ad7d23bebfa5e4dbedf4990b"
+    },
+    {
+      "relative_path": "eval-primitive-8-r3/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "relative_path": "eval-primitive-8-r3/matches.private.jsonl",
+      "bytes": 14525,
+      "sha256": "72b848638218b67bed3c05a7443afe8afb9b17eb310d7a96e0075169f733d43b"
+    },
+    {
+      "relative_path": "eval-primitive-8-r3/summary.jsonl",
+      "bytes": 2250,
+      "sha256": "fab494eccba2e290857094378d0d92a39c126de21107d23cf7547a4ca8d2f752"
+    },
+    {
+      "relative_path": "gpu-contact-test.json",
+      "bytes": 524,
+      "sha256": "e141d9fd561ec7df7524d5dcc5e112ccff8e9d756d4c8d1af91ac04ffe1c04ca"
+    },
+    {
+      "relative_path": "memcheck-r3.stdout.txt",
+      "bytes": 2223,
+      "sha256": "aac18fd9163d76f6ced3878a4ac5d1f622f7f385a7ecd6e34a591c9aea294c25"
+    },
+    {
+      "relative_path": "memcheck-r3.txt",
+      "bytes": 62,
+      "sha256": "a9d061cee538182f762e132abeea7bac7bddb844338f25751bbbb043f242c425"
+    },
+    {
+      "relative_path": "mode-config-test.stdout.txt",
+      "bytes": 1470,
+      "sha256": "6f12adbdb444ef19b80758e3420c4a5b83156510a7420491641c45ec4474714b"
+    },
+    {
+      "relative_path": "train-primitive8-r1/checkpoint-hashes.txt",
+      "bytes": 3672,
+      "sha256": "f8420815dc25d791de5bd2cfd169186f689dac47ab14cf187962249f8df4aff2"
+    },
+    {
+      "relative_path": "train-primitive8-r1/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "relative_path": "train-primitive8-r1/initial-checkpoint.sha256",
+      "bytes": 219,
+      "sha256": "8b4ebd5fc6d2207cba7d610300c41c287a2dd114046ec811d0ff7f1135891233"
+    },
+    {
+      "relative_path": "train-primitive8-r1/logs/rek_native5/train-primitive8-r1.ini",
+      "bytes": 18389,
+      "sha256": "a9eb8fafdd2249600dae35f0dd0ae076b39527f51c611a8ecc38d689d09926ee"
+    },
+    {
+      "relative_path": "train-primitive8-r1/process-timing.txt",
+      "bytes": 2640,
+      "sha256": "5de6fdf70f38b40646c69606bebf39c595c52007f29f9ce390e007fbea63ea98"
+    },
+    {
+      "relative_path": "train-primitive8-r1/round-summary.json",
+      "bytes": 205,
+      "sha256": "67b92b7346959fddf29aa40617407739351c50dedbe0dfd610877a886d84e7aa"
+    },
+    {
+      "relative_path": "train-primitive8-r1/stderr.txt",
+      "bytes": 4273,
+      "sha256": "559db498cf4b689023aa14b141bbf76f8c0438b4293d4d9af82903955ec53502"
+    },
+    {
+      "relative_path": "train-primitive8-r1/verified-warm-start.txt",
+      "bytes": 435,
+      "sha256": "a0293c07932aefd6460fda6343067c24bec32480587e8f00e2a6d226f6d47a69"
+    }
+  ],
+  "outputs": [
+    {
+      "relative_path": "heldout-before.matches.jsonl",
+      "bytes": 501509,
+      "sha256": "445c90d3d44b29ccf42086357fa21ac3904a4dd4ceb6866e20b038da337facc2"
+    },
+    {
+      "relative_path": "heldout-before.events.jsonl",
+      "bytes": 2802,
+      "sha256": "27755015e47a08d64babe2e585b94465ca6d6ddc0600d5cab4fbcb575af12cdd"
+    },
+    {
+      "relative_path": "heldout-after.matches.jsonl",
+      "bytes": 501772,
+      "sha256": "bb0b82c3fc74cc5da4d19ddda7cfdf16779d3e42675703c58856b640d20ae2d5"
+    },
+    {
+      "relative_path": "heldout-after.events.jsonl",
+      "bytes": 2798,
+      "sha256": "ee860a43455be5b839020f77e1cfddcd6e64aabb78babaa21c09231c277a276b"
+    },
+    {
+      "relative_path": "geometry-spheres.matches.jsonl",
+      "bytes": 15587,
+      "sha256": "8c04d3a13535a58ed5cfad687e6ec77579d306ae98d83d1e4e2a2f93eedfc0c8"
+    },
+    {
+      "relative_path": "geometry-spheres.events.jsonl",
+      "bytes": 2766,
+      "sha256": "c2f8a244437a30017b20c8257a6643d5f0ee544bb080088647c7e34f30715034"
+    },
+    {
+      "relative_path": "geometry-primitive-1.matches.jsonl",
+      "bytes": 15637,
+      "sha256": "fe84b3b2a52d600f6dad8f6e70dd25b2bbe9cdfcf0267d6260778dbd14d94763"
+    },
+    {
+      "relative_path": "geometry-primitive-1.events.jsonl",
+      "bytes": 2773,
+      "sha256": "bbe562648cab092e77255fe1f9597aea713558b18eb570cec37444d573a5ee27"
+    },
+    {
+      "relative_path": "geometry-primitive-4.matches.jsonl",
+      "bytes": 15651,
+      "sha256": "1c694eab28291506ff816e4dc0d9851279904b512d2127c0603551b539a5f551"
+    },
+    {
+      "relative_path": "geometry-primitive-4.events.jsonl",
+      "bytes": 2776,
+      "sha256": "3f690f03c25286bb701472acd198a302a610c031c7ad270ba399bee0c0ab9fb4"
+    },
+    {
+      "relative_path": "geometry-primitive-8.matches.jsonl",
+      "bytes": 15652,
+      "sha256": "b0390ceb26cdf2c78a523ffc9b6622938e3fba009929ca1767149c99e1b49e1a"
+    },
+    {
+      "relative_path": "geometry-primitive-8.events.jsonl",
+      "bytes": 2771,
+      "sha256": "e5ba99a188f534aca4e576082341c84ae345d0068efb91154568653d68351d6b"
+    },
+    {
+      "relative_path": "training-config.json",
+      "bytes": 2169,
+      "sha256": "b48b8746cec4c05c821b07d76d492450f79930a66a1a9c6d6b14e9e030bf73c7"
+    },
+    {
+      "relative_path": "training-metrics.jsonl",
+      "bytes": 36151,
+      "sha256": "593663fba19464165df51de92df287e447018f90d87886454e7bdb079335e2f4"
+    },
+    {
+      "relative_path": "training-summary.json",
+      "bytes": 718,
+      "sha256": "bdf9bcc80975a9a02d39f97c1d84b02fdbc816aec92d263f6fd2e1e68acffe28"
+    },
+    {
+      "relative_path": "training-rounds.json",
+      "bytes": 329,
+      "sha256": "3aa965ac91eac601136a5d23d3ad4b79b218ef6d9f426d9aa50bb90dd9ca4577"
+    },
+    {
+      "relative_path": "checkpoint-identities.jsonl",
+      "bytes": 3204,
+      "sha256": "90a279998982a475b6de9c4e0b89eaab2500b38b78c0d57b989f3df2526a9f4a"
+    },
+    {
+      "relative_path": "validation-tests.json",
+      "bytes": 3205,
+      "sha256": "131aa25092dde6f167b1a4cbaf2633308bdb083eb585aa76a574dc459bc1d1f3"
+    },
+    {
+      "relative_path": "summary.json",
+      "bytes": 4898,
+      "sha256": "428e8d24e9516f6bfa274a5c92d71fa68fbbec73f31d2a3aef6da45c5e41c49b"
+    },
+    {
+      "relative_path": "README.md",
+      "bytes": 3286,
+      "sha256": "94909ebfa6ec779e03051f7fa402e700e21f22523e38a78f63b8e8b02d479208"
+    }
+  ],
+  "match_whitelist": [
+    "backend",
+    "policy_sha256",
+    "opponent",
+    "opponent_sha256",
+    "fixture",
+    "seed",
+    "arena",
+    "episode",
+    "duration_ticks",
+    "busy_ticks",
+    "facing_ticks",
+    "gap_below_1_05m_ticks",
+    "attack_commands",
+    "policy_side",
+    "winner",
+    "round_result",
+    "score",
+    "point_delta_sum",
+    "zero_hits",
+    "duration_seconds",
+    "path_length_m",
+    "minimum_gap_m",
+    "maximum_gap_m",
+    "mean_gap_m",
+    "shaping_weight",
+    "first_hit_seconds",
+    "initial_xy",
+    "final_xy",
+    "opponent_controller",
+    "observation_mode",
+    "scoring_mode",
+    "geometry_mode",
+    "contact_substeps"
+  ],
+  "summary_event_whitelists": {
+    "compact_mode_identity": [
+      "event",
+      "opponent_controller",
+      "observation_mode",
+      "geometry_mode",
+      "contact_substeps",
+      "source"
+    ],
+    "scoring_identity": [
+      "event",
+      "scoring_mode",
+      "source"
+    ],
+    "side_result": [
+      "event",
+      "policy_side",
+      "arenas",
+      "rounds_per_arena",
+      "wins",
+      "losses",
+      "draws",
+      "points",
+      "opponent_points",
+      "falls",
+      "opponent_falls",
+      "evaluated_ticks",
+      "execution_wall_seconds"
+    ],
+    "behavior_result": [
+      "event",
+      "policy_side",
+      "opponent",
+      "fixture",
+      "zero_hit_games",
+      "hit_games",
+      "mean_first_hit_seconds_when_hit",
+      "configured_round_seconds",
+      "busy_fraction",
+      "facing_fraction",
+      "mean_path_length_m",
+      "mean_minimum_gap_m",
+      "shaping_weight"
+    ],
+    "frozen_policy_evaluation": [
+      "event",
+      "backend",
+      "checkpoint_sha256",
+      "opponent_sha256",
+      "precision",
+      "observation_encoding",
+      "selection",
+      "policy_rng_seed",
+      "opponent_rng_seed",
+      "wins",
+      "losses",
+      "draws",
+      "failure_bits",
+      "win_rate",
+      "execution_wall_seconds",
+      "round_seconds",
+      "shaping_weight",
+      "fixture",
+      "opponent",
+      "environment_randomizes_seed",
+      "both_sides",
+      "terminal_recurrent_reset",
+      "python_runtime",
+      "cpu_physics",
+      "physics_parity",
+      "training_sps",
+      "opponent_controller",
+      "observation_mode",
+      "scoring_mode",
+      "geometry_mode",
+      "contact_substeps"
+    ]
+  },
+  "numeric_INI_whitelist": {
+    "base": "gpu_offset checkpoint_interval eval_episodes eval_agents eval_deterministic cudagraphs seed reset_every_horizon async",
+    "vec": "total_agents num_buffers num_threads num_policies hist_policy_hidden_size hist_policy_num_layers hist_policy_percent",
+    "selfplay": "enabled max_size seed opp_timeout_steps eval_pool_size eval_games",
+    "env": "dr num_agents num_bots seed locomotion_segment_ticks round_seconds opponent_hidden_size opponent_num_layers opponent_precision opponent_legacy_fast_hidden opponent_deterministic",
+    "policy": "hidden_size num_layers",
+    "train": "gpus total_timesteps learning_rate anneal_lr min_lr_ratio gamma gae_lambda replay_ratio clip_coef vf_coef vf_clip_coef max_grad_norm ent_coef anneal_ent_coef min_ent_coef_ratio momentum minibatch_size horizon vtrace vtrace_rho_clip vtrace_c_clip verb_eps verb_eps_anneal_start verb_eps_anneal_end",
+    "sweep": "downsample"
+  },
+  "metric_whitelist": [
+    "SPS",
+    "agent_steps",
+    "uptime",
+    "epoch",
+    "env/n",
+    "importance",
+    "util/gpu_percent",
+    "util/vram_used_gb",
+    "util/vram_total_gb",
+    "util/cpu_mem_gb",
+    "perf/rollout",
+    "perf/eval_model",
+    "perf/eval_env",
+    "perf/eval_copy",
+    "perf/train_misc",
+    "perf/train_model",
+    "perf/train"
+  ]
+}
