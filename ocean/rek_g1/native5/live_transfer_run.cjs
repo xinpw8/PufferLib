@@ -54,10 +54,12 @@ function canReadyPrivateAiSession(s) {
     p.round_active===false && p.round_inactive===true && p.client_visual_only_fighter_pair===false;
 }
 async function ensurePrivateArena(state,{enterPrivate,command,getState,
-    wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),now=Date.now,log=()=>{}}) {
+    wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),now=Date.now,log=()=>{},entryTimeoutMs=45000}) {
+  requireValue(Number.isInteger(entryTimeoutMs)&&entryTimeoutMs>0&&entryTimeoutMs<=120000,
+    'entryTimeoutMs must be a positive integer <=120000');
   if(privateArena(state) && !canReadyPrivateAiSession(state))return state;
   requireValue(enterPrivate===true,'current client is not verified ready private AI arena');
-  const entered=new Set();const deadline=now()+45000;
+  const entered=new Set();const deadline=now()+entryTimeoutMs;
   while(!privateArena(state) || canReadyPrivateAiSession(state)) {
     if(canReadyPrivateAiSession(state)) {
       // Idle AI difficulty can precede the server's new-pilot ownership reset.

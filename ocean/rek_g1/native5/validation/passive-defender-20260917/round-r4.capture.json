@@ -1,0 +1,33 @@
+{
+  "schema": "rek.passive_defender.capture.v1",
+  "host": "spark-4ae3",
+  "trial_output": "/home/spark-advantage/rek-training/passive-defender-20260917-r1/round-r4/trial",
+  "config_path": "/home/spark-advantage/rek-training/passive-defender-20260917-r1/round-r4/config.json",
+  "controller": "neutral_action_1",
+  "checkpoint_sha256": null,
+  "capture_source": "authentic REK framebuffer on isolated X11 :98",
+  "global_input_emitted": false,
+  "pointer_capture": false,
+  "synthetic_frames": false,
+  "recording_started_utc": "2026-09-17T04:46:49.020Z",
+  "trigger": "active_private_ai_opponent",
+  "driver_result": {
+    "code": 0,
+    "signal": null
+  },
+  "recording_result": {
+    "code": 0,
+    "signal": null,
+    "utc": "2026-09-17T04:48:54.184Z"
+  },
+  "recording_size_limit_reached": false,
+  "video": "/home/spark-advantage/rek-training/passive-defender-20260917-r1/round-r4/media/authentic-rek-passive-defender.mp4",
+  "video_bytes": 11023171,
+  "video_sha256": "77f89eecd98881718d89db7769cf088b6d797efbe47f9e7d62a062f86c2d5fc5",
+  "decode_result": {
+    "code": 0,
+    "signal": null
+  },
+  "delivery_status": "validated_mp4",
+  "delivery_max_bytes_exclusive": 20000000
+}

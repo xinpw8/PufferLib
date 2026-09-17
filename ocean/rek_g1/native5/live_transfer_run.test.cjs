@@ -37,6 +37,29 @@ function recoveryFixture(states,extra={}) {
     wait:async ms=>{clock+=ms;},now:()=>clock,log:(event,detail)=>events.push({event,...detail}),...extra}};
 }
 
+function delayedPrivateEntry(entryTimeoutMs,arrivalMs=60000) {
+  let clock=0;const commands=[],arena=privateAi(2);
+  return {commands,arena,now:()=>clock,start:()=>ensurePrivateArena(freePlayState(),{
+    enterPrivate:true,entryTimeoutMs,now:()=>clock,wait:async ms=>{clock+=ms;},
+    command:async command=>commands.push(command),getState:async()=>clock>=arrivalMs?arena:freePlayState()})};
+}
+test('private entry timeout defaults to 45000 ms for existing learned-policy callers',async()=>{
+  const f=delayedPrivateEntry();await assert.rejects(f.start(),/private-practice entry timeout/);
+  assert.equal(f.now(),45000);assert.deepEqual(f.commands,['EnterSolo']);
+});
+test('passive entry can opt into 120000 ms for delayed native loading and still times out',async()=>{
+  const delayed=delayedPrivateEntry(120000);assert.equal(await delayed.start(),delayed.arena);
+  assert.equal(delayed.now(),60000);assert.deepEqual(delayed.commands,['EnterSolo']);
+  const missing=delayedPrivateEntry(120000,Infinity);await assert.rejects(missing.start(),/private-practice entry timeout/);
+  assert.equal(missing.now(),120000);assert.deepEqual(missing.commands,['EnterSolo']);
+});
+test('entryTimeoutMs rejects invalid and unbounded values before issuing commands',async()=>{
+  for(const entryTimeoutMs of [0,-1,120001,1.5,Infinity,NaN,'120000',null]) {
+    const f=delayedPrivateEntry(entryTimeoutMs);await assert.rejects(f.start(),/entryTimeoutMs/);
+    assert.equal(f.now(),0);assert.deepEqual(f.commands,[]);
+  }
+});
+
 test('any known private bot is accepted, with measured identity and independent legacy Bot1 proof',()=>{
   for(const difficulty of [0,1,2,7,254,255]) {
     const s=privateAi(difficulty);assert.equal(privateArena(s),true);

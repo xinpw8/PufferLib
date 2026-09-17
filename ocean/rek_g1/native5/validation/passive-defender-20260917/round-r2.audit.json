@@ -1,0 +1,85 @@
+{
+  "schema": "rek.passive_defender_audit.v1",
+  "options": {
+    "warmupSeconds": 1,
+    "windowSeconds": 1,
+    "motionSpeedMps": 1.75,
+    "maxGapSeconds": 0.25
+  },
+  "coordinate_system": "Unity world XYZ, Y up; root rotations XYZW",
+  "source_lines": 8378,
+  "source_state_records": 4146,
+  "samples": 4146,
+  "invalid_records": 0,
+  "error_counts": {},
+  "boundaries": {
+    "first_valid_sample": 1
+  },
+  "score_events": 5,
+  "counter_decrease_events": 0,
+  "positive_point_updates": {
+    "actor": 0,
+    "opponent": 7
+  },
+  "score_update_sizes": {
+    "actor": {},
+    "opponent": {
+      "1": 3,
+      "2": 2
+    }
+  },
+  "motion_intervals": 482,
+  "motion_intervals_no_score_observed": 390,
+  "active_stream_neutral": {
+    "samples": 4146,
+    "desired_action_1": 4146,
+    "desired_action_other": 0,
+    "desired_action_unknown": 0,
+    "velocity_command_zero": 4146,
+    "velocity_command_nonzero": 0,
+    "velocity_command_unknown": 0,
+    "both_neutral": 4146
+  },
+  "after_warmup_neutral": {
+    "samples": 4096,
+    "desired_action_1": 4096,
+    "desired_action_other": 0,
+    "desired_action_unknown": 0,
+    "velocity_command_zero": 4096,
+    "velocity_command_nonzero": 0,
+    "velocity_command_unknown": 0,
+    "both_neutral": 4096
+  },
+  "acknowledgments": {
+    "action_1_applied": 4145,
+    "action_1_not_applied": 0,
+    "other_actions": 0
+  },
+  "maximum_actor_root_step_m": 0.06899118288480928,
+  "maximum_opponent_root_step_m": 0.06790571824088167,
+  "limits": [
+    "Client-rendered/replicated observations, not authoritative server contact state.",
+    "Limb positions are named bone origins, not collider surfaces or contact points.",
+    "Variable-QPC finite differences measure displacement; impacts, interpolation and position resets can all contribute.",
+    "Diagnostic speed-threshold intervals are motion, not identified attacks.",
+    "no_score_observed does not mean a missed or rejected attack; native active-clip/apex and contact-enter state are unavailable.",
+    "One-, two- and five-point updates describe counter increments only; batches and authoritative causes are not resolved.",
+    "Neutral commands do not hold the robot stationary or disable physical response.",
+    "Score/window comparisons stop at round, slot, clock, sequence and sampling-gap boundaries.",
+    "Requested action and measured command checks are sampled evidence, not proof of every intervening command."
+  ],
+  "segments": 1,
+  "complete": true,
+  "sampled_neutral_confirmed_after_warmup": true,
+  "source": {
+    "path": "/home/spark-advantage/rek-training/passive-defender-20260917-r1/round-r2/trial/relay.stdout.jsonl",
+    "bytes": 45417902,
+    "sha256": "a6fe74decf59fc1f7c2cce8e77a7a737b8d10e1ff65a692682eaa33756a40cf6",
+    "modified_utc": "2026-09-17T04:36:57.608Z"
+  },
+  "outputs": {
+    "kinematics": "kinematics.jsonl",
+    "score_events": "score_events.jsonl",
+    "motion_intervals": "motion_intervals.jsonl"
+  }
+}

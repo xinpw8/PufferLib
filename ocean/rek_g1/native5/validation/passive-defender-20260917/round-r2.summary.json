@@ -1,0 +1,90 @@
+{
+  "mode": "safe_start",
+  "stop_reason": "relay_exit",
+  "round_completed": false,
+  "outcome": "incomplete",
+  "collection_seconds": 85.944,
+  "max_seconds": 130,
+  "source_count": 4146,
+  "validated_source_count": 4146,
+  "dropped_sources": {
+    "action_inflight": 1
+  },
+  "requested": 4145,
+  "applied": 4145,
+  "rejected": 0,
+  "unmatched_action_acks": 0,
+  "action_inflight_at_stop": false,
+  "only_requested_action": 1,
+  "neutral_source_count": 4146,
+  "post_ack_source_count": 4145,
+  "post_ack_neutral_source_count": 4145,
+  "neutral_command_verified": true,
+  "last_ack_qpc_ticks": "3077699741304",
+  "reasons": {
+    "held_state_applied_locally": 4145
+  },
+  "opponent": {
+    "client_ai_difficulty": 0,
+    "sparring_bot_number": 1
+  },
+  "local_slot": 0,
+  "round_identity_sha256": "bf9a19657258d432fa185652816a347663368ea774553b21f6380566a306f9d3",
+  "initial_round": {
+    "number": 1,
+    "duration": 120,
+    "time_remaining": 119.899925,
+    "active": true,
+    "redo": false,
+    "clean_hits": [
+      0,
+      0
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "InProgress",
+    "result_value": 0,
+    "winner_index": -1,
+    "knockout": false
+  },
+  "final_round": {
+    "number": 1,
+    "duration": 120,
+    "time_remaining": 35.901,
+    "active": true,
+    "redo": false,
+    "clean_hits": [
+      0,
+      7
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "InProgress",
+    "result_value": 0,
+    "winner_index": -1,
+    "knockout": false
+  },
+  "stream_end": null,
+  "cleanup": {
+    "stop_accepted": false,
+    "release_accepted": false,
+    "verified": false
+  },
+  "relay_exit": {
+    "code": 0,
+    "signal": null
+  },
+  "attach_status": "native_start_requested_or_ready_bootstrap",
+  "whole_round_from_first_tick": false,
+  "policy_used": false,
+  "encoder_used": false,
+  "checkpoint_used": false,
+  "neutral_control_does_not_freeze_physics": true,
+  "server_acceptance": "unknown",
+  "global_input_emitted": false,
+  "exit_code": 2
+}

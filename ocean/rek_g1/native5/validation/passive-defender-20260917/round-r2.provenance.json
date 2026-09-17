@@ -1,0 +1,23 @@
+{
+  "host": "spark-4ae3",
+  "utc": "2026-09-17T04:35:24.021Z",
+  "command": [
+    "/usr/bin/node",
+    "/home/spark-advantage/rek-training/passive-defender-20260917-r1/source/ocean/rek_g1/native5/run_passive_defender_trial.cjs",
+    "/home/spark-advantage/rek-training/policy-quality-20260916-r1/live-any-ai-r4/trial.config.json",
+    "/home/spark-advantage/rek-training/passive-defender-20260917-r1/round-r2",
+    "safe_start"
+  ],
+  "base_config_sha256": "71da623fd9dc3c4d7ad08c120a882e5a1091968471472d8ca159079e3e8b4cc9",
+  "config_sha256": "5d35da8a50c3e4cbd670a42c262137516e14dc13b868675a39360a8bea8fe864",
+  "source_sha256": {
+    "passive_defender_run.cjs": "e8800c7c49b8b8069481a840dc753890a97548df3a06b0d437ce86baf43d49a8",
+    "live_transfer_run.cjs": "4bad5a0040609c39233d0d460d8e5979b391104eec134cd70a2c0122c2bab06e",
+    "record_passive_defender.cjs": "e4f75ac44c536048dcd3f9ff2b38b6b9767845c5821fcae52554fe72b2c942ba",
+    "audit_passive_defender.cjs": "326e7b0badac4d76570749e36bccf1d7616701dd7d2d44f97ebc5e0074a4d00b",
+    "run_passive_defender_trial.cjs": "be5d2664129ed7408f8bacc05d7c257cb1fa8ec5044a39931b07702a325ade37"
+  },
+  "bridge_sha256": "6c88b9e3718f5549c146865a4a336515385e5b019fd8321a6f5e1fec4253a5e4",
+  "policy_used": false,
+  "global_input_emitted": false
+}
