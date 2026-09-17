@@ -54,7 +54,7 @@ async function audit(dir,correctedFile){
     corrected_replay:correctedFile?{compared_observations:compared,changed_observations:changedObs,changed_masks:changedMasks,
       recorded_rejected_actions_now_masked:blockedRejected,recorded_applied_actions_now_masked:blockedApplied}:null,
     limits:['Offline replay measures mask changes, not counterfactual wins or new policy actions.',
-      'Facing uses measured root yaw; compact training uses logical heading.',
+      'Facing uses measured root yaw; comparison requires the checkpoint training observation mode.',
       'Applied is a local acknowledgment, not authoritative server acceptance.'],
     artifact_sha256:hashes};
 }

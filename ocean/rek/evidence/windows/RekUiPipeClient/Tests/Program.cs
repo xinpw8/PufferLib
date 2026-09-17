@@ -20,8 +20,19 @@ Reject("{\"type\":\"input\",\"request_id\":\"x\",\"key\":\"Space\"}");
 Reject("{\"type\":\"command\",\"request_id\":\"x\",\"command\":\"StartContinuousBotController\"}");
 foreach (var type in new[] { "get_state", "get_policy_state" })
 { PolicyRelay.ValidateRequest(JsonSerializer.Serialize(new { type, request_id = "read1" })); cases++; }
-foreach (var command in new[] { "AcquireExclusiveControl", "StartG1PolicyStream", "StopG1PolicyStream", "ReleaseExclusiveControl", "StartRound" })
+foreach (var command in new[] { "AcquireExclusiveControl", "StartG1PolicyStream", "StopG1PolicyStream", "ReleaseExclusiveControl", "StartRound", "ExitUnexpectedPrivateAiSession", "ReadyPrivateAiSession" })
 { PolicyRelay.ValidateRequest(JsonSerializer.Serialize(new { type = "command", request_id = "c1", command })); cases++; }
+Reject("{\"type\":\"command\",\"request_id\":\"x\",\"command\":\"ExitUnexpectedPrivateAiSession\",\"difficulty\":0}");
+Reject("{\"type\":\"command\",\"request_id\":\"x\",\"command\":\"SetAiDifficulty\"}");
+Reject("{\"type\":\"command\",\"request_id\":\"x\",\"command\":\"ReadyPrivateAiSession\",\"difficulty\":0}");
+var bootstrap = new PrivateAiBootstrapFacts(true,true,true,true,true,true,true,true,true,true,true,true,false);
+Check(PrivateAiBootstrapContract.RejectReason(bootstrap) is null, "fully scoped native ready allowed");
+foreach (var rejected in new[] { bootstrap with { Isolated=false }, bootstrap with { ControlsIdle=false },
+    bootstrap with { ClientOnly=false }, bootstrap with { PrivateSolo=false }, bootstrap with { SlotsKnownNoHumanAi=false },
+    bootstrap with { RemoteDriven=false }, bootstrap with { IdleInactive=false }, bootstrap with { NoVisualPair=false },
+    bootstrap with { NoSetup=false }, bootstrap with { MenuClosed=false }, bootstrap with { RouteProven=false },
+    bootstrap with { RuntimeSessionConsistent=false }, bootstrap with { AlreadyRequested=true } })
+    Check(PrivateAiBootstrapContract.RejectReason(rejected) is not null, "every bootstrap precondition enforced");
 var sample = new G1PolicyAction(hash, 10, 17);
 Check(G1PolicyStreamContract.RejectReason(sample, hash, 9, 1000, 1250, 1000) is null, "250ms accepted");
 Check(G1PolicyStreamContract.RejectReason(sample, hash, 9, 1000, 1251, 1000) == "stale_observation", "251ms rejected");

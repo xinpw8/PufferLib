@@ -1,0 +1,35 @@
+node --test ocean/rek_g1/native5/live_transfer_run.test.cjs ocean/rek_g1/native5/audit_live_policy_quality.test.cjs
+exit_code=0
+✔ held categories distinguish translation from neutral and yaw (0.6776ms)
+✔ replay counts source-mask defect without claiming counterfactual outcomes (15.8888ms)
+✔ unexpected-AI exit requires isolated solo, known no-human occupancy, inactive Idle, and a measured nonzero difficulty (1.1703ms)
+✔ existing wrong-bot Idle arena exits once, observes Lobby Home, then reenters through native menus (1.6901ms)
+✔ wrong-bot result during entry permits one fresh menu-route attempt and still demands exact Bot1 (0.3736ms)
+✔ a second wrong-bot reservation stops without a second exit or any StartRound request (0.7367ms)
+✔ recovery requires explicit private entry and never changes difficulty (0.2582ms)
+✔ unexpected active AI or human occupancy cannot invoke the exit command (2.5072ms)
+✔ native exit rejection or missing Lobby Home postcondition prevents reentry (0.583ms)
+✔ ready bootstrap requires explicitly absent visual pair and preserves the existing exact-Bot1 start path (0.1816ms)
+✔ Idle inherited difficulty may bootstrap once into active exact Bot1 without exit or policy input (0.1686ms)
+✔ ready bootstrap withholds policy until active spawned exact-Bot1 proof and input readiness (0.2887ms)
+✔ active spawned Bot3 after readiness stops with no policy stream, attack, retry, or difficulty mutation (0.1642ms)
+✔ ready bootstrap stops on human/route changes, native rejection, and timeout without another request (1.7386ms)
+✔ automatic between-round transition waits without sending StartRound (0.1877ms)
+✔ round start uses the native Idle path; post-win space flag is not an idle prerequisite (0.2175ms)
+✔ send failure consumes the pending response rejection during disconnect cleanup (5.8423ms)
+✔ lost-session exit requires proven solo AI scope, explicit inactivity, and a loss prompt (0.2114ms)
+✔ worker readiness pins the full selected inference contract (0.5369ms)
+✔ action identity and categorical range are checked before relay (0.3479ms)
+✔ callback write failures are routed through shutdown instead of escaping (0.1372ms)
+✔ one decision stays inflight until the matching Unity action acknowledgment (0.4421ms)
+✔ rejected game actions advance the measured boundary without action replay (0.1511ms)
+✔ missing or regressing measured clocks cannot be replaced with host time (0.2871ms)
+✔ worker startup fatal rejects promptly, without waiting for ready timeout (39.8886ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 127.6989

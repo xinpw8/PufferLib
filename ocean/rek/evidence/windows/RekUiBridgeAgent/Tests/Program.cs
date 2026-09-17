@@ -485,6 +485,27 @@ var g1ContinuousAttacks = ContinuousBotControllerContract.G1Attacks;
 Expect(
     "continuous_schema",
     ContinuousBotControllerContract.Schema == "rek.continuous_private_bot_controller.v1");
+var bootstrapRoute = new SoloRouteProofTracker();
+bootstrapRoute.ObserveFindMatch("solo");
+bootstrapRoute.ObserveConnectToArena("bootstrap-fixture-arena");
+bootstrapRoute.ObserveEnterChampionship("bootstrap-fixture-arena", "fixture-host", 7777, false, true);
+var bootstrapProbe = bootstrapRoute.SnapshotForRuntimeSession(
+    "bootstrap-fixture-arena", "fixture-host", 7777, "fixture-host", 7777, 101, bindRuntimeSession:false);
+Expect("bootstrap_probe_checks_current_route", bootstrapProbe.SoloRouteProven && bootstrapProbe.RuntimeSessionIdentityConsistent);
+Expect("bootstrap_probe_does_not_bind", !bootstrapRoute.InvalidateIfRuntimeSessionBound("idle_opponent_unverified"));
+Expect("bootstrap_probe_cannot_grant_policy_scope", !SoloRouteProofContract.EvaluateScope(false, bootstrapProbe).Allowed);
+Expect("bootstrap_probe_rejects_endpoint_change", !bootstrapRoute.SnapshotForRuntimeSession(
+    "bootstrap-fixture-arena", "wrong-host", 7777, "fixture-host", 7777, 101, bindRuntimeSession:false).SoloRouteProven);
+Expect("bootstrap_probe_rejects_missing_session", !bootstrapRoute.SnapshotForRuntimeSession(
+    "bootstrap-fixture-arena", "fixture-host", 7777, "fixture-host", 7777, 0, bindRuntimeSession:false).SoloRouteProven);
+var bootstrapBound = bootstrapRoute.SnapshotForRuntimeSession(
+    "bootstrap-fixture-arena", "fixture-host", 7777, "fixture-host", 7777, 101);
+Expect("active_policy_binding_preserved", bootstrapBound.SoloRouteProven && bootstrapRoute.SnapshotForArena("bootstrap-fixture-arena").SoloRouteProven);
+Expect("probe_cannot_override_existing_binding", !bootstrapRoute.SnapshotForRuntimeSession(
+    "bootstrap-fixture-arena", "fixture-host", 7777, "fixture-host", 7777, 102, bindRuntimeSession:false).SoloRouteProven);
+Expect("bound_route_invalidation_unchanged", bootstrapRoute.InvalidateIfRuntimeSessionBound("fixture_disconnect"));
+Expect("invalidated_probe_stays_rejected", !bootstrapRoute.SnapshotForRuntimeSession(
+    "bootstrap-fixture-arena", "fixture-host", 7777, "fixture-host", 7777, 101, bindRuntimeSession:false).SoloRouteProven);
 var soloRoute = new SoloRouteProofTracker();
 var initialSoloRoute = soloRoute.SnapshotForArena("arena-private-1");
 Expect(

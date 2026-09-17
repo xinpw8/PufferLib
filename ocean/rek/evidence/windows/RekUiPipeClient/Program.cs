@@ -2749,6 +2749,7 @@ static void ValidateHello(
             "StopG1HeldInputSchedule",
             "StartG1PolicyStream",
             "StopG1PolicyStream",
+            "ReadyPrivateAiSession",
         });
     RequireTrue(capabilities, "exclusive_control_lease_required");
     RequireFalse(capabilities, "autonomous_input");

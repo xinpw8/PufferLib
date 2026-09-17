@@ -4,6 +4,32 @@ namespace RekUiBridgeAgent;
 
 internal sealed record G1PolicyAction(string RoundIdentity, long ObservationSequence, int Action);
 
+internal readonly record struct PrivateAiBootstrapFacts(
+    bool Isolated, bool ControlsIdle, bool ClientOnly, bool PrivateSolo,
+    bool SlotsKnownNoHumanAi, bool RemoteDriven, bool IdleInactive,
+    bool NoVisualPair, bool NoSetup, bool MenuClosed,
+    bool RouteProven, bool RuntimeSessionConsistent, bool AlreadyRequested);
+
+internal static class PrivateAiBootstrapContract
+{
+    // Native server AI possession applies EnsureAiDifficultyOwner only when a
+    // round is active. Idle snapshot difficulty can belong to an earlier pilot.
+    // This gate authorizes one native ready request, never policy input.
+    internal static string? RejectReason(PrivateAiBootstrapFacts f) =>
+        !f.Isolated ? "exact_isolated_spark_marker_not_proven" :
+        !f.ControlsIdle ? "another_control_mode_already_running" :
+        !f.ClientOnly ? "client_only_connected_network_session_not_proven" :
+        !f.PrivateSolo ? "private_unranked_solo_arena_not_proven" :
+        !f.SlotsKnownNoHumanAi ? "ai_only_opponent_not_proven" :
+        !f.RemoteDriven ? "remote_driven_client_not_proven" :
+        !f.IdleInactive ? "bootstrap_requires_idle_inactive_round" :
+        !f.NoVisualPair ? "bootstrap_requires_no_visual_fighter_pair" :
+        !f.NoSetup ? "fight_setup_already_in_progress" :
+        !f.MenuClosed ? "bootstrap_requires_closed_game_menu" :
+        !f.RouteProven || !f.RuntimeSessionConsistent ? "solo_route_runtime_session_identity_not_proven" :
+        f.AlreadyRequested ? "private_ai_ready_already_requested_for_lease" : null;
+}
+
 internal struct G1PolicyPublicationClock
 {
     internal int LastPublishedFrame;

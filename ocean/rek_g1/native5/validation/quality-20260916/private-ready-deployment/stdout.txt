@@ -1,0 +1,12 @@
+Thu Sep 17 12:29:57 AM UTC 2026
+spark-4ae3
+2edf75c65e6693db28eb7e87c45d88522668f549c7b457cdf0aa108582667952  /home/spark-advantage/codexrook-runtime/live-transfer-20260915/RekUiBridgeAgent-private-ready.dll
+40109bdcb2b84fabb2d66b8c995855fee1253a2c7ca943382aff8dbd7dc4eb99  /home/spark-advantage/codexrook-runtime/rek-policy-transfer-20260915/BepInEx/plugins/RekUiBridgeAgent.dll
+40109bdcb2b84fabb2d66b8c995855fee1253a2c7ca943382aff8dbd7dc4eb99  /home/spark-advantage/codexrook-runtime/live-transfer-20260915/RekUiBridgeAgent-pre-private-ready-20260916.dll
+verified_process=REK.exe exrook/wine-11.13/lib/wine/x86_64-unix/wine /opt/codexrook/rek-policy-transfer-20260915/REK.exe -screen-fullscreen 0 -screen-width 1280 -screen-height 720 -popupwindow -force-d3d11 -disable-audio -nosound -logFile C:\rekagent\live-transfer-20260916T233902Z-unity.log
+DISPLAY=:98
+REK_EVIDENCE_ISOLATED_SESSION=spark-x98
+owned_game_stopped=true
+2edf75c65e6693db28eb7e87c45d88522668f549c7b457cdf0aa108582667952  /home/spark-advantage/codexrook-runtime/rek-policy-transfer-20260915/BepInEx/plugins/RekUiBridgeAgent.dll
+launch_requested_utc=20260917T002958Z
+controller_started=false

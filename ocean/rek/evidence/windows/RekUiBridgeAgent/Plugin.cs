@@ -736,6 +736,8 @@ public sealed partial class Plugin : BasePlugin
                     return CommandResult.Rejected("exclusive_control_lease_held_by_another_connection");
                 if (!RequireBackgroundControl(out var foregroundReason))
                     return CommandResult.Rejected(foregroundReason);
+                if (_leaseConnectionId == 0)
+                    _privateAiReadyRequested = false;
                 _leaseConnectionId = connectionId;
                 return CommandResult.AppliedResult("exclusive_control_lease_acquired");
             }
@@ -750,6 +752,7 @@ public sealed partial class Plugin : BasePlugin
                 StopG1HeldSchedule("lease_released");
                 StopG1PolicyStream("lease_released");
                 _freshRoundArm = null;
+                _privateAiReadyRequested = false;
                 _leaseConnectionId = 0;
                 return CommandResult.AppliedResult("exclusive_control_lease_released");
             }
@@ -765,6 +768,7 @@ public sealed partial class Plugin : BasePlugin
                 BridgeCommand.ConfirmLoggedIn => ConfirmLoggedIn(),
                 BridgeCommand.NavigateFreePlay => NavigateFreePlay(),
                 BridgeCommand.EnterSolo => EnterSolo(),
+                BridgeCommand.ReadyPrivateAiSession => ReadyPrivateAiSession(),
                 BridgeCommand.StartRound => StartRound(connectionId, request.RequestId),
                 BridgeCommand.ExitUnexpectedPrivateAiSession => ExitUnexpectedPrivateAiSession(),
                 BridgeCommand.ExitLostPrivateSession => ExitLostPrivateSession(),

@@ -1,0 +1,32 @@
+{
+  "host": "spark-4ae3",
+  "utc": "2026-09-17T00:30:31.280Z",
+  "command": [
+    "/usr/bin/node",
+    "/home/spark-advantage/rek-training/policy-quality-20260916-r1/source/ocean/rek_g1/native5/run_live_mask_trial.cjs",
+    "/home/spark-advantage/rek-training/policy-quality-20260916-r1/live-ready-base.json",
+    "/home/spark-advantage/rek-training/policy-quality-20260916-r1/encoder-after/encode-live",
+    "/home/spark-advantage/rek-training/policy-quality-20260916-r1/live_transfer_ready_run.cjs",
+    "/home/spark-advantage/rek-training/policy-quality-20260916-r1/live-bot1-rendered-r3",
+    "/home/spark-advantage/rek-training/policy-quality-20260916-r1/train-bot1-rendered-r1/checkpoints/rek_native5/train-bot1-rendered-r1/0000000536870912.bin",
+    "2edf75c65e6693db28eb7e87c45d88522668f549c7b457cdf0aa108582667952"
+  ],
+  "original_config_sha256": "b887afd5db18529ec790e9b9f7a082298b4516cc7705b2c4583ce582fa4dc410",
+  "adapted_config_sha256": "0d91f6d49aeae8f8be7b41631d87bc0748c750dce9a4060ac4bdb21b1169c4de",
+  "encoder_sha256": "d9f3558955cad474c8c3546c9855ae5ae8a8b6e2bc7653613e0ae2c27cba34e6",
+  "driver_sha256": "7241f7f6180b221aabea71652a338f8ff10be3ec2c98b32670b1992f7bb7f844",
+  "checkpoint_sha256": "f87dae69a777e4ac28782bdee89b30d7434208d773be75bf97f56fba4a52b07e",
+  "original_checkpoint_sha256": "af84c4ec92e953e72c6bf4cde9ccb8cf80258a91dbf01947312e622dd492876e",
+  "bridge_sha256": "2edf75c65e6693db28eb7e87c45d88522668f549c7b457cdf0aa108582667952",
+  "original_bridge_sha256": "2edf75c65e6693db28eb7e87c45d88522668f549c7b457cdf0aa108582667952",
+  "changed_fields": [
+    "encoder[0]",
+    "out",
+    "max_seconds",
+    "checkpoint_sha256",
+    "worker[1]",
+    "worker[2]",
+    "relay[last]"
+  ],
+  "global_input_emitted": false
+}

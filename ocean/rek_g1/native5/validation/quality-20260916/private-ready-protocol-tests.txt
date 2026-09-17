@@ -1,0 +1,4 @@
+dotnet run --project ocean/rek/evidence/windows/RekUiBridgeAgent/Tests/RekUiBridgeAgent.ProtocolTests.csproj -c Release
+exit_code=0
+PIPE_INFO Accepted local current-user pipe client, connection 1.
+PASS protocol_cases=275 local_pipe_roundtrip=true

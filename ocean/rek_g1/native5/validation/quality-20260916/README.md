@@ -287,6 +287,11 @@ BF16 inference and 120 s rounds, with all three explicit new modes enabled.
 | Bot1-rendered-r1 | 200009 | 499 / 11 / 2 | 97.46% | 77,961 / 25,045 |
 | Bot1-rendered-r1, fresh seed | 200011 | 500 / 12 / 0 | 97.66% | 79,505 / 25,085 |
 
+A separate fixed-start candidate check with seed 200013 scored 507 wins,
+5 losses and no draws across 512 matches (99.02%), with 68,619 to 24,855
+weighted points. It retains sampled policy actions and randomized Bot1 move
+selection. Fixed candidate starts are not certified authentic reset states.
+
 All 1,024 post-training games scored at least one hit. Mean first-hit time by
 side was 3.20 to 3.78 s. Facing within 0.16 rad covered 21.1% to 24.0% of ticks,
 and the busy fraction was approximately 96.8% to 96.9%. The two evaluation
@@ -306,3 +311,65 @@ are saved in the adjacent `train-bot1-rendered-r1`, `eval-*-bot1-*` and
 `/home/spark-advantage/rek-training/policy-quality-20260916-r1` on Spark.
 Public text copies normalize trailing whitespace; no game binaries or weights
 are published.
+
+## Completed authentic test of the new checkpoint
+
+After the failed idle-session attempts, the isolated Spark client was restarted
+with the tested private-ready bridge. The previous DLL was backed up outside the
+plugin directory. Only the verified owned game PID 3412 was stopped. No Windows
+input, container-wide restart, Wine service termination or unrelated job stop
+was performed. Existing account authentication was retained.
+
+`live-bot1-rendered-r3` then entered a fresh private session already reporting
+Bot1, requested the ordinary `StartRound`, and verified an active exact G1/Bot1
+pair before starting policy input. The new pre-start ready branch was therefore
+not exercised in this round. The policy ran from 119.700 s remaining, 0:0, to
+the timed round end at 2026-09-17 00:33:03 UTC.
+
+**Authentic result: lost 4:14 to Bot1.** All 78 attack requests were locally
+accepted. There were 5,820 policy decisions and one terminal-boundary nonattack
+rejection. Facing within 0.16 rad covered 11.72% of observations; projected busy
+fraction was 64.26%. Local send returns still do not prove authoritative attack
+acceptance. Owned velocity was neutralized and the lease released normally.
+
+This result does not support promoting the checkpoint as a reliable authentic
+fighter. The large candidate-simulator improvement did not transfer in this
+complete round. Additional training on unchanged candidate dynamics cannot
+establish the missing mechanics.
+
+### Knockout target gap
+
+The [native KO audit](NATIVE_KO_TARGET_GAP.md) identifies a major omitted loss
+mechanism in the previous 13:24 authentic trial. Four opponent +5 score updates
+occurred with the actor low and heavily tilted, each followed by both fighters
+resetting to spawn. Recovered native code awards five knockout points through
+the same score counter, then continues the round after resetting both robots.
+The best-supported decomposition is actor 13 ordinary points versus opponent
+4 ordinary points plus 20 knockout points. Authoritative per-event reasons are
+not available, so causal hit attribution remains unknown.
+
+The earlier zero client fall counters and terminal `knockout=false` did not
+establish an absence of continuing-round knockouts. That interpretation is
+withdrawn. The fast trainer explicitly omits contact response, balance and
+knockdowns. Recovering the opponent and ordinary-hit rules does not repair this
+missing outcome model. No synthetic hit-count or guessed tilt rule was added.
+
+### Private-session startup correction
+
+Idle difficulty is a replicated pre-start value. Native AI ownership/difficulty
+selection occurs during active possession, so a nonzero Idle value does not
+prove which opponent will be spawned. The one exit/reentry attempt in r2
+completed but retained that pre-start value and issued no gameplay actions.
+
+The new `ReadyPrivateAiSession` only permits one native ready request in a
+verified isolated, private, no-human, inactive Idle session with no visual
+fighter pair. It does not modify difficulty, score, pose or physics. The existing
+exact active-Bot1 and G1 policy checks remain unchanged. A spawned wrong bot
+stops the driver before any policy input. The runtime-route preflight is
+nonbinding; ordinary active-session binding and invalidation remain intact.
+Tests pass 25 Node cases, 4,492 relay assertions and 275 protocol/pipe cases.
+
+Deployed bridge SHA-256:
+`2edf75c65e6693db28eb7e87c45d88522668f549c7b457cdf0aa108582667952`.
+Relay SHA-256:
+`0438528bbda9ad736b10bd68a1d2dbfee8f1f555f74e1e6b73b4a61799d8a674`.

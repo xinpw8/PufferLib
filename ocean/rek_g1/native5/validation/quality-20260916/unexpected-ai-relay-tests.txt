@@ -1,0 +1,3 @@
+dotnet run --project ocean/rek/evidence/windows/RekUiPipeClient/Tests/PolicyRelayTests.csproj -c Release
+exit_code=0
+{"passed":4476,"publication_counts_per_ten_seconds":{"fps60":500,"fps100":500,"fps30":300},"native_game_invocations":0,"global_input_invocations":0}

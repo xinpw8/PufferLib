@@ -10,7 +10,8 @@ internal static class PolicyRelay
     private static readonly ConditionalWeakTable<TextReader, BufferedLines> Readers = new();
     private static readonly HashSet<string> Commands = new(StringComparer.Ordinal) {
         "AcquireExclusiveControl", "ReleaseExclusiveControl", "StartG1PolicyStream", "StopG1PolicyStream",
-        "StartRound", "ConfirmLoggedIn", "NavigateFreePlay", "EnterSolo", "ExitLostPrivateSession" };
+        "StartRound", "ConfirmLoggedIn", "NavigateFreePlay", "EnterSolo", "ExitLostPrivateSession",
+        "ExitUnexpectedPrivateAiSession", "ReadyPrivateAiSession" };
 
     internal static async Task<int> Run(string[] args)
     {

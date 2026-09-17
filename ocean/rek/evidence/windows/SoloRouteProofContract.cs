@@ -241,7 +241,8 @@ internal sealed class SoloRouteProofTracker
         int contextEndpointPort,
         string? networkEndpointHost,
         int networkEndpointPort,
-        long runtimeSessionIdentity)
+        long runtimeSessionIdentity,
+        bool bindRuntimeSession = true)
     {
         lock (_gate)
         {
@@ -284,10 +285,13 @@ internal sealed class SoloRouteProofTracker
 
             var runtimeHash = HashIdentifier(
                 $"{arenaId}\n{contextEndpointHost}\n{contextEndpointPort}\n{runtimeSessionIdentity}");
-            _boundRuntimeSessionHash ??= runtimeHash;
-            var runtimeSessionIdentityConsistent = CryptographicOperations.FixedTimeEquals(
-                runtimeHash,
-                _boundRuntimeSessionHash);
+            // A pre-start readiness probe validates the current endpoint and
+            // arena without binding policy eligibility to the Idle AI level.
+            // Ordinary callers retain the original sticky session binding.
+            if (bindRuntimeSession)
+                _boundRuntimeSessionHash ??= runtimeHash;
+            var runtimeSessionIdentityConsistent = _boundRuntimeSessionHash is null ||
+                CryptographicOperations.FixedTimeEquals(runtimeHash, _boundRuntimeSessionHash);
             return snapshot with
             {
                 SoloRouteProven = runtimeSessionIdentityConsistent,

@@ -1,0 +1,30 @@
+node --test ocean/rek_g1/native5/live_transfer_run.test.cjs ocean/rek_g1/native5/audit_live_policy_quality.test.cjs
+exit_code=0
+✔ held categories distinguish translation from neutral and yaw (0.7028ms)
+✔ replay counts source-mask defect without claiming counterfactual outcomes (15.8774ms)
+✔ unexpected-AI exit requires isolated solo, known no-human occupancy, inactive Idle, and a measured nonzero difficulty (1.0703ms)
+✔ existing wrong-bot Idle arena exits once, observes Lobby Home, then reenters through native menus (0.8941ms)
+✔ wrong-bot result during entry permits one fresh menu-route attempt and still demands exact Bot1 (0.2785ms)
+✔ a second wrong-bot reservation stops without a second exit or any StartRound request (0.4569ms)
+✔ recovery requires explicit private entry and never changes difficulty (0.2202ms)
+✔ unexpected active AI or human occupancy cannot invoke the exit command (3.204ms)
+✔ native exit rejection or missing Lobby Home postcondition prevents reentry (0.6244ms)
+✔ automatic between-round transition waits without sending StartRound (0.1789ms)
+✔ round start uses the native Idle path; post-win space flag is not an idle prerequisite (0.1797ms)
+✔ send failure consumes the pending response rejection during disconnect cleanup (5.3819ms)
+✔ lost-session exit requires proven solo AI scope, explicit inactivity, and a loss prompt (0.2404ms)
+✔ worker readiness pins the full selected inference contract (0.5884ms)
+✔ action identity and categorical range are checked before relay (0.3802ms)
+✔ callback write failures are routed through shutdown instead of escaping (0.139ms)
+✔ one decision stays inflight until the matching Unity action acknowledgment (0.4082ms)
+✔ rejected game actions advance the measured boundary without action replay (0.1536ms)
+✔ missing or regressing measured clocks cannot be replaced with host time (0.276ms)
+✔ worker startup fatal rejects promptly, without waiting for ready timeout (40.2222ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 129.5616

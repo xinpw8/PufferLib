@@ -20,6 +20,78 @@ function canExitLostPrivateSession(s) {
     s.private_ai.round_inactive===true && s.private_ai.post_fight_prompt===true &&
     s.private_ai.post_fight_is_winner===false;
 }
+function canExitUnexpectedPrivateAiSession(s) {
+  const p=s?.private_ai;
+  return privateAiRouteNoHuman(s) &&
+    p.proven===false && p.reason==='unexpected_sparring_bot_difficulty' &&
+    p.exact_sparring_bot_1===false && Number.isInteger(p.client_ai_difficulty) &&
+    p.client_ai_difficulty>0 && p.client_ai_difficulty<=255 && p.sparring_bot_number===p.client_ai_difficulty+1 &&
+    p.phase==='Idle' && p.round_active===false && p.round_inactive===true;
+}
+function privateAiRouteNoHuman(s) {
+  const p=s?.private_ai;
+  return s?.scene==='Arena' && s.foreground?.isolated_session_verified===true &&
+    p!==undefined && p!==null &&
+    p.network_client_only===true && p.context_is_solo===true && p.solo_route_proven===true &&
+    p.opponent_is_ai===true && p.opponent_slot_is_ai===true && p.human_in_opponent_slot===false &&
+    p.opponent_slot_client_known===true && p.opponent_slot_has_client===false && p.opponent_human_bit_set===false;
+}
+function canReadyPrivateAiSession(s) {
+  return canExitUnexpectedPrivateAiSession(s) && s.private_ai.client_visual_only_fighter_pair===false;
+}
+async function ensurePrivateArena(state,{enterPrivate,command,getState,
+    wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),now=Date.now,log=()=>{}}) {
+  if(privateArena(state))return state;
+  requireValue(enterPrivate===true,'current client is not verified solo Bot1 arena');
+  const entered=new Set();let deadline=now()+45000,recoveryAttempted=false;
+  while(!privateArena(state)) {
+    if(canReadyPrivateAiSession(state)) {
+      // Idle AI difficulty can precede the server's new-pilot ownership reset.
+      // One native ready request reveals the active opponent; no policy action
+      // is sent until the unchanged active exact-Bot1 scope is established.
+      await command('ReadyPrivateAiSession');
+      log('private_ai_ready_probe',{opponent_identity:'unverified_until_active_spawn'});
+      const readyDeadline=now()+30000;
+      while(true) {
+        await wait(100);state=await getState();
+        requireValue(privateAiRouteNoHuman(state),'private no-human route proof lost during ready bootstrap');
+        const p=state.private_ai;
+        if(p.phase==='RoundActive' && p.round_active===true && p.client_visual_only_fighter_pair===true) {
+          requireValue(p.exact_sparring_bot_1===true && p.client_ai_difficulty===0 && p.sparring_bot_number===1,
+            'ready bootstrap active opponent is not exact Bot1; policy input withheld');
+          if(privateArena(state) && p.active_gameplay_proven===true) {
+            log('private_practice_observed',{opponent:'Sparring Bot 1',human_opponent:false,after_native_ready:true});
+            return state;
+          }
+        }
+        requireValue(now()<readyDeadline,'private AI ready bootstrap timeout; policy input withheld');
+      }
+    }
+    if(canExitUnexpectedPrivateAiSession(state)) {
+      requireValue(!recoveryAttempted,'unexpected private AI remained after one exit/reentry');
+      recoveryAttempted=true;
+      log('unexpected_private_ai_recovery',{attempt:1,client_ai_difficulty:state.private_ai.client_ai_difficulty,
+        sparring_bot_number:state.private_ai.sparring_bot_number});
+      // The installed bridge rechecks private/no-human/Idle/inactive scope.
+      // No difficulty setter or alternate opponent acceptance is introduced.
+      await command('ExitUnexpectedPrivateAiSession');
+      const exitDeadline=now()+15000;
+      do {
+        await wait(100);state=await getState();
+        requireValue(now()<exitDeadline,'unexpected private AI exit timeout');
+      } while(state.scene!=='Lobby'||state.lobby_screen!=='Home');
+      entered.clear();deadline=now()+45000;
+      continue;
+    }
+    const menu={Login:'ConfirmLoggedIn',Home:'NavigateFreePlay',FreePlay:'EnterSolo'}[state.lobby_screen];
+    if(menu&&!entered.has(menu)){await command(menu);entered.add(menu);}
+    else requireValue(state.scene==='Arena'||menu||state.lobby_screen==='Intro','no supported private-practice menu route');
+    await wait(150);state=await getState();
+    requireValue(now()<deadline,'private-practice entry timeout');
+  }
+  log('private_practice_observed',{opponent:'Sparring Bot 1',human_opponent:false});
+  return state;
+}
 function betweenPrivateRounds(s) {
   return privateArena(s) && ['BetweenRounds','FightOver'].includes(s.private_ai.phase) &&
     s.private_ai.round_active===false;
@@ -197,19 +269,8 @@ async function run(configPath) {
         requireValue(Date.now()<deadline,'lost private session exit timeout');
       } while(privateArena(state));
     }
-    if(!privateArena(state)) {
-      requireValue(config.enter_private===true, 'current client is not verified solo Bot1 arena');
-      const entered=new Set();const deadline=Date.now()+45000;
-      while(!privateArena(state)) {
-        const menu={Login:'ConfirmLoggedIn',Home:'NavigateFreePlay',FreePlay:'EnterSolo'}[state.lobby_screen];
-        if(menu&&!entered.has(menu)){await command(menu);entered.add(menu);}
-        else requireValue(state.scene==='Arena'||menu||state.lobby_screen==='Intro', 'no supported private-practice menu route');
-        await new Promise(r=>setTimeout(r,150));
-        state=await request('get_state',{},'state');
-        requireValue(Date.now()<deadline,'private-practice entry timeout');
-      }
-      log('private_practice_observed',{opponent:'Sparring Bot 1',human_opponent:false});
-    }
+    state=await ensurePrivateArena(state,{enterPrivate:config.enter_private,command,
+      getState:()=>request('get_state',{},'state'),log});
     if(!state.private_ai.active_gameplay_proven || state.private_ai.round_active!==true) {
       const deadline=Date.now()+30000;
       let startRequested=false;
@@ -285,4 +346,4 @@ async function run(configPath) {
   }
 }
 if(require.main===module) {requireValue(process.argv.length===3,'usage: node live_transfer_run.cjs config.json');run(process.argv[2]).catch(e=>{console.error(e.message);process.exitCode=2;});}
-module.exports={privateArena,canExitLostPrivateSession,betweenPrivateRounds,canRequestPrivateRound,validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer};
+module.exports={privateArena,canExitLostPrivateSession,canExitUnexpectedPrivateAiSession,canReadyPrivateAiSession,ensurePrivateArena,betweenPrivateRounds,canRequestPrivateRound,validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer};
