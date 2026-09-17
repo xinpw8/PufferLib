@@ -1,0 +1,89 @@
+{
+  "config": {
+    "base": {
+      "gpu_offset": 0,
+      "checkpoint_interval": 64,
+      "eval_episodes": 0,
+      "eval_agents": -1,
+      "eval_deterministic": 0,
+      "cudagraphs": 1,
+      "seed": 73,
+      "reset_every_horizon": 0,
+      "async": 0
+    },
+    "vec": {
+      "total_agents": 512,
+      "num_buffers": 1,
+      "num_threads": 1,
+      "num_policies": 1,
+      "hist_policy_hidden_size": 0,
+      "hist_policy_num_layers": 0,
+      "hist_policy_percent": 0
+    },
+    "selfplay": {
+      "enabled": 0,
+      "max_size": 16,
+      "seed": 42,
+      "opp_timeout_steps": 500000000,
+      "eval_pool_size": 8,
+      "eval_games": 0
+    },
+    "env": {
+      "dr": 0,
+      "num_agents": 1,
+      "num_bots": 0,
+      "seed": 212,
+      "locomotion_segment_ticks": 1,
+      "round_seconds": 120,
+      "opponent_hidden_size": 256,
+      "opponent_num_layers": 2,
+      "opponent_precision": 0,
+      "opponent_legacy_fast_hidden": 0,
+      "opponent_deterministic": 0
+    },
+    "policy": {
+      "hidden_size": 256,
+      "num_layers": 2
+    },
+    "train": {
+      "gpus": 1,
+      "total_timesteps": 67108864,
+      "learning_rate": 0.0001,
+      "anneal_lr": 1,
+      "min_lr_ratio": 0,
+      "gamma": 0.999,
+      "gae_lambda": 0.995,
+      "replay_ratio": 1,
+      "clip_coef": 0.2,
+      "vf_coef": 0.5,
+      "vf_clip_coef": 0.2,
+      "max_grad_norm": 0.5,
+      "ent_coef": 0.01,
+      "anneal_ent_coef": 0,
+      "min_ent_coef_ratio": 0.1,
+      "momentum": 0.95,
+      "minibatch_size": 8192,
+      "horizon": 128,
+      "vtrace": 0,
+      "vtrace_rho_clip": 1,
+      "vtrace_c_clip": 1,
+      "verb_eps": 0,
+      "verb_eps_anneal_start": 0.4,
+      "verb_eps_anneal_end": 1
+    },
+    "sweep": {
+      "downsample": 64
+    }
+  },
+  "runtime_identity": {
+    "opponent_controller": "recovered_bot1_v1",
+    "observation_mode": "rendered_pose_v1",
+    "scoring_mode": "recovered_hit_rules_v2",
+    "geometry_mode": "primitive_samples_v1",
+    "contact_substeps": 8
+  },
+  "measurement_domain": "reconstructed_ai_simulator",
+  "authentic_parity": false,
+  "target_contract": "g1_scoring_bodyzones_1_2_3_12_13_v1",
+  "primitive_target_count": 9
+}

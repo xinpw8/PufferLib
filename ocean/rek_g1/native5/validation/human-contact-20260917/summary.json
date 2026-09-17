@@ -1,5 +1,6 @@
 {
   "schema": "rek.primitive_contact_training.v1",
+  "subsequent_corrected_target_training_results": "all-targets-results/summary.json",
   "host": "spark-4ae3",
   "gpu": "NVIDIA GB10",
   "stage": "/home/spark-advantage/rek-training/primitive-contact-20260917-r1",

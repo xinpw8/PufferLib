@@ -58,3 +58,22 @@ This establishes a source-backed target omission and an empirical improvement on
 - Frozen checkpoint `5989fa23e6ead72a20fa94a55ce4fb5da2db8631d4f2d2fb038a57c02f95ae85`, evaluated with all nine targets, scored 75,022:22,294 over 512 games: 510 wins, two losses, zero draws, zero zero-hit games and zero failure bits. The evaluation used the same seed 200019 and 64 arenas, four 120-second rounds on each side. Execution time was 12.65 s; this is evaluation timing, not training SPS.
 
 The earlier three-target result for this checkpoint was 512/512 and 75,189:18,329. Correcting collision eligibility therefore changes the policy's measured performance. The authentic REK outcome remains unmeasured.
+
+## Training continuation on the corrected environment
+
+One native CUDA PPO continuation ran for **67,108,864 transitions**, using 512 arenas and horizon 128. The actual logged seeds are `env.seed=212`, `base.seed=73` and `selfplay.seed=42`. Training-loop time was approximately **67.8791 s**, corresponding to **988,653 training SPS**. Whole-process wall time was 68.75 s. This throughput measures training, including rollout and optimization; it is not an environment-only or evaluation benchmark. No Python runtime or CPU physics stepping was used. CPU loading, offline asset transforms, orchestration and I/O remain.
+
+The initial step-zero checkpoint was byte-identical to the requested warm start. Optimizer state was fresh. The continuation used eight contact samples per 50 Hz environment step, the reconstructed Bot 1 controller, rendered-pose observations, no shaping reward, randomized reset separation and heading, and a learning rate of 0.0001. It completed with zero failure bits.
+
+Both frozen tests used seed 200019, 64 arenas, four 120-second rounds on each side, sampled BF16 inference and the corrected nine-target environment:
+
+| Frozen policy | Wins / losses / draws | Policy points | Opponent points |
+| --- | --- | ---: | ---: |
+| Before nine-target continuation | 510 / 2 / 0 | 75,022 | 22,294 |
+| After nine-target continuation | 510 / 1 / 1 | 77,947 | 21,730 |
+
+Neither evaluation contained a zero-hit game or a numerical failure. The win count remained 510/512; the loss count decreased by one and a draw appeared. Aggregate point advantage improved. This does not establish a perfect win rate or authentic REK performance.
+
+Final checkpoint SHA-256: `dd335d696ab0f2ae891b448d174e3615d834cd5b8fd4cf8cffbae6c5126f4c46`.
+
+Private run: `/home/spark-advantage/rek-training/all-scoring-targets-20260917-r1/train-all-targets-r1`. The checkpoint remains private. The [numeric result bundle](all-targets-results/README.md) contains both 512-match ledgers, native summaries, training config/metrics, checkpoint identities and verification results. [export-all-targets.cjs](export-all-targets.cjs) produces this numeric-only subset and separates training throughput from evaluation timing.

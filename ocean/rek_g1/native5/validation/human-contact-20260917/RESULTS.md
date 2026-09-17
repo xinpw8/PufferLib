@@ -1,5 +1,7 @@
 # Primitive-contact training continuation, 17 September 2026
 
+This report preserves the initial three-target experiment. The [subsequent nine-target correction and continuation](ALL-SCORING-TARGETS.md) is the latest result: 988,653 training SPS and 510 wins, one loss and one draw in 512 candidate-simulator matches. Its [numeric records](all-targets-results/summary.json) are separate from the historical results below.
+
 ## Result
 
 A native CUDA PPO continuation completed on `spark-4ae3` with recovered individual collision primitives. It processed **67,108,864 transitions in 54.434910 s**, or **1,232,828 training SPS**, using 512 arenas and horizon 128. Process wall time including startup and exit was 55.16 s. No Python runtime or CPU physics stepping was used; CPU asset loading/FK, launch orchestration and file I/O remain.

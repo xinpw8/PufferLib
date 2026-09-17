@@ -1,0 +1,166 @@
+{
+  "host": {
+    "event": "primitive_contacts_tests",
+    "checks": 78248,
+    "passed": true,
+    "contact_margin_m": 0,
+    "static_geometry_only": true,
+    "dynamic_parity_claim": false,
+    "measurement_domain": "reconstructed_ai_simulator",
+    "authentic_parity": false,
+    "target_contract": "g1_scoring_bodyzones_1_2_3_12_13_v1",
+    "primitive_target_count": 9
+  },
+  "gpu": {
+    "event": "primitive_contacts_cuda",
+    "passed": true,
+    "n": 12288,
+    "checks": 73728,
+    "cases_per_pair_type": 2048,
+    "pair_types": [
+      "sphere_sphere",
+      "sphere_capsule",
+      "sphere_box",
+      "capsule_capsule",
+      "capsule_box",
+      "box_box"
+    ],
+    "positive_overlap_per_type": [
+      966,
+      1016,
+      1004,
+      1057,
+      1057,
+      1062
+    ],
+    "host_gpu_mismatches": 0,
+    "symmetric_violations": 0,
+    "transform_violations": 0,
+    "excluded_boundary_cases": 24,
+    "boundary_filter_m": 0.0002,
+    "production_contact_margin_m": 0,
+    "temporal_samples": 4,
+    "python_runtime": false,
+    "physics_stepping": false,
+    "dynamic_parity_claim": false,
+    "measurement_domain": "reconstructed_ai_simulator",
+    "authentic_parity": false,
+    "target_contract": "g1_scoring_bodyzones_1_2_3_12_13_v1",
+    "primitive_target_count": 9
+  },
+  "catalog_host": {
+    "event": "scoring_v2_catalog_fixture",
+    "cpu_cases": 6,
+    "failures": 0,
+    "contact_geometry": "synthetic",
+    "impact_catalog": "pinned_native",
+    "measurement_domain": "reconstructed_ai_simulator",
+    "authentic_parity": false,
+    "target_contract": "g1_scoring_bodyzones_1_2_3_12_13_v1",
+    "primitive_target_count": 9
+  },
+  "catalog_gpu": {
+    "event": "scoring_v2_catalog_fixture",
+    "cpu_cases": 6,
+    "failures": 0,
+    "contact_geometry": "synthetic",
+    "impact_catalog": "pinned_native",
+    "measurement_domain": "reconstructed_ai_simulator",
+    "authentic_parity": false,
+    "target_contract": "g1_scoring_bodyzones_1_2_3_12_13_v1",
+    "primitive_target_count": 9
+  },
+  "production_adapter": {
+    "event": "scoring_v2_production_adapter_fixture",
+    "gpu_cases": 12,
+    "failures": 0,
+    "routes": [
+      23,
+      10,
+      10,
+      7,
+      7,
+      23
+    ],
+    "limbs": [
+      2,
+      1,
+      5,
+      0,
+      4,
+      3
+    ],
+    "v1_points": [
+      0,
+      0,
+      2,
+      2,
+      0,
+      0
+    ],
+    "v2_points": [
+      1,
+      2,
+      2,
+      2,
+      2,
+      0
+    ],
+    "authentic_parity": false,
+    "measurement_domain": "reconstructed_ai_simulator",
+    "target_contract": "g1_scoring_bodyzones_1_2_3_12_13_v1",
+    "primitive_target_count": 9
+  },
+  "all_targets_production_adapter": {
+    "event": "native_scoring_targets_production_adapter_fixture",
+    "passed": true,
+    "gpu_cases": 36,
+    "target_contract": "g1_scoring_bodyzones_1_2_3_12_13_v1",
+    "primitive_target_count": 9,
+    "legacy_target_count": 3,
+    "isolated_hip_cases": 6,
+    "contact_geometry": "synthetic",
+    "persistent_contact_rescores": 0,
+    "authentic_parity": false,
+    "measurement_domain": "reconstructed_ai_simulator"
+  },
+  "finite_assets": {
+    "test": "fast_asset_offline_fk",
+    "passed": true,
+    "checked_finite_values": 698360,
+    "max_root_quaternion_norm_error": 1.31866919e-7,
+    "min_striker_proxy_radius_m": 0.0450794026,
+    "max_striker_proxy_radius_m": 0.177539572,
+    "forbidden_cpu_physics_calls": 0,
+    "python_runtime": false,
+    "measurement_domain": "reconstructed_ai_simulator",
+    "authentic_parity": false,
+    "target_contract": "g1_scoring_bodyzones_1_2_3_12_13_v1",
+    "primitive_target_count": 9
+  },
+  "target_assets": {
+    "test": "native_scoring_target_geometry",
+    "passed": true,
+    "target_contract": "g1_scoring_bodyzones_1_2_3_12_13_v1",
+    "primitive_target_count": 9,
+    "legacy_target_count": 3,
+    "striker_count": 12,
+    "body_zones": [
+      3,
+      2,
+      2,
+      12,
+      12,
+      12,
+      13,
+      13,
+      13
+    ],
+    "authentic_parity": false,
+    "measurement_domain": "reconstructed_ai_simulator"
+  },
+  "measurement_domain": "reconstructed_ai_simulator",
+  "authentic_parity": false,
+  "target_contract": "g1_scoring_bodyzones_1_2_3_12_13_v1",
+  "primitive_target_count": 9
+}

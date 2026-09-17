@@ -1,0 +1,16 @@
+{
+  "arenas": 512,
+  "completed_rounds": 10752,
+  "fighter0_wins": 10724,
+  "fighter1_wins": 28,
+  "ties": 0,
+  "redos": 0,
+  "unclassified": 0,
+  "fighter0_completed_points": 1623624,
+  "fighter1_completed_points": 446195,
+  "failure_bits": 0,
+  "measurement_domain": "reconstructed_ai_simulator",
+  "authentic_parity": false,
+  "target_contract": "g1_scoring_bodyzones_1_2_3_12_13_v1",
+  "primitive_target_count": 9
+}

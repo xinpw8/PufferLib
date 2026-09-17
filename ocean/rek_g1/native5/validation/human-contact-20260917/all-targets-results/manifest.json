@@ -1,0 +1,246 @@
+{
+  "schema_version": 1,
+  "exporter_sha256": "5866197c5027ca29bedc8b6f3a2990d7932a07f2577c5c11b409785d454181a0",
+  "shared_exporter_sha256": "0f05dd61cc05038de01e69278ac7f7c86a45708a32462fe8219449376b321c93",
+  "sources": [
+    {
+      "relative_path": "assets-probe/result.jsonl",
+      "bytes": 2829,
+      "sha256": "29065c5df75435cf049bd955ddd22feaf7483ed6e2d29a67bb9586250809755d"
+    },
+    {
+      "relative_path": "binary-sha256.txt",
+      "bytes": 471,
+      "sha256": "210518ace12e92c396900373248dd8c9e6afe711a76ada5909e22bb7abd5e6b3"
+    },
+    {
+      "relative_path": "eval-heldout512-after/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "relative_path": "eval-heldout512-after/matches.private.jsonl",
+      "bytes": 465514,
+      "sha256": "bb392c0a804800689eb24b0050d62201e6ddf84209f300dbc8913c5ee6a4a7a3"
+    },
+    {
+      "relative_path": "eval-heldout512-after/stderr.txt",
+      "bytes": 4534,
+      "sha256": "a24049a9143d8d0d22f469e1cd3c70235adc1a449bcf7b5ee6c0cd2f6897d958"
+    },
+    {
+      "relative_path": "eval-heldout512-after/summary.jsonl",
+      "bytes": 2280,
+      "sha256": "c93a3e19df481b41cf7d89db9b23b713e92c65d47653510c10f89fe951d37da1"
+    },
+    {
+      "relative_path": "eval-heldout512-new/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "relative_path": "eval-heldout512-new/matches.private.jsonl",
+      "bytes": 465556,
+      "sha256": "ae6a7ed1c9b74a603ab2cdf082cb4791bf630db45f1f65a4f1d4c94d5da48323"
+    },
+    {
+      "relative_path": "eval-heldout512-new/stderr.txt",
+      "bytes": 4534,
+      "sha256": "a24049a9143d8d0d22f469e1cd3c70235adc1a449bcf7b5ee6c0cd2f6897d958"
+    },
+    {
+      "relative_path": "eval-heldout512-new/summary.jsonl",
+      "bytes": 2285,
+      "sha256": "d2d0b18e1bfab9965f8b687b388ef4d5edbf0bfd52da2a2478a6998ba450cbd1"
+    },
+    {
+      "relative_path": "primitive-gpu-test.jsonl",
+      "bytes": 524,
+      "sha256": "e141d9fd561ec7df7524d5dcc5e112ccff8e9d756d4c8d1af91ac04ffe1c04ca"
+    },
+    {
+      "relative_path": "primitive-host-test.jsonl",
+      "bytes": 144,
+      "sha256": "325b4b8b3b2373521e759258846df7dcd5509429aba755f7341dece10f842ca0"
+    },
+    {
+      "relative_path": "scoring-gpu-test.jsonl",
+      "bytes": 643,
+      "sha256": "0167c0b36824134c53b0c566f6ae6662bceb8dd288d4ecd8cd23c4d338b643be"
+    },
+    {
+      "relative_path": "scoring-host-test.jsonl",
+      "bytes": 130,
+      "sha256": "ec757ccf19e59ec97bd12d764fd57990aa98a244d93c7dabb309ce9d5c6edaeb"
+    },
+    {
+      "relative_path": "source-sha256.txt",
+      "bytes": 130864,
+      "sha256": "7a32e08232cf4e01c4a250f36734bfe5378d0894935eeaf8e4497025d7b1388d"
+    },
+    {
+      "relative_path": "train-all-targets-r1/checkpoint-hashes.txt",
+      "bytes": 3740,
+      "sha256": "5c9b28d9ed5e2db38fc820a6358abe6dd23a6dc0fbcdb8bdce684799d1cce649"
+    },
+    {
+      "relative_path": "train-all-targets-r1/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "relative_path": "train-all-targets-r1/logs/rek_native5/train-all-targets-r1.ini",
+      "bytes": 18446,
+      "sha256": "396bf277016ecb01ae7c3dd64e066b0a8e963a05fd0dfc922d30ca488f57d927"
+    },
+    {
+      "relative_path": "train-all-targets-r1/process-timing.txt",
+      "bytes": 2644,
+      "sha256": "a472ac076903ac0b156fad3a51f8383001716af2a2cfcf69e51d58fc19f48f8d"
+    },
+    {
+      "relative_path": "train-all-targets-r1/round-summary.json",
+      "bytes": 205,
+      "sha256": "dfc5d4cdef0cee9c9030d532299b0ac3d116182d9b11e8b8334ca924158f8c77"
+    },
+    {
+      "relative_path": "train-all-targets-r1/stderr.txt",
+      "bytes": 4906,
+      "sha256": "a5fd89587a695ae0ff0628bdfd5736948dd97e6af6fad525776d2ef991d3a59a"
+    },
+    {
+      "relative_path": "train-all-targets-r1/verified-warm-start.txt",
+      "bytes": 436,
+      "sha256": "22b2ad4040d56ddd56f9c08b3684b32a0f6d559e48ba8d50ac8bd6c6d64e06fe"
+    }
+  ],
+  "outputs": [
+    {
+      "relative_path": "frozen-before.matches.jsonl",
+      "bytes": 544295,
+      "sha256": "3ce743958cf3d2c229cc4ca1790786599d3f15eb3868e8c9f92fe9e7c3489c7b"
+    },
+    {
+      "relative_path": "frozen-before.events.jsonl",
+      "bytes": 3391,
+      "sha256": "71f12dae3316db5d3be3f9c12d79d9b554981330b1f1d9c76535bf4c02203284"
+    },
+    {
+      "relative_path": "validation-tests.json",
+      "bytes": 4236,
+      "sha256": "780ae14fce7d4e90f7cddd3ac3645142dbeb7b8da647a78f8fb125bbb8c4cdb4"
+    },
+    {
+      "relative_path": "training-config.json",
+      "bytes": 2176,
+      "sha256": "3fb7be1eb4b4002a6af026b3ed2b3bb5686715446ca89c9825917157582aa8ee"
+    },
+    {
+      "relative_path": "training-metrics.jsonl",
+      "bytes": 41484,
+      "sha256": "3d3c99ad0744582cc963f32708b926293444fe62c63ed3fb3a915aa535b63c53"
+    },
+    {
+      "relative_path": "checkpoint-identities.jsonl",
+      "bytes": 4615,
+      "sha256": "2e62ee23c083034ef661267fee757044f34fa36e50bcc88a7ae4e2e325ecbe39"
+    },
+    {
+      "relative_path": "training-rounds.json",
+      "bytes": 420,
+      "sha256": "bd65b36d10454251d0353aa7ef62150275a01b9b1ee7decfdedb72b37e0b632f"
+    },
+    {
+      "relative_path": "training-summary.json",
+      "bytes": 764,
+      "sha256": "60a318a5308f245f1342f9cd7551faefa1f3f4832a706a141d99786a12c04dbf"
+    },
+    {
+      "relative_path": "frozen-after.matches.jsonl",
+      "bytes": 544250,
+      "sha256": "2c85750abe9558d1613014274efb3d1c21dc415ea4428e80234a440bef42c5b8"
+    },
+    {
+      "relative_path": "frozen-after.events.jsonl",
+      "bytes": 3384,
+      "sha256": "86f99908c528181bc40e8f19e59f792e787f2bf1bc511e7a759b0344ff589a22"
+    },
+    {
+      "relative_path": "summary.json",
+      "bytes": 2070,
+      "sha256": "922dd075912557e7810a7868483dce830afdd9d1a8411488936746468e37575d"
+    },
+    {
+      "relative_path": "README.md",
+      "bytes": 886,
+      "sha256": "7652d7f18fab01e768b5106a2698987aeac5f99c6ec11958d6d1f8ba8ce90a3a"
+    }
+  ],
+  "match_whitelist": [
+    "backend",
+    "policy_sha256",
+    "opponent",
+    "opponent_sha256",
+    "fixture",
+    "seed",
+    "arena",
+    "episode",
+    "duration_ticks",
+    "busy_ticks",
+    "facing_ticks",
+    "gap_below_1_05m_ticks",
+    "attack_commands",
+    "policy_side",
+    "winner",
+    "round_result",
+    "score",
+    "point_delta_sum",
+    "zero_hits",
+    "duration_seconds",
+    "path_length_m",
+    "minimum_gap_m",
+    "maximum_gap_m",
+    "mean_gap_m",
+    "shaping_weight",
+    "first_hit_seconds",
+    "initial_xy",
+    "final_xy",
+    "opponent_controller",
+    "observation_mode",
+    "scoring_mode",
+    "geometry_mode",
+    "contact_substeps"
+  ],
+  "numeric_config_whitelist": {
+    "base": "gpu_offset checkpoint_interval eval_episodes eval_agents eval_deterministic cudagraphs seed reset_every_horizon async",
+    "vec": "total_agents num_buffers num_threads num_policies hist_policy_hidden_size hist_policy_num_layers hist_policy_percent",
+    "selfplay": "enabled max_size seed opp_timeout_steps eval_pool_size eval_games",
+    "env": "dr num_agents num_bots seed locomotion_segment_ticks round_seconds opponent_hidden_size opponent_num_layers opponent_precision opponent_legacy_fast_hidden opponent_deterministic",
+    "policy": "hidden_size num_layers",
+    "train": "gpus total_timesteps learning_rate anneal_lr min_lr_ratio gamma gae_lambda replay_ratio clip_coef vf_coef vf_clip_coef max_grad_norm ent_coef anneal_ent_coef min_ent_coef_ratio momentum minibatch_size horizon vtrace vtrace_rho_clip vtrace_c_clip verb_eps verb_eps_anneal_start verb_eps_anneal_end",
+    "sweep": "downsample"
+  },
+  "metric_whitelist": [
+    "SPS",
+    "agent_steps",
+    "uptime",
+    "epoch",
+    "env/n",
+    "importance",
+    "util/gpu_percent",
+    "util/vram_used_gb",
+    "util/vram_total_gb",
+    "util/cpu_mem_gb",
+    "perf/rollout",
+    "perf/eval_model",
+    "perf/eval_env",
+    "perf/eval_copy",
+    "perf/train_misc",
+    "perf/train_model",
+    "perf/train"
+  ],
+  "measurement_domain": "reconstructed_ai_simulator",
+  "authentic_parity": false,
+  "target_contract": "g1_scoring_bodyzones_1_2_3_12_13_v1",
+  "primitive_target_count": 9
+}
