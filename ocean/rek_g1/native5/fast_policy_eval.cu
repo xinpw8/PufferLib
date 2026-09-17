@@ -1,5 +1,6 @@
 #include "runtime_api.h"
 #include "native_policy.h"
+#include "fast_mode_config.h"
 #include "../../../vendor/cJSON.h"
 #include <cuda_runtime.h>
 #include <algorithm>
@@ -73,10 +74,12 @@ int main(int argc,char** argv){
         for(int i=0;i<17;i++)cfg.move_duration_ticks[i]=durations?integer(cJSON_GetArrayItem(durations,i)):defaults[i];
         setenv("REK_PHYSICS_BACKEND","semantic_cuda",1);
         auto* fast=cJSON_GetObjectItemCaseSensitive(json.get(),"fast");
+        const auto mode_identity=rek5_modes::configure(fast);
         auto* scoring=fast?cJSON_GetObjectItemCaseSensitive(fast,"scoring_mode"):nullptr;
         const std::string scoring_mode=scoring?string(scoring):"v4_spheres";
-        require(scoring_mode=="v4_spheres"||scoring_mode=="recovered_hit_rules_v1","Invalid explicit scoring mode");
+        require(scoring_mode=="v4_spheres"||scoring_mode=="recovered_hit_rules_v1"||scoring_mode=="recovered_hit_rules_v2","Invalid explicit scoring mode");
         setenv("REK_FAST_SCORING",scoring_mode.c_str(),1);
+        const std::string identity_fields=rek5_modes::json_fields(mode_identity,scoring_mode);
         std::printf("{\"event\":\"scoring_identity\",\"scoring_mode\":\"%s\",\"source\":\"runtime_config\"}\n",scoring_mode.c_str());
         const char* keys[]={"move_speed","yaw_speed","body_radius","hit_speed","down_damage"};
         const char* env[]={"REK_FAST_MOVE_SPEED","REK_FAST_YAW_SPEED","REK_FAST_BODY_RADIUS","REK_FAST_HIT_SPEED","REK_FAST_DOWN_DAMAGE"};
@@ -114,13 +117,13 @@ int main(int argc,char** argv){
             long long wins=0,losses=0,ties=0,points=0,opponent_points=0,falls=0,opponent_falls=0;
             for(const auto& r:host){require(r.completed==static_cast<unsigned long long>(r.episode+1)&&r.duration_ticks>0,"Incomplete terminal record");if(r.winner<0)ties++;else if(r.winner==side)wins++;else losses++;
                 points+=r.points[side];opponent_points+=r.points[side^1];falls+=r.falls[side];opponent_falls+=r.falls[side^1];
-                std::fprintf(output.get(),"{\"backend\":\"semantic_cuda\",\"policy_sha256\":\"%s\",\"selection\":\"%s\",\"seed\":%d,\"arena\":%d,\"episode\":%d,\"policy_side\":%d,\"score\":[%d,%d],\"falls\":[%d,%d],\"winner\":%d,\"round_result\":%d,\"duration_ticks\":%d,\"duration_seconds\":%.9g,\"diagnostic\":%s,\"round_feature_override\":%s}\n",digest.c_str(),selection.c_str(),seed,r.arena,r.episode,side,r.points[0],r.points[1],r.falls[0],r.falls[1],r.winner,r.round_result,r.duration_ticks,r.duration_ticks*.02,diagnostic?"true":"false",diagnostic_json.c_str());
+                std::fprintf(output.get(),"{\"backend\":\"semantic_cuda\",\"policy_sha256\":\"%s\",\"selection\":\"%s\",\"seed\":%d,\"arena\":%d,\"episode\":%d,\"policy_side\":%d,\"score\":[%d,%d],\"falls\":[%d,%d],\"winner\":%d,\"round_result\":%d,\"duration_ticks\":%d,\"duration_seconds\":%.9g,\"diagnostic\":%s,\"round_feature_override\":%s%s}\n",digest.c_str(),selection.c_str(),seed,r.arena,r.episode,side,r.points[0],r.points[1],r.falls[0],r.falls[1],r.winner,r.round_result,r.duration_ticks,r.duration_ticks*.02,diagnostic?"true":"false",diagnostic_json.c_str(),identity_fields.c_str());
             }
             require(std::fflush(output.get())==0,"Could not flush match records");total_wins+=wins;total_losses+=losses;total_ties+=ties;
             std::printf("{\"event\":\"side_result\",\"policy_side\":%d,\"arenas\":%d,\"rounds_per_arena\":%d,\"wins\":%lld,\"losses\":%lld,\"draws\":%lld,\"points\":%lld,\"opponent_points\":%lld,\"falls\":%lld,\"opponent_falls\":%lld,\"evaluated_ticks\":%d,\"execution_wall_seconds\":%.9g}\n",side,arenas,rounds,wins,losses,ties,points,opponent_points,falls,opponent_falls,ticks,wall);std::fflush(stdout);
             cuda_ok(cudaGraphExecDestroy(executable));cuda_ok(cudaGraphDestroy(graph));
         }
-        std::printf("{\"event\":\"frozen_policy_evaluation\",\"backend\":\"semantic_cuda\",\"checkpoint_sha256\":\"%s\",\"precision\":\"%s\",\"observation_encoding\":\"scaled_polar_xy\",\"selection\":\"%s\",\"policy_rng_seed\":%d,\"wins\":%lld,\"losses\":%lld,\"draws\":%lld,\"win_rate\":%.9g,\"execution_wall_seconds\":%.9g,\"environment_randomizes_seed\":false,\"greedy_repeats_duplicate_fixed_fixtures\":%s,\"opponent\":\"same_runtime_GPU_scripted\",\"both_sides\":true,\"terminal_recurrent_reset\":true,\"failure_bits\":0,\"python_runtime\":false,\"cpu_physics\":false,\"training_sps\":null,\"diagnostic\":%s,\"round_feature_override\":%s}\n",digest.c_str(),precision.c_str(),selection.c_str(),seed,total_wins,total_losses,total_ties,double(total_wins)/double(total_wins+total_losses+total_ties),total_wall,selection=="greedy"?"true":"false",diagnostic?"true":"false",diagnostic_json.c_str());
+        std::printf("{\"event\":\"frozen_policy_evaluation\",\"backend\":\"semantic_cuda\",\"checkpoint_sha256\":\"%s\",\"precision\":\"%s\",\"observation_encoding\":\"scaled_polar_xy\",\"selection\":\"%s\",\"policy_rng_seed\":%d,\"wins\":%lld,\"losses\":%lld,\"draws\":%lld,\"win_rate\":%.9g,\"execution_wall_seconds\":%.9g,\"environment_randomizes_seed\":false,\"greedy_repeats_duplicate_fixed_fixtures\":%s,\"opponent\":\"same_runtime_GPU_scripted\",\"both_sides\":true,\"terminal_recurrent_reset\":true,\"failure_bits\":0,\"python_runtime\":false,\"cpu_physics\":false,\"training_sps\":null,\"diagnostic\":%s,\"round_feature_override\":%s%s}\n",digest.c_str(),precision.c_str(),selection.c_str(),seed,total_wins,total_losses,total_ties,double(total_wins)/double(total_wins+total_losses+total_ties),total_wall,selection=="greedy"&&mode_identity.opponent=="v4_scripted"?"true":"false",diagnostic?"true":"false",diagnostic_json.c_str(),identity_fields.c_str());
         policy.reset();runtime_ok(rek_native5_close(runtime));for(void* p:owned)cuda_ok(cudaFree(p));cuda_ok(cudaStreamDestroy(stream));return 0;
     }catch(const std::exception& e){std::fprintf(stderr,"fast policy evaluation failed: %s\n",e.what());return 2;}
 }

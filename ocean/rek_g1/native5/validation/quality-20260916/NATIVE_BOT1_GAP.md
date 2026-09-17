@@ -98,3 +98,22 @@ The asset probe is at `C:\Users\Daniel\codex-wr64-puffer-scenario-7cc6ce1\ocean\
 I don't know whether the authoritative server uses exactly these client-image methods, asset values, random seed/state, or decision cadence. Those require version/configuration confirmation and synchronized observations of native state transitions, selected moves, accepted execution, and root motion in a permitted private encounter. Static source recovery alone cannot answer them.
 
 The generic recovery code requests Dampen, Straighten, and orientation-selected get-up actions. G1's extracted configuration disables special commands and E-stop. Successful G1 recovery through that generic path remains unproven; T800 recovery behavior is not sufficient evidence. Controller/physics response, actual transition settling, move acceptance timing, falls, and contact scoring also need authoritative trajectory comparisons. The compact candidate explicitly does not integrate balance/fall dynamics. A high compact-opponent win rate consequently measures that candidate matchup and cannot establish success against authentic Bot1.
+
+## Follow-up: cancellation, command signs, and actuator scale
+
+`RobotInputController.CancelPunch` (`:8114`, RVA `0x226C430`) returns while recovering. Otherwise it calls the available engine's `EngineAIPolicyRunner.CancelMove` (`0x236AFC0`); for a playing Sonic action it calls `SonicMotionComposer.CancelAction` (`:5837`, `0x2294910`) and then `RobotInputController.PlayIdle` (`:9958`, `0x226E620`). `CancelAction` clears the outgoing layer's active flag, current completion callback, action-playing flag, transition counter, and heading flags. `PlayIdle` calls `PlayAction(idle, null)` when the configured idle asset is available. These paths do not check `allowMoveInterrupt`. G1's disabled human move interruption therefore does not prohibit this explicit AI timeout cancellation. The result changes the commanded clip; it does not instantly stop or reset the rigid bodies.
+
+`KeyboardControlScheme.ReadLocomotion` (`:1892`, `0x2265D00`) assigns positive forward, positive left strafe, and positive left yaw. `RobotInputControllerCommand.ApplyLocomotion` (`:369`) applies G1's configuration scales of 1, including its human keyboard yaw ramp. The AI writes directly through `RobotInputController.set_VelocityCommand` (`:9247`, `0x2270C40`), which stores the vector verbatim, without a sign conversion or magnitude clamp. For a compact bearing that is positive left/CCW, use its negative in degrees as the native signed angle, then use the native facing-yaw output directly. A second output negation reverses steering.
+
+G1's Sonic prefab path ID `3188` has `headingYawRateScale`, `commandYawRateScale`, and `locomotionSpeedScale` all equal to 1. `SonicPolicyRunner.ApplyLocomotionSpeed` (`:70716`) uses the command vector's Euclidean magnitude, including yaw, to scale locomotion playback. `SonicMotionComposer.SetLocomotionSpeed` (`:5926`) applies this only to active looping clips, with a 0.05 lower bound and no upper clamp. `SonicPolicyRunner.IntegrateHeading` (`:69566`) adds `commandYawRateScale * command.z / controllerHz * (1 - headingClipOwnership)` to clip-derived heading and forgiveness, then integrates a positive-Z quaternion. Commanded heading and actual root angular velocity can differ.
+
+Consequently, AI forward 0.8 and human forward 1 share the same native command space. Treating 0.8 as a measured 0.8 m/s would be unsupported. A compact approximation should preserve their relative scale through its shared actuator response. The current `fast_runtime.cu` default is `REK_FAST_MOVE_SPEED=1.f`, with `REK_FAST_YAW_SPEED=1.8f`. The earlier conversational 0.65 m/s example was not the current default and does not establish a 0.52 m/s training result. Neither these compact calibration values nor the native command field establish authoritative root-speed equivalence.
+
+Additional recovered-text SHA-256 identifiers, under the same source root:
+
+| Source | SHA-256 |
+| --- | --- |
+| RobotInputControllerCommand.txt | `21788b81903cc2659e7245ad064b06f9ff7ad0a49a9201310d4d6159e623cdea` |
+| KeyboardControlScheme.txt | `16e03df273b8e55d3b805653038074c03dd4aae3e8c166e8bbcb92f653f8c553` |
+| SonicMotionComposer.txt | `b59ba1dfc9ce6072b61088b36ee5dd469e09899e82dfe5b7bb49cd27edebf954` |
+| SonicPolicyRunner.txt | `5c7668aa79591cd84dfd120856ecdf96554309c85a2d5a425e8f42636381ab58` |

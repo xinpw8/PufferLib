@@ -1,5 +1,6 @@
 #include "runtime_api.h"
 #include "native_policy.h"
+#include "fast_mode_config.h"
 #include "../../../vendor/cJSON.h"
 #include <cuda_runtime.h>
 #include <algorithm>
@@ -120,10 +121,12 @@ int main(int argc,char** argv){
         unsetenv("REK_FAST_SHAPING_TARGET");
         unsetenv("REK_FAST_SHAPING_BEARING_WEIGHT");
         auto* fast=cJSON_GetObjectItemCaseSensitive(json.get(),"fast");
+        const auto mode_identity=rek5_modes::configure(fast);
         auto* scoring=fast?cJSON_GetObjectItemCaseSensitive(fast,"scoring_mode"):nullptr;
         const std::string scoring_mode=scoring?string(scoring):"v4_spheres";
-        require(scoring_mode=="v4_spheres"||scoring_mode=="recovered_hit_rules_v1","Invalid explicit scoring mode");
+        require(scoring_mode=="v4_spheres"||scoring_mode=="recovered_hit_rules_v1"||scoring_mode=="recovered_hit_rules_v2","Invalid explicit scoring mode");
         setenv("REK_FAST_SCORING",scoring_mode.c_str(),1);
+        const std::string identity_fields=rek5_modes::json_fields(mode_identity,scoring_mode);
         std::printf("{\"event\":\"scoring_identity\",\"scoring_mode\":\"%s\",\"source\":\"runtime_config\"}\n",scoring_mode.c_str());
         const char* keys[]={"move_speed","yaw_speed","body_radius","hit_speed","down_damage"};
         const char* env[]={"REK_FAST_MOVE_SPEED","REK_FAST_YAW_SPEED","REK_FAST_BODY_RADIUS","REK_FAST_HIT_SPEED","REK_FAST_DOWN_DAMAGE"};
@@ -172,8 +175,8 @@ int main(int argc,char** argv){
                 if(r.first_hit_tick[side]){first_hit_sum+=r.first_hit_tick[side];hit_games++;}
                 busy_sum+=r.busy_ticks;facing_sum+=r.facing_ticks;tick_sum+=r.duration_ticks;path_sum+=r.path_length;min_gap_sum+=r.min_gap;falls+=r.falls[side];opponent_falls+=r.falls[side^1];
                 std::string first_hit=r.first_hit_tick[side]?std::to_string(r.first_hit_tick[side]*.02):"null";
-                std::fprintf(output.get(),"{\"backend\":\"semantic_cuda\",\"policy_sha256\":\"%s\",\"opponent\":\"%s\",\"opponent_sha256\":\"%s\",\"fixture\":\"%s\",\"seed\":%d,\"arena\":%d,\"episode\":%d,\"policy_side\":%d,\"score\":[%d,%d],\"point_delta_sum\":[%d,%d],\"winner\":%d,\"round_result\":%d,\"duration_ticks\":%d,\"duration_seconds\":%.9g,\"first_hit_seconds\":%s,\"zero_hits\":%s,\"busy_ticks\":%d,\"facing_ticks\":%d,\"gap_below_1_05m_ticks\":%d,\"attack_commands\":%d,\"path_length_m\":%.9g,\"minimum_gap_m\":%.9g,\"maximum_gap_m\":%.9g,\"mean_gap_m\":%.9g,\"initial_xy\":[%.9g,%.9g,%.9g,%.9g],\"final_xy\":[%.9g,%.9g,%.9g,%.9g],\"shaping_weight\":0}\n",
-                    digest.c_str(),opponent_name.c_str(),opponent_digest.c_str(),fixture.c_str(),seed,r.arena,r.episode,side,r.points[0],r.points[1],r.point_delta_sum[0],r.point_delta_sum[1],r.winner,r.round_result,r.duration_ticks,r.duration_ticks*.02,first_hit.c_str(),r.point_delta_sum[side]==0?"true":"false",r.busy_ticks,r.facing_ticks,r.near_ticks,r.attack_commands,r.path_length,r.min_gap,r.max_gap,r.mean_gap,r.initial_xy[0],r.initial_xy[1],r.initial_xy[2],r.initial_xy[3],r.final_xy[0],r.final_xy[1],r.final_xy[2],r.final_xy[3]);
+                std::fprintf(output.get(),"{\"backend\":\"semantic_cuda\",\"policy_sha256\":\"%s\",\"opponent\":\"%s\",\"opponent_sha256\":\"%s\",\"fixture\":\"%s\",\"seed\":%d,\"arena\":%d,\"episode\":%d,\"policy_side\":%d,\"score\":[%d,%d],\"point_delta_sum\":[%d,%d],\"winner\":%d,\"round_result\":%d,\"duration_ticks\":%d,\"duration_seconds\":%.9g,\"first_hit_seconds\":%s,\"zero_hits\":%s,\"busy_ticks\":%d,\"facing_ticks\":%d,\"gap_below_1_05m_ticks\":%d,\"attack_commands\":%d,\"path_length_m\":%.9g,\"minimum_gap_m\":%.9g,\"maximum_gap_m\":%.9g,\"mean_gap_m\":%.9g,\"initial_xy\":[%.9g,%.9g,%.9g,%.9g],\"final_xy\":[%.9g,%.9g,%.9g,%.9g],\"shaping_weight\":0%s}\n",
+                    digest.c_str(),opponent_name.c_str(),opponent_digest.c_str(),fixture.c_str(),seed,r.arena,r.episode,side,r.points[0],r.points[1],r.point_delta_sum[0],r.point_delta_sum[1],r.winner,r.round_result,r.duration_ticks,r.duration_ticks*.02,first_hit.c_str(),r.point_delta_sum[side]==0?"true":"false",r.busy_ticks,r.facing_ticks,r.near_ticks,r.attack_commands,r.path_length,r.min_gap,r.max_gap,r.mean_gap,r.initial_xy[0],r.initial_xy[1],r.initial_xy[2],r.initial_xy[3],r.final_xy[0],r.final_xy[1],r.final_xy[2],r.final_xy[3],identity_fields.c_str());
             }
             require(std::fflush(output.get())==0,"Could not flush match records");total_wins+=wins;total_losses+=losses;total_ties+=ties;
             std::printf("{\"event\":\"side_result\",\"policy_side\":%d,\"arenas\":%d,\"rounds_per_arena\":%d,\"wins\":%lld,\"losses\":%lld,\"draws\":%lld,\"points\":%lld,\"opponent_points\":%lld,\"falls\":%lld,\"opponent_falls\":%lld,\"evaluated_ticks\":%d,\"execution_wall_seconds\":%.9g}\n",side,arenas,rounds,wins,losses,ties,points,opponent_points,falls,opponent_falls,ticks,wall);std::fflush(stdout);
@@ -181,8 +184,8 @@ int main(int argc,char** argv){
             std::printf("{\"event\":\"behavior_result\",\"policy_side\":%d,\"opponent\":\"%s\",\"fixture\":\"%s\",\"configured_round_seconds\":%d,\"zero_hit_games\":%lld,\"hit_games\":%lld,\"mean_first_hit_seconds_when_hit\":%s,\"busy_fraction\":%.9g,\"facing_fraction\":%.9g,\"mean_path_length_m\":%.9g,\"mean_minimum_gap_m\":%.9g,\"shaping_weight\":0}\n",side,opponent_name.c_str(),fixture.c_str(),round_seconds,zero_hits,hit_games,mean_first_hit.c_str(),double(busy_sum)/tick_sum,double(facing_sum)/tick_sum,path_sum/(arenas*rounds),min_gap_sum/(arenas*rounds));
             cuda_ok(cudaGraphExecDestroy(executable));cuda_ok(cudaGraphDestroy(graph));
         }
-        std::printf("{\"event\":\"frozen_policy_evaluation\",\"backend\":\"semantic_cuda\",\"checkpoint_sha256\":\"%s\",\"opponent_sha256\":\"%s\",\"precision\":\"%s\",\"observation_encoding\":\"scaled_polar_xy\",\"selection\":\"%s\",\"policy_rng_seed\":%d,\"opponent_rng_seed\":%llu,\"wins\":%lld,\"losses\":%lld,\"draws\":%lld,\"win_rate\":%.9g,\"execution_wall_seconds\":%.9g,\"fixture\":\"%s\",\"environment_randomizes_seed\":%s,\"opponent\":\"%s\",\"round_seconds\":%d,\"both_sides\":true,\"terminal_recurrent_reset\":true,\"failure_bits\":0,\"python_runtime\":false,\"cpu_physics\":false,\"training_sps\":null,\"shaping_weight\":0,\"physics_parity\":false}\n",
-            digest.c_str(),opponent_digest.c_str(),precision.c_str(),selection.c_str(),seed,static_cast<unsigned long long>(uint64_t(seed)^0x9e3779b9ULL),total_wins,total_losses,total_ties,double(total_wins)/double(total_wins+total_losses+total_ties),total_wall,fixture.c_str(),fixture=="heldout"?"true":"false",opponent_name.c_str(),round_seconds);
+        std::printf("{\"event\":\"frozen_policy_evaluation\",\"backend\":\"semantic_cuda\",\"checkpoint_sha256\":\"%s\",\"opponent_sha256\":\"%s\",\"precision\":\"%s\",\"observation_encoding\":\"scaled_polar_xy\",\"selection\":\"%s\",\"policy_rng_seed\":%d,\"opponent_rng_seed\":%llu,\"wins\":%lld,\"losses\":%lld,\"draws\":%lld,\"win_rate\":%.9g,\"execution_wall_seconds\":%.9g,\"fixture\":\"%s\",\"environment_randomizes_seed\":%s,\"opponent\":\"%s\",\"round_seconds\":%d,\"both_sides\":true,\"terminal_recurrent_reset\":true,\"failure_bits\":0,\"python_runtime\":false,\"cpu_physics\":false,\"training_sps\":null,\"shaping_weight\":0,\"physics_parity\":false%s}\n",
+            digest.c_str(),opponent_digest.c_str(),precision.c_str(),selection.c_str(),seed,static_cast<unsigned long long>(uint64_t(seed)^0x9e3779b9ULL),total_wins,total_losses,total_ties,double(total_wins)/double(total_wins+total_losses+total_ties),total_wall,fixture.c_str(),fixture=="heldout"?"true":"false",opponent_name.c_str(),round_seconds,identity_fields.c_str());
         opponent_policy.reset();policy.reset();runtime_ok(rek_native5_close(runtime));for(void* p:owned)cuda_ok(cudaFree(p));cuda_ok(cudaStreamDestroy(stream));return 0;
     }catch(const std::exception& e){std::fprintf(stderr,"diverse policy evaluation failed: %s\n",e.what());return 2;}
 }

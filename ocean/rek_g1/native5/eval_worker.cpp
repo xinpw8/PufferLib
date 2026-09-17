@@ -1,5 +1,6 @@
 #include "runtime_api.h"
 #include "native_policy.h"
+#include "fast_mode_config.h"
 #include "eval_renderer.h"
 #include "../../../vendor/cJSON.h"
 #include <cuda_runtime.h>
@@ -62,6 +63,7 @@ class Worker {
     std::unique_ptr<rek_eval::Renderer> renderer;
     std::string model_path;
     std::string scoring_mode;
+    rek5_modes::Identity mode_identity;
     bool failed=false;
     template<class T>T* allocate(size_t count){
         T* p=nullptr;cuda_ok(cudaMalloc((void**)&p,count*sizeof(T)));
@@ -74,6 +76,7 @@ class Worker {
         auto o=object();cJSON_AddBoolToObject(o.get(),"ok",!failed&&!s.round.failure_bits);
         if(REK_EVAL_BACKEND[0])text(o.get(),"runtimeBackend",REK_EVAL_BACKEND);
         if(gpu_scripted)text(o.get(),"scoringMode",scoring_mode);
+        if(gpu_scripted){text(o.get(),"opponentController",mode_identity.opponent);text(o.get(),"observationMode",mode_identity.observation);}
         num(o.get(),"tick",double(tick));num(o.get(),"timeRemaining",s.round.time_remaining_seconds);
         num(o.get(),"completedRounds",double(s.round.completed_rounds));
         num(o.get(),"terminal",s.round.terminal);num(o.get(),"winner",s.round.round_winner);
@@ -93,9 +96,10 @@ public:
             throw std::runtime_error("Evaluator binary/backend configuration mismatch");
         if(gpu_scripted){
             const auto* fast=field(config,"fast");const auto* scoring=fast?field(fast,"scoring_mode"):nullptr;
+            mode_identity=rek5_modes::configure(fast);
             if(scoring&&!cJSON_IsString(scoring))throw std::runtime_error("Invalid scoring mode type");
             scoring_mode=scoring?scoring->valuestring:"v4_spheres";
-            if(scoring_mode!="v4_spheres"&&scoring_mode!="recovered_hit_rules_v1")throw std::runtime_error("Invalid scoring mode");
+            if(scoring_mode!="v4_spheres"&&scoring_mode!="recovered_hit_rules_v1"&&scoring_mode!="recovered_hit_rules_v2")throw std::runtime_error("Invalid scoring mode");
             setenv("REK_FAST_SCORING",scoring_mode.c_str(),1);
         }
         arenas=integer(config,"arenas",4);if(arenas<=0)throw std::runtime_error("Invalid arena count");

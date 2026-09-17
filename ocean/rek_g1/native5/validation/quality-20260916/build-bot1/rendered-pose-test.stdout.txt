@@ -1,0 +1,1 @@
+PASS rendered_pose_v1 CPU fixtures assertions=320043 max_abs_error=2.12719186e-05 oracle=encode_live_formulas_double no_policy_no_physics_no_GPU

@@ -1,0 +1,8 @@
+2026-09-17T00:05:09+00:00
+spark-4ae3
+uid=1000(spark-advantage) gid=1000(spark-advantage) groups=1000(spark-advantage),4(adm),27(sudo),29(audio),30(dip),46(plugdev),100(users),122(lpadmin),988(docker)
+aarch64
+GPU 0: NVIDIA GB10 (UUID: GPU-c10f6617-d6dc-c3c2-3069-3dcc3f506b75)
+b64832fdb82435a2b232d07f03fb600142053ce30943f09848824706c2692e9b  /home/spark-advantage/rek-training/policy-quality-20260916-r1/build-bot1/puffer-rek-native5
+1883ff543774799b451e1b5488523c5e5e6f5a96a96f0ee4ae9df7d26b682ad2  /home/spark-advantage/rek-training/policy-quality-20260916-r1/build-bot1/pufferl.o
+8e2874d13bdd770af011f56ce6a39b4faa690a89659e0e082ec89d744147ea3d  /home/spark-advantage/rek-training/policy-quality-20260916-r1/build-bot1/fast_runtime.o

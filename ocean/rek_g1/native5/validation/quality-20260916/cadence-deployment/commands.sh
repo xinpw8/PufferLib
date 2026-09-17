@@ -35,4 +35,3 @@ install -m 644 "$stage" "$target"
 test "$(sha256sum "$target" | cut -d' ' -f1)" = 40109bdcb2b84fabb2d66b8c995855fee1253a2c7ca943382aff8dbd7dc4eb99
 sha256sum "$target"
 bash "$run/live_transfer_runtime.sh" start
-

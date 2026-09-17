@@ -11,6 +11,8 @@
 #include <stdexcept>
 #include <string>
 #include "recovered_contact_rules.cuh"
+#include "native_bot1.cuh"
+#include "rendered_pose_observation.h"
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
 // trajectories; slider motion and sphere contacts are modeling
@@ -30,6 +32,11 @@ struct Fighter {
     unsigned contact_latched;
     int points,falls,down;
     int move_instance;
+    int bot_controlled;
+    rek5_bot1::Command bot_command;
+    int observed_old_frame;
+    float observed_old_x,observed_old_y,observed_old_yaw;
+    float observed_heading,observed_local[2],observed_omega,observed_joint_rate[29];
 };
 struct Arena {
     Fighter fighter[2];
@@ -39,6 +46,7 @@ struct Arena {
     int delta[2],hit_count,down_event[2];
     unsigned failures;
     RekG1HitDetectorState recovered_hits;
+    rek5_bot1::State bot[2];
 };
 struct Parameters {
     FastRoute routes[24];
@@ -55,6 +63,10 @@ struct Parameters {
     RekG1ImpactEvent impact_events[29];
     int impact_offsets[24],impact_counts[24];
     RekG1HitDetectorConfig recovered_hit_config;
+    int recovered_bot;
+    rek5_bot1::Catalog bot_catalog;
+    int move_to_action[17];
+    int rendered_observation;
 };
 struct View {
     int arenas;
@@ -101,6 +113,23 @@ __device__ void point(const Fighter& f,const float* local,bool previous,float* x
     xyz[1]=(previous?f.old_y:f.y)+s*local[0]+c*local[1];
     xyz[2]=local[2];
 }
+__device__ void capture_observed_pose(const Parameters& p,Arena& a){
+    for(int side=0;side<2;side++){
+        Fighter& f=a.fighter[side];f.observed_old_frame=frame_index(p,f,false);
+        f.observed_old_x=f.x;f.observed_old_y=f.y;f.observed_old_yaw=f.yaw;
+    }
+}
+__device__ void update_observed_pose(View v,Arena& a){
+    for(int side=0;side<2;side++){
+        Fighter& f=a.fighter[side];const auto& frame=v.frames[frame_index(*v.p,f,false)];
+        const auto& old=v.frames[f.observed_old_frame];float q[4],previous[4];
+        root_quaternion(f,frame,q);rek_rendered_pose::compose_root(f.observed_old_yaw,old.root_wxyz,previous);
+        f.observed_heading=rek_rendered_pose::heading(q);
+        f.observed_omega=rek_rendered_pose::angular_rate(f.observed_heading,rek_rendered_pose::heading(previous),DT);
+        rek_rendered_pose::local_velocity(f.x,f.y,f.observed_old_x,f.observed_old_y,f.observed_heading,DT,f.observed_local);
+        for(int j=0;j<29;j++)f.observed_joint_rate[j]=rek_rendered_pose::joint_rate(frame.q[j],old.q[j],DT);
+    }
+}
 __device__ void pose_reset(const Parameters& p,Arena& a){
     for(int side=0;side<2;side++){
         Fighter& f=a.fighter[side];int points=f.points,falls=f.falls;
@@ -119,6 +148,8 @@ __device__ void round_reset(const Parameters& p,Arena& a,RekNative5RoundResult& 
     if(full){result={};result.round_number=1;}
     else result.round_number++;
     a={};pose_reset(p,a);
+    if(p.recovered_bot)for(int side=0;side<2;side++)rek5_bot1::activate(a.bot[side],
+        reset_hash(p.seed^reset_hash(uint32_t(index)*2+side+0x7216b539u)^reset_hash(result.round_number)));
     a.opponent_mode=p.opponent_mode;
     if(p.random_resets||p.opponent_mode==4){
         const uint32_t key=reset_hash(p.seed^reset_hash(uint32_t(index)+0x9e3779b9u)^reset_hash(result.round_number+0x85ebca6bu));
@@ -193,7 +224,9 @@ __device__ void held_command(int category,float& forward,float& strafe,float& ya
         case 14:strafe=-1;yaw=1;break;case 15:strafe=-1;yaw=-1;break;
     }
 }
-__device__ void advance_fighter(const Parameters& p,Fighter& f,int action,Arena& a){
+template<bool Bot=false> __device__ void advance_fighter(const Parameters& p,Fighter& f,int action,Arena& a,const rek5_bot1::Command* command=nullptr){
+    f.bot_controlled=Bot;
+    if constexpr(Bot)f.bot_command=*command;
     f.old_x=f.x;f.old_y=f.y;f.old_yaw=f.yaw;f.old_phase=f.phase;f.old_route=f.route;
     f.strike_active=0;
     if(f.last_hit_valid)f.last_hit_age=fminf(120.f,f.last_hit_age+DT);
@@ -226,6 +259,7 @@ __device__ void advance_fighter(const Parameters& p,Fighter& f,int action,Arena&
         return;
     }
     float forward,strafe,yaw;held_command(f.held,forward,strafe,yaw);
+    if constexpr(Bot){forward=command->forward;strafe=command->strafe;yaw=command->yaw;}
     float sn,cs;sincosf(f.yaw,&sn,&cs);
     float tx=p.move_speed*(cs*forward-sn*strafe),ty=p.move_speed*(sn*forward+cs*strafe);
     float accel=p.brake_rate*DT;
@@ -238,6 +272,28 @@ __device__ void advance_fighter(const Parameters& p,Fighter& f,int action,Arena&
     const FastRoute& r=p.routes[f.route];
     if(r.loop&&f.phase>=r.count)f.phase-=r.count;
     else f.phase=fminf(f.phase,float(r.count-1));
+}
+__device__ int bot_pose_action(const rek5_bot1::Command& c){
+    // Existing canned routes cannot represent continuous blends. Select the
+    // dominant translation route, without quantizing root command magnitude.
+    if(fabsf(c.forward)>1e-6f||fabsf(c.strafe)>1e-6f)
+        return fabsf(c.forward)>=fabsf(c.strafe)?(c.forward>0?2:3):(c.strafe>0?4:5);
+    return fabsf(c.yaw)>1e-6f?(c.yaw>0?6:7):1;
+}
+__device__ void advance_bot(const Parameters& p,Arena& a,int side,const rek5_bot1::Input& input){
+    Fighter& f=a.fighter[side];auto& bot=a.bot[side];
+    rek5_bot1::Random rng{bot.rng};auto decision=rek5_bot1::update(bot,input,p.bot_catalog,rng);
+    if(decision.unsupported_recovery){a.failures|=1024;return;}
+    if(decision.clear_punching)f.attack_duration=0;
+    if(decision.move>=0){
+        // Retain compact settling/animation acceptance, report failures to FSM.
+        const bool accepted=!attacking(f)&&settled(p,f);
+        rek5_bot1::attack_result(bot,input,accepted);
+        auto cmd=rek5_bot1::locomotion(bot,input);
+        if(accepted){advance_fighter<true>(p,f,p.move_to_action[decision.move],a,&cmd);return;}
+    }
+    auto cmd=rek5_bot1::locomotion(bot,input);
+    advance_fighter<true>(p,f,bot_pose_action(cmd),a,&cmd);
 }
 __device__ void confine(const Parameters& p,Fighter& f){
     float x=clampf(f.x,-p.half_extent[0]+p.body_radius,p.half_extent[0]-p.body_radius);
@@ -260,13 +316,13 @@ __device__ float sweep_distance2(const float* from,const float* to){
 }
 __device__ void strike_contacts(View v,Arena& a,int side,int* hits,int* points){
     const Parameters& p=*v.p;Fighter& f=a.fighter[side];Fighter& enemy=a.fighter[side^1];
-    if(!f.strike_active||f.route==23)return;
+    if(!f.strike_active||(p.recovered_scoring<2&&f.route==23))return;
     const FastFrame& now=v.frames[frame_index(p,f,false)];
     const FastFrame& before=v.frames[frame_index(p,f,true)];
     const FastFrame& target=v.frames[frame_index(p,enemy,false)];
     const FastFrame& old_target=v.frames[frame_index(p,enemy,true)];
     for(int limb=0;limb<6;limb++){
-        if(!limb_enabled(f.route,limb))continue;
+        if(p.recovered_scoring<2&&!limb_enabled(f.route,limb))continue;
         float tip[3],old_tip[3];point(f,now.strike_xyz[limb],false,tip);point(f,before.strike_xyz[limb],true,old_tip);
         float dx=tip[0]-old_tip[0],dy=tip[1]-old_tip[1],dz=tip[2]-old_tip[2];
         float speed=sqrtf(dx*dx+dy*dy+dz*dz)/DT;
@@ -311,27 +367,45 @@ __device__ void finish_round(View v,int index,Arena& a,RekNative5RoundResult& r)
 __device__ void advance_arena(View v,int index){
     Arena& a=v.state[index];auto& r=v.rounds[index];const Parameters& p=*v.p;
     if(r.terminal)round_reset(p,a,r,false,index);
+    if(p.rendered_observation)capture_observed_pose(p,a);
     a.delta[0]=a.delta[1]=a.hit_count=a.down_event[0]=a.down_event[1]=0;
     a.reward[0]=a.reward[1]=0;
     float previous_potential[2]={};
     if(p.shaping_weight>0)for(int side=0;side<2;side++)previous_potential[side]=shaping_potential(p,a,side);
-    int actions[2];
+    int actions[2];bool bot_rows[2]={};
     for(int side=0;side<2;side++){
         int row=index*2+side;
         // Override 2 invokes the configured GPU opponent on either side.
         // Override 1 remains an external action, including frozen opponents.
         int override_value=v.override_rows?v.override_rows[row]:0;
         if(override_value>2){a.failures|=16;override_value=0;}
-        float value=override_value==2?float(opponent_action(p,a,side)):
+        bot_rows[side]=p.recovered_bot&&a.opponent_mode==0&&(override_value==2||(override_value==0&&side));
+        float value=bot_rows[side]?0.f:override_value==2?float(opponent_action(p,a,side)):
             (override_value==1?v.external[row]:(side?float(opponent_action(p,a,side)):v.out.actions[index]));
         actions[side]=action_value(a,value);v.actions[row]=float(actions[side]);
     }
     if(a.failures){r.failure_bits=a.failures;return;}
     a.tick++;a.elapsed=float(a.tick)*DT;
+    rek5_bot1::Input bot_inputs[2]{};
+    for(int side=0;side<2;side++)if(bot_rows[side]){
+        const Fighter& f=a.fighter[side];const Fighter& other=a.fighter[side^1];
+        const float dx=other.x-f.x,dy=other.y-f.y;
+        float rendered[4];root_quaternion(f,v.frames[frame_index(p,f,false)],rendered);
+        const float heading=rek_rendered_pose::heading(rendered);
+        // Native signed angle is positive-right. Native command yaw/strafe
+        // are positive-left already, matching the compact command convention.
+        bot_inputs[side]={hypotf(dx,dy),-angle(atan2f(dy,dx)-heading)*(180.f/PI),DT,a.elapsed,a.elapsed,
+            attacking(f),bool(other.down),bool(f.down),true};
+    }
     if(a.reset_wait){
-        if(--a.reset_wait==0)pose_reset(p,a);
+        if(--a.reset_wait==0){pose_reset(p,a);if(p.rendered_observation)capture_observed_pose(p,a);}
     }else{
-        for(int s=0;s<2;s++)advance_fighter(p,a.fighter[s],actions[s],a);
+        for(int s=0;s<2;s++){
+            if(bot_rows[s]){
+                const unsigned accepted=a.bot[s].accepted;advance_bot(p,a,s,bot_inputs[s]);
+                v.actions[index*2+s]=a.bot[s].accepted!=accepted?float(p.move_to_action[p.routes[a.fighter[s].route].move]):0.f;
+            }else advance_fighter(p,a.fighter[s],actions[s],a);
+        }
         float dx=a.fighter[1].x-a.fighter[0].x,dy=a.fighter[1].y-a.fighter[0].y;
         float distance=hypotf(dx,dy),minimum=2*p.body_radius;
         if(distance<minimum){
@@ -350,6 +424,7 @@ __device__ void advance_arena(View v,int index){
         for(int s=0;s<2;s++)a.hit_count+=hits[s];
         for(int s=0;s<2;s++)a.fighter[s].points+=a.delta[s];
     }
+    if(p.rendered_observation)update_observed_pose(v,a);
     for(int s=0;s<2;s++){
         const Fighter& f=a.fighter[s];
         if(!isfinite(f.x)||!isfinite(f.y)||!isfinite(f.yaw)||!isfinite(f.phase)||f.route<0||f.route>=24)a.failures|=1;
@@ -372,11 +447,11 @@ __device__ float entity_value(View v,const Arena& a,int side,int field){
     const FastFrame& frame=v.frames[frame_index(p,f,false)];
     if(field==0)return f.x;if(field==1)return f.y;if(field==2)return frame.root_z;
     if(field>=3&&field<7){float q[4];root_quaternion(f,frame,q);return q[field-3];}
-    if(field==7)return cosf(f.yaw)*f.vx+sinf(f.yaw)*f.vy;
-    if(field==8)return -sinf(f.yaw)*f.vx+cosf(f.yaw)*f.vy;
-    if(field==12)return f.omega;
+    if(field==7)return p.rendered_observation?f.observed_local[0]:cosf(f.yaw)*f.vx+sinf(f.yaw)*f.vy;
+    if(field==8)return p.rendered_observation?f.observed_local[1]:-sinf(f.yaw)*f.vx+cosf(f.yaw)*f.vy;
+    if(field==12)return p.rendered_observation?f.observed_omega:f.omega;
     if(field>=13&&field<42)return frame.q[field-13];
-    if(field>=42&&field<71){const FastFrame& old=v.frames[frame_index(p,f,true)];return (frame.q[field-42]-old.q[field-42])/DT;}
+    if(field>=42&&field<71){if(p.rendered_observation)return f.observed_joint_rate[field-42];const FastFrame& old=v.frames[frame_index(p,f,true)];return (frame.q[field-42]-old.q[field-42])/DT;}
     if(field==71)return f.down?1.f:0.f;
     if(field==72)return f.down?90.f:0.f;
     if(field==73)return frame.root_z;
@@ -392,7 +467,8 @@ __device__ float raw_value(View v,int index,int side,int field){
     if(field<172)return entity_value(v,a,field<86?side:side^1,field%86);
     if(field<184){
         int k=field-172;float fw,st,yaw;held_command(f.held,fw,st,yaw);
-        if(k==0)return cosf(.5f*f.yaw);if(k==3)return sinf(.5f*f.yaw);
+        if(f.bot_controlled){fw=f.bot_command.forward;st=f.bot_command.strafe;yaw=f.bot_command.yaw;}
+        if(k==0)return cosf(.5f*(v.p->rendered_observation?f.observed_heading:f.yaw));if(k==3)return sinf(.5f*(v.p->rendered_observation?f.observed_heading:f.yaw));
         if(k==4)return attacking(f)?0:fw;if(k==5)return attacking(f)?0:st;if(k==6)return attacking(f)?0:yaw;
         if(k==7)return float(f.route);if(k==8)return f.route>0&&f.route<7;
         if(k==9)return !translating(f)&&!settled(*v.p,f);
@@ -419,14 +495,14 @@ __device__ float raw_value(View v,int index,int side,int field){
         case 29:return r.fight_result;case 30:return r.fight_winner;
         case 33:return a.delta[side];case 34:return a.delta[opponent];
         case 35:return a.down_event[side];case 36:return a.down_event[opponent];
-        case 37:case 38:return a.hit_count;
+        case 37:case 38:return v.p->rendered_observation?rek_rendered_pose::weighted_delta_total(a.delta[side],a.delta[opponent]):a.hit_count;
     }
     return 0;
 }
 __device__ float scaled_value(View v,int index,int side,int field,float raw){
     const Fighter& f=v.state[index].fighter[side];const Fighter& enemy=v.state[index].fighter[side^1];
     if(field==86)return hypotf(enemy.x-f.x,enemy.y-f.y);
-    if(field==87)return angle(atan2f(enemy.y-f.y,enemy.x-f.x)-f.yaw)/PI;
+    if(field==87)return v.p->rendered_observation?rek_rendered_pose::bearing(f.x,f.y,enemy.x,enemy.y,f.observed_heading):angle(atan2f(enemy.y-f.y,enemy.x-f.x)-f.yaw)/PI;
     if(field==72||field==158)return raw/180;
     if(field==188||field==189)return raw/120;
     return raw;
@@ -463,7 +539,7 @@ __device__ void export_arena(View v,int index,int lane){
 __global__ void fast_reset(View v){
     int lane=threadIdx.x&31,index=(blockIdx.x*blockDim.x+threadIdx.x)>>5;
     if(index>=v.arenas)return;
-    if(lane==0){round_reset(*v.p,v.state[index],v.rounds[index],true,index);v.actions[index*2]=v.actions[index*2+1]=0;}
+    if(lane==0){round_reset(*v.p,v.state[index],v.rounds[index],true,index);if(v.p->rendered_observation){capture_observed_pose(*v.p,v.state[index]);update_observed_pose(v,v.state[index]);}v.actions[index*2]=v.actions[index*2+1]=0;}
     __syncwarp();export_arena(v,index,lane);
 }
 __global__ void fast_step(View v){
@@ -511,14 +587,26 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
            buffers->log_stride_bytes<sizeof(RekNative5Log))throw std::runtime_error("Invalid semantic CUDA configuration/buffers");
         FastAssets assets=load_fast_assets(*config);Parameters p{};
         const char* scoring=getenv("REK_FAST_SCORING");
-        if(scoring&&strcmp(scoring,"v4_spheres")&&strcmp(scoring,"recovered_hit_rules_v1"))throw std::runtime_error("Invalid REK_FAST_SCORING");
-        p.recovered_scoring=scoring&&!strcmp(scoring,"recovered_hit_rules_v1");
+        if(scoring&&strcmp(scoring,"v4_spheres")&&strcmp(scoring,"recovered_hit_rules_v1")&&strcmp(scoring,"recovered_hit_rules_v2"))throw std::runtime_error("Invalid REK_FAST_SCORING");
+        p.recovered_scoring=!scoring||!strcmp(scoring,"v4_spheres")?0:!strcmp(scoring,"recovered_hit_rules_v1")?1:2;
+        const char* bot_mode=getenv("REK_FAST_OPPONENT");
+        if(bot_mode&&strcmp(bot_mode,"v4_scripted")&&strcmp(bot_mode,"recovered_bot1_v1"))throw std::runtime_error("Invalid REK_FAST_OPPONENT");
+        p.recovered_bot=bot_mode&&!strcmp(bot_mode,"recovered_bot1_v1");
+        const char* observation=getenv("REK_FAST_OBSERVATION");
+        if(observation&&strcmp(observation,"v4_logical")&&strcmp(observation,"rendered_pose_v1"))throw std::runtime_error("Invalid REK_FAST_OBSERVATION");
+        p.rendered_observation=observation&&!strcmp(observation,"rendered_pose_v1");
+        if(p.recovered_bot&&!assets.recovered_catalog_compatible)throw std::runtime_error("Recovered Bot1 requires exact verified G1 route and impact metadata");
         if(p.recovered_scoring&&!assets.recovered_catalog_compatible)throw std::runtime_error("Recovered scoring requires exact verified build, strike catalog, route and clip metadata");
         std::copy(assets.impact_events.begin(),assets.impact_events.end(),p.impact_events);
         memcpy(p.impact_offsets,assets.impact_offsets,sizeof(p.impact_offsets));memcpy(p.impact_counts,assets.impact_counts,sizeof(p.impact_counts));
         p.recovered_hit_config=assets.recovered_hit_config;
         std::copy(assets.routes.begin(),assets.routes.end(),p.routes);
         std::copy(assets.action_to_route.begin(),assets.action_to_route.end(),p.action_to_route);
+        for(int action=16;action<33;action++)p.move_to_action[assets.routes[assets.action_to_route[action]].move]=action;
+        for(int route=7;route<24;route++)for(int j=0;j<assets.impact_counts[route];j++){
+            int limb=int(assets.impact_events[assets.impact_offsets[route]+j].limb);
+            if(limb){p.bot_catalog.primary_limb[assets.routes[route].move]=limb;break;}
+        }
         std::copy(assets.move_duration_ticks.begin(),assets.move_duration_ticks.end(),p.durations);
         memcpy(p.qindices,assets.qindices,sizeof(p.qindices));memcpy(p.vindices,assets.vindices,sizeof(p.vindices));
         memcpy(p.initial_qpos,assets.initial_qpos,sizeof(p.initial_qpos));memcpy(p.spawn,assets.spawn_xy,sizeof(p.spawn));
@@ -560,13 +648,15 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         fprintf(stderr,"semantic_cuda_v4: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; points-only slider/sphere dynamics; knockdowns unmodeled; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed);
         fprintf(stderr,"semantic_cuda_assets=%s\n",assets.provenance_json.c_str());
         fprintf(stderr,"semantic_cuda_scoring={\"mode\":\"%s\",\"geometry\":\"unchanged_bounding_sphere_union\",\"speed\":\"%s\",\"speed_threshold_m_s\":%.9g,\"cooldown_seconds\":%.9g,\"apex_gate\":%s,\"per_invocation_apex_dedup\":%s,\"hand_points\":1,\"foot_shin_points\":%d,\"hit_count_is_unweighted\":true,\"upright_model\":\"constant_upright_no_balance_dynamics\",\"contact_enter_model\":\"compact_per_limb_union_latch_reset_at_move_start\",\"authentic_parity\":false}\n",
-            p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",p.recovered_scoring?"maximum_relative_sphere_center_finite_difference_proxy":"absolute_striker_sphere_center_finite_difference",p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?p.recovered_hit_config.per_body_cooldown_seconds:10*DT,p.recovered_scoring?"true":"false",p.recovered_scoring?"true":"false",p.recovered_scoring?2:1);
+            p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",p.recovered_scoring?"maximum_relative_sphere_center_finite_difference_proxy":"absolute_striker_sphere_center_finite_difference",p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?p.recovered_hit_config.per_body_cooldown_seconds:10*DT,p.recovered_scoring?"true":"false",p.recovered_scoring?"true":"false",p.recovered_scoring?2:1);
         const char* modes[]={"scripted","neutral","retreat","strafe","mixed"};
+        fprintf(stderr,"semantic_cuda_opponent={\"implementation\":\"%s\",\"replaces\":\"scripted_rows_only\",\"difficulty\":0,\"decision_hz\":50,\"native_update_fixedupdate_equivalence\":false,\"rng\":\"%s\",\"continuous_commands\":%s,\"pose_route\":\"dominant_translation_canned_proxy\",\"actuator_model\":\"compact_slider\",\"own_recovery\":\"unsupported_fail_closed\",\"server_parity\":false}\n",
+            p.recovered_bot?"recovered_bot1_v1":"v4_scripted",p.recovered_bot?"candidate_private_xorshift32":"legacy_stateless_reset_hash",p.recovered_bot?"true":"false");
         fprintf(stderr,"semantic_cuda_parameters={\"version\":4,\"scoring_mode\":\"%s\",\"policy_round_feature\":\"episode_local_constant_1\",\"diagnostic_round_counter\":\"cumulative_session\",\"dt_seconds\":%.9g,\"round_seconds\":%.9g,\"move_speed_m_s\":%.9g,\"yaw_speed_rad_s\":%.9g,\"brake_rate_m_s2\":%.9g,\"yaw_ramp_seconds\":%.9g,\"settle_speed_m_s\":%.9g,\"body_radius_m\":%.9g,\"hit_speed_m_s\":%.9g,\"knockdowns_modeled\":false,\"hit_damage_resets\":false,\"hit_cooldown_ticks\":%d,\"floor_z_m\":%.9g,\"arena_half_extent_m\":[%.9g,%.9g],\"physics_parity\":false,"
-            "\"seed\":%u,\"opponent_mode\":\"%s\",\"mixed_weights\":[0.25,0.25,0.25,0.25],\"random_resets\":%s,\"reset_gap_min_m\":%.9g,\"reset_gap_max_m\":%.9g,\"reset_heading_spread_rad\":%.9g,"
+            "\"seed\":%u,\"opponent_mode\":\"%s\",\"opponent_controller\":\"%s\",\"observation_mode\":\"%s\",\"mixed_weights\":[0.25,0.25,0.25,0.25],\"random_resets\":%s,\"reset_gap_min_m\":%.9g,\"reset_gap_max_m\":%.9g,\"reset_heading_spread_rad\":%.9g,"
             "\"shaping_weight\":%.9g,\"shaping_gamma\":%.9g,\"shaping_target_m\":%.9g,\"shaping_bearing_weight\":%.9g,\"shaping_terminal_potential\":0,\"shaping_changes_points\":false}\n",
-            p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",DT,p.round_seconds,p.move_speed,p.yaw_speed,p.brake_rate,p.yaw_ramp,p.settle_speed,p.body_radius,p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?15:10,p.floor,p.half_extent[0],p.half_extent[1],
-            p.seed,modes[p.opponent_mode],p.random_resets?"true":"false",p.reset_gap_min,p.reset_gap_max,p.reset_heading_spread,
+            p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",DT,p.round_seconds,p.move_speed,p.yaw_speed,p.brake_rate,p.yaw_ramp,p.settle_speed,p.body_radius,p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?15:10,p.floor,p.half_extent[0],p.half_extent[1],
+            p.seed,modes[p.opponent_mode],p.recovered_bot?"recovered_bot1_v1":"v4_scripted",p.rendered_observation?"rendered_pose_v1":"v4_logical",p.random_resets?"true":"false",p.reset_gap_min,p.reset_gap_max,p.reset_heading_spread,
             p.shaping_weight,p.shaping_gamma,p.shaping_target,p.shaping_bearing_weight);
         return result.release();
     }catch(const std::exception& e){error_text=e.what();return nullptr;}

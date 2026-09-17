@@ -1,0 +1,2 @@
+{"event":"scoring_v2_catalog_fixture","cpu_cases":6,"failures":0,"contact_geometry":"synthetic","impact_catalog":"pinned_native"}
+{"event":"scoring_v2_production_adapter_fixture","gpu_cases":12,"failures":0,"routes":[23,10,10,7,7,23],"limbs":[2,1,5,0,4,3],"v1_points":[0,0,2,2,0,0],"v2_points":[1,2,2,2,2,0],"authentic_parity":false}

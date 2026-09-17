@@ -245,3 +245,64 @@ delta, while the original compact runtime uses an unweighted contact count.
 
 The source-grounded opponent audit is in [NATIVE_BOT1_GAP.md](NATIVE_BOT1_GAP.md).
 The existing compact script is not the recovered native Bot 1 controller.
+
+## Recovered Bot1 training target and rendered-pose observations
+
+Three explicit optional modes now address identified training mismatches:
+`recovered_bot1_v1`, `rendered_pose_v1`, and `recovered_hit_rules_v2`.
+The [implementation report](../../validation-quality/NATIVE_BOT1_IMPLEMENTATION_20260916.md)
+documents the recovered state machine, all 17 move pools, rendered-heading
+and derivative features, and catalog-derived limb eligibility. These modes
+retain the existing approximate slider/sphere dynamics. Native server physics,
+knockdowns, controller blending and authoritative move timing remain unmodeled.
+Legacy modes stay selectable; no existing viewer checkpoint is replaced.
+
+Training ran on Spark's NVIDIA GB10 using native PufferLib 5 CUDA, 512 arenas,
+horizon 128, minibatch 8192, BF16 sampled minGRU inference, seed 197 and 120 s
+rounds. All opponent rows use the recovered Bot1 candidate. There are no frozen,
+neutral, retreat-only or strafe-only opponents in this run. Shaping is zero.
+The weights warm-started bitwise from recovered-r2, with a fresh optimizer,
+learning rate 0.0001 annealed to zero, gamma 0.999, GAE 0.995, entropy 0.01 and
+replay ratio 1. Starting gaps span 0.55 to 2.5 m with randomized full headings.
+
+- Additional transitions: **536,870,912**.
+- Complete native training uptime: **335.270462513 s**.
+- Aggregate training throughput: **1,601,307 learner transitions/s**.
+- Training process exit: **0**; runtime failure bits: **0**.
+- Final checkpoint SHA-256:
+  `f87dae69a777e4ac28782bdee89b30d7434208d773be75bf97f56fba4a52b07e`.
+
+Throughput includes rollout and optimization. No Python interpreter or CPU
+physics stepping ran. The native startup asset loader still uses MuJoCo
+kinematics to bake clip poses; linked NCCL happens to reside in a Python package
+directory, which does not imply Python execution. Trainer display labels with
+zero-millisecond environment time are not a verified physics time breakdown.
+
+Each frozen evaluation comprises 256 randomized arenas on each side, sampled
+BF16 inference and 120 s rounds, with all three explicit new modes enabled.
+
+| Checkpoint | Evaluation seed | Wins / losses / draws | Win rate | Weighted points for / against |
+| --- | ---: | ---: | ---: | ---: |
+| recovered-r2 before this run | 200009 | 360 / 151 / 1 | 70.31% | 32,225 / 23,376 |
+| Bot1-rendered-r1 | 200009 | 499 / 11 / 2 | 97.46% | 77,961 / 25,045 |
+| Bot1-rendered-r1, fresh seed | 200011 | 500 / 12 / 0 | 97.66% | 79,505 / 25,085 |
+
+All 1,024 post-training games scored at least one hit. Mean first-hit time by
+side was 3.20 to 3.78 s. Facing within 0.16 rad covered 21.1% to 24.0% of ticks,
+and the busy fraction was approximately 96.8% to 96.9%. The two evaluation
+seeds were not training seeds. These are victories over the recovered
+controller inside the candidate dynamics, not evidence of authentic wins.
+
+The first authentic trial, `live-bot1-rendered-r1`, issued no fighting actions.
+The requested private route loaded an inactive solo AI session reporting
+Sparring Bot 3, difficulty 2, round 3. Exact-Bot1 validation correctly prevented
+control, but the driver reported the nonspecific entry timeout. Its stream
+cleanup and lease release succeeded. This is a session-selection failure,
+not a loss and not an authentic evaluation result.
+
+Commands, aggregate evaluations, trainer metrics, hashes and test stdout/stderr
+are saved in the adjacent `train-bot1-rendered-r1`, `eval-*-bot1-*` and
+`build-bot1` directories. Full raw traces and checkpoint payloads remain under
+`/home/spark-advantage/rek-training/policy-quality-20260916-r1` on Spark.
+Public text copies normalize trailing whitespace; no game binaries or weights
+are published.

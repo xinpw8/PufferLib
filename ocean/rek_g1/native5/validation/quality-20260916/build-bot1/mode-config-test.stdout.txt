@@ -1,0 +1,3 @@
+{"event":"compact_mode_identity","opponent_controller":"v4_scripted","observation_mode":"v4_logical","source":"runtime_config"}
+{"event":"compact_mode_identity","opponent_controller":"recovered_bot1_v1","observation_mode":"rendered_pose_v1","source":"runtime_config"}
+PASS explicit mode configuration, ambient override isolation, JSON identity, invalid-mode rejection
