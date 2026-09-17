@@ -11,8 +11,9 @@ const hash=file=>crypto.createHash('sha256').update(fs.readFileSync(file)).diges
 
 function validateConfig(config,platform=process.platform,hostname=os.hostname()) {
   requireValue(platform==='linux' && hostname==='spark-4ae3','isolated Spark host required; Windows execution forbidden');
-  requireValue(['safe_start','active_attach'].includes(config.mode),'explicit mode safe_start or active_attach required');
+  requireValue(['safe_start','active_attach','follow_on'].includes(config.mode),'explicit mode safe_start, active_attach or follow_on required');
   requireValue(Number.isFinite(config.max_seconds)&&config.max_seconds>0&&config.max_seconds<=180,'max_seconds must be >0 and <=180');
+  if(config.mode==='follow_on')requireValue(config.max_seconds<=130,'follow_on collection must be <=130 seconds');
   requireValue(typeof config.out==='string'&&path.isAbsolute(config.out),'absolute fresh output directory required');
   requireValue(Array.isArray(config.relay)&&config.relay.length>0&&config.relay.every(x=>typeof x==='string'),'existing relay command required');
 }
@@ -32,6 +33,54 @@ function assertActiveScope(state) {
   requireValue(privateArena(state)&&state.private_ai.policy_active_gameplay_proven===true&&
     state.private_ai.round_active===true&&state.private_ai.client_visual_only_fighter_pair===true&&
     state.measured_pairing?.exact_g1_vs_g1===true,'active isolated private AI G1 pair required');
+}
+function followOnStateKind(state) {
+  assertIsolation(state);
+  requireValue(privateArena(state),'follow_on requires proven private no-human AI scope');
+  const p=state.private_ai;
+  requireValue((p.local_slot===0||p.local_slot===1)&&p.opponent_slot===1-p.local_slot,
+    'follow_on fighter slots unavailable');
+  if(p.client_visual_only_fighter_pair===true)
+    requireValue(state.measured_pairing?.exact_g1_vs_g1===true,'follow_on requires an exact G1 pair');
+  if(p.round_active===true){assertActiveScope(state);return 'active';}
+  if(canExitLostPrivateSession(state))return 'lost_session';
+  if(canRequestPrivateRound(state))return 'idle';
+  requireValue(state.measured_pairing?.exact_g1_vs_g1===true&&p.client_visual_only_fighter_pair===true&&
+    p.round_active===false&&p.round_inactive===true&&p.post_fight_prompt===false&&
+    Number.isInteger(p.round_number)&&p.round_number>0&&
+    ['RoundActive','BetweenRounds','FightOver'].includes(p.phase),
+    'follow_on requires active play, actionable private Idle/loss, or a verified native round transition');
+  return 'transition';
+}
+async function waitForFollowOn(state,{getState,wait=delay,now=Date.now,log=()=>{},isStopping=()=>false}) {
+  const kind=followOnStateKind(state),started=now();
+  if(kind!=='transition')return {state,waited_ms:0};
+  const expected=botIdentity(state.private_ai),slot=state.private_ai.local_slot,deadline=started+45000;
+  log('follow_on_transition_wait',{max_seconds:45,opponent:expected,round_number:state.private_ai.round_number});
+  while(true) {
+    requireValue(!isStopping(),'follow_on stopped during native transition');
+    requireValue(now()<deadline,'follow_on native transition timeout');
+    await wait(Math.min(100,deadline-now()));
+    requireValue(!isStopping(),'follow_on stopped during native transition');
+    const remaining=deadline-now();
+    requireValue(remaining>0,'follow_on native transition timeout');
+    let readTimeout;
+    try {
+      state=await Promise.race([getState(),new Promise((_,reject)=>{
+        readTimeout=setTimeout(()=>reject(Error('follow_on native transition timeout')),remaining);
+      })]);
+    }finally{clearTimeout(readTimeout);}
+    const next=followOnStateKind(state);
+    validateBotIdentity(state.private_ai,expected);
+    requireValue(state.private_ai.local_slot===slot&&state.measured_pairing?.exact_g1_vs_g1===true&&
+      state.private_ai.client_visual_only_fighter_pair===true,'follow_on fighter scope changed during transition');
+    requireValue(now()<=deadline,'follow_on native transition timeout');
+    if(next!=='transition') {
+      const waited_ms=now()-started;
+      log('follow_on_transition_resolved',{state:next,waited_ms,round_number:state.private_ai.round_number});
+      return {state,waited_ms};
+    }
+  }
 }
 function observedNeutral(source) {
   const input=source?.input,v=input?.velocity_command_xyz;
@@ -78,6 +127,7 @@ async function run(configPath,dependencies={}) {
   let sourceCount=0,validatedSources=0,neutralSources=0,requested=0,applied=0,rejected=0,unmatched=0;
   let lastSourceAt=0,streamStartedAt=0,firstAppliedQpc=null,postAckSources=0,postAckNeutral=0,streamEnd=null;
   let initialState=null,finalState=null,relayExit=null,stoppedAt=0;
+  let followOn=null;
   const dropped={},reasons={},pacer=new LiveActionPacer(),cleanup={stop_accepted:false,release_accepted:false,verified:false};
   let resolveDone;const done=new Promise(resolve=>resolveDone=resolve);
   function finish(reason){if(!stopping){stopping=true;stopReason=reason;stoppedAt=Date.now();resolveDone();}}
@@ -130,10 +180,22 @@ async function run(configPath,dependencies={}) {
     await relay.wait(x=>x.event==='hello',30000);
     initialState=await getState();assertUnowned(initialState);write('initial-state.json',initialState);
     if(config.mode==='active_attach')assertActiveScope(initialState);
+    else if(config.mode==='follow_on')followOn={initial_state:followOnStateKind(initialState),transition_wait_ms:null,
+      attach_status:'follow_on_not_attached',partial_round_attachment:false};
     else requireValue(initialState.private_ai?.round_active!==true,'safe_start refuses a preexisting active round; choose active_attach explicitly');
     acquireAttempted=true;await command('AcquireExclusiveControl');leased=true;
     let state=initialState;
-    if(config.mode==='safe_start') {
+    if(config.mode==='follow_on') {
+      const resolved=await waitForFollowOn(state,{getState,log,isStopping:()=>stopping,
+        ...(dependencies.followOnClock??{})});
+      state=resolved.state;followOn.transition_wait_ms=resolved.waited_ms;
+      const kind=followOnStateKind(state);
+      followOn.partial_round_attachment=kind==='active';
+      followOn.attach_status=kind==='active'?(followOn.initial_state==='active'?
+        'follow_on_attached_to_preexisting_active_round':'follow_on_attached_after_native_transition'):
+        kind==='lost_session'?'follow_on_native_lost_session_recovery':'follow_on_native_start_requested_or_ready_bootstrap';
+    }
+    if(config.mode==='safe_start'||(config.mode==='follow_on'&&state.private_ai.round_active!==true)) {
       if(canExitLostPrivateSession(state)) {
         requireValue(config.enter_private===true,'explicit private-entry recovery required');
         await command('ExitLostG1PolicySession');const deadline=Date.now()+15000;
@@ -141,10 +203,15 @@ async function run(configPath,dependencies={}) {
       }
       state=await ensurePrivateArena(state,{enterPrivate:config.enter_private,command,getState,log,entryTimeoutMs:120000});
       if(state.private_ai.round_active!==true) {
-        requireValue(canRequestPrivateRound(state),'safe_start requires native Idle; no automatic round repeat');
+        requireValue(canRequestPrivateRound(state),`${config.mode} requires native Idle; no automatic round repeat`);
+        const expected=config.mode==='follow_on'?{bot:botIdentity(state.private_ai),slot:state.private_ai.local_slot}:null;
         await command('StartG1PolicyRound');const deadline=Date.now()+30000;
         do {
           state=await getState();requireValue(privateArena(state),'private arena proof lost while starting');
+          if(expected) {
+            validateBotIdentity(state.private_ai,expected.bot);
+            requireValue(state.private_ai.local_slot===expected.slot,'follow_on fighter scope changed while starting');
+          }
           if(state.private_ai.policy_active_gameplay_proven===true&&state.private_ai.round_active===true)break;
           requireValue(Date.now()<deadline,'active round timeout');await delay(100);
         }while(!stopping);
@@ -193,7 +260,9 @@ async function run(configPath,dependencies={}) {
       neutral_command_verified:applied>0&&postAckSources>0&&postAckNeutral===postAckSources,
       last_ack_qpc_ticks:pacer.lastAckQpc?.toString()??null,reasons,opponent,local_slot:pinnedSlot,
       round_identity_sha256:pinnedRound,initial_round:firstRound,final_round:lastRound,stream_end:streamEnd,cleanup,relay_exit:relayExit,
-      attach_status:config.mode==='active_attach'?'attached_to_preexisting_active_round':'native_start_requested_or_ready_bootstrap',
+      attach_status:config.mode==='follow_on'?followOn?.attach_status??'follow_on_not_attached':
+        config.mode==='active_attach'?'attached_to_preexisting_active_round':'native_start_requested_or_ready_bootstrap',
+      ...(config.mode==='follow_on'?{follow_on:followOn}:{}),
       whole_round_from_first_tick:false,policy_used:false,encoder_used:false,checkpoint_used:false,
       neutral_control_does_not_freeze_physics:true,server_acceptance:'unknown',global_input_emitted:false};
     summary.exit_code=passiveExitCode(summary);write('summary.json',summary);log('summary',summary);
@@ -207,4 +276,5 @@ if(require.main===module) {
   if(process.argv.length!==3){console.error('usage: node passive_defender_run.cjs config.json');process.exitCode=2;}
   else run(process.argv[2]).then(summary=>{process.exitCode=summary.exit_code;}).catch(error=>{console.error(error.message);process.exitCode=2;});
 }
-module.exports={run,validateConfig,assertUnowned,assertActiveScope,observedNeutral,validateSource,passiveExitCode,ISOLATION};
+module.exports={run,validateConfig,assertUnowned,assertActiveScope,followOnStateKind,waitForFollowOn,
+  observedNeutral,validateSource,passiveExitCode,ISOLATION};

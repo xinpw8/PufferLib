@@ -1,7 +1,8 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const assert=require('node:assert/strict');
-const {run,validateConfig,assertUnowned,assertActiveScope,observedNeutral,validateSource,passiveExitCode,ISOLATION}=require('./passive_defender_run.cjs');
+const {run,validateConfig,assertUnowned,assertActiveScope,followOnStateKind,waitForFollowOn,
+  observedNeutral,validateSource,passiveExitCode,ISOLATION}=require('./passive_defender_run.cjs');
 const {ensurePrivateArena}=require('./live_transfer_run.cjs');
 const ROUND='a'.repeat(64),OTHER='b'.repeat(64);
 function state(active=true) {
@@ -22,20 +23,51 @@ function source(sequence=1) {
       requested_move_index:null,move_request_pending_transport:false},action_mask:Array(33).fill(true),
     round:{number:1,active:true,time_remaining:120-sequence,result_value:0,clean_hits:[0,sequence]}};
 }
+function transitionState() {
+  const s=state(false);
+  Object.assign(s.private_ai,{phase:'RoundActive',round_number:2,round_inactive:true,post_fight_prompt:false});
+  return s;
+}
+function lostState() {
+  const s=state(false);
+  Object.assign(s.private_ai,{phase:'FightOver',post_fight_prompt:true,post_fight_is_winner:false});
+  return s;
+}
 
 if(process.argv[2]==='--fixture') {
-  const scenario=process.argv[3];let live=state(!['safe','ready','human_ready'].includes(scenario)),timer,seq=0;
+  const scenario=process.argv[3];let live=state(!['safe','ready','human_ready','idle_bot_changed'].includes(scenario)),timer,seq=0,reads=0;
+  if(scenario.startsWith('transition'))live=transitionState();
+  if(scenario==='lost')live=lostState();
+  if(scenario==='human')live.private_ai.human_in_opponent_slot=true;
+  if(scenario==='unknown')delete live.private_ai.opponent_slot_client_known;
   if(scenario==='owned')live.control.lease_held=true;
   if(scenario==='ready'||scenario==='human_ready'){live.private_ai.client_visual_only_fighter_pair=false;live.private_ai.policy_proven=false;}
   const send=x=>process.stdout.write(JSON.stringify(x)+'\n');
   console.error('offline fake relay only');send({event:'hello',protocol:'rek.ui_bridge.v1'});
   require('node:readline').createInterface({input:process.stdin}).on('line',line=>{
     const r=JSON.parse(line);
-    if(r.type==='get_state'){send({...live,request_id:r.request_id});return;}
+    if(r.type==='get_state') {
+      reads++;
+      if(scenario.startsWith('transition')&&reads===3) {
+        if(scenario==='transition_active')live={...state(true),control:live.control};
+        if(scenario==='transition_idle')live={...state(false),control:live.control};
+        if(scenario==='transition_lost')live={...lostState(),control:live.control};
+        if(scenario==='transition_human')live.private_ai.human_in_opponent_slot=true;
+        if(scenario==='transition_unknown')delete live.private_ai.opponent_slot_client_known;
+        if(scenario==='transition_bot')Object.assign(live.private_ai,{client_ai_difficulty:4,sparring_bot_number:5});
+      }
+      send({...live,request_id:r.request_id});return;
+    }
     if(r.type==='command') {
       if(r.command==='AcquireExclusiveControl')live.control.lease_held=true;
+      if(r.command==='ExitLostG1PolicySession')live={...state(false),scene:'Lobby',lobby_screen:'FreePlay',control:live.control};
+      if(r.command==='EnterSolo') {
+        live={...state(false),control:live.control};
+        live.private_ai.client_visual_only_fighter_pair=false;live.private_ai.policy_proven=false;
+      }
       if(['StartG1PolicyRound','ReadyPrivateAiSession'].includes(r.command)) {
         live={...state(true),control:live.control};if(scenario==='human_ready')live.private_ai.human_in_opponent_slot=true;
+        if(scenario==='idle_bot_changed')Object.assign(live.private_ai,{client_ai_difficulty:4,sparring_bot_number:5});
       }
       if(r.command==='StartG1PolicyStreamAnyAi') {
         live.control.g1_policy_stream_running=true;
@@ -99,6 +131,8 @@ if(process.argv[2]==='--fixture') {
       assert.throws(()=>validateConfig({...config(),max_seconds},'linux','spark-4ae3'),/max_seconds/);
     assert.throws(()=>validateConfig({...config(),mode:'automatic'},'linux','spark-4ae3'),/explicit mode/);
     assert.throws(()=>validateConfig({...config(),out:'relative'},'linux','spark-4ae3'),/absolute/);
+    assert.doesNotThrow(()=>validateConfig({...config(),mode:'follow_on',max_seconds:130},'linux','spark-4ae3'));
+    assert.throws(()=>validateConfig({...config(),mode:'follow_on',max_seconds:131},'linux','spark-4ae3'),/<=130/);
   });
   test('preexisting and unknown lease, stream, controller and isolation reject',()=>{
     assert.doesNotThrow(()=>assertUnowned(state()));
@@ -135,12 +169,57 @@ if(process.argv[2]==='--fixture') {
     assert.equal(passiveExitCode({...s,neutral_command_verified:false}),2);
     assert.equal(passiveExitCode({...s,cleanup:{verified:false}}),2);
   });
+  test('follow_on classifies only proven active, native transition, Idle or actionable loss',()=>{
+    assert.equal(followOnStateKind(state()),'active');
+    assert.equal(followOnStateKind(state(false)),'idle');
+    assert.equal(followOnStateKind(lostState()),'lost_session');
+    assert.equal(followOnStateKind(transitionState()),'transition');
+    for(const patch of [{round_inactive:false},{round_number:0},{post_fight_prompt:true},
+      {post_fight_prompt:undefined},{phase:'Unknown'},{opponent_slot:0},
+      {human_in_opponent_slot:true},{opponent_slot_client_known:undefined}]) {
+      const s=transitionState();Object.assign(s.private_ai,patch);assert.throws(()=>followOnStateKind(s),/follow_on/);
+    }
+    const noG1=transitionState();noG1.measured_pairing.exact_g1_vs_g1=false;
+    assert.throws(()=>followOnStateKind(noG1),/follow_on/);
+  });
+  test('follow_on waits at most 45 seconds with no commands and accepts native active/Idle/loss',async()=>{
+    for(const target of [state(),state(false),lostState()]) {
+      let clock=0,reads=0;
+      const result=await waitForFollowOn(transitionState(),{now:()=>clock,wait:async ms=>{clock+=ms;},
+        getState:async()=>++reads===3?target:transitionState()});
+      assert.equal(result.state,target);assert.equal(result.waited_ms,300);assert.equal(reads,3);
+    }
+    let clock=0,reads=0;
+    await assert.rejects(waitForFollowOn(transitionState(),{now:()=>clock,wait:async ms=>{clock+=ms;},
+      getState:async()=>{reads++;return transitionState();}}),/native transition timeout/);
+    assert.equal(clock,45000);assert.equal(reads,449);
+    let touched=false;
+    const active=state();assert.equal((await waitForFollowOn(active,{getState:async()=>{touched=true;}})).state,active);
+    assert.equal(touched,false);
+  });
+  test('follow_on deadline also bounds an unresponsive native state read',async()=>{
+    let clock=0;
+    await assert.rejects(waitForFollowOn(transitionState(),{now:()=>clock,wait:async()=>{clock=44999;},
+      getState:()=>new Promise(()=>{})}),/native transition timeout/);
+  });
+  test('follow_on transition rejects scope changes and stop before any action',async()=>{
+    for(const change of [s=>{s.private_ai.human_in_opponent_slot=true;},s=>{delete s.private_ai.opponent_slot_client_known;},
+      s=>{s.private_ai.client_ai_difficulty=4;s.private_ai.sparring_bot_number=5;},
+      s=>{s.private_ai.local_slot=1;s.private_ai.opponent_slot=0;},
+      s=>{s.measured_pairing.exact_g1_vs_g1=false;},s=>{s.foreground.isolated_session_proof='other';}]) {
+      const next=state();change(next);
+      await assert.rejects(waitForFollowOn(transitionState(),{wait:async()=>{},getState:async()=>next}));
+    }
+    await assert.rejects(waitForFollowOn(transitionState(),{isStopping:()=>true,getState:async()=>state()}),/stopped/);
+  });
   async function integration(scenario,mode='active_attach') {
     const dir=fs.mkdtempSync(path.join(os.tmpdir(),'rek-passive-fixture-'));
     const cfg={...config(),mode,enter_private:true,max_seconds:scenario==='cap'||scenario==='noack'?0.09:1,
       out:path.join(dir,'trial'),relay:[process.execPath,__filename,'--fixture',scenario]};
     const file=path.join(dir,'fixture.config.json');fs.writeFileSync(file,JSON.stringify(cfg));
-    const summary=await run(file,{platform:'linux',hostname:'spark-4ae3',quiet:true});
+    let clock=0;
+    const summary=await run(file,{platform:'linux',hostname:'spark-4ae3',quiet:true,
+      ...(scenario==='transition_timeout'?{followOnClock:{now:()=>clock,wait:async()=>{clock+=15000;}}}:{})});
     const records=name=>fs.readFileSync(path.join(cfg.out,name),'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
     const commands=records('relay.stdin.jsonl');
     assert(commands.filter(x=>x.type==='policy_action').every(x=>x.action===1));
@@ -164,6 +243,49 @@ if(process.argv[2]==='--fixture') {
       assert.equal(commands.filter(x=>x.command===start).length,1);
       assert.equal(commands.filter(x=>x.command==='StartG1PolicyStreamAnyAi').length,1);
     }
+  });
+  test('follow_on attaches existing or naturally resumed active play without ready/start commands',async()=>{
+    for(const [scenario,status] of [['normal','follow_on_attached_to_preexisting_active_round'],
+      ['transition_active','follow_on_attached_after_native_transition']]) {
+      const {summary:s,commands}=await integration(scenario,'follow_on');
+      assert.equal(s.exit_code,0);assert.equal(s.attach_status,status);
+      assert.equal(s.follow_on.partial_round_attachment,true);assert.equal(s.whole_round_from_first_tick,false);
+      assert.deepEqual(commands.filter(x=>x.type==='command').map(x=>x.command),
+        ['AcquireExclusiveControl','StartG1PolicyStreamAnyAi','StopG1PolicyStream','ReleaseExclusiveControl']);
+    }
+  });
+  test('follow_on actionable Idle and loss use existing native routes exactly once',async()=>{
+    for(const scenario of ['safe','transition_idle','lost','transition_lost']) {
+      const {summary:s,commands}=await integration(scenario,'follow_on');assert.equal(s.exit_code,0);
+      assert.equal(s.follow_on.partial_round_attachment,false);
+      const lost=scenario.includes('lost');
+      assert.equal(commands.filter(x=>x.command==='ExitLostG1PolicySession').length,lost?1:0);
+      assert.equal(commands.filter(x=>x.command==='ReadyPrivateAiSession').length,lost?1:0);
+      assert.equal(commands.filter(x=>x.command==='StartG1PolicyRound').length,lost?0:1);
+      assert.equal(commands.filter(x=>x.command==='StartG1PolicyStreamAnyAi').length,1);
+    }
+  });
+  test('follow_on timeout or changed human/bot/unknown scope cleans up without streaming or actions',async()=>{
+    for(const scenario of ['transition_timeout','transition_human','transition_unknown','transition_bot']) {
+      const {summary:s,commands}=await integration(scenario,'follow_on');assert.equal(s.exit_code,2);
+      assert.equal(s.requested,0);assert.equal(s.source_count,0);assert.equal(s.cleanup.verified,true);
+      if(scenario==='transition_timeout')assert.match(s.stop_reason,/native transition timeout/);
+      assert.deepEqual(commands.filter(x=>x.type==='command').map(x=>x.command),
+        ['AcquireExclusiveControl','StopG1PolicyStream','ReleaseExclusiveControl']);
+    }
+  });
+  test('follow_on initial human or unknown private scope refuses acquisition',async()=>{
+    for(const scenario of ['human','unknown']) {
+      const {summary:s,commands}=await integration(scenario,'follow_on');assert.equal(s.exit_code,2);
+      assert.equal(s.requested,0);assert(commands.every(x=>x.type==='get_state'));
+    }
+  });
+  test('follow_on pins the known opponent while a native Idle start is pending',async()=>{
+    const {summary:s,commands}=await integration('idle_bot_changed','follow_on');
+    assert.equal(s.exit_code,2);assert.equal(s.requested,0);assert.equal(s.cleanup.verified,true);
+    assert.match(s.stop_reason,/identity_changed/);
+    assert.equal(commands.filter(x=>x.command==='StartG1PolicyRound').length,1);
+    assert.equal(commands.filter(x=>x.command==='StartG1PolicyStreamAnyAi').length,0);
   });
   test('visible preexisting lease refuses ownership and emits no command or action',async()=>{
     const {summary:s,commands}=await integration('owned');assert.equal(s.exit_code,2);

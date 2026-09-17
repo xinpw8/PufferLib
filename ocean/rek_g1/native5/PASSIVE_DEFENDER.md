@@ -19,6 +19,15 @@ H.264 MP4 of the authentic client. It never loads that config's policy weights.
 Use `active_attach` explicitly to collect the remainder of an already-running
 round. Such a recording is identified as a partial initial round.
 
+Use `follow_on` for a subsequent collection when the native arena is already
+proven private, solo and against a known AI. It attaches active play or waits
+up to 45 seconds for a verified native round transition. Actionable private
+Idle/loss states use the existing start/recovery commands. It sends no inputs
+during the transition wait, pins the bot and fighter slots, and aborts on a
+scope change. Its collection cap is 130 seconds. It records whether attachment
+occurred partway through a round; it does not claim first-tick coverage. This
+mode has offline fixture coverage but has not yet completed a live trial.
+
 The production command runs through `wsl -e bash -lc 'ssh spark ...'`. The
 wrapper currently selects a 130-second collection cap and a verified existing
 native ARM64 FFmpeg executable on Spark. It records at 20 frames/s, 700 kb/s,
@@ -76,11 +85,43 @@ and score-rejection reasons are unavailable in the current stream. Raw poses
 and video support further analysis, but this recorder does not claim to resolve
 those missing fields or demonstrate simulator parity.
 
+`compare_passive_contacts.cjs ROUND_DIRECTORY NEW_REPORT_JSON` compares measured
+root geometry and limb motion around score updates with nonoverlapping unscored
+motion windows. Root heading uses the encoder's projected root-local +X axis
+in the Unity XZ plane. It is not a measured aiming axis or an attack identity.
+Unscored motion windows are controls, not confirmed missed attacks.
+
+### Existing native hit-message recorder
+
+The installed `RekEvidenceRecorder` 0.7.2 independently records the received
+`FightCoordinator.OnHitReceived` and `OnScoreReceived` messages. Read-only packet
+copies preserve world contact position, surface normal, relative speed and the
+native `is_kick` flag, plus score recipient and awarded points. The deployed
+recorder's capture gate currently requires Sparring Bot 1; the passive relay's
+broader any-known-bot support does not change that gate.
+
+`join_passive_hit_events.cjs RECORDER_JSONL RELAY_JSONL_OR_- NEW_OUTPUT_DIRECTORY`
+joins these receipts to measured pose brackets. Use `-` for native recorder
+root-pose samples when there is no relay trace. Outputs are `hit_events.jsonl`,
+`score_events.jsonl`, separate `five_point_awards.jsonl`, and `summary.json`.
+Raw packet data, hashes, receipt clocks, pose clocks, timing offsets, neutral
+observations and ambiguous associations are retained privately.
+
+Hit receipts confirm that the client received a native hit-effects event.
+They do not identify the canned move, strike limb, victim, rejection reason or
+authoritative server impact time. Same-frame score associations are explicitly
+noncausal. The hit channel is unreliable, so a missing received packet does not
+prove absence of contact. Five-point score awards are not counted as strikes.
+FixedUpdate poses can have different Unity times within one rendered frame;
+the joiner preserves all alternatives and flags this timing inconsistency.
+Successful file processing does not establish action-position repeatability.
+
 ## Tests
 
 Use Node's test runner on `passive_defender_run.test.cjs`,
 `audit_passive_defender.test.cjs`, `record_passive_defender.test.cjs` and the
-existing `live_transfer_run.test.cjs`. Fixtures cover private/human scope,
+existing `live_transfer_run.test.cjs`, plus `compare_passive_contacts.test.cjs`
+and `join_passive_hit_events.test.cjs`. Fixtures cover private/human scope,
 neutral-only dispatch, round/identity changes, terminal versus timeout,
 cleanup, variable observation intervals, score/motion windows and bounded
 pointer-free capture arguments.
@@ -91,3 +132,7 @@ See `validation/passive-defender-20260917/README.md` for the completed authentic
 private-AI round: 5,674 live source samples, neutral player commands, final score
 5:12, verified control release and an 11.02 MB MP4. Earlier interrupted attempts
 are retained separately. Both Windows and Spark passed all 61 tests.
+
+See `validation/passive-defender-repeat-20260917/README.md` for the user's
+annotations, four completed native captures with 31 hit receipts, three newly
+captured rounds, geometry counterexamples, and subsequent client-exit failures.

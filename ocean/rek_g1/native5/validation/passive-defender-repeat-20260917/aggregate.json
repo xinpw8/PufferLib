@@ -1,0 +1,828 @@
+{
+  "schema": "rek.passive_defender_repeat_evidence.v1",
+  "pose_qpc_frequency_hz": 10000000,
+  "date_utc": "2026-09-17",
+  "scope": "Four finalized native receive-event captures; two paired relay logs and two native-only automatic follow-up rounds.",
+  "source_root": "C:/rekagent/work/passive-defender-20260917-r1",
+  "rounds": [
+    {
+      "id": "round-r4",
+      "join_directory": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r4\\native-hit-join-r2",
+      "join_artifacts": {
+        "summary.json": {
+          "sha256": "7587451d331cfebf6ece8e32011f57cf14272e179726faa349cd926ebf465095",
+          "bytes": 3847
+        },
+        "hit_events.jsonl": {
+          "sha256": "a48b066d243ce95ab8aa2ada9111940b804c25f785c8d523700d19099129e474",
+          "bytes": 62000
+        },
+        "score_events.jsonl": {
+          "sha256": "17683edbfa3c013801a33b452cbf990f7725986ab641186a06045316543438a8",
+          "bytes": 64850
+        },
+        "five_point_awards.jsonl": {
+          "sha256": "304734559d9dc3af0f8b444616489e4863c958604b0bca812472d2481b19d733",
+          "bytes": 14398
+        }
+      },
+      "inputs": {
+        "recorder": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T044648.8582898Z-pid32-a96b4bb32bb6423db2d6b5139be5b4e9.jsonl",
+          "bytes": 209173909,
+          "sha256": "0d3825e596ddba7a6c1b3c8095e1b980e9685ce40638b3014a807c9b1265b4b3",
+          "join_hash_matches": true
+        },
+        "relay": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r4\\trial\\g1_policy_state.jsonl",
+          "bytes": 56296780,
+          "sha256": "252df5354254797eff1d7821b25925db278ef90fa13f07ca749c6de151501aa7",
+          "join_hash_matches": true
+        }
+      },
+      "capture_utc": {
+        "start": "2026-09-17T04:46:48.8582898+00:00",
+        "end": "2026-09-17T04:48:48.7615712+00:00"
+      },
+      "capture_duration_qpc_seconds": 119.902817,
+      "recorder_plugin_sha256": "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95",
+      "finalized": true,
+      "capture_error_count": 0,
+      "footer_packet_counts_match": true,
+      "received_hit_packets": 7,
+      "is_kick_counts": {
+        "0": 7
+      },
+      "score_packets": 9,
+      "score_fighter_and_award_counts": {
+        "0:5": 1,
+        "1:5": 1,
+        "1:1": 7
+      },
+      "awarded_points_by_slot": [
+        5,
+        12
+      ],
+      "five_point_awards": 2,
+      "five_point_awards_with_same_frame_hit": 0,
+      "pose_source": "relay_g1_policy_state",
+      "pose_records": 5673,
+      "pose_join_status_counts": {
+        "bracketed": 7
+      },
+      "same_frame_association_counts": {
+        "unique_same_frame_association_noncausal": 7
+      },
+      "native_observations": {
+        "root_pose_samples": 60023,
+        "compact_samples": 6003,
+        "measured_velocity_zero_samples": 6003,
+        "no_pending_move_samples": 6003,
+        "punching_false_samples": 6003,
+        "all_three_neutral_samples": 6003,
+        "outbound_velocity_requests": 6241,
+        "outbound_velocity_zero_requests": 6241
+      },
+      "native_transport_method_counts": {
+        "SendVelocityCommand": 6241
+      },
+      "hit_native_qpc_available": 0,
+      "hit_native_utc_available": 0,
+      "hits_with_position_normal_relative_speed": 7,
+      "hits_with_prior_next_and_same_frame_poses": 7,
+      "per_hit_rows": [
+        [0,54722,8711,157.7436121244331,159.3689339994331,159.37774390447845,0,[-0.8501763,0.8814993,-0.4220804],[0.9550144,-0.29575685,0.021802934],3.3858268,[[1,1,6]],3084348729479,-0.016929301303861166,0.46204671650885004,-0.07727121080450772,3084349237589,0.02932789824262727,1,"bracketed"],
+        [1,55970,8803,159.41717992488663,161.04250179988662,161.04487760447844,0,[-0.9149541,0.76460135,-0.37109247],[0.84923315,0.026227422,-0.5273663],2.325291,[[1,1,7]],3084365451482,-0.01681389597507632,0.4620478438724535,0.19808952199810714,3084366021028,0.020883801020403325,1,"bracketed"],
+        [2,61678,9218,167.08492872732427,168.71025060232427,168.71183580447845,0,[-0.52477974,0.8148611,-0.74358064],[0.9909,-0.0703222,-0.11476937],2.954773,[[1,1,8]],3084442144862,-0.01864640022677122,0.5507272004859077,-0.42161555719189364,3084442537209,0.02123529620180875,1,"bracketed"],
+        [3,63712,9362,169.8225529265873,171.4478748015873,171.44950090447844,0,[-0.4344753,0.7927743,-0.95772165],[0.98860115,-0.14900205,0.02159059],1.8593934,[[1,1,9]],3084469515764,-0.017295500283438514,0.5087579183748229,-0.10835327945872508,3084469939167,0.023283900226772403,1,"bracketed"],
+        [4,81573,10627,193.87843292942176,195.50375480442176,195.50859350447845,0,[-0.35690978,0.8195928,-0.98358333],[-0.9934835,0.10273064,-0.04936538],1.8400888,[[1,1,10]],3084710073421,-0.03002850056688544,0.5123865117708177,-0.09854761710302462,3084710604126,0.02952779903628766,1,"bracketed"],
+        [5,82804,10717,195.52251482426303,197.14783669926302,197.14943130447844,0,[-0.37866676,0.85482323,-1.0758158],[-0.9643916,0.26429603,-0.009825725],2.6266272,[[1,1,11]],3084726515092,-0.017162797619050707,0.4994648357305371,-0.5275295404176152,3084726882325,0.019912599206350023,1,"bracketed"],
+        [6,83919,10798,197.01853182397957,198.6438536989796,198.64525390447844,0,[-0.41679364,0.78517526,-0.9943753],[-0.9603018,0.27820334,-0.020575916],3.309879,[[1,1,12]],3084741464466,-0.016872696995449132,0.522439835340445,-0.38637604470190495,3084741881515,0.019715001417239364,1,"bracketed"]
+      ],
+      "comparison_to_join_r1": {
+        "hit_records_identical_except_relay_line": true,
+        "reason_for_relay_line_change": "r2 reads trial/g1_policy_state.jsonl; r1 read trial/relay.stdout.jsonl."
+      }
+    },
+    {
+      "id": "round-r5",
+      "join_directory": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r5\\native-hit-join-r2",
+      "join_artifacts": {
+        "summary.json": {
+          "sha256": "f895d207901933bc9713f1b4b796c32ec6c5c48deed2f11130833e61ccbcfe3f",
+          "bytes": 3846
+        },
+        "hit_events.jsonl": {
+          "sha256": "4fdf02e6742b5a439bcf2c7771d04216d36346f27dc6fc9220e86ba66e87ec10",
+          "bytes": 52990
+        },
+        "score_events.jsonl": {
+          "sha256": "7c8a7420fb5a78dda07e166cae8ad770d1025c4733545701cbf410095ca78c5f",
+          "bytes": 50303
+        },
+        "five_point_awards.jsonl": {
+          "sha256": "40f0f911ab52520d4c2356199147de89c280903efaf3a860e0bad883787d5840",
+          "bytes": 7173
+        }
+      },
+      "inputs": {
+        "recorder": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T070323.7099459Z-pid32-1b7328dddfe641a69ba4e8cc12a94529.jsonl",
+          "bytes": 209886981,
+          "sha256": "16295a3b3700e08c61fa5c126a4b223821dd4e6637c26d5d790096f556039c21",
+          "join_hash_matches": true
+        },
+        "relay": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r5\\trial\\g1_policy_state.jsonl",
+          "bytes": 58174810,
+          "sha256": "f9b4dc2023fb31d689561ba3c0ad858c7491caaa37d3c2df36f409d5d2c5c28e",
+          "join_hash_matches": true
+        }
+      },
+      "capture_utc": {
+        "start": "2026-09-17T07:03:23.7099459+00:00",
+        "end": "2026-09-17T07:05:23.724343+00:00"
+      },
+      "capture_duration_qpc_seconds": 120.0143985,
+      "recorder_plugin_sha256": "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95",
+      "finalized": true,
+      "capture_error_count": 0,
+      "footer_packet_counts_match": true,
+      "received_hit_packets": 6,
+      "is_kick_counts": {
+        "0": 5,
+        "1": 1
+      },
+      "score_packets": 7,
+      "score_fighter_and_award_counts": {
+        "1:1": 5,
+        "1:2": 1,
+        "0:5": 1
+      },
+      "awarded_points_by_slot": [
+        5,
+        7
+      ],
+      "five_point_awards": 1,
+      "five_point_awards_with_same_frame_hit": 0,
+      "pose_source": "relay_g1_policy_state",
+      "pose_records": 5881,
+      "pose_join_status_counts": {
+        "bracketed": 6
+      },
+      "same_frame_association_counts": {
+        "unique_same_frame_association_noncausal": 6
+      },
+      "native_observations": {
+        "root_pose_samples": 60037,
+        "compact_samples": 6004,
+        "measured_velocity_zero_samples": 6004,
+        "no_pending_move_samples": 6004,
+        "punching_false_samples": 6004,
+        "all_three_neutral_samples": 6004,
+        "outbound_velocity_requests": 6576,
+        "outbound_velocity_zero_requests": 6576
+      },
+      "native_transport_method_counts": {
+        "SendVelocityCommand": 6576
+      },
+      "hit_native_qpc_available": 0,
+      "hit_native_utc_available": 0,
+      "hits_with_position_normal_relative_speed": 6,
+      "hits_with_prior_next_and_same_frame_poses": 6,
+      "per_hit_rows": [
+        [0,7443,490762,8288.501033715986,8290.50902570153,8290.513956004479,0,[-0.97057974,1.0327723,-0.0155489575],[-0.9830634,0.083478466,-0.16314931],2.2116563,[[1,1,1]],3165660124596,-0.018614498298120452,0.637084353366906,-0.1226337197674705,3165660568015,0.02201930272167374,1,"bracketed"],
+        [1,14153,491255,8297.509721315193,8299.517713300736,8299.51976200448,0,[-1.015736,0.84840614,-0.20075385],[0.72178024,-0.03328262,-0.6913217],2.692952,[[1,1,2]],3165750205477,-0.016898901643799036,0.5774941357741462,-0.38560427426080396,3165750576772,0.019658900226204423,1,"bracketed"],
+        [2,28745,492333,8317.087275814909,8319.095267800452,8319.09943700448,0,[1.0606173,0.9864877,-1.5938822],[0.979991,-0.15191357,0.12860727],1.8911285,[[1,1,3]],3165945980152,-0.016841801303598913,0.49962140099279173,-0.5371011301654359,3165946421685,0.022715702947607497,1,"bracketed"],
+        [3,29771,492409,8318.463774914966,8320.47176690051,8320.47386190448,0,[1.0144969,0.8087044,-1.5664686],[0.99164146,-0.09927433,0.08241246],3.8648555,[[1,1,4]],3165959756818,-0.01897220096361707,0.4857995915470493,-0.1865936984277801,3165960146075,0.019064002266532043,1,"bracketed"],
+        [4,31368,492526,8320.608806016156,8322.6167980017,8322.61832930448,1,[1.0042707,0.4337695,-1.7315216],[0.9704498,-0.2007702,-0.13385983],3.7835608,[[1,2,6]],3165981209495,-0.01727990362815035,0.4104609205641872,-0.8262010216700872,3165981610634,0.02211169926340517,1,"bracketed"],
+        [5,44053,493453,8337.649493317744,8339.657485303287,8339.659020404479,0,[0.9449388,0.8736856,-1.56477],[0.07279343,-0.042398643,-0.9964454],2.4894173,[[1,1,7]],3166151610792,-0.019040603741814266,0.5835234973066638,0.012117758501956732,3166151989184,0.020087996032088995,1,"bracketed"]
+      ],
+      "comparison_to_join_r1": {
+        "hit_records_identical_except_relay_line": true,
+        "reason_for_relay_line_change": "r2 reads trial/g1_policy_state.jsonl; r1 read trial/relay.stdout.jsonl."
+      }
+    },
+    {
+      "id": "native-followup-round2",
+      "join_directory": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native-followup-round2",
+      "join_artifacts": {
+        "summary.json": {
+          "sha256": "8c80c082190c3976ef0aab63eb83fbc3f3bf1c0fefecb4a2e5dcecf1f87bbbe6",
+          "bytes": 3566
+        },
+        "hit_events.jsonl": {
+          "sha256": "4acd4c4fdfbbca7b6aa905550526ac139f214b2880a2cc56a39d8d2d63983fb9",
+          "bytes": 207455
+        },
+        "score_events.jsonl": {
+          "sha256": "fa6d89cd17a5a30d0f089e37b83f9d0187aaf75f31607ac322dd4c8a15673502",
+          "bytes": 186054
+        },
+        "five_point_awards.jsonl": {
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      },
+      "inputs": {
+        "recorder": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T070533.4813127Z-pid32-6df2daa4c8b744f0a35a3f0fab1b7173.jsonl",
+          "bytes": 210367469,
+          "sha256": "179e226a3fa5a9ad19c6faa34d58808a0c756ddd33ffd9f9c1142f78379320fc",
+          "join_hash_matches": true
+        },
+        "relay": null
+      },
+      "capture_utc": {
+        "start": "2026-09-17T07:05:33.4813127+00:00",
+        "end": "2026-09-17T07:07:33.5324607+00:00"
+      },
+      "capture_duration_qpc_seconds": 120.0511491,
+      "recorder_plugin_sha256": "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95",
+      "finalized": true,
+      "capture_error_count": 0,
+      "footer_packet_counts_match": true,
+      "received_hit_packets": 13,
+      "is_kick_counts": {
+        "0": 11,
+        "1": 2
+      },
+      "score_packets": 13,
+      "score_fighter_and_award_counts": {
+        "1:1": 11,
+        "1:2": 2
+      },
+      "awarded_points_by_slot": [
+        0,
+        15
+      ],
+      "five_point_awards": 0,
+      "five_point_awards_with_same_frame_hit": 0,
+      "pose_source": "native_root_pose_sample",
+      "pose_records": 60052,
+      "pose_join_status_counts": {
+        "inconsistent_unity_frame_time": 13
+      },
+      "same_frame_association_counts": {
+        "unique_same_frame_association_noncausal": 13
+      },
+      "native_observations": {
+        "root_pose_samples": 60052,
+        "compact_samples": 6006,
+        "measured_velocity_zero_samples": 6006,
+        "no_pending_move_samples": 6006,
+        "punching_false_samples": 6006,
+        "all_three_neutral_samples": 6006,
+        "outbound_velocity_requests": 7136,
+        "outbound_velocity_zero_requests": 7136
+      },
+      "native_transport_method_counts": {
+        "SendVelocityCommand": 7136
+      },
+      "hit_native_qpc_available": 0,
+      "hit_native_utc_available": 0,
+      "hits_with_position_normal_relative_speed": 13,
+      "hits_with_prior_next_and_same_frame_poses": 13,
+      "per_hit_rows": [
+        [0,31597,499875,8450.445344217687,8452.45333620323,8452.45808810448,0,[-0.66430455,0.8309949,-0.5763424],[0.033040322,0.00032103344,-0.99945396],2.1361494,[[1,1,1]],3167279746118,-0.0013442176878015744,0.630288883081702,-0.1598500521103405,3167279853150,0.0006557823126058793,8,"inconsistent_unity_frame_time"],
+        [1,34954,500141,8454.923003316326,8456.930995301871,8456.933205404479,0,[-0.4002154,1.0032601,-0.8670054],[-0.9175775,-0.08399548,-0.38858235],2.4527607,[[1,1,2]],3167324473330,-0.0010033163252956001,0.6357359982240277,-0.5051702343251494,3167324603591,0.0009966836732928641,8,"inconsistent_unity_frame_time"],
+        [2,40836,500608,8462.77368801729,8464.781680002834,8464.783838604479,0,[-0.22831443,0.78495556,-1.2715628],[-0.049909156,0.25024855,-0.9668944],3.464056,[[1,1,3]],3167403010513,-0.0016880172915989533,0.5618245649988481,0.25829561704965925,3167403077174,0.0003119827088085003,8,"inconsistent_unity_frame_time"],
+        [3,44024,500860,8467.019573511905,8469.027565497448,8469.02928940448,1,[0.2976658,0.5831855,-1.6513515],[0.61800086,0.5560681,-0.5557546],4.367856,[[1,2,5]],3167445432273,-0.0015735119050077628,0.3830728158183613,0.1267508766930996,3167445562731,0.0004264880953996908,8,"inconsistent_unity_frame_time"],
+        [4,46851,501085,8470.792678316326,8472.800670301871,8472.80236580448,0,[0.48181078,0.8835857,-1.8635209],[0.092300296,-0.051037606,-0.9944224],2.8384652,[[1,1,6]],3167483199349,-0.0006783163262298331,0.3602410193254551,-0.6933761983340322,3167483263078,0.0013216836741776206,9,"inconsistent_unity_frame_time"],
+        [5,53119,501581,8479.151564413265,8481.159556398808,8481.16123740448,0,[0.74180824,0.79601675,-1.8134092],[0.000264015,0.013932994,-0.9999029],1.7746072,[[1,1,7]],3167566748849,-0.0015644132654415444,0.570341271722322,-0.3046630659629274,3167566880685,0.00043558673496590927,8,"inconsistent_unity_frame_time"],
+        [6,55446,501766,8482.255014214852,8484.263006200397,8484.265302604479,0,[0.591224,0.88068634,-1.8601093],[0.9900908,-0.07148289,0.12087378],2.020974,[[1,1,8]],3167597801494,-0.0010142148530576378,0.5224784137618584,-0.249669880080404,3167597919047,0.0009857851473498158,9,"inconsistent_unity_frame_time"],
+        [7,61686,502261,8490.58148531746,8492.589477303005,8492.59172090448,0,[0.36425567,0.8020697,-1.7680777],[0.8959635,-0.11423536,-0.42918494],2.8597808,[[1,1,9]],3167681083663,-0.001485317459810176,0.4944001969912043,-0.22312855712074062,3167681168189,0.0005146825405972777,8,"inconsistent_unity_frame_time"],
+        [8,62568,502330,8491.751443013038,8493.759434998583,8493.76121680448,0,[0.5655608,0.9829607,-1.8280197],[-0.94953185,-0.31097758,-0.041014314],3.2009652,[[1,1,10]],3167692748414,-0.0014430130377149908,0.5280798282642127,-0.05396776480990839,3167692853272,0.0005569869626924628,8,"inconsistent_unity_frame_time"],
+        [9,70403,502952,8502.208068317743,8504.216060303288,8504.218336104479,1,[0.4409522,0.45229524,-2.010404],[0.71265024,0.08296988,-0.6965957],4.7690578,[[1,2,12]],3167797353169,-0.00006831774226156995,0.3762845899622113,0.7847603289043942,3167797420602,0.0019316822563268943,9,"inconsistent_unity_frame_time"],
+        [10,80949,503788,8516.275801913265,8518.283793898809,8518.28603620448,0,[0.81759703,0.8582198,-1.8488907],[-0.0615748,0.06720565,0.99583733],4.9898167,[[1,1,13]],3167938025858,-0.0018019132658082526,0.5245659796436789,-0.29879413856672865,3167938098757,0.000198086734599201,8,"inconsistent_unity_frame_time"],
+        [11,84468,504067,8520.968108715986,8522.97610070153,8522.97808820448,0,[0.65146357,0.8410403,-1.6031969],[-0.01646864,-0.029334495,0.999434],2.8326619,[[1,1,14]],3167984921275,-0.00010871598715311848,0.48861760034161694,0.4322690439534396,3167985045435,0.0018912840132543352,9,"inconsistent_unity_frame_time"],
+        [12,88992,504426,8527.001198511904,8529.009190497449,8529.01069890448,0,[0.512116,0.7782087,-1.3974735],[-0.4176406,0.03130894,0.9080727],2.5191932,[[1,1,15]],3168045245959,-0.0011985119035671232,0.3971792576872193,0.4228691216331233,3168045382751,0.0008014880968403304,8,"inconsistent_unity_frame_time"]
+      ]
+    },
+    {
+      "id": "native-followup-round3",
+      "join_directory": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native-followup-round3",
+      "join_artifacts": {
+        "summary.json": {
+          "sha256": "ab8a9d3e4d6e5f6c7f46deaeb98a4a79acd83000d818d388559c1e02873e3f71",
+          "bytes": 3562
+        },
+        "hit_events.jsonl": {
+          "sha256": "384175e239ea3e3a9e17428cf7ec6695dfe006e5b0a87ec10d3de979af8a1556",
+          "bytes": 80289
+        },
+        "score_events.jsonl": {
+          "sha256": "69785a102057ec538946ffcd0cf60c175478467523e54bdb8381169b5ec36c8b",
+          "bytes": 86000
+        },
+        "five_point_awards.jsonl": {
+          "sha256": "2333b04daf5887bb455f208fea01720c56ff8a255db70ba604944831b2c5342f",
+          "bytes": 13932
+        }
+      },
+      "inputs": {
+        "recorder": {
+          "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\native\\rek-private-ai-root-motion-20260917T070746.9276754Z-pid32-b3024a47b2fc4ebd9fd16fceb719f6cc.jsonl",
+          "bytes": 210232145,
+          "sha256": "a9dd4e34a7eb2d1efeb052d6daccb0501217aa7e63cdde61ec03354c8a560bea",
+          "join_hash_matches": true
+        },
+        "relay": null
+      },
+      "capture_utc": {
+        "start": "2026-09-17T07:07:46.9276754+00:00",
+        "end": "2026-09-17T07:09:46.8150157+00:00"
+      },
+      "capture_duration_qpc_seconds": 119.8873418,
+      "recorder_plugin_sha256": "a19f619c83eeecf9c6ccf79adf339be1f7f1cca8e3cd622f80616f268aaffa95",
+      "finalized": true,
+      "capture_error_count": 0,
+      "footer_packet_counts_match": true,
+      "received_hit_packets": 5,
+      "is_kick_counts": {
+        "0": 1,
+        "1": 4
+      },
+      "score_packets": 6,
+      "score_fighter_and_award_counts": {
+        "1:2": 4,
+        "0:5": 1,
+        "1:1": 1
+      },
+      "awarded_points_by_slot": [
+        5,
+        9
+      ],
+      "five_point_awards": 1,
+      "five_point_awards_with_same_frame_hit": 0,
+      "pose_source": "native_root_pose_sample",
+      "pose_records": 59983,
+      "pose_join_status_counts": {
+        "inconsistent_unity_frame_time": 5
+      },
+      "same_frame_association_counts": {
+        "unique_same_frame_association_noncausal": 5
+      },
+      "native_observations": {
+        "root_pose_samples": 59983,
+        "compact_samples": 5999,
+        "measured_velocity_zero_samples": 5999,
+        "no_pending_move_samples": 5999,
+        "punching_false_samples": 5999,
+        "all_three_neutral_samples": 5999,
+        "outbound_velocity_requests": 7121,
+        "outbound_velocity_zero_requests": 7121
+      },
+      "native_transport_method_counts": {
+        "SendVelocityCommand": 7121
+      },
+      "hit_native_qpc_available": 0,
+      "hit_native_utc_available": 0,
+      "hits_with_position_normal_relative_speed": 5,
+      "hits_with_prior_next_and_same_frame_poses": 5,
+      "per_hit_rows": [
+        [0,7161,505851,8551.261834013605,8553.269825999148,8553.27493430448,1,[-0.8445859,0.328053,-0.2074893],[-0.80166084,0.26100692,-0.53778744],3.1729949,[[1,2,2]],3168287918891,-0.0018340136048209388,0.6245477863980099,-0.48710708765072835,3168287977515,0.00016598639376752544,8,"inconsistent_unity_frame_time"],
+        [1,19859,506859,8568.20455661848,8570.212548604024,8570.214825404479,1,[-0.63373,0.48732382,-0.46280026],[0.061851747,0.02438873,0.99778736],4.6710057,[[1,2,4]],3168457323697,-0.0005566184809140395,0.4129050544909448,-0.02360452178816197,3168457392425,0.001443381519493414,9,"inconsistent_unity_frame_time"],
+        [2,28028,507506,8579.10135641298,8581.109348398526,8581.11117330448,1,[-0.8994562,0.5303244,-1.4293606],[-0.91733193,-0.38096574,0.11561679],4.9413524,[[1,2,6]],3168566279333,-0.0013564129803853575,0.583588845782955,-1.074957165948167,3168566354175,0.0006435870182031067,8,"inconsistent_unity_frame_time"],
+        [3,82958,511860,8652.398315114795,8654.40630710034,8654.41075300448,1,[-0.6476504,0.40175593,-1.8320411],[0.19073889,0.23529615,0.9530238],2.5720842,[[1,2,8]],3169299265085,-0.00031511479573964607,0.4506401258335797,0.21754318885445878,3169299329499,0.0016848852046678076,9,"inconsistent_unity_frame_time"],
+        [4,86652,512153,8657.331130817744,8659.339122803287,8659.34117590448,0,[-0.73800963,0.9208879,-1.8033113],[0.012952668,0.010924153,0.9998564],3.9007723,[[1,1,9]],3169348574666,-0.001130817743614898,0.5891473924306018,-0.19544547964848524,3169348650586,0.0008691822567925556,8,"inconsistent_unity_frame_time"]
+      ]
+    }
+  ],
+  "totals": {
+    "captures": 4,
+    "received_hit_packets": 31,
+    "nonkick_packets": 24,
+    "kick_packets": 7,
+    "score_packets": 35,
+    "five_point_awards": 4,
+    "neutral_compact_samples": 24012,
+    "compact_samples": 24012,
+    "zero_velocity_requests": 27074,
+    "outbound_velocity_requests": 27074,
+    "capture_errors": 0
+  },
+  "geometry_context": [
+    {
+      "round": "round-r4",
+      "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r4\\contact-context-r1.json",
+      "sha256": "a56a9cef6d00977cb4a0842257859ee97a296dd14fc2d21ea8f6a911b3b4e5c4",
+      "comparison": {
+        "ordinary_sized_opponent_updates": {
+          "count": 7,
+          "median_gap_per_window_m": {
+            "count": 7,
+            "min": 0.49215824631118754,
+            "median": 0.552282804782539,
+            "p90": 0.7273876770364893,
+            "max": 0.7327245996674346
+          },
+          "median_absolute_bearing_per_window_rad": {
+            "count": 7,
+            "min": 0.16448626009528572,
+            "median": 0.23994839453574576,
+            "p90": 0.29038489215726426,
+            "max": 0.3388318356366966
+          },
+          "peak_limb_speed_per_window_m_s": {
+            "count": 7,
+            "min": 1.8426910992223695,
+            "median": 2.854413207155284,
+            "p90": 3.527147579641248,
+            "max": 3.96728096036217
+          }
+        },
+        "unscored_motion_windows": {
+          "count": 82,
+          "median_gap_per_window_m": {
+            "count": 82,
+            "min": 0.0967230237414149,
+            "median": 0.6706189914834664,
+            "p90": 1.24743542106985,
+            "max": 2.1100739057816558
+          },
+          "median_absolute_bearing_per_window_rad": {
+            "count": 82,
+            "min": 0.06096087914701819,
+            "median": 0.4993129627482048,
+            "p90": 1.6054773778861917,
+            "max": 2.63895504653792
+          },
+          "peak_limb_speed_per_window_m_s": {
+            "count": 82,
+            "min": 2.0537077896596676,
+            "median": 3.6088590414954425,
+            "p90": 6.743086826125408,
+            "max": 9.898536306416531
+          }
+        }
+      },
+      "closest_no_score_motion_window": {
+        "segment": 1,
+        "bin": 48,
+        "label": "no_score_observed",
+        "start_remaining_seconds": 71.166595,
+        "end_remaining_seconds": 70.16627,
+        "start_gap_xz_m": 0.14894763317276616,
+        "start_opponent_bearing_rad": -0.9868981549173127,
+        "window_gap_xz_m": {
+          "count": 48,
+          "min": 0.042515895682292734,
+          "median": 0.0967230237414149,
+          "p90": 0.1614064541916679,
+          "max": 0.17022822413864158
+        },
+        "window_opponent_tilt_degrees": {
+          "count": 48,
+          "min": 38.241993,
+          "median": 56.1374855,
+          "p90": 88.35844000000002,
+          "max": 92.43192
+        },
+        "peak_named_bone_origin_speed_m_s": 4.0979855227897755,
+        "start_sample": 2259,
+        "end_sample": 2306
+      },
+      "fastest_no_score_motion_window": {
+        "segment": 1,
+        "bin": 114,
+        "label": "no_score_observed",
+        "start_remaining_seconds": 5.1192975,
+        "end_remaining_seconds": 4.119257,
+        "start_gap_xz_m": 0.5505429713003731,
+        "start_opponent_bearing_rad": -0.4763849637517575,
+        "window_gap_xz_m": {
+          "count": 47,
+          "min": 0.5238749365064339,
+          "median": 0.6379795064906398,
+          "p90": 0.8687672117974464,
+          "max": 0.8769989141744247
+        },
+        "window_opponent_tilt_degrees": {
+          "count": 47,
+          "min": 8.724698,
+          "median": 18.770943,
+          "p90": 27.9213446,
+          "max": 30.678646
+        },
+        "peak_named_bone_origin_speed_m_s": 9.898536306416531,
+        "start_sample": 5426,
+        "end_sample": 5472
+      },
+      "first_ordinary_score_context": {
+        "event_index": 1,
+        "time_remaining_seconds": 46.142788,
+        "score_delta": {
+          "actor": 0,
+          "opponent": 1
+        },
+        "at_score_sample": {
+          "sample_index": 3454,
+          "source_line": 7229,
+          "qpc_ticks": 3084349001501,
+          "utc": "2026-09-17T04:48:02.5343194+00:00",
+          "time_remaining_seconds": 46.142788,
+          "gap_horizontal_m": 0.45935396347340784,
+          "defender_relative_to_opponent_heading_m": {
+            "forward": 0.4542969167604889,
+            "lateral": -0.06797334169100691
+          },
+          "opponent_bearing_to_defender_rad": -0.14852138264612472,
+          "opponent_heading_rad": -1.0858786782128456,
+          "defender_heading_rad": 0.04136894645383488,
+          "heading_difference_rad": 1.1272476246666805,
+          "defender_root_height_m": 0.6901964,
+          "opponent_root_height_m": 0.6789584,
+          "defender_tilt_degrees": 6.6743245,
+          "opponent_tilt_degrees": 6.871354
+        }
+      }
+    },
+    {
+      "round": "round-r5",
+      "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r5\\contact-context-r1.json",
+      "sha256": "903de5e5af4ae2142bf436d18dbca898f75de3a3471ed4404410384082fb943e",
+      "comparison": {
+        "ordinary_sized_opponent_updates": {
+          "count": 6,
+          "median_gap_per_window_m": {
+            "count": 6,
+            "min": 0.47306346839483904,
+            "median": 0.5820936106344509,
+            "p90": 0.6921081919434267,
+            "max": 0.700647270499794
+          },
+          "median_absolute_bearing_per_window_rad": {
+            "count": 6,
+            "min": 0.08636266435697626,
+            "median": 0.2310921450826205,
+            "p90": 0.37770767601629623,
+            "max": 0.4471544958521954
+          },
+          "peak_limb_speed_per_window_m_s": {
+            "count": 6,
+            "min": 2.6305042170359965,
+            "median": 2.968783604298177,
+            "p90": 4.566240756020338,
+            "max": 5.072663006348919
+          }
+        },
+        "unscored_motion_windows": {
+          "count": 47,
+          "median_gap_per_window_m": {
+            "count": 47,
+            "min": 0.3748723291361571,
+            "median": 0.6870972956602965,
+            "p90": 1.6165651737291162,
+            "max": 1.9686761735079874
+          },
+          "median_absolute_bearing_per_window_rad": {
+            "count": 47,
+            "min": 0.0294588930762385,
+            "median": 0.3079021940964618,
+            "p90": 1.2456120030062547,
+            "max": 2.733383227708244
+          },
+          "peak_limb_speed_per_window_m_s": {
+            "count": 47,
+            "min": 1.8088690574820783,
+            "median": 3.9832418651326025,
+            "p90": 6.688942713517005,
+            "max": 8.505690593006742
+          }
+        }
+      },
+      "closest_no_score_motion_window": {
+        "segment": 0,
+        "bin": 60,
+        "label": "no_score_observed",
+        "start_remaining_seconds": 59.866108,
+        "end_remaining_seconds": 58.86587,
+        "start_gap_xz_m": 0.3899010050722749,
+        "start_opponent_bearing_rad": 0.3169542670681442,
+        "window_gap_xz_m": {
+          "count": 50,
+          "min": 0.3351588442204978,
+          "median": 0.3748723291361571,
+          "p90": 0.38356909487827906,
+          "max": 0.3929741797848577
+        },
+        "window_opponent_tilt_degrees": {
+          "count": 50,
+          "min": 45.048653,
+          "median": 89.751165,
+          "p90": 113.077284,
+          "max": 113.37559
+        },
+        "peak_named_bone_origin_speed_m_s": 6.480515372593273,
+        "start_sample": 2940,
+        "end_sample": 2989
+      },
+      "fastest_no_score_motion_window": {
+        "segment": 0,
+        "bin": 29,
+        "label": "no_score_observed",
+        "start_remaining_seconds": 90.91187,
+        "end_remaining_seconds": 89.911575,
+        "start_gap_xz_m": 0.3861704910332566,
+        "start_opponent_bearing_rad": 0.08687635205412936,
+        "window_gap_xz_m": {
+          "count": 48,
+          "min": 0.25932420803374756,
+          "median": 0.39950249176249136,
+          "p90": 0.7316687253335881,
+          "max": 0.8318019201499659
+        },
+        "window_opponent_tilt_degrees": {
+          "count": 48,
+          "min": 7.555878,
+          "median": 14.43063,
+          "p90": 30.1381446,
+          "max": 31.81021
+        },
+        "peak_named_bone_origin_speed_m_s": 8.505690593006742,
+        "start_sample": 1422,
+        "end_sample": 1469
+      },
+      "first_ordinary_score_context": {
+        "event_index": 0,
+        "time_remaining_seconds": 110.06325,
+        "score_delta": {
+          "actor": 0,
+          "opponent": 1
+        },
+        "at_score_sample": {
+          "sample_index": 482,
+          "source_line": 1433,
+          "qpc_ticks": 3165660342530,
+          "utc": "2026-09-17T07:03:33.6684129+00:00",
+          "time_remaining_seconds": 110.06325,
+          "gap_horizontal_m": 0.638040411100501,
+          "defender_relative_to_opponent_heading_m": {
+            "forward": 0.6316316528834434,
+            "lateral": -0.09020543926518826
+          },
+          "opponent_bearing_to_defender_rad": -0.1418541481257245,
+          "opponent_heading_rad": -2.38054320966342,
+          "defender_heading_rad": -0.024340410850553728,
+          "heading_difference_rad": 2.356202798812866,
+          "defender_root_height_m": 0.71765244,
+          "opponent_root_height_m": 0.7007222,
+          "defender_tilt_degrees": 5.0978904,
+          "opponent_tilt_degrees": 11.426116
+        }
+      }
+    }
+  ],
+  "incomplete_attempts": [
+    {
+      "id": "round-r6",
+      "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r6\\trial\\summary.json",
+      "sha256": "97d25d1b676f7e867204bfa557b0d3976ea8c849b1573afdfff889311194e67b",
+      "mode": "safe_start",
+      "stop_reason": "safe_start requires native Idle; no automatic round repeat",
+      "outcome": "incomplete",
+      "round_completed": false,
+      "collection_seconds": 0,
+      "source_count": 0,
+      "requested": 0,
+      "applied": 0,
+      "rejected": 0,
+      "only_requested_action": 1,
+      "neutral_command_verified": false,
+      "cleanup": {
+        "stop_accepted": true,
+        "release_accepted": true,
+        "verified": true
+      },
+      "exit_code": 2
+    },
+    {
+      "id": "round-r7",
+      "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r7\\trial\\summary.json",
+      "sha256": "75b96ddf22c556be34afa20bdef4820d12d3b7f053ba1435128dfab6a22df085",
+      "mode": "active_attach",
+      "stop_reason": "relay_exit",
+      "outcome": "incomplete",
+      "round_completed": false,
+      "collection_seconds": 6.968,
+      "source_count": 249,
+      "requested": 249,
+      "applied": 249,
+      "rejected": 0,
+      "only_requested_action": 1,
+      "neutral_command_verified": true,
+      "cleanup": {
+        "stop_accepted": false,
+        "release_accepted": false,
+        "verified": false
+      },
+      "exit_code": 2
+    },
+    {
+      "id": "round-r8",
+      "path": "C:\\rekagent\\work\\passive-defender-20260917-r1\\round-r8\\trial\\summary.json",
+      "sha256": "6f4b8455bc8e639f4230ed8562454450b648c3e67772602715942e47672a02e1",
+      "mode": "safe_start",
+      "stop_reason": "relay_exit",
+      "outcome": "incomplete",
+      "round_completed": false,
+      "collection_seconds": 9.81,
+      "source_count": 327,
+      "requested": 327,
+      "applied": 326,
+      "rejected": 1,
+      "only_requested_action": 1,
+      "neutral_command_verified": true,
+      "cleanup": {
+        "stop_accepted": false,
+        "release_accepted": false,
+        "verified": false
+      },
+      "exit_code": 2
+    },
+    {
+      "id": "round-r9",
+      "status": "not_started",
+      "reason": "Owned Docker exec exited with code 29 at 07:22:28 UTC before the capture-disabled runner began; no trial output directory exists locally.",
+      "process_evidence": "runtime-exits.json",
+      "config_exists": true,
+      "trial_directory_exists": false,
+      "evidence_limit": "Client-exit cause and the meaning of code 29 remain unknown; process evidence is separate from these four join outputs."
+    }
+  ],
+  "user_annotations": {
+    "path": "ocean/rek_g1/native5/validation/passive-defender-repeat-20260917/human_annotations.json",
+    "sha256": "b87687e5eeb3df573281a73f130b0260e51e908a309154b52515a4ae677e4780",
+    "recorder_hash_matches_r4": true,
+    "original_relay_sha256": "6671bd913a528ed971e4d8247dd7dff76fb6dfb2a6ff44060db5786ab617d543",
+    "original_relay_hash_verified_before_r2_replacement": true,
+    "r2_input_note": "R2 uses g1_policy_state.jsonl; the human annotation hashes the original relay.stdout.jsonl. Both were independently rehashed and match their respective provenance."
+  },
+  "mismatches": [],
+  "runtime_exit_evidence": {
+    "path": "runtime-exits.json",
+    "sha256": "8e989b2f48993fa1315af6e68016ad8404c8e06d4f2a9364261a1a32e2646106",
+    "source": "Docker exec_create/exec_start/exec_die matched by exec ID",
+    "recorded_exit_codes": [5, 29, 5, 29],
+    "latest_start_utc": "2026-09-17T07:22:12Z",
+    "latest_exit_utc": "2026-09-17T07:22:28Z",
+    "latest_failed_before_runner_started": true,
+    "cause": "unknown"
+  },
+  "limits": [
+    "31 received REK_Hit effects packets confirm receipt, not complete enumeration of all server contacts; delivery is unreliable. No received hit leaves contact unknown.",
+    "Decoded is_kick 0/1 is retained; no known canned clip ID, hand/foot side, target body zone, rejected attempt, pair key, or authoritative collider manifold is present.",
+    "All observed hit-score pairs share one Unity frame, but even a unique pairing is noncausal and supplies only a scoring-slot attacker candidate.",
+    "Four +5 awards are separate. None has a same-frame received hit; that absence does not prove absence of contact or identify the award cause.",
+    "Packets have Unity frame, Unity time, unscaled time and realtime receipt time. No per-hit QPC/UTC or server impact time is available.",
+    "18 native-only joins report inconsistent_unity_frame_time. FixedUpdate time and receive-callback frame time differ; each preserves 8-9 same-frame roots. A sub-2 ms Unity-time offset is not impact-time precision.",
+    "Heading is projected root-local +X in Unity XZ, not Unity +Z forward, controller heading or aiming intent. All geometry is rendered/replicated client context.",
+    "Neutral velocity, pending-move false and punching false are sampled evidence. Neutral control leaves physics and opponent AI active; it does not immobilize the defender.",
+    "Native-only follow-up rounds have no paired runner/relay proof of a fresh neutral request; their recorded compact input and outbound transport observations are reported directly.",
+    "No exact action-position repeatability, failed-contact classifier, policy improvement or hitbox model has been established."
+  ],
+  "per_hit_columns": [
+    "hit_index",
+    "recorder_line",
+    "unity_frame",
+    "unity_time_seconds",
+    "unity_unscaled_time_seconds",
+    "monotonic_receipt_time_seconds",
+    "is_kick",
+    "position_unity_xyz_m",
+    "surface_normal_unity_xyz",
+    "native_relative_speed_m_s",
+    "same_frame_scores_slot_award_newcount",
+    "prior_pose_qpc_ticks",
+    "prior_pose_minus_receipt_unity_seconds",
+    "prior_root_gap_xz_m",
+    "prior_opponent_bearing_to_local_rad",
+    "next_pose_qpc_ticks",
+    "next_pose_minus_receipt_unity_seconds",
+    "same_frame_pose_count",
+    "pose_join_status"
+  ],
+  "tests": {
+    "windows": {
+      "tests": 90,
+      "passed": 90,
+      "failed": 0,
+      "stdout": "windows-tests.stdout.txt",
+      "stdout_sha256": "c03479b6901cce9a711eb918723a3f5dcc1a4b81242358a8b438b45371622c28",
+      "stderr": "windows-tests.stderr.txt",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "basis": "local saved stdout checked"
+    },
+    "spark": {
+      "tests": 90,
+      "passed": 90,
+      "failed": 0,
+      "stdout": "spark-tests.stdout.txt",
+      "stdout_sha256": "5956f77bc4160ae2553fa490148e3e7ba1dd5931c3bb9789fa5edc34558a06cb",
+      "stderr": "spark-tests.stderr.txt",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "basis": "local saved stdout checked"
+    }
+  }
+}

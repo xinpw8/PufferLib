@@ -1,0 +1,48 @@
+{
+  "schema": "rek.passive_defender.human_annotations.v1",
+  "source_attempt": "round-r4",
+  "source_video_sha256": "77f89eecd98881718d89db7769cf088b6d797efbe47f9e7d62a062f86c2d5fc5",
+  "source_relay_sha256": "6671bd913a528ed971e4d8247dd7dff76fb6dfb2a6ff44060db5786ab617d543",
+  "annotator": "user",
+  "subsequent_native_cross_check": {
+    "recorder_filename": "rek-private-ai-root-motion-20260917T044648.8582898Z-pid32-a96b4bb32bb6423db2d6b5139be5b4e9.jsonl",
+    "recorder_sha256": "0d3825e596ddba7a6c1b3c8095e1b980e9685ce40638b3014a807c9b1265b4b3",
+    "received_hit_messages": 7,
+    "received_score_messages": 9,
+    "capture_errors": 0,
+    "observed_hit_class": "All seven packets have is_kick=0; exact move and strike limb are unspecified.",
+    "ordinary_score_context": "Each of the seven opponent +1 score messages shares a Unity frame with a received hit message.",
+    "earlier_awards_context": "The earlier two +5 score messages have no same-frame hit message. The hit channel is unreliable, so absence alone is not proof that physical contact did not occur.",
+    "clock_limit": "Hit and score packets have client Unity receipt clocks, without server time or per-packet QPC. Exact server impact timing and causal score-packet pairing remain unknown."
+  },
+  "clock_reference": "round 1 displayed seconds remaining; approximate human observations",
+  "annotations": [
+    {
+      "remaining_seconds_approximate": 44,
+      "observation": "Two hits had landed by this point; several more landed afterward.",
+      "corresponding_observed_opponent_point_updates_seconds_remaining": [46.142788, 44.54248],
+      "corresponding_point_increments": [1, 1]
+    },
+    {
+      "interval": "before those first two hits",
+      "observation": "No landed strikes; earlier pushing the defender off its feet was not a landed strike.",
+      "separate_observed_score_update": {
+        "remaining_seconds": 64.94734,
+        "actor_point_increment": 5,
+        "opponent_point_increment": 5,
+        "classification": "separate push/fall context; score cause not established by this packet-free recording"
+      }
+    },
+    {
+      "remaining_seconds_approximate": 7,
+      "observation": "One or two hits landed near this point.",
+      "nearby_observed_opponent_point_updates_seconds_remaining": [8.419604, 6.9195075],
+      "nearby_point_increments": [1, 1]
+    }
+  ],
+  "limits": [
+    "Visual user labels and measured score increments are stored separately.",
+    "The original recording does not itself identify opponent move IDs or authoritative collision manifolds.",
+    "These annotations do not convert every motion interval or every score increment into a confirmed strike."
+  ]
+}

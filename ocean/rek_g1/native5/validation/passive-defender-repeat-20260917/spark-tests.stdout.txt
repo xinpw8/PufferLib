@@ -1,0 +1,460 @@
+TAP version 13
+# Subtest: variable QPC intervals, both roles, named limb ordering and root-relative speed
+ok 1 - variable QPC intervals, both roles, named limb ordering and root-relative speed
+  ---
+  duration_ms: 2.51783
+  ...
+# Subtest: local slot 1 reverses roles and point counters without coordinate conversion
+ok 2 - local slot 1 reverses roles and point counters without coordinate conversion
+  ---
+  duration_ms: 1.15937
+  ...
+# Subtest: neutral checks exclude warmup, distinguish unknown/nonzero, and allow physical movement
+ok 3 - neutral checks exclude warmup, distinguish unknown/nonzero, and allow physical movement
+  ---
+  duration_ms: 0.671366
+  ...
+# Subtest: motion intervals, score windows, delayed points and unscored motion use bounded labels
+ok 4 - motion intervals, score windows, delayed points and unscored motion use bounded labels
+  ---
+  duration_ms: 3.829762
+  ...
+# Subtest: zero-width score context includes simultaneous above-threshold motion
+ok 5 - zero-width score context includes simultaneous above-threshold motion
+  ---
+  duration_ms: 0.357396
+  ...
+# Subtest: no derivatives or invented awards across discontinuities and counter decreases are explicit
+ok 6 - no derivatives or invented awards across discontinuities and counter decreases are explicit
+  ---
+  duration_ms: 0.791959
+  ...
+# Subtest: missing limbs, unsafe clocks and invalid JSON are counted and break history
+ok 7 - missing limbs, unsafe clocks and invalid JSON are counted and break history
+  ---
+  duration_ms: 0.222962
+  ...
+# Subtest: acknowledgments are reported separately from sampled command coverage
+ok 8 - acknowledgments are reported separately from sampled command coverage
+  ---
+  duration_ms: 0.132257
+  ...
+# Subtest: point sizes do not assert hit type or knockout cause
+ok 9 - point sizes do not assert hit type or knockout cause
+  ---
+  duration_ms: 0.134881
+  ...
+# Subtest: file audit streams original bytes, indexes raw lines and refuses overwrite
+ok 10 - file audit streams original bytes, indexes raw lines and refuses overwrite
+  ---
+  duration_ms: 79.420734
+  ...
+# Subtest: heading convention matches independently evaluated live encoder quaternion transform
+ok 11 - heading convention matches independently evaluated live encoder quaternion transform
+  ---
+  duration_ms: 2.789465
+  ...
+# Subtest: relative pose uses Unity horizontal XZ, not root height
+ok 12 - relative pose uses Unity horizontal XZ, not root height
+  ---
+  duration_ms: 0.692358
+  ...
+# Subtest: quantiles preserve empty/unavailable values and exact linear interpolation
+ok 13 - quantiles preserve empty/unavailable values and exact linear interpolation
+  ---
+  duration_ms: 0.102625
+  ...
+# Subtest: pre-score snapshots never look ahead and fixed controls exclude score-adjacent motion
+ok 14 - pre-score snapshots never look ahead and fixed controls exclude score-adjacent motion
+  ---
+  duration_ms: 2.416725
+  ...
+# Subtest: five-point simultaneous changes and decreases never become ordinary-hit examples
+ok 15 - five-point simultaneous changes and decreases never become ordinary-hit examples
+  ---
+  duration_ms: 0.497588
+  ...
+# Subtest: window history is bounded to its segment and unknown neutral status excludes controls
+ok 16 - window history is bounded to its segment and unknown neutral status excludes controls
+  ---
+  duration_ms: 0.394019
+  ...
+# Subtest: mismatched event source and malformed quaternions fail explicitly
+ok 17 - mismatched event source and malformed quaternions fail explicitly
+  ---
+  duration_ms: 0.309459
+  ...
+# Subtest: variable clocks preserve raw packets and use actual Unity pose offsets without inventing hit QPC
+ok 18 - variable clocks preserve raw packets and use actual Unity pose offsets without inventing hit QPC
+  ---
+  duration_ms: 9.74951
+  ...
+# Subtest: same-frame multiple hits and scores remain ambiguous, duplicates are retained and +5 separate
+ok 19 - same-frame multiple hits and scores remain ambiguous, duplicates are retained and +5 separate
+  ---
+  duration_ms: 4.183381
+  ...
+# Subtest: same-frame association preserves differing packet times instead of requiring equal timestamps
+ok 20 - same-frame association preserves differing packet times instead of requiring equal timestamps
+  ---
+  duration_ms: 2.480518
+  ...
+# Subtest: no received hit with +5 remains unknown and never becomes a strike or knockout
+ok 21 - no received hit with +5 remains unknown and never becomes a strike or knockout
+  ---
+  duration_ms: 3.939715
+  ...
+# Subtest: duplicate pose times and exact-frame sample retain every alternative
+ok 22 - duplicate pose times and exact-frame sample retain every alternative
+  ---
+  duration_ms: 2.181795
+  ...
+# Subtest: clock regression, round changes, frame contradictions and incomplete coverage are explicit
+ok 23 - clock regression, round changes, frame contradictions and incomplete coverage are explicit
+  ---
+  duration_ms: 15.032901
+  ...
+# Subtest: QPC capture bounds exclude unrelated poses and clock frequencies are never converted
+ok 24 - QPC capture bounds exclude unrelated poses and clock frequencies are never converted
+  ---
+  duration_ms: 1.825824
+  ...
+# Subtest: local slot 1 maps roots correctly; native QPC if explicitly present remains measured
+ok 25 - local slot 1 maps roots correctly; native QPC if explicitly present remains measured
+  ---
+  duration_ms: 1.286123
+  ...
+# Subtest: hashes cover exact capture bytes, output refuses overwrite and CLI works
+ok 26 - hashes cover exact capture bytes, output refuses overwrite and CLI works
+  ---
+  duration_ms: 88.898065
+  ...
+# Subtest: missing footer, malformed pose and mismatched packet counts are not complete captures
+ok 27 - missing footer, malformed pose and mismatched packet counts are not complete captures
+  ---
+  duration_ms: 4.929484
+  ...
+# Subtest: native-only joins root poses, keeps same-frame FixedUpdate alternatives and reports neutral observations
+ok 28 - native-only joins root poses, keeps same-frame FixedUpdate alternatives and reports neutral observations
+  ---
+  duration_ms: 2.131075
+  ...
+# Subtest: native-only falls back to compact samples without fabricating absent root-only fields
+ok 29 - native-only falls back to compact samples without fabricating absent root-only fields
+  ---
+  duration_ms: 1.130202
+  ...
+# Subtest: projected root +X heading is unavailable when vertical, and coincident roots have no bearing
+ok 30 - projected root +X heading is unavailable when vertical, and coincident roots have no bearing
+  ---
+  duration_ms: 1.090441
+  ...
+# Subtest: private entry timeout defaults to 45000 ms for existing learned-policy callers
+ok 31 - private entry timeout defaults to 45000 ms for existing learned-policy callers
+  ---
+  duration_ms: 2.904058
+  ...
+# Subtest: passive entry can opt into 120000 ms for delayed native loading and still times out
+ok 32 - passive entry can opt into 120000 ms for delayed native loading and still times out
+  ---
+  duration_ms: 5.157261
+  ...
+# Subtest: entryTimeoutMs rejects invalid and unbounded values before issuing commands
+ok 33 - entryTimeoutMs rejects invalid and unbounded values before issuing commands
+  ---
+  duration_ms: 0.332019
+  ...
+# Subtest: any known private bot is accepted, with measured identity and independent legacy Bot1 proof
+ok 34 - any known private bot is accepted, with measured identity and independent legacy Bot1 proof
+  ---
+  duration_ms: 0.082657
+  ...
+# Subtest: unknown bot identity, public route, humans, occupancy uncertainty and missing isolation reject scope
+ok 35 - unknown bot identity, public route, humans, occupancy uncertainty and missing isolation reject scope
+  ---
+  duration_ms: 0.150513
+  ...
+# Subtest: existing higher-bot arena is retained without exit, reentry, difficulty mutation or input
+ok 36 - existing higher-bot arena is retained without exit, reentry, difficulty mutation or input
+  ---
+  duration_ms: 0.114289
+  ...
+# Subtest: private entry accepts the assigned higher bot through the native private menu route
+ok 37 - private entry accepts the assigned higher bot through the native private menu route
+  ---
+  duration_ms: 0.164209
+  ...
+# Subtest: unproven entry requires explicit authorization and does not control a human arena
+ok 38 - unproven entry requires explicit authorization and does not control a human arena
+  ---
+  duration_ms: 1.581229
+  ...
+# Subtest: ready bootstrap requires measured absent visual pair and inactive private Idle
+ok 39 - ready bootstrap requires measured absent visual pair and inactive private Idle
+  ---
+  duration_ms: 0.111873
+  ...
+# Subtest: native ready accepts any spawned private AI without an exit or difficulty mutation
+ok 40 - native ready accepts any spawned private AI without an exit or difficulty mutation
+  ---
+  duration_ms: 0.289202
+  ...
+# Subtest: ready bootstrap waits for spawned active policy proof even if legacy Bot1 scope is false
+ok 41 - ready bootstrap waits for spawned active policy proof even if legacy Bot1 scope is false
+  ---
+  duration_ms: 0.076576
+  ...
+# Subtest: ready bootstrap stops on human/route changes, unknown identity, rejection and timeout
+ok 42 - ready bootstrap stops on human/route changes, unknown identity, rejection and timeout
+  ---
+  duration_ms: 0.950312
+  ...
+# Subtest: a stream pins bot identity and rejects mid-round changes or human occupancy
+ok 43 - a stream pins bot identity and rejects mid-round changes or human occupancy
+  ---
+  duration_ms: 0.168594
+  ...
+# Subtest: earlier successful actions cannot turn a later scope failure into a successful exit
+ok 44 - earlier successful actions cannot turn a later scope failure into a successful exit
+  ---
+  duration_ms: 0.182674
+  ...
+# Subtest: automatic between-round transition waits without sending a round request
+ok 45 - automatic between-round transition waits without sending a round request
+  ---
+  duration_ms: 0.053632
+  ...
+# Subtest: any private AI round starts through native Idle; a loss prompt requires exit
+ok 46 - any private AI round starts through native Idle; a loss prompt requires exit
+  ---
+  duration_ms: 0.053952
+  ...
+# Subtest: lost-session exit requires proven private AI, explicit inactivity, and a loss prompt
+ok 47 - lost-session exit requires proven private AI, explicit inactivity, and a loss prompt
+  ---
+  duration_ms: 0.143745
+  ...
+# Subtest: send failure consumes the pending response rejection during disconnect cleanup
+ok 48 - send failure consumes the pending response rejection during disconnect cleanup
+  ---
+  duration_ms: 5.558545
+  ...
+# Subtest: worker readiness pins the full selected inference contract
+ok 49 - worker readiness pins the full selected inference contract
+  ---
+  duration_ms: 0.373732
+  ...
+# Subtest: action identity and categorical range are checked before relay
+ok 50 - action identity and categorical range are checked before relay
+  ---
+  duration_ms: 0.342771
+  ...
+# Subtest: callback write failures are routed through shutdown instead of escaping
+ok 51 - callback write failures are routed through shutdown instead of escaping
+  ---
+  duration_ms: 0.083233
+  ...
+# Subtest: one decision stays inflight until the matching Unity action acknowledgment
+ok 52 - one decision stays inflight until the matching Unity action acknowledgment
+  ---
+  duration_ms: 0.21069
+  ...
+# Subtest: rejected game actions advance the measured boundary without action replay
+ok 53 - rejected game actions advance the measured boundary without action replay
+  ---
+  duration_ms: 0.104161
+  ...
+# Subtest: missing or regressing measured clocks cannot be replaced with host time
+ok 54 - missing or regressing measured clocks cannot be replaced with host time
+  ---
+  duration_ms: 0.137537
+  ...
+# Subtest: worker startup fatal rejects promptly, without waiting for ready timeout
+ok 55 - worker startup fatal rejects promptly, without waiting for ready timeout
+  ---
+  duration_ms: 89.798601
+  ...
+# Subtest: private entry retains the learned driver 45 second default
+ok 56 - private entry retains the learned driver 45 second default
+  ---
+  duration_ms: 3.038858
+  ...
+# Subtest: explicit 120 second entry wait accepts a delayed native reservation without reentering
+ok 57 - explicit 120 second entry wait accepts a delayed native reservation without reentering
+  ---
+  duration_ms: 5.387743
+  ...
+# Subtest: entry wait rejects invalid or unbounded durations before any command
+ok 58 - entry wait rejects invalid or unbounded durations before any command
+  ---
+  duration_ms: 0.359059
+  ...
+# Subtest: host, explicit mode, bounded time and fresh absolute output contract
+ok 59 - host, explicit mode, bounded time and fresh absolute output contract
+  ---
+  duration_ms: 0.615734
+  ...
+# Subtest: preexisting and unknown lease, stream, controller and isolation reject
+ok 60 - preexisting and unknown lease, stream, controller and isolation reject
+  ---
+  duration_ms: 0.297506
+  ...
+# Subtest: active input scope requires exact G1, no humans, private route and active proof
+ok 61 - active input scope requires exact G1, no humans, private route and active proof
+  ---
+  duration_ms: 0.150737
+  ...
+# Subtest: native source pins round, bot, local slot, schema and G1-shaped pair
+ok 62 - native source pins round, bot, local slot, schema and G1-shaped pair
+  ---
+  duration_ms: 0.273539
+  ...
+# Subtest: neutral readback is exact held action and zero command, never a frozen-pose assertion
+ok 63 - neutral readback is exact held action and zero command, never a frozen-pose assertion
+  ---
+  duration_ms: 0.112129
+  ...
+# Subtest: completion needs terminal round, neutral verification and cleanup proof
+ok 64 - completion needs terminal round, neutral verification and cleanup proof
+  ---
+  duration_ms: 0.154785
+  ...
+# Subtest: follow_on classifies only proven active, native transition, Idle or actionable loss
+ok 65 - follow_on classifies only proven active, native transition, Idle or actionable loss
+  ---
+  duration_ms: 0.232834
+  ...
+# Subtest: follow_on waits at most 45 seconds with no commands and accepts native active/Idle/loss
+ok 66 - follow_on waits at most 45 seconds with no commands and accepts native active/Idle/loss
+  ---
+  duration_ms: 4.731722
+  ...
+# Subtest: follow_on deadline also bounds an unresponsive native state read
+ok 67 - follow_on deadline also bounds an unresponsive native state read
+  ---
+  duration_ms: 3.731953
+  ...
+# Subtest: follow_on transition rejects scope changes and stop before any action
+ok 68 - follow_on transition rejects scope changes and stop before any action
+  ---
+  duration_ms: 0.337667
+  ...
+# Subtest: active attach records all frames and only neutral commands, completes one round, cleans up
+ok 69 - active attach records all frames and only neutral commands, completes one round, cleans up
+  ---
+  duration_ms: 111.853291
+  ...
+# Subtest: safe start and native ready each request one native round, never repeat
+ok 70 - safe start and native ready each request one native round, never repeat
+  ---
+  duration_ms: 374.087817
+  ...
+# Subtest: follow_on attaches existing or naturally resumed active play without ready/start commands
+ok 71 - follow_on attaches existing or naturally resumed active play without ready/start commands
+  ---
+  duration_ms: 473.061858
+  ...
+# Subtest: follow_on actionable Idle and loss use existing native routes exactly once
+ok 72 - follow_on actionable Idle and loss use existing native routes exactly once
+  ---
+  duration_ms: 1612.105611
+  ...
+# Subtest: follow_on timeout or changed human/bot/unknown scope cleans up without streaming or actions
+ok 73 - follow_on timeout or changed human/bot/unknown scope cleans up without streaming or actions
+  ---
+  duration_ms: 975.724037
+  ...
+# Subtest: follow_on initial human or unknown private scope refuses acquisition
+ok 74 - follow_on initial human or unknown private scope refuses acquisition
+  ---
+  duration_ms: 138.867866
+  ...
+# Subtest: follow_on pins the known opponent while a native Idle start is pending
+ok 75 - follow_on pins the known opponent while a native Idle start is pending
+  ---
+  duration_ms: 89.2997
+  ...
+# Subtest: visible preexisting lease refuses ownership and emits no command or action
+ok 76 - visible preexisting lease refuses ownership and emits no command or action
+  ---
+  duration_ms: 72.555424
+  ...
+# Subtest: safe_start refuses active attachment; ready rejects newly observed human
+ok 77 - safe_start refuses active attachment; ready rejects newly observed human
+  ---
+  duration_ms: 261.546564
+  ...
+# Subtest: round or bot identity change stops before another action and retains offending source
+ok 78 - round or bot identity change stops before another action and retains offending source
+  ---
+  duration_ms: 224.530942
+  ...
+# Subtest: duration cap remains incomplete; no ack never permits a second inflight action
+ok 79 - duration cap remains incomplete; no ack never permits a second inflight action
+  ---
+  duration_ms: 357.279266
+  ...
+# Subtest: nonzero measured command and unsuccessful cleanup cannot be reported as verified success
+ok 80 - nonzero measured command and unsuccessful cleanup cannot be reported as verified success
+  ---
+  duration_ms: 256.291589
+  ...
+# Subtest: capture is bounded, cursor-free and restricted to isolated display
+ok 81 - capture is bounded, cursor-free and restricted to isolated display
+  ---
+  duration_ms: 0.665142
+  ...
+# Subtest: invalid duration and relative paths rejected
+ok 82 - invalid duration and relative paths rejected
+  ---
+  duration_ms: 0.181314
+  ...
+# Subtest: driver ignoring SIGTERM is killed after its cleanup grace, only the owned child is signaled
+ok 83 - driver ignoring SIGTERM is killed after its cleanup grace, only the owned child is signaled
+  ---
+  duration_ms: 304.734116
+  ...
+# Subtest: driver gets cleanup time after operator SIGTERM without premature SIGKILL
+ok 84 - driver gets cleanup time after operator SIGTERM without premature SIGKILL
+  ---
+  duration_ms: 135.066793
+  ...
+# Subtest: capture receives q and can finish cleanly without signals
+ok 85 - capture receives q and can finish cleanly without signals
+  ---
+  duration_ms: 73.08879
+  ...
+# Subtest: capture ignoring q and SIGTERM has bounded escalation
+ok 86 - capture ignoring q and SIGTERM has bounded escalation
+  ---
+  duration_ms: 152.388642
+  ...
+# Subtest: hung full decode times out and cannot produce a successful validation result
+ok 87 - hung full decode times out and cannot produce a successful validation result
+  ---
+  duration_ms: 128.477086
+  ...
+# Subtest: even unavailable kill/close returns bounded unknown cleanup instead of claiming exit
+ok 88 - even unavailable kill/close returns bounded unknown cleanup instead of claiming exit
+  ---
+  duration_ms: 170.294624
+  ...
+# Subtest: FFmpeg self-exit close to 18 MB is marked even when the polling threshold was missed
+ok 89 - FFmpeg self-exit close to 18 MB is marked even when the polling threshold was missed
+  ---
+  duration_ms: 0.28045
+  ...
+# Subtest: unknown child closure, errors, and timeout cannot be successful even with exit code zero
+ok 90 - unknown child closure, errors, and timeout cannot be successful even with exit code zero
+  ---
+  duration_ms: 0.123169
+  ...
+1..90
+# tests 90
+# suites 0
+# pass 90
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7069.689958

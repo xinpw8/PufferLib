@@ -1,0 +1,54 @@
+{
+  "schema": "rek_owned_runtime_exit_audit_v1",
+  "audited_at_utc": "2026-09-17T07:33:47Z",
+  "source": "Docker daemon exec_create, exec_start and exec_die events, matched by exec ID",
+  "scope": "Read-only isolated Spark runtime diagnostic; no launch, restart, signal, bridge acquisition or game input",
+  "launcher_sha256": "7492972e056774b975ba2c398afdc8634cc6d05b05c6496fac38b239fd3f6c87",
+  "timestamp_resolution_seconds": 1,
+  "launches": [
+    {
+      "exec_id": "1aba1c89cf3608cbe4df68e2b952d879581658aead50ad6857fde44fad9b3deb",
+      "started_utc": "2026-09-17T04:45:03Z",
+      "exited_utc": "2026-09-17T07:10:47Z",
+      "exit_code": 5
+    },
+    {
+      "exec_id": "1b40f50fe79653856dc16169d3362fdfe13b45aec00f13bb43f93d4620998d9f",
+      "started_utc": "2026-09-17T07:12:23Z",
+      "exited_utc": "2026-09-17T07:12:40Z",
+      "exit_code": 29
+    },
+    {
+      "exec_id": "e704de4956deb453ff5bf0b1da063d12cc259fb5bf946aedecdf9425f55b299b",
+      "started_utc": "2026-09-17T07:15:49Z",
+      "exited_utc": "2026-09-17T07:17:39Z",
+      "exit_code": 5
+    },
+    {
+      "exec_id": "6261b7b1eb901494b115a1a9c6fb530504c73931f740edae2f094e108358a2c7",
+      "started_utc": "2026-09-17T07:22:12Z",
+      "exited_utc": "2026-09-17T07:22:28Z",
+      "exit_code": 29
+    }
+  ],
+  "findings": {
+    "game_exit_is_distinct_from_relay_exit_zero": true,
+    "launcher_uses_detached_docker_exec": true,
+    "inner_shell_exec_replaces_itself_with_box64_wine": true,
+    "launcher_has_cleanup_trap_or_timeout_or_game_kill": false,
+    "container_still_running_at_073144_utc": true,
+    "container_started_utc": "2026-09-15T06:23:10.442849616Z",
+    "container_pid_1_command": "Xorg",
+    "code_29_startup_unity_logs_byte_identical": true,
+    "code_29_startup_unity_log_bytes_each": 2528,
+    "code_29_last_unity_log_line": "Using Windows.Gaming.Input",
+    "latest_startup_failed_before_capture_disabled_runner_began": true
+  },
+  "interpretation": "Evidence does not affirm ordinary SSH or tool-session cleanup as the cause. The latest startup failure occurred without capture. Last logged stage is not a fault location.",
+  "unknowns": [
+    "Meaning of exit codes 5 and 29 in this Wine/box64/Unity execution path",
+    "Underlying fault, exception type and faulting stack",
+    "Whether any external process signal contributed"
+  ],
+  "recommended_next_diagnostic": "If separately authorized, retain detached exec identity and enable narrowly scoped Wine/box64 exception diagnostics for one bounded owned launch."
+}

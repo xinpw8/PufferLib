@@ -9,7 +9,7 @@ const FFMPEG_SHA='6bb182d0d75d23028db82e9e4f723ca69b853d055698486e6984ddb2c06fb8
 async function digest(file){const h=crypto.createHash('sha256');for await(const b of fs.createReadStream(file))h.update(b);return h.digest('hex');}
 async function main(basePath,out,mode){
   if(os.hostname()!=='spark-4ae3'||process.platform!=='linux')throw Error('Spark required');
-  if(![basePath,out].every(path.isAbsolute)||!['safe_start','active_attach'].includes(mode))throw Error('absolute paths and explicit start mode required');
+  if(![basePath,out].every(path.isAbsolute)||!['safe_start','active_attach','follow_on'].includes(mode))throw Error('absolute paths and explicit start mode required');
   const base=JSON.parse(fs.readFileSync(basePath,'utf8'));
   if(!Array.isArray(base.relay)||!base.relay.includes('policy-relay')||!base.relay.includes('DISPLAY=:98')||
       !/^[a-f0-9]{64}$/.test(base.relay.at(-1)))throw Error('existing pinned isolated relay required');
@@ -40,6 +40,6 @@ async function main(basePath,out,mode){
 }
 module.exports={main};
 if(require.main===module){
-  if(process.argv.length!==5)throw Error('usage: run_passive_defender_trial.cjs EXISTING_LIVE_CONFIG NEW_OUTPUT safe_start|active_attach');
+  if(process.argv.length!==5)throw Error('usage: run_passive_defender_trial.cjs EXISTING_LIVE_CONFIG NEW_OUTPUT safe_start|active_attach|follow_on');
   main(...process.argv.slice(2)).then(code=>{process.exitCode=code;}).catch(e=>{console.error(e.message);process.exitCode=2;});
 }
