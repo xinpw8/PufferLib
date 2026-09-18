@@ -20,7 +20,7 @@ namespace RekEvidenceRecorder;
 
 [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
 [BepInProcess("REK.exe")]
-public sealed class Plugin : BasePlugin
+public sealed partial class Plugin : BasePlugin
 {
     public const string PluginGuid = "openai.rek.evidence.recorder";
     public const string PluginName = "REK Private AI Evidence Recorder";
@@ -80,6 +80,8 @@ public sealed class Plugin : BasePlugin
     private string _gameAssemblySha256 = string.Empty;
     private string _metadataSha256 = string.Empty;
     private string _pluginSha256 = string.Empty;
+    private ConsentedPairCaptureTracker? _consentedPair;
+    private bool _consentedPairConfigPresent;
 
     private static string ResolveOutputRoot()
     {
@@ -113,6 +115,18 @@ public sealed class Plugin : BasePlugin
         }
 
         Instance = this;
+        var pairConfigPath = Path.Combine(Paths.ConfigPath, "rek-consented-pair-capture.json");
+        if (File.Exists(pairConfigPath))
+        {
+            _consentedPairConfigPresent = true;
+            try
+            {
+                var config = JsonSerializer.Deserialize<ConsentedPairCaptureConfig>(File.ReadAllText(pairConfigPath));
+                if (config?.Enabled == true) _consentedPair = new(config, DateTimeOffset.UtcNow, Stopwatch.GetTimestamp(), Stopwatch.Frequency);
+                else _consentedPairConfigPresent = false;
+            }
+            catch { Log.LogError("Consented pair capture configuration rejected; capture remains disabled for this process."); }
+        }
         if (!ArmSoloRouteHarmony())
         {
             Log.LogError("Recorder disabled: build-pinned solo-route observation hooks were not verified.");
@@ -121,7 +135,7 @@ public sealed class Plugin : BasePlugin
         }
         _behaviour = AddComponent<RecorderBehaviour>();
         Log.LogInfo(
-            $"Recorder armed for private Sparring Bot 1 scope only. Output root: {OutputRoot}. " +
+            $"Recorder armed; mode={(_consentedPairConfigPresent ? "opt_in_consented_pair_passive" : "private_sparring_bot_1")}. Output root: {OutputRoot}. " +
             "No input, network, authentication, registry, or game-state writes are implemented.");
     }
 
@@ -301,18 +315,21 @@ public sealed class Plugin : BasePlugin
 
     private static void ObserveClientConnectedPrefix()
     {
+        Instance?._consentedPair?.ObserveMembershipChange();
         Instance?._soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
             "network_client_connected_after_solo_route_binding");
     }
 
     private static void ObserveClientDisconnectedPrefix()
     {
+        Instance?._consentedPair?.ObserveMembershipChange();
         Instance?._soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
             "network_client_disconnected_after_solo_route_binding");
     }
 
     private static void ObserveSessionStoppedPrefix()
     {
+        Instance?._consentedPair?.ObserveMembershipChange();
         Instance?._soloRouteProofTracker.InvalidateIfRuntimeSessionBound(
             "network_session_stopped_after_solo_route_binding");
     }
@@ -377,6 +394,7 @@ public sealed class Plugin : BasePlugin
 
     private ScopeSnapshot EvaluateScope()
     {
+        if (_consentedPairConfigPresent) return EvaluateConsentedPairScope();
         if (Math.Abs((double)Time.fixedDeltaTime - ExpectedFixedDeltaTimeSeconds) >
             FixedDeltaTimeToleranceSeconds)
         {
@@ -577,8 +595,9 @@ public sealed class Plugin : BasePlugin
         var startClock = ClockStamp.Capture();
         var stamp = startClock.Utc.ToString("yyyyMMddTHHmmss.fffffffZ");
         var identity = Guid.NewGuid().ToString("N");
-        var basename = $"rek-private-ai-root-motion-{stamp}-pid{Environment.ProcessId}-{identity}.jsonl";
-        _finalPath = Path.Combine(OutputRoot, basename);
+        var basename = $"{(scope.ConsentedPair is null ? "rek-private-ai" : "rek-consented-pair")}-root-motion-{stamp}-pid{Environment.ProcessId}-{identity}.jsonl";
+        var outputRoot = scope.ConsentedPair is null ? OutputRoot : Path.Combine(OutputRoot, "consented-pair");
+        _finalPath = Path.Combine(outputRoot, basename);
         _partialPath = _finalPath + ".partial";
         _sampleCount = 0;
         _rootPoseSampleCount = 0;
@@ -606,7 +625,9 @@ public sealed class Plugin : BasePlugin
         var captureStartRecord = new Dictionary<string, object?>
         {
             ["event"] = "capture_start",
-            ["schema"] = RecorderContract.Schema,
+            ["schema"] = scope.ConsentedPair is null ? RecorderContract.Schema : "rek.consented_pair.protocol.v1",
+            ["capture_mode"] = scope.ConsentedPair is null ? "private_ai" : "consented_pair_passive",
+            ["consented_pair"] = scope.ConsentedPair,
             ["utc"] = startClock.Utc,
             ["stopwatch_timestamp_ticks"] = startClock.StopwatchTicks,
             ["stopwatch_frequency_hz"] = Stopwatch.Frequency,
@@ -691,7 +712,7 @@ public sealed class Plugin : BasePlugin
                 "REKApp.Robot.OnBoneMessageReceived:prefix_raw_packet_copy_and_postfix_decoded_snapshot_observation",
             },
             ["harmony_target_status"] = new Dictionary<string, bool?>(_harmonyTargetStatus),
-            ["authority_semantics"] = "client_observation_of_remote_authoritative_private_AI_mode",
+            ["authority_semantics"] = scope.ConsentedPair is null ? "client_observation_of_remote_authoritative_private_AI_mode" : "passive_client_observation_of_explicitly_consented_two_fighter_pair_nonexclusive_room",
             ["server"] = scope.Server,
             ["scope"] = ScopeRecord(scope),
             ["pairing"] = PairingRecord(scope),
@@ -701,7 +722,7 @@ public sealed class Plugin : BasePlugin
             ["initial_state"] = initialState,
         };
 
-        Directory.CreateDirectory(OutputRoot);
+        Directory.CreateDirectory(outputRoot);
         _writer = new StreamWriter(
             new FileStream(_partialPath, FileMode.CreateNew, FileAccess.Write, FileShare.Read, 1 << 20),
             new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
@@ -712,7 +733,7 @@ public sealed class Plugin : BasePlugin
         _lastFlushTime = Time.realtimeSinceStartupAsDouble;
         WriteRecord(captureStartRecord);
         _writer.Flush();
-        Log.LogInfo($"Private AI evidence capture started: {_partialPath}");
+        Log.LogInfo($"Evidence capture started: {_partialPath}");
     }
 
     private static Dictionary<string, object?> BuildInitialState(
@@ -1365,7 +1386,7 @@ public sealed class Plugin : BasePlugin
         });
     }
 
-    private static Dictionary<string, object?> ScopeRecord(ScopeSnapshot scope) => new()
+    private static Dictionary<string, object?> ScopeRecord(ScopeSnapshot scope) => scope.ConsentedPair ?? new()
     {
         ["allowed"] = true,
         ["network_connected"] = true,
@@ -2236,6 +2257,7 @@ public sealed class Plugin : BasePlugin
         public SoloRouteProofSnapshot RouteProof { get; private init; }
         public SoloRouteScopeDecision PrivacyDecision { get; private init; }
         public Dictionary<string, object?>? Server { get; private init; }
+        public Dictionary<string, object?>? ConsentedPair { get; set; }
 
         public static ScopeSnapshot Denied(string reason) => new(false, reason);
 

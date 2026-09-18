@@ -17,7 +17,7 @@ var g1Bones = RecorderContract.G1BoneNames
     .Select(name => (string?)name)
     .ToArray();
 Expect("schema_v7", RecorderContract.Schema == "rek.private_ai.protocol.v7");
-Expect("plugin_version_0_7_3", RecorderContract.PluginVersion == "0.7.3");
+Expect("plugin_version_0_7_4", RecorderContract.PluginVersion == "0.7.4");
 Expect("t800_bone_count_26", t800Bones.Length == 26);
 Expect("g1_bone_count_30", g1Bones.Length == 30);
 Expect(

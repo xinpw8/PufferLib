@@ -6,7 +6,7 @@ namespace RekEvidenceRecorder;
 internal static class RecorderContract
 {
     internal const string Schema = "rek.private_ai.protocol.v7";
-    internal const string PluginVersion = "0.7.3";
+    internal const string PluginVersion = "0.7.4";
     internal const string RequiredPairing = "exact_homogeneous_supported_runtime_pair";
     internal const string T800RobotId = "t800";
     internal const string G1RobotId = "g1";
