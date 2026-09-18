@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Il2CppInterop.Runtime;
 using RekEvidence;
 using REKApp;
@@ -9,9 +10,53 @@ namespace RekEvidenceRecorder;
 
 public sealed partial class Plugin
 {
+    private void ReloadConsentedPairConfiguration(bool startup)
+    {
+        var nowQpc = Stopwatch.GetTimestamp();
+        if (!startup && nowQpc < _nextConsentedPairConfigPollQpc) return;
+        _nextConsentedPairConfigPollQpc = checked(nowQpc + Stopwatch.Frequency);
+        var exists = File.Exists(_consentedPairConfigPath);
+        if (startup) _consentedPairConfigPresent = exists;
+        if (!_consentedPairConfigPresent) return;
+        try
+        {
+            if (!exists)
+            {
+                _consentedPairConfigReason = "consented_pair_configuration_missing";
+                _consentedPair?.RejectConfiguration(_consentedPairConfigReason);
+                return;
+            }
+            var config = JsonSerializer.Deserialize<ConsentedPairCaptureConfig>(File.ReadAllText(_consentedPairConfigPath));
+            if (startup)
+                _consentedPairConfigPresent = ConsentedPairCaptureTracker.UsePairModeAtStartup(exists, config, false);
+            if (!_consentedPairConfigPresent) return;
+            if (_consentedPair is not null)
+                _consentedPairConfigReason = _consentedPair.Reload(config, DateTimeOffset.UtcNow, nowQpc);
+            else if (config?.Enabled == true)
+            {
+                _consentedPair = new(config, DateTimeOffset.UtcNow, nowQpc, Stopwatch.Frequency);
+                _consentedPairConfigReason = "consented_pair_configuration_loaded";
+            }
+            else _consentedPairConfigReason = config is null
+                ? "consented_pair_configuration_invalid" : "consented_pair_configuration_disabled";
+        }
+        catch
+        {
+            _consentedPairConfigReason = "consented_pair_configuration_invalid";
+            _consentedPair?.RejectConfiguration(_consentedPairConfigReason);
+        }
+    }
+
+    private void LogConsentedPairScopeStatus(string reason)
+    {
+        if (!_consentedPairConfigPresent || reason == _consentedPairScopeStatus) return;
+        _consentedPairScopeStatus = reason;
+        Log.LogInfo($"Consented pair scope status: {reason}");
+    }
+
     private ScopeSnapshot EvaluateConsentedPairScope()
     {
-        if (_consentedPair is null) return ScopeSnapshot.Denied("consented_pair_configuration_invalid");
+        if (_consentedPair is null) return ScopeSnapshot.Denied(_consentedPairConfigReason);
         if (Math.Abs((double)Time.fixedDeltaTime - ExpectedFixedDeltaTimeSeconds) > FixedDeltaTimeToleranceSeconds)
             return ScopeSnapshot.Denied("consented_pair_fixed_clock_invalid");
         var coordinator = UnityEngine.Object.FindFirstObjectByType<FightCoordinator>();

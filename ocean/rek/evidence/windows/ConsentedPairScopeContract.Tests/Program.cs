@@ -70,3 +70,84 @@ tracker = Tracker(); tracker.Evaluate(facts with { ObservedConnectionSet = null 
 Expect(tracker.Evaluate(facts with { ObservedConnectionSet = null }, 1300).CaptureAllowed, "unknown_roster_is_explicit_passive_only");
 Expect(!tracker.Evaluate(facts with { ObservedConnectionSet = null }, 61000).CaptureAllowed, "passive_consent_expires");
 Console.WriteLine($"{{\"test\":\"consented_pair_passive_capture\",\"checks_total\":{checks},\"failed\":0,\"control_authorized\":false}}");
+
+DateTimeOffset Utc(long qpc) => DateTimeOffset.UnixEpoch.AddMilliseconds(qpc - 1000);
+var extended = config with { ExpiresUtc = DateTimeOffset.UnixEpoch.AddHours(2) };
+var longGrant = grant with { ExpiresQpc = 14401000 };
+Expect(ConsentedPairScopeContract.EvaluatePassiveCapture(longGrant, observation, 2000).CaptureAllowed,
+    "passive_four_hour_limit_allowed");
+Expect(!ConsentedPairScopeContract.EvaluatePassiveCapture(longGrant with { ExpiresQpc = 14401001 }, observation, 2000).CaptureAllowed,
+    "passive_over_four_hours_rejected");
+Reject(longGrant, observation, "consent_clock_invalid");
+Expect(!ConsentedPairCaptureTracker.UsePairModeAtStartup(false, null, false), "absent_startup_preserves_ai_default");
+Expect(!ConsentedPairCaptureTracker.UsePairModeAtStartup(true, config with { Enabled = false }, false), "disabled_startup_preserves_ai_default");
+Expect(ConsentedPairCaptureTracker.UsePairModeAtStartup(true, null, true), "invalid_startup_does_not_fall_into_ai");
+Expect(ConsentedPairCaptureTracker.UsePairModeAtStartup(true, config, false), "enabled_startup_uses_pair_mode");
+
+tracker = Tracker(); tracker.Evaluate(facts, 1200);
+Expect(tracker.Reload(extended, Utc(11000), 11000) == "consented_pair_configuration_loaded", "explicit_same_pair_renewal_loaded");
+var renewed = tracker.Evaluate(facts, 62000);
+Expect(renewed.CaptureAllowed && !renewed.ControlAllowed, "renewed_capture_beyond_original_expiry_never_control");
+Expect(tracker.LocalId == "stable-a" && tracker.OtherId == "stable-b" && tracker.ArenaId == "arena", "renewal_retains_pinned_ids_arena");
+Expect(!tracker.Evaluate(facts with { SessionInstance = "other-session" }, 63000).CaptureAllowed, "renewal_retains_session_binding");
+tracker.Reload(extended with { ExpiresUtc = extended.ExpiresUtc.AddMinutes(1) }, Utc(64000), 64000);
+Expect(!tracker.Evaluate(facts, 65000).CaptureAllowed, "renewal_cannot_clear_session_change_latch");
+
+tracker = Tracker(); tracker.Evaluate(facts, 1200);
+Expect(tracker.Evaluate(facts, 61000).Reason == "consent_expired", "expiry_reported_before_renewal");
+tracker.Reload(extended, Utc(62000), 62000);
+Expect(tracker.Evaluate(facts, 63000).CaptureAllowed, "same_pair_renewal_recovers_expired_capture");
+Expect(!tracker.Evaluate(facts, 7201000).CaptureAllowed, "renewed_capture_expires_at_new_deadline");
+
+tracker = Tracker(); tracker.Evaluate(facts, 1200);
+for (var time = 2000L; time < 61000; time += 1000) tracker.Reload(config, Utc(time), time);
+Expect(tracker.Evaluate(facts, 61000).Reason == "consent_expired", "one_hz_unchanged_reload_does_not_slide_expiry");
+tracker.Reload(config, DateTimeOffset.UnixEpoch, 62000);
+Expect(tracker.Evaluate(facts, 63000).Reason == "consent_expired", "wall_clock_rollback_does_not_renew_unchanged_config");
+
+foreach (var stop in new Action<ConsentedPairCaptureTracker>[] {
+    t => t.Reload(config with { Enabled = false }, Utc(2000), 2000),
+    t => t.Reload(null, Utc(2000), 2000),
+    t => t.RejectConfiguration("consented_pair_configuration_missing"),
+    t => t.RejectConfiguration("consented_pair_configuration_invalid") })
+{
+    tracker = Tracker(); tracker.Evaluate(facts, 1200); stop(tracker);
+    var denied = tracker.Evaluate(facts, 2100);
+    Expect(!denied.CaptureAllowed && !denied.ControlAllowed, "disabled_invalid_missing_config_stops_passive_capture");
+    Expect(tracker.LocalId == "stable-a" && tracker.OtherId == "stable-b", "suspension_preserves_bound_ids");
+    tracker.Reload(extended, Utc(3000), 3000);
+    Expect(tracker.Evaluate(facts, 3100).CaptureAllowed, "same_pair_valid_config_recovers_suspension");
+}
+
+foreach (var changedFacts in new[] { facts with { OtherId = "changed" }, facts with { LocalId = "changed" },
+    facts with { ArenaId = "changed" }, facts with { SessionInstance = "changed" },
+    facts with { LocalSlot = 1 }, facts with { ObservedConnectionSet = "0,1,2,3" } })
+{
+    tracker = Tracker(); tracker.Evaluate(facts, 1200);
+    tracker.Evaluate(changedFacts, 62000);
+    tracker.Reload(extended, Utc(63000), 63000);
+    Expect(!tracker.Evaluate(facts, 64000).CaptureAllowed, "identity_change_while_expired_survives_renewal");
+    tracker = Tracker(); tracker.Evaluate(facts, 1200);
+    tracker.Reload(config with { Enabled = false }, Utc(2000), 2000);
+    tracker.Evaluate(changedFacts, 2100);
+    tracker.Reload(extended, Utc(3000), 3000);
+    Expect(!tracker.Evaluate(facts, 3100).CaptureAllowed, "identity_change_while_disabled_survives_renewal");
+}
+tracker = Tracker(); tracker.Evaluate(facts, 1200); tracker.ObserveMembershipChange();
+tracker.Reload(extended, Utc(2000), 2000);
+Expect(!tracker.Evaluate(facts, 2100).CaptureAllowed, "renewal_cannot_clear_membership_callback_latch");
+foreach (var changedConfig in new[] { extended with { ArenaDisplayName = "different" },
+    extended with { LocalDisplayName = "different" }, extended with { OtherDisplayName = "different" } })
+{
+    tracker = Tracker(); tracker.Evaluate(facts, 1200);
+    Expect(tracker.Reload(changedConfig, Utc(2000), 2000) == "consented_pair_configuration_binding_changed", "different_config_pair_rejected");
+    tracker.Reload(extended, Utc(3000), 3000);
+    Expect(!tracker.Evaluate(facts, 3100).CaptureAllowed, "config_pair_change_cannot_reset_binding");
+}
+tracker = Tracker(); tracker.Evaluate(facts, 1200);
+Expect(tracker.Reload(config with { ExpiresUtc = Utc(2000).AddHours(4).AddTicks(1) }, Utc(2000), 2000) ==
+    "consented_pair_configuration_invalid", "renewal_above_four_hours_rejected");
+Expect(!tracker.Evaluate(facts, 2100).CaptureAllowed, "invalid_long_renewal_stops_capture");
+tracker.Reload(config with { ExpiresUtc = Utc(3000).AddHours(4) }, Utc(3000), 3000);
+Expect(tracker.Evaluate(facts, 3100).CaptureAllowed, "renewal_exactly_four_hours_from_load_allowed");
+Console.WriteLine($"{{\"test\":\"consented_pair_reload\",\"checks_total\":{checks},\"failed\":0,\"control_authorized\":false,\"native_runtime_exercised\":false}}");

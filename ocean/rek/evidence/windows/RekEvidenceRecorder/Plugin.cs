@@ -82,6 +82,10 @@ public sealed partial class Plugin : BasePlugin
     private string _pluginSha256 = string.Empty;
     private ConsentedPairCaptureTracker? _consentedPair;
     private bool _consentedPairConfigPresent;
+    private string _consentedPairConfigPath = string.Empty;
+    private long _nextConsentedPairConfigPollQpc;
+    private string _consentedPairConfigReason = "consented_pair_configuration_invalid";
+    private string? _consentedPairScopeStatus;
 
     private static string ResolveOutputRoot()
     {
@@ -115,18 +119,8 @@ public sealed partial class Plugin : BasePlugin
         }
 
         Instance = this;
-        var pairConfigPath = Path.Combine(Paths.ConfigPath, "rek-consented-pair-capture.json");
-        if (File.Exists(pairConfigPath))
-        {
-            _consentedPairConfigPresent = true;
-            try
-            {
-                var config = JsonSerializer.Deserialize<ConsentedPairCaptureConfig>(File.ReadAllText(pairConfigPath));
-                if (config?.Enabled == true) _consentedPair = new(config, DateTimeOffset.UtcNow, Stopwatch.GetTimestamp(), Stopwatch.Frequency);
-                else _consentedPairConfigPresent = false;
-            }
-            catch { Log.LogError("Consented pair capture configuration rejected; capture remains disabled for this process."); }
-        }
+        _consentedPairConfigPath = Path.Combine(Paths.ConfigPath, "rek-consented-pair-capture.json");
+        ReloadConsentedPairConfiguration(startup: true);
         if (!ArmSoloRouteHarmony())
         {
             Log.LogError("Recorder disabled: build-pinned solo-route observation hooks were not verified.");
@@ -164,6 +158,7 @@ public sealed partial class Plugin : BasePlugin
         }
         catch (Exception exception)
         {
+            LogConsentedPairScopeStatus("consented_pair_scope_error");
             FinishCapture($"scope_error:{exception.GetType().Name}");
             DisarmHarmony();
             return;
@@ -394,7 +389,13 @@ public sealed partial class Plugin : BasePlugin
 
     private ScopeSnapshot EvaluateScope()
     {
-        if (_consentedPairConfigPresent) return EvaluateConsentedPairScope();
+        if (_consentedPairConfigPresent)
+        {
+            ReloadConsentedPairConfiguration(startup: false);
+            var scope = EvaluateConsentedPairScope();
+            LogConsentedPairScopeStatus(scope.Reason);
+            return scope;
+        }
         if (Math.Abs((double)Time.fixedDeltaTime - ExpectedFixedDeltaTimeSeconds) >
             FixedDeltaTimeToleranceSeconds)
         {

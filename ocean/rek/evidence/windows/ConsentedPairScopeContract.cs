@@ -22,6 +22,7 @@ internal readonly record struct ConsentedPairCaptureDecision(bool CaptureAllowed
 internal static class ConsentedPairScopeContract
 {
     internal const double MaximumConsentSeconds = 900;
+    internal const double MaximumPassiveCaptureSeconds = 4 * 60 * 60;
     internal const double MaximumObservationAgeSeconds = 0.250;
     private static bool Known(string? value) => !string.IsNullOrWhiteSpace(value);
     private static bool Same(string? a, string? b) => string.Equals(a, b, StringComparison.Ordinal);
@@ -47,7 +48,8 @@ internal static class ConsentedPairScopeContract
             Same(grant.LocalAccountId, grant.OtherAccountId) || grant.LocalSlot is < 0 or > 1 ||
             grant.ParticipantEpoch < 0) return Denied("consent_binding_invalid");
         if (grant.QpcFrequency <= 0 || grant.IssuedQpc < 0 || grant.ExpiresQpc <= grant.IssuedQpc ||
-            ((decimal)grant.ExpiresQpc - grant.IssuedQpc) / grant.QpcFrequency > (decimal)MaximumConsentSeconds)
+            ((decimal)grant.ExpiresQpc - grant.IssuedQpc) / grant.QpcFrequency >
+                (decimal)(passiveCapture ? MaximumPassiveCaptureSeconds : MaximumConsentSeconds))
             return Denied("consent_clock_invalid");
         if (nowQpc < grant.IssuedQpc) return Denied("consent_clock_rollback");
         if (nowQpc >= grant.ExpiresQpc) return Denied("consent_expired");
