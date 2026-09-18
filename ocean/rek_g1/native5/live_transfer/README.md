@@ -63,11 +63,11 @@ orchestrator. This executable has no input-dispatch capability.
 | Each fighter 9..11,74..76,78,80..85 | Explicit zero constants for features the V4 candidate does not model. A constant does not assert a zero measurement in the authentic game. |
 | 86,87 | Opponent root distance and relative bearing/pi replace opponent absolute X/Y. |
 | 172..183 | Measured actor yaw, owned desired held category, native settled predicates, declared busy projection, and move route. Outside owned control the observed velocity-command sign supplies the held projection. Route uses an exact native move association if supplied; otherwise an acknowledged client request is labeled as a request projection. Unknown busy route blocks inference. |
-| 184..195 | Local slot, semantic phase mapping, episode-local constant 1, duration/remaining time divided by 120, measured clean-hit counters, V4 constant-zero falls, terminal winner. Authentic RoundActive phase 1 maps to candidate active phase 2; a completed round maps to candidate terminal phase 4. Clean hits occupy the policy points slots as an explicit projection. The authentic scoreboard formula is unknown; no knockout bonus is fabricated. |
-| 196..201 | Observation-window last-hit proxy from a counter increase and the opposite fighter's maximum observed foot/wrist/knee speed. Neither the striking limb nor actual impact velocity is known. History begins at the stream window; initial false means no proxy hit observed in that window. |
+| 184..195 | Local slot, semantic phase mapping, episode-local constant 1, duration/remaining time divided by 120, measured cumulative integer awarded-point totals from `round.clean_hits`, V4 constant-zero falls, terminal winner. Authentic RoundActive phase 1 maps to candidate active phase 2; a completed round maps to candidate terminal phase 4. Native totals include clean-strike and referee awards. The encoder's values and binary are unchanged. |
+| 196..201 | Observation-window last-hit proxy from an awarded-point counter increase and the opposite fighter's maximum observed foot/wrist/knee speed. Referee awards can also increase this counter. Neither a clean strike, the striking limb nor actual impact velocity is established by this proxy. History begins at the stream window; initial false means no proxy hit observed in that window. |
 | 202..205 | V4 constant-zero down-state slots; authentic fallen flags remain in provenance. |
 | 209..214 | Explicit candidate reset-duration feature 0.5, then measured native round/fight result and winner enums. The 0.5 is not an assertion about an authentic reset duration. |
-| 217,218,221,222 | Observed clean-hit counter increases and their sum since the previous sample. Multiple authentic ticks between samples are not reconstructed. |
+| 217,218,221,222 | Observed awarded-point counter increases and their sum since the previous sample, retaining the raw `clean_hits` field name. These are point deltas, not counts of strike events. Multiple authentic ticks between samples are not reconstructed. |
 | Other trailing slots | Explicit unused V4 zero constants, enumerated in the manifest. |
 
 The encoder also reports the largest off-axis component of each fighter's
@@ -75,6 +75,12 @@ projected joint rotations. This is a diagnostic of the pose projection, not a
 fitted correction or server-ground-truth residual. Quaternion sign changes are
 handled by the wrapped hinge difference; global root positions are not recentered
 or rescaled. Local actor slot and absolute root position remain policy inputs.
+
+The [counter provenance note](SCORE_COUNTER_PROVENANCE.md) records the native
+integer accumulation and packet assignment. Existing encoder-manifest wording
+that calls these clean-hit counts or says the scoreboard formula is unknown is
+stale pending a metadata-only rebuild. This documentation
+and summary correction does not change inference behavior or the live contract.
 
 The native source currently cannot identify `SonicPolicyRunner.currentMotion`
 as a named RobotConfig move: it is a different native type. The bridge therefore

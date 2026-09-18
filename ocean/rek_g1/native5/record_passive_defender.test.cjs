@@ -2,7 +2,20 @@
 const test=require('node:test'),assert=require('node:assert/strict'),path=require('node:path');
 const {spawn}=require('node:child_process');
 const {once}=require('node:events');
-const {captureArgs,superviseChild,recordingLimitEvidence,cleanChildExit}=require('./record_passive_defender.cjs');
+const {captureIdentity,captureArgs,superviseChild,recordingLimitEvidence,cleanChildExit}=require('./record_passive_defender.cjs');
+
+test('capture labels distinguish neutral control from an explicitly pinned frozen policy',()=>{
+  assert.deepEqual(captureIdentity({}),{schema:'rek.passive_defender.capture.v1',controller:'neutral_action_1',
+    checkpoint_sha256:null,filename:'authentic-rek-passive-defender.mp4'});
+  const checkpoint='a'.repeat(64);
+  const config={capture_controller:'frozen_policy',checkpoint_sha256:checkpoint,worker:['native-worker','weights.bin',checkpoint,'73']};
+  assert.deepEqual(captureIdentity(config),{schema:'rek.frozen_policy.capture.v1',controller:'frozen_policy',
+    checkpoint_sha256:checkpoint,filename:'authentic-rek-policy-fight.mp4'});
+  assert.throws(()=>captureIdentity({...config,capture_controller:undefined}));
+  assert.throws(()=>captureIdentity({...config,checkpoint_sha256:'b'.repeat(64)}));
+  assert.throws(()=>captureIdentity({...config,worker:undefined}));
+  assert.throws(()=>captureIdentity({capture_controller:'unknown'}));
+});
 test('capture is bounded, cursor-free and restricted to isolated display',()=>{
   const args=captureArgs(path.resolve('test-capture.mp4'),140);
   assert(args.includes(':98.0+0,0'));assert.equal(args[args.indexOf('-draw_mouse')+1],'0');

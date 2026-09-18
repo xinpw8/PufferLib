@@ -54,8 +54,36 @@ node summarize_live_transfer.cjs /absolute/path/to/trial-output
 The output preserves all process stdin, stdout and stderr, projected
 observations, native action acknowledgments, checkpoint identity and round
 counters. `measured-report.json` includes artifact hashes and latency metrics.
+Its additive `awarded_points` field labels initial/final native `CleanHits`
+totals as cumulative integer awarded points, including referee awards. Raw
+`initial_round`/`final_round.clean_hits` fields are preserved. These totals do
+not count strike events or identify award causes. See
+[counter provenance](live_transfer/SCORE_COUNTER_PROVENANCE.md).
 Raw traces and proprietary game/model assets remain private. Only sanitized
 test results and source code belong in the repository.
+
+For a frozen-policy trial with a video, add `capture_controller: "frozen_policy"`
+and the pinned native `capture_ffmpeg` / `capture_ffmpeg_sha256` fields to the
+config, then run on Spark:
+
+```sh
+node record_passive_defender.cjs /absolute/config.json /absolute/live_transfer_run.cjs /new/media-directory
+node summarize_live_transfer.cjs /absolute/trial-directory
+node analyze_live_contacts.cjs /absolute/trial-directory /absolute/matching-native-capture.jsonl /new/contact-analysis-directory
+```
+
+The video wrapper preserves neutral-defender compatibility and emits a distinct
+frozen-policy manifest and MP4 filename. Each video must decode successfully and
+be smaller than 20,000,000 bytes. Use a fresh output directory for each round.
+The native capture and policy stream must refer to the same measured round.
+The contact analysis keeps requests, local dispatch returns, received effects,
+awarded points and pose context separate. It does not turn missing hit packets
+into misses or label the latest requested move as the executed attack.
+
+Pair this actual-client evaluation with the headless training/evaluation report
+after contact-model changes. A startup failure, partial round or transport test
+does not supply an authentic-game win rate. Live decision rate and video frame
+rate are separate from headless training SPS.
 
 Live decision frequency is bounded by the running game's cadence. It must not
 be reported as headless training SPS. Training win rates in the candidate do

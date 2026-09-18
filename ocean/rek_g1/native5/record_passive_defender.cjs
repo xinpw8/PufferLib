@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-// Capture the isolated authentic client alongside the neutral-input experiment.
+// Capture the isolated authentic client alongside neutral-input or policy trials.
 // Native FFmpeg performs capture/encoding; no Python runtime is involved.
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const crypto=require('node:crypto'),readline=require('node:readline');
@@ -48,6 +48,20 @@ function recordingLimitEvidence(bytes,selfExited) {
 }
 const cleanChildExit=result=>result?.code===0&&result.close_observed===true&&!result.timed_out&&!result.error;
 
+function captureIdentity(config) {
+  const controller=config.capture_controller??'neutral_action_1';
+  if(controller==='neutral_action_1') {
+    if(config.worker||config.checkpoint_sha256)throw Error('policy capture requires an explicit frozen_policy controller');
+    return {schema:'rek.passive_defender.capture.v1',controller,checkpoint_sha256:null,
+      filename:'authentic-rek-passive-defender.mp4'};
+  }
+  if(controller!=='frozen_policy'||!/^[a-f0-9]{64}$/.test(config.checkpoint_sha256||'')||
+      !Array.isArray(config.worker)||config.worker[2]!==config.checkpoint_sha256)
+    throw Error('frozen policy capture requires a pinned worker checkpoint');
+  return {schema:'rek.frozen_policy.capture.v1',controller,checkpoint_sha256:config.checkpoint_sha256,
+    filename:'authentic-rek-policy-fight.mp4'};
+}
+
 function captureArgs(video,seconds=140) {
   if(!path.isAbsolute(video)||!Number.isInteger(seconds)||seconds<1||seconds>190)
     throw Error('absolute capture path and bounded duration required');
@@ -67,13 +81,14 @@ async function main(configPath,driverPath,mediaDir) {
     throw Error('capture requires isolated Spark host');
   if(![configPath,driverPath,mediaDir].every(path.isAbsolute))throw Error('absolute paths required');
   const config=JSON.parse(fs.readFileSync(configPath,'utf8'));
+  const identity=captureIdentity(config);
   if(!Number.isFinite(config.max_seconds)||config.max_seconds<=0||config.max_seconds>180)
-    throw Error('bounded neutral trial required');
+    throw Error('bounded trial required');
   if(typeof config.capture_ffmpeg!=='string'||!path.isAbsolute(config.capture_ffmpeg)||
       !/^[a-f0-9]{64}$/.test(config.capture_ffmpeg_sha256||''))throw Error('pinned native FFmpeg required');
   if(await sha(config.capture_ffmpeg)!==config.capture_ffmpeg_sha256)throw Error('FFmpeg identity mismatch');
   fs.mkdirSync(mediaDir,{mode:0o700});
-  const video=path.join(mediaDir,'authentic-rek-passive-defender.mp4');
+  const video=path.join(mediaDir,identity.filename);
   const output=[];
   const logFile=name=>{const s=fs.createWriteStream(path.join(mediaDir,name),{flags:'wx',mode:0o600});output.push(s);return s;};
   const driverOut=logFile('driver.stdout.jsonl'),driverErr=logFile('driver.stderr.txt');
@@ -135,8 +150,8 @@ async function main(configPath,driverPath,mediaDir) {
     decodeControl=superviseChild(decode,{timeoutMs:30000});decodeResult=await decodeControl.done;
     if(!errors.writableEnded)errors.end();await finished(errors);
   }
-  const manifest={schema:'rek.passive_defender.capture.v1',host:os.hostname(),
-    trial_output:config.out,config_path:configPath,controller:'neutral_action_1',checkpoint_sha256:null,
+  const manifest={schema:identity.schema,host:os.hostname(),
+    trial_output:config.out,config_path:configPath,controller:identity.controller,checkpoint_sha256:identity.checkpoint_sha256,
     capture_source:'authentic REK framebuffer on isolated X11 :98',global_input_emitted:false,
     pointer_capture:false,synthetic_frames:false,recording_started_utc:started,trigger,
     driver_result:driverResult,recording_result:recordingResult,recording_size_limit_reached:limitReached,
@@ -151,7 +166,7 @@ async function main(configPath,driverPath,mediaDir) {
   return cleanChildExit(driverResult)&&cleanChildExit(recordingResult)&&bytes>0&&bytes<20000000&&
     cleanChildExit(decodeResult)&&!limitReached?0:2;
 }
-module.exports={captureArgs,superviseChild,recordingLimitEvidence,cleanChildExit,main};
+module.exports={captureIdentity,captureArgs,superviseChild,recordingLimitEvidence,cleanChildExit,main};
 if(require.main===module){
   if(process.argv.length!==5)throw Error('usage: record_passive_defender.cjs CONFIG DRIVER NEW_MEDIA_DIR');
   main(...process.argv.slice(2)).then(code=>{process.exitCode=code;}).catch(e=>{console.error(e.message);process.exitCode=2;});
