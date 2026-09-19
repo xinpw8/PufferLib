@@ -85,8 +85,13 @@ still be emitted on scope loss before the stream terminates.
 - `round`: `number`, `duration`, `time_remaining`, `active`, `redo`,
   `clean_hits[2]`, `falls[2]`, `result`, `result_value`, `winner_index`, `knockout`.
 - `fight`: `current_round`, `rounds_won[2]`, `result`, `result_value`,
-  `winner_index`. `referee:null`: no referee packet subscription is implemented
-  by this stream. Round clean hits/falls are measured replicated counters.
+  `winner_index`. Round clean hits/falls are measured replicated counters.
+- `referee`: received `REK_FightState` snapshot with explicit availability,
+  client receipt age, count mask/seconds, and latched call sequence/type/faller/points.
+  Data is copied without advancing the reader, then verified against native client
+  mirrors after successful application. Unobserved, stale, failed, or mismatched
+  lifecycle data is null. See `G1_RECEIVED_REFEREE.md` for the exact contract;
+  a received Knockout call does not imply terminal round KO.
 - `action_mask[33]`: native client transport and bridge-owned command gates,
   not authoritative server readiness or distance/facing restrictions.
   `action_mask_source` makes that distinction explicit.

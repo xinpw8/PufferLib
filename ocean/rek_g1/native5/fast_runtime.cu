@@ -15,6 +15,7 @@
 #include "rendered_pose_observation.h"
 #include "primitive_motion.cuh"
 #include "contact_potential_loader.h"
+#include "round_reward.h"
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
 // trajectories; slider motion and temporally sampled contacts are modeling
@@ -61,6 +62,8 @@ struct Parameters {
     int opponent_mode,random_resets;
     float reset_gap_min,reset_gap_max,reset_heading_spread;
     float shaping_weight,shaping_gamma,shaping_target,shaping_bearing_weight;
+    rek5_round_reward::Mode reward_mode;
+    float reward_gamma;
     rek5_contact_potential::Model contact_potential;
     int recovered_scoring;
     RekG1ImpactEvent impact_events[29];
@@ -466,8 +469,12 @@ __device__ void advance_arena(const View& v,int index){
     }
     r.time_remaining_seconds=fmaxf(0,p.round_seconds-a.elapsed);r.failure_bits=a.failures;
     bool terminal=a.elapsed>=p.round_seconds;
+    const int winner=a.fighter[0].points==a.fighter[1].points?-1:
+        (a.fighter[0].points>a.fighter[1].points?0:1);
     for(int side=0;side<2;side++){
-        a.reward[side]=float(a.delta[side]-a.delta[side^1]);
+        a.reward[side]=rek5_round_reward::value(p.reward_mode,p.reward_gamma,
+            a.fighter[side].points-a.delta[side],a.fighter[side^1].points-a.delta[side^1],
+            a.fighter[side].points,a.fighter[side^1].points,terminal,winner,side);
         if(p.shaping_weight>0){
             const float next_potential=terminal?0:shaping_potential(v,a,side);
             a.reward[side]+=p.shaping_weight*rek5_contact_potential::shaping_delta(previous_potential[side],next_potential,terminal,p.shaping_gamma);
@@ -691,6 +698,14 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         if(p.random_resets&&(p.reset_gap_min<2*p.body_radius||p.reset_gap_max>2*(std::min(p.half_extent[0],p.half_extent[1])-p.body_radius-.01f)))
             throw std::runtime_error("Random reset gaps must be nonoverlapping and fit every sampled axis inside the arena");
         p.shaping_weight=environment_float("REK_FAST_SHAPING_WEIGHT",0,0,100.f);
+        const char* reward=getenv("REK_FAST_REWARD");
+        if(reward&&strcmp(reward,"point_difference_v1")&&strcmp(reward,"round_outcome_v1"))
+            throw std::runtime_error("Invalid REK_FAST_REWARD");
+        p.reward_mode=reward&&!strcmp(reward,"round_outcome_v1")?
+            rek5_round_reward::RoundOutcome:rek5_round_reward::PointDifference;
+        if(p.reward_mode==rek5_round_reward::RoundOutcome&&(!getenv("REK_FAST_REWARD_GAMMA")||p.shaping_weight>0))
+            throw std::runtime_error("Round outcome reward requires explicit learner-matched REK_FAST_REWARD_GAMMA and disables spatial shaping");
+        p.reward_gamma=environment_float("REK_FAST_REWARD_GAMMA",1.f,.000001f,1.f);
         if(p.shaping_weight>0&&!getenv("REK_FAST_SHAPING_GAMMA"))throw std::runtime_error("Positive shaping weight requires explicit REK_FAST_SHAPING_GAMMA matching learner discount");
         p.shaping_gamma=environment_float("REK_FAST_SHAPING_GAMMA",1.f,.000001f,1.f);
         p.shaping_target=environment_float("REK_FAST_SHAPING_TARGET",.65f,.001f,100.f);
@@ -719,6 +734,9 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         rek5::cuda_check(cudaGetLastError());rek5::cuda_check(cudaStreamSynchronize(stream));
         fprintf(stderr,"semantic_cuda_v4: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; points-only slider dynamics; knockdowns unmodeled; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed);
         fprintf(stderr,"semantic_cuda_assets=%s\n",assets.provenance_json.c_str());
+        fprintf(stderr,"semantic_cuda_reward={\"mode\":\"%s\",\"gamma\":%.9g,\"point_input\":\"awarded_scoreboard_points\",\"terminal_signal\":\"completed_round_only\",\"countout_is_terminal\":false,\"terminal_win\":%d,\"terminal_loss\":%d,\"terminal_draw\":0,\"potential_scale_points\":5,\"terminal_potential\":0,\"adds_balance_dynamics\":false}\n",
+            p.reward_mode==rek5_round_reward::RoundOutcome?"round_outcome_v1":"point_difference_v1",
+            p.reward_gamma,p.reward_mode==rek5_round_reward::RoundOutcome?1:0,p.reward_mode==rek5_round_reward::RoundOutcome?-1:0);
         fprintf(stderr,"semantic_cuda_scoring={\"mode\":\"%s\",\"geometry\":\"%s\",\"contact_substeps\":%d,\"continuous_collision_detection\":false,\"speed\":\"%s\",\"speed_threshold_m_s\":%.9g,\"cooldown_seconds\":%.9g,\"apex_gate\":%s,\"per_invocation_apex_dedup\":%s,\"hand_points\":1,\"foot_shin_points\":%d,\"hit_count_is_unweighted\":true,\"upright_model\":\"constant_upright_no_balance_dynamics\",\"contact_enter_model\":\"compact_per_limb_union_latch_reset_at_move_start\",\"authentic_parity\":false}\n",
             p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",p.primitive_contacts?"primitive_samples_v1":"bounding_spheres",p.primitive_contacts?p.contact_substeps:0,p.recovered_scoring?"maximum_relative_sphere_center_finite_difference_proxy":"absolute_striker_sphere_center_finite_difference",p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?p.recovered_hit_config.per_body_cooldown_seconds:10*DT,p.recovered_scoring?"true":"false",p.recovered_scoring?"true":"false",p.recovered_scoring?2:1);
         const char* modes[]={"scripted","neutral","retreat","strafe","mixed"};

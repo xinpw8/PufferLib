@@ -47,5 +47,6 @@ fi
   sha256sum "$task_source/fast_runtime.cu" "$task_source/fast_assets.cpp" \
     "$task_source/fast_assets.h" "$task_source/primitive_contacts.cuh" \
     "$task_source/primitive_motion.cuh" "$task_source/native_contact_geometry.h" \
-    "$task_source/contact_potential.h" "$task_source/contact_potential_loader.h" "$task_build/puffer-rek-native5"; } > "$task_build/fast-build.txt"
+    "$task_source/contact_potential.h" "$task_source/contact_potential_loader.h" \
+    "$task_source/round_reward.h" "$task_build/puffer-rek-native5"; } > "$task_build/fast-build.txt"
 printf 'Built reduced GPU trainer: %s/puffer-rek-native5\n' "$task_build"

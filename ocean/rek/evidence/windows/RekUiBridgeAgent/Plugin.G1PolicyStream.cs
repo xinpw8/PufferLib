@@ -422,7 +422,7 @@ public sealed partial class Plugin
                     winner_index = round.WinnerIndex, knockout = round.KnockoutOccurred },
                 fight = new { current_round = fight.CurrentRoundNumber, rounds_won = fight.RoundsWon?.ToArray(),
                     result = fight.Result.ToString(), result_value = (int)fight.Result, winner_index = fight.WinnerIndex },
-                referee = (object?)null, action_mask = PolicyMask(activeScope),
+                referee = ReceivedRefereePayload(activeScope, now), action_mask = PolicyMask(activeScope),
                 action_mask_source = "native_client_transport_and_owned_command_gates_server_readiness_unknown" });
         }
         catch (Exception e)

@@ -268,6 +268,9 @@ public sealed partial class Plugin : BasePlugin
         Instance = this;
         _harmony = new Harmony(PluginGuid);
         _harmony.PatchAll(typeof(Plugin).Assembly);
+        _refereeObservationPatchesVerified =
+            HasOwnedPatch(typeof(FightCoordinator), "ApplyFightStateSnapshot") &&
+            HasOwnedPatch(typeof(FightCoordinator), "ResetClientRefereeReplay");
         _sendBoundaryPatchesVerified =
             HasOwnedPatch(typeof(RobotInputController), "LateUpdate") &&
             HasOwnedPatch(typeof(RobotInputController), "SendVelocityCommand") &&
@@ -5922,11 +5925,17 @@ public sealed partial class Plugin : BasePlugin
             koth,
             solo);
 
-    internal void ObserveSoloRouteNetworkLifecycleChange(string reason) =>
+    internal void ObserveSoloRouteNetworkLifecycleChange(string reason)
+    {
+        _receivedReferee.Invalidate("referee_network_lifecycle_changed");
         _soloRouteProofTracker.InvalidateIfRuntimeSessionBound(reason);
+    }
 
-    private static void InvalidateSoloRoute(string reason) =>
+    private static void InvalidateSoloRoute(string reason)
+    {
+        Instance?._receivedReferee.Invalidate("referee_private_session_invalidated");
         Instance?._soloRouteProofTracker.InvalidateIfRuntimeSessionBound(reason);
+    }
 
     // Read-only probes validate the same guards without binding a pre-ready session.
     // Control callers retain sticky binding and its existing invalidation rules.

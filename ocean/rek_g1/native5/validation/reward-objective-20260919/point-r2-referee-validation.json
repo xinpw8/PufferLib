@@ -1,0 +1,281 @@
+{
+  "schema": "rek.live_referee_validation.v1",
+  "created_utc": "2026-09-19T23:22:40.389Z",
+  "validator_sha256": "22bbb6652f8cf333c1c832f8719f9e37da20b66bfecd85185e228d2183c9fe89",
+  "verification_passed": true,
+  "source_count": 5388,
+  "available_source_count": 5388,
+  "unavailable_source_count": 0,
+  "unavailable_reasons": {},
+  "round_identities": [
+    "394610fe09ae9e97464a5f9ab74ca9e9df24a558a2f4f80aa1ca7eb1f9040368"
+  ],
+  "unique_bridge_receipts": 1198,
+  "unique_native_receipt_keys": 1198,
+  "repeated_policy_observations_of_cached_receipt": 4190,
+  "receipts_with_multiple_exact_native_matches": 0,
+  "receipt_age_seconds": {
+    "minimum": 0.0100901,
+    "maximum": 0.1510625,
+    "maximum_allowed": 0.5
+  },
+  "count_mask_policy_observations": {
+    "0": 4920,
+    "1": 146,
+    "2": 215,
+    "3": 107
+  },
+  "count_mask_unique_bridge_receipts": {
+    "0": 1090,
+    "1": 30,
+    "2": 48,
+    "3": 30
+  },
+  "call_transitions_unique_bridge_receipts": {
+    "empty_sequence": 333,
+    "changed_received_sequence": 6,
+    "repeated_latched_call": 858,
+    "sequence_gap_censored": 1
+  },
+  "unique_latched_call_ids": 7,
+  "cache_censored_call_ids": 1,
+  "validation_left_censored_call_ids": 0,
+  "calls": [
+    {
+      "call_id": "394610fe09ae9e97464a5f9ab74ca9e9df24a558a2f4f80aa1ca7eb1f9040368:2:1",
+      "sequence": 1,
+      "type": 0,
+      "name": "Slip",
+      "faller": 0,
+      "points": 0,
+      "cache_history_censored": false,
+      "first_seen_transition": "changed_received_sequence",
+      "first_source_line": 3283,
+      "first_receipt_sequence": 381,
+      "first_receipt_unity_frame": 4528,
+      "first_receipt_unity_time": 80.05412448270975,
+      "policy_observations": 146,
+      "validation_observation_left_censored": false
+    },
+    {
+      "call_id": "394610fe09ae9e97464a5f9ab74ca9e9df24a558a2f4f80aa1ca7eb1f9040368:2:2",
+      "sequence": 2,
+      "type": 4,
+      "name": "Knockout",
+      "faller": 0,
+      "points": 5,
+      "cache_history_censored": false,
+      "first_seen_transition": "changed_received_sequence",
+      "first_source_line": 3579,
+      "first_receipt_sequence": 411,
+      "first_receipt_unity_frame": 4691,
+      "first_receipt_unity_time": 83.06849028486394,
+      "policy_observations": 837,
+      "validation_observation_left_censored": false
+    },
+    {
+      "call_id": "394610fe09ae9e97464a5f9ab74ca9e9df24a558a2f4f80aa1ca7eb1f9040368:2:3",
+      "sequence": 3,
+      "type": 0,
+      "name": "Slip",
+      "faller": 1,
+      "points": 0,
+      "cache_history_censored": false,
+      "first_seen_transition": "changed_received_sequence",
+      "first_source_line": 5261,
+      "first_receipt_sequence": 599,
+      "first_receipt_unity_frame": 5597,
+      "first_receipt_unity_time": 101.86431758078231,
+      "policy_observations": 67,
+      "validation_observation_left_censored": false
+    },
+    {
+      "call_id": "394610fe09ae9e97464a5f9ab74ca9e9df24a558a2f4f80aa1ca7eb1f9040368:2:4",
+      "sequence": 5,
+      "type": 5,
+      "name": "DoubleKnockdown",
+      "faller": 0,
+      "points": 0,
+      "cache_history_censored": true,
+      "first_seen_transition": "sequence_gap_censored",
+      "first_source_line": 5395,
+      "first_receipt_sequence": 617,
+      "first_receipt_unity_frame": 5668,
+      "first_receipt_unity_time": 103.65999968112244,
+      "policy_observations": 107,
+      "validation_observation_left_censored": false
+    },
+    {
+      "call_id": "394610fe09ae9e97464a5f9ab74ca9e9df24a558a2f4f80aa1ca7eb1f9040368:2:5",
+      "sequence": 6,
+      "type": 6,
+      "name": "DoubleKnockout",
+      "faller": -1,
+      "points": 5,
+      "cache_history_censored": false,
+      "first_seen_transition": "changed_received_sequence",
+      "first_source_line": 5610,
+      "first_receipt_sequence": 647,
+      "first_receipt_unity_frame": 5779,
+      "first_receipt_unity_time": 106.67049278628117,
+      "policy_observations": 571,
+      "validation_observation_left_censored": false
+    },
+    {
+      "call_id": "394610fe09ae9e97464a5f9ab74ca9e9df24a558a2f4f80aa1ca7eb1f9040368:2:6",
+      "sequence": 7,
+      "type": 0,
+      "name": "Slip",
+      "faller": 1,
+      "points": 0,
+      "cache_history_censored": false,
+      "first_seen_transition": "changed_received_sequence",
+      "first_source_line": 6756,
+      "first_receipt_sequence": 769,
+      "first_receipt_unity_frame": 6396,
+      "first_receipt_unity_time": 118.86925928287981,
+      "policy_observations": 148,
+      "validation_observation_left_censored": false
+    },
+    {
+      "call_id": "394610fe09ae9e97464a5f9ab74ca9e9df24a558a2f4f80aa1ca7eb1f9040368:2:7",
+      "sequence": 8,
+      "type": 4,
+      "name": "Knockout",
+      "faller": 1,
+      "points": 5,
+      "cache_history_censored": false,
+      "first_seen_transition": "changed_received_sequence",
+      "first_source_line": 7053,
+      "first_receipt_sequence": 799,
+      "first_receipt_unity_frame": 6559,
+      "first_receipt_unity_time": 121.86025288407029,
+      "policy_observations": 1922,
+      "validation_observation_left_censored": false
+    }
+  ],
+  "semantic_limit": "Call IDs deduplicate latched observations. Initial/gapped calls are censored; repeated payloads are never counted as new calls. No server-current-state, attacker, executed-action or terminal-KO inference.",
+  "native_process_id": 190584,
+  "native": {
+    "packet_count": 1199,
+    "unique_receipt_keys": 1199,
+    "initial_round_number": 1,
+    "calls": [
+      {
+        "sequence": 1,
+        "name": "Slip",
+        "faller_slot": 0,
+        "points": 0,
+        "observed_new_call": true,
+        "left_censored": false,
+        "repeated_snapshots": 29
+      },
+      {
+        "sequence": 2,
+        "name": "Knockout",
+        "faller_slot": 0,
+        "points": 5,
+        "observed_new_call": true,
+        "left_censored": false,
+        "repeated_snapshots": 187
+      },
+      {
+        "sequence": 3,
+        "name": "Slip",
+        "faller_slot": 1,
+        "points": 0,
+        "observed_new_call": true,
+        "left_censored": false,
+        "repeated_snapshots": 17
+      },
+      {
+        "sequence": 5,
+        "name": "DoubleKnockdown",
+        "faller_slot": 0,
+        "points": 0,
+        "observed_new_call": true,
+        "left_censored": false,
+        "repeated_snapshots": 29
+      },
+      {
+        "sequence": 6,
+        "name": "DoubleKnockout",
+        "faller_slot": -1,
+        "points": 5,
+        "observed_new_call": true,
+        "left_censored": false,
+        "repeated_snapshots": 121
+      },
+      {
+        "sequence": 7,
+        "name": "Slip",
+        "faller_slot": 1,
+        "points": 0,
+        "observed_new_call": true,
+        "left_censored": false,
+        "repeated_snapshots": 29
+      },
+      {
+        "sequence": 8,
+        "name": "Knockout",
+        "faller_slot": 1,
+        "points": 5,
+        "observed_new_call": true,
+        "left_censored": false,
+        "repeated_snapshots": 446
+      }
+    ],
+    "counts": [
+      {
+        "slot": 0,
+        "left_censored": false,
+        "right_censored": false,
+        "explicit_countout": true,
+        "duration_receipt_seconds": 3.014369700000003,
+        "resolution_call_name": "Knockout"
+      },
+      {
+        "slot": 0,
+        "left_censored": false,
+        "right_censored": false,
+        "explicit_countout": true,
+        "duration_receipt_seconds": 3.0060287000000017,
+        "resolution_call_name": "DoubleKnockout"
+      },
+      {
+        "slot": 1,
+        "left_censored": false,
+        "right_censored": false,
+        "explicit_countout": true,
+        "duration_receipt_seconds": 4.806242799999993,
+        "resolution_call_name": "DoubleKnockout"
+      },
+      {
+        "slot": 1,
+        "left_censored": false,
+        "right_censored": false,
+        "explicit_countout": true,
+        "duration_receipt_seconds": 2.9918552000000034,
+        "resolution_call_name": "Knockout"
+      }
+    ]
+  },
+  "inputs": [
+    {
+      "file": "C:\\rekagent\\work\\reward-objective-20260919-r1\\live-point_difference_v1-r2\\trial\\relay.stdout.jsonl",
+      "bytes": 67232094,
+      "lines": 10920,
+      "sha256": "d84bb5d75cda966010d6efbd602e9569a39089710f94df122dc7c7f9ece4e94e"
+    },
+    {
+      "file": "C:\\rekagent\\evidence\\runtime\\rek-private-ai-protocol-v7\\rek-private-ai-root-motion-20260919T232016.8516086Z-pid190584-b8eda200563c4b0b8e70406aa0a22f41.jsonl",
+      "bytes": 208379081,
+      "lines": 88821,
+      "sha256": "15b60588f0bc1773a2d2d9397c9a33845b1f73a29f128931933483417d8ef1fc"
+    }
+  ],
+  "matching_contract": "Identical validated 33-byte body SHA/base64 and exact Unity frame, time and unscaled time at the two read-only ApplyFightStateSnapshot prefixes. QPC age is independently recomputed from the policy clock; receipt frequencies must equal native capture frequency.",
+  "memory_contract": "Streams entire input files; retains referee packets, receipt identities and deduplicated calls only, never pose or full policy logs.",
+  "no_game_connection": true,
+  "no_runtime_changes": true
+}

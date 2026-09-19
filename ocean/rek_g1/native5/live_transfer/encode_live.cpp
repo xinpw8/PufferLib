@@ -154,10 +154,10 @@ public:
   describe(182,"derived",projected_busy?"candidate-request-duration busy: exact dispatched request QPC plus selected V4 duration; actual playback unavailable":"native action_busy where available");describe(183,"derived",inventory[182].source);
   describe(184,"measured","local_slot");describe(185,"derived","authentic RoundActive phase 1 -> candidate active phase 2; completed round -> candidate terminal phase 4");describe(186,"structural_constant","independent episode feature 1; not cumulative authentic round number");
   describe(188,"derived","round.duration / 120");describe(189,"derived","round.time_remaining / 120");
-  describe(190,"derived","actor round.clean_hits count projected into candidate points slot; authentic scoreboard formula unknown");describe(191,"derived","opponent round.clean_hits count projected into candidate points slot; authentic scoreboard formula unknown");
+  describe(190,"measured","actor round.clean_hits is the replicated integer awarded-points counter, including referee awards; not a strike count");describe(191,"measured","opponent round.clean_hits is the replicated integer awarded-points counter, including referee awards; not a strike count");
   describe(192,"structural_constant","V4 falls always zero: no compact knockdown transition exists; raw authentic falls remain diagnostic");describe(193,"structural_constant","V4 falls always zero: no compact knockdown transition exists; raw authentic falls remain diagnostic");
   describe(194,"derived","terminal and native winner equals actor");describe(195,"derived","terminal and native winner equals opponent");
-  for(int i=196;i<=201;i++)describe(i,"derived","observation-window hit proxy from clean-hit counter delta and opposite fighter maximum observed effector speed; authoritative contact attribution/history unknown");
+  for(int i=196;i<=201;i++)describe(i,"derived","legacy observation-window score-change/effector-speed proxy, including referee awards; does not establish a strike or physical contact");
   for(int i=202;i<=205;i++)describe(i,"structural_constant","V4 down-state slots always zero: no compact knockdown transition exists");
   describe(209,"structural_constant","V4 half-second reset duration feature .5; authentic duration not asserted");
   describe(210,"measured","round.result_value");describe(211,"measured","round.winner_index");describe(212,"derived","round.result_value == knockout enum 2");
@@ -171,11 +171,12 @@ public:
   flag(j.get(),"candidate_physics_stepped",false);flag(j.get(),"authoritative_server_state",false);
   text(j.get(),"busy_projection",request_duration_projection?"dispatched_request_v4_duration":"native_busy_required");
   if(request_duration_projection){auto* durations=cJSON_AddArrayToObject(j.get(),"move_duration_ticks");for(int n:MOVE_TICKS)cJSON_AddItemToArray(durations,cJSON_CreateNumber(n));number(j.get(),"duration_control_hz",50);text(j.get(),"duration_source","selected V4 puffer_env.cu and eval_worker.cpp explicit default table; candidate duration, not measured server playback");}
-  text(j.get(),"score_semantics","measured clean-hit counts projected into policy points slots; no inferred knockout points");
+  text(j.get(),"score_semantics","Round.CleanHits is the replicated integer awarded-points counter, including referee awards; measured points are not a number of strikes");
+  text(j.get(),"referee_semantics","received referee fields remain in source telemetry; this legacy 223-feature checkpoint schema does not encode them or establish balance parity");
   text(j.get(),"history_semantics","last-hit proxy history starts at observation window, not an assertion of no earlier hits");
   text(j.get(),"pose_semantics","joint angles are client bone twist projections using recovered model axes/rest orientations; server joint values unavailable");
   auto* fields=cJSON_AddArrayToObject(j.get(),"fields");for(int i=0;i<223;i++){auto* f=cJSON_CreateObject();number(f,"index",i);text(f,"kind",inventory[i].kind);text(f,"source",inventory[i].source);cJSON_AddItemToArray(fields,f);}
-  auto* unavailable=cJSON_AddArrayToObject(j.get(),"authoritative_unavailable");for(const char* s:{"server_joint_positions","server_joint_velocities","contact_impulse","contact_limb_attribution","last_hit_before_observation_window","scoreboard_formula","server_command_acceptance"})cJSON_AddItemToArray(unavailable,cJSON_CreateString(s));
+  auto* unavailable=cJSON_AddArrayToObject(j.get(),"authoritative_unavailable");for(const char* s:{"server_joint_positions","server_joint_velocities","contact_impulse","contact_limb_attribution","last_hit_before_observation_window","server_command_acceptance"})cJSON_AddItemToArray(unavailable,cJSON_CreateString(s));
   return j;
  }
  Json unavailable(const std::string& why){auto j=object();text(j.get(),"event","policy_observation");text(j.get(),"projection",PROJECTION);flag(j.get(),"ready",false);auto* a=cJSON_AddArrayToObject(j.get(),"unavailable");cJSON_AddItemToArray(a,cJSON_CreateString(why.c_str()));return j;}

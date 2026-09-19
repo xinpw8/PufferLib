@@ -1,0 +1,62 @@
+[
+  {
+    "run": "train-point_difference_v1",
+    "backend": "semantic_cuda",
+    "learnerTransitions": 33554432,
+    "simulatedSecondsPerTransition": 0.02,
+    "arenas": 512,
+    "horizon": 512,
+    "minibatch": 8192,
+    "epochs": 128,
+    "trainingLoopSeconds": 34.7853000164032,
+    "trainingSps": 964615.2824376166,
+    "processWallSeconds": 35.48,
+    "startupInclusiveSps": 945728.0721533259,
+    "aggregateSimulatedSecondsPerWallSecond": 19292.30564875233,
+    "trainingRoundResults": {
+      "arenas": 512,
+      "completed_rounds": 5120,
+      "fighter0_wins": 5087,
+      "fighter1_wins": 29,
+      "ties": 4,
+      "redos": 0,
+      "unclassified": 0,
+      "fighter0_completed_points": 739116,
+      "fighter1_completed_points": 223380,
+      "failure_bits": 0
+    },
+    "trainingWinFraction": 0.9935546875,
+    "heldOutWinFraction": null,
+    "note": "Training counts include the changing policy. They are not held-out strength. Same 50 Hz ticks; opponent actions and physics substeps do not multiply SPS."
+  },
+  {
+    "run": "train-round_outcome_v1",
+    "backend": "semantic_cuda",
+    "learnerTransitions": 33554432,
+    "simulatedSecondsPerTransition": 0.02,
+    "arenas": 512,
+    "horizon": 512,
+    "minibatch": 8192,
+    "epochs": 128,
+    "trainingLoopSeconds": 34.90489983558655,
+    "trainingSps": 961310.0784718567,
+    "processWallSeconds": 35.61,
+    "startupInclusiveSps": 942275.5405784892,
+    "aggregateSimulatedSecondsPerWallSecond": 19226.201569437133,
+    "trainingRoundResults": {
+      "arenas": 512,
+      "completed_rounds": 5120,
+      "fighter0_wins": 5092,
+      "fighter1_wins": 27,
+      "ties": 1,
+      "redos": 0,
+      "unclassified": 0,
+      "fighter0_completed_points": 704646,
+      "fighter1_completed_points": 217945,
+      "failure_bits": 0
+    },
+    "trainingWinFraction": 0.99453125,
+    "heldOutWinFraction": null,
+    "note": "Training counts include the changing policy. They are not held-out strength. Same 50 Hz ticks; opponent actions and physics substeps do not multiply SPS."
+  }
+]

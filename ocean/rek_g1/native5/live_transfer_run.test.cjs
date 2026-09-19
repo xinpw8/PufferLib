@@ -5,7 +5,11 @@ const os=require('node:os');
 const path=require('node:path');
 const {test}=require('node:test');
 const {once}=require('node:events');
-const {validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer,canExitLostPrivateSession,betweenPrivateRounds,canRequestPrivateRound,privateArena,botIdentity,validateBotIdentity,trialExitCode,canReadyPrivateAiSession,ensurePrivateArena}=require('./live_transfer_run.cjs');
+const {spawn}=require('node:child_process');
+const {validateWorkerReady,validateEncoderReady,validateStartupGate,waitForStartupGate,startRelayWhenPrepared,
+  validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer,canExitLostPrivateSession,
+  betweenPrivateRounds,canRequestPrivateRound,privateArena,botIdentity,validateBotIdentity,trialExitCode,
+  roundOutcome,roundStartCovered,canReadyPrivateAiSession,ensurePrivateArena}=require('./live_transfer_run.cjs');
 const sha='a'.repeat(64),round='b'.repeat(64);
 const ready=()=>({type:'ready',checkpoint_sha256:sha,native_cuda:true,environment_stepping:false,
   observation_schema:'rek.native5.scaled_polar_xy.v1',precision:'bf16',selection:'sampled',
@@ -162,7 +166,9 @@ test('a stream pins bot identity and rejects mid-round changes or human occupanc
 });
 
 test('earlier successful actions cannot turn a later scope failure into a successful exit',()=>{
-  const s={predictions:100,applied:99,final_round:{active:false,result_value:1}};
+  const s={predictions:100,applied:99,local_slot:0,
+    initial_round:{active:true,duration:120,time_remaining:119.5},
+    final_round:{active:false,redo:false,result_value:1,winner_index:0}};
   for(const stop_reason of ['source_round_terminal','stream_end:active_round_not_observed'])
     assert.equal(trialExitCode({...s,stop_reason}),0);
   for(const stop_reason of ['relay_callback:private_ai_identity_changed_or_unproven',
@@ -171,6 +177,203 @@ test('earlier successful actions cannot turn a later scope failure into a succes
   assert.equal(trialExitCode({...s,stop_reason:'source_round_terminal',final_round:{active:true,result_value:0}}),2);
   assert.equal(trialExitCode({...s,stop_reason:'requested_duration_complete',applied:0}),2);
   assert.equal(trialExitCode({...s,stop_reason:'requested_duration_complete'}),2);
+});
+
+test('only an observed win, loss or draw is a meaningful terminal result',()=>{
+  const terminal={active:false,redo:false,result_value:1,winner_index:0};
+  assert.equal(roundOutcome(terminal,0),'win');assert.equal(roundOutcome(terminal,1),'loss');
+  assert.equal(roundOutcome({...terminal,result_value:2},0),'win');
+  assert.equal(roundOutcome({...terminal,result_value:3,winner_index:-1},0),'draw');
+  assert.equal(roundOutcome({...terminal,result_value:4},0),'redo');
+  assert.equal(roundOutcome({...terminal,redo:true},0),'redo');
+  assert.equal(roundOutcome({...terminal,active:true},0),'incomplete');
+  for(const value of [0,5,99,null,undefined,'1'])
+    assert.equal(roundOutcome({...terminal,result_value:value},0),'unknown');
+  for(const winner of [-1,2,null,undefined])
+    assert.equal(roundOutcome({...terminal,winner_index:winner},0),'unknown');
+  assert.equal(roundOutcome({...terminal,redo:undefined},0),'unknown');
+  assert.equal(roundOutcome(terminal,undefined),'unknown');
+  const summary={predictions:100,applied:99,local_slot:0,stop_reason:'source_round_terminal',
+    initial_round:{active:true,duration:120,time_remaining:119.9}};
+  for(const result_value of [1,2,3])
+    assert.equal(trialExitCode({...summary,final_round:{...terminal,result_value}}),0);
+  for(const result_value of [0,4,5,99])
+    assert.equal(trialExitCode({...summary,final_round:{...terminal,result_value}}),2);
+});
+
+test('the one-second first-observation threshold is retained exactly',()=>{
+  const initial={active:true,duration:120,time_remaining:119};
+  assert.equal(roundStartCovered(initial),true);
+  assert.equal(roundStartCovered({...initial,time_remaining:120}),true);
+  for(const time_remaining of [118.999999,118.98223,105.474,120.1,NaN,undefined])
+    assert.equal(roundStartCovered({...initial,time_remaining}),false);
+  assert.equal(roundStartCovered({...initial,active:false}),false);
+  assert.equal(roundStartCovered({...initial,duration:undefined}),false);
+  assert.equal(trialExitCode({predictions:100,applied:99,local_slot:0,
+    stop_reason:'source_round_terminal',initial_round:{...initial,time_remaining:118.98223},
+    final_round:{active:false,redo:false,result_value:1,winner_index:0}}),2);
+});
+
+const manifest=()=>({event:'projection_manifest',projection:'client_pose_projection_v1',
+  observation_schema:'rek.native5.scaled_polar_xy.v1',model_sha256:'c'.repeat(64),
+  candidate_physics_stepped:false,authoritative_server_state:false,
+  fields:Array.from({length:223},(_,index)=>({index}))});
+function gateFixture() {
+  const gate={ready_path:path.join(os.tmpdir(),'fixture-ready.json'),
+    release_path:path.join(os.tmpdir(),'fixture-release.json'),timeout_ms:1000};
+  const files=new Map(),events=[];let clock=0;
+  return {gate,files,events,options:{now:()=>clock,wait:async ms=>{clock+=ms;},
+    exists:file=>files.has(file),read:file=>files.get(file),write:(file,value)=>files.set(file,value),
+    log:event=>events.push(event)}};
+}
+
+test('both encoder calibration and CUDA worker readiness precede relay creation',async()=>{
+  for(const first of ['encoder','worker']) {
+    const reports={},calls=[];
+    const endpoints=Object.fromEntries(['encoder','worker'].map(name=>[name,{
+      wait:()=>new Promise(resolve=>{reports[name]=resolve;}),
+      send:()=>assert.fail('startup must not infer synthetic observations or reset recurrent state')}]));
+    const result=startRelayWhenPrepared({...endpoints,checkpointSha256:sha,
+      openRelay:()=>{calls.push('relay_open');return 'relay';}});
+    assert.deepEqual(calls,[]);
+    reports[first](first==='encoder'?manifest():ready());
+    await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(calls,[]);
+    const second=first==='encoder'?'worker':'encoder';reports[second](second==='encoder'?manifest():ready());
+    assert.equal(await result,'relay');assert.deepEqual(calls,['relay_open']);
+  }
+});
+
+test('machine startup gate publishes readiness before release and relay connection',async()=>{
+  const f=gateFixture(),calls=[];
+  const result=await startRelayWhenPrepared({encoder:{wait:async()=>manifest()},worker:{wait:async()=>ready()},
+    checkpointSha256:sha,startupGate:f.gate,gateOptions:{...f.options,wait:async()=>{
+      assert.deepEqual(calls,[],'no game connection while the coordinator launches its fresh client');
+      const prepared=f.files.get(f.gate.ready_path);
+      assert.equal(prepared.checkpoint_sha256,sha);assert.equal(prepared.encoder_model_sha256,'c'.repeat(64));
+      assert.equal(prepared.policy_worker_ready,true);assert.equal(prepared.encoder_ready,true);
+      assert.equal(prepared.relay_connected,false);assert.equal(prepared.global_input_emitted,false);
+      calls.push('fresh_client_launched');
+      f.files.set(f.gate.release_path,{readiness_id:prepared.readiness_id,checkpoint_sha256:sha});
+    }},openRelay:()=>{calls.push('relay_open');return 'relay';}});
+  assert.equal(result,'relay');assert.deepEqual(calls,['fresh_client_launched','relay_open']);
+});
+
+test('invalid readiness cannot publish a startup marker or connect to the game',async()=>{
+  for(const bad of ['worker','encoder']) {
+    const f=gateFixture();let opened=false;
+    await assert.rejects(startRelayWhenPrepared({
+      encoder:{wait:async()=>bad==='encoder'?{...manifest(),candidate_physics_stepped:true}:manifest()},
+      worker:{wait:async()=>bad==='worker'?{...ready(),checkpoint_sha256:'d'.repeat(64)}:ready()},
+      checkpointSha256:sha,startupGate:f.gate,gateOptions:f.options,
+      openRelay:()=>{opened=true;}}),/mismatch/);
+    assert.equal(f.files.size,0);assert.equal(opened,false);
+  }
+  assert.throws(()=>validateEncoderReady({...manifest(),fields:[]}),/readiness mismatch/);
+  assert.throws(()=>validateEncoderReady({...manifest(),authoritative_server_state:true}),/readiness mismatch/);
+});
+
+test('startup release must match this worker preparation and checkpoint',async()=>{
+  for(const patch of [{readiness_id:'stale'},{checkpoint_sha256:'d'.repeat(64)}]) {
+    const f=gateFixture();
+    await assert.rejects(waitForStartupGate(f.gate,{checkpoint_sha256:sha},{...f.options,wait:async()=>{
+      const prepared=f.files.get(f.gate.ready_path);
+      f.files.set(f.gate.release_path,{readiness_id:prepared.readiness_id,checkpoint_sha256:sha,...patch});
+    }}),/release identity mismatch/);
+  }
+});
+
+test('startup timeout, stale paths, or a child failure cannot start a relay',async()=>{
+  for(const failure of ['timeout','stale','child']) {
+    const f=gateFixture();let stopped=false,opened=false;
+    if(failure==='stale')f.files.set(f.gate.release_path,{});
+    await assert.rejects(startRelayWhenPrepared({encoder:{wait:async()=>manifest()},worker:{wait:async()=>ready()},
+      checkpointSha256:sha,startupGate:f.gate,isStopping:()=>stopped,
+      gateOptions:{...f.options,wait:async ms=>{await f.options.wait(ms);if(failure==='child')stopped=true;}},
+      openRelay:()=>{opened=true;}}),/timeout|paths must be new|child failure/);
+    assert.equal(opened,false);
+  }
+});
+
+test('optional startup gate accepts only bounded distinct absolute paths',()=>{
+  assert.doesNotThrow(()=>validateStartupGate(undefined));
+  const f=gateFixture();assert.doesNotThrow(()=>validateStartupGate(f.gate));
+  for(const bad of [null,{...f.gate,ready_path:'relative'},
+    {...f.gate,release_path:f.gate.ready_path},
+    {...f.gate,ready_path:path.join(os.tmpdir(),'OneDrive','ready.json')},
+    {...f.gate,timeout_ms:0},{...f.gate,timeout_ms:120001}])
+    assert.throws(()=>validateStartupGate(bad),/startup_gate/);
+});
+
+test('CLI waits for machine release, then completes one fresh round using only fixture processes',async t=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'rek-startup-gate-test-'));
+  const out=path.join(dir,'trial'),readyPath=path.join(dir,'ready.json');
+  const releasePath=path.join(dir,'release.json'),relayStarted=path.join(dir,'relay-started.json');
+  const configPath=path.join(dir,'config.json');
+  const encoderCode=`const readline=require('node:readline');
+    console.log(JSON.stringify(${JSON.stringify(manifest())}));
+    readline.createInterface({input:process.stdin}).on('line',line=>{
+      const source=JSON.parse(line);console.log(JSON.stringify({event:'policy_observation',ready:true,
+        worker_request:{type:'step',seq:source.observation_sequence,round_id:source.round_identity_sha256,
+          terminal:source.round.active===false}}));
+    });`;
+  const workerCode=`const readline=require('node:readline');
+    console.log(JSON.stringify(${JSON.stringify(ready())}));
+    readline.createInterface({input:process.stdin}).on('line',line=>{
+      const request=JSON.parse(line);console.log(JSON.stringify({type:request.terminal?'terminal':'action',
+        seq:request.seq,round_id:request.round_id,checkpoint_sha256:'${sha}',action:1}));
+    });`;
+  const relayCode=`const fs=require('node:fs'),readline=require('node:readline');
+    const send=value=>console.log(JSON.stringify(value));
+    fs.writeFileSync(${JSON.stringify(relayStarted)},'{}',{flag:'wx'});
+    send({event:'hello'});let sequence=0;
+    function source(terminal=false){sequence++;send({event:'g1_policy_state',observation_sequence:sequence,
+      round_identity_sha256:'${round}',local_slot:0,clock:{qpc_ticks:sequence*100},
+      opponent:{client_ai_difficulty:0,sparring_bot_number:1,opponent_is_ai:true,human_in_opponent_slot:false},
+      round:{number:1,duration:120,time_remaining:terminal?0:119.9,active:!terminal,redo:false,
+        result_value:terminal?1:0,winner_index:terminal?0:-1}});}
+    readline.createInterface({input:process.stdin}).on('line',line=>{
+      const request=JSON.parse(line);
+      if(request.type==='get_state')send({...${JSON.stringify(activePrivateAi())},event:'state',request_id:request.request_id});
+      if(request.type==='command'){
+        send({event:'ack',request_id:request.request_id,status:'accepted',reason:'fixture'});
+        if(request.command==='StartG1PolicyStreamAnyAi')setTimeout(()=>source(),5);
+      }
+      if(request.type==='policy_action'){
+        send({...request,event:'g1_policy_action',applied:true,reason:'fixture',clock:{qpc_ticks:sequence*100+1}});
+        setTimeout(()=>source(true),5);
+      }
+    });`;
+  fs.writeFileSync(configPath,JSON.stringify({projection:'client_pose_projection_v1',max_seconds:5,
+    checkpoint_sha256:sha,out,enter_private:false,
+    startup_gate:{ready_path:readyPath,release_path:releasePath,timeout_ms:5000},
+    encoder:[process.execPath,'-e',encoderCode],worker:[process.execPath,'-e',workerCode],
+    relay:[process.execPath,'-e',relayCode]}));
+  const child=spawn(process.execPath,[path.join(__dirname,'live_transfer_run.cjs'),configPath],
+    {stdio:['ignore','pipe','pipe'],windowsHide:true});
+  let stderr='';child.stderr.on('data',chunk=>{stderr+=chunk;});child.stdout.resume();
+  const exited=once(child,'exit');
+  t.after(async()=>{
+    if(child.exitCode===null&&!child.killed){child.kill('SIGTERM');await exited;}
+    fs.rmSync(dir,{recursive:true,force:true});
+  });
+  const deadline=Date.now()+5000;
+  while(!fs.existsSync(readyPath)) {
+    assert.ok(Date.now()<deadline,'readiness artifact was not published');
+    assert.equal(child.exitCode,null,stderr);
+    await new Promise(resolve=>setTimeout(resolve,10));
+  }
+  assert.equal(fs.existsSync(relayStarted),false);
+  const preparation=JSON.parse(fs.readFileSync(readyPath,'utf8'));
+  assert.equal(preparation.policy_worker_ready,true);assert.equal(preparation.encoder_ready,true);
+  const releaseTemp=path.join(dir,'release.tmp');
+  fs.writeFileSync(releaseTemp,JSON.stringify({readiness_id:preparation.readiness_id,checkpoint_sha256:sha}));
+  fs.renameSync(releaseTemp,releasePath);
+  const [exitCode]=await exited;assert.equal(exitCode,0,stderr);
+  assert.equal(fs.existsSync(relayStarted),true);
+  const summary=JSON.parse(fs.readFileSync(path.join(out,'summary.json'),'utf8'));
+  assert.equal(summary.stop_reason,'source_round_terminal');assert.equal(summary.round_outcome,'win');
+  assert.equal(summary.applied,1);assert.equal(summary.round_identity_sha256,round);
+  assert.equal(summary.initial_round.time_remaining,119.9);assert.equal(summary.final_round.active,false);
 });
 
 test('automatic between-round transition waits without sending a round request',()=>{

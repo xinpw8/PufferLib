@@ -1,0 +1,127 @@
+{
+  "schema": "rek.live_referee_validation.v1",
+  "created_utc": "2026-09-19T23:12:47.251Z",
+  "validator_sha256": "22bbb6652f8cf333c1c832f8719f9e37da20b66bfecd85185e228d2183c9fe89",
+  "verification_passed": true,
+  "source_count": 4442,
+  "available_source_count": 4442,
+  "unavailable_source_count": 0,
+  "unavailable_reasons": {},
+  "round_identities": [
+    "1e2d6a2112fac3f6953ec5c867831f80401f63d37543b0317c137cea5d76e667"
+  ],
+  "unique_bridge_receipts": 1179,
+  "unique_native_receipt_keys": 1179,
+  "repeated_policy_observations_of_cached_receipt": 3263,
+  "receipts_with_multiple_exact_native_matches": 0,
+  "receipt_age_seconds": {
+    "minimum": 0.0100579,
+    "maximum": 0.1929218,
+    "maximum_allowed": 0.5
+  },
+  "count_mask_policy_observations": {
+    "0": 4375,
+    "2": 67
+  },
+  "count_mask_unique_bridge_receipts": {
+    "0": 1149,
+    "2": 30
+  },
+  "call_transitions_unique_bridge_receipts": {
+    "empty_sequence": 296,
+    "changed_received_sequence": 2,
+    "repeated_latched_call": 881
+  },
+  "unique_latched_call_ids": 2,
+  "cache_censored_call_ids": 0,
+  "validation_left_censored_call_ids": 0,
+  "calls": [
+    {
+      "call_id": "1e2d6a2112fac3f6953ec5c867831f80401f63d37543b0317c137cea5d76e667:2:1",
+      "sequence": 1,
+      "type": 0,
+      "name": "Slip",
+      "faller": 1,
+      "points": 0,
+      "cache_history_censored": false,
+      "first_seen_transition": "changed_received_sequence",
+      "first_source_line": 2369,
+      "first_receipt_sequence": 350,
+      "first_receipt_unity_frame": 3963,
+      "first_receipt_unity_time": 77.02901618480725,
+      "policy_observations": 67,
+      "validation_observation_left_censored": false
+    },
+    {
+      "call_id": "1e2d6a2112fac3f6953ec5c867831f80401f63d37543b0317c137cea5d76e667:2:2",
+      "sequence": 2,
+      "type": 4,
+      "name": "Knockout",
+      "faller": 1,
+      "points": 5,
+      "cache_history_censored": false,
+      "first_seen_transition": "changed_received_sequence",
+      "first_source_line": 2506,
+      "first_receipt_sequence": 380,
+      "first_receipt_unity_frame": 4030,
+      "first_receipt_unity_time": 80.0217693877551,
+      "policy_observations": 3246,
+      "validation_observation_left_censored": false
+    }
+  ],
+  "semantic_limit": "Call IDs deduplicate latched observations. Initial/gapped calls are censored; repeated payloads are never counted as new calls. No server-current-state, attacker, executed-action or terminal-KO inference.",
+  "native_process_id": 242020,
+  "native": {
+    "packet_count": 1199,
+    "unique_receipt_keys": 1199,
+    "initial_round_number": 1,
+    "calls": [
+      {
+        "sequence": 1,
+        "name": "Slip",
+        "faller_slot": 1,
+        "points": 0,
+        "observed_new_call": true,
+        "left_censored": false,
+        "repeated_snapshots": 29
+      },
+      {
+        "sequence": 2,
+        "name": "Knockout",
+        "faller_slot": 1,
+        "points": 5,
+        "observed_new_call": true,
+        "left_censored": false,
+        "repeated_snapshots": 865
+      }
+    ],
+    "counts": [
+      {
+        "slot": 1,
+        "left_censored": false,
+        "right_censored": false,
+        "explicit_countout": true,
+        "duration_receipt_seconds": 2.995102799999998,
+        "resolution_call_name": "Knockout"
+      }
+    ]
+  },
+  "inputs": [
+    {
+      "file": "C:\\rekagent\\work\\reward-objective-20260919-r1\\live-round_outcome_v1-r2\\trial\\relay.stdout.jsonl",
+      "bytes": 55494898,
+      "lines": 9043,
+      "sha256": "a26239b9ea39834797d605469877ab785ed3e25b6d1dc1279f8c62582030f62a"
+    },
+    {
+      "file": "C:\\rekagent\\evidence\\runtime\\rek-private-ai-protocol-v7\\rek-private-ai-root-motion-20260919T231003.8056879Z-pid242020-8bbf290d28d64c3eb9a2c5ca0b2526c5.jsonl",
+      "bytes": 206830101,
+      "lines": 87648,
+      "sha256": "b05af12f20a37c35b5beb7a0f7befc92ff5eaa72f963a6a52d97b36946b42b83"
+    }
+  ],
+  "matching_contract": "Identical validated 33-byte body SHA/base64 and exact Unity frame, time and unscaled time at the two read-only ApplyFightStateSnapshot prefixes. QPC age is independently recomputed from the policy clock; receipt frequencies must equal native capture frequency.",
+  "memory_contract": "Streams entire input files; retains referee packets, receipt identities and deduplicated calls only, never pose or full policy logs.",
+  "no_game_connection": true,
+  "no_runtime_changes": true
+}

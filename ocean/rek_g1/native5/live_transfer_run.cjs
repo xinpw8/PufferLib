@@ -28,13 +28,26 @@ function validateBotIdentity(opponent, expected) {
     opponent.sparring_bot_number===expected.sparring_bot_number,
     'private_ai_identity_changed_or_unproven');
 }
+function roundOutcome(round,localSlot) {
+  if(round?.active!==false)return 'incomplete';
+  if(round.redo===true||round.result_value===4)return 'redo';
+  if(round.redo!==false||![0,1].includes(localSlot))return 'unknown';
+  if(round.result_value===3)return 'draw';
+  if(![1,2].includes(round.result_value)||![0,1].includes(round.winner_index))return 'unknown';
+  return round.winner_index===localSlot?'win':'loss';
+}
+function roundStartCovered(round) {
+  return round?.active===true && Number.isFinite(round.duration) && round.duration>0 &&
+    Number.isFinite(round.time_remaining) && round.time_remaining>=round.duration-1 &&
+    round.time_remaining<=round.duration;
+}
 function trialExitCode(summary) {
   if(summary.predictions<=0 || summary.applied<=0)return 2;
   // A duration limit is an incomplete attempt. It cannot certify a round
   // result, even if the worker issued valid actions before the limit.
   if(summary.stop_reason==='requested_duration_complete')return 2;
-  const terminal=summary.final_round?.active===false &&
-    Number.isInteger(summary.final_round.result_value) && summary.final_round.result_value>0;
+  const terminal=roundStartCovered(summary.initial_round) &&
+    ['win','loss','draw'].includes(roundOutcome(summary.final_round,summary.local_slot));
   return terminal && ['source_round_terminal','stream_end:active_round_not_observed'].includes(summary.stop_reason)?0:2;
 }
 function canExitLostPrivateSession(s) {
@@ -109,6 +122,66 @@ function validateWorkerReady(ready, sha) {
     ready.precision==='bf16' && ready.selection==='sampled' &&
     ready.observations===223 && ready.actions===33 &&
     ready.hidden_size===256 && ready.num_layers===2, 'worker identity mismatch');
+}
+function validateEncoderReady(manifest) {
+  requireValue(manifest?.event==='projection_manifest' && manifest.projection==='client_pose_projection_v1' &&
+    manifest.observation_schema==='rek.native5.scaled_polar_xy.v1' &&
+    manifest.candidate_physics_stepped===false && manifest.authoritative_server_state===false &&
+    /^[a-f0-9]{64}$/.test(manifest.model_sha256||'') && Array.isArray(manifest.fields) &&
+    manifest.fields.length===223 && manifest.fields.every((field,index)=>field.index===index),
+    'encoder readiness mismatch');
+}
+function validateStartupGate(gate) {
+  if(gate===undefined)return;
+  requireValue(gate!==null && typeof gate==='object','startup_gate must be an object');
+  const paths=[gate.ready_path,gate.release_path];
+  requireValue(paths.every(p=>typeof p==='string'&&path.isAbsolute(p)&&
+    !/(^|[\\/])onedrive[^\\/]*([\\/]|$)/i.test(p)) &&
+    path.resolve(paths[0]).toLowerCase()!==path.resolve(paths[1]).toLowerCase(),
+    'startup_gate requires distinct absolute paths outside OneDrive');
+  requireValue(Number.isInteger(gate.timeout_ms)&&gate.timeout_ms>0&&gate.timeout_ms<=120000,
+    'startup_gate timeout_ms must be a positive integer <=120000');
+}
+async function waitForStartupGate(gate,identity,{now=Date.now,
+    wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),exists=fs.existsSync,
+    write=(file,value)=>fs.writeFileSync(file,JSON.stringify(value,null,2)+'\n',{flag:'wx'}),
+    read=file=>JSON.parse(fs.readFileSync(file,'utf8')),isStopping=()=>false,log=()=>{}}={}) {
+  if(gate===undefined)return;
+  validateStartupGate(gate);
+  requireValue(!exists(gate.ready_path)&&!exists(gate.release_path),'startup_gate paths must be new');
+  const readiness={schema:'rek.live_transfer.prepared.v1',readiness_id:crypto.randomUUID(),
+    checkpoint_sha256:identity.checkpoint_sha256,encoder_model_sha256:identity.encoder_model_sha256,
+    policy_worker_ready:true,encoder_ready:true,relay_connected:false,global_input_emitted:false};
+  write(gate.ready_path,readiness);
+  log('waiting_for_fresh_client',{ready_path:gate.ready_path,release_path:gate.release_path});
+  const deadline=now()+gate.timeout_ms;
+  while(true) {
+    requireValue(!isStopping(),'startup_gate interrupted by child failure');
+    requireValue(now()<deadline,'startup_gate release timeout');
+    if(exists(gate.release_path)) {
+      const release=read(gate.release_path);
+      requireValue(release?.readiness_id===readiness.readiness_id &&
+        release.checkpoint_sha256===readiness.checkpoint_sha256,'startup_gate release identity mismatch');
+      log('fresh_client_released',{readiness_id:readiness.readiness_id});return;
+    }
+    await wait(50);
+  }
+}
+async function startRelayWhenPrepared({encoder,worker,checkpointSha256,openRelay,startupGate,
+    gateOptions={},isStopping=()=>false,log=()=>{}}) {
+  // Subscribe to both startup reports together. Neither endpoint receives a synthetic step/reset.
+  const [ready,manifest]=await Promise.all([
+    worker.wait(x=>x.type==='ready',60000),encoder.wait(x=>x.event==='projection_manifest',60000)
+  ]);
+  validateWorkerReady(ready,checkpointSha256);validateEncoderReady(manifest);
+  requireValue(!isStopping(),'startup interrupted by child failure');
+  log('inference_ready',{checkpoint_sha256:ready.checkpoint_sha256,device:ready.device,
+    precision:ready.precision,selection:ready.selection,projection:manifest.projection,
+    encoder_model_sha256:manifest.model_sha256});
+  await waitForStartupGate(startupGate,{checkpoint_sha256:checkpointSha256,
+    encoder_model_sha256:manifest.model_sha256},{...gateOptions,isStopping,log});
+  requireValue(!isStopping(),'startup interrupted by child failure');
+  return openRelay();
 }
 function validateWorkerAction(prediction, source, sha) {
   requireValue(source && prediction?.type==='action' &&
@@ -214,13 +287,14 @@ async function run(configPath) {
   requireValue(config.projection === 'client_pose_projection_v1', 'explicit projection required');
   requireValue(Number.isFinite(config.max_seconds) && config.max_seconds > 0 && config.max_seconds <= 600, 'max_seconds must be 0..600');
   requireValue(/^[a-f0-9]{64}$/.test(config.checkpoint_sha256), 'checkpoint SHA required');
+  validateStartupGate(config.startup_gate);
   fs.mkdirSync(config.out, {recursive:false});
   fs.writeFileSync(path.join(config.out,'run-config.json'), JSON.stringify(config,null,2)+'\n', {flag:'wx'});
   const events=fs.createWriteStream(path.join(config.out,'orchestrator.jsonl'), {flags:'wx'});
   const log=(event, detail={}) => {const value={utc:new Date().toISOString(),event,...detail};events.write(JSON.stringify(value)+'\n');console.log(JSON.stringify(value));};
   const endpoints=[]; let relay,encoder,worker, leased=false, streaming=false, stopping=false;
   let nextId=0, sourceCount=0, skipped=0, predictions=0, applied=0, rejected=0, unmatchedAcks=0;
-  let firstRound=null,lastRound=null,lastSourceAt=0,stopReason='not_started',opponent=null;
+  let firstRound=null,lastRound=null,roundIdentity=null,localSlot=null,lastSourceAt=0,stopReason='not_started',opponent=null;
   const actions=Array(33).fill(0), reasons={}, droppedSources={}, pacer=new LiveActionPacer();
   let doneResolve; const done=new Promise(resolve => doneResolve=resolve);
   let timer, watchdog;
@@ -234,20 +308,20 @@ async function run(configPath) {
     requireValue(ack.status==='accepted', `${command}: ${ack.reason}`); return ack;
   }
   function finish(reason) {if(!stopping){stopping=true;stopReason=reason;doneResolve();}}
+  function openEndpoint(name,spec) {
+    const endpoint=childEndpoint(name,spec,config.out);endpoints.push(endpoint);
+    endpoint.bus.on('failure',error=>finish(error.message));
+    endpoint.bus.on('exit',x=>finish(`child_exit:${JSON.stringify(x)}`));
+    endpoint.bus.on('invalid',()=>finish('child_invalid_json'));
+    return endpoint;
+  }
   try {
-    encoder=childEndpoint('encoder',config.encoder,config.out); endpoints.push(encoder);
-    worker=childEndpoint('worker',config.worker,config.out); endpoints.push(worker);
-    relay=childEndpoint('relay',config.relay,config.out); endpoints.push(relay);
-    for(const endpoint of endpoints) {
-      endpoint.bus.on('failure',error=>finish(error.message));
-      endpoint.bus.on('exit',x=>finish(`child_exit:${JSON.stringify(x)}`));
-      endpoint.bus.on('invalid',()=>finish('child_invalid_json'));
-    }
-    const [ready]=await Promise.all([
-      worker.wait(x=>x.type==='ready',60000), relay.wait(x=>x.event==='hello',30000)
-    ]);
-    validateWorkerReady(ready, config.checkpoint_sha256);
-    log('inference_ready',{checkpoint_sha256:ready.checkpoint_sha256,device:ready.device,precision:ready.precision,selection:ready.selection,projection:config.projection});
+    encoder=openEndpoint('encoder',config.encoder);
+    worker=openEndpoint('worker',config.worker);
+    relay=await startRelayWhenPrepared({encoder,worker,checkpointSha256:config.checkpoint_sha256,
+      openRelay:()=>openEndpoint('relay',config.relay),startupGate:config.startup_gate,
+      isStopping:()=>stopping,log});
+    await relay.wait(x=>x.event==='hello',30000);
     let state=await request('get_state',{},'state');
     await command('AcquireExclusiveControl'); leased=true;
     if(betweenPrivateRounds(state)) {
@@ -299,7 +373,13 @@ async function run(configPath) {
       if(source.event!=='g1_policy_state'||stopping)return;
       validateBotIdentity(source.opponent,opponent);
       sourceCount++;lastSourceAt=Date.now();
-      if(source.round){firstRound??=source.round;lastRound=source.round;}
+      if(firstRound===null) {
+        firstRound=source.round;roundIdentity=source.round_identity_sha256;localSlot=source.local_slot;
+        requireValue(roundStartCovered(firstRound),'round_start_coverage_missing');
+      }
+      requireValue(source.round_identity_sha256===roundIdentity&&source.local_slot===localSlot,
+        'source_round_identity_changed');
+      if(source.round)lastRound=source.round;
       if(!streaming)return;
       const dropped=pacer.offer(source,Date.now());
       if(dropped){skipped++;droppedSources[dropped]=(droppedSources[dropped]||0)+1;return;}
@@ -343,7 +423,9 @@ async function run(configPath) {
     if(leased){try{await command('StopG1PolicyStream');}catch(e){log('stop_error',{message:e.message});}try{await command('ReleaseExclusiveControl');}catch(e){log('release_error',{message:e.message});}}
     const summary={stop_reason:stopReason,source_count:sourceCount,skipped_sources:skipped,dropped_sources:droppedSources,
       unmatched_action_acks:unmatchedAcks,action_inflight_at_stop:pacer.pending?.requestId!==null&&pacer.pending?.requestId!==undefined,
-      last_ack_qpc_ticks:pacer.lastAckQpc?.toString()??null,predictions,applied,rejected,actions,reasons,opponent,initial_round:firstRound,final_round:lastRound,projection:config.projection,checkpoint_sha256:config.checkpoint_sha256,authentic_client:true,global_input_emitted:false};
+      last_ack_qpc_ticks:pacer.lastAckQpc?.toString()??null,predictions,applied,rejected,actions,reasons,opponent,
+      local_slot:localSlot,round_identity_sha256:roundIdentity,round_outcome:roundOutcome(lastRound,localSlot),
+      initial_round:firstRound,final_round:lastRound,projection:config.projection,checkpoint_sha256:config.checkpoint_sha256,authentic_client:true,global_input_emitted:false};
     fs.writeFileSync(path.join(config.out,'summary.json'),JSON.stringify(summary,null,2)+'\n',{flag:'wx'});log('summary',summary);
     for(const e of endpoints)e.close();
     setTimeout(()=>{for(const e of endpoints)if(e.child.exitCode===null)e.child.kill('SIGTERM');},2000).unref();
@@ -352,4 +434,7 @@ async function run(configPath) {
   }
 }
 if(require.main===module) {requireValue(process.argv.length===3,'usage: node live_transfer_run.cjs config.json');run(process.argv[2]).catch(e=>{console.error(e.message);process.exitCode=2;});}
-module.exports={privateArena,botIdentity,validateBotIdentity,trialExitCode,canExitLostPrivateSession,canReadyPrivateAiSession,ensurePrivateArena,betweenPrivateRounds,canRequestPrivateRound,validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer};
+module.exports={privateArena,botIdentity,validateBotIdentity,trialExitCode,roundOutcome,roundStartCovered,
+  canExitLostPrivateSession,canReadyPrivateAiSession,ensurePrivateArena,betweenPrivateRounds,canRequestPrivateRound,
+  validateWorkerReady,validateEncoderReady,validateStartupGate,waitForStartupGate,startRelayWhenPrepared,
+  validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer};

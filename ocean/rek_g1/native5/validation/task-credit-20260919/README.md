@@ -95,8 +95,11 @@ proof. No global input or Windows client control was used.
 The r3 trial ran after an isolated client restart with diagnostic-only writer
 logging. Its process crash did not produce a writer-stage diagnostic. Neither
 the diagnostic patch nor the temporal configuration can be claimed to have
-fixed live reliability or improved fighting strength. No completed authentic
-result exists for this checkpoint. The r3 MP4 is 7,123,223 bytes and validated,
+fixed live reliability or improved fighting strength. These Spark attempts
+produced no completed authentic result. The subsequent
+[native Windows trials](../task-credit-windows-20260919/README.md) did complete
+rounds with this checkpoint; their coverage and outcomes are reported separately.
+The r3 MP4 is 7,123,223 bytes and validated,
 but depicts an interrupted trial. Native raw captures are retained privately.
 
 A separate native-packet export found 151 received hit packets and 169 score
