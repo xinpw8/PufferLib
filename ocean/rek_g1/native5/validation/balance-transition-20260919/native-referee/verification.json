@@ -1,0 +1,35 @@
+{
+  "schema": "rek.native_packet_export.verification.v1",
+  "date_utc": "2026-09-19",
+  "windows_node_version": "25.2.1",
+  "spark_node_version": "18.19.1",
+  "test_command": "node --test native_hit_receipt_data.test.cjs native_referee_data.test.cjs",
+  "windows_tests_passed": 19,
+  "spark_tests_passed": 19,
+  "tests_failed": 0,
+  "hit_receipt_exporter_sha256": "485d5b89217ba305a3fee9bcb573bb6efe1d0bceb04a0f06472ea88bfb37e2e6",
+  "referee_exporter_sha256": "7ed0ba9118eaf5f277eb265671de75dae43441ead75ee1ce410f4422dd7c5458",
+  "hit_receipt_audit_sha256": "894c7f66fe04a32fe98cd47ef937f9691d0a614ae26575774f3acf6e250ac96e",
+  "referee_audit_sha256": "826f339e9494f32b1bf6b5f3dea41ca8903936966f75f42122c00893ac4287d8",
+  "local_report_bytes_match_spark": true,
+  "prespecified_policy_captures": 10,
+  "preserved_session_groups": 6,
+  "exact_native_source_hashes_verified": 10,
+  "native_hit_wire_packets_verified": 151,
+  "native_score_wire_packets_verified": 169,
+  "native_referee_wire_packets_verified": 11989,
+  "private_outputs": [
+    "/home/spark-advantage/rek-training/native-hit-receipt-20260919-r2",
+    "/home/spark-advantage/rek-training/native-referee-20260919-r2"
+  ],
+  "private_directory_mode": "0700",
+  "private_file_mode": "0600",
+  "raw_poses_in_repository": false,
+  "runtime_mutations": false,
+  "model_training": false,
+  "execution_labels_invented": false,
+  "nas_backup_verified_by_parent_task": {
+    "path": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-19\\task-credit-20260919-r1\\teacher-exports-20260919-r1.tar",
+    "sha256": "929d5caac6cebcaa1571fd2011e2028bd37a8c57f1efe4462e142002da9f76a2"
+  }
+}

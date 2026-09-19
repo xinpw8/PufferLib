@@ -123,3 +123,27 @@ behavioral coverage.
 The files here establish training accounting and testable timing hypotheses.
 They do not qualify the compact physics, contact rules, or policy for authentic
 REK transfer.
+
+## Priority established by the recorded referee events
+
+The native packet audit in `validation/balance-transition-20260919/native-referee`
+corroborates all 18 five-point awards in the ten completed A/B rounds with
+received countout calls and exact score counters. All ten rounds finish
+`WonByPoints`. A received referee `Knockout` is therefore not itself a round
+terminal: these calls award points and reset physical play while the round
+continues. Countout score belongs in point differential once; it must not also
+reset episode memory, add a second KO bonus, or become an extra round win.
+
+The visual robot falling/fallen flags remain false throughout those captures.
+Use the received referee count/call fields for labeled referee state, and
+timestamped poses for observed motion. Neither source identifies every executed
+move or makes requested input a verified action-execution label.
+
+The compact runtime still omits the physical balance/contact transitions that
+produce those outcomes. The separate recovered rules adapter cannot supply
+missing dynamics. Correcting the observation contract and validating those
+transitions on held-out sessions takes priority over another reward-weight or
+entropy sweep. Domain randomization should represent measured uncertainty in
+supported dynamics; it cannot supply an absent event mechanism. Any shaping
+model must retain session-held-out evaluation and separate predicted outcomes
+from authoritative point rewards.

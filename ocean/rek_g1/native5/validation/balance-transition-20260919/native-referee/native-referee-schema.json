@@ -1,0 +1,36 @@
+{
+  "schema": "rek.native_referee_teacher.schema.v1",
+  "authority": "33-byte REK_FightState body copied at client ApplyFightStateSnapshot prefix",
+  "fields": "received call sequence/type/faller/points, count mask/seconds, round state and received counters",
+  "count_mask": "bit 0 fighter slot 0; bit 1 fighter slot 1",
+  "call_names": [
+    "Slip",
+    "SlipEStop",
+    "Knockdown",
+    "BeatCount",
+    "Knockout",
+    "DoubleKnockdown",
+    "DoubleKnockout"
+  ],
+  "zero_sequence": "empty snapshot, never a Slip event",
+  "deduplication": "capture/session/round/reset/wrap namespaced call IDs; repeated sequence is one latched call; first nonzero snapshot is left-censored",
+  "reset": "round/redo/fight epoch change, observed sequence zero, or decreasing sequence other than 255 to 1; uncertain decreases are censored",
+  "wrap": "server skips zero, so 255 to 1 is a wrap, with a new wrap namespace",
+  "score_join": "same exact capture, unique +/-0.25 s client monotonic receipt window, explicit five-point Knockout/DoubleKnockout and exact received scorer counter; single-fighter scorer differs from explicit faller",
+  "association_limit": "there is no shared causal packet/event ID; timing and counter agreement corroborate an award but do not prove a physical hit or an executed action",
+  "pose_join": "closest prior native line with nonlater shared Unity clocks and frame, maximum 0.1 s; receipt time is not authoritative physical event time",
+  "countout": "received count mask on then cleared with a new Knockout/DoubleKnockout call; source ResolveCountExpiry identifies this call as deadline expiry",
+  "terminal_limit": "Knockout referee call need not mean terminal round KO; preserve knockout_occurred, round_result and round_active separately",
+  "units": "seconds; pose distances in uncalibrated Unity numeric units",
+  "split": "unchanged six process-clock session groups from balance/receipt audit; all ten prespecified policy trials retained",
+  "unknowns": {
+    "attacker": null,
+    "active_clip": null,
+    "executed_move_index": null,
+    "causal_hit_id": null,
+    "server_clock": null
+  },
+  "visual_flag_limit": "visual-only robot.IsFalling/IsFallen are not the received referee state",
+  "no_training": true,
+  "raw_teacher_data_in_git": false
+}

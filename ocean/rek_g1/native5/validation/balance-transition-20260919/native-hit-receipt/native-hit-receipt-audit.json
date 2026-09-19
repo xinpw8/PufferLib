@@ -1,0 +1,991 @@
+{
+  "schema": "rek.native_hit_receipt.audit.v1",
+  "created_utc": "2026-09-19T20:02:46.967Z",
+  "exporter_sha256": "485d5b89217ba305a3fee9bcb573bb6efe1d0bceb04a0f06472ea88bfb37e2e6",
+  "baseline_audit_sha256": "dd010e1cd41d9696c84fd64d8acdba03aeca20ef4692722e04a274268a337347",
+  "supervision": {
+    "schema": "rek.native_receipt_teacher.schema.v1",
+    "selection": "all ten prespecified completed baseline/shaped A/B trials; no additional selection",
+    "native_pose_join": "closest earlier native-file paired root pose with nonlater Unity time/frame and unscaled time; maximum age 0.1 s",
+    "relay_pose_join": "closest paired 30-bone pose in a strictly earlier Unity frame and nonlater Unity time; maximum age 0.1 s",
+    "packet_association": "same Unity frame and client fixed tick; monotonic receipt difference <= 0.01 s; associations remain noncausal",
+    "clock_limit": "packet monotonic receipt time has no identical pose field; joins use shared Unity time and record/frame order, never an invented QPC/server conversion",
+    "geometry_limit": "received effect coordinates with preceding rendered poses; not synchronized authoritative physical-contact geometry",
+    "units": "Unity numeric distance and speed units; metre calibration unverified; seconds",
+    "labels": {
+      "attacker": null,
+      "defender": null,
+      "active_clip": null,
+      "executed_move_index": null,
+      "causal_request_id": null,
+      "server_clock": null
+    },
+    "split": "preserve all six process-clock groups from the baseline transition audit; these ten trials cover its four policy groups",
+    "known_values": "hit position/normal/relative_speed/is_kick, score recipient/points, client receipt clocks, paired root and bone geometry",
+    "wire_validation": "verify each recorded wire-body SHA-256, packed body length and decoded fields against little-endian bytes",
+    "missing_hit_is_miss": false,
+    "latest_request_is_executed_move": false,
+    "raw_teacher_data_in_git": false,
+    "why_previous_audit_lacked_hit_fields": "previous audit ingested relay.stdout.jsonl visual policy observations; raw hit/score packets are emitted separately by RekEvidenceRecorder under the Wine runtime evidence directory"
+  },
+  "session_groups": [
+    {
+      "id": "session-01",
+      "captures": [
+        "passive/round-r5",
+        "passive/round-r4"
+      ],
+      "origin_utc": "2026-09-17T04:45:23.147Z"
+    },
+    {
+      "id": "session-02",
+      "captures": [
+        "passive/round-r11",
+        "passive/round-r12"
+      ],
+      "origin_utc": "2026-09-17T08:28:40.449Z"
+    },
+    {
+      "id": "session-03",
+      "captures": [
+        "policy/baseline-r1-retry1"
+      ],
+      "origin_utc": "2026-09-19T03:10:18.937Z"
+    },
+    {
+      "id": "session-04",
+      "captures": [
+        "policy/baseline-r3-retry2",
+        "policy/baseline-r2",
+        "policy/baseline-r4",
+        "policy/shaped-r3",
+        "policy/shaped-r2",
+        "policy/shaped-r1-retry2"
+      ],
+      "origin_utc": "2026-09-19T05:01:26.211Z"
+    },
+    {
+      "id": "session-05",
+      "captures": [
+        "policy/shaped-r4-retry3",
+        "policy/baseline-r5"
+      ],
+      "origin_utc": "2026-09-19T05:32:38.878Z"
+    },
+    {
+      "id": "session-06",
+      "captures": [
+        "policy/shaped-r5-retry4"
+      ],
+      "origin_utc": "2026-09-19T05:40:37.299Z"
+    }
+  ],
+  "sessions_with_native_hit_data": [
+    "session-03",
+    "session-04",
+    "session-05",
+    "session-06"
+  ],
+  "captures": [
+    {
+      "capture": "policy/baseline-r1-retry1",
+      "session": "session-03",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T042827.2189090Z-pid32-71a92c83cedf4f1ea8be904a25a60cbd.jsonl",
+        "bytes": 210352465,
+        "sha256": "dd789c2d6dbd5720da3d70783540f74e412c79a4a37c9cb4ed9b56897fef9df9",
+        "lines": 89802
+      },
+      "relay_source": {
+        "file": "relay.stdout.jsonl",
+        "bytes": 64712531,
+        "sha256": "5ada5177535f7a49f34cdd3b34f31986630d51f7ab6fe75229b69f6662e363fb",
+        "lines": 12039
+      },
+      "binding": {
+        "basis": "same Unity frame, QPC, Unity time and both root positions",
+        "matching_anchors": 915,
+        "anchor_span_seconds": 119.78801619897968,
+        "maximum_qpc_offset_seconds": 0.15,
+        "maximum_unity_offset_seconds": 0.05,
+        "maximum_root_difference_unity_units": 0.05,
+        "pid": 32,
+        "pid_is_unique_process_session": false
+      },
+      "build": {
+        "schema": "rek.private_ai.protocol.v7",
+        "plugin_version": "0.7.4",
+        "plugin_sha256": "525bc57feb05e623ea152292c824f03c5f068f7a71b999adba53a150d637b071",
+        "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+        "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+        "application_version": "0.0.119",
+        "unity_version": "6000.5.8f1"
+      },
+      "wire_bodies_validated": 23,
+      "received_hit_packets": 10,
+      "received_score_packets": 13,
+      "awards_by_value": {
+        "1": 7,
+        "2": 3,
+        "5": 3
+      },
+      "composer_availability": {
+        "samples": 5998,
+        "playing_true": 0,
+        "clip_nonnull": 0,
+        "frame_nonnegative": 0,
+        "fps_positive": 0
+      },
+      "hit_receipt_associations": {
+        "unique_noncausal": 10,
+        "ambiguous_noncausal": 0,
+        "no_matching_receipt": 0
+      },
+      "native_pose_joined": 23,
+      "relay_pose_joined": 23,
+      "native_pose_age_seconds": {
+        "count": 23,
+        "minimum": 0.016681157880157116,
+        "median": 0.018375857426690345,
+        "p95": 0.01906045918349264,
+        "maximum": 0.01983985969400237
+      },
+      "relay_pose_age_seconds": {
+        "count": 23,
+        "minimum": 0.016657001133353333,
+        "median": 0.017033701813488733,
+        "p95": 0.01956760204029706,
+        "maximum": 0.03340719954667293
+      },
+      "hit_relative_speed": {
+        "count": 10,
+        "minimum": 2.0509226,
+        "median": 2.627817,
+        "p95": 3.4969,
+        "maximum": 4.3716855
+      },
+      "hit_normal_magnitude": {
+        "count": 10,
+        "minimum": 0.9999999767208728,
+        "median": 1.00000000766943,
+        "p95": 1.0000000163932499,
+        "maximum": 1.0000000466250745
+      },
+      "hit_kick_flag_count": 3,
+      "native_capture_complete": true,
+      "causal_labels_created": 0
+    },
+    {
+      "capture": "policy/shaped-r1-retry2",
+      "session": "session-04",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T051359.1450322Z-pid32-198a795928424e199fce158625dd0329.jsonl",
+        "bytes": 209573160,
+        "sha256": "d685d6a910159fbb2eb3be6e3cc4e0990154cddb837dd3f5b900c4955d504024",
+        "lines": 89612
+      },
+      "relay_source": {
+        "file": "relay.stdout.jsonl",
+        "bytes": 63070042,
+        "sha256": "5f6b8a8224cc3340a12071347f7bef46c7828f38d866205d8389b718dc196a56",
+        "lines": 11779
+      },
+      "binding": {
+        "basis": "same Unity frame, QPC, Unity time and both root positions",
+        "matching_anchors": 927,
+        "anchor_span_seconds": 119.56826280470523,
+        "maximum_qpc_offset_seconds": 0.15,
+        "maximum_unity_offset_seconds": 0.05,
+        "maximum_root_difference_unity_units": 0.05,
+        "pid": 32,
+        "pid_is_unique_process_session": false
+      },
+      "build": {
+        "schema": "rek.private_ai.protocol.v7",
+        "plugin_version": "0.7.4",
+        "plugin_sha256": "525bc57feb05e623ea152292c824f03c5f068f7a71b999adba53a150d637b071",
+        "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+        "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+        "application_version": "0.0.119",
+        "unity_version": "6000.5.8f1"
+      },
+      "wire_bodies_validated": 34,
+      "received_hit_packets": 17,
+      "received_score_packets": 17,
+      "awards_by_value": {
+        "1": 13,
+        "2": 4
+      },
+      "composer_availability": {
+        "samples": 5998,
+        "playing_true": 0,
+        "clip_nonnull": 0,
+        "frame_nonnegative": 0,
+        "fps_positive": 0
+      },
+      "hit_receipt_associations": {
+        "unique_noncausal": 17,
+        "ambiguous_noncausal": 0,
+        "no_matching_receipt": 0
+      },
+      "native_pose_joined": 34,
+      "relay_pose_joined": 34,
+      "native_pose_age_seconds": {
+        "count": 34,
+        "minimum": 0.017099929138339576,
+        "median": 0.018132327097532652,
+        "p95": 0.022604428854833714,
+        "maximum": 0.026963130668946178
+      },
+      "relay_pose_age_seconds": {
+        "count": 34,
+        "minimum": 0.01665610119050598,
+        "median": 0.01678499858280702,
+        "p95": 0.033338796768703105,
+        "maximum": 0.03377480158724211
+      },
+      "hit_relative_speed": {
+        "count": 17,
+        "minimum": 1.7615603,
+        "median": 2.3303628,
+        "p95": 3.5427523,
+        "maximum": 4.3248854
+      },
+      "hit_normal_magnitude": {
+        "count": 17,
+        "minimum": 0.9999999725231247,
+        "median": 1.000000001323862,
+        "p95": 1.0000000194052034,
+        "maximum": 1.0000000203074335
+      },
+      "hit_kick_flag_count": 4,
+      "native_capture_complete": true,
+      "causal_labels_created": 0
+    },
+    {
+      "capture": "policy/baseline-r2",
+      "session": "session-04",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T051608.8659006Z-pid32-baf56ec5887b4a6b9eb462fa2cf60e54.jsonl",
+        "bytes": 209923333,
+        "sha256": "fdf335073819f6951aa6838de12dec3ed4411a172f4a2431d10d1cc8099553af",
+        "lines": 89668
+      },
+      "relay_source": {
+        "file": "relay.stdout.jsonl",
+        "bytes": 63031975,
+        "sha256": "7ded77c1ec3095b049ef9172e8fefc4074f6dfd0a20a33868035fdb53644b656",
+        "lines": 11842
+      },
+      "binding": {
+        "basis": "same Unity frame, QPC, Unity time and both root positions",
+        "matching_anchors": 1099,
+        "anchor_span_seconds": 119.85849349489786,
+        "maximum_qpc_offset_seconds": 0.15,
+        "maximum_unity_offset_seconds": 0.05,
+        "maximum_root_difference_unity_units": 0.05,
+        "pid": 32,
+        "pid_is_unique_process_session": false
+      },
+      "build": {
+        "schema": "rek.private_ai.protocol.v7",
+        "plugin_version": "0.7.4",
+        "plugin_sha256": "525bc57feb05e623ea152292c824f03c5f068f7a71b999adba53a150d637b071",
+        "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+        "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+        "application_version": "0.0.119",
+        "unity_version": "6000.5.8f1"
+      },
+      "wire_bodies_validated": 33,
+      "received_hit_packets": 15,
+      "received_score_packets": 18,
+      "awards_by_value": {
+        "1": 12,
+        "2": 3,
+        "5": 3
+      },
+      "composer_availability": {
+        "samples": 6001,
+        "playing_true": 0,
+        "clip_nonnull": 0,
+        "frame_nonnegative": 0,
+        "fps_positive": 0
+      },
+      "hit_receipt_associations": {
+        "unique_noncausal": 15,
+        "ambiguous_noncausal": 0,
+        "no_matching_receipt": 0
+      },
+      "native_pose_joined": 33,
+      "relay_pose_joined": 33,
+      "native_pose_age_seconds": {
+        "count": 33,
+        "minimum": 0.017248533163296997,
+        "median": 0.018097831632644557,
+        "p95": 0.026129832766400796,
+        "maximum": 0.026697030895661555
+      },
+      "relay_pose_age_seconds": {
+        "count": 33,
+        "minimum": 0.016552196712041223,
+        "median": 0.016696102607625107,
+        "p95": 0.025299801587266302,
+        "maximum": 0.025719600340153193
+      },
+      "hit_relative_speed": {
+        "count": 15,
+        "minimum": 1.8133229,
+        "median": 2.3261983,
+        "p95": 3.2517135,
+        "maximum": 4.343329
+      },
+      "hit_normal_magnitude": {
+        "count": 15,
+        "minimum": 0.9999999512460592,
+        "median": 1.0000000036604806,
+        "p95": 1.000000040355435,
+        "maximum": 1.0000000446268908
+      },
+      "hit_kick_flag_count": 3,
+      "native_capture_complete": true,
+      "causal_labels_created": 0
+    },
+    {
+      "capture": "policy/shaped-r2",
+      "session": "session-04",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T051818.6745616Z-pid32-5709e1d8cd074e4abef173dd1fd8eaa6.jsonl",
+        "bytes": 209973137,
+        "sha256": "9890e6ea0520bbad594ad33f9ceeb6d1a81f85a6dad2a9f31e244baa7fecb438",
+        "lines": 89714
+      },
+      "relay_source": {
+        "file": "relay.stdout.jsonl",
+        "bytes": 63458114,
+        "sha256": "c48c48f20902ad923de10d8c06656e84d9d5850a865e64aa70b7b77e6358db22",
+        "lines": 11903
+      },
+      "binding": {
+        "basis": "same Unity frame, QPC, Unity time and both root positions",
+        "matching_anchors": 1007,
+        "anchor_span_seconds": 119.65377769983002,
+        "maximum_qpc_offset_seconds": 0.15,
+        "maximum_unity_offset_seconds": 0.05,
+        "maximum_root_difference_unity_units": 0.05,
+        "pid": 32,
+        "pid_is_unique_process_session": false
+      },
+      "build": {
+        "schema": "rek.private_ai.protocol.v7",
+        "plugin_version": "0.7.4",
+        "plugin_sha256": "525bc57feb05e623ea152292c824f03c5f068f7a71b999adba53a150d637b071",
+        "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+        "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+        "application_version": "0.0.119",
+        "unity_version": "6000.5.8f1"
+      },
+      "wire_bodies_validated": 24,
+      "received_hit_packets": 11,
+      "received_score_packets": 13,
+      "awards_by_value": {
+        "1": 9,
+        "2": 2,
+        "5": 2
+      },
+      "composer_availability": {
+        "samples": 5996,
+        "playing_true": 0,
+        "clip_nonnull": 0,
+        "frame_nonnegative": 0,
+        "fps_positive": 0
+      },
+      "hit_receipt_associations": {
+        "unique_noncausal": 11,
+        "ambiguous_noncausal": 0,
+        "no_matching_receipt": 0
+      },
+      "native_pose_joined": 24,
+      "relay_pose_joined": 24,
+      "native_pose_age_seconds": {
+        "count": 24,
+        "minimum": 0.017544727890935974,
+        "median": 0.01850742630381319,
+        "p95": 0.020851828231116087,
+        "maximum": 0.023251530612242277
+      },
+      "relay_pose_age_seconds": {
+        "count": 24,
+        "minimum": 0.01666699971633534,
+        "median": 0.017851700680239446,
+        "p95": 0.034103698979606634,
+        "maximum": 0.0345167020975623
+      },
+      "hit_relative_speed": {
+        "count": 11,
+        "minimum": 1.7654035,
+        "median": 2.312502,
+        "p95": 4.1489224,
+        "maximum": 4.899248
+      },
+      "hit_normal_magnitude": {
+        "count": 11,
+        "minimum": 0.9999999805206975,
+        "median": 1.000000001401551,
+        "p95": 1.000000026490881,
+        "maximum": 1.00000004200323
+      },
+      "hit_kick_flag_count": 2,
+      "native_capture_complete": true,
+      "causal_labels_created": 0
+    },
+    {
+      "capture": "policy/baseline-r3-retry2",
+      "session": "session-04",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T052241.8047474Z-pid32-65e522fe03e74506acb493b4964a60ac.jsonl",
+        "bytes": 210072928,
+        "sha256": "521dfa88d8021f2a16fc1155e69ee10843ecec74ce0efbda4f761f6595df8aa1",
+        "lines": 89732
+      },
+      "relay_source": {
+        "file": "relay.stdout.jsonl",
+        "bytes": 64583584,
+        "sha256": "d5ce9fd2109f546422e647b3215fd89057631125b5a127ae26c8b98aa849b775",
+        "lines": 12004
+      },
+      "binding": {
+        "basis": "same Unity frame, QPC, Unity time and both root positions",
+        "matching_anchors": 914,
+        "anchor_span_seconds": 119.80246749574826,
+        "maximum_qpc_offset_seconds": 0.15,
+        "maximum_unity_offset_seconds": 0.05,
+        "maximum_root_difference_unity_units": 0.05,
+        "pid": 32,
+        "pid_is_unique_process_session": false
+      },
+      "build": {
+        "schema": "rek.private_ai.protocol.v7",
+        "plugin_version": "0.7.4",
+        "plugin_sha256": "525bc57feb05e623ea152292c824f03c5f068f7a71b999adba53a150d637b071",
+        "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+        "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+        "application_version": "0.0.119",
+        "unity_version": "6000.5.8f1"
+      },
+      "wire_bodies_validated": 34,
+      "received_hit_packets": 16,
+      "received_score_packets": 18,
+      "awards_by_value": {
+        "1": 14,
+        "2": 2,
+        "5": 2
+      },
+      "composer_availability": {
+        "samples": 5997,
+        "playing_true": 0,
+        "clip_nonnull": 0,
+        "frame_nonnegative": 0,
+        "fps_positive": 0
+      },
+      "hit_receipt_associations": {
+        "unique_noncausal": 16,
+        "ambiguous_noncausal": 0,
+        "no_matching_receipt": 0
+      },
+      "native_pose_joined": 34,
+      "relay_pose_joined": 34,
+      "native_pose_age_seconds": {
+        "count": 34,
+        "minimum": 0.016906327947708633,
+        "median": 0.018052132936418275,
+        "p95": 0.018565426587201728,
+        "maximum": 0.020690426587407273
+      },
+      "relay_pose_age_seconds": {
+        "count": 34,
+        "minimum": 0.016647803287924035,
+        "median": 0.016785806405778203,
+        "p95": 0.03349479875282668,
+        "maximum": 0.03583570011346637
+      },
+      "hit_relative_speed": {
+        "count": 16,
+        "minimum": 1.811156,
+        "median": 2.543555,
+        "p95": 6.0251865,
+        "maximum": 6.600131
+      },
+      "hit_normal_magnitude": {
+        "count": 16,
+        "minimum": 0.9999999679745466,
+        "median": 0.999999991320822,
+        "p95": 1.0000000319698692,
+        "maximum": 1.0000000557791793
+      },
+      "hit_kick_flag_count": 2,
+      "native_capture_complete": true,
+      "causal_labels_created": 0
+    },
+    {
+      "capture": "policy/shaped-r3",
+      "session": "session-04",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T052455.1444259Z-pid32-18530ffe9b9e4464835d76d60d905453.jsonl",
+        "bytes": 210162386,
+        "sha256": "bacbb5cf98c2b805159ab217ec446fd8458e0f3ef87838517d7cfff85ffe178b",
+        "lines": 89803
+      },
+      "relay_source": {
+        "file": "relay.stdout.jsonl",
+        "bytes": 64186108,
+        "sha256": "36c622093ba9ff63c0c6d3896fdcf894a3046b63024677f8a6f2c7571ef44d4c",
+        "lines": 12010
+      },
+      "binding": {
+        "basis": "same Unity frame, QPC, Unity time and both root positions",
+        "matching_anchors": 1148,
+        "anchor_span_seconds": 119.7765860969389,
+        "maximum_qpc_offset_seconds": 0.15,
+        "maximum_unity_offset_seconds": 0.05,
+        "maximum_root_difference_unity_units": 0.05,
+        "pid": 32,
+        "pid_is_unique_process_session": false
+      },
+      "build": {
+        "schema": "rek.private_ai.protocol.v7",
+        "plugin_version": "0.7.4",
+        "plugin_sha256": "525bc57feb05e623ea152292c824f03c5f068f7a71b999adba53a150d637b071",
+        "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+        "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+        "application_version": "0.0.119",
+        "unity_version": "6000.5.8f1"
+      },
+      "wire_bodies_validated": 25,
+      "received_hit_packets": 12,
+      "received_score_packets": 13,
+      "awards_by_value": {
+        "1": 9,
+        "2": 3,
+        "5": 1
+      },
+      "composer_availability": {
+        "samples": 5999,
+        "playing_true": 0,
+        "clip_nonnull": 0,
+        "frame_nonnegative": 0,
+        "fps_positive": 0
+      },
+      "hit_receipt_associations": {
+        "unique_noncausal": 12,
+        "ambiguous_noncausal": 0,
+        "no_matching_receipt": 0
+      },
+      "native_pose_joined": 25,
+      "relay_pose_joined": 25,
+      "native_pose_age_seconds": {
+        "count": 25,
+        "minimum": 0.01676182681399041,
+        "median": 0.018388130668881786,
+        "p95": 0.019025531462602885,
+        "maximum": 0.0212740291949558
+      },
+      "relay_pose_age_seconds": {
+        "count": 25,
+        "minimum": 0.016667396541834023,
+        "median": 0.016925099206446248,
+        "p95": 0.019331696428480427,
+        "maximum": 0.0338156037414592
+      },
+      "hit_relative_speed": {
+        "count": 12,
+        "minimum": 1.7571826,
+        "median": 1.9946312,
+        "p95": 3.427528,
+        "maximum": 4.554364
+      },
+      "hit_normal_magnitude": {
+        "count": 12,
+        "minimum": 0.9999999660545165,
+        "median": 0.9999999985922584,
+        "p95": 1.000000043966734,
+        "maximum": 1.000000046443927
+      },
+      "hit_kick_flag_count": 3,
+      "native_capture_complete": true,
+      "causal_labels_created": 0
+    },
+    {
+      "capture": "policy/baseline-r4",
+      "session": "session-04",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T052704.9323473Z-pid32-2ec69e175d804f09ada4020d07c3d2d5.jsonl",
+        "bytes": 210155619,
+        "sha256": "43fcbf6c8c9971726ed430943485ba75455326ab613368529c74e96171691809",
+        "lines": 89826
+      },
+      "relay_source": {
+        "file": "relay.stdout.jsonl",
+        "bytes": 63821570,
+        "sha256": "c442102ff4bcf34e85f6bfaece9c8f248b7eaccf7b011c28b3e4cb762d35daa9",
+        "lines": 11961
+      },
+      "binding": {
+        "basis": "same Unity frame, QPC, Unity time and both root positions",
+        "matching_anchors": 1027,
+        "anchor_span_seconds": 119.90147949971652,
+        "maximum_qpc_offset_seconds": 0.15,
+        "maximum_unity_offset_seconds": 0.05,
+        "maximum_root_difference_unity_units": 0.05,
+        "pid": 32,
+        "pid_is_unique_process_session": false
+      },
+      "build": {
+        "schema": "rek.private_ai.protocol.v7",
+        "plugin_version": "0.7.4",
+        "plugin_sha256": "525bc57feb05e623ea152292c824f03c5f068f7a71b999adba53a150d637b071",
+        "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+        "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+        "application_version": "0.0.119",
+        "unity_version": "6000.5.8f1"
+      },
+      "wire_bodies_validated": 30,
+      "received_hit_packets": 14,
+      "received_score_packets": 16,
+      "awards_by_value": {
+        "1": 12,
+        "2": 2,
+        "5": 2
+      },
+      "composer_availability": {
+        "samples": 6001,
+        "playing_true": 0,
+        "clip_nonnull": 0,
+        "frame_nonnegative": 0,
+        "fps_positive": 0
+      },
+      "hit_receipt_associations": {
+        "unique_noncausal": 14,
+        "ambiguous_noncausal": 0,
+        "no_matching_receipt": 0
+      },
+      "native_pose_joined": 30,
+      "relay_pose_joined": 30,
+      "native_pose_age_seconds": {
+        "count": 30,
+        "minimum": 0.016852926587262118,
+        "median": 0.01786232993208614,
+        "p95": 0.019018530328821726,
+        "maximum": 0.019212627551041805
+      },
+      "relay_pose_age_seconds": {
+        "count": 30,
+        "minimum": 0.016651998299494153,
+        "median": 0.016684899376514295,
+        "p95": 0.018807298752790302,
+        "maximum": 0.0334482993198435
+      },
+      "hit_relative_speed": {
+        "count": 14,
+        "minimum": 2.1054769,
+        "median": 2.7835953,
+        "p95": 4.347882,
+        "maximum": 5.2684817
+      },
+      "hit_normal_magnitude": {
+        "count": 14,
+        "minimum": 0.9999999723487109,
+        "median": 0.9999999927652417,
+        "p95": 1.0000000270396348,
+        "maximum": 1.0000000304841141
+      },
+      "hit_kick_flag_count": 2,
+      "native_capture_complete": true,
+      "causal_labels_created": 0
+    },
+    {
+      "capture": "policy/shaped-r4-retry3",
+      "session": "session-05",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T053327.1552041Z-pid32-692e1015bf08497d8dadc739dfc21082.jsonl",
+        "bytes": 209459982,
+        "sha256": "c8352b9e67ce3f1262532e342abb344767d455f89ccc2f95d4665d41f654aeac",
+        "lines": 89531
+      },
+      "relay_source": {
+        "file": "relay.stdout.jsonl",
+        "bytes": 65848337,
+        "sha256": "f0fb7bb9a13e1f5621643381a9512054caaf4a1692bf782d565305405f8387aa",
+        "lines": 11928
+      },
+      "binding": {
+        "basis": "same Unity frame, QPC, Unity time and both root positions",
+        "matching_anchors": 1037,
+        "anchor_span_seconds": 119.5563338010204,
+        "maximum_qpc_offset_seconds": 0.15,
+        "maximum_unity_offset_seconds": 0.05,
+        "maximum_root_difference_unity_units": 0.05,
+        "pid": 32,
+        "pid_is_unique_process_session": false
+      },
+      "build": {
+        "schema": "rek.private_ai.protocol.v7",
+        "plugin_version": "0.7.4",
+        "plugin_sha256": "525bc57feb05e623ea152292c824f03c5f068f7a71b999adba53a150d637b071",
+        "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+        "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+        "application_version": "0.0.119",
+        "unity_version": "6000.5.8f1"
+      },
+      "wire_bodies_validated": 26,
+      "received_hit_packets": 12,
+      "received_score_packets": 14,
+      "awards_by_value": {
+        "1": 11,
+        "2": 1,
+        "5": 2
+      },
+      "composer_availability": {
+        "samples": 5997,
+        "playing_true": 0,
+        "clip_nonnull": 0,
+        "frame_nonnegative": 0,
+        "fps_positive": 0
+      },
+      "hit_receipt_associations": {
+        "unique_noncausal": 12,
+        "ambiguous_noncausal": 0,
+        "no_matching_receipt": 0
+      },
+      "native_pose_joined": 26,
+      "relay_pose_joined": 26,
+      "native_pose_age_seconds": {
+        "count": 26,
+        "minimum": 0.016666730442167932,
+        "median": 0.01788353174603685,
+        "p95": 0.024559630102061192,
+        "maximum": 0.03224643565759777
+      },
+      "relay_pose_age_seconds": {
+        "count": 26,
+        "minimum": 0.016587599206360437,
+        "median": 0.01668149801587049,
+        "p95": 0.024385296201813844,
+        "maximum": 0.03093730158730068
+      },
+      "hit_relative_speed": {
+        "count": 12,
+        "minimum": 1.993415,
+        "median": 2.1873794,
+        "p95": 3.8645732,
+        "maximum": 4.37981
+      },
+      "hit_normal_magnitude": {
+        "count": 12,
+        "minimum": 0.9999999470523441,
+        "median": 1.0000000090511607,
+        "p95": 1.0000000328461547,
+        "maximum": 1.0000000398599729
+      },
+      "hit_kick_flag_count": 1,
+      "native_capture_complete": true,
+      "causal_labels_created": 0
+    },
+    {
+      "capture": "policy/baseline-r5",
+      "session": "session-05",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T053536.9122258Z-pid32-d5ca152a46614ba4a30c0d5821f8b669.jsonl",
+        "bytes": 209633823,
+        "sha256": "f942e37e3bd1399c5e1ef4d1e447bbd4153040e5d96cc41bef767af56302627a",
+        "lines": 89693
+      },
+      "relay_source": {
+        "file": "relay.stdout.jsonl",
+        "bytes": 62877382,
+        "sha256": "1a202dcdf648bd54ec12d9b1258f42a2e12dcb6543f63257d5577d5ac2cddf52",
+        "lines": 11819
+      },
+      "binding": {
+        "basis": "same Unity frame, QPC, Unity time and both root positions",
+        "matching_anchors": 1109,
+        "anchor_span_seconds": 119.76995919784582,
+        "maximum_qpc_offset_seconds": 0.15,
+        "maximum_unity_offset_seconds": 0.05,
+        "maximum_root_difference_unity_units": 0.05,
+        "pid": 32,
+        "pid_is_unique_process_session": false
+      },
+      "build": {
+        "schema": "rek.private_ai.protocol.v7",
+        "plugin_version": "0.7.4",
+        "plugin_sha256": "525bc57feb05e623ea152292c824f03c5f068f7a71b999adba53a150d637b071",
+        "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+        "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+        "application_version": "0.0.119",
+        "unity_version": "6000.5.8f1"
+      },
+      "wire_bodies_validated": 51,
+      "received_hit_packets": 25,
+      "received_score_packets": 26,
+      "awards_by_value": {
+        "1": 19,
+        "2": 6,
+        "5": 1
+      },
+      "composer_availability": {
+        "samples": 5999,
+        "playing_true": 0,
+        "clip_nonnull": 0,
+        "frame_nonnegative": 0,
+        "fps_positive": 0
+      },
+      "hit_receipt_associations": {
+        "unique_noncausal": 25,
+        "ambiguous_noncausal": 0,
+        "no_matching_receipt": 0
+      },
+      "native_pose_joined": 51,
+      "relay_pose_joined": 51,
+      "native_pose_age_seconds": {
+        "count": 51,
+        "minimum": 0.01670213293652978,
+        "median": 0.017496031746048857,
+        "p95": 0.02030763180272288,
+        "maximum": 0.021023030045341784
+      },
+      "relay_pose_age_seconds": {
+        "count": 51,
+        "minimum": 0.016637698412694135,
+        "median": 0.01699739937640743,
+        "p95": 0.03418090277779129,
+        "maximum": 0.03658490646259338
+      },
+      "hit_relative_speed": {
+        "count": 25,
+        "minimum": 1.7816714,
+        "median": 2.5336757,
+        "p95": 4.3750367,
+        "maximum": 4.7670975
+      },
+      "hit_normal_magnitude": {
+        "count": 25,
+        "minimum": 0.9999999665532258,
+        "median": 0.999999994896375,
+        "p95": 1.0000000166970044,
+        "maximum": 1.0000000245120746
+      },
+      "hit_kick_flag_count": 6,
+      "native_capture_complete": true,
+      "causal_labels_created": 0
+    },
+    {
+      "capture": "policy/shaped-r5-retry4",
+      "session": "session-06",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T054335.3928282Z-pid32-234e825b1b9b4886a79e701db270093f.jsonl",
+        "bytes": 209680858,
+        "sha256": "ad224b1f5556709bdba181d3e449dc6454b991a13ef3fea66d4d83a723fa6ba0",
+        "lines": 89642
+      },
+      "relay_source": {
+        "file": "relay.stdout.jsonl",
+        "bytes": 63503916,
+        "sha256": "bd6247b8f0ec8271b9442c0f1ebd32d64786d7ae1c36791f62a80e212594dbf9",
+        "lines": 11831
+      },
+      "binding": {
+        "basis": "same Unity frame, QPC, Unity time and both root positions",
+        "matching_anchors": 1089,
+        "anchor_span_seconds": 119.78181129535147,
+        "maximum_qpc_offset_seconds": 0.15,
+        "maximum_unity_offset_seconds": 0.05,
+        "maximum_root_difference_unity_units": 0.05,
+        "pid": 32,
+        "pid_is_unique_process_session": false
+      },
+      "build": {
+        "schema": "rek.private_ai.protocol.v7",
+        "plugin_version": "0.7.4",
+        "plugin_sha256": "525bc57feb05e623ea152292c824f03c5f068f7a71b999adba53a150d637b071",
+        "game_assembly_sha256": "6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412",
+        "global_metadata_sha256": "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd",
+        "application_version": "0.0.119",
+        "unity_version": "6000.5.8f1"
+      },
+      "wire_bodies_validated": 40,
+      "received_hit_packets": 19,
+      "received_score_packets": 21,
+      "awards_by_value": {
+        "1": 18,
+        "2": 1,
+        "5": 2
+      },
+      "composer_availability": {
+        "samples": 6002,
+        "playing_true": 0,
+        "clip_nonnull": 0,
+        "frame_nonnegative": 0,
+        "fps_positive": 0
+      },
+      "hit_receipt_associations": {
+        "unique_noncausal": 19,
+        "ambiguous_noncausal": 0,
+        "no_matching_receipt": 0
+      },
+      "native_pose_joined": 40,
+      "relay_pose_joined": 40,
+      "native_pose_age_seconds": {
+        "count": 40,
+        "minimum": 0.01696692885491302,
+        "median": 0.01813592687074106,
+        "p95": 0.02569032738094279,
+        "maximum": 0.03624423185939918
+      },
+      "relay_pose_age_seconds": {
+        "count": 40,
+        "minimum": 0.016655094954643346,
+        "median": 0.017175701530618426,
+        "p95": 0.033781200396788336,
+        "maximum": 0.03485099914965417
+      },
+      "hit_relative_speed": {
+        "count": 19,
+        "minimum": 1.7950743,
+        "median": 2.429129,
+        "p95": 4.1786737,
+        "maximum": 4.659475
+      },
+      "hit_normal_magnitude": {
+        "count": 19,
+        "minimum": 0.999999949983619,
+        "median": 1.000000006457947,
+        "p95": 1.000000030093068,
+        "maximum": 1.0000000560883073
+      },
+      "hit_kick_flag_count": 1,
+      "native_capture_complete": true,
+      "causal_labels_created": 0
+    }
+  ],
+  "totals": {
+    "captures": 10,
+    "hits": 151,
+    "scores": 169,
+    "five_point_awards": 18,
+    "native_pose_joined": 320,
+    "relay_pose_joined": 320,
+    "unique_noncausal_hit_score_associations": 151,
+    "ambiguous_noncausal_hit_score_associations": 0,
+    "relative_speed": {
+      "count": 151,
+      "minimum": 1.7571826,
+      "median": 2.465391,
+      "p95": 4.37981,
+      "maximum": 6.600131
+    },
+    "kick_flag_count": 27
+  },
+  "no_training": true,
+  "no_simulator_changes": true,
+  "no_execution_labels": true
+}

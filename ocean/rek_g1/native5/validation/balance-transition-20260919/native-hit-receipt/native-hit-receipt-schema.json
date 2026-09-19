@@ -1,0 +1,25 @@
+{
+  "schema": "rek.native_receipt_teacher.schema.v1",
+  "selection": "all ten prespecified completed baseline/shaped A/B trials; no additional selection",
+  "native_pose_join": "closest earlier native-file paired root pose with nonlater Unity time/frame and unscaled time; maximum age 0.1 s",
+  "relay_pose_join": "closest paired 30-bone pose in a strictly earlier Unity frame and nonlater Unity time; maximum age 0.1 s",
+  "packet_association": "same Unity frame and client fixed tick; monotonic receipt difference <= 0.01 s; associations remain noncausal",
+  "clock_limit": "packet monotonic receipt time has no identical pose field; joins use shared Unity time and record/frame order, never an invented QPC/server conversion",
+  "geometry_limit": "received effect coordinates with preceding rendered poses; not synchronized authoritative physical-contact geometry",
+  "units": "Unity numeric distance and speed units; metre calibration unverified; seconds",
+  "labels": {
+    "attacker": null,
+    "defender": null,
+    "active_clip": null,
+    "executed_move_index": null,
+    "causal_request_id": null,
+    "server_clock": null
+  },
+  "split": "preserve all six process-clock groups from the baseline transition audit; these ten trials cover its four policy groups",
+  "known_values": "hit position/normal/relative_speed/is_kick, score recipient/points, client receipt clocks, paired root and bone geometry",
+  "wire_validation": "verify each recorded wire-body SHA-256, packed body length and decoded fields against little-endian bytes",
+  "missing_hit_is_miss": false,
+  "latest_request_is_executed_move": false,
+  "raw_teacher_data_in_git": false,
+  "why_previous_audit_lacked_hit_fields": "previous audit ingested relay.stdout.jsonl visual policy observations; raw hit/score packets are emitted separately by RekEvidenceRecorder under the Wine runtime evidence directory"
+}

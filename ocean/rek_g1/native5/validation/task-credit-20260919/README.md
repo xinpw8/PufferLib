@@ -105,8 +105,27 @@ from the visual-only relay used by the initial balance audit. Receipt joins and
 unknown execution/clock fields are documented in
 `../balance-transition-20260919/native-hit-receipt/`.
 
+The subsequent referee export validated 11,989 received fight-state snapshots.
+They contain 35 distinct observed calls: 15 Slip, two Knockdown, one
+DoubleKnockdown, 16 Knockout, and one DoubleKnockout. All 18 five-point score
+receipts uniquely agree with explicit knockout calls and received counters.
+All 18 per-fighter count episodes end with a received countout call. The
+visual falling/fallen flags remain false across 119,976 sampled actor states
+from those same native captures. The native referee fields therefore supply
+outcome labels unavailable in those visual flags. They do not identify the
+executed move or prove which action physically caused the fall. See
+`../balance-transition-20260919/native-referee/` for the reset-aware export.
+These knockout calls award points and reset play without ending the round.
+All ten recorded rounds ended `WonByPoints`; `knockout_occurred` stayed zero.
+Do not use a referee `Knockout` call alone as an episode terminal flag.
+
 The private training/test/attempt archive was copied to the physical file server:
 `\\192.168.0.19\MyShare\pufferlib\rek-evidence\2026-09-19\task-credit-20260919-r1\private-results.tar`.
 Its SHA-256 is
 `aaf80e7e72001b67ac2c76843b261e2501a02bb15732c1595e943223f6c44fe1`.
+The adjacent `teacher-exports-20260919-r1.tar` preserves the final balance
+transition r3, native hit receipt r2, and native referee r2 exports. Its
+SHA-256 is
+`929d5caac6cebcaa1571fd2011e2028bd37a8c57f1efe4462e142002da9f76a2`.
+Both server copies were checked against the Spark archive hashes.
 No proprietary game binary or raw gameplay teacher dataset is included in Git.

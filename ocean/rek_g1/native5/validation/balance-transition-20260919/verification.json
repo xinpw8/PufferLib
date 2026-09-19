@@ -1,0 +1,20 @@
+{
+  "schema": "rek.balance_transition.verification.v1",
+  "exporter_sha256": "793981b6d96069b660114cc4f27b1730aeaf5fabacdc641f4b9c2030da5b4fe4",
+  "report_sha256": "dd010e1cd41d9696c84fd64d8acdba03aeca20ef4692722e04a274268a337347",
+  "local_node": "v25.2.1",
+  "spark_node": "v18.19.1",
+  "local_tests_passed": 8,
+  "spark_tests_passed": 8,
+  "tests_failed": 0,
+  "captures": 14,
+  "process_clock_groups": 6,
+  "observations": 81105,
+  "local_transition_rows": 81029,
+  "private_output_directory_mode": "700",
+  "private_transition_and_model_file_mode": "600",
+  "report_contains_raw_pose_arrays": false,
+  "report_contains_action_execution_labels": false,
+  "rl_policy_trained": false,
+  "simulator_modified": false
+}

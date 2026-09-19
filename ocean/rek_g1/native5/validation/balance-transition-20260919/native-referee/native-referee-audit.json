@@ -1,0 +1,835 @@
+{
+  "schema": "rek.native_referee.audit.v1",
+  "created_utc": "2026-09-19T20:15:15.800Z",
+  "exporter_sha256": "7ed0ba9118eaf5f277eb265671de75dae43441ead75ee1ce410f4422dd7c5458",
+  "receipt_exporter_sha256": "485d5b89217ba305a3fee9bcb573bb6efe1d0bceb04a0f06472ea88bfb37e2e6",
+  "receipt_audit_sha256": "894c7f66fe04a32fe98cd47ef937f9691d0a614ae26575774f3acf6e250ac96e",
+  "supervision": {
+    "schema": "rek.native_referee_teacher.schema.v1",
+    "authority": "33-byte REK_FightState body copied at client ApplyFightStateSnapshot prefix",
+    "fields": "received call sequence/type/faller/points, count mask/seconds, round state and received counters",
+    "count_mask": "bit 0 fighter slot 0; bit 1 fighter slot 1",
+    "call_names": [
+      "Slip",
+      "SlipEStop",
+      "Knockdown",
+      "BeatCount",
+      "Knockout",
+      "DoubleKnockdown",
+      "DoubleKnockout"
+    ],
+    "zero_sequence": "empty snapshot, never a Slip event",
+    "deduplication": "capture/session/round/reset/wrap namespaced call IDs; repeated sequence is one latched call; first nonzero snapshot is left-censored",
+    "reset": "round/redo/fight epoch change, observed sequence zero, or decreasing sequence other than 255 to 1; uncertain decreases are censored",
+    "wrap": "server skips zero, so 255 to 1 is a wrap, with a new wrap namespace",
+    "score_join": "same exact capture, unique +/-0.25 s client monotonic receipt window, explicit five-point Knockout/DoubleKnockout and exact received scorer counter; single-fighter scorer differs from explicit faller",
+    "association_limit": "there is no shared causal packet/event ID; timing and counter agreement corroborate an award but do not prove a physical hit or an executed action",
+    "pose_join": "closest prior native line with nonlater shared Unity clocks and frame, maximum 0.1 s; receipt time is not authoritative physical event time",
+    "countout": "received count mask on then cleared with a new Knockout/DoubleKnockout call; source ResolveCountExpiry identifies this call as deadline expiry",
+    "terminal_limit": "Knockout referee call need not mean terminal round KO; preserve knockout_occurred, round_result and round_active separately",
+    "units": "seconds; pose distances in uncalibrated Unity numeric units",
+    "split": "unchanged six process-clock session groups from balance/receipt audit; all ten prespecified policy trials retained",
+    "unknowns": {
+      "attacker": null,
+      "active_clip": null,
+      "executed_move_index": null,
+      "causal_hit_id": null,
+      "server_clock": null
+    },
+    "visual_flag_limit": "visual-only robot.IsFalling/IsFallen are not the received referee state",
+    "no_training": true,
+    "raw_teacher_data_in_git": false
+  },
+  "session_groups": [
+    {
+      "id": "session-01",
+      "captures": [
+        "passive/round-r5",
+        "passive/round-r4"
+      ],
+      "origin_utc": "2026-09-17T04:45:23.147Z"
+    },
+    {
+      "id": "session-02",
+      "captures": [
+        "passive/round-r11",
+        "passive/round-r12"
+      ],
+      "origin_utc": "2026-09-17T08:28:40.449Z"
+    },
+    {
+      "id": "session-03",
+      "captures": [
+        "policy/baseline-r1-retry1"
+      ],
+      "origin_utc": "2026-09-19T03:10:18.937Z"
+    },
+    {
+      "id": "session-04",
+      "captures": [
+        "policy/baseline-r3-retry2",
+        "policy/baseline-r2",
+        "policy/baseline-r4",
+        "policy/shaped-r3",
+        "policy/shaped-r2",
+        "policy/shaped-r1-retry2"
+      ],
+      "origin_utc": "2026-09-19T05:01:26.211Z"
+    },
+    {
+      "id": "session-05",
+      "captures": [
+        "policy/shaped-r4-retry3",
+        "policy/baseline-r5"
+      ],
+      "origin_utc": "2026-09-19T05:32:38.878Z"
+    },
+    {
+      "id": "session-06",
+      "captures": [
+        "policy/shaped-r5-retry4"
+      ],
+      "origin_utc": "2026-09-19T05:40:37.299Z"
+    }
+  ],
+  "captures": [
+    {
+      "capture": "policy/baseline-r1-retry1",
+      "session": "session-03",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T042827.2189090Z-pid32-71a92c83cedf4f1ea8be904a25a60cbd.jsonl",
+        "bytes": 210352465,
+        "sha256": "dd789c2d6dbd5720da3d70783540f74e412c79a4a37c9cb4ed9b56897fef9df9",
+        "lines": 89802
+      },
+      "wire_packets_validated": 1199,
+      "call_counts": {
+        "Slip": 3,
+        "Knockout": 3
+      },
+      "calls_by_faller": {
+        "Slip:slot1": 3,
+        "Knockout:slot1": 3
+      },
+      "observed_calls": 6,
+      "left_censored_calls": 0,
+      "repeated_call_snapshots": 629,
+      "zero_sequence_packets": 564,
+      "count_episodes": 3,
+      "complete_count_episodes": 3,
+      "explicit_countouts": 3,
+      "count_duration_receipt_seconds": {
+        "count": 3,
+        "minimum": 3.0039012999995975,
+        "median": 3.0083538999997472,
+        "maximum": 3.0155744000003324
+      },
+      "count_tick_patterns": {
+        "0,1,2": 3
+      },
+      "five_point_awards": 3,
+      "five_point_associations": {
+        "unique_receipt_counter_and_referee_agreement": 3
+      },
+      "award_referee_minus_score_receipt_seconds": {
+        "count": 3,
+        "minimum": 0.0358472999996593,
+        "median": 0.047829200000705896,
+        "maximum": 0.06775219999963156
+      },
+      "award_counter_delta_patterns": {
+        "5": 3
+      },
+      "awards_by_scorer_and_faller": {
+        "scorer0:faller1:Knockout": 3
+      },
+      "referee_calls_with_prior_root_pose": 6,
+      "visual_robot_flags": {
+        "samples": 5998,
+        "actor_observations": 11996,
+        "falling_true": 0,
+        "fallen_true": 0,
+        "missing_flags": 0
+      },
+      "received_terminal_ko_packets": 0,
+      "final_received_round": {
+        "round_number": 1,
+        "round_active": 0,
+        "hits_0": 20,
+        "hits_1": 8,
+        "knockout_occurred": 0,
+        "round_result": 1,
+        "round_result_name": "WonByPoints"
+      }
+    },
+    {
+      "capture": "policy/shaped-r1-retry2",
+      "session": "session-04",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T051359.1450322Z-pid32-198a795928424e199fce158625dd0329.jsonl",
+        "bytes": 209573160,
+        "sha256": "d685d6a910159fbb2eb3be6e3cc4e0990154cddb837dd3f5b900c4955d504024",
+        "lines": 89612
+      },
+      "wire_packets_validated": 1199,
+      "call_counts": {},
+      "calls_by_faller": {},
+      "observed_calls": 0,
+      "left_censored_calls": 0,
+      "repeated_call_snapshots": 0,
+      "zero_sequence_packets": 1199,
+      "count_episodes": 0,
+      "complete_count_episodes": 0,
+      "explicit_countouts": 0,
+      "count_duration_receipt_seconds": {
+        "count": 0,
+        "minimum": null,
+        "median": null,
+        "maximum": null
+      },
+      "count_tick_patterns": {},
+      "five_point_awards": 0,
+      "five_point_associations": {},
+      "award_referee_minus_score_receipt_seconds": {
+        "count": 0,
+        "minimum": null,
+        "median": null,
+        "maximum": null
+      },
+      "award_counter_delta_patterns": {},
+      "awards_by_scorer_and_faller": {},
+      "referee_calls_with_prior_root_pose": 0,
+      "visual_robot_flags": {
+        "samples": 5998,
+        "actor_observations": 11996,
+        "falling_true": 0,
+        "fallen_true": 0,
+        "missing_flags": 0
+      },
+      "received_terminal_ko_packets": 0,
+      "final_received_round": {
+        "round_number": 1,
+        "round_active": 0,
+        "hits_0": 6,
+        "hits_1": 15,
+        "knockout_occurred": 0,
+        "round_result": 1,
+        "round_result_name": "WonByPoints"
+      }
+    },
+    {
+      "capture": "policy/baseline-r2",
+      "session": "session-04",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T051608.8659006Z-pid32-baf56ec5887b4a6b9eb462fa2cf60e54.jsonl",
+        "bytes": 209923333,
+        "sha256": "fdf335073819f6951aa6838de12dec3ed4411a172f4a2431d10d1cc8099553af",
+        "lines": 89668
+      },
+      "wire_packets_validated": 1200,
+      "call_counts": {
+        "Slip": 3,
+        "Knockout": 3
+      },
+      "calls_by_faller": {
+        "Slip:slot1": 3,
+        "Knockout:slot1": 3
+      },
+      "observed_calls": 6,
+      "left_censored_calls": 0,
+      "repeated_call_snapshots": 1066,
+      "zero_sequence_packets": 128,
+      "count_episodes": 3,
+      "complete_count_episodes": 3,
+      "explicit_countouts": 3,
+      "count_duration_receipt_seconds": {
+        "count": 3,
+        "minimum": 3.0025582999999187,
+        "median": 3.0053879999999253,
+        "maximum": 3.013080500000001
+      },
+      "count_tick_patterns": {
+        "0,1,2": 3
+      },
+      "five_point_awards": 3,
+      "five_point_associations": {
+        "unique_receipt_counter_and_referee_agreement": 3
+      },
+      "award_referee_minus_score_receipt_seconds": {
+        "count": 3,
+        "minimum": 0.0006135999999514752,
+        "median": 0.020376400000031936,
+        "maximum": 0.06925169999999525
+      },
+      "award_counter_delta_patterns": {
+        "5": 3
+      },
+      "awards_by_scorer_and_faller": {
+        "scorer0:faller1:Knockout": 3
+      },
+      "referee_calls_with_prior_root_pose": 6,
+      "visual_robot_flags": {
+        "samples": 6001,
+        "actor_observations": 12002,
+        "falling_true": 0,
+        "fallen_true": 0,
+        "missing_flags": 0
+      },
+      "received_terminal_ko_packets": 0,
+      "final_received_round": {
+        "round_number": 2,
+        "round_active": 0,
+        "hits_0": 29,
+        "hits_1": 4,
+        "knockout_occurred": 0,
+        "round_result": 1,
+        "round_result_name": "WonByPoints"
+      }
+    },
+    {
+      "capture": "policy/shaped-r2",
+      "session": "session-04",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T051818.6745616Z-pid32-5709e1d8cd074e4abef173dd1fd8eaa6.jsonl",
+        "bytes": 209973137,
+        "sha256": "9890e6ea0520bbad594ad33f9ceeb6d1a81f85a6dad2a9f31e244baa7fecb438",
+        "lines": 89714
+      },
+      "wire_packets_validated": 1199,
+      "call_counts": {
+        "Slip": 1,
+        "DoubleKnockdown": 1,
+        "DoubleKnockout": 1
+      },
+      "calls_by_faller": {
+        "Slip:slot1": 1,
+        "DoubleKnockdown:slot0": 1,
+        "DoubleKnockout:slot-1": 1
+      },
+      "observed_calls": 3,
+      "left_censored_calls": 0,
+      "repeated_call_snapshots": 388,
+      "zero_sequence_packets": 808,
+      "count_episodes": 2,
+      "complete_count_episodes": 2,
+      "explicit_countouts": 2,
+      "count_duration_receipt_seconds": {
+        "count": 2,
+        "minimum": 3.0193395999999666,
+        "median": 3.0193395999999666,
+        "maximum": 4.1185431000001245
+      },
+      "count_tick_patterns": {
+        "0,1,2": 2
+      },
+      "five_point_awards": 2,
+      "five_point_associations": {
+        "unique_receipt_counter_and_referee_agreement": 2
+      },
+      "award_referee_minus_score_receipt_seconds": {
+        "count": 2,
+        "minimum": 0.06942150000008951,
+        "median": 0.06942150000008951,
+        "maximum": 0.07009140000013758
+      },
+      "award_counter_delta_patterns": {
+        "5": 2
+      },
+      "awards_by_scorer_and_faller": {
+        "scorer0:fallernull:DoubleKnockout": 1,
+        "scorer1:fallernull:DoubleKnockout": 1
+      },
+      "referee_calls_with_prior_root_pose": 3,
+      "visual_robot_flags": {
+        "samples": 5996,
+        "actor_observations": 11992,
+        "falling_true": 0,
+        "fallen_true": 0,
+        "missing_flags": 0
+      },
+      "received_terminal_ko_packets": 0,
+      "final_received_round": {
+        "round_number": 3,
+        "round_active": 0,
+        "hits_0": 8,
+        "hits_1": 15,
+        "knockout_occurred": 0,
+        "round_result": 1,
+        "round_result_name": "WonByPoints"
+      }
+    },
+    {
+      "capture": "policy/baseline-r3-retry2",
+      "session": "session-04",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T052241.8047474Z-pid32-65e522fe03e74506acb493b4964a60ac.jsonl",
+        "bytes": 210072928,
+        "sha256": "521dfa88d8021f2a16fc1155e69ee10843ecec74ce0efbda4f761f6595df8aa1",
+        "lines": 89732
+      },
+      "wire_packets_validated": 1199,
+      "call_counts": {
+        "Slip": 2,
+        "Knockout": 2
+      },
+      "calls_by_faller": {
+        "Slip:slot1": 1,
+        "Knockout:slot1": 1,
+        "Slip:slot0": 1,
+        "Knockout:slot0": 1
+      },
+      "observed_calls": 4,
+      "left_censored_calls": 0,
+      "repeated_call_snapshots": 819,
+      "zero_sequence_packets": 376,
+      "count_episodes": 2,
+      "complete_count_episodes": 2,
+      "explicit_countouts": 2,
+      "count_duration_receipt_seconds": {
+        "count": 2,
+        "minimum": 3.0000943999998526,
+        "median": 3.0000943999998526,
+        "maximum": 3.0013609000000088
+      },
+      "count_tick_patterns": {
+        "0,1,2": 2
+      },
+      "five_point_awards": 2,
+      "five_point_associations": {
+        "unique_receipt_counter_and_referee_agreement": 2
+      },
+      "award_referee_minus_score_receipt_seconds": {
+        "count": 2,
+        "minimum": 0.0007554999999683787,
+        "median": 0.0007554999999683787,
+        "maximum": 0.033265099999880476
+      },
+      "award_counter_delta_patterns": {
+        "5": 2
+      },
+      "awards_by_scorer_and_faller": {
+        "scorer0:faller1:Knockout": 1,
+        "scorer1:faller0:Knockout": 1
+      },
+      "referee_calls_with_prior_root_pose": 4,
+      "visual_robot_flags": {
+        "samples": 5997,
+        "actor_observations": 11994,
+        "falling_true": 0,
+        "fallen_true": 0,
+        "missing_flags": 0
+      },
+      "received_terminal_ko_packets": 0,
+      "final_received_round": {
+        "round_number": 2,
+        "round_active": 0,
+        "hits_0": 13,
+        "hits_1": 15,
+        "knockout_occurred": 0,
+        "round_result": 1,
+        "round_result_name": "WonByPoints"
+      }
+    },
+    {
+      "capture": "policy/shaped-r3",
+      "session": "session-04",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T052455.1444259Z-pid32-18530ffe9b9e4464835d76d60d905453.jsonl",
+        "bytes": 210162386,
+        "sha256": "bacbb5cf98c2b805159ab217ec446fd8458e0f3ef87838517d7cfff85ffe178b",
+        "lines": 89803
+      },
+      "wire_packets_validated": 1199,
+      "call_counts": {
+        "Slip": 1,
+        "Knockout": 1
+      },
+      "calls_by_faller": {
+        "Slip:slot1": 1,
+        "Knockout:slot1": 1
+      },
+      "observed_calls": 2,
+      "left_censored_calls": 0,
+      "repeated_call_snapshots": 128,
+      "zero_sequence_packets": 1069,
+      "count_episodes": 1,
+      "complete_count_episodes": 1,
+      "explicit_countouts": 1,
+      "count_duration_receipt_seconds": {
+        "count": 1,
+        "minimum": 3.0274105999999392,
+        "median": 3.0274105999999392,
+        "maximum": 3.0274105999999392
+      },
+      "count_tick_patterns": {
+        "0,1,2": 1
+      },
+      "five_point_awards": 1,
+      "five_point_associations": {
+        "unique_receipt_counter_and_referee_agreement": 1
+      },
+      "award_referee_minus_score_receipt_seconds": {
+        "count": 1,
+        "minimum": 0.03282360000002882,
+        "median": 0.03282360000002882,
+        "maximum": 0.03282360000002882
+      },
+      "award_counter_delta_patterns": {
+        "5": 1
+      },
+      "awards_by_scorer_and_faller": {
+        "scorer0:faller1:Knockout": 1
+      },
+      "referee_calls_with_prior_root_pose": 2,
+      "visual_robot_flags": {
+        "samples": 5999,
+        "actor_observations": 11998,
+        "falling_true": 0,
+        "fallen_true": 0,
+        "missing_flags": 0
+      },
+      "received_terminal_ko_packets": 0,
+      "final_received_round": {
+        "round_number": 1,
+        "round_active": 0,
+        "hits_0": 12,
+        "hits_1": 8,
+        "knockout_occurred": 0,
+        "round_result": 1,
+        "round_result_name": "WonByPoints"
+      }
+    },
+    {
+      "capture": "policy/baseline-r4",
+      "session": "session-04",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T052704.9323473Z-pid32-2ec69e175d804f09ada4020d07c3d2d5.jsonl",
+        "bytes": 210155619,
+        "sha256": "43fcbf6c8c9971726ed430943485ba75455326ab613368529c74e96171691809",
+        "lines": 89826
+      },
+      "wire_packets_validated": 1199,
+      "call_counts": {
+        "Slip": 1,
+        "Knockout": 2,
+        "Knockdown": 1
+      },
+      "calls_by_faller": {
+        "Slip:slot0": 1,
+        "Knockout:slot0": 1,
+        "Knockdown:slot1": 1,
+        "Knockout:slot1": 1
+      },
+      "observed_calls": 4,
+      "left_censored_calls": 0,
+      "repeated_call_snapshots": 567,
+      "zero_sequence_packets": 628,
+      "count_episodes": 2,
+      "complete_count_episodes": 2,
+      "explicit_countouts": 2,
+      "count_duration_receipt_seconds": {
+        "count": 2,
+        "minimum": 3.0002368999998907,
+        "median": 3.0002368999998907,
+        "maximum": 3.0079587000000174
+      },
+      "count_tick_patterns": {
+        "0,1,2": 2
+      },
+      "five_point_awards": 2,
+      "five_point_associations": {
+        "unique_receipt_counter_and_referee_agreement": 2
+      },
+      "award_referee_minus_score_receipt_seconds": {
+        "count": 2,
+        "minimum": 0.03336769999987155,
+        "median": 0.03336769999987155,
+        "maximum": 0.036066100000198276
+      },
+      "award_counter_delta_patterns": {
+        "5": 2
+      },
+      "awards_by_scorer_and_faller": {
+        "scorer1:faller0:Knockout": 1,
+        "scorer0:faller1:Knockout": 1
+      },
+      "referee_calls_with_prior_root_pose": 4,
+      "visual_robot_flags": {
+        "samples": 6001,
+        "actor_observations": 12002,
+        "falling_true": 0,
+        "fallen_true": 0,
+        "missing_flags": 0
+      },
+      "received_terminal_ko_packets": 0,
+      "final_received_round": {
+        "round_number": 2,
+        "round_active": 0,
+        "hits_0": 12,
+        "hits_1": 14,
+        "knockout_occurred": 0,
+        "round_result": 1,
+        "round_result_name": "WonByPoints"
+      }
+    },
+    {
+      "capture": "policy/shaped-r4-retry3",
+      "session": "session-05",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T053327.1552041Z-pid32-692e1015bf08497d8dadc739dfc21082.jsonl",
+        "bytes": 209459982,
+        "sha256": "c8352b9e67ce3f1262532e342abb344767d455f89ccc2f95d4665d41f654aeac",
+        "lines": 89531
+      },
+      "wire_packets_validated": 1199,
+      "call_counts": {
+        "Slip": 2,
+        "Knockout": 2
+      },
+      "calls_by_faller": {
+        "Slip:slot1": 2,
+        "Knockout:slot1": 2
+      },
+      "observed_calls": 4,
+      "left_censored_calls": 0,
+      "repeated_call_snapshots": 761,
+      "zero_sequence_packets": 434,
+      "count_episodes": 2,
+      "complete_count_episodes": 2,
+      "explicit_countouts": 2,
+      "count_duration_receipt_seconds": {
+        "count": 2,
+        "minimum": 2.9954408000000114,
+        "median": 2.9954408000000114,
+        "maximum": 3.007420600000003
+      },
+      "count_tick_patterns": {
+        "0,1,2": 2
+      },
+      "five_point_awards": 2,
+      "five_point_associations": {
+        "unique_receipt_counter_and_referee_agreement": 2
+      },
+      "award_referee_minus_score_receipt_seconds": {
+        "count": 2,
+        "minimum": 0.0006030000000123437,
+        "median": 0.0006030000000123437,
+        "maximum": 0.0006249000000053684
+      },
+      "award_counter_delta_patterns": {
+        "5": 2
+      },
+      "awards_by_scorer_and_faller": {
+        "scorer0:faller1:Knockout": 2
+      },
+      "referee_calls_with_prior_root_pose": 4,
+      "visual_robot_flags": {
+        "samples": 5997,
+        "actor_observations": 11994,
+        "falling_true": 0,
+        "fallen_true": 0,
+        "missing_flags": 0
+      },
+      "received_terminal_ko_packets": 0,
+      "final_received_round": {
+        "round_number": 1,
+        "round_active": 0,
+        "hits_0": 15,
+        "hits_1": 8,
+        "knockout_occurred": 0,
+        "round_result": 1,
+        "round_result_name": "WonByPoints"
+      }
+    },
+    {
+      "capture": "policy/baseline-r5",
+      "session": "session-05",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T053536.9122258Z-pid32-d5ca152a46614ba4a30c0d5821f8b669.jsonl",
+        "bytes": 209633823,
+        "sha256": "f942e37e3bd1399c5e1ef4d1e447bbd4153040e5d96cc41bef767af56302627a",
+        "lines": 89693
+      },
+      "wire_packets_validated": 1199,
+      "call_counts": {
+        "Slip": 1,
+        "Knockout": 1
+      },
+      "calls_by_faller": {
+        "Slip:slot0": 1,
+        "Knockout:slot0": 1
+      },
+      "observed_calls": 2,
+      "left_censored_calls": 0,
+      "repeated_call_snapshots": 813,
+      "zero_sequence_packets": 384,
+      "count_episodes": 1,
+      "complete_count_episodes": 1,
+      "explicit_countouts": 1,
+      "count_duration_receipt_seconds": {
+        "count": 1,
+        "minimum": 3.015404399999994,
+        "median": 3.015404399999994,
+        "maximum": 3.015404399999994
+      },
+      "count_tick_patterns": {
+        "0,1,2": 1
+      },
+      "five_point_awards": 1,
+      "five_point_associations": {
+        "unique_receipt_counter_and_referee_agreement": 1
+      },
+      "award_referee_minus_score_receipt_seconds": {
+        "count": 1,
+        "minimum": 0.0483120000000099,
+        "median": 0.0483120000000099,
+        "maximum": 0.0483120000000099
+      },
+      "award_counter_delta_patterns": {
+        "5": 1
+      },
+      "awards_by_scorer_and_faller": {
+        "scorer1:faller0:Knockout": 1
+      },
+      "referee_calls_with_prior_root_pose": 2,
+      "visual_robot_flags": {
+        "samples": 5999,
+        "actor_observations": 11998,
+        "falling_true": 0,
+        "fallen_true": 0,
+        "missing_flags": 0
+      },
+      "received_terminal_ko_packets": 0,
+      "final_received_round": {
+        "round_number": 2,
+        "round_active": 0,
+        "hits_0": 14,
+        "hits_1": 22,
+        "knockout_occurred": 0,
+        "round_result": 1,
+        "round_result_name": "WonByPoints"
+      }
+    },
+    {
+      "capture": "policy/shaped-r5-retry4",
+      "session": "session-06",
+      "native_source": {
+        "file": "rek-private-ai-root-motion-20260919T054335.3928282Z-pid32-234e825b1b9b4886a79e701db270093f.jsonl",
+        "bytes": 209680858,
+        "sha256": "ad224b1f5556709bdba181d3e449dc6454b991a13ef3fea66d4d83a723fa6ba0",
+        "lines": 89642
+      },
+      "wire_packets_validated": 1197,
+      "call_counts": {
+        "Knockdown": 1,
+        "Knockout": 2,
+        "Slip": 1
+      },
+      "calls_by_faller": {
+        "Knockdown:slot0": 1,
+        "Knockout:slot0": 1,
+        "Slip:slot1": 1,
+        "Knockout:slot1": 1
+      },
+      "observed_calls": 4,
+      "left_censored_calls": 0,
+      "repeated_call_snapshots": 855,
+      "zero_sequence_packets": 338,
+      "count_episodes": 2,
+      "complete_count_episodes": 2,
+      "explicit_countouts": 2,
+      "count_duration_receipt_seconds": {
+        "count": 2,
+        "minimum": 2.9930993000000115,
+        "median": 2.9930993000000115,
+        "maximum": 3.0036377999999786
+      },
+      "count_tick_patterns": {
+        "0,1,2": 2
+      },
+      "five_point_awards": 2,
+      "five_point_associations": {
+        "unique_receipt_counter_and_referee_agreement": 2
+      },
+      "award_referee_minus_score_receipt_seconds": {
+        "count": 2,
+        "minimum": 0.05319410000001312,
+        "median": 0.05319410000001312,
+        "maximum": 0.06500169999998207
+      },
+      "award_counter_delta_patterns": {
+        "5": 2
+      },
+      "awards_by_scorer_and_faller": {
+        "scorer1:faller0:Knockout": 1,
+        "scorer0:faller1:Knockout": 1
+      },
+      "referee_calls_with_prior_root_pose": 4,
+      "visual_robot_flags": {
+        "samples": 6002,
+        "actor_observations": 12004,
+        "falling_true": 0,
+        "fallen_true": 0,
+        "missing_flags": 0
+      },
+      "received_terminal_ko_packets": 0,
+      "final_received_round": {
+        "round_number": 2,
+        "round_active": 0,
+        "hits_0": 20,
+        "hits_1": 10,
+        "knockout_occurred": 0,
+        "round_result": 1,
+        "round_result_name": "WonByPoints"
+      }
+    }
+  ],
+  "totals": {
+    "captures": 10,
+    "received_referee_snapshots": 11989,
+    "observed_calls": 35,
+    "calls_by_type": {
+      "Slip": 15,
+      "Knockout": 16,
+      "DoubleKnockdown": 1,
+      "DoubleKnockout": 1,
+      "Knockdown": 2
+    },
+    "calls_by_type_and_faller": {
+      "Slip:slot1": 12,
+      "Knockout:slot1": 12,
+      "DoubleKnockdown:slot0": 1,
+      "DoubleKnockout:slot-1": 1,
+      "Slip:slot0": 3,
+      "Knockout:slot0": 4,
+      "Knockdown:slot1": 1,
+      "Knockdown:slot0": 1
+    },
+    "left_censored_calls": 0,
+    "count_episodes": 18,
+    "complete_count_episodes": 18,
+    "explicit_countouts": 18,
+    "count_duration_receipt_seconds": {
+      "count": 18,
+      "minimum": 2.9930993000000115,
+      "median": 3.0053879999999253,
+      "maximum": 4.1185431000001245
+    },
+    "five_point_awards": 18,
+    "five_point_associations": {
+      "unique_receipt_counter_and_referee_agreement": 18
+    },
+    "award_referee_minus_score_receipt_seconds": {
+      "count": 18,
+      "minimum": 0.0006030000000123437,
+      "median": 0.0358472999996593,
+      "maximum": 0.07009140000013758
+    },
+    "visual_actor_observations": 119976,
+    "visual_falling_true": 0,
+    "visual_fallen_true": 0
+  },
+  "no_training": true,
+  "no_runtime_changes": true,
+  "no_executed_move_labels": true
+}
