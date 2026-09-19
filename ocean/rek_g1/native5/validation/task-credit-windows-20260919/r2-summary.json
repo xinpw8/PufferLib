@@ -1,0 +1,208 @@
+{
+  "schema": "rek.authentic_live_contact_analysis.v1",
+  "authentic_client": true,
+  "checkpoint_sha256": "5bdad2893c5e97e682fdb33ab48a298e2cd2d9c03df724fa2e629cc1c9882246",
+  "local_slot": 0,
+  "opponent": {
+    "client_ai_difficulty": 0,
+    "sparring_bot_number": 1
+  },
+  "round_identity_sha256": "50dd044ff4cc5741fc53d40be853f165f88a0a8645e8867a68fc1e786402d9f8",
+  "stop_reason": "stream_end:active_round_not_observed",
+  "outcome": "loss",
+  "terminal_evidence_consistent": true,
+  "terminal_records": [
+    {
+      "basis": "client_replicated_round",
+      "number": 2,
+      "duration": 120,
+      "time_remaining": 0,
+      "active": false,
+      "redo": false,
+      "clean_hits": [
+        10,
+        22
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "result": "WonByPoints",
+      "result_value": 1,
+      "winner_index": 1,
+      "knockout": false
+    },
+    {
+      "basis": "received_fight_state_packet",
+      "number": 2,
+      "active": false,
+      "result_value": 1,
+      "winner_index": 1,
+      "redo": false,
+      "clean_hits": [
+        10,
+        22
+      ],
+      "knockout": false
+    }
+  ],
+  "first_observed_round": {
+    "number": 2,
+    "duration": 120,
+    "time_remaining": 118.98223,
+    "active": true,
+    "redo": false,
+    "clean_hits": [
+      0,
+      0
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "InProgress",
+    "result_value": 0,
+    "winner_index": -1,
+    "knockout": false
+  },
+  "last_observed_round": {
+    "number": 2,
+    "duration": 120,
+    "time_remaining": 0,
+    "active": false,
+    "redo": false,
+    "clean_hits": [
+      10,
+      22
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "WonByPoints",
+    "result_value": 1,
+    "winner_index": 1,
+    "knockout": false
+  },
+  "terminal_awarded_points_by_slot": [
+    10,
+    22
+  ],
+  "terminal_point_counters_consistent": true,
+  "native_point_counter_semantics": "Round.CleanHits accumulates integer awarded points, including referee awards; this field is not a strike-event count",
+  "point_semantics_source": [
+    "PointTracker.RecordHit: integer-truncate award and add to RoundState.CleanHits",
+    "PointTracker.RecordRefereeAward: same integer accumulation",
+    "FightCoordinator.OnPointScoredNetwork: sends current counter as newHitCount",
+    "FightCoordinator.OnScoreReceived: assigns received newHitCount directly to currentRound.CleanHits"
+  ],
+  "initial_observation_within_first_second": false,
+  "terminal_observed": true,
+  "completed_policy_round": false,
+  "observed_round_clock_seconds": 118.98223,
+  "policy_control_coverage": {
+    "applied_action_returns": 5729,
+    "first_applied_seconds_after_first_observation": 0.0333810019841394,
+    "terminal_seconds_after_last_applied": 0.0019113166100055423,
+    "maximum_applied_action_gap_seconds": 0.10150220379819075,
+    "tolerance_seconds": 1,
+    "basis": "observed local policy action returns; server acceptance remains unknown"
+  },
+  "policy_attack_requests": 94,
+  "locally_applied_attack_returns": 94,
+  "native_dispatched_attack_requests": 94,
+  "native_dispatch_returns": 94,
+  "native_capture_supplied": true,
+  "native_capture_complete": true,
+  "native_capture_binding": {
+    "method": "concurrent_Unity_frame_QPC_and_both_root_positions",
+    "matching_pose_anchors": 1051,
+    "anchor_span_seconds": 118.8965961026077,
+    "direct_process_id_equality": "unavailable_in_policy_stream",
+    "maximum_anchor_qpc_offset_seconds": 0.15,
+    "maximum_anchor_unity_offset_seconds": 0.05,
+    "maximum_anchor_root_difference_m": 0.05
+  },
+  "native_capture_error_records": 0,
+  "score_events": 22,
+  "received_hit_effects": 21,
+  "observed_point_awards_by_slot": [
+    10,
+    22
+  ],
+  "reconciled_full_round_points_by_slot": [
+    10,
+    22
+  ],
+  "point_counter_reconciliation": [
+    {
+      "slot": 0,
+      "observed_point_awards": 10,
+      "observed_integer_counter_increments": 10,
+      "last_received_new_hit_count": 10,
+      "every_received_counter_equals_awards_from_zero": true,
+      "terminal_clean_hits": 10,
+      "terminal_counter_matches_award_sum": true
+    },
+    {
+      "slot": 1,
+      "observed_point_awards": 22,
+      "observed_integer_counter_increments": 22,
+      "last_received_new_hit_count": 22,
+      "every_received_counter_equals_awards_from_zero": true,
+      "terminal_clean_hits": 22,
+      "terminal_counter_matches_award_sum": true
+    }
+  ],
+  "five_point_awards": 1,
+  "causal_attack_outcomes": 0,
+  "definitive_contact_regions": false,
+  "limits": [
+    "Local execute returns and SendMoveEvent returns do not prove server acceptance or playback.",
+    "Score recipients and awarded points are packet observations. A same-frame score/hit pairing remains noncausal.",
+    "Every attack retains unknown contact outcome. No missing packet is converted to a miss.",
+    "Candidate windows are sensitivity analyses, not execution-duration or unique-active-action proof.",
+    "Packet contact coordinates are received effects data; adjacent root poses describe receipt context, without interpolation.",
+    "Facing uses projected pelvis-local +X in Unity XZ. Runtime forward offset is not newly measured.",
+    "Five-point awards are separate; no knockout cause is inferred from their value.",
+    "Terminal scoreboard points are separate from local policy control coverage and complete packet reconciliation.",
+    "Completed-policy-round coverage requires the first observation within one second of round start, an applied return within one second of that observation, and at most one second between returns or before terminal; server control remains unknown.",
+    "Native correlation requires concurrent frame, QPC and root geometry anchors. Direct process ID equality is unavailable in the policy stream."
+  ],
+  "inputs": [
+    {
+      "file": "relay.stdout.jsonl",
+      "sha256": "5799a734bf76d2173d937c309a116bbe0b756e10082e6615f5184499fab96a52",
+      "bytes": 61792413,
+      "lines": 11633
+    },
+    {
+      "file": "relay.stdin.jsonl",
+      "sha256": "3d4f63cfae55ba1977a098f76934cb3c995c437439fabd3efb6e335f252507a3",
+      "bytes": 1044364,
+      "lines": 5735
+    },
+    {
+      "file": "worker.stdout.jsonl",
+      "sha256": "73ca02e3e6448374df30defd46037b87cbb7f7e278b0101a134cd356b8586f55",
+      "bytes": 2685781,
+      "lines": 5731
+    },
+    {
+      "file": "rek-private-ai-root-motion-20260919T211709.9185713Z-pid319504-b284b5a2c20c414b80c7acf173d76dbf.jsonl",
+      "sha256": "a716114db814c3ecbc304786152e56445fc1b5283cb7f5707497ac4e31dc0ecb",
+      "bytes": 208997334,
+      "lines": 89507
+    },
+    {
+      "file": "run-config.json",
+      "bytes": 1483,
+      "sha256": "a21458fdf8f5d70d815eaf282c5507cf19b136933a0a9715ae8ee1c2d14d946d"
+    },
+    {
+      "file": "summary.json",
+      "bytes": 1670,
+      "sha256": "a3403d329562cc89536ef0d00df00e76345b4b4d2b293c2f758a5095fa841914"
+    }
+  ]
+}

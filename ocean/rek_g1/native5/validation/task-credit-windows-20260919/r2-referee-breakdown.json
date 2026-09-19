@@ -1,0 +1,67 @@
+{
+  "schema": "rek.offline_referee_breakdown.v1",
+  "analysis_method": "Existing native_referee_data.cjs validateRefereePacket, extractCalls and joinFivePointScores; native_hit_receipt_data.cjs validateWirePacket; contact-analysis score-events.jsonl",
+  "source_file": "C:/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260919T211709.9185713Z-pid319504-b284b5a2c20c414b80c7acf173d76dbf.jsonl",
+  "source_sha256": "a716114db814c3ecbc304786152e56445fc1b5283cb7f5707497ac4e31dc0ecb",
+  "bridge_round_identity_sha256": "50dd044ff4cc5741fc53d40be853f165f88a0a8645e8867a68fc1e786402d9f8",
+  "local_slot": 0,
+  "opponent_slot": 1,
+  "completed_policy_round": false,
+  "coverage_reason": "First policy observation was 1.01777 seconds after round start, exceeding the unchanged one-second start threshold by 0.01777 seconds.",
+  "local": {
+    "score_packets": 10,
+    "one_point_awards": 10,
+    "two_point_awards": 0,
+    "five_point_awards": 0,
+    "score_packets_with_unique_same_frame_hit_effect_association": 10,
+    "total_points": 10,
+    "non_five_point_total": 10
+  },
+  "opponent": {
+    "score_packets": 12,
+    "one_point_awards": 5,
+    "two_point_awards": 6,
+    "five_point_awards": 1,
+    "score_packets_with_unique_same_frame_hit_effect_association": 11,
+    "total_points": 22,
+    "non_five_point_total": 17
+  },
+  "received_hit_effects": 21,
+  "bridge_falls": {
+    "observations": 5795,
+    "nonzero_observations": 0,
+    "distinct_values": [[0, 0]]
+  },
+  "new_referee_calls": [
+    {"name": "Slip", "faller_slot": 0, "points": 0, "unity_time": 309.5848502834467},
+    {"name": "Knockout", "faller_slot": 0, "points": 5, "scorer_slot": 1, "unity_time": 312.59905128259635}
+  ],
+  "five_point_association": {
+    "source_line": 12034,
+    "scorer_slot": 1,
+    "faller_slot": 0,
+    "new_received_counter": 7,
+    "association": "unique_receipt_counter_and_referee_agreement",
+    "referee_minus_score_receipt_seconds": 0.09017819999996846,
+    "received_counter_delta_since_prior_snapshot": 5
+  },
+  "count_episode": {
+    "faller_slot": 0,
+    "duration_receipt_seconds": 3.0138387999999736,
+    "end_reason": "count_mask_cleared",
+    "explicit_countout": true,
+    "resolution_call_name": "Knockout",
+    "left_censored": false,
+    "right_censored": false
+  },
+  "terminal_result": "WonByPoints",
+  "terminal_winner_slot": 1,
+  "terminal_knockout_occurred": false,
+  "interpretation": "One local countout contributed five opponent points despite zero bridge fall counters. Other observed point awards totaled local 10 and opponent 17, so the referee award alone does not account for the full twelve-point deficit.",
+  "limits": [
+    "Same-frame score and hit-effect associations do not establish causal policy actions or contact regions.",
+    "Removing the referee award arithmetically is not a causal prediction of how the round would have unfolded without the countout.",
+    "The referee countout call does not imply a terminal round knockout; terminal result was WonByPoints.",
+    "No server acceptance, executed move, attacker identity, or hitbox causality is inferred."
+  ]
+}

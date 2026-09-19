@@ -1,0 +1,54 @@
+{
+  "schema": "rek.offline_referee_breakdown.v1",
+  "analysis_method": "Existing native_referee_data.cjs validateRefereePacket, extractCalls and joinFivePointScores; native_hit_receipt_data.cjs validateWirePacket; contact-analysis score-events.jsonl",
+  "source_file": "C:/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260919T211500.1668145Z-pid319504-d8cd281fe1d74b5cb116b3715bd868ca.jsonl",
+  "source_sha256": "e30ddc2fb5c49f422256da64c2af60993f70de10c27502c5ad4274e2bd9db29f",
+  "bridge_round_identity_sha256": "1e868027859a49cba17e3591ec57979ae66cedbb55368e2445de4e3b83043e82",
+  "local_slot": 0,
+  "opponent_slot": 1,
+  "local": {
+    "score_packets": 7,
+    "one_point_awards": 6,
+    "five_point_awards": 1,
+    "score_packets_with_unique_same_frame_hit_effect_association": 6,
+    "total_points": 11
+  },
+  "opponent": {
+    "score_packets": 4,
+    "one_point_awards": 3,
+    "two_point_awards": 1,
+    "score_packets_with_unique_same_frame_hit_effect_association": 4,
+    "total_points": 5
+  },
+  "received_hit_effects": 10,
+  "new_referee_calls": [
+    {"name": "Slip", "faller_slot": 1, "points": 0, "unity_time": 250.8006124787415},
+    {"name": "Knockout", "faller_slot": 1, "points": 5, "scorer_slot": 0, "unity_time": 253.80760338010202}
+  ],
+  "five_point_association": {
+    "source_line": 64959,
+    "scorer_slot": 0,
+    "faller_slot": 1,
+    "new_received_counter": 11,
+    "association": "unique_receipt_counter_and_referee_agreement",
+    "referee_minus_score_receipt_seconds": 0.07014039999995703,
+    "received_counter_delta_since_prior_snapshot": 5,
+    "same_frame_hit_effect_indices": []
+  },
+  "count_episode": {
+    "faller_slot": 1,
+    "duration_receipt_seconds": 3.0070633999999927,
+    "end_reason": "count_mask_cleared",
+    "explicit_countout": true,
+    "resolution_call_name": "Knockout",
+    "left_censored": false,
+    "right_censored": false
+  },
+  "terminal_result": "WonByPoints",
+  "terminal_knockout_occurred": false,
+  "limits": [
+    "Same-frame score and hit-effect associations do not establish causal policy actions or contact regions.",
+    "The referee countout call does not imply a terminal round knockout; terminal result was WonByPoints.",
+    "No server acceptance, executed move, attacker identity, or hitbox causality is inferred."
+  ]
+}

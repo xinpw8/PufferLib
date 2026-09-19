@@ -1,0 +1,156 @@
+{
+  "schema": "rek.authentic_live_contact_analysis.v1",
+  "authentic_client": true,
+  "checkpoint_sha256": "5bdad2893c5e97e682fdb33ab48a298e2cd2d9c03df724fa2e629cc1c9882246",
+  "local_slot": 0,
+  "opponent": {
+    "client_ai_difficulty": 0,
+    "sparring_bot_number": 1
+  },
+  "round_identity_sha256": "ecbe430a26dd9891824a0f08e7360d945bed5a7b3c30f7fb3524857580cee796",
+  "stop_reason": "stream_end:active_round_not_observed",
+  "outcome": "win",
+  "terminal_evidence_consistent": true,
+  "terminal_records": [
+    {
+      "basis": "client_replicated_round",
+      "number": 3,
+      "duration": 120,
+      "time_remaining": 0,
+      "active": false,
+      "redo": false,
+      "clean_hits": [
+        16,
+        6
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "result": "WonByPoints",
+      "result_value": 1,
+      "winner_index": 0,
+      "knockout": false
+    }
+  ],
+  "first_observed_round": {
+    "number": 3,
+    "duration": 120,
+    "time_remaining": 105.473206,
+    "active": true,
+    "redo": false,
+    "clean_hits": [
+      0,
+      0
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "InProgress",
+    "result_value": 0,
+    "winner_index": -1,
+    "knockout": false
+  },
+  "last_observed_round": {
+    "number": 3,
+    "duration": 120,
+    "time_remaining": 0,
+    "active": false,
+    "redo": false,
+    "clean_hits": [
+      16,
+      6
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "WonByPoints",
+    "result_value": 1,
+    "winner_index": 0,
+    "knockout": false
+  },
+  "terminal_awarded_points_by_slot": [
+    16,
+    6
+  ],
+  "terminal_point_counters_consistent": true,
+  "native_point_counter_semantics": "Round.CleanHits accumulates integer awarded points, including referee awards; this field is not a strike-event count",
+  "point_semantics_source": [
+    "PointTracker.RecordHit: integer-truncate award and add to RoundState.CleanHits",
+    "PointTracker.RecordRefereeAward: same integer accumulation",
+    "FightCoordinator.OnPointScoredNetwork: sends current counter as newHitCount",
+    "FightCoordinator.OnScoreReceived: assigns received newHitCount directly to currentRound.CleanHits"
+  ],
+  "initial_observation_within_first_second": false,
+  "terminal_observed": true,
+  "completed_policy_round": false,
+  "observed_round_clock_seconds": 105.473206,
+  "policy_control_coverage": {
+    "applied_action_returns": 5050,
+    "first_applied_seconds_after_first_observation": 0.0384552012471886,
+    "terminal_seconds_after_last_applied": 0.0018059169501611905,
+    "maximum_applied_action_gap_seconds": 0.08390219671201748,
+    "tolerance_seconds": 1,
+    "basis": "observed local policy action returns; server acceptance remains unknown"
+  },
+  "policy_attack_requests": 93,
+  "locally_applied_attack_returns": 93,
+  "native_dispatched_attack_requests": 93,
+  "native_dispatch_returns": 93,
+  "native_capture_supplied": false,
+  "native_capture_complete": false,
+  "native_capture_binding": null,
+  "native_capture_error_records": 0,
+  "score_events": null,
+  "received_hit_effects": null,
+  "observed_point_awards_by_slot": null,
+  "reconciled_full_round_points_by_slot": null,
+  "point_counter_reconciliation": null,
+  "five_point_awards": 0,
+  "causal_attack_outcomes": 0,
+  "definitive_contact_regions": false,
+  "limits": [
+    "Local execute returns and SendMoveEvent returns do not prove server acceptance or playback.",
+    "Score recipients and awarded points are packet observations. A same-frame score/hit pairing remains noncausal.",
+    "Every attack retains unknown contact outcome. No missing packet is converted to a miss.",
+    "Candidate windows are sensitivity analyses, not execution-duration or unique-active-action proof.",
+    "Packet contact coordinates are received effects data; adjacent root poses describe receipt context, without interpolation.",
+    "Facing uses projected pelvis-local +X in Unity XZ. Runtime forward offset is not newly measured.",
+    "Five-point awards are separate; no knockout cause is inferred from their value.",
+    "Terminal scoreboard points are separate from local policy control coverage and complete packet reconciliation.",
+    "Completed-policy-round coverage requires the first observation within one second of round start, an applied return within one second of that observation, and at most one second between returns or before terminal; server control remains unknown.",
+    "Native correlation requires concurrent frame, QPC and root geometry anchors. Direct process ID equality is unavailable in the policy stream."
+  ],
+  "inputs": [
+    {
+      "file": "relay.stdout.jsonl",
+      "sha256": "f5ef3da584cafd8b5c94d47a530c9236133a95ea95b79259a1fc95a29d618321",
+      "bytes": 54874774,
+      "lines": 10284
+    },
+    {
+      "file": "relay.stdin.jsonl",
+      "sha256": "bdf0e578d253c860d98e0090cdf9e332a3a510776b0d37297dd509d8cb41c6b1",
+      "bytes": 924035,
+      "lines": 5056
+    },
+    {
+      "file": "worker.stdout.jsonl",
+      "sha256": "436d23177d55f110855639d42ae4c2b66d96550fb988c473caf0212fa88def9c",
+      "bytes": 2370673,
+      "lines": 5052
+    },
+    {
+      "file": "run-config.json",
+      "bytes": 1483,
+      "sha256": "f45850d7f72175c500d52374479d8e0cca3387e529577d903ff8349162cbe274"
+    },
+    {
+      "file": "summary.json",
+      "bytes": 1667,
+      "sha256": "0a458e45bc2a30c45f13e46d6117727e36dcd2d6fe52f6a75682bb78a602ff2a"
+    }
+  ]
+}
