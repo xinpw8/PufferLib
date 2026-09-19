@@ -1970,6 +1970,9 @@ using (var server = new LocalPipeServer(faultPipeName,
         Expect("writer_failure_clears_current_connection_before_peer_disconnect", true);
         Expect("writer_failure_diagnostic_has_direction_and_type_only",
             transportWarnings.Contains("Pipe write loop failed: NullReferenceException"));
+        Expect("writer_failure_diagnostic_identifies_serialization_stage_and_method",
+            transportWarnings.Any(value => value.Contains("stage=serialize;type=System.NullReferenceException;methods=", StringComparison.Ordinal)
+                && value.Contains("ThrowingPipePayload.get_Value@IL_", StringComparison.Ordinal)));
         Expect("writer_failure_diagnostic_excludes_payload_exception_message",
             transportWarnings.All(value => !value.Contains("fixture-payload-message", StringComparison.Ordinal)));
 

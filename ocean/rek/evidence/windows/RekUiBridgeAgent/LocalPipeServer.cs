@@ -468,26 +468,41 @@ internal sealed class LocalPipeServer : IDisposable
         long connectionId,
         CancellationToken cancellationToken)
     {
-        using var writer = new StreamWriter(
-            pipe,
-            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
-            bufferSize: 64 * 1024,
-            leaveOpen: true)
+        var stage = "writer_setup";
+        try
         {
-            AutoFlush = true,
-            NewLine = "\n",
-        };
-
-        while (!cancellationToken.IsCancellationRequested && pipe.IsConnected)
-        {
-            await _outboundSignal.WaitAsync(cancellationToken).ConfigureAwait(false);
-            while (!cancellationToken.IsCancellationRequested && _outbound.TryDequeue(out var message))
+            using var writer = new StreamWriter(
+                pipe,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+                bufferSize: 64 * 1024,
+                leaveOpen: true)
             {
-                if (message.ConnectionId != connectionId)
-                    continue;
-                var line = JsonSerializer.Serialize(message.Payload, BridgeJson.Options);
-                await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
+                AutoFlush = true,
+                NewLine = "\n",
+            };
+
+            while (!cancellationToken.IsCancellationRequested && pipe.IsConnected)
+            {
+                stage = "queue_wait";
+                await _outboundSignal.WaitAsync(cancellationToken).ConfigureAwait(false);
+                stage = "queue_dequeue";
+                while (!cancellationToken.IsCancellationRequested && _outbound.TryDequeue(out var message))
+                {
+                    if (message.ConnectionId != connectionId)
+                        continue;
+                    stage = "serialize";
+                    var line = JsonSerializer.Serialize(message.Payload, BridgeJson.Options);
+                    stage = "pipe_write";
+                    await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
+                    stage = "queue_dequeue";
+                }
             }
+            stage = "writer_dispose";
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logWarning(PipeWriteFailureDiagnostic.Describe(exception, stage));
+            throw;
         }
     }
 
