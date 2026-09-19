@@ -32,10 +32,7 @@ public sealed partial class Plugin
         out string reason, bool allowAnyAi = false, bool bindRuntimeSession = true)
     {
         scope = null!;
-        if (!RequireBackgroundControl(out reason) ||
-            !TryVerifyExplicitIsolatedSession(out var proof) ||
-            proof != G1HeldInputScheduleContract.RequiredIsolationProof)
-        { reason = "exact_isolated_spark_marker_not_proven"; return false; }
+        if (!RequirePolicyBackgroundControl(out reason)) return false;
         if (!TryGetPrivateAiContext(active, out scope, out reason, allowAnyAi: allowAnyAi,
                 bindRuntimeSession: bindRuntimeSession)) return false;
         if (active && !ReadMeasuredPairing(scope.Coordinator, scope.LocalSlot, scope.OpponentSlot).Validation.ExactG1VersusG1)
@@ -117,14 +114,20 @@ public sealed partial class Plugin
         try
         {
             var input = _g1PolicyInput;
-            if (input is not null && NativePointer(input) == _g1PolicyIdentity?.ControllerPointer)
+            // If native isolation/account is lost, do not touch game state to
+            // neutralize. Quarantine this owned controller's pending sends until
+            // process restart so stale policy velocity cannot be resent later.
+            if (_windowsPolicyAccountContext != 0 && input is not null && !RequirePolicyBackgroundControl(out _))
+                _windowsPolicyRevokedInput = NativePointer(input);
+            if (input is not null && NativePointer(input) == _g1PolicyIdentity?.ControllerPointer &&
+                RequirePolicyBackgroundControl(out _))
             {
                 if (_g1PolicyPendingMove is int move && input.hasPendingMove && input.pendingMoveIndex == move)
                 { input.hasPendingMove = false; pendingCleared = true; }
                 neutral = SetVelocityExact(input, Vector3.zero);
                 // Only an owned local controller, still in the isolated execution surface.
                 var manager = Unity.Netcode.NetworkManager.Singleton?.CustomMessagingManager;
-                if (neutral && RequireBackgroundControl(out _) && input.networkInitialized && manager is not null)
+                if (neutral && RequirePolicyBackgroundControl(out _) && input.networkInitialized && manager is not null)
                 { input.SendVelocityCommand(manager); sent = true; }
             }
         }
@@ -230,6 +233,7 @@ public sealed partial class Plugin
                     {
                         var move = G1PolicyStreamContract.MoveOrder[action.Action - 16];
                         _g1PolicyVelocity = Vector3.zero; _g1PolicyYaw = new(0, 0);
+                        if (!RequirePolicyBackgroundControl(out var isolationReason)) throw new InvalidDataException(isolationReason);
                         if (!SetVelocityExact(input, Vector3.zero)) throw new InvalidDataException("neutral_readback_failed");
                         _g1PolicyPendingMove = move;
                         _g1PolicyMoveSendReturned = false;
@@ -291,6 +295,7 @@ public sealed partial class Plugin
 
     private void UpdateG1PolicyVelocity(RobotInputController input, bool advanceYaw)
     {
+        if (!RequirePolicyBackgroundControl(out var isolationReason)) throw new InvalidDataException(isolationReason);
         var busy = _g1PolicyMoveInFlight || input.IsPunching || input.IsRecovering;
         var rawYaw = busy ? 0 : G1PolicyStreamContract.Yaw(_g1PolicyHeld);
         if (advanceYaw)
@@ -308,6 +313,15 @@ public sealed partial class Plugin
 
     private bool OwnsPolicyInput(RobotInputController input) => _g1PolicyRunning &&
         _g1PolicyInput is not null && NativePointer(input) == NativePointer(_g1PolicyInput);
+
+    internal bool AllowG1PolicyVelocitySend(RobotInputController input)
+    {
+        if (NativePointer(input) == _windowsPolicyRevokedInput) return false;
+        if (!OwnsPolicyInput(input)) return true;
+        if (TryPolicyScope(out _, out var reason)) return true;
+        StopG1PolicyStream(reason);
+        return false;
+    }
 
     private void OnG1PolicyLateUpdate(RobotInputController input)
     {

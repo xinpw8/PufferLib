@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><TargetFramework>net8.0</TargetFramework><OutputType>Exe</OutputType><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../PolicyExecutionIsolationContract.cs" Link="PolicyExecutionIsolationContract.cs" />
     <Compile Include="../PolicyRelay.cs" Link="PolicyRelay.cs" />
     <Compile Include="../../RekUiBridgeAgent/G1PolicyStreamContract.cs" Link="G1PolicyStreamContract.cs" />
     <Compile Include="../../RekUiBridgeAgent/G1HeldInputScheduleContract.cs" Link="G1HeldInputScheduleContract.cs" />

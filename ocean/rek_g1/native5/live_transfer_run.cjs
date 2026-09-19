@@ -174,7 +174,7 @@ function childEndpoint(name, spec, out) {
   const bus = new EventEmitter();
   const stdout = fs.createWriteStream(path.join(out, `${name}.stdout.jsonl`), {flags:'wx'});
   const stderr = fs.createWriteStream(path.join(out, `${name}.stderr.txt`), {flags:'wx'});
-  const child = spawn(spec[0], spec.slice(1), {stdio:['pipe','pipe','pipe']});
+  const child = spawn(spec[0], spec.slice(1), {stdio:['pipe','pipe','pipe'],windowsHide:true});
   child.stderr.pipe(stderr);
   child.stdin.on('error', error => bus.emit('failure', error));
   const lines = readline.createInterface({input:child.stdout});

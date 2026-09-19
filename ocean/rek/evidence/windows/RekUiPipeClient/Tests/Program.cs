@@ -5,6 +5,34 @@ var cases = 0;
 void Check(bool condition, string name) { cases++; if (!condition) throw new Exception(name); }
 void Reject(string json) { cases++; try { PolicyRelay.ValidateRequest(json); } catch { return; } throw new Exception("accepted invalid request"); }
 var hash = new string('a', 64);
+string IsolationState(string? proof, bool verified = true, string fighter = "moogleod", bool allowed = true,
+    bool pinned = false, bool matchesPin = false, bool atHome = true, bool homeMatches = true) =>
+    JsonSerializer.Serialize(new { foreground = new { isolated_session_verified = verified,
+        isolated_session_proof = proof, execution_surface = "native_windows_isolated_desktop",
+        windows_policy_account = new { required_display_name = "moogleod", context_fighter_name = fighter,
+            context_available = true, allowed, pinned, context_matches_pin = matchesPin, at_home = atHome,
+            home_display_matches = homeMatches } } });
+void CheckIsolation(string json, bool accepted)
+{
+    using var doc = JsonDocument.Parse(json);
+    var passed = false;
+    try { PolicyRelay.ValidatePolicyIsolation(doc.RootElement); passed = true; } catch { }
+    Check(passed == accepted, "relay exact isolation and account bootstrap");
+}
+CheckIsolation(IsolationState(PolicyExecutionIsolationContract.SparkProof), true);
+CheckIsolation(IsolationState(PolicyExecutionIsolationContract.WindowsProof), true);
+CheckIsolation(IsolationState(PolicyExecutionIsolationContract.WindowsProof, pinned: true, matchesPin: true, atHome: false), true);
+CheckIsolation(IsolationState(PolicyExecutionIsolationContract.WindowsProof, pinned: true, matchesPin: false), false);
+CheckIsolation(IsolationState(PolicyExecutionIsolationContract.WindowsProof, atHome: false), false);
+CheckIsolation(IsolationState(PolicyExecutionIsolationContract.WindowsProof, homeMatches: false), false);
+CheckIsolation(IsolationState(PolicyExecutionIsolationContract.WindowsProof, fighter: "scabnft"), false);
+CheckIsolation(IsolationState(PolicyExecutionIsolationContract.WindowsProof, allowed: false), false);
+CheckIsolation(IsolationState(PolicyExecutionIsolationContract.WindowsProof, verified: false), false);
+CheckIsolation(IsolationState(PolicyExecutionIsolationContract.WindowsProof.Replace("RekPolicyEval", "Default")), false);
+CheckIsolation(IsolationState(PolicyExecutionIsolationContract.WindowsProof + ";display=:98"), false);
+CheckIsolation(IsolationState("spark-x98"), false);
+CheckIsolation(IsolationState(null), false);
+CheckIsolation(IsolationState(PolicyExecutionIsolationContract.WindowsProof).Replace("native_windows_isolated_desktop", "spark_wine_x98"), false);
 string Action(int action, long seq = 1) => JsonSerializer.Serialize(new { type = "policy_action", request_id = "a1", round_identity_sha256 = hash, observation_sequence = seq, action });
 for (var action = 0; action < 33; action++) { PolicyRelay.ValidateRequest(Action(action)); cases++; }
 foreach (var a in new[] { -1, 33, int.MaxValue }) Reject(Action(a));

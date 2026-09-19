@@ -729,12 +729,16 @@ public sealed partial class Plugin : BasePlugin
             var command = request.Command ?? throw new InvalidOperationException("command_request_missing_command");
             if (connectionId <= 0 || connectionId != (_pipe?.CurrentConnectionId ?? 0))
                 return CommandResult.Rejected("stale_or_disconnected_pipe_connection");
+            if (command == BridgeCommand.ConfirmLoggedIn && !TryVerifyExplicitIsolatedSession(out _))
+                return ContinueAlreadyAuthenticatedNativeLogin();
+            if (!RequirePolicyCommandSurface(command, out var surfaceReason))
+                return CommandResult.Rejected(surfaceReason);
 
             if (command == BridgeCommand.AcquireExclusiveControl)
             {
                 if (_leaseConnectionId != 0 && _leaseConnectionId != connectionId)
                     return CommandResult.Rejected("exclusive_control_lease_held_by_another_connection");
-                if (!RequireBackgroundControl(out var foregroundReason))
+                if (!RequirePolicyBackgroundControl(out var foregroundReason))
                     return CommandResult.Rejected(foregroundReason);
                 if (_leaseConnectionId == 0)
                     _privateAiReadyRequested = false;
@@ -821,7 +825,7 @@ public sealed partial class Plugin : BasePlugin
 
     private static CommandResult NavigateFreePlay()
     {
-        if (!RequireBackgroundControl(out var foregroundReason))
+        if (!RequirePolicyBackgroundControl(out var foregroundReason))
             return CommandResult.Rejected(foregroundReason);
         var lobby = UnityEngine.Object.FindFirstObjectByType<LobbyShellController>();
         if (lobby is null)
@@ -844,7 +848,7 @@ public sealed partial class Plugin : BasePlugin
 
     private static CommandResult EnterSolo()
     {
-        if (!RequireBackgroundControl(out var foregroundReason))
+        if (!RequirePolicyBackgroundControl(out var foregroundReason))
             return CommandResult.Rejected(foregroundReason);
         var lobby = UnityEngine.Object.FindFirstObjectByType<LobbyShellController>();
         if (lobby is null || lobby.CurrentScreen != LobbyShellController.Screen.FreePlay)
@@ -869,7 +873,7 @@ public sealed partial class Plugin : BasePlugin
 
     private CommandResult StartRound(long connectionId, string requestId, bool allowAnyAi = false)
     {
-        if (!RequireBackgroundControl(out var foregroundReason))
+        if (!(allowAnyAi ? RequirePolicyBackgroundControl(out var foregroundReason) : RequireBackgroundControl(out foregroundReason)))
             return CommandResult.Rejected(foregroundReason);
         if (_scheduleRunning || _singleMotionTrialRunning || _continuousControllerRunning ||
             _g1HeldScheduleRunning)
@@ -940,7 +944,7 @@ public sealed partial class Plugin : BasePlugin
 
     private CommandResult ExitLostPrivateSession(bool allowAnyAi = false)
     {
-        if (!RequireBackgroundControl(out var foregroundReason))
+        if (!(allowAnyAi ? RequirePolicyBackgroundControl(out var foregroundReason) : RequireBackgroundControl(out foregroundReason)))
             return CommandResult.Rejected(foregroundReason);
         if (allowAnyAi && (_g1PolicyRunning || _scheduleRunning || _singleMotionTrialRunning ||
                 _continuousControllerRunning || _g1HeldScheduleRunning ||
@@ -4375,6 +4379,7 @@ public sealed partial class Plugin : BasePlugin
 
     internal bool OnSendMoveEventPrefix(RobotInputController input)
     {
+        if (NativePointer(input) == _windowsPolicyRevokedInput) return false;
         if (OwnsPolicyInput(input)) return OnG1PolicyMovePrefix(input);
         InvalidateFreshRoundArmFromMoveRequest(input);
         if (_g1HeldScheduleRunning &&
@@ -6200,11 +6205,13 @@ public sealed partial class Plugin : BasePlugin
         var toolkitFocus = ReadToolkitFocus(lobby, gameMenu);
         var uguiFocus = ReadUguiFocus();
         var home = ReadHomeState(lobby, toolkitFocus.Pointer);
+        var login = ReadAuthenticatedContinuationEvidence();
         var privateAi = ReadPrivateAiProof(gameMenu);
         var measuredPairing = MeasuredPairingPayload(ReadMeasuredPairing(gameMenu));
         var scene = TryRead(() => SceneManager.GetActiveScene().name);
         var foregroundKnown = TryReadForeground(out var rekForeground);
-        var isolatedSessionVerified = TryVerifyExplicitIsolatedSession(out var isolationProof);
+        var isolatedSessionVerified = TryVerifyPolicyIsolatedSession(out var isolationProof, out var isolationReason);
+        var policyMutationAllowed = RequirePolicyBackgroundControl(out var policyMutationReason);
         var attackZoneAvailability = CaptureAttackZoneAvailability();
 
         var controlIdentity = new
@@ -6251,6 +6258,7 @@ public sealed partial class Plugin : BasePlugin
             toolkit_focus = toolkitFocus.Payload,
             ugui_focus = uguiFocus,
             home,
+            login,
             private_ai = privateAi,
             measured_pairing = measuredPairing,
             g1_runtime_policy_capture = new
@@ -6297,6 +6305,7 @@ public sealed partial class Plugin : BasePlugin
                 ugui = uguiFocus,
             },
             home,
+            login,
             private_ai = privateAi,
             measured_pairing = measuredPairing,
             g1_runtime_policy_capture = new
@@ -6311,7 +6320,13 @@ public sealed partial class Plugin : BasePlugin
                 rek_is_foreground = foregroundKnown ? rekForeground : (bool?)null,
                 isolated_session_verified = isolatedSessionVerified,
                 isolated_session_proof = isolationProof,
-                mutation_allowed = isolatedSessionVerified,
+                isolated_session_reason = isolationReason,
+                execution_surface = isolationProof == PolicyExecutionIsolationContract.WindowsProof
+                    ? "native_windows_isolated_desktop" : isolationProof == PolicyExecutionIsolationContract.SparkProof
+                        ? "spark_wine_x98" : "unverified",
+                windows_policy_account = WindowsPolicyAccountEvidence(),
+                mutation_allowed = policyMutationAllowed,
+                mutation_reason = policyMutationReason,
             },
             control = new
             {
@@ -7360,9 +7375,11 @@ internal static class SendVelocityCommandControlPatch
 {
     [HarmonyPrefix]
     [HarmonyPriority(Priority.First)]
-    internal static void Prefix(RobotInputController __instance)
+    internal static bool Prefix(RobotInputController __instance)
     {
+        if (Plugin.Instance?.AllowG1PolicyVelocitySend(__instance) == false) return false;
         Plugin.Instance?.OnSendVelocityCommandPrefix(__instance);
+        return true;
     }
 
     [HarmonyPostfix]

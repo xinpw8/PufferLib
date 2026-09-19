@@ -53,9 +53,7 @@ internal static class PolicyRelay
                     RequireString(build, "global_metadata_sha256", "e73d6bc53abf099af09f6d3ce5880c855694a8c7b48d6031e836da6215b5b6bd");
                     RequireString(build, "sharedassets0_sha256", "37f7a476c56caae37f5a04d4fa1acf5954fdc2b90f20f521830369ecff05f355");
                     RequireString(build, "plugin_version", "0.4.9"); RequireString(build, "plugin_sha256", args[1]);
-                    var fg = root.GetProperty("foreground");
-                    if (!fg.GetProperty("isolated_session_verified").GetBoolean()) throw new InvalidDataException("isolated_session_not_verified");
-                    RequireString(fg, "isolated_session_proof", G1HeldInputScheduleContract.RequiredIsolationProof);
+                    ValidatePolicyIsolation(root);
                     break;
                 }
             }
@@ -90,6 +88,32 @@ internal static class PolicyRelay
         }
         catch (OperationCanceledException) { Console.Error.WriteLine("policy_relay_cancelled_or_connection_timeout"); return 3; }
         catch (Exception e) { Console.Error.WriteLine("policy_relay_failed:" + e.GetType().Name + ":" + e.Message); return 1; }
+    }
+
+    internal static void ValidatePolicyIsolation(JsonElement state)
+    {
+        var foreground = state.GetProperty("foreground");
+        if (!foreground.GetProperty("isolated_session_verified").GetBoolean())
+            throw new InvalidDataException("isolated_session_not_verified");
+        var proof = foreground.GetProperty("isolated_session_proof").GetString();
+        if (!PolicyExecutionIsolationContract.IsSupportedProof(proof))
+            throw new InvalidDataException("relay_identity_mismatch:isolated_session_proof");
+        if (proof == PolicyExecutionIsolationContract.WindowsProof)
+        {
+            RequireString(foreground, "execution_surface", "native_windows_isolated_desktop");
+            var account = foreground.GetProperty("windows_policy_account");
+            RequireString(account, "required_display_name", PolicyExecutionIsolationContract.WindowsAccount);
+            RequireString(account, "context_fighter_name", PolicyExecutionIsolationContract.WindowsAccount);
+            if (!account.GetProperty("allowed").GetBoolean() || !account.GetProperty("context_available").GetBoolean())
+                throw new InvalidDataException("windows_policy_account_not_proven");
+            if (account.GetProperty("pinned").GetBoolean())
+            {
+                if (!account.GetProperty("context_matches_pin").GetBoolean())
+                    throw new InvalidDataException("windows_policy_account_pin_mismatch");
+            }
+            else if (!account.GetProperty("at_home").GetBoolean() || !account.GetProperty("home_display_matches").GetBoolean())
+                throw new InvalidDataException("windows_policy_initial_home_account_not_proven");
+        }
     }
 
     internal static void ValidateRequest(string line)

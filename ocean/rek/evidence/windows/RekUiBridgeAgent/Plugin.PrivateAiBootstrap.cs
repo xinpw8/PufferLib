@@ -10,9 +10,7 @@ public sealed partial class Plugin
 
     private CommandResult ReadyPrivateAiSession()
     {
-        var isolated = RequireBackgroundControl(out _) &&
-            TryVerifyExplicitIsolatedSession(out var proof) &&
-            proof == G1HeldInputScheduleContract.RequiredIsolationProof;
+        var isolated = RequirePolicyBackgroundControl(out _);
         var gameMenu = UnityEngine.Object.FindFirstObjectByType<GameMenuController>();
         var coordinator = gameMenu?.fightCoordinator ??
             UnityEngine.Object.FindFirstObjectByType<FightCoordinator>();
