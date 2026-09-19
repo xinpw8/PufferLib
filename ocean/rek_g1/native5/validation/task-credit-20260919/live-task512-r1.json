@@ -1,0 +1,19 @@
+{
+  "variant": "task512",
+  "checkpoint_sha256": "5bdad2893c5e97e682fdb33ab48a298e2cd2d9c03df724fa2e629cc1c9882246",
+  "utc_end": "2026-09-19T19:46:14.796Z",
+  "wrapper_exit": 2,
+  "complete": false,
+  "fair_start": false,
+  "stop_reason": "private-practice entry timeout",
+  "initial_round": null,
+  "final_round": null,
+  "opponent": null,
+  "predictions": 0,
+  "applied": 0,
+  "rejected": 0,
+  "video_bytes": null,
+  "video_below_20mb": false,
+  "delivery_status": "invalid_or_missing_video",
+  "success_claim": "incomplete attempt retained"
+}

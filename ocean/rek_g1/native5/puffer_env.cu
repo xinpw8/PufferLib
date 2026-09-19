@@ -5,6 +5,7 @@
 #define PUFFER_ENV_UNCLIPPED_REWARDS
 #define PUFFER_ENV_GPU_ACTION_MASK
 #define PUFFER_ENV_GPU_ROLLOUT_CHECK
+#define PUFFER_ENV_GPU_ROLLOUT_BOOTSTRAP
 
 #include <cuda_runtime.h>
 #include <assert.h>
@@ -306,7 +307,11 @@ void puf_step(Env*) {
         rek_native5_require_policy(rek_native_policy_step_rows(rek_native5_binding.opponent,opponent_observations,view.action_masks,view.terminals,
             rek_native5_binding.external_actions,1,2,rek_native5_binding.opponent_deterministic,rek_native5_binding.stream),"infer frozen opponent");
     }
+#ifdef REK_NATIVE5_COMPACT_AUTORESET
+    rek_native5_require_runtime(rek_native5_step_autoreset(rek_native5_binding.runtime,
+#else
     rek_native5_require_runtime(rek_native5_step(rek_native5_binding.runtime,
+#endif
         rek_native5_binding.stream), "step runtime");
 }
 

@@ -120,6 +120,11 @@ int rek_native5_bind_action_mask(RekNative5Runtime* runtime,
     uint8_t* action_mask, cudaStream_t stream);
 int rek_native5_reset(RekNative5Runtime* runtime, cudaStream_t stream);
 int rek_native5_step(RekNative5Runtime* runtime, cudaStream_t stream);
+/* Compact trainer only: terminal transitions retain their reward/done buffers,
+ * while observations/masks and internal state advance to the next initial
+ * state. Cumulative round metrics are preserved. Standalone evaluation uses
+ * step() above to retain the completed round's pose and result. */
+int rek_native5_step_autoreset(RekNative5Runtime* runtime, cudaStream_t stream);
 /* Bind device [arenas * 2] arrays before graph capture. Override byte 1
  * selects that exact external action; byte 0 retains the original source
  * (learner fighter 0, scripted fighter 1). Invalid/masked actions fail normally.

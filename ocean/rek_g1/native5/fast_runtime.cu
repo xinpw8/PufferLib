@@ -14,6 +14,7 @@
 #include "native_bot1.cuh"
 #include "rendered_pose_observation.h"
 #include "primitive_motion.cuh"
+#include "contact_potential_loader.h"
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
 // trajectories; slider motion and temporally sampled contacts are modeling
@@ -60,6 +61,7 @@ struct Parameters {
     int opponent_mode,random_resets;
     float reset_gap_min,reset_gap_max,reset_heading_spread;
     float shaping_weight,shaping_gamma,shaping_target,shaping_bearing_weight;
+    rek5_contact_potential::Model contact_potential;
     int recovered_scoring;
     RekG1ImpactEvent impact_events[29];
     int impact_offsets[24],impact_counts[24];
@@ -207,9 +209,18 @@ __device__ int opponent_action(const Parameters& p,Arena& a,int side){
     // The strafe target does not attack. Its direction changes every second.
     return (a.tick/50)&1?4:5;
 }
-__device__ float shaping_potential(const Parameters& p,const Arena& a,int side){
+__device__ float shaping_potential(const View& v,const Arena& a,int side){
+    const Parameters& p=*v.p;
     const Fighter& f=a.fighter[side];const Fighter& other=a.fighter[side^1];
     const float dx=other.x-f.x,dy=other.y-f.y;
+    if(p.contact_potential.count){
+        float rendered[4];root_quaternion(f,v.frames[frame_index(p,f,false)],rendered);
+        const float heading=rek_rendered_pose::heading(rendered);
+        // Evidence yaw is atan2(Unity X,Unity Z). The candidate uses
+        // atan2(Unity Z,Unity X), so signed relative bearing changes sign.
+        const float evidence_bearing=-angle(atan2f(dy,dx)-heading);
+        return rek5_contact_potential::potential(p.contact_potential,hypotf(dx,dy),evidence_bearing);
+    }
     const float error=fabsf(hypotf(dx,dy)-p.shaping_target);
     const float bearing=fabsf(angle(atan2f(dy,dx)-f.yaw))/PI;
     return -(error/(1+error)+p.shaping_bearing_weight*bearing)/(1+p.shaping_bearing_weight);
@@ -394,7 +405,7 @@ __device__ void advance_arena(const View& v,int index){
     a.delta[0]=a.delta[1]=a.hit_count=a.down_event[0]=a.down_event[1]=0;
     a.reward[0]=a.reward[1]=0;
     float previous_potential[2]={};
-    if(p.shaping_weight>0)for(int side=0;side<2;side++)previous_potential[side]=shaping_potential(p,a,side);
+    if(p.shaping_weight>0)for(int side=0;side<2;side++)previous_potential[side]=shaping_potential(v,a,side);
     int actions[2];bool bot_rows[2]={};
     for(int side=0;side<2;side++){
         int row=index*2+side;
@@ -458,8 +469,8 @@ __device__ void advance_arena(const View& v,int index){
     for(int side=0;side<2;side++){
         a.reward[side]=float(a.delta[side]-a.delta[side^1]);
         if(p.shaping_weight>0){
-            const float next_potential=terminal?0:shaping_potential(p,a,side);
-            a.reward[side]+=p.shaping_weight*(p.shaping_gamma*next_potential-previous_potential[side]);
+            const float next_potential=terminal?0:shaping_potential(v,a,side);
+            a.reward[side]+=p.shaping_weight*rek5_contact_potential::shaping_delta(previous_potential[side],next_potential,terminal,p.shaping_gamma);
         }
     }
     a.episode_return+=a.reward[0];a.episode_hits+=a.hit_count;
@@ -567,11 +578,33 @@ __global__ void fast_reset(const __grid_constant__ View v){
 }
 // Keep the address-taken view in the kernel parameter space. The larger
 // primitive path must not require a per-thread local copy of this descriptor.
-__global__ void fast_step(const __grid_constant__ View v){
+__device__ void training_autoreset(const View& v,int index,int lane){
+    // The learner must choose its next action from the next episode's initial
+    // observation. Preserve the completed transition's reward/done separately.
+    // Standalone evaluation never calls this path and retains its final pose.
+    if(!v.rounds[index].terminal||v.rounds[index].failure_bits)return;
+    float reward0=0,reward1=0;
+    if(lane==0){
+        reward0=v.state[index].reward[0];reward1=v.state[index].reward[1];
+        round_reset(*v.p,v.state[index],v.rounds[index],false,index);
+        if(v.p->rendered_observation){
+            capture_observed_pose(*v.p,v.state[index]);update_observed_pose(v,v.state[index]);
+        }
+        v.actions[index*2]=v.actions[index*2+1]=0;
+    }
+    __syncwarp();export_arena(v,index,lane);__syncwarp();
+    if(lane==0){
+        v.out.rewards[index]=v.rewards[index*2]=reward0;
+        v.rewards[index*2+1]=reward1;
+        v.out.terminals[index]=v.terminals[index*2]=v.terminals[index*2+1]=1;
+    }
+}
+__global__ void fast_step(const __grid_constant__ View v,bool autoreset=false){
     int lane=threadIdx.x&31,index=(blockIdx.x*blockDim.x+threadIdx.x)>>5;
     if(index>=v.arenas)return;
     if(lane==0)advance_arena(v,index);
     __syncwarp();export_arena(v,index,lane);
+    if(autoreset){__syncwarp();training_autoreset(v,index,lane);}
 }
 __global__ void encode_rows(const __grid_constant__ View v,float* out){
     int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=v.arenas*446)return;
@@ -662,6 +695,13 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         p.shaping_gamma=environment_float("REK_FAST_SHAPING_GAMMA",1.f,.000001f,1.f);
         p.shaping_target=environment_float("REK_FAST_SHAPING_TARGET",.65f,.001f,100.f);
         p.shaping_bearing_weight=environment_float("REK_FAST_SHAPING_BEARING_WEIGHT",0,0,100.f);
+        const char* contact_model=getenv("REK_FAST_CONTACT_POTENTIAL");
+        if(contact_model){
+            if(!*contact_model||p.shaping_weight<=0||!p.rendered_observation)
+                throw std::runtime_error("Contact potential requires a model, positive shaping weight and rendered_pose_v1 observations");
+            const auto loaded=rek5_contact_potential::load(contact_model);p.contact_potential=loaded.model;
+            fprintf(stderr,"contact_potential={\"schema\":\"rek.contact_potential.v1\",\"model_id\":\"%s\",\"source_sha256\":\"%s\",\"file_sha256\":\"%s\",\"samples\":%d,\"fit_round\":1,\"changes_points\":false,\"hit_probability\":false,\"executed_action_labels\":false,\"candidate_units_per_unity_unit_assumed\":1,\"metre_calibration_verified\":false}\n",loaded.model_id.c_str(),loaded.source_sha256.c_str(),loaded.file_sha256.c_str(),loaded.model.count);
+        }
         if(p.shaping_weight>0&&p.shaping_target<2*p.body_radius)throw std::runtime_error("Shaping target is inside the nonoverlap distance");
         // Existing private V2 configs may still carry this setting. It has no
         // effect in V4; retain an explicit diagnostic rather than using it.
@@ -697,6 +737,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
 }
 extern "C" int rek_native5_reset(RekNative5Runtime* r,cudaStream_t s){try{valid_runtime(r);fast_reset<<<(r->view.arenas+3)/4,THREADS,0,s>>>(r->view);rek5::cuda_check(cudaGetLastError());return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
 extern "C" int rek_native5_step(RekNative5Runtime* r,cudaStream_t s){try{valid_runtime(r);fast_step<<<(r->view.arenas+3)/4,THREADS,0,s>>>(r->view);rek5::cuda_check(cudaGetLastError());return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
+extern "C" int rek_native5_step_autoreset(RekNative5Runtime* r,cudaStream_t s){try{valid_runtime(r);fast_step<<<(r->view.arenas+3)/4,THREADS,0,s>>>(r->view,true);rek5::cuda_check(cudaGetLastError());return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
 extern "C" int rek_native5_bind_action_mask(RekNative5Runtime* r,uint8_t* mask,cudaStream_t s){try{valid_runtime(r);r->view.learner_masks=mask;if(mask)copy_masks<<<(r->view.arenas*33+127)/128,128,0,s>>>(r->view);rek5::cuda_check(cudaGetLastError());return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
 extern "C" int rek_native5_bind_external_actions(RekNative5Runtime* r,const float* actions,const uint8_t* overrides,cudaStream_t){try{valid_runtime(r);if(bool(actions)!=bool(overrides))throw std::runtime_error("External actions and override mask must be bound together");r->view.external=actions;r->view.override_rows=overrides;return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
 extern "C" int rek_native5_get_device_view(RekNative5Runtime* r,RekNative5DeviceView* out){try{valid_runtime(r);if(!out)throw std::runtime_error("Null device view");const auto& v=r->view;*out={v.arenas,72,70,v.raw,v.masks,v.qpos,v.qvel,v.actions,v.rewards,v.terminals,v.rounds};return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}

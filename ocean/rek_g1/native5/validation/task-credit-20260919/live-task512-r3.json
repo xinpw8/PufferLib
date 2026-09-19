@@ -1,0 +1,58 @@
+{
+  "variant": "task512",
+  "checkpoint_sha256": "5bdad2893c5e97e682fdb33ab48a298e2cd2d9c03df724fa2e629cc1c9882246",
+  "utc_end": "2026-09-19T20:01:49.176Z",
+  "wrapper_exit": 2,
+  "complete": false,
+  "fair_start": true,
+  "stop_reason": "child_exit:{\"code\":0,\"signal\":null}",
+  "initial_round": {
+    "number": 1,
+    "duration": 120,
+    "time_remaining": 119.66661,
+    "active": true,
+    "redo": false,
+    "clean_hits": [
+      0,
+      0
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "InProgress",
+    "result_value": 0,
+    "winner_index": -1,
+    "knockout": false
+  },
+  "final_round": {
+    "number": 1,
+    "duration": 120,
+    "time_remaining": 40.726776,
+    "active": true,
+    "redo": false,
+    "clean_hits": [
+      5,
+      10
+    ],
+    "falls": [
+      0,
+      0
+    ],
+    "result": "InProgress",
+    "result_value": 0,
+    "winner_index": -1,
+    "knockout": false
+  },
+  "opponent": {
+    "client_ai_difficulty": 0,
+    "sparring_bot_number": 1
+  },
+  "predictions": 3803,
+  "applied": 3803,
+  "rejected": 0,
+  "video_bytes": 7123223,
+  "video_below_20mb": true,
+  "delivery_status": "validated_mp4",
+  "success_claim": "incomplete attempt retained"
+}

@@ -163,13 +163,14 @@ test('a stream pins bot identity and rejects mid-round changes or human occupanc
 
 test('earlier successful actions cannot turn a later scope failure into a successful exit',()=>{
   const s={predictions:100,applied:99,final_round:{active:false,result_value:1}};
-  for(const stop_reason of ['source_round_terminal','stream_end:active_round_not_observed','requested_duration_complete'])
+  for(const stop_reason of ['source_round_terminal','stream_end:active_round_not_observed'])
     assert.equal(trialExitCode({...s,stop_reason}),0);
   for(const stop_reason of ['relay_callback:private_ai_identity_changed_or_unproven',
     'stream_end:policy_opponent_identity_changed','private arena proof lost','source_stream_missing'])
     assert.equal(trialExitCode({...s,stop_reason}),2);
   assert.equal(trialExitCode({...s,stop_reason:'source_round_terminal',final_round:{active:true,result_value:0}}),2);
   assert.equal(trialExitCode({...s,stop_reason:'requested_duration_complete',applied:0}),2);
+  assert.equal(trialExitCode({...s,stop_reason:'requested_duration_complete'}),2);
 });
 
 test('automatic between-round transition waits without sending a round request',()=>{

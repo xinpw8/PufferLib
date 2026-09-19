@@ -30,7 +30,9 @@ function validateBotIdentity(opponent, expected) {
 }
 function trialExitCode(summary) {
   if(summary.predictions<=0 || summary.applied<=0)return 2;
-  if(summary.stop_reason==='requested_duration_complete')return 0;
+  // A duration limit is an incomplete attempt. It cannot certify a round
+  // result, even if the worker issued valid actions before the limit.
+  if(summary.stop_reason==='requested_duration_complete')return 2;
   const terminal=summary.final_round?.active===false &&
     Number.isInteger(summary.final_round.result_value) && summary.final_round.result_value>0;
   return terminal && ['source_round_terminal','stream_end:active_round_not_observed'].includes(summary.stop_reason)?0:2;

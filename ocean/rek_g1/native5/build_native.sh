@@ -115,6 +115,8 @@ git -C "$task_build/trainer" apply --check "$task_source/pufferlib5_action_mask.
 git -C "$task_build/trainer" apply "$task_source/pufferlib5_action_mask.patch"
 git -C "$task_build/trainer" apply --check "$task_source/pufferlib5_initial_model.patch"
 git -C "$task_build/trainer" apply "$task_source/pufferlib5_initial_model.patch"
+git -C "$task_build/trainer" apply --check "$task_source/pufferlib5_temporal_credit.patch"
+git -C "$task_build/trainer" apply "$task_source/pufferlib5_temporal_credit.patch"
 task_runner="$task_build/trainer/src/pufferl.cu"
 
 if (( task_build_runtime )); then
@@ -181,6 +183,9 @@ task_flags=(-std=c++17 -O2 "-arch=$task_arch" --threads 0
     --diag-suppress=2361 -DPLATFORM_DESKTOP -DPUFFERLIB_BUILD_MAIN
     -DENV_NAME=rek_native5 '-DPUFFER_ENV_NAME="rek_native5"'
     "-DENV_HEADER=\"$task_source/puffer_env.cu\"")
+if [[ ${REK_NATIVE5_COMPACT_AUTORESET:-0} == 1 ]]; then
+    task_flags+=(-DREK_NATIVE5_COMPACT_AUTORESET=1)
+fi
 
 printf 'Compiling PufferLib 5.0 %s for %s\n' "$task_commit" "$task_arch"
 "$task_nvcc" "${task_flags[@]}" -c "$task_runner" \
@@ -198,7 +203,10 @@ printf 'Compiling PufferLib 5.0 %s for %s\n' "$task_commit" "$task_arch"
     fi
     printf 'runtime_validation=not_run\n'
     printf 'native_mujoco_gpu_compiled=%s\n' "$task_mujoco_gpu"
+    printf 'compact_training_autoreset=%s\n' "${REK_NATIVE5_COMPACT_AUTORESET:-0}"
     sha256sum "$task_stage/src/pufferl.cu" "$task_runner" "$task_source/pufferlib5_action_mask.patch" \
+        "$task_source/pufferlib5_initial_model.patch" "$task_source/pufferlib5_temporal_credit.patch" \
+        "$task_build/trainer/src/algo.cu" \
         "$task_stage/src/algo.cu" \
         "$task_source/puffer_env.cu" "$task_source/runtime_api.h" \
         "$task_source/native5.ini" "$task_build/pufferl.o"

@@ -1,0 +1,2 @@
+task_bootstrap_state_test={"actual_native_network":true,"actor_state_unchanged":true,"rng_unchanged":true,"actions_unchanged":true,"observations_masks_unchanged":true,"parameters_unchanged":true,"scratch_state_advanced":true,"boundary_tuple_correct":true,"repeat_value_identical":true,"graph_replays":4,"graph_checks_pass":true,"training_updates":0,"passed":true}
+native5_round_summary={"arenas":8,"completed_rounds":0,"fighter0_wins":0,"fighter1_wins":0,"ties":0,"redos":0,"unclassified":0,"fighter0_completed_points":0,"fighter1_completed_points":0,"failure_bits":0}

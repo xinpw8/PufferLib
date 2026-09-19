@@ -12,7 +12,7 @@ task_arch=${REK_CUDA_ARCH:-sm_121}
 task_mujoco=${REK_NATIVE5_MUJOCO:-/home/spark-advantage/rek-training/gpu-runtime-20260910/deps/mujoco}
 task_raylib=${PUFFER5_RAYLIB:-/home/spark-advantage/pufferlib-5.0-wr64/raylib-5.5_linux_aarch64}
 task_nccl=${PUFFER5_NCCL:-/home/spark-advantage/.venv/lib/python3.12/site-packages/nvidia/nccl}
-bash "$task_source/build_native.sh" "$task_build" --compile-trainer-only
+REK_NATIVE5_COMPACT_AUTORESET=1 bash "$task_source/build_native.sh" "$task_build" --compile-trainer-only
 task_build=$(realpath "$task_build")
 "$task_nvcc" -std=c++17 -O3 "-arch=$task_arch" -Xcompiler=-fPIC \
     -I"$task_source" -I"$task_g1" -I"$task_root/vendor" \
@@ -46,5 +46,6 @@ fi
 { printf 'backend=semantic_cuda\ncontrol_hz=50\ncpu_physics=0\npython_runtime=0\n';
   sha256sum "$task_source/fast_runtime.cu" "$task_source/fast_assets.cpp" \
     "$task_source/fast_assets.h" "$task_source/primitive_contacts.cuh" \
-    "$task_source/primitive_motion.cuh" "$task_source/native_contact_geometry.h" "$task_build/puffer-rek-native5"; } > "$task_build/fast-build.txt"
+    "$task_source/primitive_motion.cuh" "$task_source/native_contact_geometry.h" \
+    "$task_source/contact_potential.h" "$task_source/contact_potential_loader.h" "$task_build/puffer-rek-native5"; } > "$task_build/fast-build.txt"
 printf 'Built reduced GPU trainer: %s/puffer-rek-native5\n' "$task_build"

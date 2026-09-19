@@ -1,0 +1,131 @@
+diff --git a/src/pufferl.cu b/src/pufferl.cu
+--- a/src/pufferl.cu
++++ b/src/pufferl.cu
+@@ -542,3 +542,10 @@
+     TrainGraph train_buf;
+-    Prec train_state;  // (L, A, H) carry in env order; graph reads with dest_off
++    Prec train_state;  // (L, A, H) carry in env order; graph reads with dest_off
++#ifdef PUFFER_ENV_GPU_ROLLOUT_BOOTSTRAP
++    Prec boundary_observations;
++    Prec boundary_state; // Scratch only. Never replaces the actor carry state.
++    Prec boundary_values;
++    Prec boundary_rewards;
++    Prec boundary_terminals;
++#endif
+     cudaGraphExec_t* rollout_graphs;  // CPU: [slots][horizon][num_buffers]
+@@ -1273,3 +1280,32 @@
+ 
+-static void rollout_start(PuffeRL* p) {
++#ifdef PUFFER_ENV_GPU_ROLLOUT_BOOTSTRAP
++__global__ void copy_boundary_values(Prec decoder, Prec values) {
++    int i = blockIdx.x * blockDim.x + threadIdx.x;
++    if (i < values.shape[0]) {
++        values.data[i] = decoder.data[(long)i * decoder.shape[1] + decoder.shape[1] - 1];
++    }
++}
++
++// Observe the result of action H-1 without another environment step or action
++// sample. Forward on copied RNN state; neither actor memory nor RNG advances.
++static void pufferl_boundary_bootstrap(PuffeRL* p, cudaStream_t stream) {
++    Policy* policy = &p->policies[0];
++    int n = p->hypers.total_agents;
++    int obs_n = (int)numel(p->boundary_observations.shape);
++    cast<<<grid_size(obs_n), BLOCK_SIZE, 0, stream>>>(
++        p->boundary_observations.data, p->env.obs.data, obs_n);
++    cast_rew_term<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(
++        p->boundary_rewards.data, p->env.rewards.data,
++        p->boundary_terminals.data, p->env.terminals.data, n);
++    puf_copy(&p->boundary_state, &policy->buffer_states[0], stream);
++    int state_n = (int)numel(p->boundary_state.shape);
++    zero_term_state<<<grid_size(state_n), BLOCK_SIZE, 0, stream>>>(
++        p->boundary_state, p->env.terminals, 0, 0, n);
++    Prec decoder = arch_forward(&policy->arch, policy->weights,
++        policy->buf_acts[0], p->boundary_observations, p->boundary_state, stream);
++    copy_boundary_values<<<grid_size(n), BLOCK_SIZE, 0, stream>>>(decoder, p->boundary_values);
++}
++#endif
++
++static void rollout_start(PuffeRL* p) {
+     if (PUF_BACKEND == PUF_GPU) {
+@@ -1301,5 +1337,8 @@
+             puf_step(p->vec->envs);
+-            cudaEventRecord(ev[base + ENV_END], stream);
+-        }
+-        if (first) {
++            cudaEventRecord(ev[base + ENV_END], stream);
++        }
++#ifdef PUFFER_ENV_GPU_ROLLOUT_BOOTSTRAP
++        pufferl_boundary_bootstrap(p, stream);
++#endif
++        if (first) {
+             cudaGraph_t graph;
+@@ -1568,3 +1607,9 @@
+             hypers->gamma, hypers->gae_lambda,
+-            hypers->vtrace_rho_clip, hypers->vtrace_c_clip, Nmb, Tmb);
++            hypers->vtrace_rho_clip, hypers->vtrace_c_clip, Nmb, Tmb
++#ifdef PUFFER_ENV_GPU_ROLLOUT_BOOTSTRAP
++            , pufferl->boundary_values.data + dest_off,
++            pufferl->boundary_rewards.data + dest_off,
++            pufferl->boundary_terminals.data + dest_off
++#endif
++        );
+         graph.mb_returns = graph.mb_gae_v;
+@@ -1882,3 +1927,9 @@
+     }
+-    // GPU envs have no per-env tags / frozen layout — selfplay and match stay CPU-only.
++#ifdef PUFFER_ENV_GPU_ROLLOUT_BOOTSTRAP
++    if (PUF_BACKEND != PUF_GPU || hypers.async || num_buffers != 1 || num_policies != 1) {
++        fprintf(stderr, "REK boundary bootstrap requires synchronous GPU, one buffer, one policy\\n");
++        exit(2);
++    }
++#endif
++    // GPU envs have no per-env tags / frozen layout — selfplay and match stay CPU-only.
+     assert(!(PUF_BACKEND == PUF_GPU
+@@ -2024,3 +2075,15 @@
+     pufferl->train_state = {.shape = {num_layers, total_agents, hidden_size}};
+-    alloc_register(acts, &pufferl->train_state);
++    alloc_register(acts, &pufferl->train_state);
++#ifdef PUFFER_ENV_GPU_ROLLOUT_BOOTSTRAP
++    pufferl->boundary_observations = {.shape = {total_agents, input_size}};
++    pufferl->boundary_state = {.shape = {num_layers, total_agents, hidden_size}};
++    pufferl->boundary_values = {.shape = {total_agents}};
++    pufferl->boundary_rewards = {.shape = {total_agents}};
++    pufferl->boundary_terminals = {.shape = {total_agents}};
++    alloc_register(acts, &pufferl->boundary_observations);
++    alloc_register(acts, &pufferl->boundary_state);
++    alloc_register(acts, &pufferl->boundary_values);
++    alloc_register(acts, &pufferl->boundary_rewards);
++    alloc_register(acts, &pufferl->boundary_terminals);
++#endif
+ 
+diff --git a/src/algo.cu b/src/algo.cu
+--- a/src/algo.cu
++++ b/src/algo.cu
+@@ -1706,3 +1706,6 @@
+         float gamma, float lambda, float rho_clip, float c_clip,
+-        int num_steps, int horizon) {
++        int num_steps, int horizon,
++        const precision_t* bootstrap_values = nullptr,
++        const precision_t* bootstrap_rewards = nullptr,
++        const precision_t* bootstrap_terminals = nullptr) {
+     int row = blockIdx.x * blockDim.x + threadIdx.x;
+@@ -1711,5 +1714,6 @@
+     float lastlam = 0.f;
+-    float next_v = to_float(values[off + horizon - 1]);
+-    float next_d = to_float(dones[off + horizon - 1]);
+-    float next_r = to_float(rewards[off + horizon - 1]);
++    const bool has_boundary = bootstrap_values != nullptr;
++    float next_v = to_float(has_boundary ? bootstrap_values[row] : values[off + horizon - 1]);
++    float next_d = to_float(has_boundary ? bootstrap_terminals[row] : dones[off + horizon - 1]);
++    float next_r = to_float(has_boundary ? bootstrap_rewards[row] : rewards[off + horizon - 1]);
+ 
+@@ -1731,4 +1735,7 @@
+         }
+-        // Last index H-1 left 0. First seg starts at width-2.
+-        int i0 = (seg + 1 == horizon / ADV_VEC_WIDTH) ? ADV_VEC_WIDTH - 2 : ADV_VEC_WIDTH - 1;
++        // A separate boundary tuple gives the last executed action its own
++        // reward, terminal flag and next-state value. Legacy callers retain
++        // their H-observation/H-1-transition convention.
++        int i0 = (!has_boundary && seg + 1 == horizon / ADV_VEC_WIDTH)
++            ? ADV_VEC_WIDTH - 2 : ADV_VEC_WIDTH - 1;
+         #pragma unroll
