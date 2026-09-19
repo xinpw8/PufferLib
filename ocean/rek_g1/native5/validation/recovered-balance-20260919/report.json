@@ -1,0 +1,45 @@
+{
+  "schema": "rek5.recovered_balance_validation.v1",
+  "date": "2026-09-19",
+  "status": "passed",
+  "scope": "Recovered classifier/referee wrapper and CPU-CUDA parity on synthetic dynamics fixtures",
+  "runtime_integrated": false,
+  "live_trajectory_parity_verified": false,
+  "declared_recovered_game_build_fingerprint": "f84f187491e3b5cd73493de379ed972c5580b60d63f33956e396e6dec28b1659",
+  "current_game_assembly_independently_hashed": false,
+  "host": {
+    "environment": "WSL Ubuntu-22.04",
+    "original_source_language": "C11",
+    "checks": 2048033,
+    "output": "recovered_balance_checks=2048033 passed",
+    "build_directory": "/tmp/rek-balance-host-20260919-03"
+  },
+  "cuda": {
+    "host": "spark-4ae3",
+    "architecture": "aarch64",
+    "gpu": "NVIDIA GB10",
+    "nvcc": "13.0.88",
+    "parallel_arenas": 4096,
+    "distinct_scenarios": 16,
+    "checks": 2052130,
+    "all_cpu_device_state_event_digests_equal": true,
+    "output": "recovered_balance_cuda_arenas=4096 recovered_balance_checks=2052130 passed",
+    "build_directory": "/tmp/rek-balance-cuda-20260919-01/build-02",
+    "floating_point_flags": ["--fmad=false", "--prec-div=true", "--prec-sqrt=true", "--ftz=false"]
+  },
+  "required_source_sha256": {
+    "g1_fall_state.c": "40a483fe409aec67fb2e3a5254aaaa28e3821bc13b83dd4ecb3e8f532215144b",
+    "g1_fall_state.h": "68db7b255485ba933b67a32407368eaae0ebeb6f30aeb98d621c3f0dd4c32327",
+    "g1_fight_state.c": "0fc7bea059c352ff79efbe37714b2821033e5a5757c51481e29f34bd019f4907",
+    "g1_fight_state.h": "b2d02c3daa0ab40eeae00b8d77a4ce696029ed49b0fa459cbe460f9f1ceb0b1b",
+    "g1_combat_tick.c": "f686dee995dd1f9c20da96f482a00047c194c288200ece64bef9b2cbe4fe03f6",
+    "g1_hit_detector.c": "2db5d054bdc07539c0323efa0f700f6fcd6aa63564a94fd258feb7d059d34846"
+  },
+  "new_source_sha256": {
+    "recovered_balance.cuh": "a420cd5a2f86cd26cf13a20dcefa0fbb3d46c02a4d8bcc4226ceab134e22aded",
+    "test_recovered_balance_fixture.h": "bd63b37fb25076f44202636ee2ac097e082894f2bc8f2dd33558c59bebda08e4",
+    "test_recovered_balance.cpp": "1753190f1dc80a63392310f7e1490fc21ffb7b1644ba482e7e7f6edce7a0a5f1",
+    "test_recovered_balance.cu": "d822402eff329ad827e3753e663bd0fdde6ffc3c49ceae089bb1ed7189b8384e",
+    "test_recovered_balance.sh": "527d7ea37c8b99db363230ea8d7f827c3a00ed22a47dd6b337bcd299bb35fd4a"
+  }
+}
