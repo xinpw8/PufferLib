@@ -1,0 +1,98 @@
+// Offline frozen behavior replay. Never connects to REK or steps an environment.
+#include "authentic_trajectory.h"
+#include "native_policy.h"
+#include "device_storage.cuh"
+#include <cuda_runtime.h>
+#include <cstdio>
+#include <filesystem>
+#include <memory>
+
+namespace {
+using rek_authentic::require;
+void policy_ok(int status) { if(status) throw std::runtime_error(rek_native_policy_error()); }
+// Identical reduction order/intrinsics to native_policy.cu::sample. The logits
+// are the exact FP32 diagnostic copies of the BF16 inference decoder values.
+__global__ void behavior_logprob(const float* logits,const uint8_t* mask,int action,float* out) {
+    float maximum=-INFINITY,total=0;
+    for(int k=0;k<33;++k) {
+        const float x=mask[k]?logits[k]:-1e4f;
+        if(x>maximum) { total*=__expf(maximum-x); maximum=x; }
+        total+=__expf(x-maximum);
+    }
+    out[0]=logits[action]-(maximum+__logf(total)); out[1]=logits[33];
+}
+template<class T> void put(std::vector<unsigned char>& b,size_t offset,T value) {
+    std::memcpy(b.data()+offset,&value,sizeof(T));
+}
+void put_hash(std::vector<unsigned char>& b,size_t offset,const std::string& value) {
+    require(value.size()==64,"SHA256 length mismatch");
+    for(size_t i=0;i<32;++i) {
+        unsigned x=0; require(std::sscanf(value.substr(i*2,2).c_str(),"%2x",&x)==1,"invalid SHA256"); b[offset+i]=x;
+    }
+}
+void publish(const char* path,const void* data,size_t size) {
+    FILE* f=std::fopen(path,"wbx"); require(f!=nullptr,"output exists or cannot be created");
+    const size_t count=std::fwrite(data,1,size,f); const int status=std::fclose(f);
+    require(count==size && status==0,"behavior output write failed");
+}
+}
+int main(int argc,char** argv) {
+    try {
+        require(argc==5,"Usage: replay-authentic-behavior DATA CHECKPOINT SHA256 NEW_REPLAY_BINARY");
+        const auto data=rek_authentic::load(argv[1]); const std::string summary_path=std::string(argv[4])+".json";
+        require(!std::filesystem::exists(argv[4]) && !std::filesystem::exists(summary_path),"replay output exists");
+        rek5::cuda_check(cudaSetDevice(0)); cudaStream_t stream; rek5::cuda_check(cudaStreamCreate(&stream));
+        rek5::DeviceStorage storage;
+        float* observation=storage.alloc<float>(223); auto* mask=storage.alloc<uint8_t>(33);
+        float* terminal=storage.alloc<float>(1); float* action=storage.alloc<float>(1); float* stats=storage.alloc<float>(2);
+        RekNativePolicyConfig config{}; config.abi_version=REK_NATIVE_POLICY_ABI;
+        config.checkpoint_path=argv[2]; config.expected_sha256=argv[3]; config.hidden_size=256; config.num_layers=2;
+        config.batch=1; config.precision=REK_NATIVE_POLICY_BF16; config.seed=73;
+        std::unique_ptr<RekNativePolicy,decltype(&rek_native_policy_destroy)> policy(rek_native_policy_create(&config,stream),rek_native_policy_destroy);
+        require(bool(policy),rek_native_policy_error());
+        const std::string checkpoint=rek_native_policy_sha256(policy.get()); require(checkpoint==argv[3],"checkpoint SHA mismatch");
+        std::vector<unsigned char> output(rek_authentic::REPLAY_HEADER_BYTES+data.rows.size()*rek_authentic::REPLAY_ROW_BYTES,0);
+        std::memcpy(output.data(),"REKBR001",8); put<uint32_t>(output,8,1); put<uint32_t>(output,12,data.rows.size());
+        put<uint32_t>(output,16,rek_authentic::REPLAY_ROW_BYTES); put_hash(output,24,data.digest);
+        put_hash(output,56,checkpoint); put<uint64_t>(output,88,73);
+        size_t rounds=0,matching=0; double minimum_logprob=0,maximum_logprob=-INFINITY;
+        for(size_t i=0;i<data.rows.size();++i) {
+            const auto& row=data.rows[i];
+            if(i==0 || row.sequence!=data.rows[i-1].sequence) {
+                // A new sequence was a new OS worker, including fresh Philox RNG.
+                policy_ok(rek_native_policy_reset(policy.get(),stream)); ++rounds;
+            } else if(row.reset) {
+                // Explicit within-worker resets must not restart sampler RNG.
+                policy_ok(rek_native_policy_reset_recurrent(policy.get(),stream));
+            }
+            std::array<uint8_t,33> host_mask{}; for(int j=0;j<33;++j) host_mask[j]=uint8_t(row.support[j]);
+            rek5::cuda_check(cudaMemcpyAsync(observation,row.obs.data(),223*sizeof(float),cudaMemcpyHostToDevice,stream));
+            rek5::cuda_check(cudaMemcpyAsync(mask,host_mask.data(),33,cudaMemcpyHostToDevice,stream));
+            policy_ok(rek_native_policy_step_rows(policy.get(),observation,mask,terminal,action,0,1,0,stream));
+            behavior_logprob<<<1,1,0,stream>>>(rek_native_policy_logits(policy.get()),mask,row.action,stats);
+            float selected=-1,host_stats[2]; std::array<float,34> logits{};
+            rek5::cuda_check(cudaMemcpyAsync(&selected,action,sizeof(float),cudaMemcpyDeviceToHost,stream));
+            rek5::cuda_check(cudaMemcpyAsync(host_stats,stats,sizeof(host_stats),cudaMemcpyDeviceToHost,stream));
+            rek5::cuda_check(cudaMemcpyAsync(logits.data(),rek_native_policy_logits(policy.get()),34*sizeof(float),cudaMemcpyDeviceToHost,stream));
+            rek5::cuda_check(cudaStreamSynchronize(stream)); policy_ok(rek_native_policy_check_status(policy.get(),stream));
+            if(selected!=row.action) {
+                std::fprintf(stderr,"behavior_action_mismatch row=%zu sequence=%u source_seq=%u saved=%d replayed=%.9g\n",
+                    i,row.sequence,row.source_seq,row.action,selected);
+                throw std::runtime_error("frozen behavior did not reproduce recorded sampled action; no replay published");
+            }
+            ++matching; const size_t offset=rek_authentic::REPLAY_HEADER_BYTES+i*rek_authentic::REPLAY_ROW_BYTES;
+            put<uint32_t>(output,offset,i); put<uint32_t>(output,offset+4,row.action);
+            put<float>(output,offset+8,host_stats[0]); put<float>(output,offset+12,host_stats[1]);
+            for(int j=0;j<34;++j) put<float>(output,offset+16+4*j,logits[j]);
+            minimum_logprob=std::min(minimum_logprob,double(host_stats[0])); maximum_logprob=std::max(maximum_logprob,double(host_stats[0]));
+        }
+        const auto checked=rek_authentic::decode_replay(output,data); (void)checked;
+        const std::string digest=rek_authentic::sha256(output.data(),output.size());
+        char report[1600]; const int count=std::snprintf(report,sizeof(report),
+            "{\"schema\":\"rek.authentic_behavior_replay.v1\",\"verification_passed\":true,\"rows\":%zu,\"rounds\":%zu,\"matching_sampled_actions\":%zu,\"mismatches\":0,\"dataset_sha256\":\"%s\",\"checkpoint_sha256\":\"%s\",\"replay_sha256\":\"%s\",\"seed_per_new_worker\":73,\"precision\":\"bf16\",\"input_feature_mask\":\"original_unmasked\",\"logprob_precision\":\"float32_native_sampler_reduction\",\"minimum_logprob\":%.9g,\"maximum_logprob\":%.9g,\"terminal_race_requests_retained\":true,\"game_connection\":false,\"training_performed\":false}\n",
+            data.rows.size(),rounds,matching,data.digest.c_str(),checkpoint.c_str(),digest.c_str(),minimum_logprob,maximum_logprob);
+        require(count>0 && count<int(sizeof(report)),"replay report overflow");
+        publish(argv[4],output.data(),output.size()); publish(summary_path.c_str(),report,count);
+        std::printf("%s",report); policy.reset(); rek5::cuda_check(cudaStreamDestroy(stream)); return 0;
+    } catch(const std::exception& e) { std::fprintf(stderr,"authentic_replay_error: %s\n",e.what()); return 2; }
+}

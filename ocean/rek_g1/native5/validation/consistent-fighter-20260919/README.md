@@ -15,6 +15,9 @@ These are development results, not the separate 20-round frozen evaluation.
 | r4 | same | 26:11 | Win |
 | r5 | original outcome checkpoint, masked argmax | 5:19 | Loss |
 | r6 | globally balanced BC epoch 5, sampled, 215 retained features | 1:2 at interruption | Incomplete |
+| r7 | unchanged BC epoch-5 retry | 12:17 | Loss |
+| r8 | masked PPO control, no human BC | 23:11 | Win |
+| r9 | globally balanced BC epoch 5 plus PPO | 5:17 | Loss |
 
 The original checkpoint SHA256 is
 `61f97b0b0a4504c6bdd0ee16d369ad4c1915e3cdf73d6358bab01ce64c8fde3f`.
@@ -24,7 +27,7 @@ The four additional sampled rounds are 3 wins and 1 loss, with total points
 striking. Two earlier outcome-checkpoint development wins remain a separate
 cohort. They do not turn these results into a held-out consistency claim.
 
-All five completed rounds passed the existing control-coverage, native packet
+All eight completed rounds passed the existing control-coverage, native packet
 reconciliation, and referee checks. The argmax configuration issued only 17
 attack requests, compared with 92 to 110 in the four sampled rounds. These
 request counts do not assert executed or successful attacks.
@@ -37,7 +40,8 @@ worker latency was 0.783744 ms. The partial 1:2 score is retained, with no
 terminal outcome inferred. The game was closed after verifying ownership and
 isolation. Its recorder remains a partial file with a truncated final JSON
 record, and both strict native analyzers reject that input. It is preserved
-unchanged. The same checkpoint is queued for an unchanged retry.
+unchanged. The unchanged retry, r7, completed with a 12:17 loss and 95 native
+attack requests. This does not support promoting BC as a fighting improvement.
 
 ## Learning experiments
 
@@ -66,7 +70,9 @@ BC overlapped approximately 25.3 s of that 37.0645 s training loop, so this is
 GPU-shared throughput. It must not be presented as an uncontended regression
 measurement. The final control checkpoint is
 `bf2f962dad618f6cfcd393f3beb6c00afcb69f733bbba3fb918662b2844f9cb9`.
-It still requires authentic evaluation. Compact dynamics still omit balance
+Its first authentic round, r8, won 23:11 with 92 attack requests. Observed
+non-five-point awards were 13:11; five-point awards were 10:0. A single win
+does not establish a higher win rate. Compact dynamics still omit balance
 and countout dynamics; simulation win rate is not authentic fighting strength.
 
 The corrected BC epoch-5 checkpoint then completed a 33,554,432-transition PPO
@@ -76,7 +82,9 @@ comparison passed. This run used the same 512 arenas, horizon 512, minibatch
 8192, learning rate 0.0001, entropy coefficient 0.01, reward/discount and
 simulator settings as the masked control. Checkpoint SHA256:
 `98d72685b73cf89641fc56dd0119ad73015b2ea6ede682fefe2b0a256d03f10e`.
-Its authentic fighting strength is pending evaluation.
+Its first authentic evaluation, r9, lost 5:17 with 60 attack requests. Both the
+BC-only and BC-plus-PPO completed trials lost. Neither is promoted as an
+improvement over the original policy or masked PPO control.
 
 ## Reproduction and evidence
 
@@ -96,3 +104,50 @@ Archive manifest SHA256:
 `2c99aa6211ca5baf2abc1df1078ce81e4d63b725423a74d54e92e4f9d9e09338`.
 Private recordings, proprietary assets, and checkpoint binaries are not included
 in this source report.
+
+Completed Spark worker, native BC and masked PPO artifacts are archived in the
+same NAS project folder under `native-completed-20260920T0057Z-r1`.
+The archive contains 2,235 files and is 117,508,846 bytes compressed. Source
+manifests before and after packing, archive comparison, and NAS copy hashes
+passed. Archive SHA256:
+`3c163d262fcd5a6e55938bb1cd49bf1300468880a93cc5a1b685724dfaa997c4`.
+
+## Learning from authentic trajectories
+
+The four original sampled development rounds provide 22,585 ordered policy
+decisions and 68 native score awards. Replaying the original unmasked BF16
+checkpoint with the original seed and worker resets reproduced all 22,585
+sampled actions exactly in 6.24 seconds. This recovers frozen behavior log
+probabilities and values without inventing an executed-action label. Three
+terminal-race rejected requests remain in history with zero actor loss weight.
+
+An initial native PPO dry run computed full-round, actual-time-discounted GAE
+on CUDA with zero error against its CPU reference. It did not optimize: native
+batched BF16 train-forward differed from sequential inference by at most
+0.0157486 in chosen-action probability ratio. The current experiment is
+measuring the distribution-level effect before deciding whether to use this
+numerical approximation. No authentic PPO checkpoint or improvement is
+claimed from that dry run.
+
+The first trajectory export used 0.999 / 0.995 reference gamma / lambda.
+Review caught that unintended change before any optimizer update. A fresh
+export restores the task-tailored 20 ms values 0.9998844821426083 and
+0.9978673240629938. All observation, action, mask and timestamp bytes remain
+unchanged. The corrected export also replayed all 22,585 actions exactly in
+4.42 seconds. The earlier dataset is preserved as superseded.
+
+Further numerical diagnosis established exact agreement between existing
+Puffer one-step forward and the frozen native teacher across all 22,585 rows.
+The batched path's mean legal-distribution KL was 4.5191e-8, maximum KL
+0.000156797, and initial clipped fraction zero at clip 0.2. A separately
+declared bounded-BF16 approximation is therefore being tested; it is not
+called exact batched parity.
+
+More materially, the original critic is miscalibrated on authentic states:
+actor-weighted mean value 7.91857 versus actual Monte Carlo return 0.17282.
+At round starts, predicted values are approximately 14 versus true returns
+approximately +/-0.501. The task-time GAE targets retain substantial future
+critic error. A complete-round Monte Carlo control with no learned-value
+baseline and zero value loss is being prepared alongside the small GAE
+update. Actual score rewards and terminal outcomes are unchanged. This is a
+learning experiment, not an assertion that four recorded episodes suffice.
