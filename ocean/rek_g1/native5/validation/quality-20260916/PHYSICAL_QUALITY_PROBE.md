@@ -16,7 +16,7 @@ per-tick host action selection, readback and logging. They are not training SPS.
 | --- | --- | --- | --- | --- | --- | --- |
 | 0: idle / idle | 0 / 0 | 0:0 | 0:0 | 0 / 0 | 0.6684 / 0.6684 | 8.47 / 8.47 |
 | 1: stationary attack cycle / idle | 12 / 0 | 0:0 | 0:0 | 0 / 0 | 0.5954 / 0.6684 | 40.80 / 8.47 |
-| 2: approach, repeated right hook move 3 / idle | 6 / 0 | 2:0 | 0:0 | 0 / 0 | 0.6154 / 0.6684 | 34.48 / 11.03 |
+| 2: approach, repeated right knee move 9 / idle | 6 / 0 | 2:0 | 0:0 | 0 / 0 | 0.6154 / 0.6684 | 34.48 / 11.03 |
 | 3: approach and attack cycles, both fighters | 2 / 2 | 0:5 | 1:0 | 1 / 1 | 0.0890 / 0.6408 | 106.84 / 44.87 |
 
 All selected actions passed the runtime's existing legality mask. The scripted
@@ -55,11 +55,24 @@ unlike the inferential attribution required for the visual-only authentic log.
 The fall was classified as a slip and no ordinary score preceded it. The probe
 does not prove that an opponent strike caused the fall.
 
-The approach/right-hook lane does move during its 0.9 s request windows. Five
-complete windows have net XY displacements 0.556751, 0.505509, 0.589692,
-0.579238, and 0.427514 m. However, the diagnostic sends 34 to 41 legal yaw-right
-actions within those windows. These are combined hook/yaw trajectories, not
-isolated-hook measurements and not a matched comparison with authentic trials.
+The approach/right-knee lane moves during the first 0.9 s after its requests.
+Five such windows, measured from ticks 211 to 256, 353 to 398, 493 to 538,
+649 to 694, and 789 to 834, have net XY displacements 0.556751, 0.505509,
+0.589692, 0.579238, and 0.427514 m. The diagnostic sends respectively 37, 34,
+41, 36, and 39 legal yaw-right actions within those windows. These are combined
+move-9/yaw trajectories. They do not isolate the knee or compare a matched
+authentic state, and 0.9 s covers only part of move 9's 139-tick, 2.78 s duration.
+
+Correction recorded 2026-09-20: the executed source and raw schedule name call
+arena 2 `approach_right_hook_move3_vs_idle`, but it sends categorical action 19.
+The preserved [action table](../../../g1_semantic_action_table.c) maps categories
+16 through 32 to native moves `6,7,8,9,0,1,2,3,4,5,10,11,12,13,14,15,16`.
+Action 19 therefore selects native move 9, named `REK_G1_NATIVE_MOVE_9_RIGHT_KNEE`
+in the [recovered route table](../../../native_motion_routes.c). Native move 3
+requires action 23. The six recorded action-19 requests occur at ticks 212,
+354, 494, 650, 790, and 985. The original source, executable, logs, and hashes
+remain unchanged; the historical lane label and its interpretation are corrected
+here. These displacement measurements provide no isolated move-3 evidence.
 
 ## Preserved inputs and reproducibility
 

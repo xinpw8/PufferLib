@@ -1,5 +1,6 @@
 // Offline frozen behavior replay. Never connects to REK or steps an environment.
 #include "authentic_trajectory.h"
+#include "owned_yaw_trajectory.h"
 #include "native_policy.h"
 #include "device_storage.cuh"
 #include <cuda_runtime.h>
@@ -38,8 +39,11 @@ void publish(const char* path,const void* data,size_t size) {
 }
 int main(int argc,char** argv) {
     try {
-        require(argc==5,"Usage: replay-authentic-behavior DATA CHECKPOINT SHA256 NEW_REPLAY_BINARY");
-        const auto data=rek_authentic::load(argv[1]); const std::string summary_path=std::string(argv[4])+".json";
+        require(argc==5||argc==6,"Usage: replay-authentic-behavior DATA CHECKPOINT SHA256 NEW_REPLAY_BINARY [--observation-schema=rek.native5.scaled_polar_xy.owned_yaw_v2]");
+        const bool owned_yaw=argc==6;
+        require(!owned_yaw || std::string(argv[5])==std::string("--observation-schema=")+rek_owned_yaw::kSchema,"unknown replay observation schema option");
+        const auto data=owned_yaw?rek_owned_yaw_trajectory::load(argv[1]):rek_authentic::load(argv[1]);
+        const std::string summary_path=std::string(argv[4])+".json";
         require(!std::filesystem::exists(argv[4]) && !std::filesystem::exists(summary_path),"replay output exists");
         rek5::cuda_check(cudaSetDevice(0)); cudaStream_t stream; rek5::cuda_check(cudaStreamCreate(&stream));
         rek5::DeviceStorage storage;
@@ -52,7 +56,7 @@ int main(int argc,char** argv) {
         require(bool(policy),rek_native_policy_error());
         const std::string checkpoint=rek_native_policy_sha256(policy.get()); require(checkpoint==argv[3],"checkpoint SHA mismatch");
         std::vector<unsigned char> output(rek_authentic::REPLAY_HEADER_BYTES+data.rows.size()*rek_authentic::REPLAY_ROW_BYTES,0);
-        std::memcpy(output.data(),"REKBR001",8); put<uint32_t>(output,8,1); put<uint32_t>(output,12,data.rows.size());
+        std::memcpy(output.data(),owned_yaw?"REKBR002":"REKBR001",8); put<uint32_t>(output,8,owned_yaw?2:1); put<uint32_t>(output,12,data.rows.size());
         put<uint32_t>(output,16,rek_authentic::REPLAY_ROW_BYTES); put_hash(output,24,data.digest);
         put_hash(output,56,checkpoint); put<uint64_t>(output,88,73);
         size_t rounds=0,matching=0; double minimum_logprob=0,maximum_logprob=-INFINITY;
@@ -86,10 +90,12 @@ int main(int argc,char** argv) {
             for(int j=0;j<34;++j) put<float>(output,offset+16+4*j,logits[j]);
             minimum_logprob=std::min(minimum_logprob,double(host_stats[0])); maximum_logprob=std::max(maximum_logprob,double(host_stats[0]));
         }
-        const auto checked=rek_authentic::decode_replay(output,data); (void)checked;
+        const auto checked=owned_yaw?rek_owned_yaw_trajectory::decode_replay(output,data):rek_authentic::decode_replay(output,data); (void)checked;
         const std::string digest=rek_authentic::sha256(output.data(),output.size());
-        char report[1600]; const int count=std::snprintf(report,sizeof(report),
-            "{\"schema\":\"rek.authentic_behavior_replay.v1\",\"verification_passed\":true,\"rows\":%zu,\"rounds\":%zu,\"matching_sampled_actions\":%zu,\"mismatches\":0,\"dataset_sha256\":\"%s\",\"checkpoint_sha256\":\"%s\",\"replay_sha256\":\"%s\",\"seed_per_new_worker\":73,\"precision\":\"bf16\",\"input_feature_mask\":\"original_unmasked\",\"logprob_precision\":\"float32_native_sampler_reduction\",\"minimum_logprob\":%.9g,\"maximum_logprob\":%.9g,\"terminal_race_requests_retained\":true,\"game_connection\":false,\"training_performed\":false}\n",
+        char report[2000]; const int count=std::snprintf(report,sizeof(report),
+            "{\"schema\":\"%s\",%s\"verification_passed\":true,\"rows\":%zu,\"rounds\":%zu,\"matching_sampled_actions\":%zu,\"mismatches\":0,\"dataset_sha256\":\"%s\",\"checkpoint_sha256\":\"%s\",\"replay_sha256\":\"%s\",\"seed_per_new_worker\":73,\"precision\":\"bf16\",\"input_feature_mask\":\"original_unmasked\",\"logprob_precision\":\"float32_native_sampler_reduction\",\"minimum_logprob\":%.9g,\"maximum_logprob\":%.9g,\"terminal_race_requests_retained\":true,\"game_connection\":false,\"training_performed\":false}\n",
+            owned_yaw?"rek.authentic_behavior_replay.owned_yaw_v2":"rek.authentic_behavior_replay.v1",
+            owned_yaw?"\"observation_schema\":\"rek.native5.scaled_polar_xy.owned_yaw_v2\",\"trajectory_format\":\"REKRL002\",\"replay_format\":\"REKBR002\",":"",
             data.rows.size(),rounds,matching,data.digest.c_str(),checkpoint.c_str(),digest.c_str(),minimum_logprob,maximum_logprob);
         require(count>0 && count<int(sizeof(report)),"replay report overflow");
         publish(argv[4],output.data(),output.size()); publish(summary_path.c_str(),report,count);

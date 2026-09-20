@@ -13,6 +13,6 @@ task_cuda=${REK_NATIVE5_CUDA:-/usr/local/cuda}
     "$task_source/replay_authentic_behavior.cu" "$task_object" \
     -L"$task_cuda/lib64" -Xlinker=-rpath -Xlinker="$task_cuda/lib64" \
     -lcublas -lcurand -lcrypto -o "$task_output/replay-authentic-behavior"
-sha256sum "$task_source/"{authentic_trajectory.h,replay_authentic_behavior.cu,build_authentic_behavior_replay.sh,test_authentic_trajectory.cpp} \
+sha256sum "$task_source/"{authentic_trajectory.h,owned_yaw_trajectory.h,owned_yaw_observation.h,native_policy.h,device_storage.cuh,round_reward.h,replay_authentic_behavior.cu,build_authentic_behavior_replay.sh,test_authentic_trajectory.cpp} \
     "$task_object" "$task_output/replay-authentic-behavior" > "$task_output/build-hashes.txt"
 printf 'Built only; no GPU execution: %s/replay-authentic-behavior\n' "$task_output"

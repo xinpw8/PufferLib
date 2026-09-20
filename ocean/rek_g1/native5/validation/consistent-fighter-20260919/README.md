@@ -151,6 +151,15 @@ All 123 payload/script files, totaling 77,059,951 bytes, passed source-before,
 source-after and NAS readback hash comparison. Manifest SHA256:
 `981f1fd1071ec32a48c07ca3f70891f05721afd3ecdcdec7123a6571a7840cf2`.
 
+The owned-yaw migration, matched learning pair, explicit-v2 full-training
+benchmark, and their immutable input/configuration copies are archived under
+`owned-yaw-learning-r1` in the same NAS folder. All 966 files, totaling
+120,486,011 bytes, passed source-before, source-after and NAS readback SHA256
+comparison. Manifest SHA256:
+`e73714128a7ce70865d8572173a677d292633927ac40eafa54961fa4116059e3`.
+This archive predates the r24-r29 live evaluation cohort and does not include
+those later recordings.
+
 ## Learning from authentic trajectories
 
 The four original sampled development rounds provide 22,585 ordered policy
