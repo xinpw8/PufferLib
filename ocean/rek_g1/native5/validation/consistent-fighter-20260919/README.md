@@ -53,6 +53,20 @@ on legal rows was only 0.0608% in control and 0.0236% in treatment. This
 establishes severely underexplored behavior, not that the kick is ineffective
 in authentic REK. Compact training still lacks balance, trips and knockdowns.
 
+A separate [left-front exploration checkpoint](../left-front-exploration-20260920/README.md)
+raises this move's native probability share to 9.9943% of legal attack mass
+on the unchanged control histories. Only its actor decoder row changed;
+all other parameters and non-kick logits, including the value output,
+remained identical. The 29 resulting kick selections are offline
+counterfactual requests. Three fresh development rounds are prepared;
+no new live outcome or improved fighting has been demonstrated yet.
+
+A separate [five-observation input-hold experiment](../action-cadence-20260920/README.md)
+preserves default runtime output and keeps physics/reward/inference at 50 Hz.
+Matched full training measured 927,184 SPS for stride1 and 941,237 SPS for
+stride5. Neither resulting checkpoint has been evaluated against authentic
+REK. It is not combined with the kick-exploration intervention.
+
 The original checkpoint SHA256 is
 `61f97b0b0a4504c6bdd0ee16d369ad4c1915e3cdf73d6358bab01ce64c8fde3f`.
 The four additional sampled rounds are 3 wins and 1 loss, with total points

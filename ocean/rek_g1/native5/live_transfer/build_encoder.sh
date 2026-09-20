@@ -18,5 +18,5 @@ mkdir -p "$task_out"
 readelf -d "$task_out/encode-live" > "$task_out/encoder-elf-dependencies.txt"
 if rg -qi '(libpython|libtorch)' "$task_out/encoder-elf-dependencies.txt"; then exit 2; fi
 sha256sum "$task_src/encode_live.cpp" "$task_src/encoder_test.cpp" \
-  "$task_src/../owned_yaw_observation.h" "$task_out/encode-live" "$task_out/encoder-test" \
+  "$task_src/../owned_yaw_observation.h" "$task_src/../action_cadence.h" "$task_out/encode-live" "$task_out/encoder-test" \
   > "$task_out/encoder-hashes.txt"

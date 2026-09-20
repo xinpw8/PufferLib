@@ -1,6 +1,7 @@
 // Client observation projection only. This program never steps a simulator.
 #include "../../../../vendor/cJSON.h"
 #include "../owned_yaw_observation.h"
+#include "../action_cadence.h"
 #include <mujoco/mujoco.h>
 #include <openssl/evp.h>
 #include <algorithm>
@@ -130,12 +131,14 @@ struct Field {std::string kind,source;};
 class Encoder {
  const Calibration& calibration;bool have_previous=false;Sample previous;std::uint64_t last_seq=0;bool have_seq=false;
  bool request_duration_projection,owned_yaw;std::uint64_t canceled_request_ticks=0;
+ int action_stride;std::uint64_t ready_ordinal=0;std::string cadence_round;
  std::array<double,2> hit_age{},hit_speed{};std::array<bool,2> hit_valid{};
  std::array<Field,223> inventory;
  void describe(int i,const char* kind,const std::string& source){inventory[i]={kind,source};}
  void constant(int i,double value,std::array<double,223>& obs){obs[i]=value;}
 public:
- explicit Encoder(const Calibration& c,bool projected_busy=false,bool owned=false):calibration(c),request_duration_projection(projected_busy),owned_yaw(owned){
+ explicit Encoder(const Calibration& c,bool projected_busy=false,bool owned=false,int stride=1):calibration(c),request_duration_projection(projected_busy),owned_yaw(owned),action_stride(stride){
+  require(stride==1||stride==5,"action_stride_must_be_1_or_5");
   for(int side=0;side<2;side++){
    int b=86*side;std::string p=side?"opponent":"actor";
    for(int k=0;k<86;k++)describe(b+k,"structural_constant","V4 unmodeled feature fixed to zero; this does not assert a measured game zero");
@@ -168,6 +171,7 @@ public:
   if(owned_yaw)describe(rek_owned_yaw::kColumn,"owned_command_intent","owned desired_action yaw during declared busy; zero outside busy or at terminal; not transmitted yaw, angular velocity, or server execution");
  }
  void reset(){have_previous=false;hit_age={};hit_speed={};hit_valid={};canceled_request_ticks=0;}
+ void reset_cadence(){ready_ordinal=0;cadence_round.clear();}
  Json manifest() const {
   auto j=object();text(j.get(),"event","projection_manifest");text(j.get(),"projection",PROJECTION);text(j.get(),"observation_schema",rek_owned_yaw::schema(owned_yaw));text(j.get(),"model_sha256",calibration.model_sha);
   flag(j.get(),"candidate_physics_stepped",false);flag(j.get(),"authoritative_server_state",false);
@@ -176,6 +180,7 @@ public:
   text(j.get(),"score_semantics","Round.CleanHits is the replicated integer awarded-points counter, including referee awards; measured points are not a number of strikes");
   text(j.get(),"referee_semantics","received referee fields remain in source telemetry; this legacy 223-feature checkpoint schema does not encode them or establish balance parity");
   text(j.get(),"history_semantics","last-hit proxy history starts at observation window, not an assertion of no earlier hits");
+  if(action_stride!=1){auto* cadence=cJSON_AddObjectToObject(j.get(),"action_cadence");text(cadence,"contract",rek_action_cadence::kContract);number(cadence,"stride",action_stride);text(cadence,"clock","ready_nonterminal_output_ordinal_within_worker_round");text(cadence,"phase_zero","first_ready_nonterminal_output_after_new_round_or_explicit_reset");text(cadence,"derivative_resets","preserve_cadence_like_worker_recurrent_history");number(cadence,"nominal_control_hz",50);flag(cadence,"observation_features_changed",false);text(cadence,"timing","five emitted observations are nominally 100 ms; actual intervals use source QPC, not Unity frames");}
   text(j.get(),"pose_semantics","joint angles are client bone twist projections using recovered model axes/rest orientations; server joint values unavailable");
   auto* fields=cJSON_AddArrayToObject(j.get(),"fields");for(int i=0;i<223;i++){auto* f=cJSON_CreateObject();number(f,"index",i);text(f,"kind",inventory[i].kind);text(f,"source",inventory[i].source);cJSON_AddItemToArray(fields,f);}
   auto* unavailable=cJSON_AddArrayToObject(j.get(),"authoritative_unavailable");for(const char* s:{"server_joint_positions","server_joint_velocities","contact_impulse","contact_limb_attribution","last_hit_before_observation_window","server_command_acceptance"})cJSON_AddItemToArray(unavailable,cJSON_CreateString(s));
@@ -238,14 +243,17 @@ public:
   // callbacks while the bridge retains W/S/A/D. Match the candidate's held
   // translation gate, preserving every restriction in the source mask.
   const bool translating=held[0]!=0||held[1]!=0;
-  cJSON_AddItemToObject(request,"observation",json_array(obs));auto* mask=cJSON_AddArrayToObject(request,"mask");for(int k=0;k<33;k++){int m=s.mask[k];if(uses_duration&&busy&&k!=0&&k!=1&&k!=6&&k!=7)m=0;if(translating&&k>=16)m=0;cJSON_AddItemToArray(mask,cJSON_CreateNumber(m));}
+  const std::uint64_t ordinal=cadence_round==s.round?ready_ordinal:0;
+  if(!terminal&&!rek_action_cadence::decision(action_stride,ordinal))require(s.mask[0]!=0,"cadence_hold_not_source_legal");
+  cJSON_AddItemToObject(request,"observation",json_array(obs));auto* mask=cJSON_AddArrayToObject(request,"mask");for(int k=0;k<33;k++){int m=s.mask[k];if(uses_duration&&busy&&k!=0&&k!=1&&k!=6&&k!=7)m=0;if(translating&&k>=16)m=0;if(!rek_action_cadence::permit(action_stride,ordinal,k,true,terminal))m=0;cJSON_AddItemToArray(mask,cJSON_CreateNumber(m));}
   auto* provenance=cJSON_AddObjectToObject(out.get(),"provenance");text(provenance,"model_sha256",calibration.model_sha);number(provenance,"source_qpc_ticks",double(s.ticks));number(provenance,"source_qpc_frequency_hz",double(s.frequency));number(provenance,"source_native_phase",s.phase);number(provenance,"observed_delta_seconds",dt);flag(provenance,"stream_active",s.stream);flag(provenance,"route_uses_acknowledged_client_request",busy&&s.move_is_requested);flag(provenance,"authoritative_server_state",false);flag(provenance,"candidate_physics_stepped",false);text(provenance,"last_hit_semantics","observation-window counter/effector-speed proxy; earlier history and actual contact velocity unavailable");
   text(provenance,"busy_projection",uses_duration?"dispatched_request_v4_duration":"native_controller_busy");flag(provenance,"projected_busy",busy);flag(provenance,"raw_local_punching",s.punching);if(s.native_busy_known)flag(provenance,"native_action_busy",s.native_busy);else cJSON_AddNullToObject(provenance,"native_action_busy");number(provenance,"requested_move_age_seconds",request_age);number(provenance,"requested_move_qpc_ticks",double(s.request_ticks));text(provenance,"server_playback_acceptance","unknown");
   flag(provenance,"attack_mask_held_translation_blocked",translating);
+  if(action_stride!=1){auto* cadence=cJSON_AddObjectToObject(provenance,"action_cadence");text(cadence,"contract",rek_action_cadence::kContract);number(cadence,"stride",action_stride);number(cadence,"ready_ordinal",double(ordinal));number(cadence,"phase",double(ordinal%unsigned(action_stride)));flag(cadence,"decision_allowed",!terminal&&rek_action_cadence::decision(action_stride,ordinal));flag(cadence,"terminal_bypass",terminal);}
   number(provenance,"actor_max_off_axis_rotation_radians",s.poses[s.side].max_residual);number(provenance,"opponent_max_off_axis_rotation_radians",s.poses[s.side^1].max_residual);
   auto* measured=cJSON_AddArrayToObject(provenance,"observed_source_values_excluded_from_structural_features");
   for(int k=0;k<2;k++){auto* f=cJSON_CreateObject();number(f,"slot",k);flag(f,"fallen",s.fallen[k]);flag(f,"falling",s.falling[k]);number(f,"tilt_degrees",s.tilt[k]);number(f,"floor_contact_count",s.floor[k]);number(f,"falls",s.falls[k]);cJSON_AddItemToArray(measured,f);}
-  previous=s;if(terminal)reset();return out;
+  previous=s;if(terminal){reset();reset_cadence();}else if(action_stride!=1){cadence_round=s.round;ready_ordinal=ordinal+1;}return out;
  }
 };
 
@@ -258,12 +266,12 @@ void self_test(const Calibration& c){
 #ifndef REK_ENCODER_NO_MAIN
 int main(int argc,char** argv){
  try{
-  std::string model,projection,busy_projection,schema=OBS_SCHEMA;bool test=false;for(int i=1;i<argc;i++){std::string arg=argv[i];if(arg=="--model"&&i+1<argc)model=argv[++i];else if(arg=="--projection"&&i+1<argc)projection=argv[++i];else if(arg=="--busy-projection"&&i+1<argc)busy_projection=argv[++i];else if(arg=="--observation-schema"&&i+1<argc)schema=argv[++i];else if(arg=="--self-test")test=true;else throw std::runtime_error("Usage: encode-live --model PRIVATE_XML --projection client_pose_projection_v1 [--busy-projection dispatched_request_v4_duration] [--observation-schema SCHEMA] [--self-test]");}
-  require(!model.empty()&&projection==PROJECTION,"explicit_model_and_projection_required");require(busy_projection.empty()||busy_projection=="dispatched_request_v4_duration","unsupported_busy_projection");const bool owned=rek_owned_yaw::enabled(schema.c_str());Calibration calibration(model);Encoder encoder(calibration,!busy_projection.empty(),owned);auto manifest=encoder.manifest();emit(manifest.get());if(test){self_test(calibration);return 0;}
+  std::string model,projection,busy_projection,schema=OBS_SCHEMA;int action_stride=1;bool test=false;for(int i=1;i<argc;i++){std::string arg=argv[i];if(arg=="--model"&&i+1<argc)model=argv[++i];else if(arg=="--projection"&&i+1<argc)projection=argv[++i];else if(arg=="--busy-projection"&&i+1<argc)busy_projection=argv[++i];else if(arg=="--observation-schema"&&i+1<argc)schema=argv[++i];else if(arg=="--action-stride"&&i+1<argc)action_stride=rek_action_cadence::parse(argv[++i]);else if(arg=="--self-test")test=true;else throw std::runtime_error("Usage: encode-live --model PRIVATE_XML --projection client_pose_projection_v1 [--busy-projection dispatched_request_v4_duration] [--observation-schema SCHEMA] [--action-stride 1|5] [--self-test]");}
+  require(!model.empty()&&projection==PROJECTION,"explicit_model_and_projection_required");require(busy_projection.empty()||busy_projection=="dispatched_request_v4_duration","unsupported_busy_projection");const bool owned=rek_owned_yaw::enabled(schema.c_str());Calibration calibration(model);Encoder encoder(calibration,!busy_projection.empty(),owned,action_stride);auto manifest=encoder.manifest();emit(manifest.get());if(test){self_test(calibration);return 0;}
   std::string line;while(std::getline(std::cin,line)){
    try{
     require(line.size()<=1048576,"source_line_too_large");Json j(cJSON_ParseWithLengthOpts(line.c_str(),line.size()+1,nullptr,1),cJSON_Delete);require(j&&cJSON_IsObject(j.get()),"invalid_source_JSON");
-    if(auto* type=optional(j.get(),"type")){if(str(type)=="reset"){encoder.reset();auto out=object();text(out.get(),"event","projection_reset");text(out.get(),"projection",PROJECTION);emit(out.get());continue;}if(str(type)=="close")break;}
+    if(auto* type=optional(j.get(),"type")){if(str(type)=="reset"){encoder.reset();encoder.reset_cadence();auto out=object();text(out.get(),"event","projection_reset");text(out.get(),"projection",PROJECTION);emit(out.get());continue;}if(str(type)=="close")break;}
     auto out=encoder.process(j.get());emit(out.get());
    }catch(const std::exception& e){encoder.reset();auto out=encoder.unavailable(e.what());emit(out.get());}
   }

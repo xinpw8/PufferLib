@@ -18,6 +18,7 @@
 #include "round_reward.h"
 #include "policy_feature_mask.h"
 #include "owned_yaw_observation.h"
+#include "action_cadence.h"
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
 // trajectories; slider motion and temporally sampled contacts are modeling
@@ -76,6 +77,7 @@ struct Parameters {
     int move_to_action[17];
     int rendered_observation;
     int owned_yaw_observation;
+    int policy_action_stride=1;
     int primitive_contacts,contact_substeps,strike_limb[12];
 };
 struct View {
@@ -569,6 +571,12 @@ __device__ void export_arena(const View& v,int index,int lane){
         for(int k=lane;k<33;k+=32){
             bool yaw_update=k==1||k==6||k==7;
             bool allowed=k==0||(!a.reset_wait&&(yaw_update||(!attacking(f)&&(k<16||settled(p,f)))));
+            // The recovered Bot1 controller is never cadence-limited, including
+            // its diagnostic side-0 override. Episode reset exports tick zero.
+            int override_value=v.override_rows?v.override_rows[row]:0;
+            bool bot=p.recovered_bot&&a.opponent_mode==0&&(override_value==2||(override_value==0&&side));
+            allowed=allowed&&rek_action_cadence::permit(p.policy_action_stride,
+                std::uint64_t(a.tick),k,side==0&&!bot,r.terminal);
             v.masks[row*33+k]=uint8_t(allowed);
             if(side==0&&v.learner_masks)v.learner_masks[index*33+k]=uint8_t(allowed);
         }
@@ -662,6 +670,8 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         FastAssets assets=load_fast_assets(*config);Parameters p{};
         p.owned_yaw_observation=rek_owned_yaw::enabled(getenv("REK_OBSERVATION_SCHEMA"));
         if(p.owned_yaw_observation)fprintf(stderr,"semantic_cuda_observation_schema=%s;owned_command_column=187;physics_changed=false\n",rek_owned_yaw::kSchema);
+        p.policy_action_stride=rek_action_cadence::parse(getenv("REK_POLICY_ACTION_STRIDE"));
+        if(p.policy_action_stride!=1)fprintf(stderr,"policy_action_cadence=%s;stride=%d;clock=episode_tick;phase_zero=initial_export;learner_only=true;control_hz=50;reward_aggregation=false;observation_features_unchanged=true\n",rek_action_cadence::kContract,p.policy_action_stride);
         const char* scoring=getenv("REK_FAST_SCORING");
         if(scoring&&strcmp(scoring,"v4_spheres")&&strcmp(scoring,"recovered_hit_rules_v1")&&strcmp(scoring,"recovered_hit_rules_v2"))throw std::runtime_error("Invalid REK_FAST_SCORING");
         p.recovered_scoring=!scoring||!strcmp(scoring,"v4_spheres")?0:!strcmp(scoring,"recovered_hit_rules_v1")?1:2;

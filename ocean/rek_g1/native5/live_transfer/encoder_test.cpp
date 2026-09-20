@@ -114,6 +114,53 @@ void tests(const Calibration& c){
  auto terminal_result=terminal_v2.process(terminal_source.get());check(feature(terminal_result.get(),187)==0,"terminal_without_owned_intent_is_zero_no_action");
  check(!rek_owned_yaw::enabled(nullptr)&&!rek_owned_yaw::enabled(rek_owned_yaw::kLegacySchema)&&rek_owned_yaw::enabled(rek_owned_yaw::kSchema),"explicit_schema_opt_in");
  bool bad_schema=false;try{rek_owned_yaw::enabled("unknown");}catch(const std::exception&){bad_schema=true;}check(bad_schema,"unknown_schema_rejected");
+ // Cadence changes only the learner support, never the 223 feature values.
+ auto serialized=[](const cJSON* j){char* p=cJSON_PrintUnformatted(j);require(p,"serialize_failed");std::string s=p;cJSON_free(p);return s;};
+ auto cadence_ordinal=[](const cJSON* j){return exact_uint(get(get(get(j,"provenance"),"action_cadence"),"ready_ordinal"));};
+ auto mask_value=[](const cJSON* j,int k){return num(cJSON_GetArrayItem(get(get(j,"worker_request"),"mask"),k));};
+ check(rek_action_cadence::parse(nullptr)==1&&rek_action_cadence::parse("1")==1&&rek_action_cadence::parse("5")==5,"cadence_explicit_opt_in");
+ for(const char* invalid:{"","0","2","-1","5.0"," 5","5junk"}){bool bad=false;try{rek_action_cadence::parse(invalid);}catch(const std::exception&){bad=true;}check(bad,"invalid_stride_rejected");}
+ for(int tick=0;tick<151;tick++)for(int k=0;k<33;k++){
+  check(rek_action_cadence::permit(1,tick,k),"stride1_unrestricted");
+  check(rek_action_cadence::permit(5,tick,k)==(tick%5==0||k==0),"native_tick_cadence_contract");
+  check(rek_action_cadence::permit(5,tick,k,false),"opponent_and_bot_unrestricted");
+  check(rek_action_cadence::permit(5,tick,k,true,true),"terminal_mask_bypass");
+ }
+ Encoder ordinary(c),explicit_one(c,false,false,1),fifth(c,false,false,5);
+ check(serialized(ordinary.manifest().get())==serialized(explicit_one.manifest().get()),"default_manifest_byte_identical_to_stride1");
+ check(!optional(ordinary.manifest().get(),"action_cadence"),"default_manifest_has_no_new_fields");
+ for(int row=0;row<18;row++){
+  // Source IDs skip and QPC intervals jitter. Neither is the decision clock.
+  auto sample=fixture(c,100+row*3,1000+row*23,0,row>=8&&row<12);
+  if(row==6)cJSON_ReplaceItemInArray(cJSON_GetObjectItemCaseSensitive(sample.get(),"action_mask"),17,cJSON_CreateFalse());
+  auto baseline=ordinary.process(sample.get()),one=explicit_one.process(sample.get()),five=fifth.process(sample.get());
+  check(serialized(baseline.get())==serialized(one.get()),"explicit_stride1_byte_identical_all_outputs");
+  if(!row){check(!boolean(get(five.get(),"ready")),"cadence_warmup_no_ready_row");continue;}
+  const int ordinal=row-1;check(cadence_ordinal(five.get())==unsigned(ordinal),"ordinal_counts_only_ready_rows");
+  for(int i=0;i<223;i++)check(feature(five.get(),i)==feature(baseline.get(),i),"cadence_features_unchanged");
+  for(int k=0;k<33;k++)check(mask_value(five.get(),k)==mask_value(baseline.get(),k)*double(ordinal%5==0||k==0),"cadence_intersects_existing_mask_even_busy");
+ }
+ // Feature-only resets and unavailable-only paths do not reset the worker RNN.
+ Encoder history(c,false,false,5);auto initial_history=fixture(c,1,1000);history.process(initial_history.get());
+ auto h=fixture(c,2,1020);auto hr=history.process(h.get());check(cadence_ordinal(hr.get())==0,"initial_ready_phase_zero");
+ h=fixture(c,3,1040,0,true);cJSON_DeleteItemFromObjectCaseSensitive(cJSON_GetObjectItemCaseSensitive(h.get(),"input"),"requested_move_index");
+ hr=history.process(h.get());check(!boolean(get(hr.get(),"ready")),"unavailable_does_not_emit");
+ h=fixture(c,4,1060);hr=history.process(h.get());check(cadence_ordinal(hr.get())==1,"unavailable_does_not_consume_or_reset_phase");
+ h=fixture(c,5,2000);hr=history.process(h.get());check(!boolean(get(hr.get(),"ready")),"cadence_long_gap_rewarms_features");
+ h=fixture(c,6,2020);hr=history.process(h.get());check(cadence_ordinal(hr.get())==2,"derivative_gap_preserves_worker_phase");
+ history.reset();h=fixture(c,7,2040);hr=history.process(h.get());check(!boolean(get(hr.get(),"ready")),"existing_catch_reset_rewarms");
+ h=fixture(c,8,2060);hr=history.process(h.get());check(cadence_ordinal(hr.get())==3,"feature_reset_preserves_phase");
+ h=fixture(c,9,2080);cJSON_ReplaceItemInArray(cJSON_GetObjectItemCaseSensitive(h.get(),"action_mask"),0,cJSON_CreateFalse());
+ bool nohold=false;try{history.process(h.get());}catch(const std::exception&){nohold=true;}check(nohold,"hold_only_row_never_invents_source_legality");
+ history.reset();h=fixture(c,10,2100);history.process(h.get());h=fixture(c,11,2120);hr=history.process(h.get());check(cadence_ordinal(hr.get())==4,"failed_output_does_not_consume_phase");
+ h=fixture(c,12,2140);hr=history.process(h.get());check(cadence_ordinal(hr.get())==5&&mask_value(hr.get(),17)==1,"fifth_interval_restores_legal_decisions");
+ history.reset();history.reset_cadence();h=fixture(c,13,2160);history.process(h.get());h=fixture(c,14,2180);hr=history.process(h.get());check(cadence_ordinal(hr.get())==0,"explicit_worker_encoder_reset_clears_phase");
+ auto changed_round=[&](int seq,int ticks){auto s=fixture(c,seq,ticks);cJSON_ReplaceItemInObjectCaseSensitive(s.get(),"round_identity_sha256",cJSON_CreateString(std::string(64,'c').c_str()));return s;};
+ h=changed_round(15,2200);hr=history.process(h.get());check(!boolean(get(hr.get(),"ready")),"changed_round_derivative_warmup");
+ h=changed_round(16,2220);hr=history.process(h.get());check(cadence_ordinal(hr.get())==0,"changed_worker_round_restarts_phase");
+ h=changed_round(17,2240);auto* final_round=cJSON_GetObjectItemCaseSensitive(h.get(),"round");cJSON_ReplaceItemInObjectCaseSensitive(final_round,"active",cJSON_CreateFalse());cJSON_ReplaceItemInObjectCaseSensitive(final_round,"result_value",cJSON_CreateNumber(1));
+ hr=history.process(h.get());check(cadence_ordinal(hr.get())==1&&mask_value(hr.get(),17)==1,"terminal_bypasses_hold_mask_and_does_not_infer");
+ h=changed_round(18,2260);history.process(h.get());h=changed_round(19,2280);hr=history.process(h.get());check(cadence_ordinal(hr.get())==0,"terminal_clears_cadence_for_next_recurrent_history");
  auto out=object();text(out.get(),"event","encoder_tests");flag(out.get(),"ok",true);number(out.get(),"assertions",checks);flag(out.get(),"simulation_stepped",false);emit(out.get());
 }
 }
