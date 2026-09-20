@@ -176,3 +176,20 @@ Mirror manifest SHA256:
 Private `build-and-test.sh`, `verify-runtime.sh`, `run-training-pair.sh` and
 `training-wrapper-result.json` preserve the executed sequence. No game capture,
 proprietary asset payload or credential is added to the repository.
+
+## Subsequent authentic evaluation and archival
+
+The [six-round development comparison](../consistent-fighter-20260919/yaw-command-development-r37-r42.md)
+finished legacy 0W/3L, 26:55 points, and keyboard reset 2W/1L, 46:36 points.
+All six passed the existing strict checks. The [command analysis](authentic-yaw-mechanism.md)
+found no broad increase in sustained turning, and both arms received 16
+non-five-point points. These results do not establish causality or consistent
+winning. The [separate frozen evaluation](../consistent-fighter-20260919/keyboard-yaw-frozen-evaluation.md)
+does not count these development fights.
+
+Build/training artifacts, mechanism measurements, derived development results,
+frozen configurations and helper were copied to the evidence server under
+`pufferlib/rek-evidence/2026-09-19/consistent-fighter-r1/keyboard-yaw-command-r1`:
+151 files, 35,072,202 bytes. Every copied SHA256 matched and source files stayed
+unchanged. Archive-manifest SHA256:
+`4b0c84bedb63aa6479cddef6c09423a4ef73f7fb8069107313bdf79033c77565`.

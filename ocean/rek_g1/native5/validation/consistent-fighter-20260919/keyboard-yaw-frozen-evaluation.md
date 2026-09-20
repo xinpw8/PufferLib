@@ -35,4 +35,20 @@ move-specific contact causality from local request acknowledgements.
 
 ## Results
 
-No acceptance round has completed at this report's initial publication.
+| Attempt | Outcome | Policy:bot points | Policy non-five + five | Bot non-five + five | Existing strict checks |
+| --- | --- | ---: | ---: | ---: | --- |
+| r43 | Win | 18:14 | 8 + 10 | 14 + 0 | Pass |
+
+Current cohort: one win, zero losses, 18:14 points. Evaluation remains in
+progress; no acceptance claim. r43's exact owned client closed before offline
+validation. Maximum applied-control gap was 0.059948 s; all 5,796 referee
+sources were available. One terminal-race rejection and 41 in-flight source
+skips remain in the record. All 68 attack requests have local dispatch evidence;
+none selected left-front category 17. No attack-to-award causality is inferred.
+
+Private outputs: `keyboard-yaw-frozen-evaluation-r1/r43` under
+`C:\rekagent\work\consistent-fighter-20260919-r1`, with the existing referee and
+contact outputs in `live-round_outcome_v1-r43`. Derived-summary SHA256:
+`f8d591d653f0c8224871af2c724e4001b24efbe13f1467cc707c6667ef144589`.
+Exact owned PID 337348 native-capture SHA256:
+`130ff4f803f47f702e3379c5fc70ae3eee5c633d830dc5ddc09ddce5b9fc0d48`.
