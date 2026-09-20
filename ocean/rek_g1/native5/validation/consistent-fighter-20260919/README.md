@@ -28,6 +28,8 @@ These are development results, not the separate 20-round frozen evaluation.
 | r17 | second authentic MC iteration, learning rate 3e-5 | 10:12 | Loss |
 | r18 | unchanged second MC iteration, learning rate 1e-5 | 15:12 | Win |
 | r19 | unchanged second MC iteration, learning rate 3e-5 | 17:18 | Loss |
+| r20 | unchanged first-iteration MC parent, additional data | 10:16 | Loss |
+| r21 | value-scale-corrected parent plus authentic GAE update | 22:5 | Win |
 
 The original checkpoint SHA256 is
 `61f97b0b0a4504c6bdd0ee16d369ad4c1915e3cdf73d6358bab01ce64c8fde3f`.
@@ -37,7 +39,7 @@ The four additional sampled rounds are 3 wins and 1 loss, with total points
 striking. Two earlier outcome-checkpoint development wins remain a separate
 cohort. They do not turn these results into a held-out consistency claim.
 
-All completed rounds through r19 passed the existing control-coverage, native packet
+All completed rounds through r21 passed the existing control-coverage, native packet
 reconciliation, and referee checks. The argmax configuration issued only 17
 attack requests, compared with 92 to 110 in the four sampled rounds. These
 request counts do not assert executed or successful attacks.
@@ -245,11 +247,47 @@ finished 0 wins / 2 losses, total points 27:30 and non-five-point awards
 the losses and demonstrate that a larger numerical update did not by itself
 produce the required fighting improvement.
 
-The next experiment targets the measured critic-scale error while preserving
-actor/shared parameters. The native decoder has no bias, so arbitrary affine
-value calibration cannot be represented by value-head-only edits. A scalar
-value-head calibration is being implemented with complete-MC targets from
-r11/r15; r13 and subsequently collected unchanged-parent MC rounds are
-reserved for out-of-sample diagnostics. This is not yet a calibrated model,
-an actor improvement, or a passed fighting test. Additional parent-policy
-rounds remain development data, not the separate 20-round acceptance cohort.
+r20 collected another unchanged first-iteration MC round and lost 10:16.
+Non-five-point awards were 5:11 and five-point awards 5:5. Strict checks
+passed, with 116 attack requests and maximum control gap 0.084028 s. The
+parent MC checkpoint is now 2 wins / 2 losses, total points 54:58. It remains
+development evidence, not the separate 20-round acceptance cohort.
+
+## Critic-scale correction and subsequent actor control
+
+The native decoder has no bias, so arbitrary affine value calibration cannot
+be represented by value-head-only edits. A CUDA scalar calibration fitted
+complete-MC returns on r11/r15 and reserved r13 for a held-out diagnostic.
+The fitted scale was 0.0133532637561. Its realized native BF16 held-out MSE
+was 0.3070 versus raw value MSE 161.9508, but the train-mean constant did
+better at 0.1835. This corrects gross magnitude without demonstrating useful
+predictive variation. All 17,360 actor logits, chosen log-probabilities and
+sampled actions remained bitwise identical, and every non-value parameter
+was preserved.
+
+One existing native PPO GAE epoch then used the scale-corrected checkpoint
+and its refreshed replay. All three r11/r13/r15 rounds were used for this
+actor update, so r13 is held out for the calibration fit only. The actor's
+original behavior probabilities are unchanged; its reference values were
+explicitly fitted after collection. The update used 138 steps, learning rate
+1e-5, horizon 128, value coefficient 0.5, and unchanged rewards/discounts.
+Post-update mean legal KL was 0.000244958, with zero clipped rows. These are
+optimization diagnostics, not fighting results.
+
+The new actor checkpoint is
+`f8bcd3f3d6ef3d691209823d5a0d452ca16ff16b03c7ed1867715510986ea483`.
+Before r21 began, the three remaining unstarted parent collection rounds
+r21-r23 were reassigned to unchanged tests of this new actor. No future
+round entered its calibration or update. See the
+[calibration and GAE control report](../critic-calibration-20260919/README.md).
+
+Its first authentic test, r21, won 22:5: non-five-point awards 12:5 and
+five-point awards 10:0. It issued 93 attack requests, with maximum control
+gap 0.069477 s, and passed existing strict contact/referee checks. This is
+one development round, not a consistency or superiority claim. Unchanged
+repeats continue before selection.
+
+A separate check of existing human command/motion intervals supports the
+current forward and yaw signs, while exact angular offset and strafe parity
+remain unresolved. See [recorded motion signs](command-axis-check.md). No
+coordinate rotation was guessed or applied.
