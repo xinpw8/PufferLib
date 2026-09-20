@@ -45,6 +45,24 @@ These are development results, not the separate 20-round frozen evaluation.
 | r34 | left-front exploration plus authentic GAE update | 3:15 | Loss |
 | r35 | unchanged left-front outcome GAE actor | 7:10 | Loss |
 | r36 | unchanged left-front outcome GAE actor | 30:22 | Win |
+| r37 | matched native training, legacy yaw velocity slew | 7:22 | Loss |
+| r38 | matched native training, keyboard yaw reset | 17:13 | Win |
+| r39 | unchanged legacy-yaw actor | 12:24 | Loss |
+| r40 | unchanged keyboard-reset actor | 18:9 | Win |
+| r41 | unchanged legacy-yaw actor | 7:9 | Loss |
+| r42 | unchanged keyboard-reset actor | 11:14 | Loss |
+
+The [native keyboard-yaw correction](../keyboard-yaw-command-20260920/README.md)
+preserves the existing default and adds the recovered reset-on-release/sign-change
+command schedule as an explicit training option. Matched full training measured
+921,782 SPS for the legacy schedule and 928,962 SPS for keyboard reset. Both
+started from the same parent and used the same 33,554,432-transition budget;
+the live encoder, worker, sampled seed and bridge were unchanged between arms.
+The ensuing alternating authentic development comparison finished legacy
+0 wins / 3 losses, 26:55 points, and keyboard reset 2 wins / 1 loss, 46:36.
+This small cohort does not establish consistent winning or full physical parity.
+The keyboard-reset checkpoint is frozen for a separate fresh evaluation using
+the existing 18-of-20 target; these six development rounds do not count toward it.
 
 The [six-round owned-yaw comparison](owned-yaw-development-r24-r29.md)
 finished with control 2 wins / 1 loss, 38:47 points, and treatment 0 wins /
