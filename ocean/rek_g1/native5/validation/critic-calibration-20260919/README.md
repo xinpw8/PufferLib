@@ -1,6 +1,6 @@
 # Frozen critic calibration experiment
 
-Status: CPU and CUDA tests, fitting, value-only checkpoint production, and exact native replay passed on 2026-09-20. Scaling fixes the gross value magnitude, but its held-out MSE is worse than the train-mean constant baseline. After reviewing that result, one separately authorized GAE actor-control epoch completed. No game interaction occurred. No runtime, observation, training implementation, or existing checkpoint was changed.
+Status: CPU and CUDA tests, fitting, value-only checkpoint production, and exact native replay passed on 2026-09-20. Scaling fixes the gross value magnitude, but its held-out MSE is worse than the train-mean constant baseline. After reviewing that result, one separately authorized GAE actor-control epoch completed. Calibration and training involved no game interaction. The subsequent authentic development evaluation finished two wins and one loss. No runtime, observation, training implementation, or existing checkpoint was changed.
 
 ## Representable correction
 
@@ -68,6 +68,28 @@ Post-update batch-forward diagnostics against the frozen actor were:
 These are batch-forward training diagnostics, not fighting outcomes. The last value MSE compares bootstrapped GAE targets and must not be compared directly with complete-MC MSE in the calibration table. This control changes the estimator and enables value-head/shared-network learning compared with the MC-zero-baseline control; it is not an isolated learning-rate comparison.
 
 Execution ran from `2026-09-20T02:19:37.387751611Z` to `2026-09-20T02:19:39.655076884Z`, with `/usr/bin/time` reporting 2.23 s and exit status zero. GPU reservation was then released. The new actor checkpoint is `train-scaled-gae-r1/ppo-one-epoch.bin`, and the epoch copy has the same hash. The separate value-only checkpoint and original MC checkpoint were rehashed and remain unchanged.
+
+## Subsequent authentic development evaluation
+
+The unchanged new actor ran three full private REK Sparring Bot 1 rounds on
+the isolated Windows desktop, with the same native BF16 Spark worker and
+seed 73 per worker. These future rounds were absent from calibration and
+optimization. Existing strict contact/referee and continuous-control checks
+passed in all three rounds.
+
+| Trial | Policy : bot points | Non-five-point awards | Five-point awards | Outcome |
+|---|---:|---:|---:|---|
+| r21 | 22:5 | 12:5 | 10:0 | Win |
+| r22 | 11:9 | 1:9 | 10:0 | Win |
+| r23 | 9:14 | 4:9 | 5:5 | Loss |
+
+The aggregate is 42:28, with non-five-point awards 17:23 and five-point
+awards 25:5. These award amounts must not be relabeled as causal move-specific
+hit counts. Two wins in three development rounds neither establish consistent
+fighting nor isolate a benefit from the critic correction. No held-out
+acceptance rounds have started. See the
+[authentic experiment ledger](../consistent-fighter-20260919/README.md)
+for individual result hashes and the earlier controls.
 
 ## Verification and commands
 

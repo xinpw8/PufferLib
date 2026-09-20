@@ -30,6 +30,8 @@ These are development results, not the separate 20-round frozen evaluation.
 | r19 | unchanged second MC iteration, learning rate 3e-5 | 17:18 | Loss |
 | r20 | unchanged first-iteration MC parent, additional data | 10:16 | Loss |
 | r21 | value-scale-corrected parent plus authentic GAE update | 22:5 | Win |
+| r22 | unchanged scale-corrected GAE actor | 11:9 | Win |
+| r23 | unchanged scale-corrected GAE actor | 9:14 | Loss |
 
 The original checkpoint SHA256 is
 `61f97b0b0a4504c6bdd0ee16d369ad4c1915e3cdf73d6358bab01ce64c8fde3f`.
@@ -39,7 +41,7 @@ The four additional sampled rounds are 3 wins and 1 loss, with total points
 striking. Two earlier outcome-checkpoint development wins remain a separate
 cohort. They do not turn these results into a held-out consistency claim.
 
-All completed rounds through r21 passed the existing control-coverage, native packet
+All completed rounds through r23 passed the existing control-coverage, native packet
 reconciliation, and referee checks. The argmax configuration issued only 17
 attack requests, compared with 92 to 110 in the four sampled rounds. These
 request counts do not assert executed or successful attacks.
@@ -135,6 +137,19 @@ archived under `windows-development-r8-r15`. The 337 copied files total
 3,176,966,878 bytes; all source-before, source-after and NAS readback hashes
 match. Manifest SHA256:
 `3119cc665ced1e2adc7753047a8617c02eed0134f9c6e7b3a8b192beb9a05b2c`.
+
+Completed Windows r16 through r23 and their eight exact native recordings are
+archived under `windows-development-r16-r23`. The 337 files total
+3,200,799,833 bytes. Source-before, source-after and NAS readback hashes all
+match; source length and modification time remained unchanged. Manifest SHA256:
+`67465bc8ffee0e7540b47e9181f0f6895ccf0eb09d265ecbde592a190b7fd25b`.
+
+The completed second authentic-MC iteration, critic calibration and GAE
+continuation, full native throughput run, and standalone score-head probe
+are copied under `native-learning-and-probes-r3` in the same NAS folder.
+All 123 payload/script files, totaling 77,059,951 bytes, passed source-before,
+source-after and NAS readback hash comparison. Manifest SHA256:
+`981f1fd1071ec32a48c07ca3f70891f05721afd3ecdcdec7123a6571a7840cf2`.
 
 ## Learning from authentic trajectories
 
@@ -284,10 +299,43 @@ round entered its calibration or update. See the
 Its first authentic test, r21, won 22:5: non-five-point awards 12:5 and
 five-point awards 10:0. It issued 93 attack requests, with maximum control
 gap 0.069477 s, and passed existing strict contact/referee checks. This is
-one development round, not a consistency or superiority claim. Unchanged
-repeats continue before selection.
+one development round, not a consistency or superiority claim.
+
+The unchanged r22 repeat won 11:9, comprising non-five-point awards 1:9 and
+five-point awards 10:0. It issued 121 attack requests, with maximum applied
+control gap 0.069161 s. r23 then lost 9:14, comprising non-five-point awards
+4:9 and five-point awards 5:5. It issued 102 attack requests, with maximum
+gap 0.070197 s. Both completed the full round and passed the existing strict
+native/referee checks. Each had exactly one terminal-race rejected return,
+which remains outside actor-loss targets. Owned game clients were closed.
+
+This actor finished 2 wins / 1 loss, total points 42:28. Non-five-point awards
+were 17:23 and five-point awards were 25:5. Its aggregate advantage therefore
+does not demonstrate superior ordinary striking. The result does not establish
+that critic scaling or this actor update improved authentic win probability.
+It is not promoted into the separate 20-round acceptance cohort.
+
+Result SHA256 values are:
+
+- r21: `dad736b2d1a138e1f920af6ef9743f3b273ee77925bcb9a48b4a6bd6355cfc90`
+- r22: `3811266fd6a24723174be1eaa8306a7b8c91cca16526689dcace6d4f9f04c5a6`
+- r23: `b0b0b811707926d7df51fb2748b47cc5694c643ac3d956f113ef513499655f49`
 
 A separate check of existing human command/motion intervals supports the
 current forward and yaw signs, while exact angular offset and strafe parity
 remain unresolved. See [recorded motion signs](command-axis-check.md). No
 coordinate rotation was guessed or applied.
+
+The separate [native score-head probe](../score-head-probe-20260920/README.md)
+executed the preserved draft against the two recorded human rounds. Its fixed
+epoch-500 seed-average held-out probability errors did not improve over a
+constant training-prior baseline. No learned head was added to the reward or
+policy. This empirical result does not support substituting predicted contacts
+for actual score outcomes.
+
+A separate [full native training measurement](../native-training-throughput-20260920/README.md)
+completed 33,554,432 learner transitions in 36.16707 s, or 927,761.97 SPS.
+Startup-inclusive throughput was 910,321.00 SPS. Recorded CUDA time was
+27.86513 s rollout and 7.72276 s learning; CUDA graph mode does not separately
+time the model and environment inside rollout. The produced checkpoint is
+performance-only and is not evidence of authentic fighting improvement.
