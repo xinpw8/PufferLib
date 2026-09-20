@@ -1,9 +1,11 @@
 # Authentic-trajectory native PPO controls
 
 Two bounded one-epoch controls were trained from the same original native
-checkpoint on four complete authentic development rounds. Both are ready for
-authentic evaluation. Neither has an established live win or combat improvement
-in this report. There is no heldout trajectory split.
+checkpoint on four complete authentic development rounds. Each then completed
+one new authentic private Bot 1 evaluation: GAE won 10:6 and complete MC won
+11:9. These are separate single-trial development outcomes, insufficient to
+establish superiority or consistent performance. There is no heldout
+trajectory split in the training batch.
 
 ## Inputs and implementation
 
@@ -166,3 +168,20 @@ provenance, ELF dependencies, `source-controls-r2.tar`, initial failed
 diagnostics, each control's `stdout.jsonl`/`stderr.txt`, and both checkpoint
 forms. Earlier failed runs were preserved. Live trial outcomes belong in
 the authentic evaluation report and are not inferred from these losses.
+
+## First authentic evaluations
+
+Both ran on D21's verified isolated native Windows desktop with Spark policy
+inference, against private Sparring Bot 1 / difficulty 0. Existing strict
+native recording, referee and control-coverage checks passed, and each owned
+client was closed after the full round. No global input was emitted.
+
+| Trial | Checkpoint | Points, policy : AI | Non-five-point awards | Local five-point awards | Attack requests |
+| --- | --- | --- | --- | ---: | ---: |
+| r10 | GAE `3cab4533...` | 10:6 | 10:6 | 0 | 119 |
+| r11 | MC `a985d6c0...` | 11:9 | 6:9 | 1 | 104 |
+
+Award amounts are observed scores, not inferred contact attribution. One new
+win per checkpoint supports continued evaluation, not a higher win-rate claim.
+See [all development attempts](../consistent-fighter-20260919/README.md),
+including the unsuccessful cloning candidates and incomplete recording.

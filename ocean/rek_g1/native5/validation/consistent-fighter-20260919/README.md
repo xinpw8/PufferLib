@@ -18,6 +18,8 @@ These are development results, not the separate 20-round frozen evaluation.
 | r7 | unchanged BC epoch-5 retry | 12:17 | Loss |
 | r8 | masked PPO control, no human BC | 23:11 | Win |
 | r9 | globally balanced BC epoch 5 plus PPO | 5:17 | Loss |
+| r10 | authentic-trajectory PPO, frozen-value GAE | 10:6 | Win |
+| r11 | authentic-trajectory PPO, complete MC, zero learned baseline | 11:9 | Win |
 
 The original checkpoint SHA256 is
 `61f97b0b0a4504c6bdd0ee16d369ad4c1915e3cdf73d6358bab01ce64c8fde3f`.
@@ -27,7 +29,7 @@ The four additional sampled rounds are 3 wins and 1 loss, with total points
 striking. Two earlier outcome-checkpoint development wins remain a separate
 cohort. They do not turn these results into a held-out consistency claim.
 
-All eight completed rounds passed the existing control-coverage, native packet
+All ten completed rounds passed the existing control-coverage, native packet
 reconciliation, and referee checks. The argmax configuration issued only 17
 attack requests, compared with 92 to 110 in the four sampled rounds. These
 request counts do not assert executed or successful attacks.
@@ -147,7 +149,22 @@ More materially, the original critic is miscalibrated on authentic states:
 actor-weighted mean value 7.91857 versus actual Monte Carlo return 0.17282.
 At round starts, predicted values are approximately 14 versus true returns
 approximately +/-0.501. The task-time GAE targets retain substantial future
-critic error. A complete-round Monte Carlo control with no learned-value
-baseline and zero value loss is being prepared alongside the small GAE
-update. Actual score rewards and terminal outcomes are unchanged. This is a
-learning experiment, not an assertion that four recorded episodes suffice.
+critic error. Both a complete-round Monte Carlo control with no learned-value
+baseline and zero value loss and a frozen-value GAE control completed one
+native PPO epoch. They took 2.84 and 3.01 seconds respectively, including
+diagnostics, and each performed 178 small updates from the original policy.
+Actual score rewards and terminal outcomes are unchanged. See the
+[native PPO control results](../authentic-ppo-20260919/README.md).
+
+The GAE checkpoint's first authentic trial, r10, won 10:6 with 119 attack
+requests. All awards in that round were non-five-point awards. Native packet,
+referee and continuous-control verification passed. This is a development
+result, not evidence that four training episodes establish generalization.
+
+The complete-MC checkpoint's first authentic trial, r11, won 11:9 with 104
+attack requests. Its awards were 6:9 non-five-point points plus one local
+five-point award. Existing native/referee/control checks passed. Both new
+checkpoints have one new development win each. Repeated trials are required
+before selecting either as a consistent improvement. The GAE and MC results
+are separate checkpoint outcomes and must not be pooled as a 2/2 win rate for
+one policy.
