@@ -54,3 +54,22 @@ test('duplicate score-event records fail rather than double-count awards',async(
   write(dir,'scores.jsonl',[{index:0,fighter_index:0,points_awarded:1},{index:0,fighter_index:0,points_awarded:1}].map(JSON.stringify).join('\n'));
   await assert.rejects(v.scoreAwards(path.join(dir,'scores.jsonl')),/duplicate/);
 }));
+
+test('readable performance groups keep checkpoint, mask and actual selection distinct',async()=>fixture(async dir=>{
+  const current=path.join(dir,'current'),previous=path.join(dir,'previous');fs.mkdirSync(current);fs.mkdirSync(previous);
+  createTrial(current,'live-current-r1');createTrial(current,'live-current-r2',0,'loss');
+  const other=createTrial(current,'live-current-r3');
+  const readyFile=path.join(other,'trial/worker.stdout.jsonl');
+  const ready=JSON.parse(fs.readFileSync(readyFile,'utf8'));ready.feature_mask_sha256='b'.repeat(64);
+  write(other,'trial/worker.stdout.jsonl',JSON.stringify(ready)+'\n');
+  const configFile=path.join(other,'trial/run-config.json'),config=JSON.parse(fs.readFileSync(configFile,'utf8'));
+  config.feature_mask_sha256=ready.feature_mask_sha256;write(other,'trial/run-config.json',config);
+  const out=path.join(dir,'output'),r=await v.run(current,previous,out);
+  assert.equal(r.configuration_groups.length,2);
+  assert.deepEqual(r.configuration_groups.map(g=>[g.aggregate.wins,g.aggregate.losses]),[[1,1],[1,0]]);
+  const md=fs.readFileSync(path.join(out,'README.md'),'utf8');
+  assert.match(md,/Cohort totals above combine different policies/);
+  assert.match(md,/aaaaaaaaaaaa \| sampled \| explicitly_disabled/);
+  assert.match(md,/aaaaaaaaaaaa \| sampled \| bbbbbbbbbbbb/);
+  assert.ok(!md.includes('SecretAccount')&&!md.includes('SecretWorkerCommand'));
+}));

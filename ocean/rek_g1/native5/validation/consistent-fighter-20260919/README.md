@@ -20,6 +20,10 @@ These are development results, not the separate 20-round frozen evaluation.
 | r9 | globally balanced BC epoch 5 plus PPO | 5:17 | Loss |
 | r10 | authentic-trajectory PPO, frozen-value GAE | 10:6 | Win |
 | r11 | authentic-trajectory PPO, complete MC, zero learned baseline | 11:9 | Win |
+| r12 | unchanged authentic-trajectory GAE | 8:10 | Loss |
+| r13 | unchanged authentic-trajectory complete MC | 20:12 | Win |
+| r14 | unchanged authentic-trajectory GAE | 18:9 | Win |
+| r15 | unchanged authentic-trajectory complete MC | 13:21 | Loss |
 
 The original checkpoint SHA256 is
 `61f97b0b0a4504c6bdd0ee16d369ad4c1915e3cdf73d6358bab01ce64c8fde3f`.
@@ -29,7 +33,7 @@ The four additional sampled rounds are 3 wins and 1 loss, with total points
 striking. Two earlier outcome-checkpoint development wins remain a separate
 cohort. They do not turn these results into a held-out consistency claim.
 
-All ten completed rounds passed the existing control-coverage, native packet
+All completed rounds through r15 passed the existing control-coverage, native packet
 reconciliation, and referee checks. The argmax configuration issued only 17
 attack requests, compared with 92 to 110 in the four sampled rounds. These
 request counts do not assert executed or successful attacks.
@@ -114,6 +118,12 @@ manifests before and after packing, archive comparison, and NAS copy hashes
 passed. Archive SHA256:
 `3c163d262fcd5a6e55938bb1cd49bf1300468880a93cc5a1b685724dfaa997c4`.
 
+The completed native authentic-PPO subset is archived under
+`native-authentic-ppo-controls-r2` in the same NAS folder. Its 21 payload
+files total 7,483,144 bytes. Source-before, source-after and NAS readback
+hashes all match. Manifest SHA256:
+`cb877487e7a6a97f186403ab7deb4caf61e645e15d23ac11a0ba67668dd07ba3`.
+
 ## Learning from authentic trajectories
 
 The four original sampled development rounds provide 22,585 ordered policy
@@ -126,10 +136,10 @@ terminal-race rejected requests remain in history with zero actor loss weight.
 An initial native PPO dry run computed full-round, actual-time-discounted GAE
 on CUDA with zero error against its CPU reference. It did not optimize: native
 batched BF16 train-forward differed from sequential inference by at most
-0.0157486 in chosen-action probability ratio. The current experiment is
-measuring the distribution-level effect before deciding whether to use this
-numerical approximation. No authentic PPO checkpoint or improvement is
-claimed from that dry run.
+0.0157486 in chosen-action probability ratio. Subsequent distribution-level
+measurements, described below, justified a separately declared numerical
+approximation. No authentic PPO checkpoint or improvement is claimed from
+the initial dry run.
 
 The first trajectory export used 0.999 / 0.995 reference gamma / lambda.
 Review caught that unintended change before any optimizer update. A fresh
@@ -164,7 +174,32 @@ result, not evidence that four training episodes establish generalization.
 The complete-MC checkpoint's first authentic trial, r11, won 11:9 with 104
 attack requests. Its awards were 6:9 non-five-point points plus one local
 five-point award. Existing native/referee/control checks passed. Both new
-checkpoints have one new development win each. Repeated trials are required
-before selecting either as a consistent improvement. The GAE and MC results
-are separate checkpoint outcomes and must not be pooled as a 2/2 win rate for
-one policy.
+checkpoints initially had one new development win each. Their results remain
+separate checkpoint outcomes and must not be pooled as one policy's win rate.
+
+The unchanged GAE checkpoint then lost r12, 8:10, and won r14, 18:9. The
+unchanged MC checkpoint won r13, 20:12, then lost r15, 13:21. Both finished
+2 wins / 1 loss. GAE total points were 36:25; MC total points were 44:42.
+Neither establishes a consistent winner. No checkpoint was promoted into
+the separate 20-round acceptance evaluation on these results.
+
+r12 led non-five-point awards 8:5 but conceded one five-point award. Native
+referee receipts confirm an own count followed by a knockout. r13 awards
+were 10:7 non-five-point points and 10:5 five-point points. r12 and r13 both
+passed strict contact/referee checks, with maximum applied-control gaps
+0.074061 s and 0.065359 s respectively. The count episode is analyzed in
+[balance observability](balance-observability.md); it does not justify
+inventing toppling dynamics in the compact simulator.
+
+r14 passed the same existing checks. Its awards were 8:9 non-five-point
+points and 10:0 five-point points, with 102 attack requests and maximum
+applied-control gap 0.081777 s. These are award amounts, not inferred
+move-specific hit labels.
+
+r15 also passed strict verification, with maximum control gap 0.084469 s and
+106 attack requests. Its non-five-point awards were 3:16 and five-point
+awards 10:5. Thus this loss was not simply a missing own-knockdown signal.
+Across its three trials, MC led five-point awards 25:10 but trailed ordinary
+award amounts 19:32. The next learning batch uses all three actual MC-policy
+rounds, including this loss, retaining real score consequences and measured
+poses. Simulation wins cannot substitute for subsequent authentic evaluation.

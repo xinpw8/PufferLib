@@ -107,6 +107,14 @@ function markdown(report){const lines=['# Authentic private-AI trial summary',''
   '| Cohort | Attempts | Complete | W / L / D | Points | Five-point awards, local : opponent |',
   '| --- | ---: | ---: | --- | --- | --- |'];
   for(const c of report.cohorts){const s=c.aggregate;lines.push(`| ${c.cohort} | ${s.attempts} | ${s.strict_completed_rounds} | ${s.wins} / ${s.losses} / ${s.draws} | ${s.points?`${s.points.local}:${s.points.opponent}`:'unknown'} | ${s.award_points?`${s.award_points.local.five_point}:${s.award_points.opponent.five_point}`:'unknown'} |`);}
+  lines.push('','## Unchanged checkpoint/configuration results','',
+    'Cohort totals above combine different policies. Use these separate groups when comparing fighting performance. Incomplete attempts remain in the attempt count.','',
+    '| Cohort | Checkpoint | Selection | Input mask | Seed | Bot / difficulty | Attempts / complete | W / L / D | Points | Non-five / five points, local : opponent |',
+    '| --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- |');
+  for(const g of report.configuration_groups??[]){const i=g.identity,s=g.aggregate,a=s.award_points;
+    const mask=i.feature_mask_sha256?i.feature_mask_sha256.slice(0,12):i.feature_mask_status;
+    lines.push(`| ${g.cohort} | ${i.checkpoint_sha256?.slice(0,12)??'unknown'} | ${i.selection??'unknown'} | ${mask??'unknown'} | ${i.inference_seed??'unknown'} | ${i.opponent_bot??'unknown'} / ${i.opponent_difficulty??'unknown'} | ${s.attempts} / ${s.strict_completed_rounds} | ${s.wins} / ${s.losses} / ${s.draws} | ${s.points?`${s.points.local}:${s.points.opponent}`:'unknown'} | ${a?`${a.local.non_five_point}/${a.local.five_point} : ${a.opponent.non_five_point}/${a.opponent.five_point}`:'unknown'} |`);
+  }
   lines.push('','| Trial | Cohort | Selection | Status / recorded outcome | Points | Non-five / five points, local : opponent | Max control gap (s) | Attack requests |','| --- | --- | --- | --- | --- | --- | ---: | ---: |');
   for(const r of report.trials){const a=r.observed_awards;lines.push(`| ${r.trial_id} | ${r.cohort} | ${r.identity.selection??'unknown'} | ${r.status} / ${r.recorded_outcome??'unknown'} | ${r.terminal_points?`${r.terminal_points.local}:${r.terminal_points.opponent}`:'unknown'} | ${a?`${a.local.nonfive_points}/${a.local.five_points} : ${a.opponent.nonfive_points}/${a.opponent.five_points}`:'unknown'} | ${r.control.maximum_applied_action_gap_seconds?.toFixed(3)??'unknown'} | ${r.control.policy_attack_requests??'unknown'} |`);}
   lines.push('','Missing analyses and failed attempts remain visible. Non-five-point awards are grouped by amount; move causality is not inferred. Five-point values alone do not establish countout cause.','');return lines.join('\n');

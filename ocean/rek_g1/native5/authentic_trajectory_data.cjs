@@ -235,7 +235,7 @@ async function exportData(root, output, gamma20ms, lambda20ms, ids) {
     time_semantics: 'client_observation_QPC_time; asynchronous_receipt_transition_not_server_execution_time',
     split_semantics: 'all_explicitly_selected_rounds_are_development_training; no_claim_of_future_holdout',
     behavior_replay: 'required_before_training; original_BF16_H256_L2_seed73_unmasked_worker; chosen_actions_must_match',
-    limits: ['Four rounds are four correlated episodes, not independent evidence from every decision.',
+    limits: [`${rounds.length} recorded rounds provide ${rounds.length} episodes, not independent evidence from every decision.`,
       'Received score changes supply rewards without inferred hit, fall, attacker, or executed-move labels.',
       'Unobserved startup precedes first worker decision and is not fabricated.',
       'Actor training-forward versus sequential behavior-forward parity remains a separate measured prerequisite.'],
