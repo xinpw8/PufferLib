@@ -61,8 +61,11 @@ the live encoder, worker, sampled seed and bridge were unchanged between arms.
 The ensuing alternating authentic development comparison finished legacy
 0 wins / 3 losses, 26:55 points, and keyboard reset 2 wins / 1 loss, 46:36.
 This small cohort does not establish consistent winning or full physical parity.
-The keyboard-reset checkpoint is frozen for a separate fresh evaluation using
-the existing 18-of-20 target; these six development rounds do not count toward it.
+Its [separate frozen evaluation](keyboard-yaw-frozen-evaluation.md) failed the
+existing 18-of-20 target, stopping at the predeclared third loss after seven
+fresh rounds: 4W/3L, 76:75 points. All seven passed the unchanged strict checks.
+Non-five-point awards were 31:60; five-point awards were 45:15. The actor is not
+promoted. These six development rounds did not count toward acceptance.
 
 The [six-round owned-yaw comparison](owned-yaw-development-r24-r29.md)
 finished with control 2 wins / 1 loss, 38:47 points, and treatment 0 wins /
