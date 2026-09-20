@@ -4,6 +4,7 @@
 #undef main
 #include "puffer5_ppo_fp32.cuh"
 #include "authentic_trajectory.h"
+#include "owned_yaw_trajectory.h"
 #include "authentic_gae.h"
 #include "authentic_parity.h"
 
@@ -331,15 +332,18 @@ float number(const char* text, float low, float high) {
 } // namespace
 int main(int argc, char** argv) {
     try {
-        require(argc >= 13 && argc <= 15, "Usage: authentic-ppo DATA REPLAY INITIAL SHA256 NEW_OUTPUT EPOCHS LR HORIZON CLIP VF_CLIP VF_COEF ENT_COEF [--allow-bounded-bf16-batch] [--targets=complete-mc-zero-baseline]");
-        bool allow_bf16_batch = false, complete_mc_zero_baseline = false;
+        require(argc >= 13 && argc <= 16, "Usage: authentic-ppo DATA REPLAY INITIAL SHA256 NEW_OUTPUT EPOCHS LR HORIZON CLIP VF_CLIP VF_COEF ENT_COEF [--allow-bounded-bf16-batch] [--targets=complete-mc-zero-baseline] [--observation-schema=rek.native5.scaled_polar_xy.owned_yaw_v2]");
+        bool allow_bf16_batch = false, complete_mc_zero_baseline = false, owned_yaw = false;
         for (int i = 13; i < argc; ++i) {
             const std::string option = argv[i];
             if (option == "--allow-bounded-bf16-batch" && !allow_bf16_batch) allow_bf16_batch = true;
             else if (option == "--targets=complete-mc-zero-baseline" && !complete_mc_zero_baseline) complete_mc_zero_baseline = true;
+            else if (option == std::string("--observation-schema=") + rek_owned_yaw::kSchema && !owned_yaw) owned_yaw = true;
             else require(false, "unknown or duplicate optional mode");
         }
-        const auto data = rek_authentic::load(argv[1]); const auto replay = rek_authentic::load_replay(argv[2], data);
+        const auto data = owned_yaw ? rek_owned_yaw_trajectory::load(argv[1]) : rek_authentic::load(argv[1]);
+        const auto replay = owned_yaw ? rek_owned_yaw_trajectory::decode_replay(rek_authentic::read_file(argv[2]), data)
+            : rek_authentic::load_replay(argv[2], data);
         require(replay.checkpoint_sha256 == argv[4], "frozen behavior checkpoint does not match initial policy");
         const auto initial = read_checkpoint(argv[3], argv[4]); const auto prepared = prepare(data, replay);
         const float epoch_number = number(argv[6], 0, 2), horizon_number = number(argv[8], 4, 256);
@@ -355,6 +359,7 @@ int main(int argc, char** argv) {
             require(stat(path.c_str(), &st) != 0 && errno == ENOENT, "epoch output exists or cannot be inspected");
         }
         Trainer engine(initial, horizon, lr); PpoWork work(horizon, entropy); GaeTargets targets(data, replay, complete_mc_zero_baseline);
+        if (owned_yaw) std::printf("{\"observation_schema\":\"%s\",\"trajectory_format\":\"REKRL002\",\"replay_format\":\"REKBR002\"}\n", rek_owned_yaw::kSchema);
         std::printf("{\"schema\":\"rek.authentic_trajectory_ppo.v1\",\"rows\":%zu,\"rounds\":%zu,\"epochs\":%d,\"horizon\":%d,\"learning_rate\":%.9g,\"clip\":%.9g,\"vf_clip\":%.9g,\"vf_coef\":%.9g,\"entropy\":%.9g,\"old_logprob_dtype\":\"fp32\",\"behavior_checkpoint_sha256\":\"%s\",\"environment_stepping\":false,\"heldout\":false}\n",
             data.rows.size(), data.sequences.size(), epochs, horizon, lr, clip, vf_clip, vf_coef, entropy, argv[4]);
         std::printf("{\"old_value_dtype\":\"fp32\",\"target_producer\":\"cuda_fp64_recurrence_fp32_output\",\"loss_advantage_return_dtype\":\"bf16_native\",\"advantage_normalization\":\"none_pinned_native_convention\"}\n");

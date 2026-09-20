@@ -20,6 +20,7 @@ typedef float obs_t;
 #include "pufferenv.h"
 #include "runtime_api.h"
 #include "native_policy.h"
+#include "owned_yaw_observation.h"
 
 #define OBS_SIZE REK_NATIVE5_OBSERVATION_SIZE
 #define NUM_ATNS 1
@@ -125,6 +126,15 @@ Env* puf_vec_create(int n, Dict* kwargs, obs_t* observations,
         fprintf(stderr,"REK_FROZEN_OPPONENT_FRACTION must be finite and in [0,1]\n");abort();
     }
     const char* selected_backend=getenv("REK_PHYSICS_BACKEND");
+    bool owned_yaw=false;
+    try{owned_yaw=rek_owned_yaw::enabled(getenv("REK_OBSERVATION_SCHEMA"));}
+    catch(const std::exception& e){fprintf(stderr,"REK observation schema: %s\n",e.what());abort();}
+    if(owned_yaw){
+        DictItem* frozen=dict_find(kwargs,"opponent_checkpoint");
+        if(!rek_owned_yaw::training_compatible(owned_yaw,selected_backend,frozen?frozen->str:nullptr)){
+            fprintf(stderr,"owned_yaw_v2 requires semantic_cuda without a frozen opponent; opponent schema migration is not inferred\n");abort();
+        }
+    }
     if(selected_backend&&(strcmp(selected_backend,"mujoco_cpu_eval")==0||strcmp(selected_backend,"puffysics_cpu_eval")==0)){
         fprintf(stderr,"CPU evaluation backends are restricted to the standalone viewer and cannot run through the native trainer\n");abort();
     }

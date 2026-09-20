@@ -5,6 +5,7 @@ const readline = require('node:readline');
 
 async function main() {
   const [mode, binary, checkpoint, sha, selection='sampled'] = process.argv.slice(2);
+  const observationSchema=process.env.REK_OBSERVATION_SCHEMA??'rek.native5.scaled_polar_xy.v1';
   assert(['protocol', 'gpu'].includes(mode));
   assert(binary);
   if (mode === 'gpu') assert(checkpoint && /^[0-9a-f]{64}$/.test(sha));
@@ -28,7 +29,7 @@ async function main() {
   const check = (condition,message) => { assert(condition,message); assertions++; };
   const roundA = 'a'.repeat(64), roundB = 'b'.repeat(64);
   const step = (n=seq+1, round=roundA) => ({type:'step',seq:n,round_id:round,
-    observation_schema:'rek.native5.scaled_polar_xy.v1',observation:Array(223).fill(0),
+    observation_schema:observationSchema,observation:Array(223).fill(0),
     mask:Array.from({length:33},(_,i)=>i===1),terminal:false});
   const bad = async (x, code) => {
     const result = await request(x); check(result.type==='error',code+' not rejected');
@@ -43,6 +44,7 @@ async function main() {
       check(ready.native_cuda===true && ready.environment_stepping===false,'GPU only, no environment');
       check(ready.precision==='bf16' && ready.selection===selection,'inference mode');
       check(ready.feature_mask_sha256==='','default observation features retained');
+      check(ready.observation_schema===observationSchema,'exact observation schema');
     } else check(ready.inference_available===false,'CPU parser cannot infer');
     const verifyAction = (r, expected) => {
       check(r.type===(mode==='gpu'?'action':'validated'),'step response');
@@ -80,6 +82,13 @@ async function main() {
       [x=>{x.type='unknown';},'unknown_type'],
     ];
     for(const [mutate,code] of cases) { const x=step();mutate(x);await bad(x,code); }
+    const crossSchema=step();crossSchema.observation_schema=observationSchema==='rek.native5.scaled_polar_xy.v1'?'rek.native5.scaled_polar_xy.owned_yaw_v2':'rek.native5.scaled_polar_xy.v1';
+    await bad(crossSchema,'observation_schema_mismatch');
+    if(observationSchema==='rek.native5.scaled_polar_xy.owned_yaw_v2'){
+      for(const yaw of [-1,0,1]){const input=step(++seq);input.observation[187]=yaw;const accepted=await request(input);verifyAction(accepted,1);}
+      const unknown=step();unknown.observation[187]=.5;await bad(unknown,'owned_yaw_intent_value');
+      const badTerminal=step();badTerminal.terminal=true;badTerminal.observation[187]=1;await bad(badTerminal,'owned_yaw_intent_value');
+    }
     await bad('{broken','invalid_json_object');
     await bad('[]','invalid_json_object');
     await bad(JSON.stringify(step()).replace('"observation":[0,','"observation":[1e999,'),'observation_value');

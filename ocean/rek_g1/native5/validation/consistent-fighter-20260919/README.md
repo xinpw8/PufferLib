@@ -315,6 +315,15 @@ does not demonstrate superior ordinary striking. The result does not establish
 that critic scaling or this actor update improved authentic win probability.
 It is not promoted into the separate 20-round acceptance cohort.
 
+Request-context inspection gives a concrete behavioral difference across these
+rounds. Absolute projected pelvis-local bearing exceeded 90 degrees for 10/93
+requests in r21, 53/121 in r22, and 47/102 in r23. Native move 3, the right hook
+in the recovered catalog, accounted for 67, 110, and 88 requests respectively.
+These are measured request contexts, not server execution or miss labels. A
+pose-dependent pelvis bearing is not a newly measured authoritative forward
+offset. The poorer ordinary-award rounds have more concentrated right-hook
+requests and large projected bearings; the counts alone do not establish why.
+
 Result SHA256 values are:
 
 - r21: `dad736b2d1a138e1f920af6ef9743f3b273ee77925bcb9a48b4a6bd6355cfc90`

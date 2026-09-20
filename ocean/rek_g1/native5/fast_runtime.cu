@@ -17,6 +17,7 @@
 #include "contact_potential_loader.h"
 #include "round_reward.h"
 #include "policy_feature_mask.h"
+#include "owned_yaw_observation.h"
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
 // trajectories; slider motion and temporally sampled contacts are modeling
@@ -74,6 +75,7 @@ struct Parameters {
     rek5_bot1::Catalog bot_catalog;
     int move_to_action[17];
     int rendered_observation;
+    int owned_yaw_observation;
     int primitive_contacts,contact_substeps,strike_limb[12];
 };
 struct View {
@@ -520,6 +522,7 @@ __device__ float raw_value(const View& v,int index,int side,int field){
     }
     int k=field-184,opponent=side^1;
     switch(k){
+        case 3:return !r.terminal&&!f.bot_controlled?rek_owned_yaw::pending_value(v.p->owned_yaw_observation,attacking(f),f.held):0.f;
         case 0:return side;case 1:return r.phase;
         // A training episode is one independent round. The cumulative session
         // counter remains available in diagnostics, never in policy inputs.
@@ -657,6 +660,8 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
            buffers->log_stride_bytes<sizeof(RekNative5Log))throw std::runtime_error("Invalid semantic CUDA configuration/buffers");
         const auto feature_mask=rek_policy_features::load(getenv("REK_POLICY_FEATURE_MASK"));
         FastAssets assets=load_fast_assets(*config);Parameters p{};
+        p.owned_yaw_observation=rek_owned_yaw::enabled(getenv("REK_OBSERVATION_SCHEMA"));
+        if(p.owned_yaw_observation)fprintf(stderr,"semantic_cuda_observation_schema=%s;owned_command_column=187;physics_changed=false\n",rek_owned_yaw::kSchema);
         const char* scoring=getenv("REK_FAST_SCORING");
         if(scoring&&strcmp(scoring,"v4_spheres")&&strcmp(scoring,"recovered_hit_rules_v1")&&strcmp(scoring,"recovered_hit_rules_v2"))throw std::runtime_error("Invalid REK_FAST_SCORING");
         p.recovered_scoring=!scoring||!strcmp(scoring,"v4_spheres")?0:!strcmp(scoring,"recovered_hit_rules_v1")?1:2;

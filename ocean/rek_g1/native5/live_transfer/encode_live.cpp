@@ -1,5 +1,6 @@
 // Client observation projection only. This program never steps a simulator.
 #include "../../../../vendor/cJSON.h"
+#include "../owned_yaw_observation.h"
 #include <mujoco/mujoco.h>
 #include <openssl/evp.h>
 #include <algorithm>
@@ -128,13 +129,13 @@ Sample parse(const cJSON* j,const Calibration& c){
 struct Field {std::string kind,source;};
 class Encoder {
  const Calibration& calibration;bool have_previous=false;Sample previous;std::uint64_t last_seq=0;bool have_seq=false;
- bool request_duration_projection;std::uint64_t canceled_request_ticks=0;
+ bool request_duration_projection,owned_yaw;std::uint64_t canceled_request_ticks=0;
  std::array<double,2> hit_age{},hit_speed{};std::array<bool,2> hit_valid{};
  std::array<Field,223> inventory;
  void describe(int i,const char* kind,const std::string& source){inventory[i]={kind,source};}
  void constant(int i,double value,std::array<double,223>& obs){obs[i]=value;}
 public:
- explicit Encoder(const Calibration& c,bool projected_busy=false):calibration(c),request_duration_projection(projected_busy){
+ explicit Encoder(const Calibration& c,bool projected_busy=false,bool owned=false):calibration(c),request_duration_projection(projected_busy),owned_yaw(owned){
   for(int side=0;side<2;side++){
    int b=86*side;std::string p=side?"opponent":"actor";
    for(int k=0;k<86;k++)describe(b+k,"structural_constant","V4 unmodeled feature fixed to zero; this does not assert a measured game zero");
@@ -164,10 +165,11 @@ public:
   describe(213,"measured","fight.result_value");describe(214,"measured","fight.winner_index");
   describe(217,"derived","actor clean_hits increase since previous source sample");describe(218,"derived","opponent clean_hits increase since previous source sample");
   for(int i=221;i<=222;i++)describe(i,"derived","sum of both measured clean-hit counter increases since previous sample");
+  if(owned_yaw)describe(rek_owned_yaw::kColumn,"owned_command_intent","owned desired_action yaw during declared busy; zero outside busy or at terminal; not transmitted yaw, angular velocity, or server execution");
  }
  void reset(){have_previous=false;hit_age={};hit_speed={};hit_valid={};canceled_request_ticks=0;}
  Json manifest() const {
-  auto j=object();text(j.get(),"event","projection_manifest");text(j.get(),"projection",PROJECTION);text(j.get(),"observation_schema",OBS_SCHEMA);text(j.get(),"model_sha256",calibration.model_sha);
+  auto j=object();text(j.get(),"event","projection_manifest");text(j.get(),"projection",PROJECTION);text(j.get(),"observation_schema",rek_owned_yaw::schema(owned_yaw));text(j.get(),"model_sha256",calibration.model_sha);
   flag(j.get(),"candidate_physics_stepped",false);flag(j.get(),"authoritative_server_state",false);
   text(j.get(),"busy_projection",request_duration_projection?"dispatched_request_v4_duration":"native_busy_required");
   if(request_duration_projection){auto* durations=cJSON_AddArrayToObject(j.get(),"move_duration_ticks");for(int n:MOVE_TICKS)cJSON_AddItemToArray(durations,cJSON_CreateNumber(n));number(j.get(),"duration_control_hz",50);text(j.get(),"duration_source","selected V4 puffer_env.cu and eval_worker.cpp explicit default table; candidate duration, not measured server playback");}
@@ -183,6 +185,7 @@ public:
  Json process(const cJSON* source){
   Sample s=parse(source,calibration);require(!have_seq||s.seq>last_seq,"nonmonotonic_observation_sequence");last_seq=s.seq;have_seq=true;
   bool terminal=s.round_result!=0&&!s.active;
+  if(owned_yaw&&!terminal)require(s.stream&&rek_owned_yaw::valid_desired(s.desired_action),"owned_yaw_requires_active_owned_desired_action");
   if(!have_previous||s.round!=previous.round||s.side!=previous.side||s.frequency!=previous.frequency){reset();previous=s;have_previous=true;if(!terminal)return unavailable("derivative_warmup");}
   require(s.ticks>=previous.ticks,"nonmonotonic_source_clock");double dt=double(s.ticks-previous.ticks)/double(s.frequency);
   if(!terminal&&(dt<=0||dt>.25)){reset();previous=s;have_previous=true;return unavailable("source_sample_interval_outside_(0,250ms]");}
@@ -210,6 +213,7 @@ public:
   const auto& p=s.poses[s.side];const auto& enemy=s.poses[s.side^1];double dx=enemy.root[0]-p.root[0],dy=enemy.root[1]-p.root[1];
   obs[86]=std::hypot(dx,dy);obs[87]=wrap(std::atan2(dy,dx)-p.heading)/PI;
   for(int i:{173,174,187,202,203,204,205,206,207,208,215,216,219,220})constant(i,0,obs);
+  if(owned_yaw&&!terminal)obs[rek_owned_yaw::kColumn]=rek_owned_yaw::pending_value(true,busy,s.desired_action);
   obs[172]=std::cos(.5*p.heading);obs[175]=std::sin(.5*p.heading);
   auto sign=[](double value){return double((value>0)-(value<0));};
   Vec held{sign(s.command[0]),sign(s.command[1]),sign(s.command[2])};
@@ -229,7 +233,7 @@ public:
   obs[209]=.5;obs[210]=s.round_result;obs[211]=s.winner;obs[212]=s.round_result==2;obs[213]=s.fight_result;obs[214]=s.fight_winner;obs[221]=obs[222]=delta[0]+delta[1];
   for(int i=0;i<223;i++)require(std::isfinite(obs[i])&&std::abs(obs[i])<=std::numeric_limits<float>::max(),"unavailable_or_nonfinite_feature:"+std::to_string(i));
   auto out=object();text(out.get(),"event","policy_observation");flag(out.get(),"ready",true);text(out.get(),"projection",PROJECTION);
-  auto* request=cJSON_AddObjectToObject(out.get(),"worker_request");text(request,"type","step");number(request,"seq",double(s.seq));text(request,"round_id",s.round);text(request,"observation_schema",OBS_SCHEMA);flag(request,"terminal",terminal);
+  auto* request=cJSON_AddObjectToObject(out.get(),"worker_request");text(request,"type","step");number(request,"seq",double(s.seq));text(request,"round_id",s.round);text(request,"observation_schema",rek_owned_yaw::schema(owned_yaw));flag(request,"terminal",terminal);
   // The visual client can clear its instantaneous native velocity between
   // callbacks while the bridge retains W/S/A/D. Match the candidate's held
   // translation gate, preserving every restriction in the source mask.
@@ -254,8 +258,8 @@ void self_test(const Calibration& c){
 #ifndef REK_ENCODER_NO_MAIN
 int main(int argc,char** argv){
  try{
-  std::string model,projection,busy_projection;bool test=false;for(int i=1;i<argc;i++){std::string arg=argv[i];if(arg=="--model"&&i+1<argc)model=argv[++i];else if(arg=="--projection"&&i+1<argc)projection=argv[++i];else if(arg=="--busy-projection"&&i+1<argc)busy_projection=argv[++i];else if(arg=="--self-test")test=true;else throw std::runtime_error("Usage: encode-live --model PRIVATE_XML --projection client_pose_projection_v1 [--busy-projection dispatched_request_v4_duration] [--self-test]");}
-  require(!model.empty()&&projection==PROJECTION,"explicit_model_and_projection_required");require(busy_projection.empty()||busy_projection=="dispatched_request_v4_duration","unsupported_busy_projection");Calibration calibration(model);Encoder encoder(calibration,!busy_projection.empty());auto manifest=encoder.manifest();emit(manifest.get());if(test){self_test(calibration);return 0;}
+  std::string model,projection,busy_projection,schema=OBS_SCHEMA;bool test=false;for(int i=1;i<argc;i++){std::string arg=argv[i];if(arg=="--model"&&i+1<argc)model=argv[++i];else if(arg=="--projection"&&i+1<argc)projection=argv[++i];else if(arg=="--busy-projection"&&i+1<argc)busy_projection=argv[++i];else if(arg=="--observation-schema"&&i+1<argc)schema=argv[++i];else if(arg=="--self-test")test=true;else throw std::runtime_error("Usage: encode-live --model PRIVATE_XML --projection client_pose_projection_v1 [--busy-projection dispatched_request_v4_duration] [--observation-schema SCHEMA] [--self-test]");}
+  require(!model.empty()&&projection==PROJECTION,"explicit_model_and_projection_required");require(busy_projection.empty()||busy_projection=="dispatched_request_v4_duration","unsupported_busy_projection");const bool owned=rek_owned_yaw::enabled(schema.c_str());Calibration calibration(model);Encoder encoder(calibration,!busy_projection.empty(),owned);auto manifest=encoder.manifest();emit(manifest.get());if(test){self_test(calibration);return 0;}
   std::string line;while(std::getline(std::cin,line)){
    try{
     require(line.size()<=1048576,"source_line_too_large");Json j(cJSON_ParseWithLengthOpts(line.c_str(),line.size()+1,nullptr,1),cJSON_Delete);require(j&&cJSON_IsObject(j.get()),"invalid_source_JSON");

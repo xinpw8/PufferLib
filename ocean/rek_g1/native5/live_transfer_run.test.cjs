@@ -284,6 +284,31 @@ test('invalid readiness cannot publish a startup marker or connect to the game',
   assert.throws(()=>validateEncoderReady({...manifest(),authoritative_server_state:true}),/readiness mismatch/);
 });
 
+test('owned yaw v2 requires explicit identical config, encoder and worker schemas',async()=>{
+  const observation_schema='rek.native5.scaled_polar_xy.owned_yaw_v2',inference={observation_schema};
+  const v2Ready={...ready(),observation_schema},v2Manifest={...manifest(),observation_schema};
+  assert.doesNotThrow(()=>validateWorkerReady(v2Ready,sha,inference));
+  assert.doesNotThrow(()=>validateEncoderReady(v2Manifest,inference));
+  assert.throws(()=>validateWorkerReady(v2Ready,sha),/identity mismatch/);
+  assert.throws(()=>validateEncoderReady(v2Manifest),/readiness mismatch/);
+  assert.throws(()=>validateWorkerReady(ready(),sha,inference),/identity mismatch/);
+  assert.throws(()=>validateEncoderReady(manifest(),inference),/readiness mismatch/);
+  assert.throws(()=>validateWorkerReady(ready(),sha,{observation_schema:'unknown'}),/schema configuration/);
+  for(const [workerReport,encoderReport] of [[ready(),v2Manifest],[v2Ready,manifest()]]){
+    let opened=false;
+    await assert.rejects(startRelayWhenPrepared({encoder:{wait:async()=>encoderReport},worker:{wait:async()=>workerReport},
+      checkpointSha256:sha,inference,openRelay:()=>{opened=true;}}),/mismatch/);
+    assert.equal(opened,false);
+  }
+  let opened=false;
+  await startRelayWhenPrepared({encoder:{wait:async()=>v2Manifest},worker:{wait:async()=>v2Ready},
+    checkpointSha256:sha,inference,openRelay:()=>{opened=true;}});
+  assert.equal(opened,true);
+  const source={sequence:3,round},prediction={type:'action',seq:3,round_id:round,checkpoint_sha256:sha,action:6};
+  assert.throws(()=>validateWorkerAction(prediction,source,sha,inference),/schema mismatch|schema_mismatch/);
+  assert.doesNotThrow(()=>validateWorkerAction({...prediction,observation_schema},source,sha,inference));
+});
+
 test('startup release must match this worker preparation and checkpoint',async()=>{
   for(const patch of [{readiness_id:'stale'},{checkpoint_sha256:'d'.repeat(64)}]) {
     const f=gateFixture();
@@ -316,7 +341,7 @@ test('optional startup gate accepts only bounded distinct absolute paths',()=>{
     assert.throws(()=>validateStartupGate(bad),/startup_gate/);
 });
 
-test('CLI waits for machine release, then completes one fresh round using only fixture processes',async t=>{
+for(const mismatch of [false,true])test(`CLI machine release fixture ${mismatch?'rejects a per-frame schema mismatch':'completes one fresh round'}`,async t=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'rek-startup-gate-test-'));
   const out=path.join(dir,'trial'),readyPath=path.join(dir,'ready.json');
   const releasePath=path.join(dir,'release.json'),relayStarted=path.join(dir,'relay-started.json');
@@ -325,7 +350,7 @@ test('CLI waits for machine release, then completes one fresh round using only f
     console.log(JSON.stringify(${JSON.stringify(manifest())}));
     readline.createInterface({input:process.stdin}).on('line',line=>{
       const source=JSON.parse(line);console.log(JSON.stringify({event:'policy_observation',ready:true,
-        worker_request:{type:'step',seq:source.observation_sequence,round_id:source.round_identity_sha256,
+        worker_request:{type:'step',observation_schema:'${mismatch?'rek.native5.scaled_polar_xy.owned_yaw_v2':'rek.native5.scaled_polar_xy.v1'}',seq:source.observation_sequence,round_id:source.round_identity_sha256,
           terminal:source.round.active===false}}));
     });`;
   const workerCode=`const readline=require('node:readline');
@@ -380,9 +405,10 @@ test('CLI waits for machine release, then completes one fresh round using only f
   const releaseTemp=path.join(dir,'release.tmp');
   fs.writeFileSync(releaseTemp,JSON.stringify({readiness_id:preparation.readiness_id,checkpoint_sha256:sha}));
   fs.renameSync(releaseTemp,releasePath);
-  const [exitCode]=await exited;assert.equal(exitCode,0,stderr);
+  const [exitCode]=await exited;assert.equal(exitCode,mismatch?2:0,stderr);
   assert.equal(fs.existsSync(relayStarted),true);
   const summary=JSON.parse(fs.readFileSync(path.join(out,'summary.json'),'utf8'));
+  if(mismatch){assert.equal(summary.stop_reason,'encoder_observation_schema_mismatch');assert.equal(summary.applied,0);assert.equal(summary.predictions,0);return;}
   assert.equal(summary.stop_reason,'source_round_terminal');assert.equal(summary.round_outcome,'win');
   assert.equal(summary.applied,1);assert.equal(summary.round_identity_sha256,round);
   assert.equal(summary.initial_round.time_remaining,119.9);assert.equal(summary.final_round.active,false);

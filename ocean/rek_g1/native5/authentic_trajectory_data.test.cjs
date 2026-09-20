@@ -55,9 +55,11 @@ function fixture() {
   const source = (seq, t, active, points) => ({ event: 'g1_policy_state', observation_sequence: seq,
     round_identity_sha256: roundId, local_slot: 0, clock: c(t), round: round(active, points) });
   const req = (seq, points) => { const observation = Array(223).fill(0); observation[190] = points;
-    return { type: 'step', seq, round_id: roundId, terminal: false, observation, mask: Array(33).fill(1) }; };
+    return { type: 'step', seq, round_id: roundId, terminal: false, observation,
+      observation_schema: 'rek.native5.scaled_polar_xy.v1', mask: Array(33).fill(1) }; };
   const ready = { type: 'ready', checkpoint_sha256: checkpoint, selection: 'sampled', seed: 73, precision: 'bf16',
-    hidden_size: 256, num_layers: 2, observations: 223, actions: 33 };
+    hidden_size: 256, num_layers: 2, observations: 223, actions: 33,
+    observation_schema: 'rek.native5.scaled_polar_xy.v1' };
   const prediction = (seq, i) => ({ ...ready, type: 'action', seq, round_id: roundId, action: 2,
     legal_actions: 33, decision_index: i, recurrent_reset: i === 1, round_changed: i === 1 });
   const sent = seq => ({ type: 'policy_action', observation_sequence: seq, round_identity_sha256: roundId,
@@ -93,6 +95,24 @@ test('recurrent replay input duplication rejected rather than silently replaced'
   const f = fixture(); const file = path.join(f.dir, 'trial/worker.stdin.jsonl');
   fs.appendFileSync(file, fs.readFileSync(file, 'utf8').split('\n')[0] + '\n');
   await assert.rejects(readTrial(f.dir, 0, 0.999, 0.995), /duplicate worker request/);
+});
+
+test('legacy exporter rejects v2 or missing ready observation schema', async () => {
+  for (const schema of ['rek.native5.scaled_polar_xy.owned_yaw_v2', undefined]) {
+    const f = fixture(), file = 'trial/worker.stdout.jsonl';
+    const entries = fs.readFileSync(path.join(f.dir, file), 'utf8').trim().split('\n').map(JSON.parse);
+    entries[0].observation_schema = schema; f.lines(file, entries);
+    await assert.rejects(readTrial(f.dir, 0, 0.999, 0.995), /unsupported ready observation schema/);
+  }
+});
+
+test('legacy exporter rejects v2 or missing schema on every worker request', async () => {
+  for (const schema of ['rek.native5.scaled_polar_xy.owned_yaw_v2', undefined]) {
+    const f = fixture(), file = 'trial/worker.stdin.jsonl';
+    const entries = fs.readFileSync(path.join(f.dir, file), 'utf8').trim().split('\n').map(JSON.parse);
+    entries[1].observation_schema = schema; f.lines(file, entries);
+    await assert.rejects(readTrial(f.dir, 0, 0.999, 0.995), /unsupported worker observation schema/);
+  }
 });
 test('explicit original task-time profile is preserved without fallback defaults', async () => {
   const f = fixture(), gamma = 0.9998844821426083, lambda = 0.9978673240629938;

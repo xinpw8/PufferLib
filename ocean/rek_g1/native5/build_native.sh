@@ -208,7 +208,7 @@ printf 'Compiling PufferLib 5.0 %s for %s\n' "$task_commit" "$task_arch"
         "$task_source/pufferlib5_initial_model.patch" "$task_source/pufferlib5_temporal_credit.patch" \
         "$task_build/trainer/src/algo.cu" \
         "$task_stage/src/algo.cu" \
-        "$task_source/puffer_env.cu" "$task_source/runtime_api.h" \
+        "$task_source/puffer_env.cu" "$task_source/runtime_api.h" "$task_source/owned_yaw_observation.h" \
         "$task_source/native5.ini" "$task_build/pufferl.o"
 } > "$task_build/build-source-manifest.txt"
 

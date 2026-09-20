@@ -1,5 +1,6 @@
 #include "../../../vendor/cJSON.h"
 #include "policy_feature_mask.h"
+#include "owned_yaw_observation.h"
 #ifndef REK_LIVE_PROTOCOL_TEST
 #include "native_policy.h"
 #include <cuda_runtime.h>
@@ -21,7 +22,6 @@
 
 namespace {
 constexpr char PROTOCOL[]="rek.live_policy.v1";
-constexpr char OBS_SCHEMA[]="rek.native5.scaled_polar_xy.v1";
 constexpr size_t MAX_LINE=65536;
 using Json=std::unique_ptr<cJSON,decltype(&cJSON_Delete)>;
 struct Invalid:std::runtime_error { explicit Invalid(const char* code):std::runtime_error(code){} };
@@ -43,7 +43,7 @@ struct Request {
     std::array<uint8_t,33> mask{};
     int legal=0;
 };
-Request parse(const std::string& text){
+Request parse(const std::string& text,const char* schema){
     require(text.find('\0')==std::string::npos,"embedded_nul");
     const char* end=nullptr;
     Json j(cJSON_ParseWithOpts(text.c_str(),&end,1),cJSON_Delete);
@@ -60,10 +60,14 @@ Request parse(const std::string& text){
     if(r.kind==Request::Close)return r;
     r.round=string_field(j.get(),"round_id");require(digest(r.round),"invalid_round_id");
     if(r.kind==Request::Reset)return r;
-    require(string_field(j.get(),"observation_schema")==OBS_SCHEMA,"observation_schema_mismatch");
+    require(string_field(j.get(),"observation_schema")==schema,"observation_schema_mismatch");
     const auto* terminal=field(j.get(),"terminal");require(cJSON_IsBool(terminal),"terminal_boolean_required");r.terminal=cJSON_IsTrue(terminal);
     const auto* obs=field(j.get(),"observation");require(cJSON_IsArray(obs)&&cJSON_GetArraySize(obs)==223,"observation_shape");
     for(int i=0;i<223;i++){const auto* x=cJSON_GetArrayItem(obs,i);require(cJSON_IsNumber(x)&&std::isfinite(x->valuedouble)&&std::fabs(x->valuedouble)<=std::numeric_limits<float>::max(),"observation_value");r.observation[i]=float(x->valuedouble);}
+    if(rek_owned_yaw::enabled(schema)){
+        const float value=r.observation[rek_owned_yaw::kColumn];
+        require((value==-1||value==0||value==1)&&(!r.terminal||value==0),"owned_yaw_intent_value");
+    }
     const auto* mask=field(j.get(),"mask");require(cJSON_IsArray(mask)&&cJSON_GetArraySize(mask)==33,"mask_shape");
     for(int i=0;i<33;i++){const auto* x=cJSON_GetArrayItem(mask,i);if(cJSON_IsBool(x))r.mask[i]=cJSON_IsTrue(x);else{require(cJSON_IsNumber(x)&&(x->valuedouble==0||x->valuedouble==1),"mask_value");r.mask[i]=uint8_t(x->valuedouble);}r.legal+=r.mask[i];}
     require(r.terminal||r.legal>0,"empty_action_mask");return r;
@@ -131,6 +135,7 @@ struct Engine {
 
 int main(int argc,char** argv){
     try{
+        const char* observation_schema=rek_owned_yaw::schema(rek_owned_yaw::enabled(std::getenv("REK_OBSERVATION_SCHEMA")));
 #ifndef REK_LIVE_PROTOCOL_TEST
         require(argc>=3&&argc<=6,"usage_checkpoint_sha256_optional_seed_selection_feature_mask");
         uint64_t seed=73;
@@ -138,7 +143,7 @@ int main(int argc,char** argv){
         const std::string selection=argc>=5?argv[4]:"sampled";
         require(selection=="sampled"||selection=="argmax","invalid_selection");
         Engine engine(argv[1],argv[2],seed,selection=="argmax",argc>=6?argv[5]:nullptr);
-        auto ready=response("ready");str(ready.get(),"checkpoint_sha256",engine.sha);str(ready.get(),"observation_schema",OBS_SCHEMA);str(ready.get(),"selection",engine.selection());str(ready.get(),"feature_mask_sha256",engine.features.sha256);str(ready.get(),"precision","bf16");str(ready.get(),"device",engine.device);number(ready.get(),"seed",double(seed));number(ready.get(),"observations",223);number(ready.get(),"actions",33);number(ready.get(),"hidden_size",256);number(ready.get(),"num_layers",2);boolean(ready.get(),"native_cuda",true);boolean(ready.get(),"environment_stepping",false);emit(ready.get());
+        auto ready=response("ready");str(ready.get(),"checkpoint_sha256",engine.sha);str(ready.get(),"observation_schema",observation_schema);str(ready.get(),"selection",engine.selection());str(ready.get(),"feature_mask_sha256",engine.features.sha256);str(ready.get(),"precision","bf16");str(ready.get(),"device",engine.device);number(ready.get(),"seed",double(seed));number(ready.get(),"observations",223);number(ready.get(),"actions",33);number(ready.get(),"hidden_size",256);number(ready.get(),"num_layers",2);boolean(ready.get(),"native_cuda",true);boolean(ready.get(),"environment_stepping",false);emit(ready.get());
 #else
         require(argc==1,"protocol_test_takes_no_checkpoint");auto ready=response("protocol_ready");boolean(ready.get(),"inference_available",false);emit(ready.get());
 #endif
@@ -146,7 +151,7 @@ int main(int argc,char** argv){
         while(read_line(line,overlong)){
             Request r;bool parsed=false;
             try{
-                require(!overlong,"line_too_long");r=parse(line);parsed=true;state.check(r);
+                require(!overlong,"line_too_long");r=parse(line,observation_schema);parsed=true;state.check(r);
             }catch(const Invalid& e){auto error=response("error",parsed?&r:nullptr);str(error.get(),"code",e.what());boolean(error.get(),"action_available",false);emit(error.get());continue;}
             if(r.kind==Request::Close){state.accept(r);auto j=response("closed",&r);emit(j.get());return 0;}
             const bool changed=state.new_round(r);
@@ -162,7 +167,7 @@ int main(int argc,char** argv){
             auto j=response(response_type,&r);boolean(j.get(),"recurrent_reset",clear||state.reset_pending);boolean(j.get(),"round_changed",changed);number(j.get(),"legal_actions",r.legal);
             if(r.kind==Request::Step&&!r.terminal){
 #ifndef REK_LIVE_PROTOCOL_TEST
-                float gpu_ms=0;int action=engine.infer(r,gpu_ms);number(j.get(),"action",action);number(j.get(),"gpu_ms",gpu_ms);number(j.get(),"decision_index",double(++decisions));str(j.get(),"checkpoint_sha256",engine.sha);str(j.get(),"observation_schema",OBS_SCHEMA);str(j.get(),"selection",engine.selection());str(j.get(),"feature_mask_sha256",engine.features.sha256);str(j.get(),"precision","bf16");
+                float gpu_ms=0;int action=engine.infer(r,gpu_ms);number(j.get(),"action",action);number(j.get(),"gpu_ms",gpu_ms);number(j.get(),"decision_index",double(++decisions));str(j.get(),"checkpoint_sha256",engine.sha);str(j.get(),"observation_schema",observation_schema);str(j.get(),"selection",engine.selection());str(j.get(),"feature_mask_sha256",engine.features.sha256);str(j.get(),"precision","bf16");
 #else
                 boolean(j.get(),"inference_available",false);
 #endif

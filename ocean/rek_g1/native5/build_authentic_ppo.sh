@@ -8,6 +8,7 @@ task_build=$2
 mkdir -p "$task_build/source"
 task_build=$(realpath "$task_build")
 cp "$task_prepared/source/"* "$task_build/source/"
+cp "$task_source/owned_yaw_trajectory.h" "$task_source/owned_yaw_observation.h" "$task_build/source/"
 node "$task_source/prepare_authentic_ppo_kernel.cjs" "$task_build/source/algo.cu" "$task_build/source/puffer5_ppo_fp32.cuh"
 task_cuda=${REK_NATIVE5_CUDA:-/usr/local/cuda}
 task_nccl=${PUFFER5_NCCL:-/home/spark-advantage/.venv/lib/python3.12/site-packages/nvidia/nccl}
@@ -21,7 +22,7 @@ g++ -std=c++17 -O2 "$task_source/test_authentic_parity.cpp" -o "$task_build/test
 node --test "$task_source/prepare_authentic_ppo_kernel.test.cjs"
 {
     printf 'backend=pufferlib5_native_cuda_authentic_trajectory_ppo\nphysics=none\nbehavior_logprobs=immutable_fp32\n'
-    sha256sum "$task_build/source/"* "$task_source/"{authentic_ppo.cu,authentic_trajectory.h,authentic_gae.h,authentic_parity.h,test_authentic_parity.cpp,bc_train.cu,bc_dataset.h,prepare_authentic_ppo_kernel.cjs,build_authentic_ppo.sh} "$task_build/authentic-ppo"
+    sha256sum "$task_build/source/"* "$task_source/"{authentic_ppo.cu,authentic_trajectory.h,owned_yaw_trajectory.h,owned_yaw_observation.h,authentic_gae.h,authentic_parity.h,test_authentic_parity.cpp,bc_train.cu,bc_dataset.h,prepare_authentic_ppo_kernel.cjs,build_authentic_ppo.sh} "$task_build/authentic-ppo"
 } > "$task_build/build-provenance.txt"
 readelf -d "$task_build/authentic-ppo" > "$task_build/elf-dependencies.txt"
 if grep -Eqi '(libpython|libtorch)' "$task_build/elf-dependencies.txt"; then

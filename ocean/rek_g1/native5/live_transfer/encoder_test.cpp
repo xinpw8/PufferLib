@@ -70,6 +70,50 @@ void tests(const Calibration& c){
  cJSON_ReplaceItemInArray(cJSON_GetObjectItemCaseSensitive(release.get(),"action_mask"),16,cJSON_CreateFalse());
  result=release_encoder.process(release.get());
  check(num(cJSON_GetArrayItem(get(get(result.get(),"worker_request"),"mask"),16))==0,"source_restriction_preserved");
+ // V2 changes only the previously unused column. Desired action is owned
+ // retained state: policy hold0 must not be substituted for a source category.
+ for(int desired=1;desired<=15;desired++){
+  Encoder legacy(c,true),v2(c,true,true);
+  auto initial=dispatched(1,1000,false);legacy.process(initial.get());v2.process(initial.get());
+  auto sample=dispatched(2,1020,true);
+  cJSON_ReplaceItemInObjectCaseSensitive(cJSON_GetObjectItemCaseSensitive(sample.get(),"input"),"desired_action",cJSON_CreateNumber(desired));
+  auto old=legacy.process(sample.get()),newer=v2.process(sample.get());
+  for(int i=0;i<223;i++)check(feature(newer.get(),i)==(i==187?rek_owned_yaw::desired_yaw(desired):feature(old.get(),i)),"v2_changes_only_owned_yaw_column");
+  check(feature(old.get(),187)==0&&feature(newer.get(),178)==0,"legacy_held_yaw_feature_remains_zero_during_busy");
+  const auto* oldmask=get(get(old.get(),"worker_request"),"mask");const auto* newmask=get(get(newer.get(),"worker_request"),"mask");
+  for(int i=0;i<33;i++)check(num(cJSON_GetArrayItem(oldmask,i))==num(cJSON_GetArrayItem(newmask,i)),"v2_masks_unchanged");
+  check(str(get(get(newer.get(),"worker_request"),"observation_schema"))==rek_owned_yaw::kSchema,"v2_schema_published");
+  // No new request between these two snapshots: retained desired state stays visible.
+  cJSON_ReplaceItemInObjectCaseSensitive(sample.get(),"observation_sequence",cJSON_CreateNumber(3));
+  cJSON_ReplaceItemInObjectCaseSensitive(cJSON_GetObjectItemCaseSensitive(sample.get(),"clock"),"qpc_ticks",cJSON_CreateNumber(1040));
+  newer=v2.process(sample.get());check(feature(newer.get(),187)==rek_owned_yaw::desired_yaw(desired),"retained_desired_yaw_not_current_action");
+ }
+ // Outside projected busy, the old held-yaw field remains sufficient and the
+ // additive column is zero. A retained snapshot corresponds to hold0; release1
+ // is a changed owned source value, not a transient native command zero.
+ for(int desired:{6,7}){
+  Encoder v2(c,false,true);auto initial=fixture(c,1,1000);
+  number(cJSON_GetObjectItemCaseSensitive(initial.get(),"input"),"desired_action",desired);v2.process(initial.get());
+  auto sample=fixture(c,2,1020);number(cJSON_GetObjectItemCaseSensitive(sample.get(),"input"),"desired_action",desired);
+  auto nonbusy=v2.process(sample.get());
+  check(feature(nonbusy.get(),187)==0&&feature(nonbusy.get(),178)==rek_owned_yaw::desired_yaw(desired),"nonbusy_yaw_keeps_legacy_field_and_zero_pending");
+ }
+ Encoder transition_v2(c,true,true);auto retained=dispatched(1,1000,false);transition_v2.process(retained.get());
+ retained=dispatched(2,1020,true);auto transition=transition_v2.process(retained.get());check(feature(transition.get(),187)==1,"busy_yaw_requested");
+ retained=dispatched(3,1040,true);transition=transition_v2.process(retained.get());check(feature(transition.get(),187)==1,"hold_retains_owned_yaw");
+ retained=dispatched(4,1060,true);cJSON_ReplaceItemInObjectCaseSensitive(cJSON_GetObjectItemCaseSensitive(retained.get(),"input"),"desired_action",cJSON_CreateNumber(1));
+ transition=transition_v2.process(retained.get());check(feature(transition.get(),187)==0&&feature(transition.get(),182)==1,"release_clears_owned_yaw_without_ending_busy");
+ for(int invalid:{-1,0,16}){
+  Encoder v2(c,true,true);auto sample=dispatched(1,1000,false);auto* input=cJSON_GetObjectItemCaseSensitive(sample.get(),"input");
+  if(invalid<0)cJSON_DeleteItemFromObjectCaseSensitive(input,"desired_action");else cJSON_ReplaceItemInObjectCaseSensitive(input,"desired_action",cJSON_CreateNumber(invalid));
+  bool bad=false;try{v2.process(sample.get());}catch(const std::exception&){bad=true;}check(bad,"v2_unknown_owned_intent_rejected");
+ }
+ Encoder terminal_v2(c,true,true);auto terminal_source=fixture(c,1,1000);auto* terminal_round=cJSON_GetObjectItemCaseSensitive(terminal_source.get(),"round");
+ cJSON_ReplaceItemInObjectCaseSensitive(terminal_round,"active",cJSON_CreateFalse());cJSON_ReplaceItemInObjectCaseSensitive(terminal_round,"result_value",cJSON_CreateNumber(1));
+ cJSON_ReplaceItemInObjectCaseSensitive(terminal_source.get(),"stream_active",cJSON_CreateFalse());
+ auto terminal_result=terminal_v2.process(terminal_source.get());check(feature(terminal_result.get(),187)==0,"terminal_without_owned_intent_is_zero_no_action");
+ check(!rek_owned_yaw::enabled(nullptr)&&!rek_owned_yaw::enabled(rek_owned_yaw::kLegacySchema)&&rek_owned_yaw::enabled(rek_owned_yaw::kSchema),"explicit_schema_opt_in");
+ bool bad_schema=false;try{rek_owned_yaw::enabled("unknown");}catch(const std::exception&){bad_schema=true;}check(bad_schema,"unknown_schema_rejected");
  auto out=object();text(out.get(),"event","encoder_tests");flag(out.get(),"ok",true);number(out.get(),"assertions",checks);flag(out.get(),"simulation_stepped",false);emit(out.get());
 }
 }

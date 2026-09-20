@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const readline = require('node:readline');
 const HEADER = 256, ROW = 1128, OBS = 223, ACTIONS = 33;
+const LEGACY_SCHEMA = 'rek.native5.scaled_polar_xy.v1';
 const requireValue = (ok, message) => { if (!ok) throw new Error(message); };
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
 const finite = x => Number.isFinite(x) && Number.isFinite(Math.fround(x));
@@ -107,6 +108,7 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms) {
   const unavailable = []; let ready = null, workerTerminals = 0;
   await read('worker.stdin.jsonl', x => {
     requireValue(x.type === 'step' && x.round_id === roundId, 'unexpected worker input or round reset');
+    requireValue(x.observation_schema === LEGACY_SCHEMA, 'unsupported worker observation schema for REKRL001');
     unique(requests, x.seq, x, 'worker request'); if (x.terminal) ++workerTerminals;
   });
   await read('worker.stdout.jsonl', x => {
@@ -114,6 +116,7 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms) {
     else if (x.type === 'action') unique(predictions, x.seq, x, 'worker action');
     else requireValue(x.type === 'terminal' && requests.get(x.seq)?.terminal === true, 'unexpected worker response');
   });
+  requireValue(ready?.observation_schema === LEGACY_SCHEMA, 'unsupported ready observation schema for REKRL001');
   requireValue(ready?.checkpoint_sha256 === s.checkpoint_sha256 && ready.selection === 'sampled' && ready.seed === 73 &&
     ready.precision === 'bf16' && ready.hidden_size === 256 && ready.num_layers === 2 &&
     ready.observations === OBS && ready.actions === ACTIONS && !ready.feature_mask_sha256, 'unsupported behavior identity');

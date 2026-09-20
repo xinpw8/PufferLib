@@ -115,21 +115,29 @@ function canRequestPrivateRound(s) {
     s.private_ai.round_active===false &&
     (s.private_ai.post_fight_prompt!==true || s.private_ai.post_fight_is_winner===true);
 }
+function observationSchema(expected={}) {
+  const schema=expected.observation_schema??'rek.native5.scaled_polar_xy.v1';
+  requireValue(['rek.native5.scaled_polar_xy.v1','rek.native5.scaled_polar_xy.owned_yaw_v2'].includes(schema),
+    'invalid observation schema configuration');
+  return schema;
+}
 function validateWorkerReady(ready, sha, expected={}) {
+  const schema=observationSchema(expected);
   const selection=expected.selection??'sampled', mask=expected.feature_mask_sha256??'';
   requireValue(['sampled','argmax'].includes(selection) &&
     (mask===''||/^[a-f0-9]{64}$/.test(mask)), 'invalid worker inference configuration');
   requireValue(ready?.type==='ready' && ready.checkpoint_sha256===sha &&
     ready.native_cuda===true && ready.environment_stepping===false &&
-    ready.observation_schema==='rek.native5.scaled_polar_xy.v1' &&
+    ready.observation_schema===schema &&
     ready.precision==='bf16' && ready.selection===selection &&
     (ready.feature_mask_sha256??'')===mask &&
     ready.observations===223 && ready.actions===33 &&
     ready.hidden_size===256 && ready.num_layers===2, 'worker identity mismatch');
 }
-function validateEncoderReady(manifest) {
+function validateEncoderReady(manifest, expected={}) {
+  const schema=observationSchema(expected);
   requireValue(manifest?.event==='projection_manifest' && manifest.projection==='client_pose_projection_v1' &&
-    manifest.observation_schema==='rek.native5.scaled_polar_xy.v1' &&
+    manifest.observation_schema===schema &&
     manifest.candidate_physics_stepped===false && manifest.authoritative_server_state===false &&
     /^[a-f0-9]{64}$/.test(manifest.model_sha256||'') && Array.isArray(manifest.fields) &&
     manifest.fields.length===223 && manifest.fields.every((field,index)=>field.index===index),
@@ -177,7 +185,7 @@ async function startRelayWhenPrepared({encoder,worker,checkpointSha256,openRelay
   const [ready,manifest]=await Promise.all([
     worker.wait(x=>x.type==='ready',60000),encoder.wait(x=>x.event==='projection_manifest',60000)
   ]);
-  validateWorkerReady(ready,checkpointSha256,inference);validateEncoderReady(manifest);
+  validateWorkerReady(ready,checkpointSha256,inference);validateEncoderReady(manifest,inference);
   requireValue(!isStopping(),'startup interrupted by child failure');
   log('inference_ready',{checkpoint_sha256:ready.checkpoint_sha256,device:ready.device,
     precision:ready.precision,selection:ready.selection,feature_mask_sha256:ready.feature_mask_sha256??'',projection:manifest.projection,
@@ -187,7 +195,9 @@ async function startRelayWhenPrepared({encoder,worker,checkpointSha256,openRelay
   requireValue(!isStopping(),'startup interrupted by child failure');
   return openRelay();
 }
-function validateWorkerAction(prediction, source, sha) {
+function validateWorkerAction(prediction, source, sha, expected={}) {
+  if(observationSchema(expected)!=='rek.native5.scaled_polar_xy.v1')
+    requireValue(prediction?.observation_schema===observationSchema(expected),'prediction_schema_mismatch');
   requireValue(source && prediction?.type==='action' &&
     prediction.seq===source.sequence && prediction.round_id===source.round &&
     prediction.checkpoint_sha256===sha, 'prediction_source_identity_mismatch');
@@ -323,7 +333,7 @@ async function run(configPath) {
     encoder=openEndpoint('encoder',config.encoder);
     worker=openEndpoint('worker',config.worker);
     relay=await startRelayWhenPrepared({encoder,worker,checkpointSha256:config.checkpoint_sha256,
-      inference:{selection:config.selection,feature_mask_sha256:config.feature_mask_sha256},
+      inference:{selection:config.selection,feature_mask_sha256:config.feature_mask_sha256,observation_schema:config.observation_schema},
       openRelay:()=>openEndpoint('relay',config.relay),startupGate:config.startup_gate,
       isStopping:()=>stopping,log});
     await relay.wait(x=>x.event==='hello',30000);
@@ -396,6 +406,7 @@ async function run(configPath) {
       const r=encoded.worker_request;
       const pending=pacer.pending;
       if(!pending || r?.seq!==pending.sequence || r?.round_id!==pending.round) {finish('encoder_source_identity_mismatch');return;}
+      if(r.observation_schema!==observationSchema(config)){finish('encoder_observation_schema_mismatch');return;}
       worker.send(r);
     },error=>finish(`encoder_callback:${error.message}`)));
     worker.bus.on('message',guardedCallback(prediction=> {
@@ -404,7 +415,7 @@ async function run(configPath) {
       if(prediction.type==='error'||prediction.type==='fatal'){finish(`worker_error:${prediction.code}`);return;}
       if(prediction.type!=='action')return;
       const source=pacer.pending;
-      validateWorkerAction(prediction, source, config.checkpoint_sha256);
+      validateWorkerAction(prediction, source, config.checkpoint_sha256,config);
       predictions++;actions[prediction.action]++;
       if(Date.now()-source.received>=200){log('stale_prediction_discarded',{seq:prediction.seq,local_latency_ms:Date.now()-source.received});pacer.abandon();return;}
       const request_id=`action-${++nextId}`;
@@ -432,6 +443,7 @@ async function run(configPath) {
       local_slot:localSlot,round_identity_sha256:roundIdentity,round_outcome:roundOutcome(lastRound,localSlot),
       initial_round:firstRound,final_round:lastRound,projection:config.projection,checkpoint_sha256:config.checkpoint_sha256,
       selection:config.selection??'sampled',feature_mask_sha256:config.feature_mask_sha256??'',authentic_client:true,global_input_emitted:false};
+    if(observationSchema(config)!=='rek.native5.scaled_polar_xy.v1')summary.observation_schema=observationSchema(config);
     fs.writeFileSync(path.join(config.out,'summary.json'),JSON.stringify(summary,null,2)+'\n',{flag:'wx'});log('summary',summary);
     for(const e of endpoints)e.close();
     setTimeout(()=>{for(const e of endpoints)if(e.child.exitCode===null)e.child.kill('SIGTERM');},2000).unref();
