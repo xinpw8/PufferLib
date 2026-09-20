@@ -38,6 +38,13 @@ These are development results, not the separate 20-round frozen evaluation.
 | r27 | unchanged owned-yaw v2 treatment | 3:15 | Loss |
 | r28 | unchanged legacy-observation control | 15:10 | Win |
 | r29 | unchanged owned-yaw v2 treatment | 6:13 | Loss |
+| r30 | left-front exploration actor, isolated startup | No fight started | Startup failure |
+| r31 | left-front exploration actor, sampled | 11:14 | Loss |
+| r32 | unchanged left-front exploration actor | 5:10 | Loss |
+| r33 | unchanged left-front exploration actor | 25:10 | Win |
+| r34 | left-front exploration plus authentic GAE update | 3:15 | Loss |
+| r35 | unchanged left-front outcome GAE actor | 7:10 | Loss |
+| r36 | unchanged left-front outcome GAE actor | 30:22 | Win |
 
 The [six-round owned-yaw comparison](owned-yaw-development-r24-r29.md)
 finished with control 2 wins / 1 loss, 38:47 points, and treatment 0 wins /
@@ -57,9 +64,22 @@ A separate [left-front exploration checkpoint](../left-front-exploration-2026092
 raises this move's native probability share to 9.9943% of legal attack mass
 on the unchanged control histories. Only its actor decoder row changed;
 all other parameters and non-kick logits, including the value output,
-remained identical. The 29 resulting kick selections are offline
-counterfactual requests. Three fresh development rounds are prepared;
-no new live outcome or improved fighting has been demonstrated yet.
+remained identical. The 29 resulting kick selections were offline
+counterfactual requests. Its subsequent three completed authentic development
+rounds, r31-r33, finished with one win and two losses, 41:34 points, and 20
+actual left-front request selections. The startup failure r30 is preserved
+separately; no fight started in that attempt. These small development results
+do not establish improved fighting or identify which attacks caused points.
+The [completed-round report](left-front-development-r30-r33.md) records all
+requests, score reconciliation and the preserved startup failure. A subsequent
+[native outcome PPO update](left-front-outcome-ppo.md) used all 16,138 decisions
+from those three completed rounds and reproduced every sampled behavior
+action before updating. Its fresh authentic development tests are recorded
+separately above; training loss is not a fighting acceptance criterion.
+The updated actor finished r34-r36 with one win and two losses, 40:47 points.
+This does not establish improvement over the exploration parent, which also
+won one of its three development rounds. Neither actor is promoted as a
+consistent fighter.
 
 A separate [five-observation input-hold experiment](../action-cadence-20260920/README.md)
 preserves default runtime output and keeps physics/reward/inference at 50 Hz.
