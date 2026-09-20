@@ -4,11 +4,11 @@ const {spawn} = require('node:child_process');
 const readline = require('node:readline');
 
 async function main() {
-  const [mode, binary, checkpoint, sha] = process.argv.slice(2);
+  const [mode, binary, checkpoint, sha, selection='sampled'] = process.argv.slice(2);
   assert(['protocol', 'gpu'].includes(mode));
   assert(binary);
   if (mode === 'gpu') assert(checkpoint && /^[0-9a-f]{64}$/.test(sha));
-  const child = spawn(binary, mode === 'gpu' ? [checkpoint, sha, '73'] : [], {stdio:['pipe','pipe','pipe']});
+  const child = spawn(binary, mode === 'gpu' ? [checkpoint, sha, '73',selection] : [], {stdio:['pipe','pipe','pipe']});
   let stderr = '', exited = false;
   const exit = new Promise((resolve,reject) => { child.on('error',reject); child.on('exit',(code,signal)=>{exited=true;resolve({code,signal});}); });
   child.stderr.on('data', x => { stderr += x; });
@@ -41,7 +41,8 @@ async function main() {
     if (mode==='gpu') {
       check(ready.checkpoint_sha256===sha,'exact checkpoint');
       check(ready.native_cuda===true && ready.environment_stepping===false,'GPU only, no environment');
-      check(ready.precision==='bf16' && ready.selection==='sampled','inference mode');
+      check(ready.precision==='bf16' && ready.selection===selection,'inference mode');
+      check(ready.feature_mask_sha256==='','default observation features retained');
     } else check(ready.inference_available===false,'CPU parser cannot infer');
     const verifyAction = (r, expected) => {
       check(r.type===(mode==='gpu'?'action':'validated'),'step response');
@@ -97,7 +98,7 @@ async function main() {
     child.stdin.end();
     const result=await exit;check(result.code===0&&!result.signal,'clean exit');
     const timings=transcript.filter(x=>x.type==='action').map(x=>x.latency_ms).sort((a,b)=>a-b);
-    console.log(JSON.stringify({test:'live-policy-worker',mode,synthetic_observations:true,authentic_game_control:false,
+    console.log(JSON.stringify({test:'live-policy-worker',mode,selection,synthetic_observations:true,authentic_game_control:false,
       assertions,responses:transcript.length,actions:timings.length,checkpoint_sha256:mode==='gpu'?sha:null,
       latency_ms:timings.length?{min:timings[0],median:timings[Math.floor(timings.length/2)],max:timings.at(-1)}:null,
       exit_code:result.code,stderr,transcript},null,2));

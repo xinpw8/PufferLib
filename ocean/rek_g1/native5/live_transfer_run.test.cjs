@@ -15,6 +15,18 @@ const ready=()=>({type:'ready',checkpoint_sha256:sha,native_cuda:true,environmen
   observation_schema:'rek.native5.scaled_polar_xy.v1',precision:'bf16',selection:'sampled',
   observations:223,actions:33,hidden_size:256,num_layers:2});
 
+test('selection and excluded-feature identity must match the configured experiment',()=>{
+  const mask='c'.repeat(64);
+  assert.doesNotThrow(()=>validateWorkerReady(ready(),sha));
+  assert.doesNotThrow(()=>validateWorkerReady({...ready(),selection:'argmax',feature_mask_sha256:mask},sha,
+    {selection:'argmax',feature_mask_sha256:mask}));
+  for(const r of [{...ready(),selection:'argmax'}, {...ready(),feature_mask_sha256:mask}])
+    assert.throws(()=>validateWorkerReady(r,sha),/identity mismatch/);
+  assert.throws(()=>validateWorkerReady(ready(),sha,{feature_mask_sha256:mask}),/identity mismatch/);
+  assert.throws(()=>validateWorkerReady(ready(),sha,{selection:'random'}),/configuration/);
+  assert.throws(()=>validateWorkerReady(ready(),sha,{feature_mask_sha256:'unknown'}),/configuration/);
+});
+
 function privateAi(difficulty=0) {
   return {scene:'Arena',lobby_screen:null,foreground:{isolated_session_verified:true},private_ai:{
     proven:difficulty===0,policy_proven:true,network_client_only:true,

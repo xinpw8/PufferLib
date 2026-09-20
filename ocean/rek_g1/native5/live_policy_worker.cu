@@ -1,4 +1,5 @@
 #include "../../../vendor/cJSON.h"
+#include "policy_feature_mask.h"
 #ifndef REK_LIVE_PROTOCOL_TEST
 #include "native_policy.h"
 #include <cuda_runtime.h>
@@ -92,7 +93,11 @@ struct Engine {
     std::unique_ptr<RekNativePolicy,decltype(&rek_native_policy_destroy)> policy{nullptr,rek_native_policy_destroy};
     std::string sha,device;
     uint64_t seed;
-    Engine(const char* checkpoint,const std::string& expected,uint64_t rng_seed):seed(rng_seed){
+    bool deterministic;
+    rek_policy_features::Mask features;
+    const char* selection()const{return deterministic?"argmax":"sampled";}
+    Engine(const char* checkpoint,const std::string& expected,uint64_t rng_seed,bool greedy,
+           const char* feature_path):seed(rng_seed),deterministic(greedy),features(rek_policy_features::load(feature_path)){
         require(digest(expected),"invalid_checkpoint_sha256");cuda_ok(cudaSetDevice(0));
         cudaDeviceProp prop{};cuda_ok(cudaGetDeviceProperties(&prop,0));device=prop.name;
         cuda_ok(cudaStreamCreate(&stream));cuda_ok(cudaEventCreate(&begin));cuda_ok(cudaEventCreate(&end));
@@ -101,15 +106,17 @@ struct Engine {
         RekNativePolicyConfig cfg{};cfg.abi_version=REK_NATIVE_POLICY_ABI;cfg.checkpoint_path=checkpoint;cfg.expected_sha256=expected.c_str();cfg.hidden_size=256;cfg.num_layers=2;cfg.batch=1;cfg.precision=REK_NATIVE_POLICY_BF16;cfg.seed=seed;
         policy.reset(rek_native_policy_create(&cfg,stream));if(!policy)throw std::runtime_error(rek_native_policy_error());sha=rek_native_policy_sha256(policy.get());require(sha==expected,"checkpoint_sha256_mismatch");
         cuda_ok(cudaStreamSynchronize(stream));cuda_ok(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
-        policy_ok(rek_native_policy_step_rows(policy.get(),obs,masks,terminals,actions,0,1,0,stream));
+        policy_ok(rek_native_policy_step_rows(policy.get(),obs,masks,terminals,actions,0,1,deterministic,stream));
         cuda_ok(cudaStreamEndCapture(stream,&graph));cuda_ok(cudaGraphInstantiate(&executable,graph,0));
     }
     ~Engine(){if(stream)cudaStreamSynchronize(stream);if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);policy.reset();if(obs)cudaFree(obs);if(masks)cudaFree(masks);if(actions)cudaFree(actions);if(terminals)cudaFree(terminals);if(begin)cudaEventDestroy(begin);if(end)cudaEventDestroy(end);if(stream)cudaStreamDestroy(stream);}
     void reset(){policy_ok(rek_native_policy_reset_recurrent(policy.get(),stream));cuda_ok(cudaStreamSynchronize(stream));}
     int infer(const Request& r,float& gpu_ms){
         float action=-1;
+        auto input=r.observation;
+        rek_policy_features::apply(input.data(),features);
         cuda_ok(cudaEventRecord(begin,stream));
-        cuda_ok(cudaMemcpyAsync(obs,r.observation.data(),223*sizeof(float),cudaMemcpyHostToDevice,stream));
+        cuda_ok(cudaMemcpyAsync(obs,input.data(),223*sizeof(float),cudaMemcpyHostToDevice,stream));
         cuda_ok(cudaMemcpyAsync(masks,r.mask.data(),33,cudaMemcpyHostToDevice,stream));
         cuda_ok(cudaGraphLaunch(executable,stream));
         cuda_ok(cudaMemcpyAsync(&action,actions,sizeof(float),cudaMemcpyDeviceToHost,stream));
@@ -125,11 +132,13 @@ struct Engine {
 int main(int argc,char** argv){
     try{
 #ifndef REK_LIVE_PROTOCOL_TEST
-        require(argc==3||argc==4,"usage_checkpoint_sha256_optional_seed");
+        require(argc>=3&&argc<=6,"usage_checkpoint_sha256_optional_seed_selection_feature_mask");
         uint64_t seed=73;
-        if(argc==4){char* end=nullptr;require(argv[3][0]>='0'&&argv[3][0]<='9',"invalid_seed");seed=std::strtoull(argv[3],&end,10);require(end&&!*end&&seed<=9007199254740991ULL,"invalid_seed");}
-        Engine engine(argv[1],argv[2],seed);
-        auto ready=response("ready");str(ready.get(),"checkpoint_sha256",engine.sha);str(ready.get(),"observation_schema",OBS_SCHEMA);str(ready.get(),"selection","sampled");str(ready.get(),"precision","bf16");str(ready.get(),"device",engine.device);number(ready.get(),"seed",double(seed));number(ready.get(),"observations",223);number(ready.get(),"actions",33);number(ready.get(),"hidden_size",256);number(ready.get(),"num_layers",2);boolean(ready.get(),"native_cuda",true);boolean(ready.get(),"environment_stepping",false);emit(ready.get());
+        if(argc>=4){char* end=nullptr;require(argv[3][0]>='0'&&argv[3][0]<='9',"invalid_seed");seed=std::strtoull(argv[3],&end,10);require(end&&!*end&&seed<=9007199254740991ULL,"invalid_seed");}
+        const std::string selection=argc>=5?argv[4]:"sampled";
+        require(selection=="sampled"||selection=="argmax","invalid_selection");
+        Engine engine(argv[1],argv[2],seed,selection=="argmax",argc>=6?argv[5]:nullptr);
+        auto ready=response("ready");str(ready.get(),"checkpoint_sha256",engine.sha);str(ready.get(),"observation_schema",OBS_SCHEMA);str(ready.get(),"selection",engine.selection());str(ready.get(),"feature_mask_sha256",engine.features.sha256);str(ready.get(),"precision","bf16");str(ready.get(),"device",engine.device);number(ready.get(),"seed",double(seed));number(ready.get(),"observations",223);number(ready.get(),"actions",33);number(ready.get(),"hidden_size",256);number(ready.get(),"num_layers",2);boolean(ready.get(),"native_cuda",true);boolean(ready.get(),"environment_stepping",false);emit(ready.get());
 #else
         require(argc==1,"protocol_test_takes_no_checkpoint");auto ready=response("protocol_ready");boolean(ready.get(),"inference_available",false);emit(ready.get());
 #endif
@@ -153,7 +162,7 @@ int main(int argc,char** argv){
             auto j=response(response_type,&r);boolean(j.get(),"recurrent_reset",clear||state.reset_pending);boolean(j.get(),"round_changed",changed);number(j.get(),"legal_actions",r.legal);
             if(r.kind==Request::Step&&!r.terminal){
 #ifndef REK_LIVE_PROTOCOL_TEST
-                float gpu_ms=0;int action=engine.infer(r,gpu_ms);number(j.get(),"action",action);number(j.get(),"gpu_ms",gpu_ms);number(j.get(),"decision_index",double(++decisions));str(j.get(),"checkpoint_sha256",engine.sha);str(j.get(),"observation_schema",OBS_SCHEMA);str(j.get(),"selection","sampled");str(j.get(),"precision","bf16");
+                float gpu_ms=0;int action=engine.infer(r,gpu_ms);number(j.get(),"action",action);number(j.get(),"gpu_ms",gpu_ms);number(j.get(),"decision_index",double(++decisions));str(j.get(),"checkpoint_sha256",engine.sha);str(j.get(),"observation_schema",OBS_SCHEMA);str(j.get(),"selection",engine.selection());str(j.get(),"feature_mask_sha256",engine.features.sha256);str(j.get(),"precision","bf16");
 #else
                 boolean(j.get(),"inference_available",false);
 #endif

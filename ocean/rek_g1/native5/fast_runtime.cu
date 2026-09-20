@@ -16,6 +16,7 @@
 #include "primitive_motion.cuh"
 #include "contact_potential_loader.h"
 #include "round_reward.h"
+#include "policy_feature_mask.h"
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
 // trajectories; slider motion and temporally sampled contacts are modeling
@@ -86,6 +87,7 @@ struct View {
     uint8_t *masks,*learner_masks;
     const float* external;
     const uint8_t* override_rows;
+    const uint8_t* policy_feature_mask;
 };
 
 __device__ float clampf(float x,float lo,float hi){return fminf(hi,fmaxf(lo,x));}
@@ -548,6 +550,9 @@ __device__ float scaled_value(const View& v,int index,int side,int field,float r
     if(field==188||field==189)return raw/120;
     return raw;
 }
+__device__ float policy_value(const View& v,int index,int side,int field,float raw){
+    return v.policy_feature_mask&&!v.policy_feature_mask[field]?0.f:scaled_value(v,index,side,field,raw);
+}
 __device__ void export_arena(const View& v,int index,int lane){
     const Arena& a=v.state[index];const Parameters& p=*v.p;const auto& r=v.rounds[index];
     for(int side=0;side<2;side++){
@@ -556,7 +561,7 @@ __device__ void export_arena(const View& v,int index,int lane){
         const FastFrame& old=v.frames[frame_index(p,f,true)];
         for(int k=lane;k<223;k+=32){
             float value=raw_value(v,index,side,k);v.raw[row*223+k]=value;
-            if(side==0)v.out.observations[index*223+k]=scaled_value(v,index,0,k,value);
+            if(side==0)v.out.observations[index*223+k]=policy_value(v,index,0,k,value);
         }
         for(int k=lane;k<33;k+=32){
             bool yaw_update=k==1||k==6||k==7;
@@ -615,7 +620,7 @@ __global__ void fast_step(const __grid_constant__ View v,bool autoreset=false){
 }
 __global__ void encode_rows(const __grid_constant__ View v,float* out){
     int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=v.arenas*446)return;
-    int row=i/223,field=i%223;out[i]=scaled_value(v,row/2,row%2,field,v.raw[i]);
+    int row=i/223,field=i%223;out[i]=policy_value(v,row/2,row%2,field,v.raw[i]);
 }
 __global__ void copy_masks(const __grid_constant__ View v){
     int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<v.arenas*33)v.learner_masks[i]=v.masks[(i/33)*66+i%33];
@@ -650,6 +655,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         if(!config||config->abi_version!=REK_NATIVE5_RUNTIME_ABI||config->arenas<=0||!buffers||
            !buffers->observations||!buffers->actions||!buffers->rewards||!buffers->terminals||!buffers->logs||
            buffers->log_stride_bytes<sizeof(RekNative5Log))throw std::runtime_error("Invalid semantic CUDA configuration/buffers");
+        const auto feature_mask=rek_policy_features::load(getenv("REK_POLICY_FEATURE_MASK"));
         FastAssets assets=load_fast_assets(*config);Parameters p{};
         const char* scoring=getenv("REK_FAST_SCORING");
         if(scoring&&strcmp(scoring,"v4_spheres")&&strcmp(scoring,"recovered_hit_rules_v1")&&strcmp(scoring,"recovered_hit_rules_v2"))throw std::runtime_error("Invalid REK_FAST_SCORING");
@@ -726,6 +732,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         for(int k=16;k<33;k++)if(p.action_to_route[k]<7||p.action_to_route[k]>=24||p.routes[p.action_to_route[k]].move<0||p.routes[p.action_to_route[k]].move>=17)throw std::runtime_error("Invalid baked action mapping");
         auto result=std::make_unique<RekNative5Runtime>();auto& v=result->view;int a=config->arenas;
         v.arenas=a;v.out=*buffers;v.p=result->storage.upload(&p,1);v.frames=result->storage.upload(assets.frames);
+        if(feature_mask.enabled)v.policy_feature_mask=result->storage.upload(feature_mask.values.data(),feature_mask.values.size());
         v.state=result->storage.alloc<Arena>(a);v.rounds=result->storage.alloc<RekNative5RoundResult>(a);
         v.raw=result->storage.alloc<float>(size_t(a)*446);v.qpos=result->storage.alloc<float>(size_t(a)*72);
         v.qvel=result->storage.alloc<float>(size_t(a)*70);v.masks=result->storage.alloc<uint8_t>(size_t(a)*66);
@@ -734,6 +741,8 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         rek5::cuda_check(cudaGetLastError());rek5::cuda_check(cudaStreamSynchronize(stream));
         fprintf(stderr,"semantic_cuda_v4: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; points-only slider dynamics; knockdowns unmodeled; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed);
         fprintf(stderr,"semantic_cuda_assets=%s\n",assets.provenance_json.c_str());
+        if(feature_mask.enabled)fprintf(stderr,"semantic_cuda_policy_feature_mask={\"enabled\":true,\"bytes\":223,\"sha256\":\"%s\",\"kept_features\":%d,\"raw_diagnostics_changed\":false}\n",
+            feature_mask.sha256.c_str(),int(std::count(feature_mask.values.begin(),feature_mask.values.end(),uint8_t(1))));
         fprintf(stderr,"semantic_cuda_reward={\"mode\":\"%s\",\"gamma\":%.9g,\"point_input\":\"awarded_scoreboard_points\",\"terminal_signal\":\"completed_round_only\",\"countout_is_terminal\":false,\"terminal_win\":%d,\"terminal_loss\":%d,\"terminal_draw\":0,\"potential_scale_points\":5,\"terminal_potential\":0,\"adds_balance_dynamics\":false}\n",
             p.reward_mode==rek5_round_reward::RoundOutcome?"round_outcome_v1":"point_difference_v1",
             p.reward_gamma,p.reward_mode==rek5_round_reward::RoundOutcome?1:0,p.reward_mode==rek5_round_reward::RoundOutcome?-1:0);

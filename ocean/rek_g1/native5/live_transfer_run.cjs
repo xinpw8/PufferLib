@@ -115,11 +115,15 @@ function canRequestPrivateRound(s) {
     s.private_ai.round_active===false &&
     (s.private_ai.post_fight_prompt!==true || s.private_ai.post_fight_is_winner===true);
 }
-function validateWorkerReady(ready, sha) {
+function validateWorkerReady(ready, sha, expected={}) {
+  const selection=expected.selection??'sampled', mask=expected.feature_mask_sha256??'';
+  requireValue(['sampled','argmax'].includes(selection) &&
+    (mask===''||/^[a-f0-9]{64}$/.test(mask)), 'invalid worker inference configuration');
   requireValue(ready?.type==='ready' && ready.checkpoint_sha256===sha &&
     ready.native_cuda===true && ready.environment_stepping===false &&
     ready.observation_schema==='rek.native5.scaled_polar_xy.v1' &&
-    ready.precision==='bf16' && ready.selection==='sampled' &&
+    ready.precision==='bf16' && ready.selection===selection &&
+    (ready.feature_mask_sha256??'')===mask &&
     ready.observations===223 && ready.actions===33 &&
     ready.hidden_size===256 && ready.num_layers===2, 'worker identity mismatch');
 }
@@ -168,15 +172,15 @@ async function waitForStartupGate(gate,identity,{now=Date.now,
   }
 }
 async function startRelayWhenPrepared({encoder,worker,checkpointSha256,openRelay,startupGate,
-    gateOptions={},isStopping=()=>false,log=()=>{}}) {
+    inference={},gateOptions={},isStopping=()=>false,log=()=>{}}) {
   // Subscribe to both startup reports together. Neither endpoint receives a synthetic step/reset.
   const [ready,manifest]=await Promise.all([
     worker.wait(x=>x.type==='ready',60000),encoder.wait(x=>x.event==='projection_manifest',60000)
   ]);
-  validateWorkerReady(ready,checkpointSha256);validateEncoderReady(manifest);
+  validateWorkerReady(ready,checkpointSha256,inference);validateEncoderReady(manifest);
   requireValue(!isStopping(),'startup interrupted by child failure');
   log('inference_ready',{checkpoint_sha256:ready.checkpoint_sha256,device:ready.device,
-    precision:ready.precision,selection:ready.selection,projection:manifest.projection,
+    precision:ready.precision,selection:ready.selection,feature_mask_sha256:ready.feature_mask_sha256??'',projection:manifest.projection,
     encoder_model_sha256:manifest.model_sha256});
   await waitForStartupGate(startupGate,{checkpoint_sha256:checkpointSha256,
     encoder_model_sha256:manifest.model_sha256},{...gateOptions,isStopping,log});
@@ -319,6 +323,7 @@ async function run(configPath) {
     encoder=openEndpoint('encoder',config.encoder);
     worker=openEndpoint('worker',config.worker);
     relay=await startRelayWhenPrepared({encoder,worker,checkpointSha256:config.checkpoint_sha256,
+      inference:{selection:config.selection,feature_mask_sha256:config.feature_mask_sha256},
       openRelay:()=>openEndpoint('relay',config.relay),startupGate:config.startup_gate,
       isStopping:()=>stopping,log});
     await relay.wait(x=>x.event==='hello',30000);
@@ -425,7 +430,8 @@ async function run(configPath) {
       unmatched_action_acks:unmatchedAcks,action_inflight_at_stop:pacer.pending?.requestId!==null&&pacer.pending?.requestId!==undefined,
       last_ack_qpc_ticks:pacer.lastAckQpc?.toString()??null,predictions,applied,rejected,actions,reasons,opponent,
       local_slot:localSlot,round_identity_sha256:roundIdentity,round_outcome:roundOutcome(lastRound,localSlot),
-      initial_round:firstRound,final_round:lastRound,projection:config.projection,checkpoint_sha256:config.checkpoint_sha256,authentic_client:true,global_input_emitted:false};
+      initial_round:firstRound,final_round:lastRound,projection:config.projection,checkpoint_sha256:config.checkpoint_sha256,
+      selection:config.selection??'sampled',feature_mask_sha256:config.feature_mask_sha256??'',authentic_client:true,global_input_emitted:false};
     fs.writeFileSync(path.join(config.out,'summary.json'),JSON.stringify(summary,null,2)+'\n',{flag:'wx'});log('summary',summary);
     for(const e of endpoints)e.close();
     setTimeout(()=>{for(const e of endpoints)if(e.child.exitCode===null)e.child.kill('SIGTERM');},2000).unref();

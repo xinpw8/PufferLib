@@ -30,6 +30,7 @@ if rg -qi '(libpython|libtorch|libonnxruntime|libmujoco)' "$task_output/elf-depe
   printf 'Unexpected interpreter, framework, or physics dependency\n' >&2; exit 2
 fi
 sha256sum "$task_source/live_policy_worker.cu" "$task_source/live_policy_worker.test.cjs" \
+  "$task_source/policy_feature_mask.h" "$task_source/live_policy_selection.test.cjs" \
   "$task_objects/native_policy.o" "$task_objects/cJSON.o" \
   "$task_output/live-policy-protocol-test" "$task_output/live-policy-worker" > "$task_output/build-hashes.txt"
 printf 'Built native CUDA live policy worker: %s/live-policy-worker\n' "$task_output"
