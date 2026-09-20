@@ -19,6 +19,7 @@
 #include "policy_feature_mask.h"
 #include "owned_yaw_observation.h"
 #include "action_cadence.h"
+#include "keyboard_yaw.h"
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
 // trajectories; slider motion and temporally sampled contacts are modeling
@@ -43,6 +44,7 @@ struct Fighter {
     int observed_old_frame;
     float observed_old_x,observed_old_y,observed_old_yaw;
     float observed_heading,observed_local[2],observed_omega,observed_joint_rate[29];
+    rek_keyboard_yaw::State keyboard_yaw;
 };
 struct Arena {
     Fighter fighter[2];
@@ -78,6 +80,7 @@ struct Parameters {
     int rendered_observation;
     int owned_yaw_observation;
     int policy_action_stride=1;
+    rek_keyboard_yaw::Mode yaw_command=rek_keyboard_yaw::Mode::LegacyVelocitySlew;
     int primitive_contacts,contact_substeps,strike_limb[12];
 };
 struct View {
@@ -273,6 +276,8 @@ template<bool Bot=false> __device__ void advance_fighter(const Parameters& p,Fig
         }
     }else if(action>0){f.held=action;}
     if(attacking(f)){
+        if constexpr(!Bot)if(p.yaw_command==rek_keyboard_yaw::Mode::KeyboardReset)
+            rek_keyboard_yaw::advance(f.keyboard_yaw,0.f,DT,rek_keyboard_yaw::kRampSeconds,1.f);
         f.strike_active=1;
         f.phase=fminf(float(p.routes[f.route].count-1),
             float(f.move_tick+1)*float(p.routes[f.route].count-1)/float(f.attack_duration));
@@ -286,7 +291,12 @@ template<bool Bot=false> __device__ void advance_fighter(const Parameters& p,Fig
     float tx=p.move_speed*(cs*forward-sn*strafe),ty=p.move_speed*(sn*forward+cs*strafe);
     float accel=p.brake_rate*DT;
     f.vx=approach(f.vx,tx,accel);f.vy=approach(f.vy,ty,accel);
-    f.omega=approach(f.omega,yaw*p.yaw_speed,p.yaw_speed*DT/p.yaw_ramp);
+    if(!Bot&&p.yaw_command==rek_keyboard_yaw::Mode::KeyboardReset){
+        // Candidate physical response: normalized keyboard command times the
+        // existing yaw-speed constant. No second, unmeasured actuator lag.
+        const float normalized=rek_keyboard_yaw::advance(f.keyboard_yaw,yaw,DT,rek_keyboard_yaw::kRampSeconds,1.f);
+        f.omega=normalized*p.yaw_speed;
+    }else f.omega=approach(f.omega,yaw*p.yaw_speed,p.yaw_speed*DT/p.yaw_ramp);
     f.x+=f.vx*DT;f.y+=f.vy*DT;f.yaw=angle(f.yaw+f.omega*DT);
     int route=p.action_to_route[f.held];
     if(route!=f.route){f.route=route;f.phase=0;f.old_route=route;f.old_phase=0;}
@@ -671,6 +681,8 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         p.owned_yaw_observation=rek_owned_yaw::enabled(getenv("REK_OBSERVATION_SCHEMA"));
         if(p.owned_yaw_observation)fprintf(stderr,"semantic_cuda_observation_schema=%s;owned_command_column=187;physics_changed=false\n",rek_owned_yaw::kSchema);
         p.policy_action_stride=rek_action_cadence::parse(getenv("REK_POLICY_ACTION_STRIDE"));
+        p.yaw_command=rek_keyboard_yaw::parse(getenv("REK_FAST_YAW_COMMAND"));
+        fprintf(stderr,"semantic_cuda_yaw_command={\"mode\":\"%s\",\"keyboard_command_ramp_seconds\":%.9g,\"command_parameter_provenance\":\"recovered_schedule_contract_expected_value_not_measured_actuator_lag\",\"command_dt_seconds\":%.9g,\"scope\":\"non_bot_policy_or_scripted_controller\",\"physical_response\":\"%s\",\"recovered_bot1_changed\":false,\"authentic_physical_parity\":false}\n",rek_keyboard_yaw::name(p.yaw_command),rek_keyboard_yaw::kRampSeconds,DT,p.yaw_command==rek_keyboard_yaw::Mode::KeyboardReset?"normalized_command_times_candidate_yaw_speed_no_additional_lag":"legacy_velocity_slew");
         if(p.policy_action_stride!=1)fprintf(stderr,"policy_action_cadence=%s;stride=%d;clock=episode_tick;phase_zero=initial_export;learner_only=true;control_hz=50;reward_aggregation=false;observation_features_unchanged=true\n",rek_action_cadence::kContract,p.policy_action_stride);
         const char* scoring=getenv("REK_FAST_SCORING");
         if(scoring&&strcmp(scoring,"v4_spheres")&&strcmp(scoring,"recovered_hit_rules_v1")&&strcmp(scoring,"recovered_hit_rules_v2"))throw std::runtime_error("Invalid REK_FAST_SCORING");
