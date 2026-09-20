@@ -24,6 +24,10 @@ These are development results, not the separate 20-round frozen evaluation.
 | r13 | unchanged authentic-trajectory complete MC | 20:12 | Win |
 | r14 | unchanged authentic-trajectory GAE | 18:9 | Win |
 | r15 | unchanged authentic-trajectory complete MC | 13:21 | Loss |
+| r16 | second authentic MC iteration, learning rate 1e-5 | 3:12 | Loss |
+| r17 | second authentic MC iteration, learning rate 3e-5 | 10:12 | Loss |
+| r18 | unchanged second MC iteration, learning rate 1e-5 | 15:12 | Win |
+| r19 | unchanged second MC iteration, learning rate 3e-5 | 17:18 | Loss |
 
 The original checkpoint SHA256 is
 `61f97b0b0a4504c6bdd0ee16d369ad4c1915e3cdf73d6358bab01ce64c8fde3f`.
@@ -33,7 +37,7 @@ The four additional sampled rounds are 3 wins and 1 loss, with total points
 striking. Two earlier outcome-checkpoint development wins remain a separate
 cohort. They do not turn these results into a held-out consistency claim.
 
-All completed rounds through r15 passed the existing control-coverage, native packet
+All completed rounds through r19 passed the existing control-coverage, native packet
 reconciliation, and referee checks. The argmax configuration issued only 17
 attack requests, compared with 92 to 110 in the four sampled rounds. These
 request counts do not assert executed or successful attacks.
@@ -124,6 +128,12 @@ files total 7,483,144 bytes. Source-before, source-after and NAS readback
 hashes all match. Manifest SHA256:
 `cb877487e7a6a97f186403ab7deb4caf61e645e15d23ac11a0ba67668dd07ba3`.
 
+Completed Windows r8 through r15 and their eight exact native recordings are
+archived under `windows-development-r8-r15`. The 337 copied files total
+3,176,966,878 bytes; all source-before, source-after and NAS readback hashes
+match. Manifest SHA256:
+`3119cc665ced1e2adc7753047a8617c02eed0134f9c6e7b3a8b192beb9a05b2c`.
+
 ## Learning from authentic trajectories
 
 The four original sampled development rounds provide 22,585 ordered policy
@@ -203,3 +213,43 @@ Across its three trials, MC led five-point awards 25:10 but trailed ordinary
 award amounts 19:32. The next learning batch uses all three actual MC-policy
 rounds, including this loss, retaining real score consequences and measured
 poses. Simulation wins cannot substitute for subsequent authentic evaluation.
+
+## Second authentic MC iteration
+
+The r11/r13/r15 batch supplied 17,360 exact recurrent decisions, including
+three terminal-race rows with zero actor weight. All sampled actions replayed
+exactly. Two independent one-epoch updates from the MC checkpoint changed
+only learning rate, 1e-5 versus 3e-5, and each performed 138 native updates.
+Their full process windows were 2.30 s and 3.30 s, including diagnostics.
+See [training details and hashes](../authentic-ppo-iteration2-20260919/README.md).
+
+The first subsequent authentic rounds both lost. r16, the lower-rate
+candidate, lost 3:12 entirely in non-five-point awards, with 80 attack
+requests and maximum control gap 0.071198 s. r17, the higher-rate candidate,
+lost 10:12, comprising non-five-point awards 5:7 and five-point awards 5:5,
+with 107 attack requests and maximum gap 0.073794 s. Strict contact/referee
+checks passed for both. Unchanged repeats are needed; numerical optimization
+alone has not established improved fighting.
+
+r18 repeated the lower-rate candidate and won 15:12. Non-five-point awards
+were 5:12, with five-point awards 10:0. It issued 102 attack requests and its
+maximum control gap was 0.067923 s; strict checks passed. The lower-rate
+candidate is 1 win / 1 loss, with total points 18:24 and non-five-point
+awards 8:24. Its win does not demonstrate superior ordinary scoring.
+
+r19 repeated the higher-rate candidate and lost 17:18. Non-five-point
+awards were 7:18, with five-point awards 10:0. It issued 120 attack requests,
+maximum gap 0.061309 s, and passed strict checks. The higher-rate candidate
+finished 0 wins / 2 losses, total points 27:30 and non-five-point awards
+12:25. Neither second-iteration candidate is promoted. These results retain
+the losses and demonstrate that a larger numerical update did not by itself
+produce the required fighting improvement.
+
+The next experiment targets the measured critic-scale error while preserving
+actor/shared parameters. The native decoder has no bias, so arbitrary affine
+value calibration cannot be represented by value-head-only edits. A scalar
+value-head calibration is being implemented with complete-MC targets from
+r11/r15; r13 and subsequently collected unchanged-parent MC rounds are
+reserved for out-of-sample diagnostics. This is not yet a calibrated model,
+an actor improvement, or a passed fighting test. Additional parent-policy
+rounds remain development data, not the separate 20-round acceptance cohort.
