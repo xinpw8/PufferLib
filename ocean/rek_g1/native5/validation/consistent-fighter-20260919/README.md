@@ -32,6 +32,26 @@ These are development results, not the separate 20-round frozen evaluation.
 | r21 | value-scale-corrected parent plus authentic GAE update | 22:5 | Win |
 | r22 | unchanged scale-corrected GAE actor | 11:9 | Win |
 | r23 | unchanged scale-corrected GAE actor | 9:14 | Loss |
+| r24 | matched authentic GAE control, legacy observation | 14:13 | Win |
+| r25 | matched authentic GAE treatment, owned-yaw v2 | 4:25 | Loss |
+| r26 | unchanged legacy-observation control | 9:24 | Loss |
+| r27 | unchanged owned-yaw v2 treatment | 3:15 | Loss |
+| r28 | unchanged legacy-observation control | 15:10 | Win |
+| r29 | unchanged owned-yaw v2 treatment | 6:13 | Loss |
+
+The [six-round owned-yaw comparison](owned-yaw-development-r24-r29.md)
+finished with control 2 wins / 1 loss, 38:47 points, and treatment 0 wins /
+3 losses, 13:53 points. All six strict analyses passed. This small development
+cohort does not support promoting the treatment; no frozen acceptance round
+has started. Interface delivery alone did not improve observed fighting.
+
+The [left-front-kick selection diagnosis](left-front-kick-selection.md)
+reproduced all 34,026 decisions under the exact two behavior checkpoints.
+Both allowed category 17 wherever category 23 was legal, but requested the
+left-front kick zero times versus 447 right hooks. Mean left-kick probability
+on legal rows was only 0.0608% in control and 0.0236% in treatment. This
+establishes severely underexplored behavior, not that the kick is ineffective
+in authentic REK. Compact training still lacks balance, trips and knockdowns.
 
 The original checkpoint SHA256 is
 `61f97b0b0a4504c6bdd0ee16d369ad4c1915e3cdf73d6358bab01ce64c8fde3f`.
@@ -41,7 +61,7 @@ The four additional sampled rounds are 3 wins and 1 loss, with total points
 striking. Two earlier outcome-checkpoint development wins remain a separate
 cohort. They do not turn these results into a held-out consistency claim.
 
-All completed rounds through r23 passed the existing control-coverage, native packet
+All completed rounds through r29 passed the existing control-coverage, native packet
 reconciliation, and referee checks. The argmax configuration issued only 17
 attack requests, compared with 92 to 110 in the four sampled rounds. These
 request counts do not assert executed or successful attacks.
@@ -159,6 +179,14 @@ comparison. Manifest SHA256:
 `e73714128a7ce70865d8572173a677d292633927ac40eafa54961fa4116059e3`.
 This archive predates the r24-r29 live evaluation cohort and does not include
 those later recordings.
+
+The six later trials and their exact native captures are archived separately
+under `windows-development-r24-r29`: 257 files, 2,367,225,788 bytes. All source
+immutability and NAS readback checks passed. Manifest SHA256:
+`16fb9393ad588ad464ec1b928f946caa32261f1cf0fdebbdc2ef66e2a52ceb48`.
+The archive also includes the immutable `aggregate-r11` snapshot. Its combined
+development totals span multiple policies and must not be treated as one
+checkpoint's win rate.
 
 ## Learning from authentic trajectories
 

@@ -1,7 +1,8 @@
 # Native physical schedule comparison prepared 2026-09-20
 
-The native MuJoCo CUDA + SONIC probe is compiled and CPU-checked. GPU execution
-is pending the live-evaluation resource window. This is a candidate behavior
+The native MuJoCo CUDA + SONIC probe was compiled, CPU-checked, then executed
+once after the live-evaluation resource window closed. It passed with exit 0.
+This is a candidate behavior
 check from the candidate's own reset. It does not replay authentic state and
 does not establish physical parity or fighting strength.
 
@@ -102,6 +103,64 @@ C++ SHA256        7cd67c58b9958488ecc5b6c7142f5194646d23bc16b5bb7e834894b38b1a5a
 `build-r1` is preserved. `build-r2` adds explicit terminal/reset reporting and
 manifest hashes. Its C++ bytes equal the repository source. The local private
 preparation is `C:\rekagent\work\consistent-fighter-20260919-r1\physical-schedule-probe-r1`.
+
+## Executed result
+
+The unchanged `build-r2` executable ran once from 2026-09-20
+03:33:53.705686219 UTC to 03:34:06.237826473 UTC, 12.532 s elapsed. Exit code was
+0 and the GPU was released immediately. No fallback, masked-action substitution,
+retry, physics change, or optimizer update occurred.
+
+| Desired yaw before/through attack | Move 3 net XY / control, m | Move 10 net XY / control, m |
+| --- | --- | --- |
+| -1 | 0.032897 / 0.060296 | 1.224072 / 0.035372 |
+| 0 | 0.057256 / 0.040525 | 0.483539 / 0.041068 |
+| +1 | 0.083295 / 0.037421 | 0.986965 / 0.158689 |
+
+These are nominal 0.90 s move-3 and 2.68 s move-10 endpoint displacements,
+not contact-conditioned authentic fits. Action 23 selected actual route 14
+(`RIGHT_HOOK`) for all 45 busy samples; action 26 selected route 17 (`SIX_PUNCH`)
+for all 134. Effective yaw was zero throughout both attacks, despite retained
+desired yaw. Controls selected routes 6, 0 and 5 for yaw -1, 0 and +1, with
+effective yaw matching that condition.
+
+All 3,120 per-arena samples parsed. Across both fighters and all twelve lanes,
+there were no non-foot floor-contact samples, final falls, terminal/reset
+events, or runtime failure bits. Foot contacts were present and all final
+points were 0:0. During attack windows, minimum root heights were 0.614 to
+0.660 m and maximum tilts 14.08 to 18.84 degrees. Minimum root separation was
+0.709832 m. The observation log measures floor contacts; it does not expose
+every inter-fighter contact pair, so zero points is not proof of zero contact.
+
+Pre-action attack/control states were close, but not identical:
+
+| Yaw | Move | Maximum qpos component difference | Maximum qvel component difference |
+| --- | --- | --- | --- |
+| -1 | 3 | 0.003810823 | 0.190037608 |
+| -1 | 10 | 0.003152519 | 0.127481520 |
+| 0 | 3 | 0.002823643 | 0.044377342 |
+| 0 | 10 | 0.001755297 | 0.058860242 |
+| +1 | 3 | 0.003490195 | 0.150734514 |
+| +1 | 10 | 0.004733801 | 0.202951148 |
+
+Those maxima mix model coordinate types (positions, quaternion components,
+joint angles, and their velocities); they are not all metres or metres per
+second. They limit exact paired-state causal interpretation. The result shows
+that the existing articulated candidate can generate substantial move-10 root
+translation from its controller/physics, without restoring baked clip XY.
+The move-3 net translation here is much smaller than the large authentic
+examples. This does not show that changing backends alone repairs transfer.
+
+Remote evidence is
+`/home/spark-advantage/rek-training/physical-schedule-probe-20260920-r1/run-r1`.
+The exact local copy is
+`C:\rekagent\work\consistent-fighter-20260919-r1\physical-schedule-probe-r1\run-r1`.
+All eight file hashes in the run's manifest matched after copying.
+
+```text
+stdout SHA256 fba722e5c447cd2d1d4852bf9755edc046c7f1bd582c34f5cabcfdc5d5e8696d
+stderr SHA256 cb328adb3c8f5c71147f95c552c7b32b7466b3f32363ab44465d2c81b153cfc9
+```
 
 ## Minimum missing inputs for authentic state replay
 
