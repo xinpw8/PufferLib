@@ -1,6 +1,8 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const { LEGACY, SCHEMA } = require('./owned_yaw_export_evidence.cjs');
 const { pack, validateRow, reward, potential, readTrial, exportData, HEADER, ROW } = require('./authentic_trajectory_data.cjs');
 function row() {
   return { sequence: 0, reset: 1, action: 2, policyWeight: 1, valueWeight: 1,
@@ -46,7 +48,7 @@ test('malformed mask, missing observation, noncausal timing and nonterminal reje
   }
 });
 function fixture() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rek-authentic-cpu-fixture-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-rek-authentic-cpu-fixture-'));
   for (const folder of ['trial', 'contact-analysis', 'referee-validation']) fs.mkdirSync(path.join(dir, folder));
   const roundId = '1'.repeat(64), checkpoint = '2'.repeat(64);
   const c = t => ({ qpc_ticks: 1000000 + t, qpc_frequency_hz: 1000000 });
@@ -128,4 +130,102 @@ test('explicit trial list and new destination required', async () => {
   await assert.rejects(exportData('.', '.', 0.999, 0.995, ['../escape']), /explicit unique/);
   await assert.rejects(exportData('.', '.', 0.999, 0.995, []), /explicit unique/);
   await assert.rejects(exportData('.', '.', 0.999, 0.995, ['live-r1']), /output already exists/);
+});
+
+const readEntries = (f, file) => fs.readFileSync(path.join(f.dir, file), 'utf8').trim().split('\n').map(JSON.parse);
+function v2Fixture(withTerminal = false) {
+  const f = fixture(), relay = readEntries(f, 'trial/relay.stdout.jsonl');
+  for (const x of relay) if (x.event === 'g1_policy_state') {
+    x.stream_active = x.round.active;
+    x.input = {active: x.round.active, desired_action: x.round.active ? 7 : null};
+  }
+  const requests = readEntries(f, 'trial/worker.stdin.jsonl');
+  for (const x of requests) {
+    x.observation_schema = SCHEMA; x.observation[182] = x.observation[183] = 1; x.observation[187] = -1;
+  }
+  const responses = readEntries(f, 'trial/worker.stdout.jsonl');
+  for (const x of responses) x.observation_schema = SCHEMA;
+  if (withTerminal) {
+    const x = structuredClone(requests.at(-1)); x.seq = 5; x.terminal = true; x.observation[187] = 0;
+    requests.push(x); responses.push({type: 'terminal', seq: 5});
+  }
+  f.lines('trial/relay.stdout.jsonl', relay); f.lines('trial/worker.stdin.jsonl', requests);
+  f.lines('trial/worker.stdout.jsonl', responses);
+  f.lines('trial/encoder.stdin.jsonl', requests.map(r => relay.find(x => x.event === 'g1_policy_state' && x.observation_sequence === r.seq)));
+  f.lines('trial/encoder.stdout.jsonl', [{event: 'projection_manifest', observation_schema: SCHEMA}, ...requests.map(r => {
+    const source = relay.find(x => x.event === 'g1_policy_state' && x.observation_sequence === r.seq);
+    return {event: 'policy_observation', ready: true, worker_request: r, provenance: {
+      source_qpc_ticks: source.clock.qpc_ticks, source_qpc_frequency_hz: source.clock.qpc_frequency_hz,
+      stream_active: source.stream_active, projected_busy: true, busy_projection: 'dispatched_request_v4_duration'}};
+  })]);
+  return f;
+}
+test('actual v2 export preserves recorded pre-action yaw and all non187 decision bytes', async () => {
+  const f = v2Fixture(), actual = await readTrial(f.dir, 0, 0.999, 0.995, SCHEMA);
+  assert.deepEqual(actual.rows.map(x => x.obs[187]), [-1, -1]);
+  assert.equal(actual.rows[1].terminal, true); assert.equal(actual.rows[1].policyWeight, 0);
+  assert.equal(actual.ledger[1].owned_yaw_evidence.desired_action, 7);
+  // The saved sampled action is 2; its yaw must not replace desired category7.
+  assert.equal(actual.rows[1].action, 2);
+  const old = structuredClone(actual.rows); old.forEach(x => { x.obs[187] = 0; });
+  const legacy = pack(old, 1), current = pack(actual.rows, 1, SCHEMA);
+  assert.equal(current.toString('ascii', 0, 8), 'REKRL002'); assert.equal(current.readUInt32LE(8), 2);
+  const restored = Buffer.from(current); legacy.copy(restored, 0, 0, 12);
+  old.forEach((_, i) => restored.writeFloatLE(0, HEADER + i * ROW + 32 + 4 * 187));
+  assert.deepEqual(restored, legacy);
+  const output = `${f.dir}-export`, m = await exportData(path.dirname(f.dir), output, 0.999, 0.995, [path.basename(f.dir)], SCHEMA);
+  assert.equal(m.origin, 'actual_recorded_v2_worker_inputs'); assert.equal(m.observation_schema, SCHEMA);
+  assert.equal(m.actual_behavior_checkpoint_sha256, '2'.repeat(64));
+  assert.deepEqual(fs.readFileSync(path.join(output, m.binary)), current);
+});
+test('actual inactive v2 terminal input permits missing intent but requires zero187 and explicit schema', async () => {
+  const f = v2Fixture(true), result = await readTrial(f.dir, 0, 0.999, 0.995, SCHEMA);
+  assert.equal(result.rows.length, 2); assert.equal(result.report.worker_terminal_inputs, 1);
+  assert.equal(result.rows[1].obs[187], -1);
+  const requests = readEntries(f, 'trial/worker.stdin.jsonl'); delete requests.at(-1).observation_schema;
+  f.lines('trial/worker.stdin.jsonl', requests);
+  await assert.rejects(readTrial(f.dir, 0, 0.999, 0.995, SCHEMA), /worker observation schema/);
+  const g = v2Fixture(true), worker = readEntries(g, 'trial/worker.stdin.jsonl'), encoded = readEntries(g, 'trial/encoder.stdout.jsonl');
+  worker.at(-1).observation[187] = 1; encoded.at(-1).worker_request.observation[187] = 1;
+  g.lines('trial/worker.stdin.jsonl', worker); g.lines('trial/encoder.stdout.jsonl', encoded);
+  await assert.rejects(readTrial(g.dir, 0, 0.999, 0.995, SCHEMA), /recorded owned-yaw column/);
+});
+test('actual v2 rejects unknown ownership, busy mismatch and reconstructed chosen-action yaw', async () => {
+  for (const mutation of ['unknown', 'inactive', 'busy', 'chosen-action']) {
+    const f = v2Fixture(), relay = readEntries(f, 'trial/relay.stdout.jsonl'), inputs = readEntries(f, 'trial/encoder.stdin.jsonl');
+    const worker = readEntries(f, 'trial/worker.stdin.jsonl'), encoded = readEntries(f, 'trial/encoder.stdout.jsonl');
+    if (mutation === 'unknown') { relay[1].input.desired_action = 0; inputs[0].input.desired_action = 0; }
+    if (mutation === 'inactive') { relay[1].input.active = false; inputs[0].input.active = false; }
+    if (mutation === 'busy') encoded[1].provenance.projected_busy = false;
+    if (mutation === 'chosen-action') { worker[0].observation[187] = 0; encoded[1].worker_request.observation[187] = 0; }
+    f.lines('trial/relay.stdout.jsonl', relay); f.lines('trial/encoder.stdin.jsonl', inputs);
+    f.lines('trial/worker.stdin.jsonl', worker); f.lines('trial/encoder.stdout.jsonl', encoded);
+    await assert.rejects(readTrial(f.dir, 0, 0.999, 0.995, SCHEMA));
+  }
+});
+test('actual v2 binds full source snapshot, encoder arrays and every declared schema', async () => {
+  for (const mutation of ['hash', 'observation', 'mask', 'clock', 'manifest', 'encoder', 'action', 'ready']) {
+    const f = v2Fixture(), inputs = readEntries(f, 'trial/encoder.stdin.jsonl');
+    const encoded = readEntries(f, 'trial/encoder.stdout.jsonl'), responses = readEntries(f, 'trial/worker.stdout.jsonl');
+    if (mutation === 'hash') inputs[0].unexpected = 1;
+    if (mutation === 'observation') encoded[1].worker_request.observation[10] = 1;
+    if (mutation === 'mask') encoded[1].worker_request.mask[0] = 0;
+    if (mutation === 'clock') encoded[1].provenance.source_qpc_ticks++;
+    if (mutation === 'manifest') encoded[0].observation_schema = LEGACY;
+    if (mutation === 'encoder') encoded[1].worker_request.observation_schema = LEGACY;
+    if (mutation === 'action') responses[1].observation_schema = LEGACY;
+    if (mutation === 'ready') responses[0].observation_schema = LEGACY;
+    f.lines('trial/encoder.stdin.jsonl', inputs); f.lines('trial/encoder.stdout.jsonl', encoded); f.lines('trial/worker.stdout.jsonl', responses);
+    await assert.rejects(readTrial(f.dir, 0, 0.999, 0.995, SCHEMA));
+  }
+});
+test('v2 CLI requires exact explicit option and legacy default still rejects v2', async () => {
+  const f = v2Fixture(), base = [__dirname + '/authentic_trajectory_data.cjs', path.dirname(f.dir), `${f.dir}-cli`, '0.999', '0.995', path.basename(f.dir)];
+  assert.equal(spawnSync(process.execPath, base).status, 1);
+  for (const flags of [['--observation-schema=unknown'], [`--observation-schema=${SCHEMA}`, `--observation-schema=${SCHEMA}`]]) {
+    const result = spawnSync(process.execPath, [...base, ...flags], {encoding: 'utf8'});
+    assert.equal(result.status, 1); assert.match(result.stderr, /unknown or duplicate/);
+  }
+  assert.equal(spawnSync(process.execPath, [...base, `--observation-schema=${SCHEMA}`]).status, 0);
+  await assert.rejects(readTrial(fixture().dir, 0, 0.999, 0.995, SCHEMA), /worker observation schema/);
 });

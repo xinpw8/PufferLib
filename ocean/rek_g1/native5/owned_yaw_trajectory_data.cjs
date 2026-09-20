@@ -5,47 +5,16 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const readline = require('node:readline');
 const {HEADER, ROW, OBS, ACTIONS} = require('./authentic_trajectory_data.cjs');
-const LEGACY = 'rek.native5.scaled_polar_xy.v1';
-const SCHEMA = 'rek.native5.scaled_polar_xy.owned_yaw_v2';
-const COLUMN = 187;
+const {LEGACY, SCHEMA, COLUMN, desiredYaw, ownedYawEvidence} = require('./owned_yaw_export_evidence.cjs');
 const check = (ok, why) => { if (!ok) throw new Error(why); };
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
-function desiredYaw(category) {
-  check(Number.isInteger(category) && category >= 1 && category <= 15, 'active desired_action must be owned category1..15');
-  return [6,8,10,12,14].includes(category) ? 1 : [7,9,11,13,15].includes(category) ? -1 : 0;
-}
-function sameArray(actual, expected, label, float32 = false) {
-  check(Array.isArray(actual) && actual.length === expected.length && actual.every((v,i) =>
-    Number.isFinite(v) && (float32 ? Math.fround(v) : v) === expected[i]), label);
-}
 function rowEvidence(binary, index, source, encoded, worker, identity) {
   const offset = HEADER + index * ROW, seq = binary.readUInt32LE(offset + 1088);
-  check(source?.event === 'g1_policy_state' && source.observation_sequence === seq &&
-    source.round_identity_sha256 === identity && source.round?.active === true && source.stream_active === true &&
-    source.input?.active === true, 'missing same-source active owned state');
-  check(encoded?.event === 'policy_observation' && encoded.ready === true, 'missing ready encoder provenance');
-  const request = encoded.worker_request, p = encoded.provenance;
-  check(request?.seq === seq && request.round_id === identity && request.observation_schema === LEGACY &&
-    request.type === 'step' && request.terminal === false && worker?.seq === seq && worker.round_id === identity &&
-    worker.observation_schema === LEGACY && worker.type === 'step' && worker.terminal === false,
-    'worker/encoder sequence, schema, or terminal mismatch');
-  check(p?.source_qpc_ticks === source.clock?.qpc_ticks &&
-    p?.source_qpc_frequency_hz === source.clock?.qpc_frequency_hz && p.stream_active === true &&
-    typeof p.projected_busy === 'boolean' &&
-    ['dispatched_request_v4_duration','native_controller_busy'].includes(p.busy_projection), 'busy/source provenance unavailable');
+  check(worker?.terminal === false, 'historical decision must have active pre-terminal input');
   const obs = Array.from({length:OBS}, (_,j) => binary.readFloatLE(offset + 32 + 4*j));
   const mask = Array.from({length:ACTIONS}, (_,j) => binary.readFloatLE(offset + 924 + 4*j));
-  sameArray(request.observation, obs, 'encoder observation differs from frozen v1 row', true);
-  sameArray(worker.observation, obs, 'worker observation differs from frozen v1 row', true);
-  sameArray(request.mask, mask, 'encoder mask differs from frozen v1 row');
-  sameArray(worker.mask, mask, 'worker mask differs from frozen v1 row');
   check(binary.readUInt32LE(offset + 32 + 4*COLUMN) === 0, 'legacy column187 must be positive zero');
-  check(obs[182] === Number(p.projected_busy) && obs[183] === Number(p.projected_busy), 'busy feature/provenance disagreement');
-  const yaw = desiredYaw(source.input.desired_action);
-  const value = p.projected_busy ? yaw : 0;
-  return { source_sequence:seq, source_qpc_ticks:source.clock.qpc_ticks,
-    desired_action:source.input.desired_action, projected_busy:p.projected_busy,
-    busy_projection:p.busy_projection, owned_pending_yaw:value };
+  return ownedYawEvidence(obs,mask,seq,source,encoded,worker,identity,LEGACY);
 }
 async function readLines(file, visit) {
   const before=fs.statSync(file), hash=crypto.createHash('sha256');
@@ -116,7 +85,7 @@ async function upgrade(root, originalDirectory, output, migratedCheckpointSha) {
     binary:'authentic-trajectories-owned-yaw-v2.bin',header_bytes:HEADER,row_bytes:ROW,rows:original.rows,
     applied:original.applied,terminal_race_rejected:original.terminal_race_rejected,
     actual_behavior_checkpoint_sha256:original.checkpoint_sha256,compatible_migrated_checkpoint_sha256:migratedCheckpointSha,
-    exporter_sha256:sha(fs.readFileSync(__filename)),nonzero_upgraded_rows:nonzeroRows,
+    exporter_sha256:sha(fs.readFileSync(__filename)),evidence_helper_sha256:sha(fs.readFileSync(require.resolve('./owned_yaw_export_evidence.cjs'))),nonzero_upgraded_rows:nonzeroRows,
     rule:'active owned pre-action source desired category yaw, retained only during the exact saved busy projection',
     preserves:'all bytes except explicit format identity and observation column187; rewards, times, masks, actions, recurrence unchanged',
     required_next_check:'native original checkpoint/old inputs versus migrated checkpoint/new inputs; all34logits, sampledactions and chosen logprobs exact',

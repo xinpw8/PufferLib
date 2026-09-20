@@ -5,10 +5,14 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const readline = require('node:readline');
 const HEADER = 256, ROW = 1128, OBS = 223, ACTIONS = 33;
-const LEGACY_SCHEMA = 'rek.native5.scaled_polar_xy.v1';
+const {LEGACY: LEGACY_SCHEMA, SCHEMA: OWNED_SCHEMA, ownedYawEvidence} = require('./owned_yaw_export_evidence.cjs');
 const requireValue = (ok, message) => { if (!ok) throw new Error(message); };
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
 const finite = x => Number.isFinite(x) && Number.isFinite(Math.fround(x));
+function ownedMode(schema) {
+  requireValue(schema === LEGACY_SCHEMA || schema === OWNED_SCHEMA, 'unsupported observation schema');
+  return schema === OWNED_SCHEMA;
+}
 function potential(own, opponent) {
   const d = Math.fround(own - opponent);
   return Math.fround(d / Math.fround(5 + Math.abs(d)));
@@ -71,9 +75,10 @@ function validateRow(r) {
   requireValue(Number.isInteger(r.sourceSeq) && r.sourceSeq >= 0 && Number.isInteger(r.nextSourceSeq) &&
     r.nextSourceSeq > r.sourceSeq && r.nextSourceSeq <= 0xffffffff, 'invalid source sequence');
 }
-function pack(rows, roundCount) {
+function pack(rows, roundCount, observationSchema = LEGACY_SCHEMA) {
+  const owned = ownedMode(observationSchema);
   const b = Buffer.alloc(HEADER + ROW * rows.length);
-  b.write('REKRL001'); b.writeUInt32LE(1, 8); b.writeUInt32LE(OBS, 12); b.writeUInt32LE(ACTIONS, 16);
+  b.write(owned ? 'REKRL002' : 'REKRL001'); b.writeUInt32LE(owned ? 2 : 1, 8); b.writeUInt32LE(OBS, 12); b.writeUInt32LE(ACTIONS, 16);
   b.writeUInt32LE(rows.length, 20); b.writeUInt32LE(ROW, 24); b.writeUInt32LE(roundCount, 28);
   b.fill(1, 32, 255); // Original behavior is unmasked. Never apply the human BC mask here.
   rows.forEach((r, i) => {
@@ -91,7 +96,8 @@ function pack(rows, roundCount) {
   });
   return b;
 }
-async function readTrial(directory, sequence, gamma20ms, lambda20ms) {
+async function readTrial(directory, sequence, gamma20ms, lambda20ms, observationSchema = LEGACY_SCHEMA) {
+  const owned = ownedMode(observationSchema);
   const trial = path.join(directory, 'trial'), inputs = [], read = async (name, cb) =>
     inputs.push(await jsonLines(path.join(trial, name), cb));
   const summary = json(path.join(trial, 'summary.json'));
@@ -105,18 +111,22 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms) {
     contact.value.checkpoint_sha256 === s.checkpoint_sha256 && referee.value.round_identities.length === 1 &&
     referee.value.round_identities[0] === roundId && [0, 1].includes(slot), 'round evidence identity mismatch');
   const requests = new Map(), predictions = new Map(), sources = new Map(), sends = new Map(), acks = new Map();
+  const ownedSources = new Map(), encoderInputs = new Map(), encoders = new Map();
   const unavailable = []; let ready = null, workerTerminals = 0;
   await read('worker.stdin.jsonl', x => {
     requireValue(x.type === 'step' && x.round_id === roundId, 'unexpected worker input or round reset');
-    requireValue(x.observation_schema === LEGACY_SCHEMA, 'unsupported worker observation schema for REKRL001');
+    requireValue(x.observation_schema === observationSchema, 'unsupported worker observation schema');
     unique(requests, x.seq, x, 'worker request'); if (x.terminal) ++workerTerminals;
   });
   await read('worker.stdout.jsonl', x => {
     if (x.type === 'ready') { requireValue(ready === null, 'duplicate worker ready'); ready = x; }
-    else if (x.type === 'action') unique(predictions, x.seq, x, 'worker action');
+    else if (x.type === 'action') {
+      if (owned) requireValue(x.observation_schema === observationSchema, 'unsupported action observation schema');
+      unique(predictions, x.seq, x, 'worker action');
+    }
     else requireValue(x.type === 'terminal' && requests.get(x.seq)?.terminal === true, 'unexpected worker response');
   });
-  requireValue(ready?.observation_schema === LEGACY_SCHEMA, 'unsupported ready observation schema for REKRL001');
+  requireValue(ready?.observation_schema === observationSchema, 'unsupported ready observation schema');
   requireValue(ready?.checkpoint_sha256 === s.checkpoint_sha256 && ready.selection === 'sampled' && ready.seed === 73 &&
     ready.precision === 'bf16' && ready.hidden_size === 256 && ready.num_layers === 2 &&
     ready.observations === OBS && ready.actions === ACTIONS && !ready.feature_mask_sha256, 'unsupported behavior identity');
@@ -127,8 +137,39 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms) {
     if (x.event === 'g1_policy_state') {
       requireValue(x.round_identity_sha256 === roundId && x.local_slot === slot, 'source identity changed');
       unique(sources, x.observation_sequence, { seq: x.observation_sequence, clock: clock(x.clock), round: x.round }, 'source');
+      if (owned) unique(ownedSources, x.observation_sequence, { hash: sha(JSON.stringify(x)),
+        event: x.event, observation_sequence: x.observation_sequence, round_identity_sha256: x.round_identity_sha256,
+        round: {active: x.round.active}, stream_active: x.stream_active, input: x.input, clock: x.clock }, 'owned source');
     } else if (x.event === 'g1_policy_action') unique(acks, x.observation_sequence, x, 'action acknowledgement');
   });
+  if (owned) {
+    await read('encoder.stdin.jsonl', x => {
+      requireValue(x.event === 'g1_policy_state' && x.round_identity_sha256 === roundId, 'unsupported encoder input');
+      unique(encoderInputs, x.observation_sequence, sha(JSON.stringify(x)), 'encoder source');
+    });
+    let manifest = null;
+    await read('encoder.stdout.jsonl', x => {
+      if (x.event === 'projection_manifest') {
+        requireValue(manifest === null && x.observation_schema === observationSchema, 'unsupported encoder manifest schema');
+        manifest = x;
+      } else {
+        requireValue(x.event === 'policy_observation' && typeof x.ready === 'boolean', 'unsupported encoder response');
+        if (x.ready) {
+          requireValue(x.worker_request?.observation_schema === observationSchema, 'unsupported encoder observation schema');
+          unique(encoders, x.worker_request.seq, x, 'encoded request');
+        }
+      }
+    });
+    requireValue(manifest !== null, 'missing encoder schema manifest');
+    for (const request of requests.values()) {
+      const source = ownedSources.get(request.seq);
+      requireValue(source && source.hash === encoderInputs.get(request.seq), 'encoder input is not the identical relay source snapshot');
+      requireValue(Array.isArray(request.observation) && request.observation.length === OBS && request.observation.every(finite) &&
+        Array.isArray(request.mask) && request.mask.length === ACTIONS && request.mask.every(x => x === 0 || x === 1), 'invalid owned worker arrays');
+      ownedYawEvidence(request.observation.map(Math.fround), request.mask, request.seq, source,
+        encoders.get(request.seq), request, roundId, observationSchema);
+    }
+  }
   await read('orchestrator.jsonl', x => {
     requireValue(!['stale_prediction_discarded', 'unmatched_action_ack', 'error'].includes(x.event), 'unhandled decision path');
     if (x.event === 'observation_unavailable') unavailable.push(x.unavailable ?? [x.reason]);
@@ -189,7 +230,9 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms) {
       request_id: sent.request_id, action: row.action, applied: ack.applied, acknowledgement_reason: ack.reason,
       source_qpc_ticks: source.clock.qpc_ticks, ack_qpc_ticks: ack.clock.qpc_ticks,
       next_qpc_ticks: next.clock.qpc_ticks, qpc_frequency_hz: freq, dt_seconds: dt,
-      terminal_after: end, policy_weight: row.policyWeight, value_weight: 1 });
+      terminal_after: end, policy_weight: row.policyWeight, value_weight: 1,
+      ...(owned ? {owned_yaw_evidence: ownedYawEvidence(row.obs, row.mask, source.seq,
+        ownedSources.get(source.seq), encoders.get(source.seq), request, roundId, observationSchema)} : {}) });
   }
   const scoreInputs = [], awards = [0, 0], seenAwards = new Set();
   scoreInputs.push(await jsonLines(path.join(directory, 'contact-analysis', 'score-events.jsonl'), x => {
@@ -201,6 +244,7 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms) {
     contact.value.score_events === seenAwards.size, 'native awards do not reconcile with observed terminal');
   return { rows, ledger, report: { trial_id: path.basename(directory), sequence, round_identity_sha256: roundId,
     checkpoint_sha256: ready.checkpoint_sha256, seed: ready.seed, precision: ready.precision,
+    ...(owned ? {observation_schema: observationSchema, recorded_owned_yaw_verified: true} : {}),
     feature_mask: 'unmasked_original_behavior', rows: rows.length, applied: rows.filter(x => x.applied).length,
     terminal_race_rejected: rows.filter(x => !x.applied).length, recurrent_resets: 1,
     worker_terminal_inputs: workerTerminals, observed_source_count: sources.size,
@@ -214,17 +258,21 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms) {
       { ...contact.input, file: 'contact-analysis/summary.json' },
       { ...referee.input, file: 'referee-validation/live-referee-validation.json' }, ...scoreInputs] } };
 }
-async function exportData(root, output, gamma20ms, lambda20ms, ids) {
+async function exportData(root, output, gamma20ms, lambda20ms, ids, observationSchema = LEGACY_SCHEMA) {
+  const owned = ownedMode(observationSchema);
   requireValue(gamma20ms > 0 && gamma20ms <= 1 && lambda20ms > 0 && lambda20ms <= 1, 'invalid reference discounts');
   requireValue(ids.length > 0 && new Set(ids).size === ids.length &&
     ids.every(x => /^live-[a-zA-Z0-9_-]+$/.test(x)), 'explicit unique trial IDs required');
   requireValue(!fs.existsSync(output), 'output already exists');
   const rounds = [];
-  for (let i = 0; i < ids.length; ++i) rounds.push(await readTrial(path.join(root, ids[i]), i, gamma20ms, lambda20ms));
+  for (let i = 0; i < ids.length; ++i) rounds.push(await readTrial(path.join(root, ids[i]), i, gamma20ms, lambda20ms, observationSchema));
   requireValue(new Set(rounds.map(x => x.report.checkpoint_sha256)).size === 1, 'mixed behavior checkpoint');
-  const rows = rounds.flatMap(x => x.rows), binary = pack(rows, rounds.length), mask = Buffer.alloc(OBS, 1);
-  const manifest = { schema: 'rek.authentic_trajectory_dataset.v1', created_utc: new Date().toISOString(),
-    exporter_sha256: sha(fs.readFileSync(__filename)), binary: 'authentic-trajectories.bin', binary_sha256: sha(binary),
+  const rows = rounds.flatMap(x => x.rows), binary = pack(rows, rounds.length, observationSchema), mask = Buffer.alloc(OBS, 1);
+  const manifest = { schema: owned ? 'rek.authentic_trajectory_dataset.owned_yaw_v2' : 'rek.authentic_trajectory_dataset.v1', created_utc: new Date().toISOString(),
+    ...(owned ? {observation_schema: observationSchema, origin: 'actual_recorded_v2_worker_inputs',
+      actual_behavior_checkpoint_sha256: rounds[0].report.checkpoint_sha256,
+      evidence_helper_sha256: sha(fs.readFileSync(require.resolve('./owned_yaw_export_evidence.cjs')))} : {}),
+    exporter_sha256: sha(fs.readFileSync(__filename)), binary: owned ? 'authentic-trajectories-owned-yaw-v2.bin' : 'authentic-trajectories.bin', binary_sha256: sha(binary),
     header_bytes: HEADER, row_bytes: ROW, observations: OBS, actions: ACTIONS, rows: rows.length,
     feature_mask_sha256: sha(mask), checkpoint_sha256: rounds[0].report.checkpoint_sha256,
     applied: rows.filter(x => x.applied).length, terminal_race_rejected: rows.filter(x => !x.applied).length,
@@ -244,15 +292,19 @@ async function exportData(root, output, gamma20ms, lambda20ms, ids) {
       'Actor training-forward versus sequential behavior-forward parity remains a separate measured prerequisite.'],
     rounds: rounds.map(x => x.report) };
   fs.mkdirSync(output, { recursive: false });
-  fs.writeFileSync(path.join(output, 'authentic-trajectories.bin'), binary, { flag: 'wx' });
+  fs.writeFileSync(path.join(output, manifest.binary), binary, { flag: 'wx' });
   fs.writeFileSync(path.join(output, 'feature-mask.bin'), mask, { flag: 'wx' });
   fs.writeFileSync(path.join(output, 'transition-ledger.jsonl'), rounds.flatMap(x => x.ledger).map(x => JSON.stringify(x)).join('\n') + '\n', { flag: 'wx' });
   fs.writeFileSync(path.join(output, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', { flag: 'wx' });
   return manifest;
 }
 if (require.main === module) {
-  const [root, output, gamma, lambda, ...ids] = process.argv.slice(2);
-  exportData(root, output, Number(gamma), Number(lambda), ids).then(x =>
+  const [root, output, gamma, lambda, ...args] = process.argv.slice(2);
+  const flags = args.filter(x => x.startsWith('--'));
+  const valid = flags.length === 0 || (flags.length === 1 && flags[0] === `--observation-schema=${OWNED_SCHEMA}`);
+  const schema = flags.length === 0 ? LEGACY_SCHEMA : OWNED_SCHEMA;
+  (valid ? exportData(root, output, Number(gamma), Number(lambda), args.filter(x => !x.startsWith('--')), schema)
+    : Promise.reject(new Error('unknown or duplicate exporter option'))).then(x =>
     console.log(JSON.stringify({ output, rows: x.rows, applied: x.applied, rejected: x.terminal_race_rejected,
       binary_sha256: x.binary_sha256, feature_mask_sha256: x.feature_mask_sha256 })))
     .catch(e => { console.error(e.message); process.exitCode = 1; });
