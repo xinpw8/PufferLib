@@ -449,6 +449,108 @@ __device__ void geom_pair_contacts(const View& v,Arena& a,int side,int* hits,int
         if(result.points){hits[side]++;points[side]+=result.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=max_relative_speed;}
     }
 }
+struct WarpContactScratch {
+    std::uint64_t delta[6][2];
+    float speed[6];
+    unsigned eligible_entry[6];
+    unsigned pair_entered[rek_contact_entry::Pairs];
+    float pair_speed[rek_contact_entry::Pairs];
+};
+// Independent limb geometry, followed by the original ordered scorer on lane0.
+// Each limb owns disjoint pair bits. XOR deltas merge without atomic updates.
+__device__ void geom_pair_contacts_warp(const View& v,Arena& a,int side,int* hits,int* points,
+        int lane,WarpContactScratch& scratch){
+    using namespace rek5_primitive;
+    const Parameters& p=*v.p;auto& f=a.fighter[side];const auto& enemy=a.fighter[side^1];
+    const auto& now=v.frames[frame_index(p,f,false)];const auto& before=v.frames[frame_index(p,f,true)];
+    const auto& target=v.frames[frame_index(p,enemy,false)];const auto& old_target=v.frames[frame_index(p,enemy,true)];
+    if(lane<6){
+        const int limb=lane;
+        rek_contact_entry::State history=f.contact_pairs;
+        RekG1StrikeIntent intent{};bool can_score=f.strike_active;
+        if(can_score){
+            const auto& route=p.routes[f.route];
+            intent.impact_events=p.impact_events+p.impact_offsets[f.route];intent.impact_event_count=p.impact_counts[f.route];
+            intent.clip_cursor_frames=clampf(route.start_frame+f.phase*route.playback_speed,float(route.start_frame),float(route.end_frame));
+            intent.clip_fps=50;intent.move_id=f.move_instance;intent.action_playing=intent.layer_active=1;
+            const auto part=limb<2?REK_G1_BODY_PART_FOOT:limb<4?REK_G1_BODY_PART_HAND:REK_G1_BODY_PART_SHIN;
+            const auto hand=(limb&1)?REK_G1_HAND_RIGHT:REK_G1_HAND_LEFT;
+            int32_t apex=-1;float ramp=0;
+            can_score=rek5_recovered::embedded_strike_intent_apex(&intent,part,hand,p.recovered_hit_config.apex_min_ramp,&apex,&ramp);
+        }
+        float tip[3],old_tip[3];point(f,now.strike_xyz[limb],false,tip);point(f,before.strike_xyz[limb],true,old_tip);
+        bool entered=false;float max_relative_speed=0;
+        for(int zone=0;zone<rek_contact_entry::Targets;zone++){
+            float dst[3],old_dst[3],from[3],to[3];
+            point(enemy,target.target_shapes[zone].center,false,dst);point(enemy,old_target.target_shapes[zone].center,true,old_dst);
+            for(int k=0;k<3;k++){from[k]=old_tip[k]-old_dst[k];to[k]=tip[k]-dst[k];}
+            const float radius=fmaxf(before.strike_radius[limb],now.strike_radius[limb])+
+                fmaxf(old_target.target_shape_radius[zone],target.target_shape_radius[zone]);
+            const bool broad=sweep_distance2(from,to)<=radius*radius;
+            bool intersects=false;
+            for(int i=0;i<rek_contact_entry::Strikers;i++)if(p.strike_limb[i]==limb){
+                const int pair=i*rek_contact_entry::Targets+zone;
+                if(p.contact_velocity==rek_contact_velocity::Mode::BodyCvel)scratch.pair_entered[pair]=0;
+                if(!broad){rek_contact_entry::update(history,pair,false);continue;}
+                if(!can_score){
+                    rek_contact_entry::unscored_endpoint(history,pair,
+                        world_shape(now.strike_shapes[i],f.x,f.y,f.yaw),
+                        world_shape(target.target_shapes[zone],enemy.x,enemy.y,enemy.yaw));
+                    continue;
+                }
+                const auto result=rek_contact_entry::sample(history,pair,
+                    world_shape(before.strike_shapes[i],f.old_x,f.old_y,f.old_yaw),
+                    world_shape(now.strike_shapes[i],f.x,f.y,f.yaw),
+                    world_shape(old_target.target_shapes[zone],enemy.old_x,enemy.old_y,enemy.old_yaw),
+                    world_shape(target.target_shapes[zone],enemy.x,enemy.y,enemy.yaw),p.contact_substeps);
+                if(p.contact_velocity==rek_contact_velocity::Mode::BodyCvel&&result.entered){
+                    scratch.pair_entered[pair]=1;
+                    scratch.pair_speed[pair]=rek_contact_velocity::relative_speed(
+                        body_linear_velocity(v,f,side,rek_contact_velocity::limb_slot(limb)),
+                        body_linear_velocity(v,enemy,side^1,rek_contact_velocity::target_slot(zone)));
+                }
+                entered=entered||result.entered;intersects=intersects||result.overlap_after_start;
+            }
+            // Preserve the existing per-limb maximum sphere-center velocity
+            // proxy, including its aggregation across intersecting targets.
+            if(p.contact_velocity==rek_contact_velocity::Mode::LegacySphereProxy&&intersects){float d2=0;for(int k=0;k<3;k++){float d=to[k]-from[k];d2+=d*d;}max_relative_speed=fmaxf(max_relative_speed,sqrtf(d2)/DT);}
+        }
+        scratch.delta[limb][0]=history.words[0]^f.contact_pairs.words[0];
+        scratch.delta[limb][1]=history.words[1]^f.contact_pairs.words[1];
+        scratch.speed[limb]=max_relative_speed;
+        scratch.eligible_entry[limb]=can_score&&entered;
+    }
+    __syncwarp();
+    if(lane==0){
+        for(int limb=0;limb<6;limb++){
+            f.contact_pairs.words[0]^=scratch.delta[limb][0];
+            f.contact_pairs.words[1]^=scratch.delta[limb][1];
+        }
+        for(int limb=0;limb<6;limb++)if(scratch.eligible_entry[limb]){
+            const auto& route=p.routes[f.route];RekG1StrikeIntent intent{};
+            intent.impact_events=p.impact_events+p.impact_offsets[f.route];intent.impact_event_count=p.impact_counts[f.route];
+            intent.clip_cursor_frames=clampf(route.start_frame+f.phase*route.playback_speed,float(route.start_frame),float(route.end_frame));
+            intent.clip_fps=50;intent.move_id=f.move_instance;intent.action_playing=intent.layer_active=1;
+            if(p.contact_velocity==rek_contact_velocity::Mode::BodyCvel){
+                // Preserve original limb, target-zone, then striker order. A
+                // rejected slow entry cannot borrow a later/persistent speed.
+                for(int zone=0;zone<rek_contact_entry::Targets;zone++)
+                    for(int i=0;i<rek_contact_entry::Strikers;i++)if(p.strike_limb[i]==limb){
+                        const int pair=i*rek_contact_entry::Targets+zone;
+                        if(!scratch.pair_entered[pair])continue;
+                        const float speed=scratch.pair_speed[pair];
+                        const auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,speed,a.elapsed);
+                        if(result.points){hits[side]++;points[side]+=result.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=speed;}
+                    }
+            }else{
+            const float max_relative_speed=scratch.speed[limb];
+            const auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
+            if(result.points){hits[side]++;points[side]+=result.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=max_relative_speed;}
+            }
+        }
+    }
+    __syncwarp();
+}
 __device__ void strike_contacts(const View& v,Arena& a,int side,int* hits,int* points){
     if(v.p->contact_entry==rek_contact_entry::Mode::GeomPair){geom_pair_contacts(v,a,side,hits,points);return;}
     const Parameters& p=*v.p;Fighter& f=a.fighter[side];Fighter& enemy=a.fighter[side^1];
@@ -591,6 +693,104 @@ __device__ void advance_arena(const View& v,int index){
     a.episode_return+=a.reward[0];a.episode_hits+=a.hit_count;
     if(terminal&&!a.failures)finish_round(v,index,a,r);
 }
+__device__ void advance_arena_warp(const View& v,int index,int lane,WarpContactScratch& scratch){
+    Arena& a=v.state[index];auto& r=v.rounds[index];const Parameters& p=*v.p;
+    float previous_potential[2]={};bool do_contacts=false,input_failed=false;
+    if(lane==0){
+    if(r.terminal)round_reset(p,a,r,false,index);
+    if(p.contact_entry==rek_contact_entry::Mode::GeomPair&&!a.contact_pairs_initialized)seed_contact_pairs(v,a);
+    if(p.rendered_observation)capture_observed_pose(p,a);
+    a.delta[0]=a.delta[1]=a.hit_count=a.down_event[0]=a.down_event[1]=0;
+    a.reward[0]=a.reward[1]=0;
+    if(p.shaping_weight>0)for(int side=0;side<2;side++)previous_potential[side]=shaping_potential(v,a,side);
+    int actions[2];bool bot_rows[2]={};
+    for(int side=0;side<2;side++){
+        int row=index*2+side;
+        // Override 2 invokes the configured GPU opponent on either side.
+        // Override 1 remains an external action, including frozen opponents.
+        int override_value=v.override_rows?v.override_rows[row]:0;
+        if(override_value>2){a.failures|=16;override_value=0;}
+        bot_rows[side]=p.recovered_bot&&a.opponent_mode==0&&(override_value==2||(override_value==0&&side));
+        float value=bot_rows[side]?0.f:override_value==2?float(opponent_action(p,a,side)):
+            (override_value==1?v.external[row]:(side?float(opponent_action(p,a,side)):v.out.actions[index]));
+        actions[side]=action_value(a,value);v.actions[row]=float(actions[side]);
+    }
+    if(a.failures){r.failure_bits=a.failures;input_failed=true;}else{
+    a.tick++;a.elapsed=float(a.tick)*DT;
+    rek5_bot1::Input bot_inputs[2]{};
+    for(int side=0;side<2;side++)if(bot_rows[side]){
+        const Fighter& f=a.fighter[side];const Fighter& other=a.fighter[side^1];
+        const float dx=other.x-f.x,dy=other.y-f.y;
+        float rendered[4];root_quaternion(f,v.frames[frame_index(p,f,false)],rendered);
+        const float heading=rek_rendered_pose::heading(rendered);
+        // Native signed angle is positive-right. Native command yaw/strafe
+        // are positive-left already, matching the compact command convention.
+        bot_inputs[side]={hypotf(dx,dy),-angle(atan2f(dy,dx)-heading)*(180.f/PI),DT,a.elapsed,a.elapsed,
+            attacking(f),bool(other.down),bool(f.down),true};
+    }
+    if(a.reset_wait){
+        if(--a.reset_wait==0){pose_reset(p,a);if(p.rendered_observation)capture_observed_pose(p,a);}
+    }else{
+        for(int s=0;s<2;s++){
+            if(bot_rows[s]){
+                const unsigned accepted=a.bot[s].accepted;advance_bot(p,a,s,bot_inputs[s]);
+                v.actions[index*2+s]=a.bot[s].accepted!=accepted?float(p.move_to_action[p.routes[a.fighter[s].route].move]):0.f;
+            }else advance_fighter(p,a.fighter[s],actions[s],a);
+        }
+        float dx=a.fighter[1].x-a.fighter[0].x,dy=a.fighter[1].y-a.fighter[0].y;
+        float distance=hypotf(dx,dy),minimum=2*p.body_radius;
+        if(distance<minimum){
+            float correction=.5f*(minimum-distance);
+            if(distance<1e-6f){dx=1;dy=0;distance=1;}
+            for(int s=0;s<2;s++){float sign=s?1.f:-1.f;a.fighter[s].x+=sign*correction*dx/distance;a.fighter[s].y+=sign*correction*dy/distance;}
+        }
+        for(int s=0;s<2;s++)confine(p,a.fighter[s]);
+        do_contacts=true;
+    }
+    }
+    }
+    __syncwarp();
+    if(__shfl_sync(0xffffffffu,int(input_failed),0))return;
+    const bool run_contacts=__shfl_sync(0xffffffffu,int(do_contacts),0);
+    if(run_contacts){
+        int hits[2]={},points[2]={};
+        geom_pair_contacts_warp(v,a,0,hits,points,lane,scratch);
+        geom_pair_contacts_warp(v,a,1,hits,points,lane,scratch);
+        if(lane==0){
+        for(int s=0;s<2;s++)a.delta[s]=points[s];
+        // V3: contact scores are not measured falls. The compact candidate
+        // does not integrate balance/fall dynamics, so accumulating two kick
+        // hits must not fabricate a knockdown and teleport both fighters.
+        // A future knockdown model needs an explicit state/geometry contract.
+        for(int s=0;s<2;s++)a.hit_count+=hits[s];
+        for(int s=0;s<2;s++)a.fighter[s].points+=a.delta[s];
+    }
+    }
+    __syncwarp();
+    if(lane==0){
+    if(p.rendered_observation)update_observed_pose(v,a);
+    for(int s=0;s<2;s++){
+        const Fighter& f=a.fighter[s];
+        if(!isfinite(f.x)||!isfinite(f.y)||!isfinite(f.yaw)||!isfinite(f.phase)||f.route<0||f.route>=24)a.failures|=1;
+        r.points[s]=f.points;r.falls[s]=f.falls;
+    }
+    r.time_remaining_seconds=fmaxf(0,p.round_seconds-a.elapsed);r.failure_bits=a.failures;
+    bool terminal=a.elapsed>=p.round_seconds;
+    const int winner=a.fighter[0].points==a.fighter[1].points?-1:
+        (a.fighter[0].points>a.fighter[1].points?0:1);
+    for(int side=0;side<2;side++){
+        a.reward[side]=rek5_round_reward::value(p.reward_mode,p.reward_gamma,
+            a.fighter[side].points-a.delta[side],a.fighter[side^1].points-a.delta[side^1],
+            a.fighter[side].points,a.fighter[side^1].points,terminal,winner,side);
+        if(p.shaping_weight>0){
+            const float next_potential=terminal?0:shaping_potential(v,a,side);
+            a.reward[side]+=p.shaping_weight*rek5_contact_potential::shaping_delta(previous_potential[side],next_potential,terminal,p.shaping_gamma);
+        }
+    }
+    a.episode_return+=a.reward[0];a.episode_hits+=a.hit_count;
+    if(terminal&&!a.failures)finish_round(v,index,a,r);
+    }
+}
 __device__ float entity_value(const View& v,const Arena& a,int side,int field){
     const Fighter& f=a.fighter[side];const Parameters& p=*v.p;
     const FastFrame& frame=v.frames[frame_index(p,f,false)];
@@ -731,6 +931,14 @@ __global__ void fast_step(const __grid_constant__ View v,bool autoreset=false){
     __syncwarp();export_arena(v,index,lane);
     if(autoreset){__syncwarp();training_autoreset(v,index,lane);}
 }
+__global__ void fast_step_warp(const __grid_constant__ View v,bool autoreset=false){
+    __shared__ WarpContactScratch scratch[WARPS_PER_BLOCK];
+    int lane=threadIdx.x&31,index=(blockIdx.x*blockDim.x+threadIdx.x)>>5;
+    if(index>=v.arenas)return;
+    advance_arena_warp(v,index,lane,scratch[threadIdx.x>>5]);
+    __syncwarp();export_arena(v,index,lane);
+    if(autoreset){__syncwarp();training_autoreset(v,index,lane);}
+}
 __global__ void encode_rows(const __grid_constant__ View v,float* out){
     int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=v.arenas*446)return;
     int row=i/223,field=i%223;out[i]=policy_value(v,row/2,row%2,field,v.raw[i]);
@@ -758,7 +966,7 @@ int random_resets_from_environment(){
 void valid_runtime(RekNative5Runtime* runtime){if(!runtime)throw std::runtime_error("Null semantic CUDA runtime");}
 }
 
-struct RekNative5Runtime { rek5::DeviceStorage storage;View view{}; };
+struct RekNative5Runtime { rek5::DeviceStorage storage;View view{};bool cooperative_contacts=false; };
 
 extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,const RekNative5Buffers* buffers,cudaStream_t stream){
     try{
@@ -858,6 +1066,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         for(int k=0;k<24;k++)if(p.routes[k].count<=0||p.routes[k].offset<0||size_t(p.routes[k].offset+p.routes[k].count)>assets.frames.size())throw std::runtime_error("Invalid baked route extent");
         for(int k=16;k<33;k++)if(p.action_to_route[k]<7||p.action_to_route[k]>=24||p.routes[p.action_to_route[k]].move<0||p.routes[p.action_to_route[k]].move>=17)throw std::runtime_error("Invalid baked action mapping");
         auto result=std::make_unique<RekNative5Runtime>();auto& v=result->view;int a=config->arenas;
+        result->cooperative_contacts=p.contact_entry==rek_contact_entry::Mode::GeomPair;
         v.arenas=a;v.out=*buffers;v.p=result->storage.upload(&p,1);v.frames=result->storage.upload(assets.frames);
         if(p.contact_velocity==rek_contact_velocity::Mode::BodyCvel){
             if(assets.body_velocity_frames.size()!=assets.frames.size())throw std::runtime_error("Missing optional body cvel frames");
@@ -898,8 +1107,8 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
     }catch(const std::exception& e){error_text=e.what();return nullptr;}
 }
 extern "C" int rek_native5_reset(RekNative5Runtime* r,cudaStream_t s){try{valid_runtime(r);fast_reset<<<(r->view.arenas+3)/4,THREADS,0,s>>>(r->view);rek5::cuda_check(cudaGetLastError());return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
-extern "C" int rek_native5_step(RekNative5Runtime* r,cudaStream_t s){try{valid_runtime(r);fast_step<<<(r->view.arenas+3)/4,THREADS,0,s>>>(r->view);rek5::cuda_check(cudaGetLastError());return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
-extern "C" int rek_native5_step_autoreset(RekNative5Runtime* r,cudaStream_t s){try{valid_runtime(r);fast_step<<<(r->view.arenas+3)/4,THREADS,0,s>>>(r->view,true);rek5::cuda_check(cudaGetLastError());return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
+extern "C" int rek_native5_step(RekNative5Runtime* r,cudaStream_t s){try{valid_runtime(r);if(r->cooperative_contacts)fast_step_warp<<<(r->view.arenas+3)/4,THREADS,0,s>>>(r->view);else fast_step<<<(r->view.arenas+3)/4,THREADS,0,s>>>(r->view);rek5::cuda_check(cudaGetLastError());return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
+extern "C" int rek_native5_step_autoreset(RekNative5Runtime* r,cudaStream_t s){try{valid_runtime(r);if(r->cooperative_contacts)fast_step_warp<<<(r->view.arenas+3)/4,THREADS,0,s>>>(r->view,true);else fast_step<<<(r->view.arenas+3)/4,THREADS,0,s>>>(r->view,true);rek5::cuda_check(cudaGetLastError());return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
 extern "C" int rek_native5_bind_action_mask(RekNative5Runtime* r,uint8_t* mask,cudaStream_t s){try{valid_runtime(r);r->view.learner_masks=mask;if(mask)copy_masks<<<(r->view.arenas*33+127)/128,128,0,s>>>(r->view);rek5::cuda_check(cudaGetLastError());return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
 extern "C" int rek_native5_bind_external_actions(RekNative5Runtime* r,const float* actions,const uint8_t* overrides,cudaStream_t){try{valid_runtime(r);if(bool(actions)!=bool(overrides))throw std::runtime_error("External actions and override mask must be bound together");r->view.external=actions;r->view.override_rows=overrides;return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
 extern "C" int rek_native5_get_device_view(RekNative5Runtime* r,RekNative5DeviceView* out){try{valid_runtime(r);if(!out)throw std::runtime_error("Null device view");const auto& v=r->view;*out={v.arenas,72,70,v.raw,v.masks,v.qpos,v.qvel,v.actions,v.rewards,v.terminals,v.rounds};return 0;}catch(const std::exception& e){error_text=e.what();return 1;}}
