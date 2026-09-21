@@ -16,7 +16,9 @@ Contact identity is a different contract: the recovered manager packs the ordere
 
 ## Reference semantics and version boundary
 
-I don't know the shipped native MuJoCo engine version. The installed interop layout and the recovered pointer/index calculation are verified. They do not establish that the shipped engine is MuJoCo 3.7.0.
+The initial review did not establish the shipped native MuJoCo engine version. Its installed interop layout and recovered pointer/index calculation were verified separately from version identity.
+
+Subsequent static inspection identifies the installed native `REK_Data/Plugins/x86_64/mujoco.dll` as 3.7.0 from both PE metadata and its exact version exports. Its SHA256 is `a6f6b6fd6f0cc35923f57fdc43e18a5cfa43b451fc719bfa355c71c745b43eea`. No DLL code was executed. Earlier loaded-module identity and the remote server's version remain unverified. Private `contact-version-static-r1/finding.json` has SHA256 `62ad68a23788ce5b6fbe1d0378dbbcaae2da38c10e6c8ae1acecaaa3fd48ea9a`. The [subsequent CPU composition probe](../contact-velocity-probe-20260920/README.md) measures consistency against the separate Linux 3.7.0 library.
 
 The candidate build links the pinned `libmujoco.so.3.7.0`. In that version, `mj_comPos` constructs world-oriented spatial quantities referenced to `subtree_com[body_rootid]`; `mj_comVel` accumulates `cvel` from generalized velocity. This provides a source-backed interpretation for the proposed candidate calculation. It is not an empirical shipped-engine equivalence result. [Pinned 3.7.0 implementation](https://raw.githubusercontent.com/google-deepmind/mujoco/3.7.0/src/engine/engine_core_smooth.c).
 
