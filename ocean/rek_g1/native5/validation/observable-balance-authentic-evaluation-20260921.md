@@ -31,7 +31,7 @@ These are development-screen rounds, not the earlier frozen arm-10 acceptance
 cohort. The result is **2 wins / 1 loss**, aggregate points **36 : 33**, ordinary
 points **21 : 13**, and five-point awards **3 : 4**. This small screen does not
 demonstrate reliable strength or fall avoidance. No unsuccessful round was
-retried or discarded. The prepared 20-round acceptance script has not been run.
+retried or discarded. No 20-round acceptance cohort was run for this checkpoint.
 Received five-point awards are reported as awards, not inferred causal trips.
 
 For all three rounds, all six existing evidence checks passed: owned/native PID
@@ -238,14 +238,15 @@ reward-shaping term.
 
 ## Frozen 8M-continuation cohort
 
-The subsequent physical continuation completed 8,388,608 new learner
+The [subsequent physical continuation](observable-balance-physical-bot1-continuation8m-20260921.md)
+completed 8,388,608 new learner
 transitions and produced checkpoint
 `ef85a01b207d033417d8e1bc9d2b32b9eba610e784180dc7dd287a894acf2f4b`.
 A prospective authentic cohort was registered at 2026-09-21T18:37:18.8968009Z,
 before its first launch. Its requirement is at least 18 wins in 20 completed
-120 s rounds against private Sparring Bot 1 / difficulty 0. The third non-win
+120 s rounds against private Sparring Bot 1 / difficulty 0. The third nonwin
 stops the cohort because that threshold can no longer be reached. Draws count
-as non-wins. An incomplete or invalid attempt stops execution and is retained
+as nonwins. An incomplete or invalid attempt stops execution and is retained
 without being classified as a completed win or loss.
 
 Checkpoint, sampled selection, seed 73, feature mask, encoder and evaluation
@@ -260,19 +261,84 @@ Candidate config SHA256:
 `9e8a8f126ff21af1cd54498274aa8845684e3296991be525280ab12b22b81880`.
 Wrapper SHA256:
 `871a91a3506034a2a5ae9b6df26861a77d70c32a19c5996adb076ae5cbe325b5`.
-Attempts start at r118. Results remain pending at registration.
+The first attempt was r118. The cohort ended at 2026-09-21T18:55:32.4619346Z
+after r123 recorded its third nonwin. The result is **3 wins / 3 losses in six
+completed rounds**, with **criterion_met=false**. It was stopped according to
+the registered rule and was not a completed 20-round run. No incomplete or
+invalid attempt occurred. The wrapper's zero exit code and `failure=null`
+record an orderly stop; they do not mean the acceptance criterion passed.
 
-Completed rounds so far, learner first:
+All completed rounds, learner first:
 
 | Attempt | Outcome | Total points | Ordinary points | Five-point awards |
 | --- | --- | ---: | ---: | ---: |
 | r118 | Loss | 0 : 12 | 0 : 7 | 0 : 1 |
 | r119 | Win | 13 : 8 | 3 : 8 | 2 : 0 |
+| r120 | Loss | 11 : 16 | 6 : 6 | 1 : 2 |
+| r121 | Win | 22 : 17 | 7 : 7 | 3 : 2 |
+| r122 | Win | 8 : 7 | 3 : 7 | 1 : 0 |
+| r123 | Loss | 15 : 22 | 5 : 12 | 2 : 2 |
+| Total | 3 wins / 3 losses | 69 : 82 | 24 : 47 | 9 : 7 |
 
-Both have all six existing evidence checks satisfied and verified owned-client
-closure. These are interim results from the same frozen cohort, not a promotion
-or an independent selection set. Five-point awards are not causally attributed
-to individual move requests.
+All six rounds satisfy all six existing evidence checks and verified owned
+client closure. Each round retains one stream-end `policy_stream_not_owned`
+rejection. No completed round was omitted, retried or replaced. No checkpoint
+was retuned within the cohort, and prior checkpoints' rounds are not pooled
+with it. This candidate failed the prospective criterion and is not promoted.
+
+Five-point award totals were 45 : 35. Every win had tied or lower ordinary
+points and a favorable five-point award difference. These accounting facts do
+not assign a cause to an award or establish which requested move executed.
+
+### Request-time comparison with r114..r117
+
+The unchanged CPU profiler matched all 405 attack requests from r118..r123 to
+their exact worker round identity, observation sequence and policy action.
+All had available request-time geometry. The earlier four-round development
+cohort contains 244 requests. Counts and proportions retain those separate
+denominators and stopping rules.
+
+| Descriptive measure | r114..r117, previous checkpoint | r118..r123, continuation |
+| --- | ---: | ---: |
+| Completed rounds / attack requests | 4 / 244 | 6 / 405 |
+| Attack requests per completed round | 61.000 | 67.500 |
+| Absolute root bearing at most 45 degrees | 89 / 244 (36.475%) | 193 / 405 (47.654%) |
+| Absolute root bearing above 90 degrees | 91 / 244 (37.295%) | 125 / 405 (30.864%) |
+| Median absolute root bearing, degrees | 72.302 | 49.231 |
+| Ground root distance above one captured Unity unit | 61 / 244 (25.000%) | 133 / 405 (32.840%) |
+| Median ground root distance, captured Unity units | 0.777 | 0.792 |
+| All worker predictions | 22,789 | 33,905 |
+| Predictions reporting 4 legal actions | 21,394 (93.879%) | 31,442 (92.736%) |
+| Predictions reporting 16 legal actions | 899 (3.945%) | 1,636 (4.825%) |
+| Predictions reporting 33 legal actions | 496 (2.176%) | 827 (2.439%) |
+| Attack requests / predictions reporting 33 legal actions | 244 / 496 (49.194%) | 405 / 827 (48.972%) |
+| Category-17 share of attack requests | 11 / 244 (4.508%) | 42 / 405 (10.370%) |
+
+All attack requests in both cohorts came from predictions reporting 33 legal
+actions. The continuation has a larger share of low-bearing requests and a
+lower median bearing, alongside a larger share of distances above one unit.
+These are request-time rendered-root measurements. They do not classify
+requests as hits or misses, establish server execution or move reach, explain
+the score difference, or demonstrate reliable strength. Captured Unity units
+remain physically uncalibrated and are not reported as metres.
+
+Existing worker logs report median latency 0.586 ms previously and 0.575 ms
+for the continuation, with means 0.674 / 0.663 ms and maxima 3.069 / 3.557 ms.
+These are worker-reported timings, not server action/contact latency. Both
+cohorts have zero logged worker error/fatal events and zero orchestrator
+error/stop-error/release-error events, unmatched acknowledgments or stale
+prediction discards. Recorded skipped observations are 327 / 615, preserved
+with their drop reasons. Each cohort's per-round stream-end rejection remains
+included. No unlogged failure is inferred.
+
+The continuation profile hashes 24 input files; the separate timing/receipt
+comparison hashes 30 inputs across both cohorts. Full per-action and per-round
+distributions remain private under the existing `request-profiles` directory.
+The continuation profile SHA256 is
+`289f7833b2c4190dcf8469e8820268b8c335eb54c806d6a0704d7121723ef8eb`.
+The comparison Markdown SHA256 is
+`81d9d009f30e042de5df03bb8d5206955a511957edd92abfc57f0144696db904`.
+This descriptive comparison adds no acceptance condition or reward-shaping term.
 
 ## Private evidence
 
@@ -364,6 +430,30 @@ receipt. Its receipt SHA256 is
 `5ee9a97a2ecd8f634fa6e4f8f74d890ea87e540657f1721b3023b6e07abe13a3`.
 All archived and source hashes/sizes and the five derived-summary input hashes
 matched; raw score packets independently reconcile to 13 : 8.
+
+Rounds r120..r123 are preserved in the adjacent `authentic-r120` through
+`authentic-r123` directories. Each contains 49 evidence files plus its receipt.
+All archived hashes/sizes, unchanged source hashes, exact file counts and the
+five derived-summary input hashes were independently checked. Raw score packets
+reconcile to the complete cohort table above.
+
+| Round | Archive receipt SHA256 |
+| --- | --- |
+| r120 | `0b5d86c96170ac9abfd8172c0c10208e5616e21e7b533c656c10ec9fae7bd43b` |
+| r121 | `f853df44cc081ee87f482785eb3b00c2bcfece77e544eebcdf51d5ca6a77fd8d` |
+| r122 | `db64339d6e14facd475596fe78dd28dea446e7a8656aa84dda20c09c9ac22175` |
+| r123 | `b94e32967c40fd799676f99a298ad04c66973b3fae2ce7181cac4ccc7f52bb47` |
+
+The frozen cohort plan/result/round ledger, scripts, candidate configuration,
+both request profiles, timing/receipt aggregate, comparison and ten related
+round-archive receipts are additionally preserved in fresh NAS directory
+`\\192.168.0.19\MyShare\pufferlib\rek-evidence\2026-09-21\normalized-sweep-r1\cohort-continue8m-r1`.
+All 26 files were copied with source-before/source-after/copy agreement and
+independently rehashed; the exact total is 27 including its receipt. Registered
+script/config hashes and all six cohort validation-summary hashes matched.
+Cohort archive receipt SHA256:
+`218b4159e103421c15cedbbf936a84f0afdf83b9955fcd40a00dd8384f6be6b9`.
+Existing evidence was not overwritten.
 
 No checkpoints, proprietary binaries, raw game captures or account credentials
 are published in this repository.
