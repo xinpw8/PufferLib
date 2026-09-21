@@ -135,7 +135,27 @@ from the same original `390007...` weights. Its output is `train-lr-lr015-r1`
 under the physical stage. The 4,194,304-transition budget, seeds, normalized
 reward, observation schema and other parameters are unchanged. This is the
 pinned trainer's default Muon learning-rate magnitude, not a demonstrated
-optimum. At this report update the run is active and no result is claimed.
+optimum. The arm [completed successfully](observable-balance-physical-lr015-20260921.md)
+with 4,194,304 transitions and 16 rollout/training iterations, runtime and
+wrapper exit codes 0, and 5,914.08 complete-training native SPS
+(5,839.78 whole-process SPS). Its final checkpoint is
+`a2481a82dc2c116b88e94c2461ccaef970240e2821ee68edae57cd8984ad1a6b`.
+
+### LR 0.015 round r113: loss
+
+That frozen checkpoint completed a 120 s authentic round against private
+Sparring Bot 1, difficulty 0, with sampled selection and worker seed 73.
+It lost **2 : 16**. Ordinary awarded points were **2 : 1**; five-point awards
+were **0 : 3**. All six existing evidence checks passed, and the isolated owned
+client closed normally. The one stream-end rejection remains recorded.
+LEFT_FRONT17 was requested five times and returned true locally on all five
+requests; server acceptance, execution and successful contact remain unknown.
+
+This checkpoint's development cohort consists of r113 alone. It is not pooled
+with r86..r88, r89, r110 or r112, and r111 remains a separate incomplete entry
+attempt. The higher training-round win count did not establish authentic
+strength: this one completed round supplies no basis for promotion or a claim
+of consistent fighting. No checkpoint is promoted from this comparison.
 
 ## Private evidence
 
@@ -173,5 +193,14 @@ the missing fight capture.
 Completed round r112 is preserved under adjacent normalized-sweep
 `authentic-r112`, with 49 files and receipt SHA256
 `d8600d2fa69f12899dadfc20243352ef29eb518841bcdeff17eaa9c95932590e`.
+Completed round r113 is preserved under adjacent normalized-sweep
+`authentic-r113`, with 49 files and receipt SHA256
+`a131d2eedcd184a7d1c4a02ecec143b429f3cb822c842936fc48d102b197e7d2`.
+Its validation root is
+`C:\rekagent\work\observable-balance-live-eval-20260921-r1\r113-validation`.
+The derived summary's five referenced input hashes were independently checked;
+raw score events sum to 2 : 16, consistent with both terminal records and the
+referee validation. The archive receipt hash was also checked directly; the
+receipt records source-before/source-after/copy agreement for its 49 files.
 No checkpoints, proprietary binaries, raw game captures or account credentials
 are published in this repository.
