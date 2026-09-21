@@ -96,7 +96,46 @@ from `a11ace...`. Seeds, 4,194,304-transition budget, normalized rewards,
 observations, opponent and remaining hyperparameters stay fixed. Its new output
 is `train-lr-lr001-r1` under the same Spark stage. Runner SHA256 is
 `17e90c448e3ba3230aaaa2f813bf25ea3b0a74824887cb4ffa5ad2698b6e50b2`.
-This records an executed launch, not a completed result or improvement claim.
+The arm [completed successfully](observable-balance-physical-lr001-20260921.md)
+at 6,150.03 complete-training native SPS (6,065.16 whole-process SPS). Its final
+checkpoint is
+`d34f3fefc71b3ca4977590be142100beca58872fd2051813a56bc57536bae60f`.
+
+### LR 0.001 attempt r111: no round
+
+The frozen checkpoint's first authentic attempt reached authenticated Home and
+issued the private-arena entry request, but remained in FreePlay until the
+existing entry timeout. The result is **incomplete**, with zero input sources,
+predictions or policy actions and no round identity or opponent. It is neither
+a win nor a loss, and supplies no evidence of fighting strength. The isolated
+owned client closed normally. This failed attempt is retained rather than
+silently replaced by a successful round.
+
+The recorded request returned `private_practice_reservation_requested` with
+`server_acceptance_observed=false`. All 305 relay snapshots remained in Lobby
+and lacked a FightCoordinator. No explicit server/authentication refusal was
+observed; the underlying reservation failure is unknown. No matching native
+fight capture was produced. A fresh bounded attempt r112 was then launched
+with the identical frozen checkpoint and configuration, without extending the
+timeout or changing the bridge.
+
+### LR 0.001 round r112: loss
+
+The fresh attempt entered private Sparring Bot 1, completed the 120 s round
+and lost **6 : 22**. Ordinary awarded points were **6 : 7**; five-point awards
+were **0 : 3**. All six existing evidence checks passed, and the isolated owned
+client closed. The one stream-end rejection remains recorded. LEFT_FRONT17 was
+requested once and returned true locally; server execution and successful
+contact remain unknown. This is one completed development round, with r111
+retained separately as a startup failure. It does not demonstrate improvement
+or consistent fighting.
+
+After r112 completed and validated, the controlled LR 0.015 arm was launched
+from the same original `390007...` weights. Its output is `train-lr-lr015-r1`
+under the physical stage. The 4,194,304-transition budget, seeds, normalized
+reward, observation schema and other parameters are unchanged. This is the
+pinned trainer's default Muon learning-rate magnitude, not a demonstrated
+optimum. At this report update the run is active and no result is claimed.
 
 ## Private evidence
 
@@ -125,5 +164,14 @@ receipt SHA256
 The continuation round is preserved in adjacent `authentic-r110`, also 49 files,
 with receipt SHA256
 `edad788b119aaae0801139c8c8cd123e7c4143898580595404f8320382391364`.
+Incomplete attempt r111 is preserved separately under
+`2026-09-21\physical-observable-balance-r1\authentic-r111-incomplete`, with
+44 files and receipt SHA256
+`a675bc2531a70196203b40354685ab68c919e0f696ff4428c24f372e2ffc2f3c`.
+Its manifest explicitly leaves completed-round checks unclaimed and records
+the missing fight capture.
+Completed round r112 is preserved under adjacent normalized-sweep
+`authentic-r112`, with 49 files and receipt SHA256
+`d8600d2fa69f12899dadfc20243352ef29eb518841bcdeff17eaa9c95932590e`.
 No checkpoints, proprietary binaries, raw game captures or account credentials
 are published in this repository.
