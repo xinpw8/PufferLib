@@ -23,6 +23,9 @@ producers, and represents missing data explicitly.
 
 Per-fighter columns use `b=0` for the actor and `b=86` for the opponent. Both
 snapshot inputs use absolute fighter slots; `actor_slot` determines ordering.
+The horizontal local +X convention is supported by the current G1 prefab and
+recovered native getter, with runtime limits documented in
+[G1 horizontal heading evidence](validation/observable-balance-heading-20260921.md).
 
 | Columns | Meaning |
 | --- | --- |
