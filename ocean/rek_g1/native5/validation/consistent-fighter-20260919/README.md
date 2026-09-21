@@ -7,10 +7,16 @@ These are development results, not the separate 20-round frozen evaluation.
 
 ## Current authentic results
 
-The latest completed [contact-entry treatment](contact-entry-development-r54-r57.md)
-lost all three authentic development rounds, 24:38 points, including 9:33
-non-five-point awards. Its 737,572 SPS native training result and corrected
-contact history do not establish better fighting. The preceding
+The latest completed [body-cvel treatment](body-cvel-development-r58-r62.md)
+lost all three authentic development rounds, 35:54 points, including 15:24
+non-five-point awards. All three passed the unchanged strict checks. Two
+intervening G1-versus-T800 sessions reached RoundActive but correctly received
+zero policy input because the exact-G1 gate rejected the mixed models; both
+are preserved without scoring assessments. The candidate is not promoted.
+The preceding [contact-entry treatment](contact-entry-development-r54-r57.md)
+also lost all three rounds, 24:38 points, including 9:33 non-five-point awards.
+Its corrected contact history and native training throughput did not establish
+better fighting. The earlier
 [keyboard-reset stride5 treatment](keyboard-yaw-cadence-development-r50-r53.md)
 was 1W/2L, 30:44 points. All six completed rounds passed the unchanged strict
 checks; their separate zero-action entry failures were retained. Neither
@@ -252,6 +258,13 @@ immutability and NAS readback checks passed. Manifest SHA256:
 The archive also includes the immutable `aggregate-r11` snapshot. Its combined
 development totals span multiple policies and must not be treated as one
 checkpoint's win rate.
+
+The completed body-cvel Windows cohort, including all five attempts r58-r62,
+three exact native captures and both zero-policy mixed-model sessions, is
+preserved under `windows-body-cvel-development-r1` in the same NAS project.
+All 271 files, 1,201,377,966 bytes, passed source-before, destination readback
+and source-after SHA256 verification. Manifest SHA256:
+`eb4ccc3ad0ddba4e5f05c08d5b59f20fa1f35529064d4ef5a9519121c338cc69`.
 
 ## Learning from authentic trajectories
 
