@@ -136,12 +136,11 @@ __global__ void sample_fall(FallView v,const uint8_t* selected) {
 }
 __global__ void body_velocity(Measurement d,float* velocity) {
     int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=d.arenas*d.bodies)return;
-    int a=i/d.bodies,b=i%d.bodies;const float* p=d.xipos+i*3;
-    const float* com=d.com+(a*d.bodies+d.body_root[b])*3;
-    const float* v=d.cvel+i*6;float x=p[0]-com[0],y=p[1]-com[1],z=p[2]-com[2];
-    velocity[i*3]=v[3]+(v[1]*z-v[2]*y);
-    velocity[i*3+1]=v[4]+(v[2]*x-v[0]*z);
-    velocity[i*3+2]=v[5]+(v[0]*y-v[1]*x);
+    // Native Robot.GetBodyLinearVelocity reads this raw COM-reference triplet.
+    // Contact scoring must not shift it to xipos or a collider point. Controller
+    // and observation point-velocity consumers in runtime.cu are independent.
+    const float* v=d.cvel+i*6;
+    velocity[i*3]=v[3];velocity[i*3+1]=v[4];velocity[i*3+2]=v[5];
 }
 __global__ void speeds(Measurement d,float* speed) {
     int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=2*d.capacity)return;

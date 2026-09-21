@@ -85,11 +85,9 @@ struct Reference {
         float* velocity=const_cast<float*>(d.velocity);
         for(int a=0;a<d.arenas;a++)for(int b=0;b<d.bodies;b++) {
             const int offset=a*d.bodies+b;
-            const float* p=d.xipos+offset*3,*com=d.com+(a*d.bodies+d.body_root[b])*3,*cv=d.cvel+offset*6;
-            float x=p[0]-com[0],y=p[1]-com[1],z=p[2]-com[2];
-            velocity[offset*3]=cv[3]+(cv[1]*z-cv[2]*y);
-            velocity[offset*3+1]=cv[4]+(cv[2]*x-cv[0]*z);
-            velocity[offset*3+2]=cv[5]+(cv[0]*y-cv[1]*x);
+            // Recovered native contact contract: unshifted linear cvel.
+            const float* cv=d.cvel+offset*6;
+            velocity[offset*3]=cv[3];velocity[offset*3+1]=cv[4];velocity[offset*3+2]=cv[5];
         }
         check(oracle::oracle_hits_prepare(&d,substep,nullptr)==0,"oracle hits prepare failed");
         float* speed=const_cast<float*>(d.speed);
