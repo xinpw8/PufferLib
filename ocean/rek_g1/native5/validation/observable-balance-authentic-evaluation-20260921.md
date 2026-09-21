@@ -157,6 +157,62 @@ attempt. The higher training-round win count did not establish authentic
 strength: this one completed round supplies no basis for promotion or a claim
 of consistent fighting. No checkpoint is promoted from this comparison.
 
+## Recovered Bot 1 training candidate, r114..r117
+
+The [recovered G1 Bot 1 physical training arm](observable-balance-physical-bot1-training-20260921.md)
+completed 4,194,304 transitions at LR 0.015 from original `390007...` weights.
+It retained the reward, observations, seeds and transition budget of the prior
+LR 0.015 arm, while replacing the approach dummy with source-derived Bot 1
+tactics and continuous native commands. Candidate cadence/RNG and physical
+parity limits remain explicit in that report. Its distinct final checkpoint is
+`7c34eaa9f00c1ee97f8cbd8abf894d773d8a838547a10e496bcb5980de821c84`.
+
+Frozen authentic round r114 used that checkpoint with
+`rek.native5.observable_balance.v1`, sampled selection, worker seed 73 and no
+feature mask. It completed a 120 s round against private Sparring Bot 1,
+difficulty 0, and won **21 : 15**. Ordinary awarded points were **6 : 15**;
+five-point awards were **3 : 0**. All six existing evidence checks passed,
+and the isolated owned client closed normally. The one stream-end rejection
+remains recorded. LEFT_FRONT17 was requested twice and returned true locally
+on both requests; server acceptance, execution and successful contact remain
+unknown.
+
+This was the first completed development round recorded for checkpoint
+`7c34eaa9...`. Its win depends on the five-point award difference while ordinary
+points favor the opponent. It does not establish consistent fighting or
+attribute awards to particular attacks. Results from the other checkpoints
+above are not pooled into this checkpoint's cohort. No promotion or authentic
+physics/controller parity claim follows from this single round.
+
+### Same-checkpoint repeats, r115..r117
+
+The three subsequent frozen rounds retained checkpoint `7c34eaa9...`, sampled
+selection, worker seed 73, no feature mask and private Sparring Bot 1 at
+difficulty 0. All completed their 120 s rounds.
+
+| Round | Result | Points, policy : bot | Ordinary points | Five-point awards |
+| --- | --- | --- | --- | --- |
+| r115 | Loss | 9 : 10 | 9 : 5 | 0 : 1 |
+| r116 | Win | 10 : 6 | 5 : 6 | 1 : 0 |
+| r117 | Loss | 15 : 25 | 10 : 10 | 1 : 3 |
+
+All six existing evidence checks passed for each round, and all three isolated
+owned clients closed. Each round's one stream-end rejection remains recorded.
+LEFT_FRONT17 was requested three times in each round, with all nine requests
+returning true locally. Together with r114, that is eleven requests and eleven
+local true returns; server acceptance, execution and successful contact remain
+unknown. No round was discarded or replaced.
+
+For the completed r114..r117 development cohort, the result is **2 wins / 2
+losses**, total awarded points **55 : 56**, ordinary points **30 : 36**, and
+five-point awards **5 : 4**. These totals include only this frozen checkpoint.
+Both wins have an ordinary-point deficit and a favorable five-point award
+difference; r115 has the reverse pattern, while r117 has tied ordinary points
+and an unfavorable five-point award difference. The four-round sample does not
+establish reliable strength, improved contact skill or authentic controller
+parity. Awards are not assigned causally to particular requests. No checkpoint
+is promoted from this cohort.
+
 ## Private evidence
 
 Windows trial root:
@@ -202,5 +258,41 @@ The derived summary's five referenced input hashes were independently checked;
 raw score events sum to 2 : 16, consistent with both terminal records and the
 referee validation. The archive receipt hash was also checked directly; the
 receipt records source-before/source-after/copy agreement for its 49 files.
+
+Completed round r114 is preserved under adjacent normalized-sweep
+`authentic-r114`, with 49 files and receipt SHA256
+`306b51688eab2ffc8011e054e2eace28e6b497f574eecec9d3d509351a49c496`.
+Its trial and validation roots are
+`C:\rekagent\work\consistent-fighter-20260919-r1\live-point_difference_v1-r114`
+and `C:\rekagent\work\observable-balance-live-eval-20260921-r1\r114-validation`.
+The derived summary's five referenced input hashes were independently checked.
+Raw score events sum to 21 : 15, with ordinary points 6 : 15 and five-point
+awards 3 : 0, consistent with the recorded terminal result and referee
+validation. The archive script verified source-before/source-after/copy hashes
+for every file in the fresh destination; no existing evidence was overwritten.
+
+Completed rounds r115 and r116 are preserved under adjacent normalized-sweep
+`authentic-r115` and `authentic-r116`, with 49 files each. Their receipt SHA256
+values are respectively
+`bbe5cc6dc365aa8ced5cca2c277ef475f9342ceb86e0dd495e2280fc2b58feea`
+and `4014b661cf9831be20f0afc42564c8da3c9761c655cae0c6973d30ebc878d251`.
+Their trial and validation paths use the same roots above with suffixes
+`r115` / `r115-validation` and `r116` / `r116-validation`.
+Each derived summary's five input hashes were independently checked. Raw score
+events independently reconcile to the table above and each terminal result.
+The archive script checked source-before/source-after/copy hashes; a subsequent
+read rehashed all 98 archived files, verified their sizes and both receipts,
+and found no extra files beyond the two receipts. Both destinations were fresh.
+
+Completed round r117 is preserved under adjacent normalized-sweep
+`authentic-r117`, with 49 files and receipt SHA256
+`ee6f70fba84eea7f8061df3cfc7c198ef82660677aa8148f70b6fc5c8f3d436b`.
+Its trial and validation paths use the same roots above with suffixes
+`r117` and `r117-validation`. All five derived-summary input hashes matched;
+raw score events independently reconcile to 15 : 25, ordinary points 10 : 10
+and five-point awards 1 : 3. The archive script verified source-before/source-after/
+copy hashes. A subsequent read reverified all 49 NAS file hashes and sizes,
+the receipt hash and exact file count. No existing evidence was overwritten.
+
 No checkpoints, proprietary binaries, raw game captures or account credentials
 are published in this repository.
