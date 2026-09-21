@@ -213,6 +213,67 @@ establish reliable strength, improved contact skill or authentic controller
 parity. Awards are not assigned causally to particular requests. No checkpoint
 is promoted from this cohort.
 
+### Request-time behavior profile
+
+The same four rounds contain 244 attack requests, all matched to an exact worker
+round identity, observation sequence and policy action. At request time, 89 had
+absolute root bearing at most 45 degrees, 64 were above 45 through 90 degrees,
+and 91 were above 90 degrees. Median absolute bearing was 72.302 degrees.
+Median horizontal root distance was 0.777 captured Unity units; 61 requests
+occurred beyond one unit. Physical unit calibration remains unverified.
+
+The worker produced 22,789 decisions: 21,394 with four legal actions, 899 with
+16, and 496 with all 33. All 244 attack requests came from the last group.
+These are descriptive observations of decision opportunities and requested
+geometry. They do not classify requests as hits or misses, establish move reach,
+or attribute any score or fall to an attack.
+
+The CPU-only profile and per-action distributions are retained under
+`C:\rekagent\work\observable-balance-live-eval-20260921-r1\request-profiles`.
+Sixteen input files and the profiler are hash-bound in the aggregate JSON;
+its SHA256 is
+`7eb6a5f1be2e174a6636d086884296489d2f05a7a5d6bddef6a465621c266b36`.
+Four synthetic tests passed. This analysis adds no acceptance condition or
+reward-shaping term.
+
+## Frozen 8M-continuation cohort
+
+The subsequent physical continuation completed 8,388,608 new learner
+transitions and produced checkpoint
+`ef85a01b207d033417d8e1bc9d2b32b9eba610e784180dc7dd287a894acf2f4b`.
+A prospective authentic cohort was registered at 2026-09-21T18:37:18.8968009Z,
+before its first launch. Its requirement is at least 18 wins in 20 completed
+120 s rounds against private Sparring Bot 1 / difficulty 0. The third non-win
+stops the cohort because that threshold can no longer be reached. Draws count
+as non-wins. An incomplete or invalid attempt stops execution and is retained
+without being classified as a completed win or loss.
+
+Checkpoint, sampled selection, seed 73, feature mask, encoder and evaluation
+scripts remain fixed within this cohort. No result or promotion is inferred
+from its changing-policy training metrics. The shared observation schema and
+encoder are unchanged from r114..r117. The Windows harness uses its verified
+owned isolated desktop and emits no global keyboard or mouse input.
+
+Private plan directory:
+`C:\rekagent\work\observable-balance-live-eval-20260921-r1\cohort-continue8m-r1`.
+Candidate config SHA256:
+`9e8a8f126ff21af1cd54498274aa8845684e3296991be525280ab12b22b81880`.
+Wrapper SHA256:
+`871a91a3506034a2a5ae9b6df26861a77d70c32a19c5996adb076ae5cbe325b5`.
+Attempts start at r118. Results remain pending at registration.
+
+Completed rounds so far, learner first:
+
+| Attempt | Outcome | Total points | Ordinary points | Five-point awards |
+| --- | --- | ---: | ---: | ---: |
+| r118 | Loss | 0 : 12 | 0 : 7 | 0 : 1 |
+| r119 | Win | 13 : 8 | 3 : 8 | 2 : 0 |
+
+Both have all six existing evidence checks satisfied and verified owned-client
+closure. These are interim results from the same frozen cohort, not a promotion
+or an independent selection set. Five-point awards are not causally attributed
+to individual move requests.
+
 ## Private evidence
 
 Windows trial root:
@@ -293,6 +354,16 @@ raw score events independently reconcile to 15 : 25, ordinary points 10 : 10
 and five-point awards 1 : 3. The archive script verified source-before/source-after/
 copy hashes. A subsequent read reverified all 49 NAS file hashes and sizes,
 the receipt hash and exact file count. No existing evidence was overwritten.
+
+Round r118 is preserved in adjacent `authentic-r118`, with 49 files and receipt
+SHA256 `f23aecbfccc689e6df0300cf96c044eb0e0ee06268c66d80925943357a7b8a84`.
+Every archived hash and size, each source hash, and the exact 50-file total
+including the receipt were independently reverified.
+Round r119 is preserved in adjacent `authentic-r119`, also 49 files plus
+receipt. Its receipt SHA256 is
+`5ee9a97a2ecd8f634fa6e4f8f74d890ea87e540657f1721b3023b6e07abe13a3`.
+All archived and source hashes/sizes and the five derived-summary input hashes
+matched; raw score packets independently reconcile to 13 : 8.
 
 No checkpoints, proprietary binaries, raw game captures or account credentials
 are published in this repository.

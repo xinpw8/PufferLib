@@ -160,3 +160,8 @@ before completion and new authentic evaluation.
 Runner: `run-balance-physical-bot1-continue8m.sh`.
 SHA256: `49adff962e2473863f7eeb5cecf5b45bfaccc05c9cc97ddd8857bcd2264fcea4`.
 Syntax and no-execution input/schema/hash checks passed before launch.
+
+The continuation subsequently completed with zero exit codes. Its full-run
+results, normalized comparisons, timing and preservation receipts are in the
+[8M continuation report](observable-balance-physical-bot1-continuation8m-20260921.md).
+That training completion does not establish authentic fighting strength.
