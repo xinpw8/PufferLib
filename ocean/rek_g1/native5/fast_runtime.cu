@@ -20,6 +20,7 @@
 #include "owned_yaw_observation.h"
 #include "action_cadence.h"
 #include "keyboard_yaw.h"
+#include "contact_entry.h"
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
 // trajectories; slider motion and temporally sampled contacts are modeling
@@ -45,6 +46,7 @@ struct Fighter {
     float observed_old_x,observed_old_y,observed_old_yaw;
     float observed_heading,observed_local[2],observed_omega,observed_joint_rate[29];
     rek_keyboard_yaw::State keyboard_yaw;
+    rek_contact_entry::State contact_pairs;
 };
 struct Arena {
     Fighter fighter[2];
@@ -55,6 +57,7 @@ struct Arena {
     unsigned failures;
     RekG1HitDetectorState recovered_hits;
     rek5_bot1::State bot[2];
+    int contact_pairs_initialized;
 };
 struct Parameters {
     FastRoute routes[24];
@@ -81,6 +84,7 @@ struct Parameters {
     int owned_yaw_observation;
     int policy_action_stride=1;
     rek_keyboard_yaw::Mode yaw_command=rek_keyboard_yaw::Mode::LegacyVelocitySlew;
+    rek_contact_entry::Mode contact_entry=rek_contact_entry::Mode::LegacyLimbUnion;
     int primitive_contacts,contact_substeps,strike_limb[12];
 };
 struct View {
@@ -147,6 +151,7 @@ __device__ void update_observed_pose(const View& v,Arena& a){
     }
 }
 __device__ void pose_reset(const Parameters& p,Arena& a){
+    a.contact_pairs_initialized=0;
     for(int side=0;side<2;side++){
         Fighter& f=a.fighter[side];int points=f.points,falls=f.falls;
         f={};f.points=points;f.falls=falls;
@@ -359,7 +364,62 @@ __device__ bool primitive_touch(const Parameters& p,const Fighter& f,const Fight
     }
     return false;
 }
+__device__ void seed_contact_pairs(const View& v,Arena& a){
+    using namespace rek5_primitive;
+    for(int side=0;side<2;side++){
+        auto& f=a.fighter[side];const auto& enemy=a.fighter[side^1];
+        const auto& frame=v.frames[frame_index(*v.p,f,false)];
+        const auto& target=v.frames[frame_index(*v.p,enemy,false)];
+        for(int i=0;i<rek_contact_entry::Strikers;i++)for(int j=0;j<rek_contact_entry::Targets;j++)
+            rek_contact_entry::update(f.contact_pairs,i*rek_contact_entry::Targets+j,
+                overlap(world_shape(frame.strike_shapes[i],f.x,f.y,f.yaw),
+                        world_shape(target.target_shapes[j],enemy.x,enemy.y,enemy.yaw)));
+    }
+    a.contact_pairs_initialized=1;
+}
+__device__ void geom_pair_contacts(const View& v,Arena& a,int side,int* hits,int* points){
+    using namespace rek5_primitive;
+    const Parameters& p=*v.p;auto& f=a.fighter[side];const auto& enemy=a.fighter[side^1];
+    const auto& now=v.frames[frame_index(p,f,false)];const auto& before=v.frames[frame_index(p,f,true)];
+    const auto& target=v.frames[frame_index(p,enemy,false)];const auto& old_target=v.frames[frame_index(p,enemy,true)];
+    for(int limb=0;limb<6;limb++){
+        float tip[3],old_tip[3];point(f,now.strike_xyz[limb],false,tip);point(f,before.strike_xyz[limb],true,old_tip);
+        bool entered=false;float max_relative_speed=0;
+        for(int zone=0;zone<rek_contact_entry::Targets;zone++){
+            float dst[3],old_dst[3],from[3],to[3];
+            point(enemy,target.target_shapes[zone].center,false,dst);point(enemy,old_target.target_shapes[zone].center,true,old_dst);
+            for(int k=0;k<3;k++){from[k]=old_tip[k]-old_dst[k];to[k]=tip[k]-dst[k];}
+            const float radius=fmaxf(before.strike_radius[limb],now.strike_radius[limb])+
+                fmaxf(old_target.target_shape_radius[zone],target.target_shape_radius[zone]);
+            const bool broad=sweep_distance2(from,to)<=radius*radius;
+            bool intersects=false;
+            for(int i=0;i<rek_contact_entry::Strikers;i++)if(p.strike_limb[i]==limb){
+                const int pair=i*rek_contact_entry::Targets+zone;
+                if(!broad){rek_contact_entry::update(f.contact_pairs,pair,false);continue;}
+                const auto result=rek_contact_entry::sample(f.contact_pairs,pair,
+                    world_shape(before.strike_shapes[i],f.old_x,f.old_y,f.old_yaw),
+                    world_shape(now.strike_shapes[i],f.x,f.y,f.yaw),
+                    world_shape(old_target.target_shapes[zone],enemy.old_x,enemy.old_y,enemy.old_yaw),
+                    world_shape(target.target_shapes[zone],enemy.x,enemy.y,enemy.yaw),p.contact_substeps);
+                entered=entered||result.entered;intersects=intersects||result.overlap_after_start;
+            }
+            // Preserve the existing per-limb maximum sphere-center velocity
+            // proxy, including its aggregation across intersecting targets.
+            if(intersects){float d2=0;for(int k=0;k<3;k++){float d=to[k]-from[k];d2+=d*d;}max_relative_speed=fmaxf(max_relative_speed,sqrtf(d2)/DT);}
+        }
+        // History above advances even without intent and never resets at move
+        // start. Native apex, body cooldown and invocation dedup stay unchanged.
+        if(!f.strike_active||!entered)continue;
+        const auto& route=p.routes[f.route];RekG1StrikeIntent intent{};
+        intent.impact_events=p.impact_events+p.impact_offsets[f.route];intent.impact_event_count=p.impact_counts[f.route];
+        intent.clip_cursor_frames=clampf(route.start_frame+f.phase*route.playback_speed,float(route.start_frame),float(route.end_frame));
+        intent.clip_fps=50;intent.move_id=f.move_instance;intent.action_playing=intent.layer_active=1;
+        const auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
+        if(result.points){hits[side]++;points[side]+=result.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=max_relative_speed;}
+    }
+}
 __device__ void strike_contacts(const View& v,Arena& a,int side,int* hits,int* points){
+    if(v.p->contact_entry==rek_contact_entry::Mode::GeomPair){geom_pair_contacts(v,a,side,hits,points);return;}
     const Parameters& p=*v.p;Fighter& f=a.fighter[side];Fighter& enemy=a.fighter[side^1];
     if(!f.strike_active||(p.recovered_scoring<2&&f.route==23))return;
     const FastFrame& now=v.frames[frame_index(p,f,false)];
@@ -420,6 +480,7 @@ __device__ void finish_round(const View& v,int index,Arena& a,RekNative5RoundRes
 __device__ void advance_arena(const View& v,int index){
     Arena& a=v.state[index];auto& r=v.rounds[index];const Parameters& p=*v.p;
     if(r.terminal)round_reset(p,a,r,false,index);
+    if(p.contact_entry==rek_contact_entry::Mode::GeomPair&&!a.contact_pairs_initialized)seed_contact_pairs(v,a);
     if(p.rendered_observation)capture_observed_pose(p,a);
     a.delta[0]=a.delta[1]=a.hit_count=a.down_event[0]=a.down_event[1]=0;
     a.reward[0]=a.reward[1]=0;
@@ -696,6 +757,10 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         const char* geometry=getenv("REK_FAST_GEOMETRY");
         if(geometry&&strcmp(geometry,"bounding_spheres")&&strcmp(geometry,"primitive_samples_v1"))throw std::runtime_error("Invalid REK_FAST_GEOMETRY");
         p.primitive_contacts=geometry&&!strcmp(geometry,"primitive_samples_v1");
+        p.contact_entry=rek_contact_entry::parse(getenv("REK_FAST_CONTACT_ENTRY"));
+        if(p.contact_entry==rek_contact_entry::Mode::GeomPair&&(!p.primitive_contacts||p.recovered_scoring!=2))
+            throw std::runtime_error("geom_pair_v1 requires primitive_samples_v1 and recovered_hit_rules_v2");
+        if(p.contact_entry==rek_contact_entry::Mode::GeomPair)fprintf(stderr,"semantic_cuda_contact_entry={\"mode\":\"geom_pair_v1\",\"pair_identity\":\"distinct_striker_geom_target_geom\",\"pairs_per_fighter\":108,\"history_updates_without_intent\":true,\"reset_at_attack_start\":false,\"persistent_state\":\"endpoint_only\",\"sampled_enter_exit\":true,\"initial_overlap_seeded_without_enter\":true,\"velocity_proxy_changed\":false,\"authentic_parity\":false}\n");
         float substeps=environment_float("REK_FAST_CONTACT_SUBSTEPS",4,1,16);
         if(substeps!=floorf(substeps))throw std::runtime_error("REK_FAST_CONTACT_SUBSTEPS must be an integer");
         p.contact_substeps=int(substeps);
@@ -773,8 +838,8 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         fprintf(stderr,"semantic_cuda_reward={\"mode\":\"%s\",\"gamma\":%.9g,\"point_input\":\"awarded_scoreboard_points\",\"terminal_signal\":\"completed_round_only\",\"countout_is_terminal\":false,\"terminal_win\":%d,\"terminal_loss\":%d,\"terminal_draw\":0,\"potential_scale_points\":5,\"terminal_potential\":0,\"adds_balance_dynamics\":false}\n",
             p.reward_mode==rek5_round_reward::RoundOutcome?"round_outcome_v1":"point_difference_v1",
             p.reward_gamma,p.reward_mode==rek5_round_reward::RoundOutcome?1:0,p.reward_mode==rek5_round_reward::RoundOutcome?-1:0);
-        fprintf(stderr,"semantic_cuda_scoring={\"mode\":\"%s\",\"geometry\":\"%s\",\"contact_substeps\":%d,\"continuous_collision_detection\":false,\"speed\":\"%s\",\"speed_threshold_m_s\":%.9g,\"cooldown_seconds\":%.9g,\"apex_gate\":%s,\"per_invocation_apex_dedup\":%s,\"hand_points\":1,\"foot_shin_points\":%d,\"hit_count_is_unweighted\":true,\"upright_model\":\"constant_upright_no_balance_dynamics\",\"contact_enter_model\":\"compact_per_limb_union_latch_reset_at_move_start\",\"authentic_parity\":false}\n",
-            p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",p.primitive_contacts?"primitive_samples_v1":"bounding_spheres",p.primitive_contacts?p.contact_substeps:0,p.recovered_scoring?"maximum_relative_sphere_center_finite_difference_proxy":"absolute_striker_sphere_center_finite_difference",p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?p.recovered_hit_config.per_body_cooldown_seconds:10*DT,p.recovered_scoring?"true":"false",p.recovered_scoring?"true":"false",p.recovered_scoring?2:1);
+        fprintf(stderr,"semantic_cuda_scoring={\"mode\":\"%s\",\"geometry\":\"%s\",\"contact_substeps\":%d,\"continuous_collision_detection\":false,\"speed\":\"%s\",\"speed_threshold_m_s\":%.9g,\"cooldown_seconds\":%.9g,\"apex_gate\":%s,\"per_invocation_apex_dedup\":%s,\"hand_points\":1,\"foot_shin_points\":%d,\"hit_count_is_unweighted\":true,\"upright_model\":\"constant_upright_no_balance_dynamics\",\"contact_enter_model\":\"%s\",\"authentic_parity\":false}\n",
+            p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",p.primitive_contacts?"primitive_samples_v1":"bounding_spheres",p.primitive_contacts?p.contact_substeps:0,p.recovered_scoring?"maximum_relative_sphere_center_finite_difference_proxy":"absolute_striker_sphere_center_finite_difference",p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?p.recovered_hit_config.per_body_cooldown_seconds:10*DT,p.recovered_scoring?"true":"false",p.recovered_scoring?"true":"false",p.recovered_scoring?2:1,p.contact_entry==rek_contact_entry::Mode::GeomPair?"geom_pair_v1":"compact_per_limb_union_latch_reset_at_move_start");
         const char* modes[]={"scripted","neutral","retreat","strafe","mixed"};
         fprintf(stderr,"semantic_cuda_opponent={\"implementation\":\"%s\",\"replaces\":\"scripted_rows_only\",\"difficulty\":0,\"decision_hz\":50,\"native_update_fixedupdate_equivalence\":false,\"rng\":\"%s\",\"continuous_commands\":%s,\"pose_route\":\"dominant_translation_canned_proxy\",\"actuator_model\":\"compact_slider\",\"own_recovery\":\"unsupported_fail_closed\",\"server_parity\":false}\n",
             p.recovered_bot?"recovered_bot1_v1":"v4_scripted",p.recovered_bot?"candidate_private_xorshift32":"legacy_stateless_reset_hash",p.recovered_bot?"true":"false");
