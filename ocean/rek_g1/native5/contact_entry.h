@@ -28,6 +28,12 @@ REK_CONTACT_HD bool update(State& state,int pair,bool touching){
     if(touching)word|=bit;else word&=~bit;
     return entered;
 }
+REK_CONTACT_HD void unscored_endpoint(State& state,int pair,
+        const rek5_primitive::Shape& a,const rek5_primitive::Shape& b){
+    // When scoring is impossible, sampled entry flags are unobserved. The full
+    // sampler retains only t=1, so this preserves the next tick's history.
+    update(state,pair,rek5_primitive::overlap(a,b));
+}
 struct Sampled {bool entered,overlap_after_start;};
 REK_CONTACT_HD Sampled sample(State& state,int pair,
         const rek5_primitive::Shape& old_a,const rek5_primitive::Shape& a,

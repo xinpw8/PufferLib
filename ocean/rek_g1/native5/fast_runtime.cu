@@ -383,6 +383,17 @@ __device__ void geom_pair_contacts(const View& v,Arena& a,int side,int* hits,int
     const auto& now=v.frames[frame_index(p,f,false)];const auto& before=v.frames[frame_index(p,f,true)];
     const auto& target=v.frames[frame_index(p,enemy,false)];const auto& old_target=v.frames[frame_index(p,enemy,true)];
     for(int limb=0;limb<6;limb++){
+        RekG1StrikeIntent intent{};bool can_score=f.strike_active;
+        if(can_score){
+            const auto& route=p.routes[f.route];
+            intent.impact_events=p.impact_events+p.impact_offsets[f.route];intent.impact_event_count=p.impact_counts[f.route];
+            intent.clip_cursor_frames=clampf(route.start_frame+f.phase*route.playback_speed,float(route.start_frame),float(route.end_frame));
+            intent.clip_fps=50;intent.move_id=f.move_instance;intent.action_playing=intent.layer_active=1;
+            const auto part=limb<2?REK_G1_BODY_PART_FOOT:limb<4?REK_G1_BODY_PART_HAND:REK_G1_BODY_PART_SHIN;
+            const auto hand=(limb&1)?REK_G1_HAND_RIGHT:REK_G1_HAND_LEFT;
+            int32_t apex=-1;float ramp=0;
+            can_score=rek5_recovered::embedded_strike_intent_apex(&intent,part,hand,p.recovered_hit_config.apex_min_ramp,&apex,&ramp);
+        }
         float tip[3],old_tip[3];point(f,now.strike_xyz[limb],false,tip);point(f,before.strike_xyz[limb],true,old_tip);
         bool entered=false;float max_relative_speed=0;
         for(int zone=0;zone<rek_contact_entry::Targets;zone++){
@@ -396,6 +407,12 @@ __device__ void geom_pair_contacts(const View& v,Arena& a,int side,int* hits,int
             for(int i=0;i<rek_contact_entry::Strikers;i++)if(p.strike_limb[i]==limb){
                 const int pair=i*rek_contact_entry::Targets+zone;
                 if(!broad){rek_contact_entry::update(f.contact_pairs,pair,false);continue;}
+                if(!can_score){
+                    rek_contact_entry::unscored_endpoint(f.contact_pairs,pair,
+                        world_shape(now.strike_shapes[i],f.x,f.y,f.yaw),
+                        world_shape(target.target_shapes[zone],enemy.x,enemy.y,enemy.yaw));
+                    continue;
+                }
                 const auto result=rek_contact_entry::sample(f.contact_pairs,pair,
                     world_shape(before.strike_shapes[i],f.old_x,f.old_y,f.old_yaw),
                     world_shape(now.strike_shapes[i],f.x,f.y,f.yaw),
@@ -409,11 +426,7 @@ __device__ void geom_pair_contacts(const View& v,Arena& a,int side,int* hits,int
         }
         // History above advances even without intent and never resets at move
         // start. Native apex, body cooldown and invocation dedup stay unchanged.
-        if(!f.strike_active||!entered)continue;
-        const auto& route=p.routes[f.route];RekG1StrikeIntent intent{};
-        intent.impact_events=p.impact_events+p.impact_offsets[f.route];intent.impact_event_count=p.impact_counts[f.route];
-        intent.clip_cursor_frames=clampf(route.start_frame+f.phase*route.playback_speed,float(route.start_frame),float(route.end_frame));
-        intent.clip_fps=50;intent.move_id=f.move_instance;intent.action_playing=intent.layer_active=1;
+        if(!can_score||!entered)continue;
         const auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
         if(result.points){hits[side]++;points[side]+=result.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=max_relative_speed;}
     }

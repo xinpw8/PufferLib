@@ -84,4 +84,11 @@ The script requires a new output directory. `commands.txt` records each C/C++ co
 
 The complete stage is privately mirrored at `C:\rekagent\work\consistent-fighter-20260919-r1\contact-velocity-probe-r1\spark-results`. All 69 unique stage-local files named by the three run provenance/result manifests were rehashed locally and matched. The source archives also remain beside that mirror. Proprietary model and motion assets were read in place on Spark and were not added to the repository.
 
+The probe stage and installed-version investigation are also preserved on the
+existing private evidence server under
+`2026-09-19/consistent-fighter-r1/native-contact-velocity-probe-r1`.
+All 111 copied files (2,586,984 bytes) matched source-before, destination and
+source-after SHA256 checks. Archive manifest SHA256:
+`2f3df263bf51e48259f6827a549e1538696abc465d86dab86f1c789675d823dc`.
+
 No proxy integration or training is included. A later opt-in implementation must preserve the legacy asset/runtime path and separately validate device precision, route-edge selection, and scoring effects.
