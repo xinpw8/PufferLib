@@ -427,6 +427,13 @@ void RekNative5Motion::pre(const float* actions, const float* velocity, const ui
     cuda_check(rek_g1_cuda_semantic_pre(scheduler, actions, velocity, suspended ? suspended : zero_flags, count, stream), "semantic pre-step");
 }
 
+void RekNative5Motion::pre_direct(const float* actions, const RekG1CudaDirectCommand* commands,
+        const uint8_t* enabled, RekG1CudaDirectResult* results, const float* velocity,
+        const uint8_t* suspended, cudaStream_t stream) {
+    cuda_check(rek_g1_cuda_semantic_pre_direct(scheduler, actions, commands, enabled,
+        results, velocity, suspended ? suspended : zero_flags, count, stream), "direct semantic pre-step");
+}
+
 void RekNative5Motion::post(const float* velocity, const int32_t* phase, const uint8_t* suspended,
         const uint8_t* input_reset, const uint8_t* reset_event, const uint8_t* terminal, cudaStream_t stream) {
     cuda_check(rek_g1_cuda_semantic_post(scheduler, velocity, phase, suspended ? suspended : zero_flags,

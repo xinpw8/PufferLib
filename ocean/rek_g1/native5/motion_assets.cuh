@@ -21,6 +21,9 @@ public:
     void reset(const uint8_t* reset_flags, const float* heading_wxyz, cudaStream_t stream);
     void pre(const float* actions, const float* local_velocity,
         const uint8_t* suspended, cudaStream_t stream);
+    void pre_direct(const float* actions, const RekG1CudaDirectCommand* commands,
+        const uint8_t* enabled, RekG1CudaDirectResult* results,
+        const float* local_velocity, const uint8_t* suspended, cudaStream_t stream);
     void post(const float* local_velocity, const int32_t* fall_phase,
         const uint8_t* suspended, const uint8_t* input_reset,
         const uint8_t* reset_event, const uint8_t* terminal, cudaStream_t stream);

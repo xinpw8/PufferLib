@@ -134,5 +134,99 @@ REK_BOT_FN Command locomotion(const State& s,const Input& i){
     }
     return c;
 }
+
+// Explicit opt-in recovered lifecycle/recovery entry points. The compact API
+// above retains its original behavior. See validation/native-bot1-g1-recovery-20260921.md.
+enum SpecialCommand { NoSpecial=0, Straighten=1, GetUpProne=2, GetUpSupine=3, Dampen=4 };
+struct RecoveryState {
+    float fault_estop_timer;
+    bool fault_estop_engaged,straighten_issued;
+};
+struct RecoveryInput {
+    bool fallen,dampened,motor_shutdown_hold,runner_recovering,recovery_armed;
+    int suggested_get_up_orientation;
+    float fault_estop_delay;
+};
+struct RecoveryDecision {
+    Decision tactical;
+    SpecialCommand special;
+    bool write_zero_velocity,toggle_estop;
+};
+struct VelocityWrite { bool write;Command command; };
+struct G1SpecialResult { bool supported,accepted,enter_dampen; };
+
+// A fresh environment may use activate() to seed State and RecoveryState{}.
+// Native round reactivation changes only phase/timer, not RNG or recovery state.
+REK_BOT_FN bool activate_g1(State& s,bool input_present){
+    if(s.phase!=Inactive||!input_present)return false;
+    s.phase=Settling;s.timer=initial_delay;return true;
+}
+REK_BOT_FN VelocityWrite deactivate_g1(State& s,bool input_present){
+    if(s.phase==Inactive)return {};
+    s.phase=Inactive;return {input_present,{}};
+}
+
+// Call once per supplied native Update event, not implicitly per physics step.
+// Apply toggle_estop before special, and its synchronous result before the next
+// Update. No result here resets the body, changes tactical phase, or consumes RNG.
+template<class R> REK_BOT_FN RecoveryDecision update_g1(
+    State& s,RecoveryState& recovery,const Input& i,const RecoveryInput& own,
+    const Catalog& catalog,R& rng){
+    RecoveryDecision out{{-1,false,false},NoSpecial,false,false};
+    if(s.phase==Inactive)return out;
+    if(own.fallen||own.runner_recovering){
+        s.timer-=i.delta_seconds;
+        out.write_zero_velocity=true;
+        if(!own.motor_shutdown_hold){
+            recovery.fault_estop_timer=0;recovery.fault_estop_engaged=false;
+        }else{
+            recovery.fault_estop_timer+=i.delta_seconds;
+            const float delay=recovery.fault_estop_engaged?.5f:own.fault_estop_delay;
+            if(recovery.fault_estop_timer>=delay){
+                recovery.fault_estop_engaged=!recovery.fault_estop_engaged;
+                recovery.fault_estop_timer=0;out.toggle_estop=true;
+            }
+        }
+        if(!own.fallen)recovery.straighten_issued=false;
+        else if(!own.dampened)out.special=Dampen;
+        else if(!recovery.straighten_issued)out.special=Straighten;
+        else if(own.recovery_armed)
+            out.special=own.suggested_get_up_orientation==0?GetUpProne:GetUpSupine;
+        return out;
+    }
+    recovery.fault_estop_timer=0;recovery.fault_estop_engaged=false;
+    Input tactical=i;tactical.own_recovery=false;
+    const bool already_finished=s.phase==Attacking&&!i.punching;
+    out.tactical=update(s,tactical,catalog,rng);
+    // Native CancelPunch is only requested by an expired, still-playing attack.
+    if(already_finished)out.tactical.clear_punching=false;
+    return out;
+}
+REK_BOT_FN void recovery_special_result(
+    RecoveryState& recovery,SpecialCommand request,bool accepted){
+    if(request==Straighten)recovery.straighten_issued=accepted;
+}
+
+// Authoritative/local Sonic G1 only: no visual-client pending-RPC acceptance.
+// Its default-interface Straighten returns false and both get-up clips are null.
+// Unexpected get-up requests are explicit unsupported states, not neutral acts.
+REK_BOT_FN G1SpecialResult g1_local_special_result(
+    SpecialCommand request,bool remote_driven,const RecoveryInput& own){
+    if(request==NoSpecial||request==Straighten)return {true,false,false};
+    if(request==Dampen){
+        const bool accepted=!remote_driven&&!own.motor_shutdown_hold&&!own.dampened;
+        return {true,accepted,accepted};
+    }
+    return {false,false,false};
+}
+
+// Native FixedUpdate is separate from Update. An inactive input sink causes no
+// velocity write. Fallen/recovering alone is NOT an UpdateLocomotion guard.
+REK_BOT_FN VelocityWrite fixed_locomotion_g1(
+    const State& s,const Input& i,bool input_active){
+    if(s.phase==Inactive||!input_active)return {};
+    Input fixed=i;fixed.own_recovery=false;
+    return {true,locomotion(s,fixed)};
+}
 }
 #undef REK_BOT_FN

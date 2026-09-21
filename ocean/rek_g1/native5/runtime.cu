@@ -7,6 +7,9 @@
 #include "device_storage.cuh"
 #include "normalized_reward.h"
 #include "observable_balance.h"
+#include "native_bot1.cuh"
+#include "physical_bot1_geometry.h"
+#include "../g1_strike_catalog.h"
 #include "../g1_native_combat_cuda.h"
 #include <algorithm>
 #include <cmath>
@@ -24,6 +27,12 @@ struct ObservableHistory {
     rek_observable_balance::Snapshot previous;
     uint64_t round_key,ticks;
     bool available;
+};
+struct PhysicalBotState {
+    rek5_bot1::State tactical;
+    rek5_bot1::RecoveryState recovery;
+    rek5_bot1::Input input;
+    rek5_bot1::Command velocity;
 };
 // Observation-step state only. Physical contact sampling and counted body
 // resets never modify this history. Joint correspondence is not yet proven.
@@ -94,7 +103,41 @@ struct RuntimeView {
     unsigned* reward_saturations;
     uint64_t* confirmed_falls;
     int64_t* awarded_points;
+    bool recovered_bot;
+    uint32_t bot_seed;
+    PhysicalBotState* bot_states;
+    rek5_bot1::Catalog* bot_catalog;
+    const int32_t* bot_move_routes;
+    const SonicMotionComposerNative* bot_composers;
+    RekG1CudaDirectCommand* bot_commands;
+    RekG1CudaDirectResult* bot_results;
+    uint8_t *bot_enabled,*bot_dampened;
 };
+__global__ void initialize_bot_catalog(RuntimeView v) {
+    for(int move=0;move<17;move++){
+        const int route=v.bot_move_routes[move];
+        int limb=0;
+        if(route<7||route>=24){atomicOr(v.failures,64);return;}
+        const int offset=v.c.route_offsets[route],count=v.c.route_counts[route];
+        if(offset<0||count<=0||offset+count>REK_G1_STRIKE_CATALOG_IMPACT_EVENT_COUNT){atomicOr(v.failures,64);return;}
+        for(int k=0;k<count;k++)if(v.c.impacts[offset+k].limb){
+            limb=int(v.c.impacts[offset+k].limb);break;
+        }
+        if(limb<1||limb>4){atomicOr(v.failures,64);return;}
+        v.bot_catalog->primary_limb[move]=limb;
+    }
+}
+__global__ void reset_bot(RuntimeView v) {
+    int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=v.p.arenas)return;
+    auto& bot=v.bot_states[a];bot={};
+    // Candidate-private RNG, not a reconstruction of Unity Random state.
+    rek5_bot1::activate(bot.tactical,v.bot_seed^(0x9e3779b9u*(uint32_t(a)+1u)));
+    for(int side=0;side<2;side++){
+        const int row=a*2+side;
+        v.bot_commands[row]={};v.bot_commands[row].move_index=-1;
+        v.bot_results[row]={};v.bot_enabled[row]=0;v.bot_dampened[row]=0;
+    }
+}
 __global__ void apply_round_duration(RuntimeView v) {
     int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=v.p.arenas)return;
     auto& fight=v.c.states[a].combat.fight;
@@ -216,6 +259,9 @@ __global__ void choose_actions(RuntimeView v) {
         float action=v.external_actions[a*2+1];validate_external_action(v,a*2+1,action);
         v.actions[a*2+1]=action;return;
     }
+    // Direct-native commands have no categorical action label. Inspection's
+    // bot action slot stays zero; actual commands/results are separately owned.
+    if(v.recovered_bot){v.actions[a*2+1]=0;return;}
     if(v.c.terminals[a*2]!=0)v.dummy_offset[a]=0;
     const float* o=v.observations+(a*2+1)*223;
     const uint8_t* masks=v.masks+(a*2+1)*33;
@@ -235,6 +281,92 @@ __global__ void choose_actions(RuntimeView v) {
     if(o[79]==0&&(!isfinite(norm)||norm<=1e-9))atomicOr(v.failures+a,32);
     v.actions[a*2+1]=float(selected);
     if(selected>=16&&selected<32)v.dummy_offset[a]=(selected-15)%16;
+}
+__global__ void prepare_bot(RuntimeView v) {
+    int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=v.p.arenas)return;
+    const int row=a*2+1;
+    for(int side=0;side<2;side++){
+        v.bot_dampened[a*2+side]=v.robot_dampened[a*2+side];
+        v.bot_enabled[a*2+side]=0;
+    }
+    auto& bot=v.bot_states[a];auto& command=v.bot_commands[row];
+    command={};command.move_index=-1;
+    if(v.external_override&&v.external_override[row]){
+        const auto write=rek5_bot1::deactivate_g1(bot.tactical,true);
+        if(write.write)bot.velocity=write.command;
+        return;
+    }
+    v.bot_enabled[row]=1;
+    const auto& fight=v.c.states[a].combat.fight;
+    const bool active=fight.phase==REK_G1_FIGHT_ROUND_ACTIVE;
+    // Counted body resets do not reset tactical phase, RNG or recovery latches.
+    // Only round release/re-possession reactivates the native initial delay.
+    if(v.c.episode_reset[a]||!active){
+        const auto write=rek5_bot1::deactivate_g1(bot.tactical,true);
+        if(write.write)bot.velocity=write.command;
+    }
+    if(active)rek5_bot1::activate_g1(bot.tactical,true);
+    float distance=0,angle=0;
+    if(!rek5_bot1_physical::geometry(v.p.qpos+a*72+36,v.p.qpos+a*72,distance,angle)){
+        atomicOr(v.failures+a,64);return;
+    }
+    auto& input=bot.input;
+    const auto& own_fall=v.c.states[a].fall[1];
+    input={distance,angle,.02f,v.p.time[a],
+        fight.round_duration_seconds-fight.time_remaining_seconds,
+        bool(v.bot_composers[row].action_playing),
+        v.c.states[a].fall[0].phase==REK_G1_FALL_FALLEN,
+        own_fall.phase==REK_G1_FALL_FALLEN,active};
+    // Current local Sonic G1 has no get-up clips, hence no recovery routine.
+    // Motor-shutdown/E-stop is not a state implemented by this physical model.
+    // Its unused delay remains explicitly unknown, never a synthetic fallback.
+    rek5_bot1::RecoveryInput recovery{input.own_recovery,
+        bool(v.robot_dampened[row]),false,false,bool(own_fall.recovery_armed),0,NAN};
+    if(recovery.recovery_armed){atomicOr(v.failures+a,64);return;}
+    rek5_bot1::Random rng{bot.tactical.rng};
+    const auto decision=rek5_bot1::update_g1(bot.tactical,bot.recovery,input,
+        recovery,*v.bot_catalog,rng);
+    if(decision.toggle_estop||decision.tactical.unsupported_recovery){
+        atomicOr(v.failures+a,64);return;
+    }
+    if(decision.write_zero_velocity)bot.velocity={};
+    const auto special=rek5_bot1::g1_local_special_result(decision.special,false,recovery);
+    if(!special.supported){atomicOr(v.failures+a,64);return;}
+    rek5_bot1::recovery_special_result(bot.recovery,decision.special,special.accepted);
+    if(special.enter_dampen)v.bot_dampened[row]=1;
+    // Explicit candidate cadence: Update, synchronous move dispatch, then
+    // FixedUpdate locomotion once per 50 Hz control tick. No Unity cadence claim.
+    // Native IsActive remains true during counted falls/body resets, independent
+    // of Sonic dampening. Actual motor suspension is handled by motion/robot.
+    auto accepted=bot.tactical,rejected=bot.tactical;
+    if(decision.tactical.move>=0){
+        rek5_bot1::attack_result(accepted,input,true);
+        rek5_bot1::attack_result(rejected,input,false);
+    }
+    const auto accepted_write=rek5_bot1::fixed_locomotion_g1(accepted,input,active);
+    const auto rejected_write=rek5_bot1::fixed_locomotion_g1(rejected,input,active);
+    const auto success_velocity=accepted_write.write?accepted_write.command:bot.velocity;
+    const auto failure_velocity=rejected_write.write?rejected_write.command:bot.velocity;
+    command.velocity={success_velocity.forward,success_velocity.strafe,success_velocity.yaw};
+    command.rejection_velocity={failure_velocity.forward,failure_velocity.strafe,failure_velocity.yaw};
+    command.move_index=decision.tactical.move;
+    command.cancel_action=decision.tactical.clear_punching;
+    command.input_recovering=recovery.runner_recovering;
+}
+__global__ void finish_bot(RuntimeView v) {
+    int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=v.p.arenas)return;
+    const int row=a*2+1;if(!v.bot_enabled[row])return;
+    auto& bot=v.bot_states[a];const auto& command=v.bot_commands[row];
+    const auto& result=v.bot_results[row];
+    if(result.status){atomicOr(v.failures+a,64);return;}
+    if(command.move_index>=0){
+        if(!result.move_attempted||result.move_accepted==result.move_rejected){
+            atomicOr(v.failures+a,64);return;
+        }
+        rek5_bot1::attack_result(bot.tactical,bot.input,bool(result.move_accepted));
+    }
+    const auto velocity=result.move_rejected?command.rejection_velocity:command.velocity;
+    bot.velocity={velocity.forward,velocity.strafe,velocity.yaw};
 }
 __global__ void flags(RuntimeView v,bool post) {
     int r=blockIdx.x*blockDim.x+threadIdx.x;if(r>=v.p.arenas*2)return;
@@ -350,6 +482,7 @@ struct RekNative5Runtime {
         for(auto p:{view.returns,view.lengths,view.hit_totals,view.invalid_totals})cuda_check(cudaMemsetAsync(p,0,a*sizeof(float),stream));
         cuda_check(cudaMemsetAsync(view.dummy_offset,0,a*sizeof(int),stream));
         cuda_check(cudaMemsetAsync(view.round_results,0,a*sizeof(RekNative5RoundResult),stream));
+        if(view.recovered_bot)reset_bot<<<arena_grid(),128,0,stream>>>(view);
         rek5::measurement_sample_reset_fall(measurement,motion->all_flags,stream);observe();
         gather<<<rows_grid(),128,0,stream>>>(view,true);observation_pack<<<rows_grid(),128,0,stream>>>(view,motion->observation12);
         if(view.observable_balance)observable_pack<<<arena_grid(),128,0,stream>>>(view,false);
@@ -364,7 +497,14 @@ struct RekNative5Runtime {
         rek5::measurement_clear_contacts(m,c.episode_reset,stream);physical_full(c.episode_reset,false);
         cuda_check(cudaMemsetAsync(view.completed,0,rows,stream));
         gather<<<rows_grid(),128,0,stream>>>(view,true);flags<<<rows_grid(),128,0,stream>>>(view,false);
-        motion->pre(view.actions,view.local_velocity,view.suspended,stream);
+        if(view.recovered_bot){
+            prepare_bot<<<arena_grid(),128,0,stream>>>(view);
+            cuda_check(robot_state_set_dampened(robot,view.bot_dampened,robot->controls));
+            flags<<<rows_grid(),128,0,stream>>>(view,false);
+            motion->pre_direct(view.actions,view.bot_commands,view.bot_enabled,
+                view.bot_results,view.local_velocity,view.suspended,stream);
+            finish_bot<<<arena_grid(),128,0,stream>>>(view);
+        }else motion->pre(view.actions,view.local_velocity,view.suspended,stream);
         flags<<<rows_grid(),128,0,stream>>>(view,false);cuda_check(robot_state_set_active(robot,view.enabled));
         cuda_check(robot_state_prepare(robot,view.base,view.omega,view.joints,view.velocities,motion->heading,
             motion->positions,motion->next_positions,motion->rotations));
@@ -413,6 +553,11 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         if(!std::isfinite(cfg->round_seconds)||cfg->round_seconds<0||cfg->round_seconds>3600)
             throw std::runtime_error("round_seconds must be zero or finite in (0,3600]");
         v.round_seconds=cfg->round_seconds;
+        const char* opponent=getenv("REK_PHYSICAL_OPPONENT");
+        if(opponent&&strcmp(opponent,"candidate_approach_dummy")&&strcmp(opponent,"recovered_bot1_g1_v1"))
+            throw std::runtime_error("Invalid REK_PHYSICAL_OPPONENT");
+        v.recovered_bot=opponent&&!strcmp(opponent,"recovered_bot1_g1_v1");
+        v.bot_seed=cfg->seed;
         const char* schema=getenv("REK_OBSERVATION_SCHEMA");
         if(schema&&strcmp(schema,"rek.native5.scaled_polar_xy.v1")&&strcmp(schema,rek_observable_balance::kSchema))
             throw std::runtime_error("Physical runtime supports scaled_polar_xy.v1 or observable_balance.v1");
@@ -469,6 +614,13 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         v.local_velocity=d.alloc<float>(rows*6);v.entities=d.alloc<float>(rows*86);v.observations=d.alloc<float>(rows*223);v.actions=d.alloc<float>(rows);
         v.returns=d.alloc<float>(a);v.lengths=d.alloc<float>(a);v.hit_totals=d.alloc<float>(a);v.invalid_totals=d.alloc<float>(a);
         v.dummy_offset=d.alloc<int>(a);v.failures=d.alloc<int>(a);v.phase=d.alloc<int>(rows);v.physics_stats=p->stats;
+        if(v.recovered_bot){
+            v.bot_states=d.alloc<PhysicalBotState>(a);v.bot_catalog=d.alloc<rek5_bot1::Catalog>(1);
+            v.bot_commands=d.alloc<RekG1CudaDirectCommand>(rows);v.bot_results=d.alloc<RekG1CudaDirectResult>(rows);
+            v.bot_enabled=d.alloc<uint8_t>(rows);v.bot_dampened=d.alloc<uint8_t>(rows);
+            v.bot_move_routes=r->motion->scheduler_host.move_routes;
+            v.bot_composers=r->motion->composers;
+        }
         v.pooled_physics_contacts=std::string(rek5::physics_backend_name(p)).rfind("mujoco_cuda",0)==0;
         v.round_results=d.alloc<RekNative5RoundResult>(a);
         v.suspended=d.alloc<uint8_t>(rows);v.enabled=d.alloc<uint8_t>(rows);v.row_mask=d.alloc<uint8_t>(rows);v.union_mask=d.alloc<uint8_t>(a);
@@ -481,11 +633,15 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         c.terminal=d.alloc<uint8_t>(a);c.episode_reset=d.alloc<uint8_t>(a);c.input_reset=d.alloc<uint8_t>(rows);c.dampened=d.alloc<uint8_t>(rows);
         c.begin=d.alloc<uint8_t>(a);c.complete=d.alloc<uint8_t>(a);c.clear=d.alloc<uint8_t>(a);
         c.fall=d.alloc<float>(rows*15);c.fight=d.alloc<float>(rows*39);c.rewards=d.alloc<float>(rows);c.terminals=d.alloc<float>(rows);
-        cuda_check(rek_g1_cuda_native_combat_upload_catalog(c.impacts,c.route_offsets,c.route_counts));r->bind(s);r->reset();
+        cuda_check(rek_g1_cuda_native_combat_upload_catalog(c.impacts,c.route_offsets,c.route_counts));
+        if(v.recovered_bot)initialize_bot_catalog<<<1,1,0,s>>>(v);
+        r->bind(s);r->reset();
         cuda_check(cudaStreamSynchronize(s));
+        if(v.recovered_bot&&rek_native5_check_status(r.get(),s))throw std::runtime_error(runtime_error);
         std::fprintf(stderr,"native5 runtime: physics_backend=%s arenas=%d fighters=%d controller_bytes=%zu\n",rek5::physics_backend_name(p),a,rows,sonic_controller_resident_bytes(r->controller));
         std::fprintf(stderr,"model_sha256=%s export_sha256=%s motion_manifest_sha256=%s\n",p->model_sha256.c_str(),p->export_sha256.c_str(),r->motion->manifest_sha256.c_str());
         std::fprintf(stderr,"encoder_sha256=%s decoder_sha256=%s\n",sonic_controller_encoder_sha256(r->controller),sonic_controller_decoder_sha256(r->controller));
+        if(v.recovered_bot)std::fprintf(stderr,"physical_opponent={\"mode\":\"recovered_bot1_g1_v1\",\"cadence\":\"candidate_Update_then_FixedUpdate_50Hz\",\"rng\":\"candidate_xorshift32\",\"commands\":\"continuous_native\",\"counted_reset\":\"preserve_tactical_state_rng_recovery\",\"round_reset\":\"deactivate_reactivate_preserve_rng_recovery\",\"getup_clips\":\"current_G1_null\",\"motor_shutdown_hold\":\"not_modeled\",\"device_action_bot_slot\":\"zero_not_categorical_command\",\"authentic_parity\":false}\n");
         if(v.observable_balance)std::fprintf(stderr,"observable_balance={\"schema\":\"rek.native5.observable_balance.v1\",\"features\":223,\"root\":\"verified_free_root_origin_wxyz\",\"history\":\"preceding_50Hz_observation\",\"history_reset\":\"explicit_reset_or_episode_boundary_only\",\"joint_pose_available\":false,\"joint_mapping\":\"unproven_not_raw_qpos\",\"referee_source\":\"native_count_active\",\"raw_inspection_unchanged\":true,\"old_weights_compatible\":false}\n");
         if(v.normalized_rewards)std::fprintf(stderr,"normalized_reward={\"mode\":\"normalized_points_falls_v1\",\"scale\":0.01,\"bounds\":[-1,1],\"own_confirmed_fall\":-0.01,\"fall_event_source\":\"BECAME_FALLEN\",\"terminal_bonus\":0,\"normalization\":\"fixed_scale\"}\n");
         return r.release();
@@ -544,7 +700,7 @@ extern "C" int rek_native5_check_status(RekNative5Runtime* r,cudaStream_t s){
     try{
         if(!r)throw std::runtime_error("Null native5 runtime");cuda_check(cudaStreamSynchronize(s));
         std::vector<int> status(r->view.p.arenas);cuda_check(cudaMemcpy(status.data(),r->view.failures,status.size()*sizeof(int),cudaMemcpyDeviceToHost));
-        for(size_t i=0;i<status.size();i++)if(status[i])throw std::runtime_error("Native5 arena "+std::to_string(i)+" sticky failure bits="+std::to_string(status[i])+" (1=finite/encoding,2=combat,4=scheduler,8=physics,16=action,32=dummy)");
+        for(size_t i=0;i<status.size();i++)if(status[i])throw std::runtime_error("Native5 arena "+std::to_string(i)+" sticky failure bits="+std::to_string(status[i])+" (1=finite/encoding,2=combat,4=scheduler,8=physics,16=action,32=dummy,64=physical_bot1)");
         rek5::physics_check_status(r->physics);r->motion->check_status(s);return 0;
     }catch(const std::exception& e){runtime_error=e.what();return 1;}
 }

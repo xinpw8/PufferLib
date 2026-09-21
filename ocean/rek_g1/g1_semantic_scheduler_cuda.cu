@@ -1,4 +1,6 @@
+#if !defined(REK_G1_SEMANTIC_CPU_TEST)
 #define REK_G1_CUDA_DEVICE 1
+#endif
 #include "g1_semantic_scheduler_cuda.h"
 #include <math.h>
 
@@ -178,21 +180,107 @@ __device__ int compose(const RekG1CudaSemanticBuffers& b, size_t i,
     return cs ? 300 + int(cs) : 0;
 }
 
+__device__ int compose_direct(const RekG1CudaSemanticBuffers& b, size_t i,
+        const RekG1CudaDirectCommand& command, const RekG1NativeBaseVelocitySample& velocity,
+        uint8_t suspended, RekG1CudaDirectResult& feedback) {
+    auto& row = b.rows[i];
+    auto& composer = b.composers[i];
+    if (!finite_command(command.velocity) || !finite_command(command.rejection_velocity)) return 202;
+    if (command.cancel_action > 1 || command.input_recovering > 1) return 400;
+    if (command.cancel_action && !command.input_recovering && composer.action_playing) {
+        const auto status = sonic_motion_composer_native_cancel_action(&composer);
+        if (status) return 300 + int(status);
+        const int idle_status = play_route(b, i, REK_G1_NATIVE_IDLE);
+        if (idle_status) return idle_status;
+        row.active_route_id = REK_G1_NATIVE_IDLE;
+        feedback.cancelled = 1;
+    }
+    if (command.move_index != -1) {
+        feedback.move_attempted = 1;
+        if (command.move_index < 0 || command.move_index >= 17) {
+            feedback.rejection_reason = REK_G1_DIRECT_INVALID_MOVE;
+        } else if (command.input_recovering) {
+            feedback.rejection_reason = REK_G1_DIRECT_RECOVERING;
+        } else if (composer.action_playing) {
+            feedback.rejection_reason = REK_G1_DIRECT_PUNCHING;
+        } else {
+            const int route = b.move_routes[command.move_index];
+            if (route < 0 || route >= 24 || b.route_kinds[route] != 3) return 400;
+            const int status = play_route(b, i, route);
+            if (status) return status;
+            row.locomotion.locomotion_active = 0;
+            row.active_route_id = static_cast<RekG1NativeRouteId>(route);
+            feedback.move_accepted = 1;
+        }
+        feedback.move_rejected = !feedback.move_accepted;
+    }
+    const auto requested = feedback.move_rejected ? command.rejection_velocity : command.velocity;
+    const RekG1NativeLocomotionStepInput input = {
+        requested, velocity, b.config->timing.elapsed_seconds,
+        1, uint8_t(composer.action_playing != 0), uint8_t(busy(composer)), 1};
+    RekG1NativeLocomotionStepResult result = {};
+    auto status = rek_g1_native_locomotion_step(&row.locomotion, &b.config->locomotion, &input, &result);
+    if (status) return 200 + int(status);
+    if (result.event != REK_G1_NATIVE_LOCOMOTION_EVENT_NONE) {
+        const int play_status = play_route(b, i, result.event_route_id);
+        if (play_status) return play_status;
+        row.active_route_id = result.event_route_id;
+    }
+    row.locomotion = result.next_state;
+    row.effective_velocity = result.effective_velocity;
+    RekG1NativePlaybackUpdate playback = {};
+    status = rek_g1_native_playback_update(row.effective_velocity, &b.config->command, &playback);
+    if (status) return 200 + int(status);
+    if (playback.apply) {
+        const auto composer_status = sonic_motion_composer_native_set_locomotion_speed(&composer, playback.scale);
+        if (composer_status) return 300 + int(composer_status);
+    }
+    // Motor suspension is separate from native input dispatch. PlayAction has
+    // no paused/reset/dampened guard; keep its acceptance and state changes.
+    // The physical runtime does not consume new references while suspended.
+    if (suspended) return 0;
+    const auto composer_status = sonic_motion_composer_native_build_reference_rows(&composer,
+        b.reference_timing, b.mirror, &b.references[i]);
+    return composer_status ? 300 + int(composer_status) : 0;
+}
+
 __global__ void pre_kernel(const RekG1CudaSemanticBuffers* buffers,
         const float* actions, const float* velocity, const uint8_t* suspended,
-        size_t count) {
+        size_t count, const RekG1CudaDirectCommand* commands = nullptr,
+        const uint8_t* enabled = nullptr, RekG1CudaDirectResult* results = nullptr) {
     const auto& b = *buffers;
     for (size_t i = size_t(blockIdx.x) * blockDim.x + threadIdx.x;
             i < count; i += size_t(blockDim.x) * gridDim.x) {
         auto& row = b.rows[i];
+        if (results) { results[i] = {}; results[i].applied_route = -1; results[i].status = row.status; }
         if (row.status) continue;
+        const uint8_t direct = enabled ? enabled[i] : 0;
+        if (direct > 1 || (direct != row.direct_native_active
+                && (b.composers[i].action_playing || row.adapter.scheduler.active))) {
+            row.status = direct > 1 ? 400 : REK_G1_DIRECT_HANDOFF_UNSUPPORTED;
+            if (results) results[i].status = row.status;
+            write_outputs(b, i);
+            continue;
+        }
         // Native gather_velocity_sample validates every measured component,
         // including rows whose controller is suspended or executing a move.
         const auto sample = velocity_sample(velocity + i * 6);
         if (!finite_command(sample.angular_velocity_local)
                 || !finite_command(sample.linear_velocity_local)) {
             row.status = 202;
+            if (results) results[i].status = row.status;
             write_outputs(b, i);
+            continue;
+        }
+        row.direct_native_active = direct;
+        if (direct) {
+            auto& feedback = results[i];
+            row.semantic = {};
+            feedback.suspended = suspended[i] != 0;
+            row.status = compose_direct(b, i, commands[i], sample, suspended[i], feedback);
+            feedback.status = row.status;
+            feedback.applied_route = int(row.active_route_id);
+            if (row.status) write_outputs(b, i);
             continue;
         }
         const auto step = rek_g1_puffer_step(&row.adapter, actions[i], b.config->timing,
@@ -200,6 +288,7 @@ __global__ void pre_kernel(const RekG1CudaSemanticBuffers* buffers,
         row.semantic = step.semantic;
         if (step.status) row.status = 100 + int(step.status);
         else if (!suspended[i]) row.status = compose(b, i, sample);
+        if (results) { results[i].status = row.status; results[i].applied_route = int(row.active_route_id); }
         if (row.status) write_outputs(b, i);
     }
 }
@@ -244,7 +333,7 @@ __global__ void post_kernel(const RekG1CudaSemanticBuffers* buffers,
         if (phase[i] < 0 || phase[i] > 2) row.status = 400;
         if (!row.status && !reset_event[i] && !suspended[i]) {
             row.status = advance_heading(b, i);
-            if (row.semantic.kind == REK_G1_SEMANTIC_DISCRETE_MOVE
+            if (!row.direct_native_active && row.semantic.kind == REK_G1_SEMANTIC_DISCRETE_MOVE
                     && ((row.semantic.segment_complete && b.composers[i].action_playing)
                         || (!row.semantic.segment_complete && !b.composers[i].action_playing)))
                 row.status = 400;
@@ -266,6 +355,7 @@ __global__ void post_kernel(const RekG1CudaSemanticBuffers* buffers,
 }
 } // namespace
 
+#if !defined(REK_G1_SEMANTIC_CPU_TEST)
 extern "C" cudaError_t rek_g1_cuda_semantic_table_init(
         RekG1SemanticActionTableStorage* table, uint32_t ticks,
         const uint32_t* durations, int* status, cudaStream_t stream) {
@@ -292,6 +382,19 @@ extern "C" cudaError_t rek_g1_cuda_semantic_pre(
     return cudaGetLastError();
 }
 
+extern "C" cudaError_t rek_g1_cuda_semantic_pre_direct(
+        const RekG1CudaSemanticBuffers* b, const float* actions,
+        const RekG1CudaDirectCommand* commands, const uint8_t* enabled,
+        RekG1CudaDirectResult* results, const float* velocity,
+        const uint8_t* suspended, size_t count, cudaStream_t stream) {
+    if (!count) return cudaSuccess;
+    if (!b || !actions || !commands || !enabled || !results || !velocity || !suspended)
+        return cudaErrorInvalidValue;
+    pre_kernel<<<blocks_for(count), THREADS, 0, stream>>>(b, actions, velocity, suspended, count,
+        commands, enabled, results);
+    return cudaGetLastError();
+}
+
 extern "C" cudaError_t rek_g1_cuda_semantic_post(
         const RekG1CudaSemanticBuffers* b, const float* velocity,
         const int32_t* phase, const uint8_t* suspended, const uint8_t* input_reset,
@@ -303,3 +406,4 @@ extern "C" cudaError_t rek_g1_cuda_semantic_post(
         suspended, input_reset, reset_event, terminal, count);
     return cudaGetLastError();
 }
+#endif
