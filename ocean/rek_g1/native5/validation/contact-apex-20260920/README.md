@@ -113,3 +113,9 @@ the precise existing-log fields and their input hashes.
 - Contact helper: `5efe79df0b635a395879b68fee96346de1c3935557f54ba082ee2eac4fe92716`.
 - CPU fixture executable: `2a45459f19bc407557d2dc4f6844512326535649729edbf88b18f2b7581a464e`.
 - CUDA equivalence executable: `57e79d6cfb3a528cf100624033136a3bc61744d2b29f2d280b54bebbee519483`.
+
+The complete idle/apex private mirrors and their scripts were copied to
+`\\192.168.0.19\MyShare\pufferlib\rek-evidence\2026-09-19\consistent-fighter-r1\native-contact-sampling-r1`.
+All 27 files, totaling 36,818,663 bytes, passed source-before, source-after
+and NAS readback SHA256 comparison. Archive manifest SHA256:
+`fe9b34889c3ba44f2b802787575386741f51b562bca22e43ef07bdc939cac286`.
