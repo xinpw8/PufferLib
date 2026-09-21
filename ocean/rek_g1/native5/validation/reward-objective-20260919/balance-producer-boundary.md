@@ -6,6 +6,14 @@ file from the investigation. Hashes and object identifiers below identify privat
 inputs; no proprietary dump, controller payload, or configuration content is
 published.
 
+Follow-up, 2026-09-21: the alternate-copy payloads were subsequently extracted
+and [compared coefficient-by-coefficient](../controller-coefficient-comparison-20260921/README.md).
+They match the public controller already used by the physical backend. The
+separate [contact-velocity correction](../physical-contact-cvel-20260921/README.md)
+has also been implemented and tested. Those results supersede the pending
+payload-comparison step below; they do not establish current service identity
+or resolve the compact simulator's missing balance dynamics.
+
 ## Conclusion and next action
 
 The current compact `fast_runtime.cu` has no action-conditioned balance dynamics.

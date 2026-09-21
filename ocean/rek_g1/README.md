@@ -6,6 +6,33 @@ actuator actions. It is not yet accepted as a control-equivalent REK clone.
 Acceptance requires held-out REK action sequences whose trajectory and event
 errors are no greater than REK's repeated-run variance.
 
+## Current native training and evaluation, 2026-09-21
+
+The current training implementation is standalone PufferLib 5.0 C++/CUDA in
+[`native5`](native5/README.md). Its compact simulator, policy inference and PPO
+execute without Python. The [warp-contact optimization](native5/validation/contact-warp-20260920/README.md)
+measured 916,844 complete-training SPS with body-cvel scoring and 934,429 with
+sphere-proxy scoring, over 33,554,432 learner transitions each. Both final
+checkpoints matched their slower serial references byte-for-byte.
+
+Fighting remains inadequate. The latest frozen compact candidate lost all
+three [authentic private-AI development rounds](native5/validation/consistent-fighter-20260919/body-cvel-development-r58-r62.md),
+35:54 points. The compact runtime still lacks contact-driven balance and
+knockdown dynamics. Its training win rate does not establish authentic skill.
+
+The separate [native physical backend](native5/mujoco_gpu/README.md) includes
+MuJoCo CUDA dynamics and the low-level controller. Its contact scoring now
+uses the [recovered raw body-velocity quantity](native5/validation/physical-contact-cvel-20260921/README.md).
+The controller's learned coefficients are
+[identical to the inspected older REK payloads](native5/validation/controller-coefficient-comparison-20260921/README.md);
+current service identity and closed-loop parity remain unverified. Its last
+completed full-training measurement remains the separately documented
+September 14 result, approximately 6,020 SPS. No new physical-training speed
+or fighting improvement is implied by these corrections.
+
+The following CUDA-candidate section preserves the earlier Python-orchestrated
+implementation and its historical measurements.
+
 ## Runtime boundary
 
 ### CUDA candidate
