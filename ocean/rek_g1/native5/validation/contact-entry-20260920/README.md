@@ -1,6 +1,6 @@
 # Persistent geom-pair contact entry
 
-An isolated opt-in correction replaces the compact per-limb contact latch with persistent **geom-pair** history. One matched 33,554,432-transition native CUDA training run completed successfully. Authentic evaluation is pending; this report establishes implementation behavior and training throughput, not fighting improvement or physical parity.
+An isolated opt-in correction replaces the compact per-limb contact latch with persistent **geom-pair** history. One matched 33,554,432-transition native CUDA training run completed successfully. The subsequent [authentic development evaluation](../consistent-fighter-20260919/contact-entry-development-r54-r57.md) finished with zero wins and three losses, 24:38 points. The checkpoint is not promoted. This report establishes implementation behavior and training throughput, not fighting improvement or physical parity.
 
 ## Source contract and change
 

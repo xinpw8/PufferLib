@@ -7,6 +7,16 @@ These are development results, not the separate 20-round frozen evaluation.
 
 ## Current authentic results
 
+The latest completed [contact-entry treatment](contact-entry-development-r54-r57.md)
+lost all three authentic development rounds, 24:38 points, including 9:33
+non-five-point awards. Its 737,572 SPS native training result and corrected
+contact history do not establish better fighting. The preceding
+[keyboard-reset stride5 treatment](keyboard-yaw-cadence-development-r50-r53.md)
+was 1W/2L, 30:44 points. All six completed rounds passed the unchanged strict
+checks; their separate zero-action entry failures were retained. Neither
+checkpoint is promoted. The earlier stride1 checkpoint's frozen evaluation
+also failed its predeclared consistency criterion, as recorded below.
+
 | Trial | Configuration | Awarded points, policy : bot | Result |
 | --- | --- | --- | --- |
 | r1 | original outcome checkpoint, sampled | 18:10 | Win |
