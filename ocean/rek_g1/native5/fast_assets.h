@@ -3,6 +3,7 @@
 #include "runtime_api.h"
 #include "primitive_contacts.cuh"
 #include "native_contact_geometry.h"
+#include "contact_velocity.h"
 #include "../g1_hit_detector.h"
 #include <array>
 #include <cstdint>
@@ -68,8 +69,14 @@ struct FastAssets {
     int impact_offsets[24]{},impact_counts[24]{};
     RekG1HitDetectorConfig recovered_hit_config{};
     bool recovered_catalog_compatible=false;
+    // Optional CPU-only bake. Empty in the legacy one-argument load path.
+    // Frame indices match frames; FastFrame and its GPU stride are unchanged.
+    std::vector<FastBodyVelocityFrame> body_velocity_frames;
+    std::string body_velocity_provenance_json;
 };
 
 // CPU work is restricted to loading and forward kinematics before training.
 // Uses mj_kinematics, never mj_step, mj_forward, or controller inference.
 FastAssets load_fast_assets(const RekNative5Config& config);
+// Adds kinematics/comPos/comVel only when explicitly requested. No CPU stepping.
+FastAssets load_fast_assets(const RekNative5Config& config,bool bake_body_velocity);

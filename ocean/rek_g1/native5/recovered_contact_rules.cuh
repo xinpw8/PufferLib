@@ -22,15 +22,16 @@ enum Reject { Speed=1,Apex=2,Cooldown=4,Duplicate=8 };
 struct Result { int points;int reject;int apex; };
 
 // Partial recovered acceptance on a compact contact-enter. The caller supplies
-// an explicit sphere-center relative velocity proxy. Upright/zone predicates
+// an explicit relative-speed proxy: legacy sphere-center finite difference or
+// opt-in body-cvel kinematics. Upright/zone predicates
 // are the compact model's existing upright / pelvis-torso-head assumptions.
 // No native contact manifold, contact-point velocity or impulse is implied.
 REK_G1_FN Result score(RekG1HitDetectorState& state,
         const RekG1HitDetectorConfig& config,const RekG1StrikeIntent& intent,
-        int fighter,int limb,float sphere_relative_speed,float time_seconds){
+        int fighter,int limb,float relative_speed,float time_seconds){
     const auto part=limb<2?REK_G1_BODY_PART_FOOT:limb<4?REK_G1_BODY_PART_HAND:REK_G1_BODY_PART_SHIN;
     const auto side=(limb&1)?REK_G1_HAND_RIGHT:REK_G1_HAND_LEFT;
-    if(sphere_relative_speed<config.speed_threshold_mps)return {0,Speed,-1};
+    if(relative_speed<config.speed_threshold_mps)return {0,Speed,-1};
     int32_t apex=-1;float ramp=0;
     if(!embedded_strike_intent_apex(&intent,part,side,config.apex_min_ramp,&apex,&ramp))return {0,Apex,-1};
     if(state.cooldown_seen[fighter][limb]&&time_seconds-state.last_score_time_seconds[fighter][limb]<config.per_body_cooldown_seconds)return {0,Cooldown,apex};

@@ -85,12 +85,14 @@ struct Parameters {
     int policy_action_stride=1;
     rek_keyboard_yaw::Mode yaw_command=rek_keyboard_yaw::Mode::LegacyVelocitySlew;
     rek_contact_entry::Mode contact_entry=rek_contact_entry::Mode::LegacyLimbUnion;
+    rek_contact_velocity::Mode contact_velocity=rek_contact_velocity::Mode::LegacySphereProxy;
     int primitive_contacts,contact_substeps,strike_limb[12];
 };
 struct View {
     int arenas;
     const Parameters* p;
     const FastFrame* frames;
+    const FastBodyVelocityFrame* body_velocity_frames;
     Arena* state;
     RekNative5RoundResult* rounds;
     RekNative5Buffers out;
@@ -377,6 +379,12 @@ __device__ void seed_contact_pairs(const View& v,Arena& a){
     }
     a.contact_pairs_initialized=1;
 }
+__device__ rek_contact_velocity::Linear body_linear_velocity(const View& v,
+        const Fighter& f,int side,int body_slot){
+    const int current=frame_index(*v.p,f,false),previous=frame_index(*v.p,f,true);
+    return rek_contact_velocity::compose(v.body_velocity_frames[current],side,body_slot,
+        f.yaw,f.vx,f.vy,f.omega,current!=previous);
+}
 __device__ void geom_pair_contacts(const View& v,Arena& a,int side,int* hits,int* points){
     using namespace rek5_primitive;
     const Parameters& p=*v.p;auto& f=a.fighter[side];const auto& enemy=a.fighter[side^1];
@@ -418,15 +426,25 @@ __device__ void geom_pair_contacts(const View& v,Arena& a,int side,int* hits,int
                     world_shape(now.strike_shapes[i],f.x,f.y,f.yaw),
                     world_shape(old_target.target_shapes[zone],enemy.old_x,enemy.old_y,enemy.old_yaw),
                     world_shape(target.target_shapes[zone],enemy.x,enemy.y,enemy.yaw),p.contact_substeps);
+                if(p.contact_velocity==rek_contact_velocity::Mode::BodyCvel&&result.entered){
+                    // Each entered geom pair supplies its own body velocities.
+                    // End-of-tick rates approximate every sampled entry in this
+                    // tick; persistent/unrelated targets never lend speed.
+                    const float speed=rek_contact_velocity::relative_speed(
+                        body_linear_velocity(v,f,side,rek_contact_velocity::limb_slot(limb)),
+                        body_linear_velocity(v,enemy,side^1,rek_contact_velocity::target_slot(zone)));
+                    const auto score=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,speed,a.elapsed);
+                    if(score.points){hits[side]++;points[side]+=score.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=speed;}
+                }
                 entered=entered||result.entered;intersects=intersects||result.overlap_after_start;
             }
             // Preserve the existing per-limb maximum sphere-center velocity
             // proxy, including its aggregation across intersecting targets.
-            if(intersects){float d2=0;for(int k=0;k<3;k++){float d=to[k]-from[k];d2+=d*d;}max_relative_speed=fmaxf(max_relative_speed,sqrtf(d2)/DT);}
+            if(p.contact_velocity==rek_contact_velocity::Mode::LegacySphereProxy&&intersects){float d2=0;for(int k=0;k<3;k++){float d=to[k]-from[k];d2+=d*d;}max_relative_speed=fmaxf(max_relative_speed,sqrtf(d2)/DT);}
         }
         // History above advances even without intent and never resets at move
         // start. Native apex, body cooldown and invocation dedup stay unchanged.
-        if(!can_score||!entered)continue;
+        if(p.contact_velocity==rek_contact_velocity::Mode::BodyCvel||!can_score||!entered)continue;
         const auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
         if(result.points){hits[side]++;points[side]+=result.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=max_relative_speed;}
     }
@@ -751,7 +769,9 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
            !buffers->observations||!buffers->actions||!buffers->rewards||!buffers->terminals||!buffers->logs||
            buffers->log_stride_bytes<sizeof(RekNative5Log))throw std::runtime_error("Invalid semantic CUDA configuration/buffers");
         const auto feature_mask=rek_policy_features::load(getenv("REK_POLICY_FEATURE_MASK"));
-        FastAssets assets=load_fast_assets(*config);Parameters p{};
+        const auto velocity_mode=rek_contact_velocity::parse(getenv("REK_FAST_CONTACT_VELOCITY"));
+        FastAssets assets=load_fast_assets(*config,velocity_mode==rek_contact_velocity::Mode::BodyCvel);Parameters p{};
+        p.contact_velocity=velocity_mode;
         p.owned_yaw_observation=rek_owned_yaw::enabled(getenv("REK_OBSERVATION_SCHEMA"));
         if(p.owned_yaw_observation)fprintf(stderr,"semantic_cuda_observation_schema=%s;owned_command_column=187;physics_changed=false\n",rek_owned_yaw::kSchema);
         p.policy_action_stride=rek_action_cadence::parse(getenv("REK_POLICY_ACTION_STRIDE"));
@@ -773,7 +793,9 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         p.contact_entry=rek_contact_entry::parse(getenv("REK_FAST_CONTACT_ENTRY"));
         if(p.contact_entry==rek_contact_entry::Mode::GeomPair&&(!p.primitive_contacts||p.recovered_scoring!=2))
             throw std::runtime_error("geom_pair_v1 requires primitive_samples_v1 and recovered_hit_rules_v2");
-        if(p.contact_entry==rek_contact_entry::Mode::GeomPair)fprintf(stderr,"semantic_cuda_contact_entry={\"mode\":\"geom_pair_v1\",\"pair_identity\":\"distinct_striker_geom_target_geom\",\"pairs_per_fighter\":108,\"history_updates_without_intent\":true,\"reset_at_attack_start\":false,\"persistent_state\":\"endpoint_only\",\"sampled_enter_exit\":true,\"initial_overlap_seeded_without_enter\":true,\"velocity_proxy_changed\":false,\"authentic_parity\":false}\n");
+        if(!rek_contact_velocity::compatible(p.contact_velocity,p.contact_entry==rek_contact_entry::Mode::GeomPair,p.primitive_contacts,p.recovered_scoring))
+            throw std::runtime_error("body_cvel_v1 requires geom_pair_v1, primitive_samples_v1 and recovered_hit_rules_v2");
+        if(p.contact_entry==rek_contact_entry::Mode::GeomPair)fprintf(stderr,"semantic_cuda_contact_entry={\"mode\":\"geom_pair_v1\",\"pair_identity\":\"distinct_striker_geom_target_geom\",\"pairs_per_fighter\":108,\"history_updates_without_intent\":true,\"reset_at_attack_start\":false,\"persistent_state\":\"endpoint_only\",\"sampled_enter_exit\":true,\"initial_overlap_seeded_without_enter\":true,\"velocity_proxy_changed\":%s,\"authentic_parity\":false}\n",p.contact_velocity==rek_contact_velocity::Mode::BodyCvel?"true":"false");
         float substeps=environment_float("REK_FAST_CONTACT_SUBSTEPS",4,1,16);
         if(substeps!=floorf(substeps))throw std::runtime_error("REK_FAST_CONTACT_SUBSTEPS must be an integer");
         p.contact_substeps=int(substeps);
@@ -837,6 +859,10 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         for(int k=16;k<33;k++)if(p.action_to_route[k]<7||p.action_to_route[k]>=24||p.routes[p.action_to_route[k]].move<0||p.routes[p.action_to_route[k]].move>=17)throw std::runtime_error("Invalid baked action mapping");
         auto result=std::make_unique<RekNative5Runtime>();auto& v=result->view;int a=config->arenas;
         v.arenas=a;v.out=*buffers;v.p=result->storage.upload(&p,1);v.frames=result->storage.upload(assets.frames);
+        if(p.contact_velocity==rek_contact_velocity::Mode::BodyCvel){
+            if(assets.body_velocity_frames.size()!=assets.frames.size())throw std::runtime_error("Missing optional body cvel frames");
+            v.body_velocity_frames=result->storage.upload(assets.body_velocity_frames);
+        }
         if(feature_mask.enabled)v.policy_feature_mask=result->storage.upload(feature_mask.values.data(),feature_mask.values.size());
         v.state=result->storage.alloc<Arena>(a);v.rounds=result->storage.alloc<RekNative5RoundResult>(a);
         v.raw=result->storage.alloc<float>(size_t(a)*446);v.qpos=result->storage.alloc<float>(size_t(a)*72);
@@ -846,13 +872,17 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         rek5::cuda_check(cudaGetLastError());rek5::cuda_check(cudaStreamSynchronize(stream));
         fprintf(stderr,"semantic_cuda_v4: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; points-only slider dynamics; knockdowns unmodeled; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed);
         fprintf(stderr,"semantic_cuda_assets=%s\n",assets.provenance_json.c_str());
+        if(p.contact_velocity==rek_contact_velocity::Mode::BodyCvel){
+            fprintf(stderr,"semantic_cuda_body_velocity_assets=%s\n",assets.body_velocity_provenance_json.c_str());
+            fprintf(stderr,"semantic_cuda_contact_velocity={\"mode\":\"body_cvel_v1\",\"classification\":\"kinematic_proxy\",\"sampling\":\"end_of_tick_rates_for_each_sampled_entry\",\"aggregation\":\"entered_geom_pair_own_body_velocity_norm\",\"persistent_target_lends_speed\":false,\"reference\":\"root_subtree_com\",\"controller_response\":false,\"contact_solver_response\":false,\"balance_dynamics\":false,\"authentic_physical_parity\":false}\n");
+        }
         if(feature_mask.enabled)fprintf(stderr,"semantic_cuda_policy_feature_mask={\"enabled\":true,\"bytes\":223,\"sha256\":\"%s\",\"kept_features\":%d,\"raw_diagnostics_changed\":false}\n",
             feature_mask.sha256.c_str(),int(std::count(feature_mask.values.begin(),feature_mask.values.end(),uint8_t(1))));
         fprintf(stderr,"semantic_cuda_reward={\"mode\":\"%s\",\"gamma\":%.9g,\"point_input\":\"awarded_scoreboard_points\",\"terminal_signal\":\"completed_round_only\",\"countout_is_terminal\":false,\"terminal_win\":%d,\"terminal_loss\":%d,\"terminal_draw\":0,\"potential_scale_points\":5,\"terminal_potential\":0,\"adds_balance_dynamics\":false}\n",
             p.reward_mode==rek5_round_reward::RoundOutcome?"round_outcome_v1":"point_difference_v1",
             p.reward_gamma,p.reward_mode==rek5_round_reward::RoundOutcome?1:0,p.reward_mode==rek5_round_reward::RoundOutcome?-1:0);
         fprintf(stderr,"semantic_cuda_scoring={\"mode\":\"%s\",\"geometry\":\"%s\",\"contact_substeps\":%d,\"continuous_collision_detection\":false,\"speed\":\"%s\",\"speed_threshold_m_s\":%.9g,\"cooldown_seconds\":%.9g,\"apex_gate\":%s,\"per_invocation_apex_dedup\":%s,\"hand_points\":1,\"foot_shin_points\":%d,\"hit_count_is_unweighted\":true,\"upright_model\":\"constant_upright_no_balance_dynamics\",\"contact_enter_model\":\"%s\",\"authentic_parity\":false}\n",
-            p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",p.primitive_contacts?"primitive_samples_v1":"bounding_spheres",p.primitive_contacts?p.contact_substeps:0,p.recovered_scoring?"maximum_relative_sphere_center_finite_difference_proxy":"absolute_striker_sphere_center_finite_difference",p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?p.recovered_hit_config.per_body_cooldown_seconds:10*DT,p.recovered_scoring?"true":"false",p.recovered_scoring?"true":"false",p.recovered_scoring?2:1,p.contact_entry==rek_contact_entry::Mode::GeomPair?"geom_pair_v1":"compact_per_limb_union_latch_reset_at_move_start");
+            p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",p.primitive_contacts?"primitive_samples_v1":"bounding_spheres",p.primitive_contacts?p.contact_substeps:0,p.contact_velocity==rek_contact_velocity::Mode::BodyCvel?"entered_pair_kinematic_body_cvel":p.recovered_scoring?"maximum_relative_sphere_center_finite_difference_proxy":"absolute_striker_sphere_center_finite_difference",p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?p.recovered_hit_config.per_body_cooldown_seconds:10*DT,p.recovered_scoring?"true":"false",p.recovered_scoring?"true":"false",p.recovered_scoring?2:1,p.contact_entry==rek_contact_entry::Mode::GeomPair?"geom_pair_v1":"compact_per_limb_union_latch_reset_at_move_start");
         const char* modes[]={"scripted","neutral","retreat","strafe","mixed"};
         fprintf(stderr,"semantic_cuda_opponent={\"implementation\":\"%s\",\"replaces\":\"scripted_rows_only\",\"difficulty\":0,\"decision_hz\":50,\"native_update_fixedupdate_equivalence\":false,\"rng\":\"%s\",\"continuous_commands\":%s,\"pose_route\":\"dominant_translation_canned_proxy\",\"actuator_model\":\"compact_slider\",\"own_recovery\":\"unsupported_fail_closed\",\"server_parity\":false}\n",
             p.recovered_bot?"recovered_bot1_v1":"v4_scripted",p.recovered_bot?"candidate_private_xorshift32":"legacy_stateless_reset_hash",p.recovered_bot?"true":"false");

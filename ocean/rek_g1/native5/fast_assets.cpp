@@ -110,9 +110,68 @@ std::string quoted_geom_name(const mjModel* m,int geom) {
     std::unique_ptr<char,decltype(&cJSON_free)> text(cJSON_PrintUnformatted(value.get()),cJSON_free);
     require(bool(text),"cannot encode primitive provenance name");return text.get();
 }
+void bake_body_velocity_frames(const mjModel* m,mjData* d,FastAssets& out) {
+    require(mj_version()==mjVERSION_HEADER&&std::string(mj_versionString())=="3.7.0","body cvel bake requires pinned MuJoCo 3.7.0");
+    int body[2][rek_contact_velocity::Bodies]{},root[2]{},root_qpos[2]={-1,-1};
+    const char* prefixes[]={"player__","opponent__"};
+    for(int side=0;side<2;side++) {
+        std::set<int> unique;
+        for(int slot=0;slot<rek_contact_velocity::Bodies;slot++) {
+            body[side][slot]=identity(m,mjOBJ_BODY,std::string(prefixes[side])+rek_contact_velocity::BodyNames[slot]);
+            require(unique.insert(body[side][slot]).second,"duplicate cvel body slot");
+        }
+        root[side]=m->body_rootid[body[side][0]];
+        for(int slot=0;slot<rek_contact_velocity::Bodies;slot++)require(m->body_rootid[body[side][slot]]==root[side],"cvel bodies cross root trees");
+        for(int j=0;j<m->njnt;j++)if(m->jnt_type[j]==mjJNT_FREE&&m->jnt_bodyid[j]==root[side]) {
+            require(root_qpos[side]<0,"duplicate cvel free root");root_qpos[side]=m->jnt_qposadr[j];
+        }
+        require(root_qpos[side]>=0,"missing cvel free root");
+        const int expected_counts[]={4,4,1,1,1,1};
+        for(int limb=0;limb<6;limb++) {
+            int count=0;for(int g=0;g<m->ngeom;g++)count+=m->geom_bodyid[g]==body[side][rek_contact_velocity::limb_slot(limb)];
+            require(count==expected_counts[limb],"cvel striker body geometry mismatch");
+        }
+        for(int target=0;target<rek5_native_contact::TargetCount;target++) {
+            const int geom=identity(m,mjOBJ_GEOM,std::string(prefixes[side])+rek5_native_contact::TargetNames[target]);
+            require(m->geom_bodyid[geom]==body[side][rek_contact_velocity::target_slot(target)],"cvel target body slot mismatch");
+        }
+    }
+    auto canonical_pose=[&](const FastFrame& frame,std::array<mjtNum,72>& q) {
+        std::copy(m->qpos0,m->qpos0+72,q.begin());
+        for(int side=0;side<2;side++) {
+            const int p=root_qpos[side];q[p]=q[p+1]=0;q[p+2]=frame.root_z;
+            for(int k=0;k<4;k++)q[p+3+k]=frame.root_wxyz[k];
+            mju_normalize4(q.data()+p+3);
+            for(int j=0;j<29;j++)q[out.qindices[side][j]]=frame.q[j];
+        }
+    };
+    out.body_velocity_frames.resize(out.frames.size());
+    for(const auto& route:out.routes)for(int index=0;index<route.count;index++) {
+        const int previous=index?index-1:route.loop?route.count-1:0;
+        std::array<mjtNum,72> q0{},q1{};canonical_pose(out.frames[route.offset+previous],q0);canonical_pose(out.frames[route.offset+index],q1);
+        if(q0==q1)std::fill(d->qvel,d->qvel+70,0);
+        else mj_differentiatePos(m,d->qvel,.02,q0.data(),q1.data());
+        std::copy(q1.begin(),q1.end(),d->qpos);
+        mj_kinematics(m,d);mj_comPos(m,d);mj_comVel(m,d);
+        auto& result=out.body_velocity_frames[route.offset+index];
+        for(int side=0;side<2;side++) {
+            for(int k=0;k<3;k++) {
+                result.root_com[side][k]=float(d->subtree_com[3*root[side]+k]);
+                require(std::isfinite(result.root_com[side][k]),"nonfinite cvel root COM");
+            }
+            for(int slot=0;slot<rek_contact_velocity::Bodies;slot++)for(int k=0;k<3;k++) {
+                result.linear[side][slot][k]=float(d->cvel[6*body[side][slot]+3+k]);
+                require(std::isfinite(result.linear[side][slot][k]),"nonfinite baked body cvel");
+            }
+        }
+    }
+    std::ostringstream info;info<<"{\"mode\":\"body_cvel_v1\",\"classification\":\"kinematic_cvel_proxy\",\"mujoco_version\":\"3.7.0\",\"frames\":"<<out.body_velocity_frames.size()
+        <<",\"frame_bytes\":"<<sizeof(FastBodyVelocityFrame)<<",\"fighter_trees\":2,\"bodies_per_tree\":14,\"dt_seconds\":0.02,\"incoming_loop_wrap\":true,\"normalized_root_quaternion\":true,\"reference\":\"root_subtree_com\",\"offline_calls\":\"mj_differentiatePos,mj_kinematics,mj_comPos,mj_comVel\",\"cpu_physics_steps\":0,\"controller_inference\":false,\"authentic_physical_parity\":false}";
+    out.body_velocity_provenance_json=info.str();
+}
 }
 
-FastAssets load_fast_assets(const RekNative5Config& config) {
+FastAssets load_fast_assets(const RekNative5Config& config,bool bake_body_velocity) {
     require(config.model_path&&config.assets_path&&config.motion_features_path,"required paths missing");
     const std::uint16_t endian=1;require(*reinterpret_cast<const unsigned char*>(&endian)==1,"float32_le needs a little-endian host");
     FastAssets out;auto mb=bytes(filename(config.assets_path,"semantic_duel_assets_manifest.json"));out.manifest_sha256=sha(mb);auto manifest=json(mb);
@@ -251,5 +310,10 @@ FastAssets load_fast_assets(const RekNative5Config& config) {
     info<<"],\"target_contract\":\""<<rek5_native_contact::TargetContract<<"\",\"target_count\":"<<rek5_native_contact::TargetCount<<",\"legacy_target_count\":3,\"targets\":[";
     for(int k=0;k<rek5_native_contact::TargetCount;k++){if(k)info<<',';info<<"{\"geom\":"<<quoted_geom_name(m,target_geoms[k])<<",\"kind\":"<<primitive_kind(m,target_geoms[k])<<",\"target\":"<<k<<",\"body_zone\":"<<rek5_native_contact::TargetZones[k]<<'}';}
     info<<"]}}";out.provenance_json=info.str();
+    if(bake_body_velocity)bake_body_velocity_frames(m,d,out);
     return out;
+}
+
+FastAssets load_fast_assets(const RekNative5Config& config) {
+    return load_fast_assets(config,false);
 }
