@@ -22,10 +22,19 @@ cost equals one point, while conceding a five-point countout costs five times
 that amount. Multiplying every reward by a common positive factor preserves an
 ideal expected-return ranking, but does not guarantee identical finite PPO
 updates with a fixed critic loss, entropy coefficient, optimizer and clipping.
-This PufferLib implementation already normalizes advantages by minibatch mean
-and standard deviation in `src/pufferlib.cu`; the critic's targets and value loss
-still depend on reward units. Reward normalization here is separate from that
-advantage normalization.
+Correction from inspection of the actual archived trainer: the executed pinned
+PufferLib build uses raw advantages. `build/trainer/src/algo.cu` reads
+`adv_for_pg = to_float(g.advantages[nt])`, and `src/pufferl.cu` passes GAE output
+directly to the loss. The newer repository `src/pufferlib.cu` has minibatch
+advantage normalization, but it is not the source compiled for these runs.
+The original report conflated those versions. Scaling task rewards by 0.01
+while retaining entropy coefficient 0.01 changes the relative entropy pressure;
+the warm-start critic also retains its previous terminal-outcome objective.
+The saved authentic-PPO dataset manifest confirms that `f3fabe8` was trained
+with terminal outcome plus discounted score potential, not raw point difference.
+Therefore scaling that critic by 0.01 would not be a verified points-unit
+conversion. Their effects require
+controlled measurements and cannot be inferred from one authentic loss.
 
 The compact runtime still has no physical fall-event producer. It uses this
 same point-reward scale and explicitly supplies no fall events. The physical

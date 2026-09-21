@@ -58,6 +58,54 @@ void verify_value_only(const std::vector<float>& before,const std::vector<float>
     for(float v:after) require(std::isfinite(v), "nonfinite calibrated weight");
 }
 
+double fixed_scale_argument(const std::string& argument) {
+    size_t consumed=0;
+    const double scale=std::stod(argument,&consumed);
+    require(consumed==argument.size() && std::isfinite(scale) && scale>=0,
+        "fixed scale must be a finite nonnegative number");
+    return scale;
+}
+void verify_expected_sha(const std::string& digest) {
+    require(digest.size()==64 && std::all_of(digest.begin(),digest.end(),[](char c) {
+        return (c>='0' && c<='9') || (c>='a' && c<='f');
+    }), "expected SHA must contain 64 lowercase hexadecimal characters");
+}
+std::vector<float> fixed_scale_weights(const std::vector<float>& original,Layout layout,double scale) {
+    require(std::isfinite(scale) && scale>=0, "fixed scale must be finite and nonnegative");
+    require(original.size()==layout.count, "checkpoint shape mismatch");
+    for(float v:original) require(std::isfinite(v), "nonfinite input checkpoint");
+    auto changed=original;
+    for(size_t i=layout.value_begin;i<layout.value_end;++i)
+        changed[i]=float(double(original[i])*scale);
+    verify_value_only(original,changed,layout);
+    return changed;
+}
+void fixed_scale_checkpoint(const char* input,const char* expected_sha,const char* scale_text,const char* output) {
+    const double scale=fixed_scale_argument(scale_text);
+    verify_expected_sha(expected_sha);
+    require(!std::filesystem::exists(output), "output checkpoint already exists");
+    const auto layout=value_layout();
+    const auto bytes=rek_authentic::read_file(input);
+    require(bytes.size()==layout.count*sizeof(float), "checkpoint size differs from registered architecture");
+    const auto digest=rek_authentic::sha256(bytes.data(),bytes.size());
+    require(digest==expected_sha, "checkpoint binding differs from supplied SHA");
+    std::vector<float> weights(layout.count);
+    std::memcpy(weights.data(),bytes.data(),bytes.size());
+    const auto changed=fixed_scale_weights(weights,layout,scale);
+    const auto changed_digest=rek_authentic::sha256(changed.data(),bytes.size());
+    FILE* out=fopen(output,"wbx");require(out!=nullptr,"exclusive checkpoint create failed");
+    const bool wrote=fwrite(changed.data(),sizeof(float),changed.size(),out)==changed.size();
+    const int closed=fclose(out);require(wrote && closed==0,"fixed-scale checkpoint write failed");
+    const auto saved=rek_authentic::read_file(output);
+    require(saved.size()==bytes.size() && std::memcmp(saved.data(),changed.data(),saved.size())==0,
+        "fixed-scale checkpoint readback failed");
+    std::cout<<"{\"mode\":\"fixed_value_head_scale\",\"scale\":"<<scale
+        <<",\"input_checkpoint_sha256\":\""<<digest<<"\",\"output_checkpoint_sha256\":\""<<changed_digest
+        <<"\",\"parameter_count\":"<<layout.count<<",\"value_begin\":"<<layout.value_begin
+        <<",\"value_end_exclusive\":"<<layout.value_end<<",\"outside_value_parameters_bitwise_equal\":true,"
+        "\"bias_present\":false,\"cuda_calls\":0}\n";
+}
+
 struct Step { double reward, gamma, value; int terminal; };
 struct Span { int begin, end; };
 struct Fit {
@@ -202,8 +250,45 @@ void cpu_self_test() {
         try { verify_value_only(a,b,l); } catch(const std::exception&) { rejected=true; }
         require(rejected, "non-value mutation was not rejected");
     }
+    // Test the same host-only transform used by --fixed-scale. Signed zero in
+    // the untouched actor range must survive byte-for-byte as well.
+    a[0]=-0.0f;
+    for(double scale:std::array<double,4>{0,.01,1,2}) {
+        b=fixed_scale_weights(a,l,scale);
+        verify_value_only(a,b,l);
+        for(size_t i=l.value_begin;i<l.value_end;++i)
+            require(b[i]==float(double(a[i])*scale), "fixed value scale test failed");
+        require(std::memcmp(a.data(),b.data(),l.value_begin*sizeof(float))==0,
+            "fixed scale changed actor bytes");
+    }
+    for(double scale:std::array<double,3>{-1,INFINITY,NAN}) {
+        bool rejected=false;
+        try { fixed_scale_weights(a,l,scale); } catch(const std::exception&) { rejected=true; }
+        require(rejected, "invalid fixed scale was not rejected");
+    }
+    for(const char* scale:{"-0.01","nan","inf","1x","","1e999"}) {
+        bool rejected=false;
+        try { fixed_scale_argument(scale); } catch(const std::exception&) { rejected=true; }
+        require(rejected, "invalid fixed scale argument was not rejected");
+    }
+    require(fixed_scale_argument("0.01")==.01, "fixed scale argument test failed");
+    verify_expected_sha(std::string(64,'a'));
+    for(const auto& digest:std::array<std::string,3>{std::string(63,'a'),std::string(65,'a'),std::string(64,'g')}) {
+        bool rejected=false;
+        try { verify_expected_sha(digest); } catch(const std::exception&) { rejected=true; }
+        require(rejected, "invalid expected SHA was not rejected");
+    }
+    b=a;b[l.value_begin]=std::numeric_limits<float>::max();
+    bool overflow_rejected=false;
+    try { fixed_scale_weights(b,l,2); } catch(const std::exception&) { overflow_rejected=true; }
+    require(overflow_rejected, "nonfinite scaled weight was not rejected");
+    b=a;b[0]=NAN;
+    bool input_rejected=false;
+    try { fixed_scale_weights(b,l,.01); } catch(const std::exception&) { input_rejected=true; }
+    require(input_rejected, "nonfinite input weight was not rejected");
     std::cout<<"{\"cpu_self_test\":\"passed\",\"parameters\":"<<l.count<<",\"value_begin\":"<<l.value_begin
-        <<",\"value_end_exclusive\":"<<l.value_end<<",\"bias_present\":false,\"cuda_calls\":0}\n";
+        <<",\"value_end_exclusive\":"<<l.value_end<<",\"bias_present\":false,\"cuda_calls\":0,"
+        "\"fixed_scale_and_actor_preservation\":true,\"invalid_scale_sha_and_nonfinite_rejected\":true}\n";
 }
 void gpu_self_test() {
     // Closed-form targets [3,5], [-1,-2], [7,9]. Held-out values deliberately
@@ -238,8 +323,11 @@ int main(int argc,char** argv) {
         std::cout<<std::setprecision(17);
         if(argc==2 && std::string(argv[1])=="--cpu-self-test") { cpu_self_test();return 0; }
         if(argc==2 && std::string(argv[1])=="--gpu-self-test") { gpu_self_test();return 0; }
+        if(argc==6 && std::string(argv[1])=="--fixed-scale") {
+            fixed_scale_checkpoint(argv[2],argv[3],argv[4],argv[5]);return 0;
+        }
         const bool verify=argc==5 && std::string(argv[1])=="--verify";
-        require(verify || argc==6,"usage: critic-calibration DATA OLD_REPLAY CHECKPOINT EXPECTED_SHA NEW_CHECKPOINT | --verify DATA OLD_REPLAY NEW_REPLAY | --cpu-self-test | --gpu-self-test");
+        require(verify || argc==6,"usage: critic-calibration DATA OLD_REPLAY CHECKPOINT EXPECTED_SHA NEW_CHECKPOINT | --fixed-scale CHECKPOINT SHA SCALE NEW_CHECKPOINT | --verify DATA OLD_REPLAY NEW_REPLAY | --cpu-self-test | --gpu-self-test");
         const char* data_path=argv[verify?2:1];const char* replay_path=argv[verify?3:2];
         const auto data=rek_authentic::load(data_path);
         const auto old_bytes=rek_authentic::read_file(replay_path);

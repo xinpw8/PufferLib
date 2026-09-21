@@ -1,0 +1,15 @@
+{
+  "backend": "semantic_cuda",
+  "model_path": "/home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml",
+  "assets_path": "/home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/",
+  "motion_features_path": "/home/spark-advantage/rek-training/gpu-runtime-20260910/motion-foot-features/",
+  "round_seconds": 120,
+  "locomotion_segment_ticks": 1,
+  "fast": {
+    "opponent_controller": "recovered_bot1_v1",
+    "observation_mode": "rendered_pose_v1",
+    "geometry_mode": "primitive_samples_v1",
+    "contact_substeps": 8,
+    "scoring_mode": "recovered_hit_rules_v2"
+  }
+}
