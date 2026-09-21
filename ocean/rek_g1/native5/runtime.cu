@@ -5,10 +5,13 @@
 #include "robot_state.cuh"
 #include "sonic_controller.cuh"
 #include "device_storage.cuh"
+#include "normalized_reward.h"
 #include "../g1_native_combat_cuda.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -44,6 +47,10 @@ struct RuntimeView {
     const uint8_t* external_override;
     RekNative5RoundResult* round_results;
     float round_seconds;
+    bool normalized_rewards;
+    unsigned* reward_saturations;
+    uint64_t* confirmed_falls;
+    int64_t* awarded_points;
 };
 __global__ void apply_round_duration(RuntimeView v) {
     int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=v.p.arenas)return;
@@ -199,6 +206,16 @@ __global__ void export_observation(RuntimeView v,bool transition) {
     // MuJoCo uses pooled contact storage; its GPU status records pool and
     // constraint overflows. Puffysics retains its per-arena 128-slot limit.
     if((!v.pooled_physics_contacts&&v.physics_stats[a*4]>=128)||v.physics_stats[a*4+1]||v.physics_stats[a*4+2])atomicOr(v.failures+a,8);
+    if(v.normalized_rewards)for(int side=0;side<2;side++){
+        const int row=a*2+side;
+        const auto reward=rek5_normalized_reward::value(v.c.score_delta[row],v.c.score_delta[row^1],v.c.fall_events[row]);
+        v.c.rewards[row]=transition?reward.reward:0;
+        if(transition&&reward.saturated)++v.reward_saturations[a];
+        if(transition){
+            v.confirmed_falls[row]+=(v.c.fall_events[row]&REK_G1_FALL_EVENT_BECAME_FALLEN)!=0;
+            v.awarded_points[row]+=v.c.score_delta[row];
+        }
+    }
     v.out.rewards[a]=transition?v.c.rewards[a*2]:0;
     v.out.terminals[a]=transition?v.c.terminals[a*2]:0;
     const auto& fight=v.c.states[a].combat.fight;
@@ -338,6 +355,14 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         if(!std::isfinite(cfg->round_seconds)||cfg->round_seconds<0||cfg->round_seconds>3600)
             throw std::runtime_error("round_seconds must be zero or finite in (0,3600]");
         v.round_seconds=cfg->round_seconds;
+        const char* reward=getenv("REK_NATIVE5_REWARD");
+        if(reward&&strcmp(reward,"point_difference_v1")&&strcmp(reward,rek5_normalized_reward::kMode))
+            throw std::runtime_error("Invalid REK_NATIVE5_REWARD");
+        v.normalized_rewards=reward&&!strcmp(reward,rek5_normalized_reward::kMode);
+        if(v.normalized_rewards){
+            v.reward_saturations=d.alloc<unsigned>(a);
+            v.confirmed_falls=d.alloc<uint64_t>(rows);v.awarded_points=d.alloc<int64_t>(rows);
+        }
         r->physics=rek5::physics_create(cfg->model_path,cfg->physics_export_path,a,s);v.p=r->physics->data;v.out=*out;
         r->motion=new RekNative5Motion(*cfg,s);r->measurement=rek5::measurement_create(r->physics);
         auto* p=r->physics;auto* model=p->model;
@@ -388,6 +413,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         std::fprintf(stderr,"native5 runtime: physics_backend=%s arenas=%d fighters=%d controller_bytes=%zu\n",rek5::physics_backend_name(p),a,rows,sonic_controller_resident_bytes(r->controller));
         std::fprintf(stderr,"model_sha256=%s export_sha256=%s motion_manifest_sha256=%s\n",p->model_sha256.c_str(),p->export_sha256.c_str(),r->motion->manifest_sha256.c_str());
         std::fprintf(stderr,"encoder_sha256=%s decoder_sha256=%s\n",sonic_controller_encoder_sha256(r->controller),sonic_controller_decoder_sha256(r->controller));
+        if(v.normalized_rewards)std::fprintf(stderr,"normalized_reward={\"mode\":\"normalized_points_falls_v1\",\"scale\":0.01,\"bounds\":[-1,1],\"own_confirmed_fall\":-0.01,\"fall_event_source\":\"BECAME_FALLEN\",\"terminal_bonus\":0,\"normalization\":\"fixed_scale\"}\n");
         return r.release();
     }catch(const std::exception& e){runtime_error=e.what();return nullptr;}
 }
@@ -449,6 +475,20 @@ extern "C" int rek_native5_check_status(RekNative5Runtime* r,cudaStream_t s){
     }catch(const std::exception& e){runtime_error=e.what();return 1;}
 }
 extern "C" int rek_native5_close(RekNative5Runtime* r){
-    int result=r?rek_native5_check_status(r,r->stream):0;delete r;return result;
+    int result=r?rek_native5_check_status(r,r->stream):0;
+    try{if(r&&r->view.reward_saturations){
+        std::vector<unsigned> counts(r->view.p.arenas);
+        cuda_check(cudaMemcpy(counts.data(),r->view.reward_saturations,counts.size()*sizeof(unsigned),cudaMemcpyDeviceToHost));
+        unsigned long long total=0;for(auto count:counts)total+=count;
+        std::fprintf(stderr,"normalized_reward_saturations=%llu\n",total);
+        std::vector<uint64_t> falls(r->view.p.arenas*2);
+        std::vector<int64_t> points(r->view.p.arenas*2);
+        cuda_check(cudaMemcpy(falls.data(),r->view.confirmed_falls,falls.size()*sizeof(uint64_t),cudaMemcpyDeviceToHost));
+        cuda_check(cudaMemcpy(points.data(),r->view.awarded_points,points.size()*sizeof(int64_t),cudaMemcpyDeviceToHost));
+        unsigned long long fall_total[2]={};long long point_total[2]={};
+        for(size_t row=0;row<falls.size();row++){fall_total[row%2]+=falls[row];point_total[row%2]+=points[row];}
+        std::fprintf(stderr,"normalized_reward_summary={\"scope\":\"all_executed_runtime_transitions\",\"confirmed_falls\":[%llu,%llu],\"awarded_points\":[%lld,%lld],\"saturations\":%llu}\n",fall_total[0],fall_total[1],point_total[0],point_total[1],total);
+    }}catch(const std::exception& e){runtime_error=e.what();result=1;}
+    delete r;return result;
 }
 extern "C" const char* rek_native5_error(void){return runtime_error.c_str();}

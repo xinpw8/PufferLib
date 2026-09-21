@@ -16,6 +16,7 @@
 #include "primitive_motion.cuh"
 #include "contact_potential_loader.h"
 #include "round_reward.h"
+#include "normalized_reward.h"
 #include "policy_feature_mask.h"
 #include "owned_yaw_observation.h"
 #include "action_cadence.h"
@@ -71,6 +72,7 @@ struct Parameters {
     float reset_gap_min,reset_gap_max,reset_heading_spread;
     float shaping_weight,shaping_gamma,shaping_target,shaping_bearing_weight;
     rek5_round_reward::Mode reward_mode;
+    bool normalized_rewards;
     float reward_gamma;
     rek5_contact_potential::Model contact_potential;
     int recovered_scoring;
@@ -101,6 +103,7 @@ struct View {
     const float* external;
     const uint8_t* override_rows;
     const uint8_t* policy_feature_mask;
+    unsigned* reward_saturations;
 };
 
 __device__ float clampf(float x,float lo,float hi){return fminf(hi,fmaxf(lo,x));}
@@ -682,7 +685,12 @@ __device__ void advance_arena(const View& v,int index){
     const int winner=a.fighter[0].points==a.fighter[1].points?-1:
         (a.fighter[0].points>a.fighter[1].points?0:1);
     for(int side=0;side<2;side++){
-        a.reward[side]=rek5_round_reward::value(p.reward_mode,p.reward_gamma,
+        if(p.normalized_rewards){
+            // Compact contacts still do not produce a physical fall event.
+            const auto reward=rek5_normalized_reward::value(a.delta[side],a.delta[side^1],0);
+            a.reward[side]=reward.reward;
+            if(reward.saturated)++v.reward_saturations[index];
+        }else a.reward[side]=rek5_round_reward::value(p.reward_mode,p.reward_gamma,
             a.fighter[side].points-a.delta[side],a.fighter[side^1].points-a.delta[side^1],
             a.fighter[side].points,a.fighter[side^1].points,terminal,winner,side);
         if(p.shaping_weight>0){
@@ -779,7 +787,11 @@ __device__ void advance_arena_warp(const View& v,int index,int lane,WarpContactS
     const int winner=a.fighter[0].points==a.fighter[1].points?-1:
         (a.fighter[0].points>a.fighter[1].points?0:1);
     for(int side=0;side<2;side++){
-        a.reward[side]=rek5_round_reward::value(p.reward_mode,p.reward_gamma,
+        if(p.normalized_rewards){
+            const auto reward=rek5_normalized_reward::value(a.delta[side],a.delta[side^1],0);
+            a.reward[side]=reward.reward;
+            if(reward.saturated)++v.reward_saturations[index];
+        }else a.reward[side]=rek5_round_reward::value(p.reward_mode,p.reward_gamma,
             a.fighter[side].points-a.delta[side],a.fighter[side^1].points-a.delta[side^1],
             a.fighter[side].points,a.fighter[side^1].points,terminal,winner,side);
         if(p.shaping_weight>0){
@@ -1040,8 +1052,11 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
             throw std::runtime_error("Random reset gaps must be nonoverlapping and fit every sampled axis inside the arena");
         p.shaping_weight=environment_float("REK_FAST_SHAPING_WEIGHT",0,0,100.f);
         const char* reward=getenv("REK_FAST_REWARD");
-        if(reward&&strcmp(reward,"point_difference_v1")&&strcmp(reward,"round_outcome_v1"))
+        if(reward&&strcmp(reward,"point_difference_v1")&&strcmp(reward,"round_outcome_v1")&&strcmp(reward,rek5_normalized_reward::kMode))
             throw std::runtime_error("Invalid REK_FAST_REWARD");
+        p.normalized_rewards=reward&&!strcmp(reward,rek5_normalized_reward::kMode);
+        if(p.normalized_rewards&&p.shaping_weight>0)
+            throw std::runtime_error("Normalized point/fall reward disables additional spatial shaping");
         p.reward_mode=reward&&!strcmp(reward,"round_outcome_v1")?
             rek5_round_reward::RoundOutcome:rek5_round_reward::PointDifference;
         if(p.reward_mode==rek5_round_reward::RoundOutcome&&(!getenv("REK_FAST_REWARD_GAMMA")||p.shaping_weight>0))
@@ -1074,6 +1089,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         }
         if(feature_mask.enabled)v.policy_feature_mask=result->storage.upload(feature_mask.values.data(),feature_mask.values.size());
         v.state=result->storage.alloc<Arena>(a);v.rounds=result->storage.alloc<RekNative5RoundResult>(a);
+        if(p.normalized_rewards)v.reward_saturations=result->storage.alloc<unsigned>(a);
         v.raw=result->storage.alloc<float>(size_t(a)*446);v.qpos=result->storage.alloc<float>(size_t(a)*72);
         v.qvel=result->storage.alloc<float>(size_t(a)*70);v.masks=result->storage.alloc<uint8_t>(size_t(a)*66);
         v.actions=result->storage.alloc<float>(size_t(a)*2);v.rewards=result->storage.alloc<float>(size_t(a)*2);v.terminals=result->storage.alloc<float>(size_t(a)*2);
@@ -1088,8 +1104,9 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         if(feature_mask.enabled)fprintf(stderr,"semantic_cuda_policy_feature_mask={\"enabled\":true,\"bytes\":223,\"sha256\":\"%s\",\"kept_features\":%d,\"raw_diagnostics_changed\":false}\n",
             feature_mask.sha256.c_str(),int(std::count(feature_mask.values.begin(),feature_mask.values.end(),uint8_t(1))));
         fprintf(stderr,"semantic_cuda_reward={\"mode\":\"%s\",\"gamma\":%.9g,\"point_input\":\"awarded_scoreboard_points\",\"terminal_signal\":\"completed_round_only\",\"countout_is_terminal\":false,\"terminal_win\":%d,\"terminal_loss\":%d,\"terminal_draw\":0,\"potential_scale_points\":5,\"terminal_potential\":0,\"adds_balance_dynamics\":false}\n",
-            p.reward_mode==rek5_round_reward::RoundOutcome?"round_outcome_v1":"point_difference_v1",
+            p.normalized_rewards?rek5_normalized_reward::kMode:p.reward_mode==rek5_round_reward::RoundOutcome?"round_outcome_v1":"point_difference_v1",
             p.reward_gamma,p.reward_mode==rek5_round_reward::RoundOutcome?1:0,p.reward_mode==rek5_round_reward::RoundOutcome?-1:0);
+        if(p.normalized_rewards)fprintf(stderr,"normalized_reward={\"scale\":0.01,\"bounds\":[-1,1],\"own_confirmed_fall\":-0.01,\"fall_event_source\":\"unavailable_in_compact\",\"terminal_bonus\":0,\"normalization\":\"fixed_scale\"}\n");
         fprintf(stderr,"semantic_cuda_scoring={\"mode\":\"%s\",\"geometry\":\"%s\",\"contact_substeps\":%d,\"continuous_collision_detection\":false,\"speed\":\"%s\",\"speed_threshold_m_s\":%.9g,\"cooldown_seconds\":%.9g,\"apex_gate\":%s,\"per_invocation_apex_dedup\":%s,\"hand_points\":1,\"foot_shin_points\":%d,\"hit_count_is_unweighted\":true,\"upright_model\":\"constant_upright_no_balance_dynamics\",\"contact_enter_model\":\"%s\",\"authentic_parity\":false}\n",
             p.recovered_scoring==2?"recovered_hit_rules_v2":p.recovered_scoring?"recovered_hit_rules_v1":"v4_spheres",p.primitive_contacts?"primitive_samples_v1":"bounding_spheres",p.primitive_contacts?p.contact_substeps:0,p.contact_velocity==rek_contact_velocity::Mode::BodyCvel?"entered_pair_kinematic_body_cvel":p.recovered_scoring?"maximum_relative_sphere_center_finite_difference_proxy":"absolute_striker_sphere_center_finite_difference",p.recovered_scoring?p.recovered_hit_config.speed_threshold_mps:p.hit_speed,p.recovered_scoring?p.recovered_hit_config.per_body_cooldown_seconds:10*DT,p.recovered_scoring?"true":"false",p.recovered_scoring?"true":"false",p.recovered_scoring?2:1,p.contact_entry==rek_contact_entry::Mode::GeomPair?"geom_pair_v1":"compact_per_limb_union_latch_reset_at_move_start");
         const char* modes[]={"scripted","neutral","retreat","strafe","mixed"};
@@ -1127,5 +1144,14 @@ extern "C" int rek_native5_check_status(RekNative5Runtime* r,cudaStream_t s){try
     rek5::cuda_check(cudaMemcpyAsync(results.data(),r->view.rounds,results.size()*sizeof(results[0]),cudaMemcpyDeviceToHost,s));
     rek5::cuda_check(cudaStreamSynchronize(s));for(size_t a=0;a<results.size();a++)if(results[a].failure_bits)throw std::runtime_error("semantic_cuda arena "+std::to_string(a)+" failure bits "+std::to_string(results[a].failure_bits));return 0;
 }catch(const std::exception& e){error_text=e.what();return 1;}}
-extern "C" int rek_native5_close(RekNative5Runtime* r){delete r;return 0;}
+extern "C" int rek_native5_close(RekNative5Runtime* r){
+    int status=0;
+    try{if(r&&r->view.reward_saturations){
+        std::vector<unsigned> counts(r->view.arenas);
+        rek5::cuda_check(cudaMemcpy(counts.data(),r->view.reward_saturations,counts.size()*sizeof(unsigned),cudaMemcpyDeviceToHost));
+        unsigned long long total=0;for(auto count:counts)total+=count;
+        fprintf(stderr,"normalized_reward_saturations=%llu\n",total);
+    }}catch(const std::exception& e){error_text=e.what();status=1;}
+    delete r;return status;
+}
 extern "C" const char* rek_native5_error(void){return error_text.c_str();}

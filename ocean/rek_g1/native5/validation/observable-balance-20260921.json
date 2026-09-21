@@ -1,0 +1,63 @@
+{
+  "schema": "rek.observable_balance.validation.v1",
+  "observation_schema": "rek.native5.observable_balance.v1",
+  "runtime_integrated": false,
+  "live_encoder_integrated": false,
+  "fresh_matched_policy_training_required": true,
+  "authentic_physics_parity_verified": false,
+  "authentic_pose_calibration_verified": false,
+  "unity_metric_calibration_verified": false,
+  "direct_physical_hinge_to_live_projected_joint_equivalence_claimed": false,
+  "feature_count": 223,
+  "structurally_retained_columns": 166,
+  "report": "../observable_balance.md",
+  "transport": "Windows -> wsl -e bash -lc -> ssh -o BatchMode=yes spark",
+  "final_build_directory": "/home/spark-advantage/rek-training/observable-balance-20260921-r1/final",
+  "archive": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-21\\normalized-falls-r1\\observable-balance",
+  "commands": {
+    "cpu_build": "g++ -O2 -std=c++17 -Wall -Wextra -Wpedantic /home/spark-advantage/rek-training/observable-balance-20260921-r1/final/observable_balance_test.cpp -o /home/spark-advantage/rek-training/observable-balance-20260921-r1/final/observable_balance_test",
+    "cpu_run": "/home/spark-advantage/rek-training/observable-balance-20260921-r1/final/observable_balance_test",
+    "cuda_build": "/usr/local/cuda/bin/nvcc -O2 -std=c++17 -arch=sm_121 -Xcompiler=-Wall,-Wextra /home/spark-advantage/rek-training/observable-balance-20260921-r1/final/observable_balance_cuda_test.cu -o /home/spark-advantage/rek-training/observable-balance-20260921-r1/final/observable_balance_cuda_test",
+    "cuda_run": "/home/spark-advantage/rek-training/observable-balance-20260921-r1/final/observable_balance_cuda_test"
+  },
+  "source_sha256": {
+    "observable_balance.h": "4b651a2f02b7a335cb781bb886b048d83025acc88dca4a522f62bc4cea7a0d3a",
+    "observable_balance_test.cpp": "24ffd140dcda3438abd29e5060559a654813a045b47717a0848e6aebe68819da",
+    "observable_balance_cuda_test.cu": "d3930d633927a84e2349fd1d0dc2a4f3db81389d6801049d366348221c729e5e"
+  },
+  "binary_sha256": {
+    "observable_balance_test": "4bcfac2d53cba4aa7345a1d49720c2162903e5456aea48399073269f3d2a6b98",
+    "observable_balance_cuda_test": "215bfa65b3af064efb27e32e57f4850cda841a4089d3ed036503eb832890d121"
+  },
+  "cpu": {
+    "exit_code": 0,
+    "assertions": 1172058,
+    "varied_snapshot_pairs": 4096,
+    "maximum_native_unity_projection_difference": 1.49011612e-8,
+    "stdout_sha256": "42ee6feec7bff632370b372021368bc10229834087137d88de825ca565031636",
+    "build_stdout_empty": true,
+    "build_stderr_empty": true,
+    "test_stderr_empty": true
+  },
+  "cuda": {
+    "exit_code": 0,
+    "architecture": "sm_121",
+    "synthetic_snapshots": 64,
+    "compared_output_features": 14272,
+    "maximum_cpu_cuda_difference": 0,
+    "stdout_sha256": "6d300d8e4a714b4ad1806721f9344bcab46deee67d38f0131ee494b1419e29f4",
+    "build_stdout_empty": true,
+    "build_stderr_empty": true,
+    "test_stderr_empty": true,
+    "physics_executed": false,
+    "policy_training_executed": false
+  },
+  "adapter_obligations": [
+    "bind current and preceding snapshot times to one observation clock domain",
+    "change round keys at genuine round boundaries and clear explicit stream-reset history",
+    "retain preceding observed poses across same-round body resets and route transitions",
+    "use the documented Unity/common coordinate and local-positive-X heading convention",
+    "establish shared local-bone/rest/axis mapping before marking projected joint poses available",
+    "validate freshness, lifecycle and process binding before marking received count state available"
+  ]
+}
