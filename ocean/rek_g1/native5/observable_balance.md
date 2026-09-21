@@ -4,10 +4,12 @@
 `rek.native5.observable_balance.v1`. The physical `runtime.cu` now supports it
 through `REK_OBSERVATION_SCHEMA`, with the existing default unchanged. The
 physical adapter and native PPO binding have passed bounded tests documented in
-`validation/observable-balance-physical-integration-20260921.md`. Live encoder
-integration remains pending. Existing checkpoints use their existing
+`validation/observable-balance-physical-integration-20260921.md`. The separate
+opt-in live encoder has passed native tests and authentic recorded-input replay,
+documented in `validation/observable-balance-live-integration-20260921.md`.
+Existing checkpoints use their existing
 observations; this schema requires fresh training and the same projection at
-evaluation. Both physical fighter joint poses are explicitly unavailable until
+evaluation. Both adapters' fighter joint poses are explicitly unavailable until
 their client/model correspondence is established.
 
 The physical producer currently exposes support contacts, physical fall phases,
