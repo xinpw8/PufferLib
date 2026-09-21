@@ -134,9 +134,9 @@ Env* puf_vec_create(int n, Dict* kwargs, obs_t* observations,
     catch(const std::exception& e){fprintf(stderr,"REK observation schema: %s\n",e.what());abort();}
     if(observable_balance){
         DictItem* frozen=dict_find(kwargs,"opponent_checkpoint");
-        if(!selected_backend||strcmp(selected_backend,"mujoco_cuda")||
+        if(!selected_backend||(strcmp(selected_backend,"mujoco_cuda")&&strcmp(selected_backend,"semantic_cuda"))||
                 (frozen&&frozen->str&&frozen->str[0]&&strcmp(frozen->str,"None"))){
-            fprintf(stderr,"observable_balance_v1 requires explicit mujoco_cuda without a schema-unverified frozen opponent\n");abort();
+            fprintf(stderr,"observable_balance_v1 requires explicit mujoco_cuda or semantic_cuda without a schema-unverified frozen opponent\n");abort();
         }
     }
     if(owned_yaw){

@@ -22,6 +22,7 @@
 #include "action_cadence.h"
 #include "keyboard_yaw.h"
 #include "contact_entry.h"
+#include "fast_observable_balance.h"
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
 // trajectories; slider motion and temporally sampled contacts are modeling
@@ -104,6 +105,8 @@ struct View {
     const uint8_t* override_rows;
     const uint8_t* policy_feature_mask;
     unsigned* reward_saturations;
+    rek_fast_observable::History* observable_history;
+    float* observable_observations;
 };
 
 __device__ float clampf(float x,float lo,float hi){return fminf(hi,fmaxf(lo,x));}
@@ -870,9 +873,26 @@ __device__ float scaled_value(const View& v,int index,int side,int field,float r
     return raw;
 }
 __device__ float policy_value(const View& v,int index,int side,int field,float raw){
-    return v.policy_feature_mask&&!v.policy_feature_mask[field]?0.f:scaled_value(v,index,side,field,raw);
+    if(v.policy_feature_mask&&!v.policy_feature_mask[field])return 0.f;
+    return v.observable_observations?v.observable_observations[index*446+side*223+field]:scaled_value(v,index,side,field,raw);
+}
+__device__ void pack_observable(const View& v,int index){
+    auto& a=v.state[index];auto& r=v.rounds[index];rek_fast_observable::Input input{};
+    for(int side=0;side<2;side++){
+        const auto& f=a.fighter[side];const auto& frame=v.frames[frame_index(*v.p,f,false)];
+        input.root[side][0]=f.x;input.root[side][1]=f.y;input.root[side][2]=frame.root_z;
+        root_quaternion(f,frame,input.root[side]+3);input.points[side]=f.points;
+    }
+    input.round_key=r.round_number;input.sample_seconds=double(a.tick)*.02;
+    input.round_duration_seconds=v.p->round_seconds;input.round_remaining_seconds=r.time_remaining_seconds;
+    input.round_active=r.phase==2;input.terminal=r.terminal!=0;
+    if(rek_fast_observable::project(v.observable_history[index],input,
+            v.observable_observations+index*446)!=rek_observable_balance::kOk){
+        a.failures|=2048;r.failure_bits|=2048;
+    }
 }
 __device__ void export_arena(const View& v,int index,int lane){
+    if(v.observable_observations){if(lane==0)pack_observable(v,index);__syncwarp();}
     const Arena& a=v.state[index];const Parameters& p=*v.p;const auto& r=v.rounds[index];
     for(int side=0;side<2;side++){
         int row=2*index+side;const Fighter& f=a.fighter[side];
@@ -910,7 +930,7 @@ __device__ void export_arena(const View& v,int index,int lane){
 __global__ void fast_reset(const __grid_constant__ View v){
     int lane=threadIdx.x&31,index=(blockIdx.x*blockDim.x+threadIdx.x)>>5;
     if(index>=v.arenas)return;
-    if(lane==0){round_reset(*v.p,v.state[index],v.rounds[index],true,index);if(v.p->rendered_observation){capture_observed_pose(*v.p,v.state[index]);update_observed_pose(v,v.state[index]);}v.actions[index*2]=v.actions[index*2+1]=0;}
+    if(lane==0){round_reset(*v.p,v.state[index],v.rounds[index],true,index);if(v.observable_history)v.observable_history[index]={};if(v.p->rendered_observation){capture_observed_pose(*v.p,v.state[index]);update_observed_pose(v,v.state[index]);}v.actions[index*2]=v.actions[index*2+1]=0;}
     __syncwarp();export_arena(v,index,lane);
 }
 // Keep the address-taken view in the kernel parameter space. The larger
@@ -992,7 +1012,9 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         const auto velocity_mode=rek_contact_velocity::parse(getenv("REK_FAST_CONTACT_VELOCITY"));
         FastAssets assets=load_fast_assets(*config,velocity_mode==rek_contact_velocity::Mode::BodyCvel);Parameters p{};
         p.contact_velocity=velocity_mode;
-        p.owned_yaw_observation=rek_owned_yaw::enabled(getenv("REK_OBSERVATION_SCHEMA"));
+        const char* schema=getenv("REK_OBSERVATION_SCHEMA");
+        const bool observable_balance=schema&&!strcmp(schema,rek_observable_balance::kSchema);
+        p.owned_yaw_observation=observable_balance?false:rek_owned_yaw::enabled(schema);
         if(p.owned_yaw_observation)fprintf(stderr,"semantic_cuda_observation_schema=%s;owned_command_column=187;physics_changed=false\n",rek_owned_yaw::kSchema);
         p.policy_action_stride=rek_action_cadence::parse(getenv("REK_POLICY_ACTION_STRIDE"));
         p.yaw_command=rek_keyboard_yaw::parse(getenv("REK_FAST_YAW_COMMAND"));
@@ -1089,6 +1111,10 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         }
         if(feature_mask.enabled)v.policy_feature_mask=result->storage.upload(feature_mask.values.data(),feature_mask.values.size());
         v.state=result->storage.alloc<Arena>(a);v.rounds=result->storage.alloc<RekNative5RoundResult>(a);
+        if(observable_balance){
+            v.observable_history=result->storage.alloc<rek_fast_observable::History>(a);
+            v.observable_observations=result->storage.alloc<float>(size_t(a)*446);
+        }
         if(p.normalized_rewards)v.reward_saturations=result->storage.alloc<unsigned>(a);
         v.raw=result->storage.alloc<float>(size_t(a)*446);v.qpos=result->storage.alloc<float>(size_t(a)*72);
         v.qvel=result->storage.alloc<float>(size_t(a)*70);v.masks=result->storage.alloc<uint8_t>(size_t(a)*66);
@@ -1097,6 +1123,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         rek5::cuda_check(cudaGetLastError());rek5::cuda_check(cudaStreamSynchronize(stream));
         fprintf(stderr,"semantic_cuda_v4: %d arenas; 50 Hz; one fused GPU step; canned poses=%zu; move_speed=%.6g m/s yaw_speed=%.6g rad/s; points-only slider dynamics; knockdowns unmodeled; parity=false\n",a,assets.frames.size(),p.move_speed,p.yaw_speed);
         fprintf(stderr,"semantic_cuda_assets=%s\n",assets.provenance_json.c_str());
+        if(observable_balance)fprintf(stderr,"observable_balance={\"schema\":\"rek.native5.observable_balance.v1\",\"features\":223,\"root\":\"candidate_slider_origin_composed_clip_wxyz\",\"history\":\"preceding_50Hz_observation\",\"history_reset\":\"explicit_reset_or_episode_boundary_only\",\"joint_pose_available\":false,\"referee_available\":false,\"fall_event_source\":\"unavailable_in_compact\",\"raw_inspection_unchanged\":true,\"old_weights_compatible\":false,\"authentic_parity\":false}\n");
         if(p.contact_velocity==rek_contact_velocity::Mode::BodyCvel){
             fprintf(stderr,"semantic_cuda_body_velocity_assets=%s\n",assets.body_velocity_provenance_json.c_str());
             fprintf(stderr,"semantic_cuda_contact_velocity={\"mode\":\"body_cvel_v1\",\"classification\":\"kinematic_proxy\",\"sampling\":\"end_of_tick_rates_for_each_sampled_entry\",\"aggregation\":\"entered_geom_pair_own_body_velocity_norm\",\"persistent_target_lends_speed\":false,\"reference\":\"root_subtree_com\",\"controller_response\":false,\"contact_solver_response\":false,\"balance_dynamics\":false,\"authentic_physical_parity\":false}\n");
