@@ -133,15 +133,52 @@ attack attribution is inferred from point packets. Neither candidate requested
 straight-left/front category17 during its screening round.
 
 These are one-round development results per candidate. Arm04's508/512 simulated
-wins did not transfer to an authentic win. Arm10 is the best-tested candidate
-from this sweep so far, not an accepted consistently winning policy.
+wins did not transfer to an authentic win. Arm10 was selected for the prospective
+frozen cohort below, which failed its acceptance rule.
 
 Arm10 checkpoint SHA256:
 `cba28ce1a7cb4e4eecf60e4bc70d564c27add0bf180ef6e566b6ce9068b81c4b`.
-It is frozen for a prospective20-round authentic cohort, attempts r66..r85,
+It was frozen for a prospective20-round authentic cohort, attempts r66..r85,
 requiring18 wins and positive aggregate margin. Ties count as non-wins. The
-screening round r65 is excluded. A third non-win stops testing because acceptance
-has become impossible. No parameters change during that cohort.
+screening round r65 was excluded. A third non-win stops testing because acceptance
+has become impossible. No candidate parameters changed during the cohort.
+
+### Completed frozen authentic cohort
+
+The cohort stopped after r77, exactly at its third non-win: **9 wins, 2 losses,
+1 draw in 12 rounds**. Total points were 165:139, an aggregate margin of +26.
+Acceptance was false: even winning all eight unplayed rounds could yield only
+17/20 wins. Attempts r78..r85 were not run. No failed round was retried.
+
+| Received awarded-point accounting | Candidate | Opponent |
+| --- | ---: | ---: |
+| Ordinary, non-five-point awarded points | 85 | 114 |
+| Five-point awards, count | 16 | 5 |
+| Points from five-point awards | 80 | 25 |
+| All awarded points | 165 | 139 |
+
+Ordinary awarded points are not a hit count. These packets do not assign causal
+credit to preceding attack requests. Category 17 had zero policy selections,
+requests, local applications, true/false execution-method returns, and native
+dispatch requests across all 12 rounds.
+
+All 12 rounds passed each of the six evidence checks: `native_pid_equals_owned`,
+`completed_policy_round`, `native_capture_complete`,
+`terminal_evidence_consistent`, `full_points_reconciled`, and `referee_verified`.
+Every owned client was closed. The final three rounds were r75 win 17:15,
+r76 win 18:8 and r77 loss 9:13; the other non-wins were r69 draw 18:18 and
+r72 loss 7:21.
+
+From r72 onward, the driver additionally accepted opt-in observable-balance
+readiness manifests. This cohort continued using the unchanged frozen
+`scaled_polar_xy.v1` candidate, worker, encoder, sampled seed 73 and candidate
+config. The final aggregation checked all per-round worker/encoder commands,
+schema, selection, feature mask and checkpoint against the original candidate
+config and its protocol hash. It was not a test of the new balance encoder.
+
+The candidate therefore remains a failed acceptance candidate, despite its
+positive point margin and high simulator win fraction. This result does not
+establish consistent authentic wins.
 
 ## Reproduction and artifacts
 
@@ -158,6 +195,21 @@ and per-match records are private under:
 - Authentic raw trials:`C:/rekagent/work/consistent-fighter-20260919-r1/live-point_difference_v1-r64`
   and`live-round_outcome_v1-r65`. The first path is a legacy harness label; its
   candidate was trained with normalized rewards.
+
+Verified NAS project archive:
+`\\192.168.0.19\MyShare\pufferlib\rek-evidence\2026-09-21\normalized-sweep-r1`.
+Completed raw authentic rounds and exact owned-PID native captures are under
+`authentic-r64` through `authentic-r77`, each with a source-before/after/copy-hash
+receipt. The final `arm10-frozen-acceptance-final` receipt covers 55 payload files:
+protocol, result, rounds, frozen candidate config, cohort script, launch and
+validation logs, aggregation script and aggregate. All destination files were
+new; no existing evidence was overwritten.
+
+Final aggregate SHA256:
+`ae8b397d62e2c58d4cf5699a9d1c3b0e2c7ce91b8d7aef4b69883850d9a443a2`.
+Final archive receipt SHA256:
+`84e17b524ef9a89734fc103d559b45d5bc1bb8e2897315ed317ec9ca65d8cf76`.
+The aggregate links the hashes of all 12 closed-round archive receipts.
 
 No proprietary binaries, controller assets, checkpoints, credentials or raw
 game captures are included in the public repository.
