@@ -23,6 +23,11 @@ knockdown dynamics. Its training win rate does not establish authentic skill.
 The separate [native physical backend](native5/mujoco_gpu/README.md) includes
 MuJoCo CUDA dynamics and the low-level controller. Its contact scoring now
 uses the [recovered raw body-velocity quantity](native5/validation/physical-contact-cvel-20260921/README.md).
+Its [standing-height calibration](native5/validation/physical-standing-height-20260921/README.md)
+now uses the lowest foot geometry. Both corrections passed an
+[integrated physical schedule and unchanged-build repeat](native5/validation/physical-measurement-integration-20260921/README.md),
+which also exposed substantial run-to-run motion variability. These runs
+produced no scored contacts or falls and do not establish fighting improvement.
 The controller's learned coefficients are
 [identical to the inspected older REK payloads](native5/validation/controller-coefficient-comparison-20260921/README.md);
 current service identity and closed-loop parity remain unverified. Its last

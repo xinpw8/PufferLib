@@ -38,7 +38,7 @@ The production CUDA fixture passes **520 assertions**, including **12 GPU cases*
 
 The preserved raw-cvel baseline and corrected measurement regression each pass all **17 differential samples**, including actual native GPU physics contact processing, directed ordering/speeds, history transactions, selective fall refresh and invalid calibration. That regression aborts on CPU `mj_step`, `mj_forward` or `mj_kinematics`; the separate FK reference deliberately uses CPU kinematics and no simulation stepping or controller inference.
 
-Final GPU verification ran `2026-09-21T01:47:32.004531785Z` through `01:47:34.164607142Z`, exit 0. GPU ownership was then released. A separate full-runtime integration rebuild is required because the appended measurement metadata changes the C++ class size; the measurement-only regression is not a full-runtime ABI claim.
+Final GPU verification ran `2026-09-21T01:47:32.004531785Z` through `01:47:34.164607142Z`, exit 0. GPU ownership was then released. The appended measurement metadata changes the C++ class size, so the measurement-only regression is not a full-runtime ABI claim. A subsequent [full-runtime integration rebuild and identical-build repeat](../physical-measurement-integration-20260921/README.md) both passed the unchanged 777-tick schedule. That schedule produced no scored contacts or falls; substantial repeat motion variability prevents attributing its trajectory changes to these corrections.
 
 ## Preserved attempt and reproduction
 
