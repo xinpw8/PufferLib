@@ -383,7 +383,9 @@ Relay SHA-256:
 ## Existing physical CUDA backend verified
 
 The [completed physical probe](PHYSICAL_QUALITY_PROBE.md) links the preserved
-native MuJoCo CUDA implementation and shipped SONIC tracking controller.
+native MuJoCo CUDA implementation and the public GEAR-SONIC family controller
+candidate. Identity with the current REK service's controller weights remains
+unknown; see the [asset and authority boundary](../../../README.md#asset-and-authority-boundary).
 Four arenas each advanced 20 simulated seconds with no PPO updates, no learned
 policy loaded and zero CPU physics calls or runtime failure flags. Idle robots
 remained upright. The two-sided scripted attack lane produced a measured fall,
