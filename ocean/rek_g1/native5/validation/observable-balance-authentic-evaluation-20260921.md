@@ -67,18 +67,36 @@ The low held-out command loss did not produce a useful fighter in this screen.
 This result does not establish that behavioral cloning cannot help; it rejects
 promoting this particular checkpoint on its aggregate supervised metric.
 
-## Next executed training step
+## Physical continuation and r110
 
 After r89 and its evidence validation completed, an additional 4,194,304-transition
 physical PPO run was launched from the **physical** checkpoint `390007...`, not
 the imitation checkpoint. The weights-only restart uses fresh optimizer/RNG/RNN
 state and the same normalized reward, schema, opponent and hyperparameters.
-No success or throughput result is assigned before that run completes.
+The run [completed successfully](observable-balance-physical-continuation-20260921.md)
+at 5,990.86 complete-training-loop SPS. Its final checkpoint is
+`a11ace1655cf1f3176dc0732e07fef47a6d3e8b32177a5da47cd075ac4a231bd`.
+
+Frozen authentic round r110 used that checkpoint with the same schema, encoder,
+sampled selection and seed 73. It won **19 : 17**, with ordinary points **4 : 7**
+and five-point awards **3 : 2**. All six evidence checks passed and the owned
+client closed. No LEFT_FRONT17 request occurred. This one narrow win depended
+on the five-point award difference and does not establish improved or consistent
+fighting. The earlier checkpoint's r86..r88 results are not pooled with r110.
 
 Spark run directory:
 `/home/spark-advantage/rek-training/physical-observable-balance-20260921-r1/train-warm-physical-continue-r1`.
 Runner SHA256:
 `b81c0a0dc343c38c66f764e0f5c44e840aefc5f72c3485b0b4834b62708141a8`.
+
+After r110 closed and validated, the first controlled higher-learning-rate arm
+was launched with initial LR 0.001. It starts from original checkpoint
+`390007...`, exactly as the completed 0.0001 continuation did; it does not start
+from `a11ace...`. Seeds, 4,194,304-transition budget, normalized rewards,
+observations, opponent and remaining hyperparameters stay fixed. Its new output
+is `train-lr-lr001-r1` under the same Spark stage. Runner SHA256 is
+`17e90c448e3ba3230aaaa2f813bf25ea3b0a74824887cb4ffa5ad2698b6e50b2`.
+This records an executed launch, not a completed result or improvement claim.
 
 ## Private evidence
 
@@ -104,5 +122,8 @@ its receipt SHA256 is
 The BC round is preserved in adjacent `authentic-r89`, also 49 files, with
 receipt SHA256
 `e72cd218aed586bb7a2573cef538b44edec420921f62a94b677e282784331384`.
+The continuation round is preserved in adjacent `authentic-r110`, also 49 files,
+with receipt SHA256
+`edad788b119aaae0801139c8c8cd123e7c4143898580595404f8320382391364`.
 No checkpoints, proprietary binaries, raw game captures or account credentials
 are published in this repository.
