@@ -81,12 +81,16 @@ __device__ bool floor_height(PhysicsDescriptor p,int arena,int floor,float half,
 struct FallView {
     PhysicsDescriptor p; Measurement d;
     int roots[2],left[2],right[2];float half;
+    int foot_geoms[2][8];double foot_radii[2][8];
     float* upright;float* standing;uint8_t* calibrated;
     float* floats;int64_t* integers;uint8_t* valid;
 };
 FallView fall_view(CombatMeasurement* m) {
     FallView v{};v.p=m->physics->data;v.d=*static_cast<Measurement*>(m->descriptor);
     for(int i=0;i<2;i++){v.roots[i]=m->roots[i];v.left[i]=m->left[i];v.right[i]=m->right[i];}
+    for(int s=0;s<2;s++)for(int g=0;g<8;g++){
+        v.foot_geoms[s][g]=m->foot_geoms[s][g];v.foot_radii[s][g]=m->foot_radii[s][g];
+    }
     v.half=m->floor_half_height;v.upright=m->upright;v.standing=m->standing;v.calibrated=m->calibrated;
     v.floats=m->fall_floats;v.integers=m->fall_integers;v.valid=m->fall_valid;return v;
 }
@@ -100,8 +104,19 @@ __global__ void calibrate(FallView v) {
     ok= floor_height(v.p,a,v.d.floor,v.half,height)&&ok;
     const float* pelvis=v.p.xpos+(a*v.p.bodies+v.roots[s])*3;
     for(int i=0;i<3;i++)ok=ok&&isfinite(pelvis[i]);
-    float standing=pelvis[2]-height;
-    v.standing[row]=standing;v.calibrated[row]=ok&&isfinite(standing)&&standing>DBL_EPSILON;
+    // Native MeasureStandingHeight uses the lowest foot geometry, independent
+    // of the floor. Pinned tagged feet contain four spheres each. Native
+    // support arithmetic is double, cast to Unity float before subtraction.
+    // geom_xpos is already FP32 here, so this is not double-FK bitwise parity.
+    float lowest=FLT_MAX;
+    for(int g=0;g<8;g++){
+        const float* center=v.p.geom_xpos+(a*v.p.geoms+v.foot_geoms[s][g])*3;
+        for(int k=0;k<3;k++)ok=ok&&isfinite(center[k]);
+        float bottom=float(double(center[2])-v.foot_radii[s][g]);
+        ok=ok&&isfinite(bottom);lowest=fminf(lowest,bottom);
+    }
+    float standing=pelvis[2]-lowest;
+    v.standing[row]=standing;v.calibrated[row]=ok&&isfinite(standing);
 }
 __global__ void all_calibrated(FallView v) {
     // Called only at reset. A failed calibration invalidates all fighter rows.
@@ -125,14 +140,16 @@ __global__ void sample_fall(FallView v,const uint8_t* selected) {
     ok=floor_height(v.p,a,v.d.floor,v.half,height)&&ok;
     const float* pelvis=v.p.xpos+(a*v.p.bodies+v.roots[s])*3;
     for(int i=0;i<3;i++)ok=ok&&isfinite(pelvis[i]);
-    float standing=v.standing[row],ratio=(pelvis[2]-height)/standing;
+    // Native get_PelvisHeightRatio disables height detection at <= 0.0001f.
+    // Keep existing nonfinite/root/global validity checks and floor numerator.
+    float standing=v.standing[row],ratio=standing<=.0001f?1.f:(pelvis[2]-height)/standing;
     bool left=v.d.floor_contact[a*v.p.bodies+v.left[s]],right=v.d.floor_contact[a*v.p.bodies+v.right[s]];
     int nonfoot=0;
     for(int b=0;b<v.p.bodies;b++) if(v.d.owner[b]==s&&b!=v.left[s]&&b!=v.right[s]&&v.d.floor_contact[a*v.p.bodies+b])nonfoot++;
     float* f=v.floats+row*5;f[0]=tilt;f[1]=ratio;f[2]=.002f;f[3]=height;f[4]=standing;
     int64_t* i=v.integers+row*7;i[0]=1;i[1]=!(left||right);i[2]=left||right;i[3]=nonfoot;i[4]=0;i[5]=left;i[6]=right;
     v.valid[row]=ok&&v.calibrated[row]&&v.d.fall_valid[a]&&isfinite(n2)&&n2>0
-        &&isfinite(standing)&&standing>DBL_EPSILON&&isfinite(tilt)&&isfinite(ratio);
+        &&isfinite(standing)&&isfinite(tilt)&&isfinite(ratio);
 }
 __global__ void body_velocity(Measurement d,float* velocity) {
     int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=d.arenas*d.bodies)return;
@@ -186,6 +203,18 @@ CombatMeasurement* measurement_create(Physics* p) {
         }
         m->left[s]=identity(model,mjOBJ_BODY,prefix+tags[6].name);
         m->right[s]=identity(model,mjOBJ_BODY,prefix+tags[12].name);
+        int foot_index=0;
+        for(int body:{m->left[s],m->right[s]}){
+            int count=0;
+            for(int g=0;g<91;g++)if(geom_body[g]==body){
+                if(count>=4||model->geom_type[g]!=mjGEOM_SPHERE
+                   ||!std::isfinite(model->geom_size[3*g])||model->geom_size[3*g]<=0)
+                    throw std::runtime_error("Pinned foot must contain four finite positive spheres");
+                m->foot_geoms[s][foot_index]=g;
+                m->foot_radii[s][foot_index++]=model->geom_size[3*g];count++;
+            }
+            if(count!=4)throw std::runtime_error("Pinned foot sphere count mismatch");
+        }
         std::map<std::pair<int,int>,int> masks;
         for(int g=0;g<91;g++)if(owner[geom_body[g]]==s)masks[{model->geom_contype[g],model->geom_conaffinity[g]}]++;
         std::map<std::pair<int,int>,int> wanted=s?std::map<std::pair<int,int>,int>{{{9,5},12},{{9,6},25}}

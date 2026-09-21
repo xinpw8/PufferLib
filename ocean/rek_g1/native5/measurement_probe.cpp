@@ -152,9 +152,16 @@ int main(int argc,char** argv) {
         reset();sample(0);
         auto calibrated=get(m->calibrated,4),valid=get(m->fall_valid,4);
         auto fall=get(m->fall_floats,20);
+        auto initial_centers=get(p->data.geom_xpos,2*91*3),initial_pelvis=get(p->data.xpos,2*63*3);
         for(int row=0;row<4;row++) {
             check(calibrated[row]&&valid[row],"real initial reset calibration invalid");
-            check(std::abs(fall[row*5])<.03f && std::abs(fall[row*5+1]-1)<1e-6,"real reset tilt/height mismatch");
+            int a=row/2,s=row%2;float bottom=std::numeric_limits<float>::max();
+            for(int g=0;g<91;g++)if(p->model->geom_bodyid[g]==m->left[s]||p->model->geom_bodyid[g]==m->right[s])
+                bottom=std::min(bottom,float(double(initial_centers[(a*91+g)*3+2])-p->model->geom_size[g*3]));
+            float height=initial_pelvis[(a*63+m->roots[s])*3+2]-bottom;
+            float expected=height<=.0001f?1.f:(initial_pelvis[(a*63+m->roots[s])*3+2]-fall[row*5+3])/height;
+            check(std::abs(fall[row*5])<.03f&&fall[row*5+4]==height
+                &&std::abs(fall[row*5+1]-expected)<1e-6,"real reset tilt/foot-height mismatch");
         }
         auto qpos=get(p->data.qpos,144);std::vector<float> ctrl(116);
         for(int a=0;a<2;a++)for(int j=0;j<58;j++)ctrl[a*58+j]=qpos[a*72+p->joint_qpos[j]];

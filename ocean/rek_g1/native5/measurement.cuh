@@ -22,6 +22,8 @@ struct CombatMeasurement {
     size_t sort_bytes = 0;
     void* scan_temp = nullptr;
     size_t scan_bytes = 0;
+    int foot_geoms[2][8]{};
+    double foot_radii[2][8]{};
     ~CombatMeasurement();
 };
 CombatMeasurement* measurement_create(Physics* physics);
