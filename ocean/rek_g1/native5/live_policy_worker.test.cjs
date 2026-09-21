@@ -89,6 +89,16 @@ async function main() {
       const unknown=step();unknown.observation[187]=.5;await bad(unknown,'owned_yaw_intent_value');
       const badTerminal=step();badTerminal.terminal=true;badTerminal.observation[187]=1;await bad(badTerminal,'owned_yaw_intent_value');
     }
+    if(observationSchema==='rek.native5.observable_balance.v1'){
+      for(const [index,value,code] of [[187,1,'observable_balance_padding'],[71,.5,'observable_balance_availability'],
+        [72,1.1,'observable_balance_tilt'],[13,.5,'observable_balance_missing_joints'],
+        [42,.5,'observable_balance_missing_rates'],[204,1,'observable_balance_missing_referee']]){
+        const input=step();input.observation[index]=value;await bad(input,code);
+      }
+      const measured=step(++seq);measured.observation[72]=.75;measured.observation[158]=.25;
+      measured.observation[202]=1;measured.observation[204]=1;
+      verifyAction(await request(measured),1);
+    }
     await bad('{broken','invalid_json_object');
     await bad('[]','invalid_json_object');
     await bad(JSON.stringify(step()).replace('"observation":[0,','"observation":[1e999,'),'observation_value');

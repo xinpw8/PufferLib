@@ -21,6 +21,7 @@ typedef float obs_t;
 #include "runtime_api.h"
 #include "native_policy.h"
 #include "owned_yaw_observation.h"
+#include "observable_balance.h"
 
 #define OBS_SIZE REK_NATIVE5_OBSERVATION_SIZE
 #define NUM_ATNS 1
@@ -126,9 +127,18 @@ Env* puf_vec_create(int n, Dict* kwargs, obs_t* observations,
         fprintf(stderr,"REK_FROZEN_OPPONENT_FRACTION must be finite and in [0,1]\n");abort();
     }
     const char* selected_backend=getenv("REK_PHYSICS_BACKEND");
+    const char* selected_schema=getenv("REK_OBSERVATION_SCHEMA");
+    const bool observable_balance=selected_schema&&!strcmp(selected_schema,rek_observable_balance::kSchema);
     bool owned_yaw=false;
-    try{owned_yaw=rek_owned_yaw::enabled(getenv("REK_OBSERVATION_SCHEMA"));}
+    try{if(!observable_balance)owned_yaw=rek_owned_yaw::enabled(selected_schema);}
     catch(const std::exception& e){fprintf(stderr,"REK observation schema: %s\n",e.what());abort();}
+    if(observable_balance){
+        DictItem* frozen=dict_find(kwargs,"opponent_checkpoint");
+        if(!selected_backend||strcmp(selected_backend,"mujoco_cuda")||
+                (frozen&&frozen->str&&frozen->str[0]&&strcmp(frozen->str,"None"))){
+            fprintf(stderr,"observable_balance_v1 requires explicit mujoco_cuda without a schema-unverified frozen opponent\n");abort();
+        }
+    }
     if(owned_yaw){
         DictItem* frozen=dict_find(kwargs,"opponent_checkpoint");
         if(!rek_owned_yaw::training_compatible(owned_yaw,selected_backend,frozen?frozen->str:nullptr)){

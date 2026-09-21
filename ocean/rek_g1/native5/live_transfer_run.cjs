@@ -117,7 +117,8 @@ function canRequestPrivateRound(s) {
 }
 function observationSchema(expected={}) {
   const schema=expected.observation_schema??'rek.native5.scaled_polar_xy.v1';
-  requireValue(['rek.native5.scaled_polar_xy.v1','rek.native5.scaled_polar_xy.owned_yaw_v2'].includes(schema),
+  requireValue(['rek.native5.scaled_polar_xy.v1','rek.native5.scaled_polar_xy.owned_yaw_v2',
+    'rek.native5.observable_balance.v1'].includes(schema),
     'invalid observation schema configuration');
   return schema;
 }
@@ -142,6 +143,15 @@ function validateEncoderReady(manifest, expected={}) {
     /^[a-f0-9]{64}$/.test(manifest.model_sha256||'') && Array.isArray(manifest.fields) &&
     manifest.fields.length===223 && manifest.fields.every((field,index)=>field.index===index),
     'encoder readiness mismatch');
+  if(schema==='rek.native5.observable_balance.v1') {
+    const available=column=>column<172?(column%86<=9||(column%86>=12&&column%86<=76)):
+      (column>=172&&column<=175)||column===184||column===185||
+      (column>=188&&column<=191)||(column>=202&&column<=205)||column===217||column===218;
+    requireValue(manifest.legacy_checkpoint_compatible===false && manifest.joint_pose_available===0 &&
+      Array.isArray(manifest.structural_feature_mask) && manifest.structural_feature_mask.length===223 &&
+      manifest.structural_feature_mask.every((value,index)=>value===Number(available(index))),
+      'observable balance encoder contract mismatch');
+  }
 }
 function validateStartupGate(gate) {
   if(gate===undefined)return;

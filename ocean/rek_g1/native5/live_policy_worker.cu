@@ -1,6 +1,7 @@
 #include "../../../vendor/cJSON.h"
 #include "policy_feature_mask.h"
 #include "owned_yaw_observation.h"
+#include "observable_balance.h"
 #ifndef REK_LIVE_PROTOCOL_TEST
 #include "native_policy.h"
 #include <cuda_runtime.h>
@@ -64,7 +65,18 @@ Request parse(const std::string& text,const char* schema){
     const auto* terminal=field(j.get(),"terminal");require(cJSON_IsBool(terminal),"terminal_boolean_required");r.terminal=cJSON_IsTrue(terminal);
     const auto* obs=field(j.get(),"observation");require(cJSON_IsArray(obs)&&cJSON_GetArraySize(obs)==223,"observation_shape");
     for(int i=0;i<223;i++){const auto* x=cJSON_GetArrayItem(obs,i);require(cJSON_IsNumber(x)&&std::isfinite(x->valuedouble)&&std::fabs(x->valuedouble)<=std::numeric_limits<float>::max(),"observation_value");r.observation[i]=float(x->valuedouble);}
-    if(rek_owned_yaw::enabled(schema)){
+    if(std::strcmp(schema,rek_observable_balance::kSchema)==0){
+        for(int i=0;i<223;i++)if(!rek_observable_balance::structurally_available(i))
+            require(r.observation[i]==0,"observable_balance_padding");
+        for(int b:{0,86}){
+            for(int i:{71,74,75,76})require(r.observation[b+i]==0||r.observation[b+i]==1,"observable_balance_availability");
+            require(r.observation[b+72]>=0&&r.observation[b+72]<=1,"observable_balance_tilt");
+            if(!r.observation[b+74])for(int i=13;i<=41;i++)require(r.observation[b+i]==0,"observable_balance_missing_joints");
+            if(!r.observation[b+75])for(int i=42;i<=70;i++)require(r.observation[b+i]==0,"observable_balance_missing_rates");
+        }
+        for(int i:{202,203,204,205})require(r.observation[i]==0||r.observation[i]==1,"observable_balance_availability");
+        if(!r.observation[202])require(r.observation[204]==0&&r.observation[205]==0,"observable_balance_missing_referee");
+    }else if(rek_owned_yaw::enabled(schema)){
         const float value=r.observation[rek_owned_yaw::kColumn];
         require((value==-1||value==0||value==1)&&(!r.terminal||value==0),"owned_yaw_intent_value");
     }
@@ -135,7 +147,9 @@ struct Engine {
 
 int main(int argc,char** argv){
     try{
-        const char* observation_schema=rek_owned_yaw::schema(rek_owned_yaw::enabled(std::getenv("REK_OBSERVATION_SCHEMA")));
+        const char* selected_schema=std::getenv("REK_OBSERVATION_SCHEMA");
+        const char* observation_schema=selected_schema&&std::strcmp(selected_schema,rek_observable_balance::kSchema)==0
+            ?rek_observable_balance::kSchema:rek_owned_yaw::schema(rek_owned_yaw::enabled(selected_schema));
 #ifndef REK_LIVE_PROTOCOL_TEST
         require(argc>=3&&argc<=6,"usage_checkpoint_sha256_optional_seed_selection_feature_mask");
         uint64_t seed=73;

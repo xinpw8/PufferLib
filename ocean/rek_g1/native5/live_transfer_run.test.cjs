@@ -309,6 +309,29 @@ test('owned yaw v2 requires explicit identical config, encoder and worker schema
   assert.doesNotThrow(()=>validateWorkerAction({...prediction,observation_schema},source,sha,inference));
 });
 
+test('observable balance requires matched schema and explicit unavailable-feature contract',async()=>{
+  const observation_schema='rek.native5.observable_balance.v1',inference={observation_schema};
+  const balanceManifest={...manifest(),observation_schema,legacy_checkpoint_compatible:false,joint_pose_available:0,
+    structural_feature_mask:Array.from({length:223},(_,i)=>Number(i<172?(i%86<=9||(i%86>=12&&i%86<=76)):
+      (i>=172&&i<=175)||[184,185,188,189,190,191,202,203,204,205,217,218].includes(i)))};
+  const balanceReady={...ready(),observation_schema};
+  assert.doesNotThrow(()=>validateWorkerReady(balanceReady,sha,inference));
+  assert.doesNotThrow(()=>validateEncoderReady(balanceManifest,inference));
+  assert.throws(()=>validateWorkerReady(balanceReady,sha),/identity mismatch/);
+  assert.throws(()=>validateEncoderReady(balanceManifest),/readiness mismatch/);
+  assert.throws(()=>validateEncoderReady(manifest(),inference),/readiness mismatch/);
+  for(const patch of [{legacy_checkpoint_compatible:true},{joint_pose_available:1},
+    {structural_feature_mask:[]},{structural_feature_mask:Array(223).fill(1)}])
+    assert.throws(()=>validateEncoderReady({...balanceManifest,...patch},inference),/contract mismatch/);
+  let opened=false;
+  await startRelayWhenPrepared({encoder:{wait:async()=>balanceManifest},worker:{wait:async()=>balanceReady},
+    checkpointSha256:sha,inference,openRelay:()=>{opened=true;}});
+  assert.equal(opened,true);
+  const source={sequence:3,round},prediction={type:'action',seq:3,round_id:round,checkpoint_sha256:sha,action:6};
+  assert.throws(()=>validateWorkerAction(prediction,source,sha,inference),/schema mismatch|schema_mismatch/);
+  assert.doesNotThrow(()=>validateWorkerAction({...prediction,observation_schema},source,sha,inference));
+});
+
 test('startup release must match this worker preparation and checkpoint',async()=>{
   for(const patch of [{readiness_id:'stale'},{checkpoint_sha256:'d'.repeat(64)}]) {
     const f=gateFixture();

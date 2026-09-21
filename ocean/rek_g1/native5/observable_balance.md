@@ -1,10 +1,14 @@
 # Observable balance projection
 
 `observable_balance.h` defines the opt-in 223-float schema
-`rek.native5.observable_balance.v1`. **It is not connected to either
-`runtime.cu` or `live_transfer/encode_live.cpp`.** Existing checkpoints and the
-ongoing physical baseline still use their existing observations. Integration
-requires fresh training and the same new projection at evaluation.
+`rek.native5.observable_balance.v1`. The physical `runtime.cu` now supports it
+through `REK_OBSERVATION_SCHEMA`, with the existing default unchanged. The
+physical adapter and native PPO binding have passed bounded tests documented in
+`validation/observable-balance-physical-integration-20260921.md`. Live encoder
+integration remains pending. Existing checkpoints use their existing
+observations; this schema requires fresh training and the same projection at
+evaluation. Both physical fighter joint poses are explicitly unavailable until
+their client/model correspondence is established.
 
 The physical producer currently exposes support contacts, physical fall phases,
 controller route/busy state, instantaneous body/joint velocities and contact

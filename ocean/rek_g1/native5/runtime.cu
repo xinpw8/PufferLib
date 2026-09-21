@@ -6,6 +6,7 @@
 #include "sonic_controller.cuh"
 #include "device_storage.cuh"
 #include "normalized_reward.h"
+#include "observable_balance.h"
 #include "../g1_native_combat_cuda.h"
 #include <algorithm>
 #include <cmath>
@@ -19,6 +20,45 @@
 using rek5::cuda_check;
 namespace {
 thread_local std::string runtime_error;
+struct ObservableHistory {
+    rek_observable_balance::Snapshot previous;
+    uint64_t round_key,ticks;
+    bool available;
+};
+// Observation-step state only. Physical contact sampling and counted body
+// resets never modify this history. Joint correspondence is not yet proven.
+__host__ __device__ rek_observable_balance::Status project_observable(
+        ObservableHistory& history,const float* qpos,const RekG1FightState& fight,
+        bool terminal,bool transition,bool new_round,float* output) {
+    namespace ob=rek_observable_balance;
+    if(!transition){++history.round_key;history.ticks=0;history.available=false;}
+    else {++history.ticks;if(new_round)++history.round_key;}
+    ob::Snapshot now{};
+    for(int side=0;side<2;side++){
+        for(int k=0;k<3;k++)now.fighter[side].root_xyz[k]=qpos[side*36+k];
+        for(int k=0;k<4;k++)now.fighter[side].root_wxyz[k]=qpos[side*36+3+k];
+        now.fighter[side].joint_pose_available=0;
+        now.points[side]=fight.clean_hits[side];
+    }
+    now.round_key=history.round_key;now.sample_seconds=double(history.ticks)*.02;
+    now.round_duration_seconds=fight.round_duration_seconds;
+    now.round_remaining_seconds=fight.time_remaining_seconds;
+    now.round_active=fight.phase==REK_G1_FIGHT_ROUND_ACTIVE;
+    now.terminal=terminal;now.referee_available=1;
+    now.count_mask=unsigned(fight.count_active[0])|(unsigned(fight.count_active[1])<<1);
+    auto previous=history.previous;
+    for(int side=0;side<2;side++){
+        now.actor_slot=side;previous.actor_slot=side;
+        const auto status=ob::project(now,history.available?&previous:nullptr,output+side*223);
+        if(status!=ob::kOk){
+            history.available=false;
+            for(int k=0;k<446;k++)output[k]=0;
+            return status;
+        }
+    }
+    now.actor_slot=0;history.previous=now;history.available=true;
+    return ob::kOk;
+}
 struct Combat {
     RekG1CudaNativeCombatState* states;
     RekG1HitContact* contacts;
@@ -48,6 +88,9 @@ struct RuntimeView {
     RekNative5RoundResult* round_results;
     float round_seconds;
     bool normalized_rewards;
+    bool observable_balance;
+    ObservableHistory* observable_history;
+    float* observable_observations;
     unsigned* reward_saturations;
     uint64_t* confirmed_falls;
     int64_t* awarded_points;
@@ -120,6 +163,13 @@ __global__ void observation_pack(RuntimeView v,const float* semantic) {
     for(int k=0;k<12;k++)o[172+k]=semantic[row*12+k];
     for(int k=0;k<39;k++)o[184+k]=v.c.fight[row*39+k];
 }
+__global__ void observable_pack(RuntimeView v,bool transition) {
+    int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=v.p.arenas)return;
+    if(project_observable(v.observable_history[a],v.p.qpos+a*72,v.c.states[a].combat.fight,
+            transition&&v.c.terminals[a*2]!=0,transition,v.c.episode_reset[a]!=0,
+            v.observable_observations+a*446)!=rek_observable_balance::kOk)
+        atomicOr(v.failures+a,1);
+}
 __global__ void export_masks(RuntimeView v) {
     int i=blockIdx.x*blockDim.x+threadIdx.x;
     if(i<v.p.arenas*33&&v.learner_masks)v.learner_masks[i]=v.masks[(i/33)*66+i%33];
@@ -144,6 +194,10 @@ __device__ bool encode_observation(const float* o,float* dst) {
 }
 __global__ void encode_fighters(RuntimeView v,float* dst) {
     int row=blockIdx.x*blockDim.x+threadIdx.x;if(row>=v.p.arenas*2)return;
+    if(v.observable_balance){
+        for(int k=0;k<223;k++)dst[row*223+k]=v.observable_observations[row*223+k];
+        return;
+    }
     if(!encode_observation(v.observations+row*223,dst+row*223))atomicOr(v.failures+row/2,1);
 }
 __device__ void validate_external_action(RuntimeView v,int row,float action) {
@@ -197,7 +251,9 @@ __global__ void export_observation(RuntimeView v,bool transition) {
     int a=blockIdx.x*blockDim.x+threadIdx.x;if(a>=v.p.arenas)return;
     const float* o=v.observations+a*446;float* dst=v.out.observations+a*223;
     if(v.learner_masks)for(int k=0;k<33;k++)v.learner_masks[a*33+k]=v.masks[a*66+k];
-    bool finite=encode_observation(o,dst);
+    bool finite=true;
+    if(v.observable_balance)for(int k=0;k<223;k++)dst[k]=v.observable_observations[a*446+k];
+    else finite=encode_observation(o,dst);
     for(int k=0;k<446;k++)finite=finite&&isfinite(o[k]);
     for(int k=0;k<223;k++)finite=finite&&isfinite(dst[k]);
     if(!finite)atomicOr(v.failures+a,1);
@@ -296,6 +352,7 @@ struct RekNative5Runtime {
         cuda_check(cudaMemsetAsync(view.round_results,0,a*sizeof(RekNative5RoundResult),stream));
         rek5::measurement_sample_reset_fall(measurement,motion->all_flags,stream);observe();
         gather<<<rows_grid(),128,0,stream>>>(view,true);observation_pack<<<rows_grid(),128,0,stream>>>(view,motion->observation12);
+        if(view.observable_balance)observable_pack<<<arena_grid(),128,0,stream>>>(view,false);
         export_observation<<<arena_grid(),128,0,stream>>>(view,false);cuda_check(cudaGetLastError());
     }
     void step(){
@@ -341,6 +398,7 @@ struct RekNative5Runtime {
         flags<<<rows_grid(),128,0,stream>>>(view,true);
         motion->post(view.local_velocity,view.phase,view.suspended,c.input_reset,view.completed,view.terminal_rows,stream);
         observation_pack<<<rows_grid(),128,0,stream>>>(view,motion->observation12);
+        if(view.observable_balance)observable_pack<<<arena_grid(),128,0,stream>>>(view,true);
         export_observation<<<arena_grid(),128,0,stream>>>(view,true);cuda_check(cudaGetLastError());
     }
 };
@@ -355,6 +413,10 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         if(!std::isfinite(cfg->round_seconds)||cfg->round_seconds<0||cfg->round_seconds>3600)
             throw std::runtime_error("round_seconds must be zero or finite in (0,3600]");
         v.round_seconds=cfg->round_seconds;
+        const char* schema=getenv("REK_OBSERVATION_SCHEMA");
+        if(schema&&strcmp(schema,"rek.native5.scaled_polar_xy.v1")&&strcmp(schema,rek_observable_balance::kSchema))
+            throw std::runtime_error("Physical runtime supports scaled_polar_xy.v1 or observable_balance.v1");
+        v.observable_balance=schema&&!strcmp(schema,rek_observable_balance::kSchema);
         const char* reward=getenv("REK_NATIVE5_REWARD");
         if(reward&&strcmp(reward,"point_difference_v1")&&strcmp(reward,rek5_normalized_reward::kMode))
             throw std::runtime_error("Invalid REK_NATIVE5_REWARD");
@@ -366,6 +428,17 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         r->physics=rek5::physics_create(cfg->model_path,cfg->physics_export_path,a,s);v.p=r->physics->data;v.out=*out;
         r->motion=new RekNative5Motion(*cfg,s);r->measurement=rek5::measurement_create(r->physics);
         auto* p=r->physics;auto* model=p->model;
+        if(v.observable_balance){
+            // Bind the exported free-root origin, not an inertial COM position.
+            for(int side=0;side<2;side++){
+                const int body=p->root_bodies[side],joint=model->body_jntadr[body];
+                if(model->body_jntnum[body]!=1||joint<0||model->jnt_type[joint]!=mjJNT_FREE||
+                        model->jnt_qposadr[joint]!=side*36||model->body_parentid[body]!=0)
+                    throw std::runtime_error("Observable balance free-root mapping mismatch");
+            }
+            v.observable_history=d.alloc<ObservableHistory>(a);
+            v.observable_observations=d.alloc<float>(rows*223);
+        }
         std::array<uint8_t,58> limited{};std::array<float,116> ranges{};
         for(int j=0;j<58;j++){
             int joint=model->actuator_trnid[p->actuator_ids[j]*2];limited[j]=model->jnt_limited[joint];
@@ -413,6 +486,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         std::fprintf(stderr,"native5 runtime: physics_backend=%s arenas=%d fighters=%d controller_bytes=%zu\n",rek5::physics_backend_name(p),a,rows,sonic_controller_resident_bytes(r->controller));
         std::fprintf(stderr,"model_sha256=%s export_sha256=%s motion_manifest_sha256=%s\n",p->model_sha256.c_str(),p->export_sha256.c_str(),r->motion->manifest_sha256.c_str());
         std::fprintf(stderr,"encoder_sha256=%s decoder_sha256=%s\n",sonic_controller_encoder_sha256(r->controller),sonic_controller_decoder_sha256(r->controller));
+        if(v.observable_balance)std::fprintf(stderr,"observable_balance={\"schema\":\"rek.native5.observable_balance.v1\",\"features\":223,\"root\":\"verified_free_root_origin_wxyz\",\"history\":\"preceding_50Hz_observation\",\"history_reset\":\"explicit_reset_or_episode_boundary_only\",\"joint_pose_available\":false,\"joint_mapping\":\"unproven_not_raw_qpos\",\"referee_source\":\"native_count_active\",\"raw_inspection_unchanged\":true,\"old_weights_compatible\":false}\n");
         if(v.normalized_rewards)std::fprintf(stderr,"normalized_reward={\"mode\":\"normalized_points_falls_v1\",\"scale\":0.01,\"bounds\":[-1,1],\"own_confirmed_fall\":-0.01,\"fall_event_source\":\"BECAME_FALLEN\",\"terminal_bonus\":0,\"normalization\":\"fixed_scale\"}\n");
         return r.release();
     }catch(const std::exception& e){runtime_error=e.what();return nullptr;}
