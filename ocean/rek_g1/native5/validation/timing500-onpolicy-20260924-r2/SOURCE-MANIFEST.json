@@ -1,0 +1,36 @@
+{
+  "schema": "rek.timing500_onpolicy_publication_sources.v1",
+  "private_stage": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2",
+  "local_mirror": "C:/rekagent/work/timing500-onpolicy-20260924-r2",
+  "production_source_modified": false,
+  "copies_verified_byte_identical": true,
+  "live_preparer_origin": "C:/rekagent/work/timing500-onpolicy-20260924-r1",
+  "source_file_count": 19,
+  "files": [
+    {"path":"check_closed_startup.cjs","sha256":"b64f0060c8d54fb370b28bb7e1fde2e3b9122f8b3db10ae37c4168c82473d33d","bytes":5884},
+    {"path":"controlled_policy_coverage.cjs","sha256":"68dfccadbff6b84a58770ebdb6e4168e29bd933afc054b37af0e997b72bb7815","bytes":6459},
+    {"path":"controlled_policy_coverage.test.cjs","sha256":"4479994583f903c04d48626b7f5c572b6c79cb0216195718dab436d313856a77","bytes":4671},
+    {"path":"derive_score_delta.cjs","sha256":"c98053074d7a3bae53dc0786b0908dca7bd95db1b9f678fc5b7561adfd63db72","bytes":6154},
+    {"path":"onpolicy.test.cjs","sha256":"8852c599942eb2ff3cf3633878e9f48bceffb96ab0d1096b593a1834455b3807","bytes":7694},
+    {"path":"prepare_export.cjs","sha256":"279cdeb37a7996c5234e7bc26d5a4919c90fc9b56cb80ca71ef30735dfa837ac","bytes":3883},
+    {"path":"prepare_live.cjs","sha256":"38dcbcab47d6a90837b1b2388c437771b885e5d770efb127da22bca2a5069efb","bytes":4760,"origin":"r1"},
+    {"path":"prepare_live.test.cjs","sha256":"3934dd99747d5505ea012a871495bf66fc3529d1a9d19895bc916c87b8934bfd","bytes":1089,"origin":"r1"},
+    {"path":"prepare_strict_sidecars.cjs","sha256":"1ebad0d9433f66fd364d7ec6c25154adfbed631468fb51fda6b9f13aad584550","bytes":14018},
+    {"path":"run_native.cjs","sha256":"214b84a6e44e6cf8210cebc9638187f7da7dfe393b782bba5780bf47a21a5f5f","bytes":3494},
+    {"path":"select_closed_cohort.cjs","sha256":"ed25eea1ca57547d09f8aaf6e068fe5f1247936707eaa2aad9398f43c2f81ac6","bytes":2434},
+    {"path":"selection.cjs","sha256":"83a6aff9811dd7dddb9772010c710afbe3d6b8b9e266db25c06ea592572073d8","bytes":4829},
+    {"path":"selection.example.json","sha256":"c34a8fda4e7c51944fd9f766b724345578c306f9a1c9600465941a44018de41d","bytes":2636},
+    {"path":"test_score_delta.cjs","sha256":"d71de861562c1a46346774d7e8c45ae9b2c381e8a204bfc9a3bad2fb4edded6c","bytes":2099},
+    {"path":"source/authentic_trajectory_data.cjs","sha256":"d42701220713a8d1299caaf969302b17801dd0dc96ea9fe7e86aae6e93e45ba8","bytes":26205},
+    {"path":"source/authentic_trajectory_data.test.cjs","sha256":"208d65af0668f8eed22eed4c01c46f1838222f354b5f01db5122b24499950bda","bytes":16786},
+    {"path":"source/authentic_trajectory_v3.cjs","sha256":"4dfd8d03b0199ce3f2d9e9d6f3b3a8b0c1604adbfed4b0ea14ec890a3ae6f60c","bytes":7255},
+    {"path":"source/authentic_trajectory_v3.test.cjs","sha256":"219acfd2b9fc65940753164ba6b71b535b54c2c803ad60f64e52a31ade07f2d3","bytes":2935},
+    {"path":"source/owned_yaw_export_evidence.cjs","sha256":"29ca5c2ddbe3d98fe4e11e10f32b519658014aec83e475c7078cc828b9302a56","bytes":3333}
+  ],
+  "reused_native_source_publication": "../scorecredit5s-20260924-r2/README.md",
+  "reused_native_binary_sha256": {
+    "replay-authentic-behavior": "fa622e8a238d5b44a1fbb839c41b4750eb80d328795eeb8d992da5771b6c9927",
+    "authentic-ppo": "741035dad9303be7636c77be97ec44584011c95987170e86008d5515020b30e8",
+    "live-policy-worker-balance8": "52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "schema": "rek.scorecredit5s_onpolicy_selection.v1",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "stage": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2",
+  "minimum_completed_rounds": 20,
+  "checkpoint": {
+    "path": "/home/spark-advantage/rek-training/scorecredit-human-attackbc-20260924-r1/train-five-epochs/policy.bin",
+    "sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4"
+  },
+  "worker": {
+    "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+    "sha256": "52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2"
+  },
+  "native_object": {
+    "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/native_policy.o",
+    "sha256": "4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c"
+  },
+  "feature_mask": {
+    "path": "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+    "sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b"
+  },
+  "rounds": [
+    {"id":"timing500-s1201-retry8","seed":1201,"directory":"/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1/timing500-s1201-retry8","config":"/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1/configs/timing500-s1201-retry8.json"},
+    {"id":"timing500-s1202","seed":1202,"directory":"/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1/timing500-s1202","config":"/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1/configs/timing500-s1202.json"},
+    {"id":"timing500-s1203","seed":1203,"directory":"/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1/timing500-s1203","config":"/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1/configs/timing500-s1203.json"},
+    {"id":"timing500-s1204","seed":1204,"directory":"/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1/timing500-s1204","config":"/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1/configs/timing500-s1204.json"},
+    {"id":"timing500-s1205","seed":1205,"directory":"/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1/timing500-s1205","config":"/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1/configs/timing500-s1205.json"},
+    {"id":"timing500-s1206","seed":1206,"directory":"/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1/timing500-s1206","config":"/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1/configs/timing500-s1206.json"}
+  ]
+}

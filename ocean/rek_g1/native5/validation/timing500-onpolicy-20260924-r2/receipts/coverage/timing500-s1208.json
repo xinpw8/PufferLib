@@ -1,0 +1,48 @@
+{
+  "schema": "rek.controlled_policy_coverage.v1",
+  "coverage": {
+    "round_identity_sha256": "1593fc3114a20cacfec5a92d9685222945e4eae9425cb25f9f0c82b5db42656a",
+    "local_slot": 0,
+    "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+    "legacy_completed_policy_round": false,
+    "legacy_first_applied_seconds_after_first_observation": 1.179591439909295,
+    "controlled_policy_interval_complete": true,
+    "native_round_duration_seconds": 120,
+    "first_raw_sequence": 1,
+    "readiness_sequence": 5,
+    "controlled_source_sequence": 6,
+    "first_decision_sequence": 7,
+    "actual_control_start_time_remaining_seconds": 118.66571,
+    "native_round_elapsed_before_control_seconds": 1.3342899999999958,
+    "raw_to_control_qpc_seconds": 0.7962299,
+    "controlled_to_first_applied_seconds": 0.18877779903628067,
+    "maximum_applied_action_gap_seconds": 0.10353049886621335,
+    "terminal_seconds_after_last_applied": 0.00040003543082889337,
+    "applied_action_returns": 2936,
+    "tolerance_seconds": 1,
+    "startup_observed_counters_zero_through_first_decision": true,
+    "basis": "Observed local applied acknowledgements: unchanged UnityTime interval bounds, QPC startup identity and reward discounts. Server acceptance unknown; native duration is not claimed as policy-control duration or a wall-clock coverage guarantee."
+  },
+  "inputs": [
+    {
+      "file": "trial/summary.json",
+      "bytes": 2776,
+      "sha256": "76265beeecdb3489c9d5d508ffda86d76f1c174c3d95ca6a8670a195afbce557"
+    },
+    {
+      "file": "contact-analysis/summary.json",
+      "bytes": 6895,
+      "sha256": "71a2d3c2f8d02f04c875c06acdda2f78fad6280756efa8784ae908ea85ef52b0"
+    },
+    {
+      "file": "trial/relay.stdout.jsonl",
+      "bytes": 40215780,
+      "sha256": "237661a56095f937dac05df0ae0104e649890d05e1920ab767839abe4a0e6512"
+    },
+    {
+      "file": "trial/worker.stdin.jsonl",
+      "bytes": 9866684,
+      "sha256": "cc0f69da85ab63a5097b9f685c0ee198b6da8d35dc618089122b2a416cb3014d"
+    }
+  ]
+}

@@ -1,0 +1,386 @@
+{
+  "schema": "rek.scorecredit5s_onpolicy_strict_evidence.v1",
+  "created_utc": "2026-09-24T10:35:29.488Z",
+  "selection": {
+    "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/selection.frozen.json",
+    "bytes": 4117,
+    "sha256": "86f803dc76012e17c46566202e1cb60cf76ccb6804246f916ceabcbafddc0c96"
+  },
+  "minimum_completed_rounds": 8,
+  "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+  "modules": [
+    {
+      "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/prepare_strict_sidecars.cjs",
+      "bytes": 14018,
+      "sha256": "1ebad0d9433f66fd364d7ec6c25154adfbed631468fb51fda6b9f13aad584550"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/controlled_policy_coverage.cjs",
+      "bytes": 6459,
+      "sha256": "68dfccadbff6b84a58770ebdb6e4168e29bd933afc054b37af0e997b72bb7815"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/selection.cjs",
+      "bytes": 4829,
+      "sha256": "83a6aff9811dd7dddb9772010c710afbe3d6b8b9e266db25c06ea592572073d8"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/f7-action-id-fix-20260924-r1/source/ocean/rek_g1/native5/analyze_live_contacts.cjs",
+      "bytes": 22037,
+      "sha256": "f0bfc8117d62442c7b3f9dfcf50cb2084c324561826c9c5bb7b301c54b9310c4"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/f7-action-id-fix-20260924-r1/source/ocean/rek_g1/native5/join_passive_hit_events.cjs",
+      "bytes": 20018,
+      "sha256": "1a58b2867c825e2a8bd57c234f7052f47c84f0ea1fd0b81c504c3dbb26b408ee"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/f7-action-id-fix-20260924-r1/source/ocean/rek_g1/native5/compare_passive_contacts.cjs",
+      "bytes": 12981,
+      "sha256": "65a4e509add9eb19ceea1a6ce649156fe0c7cca7415e2da6f7b930b02b524ed4"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/referee-bridge-spark-20260924-r1/native_hit_receipt_data.cjs",
+      "bytes": 20373,
+      "sha256": "485d5b89217ba305a3fee9bcb573bb6efe1d0bceb04a0f06472ea88bfb37e2e6"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/referee-bridge-spark-20260924-r1/native_referee_data.cjs",
+      "bytes": 17839,
+      "sha256": "7ed0ba9118eaf5f277eb265671de75dae43441ead75ee1ce410f4422dd7c5458"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/referee-bridge-spark-20260924-r1/validate_live_referee.cjs",
+      "bytes": 16435,
+      "sha256": "22bbb6652f8cf333c1c832f8719f9e37da20b66bfecd85185e228d2183c9fe89"
+    }
+  ],
+  "rounds": [
+    {
+      "label": "timing500-s1201-retry8",
+      "destination": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1201-retry8",
+      "round_identity_sha256": "dcb18fd94af62510b19981a38ca276532350abda3e4b278cf2323492a59c8018",
+      "local_slot": 0,
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "source_observations": 2827,
+      "completed_policy_round": false,
+      "controlled_policy_interval_complete": true,
+      "controlled_policy_coverage": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1201-retry8/controlled-policy-coverage.json",
+        "bytes": 2044,
+        "sha256": "dc4e5099403808938bee4c9e3c5b8716e41345bcc954cc2611042700189d0446"
+      },
+      "native_capture_complete": true,
+      "referee_verification_passed": true,
+      "score_events": 14,
+      "points": [
+        16,
+        10
+      ],
+      "outcome": "win",
+      "native_source": {
+        "file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T095600.4250700Z-pid32-3c115b0604ef40328880b20e86eebd27.jsonl",
+        "bytes": 205524739,
+        "sha256": "9d46c62f06cad615995c1aa712515568b9aa0278fc505ba54eb7f55b9f7a20db",
+        "lines": 85673
+      },
+      "original_summary_sha256": "f7b9ff8530600ff39ace65f679e214605782e423847ab7f80c24ccee6db92e43",
+      "contact_summary": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1201-retry8/contact-analysis/summary.json",
+        "bytes": 6897,
+        "sha256": "d6baf93bac66165c651d538783e5e2b0889b3161b6161305f0e0925343513fc1"
+      },
+      "referee_validation": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1201-retry8/referee-validation/live-referee-validation.json",
+        "bytes": 6255,
+        "sha256": "eb32631b8471bab0604633933feb76772433fe32b44506db7beb0870a61b0bb5"
+      }
+    },
+    {
+      "label": "timing500-s1202",
+      "destination": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1202",
+      "round_identity_sha256": "00cef50caf83e174182f97bf6b86d07e8cc786c391ec423d698220c38ec3a6bd",
+      "local_slot": 0,
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "source_observations": 2970,
+      "completed_policy_round": false,
+      "controlled_policy_interval_complete": true,
+      "controlled_policy_coverage": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1202/controlled-policy-coverage.json",
+        "bytes": 2045,
+        "sha256": "7dd666a86a7a6b8eeeaa565aab35850d69eb9f29d0b22645eec4239933166fd5"
+      },
+      "native_capture_complete": true,
+      "referee_verification_passed": true,
+      "score_events": 13,
+      "points": [
+        6,
+        13
+      ],
+      "outcome": "loss",
+      "native_source": {
+        "file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T095921.1625050Z-pid32-462ec0ba06dc44858b56aaa8f3edf750.jsonl",
+        "bytes": 205840944,
+        "sha256": "91086eba64ba10067af897483b28f023bb4eaed8b3f7f026be1910950ed6fd51",
+        "lines": 85841
+      },
+      "original_summary_sha256": "4451efad3f8c8e5b164d77f127a13de931df13f8038617bf7cb5e4bc92ab2d2b",
+      "contact_summary": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1202/contact-analysis/summary.json",
+        "bytes": 6885,
+        "sha256": "6e212513dd561c826f921dc8290efba19d42904995b838799a11bf3d18b01b5b"
+      },
+      "referee_validation": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1202/referee-validation/live-referee-validation.json",
+        "bytes": 4478,
+        "sha256": "3ccdb902287012c42d9e872fb9d0c88c7a7df56c31fa32673082a2f78912c1d7"
+      }
+    },
+    {
+      "label": "timing500-s1203",
+      "destination": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1203",
+      "round_identity_sha256": "163161796d6d1ce8a7c84e46953fbc295aef5470f7e1f159edb01cbd8eeecb21",
+      "local_slot": 0,
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "source_observations": 3070,
+      "completed_policy_round": false,
+      "controlled_policy_interval_complete": true,
+      "controlled_policy_coverage": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1203/controlled-policy-coverage.json",
+        "bytes": 2046,
+        "sha256": "1d49b4a4aa1b02d02721907f38a43d3a70b0e3b96ad50e29860bf44318f630a1"
+      },
+      "native_capture_complete": true,
+      "referee_verification_passed": true,
+      "score_events": 6,
+      "points": [
+        4,
+        3
+      ],
+      "outcome": "win",
+      "native_source": {
+        "file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T100241.2176806Z-pid32-dea4ef24e57d4a52919fd8e937a6a799.jsonl",
+        "bytes": 205574553,
+        "sha256": "2fefb73233d7aef219b28f9b7b976533d32437845791eafbbaec5d6ea04dd39c",
+        "lines": 85928
+      },
+      "original_summary_sha256": "91c4ebb7ea2727efd78712ba9856e59a06d1219784220a16fd7047c3209b55f8",
+      "contact_summary": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1203/contact-analysis/summary.json",
+        "bytes": 6873,
+        "sha256": "900487dd718c43e499a79bbc0d355350f8c6bdbc7df57acf7b68ac1e40c31251"
+      },
+      "referee_validation": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1203/referee-validation/live-referee-validation.json",
+        "bytes": 2610,
+        "sha256": "c95feaa30c124dab6a000556e42005f4e0b47ac3dcc98a2113394e1484118b6e"
+      }
+    },
+    {
+      "label": "timing500-s1204",
+      "destination": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1204",
+      "round_identity_sha256": "44b4dab26e412cd6146687d0f34015b4daca8262b78c849609299f961ed196b4",
+      "local_slot": 0,
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "source_observations": 3106,
+      "completed_policy_round": false,
+      "controlled_policy_interval_complete": true,
+      "controlled_policy_coverage": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1204/controlled-policy-coverage.json",
+        "bytes": 2049,
+        "sha256": "21d42165472eafc7777a63202f1e8c6fbc5ee0b0b77defbedf1725790c747f64"
+      },
+      "native_capture_complete": true,
+      "referee_verification_passed": true,
+      "score_events": 8,
+      "points": [
+        11,
+        4
+      ],
+      "outcome": "win",
+      "native_source": {
+        "file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T100601.1736110Z-pid32-7b04170ac47e4f5f8c4fac87d9868b66.jsonl",
+        "bytes": 205818510,
+        "sha256": "44dd3ef65fd4a706d4b6fd70e139ab1da76cc26adc349e66e3d1abd8afdcaf14",
+        "lines": 85992
+      },
+      "original_summary_sha256": "4696d1d56b170afe762c80ca3ee417eae468a6df92631b607fb70529c9ced727",
+      "contact_summary": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1204/contact-analysis/summary.json",
+        "bytes": 6885,
+        "sha256": "d8c9b55565bd53dc79f4ba246ad51d3ef1a971c303b8a6b71cef6de1944ec522"
+      },
+      "referee_validation": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1204/referee-validation/live-referee-validation.json",
+        "bytes": 4480,
+        "sha256": "b567c05592a4c8d2069e99d674e1d86bd79903a4936ee1e3017edb54513a933e"
+      }
+    },
+    {
+      "label": "timing500-s1205",
+      "destination": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1205",
+      "round_identity_sha256": "a44fbe17526200006231561f3748f6296391b4df7e292fdbc71c5670581bc72f",
+      "local_slot": 0,
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "source_observations": 3108,
+      "completed_policy_round": true,
+      "controlled_policy_interval_complete": true,
+      "controlled_policy_coverage": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1205/controlled-policy-coverage.json",
+        "bytes": 2044,
+        "sha256": "9f8d656008e8ade950cfb96c8ecce42006f37e29a3873e1f09963f2acf5e10c7"
+      },
+      "native_capture_complete": true,
+      "referee_verification_passed": true,
+      "score_events": 15,
+      "points": [
+        20,
+        14
+      ],
+      "outcome": "win",
+      "native_source": {
+        "file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T100921.5961358Z-pid32-8e4df0bb074344a68bcf9adf565f7988.jsonl",
+        "bytes": 205458950,
+        "sha256": "c43b67b6dabb76d9786f90a9eb46350db5ef22763339437a17bfc5205d20c21d",
+        "lines": 85965
+      },
+      "original_summary_sha256": "76fe1f9c104f7dd682e621a86330f992a289e7568641777774a363de5d9d8616",
+      "contact_summary": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1205/contact-analysis/summary.json",
+        "bytes": 6895,
+        "sha256": "68d94ed17aa2bed3407c175d7d1523c2fcc3b98be270b500cce8c3ce295198e5"
+      },
+      "referee_validation": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1205/referee-validation/live-referee-validation.json",
+        "bytes": 7363,
+        "sha256": "37f8461f51d1767323ad3c9eece30e32777e9dda2dc5ec8962531c4e7eb2fece"
+      }
+    },
+    {
+      "label": "timing500-s1206",
+      "destination": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1206",
+      "round_identity_sha256": "2b84785c95e38342d1230725b0e67dbc833a990ade91b27db58ba65888083b46",
+      "local_slot": 0,
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "source_observations": 3028,
+      "completed_policy_round": false,
+      "controlled_policy_interval_complete": true,
+      "controlled_policy_coverage": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1206/controlled-policy-coverage.json",
+        "bytes": 2048,
+        "sha256": "79f6b953791d47dc26f4e4cbe66b0225edb81362f873fefaf66939dad7ffa9b9"
+      },
+      "native_capture_complete": true,
+      "referee_verification_passed": true,
+      "score_events": 15,
+      "points": [
+        18,
+        14
+      ],
+      "outcome": "win",
+      "native_source": {
+        "file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T101240.8858677Z-pid32-605f6e8de82f4009ac7d7050da0bd73d.jsonl",
+        "bytes": 205593103,
+        "sha256": "65baa8d58b09d1e131ce60f7f0148bbcae6f69493767b843f901e74bc19fb60e",
+        "lines": 85899
+      },
+      "original_summary_sha256": "07079d95bea151bfaaabead71104e4399d6778763270163664c88f8fb24ec379",
+      "contact_summary": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1206/contact-analysis/summary.json",
+        "bytes": 6897,
+        "sha256": "b3150c58117b73d89506d8c9f16f27622792f7999b3c1f79305c0374a3ccfc0a"
+      },
+      "referee_validation": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1206/referee-validation/live-referee-validation.json",
+        "bytes": 7386,
+        "sha256": "39f80209b547837f3e3e401ccc1b36f16d03adc6cad1d974062fee18cbb6d42f"
+      }
+    },
+    {
+      "label": "timing500-s1207-retry2",
+      "destination": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1207-retry2",
+      "round_identity_sha256": "524fd24a407210c38269dbabce48e110c33fd1358a6669a73e2f77463305cfa0",
+      "local_slot": 0,
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "source_observations": 3007,
+      "completed_policy_round": false,
+      "controlled_policy_interval_complete": true,
+      "controlled_policy_coverage": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1207-retry2/controlled-policy-coverage.json",
+        "bytes": 2047,
+        "sha256": "e1d77fe2be70d0251058defb331db43d8c074df6e4a83b6dc38f7e3f6909d243"
+      },
+      "native_capture_complete": true,
+      "referee_verification_passed": true,
+      "score_events": 16,
+      "points": [
+        17,
+        22
+      ],
+      "outcome": "loss",
+      "native_source": {
+        "file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T101722.9355348Z-pid32-2ade6f0d6b874025bff74aea9d666350.jsonl",
+        "bytes": 205519266,
+        "sha256": "2f05c6b1081d4cf73492694fb41d8a9e98283e5b7b532e329994b70eb2ef0fbd",
+        "lines": 85860
+      },
+      "original_summary_sha256": "dabcd12969231db4210724975db3a462fd1575f5b374750874d333c1caba000d",
+      "contact_summary": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1207-retry2/contact-analysis/summary.json",
+        "bytes": 6900,
+        "sha256": "250f9e143f141d2b1ac23a7ddd2ef2df4af5a3bdeae0bd6967651b5395ac0174"
+      },
+      "referee_validation": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1207-retry2/referee-validation/live-referee-validation.json",
+        "bytes": 10153,
+        "sha256": "c02615f616c2544fbfe45fdb29a015594e2d6f20dbb635f316572368720c9562"
+      }
+    },
+    {
+      "label": "timing500-s1208",
+      "destination": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1208",
+      "round_identity_sha256": "1593fc3114a20cacfec5a92d9685222945e4eae9425cb25f9f0c82b5db42656a",
+      "local_slot": 0,
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "source_observations": 2944,
+      "completed_policy_round": false,
+      "controlled_policy_interval_complete": true,
+      "controlled_policy_coverage": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1208/controlled-policy-coverage.json",
+        "bytes": 2047,
+        "sha256": "4f12e09add970027dfa276581d5a51ac52812a6a166d7af0bd34cb83c9fdf4ee"
+      },
+      "native_capture_complete": true,
+      "referee_verification_passed": true,
+      "score_events": 15,
+      "points": [
+        12,
+        13
+      ],
+      "outcome": "loss",
+      "native_source": {
+        "file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T102043.4308146Z-pid32-89ac1d31f41e4cfb9cfb5d224369438d.jsonl",
+        "bytes": 205692930,
+        "sha256": "eed22cea2a9415288a65bac087e8a0a7a6fdaf762d827fc61666b69dcd2b4dde",
+        "lines": 85852
+      },
+      "original_summary_sha256": "7bdae22c918a2974d18ca4aa8363cc7020845a017098a698473790dbe49c4431",
+      "contact_summary": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1208/contact-analysis/summary.json",
+        "bytes": 6895,
+        "sha256": "71a2d3c2f8d02f04c875c06acdda2f78fad6280756efa8784ae908ea85ef52b0"
+      },
+      "referee_validation": {
+        "file": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/evidence/timing500-s1208/referee-validation/live-referee-validation.json",
+        "bytes": 6257,
+        "sha256": "477be08427b209a5ed07e93151efc56127a958fcd96e469255a8d6b9b3b565be"
+      }
+    }
+  ],
+  "original_files_changed": false,
+  "summary_derivation": "Original summary bytes preserved; only missing immutable source identity fields added to derived summaries.",
+  "verification": "Existing contact/referee analyzer outputs retained verbatim; explicit controlled-policy coverage receipt retains legacy result and rederives unchanged1s bounds from actual controlled start; raw hit/score wire bodies independently validated.",
+  "no_game_connection": true,
+  "no_gpu_execution": true,
+  "no_runtime_changes": true
+}

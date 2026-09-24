@@ -1,0 +1,48 @@
+✔ explicit derivative preserves legacy false, raw timer and original tolerance (2.3559ms)
+✔ unchanged first-ACK, inter-ACK and terminal one-second bounds reject adverse coverage (1.4454ms)
+✔ identity, readiness QPC/slot/round, score, driver bounds and native guards stay strict (6.0106ms)
+✔ receipt binds unchanged legacy analysis, actual sources and worker sequence; tampering fails (1.7153ms)
+✔ pinned mask is the independently hashed actual 223-byte all-ones mask (1.31ms)
+✔ default needs twenty explicit episodes; no inferred selection or duplicate ids/paths (3.1048ms)
+✔ explicit smaller batch override is recorded rather than silently applied (0.1954ms)
+✔ fixed actual checkpoint, native object, worker and mask identities required (1.2308ms)
+✔ only authentic complete non-redo 120-second Bot1 episodes enter preparation (6.9048ms)
+✔ controlled startup binds the exact source while retaining earlier passive observations (2.9741ms)
+✔ dynamic twenty-episode reward derivation preserves every non-reward/gamma byte and true behavior identity (15.5772ms)
+✔ native command keeps one epoch, LR1e-5, H128, complete MC, existing PPO options (0.4269ms)
+✔ only checkpoint, RNG seed and output change; runtime, masks and controls remain exact (7.3125ms)
+✔ binary has native agreed offsets and unmasked original features (1.6858ms)
+✔ reward/next-state changes cannot alter stored preceding observations (1.7383ms)
+✔ terminal potential removed, five-point awards enter only observed score potential (0.1151ms)
+✔ float32 variable gamma potential telescopes with the same discounts (0.1473ms)
+✔ terminal-race attempted action retained with actor weight zero (0.2116ms)
+✔ malformed mask, missing observation, noncausal timing and nonterminal rejection fail (0.5829ms)
+✔ synthetic joined trial preserves omitted source, actual dt and rejected decision (25.7898ms)
+✔ recurrent replay input duplication rejected rather than silently replaced (9.7403ms)
+✔ legacy exporter rejects v2 or missing ready observation schema (17.391ms)
+✔ legacy exporter rejects v2 or missing schema on every worker request (13.3646ms)
+✔ explicit original task-time profile is preserved without fallback defaults (9.582ms)
+✔ explicit trial list and new destination required (0.6085ms)
+✔ actual v2 export preserves recorded pre-action yaw and all non187 decision bytes (26.6813ms)
+✔ actual inactive v2 terminal input permits missing intent but requires zero187 and explicit schema (27.0133ms)
+✔ actual v2 rejects unknown ownership, busy mismatch and reconstructed chosen-action yaw (57.5313ms)
+✔ actual v2 binds full source snapshot, encoder arrays and every declared schema (108.3694ms)
+✔ v2 CLI requires exact explicit option and legacy default still rejects v2 (234.0715ms)
+✔ v3 identity and five actual seeds are embedded without changing observation/reward layout (4.3286ms)
+✔ v3 preserves raw observations with explicit binary feature mask (0.9632ms)
+✔ v3 round seed accepts exact safe integers including high word and rejects invalid seeds (0.7169ms)
+✔ v3 rejects malformed feature masks and does not weaken reward validation (0.3739ms)
+✔ received one, two and five point awards keep the observed scale (1.0264ms)
+✔ same score gives zero reward without terminal bonus or potential (0.1365ms)
+✔ actual interval determines five-second half-life, independent of decision count (0.1503ms)
+✔ unclipped observed score and invalid inputs (5.6387ms)
+✔ terminal rejected policy row still propagates measured score to preceding decisions (0.1862ms)
+✔ discount applies between reward-row source times and does not prediscount the current reward (0.1771ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 645.1727

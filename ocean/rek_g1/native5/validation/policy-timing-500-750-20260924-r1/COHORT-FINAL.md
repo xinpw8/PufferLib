@@ -53,6 +53,12 @@ The first four rounds have the separately executed native score/referee analysis
 
 At preparation of this final report, the all-eight strict native sidecar/export job had not yet produced its final receipt. The complete 104:93 accounting here is verified against the closed ledger and all eight bridge summaries, not presented as an independently native-packet-validated all-eight decomposition. The first CPU export in `/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r1` stopped on a legacy coverage rule: the first applied return was 1.1275 s after the first passive observation, exceeding its 1 s bound during the recorded warm-up. Its native packet/referee checks passed. Original outputs, including `completed_policy_round:false`, are preserved. A separately versioned controlled-start adapter is being prepared in `timing500-onpolicy-20260924-r2`; expected executed receipts are `evidence/manifest.json`, per-attempt `native-wire-validation.json`, and `referee-validation/live-referee-validation.json`. Prepared code and passing source tests are not those execution receipts.
 
+### Executed r2 follow-up
+
+The subsequent [timing500-onpolicy r2 report](../timing500-onpolicy-20260924-r2/README.md) now contains executed all-eight native/referee receipts. All eight validations passed and independently reconciled the full 104:93 point counters. Export retained all 24,010 decisions: 24,002 locally applied actions and eight terminal-race rejections with actor weight zero. The original r1 failure remains preserved, and the unchanged legacy analyzer remains false for seven rounds and true for s1205.
+
+The separately versioned controlled-start receipts validate all eight actual policy-control intervals with the original one-second first-ACK, inter-ACK and terminal-gap limits. ACK coverage uses UnityTime; startup identity and reward discounts use QPC. Actual start timers remain 118.64971 to 118.78309 seconds. All observed startup scores remain zero through each first worker decision. No timer, boolean in the original analyzer, startup action or reward was fabricated. Exact all-eight evidence is in [evidence-manifest.json](../timing500-onpolicy-20260924-r2/receipts/evidence-manifest.json), with individual [controlled coverage receipts](../timing500-onpolicy-20260924-r2/receipts/coverage/).
+
 ## Verified temporal mismatch
 
 F7 compact pretraining uses `DT=.02f` in the frozen `fast_runtime.cu:30` and `REK_POLICY_ACTION_STRIDE=1`, giving 50 Hz recurrence/decision steps. The human conditional-BC dataset preserves its recorded 50 Hz chronology without retiming. Intervening authentic-PPO updates used recorded trajectories, so this is not a claim that every update in the checkpoint's history used 50 Hz.
@@ -63,7 +69,7 @@ The live encoder does use actual source QPC delta time for finite-difference vel
 
 ## Next prepared work and provenance
 
-The separately prepared event-based full-33-class human BC variant has not been run as part of this result. It did not produce the evaluated checkpoint. The next actual on-policy data stage is the separate all-eight CPU validation/export above; this report makes no claim that a new training run, checkpoint, or live evaluation has completed. Policy and runtime files were not changed for publication.
+The separately prepared event-based full-33-class human BC variant has not been run as part of this result. It did not produce the evaluated checkpoint. At the original report cutoff, the all-eight on-policy export and native update had not completed. The executed r2 follow-up is now documented separately above: exact 24,010-action replay and a one-epoch native update produced a new prospective checkpoint. No result from that new checkpoint's live cohort is included here. Policy and runtime files were not changed for publication.
 
 Authoritative closed source hashes:
 

@@ -1,0 +1,48 @@
+{
+  "schema": "rek.controlled_policy_coverage.v1",
+  "coverage": {
+    "round_identity_sha256": "a44fbe17526200006231561f3748f6296391b4df7e292fdbc71c5670581bc72f",
+    "local_slot": 0,
+    "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+    "legacy_completed_policy_round": true,
+    "legacy_first_applied_seconds_after_first_observation": 0.9992117417800443,
+    "controlled_policy_interval_complete": true,
+    "native_round_duration_seconds": 120,
+    "first_raw_sequence": 1,
+    "readiness_sequence": 4,
+    "controlled_source_sequence": 5,
+    "first_decision_sequence": 6,
+    "actual_control_start_time_remaining_seconds": 118.78275,
+    "native_round_elapsed_before_control_seconds": 1.217250000000007,
+    "raw_to_control_qpc_seconds": 0.630384,
+    "controlled_to_first_applied_seconds": 0.1860809027777819,
+    "maximum_applied_action_gap_seconds": 0.11756150085033568,
+    "terminal_seconds_after_last_applied": 0.0009603954081569555,
+    "applied_action_returns": 3101,
+    "tolerance_seconds": 1,
+    "startup_observed_counters_zero_through_first_decision": true,
+    "basis": "Observed local applied acknowledgements: unchanged UnityTime interval bounds, QPC startup identity and reward discounts. Server acceptance unknown; native duration is not claimed as policy-control duration or a wall-clock coverage guarantee."
+  },
+  "inputs": [
+    {
+      "file": "trial/summary.json",
+      "bytes": 2776,
+      "sha256": "0cc78a649b290c113fcf7bc5534bf605c3a860ff113da4c3ebc48a05b5e9dcf8"
+    },
+    {
+      "file": "contact-analysis/summary.json",
+      "bytes": 6895,
+      "sha256": "68d94ed17aa2bed3407c175d7d1523c2fcc3b98be270b500cce8c3ce295198e5"
+    },
+    {
+      "file": "trial/relay.stdout.jsonl",
+      "bytes": 42023375,
+      "sha256": "76d93310f19db667a888003c21a193061e88eeb70b768133892e5f566affc934"
+    },
+    {
+      "file": "trial/worker.stdin.jsonl",
+      "bytes": 10405237,
+      "sha256": "61df09c8369c9a346a12270dd02bb9817ea1bd90a688f72d7e169040ede3477f"
+    }
+  ]
+}

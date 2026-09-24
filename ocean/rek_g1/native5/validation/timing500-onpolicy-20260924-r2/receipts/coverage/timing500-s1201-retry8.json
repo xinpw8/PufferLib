@@ -1,0 +1,48 @@
+{
+  "schema": "rek.controlled_policy_coverage.v1",
+  "coverage": {
+    "round_identity_sha256": "dcb18fd94af62510b19981a38ca276532350abda3e4b278cf2323492a59c8018",
+    "local_slot": 0,
+    "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+    "legacy_completed_policy_round": false,
+    "legacy_first_applied_seconds_after_first_observation": 1.1275135416666657,
+    "controlled_policy_interval_complete": true,
+    "native_round_duration_seconds": 120,
+    "first_raw_sequence": 1,
+    "readiness_sequence": 4,
+    "controlled_source_sequence": 5,
+    "first_decision_sequence": 6,
+    "actual_control_start_time_remaining_seconds": 118.7664,
+    "native_round_elapsed_before_control_seconds": 1.2335999999999956,
+    "raw_to_control_qpc_seconds": 0.7218527,
+    "controlled_to_first_applied_seconds": 0.2478091978458039,
+    "maximum_applied_action_gap_seconds": 0.12306040249433181,
+    "terminal_seconds_after_last_applied": 0.000685289115665455,
+    "applied_action_returns": 2820,
+    "tolerance_seconds": 1,
+    "startup_observed_counters_zero_through_first_decision": true,
+    "basis": "Observed local applied acknowledgements: unchanged UnityTime interval bounds, QPC startup identity and reward discounts. Server acceptance unknown; native duration is not claimed as policy-control duration or a wall-clock coverage guarantee."
+  },
+  "inputs": [
+    {
+      "file": "trial/summary.json",
+      "bytes": 2775,
+      "sha256": "0e23a2e74bfee5bf241f0c68ea4496491d26d867c83da94ac590e792ce5c1abb"
+    },
+    {
+      "file": "contact-analysis/summary.json",
+      "bytes": 6897,
+      "sha256": "d6baf93bac66165c651d538783e5e2b0889b3161b6161305f0e0925343513fc1"
+    },
+    {
+      "file": "trial/relay.stdout.jsonl",
+      "bytes": 38684266,
+      "sha256": "7d33eac6d4ae2d915b279ef9d4f324b8de7d2d622cc114eebe49969ba2f9e882"
+    },
+    {
+      "file": "trial/worker.stdin.jsonl",
+      "bytes": 9448473,
+      "sha256": "8eac4897cd3f40e8bec6064754e45f13accf990f0d206f35c41d0e4946f4f43c"
+    }
+  ]
+}

@@ -1,0 +1,170 @@
+{
+  "schema": "rek.balance8_onpolicy_score_delta_export.v1",
+  "reward_contract": "received-score-delta-div5-half-life-5s.v1",
+  "source_dataset": {
+    "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/export/authentic-trajectories-v3.bin",
+    "sha256": "72be038cbd8f53ab51bd2c10ebd66a7b8f972ba41766ba7774c6d59596e00459"
+  },
+  "source_identity": {
+    "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/export/behavior-identity.json",
+    "sha256": "ab9045587bebae9bec4d27da11f29652af899c621568245082d234ba4b1f8727"
+  },
+  "dataset_sha256": "a2ab10a34404cebea926cb2cec0fdea1386e0032c5333328acfa1c8fe0b0ba21",
+  "identity_sha256": "9bb7a6af446e07a67d19cb538aab4acce061e0b826cbde827ee542c8cb6ffc53",
+  "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+  "rows": 24010,
+  "rounds": [
+    {
+      "trial_id": "timing500-s1201-retry8",
+      "seed": 1201,
+      "rows": 2821,
+      "points": [
+        16,
+        10
+      ],
+      "undiscounted_reward_sum": 1.199999988079071,
+      "expected_net_point_margin_div5": 1.2,
+      "seconds": 118.62492610000025,
+      "decisions_per_second": 23.780836732592864,
+      "minimum_dt_seconds": 0.0305376,
+      "maximum_dt_seconds": 0.122363,
+      "changed_rewards": 2345,
+      "changed_gammas": 2821,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "timing500-s1202",
+      "seed": 1202,
+      "rows": 2964,
+      "points": [
+        6,
+        13
+      ],
+      "undiscounted_reward_sum": -1.4000000059604645,
+      "expected_net_point_margin_div5": -1.4,
+      "seconds": 118.69855390000026,
+      "decisions_per_second": 24.970818115417607,
+      "minimum_dt_seconds": 0.0262035,
+      "maximum_dt_seconds": 0.1293375,
+      "changed_rewards": 1896,
+      "changed_gammas": 2964,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "timing500-s1203",
+      "seed": 1203,
+      "rows": 3064,
+      "points": [
+        4,
+        3
+      ],
+      "undiscounted_reward_sum": 0.20000000298023224,
+      "expected_net_point_margin_div5": 0.2,
+      "seconds": 118.66641119999997,
+      "decisions_per_second": 25.820280305232664,
+      "minimum_dt_seconds": 0.0276016,
+      "maximum_dt_seconds": 0.1290152,
+      "changed_rewards": 2432,
+      "changed_gammas": 3064,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "timing500-s1204",
+      "seed": 1204,
+      "rows": 3100,
+      "points": [
+        11,
+        4
+      ],
+      "undiscounted_reward_sum": 1.4000000059604645,
+      "expected_net_point_margin_div5": 1.4,
+      "seconds": 118.68397110000002,
+      "decisions_per_second": 26.11978661708261,
+      "minimum_dt_seconds": 0.0267229,
+      "maximum_dt_seconds": 0.1288067,
+      "changed_rewards": 2070,
+      "changed_gammas": 3100,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "timing500-s1205",
+      "seed": 1205,
+      "rows": 3102,
+      "points": [
+        20,
+        14
+      ],
+      "undiscounted_reward_sum": 1.2000000029802322,
+      "expected_net_point_margin_div5": 1.2,
+      "seconds": 118.72331760000012,
+      "decisions_per_second": 26.12797605986035,
+      "minimum_dt_seconds": 0.0257629,
+      "maximum_dt_seconds": 0.1188828,
+      "changed_rewards": 2408,
+      "changed_gammas": 3102,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "timing500-s1206",
+      "seed": 1206,
+      "rows": 3022,
+      "points": [
+        18,
+        14
+      ],
+      "undiscounted_reward_sum": 0.7999999970197678,
+      "expected_net_point_margin_div5": 0.8,
+      "seconds": 118.69228529999978,
+      "decisions_per_second": 25.460795470925234,
+      "minimum_dt_seconds": 0.0278909,
+      "maximum_dt_seconds": 0.130591,
+      "changed_rewards": 2253,
+      "changed_gammas": 3022,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "timing500-s1207-retry2",
+      "seed": 1207,
+      "rows": 3000,
+      "points": [
+        17,
+        22
+      ],
+      "undiscounted_reward_sum": -1,
+      "expected_net_point_margin_div5": -1,
+      "seconds": 118.53423970000003,
+      "decisions_per_second": 25.30914280627051,
+      "minimum_dt_seconds": 0.0271125,
+      "maximum_dt_seconds": 0.1216851,
+      "changed_rewards": 2803,
+      "changed_gammas": 3000,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "timing500-s1208",
+      "seed": 1208,
+      "rows": 2937,
+      "points": [
+        12,
+        13
+      ],
+      "undiscounted_reward_sum": -0.20000000298023224,
+      "expected_net_point_margin_div5": -0.2,
+      "seconds": 118.63295119999995,
+      "decisions_per_second": 24.7570339462313,
+      "minimum_dt_seconds": 0.029023,
+      "maximum_dt_seconds": 0.1193563,
+      "changed_rewards": 1780,
+      "changed_gammas": 2937,
+      "actor_weight_zero_rows": 1
+    }
+  ],
+  "preserved_row_bytes": 26891200,
+  "all223_observations_actions_masks_seeds_and_loss_weights_bitwise_unchanged": true,
+  "terminal_rejected_actor_weight_zero": true,
+  "terminal_outcome_metadata_retained_but_not_added_to_reward": true,
+  "original_actor_logits_recorded": false,
+  "native_exact_action_replay_required": true,
+  "no_gpu_execution": true,
+  "training_performed": false
+}
