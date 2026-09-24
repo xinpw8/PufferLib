@@ -1,0 +1,41 @@
+{
+  "schema": "rek.sanitized_upstream_comparison_prior_failures.v1",
+  "old_box64_commit": "2544543b3ace019bf2c9073a3afdb49b68d28bb1",
+  "old_box64_binary_sha256": "0d439ffcb5feb43a7e243bf37968684330e179bb0d266a8ab94292d21703b25e",
+  "baseline": {
+    "launcher_sha256": "9159f8b016e2c04975c6f2ed4d241f4cf9c211eee2f1d3ec62bda13b362c8c11",
+    "same_client_launched_utc": "2026-09-24T13:07:22.757Z",
+    "last_source_utc": "2026-09-24T13:51:15.9252443Z",
+    "approximately_44_minutes_process_lifetime_not_controlled_exposure": true,
+    "observed_exit_code": 5,
+    "first_fault": {"guest_execution_target":"0x80","kind":"CheckExec emitted Signal11","code":"0xecec","original_caller_recovered":false,"cause":null},
+    "secondary_fault": {"module":"coreclr.dll","rva":"0xf059b","access_address":"0x80","original_fault":false},
+    "latest_completed_round": {"label":"terminal-s1801","opponent":"Bot4","score":[5,8],"complete":true},
+    "interrupted_round": {"label":"terminal-s1802","opponent":"Bot4","last_score":[18,18],"remaining_s":22.07044,"complete":false},
+    "private_stderr_sha256": "04f3db3c2989d8533158e138647a0f0d7d4a106e1498fbc6e682dba7d761ef3f",
+    "private_trace_sha256": "89b179f184a740200f34624811c9449711f27b2d12d864c74476040b9d587f6d",
+    "trace_decode": {"events":35313,"method_load_events":11576,"module_load_events":194,"event_decode_errors":0,"tail_error":"System.FormatException","complete_trace_established":false},
+    "report": {"private_source":"persistent-baseline-eventpipe-20260924-r1/FAULT-FINDINGS-20260924T135116Z.md","sha256":"ceacce7bc75ff483fc27724a3d9d71fd7f94c3d473bd40cc11878ed3a55cd066"}
+  },
+  "bigblock0": {
+    "launcher_sha256": "bf1bb7a0955ed0e5e46a7cf13dc2af89c31bcd5145727ff2acfe94ad584badcb",
+    "launch_requested_utc": "2026-09-24T14:02:10Z",
+    "exited_utc": "2026-09-24T14:02:34Z",
+    "elapsed_s": 24,
+    "observed_exit_code": 9,
+    "controller_started": false,
+    "active_source_rows": 0,
+    "completed_rounds": 0,
+    "first_fault": {"kind":"INT29","module":"coreclr.dll","rva":"0x15c82d","windows_exception":"c0000409","flags":1,"fastfail_ecx_recorded":false,"cause":null},
+    "subsequent_signal": "SIGQUIT3",
+    "last_bepinex_stage": "Loading REK Evidence Control Bridge0.4.9",
+    "bridge_causation_established": false,
+    "bigblock0_causation_established": false,
+    "private_stderr_sha256": "029cc2e4d5d7feec07bb419eebc8f6c19671dff5b5d6c153179effe4b329e531",
+    "private_bepinex_sha256": "a5b09496b556f511276286e66229643f0f136f83f731dbaded45647e809d5166",
+    "report": {"private_source":"persistent-bigblock0-20260924-r1/STARTUP-FAILURE.md","sha256":"2069957090c998174a4c839c06bb5e6e711a2aba0012c866e1be48c3f866efc5"},
+    "final_monitor": {"private_source":"persistent-bigblock0-20260924-r1/process-monitor-20260924T140726Z.json","sha256":"0fed66d59a051ac58cbbd3a0db4228ad770a770872fe8e541a1b3027146be739"}
+  },
+  "candidate_live_result": null,
+  "privacy": "Hashes and derived facts only; raw traces, maps, registers, observations, identities and binaries excluded."
+}

@@ -1,0 +1,41 @@
+{
+  "schema": "rek.sanitized_upstream_runtime_attempt.v1",
+  "status": "private_arena_capacity_blocked_zero_controlled_rounds",
+  "plan_sha256": "b0c18aedf660f0fe7bd45039938d8d35a590ca5aa9c7569e0230b004fb43dcc5",
+  "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+  "campaign_start_utc": "2026-09-24T14:16:57.191Z",
+  "campaign_error_utc": "2026-09-24T14:18:00.286Z",
+  "campaign_error": "attempt budget exhausted for upstream-s1801",
+  "full_rounds_completed": 0,
+  "auxiliary_rounds_completed": 0,
+  "total_predictions": 0,
+  "total_applied_actions": 0,
+  "controlled_exposure_s": 0,
+  "combat_stability_established": false,
+  "win_rate_defined": false,
+  "public_arena_fallback_used": false,
+  "lobby_only_process_observation": {
+    "utc": "2026-09-24T14:22:32.929Z",
+    "same_initial_process": true,
+    "actual_executable_sha256": "12a50a0f629f1ddeb08524c8f7399829e0b7101f79f4e20c094376c73a1af7ae",
+    "elapsed_process_s": 382.53,
+    "exposure_classification": "Startup/lobby only; zero combat",
+    "recorded_signals_or_clr_faults": 0,
+    "exit_receipt": null,
+    "owned_policy_endpoint_processes": 0,
+    "private_receipt": "box64-upstream-build-20260924-r1/lobby-retirement-20260924T142232Z.json",
+    "private_receipt_sha256": "7fa5aa9a89b470407f70574fecee2b4a2867b92d36f4634cda878e6869945f1d",
+    "live_trace_copied_or_hashed": false
+  },
+  "native_capacity_message": "Solo allocation reported no private practice arena available; its suggested public-arena alternative was not used.",
+  "attempts": [
+    {"label":"upstream-s1801","started_utc":"2026-09-24T14:16:59.933Z","ended_utc":"2026-09-24T14:17:47.697Z","enter_solo_accepted_utc":"2026-09-24T14:17:02.907Z","error_utc":"2026-09-24T14:17:46.497Z","stop_reason":"private-practice entry timeout","wrapper_exit":2,"predictions":0,"applied":0,"source_count":0,"complete":false,"initial_round":null,"final_round":null,"media_status":"failed","summary_sha256":"c97399161b8a49f60b27d265e27f6b001faad02c721ae30a745957609eb73840"},
+    {"label":"upstream-s1801-retry2","started_utc":"2026-09-24T14:17:53.619Z","ended_utc":"2026-09-24T14:17:55.264Z","enter_solo_rejected_utc":"2026-09-24T14:17:54.414Z","stop_reason":"EnterSolo: private_practice_reservation_already_in_progress","wrapper_exit":2,"predictions":0,"applied":0,"source_count":0,"complete":false,"initial_round":null,"final_round":null,"media_status":"failed","summary_sha256":"82e88dfeeb125417ba146bf52e5cf02c61ef5704f029024d3b2a474d1e27acd0"}
+  ],
+  "closed_ledger_sha256": "57ee8babf8a99d39eb2dc6c4d17826a7bc99e82f23d5c9a33b88d5787a0d9cb7",
+  "closed_campaign_log_sha256": "d9508d1366508558a54ef7cd5ef7058f4bb75ac1e2b0b7173117f454786208db",
+  "orchestrator_sha256": ["6c5ead09041b2df88fa6862e7100ba6f08de0d30895ad417704e02a5d392da0e","bb27dae2b91651553f912ef3b31e8e957e6c43b1eabc25c985a405502972cd44"],
+  "native_capacity_source": {"private_runtime":"live-attack-gate-20260921-persistent-upstream-box64-r1/unity.log","line":14828,"whole_live_file_frozen":false},
+  "source_stage": "persistent-upstream-box64-20260924-r1/live",
+  "privacy": "Derived counters, timestamps, errors and hashes only. Raw logs and game observations are private."
+}

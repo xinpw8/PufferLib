@@ -1,0 +1,14 @@
+--- persistent-private-session-20260924-r1/relaunch.sh
++++ persistent-baseline-eventpipe-20260924-r1/relaunch.sh
+@@ -53,6 +53,11 @@
+     -e WINEPREFIX=/opt/codexrook/wineprefix -e WINEARCH=win64 \
+     -e WINEDEBUG=-all,err+all,warn+seh -e BOX64_LOG=1 \
+     -e BOX64_SHOWSEGV=1 -e BOX64_SHOWBT=1 \
++    -e DOTNET_EnableEventPipe=1 \
++    -e 'DOTNET_EventPipeConfig=Microsoft-Windows-DotNETRuntime:18:5' \
++    -e DOTNET_EventPipeCircularMB=10 \
++    -e DOTNET_EventPipeOutputStreaming=1 \
++    -e "DOTNET_EventPipeOutputPath=Z:$rek_guest/jit-metadata-{pid}.nettrace" \
+     -e REK_EVIDENCE_ISOLATED_SESSION=spark-x98 \
+     -e 'WINEDLLOVERRIDES=winhttp=n,b;winealsa.drv=d;winepulse.drv=d;mscoree=d;mshtml=d;winemenubuilder.exe=d' \
+     -e BOX64_NOBANNER=1 -e BOX64_NOPULSE=1 -e BOX64_NOVULKAN=1 -e BOX64_UNITY=1 \

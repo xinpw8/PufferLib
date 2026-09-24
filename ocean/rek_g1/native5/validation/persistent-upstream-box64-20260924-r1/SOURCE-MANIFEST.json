@@ -1,0 +1,36 @@
+{
+  "schema": "rek.upstream_box64_publication.v1",
+  "cutoff_utc": "2026-09-24T14:26:49.534Z",
+  "status": "initial_capacity_blocked_then_separate_scene_stall_zero_combat_closed_stages_archived",
+  "later_same_client_retry_included": true,
+  "upstream_commit": "e4dc7b5e3c6cdd82272fff612c004da189c79d74",
+  "upstream_binary_sha256": "12a50a0f629f1ddeb08524c8f7399829e0b7101f79f4e20c094376c73a1af7ae",
+  "original_box64_preserved": true,
+  "reconstruction": {
+    "published_parent": "../persistent-private-session-20260924-r1/launcher/relaunch.sh",
+    "published_parent_sha256": "41d685616f90c1f78e70a744ee7e7059537ce33d2085cc4da87b96f8163483d7",
+    "eventpipe_patch": "eventpipe-baseline.patch",
+    "eventpipe_baseline_sha256": "9159f8b016e2c04975c6f2ed4d241f4cf9c211eee2f1d3ec62bda13b362c8c11",
+    "candidate_patch": "launcher.diff",
+    "candidate_launcher_sha256": "7aad20605ffe9cee07662ad047acf24afd58996ac7fef3c3e4981582543901ce",
+    "candidate_delta": "One Box64 executable path replacement; no changed environment flags",
+    "test": "node --test launcher.test.cjs",
+    "tests_passed": 3,
+    "test_uses_private_files": false,
+    "test_launches_runtime": false,
+    "private_candidate_bash_syntax_passed": true
+  },
+  "trial_plan_sha256": "b0c18aedf660f0fe7bd45039938d8d35a590ca5aa9c7569e0230b004fb43dcc5",
+  "files": [
+    {"path":"BUILD-RECEIPT.json","bytes":2413,"sha256":"4620989b51ec4f26fa15b362d1f1fef04ace8705a479dd722bcffe01dbd4c8be"},
+    {"path":"eventpipe-baseline.patch","bytes":816,"sha256":"d391f3b42e08663f8d69f26fc1bed958faadfb91cd70accdcb3bcc06f359a14f"},
+    {"path":"EXECUTION.json","bytes":3211,"sha256":"605dcb0b820a87b3df991f07c6c0b2da0c39c4d10011ea758edd249e740a1619"},
+    {"path":"launcher.diff","bytes":677,"sha256":"74ced6b920bcd2ed170e87e88ba028de784efecd9259cab5387b53cb95da2262"},
+    {"path":"launcher.test.cjs","bytes":2722,"sha256":"82284d3c332d7d82b483ea0e19f15629ef479e696e31b2097b1085a9f4b16043"},
+    {"path":"PRIOR-FAILURES.json","bytes":3047,"sha256":"2f93493861d62fcb3387a58c7beef04094effaf40ef5ab17e201f171b464ae72"},
+    {"path":"README.md","bytes":4436,"sha256":"087026536fd5f40c08d14732ed6d2ae7e1eaa9a1e739f7d75261d4ec9cc77d4e"},
+    {"path":"RETRY-EXECUTION.json","bytes":4252,"sha256":"8644c2e58c111a816be267a3ebd41a7a874f26eec32b22ed110686a7e7bcda24"}
+  ],
+  "privacy": "No raw trace, observation, method map, register/stack dump, credentials, participant identities or proprietary binaries included.",
+  "interpretation": "Startup/lobby survival is distinct from combat stability. Zero completed rounds gives no win rate and no demonstrated crash fix."
+}

@@ -1,0 +1,56 @@
+{
+  "schema": "rek.sanitized_upstream_box64_build_summary.v1",
+  "source_receipt": {
+    "private_path": "box64-upstream-build-20260924-r1/build-receipt.json",
+    "sha256": "f88e5fc1c26cd279350d70470d0558df568f7f1a6373fed8cea0939a8768daf7",
+    "utc": "2026-09-24T14:16:45.762Z"
+  },
+  "official_remote": "https://github.com/ptitSeb/box64.git",
+  "commit": "e4dc7b5e3c6cdd82272fff612c004da189c79d74",
+  "source_tree": "3ee0cc470005188da3186e787ac0098b0f4734e6",
+  "tracked_source_clean": true,
+  "binary": {
+    "container_path": "/opt/codexrook/box64-upstream-20260924-r1/bin/box64",
+    "bytes": 31902720,
+    "sha256": "12a50a0f629f1ddeb08524c8f7399829e0b7101f79f4e20c094376c73a1af7ae"
+  },
+  "build": {
+    "started_utc": "2026-09-24T14:13:06Z",
+    "finished_utc": "2026-09-24T14:14:58Z",
+    "elapsed_s": 112,
+    "exit_code": 0,
+    "target": "box64",
+    "parallel_jobs": 4,
+    "compiler": "GCC13.3.0",
+    "cmake": "3.28.3",
+    "build_type": "Release",
+    "arm_dynarec": true,
+    "c_flags": "-march=armv9.2-a+crc+sve2-aes+sve2-bitperm+sve2-sha3+sve2-sm4+memtag+profile",
+    "release_flags": "-O3 -DNDEBUG",
+    "recorded_compiler_runtime_settings_equal_to_installed": 18,
+    "cmake_install_executed": false,
+    "source_edits": false,
+    "build_script_sha256": "f4da07761247ece400392700c418a0e8805dfb08cedf288f43b4dac5f72fc507",
+    "build_log_sha256": "c3530387f15fcb6537559af755e51117f752591d0717181eef37bc6c66758d0f",
+    "cmake_cache_sha256": "38d994b96813d002cacbb00605571298d83167f3eb04a03d38b0a2024bda023f"
+  },
+  "container_load_check": {
+    "architecture": "aarch64",
+    "glibc": "2.39",
+    "uid_gid": "1000:1000",
+    "ldd_missing_dependencies": false,
+    "version_exit_code": 0,
+    "version": "Box64 arm64 v0.4.5 e4dc7b5e with Dynarec",
+    "game_or_wine_launched_by_builder": false,
+    "game_stability_established": false
+  },
+  "original_preserved": {
+    "commit": "2544543b3ace019bf2c9073a3afdb49b68d28bb1",
+    "binary_sha256": "0d439ffcb5feb43a7e243bf37968684330e179bb0d266a8ab94292d21703b25e",
+    "cache_sha256": "54d73c92e85b2936e53c25ef1423b2332bc195450c2b0b76db6f4b4be972cb09",
+    "before_after_hashes_identical": true,
+    "source_before_after_status_identical": true,
+    "global_install_or_system_registration_changed": false
+  },
+  "privacy": "Derived provenance only. No binary, game data, raw runtime logs, map, trace, credentials or participant identities."
+}
