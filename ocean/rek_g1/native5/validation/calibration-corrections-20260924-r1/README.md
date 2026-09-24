@@ -24,13 +24,14 @@ Each correction is opt-in. Independent calibration RNG is a separate option and 
 
 ## Headless native CUDA training
 
-All three candidates start from the exact F7 checkpoint and use identical F7 training settings: 512 arenas, horizon 128, minibatch 8192, 16,777,216 transitions, seed 73, environment seed 419, learning rate 0.000055, entropy coefficient 0.00017, clip 0.13, value coefficient 1.02, gamma 0.9998844821426083 and GAE lambda 0.9978673240629938. Rollouts and PPO use the native CUDA executable. There is no Python training runtime or CPU physics stepping.
+All four candidates start from the exact F7 checkpoint and use identical F7 training settings: 512 arenas, horizon 128, minibatch 8192, 16,777,216 transitions, seed 73, environment seed 419, learning rate 0.000055, entropy coefficient 0.00017, clip 0.13, value coefficient 1.02, gamma 0.9998844821426083 and GAE lambda 0.9978673240629938. Rollouts and PPO use the native CUDA executable. There is no Python training runtime or CPU physics stepping.
 
 | Candidate | Full process time (s) | Full training SPS | Completed training rounds won |
 | --- | ---: | ---: | ---: |
 | Unchanged continuation control | 18.734739 | 895,514 | 2440/2560 |
 | Coherent credited-hit receipts | 18.776690 | 893,513 | 2262/2560 |
 | Receipts plus corrected action IDs | 18.505531 | 906,605 | 2288/2560 |
+| Corrected IDs/receipts, unconditional kick-fall prior removed | 18.833873 | 890,800 | 2298/2560 |
 
 Full process SPS includes startup, graph capture, rollout, PPO, checkpoint writes and shutdown. These are individual measurements, not a statistically established throughput difference. Native dashboard SPS excludes some setup and graph-capture costs. Training win counts are on-policy training outcomes, not live or held-out policy strength. All runs exited zero and reported zero runtime failure bits.
 
@@ -44,7 +45,7 @@ All interaction uses the isolated Spark client, private sparring Bot 1 / difficu
 - Continuation control screening: 12:7 win, 1:14 loss; two additional client-crash attempts excluded and retained.
 - Receipt-only screening: 18:14 win; one additional source-stream failure excluded and retained.
 - The eight-label screening comparison was paused after these infrastructure failures and discovery of the shared action-ID defect. It is incomplete and cannot establish an A/B winner.
-- The combined correction has a separate fixed prospective plan: seeds 401 through 420, target 18 wins in 20 full rounds, stop on the third nonwin. Its first two counted results are losses, 13:27 and 1:11. Two additional attempts are incomplete. This candidate is not promoted.
+- The combined correction failed its separate fixed prospective plan: seeds 401 through 420, target 18 wins in 20 full rounds, stop on the third nonwin. It stopped at 2 wins and 3 losses, 66:92 points. Scores in order: 13:27, 1:11, 19:15, 14:9, 19:30. Four additional crash/source-stream attempts were incomplete and retained separately. This candidate is rejected.
 
 Counted rounds must start at zero score with 117 to 120 seconds remaining, have a 120-second non-redo duration, preserve round identity and checkpoint identity, and finish with an observed terminal score/result. Crashes and late starts remain separate attempts, not wins or inferred losses. Simulator wins are never substituted for authentic results.
 
@@ -57,6 +58,18 @@ Review of original F7 s160 through s163 found 10, 25 and 10 points from opponent
 In the loss, learner tilt rose to about 98.8 degrees around 102 seconds; the +5 award arrived around 106 seconds. The preceding requests were action 23, not action 16. A kick-only fall approximation does not cover that event. Within-opponent-bearing 0.5 rad exposure was 20.4% in the loss versus 32.8%, 50.5% and 35.1% in the wins. Four rounds do not identify a causal angle threshold.
 
 The existing kick-fall probability 0.2 remains an assumption. Opponent falls and contact-driven balance are still incomplete. Correct lookup and receipt semantics do not establish complete simulator parity.
+
+A fourth continuation removes only that unconditional kick-fall prior from the combined correction (`REK_FAST_KICK_FALL_P=0`). It completed 16,777,216 transitions with zero failure bits at 890,800 full-process SPS. This is an ablation of an unmeasured penalty, not evidence that the kick has zero fall risk. Its checkpoint has not yet been authentic-tested.
+
+The newer physical observable-balance path was also reviewed before adding more fall work. It already produces bilateral physical fall/count/reset experience, but its recorded continuation ran at 5,605 whole-process SPS and failed an authentic six-round cohort at 3 wins / 3 losses, 69:82 points. It is neither an unimplemented solution nor a demonstrated improvement. Its 223-wide observation schema is incompatible with F7's 223-wide schema.
+
+## Temporal observation experiment
+
+F7 native `REK_FAST_INTERRUPT_ON_HIT=1` clears the projected attack on opponent points. The pinned F7 live encoder instead retains its nominal requested-move duration unless a fall is reported. Recorded busy-on-score events can therefore leave the live action mask restricting new attacks for another 0.126 to 2.866 seconds. This is an identified native/live projection mismatch.
+
+Authentic cancellation time remains unknown: the visual-only client records null action-busy and inactive/default controller-runner state. A copied, opt-in encoder candidate clears projected busy on an opponent-score increase within the same active round. It must remain explicitly labelled as an alignment experiment, not a direct measurement of server interruption. The prospective live test uses the unchanged original F7 checkpoint and no other policy or gate changes, fixed seeds 501 through 520, and the same third-nonwin stopping rule. It started on Spark at 04:17 UTC on September 24.
+
+The encoder passed 963 assertions and 145 hinge-projection checks. Default-off replay of the complete s402 trace was byte-identical to the pinned encoder. Enabled replay changed only five busy-related observation columns and masks in 288 rows, preserving the 223-field schema and all source mask restrictions. See `interrupt-encoder.md` and `interrupt-projection.patch` for reproduction and limitations.
 
 ## Artifacts and provenance
 
@@ -75,6 +88,7 @@ F7:      6a5082750aee85183bdd23b42470775374c89740d3c8c00445ead2d6d2e39263
 control: 4f61af65bb625063c86d8df89333042b3a92e50a08731f9b7c7f1a3c33a1ee06
 receipt: 926f22fa0b43aee80f8bb32bdc6f4e1cf517a05d736d45cae93cddeac9e998e3
 IDs:     947a283429a8661ceaab9adc5e6c14b3534cab43fafdc0c60c86cb33d51c686e
+NoPrior: 7561859790d0ed55a55471d96442fe954a593c52d8617b51c143687ba9d98f96
 ```
 
 Patches are sequential candidate patches, not a declaration that they apply directly to this working branch. The first requires F7 snapshot `fast_runtime.cu` SHA256 `ee6b31be666b65f5aa116954727381b2c57d78571321993a3c17d72ac72e15d2`. The second applies after the first. Full staged native builds and CPU tests passed. Game binaries, private model assets, credentials, raw session logs and checkpoints are not committed here.

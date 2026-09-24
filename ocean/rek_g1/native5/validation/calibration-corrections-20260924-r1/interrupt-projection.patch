@@ -1,0 +1,117 @@
+diff --git a/ocean/rek_g1/native5/live_transfer/encode_live.cpp b/ocean/rek_g1/native5/live_transfer/encode_live.cpp
+index 9a6cc81..7a3bedc 100644
+--- a/ocean/rek_g1/native5/live_transfer/encode_live.cpp
++++ b/ocean/rek_g1/native5/live_transfer/encode_live.cpp
+@@ -128,13 +128,14 @@ Sample parse(const cJSON* j,const Calibration& c){
+ struct Field {std::string kind,source;};
+ class Encoder {
+  const Calibration& calibration;bool have_previous=false;Sample previous;std::uint64_t last_seq=0;bool have_seq=false;
+- bool request_duration_projection;std::uint64_t canceled_request_ticks=0;
++ bool request_duration_projection,interrupt_on_opponent_score;std::uint64_t canceled_request_ticks=0;
+  std::array<double,2> hit_age{},hit_speed{};std::array<bool,2> hit_valid{};
+  std::array<Field,223> inventory;
+  void describe(int i,const char* kind,const std::string& source){inventory[i]={kind,source};}
+  void constant(int i,double value,std::array<double,223>& obs){obs[i]=value;}
+ public:
+- explicit Encoder(const Calibration& c,bool projected_busy=false):calibration(c),request_duration_projection(projected_busy){
++ explicit Encoder(const Calibration& c,bool projected_busy=false,bool score_interrupt=false):calibration(c),request_duration_projection(projected_busy),interrupt_on_opponent_score(score_interrupt){
++  require(!score_interrupt||projected_busy,"score_interrupt_requires_request_duration_projection");
+   for(int side=0;side<2;side++){
+    int b=86*side;std::string p=side?"opponent":"actor";
+    for(int k=0;k<86;k++)describe(b+k,"structural_constant","V4 unmodeled feature fixed to zero; this does not assert a measured game zero");
+@@ -170,6 +171,7 @@ public:
+   auto j=object();text(j.get(),"event","projection_manifest");text(j.get(),"projection",PROJECTION);text(j.get(),"observation_schema",OBS_SCHEMA);text(j.get(),"model_sha256",calibration.model_sha);
+   flag(j.get(),"candidate_physics_stepped",false);flag(j.get(),"authoritative_server_state",false);
+   text(j.get(),"busy_projection",request_duration_projection?"dispatched_request_v4_duration":"native_busy_required");
++  if(interrupt_on_opponent_score)text(j.get(),"score_interrupt_projection","opponent_score_rise_cancels_current_projected_request; candidate_training_assumption_not_measured_server_interrupt");
+   if(request_duration_projection){auto* durations=cJSON_AddArrayToObject(j.get(),"move_duration_ticks");for(int n:MOVE_TICKS)cJSON_AddItemToArray(durations,cJSON_CreateNumber(n));number(j.get(),"duration_control_hz",50);text(j.get(),"duration_source","selected V4 puffer_env.cu and eval_worker.cpp explicit default table; candidate duration, not measured server playback");}
+   text(j.get(),"score_semantics","measured clean-hit counts projected into policy points slots; no inferred knockout points");
+   text(j.get(),"history_semantics","last-hit proxy history starts at observation window, not an assertion of no earlier hits");
+@@ -192,6 +194,7 @@ public:
+    if(s.requested_move>=0){require(s.request_ticks>0&&s.request_ticks<=s.ticks,"invalid_requested_move_qpc_ticks");request_age=double(s.ticks-s.request_ticks)/double(s.frequency);
+     if(s.fallen[s.side]||s.falls[s.side]>previous.falls[s.side])canceled_request_ticks=s.request_ticks;
+     busy=s.move_send_returned&&s.request_ticks!=canceled_request_ticks&&request_age<double(MOVE_TICKS[s.requested_move])/50.;
++    if(interrupt_on_opponent_score&&busy&&s.clean_hits[s.side^1]>previous.clean_hits[s.side^1]){canceled_request_ticks=s.request_ticks;busy=false;}
+     if(busy){s.move=s.requested_move;s.move_is_requested=true;}
+    }
+   }else if(!terminal&&!s.native_busy_known){previous=s;return unavailable("native_action_busy_unavailable_explicit_projection_required");}
+@@ -236,6 +239,7 @@ public:
+   cJSON_AddItemToObject(request,"observation",json_array(obs));auto* mask=cJSON_AddArrayToObject(request,"mask");for(int k=0;k<33;k++){int m=s.mask[k];if(uses_duration&&busy&&k!=0&&k!=1&&k!=6&&k!=7)m=0;if(translating&&k>=16)m=0;cJSON_AddItemToArray(mask,cJSON_CreateNumber(m));}
+   auto* provenance=cJSON_AddObjectToObject(out.get(),"provenance");text(provenance,"model_sha256",calibration.model_sha);number(provenance,"source_qpc_ticks",double(s.ticks));number(provenance,"source_qpc_frequency_hz",double(s.frequency));number(provenance,"source_native_phase",s.phase);number(provenance,"observed_delta_seconds",dt);flag(provenance,"stream_active",s.stream);flag(provenance,"route_uses_acknowledged_client_request",busy&&s.move_is_requested);flag(provenance,"authoritative_server_state",false);flag(provenance,"candidate_physics_stepped",false);text(provenance,"last_hit_semantics","observation-window counter/effector-speed proxy; earlier history and actual contact velocity unavailable");
+   text(provenance,"busy_projection",uses_duration?"dispatched_request_v4_duration":"native_controller_busy");flag(provenance,"projected_busy",busy);flag(provenance,"raw_local_punching",s.punching);if(s.native_busy_known)flag(provenance,"native_action_busy",s.native_busy);else cJSON_AddNullToObject(provenance,"native_action_busy");number(provenance,"requested_move_age_seconds",request_age);number(provenance,"requested_move_qpc_ticks",double(s.request_ticks));text(provenance,"server_playback_acceptance","unknown");
++  if(interrupt_on_opponent_score)flag(provenance,"interrupt_on_opponent_score_projection",true);
+   flag(provenance,"attack_mask_held_translation_blocked",translating);
+   number(provenance,"actor_max_off_axis_rotation_radians",s.poses[s.side].max_residual);number(provenance,"opponent_max_off_axis_rotation_radians",s.poses[s.side^1].max_residual);
+   auto* measured=cJSON_AddArrayToObject(provenance,"observed_source_values_excluded_from_structural_features");
+@@ -253,8 +257,8 @@ void self_test(const Calibration& c){
+ #ifndef REK_ENCODER_NO_MAIN
+ int main(int argc,char** argv){
+  try{
+-  std::string model,projection,busy_projection;bool test=false;for(int i=1;i<argc;i++){std::string arg=argv[i];if(arg=="--model"&&i+1<argc)model=argv[++i];else if(arg=="--projection"&&i+1<argc)projection=argv[++i];else if(arg=="--busy-projection"&&i+1<argc)busy_projection=argv[++i];else if(arg=="--self-test")test=true;else throw std::runtime_error("Usage: encode-live --model PRIVATE_XML --projection client_pose_projection_v1 [--busy-projection dispatched_request_v4_duration] [--self-test]");}
+-  require(!model.empty()&&projection==PROJECTION,"explicit_model_and_projection_required");require(busy_projection.empty()||busy_projection=="dispatched_request_v4_duration","unsupported_busy_projection");Calibration calibration(model);Encoder encoder(calibration,!busy_projection.empty());auto manifest=encoder.manifest();emit(manifest.get());if(test){self_test(calibration);return 0;}
++  std::string model,projection,busy_projection;bool test=false,score_interrupt=false;for(int i=1;i<argc;i++){std::string arg=argv[i];if(arg=="--model"&&i+1<argc)model=argv[++i];else if(arg=="--projection"&&i+1<argc)projection=argv[++i];else if(arg=="--busy-projection"&&i+1<argc)busy_projection=argv[++i];else if(arg=="--interrupt-on-opponent-score")score_interrupt=true;else if(arg=="--self-test")test=true;else throw std::runtime_error("Usage: encode-live --model PRIVATE_XML --projection client_pose_projection_v1 [--busy-projection dispatched_request_v4_duration] [--interrupt-on-opponent-score] [--self-test]");}
++  require(!model.empty()&&projection==PROJECTION,"explicit_model_and_projection_required");require(busy_projection.empty()||busy_projection=="dispatched_request_v4_duration","unsupported_busy_projection");Calibration calibration(model);Encoder encoder(calibration,!busy_projection.empty(),score_interrupt);auto manifest=encoder.manifest();emit(manifest.get());if(test){self_test(calibration);return 0;}
+   std::string line;while(std::getline(std::cin,line)){
+    try{
+     require(line.size()<=1048576,"source_line_too_large");Json j(cJSON_ParseWithLengthOpts(line.c_str(),line.size()+1,nullptr,1),cJSON_Delete);require(j&&cJSON_IsObject(j.get()),"invalid_source_JSON");
+diff --git a/ocean/rek_g1/native5/live_transfer/encoder_test.cpp b/ocean/rek_g1/native5/live_transfer/encoder_test.cpp
+index f10b431..52f2dba 100755
+--- a/ocean/rek_g1/native5/live_transfer/encoder_test.cpp
++++ b/ocean/rek_g1/native5/live_transfer/encoder_test.cpp
+@@ -70,6 +70,56 @@ void tests(const Calibration& c){
+  cJSON_ReplaceItemInArray(cJSON_GetObjectItemCaseSensitive(release.get(),"action_mask"),16,cJSON_CreateFalse());
+  result=release_encoder.process(release.get());
+  check(num(cJSON_GetArrayItem(get(get(result.get(),"worker_request"),"mask"),16))==0,"source_restriction_preserved");
++ auto scored_request=[&](int seq,int ticks,int own,int other,int request_tick=1000,bool sent=true){
++  auto r=dispatched(seq,ticks,sent,request_tick);
++  cJSON_ReplaceItemInObjectCaseSensitive(cJSON_GetObjectItemCaseSensitive(r.get(),"round"),"clean_hits",json_array(std::array<double,2>{double(own),double(other)}));
++  return r;
++ };
++ Encoder interrupted(c,true,true);
++ auto scored=scored_request(1,1000,4,7);result=interrupted.process(scored.get());
++ check(!boolean(get(result.get(),"ready")),"interrupt_first_snapshot_is_warmup");
++ scored=scored_request(2,1020,4,7);result=interrupted.process(scored.get());
++ check(feature(result.get(),182)==1,"interrupt_no_score_rise_keeps_busy");
++ scored=scored_request(3,1040,5,7);result=interrupted.process(scored.get());
++ check(feature(result.get(),182)==1,"own_score_does_not_interrupt");
++ scored=scored_request(4,1060,5,8);
++ cJSON_ReplaceItemInArray(cJSON_GetObjectItemCaseSensitive(scored.get(),"action_mask"),16,cJSON_CreateFalse());
++ result=interrupted.process(scored.get());
++ check(feature(result.get(),182)==0&&feature(result.get(),183)==0,"opponent_score_clears_both_busy_features");
++ check(feature(result.get(),178)==1&&feature(result.get(),179)==5,"interruption_restores_existing_held_route_projection");
++ check(cJSON_GetArraySize(get(get(result.get(),"worker_request"),"observation"))==223,"interrupt_preserves_223_schema");
++ auto* interrupted_mask=get(get(result.get(),"worker_request"),"mask");
++ for(int k=0;k<33;k++)check(num(cJSON_GetArrayItem(interrupted_mask,k))==double(k!=16),"interrupt_preserves_source_mask_restrictions");
++ scored=scored_request(5,1080,5,8);result=interrupted.process(scored.get());
++ check(feature(result.get(),182)==0,"interrupted_request_stays_canceled_without_new_score");
++ scored=scored_request(6,1100,5,8,1090);result=interrupted.process(scored.get());
++ check(feature(result.get(),182)==1,"new_request_after_interrupt_restarts_busy");
++ scored=scored_request(7,1120,6,9,1090);result=interrupted.process(scored.get());
++ check(feature(result.get(),182)==0,"simultaneous_score_rises_interrupt");
++ interrupted.reset();scored=scored_request(8,1140,6,20,1130);result=interrupted.process(scored.get());
++ check(!boolean(get(result.get(),"ready")),"explicit_reset_excludes_prior_score_delta");
++ scored=scored_request(9,1160,6,20,1130);result=interrupted.process(scored.get());
++ check(feature(result.get(),182)==1,"post_reset_unchanged_score_does_not_interrupt");
++ scored=scored_request(10,1180,0,30,1170);cJSON_ReplaceItemInObjectCaseSensitive(scored.get(),"round_identity_sha256",cJSON_CreateString(std::string(64,'b').c_str()));result=interrupted.process(scored.get());
++ check(!boolean(get(result.get(),"ready")),"new_round_excludes_prior_score_delta");
++ scored=scored_request(11,1200,0,30,1170);cJSON_ReplaceItemInObjectCaseSensitive(scored.get(),"round_identity_sha256",cJSON_CreateString(std::string(64,'b').c_str()));result=interrupted.process(scored.get());
++ check(feature(result.get(),182)==1,"new_round_busy_without_new_score");
++ Encoder disabled_interrupt(c,true);auto disabled=scored_request(1,1000,0,0);disabled_interrupt.process(disabled.get());disabled=scored_request(2,1020,0,1);result=disabled_interrupt.process(disabled.get());
++ check(feature(result.get(),182)==1,"score_interrupt_default_off");
++ check(!optional(get(result.get(),"provenance"),"interrupt_on_opponent_score_projection"),"default_off_provenance_unchanged");
++ Encoder unsent(c,true,true);auto unsent_row=scored_request(1,1000,0,0,1000,false);unsent.process(unsent_row.get());unsent_row=scored_request(2,1020,0,1,1000,false);result=unsent.process(unsent_row.get());
++ check(feature(result.get(),182)==0,"unsent_request_not_busy");
++ unsent_row=scored_request(3,1040,0,1);result=unsent.process(unsent_row.get());
++ check(feature(result.get(),182)==1,"score_while_unsent_does_not_cancel_later_acknowledgment");
++ Encoder side_one(c,true,true);auto one=scored_request(1,1000,0,0);cJSON_ReplaceItemInObjectCaseSensitive(one.get(),"local_slot",cJSON_CreateNumber(1));side_one.process(one.get());
++ one=scored_request(2,1020,0,1);cJSON_ReplaceItemInObjectCaseSensitive(one.get(),"local_slot",cJSON_CreateNumber(1));result=side_one.process(one.get());check(feature(result.get(),182)==1,"slot1_own_score_keeps_busy");
++ one=scored_request(3,1040,1,1);cJSON_ReplaceItemInObjectCaseSensitive(one.get(),"local_slot",cJSON_CreateNumber(1));result=side_one.process(one.get());check(feature(result.get(),182)==0,"slot1_opponent_score_interrupts");
++ Encoder translating_interrupt(c,true,true);auto translated=scored_request(1,1000,0,0);translating_interrupt.process(translated.get());translated=scored_request(2,1020,0,1);cJSON_ReplaceItemInObjectCaseSensitive(cJSON_GetObjectItemCaseSensitive(translated.get(),"input"),"desired_action",cJSON_CreateNumber(2));result=translating_interrupt.process(translated.get());
++ check(feature(result.get(),182)==0&&feature(result.get(),176)==1,"interrupt_restores_held_translation");
++ interrupted_mask=get(get(result.get(),"worker_request"),"mask");for(int k=16;k<33;k++)check(num(cJSON_GetArrayItem(interrupted_mask,k))==0,"held_translation_still_blocks_attacks_after_interrupt");
++ Encoder expired(c,true,true);auto expired_row=scored_request(1,4000,0,0);expired.process(expired_row.get());expired_row=scored_request(2,4020,0,1);result=expired.process(expired_row.get());check(feature(result.get(),182)==0,"expired_request_stays_idle_on_score");
++ expired_row=scored_request(3,4040,0,1,4030);result=expired.process(expired_row.get());check(feature(result.get(),182)==1,"new_request_after_idle_score_is_busy");
++ rejected=false;try{Encoder invalid_mode(c,false,true);}catch(const std::exception&){rejected=true;}check(rejected,"score_interrupt_requires_duration_mode");
+  auto out=object();text(out.get(),"event","encoder_tests");flag(out.get(),"ok",true);number(out.get(),"assertions",checks);flag(out.get(),"simulation_stepped",false);emit(out.get());
+ }
+ }
