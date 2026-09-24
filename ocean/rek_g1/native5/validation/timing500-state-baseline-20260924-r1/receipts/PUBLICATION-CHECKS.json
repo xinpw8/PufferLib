@@ -1,0 +1,50 @@
+{
+  "schema": "rek.state_baseline_publication_checks.v1",
+  "checked_at_utc": "2026-09-24 12:02:26 UTC",
+  "publication_gpu_executed": false,
+  "diagnostic_fit_gpu_executed_previously": true,
+  "actor_training_status": "compiled_cpu_tested_unexecuted_at_cutoff",
+  "checks": [
+    {
+      "command": "g++ -x c++ -DREK_BASELINE_CPU_ONLY -std=c++17 -O2 -Ivendor state_baseline.cu -lcrypto -o <temporary>/diagnostic-cpu; <temporary>/diagnostic-cpu --cpu-test",
+      "exit_code": 0,
+      "checks": 6,
+      "gpu_used": false
+    },
+    {
+      "command": "g++ -std=c++17 -O2 -Ivendor ppo-variant/test_crossfit_baseline.cpp -lcrypto -o <temporary>/test-crossfit; <temporary>/test-crossfit",
+      "exit_code": 0,
+      "checks": 29,
+      "gpu_used": false
+    },
+    {
+      "command": "node --test ppo-variant/prepare_live.test.cjs",
+      "exit_code": 0,
+      "tests": 4,
+      "failures": 0
+    },
+    {
+      "command": "node ppo-variant/test_unchanged_zero.cjs ../scorecredit5s-20260924-r2/source/authentic_ppo.cu ppo-variant/authentic_ppo.cu",
+      "exit_code": 0,
+      "original_mc_kernel_identical": true,
+      "replay_mask_parity_loss_optimizer_region_identical": true,
+      "zero_mode_skips_baseline": true,
+      "gpu_used": false
+    }
+  ],
+  "private_executed_build_receipt": "../ppo-variant/BUILD-RECEIPT.json",
+  "actual_private_artifact_cpu_validation": {
+    "rows": 14957,
+    "eligible_rows": 14952,
+    "every_mc_return_exact": true
+  },
+  "publication_adjustment": "prepare_live.test.cjs resolves exact copied fixtures locally; private source remains unchanged.",
+  "excluded": [
+    "policy weights",
+    "baseline binary/weights",
+    "dataset",
+    "replay logits",
+    "raw captures",
+    "compiled binaries"
+  ]
+}

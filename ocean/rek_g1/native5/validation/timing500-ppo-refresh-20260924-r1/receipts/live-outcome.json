@@ -1,0 +1,494 @@
+{
+  "schema": "rek.f147_runtime_retired_live_outcome.v1",
+  "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+  "controller_retired_utc": "2026-09-24T11:59:46.846Z",
+  "ledger_recovered_utc": "2026-09-24T12:01:04.405Z",
+  "stop_reason": "User requested removal of per-round process kills and runtime repair; no policy-based early selection",
+  "criterion": {
+    "target_wins": 18,
+    "planned_rounds": 20,
+    "stop_completed_nonwins": 3,
+    "passed": null,
+    "status": "intentionally_stopped_for_runtime_repair"
+  },
+  "completed_rounds": 3,
+  "incomplete_attempts": 3,
+  "all_attempts": [
+    {
+      "label": "refresh-s1501",
+      "completed": true,
+      "ended_utc": "2026-09-24T11:41:08.366Z",
+      "stop_reason": "stream_end:active_round_not_observed",
+      "score": [
+        5,
+        22
+      ],
+      "remaining_seconds": 0,
+      "wrapper_exit": 0,
+      "recovered_utc": null
+    },
+    {
+      "label": "refresh-s1502",
+      "completed": false,
+      "ended_utc": "2026-09-24T11:42:24.534Z",
+      "stop_reason": "unsupported_pairing:local_g1_opponent_t800",
+      "score": null,
+      "remaining_seconds": null,
+      "wrapper_exit": 2,
+      "recovered_utc": null
+    },
+    {
+      "label": "refresh-s1502-retry2",
+      "completed": false,
+      "ended_utc": "2026-09-24T11:43:46.512Z",
+      "stop_reason": "unsupported_pairing:local_g1_opponent_t800",
+      "score": null,
+      "remaining_seconds": null,
+      "wrapper_exit": 2,
+      "recovered_utc": null
+    },
+    {
+      "label": "refresh-s1502-retry3",
+      "completed": true,
+      "ended_utc": "2026-09-24T11:46:46.483Z",
+      "stop_reason": "stream_end:active_round_not_observed",
+      "score": [
+        16,
+        15
+      ],
+      "remaining_seconds": 0,
+      "wrapper_exit": 0,
+      "recovered_utc": null
+    },
+    {
+      "label": "refresh-s1503",
+      "completed": false,
+      "ended_utc": "2026-09-24T11:49:43.175Z",
+      "stop_reason": "child_exit:{\"code\":0,\"signal\":null}",
+      "score": [
+        12,
+        12
+      ],
+      "remaining_seconds": 35.628323,
+      "wrapper_exit": 2,
+      "recovered_utc": null
+    },
+    {
+      "label": "refresh-s1503-retry2",
+      "completed": true,
+      "ended_utc": "2026-09-24T11:53:01.472Z",
+      "stop_reason": "stream_end:active_round_not_observed",
+      "score": [
+        13,
+        13
+      ],
+      "remaining_seconds": 0,
+      "wrapper_exit": 0,
+      "recovered_utc": "2026-09-24T12:01:04.405Z"
+    }
+  ],
+  "failures": [
+    {
+      "label": "refresh-s1502",
+      "completed": false,
+      "ended_utc": "2026-09-24T11:42:24.534Z",
+      "stop_reason": "unsupported_pairing:local_g1_opponent_t800",
+      "score": null,
+      "remaining_seconds": null,
+      "wrapper_exit": 2,
+      "recovered_utc": null,
+      "cause": "unsupported G1/T800 pairing",
+      "partial_score_excluded": true
+    },
+    {
+      "label": "refresh-s1502-retry2",
+      "completed": false,
+      "ended_utc": "2026-09-24T11:43:46.512Z",
+      "stop_reason": "unsupported_pairing:local_g1_opponent_t800",
+      "score": null,
+      "remaining_seconds": null,
+      "wrapper_exit": 2,
+      "recovered_utc": null,
+      "cause": "unsupported G1/T800 pairing",
+      "partial_score_excluded": true
+    },
+    {
+      "label": "refresh-s1503",
+      "completed": false,
+      "ended_utc": "2026-09-24T11:49:43.175Z",
+      "stop_reason": "child_exit:{\"code\":0,\"signal\":null}",
+      "score": [
+        12,
+        12
+      ],
+      "remaining_seconds": 35.628323,
+      "wrapper_exit": 2,
+      "recovered_utc": null,
+      "cause": "REK CoreCLR process crash; runtime diagnosis recorded separately",
+      "partial_score_excluded": true
+    }
+  ],
+  "totals": {
+    "wins": 1,
+    "losses": 1,
+    "ties": 1,
+    "score": [
+      34,
+      50
+    ],
+    "ordinary_points": [
+      19,
+      25
+    ],
+    "point_award_counts": [
+      {
+        "1": 11,
+        "2": 4,
+        "5": 3
+      },
+      {
+        "1": 9,
+        "2": 8,
+        "5": 5
+      }
+    ],
+    "predictions": 8816,
+    "locally_applied": 8813,
+    "locally_rejected": 3,
+    "accepted_attack_requests": 184,
+    "other_attack_acknowledgments": 1,
+    "validated_referee_observations": 8835,
+    "attack_requests_by_policy_action": {
+      "16": 8,
+      "17": 0,
+      "18": 0,
+      "19": 0,
+      "20": 2,
+      "21": 79,
+      "22": 0,
+      "23": 41,
+      "24": 0,
+      "25": 8,
+      "26": 37,
+      "27": 1,
+      "28": 0,
+      "29": 1,
+      "30": 6,
+      "31": 0,
+      "32": 1
+    }
+  },
+  "rounds": [
+    {
+      "label": "refresh-s1501",
+      "score": [
+        5,
+        22
+      ],
+      "ordinary_points": [
+        0,
+        7
+      ],
+      "point_award_counts": [
+        {
+          "5": 1
+        },
+        {
+          "1": 3,
+          "2": 2,
+          "5": 3
+        }
+      ],
+      "predictions": 2876,
+      "locally_applied": 2875,
+      "locally_rejected": 1,
+      "accepted_attack_requests": 53,
+      "other_attack_acknowledgments": 0,
+      "per_action": {
+        "16": {
+          "requests": 2,
+          "native_moves": [
+            6
+          ],
+          "local_execute_move_returned_true": 2
+        },
+        "20": {
+          "requests": 1,
+          "native_moves": [
+            0
+          ],
+          "local_execute_move_returned_true": 1
+        },
+        "21": {
+          "requests": 32,
+          "native_moves": [
+            1
+          ],
+          "local_execute_move_returned_true": 32
+        },
+        "23": {
+          "requests": 6,
+          "native_moves": [
+            3
+          ],
+          "local_execute_move_returned_true": 6
+        },
+        "25": {
+          "requests": 3,
+          "native_moves": [
+            5
+          ],
+          "local_execute_move_returned_true": 3
+        },
+        "26": {
+          "requests": 7,
+          "native_moves": [
+            10
+          ],
+          "local_execute_move_returned_true": 7
+        },
+        "29": {
+          "requests": 1,
+          "native_moves": [
+            13
+          ],
+          "local_execute_move_returned_true": 1
+        },
+        "30": {
+          "requests": 1,
+          "native_moves": [
+            14
+          ],
+          "local_execute_move_returned_true": 1
+        }
+      },
+      "strict_referee_validation_passed": true,
+      "validated_referee_observations": 2883,
+      "native_score_receipts": 9,
+      "source_identity": {
+        "summary_sha256": "31ac815217730581fcea126ffa47a63e5792c5ed55c690f190709923884df772",
+        "relay_sha256": "38e2b43e66eecf3fd2dcb7be088fa6d7ea5605240a5009b67e5b11900f3fec84",
+        "native_capture_member": "rek-private-ai-root-motion-20260924T113904.2798937Z-pid32-57e341dbfcf84ee6a95845a1363cc8db.jsonl",
+        "native_sha256": "303b1c6a4927f55f21b7d6849fa841473155c32e8c596ef0ff4ae8ffacb68e45",
+        "native_bytes": 205529293
+      }
+    },
+    {
+      "label": "refresh-s1502-retry3",
+      "score": [
+        16,
+        15
+      ],
+      "ordinary_points": [
+        11,
+        5
+      ],
+      "point_award_counts": [
+        {
+          "1": 5,
+          "2": 3,
+          "5": 1
+        },
+        {
+          "1": 1,
+          "2": 2,
+          "5": 2
+        }
+      ],
+      "predictions": 2924,
+      "locally_applied": 2923,
+      "locally_rejected": 1,
+      "accepted_attack_requests": 69,
+      "other_attack_acknowledgments": 1,
+      "per_action": {
+        "16": {
+          "requests": 3,
+          "native_moves": [
+            6
+          ],
+          "local_execute_move_returned_true": 3
+        },
+        "21": {
+          "requests": 34,
+          "native_moves": [
+            1
+          ],
+          "local_execute_move_returned_true": 34
+        },
+        "23": {
+          "requests": 10,
+          "native_moves": [
+            3
+          ],
+          "local_execute_move_returned_true": 10
+        },
+        "25": {
+          "requests": 2,
+          "native_moves": [
+            5
+          ],
+          "local_execute_move_returned_true": 2
+        },
+        "26": {
+          "requests": 17,
+          "native_moves": [
+            10
+          ],
+          "local_execute_move_returned_true": 17
+        },
+        "30": {
+          "requests": 2,
+          "native_moves": [
+            14
+          ],
+          "local_execute_move_returned_true": 2
+        },
+        "32": {
+          "requests": 1,
+          "native_moves": [
+            16
+          ],
+          "local_execute_move_returned_true": 1
+        }
+      },
+      "strict_referee_validation_passed": true,
+      "validated_referee_observations": 2930,
+      "native_score_receipts": 14,
+      "source_identity": {
+        "summary_sha256": "06fda4a7b104bfe9a1e9d0fe7656486506d0eb60ab1a251dabacdaf36babb959",
+        "relay_sha256": "58bcb92cc22fb77f8fd664719a32c6cd57d29cab2e862baceb255610e9e02b32",
+        "native_capture_member": "rek-private-ai-root-motion-20260924T114441.8927120Z-pid32-b493234e602c4a509145f5abb770b32a.jsonl",
+        "native_sha256": "32958dc3ae04862eff22096f9ebaeec5abba16763d9d7515ccbf8767fe725a3f",
+        "native_bytes": 205727274
+      }
+    },
+    {
+      "label": "refresh-s1503-retry2",
+      "score": [
+        13,
+        13
+      ],
+      "ordinary_points": [
+        8,
+        13
+      ],
+      "point_award_counts": [
+        {
+          "1": 6,
+          "2": 1,
+          "5": 1
+        },
+        {
+          "1": 5,
+          "2": 4
+        }
+      ],
+      "predictions": 3016,
+      "locally_applied": 3015,
+      "locally_rejected": 1,
+      "accepted_attack_requests": 62,
+      "other_attack_acknowledgments": 0,
+      "per_action": {
+        "16": {
+          "requests": 3,
+          "native_moves": [
+            6
+          ],
+          "local_execute_move_returned_true": 3
+        },
+        "20": {
+          "requests": 1,
+          "native_moves": [
+            0
+          ],
+          "local_execute_move_returned_true": 1
+        },
+        "21": {
+          "requests": 13,
+          "native_moves": [
+            1
+          ],
+          "local_execute_move_returned_true": 13
+        },
+        "23": {
+          "requests": 25,
+          "native_moves": [
+            3
+          ],
+          "local_execute_move_returned_true": 25
+        },
+        "25": {
+          "requests": 3,
+          "native_moves": [
+            5
+          ],
+          "local_execute_move_returned_true": 3
+        },
+        "26": {
+          "requests": 13,
+          "native_moves": [
+            10
+          ],
+          "local_execute_move_returned_true": 13
+        },
+        "27": {
+          "requests": 1,
+          "native_moves": [
+            11
+          ],
+          "local_execute_move_returned_true": 1
+        },
+        "30": {
+          "requests": 3,
+          "native_moves": [
+            14
+          ],
+          "local_execute_move_returned_true": 3
+        }
+      },
+      "strict_referee_validation_passed": true,
+      "validated_referee_observations": 3022,
+      "native_score_receipts": 17,
+      "source_identity": {
+        "summary_sha256": "b56901eceef5b810651d6b46f7f2cb06894f94d0e318a08978669954eb87defc",
+        "relay_sha256": "cf7cb28fde7b0ab595ba6d3c653debdd1a21e92666ecfdad6617863a07abe5ec",
+        "native_capture_member": "rek-private-ai-root-motion-20260924T115101.3776815Z-pid32-0b1548b1dfcf48edbfee2479b9b8440a.jsonl",
+        "native_sha256": "c32332c3ba0604f9ae694d8f2731dc4c251cc0d5cda2307a64a70af061fa81a7",
+        "native_bytes": 205583767
+      }
+    }
+  ],
+  "score_authority": "Received native score packets independently decoded and joined to bridge scorer/counter increments; completed native capture and terminal totals verified.",
+  "request_authority": "Locally accepted policy request ACKs joined to their exact source observations. Local ExecuteMove return does not prove server execution, contact or causality.",
+  "limitations": [
+    "Three completed development rounds, no promotion, acceptance, criterion failure or generalization claim.",
+    "Two unsupported pairings and one midround CoreCLR crash excluded only from completed-match totals; all attempts and partial scores retained.",
+    "Completed-only performance is subject to completion-selection bias.",
+    "The controller was intentionally stopped at user direction to remove per-round process kills. New runtime trials are separate."
+  ],
+  "provenance": {
+    "private_stage": "/home/spark-advantage/rek-training/timing500-ppo-refresh-live-20260924-r1",
+    "private_strict_report": "/home/spark-advantage/rek-training/timing500-refresh-archive-validation-20260924-r2/closed-round-geometry.json",
+    "private_strict_report_sha256": "f2e0298db157966c486cfefd1c942399a83633504f2e5262a48091656c470ad1",
+    "native_selection_sha256": "1aaceab8201e2db84c1d5cad674704266efc4e8cbae6be6755a78abd67e67724",
+    "campaign_log_sha256": "f3697e79ec9934af68064977ef182bce29d78432c9efbd3d6bd55a4554a23543",
+    "validator_sha256": "22bbb6652f8cf333c1c832f8719f9e37da20b66bfecd85185e228d2183c9fe89",
+    "packet_module_sha256": "485d5b89217ba305a3fee9bcb573bb6efe1d0bceb04a0f06472ea88bfb37e2e6"
+  },
+  "retirement": {
+    "action": "SIGKILL exact stopped outer controller only; game and process group untouched",
+    "child_exit_status": 0,
+    "game_killed": false,
+    "summary_sha256": "b56901eceef5b810651d6b46f7f2cb06894f94d0e318a08978669954eb87defc",
+    "attempt_provenance_sha256": "a90b4ed5bc8a40e565da13c5dd964c9e0fca420a801755274407bcd3f6863284",
+    "limitation": "Parent wrapper stdout pipe may contain an unread tail; child-owned summary and media artifacts are preserved."
+  },
+  "analysis_compatibility": {
+    "original_analyzer_sha256": "d399c6f3490982a7389e99c2bc2b69b805d985f10deb9440bd18f75780a5f2b8",
+    "failed_first_analysis_retained": true,
+    "failed_first_stage": "/home/spark-advantage/rek-training/timing500-refresh-archive-validation-20260924-r1",
+    "original_failure": "action_summary_mismatch",
+    "reason": "The summary action histogram counts accepted and rejected ACKs. s1502-retry3 action 21 has 34 accepted requests and one terminal policy_stream_not_owned rejection, total 35.",
+    "derivative_scope": "For each attack category 16..32, require all recorded attack ACKs to equal summary.actions; keep accepted-only statistics and rejected ACKs separately. Native/referee packet checks unchanged."
+  }
+}

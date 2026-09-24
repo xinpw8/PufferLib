@@ -1,0 +1,62 @@
+{
+  "schema": "rek.cross_fitted_state_baseline_ppo_experiment.v1",
+  "status": "compiled_cpu_tested_gpu_unexecuted",
+  "stage": "/home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1/ppo-variant",
+  "baseline": {
+    "path": "/home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1/fit-fixed-r1/row-baselines.bin",
+    "sha256": "8d4a24282f834a687a7740c14729974b87757a3b80779cb7fe004ba0936b268a",
+    "protocol_sha256": "32ee5bb1dd2cdb427cfeff7ae01f663a350858b3d35d80655d86987f64293dd9",
+    "producer": "fixed CUDA LOEO ridge0.01 on223 pre-action observations; actor-zero excluded from fit/eval only",
+    "header_bytes": 160,
+    "row_bytes": 32,
+    "rows": 14957,
+    "eligible_rows": 14952
+  },
+  "dataset": {
+    "path": "/home/spark-advantage/rek-training/timing500-ppo-refresh-20260924-r1/score-delta-5s/authentic-score-delta-v5.bin",
+    "sha256": "eb6b1ae210b3b3911597f93a513ae32081f15e4871b29c1cb29e75829f718655"
+  },
+  "replay": {
+    "path": "/home/spark-advantage/rek-training/timing500-ppo-refresh-20260924-r1/score-delta-5s/behavior-replay-v5.bin",
+    "sha256": "6aa4bdb5b8c28b41524d4902f667e183fb0adea37584b2af6402a0c02bb8a702"
+  },
+  "initial_checkpoint": {
+    "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/train-score-delta/policy.bin",
+    "sha256": "c2c4987b268996cd912fe35e6ba5f9b20a94d69fd93e4ef15b6c5fc71ee5e533"
+  },
+  "trainer": {
+    "path": "/home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1/ppo-variant/build/authentic-ppo-state-baseline",
+    "sha256": "4087ab38dd972673370af39261a2bcb5a36713f608b9db54566e5c61de6c5344",
+    "source_sha256": "66e34920cf3707724512fa67715a414d2b6c48b94b62f91a0d157da39cbe8c50",
+    "baseline_header_sha256": "ab4519399e6274d9e607091c5c4da3dbb87927e18710f184e51bb5a2929af5fb",
+    "original_trainer_source_sha256": "173bfaf5c8e511ab84f55efbfee956bd54fb1bc780542667269d5c9c742dde11"
+  },
+  "settings": {
+    "epochs": 1,
+    "learning_rate": 0.00003,
+    "horizon": 128,
+    "clip": 0.2,
+    "vf_clip": 0.2,
+    "vf_coef": 0,
+    "entropy": 0.001,
+    "numerical_acceptance": "unchanged explicit distributional BF16 approximation",
+    "target_mode": "complete_mc_cross_fitted_state_baseline",
+    "advantage": "unchanged_complete_MC_return - pinned_out_of_episode_state_prediction",
+    "advantage_normalization": false,
+    "reward": "unchanged received-score-delta-div5-half-life-5s.v1",
+    "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1"
+  },
+  "checkpoint_selection": "prospectively fixed final epoch1; no checkpoint selection from live results",
+  "planned_output": "/home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1/ppo-variant/train-fixed-r1/policy.bin",
+  "invariants": {
+    "true_behavior_logprobs_unchanged": true,
+    "old_values_unchanged": true,
+    "MC_returns_unchanged": true,
+    "recorded_actions_and_legality_unchanged": true,
+    "recurrent_history_unchanged": true,
+    "zero_baseline_mode_preserved": true,
+    "GPU_subtraction_changes_only_advantages": true,
+    "no_refitting_or_reward_shaping": true
+  },
+  "interpretation": "experimental variance reduction; five development episodes and lower return MSE do not establish better policy behavior"
+}

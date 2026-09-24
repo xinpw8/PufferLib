@@ -1,0 +1,134 @@
+{
+  "utc": "2026-09-24T12:15:02.902Z",
+  "source_host": "spark-4ae3",
+  "stage": "/home/spark-advantage/rek-training/timing500-ppo-refresh-live-20260924-r1",
+  "controller_retired_utc": "2026-09-24T11:59:46.846Z",
+  "ledger_recovered_utc": "2026-09-24T12:01:04.405Z",
+  "stop_reason": "user_requested_runtime_repair_remove_per_round_process_kills",
+  "criterion_status": "not_evaluated_intentional_runtime_stop",
+  "results": {
+    "wins": 1,
+    "losses": 1,
+    "ties": 1,
+    "own_points": 34,
+    "opponent_points": 50,
+    "completed_rounds": 3,
+    "incomplete_attempts": 3,
+    "criterion_exit_code": null
+  },
+  "resource_rows": 594,
+  "last_resource_sample_utc": "2026-09-24T11:59:44.018Z",
+  "archives": [
+    {
+      "name": "evidence.tar.gz",
+      "output": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\timing500-ppo-refresh-live-20260924-r1-retired-20260924T115946Z\\evidence.tar.gz",
+      "bytes": 124268315,
+      "sha256": "87bc1a47213a783a4f3d43c72a8464e871577f06f4cd6788da518cb7d3b718e6",
+      "command": [
+        "wsl.exe",
+        "-e",
+        "bash",
+        "-lc",
+        "ssh -o BatchMode=yes -o ConnectTimeout=5 spark \"tar -C /home/spark-advantage/rek-training/timing500-ppo-refresh-live-20260924-r1 -czf - -- .\""
+      ],
+      "exit_code": 0,
+      "nas_readback_verified": true,
+      "archive_entries": 238,
+      "tar_listing_verified": true
+    },
+    {
+      "name": "native-captures.tar.gz",
+      "output": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\timing500-ppo-refresh-live-20260924-r1-retired-20260924T115946Z\\native-captures.tar.gz",
+      "bytes": 90685906,
+      "sha256": "405a98ad0e621e10a0286cbce1d059880e6c8f39d41f96565e5372b197606c3a",
+      "command": [
+        "wsl.exe",
+        "-e",
+        "bash",
+        "-lc",
+        "ssh -o BatchMode=yes -o ConnectTimeout=5 spark \"tar -C /home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7 -czf - -- rek-private-ai-root-motion-20260924T113904.2798937Z-pid32-57e341dbfcf84ee6a95845a1363cc8db.jsonl rek-private-ai-root-motion-20260924T114441.8927120Z-pid32-b493234e602c4a509145f5abb770b32a.jsonl rek-private-ai-root-motion-20260924T115101.3776815Z-pid32-0b1548b1dfcf48edbfee2479b9b8440a.jsonl\""
+      ],
+      "exit_code": 0,
+      "nas_readback_verified": true,
+      "archive_entries": 3,
+      "tar_listing_verified": true
+    },
+    {
+      "name": "analysis.tar.gz",
+      "output": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\timing500-ppo-refresh-live-20260924-r1-retired-20260924T115946Z\\analysis.tar.gz",
+      "bytes": 80968,
+      "sha256": "128063ed00be8510ac5779471d973d2f45f70833003c6ab54a7a04c901cf86f9",
+      "command": [
+        "wsl.exe",
+        "-e",
+        "bash",
+        "-lc",
+        "ssh -o BatchMode=yes -o ConnectTimeout=5 spark \"tar -C /home/spark-advantage/rek-training -czf - -- timing500-refresh-archive-validation-20260924-r1/adapter-receipt.json timing500-refresh-archive-validation-20260924-r1/analyze.cjs timing500-refresh-archive-validation-20260924-r2/adapter-receipt.json timing500-refresh-archive-validation-20260924-r2/analyze.cjs timing500-refresh-archive-validation-20260924-r2/closed-round-geometry.json timing500-refresh-archive-validation-20260924-r2/native-captures-final.json referee-bridge-spark-20260924-r1/validate_live_referee.cjs referee-bridge-spark-20260924-r1/native_hit_receipt_data.cjs scorecredit5s-live-20260924-r2/analyze_closed.cjs\""
+      ],
+      "exit_code": 0,
+      "nas_readback_verified": true,
+      "archive_entries": 9,
+      "tar_listing_verified": true
+    }
+  ],
+  "source_file_count": 199,
+  "symlinks_present": false,
+  "native_capture_count": 3,
+  "native_capture_bytes": 616840334,
+  "native_captures": [
+    {
+      "label": "refresh-s1501",
+      "path": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T113904.2798937Z-pid32-57e341dbfcf84ee6a95845a1363cc8db.jsonl",
+      "archive_member": "rek-private-ai-root-motion-20260924T113904.2798937Z-pid32-57e341dbfcf84ee6a95845a1363cc8db.jsonl",
+      "bytes": 205529293,
+      "sha256": "303b1c6a4927f55f21b7d6849fa841473155c32e8c596ef0ff4ae8ffacb68e45"
+    },
+    {
+      "label": "refresh-s1502-retry3",
+      "path": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T114441.8927120Z-pid32-b493234e602c4a509145f5abb770b32a.jsonl",
+      "archive_member": "rek-private-ai-root-motion-20260924T114441.8927120Z-pid32-b493234e602c4a509145f5abb770b32a.jsonl",
+      "bytes": 205727274,
+      "sha256": "32958dc3ae04862eff22096f9ebaeec5abba16763d9d7515ccbf8767fe725a3f"
+    },
+    {
+      "label": "refresh-s1503-retry2",
+      "path": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T115101.3776815Z-pid32-0b1548b1dfcf48edbfee2479b9b8440a.jsonl",
+      "archive_member": "rek-private-ai-root-motion-20260924T115101.3776815Z-pid32-0b1548b1dfcf48edbfee2479b9b8440a.jsonl",
+      "bytes": 205583767,
+      "sha256": "c32332c3ba0604f9ae694d8f2731dc4c251cc0d5cda2307a64a70af061fa81a7"
+    }
+  ],
+  "native_selection_manifest_sha256": "1aaceab8201e2db84c1d5cad674704266efc4e8cbae6be6755a78abd67e67724",
+  "native_selection_source": "/home/spark-advantage/rek-training/timing500-refresh-archive-validation-20260924-r2/native-captures-final.json",
+  "native_selection_provenance": {
+    "schema": "rek.closed_f147_native_capture_selection.v1",
+    "validation_scope": "Received referee audit plus independently decoded native score packets, exact scorer/counter relay joins, terminal totals, completed native capture",
+    "external_analysis_frozen": true,
+    "reports": [
+      {
+        "label": "refresh-s1501",
+        "strict_validation_passed": true,
+        "path": "/home/spark-advantage/rek-training/timing500-refresh-archive-validation-20260924-r2/closed-round-geometry.json",
+        "sha256": "f2e0298db157966c486cfefd1c942399a83633504f2e5262a48091656c470ad1"
+      },
+      {
+        "label": "refresh-s1502-retry3",
+        "strict_validation_passed": true,
+        "path": "/home/spark-advantage/rek-training/timing500-refresh-archive-validation-20260924-r2/closed-round-geometry.json",
+        "sha256": "f2e0298db157966c486cfefd1c942399a83633504f2e5262a48091656c470ad1"
+      },
+      {
+        "label": "refresh-s1503-retry2",
+        "strict_validation_passed": true,
+        "path": "/home/spark-advantage/rek-training/timing500-refresh-archive-validation-20260924-r2/closed-round-geometry.json",
+        "sha256": "f2e0298db157966c486cfefd1c942399a83633504f2e5262a48091656c470ad1"
+      }
+    ]
+  },
+  "source_and_native_hashes_verified_before_and_after": true,
+  "external_dependencies": "Native captures were referenced outside the cohort and are now included separately. The strict analysis, preserved failed first attempt and exact analysis modules are included in analysis.tar.gz. The compact three-capture selection is included beside these archives.",
+  "scope": "Closed f147 cohort scripts/configs/logs/resource samples/MP4s plus exactly three strictly selected native JSONL captures. Retirement/ledger-recovery provenance and possible unread parent wrapper stdout tail are preserved. No new training or live stage, game binaries or credential stores.",
+  "original_files_modified_or_removed": false,
+  "new_live_stage_touched": false,
+  "gpu_or_process_control": false
+}

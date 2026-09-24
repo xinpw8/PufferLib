@@ -1,0 +1,20 @@
+{
+  "schema": "rek.crossfit_ppo_compile_receipt.v1",
+  "cpu_checks_passed": 29,
+  "actual_artifact_rows_verified": 14957,
+  "actual_eligible_rows_verified": 14952,
+  "every_MC_return_exact": true,
+  "static_original_MC_kernel_identical": true,
+  "static_replay_mask_parity_loss_optimizer_regions_identical": true,
+  "cuda_compile_exit_code": 0,
+  "gpu_executed": false,
+  "cuda_self_tests_still_pending": true,
+  "cuda_self_tests_automatically_run_before_baseline_training": true,
+  "source_sha256": "66e34920cf3707724512fa67715a414d2b6c48b94b62f91a0d157da39cbe8c50",
+  "header_sha256": "ab4519399e6274d9e607091c5c4da3dbb87927e18710f184e51bb5a2929af5fb",
+  "test_cpp_sha256": "77ad96266896c706ffaaeb8ecb41a96fff08fa75d99c1b40748f0312df34fb4e",
+  "test_static_sha256": "f20b89907bf435c24581a1d0398f07f300a6cb8d641725bd4b66277c5f9fe1b9",
+  "build_script_sha256": "e1631fdf0b9a157a02e5a9b73880833c9a7d688f815d8559dd582c25395ded91",
+  "cpu_binary_sha256": "253a91528dca9188982b458bf832019046a6bffea205c20e806c81324dd166ce",
+  "cuda_binary_sha256": "4087ab38dd972673370af39261a2bcb5a36713f608b9db54566e5c61de6c5344"
+}

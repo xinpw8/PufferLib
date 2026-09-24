@@ -1,0 +1,19 @@
+{
+  "schema": "rek.state_return_baseline.compile_receipt.v1",
+  "stage": "/home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1",
+  "source_sha256": "38e4dcfefbac06929e4cd0af5fade84b7e2be61b58aa8c9e5288f3b23ded9ae5",
+  "protocol_sha256": "32ee5bb1dd2cdb427cfeff7ae01f663a350858b3d35d80655d86987f64293dd9",
+  "build_script_sha256": "0a53217afb44f9c0d715d15785dae68d4d63db91c0a94d887a4817882e9cf513",
+  "reader_sha256": "785b03ddc49a881045d64bea26faa9fd00c115bd465ecc9dcc4a4684b0cf331e",
+  "reward_header_sha256": "b49311dae9506b3c64fb50fc791e31fba143f8445af40494864358d1a52dfab1",
+  "cpu_binary_sha256": "2c2d1e20841f14982a5bf11821b825c54e7a75bb2da8ab59ee6b959a43219571",
+  "cuda_binary_sha256": "ebb7dd6d04c1f4e962e3121fe4c903b716780c922f2d6dba85af7dcc2f2330fa",
+  "cpu_checks": {"passed": true, "count": 6, "gpu_used": false},
+  "input_inspection": {"passed": true, "rows": 14957, "episodes": 5, "eligible_rows": 14952, "gpu_used": false},
+  "cuda_compile": {"exit_code": 0, "architecture": "sm_121", "warning": "Unused constant P; no compile errors"},
+  "cuda_synthetic_tests_executed": false,
+  "actual_baseline_fit_executed": false,
+  "policy_changed": false,
+  "replay_changed": false,
+  "production_sources_changed": false
+}

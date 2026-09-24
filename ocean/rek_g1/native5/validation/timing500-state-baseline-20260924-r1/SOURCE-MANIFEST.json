@@ -1,0 +1,238 @@
+{
+  "schema": "rek.sanitized_publication_manifest.v1",
+  "scope": "timing500-state-baseline-20260924-r1",
+  "created_at_utc": "2026-09-24 12:02:26 UTC",
+  "private_stage": "/home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1",
+  "source_base": {
+    "path": "../scorecredit5s-20260924-r2/source/authentic_ppo.cu",
+    "sha256": "173bfaf5c8e511ab84f55efbfee956bd54fb1bc780542667269d5c9c742dde11"
+  },
+  "status": {
+    "fixed_diagnostic_executed": true,
+    "actor_training_executed": false,
+    "live_validation_executed": false
+  },
+  "files": [
+    {
+      "path": "build.sh",
+      "bytes": 1373,
+      "sha256": "0a53217afb44f9c0d715d15785dae68d4d63db91c0a94d887a4817882e9cf513",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\build.sh",
+      "source_sha256": "0a53217afb44f9c0d715d15785dae68d4d63db91c0a94d887a4817882e9cf513",
+      "exact_copy": true
+    },
+    {
+      "path": "G1-OPPONENT-SELECTION.md",
+      "bytes": 2657,
+      "sha256": "0951965b82c38d57e9099033d5cd6653c00f881b80ff645e8c820b53d5ecb7ef",
+      "exact_copy": false,
+      "status": "new_publication_document"
+    },
+    {
+      "path": "PROTOCOL.md",
+      "bytes": 5391,
+      "sha256": "32ee5bb1dd2cdb427cfeff7ae01f663a350858b3d35d80655d86987f64293dd9",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\PROTOCOL.md",
+      "source_sha256": "32ee5bb1dd2cdb427cfeff7ae01f663a350858b3d35d80655d86987f64293dd9",
+      "exact_copy": true
+    },
+    {
+      "path": "README.md",
+      "bytes": 8010,
+      "sha256": "9dd8ca32ccfeaa43f2287c7f6ffb1d6d4087f3365066e535cb5781f9072d8c93",
+      "exact_copy": false,
+      "status": "new_publication_document"
+    },
+    {
+      "path": "state_baseline.cu",
+      "bytes": 20817,
+      "sha256": "38e4dcfefbac06929e4cd0af5fade84b7e2be61b58aa8c9e5288f3b23ded9ae5",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\state_baseline.cu",
+      "source_sha256": "38e4dcfefbac06929e4cd0af5fade84b7e2be61b58aa8c9e5288f3b23ded9ae5",
+      "exact_copy": true
+    },
+    {
+      "path": "fixtures/fresh-preparer/capture_resources.cjs",
+      "bytes": 1565,
+      "sha256": "19d77b72fbda30724854d8e14393e46941ca86ec16c34ce763eeb9bb0faca9ed",
+      "source": "C:\\rekagent\\work\\timing500-ppo-refresh-20260924-r1\\capture_resources.cjs",
+      "source_sha256": "19d77b72fbda30724854d8e14393e46941ca86ec16c34ce763eeb9bb0faca9ed",
+      "exact_copy": true
+    },
+    {
+      "path": "fixtures/fresh-preparer/prepare_live.cjs",
+      "bytes": 4902,
+      "sha256": "3fe3dfe56af59593737fb4ee57966d9a3d15293bcd843901fca9bba5648839b2",
+      "source": "C:\\rekagent\\work\\timing500-ppo-refresh-20260924-r1\\prepare_live.cjs",
+      "source_sha256": "3fe3dfe56af59593737fb4ee57966d9a3d15293bcd843901fca9bba5648839b2",
+      "exact_copy": true
+    },
+    {
+      "path": "fixtures/fresh-preparer/snapshot_controls.cjs",
+      "bytes": 1592,
+      "sha256": "06829f2cae95cc7ae3e25bdf3c2abaa9c1094abec07edaf2bd20286cc2d05dfa",
+      "source": "C:\\rekagent\\work\\timing500-ppo-refresh-20260924-r1\\snapshot_controls.cjs",
+      "source_sha256": "06829f2cae95cc7ae3e25bdf3c2abaa9c1094abec07edaf2bd20286cc2d05dfa",
+      "exact_copy": true
+    },
+    {
+      "path": "ppo-variant/authentic_ppo.cu",
+      "bytes": 38668,
+      "sha256": "66e34920cf3707724512fa67715a414d2b6c48b94b62f91a0d157da39cbe8c50",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\ppo-variant\\authentic_ppo.cu",
+      "source_sha256": "66e34920cf3707724512fa67715a414d2b6c48b94b62f91a0d157da39cbe8c50",
+      "exact_copy": true
+    },
+    {
+      "path": "ppo-variant/BUILD-RECEIPT.json",
+      "bytes": 1113,
+      "sha256": "1aa1e609278b118fc3f347747f60c105c9f5edb4678e8066d4a9c257124fc228",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\ppo-variant\\BUILD-RECEIPT.json",
+      "source_sha256": "1aa1e609278b118fc3f347747f60c105c9f5edb4678e8066d4a9c257124fc228",
+      "exact_copy": true
+    },
+    {
+      "path": "ppo-variant/build.sh",
+      "bytes": 1725,
+      "sha256": "e1631fdf0b9a157a02e5a9b73880833c9a7d688f815d8559dd582c25395ded91",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\ppo-variant\\build.sh",
+      "source_sha256": "e1631fdf0b9a157a02e5a9b73880833c9a7d688f815d8559dd582c25395ded91",
+      "exact_copy": true
+    },
+    {
+      "path": "ppo-variant/capture_resources.cjs",
+      "bytes": 1568,
+      "sha256": "2e9119f6f56147b63b60f3fa10b10e7d3a6a754d488b029731b76797b61e7abd",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\ppo-variant\\capture_resources.cjs",
+      "source_sha256": "2e9119f6f56147b63b60f3fa10b10e7d3a6a754d488b029731b76797b61e7abd",
+      "exact_copy": true
+    },
+    {
+      "path": "ppo-variant/crossfit_baseline.h",
+      "bytes": 3915,
+      "sha256": "ab4519399e6274d9e607091c5c4da3dbb87927e18710f184e51bb5a2929af5fb",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\ppo-variant\\crossfit_baseline.h",
+      "source_sha256": "ab4519399e6274d9e607091c5c4da3dbb87927e18710f184e51bb5a2929af5fb",
+      "exact_copy": true
+    },
+    {
+      "path": "ppo-variant/prepare_live.cjs",
+      "bytes": 5456,
+      "sha256": "82e555847eff445e9efe792b8bb73d85b01a000593957958993a2f83fa7ba681",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\ppo-variant\\prepare_live.cjs",
+      "source_sha256": "82e555847eff445e9efe792b8bb73d85b01a000593957958993a2f83fa7ba681",
+      "exact_copy": true
+    },
+    {
+      "path": "ppo-variant/prepare_live.test.cjs",
+      "bytes": 3661,
+      "sha256": "d44be67ef8ab744262bee2ede5a4b549826a064d47f97e82d8bfd6b9ea9e433a",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\ppo-variant\\prepare_live.test.cjs",
+      "source_sha256": "336895c8cfc2e2120e531bf09e9c268557e6329e245aba02dbee4ae2e7889ffc",
+      "exact_copy": false,
+      "adjustment": "Only priorDir changed to path.resolve(__dirname,'../fixtures/fresh-preparer'); tests and fixture bytes otherwise unchanged."
+    },
+    {
+      "path": "ppo-variant/run_once.sh",
+      "bytes": 2551,
+      "sha256": "c089f88abcc015668b55ffe6d4a9abed6ccfa6f5c4ccab0eb8291d7c0c87cf06",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\ppo-variant\\run_once.sh",
+      "source_sha256": "c089f88abcc015668b55ffe6d4a9abed6ccfa6f5c4ccab0eb8291d7c0c87cf06",
+      "exact_copy": true
+    },
+    {
+      "path": "ppo-variant/run-plan.json",
+      "bytes": 3262,
+      "sha256": "7b019aba543aeaa3a1017d527f52e6ba0a6b9cf41221fd6aa4cd467be0ca375d",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\ppo-variant\\run-plan.json",
+      "source_sha256": "7b019aba543aeaa3a1017d527f52e6ba0a6b9cf41221fd6aa4cd467be0ca375d",
+      "exact_copy": true
+    },
+    {
+      "path": "ppo-variant/snapshot_controls.cjs",
+      "bytes": 1596,
+      "sha256": "f45af5545ffbc43885d0106c1397fa015dc248dfb55babcc263e8aabb0b93c27",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\ppo-variant\\snapshot_controls.cjs",
+      "source_sha256": "f45af5545ffbc43885d0106c1397fa015dc248dfb55babcc263e8aabb0b93c27",
+      "exact_copy": true
+    },
+    {
+      "path": "ppo-variant/test_crossfit_baseline.cpp",
+      "bytes": 5017,
+      "sha256": "77ad96266896c706ffaaeb8ecb41a96fff08fa75d99c1b40748f0312df34fb4e",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\ppo-variant\\test_crossfit_baseline.cpp",
+      "source_sha256": "77ad96266896c706ffaaeb8ecb41a96fff08fa75d99c1b40748f0312df34fb4e",
+      "exact_copy": true
+    },
+    {
+      "path": "ppo-variant/test_unchanged_zero.cjs",
+      "bytes": 1964,
+      "sha256": "f20b89907bf435c24581a1d0398f07f300a6cb8d641725bd4b66277c5f9fe1b9",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\ppo-variant\\test_unchanged_zero.cjs",
+      "source_sha256": "f20b89907bf435c24581a1d0398f07f300a6cb8d641725bd4b66277c5f9fe1b9",
+      "exact_copy": true
+    },
+    {
+      "path": "receipts/diagnostic-preparation-BUILD-RECEIPT.json",
+      "bytes": 1249,
+      "sha256": "65417978105f6c346202e8208b9140563cbf903a1f8aac1aa4e92cc4c636f1ee",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\BUILD-RECEIPT.json",
+      "source_sha256": "65417978105f6c346202e8208b9140563cbf903a1f8aac1aa4e92cc4c636f1ee",
+      "exact_copy": true
+    },
+    {
+      "path": "receipts/diagnostic-preparation-README.md",
+      "bytes": 2708,
+      "sha256": "a1465b85dd2ea74087d35355f92c740c7035fad39f78a68ad28664e19bae4fb2",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\README.md",
+      "source_sha256": "a1465b85dd2ea74087d35355f92c740c7035fad39f78a68ad28664e19bae4fb2",
+      "exact_copy": true
+    },
+    {
+      "path": "receipts/report.json",
+      "bytes": 4258,
+      "sha256": "48c887fc0eaf17e51d614c93a18a4c96511056f4ea3589cb2162025e511aea78",
+      "source": "/home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1/fit-fixed-r1/report.json",
+      "source_sha256": "48c887fc0eaf17e51d614c93a18a4c96511056f4ea3589cb2162025e511aea78",
+      "exact_copy": true
+    },
+    {
+      "path": "receipts/run-provenance.json",
+      "bytes": 323,
+      "sha256": "51ec202a36830faec76a07e2ccf7e2f2f82955bc0417750033877713b21eb41a",
+      "source": "/home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1/fit-fixed-r1/run-provenance.json",
+      "source_sha256": "51ec202a36830faec76a07e2ccf7e2f2f82955bc0417750033877713b21eb41a",
+      "exact_copy": true
+    },
+    {
+      "path": "vendor/authentic_trajectory.h",
+      "bytes": 11641,
+      "sha256": "785b03ddc49a881045d64bea26faa9fd00c115bd465ecc9dcc4a4684b0cf331e",
+      "source": "/home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1/vendor/authentic_trajectory.h",
+      "source_sha256": "785b03ddc49a881045d64bea26faa9fd00c115bd465ecc9dcc4a4684b0cf331e",
+      "exact_copy": true
+    },
+    {
+      "path": "vendor/round_reward.h",
+      "bytes": 1355,
+      "sha256": "b49311dae9506b3c64fb50fc791e31fba143f8445af40494864358d1a52dfab1",
+      "source": "/home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1/vendor/round_reward.h",
+      "source_sha256": "b49311dae9506b3c64fb50fc791e31fba143f8445af40494864358d1a52dfab1",
+      "exact_copy": true
+    },
+    {
+      "path": "receipts/PUBLICATION-CHECKS.json",
+      "bytes": 1743,
+      "sha256": "238122ada8c1815fa8420b084afdf43e40b2199752fbb4e65acecd973752a13e",
+      "status": "new_publication_receipt"
+    }
+  ],
+  "exclusions": [
+    "weights and row-baseline binary",
+    "datasets",
+    "raw captures",
+    "replay logits",
+    "compiled binaries"
+  ],
+  "manifest_self_excluded": true
+}
