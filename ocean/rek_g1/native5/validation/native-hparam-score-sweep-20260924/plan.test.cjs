@@ -1,0 +1,6 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');const p=require('./plan.cjs');
+test('25 explicit arms, one exact control and24 unique grid configurations',()=>{assert.equal(p.arms.length,25);assert.equal(new Set(p.arms.map(x=>x.id)).size,25);assert.equal(new Set(p.arms.slice(1).map(x=>[x.lr,x.entropy,x.horizon].join('/'))).size,24);});
+test('all budgets and minibatches obey actual native recurrent constraints',()=>{for(const a of p.arms){assert.equal(8192%a.horizon,0);assert.equal(512%(8192/a.horizon),0);for(const b of [1048576,p.screenSteps,p.promotionSteps])assert.equal(b%(512*a.horizon),0);assert(a.gamma>0&&a.gamma<1&&a.lambda>0&&a.lambda<=1);}});
+test('time constants are seconds at50Hz, with no entropy/reward or action cadence changes',()=>{for(const t of p.temporal){assert(Math.abs(Math.log(.5)/Math.log(t.gamma)*.02-t.discountHalfLifeSeconds)<1e-6);assert(Math.abs(Math.log(.5)/Math.log(t.gamma*t.lambda)*.02-t.traceHalfLifeSeconds)<1e-6);}assert.equal(p.environment.REK_POLICY_ACTION_STRIDE,'1');assert.equal(p.environment.REK_FAST_KICK_FALL_P,'0');});
+test('confirmation seeds do not overlap screen or training seeds',()=>{for(const s of p.confirmationSeeds)assert(![...p.screenSeeds,73,947,419].includes(s));assert.equal(p.assumptions.fullMatchesModeled,false);assert.equal(p.assumptions.selectionSide,0);});

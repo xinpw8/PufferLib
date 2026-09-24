@@ -1,0 +1,242 @@
+{
+  "schema": "rek.native_hparam_final_holdout.public.v1",
+  "completedUtc": "2026-09-24T16:58:54.979Z",
+  "evaluatorSha256": "b3ded3b975eedf42557c9dd5ba0f2b7a94f18f97eb9ec136f403b68783f2a40c",
+  "runtimeSha256": "462a394cb2d11961991ff677ea8bccf2ffe38d6172abb42789c05d43be1c6faf",
+  "seeds": [
+    30001,
+    30002,
+    30003,
+    30004,
+    30005,
+    30006,
+    30007,
+    30008,
+    30009,
+    30010
+  ],
+  "arenasPerSeedPerSide": 128,
+  "roundsPerArena": 1,
+  "selectionFixedBeforeHoldout": true,
+  "baseline": {
+    "n": 1280,
+    "policySide": 0,
+    "discardedSide1Count": 1280,
+    "checkpointSha256": "7561859790d0ed55a55471d96442fe954a593c52d8617b51c143687ba9d98f96",
+    "meanOwnPoints": 32.18828125,
+    "meanConcededPoints": 9.1546875,
+    "meanMargin": 23.03359375,
+    "ownPointsStandardError": 0.4357152697156809,
+    "marginStandardError": 0.4469168029737368,
+    "wins": 1170,
+    "losses": 104,
+    "draws": 6,
+    "winRate": 0.9140625,
+    "winWilson95": {
+      "lower": 0.8974425364521585,
+      "upper": 0.9282045812018316
+    },
+    "actions": null,
+    "failureBits": null,
+    "requiresNativeExitCheck": true,
+    "unit": "completed round",
+    "fullMatchResults": null,
+    "uncertaintyNote": "Standard errors and Wilson intervals treat rounds as independent; repeated arenas or shared seeds can reduce effective sample size. Actions and aggregate native failure status are unavailable in round records."
+  },
+  "candidate": {
+    "n": 1280,
+    "policySide": 0,
+    "discardedSide1Count": 1280,
+    "checkpointSha256": "fa6f760a5823d904b9f636df6421426e21344c03767ffa8ed0fe776c400b75ad",
+    "meanOwnPoints": 34.24296875,
+    "meanConcededPoints": 8.74765625,
+    "meanMargin": 25.4953125,
+    "ownPointsStandardError": 0.4123350334113774,
+    "marginStandardError": 0.4251833326027473,
+    "wins": 1210,
+    "losses": 60,
+    "draws": 10,
+    "winRate": 0.9453125,
+    "winWilson95": {
+      "lower": 0.9314716393660437,
+      "upper": 0.9564884682995684
+    },
+    "actions": null,
+    "failureBits": null,
+    "requiresNativeExitCheck": true,
+    "unit": "completed round",
+    "fullMatchResults": null,
+    "uncertaintyNote": "Standard errors and Wilson intervals treat rounds as independent; repeated arenas or shared seeds can reduce effective sample size. Actions and aggregate native failure status are unavailable in round records."
+  },
+  "comparison": {
+    "ownScoreImproved": true,
+    "marginNotRegressed": true,
+    "roundWinRateNotRegressed": true,
+    "scoreImprovedWithGuards": true,
+    "deltas": {
+      "meanOwnPoints": 2.0546875,
+      "meanMargin": 2.4617187499999993,
+      "roundWinRate": 0.03125
+    },
+    "fullMatchWinComparison": null,
+    "note": "Descriptive point-estimate guard, without a significance claim. Compare matched evaluation settings. Round wins do not establish match wins."
+  },
+  "paired": {
+    "available": true,
+    "pairing": "common evaluation seed, arena and episode; policy side 0",
+    "n": 1280,
+    "evaluationSeedClusters": 10,
+    "unmatchedCandidateRounds": 0,
+    "unmatchedReferenceRounds": 0,
+    "differences": {
+      "meanOwnPoints": 2.055,
+      "meanConcededPoints": -0.407,
+      "meanMargin": 2.462,
+      "roundWinRate": 0.0313
+    },
+    "perSeed": [
+      {
+        "seed": 30001,
+        "n": 128,
+        "differences": {
+          "meanOwnPoints": 0.344,
+          "meanConcededPoints": -0.016,
+          "meanMargin": 0.359,
+          "roundWinRate": 0.0234
+        }
+      },
+      {
+        "seed": 30002,
+        "n": 128,
+        "differences": {
+          "meanOwnPoints": 3.063,
+          "meanConcededPoints": -1.008,
+          "meanMargin": 4.07,
+          "roundWinRate": 0.0781
+        }
+      },
+      {
+        "seed": 30003,
+        "n": 128,
+        "differences": {
+          "meanOwnPoints": 1.156,
+          "meanConcededPoints": -0.063,
+          "meanMargin": 1.219,
+          "roundWinRate": 0.0078
+        }
+      },
+      {
+        "seed": 30004,
+        "n": 128,
+        "differences": {
+          "meanOwnPoints": 1.898,
+          "meanConcededPoints": -0.727,
+          "meanMargin": 2.625,
+          "roundWinRate": 0.0313
+        }
+      },
+      {
+        "seed": 30005,
+        "n": 128,
+        "differences": {
+          "meanOwnPoints": 1.375,
+          "meanConcededPoints": -0.203,
+          "meanMargin": 1.578,
+          "roundWinRate": 0
+        }
+      },
+      {
+        "seed": 30006,
+        "n": 128,
+        "differences": {
+          "meanOwnPoints": 4.945,
+          "meanConcededPoints": -0.555,
+          "meanMargin": 5.5,
+          "roundWinRate": 0.0391
+        }
+      },
+      {
+        "seed": 30007,
+        "n": 128,
+        "differences": {
+          "meanOwnPoints": 0.758,
+          "meanConcededPoints": -0.875,
+          "meanMargin": 1.633,
+          "roundWinRate": 0.0469
+        }
+      },
+      {
+        "seed": 30008,
+        "n": 128,
+        "differences": {
+          "meanOwnPoints": -0.25,
+          "meanConcededPoints": -0.609,
+          "meanMargin": 0.359,
+          "roundWinRate": 0
+        }
+      },
+      {
+        "seed": 30009,
+        "n": 128,
+        "differences": {
+          "meanOwnPoints": 5.328,
+          "meanConcededPoints": -0.297,
+          "meanMargin": 5.625,
+          "roundWinRate": 0.0703
+        }
+      },
+      {
+        "seed": 30010,
+        "n": 128,
+        "differences": {
+          "meanOwnPoints": 1.93,
+          "meanConcededPoints": 0.281,
+          "meanMargin": 1.648,
+          "roundWinRate": 0.0156
+        }
+      }
+    ],
+    "observedSeedMeanRanges": {
+      "meanOwnPoints": {
+        "minimum": -0.25,
+        "maximum": 5.328
+      },
+      "meanConcededPoints": {
+        "minimum": -1.008,
+        "maximum": 0.281
+      },
+      "meanMargin": {
+        "minimum": 0.359,
+        "maximum": 5.625
+      },
+      "roundWinRate": {
+        "minimum": 0,
+        "maximum": 0.078
+      }
+    },
+    "confidenceIntervals95": {
+      "meanOwnPoints": {
+        "lower": 1.03,
+        "upper": 3.19
+      },
+      "meanConcededPoints": {
+        "lower": -0.651,
+        "upper": -0.162
+      },
+      "meanMargin": {
+        "lower": 1.375,
+        "upper": 3.648
+      },
+      "roundWinRate": {
+        "lower": 0.016,
+        "upper": 0.048
+      }
+    },
+    "intervalNote": "Deterministic percentile bootstrap of evaluation seed clusters, 10,000 resamples. Few clusters can still make coverage unreliable; paired fixtures do not guarantee identical action-dependent random draws."
+  },
+  "nativeExitCodesVerified": true,
+  "nativeFailureBits": 0,
+  "fullMatchWins": null,
+  "livePromotion": false,
+  "limitation": "Independent postselection simulator holdout only. Policy-side-1 rounds are excluded because calibration is asymmetric. Ten-seed cluster-bootstrap intervals remain conditional on this environment and these fixtures; they cannot prove authentic REK or live match wins."
+}
