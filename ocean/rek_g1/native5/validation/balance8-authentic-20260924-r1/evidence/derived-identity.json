@@ -1,0 +1,234 @@
+{
+  "schema": "rek.authentic_derived_balance8_identity.v4",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "recorded_behavior_identity": {
+    "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/export/behavior-identity.json",
+    "sha256": "674009772cbdbb719ff5ec7e15b4022c123cd3e61370a578a6de99aed97eb537",
+    "bytes": 20339
+  },
+  "recorded_behavior": {
+    "worker": {
+      "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/live-policy-20260915/build-r1/live-policy-worker",
+      "bytes": 1654296,
+      "sha256": "3a12e88268bca78ccec4813adaeacaec74bd68652594b46007d24ab711c0a029"
+    },
+    "checkpoint": {
+      "path": "/home/spark-advantage/rek-training/f7-action-id-fix-20260924-r1/runs/F7-no-unmeasured-kick-prior-16777216/checkpoints/rek_native5/F7-no-unmeasured-kick-prior-16777216/0000000016777216.bin",
+      "bytes": 1836032,
+      "sha256": "7561859790d0ed55a55471d96442fe954a593c52d8617b51c143687ba9d98f96"
+    },
+    "native_object": {
+      "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/native_policy.o",
+      "bytes": 647816,
+      "sha256": "4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c"
+    },
+    "feature_mask": {
+      "path": "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+      "bytes": 223,
+      "sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b"
+    }
+  },
+  "derived_teacher": {
+    "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/migrated-base7561.bin",
+    "sha256": "4906e39d0afa5e92334c5303b8c15cbadf48455537944c5a3d4c1f161d8b5263",
+    "bytes": 1836032
+  },
+  "derived_teacher_was_recorded_worker": false,
+  "original_dataset": {
+    "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/export/authentic-trajectories-v3.bin",
+    "sha256": "8ced592947fc1167f771d9480a0a56da3bab025d5bae292dc90308552f0bf83b",
+    "bytes": 32390904
+  },
+  "original_behavior_replay": {
+    "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/behavior-replay-v3.bin",
+    "sha256": "ff391c9898357023e2f4d9185a69d2aec3ae5a68feb5c3fe690ff8116b2ba0f8",
+    "bytes": 4364808
+  },
+  "migration_receipt": {
+    "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/migrated-base7561.bin.policy-schema.json",
+    "sha256": "287d2c9dc06e2da18f7c348fef1b192f2d069ea9523fce8f7145c0b4b94f395e",
+    "bytes": 19916
+  },
+  "encoder": {
+    "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/encode-balance8",
+    "sha256": "4c820e2e78260fd80918baf6d61979196c1694e5882f785655915ff0ae0869af",
+    "bytes": 217896
+  },
+  "exporter": {
+    "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/export_balance8.cjs",
+    "sha256": "e4d9cd17a3182349b97fdd94fa88d1c8303bb57d8f17e00729b3b722de880f04",
+    "bytes": 7498
+  },
+  "model": {
+    "path": "/home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml",
+    "sha256": "6cec7d81b69187bfdf2429d71b6288ebb999b5359ecaab7990721323b21722aa",
+    "bytes": 131611
+  },
+  "columns": [
+    9,
+    95,
+    72,
+    158,
+    202,
+    203,
+    204,
+    205
+  ],
+  "protected_columns": 215,
+  "protected_cells_bitwise_equal": 6173725,
+  "changed_cells": 173306,
+  "feature_ranges": {
+    "9": {
+      "min": -4.659427165985107,
+      "max": 20.23628044128418,
+      "nonzero": 28715
+    },
+    "72": {
+      "min": 0.00017411953012924641,
+      "max": 0.6999077200889587,
+      "nonzero": 28715
+    },
+    "95": {
+      "min": -5.257637977600098,
+      "max": 24.835826873779297,
+      "nonzero": 28715
+    },
+    "158": {
+      "min": 0.00007864853250794113,
+      "max": 0.6864897012710571,
+      "nonzero": 28715
+    },
+    "202": {
+      "min": 1,
+      "max": 1,
+      "nonzero": 28715
+    },
+    "203": {
+      "min": 1,
+      "max": 1,
+      "nonzero": 28715
+    },
+    "204": {
+      "min": 0,
+      "max": 1,
+      "nonzero": 290
+    },
+    "205": {
+      "min": 0,
+      "max": 1,
+      "nonzero": 726
+    }
+  },
+  "rounds": [
+    {
+      "trial_id": "noprior-s601",
+      "sequence": 0,
+      "seed": 601,
+      "rows": 5728,
+      "raw_encoder_input": {
+        "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s601/trial/encoder.stdin.jsonl",
+        "sha256": "29f81c62c1b3f9d6cf6c5a89ef03a15849d31f9f035392ea77e7e30ece5bb1c9",
+        "bytes": 65464308
+      },
+      "recorded_worker_input": {
+        "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s601/trial/worker.stdin.jsonl",
+        "sha256": "bd6b670239b157c659e1e6874dc4cc684099b37555d174043f6c30017a4cef98",
+        "bytes": 18750070
+      },
+      "projected_output": {
+        "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/export/noprior-s601.encoder.stdout.jsonl",
+        "sha256": "4b613851febf85e14723b3b3979f5653cdf83ee28b00a4cda6d023673f1d74b1",
+        "bytes": 33320298
+      }
+    },
+    {
+      "trial_id": "noprior-s602",
+      "sequence": 1,
+      "seed": 602,
+      "rows": 5790,
+      "raw_encoder_input": {
+        "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s602/trial/encoder.stdin.jsonl",
+        "sha256": "7f8b0c74e5dc5860c1e9419f8f1f73a6255475d2073c819807dc90b363b705fb",
+        "bytes": 65973527
+      },
+      "recorded_worker_input": {
+        "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s602/trial/worker.stdin.jsonl",
+        "sha256": "45ba47ae940311b53b637dd564bff2e5f2ca4de52b7aaac3375f72d149dd42f1",
+        "bytes": 18918520
+      },
+      "projected_output": {
+        "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/export/noprior-s602.encoder.stdout.jsonl",
+        "sha256": "0a2de259dcc0d3d6499ee03889174735822bfe431b7eb4842b18845c3ba67561",
+        "bytes": 33658836
+      }
+    },
+    {
+      "trial_id": "noprior-s603-retry2",
+      "sequence": 2,
+      "seed": 603,
+      "rows": 5724,
+      "raw_encoder_input": {
+        "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s603-retry2/trial/encoder.stdin.jsonl",
+        "sha256": "7c8f886f315c3e86343a138fb119222efa19201c300f9b12eae9fe1ea7925f0e",
+        "bytes": 65325387
+      },
+      "recorded_worker_input": {
+        "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s603-retry2/trial/worker.stdin.jsonl",
+        "sha256": "38375cf051e433d5a606827c29ccf614545a8eb7f57f83acdd9a27c575a05123",
+        "bytes": 18677444
+      },
+      "projected_output": {
+        "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/export/noprior-s603-retry2.encoder.stdout.jsonl",
+        "sha256": "7aeedb6410f1280c8ec9b9f1a2e93ba0fb1e1f48453bc5bfecd6e6ccfea10f5c",
+        "bytes": 33228953
+      }
+    },
+    {
+      "trial_id": "noprior-s604-retry4",
+      "sequence": 3,
+      "seed": 604,
+      "rows": 5727,
+      "raw_encoder_input": {
+        "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s604-retry4/trial/encoder.stdin.jsonl",
+        "sha256": "ea433bfbb74b1b477505268bddfbd4ad13e094538edd6fb03b3fbb466c50cb8c",
+        "bytes": 65226612
+      },
+      "recorded_worker_input": {
+        "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s604-retry4/trial/worker.stdin.jsonl",
+        "sha256": "800472203fd8fff26a7f2aeea21354e2753f94a7e34ef5832c6e8461c90288e4",
+        "bytes": 18727405
+      },
+      "projected_output": {
+        "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/export/noprior-s604-retry4.encoder.stdout.jsonl",
+        "sha256": "0e0a3be4d51fe22689b016060ae44cb45a3d6815c28f7b7f3b812a2cdbec5097",
+        "bytes": 33285388
+      }
+    },
+    {
+      "trial_id": "noprior-s605-retry3",
+      "sequence": 4,
+      "seed": 605,
+      "rows": 5746,
+      "raw_encoder_input": {
+        "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s605-retry3/trial/encoder.stdin.jsonl",
+        "sha256": "9b2b9f8a8884bd90b12d81a3e7b5500fe456d915e8981451defdbbf6d05e8708",
+        "bytes": 65590915
+      },
+      "recorded_worker_input": {
+        "path": "/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s605-retry3/trial/worker.stdin.jsonl",
+        "sha256": "a60aece7e7b8ae6115d9cf27dfc326c670b0f5972eab756240c2f721401bd3fb",
+        "bytes": 18752822
+      },
+      "projected_output": {
+        "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/export/noprior-s605-retry3.encoder.stdout.jsonl",
+        "sha256": "1657bd3e50135af386e3edeba63cd2bb8f5e049387985950af6b3db8b01673a1",
+        "bytes": 33361645
+      }
+    }
+  ],
+  "reward": "terminal_outcome + gamma_t*Phi(next_observed_points) - Phi(current_observed_points); terminal_Phi=0; Phi=d/(5+abs(d))",
+  "discounts": "pow(reference,actual_source_to_next_source_QPC_seconds/0.02),float32",
+  "all_other_row_bytes_preserved": true,
+  "gpu_equivalence_verified": false,
+  "training_performed": false
+}

@@ -1,0 +1,27 @@
+'use strict';
+const fs=require('node:fs'),cp=require('node:child_process'),crypto=require('node:crypto'),assert=require('node:assert/strict');
+const stage='/home/spark-advantage/rek-training/balance8-authentic-20260924-r1';
+const schema='rek.native5.scaled_polar_xy.balance8_v1',expected='9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce';
+const checkpoint=stage+'/train-execution/policy.bin',worker=stage+'/build/live-policy-worker-balance8',encoder=stage+'/build/encode-balance8';
+const mask='/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin';
+const model='/home/spark-advantage/codexrook-runtime/build-validation/l100-yaw-move-buffer-20260910T0448Z/semantic-duel-assets-contact/model.two_fighter_arena.xml';
+const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+assert.equal(hash(checkpoint),expected);assert.equal(hash(worker),'52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2');assert.equal(hash(encoder),'4c820e2e78260fd80918baf6d61979196c1694e5882f785655915ff0ae0869af');
+const out=stage+'/live-pair-smoke';fs.mkdirSync(out);
+const lines=fs.readFileSync('/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s601/trial/encoder.stdin.jsonl','utf8').trim().split('\n').slice(0,6);
+const input=lines.join('\n')+'\n';fs.writeFileSync(out+'/encoder.stdin.jsonl',input,{flag:'wx'});
+const enc=cp.spawnSync(encoder,['--model',model,'--projection','client_pose_projection_v1','--observation-schema',schema,'--busy-projection','dispatched_request_v4_duration'],{input,encoding:'utf8',maxBuffer:1024*1024});
+assert.equal(enc.status,0,enc.stderr);fs.writeFileSync(out+'/encoder.stdout.jsonl',enc.stdout,{flag:'wx'});
+const projected=enc.stdout.trim().split('\n').map(JSON.parse);assert.equal(projected[0].observation_schema,schema);
+const requests=projected.filter(x=>x.ready).slice(0,3).map(x=>x.worker_request);assert.equal(requests.length,3);
+requests.push({type:'close',seq:requests.at(-1).seq+1});const workerInput=requests.map(JSON.stringify).join('\n')+'\n';
+fs.writeFileSync(out+'/worker.stdin.jsonl',workerInput,{flag:'wx'});
+const argv=[checkpoint,expected,'601','sampled',mask,'--observation-schema='+schema];
+const r=cp.spawnSync(worker,argv,{input:workerInput,encoding:'utf8',maxBuffer:1024*1024});
+fs.writeFileSync(out+'/worker.stdout.jsonl',r.stdout,{flag:'wx'});fs.writeFileSync(out+'/worker.stderr.txt',r.stderr,{flag:'wx'});assert.equal(r.status,0,r.stderr);
+const output=r.stdout.trim().split('\n').map(JSON.parse),ready=output[0];assert.equal(ready.type,'ready');assert.equal(ready.observation_schema,schema);assert.equal(ready.checkpoint_sha256,expected);assert.equal(ready.feature_mask_sha256,hash(mask));assert.equal(ready.environment_stepping,false);
+const actions=output.filter(x=>x.type==='action');assert.equal(actions.length,3);
+for(let i=0;i<3;i++){const a=actions[i];assert.equal(a.seq,requests[i].seq);assert.equal(a.round_id,requests[i].round_id);assert.equal(a.observation_schema,schema);assert.equal(a.checkpoint_sha256,expected);assert.equal(a.feature_mask_sha256,hash(mask));assert.equal(requests[i].mask[a.action],1);assert.equal(a.recurrent_reset,i===0);}
+assert.equal(output.at(-1).type,'closed');
+const report={passed:true,checkpoint_sha256:expected,observation_schema:schema,worker_argv:[worker,...argv],raw_snapshots:lines.length,ready_actions:3,actions:actions.map(x=>x.action),game_connected:false,environment_steps:0,optimizer_updates:0};
+fs.writeFileSync(out+'/report.json',JSON.stringify(report,null,2)+'\n',{flag:'wx'});console.log(JSON.stringify(report));

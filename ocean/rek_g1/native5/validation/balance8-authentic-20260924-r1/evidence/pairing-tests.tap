@@ -1,0 +1,62 @@
+TAP version 13
+# {"utc":"2026-09-24T07:14:02.142Z","event":"unsupported_pairing_excluded","label":"same","policy_rng_seed":803,"retry_same_seed":true,"counted":false,"proof":{"code":"unsupported_pairing:local_g1_opponent_t800","reason":"mixed_supported_runtime_models_rejected","observed_utc":"2026-09-24T06:57:20.8303074+00:00","round_number":1,"local_slot":0,"opponent_slot":1,"local_robot_id":"g1","opponent_robot_id":"t800","local_bone_signature_sha256":"9d18e697233d9578b398fbe849cd59d65cb27a5c2223b2602db66a82a410e987","opponent_bone_signature_sha256":"ec0f8d0ae5bd170464f5393f9860959e47a54b8e73e4dc259a6fb955f46d3dab"}}
+# {"utc":"2026-09-24T07:14:02.143Z","event":"unsupported_pairing_recycle_end","label":"same","exit":0}
+# Subtest: balance8: measured G1/T800 fails with explicit evidence
+ok 1 - balance8: measured G1/T800 fails with explicit evidence
+  ---
+  duration_ms: 0.822794
+  ...
+# Subtest: balance8: every scope/signature prerequisite remains required
+ok 2 - balance8: every scope/signature prerequisite remains required
+  ---
+  duration_ms: 0.28634
+  ...
+# Subtest: balance8: ready request followed by mixed spawn rejects promptly
+ok 3 - balance8: ready request followed by mixed spawn rejects promptly
+  ---
+  duration_ms: 0.646824
+  ...
+# Subtest: balance8: successful G1 ready path unchanged
+ok 4 - balance8: successful G1 ready path unchanged
+  ---
+  duration_ms: 0.233347
+  ...
+# Subtest: balance8: measured G1/T800 fails with explicit evidence
+ok 5 - balance8: measured G1/T800 fails with explicit evidence
+  ---
+  duration_ms: 0.117617
+  ...
+# Subtest: balance8: every scope/signature prerequisite remains required
+ok 6 - balance8: every scope/signature prerequisite remains required
+  ---
+  duration_ms: 0.168515
+  ...
+# Subtest: balance8: ready request followed by mixed spawn rejects promptly
+ok 7 - balance8: ready request followed by mixed spawn rejects promptly
+  ---
+  duration_ms: 0.168898
+  ...
+# Subtest: balance8: successful G1 ready path unchanged
+ok 8 - balance8: successful G1 ready path unchanged
+  ---
+  duration_ms: 0.146098
+  ...
+# Subtest: controller recovery rejects owned/unsafe scope and retains relaunch budget
+ok 9 - controller recovery rejects owned/unsafe scope and retains relaunch budget
+  ---
+  duration_ms: 2.025833
+  ...
+# Subtest: candidate schema and checkpoint checks retained
+ok 10 - candidate schema and checkpoint checks retained
+  ---
+  duration_ms: 0.14381
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 111.221745

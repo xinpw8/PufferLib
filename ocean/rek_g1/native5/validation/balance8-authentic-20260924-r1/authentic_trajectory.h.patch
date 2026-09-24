@@ -1,0 +1,70 @@
+diff --git a/authentic_trajectory.h b/authentic_trajectory.h
+index 9ea9c20..fb8d933 100644
+--- a/authentic_trajectory.h
++++ b/authentic_trajectory.h
+@@ -16,6 +16,7 @@ namespace rek_authentic {
+ constexpr int OBS = 223, ACTIONS = 33, LOGITS = 34;
+ constexpr size_t HEADER_BYTES = 256, ROW_BYTES = 1128;
+ constexpr size_t IDENTITY_HEADER_BYTES = 384;
++constexpr size_t DERIVED_HEADER_BYTES = 480;
+ constexpr size_t REPLAY_HEADER_BYTES = 128, REPLAY_ROW_BYTES = 152;
+ inline void require(bool ok, const char* message) { if (!ok) throw std::runtime_error(message); }
+ inline std::string hex(const unsigned char* data, size_t n) {
+@@ -59,10 +60,11 @@ struct Dataset {
+     std::string digest;
+     uint32_t format_version=1;
+     std::string identity_sha256, worker_sha256, checkpoint_sha256, native_object_sha256;
++    std::string derived_teacher_sha256, original_dataset_sha256, original_replay_sha256;
+ };
+ inline void validate(Dataset& d, uint32_t round_count) {
+     require(!d.rows.empty(), "empty authentic dataset");
+-    for (auto x : d.feature_mask) require(d.format_version==3 ? x<=1 : x==1, "invalid authentic feature mask");
++    for (auto x : d.feature_mask) require(d.format_version>=3 ? x<=1 : x==1, "invalid authentic feature mask");
+     d.sequences.clear(); std::set<uint32_t> seen;
+     for (size_t i=0; i<d.rows.size(); ++i) {
+         const auto& r=d.rows[i];
+@@ -102,20 +104,27 @@ inline void validate(Dataset& d, uint32_t round_count) {
+ }
+ inline Dataset decode(const std::vector<unsigned char>& b) {
+     require(b.size()>=HEADER_BYTES, "short authentic header");
+-    const bool identity=std::memcmp(b.data(),"REKRL003",8)==0;
+-    const size_t header=identity?IDENTITY_HEADER_BYTES:HEADER_BYTES;
++    const bool derived=std::memcmp(b.data(),"REKRL004",8)==0;
++    const bool identity=derived||std::memcmp(b.data(),"REKRL003",8)==0;
++    const size_t header=derived?DERIVED_HEADER_BYTES:identity?IDENTITY_HEADER_BYTES:HEADER_BYTES;
+     require(b.size()>=header && (identity || std::memcmp(b.data(),"REKRL001",8)==0), "invalid authentic magic");
+-    require(scalar<uint32_t>(&b[8])==(identity?3:1) && scalar<uint32_t>(&b[12])==OBS &&
++    require(scalar<uint32_t>(&b[8])==(derived?4:identity?3:1) && scalar<uint32_t>(&b[12])==OBS &&
+         scalar<uint32_t>(&b[16])==ACTIONS && scalar<uint32_t>(&b[24])==ROW_BYTES && b[255]==0,
+         "invalid authentic header");
+     const auto n=scalar<uint32_t>(&b[20]), rounds=scalar<uint32_t>(&b[28]);
+     require(n>0 && n<1000000 && b.size()==header+uint64_t(n)*ROW_BYTES, "authentic shape mismatch");
+     Dataset d; std::copy(b.begin()+32,b.begin()+255,d.feature_mask.begin()); d.rows.resize(n);
+-    d.format_version=identity?3:1;
++    d.format_version=derived?4:identity?3:1;
+     if(identity) {
+         d.identity_sha256=hex(&b[256],32); d.worker_sha256=hex(&b[288],32);
+         d.checkpoint_sha256=hex(&b[320],32); d.native_object_sha256=hex(&b[352],32);
+     }
++    if(derived){
++        d.derived_teacher_sha256=hex(&b[384],32);d.original_dataset_sha256=hex(&b[416],32);
++        d.original_replay_sha256=hex(&b[448],32);
++        require(d.derived_teacher_sha256!=std::string(64,'0')&&d.original_dataset_sha256!=std::string(64,'0')&&
++            d.original_replay_sha256!=std::string(64,'0'),"missing derived identity bindings");
++    }
+     for(size_t i=0;i<n;++i) {
+         const auto* p=b.data()+header+i*ROW_BYTES; auto& r=d.rows[i];
+         r.split=scalar<uint32_t>(p); r.sequence=scalar<uint32_t>(p+4); r.reset=scalar<uint32_t>(p+8);
+@@ -145,9 +154,9 @@ struct Replay {
+     uint64_t seed=0;
+ };
+ inline Replay decode_replay(const std::vector<unsigned char>& b,const Dataset& d) {
+-    const bool identity=d.format_version==3;
+-    require(b.size()>=REPLAY_HEADER_BYTES && std::memcmp(b.data(),identity?"REKBR003":"REKBR001",8)==0 &&
+-        scalar<uint32_t>(&b[8])==(identity?3:1) && scalar<uint32_t>(&b[12])==d.rows.size() &&
++    const bool derived=d.format_version==4,identity=d.format_version>=3;
++    require(b.size()>=REPLAY_HEADER_BYTES && std::memcmp(b.data(),derived?"REKBR004":identity?"REKBR003":"REKBR001",8)==0 &&
++        scalar<uint32_t>(&b[8])==(derived?4:identity?3:1) && scalar<uint32_t>(&b[12])==d.rows.size() &&
+         scalar<uint32_t>(&b[16])==REPLAY_ROW_BYTES && scalar<uint32_t>(&b[20])==0 &&
+         b.size()==REPLAY_HEADER_BYTES+d.rows.size()*REPLAY_ROW_BYTES, "invalid behavior replay header");
+     Replay out; out.dataset_sha256=hex(&b[24],32); out.checkpoint_sha256=hex(&b[56],32);

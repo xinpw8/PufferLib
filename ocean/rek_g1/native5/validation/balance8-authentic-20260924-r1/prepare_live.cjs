@@ -1,0 +1,35 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),os=require('node:os'),assert=require('node:assert/strict');
+const [out,checkpoint,expectedSha,firstSeedText,driverOverride,controllerOverride]=process.argv.slice(2);
+const stage='/home/spark-advantage/rek-training/balance8-authentic-20260924-r1',source='/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1';
+const schema='rek.native5.scaled_polar_xy.balance8_v1',worker=stage+'/build/live-policy-worker-balance8',encoder=stage+'/build/encode-balance8';
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+assert.equal(os.hostname(),'spark-4ae3');assert.equal(path.dirname(out),'/home/spark-advantage/rek-training');assert(!fs.existsSync(out));
+assert.equal(sha(checkpoint),expectedSha);assert.equal(sha(worker),'52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2');assert.equal(sha(encoder),'4c820e2e78260fd80918baf6d61979196c1694e5882f785655915ff0ae0869af');
+const first=Number(firstSeedText);assert(Number.isInteger(first)&&first>0);
+const template=JSON.parse(fs.readFileSync(stage+'/live-template/baseline-s802.json'));
+assert.deepEqual(template.live_attack_gate.allowed_attacks,Array.from({length:17},(_,i)=>16+i));for(const name of ['range_m','force_attack_range_m','cooldown_s'])assert(template.live_attack_gate[name]==null);
+assert(template.relay.includes('BOX64_DYNAREC_STRONGMEM=2')&&template.relay.includes('BOX64_DYNAREC_WEAKBARRIER=0'));
+fs.mkdirSync(out,{mode:0o700});fs.mkdirSync(out+'/configs');fs.mkdirSync(out+'/root-campaign');
+for(const name of ['record_passive_defender.cjs','progress.cjs','root-campaign/probe_state.cjs','root-campaign/relaunch.sh','root-campaign/clear_dead_prefix.sh','root-campaign/recycle_owned_client.sh'])fs.copyFileSync(source+'/'+name,out+'/'+name,fs.constants.COPYFILE_EXCL);
+fs.copyFileSync(controllerOverride||source+'/root-campaign/campaign.cjs',out+'/root-campaign/campaign.cjs',fs.constants.COPYFILE_EXCL);
+fs.copyFileSync(driverOverride||stage+'/live-template/live_transfer_run_masked.cjs',out+'/live_transfer_run_masked.cjs',fs.constants.COPYFILE_EXCL);
+const driverSha=sha(out+'/live_transfer_run_masked.cjs');
+let controller=fs.readFileSync(out+'/root-campaign/campaign.cjs','utf8');
+const oldDriver='f0009e3b19e0ce21501645dcd25e96956135cb2d05eeec6cb01dbc865c4074e6';assert(controller.includes(oldDriver));controller=controller.replaceAll(oldDriver,driverSha);fs.writeFileSync(out+'/root-campaign/campaign.cjs',controller);
+let helper=fs.readFileSync(out+'/root-campaign/recycle_owned_client.sh','utf8');
+const oldWorker='/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/worker-build/live-policy-worker',guard=`[[ "$task_arg" != ${oldWorker} ]] || exit 2`;
+assert(helper.includes(guard));helper=helper.replace(guard,guard+`\n    [[ "$task_arg" != ${worker} ]] || exit 2`);fs.writeFileSync(out+'/root-campaign/recycle_owned_client.sh',helper);
+const plan=[];
+for(let i=0;i<20;i++){
+ const seed=first+i,label='balance8-s'+seed,cfg=structuredClone(template);cfg.observation_schema=schema;cfg.checkpoint_sha256=expectedSha;
+ cfg.worker=[worker,checkpoint,expectedSha,String(seed),'sampled',template.worker[5],'--observation-schema='+schema];
+ cfg.encoder=[encoder,...template.encoder.slice(1),'--observation-schema',schema];cfg.out=out+'/'+label+'/trial';fs.mkdirSync(out+'/'+label);
+ const configPath=out+'/configs/'+label+'.json';fs.writeFileSync(configPath,JSON.stringify(cfg,null,2)+'\n',{flag:'wx'});
+ const protectedKeys=Object.keys(template).filter(k=>!['checkpoint_sha256','worker','encoder','out'].includes(k));for(const key of protectedKeys)assert.deepEqual(cfg[key],template[key]);
+ plan.push({label,order:i,policy_rng_seed:seed,checkpoint_sha256:expectedSha,config_path:configPath});
+}
+const record={created_utc:new Date().toISOString(),target_wins:18,rounds:20,stop_nonwins:3,live_gates:false,strongmem:2,feature_mask_sha256:template.feature_mask_sha256,worker_sha256:sha(worker),encoder_sha256:sha(encoder),observation_schema:schema,mask_indices_zero_based:[],retained_features:223,hypothesis:'Eight measured balance/referee features; authentic outcome and potential reward only. Derived migrated teacher never represented as recorded behavior worker.',runtime_change:'Copied current authentic cohort lifecycle and capture; fresh isolated referee client after each counted round.',plan};
+fs.writeFileSync(out+'/planned-rounds.json',JSON.stringify(record,null,2)+'\n',{flag:'wx'});
+fs.writeFileSync(out+'/preparation-receipt.json',JSON.stringify({source,baseline_config_sha256:sha(stage+'/live-template/baseline-s802.json'),driver_sha256:driverSha,controller_sha256:sha(out+'/root-campaign/campaign.cjs'),relaunch_sha256:sha(out+'/root-campaign/relaunch.sh'),recorder_sha256:sha(out+'/record_passive_defender.cjs'),controller_started:false},null,2)+'\n',{flag:'wx'});
+console.log(JSON.stringify({stage:out,checkpoint_sha256:expectedSha,observation_schema:schema,seeds:[first,first+19],controller_started:false}));

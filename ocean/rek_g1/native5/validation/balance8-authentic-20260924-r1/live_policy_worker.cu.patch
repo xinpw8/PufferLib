@@ -1,0 +1,38 @@
+diff --git a/live_policy_worker.cu b/live_policy_worker.cu
+index 3830e52..490f7b6 100644
+--- a/live_policy_worker.cu
++++ b/live_policy_worker.cu
+@@ -3,6 +3,7 @@
+ #include "owned_yaw_observation.h"
+ #include "observable_balance.h"
+ #include "observable_prev_action.h"
++#include "balance8_observation.h"
+ #ifndef REK_LIVE_PROTOCOL_TEST
+ #include "native_policy.h"
+ #include <cuda_runtime.h>
+@@ -79,6 +80,9 @@ Request parse(const std::string& text,const char* schema){
+         }
+         for(int i:{202,203,204,205})require(r.observation[i]==0||r.observation[i]==1,"observable_balance_availability");
+         if(!r.observation[202])require(r.observation[204]==0&&r.observation[205]==0,"observable_balance_missing_referee");
++    }else if(std::strcmp(schema,rek_balance8::kSchema)==0){
++        auto validated=r.observation;
++        require(rek_balance8::overlay(validated.data(),r.observation.data()),"invalid_balance8_measurement");
+     }else if(rek_owned_yaw::enabled(schema)){
+         const float value=r.observation[rek_owned_yaw::kColumn];
+         require((value==-1||value==0||value==1)&&(!r.terminal||value==0),"owned_yaw_intent_value");
+@@ -156,12 +160,13 @@ struct Engine {
+ int main(int argc,char** argv){
+     try{
+         const char* selected_schema=std::getenv("REK_OBSERVATION_SCHEMA");
++        if(argc==7){require(std::string(argv[6])==std::string("--observation-schema=")+rek_balance8::kSchema,"unsupported_explicit_worker_schema");selected_schema=rek_balance8::kSchema;}
+         const bool action_feedback=selected_schema&&std::strcmp(selected_schema,rek_observable_prev_action::kSchema)==0;
+-        const char* observation_schema=action_feedback?rek_observable_prev_action::kSchema:
++        const char* observation_schema=selected_schema&&std::strcmp(selected_schema,rek_balance8::kSchema)==0?rek_balance8::kSchema:action_feedback?rek_observable_prev_action::kSchema:
+             selected_schema&&std::strcmp(selected_schema,rek_observable_balance::kSchema)==0
+             ?rek_observable_balance::kSchema:rek_owned_yaw::schema(rek_owned_yaw::enabled(selected_schema));
+ #ifndef REK_LIVE_PROTOCOL_TEST
+-        require(argc>=3&&argc<=6,"usage_checkpoint_sha256_optional_seed_selection_feature_mask");
++        require(argc>=3&&argc<=7,"usage_checkpoint_sha256_optional_seed_selection_feature_mask_schema");
+         uint64_t seed=73;
+         if(argc>=4){char* end=nullptr;require(argv[3][0]>='0'&&argv[3][0]<='9',"invalid_seed");seed=std::strtoull(argv[3],&end,10);require(end&&!*end&&seed<=9007199254740991ULL,"invalid_seed");}
+         const std::string selection=argc>=5?argv[4]:"sampled";

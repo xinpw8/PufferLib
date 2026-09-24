@@ -1,0 +1,48 @@
+diff --git a/authentic_ppo.cu b/authentic_ppo.cu
+index 266f611..3ba070f 100644
+--- a/authentic_ppo.cu
++++ b/authentic_ppo.cu
+@@ -8,6 +8,7 @@
+ #include "authentic_gae.h"
+ #include "authentic_parity.h"
+ #include "authentic_distributional_parity.h"
++#include "balance8_observation.h"
+ 
+ namespace {
+ struct AuthenticData {
+@@ -346,20 +347,22 @@ float number(const char* text, float low, float high) {
+ int main(int argc, char** argv) {
+     try {
+         require(argc >= 13 && argc <= 16, "Usage: authentic-ppo DATA REPLAY INITIAL SHA256 NEW_OUTPUT EPOCHS LR HORIZON CLIP VF_CLIP VF_COEF ENT_COEF [--allow-bounded-bf16-batch|--allow-distributional-bf16-batch] [--targets=complete-mc-zero-baseline] [--observation-schema=rek.native5.scaled_polar_xy.owned_yaw_v2]");
+-        bool allow_bf16_batch = false, allow_distributional = false, complete_mc_zero_baseline = false, owned_yaw = false;
++        bool allow_bf16_batch = false, allow_distributional = false, complete_mc_zero_baseline = false, owned_yaw = false, balance8 = false;
+         for (int i = 13; i < argc; ++i) {
+             const std::string option = argv[i];
+             if (option == "--allow-bounded-bf16-batch" && !allow_bf16_batch) allow_bf16_batch = true;
+             else if (option == "--allow-distributional-bf16-batch" && !allow_distributional) allow_distributional = true;
+             else if (option == "--targets=complete-mc-zero-baseline" && !complete_mc_zero_baseline) complete_mc_zero_baseline = true;
+             else if (option == std::string("--observation-schema=") + rek_owned_yaw::kSchema && !owned_yaw) owned_yaw = true;
++            else if (option == std::string("--observation-schema=") + rek_balance8::kSchema && !balance8) balance8 = true;
+             else require(false, "unknown or duplicate optional mode");
+         }
+         require(!(allow_bf16_batch && allow_distributional),"numerical approximation modes are mutually exclusive");
+         const auto data = owned_yaw ? rek_owned_yaw_trajectory::load(argv[1]) : rek_authentic::load(argv[1]);
++        require(!(owned_yaw&&balance8)&&balance8==(data.format_version==4),"explicit derived balance8 schema required");
+         const auto replay = owned_yaw ? rek_owned_yaw_trajectory::decode_replay(rek_authentic::read_file(argv[2]), data)
+             : rek_authentic::load_replay(argv[2], data);
+-        require(replay.checkpoint_sha256 == argv[4], "frozen behavior checkpoint does not match initial policy");
++        require((balance8?data.derived_teacher_sha256:replay.checkpoint_sha256) == argv[4], "initial checkpoint identity mismatch");
+         const auto initial = read_checkpoint(argv[3], argv[4]); const auto prepared = prepare(data, replay);
+         const float epoch_number = number(argv[6], 0, 2), horizon_number = number(argv[8], 4, 256);
+         require(std::floor(epoch_number) == epoch_number && std::floor(horizon_number) == horizon_number, "epochs/horizon must be integers");
+@@ -375,8 +378,9 @@ int main(int argc, char** argv) {
+         }
+         Trainer engine(initial, horizon, lr); PpoWork work(horizon, entropy); GaeTargets targets(data, replay, complete_mc_zero_baseline);
+         if (owned_yaw) std::printf("{\"observation_schema\":\"%s\",\"trajectory_format\":\"REKRL002\",\"replay_format\":\"REKBR002\"}\n", rek_owned_yaw::kSchema);
++        if (balance8) std::printf("{\"observation_schema\":\"%s\",\"trajectory_format\":\"REKRL004\",\"replay_format\":\"REKBR004\",\"derived_initial_teacher_sha256\":\"%s\",\"original_dataset_sha256\":\"%s\",\"original_replay_sha256\":\"%s\",\"derived_teacher_was_recorded_worker\":false}\n",rek_balance8::kSchema,data.derived_teacher_sha256.c_str(),data.original_dataset_sha256.c_str(),data.original_replay_sha256.c_str());
+         std::printf("{\"schema\":\"rek.authentic_trajectory_ppo.v1\",\"rows\":%zu,\"rounds\":%zu,\"epochs\":%d,\"horizon\":%d,\"learning_rate\":%.9g,\"clip\":%.9g,\"vf_clip\":%.9g,\"vf_coef\":%.9g,\"entropy\":%.9g,\"old_logprob_dtype\":\"fp32\",\"behavior_checkpoint_sha256\":\"%s\",\"environment_stepping\":false,\"heldout\":false}\n",
+-            data.rows.size(), data.sequences.size(), epochs, horizon, lr, clip, vf_clip, vf_coef, entropy, argv[4]);
++            data.rows.size(), data.sequences.size(), epochs, horizon, lr, clip, vf_clip, vf_coef, entropy, replay.checkpoint_sha256.c_str());
+         std::printf("{\"old_value_dtype\":\"fp32\",\"target_producer\":\"cuda_fp64_recurrence_fp32_output\",\"loss_advantage_return_dtype\":\"bf16_native\",\"advantage_normalization\":\"none_pinned_native_convention\"}\n");
+         const auto replay_bytes = rek_authentic::read_file(argv[2]);
+         std::printf("{\"dataset_sha256\":\"%s\",\"behavior_replay_sha256\":\"%s\",\"seed\":%llu}\n", data.digest.c_str(),

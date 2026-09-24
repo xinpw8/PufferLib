@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "checkpoint_sha256": "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "worker_argv": [
+    "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+    "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/train-execution/policy.bin",
+    "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+    "601",
+    "sampled",
+    "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+    "--observation-schema=rek.native5.scaled_polar_xy.balance8_v1"
+  ],
+  "raw_snapshots": 6,
+  "ready_actions": 3,
+  "actions": [
+    11,
+    5,
+    15
+  ],
+  "game_connected": false,
+  "environment_steps": 0,
+  "optimizer_updates": 0
+}

@@ -1,0 +1,113 @@
+{
+  "source_files": [
+    {
+      "path": "/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1/authentic-s801-retry9/trial/summary.json",
+      "bytes": 2207,
+      "sha256": "a406d7f4c3a6754aeba0e0611547343ebd209b4a090d17ac18c7ff656d038add"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1/authentic-s801-retry9/trial/relay.stdout.jsonl",
+      "bytes": 39478818,
+      "sha256": "25533ebd37e4b823cf51b5933345523d5fcbd60ca55bab6a77b80ef40ee31cfc"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1/authentic-s801-retry9/trial/encoder.stdout.jsonl",
+      "bytes": 14186748,
+      "sha256": "f165cf306a2246daf63db1b8a821ec5f69f68214bca6e30c2482a01398f14b3a"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1/authentic-s801-retry9/trial/worker.stdout.jsonl",
+      "bytes": 1729756,
+      "sha256": "18a4c8a5b82688d4bc94980bd360498772ad0d2118c9f5d09017600929de7609"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1/authentic-s802-retry2/trial/summary.json",
+      "bytes": 2203,
+      "sha256": "8703ca1064f01e331a0e3f9d709e62e938dd7af6eabce77dffd2a3ec25c3fd56"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1/authentic-s802-retry2/trial/relay.stdout.jsonl",
+      "bytes": 37186536,
+      "sha256": "a7bb79c6d1090bb9ac7d8954d92c3bea8f46a6bf5b7318c4ab4ea376be6c6538"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1/authentic-s802-retry2/trial/encoder.stdout.jsonl",
+      "bytes": 13506824,
+      "sha256": "48d328d79a610f597979160b536bf3224a2f6557156df47f84296d7c11074fae"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1/authentic-s802-retry2/trial/worker.stdout.jsonl",
+      "bytes": 1638860,
+      "sha256": "027a0cec54df98b3327fa5e1a2172e47ac618c1bd2905a8c7c8e2f54a017dd03"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "README.md",
+      "bytes": 8276,
+      "sha256": "76592fddcfe2282a3d381cef77835d350085f26e408590ab95f6fbc5367995d0"
+    },
+    {
+      "name": "analyze_completed.py",
+      "bytes": 15459,
+      "sha256": "2196149ca93d43f4727e27cfffef598ae2e676228d8f5a9239308e16958b4bc7"
+    },
+    {
+      "name": "authentic-s801-retry9.attacks.jsonl",
+      "bytes": 34153,
+      "sha256": "433903e2697c9dacf4a618b4b57d38e360de3d819a3c7aa9b212bd79b7ace609"
+    },
+    {
+      "name": "authentic-s801-retry9.geometry-verification.json",
+      "bytes": 1636,
+      "sha256": "1586f2e77157c48ac6605417b3f5a43bdc0b916651a8a40b708c6d3b83324dde"
+    },
+    {
+      "name": "authentic-s801-retry9.score-deltas.jsonl",
+      "bytes": 5994,
+      "sha256": "c559d2273dd92aa2900e735ba8ce2f0f02fe0efdef5979609d1408347f70f6eb"
+    },
+    {
+      "name": "authentic-s801-retry9.summary.json",
+      "bytes": 12549,
+      "sha256": "92a1294e9ba8ae62ba36626ee6a1c6280642220316f5eb48a2a9975864368f7b"
+    },
+    {
+      "name": "authentic-s802-retry2.attacks.jsonl",
+      "bytes": 40825,
+      "sha256": "2bddc50e235735b427e6c82173a30462d3a25fe711a3fd254d37f292640d57f9"
+    },
+    {
+      "name": "authentic-s802-retry2.geometry-verification.json",
+      "bytes": 1637,
+      "sha256": "c99e63512c63e1e042fecf3f88f3afc2f9d90334d4c19f49525569d871db15cf"
+    },
+    {
+      "name": "authentic-s802-retry2.score-deltas.jsonl",
+      "bytes": 5557,
+      "sha256": "4ae01a7f8d4f7d114104b8c157fa645ec424a7351a1afc42dd7976ab87ced3f1"
+    },
+    {
+      "name": "authentic-s802-retry2.summary.json",
+      "bytes": 16130,
+      "sha256": "4a4b88ba8391b114853570798cff0c2bf13ca8697a46306bf650bfb751f3e697"
+    },
+    {
+      "name": "native-windows-fallback.md",
+      "bytes": 3919,
+      "sha256": "5f7fdb1821b505cde0de003f095060cf03c4c7b4c6cd2eb44fa1e8b922ccf121"
+    },
+    {
+      "name": "receipt.py",
+      "bytes": 1274,
+      "sha256": "d2b4fc569eeca46a6d052c035b3c694aac353340bcf8b2638e4e673f16e5360f"
+    },
+    {
+      "name": "verify_geometry.py",
+      "bytes": 3082,
+      "sha256": "a92d6681f88444511f8915483190574d17cd64232684f5d306e7ea480deca3e3"
+    }
+  ],
+  "no_game_connection": true,
+  "no_runtime_changes": true
+}

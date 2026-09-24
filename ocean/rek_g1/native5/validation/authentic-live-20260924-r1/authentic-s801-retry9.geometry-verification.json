@@ -1,0 +1,40 @@
+{
+  "attempt": "authentic-s801-retry9",
+  "compared_ready_observations": 3102,
+  "max_absolute_wrapped_bearing_difference_deg": 8.526512829121203e-14,
+  "max_root_gap_difference_m": 4.440892098500626e-16,
+  "comparison": "Offline projected root-local +X geometry versus recorded encoder worker_request.observation[87]*180 and observation[86]",
+  "native_forward_proof": "ocean/rek_g1/native5/validation/observable-balance-heading-20260921.md",
+  "worker_attack_proposals": 56,
+  "worker_attack_proposals_by_action": {
+    "27": 1,
+    "26": 18,
+    "23": 21,
+    "25": 4,
+    "21": 3,
+    "30": 9
+  },
+  "worker_action16_proposals": 0,
+  "source_samples": 3104,
+  "local_runner_move_index_available_samples": 0,
+  "local_runner_motion_name_available_samples": 0,
+  "native_action_busy_available_samples": 0,
+  "server_start_or_move_execution_identified": false,
+  "inputs": [
+    {
+      "file": "/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1/authentic-s801-retry9/trial/relay.stdout.jsonl",
+      "bytes": 39478818,
+      "sha256": "25533ebd37e4b823cf51b5933345523d5fcbd60ca55bab6a77b80ef40ee31cfc"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1/authentic-s801-retry9/trial/encoder.stdout.jsonl",
+      "bytes": 14186748,
+      "sha256": "f165cf306a2246daf63db1b8a821ec5f69f68214bca6e30c2482a01398f14b3a"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1/authentic-s801-retry9/trial/worker.stdout.jsonl",
+      "bytes": 1729756,
+      "sha256": "18a4c8a5b82688d4bc94980bd360498772ad0d2118c9f5d09017600929de7609"
+    }
+  ]
+}

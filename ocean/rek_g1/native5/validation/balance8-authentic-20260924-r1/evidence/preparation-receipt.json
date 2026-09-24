@@ -1,0 +1,9 @@
+{
+  "source": "/home/spark-advantage/rek-training/authentic-ppo-live-20260924-r1",
+  "baseline_config_sha256": "c0e7a3bc805c3bc1147b3144a45f5cdd62416c9323d5ca8c9fac6f7e770b908b",
+  "driver_sha256": "0302dada8824daebfaeb8207e030751b3a989914b5c9f858b35379eea2e11343",
+  "controller_sha256": "31fae0e570f3d42f9c923afe81224d848a75041cb75033e4d1e9c5db5d88638a",
+  "relaunch_sha256": "b46f9788e1f2092864f9dcd5bb8cc25c4f33dfc018b97a4fbbf317b01a5a6041",
+  "recorder_sha256": "6fc354d170a24ca8e93d8a01c2ffb9520932ef6341904da6ea8e973a2712c928",
+  "controller_started": false
+}

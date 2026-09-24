@@ -1,0 +1,322 @@
+{
+  "schema": "rek.balance8.private_variant_manifest.v1",
+  "production_fast_runtime_changed": false,
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "source_and_evidence": [
+    {
+      "path": "authentic_ppo.cu.patch",
+      "bytes": 4763,
+      "sha256": "e6964aee9046a8745ff3552c4a403dd59d1cb428306ebbefa9c16a538407f90e"
+    },
+    {
+      "path": "authentic_trajectory.h.patch",
+      "bytes": 4503,
+      "sha256": "6d40ff923a5f5dee98cde79809de7ffba34297ee08fab70daf8fe5e77ac1cd18"
+    },
+    {
+      "path": "baseline/authentic_ppo.cu",
+      "bytes": 30611,
+      "sha256": "1fef6e0b80b98f1fd0df863e88e44437cd64602632f070805fd3a66d77386840"
+    },
+    {
+      "path": "baseline/authentic_trajectory.h",
+      "bytes": 10520,
+      "sha256": "f5a0a104a81c8c9ab6cb4f43a0120c1244b7b34f9f2d2b9e437ff4f7fa2119f1"
+    },
+    {
+      "path": "baseline/live_policy_worker.cu",
+      "bytes": 16208,
+      "sha256": "72f291fb95efe72fc7895f0803e618723375cc8a8f6717c8e2fdab209ef95ffe"
+    },
+    {
+      "path": "baseline/observable_prev_action_migration.cu",
+      "bytes": 13120,
+      "sha256": "aea7c96bbbdf7f3f6f483867b7351d4dd700b1ee1318987616484e5d7a89de33"
+    },
+    {
+      "path": "build.sh",
+      "bytes": 2373,
+      "sha256": "8e17204c7872482e48ce478e4ce30fddaf6c3f5dac54788fedbaeeeea8307c49"
+    },
+    {
+      "path": "evidence/binary-hashes.sha256",
+      "bytes": 944,
+      "sha256": "698b03a80c344d94fa96957f690b1c158268e4ec3d09a7b2c5cda21ab3cb8cdf"
+    },
+    {
+      "path": "evidence/derived-identity.json",
+      "bytes": 9401,
+      "sha256": "f0486538aff2af4ddc99d24a5866b4344167054b542ce72f757adfc78d4bc7e1"
+    },
+    {
+      "path": "evidence/encoder-edge-tests.json",
+      "bytes": 136,
+      "sha256": "d61e3fcb8e5eb948fe81f135ef271a1674f09c97955b8db17090585a3e393cbd"
+    },
+    {
+      "path": "evidence/live-pair-smoke.json",
+      "bytes": 827,
+      "sha256": "fdb8ec3321c28cf4ff0cb30d0620c5f6753ca1b82dc5801a1fb15867baa15019"
+    },
+    {
+      "path": "evidence/migrated-base7561.bin.policy-schema.json",
+      "bytes": 19916,
+      "sha256": "287d2c9dc06e2da18f7c348fef1b192f2d069ea9523fce8f7145c0b4b94f395e"
+    },
+    {
+      "path": "evidence/pairing-tests.tap",
+      "bytes": 2534,
+      "sha256": "1d457dbac6441b25633cf7e3d23b1155e0b630beebe1ba42abb0e128a11e39be"
+    },
+    {
+      "path": "evidence/preparation-receipt.json",
+      "bytes": 567,
+      "sha256": "b86b23ce6eaa8879ca0f89cc6e34709c76ddf30ec0479cb4b9cb37782c117474"
+    },
+    {
+      "path": "evidence/replay-result.json",
+      "bytes": 1204,
+      "sha256": "8a784c6ae9ecc3e057a45440ad43bcd868541cfddb8e305fb763fe997f8a451d"
+    },
+    {
+      "path": "evidence/test-balance8.json",
+      "bytes": 87,
+      "sha256": "2e8f2f62061d8fc7a488eb06fe483745b0f810f2ae184913a52bfd871255ddc7"
+    },
+    {
+      "path": "evidence/test-data.json",
+      "bytes": 114,
+      "sha256": "1c3f3ad8966b0b116a763d5af03f2f77e713f67e1a80a616f48996e0f4746574"
+    },
+    {
+      "path": "evidence/test-migration.json",
+      "bytes": 206,
+      "sha256": "6ad4326d3987f83a3cc6c5d095ac21435cf317f2b8826663c201ab57925adaf3"
+    },
+    {
+      "path": "evidence/train.stdout.jsonl",
+      "bytes": 4268,
+      "sha256": "dea60140cd4bb5c66f825cef75aa8c127ca11555437def8dec068cf1e9b491d6"
+    },
+    {
+      "path": "evidence/train.time.txt",
+      "bytes": 50,
+      "sha256": "49b06621d5b909b2fc5c8b2fc77f98ff12a57da2cac60f23b07e55f48a1b9297"
+    },
+    {
+      "path": "evidence/trained-cohort-preparation.json",
+      "bytes": 567,
+      "sha256": "318e6b952ad6675f8a2d6151515b23317b0a188ad751120129594dc458e3677d"
+    },
+    {
+      "path": "evidence/worker-protocol-tests.json",
+      "bytes": 6713,
+      "sha256": "57f9d3a0097c45ebf0c66f46abe36964f084c3898c445e1a989756e65d9d5260"
+    },
+    {
+      "path": "export_balance8.cjs",
+      "bytes": 7498,
+      "sha256": "e4d9cd17a3182349b97fdd94fa88d1c8303bb57d8f17e00729b3b722de880f04"
+    },
+    {
+      "path": "finish_build.sh",
+      "bytes": 1482,
+      "sha256": "bbf10788c488bfa50e41b9b49eaedf48713ce375829f2c6c33761c95d06adcb2"
+    },
+    {
+      "path": "live_policy_worker.cu.patch",
+      "bytes": 2622,
+      "sha256": "6d45a98e86f5dd11043cd8135bdb4198b30b35c37ad4ee8b41c92393ad8c0f0c"
+    },
+    {
+      "path": "live-template/baseline-s802.json",
+      "bytes": 2644,
+      "sha256": "c0e7a3bc805c3bc1147b3144a45f5cdd62416c9323d5ca8c9fac6f7e770b908b"
+    },
+    {
+      "path": "live-template/campaign_pairing_r1.cjs",
+      "bytes": 17665,
+      "sha256": "a2ab5d6b585e59a428a40cca47825928fd829732d80be61b2eab4cdb66c18b97"
+    },
+    {
+      "path": "live-template/driver-balance8.test.cjs",
+      "bytes": 1211,
+      "sha256": "8e7f6cfa590dea9cb13b1c73a58d2dce2c812a87fc0a5bb4b0431f1f105f926b"
+    },
+    {
+      "path": "live-template/live_transfer_run_masked.cjs",
+      "bytes": 25337,
+      "sha256": "0302dada8824daebfaeb8207e030751b3a989914b5c9f858b35379eea2e11343"
+    },
+    {
+      "path": "live-template/live_transfer_run_pairing_baseline_r1.cjs",
+      "bytes": 26981,
+      "sha256": "dc17cbdcb2cdf1d8af2e78b80b018ce9f5e3a40428d8531312e23144926264b4"
+    },
+    {
+      "path": "live-template/live_transfer_run_pairing_r1.cjs",
+      "bytes": 27434,
+      "sha256": "0666e0567173fb389ff5cce6a50cc93bab12560fd5325418969691b54d5196a1"
+    },
+    {
+      "path": "live-template/pairing-regression.test.cjs",
+      "bytes": 6399,
+      "sha256": "39f1d8f26c4ebda106b8f3c18e7067fea8655dd6251555a330f0868bb38e6d9b"
+    },
+    {
+      "path": "prepare_live.cjs",
+      "bytes": 5053,
+      "sha256": "68130290d23dfc333b0dbcb3422d21a11536cd0c2bbe5c028604c69d23eda1b4"
+    },
+    {
+      "path": "README.md",
+      "bytes": 8935,
+      "sha256": "89480f501a20c0bc9d6e0945cab060a23698236d724c1d804ca78614ae9c1190"
+    },
+    {
+      "path": "run_balance8.sh",
+      "bytes": 2611,
+      "sha256": "32195bd5f64cd5d8ee5df5d26ee0cd44acb0e1cb95902587576efe3502014154"
+    },
+    {
+      "path": "smoke_live_pair.cjs",
+      "bytes": 3627,
+      "sha256": "66dd3e5301f2b127f4a4501eba1a2951f9c2b2f0ffe07e7d73f970e1dc4af0d5"
+    },
+    {
+      "path": "source/action_cadence.h",
+      "bytes": 1073,
+      "sha256": "868507768af674a6c34f78660710f466c342b1384a673524929b679fc54f9d82"
+    },
+    {
+      "path": "source/authentic_distributional_parity.h",
+      "bytes": 1077,
+      "sha256": "7b48e24045549f911d9a2bb2831edd90ca39e377924201bd9a50f4e482feffbb"
+    },
+    {
+      "path": "source/authentic_gae.h",
+      "bytes": 1646,
+      "sha256": "b2b0c5311922c4b7972f4060297c63cecee960530e6309cbe27f26c6cd5a40e4"
+    },
+    {
+      "path": "source/authentic_parity.h",
+      "bytes": 926,
+      "sha256": "140abfe49d8cf91573c49f0ee18149b6c218a59e36ea33e2cb26e73cc62ec352"
+    },
+    {
+      "path": "source/authentic_ppo.cu",
+      "bytes": 31377,
+      "sha256": "68716130d124455df9c65518fb1c2216a8e9da5a56bca500310cb0aea3af4996"
+    },
+    {
+      "path": "source/authentic_trajectory.h",
+      "bytes": 11204,
+      "sha256": "a4e6376a5d1b21015b7b72005e3be52074a7571d3ffcb1569101a1f652439746"
+    },
+    {
+      "path": "source/balance8_migration.cu",
+      "bytes": 13118,
+      "sha256": "cbe106bafef960443066f0d703926220067382d6706ea01204ffa16f3afa60be"
+    },
+    {
+      "path": "source/balance8_observation.h",
+      "bytes": 1366,
+      "sha256": "493146c9de81b2362ad815389f6683a3db7a2cf50252620b21a75a0f51e3936f"
+    },
+    {
+      "path": "source/balance8_project_api.cpp",
+      "bytes": 678,
+      "sha256": "4d9d7ab02dae8ae29dc2335dbad0ca742bba121b7f4d916049eeee227452c148"
+    },
+    {
+      "path": "source/bc_dataset.h",
+      "bytes": 4922,
+      "sha256": "fa22e627083bad7c1118b4779342ef2612b372d6d4740cad69afeb5e8ff3265f"
+    },
+    {
+      "path": "source/bc_train.cu",
+      "bytes": 27743,
+      "sha256": "35d50624e2003d0b5594fa2b730097e42d097fd3ac37235ea9c3f0c04bec5eec"
+    },
+    {
+      "path": "source/encode_balance8.cpp",
+      "bytes": 4955,
+      "sha256": "ff5e5adb10d4d76511560561fb901e3b15eac9d056fa388bed9c6a7f787973c7"
+    },
+    {
+      "path": "source/encode_live.cpp",
+      "bytes": 31794,
+      "sha256": "54747e5c44995341503be21fa004eb5734c7ae552ef10294fd206575cb1baeee"
+    },
+    {
+      "path": "source/encode_observable_balance.cpp",
+      "bytes": 30277,
+      "sha256": "43e5e63fbf72b2bd26ed374b70bc7b4f668782be2275c565c6c21024b5f25fe8"
+    },
+    {
+      "path": "source/live_policy_worker.cu",
+      "bytes": 16737,
+      "sha256": "18e7d633ce0f595f873bbdc5542a69c0461f1d8a8b361733fce852f5d97e926c"
+    },
+    {
+      "path": "source/live_policy_worker.test.cjs",
+      "bytes": 9609,
+      "sha256": "3a9bb5040c69a72c3a62ec067a69666f8f3e7db436b74b82328a9c5ee907244d"
+    },
+    {
+      "path": "source/observable_balance.h",
+      "bytes": 11467,
+      "sha256": "4b651a2f02b7a335cb781bb886b048d83025acc88dca4a522f62bc4cea7a0d3a"
+    },
+    {
+      "path": "source/observable_prev_action.h",
+      "bytes": 3851,
+      "sha256": "42d79bd6d453085b11058b5679b11aadec5175a2a060c534b71463282d4a28fa"
+    },
+    {
+      "path": "source/owned_yaw_observation.h",
+      "bytes": 1594,
+      "sha256": "791b7ab142089147821e3a87dffa15106ebd8cfa0725773aa83a83b8b4493b76"
+    },
+    {
+      "path": "source/owned_yaw_trajectory.h",
+      "bytes": 2881,
+      "sha256": "2682a82ec8dcc56148650c035eee23cf1367583865cf6d88ed19ec5f6e2bc92f"
+    },
+    {
+      "path": "source/policy_feature_mask.h",
+      "bytes": 1788,
+      "sha256": "9c443b068fa76a369352564703a19bda948223beb8f81d61862153d8d15787d4"
+    },
+    {
+      "path": "source/replay_balance8.cu",
+      "bytes": 11888,
+      "sha256": "e516859ac46b40bba1154db45ae6d751c9a41e6e500cfbdc805714e051964054"
+    },
+    {
+      "path": "source/round_reward.h",
+      "bytes": 1355,
+      "sha256": "b49311dae9506b3c64fb50fc791e31fba143f8445af40494864358d1a52dfab1"
+    },
+    {
+      "path": "source/test_authentic_v3.cpp",
+      "bytes": 1305,
+      "sha256": "aa11d872f637ff69d9d9d80fa3fd7cbe87a372d8fe70a6109b7a693076dc20e8"
+    },
+    {
+      "path": "source/test_balance8_data.cpp",
+      "bytes": 1555,
+      "sha256": "c149c939633f26b467bcdc40debc929d361570248608b5c889438e0f495a4cb5"
+    },
+    {
+      "path": "source/test_balance8.cpp",
+      "bytes": 2468,
+      "sha256": "443b31f23cff9f33fe75e9dad15dc49890702c4a2c2313947628278588ba8a42"
+    },
+    {
+      "path": "test_encoder.cjs",
+      "bytes": 3480,
+      "sha256": "a1bd3c60d4e53116a669e5679dd02028a9fd88041c6cac1d205a013b636f7798"
+    }
+  ]
+}
