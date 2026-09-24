@@ -1,0 +1,61 @@
+{
+  "utc": "2026-09-24T13:42:36.506Z",
+  "host_pid": 3122697,
+  "start_ticks": "94319512",
+  "original_signal_count": 0,
+  "coreclr_fatal_count": 0,
+  "current_stage_stream_active_span_s": 479.1625686,
+  "prior_bot2_stream_active_span_s": 119.6344561,
+  "total_observed_stream_active_span_s": 598.7970247,
+  "game_lifetime_s_excluded_from_controlled_proof": 2113.079999999958,
+  "current_stage": [
+    {
+      "label": "any-s1801-retry4",
+      "source_rows": 3215,
+      "stream_active_span_s": 119.8157261,
+      "source_hz": 26.824525499411884,
+      "p95_source_ms": 48.1874,
+      "last_score": [
+        8,
+        13
+      ],
+      "last_remaining_s": 0
+    },
+    {
+      "label": "any-s1802",
+      "source_rows": 3257,
+      "stream_active_span_s": 119.8173625,
+      "source_hz": 27.1746926494063,
+      "p95_source_ms": 46.638,
+      "last_score": [
+        7,
+        6
+      ],
+      "last_remaining_s": 0
+    },
+    {
+      "label": "any-s1803",
+      "source_rows": 3202,
+      "stream_active_span_s": 119.7022871,
+      "source_hz": 26.741343691502447,
+      "p95_source_ms": 47.184999999999995,
+      "last_score": [
+        19,
+        9
+      ],
+      "last_remaining_s": 0.0741855
+    },
+    {
+      "label": "any-s1803-retry5",
+      "source_rows": 5959,
+      "stream_active_span_s": 119.8271929,
+      "source_hz": 49.72160204881175,
+      "p95_source_ms": 34.1421,
+      "last_score": [
+        8,
+        7
+      ],
+      "last_remaining_s": 0
+    }
+  ]
+}

@@ -1,0 +1,377 @@
+{
+  "schema": "rek.sanitized_terminal_recovery_execution.v1",
+  "stage": "/home/spark-advantage/rek-training/persistent-terminal-recovery-20260924-r1/live",
+  "plan_sha256": "4aa14abf29a28822fa6f738ebdee11adb6f29e6aba405eb2f316d517fae497da",
+  "ledger_sha256": "f86f61cd7a9065ddfda0ebd4c9b697c6aaf58a145c86be99a9a07afcd71b0bca",
+  "campaign_log_sha256": "a12b161ca8696a1573d23846c87e8f499e630ead51fd2d3de7a442663c48bddc",
+  "rows": [
+    {
+      "label": "terminal-s1801",
+      "summary_sha256": "5a3c17b45431967d686a1b8a7b7ab83a347b9b8f98910421f1ca0f4eac836523",
+      "orchestrator_sha256": "ee2b6121b43adedfd6377c03c190a614a9990fd25f69d71ecac16597f231d68c",
+      "initial_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 119.849754,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          5,
+          8
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "WonByPoints",
+        "result_value": 1,
+        "winner_index": 1,
+        "knockout": false
+      },
+      "opponent": {
+        "client_ai_difficulty": 3,
+        "sparring_bot_number": 4
+      },
+      "predictions": 5962,
+      "applied": 5962,
+      "rejected": 0,
+      "stop_reason": "stream_end:active_round_not_observed",
+      "recovery_validated": false,
+      "recovery_event_count": 0,
+      "controlled_start": {
+        "utc": "2026-09-24T13:47:28.269Z",
+        "event": "controlled_source_started",
+        "controlled": true,
+        "sequence": 21543,
+        "round_identity_sha256": "4599f36ba3c3df9245b4f9feccf0861e34f7e9f5039758ced6c5e8c5d63387e5",
+        "time_remaining": 119.849754
+      },
+      "endpoint_close": {
+        "utc": "2026-09-24T13:49:28.974Z",
+        "event": "policy_endpoints_closed",
+        "schema": "rek.policy_transport_closed.v1",
+        "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+        "trial_output": "/home/spark-advantage/rek-training/persistent-terminal-recovery-20260924-r1/live/terminal-s1801/trial",
+        "summary_sha256": "5a3c17b45431967d686a1b8a7b7ab83a347b9b8f98910421f1ca0f4eac836523",
+        "stream_stopped": true,
+        "lease_released": true,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "media": {
+        "status": "validated_mp4",
+        "bytes": 10884935,
+        "sha256": "e257e171e1984fc22fed20258ce8ed667166297139ec5588120786978d568701",
+        "driver_exit_code": 0
+      }
+    },
+    {
+      "label": "terminal-s1802",
+      "summary_sha256": "9db9cc3ffdb1ba2abc78e53aa095f24b9f80ebcf946d45d099dea5906f0d1cf5",
+      "orchestrator_sha256": "957db33dabf14b34094b0231e21729503f97566997066a375d0418d36824219f",
+      "initial_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 119.783195,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 22.07044,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          18,
+          18
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "opponent": {
+        "client_ai_difficulty": 3,
+        "sparring_bot_number": 4
+      },
+      "predictions": 4861,
+      "applied": 4861,
+      "rejected": 0,
+      "stop_reason": "source_stream_missing",
+      "recovery_validated": false,
+      "recovery_event_count": 0,
+      "controlled_start": {
+        "utc": "2026-09-24T13:49:38.148Z",
+        "event": "controlled_source_started",
+        "controlled": true,
+        "sequence": 27510,
+        "round_identity_sha256": "dd2412cccfe17410d531b5d0c23c626afa31f771c782da1d26b2e4d4d235cf14",
+        "time_remaining": 119.783195
+      },
+      "endpoint_close": {
+        "utc": "2026-09-24T13:51:18.279Z",
+        "event": "policy_endpoints_closed",
+        "schema": "rek.policy_transport_closed.v1",
+        "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+        "trial_output": "/home/spark-advantage/rek-training/persistent-terminal-recovery-20260924-r1/live/terminal-s1802/trial",
+        "summary_sha256": "9db9cc3ffdb1ba2abc78e53aa095f24b9f80ebcf946d45d099dea5906f0d1cf5",
+        "stream_stopped": false,
+        "lease_released": false,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "media": {
+        "status": "validated_mp4",
+        "bytes": 8758373,
+        "sha256": "f1284454643383288212a9ee42fcfffce11f87dd0dfb5f65d580d0adb58fa891",
+        "driver_exit_code": 2
+      }
+    }
+  ],
+  "events": [
+    {
+      "utc": "2026-09-24T13:47:13.521Z",
+      "event": "campaign_start",
+      "pid": 3130077,
+      "plan_rounds": 4,
+      "max_attempts": 2,
+      "runtime_only": true,
+      "runtime_any_ai": true
+    },
+    {
+      "utc": "2026-09-24T13:49:28.987Z",
+      "event": "attempt_end",
+      "label": "terminal-s1801",
+      "attempt": 1,
+      "complete": true,
+      "stop_reason": "stream_end:active_round_not_observed",
+      "auxiliary_complete": false,
+      "round_kind": "regular_120s",
+      "same_bot": false,
+      "eligible_opponent": true,
+      "opponent": {
+        "client_ai_difficulty": 3,
+        "sparring_bot_number": 4
+      },
+      "runtime_any_ai": true,
+      "final_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          5,
+          8
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "WonByPoints",
+        "result_value": 1,
+        "winner_index": 1,
+        "knockout": false
+      },
+      "wrapper_exit": null,
+      "media_status": "pending",
+      "policy_transport_closed": true
+    },
+    {
+      "utc": "2026-09-24T13:49:29.009Z",
+      "event": "native_round_handoff_start",
+      "previous_dir": "/home/spark-advantage/rek-training/persistent-terminal-recovery-20260924-r1/live/terminal-s1801",
+      "previous_round": 1,
+      "expected_next_round": 2,
+      "label": "terminal-s1802",
+      "policy_rng_seed": 1802,
+      "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+      "transport_closed_utc": "2026-09-24T13:49:28.984Z",
+      "scope_rechecked_by_new_driver": true
+    },
+    {
+      "utc": "2026-09-24T13:49:32.558Z",
+      "event": "attempt_media_finalized",
+      "label": "terminal-s1801",
+      "attempt": 1,
+      "wrapper_exit": 0,
+      "media_status": "finalized",
+      "video": "validated_mp4",
+      "policy_complete_unchanged": true
+    },
+    {
+      "utc": "2026-09-24T13:51:31.895Z",
+      "event": "attempt_end",
+      "label": "terminal-s1802",
+      "attempt": 1,
+      "complete": false,
+      "stop_reason": "source_stream_missing",
+      "auxiliary_complete": false,
+      "round_kind": "regular_120s",
+      "same_bot": false,
+      "eligible_opponent": true,
+      "opponent": {
+        "client_ai_difficulty": 3,
+        "sparring_bot_number": 4
+      },
+      "runtime_any_ai": true,
+      "final_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 22.07044,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          18,
+          18
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "wrapper_exit": 2,
+      "media_status": "pending",
+      "policy_transport_closed": false
+    },
+    {
+      "utc": "2026-09-24T13:51:31.905Z",
+      "event": "attempt_media_finalized",
+      "label": "terminal-s1802",
+      "attempt": 1,
+      "wrapper_exit": 2,
+      "media_status": "failed",
+      "video": "validated_mp4",
+      "policy_complete_unchanged": false
+    },
+    {
+      "utc": "2026-09-24T13:51:31.905Z",
+      "event": "native_round_handoff_result",
+      "label": "terminal-s1802",
+      "attempt": 1,
+      "previous_round": 1,
+      "observed_initial_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 119.783195,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "consecutive_round": true,
+      "fair_start": true,
+      "complete": false
+    },
+    {
+      "utc": "2026-09-24T13:51:31.929Z",
+      "event": "game_died_during_attempt",
+      "label": "terminal-s1802",
+      "attempt": 1
+    },
+    {
+      "utc": "2026-09-24T13:51:36.956Z",
+      "event": "game_not_running"
+    },
+    {
+      "utc": "2026-09-24T13:51:36.957Z",
+      "event": "campaign_error",
+      "message": "relaunch budget exhausted"
+    }
+  ],
+  "relaunch_count": 0,
+  "native_terminal_recovery_validated": false,
+  "native_30s_redo_controlled": false
+}

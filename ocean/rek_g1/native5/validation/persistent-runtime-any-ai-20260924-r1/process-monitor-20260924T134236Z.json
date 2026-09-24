@@ -1,0 +1,249 @@
+{
+  "schema": "rek.private_persistent_fault_monitor.v1",
+  "utc": "2026-09-24T13:42:36.506Z",
+  "uptime_s": 945308.2,
+  "hz": 100,
+  "page_bytes": 4096,
+  "container_pid": 57050,
+  "initial_start_ticks": "94319512",
+  "process": {
+    "environment": {
+      "BOX64_SHOWBT": "1",
+      "BOX64_DYNAREC_STRONGMEM": "2",
+      "BOX64_NOVULKAN": "1",
+      "BOX64_LOG": "1",
+      "BOX64_NOBANNER": "1",
+      "BOX64_NOPULSE": "1",
+      "WINEARCH": "win64",
+      "WINEPREFIX": "/opt/codexrook/wineprefix",
+      "BOX64_DYNAREC_WEAKBARRIER": "0",
+      "BOX64_UNITY": "1",
+      "DISPLAY": ":98",
+      "BOX64_SHOWSEGV": "1",
+      "__GLX_VENDOR_LIBRARY_NAME": "nvidia"
+    },
+    "host_pid": 3122697,
+    "namespace_pids": [
+      3122697,
+      57050
+    ],
+    "exact_game_argv_element": "/opt/codexrook/rek-core-referee-20260924-r1/REK.exe",
+    "state": "R",
+    "user_ticks": 369563,
+    "system_ticks": 24101,
+    "start_ticks": "94319512",
+    "rss_pages": 960354,
+    "threads": 90
+  },
+  "matches": 1,
+  "same_process": true,
+  "elapsed_since_process_start_s": 2113.079999999958,
+  "stderr_bytes": 3709346,
+  "trace_files": [
+    {
+      "name": "jit-metadata-32.nettrace",
+      "bytes": 8199860,
+      "mtime_utc": "2026-09-24T13:39:48.940Z"
+    }
+  ],
+  "counts": {
+    "signal": 0,
+    "nativebt": 0,
+    "emulatedbt": 0,
+    "av": 0,
+    "null_dispatch": 0,
+    "coreclr_fatal": 0,
+    "failfast": 0
+  },
+  "exit": null,
+  "rounds": [
+    {
+      "label": "any-s1801",
+      "source_rows": 0,
+      "source_hz": null,
+      "unity_frames_per_wall_second": null,
+      "unity_seconds_per_wall_second": null,
+      "interval_p95_ms": null
+    },
+    {
+      "label": "any-s1801-retry2",
+      "source_rows": 0,
+      "source_hz": null,
+      "unity_frames_per_wall_second": null,
+      "unity_seconds_per_wall_second": null,
+      "interval_p95_ms": null
+    },
+    {
+      "label": "any-s1801-retry3",
+      "source_rows": 0,
+      "source_hz": null,
+      "unity_frames_per_wall_second": null,
+      "unity_seconds_per_wall_second": null,
+      "interval_p95_ms": null
+    },
+    {
+      "label": "any-s1801-retry4",
+      "source_rows": 3215,
+      "first": {
+        "utc": "2026-09-24T13:28:11.5154885+00:00",
+        "frame": 71938,
+        "unity_time": 1224.7082318877551,
+        "qpc": 9444438812938,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 119.76657,
+        "score": [
+          0,
+          0
+        ]
+      },
+      "last": {
+        "utc": "2026-09-24T13:30:11.3311882+00:00",
+        "frame": 75152,
+        "unity_time": 1344.4199999999998,
+        "qpc": 9445636970199,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 0,
+        "score": [
+          8,
+          13
+        ]
+      },
+      "source_hz": 26.824525499411884,
+      "unity_frames_per_wall_second": 26.824525499411884,
+      "unity_seconds_per_wall_second": 0.9991323510599225,
+      "interval_p95_ms": 48.1874
+    },
+    {
+      "label": "any-s1802",
+      "source_rows": 3257,
+      "first": {
+        "utc": "2026-09-24T13:30:21.2904321+00:00",
+        "frame": 75728,
+        "unity_time": 1354.4870727891157,
+        "qpc": 9445736562504,
+        "qpc_hz": 10000000,
+        "round": 2,
+        "remaining": 119.766556,
+        "score": [
+          0,
+          0
+        ]
+      },
+      "last": {
+        "utc": "2026-09-24T13:32:21.1077811+00:00",
+        "frame": 78984,
+        "unity_time": 1474.202,
+        "qpc": 9446934736129,
+        "qpc_hz": 10000000,
+        "round": 2,
+        "remaining": 0,
+        "score": [
+          7,
+          6
+        ]
+      },
+      "source_hz": 27.1746926494063,
+      "unity_frames_per_wall_second": 27.1746926494063,
+      "unity_seconds_per_wall_second": 0.9991450714071952,
+      "interval_p95_ms": 46.638
+    },
+    {
+      "label": "any-s1803",
+      "source_rows": 3202,
+      "first": {
+        "utc": "2026-09-24T13:32:31.1294731+00:00",
+        "frame": 79563,
+        "unity_time": 1484.3275487882652,
+        "qpc": 9447034953157,
+        "qpc_hz": 10000000,
+        "round": 3,
+        "remaining": 119.7832,
+        "score": [
+          0,
+          0
+        ]
+      },
+      "last": {
+        "utc": "2026-09-24T13:34:30.8317639+00:00",
+        "frame": 82764,
+        "unity_time": 1604.0203714852607,
+        "qpc": 9448231976028,
+        "qpc_hz": 10000000,
+        "round": 3,
+        "remaining": 0.0741855,
+        "score": [
+          19,
+          9
+        ]
+      },
+      "source_hz": 26.741343691502447,
+      "unity_frames_per_wall_second": 26.741343691502447,
+      "unity_seconds_per_wall_second": 0.9999209338164396,
+      "interval_p95_ms": 47.184999999999995
+    },
+    {
+      "label": "any-s1803-retry2",
+      "source_rows": 0,
+      "source_hz": null,
+      "unity_frames_per_wall_second": null,
+      "unity_seconds_per_wall_second": null,
+      "interval_p95_ms": null
+    },
+    {
+      "label": "any-s1803-retry3",
+      "source_rows": 0,
+      "source_hz": null,
+      "unity_frames_per_wall_second": null,
+      "unity_seconds_per_wall_second": null,
+      "interval_p95_ms": null
+    },
+    {
+      "label": "any-s1803-retry4",
+      "source_rows": 0,
+      "source_hz": null,
+      "unity_frames_per_wall_second": null,
+      "unity_seconds_per_wall_second": null,
+      "interval_p95_ms": null
+    },
+    {
+      "label": "any-s1803-retry5",
+      "source_rows": 5959,
+      "first": {
+        "utc": "2026-09-24T13:38:42.9708186+00:00",
+        "frame": 97748,
+        "unity_time": 1856.1825695861678,
+        "qpc": 9450753366529,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 119.83327,
+        "score": [
+          0,
+          0
+        ]
+      },
+      "last": {
+        "utc": "2026-09-24T13:40:42.798009+00:00",
+        "frame": 104850,
+        "unity_time": 1976,
+        "qpc": 9451951638458,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 0,
+        "score": [
+          8,
+          7
+        ]
+      },
+      "source_hz": 49.72160204881175,
+      "unity_frames_per_wall_second": 59.268683744656094,
+      "unity_seconds_per_wall_second": 0.9999185286250013,
+      "interval_p95_ms": 34.1421
+    },
+    {
+      "label": "any-s1804",
+      "source_rows": 0
+    }
+  ]
+}

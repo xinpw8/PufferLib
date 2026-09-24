@@ -1,0 +1,44 @@
+{
+  "utc": "2026-09-24T13:08:57.828Z",
+  "runtime_directory": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/live-attack-gate-20260921-persistent-baseline-eventpipe-r1",
+  "matches": [
+    {
+      "host_pid": 3122697,
+      "namespace_pids": [
+        3122697,
+        57050
+      ],
+      "start_ticks": "94319512",
+      "initial_start_ticks": "94319512",
+      "same_start": true,
+      "exact_game_target": true,
+      "environment": {
+        "BOX64_SHOWBT": "1",
+        "BOX64_DYNAREC_STRONGMEM": "2",
+        "DOTNET_EventPipeConfig": "Microsoft-Windows-DotNETRuntime:18:5",
+        "DOTNET_EventPipeCircularMB": "10",
+        "BOX64_LOG": "1",
+        "WINEPREFIX": "/opt/codexrook/wineprefix",
+        "DOTNET_EventPipeOutputPath": "Z:/opt/codexrook/live-transfer-20260915/live-attack-gate-20260921-persistent-baseline-eventpipe-r1/jit-metadata-{pid}.nettrace",
+        "BOX64_DYNAREC_WEAKBARRIER": "0",
+        "DOTNET_EnableEventPipe": "1",
+        "DOTNET_EventPipeOutputStreaming": "1",
+        "DISPLAY": ":98",
+        "BOX64_SHOWSEGV": "1"
+      },
+      "callret_override_present": false
+    }
+  ],
+  "launch_sha256": "9159f8b016e2c04975c6f2ed4d241f4cf9c211eee2f1d3ec62bda13b362c8c11",
+  "traces": [
+    {
+      "name": "jit-metadata-32.nettrace",
+      "bytes": 4889399,
+      "mtime_utc": "2026-09-24T13:08:22.230Z",
+      "header_hex": "4e6574747261636514000000214661737453657269616c69"
+    }
+  ],
+  "exit_receipt": false,
+  "original_signals": 0,
+  "coreclr_fatal": 0
+}

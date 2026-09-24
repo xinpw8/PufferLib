@@ -1,0 +1,60 @@
+{
+  "schema": "rek.sanitized_terminal_recovery_publication.v1",
+  "files": [
+    {
+      "name": "driver.patch",
+      "bytes": 14162,
+      "sha256": "7728322f866f9d2bad1c65e7d3df8088ef446390b45556bb1793e00cc1a2436d"
+    },
+    {
+      "name": "EXECUTION.json",
+      "bytes": 10699,
+      "sha256": "a8dbb99a364eea611e875b441e7b07d042a293762bfb2388c91f8b87c6fcc2e2"
+    },
+    {
+      "name": "README.md",
+      "bytes": 5763,
+      "sha256": "90b88da68ba2beeb4d62ad7e58ae64c0a6fc409c3d954996961a2e645bd3feb4"
+    },
+    {
+      "name": "terminal-recovery.test.cjs",
+      "bytes": 9659,
+      "sha256": "a57266c383e6d88e8adf158d09a74b0593bba1f48037086bd0230f3a368a6eed"
+    },
+    {
+      "name": "verify.cjs",
+      "bytes": 1839,
+      "sha256": "58b627d6db7d6829a209c09dc68f34f1d108fe3495f3f1e6b106484f21b986b8"
+    }
+  ],
+  "runtime_driver_sha256": "9c55723297e8abeb10ea2a98ab9cd19978e2b97285b78b8f750b04214d73ca83",
+  "cpu_synthetic_tests_passed": 8,
+  "reconstructed_runtime_hash_exact": true,
+  "raw_captured_packet_included": false,
+  "private_fixture_included": false,
+  "native_recovery_validated_at_cutoff": false,
+  "execution": {
+    "stage": "/home/spark-advantage/rek-training/persistent-terminal-recovery-20260924-r1/live",
+    "started_utc": "2026-09-24T13:47:13.521Z",
+    "plan_sha256": "4aa14abf29a28822fa6f738ebdee11adb6f29e6aba405eb2f316d517fae497da",
+    "parent_reported_first_round": "Bot4 5:8, normal terminal path; no recovery trigger",
+    "max_regular_rounds": 4,
+    "max_attempts_per_label": 2,
+    "max_relaunches": 0,
+    "status": "closed_after_client_loss",
+    "completed_rounds": 1,
+    "completed_outcome": "Bot4 loss5:8",
+    "incomplete_rounds": 1,
+    "last_incomplete": {
+      "score": [
+        18,
+        18
+      ],
+      "time_remaining": 22.07044,
+      "stop_reason": "source_stream_missing"
+    },
+    "game_died_log_utc": "2026-09-24T13:51:31.929Z",
+    "campaign_error_utc": "2026-09-24T13:51:36.957Z",
+    "relaunches": 0
+  }
+}

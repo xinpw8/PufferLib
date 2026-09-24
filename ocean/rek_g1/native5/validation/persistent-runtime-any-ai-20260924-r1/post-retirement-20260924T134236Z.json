@@ -1,0 +1,23 @@
+{
+  "utc": "2026-09-24T13:42:36.769Z",
+  "retired_parent_exists": false,
+  "completed_wrapper_exists": false,
+  "matching_task_or_cfg_endpoint_processes": [],
+  "matching_signatures": [
+    "encoder",
+    "worker",
+    "relay"
+  ],
+  "task_named_sockets": [],
+  "media": {
+    "schema": "rek.frozen_policy.capture.v1",
+    "global_input_emitted": false,
+    "pointer_capture": false,
+    "synthetic_frames": false,
+    "recording_size_limit_reached": false,
+    "video_bytes": 10919462,
+    "delivery_max_bytes_exclusive": 20000000
+  },
+  "retirement_receipt_sha256": "6556bb182a22fc6a78504dc92b2f8ffe7fe3eb90d75779b740efa5c29188356d",
+  "game_exit_receipt_present": false
+}

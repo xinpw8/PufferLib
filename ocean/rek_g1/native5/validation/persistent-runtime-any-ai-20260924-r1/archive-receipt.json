@@ -1,0 +1,66 @@
+{
+  "schema": "rek.closed_any_ai_campaign_archive.v1",
+  "completed_utc": "2026-09-24T13:44:38.715Z",
+  "nas_directory": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\anyAI-retired-20260924T134142Z",
+  "archives": [
+    {
+      "path": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\anyAI-retired-20260924T134142Z\\closed-campaign.tar.gz",
+      "bytes": 164918632,
+      "sha256": "e8e1757ab956c51db934436ff32de4b87206d1ce7ef52a39f30c1ce93842922b",
+      "source_root": "/home/spark-advantage/rek-training/persistent-runtime-any-ai-20260924-r1",
+      "source_file_count": 255,
+      "source_bytes": 601120890,
+      "archive_entries": 292,
+      "nas_full_readback_sha_verified": true,
+      "exact_tar_member_listing_verified": true
+    },
+    {
+      "path": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\anyAI-retired-20260924T134142Z\\exact-native-round3.tar.gz",
+      "bytes": 30718835,
+      "sha256": "52f65be93011828d8419228cff0e7e9424e7a191fe8989479517ab704365575f",
+      "source_root": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7",
+      "source_file_count": 1,
+      "source_bytes": 206435576,
+      "archive_entries": 1,
+      "nas_full_readback_sha_verified": true,
+      "exact_tar_member_listing_verified": true
+    }
+  ],
+  "videos": [
+    {
+      "path": "live/any-s1801-retry4/media/authentic-rek-policy-fight.mp4",
+      "bytes": 10879187,
+      "sha256": "4981c27c7b146e6a9519a2758560e9980c334b7628a3585e11354fa49271e794"
+    },
+    {
+      "path": "live/any-s1802/media/authentic-rek-policy-fight.mp4",
+      "bytes": 10903303,
+      "sha256": "50047323ed91cb331821e17eb797d863661e7540c2ce866ff0ad983f3d884a26"
+    },
+    {
+      "path": "live/any-s1803-retry5/media/authentic-rek-policy-fight.mp4",
+      "bytes": 10919462,
+      "sha256": "186cbc065b99b8fc03ecee3f5c422ad100962ff3263d6147ce7166fb6b59e309"
+    },
+    {
+      "path": "live/any-s1803/media/authentic-rek-policy-fight.mp4",
+      "bytes": 10930745,
+      "sha256": "703c4edfb284bd9b479fc34bfb5953d902fe56a5aba74b5f4f1a72ab8d2c2c19"
+    }
+  ],
+  "all_videos_below_20000000_bytes": true,
+  "controller_retired_utc": "2026-09-24T13:41:42.939Z",
+  "original_plan_count": 4,
+  "original_plan_and_ledger_preserved": true,
+  "parent_stdout_tail_may_be_unread": true,
+  "final_child_result_source": "retired-controller-for-terminal-fix.json and owned summary/media/endpoint-close records; parent stdout tail may be unread",
+  "all_source_hashes_identical_before_and_after": true,
+  "original_files_modified_or_removed": false,
+  "excluded_active_trace_root": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/live-attack-gate-20260921-persistent-baseline-eventpipe-r1",
+  "excluded_active_trace_file": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/live-attack-gate-20260921-persistent-baseline-eventpipe-r1/jit-metadata-32.nettrace",
+  "active_trace_contents_read": false,
+  "game_or_bridge_interaction": false,
+  "gpu_execution": false,
+  "raw_data_published_to_git": false,
+  "scope_note": "Exact closed private stage and one explicitly hash-pinned closed native round3 capture. Active game/runtime/EventPipe directory excluded, symlinks rejected, no .nettrace files accepted. Original incomplete any-s1803 summary and original ledger remain preserved."
+}

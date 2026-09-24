@@ -1,0 +1,169 @@
+diff --git a/live_transfer_run_masked.cjs b/live_transfer_run_masked.cjs
+index 1f3520d..611eb50 100644
+--- a/live_transfer_run_masked.cjs
++++ b/live_transfer_run_masked.cjs
+@@ -33,6 +33,8 @@ function trialExitCode(summary) {
+   if(summary.stop_reason==='requested_duration_complete')return 0;
+   const terminal=summary.final_round?.active===false &&
+     Number.isInteger(summary.final_round.result_value) && summary.final_round.result_value>0;
++  if(terminal && summary.terminal_recovery?.validated===true &&
++    summary.stop_reason==='stream_end:policy_state_unavailable:InvalidDataException')return 0;
+   return terminal && ['source_round_terminal','stream_end:active_round_not_observed'].includes(summary.stop_reason)?0:2;
+ }
+ function canExitLostPrivateSession(s) {
+@@ -257,6 +259,81 @@ function validateControlledStartup(source,readiness) {
+   validateStartupRound(source,3,readiness.play_native_redo===true,{
+     kind:readiness.round_kind??'regular_120s',duration:readiness.round_duration??120,redo:readiness.round_redo??false});
+ }
++
++function terminalRecoveryTrigger(diagnostic,end,last) {
++  return diagnostic==='policy_state_unavailable:policy_opponent_identity_changed' &&
++    end?.reason==='policy_state_unavailable:InvalidDataException' &&
++    end.round_identity_sha256===last?.round_identity_sha256;
++}
++function validateRecoveredTerminal(candidate,{state,last,end,firstRound,opponent,fightEpoch,elapsedMs}) {
++  const p=state?.private_ai,r=candidate?.round,f=candidate?.fight,ref=candidate?.referee;
++  requireValue(privateArena(state) && state.foreground.execution_surface==='spark_wine_x98' &&
++    state.control?.lease_held===true && state.control.g1_policy_stream_running===false &&
++    p.phase==='FightOver' && p.round_active===false && p.round_inactive===true &&
++    Number.isInteger(fightEpoch) && fightEpoch>=0 && p.fight_epoch===fightEpoch &&
++    p.round_number===last.round.number && p.local_slot===last.local_slot && p.opponent_slot===(last.local_slot^1),
++    'terminal_recovery_private_round_binding_mismatch');
++  requireValue(candidate?.event==='g1_policy_state' && candidate.schema==='rek.g1_policy_source.v1' &&
++    candidate.stream_active===false && candidate.global_input_emitted===false && candidate.phase===4 &&
++    candidate.round_identity_sha256===last.round_identity_sha256 && candidate.local_slot===last.local_slot &&
++    candidate.observation_sequence>last.observation_sequence,
++    'terminal_recovery_source_identity_mismatch');
++  validateBotIdentity(candidate.opponent,botIdentity(p));
++  requireValue(knownBot(opponent) && p.client_ai_difficulty===opponent.client_ai_difficulty+1 &&
++    p.sparring_bot_number===opponent.sparring_bot_number+1,'terminal_recovery_unexpected_bot_transition');
++  requireValue(Number.isFinite(elapsedMs)&&elapsedMs>=0&&elapsedMs<=500 &&
++    candidate.clock?.qpc_frequency_hz===last.clock.qpc_frequency_hz &&
++    end.clock?.qpc_frequency_hz===last.clock.qpc_frequency_hz &&
++    candidate.clock.unity_frame>=end.clock.unity_frame &&
++    measuredQpc(candidate.clock)>measuredQpc(last.clock) && measuredQpc(candidate.clock)>=measuredQpc(end.clock) &&
++    Number(measuredQpc(candidate.clock)-measuredQpc(end.clock))/candidate.clock.qpc_frequency_hz<=0.5,
++    'terminal_recovery_source_not_fresh');
++  requireValue(firstRound?.duration===120 && firstRound.redo===false && firstRound.number===last.round.number &&
++    firstRound.active===true && firstRound.time_remaining>=117 && firstRound.time_remaining<=120 &&
++    firstRound.clean_hits?.length===2 && firstRound.clean_hits.every(x=>x===0) &&
++    last.round.duration===120 && last.round.redo===false &&
++    r?.number===last.round.number && r.duration===120 && r.redo===false && r.active===false &&
++    r.time_remaining===0 && r.result==='WonByPoints' && r.result_value===1 && r.knockout===false &&
++    Array.isArray(r.clean_hits) && r.clean_hits.length===2 && r.clean_hits.every(x=>Number.isInteger(x)&&x>=0) &&
++    r.clean_hits[0]!==r.clean_hits[1] && r.winner_index===(r.clean_hits[0]>r.clean_hits[1]?0:1) &&
++    r.winner_index===last.local_slot,'terminal_recovery_not_observed_terminal_win');
++  requireValue(f?.current_round===r.number && f.result==='WonByRounds' && f.result_value===1 &&
++    f.winner_index===last.local_slot && Array.isArray(f.rounds_won) && f.rounds_won.length===2 &&
++    Array.isArray(last.fight?.rounds_won) && last.fight.rounds_won.length===2 &&
++    f.rounds_won.every((n,i)=>Number.isInteger(n)&&n===last.fight.rounds_won[i]+(i===last.local_slot?1:0)),
++    'terminal_recovery_fight_result_mismatch');
++  requireValue(ref?.schema==='rek.g1_received_referee.v1' && ref.available===true &&
++    ref.reason==='received_snapshot_applied_and_bound' && ref.observation_hooks_verified===true &&
++    Number.isFinite(ref.receipt_age_seconds)&&ref.receipt_age_seconds>=0&&ref.receipt_age_seconds<=0.5 &&
++    ref.receipt_qpc_frequency_hz===candidate.clock.qpc_frequency_hz &&
++    ref.packet_phase===4 && ref.packet_round_number===r.number && ref.packet_round_active===false &&
++    ref.packet_round_redo===false && ref.packet_round_result===r.result_value,
++    'terminal_recovery_referee_unavailable_or_mismatch');
++  const receiptQpc=measuredQpc({qpc_ticks:ref.receipt_qpc_ticks}),sourceQpc=measuredQpc(candidate.clock);
++  requireValue(receiptQpc>measuredQpc(last.clock) && sourceQpc>=receiptQpc &&
++    Math.abs(Number(sourceQpc-receiptQpc)/candidate.clock.qpc_frequency_hz-ref.receipt_age_seconds)<0.000001,
++    'terminal_recovery_referee_clock_mismatch');
++  const body=Buffer.from(ref.wire_body_base64||'','base64');
++  requireValue(body.length===33 && crypto.createHash('sha256').update(body).digest('hex')===ref.wire_body_sha256 &&
++    body[0]===4 && body[1]===r.number && body[2]===0 && body[3]===0 &&
++    body.readFloatLE(4)===0 && body.readUInt16LE(8)===r.clean_hits[0] && body.readUInt16LE(10)===r.clean_hits[1] &&
++    body[12]===0 && body[13]===r.result_value && body.readInt8(14)===r.winner_index &&
++    body[15]===f.rounds_won[0] && body[16]===f.rounds_won[1] && body[17]===f.result_value &&
++    body.readInt8(18)===f.winner_index && body[31]===p.client_ai_difficulty,
++    'terminal_recovery_wire_result_mismatch');
++  return {validated:true,kind:'post_stop_received_terminal_same_native_round',
++    round_identity_sha256:candidate.round_identity_sha256,local_slot:candidate.local_slot,fight_epoch:fightEpoch,
++    observation_sequence:candidate.observation_sequence,source_clock:candidate.clock,round:r,fight:f,
++    original_opponent:opponent,post_match_opponent:botIdentity(p),wire_body_sha256:ref.wire_body_sha256,
++    receipt_sequence:ref.receipt_sequence,receipt_qpc_ticks:String(ref.receipt_qpc_ticks),
++    receipt_age_seconds:ref.receipt_age_seconds,elapsed_ms:elapsedMs,policy_actions_after_stop:0};
++}
++async function recoverOpponentTransitionTerminal({diagnostic,end,last,firstRound,opponent,fightEpoch,getState,getSource,now=Date.now}) {
++  if(!terminalRecoveryTrigger(diagnostic,end,last))return null;
++  const started=now(),state=await getState(),candidate=await getSource();
++  return validateRecoveredTerminal(candidate,{state,last,end,firstRound,opponent,fightEpoch,elapsedMs:now()-started});
++}
++
+ class LiveActionPacer {
+   constructor() {this.pending=null;this.lastAckQpc=null;this.lastOfferedQpc=null;}
+   offer(source, received) {
+@@ -367,6 +444,7 @@ async function run(configPath) {
+   let nextId=0, sourceCount=0, skipped=0, predictions=0, applied=0, rejected=0, unmatchedAcks=0;
+   let firstRound=null,lastRound=null,lastSourceAt=0,stopReason='not_started',opponent=null,unsupportedPairing=null;
+   let startupReadiness=null,controlledStartupValidated=false;
++  let policySourceDiagnostic=null,policyEnd=null,fightEpoch=null,terminalRecovery=null,lastObservedSource=null;
+   const actions=Array(33).fill(0), reasons={}, droppedSources={}, pacer=new LiveActionPacer();
+   let doneResolve; const done=new Promise(resolve => doneResolve=resolve);
+   let timer, watchdog;
+@@ -437,7 +515,7 @@ async function run(configPath) {
+     }
+     requireValue(privateArena(state) && state.private_ai.policy_active_gameplay_proven===true &&
+       state.private_ai.round_active===true,'active private AI scope required before policy stream');
+-    opponent=botIdentity(state.private_ai);
++    opponent=botIdentity(state.private_ai);fightEpoch=state.private_ai.fight_epoch;
+     log('active_private_ai_opponent',opponent);
+     // This event also starts the existing passive recorder. Warm the measured
+     // source path before the bridge action watchdog starts. No warmup source is
+@@ -453,7 +531,8 @@ async function run(configPath) {
+     }});
+     requireValue(!stopping,'startup_aborted_before_control');
+     relay.bus.on('message',guardedCallback(source => {
+-      if(source.event==='g1_policy_end') {log('stream_end',source); finish(`stream_end:${source.reason}`);return;}
++      if(source.event==='error' && !stopping && source.request_id===null){policySourceDiagnostic=source.reason;return;}
++      if(source.event==='g1_policy_end') {policyEnd=source;log('stream_end',source); finish(`stream_end:${source.reason}`);return;}
+       if(source.event==='g1_policy_action') {
+         if(!pacer.acknowledge(source)){unmatchedAcks++;log('unmatched_action_ack',{request_id:source.request_id,seq:source.observation_sequence});return;}
+         source.applied ? applied++ : rejected++;
+@@ -468,7 +547,7 @@ async function run(configPath) {
+         log('controlled_source_started',{controlled:true,sequence:source.observation_sequence,
+           round_identity_sha256:source.round_identity_sha256,time_remaining:source.round?.time_remaining});
+       }
+-      sourceCount++;lastSourceAt=Date.now();
++      sourceCount++;lastSourceAt=Date.now();lastObservedSource=source;
+       if(source.round){firstRound??=source.round;lastRound=source.round;}
+       if(!streaming)return;
+       const dropped=pacer.offer(source,Date.now());
+@@ -538,7 +617,22 @@ async function run(configPath) {
+   finally {
+     clearTimeout(timer);clearInterval(watchdog);streaming=false;
+     let streamStopped=false,leaseReleased=false;
+-    if(leased){try{await command('StopG1PolicyStream');streamStopped=true;}catch(e){log('stop_error',{message:e.message});}try{await command('ReleaseExclusiveControl');leaseReleased=true;}catch(e){log('release_error',{message:e.message});}}
++    if(leased){
++      try{await command('StopG1PolicyStream');streamStopped=true;}catch(e){log('stop_error',{message:e.message});}
++      if(streamStopped && terminalRecoveryTrigger(policySourceDiagnostic,policyEnd,lastObservedSource)) {
++        try {
++          terminalRecovery=await recoverOpponentTransitionTerminal({diagnostic:policySourceDiagnostic,end:policyEnd,
++            last:lastObservedSource,firstRound,opponent,fightEpoch,getState:()=>request('get_state',{},'state'),
++            getSource:async()=>{
++              const request_id=`terminal-${++nextId}`;
++              return sendAndWait(relay,{type:'get_policy_state',request_id},x=>x.request_id===request_id &&
++                (x.event==='g1_policy_state'||x.event==='error'));
++            }});
++          if(terminalRecovery){lastRound=terminalRecovery.round;log('terminal_recovery_validated',terminalRecovery);}
++        } catch(e){log('terminal_recovery_rejected',{message:e.message,original_stop_reason:stopReason});}
++      }
++      try{await command('ReleaseExclusiveControl');leaseReleased=true;}catch(e){log('release_error',{message:e.message});}
++    }
+     const summary={stop_reason:stopReason,source_count:sourceCount,skipped_sources:skipped,dropped_sources:droppedSources,
+       unmatched_action_acks:unmatchedAcks,action_inflight_at_stop:pacer.pending?.requestId!==null&&pacer.pending?.requestId!==undefined,
+       last_ack_qpc_ticks:pacer.lastAckQpc?.toString()??null,predictions,applied,rejected,actions,reasons,opponent,initial_round:firstRound,final_round:lastRound,projection:config.projection,checkpoint_sha256:config.checkpoint_sha256,authentic_client:true,global_input_emitted:false,
+@@ -546,6 +640,7 @@ async function run(configPath) {
+       ...(unsupportedPairing?{unsupported_pairing:unsupportedPairing}:{}),
+       observation_schema:config.observation_schema,
+       play_native_redo:config.play_native_redo===true,
++      ...(terminalRecovery?{terminal_recovery:terminalRecovery}:{}),
+       startup_readiness:startupReadiness,controlled_startup_validated:controlledStartupValidated,
+       live_attack_gate:{allowed_attacks:[...allowedAttacks].sort((a,b)=>a-b),range_m:attackRange,force_attack_range_m:forceRange,cooldown_s:cooldownS,cooldown_actions:[...cooldownActions],cooldown_masked:cooldownMasked,gated_requests:gatedRequests,gated_by_range:gatedByRange,forced_attacks:forcedAttacks}};
+     fs.writeFileSync(path.join(config.out,'summary.json'),JSON.stringify(summary,null,2)+'\n',{flag:'wx'});log('summary',summary);
+@@ -563,4 +658,4 @@ async function run(configPath) {
+   }
+ }
+ if(require.main===module) {requireValue(process.argv.length===3,'usage: node live_transfer_run_masked.cjs config.json');run(process.argv[2]).catch(e=>{console.error(e.message);process.exitCode=2;});}
+-module.exports={privateArena,botIdentity,validateBotIdentity,trialExitCode,canExitLostPrivateSession,canReadyPrivateAiSession,canSkipObservedIntro,exitObservedUnsupportedPairing,ensurePrivateArena,betweenPrivateRounds,canRequestPrivateRound,validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer,provenG1T800Pairing,rejectUnsupportedActivePairing,prewarmPolicySource,validateControlledStartup,validateStartupRound};
++module.exports={privateArena,botIdentity,validateBotIdentity,trialExitCode,canExitLostPrivateSession,canReadyPrivateAiSession,canSkipObservedIntro,exitObservedUnsupportedPairing,ensurePrivateArena,betweenPrivateRounds,canRequestPrivateRound,validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer,provenG1T800Pairing,rejectUnsupportedActivePairing,prewarmPolicySource,validateControlledStartup,validateStartupRound,terminalRecoveryTrigger,validateRecoveredTerminal,recoverOpponentTransitionTerminal};

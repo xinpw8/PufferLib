@@ -1,0 +1,70 @@
+{
+  "schema": "rek.closed_any_ai_runtime_results.v1",
+  "campaign": "persistent-runtime-any-ai-20260924-r1",
+  "runtime_only": true,
+  "policy_promotion": false,
+  "crash_fix_claim": false,
+  "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+  "closed_utc": "2026-09-24T13:41:42.939Z",
+  "original_plan_count": 4,
+  "original_plan_sha256": "0281a096e0d84212d13eda02987929f9dc97e219b064348e1a790badecee5e9c",
+  "original_ledger_sha256": "959870bd3e61dc9decbbfaae51d3ae582101c7cbd7dd20052241d68314f90fba",
+  "original_plan_ledger_and_summaries_unchanged": true,
+  "accounting": {
+    "executed_attempts": 10,
+    "original_ledger_attempts": 9,
+    "original_ledger_completed_bot1": {"rounds": 2, "wins": 1, "losses": 1, "ties": 0, "points": [15, 19]},
+    "separately_recovered_native_bot1_round3": {"rounds": 1, "wins": 1, "points": [19, 9], "historical_driver_terminal": false},
+    "native_bot1_match_with_recovery": {"rounds": 3, "wins": 2, "losses": 1, "points": [34, 28], "native_match_rounds_won": [2, 1], "native_match_result": "WonByRounds", "winner_index": 0},
+    "final_owned_child_omitted_from_parent_ledger": {"opponent_bot": 3, "round_number": 1, "wins": 1, "points": [8, 7]},
+    "zero_action_attempts": 6,
+    "zero_action_recorded_reasons": {"private AI ready bootstrap timeout; policy input withheld": 2, "active round timeout": 4},
+    "explicit_unsupported_pairing_errors_in_these_six_summaries_and_orchestrators": 0,
+    "predictions": 15625,
+    "applied": 15622,
+    "rejected": 3,
+    "any_s1804_executed": false
+  },
+  "controlled_segments": [
+    {"label": "any-s1801-retry4", "bot": 1, "native_round": 1, "source": "original_ledger_complete", "score": [8, 13], "winner_index": 1, "summary_sha256": "b5981359d34217e08a21a1e86cd7356ba499868e74e15aca45cf8979f4de475a", "initial_remaining_s": 119.76657, "duration_s": 120, "redo": false, "predictions": 3213, "applied": 3212, "rejected": 1, "driver_exit": 0, "wrapper_exit": 0, "source_rows": 3215, "stream_active_span_s": 119.8157261, "source_hz": 26.824525499411884, "source_p95_ms": 48.1874, "video_bytes": 10879187, "video_sha256": "4981c27c7b146e6a9519a2758560e9980c334b7628a3585e11354fa49271e794"},
+    {"label": "any-s1802", "bot": 1, "native_round": 2, "source": "original_ledger_complete", "score": [7, 6], "winner_index": 0, "summary_sha256": "04ea821b846b57fb4e1b6a4c2ae0ab6b6943938f4e821a5e59e9c52e68ba64ea", "initial_remaining_s": 119.766556, "duration_s": 120, "redo": false, "predictions": 3255, "applied": 3254, "rejected": 1, "driver_exit": 0, "wrapper_exit": 0, "source_rows": 3257, "stream_active_span_s": 119.8173625, "source_hz": 27.1746926494063, "source_p95_ms": 46.638, "video_bytes": 10903303, "video_sha256": "50047323ed91cb331821e17eb797d863661e7540c2ce866ff0ad983f3d884a26"},
+    {"label": "any-s1803", "bot": 1, "native_round": 3, "source": "separate_native_terminal_reconstruction", "score": [19, 9], "winner_index": 0, "summary_sha256": "3e6e09926ac95685fb36eda9bae36d8abc05e4bb94b7564d4560de3a25eaa13c", "initial_remaining_s": 119.7832, "duration_s": 120, "redo": false, "original_driver_last_remaining_s": 0.0741855, "original_driver_last_round_active": true, "original_stop_reason": "stream_end:policy_state_unavailable:InvalidDataException", "exact_relay_error": "policy_state_unavailable:policy_opponent_identity_changed", "predictions": 3201, "applied": 3200, "rejected": 1, "driver_exit": 2, "wrapper_exit": 2, "source_rows": 3202, "stream_active_span_s": 119.7022871, "source_hz": 26.741343691502447, "source_p95_ms": 47.184999999999995, "video_bytes": 10930745, "video_sha256": "703c4edfb284bd9b479fc34bfb5953d902fe56a5aba74b5f4f1a72ab8d2c2c19"},
+    {"label": "any-s1803-retry5", "bot": 3, "native_round": 1, "source": "owned_child_summary_and_retirement_receipt", "score": [8, 7], "winner_index": 0, "summary_sha256": "e43ab918362d73c63785a32f79de1ab6f82f73ae118edd71e4ece9937cfaf1e0", "initial_remaining_s": 119.83327, "duration_s": 120, "redo": false, "predictions": 5956, "applied": 5956, "rejected": 0, "driver_exit": 0, "wrapper_kernel_exit": 0, "parent_wrapper_exit_file_present": false, "source_rows": 5959, "stream_active_span_s": 119.8271929, "source_hz": 49.72160204881175, "source_p95_ms": 34.1421, "video_bytes": 10919462, "video_sha256": "186cbc065b99b8fc03ecee3f5c422ad100962ff3263d6147ce7166fb6b59e309"}
+  ],
+  "zero_action_attempts": [
+    {"label": "any-s1801", "reason": "private AI ready bootstrap timeout; policy input withheld", "summary_sha256": "90c24e7534db4c28713d5cde8a0af3ef7c4a419ba3cb0c2cf85bdee6f34eefe6"},
+    {"label": "any-s1801-retry2", "reason": "active round timeout", "summary_sha256": "c499b3512a012ff3591872893a157d6811bec1989d19a36eb64a506bb6774383"},
+    {"label": "any-s1801-retry3", "reason": "active round timeout", "summary_sha256": "c499b3512a012ff3591872893a157d6811bec1989d19a36eb64a506bb6774383"},
+    {"label": "any-s1803-retry2", "reason": "private AI ready bootstrap timeout; policy input withheld", "summary_sha256": "90c24e7534db4c28713d5cde8a0af3ef7c4a419ba3cb0c2cf85bdee6f34eefe6"},
+    {"label": "any-s1803-retry3", "reason": "active round timeout", "summary_sha256": "c499b3512a012ff3591872893a157d6811bec1989d19a36eb64a506bb6774383"},
+    {"label": "any-s1803-retry4", "reason": "active round timeout", "summary_sha256": "c499b3512a012ff3591872893a157d6811bec1989d19a36eb64a506bb6774383"}
+  ],
+  "stability_at_recorded_cutoff": {
+    "cutoff_utc": "2026-09-24T13:42:36.506Z",
+    "host_pid": 3122697,
+    "namespace_pid": 57050,
+    "start_ticks": "94319512",
+    "same_process_as_startup_receipt": true,
+    "current_campaign_stream_active_span_s": 479.1625686,
+    "prior_separate_bot2_stream_active_span_s": 119.6344561,
+    "total_observed_stream_active_span_s": 598.7970247,
+    "process_lifetime_s_not_controlled_exposure": 2113.079999999958,
+    "recorded_original_signal_count": 0,
+    "recorded_coreclr_fatal_count": 0,
+    "recorded_av_null_dispatch_failfast_counts": 0,
+    "game_exit_receipt_present": false,
+    "scope": "Immutable process-monitor receipts only; no active trace or new runtime read for this accounting. Limited exposure, no crash-fix claim."
+  },
+  "retirement": {"utc": "2026-09-24T13:41:42.939Z", "receipt_sha256": "6556bb182a22fc6a78504dc92b2f8ffe7fe3eb90d75779b740efa5c29188356d", "parent_pid": 3126057, "parent_start_ticks": "94435701", "signals": ["SIGTERM", "SIGCONT"], "game_signalled": false, "children_signalled": false, "parent_stdout_tail_may_be_unread": true, "final_child_endpoint_close_utc": "2026-09-24T13:40:43.661Z", "final_child_all_endpoints_closed_exit0_no_signals": true, "reason": "Retire after owned child completed to repair terminal accounting; no policy acceptance or criterion-failure claim."},
+  "attached_receipts": [
+    {"path": "recovered-terminal.json", "sha256": "6a26ff4f6091d72e89f0d4fcce1fbb2033514014cc357384897abab61f9bc0c5"},
+    {"path": "archive-receipt.json", "sha256": "cedc6ac305b7174fccc1744f5e7caa4f8e7cb21e8c430751d39a48a26655b7e0"},
+    {"path": "startup-20260924T130857Z.json", "sha256": "1b8536d03f2fb1fcffa3ac33742d9a4c7339eb14165c3623583f83874d2c49be"},
+    {"path": "process-monitor-20260924T134236Z.json", "sha256": "84566be1ccb9654eaf3f41c8937df2c78a906422198848837e02f21977475cc8"},
+    {"path": "controlled-exposure-20260924T134236Z.json", "sha256": "3148777f2222a2d357014759bb624b6a12de0a078d32c677c2d23b61a3ae8403"},
+    {"path": "post-retirement-20260924T134236Z.json", "sha256": "6d7ba385ef1ba946376d462f6ee03f7727e38d37743257e188b8ba4fda717f68"}
+  ],
+  "archive_directory": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\anyAI-retired-20260924T134142Z",
+  "all_four_videos_validated_and_below_20000000_bytes": true,
+  "limits": ["Runtime-only diagnostics with opponent-stratified results, not a prospective Bot1 policy-promotion cohort.", "The historical ledger has only two completed attempts. Native reconstruction and final owned-child recovery are separate evidence categories.", "Six zero-action attempts are classified by their actual timeout errors. No unsupported-pairing error is invented from an unobserved cause.", "The prior Bot2 segment is outside this campaign and is included only in the explicitly separate cumulative exposure measurement.", "No current game, new stage or active EventPipe trace was read or changed for this report."]
+}
