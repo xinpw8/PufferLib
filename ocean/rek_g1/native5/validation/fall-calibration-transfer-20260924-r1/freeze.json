@@ -1,0 +1,48 @@
+{
+  "schema": "rek.received_onset_calibration_transfer_freeze.v1",
+  "frozen_utc": "2026-09-24T04:36:49.563Z",
+  "runtime_enabled": false,
+  "test_metrics_evaluated": false,
+  "compiler": "g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+  "compiler_executable": "/usr/bin/g++",
+  "compiler_sha256": "2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0",
+  "compile_command": "g++ -O2 -std=c++17 -Wall -Wextra -Wpedantic calibrate.cpp -o build/calibrate",
+  "run_command": "build/calibrate data.bin results.json",
+  "artifacts": [
+    {
+      "file": "PROTOCOL.md",
+      "bytes": 5482,
+      "sha256": "0e463ee28626a19b4b97d22b6ea447288f48e10876a9e2b1149489dd3081cf52"
+    },
+    {
+      "file": "prepare.cjs",
+      "bytes": 8608,
+      "sha256": "1ae8ccbe521c5882a2daa9d138787a439eb5530a8b67fa926f83616943d956ab"
+    },
+    {
+      "file": "experiment.cjs",
+      "bytes": 8761,
+      "sha256": "019f86ade97f91395fe4589b7732018ce893cedf1da4e4adbcc809655875ac1c"
+    },
+    {
+      "file": "calibrate.cpp",
+      "bytes": 11990,
+      "sha256": "42a37bb5afa97db6960972f07d3ac6ff174fbc19f6840e02f00a95aa4fc58d01"
+    },
+    {
+      "file": "data.bin",
+      "bytes": 3354184,
+      "sha256": "43990a25e9e6dfe48d9f0e33130951e1fe9277d182b3fec406523322d192b455"
+    },
+    {
+      "file": "input-manifest.json",
+      "bytes": 27406,
+      "sha256": "ab144fcb8caa6cc691d12168ef72e791a3e85e87e9f2fce8307f32cb522f1bf3"
+    },
+    {
+      "file": "build/calibrate",
+      "bytes": 61288,
+      "sha256": "1eef553bd4d04ea86d0d8e8b6914b8c80b4ca2b2dcfa56ab86e9808f5007ccd5"
+    }
+  ]
+}

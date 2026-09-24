@@ -59,7 +59,7 @@ In the loss, learner tilt rose to about 98.8 degrees around 102 seconds; the +5 
 
 The existing kick-fall probability 0.2 remains an assumption. Opponent falls and contact-driven balance are still incomplete. Correct lookup and receipt semantics do not establish complete simulator parity.
 
-A fourth continuation removes only that unconditional kick-fall prior from the combined correction (`REK_FAST_KICK_FALL_P=0`). It completed 16,777,216 transitions with zero failure bits at 890,800 full-process SPS. This is an ablation of an unmeasured penalty, not evidence that the kick has zero fall risk. Its checkpoint has not yet been authentic-tested.
+A fourth continuation removes only that unconditional kick-fall prior from the combined correction (`REK_FAST_KICK_FALL_P=0`). It completed 16,777,216 transitions with zero failure bits at 890,800 full-process SPS. This is an ablation of an unmeasured penalty, not evidence that the kick has zero fall risk. As of 04:53 UTC on September 24 its separate frozen live cohort has 2 wins and 2 losses, 48:41 points: 7:9, 12:7, 8:14, 21:11. Four additional crash attempts are incomplete and retained. The same prospective 18/20 target and third-nonwin stopping rule apply. No promotion is established.
 
 The newer physical observable-balance path was also reviewed before adding more fall work. It already produces bilateral physical fall/count/reset experience, but its recorded continuation ran at 5,605 whole-process SPS and failed an authentic six-round cohort at 3 wins / 3 losses, 69:82 points. It is neither an unimplemented solution nor a demonstrated improvement. Its 223-wide observation schema is incompatible with F7's 223-wide schema.
 
@@ -67,9 +67,19 @@ The newer physical observable-balance path was also reviewed before adding more 
 
 F7 native `REK_FAST_INTERRUPT_ON_HIT=1` clears the projected attack on opponent points. The pinned F7 live encoder instead retains its nominal requested-move duration unless a fall is reported. Recorded busy-on-score events can therefore leave the live action mask restricting new attacks for another 0.126 to 2.866 seconds. This is an identified native/live projection mismatch.
 
-Authentic cancellation time remains unknown: the visual-only client records null action-busy and inactive/default controller-runner state. A copied, opt-in encoder candidate clears projected busy on an opponent-score increase within the same active round. It must remain explicitly labelled as an alignment experiment, not a direct measurement of server interruption. The prospective live test uses the unchanged original F7 checkpoint and no other policy or gate changes, fixed seeds 501 through 520, and the same third-nonwin stopping rule. It started on Spark at 04:17 UTC on September 24.
+Authentic cancellation time remains unknown: the visual-only client records null action-busy and inactive/default controller-runner state. A copied, opt-in encoder candidate clears projected busy on an opponent-score increase within the same active round. It must remain explicitly labelled as an alignment experiment, not a direct measurement of server interruption. The prospective live test uses the unchanged original F7 checkpoint and no other policy or gate changes, fixed seeds 501 through 520, and the same third-nonwin stopping rule. It stopped after a client startup failure with 2 wins and 2 losses, 57:63 points: 16:11, 12:19, 20:13, 9:20. Three additional attempts crashed. This cohort is incomplete, has not met the performance stopping rule, and does not demonstrate an improvement.
 
 The encoder passed 963 assertions and 145 hinge-projection checks. Default-off replay of the complete s402 trace was byte-identical to the pinned encoder. Enabled replay changed only five busy-related observation columns and masks in 288 rows, preserving the 223-field schema and all source mask restrictions. See `interrupt-encoder.md` and `interrupt-projection.patch` for reproduction and limitations.
+
+## Native referee capture on Spark
+
+The no-prior cohort uses a separate game-directory copy with the previously Windows-tested referee-enabled bridge. The original game directory remains unchanged. Game executable, native game assembly, metadata, interop and recorder dependencies are unchanged; the bridge DLL SHA256 is `ea8511a87b9e456547f13ffdb2f9af5e941b8b04f97bf40419d38e1c9b31ff3e`. Besides telemetry, this bridge version includes isolation rechecks. Its first Spark qualification must therefore remain an explicit runtime difference between cohorts. It has not resolved the CoreCLR crashes.
+
+The completed seed-601 round yielded 5,731/5,731 available, fresh referee-bearing policy observations, independently matched to 1,191 unique native packets. The validator checks the native packet bytes/hash and source clocks; the maximum receipt age was 0.2200764 seconds against a 0.5-second bound. It recovered a Slip and a Knockout call for fighter 0, with the Knockout carrying a five-point award. See `spark-referee-s601.json`. This validates the scoring telemetry; it does not establish which requested attack caused a call.
+
+Independent native recordings also exist for previous Spark clients under the dedicated Wine prefix's `drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7` directory. Missing referee fields in an older relay trace do not imply that native recordings are absent. Completed files and crash partials are preserved separately.
+
+A separate held-out fall-risk calibration experiment also completed. Its fitted predictor failed the prespecified Brier-score comparison on the newer live cohort, so it was not installed as a physical fall transition model. Details and native C++ reproduction are in `../fall-calibration-transfer-20260924-r1/`.
 
 ## Artifacts and provenance
 
@@ -80,6 +90,9 @@ Private Spark roots:
 - `/home/spark-advantage/rek-training/f7-receipt-ab-20260924-r1`
 - `/home/spark-advantage/rek-training/f7-action-id-fix-20260924-r1`
 - `/home/spark-advantage/rek-training/f7-action-id-live-20260924-r1`
+- `/home/spark-advantage/rek-training/f7-live-interrupt-eval-20260924-r1`
+- `/home/spark-advantage/rek-training/f7-no-kick-prior-live-20260924-r1`
+- `/home/spark-advantage/rek-training/referee-bridge-spark-20260924-r1`
 
 Checkpoint SHA256:
 
