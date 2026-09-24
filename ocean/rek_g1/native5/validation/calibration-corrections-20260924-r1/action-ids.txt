@@ -1,0 +1,26 @@
+variant=receipt
+planned_agent_steps=16777216
+training_exit_code=0
+completed_expected_checkpoint=1
+full_native_process_wall_seconds=18.505531
+full_native_process_sps=906605.490002
+timing_scope=entire_headless_native_process_including_startup_rollouts_PPO_checkpoint_writes_and_shutdown
+python_runtime=0
+native_ini_metrics_scope=last_persisted_native_snapshot_may_precede_final_step
+SPS = 987075.08889058058
+agent_steps = 15990784
+uptime = 17.02586555480957
+epoch = 244
+env/score = 32.560546875
+env/episode_return = 0.15200093388557434
+env/hits = 39.69140625
+env/falls = 0.013671875
+env/wins = 0.9140625
+env/losses = 0.0703125
+env/draws = 0.015625
+env/n = 512
+perf/rollout = 0.51741993427276611
+perf/train = 0.1374618262052536
+native5_round_summary={"arenas":512,"completed_rounds":2560,"fighter0_wins":2288,"fighter1_wins":241,"ties":31,"redos":0,"unclassified":0,"fighter0_completed_points":77543,"fighter1_completed_points":23240,"failure_bits":0}
+│ SPS              944.9K      Copy          0ms   0%    entropy      1.339    │
+947a283429a8661ceaab9adc5e6c14b3534cab43fafdc0c60c86cb33d51c686e  /home/spark-advantage/rek-training/f7-action-id-fix-20260924-r1/runs/F7-action-ids-coherent-16777216/checkpoints/rek_native5/F7-action-ids-coherent-16777216/0000000016777216.bin

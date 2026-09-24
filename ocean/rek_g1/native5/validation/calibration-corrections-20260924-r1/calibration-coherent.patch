@@ -1,0 +1,231 @@
+diff --git a/ocean/rek_g1/native5/fast_runtime.cu b/ocean/rek_g1/native5/fast_runtime.cu
+index 5ae4f07..cd6dda9 100644
+--- a/ocean/rek_g1/native5/fast_runtime.cu
++++ b/ocean/rek_g1/native5/fast_runtime.cu
+@@ -22,6 +22,7 @@
+ #include "action_cadence.h"
+ #include "keyboard_yaw.h"
+ #include "contact_entry.h"
++#include "calibrated_contact.h"
+ 
+ // Explicit reduced-order candidate. The source clips provide pose and strike
+ // trajectories; slider motion and temporally sampled contacts are modeling
+@@ -62,6 +63,7 @@ struct Arena {
+     RekG1HitDetectorState recovered_hits;
+     rek5_bot1::State bot[2];
+     int contact_pairs_initialized;
++    uint32_t calibration_episode_key;
+ };
+ struct Parameters {
+     FastRoute routes[24];
+@@ -73,6 +75,8 @@ struct Parameters {
+     unsigned allowed_attack_bits;
+     int kick_cooldown_ticks; // learner: category 16 masked for this many ticks after any attack start (0 = off)
+     int live_calibration;    // 1 = gate awards per attack instance at live-measured hit rates (Claude 2026-09-22)
++    int calibration_coherent;
++    int calibration_independent_rng;
+     float attempt_cost_points,kick_fall_p,bot_award_p,calib_seed;
+     int interrupt_on_hit;    // live calibration: bot hit ends the learner's move early // learner-side attack allow-list, bit (k-16) for category k in 16..32 (Claude 2026-09-21)
+     uint32_t seed;
+@@ -198,6 +202,8 @@ __device__ void round_reset(const Parameters& p,Arena& a,RekNative5RoundResult&
+     if(full){result={};result.round_number=1;}
+     else result.round_number++;
+     a={};pose_reset(p,a);
++    if(p.calibration_independent_rng)a.calibration_episode_key=rek_calibrated_contact::episode_key(
++        p.seed,uint32_t(p.calib_seed),uint32_t(index),result.round_number);
+     if(p.recovered_bot)for(int side=0;side<2;side++)rek5_bot1::activate(a.bot[side],
+         reset_hash(p.seed^reset_hash(uint32_t(index)*2+side+0x7216b539u)^reset_hash(result.round_number)));
+     a.opponent_mode=p.opponent_mode;
+@@ -307,7 +313,8 @@ template<bool Bot=false> __device__ void advance_fighter(const Parameters& p,Fig
+                 const int move=p.routes[f.route].move;
+                 const float prob=Bot?p.bot_award_p:live_hit_probability(move,dist<=.8f,bearing>=1.8f);
+                 const uint32_t key=reset_hash(uint32_t(a.tick)*2654435761u^uint32_t(f.move_instance)*40503u^uint32_t(p.calib_seed)^(Bot?0x9e3779b9u:0u));
+-                f.attack_lands=reset_uniform(key,7u)<prob?1:0;
++                const uint32_t draw_key=rek_calibrated_contact::draw_key(p.calibration_independent_rng,key,a.calibration_episode_key,uint32_t(&f-a.fighter));
++                f.attack_lands=reset_uniform(draw_key,7u)<prob?1:0;
+             }
+             f.attack_duration=int(p.durations[p.routes[f.route].move]);
+             if(f.held!=6&&f.held!=7)f.held=1;
+@@ -470,7 +477,7 @@ __device__ void geom_pair_contacts(const View& v,Arena& a,int side,int* hits,int
+                     const float speed=rek_contact_velocity::relative_speed(
+                         body_linear_velocity(v,f,side,rek_contact_velocity::limb_slot(limb)),
+                         body_linear_velocity(v,enemy,side^1,rek_contact_velocity::target_slot(zone)));
+-                    const auto score=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,speed,a.elapsed);
++                    const auto score=rek_calibrated_contact::score(rek_calibrated_contact::allow(p.live_calibration,p.calibration_coherent,f.attack_lands),a.recovered_hits,p.recovered_hit_config,intent,side,limb,speed,a.elapsed);
+                     if(score.points){hits[side]++;points[side]+=score.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=speed;}
+                 }
+                 entered=entered||result.entered;intersects=intersects||result.overlap_after_start;
+@@ -482,7 +489,7 @@ __device__ void geom_pair_contacts(const View& v,Arena& a,int side,int* hits,int
+         // History above advances even without intent and never resets at move
+         // start. Native apex, body cooldown and invocation dedup stay unchanged.
+         if(p.contact_velocity==rek_contact_velocity::Mode::BodyCvel||!can_score||!entered)continue;
+-        const auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
++        const auto result=rek_calibrated_contact::score(rek_calibrated_contact::allow(p.live_calibration,p.calibration_coherent,f.attack_lands),a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
+         if(result.points){hits[side]++;points[side]+=result.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=max_relative_speed;}
+     }
+ }
+@@ -576,12 +583,12 @@ __device__ void geom_pair_contacts_warp(const View& v,Arena& a,int side,int* hit
+                         const int pair=i*rek_contact_entry::Targets+zone;
+                         if(!scratch.pair_entered[pair])continue;
+                         const float speed=scratch.pair_speed[pair];
+-                        const auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,speed,a.elapsed);
++                        const auto result=rek_calibrated_contact::score(rek_calibrated_contact::allow(p.live_calibration,p.calibration_coherent,f.attack_lands),a.recovered_hits,p.recovered_hit_config,intent,side,limb,speed,a.elapsed);
+                         if(result.points){hits[side]++;points[side]+=result.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=speed;}
+                     }
+             }else{
+             const float max_relative_speed=scratch.speed[limb];
+-            const auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
++            const auto result=rek_calibrated_contact::score(rek_calibrated_contact::allow(p.live_calibration,p.calibration_coherent,f.attack_lands),a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
+             if(result.points){hits[side]++;points[side]+=result.points;auto& other=a.fighter[side^1];other.last_hit_valid=1;other.last_hit_age=0;other.last_hit_speed=max_relative_speed;}
+             }
+         }
+@@ -620,7 +627,7 @@ __device__ void strike_contacts(const View& v,Arena& a,int side,int* hits,int* p
+             if(p.recovered_scoring&&intersects){float d2=0;for(int k=0;k<3;k++){float d=to[k]-from[k];d2+=d*d;}max_relative_speed=fmaxf(max_relative_speed,sqrtf(d2)/DT);}
+         }
+         unsigned bit=1u<<limb;
+-        if(!p.recovered_scoring&&touch&&!(f.contact_latched&bit)&&f.cooldown[limb]==0&&speed>=p.hit_speed){
++        if(!p.recovered_scoring&&rek_calibrated_contact::allow(p.live_calibration,p.calibration_coherent,f.attack_lands)&&touch&&!(f.contact_latched&bit)&&f.cooldown[limb]==0&&speed>=p.hit_speed){
+             hits[side]++;
+             points[side]++;
+             enemy.last_hit_valid=1;enemy.last_hit_age=0;enemy.last_hit_speed=speed;f.cooldown[limb]=10;
+@@ -629,7 +636,7 @@ __device__ void strike_contacts(const View& v,Arena& a,int side,int* hits,int* p
+             intent.impact_events=p.impact_events+p.impact_offsets[f.route];intent.impact_event_count=p.impact_counts[f.route];
+             intent.clip_cursor_frames=clampf(route.start_frame+f.phase*route.playback_speed,float(route.start_frame),float(route.end_frame));
+             intent.clip_fps=50;intent.move_id=f.move_instance;intent.action_playing=intent.layer_active=1;
+-            auto result=rek5_recovered::score(a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
++            auto result=rek_calibrated_contact::score(rek_calibrated_contact::allow(p.live_calibration,p.calibration_coherent,f.attack_lands),a.recovered_hits,p.recovered_hit_config,intent,side,limb,max_relative_speed,a.elapsed);
+             if(result.points){hits[side]++;points[side]+=result.points;enemy.last_hit_valid=1;enemy.last_hit_age=0;enemy.last_hit_speed=max_relative_speed;}
+         }
+         if(touch)f.contact_latched|=bit;else f.contact_latched&=~bit;
+@@ -708,7 +715,8 @@ __device__ void advance_arena(const View& v,int index){
+             Fighter& f0=a.fighter[0];
+             if(f0.attempt_started&&p.routes[f0.route].move==0&&p.kick_fall_p>0){
+                 const uint32_t key=reset_hash(uint32_t(a.tick)*2246822519u^uint32_t(f0.move_instance)*3266489917u^uint32_t(p.calib_seed));
+-                if(reset_uniform(key,11u)<p.kick_fall_p){points[1]+=5;f0.falls++;}
++                const uint32_t draw_key=rek_calibrated_contact::draw_key(p.calibration_independent_rng,key,a.calibration_episode_key,0);
++                if(reset_uniform(draw_key,11u)<p.kick_fall_p){points[1]+=5;f0.falls++;}
+             }
+         }
+         for(int s=0;s<2;s++)a.delta[s]=points[s];
+@@ -820,7 +828,8 @@ __device__ void advance_arena_warp(const View& v,int index,int lane,WarpContactS
+             Fighter& f0=a.fighter[0];
+             if(f0.attempt_started&&p.routes[f0.route].move==0&&p.kick_fall_p>0){
+                 const uint32_t key=reset_hash(uint32_t(a.tick)*2246822519u^uint32_t(f0.move_instance)*3266489917u^uint32_t(p.calib_seed));
+-                if(reset_uniform(key,11u)<p.kick_fall_p){points[1]+=5;f0.falls++;}
++                const uint32_t draw_key=rek_calibrated_contact::draw_key(p.calibration_independent_rng,key,a.calibration_episode_key,0);
++                if(reset_uniform(draw_key,11u)<p.kick_fall_p){points[1]+=5;f0.falls++;}
+             }
+         }
+         for(int s=0;s<2;s++)a.delta[s]=points[s];
+@@ -1107,6 +1116,12 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
+         p.hit_speed=environment_float("REK_FAST_HIT_SPEED",.35f,0,20);
+         p.kick_cooldown_ticks=int(environment_float("REK_FAST_KICK_COOLDOWN_TICKS",0,0,5000));
+         p.live_calibration=getenv("REK_FAST_LIVE_CALIBRATION")&&!strcmp(getenv("REK_FAST_LIVE_CALIBRATION"),"1")?1:0;
++        const char* coherent=getenv("REK_FAST_CALIBRATION_COHERENT");
++        if(coherent&&strcmp(coherent,"0")&&strcmp(coherent,"1"))throw std::runtime_error("REK_FAST_CALIBRATION_COHERENT must be 0 or 1");
++        p.calibration_coherent=coherent&&!strcmp(coherent,"1");
++        const char* independent_rng=getenv("REK_FAST_CALIBRATION_INDEPENDENT_RNG");
++        if(independent_rng&&strcmp(independent_rng,"0")&&strcmp(independent_rng,"1"))throw std::runtime_error("REK_FAST_CALIBRATION_INDEPENDENT_RNG must be 0 or 1");
++        p.calibration_independent_rng=independent_rng&&!strcmp(independent_rng,"1");
+         p.attempt_cost_points=environment_float("REK_FAST_ATTEMPT_COST",0,0,10);
+         p.kick_fall_p=environment_float("REK_FAST_KICK_FALL_P",0,0,1);
+         p.bot_award_p=environment_float("REK_FAST_BOT_AWARD_P",1.f,0,1);
+@@ -1191,6 +1206,8 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
+         fprintf(stderr,"semantic_cuda_opponent={\"implementation\":\"%s\",\"replaces\":\"scripted_rows_only\",\"difficulty\":0,\"decision_hz\":50,\"native_update_fixedupdate_equivalence\":false,\"rng\":\"%s\",\"continuous_commands\":%s,\"pose_route\":\"dominant_translation_canned_proxy\",\"actuator_model\":\"compact_slider\",\"own_recovery\":\"unsupported_fail_closed\",\"server_parity\":false}\n",
+             p.recovered_bot?"recovered_bot1_v1":"v4_scripted",p.recovered_bot?"candidate_private_xorshift32":"legacy_stateless_reset_hash",p.recovered_bot?"true":"false");
+         fprintf(stderr,"semantic_cuda_attack_gate={\"allowed_attack_bits\":\"0x%05x\",\"kick_cooldown_ticks\":%d,\"scope\":\"learner_side_0_mask_only\"}\n",p.allowed_attack_bits,p.kick_cooldown_ticks);
++        if(p.calibration_coherent)fprintf(stderr,"semantic_cuda_calibration_coherent={\"enabled\":true,\"credit_gate\":\"before_scorer_state_mutation\",\"authentic_parity\":false}\n");
++        if(p.calibration_independent_rng)fprintf(stderr,"semantic_cuda_calibration_independent_rng={\"enabled\":true,\"rng_scope\":\"seed_arena_round_side\",\"authentic_parity\":false}\n");
+         fprintf(stderr,"semantic_cuda_live_calibration={\"enabled\":%d,\"attempt_cost_points\":%.3f,\"kick_fall_p\":%.3f,\"bot_award_p\":%.3f,\"interrupt_on_hit\":%d,\"table\":\"strict_attribution_2269_starts_20260922\"}\n",p.live_calibration,p.attempt_cost_points,p.kick_fall_p,p.bot_award_p,p.interrupt_on_hit);
+         fprintf(stderr,"semantic_cuda_parameters={\"version\":4,\"scoring_mode\":\"%s\",\"policy_round_feature\":\"episode_local_constant_1\",\"diagnostic_round_counter\":\"cumulative_session\",\"dt_seconds\":%.9g,\"round_seconds\":%.9g,\"move_speed_m_s\":%.9g,\"yaw_speed_rad_s\":%.9g,\"brake_rate_m_s2\":%.9g,\"yaw_ramp_seconds\":%.9g,\"settle_speed_m_s\":%.9g,\"body_radius_m\":%.9g,\"hit_speed_m_s\":%.9g,\"knockdowns_modeled\":false,\"hit_damage_resets\":false,\"hit_cooldown_ticks\":%d,\"floor_z_m\":%.9g,\"arena_half_extent_m\":[%.9g,%.9g],\"physics_parity\":false,"
+             "\"target_contract\":\"%s\",\"target_count\":%d,\"legacy_target_count\":3,"
+diff --git a/ocean/rek_g1/native5/calibrated_contact.h b/ocean/rek_g1/native5/calibrated_contact.h
+new file mode 100644
+--- /dev/null
++++ b/ocean/rek_g1/native5/calibrated_contact.h
+@@ -0,0 +1,32 @@
++#pragma once
++#include "recovered_contact_rules.cuh"
++#include <cstdint>
++#ifdef __CUDACC__
++#define REK_CALIBRATION_HD __host__ __device__ inline
++#else
++#define REK_CALIBRATION_HD inline
++#endif
++namespace rek_calibrated_contact {
++REK_CALIBRATION_HD bool allow(bool live,bool coherent,int attack_lands){
++    return !live||!coherent||attack_lands!=0;
++}
++REK_CALIBRATION_HD rek5_recovered::Result score(bool allowed,
++        RekG1HitDetectorState& state,const RekG1HitDetectorConfig& config,
++        const RekG1StrikeIntent& intent,int fighter,int limb,float speed,float time){
++    if(!allowed)return {0,0,-1};
++    return rek5_recovered::score(state,config,intent,fighter,limb,speed,time);
++}
++REK_CALIBRATION_HD std::uint32_t hash(std::uint32_t value){
++    value^=value>>16;value*=0x7feb352du;value^=value>>15;value*=0x846ca68bu;
++    return value^(value>>16);
++}
++REK_CALIBRATION_HD std::uint32_t episode_key(std::uint32_t seed,
++        std::uint32_t calibration_seed,std::uint32_t arena,std::uint32_t round){
++    return hash(seed^hash(calibration_seed+0x73fa421bu)^hash(arena+0x9e3779b9u)^hash(round+0x85ebca6bu));
++}
++REK_CALIBRATION_HD std::uint32_t draw_key(bool independent,std::uint32_t legacy,
++        std::uint32_t episode,std::uint32_t side){
++    return independent?hash(legacy^episode^hash(side+0xa511e9b3u)):legacy;
++}
++}
++#undef REK_CALIBRATION_HD
+diff --git a/ocean/rek_g1/native5/test_calibrated_contact.cpp b/ocean/rek_g1/native5/test_calibrated_contact.cpp
+new file mode 100644
+--- /dev/null
++++ b/ocean/rek_g1/native5/test_calibrated_contact.cpp
+@@ -0,0 +1,48 @@
++#include "calibrated_contact.h"
++#include <cassert>
++#include <cstring>
++#include <cstdio>
++#include <set>
++int main(){
++    using namespace rek_calibrated_contact;
++    const RekG1HitDetectorConfig config{1.75f,2.f,.3f,.2f};
++    const RekG1ImpactEvent event{.2f,.1f,.1f,0,REK_G1_AIM_LIMB_LEFT_LOWER_BODY};
++    RekG1StrikeIntent intent{&event,1,10.f,50.f,1,1,1,0};
++    for(int side=0;side<2;side++){
++        RekG1HitDetectorState state{},before=state;
++        auto rejected=score(allow(true,true,0),state,config,intent,side,0,3.f,1.f);
++        assert(rejected.points==0&&std::memcmp(&state,&before,sizeof state)==0);
++        auto accepted=score(allow(true,true,1),state,config,intent,side,0,3.f,1.f);
++        assert(accepted.points==2&&state.cooldown_seen[side][0]);
++        assert(state.scored_move_seen[side]&&state.scored_apex_mask[side]==1);
++        before=state;intent.move_id=2;
++        rejected=score(allow(true,true,0),state,config,intent,side,0,3.f,2.f);
++        assert(rejected.points==0&&std::memcmp(&state,&before,sizeof state)==0);
++        accepted=score(allow(true,true,1),state,config,intent,side,0,3.f,2.f);
++        assert(accepted.points==2&&state.scored_move_id[side]==2);
++        auto duplicate=score(true,state,config,intent,side,0,3.f,2.5f);
++        assert(duplicate.points==0&&duplicate.reject==rek5_recovered::Duplicate);
++        intent.move_id=3;
++        auto cooldown=score(true,state,config,intent,side,0,3.f,2.1f);
++        assert(cooldown.points==0&&cooldown.reject==rek5_recovered::Cooldown);
++        intent.move_id=1;
++    }
++    for(bool live:{false,true})for(bool coherent:{false,true})for(int lands:{0,1}){
++        RekG1HitDetectorState state{},reference{};
++        const auto actual=score(allow(live,coherent,lands),state,config,intent,0,0,3.f,1.f);
++        if(live&&coherent&&!lands){assert(actual.points==0);continue;}
++        const auto expected=rek5_recovered::score(reference,config,intent,0,0,3.f,1.f);
++        assert(actual.points==expected.points&&std::memcmp(&state,&reference,sizeof state)==0);
++    }
++    std::set<std::uint32_t> keys;
++    for(unsigned arena=0;arena<64;arena++)for(unsigned round=1;round<5;round++)for(unsigned side=0;side<2;side++){
++        const auto episode=episode_key(123,73,arena,round);
++        const auto key=draw_key(true,999,episode,side);
++        assert(key==draw_key(true,999,episode_key(123,73,arena,round),side));
++        assert(draw_key(false,999,episode,side)==999);
++        assert(keys.insert(key).second);
++    }
++    assert(episode_key(123,73,0,1)!=episode_key(124,73,0,1));
++    assert(episode_key(123,73,0,1)!=episode_key(123,74,0,1));
++    std::puts("PASS: rejected/accepted credit, cooldown/dedup, default-off equivalence, reproducible distinct arena/round/side keys");
++}

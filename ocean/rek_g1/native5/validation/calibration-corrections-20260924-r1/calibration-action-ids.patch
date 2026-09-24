@@ -1,0 +1,161 @@
+diff --git a/ocean/rek_g1/native5/fast_runtime.cu b/ocean/rek_g1/native5/fast_runtime.cu
+index cd6dda9..fca0305 100644
+--- a/ocean/rek_g1/native5/fast_runtime.cu
++++ b/ocean/rek_g1/native5/fast_runtime.cu
+@@ -23,6 +23,7 @@
+ #include "keyboard_yaw.h"
+ #include "contact_entry.h"
+ #include "calibrated_contact.h"
++#include "calibration_action_ids.h"
+ 
+ // Explicit reduced-order candidate. The source clips provide pose and strike
+ // trajectories; slider motion and temporally sampled contacts are modeling
+@@ -77,6 +78,7 @@ struct Parameters {
+     int live_calibration;    // 1 = gate awards per attack instance at live-measured hit rates (Claude 2026-09-22)
+     int calibration_coherent;
+     int calibration_independent_rng;
++    int calibration_action_ids;
+     float attempt_cost_points,kick_fall_p,bot_award_p,calib_seed;
+     int interrupt_on_hit;    // live calibration: bot hit ends the learner's move early // learner-side attack allow-list, bit (k-16) for category k in 16..32 (Claude 2026-09-21)
+     uint32_t seed;
+@@ -180,17 +182,7 @@ __device__ void pose_reset(const Parameters& p,Arena& a){
+ // Live-calibrated per-attack hit probability (strict attribution over 2,269 live attack starts,
+ // 2026-09-19..22). in_range = root distance <= 0.8 m; behind = |bearing to opponent| >= 1.8 rad.
+ __device__ float live_hit_probability(int move,bool in_range,bool behind){
+-    float p;
+-    switch(move){
+-        case 0: p=in_range?.31f:.16f; if(behind)p=0.f; break;          // +2 kick (action 16)
+-        case 5: p=in_range?.09f:.01f; break;                            // action 21
+-        case 7: p=in_range?.10f:.01f; break;                            // action 23
+-        case 9: p=in_range?.04f:.0f; break;                             // action 25
+-        case 10: p=in_range?.23f:.17f; if(behind)p*=.35f; break;        // action 26
+-        case 14: p=.02f; break;                                         // action 30
+-        default: p=in_range?.05f:.01f; break;                           // no live data
+-    }
+-    return p;
++    return rek_calibration_action_ids::hit_probability(move,in_range,behind);
+ }
+ __device__ uint32_t reset_hash(uint32_t value){
+     value^=value>>16;value*=0x7feb352du;value^=value>>15;value*=0x846ca68bu;return value^(value>>16);
+@@ -311,7 +303,8 @@ template<bool Bot=false> __device__ void advance_fighter(const Parameters& p,Fig
+                 const float ex=e.x-f.x,ey=e.y-f.y;const float dist=sqrtf(ex*ex+ey*ey);
+                 float bearing=atan2f(ey,ex)-f.yaw;bearing=fabsf(atan2f(sinf(bearing),cosf(bearing)));
+                 const int move=p.routes[f.route].move;
+-                const float prob=Bot?p.bot_award_p:live_hit_probability(move,dist<=.8f,bearing>=1.8f);
++                const int calibration_key=rek_calibration_action_ids::table_key(p.calibration_action_ids,action,move);
++                const float prob=Bot?p.bot_award_p:live_hit_probability(calibration_key,dist<=.8f,bearing>=1.8f);
+                 const uint32_t key=reset_hash(uint32_t(a.tick)*2654435761u^uint32_t(f.move_instance)*40503u^uint32_t(p.calib_seed)^(Bot?0x9e3779b9u:0u));
+                 const uint32_t draw_key=rek_calibrated_contact::draw_key(p.calibration_independent_rng,key,a.calibration_episode_key,uint32_t(&f-a.fighter));
+                 f.attack_lands=reset_uniform(draw_key,7u)<prob?1:0;
+@@ -713,7 +706,8 @@ __device__ void advance_arena(const View& v,int index){
+             // Live: a landed hit on the learner interrupts its current move (the mask reopens).
+             if(p.interrupt_on_hit&&points[1]>0&&attacking(a.fighter[0])){a.fighter[0].attack_duration=0;a.fighter[0].strike_active=0;}
+             Fighter& f0=a.fighter[0];
+-            if(f0.attempt_started&&p.routes[f0.route].move==0&&p.kick_fall_p>0){
++            const int attempted_move=p.routes[f0.route].move;
++            if(f0.attempt_started&&rek_calibration_action_ids::kick_penalty(p.calibration_action_ids,p.move_to_action[attempted_move],attempted_move)&&p.kick_fall_p>0){
+                 const uint32_t key=reset_hash(uint32_t(a.tick)*2246822519u^uint32_t(f0.move_instance)*3266489917u^uint32_t(p.calib_seed));
+                 const uint32_t draw_key=rek_calibrated_contact::draw_key(p.calibration_independent_rng,key,a.calibration_episode_key,0);
+                 if(reset_uniform(draw_key,11u)<p.kick_fall_p){points[1]+=5;f0.falls++;}
+@@ -826,7 +820,8 @@ __device__ void advance_arena_warp(const View& v,int index,int lane,WarpContactS
+             // Live: a landed hit on the learner interrupts its current move (the mask reopens).
+             if(p.interrupt_on_hit&&points[1]>0&&attacking(a.fighter[0])){a.fighter[0].attack_duration=0;a.fighter[0].strike_active=0;}
+             Fighter& f0=a.fighter[0];
+-            if(f0.attempt_started&&p.routes[f0.route].move==0&&p.kick_fall_p>0){
++            const int attempted_move=p.routes[f0.route].move;
++            if(f0.attempt_started&&rek_calibration_action_ids::kick_penalty(p.calibration_action_ids,p.move_to_action[attempted_move],attempted_move)&&p.kick_fall_p>0){
+                 const uint32_t key=reset_hash(uint32_t(a.tick)*2246822519u^uint32_t(f0.move_instance)*3266489917u^uint32_t(p.calib_seed));
+                 const uint32_t draw_key=rek_calibrated_contact::draw_key(p.calibration_independent_rng,key,a.calibration_episode_key,0);
+                 if(reset_uniform(draw_key,11u)<p.kick_fall_p){points[1]+=5;f0.falls++;}
+@@ -1122,6 +1117,9 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
+         const char* independent_rng=getenv("REK_FAST_CALIBRATION_INDEPENDENT_RNG");
+         if(independent_rng&&strcmp(independent_rng,"0")&&strcmp(independent_rng,"1"))throw std::runtime_error("REK_FAST_CALIBRATION_INDEPENDENT_RNG must be 0 or 1");
+         p.calibration_independent_rng=independent_rng&&!strcmp(independent_rng,"1");
++        const char* action_ids=getenv("REK_FAST_CALIBRATION_ACTION_IDS");
++        if(action_ids&&strcmp(action_ids,"0")&&strcmp(action_ids,"1"))throw std::runtime_error("REK_FAST_CALIBRATION_ACTION_IDS must be 0 or 1");
++        p.calibration_action_ids=action_ids&&!strcmp(action_ids,"1");
+         p.attempt_cost_points=environment_float("REK_FAST_ATTEMPT_COST",0,0,10);
+         p.kick_fall_p=environment_float("REK_FAST_KICK_FALL_P",0,0,1);
+         p.bot_award_p=environment_float("REK_FAST_BOT_AWARD_P",1.f,0,1);
+@@ -1208,6 +1206,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
+         fprintf(stderr,"semantic_cuda_attack_gate={\"allowed_attack_bits\":\"0x%05x\",\"kick_cooldown_ticks\":%d,\"scope\":\"learner_side_0_mask_only\"}\n",p.allowed_attack_bits,p.kick_cooldown_ticks);
+         if(p.calibration_coherent)fprintf(stderr,"semantic_cuda_calibration_coherent={\"enabled\":true,\"credit_gate\":\"before_scorer_state_mutation\",\"authentic_parity\":false}\n");
+         if(p.calibration_independent_rng)fprintf(stderr,"semantic_cuda_calibration_independent_rng={\"enabled\":true,\"rng_scope\":\"seed_arena_round_side\",\"authentic_parity\":false}\n");
++        if(p.calibration_action_ids)fprintf(stderr,"semantic_cuda_calibration_action_ids={\"enabled\":true,\"probability_key\":\"policy_action_minus_16\",\"kick_penalty_action\":16,\"authentic_parity\":false}\n");
+         fprintf(stderr,"semantic_cuda_live_calibration={\"enabled\":%d,\"attempt_cost_points\":%.3f,\"kick_fall_p\":%.3f,\"bot_award_p\":%.3f,\"interrupt_on_hit\":%d,\"table\":\"strict_attribution_2269_starts_20260922\"}\n",p.live_calibration,p.attempt_cost_points,p.kick_fall_p,p.bot_award_p,p.interrupt_on_hit);
+         fprintf(stderr,"semantic_cuda_parameters={\"version\":4,\"scoring_mode\":\"%s\",\"policy_round_feature\":\"episode_local_constant_1\",\"diagnostic_round_counter\":\"cumulative_session\",\"dt_seconds\":%.9g,\"round_seconds\":%.9g,\"move_speed_m_s\":%.9g,\"yaw_speed_rad_s\":%.9g,\"brake_rate_m_s2\":%.9g,\"yaw_ramp_seconds\":%.9g,\"settle_speed_m_s\":%.9g,\"body_radius_m\":%.9g,\"hit_speed_m_s\":%.9g,\"knockdowns_modeled\":false,\"hit_damage_resets\":false,\"hit_cooldown_ticks\":%d,\"floor_z_m\":%.9g,\"arena_half_extent_m\":[%.9g,%.9g],\"physics_parity\":false,"
+             "\"target_contract\":\"%s\",\"target_count\":%d,\"legacy_target_count\":3,"
+diff --git a/ocean/rek_g1/native5/calibration_action_ids.h b/ocean/rek_g1/native5/calibration_action_ids.h
+new file mode 100644
+--- /dev/null
++++ b/ocean/rek_g1/native5/calibration_action_ids.h
+@@ -0,0 +1,28 @@
++#pragma once
++#ifdef __CUDACC__
++#define REK_CALIBRATION_ACTION_HD __host__ __device__ inline
++#else
++#define REK_CALIBRATION_ACTION_HD inline
++#endif
++namespace rek_calibration_action_ids {
++REK_CALIBRATION_ACTION_HD int table_key(bool action_ids,int action,int native_move){
++    return action_ids?action-16:native_move;
++}
++REK_CALIBRATION_ACTION_HD bool kick_penalty(bool action_ids,int action,int native_move){
++    return action_ids?action==16:native_move==0;
++}
++REK_CALIBRATION_ACTION_HD float hit_probability(int key,bool in_range,bool behind){
++    float p;
++    switch(key){
++        case 0: p=in_range?.31f:.16f; if(behind)p=0.f; break;
++        case 5: p=in_range?.09f:.01f; break;
++        case 7: p=in_range?.10f:.01f; break;
++        case 9: p=in_range?.04f:.0f; break;
++        case 10: p=in_range?.23f:.17f; if(behind)p*=.35f; break;
++        case 14: p=.02f; break;
++        default: p=in_range?.05f:.01f; break;
++    }
++    return p;
++}
++}
++#undef REK_CALIBRATION_ACTION_HD
+diff --git a/ocean/rek_g1/native5/test_calibration_action_ids.cpp b/ocean/rek_g1/native5/test_calibration_action_ids.cpp
+new file mode 100644
+--- /dev/null
++++ b/ocean/rek_g1/native5/test_calibration_action_ids.cpp
+@@ -0,0 +1,36 @@
++#include "calibration_action_ids.h"
++#include <cassert>
++#include <cmath>
++#include <cstdio>
++#include <initializer_list>
++int main(){
++    using namespace rek_calibration_action_ids;
++    // Pinned fast_assets.cpp move_order for policy categories 16 through 32.
++    const int native_moves[17]={6,7,8,9,0,1,2,3,4,5,10,11,12,13,14,15,16};
++    int action_for_native[17]{};
++    for(int i=0;i<17;i++)action_for_native[native_moves[i]]=16+i;
++    const float near_rates[17]={.31f,.05f,.05f,.05f,.05f,.09f,.05f,.10f,.05f,.04f,.23f,.05f,.05f,.05f,.02f,.05f,.05f};
++    const float far_rates[17]={.16f,.01f,.01f,.01f,.01f,.01f,.01f,.01f,.01f,.0f,.17f,.01f,.01f,.01f,.02f,.01f,.01f};
++    for(int i=0;i<17;i++){
++        const int action=16+i,native=native_moves[i];
++        assert(action_for_native[native]==action);
++        assert(table_key(true,action,native)==i);
++        assert(table_key(false,action,native)==native);
++        assert(kick_penalty(true,action_for_native[native],native)==(action==16));
++        assert(kick_penalty(false,action_for_native[native],native)==(native==0));
++        for(bool close:{false,true})for(bool behind:{false,true}){
++            float expected=close?near_rates[i]:far_rates[i];
++            if(behind&&i==0)expected=0;
++            if(behind&&i==10)expected*=.35f;
++            const float actual=hit_probability(table_key(true,action,native),close,behind);
++            assert(std::fabs(actual-expected)<1e-7f);
++            assert(hit_probability(table_key(false,action,native),close,behind)==hit_probability(native,close,behind));
++        }
++    }
++    assert(native_moves[0]==6&&action_for_native[0]==20);
++    assert(hit_probability(table_key(true,16,6),true,false)==.31f);
++    assert(hit_probability(table_key(false,16,6),true,false)==.05f);
++    assert(kick_penalty(true,16,6)&&!kick_penalty(true,20,0));
++    assert(!kick_penalty(false,16,6)&&kick_penalty(false,20,0));
++    std::puts("PASS: all 17 action/native mappings; existing probability values for near/far and front/behind; corrected kick target; default-off keys and penalty unchanged");
++}
