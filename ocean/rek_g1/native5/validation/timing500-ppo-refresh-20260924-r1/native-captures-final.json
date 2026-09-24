@@ -1,0 +1,45 @@
+{
+  "schema": "rek.closed_c2_native_capture_selection.v1",
+  "campaign": "timing500-ppo-live-20260924-r1",
+  "campaign_end_utc": "2026-09-24T11:00:34.706Z",
+  "selection": "Exactly five completed C2 rounds; excludes parent and incomplete attempts",
+  "validation_scope": "Received referee audit plus independently decoded native score packets, exact scorer/counter relay joins, terminal totals, completed native capture",
+  "external_analysis_frozen": true,
+  "rounds": [
+    {
+      "label": "timingppo-s1301-retry7",
+      "native_source": {"file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T104100.9479047Z-pid32-89e53561257348408cde980d05bd784c.jsonl", "bytes": 205653218, "sha256": "6ae2e7cf219e8f8364c617bf0cfbe080c508f2b4675a4978ffacf021d779cf08"},
+      "strict_validation_passed": true,
+      "source_report": "/home/spark-advantage/rek-training/timing500-loss-analysis-20260924-r1/closed-round-geometry.json",
+      "source_report_sha256": "1801e1c7fef431dadb37eb0ff007557b9e7a261009ed2bb9d9300cf38500288b"
+    },
+    {
+      "label": "timingppo-s1302-retry2",
+      "native_source": {"file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T104542.4464452Z-pid32-a233ae7ff0b24dfcb73717fdda1853e5.jsonl", "bytes": 205748181, "sha256": "154aa661f5cc63ffa34baa5bffd0fe8611aa621c2ecef676c608475b17b3f211"},
+      "strict_validation_passed": true,
+      "source_report": "/home/spark-advantage/rek-training/timing500-loss-analysis-20260924-r1/closed-round-geometry.json",
+      "source_report_sha256": "1801e1c7fef431dadb37eb0ff007557b9e7a261009ed2bb9d9300cf38500288b"
+    },
+    {
+      "label": "timingppo-s1303-retry3",
+      "native_source": {"file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T105145.2422142Z-pid32-d8504807d29d40c3a3e700e34aa4b3ac.jsonl", "bytes": 205664588, "sha256": "0940a2abd9532d64bb889ade5f02d5f6969b9e955eabc376c5221b8a3787733e"},
+      "strict_validation_passed": true,
+      "source_report": "/home/spark-advantage/rek-training/timing500-loss-analysis-20260924-r1/win-followup/closed-round-geometry.json",
+      "source_report_sha256": "3a321054319c83bae325e58080e30041b1242679322ad61a859384cb06209617"
+    },
+    {
+      "label": "timingppo-s1304",
+      "native_source": {"file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T105506.6289424Z-pid32-8dbfae04e91e4822ae5cd551f1606b9f.jsonl", "bytes": 205561357, "sha256": "c642f95f775c7028f4225f8dc39ef2e9d7650845f1f675a786536965e4c04c0a"},
+      "strict_validation_passed": true,
+      "source_report": "/home/spark-advantage/rek-training/timing500-loss-analysis-20260924-r1/win-followup/closed-round-geometry.json",
+      "source_report_sha256": "3a321054319c83bae325e58080e30041b1242679322ad61a859384cb06209617"
+    },
+    {
+      "label": "timingppo-s1305",
+      "native_source": {"file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T105826.6367856Z-pid32-8f3a1e14921a4fc591077b7851e4993f.jsonl", "bytes": 205824487, "sha256": "e82035a259c66719a004b11e2661a6f220ed27e2e834ba09b159dbcfeb79db15"},
+      "strict_validation_passed": true,
+      "source_report": "/home/spark-advantage/rek-training/timing500-loss-analysis-20260924-r1/final-round/closed-round-geometry.json",
+      "source_report_sha256": "d6d65133645be30e03b437282d7b617b478962e85a3fdf410879518554aa31de"
+    }
+  ]
+}

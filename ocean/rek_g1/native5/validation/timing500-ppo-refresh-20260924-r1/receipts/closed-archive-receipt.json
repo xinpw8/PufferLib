@@ -1,0 +1,92 @@
+{
+  "utc": "2026-09-24T11:39:33.507Z",
+  "source_host": "spark-4ae3",
+  "stage": "/home/spark-advantage/rek-training/timing500-ppo-refresh-20260924-r1",
+  "archives": [
+    {
+      "name": "evidence.tar.gz",
+      "output": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\timing500-ppo-refresh-native-20260924-r1\\evidence.tar.gz",
+      "bytes": 23649408,
+      "sha256": "0a3870f23aef5a4089533fb78442e60c037ffea28adf812f981af9445d88e1b8",
+      "exit_code": 0,
+      "nas_readback_verified": true,
+      "archive_entries": 159,
+      "exact_allowlist_verified": true
+    },
+    {
+      "name": "native-dependencies.tar.gz",
+      "output": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\timing500-ppo-refresh-native-20260924-r1\\native-dependencies.tar.gz",
+      "bytes": 4319600,
+      "sha256": "5afc4c9d60d77e093845e92c6d10355c7d60ac2f46889c894702a4b06c264bd1",
+      "exit_code": 0,
+      "nas_readback_verified": true,
+      "archive_entries": 6,
+      "exact_allowlist_verified": true
+    }
+  ],
+  "source_file_count": 104,
+  "stage_regular_bytes": 47083358,
+  "symlink_count": 55,
+  "source_dependencies_and_native_hashes_verified_before_and_after": true,
+  "symlinks_preserved_not_dereferenced": true,
+  "execution_dependencies": [
+    {
+      "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/train-score-delta/policy.bin",
+      "archive_member": "home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/train-score-delta/policy.bin",
+      "bytes": 1836032,
+      "sha256": "c2c4987b268996cd912fe35e6ba5f9b20a94d69fd93e4ef15b6c5fc71ee5e533"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+      "archive_member": "home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+      "bytes": 1654528,
+      "sha256": "52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/native_policy.o",
+      "archive_member": "home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/native_policy.o",
+      "bytes": 647816,
+      "sha256": "4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+      "archive_member": "home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+      "bytes": 223,
+      "sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/build-score-delta/replay-authentic-behavior",
+      "archive_member": "home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/build-score-delta/replay-authentic-behavior",
+      "bytes": 1650856,
+      "sha256": "fa622e8a238d5b44a1fbb839c41b4750eb80d328795eeb8d992da5771b6c9927"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/build-score-delta/authentic-ppo",
+      "archive_member": "home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/build-score-delta/authentic-ppo",
+      "bytes": 1938224,
+      "sha256": "741035dad9303be7636c77be97ec44584011c95987170e86008d5515020b30e8"
+    }
+  ],
+  "parent_dependency": {
+    "directory": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\timing500-ppo-live-20260924-r1-closed-20260924T110034Z",
+    "archives": {
+      "evidence.tar.gz": "2393472f31fd7b1060cf48674faa7da0699d6ea551bc9284adc072821fe68f30",
+      "native-captures.tar.gz": "ac60c7db18bf634b4e1db59064578802035e452ea6e124dfd453c70719567c7d"
+    },
+    "nas_readbacks_reverified": true,
+    "all_55_symlink_targets_match_archived_parent_members": true,
+    "all_5_native_capture_hashes_match_archived_parent_receipt": true,
+    "native_capture_bytes": 1028451831,
+    "original_root": "/home/spark-advantage/rek-training/timing500-ppo-live-20260924-r1",
+    "restore_note": "Restore parent evidence at original_root and its native-captures archive at /home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7. Restore fresh evidence at stage. Native-dependencies archive uses paths relative to filesystem root; extract under an explicit recovery directory first, then intentionally map paths. No proprietary game binaries or credentials are included."
+  },
+  "replay_finished_utc": "2026-09-24T11:26:58.228Z",
+  "training_finished_utc": "2026-09-24T11:27:00.648Z",
+  "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+  "scope": "Closed fresh C2 stage with dataset/replay/checkpoints, source and receipts; six exact pinned native execution inputs. Closed parent evidence and five native captures remain explicitly hash-bound NAS dependencies.",
+  "rebuild_source_dependency": "Repository validation/scorecredit5s-20260924-r2 and balance8-authentic-20260924-r1 contain the unchanged native build source; CUDA toolchain is external.",
+  "active_live_stage_excluded": true,
+  "gpu_or_process_control": false,
+  "original_files_modified_or_removed": false,
+  "credential_values_printed": false
+}

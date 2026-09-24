@@ -1,0 +1,63 @@
+{
+  "schema": "rek.scorecredit5s_onpolicy_run_plan.v1",
+  "stage": "/home/spark-advantage/rek-training/timing500-ppo-refresh-20260924-r1",
+  "selection": {
+    "path": "/home/spark-advantage/rek-training/timing500-ppo-refresh-20260924-r1/selection.frozen.json",
+    "sha256": "b40b477942fd286e203a0e449feffa36f31a4f6eb5b1d0c7e18682d22eee9980"
+  },
+  "minimum_completed_rounds": 5,
+  "rounds": 5,
+  "rows": 14957,
+  "behavior": {
+    "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/train-score-delta/policy.bin",
+    "sha256": "c2c4987b268996cd912fe35e6ba5f9b20a94d69fd93e4ef15b6c5fc71ee5e533"
+  },
+  "worker": {
+    "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+    "sha256": "52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2"
+  },
+  "native_object": {
+    "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/native_policy.o",
+    "sha256": "4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c"
+  },
+  "feature_mask": {
+    "path": "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+    "sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b"
+  },
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "binaries": {
+    "replay": {
+      "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/build-score-delta/replay-authentic-behavior",
+      "sha256": "fa622e8a238d5b44a1fbb839c41b4750eb80d328795eeb8d992da5771b6c9927"
+    },
+    "trainer": {
+      "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/build-score-delta/authentic-ppo",
+      "sha256": "741035dad9303be7636c77be97ec44584011c95987170e86008d5515020b30e8"
+    }
+  },
+  "dataset": {
+    "path": "/home/spark-advantage/rek-training/timing500-ppo-refresh-20260924-r1/score-delta-5s/authentic-score-delta-v5.bin",
+    "sha256": "eb6b1ae210b3b3911597f93a513ae32081f15e4871b29c1cb29e75829f718655"
+  },
+  "identity": {
+    "path": "/home/spark-advantage/rek-training/timing500-ppo-refresh-20260924-r1/score-delta-5s/behavior-identity.json",
+    "sha256": "5e65d45f54e444a47d5f87e10691715ac1b0bc82a44685dd015e0e9efdb333c0"
+  },
+  "settings": {
+    "epochs": 1,
+    "learning_rate": 0.00003,
+    "horizon": 128,
+    "clip": 0.2,
+    "vf_clip": 0.2,
+    "vf_coef": 0,
+    "entropy": 0.001,
+    "targets": "complete_mc_zero_baseline",
+    "reward": "received-score-delta-div5-half-life-5s.v1"
+  },
+  "checkpoint_selection": "fixed final epoch1; no development-selected checkpoint",
+  "original_actor_logits_recorded": false,
+  "replay_required": true,
+  "weight_migration": false,
+  "resampled": false,
+  "gpu_used": false
+}

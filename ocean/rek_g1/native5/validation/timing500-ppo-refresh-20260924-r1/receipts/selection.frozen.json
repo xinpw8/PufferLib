@@ -1,0 +1,72 @@
+{
+  "schema": "rek.scorecredit5s_onpolicy_selection.v1",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "stage": "/home/spark-advantage/rek-training/timing500-ppo-refresh-20260924-r1",
+  "minimum_completed_rounds": 5,
+  "checkpoint": {
+    "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/train-score-delta/policy.bin",
+    "sha256": "c2c4987b268996cd912fe35e6ba5f9b20a94d69fd93e4ef15b6c5fc71ee5e533"
+  },
+  "worker": {
+    "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+    "sha256": "52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2"
+  },
+  "native_object": {
+    "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/native_policy.o",
+    "sha256": "4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c"
+  },
+  "feature_mask": {
+    "path": "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+    "sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b"
+  },
+  "native_capture_selection": {
+    "path": "/home/spark-advantage/rek-training/timing500-loss-analysis-20260924-r1/native-captures-final.json",
+    "sha256": "7f3189c1d619f7494eaa6f611eedcc850152d387f1a02bb0f74e8bcf9d516cf1"
+  },
+  "rounds": [
+    {
+      "id": "timingppo-s1301-retry7",
+      "seed": 1301,
+      "directory": "/home/spark-advantage/rek-training/timing500-ppo-live-20260924-r1/timingppo-s1301-retry7",
+      "config": "/home/spark-advantage/rek-training/timing500-ppo-live-20260924-r1/configs/timingppo-s1301-retry7.json"
+    },
+    {
+      "id": "timingppo-s1302-retry2",
+      "seed": 1302,
+      "directory": "/home/spark-advantage/rek-training/timing500-ppo-live-20260924-r1/timingppo-s1302-retry2",
+      "config": "/home/spark-advantage/rek-training/timing500-ppo-live-20260924-r1/configs/timingppo-s1302-retry2.json"
+    },
+    {
+      "id": "timingppo-s1303-retry3",
+      "seed": 1303,
+      "directory": "/home/spark-advantage/rek-training/timing500-ppo-live-20260924-r1/timingppo-s1303-retry3",
+      "config": "/home/spark-advantage/rek-training/timing500-ppo-live-20260924-r1/configs/timingppo-s1303-retry3.json"
+    },
+    {
+      "id": "timingppo-s1304",
+      "seed": 1304,
+      "directory": "/home/spark-advantage/rek-training/timing500-ppo-live-20260924-r1/timingppo-s1304",
+      "config": "/home/spark-advantage/rek-training/timing500-ppo-live-20260924-r1/configs/timingppo-s1304.json"
+    },
+    {
+      "id": "timingppo-s1305",
+      "seed": 1305,
+      "directory": "/home/spark-advantage/rek-training/timing500-ppo-live-20260924-r1/timingppo-s1305",
+      "config": "/home/spark-advantage/rek-training/timing500-ppo-live-20260924-r1/configs/timingppo-s1305.json"
+    }
+  ],
+  "minimum_override_reason": "All five completed C2 behavior rounds from the closed cohort, including both wins and all three losses; explicit development-training minimum5 after failure of the18/20 criterion. No losses discarded.",
+  "cohort": {
+    "path": "/home/spark-advantage/rek-training/timing500-ppo-live-20260924-r1",
+    "ended_utc": "2026-09-24T11:00:34.706Z",
+    "ledger_sha256": "628289ac919dbfb717de65ea6da951c07b158a3d2a0db0ae49b4772107a2887f",
+    "log_sha256": "493a26f7854b08e9263406e2d433c1bb042262037311450e152cc72c37147355",
+    "wins": 2,
+    "losses": 3,
+    "points": [
+      49,
+      55
+    ],
+    "incomplete_attempts": 9
+  }
+}

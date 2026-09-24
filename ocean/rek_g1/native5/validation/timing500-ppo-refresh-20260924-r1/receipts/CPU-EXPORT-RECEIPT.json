@@ -1,0 +1,176 @@
+{
+  "schema": "rek.timing500_ppo_refresh_cpu_receipt.v1",
+  "stage": "/home/spark-advantage/rek-training/timing500-ppo-refresh-20260924-r1",
+  "tests": {
+    "local": 40,
+    "spark": 40,
+    "failed": 0
+  },
+  "actual_export_exit_code": 0,
+  "run_plan_sha256": "5e237a46193220e1b825afb9da5f6ec08565603f6c13ebd99ed786618b8f9e26",
+  "evidence_manifest_sha256": "efc7c7a9a7e1c030450712a83302742d5a7e97818f5b3d7da31beaaf4b32fb54",
+  "dataset_sha256": "eb6b1ae210b3b3911597f93a513ae32081f15e4871b29c1cb29e75829f718655",
+  "identity_sha256": "5e65d45f54e444a47d5f87e10691715ac1b0bc82a44685dd015e0e9efdb333c0",
+  "checkpoint_sha256": "c2c4987b268996cd912fe35e6ba5f9b20a94d69fd93e4ef15b6c5fc71ee5e533",
+  "rows": 14957,
+  "rounds": [
+    {
+      "label": "timingppo-s1301-retry7",
+      "points": [
+        2,
+        6
+      ],
+      "native": true,
+      "referee": true,
+      "legacy_coverage": false,
+      "controlled_coverage": true,
+      "start_remaining_seconds": 118.74957
+    },
+    {
+      "label": "timingppo-s1302-retry2",
+      "points": [
+        9,
+        11
+      ],
+      "native": true,
+      "referee": true,
+      "legacy_coverage": false,
+      "controlled_coverage": true,
+      "start_remaining_seconds": 118.86636
+    },
+    {
+      "label": "timingppo-s1303-retry3",
+      "points": [
+        20,
+        14
+      ],
+      "native": true,
+      "referee": true,
+      "legacy_coverage": true,
+      "controlled_coverage": true,
+      "start_remaining_seconds": 118.7992
+    },
+    {
+      "label": "timingppo-s1304",
+      "points": [
+        12,
+        10
+      ],
+      "native": true,
+      "referee": true,
+      "legacy_coverage": false,
+      "controlled_coverage": true,
+      "start_remaining_seconds": 118.766335
+    },
+    {
+      "label": "timingppo-s1305",
+      "points": [
+        6,
+        14
+      ],
+      "native": true,
+      "referee": true,
+      "legacy_coverage": false,
+      "controlled_coverage": true,
+      "start_remaining_seconds": 118.59961
+    }
+  ],
+  "score_and_cadence": [
+    {
+      "trial_id": "timingppo-s1301-retry7",
+      "seed": 1301,
+      "rows": 3005,
+      "points": [
+        2,
+        6
+      ],
+      "undiscounted_reward_sum": -0.800000011920929,
+      "expected_net_point_margin_div5": -0.8,
+      "seconds": 118.61280299999986,
+      "decisions_per_second": 25.334533237529204,
+      "minimum_dt_seconds": 0.0264128,
+      "maximum_dt_seconds": 0.1204156,
+      "changed_rewards": 2127,
+      "changed_gammas": 3005,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "timingppo-s1302-retry2",
+      "seed": 1302,
+      "rows": 3090,
+      "points": [
+        9,
+        11
+      ],
+      "undiscounted_reward_sum": -0.4000000059604645,
+      "expected_net_point_margin_div5": -0.4,
+      "seconds": 118.66647530000003,
+      "decisions_per_second": 26.039367834834472,
+      "minimum_dt_seconds": 0.0267582,
+      "maximum_dt_seconds": 0.1305757,
+      "changed_rewards": 2773,
+      "changed_gammas": 3090,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "timingppo-s1303-retry3",
+      "seed": 1303,
+      "rows": 2958,
+      "points": [
+        20,
+        14
+      ],
+      "undiscounted_reward_sum": 1.199999988079071,
+      "expected_net_point_margin_div5": 1.2,
+      "seconds": 118.82134960000027,
+      "decisions_per_second": 24.89451609460589,
+      "minimum_dt_seconds": 0.0300382,
+      "maximum_dt_seconds": 0.1297936,
+      "changed_rewards": 2680,
+      "changed_gammas": 2958,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "timingppo-s1304",
+      "seed": 1304,
+      "rows": 2838,
+      "points": [
+        12,
+        10
+      ],
+      "undiscounted_reward_sum": 0.3999999761581421,
+      "expected_net_point_margin_div5": 0.4,
+      "seconds": 118.79502869999985,
+      "decisions_per_second": 23.889888584201366,
+      "minimum_dt_seconds": 0.0294331,
+      "maximum_dt_seconds": 0.1227583,
+      "changed_rewards": 2469,
+      "changed_gammas": 2838,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "timingppo-s1305",
+      "seed": 1305,
+      "rows": 3066,
+      "points": [
+        6,
+        14
+      ],
+      "undiscounted_reward_sum": -1.6000000089406967,
+      "expected_net_point_margin_div5": -1.6,
+      "seconds": 118.48011420000003,
+      "decisions_per_second": 25.87776033727016,
+      "minimum_dt_seconds": 0.027046,
+      "maximum_dt_seconds": 0.1240684,
+      "changed_rewards": 2878,
+      "changed_gammas": 3066,
+      "actor_weight_zero_rows": 1
+    }
+  ],
+  "all223_observations_actions_masks_seeds_and_loss_weights_bitwise_unchanged": true,
+  "native_replay_command_check_passed": true,
+  "native_training_command_check_passed": true,
+  "gpu_replay_executed": false,
+  "training_executed": false,
+  "game_connection": false
+}

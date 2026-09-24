@@ -1,0 +1,27 @@
+{
+  "schema": "rek.scorecredit5s_onpolicy_selection.v1",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "stage": "/home/spark-advantage/rek-training/timing500-ppo-refresh-20260924-r1",
+  "minimum_completed_rounds": 5,
+  "checkpoint": {
+    "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/train-score-delta/policy.bin",
+    "sha256": "c2c4987b268996cd912fe35e6ba5f9b20a94d69fd93e4ef15b6c5fc71ee5e533"
+  },
+  "worker": {
+    "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+    "sha256": "52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2"
+  },
+  "native_object": {
+    "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/native_policy.o",
+    "sha256": "4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c"
+  },
+  "feature_mask": {
+    "path": "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+    "sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b"
+  },
+  "native_capture_selection": {
+    "path": "/home/spark-advantage/rek-training/timing500-loss-analysis-20260924-r1/native-captures-final.json",
+    "sha256": "7f3189c1d619f7494eaa6f611eedcc850152d387f1a02bb0f74e8bcf9d516cf1"
+  },
+  "rounds": []
+}

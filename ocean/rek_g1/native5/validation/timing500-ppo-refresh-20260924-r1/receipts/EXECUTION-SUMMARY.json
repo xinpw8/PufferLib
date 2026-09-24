@@ -1,0 +1,51 @@
+{
+  "schema": "rek.timing500_ppo_refresh_execution_summary.v1",
+  "cpu_tests": {
+    "preparation_windows": 40,
+    "preparation_spark": 40,
+    "live_preparer_windows": 2,
+    "live_preparer_spark": 2,
+    "publication_combined_windows": 42,
+    "failed": 0
+  },
+  "replay": {
+    "started_utc": "2026-09-24T11:26:55.788Z",
+    "finished_utc": "2026-09-24T11:26:58.228Z",
+    "full_native_process_wall_seconds": 2.43,
+    "exit_code": 0,
+    "rows": 14957,
+    "exact_actions": 14957,
+    "mismatches": 0,
+    "replay_sha256": "6aa4bdb5b8c28b41524d4902f667e183fb0adea37584b2af6402a0c02bb8a702"
+  },
+  "training": {
+    "started_utc": "2026-09-24T11:26:58.645Z",
+    "finished_utc": "2026-09-24T11:27:00.648Z",
+    "full_native_process_wall_seconds": 1.99,
+    "exit_code": 0,
+    "epochs": 1,
+    "updates": 120,
+    "behavior_checkpoint_sha256": "c2c4987b268996cd912fe35e6ba5f9b20a94d69fd93e4ef15b6c5fc71ee5e533",
+    "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+    "learning_rate": 0.00003,
+    "horizon": 128,
+    "vf_coef": 0,
+    "entropy": 0.001,
+    "cuda_return_reference_max_error": 0,
+    "sequential_teacher_logit_max_error": 0,
+    "sequential_teacher_value_max_error": 0,
+    "initial_batched_bf16_acceptance": "explicit_distributional_approximation",
+    "exact_batch_parity_claimed": false,
+    "post_mean_legal_kl": 0.00239410671307,
+    "post_max_legal_kl": 0.0386989684803,
+    "post_clipped_fraction": 0.0114996322792,
+    "environment_stepping": false,
+    "checkpoint_selection": "Prospective final epoch1"
+  },
+  "live": {
+    "completed_results_in_this_publication": 0,
+    "efficacy_claimed": false,
+    "preparer_executed_by_preparation": false,
+    "controller_launched_by_preparation": false
+  }
+}

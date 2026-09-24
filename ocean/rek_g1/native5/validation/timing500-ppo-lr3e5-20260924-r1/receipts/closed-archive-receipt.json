@@ -1,0 +1,112 @@
+{
+  "utc": "2026-09-24T11:09:54.505Z",
+  "stage": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-20260924-r1",
+  "archive": {
+    "path": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\timing500-ppo-lr3e5-native-20260924-r1\\evidence.tar.gz",
+    "bytes": 3390981,
+    "sha256": "6f0ccf09ac35f6cf3ea34df9bb0a18607885f7f49ff98028d64f3ffa04be5505",
+    "nas_readback_verified": true,
+    "archive_entries": 23,
+    "tar_listing_verified": true
+  },
+  "source_file_count": 21,
+  "source_bytes": 3707591,
+  "source_and_dependency_hashes_unchanged": true,
+  "checkpoint": {
+    "path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-20260924-r1/train-one-epoch/policy.bin",
+    "sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+    "mode": "train",
+    "epochs": 1,
+    "updates": 192,
+    "parent_checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+    "selection": "fixed final epoch1; no development-selected checkpoint",
+    "environment_stepping": false
+  },
+  "training_started_utc": "2026-09-24T11:00:45.086Z",
+  "training_finished_utc": "2026-09-24T11:00:47.661Z",
+  "native_timing": "full_native_process_wall_seconds=2.57\nexit_code=0",
+  "parent_dependency": {
+    "archive": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\timing500-onpolicy-native-20260924-r2\\evidence.tar.gz",
+    "sha256": "337925d9f1e6a3bcad1e8db2caa120279725d8e90582e6532ec427f207723aff",
+    "nas_readback_reverified": true,
+    "parent_members_verified": true,
+    "restore_note": "Restore the parent R2 stage and its documented closed-cohort/native-capture dependencies. This sibling archive does not duplicate the dataset/replay or other pinned external executable/checkpoint inputs."
+  },
+  "dependencies": [
+    {
+      "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/run-plan.json",
+      "bytes": 2648,
+      "sha256": "b47e183b1dd7ef754eaff306c54972944ba837abfffd6c78310e91c84dbca82f",
+      "parent_archive_member": "run-plan.json"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/score-delta-5s/behavior-replay-v5.bin",
+      "bytes": 3649648,
+      "sha256": "d8707ff84cee844f7ad43853941886472b56c16c766ae523b4a6efde6ad5526a",
+      "parent_archive_member": "score-delta-5s/behavior-replay-v5.bin"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/score-delta-5s/behavior-replay-v5.bin.json",
+      "bytes": 1118,
+      "sha256": "1b94d99312d945ed416f72d2cc7f4c2e067348880714013e8ccf01de52276268",
+      "parent_archive_member": "score-delta-5s/behavior-replay-v5.bin.json"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/selection.frozen.json",
+      "bytes": 4117,
+      "sha256": "86f803dc76012e17c46566202e1cb60cf76ccb6804246f916ceabcbafddc0c96",
+      "parent_archive_member": "selection.frozen.json"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/score-delta-5s/authentic-score-delta-v5.bin",
+      "bytes": 27083664,
+      "sha256": "a2ab10a34404cebea926cb2cec0fdea1386e0032c5333328acfa1c8fe0b0ba21",
+      "parent_archive_member": "score-delta-5s/authentic-score-delta-v5.bin"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/score-delta-5s/behavior-identity.json",
+      "bytes": 50452,
+      "sha256": "9bb7a6af446e07a67d19cb538aab4acce061e0b826cbde827ee542c8cb6ffc53",
+      "parent_archive_member": "score-delta-5s/behavior-identity.json"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/scorecredit-human-attackbc-20260924-r1/train-five-epochs/policy.bin",
+      "bytes": 1836032,
+      "sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "parent_archive_member": null
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+      "bytes": 1654528,
+      "sha256": "52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2",
+      "parent_archive_member": null
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/native_policy.o",
+      "bytes": 647816,
+      "sha256": "4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c",
+      "parent_archive_member": null
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+      "bytes": 223,
+      "sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+      "parent_archive_member": null
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/build-score-delta/replay-authentic-behavior",
+      "bytes": 1650856,
+      "sha256": "fa622e8a238d5b44a1fbb839c41b4750eb80d328795eeb8d992da5771b6c9927",
+      "parent_archive_member": null
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/build-score-delta/authentic-ppo",
+      "bytes": 1938224,
+      "sha256": "741035dad9303be7636c77be97ec44584011c95987170e86008d5515020b30e8",
+      "parent_archive_member": null
+    }
+  ],
+  "original_files_changed": false,
+  "active_live_cohort_touched": false,
+  "gpu_or_process_control": false
+}

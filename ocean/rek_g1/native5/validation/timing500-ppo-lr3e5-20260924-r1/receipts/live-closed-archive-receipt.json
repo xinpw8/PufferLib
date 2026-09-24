@@ -1,0 +1,140 @@
+{
+  "utc": "2026-09-24T11:35:08.458Z",
+  "source_host": "spark-4ae3",
+  "stage": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1",
+  "campaign_end_utc": "2026-09-24T11:25:21.524Z",
+  "results": {
+    "wins": 2,
+    "losses": 3,
+    "own_points": 47,
+    "opponent_points": 60,
+    "completed_rounds": 5,
+    "incomplete_attempts": 3,
+    "criterion_exit_code": 1
+  },
+  "resource_rows": 700,
+  "last_resource_sample_utc": "2026-09-24T11:25:20.414Z",
+  "root_reported_resource_end_utc": "2026-09-24T11:25:22.415Z",
+  "archives": [
+    {
+      "name": "evidence.tar.gz",
+      "output": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\timing500-ppo-lr3e5-live-20260924-r1-closed-20260924T112521Z\\evidence.tar.gz",
+      "bytes": 213101993,
+      "sha256": "720ecfff13d5d4db1040b9536f2735c6a9d758b8b2c1084055ec65ef04e811e6",
+      "command": [
+        "wsl.exe",
+        "-e",
+        "bash",
+        "-lc",
+        "ssh -o BatchMode=yes -o ConnectTimeout=5 spark \"tar -C /home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1 -czf - -- .\""
+      ],
+      "exit_code": 0,
+      "nas_readback_verified": true,
+      "archive_entries": 289,
+      "tar_listing_verified": true
+    },
+    {
+      "name": "native-captures.tar.gz",
+      "output": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\timing500-ppo-lr3e5-live-20260924-r1-closed-20260924T112521Z\\native-captures.tar.gz",
+      "bytes": 151699439,
+      "sha256": "29e28d3bba951b8815472f1f43c4165242db04610a977b18cc99e7a809a7cd5e",
+      "command": [
+        "wsl.exe",
+        "-e",
+        "bash",
+        "-lc",
+        "ssh -o BatchMode=yes -o ConnectTimeout=5 spark \"tar -C /home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7 -czf - -- rek-private-ai-root-motion-20260924T110653.1177502Z-pid32-4c042a1bb5e2414c8cd2def9d835b649.jsonl rek-private-ai-root-motion-20260924T111013.4636714Z-pid32-7aa9b6be82f441709e0d511c86e3e867.jsonl rek-private-ai-root-motion-20260924T111631.9342691Z-pid32-729c918ecdce449c9f3d9d25fc1cd594.jsonl rek-private-ai-root-motion-20260924T111952.9862528Z-pid32-e114d65e71844c4f9b985a166b0272f9.jsonl rek-private-ai-root-motion-20260924T112313.4971221Z-pid32-1a650780ba014c6eae5fb70ccd10c35f.jsonl\""
+      ],
+      "exit_code": 0,
+      "nas_readback_verified": true,
+      "archive_entries": 5,
+      "tar_listing_verified": true
+    }
+  ],
+  "source_file_count": 247,
+  "symlinks_present": false,
+  "native_capture_count": 5,
+  "native_capture_bytes": 1028359246,
+  "native_captures": [
+    {
+      "label": "lr3e5-s1401-retry3",
+      "path": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T110653.1177502Z-pid32-4c042a1bb5e2414c8cd2def9d835b649.jsonl",
+      "archive_member": "rek-private-ai-root-motion-20260924T110653.1177502Z-pid32-4c042a1bb5e2414c8cd2def9d835b649.jsonl",
+      "bytes": 205440654,
+      "sha256": "79c4aadda022f7573ea75d75fb7387f8091e2cb97bf10f850fd6cb3b6b881fed"
+    },
+    {
+      "label": "lr3e5-s1402",
+      "path": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T111013.4636714Z-pid32-7aa9b6be82f441709e0d511c86e3e867.jsonl",
+      "archive_member": "rek-private-ai-root-motion-20260924T111013.4636714Z-pid32-7aa9b6be82f441709e0d511c86e3e867.jsonl",
+      "bytes": 205768745,
+      "sha256": "46e357d501b371c1c2a13e839c7d122b648f4232c0167644c0d14dd9e711399d"
+    },
+    {
+      "label": "lr3e5-s1403-retry2",
+      "path": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T111631.9342691Z-pid32-729c918ecdce449c9f3d9d25fc1cd594.jsonl",
+      "archive_member": "rek-private-ai-root-motion-20260924T111631.9342691Z-pid32-729c918ecdce449c9f3d9d25fc1cd594.jsonl",
+      "bytes": 205635528,
+      "sha256": "ae42126b44caa6c92a33cffaacfbd454889bd3bc1cde29ff3e0e629d8f195569"
+    },
+    {
+      "label": "lr3e5-s1404",
+      "path": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T111952.9862528Z-pid32-e114d65e71844c4f9b985a166b0272f9.jsonl",
+      "archive_member": "rek-private-ai-root-motion-20260924T111952.9862528Z-pid32-e114d65e71844c4f9b985a166b0272f9.jsonl",
+      "bytes": 205669579,
+      "sha256": "a97789899d80e641fd1bed6d9e479a5a7924647f8a53abc913d254898ad3fdbf"
+    },
+    {
+      "label": "lr3e5-s1405",
+      "path": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T112313.4971221Z-pid32-1a650780ba014c6eae5fb70ccd10c35f.jsonl",
+      "archive_member": "rek-private-ai-root-motion-20260924T112313.4971221Z-pid32-1a650780ba014c6eae5fb70ccd10c35f.jsonl",
+      "bytes": 205844740,
+      "sha256": "21ec0f9fbf0cbad21e5f1d57bab6f58754af799f1d8ca386b7b32c16d496fc3c"
+    }
+  ],
+  "native_selection_manifest_sha256": "3f3d0891a4faa489cc2993d5522845147758277ef095c221c19e0b2ff5f3ff03",
+  "native_selection_source": "/home/spark-advantage/rek-training/timing500-lr3e5-archive-validation-20260924-r1/native-captures-final.json",
+  "native_selection_provenance": {
+    "schema": "rek.closed_7001_native_capture_selection.v1",
+    "validation_scope": "Received referee audit plus independently decoded native score packets, exact scorer/counter relay joins, terminal totals, completed native capture",
+    "external_analysis_frozen": true,
+    "reports": [
+      {
+        "label": "lr3e5-s1401-retry3",
+        "strict_validation_passed": true,
+        "path": "/home/spark-advantage/rek-training/timing500-lr3e5-archive-validation-20260924-r1/closed-round-geometry.json",
+        "sha256": "b4fba2208e542fda53c0960727a5325a43c56dbd173404158bb886ba6024007e"
+      },
+      {
+        "label": "lr3e5-s1402",
+        "strict_validation_passed": true,
+        "path": "/home/spark-advantage/rek-training/timing500-lr3e5-archive-validation-20260924-r1/closed-round-geometry.json",
+        "sha256": "b4fba2208e542fda53c0960727a5325a43c56dbd173404158bb886ba6024007e"
+      },
+      {
+        "label": "lr3e5-s1403-retry2",
+        "strict_validation_passed": true,
+        "path": "/home/spark-advantage/rek-training/timing500-lr3e5-archive-validation-20260924-r1/closed-round-geometry.json",
+        "sha256": "b4fba2208e542fda53c0960727a5325a43c56dbd173404158bb886ba6024007e"
+      },
+      {
+        "label": "lr3e5-s1404",
+        "strict_validation_passed": true,
+        "path": "/home/spark-advantage/rek-training/timing500-lr3e5-archive-validation-20260924-r1/closed-round-geometry.json",
+        "sha256": "b4fba2208e542fda53c0960727a5325a43c56dbd173404158bb886ba6024007e"
+      },
+      {
+        "label": "lr3e5-s1405",
+        "strict_validation_passed": true,
+        "path": "/home/spark-advantage/rek-training/timing500-lr3e5-archive-validation-20260924-r1/closed-round-geometry.json",
+        "sha256": "b4fba2208e542fda53c0960727a5325a43c56dbd173404158bb886ba6024007e"
+      }
+    ]
+  },
+  "source_and_native_hashes_verified_before_and_after": true,
+  "external_dependencies": "Native captures were referenced outside the cohort and are now included separately. External strict-analysis reports remain at paths recorded in native-selection.json; their compact five-capture selection is included beside these archives.",
+  "scope": "Closed 7001 cohort scripts/configs/logs/resource samples/MP4s plus exactly five strictly selected native JSONL captures. No new training or live stage, game binaries or credential stores.",
+  "original_files_modified_or_removed": false,
+  "new_live_stage_touched": false,
+  "gpu_or_process_control": false
+}

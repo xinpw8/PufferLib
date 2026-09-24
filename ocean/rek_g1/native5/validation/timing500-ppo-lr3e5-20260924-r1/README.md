@@ -64,3 +64,9 @@ No datasets, checkpoints, executable binaries, raw captures, credentials or prop
 The candidate was prepared using `prepare_live.cjs CHECKPOINT_PATH CHECKPOINT_SHA256`; the controller launched at 2026-09-24T11:01:45.214Z, PID 3006797. The new stage is `timing500-ppo-lr3e5-live-20260924-r1`, labels `lr3e5-s1401` through `lr3e5-s1420`. Target remains 18/20, stopping after the third completed nonwin, with 10-attempt and 10-relaunch budgets.
 
 The frozen timing500 driver/controller, 500/750 ms bridge, balance8 encoder, native worker, all-ones mask, all 17 attacks and sampled selection are retained. Only checkpoint, seed and output paths change in per-round configurations. Planned-round receipt SHA256 is `0ec7a4e77ccf5c60c5ab1a9dd561a0ef8ce4dbe509c7f8a1fa55af5fa7e505f6`; its exact copy is in `receipts/planned-rounds.json`. The preparation receipt's `controller_started:false` describes preparation before the separately reported launch. No live win or improvement claim is made at this cutoff.
+
+## Native training archive
+
+The closed native training stage is preserved at `\\192.168.0.19\MyShare\pufferlib\rek-evidence\2026-09-24\timing500-ppo-lr3e5-native-20260924-r1\evidence.tar.gz`: 3,390,981 bytes, SHA256 `6f0ccf09ac35f6cf3ea34df9bb0a18607885f7f49ff98028d64f3ffa04be5505`.
+
+All 21 stage files, including the checkpoint, were archived with unchanged before/after source hashes and verified NAS readback. The six reused dataset/replay/identity/plan/selection dependencies were checked against the separately preserved parent R2 archive. Other pinned executable/checkpoint dependencies remain explicitly referenced. Restore dependencies described in `receipts/closed-archive-receipt.json` before reproducing training. The active live cohort is separate and is not included in this archive.
