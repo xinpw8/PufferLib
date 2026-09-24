@@ -1,0 +1,10 @@
+{
+  "path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-20260924-r1/train-one-epoch/policy.bin",
+  "sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+  "mode": "train",
+  "epochs": 1,
+  "updates": 192,
+  "parent_checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+  "selection": "fixed final epoch1; no development-selected checkpoint",
+  "environment_stepping": false
+}

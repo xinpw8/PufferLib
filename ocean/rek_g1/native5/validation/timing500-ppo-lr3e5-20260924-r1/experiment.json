@@ -1,0 +1,32 @@
+{
+  "schema": "rek.timing500_ppo_lr3e5.v1",
+  "stage": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-20260924-r1",
+  "parent_run_plan": {
+    "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/run-plan.json",
+    "sha256": "b47e183b1dd7ef754eaff306c54972944ba837abfffd6c78310e91c84dbca82f"
+  },
+  "replay": {
+    "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/score-delta-5s/behavior-replay-v5.bin",
+    "sha256": "d8707ff84cee844f7ad43853941886472b56c16c766ae523b4a6efde6ad5526a"
+  },
+  "replay_receipt": {
+    "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/score-delta-5s/behavior-replay-v5.bin.json",
+    "sha256": "1b94d99312d945ed416f72d2cc7f4c2e067348880714013e8ccf01de52276268"
+  },
+  "settings": {
+    "epochs": 1,
+    "learning_rate": 0.00003,
+    "horizon": 128,
+    "clip": 0.2,
+    "vf_clip": 0.2,
+    "vf_coef": 0,
+    "entropy": 0.001,
+    "targets": "complete_mc_zero_baseline",
+    "reward": "received-score-delta-div5-half-life-5s.v1"
+  },
+  "checkpoint_selection": "fixed final epoch1; no development-selected checkpoint",
+  "optimizer_initialization": "fresh native trainer from actual5b19 behavior checkpoint; not continuation from c2c4987",
+  "changed_learning_knob": "learning_rate only:1e-5 to3e-5",
+  "expected_updates": 192,
+  "no_new_replay_required": "reuses byte-identical dataset, identity, behavior checkpoint and verified original replay"
+}

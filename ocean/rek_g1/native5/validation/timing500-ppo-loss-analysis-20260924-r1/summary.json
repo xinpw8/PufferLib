@@ -1,0 +1,530 @@
+{
+  "schema": "rek.c2_closed_sanitized_analysis.v1",
+  "selection": "Five completed C2 versus eight completed parent rounds; unmatched seeds",
+  "semantics": {
+    "score": "independently decoded native score with exact relay scorer/counter join",
+    "requests": "local armed ACK plus native outbound projection, not server execution",
+    "associations": "descriptive temporal windows, not hit/miss labels; requests can share subsequent score receipts",
+    "units": "Unity root distances, radians, seconds; no metre calibration"
+  },
+  "c2": {
+    "rounds": 5,
+    "points": [
+      49,
+      55
+    ],
+    "ordinary_points": [
+      19,
+      40
+    ],
+    "plus5_awards": [
+      6,
+      3
+    ],
+    "predictions": 14957,
+    "local_applied": 14952,
+    "armed_requests": 393,
+    "native_dispatches": 393,
+    "unique_dispatch_matches": 393,
+    "category17_legal_decisions": 816,
+    "translation_blocked_decisions": 3583,
+    "projected_busy_decisions": 10165,
+    "request_geometry": {
+      "facing45": 189,
+      "behind90": 93,
+      "distance_over1": 72,
+      "facing45_distance_point8": 106
+    },
+    "pooled_source_hz": 25.18983096261907,
+    "attack_category_counts": {
+      "16": 14,
+      "17": 0,
+      "18": 2,
+      "19": 0,
+      "20": 1,
+      "21": 145,
+      "22": 0,
+      "23": 157,
+      "24": 5,
+      "25": 18,
+      "26": 39,
+      "27": 0,
+      "28": 1,
+      "29": 1,
+      "30": 10,
+      "31": 0,
+      "32": 0
+    },
+    "descriptive_associations": {
+      "17": {
+        "all": {
+          "requests": 0,
+          "ordinary_score_followed_within2s": 0
+        },
+        "close_facing": {
+          "requests": 0,
+          "ordinary_score_followed_within2s": 0
+        },
+        "behind90": {
+          "requests": 0,
+          "ordinary_score_followed_within2s": 0
+        }
+      },
+      "21": {
+        "all": {
+          "requests": 145,
+          "ordinary_score_followed_within2s": 7
+        },
+        "close_facing": {
+          "requests": 44,
+          "ordinary_score_followed_within2s": 3
+        },
+        "behind90": {
+          "requests": 25,
+          "ordinary_score_followed_within2s": 0
+        }
+      },
+      "23": {
+        "all": {
+          "requests": 157,
+          "ordinary_score_followed_within2s": 12
+        },
+        "close_facing": {
+          "requests": 27,
+          "ordinary_score_followed_within2s": 8
+        },
+        "behind90": {
+          "requests": 62,
+          "ordinary_score_followed_within2s": 0
+        }
+      },
+      "26": {
+        "all": {
+          "requests": 39,
+          "ordinary_score_followed_within2s": 6
+        },
+        "close_facing": {
+          "requests": 17,
+          "ordinary_score_followed_within2s": 4
+        },
+        "behind90": {
+          "requests": 2,
+          "ordinary_score_followed_within2s": 0
+        }
+      }
+    }
+  },
+  "parent": {
+    "rounds": 8,
+    "points": [
+      104,
+      93
+    ],
+    "ordinary_points": [
+      54,
+      58
+    ],
+    "plus5_awards": [
+      10,
+      7
+    ],
+    "predictions": 24010,
+    "local_applied": 24002,
+    "armed_requests": 576,
+    "native_dispatches": 576,
+    "unique_dispatch_matches": 576,
+    "category17_legal_decisions": 1431,
+    "translation_blocked_decisions": 6092,
+    "projected_busy_decisions": 15911,
+    "request_geometry": {
+      "facing45": 297,
+      "behind90": 116,
+      "distance_over1": 125,
+      "facing45_distance_point8": 167
+    },
+    "pooled_source_hz": 25.275552166528705,
+    "attack_category_counts": {
+      "16": 10,
+      "17": 3,
+      "18": 3,
+      "19": 0,
+      "20": 4,
+      "21": 222,
+      "22": 1,
+      "23": 186,
+      "24": 4,
+      "25": 21,
+      "26": 87,
+      "27": 0,
+      "28": 2,
+      "29": 2,
+      "30": 30,
+      "31": 0,
+      "32": 1
+    },
+    "descriptive_associations": {
+      "17": {
+        "all": {
+          "requests": 3,
+          "ordinary_score_followed_within2s": 1
+        },
+        "close_facing": {
+          "requests": 2,
+          "ordinary_score_followed_within2s": 0
+        },
+        "behind90": {
+          "requests": 0,
+          "ordinary_score_followed_within2s": 0
+        }
+      },
+      "21": {
+        "all": {
+          "requests": 222,
+          "ordinary_score_followed_within2s": 23
+        },
+        "close_facing": {
+          "requests": 69,
+          "ordinary_score_followed_within2s": 13
+        },
+        "behind90": {
+          "requests": 49,
+          "ordinary_score_followed_within2s": 2
+        }
+      },
+      "23": {
+        "all": {
+          "requests": 186,
+          "ordinary_score_followed_within2s": 22
+        },
+        "close_facing": {
+          "requests": 41,
+          "ordinary_score_followed_within2s": 12
+        },
+        "behind90": {
+          "requests": 47,
+          "ordinary_score_followed_within2s": 1
+        }
+      },
+      "26": {
+        "all": {
+          "requests": 87,
+          "ordinary_score_followed_within2s": 11
+        },
+        "close_facing": {
+          "requests": 27,
+          "ordinary_score_followed_within2s": 7
+        },
+        "behind90": {
+          "requests": 9,
+          "ordinary_score_followed_within2s": 1
+        }
+      }
+    }
+  },
+  "rounds": [
+    {
+      "label": "timingppo-s1301-retry7",
+      "checkpoint_sha256": "c2c4987b268996cd912fe35e6ba5f9b20a94d69fd93e4ef15b6c5fc71ee5e533",
+      "points": [
+        2,
+        6
+      ],
+      "ordinary_points": [
+        2,
+        6
+      ],
+      "plus5_awards": [
+        0,
+        0
+      ],
+      "predictions": 3005,
+      "local_applied": 3004,
+      "armed_requests": 85,
+      "source_hz": 25.31782006565146,
+      "native_sha256": "6ae2e7cf219e8f8364c617bf0cfbe080c508f2b4675a4978ffacf021d779cf08",
+      "native_bytes": 205653218,
+      "referee_validation_passed": true
+    },
+    {
+      "label": "timingppo-s1302-retry2",
+      "checkpoint_sha256": "c2c4987b268996cd912fe35e6ba5f9b20a94d69fd93e4ef15b6c5fc71ee5e533",
+      "points": [
+        9,
+        11
+      ],
+      "ordinary_points": [
+        4,
+        6
+      ],
+      "plus5_awards": [
+        1,
+        1
+      ],
+      "predictions": 3090,
+      "local_applied": 3089,
+      "armed_requests": 92,
+      "source_hz": 26.020205670406373,
+      "native_sha256": "154aa661f5cc63ffa34baa5bffd0fe8611aa621c2ecef676c608475b17b3f211",
+      "native_bytes": 205748181,
+      "referee_validation_passed": true
+    },
+    {
+      "label": "timing500-s1201-retry8",
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "points": [
+        16,
+        10
+      ],
+      "ordinary_points": [
+        6,
+        10
+      ],
+      "plus5_awards": [
+        2,
+        0
+      ],
+      "predictions": 2821,
+      "local_applied": 2820,
+      "armed_requests": 63,
+      "source_hz": 23.760569666713465,
+      "native_sha256": "9d46c62f06cad615995c1aa712515568b9aa0278fc505ba54eb7f55b9f7a20db",
+      "native_bytes": 205524739,
+      "referee_validation_passed": true
+    },
+    {
+      "label": "timing500-s1202",
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "points": [
+        6,
+        13
+      ],
+      "ordinary_points": [
+        6,
+        8
+      ],
+      "plus5_awards": [
+        0,
+        1
+      ],
+      "predictions": 2964,
+      "local_applied": 2963,
+      "armed_requests": 61,
+      "source_hz": 24.95231480095509,
+      "native_sha256": "91086eba64ba10067af897483b28f023bb4eaed8b3f7f026be1910950ed6fd51",
+      "native_bytes": 205840944,
+      "referee_validation_passed": true
+    },
+    {
+      "label": "timing500-s1203",
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "points": [
+        4,
+        3
+      ],
+      "ordinary_points": [
+        4,
+        3
+      ],
+      "plus5_awards": [
+        0,
+        0
+      ],
+      "predictions": 3064,
+      "local_applied": 3063,
+      "armed_requests": 80,
+      "source_hz": 25.803928984522962,
+      "native_sha256": "2fefb73233d7aef219b28f9b7b976533d32437845791eafbbaec5d6ea04dd39c",
+      "native_bytes": 205574553,
+      "referee_validation_passed": true
+    },
+    {
+      "label": "timing500-s1204",
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "points": [
+        11,
+        4
+      ],
+      "ordinary_points": [
+        6,
+        4
+      ],
+      "plus5_awards": [
+        1,
+        0
+      ],
+      "predictions": 3100,
+      "local_applied": 3099,
+      "armed_requests": 77,
+      "source_hz": 26.09492888966522,
+      "native_sha256": "44dd3ef65fd4a706d4b6fd70e139ab1da76cc26adc349e66e3d1abd8afdcaf14",
+      "native_bytes": 205818510,
+      "referee_validation_passed": true
+    },
+    {
+      "label": "timing500-s1205",
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "points": [
+        20,
+        14
+      ],
+      "ordinary_points": [
+        10,
+        9
+      ],
+      "plus5_awards": [
+        2,
+        1
+      ],
+      "predictions": 3102,
+      "local_applied": 3101,
+      "armed_requests": 85,
+      "source_hz": 26.113871800965885,
+      "native_sha256": "c43b67b6dabb76d9786f90a9eb46350db5ef22763339437a17bfc5205d20c21d",
+      "native_bytes": 205458950,
+      "referee_validation_passed": true
+    },
+    {
+      "label": "timing500-s1206",
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "points": [
+        18,
+        14
+      ],
+      "ordinary_points": [
+        8,
+        9
+      ],
+      "plus5_awards": [
+        2,
+        1
+      ],
+      "predictions": 3022,
+      "local_applied": 3021,
+      "armed_requests": 57,
+      "source_hz": 25.44231012189978,
+      "native_sha256": "65baa8d58b09d1e131ce60f7f0148bbcae6f69493767b843f901e74bc19fb60e",
+      "native_bytes": 205593103,
+      "referee_validation_passed": true
+    },
+    {
+      "label": "timing500-s1207-retry2",
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "points": [
+        17,
+        22
+      ],
+      "ordinary_points": [
+        7,
+        7
+      ],
+      "plus5_awards": [
+        2,
+        3
+      ],
+      "predictions": 3000,
+      "local_applied": 2999,
+      "armed_requests": 72,
+      "source_hz": 25.29508763733871,
+      "native_sha256": "2f05c6b1081d4cf73492694fb41d8a9e98283e5b7b532e329994b70eb2ef0fbd",
+      "native_bytes": 205519266,
+      "referee_validation_passed": true
+    },
+    {
+      "label": "timing500-s1208",
+      "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "points": [
+        12,
+        13
+      ],
+      "ordinary_points": [
+        7,
+        8
+      ],
+      "plus5_awards": [
+        1,
+        1
+      ],
+      "predictions": 2937,
+      "local_applied": 2936,
+      "armed_requests": 81,
+      "source_hz": 24.740521944778973,
+      "native_sha256": "eed22cea2a9415288a65bac087e8a0a7a6fdaf762d827fc61666b69dcd2b4dde",
+      "native_bytes": 205692930,
+      "referee_validation_passed": true
+    },
+    {
+      "label": "timingppo-s1303-retry3",
+      "checkpoint_sha256": "c2c4987b268996cd912fe35e6ba5f9b20a94d69fd93e4ef15b6c5fc71ee5e533",
+      "points": [
+        20,
+        14
+      ],
+      "ordinary_points": [
+        5,
+        9
+      ],
+      "plus5_awards": [
+        3,
+        1
+      ],
+      "predictions": 2958,
+      "local_applied": 2957,
+      "armed_requests": 73,
+      "source_hz": 24.88100886643616,
+      "native_sha256": "0940a2abd9532d64bb889ade5f02d5f6969b9e955eabc376c5221b8a3787733e",
+      "native_bytes": 205664588,
+      "referee_validation_passed": true
+    },
+    {
+      "label": "timingppo-s1304",
+      "checkpoint_sha256": "c2c4987b268996cd912fe35e6ba5f9b20a94d69fd93e4ef15b6c5fc71ee5e533",
+      "points": [
+        12,
+        10
+      ],
+      "ordinary_points": [
+        2,
+        10
+      ],
+      "plus5_awards": [
+        2,
+        0
+      ],
+      "predictions": 2838,
+      "local_applied": 2837,
+      "armed_requests": 78,
+      "source_hz": 23.87627027771101,
+      "native_sha256": "c642f95f775c7028f4225f8dc39ef2e9d7650845f1f675a786536965e4c04c0a",
+      "native_bytes": 205561357,
+      "referee_validation_passed": true
+    },
+    {
+      "label": "timingppo-s1305",
+      "checkpoint_sha256": "c2c4987b268996cd912fe35e6ba5f9b20a94d69fd93e4ef15b6c5fc71ee5e533",
+      "points": [
+        6,
+        14
+      ],
+      "ordinary_points": [
+        6,
+        9
+      ],
+      "plus5_awards": [
+        0,
+        1
+      ],
+      "predictions": 3066,
+      "local_applied": 3065,
+      "armed_requests": 65,
+      "source_hz": 25.856494744452878,
+      "native_sha256": "e82035a259c66719a004b11e2661a6f220ed27e2e834ba09b159dbcfeb79db15",
+      "native_bytes": 205824487,
+      "referee_validation_passed": true
+    }
+  ],
+  "private_report_sha256": [
+    "1801e1c7fef431dadb37eb0ff007557b9e7a261009ed2bb9d9300cf38500288b",
+    "3a321054319c83bae325e58080e30041b1242679322ad61a859384cb06209617",
+    "d6d65133645be30e03b437282d7b617b478962e85a3fdf410879518554aa31de"
+  ]
+}

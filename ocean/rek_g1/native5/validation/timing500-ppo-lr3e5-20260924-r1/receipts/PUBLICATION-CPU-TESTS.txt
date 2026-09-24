@@ -1,0 +1,13 @@
+✔ only checkpoint, RNG seed and output change; runtime, masks and controls remain exact (6.1248ms)
+✔ frozen parent plan is exact; the sole hyperparameter change is learning rate (2.2326ms)
+✔ native train argv retains actual checkpoint, replay, row contract and one epoch (0.2196ms)
+✔ mismatched behavior/sequence/replay, masks or optimizer settings are rejected (2.6358ms)
+✔ optional diagnosis performs zero optimizer epochs and writes a distinct output (3.1271ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 92.1594

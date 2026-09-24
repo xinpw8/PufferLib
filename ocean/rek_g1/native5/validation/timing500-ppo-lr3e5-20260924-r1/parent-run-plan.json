@@ -1,0 +1,62 @@
+{
+  "schema": "rek.scorecredit5s_onpolicy_run_plan.v1",
+  "stage": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2",
+  "selection": {
+    "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/selection.frozen.json",
+    "sha256": "86f803dc76012e17c46566202e1cb60cf76ccb6804246f916ceabcbafddc0c96"
+  },
+  "minimum_completed_rounds": 8,
+  "rounds": 8,
+  "rows": 24010,
+  "behavior": {
+    "path": "/home/spark-advantage/rek-training/scorecredit-human-attackbc-20260924-r1/train-five-epochs/policy.bin",
+    "sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4"
+  },
+  "worker": {
+    "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+    "sha256": "52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2"
+  },
+  "native_object": {
+    "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/native_policy.o",
+    "sha256": "4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c"
+  },
+  "feature_mask": {
+    "path": "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+    "sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b"
+  },
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "binaries": {
+    "replay": {
+      "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/build-score-delta/replay-authentic-behavior",
+      "sha256": "fa622e8a238d5b44a1fbb839c41b4750eb80d328795eeb8d992da5771b6c9927"
+    },
+    "trainer": {
+      "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/build-score-delta/authentic-ppo",
+      "sha256": "741035dad9303be7636c77be97ec44584011c95987170e86008d5515020b30e8"
+    }
+  },
+  "dataset": {
+    "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/score-delta-5s/authentic-score-delta-v5.bin",
+    "sha256": "a2ab10a34404cebea926cb2cec0fdea1386e0032c5333328acfa1c8fe0b0ba21"
+  },
+  "identity": {
+    "path": "/home/spark-advantage/rek-training/timing500-onpolicy-20260924-r2/score-delta-5s/behavior-identity.json",
+    "sha256": "9bb7a6af446e07a67d19cb538aab4acce061e0b826cbde827ee542c8cb6ffc53"
+  },
+  "settings": {
+    "epochs": 1,
+    "learning_rate": 0.00001,
+    "horizon": 128,
+    "clip": 0.2,
+    "vf_clip": 0.2,
+    "vf_coef": 0,
+    "entropy": 0.001,
+    "targets": "complete_mc_zero_baseline",
+    "reward": "received-score-delta-div5-half-life-5s.v1"
+  },
+  "original_actor_logits_recorded": false,
+  "replay_required": true,
+  "weight_migration": false,
+  "resampled": false,
+  "gpu_used": false
+}

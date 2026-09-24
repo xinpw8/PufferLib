@@ -1,0 +1,53 @@
+{
+  "schema": "rek.timing500_ppo_lr3e5_sources.v1",
+  "stage": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-20260924-r1",
+  "files": [
+    {
+      "path": "experiment.json",
+      "bytes": 1462,
+      "sha256": "054a18b1f06a5b510e27586309e1791a0b80b22190c61981e8b035e696563504"
+    },
+    {
+      "path": "parent-run-plan.json",
+      "bytes": 2648,
+      "sha256": "b47e183b1dd7ef754eaff306c54972944ba837abfffd6c78310e91c84dbca82f"
+    },
+    {
+      "path": "prepare_live.cjs",
+      "bytes": 4760,
+      "sha256": "24ff8708ff0e660798e58cecf0de5f231638ae3cc5a817fe5ba7e092e3ee7ff8"
+    },
+    {
+      "path": "prepare_live.test.cjs",
+      "bytes": 1085,
+      "sha256": "0ef0c758d2fca43469307d6c6a204b0702f0acd3721349c1bf8ba0309603bbae"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4709,
+      "sha256": "4d5e16bed3839aaae7ab5c4fec529e64c721c5fe57ae88343c5df06bfefc51ed"
+    },
+    {
+      "path": "run_candidate.cjs",
+      "bytes": 6135,
+      "sha256": "88c43b2e5c0e6317ca66b61e5ed97594127c572404c7a26d143519c25b8ab296"
+    },
+    {
+      "path": "run_candidate.test.cjs",
+      "bytes": 3152,
+      "sha256": "b71b6b4c808c83a21357520be621b0fc5aaa23b50cf32aa7c57b86d68a8f2495"
+    }
+  ],
+  "cpu_tests": {
+    "local": 5,
+    "spark": 5,
+    "failed": 0
+  },
+  "spark_artifact_pin_checks": {
+    "train_check_passed": true,
+    "diagnose_check_passed": true
+  },
+  "gpu_executed": false,
+  "live_preparer_executed": false,
+  "production_source_modified": false
+}

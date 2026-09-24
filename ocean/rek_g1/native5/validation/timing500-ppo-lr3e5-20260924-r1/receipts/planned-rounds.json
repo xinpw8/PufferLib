@@ -1,0 +1,212 @@
+{
+  "created_utc": "2026-09-24T11:01:31.350Z",
+  "target_wins": 18,
+  "rounds": 20,
+  "stop_nonwins": 3,
+  "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+  "parent_checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+  "driver_sha256": "b57654d54a76c80b38c9e44f59f53efb2502959a70dc568835ec5a8f6d238214",
+  "controller_sha256": "160299c466f6aeb8b0f9cebfd63132316f98625fe89af5f851a505472e44b151",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "feature_mask_sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+  "bridge_sha256": "11fcfa2bea541f2829553c3833c301717c0182a59eebb0020f5f7b8cb066ca3d",
+  "source_stage": "/home/spark-advantage/rek-training/humanbc-timing500-live-20260924-r1",
+  "hypothesis": "One-epoch native PPO sibling from the same actual5b19 eight-round behavior dataset/replay; only learning rate changes1e-5 to3e-5. Same runtime, encoder, masks and unforced sampled actions. New RNG seeds do not control server randomness.",
+  "artifacts": [
+    {
+      "name": "record_passive_defender.cjs",
+      "sha256": "6fc354d170a24ca8e93d8a01c2ffb9520932ef6341904da6ea8e973a2712c928"
+    },
+    {
+      "name": "progress.cjs",
+      "sha256": "dd9c888c54a56dee7c4bec7e14cda4613865670f79705bee8c1bca7d1b52d7ef"
+    },
+    {
+      "name": "live_transfer_run_masked.cjs",
+      "sha256": "b57654d54a76c80b38c9e44f59f53efb2502959a70dc568835ec5a8f6d238214"
+    },
+    {
+      "name": "root-campaign/campaign.cjs",
+      "sha256": "160299c466f6aeb8b0f9cebfd63132316f98625fe89af5f851a505472e44b151"
+    },
+    {
+      "name": "root-campaign/probe_state.cjs",
+      "sha256": "2df8560c853d8f9005e043fdaa93d340a67109702c9f9577d25bb785a4d1bd54"
+    },
+    {
+      "name": "root-campaign/relaunch.sh",
+      "sha256": "ca556b4688ee2d14ea2e0e3baf0d0c23f20d3f79a1375943ff145c572f96793b"
+    },
+    {
+      "name": "root-campaign/clear_dead_prefix.sh",
+      "sha256": "1d3b8f5a9b2c91eea49a4a1965d12f27a5ad397afc852b8e56f2695e9199ff3f"
+    },
+    {
+      "name": "root-campaign/recycle_owned_client.sh",
+      "sha256": "5030168e931623e99512dadfe4d78909c9e03ab8fc30069e15c2340e58e5805a"
+    }
+  ],
+  "plan": [
+    {
+      "label": "lr3e5-s1401",
+      "order": 0,
+      "policy_rng_seed": 1401,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1401.json",
+      "config_sha256": "16574c4c81932b549c2d18d55f5ae83d0f14cea6bfe4760a4084d6827b749bce"
+    },
+    {
+      "label": "lr3e5-s1402",
+      "order": 1,
+      "policy_rng_seed": 1402,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1402.json",
+      "config_sha256": "2096661a27f6e6a06a926945c986fec4c1915763fbe7a85acb89d2e64560160e"
+    },
+    {
+      "label": "lr3e5-s1403",
+      "order": 2,
+      "policy_rng_seed": 1403,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1403.json",
+      "config_sha256": "b891d04cad712afebf3df43a44a00656e4ad58a29adb6a839a1227bfb9ea1105"
+    },
+    {
+      "label": "lr3e5-s1404",
+      "order": 3,
+      "policy_rng_seed": 1404,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1404.json",
+      "config_sha256": "3c8dccfca01821820c60fdbf233a75fc3d084dbe221fab622d0eddf8b93fca9a"
+    },
+    {
+      "label": "lr3e5-s1405",
+      "order": 4,
+      "policy_rng_seed": 1405,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1405.json",
+      "config_sha256": "fedfc9ca06bfff40dc80d1a63e97bfc880706ce87a10dbda17c23b06aa963e5a"
+    },
+    {
+      "label": "lr3e5-s1406",
+      "order": 5,
+      "policy_rng_seed": 1406,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1406.json",
+      "config_sha256": "052bbd3b8993c14c4f722b896445fdbd7be14ba55626c637f3490fe47440cb5a"
+    },
+    {
+      "label": "lr3e5-s1407",
+      "order": 6,
+      "policy_rng_seed": 1407,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1407.json",
+      "config_sha256": "18448ef0d64eab1fde5f448785b3a45c8797e45738a0efd14a8604f5579751cc"
+    },
+    {
+      "label": "lr3e5-s1408",
+      "order": 7,
+      "policy_rng_seed": 1408,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1408.json",
+      "config_sha256": "ba63bf6f6682e9e4b5e0a149b7c440c415f60a90db3c0d1628720e9f0f81486a"
+    },
+    {
+      "label": "lr3e5-s1409",
+      "order": 8,
+      "policy_rng_seed": 1409,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1409.json",
+      "config_sha256": "37e677e9fe43079a7d9f680754cee159ee353408ac3791f920932be6fd3a09fa"
+    },
+    {
+      "label": "lr3e5-s1410",
+      "order": 9,
+      "policy_rng_seed": 1410,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1410.json",
+      "config_sha256": "8a558961b33c3a73c1996e613b353eaaa4dd3f206dd36124916334b80989dd60"
+    },
+    {
+      "label": "lr3e5-s1411",
+      "order": 10,
+      "policy_rng_seed": 1411,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1411.json",
+      "config_sha256": "fe70157037dcaca7e24e40e0ab1dd516131558b4618d81f43573254997f07b25"
+    },
+    {
+      "label": "lr3e5-s1412",
+      "order": 11,
+      "policy_rng_seed": 1412,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1412.json",
+      "config_sha256": "598b53a3b0ac705cd128d93176dd6978cb532f824ea1822a5d7d60c94969c0b9"
+    },
+    {
+      "label": "lr3e5-s1413",
+      "order": 12,
+      "policy_rng_seed": 1413,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1413.json",
+      "config_sha256": "04984549938aa95a15b33dc92e13c20ea91e0ca386f0e9b210113ac0d6633529"
+    },
+    {
+      "label": "lr3e5-s1414",
+      "order": 13,
+      "policy_rng_seed": 1414,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1414.json",
+      "config_sha256": "61ce64579dc66ac208b6ca069a1b04ef0f71d5c518c3027ff9d3a677efb87c83"
+    },
+    {
+      "label": "lr3e5-s1415",
+      "order": 14,
+      "policy_rng_seed": 1415,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1415.json",
+      "config_sha256": "5498ceec06a3ab22e9db6a379a7739f84ec3f89c7d45327811b7642cb1aaf447"
+    },
+    {
+      "label": "lr3e5-s1416",
+      "order": 15,
+      "policy_rng_seed": 1416,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1416.json",
+      "config_sha256": "3d6b7f7542670c333cfb5b5a586d2abc2a7dfbf009bd7d8e35fccf11b0f2e9c0"
+    },
+    {
+      "label": "lr3e5-s1417",
+      "order": 16,
+      "policy_rng_seed": 1417,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1417.json",
+      "config_sha256": "acd4d59ab43eba19c18fbe062eed1cbe6d7ba9b63c39e6f6ef2a7d5fad109ede"
+    },
+    {
+      "label": "lr3e5-s1418",
+      "order": 17,
+      "policy_rng_seed": 1418,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1418.json",
+      "config_sha256": "a52cb71773a6c6423cbd5107be18240a490824fec35ed01a44a2819a757ab8da"
+    },
+    {
+      "label": "lr3e5-s1419",
+      "order": 18,
+      "policy_rng_seed": 1419,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1419.json",
+      "config_sha256": "909dc27f7c7d198d8cd7042361dad1a564cdb6793ca22f652486b73aff3d3e8d"
+    },
+    {
+      "label": "lr3e5-s1420",
+      "order": 19,
+      "policy_rng_seed": 1420,
+      "checkpoint_sha256": "7001cee36887ef5e168726576e0d5f07282628eb2c80a87d12e9e9f87e05ff5c",
+      "config_path": "/home/spark-advantage/rek-training/timing500-ppo-lr3e5-live-20260924-r1/configs/lr3e5-s1420.json",
+      "config_sha256": "107a41f9771aaf65fbfda9463925795fa7a91580d204a94c37593c684c19bf94"
+    }
+  ],
+  "controller_started": false
+}
