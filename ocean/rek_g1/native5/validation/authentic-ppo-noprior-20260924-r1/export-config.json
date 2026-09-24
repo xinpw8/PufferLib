@@ -1,0 +1,29 @@
+{
+  "schema": "rek.authentic_export_config.v3",
+  "observation_schema": "rek.native5.scaled_polar_xy.v1",
+  "gamma_per_20ms": 0.9998844821426083,
+  "lambda_per_20ms": 0.9978673240629938,
+  "worker": {
+    "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/live-policy-20260915/build-r1/live-policy-worker",
+    "sha256": "3a12e88268bca78ccec4813adaeacaec74bd68652594b46007d24ab711c0a029"
+  },
+  "checkpoint": {
+    "path": "/home/spark-advantage/rek-training/f7-action-id-fix-20260924-r1/runs/F7-no-unmeasured-kick-prior-16777216/checkpoints/rek_native5/F7-no-unmeasured-kick-prior-16777216/0000000016777216.bin",
+    "sha256": "7561859790d0ed55a55471d96442fe954a593c52d8617b51c143687ba9d98f96"
+  },
+  "native_object": {
+    "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/native_policy.o",
+    "sha256": "4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c"
+  },
+  "feature_mask": {
+    "path": "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+    "sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b"
+  },
+  "rounds": [
+    {"id":"noprior-s601","seed":601,"evidence":"/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s601","config":"/home/spark-advantage/rek-training/f7-no-kick-prior-live-20260924-r1/configs/noprior-s601.json"},
+    {"id":"noprior-s602","seed":602,"evidence":"/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s602","config":"/home/spark-advantage/rek-training/f7-no-kick-prior-live-20260924-r1/configs/noprior-s602.json"},
+    {"id":"noprior-s603-retry2","seed":603,"evidence":"/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s603-retry2","config":"/home/spark-advantage/rek-training/f7-no-kick-prior-live-20260924-r1/configs/noprior-s603-retry2.json"},
+    {"id":"noprior-s604-retry4","seed":604,"evidence":"/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s604-retry4","config":"/home/spark-advantage/rek-training/f7-no-kick-prior-live-20260924-r1/configs/noprior-s604-retry4.json"},
+    {"id":"noprior-s605-retry3","seed":605,"evidence":"/home/spark-advantage/rek-training/authentic-ppo-noprior-20260924-r1/evidence/noprior-s605-retry3","config":"/home/spark-advantage/rek-training/f7-no-kick-prior-live-20260924-r1/configs/noprior-s605-retry3.json"}
+  ]
+}

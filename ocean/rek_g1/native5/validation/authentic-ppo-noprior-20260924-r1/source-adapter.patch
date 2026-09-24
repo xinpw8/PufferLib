@@ -1,0 +1,615 @@
+diff --git a/ocean/rek_g1/native5/authentic_trajectory_data.cjs b/ocean/rek_g1/native5/authentic_trajectory_data.cjs
+index 9a2677f..6886ce0 100644
+--- a/ocean/rek_g1/native5/authentic_trajectory_data.cjs
++++ b/ocean/rek_g1/native5/authentic_trajectory_data.cjs
+@@ -96,7 +96,7 @@ function pack(rows, roundCount, observationSchema = LEGACY_SCHEMA) {
+   });
+   return b;
+ }
+-async function readTrial(directory, sequence, gamma20ms, lambda20ms, observationSchema = LEGACY_SCHEMA) {
++async function readTrial(directory, sequence, gamma20ms, lambda20ms, observationSchema = LEGACY_SCHEMA, behavior = null) {
+   const owned = ownedMode(observationSchema);
+   const trial = path.join(directory, 'trial'), inputs = [], read = async (name, cb) =>
+     inputs.push(await jsonLines(path.join(trial, name), cb));
+@@ -127,9 +127,14 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms, observation
+     else requireValue(x.type === 'terminal' && requests.get(x.seq)?.terminal === true, 'unexpected worker response');
+   });
+   requireValue(ready?.observation_schema === observationSchema, 'unsupported ready observation schema');
+-  requireValue(ready?.checkpoint_sha256 === s.checkpoint_sha256 && ready.selection === 'sampled' && ready.seed === 73 &&
++  const unmaskedHash = sha(Buffer.alloc(OBS, 1));
++  requireValue(!behavior || (Number.isSafeInteger(behavior.seed) && behavior.seed >= 0 &&
++    /^[a-f0-9]{64}$/.test(behavior.feature_mask_sha256)), 'invalid explicit behavior identity');
++  const expectedSeed = behavior ? behavior.seed : 73;
++  const featureIdentity = behavior ? (ready?.feature_mask_sha256 ?? unmaskedHash) === behavior.feature_mask_sha256 : !ready?.feature_mask_sha256;
++  requireValue(ready?.checkpoint_sha256 === s.checkpoint_sha256 && ready.selection === 'sampled' && ready.seed === expectedSeed &&
+     ready.precision === 'bf16' && ready.hidden_size === 256 && ready.num_layers === 2 &&
+-    ready.observations === OBS && ready.actions === ACTIONS && !ready.feature_mask_sha256, 'unsupported behavior identity');
++    ready.observations === OBS && ready.actions === ACTIONS && featureIdentity, 'unsupported behavior identity');
+   await read('relay.stdin.jsonl', x => {
+     if (x.type === 'policy_action') unique(sends, x.observation_sequence, x, 'sent action');
+   });
+@@ -203,6 +208,8 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms, observation
+       prediction.checkpoint_sha256 === ready.checkpoint_sha256 && prediction.selection === ready.selection &&
+       prediction.precision === ready.precision && prediction.decision_index === i + 1 &&
+       prediction.recurrent_reset === (i === 0) && prediction.round_changed === (i === 0), 'decision identity mismatch');
++    if (behavior) requireValue((prediction.feature_mask_sha256 ?? unmaskedHash) === behavior.feature_mask_sha256,
++      'decision feature mask identity mismatch');
+     const mask = request.mask.map(x => Number(x));
+     requireValue(prediction.legal_actions === mask.reduce((a, b) => a + b, 0), 'legal mask mismatch');
+     clock(ack.clock);
+diff --git a/ocean/rek_g1/native5/authentic_trajectory.h b/ocean/rek_g1/native5/authentic_trajectory.h
+index a4d084b..9ea9c20 100644
+--- a/ocean/rek_g1/native5/authentic_trajectory.h
++++ b/ocean/rek_g1/native5/authentic_trajectory.h
+@@ -15,6 +15,7 @@
+ namespace rek_authentic {
+ constexpr int OBS = 223, ACTIONS = 33, LOGITS = 34;
+ constexpr size_t HEADER_BYTES = 256, ROW_BYTES = 1128;
++constexpr size_t IDENTITY_HEADER_BYTES = 384;
+ constexpr size_t REPLAY_HEADER_BYTES = 128, REPLAY_ROW_BYTES = 152;
+ inline void require(bool ok, const char* message) { if (!ok) throw std::runtime_error(message); }
+ inline std::string hex(const unsigned char* data, size_t n) {
+@@ -48,6 +49,7 @@ struct Row {
+     uint32_t source_seq=0, next_source_seq=0;
+     int32_t own_points=0, opponent_points=0, next_own_points=0, next_opponent_points=0;
+     uint32_t terminal_after=0, applied=0;
++    uint64_t behavior_seed=73;
+ };
+ struct Sequence { size_t begin=0, end=0; uint32_t sequence=0, split=0; };
+ struct Dataset {
+@@ -55,10 +57,12 @@ struct Dataset {
+     std::vector<Row> rows;
+     std::vector<Sequence> sequences;
+     std::string digest;
++    uint32_t format_version=1;
++    std::string identity_sha256, worker_sha256, checkpoint_sha256, native_object_sha256;
+ };
+ inline void validate(Dataset& d, uint32_t round_count) {
+     require(!d.rows.empty(), "empty authentic dataset");
+-    for (auto x : d.feature_mask) require(x == 1, "original authentic behavior requires unmasked features");
++    for (auto x : d.feature_mask) require(d.format_version==3 ? x<=1 : x==1, "invalid authentic feature mask");
+     d.sequences.clear(); std::set<uint32_t> seen;
+     for (size_t i=0; i<d.rows.size(); ++i) {
+         const auto& r=d.rows[i];
+@@ -88,6 +92,7 @@ inline void validate(Dataset& d, uint32_t round_count) {
+             d.sequences.push_back({i,d.rows.size(),r.sequence,r.split});
+         } else {
+             const auto& p=d.rows[i-1];
++            require(p.behavior_seed==r.behavior_seed,"behavior seed changed within round");
+             require(!p.terminal_after && p.next_time==r.time && p.next_source_seq==r.source_seq &&
+                 p.next_own_points==r.own_points && p.next_opponent_points==r.opponent_points,
+                 "broken authentic transition chain");
+@@ -96,18 +101,27 @@ inline void validate(Dataset& d, uint32_t round_count) {
+     require(d.rows.back().terminal_after==1 && d.sequences.size()==round_count, "terminal/round count mismatch");
+ }
+ inline Dataset decode(const std::vector<unsigned char>& b) {
+-    require(b.size()>=HEADER_BYTES && std::memcmp(b.data(),"REKRL001",8)==0, "invalid authentic magic");
+-    require(scalar<uint32_t>(&b[8])==1 && scalar<uint32_t>(&b[12])==OBS &&
++    require(b.size()>=HEADER_BYTES, "short authentic header");
++    const bool identity=std::memcmp(b.data(),"REKRL003",8)==0;
++    const size_t header=identity?IDENTITY_HEADER_BYTES:HEADER_BYTES;
++    require(b.size()>=header && (identity || std::memcmp(b.data(),"REKRL001",8)==0), "invalid authentic magic");
++    require(scalar<uint32_t>(&b[8])==(identity?3:1) && scalar<uint32_t>(&b[12])==OBS &&
+         scalar<uint32_t>(&b[16])==ACTIONS && scalar<uint32_t>(&b[24])==ROW_BYTES && b[255]==0,
+         "invalid authentic header");
+     const auto n=scalar<uint32_t>(&b[20]), rounds=scalar<uint32_t>(&b[28]);
+-    require(n>0 && n<1000000 && b.size()==HEADER_BYTES+uint64_t(n)*ROW_BYTES, "authentic shape mismatch");
++    require(n>0 && n<1000000 && b.size()==header+uint64_t(n)*ROW_BYTES, "authentic shape mismatch");
+     Dataset d; std::copy(b.begin()+32,b.begin()+255,d.feature_mask.begin()); d.rows.resize(n);
++    d.format_version=identity?3:1;
++    if(identity) {
++        d.identity_sha256=hex(&b[256],32); d.worker_sha256=hex(&b[288],32);
++        d.checkpoint_sha256=hex(&b[320],32); d.native_object_sha256=hex(&b[352],32);
++    }
+     for(size_t i=0;i<n;++i) {
+-        const auto* p=b.data()+HEADER_BYTES+i*ROW_BYTES; auto& r=d.rows[i];
++        const auto* p=b.data()+header+i*ROW_BYTES; auto& r=d.rows[i];
+         r.split=scalar<uint32_t>(p); r.sequence=scalar<uint32_t>(p+4); r.reset=scalar<uint32_t>(p+8);
+         r.action=scalar<int32_t>(p+12); r.policy_weight=scalar<float>(p+16); r.time=scalar<double>(p+24);
+-        require(scalar<uint32_t>(p+20)==0 && scalar<uint32_t>(p+1124)==0, "nonzero authentic reserved field");
++        if(identity) r.behavior_seed=uint64_t(scalar<uint32_t>(p+20)) | (uint64_t(scalar<uint32_t>(p+1124))<<32);
++        else require(scalar<uint32_t>(p+20)==0 && scalar<uint32_t>(p+1124)==0, "nonzero authentic reserved field");
+         for(int j=0;j<OBS;++j) r.obs[j]=scalar<float>(p+32+4*j);
+         for(int j=0;j<ACTIONS;++j) r.support[j]=scalar<float>(p+924+4*j);
+         r.next_time=scalar<double>(p+1056); r.dt=scalar<double>(p+1064);
+@@ -131,14 +145,17 @@ struct Replay {
+     uint64_t seed=0;
+ };
+ inline Replay decode_replay(const std::vector<unsigned char>& b,const Dataset& d) {
+-    require(b.size()>=REPLAY_HEADER_BYTES && std::memcmp(b.data(),"REKBR001",8)==0 &&
+-        scalar<uint32_t>(&b[8])==1 && scalar<uint32_t>(&b[12])==d.rows.size() &&
++    const bool identity=d.format_version==3;
++    require(b.size()>=REPLAY_HEADER_BYTES && std::memcmp(b.data(),identity?"REKBR003":"REKBR001",8)==0 &&
++        scalar<uint32_t>(&b[8])==(identity?3:1) && scalar<uint32_t>(&b[12])==d.rows.size() &&
+         scalar<uint32_t>(&b[16])==REPLAY_ROW_BYTES && scalar<uint32_t>(&b[20])==0 &&
+         b.size()==REPLAY_HEADER_BYTES+d.rows.size()*REPLAY_ROW_BYTES, "invalid behavior replay header");
+     Replay out; out.dataset_sha256=hex(&b[24],32); out.checkpoint_sha256=hex(&b[56],32);
+     out.seed=scalar<uint64_t>(&b[88]);
+-    require(out.dataset_sha256==d.digest && out.seed==73, "behavior replay source mismatch");
+-    for(size_t i=96;i<128;++i) require(b[i]==0,"nonzero behavior header reserved bytes");
++    require(out.dataset_sha256==d.digest && out.seed==(identity?0:73), "behavior replay source mismatch");
++    if(identity) require(hex(&b[96],32)==d.identity_sha256 && out.checkpoint_sha256==d.checkpoint_sha256,
++        "behavior replay identity mismatch");
++    else for(size_t i=96;i<128;++i) require(b[i]==0,"nonzero behavior header reserved bytes");
+     for(size_t i=0;i<d.rows.size();++i) {
+         const auto* p=b.data()+REPLAY_HEADER_BYTES+i*REPLAY_ROW_BYTES; ReplayRow r;
+         r.index=scalar<uint32_t>(p); r.action=scalar<uint32_t>(p+4);
+diff --git a/ocean/rek_g1/native5/replay_authentic_behavior.cu b/ocean/rek_g1/native5/replay_authentic_behavior.cu
+index 2c27655..d31d289 100644
+--- a/ocean/rek_g1/native5/replay_authentic_behavior.cu
++++ b/ocean/rek_g1/native5/replay_authentic_behavior.cu
+@@ -7,6 +7,9 @@
+ #include <cstdio>
+ #include <filesystem>
+ #include <memory>
++#ifndef REK_AUTHENTIC_NATIVE_OBJECT_SHA256
++#define REK_AUTHENTIC_NATIVE_OBJECT_SHA256 "unbound"
++#endif
+ 
+ namespace {
+ using rek_authentic::require;
+@@ -39,10 +42,21 @@ void publish(const char* path,const void* data,size_t size) {
+ }
+ int main(int argc,char** argv) {
+     try {
+-        require(argc==5||argc==6,"Usage: replay-authentic-behavior DATA CHECKPOINT SHA256 NEW_REPLAY_BINARY [--observation-schema=rek.native5.scaled_polar_xy.owned_yaw_v2]");
++        require(argc==5||argc==6||argc==7,"Usage: replay-authentic-behavior DATA CHECKPOINT SHA256 NEW_REPLAY_BINARY [IDENTITY_JSON EXACT_WORKER | --observation-schema=rek.native5.scaled_polar_xy.owned_yaw_v2]");
+         const bool owned_yaw=argc==6;
+         require(!owned_yaw || std::string(argv[5])==std::string("--observation-schema=")+rek_owned_yaw::kSchema,"unknown replay observation schema option");
+         const auto data=owned_yaw?rek_owned_yaw_trajectory::load(argv[1]):rek_authentic::load(argv[1]);
++        const bool identity=data.format_version==3;
++        require(identity==(argc==7),"v3 requires exact identity JSON and worker executable");
++        if(identity) {
++            const auto identity_bytes=rek_authentic::read_file(argv[5]), worker_bytes=rek_authentic::read_file(argv[6]);
++            require(rek_authentic::sha256(identity_bytes.data(),identity_bytes.size())==data.identity_sha256,
++                "behavior identity JSON hash mismatch");
++            require(rek_authentic::sha256(worker_bytes.data(),worker_bytes.size())==data.worker_sha256,
++                "behavior worker executable hash mismatch");
++            require(data.native_object_sha256==REK_AUTHENTIC_NATIVE_OBJECT_SHA256,"replay native-policy object hash mismatch");
++            require(data.checkpoint_sha256==argv[3],"dataset checkpoint identity mismatch");
++        }
+         const std::string summary_path=std::string(argv[4])+".json";
+         require(!std::filesystem::exists(argv[4]) && !std::filesystem::exists(summary_path),"replay output exists");
+         rek5::cuda_check(cudaSetDevice(0)); cudaStream_t stream; rek5::cuda_check(cudaStreamCreate(&stream));
+@@ -51,26 +65,33 @@ int main(int argc,char** argv) {
+         float* terminal=storage.alloc<float>(1); float* action=storage.alloc<float>(1); float* stats=storage.alloc<float>(2);
+         RekNativePolicyConfig config{}; config.abi_version=REK_NATIVE_POLICY_ABI;
+         config.checkpoint_path=argv[2]; config.expected_sha256=argv[3]; config.hidden_size=256; config.num_layers=2;
+-        config.batch=1; config.precision=REK_NATIVE_POLICY_BF16; config.seed=73;
++        config.batch=1; config.precision=REK_NATIVE_POLICY_BF16; config.seed=data.rows.front().behavior_seed;
+         std::unique_ptr<RekNativePolicy,decltype(&rek_native_policy_destroy)> policy(rek_native_policy_create(&config,stream),rek_native_policy_destroy);
+         require(bool(policy),rek_native_policy_error());
+         const std::string checkpoint=rek_native_policy_sha256(policy.get()); require(checkpoint==argv[3],"checkpoint SHA mismatch");
+         std::vector<unsigned char> output(rek_authentic::REPLAY_HEADER_BYTES+data.rows.size()*rek_authentic::REPLAY_ROW_BYTES,0);
+-        std::memcpy(output.data(),owned_yaw?"REKBR002":"REKBR001",8); put<uint32_t>(output,8,owned_yaw?2:1); put<uint32_t>(output,12,data.rows.size());
++        std::memcpy(output.data(),identity?"REKBR003":owned_yaw?"REKBR002":"REKBR001",8); put<uint32_t>(output,8,identity?3:owned_yaw?2:1); put<uint32_t>(output,12,data.rows.size());
+         put<uint32_t>(output,16,rek_authentic::REPLAY_ROW_BYTES); put_hash(output,24,data.digest);
+-        put_hash(output,56,checkpoint); put<uint64_t>(output,88,73);
++        put_hash(output,56,checkpoint); put<uint64_t>(output,88,identity?0:73);
++        if(identity) put_hash(output,96,data.identity_sha256);
+         size_t rounds=0,matching=0; double minimum_logprob=0,maximum_logprob=-INFINITY;
+         for(size_t i=0;i<data.rows.size();++i) {
+             const auto& row=data.rows[i];
+             if(i==0 || row.sequence!=data.rows[i-1].sequence) {
+                 // A new sequence was a new OS worker, including fresh Philox RNG.
++                if(identity && i>0) {
++                    policy.reset(); config.seed=row.behavior_seed;
++                    policy.reset(rek_native_policy_create(&config,stream)); require(bool(policy),rek_native_policy_error());
++                }
+                 policy_ok(rek_native_policy_reset(policy.get(),stream)); ++rounds;
+             } else if(row.reset) {
+                 // Explicit within-worker resets must not restart sampler RNG.
+                 policy_ok(rek_native_policy_reset_recurrent(policy.get(),stream));
+             }
+             std::array<uint8_t,33> host_mask{}; for(int j=0;j<33;++j) host_mask[j]=uint8_t(row.support[j]);
+-            rek5::cuda_check(cudaMemcpyAsync(observation,row.obs.data(),223*sizeof(float),cudaMemcpyHostToDevice,stream));
++            std::array<float,223> host_observation{};
++            for(int j=0;j<223;++j) host_observation[j]=data.feature_mask[j]?row.obs[j]:0;
++            rek5::cuda_check(cudaMemcpyAsync(observation,host_observation.data(),223*sizeof(float),cudaMemcpyHostToDevice,stream));
+             rek5::cuda_check(cudaMemcpyAsync(mask,host_mask.data(),33,cudaMemcpyHostToDevice,stream));
+             policy_ok(rek_native_policy_step_rows(policy.get(),observation,mask,terminal,action,0,1,0,stream));
+             behavior_logprob<<<1,1,0,stream>>>(rek_native_policy_logits(policy.get()),mask,row.action,stats);
+@@ -92,13 +113,24 @@ int main(int argc,char** argv) {
+         }
+         const auto checked=owned_yaw?rek_owned_yaw_trajectory::decode_replay(output,data):rek_authentic::decode_replay(output,data); (void)checked;
+         const std::string digest=rek_authentic::sha256(output.data(),output.size());
+-        char report[2000]; const int count=std::snprintf(report,sizeof(report),
++        char report[3000]; const int count=std::snprintf(report,sizeof(report),
+             "{\"schema\":\"%s\",%s\"verification_passed\":true,\"rows\":%zu,\"rounds\":%zu,\"matching_sampled_actions\":%zu,\"mismatches\":0,\"dataset_sha256\":\"%s\",\"checkpoint_sha256\":\"%s\",\"replay_sha256\":\"%s\",\"seed_per_new_worker\":73,\"precision\":\"bf16\",\"input_feature_mask\":\"original_unmasked\",\"logprob_precision\":\"float32_native_sampler_reduction\",\"minimum_logprob\":%.9g,\"maximum_logprob\":%.9g,\"terminal_race_requests_retained\":true,\"game_connection\":false,\"training_performed\":false}\n",
+-            owned_yaw?"rek.authentic_behavior_replay.owned_yaw_v2":"rek.authentic_behavior_replay.v1",
++            identity?"rek.authentic_behavior_replay.v3":owned_yaw?"rek.authentic_behavior_replay.owned_yaw_v2":"rek.authentic_behavior_replay.v1",
+             owned_yaw?"\"observation_schema\":\"rek.native5.scaled_polar_xy.owned_yaw_v2\",\"trajectory_format\":\"REKRL002\",\"replay_format\":\"REKBR002\",":"",
+             data.rows.size(),rounds,matching,data.digest.c_str(),checkpoint.c_str(),digest.c_str(),minimum_logprob,maximum_logprob);
+         require(count>0 && count<int(sizeof(report)),"replay report overflow");
+-        publish(argv[4],output.data(),output.size()); publish(summary_path.c_str(),report,count);
+-        std::printf("%s",report); policy.reset(); rek5::cuda_check(cudaStreamDestroy(stream)); return 0;
++        std::string report_text(report,count);
++        if(identity) {
++            const auto replace=[&](const std::string& before,const std::string& after) {
++                const auto at=report_text.find(before); require(at!=std::string::npos,"missing replay report field");
++                report_text.replace(at,before.size(),after);
++            };
++            replace("\"seed_per_new_worker\":73", "\"seed_per_new_worker\":\"recorded_per_sequence\"");
++            replace("\"input_feature_mask\":\"original_unmasked\"", "\"feature_mask_sha256\":\""+
++                rek_authentic::sha256(data.feature_mask.data(),data.feature_mask.size())+"\",\"identity_sha256\":\""+
++                data.identity_sha256+"\",\"worker_sha256\":\""+data.worker_sha256+"\",\"native_object_sha256\":\""+data.native_object_sha256+"\"");
++        }
++        publish(argv[4],output.data(),output.size()); publish(summary_path.c_str(),report_text.data(),report_text.size());
++        std::printf("%s",report_text.c_str()); policy.reset(); rek5::cuda_check(cudaStreamDestroy(stream)); return 0;
+     } catch(const std::exception& e) { std::fprintf(stderr,"authentic_replay_error: %s\n",e.what()); return 2; }
+ }
+diff --git a/ocean/rek_g1/native5/authentic_ppo.cu b/ocean/rek_g1/native5/authentic_ppo.cu
+index 4a5714c..266f611 100644
+--- a/ocean/rek_g1/native5/authentic_ppo.cu
++++ b/ocean/rek_g1/native5/authentic_ppo.cu
+@@ -7,6 +7,7 @@
+ #include "owned_yaw_trajectory.h"
+ #include "authentic_gae.h"
+ #include "authentic_parity.h"
++#include "authentic_distributional_parity.h"
+ 
+ namespace {
+ struct AuthenticData {
+@@ -201,14 +202,17 @@ std::pair<double, double> sequential_teacher_probe(Trainer& engine, const rek_au
+ }
+ Parity parity(Trainer& engine, PpoWork& work, const rek_authentic::Dataset& data,
+         const rek_authentic::Replay& replay, const AuthenticData& prepared, const GaeTargets& targets,
+-        float clip, bool initial = true, bool allow_bf16_batch = false) {
++        float clip, bool initial = true, bool allow_bf16_batch = false, bool allow_distributional = false) {
+     Parity result;
+     std::vector<double> ratios, deviations;
+     std::vector<float> target_values(data.rows.size());
++    std::vector<float> target_advantages(data.rows.size());
+     ck(cudaMemcpy(target_values.data(), targets.returns, target_values.size() * sizeof(float), cudaMemcpyDeviceToHost));
++    ck(cudaMemcpy(target_advantages.data(), targets.advantages, target_advantages.size() * sizeof(float), cudaMemcpyDeviceToHost));
+     double legal_kl = 0, maximum_kl = 0, old_value_mse = 0, new_value_mse = 0;
+     double mean_old_value = 0, mean_new_value = 0, mean_target = 0, approx_kl = 0;
+     size_t clipped = 0;
++    double absolute_advantage=0,absolute_surrogate_error=0;
+     for (const auto& seq : data.sequences) {
+         engine.reset();
+         for (size_t p = seq.begin; p < seq.end; p += engine.T) {
+@@ -229,6 +233,8 @@ Parity parity(Trainer& engine, PpoWork& work, const rek_authentic::Dataset& data
+                 const double error = std::abs(std::exp(difference) - 1);
+                 if (error > result.max_ratio_error) { result.max_ratio_error = error; result.worst_row = i; }
+                 const double ratio = std::exp(difference);
++                const double weighted_advantage=data.rows[i].policy_weight*std::abs(double(target_advantages[i]));
++                absolute_advantage+=weighted_advantage; absolute_surrogate_error+=weighted_advantage*error;
+                 ratios.push_back(ratio); deviations.push_back(error);
+                 clipped += error > clip; approx_kl += ratio - 1 - difference;
+                 double max_old = -INFINITY, max_new = -INFINITY, sum_old = 0, sum_new = 0;
+@@ -246,7 +252,8 @@ Parity parity(Trainer& engine, PpoWork& work, const rek_authentic::Dataset& data
+                     const double old_lp = old.logits[a] - lse_old;
+                     kl += std::exp(old_lp) * (old_lp - double(to_float(z[t * (A + 1) + a])) + lse_new);
+                 }
+-                legal_kl += kl; maximum_kl = std::max(maximum_kl, kl);
++                require(std::isfinite(kl) && kl>=-1e-12,"invalid full legal-distribution KL");
++                kl=std::max(0.0,kl); legal_kl += kl; maximum_kl = std::max(maximum_kl, kl);
+                 const double value = to_float(z[t * (A + 1) + A]), target = target_values[i];
+                 old_value_mse += (old.old_value - target) * (old.old_value - target);
+                 new_value_mse += (value - target) * (value - target);
+@@ -270,14 +277,20 @@ Parity parity(Trainer& engine, PpoWork& work, const rek_authentic::Dataset& data
+     if (initial) {
+         rek_authentic_parity::Evidence evidence{result.max_logit_error, result.max_value_error,
+             result.max_ratio_error, 0, 0, double(clipped) / result.rows, clip};
+-        if (allow_bf16_batch || !rek_authentic_parity::accepts(evidence, false)) {
++        if (allow_bf16_batch || allow_distributional || !rek_authentic_parity::accepts(evidence, false)) {
+             const auto exact = sequential_teacher_probe(engine, data, replay);
+             evidence.sequential_logit_error = exact.first; evidence.sequential_value_error = exact.second;
+         }
+-        const bool accepted = rek_authentic_parity::accepts(evidence, allow_bf16_batch);
++        const double relative_surrogate=absolute_advantage>0 ? absolute_surrogate_error/absolute_advantage : 0;
++        const rek_authentic_parity::DistributionalEvidence distributional{evidence,legal_kl/result.rows,maximum_kl,relative_surrogate};
++        const bool accepted = allow_distributional ? rek_authentic_parity::accepts_distributional(distributional)
++            : rek_authentic_parity::accepts(evidence, allow_bf16_batch);
++        if(allow_distributional) std::printf("{\"phase\":\"distributional_acceptance_budget\",\"mean_legal_kl\":%.12g,\"mean_legal_kl_limit\":%.12g,\"maximum_legal_kl\":%.12g,\"maximum_legal_kl_limit\":%.12g,\"relative_absolute_surrogate_error\":%.12g,\"relative_absolute_surrogate_error_limit\":%.12g,\"mean_absolute_surrogate_error\":%.12g,\"exact_sequential_required\":true,\"zero_initial_clipping_required\":true,\"true_behavior_logprobs_unchanged\":true}\n",
++            distributional.mean_legal_kl,rek_authentic_parity::kMeanLegalKlLimit,maximum_kl,rek_authentic_parity::kMaximumLegalKlLimit,
++            relative_surrogate,rek_authentic_parity::kRelativeSurrogateLimit,absolute_surrogate_error/result.rows);
+         std::printf("{\"phase\":\"initial_numerical_acceptance\",\"mode\":\"%s\",\"accepted\":%s,\"max_chosen_ratio_error_limit\":%.12g,\"exact_batch_parity_claimed\":false}\n",
+-            allow_bf16_batch ? "explicit_bounded_bf16_batch_approximation" : "strict_default",
+-            accepted ? "true" : "false", allow_bf16_batch ? .1 * clip : 1e-4);
++            allow_distributional ? "explicit_distributional_bf16_approximation" : allow_bf16_batch ? "explicit_bounded_bf16_batch_approximation" : "strict_default",
++            accepted ? "true" : "false", allow_distributional ? clip : allow_bf16_batch ? .1 * clip : 1e-4);
+         std::fflush(stdout);
+         require(accepted, "initial teacher/train numerical acceptance failed; no optimizer update permitted");
+     }
+@@ -332,15 +345,17 @@ float number(const char* text, float low, float high) {
+ } // namespace
+ int main(int argc, char** argv) {
+     try {
+-        require(argc >= 13 && argc <= 16, "Usage: authentic-ppo DATA REPLAY INITIAL SHA256 NEW_OUTPUT EPOCHS LR HORIZON CLIP VF_CLIP VF_COEF ENT_COEF [--allow-bounded-bf16-batch] [--targets=complete-mc-zero-baseline] [--observation-schema=rek.native5.scaled_polar_xy.owned_yaw_v2]");
+-        bool allow_bf16_batch = false, complete_mc_zero_baseline = false, owned_yaw = false;
++        require(argc >= 13 && argc <= 16, "Usage: authentic-ppo DATA REPLAY INITIAL SHA256 NEW_OUTPUT EPOCHS LR HORIZON CLIP VF_CLIP VF_COEF ENT_COEF [--allow-bounded-bf16-batch|--allow-distributional-bf16-batch] [--targets=complete-mc-zero-baseline] [--observation-schema=rek.native5.scaled_polar_xy.owned_yaw_v2]");
++        bool allow_bf16_batch = false, allow_distributional = false, complete_mc_zero_baseline = false, owned_yaw = false;
+         for (int i = 13; i < argc; ++i) {
+             const std::string option = argv[i];
+             if (option == "--allow-bounded-bf16-batch" && !allow_bf16_batch) allow_bf16_batch = true;
++            else if (option == "--allow-distributional-bf16-batch" && !allow_distributional) allow_distributional = true;
+             else if (option == "--targets=complete-mc-zero-baseline" && !complete_mc_zero_baseline) complete_mc_zero_baseline = true;
+             else if (option == std::string("--observation-schema=") + rek_owned_yaw::kSchema && !owned_yaw) owned_yaw = true;
+             else require(false, "unknown or duplicate optional mode");
+         }
++        require(!(allow_bf16_batch && allow_distributional),"numerical approximation modes are mutually exclusive");
+         const auto data = owned_yaw ? rek_owned_yaw_trajectory::load(argv[1]) : rek_authentic::load(argv[1]);
+         const auto replay = owned_yaw ? rek_owned_yaw_trajectory::decode_replay(rek_authentic::read_file(argv[2]), data)
+             : rek_authentic::load_replay(argv[2], data);
+@@ -366,7 +381,7 @@ int main(int argc, char** argv) {
+         const auto replay_bytes = rek_authentic::read_file(argv[2]);
+         std::printf("{\"dataset_sha256\":\"%s\",\"behavior_replay_sha256\":\"%s\",\"seed\":%llu}\n", data.digest.c_str(),
+             rek_authentic::sha256(replay_bytes.data(), replay_bytes.size()).c_str(), static_cast<unsigned long long>(replay.seed));
+-        parity(engine, work, data, replay, prepared, targets, clip, true, allow_bf16_batch);
++        parity(engine, work, data, replay, prepared, targets, clip, true, allow_bf16_batch, allow_distributional);
+         for (int e = 1; e <= epochs; ++e) {
+             optimize_epoch(engine, work, data, replay, prepared, targets, clip, vf_clip, vf_coef, e);
+             parity(engine, work, data, replay, prepared, targets, clip, false);
+diff --git a/ocean/rek_g1/native5/authentic_trajectory_v3.cjs b/ocean/rek_g1/native5/authentic_trajectory_v3.cjs
+new file mode 100644
+index 0000000..de3f91d
+--- /dev/null
++++ b/ocean/rek_g1/native5/authentic_trajectory_v3.cjs
+@@ -0,0 +1,99 @@
++'use strict';
++const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
++const base = require('./authentic_trajectory_data.cjs');
++const HEADER = 384, SCHEMA = 'rek.native5.scaled_polar_xy.v1';
++const check = (ok, message) => { if (!ok) throw new Error(message); };
++const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
++function pinned(file, expected) {
++  check(path.isAbsolute(file) && /^[a-f0-9]{64}$/.test(expected), 'absolute pinned artifact required');
++  const bytes = fs.readFileSync(file);
++  check(sha(bytes) === expected, `artifact hash mismatch: ${file}`);
++  return { path: file, bytes: bytes.length, sha256: expected };
++}
++function pack(rows, rounds, identityBytes, mask, pins) {
++  check(mask.length === base.OBS && [...mask].every(x => x === 0 || x === 1), 'invalid feature mask');
++  const old = base.pack(rows, rounds, SCHEMA), out = Buffer.alloc(HEADER + rows.length * base.ROW);
++  old.copy(out, 0, 0, base.HEADER); old.copy(out, HEADER, base.HEADER);
++  out.write('REKRL003'); out.writeUInt32LE(3, 8); mask.copy(out, 32);
++  [sha(identityBytes), pins.worker.sha256, pins.checkpoint.sha256, pins.native_object.sha256].forEach((x, i) => {
++    check(/^[a-f0-9]{64}$/.test(x), 'invalid identity digest'); Buffer.from(x, 'hex').copy(out, 256 + 32 * i);
++  });
++  rows.forEach((r, i) => {
++    check(Number.isSafeInteger(r.behaviorSeed) && r.behaviorSeed >= 0, 'invalid per-round seed');
++    const seed = BigInt(r.behaviorSeed), offset = HEADER + i * base.ROW;
++    out.writeUInt32LE(Number(seed & 0xffffffffn), offset + 20);
++    out.writeUInt32LE(Number(seed >> 32n), offset + 1124);
++  });
++  return out;
++}
++async function exportV3(configPath, output) {
++  check(!fs.existsSync(output), 'output already exists');
++  const configBytes = fs.readFileSync(configPath), c = JSON.parse(configBytes);
++  check(c.schema === 'rek.authentic_export_config.v3' && c.observation_schema === SCHEMA, 'unsupported export config');
++  check(c.gamma_per_20ms > 0 && c.gamma_per_20ms <= 1 && c.lambda_per_20ms > 0 && c.lambda_per_20ms <= 1,
++    'explicit reference discounts required');
++  check(Array.isArray(c.rounds) && c.rounds.length > 0 && new Set(c.rounds.map(x => x.id)).size === c.rounds.length,
++    'explicit distinct rounds required');
++  const pins = {};
++  for (const key of ['worker', 'checkpoint', 'native_object', 'feature_mask']) pins[key] = pinned(c[key].path, c[key].sha256);
++  const mask = fs.readFileSync(pins.feature_mask.path);
++  check(mask.length === base.OBS && [...mask].every(x => x === 0 || x === 1), 'invalid feature mask');
++  const unmasked = mask.every(x => x === 1), rounds = [];
++  let begin = 0;
++  for (let sequence = 0; sequence < c.rounds.length; ++sequence) {
++    const spec = c.rounds[sequence];
++    check(/^[a-zA-Z0-9_-]+$/.test(spec.id) && path.isAbsolute(spec.evidence), 'invalid explicit round path');
++    check(Number.isSafeInteger(spec.seed) && spec.seed >= 0, 'invalid recorded round seed');
++    const capturedConfigBytes = fs.readFileSync(spec.config), capturedConfig = JSON.parse(capturedConfigBytes);
++    const argv = capturedConfig.worker;
++    check(Array.isArray(argv) && [4, 6].includes(argv.length) && argv[0] === pins.worker.path &&
++      argv[1] === pins.checkpoint.path && argv[2] === pins.checkpoint.sha256 && argv[3] === String(spec.seed) &&
++      capturedConfig.checkpoint_sha256 === pins.checkpoint.sha256, 'captured worker invocation mismatch');
++    if (argv.length === 4) check(unmasked, 'old worker invocation cannot support masked behavior');
++    else check(argv[4] === 'sampled' && sha(fs.readFileSync(argv[5])) === pins.feature_mask.sha256,
++      'captured sampled worker feature mask mismatch');
++    const result = await base.readTrial(spec.evidence, sequence, c.gamma_per_20ms, c.lambda_per_20ms, SCHEMA,
++      {seed: spec.seed, feature_mask_sha256: pins.feature_mask.sha256});
++    check(result.report.checkpoint_sha256 === pins.checkpoint.sha256, 'mixed checkpoint');
++    result.rows.forEach(x => { x.behaviorSeed = spec.seed; });
++    Object.assign(result.report, {trial_id: spec.id, row_begin: begin, row_end: begin + result.rows.length,
++      feature_mask: pins.feature_mask.sha256, worker_argv: argv,
++      recorded_config: {path: spec.config, bytes: capturedConfigBytes.length, sha256: sha(capturedConfigBytes)}});
++    begin += result.rows.length; rounds.push(result);
++  }
++  const rows = rounds.flatMap(x => x.rows);
++  const identity = {schema: 'rek.authentic_behavior_identity.v3', observation_schema: SCHEMA,
++    selection: 'sampled', precision: 'bf16', hidden_size: 256, num_layers: 2,
++    artifacts: pins, export_config: {path: configPath, sha256: sha(configBytes)},
++    exporter_sha256: sha(fs.readFileSync(__filename)), base_exporter_sha256: sha(fs.readFileSync(require.resolve('./authentic_trajectory_data.cjs'))),
++    reward: 'terminal_outcome + gamma_t*Phi(next_observed_points) - Phi(current_observed_points); terminal_Phi=0; Phi=d/(5+abs(d))',
++    gamma_per_20ms: c.gamma_per_20ms, lambda_per_20ms: c.lambda_per_20ms,
++    discounts: 'pow(reference,actual_source_to_next_source_QPC_seconds/0.02),float32',
++    rounds: rounds.map(x => x.report)};
++  const identityBytes = Buffer.from(JSON.stringify(identity, null, 2) + '\n');
++  const binary = pack(rows, rounds.length, identityBytes, mask, pins);
++  const manifest = {schema: 'rek.authentic_trajectory_dataset.v3', observation_schema: SCHEMA,
++    binary: 'authentic-trajectories-v3.bin', binary_sha256: sha(binary), identity_sha256: sha(identityBytes),
++    feature_mask_sha256: pins.feature_mask.sha256, checkpoint_sha256: pins.checkpoint.sha256,
++    header_bytes: HEADER, row_bytes: base.ROW, rows: rows.length, rounds: rounds.length,
++    seeds: rounds.map(x => x.report.seed), applied: rows.filter(x => x.applied).length,
++    terminal_race_rejected: rows.filter(x => !x.applied).length,
++    reward_rule: identity.reward, discount_rule: identity.discounts,
++    behavior_replay: 'required; exact recorded sampled actions; fresh native policy with actual seed per round',
++    limits: ['Five selected development episodes are not an independent holdout.',
++      'Acknowledgements establish local acceptance, not server execution or inferred attack credit.',
++      'Full source decision order and terminal-race rejected sampled actions are preserved.',
++      'No inferred fall labels or new reward bonuses are introduced.']};
++  fs.mkdirSync(output);
++  for (const [name, bytes] of [[manifest.binary, binary], ['behavior-identity.json', identityBytes],
++    ['feature-mask.bin', mask], ['manifest.json', JSON.stringify(manifest, null, 2) + '\n'],
++    ['transition-ledger.jsonl', rounds.flatMap(x => x.ledger).map(x => JSON.stringify(x)).join('\n') + '\n']])
++    fs.writeFileSync(path.join(output, name), bytes, {flag: 'wx'});
++  return manifest;
++}
++if (require.main === module) {
++  check(process.argv.length === 4, 'Usage: node authentic_trajectory_v3.cjs CONFIG NEW_OUTPUT');
++  exportV3(process.argv[2], process.argv[3]).then(x => console.log(JSON.stringify(x)))
++    .catch(e => { console.error(e.stack); process.exitCode = 1; });
++}
++module.exports = {HEADER, SCHEMA, sha, pinned, pack, exportV3};
+diff --git a/ocean/rek_g1/native5/authentic_trajectory_v3.test.cjs b/ocean/rek_g1/native5/authentic_trajectory_v3.test.cjs
+new file mode 100644
+index 0000000..d70c114
+--- /dev/null
++++ b/ocean/rek_g1/native5/authentic_trajectory_v3.test.cjs
+@@ -0,0 +1,42 @@
++'use strict';
++const test = require('node:test'), assert = require('node:assert/strict');
++const {pack, HEADER, sha} = require('./authentic_trajectory_v3.cjs');
++const base = require('./authentic_trajectory_data.cjs');
++const pins = {worker: {sha256: '1'.repeat(64)}, checkpoint: {sha256: '2'.repeat(64)}, native_object: {sha256: '3'.repeat(64)}};
++function row(seed = 601) {
++  return {sequence: 0, reset: 1, action: 2, policyWeight: 1, valueWeight: 1,
++    obs: Array(223).fill(0), mask: Array(33).fill(1), time: 0, nextTime: 0.04, dt: 0.04,
++    gamma: Math.fround(0.999 ** 2), lambda: Math.fround(0.995 ** 2),
++    own: 0, opponent: 0, nextOwn: 5, nextOpponent: 0, sourceSeq: 2, nextSourceSeq: 5,
++    terminal: true, applied: true, outcome: 1, reward: 1, behaviorSeed: seed};
++}
++test('v3 identity and five actual seeds are embedded without changing observation/reward layout', () => {
++  const rows = [601,602,603,604,605].map((s,i) => ({...row(s),sequence:i}));
++  const identity = Buffer.from('{"test":"identity"}\n'), mask = Buffer.alloc(223,1), b = pack(rows,5,identity,mask,pins);
++  assert.equal(b.length, HEADER+5*base.ROW); assert.equal(b.toString('ascii',0,8),'REKRL003');
++  assert.equal(b.readUInt32LE(8),3); assert.equal(b.subarray(256,288).toString('hex'),sha(identity));
++  assert.equal(b.subarray(288,320).toString('hex'),pins.worker.sha256);
++  assert.equal(b.subarray(320,352).toString('hex'),pins.checkpoint.sha256);
++  assert.equal(b.subarray(352,384).toString('hex'),pins.native_object.sha256);
++  rows.forEach((r,i) => {
++    const at=HEADER+i*base.ROW, old=base.pack([r],1).subarray(base.HEADER);
++    assert.equal(b.readUInt32LE(at+20),r.behaviorSeed); assert.equal(b.readUInt32LE(at+1124),0);
++    const restored=Buffer.from(b.subarray(at,at+base.ROW)); restored.fill(0,20,24); restored.fill(0,1124,1128);
++    assert.deepEqual(restored,old);
++  });
++});
++test('v3 preserves raw observations with explicit binary feature mask', () => {
++  const r=row(); r.obs[13]=42; const mask=Buffer.alloc(223,1); mask[13]=0;
++  const b=pack([r],1,Buffer.from('identity'),mask,pins);
++  assert.equal(b[32+13],0); assert.equal(b.readFloatLE(HEADER+32+13*4),42);
++});
++test('v3 round seed accepts exact safe integers including high word and rejects invalid seeds', () => {
++  const seed=2**40+601, b=pack([row(seed)],1,Buffer.from('identity'),Buffer.alloc(223,1),pins);
++  assert.equal(b.readUInt32LE(HEADER+20),601); assert.equal(b.readUInt32LE(HEADER+1124),256);
++  for(const seed of [-1,1.2,NaN,2**53]) assert.throws(() => pack([row(seed)],1,Buffer.from('x'),Buffer.alloc(223,1),pins));
++});
++test('v3 rejects malformed feature masks and does not weaken reward validation', () => {
++  for(const mask of [Buffer.alloc(222,1),Buffer.alloc(223,2)]) assert.throws(() => pack([row()],1,Buffer.from('x'),mask,pins));
++  const r=row(); r.reward=5; assert.throws(() => pack([r],1,Buffer.from('x'),Buffer.alloc(223,1),pins),/reward/);
++});
++module.exports={row,pins};
+diff --git a/ocean/rek_g1/native5/build_authentic_replay_v3.sh b/ocean/rek_g1/native5/build_authentic_replay_v3.sh
+new file mode 100644
+index 0000000..cf02b2e
+--- /dev/null
++++ b/ocean/rek_g1/native5/build_authentic_replay_v3.sh
+@@ -0,0 +1,21 @@
++#!/usr/bin/env bash
++set -euo pipefail
++[[ $# == 2 ]] || { printf 'Usage: %s EXACT_NATIVE_POLICY_OBJECT NEW_BUILD_DIRECTORY\n' "$0" >&2; exit 2; }
++task_source=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
++task_object=$(realpath "$1")
++[[ -f "$task_object" && ! -e "$2" ]] || exit 2
++mkdir "$2"
++task_output=$(realpath "$2")
++task_cuda=${REK_NATIVE5_CUDA:-/usr/local/cuda}
++task_object_hash=$(sha256sum "$task_object" | awk '{print $1}')
++g++ -std=c++17 -O2 "$task_source/test_authentic_trajectory.cpp" -lcrypto -o "$task_output/test-authentic-trajectory"
++"$task_output/test-authentic-trajectory" > "$task_output/cpu-test.stdout.txt"
++node --test "$task_source/authentic_trajectory_data.test.cjs" "$task_source/authentic_trajectory_v3.test.cjs" > "$task_output/export-tests.stdout.txt"
++"$task_cuda/bin/nvcc" -std=c++17 -O3 "-arch=${REK_CUDA_ARCH:-sm_121}" -I"$task_source" \
++  "-DREK_AUTHENTIC_NATIVE_OBJECT_SHA256=\"$task_object_hash\"" \
++  "$task_source/replay_authentic_behavior.cu" "$task_object" \
++  -L"$task_cuda/lib64" -Xlinker=-rpath -Xlinker="$task_cuda/lib64" -lcublas -lcurand -lcrypto \
++  -o "$task_output/replay-authentic-behavior-v3"
++sha256sum "$task_source/"{authentic_trajectory.h,authentic_trajectory_data.cjs,authentic_trajectory_v3.cjs,replay_authentic_behavior.cu,build_authentic_replay_v3.sh,authentic_trajectory_v3.test.cjs} \
++  "$task_object" "$task_output/replay-authentic-behavior-v3" > "$task_output/build-hashes.txt"
++printf 'Built only, no GPU execution: %s/replay-authentic-behavior-v3\n' "$task_output"
+diff --git a/ocean/rek_g1/native5/test_authentic_v3.cpp b/ocean/rek_g1/native5/test_authentic_v3.cpp
+new file mode 100644
+index 0000000..6649ab5
+--- /dev/null
++++ b/ocean/rek_g1/native5/test_authentic_v3.cpp
+@@ -0,0 +1,24 @@
++#include "authentic_trajectory.h"
++#include <cstdio>
++using namespace rek_authentic;
++int main(int argc,char** argv) {
++    try {
++        require(argc==2,"Usage: test-authentic-v3 DATA");
++        const auto bytes=read_file(argv[1]); const auto d=decode(bytes);
++        require(d.format_version==3 && d.sequences.size()==5,"expected five v3 sequences");
++        size_t checks=1;
++        for(size_t i=0;i<d.sequences.size();++i) {
++            const auto& s=d.sequences[i];
++            for(size_t j=s.begin;j<s.end;++j) require(d.rows[j].behavior_seed==601+i,"unexpected behavior seed");
++            ++checks;
++        }
++        auto edited=bytes;
++        edited[IDENTITY_HEADER_BYTES+ROW_BYTES+20]^=1;
++        bool failed=false;try{decode(edited);}catch(const std::exception&){failed=true;}
++        require(failed,"within-round seed mutation accepted");++checks;
++        edited=bytes;edited[32]=2;failed=false;try{decode(edited);}catch(const std::exception&){failed=true;}
++        require(failed,"nonbinary feature mask accepted");++checks;
++        std::printf("authentic_v3_cpu_checks=%zu rows=%zu rounds=%zu sha256=%s passed\n",checks,d.rows.size(),d.sequences.size(),d.digest.c_str());
++        return 0;
++    }catch(const std::exception& e){std::fprintf(stderr,"authentic_v3_test: %s\n",e.what());return 2;}
++}
+diff --git a/ocean/rek_g1/native5/authentic_distributional_parity.h b/ocean/rek_g1/native5/authentic_distributional_parity.h
+new file mode 100644
+index 0000000..5898dc8
+--- /dev/null
++++ b/ocean/rek_g1/native5/authentic_distributional_parity.h
+@@ -0,0 +1,22 @@
++#pragma once
++#include "authentic_parity.h"
++namespace rek_authentic_parity {
++constexpr double kMeanLegalKlLimit=1e-5;
++constexpr double kMaximumLegalKlLimit=1e-3;
++constexpr double kRelativeSurrogateLimit=1e-3;
++struct DistributionalEvidence {
++    Evidence numerical;
++    double mean_legal_kl, maximum_legal_kl, relative_absolute_surrogate_error;
++};
++inline bool accepts_distributional(const DistributionalEvidence& e) {
++    const auto& n=e.numerical;
++    for(double x:{n.batch_logit_error,n.batch_value_error,n.batch_ratio_error,
++            n.sequential_logit_error,n.sequential_value_error,n.initial_clipped_fraction,n.clip,
++            e.mean_legal_kl,e.maximum_legal_kl,e.relative_absolute_surrogate_error})
++        if(!std::isfinite(x)||x<0) return false;
++    return n.clip>0 && n.sequential_logit_error==0 && n.sequential_value_error==0
++        && n.initial_clipped_fraction==0 && n.batch_ratio_error<n.clip
++        && e.mean_legal_kl<=kMeanLegalKlLimit && e.maximum_legal_kl<=kMaximumLegalKlLimit
++        && e.relative_absolute_surrogate_error<=kRelativeSurrogateLimit;
++}
++}
+diff --git a/ocean/rek_g1/native5/test_authentic_distributional_parity.cpp b/ocean/rek_g1/native5/test_authentic_distributional_parity.cpp
+new file mode 100644
+index 0000000..ad04425
+--- /dev/null
++++ b/ocean/rek_g1/native5/test_authentic_distributional_parity.cpp
+@@ -0,0 +1,27 @@
++#include "authentic_distributional_parity.h"
++#include <cstdio>
++#include <stdexcept>
++#include <functional>
++using namespace rek_authentic_parity;
++int main() {
++    const DistributionalEvidence observed{{.125,.00048828125,.0528736217504,0,0,0,.2},
++        3.54386016848e-7,.000488246700609,3.86362154335e-5};
++    int checks=0; const auto verify=[&](bool x){if(!x)throw std::runtime_error("distributional gate test failed");++checks;};
++    verify(accepts_distributional(observed));verify(!accepts(observed.numerical,true));
++    const auto reject=[&](const std::function<void(DistributionalEvidence&)>& edit){auto e=observed;edit(e);verify(!accepts_distributional(e));};
++    reject([](auto& e){e.numerical.sequential_logit_error=1e-12;});
++    reject([](auto& e){e.numerical.sequential_value_error=1e-12;});
++    reject([](auto& e){e.numerical.initial_clipped_fraction=1e-12;});
++    reject([](auto& e){e.numerical.batch_ratio_error=.2;});
++    reject([](auto& e){e.numerical.clip=0;});
++    reject([](auto& e){e.mean_legal_kl=1.0001e-5;});
++    reject([](auto& e){e.maximum_legal_kl=1.0001e-3;});
++    reject([](auto& e){e.relative_absolute_surrogate_error=1.0001e-3;});
++    reject([](auto& e){e.mean_legal_kl=NAN;});reject([](auto& e){e.maximum_legal_kl=INFINITY;});
++    reject([](auto& e){e.relative_absolute_surrogate_error=-1;});
++    reject([](auto& e){e.numerical.batch_logit_error=NAN;});
++    reject([](auto& e){e.maximum_legal_kl=.00726243340089;});
++    auto boundary=observed;boundary.mean_legal_kl=kMeanLegalKlLimit;boundary.maximum_legal_kl=kMaximumLegalKlLimit;
++    boundary.relative_absolute_surrogate_error=kRelativeSurrogateLimit;verify(accepts_distributional(boundary));
++    std::printf("distributional_parity_cpu_checks=%d passed\n",checks);
++}

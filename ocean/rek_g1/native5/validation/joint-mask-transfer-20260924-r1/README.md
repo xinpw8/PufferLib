@@ -1,6 +1,6 @@
 # Matched joint-feature exclusion experiment
 
-Status: native training and inference verification completed; authentic Bot 1 evaluation is running. No improvement or acceptance is established.
+Status: native training and inference verification completed; authentic Bot 1 evaluation is incomplete at 1 win and 2 losses, 20:39 points. No improvement or acceptance is established.
 
 The hypothesis is that differences between canned training joints and projected live joints impair transfer. This is a hypothesis, not an established cause. The same mask excludes both fighters' joint positions and velocities in training and live inference. It preserves 107 of 223 inputs, including root geometry, orientation, velocity, actor command projections and score. It also removes an indirect view of opponent attacks, which could hurt performance.
 
@@ -28,9 +28,13 @@ The training run uses the same original F7 warm-start, seeds, optimizer, reward 
 
 Frozen policy seeds 701 through 720, target 18 wins in 20 full rounds, stop at the third nonwin. Actual private sparring Bot 1 / difficulty 0 on isolated Spark X98, original request-duration encoder, no live attack gate. Incomplete attempts remain separate. Windows input is untouched. MP4 capture remains under 20 MB per file.
 
+Completed scores: seed 701, 12:6 win; seed 702, 2:11 loss; seed 703, 6:22 loss. The cohort stopped at 05:22:25 UTC on September 24 after seed 704 exhausted five entry/startup attempts. There were seven incomplete attempts in total: one client crash, one startup action-watchdog timeout, four private-room entry timeouts and one worker startup failure. No third nonwin was observed, so this is an incomplete cohort, not a performance-criterion rejection. The game log explicitly attributes the private-room lookup failures to a missing bearer token, despite the visible Free Play screen. No credentials are included here.
+
 Compared with the preceding cohort, the client is now recycled after each counted round, with no policy stream or lease active. This avoids waiting through an unobserved automatically started next round and tests a mitigation for repeated later-round crashes. It is an infrastructure change, not proof the crashes are fixed.
 
 After this cohort began, the next-launch script was changed to `BOX64_DYNAREC_WEAKBARRIER=0` while retaining `STRONGMEM=2`. The installed Box64 source documents regular barriers at zero versus weak barriers at the default one. The original launcher is preserved, and each launch archives its script. This is an explicit runtime accuracy experiment with potential FPS cost; performance must be reported by runtime cohort. It does not change the CUDA trainer. Crash cause remains unknown.
+
+Only seed 703 used the regular-barrier process r35. Its first attempt had zero policy actions after derivative warmup and two source gaps over 250 ms; its second completed at 26.40 source observations/s, versus 47.95/s for seed 702 under the prior setting. The retry proves the regular-barrier client was usable after warmup, but one process does not establish crash prevention. Different seeds and round positions also preclude a clean causal frame-rate comparison. The original barrier setting was restored before r36/seed 704. Seeds 701 and 702 form the baseline-runtime subset, 1 win and 1 loss.
 
 ## Identities
 

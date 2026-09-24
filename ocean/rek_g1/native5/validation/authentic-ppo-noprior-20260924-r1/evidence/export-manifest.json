@@ -1,0 +1,31 @@
+{
+  "schema": "rek.authentic_trajectory_dataset.v3",
+  "observation_schema": "rek.native5.scaled_polar_xy.v1",
+  "binary": "authentic-trajectories-v3.bin",
+  "binary_sha256": "8ced592947fc1167f771d9480a0a56da3bab025d5bae292dc90308552f0bf83b",
+  "identity_sha256": "674009772cbdbb719ff5ec7e15b4022c123cd3e61370a578a6de99aed97eb537",
+  "feature_mask_sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+  "checkpoint_sha256": "7561859790d0ed55a55471d96442fe954a593c52d8617b51c143687ba9d98f96",
+  "header_bytes": 384,
+  "row_bytes": 1128,
+  "rows": 28715,
+  "rounds": 5,
+  "seeds": [
+    601,
+    602,
+    603,
+    604,
+    605
+  ],
+  "applied": 28710,
+  "terminal_race_rejected": 5,
+  "reward_rule": "terminal_outcome + gamma_t*Phi(next_observed_points) - Phi(current_observed_points); terminal_Phi=0; Phi=d/(5+abs(d))",
+  "discount_rule": "pow(reference,actual_source_to_next_source_QPC_seconds/0.02),float32",
+  "behavior_replay": "required; exact recorded sampled actions; fresh native policy with actual seed per round",
+  "limits": [
+    "Five selected development episodes are not an independent holdout.",
+    "Acknowledgements establish local acceptance, not server execution or inferred attack credit.",
+    "Full source decision order and terminal-race rejected sampled actions are preserved.",
+    "No inferred fall labels or new reward bonuses are introduced."
+  ]
+}

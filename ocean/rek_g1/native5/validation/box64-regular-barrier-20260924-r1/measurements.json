@@ -1,0 +1,473 @@
+{
+  "schema": "rek.box64_regular_barrier_observation.v1",
+  "record_date_utc": "2026-09-24",
+  "purpose": "Record one sequential runtime accuracy experiment and its observed cadence; this is not a randomized A/B benchmark or a proven crash fix.",
+  "host": "spark-4ae3",
+  "isolation": {
+    "container": "codexrook-xserver",
+    "display": ":98",
+    "wineprefix": "/opt/codexrook/wineprefix",
+    "windows_input_emitted": false
+  },
+  "runtime": {
+    "box64_commit": "2544543b3ace019bf2c9073a3afdb49b68d28bb1",
+    "wine": "11.13",
+    "coreclr": "6.0.722.32202",
+    "dotnet": "6.0.7"
+  },
+  "method": {
+    "clock": "clock.qpc_ticks from complete encoder.stdin.jsonl records; qpc_frequency_hz=10000000",
+    "source_hz": "(forwarded_observation_count - 1) / first-to-last QPC span_s",
+    "unity_frame_hz": "(last clock.unity_frame - first clock.unity_frame) / same QPC span_s",
+    "ready_and_applied_per_s": "Count from encoder.stdout.jsonl / summary.json divided by the same forwarded-observation span_s",
+    "gap_quantiles": "Sort adjacent QPC intervals ascending; choose floor(q * (n - 1)), with q = 0.50, 0.95, 0.99",
+    "windows": "First 10 s and final 30 s are selected by QPC elapsed time among forwarded observations.",
+    "frame_gap_caution": "Unity frame increments greater than one mean frames without a forwarded observation. These are not demonstrated dropped render frames or transport loss."
+  },
+  "trials": [
+    {
+      "label": "jointmask-s702",
+      "launch": "r34",
+      "box64_dynarec_strongmem": 2,
+      "box64_dynarec_weakbarrier": 1,
+      "policy_rng_seed": 702,
+      "trial_directory": "/home/spark-advantage/rek-training/f7-joint-mask-live-20260924-r1/jointmask-s702/trial",
+      "launch_script": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/live-attack-gate-20260921-r34/launch.sh",
+      "source_count": 5727,
+      "forwarded_encoder_count": 5726,
+      "skipped_sources": 1,
+      "dropped_sources": {
+        "action_inflight": 1
+      },
+      "ready_observation_count": 5724,
+      "unavailable_observation_count": 2,
+      "predictions": 5724,
+      "applied": 5723,
+      "rejected": 1,
+      "ready_observations_per_s": 47.945028582247865,
+      "applied_per_s": 47.93665244168493,
+      "stop_reason": "stream_end:active_round_not_observed",
+      "initial_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 119.66631,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          2,
+          11
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "WonByPoints",
+        "result_value": 1,
+        "winner_index": 1,
+        "knockout": false
+      },
+      "checkpoint_sha256": "1b1b8424be9b677e29a9e1bc58e42ed2241bbeae9e34068b21dff5942505e31b",
+      "feature_mask_sha256": "d26c5f2f7d2a7faf14f89a7290189fd8fb45223ff4a548abe7be51061ec4bf85",
+      "cadence": {
+        "full": {
+          "forwarded_observations": 5726,
+          "qpc_first": 9146034282489,
+          "qpc_last": 9147228149751,
+          "qpc_frequency_hz": 10000000,
+          "span_s": 119.3867262,
+          "source_hz": 47.9534047228108,
+          "unity_frame_first": 2684,
+          "unity_frame_last": 9221,
+          "unity_frame_delta": 6537,
+          "frame_hz": 54.754830859915145,
+          "frame_gaps_gt_one": 812,
+          "gap_ms": {
+            "min": 12.71,
+            "p50": 18.6408,
+            "p95": 34.5935,
+            "p99": 37.9834,
+            "max": 315.6688
+          },
+          "gaps_over_250ms": 1,
+          "unity_frames_without_forwarded_sample": 812
+        },
+        "first10_s": {
+          "forwarded_observations": 432,
+          "qpc_first": 9146034282489,
+          "qpc_last": 9146134156434,
+          "qpc_frequency_hz": 10000000,
+          "span_s": 9.9873945,
+          "source_hz": 43.15439827674775,
+          "unity_frame_first": 2684,
+          "unity_frame_last": 3164,
+          "unity_frame_delta": 480,
+          "frame_hz": 48.060582767607706,
+          "frame_gaps_gt_one": 49,
+          "gap_ms": {
+            "min": 13.5869,
+            "p50": 19.0107,
+            "p95": 36.008,
+            "p99": 57.7594,
+            "max": 315.6688
+          },
+          "gaps_over_250ms": 1,
+          "unity_frames_without_forwarded_sample": 49
+        },
+        "last30_s": {
+          "forwarded_observations": 1454,
+          "qpc_first": 9146928199538,
+          "qpc_last": 9147228149751,
+          "qpc_frequency_hz": 10000000,
+          "span_s": 29.9950213,
+          "source_hz": 48.441372502042526,
+          "unity_frame_first": 7546,
+          "unity_frame_last": 9221,
+          "unity_frame_delta": 1675,
+          "frame_hz": 55.84260078521764,
+          "frame_gaps_gt_one": 222,
+          "gap_ms": {
+            "min": 12.9738,
+            "p50": 18.5024,
+            "p95": 34.6173,
+            "p99": 37.1442,
+            "max": 51.5456
+          },
+          "gaps_over_250ms": 0,
+          "unity_frames_without_forwarded_sample": 222
+        }
+      }
+    },
+    {
+      "label": "jointmask-s703",
+      "launch": "r35",
+      "box64_dynarec_strongmem": 2,
+      "box64_dynarec_weakbarrier": 0,
+      "policy_rng_seed": 703,
+      "trial_directory": "/home/spark-advantage/rek-training/f7-joint-mask-live-20260924-r1/jointmask-s703/trial",
+      "launch_script": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/live-attack-gate-20260921-r35/launch.sh",
+      "source_count": 3,
+      "forwarded_encoder_count": 3,
+      "skipped_sources": 0,
+      "dropped_sources": {},
+      "ready_observation_count": 0,
+      "unavailable_observation_count": 3,
+      "predictions": 0,
+      "applied": 0,
+      "rejected": 0,
+      "ready_observations_per_s": 0,
+      "applied_per_s": 0,
+      "stop_reason": "stream_end:policy_action_watchdog_expired",
+      "initial_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 119.6665,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 118.965965,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "checkpoint_sha256": "1b1b8424be9b677e29a9e1bc58e42ed2241bbeae9e34068b21dff5942505e31b",
+      "feature_mask_sha256": "d26c5f2f7d2a7faf14f89a7290189fd8fb45223ff4a548abe7be51061ec4bf85",
+      "cadence": {
+        "full": {
+          "forwarded_observations": 3,
+          "qpc_first": 9148008852221,
+          "qpc_last": 9148016554819,
+          "qpc_frequency_hz": 10000000,
+          "span_s": 0.7702598,
+          "source_hz": 2.596526522609644,
+          "unity_frame_first": 2659,
+          "unity_frame_last": 2661,
+          "unity_frame_delta": 2,
+          "frame_hz": 2.596526522609644,
+          "frame_gaps_gt_one": 0,
+          "gap_ms": {
+            "min": 321.5498,
+            "p50": 321.5498,
+            "p95": 321.5498,
+            "p99": 321.5498,
+            "max": 448.71
+          },
+          "gaps_over_250ms": 2,
+          "unity_frames_without_forwarded_sample": 0
+        },
+        "first10_s": {
+          "forwarded_observations": 3,
+          "qpc_first": 9148008852221,
+          "qpc_last": 9148016554819,
+          "qpc_frequency_hz": 10000000,
+          "span_s": 0.7702598,
+          "source_hz": 2.596526522609644,
+          "unity_frame_first": 2659,
+          "unity_frame_last": 2661,
+          "unity_frame_delta": 2,
+          "frame_hz": 2.596526522609644,
+          "frame_gaps_gt_one": 0,
+          "gap_ms": {
+            "min": 321.5498,
+            "p50": 321.5498,
+            "p95": 321.5498,
+            "p99": 321.5498,
+            "max": 448.71
+          },
+          "gaps_over_250ms": 2,
+          "unity_frames_without_forwarded_sample": 0
+        },
+        "last30_s": {
+          "forwarded_observations": 3,
+          "qpc_first": 9148008852221,
+          "qpc_last": 9148016554819,
+          "qpc_frequency_hz": 10000000,
+          "span_s": 0.7702598,
+          "source_hz": 2.596526522609644,
+          "unity_frame_first": 2659,
+          "unity_frame_last": 2661,
+          "unity_frame_delta": 2,
+          "frame_hz": 2.596526522609644,
+          "frame_gaps_gt_one": 0,
+          "gap_ms": {
+            "min": 321.5498,
+            "p50": 321.5498,
+            "p95": 321.5498,
+            "p99": 321.5498,
+            "max": 448.71
+          },
+          "gaps_over_250ms": 2,
+          "unity_frames_without_forwarded_sample": 0
+        }
+      }
+    },
+    {
+      "label": "jointmask-s703-retry2",
+      "launch": "r35",
+      "box64_dynarec_strongmem": 2,
+      "box64_dynarec_weakbarrier": 0,
+      "policy_rng_seed": 703,
+      "trial_directory": "/home/spark-advantage/rek-training/f7-joint-mask-live-20260924-r1/jointmask-s703-retry2/trial",
+      "launch_script": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/live-attack-gate-20260921-r35/launch.sh",
+      "source_count": 3159,
+      "forwarded_encoder_count": 3158,
+      "skipped_sources": 1,
+      "dropped_sources": {
+        "action_inflight": 1
+      },
+      "ready_observation_count": 3157,
+      "unavailable_observation_count": 1,
+      "predictions": 3157,
+      "applied": 3156,
+      "rejected": 1,
+      "ready_observations_per_s": 26.39858216618487,
+      "applied_per_s": 26.390220245954847,
+      "stop_reason": "stream_end:active_round_not_observed",
+      "initial_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 119.79989,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          6,
+          22
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "WonByPoints",
+        "result_value": 1,
+        "winner_index": 1,
+        "knockout": false
+      },
+      "checkpoint_sha256": "1b1b8424be9b677e29a9e1bc58e42ed2241bbeae9e34068b21dff5942505e31b",
+      "feature_mask_sha256": "d26c5f2f7d2a7faf14f89a7290189fd8fb45223ff4a548abe7be51061ec4bf85",
+      "cadence": {
+        "full": {
+          "forwarded_observations": 3158,
+          "qpc_first": 9149304402536,
+          "qpc_last": 9150500300096,
+          "qpc_frequency_hz": 10000000,
+          "span_s": 119.589756,
+          "source_hz": 26.39858216618487,
+          "unity_frame_first": 9845,
+          "unity_frame_last": 13002,
+          "unity_frame_delta": 3157,
+          "frame_hz": 26.39858216618487,
+          "frame_gaps_gt_one": 0,
+          "gap_ms": {
+            "min": 25.926,
+            "p50": 36.0296,
+            "p95": 51.3958,
+            "p99": 59.6046,
+            "max": 152.3394
+          },
+          "gaps_over_250ms": 0,
+          "unity_frames_without_forwarded_sample": 0
+        },
+        "first10_s": {
+          "forwarded_observations": 233,
+          "qpc_first": 9149304402536,
+          "qpc_last": 9149403984453,
+          "qpc_frequency_hz": 10000000,
+          "span_s": 9.9581917,
+          "source_hz": 23.297402479207143,
+          "unity_frame_first": 9845,
+          "unity_frame_last": 10077,
+          "unity_frame_delta": 232,
+          "frame_hz": 23.297402479207143,
+          "frame_gaps_gt_one": 0,
+          "gap_ms": {
+            "min": 30.895,
+            "p50": 38.3997,
+            "p95": 59.6046,
+            "p99": 117.8985,
+            "max": 152.3394
+          },
+          "gaps_over_250ms": 0,
+          "unity_frames_without_forwarded_sample": 0
+        },
+        "last30_s": {
+          "forwarded_observations": 810,
+          "qpc_first": 9150200370746,
+          "qpc_last": 9150500300096,
+          "qpc_frequency_hz": 10000000,
+          "span_s": 29.992935,
+          "source_hz": 26.973018812597033,
+          "unity_frame_first": 12193,
+          "unity_frame_last": 13002,
+          "unity_frame_delta": 809,
+          "frame_hz": 26.973018812597033,
+          "frame_gaps_gt_one": 0,
+          "gap_ms": {
+            "min": 25.926,
+            "p50": 35.7355,
+            "p95": 47.3087,
+            "p99": 58.5191,
+            "max": 78.954
+          },
+          "gaps_over_250ms": 0,
+          "unity_frames_without_forwarded_sample": 0
+        }
+      }
+    }
+  ],
+  "cold_initial_attempt": {
+    "utc_first_source": "2026-09-24T05:14:08.530311+00:00",
+    "qpc_gaps_ms": [
+      448.71,
+      321.5498
+    ],
+    "unavailable_reasons": {
+      "derivative_warmup": 1,
+      "source_sample_interval_outside_(0,250ms]": 2
+    },
+    "watchdog_end_utc": "2026-09-24T05:14:09.5676468+00:00",
+    "cause": "Unknown. The available observations do not identify JIT compilation or any other cause."
+  },
+  "outcome": {
+    "regular_barrier_retry_completed": true,
+    "regular_barrier_retry_score": [
+      6,
+      22
+    ],
+    "coreclr_fault_patterns_in_r35_stderr": false,
+    "r35_exit_code": 137,
+    "r35_exit_utc": "2026-09-24T05:18:24Z",
+    "r35_exit_context": "Campaign performed a planned scoped recycle after recording the completed round; do not count exit 137 as a spontaneous crash.",
+    "campaign_recycle_start_utc": "2026-09-24T05:18:23.280Z",
+    "campaign_recycle_end_utc": "2026-09-24T05:18:24.142Z",
+    "next_launch": "r36",
+    "next_launch_utc": "2026-09-24T05:18:27.117Z",
+    "next_launch_weakbarrier": 1
+  },
+  "comparison": {
+    "forwarded_source_rate_change_percent": -44.94951439052374,
+    "unity_frame_rate_change_percent": -51.787665578361384,
+    "limits": [
+      "One completed round per runtime setting in this comparison.",
+      "Policy RNG seeds differ: 702 versus 703.",
+      "The baseline uses round 1 in a fresh process; the completed regular-barrier trial uses round 2 in the already-running r35 process.",
+      "The first regular-barrier attempt failed its action watchdog; the subsequent full-round trial had no gaps over 250 ms.",
+      "Crash reduction is not established by one process surviving this observation period.",
+      "Scores are descriptive and cannot attribute differences to the runtime setting."
+    ]
+  },
+  "process_review": {
+    "controller_pid": 2710934,
+    "observed_start_ticks": 91423542,
+    "initial_manual_stop_plan_abandoned": "The campaign started retry2 at 05:16:08.288 before the planned stop. A read-only review detected the new active recorder and notified root; no signals or mutations were issued by this agent."
+  },
+  "sources": {
+    "campaign_log": "/home/spark-advantage/rek-training/f7-joint-mask-live-20260924-r1/root-campaign/campaign.log",
+    "box64_usage": "/home/spark-advantage/codexrook-runtime/src/box64/docs/USAGE.md:839",
+    "box64_default": "/home/spark-advantage/codexrook-runtime/src/box64/src/include/env.h:79",
+    "barrier_implementation": "/home/spark-advantage/codexrook-runtime/src/box64/src/dynarec/dynarec_helper.h:156",
+    "r35_stderr": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/live-attack-gate-20260921-r35/stderr.txt"
+  }
+}

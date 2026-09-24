@@ -1,0 +1,67 @@
+{
+  "schema": "rek.authentic_source_adapter.v3",
+  "baseline": "/home/spark-advantage/rek-training/f7-action-id-fix-20260924-r1/source/ocean/rek_g1/native5",
+  "source_files": [
+    {
+      "path": "ocean/rek_g1/native5/authentic_trajectory_data.cjs",
+      "operation": "modify",
+      "baseline_sha256": "19ff903e9ce72a0b4e62cb3906919806e84c858a57e42b086a0eaad1dff31b4a",
+      "candidate_sha256": "caf273fdf7996aef900ede1cffd0fc9f52862f24c77eee01c04b205cfad644c3"
+    },
+    {
+      "path": "ocean/rek_g1/native5/authentic_trajectory.h",
+      "operation": "modify",
+      "baseline_sha256": "617c0d0b8d7b419f78d611a9472dceb7cff90b3bf8ca4419c67a0939145ef140",
+      "candidate_sha256": "f5a0a104a81c8c9ab6cb4f43a0120c1244b7b34f9f2d2b9e437ff4f7fa2119f1"
+    },
+    {
+      "path": "ocean/rek_g1/native5/replay_authentic_behavior.cu",
+      "operation": "modify",
+      "baseline_sha256": "76ba9357bc9d519dea0cda43629277bb5c0faa167afb89999bee58c1a8c2bb8d",
+      "candidate_sha256": "0ee04866b69a594c2b54545fa5b8a39acbe41129e526bb7af399d80431ff84af"
+    },
+    {
+      "path": "ocean/rek_g1/native5/authentic_ppo.cu",
+      "operation": "modify",
+      "baseline_sha256": "8b2ebee449dc2e6412a52120c5cec923fb36eda439e8a6a8ee175a45aa30430b",
+      "candidate_sha256": "1fef6e0b80b98f1fd0df863e88e44437cd64602632f070805fd3a66d77386840"
+    },
+    {
+      "path": "ocean/rek_g1/native5/authentic_trajectory_v3.cjs",
+      "operation": "add",
+      "baseline_sha256": null,
+      "candidate_sha256": "d4f7346266ef3045da193644ec7193ee1f11135725fc8bbbe6a32f033a0c2069"
+    },
+    {
+      "path": "ocean/rek_g1/native5/authentic_trajectory_v3.test.cjs",
+      "operation": "add",
+      "baseline_sha256": null,
+      "candidate_sha256": "219acfd2b9fc65940753164ba6b71b535b54c2c803ad60f64e52a31ade07f2d3"
+    },
+    {
+      "path": "ocean/rek_g1/native5/build_authentic_replay_v3.sh",
+      "operation": "add",
+      "baseline_sha256": null,
+      "candidate_sha256": "a0397c9a8e9af3fb36ad268b04f7f35bee7d1cfc3d2f952f237a3aaa7afde910"
+    },
+    {
+      "path": "ocean/rek_g1/native5/test_authentic_v3.cpp",
+      "operation": "add",
+      "baseline_sha256": null,
+      "candidate_sha256": "aa11d872f637ff69d9d9d80fa3fd7cbe87a372d8fe70a6109b7a693076dc20e8"
+    },
+    {
+      "path": "ocean/rek_g1/native5/authentic_distributional_parity.h",
+      "operation": "add",
+      "baseline_sha256": null,
+      "candidate_sha256": "7b48e24045549f911d9a2bb2831edd90ca39e377924201bd9a50f4e482feffbb"
+    },
+    {
+      "path": "ocean/rek_g1/native5/test_authentic_distributional_parity.cpp",
+      "operation": "add",
+      "baseline_sha256": null,
+      "candidate_sha256": "493e753546753ddedff8c51cfea99ffab2999076852b2c0aef6fc67d5e4fd476"
+    }
+  ],
+  "patch_sha256": "621bb3062655bacea80591a3b11b54be839a95ba87db9e16bd8e3e5205706348"
+}
