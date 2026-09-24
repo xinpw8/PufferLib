@@ -1,0 +1,138 @@
+{
+  "schema": "rek.human_conditional_attack_balance8.v1",
+  "source_sha256": "a85e571d6c76bd174374bd4e507d22a0f83438cddb9400c5251b457d1cf362c6",
+  "dataset_sha256": "b07f599e8f38ae0cfe59c3e7e0e10fa5aee00955f0483a9f763cfb662dbbfdef",
+  "rows": 11985,
+  "splits": [
+    {
+      "rows": 5993,
+      "labels": 77,
+      "actions": {
+        "17": 16,
+        "18": 2,
+        "21": 44,
+        "23": 6,
+        "24": 9
+      }
+    },
+    {
+      "rows": 5992,
+      "labels": 109,
+      "actions": {
+        "16": 3,
+        "17": 2,
+        "19": 1,
+        "20": 6,
+        "21": 65,
+        "23": 5,
+        "24": 27
+      }
+    }
+  ],
+  "loss": "negative log conditional probability within policy categories16..32 on observed one-shot request rows",
+  "action_support": "loss normalization set only; never a runtime legality or action forcing mask",
+  "nonattack_rows": "retained chronologically with derived label-1 and weight0; original labels remain in source dataset/ledger",
+  "weights": "one per observed attack request; no per-class balancing",
+  "nonobjective_bytes_identical": true,
+  "feature_mask_unchanged": true,
+  "behavior_timing_preserved": false,
+  "timing_caveat": "shared-network updates may change total attack mass and movement even though classes0..15 have zero direct CE logit gradient",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "original_dataset": {
+    "path": "/mnt/c/rekagent/work/imitation-20260919-r1/dataset-r1/human-commands.bin",
+    "sha256": "71238da150db6e926170efdc27662f4426145aac7f69a7c93f619ece54d6cf1d"
+  },
+  "measured_dataset": {
+    "path": "/mnt/c/rekagent/work/human-observable-bc-20260921-r1/run-r1/dataset/human-observable.bin",
+    "sha256": "228b5696fdcb0663c15dce32b6e8bed171ed995661c3acd5d050f95402aa7c8f"
+  },
+  "original_observations_preserved_except_balance8_and_explicit_unavailable": true,
+  "unchanged_known_columns": 207,
+  "measured_balance8_columns": [
+    9,
+    95,
+    72,
+    158,
+    202,
+    203,
+    204,
+    205
+  ],
+  "zero_unavailable_columns": [
+    176,
+    177,
+    178,
+    179,
+    180,
+    181,
+    182,
+    183,
+    202,
+    204,
+    205
+  ],
+  "feature_mask_sha256": "f0f9c515a7f9a122780a6efef970f673bc3f52852384a83a311c004a01240a76",
+  "retained_features": 212,
+  "raw_capture_sha256": [
+    "547cec42f700e97b9594f8d2c6df88f966052c0e0e5ce7395c4862b619fb6d7f",
+    "ec55c32a6e2272a8e7656d73260ca35876be2cd6c8d8d6fe8c9dfe77cd25a309"
+  ],
+  "provenance": "Original human command labels and complete chronology; validated Sept21 C++ root projection at identical source rows supplies8 measured/availability columns. No re-timing or interpolation.",
+  "partial_observation": true,
+  "on_policy": false,
+  "behavior_logprob_available": false,
+  "acknowledged_dispatch_available": false,
+  "history_available_rows": 11981,
+  "sequences": [
+    {
+      "id": 2,
+      "split": 0,
+      "begin": 0,
+      "end": 3
+    },
+    {
+      "id": 5,
+      "split": 0,
+      "begin": 3,
+      "end": 5993
+    },
+    {
+      "id": 1000002,
+      "split": 1,
+      "begin": 5993,
+      "end": 5996
+    },
+    {
+      "id": 1000006,
+      "split": 1,
+      "begin": 5996,
+      "end": 11985
+    }
+  ],
+  "training_labeled_chunks_per_epoch": 31,
+  "initialization_sha256": "0daf90a96442d541d38d9dd4f8fe765917c3c766ca80019855cfd7d358d9fe12",
+  "proposed_training": {
+    "epochs": 5,
+    "learning_rate": 0.0001,
+    "horizon": 128,
+    "conditional_support": [
+      16,
+      32
+    ],
+    "event_weight": 1,
+    "class_balancing": false,
+    "optimizer": "unchanged native Muon"
+  },
+  "live_feature_mask": "unchanged allones; no conditional support mask is applied live",
+  "live_feature_mask_sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+  "input_equivalence_claim": false,
+  "transfer_limits": [
+    "unknown temporal fields zero duringBC but observed/projected duringlive",
+    "received network bone poses versus rendered live local bones",
+    "50Hz historical chronology versus variable current live cadence",
+    "fresh referee/count unavailable duringBC",
+    "only two human rounds from one session; development holdout previously examined"
+  ],
+  "gpu_used": false,
+  "training_performed": false
+}

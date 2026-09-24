@@ -1,0 +1,44 @@
+{
+  "utc": "2026-09-24T09:33:31.953Z",
+  "source_host": "spark-4ae3",
+  "stage": "/home/spark-advantage/rek-training/scorecredit-human-attackbc-20260924-r1",
+  "members": [
+    "."
+  ],
+  "command": [
+    "wsl.exe",
+    "-d",
+    "Ubuntu-22.04",
+    "--exec",
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=5",
+    "spark",
+    "tar",
+    "-C",
+    "/home/spark-advantage/rek-training/scorecredit-human-attackbc-20260924-r1",
+    "-czf",
+    "-",
+    "--",
+    "."
+  ],
+  "exit_code": 0,
+  "bytes": 16163800,
+  "sha256": "52f60141fa92a7019112385a999d30c86c36c518f8a8b3403491baf641f9a736",
+  "nas_readback_verified": true,
+  "tar_listing_verified": true,
+  "archive_entries": 38,
+  "closed_source_sha256": {
+    "train-five-epochs/policy.bin": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+    "train-five-epochs/execution.json": "22b4b1f272c9f94b9505d46a8c3e617a7593d738e9ae7b0ef02e709708870ca2",
+    "train-five-epochs/stdout.jsonl": "e4755f44234100ff94814342172798362373ed9fb0f1fc8e2bcb6c2efc14ff84",
+    "live-drift/report.json": "9cb294e3a4410f88a481cfa3578e1b53e60abada8cfd9b8f040236e294d69196",
+    "dataset/human-conditional-attack.bin": "b07f599e8f38ae0cfe59c3e7e0e10fa5aee00955f0483a9f763cfb662dbbfdef"
+  },
+  "closed_source_hashes_verified_before_and_after": true,
+  "output": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\scorecredit-human-attackbc-native-20260924-r1\\evidence.tar.gz",
+  "source_removed": false,
+  "scope": "Closed BC native stage including supervised dataset, source, compiled diagnostic, five-epoch checkpoints, logs and actual full-input drift. New live cohort excluded."
+}

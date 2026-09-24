@@ -1,0 +1,20 @@
+{
+  "schema": "rek.human_attack_bc_live_preparation.v1",
+  "stage": "/home/spark-advantage/rek-training/human-attackbc-live-20260924-r1",
+  "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+  "planned_rounds_sha256": "7a370f25b0751489d92715662490338270737d12362df19fddbbf12bbdb18b37",
+  "driver_sha256": "b57654d54a76c80b38c9e44f59f53efb2502959a70dc568835ec5a8f6d238214",
+  "controller_sha256": "160299c466f6aeb8b0f9cebfd63132316f98625fe89af5f851a505472e44b151",
+  "runtime_files_copied_byte_identically": 8,
+  "runtime_configuration_changed": false,
+  "checkpoint_seed_label_output_paths_changed": true,
+  "seeds": [1101, 1120],
+  "planned_rounds": 20,
+  "target_wins": 18,
+  "stop_completed_nonwins": 3,
+  "cpu_tests_passed": 3,
+  "actual_spark_preparation_passed": true,
+  "controller_started_by_preparation": false,
+  "game_launched_by_preparation": false,
+  "gpu_used_by_preparation": false
+}
