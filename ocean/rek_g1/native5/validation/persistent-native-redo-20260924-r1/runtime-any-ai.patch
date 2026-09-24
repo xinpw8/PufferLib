@@ -1,0 +1,138 @@
+diff --git a/campaign.cjs b/campaign.cjs
+index 2578b82..561f866 100644
+--- a/campaign.cjs
++++ b/campaign.cjs
+@@ -19,8 +19,33 @@ const LOBBY_WAIT_MS=Number(process.env.AB_LOBBY_WAIT_MS||480000);
+ const sha=f=>crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+ const utc=()=>new Date().toISOString();
+ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+-const {trialExitCode,provenG1T800Pairing}=require(driver);
+-if(typeof provenG1T800Pairing!=='function')throw Error('pairing-aware driver required');
++const {trialExitCode,provenG1T800Pairing,privateArena,canReadyPrivateAiSession}=require(driver);
++if(typeof provenG1T800Pairing!=='function'||typeof privateArena!=='function'||typeof canReadyPrivateAiSession!=='function')throw Error('pairing-aware private-AI driver required');
++let runtimeAnyAi=false;
++function runtimeOpponentMode(plan,env) {
++  if(plan.runtime_any_ai!==undefined && typeof plan.runtime_any_ai!=='boolean')throw Error('runtime_any_ai must be boolean');
++  if(env.AB_RUNTIME_ANY_AI!==undefined && !['0','1'].includes(env.AB_RUNTIME_ANY_AI))throw Error('AB_RUNTIME_ANY_AI must be 0 or 1');
++  const requested=plan.runtime_any_ai===true || env.AB_RUNTIME_ANY_AI==='1';
++  if(requested && !(plan.runtime_only===true && plan.runtime_any_ai===true && env.AB_RUNTIME_ANY_AI==='1'))
++    throw Error('any-AI runtime requires runtime_only, runtime_any_ai and AB_RUNTIME_ANY_AI=1');
++  return requested;
++}
++function knownOpponent(p) {
++  return Number.isInteger(p?.client_ai_difficulty) && p.client_ai_difficulty>=0 && p.client_ai_difficulty<=255 &&
++    p.sparring_bot_number===p.client_ai_difficulty+1;
++}
++function opponentMetrics(records) {
++  const strata={};
++  for(const r of records) {
++    if(!r.complete && !r.auxiliary_complete)continue;
++    const p=r.opponent;if(!knownOpponent(p))continue;
++    const key='Bot'+p.sparring_bot_number;
++    const bucket=(strata[key]??={opponent:p,regular_120s:{completed:0,wins:0,losses:0,ties:0,scores:[]},redo_30s:{completed:0,wins:0,losses:0,ties:0,scores:[]}})[r.complete?'regular_120s':'redo_30s'];
++    bucket.completed++;bucket[r.final_round.winner_index===0?'wins':r.final_round.winner_index===1?'losses':'ties']++;
++    bucket.scores.push(r.final_round.clean_hits);
++  }
++  return strata;
++}
+ const logStream=fs.createWriteStream(path.join(here,'campaign.log'),{flags:'a'});
+ function log(event,detail={}){const v={utc:utc(),event,...detail};const s=JSON.stringify(v);logStream.write(s+'\n');console.log(s);}
+ const ledgerPath=path.join(here,'ledger.json');
+@@ -52,13 +77,16 @@ function gameAlive(){
+     return procs.some(p=>{try{return fs.readFileSync(`/proc/${p}/cmdline`).toString().split('\0').includes('/opt/codexrook/rek-core-referee-20260924-r1/REK.exe');}catch{return false;}});
+   }catch{return false;}
+ }
+-function launchWindow(s){
++function launchWindow(s,allowAnyAi=runtimeAnyAi){
+   // Fresh lobby entry, or a between-round / idle window so the driver streams from a round's first tick.
+   if(!s||s.isolated_session_verified!==true)return null;
+   if(s.scene==='Lobby'&&s.lease_held===false&&s.g1_policy_stream_running===false)return 'lobby';
+   const p=s.private_ai||{};
+-  if(s.scene!=='Arena'||p.proven!==true||s.lease_held!==false||s.g1_policy_stream_running!==false)return null;
+-  if(p.client_ai_difficulty!==0||p.sparring_bot_number!==1)return null;
++  if(s.scene!=='Arena'||s.lease_held!==false||s.g1_policy_stream_running!==false)return null;
++  if(allowAnyAi) {
++    const readyIdle=p.known_private_ai_ready===true && p.phase==='Idle' && p.round_inactive===true && p.round_active===false;
++    if((p.known_private_ai_proven!==true && !readyIdle) || !knownOpponent(p))return null;
++  } else if(p.proven!==true||p.client_ai_difficulty!==0||p.sparring_bot_number!==1)return null;
+   if(['BetweenRounds','FightOver'].includes(p.phase)&&p.round_active===false)return 'between_rounds:'+p.phase;
+   if(p.phase==='Idle'&&p.round_inactive===true)return 'idle';
+   return null;
+@@ -95,7 +123,7 @@ function watchOnce(cfg,timeoutMs){
+       const st={utc:utc(),scene:m.scene,lobby_screen:m.lobby_screen,isolated_session_verified:f.isolated_session_verified,
+         lease_held:c.lease_held,g1_policy_stream_running:c.g1_policy_stream_running,
+         ...(unsupportedPairing?{unsupported_pairing:unsupportedPairing}:{}),
+-        private_ai:{proven:p.proven,phase:p.phase,round_active:p.round_active,round_number:p.round_number,round_inactive:p.round_inactive,
++        private_ai:{proven:p.proven,known_private_ai_proven:privateArena(m),known_private_ai_ready:canReadyPrivateAiSession(m),phase:p.phase,round_active:p.round_active,round_number:p.round_number,round_inactive:p.round_inactive,
+           post_fight_prompt:p.post_fight_prompt,post_fight_is_winner:p.post_fight_is_winner,fight_epoch:p.fight_epoch,
+           client_ai_difficulty:p.client_ai_difficulty,sparring_bot_number:p.sparring_bot_number}};
+       last=st;fs.appendFileSync(path.join(here,'probe.jsonl'),JSON.stringify(st)+'\n');
+@@ -181,7 +209,7 @@ function attemptPaths(label,attempt){
+   }
+   return {name,dir,config,media:path.join(dir,'media')};
+ }
+-function verdict(dir,expectedCheckpoint){
++function verdict(dir,expectedCheckpoint,allowAnyAi=runtimeAnyAi){
+   const sp=path.join(dir,'trial','summary.json'),mp=path.join(dir,'media','capture-manifest.json');
+   const summary=fs.existsSync(sp)?JSON.parse(fs.readFileSync(sp,'utf8')):null;
+   const manifest=fs.existsSync(mp)?JSON.parse(fs.readFileSync(mp,'utf8')):null;
+@@ -194,19 +222,23 @@ function verdict(dir,expectedCheckpoint){
+      (expectedWinner!==-1&&fr.result==='WonByPoints'&&fr.result_value===1));
+   const terminal=!!fr&&fr.active===false&&fr.time_remaining===0&&resultValid&&summary.predictions>0&&summary.applied>0;
+   const sameBot=summary?.opponent?.client_ai_difficulty===0&&summary?.opponent?.sparring_bot_number===1;
++  const opponent=knownOpponent(summary?.opponent)?{client_ai_difficulty:summary.opponent.client_ai_difficulty,
++    sparring_bot_number:summary.opponent.sparring_bot_number}:null;
++  const eligibleOpponent=sameBot || (allowAnyAi===true && opponent!==null && summary.authentic_client===true &&
++    summary.global_input_emitted===false && summary.controlled_startup_validated===true);
+   const ir=summary?.initial_round||null;
+   // Policy must own the round from its first tick: no pre-existing hits, no elapsed time.
+   const fairStart=!!ir&&ir.active===true&&ir.time_remaining>=117&&ir.time_remaining<=120&&ir.duration===120&&fr?.duration===120&&ir.redo===false&&fr.redo===false&&Array.isArray(ir.clean_hits)&&ir.clean_hits[0]===0&&ir.clean_hits[1]===0&&ir.number===fr?.number;
+-  const complete=terminal&&sameBot&&fairStart&&summary.checkpoint_sha256===expectedCheckpoint;
++  const complete=terminal&&eligibleOpponent&&fairStart&&summary.checkpoint_sha256===expectedCheckpoint;
+   const fairRedo=summary?.play_native_redo===true && summary.controlled_startup_validated===true &&
+     summary.startup_readiness?.round_kind==='redo_30s' && summary.startup_readiness.round_duration===30 &&
+     summary.startup_readiness.round_redo===true && summary.startup_readiness.play_native_redo===true &&
+     !!ir&&ir.active===true&&ir.time_remaining>=27&&ir.time_remaining<=30&&ir.duration===30&&fr?.duration===30&&
+     ir.redo===true&&fr.redo===true&&Array.isArray(ir.clean_hits)&&ir.clean_hits[0]===0&&ir.clean_hits[1]===0&&ir.number===fr?.number;
+-  const auxiliaryComplete=terminal&&sameBot&&fairRedo&&summary.checkpoint_sha256===expectedCheckpoint;
++  const auxiliaryComplete=terminal&&eligibleOpponent&&fairRedo&&summary.checkpoint_sha256===expectedCheckpoint;
+   const roundKind=ir?.duration===120&&ir.redo===false?'regular_120s':ir?.duration===30&&ir.redo===true?'redo_30s':null;
+   return {complete,auxiliary_complete:auxiliaryComplete,round_kind:roundKind,
+-    terminal,same_bot:sameBot,fair_start:fairStart,auxiliary_fair_start:fairRedo,initial_round:ir,stop_reason:summary?.stop_reason??null,
++    terminal,same_bot:sameBot,eligible_opponent:eligibleOpponent,opponent,runtime_any_ai:allowAnyAi===true,fair_start:fairStart,auxiliary_fair_start:fairRedo,initial_round:ir,stop_reason:summary?.stop_reason??null,
+     ...(summary?.unsupported_pairing?{excluded_cause:summary.unsupported_pairing.code,unsupported_pairing:summary.unsupported_pairing}:{}),
+     predictions:summary?.predictions??null,applied:summary?.applied??null,rejected:summary?.rejected??null,
+     final_round:fr,video:manifest?.delivery_status??null,video_sha256:manifest?.video_sha256??null};
+@@ -233,6 +265,7 @@ async function attempt(entry,n){
+   (ledger[entry.label]??=[]).push(rec);saveLedger();
+   log('attempt_end',{label:entry.label,attempt:n,complete:v.complete,stop_reason:v.stop_reason,excluded_cause:v.excluded_cause,
+     auxiliary_complete:v.auxiliary_complete,round_kind:v.round_kind,
++    same_bot:v.same_bot,eligible_opponent:v.eligible_opponent,opponent:v.opponent,runtime_any_ai:runtimeAnyAi,
+     final_round:v.final_round,wrapper_exit:rec.wrapper_exit,media_status:rec.media_status,
+     policy_transport_closed:result.handoff!==null});
+   const finalize=wrapper.completed.then(r=>{
+@@ -266,9 +299,10 @@ async function main(){
+   process.on('exit',()=>{try{fs.unlinkSync(lock);}catch{}});
+   const planDocument=JSON.parse(fs.readFileSync(path.join(stage,process.env.AB_PLAN||'planned-rounds.json'),'utf8'));
+   const plan=planDocument.plan,runtimeOnly=planDocument.runtime_only===true;
++  runtimeAnyAi=runtimeOpponentMode(planDocument,process.env);
+   if(runtimeOnly && (!Array.isArray(plan)||plan.length<1||plan.length>4))throw Error('runtime-only smoke requires 1..4 planned rounds');
+   const anyConfig=plan[0].config_path;
+-  log('campaign_start',{pid:process.pid,plan_rounds:plan.length,max_attempts:MAX_ATTEMPTS,runtime_only:runtimeOnly});
++  log('campaign_start',{pid:process.pid,plan_rounds:plan.length,max_attempts:MAX_ATTEMPTS,runtime_only:runtimeOnly,runtime_any_ai:runtimeAnyAi});
+   let handoff=null;
+   try {
+   for(const entry of plan){
+@@ -307,9 +341,11 @@ async function main(){
+     await Promise.all([...pendingMedia]);
+     if(mediaFailed){log('campaign_media_failure',{client_preserved:true});process.exitCode=2;}
+   }
++  if(runtimeAnyAi)log('runtime_opponent_metrics',{runtime_only:true,runtime_any_ai:true,
++    bot1_policy_cohort:false,by_opponent:opponentMetrics(Object.values(ledger).flat())});
+   log('campaign_end',{summary:Object.fromEntries(Object.entries(ledger).map(([k,v])=>[k,v.filter(a=>a.complete).map(a=>a.final_round?.clean_hits)]))});
+ }
+-module.exports={verdict,launchWindow,preserveUnsupportedPairing,successorHandoff};
++module.exports={verdict,launchWindow,preserveUnsupportedPairing,successorHandoff,runtimeOpponentMode,knownOpponent,opponentMetrics};
+ if(require.main===module){
+   if(process.argv[2]==='--verdict'){console.log(JSON.stringify(verdict(process.argv[3],process.argv[4])));logStream.end();}
+   else main().catch(e=>{log('campaign_error',{message:e.message});process.exitCode=2;});

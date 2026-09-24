@@ -1,0 +1,63 @@
+diff --git a/campaign.cjs b/campaign.cjs
+index 02de5af..2578b82 100644
+--- a/campaign.cjs
++++ b/campaign.cjs
+@@ -198,7 +198,15 @@ function verdict(dir,expectedCheckpoint){
+   // Policy must own the round from its first tick: no pre-existing hits, no elapsed time.
+   const fairStart=!!ir&&ir.active===true&&ir.time_remaining>=117&&ir.time_remaining<=120&&ir.duration===120&&fr?.duration===120&&ir.redo===false&&fr.redo===false&&Array.isArray(ir.clean_hits)&&ir.clean_hits[0]===0&&ir.clean_hits[1]===0&&ir.number===fr?.number;
+   const complete=terminal&&sameBot&&fairStart&&summary.checkpoint_sha256===expectedCheckpoint;
+-  return {complete,terminal,same_bot:sameBot,fair_start:fairStart,initial_round:ir,stop_reason:summary?.stop_reason??null,
++  const fairRedo=summary?.play_native_redo===true && summary.controlled_startup_validated===true &&
++    summary.startup_readiness?.round_kind==='redo_30s' && summary.startup_readiness.round_duration===30 &&
++    summary.startup_readiness.round_redo===true && summary.startup_readiness.play_native_redo===true &&
++    !!ir&&ir.active===true&&ir.time_remaining>=27&&ir.time_remaining<=30&&ir.duration===30&&fr?.duration===30&&
++    ir.redo===true&&fr.redo===true&&Array.isArray(ir.clean_hits)&&ir.clean_hits[0]===0&&ir.clean_hits[1]===0&&ir.number===fr?.number;
++  const auxiliaryComplete=terminal&&sameBot&&fairRedo&&summary.checkpoint_sha256===expectedCheckpoint;
++  const roundKind=ir?.duration===120&&ir.redo===false?'regular_120s':ir?.duration===30&&ir.redo===true?'redo_30s':null;
++  return {complete,auxiliary_complete:auxiliaryComplete,round_kind:roundKind,
++    terminal,same_bot:sameBot,fair_start:fairStart,auxiliary_fair_start:fairRedo,initial_round:ir,stop_reason:summary?.stop_reason??null,
+     ...(summary?.unsupported_pairing?{excluded_cause:summary.unsupported_pairing.code,unsupported_pairing:summary.unsupported_pairing}:{}),
+     predictions:summary?.predictions??null,applied:summary?.applied??null,rejected:summary?.rejected??null,
+     final_round:fr,video:manifest?.delivery_status??null,video_sha256:manifest?.video_sha256??null};
+@@ -224,6 +232,7 @@ async function attempt(entry,n){
+     policy_handoff:result.handoff,media_status:'pending',checkpoint_sha256:entry.checkpoint_sha256};
+   (ledger[entry.label]??=[]).push(rec);saveLedger();
+   log('attempt_end',{label:entry.label,attempt:n,complete:v.complete,stop_reason:v.stop_reason,excluded_cause:v.excluded_cause,
++    auxiliary_complete:v.auxiliary_complete,round_kind:v.round_kind,
+     final_round:v.final_round,wrapper_exit:rec.wrapper_exit,media_status:rec.media_status,
+     policy_transport_closed:result.handoff!==null});
+   const finalize=wrapper.completed.then(r=>{
+@@ -235,7 +244,7 @@ async function attempt(entry,n){
+     rec.video=final.video;rec.video_sha256=final.video_sha256;rec.media_completed_utc=utc();
+     const ok=r.code===0 && final.video==='validated_mp4' && /^[a-f0-9]{64}$/.test(final.video_sha256||'');
+     rec.media_status=ok?'finalized':'failed';
+-    if(!ok && (result.handoff!==null || rec.complete))mediaFailed=true;
++    if(!ok && (result.handoff!==null || rec.complete || rec.auxiliary_complete))mediaFailed=true;
+     saveLedger();log('attempt_media_finalized',{label:entry.label,attempt:n,wrapper_exit:r.code,
+       media_status:rec.media_status,video:rec.video,policy_complete_unchanged:rec.complete});
+   }).catch(error=>{
+@@ -246,7 +255,7 @@ async function attempt(entry,n){
+   return rec;
+ }
+ function successorHandoff(rec,entry){
+-  return rec?.complete===true && rec.policy_handoff?.event==='policy_handoff_ready' &&
++  return (rec?.complete===true || rec?.auxiliary_complete===true) && rec.policy_handoff?.event==='policy_handoff_ready' &&
+     rec.checkpoint_sha256===entry.checkpoint_sha256 ? rec : null;
+ }
+ async function main(){
+@@ -284,10 +293,13 @@ async function main(){
+         previous_round:priorRound.final_round.number,observed_initial_round:rec.initial_round,
+         consecutive_round:rec.initial_round?.number===priorRound.final_round.number+1,
+         fair_start:rec.fair_start,complete:rec.complete});
+-      if(done&&rec.policy_handoff)handoff=rec;
++      if((done||rec.auxiliary_complete)&&rec.policy_handoff)handoff=rec;
++      if(rec.auxiliary_complete)log('auxiliary_redo_completed',{label:entry.label,attempt:n,
++        round_kind:rec.round_kind,final_round:rec.final_round,policy_rng_seed:entry.policy_rng_seed,
++        checkpoint_sha256:entry.checkpoint_sha256,counted_in_120s_cohort:false,next:'same_pending_label'});
+       if(done)log('completed_round_client_preserved',{completed_label:entry.label,
+         round:rec.final_round.number,game_alive:gameAlive(),next:'native_between_round_transition'});
+-      if(!done){if(!gameAlive())log('game_died_during_attempt',{label:entry.label,attempt:n});await sleep(rec.terminal===true?250:5000);}
++      if(!done&&!rec.auxiliary_complete){if(!gameAlive())log('game_died_during_attempt',{label:entry.label,attempt:n});await sleep(rec.terminal===true?250:5000);}
+     }
+     if(!done){log('label_incomplete',{label:entry.label});throw Error('attempt budget exhausted for '+entry.label);}
+   }

@@ -1,0 +1,52 @@
+{
+  "schema": "rek.sanitized_native_redo_publication.v1",
+  "base_commit": "f2e52fc208a83aaa3e9840f4c41e3bd2bd720d5c",
+  "base_directory": "../persistent-private-session-20260924-r1/handoff",
+  "files": [
+    {
+      "name": "any-ai.test.cjs",
+      "bytes": 10040,
+      "sha256": "3be58a61771d103c5b527e6250a0e893285995726864ed23c2818e5edbc006ba"
+    },
+    {
+      "name": "README.md",
+      "bytes": 6080,
+      "sha256": "35d4f106fa32391b9c35839fc873189014a683a0a82972232f03b54524d003d6"
+    },
+    {
+      "name": "redo-controller.patch",
+      "bytes": 5143,
+      "sha256": "f9fd44ac0aabcae22e5dbabb64f36e183834254dcb2da7b087a37af71e2bb001"
+    },
+    {
+      "name": "redo-driver.patch",
+      "bytes": 8014,
+      "sha256": "2361b00b92a20babb22636f6b569f36330b90adbd93f09e6fcefdbec35ea628f"
+    },
+    {
+      "name": "redo.test.cjs",
+      "bytes": 10916,
+      "sha256": "4d46e826aa3b799dbf96672f74778085bf149512067e5f787ab4608313f85c17"
+    },
+    {
+      "name": "runtime-any-ai.patch",
+      "bytes": 10998,
+      "sha256": "74ab438b5b6fb393f17050f8c515e0b3e9377c8cee57616a1cd4cd7fea957bd4"
+    },
+    {
+      "name": "verify.cjs",
+      "bytes": 2913,
+      "sha256": "7cc5991906094c06f12dcb373aa872f3a1434aa9776c17bfa817ccb429810fcd"
+    }
+  ],
+  "cpu_reconstruction": {
+    "passed": true,
+    "tests": 22,
+    "all_runtime_hashes_exact": true,
+    "game_or_bridge_started": false
+  },
+  "native_opted_in_30s_observed": false,
+  "evidence_cutoff_utc": "2026-09-24T13:19:51Z",
+  "raw_logs_included": false,
+  "game_binary_or_decompiled_body_included": false
+}

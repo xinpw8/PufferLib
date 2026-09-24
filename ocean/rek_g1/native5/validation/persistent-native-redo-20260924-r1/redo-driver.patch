@@ -1,0 +1,94 @@
+diff --git a/live_transfer_run_masked.cjs b/live_transfer_run_masked.cjs
+index 298ffb6..1f3520d 100644
+--- a/live_transfer_run_masked.cjs
++++ b/live_transfer_run_masked.cjs
+@@ -189,16 +189,21 @@ function measuredQpc(clock) {
+     (typeof ticks==='string'&&/^[1-9][0-9]*$/.test(ticks)), 'source_qpc_unavailable');
+   return BigInt(ticks);
+ }
+-function validateStartupRound(source, minimumRemaining) {
++function validateStartupRound(source, maximumElapsed, playNativeRedo=false, expected=null) {
+   const r=source?.round;
+-  requireValue(r?.active===true && r.duration===120 && r.redo===false && r.result_value===0 &&
+-    Number.isFinite(r.time_remaining) && r.time_remaining>=minimumRemaining && r.time_remaining<=120 &&
++  const contract=r?.duration===120 && r.redo===false ? {kind:'regular_120s',duration:120,redo:false} :
++    playNativeRedo===true && r?.duration===30 && r.redo===true ? {kind:'redo_30s',duration:30,redo:true} : null;
++  requireValue(contract && r.active===true && r.result_value===0 &&
++    Number.isFinite(r.time_remaining) && r.time_remaining>=contract.duration-maximumElapsed && r.time_remaining<=contract.duration &&
+     Array.isArray(r.clean_hits) && r.clean_hits.length===2 && r.clean_hits.every(x=>x===0),
+-    'startup_requires_untouched_fair_120s_round');
++    playNativeRedo===true?'startup_requires_untouched_regular120_or_redo30_round':'startup_requires_untouched_fair_120s_round');
++  requireValue(!expected || (contract.kind===expected.kind && contract.duration===expected.duration &&
++    contract.redo===expected.redo),'startup_native_round_contract_changed');
++  return contract;
+ }
+ async function prewarmPolicySource({pollSource,opponent,now=Date.now,
+-    wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),log=()=>{}}) {
+-  const started=now();let previous=null,consecutive=0,samples=0;
++    wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),log=()=>{},playNativeRedo=false}) {
++  const started=now();let previous=null,consecutive=0,samples=0,roundContract=null;
+   log('source_warmup_started',{controlled:false,worker_requests:0,encoder_requests:0,budget_ms:2000});
+   while(now()-started<2000) {
+     const sent=now(),source=await pollSource(Math.min(750,Math.max(1,2000-(sent-started)))),received=now();samples++;
+@@ -207,7 +212,8 @@ async function prewarmPolicySource({pollSource,opponent,now=Date.now,
+       source.stream_active===false && source.global_input_emitted===false && source.phase===1 &&
+       /^[a-f0-9]{64}$/.test(source.round_identity_sha256||'') && [0,1].includes(source.local_slot),
+       'prewarm_requires_uncontrolled_native_source');
+-    validateBotIdentity(source.opponent,opponent);validateStartupRound(source,117.5);
++    validateBotIdentity(source.opponent,opponent);
++    roundContract=validateStartupRound(source,2.5,playNativeRedo,roundContract);
+     const input=source.input;
+     requireValue(input?.active===true && input.pending_move===false && input.pending_special===false &&
+       input.pending_estop===false && input.punching===false && input.recovering===false &&
+@@ -235,7 +241,8 @@ async function prewarmPolicySource({pollSource,opponent,now=Date.now,
+       const receipt={round_identity_sha256:previous.round,local_slot:previous.slot,
+         qpc_ticks:previous.qpc.toString(),qpc_frequency_hz:frequency,unity_frame:frame,
+         observation_sequence:previous.sequence,samples,elapsed_ms:received-started,
+-        time_remaining:source.round.time_remaining};
++        time_remaining:source.round.time_remaining,round_kind:roundContract.kind,
++        round_duration:roundContract.duration,round_redo:roundContract.redo,play_native_redo:playNativeRedo===true};
+       log('source_warmup_ready',{controlled:false,worker_requests:0,encoder_requests:0,...receipt});return receipt;
+     }
+     await wait(20);
+@@ -247,7 +254,8 @@ function validateControlledStartup(source,readiness) {
+     source.local_slot===readiness.local_slot && source.clock?.qpc_frequency_hz===readiness.qpc_frequency_hz &&
+     measuredQpc(source.clock)>BigInt(readiness.qpc_ticks) && source.clock.unity_frame>readiness.unity_frame &&
+     source.observation_sequence>readiness.observation_sequence,'controlled_start_not_bound_to_warmed_round');
+-  validateStartupRound(source,117);
++  validateStartupRound(source,3,readiness.play_native_redo===true,{
++    kind:readiness.round_kind??'regular_120s',duration:readiness.round_duration??120,redo:readiness.round_redo??false});
+ }
+ class LiveActionPacer {
+   constructor() {this.pending=null;this.lastAckQpc=null;this.lastOfferedQpc=null;}
+@@ -334,6 +342,8 @@ async function run(configPath) {
+   requireValue(Number.isFinite(config.max_seconds) && config.max_seconds > 0 && config.max_seconds <= 600, 'max_seconds must be 0..600');
+   requireValue(/^[a-f0-9]{64}$/.test(config.checkpoint_sha256), 'checkpoint SHA required');
+   requireValue(/^[a-f0-9]{64}$/.test(config.feature_mask_sha256), 'feature mask SHA required');
++  requireValue(config.play_native_redo===undefined || typeof config.play_native_redo==='boolean',
++    'play_native_redo must be an explicit boolean when present');
+   // Live attack gate: attack categories 16..32 not listed in
+   // allowed_attacks are masked out of every worker request; optional root-distance gate.
+   const gate=config.live_attack_gate||null;
+@@ -432,7 +442,7 @@ async function run(configPath) {
+     // This event also starts the existing passive recorder. Warm the measured
+     // source path before the bridge action watchdog starts. No warmup source is
+     // sent to the encoder or worker, so replay/RNN/RNG histories remain untouched.
+-    startupReadiness=await prewarmPolicySource({opponent,log,pollSource:async(timeoutMs)=>{
++    startupReadiness=await prewarmPolicySource({opponent,log,playNativeRedo:config.play_native_redo===true,pollSource:async(timeoutMs)=>{
+       const request_id=`warm-${++nextId}`;
+       const response=relay.wait(x=>x.request_id===request_id &&
+         (x.event==='g1_policy_state'||x.event==='error'),timeoutMs);
+@@ -535,6 +545,7 @@ async function run(configPath) {
+       feature_mask_sha256:config.feature_mask_sha256,
+       ...(unsupportedPairing?{unsupported_pairing:unsupportedPairing}:{}),
+       observation_schema:config.observation_schema,
++      play_native_redo:config.play_native_redo===true,
+       startup_readiness:startupReadiness,controlled_startup_validated:controlledStartupValidated,
+       live_attack_gate:{allowed_attacks:[...allowedAttacks].sort((a,b)=>a-b),range_m:attackRange,force_attack_range_m:forceRange,cooldown_s:cooldownS,cooldown_actions:[...cooldownActions],cooldown_masked:cooldownMasked,gated_requests:gatedRequests,gated_by_range:gatedByRange,forced_attacks:forcedAttacks}};
+     fs.writeFileSync(path.join(config.out,'summary.json'),JSON.stringify(summary,null,2)+'\n',{flag:'wx'});log('summary',summary);
+@@ -552,4 +563,4 @@ async function run(configPath) {
+   }
+ }
+ if(require.main===module) {requireValue(process.argv.length===3,'usage: node live_transfer_run_masked.cjs config.json');run(process.argv[2]).catch(e=>{console.error(e.message);process.exitCode=2;});}
+-module.exports={privateArena,botIdentity,validateBotIdentity,trialExitCode,canExitLostPrivateSession,canReadyPrivateAiSession,canSkipObservedIntro,exitObservedUnsupportedPairing,ensurePrivateArena,betweenPrivateRounds,canRequestPrivateRound,validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer,provenG1T800Pairing,rejectUnsupportedActivePairing,prewarmPolicySource,validateControlledStartup};
++module.exports={privateArena,botIdentity,validateBotIdentity,trialExitCode,canExitLostPrivateSession,canReadyPrivateAiSession,canSkipObservedIntro,exitObservedUnsupportedPairing,ensurePrivateArena,betweenPrivateRounds,canRequestPrivateRound,validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer,provenG1T800Pairing,rejectUnsupportedActivePairing,prewarmPolicySource,validateControlledStartup,validateStartupRound};
