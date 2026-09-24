@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict');
+assert.equal(process.argv.length,3,'Usage: node materialize_source.cjs NEW_SOURCE_DIRECTORY');
+const out=path.resolve(process.argv[2]);assert(!fs.existsSync(out),'source output exists');
+const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'DEPENDENCIES.json')));
+const pending=manifest.source_dependencies.map(d=>{const source=path.resolve(__dirname,d.from),bytes=fs.readFileSync(source);assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),d.sha256);return{name:d.name,source};});
+for(const name of fs.readdirSync(path.join(__dirname,'source')))pending.push({name,source:path.join(__dirname,'source',name)});
+assert.equal(new Set(pending.map(x=>x.name)).size,pending.length,'duplicate source destination');
+fs.mkdirSync(out,{recursive:true});for(const item of pending)fs.copyFileSync(item.source,path.join(out,item.name),fs.constants.COPYFILE_EXCL);
+console.log(JSON.stringify({materialized:pending.length,output:out,dependency_hashes_verified:true,training_performed:false}));

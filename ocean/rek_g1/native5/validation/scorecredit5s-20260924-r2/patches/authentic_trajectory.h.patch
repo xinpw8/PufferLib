@@ -1,0 +1,50 @@
+diff --git a/source/authentic_trajectory.h b/source/authentic_trajectory.h
+--- a/source/authentic_trajectory.h
++++ b/source/authentic_trajectory.h
+@@ -84,8 +84,11 @@ inline void validate(Dataset& d, uint32_t round_count) {
+             r.next_opponent_points >= r.opponent_points && r.next_own_points <= 32767 &&
+             r.next_opponent_points <= 32767 && r.next_source_seq > r.source_seq, "invalid point/sequence transition");
+         const float after=r.terminal_after ? 0.f : rek5_round_reward::potential(r.next_own_points,r.next_opponent_points);
+-        const float expected=r.outcome+r.gamma*after-rek5_round_reward::potential(r.own_points,r.opponent_points);
++        const float expected=d.format_version==5
++            ? float((r.next_own_points-r.own_points)-(r.next_opponent_points-r.opponent_points))/5.f
++            : r.outcome+r.gamma*after-rek5_round_reward::potential(r.own_points,r.opponent_points);
+         require(std::isfinite(r.reward) && std::abs(r.reward-expected)<1e-6f, "authentic reward contract mismatch");
++        if(d.format_version==5) require(r.gamma==float(std::pow(2.0,-r.dt/5.0)),"score-delta five-second discount mismatch");
+         const bool new_sequence=i==0 || r.sequence != d.rows[i-1].sequence;
+         require(bool(r.reset)==new_sequence, "authentic recurrent reset mismatch");
+         if (new_sequence) {
+@@ -105,16 +108,17 @@ inline void validate(Dataset& d, uint32_t round_count) {
+ inline Dataset decode(const std::vector<unsigned char>& b) {
+     require(b.size()>=HEADER_BYTES, "short authentic header");
+     const bool derived=std::memcmp(b.data(),"REKRL004",8)==0;
+-    const bool identity=derived||std::memcmp(b.data(),"REKRL003",8)==0;
++    const bool score_delta=std::memcmp(b.data(),"REKRL005",8)==0;
++    const bool identity=score_delta||derived||std::memcmp(b.data(),"REKRL003",8)==0;
+     const size_t header=derived?DERIVED_HEADER_BYTES:identity?IDENTITY_HEADER_BYTES:HEADER_BYTES;
+     require(b.size()>=header && (identity || std::memcmp(b.data(),"REKRL001",8)==0), "invalid authentic magic");
+-    require(scalar<uint32_t>(&b[8])==(derived?4:identity?3:1) && scalar<uint32_t>(&b[12])==OBS &&
++    require(scalar<uint32_t>(&b[8])==(score_delta?5:derived?4:identity?3:1) && scalar<uint32_t>(&b[12])==OBS &&
+         scalar<uint32_t>(&b[16])==ACTIONS && scalar<uint32_t>(&b[24])==ROW_BYTES && b[255]==0,
+         "invalid authentic header");
+     const auto n=scalar<uint32_t>(&b[20]), rounds=scalar<uint32_t>(&b[28]);
+     require(n>0 && n<1000000 && b.size()==header+uint64_t(n)*ROW_BYTES, "authentic shape mismatch");
+     Dataset d; std::copy(b.begin()+32,b.begin()+255,d.feature_mask.begin()); d.rows.resize(n);
+-    d.format_version=derived?4:identity?3:1;
++    d.format_version=score_delta?5:derived?4:identity?3:1;
+     if(identity) {
+         d.identity_sha256=hex(&b[256],32); d.worker_sha256=hex(&b[288],32);
+         d.checkpoint_sha256=hex(&b[320],32); d.native_object_sha256=hex(&b[352],32);
+@@ -154,9 +158,9 @@ struct Replay {
+     uint64_t seed=0;
+ };
+ inline Replay decode_replay(const std::vector<unsigned char>& b,const Dataset& d) {
+-    const bool derived=d.format_version==4,identity=d.format_version>=3;
+-    require(b.size()>=REPLAY_HEADER_BYTES && std::memcmp(b.data(),derived?"REKBR004":identity?"REKBR003":"REKBR001",8)==0 &&
+-        scalar<uint32_t>(&b[8])==(derived?4:identity?3:1) && scalar<uint32_t>(&b[12])==d.rows.size() &&
++    const bool derived=d.format_version==4,score_delta=d.format_version==5,identity=d.format_version>=3;
++    require(b.size()>=REPLAY_HEADER_BYTES && std::memcmp(b.data(),score_delta?"REKBR005":derived?"REKBR004":identity?"REKBR003":"REKBR001",8)==0 &&
++        scalar<uint32_t>(&b[8])==(score_delta?5:derived?4:identity?3:1) && scalar<uint32_t>(&b[12])==d.rows.size() &&
+         scalar<uint32_t>(&b[16])==REPLAY_ROW_BYTES && scalar<uint32_t>(&b[20])==0 &&
+         b.size()==REPLAY_HEADER_BYTES+d.rows.size()*REPLAY_ROW_BYTES, "invalid behavior replay header");
+     Replay out; out.dataset_sha256=hex(&b[24],32); out.checkpoint_sha256=hex(&b[56],32);

@@ -1,0 +1,1 @@
+authentic_v3_cpu_checks=8 rows=15078 rounds=5 sha256=c5fd52c40f3f01c4f45cee1aafb912b9c6b7aca5bef16e625b9bf371f6e78367 passed

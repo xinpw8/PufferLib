@@ -1,0 +1,73 @@
+diff --git a/source/authentic_trajectory_data.cjs b/source/authentic_trajectory_data.cjs
+--- a/source/authentic_trajectory_data.cjs
++++ b/source/authentic_trajectory_data.cjs
+@@ -6,11 +6,12 @@ const crypto = require('node:crypto');
+ const readline = require('node:readline');
+ const HEADER = 256, ROW = 1128, OBS = 223, ACTIONS = 33;
+ const {LEGACY: LEGACY_SCHEMA, SCHEMA: OWNED_SCHEMA, ownedYawEvidence} = require('./owned_yaw_export_evidence.cjs');
++const BALANCE_SCHEMA = 'rek.native5.scaled_polar_xy.balance8_v1';
+ const requireValue = (ok, message) => { if (!ok) throw new Error(message); };
+ const sha = b => crypto.createHash('sha256').update(b).digest('hex');
+ const finite = x => Number.isFinite(x) && Number.isFinite(Math.fround(x));
+ function ownedMode(schema) {
+-  requireValue(schema === LEGACY_SCHEMA || schema === OWNED_SCHEMA, 'unsupported observation schema');
++  requireValue(schema === LEGACY_SCHEMA || schema === OWNED_SCHEMA || schema === BALANCE_SCHEMA, 'unsupported observation schema');
+   return schema === OWNED_SCHEMA;
+ }
+ function potential(own, opponent) {
+@@ -98,6 +99,7 @@ function pack(rows, roundCount, observationSchema = LEGACY_SCHEMA) {
+ }
+ async function readTrial(directory, sequence, gamma20ms, lambda20ms, observationSchema = LEGACY_SCHEMA, behavior = null) {
+   const owned = ownedMode(observationSchema);
++  const balance = observationSchema === BALANCE_SCHEMA;
+   const trial = path.join(directory, 'trial'), inputs = [], read = async (name, cb) =>
+     inputs.push(await jsonLines(path.join(trial, name), cb));
+   const summary = json(path.join(trial, 'summary.json'));
+@@ -121,7 +123,7 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms, observation
+   await read('worker.stdout.jsonl', x => {
+     if (x.type === 'ready') { requireValue(ready === null, 'duplicate worker ready'); ready = x; }
+     else if (x.type === 'action') {
+-      if (owned) requireValue(x.observation_schema === observationSchema, 'unsupported action observation schema');
++      if (owned || balance) requireValue(x.observation_schema === observationSchema, 'unsupported action observation schema');
+       unique(predictions, x.seq, x, 'worker action');
+     }
+     else requireValue(x.type === 'terminal' && requests.get(x.seq)?.terminal === true, 'unexpected worker response');
+@@ -142,12 +144,12 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms, observation
+     if (x.event === 'g1_policy_state') {
+       requireValue(x.round_identity_sha256 === roundId && x.local_slot === slot, 'source identity changed');
+       unique(sources, x.observation_sequence, { seq: x.observation_sequence, clock: clock(x.clock), round: x.round }, 'source');
+-      if (owned) unique(ownedSources, x.observation_sequence, { hash: sha(JSON.stringify(x)),
++      if (owned || balance) unique(ownedSources, x.observation_sequence, { hash: sha(JSON.stringify(x)),
+         event: x.event, observation_sequence: x.observation_sequence, round_identity_sha256: x.round_identity_sha256,
+         round: {active: x.round.active}, stream_active: x.stream_active, input: x.input, clock: x.clock }, 'owned source');
+     } else if (x.event === 'g1_policy_action') unique(acks, x.observation_sequence, x, 'action acknowledgement');
+   });
+-  if (owned) {
++  if (owned || balance) {
+     await read('encoder.stdin.jsonl', x => {
+       requireValue(x.event === 'g1_policy_state' && x.round_identity_sha256 === roundId, 'unsupported encoder input');
+       unique(encoderInputs, x.observation_sequence, sha(JSON.stringify(x)), 'encoder source');
+@@ -171,8 +173,14 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms, observation
+       requireValue(source && source.hash === encoderInputs.get(request.seq), 'encoder input is not the identical relay source snapshot');
+       requireValue(Array.isArray(request.observation) && request.observation.length === OBS && request.observation.every(finite) &&
+         Array.isArray(request.mask) && request.mask.length === ACTIONS && request.mask.every(x => x === 0 || x === 1), 'invalid owned worker arrays');
+-      ownedYawEvidence(request.observation.map(Math.fround), request.mask, request.seq, source,
++      if (owned) ownedYawEvidence(request.observation.map(Math.fround), request.mask, request.seq, source,
+         encoders.get(request.seq), request, roundId, observationSchema);
++      else {
++        const encoded = encoders.get(request.seq)?.worker_request;
++        requireValue(encoded?.round_id === roundId && encoded.observation_schema === observationSchema &&
++          JSON.stringify(encoded.observation.map(Math.fround)) === JSON.stringify(request.observation.map(Math.fround)) &&
++          JSON.stringify(encoded.mask) === JSON.stringify(request.mask), 'recorded balance8 encoder/worker mismatch');
++      }
+     }
+   }
+   await read('orchestrator.jsonl', x => {
+@@ -252,6 +260,7 @@ async function readTrial(directory, sequence, gamma20ms, lambda20ms, observation
+   return { rows, ledger, report: { trial_id: path.basename(directory), sequence, round_identity_sha256: roundId,
+     checkpoint_sha256: ready.checkpoint_sha256, seed: ready.seed, precision: ready.precision,
+     ...(owned ? {observation_schema: observationSchema, recorded_owned_yaw_verified: true} : {}),
++    ...(balance ? {observation_schema: observationSchema, recorded_balance8_all223_and_mask_verified: true} : {}),
+     feature_mask: 'unmasked_original_behavior', rows: rows.length, applied: rows.filter(x => x.applied).length,
+     terminal_race_rejected: rows.filter(x => !x.applied).length, recurrent_resets: 1,
+     worker_terminal_inputs: workerTerminals, observed_source_count: sources.size,

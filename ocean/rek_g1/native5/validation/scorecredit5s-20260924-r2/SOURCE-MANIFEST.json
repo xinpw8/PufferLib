@@ -1,0 +1,301 @@
+{
+  "schema": "rek.scorecredit5s.private_variant_manifest.v1",
+  "production_source_changed": false,
+  "checkpoint_sha256": "0daf90a96442d541d38d9dd4f8fe765917c3c766ca80019855cfd7d358d9fe12",
+  "behavior_checkpoint_sha256": "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "reward_contract": "received-score-delta-div5-half-life-5s.v1",
+  "source_changes": [
+    {
+      "path": "source/authentic_trajectory_data.cjs",
+      "baseline": "../authentic-ppo-noprior-20260924-r1/source/authentic_trajectory_data.cjs",
+      "baseline_sha256": "caf273fdf7996aef900ede1cffd0fc9f52862f24c77eee01c04b205cfad644c3",
+      "sha256": "7b892d8c5d13856cdbda5ad7105359fa0280ee3a425374935cf78b80aa1ba51e",
+      "patch": "patches/authentic_trajectory_data.cjs.patch"
+    },
+    {
+      "path": "source/authentic_trajectory_v3.cjs",
+      "baseline": "../authentic-ppo-noprior-20260924-r1/source/authentic_trajectory_v3.cjs",
+      "baseline_sha256": "d4f7346266ef3045da193644ec7193ee1f11135725fc8bbbe6a32f033a0c2069",
+      "sha256": "cec60eb3760fe43a12f38933398923613c11fb73c6b7054574e72151b858a644",
+      "patch": "patches/authentic_trajectory_v3.cjs.patch"
+    },
+    {
+      "path": "source/authentic_trajectory.h",
+      "baseline": "../balance8-authentic-20260924-r1/source/authentic_trajectory.h",
+      "baseline_sha256": "a4e6376a5d1b21015b7b72005e3be52074a7571d3ffcb1569101a1f652439746",
+      "sha256": "785b03ddc49a881045d64bea26faa9fd00c115bd465ecc9dcc4a4684b0cf331e",
+      "patch": "patches/authentic_trajectory.h.patch"
+    },
+    {
+      "path": "source/authentic_ppo.cu",
+      "baseline": "../balance8-authentic-20260924-r1/source/authentic_ppo.cu",
+      "baseline_sha256": "68716130d124455df9c65518fb1c2216a8e9da5a56bca500310cb0aea3af4996",
+      "sha256": "173bfaf5c8e511ab84f55efbfee956bd54fb1bc780542667269d5c9c742dde11",
+      "patch": "patches/authentic_ppo.cu.patch"
+    },
+    {
+      "path": "source/replay_authentic_behavior.cu",
+      "baseline": "../authentic-ppo-noprior-20260924-r1/source/replay_authentic_behavior.cu",
+      "baseline_sha256": "0ee04866b69a594c2b54545fa5b8a39acbe41129e526bb7af399d80431ff84af",
+      "sha256": "4eec5220626ed15c649be404fbb6bca06f245ec365e85d189d118968350bbe4d",
+      "patch": "patches/replay_authentic_behavior.cu.patch"
+    },
+    {
+      "path": "source/test_authentic_v3.cpp",
+      "baseline": "../balance8-authentic-20260924-r1/source/test_authentic_v3.cpp",
+      "baseline_sha256": "aa11d872f637ff69d9d9d80fa3fd7cbe87a372d8fe70a6109b7a693076dc20e8",
+      "sha256": "ea9a196bb64b553dda3de395c3ad32f72d808a9110442591eeb431fa9dca6f49",
+      "patch": "patches/test_authentic_v3.cpp.patch"
+    }
+  ],
+  "new_source": [
+    "source/test_score_delta.cpp"
+  ],
+  "dependencies": "DEPENDENCIES.json",
+  "patch_apply_checks": 6,
+  "materialized_source_files": 19,
+  "materialized_js_tests_passed": 27,
+  "files": [
+    {
+      "path": "build_score_delta.sh",
+      "bytes": 1963,
+      "sha256": "d5a78cb890f3afdf1d638df5fb79c89b67aa2c6902c55af975e2958c002d75cc"
+    },
+    {
+      "path": "DEPENDENCIES.json",
+      "bytes": 2622,
+      "sha256": "252045ae61173e842b4f5bf4a17bc857eba95e7f934788d46cf6763efdaa8e13"
+    },
+    {
+      "path": "derive_score_delta.cjs",
+      "bytes": 5343,
+      "sha256": "b61791567530c6c122d858af292a82d451406ed8ef5bd10bacd0444a50f79976"
+    },
+    {
+      "path": "export-config.json",
+      "bytes": 2536,
+      "sha256": "f3f7c9290731c209fb485e692246b8d5d88fd2eb410b6b7076eba7a4a7ae48c1"
+    },
+    {
+      "path": "materialize_source.cjs",
+      "bytes": 1141,
+      "sha256": "b108fd9b64414c04b8fc97240f4c737ebd02b96b86c49ef7e30caf2e02d21c64"
+    },
+    {
+      "path": "prepare_strict_sidecars.cjs",
+      "bytes": 11083,
+      "sha256": "16896f0c64cc4430eac2bc7bf618a07d0d89688a4b1b1e0702c8a453e34b6a9d"
+    },
+    {
+      "path": "README.md",
+      "bytes": 10458,
+      "sha256": "7a5354e846e67010a7b09400e54de3ab1d0e150aaa398f4fd463d21c0164d4bf"
+    },
+    {
+      "path": "run_score_delta.sh",
+      "bytes": 2708,
+      "sha256": "c46c424a69b26c2cd3b8c7f13c31c05aa04371781814fe935c71ea226bf75894"
+    },
+    {
+      "path": "smoke_worker_512.cjs",
+      "bytes": 5414,
+      "sha256": "9ed8ed9ec4e80d80213877b88e0b6193ff076aba8f18e154cd6f94610f42844e"
+    },
+    {
+      "path": "test_score_delta.cjs",
+      "bytes": 2099,
+      "sha256": "d71de861562c1a46346774d7e8c45ae9b2c381e8a204bfc9a3bad2fb4edded6c"
+    },
+    {
+      "path": "patches/authentic_ppo.cu.patch",
+      "bytes": 4764,
+      "sha256": "93b91d02aa1a4b385da0d688cb589fd9dc0b75cd3ba911dd7364367948762642"
+    },
+    {
+      "path": "patches/authentic_trajectory_data.cjs.patch",
+      "bytes": 5689,
+      "sha256": "1887844051344bf9dcc7a622161c29236a35ded9f75f4ea861aa44cde3c6c4b7"
+    },
+    {
+      "path": "patches/authentic_trajectory_v3.cjs.patch",
+      "bytes": 1863,
+      "sha256": "4a0793ce20b748f5a7d1f4b57c3a7bdc6e52000003fcc80bede0e1a2948866d1"
+    },
+    {
+      "path": "patches/authentic_trajectory.h.patch",
+      "bytes": 4087,
+      "sha256": "fb9ad59ddaad364a8b7ac955ef1ea1d13b3e4f9d57713a482727591c45a25686"
+    },
+    {
+      "path": "patches/replay_authentic_behavior.cu.patch",
+      "bytes": 4799,
+      "sha256": "7571f40d9768961b37b3e10c97e7b736c7afd8fedf347181aa8eda2109c4f047"
+    },
+    {
+      "path": "patches/test_authentic_v3.cpp.patch",
+      "bytes": 605,
+      "sha256": "6ab7eaefe989eec2070e9bbc6f030a75d0407cafde7326d6dc6f6033a1cd9dd5"
+    },
+    {
+      "path": "receipts/baseline-behavior-identity.json",
+      "bytes": 22991,
+      "sha256": "9d056c45a699bbb784406696ea935c6ee1c3106f9d800287226b5d3e2fd8c868"
+    },
+    {
+      "path": "receipts/baseline-export-manifest.json",
+      "bytes": 1410,
+      "sha256": "e387206c21ecd0325f6d9cfc699020646dab277e974472ad79282298ed8ba457"
+    },
+    {
+      "path": "receipts/behavior-identity.json",
+      "bytes": 24220,
+      "sha256": "03b3c21a698c850a1471f086d5116e7507a52beef7787ad128e24f6ddc4510ac"
+    },
+    {
+      "path": "receipts/behavior-replay-v5.bin.json",
+      "bytes": 1118,
+      "sha256": "d6b98ce15fe7a929bc8d6221cee59df72c32e2a036cc979728c2119c695a38e9"
+    },
+    {
+      "path": "receipts/binary-hashes.sha256",
+      "bytes": 490,
+      "sha256": "7a8f99c8a9330ef0d8f37f0d5f38afb4208b3bd22a59cebcd893dfea4229f802"
+    },
+    {
+      "path": "receipts/data-cpu-test.txt",
+      "bytes": 125,
+      "sha256": "1d1280d122782a002041765a73143c1a9125bf037d09052f1adf10d6c6bd2698"
+    },
+    {
+      "path": "receipts/export-receipt.json",
+      "bytes": 3746,
+      "sha256": "1c8aee10c8b7858614b86b1464f38bf60697f4702d401a3f2457b27d36aab7b6"
+    },
+    {
+      "path": "receipts/js-tests.txt",
+      "bytes": 4419,
+      "sha256": "d38ea1d4fe129c0f6d23f2344a0def704ca0c4bc11b4a8092fee44a3bae4ef4a"
+    },
+    {
+      "path": "receipts/score-delta-cpu-test.json",
+      "bytes": 60,
+      "sha256": "e5eb1df9d063b1e02f3da0eaef940e806e104ab70f63c4f64f891b12ea496584"
+    },
+    {
+      "path": "receipts/score-delta-js-tests.txt",
+      "bytes": 1303,
+      "sha256": "ef77bf324452cf6147964f39ba39bfd0d0bebcd845e792a0352b1112ed271956"
+    },
+    {
+      "path": "receipts/worker-smoke-512.json",
+      "bytes": 2148,
+      "sha256": "cafb6a78ddc93de6846e3a5858ffa3fde8d0f3b3749ebf58b284170d174682d3"
+    },
+    {
+      "path": "receipts/replay-score-delta/command.txt",
+      "bytes": 744,
+      "sha256": "29e29ce5489f3398db33bc59d6ae0bd57dbab529a022a809317297ebf4081025"
+    },
+    {
+      "path": "receipts/replay-score-delta/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "receipts/replay-score-delta/finished.utc",
+      "bytes": 21,
+      "sha256": "e338056148953c279c56840768a7291d1226803c6899b4c75bceba37c9051a0d"
+    },
+    {
+      "path": "receipts/replay-score-delta/started.utc",
+      "bytes": 21,
+      "sha256": "81150b98abd5156f269cc45211af3f1f86bf7e5973ee1d4cc13b75bfd6cc28f3"
+    },
+    {
+      "path": "receipts/replay-score-delta/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "receipts/replay-score-delta/stdout.jsonl",
+      "bytes": 1118,
+      "sha256": "d6b98ce15fe7a929bc8d6221cee59df72c32e2a036cc979728c2119c695a38e9"
+    },
+    {
+      "path": "receipts/replay-score-delta/time.txt",
+      "bytes": 50,
+      "sha256": "451b35587f14604e70fe04cf51186bdd7e04fab3b5fa3a7533d1b7c54459f282"
+    },
+    {
+      "path": "receipts/train-score-delta/command.txt",
+      "bytes": 719,
+      "sha256": "bac78e9b86c5e2f75094041fe7947bc4ebdad8ee95ee2dad7a8f480107b4a923"
+    },
+    {
+      "path": "receipts/train-score-delta/exit-code.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "receipts/train-score-delta/finished.utc",
+      "bytes": 21,
+      "sha256": "92aa93108f72657c815c6d8b5c95adc4755313140656a04f2566bec1b612aed6"
+    },
+    {
+      "path": "receipts/train-score-delta/started.utc",
+      "bytes": 21,
+      "sha256": "6be8dcaaa99a29735e2ee13da483d7be99ba69dc0443c22539e308ad81736340"
+    },
+    {
+      "path": "receipts/train-score-delta/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "receipts/train-score-delta/stdout.jsonl",
+      "bytes": 4103,
+      "sha256": "69295911c1383f99b47c4e7a59945e558f392513c8d6b400ca5510d81ff58eca"
+    },
+    {
+      "path": "receipts/train-score-delta/time.txt",
+      "bytes": 51,
+      "sha256": "42a9655ad80d5a90deabf9951e32cdfdaec82f5f38ee89f180001567ea9a84fc"
+    },
+    {
+      "path": "source/authentic_ppo.cu",
+      "bytes": 32181,
+      "sha256": "173bfaf5c8e511ab84f55efbfee956bd54fb1bc780542667269d5c9c742dde11"
+    },
+    {
+      "path": "source/authentic_trajectory_data.cjs",
+      "bytes": 25031,
+      "sha256": "7b892d8c5d13856cdbda5ad7105359fa0280ee3a425374935cf78b80aa1ba51e"
+    },
+    {
+      "path": "source/authentic_trajectory_v3.cjs",
+      "bytes": 7249,
+      "sha256": "cec60eb3760fe43a12f38933398923613c11fb73c6b7054574e72151b858a644"
+    },
+    {
+      "path": "source/authentic_trajectory.h",
+      "bytes": 11641,
+      "sha256": "785b03ddc49a881045d64bea26faa9fd00c115bd465ecc9dcc4a4684b0cf331e"
+    },
+    {
+      "path": "source/replay_authentic_behavior.cu",
+      "bytes": 11109,
+      "sha256": "4eec5220626ed15c649be404fbb6bca06f245ec365e85d189d118968350bbe4d"
+    },
+    {
+      "path": "source/test_authentic_v3.cpp",
+      "bytes": 1305,
+      "sha256": "ea9a196bb64b553dda3de395c3ad32f72d808a9110442591eeb431fa9dca6f49"
+    },
+    {
+      "path": "source/test_score_delta.cpp",
+      "bytes": 1946,
+      "sha256": "354c26f4e7221e0ee367a195feafb870279420fbe0188ada4e4c5422b39e9b14"
+    }
+  ]
+}

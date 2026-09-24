@@ -1,0 +1,12 @@
+diff --git a/source/test_authentic_v3.cpp b/source/test_authentic_v3.cpp
+--- a/source/test_authentic_v3.cpp
++++ b/source/test_authentic_v3.cpp
+@@ -9,7 +9,7 @@ int main(int argc,char** argv) {
+         size_t checks=1;
+         for(size_t i=0;i<d.sequences.size();++i) {
+             const auto& s=d.sequences[i];
+-            for(size_t j=s.begin;j<s.end;++j) require(d.rows[j].behavior_seed==601+i,"unexpected behavior seed");
++            for(size_t j=s.begin;j<s.end;++j) require(d.rows[j].behavior_seed==901+i,"unexpected behavior seed");
+             ++checks;
+         }
+         auto edited=bytes;

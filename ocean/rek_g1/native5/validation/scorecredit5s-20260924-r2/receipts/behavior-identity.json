@@ -1,0 +1,634 @@
+{
+  "schema": "rek.authentic_behavior_identity.v5",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "selection": "sampled",
+  "precision": "bf16",
+  "hidden_size": 256,
+  "num_layers": 2,
+  "artifacts": {
+    "worker": {
+      "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+      "bytes": 1654528,
+      "sha256": "52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2"
+    },
+    "checkpoint": {
+      "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/train-execution/policy.bin",
+      "bytes": 1836032,
+      "sha256": "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce"
+    },
+    "native_object": {
+      "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/native_policy.o",
+      "bytes": 647816,
+      "sha256": "4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c"
+    },
+    "feature_mask": {
+      "path": "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+      "bytes": 223,
+      "sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b"
+    }
+  },
+  "export_config": {
+    "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/export-config.json",
+    "sha256": "f3f7c9290731c209fb485e692246b8d5d88fd2eb410b6b7076eba7a4a7ae48c1"
+  },
+  "exporter_sha256": "cec60eb3760fe43a12f38933398923613c11fb73c6b7054574e72151b858a644",
+  "base_exporter_sha256": "7b892d8c5d13856cdbda5ad7105359fa0280ee3a425374935cf78b80aa1ba51e",
+  "reward": "((next_own_received_score-own_received_score)-(next_opponent_received_score-opponent_received_score))/5; no terminal win bonus; no score potential; no reward clipping",
+  "gamma_per_20ms": 0.9972312513520695,
+  "lambda_per_20ms": 0.9978673240629938,
+  "discounts": "float32(pow(2,-actual_source_to_next_source_QPC_seconds/5)); half-life=5 seconds",
+  "rounds": [
+    {
+      "trial_id": "balance8-s901-retry4",
+      "sequence": 0,
+      "round_identity_sha256": "59f5303fd044cedac432cba9fc0d438d49df27910a80d8ac4888e00f974df365",
+      "checkpoint_sha256": "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+      "seed": 901,
+      "precision": "bf16",
+      "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+      "recorded_balance8_all223_and_mask_verified": true,
+      "feature_mask": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+      "rows": 3128,
+      "applied": 3127,
+      "terminal_race_rejected": 1,
+      "recurrent_resets": 1,
+      "worker_terminal_inputs": 0,
+      "observed_source_count": 3130,
+      "source_snapshots_not_used_by_worker": 2,
+      "unavailable_observations": [
+        [
+          "derivative_warmup"
+        ]
+      ],
+      "first_source_time_remaining": 119.88331,
+      "maximum_decision_dt_seconds": 0.0903188,
+      "minimum_decision_dt_seconds": 0.0306048,
+      "terminal_outcome": -1,
+      "awarded_points_by_slot": [
+        5,
+        13
+      ],
+      "local_slot": 0,
+      "native_score_awards": 13,
+      "source_clock_origin_qpc_ticks": 9224281268910,
+      "inputs": [
+        {
+          "file": "worker.stdin.jsonl",
+          "bytes": 10484118,
+          "lines": 3128,
+          "sha256": "6d36ec214daf121fe6424411d49a84f0f61118fa29fbd1bcb1512f30e70dbf77"
+        },
+        {
+          "file": "worker.stdout.jsonl",
+          "bytes": 1771853,
+          "lines": 3129,
+          "sha256": "aa1eb5c79667be06981bdd37d0def8bc1132e52a3d9905f79f99eac2309285f2"
+        },
+        {
+          "file": "relay.stdin.jsonl",
+          "bytes": 572714,
+          "lines": 3224,
+          "sha256": "2576e337b16aefe32dbe9ed2da512ae3f0d52cec116bd5d2c1df1c918dd22fef"
+        },
+        {
+          "file": "relay.stdout.jsonl",
+          "bytes": 39856553,
+          "lines": 6454,
+          "sha256": "4d1b2b22b3edc8e77d002e588532f7ee6397128cc8e46fe7e201a4f1f6089f33"
+        },
+        {
+          "file": "encoder.stdin.jsonl",
+          "bytes": 35779067,
+          "lines": 3129,
+          "sha256": "979d5af9daa97f3e2e4477161a6954c689c3d2307af2ea387cd41e7ddf7716ca"
+        },
+        {
+          "file": "encoder.stdout.jsonl",
+          "bytes": 18199904,
+          "lines": 3130,
+          "sha256": "5f62eb8b5faf4ef487b45ea3483308013b8e4760cf1ef3be926621ef412da62a"
+        },
+        {
+          "file": "orchestrator.jsonl",
+          "bytes": 4057,
+          "lines": 14,
+          "sha256": "e15559fd15132ccc38f3bb9b4824440c51da48a18860f85a9054b13a0fc25ba8"
+        },
+        {
+          "file": "trial/summary.json",
+          "bytes": 2384,
+          "sha256": "f290280ca364fb0a6badc3931c6d317a52fbb79a51aaad0f55593865ae8738b5"
+        },
+        {
+          "file": "contact-analysis/summary.json",
+          "bytes": 6886,
+          "sha256": "0b366bf122d776eafa030ac2de94aeb71d71c5cc8b3deecb1838355ccbd2eb5a"
+        },
+        {
+          "file": "referee-validation/live-referee-validation.json",
+          "bytes": 4498,
+          "sha256": "5e8c6a31ba176c1c98d25bb4d20fd5bb6fe0f73d1ff6ec07be5128f69f70a6d1"
+        },
+        {
+          "file": "score-events.jsonl",
+          "bytes": 53848,
+          "lines": 13,
+          "sha256": "7139e14ec83c2146d902100be15b4923220c833ddd7baf83c5c5edff83a0e774"
+        }
+      ],
+      "row_begin": 0,
+      "row_end": 3128,
+      "worker_argv": [
+        "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+        "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/train-execution/policy.bin",
+        "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+        "901",
+        "sampled",
+        "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+        "--observation-schema=rek.native5.scaled_polar_xy.balance8_v1"
+      ],
+      "recorded_config": {
+        "path": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/configs/balance8-s901-retry4.json",
+        "bytes": 2836,
+        "sha256": "349fe13981012d30007301ce4e9309b9a975a13a31a7d85c345a4679c7dae264"
+      }
+    },
+    {
+      "trial_id": "balance8-s902-retry3",
+      "sequence": 1,
+      "round_identity_sha256": "fce03451d00f6923e9ebe43b782bca308e9dc71a131886fe907afc99393e04a9",
+      "checkpoint_sha256": "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+      "seed": 902,
+      "precision": "bf16",
+      "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+      "recorded_balance8_all223_and_mask_verified": true,
+      "feature_mask": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+      "rows": 2921,
+      "applied": 2920,
+      "terminal_race_rejected": 1,
+      "recurrent_resets": 1,
+      "worker_terminal_inputs": 0,
+      "observed_source_count": 2923,
+      "source_snapshots_not_used_by_worker": 2,
+      "unavailable_observations": [
+        [
+          "derivative_warmup"
+        ]
+      ],
+      "first_source_time_remaining": 119.76656,
+      "maximum_decision_dt_seconds": 0.1525616,
+      "minimum_decision_dt_seconds": 0.0296322,
+      "terminal_outcome": -1,
+      "awarded_points_by_slot": [
+        9,
+        23
+      ],
+      "local_slot": 0,
+      "native_score_awards": 16,
+      "source_clock_origin_qpc_ticks": 9228396663993,
+      "inputs": [
+        {
+          "file": "worker.stdin.jsonl",
+          "bytes": 9781657,
+          "lines": 2921,
+          "sha256": "e6c03577fc3a2d081a8cda3fb04be9ef86ab19eb1d0b06a790710d40dce0ffaa"
+        },
+        {
+          "file": "worker.stdout.jsonl",
+          "bytes": 1654647,
+          "lines": 2922,
+          "sha256": "da931de6548b8876bd6bb12e58c93b3db9d380d6e44de18dbd9a1917787eec03"
+        },
+        {
+          "file": "relay.stdin.jsonl",
+          "bytes": 533216,
+          "lines": 2987,
+          "sha256": "960d14f6840cd54d1ceb995e7498e7eb43dd17ffe5edf6debcf668159b2d3b92"
+        },
+        {
+          "file": "relay.stdout.jsonl",
+          "bytes": 36770033,
+          "lines": 5987,
+          "sha256": "eb33bb0e7ce48f9d3f67e8cd138d8d18aea9b5c77fc00e532f59ae3a9cb0bc67"
+        },
+        {
+          "file": "encoder.stdin.jsonl",
+          "bytes": 33334878,
+          "lines": 2922,
+          "sha256": "7473d0bdb2669ce0f5a8bb2eb5c2495cede42cba086657ed781e71ebadab8713"
+        },
+        {
+          "file": "encoder.stdout.jsonl",
+          "bytes": 16982654,
+          "lines": 2923,
+          "sha256": "8be209b4a69b54f93cadcfd181d0cd2ed9acad9955d64f7cf6aa84acd9c0010f"
+        },
+        {
+          "file": "orchestrator.jsonl",
+          "bytes": 3570,
+          "lines": 11,
+          "sha256": "973e475167427047ce601d027e8bbcf4f2390114ce30dfb9540a162d23451e52"
+        },
+        {
+          "file": "trial/summary.json",
+          "bytes": 2389,
+          "sha256": "0ba4d6e408856500615c17d956da301aeeb89f0d98ca471379768857967a392d"
+        },
+        {
+          "file": "contact-analysis/summary.json",
+          "bytes": 6887,
+          "sha256": "d888a7e804a09f0c065068bdfe22fc60435662c81e7e225c3dca62dd782d7aed"
+        },
+        {
+          "file": "referee-validation/live-referee-validation.json",
+          "bytes": 8049,
+          "sha256": "70555153170f8dd1d94d5089c4b70f45e6f9ab2f8e58bde434b198e50854e060"
+        },
+        {
+          "file": "score-events.jsonl",
+          "bytes": 65308,
+          "lines": 16,
+          "sha256": "61c804ff607586f2f9b94b4af8cc397b4789c88c2e62ba2b146055bc1c141874"
+        }
+      ],
+      "row_begin": 3128,
+      "row_end": 6049,
+      "worker_argv": [
+        "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+        "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/train-execution/policy.bin",
+        "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+        "902",
+        "sampled",
+        "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+        "--observation-schema=rek.native5.scaled_polar_xy.balance8_v1"
+      ],
+      "recorded_config": {
+        "path": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/configs/balance8-s902-retry3.json",
+        "bytes": 2836,
+        "sha256": "2748740d5369f0091ef6440c518900c83fc5ecbec51f512fe646c02aeef26fc4"
+      }
+    },
+    {
+      "trial_id": "balance8-s903-retry3",
+      "sequence": 2,
+      "round_identity_sha256": "39138c9caa021f7fd08452f158f99cb8279ae8e3353ec9051c606eb3d070e12e",
+      "checkpoint_sha256": "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+      "seed": 903,
+      "precision": "bf16",
+      "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+      "recorded_balance8_all223_and_mask_verified": true,
+      "feature_mask": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+      "rows": 3080,
+      "applied": 3079,
+      "terminal_race_rejected": 1,
+      "recurrent_resets": 1,
+      "worker_terminal_inputs": 0,
+      "observed_source_count": 3082,
+      "source_snapshots_not_used_by_worker": 2,
+      "unavailable_observations": [
+        [
+          "derivative_warmup"
+        ]
+      ],
+      "first_source_time_remaining": 119.79991,
+      "maximum_decision_dt_seconds": 0.148324,
+      "minimum_decision_dt_seconds": 0.0292813,
+      "terminal_outcome": 1,
+      "awarded_points_by_slot": [
+        13,
+        3
+      ],
+      "local_slot": 0,
+      "native_score_awards": 11,
+      "source_clock_origin_qpc_ticks": 9232510487314,
+      "inputs": [
+        {
+          "file": "worker.stdin.jsonl",
+          "bytes": 10279869,
+          "lines": 3080,
+          "sha256": "353ebfe14ec37e88a3c3e9f879315bc583f31de09ff1018cf89529923c3b918c"
+        },
+        {
+          "file": "worker.stdout.jsonl",
+          "bytes": 1744984,
+          "lines": 3081,
+          "sha256": "5060f4ae5e926a8f9e358e69dfe03d81629fb5df8a0973474ad646521cc7a7ee"
+        },
+        {
+          "file": "relay.stdin.jsonl",
+          "bytes": 562305,
+          "lines": 3146,
+          "sha256": "249e9eac250c47a497df684f52759c93042a8064b48b1e6a80ac92ee703eba23"
+        },
+        {
+          "file": "relay.stdout.jsonl",
+          "bytes": 38780697,
+          "lines": 6277,
+          "sha256": "af12763ab62c4fa034a2d855f7c61ad99d3b79254fe9590ce273162402559e3d"
+        },
+        {
+          "file": "encoder.stdin.jsonl",
+          "bytes": 35242199,
+          "lines": 3081,
+          "sha256": "b6ff5dd5e89c41b0ae64cad5afb05ad89614cd6a83395e6e3989d6cfd6b400cb"
+        },
+        {
+          "file": "encoder.stdout.jsonl",
+          "bytes": 17874052,
+          "lines": 3082,
+          "sha256": "43eb82aee738437aef69587b3bf1066e367f722117b942b5d7739ebf03e45394"
+        },
+        {
+          "file": "orchestrator.jsonl",
+          "bytes": 3567,
+          "lines": 11,
+          "sha256": "fb4597a3cf2fd9b5e9eeee82f75fa085a76dd8d9d13f37a31bf94e19faa079c0"
+        },
+        {
+          "file": "trial/summary.json",
+          "bytes": 2386,
+          "sha256": "9aff4b567c593985f277334f0c6865d4853a31d3e719a0ac2c07c82242455354"
+        },
+        {
+          "file": "contact-analysis/summary.json",
+          "bytes": 6884,
+          "sha256": "6527fbb9b8ba1fab71c3c146dd9ecf6d2bf72c80d36f0e8c3feab297fc3439e8"
+        },
+        {
+          "file": "referee-validation/live-referee-validation.json",
+          "bytes": 4485,
+          "sha256": "ec4af6fdafa1931b3d0bd2f547da62d52be04d74ba3a407e5c669ed479f89de9"
+        },
+        {
+          "file": "score-events.jsonl",
+          "bytes": 46107,
+          "lines": 11,
+          "sha256": "de7e52213d6eeb1fe6ed5c93a436ccbac8cb8f4806dc9384cac6272b3e18e61a"
+        }
+      ],
+      "row_begin": 6049,
+      "row_end": 9129,
+      "worker_argv": [
+        "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+        "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/train-execution/policy.bin",
+        "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+        "903",
+        "sampled",
+        "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+        "--observation-schema=rek.native5.scaled_polar_xy.balance8_v1"
+      ],
+      "recorded_config": {
+        "path": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/configs/balance8-s903-retry3.json",
+        "bytes": 2836,
+        "sha256": "af5732f740cf58fda098aeeb01769886c3f4316c554d3cbc000c6943f1e6da9d"
+      }
+    },
+    {
+      "trial_id": "balance8-s904-retry3",
+      "sequence": 3,
+      "round_identity_sha256": "ba723a9917328321d4212b2c8a2f5a19e9664db992a0289b14973d3366b2cd23",
+      "checkpoint_sha256": "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+      "seed": 904,
+      "precision": "bf16",
+      "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+      "recorded_balance8_all223_and_mask_verified": true,
+      "feature_mask": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+      "rows": 2921,
+      "applied": 2920,
+      "terminal_race_rejected": 1,
+      "recurrent_resets": 1,
+      "worker_terminal_inputs": 0,
+      "observed_source_count": 2923,
+      "source_snapshots_not_used_by_worker": 2,
+      "unavailable_observations": [
+        [
+          "derivative_warmup"
+        ]
+      ],
+      "first_source_time_remaining": 119.79996,
+      "maximum_decision_dt_seconds": 0.1582515,
+      "minimum_decision_dt_seconds": 0.0298377,
+      "terminal_outcome": 1,
+      "awarded_points_by_slot": [
+        10,
+        9
+      ],
+      "local_slot": 0,
+      "native_score_awards": 12,
+      "source_clock_origin_qpc_ticks": 9236621362259,
+      "inputs": [
+        {
+          "file": "worker.stdin.jsonl",
+          "bytes": 9729292,
+          "lines": 2921,
+          "sha256": "e7ee0a00ff261ddcc352ae9829747c951aaec0c6fb33b37f27af6d5adaf2b1ab"
+        },
+        {
+          "file": "worker.stdout.jsonl",
+          "bytes": 1654444,
+          "lines": 2922,
+          "sha256": "2c51beb03b31a85179173fb54a6317255ced46c5f680a4ce70e6182c89546bb9"
+        },
+        {
+          "file": "relay.stdin.jsonl",
+          "bytes": 533177,
+          "lines": 2987,
+          "sha256": "49c5ce385265e0ee648a87805b19563bc77d851775a6e438966c7eff9f454d91"
+        },
+        {
+          "file": "relay.stdout.jsonl",
+          "bytes": 36767645,
+          "lines": 5963,
+          "sha256": "de5c49487c42aa450467034d806244102a6d77a26c97fb0dc69574cfe8cfdd7f"
+        },
+        {
+          "file": "encoder.stdin.jsonl",
+          "bytes": 33364172,
+          "lines": 2922,
+          "sha256": "a3b23a4968225bd5268d0199d86190300287e83559593a37322f616834c03af1"
+        },
+        {
+          "file": "encoder.stdout.jsonl",
+          "bytes": 16936066,
+          "lines": 2923,
+          "sha256": "cae7015be20bc1eb02018b615bc51915ecc10d19f8c250c53ce06d227413a519"
+        },
+        {
+          "file": "orchestrator.jsonl",
+          "bytes": 3566,
+          "lines": 11,
+          "sha256": "61ba70d3d692c349c009b74c5e8ad9dfa9f307f3ef2200c33e728ef35a77ebd2"
+        },
+        {
+          "file": "trial/summary.json",
+          "bytes": 2385,
+          "sha256": "1ff6207c7607671929ef48aa2d65bd57db8d94c08c2dc237517c32372262306a"
+        },
+        {
+          "file": "contact-analysis/summary.json",
+          "bytes": 6883,
+          "sha256": "3681e8ba434abd4d8723be8f987018b4bc8f8f89959a3e454052a7992a9d22e4"
+        },
+        {
+          "file": "referee-validation/live-referee-validation.json",
+          "bytes": 4487,
+          "sha256": "5a25e7dc3f61588bb1b1fbf897bcbe415a033c2ad153a9bae400f5991276e585"
+        },
+        {
+          "file": "score-events.jsonl",
+          "bytes": 49291,
+          "lines": 12,
+          "sha256": "d9ed8742eea3d36691e372ce81b79ea3700b4b06a3b974b8ec2856dbc8a010c9"
+        }
+      ],
+      "row_begin": 9129,
+      "row_end": 12050,
+      "worker_argv": [
+        "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+        "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/train-execution/policy.bin",
+        "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+        "904",
+        "sampled",
+        "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+        "--observation-schema=rek.native5.scaled_polar_xy.balance8_v1"
+      ],
+      "recorded_config": {
+        "path": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/configs/balance8-s904-retry3.json",
+        "bytes": 2836,
+        "sha256": "7cfad8d8ac45797743aa6d4381cbad895f4d899947d929af005ae40c842a2205"
+      }
+    },
+    {
+      "trial_id": "balance8-s905-retry3",
+      "sequence": 4,
+      "round_identity_sha256": "6c8af312791af2f096b93f0743f8f5825fc006b2c30e45283fb672adb4c3c9c6",
+      "checkpoint_sha256": "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+      "seed": 905,
+      "precision": "bf16",
+      "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+      "recorded_balance8_all223_and_mask_verified": true,
+      "feature_mask": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+      "rows": 3028,
+      "applied": 3027,
+      "terminal_race_rejected": 1,
+      "recurrent_resets": 1,
+      "worker_terminal_inputs": 0,
+      "observed_source_count": 3030,
+      "source_snapshots_not_used_by_worker": 2,
+      "unavailable_observations": [
+        [
+          "derivative_warmup"
+        ]
+      ],
+      "first_source_time_remaining": 119.71651,
+      "maximum_decision_dt_seconds": 0.1367137,
+      "minimum_decision_dt_seconds": 0.0273387,
+      "terminal_outcome": -1,
+      "awarded_points_by_slot": [
+        5,
+        10
+      ],
+      "local_slot": 0,
+      "native_score_awards": 9,
+      "source_clock_origin_qpc_ticks": 9240743118436,
+      "inputs": [
+        {
+          "file": "worker.stdin.jsonl",
+          "bytes": 10079359,
+          "lines": 3028,
+          "sha256": "9de647030ef7287c2f6d1d4c3eeeb853797bdbc54d0b2da9a6ffe1e2eed996eb"
+        },
+        {
+          "file": "worker.stdout.jsonl",
+          "bytes": 1715488,
+          "lines": 3029,
+          "sha256": "0b1d740d2e94824554c9906dc22390cc4ea5490617ab1f7905c472d4f0ac5ddf"
+        },
+        {
+          "file": "relay.stdin.jsonl",
+          "bytes": 552729,
+          "lines": 3094,
+          "sha256": "d9e0d8c085df6c15e7c29c4319331ebb46e2dc28ca23d488579eb1c104d8c35a"
+        },
+        {
+          "file": "relay.stdout.jsonl",
+          "bytes": 38104219,
+          "lines": 6178,
+          "sha256": "7407b618b2cc06f4e1933c642ea48612e46ad3ce8db24a6497e9d38800571b8d"
+        },
+        {
+          "file": "encoder.stdin.jsonl",
+          "bytes": 34618448,
+          "lines": 3029,
+          "sha256": "bdddc8e7ce1fc93b19d6545bc1dbffec2d4d51ac2f3c1101d513a9332e6e388c"
+        },
+        {
+          "file": "encoder.stdout.jsonl",
+          "bytes": 17544556,
+          "lines": 3030,
+          "sha256": "bdcb2f5b1f50af41bad78aec8bd82ed826a6863abba2d0fce0cde2b263e7f89b"
+        },
+        {
+          "file": "orchestrator.jsonl",
+          "bytes": 3568,
+          "lines": 11,
+          "sha256": "eb5c981c58d89a7eb0b2db8304d61bcdf2bd21fc3ccaf75c4382cc61551f7469"
+        },
+        {
+          "file": "trial/summary.json",
+          "bytes": 2388,
+          "sha256": "3fa0bf0f8a9620b8bb4e70027b33da7fd5800327ee65d2fdcdbc75ad5d6fa35b"
+        },
+        {
+          "file": "contact-analysis/summary.json",
+          "bytes": 6884,
+          "sha256": "89c3c23f39e55bffd0f86188623d4a8bb01f0be1a8b630dc3e96e6fb24d99eaf"
+        },
+        {
+          "file": "referee-validation/live-referee-validation.json",
+          "bytes": 4496,
+          "sha256": "423acead2a9b16d2c5c35d5ecb5a876a98703ed992aad179ef2757ecdb9ccbe9"
+        },
+        {
+          "file": "score-events.jsonl",
+          "bytes": 38456,
+          "lines": 9,
+          "sha256": "5aa7f2ad413730091809eb75697efd8e65582762ff10ffdd2b246f5211d2df37"
+        }
+      ],
+      "row_begin": 12050,
+      "row_end": 15078,
+      "worker_argv": [
+        "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+        "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/train-execution/policy.bin",
+        "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+        "905",
+        "sampled",
+        "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+        "--observation-schema=rek.native5.scaled_polar_xy.balance8_v1"
+      ],
+      "recorded_config": {
+        "path": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/configs/balance8-s905-retry3.json",
+        "bytes": 2836,
+        "sha256": "57f4255363d3bdcbf3eaf5049b2a1b160840e0e4349e5e3b33681b5959ea5add"
+      }
+    }
+  ],
+  "reward_contract": "received-score-delta-div5-half-life-5s.v1",
+  "recorded_behavior_checkpoint": true,
+  "weight_migration": false,
+  "original_identity": {
+    "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/export/behavior-identity.json",
+    "sha256": "9d056c45a699bbb784406696ea935c6ee1c3106f9d800287226b5d3e2fd8c868"
+  },
+  "original_dataset": {
+    "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/export/authentic-trajectories-v3.bin",
+    "sha256": "c5fd52c40f3f01c4f45cee1aafb912b9c6b7aca5bef16e625b9bf371f6e78367"
+  },
+  "lambda_semantics": "Original lambda cells retained; complete_mc_zero_baseline uses lambda=1. Only complete-MC mode is selected for this experiment.",
+  "provenance": "Reward and gamma derived only from recorded score counters and QPC intervals. Observations, actions, masks, recurrence, actual worker seed, outcome metadata, and loss weights remain bitwise unchanged.",
+  "reward_exporter": {
+    "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/derive_score_delta.cjs",
+    "sha256": "b61791567530c6c122d858af292a82d451406ed8ef5bd10bacd0444a50f79976"
+  }
+}

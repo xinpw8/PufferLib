@@ -1,0 +1,116 @@
+{
+  "schema": "rek.balance8_onpolicy_score_delta_export.v1",
+  "reward_contract": "received-score-delta-div5-half-life-5s.v1",
+  "source_dataset": {
+    "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/export/authentic-trajectories-v3.bin",
+    "sha256": "c5fd52c40f3f01c4f45cee1aafb912b9c6b7aca5bef16e625b9bf371f6e78367"
+  },
+  "source_identity": {
+    "path": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/export/behavior-identity.json",
+    "sha256": "9d056c45a699bbb784406696ea935c6ee1c3106f9d800287226b5d3e2fd8c868"
+  },
+  "dataset_sha256": "a28c938abe35794497ef9e36577574af28064fb669a1dc2f6d560aa0878567b1",
+  "identity_sha256": "03b3c21a698c850a1471f086d5116e7507a52beef7787ad128e24f6ddc4510ac",
+  "checkpoint_sha256": "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+  "rows": 15078,
+  "rounds": [
+    {
+      "trial_id": "balance8-s901-retry4",
+      "seed": 901,
+      "rows": 3128,
+      "points": [
+        5,
+        13
+      ],
+      "undiscounted_reward_sum": -1.6000000089406967,
+      "expected_net_point_margin_div5": -1.6,
+      "seconds": 119.82958789999984,
+      "decisions_per_second": 26.10373660477225,
+      "minimum_dt_seconds": 0.0306048,
+      "maximum_dt_seconds": 0.0903188,
+      "changed_rewards": 2463,
+      "changed_gammas": 3128,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "balance8-s902-retry3",
+      "seed": 902,
+      "rows": 2921,
+      "points": [
+        9,
+        23
+      ],
+      "undiscounted_reward_sum": -2.80000002682209,
+      "expected_net_point_margin_div5": -2.8,
+      "seconds": 119.60643150000026,
+      "decisions_per_second": 24.42176364069514,
+      "minimum_dt_seconds": 0.0296322,
+      "maximum_dt_seconds": 0.1525616,
+      "changed_rewards": 2026,
+      "changed_gammas": 2921,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "balance8-s903-retry3",
+      "seed": 903,
+      "rows": 3080,
+      "points": [
+        13,
+        3
+      ],
+      "undiscounted_reward_sum": 2.000000014901161,
+      "expected_net_point_margin_div5": 2,
+      "seconds": 119.69905710000026,
+      "decisions_per_second": 25.73119684164992,
+      "minimum_dt_seconds": 0.0292813,
+      "maximum_dt_seconds": 0.148324,
+      "changed_rewards": 2641,
+      "changed_gammas": 3080,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "balance8-s904-retry3",
+      "seed": 904,
+      "rows": 2921,
+      "points": [
+        10,
+        9
+      ],
+      "undiscounted_reward_sum": 0.19999998807907104,
+      "expected_net_point_margin_div5": 0.2,
+      "seconds": 119.57798700000028,
+      "decisions_per_second": 24.427572944508533,
+      "minimum_dt_seconds": 0.0298377,
+      "maximum_dt_seconds": 0.1582515,
+      "changed_rewards": 1841,
+      "changed_gammas": 2921,
+      "actor_weight_zero_rows": 1
+    },
+    {
+      "trial_id": "balance8-s905-retry3",
+      "seed": 905,
+      "rows": 3028,
+      "points": [
+        5,
+        10
+      ],
+      "undiscounted_reward_sum": -1,
+      "expected_net_point_margin_div5": -1,
+      "seconds": 119.48469829999998,
+      "decisions_per_second": 25.342157138794068,
+      "minimum_dt_seconds": 0.0273387,
+      "maximum_dt_seconds": 0.1367137,
+      "changed_rewards": 1621,
+      "changed_gammas": 3028,
+      "actor_weight_zero_rows": 1
+    }
+  ],
+  "preserved_row_bytes": 16887360,
+  "all223_observations_actions_masks_seeds_and_loss_weights_bitwise_unchanged": true,
+  "terminal_rejected_actor_weight_zero": true,
+  "terminal_outcome_metadata_retained_but_not_added_to_reward": true,
+  "original_actor_logits_recorded": false,
+  "native_exact_action_replay_required": true,
+  "no_gpu_execution": true,
+  "training_performed": false
+}

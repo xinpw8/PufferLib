@@ -1,0 +1,45 @@
+diff --git a/source/replay_authentic_behavior.cu b/source/replay_authentic_behavior.cu
+--- a/source/replay_authentic_behavior.cu
++++ b/source/replay_authentic_behavior.cu
+@@ -42,12 +42,15 @@ void publish(const char* path,const void* data,size_t size) {
+ }
+ int main(int argc,char** argv) {
+     try {
+-        require(argc==5||argc==6||argc==7,"Usage: replay-authentic-behavior DATA CHECKPOINT SHA256 NEW_REPLAY_BINARY [IDENTITY_JSON EXACT_WORKER | --observation-schema=rek.native5.scaled_polar_xy.owned_yaw_v2]");
++        require(argc==5||argc==6||argc==7||argc==8,"Usage: replay-authentic-behavior DATA CHECKPOINT SHA256 NEW_REPLAY_BINARY [IDENTITY_JSON EXACT_WORKER | --observation-schema=rek.native5.scaled_polar_xy.owned_yaw_v2]");
+         const bool owned_yaw=argc==6;
++        const bool balance8=argc==8;
++        require(!balance8 || std::string(argv[7])=="--observation-schema=rek.native5.scaled_polar_xy.balance8_v1","unknown replay balance8 option");
+         require(!owned_yaw || std::string(argv[5])==std::string("--observation-schema=")+rek_owned_yaw::kSchema,"unknown replay observation schema option");
+         const auto data=owned_yaw?rek_owned_yaw_trajectory::load(argv[1]):rek_authentic::load(argv[1]);
+-        const bool identity=data.format_version==3;
+-        require(identity==(argc==7),"v3 requires exact identity JSON and worker executable");
++        const bool identity=data.format_version==3||data.format_version==5;
++        const bool score_delta=data.format_version==5;
++        require(identity==(argc==7||balance8),"v3 requires exact identity JSON and worker executable");
+         if(identity) {
+             const auto identity_bytes=rek_authentic::read_file(argv[5]), worker_bytes=rek_authentic::read_file(argv[6]);
+             require(rek_authentic::sha256(identity_bytes.data(),identity_bytes.size())==data.identity_sha256,
+@@ -70,7 +73,7 @@ int main(int argc,char** argv) {
+         require(bool(policy),rek_native_policy_error());
+         const std::string checkpoint=rek_native_policy_sha256(policy.get()); require(checkpoint==argv[3],"checkpoint SHA mismatch");
+         std::vector<unsigned char> output(rek_authentic::REPLAY_HEADER_BYTES+data.rows.size()*rek_authentic::REPLAY_ROW_BYTES,0);
+-        std::memcpy(output.data(),identity?"REKBR003":owned_yaw?"REKBR002":"REKBR001",8); put<uint32_t>(output,8,identity?3:owned_yaw?2:1); put<uint32_t>(output,12,data.rows.size());
++        std::memcpy(output.data(),score_delta?"REKBR005":identity?"REKBR003":owned_yaw?"REKBR002":"REKBR001",8); put<uint32_t>(output,8,score_delta?5:identity?3:owned_yaw?2:1); put<uint32_t>(output,12,data.rows.size());
+         put<uint32_t>(output,16,rek_authentic::REPLAY_ROW_BYTES); put_hash(output,24,data.digest);
+         put_hash(output,56,checkpoint); put<uint64_t>(output,88,identity?0:73);
+         if(identity) put_hash(output,96,data.identity_sha256);
+@@ -115,11 +118,12 @@ int main(int argc,char** argv) {
+         const std::string digest=rek_authentic::sha256(output.data(),output.size());
+         char report[3000]; const int count=std::snprintf(report,sizeof(report),
+             "{\"schema\":\"%s\",%s\"verification_passed\":true,\"rows\":%zu,\"rounds\":%zu,\"matching_sampled_actions\":%zu,\"mismatches\":0,\"dataset_sha256\":\"%s\",\"checkpoint_sha256\":\"%s\",\"replay_sha256\":\"%s\",\"seed_per_new_worker\":73,\"precision\":\"bf16\",\"input_feature_mask\":\"original_unmasked\",\"logprob_precision\":\"float32_native_sampler_reduction\",\"minimum_logprob\":%.9g,\"maximum_logprob\":%.9g,\"terminal_race_requests_retained\":true,\"game_connection\":false,\"training_performed\":false}\n",
+-            identity?"rek.authentic_behavior_replay.v3":owned_yaw?"rek.authentic_behavior_replay.owned_yaw_v2":"rek.authentic_behavior_replay.v1",
++            score_delta?"rek.authentic_behavior_replay.v5":identity?"rek.authentic_behavior_replay.v3":owned_yaw?"rek.authentic_behavior_replay.owned_yaw_v2":"rek.authentic_behavior_replay.v1",
+             owned_yaw?"\"observation_schema\":\"rek.native5.scaled_polar_xy.owned_yaw_v2\",\"trajectory_format\":\"REKRL002\",\"replay_format\":\"REKBR002\",":"",
+             data.rows.size(),rounds,matching,data.digest.c_str(),checkpoint.c_str(),digest.c_str(),minimum_logprob,maximum_logprob);
+         require(count>0 && count<int(sizeof(report)),"replay report overflow");
+         std::string report_text(report,count);
++        if(balance8) report_text.insert(1,"\"observation_schema\":\"rek.native5.scaled_polar_xy.balance8_v1\",\"teacher_was_recorded_worker\":true,");
+         if(identity) {
+             const auto replace=[&](const std::string& before,const std::string& after) {
+                 const auto at=report_text.find(before); require(at!=std::string::npos,"missing replay report field");

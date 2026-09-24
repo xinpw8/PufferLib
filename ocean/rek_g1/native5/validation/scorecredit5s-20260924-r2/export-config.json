@@ -1,0 +1,54 @@
+{
+  "schema": "rek.authentic_export_config.v3",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "gamma_per_20ms": 0.9998844821426083,
+  "lambda_per_20ms": 0.9978673240629938,
+  "worker": {
+    "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+    "sha256": "52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2"
+  },
+  "checkpoint": {
+    "path": "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/train-execution/policy.bin",
+    "sha256": "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce"
+  },
+  "native_object": {
+    "path": "/home/spark-advantage/rek-training/semantic-fast-20260914-v1/build-v4/native_policy.o",
+    "sha256": "4ada3de760b5a00f7bb3d6592cd2da4ca48a4a196e774d40e6d220a57d1f574c"
+  },
+  "feature_mask": {
+    "path": "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+    "sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b"
+  },
+  "rounds": [
+    {
+      "id": "balance8-s901-retry4",
+      "seed": 901,
+      "evidence": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/evidence/balance8-s901-retry4",
+      "config": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/configs/balance8-s901-retry4.json"
+    },
+    {
+      "id": "balance8-s902-retry3",
+      "seed": 902,
+      "evidence": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/evidence/balance8-s902-retry3",
+      "config": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/configs/balance8-s902-retry3.json"
+    },
+    {
+      "id": "balance8-s903-retry3",
+      "seed": 903,
+      "evidence": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/evidence/balance8-s903-retry3",
+      "config": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/configs/balance8-s903-retry3.json"
+    },
+    {
+      "id": "balance8-s904-retry3",
+      "seed": 904,
+      "evidence": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/evidence/balance8-s904-retry3",
+      "config": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/configs/balance8-s904-retry3.json"
+    },
+    {
+      "id": "balance8-s905-retry3",
+      "seed": 905,
+      "evidence": "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/evidence/balance8-s905-retry3",
+      "config": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/configs/balance8-s905-retry3.json"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "schema": "rek.scorecredit5s.dependencies.v1",
+  "source_dependencies": [
+    {
+      "name": "authentic_distributional_parity.h",
+      "from": "../balance8-authentic-20260924-r1/source/authentic_distributional_parity.h",
+      "sha256": "7b48e24045549f911d9a2bb2831edd90ca39e377924201bd9a50f4e482feffbb"
+    },
+    {
+      "name": "authentic_gae.h",
+      "from": "../balance8-authentic-20260924-r1/source/authentic_gae.h",
+      "sha256": "b2b0c5311922c4b7972f4060297c63cecee960530e6309cbe27f26c6cd5a40e4"
+    },
+    {
+      "name": "authentic_parity.h",
+      "from": "../balance8-authentic-20260924-r1/source/authentic_parity.h",
+      "sha256": "140abfe49d8cf91573c49f0ee18149b6c218a59e36ea33e2cb26e73cc62ec352"
+    },
+    {
+      "name": "balance8_observation.h",
+      "from": "../balance8-authentic-20260924-r1/source/balance8_observation.h",
+      "sha256": "493146c9de81b2362ad815389f6683a3db7a2cf50252620b21a75a0f51e3936f"
+    },
+    {
+      "name": "bc_dataset.h",
+      "from": "../balance8-authentic-20260924-r1/source/bc_dataset.h",
+      "sha256": "fa22e627083bad7c1118b4779342ef2612b372d6d4740cad69afeb5e8ff3265f"
+    },
+    {
+      "name": "bc_train.cu",
+      "from": "../balance8-authentic-20260924-r1/source/bc_train.cu",
+      "sha256": "35d50624e2003d0b5594fa2b730097e42d097fd3ac37235ea9c3f0c04bec5eec"
+    },
+    {
+      "name": "owned_yaw_observation.h",
+      "from": "../balance8-authentic-20260924-r1/source/owned_yaw_observation.h",
+      "sha256": "791b7ab142089147821e3a87dffa15106ebd8cfa0725773aa83a83b8b4493b76"
+    },
+    {
+      "name": "owned_yaw_trajectory.h",
+      "from": "../balance8-authentic-20260924-r1/source/owned_yaw_trajectory.h",
+      "sha256": "2682a82ec8dcc56148650c035eee23cf1367583865cf6d88ed19ec5f6e2bc92f"
+    },
+    {
+      "name": "round_reward.h",
+      "from": "../balance8-authentic-20260924-r1/source/round_reward.h",
+      "sha256": "b49311dae9506b3c64fb50fc791e31fba143f8445af40494864358d1a52dfab1"
+    },
+    {
+      "name": "authentic_trajectory_v3.test.cjs",
+      "from": "../authentic-ppo-noprior-20260924-r1/source/authentic_trajectory_v3.test.cjs",
+      "sha256": "219acfd2b9fc65940753164ba6b71b535b54c2c803ad60f64e52a31ade07f2d3"
+    },
+    {
+      "name": "authentic_trajectory_data.test.cjs",
+      "from": "../../authentic_trajectory_data.test.cjs",
+      "sha256": "208d65af0668f8eed22eed4c01c46f1838222f354b5f01db5122b24499950bda"
+    },
+    {
+      "name": "owned_yaw_export_evidence.cjs",
+      "from": "../../owned_yaw_export_evidence.cjs",
+      "sha256": "29ca5c2ddbe3d98fe4e11e10f32b519658014aec83e475c7078cc828b9302a56"
+    }
+  ]
+}

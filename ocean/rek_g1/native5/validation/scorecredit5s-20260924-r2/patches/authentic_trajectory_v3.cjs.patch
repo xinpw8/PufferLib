@@ -1,0 +1,25 @@
+diff --git a/source/authentic_trajectory_v3.cjs b/source/authentic_trajectory_v3.cjs
+--- a/source/authentic_trajectory_v3.cjs
++++ b/source/authentic_trajectory_v3.cjs
+@@ -1,7 +1,7 @@
+ 'use strict';
+ const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
+ const base = require('./authentic_trajectory_data.cjs');
+-const HEADER = 384, SCHEMA = 'rek.native5.scaled_polar_xy.v1';
++const HEADER = 384, SCHEMA = 'rek.native5.scaled_polar_xy.balance8_v1';
+ const check = (ok, message) => { if (!ok) throw new Error(message); };
+ const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+ function pinned(file, expected) {
+@@ -46,9 +46,10 @@ async function exportV3(configPath, output) {
+     check(Number.isSafeInteger(spec.seed) && spec.seed >= 0, 'invalid recorded round seed');
+     const capturedConfigBytes = fs.readFileSync(spec.config), capturedConfig = JSON.parse(capturedConfigBytes);
+     const argv = capturedConfig.worker;
+-    check(Array.isArray(argv) && [4, 6].includes(argv.length) && argv[0] === pins.worker.path &&
++    check(Array.isArray(argv) && argv.length === 7 && argv[0] === pins.worker.path &&
+       argv[1] === pins.checkpoint.path && argv[2] === pins.checkpoint.sha256 && argv[3] === String(spec.seed) &&
+-      capturedConfig.checkpoint_sha256 === pins.checkpoint.sha256, 'captured worker invocation mismatch');
++      capturedConfig.checkpoint_sha256 === pins.checkpoint.sha256 && capturedConfig.observation_schema === SCHEMA &&
++      argv[6] === '--observation-schema=' + SCHEMA, 'captured worker invocation mismatch');
+     if (argv.length === 4) check(unmasked, 'old worker invocation cannot support masked behavior');
+     else check(argv[4] === 'sampled' && sha(fs.readFileSync(argv[5])) === pins.feature_mask.sha256,
+       'captured sampled worker feature mask mismatch');

@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: received one, two and five point awards keep the observed scale
+ok 1 - received one, two and five point awards keep the observed scale
+  ---
+  duration_ms: 0.607556
+  ...
+# Subtest: same score gives zero reward without terminal bonus or potential
+ok 2 - same score gives zero reward without terminal bonus or potential
+  ---
+  duration_ms: 0.056768
+  ...
+# Subtest: actual interval determines five-second half-life, independent of decision count
+ok 3 - actual interval determines five-second half-life, independent of decision count
+  ---
+  duration_ms: 0.173986
+  ...
+# Subtest: unclipped observed score and invalid inputs
+ok 4 - unclipped observed score and invalid inputs
+  ---
+  duration_ms: 6.463471
+  ...
+# Subtest: terminal rejected policy row still propagates measured score to preceding decisions
+ok 5 - terminal rejected policy row still propagates measured score to preceding decisions
+  ---
+  duration_ms: 0.101905
+  ...
+# Subtest: discount applies between reward-row source times and does not prediscount the current reward
+ok 6 - discount applies between reward-row source times and does not prediscount the current reward
+  ---
+  duration_ms: 0.196385
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 102.922537

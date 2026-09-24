@@ -1,0 +1,52 @@
+{
+  "schema": "rek.native_worker_latency_smoke.v1",
+  "passed": true,
+  "started_utc": "2026-09-24T08:42:17.786Z",
+  "finished_utc": "2026-09-24T08:42:18.650Z",
+  "full_process_wall_seconds": 0.864109662,
+  "startup_to_ready_ms": 478.147226,
+  "requests": 512,
+  "request_mode": "one request at a time; await its action before submitting the next; recorded chronology and first-round reset preserved",
+  "checkpoint_sha256": "0daf90a96442d541d38d9dd4f8fe765917c3c766ca80019855cfd7d358d9fe12",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "worker_argv": [
+    "/home/spark-advantage/rek-training/balance8-authentic-20260924-r1/build/live-policy-worker-balance8",
+    "/home/spark-advantage/rek-training/balance8-onpolicy-20260924-r2/train-score-delta/policy.bin",
+    "0daf90a96442d541d38d9dd4f8fe765917c3c766ca80019855cfd7d358d9fe12",
+    "901",
+    "sampled",
+    "/home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/all-ones.bin",
+    "--observation-schema=rek.native5.scaled_polar_xy.balance8_v1"
+  ],
+  "worker_sha256": "52741aed67037073bff5ecb21af63864550cba93a316dfe59a41b8b50126d7b2",
+  "source": {
+    "path": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s901-retry4/trial/worker.stdin.jsonl",
+    "sha256": "6d36ec214daf121fe6424411d49a84f0f61118fa29fbd1bcb1512f30e70dbf77",
+    "first_seq": 718,
+    "last_seq": 1229
+  },
+  "request_to_action_wall_ms": {
+    "count": 512,
+    "minimum": 0.296067,
+    "median": 0.475428,
+    "p95": 0.685669,
+    "maximum": 2.193842
+  },
+  "native_gpu_ms": {
+    "count": 512,
+    "minimum": 0.06508799642324448,
+    "median": 0.10892800241708755,
+    "p95": 0.18704000115394592,
+    "maximum": 0.320800006389618
+  },
+  "all_actions_legal": true,
+  "all_schema_checkpoint_mask_seed_and_recurrent_checks_passed": true,
+  "first_action": 25,
+  "last_action": 1,
+  "exit_code": 0,
+  "contention": "Root reported a concurrent unrelated wan-i2v GPU job; no process, job, GPU workload, or runtime settings were changed by this smoke.",
+  "environment_steps": 0,
+  "game_connection": false,
+  "encoder_invoked": false,
+  "optimizer_updates": 0
+}

@@ -1,0 +1,115 @@
+TAP version 13
+# Subtest: binary has native agreed offsets and unmasked original features
+ok 1 - binary has native agreed offsets and unmasked original features
+  ---
+  duration_ms: 1.313481
+  ...
+# Subtest: reward/next-state changes cannot alter stored preceding observations
+ok 2 - reward/next-state changes cannot alter stored preceding observations
+  ---
+  duration_ms: 0.706357
+  ...
+# Subtest: terminal potential removed, five-point awards enter only observed score potential
+ok 3 - terminal potential removed, five-point awards enter only observed score potential
+  ---
+  duration_ms: 0.060576
+  ...
+# Subtest: float32 variable gamma potential telescopes with the same discounts
+ok 4 - float32 variable gamma potential telescopes with the same discounts
+  ---
+  duration_ms: 0.062113
+  ...
+# Subtest: terminal-race attempted action retained with actor weight zero
+ok 5 - terminal-race attempted action retained with actor weight zero
+  ---
+  duration_ms: 0.154017
+  ...
+# Subtest: malformed mask, missing observation, noncausal timing and nonterminal rejection fail
+ok 6 - malformed mask, missing observation, noncausal timing and nonterminal rejection fail
+  ---
+  duration_ms: 0.432115
+  ...
+# Subtest: synthetic joined trial preserves omitted source, actual dt and rejected decision
+ok 7 - synthetic joined trial preserves omitted source, actual dt and rejected decision
+  ---
+  duration_ms: 10.291675
+  ...
+# Subtest: recurrent replay input duplication rejected rather than silently replaced
+ok 8 - recurrent replay input duplication rejected rather than silently replaced
+  ---
+  duration_ms: 1.57094
+  ...
+# Subtest: legacy exporter rejects v2 or missing ready observation schema
+ok 9 - legacy exporter rejects v2 or missing ready observation schema
+  ---
+  duration_ms: 3.416137
+  ...
+# Subtest: legacy exporter rejects v2 or missing schema on every worker request
+ok 10 - legacy exporter rejects v2 or missing schema on every worker request
+  ---
+  duration_ms: 2.176912
+  ...
+# Subtest: explicit original task-time profile is preserved without fallback defaults
+ok 11 - explicit original task-time profile is preserved without fallback defaults
+  ---
+  duration_ms: 2.099023
+  ...
+# Subtest: explicit trial list and new destination required
+ok 12 - explicit trial list and new destination required
+  ---
+  duration_ms: 0.549748
+  ...
+# Subtest: actual v2 export preserves recorded pre-action yaw and all non187 decision bytes
+ok 13 - actual v2 export preserves recorded pre-action yaw and all non187 decision bytes
+  ---
+  duration_ms: 7.695927
+  ...
+# Subtest: actual inactive v2 terminal input permits missing intent but requires zero187 and explicit schema
+ok 14 - actual inactive v2 terminal input permits missing intent but requires zero187 and explicit schema
+  ---
+  duration_ms: 4.817443
+  ...
+# Subtest: actual v2 rejects unknown ownership, busy mismatch and reconstructed chosen-action yaw
+ok 15 - actual v2 rejects unknown ownership, busy mismatch and reconstructed chosen-action yaw
+  ---
+  duration_ms: 6.608464
+  ...
+# Subtest: actual v2 binds full source snapshot, encoder arrays and every declared schema
+ok 16 - actual v2 binds full source snapshot, encoder arrays and every declared schema
+  ---
+  duration_ms: 9.781254
+  ...
+# Subtest: v2 CLI requires exact explicit option and legacy default still rejects v2
+ok 17 - v2 CLI requires exact explicit option and legacy default still rejects v2
+  ---
+  duration_ms: 290.7598
+  ...
+# Subtest: v3 identity and five actual seeds are embedded without changing observation/reward layout
+ok 18 - v3 identity and five actual seeds are embedded without changing observation/reward layout
+  ---
+  duration_ms: 2.679876
+  ...
+# Subtest: v3 preserves raw observations with explicit binary feature mask
+ok 19 - v3 preserves raw observations with explicit binary feature mask
+  ---
+  duration_ms: 0.29053
+  ...
+# Subtest: v3 round seed accepts exact safe integers including high word and rejects invalid seeds
+ok 20 - v3 round seed accepts exact safe integers including high word and rejects invalid seeds
+  ---
+  duration_ms: 0.913191
+  ...
+# Subtest: v3 rejects malformed feature masks and does not weaken reward validation
+ok 21 - v3 rejects malformed feature masks and does not weaken reward validation
+  ---
+  duration_ms: 0.243346
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 440.752774
