@@ -1,0 +1,30 @@
+{
+  "schema": "rek.policy_timing_cpu_tests.v1",
+  "date_utc": "2026-09-24",
+  "plugin_build": {"target": "net6.0", "sdk": "8.0.101", "warnings": 0, "errors": 0, "offline_package_sources": true},
+  "checks": {
+    "focused_timing": 40,
+    "existing_relay": 6447,
+    "execution_isolation_and_authenticated_continuation": 5930,
+    "received_referee": 860,
+    "protocol": 441,
+    "total": 13718
+  },
+  "local_test_pipe_roundtrip": true,
+  "actual_windows_default_desktop_rejected": true,
+  "cohort_preparation_node_tests": {"passed": 2, "failed": 0},
+  "focused_coverage": [
+    "500ms fresh and 501ms stale at 1kHz and 10MHz QPC",
+    "750ms established watchdog alive and 751ms expired",
+    "1000ms startup grace alive and 1001ms expired",
+    "wrong round, consumed sequence, unknown observation and reversed clock rejected",
+    "CPU accepted-branch model: repeated stale actions do not refresh the clock",
+    "subsequent fresh verified source is eligible before watchdog expiry",
+    "recorded s1101 262.3265ms action and 278.5292ms watchdog gap tolerated"
+  ],
+  "guard_verification": "Production Plugin.G1PolicyStream.cs and every other non-timing production source file remain byte-identical to the baseline snapshot. CPU tests do not execute Unity lease transitions.",
+  "game_invocations": 0,
+  "game_pipe_connections": 0,
+  "global_input_invocations": 0,
+  "live_completion_verified": false
+}

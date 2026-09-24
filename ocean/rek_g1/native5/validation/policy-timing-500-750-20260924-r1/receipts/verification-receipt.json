@@ -1,0 +1,37 @@
+{
+  "tested_utc": "2026-09-24T09:47:55.5210377Z",
+  "plugin_path": "C:\\rekagent\\work\\policy-timing-500-750-20260924-r1\\artifacts\\bridge\\RekUiBridgeAgent.dll",
+  "plugin_sha256": "11fcfa2bea541f2829553c3833c301717c0182a59eebb0020f5f7b8cb066ca3d",
+  "plugin_bytes": 1481728,
+  "changed_existing_source_files": [
+    {
+      "path": "RekUiBridgeAgent\\G1PolicyStreamContract.cs",
+      "before": "0335b0a99cb2a09afffa8c18918181859246b7a204c47bf0c9a89bc9db6eb5df",
+      "after": "9416fe64ff7ed2f4044afd82fae8a8158a4000704e784487bf4f40a4b86fc2d9"
+    },
+    {
+      "path": "RekUiBridgeAgent\\LocalPipeServer.cs",
+      "before": "11514a3b36552b48ec593c5cebce590f9a1b357b7deb425cb24777b8df5743b4",
+      "after": "f897c9fac7430b9453f07751f99cdf53e58bf1c02bd5f2494f1cd6d28d99e5e5"
+    },
+    {
+      "path": "RekUiPipeClient\\Tests\\Program.cs",
+      "before": "85290e169cb9840f2db6c6977cc43fb68ef8a52be87754ebfaf41d37eae513ef",
+      "after": "1ccc33cb8d0cfa7729fa8de4e410889b8366aece9befae5e6b22ab2dde4c9ff6"
+    }
+  ],
+  "unchanged_control_source": "Plugin.G1PolicyStream.cs and all other baseline source files",
+  "action_freshness_ms": 500,
+  "action_watchdog_ms": 750,
+  "startup_grace_ms": 1000,
+  "test_projects": [
+    "timing",
+    "relay",
+    "isolation",
+    "referee",
+    "protocol"
+  ],
+  "game_invocations": 0,
+  "bridge_connections": 0,
+  "deployed": false
+}

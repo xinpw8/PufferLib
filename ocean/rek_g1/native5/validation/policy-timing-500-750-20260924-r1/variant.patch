@@ -1,0 +1,61 @@
+diff --git a/ocean/rek/evidence/windows/RekUiBridgeAgent/G1PolicyStreamContract.cs b/ocean/rek/evidence/windows/RekUiBridgeAgent/G1PolicyStreamContract.cs
+index 18408a1..e4cf451 100644
+--- a/ocean/rek/evidence/windows/RekUiBridgeAgent/G1PolicyStreamContract.cs
++++ b/ocean/rek/evidence/windows/RekUiBridgeAgent/G1PolicyStreamContract.cs
+@@ -72,7 +72,8 @@ internal struct G1PolicyPublicationClock
+ internal static class G1PolicyStreamContract
+ {
+     internal const string Schema = "rek.g1_policy_source.v1";
+-    internal const double MaximumAgeSeconds = 0.250;
++    internal const double MaximumAgeSeconds = 0.500;
++    internal const double ActionWatchdogSeconds = 0.750;
+     internal const double StartupGraceSeconds = 1.0;
+     internal const int PublishRateHz = 50;
+     internal static readonly int[] MoveOrder = { 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16 };
+@@ -157,5 +158,5 @@ internal static class G1PolicyStreamContract
+ 
+     internal static bool WatchdogExpired(bool receivedAction, long lastAction, long now, long frequency) =>
+         frequency <= 0 || now < lastAction ||
+-        (now - lastAction) / (double)frequency > (receivedAction ? MaximumAgeSeconds : StartupGraceSeconds);
++        (now - lastAction) / (double)frequency > (receivedAction ? ActionWatchdogSeconds : StartupGraceSeconds);
+ }
+diff --git a/ocean/rek/evidence/windows/RekUiBridgeAgent/LocalPipeServer.cs b/ocean/rek/evidence/windows/RekUiBridgeAgent/LocalPipeServer.cs
+index 327ce2d..5d47c1a 100644
+--- a/ocean/rek/evidence/windows/RekUiBridgeAgent/LocalPipeServer.cs
++++ b/ocean/rek/evidence/windows/RekUiBridgeAgent/LocalPipeServer.cs
+@@ -95,7 +95,8 @@ internal sealed class LocalPipeServer : IDisposable
+                         state = true,
+                         g1_policy_source_schema = G1PolicyStreamContract.Schema,
+                         g1_policy_action_count = 33,
+-                        g1_policy_action_maximum_age_ms = 250,
++                        g1_policy_action_maximum_age_ms = (int)(G1PolicyStreamContract.MaximumAgeSeconds * 1000),
++                        g1_policy_action_watchdog_ms = (int)(G1PolicyStreamContract.ActionWatchdogSeconds * 1000),
+                         private_ai_proof_basis =
+                             "build_pinned_REK_FindMatch_solo_ConnectToArena_EnterChampionship_non_koth_solo_same_runtime_session",
+                         solo_route_required_flow = SoloRouteProofContract.ExactFlow,
+diff --git a/ocean/rek/evidence/windows/RekUiPipeClient/Tests/Program.cs b/ocean/rek/evidence/windows/RekUiPipeClient/Tests/Program.cs
+index 4b94b51..15c208d 100644
+--- a/ocean/rek/evidence/windows/RekUiPipeClient/Tests/Program.cs
++++ b/ocean/rek/evidence/windows/RekUiPipeClient/Tests/Program.cs
+@@ -92,8 +92,8 @@ foreach (var rejected in new[] { bootstrap with { Isolated=false }, bootstrap wi
+     bootstrap with { RuntimeSessionConsistent=false }, bootstrap with { AlreadyRequested=true } })
+     Check(PrivateAiBootstrapContract.RejectReason(rejected) is not null, "every bootstrap precondition enforced");
+ var sample = new G1PolicyAction(hash, 10, 17);
+-Check(G1PolicyStreamContract.RejectReason(sample, hash, 9, 1000, 1250, 1000) is null, "250ms accepted");
+-Check(G1PolicyStreamContract.RejectReason(sample, hash, 9, 1000, 1251, 1000) == "stale_observation", "251ms rejected");
++Check(G1PolicyStreamContract.RejectReason(sample, hash, 9, 1000, 1500, 1000) is null, "500ms accepted");
++Check(G1PolicyStreamContract.RejectReason(sample, hash, 9, 1000, 1501, 1000) == "stale_observation", "501ms rejected");
+ Check(G1PolicyStreamContract.RejectReason(sample, hash, 10, 1000, 1000, 1000) == "observation_already_consumed", "duplicate rejected");
+ Check(G1PolicyStreamContract.RejectReason(sample, new string('b',64), 9, 1000, 1000, 1000) == "round_identity_mismatch", "round mismatch rejected");
+ Check(G1PolicyStreamContract.RejectReason(sample, hash, 9, 0, 1000, 1000) == "observation_unknown_or_clock_invalid", "unknown observation rejected");
+@@ -178,8 +178,8 @@ Check(!G1PolicyStreamContract.ShouldPublish(ref publishClock, 1, long.MaxValue -
+ Check(G1PolicyStreamContract.ShouldPublish(ref publishClock, 1, long.MaxValue - 10, 1000), "large QPC exact deadline publishes");
+ Check(!G1PolicyStreamContract.WatchdogExpired(false, 1000, 2000, 1000), "startup1s grace");
+ Check(G1PolicyStreamContract.WatchdogExpired(false, 1000, 2001, 1000), "startup grace bounded");
+-Check(!G1PolicyStreamContract.WatchdogExpired(true, 1000, 1250, 1000), "established watchdog250ms");
+-Check(G1PolicyStreamContract.WatchdogExpired(true, 1000, 1251, 1000), "established watchdog expires251ms");
++Check(!G1PolicyStreamContract.WatchdogExpired(true, 1000, 1750, 1000), "established watchdog750ms");
++Check(G1PolicyStreamContract.WatchdogExpired(true, 1000, 1751, 1000), "established watchdog expires751ms");
+ Check(!G1PolicyStreamContract.WatchdogExpired(true, 1299, 1300, 1000), "queued fresh action dispatch refreshes watchdog before check");
+ var lines = new StringReader("first\r\nsecond\n");
+ Check(await PolicyRelay.ReadBoundedLine(lines, 10, default) == "first", "buffer first");

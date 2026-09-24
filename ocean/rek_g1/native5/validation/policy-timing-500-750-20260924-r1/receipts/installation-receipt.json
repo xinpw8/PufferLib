@@ -1,0 +1,17 @@
+{
+  "installed_utc": "2026-09-24T09:51:34.216763+00:00",
+  "target": "/home/spark-advantage/codexrook-runtime/rek-core-referee-20260924-r1/BepInEx/plugins/RekUiBridgeAgent.dll",
+  "old_sha256": "ea8511a87b9e456547f13ffdb2f9af5e941b8b04f97bf40419d38e1c9b31ff3e",
+  "new_sha256": "11fcfa2bea541f2829553c3833c301717c0182a59eebb0020f5f7b8cb066ca3d",
+  "backup": "/home/spark-advantage/rek-training/policy-timing-500-750-20260924-r1/backup/RekUiBridgeAgent.ea8511.dll",
+  "backup_sha256": "ea8511a87b9e456547f13ffdb2f9af5e941b8b04f97bf40419d38e1c9b31ff3e",
+  "runtime_file_count": 590,
+  "changed_files": [
+    "BepInEx/plugins/RekUiBridgeAgent.dll"
+  ],
+  "other_runtime_files_hash_unchanged": 589,
+  "game_prefix_controller_quiescent_after_install": true,
+  "game_launches": 0,
+  "game_pipe_connections": 0,
+  "windows_installation": false
+}

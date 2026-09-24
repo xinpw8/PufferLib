@@ -1,0 +1,272 @@
+{
+  "source": "C:\\Users\\Daniel\\codex-rek-puffysics-training-profile\\ocean\\rek\\evidence\\windows",
+  "source_commit": "ac785cb6c6ab1ae498e1257cf23203f65068d64d",
+  "baseline_plugin": "C:\\rekagent\\tmp\\referee-bridge-20260919-r1\\bridge\\RekUiBridgeAgent.dll",
+  "baseline_plugin_sha256": "ea8511a87b9e456547f13ffdb2f9af5e941b8b04f97bf40419d38e1c9b31ff3e",
+  "source_files": [
+    {
+      "path": "AuthenticatedContinuationContract.cs",
+      "sha256": "dcbce48a047822a04740811ce4ca2e03d060d572ce89e67cb45c24db3e5f436e"
+    },
+    {
+      "path": "ConsentedPairScopeContract.cs",
+      "sha256": "e7ce8a51c0295be375ee05a5a992da3564186d453181857b4dc0c4372d01f62a"
+    },
+    {
+      "path": "NativeWindowsDesktopIsolation.cs",
+      "sha256": "f30e76c5c208481dcd362d5b2d518f56f3a442679cee934c044427404d1e3e16"
+    },
+    {
+      "path": "PolicyExecutionIsolationContract.cs",
+      "sha256": "af8ce9887d911bbdb56286c6213b316fd84ad227339b4b2a5c3ca7fa40e0c429"
+    },
+    {
+      "path": "SoloRouteProofContract.cs",
+      "sha256": "d87b53b948d2c79d2381dade8c6b1dc9abfd4ea286c79ba91d080d351284dac1"
+    },
+    {
+      "path": "ConsentedPairScopeContract.Tests\\ConsentedPairScopeContract.Tests.csproj",
+      "sha256": "6a0b0be6c0c52a279c34e3e9b1d3d45fa571a5f719f435ddb2f2d56483147859"
+    },
+    {
+      "path": "ConsentedPairScopeContract.Tests\\Program.cs",
+      "sha256": "a7d643b64f09ec50ea63722830559e2e80bb0bd7ead061620449cdf75dceb408"
+    },
+    {
+      "path": "PolicyExecutionIsolation.Tests\\AuthenticatedContinuationTests.cs",
+      "sha256": "558e0b838fc6adb143bb8a4589554ad46c874933db62fdb848086473dd61916b"
+    },
+    {
+      "path": "PolicyExecutionIsolation.Tests\\PolicyExecutionIsolation.Tests.csproj",
+      "sha256": "6b2ef353dab468fc7ee1c7fb40625d1061d3e2b64b69ee8b80e9096308e781c6"
+    },
+    {
+      "path": "PolicyExecutionIsolation.Tests\\Program.cs",
+      "sha256": "f10b9fd896af10420cd15cc4042900d54098787180697b808fa6fab6729f5d36"
+    },
+    {
+      "path": "RekAttackZoneRunner\\AttackZonePipeExecutor.cs",
+      "sha256": "161fcf5c7f036ad2c51c7986766e64796a9b48af6a091859fcf1a3ce9db91f45"
+    },
+    {
+      "path": "RekAttackZoneRunner\\Program.cs",
+      "sha256": "d1bbbdec0ec8ecfee968db8a59b44b9b95c29caddecbb8f2bccabfdc44e95a41"
+    },
+    {
+      "path": "RekAttackZoneRunner\\RekAttackZoneRunner.csproj",
+      "sha256": "f47dc3a0bd494add11504b7562b0dade2bcc4e7e779b5680b224c0d8987b646e"
+    },
+    {
+      "path": "RekEvidenceRecorder\\ConsentedPairCaptureTracker.cs",
+      "sha256": "7e81f3ccaa0763ff67b1b5915c3b79f174df14d6b82c20ed6613d01a7c317955"
+    },
+    {
+      "path": "RekEvidenceRecorder\\Plugin.ConsentedPair.cs",
+      "sha256": "7e15a60ada4db5d2b747a30bfabc20fa6b979d101c38e041fa99f013a8f5eaa7"
+    },
+    {
+      "path": "RekEvidenceRecorder\\Plugin.cs",
+      "sha256": "0070900739171d63b4655725f0c5159b12c413c367625eb265d7e90931e8faf0"
+    },
+    {
+      "path": "RekEvidenceRecorder\\RecorderContract.cs",
+      "sha256": "2ab5e89b1662ae61e40db0ea70366c8ef7dfccf3e33858224c719d11d9c757c7"
+    },
+    {
+      "path": "RekEvidenceRecorder\\RekEvidenceRecorder.csproj",
+      "sha256": "24871bb2a022cc308b190b9a1b40f1903946ad7f2f540cbc3ad61e8513b4965c"
+    },
+    {
+      "path": "RekEvidenceRecorder\\Tests\\Program.cs",
+      "sha256": "8f15d41bd15048a0b9498a1c7c7b56c76346b29dab055b4e506db01726f84453"
+    },
+    {
+      "path": "RekEvidenceRecorder\\Tests\\RekEvidenceRecorder.ContractTests.csproj",
+      "sha256": "28d92a455d2bcd106eaea84375882668b8b3650fd565efa513fb220c33fffeae"
+    },
+    {
+      "path": "RekIsolatedDesktopLauncher\\Program.cs",
+      "sha256": "7c23b36b0800f47f9fae01dfe65c78a66aadf9e55194c1dc9f8828703a666623"
+    },
+    {
+      "path": "RekIsolatedDesktopLauncher\\RekIsolatedDesktopLauncher.csproj",
+      "sha256": "dd4e6443dc9b53531cb7e4ac0ed92560613e91ad44a5e4ebdba3654a64644221"
+    },
+    {
+      "path": "RekUiBridgeAgent\\AttackZoneSettleTracker.cs",
+      "sha256": "20103b550c191ce1c528fd9a2fb6a639c74d22169aa271ceb2f3bb95fd86ecc8"
+    },
+    {
+      "path": "RekUiBridgeAgent\\AttackZoneTrialContract.cs",
+      "sha256": "9aba919b79ba6882094e1f5598665b55fb5812a3617d0838b805702dbdfc7705"
+    },
+    {
+      "path": "RekUiBridgeAgent\\BridgeProtocol.cs",
+      "sha256": "05c10293c1ba0cd441308e483fc61932c4790dca4073db16eb98fd356bdd8deb"
+    },
+    {
+      "path": "RekUiBridgeAgent\\ContinuousBotControllerContract.cs",
+      "sha256": "47af6ca4518094dbc073f16f4fe7f1481a7809113852cbc71a614d6f7e87f9b6"
+    },
+    {
+      "path": "RekUiBridgeAgent\\G1HeldInputScheduleContract.cs",
+      "sha256": "c090a7483387a961418bb364acacdb5f9d6b42e87fa55408049ea03fa916dbb3"
+    },
+    {
+      "path": "RekUiBridgeAgent\\G1PolicyStreamContract.cs",
+      "sha256": "0335b0a99cb2a09afffa8c18918181859246b7a204c47bf0c9a89bc9db6eb5df"
+    },
+    {
+      "path": "RekUiBridgeAgent\\G1ReceivedRefereeContract.cs",
+      "sha256": "31c88b18aae20ea45cf6c1ff7b5a923d065925d3fdeaef7f1bc9299bdeb801d6"
+    },
+    {
+      "path": "RekUiBridgeAgent\\G1RuntimePolicyCapture.cs",
+      "sha256": "28c963ae620c73c9a56e2b0a1bdf2f205ecdcd8e9e1afeb1c0595924e388ad0f"
+    },
+    {
+      "path": "RekUiBridgeAgent\\G1RuntimePolicyCaptureContract.cs",
+      "sha256": "b224d3ba86a8178f0b5281339c56fe8c537e21b246564dc55dfc43368bd8fdaf"
+    },
+    {
+      "path": "RekUiBridgeAgent\\LocalPipeServer.cs",
+      "sha256": "11514a3b36552b48ec593c5cebce590f9a1b357b7deb425cb24777b8df5743b4"
+    },
+    {
+      "path": "RekUiBridgeAgent\\PipeWriteFailureDiagnostic.cs",
+      "sha256": "dbdf62f2a1166ea8bdcae2d82dd93a48454142378077ce1240a2bf85635faab4"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Plugin.AttackZone.cs",
+      "sha256": "322a5a562fba81eb801be832ed03b59f5fe67eb74446380b9e04c5fc3c0d2ca0"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Plugin.AuthenticatedContinuation.cs",
+      "sha256": "b2bad97f99e30cd217bcd896be2c3da8420d11f3bfb63840ad7aa86db7708cd1"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Plugin.cs",
+      "sha256": "e421272a42dca22608528e06b3a6babf41567b11e83d7f98476be639953f87f7"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Plugin.G1HeldInputSchedule.cs",
+      "sha256": "89f2142d6be5829d0f55dc9285acf7b87eae98c42dfaf7138b87d2361e47deb2"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Plugin.G1PolicyStream.cs",
+      "sha256": "bd602ea1d032bfe078deb1f5223d6551e12afb0c113d2922102872418357adb5"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Plugin.G1ReceivedReferee.cs",
+      "sha256": "a826c8a1e5db1ade92db02914c855a90b21d6b2e50f8f25397ea5188242f97ee"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Plugin.PolicyExecutionIsolation.cs",
+      "sha256": "a9b16f1521d7612e2685fffdd1c56992cbb7e7c9b393944e7de4eb6eeff03ba0"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Plugin.PrivateAiBootstrap.cs",
+      "sha256": "299b47cbe577fe9ba74b8cb8cab460ddd51dd72346dedd4e189e4beaa6c7daa9"
+    },
+    {
+      "path": "RekUiBridgeAgent\\RekUiBridgeAgent.csproj",
+      "sha256": "7e3bddefcab43c02901c20162c7c9afc8cebff540d83d34edac8851e8d4df472"
+    },
+    {
+      "path": "RekUiBridgeAgent\\RenderedCommandMarkerContract.cs",
+      "sha256": "c15ec324e77199d530ced53fc312844243578a4ef2595f0fc1a889fec5b8ac30"
+    },
+    {
+      "path": "RekUiBridgeAgent\\SingleMotionTrialContract.cs",
+      "sha256": "8644836714fb42bcc6289413b04d3ee14ecd8b1dc6f089e084a1e7e1db25bd8a"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Tests\\AttackZoneProgram.cs",
+      "sha256": "b7076b7c213e789c431942ba1f104b6fb121658111904ca7b7f09f3f578e1899"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Tests\\Program.cs",
+      "sha256": "6672cb4e43588f39eff74f48c4b6bb7a1b1cd7dfec81b9565beea55120e6894d"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Tests\\RekUiBridgeAgent.AttackZoneTests.csproj",
+      "sha256": "a85960dd68fbbe941f5cb7e445ce0f53db3a898fe11d538eeefb99955104ab82"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Tests\\RekUiBridgeAgent.ProtocolTests.csproj",
+      "sha256": "27e306342ee13a0d873e7428b3cb9057661c9d967d53d87c69ed4c71ec42dcbf"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Tests\\G1ReceivedRefereeTests\\G1ReceivedRefereeTests.csproj",
+      "sha256": "2a85785b0882636e9cc2b2b5409c198aa8831f42c8ac6f236374971ca264dbdb"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Tests\\G1ReceivedRefereeTests\\Program.cs",
+      "sha256": "f187a997978536b585fbee7990d0011de545343c7ebd38739ea78976c1783ea4"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Tests\\G1RuntimePolicyCaptureContractTests\\G1RuntimePolicyCapture.ContractTests.csproj",
+      "sha256": "301327aa4265ac97ef969a3f19ab391f9f9cfe59274f209d1e0bf963b6de247a"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Tests\\G1RuntimePolicyCaptureContractTests\\Program.cs",
+      "sha256": "ed1fc12066e6a07e9606a552ec4199cd63a91c3c97da7c7ccea5d250a6dcd483"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Tests\\PipeWriteDiagnosticTests\\PipeWriteDiagnosticTests.csproj",
+      "sha256": "d3e6e4cacfc40e3a71c7353eef2bfe6a997cba07126875d70366e46f7a5c791f"
+    },
+    {
+      "path": "RekUiBridgeAgent\\Tests\\PipeWriteDiagnosticTests\\Program.cs",
+      "sha256": "25e9a6214ca13bb8de50b8da104e08fb26014c9bcfa179ce2af67d711fd87614"
+    },
+    {
+      "path": "RekUiPipeClient\\ControllerRunModeContract.cs",
+      "sha256": "468b08126b8c301fce6cbb12f22ce8eaa6ccf27b1dcfa5e7ff790aeee723f4da"
+    },
+    {
+      "path": "RekUiPipeClient\\G1HeldEventReconciler.cs",
+      "sha256": "ebf337d2b71dd8be168461db1571183c8d46a81f4f12fe45869ee581a3dff935"
+    },
+    {
+      "path": "RekUiPipeClient\\JsonBinary32Contract.cs",
+      "sha256": "449c0113fc00d3fea3b0ed1039044a850ac46aab1d62a2a6d56386509aa38c14"
+    },
+    {
+      "path": "RekUiPipeClient\\LostSessionExitModeContract.cs",
+      "sha256": "9f68aee7ea3e19252be6965cb15ed07a68314acf28b7379fcfe28dc9041c07fd"
+    },
+    {
+      "path": "RekUiPipeClient\\PolicyRelay.cs",
+      "sha256": "c1158299f3ff7545c7e3c2afc1f18bdab5fb81171a819596f93a6fb9f4bfc354"
+    },
+    {
+      "path": "RekUiPipeClient\\Program.cs",
+      "sha256": "4a04d2694173cdfb483931922c786c7f903f45c83556b0b092d2401f76f2c1af"
+    },
+    {
+      "path": "RekUiPipeClient\\RekUiPipeClient.csproj",
+      "sha256": "145584b457040c8b4471679d5e645afb01275c88f4d358de78800fb9d0094863"
+    },
+    {
+      "path": "RekUiPipeClient\\StateReadModeOptions.cs",
+      "sha256": "c2345c56e24125333141251e7b500f68db0f5b8c3b7f60f3c5286c06bda21cb8"
+    },
+    {
+      "path": "RekUiPipeClient\\Tests\\PolicyRelayTests.csproj",
+      "sha256": "a0b085c547a98c9273d2790140d015aeadd909f738327fb3b14993a89cb995fc"
+    },
+    {
+      "path": "RekUiPipeClient\\Tests\\Program.cs",
+      "sha256": "85290e169cb9840f2db6c6977cc43fb68ef8a52be87754ebfaf41d37eae513ef"
+    },
+    {
+      "path": "RekUiPipeClient.StateReadModeTests\\Program.cs",
+      "sha256": "2862976f9730eb9df3ee2c081f638224656b5bb09eb28112fadcb155457759a2"
+    },
+    {
+      "path": "RekUiPipeClient.StateReadModeTests\\RekUiPipeClient.StateReadModeTests.csproj",
+      "sha256": "ae43a7aecdf375dd92ee253a645b397979effd448525e5242f6e8a6a00c9c0ee"
+    }
+  ]
+}
