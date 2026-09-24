@@ -73,6 +73,23 @@ SHA256: e9a1d3dd53d0b1b2bdac6d186af57be350722598cfd0fd7fbd0f4e7e2ff1cc0a
 
 ## Authentic-client validation
 
-The first selected-policy attempt reached a logged-in Free Play screen and requested private practice. `SkipIntro` was accepted 22 ms after acquiring the native control lease. No arena arrived within 45 s. The trial recorded zero observations, predictions and applied actions, then stopped its stream and released control cleanly. The existing client remained running. This is an entry failure, not a policy win, loss or successful transfer test. See subsequent live-result notes for any additional attempts.
+The first selected-policy attempt reached a logged-in Free Play screen and requested private practice. `SkipIntro` was accepted 22 ms after acquiring the native control lease. No arena arrived within 45 s. The trial recorded zero observations, predictions and applied actions, then stopped its stream and released control cleanly. The existing client remained running. This is an entry failure, not a policy win, loss or successful transfer test. Details are in [LIVE_ENTRY_FAILURE.md](LIVE_ENTRY_FAILURE.md).
 
 The later native log explicitly reported: `Solo find ended: No practice arena is free right now. Try again in a few minutes, or drop into an open arena.` No public-arena fallback was used. Source: `/home/spark-advantage/codexrook-runtime/live-transfer-20260915/live-attack-gate-20260921-native-hparam-baseline-20260924-r1/unity.log`, line 14824. This attempt therefore does not provide any real opponent score or match outcome.
+
+A retry using the same running client successfully entered private G1 sparring against Bot 1. Round 1 completed with a **12:19 loss**, 2,991 applied policy actions and 59 armed attack requests. Round 2 began automatically in that client, then ended incompletely at **1:7 with 69.30366 s remaining** when the game exited at 17:11:44 UTC with code 5. Native logs report SIGSEGV and a CoreCLR access violation. The underlying crash cause is unknown. The controller did not kill the client or restart it between these rounds. There was no restart after the crash.
+
+**Completed matches: zero. Consistently beating authentic REK AI remains unachieved.** The incomplete round is excluded from completed-round aggregates. One completed loss and no live baseline block cannot establish a transfer improvement. [LIVE_RESULTS.md](LIVE_RESULTS.md) and [LIVE_RESULTS.json](LIVE_RESULTS.json) contain exact receipts, action counts, point increments, video hashes and crash evidence.
+
+Live evidence and two validated MP4 files are saved on the physical server:
+
+```
+\\192.168.0.19\MyShare\pufferlib\rek-evidence\2026-09-24\native-hparam-live-20260924-r1
+Archive: native-hparam-live-evidence-20260924-r1-snapshot-20260924T171310Z.tar.gz
+Bytes: 59333557
+SHA256: dcb04f290d0919423796ee0afbaadd33cfc82b13fa0d97c9e74184dc350c3c05
+round-1.mp4: 10882438 bytes, completed round
+round-2-incomplete.mp4: 4792699 bytes, partial round before crash
+```
+
+Both videos are below 20,000,000 bytes. The archive retains the entry attempt, retry, runtime exit/crash receipts and recovery evidence. No proprietary game binary or credentials are published to Git.

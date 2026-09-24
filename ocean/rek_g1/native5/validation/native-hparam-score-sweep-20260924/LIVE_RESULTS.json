@@ -1,0 +1,296 @@
+{
+  "schema": "rek.native_hparam_live_results.v1",
+  "date": "2026-09-24",
+  "stage": "/home/spark-advantage/rek-training/native-hparam-live-retry-20260924-r1",
+  "checkpoint_sha256": "fa6f760a5823d904b9f636df6421426e21344c03767ffa8ed0fe776c400b75ad",
+  "observation_schema": "rek.native5.scaled_polar_xy.v1",
+  "feature_mask_sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+  "scope": {
+    "authentic_client": true,
+    "private_G1": true,
+    "sparring_bot": 1,
+    "local_slot": 0,
+    "human_opponent": false,
+    "planned_rounds": 4,
+    "attempted_rounds": 2,
+    "completed_rounds": 1,
+    "no_restart_after_crash": true
+  },
+  "metrics": {
+    "completed_rounds": {
+      "wins": 0,
+      "losses": 1,
+      "draws": 0,
+      "own_points": 12,
+      "opponent_points": 19,
+      "own_points_per_completed_round": 12,
+      "score_margin_per_completed_round": -7
+    },
+    "completed_matches": 0,
+    "match_win_rate": null,
+    "match_outcome": "unobserved_incomplete",
+    "last_observed_rounds_won": [
+      0,
+      1
+    ],
+    "promotion_decision": "insufficient_live_evidence"
+  },
+  "runtime": {
+    "pid": 3162378,
+    "start_time": "95712930",
+    "exit_utc": "2026-09-24T17:11:44Z",
+    "exit_code": 5,
+    "exit_receipt": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/live-attack-gate-20260921-native-hparam-baseline-20260924-r1/game.exited.utc.txt",
+    "crash": {
+      "source": "stderr.txt",
+      "sigsegv_line": 24219,
+      "access_address": "0x5d415c415d5b66",
+      "x64_pc": "0x6fff9639de27",
+      "windows_exception": "c0000005",
+      "coreclr_version": "6.0.722.32202",
+      "dotnet_version": "6.0.7",
+      "reported_fatal_runtime_ip": "00006FFFF51B1FDD",
+      "underlying_cause": "unknown; runtime/access-violation evidence does not establish policy causality",
+      "old_0x80_comparison": "current fault address differs; a shared underlying cause is unproven"
+    }
+  },
+  "trials": [
+    {
+      "label": "hparam-s1901",
+      "policy_seed": 1901,
+      "completed": true,
+      "controlled_start_utc": "2026-09-24T17:08:41.440Z",
+      "initial_time_remaining": 118.51622,
+      "final_source_utc": "2026-09-24T17:10:40.0268525+00:00",
+      "final_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          12,
+          19
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "WonByPoints",
+        "result_value": 1,
+        "winner_index": 1,
+        "knockout": false
+      },
+      "final_fight": {
+        "current_round": 1,
+        "rounds_won": [
+          0,
+          1
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1
+      },
+      "source_states": 2999,
+      "predictions": 2992,
+      "applied": 2991,
+      "rejected": 1,
+      "armed_attack_requests": 59,
+      "action_counts_zero_based_0_to_32": [
+        712,
+        490,
+        4,
+        6,
+        21,
+        4,
+        464,
+        552,
+        20,
+        17,
+        247,
+        76,
+        5,
+        248,
+        10,
+        57,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2,
+        0,
+        36,
+        0,
+        1,
+        17,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0
+      ],
+      "action16_selected": 0,
+      "stop_reason": "stream_end:active_round_not_observed",
+      "observed_match_terminal_receipts": 0,
+      "media": {
+        "bytes": 10882438,
+        "sha256": "7c7c65dbe7f426702e1011135db1941f9d1e634be6525279490bc3d86e4c13de",
+        "coverage": "completed_round",
+        "delivery_status": "validated_mp4",
+        "decode_exit_code": 0,
+        "relative_path": "hparam-s1901/media/authentic-rek-policy-fight.mp4"
+      }
+    },
+    {
+      "label": "hparam-s1902",
+      "policy_seed": 1902,
+      "completed": false,
+      "controlled_start_utc": "2026-09-24T17:10:50.118Z",
+      "initial_time_remaining": 119.56656,
+      "final_source_utc": "2026-09-24T17:11:40.3668776+00:00",
+      "final_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 69.30366,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          1,
+          7
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_fight": {
+        "current_round": 2,
+        "rounds_won": [
+          0,
+          1
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1
+      },
+      "source_states": 1278,
+      "predictions": 1274,
+      "applied": 1274,
+      "rejected": 0,
+      "armed_attack_requests": 24,
+      "action_counts_zero_based_0_to_32": [
+        314,
+        232,
+        1,
+        5,
+        9,
+        5,
+        200,
+        174,
+        5,
+        11,
+        141,
+        56,
+        2,
+        69,
+        6,
+        20,
+        1,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        4,
+        0,
+        0,
+        5,
+        0,
+        0,
+        0,
+        10,
+        0,
+        0
+      ],
+      "action16_selected": 1,
+      "stop_reason": "source_stream_missing",
+      "observed_match_terminal_receipts": 0,
+      "media": {
+        "bytes": 4792699,
+        "sha256": "d94f61b85e0f98b4b7da72565191ec85a582d5888cfab63b8f6ac218141fc7fd",
+        "coverage": "incomplete_round",
+        "delivery_status": "validated_mp4",
+        "decode_exit_code": 0,
+        "relative_path": "hparam-s1902/media/authentic-rek-policy-fight.mp4"
+      }
+    }
+  ],
+  "observed_point_deltas_by_side": [
+    {
+      "label": "hparam-s1901",
+      "own": [
+        1,
+        1,
+        5,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "opponent": [
+        2,
+        5,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        1,
+        1
+      ],
+      "source_sha256": "ff24312f3d71fdc84e63e10fce84a50b6f889d4f3db50f057a4b653c0bd93a1a"
+    },
+    {
+      "label": "hparam-s1902",
+      "own": [
+        1
+      ],
+      "opponent": [
+        1,
+        2,
+        1,
+        1,
+        1,
+        1
+      ],
+      "source_sha256": "497ee678cea75ccfeab180689998fdfaaf000d8ed214c86f0978a26051b6ff94"
+    }
+  ],
+  "point_semantics": "Observed adjacent-state increments, not necessarily distinct physical strikes. Round 1 has one +5 increase on each side. Both rounds retain falls [0,0]. A latched referee call at round-1 end is named Knockout, faller 1, points 5; its schema explicitly says it does not imply terminal round KO or attacker/action causality. No physical-knockdown count inferred.",
+  "action_semantics": "Armed attack requests confirm local command acceptance, not hits. Action 16 selected zero times in round 1 and once in round 2; that one request was accepted_locally_and_armed at 17:11:31.1318655 UTC. No move name asserted without exact active bridge mapping.",
+  "limitations": [
+    "Only one completed round; no comparative live baseline in this block.",
+    "Round 2 truncated by runtime crash, excluded from completed-round aggregate.",
+    "No complete match terminal receipt; match win rate remains null.",
+    "Simulator improvement does not establish live improvement.",
+    "Repeated latched referee calls are not repeated events."
+  ],
+  "sources": [
+    "root-campaign/campaign.log",
+    "hparam-s1901/trial/summary.json",
+    "hparam-s1902/trial/summary.json",
+    "hparam-s1901/trial/relay.stdout.jsonl",
+    "hparam-s1902/trial/relay.stdout.jsonl",
+    "hparam-s1901/media/capture-manifest.json",
+    "hparam-s1902/media/capture-manifest.json"
+  ]
+}
