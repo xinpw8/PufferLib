@@ -9,8 +9,10 @@
   },
   "status": {
     "fixed_diagnostic_executed": true,
-    "actor_training_executed": false,
-    "live_validation_executed": false
+    "actor_training_executed": true,
+    "live_validation_executed": false,
+    "actor_checkpoint_sha256": "35263bb752e049c40e2d65ea80d58b72ba1bd8c98042d0a51ddbf175ce8b9680",
+    "deployed": false
   },
   "files": [
     {
@@ -19,36 +21,6 @@
       "sha256": "0a53217afb44f9c0d715d15785dae68d4d63db91c0a94d887a4817882e9cf513",
       "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\build.sh",
       "source_sha256": "0a53217afb44f9c0d715d15785dae68d4d63db91c0a94d887a4817882e9cf513",
-      "exact_copy": true
-    },
-    {
-      "path": "G1-OPPONENT-SELECTION.md",
-      "bytes": 2657,
-      "sha256": "0951965b82c38d57e9099033d5cd6653c00f881b80ff645e8c820b53d5ecb7ef",
-      "exact_copy": false,
-      "status": "new_publication_document"
-    },
-    {
-      "path": "PROTOCOL.md",
-      "bytes": 5391,
-      "sha256": "32ee5bb1dd2cdb427cfeff7ae01f663a350858b3d35d80655d86987f64293dd9",
-      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\PROTOCOL.md",
-      "source_sha256": "32ee5bb1dd2cdb427cfeff7ae01f663a350858b3d35d80655d86987f64293dd9",
-      "exact_copy": true
-    },
-    {
-      "path": "README.md",
-      "bytes": 8010,
-      "sha256": "9dd8ca32ccfeaa43f2287c7f6ffb1d6d4087f3365066e535cb5781f9072d8c93",
-      "exact_copy": false,
-      "status": "new_publication_document"
-    },
-    {
-      "path": "state_baseline.cu",
-      "bytes": 20817,
-      "sha256": "38e4dcfefbac06929e4cd0af5fade84b7e2be61b58aa8c9e5288f3b23ded9ae5",
-      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\state_baseline.cu",
-      "source_sha256": "38e4dcfefbac06929e4cd0af5fade84b7e2be61b58aa8c9e5288f3b23ded9ae5",
       "exact_copy": true
     },
     {
@@ -74,6 +46,13 @@
       "source": "C:\\rekagent\\work\\timing500-ppo-refresh-20260924-r1\\snapshot_controls.cjs",
       "source_sha256": "06829f2cae95cc7ae3e25bdf3c2abaa9c1094abec07edaf2bd20286cc2d05dfa",
       "exact_copy": true
+    },
+    {
+      "path": "G1-OPPONENT-SELECTION.md",
+      "bytes": 2657,
+      "sha256": "0951965b82c38d57e9099033d5cd6653c00f881b80ff645e8c820b53d5ecb7ef",
+      "exact_copy": false,
+      "status": "new_publication_document"
     },
     {
       "path": "ppo-variant/authentic_ppo.cu",
@@ -173,6 +152,21 @@
       "exact_copy": true
     },
     {
+      "path": "PROTOCOL.md",
+      "bytes": 5391,
+      "sha256": "32ee5bb1dd2cdb427cfeff7ae01f663a350858b3d35d80655d86987f64293dd9",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\PROTOCOL.md",
+      "source_sha256": "32ee5bb1dd2cdb427cfeff7ae01f663a350858b3d35d80655d86987f64293dd9",
+      "exact_copy": true
+    },
+    {
+      "path": "README.md",
+      "bytes": 8481,
+      "sha256": "8c92e530bcdf2f53497fed16948b3ca8a92a714ea3105074d98c88728bc19e35",
+      "exact_copy": false,
+      "status": "new_publication_document"
+    },
+    {
       "path": "receipts/diagnostic-preparation-BUILD-RECEIPT.json",
       "bytes": 1249,
       "sha256": "65417978105f6c346202e8208b9140563cbf903a1f8aac1aa4e92cc4c636f1ee",
@@ -187,6 +181,12 @@
       "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\README.md",
       "source_sha256": "a1465b85dd2ea74087d35355f92c740c7035fad39f78a68ad28664e19bae4fb2",
       "exact_copy": true
+    },
+    {
+      "path": "receipts/PUBLICATION-CHECKS.json",
+      "bytes": 1743,
+      "sha256": "238122ada8c1815fa8420b084afdf43e40b2199752fbb4e65acecd973752a13e",
+      "status": "new_publication_receipt"
     },
     {
       "path": "receipts/report.json",
@@ -205,6 +205,36 @@
       "exact_copy": true
     },
     {
+      "path": "receipts/training-execution.json",
+      "bytes": 10863,
+      "sha256": "83bc07e2aacf745877c9748cb3bb584f1a2a1c9177c3ebfdc4c8d56e7a623d85",
+      "exact_copy": false,
+      "status": "new_execution_publication_document"
+    },
+    {
+      "path": "receipts/training-stdout.jsonl",
+      "bytes": 5576,
+      "sha256": "e5770a0548cee1f3de760fe1419b35c5f938fa663dbefc920c55e2ad6a4d5ddf",
+      "source": "/home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1/ppo-variant/train-fixed-r1/stdout.jsonl",
+      "source_sha256": "e5770a0548cee1f3de760fe1419b35c5f938fa663dbefc920c55e2ad6a4d5ddf",
+      "exact_copy": true
+    },
+    {
+      "path": "state_baseline.cu",
+      "bytes": 20817,
+      "sha256": "38e4dcfefbac06929e4cd0af5fade84b7e2be61b58aa8c9e5288f3b23ded9ae5",
+      "source": "C:\\rekagent\\work\\timing500-state-baseline-20260924-r1\\state_baseline.cu",
+      "source_sha256": "38e4dcfefbac06929e4cd0af5fade84b7e2be61b58aa8c9e5288f3b23ded9ae5",
+      "exact_copy": true
+    },
+    {
+      "path": "TRAINING-RESULTS.md",
+      "bytes": 3617,
+      "sha256": "8e4bedeb590850e325c216f3dbba8cb9be9fc93fb3fa4e9fa8f1e4e0532419f0",
+      "exact_copy": false,
+      "status": "new_execution_publication_document"
+    },
+    {
       "path": "vendor/authentic_trajectory.h",
       "bytes": 11641,
       "sha256": "785b03ddc49a881045d64bea26faa9fd00c115bd465ecc9dcc4a4684b0cf331e",
@@ -219,12 +249,6 @@
       "source": "/home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1/vendor/round_reward.h",
       "source_sha256": "b49311dae9506b3c64fb50fc791e31fba143f8445af40494864358d1a52dfab1",
       "exact_copy": true
-    },
-    {
-      "path": "receipts/PUBLICATION-CHECKS.json",
-      "bytes": 1743,
-      "sha256": "238122ada8c1815fa8420b084afdf43e40b2199752fbb4e65acecd973752a13e",
-      "status": "new_publication_receipt"
     }
   ],
   "exclusions": [
@@ -234,5 +258,15 @@
     "replay logits",
     "compiled binaries"
   ],
-  "manifest_self_excluded": true
+  "manifest_self_excluded": true,
+  "updated_at_utc": "2026-09-24 12:48:14 UTC",
+  "execution_update": {
+    "source_files_changed": false,
+    "prepared_run_plan_preserved": true,
+    "new_receipts": [
+      "receipts/training-stdout.jsonl",
+      "receipts/training-execution.json"
+    ],
+    "new_result": "TRAINING-RESULTS.md"
+  }
 }

@@ -2,7 +2,7 @@
 
 The fixed CUDA diagnostic reduced pooled held-out return MSE by **44.5%** against the zero predictor on five development episodes. Four episodes improved and one worsened substantially. This measures return prediction; it does not establish reduced policy-gradient variance or better live fighting.
 
-The diagnostic fit executed on 2026-09-24 at 11:37:43 UTC into `fit-fixed-r1`. The consuming PPO variant is compiled and CPU-tested. Its optimizer run remains unexecuted at this publication cutoff. No live result for a baseline-trained checkpoint is included.
+The diagnostic fit executed on 2026-09-24 at 11:37:43 UTC into `fit-fixed-r1`. The consuming PPO update subsequently completed one epoch and 120 updates at 12:44:42–12:44:45 UTC, saving checkpoint `35263bb752e049c40e2d65ea80d58b72ba1bd8c98042d0a51ddbf175ce8b9680`. It is not deployed or live-validated; runtime control remains frozen f147. [TRAINING-RESULTS.md](TRAINING-RESULTS.md) records the executed checks and metrics.
 
 ## Fixed experiment and all five results
 
@@ -35,7 +35,7 @@ CUDA computes the original complete-MC recurrence, then pointwise subtraction wr
 
 The loader rejects wrong artifact/protocol/dataset SHA, shape, row index, episode, source sequence, actor eligibility, nonfinite values, changed MC returns or inconsistent residuals. Default zero-baseline mode bypasses the new loader/subtraction. Static tests prove the original MC kernel and the replay/mask/parity/loss/optimizer regions are byte-identical. Existing BF16 distributional acceptance remains an explicit approximation, not exact batched parity.
 
-The prepared run starts from actual C2, not from f147, on the same dataset and true replay as the f147 zero-baseline control. The sole learning change is the baseline: one epoch, LR 3e-5, H128, clip 0.2, VF clip 0.2, VF 0, entropy 0.001. Final epoch 1 is selected prospectively. `ppo-variant/run-plan.json` and `run_once.sh` pin the inputs and refuse an existing fixed output. CUDA self-tests automatically precede any baseline training; they remain pending at this cutoff.
+The executed run starts from actual C2, not from f147, on the same dataset and true replay as the f147 zero-baseline control. The sole learning change is the baseline: one epoch, LR 3e-5, H128, clip 0.2, VF clip 0.2, VF 0, entropy 0.001. Final epoch 1 was selected prospectively. `ppo-variant/run-plan.json` and `run_once.sh` pin the inputs and refuse an existing fixed output. The automatic CUDA self-tests passed; real return/subtraction reference error was 0 and returns remained unchanged. Post-update mean legal KL was 0.0042795853 and clipped fraction 0.0430567627, measured on the recorded training states.
 
 Five correlated episodes, one adverse fold, finite-sample cross-fitting and PPO clipping limit the interpretation. Lower prediction MSE alone does not guarantee an unbiased baseline, lower gradient variance or better gameplay. Rewards and the deployed observation/action contract remain unchanged to isolate this experiment.
 
@@ -67,8 +67,8 @@ The diagnostic command below was executed with the fixed output. Existing output
   /home/spark-advantage/rek-training/timing500-state-baseline-20260924-r1/fit-fixed-r1
 ```
 
-Only after separate GPU authorization, the prepared actor update command is `bash ppo-variant/run_once.sh` from the private stage. It has not been executed at this cutoff. No archive is made before that run finishes.
+The actor update command `bash ppo-variant/run_once.sh` was executed from the private stage under separate GPU authorization and exited 0. Its fixed output now exists and must be preserved; this is an execution record, not a rerun instruction. No new archive was produced by this publication update.
 
-Original build receipts and preparation README remain verbatim and describe their earlier pre-fit/pre-training cutoffs. `SOURCE-MANIFEST.json` records copies and the sole publication adjustment: the live-preparer test uses local frozen fixtures rather than a machine-specific private path. Those three fixture files are exact copies. The live preparer preserves the original runtime and all 17 attacks, with prospective seeds 1601..1620; it does not launch a controller.
+Original build receipts, run-plan status and preparation README remain verbatim and describe their earlier pre-fit/pre-training cutoffs. `SOURCE-MANIFEST.json` records copies and the sole source adjustment: the live-preparer test uses local frozen fixtures rather than a machine-specific private path. Those three fixture files are exact copies. The later training result and scalar receipts are separate additions. The live preparer preserves the original runtime and all 17 attacks, with prospective seeds 1601..1620; it does not launch a controller.
 
 No baseline weights, policy weights, binaries, raw datasets, replay logits or raw captures are published. The separate [G1 opponent-selection note](G1-OPPONENT-SELECTION.md) records a read-only source finding and does not change this experiment.
