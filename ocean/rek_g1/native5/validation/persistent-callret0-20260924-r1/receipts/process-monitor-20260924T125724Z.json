@@ -1,0 +1,110 @@
+{
+  "schema": "rek.private_persistent_fault_monitor.v1",
+  "utc": "2026-09-24T12:57:24.701Z",
+  "uptime_s": 942596.98,
+  "hz": 100,
+  "page_bytes": 4096,
+  "container_pid": 56250,
+  "initial_start_ticks": "94209601",
+  "process": null,
+  "matches": 0,
+  "same_process": false,
+  "elapsed_since_process_start_s": null,
+  "stderr_bytes": 2286320,
+  "counts": {
+    "signal": 1,
+    "nativebt": 7,
+    "emulatedbt": 1,
+    "av": 1,
+    "null_dispatch": 1,
+    "coreclr_fatal": 1,
+    "failfast": 1
+  },
+  "exit": "5",
+  "rounds": [
+    {
+      "label": "callret-s1801",
+      "source_rows": 1071,
+      "first": {
+        "utc": "2026-09-24T12:53:16.8152523+00:00",
+        "frame": 13426,
+        "unity_time": 230.30053881094102,
+        "qpc": 9423491689697,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 118.46533,
+        "score": [
+          0,
+          0
+        ]
+      },
+      "last": {
+        "utc": "2026-09-24T12:55:15.3453253+00:00",
+        "frame": 14496,
+        "unity_time": 348.726,
+        "qpc": 9424677111360,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 0,
+        "score": [
+          11,
+          11
+        ]
+      },
+      "source_hz": 9.02632399421572,
+      "unity_frames_per_wall_second": 9.02632399421572,
+      "unity_seconds_per_wall_second": 0.999015497062491,
+      "interval_p95_ms": 128.656
+    },
+    {
+      "label": "callret-s1802",
+      "source_rows": 0,
+      "source_hz": null,
+      "unity_frames_per_wall_second": null,
+      "unity_seconds_per_wall_second": null,
+      "interval_p95_ms": null
+    },
+    {
+      "label": "callret-s1802-retry2",
+      "source_rows": 318,
+      "first": {
+        "utc": "2026-09-24T12:56:05.2147793+00:00",
+        "frame": 16839,
+        "unity_time": 398.78524020691606,
+        "qpc": 9425175805738,
+        "qpc_hz": 10000000,
+        "round": 3,
+        "remaining": 119.6331,
+        "score": [
+          0,
+          0
+        ]
+      },
+      "last": {
+        "utc": "2026-09-24T12:56:39.1018599+00:00",
+        "frame": 17156,
+        "unity_time": 432.6270725127551,
+        "qpc": 9425514676848,
+        "qpc_hz": 10000000,
+        "round": 3,
+        "remaining": 85.6994,
+        "score": [
+          5,
+          3
+        ]
+      },
+      "source_hz": 9.354589123870726,
+      "unity_frames_per_wall_second": 9.354589123870726,
+      "unity_seconds_per_wall_second": 0.9986638372872517,
+      "interval_p95_ms": 123.9687
+    },
+    {
+      "label": "callret-s1803",
+      "source_rows": 0
+    },
+    {
+      "label": "callret-s1804",
+      "source_rows": 0
+    }
+  ]
+}

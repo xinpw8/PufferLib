@@ -1,0 +1,861 @@
+{
+  "schema": "rek.callret0_closed_runtime_receipt.v1",
+  "source_stage": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1",
+  "planned_round_count": 4,
+  "plan_source": {
+    "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/planned-rounds.json",
+    "bytes": 4509,
+    "sha256": "680ad0afc158b75558536d0166b70154218f4c050ed1206d5da6e9977afb8702"
+  },
+  "original_ledger_source": {
+    "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/root-campaign/ledger.json",
+    "bytes": 8072,
+    "sha256": "1108d8f5336f411e31c5c8c71a00f5e3c2b11bbd7154ad2ffe8689367226e1b0"
+  },
+  "original_ledger_completed": 1,
+  "original_ledger_rewritten": false,
+  "attempts": [
+    {
+      "label": "callret-s1801",
+      "summary_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1801/trial/summary.json",
+        "bytes": 2656,
+        "sha256": "47eb3b2280301b02d0fa74b0aa99216fb4685a6e56739c04d4fce7ca97df03ed"
+      },
+      "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+      "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+      "feature_mask_sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+      "initial_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 118.46533,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          11,
+          11
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "Tie",
+        "result_value": 3,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "stop_reason": "stream_end:active_round_not_observed",
+      "predictions": 1069,
+      "applied": 1068,
+      "rejected": 1,
+      "first_encoder_source": {
+        "round": {
+          "number": 1,
+          "duration": 120,
+          "time_remaining": 118.46533,
+          "active": true,
+          "redo": false,
+          "clean_hits": [
+            0,
+            0
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "InProgress",
+          "result_value": 0,
+          "winner_index": -1,
+          "knockout": false
+        },
+        "round_identity_sha256": "09d24fc684a203f74131cbcece707735598dfb22c41c8225609fbe46e29a9b7a",
+        "clock": {
+          "utc": "2026-09-24T12:53:16.8152523+00:00",
+          "unity_frame": 13426,
+          "unity_time": 230.30053881094102,
+          "unity_fixed_time": 230.29999999999998,
+          "qpc_ticks": 9423491689697,
+          "qpc_frequency_hz": 10000000
+        }
+      },
+      "encoder_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1801/trial/encoder.stdin.jsonl",
+        "bytes": 12197466,
+        "sha256": "210d539404d3d1a9f851292784a6c0471dbfc11ef8771afe465f1fc1549a4964"
+      },
+      "native_relay_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1801/trial/relay.stdout.jsonl",
+        "bytes": 14710250,
+        "sha256": "91d60a27ac687ea0a197e57adfcd7038c866f7138659d307b3f29096dda44d42"
+      },
+      "native_terminal": {
+        "round": {
+          "number": 1,
+          "duration": 120,
+          "time_remaining": 0,
+          "active": false,
+          "redo": false,
+          "clean_hits": [
+            11,
+            11
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "Tie",
+          "result_value": 3,
+          "winner_index": -1,
+          "knockout": false
+        },
+        "round_identity_sha256": "09d24fc684a203f74131cbcece707735598dfb22c41c8225609fbe46e29a9b7a",
+        "clock": {
+          "utc": "2026-09-24T12:55:15.3453253+00:00",
+          "unity_frame": 14496,
+          "unity_time": 348.726,
+          "unity_fixed_time": 348.726,
+          "qpc_ticks": 9424677111360,
+          "qpc_frequency_hz": 10000000
+        }
+      },
+      "observed_redo": null,
+      "endpoints_closed": {
+        "utc": "2026-09-24T12:55:16.344Z",
+        "event": "policy_endpoints_closed",
+        "schema": "rek.policy_transport_closed.v1",
+        "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+        "trial_output": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1801/trial",
+        "summary_sha256": "47eb3b2280301b02d0fa74b0aa99216fb4685a6e56739c04d4fce7ca97df03ed",
+        "stream_stopped": true,
+        "lease_released": true,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "orchestrator_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1801/trial/orchestrator.jsonl",
+        "bytes": 7323,
+        "sha256": "b2e1b30050f4b76b41fbd2003e19f0c183b90856e5297724b2eb4db15de89068"
+      },
+      "media": {
+        "source": {
+          "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1801/media/capture-manifest.json",
+          "bytes": 1635,
+          "sha256": "7fd753920f5c5cd06be8188517aa87754b59f59b4f118733342781cc2c5d07ba"
+        },
+        "driver_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "delivery_status": "validated_mp4",
+        "video_bytes": 10891469,
+        "video_sha256": "3661bf2326f338837b807df92ec969bab13d090f54df208003cd693491935602",
+        "decode_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        }
+      }
+    },
+    {
+      "label": "callret-s1802",
+      "summary_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802/trial/summary.json",
+        "bytes": 1559,
+        "sha256": "9fcc4f03528bf97522aa367d507ee937dc554db737d763ecdcff356a4cdbe8cc"
+      },
+      "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+      "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+      "feature_mask_sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+      "initial_round": null,
+      "final_round": null,
+      "stop_reason": "startup_requires_untouched_fair_120s_round",
+      "predictions": 0,
+      "applied": 0,
+      "rejected": 0,
+      "first_encoder_source": null,
+      "encoder_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802/trial/encoder.stdin.jsonl",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native_relay_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802/trial/relay.stdout.jsonl",
+        "bytes": 1056849,
+        "sha256": "a8ad26c2bd92b60776f4fe8697350ee24c5dc773a2ebe6b07013eb85cfa04b97"
+      },
+      "native_terminal": null,
+      "observed_redo": {
+        "round": {
+          "number": 2,
+          "duration": 30,
+          "time_remaining": 29.749779,
+          "active": true,
+          "redo": true,
+          "clean_hits": [
+            0,
+            0
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "InProgress",
+          "result_value": 0,
+          "winner_index": -1,
+          "knockout": false
+        },
+        "round_identity_sha256": "d2d8e6d0801c6cd6ba254ede8c83c0f758bf557a76d66a62abf31569a34863fd",
+        "clock": {
+          "utc": "2026-09-24T12:55:25.2914894+00:00",
+          "unity_frame": 15046,
+          "unity_time": 358.7725173115079,
+          "unity_fixed_time": 358.772,
+          "qpc_ticks": 9424776573273,
+          "qpc_frequency_hz": 10000000
+        }
+      },
+      "endpoints_closed": {
+        "utc": "2026-09-24T12:55:26.260Z",
+        "event": "policy_endpoints_closed",
+        "schema": "rek.policy_transport_closed.v1",
+        "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+        "trial_output": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802/trial",
+        "summary_sha256": "9fcc4f03528bf97522aa367d507ee937dc554db737d763ecdcff356a4cdbe8cc",
+        "stream_stopped": true,
+        "lease_released": true,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "orchestrator_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802/trial/orchestrator.jsonl",
+        "bytes": 3117,
+        "sha256": "904218d0051d5293035544b50a42d0c83952024f15d05a281169bc925df35218"
+      },
+      "media": {
+        "source": {
+          "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802/media/capture-manifest.json",
+          "bytes": 1633,
+          "sha256": "6328e43d02cc86ff5fad9d3e366a856256ca9a8d5306e71f66d2bce83d4105af"
+        },
+        "driver_result": {
+          "code": 2,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "delivery_status": "validated_mp4",
+        "video_bytes": 479458,
+        "video_sha256": "9aacabf4cdc03ea4abaf911b3c7732aa0012a14470fe92d41fb991d6d454334c",
+        "decode_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        }
+      }
+    },
+    {
+      "label": "callret-s1802-retry2",
+      "summary_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry2/trial/summary.json",
+        "bytes": 2571,
+        "sha256": "f5d0bd04e3daa222322ae5d786534e23e81afc42eb2f192bca1eecf46a9ac315"
+      },
+      "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+      "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+      "feature_mask_sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+      "initial_round": {
+        "number": 3,
+        "duration": 120,
+        "time_remaining": 119.6331,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 3,
+        "duration": 120,
+        "time_remaining": 85.6994,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          5,
+          3
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "stop_reason": "source_stream_missing",
+      "predictions": 317,
+      "applied": 317,
+      "rejected": 0,
+      "first_encoder_source": {
+        "round": {
+          "number": 3,
+          "duration": 120,
+          "time_remaining": 119.6331,
+          "active": true,
+          "redo": false,
+          "clean_hits": [
+            0,
+            0
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "InProgress",
+          "result_value": 0,
+          "winner_index": -1,
+          "knockout": false
+        },
+        "round_identity_sha256": "02f2321fcc5f0cb18715be10477c1d526f7df2c12d6b25f58da86e2b8bc3b9aa",
+        "clock": {
+          "utc": "2026-09-24T12:56:05.2147793+00:00",
+          "unity_frame": 16839,
+          "unity_time": 398.78524020691606,
+          "unity_fixed_time": 398.784,
+          "qpc_ticks": 9425175805738,
+          "qpc_frequency_hz": 10000000
+        }
+      },
+      "encoder_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry2/trial/encoder.stdin.jsonl",
+        "bytes": 3639360,
+        "sha256": "c20afdbb3c1a5de4e0e60e13533ce4bae1b964e2823a86adb911c2d22d78c5d0"
+      },
+      "native_relay_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry2/trial/relay.stdout.jsonl",
+        "bytes": 5023543,
+        "sha256": "30e02baf4b62c2bf3d6023415a2699b6249befc788f15aba23673755841a7f41"
+      },
+      "native_terminal": null,
+      "observed_redo": null,
+      "endpoints_closed": {
+        "utc": "2026-09-24T12:56:43.455Z",
+        "event": "policy_endpoints_closed",
+        "schema": "rek.policy_transport_closed.v1",
+        "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+        "trial_output": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry2/trial",
+        "summary_sha256": "f5d0bd04e3daa222322ae5d786534e23e81afc42eb2f192bca1eecf46a9ac315",
+        "stream_stopped": false,
+        "lease_released": false,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "orchestrator_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry2/trial/orchestrator.jsonl",
+        "bytes": 5287,
+        "sha256": "e0699a559c11eabebb32297dad5bc03257f3febc4eb4216faee73c4e438a81b2"
+      },
+      "media": {
+        "source": {
+          "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry2/media/capture-manifest.json",
+          "bytes": 1655,
+          "sha256": "8ee7ba020c21d78dfb3943f79761144ae406a334f721e68f3dea4557fc11a68a"
+        },
+        "driver_result": {
+          "code": 2,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "delivery_status": "validated_mp4",
+        "video_bytes": 3406851,
+        "video_sha256": "9f151908ca286fd80426b0c5c2741377b1275c67233c294c5b5ecbabac68f582",
+        "decode_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        }
+      }
+    },
+    {
+      "label": "callret-s1802-retry3",
+      "summary_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry3/trial/summary.json",
+        "bytes": 2178,
+        "sha256": "c22b009f45c4db47f6ee02987bddce46e240716d7edc7cc280a89c6f6df30745"
+      },
+      "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+      "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+      "feature_mask_sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+      "initial_round": null,
+      "final_round": null,
+      "stop_reason": "unsupported_pairing:local_g1_opponent_t800",
+      "predictions": 0,
+      "applied": 0,
+      "rejected": 0,
+      "first_encoder_source": null,
+      "encoder_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry3/trial/encoder.stdin.jsonl",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native_relay_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry3/trial/relay.stdout.jsonl",
+        "bytes": 1498045,
+        "sha256": "35203cffa551186e3f7fc749df86eb26243a9ff640cb2cc408ae9e2b61699b73"
+      },
+      "native_terminal": null,
+      "observed_redo": null,
+      "endpoints_closed": {
+        "utc": "2026-09-24T12:57:41.742Z",
+        "event": "policy_endpoints_closed",
+        "schema": "rek.policy_transport_closed.v1",
+        "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+        "trial_output": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry3/trial",
+        "summary_sha256": "c22b009f45c4db47f6ee02987bddce46e240716d7edc7cc280a89c6f6df30745",
+        "stream_stopped": true,
+        "lease_released": true,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "orchestrator_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry3/trial/orchestrator.jsonl",
+        "bytes": 4800,
+        "sha256": "e1c47d177152bc15d3e8bbc51722c281902d7e643bb680bd2794e31c25dbbe56"
+      },
+      "media": {
+        "source": {
+          "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry3/media/capture-manifest.json",
+          "bytes": 1102,
+          "sha256": "4a735443daa53428109a97d5072bb695236939d792a8abd0f6502fb250ace39c"
+        },
+        "driver_result": {
+          "code": 2,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "delivery_status": "invalid_or_missing_video",
+        "video_bytes": 0,
+        "video_sha256": null,
+        "decode_result": null
+      }
+    },
+    {
+      "label": "callret-s1802-retry4",
+      "summary_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry4/trial/summary.json",
+        "bytes": 2655,
+        "sha256": "63e7cbd13b0472d27a9a91910d518fed8dc678936493194995118725427f202f"
+      },
+      "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+      "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+      "feature_mask_sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+      "initial_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 118.46494,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          12,
+          10
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "WonByPoints",
+        "result_value": 1,
+        "winner_index": 0,
+        "knockout": false
+      },
+      "stop_reason": "stream_end:active_round_not_observed",
+      "predictions": 1003,
+      "applied": 1002,
+      "rejected": 1,
+      "first_encoder_source": {
+        "round": {
+          "number": 1,
+          "duration": 120,
+          "time_remaining": 118.46494,
+          "active": true,
+          "redo": false,
+          "clean_hits": [
+            0,
+            0
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "InProgress",
+          "result_value": 0,
+          "winner_index": -1,
+          "knockout": false
+        },
+        "round_identity_sha256": "36be2335fc84519d9f1649c81661552818c76b6946fcb09b66b584578dcf737a",
+        "clock": {
+          "utc": "2026-09-24T12:58:03.5982875+00:00",
+          "unity_frame": 1937,
+          "unity_time": 36.647823937074826,
+          "unity_fixed_time": 36.646,
+          "qpc_ticks": 9426359540812,
+          "qpc_frequency_hz": 10000000
+        }
+      },
+      "encoder_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry4/trial/encoder.stdin.jsonl",
+        "bytes": 11471597,
+        "sha256": "95c83b38406b5d21e94b60c10e352339f8bfe87d967912fd873678314ecea904"
+      },
+      "native_relay_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry4/trial/relay.stdout.jsonl",
+        "bytes": 14006002,
+        "sha256": "70630aa42df027fa8eb5793e91346a9c2a4f095ac40bfd73ab85b7f806e8e5c1"
+      },
+      "native_terminal": {
+        "round": {
+          "number": 1,
+          "duration": 120,
+          "time_remaining": 0,
+          "active": false,
+          "redo": false,
+          "clean_hits": [
+            12,
+            10
+          ],
+          "falls": [
+            0,
+            0
+          ],
+          "result": "WonByPoints",
+          "result_value": 1,
+          "winner_index": 0,
+          "knockout": false
+        },
+        "round_identity_sha256": "36be2335fc84519d9f1649c81661552818c76b6946fcb09b66b584578dcf737a",
+        "clock": {
+          "utc": "2026-09-24T13:00:02.2132975+00:00",
+          "unity_frame": 2941,
+          "unity_time": 155.134,
+          "unity_fixed_time": 155.134,
+          "qpc_ticks": 9427545791052,
+          "qpc_frequency_hz": 10000000
+        }
+      },
+      "observed_redo": null,
+      "endpoints_closed": {
+        "utc": "2026-09-24T13:00:03.187Z",
+        "event": "policy_endpoints_closed",
+        "schema": "rek.policy_transport_closed.v1",
+        "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+        "trial_output": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry4/trial",
+        "summary_sha256": "63e7cbd13b0472d27a9a91910d518fed8dc678936493194995118725427f202f",
+        "stream_stopped": true,
+        "lease_released": true,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "orchestrator_source": {
+        "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry4/trial/orchestrator.jsonl",
+        "bytes": 8504,
+        "sha256": "df670ac6eac706bede5b4ceef432a24396c1837c28783537e95d426841912c6a"
+      },
+      "media": {
+        "source": {
+          "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry4/media/capture-manifest.json",
+          "bytes": 1656,
+          "sha256": "aa510e2de4e8d14bd250b07afca3626859b78ae16fbbc97ef4e9a5364bb33fa6"
+        },
+        "driver_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "delivery_status": "validated_mp4",
+        "video_bytes": 10907364,
+        "video_sha256": "eb8b5a2e01403c0da21f27136b137c4a9f6035d0e3cfc051370cd9a3bab44895",
+        "decode_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        }
+      }
+    }
+  ],
+  "events": [
+    {
+      "utc": "2026-09-24T12:52:58.779Z",
+      "event": "campaign_start",
+      "pid": 3110969,
+      "plan_rounds": 4,
+      "max_attempts": 6,
+      "runtime_only": true
+    },
+    {
+      "utc": "2026-09-24T12:56:56.694Z",
+      "event": "game_died_during_attempt",
+      "label": "callret-s1802",
+      "attempt": 2
+    },
+    {
+      "utc": "2026-09-24T12:57:03.425Z",
+      "event": "relaunch_start",
+      "suffix": "r100",
+      "planned_restart": false,
+      "cumulative_unplanned_relaunches": 1
+    },
+    {
+      "utc": "2026-09-24T12:57:05.413Z",
+      "event": "relaunch_submitted",
+      "suffix": "r100",
+      "exit": 0
+    },
+    {
+      "utc": "2026-09-24T12:57:25.529Z",
+      "event": "relaunch_ready",
+      "lobby_screen": "Intro"
+    }
+  ],
+  "pause": {
+    "timestamp_interpretation": "Receipt UTC records verification of an already paused controller. Initial SIGSTOP occurred during an earlier invocation that failed before saving its receipt; the exact initial signal timestamp is not established.",
+    "source": {
+      "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/controller-paused.json",
+      "bytes": 330,
+      "sha256": "de7aac5bb58752b326d8dbcab828f2a80d9341d93adc4f8a6bc6d1432dc67fcf"
+    },
+    "receipt": {
+      "utc": "2026-09-24T12:59:35.248Z",
+      "reason": "CALLRET0 failed; pause coordinator only, allow owned active round and capture to finish",
+      "pid": 3110969,
+      "start_ticks": "94233108",
+      "wrapper_pid": 3116901,
+      "wrapper_start_ticks": "94262154",
+      "signal": "SIGSTOP",
+      "already_stopped": true,
+      "game_signalled": false
+    }
+  },
+  "retirement": {
+    "source": {
+      "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/retired-controller.json",
+      "bytes": 4077,
+      "sha256": "76a563bcd2cc923c9d4cb4d08219f2405dcabb964c345fadcaf0fff740a183ef"
+    },
+    "utc": "2026-09-24T13:01:01.937Z",
+    "reason": "Runtime hypothesis failed; stop coordinator after already-owned full round and media finished",
+    "controller_pid": 3110969,
+    "controller_start_ticks": "94233108",
+    "controller_signal": "SIGKILL",
+    "game_signalled": false,
+    "wrapper_pid": 3116901,
+    "wrapper_state": "Z",
+    "wrapper_exit_code": 0,
+    "attempt": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/live/callret-s1802-retry4",
+    "summary_sha256": "63e7cbd13b0472d27a9a91910d518fed8dc678936493194995118725427f202f",
+    "manifest_sha256": "aa510e2de4e8d14bd250b07afca3626859b78ae16fbbc97ef4e9a5364bb33fa6",
+    "video_sha256": "eb8b5a2e01403c0da21f27136b137c4a9f6035d0e3cfc051370cd9a3bab44895",
+    "video_bytes": 10907364,
+    "ledger_rewritten": false,
+    "stale_lock_preserved": true,
+    "caveat": "Parent was paused before wrapper close; unread wrapper stdout may remain outside its parent-owned transcript. Final native/driver/media receipts and kernel wrapper exit establish closure."
+  },
+  "replacement_launch_source": {
+    "path": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/live-attack-gate-20260921-r100/launch.sh",
+    "bytes": 5151,
+    "sha256": "452876dff3e6f29284bce16c0ea7c53eedd558dfb743b6fda8c47e7623bfc400"
+  },
+  "replacement_process_environment_independently_observed": false,
+  "totals": {
+    "complete": 2,
+    "wins": 1,
+    "ties": 1,
+    "losses": 0,
+    "points": [
+      23,
+      21
+    ],
+    "incomplete": 3
+  },
+  "reason_stopped": "Runtime hypothesis failed after a real crash; already-owned complete round and media allowed to finish.",
+  "policy_acceptance_claim": false,
+  "native_score_packet_audit": false
+}

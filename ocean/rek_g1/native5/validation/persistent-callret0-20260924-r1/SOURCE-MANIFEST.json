@@ -1,0 +1,111 @@
+{
+  "schema": "rek.sanitized_runtime_publication.v1",
+  "created_utc": "2026-09-24 13:07:45 UTC",
+  "scope": "Closed CALLRET0 runtime diagnostic, stopped on failed hypothesis after two complete rounds",
+  "private_stage": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1",
+  "baseline": {
+    "published_path": "../persistent-private-session-20260924-r1/launcher/relaunch.sh",
+    "sha256": "41d685616f90c1f78e70a744ee7e7059537ce33d2085cc4da87b96f8163483d7"
+  },
+  "variant_sha256": "452876dff3e6f29284bce16c0ea7c53eedd558dfb743b6fda8c47e7623bfc400",
+  "original_plan_count": 4,
+  "original_ledger_preserved": true,
+  "source_modifications": false,
+  "raw_private_data_published": false,
+  "manifest_self_excluded": true,
+  "exact_copies": [
+    {
+      "path": "source/relaunch.sh",
+      "source": "C:\\rekagent\\work\\persistent-callret0-20260924-r1\\relaunch.sh",
+      "sha256": "452876dff3e6f29284bce16c0ea7c53eedd558dfb743b6fda8c47e7623bfc400"
+    },
+    {
+      "path": "source/launcher.diff",
+      "source": "C:\\rekagent\\work\\persistent-callret0-20260924-r1\\launcher.diff",
+      "sha256": "7364a99152db5336e21f2eb265e410af68e9acb3a9d5c26f6173caee6c9f9dd7"
+    },
+    {
+      "path": "receipts/staging-receipt.json",
+      "source": "C:\\rekagent\\work\\persistent-callret0-20260924-r1\\staging-receipt.json",
+      "sha256": "29e79f7a71f2fc65629e6bf8433d05b6c5a7725bb1c3acd5f310811959a7f8bc"
+    },
+    {
+      "path": "receipts/FAULT-FINDINGS.md",
+      "source": "C:\\rekagent\\work\\persistent-callret0-20260924-r1\\FAULT-FINDINGS.md",
+      "sha256": "f880f4d99a4e09b8fe9d9badaf8023c406c9da24d6191c51650ab49bce21b266"
+    },
+    {
+      "path": "receipts/process-monitor-20260924T125414Z.json",
+      "source": "C:\\rekagent\\work\\persistent-callret0-20260924-r1\\process-monitor-20260924T125414Z.json",
+      "sha256": "477812fbf12ca940f305a8ffa423c6a0f44701fe7a4927b3019e28fb274becd6"
+    },
+    {
+      "path": "receipts/process-monitor-20260924T125608Z.json",
+      "source": "C:\\rekagent\\work\\persistent-callret0-20260924-r1\\process-monitor-20260924T125608Z.json",
+      "sha256": "ced83fb9c2c0cbee267699657f6d614eb49c09b145bd5fba48c56b130694f230"
+    },
+    {
+      "path": "receipts/process-monitor-20260924T125724Z.json",
+      "source": "C:\\rekagent\\work\\persistent-callret0-20260924-r1\\process-monitor-20260924T125724Z.json",
+      "sha256": "b94c6b080c143c9ca26766468a20842305a09cb1260ce0a0345f7dcdb8b99721"
+    }
+  ],
+  "files": [
+    {
+      "path": "launcher.test.cjs",
+      "bytes": 3608,
+      "sha256": "c38ecdd7951c28b127f058e830b860ed65aa5f41ee60746c0c2bda80e19ddce4"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5382,
+      "sha256": "094a9e5e32a775d96b6041af0837903ddb425d207dac7dc3a460af298f4582c8"
+    },
+    {
+      "path": "receipts/CPU-CHECKS.json",
+      "bytes": 453,
+      "sha256": "90bd4ee9ae456955ed2dfeeb97b492326d5c02312b1bce5590f0f146874a7995"
+    },
+    {
+      "path": "receipts/FAULT-FINDINGS.md",
+      "bytes": 3491,
+      "sha256": "f880f4d99a4e09b8fe9d9badaf8023c406c9da24d6191c51650ab49bce21b266"
+    },
+    {
+      "path": "receipts/process-monitor-20260924T125414Z.json",
+      "bytes": 2420,
+      "sha256": "477812fbf12ca940f305a8ffa423c6a0f44701fe7a4927b3019e28fb274becd6"
+    },
+    {
+      "path": "receipts/process-monitor-20260924T125608Z.json",
+      "bytes": 3422,
+      "sha256": "ced83fb9c2c0cbee267699657f6d614eb49c09b145bd5fba48c56b130694f230"
+    },
+    {
+      "path": "receipts/process-monitor-20260924T125724Z.json",
+      "bytes": 2614,
+      "sha256": "b94c6b080c143c9ca26766468a20842305a09cb1260ce0a0345f7dcdb8b99721"
+    },
+    {
+      "path": "receipts/runtime-result.json",
+      "bytes": 29643,
+      "sha256": "f48651f95fe2beb9e66fc3cca8e1e2ce058323f0f81ce6c3e815a1448683d4c4"
+    },
+    {
+      "path": "receipts/staging-receipt.json",
+      "bytes": 1191,
+      "sha256": "29e79f7a71f2fc65629e6bf8433d05b6c5a7725bb1c3acd5f310811959a7f8bc"
+    },
+    {
+      "path": "source/launcher.diff",
+      "bytes": 516,
+      "sha256": "7364a99152db5336e21f2eb265e410af68e9acb3a9d5c26f6173caee6c9f9dd7"
+    },
+    {
+      "path": "source/relaunch.sh",
+      "bytes": 5151,
+      "sha256": "452876dff3e6f29284bce16c0ea7c53eedd558dfb743b6fda8c47e7623bfc400"
+    }
+  ],
+  "pause_timestamp_correction": "12:59:35.248Z is the verified-already-paused receipt time, not an established initial SIGSTOP time; original source receipt unchanged."
+}

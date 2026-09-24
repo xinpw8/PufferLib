@@ -1,0 +1,31 @@
+{
+  "schema": "rek.persistent_callret0_launcher_staging.v1",
+  "utc": "2026-09-24T12:31:15.824Z",
+  "files": [
+    {
+      "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/relaunch.baseline.sh",
+      "bytes": 5118,
+      "sha256": "41d685616f90c1f78e70a744ee7e7059537ce33d2085cc4da87b96f8163483d7"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/relaunch.sh",
+      "bytes": 5151,
+      "sha256": "452876dff3e6f29284bce16c0ea7c53eedd558dfb743b6fda8c47e7623bfc400"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/launcher.diff",
+      "bytes": 516,
+      "sha256": "7364a99152db5336e21f2eb265e410af68e9acb3a9d5c26f6173caee6c9f9dd7"
+    },
+    {
+      "path": "/home/spark-advantage/rek-training/persistent-callret0-20260924-r1/README.md",
+      "bytes": 3880,
+      "sha256": "beecbae34dc89803449d3c53d4c0b35751b7c4bc50f6c4b3690f8127eb52965e"
+    }
+  ],
+  "bash_syntax_exit": 0,
+  "launcher_executed": false,
+  "game_or_process_control": false,
+  "production_files_written": false,
+  "parent_sha256": "41d685616f90c1f78e70a744ee7e7059537ce33d2085cc4da87b96f8163483d7"
+}

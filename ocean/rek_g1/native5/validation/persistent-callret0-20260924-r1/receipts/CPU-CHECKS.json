@@ -1,0 +1,16 @@
+{
+  "schema": "rek.callret0_publication_checks.v1",
+  "executed_utc": "2026-09-24 13:07:45 UTC",
+  "node": {
+    "command": "node --test launcher.test.cjs",
+    "tests": 6,
+    "passed": 6,
+    "failed": 0,
+    "exit_code": 0
+  },
+  "shell": {
+    "command": "bash -n source/relaunch.sh",
+    "exit_code": 0
+  },
+  "scope": "Publication source and compact recorded evidence only; no launcher, observer, process signal, bridge, GPU or game execution."
+}

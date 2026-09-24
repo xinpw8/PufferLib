@@ -1,0 +1,101 @@
+{
+  "schema": "rek.private_persistent_fault_monitor.v1",
+  "utc": "2026-09-24T12:54:14.519Z",
+  "uptime_s": 942406.84,
+  "hz": 100,
+  "page_bytes": 4096,
+  "container_pid": 56250,
+  "initial_start_ticks": "94209601",
+  "process": {
+    "environment": {
+      "BOX64_SHOWBT": "1",
+      "BOX64_DYNAREC_STRONGMEM": "2",
+      "BOX64_NOVULKAN": "1",
+      "BOX64_LOG": "1",
+      "BOX64_NOBANNER": "1",
+      "BOX64_NOPULSE": "1",
+      "WINEARCH": "win64",
+      "BOX64_DYNAREC_CALLRET": "0",
+      "WINEPREFIX": "/opt/codexrook/wineprefix",
+      "BOX64_DYNAREC_WEAKBARRIER": "0",
+      "BOX64_UNITY": "1",
+      "DISPLAY": ":98",
+      "BOX64_SHOWSEGV": "1",
+      "__GLX_VENDOR_LIBRARY_NAME": "nvidia"
+    },
+    "host_pid": 3110517,
+    "namespace_pids": [
+      3110517,
+      56250
+    ],
+    "exact_game_argv_element": "/opt/codexrook/rek-core-referee-20260924-r1/REK.exe",
+    "state": "R",
+    "user_ticks": 29853,
+    "system_ticks": 3040,
+    "start_ticks": "94209601",
+    "rss_pages": 834738,
+    "threads": 96
+  },
+  "matches": 1,
+  "same_process": true,
+  "elapsed_since_process_start_s": 310.8299999999581,
+  "stderr_bytes": 889780,
+  "counts": {
+    "signal": 0,
+    "nativebt": 0,
+    "emulatedbt": 0,
+    "av": 0,
+    "null_dispatch": 0,
+    "coreclr_fatal": 0,
+    "failfast": 0
+  },
+  "exit": null,
+  "rounds": [
+    {
+      "label": "callret-s1801",
+      "source_rows": 515,
+      "first": {
+        "utc": "2026-09-24T12:53:16.8152523+00:00",
+        "frame": 13426,
+        "unity_time": 230.30053881094102,
+        "qpc": 9423491689697,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 118.46533,
+        "score": [
+          0,
+          0
+        ]
+      },
+      "last": {
+        "utc": "2026-09-24T12:54:14.4829854+00:00",
+        "frame": 13940,
+        "unity_time": 287.9919341128118,
+        "qpc": 9424068488098,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 60.715,
+        "score": [
+          5,
+          5
+        ]
+      },
+      "source_hz": 8.911259100387138,
+      "unity_frames_per_wall_second": 8.911259100387138,
+      "unity_seconds_per_wall_second": 1.000200333458809,
+      "interval_p95_ms": 132.73760000000001
+    },
+    {
+      "label": "callret-s1802",
+      "source_rows": 0
+    },
+    {
+      "label": "callret-s1803",
+      "source_rows": 0
+    },
+    {
+      "label": "callret-s1804",
+      "source_rows": 0
+    }
+  ]
+}
