@@ -1,0 +1,819 @@
+{
+  "schema": "rek.balance8.first_live_evaluation.v1",
+  "created_utc": "2026-09-24T07:28:37.120Z",
+  "label": "balance8-s901-retry4",
+  "checkpoint_sha256": "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "feature_mask_sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+  "seed": 901,
+  "counted": {
+    "result": "loss",
+    "score": [
+      5,
+      13
+    ],
+    "initial_round": {
+      "number": 1,
+      "duration": 120,
+      "time_remaining": 119.88331,
+      "active": true,
+      "redo": false,
+      "clean_hits": [
+        0,
+        0
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "result": "InProgress",
+      "result_value": 0,
+      "winner_index": -1,
+      "knockout": false
+    },
+    "final_round": {
+      "number": 1,
+      "duration": 120,
+      "time_remaining": 0,
+      "active": false,
+      "redo": false,
+      "clean_hits": [
+        5,
+        13
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "result": "WonByPoints",
+      "result_value": 1,
+      "winner_index": 1,
+      "knockout": false
+    },
+    "criterion": "complete 120-second non-redo fair-start private Bot1 round"
+  },
+  "actual_policy_inputs": {
+    "count": 3128,
+    "encoder_ready_outputs": 3128,
+    "eight_columns_fp32": {
+      "9": {
+        "minimum": -5.573691368103027,
+        "maximum": 9.451687812805176,
+        "nonzero": 3128,
+        "observations": 3128
+      },
+      "72": {
+        "minimum": 0.0015844331355765462,
+        "maximum": 0.7043541073799133,
+        "nonzero": 3128,
+        "observations": 3128
+      },
+      "95": {
+        "minimum": -1.6637132167816162,
+        "maximum": 1.7226132154464722,
+        "nonzero": 3128,
+        "observations": 3128
+      },
+      "158": {
+        "minimum": 0.00033169047674164176,
+        "maximum": 0.27976110577583313,
+        "nonzero": 3128,
+        "observations": 3128
+      },
+      "202": {
+        "minimum": 1,
+        "maximum": 1,
+        "nonzero": 3128,
+        "observations": 3128
+      },
+      "203": {
+        "minimum": 1,
+        "maximum": 1,
+        "nonzero": 3128,
+        "observations": 3128
+      },
+      "204": {
+        "minimum": 0,
+        "maximum": 1,
+        "nonzero": 83,
+        "observations": 3128
+      },
+      "205": {
+        "minimum": 0,
+        "maximum": 0,
+        "nonzero": 0,
+        "observations": 3128
+      }
+    },
+    "encoder_to_worker_all223_fp32_equal": true,
+    "encoder_to_worker_masks_equal": true,
+    "encoder_manifest_count": 1,
+    "worker_ready_count": 1,
+    "all_worker_actions_schema_checkpoint_mask_verified": true
+  },
+  "actions": {
+    "predicted": 3128,
+    "applied": 3127,
+    "rejected": 1,
+    "rejection_reasons": {
+      "accepted_locally_and_armed": 85,
+      "held_state_unchanged": 846,
+      "held_state_applied_locally": 2196,
+      "policy_stream_not_owned": 1
+    },
+    "sampled_by_category": [
+      847,
+      800,
+      2,
+      0,
+      6,
+      2,
+      412,
+      812,
+      9,
+      11,
+      16,
+      70,
+      1,
+      26,
+      8,
+      21,
+      2,
+      0,
+      1,
+      0,
+      1,
+      6,
+      0,
+      43,
+      0,
+      6,
+      11,
+      0,
+      0,
+      0,
+      15,
+      0,
+      0
+    ],
+    "applied_by_category": [
+      846,
+      800,
+      2,
+      0,
+      6,
+      2,
+      412,
+      812,
+      9,
+      11,
+      16,
+      70,
+      1,
+      26,
+      8,
+      21,
+      2,
+      0,
+      1,
+      0,
+      1,
+      6,
+      0,
+      43,
+      0,
+      6,
+      11,
+      0,
+      0,
+      0,
+      15,
+      0,
+      0
+    ],
+    "locally_armed_by_category": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      2,
+      0,
+      1,
+      0,
+      1,
+      6,
+      0,
+      43,
+      0,
+      6,
+      11,
+      0,
+      0,
+      0,
+      15,
+      0,
+      0
+    ],
+    "left_front_kick": {
+      "category": 17,
+      "sampled": 0,
+      "applied": 0,
+      "locally_armed": 0,
+      "eligible_input_masks": 134
+    },
+    "live_attack_gate": {
+      "allowed_attacks": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "range_m": null,
+      "force_attack_range_m": null,
+      "cooldown_s": null,
+      "cooldown_actions": [
+        16
+      ],
+      "cooldown_masked": 0,
+      "gated_requests": 0,
+      "gated_by_range": 0,
+      "forced_attacks": 0
+    }
+  },
+  "points": {
+    "reuse": "existing analyze_points.cjs; only root and selected capture constants changed",
+    "analyzer_sha256": "551e5f991ae67d451b80a271cec63057becbe44ef7323f206bdcfb3fda0cf808",
+    "native_provenance": {
+      "relay": {
+        "file": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s901-retry4/trial/relay.stdout.jsonl",
+        "bytes": 39856553,
+        "lines": 6454,
+        "sha256": "4d1b2b22b3edc8e77d002e588532f7ee6397128cc8e46fe7e201a4f1f6089f33"
+      },
+      "native": {
+        "file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T072115.5898107Z-pid32-83c30344ad6d4a3983cd1ab36d34e893.jsonl",
+        "bytes": 206348429,
+        "lines": 86020,
+        "sha256": "6cc21ffc0aa51da3e0f33bf79afdfc1cff77234c4e56b96cbce4c2dd21a5085c"
+      },
+      "validator_sha256": "22bbb6652f8cf333c1c832f8719f9e37da20b66bfecd85185e228d2183c9fe89",
+      "packet_module_sha256": "485d5b89217ba305a3fee9bcb573bb6efe1d0bceb04a0f06472ea88bfb37e2e6"
+    },
+    "referee_validation": {
+      "verification_passed": true,
+      "source_count": 3130,
+      "available_source_count": 3130,
+      "unavailable_source_count": 0,
+      "unavailable_reasons": {},
+      "round_identities": [
+        "59f5303fd044cedac432cba9fc0d438d49df27910a80d8ac4888e00f974df365"
+      ],
+      "unique_bridge_receipts": 1199,
+      "unique_native_receipt_keys": 1199,
+      "repeated_policy_observations_of_cached_receipt": 1931,
+      "receipts_with_multiple_exact_native_matches": 0,
+      "receipt_age_seconds": {
+        "minimum": 0.0226344,
+        "maximum": 0.1434224,
+        "maximum_allowed": 0.5
+      },
+      "count_mask_policy_observations": {
+        "0": 3047,
+        "1": 83
+      },
+      "count_mask_unique_bridge_receipts": {
+        "0": 1169,
+        "1": 30
+      },
+      "call_transitions_unique_bridge_receipts": {
+        "empty_sequence": 669,
+        "changed_received_sequence": 2,
+        "repeated_latched_call": 528
+      },
+      "unique_latched_call_ids": 2,
+      "cache_censored_call_ids": 0,
+      "validation_left_censored_call_ids": 0,
+      "calls": [
+        {
+          "call_id": "59f5303fd044cedac432cba9fc0d438d49df27910a80d8ac4888e00f974df365:6:7",
+          "sequence": 1,
+          "type": 2,
+          "name": "Knockdown",
+          "faller": 0,
+          "points": 0,
+          "cache_history_censored": false,
+          "first_seen_transition": "changed_received_sequence",
+          "first_source_line": 3653,
+          "first_receipt_sequence": 3704,
+          "first_receipt_unity_frame": 20160,
+          "first_receipt_unity_time": 416.32535670351473,
+          "policy_observations": 83,
+          "validation_observation_left_censored": false
+        },
+        {
+          "call_id": "59f5303fd044cedac432cba9fc0d438d49df27910a80d8ac4888e00f974df365:6:8",
+          "sequence": 2,
+          "type": 4,
+          "name": "Knockout",
+          "faller": 0,
+          "points": 5,
+          "cache_history_censored": false,
+          "first_seen_transition": "changed_received_sequence",
+          "first_source_line": 3822,
+          "first_receipt_sequence": 3734,
+          "first_receipt_unity_frame": 20243,
+          "first_receipt_unity_time": 419.3289482071995,
+          "policy_observations": 1294,
+          "validation_observation_left_censored": false
+        }
+      ],
+      "semantic_limit": "Call IDs deduplicate latched observations. Initial/gapped calls are censored; repeated payloads are never counted as new calls. No server-current-state, attacker, executed-action or terminal-KO inference."
+    },
+    "point_histogram_by_slot": [
+      {
+        "1": 5
+      },
+      {
+        "1": 6,
+        "2": 1,
+        "5": 1
+      }
+    ],
+    "validated_native_totals": [
+      5,
+      13
+    ],
+    "ordinary_points_under5": [
+      5,
+      8
+    ],
+    "point_receipts": [
+      {
+        "native_line": 5646,
+        "scorer": 0,
+        "points": 1,
+        "counter": 1,
+        "elapsed": 7.936019999999999,
+        "wire_sha256": "0032eda639d5bbcb1fd4f80c051420f382b001b281310ea1c9a572031e34bd41",
+        "bridge_increment_matches": [
+          {
+            "source_line": 499,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 3113,
+              "lifecycle": 6,
+              "qpc": 9224357984176,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "d216a781e8224c43ad826c6cea987f68a9b45f1b2276e833bc88b3ff54276a11"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 6775,
+        "scorer": 0,
+        "points": 1,
+        "counter": 2,
+        "elapsed": 9.536450000000002,
+        "wire_sha256": "e1c5ae8c16665b1302c0185d56267e6283a7985a4ea4b99895002b4d9e3b270b",
+        "bridge_increment_matches": [
+          {
+            "source_line": 581,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 3129,
+              "lifecycle": 6,
+              "qpc": 9224373904467,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "5e5d80f9e2ec3fb16ab710e2008411875b7360e23279059eb2e881dee43c4683"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 10882,
+        "scorer": 1,
+        "points": 1,
+        "counter": 1,
+        "elapsed": 15.238479999999996,
+        "wire_sha256": "4166ac0aa1a2803054228b2204c0933dac01233e6210ce0b804398e8315eeb96",
+        "bridge_increment_matches": [
+          {
+            "source_line": 885,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 3186,
+              "lifecycle": 6,
+              "qpc": 9224430952736,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "7ecd6fbcb59ebbe80b5b628f8a58f6b95fc26cd40c8399b1a60b272d546bc6f8"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 12434,
+        "scorer": 1,
+        "points": 1,
+        "counter": 2,
+        "elapsed": 17.339100000000002,
+        "wire_sha256": "3fc622538abd50891a23645177efb18266e39cdbc17ad5bbec3fc51c97f6fe29",
+        "bridge_increment_matches": [
+          {
+            "source_line": 999,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 3207,
+              "lifecycle": 6,
+              "qpc": 9224452104452,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "7df724bb02ae657a2275d19bc707265d7a0492a36e79941b9a29e876ac109e82"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 25355,
+        "scorer": 1,
+        "points": 1,
+        "counter": 3,
+        "elapsed": 35.44661000000001,
+        "wire_sha256": "ad1bb500d2af0cfe5722a54ca23a1355eeb9c12bd619c68da0c1dbb52bcf211a",
+        "bridge_increment_matches": [
+          {
+            "source_line": 1956,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 3388,
+              "lifecycle": 6,
+              "qpc": 9224632948096,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "9aaa390fb7b21b6e1fc73684cdad4b06ff4890b2a7ab3be3a67d066f39cb638d"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 26425,
+        "scorer": 1,
+        "points": 1,
+        "counter": 4,
+        "elapsed": 36.846909999999994,
+        "wire_sha256": "195c499ac47cf80f4a531a9682c52db46abf4292cfd7ea07c10b12ed0f088eee",
+        "bridge_increment_matches": [
+          {
+            "source_line": 2031,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 3402,
+              "lifecycle": 6,
+              "qpc": 9224646907186,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "29c4e57eaead1ccafdd849813bdc94c72d8e097592d1c86f432bad761df2e1c5"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 28223,
+        "scorer": 1,
+        "points": 1,
+        "counter": 5,
+        "elapsed": 39.347570000000005,
+        "wire_sha256": "90323021e98665d18e9e39627e873fd167cde42a54ff7b6c834a055a1c6be6a1",
+        "bridge_increment_matches": [
+          {
+            "source_line": 2162,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 3427,
+              "lifecycle": 6,
+              "qpc": 9224671964819,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "03d7e9457e13a1cf5abbc4a473d44f766944ae927454e031d5725c51edf3844e"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 41533,
+        "scorer": 0,
+        "points": 1,
+        "counter": 3,
+        "elapsed": 57.97042,
+        "wire_sha256": "e64a1fe16e90875abd114ad2b3e2970806436f9a752852b365e1e4c5c42582dd",
+        "bridge_increment_matches": [
+          {
+            "source_line": 3173,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 3613,
+              "lifecycle": 6,
+              "qpc": 9224858176211,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "712554364cdd570cafa73a22c4b2ed01d2a8363c6a1a8cc8c515928f572a59d5"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 44488,
+        "scorer": 0,
+        "points": 1,
+        "counter": 4,
+        "elapsed": 62.071327,
+        "wire_sha256": "487805a7a442cbb120ad408784eb370485fa41816072d174ae0f1efbf770fc88",
+        "bridge_increment_matches": [
+          {
+            "source_line": 3391,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 3654,
+              "lifecycle": 6,
+              "qpc": 9224899381897,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "64a4031c6b8fe45ebb4a01983e196a322e871e748f21f3165be52441c8554854"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 50177,
+        "scorer": 1,
+        "points": 5,
+        "counter": 10,
+        "elapsed": 69.973476,
+        "wire_sha256": "5685cf805079ff8953c4fca08b5394cbc0cd4e0594d9cc300016de50a8325f49",
+        "bridge_increment_matches": [
+          {
+            "source_line": 3818,
+            "delta": 5,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 3733,
+              "lifecycle": 6,
+              "qpc": 9224978261219,
+              "call": "Knockdown",
+              "faller": 0,
+              "call_sequence": 1,
+              "history_censored": false,
+              "sha256": "c5b4ec22696eb2a0b6fc72423250e6327e8985284bde769c810e8b5696ae7f8b"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 54899,
+        "scorer": 0,
+        "points": 1,
+        "counter": 5,
+        "elapsed": 76.575436,
+        "wire_sha256": "9b208337857ddfe291a2faa2afc3acde4749266045642185a6a7ed78cb670930",
+        "bridge_increment_matches": [
+          {
+            "source_line": 4163,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 3799,
+              "lifecycle": 6,
+              "qpc": 9225044186818,
+              "call": "Knockout",
+              "faller": 0,
+              "call_sequence": 2,
+              "history_censored": false,
+              "sha256": "3c5370206194cf877fab0fed56833ab0a0fa1f54b1d9ffb200df532da66bbe8e"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 71477,
+        "scorer": 1,
+        "points": 1,
+        "counter": 11,
+        "elapsed": 99.682276,
+        "wire_sha256": "0f6b964d8c8b723e8d3407882313815845c641040ef8c4008d7a614a6ee97bad",
+        "bridge_increment_matches": [
+          {
+            "source_line": 5380,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 4030,
+              "lifecycle": 6,
+              "qpc": 9225275501009,
+              "call": "Knockout",
+              "faller": 0,
+              "call_sequence": 2,
+              "history_censored": false,
+              "sha256": "35e7c165a0102caa04821aed6665f05410d2f57e5dee424cc6f49ac039145426"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 76984,
+        "scorer": 1,
+        "points": 2,
+        "counter": 13,
+        "elapsed": 107.400389,
+        "wire_sha256": "2c6d2fcf047cfa1e94a996b2fb171b3ec0139c471091fd200d5c0786e3101157",
+        "bridge_increment_matches": [
+          {
+            "source_line": 5782,
+            "delta": 2,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 4107,
+              "lifecycle": 6,
+              "qpc": 9225352905333,
+              "call": "Knockout",
+              "faller": 0,
+              "call_sequence": 2,
+              "history_censored": false,
+              "sha256": "246ae82e7bc1b0f2ac9ccaeb3bd27cb20650d3ad97987a3a7d1b569af001533f"
+            }
+          }
+        ],
+        "causal_request_id": null
+      }
+    ],
+    "explicit_referee_calls": [
+      {
+        "name": "Knockdown",
+        "faller": 0,
+        "censored": false,
+        "sequence": 1,
+        "elapsed": 67.072758,
+        "source_line": 3653
+      },
+      {
+        "name": "Knockout",
+        "faller": 0,
+        "censored": false,
+        "sequence": 2,
+        "elapsed": 70.073532,
+        "source_line": 3822
+      }
+    ],
+    "causal_action_attribution": "unknown"
+  },
+  "excluded_redo": {
+    "label": "balance8-s901-retry3",
+    "score": [
+      0,
+      3
+    ],
+    "initial_round": {
+      "number": 2,
+      "duration": 30,
+      "time_remaining": 29.799938,
+      "active": true,
+      "redo": true,
+      "clean_hits": [
+        0,
+        0
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "result": "InProgress",
+      "result_value": 0,
+      "winner_index": -1,
+      "knockout": false
+    },
+    "final_round": {
+      "number": 2,
+      "duration": 30,
+      "time_remaining": 0,
+      "active": false,
+      "redo": true,
+      "clean_hits": [
+        0,
+        3
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "result": "WonByPoints",
+      "result_value": 1,
+      "winner_index": 1,
+      "knockout": false
+    },
+    "predictions": 711,
+    "applied": 710,
+    "excluded_reason": "30-second redo, outside prespecified 120-second non-redo criterion",
+    "summary_sha256": "57a836b638746ca1aebad97b1f67693eb41674690bf7233c89214e6e77f2c0c0"
+  },
+  "provenance": [
+    {
+      "file": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s901-retry4/trial/summary.json",
+      "sha256": "c30191721dfd3a14a21eee9be4384c2703f3142bf65c9e6800260cfdc638029e",
+      "bytes": 2270
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s901-retry4/trial/encoder.stdout.jsonl",
+      "bytes": 18199904,
+      "lines": 3130,
+      "sha256": "5f62eb8b5faf4ef487b45ea3483308013b8e4760cf1ef3be926621ef412da62a"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s901-retry4/trial/worker.stdin.jsonl",
+      "bytes": 10484118,
+      "lines": 3128,
+      "sha256": "6d36ec214daf121fe6424411d49a84f0f61118fa29fbd1bcb1512f30e70dbf77"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s901-retry4/trial/worker.stdout.jsonl",
+      "bytes": 1771853,
+      "lines": 3129,
+      "sha256": "aa1eb5c79667be06981bdd37d0def8bc1132e52a3d9905f79f99eac2309285f2"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s901-retry4/trial/relay.stdout.jsonl",
+      "bytes": 39856553,
+      "lines": 6454,
+      "sha256": "4d1b2b22b3edc8e77d002e588532f7ee6397128cc8e46fe7e201a4f1f6089f33"
+    }
+  ],
+  "inspector_sha256": "36d182fda193e1d3084dbc490fb3a1a252e2930ad424e15a7eda7fa3d4af3a5b",
+  "no_gpu": true,
+  "no_bridge_connection": true,
+  "no_runtime_changes": true
+}

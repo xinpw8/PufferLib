@@ -1,0 +1,996 @@
+{
+  "schema": "rek.balance8.closed_live_evaluation.v1",
+  "created_utc": "2026-09-24T07:38:29.090Z",
+  "label": "balance8-s902-retry3",
+  "checkpoint_sha256": "9a875c347b512bb46dde25481be75d276ea1b4c0799886b30aaf03be6ae1c5ce",
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "feature_mask_sha256": "59158bfdf9ddb9a38686f62aac4a5c96357d4d7fe26c03262cf0abea3ca46b1b",
+  "seed": 902,
+  "counted": {
+    "result": "loss",
+    "score": [
+      9,
+      23
+    ],
+    "initial_round": {
+      "number": 2,
+      "duration": 120,
+      "time_remaining": 119.76656,
+      "active": true,
+      "redo": false,
+      "clean_hits": [
+        0,
+        0
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "result": "InProgress",
+      "result_value": 0,
+      "winner_index": -1,
+      "knockout": false
+    },
+    "final_round": {
+      "number": 2,
+      "duration": 120,
+      "time_remaining": 0,
+      "active": false,
+      "redo": false,
+      "clean_hits": [
+        9,
+        23
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "result": "WonByPoints",
+      "result_value": 1,
+      "winner_index": 1,
+      "knockout": false
+    },
+    "criterion": "complete 120-second non-redo fair-start private Bot1 round"
+  },
+  "actual_policy_inputs": {
+    "count": 2921,
+    "encoder_ready_outputs": 2921,
+    "eight_columns_fp32": {
+      "9": {
+        "minimum": -3.436293601989746,
+        "maximum": 13.134560585021973,
+        "nonzero": 2921,
+        "observations": 2921
+      },
+      "72": {
+        "minimum": 0,
+        "maximum": 0.7537652850151062,
+        "nonzero": 2920,
+        "observations": 2921
+      },
+      "95": {
+        "minimum": -4.483125686645508,
+        "maximum": 8.452108383178711,
+        "nonzero": 2921,
+        "observations": 2921
+      },
+      "158": {
+        "minimum": 0,
+        "maximum": 0.5869044065475464,
+        "nonzero": 2920,
+        "observations": 2921
+      },
+      "202": {
+        "minimum": 1,
+        "maximum": 1,
+        "nonzero": 2921,
+        "observations": 2921
+      },
+      "203": {
+        "minimum": 1,
+        "maximum": 1,
+        "nonzero": 2921,
+        "observations": 2921
+      },
+      "204": {
+        "minimum": 0,
+        "maximum": 1,
+        "nonzero": 150,
+        "observations": 2921
+      },
+      "205": {
+        "minimum": 0,
+        "maximum": 1,
+        "nonzero": 78,
+        "observations": 2921
+      }
+    },
+    "encoder_to_worker_all223_fp32_equal": true,
+    "encoder_to_worker_masks_equal": true,
+    "encoder_manifest_count": 1,
+    "worker_ready_count": 1,
+    "all_worker_actions_schema_checkpoint_mask_verified": true
+  },
+  "actions": {
+    "predicted": 2921,
+    "applied": 2920,
+    "rejected": 1,
+    "rejection_reasons": {
+      "held_state_applied_locally": 2309,
+      "accepted_locally_and_armed": 65,
+      "held_state_unchanged": 546,
+      "policy_stream_not_owned": 1
+    },
+    "sampled_by_category": [
+      546,
+      552,
+      8,
+      7,
+      11,
+      5,
+      371,
+      762,
+      14,
+      17,
+      229,
+      55,
+      6,
+      184,
+      12,
+      77,
+      3,
+      0,
+      0,
+      0,
+      0,
+      23,
+      0,
+      16,
+      0,
+      3,
+      14,
+      0,
+      0,
+      0,
+      6,
+      0,
+      0
+    ],
+    "applied_by_category": [
+      546,
+      552,
+      8,
+      7,
+      11,
+      5,
+      370,
+      762,
+      14,
+      17,
+      229,
+      55,
+      6,
+      184,
+      12,
+      77,
+      3,
+      0,
+      0,
+      0,
+      0,
+      23,
+      0,
+      16,
+      0,
+      3,
+      14,
+      0,
+      0,
+      0,
+      6,
+      0,
+      0
+    ],
+    "locally_armed_by_category": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      3,
+      0,
+      0,
+      0,
+      0,
+      23,
+      0,
+      16,
+      0,
+      3,
+      14,
+      0,
+      0,
+      0,
+      6,
+      0,
+      0
+    ],
+    "left_front_kick": {
+      "category": 17,
+      "sampled": 0,
+      "applied": 0,
+      "locally_armed": 0,
+      "eligible_input_masks": 194
+    },
+    "live_attack_gate": {
+      "allowed_attacks": [
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "range_m": null,
+      "force_attack_range_m": null,
+      "cooldown_s": null,
+      "cooldown_actions": [
+        16
+      ],
+      "cooldown_masked": 0,
+      "gated_requests": 0,
+      "gated_by_range": 0,
+      "forced_attacks": 0
+    }
+  },
+  "points": {
+    "reuse": "existing analyze_points.cjs; only root and selected capture constants changed",
+    "analyzer_sha256": "ae0aef1560cf32813d45fa165d5dab81206399fdf0ecaa39a5cd2d1a1382c08b",
+    "native_provenance": {
+      "relay": {
+        "file": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s902-retry3/trial/relay.stdout.jsonl",
+        "bytes": 36770033,
+        "lines": 5987,
+        "sha256": "eb33bb0e7ce48f9d3f67e8cd138d8d18aea9b5c77fc00e532f59ae3a9cb0bc67"
+      },
+      "native": {
+        "file": "/home/spark-advantage/codexrook-runtime/wineprefix/drive_c/rekagent/evidence/runtime/rek-private-ai-protocol-v7/rek-private-ai-root-motion-20260924T072806.9736653Z-pid32-85a16e73dc554fb39036a5f6c749eace.jsonl",
+        "bytes": 205806893,
+        "lines": 85806,
+        "sha256": "bf6f063cdc48b6ceed8470027ad6137970cc9a3e1f074a2499d0af4c4a4cf417"
+      },
+      "validator_sha256": "22bbb6652f8cf333c1c832f8719f9e37da20b66bfecd85185e228d2183c9fe89",
+      "packet_module_sha256": "485d5b89217ba305a3fee9bcb573bb6efe1d0bceb04a0f06472ea88bfb37e2e6"
+    },
+    "referee_validation": {
+      "verification_passed": true,
+      "source_count": 2923,
+      "available_source_count": 2923,
+      "unavailable_source_count": 0,
+      "unavailable_reasons": {},
+      "round_identities": [
+        "fce03451d00f6923e9ebe43b782bca308e9dc71a131886fe907afc99393e04a9"
+      ],
+      "unique_bridge_receipts": 1195,
+      "unique_native_receipt_keys": 1195,
+      "repeated_policy_observations_of_cached_receipt": 1728,
+      "receipts_with_multiple_exact_native_matches": 0,
+      "receipt_age_seconds": {
+        "minimum": 0.0221932,
+        "maximum": 0.1633679,
+        "maximum_allowed": 0.5
+      },
+      "count_mask_policy_observations": {
+        "0": 2695,
+        "1": 150,
+        "2": 78
+      },
+      "count_mask_unique_bridge_receipts": {
+        "0": 1105,
+        "1": 60,
+        "2": 30
+      },
+      "call_transitions_unique_bridge_receipts": {
+        "empty_sequence": 557,
+        "changed_received_sequence": 6,
+        "repeated_latched_call": 632
+      },
+      "unique_latched_call_ids": 6,
+      "cache_censored_call_ids": 0,
+      "validation_left_censored_call_ids": 0,
+      "calls": [
+        {
+          "call_id": "fce03451d00f6923e9ebe43b782bca308e9dc71a131886fe907afc99393e04a9:3:7",
+          "sequence": 1,
+          "type": 0,
+          "name": "Slip",
+          "faller": 1,
+          "points": 0,
+          "cache_history_censored": false,
+          "first_seen_transition": "changed_received_sequence",
+          "first_source_line": 2860,
+          "first_receipt_sequence": 1904,
+          "first_receipt_unity_frame": 11114,
+          "first_receipt_unity_time": 232.27953805272108,
+          "policy_observations": 78,
+          "validation_observation_left_censored": false
+        },
+        {
+          "call_id": "fce03451d00f6923e9ebe43b782bca308e9dc71a131886fe907afc99393e04a9:3:8",
+          "sequence": 2,
+          "type": 4,
+          "name": "Knockout",
+          "faller": 1,
+          "points": 5,
+          "cache_history_censored": false,
+          "first_seen_transition": "changed_received_sequence",
+          "first_source_line": 3017,
+          "first_receipt_sequence": 1934,
+          "first_receipt_unity_frame": 11192,
+          "first_receipt_unity_time": 235.28208705357142,
+          "policy_observations": 935,
+          "validation_observation_left_censored": false
+        },
+        {
+          "call_id": "fce03451d00f6923e9ebe43b782bca308e9dc71a131886fe907afc99393e04a9:3:9",
+          "sequence": 3,
+          "type": 0,
+          "name": "Slip",
+          "faller": 0,
+          "points": 0,
+          "cache_history_censored": false,
+          "first_seen_transition": "changed_received_sequence",
+          "first_source_line": 4910,
+          "first_receipt_sequence": 2325,
+          "first_receipt_unity_frame": 12127,
+          "first_receipt_unity_time": 274.4689880527211,
+          "policy_observations": 74,
+          "validation_observation_left_censored": false
+        },
+        {
+          "call_id": "fce03451d00f6923e9ebe43b782bca308e9dc71a131886fe907afc99393e04a9:3:10",
+          "sequence": 4,
+          "type": 4,
+          "name": "Knockout",
+          "faller": 0,
+          "points": 5,
+          "cache_history_censored": false,
+          "first_seen_transition": "changed_received_sequence",
+          "first_source_line": 5060,
+          "first_receipt_sequence": 2355,
+          "first_receipt_unity_frame": 12201,
+          "first_receipt_unity_time": 277.4853125496032,
+          "policy_observations": 218,
+          "validation_observation_left_censored": false
+        },
+        {
+          "call_id": "fce03451d00f6923e9ebe43b782bca308e9dc71a131886fe907afc99393e04a9:3:11",
+          "sequence": 5,
+          "type": 0,
+          "name": "Slip",
+          "faller": 0,
+          "points": 0,
+          "cache_history_censored": false,
+          "first_seen_transition": "changed_received_sequence",
+          "first_source_line": 5504,
+          "first_receipt_sequence": 2444,
+          "first_receipt_unity_frame": 12419,
+          "first_receipt_unity_time": 286.4109756519274,
+          "policy_observations": 76,
+          "validation_observation_left_censored": false
+        },
+        {
+          "call_id": "fce03451d00f6923e9ebe43b782bca308e9dc71a131886fe907afc99393e04a9:3:12",
+          "sequence": 6,
+          "type": 4,
+          "name": "Knockout",
+          "faller": 0,
+          "points": 5,
+          "cache_history_censored": false,
+          "first_seen_transition": "changed_received_sequence",
+          "first_source_line": 5658,
+          "first_receipt_sequence": 2474,
+          "first_receipt_unity_frame": 12495,
+          "first_receipt_unity_time": 289.38207785572564,
+          "policy_observations": 159,
+          "validation_observation_left_censored": false
+        }
+      ],
+      "semantic_limit": "Call IDs deduplicate latched observations. Initial/gapped calls are censored; repeated payloads are never counted as new calls. No server-current-state, attacker, executed-action or terminal-KO inference."
+    },
+    "point_histogram_by_slot": [
+      {
+        "1": 4,
+        "5": 1
+      },
+      {
+        "1": 5,
+        "2": 4,
+        "5": 2
+      }
+    ],
+    "validated_native_totals": [
+      9,
+      23
+    ],
+    "ordinary_points_under5": [
+      4,
+      13
+    ],
+    "point_receipts": [
+      {
+        "native_line": 9072,
+        "scorer": 1,
+        "points": 1,
+        "counter": 1,
+        "elapsed": 12.737465,
+        "wire_sha256": "4166ac0aa1a2803054228b2204c0933dac01233e6210ce0b804398e8315eeb96",
+        "bridge_increment_matches": [
+          {
+            "source_line": 623,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 1470,
+              "lifecycle": 3,
+              "qpc": 9228518840856,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "e8171bd426c25bb4e49e8622b2a66d6952dd3de3218730105d2a07513d516a96"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 9660,
+        "scorer": 1,
+        "points": 1,
+        "counter": 2,
+        "elapsed": 13.537819999999996,
+        "wire_sha256": "3fc622538abd50891a23645177efb18266e39cdbc17ad5bbec3fc51c97f6fe29",
+        "bridge_increment_matches": [
+          {
+            "source_line": 659,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 1478,
+              "lifecycle": 3,
+              "qpc": 9228526718002,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "e9ba59599ff966de84fece7e7b698c40582f7746d7f593892e1e7f0a553de1f6"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 19389,
+        "scorer": 1,
+        "points": 1,
+        "counter": 3,
+        "elapsed": 27.209410000000005,
+        "wire_sha256": "ad1bb500d2af0cfe5722a54ca23a1355eeb9c12bd619c68da0c1dbb52bcf211a",
+        "bridge_increment_matches": [
+          {
+            "source_line": 1338,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 1614,
+              "lifecycle": 3,
+              "qpc": 9228663776631,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "49f933cf2286121d602addc6f319b86dd61a4f4d9a38b6f771c4390349980d18"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 21976,
+        "scorer": 0,
+        "points": 1,
+        "counter": 1,
+        "elapsed": 30.810820000000007,
+        "wire_sha256": "0032eda639d5bbcb1fd4f80c051420f382b001b281310ea1c9a572031e34bd41",
+        "bridge_increment_matches": [
+          {
+            "source_line": 1501,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 1650,
+              "lifecycle": 3,
+              "qpc": 9228699434428,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "65e24f5e4f6f4d8bb236e820a797d219bf1e55ce03fee0558a04719b681df351"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 22198,
+        "scorer": 0,
+        "points": 1,
+        "counter": 2,
+        "elapsed": 31.111000000000004,
+        "wire_sha256": "e1c5ae8c16665b1302c0185d56267e6283a7985a4ea4b99895002b4d9e3b270b",
+        "bridge_increment_matches": [
+          {
+            "source_line": 1517,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 1653,
+              "lifecycle": 3,
+              "qpc": 9228702522186,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "a97cfd983ca67f82b15a13e9635664f39f59e3e3395f45f1b8ee4b6f94e5b990"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 25086,
+        "scorer": 0,
+        "points": 1,
+        "counter": 3,
+        "elapsed": 35.11244000000001,
+        "wire_sha256": "e64a1fe16e90875abd114ad2b3e2970806436f9a752852b365e1e4c5c42582dd",
+        "bridge_increment_matches": [
+          {
+            "source_line": 1724,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 1693,
+              "lifecycle": 3,
+              "qpc": 9228742469692,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "28810165ce43cf6df36179c1df59efb3bf33572bc6fd92cc80430fd25660385a"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 39453,
+        "scorer": 1,
+        "points": 2,
+        "counter": 5,
+        "elapsed": 55.220603999999994,
+        "wire_sha256": "d2e7ca6a526485e6390795d603629c8c14331bb1d1db0aa8327d7bd740217e91",
+        "bridge_increment_matches": [
+          {
+            "source_line": 2805,
+            "delta": 2,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 1894,
+              "lifecycle": 3,
+              "qpc": 9228943443814,
+              "call": null,
+              "faller": null,
+              "call_sequence": 0,
+              "history_censored": null,
+              "sha256": "29f993514471281650d5f52b187232ecd7b5444c612b3415bcd97482ef42aec8"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 42307,
+        "scorer": 0,
+        "points": 5,
+        "counter": 8,
+        "elapsed": 59.12132,
+        "wire_sha256": "2ea3901cc6ba5ef7c22b249decc79bf2d97e1b4cbbbf2c7566e33a8a66df6556",
+        "bridge_increment_matches": [
+          {
+            "source_line": 3015,
+            "delta": 5,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 1933,
+              "lifecycle": 3,
+              "qpc": 9228982542548,
+              "call": "Slip",
+              "faller": 1,
+              "call_sequence": 1,
+              "history_censored": false,
+              "sha256": "9b33328b6d58453a62b588408e66db1ec9c40f5ee9048f16d36c5139c0d555dc"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 48964,
+        "scorer": 0,
+        "points": 1,
+        "counter": 9,
+        "elapsed": 68.42256,
+        "wire_sha256": "2ce14869375be6385dcb28d3ba09a5b3d41ab045a25f9685e482b07644a1d7fa",
+        "bridge_increment_matches": [
+          {
+            "source_line": 3475,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 2026,
+              "lifecycle": 3,
+              "qpc": 9229075644815,
+              "call": "Knockout",
+              "faller": 1,
+              "call_sequence": 2,
+              "history_censored": false,
+              "sha256": "9782b96407e57399b4f03e14a708ff8b01f4ba3ab58abbb097d1069af5d7bdc7"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 49272,
+        "scorer": 1,
+        "points": 2,
+        "counter": 7,
+        "elapsed": 68.92259,
+        "wire_sha256": "b65a33b98a05cc577ade70be86a659833b1b3b1d314b5139357e8ed8375deab1",
+        "bridge_increment_matches": [
+          {
+            "source_line": 3493,
+            "delta": 2,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 2031,
+              "lifecycle": 3,
+              "qpc": 9229080683497,
+              "call": "Knockout",
+              "faller": 1,
+              "call_sequence": 2,
+              "history_censored": false,
+              "sha256": "6ba92ed8a060b38baa032b59e1cda1214693e676dcf02022bb04d5c822b3b1d2"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 53903,
+        "scorer": 1,
+        "points": 1,
+        "counter": 8,
+        "elapsed": 75.356983,
+        "wire_sha256": "15df0692bf0159228e2b3049aad03c24035e8312fc974469cc3105140af058ed",
+        "bridge_increment_matches": [
+          {
+            "source_line": 3806,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 2095,
+              "lifecycle": 3,
+              "qpc": 9229144748789,
+              "call": "Knockout",
+              "faller": 1,
+              "call_sequence": 2,
+              "history_censored": false,
+              "sha256": "beb90a11300eecc38156db1f446c4c0740521e03bb565f4f934a6da6d4797208"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 60246,
+        "scorer": 1,
+        "points": 1,
+        "counter": 9,
+        "elapsed": 84.25864,
+        "wire_sha256": "12e9c31f00e3eb70e6c7f4baeb16b0c2bd5e1bd6df04273eac769bc121b44945",
+        "bridge_increment_matches": [
+          {
+            "source_line": 4236,
+            "delta": 1,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 2184,
+              "lifecycle": 3,
+              "qpc": 9229233824108,
+              "call": "Knockout",
+              "faller": 1,
+              "call_sequence": 2,
+              "history_censored": false,
+              "sha256": "a6a74b473ae70e3de5c2b63d2895423c99481df7cc0ecc240a9f69c097e60cb2"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 63025,
+        "scorer": 1,
+        "points": 2,
+        "counter": 11,
+        "elapsed": 88.175875,
+        "wire_sha256": "e28a4a71ad507356dccfebd6052f479bd80690eba742e466a822e3872eb57232",
+        "bridge_increment_matches": [
+          {
+            "source_line": 4419,
+            "delta": 2,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 2223,
+              "lifecycle": 3,
+              "qpc": 9229273106678,
+              "call": "Knockout",
+              "faller": 1,
+              "call_sequence": 2,
+              "history_censored": false,
+              "sha256": "b3428a9830552bfa03ec200f71e2efeb1c7d32d48b82ba2d8dbe51480e248381"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 72463,
+        "scorer": 1,
+        "points": 5,
+        "counter": 16,
+        "elapsed": 101.312088,
+        "wire_sha256": "3035d43f823b2177763549d7580e73526819abace94299c50b5bbe9ea8a9556b",
+        "bridge_increment_matches": [
+          {
+            "source_line": 5058,
+            "delta": 5,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 2354,
+              "lifecycle": 3,
+              "qpc": 9229404390875,
+              "call": "Slip",
+              "faller": 0,
+              "call_sequence": 3,
+              "history_censored": false,
+              "sha256": "4420b31a3a5ad207fa12c7c76bc8c82f273a1300cff86b4bcb8bbea24beb662f"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 80991,
+        "scorer": 1,
+        "points": 5,
+        "counter": 21,
+        "elapsed": 113.33392860000001,
+        "wire_sha256": "f9542fd9e7cc8b55b181e1eb4ed129cae010f908643e5c82effeb340f573703d",
+        "bridge_increment_matches": [
+          {
+            "source_line": 5658,
+            "delta": 5,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 2474,
+              "lifecycle": 3,
+              "qpc": 9229524642428,
+              "call": "Knockout",
+              "faller": 0,
+              "call_sequence": 6,
+              "history_censored": false,
+              "sha256": "0c5005299761cfcc39580dc6d86024d9b74050c60530d30389f7ab458f92db32"
+            }
+          }
+        ],
+        "causal_request_id": null
+      },
+      {
+        "native_line": 84583,
+        "scorer": 1,
+        "points": 2,
+        "counter": 23,
+        "elapsed": 118.3347594,
+        "wire_sha256": "ea5c0fd5b16993f7f365f643d44adf8d196c3882e6e935371c8a1ae141e7c877",
+        "bridge_increment_matches": [
+          {
+            "source_line": 5903,
+            "delta": 2,
+            "lag_seconds": 0,
+            "referee": {
+              "sequence": 2524,
+              "lifecycle": 3,
+              "qpc": 9229574693579,
+              "call": "Knockout",
+              "faller": 0,
+              "call_sequence": 6,
+              "history_censored": false,
+              "sha256": "4207297bd05fb1fec1eb6c4e283f39828d4c9bf540ebd78f8d460740e97a7620"
+            }
+          }
+        ],
+        "causal_request_id": null
+      }
+    ],
+    "explicit_referee_calls": [
+      {
+        "name": "Slip",
+        "faller": 1,
+        "censored": false,
+        "sequence": 1,
+        "elapsed": 56.22098,
+        "source_line": 2860
+      },
+      {
+        "name": "Knockout",
+        "faller": 1,
+        "censored": false,
+        "sequence": 2,
+        "elapsed": 59.221348,
+        "source_line": 3017
+      },
+      {
+        "name": "Slip",
+        "faller": 0,
+        "censored": false,
+        "sequence": 3,
+        "elapsed": 98.394577,
+        "source_line": 4910
+      },
+      {
+        "name": "Knockout",
+        "faller": 0,
+        "censored": false,
+        "sequence": 4,
+        "elapsed": 101.41216,
+        "source_line": 5060
+      },
+      {
+        "name": "Slip",
+        "faller": 0,
+        "censored": false,
+        "sequence": 5,
+        "elapsed": 110.331821,
+        "source_line": 5504
+      },
+      {
+        "name": "Knockout",
+        "faller": 0,
+        "censored": false,
+        "sequence": 6,
+        "elapsed": 113.33392860000001,
+        "source_line": 5658
+      }
+    ],
+    "causal_action_attribution": "unknown"
+  },
+  "excluded_redo": {
+    "label": "balance8-s901-retry3",
+    "score": [
+      0,
+      3
+    ],
+    "initial_round": {
+      "number": 2,
+      "duration": 30,
+      "time_remaining": 29.799938,
+      "active": true,
+      "redo": true,
+      "clean_hits": [
+        0,
+        0
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "result": "InProgress",
+      "result_value": 0,
+      "winner_index": -1,
+      "knockout": false
+    },
+    "final_round": {
+      "number": 2,
+      "duration": 30,
+      "time_remaining": 0,
+      "active": false,
+      "redo": true,
+      "clean_hits": [
+        0,
+        3
+      ],
+      "falls": [
+        0,
+        0
+      ],
+      "result": "WonByPoints",
+      "result_value": 1,
+      "winner_index": 1,
+      "knockout": false
+    },
+    "predictions": 711,
+    "applied": 710,
+    "excluded_reason": "30-second redo, outside prespecified 120-second non-redo criterion",
+    "summary_sha256": "57a836b638746ca1aebad97b1f67693eb41674690bf7233c89214e6e77f2c0c0"
+  },
+  "provenance": [
+    {
+      "file": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s902-retry3/trial/summary.json",
+      "sha256": "39c2fa5e4aa43e55915c8ff2191fa77901203d6f1462ffc2e99f222cdcf0015e",
+      "bytes": 2275
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s902-retry3/trial/encoder.stdout.jsonl",
+      "bytes": 16982654,
+      "lines": 2923,
+      "sha256": "8be209b4a69b54f93cadcfd181d0cd2ed9acad9955d64f7cf6aa84acd9c0010f"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s902-retry3/trial/worker.stdin.jsonl",
+      "bytes": 9781657,
+      "lines": 2921,
+      "sha256": "e6c03577fc3a2d081a8cda3fb04be9ef86ab19eb1d0b06a790710d40dce0ffaa"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s902-retry3/trial/worker.stdout.jsonl",
+      "bytes": 1654647,
+      "lines": 2922,
+      "sha256": "da931de6548b8876bd6bb12e58c93b3db9d380d6e44de18dbd9a1917787eec03"
+    },
+    {
+      "file": "/home/spark-advantage/rek-training/balance8-live-20260924-r1/balance8-s902-retry3/trial/relay.stdout.jsonl",
+      "bytes": 36770033,
+      "lines": 5987,
+      "sha256": "eb33bb0e7ce48f9d3f67e8cd138d8d18aea9b5c77fc00e532f59ae3a9cb0bc67"
+    }
+  ],
+  "inspector_sha256": "2e56c6bbc31f4cf2cf70048913d90af771a209574f89a967ed686e79b0dba646",
+  "no_gpu": true,
+  "no_bridge_connection": true,
+  "no_runtime_changes": true
+}
