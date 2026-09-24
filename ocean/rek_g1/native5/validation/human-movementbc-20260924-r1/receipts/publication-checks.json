@@ -1,0 +1,35 @@
+{
+  "schema": "rek.human_movement_bc_publication_checks.v1",
+  "date_utc": "2026-09-24",
+  "archive_sha256_readback_verified": "a31d14e6fcae2e20d766d7fbe6ffb0f9dba6116f027028a8fd804b54500c6b82",
+  "copied_execution_drift_dataset_manifest_match_archive_receipt": true,
+  "publication_only_source_change": {
+    "file": "compare_live_drift.cjs",
+    "change": "Resolve identical shared helper through published human-attackbc directory name",
+    "archive_sha256": "0ae6a80c51ea4395f7fa381dcaef8d12a512b5a837e6384390b0885dbe9d6cdd",
+    "publication_sha256": "3b54febccbb5e2d105acde661ffe11b017bbb25fb482bbb6b8c86c586f48b3e1",
+    "shared_helper_sha256": "f2eb2f490515eb1353e51850dbadc8815f7be1559ca3384c97b803a9ac1ab07d",
+    "archive_or_private_source_modified": false
+  },
+  "node_tests": {
+    "passed": 10,
+    "failed": 0,
+    "exporter": 4,
+    "movement_drift": 2,
+    "shared_drift_helper": 2,
+    "publication_dependency_and_result_checks": 2
+  },
+  "cpp_dependency_check": {
+    "command": "c++ -std=c++17 -fsyntax-only -I<repo>/ocean/rek_g1/native5 test_export.cpp",
+    "exit_code": 0,
+    "bc_dataset_header_sha256": "fa22e627083bad7c1118b4779342ef2612b372d6d4740cad69afeb5e8ff3265f",
+    "dataset_reader_rerun": false
+  },
+  "new_gpu_executions": 0,
+  "game_or_bridge_connections": 0,
+  "production_source_edits": 0,
+  "datasets_checkpoints_private_observations_published": false,
+  "movement25_run": false,
+  "development_split_is_untouched_final_test": false,
+  "candidate_promoted": false
+}

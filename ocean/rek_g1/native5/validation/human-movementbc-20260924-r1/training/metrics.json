@@ -1,0 +1,749 @@
+{
+  "schema": "rek.human_movement_bc_published_metrics.v1",
+  "source_stdout_sha256": "b3b3fd0e93014a066b98c10266d329d98816eae1a7cc2df1343a8746ccb570b2",
+  "native_heldout_fields_mean": "already examined development split, not an untouched final test",
+  "metadata": [
+    {
+      "schema": "rek.native_bc.v2",
+      "obs": 223,
+      "actions": 33,
+      "hidden": 256,
+      "layers": 2,
+      "horizon": 128,
+      "burn_in": "full_preceding_sequence_current_weights",
+      "feature_mask_sha256": "f0f9c515a7f9a122780a6efef970f673bc3f52852384a83a311c004a01240a76",
+      "input_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+      "rows": 11985,
+      "sequences": 4
+    },
+    {
+      "learning_rate": 0.0000999999975,
+      "momentum": 0.95,
+      "max_grad_norm": 1,
+      "min_dt_seconds": 0.02,
+      "max_dt_seconds": 0.02,
+      "class_support_semantics": "vocabulary_only_not_runtime_legality"
+    },
+    {
+      "loss_normalization": "global_training_weight_over_all_training_rows_times_horizon_v2",
+      "training_rows": 5993,
+      "training_weight": 1355,
+      "fixed_denominator": 28.9404296875
+    }
+  ],
+  "epochs": [
+    {
+      "phase": "initial",
+      "epoch": 0,
+      "updates": 0,
+      "train_ce": 7.56477297,
+      "train_accuracy": 0.0361623616,
+      "train_weight": 1355,
+      "heldout_ce": 6.09681485,
+      "heldout_accuracy": 0.056,
+      "heldout_weight": 1625
+    },
+    {
+      "phase": "epoch",
+      "epoch": 1,
+      "updates": 33,
+      "train_ce": 6.85481304,
+      "train_accuracy": 0.0450184502,
+      "train_weight": 1355,
+      "heldout_ce": 5.83691933,
+      "heldout_accuracy": 0.0603076923,
+      "heldout_weight": 1625
+    },
+    {
+      "phase": "epoch",
+      "epoch": 2,
+      "updates": 66,
+      "train_ce": 5.92324439,
+      "train_accuracy": 0.0856088561,
+      "train_weight": 1355,
+      "heldout_ce": 5.54958082,
+      "heldout_accuracy": 0.0683076923,
+      "heldout_weight": 1625
+    },
+    {
+      "phase": "epoch",
+      "epoch": 3,
+      "updates": 99,
+      "train_ce": 5.19579532,
+      "train_accuracy": 0.219188192,
+      "train_weight": 1355,
+      "heldout_ce": 5.29194876,
+      "heldout_accuracy": 0.0763076923,
+      "heldout_weight": 1625
+    },
+    {
+      "phase": "epoch",
+      "epoch": 4,
+      "updates": 132,
+      "train_ce": 4.59103504,
+      "train_accuracy": 0.256088561,
+      "train_weight": 1355,
+      "heldout_ce": 5.03500027,
+      "heldout_accuracy": 0.0744615385,
+      "heldout_weight": 1625
+    },
+    {
+      "phase": "epoch",
+      "epoch": 5,
+      "updates": 165,
+      "train_ce": 4.10309545,
+      "train_accuracy": 0.283394834,
+      "train_weight": 1355,
+      "heldout_ce": 4.78090129,
+      "heldout_accuracy": 0.0744615385,
+      "heldout_weight": 1625
+    }
+  ],
+  "per_action": [
+    {
+      "split": "training",
+      "epoch": 0,
+      "actions": [
+        {
+          "action": 2,
+          "weight": 499,
+          "ce": 10.6451427,
+          "recall": 0
+        },
+        {
+          "action": 3,
+          "weight": 68,
+          "ce": 3.74629332,
+          "recall": 0
+        },
+        {
+          "action": 4,
+          "weight": 75,
+          "ce": 5.69129923,
+          "recall": 0
+        },
+        {
+          "action": 5,
+          "weight": 51,
+          "ce": 5.03296775,
+          "recall": 0
+        },
+        {
+          "action": 6,
+          "weight": 315,
+          "ce": 3.81742893,
+          "recall": 0
+        },
+        {
+          "action": 7,
+          "weight": 212,
+          "ce": 2.40101697,
+          "recall": 0.193396226
+        },
+        {
+          "action": 8,
+          "weight": 120,
+          "ce": 18.5590021,
+          "recall": 0
+        },
+        {
+          "action": 9,
+          "weight": 3,
+          "ce": 16.8706144,
+          "recall": 0
+        },
+        {
+          "action": 10,
+          "weight": 12,
+          "ce": 0.905550381,
+          "recall": 0.666666667
+        }
+      ]
+    },
+    {
+      "split": "development",
+      "epoch": 0,
+      "actions": [
+        {
+          "action": 2,
+          "weight": 932,
+          "ce": 7.63276812,
+          "recall": 0
+        },
+        {
+          "action": 3,
+          "weight": 42,
+          "ce": 6.80915071,
+          "recall": 0
+        },
+        {
+          "action": 6,
+          "weight": 392,
+          "ce": 2.96414263,
+          "recall": 0.0714285714
+        },
+        {
+          "action": 7,
+          "weight": 107,
+          "ce": 0.865166573,
+          "recall": 0.588785047
+        },
+        {
+          "action": 8,
+          "weight": 40,
+          "ce": 4.21731816,
+          "recall": 0
+        },
+        {
+          "action": 9,
+          "weight": 112,
+          "ce": 9.68205761,
+          "recall": 0
+        }
+      ]
+    },
+    {
+      "split": "training",
+      "epoch": 1,
+      "actions": [
+        {
+          "action": 2,
+          "weight": 499,
+          "ce": 9.64859906,
+          "recall": 0
+        },
+        {
+          "action": 3,
+          "weight": 68,
+          "ce": 3.57120593,
+          "recall": 0
+        },
+        {
+          "action": 4,
+          "weight": 75,
+          "ce": 5.41984507,
+          "recall": 0
+        },
+        {
+          "action": 5,
+          "weight": 51,
+          "ce": 4.77083466,
+          "recall": 0
+        },
+        {
+          "action": 6,
+          "weight": 315,
+          "ce": 3.22984791,
+          "recall": 0.00634920635
+        },
+        {
+          "action": 7,
+          "weight": 212,
+          "ce": 2.11333512,
+          "recall": 0.25
+        },
+        {
+          "action": 8,
+          "weight": 120,
+          "ce": 17.1307893,
+          "recall": 0
+        },
+        {
+          "action": 9,
+          "weight": 3,
+          "ce": 16.0656786,
+          "recall": 0
+        },
+        {
+          "action": 10,
+          "weight": 12,
+          "ce": 0.971407652,
+          "recall": 0.5
+        }
+      ]
+    },
+    {
+      "split": "development",
+      "epoch": 1,
+      "actions": [
+        {
+          "action": 2,
+          "weight": 932,
+          "ce": 7.34731466,
+          "recall": 0
+        },
+        {
+          "action": 3,
+          "weight": 42,
+          "ce": 6.79258978,
+          "recall": 0
+        },
+        {
+          "action": 6,
+          "weight": 392,
+          "ce": 2.64393164,
+          "recall": 0.0816326531
+        },
+        {
+          "action": 7,
+          "weight": 107,
+          "ce": 0.816352414,
+          "recall": 0.61682243
+        },
+        {
+          "action": 8,
+          "weight": 40,
+          "ce": 4.06451681,
+          "recall": 0
+        },
+        {
+          "action": 9,
+          "weight": 112,
+          "ce": 9.51478833,
+          "recall": 0
+        }
+      ]
+    },
+    {
+      "split": "training",
+      "epoch": 2,
+      "actions": [
+        {
+          "action": 2,
+          "weight": 499,
+          "ce": 8.39276027,
+          "recall": 0
+        },
+        {
+          "action": 3,
+          "weight": 68,
+          "ce": 3.41815717,
+          "recall": 0
+        },
+        {
+          "action": 4,
+          "weight": 75,
+          "ce": 5.14765198,
+          "recall": 0
+        },
+        {
+          "action": 5,
+          "weight": 51,
+          "ce": 4.48772522,
+          "recall": 0
+        },
+        {
+          "action": 6,
+          "weight": 315,
+          "ce": 2.20092844,
+          "recall": 0.149206349
+        },
+        {
+          "action": 7,
+          "weight": 212,
+          "ce": 1.79352566,
+          "recall": 0.301886792
+        },
+        {
+          "action": 8,
+          "weight": 120,
+          "ce": 15.4921406,
+          "recall": 0
+        },
+        {
+          "action": 9,
+          "weight": 3,
+          "ce": 15.0874726,
+          "recall": 0
+        },
+        {
+          "action": 10,
+          "weight": 12,
+          "ce": 1.06558486,
+          "recall": 0.416666667
+        }
+      ]
+    },
+    {
+      "split": "development",
+      "epoch": 2,
+      "actions": [
+        {
+          "action": 2,
+          "weight": 932,
+          "ce": 7.04271018,
+          "recall": 0
+        },
+        {
+          "action": 3,
+          "weight": 42,
+          "ce": 6.83385384,
+          "recall": 0
+        },
+        {
+          "action": 6,
+          "weight": 392,
+          "ce": 2.26323969,
+          "recall": 0.0816326531
+        },
+        {
+          "action": 7,
+          "weight": 107,
+          "ce": 0.747584252,
+          "recall": 0.738317757
+        },
+        {
+          "action": 8,
+          "weight": 40,
+          "ce": 3.94989976,
+          "recall": 0
+        },
+        {
+          "action": 9,
+          "weight": 112,
+          "ce": 9.30413948,
+          "recall": 0
+        }
+      ]
+    },
+    {
+      "split": "training",
+      "epoch": 3,
+      "actions": [
+        {
+          "action": 2,
+          "weight": 499,
+          "ce": 7.330975,
+          "recall": 0
+        },
+        {
+          "action": 3,
+          "weight": 68,
+          "ce": 3.27379316,
+          "recall": 0.0294117647
+        },
+        {
+          "action": 4,
+          "weight": 75,
+          "ce": 4.90752598,
+          "recall": 0
+        },
+        {
+          "action": 5,
+          "weight": 51,
+          "ce": 4.21869366,
+          "recall": 0
+        },
+        {
+          "action": 6,
+          "weight": 315,
+          "ce": 1.57664984,
+          "recall": 0.622222222
+        },
+        {
+          "action": 7,
+          "weight": 212,
+          "ce": 1.56795592,
+          "recall": 0.438679245
+        },
+        {
+          "action": 8,
+          "weight": 120,
+          "ce": 14.0870484,
+          "recall": 0.00833333333
+        },
+        {
+          "action": 9,
+          "weight": 3,
+          "ce": 14.3254566,
+          "recall": 0
+        },
+        {
+          "action": 10,
+          "weight": 12,
+          "ce": 1.15307023,
+          "recall": 0.416666667
+        }
+      ]
+    },
+    {
+      "split": "development",
+      "epoch": 3,
+      "actions": [
+        {
+          "action": 2,
+          "weight": 932,
+          "ce": 6.74660832,
+          "recall": 0
+        },
+        {
+          "action": 3,
+          "weight": 42,
+          "ce": 6.80518011,
+          "recall": 0
+        },
+        {
+          "action": 6,
+          "weight": 392,
+          "ce": 2.00179147,
+          "recall": 0.0739795918
+        },
+        {
+          "action": 7,
+          "weight": 107,
+          "ce": 0.675822804,
+          "recall": 0.887850467
+        },
+        {
+          "action": 8,
+          "weight": 40,
+          "ce": 3.83439905,
+          "recall": 0
+        },
+        {
+          "action": 9,
+          "weight": 112,
+          "ce": 9.06579431,
+          "recall": 0
+        }
+      ]
+    },
+    {
+      "split": "training",
+      "epoch": 4,
+      "actions": [
+        {
+          "action": 2,
+          "weight": 499,
+          "ce": 6.35216972,
+          "recall": 0
+        },
+        {
+          "action": 3,
+          "weight": 68,
+          "ce": 3.13965681,
+          "recall": 0.0294117647
+        },
+        {
+          "action": 4,
+          "weight": 75,
+          "ce": 4.68284303,
+          "recall": 0
+        },
+        {
+          "action": 5,
+          "weight": 51,
+          "ce": 3.93589995,
+          "recall": 0
+        },
+        {
+          "action": 6,
+          "weight": 315,
+          "ce": 1.25303741,
+          "recall": 0.714285714
+        },
+        {
+          "action": 7,
+          "weight": 212,
+          "ce": 1.41858367,
+          "recall": 0.537735849
+        },
+        {
+          "action": 8,
+          "weight": 120,
+          "ce": 12.7881287,
+          "recall": 0.0166666667
+        },
+        {
+          "action": 9,
+          "weight": 3,
+          "ce": 13.7094329,
+          "recall": 0
+        },
+        {
+          "action": 10,
+          "weight": 12,
+          "ce": 1.21072803,
+          "recall": 0.333333333
+        }
+      ]
+    },
+    {
+      "split": "development",
+      "epoch": 4,
+      "actions": [
+        {
+          "action": 2,
+          "weight": 932,
+          "ce": 6.40589407,
+          "recall": 0
+        },
+        {
+          "action": 3,
+          "weight": 42,
+          "ce": 6.77648192,
+          "recall": 0
+        },
+        {
+          "action": 6,
+          "weight": 392,
+          "ce": 1.86386941,
+          "recall": 0.056122449
+        },
+        {
+          "action": 7,
+          "weight": 107,
+          "ce": 0.622373766,
+          "recall": 0.925233645
+        },
+        {
+          "action": 8,
+          "weight": 40,
+          "ce": 3.73911252,
+          "recall": 0
+        },
+        {
+          "action": 9,
+          "weight": 112,
+          "ce": 8.75155914,
+          "recall": 0
+        }
+      ]
+    },
+    {
+      "split": "training",
+      "epoch": 5,
+      "actions": [
+        {
+          "action": 2,
+          "weight": 499,
+          "ce": 5.52819954,
+          "recall": 0
+        },
+        {
+          "action": 3,
+          "weight": 68,
+          "ce": 3.01120704,
+          "recall": 0.0294117647
+        },
+        {
+          "action": 4,
+          "weight": 75,
+          "ce": 4.45629696,
+          "recall": 0
+        },
+        {
+          "action": 5,
+          "weight": 51,
+          "ce": 3.67993766,
+          "recall": 0
+        },
+        {
+          "action": 6,
+          "weight": 315,
+          "ce": 1.07619469,
+          "recall": 0.733333333
+        },
+        {
+          "action": 7,
+          "weight": 212,
+          "ce": 1.29518828,
+          "recall": 0.683962264
+        },
+        {
+          "action": 8,
+          "weight": 120,
+          "ce": 11.7201136,
+          "recall": 0.0166666667
+        },
+        {
+          "action": 9,
+          "weight": 3,
+          "ce": 13.1934779,
+          "recall": 0
+        },
+        {
+          "action": 10,
+          "weight": 12,
+          "ce": 1.24052382,
+          "recall": 0.333333333
+        }
+      ]
+    },
+    {
+      "split": "development",
+      "epoch": 5,
+      "actions": [
+        {
+          "action": 2,
+          "weight": 932,
+          "ce": 6.03714304,
+          "recall": 0
+        },
+        {
+          "action": 3,
+          "weight": 42,
+          "ce": 6.72713655,
+          "recall": 0
+        },
+        {
+          "action": 6,
+          "weight": 392,
+          "ce": 1.80741308,
+          "recall": 0.0484693878
+        },
+        {
+          "action": 7,
+          "weight": 107,
+          "ce": 0.570404699,
+          "recall": 0.953271028
+        },
+        {
+          "action": 8,
+          "weight": 40,
+          "ce": 3.63751412,
+          "recall": 0
+        },
+        {
+          "action": 9,
+          "weight": 112,
+          "ce": 8.43542643,
+          "recall": 0
+        }
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "phase": "epoch_saved",
+      "epoch": 1,
+      "sha256": "0d292f36f53e1ac8c4524e34a834418054a8c39014bbd4a25bd34f7a417a0fae"
+    },
+    {
+      "phase": "epoch_saved",
+      "epoch": 2,
+      "sha256": "d72b57dbc074e14dc104057bd1f70d9f9af7c79991692f6ba2308eb3b87667bd"
+    },
+    {
+      "phase": "epoch_saved",
+      "epoch": 3,
+      "sha256": "bed19f28bee35a243c3703fcbab284fbe2d2a9d1975c05324c40ff3504cc12b2"
+    },
+    {
+      "phase": "epoch_saved",
+      "epoch": 4,
+      "sha256": "3ce7775ccfdc24a23d78436c6cb7b2ee04a0eedbd8b11ce1e647171bb34ae0ab"
+    },
+    {
+      "phase": "epoch_saved",
+      "epoch": 5,
+      "sha256": "df2ffa1ef1b2dbf97c1d62f8371e6473e33f557f6d04d125974f0646fecda67f"
+    },
+    {
+      "phase": "saved",
+      "sha256": "df2ffa1ef1b2dbf97c1d62f8371e6473e33f557f6d04d125974f0646fecda67f",
+      "bytes": 1836032
+    }
+  ],
+  "omitted": "zero-weight action entries and redundant movement-category totals; no observations or checkpoint bytes"
+}

@@ -1,0 +1,12 @@
+{
+  "started_utc": "2026-09-24T09:44:58.190Z",
+  "finished_utc": "2026-09-24T09:45:43.643Z",
+  "full_process_seconds": 45.452733595,
+  "exit_code": 0,
+  "signal": null,
+  "error": null,
+  "epochs": 5,
+  "expected_updates": 165,
+  "checkpoint_sha256": "df2ffa1ef1b2dbf97c1d62f8371e6473e33f557f6d04d125974f0646fecda67f",
+  "game_connection": false
+}

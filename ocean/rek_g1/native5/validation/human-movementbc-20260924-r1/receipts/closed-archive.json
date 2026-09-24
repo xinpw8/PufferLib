@@ -1,0 +1,47 @@
+{
+  "utc": "2026-09-24T09:57:13.020Z",
+  "source_host": "spark-4ae3",
+  "stage": "/home/spark-advantage/rek-training/human-movementbc-20260924-r1",
+  "members": [
+    "."
+  ],
+  "command": [
+    "wsl.exe",
+    "-d",
+    "Ubuntu-22.04",
+    "--exec",
+    "ssh",
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=5",
+    "spark",
+    "tar",
+    "-C",
+    "/home/spark-advantage/rek-training/human-movementbc-20260924-r1",
+    "-czf",
+    "-",
+    "--",
+    "."
+  ],
+  "exit_code": 0,
+  "bytes": 15280641,
+  "sha256": "a31d14e6fcae2e20d766d7fbe6ffb0f9dba6116f027028a8fd804b54500c6b82",
+  "nas_readback_verified": true,
+  "tar_listing_verified": true,
+  "archive_entries": 33,
+  "closed_source_sha256": {
+    "train-five-epochs/policy.bin": "df2ffa1ef1b2dbf97c1d62f8371e6473e33f557f6d04d125974f0646fecda67f",
+    "train-five-epochs/execution.json": "b9fefc3ee00a1ebab6a52e38a1b81da87557f00ff9b11b85617c789967232be5",
+    "train-five-epochs/stdout.jsonl": "b3b3fd0e93014a066b98c10266d329d98816eae1a7cc2df1343a8746ccb570b2",
+    "live-drift/report.json": "bf2a6b0278d25a9b616772b8afe5a875719e63dabe19e73ca00b89c74f48cfde",
+    "dataset/human-conditional-movement.bin": "b4f8261dc5e56df35520dc379c0b01f36ff14e0ccb7b7c2840e8ce4c74589403",
+    "dataset/manifest.json": "f22d86ff88da846376d83217c087ebfdd95a7254502d5ad606adfceef4bfa3bb",
+    "RESULTS.md": "ec7f95f49be5c667169103bd2d24ade9db23acf0d5764498a726b496c3c7719e"
+  },
+  "closed_source_hashes_verified_before_and_after": true,
+  "output": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\human-movementbc-native-20260924-r1\\evidence.tar.gz",
+  "source_removed": false,
+  "scope": "Closed five-epoch movement BC stage including supervised dataset, source, checkpoints, logs, actual full-input drift and results/provenance report. Live cohort and25-epoch stage excluded.",
+  "external_dependencies": "Unchanged native BC binary and attack-BC drift binary/base JS module remain pinned by source and archived separately in scorecredit-human-attackbc-native-20260924-r1."
+}

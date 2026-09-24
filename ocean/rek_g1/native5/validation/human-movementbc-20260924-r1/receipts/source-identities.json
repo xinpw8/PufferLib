@@ -1,0 +1,72 @@
+{
+  "archive": "\\\\192.168.0.19\\MyShare\\pufferlib\\rek-evidence\\2026-09-24\\human-movementbc-native-20260924-r1\\evidence.tar.gz",
+  "archive_sha256": "a31d14e6fcae2e20d766d7fbe6ffb0f9dba6116f027028a8fd804b54500c6b82",
+  "archive_bytes": 15280641,
+  "source_members": [
+    {
+      "archive_member": "./prepare_dataset.cjs",
+      "sha256": "64ba097844382d1e93926459ccb43e1506ab1c1d78f1b3fdce9dedac548c1980"
+    },
+    {
+      "archive_member": "./prepare_dataset.test.cjs",
+      "sha256": "543ed18e501e3eefc1ae786f7db41e9006364c14cab0667a30e9eec5909f7c74"
+    },
+    {
+      "archive_member": "./run_bc.cjs",
+      "sha256": "5f2f2fc7ea555cfbda117df8975614fb71e7366faca756903e2bc3d70cead55d"
+    },
+    {
+      "archive_member": "./test_export.cpp",
+      "sha256": "89dce393e46e07d83b3424f46dd0faa4c0aead5bc3d6241f5e4cda9aa2dfa831"
+    },
+    {
+      "archive_member": "./compare_live_drift.cjs",
+      "sha256": "0ae6a80c51ea4395f7fa381dcaef8d12a512b5a837e6384390b0885dbe9d6cdd"
+    },
+    {
+      "archive_member": "./compare_live_drift.test.cjs",
+      "sha256": "fcb6d027e009a1c687ac66c1ab48a2a457e5cd2c9ed7e45f945466104ee94efb"
+    },
+    {
+      "archive_member": "./README.md",
+      "sha256": "048ee50e6f09f5162b31a06f5518c8c8cbc0010f85eebdeef4ac98a474bb96a9"
+    },
+    {
+      "archive_member": "./RESULTS.md",
+      "sha256": "ec7f95f49be5c667169103bd2d24ade9db23acf0d5764498a726b496c3c7719e"
+    },
+    {
+      "archive_member": "./CPU-RECEIPT.json",
+      "sha256": "afd81ea2e7929d473450df3e0176dcc7568f72333f7c0d4c73470c6e058882f8"
+    },
+    {
+      "archive_member": "./dataset/manifest.json",
+      "sha256": "f22d86ff88da846376d83217c087ebfdd95a7254502d5ad606adfceef4bfa3bb"
+    },
+    {
+      "archive_member": "./train-five-epochs/command.json",
+      "sha256": "103bf457dd2b033636b34c24ba06524038ad42b9b63a73c784f1e0638fbc9ca4"
+    },
+    {
+      "archive_member": "./train-five-epochs/execution.json",
+      "sha256": "b9fefc3ee00a1ebab6a52e38a1b81da87557f00ff9b11b85617c789967232be5"
+    },
+    {
+      "archive_member": "./train-five-epochs/stdout.jsonl",
+      "sha256": "b3b3fd0e93014a066b98c10266d329d98816eae1a7cc2df1343a8746ccb570b2"
+    },
+    {
+      "archive_member": "./live-drift/report.json",
+      "sha256": "bf2a6b0278d25a9b616772b8afe5a875719e63dabe19e73ca00b89c74f48cfde"
+    },
+    {
+      "archive_member": "./live-drift/baseline.execution.json",
+      "sha256": "54e1a8d9fa543245992c713c3f97dad5c60d0260a99e19c6ec8e523d35c664f7"
+    },
+    {
+      "archive_member": "./live-drift/candidate.execution.json",
+      "sha256": "3ae18becaddf961a321f7e846e8b8ad36db197d991fab08f959623b94cfb5c84"
+    }
+  ],
+  "datasets_and_checkpoints_extracted": false
+}

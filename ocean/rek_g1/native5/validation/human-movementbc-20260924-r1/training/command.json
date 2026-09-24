@@ -1,0 +1,24 @@
+{
+  "binary": "/home/spark-advantage/rek-training/imitation-20260919-r1-native-bc/build-r5/bc-train",
+  "args": [
+    "/home/spark-advantage/rek-training/human-movementbc-20260924-r1/dataset/human-conditional-movement.bin",
+    "/home/spark-advantage/rek-training/scorecredit-human-attackbc-20260924-r1/train-five-epochs/policy.bin",
+    "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+    "/home/spark-advantage/rek-training/human-movementbc-20260924-r1/train-five-epochs/policy.bin",
+    "5",
+    ".0001",
+    "128"
+  ],
+  "observation_schema": "rek.native5.scaled_polar_xy.balance8_v1",
+  "checkpoint_sha256": "5b19d6280700994ecddd1b2ab69f9986f55b01b06034de8b796d5e81572168a4",
+  "dataset_sha256": "b4f8261dc5e56df35520dc379c0b01f36ff14e0ccb7b7c2840e8ce4c74589403",
+  "schema_enforcement": "external manifest; unchanged REKBC001 native reader checks223x33 shape, not schema string",
+  "training_input": "same partial balance8 view as attack BC; unknown176..183,202,204,205 zero",
+  "deployment_input": "no deployment change; existing allones full223 remains separate",
+  "conditional_support": [
+    2,
+    15
+  ],
+  "row_weights": "natural temporal occupancy of exact original movement outputs; not independent commands",
+  "epoch_selection": "fixed epoch5; all metrics/checkpoints retained; no development-selected epoch"
+}
