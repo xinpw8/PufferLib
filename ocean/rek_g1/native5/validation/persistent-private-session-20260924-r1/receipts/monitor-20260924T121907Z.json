@@ -1,0 +1,141 @@
+{
+  "schema": "rek.private_persistent_fault_monitor.v1",
+  "utc": "2026-09-24T12:19:07.336Z",
+  "uptime_s": 940299.4,
+  "hz": 100,
+  "page_bytes": 4096,
+  "container_pid": 54459,
+  "initial_start_ticks": "93969025",
+  "process": {
+    "host_pid": 3089342,
+    "namespace_pids": [
+      3089342,
+      54459
+    ],
+    "exact_game_argv_element": "/opt/codexrook/rek-core-referee-20260924-r1/REK.exe",
+    "state": "R",
+    "user_ticks": 106147,
+    "system_ticks": 5747,
+    "start_ticks": "93969025",
+    "rss_pages": 914993,
+    "threads": 95
+  },
+  "matches": 1,
+  "same_process": true,
+  "elapsed_since_process_start_s": 609.1500000000233,
+  "stderr_bytes": 4924045,
+  "counts": {
+    "signal": 0,
+    "nativebt": 0,
+    "emulatedbt": 0,
+    "av": 0,
+    "null_dispatch": 0,
+    "coreclr_fatal": 0,
+    "failfast": 0
+  },
+  "exit": null,
+  "rounds": [
+    {
+      "label": "persistent-s1701",
+      "source_rows": 2892,
+      "first": {
+        "utc": "2026-09-24T12:09:41.288565+00:00",
+        "frame": 973,
+        "unity_time": 19.193101197562356,
+        "qpc": 9397336480210,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 118.68303,
+        "score": [
+          0,
+          0
+        ]
+      },
+      "last": {
+        "utc": "2026-09-24T12:11:39.9765457+00:00",
+        "frame": 3864,
+        "unity_time": 137.81199999999998,
+        "qpc": 9398523423763,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 0,
+        "score": [
+          2,
+          14
+        ]
+      },
+      "source_hz": 24.35667637852699,
+      "unity_frames_per_wall_second": 24.35667637852699,
+      "unity_seconds_per_wall_second": 0.9993642789720568,
+      "interval_p95_ms": 56.1306
+    },
+    {
+      "label": "persistent-s1702",
+      "source_rows": 2914,
+      "first": {
+        "utc": "2026-09-24T12:14:03.361715+00:00",
+        "frame": 11570,
+        "unity_time": 281.3102285005669,
+        "qpc": 9399957275339,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 119.76655,
+        "score": [
+          0,
+          0
+        ]
+      },
+      "last": {
+        "utc": "2026-09-24T12:16:03.1380966+00:00",
+        "frame": 14483,
+        "unity_time": 401.002,
+        "qpc": 9401155039260,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 0,
+        "score": [
+          4,
+          13
+        ]
+      },
+      "source_hz": 24.320318461153583,
+      "unity_frames_per_wall_second": 24.320318461153583,
+      "unity_seconds_per_wall_second": 0.9992935118591965,
+      "interval_p95_ms": 56.3305
+    },
+    {
+      "label": "persistent-s1703",
+      "source_rows": 1069,
+      "first": {
+        "utc": "2026-09-24T12:18:26.5195867+00:00",
+        "frame": 22318,
+        "unity_time": 544.4703275014172,
+        "qpc": 9402588854053,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 119.78329,
+        "score": [
+          0,
+          0
+        ]
+      },
+      "last": {
+        "utc": "2026-09-24T12:19:07.3305221+00:00",
+        "frame": 23386,
+        "unity_time": 585.2711678004534,
+        "qpc": 9402996963574,
+        "qpc_hz": 10000000,
+        "round": 1,
+        "remaining": 78.97011,
+        "score": [
+          0,
+          7
+        ]
+      },
+      "source_hz": 26.169445823833154,
+      "unity_frames_per_wall_second": 26.169445823833154,
+      "unity_seconds_per_wall_second": 0.9997522282514031,
+      "interval_p95_ms": 50.3936
+    }
+  ]
+}

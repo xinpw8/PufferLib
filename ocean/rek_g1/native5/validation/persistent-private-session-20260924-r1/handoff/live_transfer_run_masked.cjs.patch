@@ -1,0 +1,48 @@
+--- a/live_transfer_run_masked.cjs
++++ b/live_transfer_run_masked.cjs
+@@ -289,6 +289,9 @@
+   const stdout = fs.createWriteStream(path.join(out, `${name}.stdout.jsonl`), {flags:'wx'});
+   const stderr = fs.createWriteStream(path.join(out, `${name}.stderr.txt`), {flags:'wx'});
+   const child = spawn(spec[0], spec.slice(1), {stdio:['pipe','pipe','pipe']});
++  const signalsSent=[];
++  const closed = new Promise(resolve => child.once('close', (code,signal) =>
++    resolve({name,code,signal,close_observed:true,signals_sent:signalsSent.slice()})));
+   child.stderr.pipe(stderr);
+   child.stdin.on('error', error => bus.emit('failure', error));
+   const lines = readline.createInterface({input:child.stdout});
+@@ -321,7 +324,8 @@
+       bus.on('message',onMessage);bus.once('exit',onExit);bus.once('failure',onFailure);bus.once('invalid',onInvalid);
+     });
+   }
+-  return {child,bus,send,wait,close(){child.stdin.end(); requests.end();}};
++  return {child,bus,send,wait,closed,close(){child.stdin.end(); requests.end();},
++    terminate(signal){signalsSent.push(signal);child.kill(signal);}};
+ }
+ async function run(configPath) {
+   const config=JSON.parse(fs.readFileSync(configPath,'utf8'));
+@@ -523,7 +527,8 @@
+   } catch(error) {unsupportedPairing=error.unsupported_pairing??null;finish(error.message);log('error',{message:error.message,...(unsupportedPairing?{unsupported_pairing:unsupportedPairing}:{})});}
+   finally {
+     clearTimeout(timer);clearInterval(watchdog);streaming=false;
+-    if(leased){try{await command('StopG1PolicyStream');}catch(e){log('stop_error',{message:e.message});}try{await command('ReleaseExclusiveControl');}catch(e){log('release_error',{message:e.message});}}
++    let streamStopped=false,leaseReleased=false;
++    if(leased){try{await command('StopG1PolicyStream');streamStopped=true;}catch(e){log('stop_error',{message:e.message});}try{await command('ReleaseExclusiveControl');leaseReleased=true;}catch(e){log('release_error',{message:e.message});}}
+     const summary={stop_reason:stopReason,source_count:sourceCount,skipped_sources:skipped,dropped_sources:droppedSources,
+       unmatched_action_acks:unmatchedAcks,action_inflight_at_stop:pacer.pending?.requestId!==null&&pacer.pending?.requestId!==undefined,
+       last_ack_qpc_ticks:pacer.lastAckQpc?.toString()??null,predictions,applied,rejected,actions,reasons,opponent,initial_round:firstRound,final_round:lastRound,projection:config.projection,checkpoint_sha256:config.checkpoint_sha256,authentic_client:true,global_input_emitted:false,
+@@ -534,7 +539,14 @@
+       live_attack_gate:{allowed_attacks:[...allowedAttacks].sort((a,b)=>a-b),range_m:attackRange,force_attack_range_m:forceRange,cooldown_s:cooldownS,cooldown_actions:[...cooldownActions],cooldown_masked:cooldownMasked,gated_requests:gatedRequests,gated_by_range:gatedByRange,forced_attacks:forcedAttacks}};
+     fs.writeFileSync(path.join(config.out,'summary.json'),JSON.stringify(summary,null,2)+'\n',{flag:'wx'});log('summary',summary);
+     for(const e of endpoints)e.close();
+-    setTimeout(()=>{for(const e of endpoints)if(e.child.exitCode===null)e.child.kill('SIGTERM');},2000).unref();
++    const cleanupTimer=setTimeout(()=>{for(const e of endpoints)if(e.child.exitCode===null)e.terminate('SIGTERM');},2000);
++    cleanupTimer.unref();
++    const closed=await Promise.all(endpoints.map(e=>e.closed));
++    clearTimeout(cleanupTimer);
++    log('policy_endpoints_closed',{schema:'rek.policy_transport_closed.v1',
++      checkpoint_sha256:config.checkpoint_sha256,trial_output:config.out,
++      summary_sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(config.out,'summary.json'))).digest('hex'),
++      stream_stopped:streamStopped,lease_released:leaseReleased,endpoints:closed});
+     events.end();
+     process.exitCode=trialExitCode(summary);
+   }

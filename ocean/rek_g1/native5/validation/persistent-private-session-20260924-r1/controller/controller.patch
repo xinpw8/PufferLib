@@ -1,0 +1,68 @@
+--- a/campaign.cjs
++++ b/campaign.cjs
+@@ -141,20 +141,16 @@
+   throw Error('relaunched client did not reach Lobby');
+ }
+ let anyConfigPath=null;
+-async function recycleUnsupportedPairing(st,entry){
++function preserveUnsupportedPairing(st,entry){
+   if(!st||st.isolated_session_verified!==true||st.scene!=='Arena'||
+      st.lease_held!==false||st.g1_policy_stream_running!==false||
+      st.private_ai?.proven!==true||st.private_ai.client_ai_difficulty!==0||
+      st.private_ai.sparring_bot_number!==1||
+      st.unsupported_pairing?.code!=='unsupported_pairing:local_g1_opponent_t800')
+-    throw Error('Unsupported-pair recycle scope not verified');
+-  if(relaunches>=MAX_RELAUNCHES)throw Error('relaunch budget exhausted before unsupported-pair recycle');
+-  log('unsupported_pairing_excluded',{label:entry?.label,policy_rng_seed:entry?.policy_rng_seed,
+-    retry_same_seed:true,counted:false,proof:st.unsupported_pairing});
+-  const recycled=await run('/bin/bash',[path.join(here,'recycle_owned_client.sh')],{stdout:true,timeoutMs:30000});
+-  if(recycled.code!==0)throw Error('Scoped unsupported-pair client recycle failed');
+-  plannedNextRelaunch=false;
+-  log('unsupported_pairing_recycle_end',{label:entry?.label,exit:recycled.code});
++    throw Error('Unsupported-pair recovery scope not verified');
++  log('unsupported_pairing_client_preserved',{label:entry?.label,policy_rng_seed:entry?.policy_rng_seed,
++    counted:false,proof:st.unsupported_pairing,next:'driver_native_private_home_exit'});
++  return st;
+ }
+ async function waitForLaunchWindow(config,entry){
+   anyConfigPath=config;
+@@ -163,7 +159,7 @@
+     let st;
+     try{st=await watchForWindow(config,LOBBY_WAIT_MS);}
+     catch(error){if(gameAlive())throw error;log('game_disappeared_while_watching');continue;}
+-    if(st?.unsupported_pairing){await recycleUnsupportedPairing(st,entry);continue;}
++    if(st?.unsupported_pairing)return preserveUnsupportedPairing(st,entry);
+     return st;
+   }
+ }
+@@ -239,23 +235,16 @@
+       await waitForLaunchWindow(anyConfig,entry);
+       const rec=await attempt(entry,n);
+       done=rec.complete;
+-      if(done&&rec.final_round.number>=1&&gameAlive()){
+-        const st=await probeState(rec.config);
+-        const p=st?.private_ai||{};
+-        if(!st||st.isolated_session_verified!==true||st.scene!=='Arena'||p.proven!==true||
+-           p.client_ai_difficulty!==0||p.sparring_bot_number!==1||st.lease_held!==false||st.g1_policy_stream_running!==false)
+-          throw Error('Completed-round recycle scope not verified');
+-        log('proactive_recycle_start',{completed_label:entry.label,round:rec.final_round.number,reason:'fresh_client_after_each_counted_round'});
+-        const recycled=await run('/bin/bash',[path.join(here,'recycle_owned_client.sh')],{stdout:true,timeoutMs:30000});
+-        if(recycled.code!==0)throw Error('Scoped client recycle failed');
+-        plannedNextRelaunch=true;
+-        log('proactive_recycle_end',{completed_label:entry.label,round:rec.final_round.number,exit:recycled.code});
+-      }
++      if(done)log('completed_round_client_preserved',{completed_label:entry.label,
++        round:rec.final_round.number,game_alive:gameAlive(),next:'native_between_round_transition'});
+       if(!done){if(!gameAlive())log('game_died_during_attempt',{label:entry.label,attempt:n});await sleep(rec.terminal===true?250:5000);}
+     }
+     if(!done){log('label_incomplete',{label:entry.label});throw Error('attempt budget exhausted for '+entry.label);}
+   }
+   log('campaign_end',{summary:Object.fromEntries(Object.entries(ledger).map(([k,v])=>[k,v.filter(a=>a.complete).map(a=>a.final_round?.clean_hits)]))});
+ }
+-if(process.argv[2]==='--verdict'){console.log(JSON.stringify(verdict(process.argv[3])));logStream.end();}
+-else main().catch(e=>{log('campaign_error',{message:e.message});process.exitCode=2;});
++module.exports={verdict,launchWindow,preserveUnsupportedPairing};
++if(require.main===module){
++  if(process.argv[2]==='--verdict'){console.log(JSON.stringify(verdict(process.argv[3],process.argv[4])));logStream.end();}
++  else main().catch(e=>{log('campaign_error',{message:e.message});process.exitCode=2;});
++}

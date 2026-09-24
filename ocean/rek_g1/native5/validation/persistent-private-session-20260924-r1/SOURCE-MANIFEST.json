@@ -1,0 +1,463 @@
+{
+  "schema": "rek.sanitized_runtime_publication.v1",
+  "generated_utc": "2026-09-24 12:41:45 UTC",
+  "manifest_self_excluded": true,
+  "exclusions": [
+    "Generated startup/tests/bin and obj",
+    "Generated handoff/test-output-*",
+    "Private binaries, weights, datasets, raw observations, raw stacks/registers, recovered proprietary game source"
+  ],
+  "production_source_modified": false,
+  "source_stage_roots": [
+    "C:/rekagent/work/spark-startup-skip-20260924-r1",
+    "C:/rekagent/work/persistent-private-session-20260924-r1",
+    "C:/rekagent/work/persistent-round-handoff-20260924-r1"
+  ],
+  "patch_baselines": [
+    {
+      "patch": "startup/integration.patch",
+      "root": "C:/rekagent/work/policy-timing-500-750-20260924-r1",
+      "files": [
+        {
+          "path": "variant/windows/RekUiBridgeAgent/Plugin.cs",
+          "before": "e421272a42dca22608528e06b3a6babf41567b11e83d7f98476be639953f87f7",
+          "after": "2d2c0c47677f2bf54690d6244ccfeafc67a402c47a19c33b6ed311a0d2c0bea0"
+        },
+        {
+          "path": "variant/windows/RekUiBridgeAgent/BridgeProtocol.cs",
+          "before": "05c10293c1ba0cd441308e483fc61932c4790dca4073db16eb98fd356bdd8deb",
+          "after": "d7d5e330265f19423ff8021a571e910f3acf3de96b8d003191cc7d41be0465a7"
+        },
+        {
+          "path": "variant/windows/RekUiPipeClient/PolicyRelay.cs",
+          "before": "c1158299f3ff7545c7e3c2afc1f18bdab5fb81171a819596f93a6fb9f4bfc354",
+          "after": "383d44e9773b1b5429bd0e86b16ca3ac98faa3e6868637483e105a288f0661b1"
+        }
+      ]
+    },
+    {
+      "patch": "startup/driver.patch",
+      "baseline": "C:/rekagent/work/persistent-private-session-20260924-r1/original_driver.cjs",
+      "expected_name": "live_transfer_run_masked.cjs",
+      "before": "b57654d54a76c80b38c9e44f59f53efb2502959a70dc568835ec5a8f6d238214",
+      "after": "1fff2cb9f3ebc43fc3e9b27b1b390e17e1e8805f157c0cf5ab0be09cec5a2489"
+    },
+    {
+      "patch": "controller/controller.patch",
+      "baseline": "C:/rekagent/work/persistent-private-session-20260924-r1/original_campaign.cjs",
+      "expected_name": "campaign.cjs",
+      "before": "160299c466f6aeb8b0f9cebfd63132316f98625fe89af5f851a505472e44b151",
+      "after": "bc164ed70fb323a781f0c24a0f9867b4c85e805d2dbd392c4b440463bb83e190"
+    },
+    {
+      "patch": "launcher/launcher.patch",
+      "baseline": "C:/rekagent/work/persistent-private-session-20260924-r1/relaunch.baseline.sh",
+      "expected_name": "relaunch.sh",
+      "before": "ca556b4688ee2d14ea2e0e3baf0d0c23f20d3f79a1375943ff145c572f96793b",
+      "after": "41d685616f90c1f78e70a744ee7e7059537ce33d2085cc4da87b96f8163483d7"
+    },
+    {
+      "patch": "handoff/campaign.cjs.patch",
+      "baseline": "C:/rekagent/work/persistent-round-handoff-20260924-r1/baseline/campaign.cjs",
+      "expected_name": "campaign.cjs",
+      "before": "bc164ed70fb323a781f0c24a0f9867b4c85e805d2dbd392c4b440463bb83e190",
+      "after": "fe839414eca8d366297e877988b569e714ac30b6d0cd1176063ca683f3da4b8e"
+    },
+    {
+      "patch": "handoff/live_transfer_run_masked.cjs.patch",
+      "baseline": "C:/rekagent/work/persistent-round-handoff-20260924-r1/baseline/live_transfer_run_masked.cjs",
+      "expected_name": "live_transfer_run_masked.cjs",
+      "before": "1fff2cb9f3ebc43fc3e9b27b1b390e17e1e8805f157c0cf5ab0be09cec5a2489",
+      "after": "f6d31931186da3dce3621b4a952b7e853055446c8ab5aa934060d3263cfb6136"
+    },
+    {
+      "patch": "handoff/record_passive_defender.cjs.patch",
+      "baseline": "C:/rekagent/work/persistent-round-handoff-20260924-r1/baseline/record_passive_defender.cjs",
+      "expected_name": "record_passive_defender.cjs",
+      "before": "6fc354d170a24ca8e93d8a01c2ffb9520932ef6341904da6ea8e973a2712c928",
+      "after": "9a29c88f30886654f5afe57e573245e2005ef790909ae656ec67114c19902e07"
+    }
+  ],
+  "exact_copies": [
+    {
+      "path": "startup/live_transfer_run_masked.cjs",
+      "source": "C:\\rekagent\\work\\spark-startup-skip-20260924-r1\\live_transfer_run_masked.cjs",
+      "sha256": "1fff2cb9f3ebc43fc3e9b27b1b390e17e1e8805f157c0cf5ab0be09cec5a2489"
+    },
+    {
+      "path": "startup/startup.test.cjs",
+      "source": "C:\\rekagent\\work\\spark-startup-skip-20260924-r1\\startup.test.cjs",
+      "sha256": "a0b8090f3029eb8e36370e51dcd24428670d0f999d5860c988884fdf7e76fc7d"
+    },
+    {
+      "path": "startup/tests/Program.cs",
+      "source": "C:\\rekagent\\work\\spark-startup-skip-20260924-r1\\tests\\Program.cs",
+      "sha256": "e973557c8834e22bcad2ceb53fa42f6c09a49a106aca10c4ee02aaaa07bf0f55"
+    },
+    {
+      "path": "startup/tests/StartupMenuTests.csproj",
+      "source": "C:\\rekagent\\work\\spark-startup-skip-20260924-r1\\tests\\StartupMenuTests.csproj",
+      "sha256": "7fac63bacfcc55e8eba6344e09b69d165e6dc89e1b0420b69bb5d4cbc128b1b0"
+    },
+    {
+      "path": "startup/NuGet.Config",
+      "source": "C:\\rekagent\\work\\spark-startup-skip-20260924-r1\\NuGet.Config",
+      "sha256": "2142cfb2dfa2c7feefbe40fabcc68b0dfecadafa99a1db9b70239d977cf2a7ef"
+    },
+    {
+      "path": "receipts/startup-PREPARATION.md",
+      "source": "C:\\rekagent\\work\\spark-startup-skip-20260924-r1\\README.md",
+      "sha256": "14a0bf11bec375ffcfee3fd0a5570abf344e9db7878b1b058b419556b382141f"
+    },
+    {
+      "path": "receipts/startup-BUILD-RECEIPT.json",
+      "source": "C:\\rekagent\\work\\spark-startup-skip-20260924-r1\\BUILD-RECEIPT.json",
+      "sha256": "62a2d071c03f5da1b46369b17f1db1196461c0ec74225c968ed0a2b4fb841122"
+    },
+    {
+      "path": "controller/persistent_campaign.cjs",
+      "source": "C:\\rekagent\\work\\persistent-private-session-20260924-r1\\persistent_campaign.cjs",
+      "sha256": "bc164ed70fb323a781f0c24a0f9867b4c85e805d2dbd392c4b440463bb83e190"
+    },
+    {
+      "path": "controller/persistent_campaign.test.cjs",
+      "source": "C:\\rekagent\\work\\persistent-private-session-20260924-r1\\persistent_campaign.test.cjs",
+      "sha256": "57f6033e35c551491e024b2bd7d2512b68f065352ca25f1108f26ded43aac5ce"
+    },
+    {
+      "path": "controller/prepare_smoke.cjs",
+      "source": "C:\\rekagent\\work\\persistent-private-session-20260924-r1\\prepare_smoke.cjs",
+      "sha256": "eea3979a2d0d46a6fa8895f324c7963dfef6a29a1923e9395bcc984d06973393"
+    },
+    {
+      "path": "launcher/install_once.sh",
+      "source": "C:\\rekagent\\work\\persistent-private-session-20260924-r1\\install_once.sh",
+      "sha256": "89a443c80b20548a0572fbc5c72f61dcfdf5a03af191628e2922072adb3bffd0"
+    },
+    {
+      "path": "launcher/relaunch.sh",
+      "source": "C:\\rekagent\\work\\persistent-private-session-20260924-r1\\relaunch.sh",
+      "sha256": "41d685616f90c1f78e70a744ee7e7059537ce33d2085cc4da87b96f8163483d7"
+    },
+    {
+      "path": "receipts/launcher-PREPARATION.md",
+      "source": "C:\\rekagent\\work\\persistent-private-session-20260924-r1\\README.md",
+      "sha256": "82e5aa76b96dc041e4b74ddc4e27a66373a268b53c4b3128297bf0f1cd057b7a"
+    },
+    {
+      "path": "receipts/launcher-staging-receipt.json",
+      "source": "C:\\rekagent\\work\\persistent-private-session-20260924-r1\\staging-receipt.json",
+      "sha256": "a79f0f8491107adfbbe97f75b94fa21925a8db0e4a22dcfda3f2da63c6ff9185"
+    },
+    {
+      "path": "receipts/process-identity-20260924T121804Z.json",
+      "source": "C:\\rekagent\\work\\persistent-private-session-20260924-r1\\process-identity-20260924T121804Z.json",
+      "sha256": "becc062bf430bcc85d6c72f6b5dfb8649a64caa58978ec0c7f6e42fb77c2dc67"
+    },
+    {
+      "path": "receipts/monitor-20260924T121907Z.json",
+      "source": "C:\\rekagent\\work\\persistent-private-session-20260924-r1\\monitor-20260924T121907Z.json",
+      "sha256": "9f47395d89e877a3fd5361ba2ecd432df06285aa7cb1e769c9b7fb1f2df048a2"
+    },
+    {
+      "path": "startup/variant/windows/RekUiBridgeAgent/Plugin.StartupMenus.cs",
+      "source": "C:\\rekagent\\work\\spark-startup-skip-20260924-r1\\variant\\windows\\RekUiBridgeAgent/Plugin.StartupMenus.cs",
+      "sha256": "fe19e3a0399d02c23fefe780a4041e9386eb5e8e8b988a40694ec6328fd4ffa3"
+    },
+    {
+      "path": "startup/variant/windows/RekUiBridgeAgent/StartupMenuContract.cs",
+      "source": "C:\\rekagent\\work\\spark-startup-skip-20260924-r1\\variant\\windows\\RekUiBridgeAgent/StartupMenuContract.cs",
+      "sha256": "244d2cc22fd30329ec3e87c92d8507ba44b38f1673463425ded1f7aa5ab7a496"
+    },
+    {
+      "path": "startup/variant/windows/RekUiBridgeAgent/BridgeProtocol.cs",
+      "source": "C:\\rekagent\\work\\spark-startup-skip-20260924-r1\\variant\\windows\\RekUiBridgeAgent/BridgeProtocol.cs",
+      "sha256": "d7d5e330265f19423ff8021a571e910f3acf3de96b8d003191cc7d41be0465a7"
+    },
+    {
+      "path": "startup/variant/windows/RekUiPipeClient/PolicyRelay.cs",
+      "source": "C:\\rekagent\\work\\spark-startup-skip-20260924-r1\\variant\\windows\\RekUiPipeClient/PolicyRelay.cs",
+      "sha256": "383d44e9773b1b5429bd0e86b16ca3ac98faa3e6868637483e105a288f0661b1"
+    },
+    {
+      "path": "startup/variant/windows/PolicyExecutionIsolationContract.cs",
+      "source": "C:\\rekagent\\work\\spark-startup-skip-20260924-r1\\variant\\windows\\PolicyExecutionIsolationContract.cs",
+      "sha256": "af8ce9887d911bbdb56286c6213b316fd84ad227339b4b2a5c3ca7fa40e0c429"
+    },
+    {
+      "path": "handoff/campaign.cjs",
+      "source": "C:\\rekagent\\work\\persistent-round-handoff-20260924-r1\\campaign.cjs",
+      "sha256": "fe839414eca8d366297e877988b569e714ac30b6d0cd1176063ca683f3da4b8e"
+    },
+    {
+      "path": "handoff/live_transfer_run_masked.cjs",
+      "source": "C:\\rekagent\\work\\persistent-round-handoff-20260924-r1\\live_transfer_run_masked.cjs",
+      "sha256": "f6d31931186da3dce3621b4a952b7e853055446c8ab5aa934060d3263cfb6136"
+    },
+    {
+      "path": "handoff/record_passive_defender.cjs",
+      "source": "C:\\rekagent\\work\\persistent-round-handoff-20260924-r1\\record_passive_defender.cjs",
+      "sha256": "9a29c88f30886654f5afe57e573245e2005ef790909ae656ec67114c19902e07"
+    },
+    {
+      "path": "handoff/policy_handoff.cjs",
+      "source": "C:\\rekagent\\work\\persistent-round-handoff-20260924-r1\\policy_handoff.cjs",
+      "sha256": "482096b5b0a4e7473ee2f2ec3b9e96036bb4159954d560d1e23a67292d5daa72"
+    },
+    {
+      "path": "handoff/handoff.test.cjs",
+      "source": "C:\\rekagent\\work\\persistent-round-handoff-20260924-r1\\handoff.test.cjs",
+      "sha256": "276230203f84c4b9ccc07c566a046b6cfa79fecf74a0ce46cff2bef63b998711"
+    },
+    {
+      "path": "handoff/baseline/campaign.cjs",
+      "source": "C:\\rekagent\\work\\persistent-round-handoff-20260924-r1\\baseline/campaign.cjs",
+      "sha256": "bc164ed70fb323a781f0c24a0f9867b4c85e805d2dbd392c4b440463bb83e190"
+    },
+    {
+      "path": "handoff/baseline/live_transfer_run_masked.cjs",
+      "source": "C:\\rekagent\\work\\persistent-round-handoff-20260924-r1\\baseline/live_transfer_run_masked.cjs",
+      "sha256": "1fff2cb9f3ebc43fc3e9b27b1b390e17e1e8805f157c0cf5ab0be09cec5a2489"
+    },
+    {
+      "path": "handoff/prepare_handoff_smoke.cjs",
+      "source": "C:\\rekagent\\work\\persistent-private-session-20260924-r1\\prepare_handoff_smoke.cjs",
+      "sha256": "d84668d73e164de7c7c84be343d7bec1856f38972f1583aaf0738bf558a22d0d"
+    }
+  ],
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 61,
+      "sha256": "5f5d91a3566039c9c83c5f1d6fe4d26cd0cbbc564d3988080b22c31e955e65c9"
+    },
+    {
+      "path": "controller/controller.patch",
+      "bytes": 4168,
+      "sha256": "8e8d822147a1b01ab3a17c147148a1bc1caf25fd715c1d4e3b6659886cffe7cc"
+    },
+    {
+      "path": "controller/persistent_campaign.cjs",
+      "bytes": 16674,
+      "sha256": "bc164ed70fb323a781f0c24a0f9867b4c85e805d2dbd392c4b440463bb83e190"
+    },
+    {
+      "path": "controller/persistent_campaign.test.cjs",
+      "bytes": 2296,
+      "sha256": "57f6033e35c551491e024b2bd7d2512b68f065352ca25f1108f26ded43aac5ce"
+    },
+    {
+      "path": "controller/prepare_smoke.cjs",
+      "bytes": 4031,
+      "sha256": "eea3979a2d0d46a6fa8895f324c7963dfef6a29a1923e9395bcc984d06973393"
+    },
+    {
+      "path": "handoff/baseline/campaign.cjs",
+      "bytes": 16674,
+      "sha256": "bc164ed70fb323a781f0c24a0f9867b4c85e805d2dbd392c4b440463bb83e190"
+    },
+    {
+      "path": "handoff/baseline/live_transfer_run_masked.cjs",
+      "bytes": 35253,
+      "sha256": "1fff2cb9f3ebc43fc3e9b27b1b390e17e1e8805f157c0cf5ab0be09cec5a2489"
+    },
+    {
+      "path": "handoff/campaign.cjs",
+      "bytes": 20383,
+      "sha256": "fe839414eca8d366297e877988b569e714ac30b6d0cd1176063ca683f3da4b8e"
+    },
+    {
+      "path": "handoff/campaign.cjs.patch",
+      "bytes": 9491,
+      "sha256": "45082ed51ecdefc6ab975b4609c78807308fbe2da2425ed325b5b43828cba1cf"
+    },
+    {
+      "path": "handoff/handoff.test.cjs",
+      "bytes": 11473,
+      "sha256": "276230203f84c4b9ccc07c566a046b6cfa79fecf74a0ce46cff2bef63b998711"
+    },
+    {
+      "path": "handoff/live_transfer_run_masked.cjs",
+      "bytes": 36097,
+      "sha256": "f6d31931186da3dce3621b4a952b7e853055446c8ab5aa934060d3263cfb6136"
+    },
+    {
+      "path": "handoff/live_transfer_run_masked.cjs.patch",
+      "bytes": 3834,
+      "sha256": "0ef589712ff48da342ea3e942fdad063cf232a24d90a8fc484cd78287b15892a"
+    },
+    {
+      "path": "handoff/policy_handoff.cjs",
+      "bytes": 2979,
+      "sha256": "482096b5b0a4e7473ee2f2ec3b9e96036bb4159954d560d1e23a67292d5daa72"
+    },
+    {
+      "path": "handoff/prepare_handoff_smoke.cjs",
+      "bytes": 3999,
+      "sha256": "d84668d73e164de7c7c84be343d7bec1856f38972f1583aaf0738bf558a22d0d"
+    },
+    {
+      "path": "handoff/record_passive_defender.cjs",
+      "bytes": 11715,
+      "sha256": "9a29c88f30886654f5afe57e573245e2005ef790909ae656ec67114c19902e07"
+    },
+    {
+      "path": "handoff/record_passive_defender.cjs.patch",
+      "bytes": 2871,
+      "sha256": "7b1fb466e3652c75940173ecdfb0d4b8d709de3ee23a96edf88e39eec3c9c9de"
+    },
+    {
+      "path": "launcher/install_once.sh",
+      "bytes": 1644,
+      "sha256": "89a443c80b20548a0572fbc5c72f61dcfdf5a03af191628e2922072adb3bffd0"
+    },
+    {
+      "path": "launcher/launcher.patch",
+      "bytes": 2006,
+      "sha256": "80468386ce3d5fde348416dda97665b1610f26d33cf0603cbb082fe5b85ed453"
+    },
+    {
+      "path": "launcher/relaunch.sh",
+      "bytes": 5118,
+      "sha256": "41d685616f90c1f78e70a744ee7e7059537ce33d2085cc4da87b96f8163483d7"
+    },
+    {
+      "path": "README.md",
+      "bytes": 12885,
+      "sha256": "dfbc20eff3e98e107034ce44285db3bf3840d222568caa60d8af3d8d3ab833e2"
+    },
+    {
+      "path": "receipts/CPU-CHECKS.json",
+      "bytes": 2091,
+      "sha256": "6079b06bdefd7570c859cffe2ae08d9853c4842b587975499542838df9335be3"
+    },
+    {
+      "path": "receipts/deployment.json",
+      "bytes": 5715,
+      "sha256": "13792efc7bab03bc254a12c12dc18d43d82bda8cfef0e9ee77af66791ff3d261"
+    },
+    {
+      "path": "receipts/handoff-execution.json",
+      "bytes": 26784,
+      "sha256": "23668d202d22d81989ac7939180f6e4b59eddb7cc4e564d86f491c4a7b2ba1ba"
+    },
+    {
+      "path": "receipts/handoff-final.json",
+      "bytes": 56303,
+      "sha256": "996e87366f35fbfc8b0265026a175d519699ea3ef3ae0bef37b668011f113a7b"
+    },
+    {
+      "path": "receipts/launcher-PREPARATION.md",
+      "bytes": 3339,
+      "sha256": "82e5aa76b96dc041e4b74ddc4e27a66373a268b53c4b3128297bf0f1cd057b7a"
+    },
+    {
+      "path": "receipts/launcher-staging-receipt.json",
+      "bytes": 1222,
+      "sha256": "a79f0f8491107adfbbe97f75b94fa21925a8db0e4a22dcfda3f2da63c6ff9185"
+    },
+    {
+      "path": "receipts/monitor-20260924T121907Z.json",
+      "bytes": 3602,
+      "sha256": "9f47395d89e877a3fd5361ba2ecd432df06285aa7cb1e769c9b7fb1f2df048a2"
+    },
+    {
+      "path": "receipts/process-identity-20260924T121804Z.json",
+      "bytes": 791,
+      "sha256": "becc062bf430bcc85d6c72f6b5dfb8649a64caa58978ec0c7f6e42fb77c2dc67"
+    },
+    {
+      "path": "receipts/startup-BUILD-RECEIPT.json",
+      "bytes": 1316,
+      "sha256": "62a2d071c03f5da1b46369b17f1db1196461c0ec74225c968ed0a2b4fb841122"
+    },
+    {
+      "path": "receipts/startup-PREPARATION.md",
+      "bytes": 3240,
+      "sha256": "14a0bf11bec375ffcfee3fd0a5570abf344e9db7878b1b058b419556b382141f"
+    },
+    {
+      "path": "receipts/unsupported-home-recovery.json",
+      "bytes": 3608,
+      "sha256": "06f2a14008d48fa912797ac0432e00b6e001e1763b405200ca557db7ec515bba"
+    },
+    {
+      "path": "startup/driver.patch",
+      "bytes": 4636,
+      "sha256": "f241f742593e89b83650e3717ad3352f3fc649dcfd1bc8a8ed4e3ba31881e477"
+    },
+    {
+      "path": "startup/integration.patch",
+      "bytes": 2790,
+      "sha256": "80c6ce11a64e0689c5d9c2778fe5a5053e194b99a6ee71fa4a7dea337fb0cf7d"
+    },
+    {
+      "path": "startup/live_transfer_run_masked.cjs",
+      "bytes": 35253,
+      "sha256": "1fff2cb9f3ebc43fc3e9b27b1b390e17e1e8805f157c0cf5ab0be09cec5a2489"
+    },
+    {
+      "path": "startup/NuGet.Config",
+      "bytes": 113,
+      "sha256": "2142cfb2dfa2c7feefbe40fabcc68b0dfecadafa99a1db9b70239d977cf2a7ef"
+    },
+    {
+      "path": "startup/startup.test.cjs",
+      "bytes": 5584,
+      "sha256": "a0b8090f3029eb8e36370e51dcd24428670d0f999d5860c988884fdf7e76fc7d"
+    },
+    {
+      "path": "startup/tests/Program.cs",
+      "bytes": 2055,
+      "sha256": "e973557c8834e22bcad2ceb53fa42f6c09a49a106aca10c4ee02aaaa07bf0f55"
+    },
+    {
+      "path": "startup/tests/StartupMenuTests.csproj",
+      "bytes": 482,
+      "sha256": "7fac63bacfcc55e8eba6344e09b69d165e6dc89e1b0420b69bb5d4cbc128b1b0"
+    },
+    {
+      "path": "startup/variant/windows/PolicyExecutionIsolationContract.cs",
+      "bytes": 2854,
+      "sha256": "af8ce9887d911bbdb56286c6213b316fd84ad227339b4b2a5c3ca7fa40e0c429"
+    },
+    {
+      "path": "startup/variant/windows/RekUiBridgeAgent/BridgeProtocol.cs",
+      "bytes": 19993,
+      "sha256": "d7d5e330265f19423ff8021a571e910f3acf3de96b8d003191cc7d41be0465a7"
+    },
+    {
+      "path": "startup/variant/windows/RekUiBridgeAgent/Plugin.StartupMenus.cs",
+      "bytes": 5838,
+      "sha256": "fe19e3a0399d02c23fefe780a4041e9386eb5e8e8b988a40694ec6328fd4ffa3"
+    },
+    {
+      "path": "startup/variant/windows/RekUiBridgeAgent/StartupMenuContract.cs",
+      "bytes": 2231,
+      "sha256": "244d2cc22fd30329ec3e87c92d8507ba44b38f1673463425ded1f7aa5ab7a496"
+    },
+    {
+      "path": "startup/variant/windows/RekUiPipeClient/PolicyRelay.cs",
+      "bytes": 10318,
+      "sha256": "383d44e9773b1b5429bd0e86b16ca3ac98faa3e6868637483e105a288f0661b1"
+    }
+  ],
+  "closed_handoff_update": {
+    "closed_utc": "2026-09-24T12:36:31.967Z",
+    "proof_cutoff_utc": "2026-09-24T12:37:54.548Z",
+    "changed_existing_members": [
+      "README.md"
+    ],
+    "new_members": [
+      "receipts/handoff-final.json"
+    ],
+    "runtime_source_unchanged": true,
+    "completed": 4,
+    "points": [
+      59,
+      53
+    ],
+    "wins": 2,
+    "losses": 2
+  }
+}

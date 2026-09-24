@@ -1,0 +1,179 @@
+{
+  "schema": "rek.persistent_private_session_deployment.v1",
+  "source_stage": "/home/spark-advantage/rek-training/persistent-private-session-20260924-r1",
+  "maintenance": {
+    "started_utc": "2026-09-24T12:08:52Z",
+    "completed_utc": "2026-09-24T12:08:55Z",
+    "old_bridge_sha256": "11fcfa2bea541f2829553c3833c301717c0182a59eebb0020f5f7b8cb066ca3d",
+    "installed_bridge_sha256": "5a2edac6c586f1ea401d92e0086ebfc468dbc591e2bb11115aef056682280e7a",
+    "prior_plugin_backed_up": true
+  },
+  "startup": {
+    "commands": [
+      {
+        "utc": "2026-09-24T12:09:23.937Z",
+        "event": "command_result",
+        "command": "AcquireExclusiveControl",
+        "status": "accepted",
+        "reason": "exclusive_control_lease_acquired"
+      },
+      {
+        "utc": "2026-09-24T12:09:23.950Z",
+        "event": "command_result",
+        "command": "SkipIntro",
+        "status": "accepted",
+        "reason": "native_intro_skip_finished_observed"
+      },
+      {
+        "utc": "2026-09-24T12:09:24.131Z",
+        "event": "command_result",
+        "command": "ConfirmLoggedIn",
+        "status": "accepted",
+        "reason": "home_screen_observed_after_lets_go"
+      }
+    ],
+    "lease_to_skip_ms": 13,
+    "skip_to_home_ms": 181,
+    "source_sha256": "e3f8ecc5ea5932aabba25003e83f1ff15f753967affeb059d8cf30b4b12c3f4f",
+    "unsupported_pair_home_live_verified": false
+  },
+  "smoke": {
+    "closed_utc": "2026-09-24T12:22:16.590Z",
+    "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+    "completed": 3,
+    "wins": 1,
+    "losses": 2,
+    "points": [
+      13,
+      32
+    ],
+    "attempts": [
+      {
+        "label": "persistent-s1701",
+        "complete": true,
+        "utc_start": "2026-09-24T12:09:21.461Z",
+        "utc_end": "2026-09-24T12:11:44.585Z",
+        "score": [
+          2,
+          14
+        ],
+        "remaining_seconds": 0,
+        "round_number": 1,
+        "stop_reason": "stream_end:active_round_not_observed",
+        "wrapper_exit": 0,
+        "predictions": 2890,
+        "applied": 2889,
+        "rejected": 1,
+        "summary_sha256": "e93336012b411f3bc4632359918c6ae2661076eea53c8223599883715cf0068d"
+      },
+      {
+        "label": "persistent-s1702",
+        "complete": true,
+        "utc_start": "2026-09-24T12:13:50.092Z",
+        "utc_end": "2026-09-24T12:16:07.564Z",
+        "score": [
+          4,
+          13
+        ],
+        "remaining_seconds": 0,
+        "round_number": 1,
+        "stop_reason": "stream_end:active_round_not_observed",
+        "wrapper_exit": 0,
+        "predictions": 2912,
+        "applied": 2911,
+        "rejected": 1,
+        "summary_sha256": "1654ab89d90ef991062a055b7f7b031dea960b7d92f74e0398e0e5fe8c652e92"
+      },
+      {
+        "label": "persistent-s1703",
+        "complete": false,
+        "utc_start": "2026-09-24T12:18:13.281Z",
+        "utc_end": "2026-09-24T12:19:23.582Z",
+        "score": [
+          0,
+          7
+        ],
+        "remaining_seconds": 78.069824,
+        "round_number": 1,
+        "stop_reason": "child_exit:{\"code\":0,\"signal\":null}",
+        "wrapper_exit": 2,
+        "predictions": 1090,
+        "applied": 1090,
+        "rejected": 0,
+        "summary_sha256": "28b74ebe38fd9a63a03013f8627350bff0fce5b9c7397e253dd528f66e862da6"
+      },
+      {
+        "label": "persistent-s1703-retry2",
+        "complete": true,
+        "utc_start": "2026-09-24T12:19:58.739Z",
+        "utc_end": "2026-09-24T12:22:16.576Z",
+        "score": [
+          7,
+          5
+        ],
+        "remaining_seconds": 0,
+        "round_number": 1,
+        "stop_reason": "stream_end:active_round_not_observed",
+        "wrapper_exit": 0,
+        "predictions": 2961,
+        "applied": 2960,
+        "rejected": 1,
+        "summary_sha256": "4ed28f94e9d9102dcaa99d3a45d8c4912372da7fa95e735c6e6f140a34c19c72"
+      }
+    ],
+    "native_score_packet_validation_executed": false,
+    "criterion": "runtime_smoke_no_policy_acceptance_claim",
+    "true_crash_relaunches": 1,
+    "source_sha256": {
+      "ledger": "dec2c4a0164f26561d9063efe1baad3ab77c26fa61f353e369cf60e4595781e6",
+      "campaign_log": "eabd428a0274c382f697ac2f6775611b761b66e2275d4cca19af37594ec933fe"
+    },
+    "events": [
+      {
+        "utc": "2026-09-24T12:11:44.607Z",
+        "event": "completed_round_client_preserved",
+        "completed_label": "persistent-s1701",
+        "round": 1,
+        "game_alive": true,
+        "next": "native_between_round_transition"
+      },
+      {
+        "utc": "2026-09-24T12:16:07.582Z",
+        "event": "completed_round_client_preserved",
+        "completed_label": "persistent-s1702",
+        "round": 1,
+        "game_alive": true,
+        "next": "native_between_round_transition"
+      },
+      {
+        "utc": "2026-09-24T12:19:23.605Z",
+        "event": "game_died_during_attempt",
+        "label": "persistent-s1703",
+        "attempt": 1
+      },
+      {
+        "utc": "2026-09-24T12:19:30.379Z",
+        "event": "relaunch_start",
+        "suffix": "r98",
+        "planned_restart": false,
+        "cumulative_unplanned_relaunches": 1
+      },
+      {
+        "utc": "2026-09-24T12:19:32.483Z",
+        "event": "relaunch_submitted",
+        "suffix": "r98",
+        "exit": 0
+      },
+      {
+        "utc": "2026-09-24T12:22:16.590Z",
+        "event": "completed_round_client_preserved",
+        "completed_label": "persistent-s1703",
+        "round": 1,
+        "game_alive": true,
+        "next": "native_between_round_transition"
+      }
+    ]
+  },
+  "round_handoff_status": "pending_separate_fix; wrapper_media_cleanup_can_miss_next_native_round",
+  "crash_cause": "unknown; diagnostic logging does not constitute a crash fix"
+}

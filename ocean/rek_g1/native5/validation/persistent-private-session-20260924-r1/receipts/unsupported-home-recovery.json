@@ -1,0 +1,99 @@
+{
+  "schema": "rek.native_private_home_deployment.v1",
+  "source": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801-retry2/trial/orchestrator.jsonl",
+  "source_prefix_bytes": 4125,
+  "source_prefix_sha256": "b3e77a6a6b8ddba3c337d1bf7cb2e90c166b83736a6711d97ce0195352c30b57",
+  "prefix_cutoff_event": "accepted StartG1PolicyStreamAnyAi",
+  "whole_file_may_still_be_active": true,
+  "observed_at_utc": "2026-09-24T12:28:49.220Z",
+  "events": [
+    {
+      "utc": "2026-09-24T12:26:13.895Z",
+      "event": "command_result",
+      "command": "AcquireExclusiveControl",
+      "status": "accepted",
+      "reason": "exclusive_control_lease_acquired"
+    },
+    {
+      "utc": "2026-09-24T12:26:13.895Z",
+      "event": "unsupported_private_pair_native_exit_requested",
+      "unsupported_pairing": {
+        "code": "unsupported_pairing:local_g1_opponent_t800",
+        "reason": "mixed_supported_runtime_models_rejected",
+        "observed_utc": "2026-09-24T12:26:13.8799187+00:00",
+        "round_number": 1,
+        "local_slot": 0,
+        "opponent_slot": 1,
+        "local_robot_id": "g1",
+        "opponent_robot_id": "t800",
+        "local_runtime_object_name": "g1_29dof_Prefab_SONIC(Clone)",
+        "opponent_runtime_object_name": "engineai_t800_FactoryPolicy(Clone)",
+        "local_bone_signature_sha256": "9d18e697233d9578b398fbe849cd59d65cb27a5c2223b2602db66a82a410e987",
+        "opponent_bone_signature_sha256": "ec0f8d0ae5bd170464f5393f9860959e47a54b8e73e4dc259a6fb955f46d3dab"
+      },
+      "process_restart": false
+    },
+    {
+      "utc": "2026-09-24T12:26:13.921Z",
+      "event": "command_result",
+      "command": "ExitUnsupportedPrivateAiPairing",
+      "status": "accepted",
+      "reason": "unsupported_private_pair_native_home_exit_requested"
+    },
+    {
+      "utc": "2026-09-24T12:26:14.062Z",
+      "event": "command_result",
+      "command": "ExitUnsupportedPrivateAiPairing",
+      "status": "accepted",
+      "reason": "unsupported_private_pair_native_home_forfeit_confirmed"
+    },
+    {
+      "utc": "2026-09-24T12:26:14.062Z",
+      "event": "unsupported_private_pair_native_confirmation_requested",
+      "process_restart": false
+    },
+    {
+      "utc": "2026-09-24T12:26:14.398Z",
+      "event": "unsupported_private_pair_home_observed",
+      "process_restart": false
+    },
+    {
+      "utc": "2026-09-24T12:26:14.411Z",
+      "event": "command_result",
+      "command": "NavigateFreePlay",
+      "status": "accepted",
+      "reason": "free_play_screen_observed"
+    },
+    {
+      "utc": "2026-09-24T12:26:14.608Z",
+      "event": "command_result",
+      "command": "EnterSolo",
+      "status": "accepted",
+      "reason": "private_practice_reservation_requested"
+    },
+    {
+      "utc": "2026-09-24T12:26:16.076Z",
+      "event": "command_result",
+      "command": "ReadyPrivateAiSession",
+      "status": "accepted",
+      "reason": "private_ai_ready_requested_opponent_unverified"
+    },
+    {
+      "utc": "2026-09-24T12:26:24.815Z",
+      "event": "active_private_ai_opponent",
+      "client_ai_difficulty": 0,
+      "sparring_bot_number": 1
+    },
+    {
+      "utc": "2026-09-24T12:26:25.036Z",
+      "event": "command_result",
+      "command": "StartG1PolicyStreamAnyAi",
+      "status": "accepted",
+      "reason": "g1_policy_stream_started_neutral"
+    }
+  ],
+  "process_restart_requested": false,
+  "process_identity_claim": "r98 process preserved, independently monitored; no process-control operation in this analysis",
+  "policy_actions_before_unsupported_recovery": 0,
+  "score_or_criterion_claim": false
+}

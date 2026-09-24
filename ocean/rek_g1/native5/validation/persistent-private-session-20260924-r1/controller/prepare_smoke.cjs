@@ -1,0 +1,32 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+assert.equal(os.hostname(),'spark-4ae3');
+const stage='/home/spark-advantage/rek-training/persistent-private-session-20260924-r1';
+const out=stage+'/live',old='/home/spark-advantage/rek-training/timing500-ppo-refresh-live-20260924-r1';
+const sha=p=>crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+const driverSha='1fff2cb9f3ebc43fc3e9b27b1b390e17e1e8805f157c0cf5ab0be09cec5a2489';
+const bridgeSha='5a2edac6c586f1ea401d92e0086ebfc468dbc591e2bb11115aef056682280e7a';
+const relaySha='b7059eaf024c62465e752edd9b72a3026e6c67733052b8da181bd3f73bdaaa1f';
+const relayHost='/home/spark-advantage/codexrook-runtime/live-transfer-20260915/RekUiPipeClient-startup-20260924-r1.exe';
+const relayGuest='/opt/codexrook/live-transfer-20260915/RekUiPipeClient-startup-20260924-r1.exe';
+assert.equal(sha(stage+'/live_transfer_run_masked.cjs'),driverSha);assert.equal(sha(stage+'/RekUiBridgeAgent.dll'),bridgeSha);assert.equal(sha(relayHost),relaySha);
+assert(!fs.existsSync(out));
+const template=JSON.parse(fs.readFileSync(old+'/configs/refresh-s1501.json'));
+assert.equal(template.checkpoint_sha256,'f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84');
+assert.equal(sha(template.worker[1]),template.checkpoint_sha256);assert.equal(sha(template.worker[5]),template.feature_mask_sha256);
+assert.equal(template.relay.at(-1),'11fcfa2bea541f2829553c3833c301717c0182a59eebb0020f5f7b8cb066ca3d');
+assert(template.relay.at(-3).endsWith('/RekUiPipeClient-any-ai-20260917.exe'));assert.equal(template.relay.at(-2),'policy-relay');
+fs.mkdirSync(out,{mode:0o700});for(const name of ['configs','root-campaign'])fs.mkdirSync(out+'/'+name,{mode:0o700});
+const copies=[['record_passive_defender.cjs',old+'/record_passive_defender.cjs'],['progress.cjs',old+'/progress.cjs'],['root-campaign/probe_state.cjs',old+'/root-campaign/probe_state.cjs'],['root-campaign/clear_dead_prefix.sh',old+'/root-campaign/clear_dead_prefix.sh'],['root-campaign/campaign.cjs',stage+'/persistent_campaign.cjs'],['root-campaign/relaunch.sh',stage+'/relaunch.sh'],['live_transfer_run_masked.cjs',stage+'/live_transfer_run_masked.cjs']];
+const artifacts=copies.map(([name,src])=>{fs.copyFileSync(src,out+'/'+name,fs.constants.COPYFILE_EXCL);return {name,source:src,sha256:sha(out+'/'+name)};});
+const plan=[];
+for(let i=0;i<3;i++){
+ const seed=1701+i,label='persistent-s'+seed,cfg=structuredClone(template);
+ cfg.worker[3]=String(seed);cfg.out=out+'/'+label+'/trial';cfg.relay[cfg.relay.length-3]=relayGuest;cfg.relay[cfg.relay.length-1]=bridgeSha;
+ for(const key of Object.keys(template).filter(k=>!['worker','out','relay'].includes(k)))assert.deepEqual(cfg[key],template[key]);
+ fs.mkdirSync(out+'/'+label,{mode:0o700});const file=out+'/configs/'+label+'.json';fs.writeFileSync(file,JSON.stringify(cfg,null,2)+'\n',{flag:'wx',mode:0o600});
+ plan.push({label,order:i,policy_rng_seed:seed,checkpoint_sha256:cfg.checkpoint_sha256,config_path:file,config_sha256:sha(file)});
+}
+const receipt={created_utc:new Date().toISOString(),scope:'three-round runtime persistence and startup smoke test; no policy promotion or 18/20 acceptance claim',rounds:3,policy_unchanged:true,checkpoint_sha256:template.checkpoint_sha256,driver_sha256:driverSha,bridge_sha256:bridgeSha,relay_sha256:relaySha,controller_sha256:sha(out+'/root-campaign/campaign.cjs'),launcher_sha256:sha(out+'/root-campaign/relaunch.sh'),normal_round_process_restart:false,unsupported_pair_native_home_exit:true,diagnostic_environment:{BOX64_SHOWSEGV:'1',BOX64_SHOWBT:'1'},artifacts,plan,controller_started:false};
+fs.writeFileSync(out+'/planned-rounds.json',JSON.stringify(receipt,null,2)+'\n',{flag:'wx',mode:0o600});
+console.log(JSON.stringify({stage:out,plan_sha256:sha(out+'/planned-rounds.json'),driver_sha256:driverSha,controller_sha256:receipt.controller_sha256,launcher_sha256:receipt.launcher_sha256,controller_started:false}));

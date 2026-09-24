@@ -1,0 +1,79 @@
+{
+  "schema": "rek.persistent_runtime_cpu_checks.v1",
+  "executed_utc": "2026-09-24 12:37:09 UTC",
+  "scope": "Published source only; no game, bridge, GPU, process control or archive operation",
+  "checks": [
+    {
+      "command": "node --test startup/startup.test.cjs controller/persistent_campaign.test.cjs handoff/handoff.test.cjs",
+      "passed": 24,
+      "failed": 0,
+      "exit_code": 0
+    },
+    {
+      "command": "dotnet run --project startup/tests/StartupMenuTests.csproj -c Release",
+      "checks": 30,
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "command": "node --check handoff/prepare_handoff_smoke.cjs",
+      "exit_code": 0
+    },
+    {
+      "command": "bash -n launcher/relaunch.sh",
+      "exit_code": 0
+    },
+    {
+      "command": "bash -n launcher/install_once.sh",
+      "exit_code": 0
+    }
+  ],
+  "patch_checks": [
+    {
+      "path": "startup/integration.patch",
+      "command": "git apply --check",
+      "exit_code": 0,
+      "applied": false
+    },
+    {
+      "path": "startup/driver.patch",
+      "command": "git apply --check",
+      "exit_code": 0,
+      "applied": false
+    },
+    {
+      "path": "controller/controller.patch",
+      "command": "git apply --check",
+      "exit_code": 0,
+      "applied": false
+    },
+    {
+      "path": "launcher/launcher.patch",
+      "command": "git apply --check",
+      "exit_code": 0,
+      "applied": false
+    },
+    {
+      "path": "handoff/campaign.cjs.patch",
+      "command": "git apply --check",
+      "exit_code": 0,
+      "applied": false
+    },
+    {
+      "path": "handoff/live_transfer_run_masked.cjs.patch",
+      "command": "git apply --check",
+      "exit_code": 0,
+      "applied": false
+    },
+    {
+      "path": "handoff/record_passive_defender.cjs.patch",
+      "command": "git apply --check",
+      "exit_code": 0,
+      "applied": false
+    }
+  ],
+  "limitations": [
+    "CPU tests do not prove native UI behavior or crash prevention.",
+    "Existing build receipts remain preparation history; separate deployment and handoff receipts carry observed execution."
+  ]
+}

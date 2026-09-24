@@ -1,0 +1,20 @@
+{
+  "schema": "rek.private_startup_menu_variant.v1",
+  "base_bridge_sha256": "11fcfa2bea541f2829553c3833c301717c0182a59eebb0020f5f7b8cb066ca3d",
+  "base_driver_sha256": "b57654d54a76c80b38c9e44f59f53efb2502959a70dc568835ec5a8f6d238214",
+  "bridge_sha256": "5a2edac6c586f1ea401d92e0086ebfc468dbc591e2bb11115aef056682280e7a",
+  "relay_exe_sha256": "b7059eaf024c62465e752edd9b72a3026e6c67733052b8da181bd3f73bdaaa1f",
+  "driver_sha256": "1fff2cb9f3ebc43fc3e9b27b1b390e17e1e8805f157c0cf5ab0be09cec5a2489",
+  "startup_menu_source_sha256": "fe19e3a0399d02c23fefe780a4041e9386eb5e8e8b988a40694ec6328fd4ffa3",
+  "guard_contract_sha256": "244d2cc22fd30329ec3e87c92d8507ba44b38f1673463425ded1f7aa5ab7a496",
+  "bridge_plugin_source_sha256": "2d2c0c47677f2bf54690d6244ccfeafc67a402c47a19c33b6ed311a0d2c0bea0",
+  "bridge_protocol_source_sha256": "d7d5e330265f19423ff8021a571e910f3acf3de96b8d003191cc7d41be0465a7",
+  "relay_source_sha256": "383d44e9773b1b5429bd0e86b16ca3ac98faa3e6868637483e105a288f0661b1",
+  "tests": {"node_passed": 8, "native_guard_checks_passed": 30, "bridge_build_errors": 0, "bridge_build_warnings": 0, "relay_publish_errors": 0},
+  "deployed": false,
+  "game_connected": false,
+  "live_runtime_verified": false,
+  "windows_input_emitted": false,
+  "gpu_used": false,
+  "production_sources_changed": false
+}

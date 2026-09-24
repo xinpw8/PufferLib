@@ -1,0 +1,1829 @@
+{
+  "schema": "rek.closed_four_label_handoff_receipt.v1",
+  "closed_utc": "2026-09-24T12:36:31.967Z",
+  "proof_cutoff_utc": "2026-09-24T12:37:54.548Z",
+  "proof_source": {
+    "path": "C:/rekagent/work/persistent-round-handoff-20260924-r1/handoff-terminal-verified.json",
+    "sha256": "f6a2b86145fd3c7d063b311f6e38d25772df6c5bfe94c64bd76b6fb05218c993"
+  },
+  "source_stage": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live",
+  "closed_sources": [
+    {
+      "source": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/root-campaign/campaign.log",
+      "bytes": 9996,
+      "sha256": "261b994c271767642cd52ce99b223ed4651014d8d1e328780cf5a6cba010ac22"
+    },
+    {
+      "source": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/root-campaign/ledger.json",
+      "bytes": 17593,
+      "sha256": "bac26ef5e1b4af8d89c7256962a8da3f31085f620a378387bce5cbda0ad3ad95"
+    }
+  ],
+  "processes": [
+    {
+      "runtime": "r98",
+      "source": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/live-attack-gate-20260921-r98/game.initial-stat.txt",
+      "sha256": "33074b9f75176b35f99d806de8b02fc9990aa0beb3b98b312ac65e1d7047b841",
+      "namespace_pid": 54921,
+      "start_ticks": "94032484",
+      "basis": "Saved launch /proc stat; subsequent continuity supported by campaign events and Unity source clocks."
+    },
+    {
+      "runtime": "r99",
+      "source": "/home/spark-advantage/codexrook-runtime/live-transfer-20260915/live-attack-gate-20260921-r99/game.initial-stat.txt",
+      "sha256": "2f777d47dfe25bbd3749d86df9625f98414c5022d98285b936e590c5b7b0f593",
+      "namespace_pid": 55454,
+      "start_ticks": "94105181",
+      "basis": "Saved launch /proc stat; subsequent continuity supported by campaign events and Unity source clocks."
+    }
+  ],
+  "owned_game_at_proof_cutoff": [
+    {
+      "host_pid": 3102832,
+      "start_ticks": "94105181"
+    }
+  ],
+  "policy_checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+  "scope": "Four-label runtime-only smoke, not policy acceptance",
+  "completed": 4,
+  "wins": 2,
+  "losses": 2,
+  "ties": 0,
+  "points": [
+    59,
+    53
+  ],
+  "successful_consecutive_1_to_2_pairs": 2,
+  "genuine_crashes": 1,
+  "unplanned_relaunches": 1,
+  "excluded_unsupported_pair_attempts": 1,
+  "terminal_source_round_equals_summary_all_four": true,
+  "all_four_zero_score_fair_starts": true,
+  "all_four_media_validated_below_20000000_bytes": true,
+  "native_score_packet_audit": false,
+  "crash_cause": "unknown",
+  "policy_improvement_claim": false,
+  "attempts": [
+    {
+      "label": "handoff-s1801",
+      "attempt": 1,
+      "dir": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801",
+      "complete": false,
+      "terminal": false,
+      "fair_start": false,
+      "excluded_cause": "unsupported_pairing:local_g1_opponent_t800",
+      "stop_reason": "unsupported_pairing:local_g1_opponent_t800",
+      "initial_round": null,
+      "final_round": null,
+      "predictions": 0,
+      "applied": 0,
+      "rejected": 0,
+      "summary": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801/trial/summary.json",
+        "sha256": "992e5b96013eb62cd0d89c4be2d44ba51a20fb3aee280746af22a9ea3420d365",
+        "receipt_sha_matches": true
+      },
+      "orchestrator": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801/trial/orchestrator.jsonl",
+        "sha256": "705bc856945ebc39a37b1ada2b99328ce19349acd90084fbe4eb5cd45a22d3fb"
+      },
+      "encoder_source": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801/trial/encoder.stdin.jsonl",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "rows": 0,
+        "identity_count": 0,
+        "round_numbers": [],
+        "first": null,
+        "last": null
+      },
+      "native_relay_source": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801/trial/relay.stdout.jsonl",
+        "bytes": 1238274,
+        "sha256": "d1fad6ba4bd36d12bafc3d66c4a0ca544adcfa657b09ee6bba1a158d22a8d27c",
+        "rows": 0,
+        "identity_count": 0,
+        "round_numbers": [],
+        "first": null,
+        "last": null
+      },
+      "endpoints_closed": {
+        "utc": "2026-09-24T12:26:04.153Z",
+        "event": "policy_endpoints_closed",
+        "stream_stopped": true,
+        "lease_released": true,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "handoff": null,
+      "media": {
+        "status": "failed",
+        "wrapper_exit": 2,
+        "completed_utc": "2026-09-24T12:26:04.169Z",
+        "delivery_status": "invalid_or_missing_video",
+        "video_sha256": null,
+        "capture_manifest_sha256": "e014e971228852ff6572c1d32af0b7f0ab2872b46ee6ec1b80ffffc57cf312cc"
+      }
+    },
+    {
+      "label": "handoff-s1801",
+      "attempt": 2,
+      "dir": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801-retry2",
+      "complete": true,
+      "terminal": true,
+      "fair_start": true,
+      "excluded_cause": null,
+      "stop_reason": "stream_end:active_round_not_observed",
+      "initial_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 119.699936,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          22,
+          9
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "WonByPoints",
+        "result_value": 1,
+        "winner_index": 0,
+        "knockout": false
+      },
+      "predictions": 3013,
+      "applied": 3012,
+      "rejected": 1,
+      "summary": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801-retry2/trial/summary.json",
+        "sha256": "e7ddfade2ca92faed20fc321773ee602c1968b3bf3f0dada9eef2f8cacda3f8b",
+        "receipt_sha_matches": true
+      },
+      "orchestrator": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801-retry2/trial/orchestrator.jsonl",
+        "sha256": "b9a83507ec07f548ebee7730a4c5cca861c9974ed44b891aa5d710bf8a842225"
+      },
+      "encoder_source": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801-retry2/trial/encoder.stdin.jsonl",
+        "bytes": 34380568,
+        "sha256": "c8dc21fdf9a358712cf2c2f064f90b557fcb1ffb53d00f00cbefff8aca0badb1",
+        "rows": 3014,
+        "identity_count": 1,
+        "round_numbers": [
+          1
+        ],
+        "first": {
+          "sequence": 2971,
+          "round_identity_sha256": "a55343cd58e75d167e621b8069a3dc1b1bd1e7adc6543cecf5307b6744d6994c",
+          "round": {
+            "number": 1,
+            "duration": 120,
+            "time_remaining": 119.699936,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              0,
+              0
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:26:25.0344993+00:00",
+            "unity_frame": 18475,
+            "unity_time": 387.531513895975,
+            "unity_fixed_time": 387.53,
+            "qpc_ticks": 9407374003205,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        },
+        "last": {
+          "sequence": 5984,
+          "round_identity_sha256": "a55343cd58e75d167e621b8069a3dc1b1bd1e7adc6543cecf5307b6744d6994c",
+          "round": {
+            "number": 1,
+            "duration": 120,
+            "time_remaining": 0.09546281,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              22,
+              9
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:28:24.6850035+00:00",
+            "unity_frame": 21488,
+            "unity_time": 507.1740971938775,
+            "unity_fixed_time": 507.174,
+            "qpc_ticks": 9408570508399,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        }
+      },
+      "native_relay_source": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801-retry2/trial/relay.stdout.jsonl",
+        "bytes": 38459684,
+        "sha256": "392213f77df528df4dad2dd49a40b5830414112f76850b7cc73c93939e0bc139",
+        "rows": 3018,
+        "identity_count": 1,
+        "round_numbers": [
+          1
+        ],
+        "first": {
+          "sequence": 2968,
+          "round_identity_sha256": "a55343cd58e75d167e621b8069a3dc1b1bd1e7adc6543cecf5307b6744d6994c",
+          "round": {
+            "number": 1,
+            "duration": 120,
+            "time_remaining": 119.89998,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              0,
+              0
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:26:24.8956836+00:00",
+            "unity_frame": 18472,
+            "unity_time": 387.34864789540813,
+            "unity_fixed_time": 387.34799999999996,
+            "qpc_ticks": 9407372615312,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": false,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        },
+        "last": {
+          "sequence": 5985,
+          "round_identity_sha256": "a55343cd58e75d167e621b8069a3dc1b1bd1e7adc6543cecf5307b6744d6994c",
+          "round": {
+            "number": 1,
+            "duration": 120,
+            "time_remaining": 0,
+            "active": false,
+            "redo": false,
+            "clean_hits": [
+              22,
+              9
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "WonByPoints",
+            "result_value": 1,
+            "winner_index": 0,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:28:24.7824088+00:00",
+            "unity_frame": 21489,
+            "unity_time": 507.176,
+            "unity_fixed_time": 507.176,
+            "qpc_ticks": 9408571482410,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 3,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        }
+      },
+      "endpoints_closed": {
+        "utc": "2026-09-24T12:28:25.650Z",
+        "event": "policy_endpoints_closed",
+        "stream_stopped": true,
+        "lease_released": true,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "handoff": {
+        "utc": "2026-09-24T12:28:25.659Z",
+        "driver_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "driver_sha256": "f6d31931186da3dce3621b4a952b7e853055446c8ab5aa934060d3263cfb6136",
+        "config_sha256": "e530b54afe6f350048f2e87ec398220acce96017f2703885959cdb85066f77a8"
+      },
+      "media": {
+        "status": "finalized",
+        "wrapper_exit": 0,
+        "completed_utc": "2026-09-24T12:28:29.205Z",
+        "delivery_status": "validated_mp4",
+        "video_sha256": "daa27dffaadd643d2dcf97693d580a6a476c2f1394b69e399b065ce2561e20b0",
+        "capture_manifest_sha256": "c1edde53ca48ae9178345f68a197c5bf5ccc617cfd099b3c856a453a48918534",
+        "label": "handoff-s1801-retry2",
+        "source": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801-retry2/media/capture-manifest.json",
+        "sha256": "c1edde53ca48ae9178345f68a197c5bf5ccc617cfd099b3c856a453a48918534",
+        "video_bytes": 10922680,
+        "driver_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "decode_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        }
+      }
+    },
+    {
+      "label": "handoff-s1802",
+      "attempt": 1,
+      "dir": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1802",
+      "complete": true,
+      "terminal": true,
+      "fair_start": true,
+      "excluded_cause": null,
+      "stop_reason": "stream_end:active_round_not_observed",
+      "initial_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 119.79993,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          10,
+          16
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "WonByPoints",
+        "result_value": 1,
+        "winner_index": 1,
+        "knockout": false
+      },
+      "predictions": 3071,
+      "applied": 3070,
+      "rejected": 1,
+      "summary": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1802/trial/summary.json",
+        "sha256": "ee536fca8f3c0bb5d1eb8a15d319f15af69879015747a17c14ab8917d804914b",
+        "receipt_sha_matches": true
+      },
+      "orchestrator": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1802/trial/orchestrator.jsonl",
+        "sha256": "bb173f4228ef58d9b57de34271d1e970f8e68787d72437c9cbec3d4ac02ccf71"
+      },
+      "encoder_source": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1802/trial/encoder.stdin.jsonl",
+        "bytes": 35075183,
+        "sha256": "1e855d7572a6aa15aa1110b1b859296559d608c0ec03dfe262b09f8da937bcbf",
+        "rows": 3072,
+        "identity_count": 1,
+        "round_numbers": [
+          2
+        ],
+        "first": {
+          "sequence": 5989,
+          "round_identity_sha256": "ee479fcf7fb37ea8a66c481bec63d276f6e3a402f9dcedd20a4e6e9fd1bcb8e1",
+          "round": {
+            "number": 2,
+            "duration": 120,
+            "time_remaining": 119.79993,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              0,
+              0
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:28:34.7899444+00:00",
+            "unity_frame": 22067,
+            "unity_time": 517.293505194161,
+            "unity_fixed_time": 517.292,
+            "qpc_ticks": 9408671557798,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        },
+        "last": {
+          "sequence": 9060,
+          "round_identity_sha256": "ee479fcf7fb37ea8a66c481bec63d276f6e3a402f9dcedd20a4e6e9fd1bcb8e1",
+          "round": {
+            "number": 2,
+            "duration": 120,
+            "time_remaining": 0.016142737,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              10,
+              16
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:30:34.5828284+00:00",
+            "unity_frame": 25138,
+            "unity_time": 637.0816331986961,
+            "unity_fixed_time": 637.0799999999999,
+            "qpc_ticks": 9409869486678,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        }
+      },
+      "native_relay_source": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1802/trial/relay.stdout.jsonl",
+        "bytes": 38607341,
+        "sha256": "ad7f4297ae7307d52de0d069d99595d19650417819aa6847cf078b3177e01ca3",
+        "rows": 3076,
+        "identity_count": 1,
+        "round_numbers": [
+          2
+        ],
+        "first": {
+          "sequence": 5986,
+          "round_identity_sha256": "ee479fcf7fb37ea8a66c481bec63d276f6e3a402f9dcedd20a4e6e9fd1bcb8e1",
+          "round": {
+            "number": 2,
+            "duration": 120,
+            "time_remaining": 119.89994,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              0,
+              0
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:28:34.6706586+00:00",
+            "unity_frame": 22064,
+            "unity_time": 517.1287778982426,
+            "unity_fixed_time": 517.1279999999999,
+            "qpc_ticks": 9408670365075,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": false,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        },
+        "last": {
+          "sequence": 9061,
+          "round_identity_sha256": "ee479fcf7fb37ea8a66c481bec63d276f6e3a402f9dcedd20a4e6e9fd1bcb8e1",
+          "round": {
+            "number": 2,
+            "duration": 120,
+            "time_remaining": 0,
+            "active": false,
+            "redo": false,
+            "clean_hits": [
+              10,
+              16
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "WonByPoints",
+            "result_value": 1,
+            "winner_index": 1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:30:34.6719069+00:00",
+            "unity_frame": 25139,
+            "unity_time": 637.082,
+            "unity_fixed_time": 637.082,
+            "qpc_ticks": 9409870377398,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 3,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        }
+      },
+      "endpoints_closed": {
+        "utc": "2026-09-24T12:30:35.544Z",
+        "event": "policy_endpoints_closed",
+        "stream_stopped": true,
+        "lease_released": true,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "handoff": {
+        "utc": "2026-09-24T12:30:35.553Z",
+        "driver_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "driver_sha256": "f6d31931186da3dce3621b4a952b7e853055446c8ab5aa934060d3263cfb6136",
+        "config_sha256": "ad825fed7c33db38152637971f299c6927ddf87da7f635b426ef6bcfbe74f056"
+      },
+      "media": {
+        "status": "finalized",
+        "wrapper_exit": 0,
+        "completed_utc": "2026-09-24T12:30:38.992Z",
+        "delivery_status": "validated_mp4",
+        "video_sha256": "f24b88a4f5b870f8880ab6d0fefefe534abdc5702beba4e8253f8a1b9f411355",
+        "capture_manifest_sha256": "5f8f93ce3a4ee84041f1ef89f0002532de0dd4a190ee15b994716409656101c0",
+        "label": "handoff-s1802",
+        "source": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1802/media/capture-manifest.json",
+        "sha256": "5f8f93ce3a4ee84041f1ef89f0002532de0dd4a190ee15b994716409656101c0",
+        "video_bytes": 10881703,
+        "driver_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "decode_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        }
+      }
+    },
+    {
+      "label": "handoff-s1803",
+      "attempt": 1,
+      "dir": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1803",
+      "complete": false,
+      "terminal": false,
+      "fair_start": true,
+      "excluded_cause": null,
+      "stop_reason": "source_stream_missing",
+      "initial_round": {
+        "number": 3,
+        "duration": 120,
+        "time_remaining": 119.71661,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 3,
+        "duration": 120,
+        "time_remaining": 91.3091,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          3
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "predictions": 745,
+      "applied": 745,
+      "rejected": 0,
+      "summary": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1803/trial/summary.json",
+        "sha256": "9d627a8188c935bf473f1a4e189892a275acbc41482dfd91675afa94b840f8d3",
+        "receipt_sha_matches": true
+      },
+      "orchestrator": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1803/trial/orchestrator.jsonl",
+        "sha256": "6111c87d73096e34d36f77d7171152c0cf5d0ed7d1466a842b7b84cb5c0cc59b"
+      },
+      "encoder_source": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1803/trial/encoder.stdin.jsonl",
+        "bytes": 8553572,
+        "sha256": "1733ae922441603cdf77d4e0096ad2016bd263a4a4b48687e42f10d2bdefc5f2",
+        "rows": 746,
+        "identity_count": 1,
+        "round_numbers": [
+          3
+        ],
+        "first": {
+          "sequence": 9065,
+          "round_identity_sha256": "6593fd2692e0ca3b2ed55a96cfb6552b36baef6fa7f35f11839b290f828a7b83",
+          "round": {
+            "number": 3,
+            "duration": 120,
+            "time_remaining": 119.71661,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              0,
+              0
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:30:44.6783244+00:00",
+            "unity_frame": 25715,
+            "unity_time": 647.1820425949546,
+            "unity_fixed_time": 647.182,
+            "qpc_ticks": 9409970441639,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        },
+        "last": {
+          "sequence": 9810,
+          "round_identity_sha256": "6593fd2692e0ca3b2ed55a96cfb6552b36baef6fa7f35f11839b290f828a7b83",
+          "round": {
+            "number": 3,
+            "duration": 120,
+            "time_remaining": 91.3091,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              0,
+              3
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:31:13.04567+00:00",
+            "unity_frame": 26460,
+            "unity_time": 675.5442228954081,
+            "unity_fixed_time": 675.544,
+            "qpc_ticks": 9410254115072,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        }
+      },
+      "native_relay_source": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1803/trial/relay.stdout.jsonl",
+        "bytes": 10194257,
+        "sha256": "db03a095e6aed9a24de1729fd615cb5f9dd57bcb436e10c880a44d5111556839",
+        "rows": 749,
+        "identity_count": 1,
+        "round_numbers": [
+          3
+        ],
+        "first": {
+          "sequence": 9062,
+          "round_identity_sha256": "6593fd2692e0ca3b2ed55a96cfb6552b36baef6fa7f35f11839b290f828a7b83",
+          "round": {
+            "number": 3,
+            "duration": 120,
+            "time_remaining": 119.816635,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              0,
+              0
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:30:44.554877+00:00",
+            "unity_frame": 25712,
+            "unity_time": 647.010131292517,
+            "unity_fixed_time": 647.01,
+            "qpc_ticks": 9409969207270,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": false,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        },
+        "last": {
+          "sequence": 9810,
+          "round_identity_sha256": "6593fd2692e0ca3b2ed55a96cfb6552b36baef6fa7f35f11839b290f828a7b83",
+          "round": {
+            "number": 3,
+            "duration": 120,
+            "time_remaining": 91.3091,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              0,
+              3
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:31:13.04567+00:00",
+            "unity_frame": 26460,
+            "unity_time": 675.5442228954081,
+            "unity_fixed_time": 675.544,
+            "qpc_ticks": 9410254115072,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        }
+      },
+      "endpoints_closed": {
+        "utc": "2026-09-24T12:31:17.032Z",
+        "event": "policy_endpoints_closed",
+        "stream_stopped": false,
+        "lease_released": false,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "handoff": null,
+      "media": {
+        "status": "failed",
+        "wrapper_exit": 2,
+        "completed_utc": "2026-09-24T12:31:30.211Z",
+        "delivery_status": "validated_mp4",
+        "video_sha256": "00f1412ef32218af539a05e432c26c2ef23353b33964edb7eddd72ca5dfe13ca",
+        "capture_manifest_sha256": "7c66b3e4ce8ffe8df6c348d9d06459a7dfb45af3e6dd241fdef96ae0d50cfb38"
+      }
+    },
+    {
+      "label": "handoff-s1803",
+      "attempt": 2,
+      "dir": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1803-retry2",
+      "complete": true,
+      "terminal": true,
+      "fair_start": true,
+      "excluded_cause": null,
+      "stop_reason": "stream_end:active_round_not_observed",
+      "initial_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 118.68305,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 1,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          20,
+          19
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "WonByPoints",
+        "result_value": 1,
+        "winner_index": 0,
+        "knockout": false
+      },
+      "predictions": 2817,
+      "applied": 2816,
+      "rejected": 1,
+      "summary": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1803-retry2/trial/summary.json",
+        "sha256": "8d1aeb3944fa27bce1a8f1c14f1e995bc3bf89d0e3bc4e4ad37fbb5d48840ef7",
+        "receipt_sha_matches": true
+      },
+      "orchestrator": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1803-retry2/trial/orchestrator.jsonl",
+        "sha256": "24484a18d037f5053ee4366304f36148668d2cd6823d60cf1a06505893fc1cad"
+      },
+      "encoder_source": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1803-retry2/trial/encoder.stdin.jsonl",
+        "bytes": 32203058,
+        "sha256": "10801d4b46f29204841aa7491d5ef942f93550a305748112160be36d926c4ed4",
+        "rows": 2818,
+        "identity_count": 1,
+        "round_numbers": [
+          1
+        ],
+        "first": {
+          "sequence": 6,
+          "round_identity_sha256": "c9f7eb4a532a5856d80e093a333462378eccd4169acb18acea6d4ca4bf5225f5",
+          "round": {
+            "number": 1,
+            "duration": 120,
+            "time_remaining": 118.68305,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              0,
+              0
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:32:19.0583651+00:00",
+            "unity_frame": 809,
+            "unity_time": 16.37336726899093,
+            "unity_fixed_time": 16.372,
+            "qpc_ticks": 9410914170568,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        },
+        "last": {
+          "sequence": 2823,
+          "round_identity_sha256": "c9f7eb4a532a5856d80e093a333462378eccd4169acb18acea6d4ca4bf5225f5",
+          "round": {
+            "number": 1,
+            "duration": 120,
+            "time_remaining": 0.098427154,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              20,
+              19
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:34:17.6334872+00:00",
+            "unity_frame": 3626,
+            "unity_time": 134.98807047193878,
+            "unity_fixed_time": 134.988,
+            "qpc_ticks": 9412099993237,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        }
+      },
+      "native_relay_source": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1803-retry2/trial/relay.stdout.jsonl",
+        "bytes": 36044628,
+        "sha256": "b367ae011d3891b6d12428828ef931dec83e1348c3a939f4a637b07517fc1ab2",
+        "rows": 2824,
+        "identity_count": 1,
+        "round_numbers": [
+          1
+        ],
+        "first": {
+          "sequence": 1,
+          "round_identity_sha256": "c9f7eb4a532a5856d80e093a333462378eccd4169acb18acea6d4ca4bf5225f5",
+          "round": {
+            "number": 1,
+            "duration": 120,
+            "time_remaining": 119.683266,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              0,
+              0
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:32:18.2285306+00:00",
+            "unity_frame": 804,
+            "unity_time": 15.377042970521542,
+            "unity_fixed_time": 15.376,
+            "qpc_ticks": 9410905921238,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": false,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        },
+        "last": {
+          "sequence": 2824,
+          "round_identity_sha256": "c9f7eb4a532a5856d80e093a333462378eccd4169acb18acea6d4ca4bf5225f5",
+          "round": {
+            "number": 1,
+            "duration": 120,
+            "time_remaining": 0,
+            "active": false,
+            "redo": false,
+            "clean_hits": [
+              20,
+              19
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "WonByPoints",
+            "result_value": 1,
+            "winner_index": 0,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:34:17.7530301+00:00",
+            "unity_frame": 3627,
+            "unity_time": 134.98999999999998,
+            "unity_fixed_time": 134.98999999999998,
+            "qpc_ticks": 9412101188551,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 3,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        }
+      },
+      "endpoints_closed": {
+        "utc": "2026-09-24T12:34:18.713Z",
+        "event": "policy_endpoints_closed",
+        "stream_stopped": true,
+        "lease_released": true,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "handoff": {
+        "utc": "2026-09-24T12:34:18.723Z",
+        "driver_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "driver_sha256": "f6d31931186da3dce3621b4a952b7e853055446c8ab5aa934060d3263cfb6136",
+        "config_sha256": "c6973f0161956d861a2966a027d56bff4e9b956ea1a563f8bd3ead66b5868f2e"
+      },
+      "media": {
+        "status": "finalized",
+        "wrapper_exit": 0,
+        "completed_utc": "2026-09-24T12:34:22.343Z",
+        "delivery_status": "validated_mp4",
+        "video_sha256": "a780696dff1ffdfd95a03a494c1de4321935d141596cd8fdf5ecfa491c6f240f",
+        "capture_manifest_sha256": "909d58f4f1aa404bf812d80bd31f78d90da7cb0372064ed004e3982d3b93272e",
+        "label": "handoff-s1803-retry2",
+        "source": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1803-retry2/media/capture-manifest.json",
+        "sha256": "909d58f4f1aa404bf812d80bd31f78d90da7cb0372064ed004e3982d3b93272e",
+        "video_bytes": 10896037,
+        "driver_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "decode_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        }
+      }
+    },
+    {
+      "label": "handoff-s1804",
+      "attempt": 1,
+      "dir": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1804",
+      "complete": true,
+      "terminal": true,
+      "fair_start": true,
+      "excluded_cause": null,
+      "stop_reason": "stream_end:active_round_not_observed",
+      "initial_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 119.59992,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "final_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 0,
+        "active": false,
+        "redo": false,
+        "clean_hits": [
+          7,
+          9
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "WonByPoints",
+        "result_value": 1,
+        "winner_index": 1,
+        "knockout": false
+      },
+      "predictions": 2949,
+      "applied": 2948,
+      "rejected": 1,
+      "summary": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1804/trial/summary.json",
+        "sha256": "ebf064b2f4409d8fa068c5da7e656ae334380baf09fec9c5f536a915c37140ef",
+        "receipt_sha_matches": true
+      },
+      "orchestrator": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1804/trial/orchestrator.jsonl",
+        "sha256": "278dc455f3135201f5bca6a8e9660a737f3465a9109fdacf31ddf9494d5f74d0"
+      },
+      "encoder_source": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1804/trial/encoder.stdin.jsonl",
+        "bytes": 33665906,
+        "sha256": "291698d483c44be07533acaaf2455c1c417be882c5740e6e853aff0563935bfc",
+        "rows": 2950,
+        "identity_count": 1,
+        "round_numbers": [
+          2
+        ],
+        "first": {
+          "sequence": 2828,
+          "round_identity_sha256": "1c25abe995cd8412ba6a7fd19fb657becc28afb58d108d62bb90e1f8d4687534",
+          "round": {
+            "number": 2,
+            "duration": 120,
+            "time_remaining": 119.59992,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              0,
+              0
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:34:27.8435723+00:00",
+            "unity_frame": 4192,
+            "unity_time": 145.2121055697279,
+            "unity_fixed_time": 145.212,
+            "qpc_ticks": 9412202093975,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        },
+        "last": {
+          "sequence": 5777,
+          "round_identity_sha256": "1c25abe995cd8412ba6a7fd19fb657becc28afb58d108d62bb90e1f8d4687534",
+          "round": {
+            "number": 2,
+            "duration": 120,
+            "time_remaining": 0.0623801,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              7,
+              9
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:36:27.4389222+00:00",
+            "unity_frame": 7141,
+            "unity_time": 264.805875970805,
+            "unity_fixed_time": 264.804,
+            "qpc_ticks": 9413398047584,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        }
+      },
+      "native_relay_source": {
+        "file": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1804/trial/relay.stdout.jsonl",
+        "bytes": 37064427,
+        "sha256": "0e58bd58ec38fa694a4b3f510d17c32f09438fd74e188e43dfed833883ad814e",
+        "rows": 2954,
+        "identity_count": 1,
+        "round_numbers": [
+          2
+        ],
+        "first": {
+          "sequence": 2825,
+          "round_identity_sha256": "1c25abe995cd8412ba6a7fd19fb657becc28afb58d108d62bb90e1f8d4687534",
+          "round": {
+            "number": 2,
+            "duration": 120,
+            "time_remaining": 119.89999,
+            "active": true,
+            "redo": false,
+            "clean_hits": [
+              0,
+              0
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "InProgress",
+            "result_value": 0,
+            "winner_index": -1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:34:27.6783005+00:00",
+            "unity_frame": 4189,
+            "unity_time": 144.9786432681406,
+            "unity_fixed_time": 144.97799999999998,
+            "qpc_ticks": 9412200441341,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": false,
+          "phase": 1,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        },
+        "last": {
+          "sequence": 5778,
+          "round_identity_sha256": "1c25abe995cd8412ba6a7fd19fb657becc28afb58d108d62bb90e1f8d4687534",
+          "round": {
+            "number": 2,
+            "duration": 120,
+            "time_remaining": 0,
+            "active": false,
+            "redo": false,
+            "clean_hits": [
+              7,
+              9
+            ],
+            "falls": [
+              0,
+              0
+            ],
+            "result": "WonByPoints",
+            "result_value": 1,
+            "winner_index": 1,
+            "knockout": false
+          },
+          "clock": {
+            "utc": "2026-09-24T12:36:27.5422716+00:00",
+            "unity_frame": 7142,
+            "unity_time": 264.806,
+            "unity_fixed_time": 264.806,
+            "qpc_ticks": 9413399080996,
+            "qpc_frequency_hz": 10000000
+          },
+          "stream_active": true,
+          "phase": 3,
+          "opponent": {
+            "client_ai_difficulty": 0,
+            "sparring_bot_number": 1,
+            "opponent_is_ai": true,
+            "human_in_opponent_slot": false
+          }
+        }
+      },
+      "endpoints_closed": {
+        "utc": "2026-09-24T12:36:28.433Z",
+        "event": "policy_endpoints_closed",
+        "stream_stopped": true,
+        "lease_released": true,
+        "endpoints": [
+          {
+            "name": "encoder",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "worker",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          },
+          {
+            "name": "relay",
+            "code": 0,
+            "signal": null,
+            "close_observed": true,
+            "signals_sent": []
+          }
+        ]
+      },
+      "handoff": {
+        "utc": "2026-09-24T12:36:28.443Z",
+        "driver_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "driver_sha256": "f6d31931186da3dce3621b4a952b7e853055446c8ab5aa934060d3263cfb6136",
+        "config_sha256": "99c800cb8909d107aaa381ed0f6eb6c186b1c428342f28d53fa9aed3e4459236"
+      },
+      "media": {
+        "status": "finalized",
+        "wrapper_exit": 0,
+        "completed_utc": "2026-09-24T12:36:31.966Z",
+        "delivery_status": "validated_mp4",
+        "video_sha256": "b6b07952dd159f3e6123c73c8898ec5d6c85ffe4f9364654fff55d3380728e56",
+        "capture_manifest_sha256": "f18c668e6559330f4193fe2e87a7559bb146fdb3fc6eb1f791b33f2a2e29cd42",
+        "label": "handoff-s1804",
+        "source": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1804/media/capture-manifest.json",
+        "sha256": "f18c668e6559330f4193fe2e87a7559bb146fdb3fc6eb1f791b33f2a2e29cd42",
+        "video_bytes": 10893904,
+        "driver_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        },
+        "decode_result": {
+          "code": 0,
+          "signal": null,
+          "close_observed": true,
+          "stop_reason": null,
+          "timed_out": false,
+          "signals_sent": []
+        }
+      }
+    }
+  ],
+  "events": [
+    {
+      "utc": "2026-09-24T12:25:50.345Z",
+      "event": "campaign_start",
+      "pid": 3096985,
+      "plan_rounds": 4,
+      "max_attempts": 6,
+      "runtime_only": true
+    },
+    {
+      "utc": "2026-09-24T12:28:25.677Z",
+      "event": "native_round_handoff_start",
+      "previous_dir": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1801-retry2",
+      "previous_round": 1,
+      "expected_next_round": 2,
+      "label": "handoff-s1802",
+      "policy_rng_seed": 1802,
+      "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+      "transport_closed_utc": "2026-09-24T12:28:25.659Z",
+      "scope_rechecked_by_new_driver": true
+    },
+    {
+      "utc": "2026-09-24T12:30:35.555Z",
+      "event": "native_round_handoff_result",
+      "label": "handoff-s1802",
+      "attempt": 1,
+      "previous_round": 1,
+      "observed_initial_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 119.79993,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "consecutive_round": true,
+      "fair_start": true,
+      "complete": true
+    },
+    {
+      "utc": "2026-09-24T12:30:35.566Z",
+      "event": "native_round_handoff_start",
+      "previous_dir": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1802",
+      "previous_round": 2,
+      "expected_next_round": 3,
+      "label": "handoff-s1803",
+      "policy_rng_seed": 1803,
+      "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+      "transport_closed_utc": "2026-09-24T12:30:35.553Z",
+      "scope_rechecked_by_new_driver": true
+    },
+    {
+      "utc": "2026-09-24T12:31:30.220Z",
+      "event": "native_round_handoff_result",
+      "label": "handoff-s1803",
+      "attempt": 1,
+      "previous_round": 2,
+      "observed_initial_round": {
+        "number": 3,
+        "duration": 120,
+        "time_remaining": 119.71661,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "consecutive_round": true,
+      "fair_start": true,
+      "complete": false
+    },
+    {
+      "utc": "2026-09-24T12:31:30.242Z",
+      "event": "game_died_during_attempt",
+      "label": "handoff-s1803",
+      "attempt": 1
+    },
+    {
+      "utc": "2026-09-24T12:31:37.205Z",
+      "event": "relaunch_start",
+      "suffix": "r99",
+      "planned_restart": false,
+      "cumulative_unplanned_relaunches": 1
+    },
+    {
+      "utc": "2026-09-24T12:32:02.051Z",
+      "event": "relaunch_ready",
+      "lobby_screen": "Intro"
+    },
+    {
+      "utc": "2026-09-24T12:34:18.737Z",
+      "event": "native_round_handoff_start",
+      "previous_dir": "/home/spark-advantage/rek-training/persistent-round-handoff-20260924-r1/live/handoff-s1803-retry2",
+      "previous_round": 1,
+      "expected_next_round": 2,
+      "label": "handoff-s1804",
+      "policy_rng_seed": 1804,
+      "checkpoint_sha256": "f147bdc358261e272c58e70167cd8b0b9e4953806c417d8891d94a3ad083ac84",
+      "transport_closed_utc": "2026-09-24T12:34:18.723Z",
+      "scope_rechecked_by_new_driver": true
+    },
+    {
+      "utc": "2026-09-24T12:36:28.444Z",
+      "event": "native_round_handoff_result",
+      "label": "handoff-s1804",
+      "attempt": 1,
+      "previous_round": 1,
+      "observed_initial_round": {
+        "number": 2,
+        "duration": 120,
+        "time_remaining": 119.59992,
+        "active": true,
+        "redo": false,
+        "clean_hits": [
+          0,
+          0
+        ],
+        "falls": [
+          0,
+          0
+        ],
+        "result": "InProgress",
+        "result_value": 0,
+        "winner_index": -1,
+        "knockout": false
+      },
+      "consecutive_round": true,
+      "fair_start": true,
+      "complete": true
+    },
+    {
+      "utc": "2026-09-24T12:36:31.967Z",
+      "event": "campaign_end",
+      "summary": {
+        "handoff-s1801": [
+          [
+            22,
+            9
+          ]
+        ],
+        "handoff-s1802": [
+          [
+            10,
+            16
+          ]
+        ],
+        "handoff-s1803": [
+          [
+            20,
+            19
+          ]
+        ],
+        "handoff-s1804": [
+          [
+            7,
+            9
+          ]
+        ]
+      }
+    }
+  ]
+}

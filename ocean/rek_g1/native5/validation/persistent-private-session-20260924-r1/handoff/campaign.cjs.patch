@@ -1,0 +1,134 @@
+--- a/campaign.cjs
++++ b/campaign.cjs
+@@ -11,6 +11,7 @@
+ const source='/home/spark-advantage/rek-training/primitive-live-eval-20260918-r1/source';
+ const driver=process.env.AB_DRIVER||path.join(stage,'live_transfer_run_masked.cjs');
+ const recorder=path.join(stage,'record_passive_defender.cjs');
++const {validHandoff,runCaptureWrapper}=require(path.join(stage,'policy_handoff.cjs'));
+ const probe=path.join(here,'probe_state.cjs');
+ const DRIVER_SHA=process.env.AB_DRIVER_SHA||"b57654d54a76c80b38c9e44f59f53efb2502959a70dc568835ec5a8f6d238214";
+ const MAX_ATTEMPTS=Number(process.env.AB_MAX_ATTEMPTS||5);
+@@ -25,6 +26,7 @@
+ const ledgerPath=path.join(here,'ledger.json');
+ const ledger=fs.existsSync(ledgerPath)?JSON.parse(fs.readFileSync(ledgerPath,'utf8')):{};
+ const saveLedger=()=>fs.writeFileSync(ledgerPath,JSON.stringify(ledger,null,2)+'\n');
++const pendingMedia=new Set();let mediaFailed=false;
+ 
+ function run(cmd,args,{stdout,stderr,timeoutMs}){
+   return new Promise(resolve=>{
+@@ -82,7 +84,10 @@
+     rl.on('line',raw=>{
+       if(outcome)return;
+       let m;try{m=JSON.parse(raw);}catch{return;}
+-      if(m.event==='hello'){poll=setInterval(()=>{try{child.stdin.write(JSON.stringify({type:'get_state',request_id:'watch-'+(++n)})+'\n');}catch{}},1000);return;}
++      if(m.event==='hello'){
++        const read=()=>{try{child.stdin.write(JSON.stringify({type:'get_state',request_id:'watch-'+(++n)})+'\n');}catch{}};
++        read();poll=setInterval(read,1000);return;
++      }
+       if(m.event!=='state')return;
+       sawState=true;
+       const p=m.private_ai||{},c=m.control||{},f=m.foreground||{};
+@@ -206,44 +211,93 @@
+     command:[process.execPath,recorder,p.config,driver,p.media]};
+   fs.writeFileSync(path.join(p.dir,'attempt-provenance.json'),JSON.stringify(prov,null,2)+'\n',{flag:'wx',mode:0o600});
+   log('attempt_start',{label:entry.label,attempt:n,dir:p.dir});
+-  const r=await run(process.execPath,[recorder,p.config,driver,p.media],{
+-    stdout:path.join(p.dir,'wrapper.stdout.jsonl'),stderr:path.join(p.dir,'wrapper.stderr.txt'),timeoutMs:420000});
+-  fs.writeFileSync(path.join(p.dir,'wrapper.exit-code.txt'),`${r.code}\n`,{flag:'wx'});
++  const wrapper=runCaptureWrapper(process.execPath,[recorder,p.config,driver,p.media],{
++    stdout:path.join(p.dir,'wrapper.stdout.jsonl'),stderr:path.join(p.dir,'wrapper.stderr.txt'),timeoutMs:420000,
++    validateHandoff:receipt=>validHandoff(receipt,{configSha:prov.config_sha256,driverSha:prov.driver_sha256,
++      checkpoint:entry.checkpoint_sha256,trialOutput:path.join(p.dir,'trial'),
++      summarySha:sha(path.join(p.dir,'trial','summary.json'))}),
++    onRejected:()=>log('policy_handoff_rejected',{label:entry.label,attempt:n})});
++  const result=await wrapper.policyClosed;
+   const v=verdict(p.dir,entry.checkpoint_sha256);
+-  const rec={attempt:n,dir:p.dir,config:p.config,utc_start:prov.utc_start,utc_end:utc(),wrapper_exit:r.code,wrapper_signal:r.signal,...v};
++  const rec={attempt:n,dir:p.dir,config:p.config,utc_start:prov.utc_start,utc_end:utc(),
++    wrapper_exit:result.final?.code??null,wrapper_signal:result.final?.signal??null,...v,
++    policy_handoff:result.handoff,media_status:'pending',checkpoint_sha256:entry.checkpoint_sha256};
+   (ledger[entry.label]??=[]).push(rec);saveLedger();
+-  log('attempt_end',{label:entry.label,attempt:n,complete:v.complete,stop_reason:v.stop_reason,excluded_cause:v.excluded_cause,final_round:v.final_round,wrapper_exit:r.code});
++  log('attempt_end',{label:entry.label,attempt:n,complete:v.complete,stop_reason:v.stop_reason,excluded_cause:v.excluded_cause,
++    final_round:v.final_round,wrapper_exit:rec.wrapper_exit,media_status:rec.media_status,
++    policy_transport_closed:result.handoff!==null});
++  const finalize=wrapper.completed.then(r=>{
++    fs.writeFileSync(path.join(p.dir,'wrapper.exit-code.txt'),`${r.code}\n`,{flag:'wx'});
++    const final=verdict(p.dir,entry.checkpoint_sha256);
++    if(result.handoff && sha(path.join(p.dir,'trial','summary.json'))!==result.handoff.transport.summary_sha256)
++      throw Error('policy summary changed after handoff');
++    rec.wrapper_exit=r.code;rec.wrapper_signal=r.signal;
++    rec.video=final.video;rec.video_sha256=final.video_sha256;rec.media_completed_utc=utc();
++    const ok=r.code===0 && final.video==='validated_mp4' && /^[a-f0-9]{64}$/.test(final.video_sha256||'');
++    rec.media_status=ok?'finalized':'failed';
++    if(!ok && (result.handoff!==null || rec.complete))mediaFailed=true;
++    saveLedger();log('attempt_media_finalized',{label:entry.label,attempt:n,wrapper_exit:r.code,
++      media_status:rec.media_status,video:rec.video,policy_complete_unchanged:rec.complete});
++  }).catch(error=>{
++    mediaFailed=true;rec.media_status='failed';rec.media_error=error.message;rec.media_completed_utc=utc();
++    saveLedger();log('attempt_media_failed',{label:entry.label,attempt:n,message:error.message,policy_complete_unchanged:rec.complete});
++  });
++  pendingMedia.add(finalize);finalize.then(()=>pendingMedia.delete(finalize));
+   return rec;
+ }
++function successorHandoff(rec,entry){
++  return rec?.complete===true && rec.policy_handoff?.event==='policy_handoff_ready' &&
++    rec.checkpoint_sha256===entry.checkpoint_sha256 ? rec : null;
++}
+ async function main(){
+   if(os.hostname()!=='spark-4ae3')throw Error('Spark required');
+   if(sha(driver)!==DRIVER_SHA)throw Error('driver sha changed');
+   const lock=path.join(here,'campaign.lock');
+   try{fs.writeFileSync(lock,String(process.pid),{flag:'wx'});}catch{throw Error('campaign already running (lock present)');}
+   process.on('exit',()=>{try{fs.unlinkSync(lock);}catch{}});
+-  const plan=JSON.parse(fs.readFileSync(path.join(stage,process.env.AB_PLAN||'planned-rounds.json'),'utf8')).plan;
++  const planDocument=JSON.parse(fs.readFileSync(path.join(stage,process.env.AB_PLAN||'planned-rounds.json'),'utf8'));
++  const plan=planDocument.plan,runtimeOnly=planDocument.runtime_only===true;
++  if(runtimeOnly && (!Array.isArray(plan)||plan.length<1||plan.length>4))throw Error('runtime-only smoke requires 1..4 planned rounds');
+   const anyConfig=plan[0].config_path;
+-  log('campaign_start',{pid:process.pid,plan_rounds:plan.length,max_attempts:MAX_ATTEMPTS});
++  log('campaign_start',{pid:process.pid,plan_rounds:plan.length,max_attempts:MAX_ATTEMPTS,runtime_only:runtimeOnly});
++  let handoff=null;
++  try {
+   for(const entry of plan){
++    if(mediaFailed)throw Error('media finalization failed; client preserved and no next round launched');
+     const counted=Object.values(ledger).flatMap(v=>v.filter(a=>a.complete));
+     const nonwins=counted.filter(a=>a.final_round.winner_index!==0).length;
+-    if(nonwins>=3){log('criterion_failed',{counted:counted.length,nonwins,required:'18 wins in 20 fixed labels'});process.exitCode=1;break;}
++    if(nonwins>=3&&!runtimeOnly){log('criterion_failed',{counted:counted.length,nonwins,required:'18 wins in 20 fixed labels'});process.exitCode=1;break;}
+     if((ledger[entry.label]||[]).some(a=>a.complete)){log('skip_complete',{label:entry.label});continue;}
+     const prior=(ledger[entry.label]||[]).length;
+     let done=false;
+     for(let n=prior+1;n<=MAX_ATTEMPTS&&!done;n++){
+-      await waitForLaunchWindow(anyConfig,entry);
++      if(mediaFailed)throw Error('media finalization failed; client preserved and no next round launched');
++      const priorRound=successorHandoff(handoff,entry);handoff=null;
++      if(priorRound)log('native_round_handoff_start',{previous_dir:priorRound.dir,
++        previous_round:priorRound.final_round.number,expected_next_round:priorRound.final_round.number+1,
++        label:entry.label,policy_rng_seed:entry.policy_rng_seed,checkpoint_sha256:entry.checkpoint_sha256,
++        transport_closed_utc:priorRound.policy_handoff.utc,scope_rechecked_by_new_driver:true});
++      else await waitForLaunchWindow(anyConfig,entry);
+       const rec=await attempt(entry,n);
+       done=rec.complete;
++      if(priorRound)log('native_round_handoff_result',{label:entry.label,attempt:n,
++        previous_round:priorRound.final_round.number,observed_initial_round:rec.initial_round,
++        consecutive_round:rec.initial_round?.number===priorRound.final_round.number+1,
++        fair_start:rec.fair_start,complete:rec.complete});
++      if(done&&rec.policy_handoff)handoff=rec;
+       if(done)log('completed_round_client_preserved',{completed_label:entry.label,
+         round:rec.final_round.number,game_alive:gameAlive(),next:'native_between_round_transition'});
+       if(!done){if(!gameAlive())log('game_died_during_attempt',{label:entry.label,attempt:n});await sleep(rec.terminal===true?250:5000);}
+     }
+     if(!done){log('label_incomplete',{label:entry.label});throw Error('attempt budget exhausted for '+entry.label);}
+   }
++  } finally {
++    await Promise.all([...pendingMedia]);
++    if(mediaFailed){log('campaign_media_failure',{client_preserved:true});process.exitCode=2;}
++  }
+   log('campaign_end',{summary:Object.fromEntries(Object.entries(ledger).map(([k,v])=>[k,v.filter(a=>a.complete).map(a=>a.final_round?.clean_hits)]))});
+ }
+-module.exports={verdict,launchWindow,preserveUnsupportedPairing};
++module.exports={verdict,launchWindow,preserveUnsupportedPairing,successorHandoff};
+ if(require.main===module){
+   if(process.argv[2]==='--verdict'){console.log(JSON.stringify(verdict(process.argv[3],process.argv[4])));logStream.end();}
+   else main().catch(e=>{log('campaign_error',{message:e.message});process.exitCode=2;});

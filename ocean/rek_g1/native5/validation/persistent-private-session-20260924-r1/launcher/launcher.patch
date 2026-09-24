@@ -1,0 +1,28 @@
+--- a/relaunch.sh
++++ b/relaunch.sh
+@@ -1,7 +1,7 @@
+ #!/usr/bin/env bash
+ set -euo pipefail
+ umask 077
+-# Derived from GPT's launch.sh (authentic-policy-ab-20260919-r1). Changes: parametrized
++# Derived from launch.sh (authentic-policy-ab-20260919-r1). Changes: parametrized
+ # output suffix, and the pair-capture config may already be the disabled copy.
+ rek_suffix=${1:?usage: relaunch.sh SUFFIX}
+ rek_stage=/home/spark-advantage/rek-training/authentic-policy-ab-20260919-r1
+@@ -13,7 +13,7 @@
+ test "$(docker inspect --format='{{.State.Running}}' codexrook-xserver)" = true
+ test "$(sha256sum "$rek_game/REK.exe" | cut -d' ' -f1)" = 5fe6a5c3da371cb7b75a1795eb073b2e69ec718197cf68826bdcd461dcd986c1
+ test "$(sha256sum "$rek_game/GameAssembly.dll" | cut -d' ' -f1)" = 6bd006d9c16ddb2b55d60f4df106a8fdbd2fef04603acc6492239d579a73d412
+-test "$(sha256sum "$rek_game/BepInEx/plugins/RekUiBridgeAgent.dll" | cut -d' ' -f1)" = 11fcfa2bea541f2829553c3833c301717c0182a59eebb0020f5f7b8cb066ca3d
++test "$(sha256sum "$rek_game/BepInEx/plugins/RekUiBridgeAgent.dll" | cut -d' ' -f1)" = 5a2edac6c586f1ea401d92e0086ebfc468dbc591e2bb11115aef056682280e7a
+ test "$(sha256sum "$rek_game/BepInEx/plugins/RekEvidenceRecorder.dll" | cut -d' ' -f1)" = 525bc57feb05e623ea152292c824f03c5f068f7a71b999adba53a150d637b071
+ rek_pair_sha=$(sha256sum "$rek_pair" | cut -d' ' -f1)
+ test "$rek_pair_sha" = c8e80ab5ef6240b417c68d319d287a449c8456a321b3a6d3b86f3749abbbe0e4 -o "$rek_pair_sha" = 57892634aea35f7af7ec4c96963a3e2ddaa2511856e7a899495be5fa5c17f8a4
+@@ -52,6 +52,7 @@
+     -e DISPLAY=:98 -e HOME=/opt/codexrook/home \
+     -e WINEPREFIX=/opt/codexrook/wineprefix -e WINEARCH=win64 \
+     -e WINEDEBUG=-all,err+all,warn+seh -e BOX64_LOG=1 \
++    -e BOX64_SHOWSEGV=1 -e BOX64_SHOWBT=1 \
+     -e REK_EVIDENCE_ISOLATED_SESSION=spark-x98 \
+     -e 'WINEDLLOVERRIDES=winhttp=n,b;winealsa.drv=d;winepulse.drv=d;mscoree=d;mshtml=d;winemenubuilder.exe=d' \
+     -e BOX64_NOBANNER=1 -e BOX64_NOPULSE=1 -e BOX64_NOVULKAN=1 -e BOX64_UNITY=1 \

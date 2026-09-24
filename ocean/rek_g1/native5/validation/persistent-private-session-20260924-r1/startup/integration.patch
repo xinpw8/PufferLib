@@ -1,0 +1,61 @@
+--- a/variant/windows/RekUiBridgeAgent/Plugin.cs
++++ b/variant/windows/RekUiBridgeAgent/Plugin.cs
+@@ -774,6 +774,8 @@
+             return command switch
+             {
+                 BridgeCommand.ConfirmLoggedIn => ConfirmLoggedIn(),
++                BridgeCommand.SkipIntro => SkipObservedIntro(),
++                BridgeCommand.ExitUnsupportedPrivateAiPairing => ExitUnsupportedPrivateAiPairing(),
+                 BridgeCommand.NavigateFreePlay => NavigateFreePlay(),
+                 BridgeCommand.EnterSolo => EnterSolo(),
+                 BridgeCommand.ReadyPrivateAiSession => ReadyPrivateAiSession(),
+@@ -6215,6 +6217,8 @@
+         var uguiFocus = ReadUguiFocus();
+         var home = ReadHomeState(lobby, toolkitFocus.Pointer);
+         var login = ReadAuthenticatedContinuationEvidence();
++        var introSkip = ReadIntroSkipEvidence(lobby);
++        var unsupportedPairingExit = ReadUnsupportedPairingExitEvidence();
+         var privateAi = ReadPrivateAiProof(gameMenu);
+         var measuredPairing = MeasuredPairingPayload(ReadMeasuredPairing(gameMenu));
+         var scene = TryRead(() => SceneManager.GetActiveScene().name);
+@@ -6268,6 +6272,8 @@
+             ugui_focus = uguiFocus,
+             home,
+             login,
++            intro_skip = introSkip,
++            unsupported_pairing_exit = unsupportedPairingExit,
+             private_ai = privateAi,
+             measured_pairing = measuredPairing,
+             g1_runtime_policy_capture = new
+@@ -6315,6 +6321,8 @@
+             },
+             home,
+             login,
++            intro_skip = introSkip,
++            unsupported_pairing_exit = unsupportedPairingExit,
+             private_ai = privateAi,
+             measured_pairing = measuredPairing,
+             g1_runtime_policy_capture = new
+--- a/variant/windows/RekUiBridgeAgent/BridgeProtocol.cs
++++ b/variant/windows/RekUiBridgeAgent/BridgeProtocol.cs
+@@ -270,6 +270,8 @@
+     StartG1PolicyRound,
+     ExitLostG1PolicySession,
+     StartG1PolicyStreamAnyAi,
++    SkipIntro,
++    ExitUnsupportedPrivateAiPairing,
+ }
+ 
+ internal enum RequestKind
+--- a/variant/windows/RekUiPipeClient/PolicyRelay.cs
++++ b/variant/windows/RekUiPipeClient/PolicyRelay.cs
+@@ -12,7 +12,8 @@
+         "AcquireExclusiveControl", "ReleaseExclusiveControl", "StartG1PolicyStream", "StopG1PolicyStream",
+         "StartRound", "ConfirmLoggedIn", "NavigateFreePlay", "EnterSolo", "ExitLostPrivateSession",
+         "ExitUnexpectedPrivateAiSession", "ReadyPrivateAiSession",
+-        "StartG1PolicyRound", "ExitLostG1PolicySession", "StartG1PolicyStreamAnyAi" };
++        "StartG1PolicyRound", "ExitLostG1PolicySession", "StartG1PolicyStreamAnyAi",
++        "SkipIntro", "ExitUnsupportedPrivateAiPairing" };
+ 
+     internal static async Task<int> Run(string[] args)
+     {

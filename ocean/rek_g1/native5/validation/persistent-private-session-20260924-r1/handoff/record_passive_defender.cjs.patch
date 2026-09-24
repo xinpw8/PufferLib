@@ -1,0 +1,48 @@
+--- a/record_passive_defender.cjs
++++ b/record_passive_defender.cjs
+@@ -6,6 +6,7 @@
+ const crypto=require('node:crypto'),readline=require('node:readline');
+ const {spawn}=require('node:child_process');
+ const {finished}=require('node:stream/promises');
++const {cleanClose,transportClosed}=require('./policy_handoff.cjs');
+ 
+ // Only child objects returned by this wrapper's spawn calls are supervised.
+ // A broken child or inherited pipe must not keep the wrapper alive indefinitely.
+@@ -117,18 +118,21 @@
+     },250);
+     console.log(JSON.stringify({event:'capture_started',utc:started,display:':98',video}));
+   }
++  const driverSha=await sha(driverPath),configSha=await sha(configPath);
+   fs.writeFileSync(path.join(mediaDir,'driver-command.json'),JSON.stringify({
+     command:[process.execPath,driverPath,configPath],host:os.hostname(),utc:new Date().toISOString(),
+-    driver_sha256:await sha(driverPath),config_sha256:await sha(configPath)
++    driver_sha256:driverSha,config_sha256:configSha
+   },null,2)+'\n',{flag:'wx',mode:0o600});
+   const driver=spawn(process.execPath,[driverPath,configPath],{stdio:['ignore','pipe','pipe']});
+   // Driver may need three 10s stop/release/readback waits plus relay shutdown.
+   const driverControl=superviseChild(driver,{timeoutMs:300000,termGraceMs:40000});
+   driver.stderr.pipe(driverErr);
+   const lines=readline.createInterface({input:driver.stdout});
++  let transportReceipt=null;
+   lines.on('line',line=>{
+     driverOut.write(line+'\n');
+     let e;try{e=JSON.parse(line);}catch{return;}
++    if(e.event==='policy_endpoints_closed')transportReceipt=e;
+     // Both events follow native isolated/private/no-human proof in the driver.
+     if(['active_private_ai_opponent','passive_defender_started'].includes(e.event))startCapture(e.event);
+     if(['command_result','active_private_ai_opponent','passive_defender_started','summary','error'].includes(e.event))console.log(line);
+@@ -137,6 +141,14 @@
+   process.once('SIGINT',terminate);process.once('SIGTERM',terminate);
+   const driverResult=await driverControl.done;
+   lines.close();driverOut.end();
++  const summaryPath=path.join(config.out,'summary.json');
++  const summarySha=fs.existsSync(summaryPath)?await sha(summaryPath):null;
++  if(cleanClose(driverResult) && transportClosed(transportReceipt,{
++      checkpoint:config.checkpoint_sha256,trialOutput:config.out,summarySha})) {
++    console.log(JSON.stringify({event:'policy_handoff_ready',schema:'rek.policy_handoff.v1',
++      utc:new Date().toISOString(),driver_result:driverResult,transport:transportReceipt,
++      driver_sha256:driverSha,config_sha256:configSha,media_finalized:false}));
++  }
+   if(recorder){await new Promise(resolve=>setTimeout(resolve,3000));stopCapture();await recordingEnd;}
+   clearInterval(sizeTimer);
+   for(const stream of output)if(!stream.writableEnded)stream.end();

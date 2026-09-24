@@ -1,0 +1,23 @@
+{
+  "utc": "2026-09-24T12:18:04.505Z",
+  "uptime_s": 940236.87,
+  "hz": 100,
+  "page_bytes": 4096,
+  "launch_utc": "2026-09-24T12:08:57Z",
+  "container_start_ticks": "93969025",
+  "process": {
+    "host_pid": 3089342,
+    "namespace_pids": [3089342, 54459],
+    "exact_game_argv_element": "/opt/codexrook/rek-core-referee-20260924-r1/REK.exe",
+    "state": "R",
+    "user_ticks": 95253,
+    "system_ticks": 5196,
+    "start_ticks": "93969025",
+    "rss_pages": 895290,
+    "threads": 94
+  },
+  "elapsed_since_process_start_s": 546.62,
+  "stderr_bytes": 4603080,
+  "identity_method": "Exact REK.exe argv element plus host NSpid ending in launch-recorded container PID, and /proc start ticks matching game.initial-stat.txt; not process comm alone.",
+  "no_attach_or_bridge_connection": true
+}

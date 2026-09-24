@@ -1,0 +1,60 @@
+--- a/live_transfer_run_masked.cjs
++++ b/live_transfer_run_masked.cjs
+@@ -77,6 +77,34 @@
+   return privateAiRouteNoHuman(s) && knownBot(p) && p.phase==='Idle' &&
+     p.round_active===false && p.round_inactive===true && p.client_visual_only_fighter_pair===false;
+ }
++function canSkipObservedIntro(s) {
++  return s?.scene==='Lobby' && s.lobby_screen==='Intro' &&
++    s.foreground?.isolated_session_verified===true && s.foreground.execution_surface==='spark_wine_x98' &&
++    s.intro_skip?.skip_allowed===true && s.intro_skip.active===true && s.intro_skip.finished===false &&
++    s.intro_skip.skip_shown===true && s.intro_skip.skip_enabled===true;
++}
++async function exitObservedUnsupportedPairing(state,{command,getState,
++    wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),now=Date.now,log=()=>{},timeoutMs=15000}) {
++  const proof=provenG1T800Pairing(state);
++  if(!proof)return state;
++  requireValue(Number.isInteger(timeoutMs)&&timeoutMs>0&&timeoutMs<=30000,'unsupported exit timeout invalid');
++  log('unsupported_private_pair_native_exit_requested',{unsupported_pairing:proof,process_restart:false});
++  await command('ExitUnsupportedPrivateAiPairing');
++  const deadline=now()+timeoutMs;let confirmed=false;
++  while(now()<deadline) {
++    await wait(100);state=await getState();
++    requireValue(state.foreground?.isolated_session_verified===true &&
++      state.foreground.execution_surface==='spark_wine_x98','isolated Spark proof lost during unsupported exit');
++    if(state.scene==='Lobby' && state.lobby_screen==='Home') {
++      log('unsupported_private_pair_home_observed',{process_restart:false});return state;
++    }
++    if(!confirmed && provenG1T800Pairing(state) && state.unsupported_pairing_exit?.confirmation_required===true) {
++      await command('ExitUnsupportedPrivateAiPairing');confirmed=true;
++      log('unsupported_private_pair_native_confirmation_requested',{process_restart:false});
++    }
++  }
++  throw Error('unsupported private pair native Home exit timeout; client left running');
++}
+ async function ensurePrivateArena(state,{enterPrivate,command,getState,
+     wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),now=Date.now,log=()=>{},entryTimeoutMs=45000}) {
+   requireValue(Number.isInteger(entryTimeoutMs)&&entryTimeoutMs>0&&entryTimeoutMs<=120000,
+@@ -108,7 +136,7 @@
+         requireValue(now()<readyDeadline,'private AI ready bootstrap timeout; policy input withheld');
+       }
+     }
+-    const menu={Login:'ConfirmLoggedIn',Home:'NavigateFreePlay',FreePlay:'EnterSolo'}[state.lobby_screen];
++    const menu=canSkipObservedIntro(state)?'SkipIntro':{Login:'ConfirmLoggedIn',Home:'NavigateFreePlay',FreePlay:'EnterSolo'}[state.lobby_screen];
+     if(menu&&!entered.has(menu)){await command(menu);entered.add(menu);}
+     else requireValue(state.scene==='Arena'||menu||state.lobby_screen==='Intro','no supported private-practice menu route');
+     await wait(150);state=await getState();
+@@ -357,6 +385,7 @@
+     log('inference_ready',{checkpoint_sha256:ready.checkpoint_sha256,feature_mask_sha256:ready.feature_mask_sha256,device:ready.device,precision:ready.precision,selection:ready.selection,projection:config.projection});
+     let state=await request('get_state',{},'state');
+     await command('AcquireExclusiveControl'); leased=true;
++    state=await exitObservedUnsupportedPairing(state,{command,getState:()=>request('get_state',{},'state'),log});
+     if(betweenPrivateRounds(state)) {
+       log('waiting_for_automatic_round_transition',{phase:state.private_ai.phase});
+       const deadline=Date.now()+30000;
+@@ -511,4 +540,4 @@
+   }
+ }
+ if(require.main===module) {requireValue(process.argv.length===3,'usage: node live_transfer_run_masked.cjs config.json');run(process.argv[2]).catch(e=>{console.error(e.message);process.exitCode=2;});}
+-module.exports={privateArena,botIdentity,validateBotIdentity,trialExitCode,canExitLostPrivateSession,canReadyPrivateAiSession,ensurePrivateArena,betweenPrivateRounds,canRequestPrivateRound,validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer,provenG1T800Pairing,rejectUnsupportedActivePairing,prewarmPolicySource,validateControlledStartup};
++module.exports={privateArena,botIdentity,validateBotIdentity,trialExitCode,canExitLostPrivateSession,canReadyPrivateAiSession,canSkipObservedIntro,exitObservedUnsupportedPairing,ensurePrivateArena,betweenPrivateRounds,canRequestPrivateRound,validateWorkerReady,validateWorkerAction,guardedCallback,sendAndWait,childEndpoint,LiveActionPacer,provenG1T800Pairing,rejectUnsupportedActivePairing,prewarmPolicySource,validateControlledStartup};
