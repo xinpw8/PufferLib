@@ -1,0 +1,26 @@
+variant=zero_joints
+planned_agent_steps=16777216
+training_exit_code=0
+completed_expected_checkpoint=1
+full_native_process_wall_seconds=18.672583
+full_native_process_sps=898494.653900
+timing_scope=entire_headless_native_process_including_startup_rollouts_PPO_checkpoint_writes_and_shutdown
+python_runtime=0
+native_ini_metrics_scope=last_persisted_native_snapshot_may_precede_final_step
+SPS = 943388.03569001635
+agent_steps = 15532032
+uptime = 16.648064851760864
+epoch = 237
+env/score = 28.41015625
+env/episode_return = 0.10811324417591095
+env/hits = 34.91015625
+env/falls = 0
+env/wins = 0.890625
+env/losses = 0.09375
+env/draws = 0.015625
+env/n = 512
+perf/rollout = 0.46822386980056763
+perf/train = 0.13223680853843689
+native5_round_summary={"arenas":512,"completed_rounds":2560,"fighter0_wins":2102,"fighter1_wins":396,"ties":62,"redos":0,"unclassified":0,"fighter0_completed_points":59887,"fighter1_completed_points":20525,"failure_bits":0}
+│ SPS              896.0K      Copy          0ms   0%    entropy      1.384    │
+1b1b8424be9b677e29a9e1bc58e42ed2241bbeae9e34068b21dff5942505e31b  /home/spark-advantage/rek-training/joint-mask-transfer-20260924-r1/runs/F7-joint-mask-no-prior-16777216/checkpoints/rek_native5/F7-joint-mask-no-prior-16777216/0000000016777216.bin
