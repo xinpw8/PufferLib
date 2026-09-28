@@ -23,6 +23,7 @@
 #include "keyboard_yaw.h"
 #include "contact_entry.h"
 #include "fast_observable_balance.h"
+#include "observable_prev_action.h"
 
 // Explicit reduced-order candidate. The source clips provide pose and strike
 // trajectories; slider motion and temporally sampled contacts are modeling
@@ -1013,9 +1014,11 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* config,
         FastAssets assets=load_fast_assets(*config,velocity_mode==rek_contact_velocity::Mode::BodyCvel);Parameters p{};
         p.contact_velocity=velocity_mode;
         const char* schema=getenv("REK_OBSERVATION_SCHEMA");
-        const bool observable_balance=schema&&!strcmp(schema,rek_observable_balance::kSchema);
+        const bool previous_action=schema&&!strcmp(schema,rek_observable_prev_action::kSchema);
+        const bool observable_balance=previous_action||(schema&&!strcmp(schema,rek_observable_balance::kSchema));
         p.owned_yaw_observation=observable_balance?false:rek_owned_yaw::enabled(schema);
         if(p.owned_yaw_observation)fprintf(stderr,"semantic_cuda_observation_schema=%s;owned_command_column=187;physics_changed=false\n",rek_owned_yaw::kSchema);
+        if(previous_action)fprintf(stderr,"policy_owned_augmentation_required=%s;runtime_exports_base_projection_only=true;owner=puffer_env_or_policy_worker\n",rek_observable_prev_action::kSchema);
         p.policy_action_stride=rek_action_cadence::parse(getenv("REK_POLICY_ACTION_STRIDE"));
         p.yaw_command=rek_keyboard_yaw::parse(getenv("REK_FAST_YAW_COMMAND"));
         fprintf(stderr,"semantic_cuda_yaw_command={\"mode\":\"%s\",\"keyboard_command_ramp_seconds\":%.9g,\"command_parameter_provenance\":\"recovered_schedule_contract_expected_value_not_measured_actuator_lag\",\"command_dt_seconds\":%.9g,\"scope\":\"non_bot_policy_or_scripted_controller\",\"physical_response\":\"%s\",\"recovered_bot1_changed\":false,\"authentic_physical_parity\":false}\n",rek_keyboard_yaw::name(p.yaw_command),rek_keyboard_yaw::kRampSeconds,DT,p.yaw_command==rek_keyboard_yaw::Mode::KeyboardReset?"normalized_command_times_candidate_yaw_speed_no_additional_lag":"legacy_velocity_slew");

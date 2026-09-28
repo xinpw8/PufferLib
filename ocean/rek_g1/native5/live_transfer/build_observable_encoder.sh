@@ -15,4 +15,4 @@ set -x
 readelf -d "$task_out/encode-observable-balance" > "$task_out/elf-dependencies.txt"
 if rg -qi 'libpython|libtorch|libmujoco|libcuda' "$task_out/elf-dependencies.txt";then exit 2;fi
 sha256sum "$task_src/encode_observable_balance.cpp" "$task_src/observable_encoder_test.cjs" \
- "$task_src/../observable_balance.h" "$task_src/../action_cadence.h" "$task_out/encode-observable-balance" > "$task_out/build-hashes.txt"
+ "$task_src/../observable_balance.h" "$task_src/../observable_prev_action.h" "$task_src/../action_cadence.h" "$task_out/encode-observable-balance" > "$task_out/build-hashes.txt"

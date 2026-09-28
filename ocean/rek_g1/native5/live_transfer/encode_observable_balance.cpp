@@ -1,6 +1,7 @@
 // Offline/live client observation adapter only. No physics, policy or input dispatch.
 #include "../../../../vendor/cJSON.h"
 #include "../observable_balance.h"
+#include "../observable_prev_action.h"
 #include "../action_cadence.h"
 #include <openssl/evp.h>
 #include <array>
@@ -132,6 +133,7 @@ Referee parse_referee(const cJSON* source,const Sample& s){
 
 class ObservableEncoder {
  std::string model_hash,round,cadence_round;bool projected_busy,have_previous=false,have_sequence=false,have_referee=false;
+ bool previous_action;const char* policy_schema;
  int stride;std::uint64_t last_sequence=0,round_key=0,ordinal=0,canceled_request=0;Sample previous{};Referee last_referee{};
  std::map<std::uint64_t,std::pair<std::string,bool>> call_identities;
  void bind_referee(const Referee& r){
@@ -149,12 +151,13 @@ class ObservableEncoder {
   last_referee=r;have_referee=true;
  }
 public:
- ObservableEncoder(std::string hash,bool duration,int cadence):model_hash(std::move(hash)),projected_busy(duration),stride(cadence){need(stride==1||stride==5,"invalid_action_stride");}
+ ObservableEncoder(std::string hash,bool duration,int cadence,bool action_feedback=false):model_hash(std::move(hash)),projected_busy(duration),previous_action(action_feedback),policy_schema(action_feedback?rek_observable_prev_action::kSchema:balance::kSchema),stride(cadence){need(stride==1||stride==5,"invalid_action_stride");}
  void reset(){have_previous=false;canceled_request=0;}
  void reset_cadence(){ordinal=0;cadence_round.clear();}
  Json unavailable(const std::string& reason){auto out=object();text(out.get(),"event","policy_observation");text(out.get(),"projection",PROJECTION);flag(out.get(),"ready",false);auto* reasons=cJSON_AddArrayToObject(out.get(),"unavailable");cJSON_AddItemToArray(reasons,cJSON_CreateString(reason.c_str()));return out;}
  Json manifest() const {
-  auto out=object();text(out.get(),"event","projection_manifest");text(out.get(),"projection",PROJECTION);text(out.get(),"observation_schema",balance::kSchema);text(out.get(),"model_sha256",model_hash);
+  auto out=object();text(out.get(),"event","projection_manifest");text(out.get(),"projection",PROJECTION);text(out.get(),"observation_schema",policy_schema);text(out.get(),"model_sha256",model_hash);
+  if(previous_action){text(out.get(),"base_projection_schema",balance::kSchema);text(out.get(),"policy_owned_augmentation","native worker inserts previous successful sampled action before policy input; transport history cells are zero; no acceptance or execution claim");}
   text(out.get(),"model_usage","hash-only provenance; joint correspondence unavailable in both adapters");flag(out.get(),"candidate_physics_stepped",false);flag(out.get(),"authoritative_server_state",false);flag(out.get(),"legacy_checkpoint_compatible",false);
   text(out.get(),"busy_projection",projected_busy?"dispatched_request_v4_duration":"native_busy_required");if(projected_busy){auto* durations=cJSON_AddArrayToObject(out.get(),"move_duration_ticks");for(int n:MOVE_TICKS)cJSON_AddItemToArray(durations,cJSON_CreateNumber(n));num(out.get(),"duration_control_hz",50);}
   text(out.get(),"mask_semantics","source transport mask intersected with declared request-duration busy, held translation, and cadence gates; no server readiness or physical/live mask parity claim");
@@ -162,7 +165,7 @@ public:
   text(out.get(),"referee_semantics","fresh hash-bound received bridge receipt; source round/redo, slot bits, lifecycle/sequence validated; no independent recorder match or server-current-state claim");
   text(out.get(),"process_binding","authenticated bridge transport owns process binding; this source schema has no PID field; restart adapter for a new producer process");
   text(out.get(),"point_semantics","round.clean_hits is received awarded points, including referee awards; deltas have no inferred contact/fall cause");
-  num(out.get(),"joint_pose_available",0);num(out.get(),"action_stride",stride);std::array<unsigned char,223> mask{};balance::feature_mask(mask.data());cJSON_AddItemToObject(out.get(),"structural_feature_mask",json_array(mask));
+  num(out.get(),"joint_pose_available",0);num(out.get(),"action_stride",stride);std::array<unsigned char,223> mask{};balance::feature_mask(mask.data());if(previous_action)for(int k=0;k<223;k++)mask[k]=rek_observable_prev_action::structurally_available(k)?1:0;cJSON_AddItemToObject(out.get(),"structural_feature_mask",json_array(mask));
   auto* fields=cJSON_AddArrayToObject(out.get(),"fields");
   for(int column=0;column<223;column++){
    std::string kind="structural_padding",description="Unavailable in observable_balance.v1; numerical zero is padding, not an observed zero";
@@ -189,6 +192,10 @@ public:
    if(column==203){kind="availability";description="Preceding same-round, same-perspective observation with positive QPC interval at most250ms is available";}
    if(column==204||column==205){kind="received";description=column==204?"Actor count-active bit; unavailable padding when202 is0":"Opponent count-active bit; unavailable padding when202 is0";}
    if(column==217||column==218){kind="derived";description=column==217?"Actor awarded-point delta over preceding observation; availability203, no cause inference":"Opponent awarded-point delta over preceding observation; availability203, no cause inference";}
+   if(previous_action){
+    for(int action=0;action<rek_observable_prev_action::kActionCount;action++)if(column==rek_observable_prev_action::column(action)){kind="policy_owned_sample_history";description="Previous successful sampled category "+std::to_string(action)+" one-hot; filled by worker before forward, not by this encoder; no execution claim";}
+    if(column==rek_observable_prev_action::kAvailableColumn){kind="policy_owned_availability";description="Worker has a previous successful sample since recurrent reset; transport value is zero until worker augmentation";}
+   }
    auto* field=cJSON_CreateObject();num(field,"index",column);text(field,"kind",kind);text(field,"source",description);flag(field,"structurally_available",mask[column]!=0);cJSON_AddItemToArray(fields,field);
   }
   return out;
@@ -214,7 +221,7 @@ public:
   if(!s.snapshot.terminal&&!rek_action_cadence::decision(stride,ready_ordinal))need(s.mask[0]!=0,"cadence_hold_not_source_legal");
   auto mask=s.mask;int legal=0;for(int k=0;k<33;k++){if(projected_busy&&busy&&k!=0&&k!=1&&k!=6&&k!=7)mask[k]=0;if(translating&&k>=16)mask[k]=0;if(!rek_action_cadence::permit(stride,ready_ordinal,k,true,s.snapshot.terminal))mask[k]=0;legal+=mask[k];}need(legal>0,"empty_projected_action_mask");
   auto out=object();text(out.get(),"event","policy_observation");text(out.get(),"projection",PROJECTION);flag(out.get(),"ready",true);
-  auto* request=cJSON_AddObjectToObject(out.get(),"worker_request");text(request,"type","step");num(request,"seq",double(s.seq));text(request,"round_id",s.round);text(request,"observation_schema",balance::kSchema);flag(request,"terminal",s.snapshot.terminal);cJSON_AddItemToObject(request,"observation",json_array(obs));cJSON_AddItemToObject(request,"mask",json_array(mask));
+  auto* request=cJSON_AddObjectToObject(out.get(),"worker_request");text(request,"type","step");num(request,"seq",double(s.seq));text(request,"round_id",s.round);text(request,"observation_schema",policy_schema);flag(request,"terminal",s.snapshot.terminal);cJSON_AddItemToObject(request,"observation",json_array(obs));cJSON_AddItemToObject(request,"mask",json_array(mask));
   auto* p=cJSON_AddObjectToObject(out.get(),"provenance");text(p,"model_sha256",model_hash);num(p,"source_qpc_ticks",double(s.ticks));num(p,"source_qpc_frequency_hz",double(s.frequency));num(p,"source_native_phase",s.phase);num(p,"observed_delta_seconds",dt);flag(p,"history_available",obs[balance::kHistoryAvailable]!=0);num(p,"joint_pose_available",0);flag(p,"stream_active",s.stream);
   flag(p,"authoritative_server_state",false);flag(p,"candidate_physics_stepped",false);flag(p,"physics_parity_established",false);text(p,"server_playback_acceptance","unknown");text(p,"busy_projection",projected_busy?"dispatched_request_v4_duration":"native_controller_busy");flag(p,"projected_busy",busy);flag(p,"raw_local_punching",s.punching);if(s.native_busy_known)flag(p,"native_action_busy",s.native_busy);else cJSON_AddNullToObject(p,"native_action_busy");num(p,"requested_move_age_seconds",request_age);num(p,"requested_move_qpc_ticks",double(s.request_ticks));flag(p,"attack_mask_held_translation_blocked",translating);
   if(auto* source_mask=optional(source,"action_mask_source"))text(p,"source_action_mask_provenance",string(source_mask));else cJSON_AddNullToObject(p,"source_action_mask_provenance");
@@ -230,8 +237,9 @@ int main(int argc,char** argv){
  try{
   std::string model,projection,schema,busy;int stride=1;
   for(int i=1;i<argc;i++){std::string arg=argv[i];need(i+1<argc,"missing_cli_value");if(arg=="--model")model=argv[++i];else if(arg=="--projection")projection=argv[++i];else if(arg=="--observation-schema")schema=argv[++i];else if(arg=="--busy-projection")busy=argv[++i];else if(arg=="--action-stride")stride=rek_action_cadence::parse(argv[++i]);else throw std::runtime_error("unknown_cli_argument");}
-  need(!model.empty()&&projection==PROJECTION&&schema==balance::kSchema,"explicit_model_projection_and_observable_balance_schema_required");need(busy.empty()||busy=="dispatched_request_v4_duration","unsupported_busy_projection");
-  ObservableEncoder encoder(file_sha(model),!busy.empty(),stride);emit(encoder.manifest().get());std::string line;
+  const bool previous_action=schema==rek_observable_prev_action::kSchema;
+  need(!model.empty()&&projection==PROJECTION&&(schema==balance::kSchema||previous_action),"explicit_model_projection_and_observable_balance_schema_required");need(busy.empty()||busy=="dispatched_request_v4_duration","unsupported_busy_projection");
+  ObservableEncoder encoder(file_sha(model),!busy.empty(),stride,previous_action);emit(encoder.manifest().get());std::string line;
   while(std::getline(std::cin,line)){
    try{need(line.size()<=1048576,"source_line_too_large");Json source(cJSON_ParseWithLengthOpts(line.c_str(),line.size()+1,nullptr,1),cJSON_Delete);need(source&&cJSON_IsObject(source.get()),"invalid_source_JSON");
     if(auto* type=optional(source.get(),"type")){std::string value=string(type);if(value=="close")break;if(value=="reset"){encoder.reset();encoder.reset_cadence();auto out=object();text(out.get(),"event","projection_reset");text(out.get(),"projection",PROJECTION);emit(out.get());continue;}}

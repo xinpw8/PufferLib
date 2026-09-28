@@ -6,6 +6,8 @@ const readline = require('node:readline');
 async function main() {
   const [mode, binary, checkpoint, sha, selection='sampled'] = process.argv.slice(2);
   const observationSchema=process.env.REK_OBSERVATION_SCHEMA??'rek.native5.scaled_polar_xy.v1';
+  const previousActionSchema=observationSchema==='rek.native5.observable_balance_prev_action.v1';
+  let expectedPreviousAction=null;
   assert(['protocol', 'gpu'].includes(mode));
   assert(binary);
   if (mode === 'gpu') assert(checkpoint && /^[0-9a-f]{64}$/.test(sha));
@@ -53,6 +55,14 @@ async function main() {
         check(r.action===expected,'one-hot mask action');
         check(r.checkpoint_sha256===sha,'action checkpoint identity');
         check(Number.isFinite(r.gpu_ms)&&r.gpu_ms>=0,'GPU timing');
+        if(previousActionSchema){
+          if(r.recurrent_reset)expectedPreviousAction=null;
+          check(r.policy_memory_input.source==='previous_successful_sampler_output_before_feature_mask','causal sampled-action source');
+          check(r.policy_memory_input.available===(expectedPreviousAction!==null),'sample-history availability');
+          check(r.policy_memory_input.action===expectedPreviousAction,'previous successful sample retained across invalid input');
+          check(r.policy_memory_input.execution_or_acceptance_claim===false,'sample history is not execution evidence');
+          expectedPreviousAction=r.action;
+        }
       } else check(!Object.hasOwn(r,'action'),'parser never emits action');
       check(Number.isFinite(r.latency_ms)&&r.latency_ms>=0,'latency');
     };
@@ -89,7 +99,7 @@ async function main() {
       const unknown=step();unknown.observation[187]=.5;await bad(unknown,'owned_yaw_intent_value');
       const badTerminal=step();badTerminal.terminal=true;badTerminal.observation[187]=1;await bad(badTerminal,'owned_yaw_intent_value');
     }
-    if(observationSchema==='rek.native5.observable_balance.v1'){
+    if(observationSchema==='rek.native5.observable_balance.v1'||previousActionSchema){
       for(const [index,value,code] of [[187,1,'observable_balance_padding'],[71,.5,'observable_balance_availability'],
         [72,1.1,'observable_balance_tilt'],[13,.5,'observable_balance_missing_joints'],
         [42,.5,'observable_balance_missing_rates'],[204,1,'observable_balance_missing_referee']]){
@@ -98,6 +108,11 @@ async function main() {
       const measured=step(++seq);measured.observation[72]=.75;measured.observation[158]=.25;
       measured.observation[202]=1;measured.observation[204]=1;
       verifyAction(await request(measured),1);
+      if(previousActionSchema){
+        const columns=[...Array.from({length:8},(_,i)=>176+i),186,187,
+          ...Array.from({length:10},(_,i)=>192+i),...Array.from({length:11},(_,i)=>206+i),219,220,221];
+        for(const column of columns){const spoofed=step();spoofed.observation[column]=1;await bad(spoofed,'observable_balance_padding');}
+      }
     }
     await bad('{broken','invalid_json_object');
     await bad('[]','invalid_json_object');
@@ -107,6 +122,10 @@ async function main() {
     await bad(' '.repeat(65537),'line_too_long');
     const forced = step(++seq); forced.mask.fill(0);forced.mask[17]=1;
     r=await request(forced);verifyAction(r,17);check(!r.recurrent_reset,'errors do not reset state or consume seq');
+    if(previousActionSchema)for(let action=0;action<33;action++){
+      const input=step(++seq);input.mask.fill(0);input.mask[action]=1;
+      verifyAction(await request(input),action);
+    }
     r=await request({type:'reset',seq:++seq,round_id:roundA});
     check(r.type==='reset' && r.recurrent_reset && !Object.hasOwn(r,'action'),'explicit reset is action-free');
     r=await request(step(++seq));verifyAction(r,1);check(r.recurrent_reset&&!r.round_changed,'next action acknowledges reset');

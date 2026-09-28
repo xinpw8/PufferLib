@@ -22,6 +22,7 @@ typedef float obs_t;
 #include "native_policy.h"
 #include "owned_yaw_observation.h"
 #include "observable_balance.h"
+#include "observable_prev_action.h"
 
 #define OBS_SIZE REK_NATIVE5_OBSERVATION_SIZE
 #define NUM_ATNS 1
@@ -51,7 +52,29 @@ static struct {
     uint8_t* external_overrides;
     int opponent_deterministic;
     int opponent_encoded;
+    float* learner_observations;
+    const float* learner_actions;
+    const float* learner_terminals;
+    int arenas;
+    int observable_prev_action;
 } rek_native5_binding;
+
+// Sample history belongs to the learner, independently of runtime command
+// acceptance. Write it into the next policy input on the runtime's stream.
+static __global__ void rek_native5_write_previous_sample(float* observations,
+        const float* actions,const float* terminals,int arenas,int reset) {
+    const int arena=blockIdx.x*blockDim.x+threadIdx.x;
+    if(arena>=arenas)return;
+    rek_observable_prev_action::History history;
+    rek_observable_prev_action::clear(history);
+    if(!reset&&terminals[arena]==0.f){
+        const bool recorded=rek_observable_prev_action::record(history,actions[arena]);
+        assert(recorded);
+        if(!recorded)return;
+    }
+    const bool written=rek_observable_prev_action::write(observations+(size_t)arena*OBS_SIZE,history);
+    assert(written);
+}
 
 static void rek_native5_require_cuda(cudaError_t result, const char* operation) {
     if (result != cudaSuccess) {
@@ -71,6 +94,14 @@ static void rek_native5_require_runtime(int result, const char* operation) {
 }
 static void rek_native5_require_policy(int result,const char* operation) {
     if(result){fprintf(stderr,"REK frozen opponent %s: %s\n",operation,rek_native_policy_error());abort();}
+}
+
+static void rek_native5_overlay_previous_sample(int reset) {
+    if(!rek_native5_binding.observable_prev_action)return;
+    rek_native5_write_previous_sample<<<(rek_native5_binding.arenas+127)/128,128,0,rek_native5_binding.stream>>>(
+        rek_native5_binding.learner_observations,rek_native5_binding.learner_actions,
+        rek_native5_binding.learner_terminals,rek_native5_binding.arenas,reset);
+    rek_native5_require_cuda(cudaGetLastError(),"write previous sampled action");
 }
 
 // BEGIN REK_FROZEN_MIX_HOST_HELPERS
@@ -128,7 +159,12 @@ Env* puf_vec_create(int n, Dict* kwargs, obs_t* observations,
     }
     const char* selected_backend=getenv("REK_PHYSICS_BACKEND");
     const char* selected_schema=getenv("REK_OBSERVATION_SCHEMA");
-    const bool observable_balance=selected_schema&&!strcmp(selected_schema,rek_observable_balance::kSchema);
+    const bool observable_prev_action=selected_schema&&!strcmp(selected_schema,rek_observable_prev_action::kSchema);
+    const bool observable_balance=observable_prev_action||(selected_schema&&!strcmp(selected_schema,rek_observable_balance::kSchema));
+    const char* feature_mask=getenv("REK_POLICY_FEATURE_MASK");
+    if(observable_prev_action&&feature_mask&&feature_mask[0]){
+        fprintf(stderr,"observable_balance_prev_action_v1 does not support REK_POLICY_FEATURE_MASK in the trainer wrapper\n");abort();
+    }
     bool owned_yaw=false;
     try{if(!observable_balance)owned_yaw=rek_owned_yaw::enabled(selected_schema);}
     catch(const std::exception& e){fprintf(stderr,"REK observation schema: %s\n",e.what());abort();}
@@ -218,6 +254,16 @@ Env* puf_vec_create(int n, Dict* kwargs, obs_t* observations,
     rek_native5_binding.runtime = runtime;
     rek_native5_binding.envs = envs;
     rek_native5_binding.stream = 0;
+    rek_native5_binding.learner_observations=observations;
+    rek_native5_binding.learner_actions=actions;
+    rek_native5_binding.learner_terminals=terminals;
+    rek_native5_binding.arenas=n;
+    rek_native5_binding.observable_prev_action=observable_prev_action;
+    if(observable_prev_action){
+        rek_native5_overlay_previous_sample(1);
+        fprintf(stderr,"native5_policy_owned_augmentation={\"schema\":\"%s\",\"base_projection\":\"%s\",\"policy_owned_augmentation_required\":true,\"producer\":\"bound_learner_sample_after_runtime_step\",\"columns\":34,\"clear_on\":\"terminal_or_explicit_reset\",\"execution_or_acceptance_inferred\":false}\n",
+            rek_observable_prev_action::kSchema,rek_observable_balance::kSchema);
+    }
     DictItem* opponent_path=dict_find(kwargs,"opponent_checkpoint");
     if(opponent_path&&opponent_path->str&&opponent_path->str[0]&&strcmp(opponent_path->str,"None")!=0){
         const char* encoding=rek_native5_required_path(kwargs,"opponent_observation_encoding");
@@ -312,6 +358,7 @@ void puf_init(Env*, Dict*) {
 void puf_reset(Env*) {
     rek_native5_require_runtime(rek_native5_reset(rek_native5_binding.runtime,
         rek_native5_binding.stream), "reset runtime");
+    rek_native5_overlay_previous_sample(1);
     if(rek_native5_binding.opponent)rek_native5_require_policy(rek_native_policy_reset(rek_native5_binding.opponent,rek_native5_binding.stream),"reset recurrent state");
 }
 
@@ -333,6 +380,7 @@ void puf_step(Env*) {
     rek_native5_require_runtime(rek_native5_step(rek_native5_binding.runtime,
 #endif
         rek_native5_binding.stream), "step runtime");
+    rek_native5_overlay_previous_sample(0);
 }
 
 void puf_close(Env*) {

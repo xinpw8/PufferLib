@@ -230,6 +230,15 @@ const manifest=()=>({event:'projection_manifest',projection:'client_pose_project
   observation_schema:'rek.native5.scaled_polar_xy.v1',model_sha256:'c'.repeat(64),
   candidate_physics_stepped:false,authoritative_server_state:false,
   fields:Array.from({length:223},(_,index)=>({index}))});
+const previousActionSchema='rek.native5.observable_balance_prev_action.v1';
+const previousActionManifest=()=>({...manifest(),observation_schema:previousActionSchema,
+  legacy_checkpoint_compatible:false,joint_pose_available:0,
+  base_projection_schema:'rek.native5.observable_balance.v1',
+  policy_owned_augmentation:'native worker inserts previous successful sampled action before policy input; transport history cells are zero; no acceptance or execution claim',
+  structural_feature_mask:Array.from({length:223},(_,i)=>Number(i<172?
+    ![10,11,77,78,79,80,81,82,83,84,85].includes(i%86):i!==222))});
+const memoryInput=(action=null)=>({source:'previous_successful_sampler_output_before_feature_mask',
+  available:action!==null,action,execution_or_acceptance_claim:false});
 function gateFixture() {
   const gate={ready_path:path.join(os.tmpdir(),'fixture-ready.json'),
     release_path:path.join(os.tmpdir(),'fixture-release.json'),timeout_ms:1000};
@@ -332,6 +341,47 @@ test('observable balance requires matched schema and explicit unavailable-featur
   assert.doesNotThrow(()=>validateWorkerAction({...prediction,observation_schema},source,sha,inference));
 });
 
+test('previous-action schema requires 200 exact structural columns and policy-owned augmentation',async()=>{
+  const inference={observation_schema:previousActionSchema},good=previousActionManifest();
+  const worker={...ready(),observation_schema:previousActionSchema};
+  assert.equal(good.structural_feature_mask.reduce((sum,value)=>sum+value,0),200);
+  assert.doesNotThrow(()=>validateWorkerReady(worker,sha,inference));
+  assert.doesNotThrow(()=>validateEncoderReady(good,inference));
+  assert.throws(()=>validateWorkerReady(worker,sha),/identity mismatch/);
+  assert.throws(()=>validateEncoderReady(good),/readiness mismatch/);
+  assert.throws(()=>validateEncoderReady(manifest(),inference),/readiness mismatch/);
+  for(let index=0;index<223;index++) {
+    const mask=[...good.structural_feature_mask];mask[index]^=1;
+    assert.throws(()=>validateEncoderReady({...good,structural_feature_mask:mask},inference),/contract mismatch/);
+  }
+  for(const patch of [{legacy_checkpoint_compatible:true},{joint_pose_available:1},
+    {structural_feature_mask:[]},{structural_feature_mask:good.structural_feature_mask.map(Boolean)},
+    {base_projection_schema:undefined},{base_projection_schema:'rek.native5.scaled_polar_xy.v1'},
+    {policy_owned_augmentation:undefined},{policy_owned_augmentation:'previous executed action'}]) {
+    let opened=false;
+    await assert.rejects(startRelayWhenPrepared({encoder:{wait:async()=>({...good,...patch})},
+      worker:{wait:async()=>worker},checkpointSha256:sha,inference,openRelay:()=>{opened=true;}}),/contract mismatch/);
+    assert.equal(opened,false);
+  }
+  let opened=false;
+  await startRelayWhenPrepared({encoder:{wait:async()=>good},worker:{wait:async()=>worker},
+    checkpointSha256:sha,inference,openRelay:()=>{opened=true;}});
+  assert.equal(opened,true);
+});
+
+test('previous-action predictions bind sampler-memory receipt without claiming execution',()=>{
+  const inference={observation_schema:previousActionSchema},source={sequence:3,round};
+  const prediction={type:'action',seq:3,round_id:round,checkpoint_sha256:sha,action:6,
+    observation_schema:previousActionSchema,policy_memory_input:memoryInput()};
+  for(const action of [null,...Array.from({length:33},(_,i)=>i)])
+    assert.doesNotThrow(()=>validateWorkerAction({...prediction,policy_memory_input:memoryInput(action)},source,sha,inference));
+  for(const memory of [undefined,null,{}, {...memoryInput(),source:'executed_action'},
+    {...memoryInput(),execution_or_acceptance_claim:true},{...memoryInput(),available:0},
+    {...memoryInput(),action:0},memoryInput(-1),memoryInput(33),memoryInput(1.5),memoryInput('1')])
+    assert.throws(()=>validateWorkerAction({...prediction,policy_memory_input:memory},source,sha,inference),/policy_memory_input_mismatch/);
+  assert.throws(()=>validateWorkerAction({...prediction,observation_schema:'rek.native5.observable_balance.v1'},source,sha,inference),/schema_mismatch/);
+});
+
 test('startup release must match this worker preparation and checkpoint',async()=>{
   for(const patch of [{readiness_id:'stale'},{checkpoint_sha256:'d'.repeat(64)}]) {
     const f=gateFixture();
@@ -364,23 +414,25 @@ test('optional startup gate accepts only bounded distinct absolute paths',()=>{
     assert.throws(()=>validateStartupGate(bad),/startup_gate/);
 });
 
-for(const mismatch of [false,true])test(`CLI machine release fixture ${mismatch?'rejects a per-frame schema mismatch':'completes one fresh round'}`,async t=>{
+for(const previousAction of [false,true])for(const mismatch of [false,true])test(`CLI machine release fixture ${previousAction?'previous-action':'legacy'} ${mismatch?'rejects a per-frame schema mismatch':'completes one fresh round'}`,async t=>{
+  const observation_schema=previousAction?previousActionSchema:'rek.native5.scaled_polar_xy.v1';
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'rek-startup-gate-test-'));
   const out=path.join(dir,'trial'),readyPath=path.join(dir,'ready.json');
   const releasePath=path.join(dir,'release.json'),relayStarted=path.join(dir,'relay-started.json');
   const configPath=path.join(dir,'config.json');
   const encoderCode=`const readline=require('node:readline');
-    console.log(JSON.stringify(${JSON.stringify(manifest())}));
+    console.log(JSON.stringify(${JSON.stringify(previousAction?previousActionManifest():manifest())}));
     readline.createInterface({input:process.stdin}).on('line',line=>{
       const source=JSON.parse(line);console.log(JSON.stringify({event:'policy_observation',ready:true,
-        worker_request:{type:'step',observation_schema:'${mismatch?'rek.native5.scaled_polar_xy.owned_yaw_v2':'rek.native5.scaled_polar_xy.v1'}',seq:source.observation_sequence,round_id:source.round_identity_sha256,
+        worker_request:{type:'step',observation_schema:'${mismatch?'rek.native5.scaled_polar_xy.owned_yaw_v2':observation_schema}',seq:source.observation_sequence,round_id:source.round_identity_sha256,
           terminal:source.round.active===false}}));
     });`;
   const workerCode=`const readline=require('node:readline');
-    console.log(JSON.stringify(${JSON.stringify(ready())}));
+    console.log(JSON.stringify(${JSON.stringify({...ready(),observation_schema})}));
     readline.createInterface({input:process.stdin}).on('line',line=>{
       const request=JSON.parse(line);console.log(JSON.stringify({type:request.terminal?'terminal':'action',
-        seq:request.seq,round_id:request.round_id,checkpoint_sha256:'${sha}',action:1}));
+        seq:request.seq,round_id:request.round_id,checkpoint_sha256:'${sha}',action:1,
+        observation_schema:'${observation_schema}',policy_memory_input:${JSON.stringify(memoryInput())}}));
     });`;
   const relayCode=`const fs=require('node:fs'),readline=require('node:readline');
     const send=value=>console.log(JSON.stringify(value));
@@ -404,7 +456,7 @@ for(const mismatch of [false,true])test(`CLI machine release fixture ${mismatch?
       }
     });`;
   fs.writeFileSync(configPath,JSON.stringify({projection:'client_pose_projection_v1',max_seconds:5,
-    checkpoint_sha256:sha,out,enter_private:false,
+    checkpoint_sha256:sha,out,enter_private:false,observation_schema,
     startup_gate:{ready_path:readyPath,release_path:releasePath,timeout_ms:5000},
     encoder:[process.execPath,'-e',encoderCode],worker:[process.execPath,'-e',workerCode],
     relay:[process.execPath,'-e',relayCode]}));

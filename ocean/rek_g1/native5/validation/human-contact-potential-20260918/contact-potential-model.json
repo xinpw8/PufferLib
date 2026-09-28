@@ -1,0 +1,118 @@
+{
+  "schema": "rek.contact_potential.v1",
+  "source_sha256": "6cf6f73c75638b1364c710c49c221e6d9d3489973ca99392a026792def46cfe7",
+  "fit_round": 1,
+  "sample_count": 12,
+  "feature_order": [
+    "distance_unity_numeric",
+    "cos_bearing_positive_x",
+    "sin_bearing_positive_x"
+  ],
+  "feature_scale": [
+    0.08939466874290262,
+    0.19421665025420937,
+    0.537508991538081
+  ],
+  "samples": [
+    [
+      0.461143811257135,
+      0.6768818034181571,
+      0.7360917226822914
+    ],
+    [
+      0.6774127104997889,
+      0.9951892434154457,
+      -0.09797127022853584
+    ],
+    [
+      0.415765049559195,
+      0.9996010553942483,
+      -0.028244115399585896
+    ],
+    [
+      0.5581084724468005,
+      0.8162229028217217,
+      -0.5777371140140489
+    ],
+    [
+      0.5823590849473155,
+      0.6334466467603623,
+      -0.7737863695543188
+    ],
+    [
+      0.6296353032399127,
+      0.973823154696762,
+      0.2273069804833245
+    ],
+    [
+      0.6531946542348531,
+      0.5603393590782183,
+      -0.8282631240540723
+    ],
+    [
+      0.6715936309205123,
+      0.370631839237864,
+      -0.9287798661379122
+    ],
+    [
+      0.4580033429982472,
+      0.8829974432480084,
+      -0.469377795829202
+    ],
+    [
+      0.585440301032179,
+      0.9045541444313351,
+      0.4263587688697107
+    ],
+    [
+      0.45407958370767754,
+      0.9350123780315029,
+      0.35461507712994084
+    ],
+    [
+      0.5036226571180468,
+      0.956206497948459,
+      0.29269289926669506
+    ]
+  ],
+  "training_event_ids": [
+    "R1-E0001",
+    "R1-E0003",
+    "R1-E0007",
+    "R1-E0017",
+    "R1-E0022",
+    "R1-E0024",
+    "R1-E0026",
+    "R1-E0030",
+    "R1-E0032",
+    "R1-E0035",
+    "R1-E0037",
+    "R1-E0039"
+  ],
+  "holdout_event_ids": [
+    "R2-E0004",
+    "R2-E0009",
+    "R2-E0011",
+    "R2-E0013",
+    "R2-E0015",
+    "R2-E0019",
+    "R2-E0021",
+    "R2-E0027",
+    "R2-E0029",
+    "R2-E0031"
+  ],
+  "feature_scale_estimator": "population_standard_deviation_training_positives_only",
+  "bearing_semantics": "wrap(target_bearing_minus_local_pelvis_positive_x_heading); heading=atan2(world_x,world_z); positive_world_z_toward_positive_x; degrees_to_radians",
+  "geometry_semantics": "nearest_preceding_independently_received_pelvis_poses_at_score_receipt; not_server_contact_time",
+  "unit_mapping": {
+    "unity_units_per_candidate_unit": 1,
+    "status": "explicit_experiment_assumption",
+    "metre_calibration_verified": false
+  },
+  "potential_formula": "-sqrt(min(sum(((feature-anchor)/feature_scale)^2)))/(1+sqrt(min(sum(((feature-anchor)/feature_scale)^2))))",
+  "interpretation": "positive_geometry_proximity_diagnostic_not_hit_probability",
+  "action_execution_inferred": false,
+  "miss_labels": 0,
+  "authentic_physics_parity": false,
+  "model_id": "5ae0dd200cdf0fb6da4fceed477baf293fe388f97e627f3ca9eb026166ebab1b"
+}

@@ -118,7 +118,7 @@ function canRequestPrivateRound(s) {
 function observationSchema(expected={}) {
   const schema=expected.observation_schema??'rek.native5.scaled_polar_xy.v1';
   requireValue(['rek.native5.scaled_polar_xy.v1','rek.native5.scaled_polar_xy.owned_yaw_v2',
-    'rek.native5.observable_balance.v1'].includes(schema),
+    'rek.native5.observable_balance.v1','rek.native5.observable_balance_prev_action.v1'].includes(schema),
     'invalid observation schema configuration');
   return schema;
 }
@@ -143,14 +143,18 @@ function validateEncoderReady(manifest, expected={}) {
     /^[a-f0-9]{64}$/.test(manifest.model_sha256||'') && Array.isArray(manifest.fields) &&
     manifest.fields.length===223 && manifest.fields.every((field,index)=>field.index===index),
     'encoder readiness mismatch');
-  if(schema==='rek.native5.observable_balance.v1') {
+  const previousAction=schema==='rek.native5.observable_balance_prev_action.v1';
+  if(schema==='rek.native5.observable_balance.v1'||previousAction) {
     const available=column=>column<172?(column%86<=9||(column%86>=12&&column%86<=76)):
-      (column>=172&&column<=175)||column===184||column===185||
+      (previousAction&&column<=221)||(column>=172&&column<=175)||column===184||column===185||
       (column>=188&&column<=191)||(column>=202&&column<=205)||column===217||column===218;
     requireValue(manifest.legacy_checkpoint_compatible===false && manifest.joint_pose_available===0 &&
       Array.isArray(manifest.structural_feature_mask) && manifest.structural_feature_mask.length===223 &&
       manifest.structural_feature_mask.every((value,index)=>value===Number(available(index))),
       'observable balance encoder contract mismatch');
+    if(previousAction)requireValue(manifest.base_projection_schema==='rek.native5.observable_balance.v1' &&
+      manifest.policy_owned_augmentation==='native worker inserts previous successful sampled action before policy input; transport history cells are zero; no acceptance or execution claim',
+      'previous action encoder contract mismatch');
   }
 }
 function validateStartupGate(gate) {
@@ -206,13 +210,21 @@ async function startRelayWhenPrepared({encoder,worker,checkpointSha256,openRelay
   return openRelay();
 }
 function validateWorkerAction(prediction, source, sha, expected={}) {
-  if(observationSchema(expected)!=='rek.native5.scaled_polar_xy.v1')
-    requireValue(prediction?.observation_schema===observationSchema(expected),'prediction_schema_mismatch');
+  const schema=observationSchema(expected);
+  if(schema!=='rek.native5.scaled_polar_xy.v1')
+    requireValue(prediction?.observation_schema===schema,'prediction_schema_mismatch');
   requireValue(source && prediction?.type==='action' &&
     prediction.seq===source.sequence && prediction.round_id===source.round &&
     prediction.checkpoint_sha256===sha, 'prediction_source_identity_mismatch');
   requireValue(Number.isInteger(prediction.action) && prediction.action>=0 &&
     prediction.action<33, 'prediction_action_out_of_range');
+  if(schema==='rek.native5.observable_balance_prev_action.v1') {
+    const memory=prediction.policy_memory_input;
+    requireValue(memory?.source==='previous_successful_sampler_output_before_feature_mask' &&
+      typeof memory.available==='boolean' && memory.execution_or_acceptance_claim===false &&
+      (memory.available?Number.isInteger(memory.action)&&memory.action>=0&&memory.action<33:memory.action===null),
+      'prediction_policy_memory_input_mismatch');
+  }
 }
 function guardedCallback(handler, onFailure) {
   return value => {try {handler(value);} catch(error) {onFailure(error instanceof Error ? error : new Error(String(error)));}};

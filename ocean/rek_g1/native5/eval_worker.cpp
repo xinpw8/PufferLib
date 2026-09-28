@@ -2,6 +2,7 @@
 #include "native_policy.h"
 #include "fast_mode_config.h"
 #include "eval_renderer.h"
+#include "will_connect_json.h"
 #include "../../../vendor/cJSON.h"
 #include <cuda_runtime.h>
 #include <fstream>
@@ -86,6 +87,10 @@ class Worker {
         array(o.get(),"wins",s.round.wins,2);array(o.get(),"completedPoints",s.round.completed_points,2);
         array(o.get(),"actions",s.actions,2);array(o.get(),"rewards",s.rewards,2);
         array(o.get(),"mask",s.action_masks,66);array(o.get(),"raw",s.raw_observations,446);
+        cJSON_AddItemToObject(o.get(),"willConnect",rek5_will_connect::json(
+            rek5_will_connect::evaluate(s.qpos,s.qvel,s.action_masks,s.round.phase,
+                                       s.round.terminal,failed?s.round.failure_bits|1u:s.round.failure_bits,
+                                       !gpu_scripted)));
         if(failed||s.round.failure_bits)text(o.get(),"failure","Native physics/runtime failure");
         else cJSON_AddNullToObject(o.get(),"failure");
         return o;

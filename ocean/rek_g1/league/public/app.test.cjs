@@ -20,7 +20,7 @@ class Element {
   focus() { this.focusCount = (this.focusCount || 0) + 1; }
   async trigger(name) { return this.events[name]?.({preventDefault() {}}); }
 }
-async function setup(active = null, state = null, inputStatus = 200) {
+async function setup(active = null, state = null, inputStatus = 200, clock = Date) {
   const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   const elements = Object.fromEntries([...html.matchAll(/<([a-z][a-z0-9-]*)\b[^>]*\bid="([^"]+)"/g)].map(match => [match[2], new Element(match[1])]));
   const catalog = {backends: [{id: 'mujoco', label: 'MuJoCo', available: true}], policies: [
@@ -44,7 +44,7 @@ async function setup(active = null, state = null, inputStatus = 200) {
   const document = {getElementById: id => elements[id], createElement: tag => new Element(tag),
     querySelectorAll: () => [], addEventListener(name, fn) { documentEvents[name] = fn; }, hidden: false};
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8'), {
-    document, window: {addEventListener(name, fn) { windowEvents[name] = fn; }}, fetch, AbortSignal, setTimeout(fn, ms) { timers.push({fn, ms}); }, Date, URL,
+    document, window: {addEventListener(name, fn) { windowEvents[name] = fn; }}, fetch, AbortSignal, setTimeout(fn, ms) { timers.push({fn, ms}); }, Date: clock, URL,
   });
   await new Promise(setImmediate); await new Promise(setImmediate);
   return {elements, calls, catalog, inputReply, windowEvents, documentEvents, document, poll: () => timers.find(timer => timer.ms === 100).fn()};
@@ -361,4 +361,154 @@ test('explicit Resume gives keyboard focus to the browser arena, while Pause doe
   assert.equal(ui.play.textContent, 'Pause'); assert.equal(ui.arena.focusCount, 1);
   await ui.play.trigger('click'); await new Promise(setImmediate);
   assert.equal(ui.play.textContent, 'Resume'); assert.equal(ui.arena.focusCount, 1);
+});
+
+function reachDiagnostic() {
+  const attack = (move, outcome, light) => ({move, outcome, light, available: true,
+    margin: -0.03, contactTime: 0.12, relativeSpeed: 2.5});
+  return {schema: 'rek.will_connect.diagnostic.v1', calibration: 'placeholder', guardMode: 'unavailable', fighters: [
+    {attacks: [attack('left_jab_processed', 'hit', 'green'), attack('right_jab_processed', 'weak', 'amber')]},
+    {attacks: [attack('left_jab_processed', 'miss', 'red'), attack('right_jab_processed', 'miss', 'amber')]},
+  ]};
+}
+function reachRows(ui) {
+  return ui['will-connect-attacks'].children.map(row => ({move: row.attributes['data-reach-move'], light: row.attributes['data-light'],
+    label: row.children[1].children[0].textContent, outcome: row.children[1].children[1].textContent,
+    metrics: row.children[1].children[2].textContent, metricTitle: row.children[1].children[2].title}));
+}
+
+test('reach HUD is optional and hides unsupported schema or assumptions', async () => {
+  const state = {tick: 1};
+  const {elements: ui, poll} = await setup({backend: 'mujoco', opponent: 'trained', humanSide: 0}, state);
+  await poll(); assert.equal(ui['will-connect'].hidden, true);
+  state.willConnect = reachDiagnostic(); await poll(); assert.equal(ui['will-connect'].hidden, false);
+  for (const invalid of [undefined, null, {...reachDiagnostic(), schema: 'unrecognized'},
+    {...reachDiagnostic(), calibration: 'unverified-other'}, {...reachDiagnostic(), guardMode: 'unrecognized'},
+    {...reachDiagnostic(), fighters: []}]) {
+    state.willConnect = invalid; await poll();
+    assert.equal(ui['will-connect'].hidden, true); assert.equal(reachRows(ui).length, 0);
+  }
+});
+
+test('reach HUD follows server-confirmed human side and leaves U/I kick controls intact', async () => {
+  const state = {tick: 1, willConnect: reachDiagnostic()};
+  const {elements: ui, poll, calls} = await setup({backend: 'mujoco', opponent: 'trained', humanSide: 0}, state);
+  await poll();
+  assert.equal(ui['will-connect-side'].textContent, 'Your blue robot');
+  assert.deepEqual(reachRows(ui).map(row => [row.label, row.light, row.outcome]),
+    [['Left jab', 'green', 'Contact estimate'], ['Right jab', 'amber', 'Weak contact estimate']]);
+  assert.match(reachRows(ui)[0].metrics, /-0\.03 m.*0\.12 s.*2\.50 m\/s/);
+  assert.equal(calls.filter(call => call.url === '/api/input').length, 0, 'diagnostics never send input');
+  ui['human-side'].value = '1'; await ui['human-side'].trigger('change'); await poll();
+  assert.equal(ui['will-connect-side'].textContent, 'Your blue robot', 'pending selection does not change the loaded side');
+  state.humanSide = 1; await poll();
+  assert.equal(ui['will-connect-side'].textContent, 'Your orange robot');
+  assert.deepEqual(reachRows(ui).map(row => [row.light, row.outcome]), [['red', 'Miss estimate'], ['amber', 'Near miss estimate']]);
+  assert.match(ui.arena.attributes['aria-label'], /U straight kick, I side kick/);
+  assert.deepEqual(calls.filter(call => call.url === '/api/input').map(call => call.body.move), [null], 'only side-selection release sent');
+  ui.arena.events.keydown({key: 'U', repeat: false, preventDefault() {}}); await new Promise(setImmediate);
+  ui.arena.events.keydown({key: 'I', repeat: false, preventDefault() {}}); await new Promise(setImmediate);
+  assert.deepEqual(calls.filter(call => call.url === '/api/input').map(call => call.body.move), [null, 17, 18]);
+});
+
+test('unavailable or inconsistent reach estimates cannot show a green lamp', async () => {
+  const state = {tick: 1, willConnect: reachDiagnostic()};
+  const {elements: ui, poll} = await setup({backend: 'mujoco', opponent: 'trained', humanSide: 0}, state);
+  const left = state.willConnect.fighters[0].attacks[0];
+  Object.assign(left, {available: false, reason: 'attack_unavailable'});
+  await poll(); assert.deepEqual([reachRows(ui)[0].light, reachRows(ui)[0].outcome, reachRows(ui)[0].metrics],
+    ['off', 'Unavailable', 'Move is unavailable in the current state.']);
+  for (const invalid of [{available: true, outcome: 'invalid', light: 'green'},
+    {available: true, outcome: 'miss', light: 'green'}, {available: true, outcome: 'hit', light: 'ultraviolet'},
+    {available: undefined, outcome: 'hit', light: 'green'}]) {
+    Object.assign(left, invalid); await poll();
+    assert.equal(reachRows(ui)[0].light, 'off'); assert.equal(reachRows(ui)[0].outcome, 'Unavailable');
+  }
+  for (const invalid of [{margin: null}, {margin: NaN}, {contactTime: null}, {contactTime: -1}, {relativeSpeed: Infinity}, {relativeSpeed: -1}]) {
+    Object.assign(left, {available: true, outcome: 'hit', light: 'green', margin: -0.03, contactTime: 0.12, relativeSpeed: 2.5}, invalid);
+    await poll(); assert.equal(reachRows(ui)[0].light, 'off', `green requires valid contact metrics: ${JSON.stringify(invalid)}`);
+  }
+  state.willConnect.fighters[0].attacks = [null]; await poll();
+  assert.deepEqual(reachRows(ui).map(row => row.light), ['off', 'off']);
+});
+
+test('missing contact measurements stay unknown and negative contact times are unavailable', async () => {
+  const state = {tick: 1, willConnect: reachDiagnostic()};
+  Object.assign(state.willConnect.fighters[0].attacks[0], {outcome: 'miss', light: 'red', margin: null, contactTime: -1, relativeSpeed: null});
+  Object.assign(state.willConnect.fighters[0].attacks[1], {outcome: 'blocked', light: 'red', margin: 0, contactTime: 0, relativeSpeed: 0});
+  const {elements: ui, poll} = await setup({backend: 'mujoco', opponent: 'trained', humanSide: 0}, state);
+  await poll();
+  assert.equal(reachRows(ui)[0].metrics, 'Gap margin unknown · Contact unknown · Relative speed unknown');
+  assert.equal(reachRows(ui)[1].outcome, 'Blocked estimate');
+  assert.equal(reachRows(ui)[1].metrics, 'Gap margin 0.00 m · Contact 0.00 s · Relative speed 0.00 m/s');
+});
+
+test('negative near-miss margin describes approximate swept-path overlap without implying contact', async () => {
+  const state = {tick: 1, willConnect: reachDiagnostic()};
+  Object.assign(state.willConnect.fighters[0].attacks[0], {outcome: 'miss', light: 'amber', margin: -0.02, contactTime: null, relativeSpeed: null});
+  const {elements: ui, poll} = await setup({backend: 'mujoco', opponent: 'trained', humanSide: 0}, state);
+  await poll();
+  assert.equal(reachRows(ui)[0].outcome, 'Near miss estimate');
+  assert.match(reachRows(ui)[0].metrics, /Gap margin -0\.02 m/);
+  assert.equal(reachRows(ui)[0].metricTitle,
+    'Negative values indicate overlap with the approximate swept path; this does not establish contact or scoring.');
+});
+
+test('unavailable reason codes have readable labels and unknown reasons use a safe generic fallback', async () => {
+  const state = {tick: 1, willConnect: reachDiagnostic()};
+  const left = state.willConnect.fighters[0].attacks[0];
+  Object.assign(left, {available: false, outcome: 'invalid', light: 'off'});
+  const {elements: ui, poll} = await setup({backend: 'semantic_cuda', opponent: 'synthetic', humanSide: 0}, state);
+  for (const [reason, label] of [
+    ['attack_unavailable', 'Move is unavailable in the current state.'],
+    ['round_inactive', 'Round is inactive.'],
+    ['runtime_failure', 'Simulator reported a failure.'],
+    ['outside_upright_proxy', 'Robot pose is outside the upright approximation.'],
+    ['proxy_bodies_overlap', 'Approximate body shapes overlap.'],
+    ['invalid_root_state', 'Root state is unavailable or invalid.'],
+    ['invalid_root_quaternion', 'Root orientation is unavailable or invalid.'],
+    ['degenerate_facing', 'Facing direction could not be determined.'],
+    ['invalid_prediction', 'Prediction contains invalid values.'],
+    ['unsupported_backend_velocity', 'Backend velocity data is unavailable.'],
+    ['invalid_action_mask', 'Action availability is invalid or unavailable.'],
+    ['missing_snapshot', 'Snapshot is unavailable.'],
+    ['unrecognized', 'No valid estimate'], ['<img src=x>', 'No valid estimate'],
+    ['toString', 'No valid estimate'], [null, 'No valid estimate'],
+  ]) {
+    left.reason = reason; await poll();
+    assert.equal(reachRows(ui)[0].light, 'off'); assert.equal(reachRows(ui)[0].metrics, label);
+  }
+});
+
+test('stalled running simulation, terminal state and failure clear old reach predictions', async () => {
+  let now = 1000;
+  const state = {tick: 1, willConnect: reachDiagnostic()};
+  const {elements: ui, poll} = await setup({backend: 'mujoco', opponent: 'trained', humanSide: 0}, state, 200, {now: () => now});
+  await poll(); assert.equal(ui['will-connect'].hidden, false);
+  now += 5001; await poll(); assert.equal(ui['will-connect'].hidden, true);
+  state.tick++; await poll(); assert.equal(ui['will-connect'].hidden, false);
+  state.terminal = 1; await poll(); assert.equal(ui['will-connect'].hidden, true);
+  state.terminal = 0; state.paused = true; await poll(); assert.equal(ui['will-connect'].hidden, false);
+  now += 10000; await poll(); assert.equal(ui['will-connect'].hidden, false, 'paused snapshots stay inspectable');
+  state.ok = false; state.failure = 'Worker unavailable'; await poll();
+  assert.equal(ui['will-connect'].hidden, true); assert.equal(reachRows(ui).length, 0);
+});
+
+test('reset and hidden document clear the reach HUD while awaiting a new snapshot', async () => {
+  const state = {tick: 1, willConnect: reachDiagnostic()};
+  const {elements: ui, poll, document, documentEvents} = await setup({backend: 'mujoco', opponent: 'trained', humanSide: 0}, state);
+  await poll(); assert.equal(ui['will-connect'].hidden, false);
+  await ui.reset.trigger('click'); assert.equal(ui['will-connect'].hidden, true);
+  await poll(); assert.equal(ui['will-connect'].hidden, false);
+  document.hidden = true; documentEvents.visibilitychange(); await new Promise(setImmediate);
+  assert.equal(ui['will-connect'].hidden, true);
+});
+
+test('reach HUD labels placeholder geometry, missing guards and unverified official scoring', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  const diagnostic = html.match(/<section id="will-connect"[\s\S]*?<\/section>/)[0];
+  assert.match(diagnostic, /hidden/); assert.match(diagnostic, /Uncalibrated reach estimate/);
+  assert.match(diagnostic, /Placeholder punch geometry/); assert.match(diagnostic, /Guard data unavailable/);
+  assert.match(diagnostic, /official scoring is unverified/);
+  assert.doesNotMatch(diagnostic, /<button|data-move|<kbd>/);
 });

@@ -51,6 +51,20 @@ button:focus-visible,select:focus-visible { outline:2px solid var(--blue); outli
 .arena:focus .focus-prompt { display:none; }
 .arena[data-paused="true"] .focus-prompt { display:block; }
 .arena-footer { display:flex; justify-content:space-between; gap:16px; padding:10px 17px; font-size:11px; color:var(--muted); border-top:1px solid var(--line); }
+.will-connect { padding:14px 20px; border-top:1px solid var(--line); background:#151c27; }
+.will-connect-heading { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px 16px; }
+.will-connect-heading h2 { font-size:12px; margin:0; }
+.will-connect-heading span,.will-connect p { color:var(--muted); font-size:11px; }
+.will-connect p { margin:10px 0 0; }
+.will-connect-attacks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px; }
+.will-connect-attack { display:flex; align-items:flex-start; gap:10px; min-width:0; }
+.will-connect-light { flex:0 0 12px; height:12px; margin-top:3px; border-radius:50%; border:1px solid #8090a3; background:#4b5563; }
+.will-connect-attack[data-light="green"] .will-connect-light { background:#4ed381; border-color:#83e5a6; }
+.will-connect-attack[data-light="amber"] .will-connect-light { background:#ffbf47; border-color:#ffd789; }
+.will-connect-attack[data-light="red"] .will-connect-light { background:#f47474; border-color:#ffa6a6; }
+.will-connect-attack strong,.will-connect-outcome,.will-connect-attack small { display:block; font-size:11px; overflow-wrap:anywhere; }
+.will-connect-outcome { margin:3px 0; }
+.will-connect-attack small { color:var(--muted); font-variant-numeric:tabular-nums; line-height:1.6; }
 .session-board { display:grid; grid-template-columns:1fr 1.4fr 1fr; gap:16px; padding:15px 20px; border-top:1px solid var(--line); background:#151c27; }
 .session-board h2 { font-size:12px; margin:0 0 7px; }
 .session-board strong { font-size:22px; font-variant-numeric:tabular-nums; }
@@ -86,3 +100,4 @@ td:first-child { color:var(--blue); }
 @media (max-width:850px) { main { padding:20px 15px; } .selection { flex-wrap:wrap; } label { flex:1; min-width:180px; } .opponent-select { flex-basis:calc(100% - 220px); } .controls { align-items:flex-start; flex-direction:column; } .touch-controls { width:330px; max-width:100%; } .section-title { align-items:flex-start; } }
 @media (max-width:500px) { .page-header { align-items:flex-start; } .status { font-size:10px; padding:6px 9px; } .eyebrow { font-size:9px; } .scoreboard { grid-template-columns:1fr 80px 1fr; padding:12px 10px; } .fighter { gap:8px; font-size:9px; } .fighter strong { font-size:24px; } .round-info span { font-size:15px; } .arena-footer { padding:9px; } .selection label { flex-basis:100%; } .standings-card { padding:13px; } }
 @media (max-width:650px) { .training-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .session-board { gap:10px; padding:13px 10px; grid-template-columns:1fr 1fr; } .session-summary { grid-column:1 / -1; grid-row:2; } }
+@media (max-width:500px) { .will-connect { padding:13px 10px; } .will-connect-attacks { grid-template-columns:1fr; } }

@@ -1,5 +1,9 @@
 # Native PufferLib 5.0 REK training
 
+The evaluator includes an [uncalibrated jab-reach diagnostic](WILL_CONNECT.md)
+with separate telemetry and browser indicators. It does not change training
+observations, rewards or physics.
+
 The opt-in [native MuJoCo CUDA integration](mujoco_gpu/README.md) now executes
 complete physics steps without Python or CPU physics. Its corrected PufferLib
 training run completed 1,048,576 transitions at 6,020 mean training SPS, with

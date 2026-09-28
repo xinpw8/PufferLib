@@ -7,6 +7,7 @@
 #include "device_storage.cuh"
 #include "normalized_reward.h"
 #include "observable_balance.h"
+#include "observable_prev_action.h"
 #include "native_bot1.cuh"
 #include "physical_bot1_geometry.h"
 #include "../g1_strike_catalog.h"
@@ -156,7 +157,10 @@ __global__ void counted_reset(RuntimeView v) {
     bool begin=v.c.begin[a],complete=v.c.complete[a];v.union_mask[a]=begin||complete;
     for(int s=0;s<2;s++) {
         int row=2*a+s;v.row_mask[row]=complete;v.completed[row]|=begin||complete;
-        if(begin||complete)for(int k=0;k<7;k++)v.p.qpos[a*72+s*36+k]=v.spawn_roots[s*7+k];
+        if(begin||complete) {
+            for(int k=0;k<7;k++)v.p.qpos[a*72+s*36+k]=v.spawn_roots[s*7+k];
+            for(int k=0;k<6;k++)v.p.qvel[a*70+s*35+k]=0;
+        }
         if(complete)for(int j=0;j<29;j++) {
             v.p.qpos[a*72+v.qindices[s*29+j]]=0;v.p.qvel[a*70+v.vindices[s*29+j]]=0;
         }
@@ -185,12 +189,12 @@ __global__ void gather(RuntimeView v,bool full) {
     for(int k=0;k<4;k++)v.base[row*4+k]=entity[3+k];
     int b=a*v.p.bodies+v.roots[s],root=a*v.p.bodies+v.com_roots[s];
     double angular[3],linear[3],lever[3];
-    for(int k=0;k<3;k++){angular[k]=v.p.cvel[b*6+k];lever[k]=double(v.p.xipos[b*3+k])-v.p.com[root*3+k];}
+    for(int k=0;k<3;k++){angular[k]=v.p.cvel[b*6+k];lever[k]=double(v.p.xpos[b*3+k])-v.p.com[root*3+k];}
     for(int k=0;k<3;k++)linear[k]=double(v.p.cvel[b*6+3+k])
         +(angular[(k+1)%3]*lever[(k+2)%3]-angular[(k+2)%3]*lever[(k+1)%3]);
     for(int k=0;k<3;k++) {
         double av=0,lv=0;
-        for(int j=0;j<3;j++){double m=v.p.ximat[b*9+j*3+k];av+=m*angular[j];lv+=m*linear[j];}
+        for(int j=0;j<3;j++){double m=v.p.xmat[b*9+j*3+k];av+=m*angular[j];lv+=m*linear[j];}
         v.local_velocity[row*6+k]=v.omega[row*3+k]=entity[10+k]=float(av);
         v.local_velocity[row*6+3+k]=entity[7+k]=float(lv);
     }
@@ -559,9 +563,11 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         v.recovered_bot=opponent&&!strcmp(opponent,"recovered_bot1_g1_v1");
         v.bot_seed=cfg->seed;
         const char* schema=getenv("REK_OBSERVATION_SCHEMA");
-        if(schema&&strcmp(schema,"rek.native5.scaled_polar_xy.v1")&&strcmp(schema,rek_observable_balance::kSchema))
-            throw std::runtime_error("Physical runtime supports scaled_polar_xy.v1 or observable_balance.v1");
-        v.observable_balance=schema&&!strcmp(schema,rek_observable_balance::kSchema);
+        const bool previous_action=schema&&!strcmp(schema,rek_observable_prev_action::kSchema);
+        if(schema&&strcmp(schema,"rek.native5.scaled_polar_xy.v1")&&strcmp(schema,rek_observable_balance::kSchema)&&!previous_action)
+            throw std::runtime_error("Physical runtime supports scaled_polar_xy.v1 or observable balance base/previous-action schemas");
+        v.observable_balance=previous_action||(schema&&!strcmp(schema,rek_observable_balance::kSchema));
+        if(previous_action)std::fprintf(stderr,"policy_owned_augmentation_required=%s;runtime_exports_base_projection_only=true;owner=puffer_env_or_policy_worker\n",rek_observable_prev_action::kSchema);
         const char* reward=getenv("REK_NATIVE5_REWARD");
         if(reward&&strcmp(reward,"point_difference_v1")&&strcmp(reward,rek5_normalized_reward::kMode))
             throw std::runtime_error("Invalid REK_NATIVE5_REWARD");
@@ -599,10 +605,7 @@ extern "C" RekNative5Runtime* rek_native5_create(const RekNative5Config* cfg,con
         std::vector<float> pose=p->model_qpos0,headings(rows*4),spawn(14);
         for(int side=0;side<2;side++){
             for(int k=0;k<7;k++)spawn[side*7+k]=pose[side*36+k];
-            for(int j=0;j<29;j++){
-                int k=side*29+j;float q=r->motion->idle_positions[j];
-                if(limited[k])q=std::min(ranges[k*2+1],std::max(ranges[k*2],q));pose[p->joint_qpos[k]]=q;
-            }
+            for(int j=0;j<29;j++)pose[p->joint_qpos[side*29+j]]=0;
             auto yaw=[](double w,double x,double y,double z){return atan2(2*(w*z+x*y),1-2*(y*y+z*z));};
             const float* base=pose.data()+side*36+3;auto ref=r->motion->idle_root_xyzw;
             double by=yaw(base[0],base[1],base[2],base[3]),ry=yaw(ref[3],ref[0],ref[1],ref[2]);

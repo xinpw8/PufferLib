@@ -6,7 +6,8 @@
     'active-config', 'tick', 'standings', 'ranking-note', 'control-role', 'backend-warning', 'runtime-note', 'round-protocol', 'focus-prompt',
     'session-blue-points', 'session-orange-points', 'session-blue-wld', 'session-orange-wld', 'session-rounds', 'session-last',
     'training-status', 'training-steps', 'training-sps', 'training-seconds', 'training-process-seconds', 'training-selected', 'training-evaluation',
-    'training-conditions-wrap', 'training-conditions', 'training-note', 'training-summary'].map(id => [id, $(id)]));
+    'training-conditions-wrap', 'training-conditions', 'training-note', 'training-summary',
+    'will-connect', 'will-connect-side', 'will-connect-attacks'].map(id => [id, $(id)]));
   let catalog = {backends: [], policies: [], active: null};
   let active = null;
   // Monotonic across page reloads for a server that rejects stale input packets.
@@ -209,6 +210,58 @@
     const reason = {points: 'on points', knockout: 'by knockout', draw: 'tied', replay: 'no winner', unknown: 'reason unknown'}[last.reason] || 'reason unknown';
     ui['session-last'].textContent = `Last round: ${outcome} ${reason} · Blue ${number(last.bluePoints)} : ${number(last.orangePoints)} Orange.`;
   }
+  function renderWillConnect(diagnostic) {
+    const visible = active && diagnostic?.schema === 'rek.will_connect.diagnostic.v1'
+      && diagnostic.calibration === 'placeholder' && diagnostic.guardMode === 'unavailable'
+      && Array.isArray(diagnostic.fighters) && Array.isArray(diagnostic.fighters[active.humanSide]?.attacks);
+    ui['will-connect'].hidden = !visible;
+    ui['will-connect-attacks'].replaceChildren();
+    if (!visible) return;
+    ui['will-connect-side'].textContent = `Your ${active.humanSide === 1 ? 'orange' : 'blue'} robot`;
+    const attacks = diagnostic.fighters[active.humanSide].attacks;
+    const unavailableReasons = {
+      attack_unavailable: 'Move is unavailable in the current state.',
+      round_inactive: 'Round is inactive.',
+      runtime_failure: 'Simulator reported a failure.',
+      outside_upright_proxy: 'Robot pose is outside the upright approximation.',
+      proxy_bodies_overlap: 'Approximate body shapes overlap.',
+      invalid_root_state: 'Root state is unavailable or invalid.',
+      invalid_root_quaternion: 'Root orientation is unavailable or invalid.',
+      degenerate_facing: 'Facing direction could not be determined.',
+      invalid_prediction: 'Prediction contains invalid values.',
+      unsupported_backend_velocity: 'Backend velocity data is unavailable.',
+      invalid_action_mask: 'Action availability is invalid or unavailable.',
+      missing_snapshot: 'Snapshot is unavailable.',
+    };
+    // These are semantic punch names. The viewer's U/I controls remain kicks.
+    for (const [move, label] of [['left_jab_processed', 'Left jab'], ['right_jab_processed', 'Right jab']]) {
+      const attack = attacks.find(value => value?.move === move);
+      const consistent = {hit: ['green'], weak: ['amber'], miss: ['amber', 'red'], blocked: ['red']}[attack?.outcome]?.includes(attack?.light);
+      const contactValid = Number.isFinite(attack?.margin) && Number.isFinite(attack?.contactTime) && attack.contactTime >= 0
+        && Number.isFinite(attack?.relativeSpeed) && attack.relativeSpeed >= 0;
+      const available = attack?.available === true && consistent && (attack.light !== 'green' || contactValid);
+      const light = available ? attack.light : 'off';
+      const outcome = !available ? 'Unavailable' : attack.outcome === 'hit' ? 'Contact estimate'
+        : attack.outcome === 'weak' ? 'Weak contact estimate' : attack.outcome === 'blocked' ? 'Blocked estimate'
+        : light === 'amber' ? 'Near miss estimate' : 'Miss estimate';
+      const row = document.createElement('div'); row.className = 'will-connect-attack';
+      row.setAttribute('data-reach-move', move); row.setAttribute('data-light', light);
+      const lamp = document.createElement('span'); lamp.className = 'will-connect-light'; lamp.setAttribute('aria-hidden', 'true');
+      const copy = document.createElement('div');
+      const name = document.createElement('strong'); name.textContent = label;
+      const status = document.createElement('span'); status.className = 'will-connect-outcome'; status.textContent = outcome;
+      const metrics = document.createElement('small');
+      if (available) {
+        const measure = (value, unit, nonnegative = false) => Number.isFinite(value) && (!nonnegative || value >= 0)
+          ? `${value.toFixed(2)} ${unit}` : 'unknown';
+        metrics.textContent = `Gap margin ${measure(attack.margin, 'm')} · Contact ${measure(attack.contactTime, 's', true)} · Relative speed ${measure(attack.relativeSpeed, 'm/s', true)}`;
+        metrics.title = 'Negative values indicate overlap with the approximate swept path; this does not establish contact or scoring.';
+      } else metrics.textContent = typeof attack?.reason === 'string' && Object.hasOwn(unavailableReasons, attack.reason)
+        ? unavailableReasons[attack.reason] : 'No valid estimate';
+      copy.append(name); copy.append(status); copy.append(metrics); row.append(lamp); row.append(copy);
+      ui['will-connect-attacks'].append(row);
+    }
+  }
   function renderRoundChoices() {
     const previous = ui['round-seconds'].value;
     const choices = Array.isArray(catalog.humanRoundSeconds) ? catalog.humanRoundSeconds : [20, 120, 300];
@@ -251,6 +304,7 @@
     renderStandings(catalog.policies);
   }
   function setActive(value) {
+    renderWillConnect(null);
     active = value?.backend && value?.opponent ? {...value, humanSide: value.humanSide === 1 ? 1 : 0} : null;
     ui.reset.disabled = !active || changing;
     pauseDisplay();
@@ -359,13 +413,14 @@
         if (state.tick !== lastTick) { lastAdvance = Date.now(); lastTick = state.tick; }
         const terminal = Array.isArray(state.terminal) ? state.terminal.some(Boolean) : Boolean(state.terminal);
         const intermission = Number.isFinite(state.intermissionSeconds) && state.intermissionSeconds > 0;
+        renderWillConnect(state.failure || terminal || intermission || (!paused && Date.now() - lastAdvance > 5000) ? null : state.willConnect);
         ui['match-status'].textContent = intermission ? `${completedRoundLabel(state)} · ${paused ? 'paused' : `next round in ${Math.ceil(state.intermissionSeconds)} s`}`
           : paused ? 'Paused · click arena or Resume' : terminal ? completedRoundLabel(state)
           : Date.now() - lastAdvance > 5000 ? 'Waiting for simulation progress' : 'Round in progress';
         if (state.failure) { showError(String(state.failure)); connection('Simulation failure', 'failed'); release(); }
         else connection(paused ? 'Paused' : intermission ? 'Round intermission' : terminal ? 'Round complete' : 'Live evaluation', 'live');
       }
-    } catch (error) { showError(error.message); connection('Simulator unavailable', 'failed'); release(); }
+    } catch (error) { renderWillConnect(null); showError(error.message); connection('Simulator unavailable', 'failed'); release(); }
     setTimeout(stateLoop, 100);
   }
   async function frameLoop() {
@@ -391,6 +446,7 @@
     setPaused(!paused).then(() => { if (!paused && !changing && !document.hidden) ui.arena.focus({preventScroll: true}); }).catch(() => {});
   });
   ui.load.addEventListener('click', async () => {
+    renderWillConnect(null);
     release(); inputGeneration++; changing = true; ui.load.disabled = true; ui.play.disabled = true; ui.reset.disabled = true; ui.backend.disabled = true; ui.opponent.disabled = true; ui['human-side'].disabled = true; ui['round-seconds'].disabled = true;
     showError(''); connection('Loading evaluation');
     try {
@@ -402,6 +458,7 @@
     finally { changing = false; ui.backend.disabled = !catalog.backends.some(item => item.available); renderOpponents(ui.opponent.value); renderRoundChoices(); setActive(active); }
   });
   ui.reset.addEventListener('click', async () => {
+    renderWillConnect(null);
     release(); inputGeneration++; ui.reset.disabled = true;
     try { await playChain.catch(() => {}); await api('/api/reset', {}); paused = true; pauseDisplay(); showError(''); lastTick = null; lastAdvance = Date.now(); }
     catch (error) { showError(error.message); }
@@ -440,7 +497,7 @@
     event.preventDefault(); sendInput(Number(button.dataset.move));
   }));
   window.addEventListener('blur', () => { setPaused(true).catch(() => {}); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true).catch(() => {}); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { renderWillConnect(null); setPaused(true).catch(() => {}); } });
   window.addEventListener('pagehide', () => { setPaused(true).catch(() => {}); stopped = true; if (currentBlob) URL.revokeObjectURL(currentBlob); });
   refreshCatalog().then(refreshStandings).catch(error => { showError(error.message); connection('Connection failed', 'failed'); });
   stateLoop(); frameLoop();

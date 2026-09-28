@@ -2,7 +2,11 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),crypto=require('node:crypto'),cp=require('node:child_process');
 const [binary,model]=process.argv.slice(2);
 assert(binary&&model,'observable_encoder_test.cjs BINARY PRIVATE_MODEL_XML');
-const schema='rek.native5.observable_balance.v1';
+const baseSchema='rek.native5.observable_balance.v1';
+const schema=process.env.REK_OBSERVATION_SCHEMA||baseSchema;
+const previousAction=schema==='rek.native5.observable_balance_prev_action.v1';
+assert(schema===baseSchema||previousAction,'unsupported test schema');
+const historyColumns=[...Array.from({length:8},(_,i)=>176+i),186,187,...Array.from({length:10},(_,i)=>192+i),...Array.from({length:11},(_,i)=>206+i),219,220,221];
 let assertions=0,cases=0;
 function check(value,message){assert(value,message);assertions++;}
 const near=(actual,expected,tolerance=1e-5)=>check(Math.abs(actual-expected)<=tolerance,`${actual} != ${expected}`);
@@ -29,10 +33,16 @@ function run(samples,extra=[]){
  check(manifest.observation_schema===schema&&manifest.legacy_checkpoint_compatible===false&&manifest.joint_pose_available===0,'manifest identity');
  check(manifest.structural_feature_mask.length===223&&manifest.structural_feature_mask.every(x=>x===0||x===1),'numeric structural mask');
  check(manifest.fields.length===223&&manifest.fields.every((field,index)=>field.index===index&&field.source.length>0&&field.kind.length>0&&field.structurally_available===Boolean(manifest.structural_feature_mask[index])),'indexed manifest inventory');
- check(manifest.structural_feature_mask.reduce((a,b)=>a+b,0)===166,'structural topology');
+  check(manifest.structural_feature_mask.reduce((a,b)=>a+b,0)===(previousAction?200:166),'structural topology');
+  if(previousAction){
+   check(manifest.base_projection_schema===baseSchema&&manifest.policy_owned_augmentation.includes('transport history cells are zero'),'explicit worker augmentation');
+   for(const index of historyColumns)check(manifest.fields[index].kind===(index===221?'policy_owned_availability':'policy_owned_sample_history'),'worker-owned feature provenance');
+  }
  for(const line of lines){
   if(!line.ready)continue;const o=line.worker_request.observation;
   check(o.length===223&&o.every(Number.isFinite),'finite feature dimensions');check(line.worker_request.mask.length===33,'mask dimensions');
+  check(line.worker_request.observation_schema===schema,'request schema');
+  for(const index of historyColumns)check(o[index]===0,'transport does not invent own sampled action');
   for(let i=0;i<223;i++)if(!manifest.structural_feature_mask[i])check(o[i]===0,'excluded structural feature '+i);
   for(const base of [0,86]){for(let i=13;i<=70;i++)check(o[base+i]===0,'unknown joint padded '+(base+i));check(o[base+74]===0&&o[base+75]===0,'joint availability false');}
   check(line.provenance.authoritative_server_state===false&&line.provenance.candidate_physics_stepped===false&&line.provenance.independent_native_receipt_match_verified===false,'authority boundaries');

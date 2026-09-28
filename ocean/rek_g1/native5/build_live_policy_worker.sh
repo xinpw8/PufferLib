@@ -20,6 +20,8 @@ node "$task_source/live_policy_worker.test.cjs" protocol "$task_output/live-poli
   > "$task_output/protocol-test.stdout.json" 2> "$task_output/protocol-test.stderr.txt"
 REK_OBSERVATION_SCHEMA=rek.native5.observable_balance.v1 node "$task_source/live_policy_worker.test.cjs" protocol "$task_output/live-policy-protocol-test" \
   > "$task_output/balance-protocol-test.stdout.json" 2> "$task_output/balance-protocol-test.stderr.txt"
+REK_OBSERVATION_SCHEMA=rek.native5.observable_balance_prev_action.v1 node "$task_source/live_policy_worker.test.cjs" protocol "$task_output/live-policy-protocol-test" \
+  > "$task_output/previous-action-protocol-test.stdout.json" 2> "$task_output/previous-action-protocol-test.stderr.txt"
 task_native=("$task_cuda/bin/nvcc" -std=c++17 -O3 "-arch=$task_arch" -I"$task_source"
   "$task_source/live_policy_worker.cu" "$task_objects/native_policy.o" "$task_objects/cJSON.o"
   -L"$task_cuda/lib64" -Xlinker=-rpath -Xlinker="$task_cuda/lib64"
@@ -33,6 +35,7 @@ if rg -qi '(libpython|libtorch|libonnxruntime|libmujoco)' "$task_output/elf-depe
 fi
 sha256sum "$task_source/live_policy_worker.cu" "$task_source/live_policy_worker.test.cjs" \
   "$task_source/policy_feature_mask.h" "$task_source/owned_yaw_observation.h" "$task_source/observable_balance.h" "$task_source/live_policy_selection.test.cjs" \
+  "$task_source/observable_prev_action.h" \
   "$task_objects/native_policy.o" "$task_objects/cJSON.o" \
   "$task_output/live-policy-protocol-test" "$task_output/live-policy-worker" > "$task_output/build-hashes.txt"
 printf 'Built native CUDA live policy worker: %s/live-policy-worker\n' "$task_output"

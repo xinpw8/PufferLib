@@ -1,0 +1,1075 @@
+{
+  "schema": "rek.score_head.request_windows.v1",
+  "feature_count": 44,
+  "feature_order": [
+    "distance_unity_numeric",
+    "cos_local_positive_x_bearing",
+    "sin_local_positive_x_bearing",
+    "cos_opponent_positive_x_bearing",
+    "sin_opponent_positive_x_bearing",
+    "previous_request_elapsed_capped3_div3",
+    "preceding_velocity_command_x",
+    "preceding_velocity_command_y",
+    "preceding_velocity_command_z",
+    "prior_requests_last3s_div10",
+    "current_requested_move_0",
+    "current_requested_move_1",
+    "current_requested_move_2",
+    "current_requested_move_3",
+    "current_requested_move_4",
+    "current_requested_move_5",
+    "current_requested_move_6",
+    "current_requested_move_7",
+    "current_requested_move_8",
+    "current_requested_move_9",
+    "current_requested_move_10",
+    "current_requested_move_11",
+    "current_requested_move_12",
+    "current_requested_move_13",
+    "current_requested_move_14",
+    "current_requested_move_15",
+    "current_requested_move_16",
+    "previous_requested_move_0",
+    "previous_requested_move_1",
+    "previous_requested_move_2",
+    "previous_requested_move_3",
+    "previous_requested_move_4",
+    "previous_requested_move_5",
+    "previous_requested_move_6",
+    "previous_requested_move_7",
+    "previous_requested_move_8",
+    "previous_requested_move_9",
+    "previous_requested_move_10",
+    "previous_requested_move_11",
+    "previous_requested_move_12",
+    "previous_requested_move_13",
+    "previous_requested_move_14",
+    "previous_requested_move_15",
+    "previous_requested_move_16"
+  ],
+  "target_order": [
+    "future_local_paired_strike_points",
+    "future_opponent_paired_strike_points",
+    "future_any_local_paired_strike_score",
+    "future_any_opponent_paired_strike_score"
+  ],
+  "source_sha256": {
+    "named_requests": "b4a292a4b4258b46250cba8612ac7a01b153fafc6b6d17382c31c57afea2cf21",
+    "timeline": "10aab54aa141e62cf36346eb69eb937a3309580e6f333c5819b633efe3fe9595",
+    "contact_report": "6cf6f73c75638b1364c710c49c221e6d9d3489973ca99392a026792def46cfe7",
+    "raw_round_one": "547cec42f700e97b9594f8d2c6df88f966052c0e0e5ce7395c4862b619fb6d7f",
+    "raw_round_two": "ec55c32a6e2272a8e7656d73260ca35876be2cd6c8d8d6fe8c9dfe77cd25a309"
+  },
+  "source_domain": "authentic_client_human_vs_ai_observation",
+  "authentic_physics_parity": false,
+  "horizon_seconds": 3,
+  "history_seconds": 3,
+  "future_interval": "(request_time,request_time+3]",
+  "history_count_interval": "[request_time-3,request_time)",
+  "fit_round": 1,
+  "holdout_round": 2,
+  "scaler": {
+    "mean": [
+      0.7568812794061119,
+      0.7681975449328127,
+      -0.4307605584562356,
+      0.8620960077138117,
+      -0.0624566760025999,
+      0.3643364541666666,
+      0.027777777777777776,
+      -0.013888888888888888,
+      -0.007812092930555554,
+      0.2888888888888888,
+      0,
+      0.6111111111111112,
+      0,
+      0.08333333333333333,
+      0.05555555555555555,
+      0,
+      0,
+      0.2222222222222222,
+      0.027777777777777776,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.6111111111111112,
+      0,
+      0.08333333333333333,
+      0.041666666666666664,
+      0,
+      0,
+      0.2222222222222222,
+      0.027777777777777776,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      0.20722140471035955,
+      0.2757222051288716,
+      0.3850910786249714,
+      0.2828526358288971,
+      0.41579324611068325,
+      0.3201403835717508,
+      0.1643355495305448,
+      0.11702985796078294,
+      0.22862904819939486,
+      0.20038543107634926,
+      1,
+      0.48749802152178434,
+      1,
+      0.27638539919628335,
+      0.2290614236454256,
+      1,
+      1,
+      0.4157397096415492,
+      0.16433554953054472,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0.48749802152178434,
+      1,
+      0.27638539919628335,
+      0.19982631347136331,
+      1,
+      1,
+      0.4157397096415492,
+      0.16433554953054472,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "population_stddev": [
+      0.20722140471035955,
+      0.2757222051288716,
+      0.3850910786249714,
+      0.2828526358288971,
+      0.41579324611068325,
+      0.3201403835717508,
+      0.1643355495305448,
+      0.11702985796078294,
+      0.22862904819939486,
+      0.20038543107634926,
+      0,
+      0.48749802152178434,
+      0,
+      0.27638539919628335,
+      0.2290614236454256,
+      0,
+      0,
+      0.4157397096415492,
+      0.16433554953054472,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.48749802152178434,
+      0,
+      0.27638539919628335,
+      0.19982631347136331,
+      0,
+      0,
+      0.4157397096415492,
+      0.16433554953054472,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "constant_feature_indices": [
+      10,
+      12,
+      15,
+      16,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      29,
+      32,
+      33,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43
+    ],
+    "estimator": "round_one_population_standard_deviation; constant_features_scale_one"
+  },
+  "training": {
+    "round": 1,
+    "sample_count": 72,
+    "request_ids": [
+      "R1-M001",
+      "R1-M002",
+      "R1-M003",
+      "R1-M004",
+      "R1-M005",
+      "R1-M006",
+      "R1-M007",
+      "R1-M008",
+      "R1-M009",
+      "R1-M010",
+      "R1-M011",
+      "R1-M012",
+      "R1-M013",
+      "R1-M014",
+      "R1-M015",
+      "R1-M016",
+      "R1-M017",
+      "R1-M018",
+      "R1-M019",
+      "R1-M020",
+      "R1-M021",
+      "R1-M022",
+      "R1-M023",
+      "R1-M024",
+      "R1-M025",
+      "R1-M026",
+      "R1-M027",
+      "R1-M028",
+      "R1-M029",
+      "R1-M030",
+      "R1-M031",
+      "R1-M032",
+      "R1-M033",
+      "R1-M034",
+      "R1-M035",
+      "R1-M036",
+      "R1-M037",
+      "R1-M038",
+      "R1-M039",
+      "R1-M040",
+      "R1-M041",
+      "R1-M042",
+      "R1-M043",
+      "R1-M044",
+      "R1-M045",
+      "R1-M046",
+      "R1-M047",
+      "R1-M048",
+      "R1-M049",
+      "R1-M050",
+      "R1-M051",
+      "R1-M052",
+      "R1-M053",
+      "R1-M054",
+      "R1-M055",
+      "R1-M056",
+      "R1-M057",
+      "R1-M058",
+      "R1-M059",
+      "R1-M060",
+      "R1-M061",
+      "R1-M062",
+      "R1-M063",
+      "R1-M064",
+      "R1-M065",
+      "R1-M066",
+      "R1-M067",
+      "R1-M068",
+      "R1-M069",
+      "R1-M070",
+      "R1-M071",
+      "R1-M072"
+    ],
+    "positive_rows_by_recipient": [
+      44,
+      21
+    ],
+    "point_target_sum_with_overlapping_windows": [
+      79,
+      35
+    ],
+    "unique_future_event_ids": [
+      "R1-E0001",
+      "R1-E0003",
+      "R1-E0005",
+      "R1-E0007",
+      "R1-E0009",
+      "R1-E0011",
+      "R1-E0014",
+      "R1-E0017",
+      "R1-E0019",
+      "R1-E0022",
+      "R1-E0024",
+      "R1-E0026",
+      "R1-E0028",
+      "R1-E0030",
+      "R1-E0032",
+      "R1-E0035",
+      "R1-E0037",
+      "R1-E0039"
+    ],
+    "unique_future_event_count_by_recipient": [
+      12,
+      6
+    ],
+    "future_event_memberships_including_repeats": 75,
+    "row_future_event_ids": [
+      [
+        "R1-E0001"
+      ],
+      [
+        "R1-E0003",
+        "R1-E0005"
+      ],
+      [
+        "R1-E0003",
+        "R1-E0005"
+      ],
+      [
+        "R1-E0003",
+        "R1-E0005"
+      ],
+      [
+        "R1-E0003",
+        "R1-E0005"
+      ],
+      [
+        "R1-E0003",
+        "R1-E0005"
+      ],
+      [
+        "R1-E0003",
+        "R1-E0005"
+      ],
+      [
+        "R1-E0005"
+      ],
+      [
+        "R1-E0007",
+        "R1-E0009",
+        "R1-E0011"
+      ],
+      [
+        "R1-E0007",
+        "R1-E0009",
+        "R1-E0011"
+      ],
+      [
+        "R1-E0007",
+        "R1-E0009",
+        "R1-E0011"
+      ],
+      [
+        "R1-E0007",
+        "R1-E0009",
+        "R1-E0011"
+      ],
+      [
+        "R1-E0007",
+        "R1-E0009",
+        "R1-E0011"
+      ],
+      [
+        "R1-E0007",
+        "R1-E0009",
+        "R1-E0011"
+      ],
+      [],
+      [],
+      [
+        "R1-E0014"
+      ],
+      [],
+      [],
+      [],
+      [
+        "R1-E0017"
+      ],
+      [],
+      [],
+      [],
+      [],
+      [
+        "R1-E0019"
+      ],
+      [
+        "R1-E0019"
+      ],
+      [],
+      [],
+      [
+        "R1-E0022"
+      ],
+      [
+        "R1-E0022"
+      ],
+      [
+        "R1-E0022"
+      ],
+      [
+        "R1-E0022"
+      ],
+      [
+        "R1-E0022"
+      ],
+      [],
+      [
+        "R1-E0024"
+      ],
+      [
+        "R1-E0024"
+      ],
+      [
+        "R1-E0024"
+      ],
+      [
+        "R1-E0024"
+      ],
+      [
+        "R1-E0024"
+      ],
+      [
+        "R1-E0024"
+      ],
+      [
+        "R1-E0024"
+      ],
+      [],
+      [],
+      [],
+      [
+        "R1-E0026"
+      ],
+      [
+        "R1-E0026"
+      ],
+      [
+        "R1-E0026",
+        "R1-E0028"
+      ],
+      [
+        "R1-E0026",
+        "R1-E0028"
+      ],
+      [
+        "R1-E0026",
+        "R1-E0028"
+      ],
+      [
+        "R1-E0028"
+      ],
+      [
+        "R1-E0028"
+      ],
+      [],
+      [],
+      [
+        "R1-E0030"
+      ],
+      [
+        "R1-E0030"
+      ],
+      [
+        "R1-E0030"
+      ],
+      [
+        "R1-E0030",
+        "R1-E0032"
+      ],
+      [
+        "R1-E0032"
+      ],
+      [
+        "R1-E0032"
+      ],
+      [
+        "R1-E0032"
+      ],
+      [
+        "R1-E0032"
+      ],
+      [
+        "R1-E0032"
+      ],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [
+        "R1-E0035"
+      ],
+      [
+        "R1-E0035",
+        "R1-E0037"
+      ],
+      [
+        "R1-E0037",
+        "R1-E0039"
+      ],
+      [
+        "R1-E0037",
+        "R1-E0039"
+      ]
+    ]
+  },
+  "holdout": {
+    "round": 2,
+    "sample_count": 104,
+    "request_ids": [
+      "R2-M002",
+      "R2-M003",
+      "R2-M004",
+      "R2-M005",
+      "R2-M006",
+      "R2-M007",
+      "R2-M008",
+      "R2-M009",
+      "R2-M010",
+      "R2-M011",
+      "R2-M012",
+      "R2-M013",
+      "R2-M014",
+      "R2-M015",
+      "R2-M016",
+      "R2-M017",
+      "R2-M018",
+      "R2-M019",
+      "R2-M020",
+      "R2-M021",
+      "R2-M022",
+      "R2-M023",
+      "R2-M024",
+      "R2-M025",
+      "R2-M026",
+      "R2-M027",
+      "R2-M028",
+      "R2-M029",
+      "R2-M030",
+      "R2-M031",
+      "R2-M032",
+      "R2-M033",
+      "R2-M034",
+      "R2-M035",
+      "R2-M036",
+      "R2-M037",
+      "R2-M038",
+      "R2-M039",
+      "R2-M040",
+      "R2-M041",
+      "R2-M042",
+      "R2-M043",
+      "R2-M044",
+      "R2-M045",
+      "R2-M046",
+      "R2-M047",
+      "R2-M048",
+      "R2-M049",
+      "R2-M050",
+      "R2-M051",
+      "R2-M052",
+      "R2-M053",
+      "R2-M054",
+      "R2-M055",
+      "R2-M056",
+      "R2-M057",
+      "R2-M058",
+      "R2-M059",
+      "R2-M060",
+      "R2-M061",
+      "R2-M062",
+      "R2-M063",
+      "R2-M064",
+      "R2-M065",
+      "R2-M066",
+      "R2-M067",
+      "R2-M068",
+      "R2-M069",
+      "R2-M070",
+      "R2-M071",
+      "R2-M072",
+      "R2-M073",
+      "R2-M074",
+      "R2-M075",
+      "R2-M076",
+      "R2-M077",
+      "R2-M078",
+      "R2-M079",
+      "R2-M080",
+      "R2-M081",
+      "R2-M082",
+      "R2-M083",
+      "R2-M084",
+      "R2-M085",
+      "R2-M086",
+      "R2-M087",
+      "R2-M088",
+      "R2-M089",
+      "R2-M090",
+      "R2-M091",
+      "R2-M092",
+      "R2-M093",
+      "R2-M094",
+      "R2-M095",
+      "R2-M096",
+      "R2-M097",
+      "R2-M098",
+      "R2-M099",
+      "R2-M100",
+      "R2-M101",
+      "R2-M102",
+      "R2-M103",
+      "R2-M104",
+      "R2-M105"
+    ],
+    "positive_rows_by_recipient": [
+      44,
+      27
+    ],
+    "point_target_sum_with_overlapping_windows": [
+      63,
+      54
+    ],
+    "unique_future_event_ids": [
+      "R2-E0001",
+      "R2-E0004",
+      "R2-E0006",
+      "R2-E0009",
+      "R2-E0011",
+      "R2-E0013",
+      "R2-E0015",
+      "R2-E0017",
+      "R2-E0019",
+      "R2-E0021",
+      "R2-E0023",
+      "R2-E0025",
+      "R2-E0027",
+      "R2-E0029"
+    ],
+    "unique_future_event_count_by_recipient": [
+      9,
+      5
+    ],
+    "future_event_memberships_including_repeats": 84,
+    "row_future_event_ids": [
+      [],
+      [],
+      [],
+      [],
+      [
+        "R2-E0001"
+      ],
+      [
+        "R2-E0001"
+      ],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [
+        "R2-E0004"
+      ],
+      [
+        "R2-E0004"
+      ],
+      [
+        "R2-E0004"
+      ],
+      [
+        "R2-E0004"
+      ],
+      [
+        "R2-E0004"
+      ],
+      [
+        "R2-E0004"
+      ],
+      [],
+      [
+        "R2-E0006"
+      ],
+      [
+        "R2-E0006"
+      ],
+      [
+        "R2-E0006"
+      ],
+      [
+        "R2-E0006"
+      ],
+      [
+        "R2-E0006"
+      ],
+      [
+        "R2-E0006"
+      ],
+      [
+        "R2-E0006"
+      ],
+      [
+        "R2-E0006"
+      ],
+      [
+        "R2-E0006"
+      ],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [
+        "R2-E0009"
+      ],
+      [
+        "R2-E0009"
+      ],
+      [
+        "R2-E0009"
+      ],
+      [
+        "R2-E0009",
+        "R2-E0011"
+      ],
+      [
+        "R2-E0009",
+        "R2-E0011"
+      ],
+      [
+        "R2-E0009",
+        "R2-E0011"
+      ],
+      [
+        "R2-E0009",
+        "R2-E0011"
+      ],
+      [
+        "R2-E0011"
+      ],
+      [
+        "R2-E0011"
+      ],
+      [
+        "R2-E0011"
+      ],
+      [
+        "R2-E0011"
+      ],
+      [
+        "R2-E0011"
+      ],
+      [
+        "R2-E0011"
+      ],
+      [
+        "R2-E0013"
+      ],
+      [
+        "R2-E0013"
+      ],
+      [
+        "R2-E0013"
+      ],
+      [
+        "R2-E0013",
+        "R2-E0015"
+      ],
+      [
+        "R2-E0013",
+        "R2-E0015"
+      ],
+      [
+        "R2-E0013",
+        "R2-E0015"
+      ],
+      [
+        "R2-E0013",
+        "R2-E0015"
+      ],
+      [
+        "R2-E0013",
+        "R2-E0015"
+      ],
+      [
+        "R2-E0013",
+        "R2-E0015",
+        "R2-E0017"
+      ],
+      [
+        "R2-E0013",
+        "R2-E0015",
+        "R2-E0017"
+      ],
+      [
+        "R2-E0013",
+        "R2-E0015",
+        "R2-E0017"
+      ],
+      [
+        "R2-E0013",
+        "R2-E0015",
+        "R2-E0017"
+      ],
+      [
+        "R2-E0015",
+        "R2-E0017"
+      ],
+      [
+        "R2-E0015",
+        "R2-E0017"
+      ],
+      [
+        "R2-E0017"
+      ],
+      [
+        "R2-E0017"
+      ],
+      [
+        "R2-E0017"
+      ],
+      [
+        "R2-E0017"
+      ],
+      [
+        "R2-E0017"
+      ],
+      [
+        "R2-E0017"
+      ],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [
+        "R2-E0019"
+      ],
+      [
+        "R2-E0019"
+      ],
+      [
+        "R2-E0019"
+      ],
+      [
+        "R2-E0019"
+      ],
+      [],
+      [
+        "R2-E0021"
+      ],
+      [],
+      [],
+      [],
+      [],
+      [
+        "R2-E0023"
+      ],
+      [
+        "R2-E0023"
+      ],
+      [
+        "R2-E0023"
+      ],
+      [
+        "R2-E0025"
+      ],
+      [],
+      [
+        "R2-E0027"
+      ],
+      [
+        "R2-E0027"
+      ],
+      [
+        "R2-E0027"
+      ],
+      [
+        "R2-E0029"
+      ],
+      [
+        "R2-E0029"
+      ],
+      [
+        "R2-E0029"
+      ]
+    ]
+  },
+  "excluded_requests": [
+    {
+      "request_id": "R1-M073",
+      "reason": "incomplete_future"
+    },
+    {
+      "request_id": "R1-M074",
+      "reason": "incomplete_future"
+    },
+    {
+      "request_id": "R1-M075",
+      "reason": "incomplete_future"
+    },
+    {
+      "request_id": "R1-M076",
+      "reason": "incomplete_future"
+    },
+    {
+      "request_id": "R1-M077",
+      "reason": "incomplete_future"
+    },
+    {
+      "request_id": "R2-M001",
+      "reason": "incomplete_history"
+    },
+    {
+      "request_id": "R2-M106",
+      "reason": "incomplete_future"
+    },
+    {
+      "request_id": "R2-M107",
+      "reason": "incomplete_future"
+    },
+    {
+      "request_id": "R2-M108",
+      "reason": "incomplete_future"
+    },
+    {
+      "request_id": "R2-M109",
+      "reason": "incomplete_future"
+    }
+  ],
+  "coverage": [
+    {
+      "round": 1,
+      "first_shared_pose_receipt_time": 233.18466230498868,
+      "last_shared_pose_receipt_time": 352.9815338049886,
+      "pose_counts": [
+        3598,
+        3598
+      ],
+      "maximum_pose_gap_seconds": [
+        0.051532399999985046,
+        0.051547900000002755
+      ]
+    },
+    {
+      "round": 2,
+      "first_shared_pose_receipt_time": 362.9557091049886,
+      "last_shared_pose_receipt_time": 482.7661186049886,
+      "pose_counts": [
+        3598,
+        3598
+      ],
+      "maximum_pose_gap_seconds": [
+        0.05163539999995237,
+        0.05212999999997692
+      ]
+    }
+  ],
+  "coverage_semantics": "conservative_interval_shared_by_both_received_pose_streams; bounded_client_observation_not_server_event_completeness",
+  "geometry_semantics": "derived_only_from_separate_nearest_preceding_pelvis_poses; normalized_xyzw_quaternion_local_positive_x",
+  "bearing_sign": "atan2(target_x,target_z)-atan2(forward_x,forward_z); opponent_uses_reverse_displacement; cos_sin_in_radians",
+  "units": {
+    "distance": "Unity_world_numeric_units",
+    "candidate_units_per_unity_unit": 1,
+    "mapping": "explicit_experiment_assumption",
+    "metric_calibration_verified": false
+  },
+  "feature_semantics": {
+    "request": "issued_request_not_executed_action",
+    "previous_missing": "one_hot_all_zero_and_elapsed_one",
+    "movement": "preceding_REK_Input_velocity_command_xyz_unmodified_not_measured_velocity",
+    "request_count": "prior_requests_only_divided_by_ten_not_clipped"
+  },
+  "target_semantics": "sum_observed_unique_paired_1_or_2_point_score_receipts_by_recipient_in_next_three_seconds; exclude_five_point_awards",
+  "binary_format": {
+    "magic": "REKSHP1\\0",
+    "byte_order": "little_endian",
+    "header_bytes": 24,
+    "header_u32": [
+      "version=1",
+      "features=44",
+      "train_count",
+      "holdout_count"
+    ],
+    "scaler": "float32_mean44_then_scale44",
+    "rows": "train_then_holdout; float32_raw_features44_then_binary_labels2; apply_scaler_once"
+  },
+  "tsv_format": "no_header; raw_features44_then_point_targets2_then_binary_targets2; one_numeric_row_per_request",
+  "nonindependent_overlapping_windows": true,
+  "future_information_in_features": false,
+  "executed_move_inferred": false,
+  "failed_attack_labels": false,
+  "causal_effect_estimated": false,
+  "heldout_used_for_preprocessing": false,
+  "limitations": [
+    "two_rounds_same_session",
+    "only_eight_observed_move_ids_of_seventeen",
+    "local_human_requests_only_opponent_requests_unobserved",
+    "three_second_received_score_outcomes_not_server_contact_times",
+    "overlapping_windows_repeat_events",
+    "zero_outcome_not_failed_attack",
+    "associational_prediction_not_action_causality_or_training_reward_validation"
+  ],
+  "artifacts": [
+    {
+      "name": "train.tsv",
+      "bytes": 14480,
+      "sha256": "adcb1d2e7f4571aac8661501178f06e4fcbd09735792b4265bf652c956936421"
+    },
+    {
+      "name": "holdout.tsv",
+      "bytes": 20977,
+      "sha256": "9975e32f42678a3543051460d2f0ecbf858db0ced69fb4b4d19bf01c3851eeea"
+    },
+    {
+      "name": "score-head-data.bin",
+      "bytes": 32760,
+      "sha256": "d874a739fef538c81b0bc8a60c443ec8de2053867d9c78bee8866df709c3560b"
+    }
+  ],
+  "dataset_id": "7a6e05aa4d51fd5d45e79b187daf4142be220df46bf618942d55b65205bb1888"
+}

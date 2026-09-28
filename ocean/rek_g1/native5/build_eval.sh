@@ -28,6 +28,7 @@ if [[ "$runtime" == semantic_cuda ]]; then
         -o "$build/rek-eval-worker"
     { printf 'backend=semantic_cuda\ncontrol_hz=50\ncpu_physics=0\npython_runtime=0\n';
       sha256sum "$source/runtime_api.h" "$source/eval_worker.cpp" "$source/eval_renderer.h" \
+        "$source/will_connect.h" "$source/will_connect_diagnostics.h" "$source/will_connect_json.h" \
         "$build"/*.o "$build/rek-eval-worker"; } > "$build/eval-build-hashes.txt"
     printf 'Built reduced GPU evaluator: %s/rek-eval-worker\n' "$build"
     exit 0
@@ -50,5 +51,6 @@ common=(-std=c++17 -O2 -arch=sm_121 -Xcompiler=-fPIC -I"$g1" -I"$source"
     -o "$build/rek-eval-worker"
 sha256sum "$source"/runtime_api.h "$source"/runtime.cu "$source"/physics.cu \
     "$source"/native_policy.cu "$source"/eval_worker.cpp "$source"/eval_renderer.h \
+    "$source"/will_connect.h "$source"/will_connect_diagnostics.h "$source"/will_connect_json.h \
     "$build/rek-eval-worker" > "$build/eval-build-hashes.txt"
 printf 'Built %s/rek-eval-worker\n' "$build"

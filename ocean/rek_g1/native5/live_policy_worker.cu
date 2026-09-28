@@ -2,6 +2,7 @@
 #include "policy_feature_mask.h"
 #include "owned_yaw_observation.h"
 #include "observable_balance.h"
+#include "observable_prev_action.h"
 #ifndef REK_LIVE_PROTOCOL_TEST
 #include "native_policy.h"
 #include <cuda_runtime.h>
@@ -65,7 +66,9 @@ Request parse(const std::string& text,const char* schema){
     const auto* terminal=field(j.get(),"terminal");require(cJSON_IsBool(terminal),"terminal_boolean_required");r.terminal=cJSON_IsTrue(terminal);
     const auto* obs=field(j.get(),"observation");require(cJSON_IsArray(obs)&&cJSON_GetArraySize(obs)==223,"observation_shape");
     for(int i=0;i<223;i++){const auto* x=cJSON_GetArrayItem(obs,i);require(cJSON_IsNumber(x)&&std::isfinite(x->valuedouble)&&std::fabs(x->valuedouble)<=std::numeric_limits<float>::max(),"observation_value");r.observation[i]=float(x->valuedouble);}
-    if(std::strcmp(schema,rek_observable_balance::kSchema)==0){
+    if(std::strcmp(schema,rek_observable_balance::kSchema)==0||std::strcmp(schema,rek_observable_prev_action::kSchema)==0){
+        // Incoming rows contain measured base features only. The worker owns
+        // sampled-action history; callers cannot supply or spoof these cells.
         for(int i=0;i<223;i++)if(!rek_observable_balance::structurally_available(i))
             require(r.observation[i]==0,"observable_balance_padding");
         for(int b:{0,86}){
@@ -110,10 +113,12 @@ struct Engine {
     std::string sha,device;
     uint64_t seed;
     bool deterministic;
+    bool previous_action_enabled;
+    rek_observable_prev_action::History previous_action{},last_input_history{};
     rek_policy_features::Mask features;
     const char* selection()const{return deterministic?"argmax":"sampled";}
     Engine(const char* checkpoint,const std::string& expected,uint64_t rng_seed,bool greedy,
-           const char* feature_path):seed(rng_seed),deterministic(greedy),features(rek_policy_features::load(feature_path)){
+           const char* feature_path,bool action_feedback):seed(rng_seed),deterministic(greedy),previous_action_enabled(action_feedback),features(rek_policy_features::load(feature_path)){
         require(digest(expected),"invalid_checkpoint_sha256");cuda_ok(cudaSetDevice(0));
         cudaDeviceProp prop{};cuda_ok(cudaGetDeviceProperties(&prop,0));device=prop.name;
         cuda_ok(cudaStreamCreate(&stream));cuda_ok(cudaEventCreate(&begin));cuda_ok(cudaEventCreate(&end));
@@ -126,10 +131,11 @@ struct Engine {
         cuda_ok(cudaStreamEndCapture(stream,&graph));cuda_ok(cudaGraphInstantiate(&executable,graph,0));
     }
     ~Engine(){if(stream)cudaStreamSynchronize(stream);if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);policy.reset();if(obs)cudaFree(obs);if(masks)cudaFree(masks);if(actions)cudaFree(actions);if(terminals)cudaFree(terminals);if(begin)cudaEventDestroy(begin);if(end)cudaEventDestroy(end);if(stream)cudaStreamDestroy(stream);}
-    void reset(){policy_ok(rek_native_policy_reset_recurrent(policy.get(),stream));cuda_ok(cudaStreamSynchronize(stream));}
+    void reset(){policy_ok(rek_native_policy_reset_recurrent(policy.get(),stream));cuda_ok(cudaStreamSynchronize(stream));rek_observable_prev_action::clear(previous_action);rek_observable_prev_action::clear(last_input_history);}
     int infer(const Request& r,float& gpu_ms){
         float action=-1;
         auto input=r.observation;
+        if(previous_action_enabled){last_input_history=previous_action;require(rek_observable_prev_action::write(input.data(),previous_action),"invalid_previous_sample_history");}
         rek_policy_features::apply(input.data(),features);
         cuda_ok(cudaEventRecord(begin,stream));
         cuda_ok(cudaMemcpyAsync(obs,input.data(),223*sizeof(float),cudaMemcpyHostToDevice,stream));
@@ -139,7 +145,9 @@ struct Engine {
         cuda_ok(cudaEventRecord(end,stream));cuda_ok(cudaStreamSynchronize(stream));
         policy_ok(rek_native_policy_check_status(policy.get(),stream));cuda_ok(cudaEventElapsedTime(&gpu_ms,begin,end));
         require(std::isfinite(action)&&action==std::floor(action)&&action>=0&&action<33,"invalid_policy_action");
-        require(r.mask[int(action)]!=0,"masked_policy_action");return int(action);
+        require(r.mask[int(action)]!=0,"masked_policy_action");
+        if(previous_action_enabled)require(rek_observable_prev_action::record(previous_action,action),"invalid_previous_sample_history");
+        return int(action);
     }
 };
 #endif
@@ -148,7 +156,9 @@ struct Engine {
 int main(int argc,char** argv){
     try{
         const char* selected_schema=std::getenv("REK_OBSERVATION_SCHEMA");
-        const char* observation_schema=selected_schema&&std::strcmp(selected_schema,rek_observable_balance::kSchema)==0
+        const bool action_feedback=selected_schema&&std::strcmp(selected_schema,rek_observable_prev_action::kSchema)==0;
+        const char* observation_schema=action_feedback?rek_observable_prev_action::kSchema:
+            selected_schema&&std::strcmp(selected_schema,rek_observable_balance::kSchema)==0
             ?rek_observable_balance::kSchema:rek_owned_yaw::schema(rek_owned_yaw::enabled(selected_schema));
 #ifndef REK_LIVE_PROTOCOL_TEST
         require(argc>=3&&argc<=6,"usage_checkpoint_sha256_optional_seed_selection_feature_mask");
@@ -156,7 +166,7 @@ int main(int argc,char** argv){
         if(argc>=4){char* end=nullptr;require(argv[3][0]>='0'&&argv[3][0]<='9',"invalid_seed");seed=std::strtoull(argv[3],&end,10);require(end&&!*end&&seed<=9007199254740991ULL,"invalid_seed");}
         const std::string selection=argc>=5?argv[4]:"sampled";
         require(selection=="sampled"||selection=="argmax","invalid_selection");
-        Engine engine(argv[1],argv[2],seed,selection=="argmax",argc>=6?argv[5]:nullptr);
+        Engine engine(argv[1],argv[2],seed,selection=="argmax",argc>=6?argv[5]:nullptr,action_feedback);
         auto ready=response("ready");str(ready.get(),"checkpoint_sha256",engine.sha);str(ready.get(),"observation_schema",observation_schema);str(ready.get(),"selection",engine.selection());str(ready.get(),"feature_mask_sha256",engine.features.sha256);str(ready.get(),"precision","bf16");str(ready.get(),"device",engine.device);number(ready.get(),"seed",double(seed));number(ready.get(),"observations",223);number(ready.get(),"actions",33);number(ready.get(),"hidden_size",256);number(ready.get(),"num_layers",2);boolean(ready.get(),"native_cuda",true);boolean(ready.get(),"environment_stepping",false);emit(ready.get());
 #else
         require(argc==1,"protocol_test_takes_no_checkpoint");auto ready=response("protocol_ready");boolean(ready.get(),"inference_available",false);emit(ready.get());
@@ -182,6 +192,13 @@ int main(int argc,char** argv){
             if(r.kind==Request::Step&&!r.terminal){
 #ifndef REK_LIVE_PROTOCOL_TEST
                 float gpu_ms=0;int action=engine.infer(r,gpu_ms);number(j.get(),"action",action);number(j.get(),"gpu_ms",gpu_ms);number(j.get(),"decision_index",double(++decisions));str(j.get(),"checkpoint_sha256",engine.sha);str(j.get(),"observation_schema",observation_schema);str(j.get(),"selection",engine.selection());str(j.get(),"feature_mask_sha256",engine.features.sha256);str(j.get(),"precision","bf16");
+                if(action_feedback){
+                    auto* memory=cJSON_AddObjectToObject(j.get(),"policy_memory_input");
+                    str(memory,"source","previous_successful_sampler_output_before_feature_mask");
+                    boolean(memory,"available",engine.last_input_history.available!=0);
+                    if(engine.last_input_history.available)number(memory,"action",engine.last_input_history.action);else cJSON_AddNullToObject(memory,"action");
+                    boolean(memory,"execution_or_acceptance_claim",false);
+                }
 #else
                 boolean(j.get(),"inference_available",false);
 #endif
